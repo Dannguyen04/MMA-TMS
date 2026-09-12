@@ -1,0 +1,107 @@
+version: "3.9"
+
+services:
+    # ── Redis (Message Broker) ──────────────────────────────────
+    redis:
+        image: redis:7-alpine
+        ports:
+            - "6379:6379"
+        volumes:
+            - redis_data:/data
+        healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            interval: 5s
+            retries: 5
+
+    # ── PostgreSQL (Database) ───────────────────────────────────
+    # Chú ý: Production nên dùng Supabase thay thế
+    postgres:
+        image: postgres:16-alpine
+        environment:
+            POSTGRES_USER: postgres
+            POSTGRES_PASSWORD: postgres
+            POSTGRES_DB: martial_arts_tracker
+        ports:
+            - "5432:5432"
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U postgres"]
+            interval: 5s
+            retries: 5
+
+    # ── NestJS API ──────────────────────────────────────────────
+    nestjs-api:
+        build:
+            context: ./nestjs-api
+            dockerfile: Dockerfile
+        ports:
+            - "3001:3001"
+        environment:
+            PORT: 3001
+            DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/martial_arts_tracker}
+            SUPABASE_URL: ${SUPABASE_URL}
+            SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+            SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY}
+            REDIS_HOST: redis
+            REDIS_PORT: 6379
+            FRONTEND_URL: http://localhost:3000
+            WORKER_SECRET_TOKEN: ${WORKER_SECRET_TOKEN:-mma-tms-worker-local-secret-2026}
+        depends_on:
+            redis:
+                condition: service_healthy
+        volumes:
+            - ./nestjs-api:/app
+            - /app/node_modules
+
+    # ── Python Worker (YOLO-Pose) ────────────────────────────────
+    python-worker:
+        build:
+            context: ./python-worker
+            dockerfile: Dockerfile
+        environment:
+            REDIS_URL: redis://redis:6379
+            QUEUE_NAME: video-analysis
+            YOLO_MODEL: yolov8n-pose
+            NESTJS_API_URL: http://nestjs-api:3001
+            WORKER_SECRET_TOKEN: ${WORKER_SECRET_TOKEN:-mma-tms-worker-local-secret-2026}
+            DATABASE_URL: ${DATABASE_URL}
+            SUPABASE_URL: ${SUPABASE_URL}
+            SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY}
+            TMP_DIR: /tmp/worker
+        depends_on:
+            redis:
+                condition: service_healthy
+        volumes:
+            - ./python-worker:/app
+            - worker_tmp:/tmp/worker
+        # deploy:
+        #     resources:
+        #         reservations:
+        #             devices:
+        #                 - driver: nvidia # Bỏ comment nếu có GPU
+        #                   count: 1
+        #                   capabilities: [gpu]
+
+    # ── Next.js Frontend ─────────────────────────────────────────
+    nextjs-frontend:
+        build:
+            context: ./nextjs-frontend
+            dockerfile: Dockerfile
+            args:
+                NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
+                NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL}
+                NEXT_PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+        ports:
+            - "3000:3000"
+        environment:
+            NEXT_PUBLIC_API_URL: http://localhost:3001
+            NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL}
+            NEXT_PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+        depends_on:
+            - nestjs-api
+
+volumes:
+    redis_data:
+    postgres_data:
+    worker_tmp:

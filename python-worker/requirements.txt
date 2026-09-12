@@ -1,0 +1,17 @@
+# ============================================================
+# Martial Arts Tracker — Python Worker
+# Phase 2: YOLO-Pose Video Analysis
+# ============================================================
+# Core AI & Vision
+ultralytics>=8.2.0          # YOLOv8-Pose model
+opencv-python>=4.9.0        # Video I/O, frame processing
+numpy>=1.26.0               # Array math
+
+# Queue & Storage (Phase 3 integration)
+redis>=5.0.0                # Redis client (BullMQ format)
+httpx>=0.27.0               # Async HTTP cho Supabase REST API
+
+# Utilities
+python-dotenv>=1.0.0        # Load .env file
+tqdm>=4.66.0                # Progress bar khi xử lý video
+

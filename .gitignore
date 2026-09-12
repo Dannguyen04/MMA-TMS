@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+
+# Build outputs
+.next/
+dist/
+build/
+*.tsbuildinfo
+
+# Environment variables
+.env
+.env.local
+*.env.production
+
+# Database & temporary files
+dump.rdb
+*.log
+test_results/
+screenshots/
+worker_tmp/
+tmp/
+
+# OS files
+Thumbs.db
+.DS_Store
+

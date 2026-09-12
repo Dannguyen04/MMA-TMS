@@ -1,0 +1,27 @@
+# Secrets — KHÔNG bao giờ commit
+.env
+*.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# YOLO / ML artifacts
+*.pt
+*.onnx
+runs/
+
+# Temp files
+/tmp/
+*.log
+
+# IDE
+.vscode/
+.idea/
+
