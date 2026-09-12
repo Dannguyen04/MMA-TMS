@@ -10,10 +10,7 @@ async function bootstrap() {
     : ['http://localhost:3000'];
 
   app.enableCors({
-    origin: (
-      origin: string | undefined,
-      callback: (err: Error | null, allow?: boolean) => void,
-    ) => {
+    origin: (origin, callback) => {
       // Cho phép requests không có origin (như curl, mobile apps, server-to-server)
       if (!origin) return callback(null, true);
 
@@ -27,7 +24,10 @@ async function bootstrap() {
         return callback(null, true);
       }
 
-      return callback(new Error(`CORS policy không cho phép origin: ${origin}`), false);
+      return callback(
+        new Error(`CORS policy không cho phép origin: ${origin}`),
+        false,
+      );
     },
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
