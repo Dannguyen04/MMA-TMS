@@ -158,7 +158,10 @@ async function run() {
                 `Bảo mật API: PATCH /jobs/:id/status không có token bị từ chối 401 Unauthorized (status: ${res.status})`,
             );
         } catch (e) {
-            assert(false, `Security test PATCH /jobs/:id/status lỗi: ${e.message}`);
+            assert(
+                false,
+                `Security test PATCH /jobs/:id/status lỗi: ${e.message}`,
+            );
         }
 
         // PATCH /jobs/:id/status CÓ worker secret token -> 200 OK

@@ -9,4 +9,14 @@ export class AppController {
   getHello(): string {
     return this.appService.getHello();
   }
+
+  @Get('health')
+  getHealth() {
+    return {
+      status: 'ok',
+      service: 'mma-tms-api',
+      uptime: process.uptime(),
+      timestamp: new Date().toISOString(),
+    };
+  }
 }

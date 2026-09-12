@@ -16,6 +16,7 @@ Chạy thử:
 
 import argparse
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -256,6 +257,15 @@ def process_video(
         last_time_ms = time_ms
 
     cap.release()
+
+    # Dọn dẹp video tạm tải từ URL để giải phóng ổ đĩa
+    if local_path != input_path and os.path.exists(local_path):
+        try:
+            os.remove(local_path)
+            if verbose:
+                print(f"🧹 Đã xóa file video tạm: {local_path}")
+        except Exception:
+            pass
 
     # ── 9. Tổng hợp kết quả (Kicks, Punches, Findings) ──
     kicks_dicts   = [r.to_dict() for r in kick_analyzer.results]

@@ -64,6 +64,8 @@ FAILED_KEY      = f"bull:{QUEUE_NAME}:failed"
 
 
 def get_redis() -> redis.Redis:
+    if REDIS_URL.startswith("rediss://"):
+        return redis.from_url(REDIS_URL, decode_responses=True, ssl_cert_reqs=None)
     return redis.from_url(REDIS_URL, decode_responses=True)
 
 

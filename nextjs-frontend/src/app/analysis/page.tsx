@@ -30,7 +30,7 @@ export default function AnalysisPage() {
     const f = e.target.files?.[0];
     if (!f) return;
     if (!f.type.startsWith('video/')) { setError('Chỉ chấp nhận file video (MP4, MOV, ...)'); return; }
-    if (f.size > 500 * 1024 * 1024) { setError('File tối đa 500MB'); return; }
+    if (f.size > 50 * 1024 * 1024) { setError('File tối đa 50MB (khuyến nghị video dưới 60 giây)'); return; }
     setFile(f);
     setError('');
   };
@@ -107,7 +107,7 @@ export default function AnalysisPage() {
             <div>
               <div className="text-4xl mb-2">📂</div>
               <p className="text-gray-300">Kéo thả hoặc click để chọn video</p>
-              <p className="text-gray-600 text-sm mt-1">MP4, MOV — tối đa 500MB</p>
+              <p className="text-gray-600 text-sm mt-1">MP4, MOV — tối đa 50MB (video dưới 60s)</p>
             </div>
           )}
         </div>
