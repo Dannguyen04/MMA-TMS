@@ -8,6 +8,7 @@ echo ============================================================
 echo.
 
 set ROOT_DIR=%~dp0
+set REDIS_EXE=C:\Users\DAN\AppData\Local\Microsoft\WinGet\Packages\taizod1024.redis-windows-fork_Microsoft.Winget.Source_8wekyb3d8bbwe\Redis-8.10.1-Windows-x64-msys2\redis-server.exe
 
 :: 0. Tự động kiểm tra và khởi tạo file .env nếu chưa có
 echo [*] Kiểm tra cấu hình môi trường (.env)...
@@ -49,21 +50,26 @@ if %ERRORLEVEL% EQU 0 (
     set REDIS_PATH="%LOCALAPPDATA%\Microsoft\WinGet\Packages\taizod1024.redis-windows-fork_Microsoft.Winget.Source_8wekyb3d8bbwe\Redis-8.10.1-Windows-x64-msys2\redis-server.exe"
     if exist %REDIS_PATH% (
         start "MMA-TMS: Redis Server (Port 6379)" %REDIS_PATH%
+    if exist "%REDIS_EXE%" (
+        start "MMA-TMS: Redis Server (Port 6379)" "%REDIS_EXE%"
     ) else (
         start "MMA-TMS: Redis Server (Port 6379)" redis-server
     )
     timeout /t 2 /nobreak >nul
+    ping 127.0.0.1 -n 3 >nul
 )
 
 :: 2. Khởi động NestJS API (Port 3001)
 echo [2/4] Đang khởi động NestJS API (Port 3001)...
 start "MMA-TMS: NestJS API (Port 3001)" cmd /k "cd /d %ROOT_DIR%nestjs-api && npm run start:dev"
 timeout /t 3 /nobreak >nul
+ping 127.0.0.1 -n 4 >nul
 
 :: 3. Khởi động Python AI Worker
 echo [3/4] Đang khởi động Python AI Worker (YOLOv8-Pose)...
 start "MMA-TMS: Python Worker (YOLOv8-Pose)" cmd /k "cd /d %ROOT_DIR%python-worker && .venv\Scripts\python.exe worker.py"
 timeout /t 2 /nobreak >nul
+ping 127.0.0.1 -n 3 >nul
 
 :: 4. Khởi động Next.js Frontend (Port 3000)
 echo [4/4] Đang khởi động Next.js Frontend (Port 3000)...
