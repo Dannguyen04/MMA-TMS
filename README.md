@@ -7,9 +7,11 @@ Hệ thống phân tích kỹ thuật võ thuật 3-tier với AI realtime.
 ```
 ┌─────────────────────────────────────────────────────┐
 │                    BROWSER / CLIENT                 │
-│  Next.js App (port 3000)                            │
-│  ├── /live        → Live MediaPipe webcam           │
-│  └── /analysis    → Upload video → Result overlay  │
+│  Next.js App (port 3000) — theo vai trò             │
+│  ├── /fighter  → Lịch tập, video AI, hiệu suất, SK  │
+│  ├── /coach    → Võ sĩ, giáo án, duyệt phân tích AI │
+│  ├── /doctor   → Hồ sơ y tế, chấn thương, Clearance │
+│  └── /admin    → Người dùng, AI jobs, audit logs    │
 └────────────────────┬────────────────────────────────┘
                      │ HTTP/REST
 ┌────────────────────▼────────────────────────────────┐
@@ -83,15 +85,16 @@ python worker.py
 
 ```bash
 cd nextjs-frontend
-cp .env.local.example .env.local   # Điền SUPABASE_*, NEXT_PUBLIC_API_URL
-npm run dev
+npm run dev   # Mặc định dùng dữ liệu giả lập, không cần API/Worker
 ```
+
+Để kết nối pipeline video thật, sao chép `.env.local.example` thành `.env.local`, đặt `NEXT_PUBLIC_VIDEO_PIPELINE=api` và điền `NEXT_PUBLIC_SUPABASE_*`, `NEXT_PUBLIC_API_URL`. Chi tiết frontend: `nextjs-frontend/README.md`.
 
 ### 5. Mở trình duyệt
 
-- `http://localhost:3000` → Trang chính
-- `http://localhost:3000/live` → Live MediaPipe camera
-- `http://localhost:3000/analysis` → Upload video
+- `http://localhost:3000` → Đăng nhập bằng tài khoản demo (Võ sĩ, HLV, Bác sĩ thể thao, Quản trị viên)
+- `http://localhost:3000/fighter/videos/upload` → Tải video lên để phân tích (đường dẫn cũ `/analysis` tự chuyển hướng)
+- `http://localhost:3000/fighter/videos/live` → Kiểm tra động tác trực tiếp bằng webcam (MediaPipe)
 
 ---
 
@@ -108,27 +111,29 @@ docker-compose up --build
 
 ## Luồng xử lý Upload Video
 
+Chế độ `NEXT_PUBLIC_VIDEO_PIPELINE=api` (mặc định `mock` mô phỏng toàn bộ luồng dưới đây trong bộ nhớ):
+
 ```
-User chọn video
+Võ sĩ / HLV mở Upload wizard (/fighter/videos/upload, /coach/video-analysis/upload)
     ↓
-uploadVideo() → Supabase Storage (bucket: videos)
+uploadVideoToStorage(file) → Supabase Storage (bucket: videos)
     ↓
-api.createJob(videoUrl) → POST /jobs (NestJS)
+createJob(videoUrl) → POST /jobs (NestJS) → registerExternalUpload (Server Action)
     ↓ NestJS
-prisma.create() → PostgreSQL (status: PENDING)
+drizzle insert → PostgreSQL (status: PENDING)
 queue.add() → Redis BullMQ
     ↓ Python Worker (poll Redis)
 YOLO-Pose analyze frames
-KickAnalyzer score kicks
+PunchAnalyzer / KickAnalyzer
     ↓
 Upload result.json → Supabase Storage (bucket: analysis-results)
 PATCH /jobs/:id/status (status: DONE, resultUrl, score)
     ↓ Next.js
-pollJobStatus() every 2s → GET /jobs/:id
+GET /api/ai-jobs/[jobId] (poll) → đồng bộ trạng thái job NestJS
     ↓ status === DONE
-router.push('/analysis/[jobId]')
+mapWorkerResult(result.json) → AI Analysis
     ↓
-Hiển thị video + skeleton overlay + kick scores
+Trang phân tích: khung xương, dòng thời gian, phát hiện AI, duyệt của HLV
 ```
 
 ---
