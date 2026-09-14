@@ -107,8 +107,19 @@ def upload_to_supabase(local_path: str, remote_path: str) -> str:
 
 
 # ─── NestJS API Callback (Bảo mật bằng Worker Secret Token) ───
-def notify_nestjs(job_id: str, status: str, result_url: str = "", score: int = 0):
-    """Gọi NestJS để cập nhật trạng thái job kèm token bảo mật."""
+def notify_nestjs(
+    job_id: str,
+    status: str,
+    result_url: str = "",
+    score: int = 0,
+    health_alerts: list | None = None,
+    joint_states: dict | None = None,
+):
+    """Gọi NestJS để cập nhật trạng thái job kèm token bảo mật.
+
+    health_alerts: list[dict] từ SessionHealthMonitor.get_confirmed_alerts()
+    joint_states:  dict[str, str] từ SessionHealthMonitor.get_joint_states()
+    """
     if not NESTJS_API_URL:
         return
 
@@ -119,7 +130,13 @@ def notify_nestjs(job_id: str, status: str, result_url: str = "", score: int = 0
         }
         httpx.patch(
             f"{NESTJS_API_URL}/jobs/{job_id}/status",
-            json={"status": status, "resultUrl": result_url, "score": score},
+            json={
+                "status":       status,
+                "resultUrl":    result_url,
+                "score":        score,
+                "healthAlerts": health_alerts or [],
+                "jointStates":  joint_states or {},
+            },
             headers=headers,
             timeout=10.0,
         )
@@ -168,21 +185,39 @@ def process_job(r: redis.Redis, job_id: str):
         remote_path = f"results/{db_job_id}/{result_filename}"
         result_url  = upload_to_supabase(local_result, remote_path)
 
-        # ── Lấy điểm tốt nhất ──
-        best_score = result["summary"].get("bestScore", 0)
+        # ── Lấy điểm tốt nhất & anomaly data ──
+        best_score   = result["summary"].get("bestScore", 0)
+        health_alerts = result.get("healthAlerts", [])
+        joint_states  = result["summary"].get("jointHealthStates", {})
 
         # ── Cập nhật Redis job status (BullMQ format) ──
         r.hset(job_key, mapping={
-            "returnvalue": json.dumps({"resultUrl": result_url, "score": best_score}),
+            "returnvalue": json.dumps({
+                "resultUrl":    result_url,
+                "score":        best_score,
+                "alertCount":   result["summary"].get("healthAlertCount", 0),
+                "hasImpairment": len(health_alerts) > 0,
+            }),
             "finishedOn":  int(time.time() * 1000),
         })
         # An toàn đa luồng: Chỉ xóa chính xác job_id này khỏi ACTIVE_KEY và đẩy sang COMPLETED_KEY
         r.lrem(ACTIVE_KEY, 1, job_id)
         r.rpush(COMPLETED_KEY, job_id)
 
-        # ── Thông báo NestJS ──
-        notify_nestjs(db_job_id, "DONE", result_url=result_url, score=best_score)
-        log.info(f"✅ Job {db_job_id} hoàn thành. Score: {best_score}")
+        # ── Thông báo NestJS (kèm anomaly data) ──
+        notify_nestjs(
+            db_job_id,
+            "DONE",
+            result_url=result_url,
+            score=best_score,
+            health_alerts=health_alerts,
+            joint_states=joint_states,
+        )
+
+        alert_count = len(health_alerts)
+        log.info(f"✅ Job {db_job_id} hoàn thành. Score: {best_score}, Health Alerts: {alert_count}")
+        if alert_count > 0:
+            log.warning(f"⚠️  {alert_count} CONFIRMED_IMPAIRMENT alert(s) phát hiện!")
 
     except Exception as e:
         log.error(f"❌ Job {db_job_id} thất bại: {e}", exc_info=True)
