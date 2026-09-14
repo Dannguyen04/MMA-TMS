@@ -91,6 +91,8 @@ Tài liệu hướng dẫn từng bước triển khai hệ thống **MMA-TMS** 
     - `NEXT_PUBLIC_API_URL`: `https://mma-tms-api.onrender.com` _(URL Render lấy ở Bước 3)_
     - `NEXT_PUBLIC_SUPABASE_URL`: _(Lấy từ Supabase)_
     - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: _(Lấy từ Supabase)_
+    - `ALLOW_DEMO_AUTH`: `true` _(chỉ khi cần bật đăng nhập demo trên bản production)_
+        > ⚠️ **Cảnh báo:** Frontend hiện dùng phiên đăng nhập giả lập (mock), không phải xác thực thật. Bản build production sẽ **tắt** đăng nhập nếu thiếu biến này. Khi đặt `ALLOW_DEMO_AUTH=true`, bất kỳ ai truy cập trang cũng có thể đăng nhập bằng mọi tài khoản demo và xem **toàn bộ dữ liệu, kể cả hồ sơ y tế**. Chỉ bật cho bản demo riêng tư và gỡ biến này khi đã có dịch vụ xác thực thật.
 5. Bấm **Deploy**. Vercel sẽ tự động build và cấp domain HTTPS (ví dụ: `https://mma-tms.vercel.app`).
 
 ---
