@@ -12,18 +12,18 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
     return (
         <div className="grid min-h-dvh lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
             <aside className="relative hidden overflow-hidden bg-nav-bg px-12 py-10 text-nav-fg lg:flex lg:flex-col">
+                {/* Full-bleed hero photo, faded into the nav colour so the copy on top stays readable. */}
+                {/* eslint-disable-next-line @next/next/no-img-element -- decorative background photo */}
+                <img
+                    src="/mma-hero.jpg"
+                    alt=""
+                    aria-hidden
+                    className="pointer-events-none absolute inset-0 size-full object-cover object-top opacity-60 blur-[2px]"
+                />
+                <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-t from-nav-bg via-nav-bg/80 to-nav-bg/20" />
                 <OctagonPattern />
                 <div className="relative">
                     <Logo />
-                </div>
-                <div className="relative mt-10 flex justify-center">
-                    {/* Photo: Baylee Gramling on Unsplash (https://unsplash.com/photos/5m4Z14SDL80) */}
-                    {/* eslint-disable-next-line @next/next/no-img-element -- hotlinked Unsplash CDN image */}
-                    <img
-                        src="https://images.unsplash.com/photo-1545191050-96042d612b1f?auto=format&fit=crop&w=900&q=80"
-                        alt="Hai võ sĩ MMA đang giao đấu trên sàn đấu"
-                        className="aspect-[4/3] w-full max-w-md rounded-2xl object-cover shadow-2xl ring-1 ring-white/10"
-                    />
                 </div>
                 <div className="relative mt-auto max-w-md">
                     <p className="text-xs font-semibold tracking-[0.12em] text-nav-accent uppercase">Lotus Combat Academy</p>
