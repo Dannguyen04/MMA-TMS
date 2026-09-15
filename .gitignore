@@ -29,3 +29,12 @@ Thumbs.db
 
 # Documentation
 docs
+
+# Local Cursor configuration, rules, and skills at any project depth
+.cursor/
+
+# Local mobile-agent context and routing
+/AGENTS.md
+/docs/AGENT-CONTEXT.md
+/docs/IMPLEMENTATION-CONTEXT.md
+
