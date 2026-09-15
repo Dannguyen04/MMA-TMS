@@ -214,6 +214,7 @@ def process_video(
             ankle=ankle,
             frame_idx=frame_idx,
             time_ms=time_ms,
+            active_leg=active_leg,
         )
 
         # ── 7. Tính metrics tay & máy trạng thái đấm ──
@@ -275,6 +276,12 @@ def process_video(
     for p in punch_analyzer.results:
         for f in p.findings:
             all_findings.append(f.to_dict())
+    for k in kick_analyzer.results:
+        for f in k.findings:
+            all_findings.append(f.to_dict())
+
+    # Sắp xếp findings theo thứ tự thời gian xuất hiện trong video
+    all_findings.sort(key=lambda x: (x.get("timeMs", 0.0), x.get("frameIdx", 0)))
 
     all_scores = [r.score for r in kick_analyzer.results] + [p.score for p in punch_analyzer.results]
     total_punches = len(punch_analyzer.results)
@@ -299,14 +306,15 @@ def process_video(
 
     output = {
         "meta": {
-            "videoPath":    input_path,
-            "model":        model_name,
-            "fps":          round(fps, 2),
-            "totalFrames":  len(frame_records),
-            "durationMs":   round((len(frame_records) / fps) * 1000, 1),
-            "imgWidth":     img_w,
-            "imgHeight":    img_h,
-            "processedAt":  time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "videoPath":      input_path,
+            "model":          model_name,
+            "scoringVersion": "rubric-v3.0.0",
+            "fps":            round(fps, 2),
+            "totalFrames":    len(frame_records),
+            "durationMs":     round((len(frame_records) / fps) * 1000, 1),
+            "imgWidth":       img_w,
+            "imgHeight":      img_h,
+            "processedAt":    time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         },
         "frames":   frame_records,
         "kicks":    kicks_dicts,

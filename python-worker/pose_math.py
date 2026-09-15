@@ -164,3 +164,26 @@ def get_angle_color_label(angle: float) -> str:
         return "neutral"    # vàng
     return "poor"           # đỏ
 
+
+def calculate_arm_length(shoulder: Point, elbow: Point, wrist: Point) -> float:
+    """
+    Tính tổng chiều dài cánh tay (xương cánh tay + cẳng tay).
+    Đây là đại lượng sinh trắc học bất biến theo góc xoay thân (profile/frontal view).
+    """
+    if not (shoulder and elbow and wrist):
+        return 0.0
+    upper_arm = math.dist((shoulder.x, shoulder.y), (elbow.x, elbow.y))
+    forearm = math.dist((elbow.x, elbow.y), (wrist.x, wrist.y))
+    return upper_arm + forearm
+
+
+def calculate_directional_reach_speed(prev_reach: float, curr_reach: float, dt_ms: float) -> float:
+    """
+    Tính vận tốc duỗi tay có hướng dọc theo trục vai-cổ tay (normalized/s).
+    Dương = duỗi ra xa vai (extending).
+    Âm = thu tay về vai (retracting).
+    """
+    if dt_ms <= 0:
+        return 0.0
+    return ((curr_reach - prev_reach) / dt_ms) * 1000.0
+
