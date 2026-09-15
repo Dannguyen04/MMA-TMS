@@ -39,3 +39,13 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Local agent skills (keep these off GitHub)
+/.agents/skills/
+/.cursor/
+/.claude/skills/
+/.codex/skills/
+/skills-lock.json
+/AGENTS.override.md
+
+/AGENTS.md
