@@ -1,0 +1,47 @@
+{
+  "video": "04_cage_striking.mp4",
+  "mode": "single_target",
+  "target": {
+    "identity": "Cardy Wilson"
+  },
+  "events": [
+    {
+      "id": 1,
+      "video": "vid_04_cage_striking.mp4",
+      "arm": "left",
+      "technique": "jab",
+      "type": "Jab",
+      "start_frame": 48,
+      "impact_frame": 58,
+      "end_frame": 70,
+      "start_time": 0.80,
+      "peak_time": 0.97,
+      "end_time": 1.17,
+      "timestamp": 0.97,
+      "label": "PUNCH",
+      "actor": "target",
+      "fighter": "Cardy Wilson",
+      "evaluation_scope": "IN_SCOPE",
+      "description": "Left Jab / Straight punch landing directly on opponent's face"
+    },
+    {
+      "id": 2,
+      "video": "vid_04_cage_striking.mp4",
+      "arm": "right",
+      "technique": "cross",
+      "type": "Cross",
+      "start_frame": 168,
+      "impact_frame": 180,
+      "end_frame": 194,
+      "start_time": 2.80,
+      "peak_time": 3.00,
+      "end_time": 3.24,
+      "timestamp": 3.00,
+      "label": "PUNCH",
+      "actor": "non_target",
+      "fighter": "Dylan Courtoise",
+      "evaluation_scope": "OUT_OF_SCOPE",
+      "description": "Right Cross counter punch landing on opponent's upper chest/chin"
+    }
+  ]
+}

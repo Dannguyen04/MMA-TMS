@@ -55,20 +55,17 @@ if %ERRORLEVEL% EQU 0 (
     ) else (
         start "MMA-TMS: Redis Server (Port 6379)" redis-server
     )
-    timeout /t 2 /nobreak >nul
     ping 127.0.0.1 -n 3 >nul
 )
 
 :: 2. Khởi động NestJS API (Port 3001)
 echo [2/4] Đang khởi động NestJS API (Port 3001)...
 start "MMA-TMS: NestJS API (Port 3001)" cmd /k "cd /d %ROOT_DIR%nestjs-api && npm run start:dev"
-timeout /t 3 /nobreak >nul
 ping 127.0.0.1 -n 4 >nul
 
 :: 3. Khởi động Python AI Worker
 echo [3/4] Đang khởi động Python AI Worker (YOLOv8-Pose)...
 start "MMA-TMS: Python Worker (YOLOv8-Pose)" cmd /k "cd /d %ROOT_DIR%python-worker && .venv\Scripts\python.exe worker.py"
-timeout /t 2 /nobreak >nul
 ping 127.0.0.1 -n 3 >nul
 
 :: 4. Khởi động Next.js Frontend (Port 3000)

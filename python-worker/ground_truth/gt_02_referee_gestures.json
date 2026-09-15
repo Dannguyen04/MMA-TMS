@@ -1,0 +1,27 @@
+{
+  "video": "02_referee_gestures.mp4",
+  "mode": "single_target",
+  "target": {
+    "identity": "Referee"
+  },
+  "events": [
+    {
+      "id": 1,
+      "video": "vid_02_referee_gestures.mp4",
+      "arm": "both",
+      "technique": "none",
+      "type": "none",
+      "start_frame": 0,
+      "impact_frame": 0,
+      "end_frame": 719,
+      "start_time": 0.0,
+      "peak_time": 0.0,
+      "end_time": 12.0,
+      "timestamp": 0.0,
+      "label": "GESTURE",
+      "actor": "target",
+      "evaluation_scope": "OUT_OF_SCOPE",
+      "description": "Referee pacing, hand gestures, speaking to corners (zero punches)"
+    }
+  ]
+}

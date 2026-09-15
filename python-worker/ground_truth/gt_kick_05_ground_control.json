@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "evaluated_kinds": [
+    "kick"
+  ],
+  "video": {
+    "video_id": "vid_05_ground_grappling",
+    "file": "validation_videos/vid_05_ground_grappling.mp4",
+    "fps": 59.94,
+    "total_frames": 719,
+    "annotator": "source_frame_visual_review",
+    "review_status": "provisional_single_reviewer",
+    "source_sha256": "643ab5c729cdf4648ea0b24030a1fa165266aa889a907b5f8901c40591a46bd7"
+  },
+  "annotation_method": "Chronological source-frame review at 30-frame spacing: wrestling, scramble, takedown and ground positional movements, no visually confirmed intentional kick. This negative control remains provisional and needs a second reviewer. It must not be extrapolated to other validation clips.",
+  "events": []
+}

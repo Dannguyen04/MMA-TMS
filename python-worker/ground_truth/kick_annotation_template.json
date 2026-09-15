@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "evaluated_kinds": ["kick"],
+  "video": {
+    "video_id": "REPLACE_ME",
+    "file": "REPLACE_ME.mp4",
+    "fps": 30.0,
+    "total_frames": 0,
+    "annotator": "REPLACE_ME",
+    "review_status": "draft"
+  },
+  "events": [
+    {
+      "event_id": "kick_001",
+      "strike_kind": "kick",
+      "technique": "unknown",
+      "side": "unknown",
+      "start_frame": null,
+      "chamber_frame": null,
+      "extension_frame": null,
+      "impact_frame": null,
+      "recovery_frame": null,
+      "end_frame": null,
+      "visibility": "full",
+      "occlusion": "none",
+      "camera_angle": "unknown",
+      "evaluation_scope": "in_scope",
+      "notes": "Delete this example event before annotating. Detector predictions must not be used as ground truth."
+    }
+  ]
+}
