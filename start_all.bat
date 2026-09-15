@@ -37,6 +37,9 @@ if not exist "%ROOT_DIR%nextjs-frontend\.env.local" (
     )
 )
 
+:: 0.1 Đảm bảo Node.js có trong PATH
+set "PATH=C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\VisualStudio\NodeJs;%PATH%"
+
 :: 1. Khởi động Redis
 echo [1/4] Kiểm tra Redis Server (Port 6379)...
 netstat -ano | findstr :6379 | findstr LISTENING >nul
@@ -44,7 +47,7 @@ if %ERRORLEVEL% EQU 0 (
     echo     ✓ Redis Server đã đang chạy trên cổng 6379.
 ) else (
     echo     + Đang khởi động Redis Server...
-    set REDIS_PATH="C:\Users\DAN\AppData\Local\Microsoft\WinGet\Packages\taizod1024.redis-windows-fork_Microsoft.Winget.Source_8wekyb3d8bbwe\Redis-8.10.1-Windows-x64-msys2\redis-server.exe"
+    set REDIS_PATH="%LOCALAPPDATA%\Microsoft\WinGet\Packages\taizod1024.redis-windows-fork_Microsoft.Winget.Source_8wekyb3d8bbwe\Redis-8.10.1-Windows-x64-msys2\redis-server.exe"
     if exist %REDIS_PATH% (
         start "MMA-TMS: Redis Server (Port 6379)" %REDIS_PATH%
     if exist "%REDIS_EXE%" (

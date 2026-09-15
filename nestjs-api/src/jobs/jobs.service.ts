@@ -1,10 +1,11 @@
 import { Injectable, Inject, NotFoundException } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
-import { eq } from 'drizzle-orm';
+import { eq, desc, and } from 'drizzle-orm';
 import { DRIZZLE, type DrizzleDB } from '../database/database.module.js';
-import { analysisJobs } from '../database/schema.js';
+import { analysisJobs, type HealthAlert, type JointStatesMap } from '../database/schema.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
+import { UpdateJobStatusDto } from './dto/update-job-status.dto.js';
 
 @Injectable()
 export class JobsService {
@@ -12,6 +13,8 @@ export class JobsService {
     @InjectQueue('video-analysis') private readonly queue: Queue,
     @Inject(DRIZZLE) private readonly db: DrizzleDB,
   ) {}
+
+  // ─── Tạo job mới ────────────────────────────────────────────────────────────
 
   async createJob(dto: CreateJobDto) {
     // 1. Lưu job metadata vào PostgreSQL
@@ -42,6 +45,8 @@ export class JobsService {
     };
   }
 
+  // ─── Lấy thông tin job ───────────────────────────────────────────────────────
+
   async getJob(id: string) {
     const [job] = await this.db
       .select()
@@ -53,30 +58,91 @@ export class JobsService {
     return job;
   }
 
-  async updateJobStatus(
-    id: string,
-    data: { status: string; resultUrl?: string; score?: number },
-  ) {
-    const [updated] = await this.db
-      .update(analysisJobs)
-      .set({
-        status: data.status as any,
-        resultUrl: data.resultUrl,
-        score: data.score,
-        updatedAt: new Date(),
-      })
-      .where(eq(analysisJobs.id, id))
-      .returning();
-
-    return updated;
-  }
+  // ─── Danh sách jobs ──────────────────────────────────────────────────────────
 
   async listJobs(userId?: string) {
     return this.db
       .select()
       .from(analysisJobs)
       .where(userId ? eq(analysisJobs.userId, userId) : undefined)
-      .orderBy(analysisJobs.createdAt)
+      .orderBy(desc(analysisJobs.createdAt))
       .limit(20);
+  }
+
+  // ─── Lấy health alerts của một job ──────────────────────────────────────────
+
+  /**
+   * Trả về danh sách CONFIRMED_IMPAIRMENT alerts của job,
+   * cùng với snapshot trạng thái từng khớp.
+   */
+  async getHealthAlerts(jobId: string) {
+    const job = await this.getJob(jobId);
+    return {
+      jobId,
+      status:       job.status,
+      alertCount:   job.alertCount,
+      hasImpairment: job.hasImpairment,
+      healthAlerts: job.healthAlerts as HealthAlert[],
+      jointStates:  job.jointStates as JointStatesMap,
+    };
+  }
+
+  /**
+   * Lấy tất cả jobs có cảnh báo chấn thương (has_impairment = true).
+   * Dùng partial index idx_analysis_jobs_has_impairment — rất nhanh.
+   */
+  async listImpairmentAlerts(userId?: string) {
+    return this.db
+      .select({
+        id:            analysisJobs.id,
+        userId:        analysisJobs.userId,
+        videoUrl:      analysisJobs.videoUrl,
+        status:        analysisJobs.status,
+        score:         analysisJobs.score,
+        alertCount:    analysisJobs.alertCount,
+        hasImpairment: analysisJobs.hasImpairment,
+        healthAlerts:  analysisJobs.healthAlerts,
+        jointStates:   analysisJobs.jointStates,
+        createdAt:     analysisJobs.createdAt,
+      })
+      .from(analysisJobs)
+      .where(
+        and(
+          eq(analysisJobs.hasImpairment, true),
+          userId ? eq(analysisJobs.userId, userId) : undefined,
+        ),
+      )
+      .orderBy(desc(analysisJobs.createdAt))
+      .limit(50);
+  }
+
+  // ─── Cập nhật trạng thái (gọi bởi Python Worker) ────────────────────────────
+
+  /**
+   * Python Worker gọi endpoint này sau khi xử lý xong video.
+   * Bao gồm cả healthAlerts và jointStates từ SessionHealthMonitor.
+   */
+  async updateJobStatus(id: string, dto: UpdateJobStatusDto) {
+    const alerts = dto.healthAlerts ?? [];
+    const alertCount = alerts.length;
+    const hasImpairment = alertCount > 0;
+
+    const [updated] = await this.db
+      .update(analysisJobs)
+      .set({
+        status:        dto.status as any,
+        resultUrl:     dto.resultUrl,
+        score:         dto.score,
+        // ── Anomaly Detection fields ──
+        healthAlerts:  alerts,
+        jointStates:   dto.jointStates ?? {},
+        alertCount,
+        hasImpairment,
+        updatedAt:     new Date(),
+      })
+      .where(eq(analysisJobs.id, id))
+      .returning();
+
+    return updated;
   }
 }
