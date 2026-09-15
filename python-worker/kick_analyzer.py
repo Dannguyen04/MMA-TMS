@@ -87,10 +87,28 @@ class KickResult:
 
 
 @dataclass
+class KickFrameFeatures:
+    """
+    Đặc trưng frame phục vụ kiểm tra tính hợp lệ và phân tích đòn đá (Phase 2A).
+    """
+    frame_idx: int
+    time_ms: float
+    active_leg: str = "none"  # "left", "right", hoặc "none"
+    knee_angle: Optional[float] = None
+    hip_angle: Optional[float] = None
+    ankle: Optional[Point] = None
+    speed: float = 0.0
+    landmarks_valid: bool = False
+    geometry_valid: bool = False
+    rejection_reason: Optional[str] = None
+
+
+@dataclass
 class KickAnalyzer:
     """
     Máy trạng thái phân tích cú đá tích hợp Technique Rubric Engine & Evidence Tracking.
     Xử lý tuần tự từng frame video.
+    Phase 2A: Tích hợp Kick Input & Geometry Validity Gate.
     """
     state: KickState = KickState.IDLE
     min_chamber_angle: float = 180.0
@@ -104,38 +122,119 @@ class KickAnalyzer:
     impact_time_ms: float = 0.0
     active_leg: str = "right"
 
+    # EXPERIMENTAL / REQUIRES POSITIVE-KICK BENCHMARK CALIBRATION:
+    # Dung sai số frame invalid liên tiếp trước khi hủy bỏ chu trình đá dở dang
+    max_consecutive_invalid_frames: int = 2
+    # Same minimum evidence duration as punch cycles; rejects single-frame
+    # pose jitter independently of the video's frame rate.
+    min_cycle_duration_ms: float = 100.0
+    _invalid_streak: int = field(default=0, repr=False)
+    last_transition_reason: str = field(default="NONE", repr=False)
+    last_rejection_reason: str = field(default="NONE", repr=False)
+
     _last_ankle: Optional[Point] = field(default=None, repr=False)
     _last_time_ms: float = field(default=0.0, repr=False)
 
     # Lịch sử tất cả các cú đá đã hoàn thành trong video
     results: list[KickResult] = field(default_factory=list, repr=False)
 
+    def _reset_to_idle(self):
+        """Hủy bỏ chu trình đá dở dang về IDLE mà không chấm điểm."""
+        self.state = KickState.IDLE
+        self._invalid_streak = 0
+        self.min_chamber_angle = 180.0
+        self.max_extension_angle = 0.0
+        self.peak_speed = 0.0
+        self._last_ankle = None
+
+    def reset_motion(self):
+        """Discard an incomplete cycle on track loss/cut; retain finished events."""
+        self._reset_to_idle()
+        self.last_transition_reason = "ABORTED_DISCONTINUITY"
+
     def update(
         self,
-        knee_angle: float,
-        hip_angle: float,
-        ankle: Optional[Point],
-        frame_idx: int,
-        time_ms: float,
+        knee_angle: Optional[float] = None,
+        hip_angle: Optional[float] = None,
+        ankle: Optional[Point] = None,
+        frame_idx: int = 0,
+        time_ms: float = 0.0,
         active_leg: str = "right",
+        landmarks_valid: Optional[bool] = None,
+        geometry_valid: Optional[bool] = None,
+        rejection_reason: Optional[str] = None,
+        features: Optional[KickFrameFeatures] = None,
     ) -> Optional[KickResult]:
         """
         Cập nhật máy trạng thái với dữ liệu frame hiện tại.
-        Trả về KickResult nếu vừa hoàn thành một cú đá, None nếu chưa.
+        Áp dụng Validity Gate (Phase 2A):
+        - active_leg == "none" OR required landmarks invalid OR required geometry invalid
+          => KHÔNG THỂ bắt đầu cú đá mới (remain IDLE).
+        - Nếu đang trong cú đá dở dang mà dữ liệu invalid vượt quá max_consecutive_invalid_frames:
+          => HỦY chu trình đá về IDLE mà KHÔNG chấm điểm (không sinh KickResult).
         """
+        if features is not None:
+            frame_idx = features.frame_idx
+            time_ms = features.time_ms
+            active_leg = features.active_leg
+            knee_angle = features.knee_angle
+            hip_angle = features.hip_angle
+            ankle = features.ankle
+            landmarks_valid = features.landmarks_valid
+            geometry_valid = features.geometry_valid
+            rejection_reason = features.rejection_reason
+
+        # Tương thích ngược: nếu không truyền cờ validity nhưng có knee_angle và active_leg != 'none'
+        if landmarks_valid is None:
+            landmarks_valid = (knee_angle is not None)
+        if geometry_valid is None:
+            geometry_valid = (knee_angle is not None)
+
+        # ── PHASE 2A VALIDITY GATE ──
+        is_valid_input = (
+            active_leg in ("left", "right") and
+            landmarks_valid and
+            geometry_valid and
+            knee_angle is not None
+        )
+
+        if not is_valid_input:
+            self._last_ankle = None
+            self._last_time_ms = time_ms
+            if self.state == KickState.IDLE:
+                self._invalid_streak = 0
+                self.last_transition_reason = "NONE"
+                self.last_rejection_reason = rejection_reason or (
+                    "ACTIVE_LEG_NONE" if active_leg == "none" else "INVALID_INPUT"
+                )
+                return None
+            else:
+                # Đang trong cú đá dở dang: xử lý dung sai frame invalid
+                self._invalid_streak += 1
+                if self._invalid_streak > self.max_consecutive_invalid_frames:
+                    # Vượt quá dung sai -> hủy bỏ cú đá dở dang, KHÔNG chấm điểm
+                    self._reset_to_idle()
+                    self.last_transition_reason = "ABORTED_INVALID_INPUT"
+                    self.last_rejection_reason = rejection_reason or "EXCEEDED_INVALID_TOLERANCE"
+                    return None
+                else:
+                    # Giữ nguyên trạng thái, không bịa góc (do not fabricate geometry)
+                    self.last_transition_reason = "HOLDING_INVALID_INPUT"
+                    self.last_rejection_reason = rejection_reason or "TEMPORARILY_INVALID_INPUT"
+                    return None
+
+        # Never differentiate different legs or bridge an invalid observation.
+        if active_leg != self.active_leg:
+            self.reset_motion()
         self.active_leg = active_leg
-
-        # Tính tốc độ
-        dt = time_ms - self._last_time_ms
-        speed = 0.0
-        if ankle:
-            speed = calculate_speed(self._last_ankle, ankle, dt)
-            self._last_ankle = ankle
+        speed = calculate_speed(self._last_ankle, ankle, time_ms - self._last_time_ms) if ankle else 0.0
+        self._last_ankle = ankle
         self._last_time_ms = time_ms
+        self.peak_speed = max(self.peak_speed, speed)
 
-        if speed > self.peak_speed:
-            self.peak_speed = speed
-
+        # Input hợp lệ: reset streak invalid
+        self._invalid_streak = 0
+        self.last_rejection_reason = "NONE"
         result = None
 
         if self.state == KickState.IDLE:
@@ -161,6 +260,9 @@ class KickAnalyzer:
             self.chamber_peak_time_ms = time_ms
             self.impact_frame = frame_idx
             self.impact_time_ms = time_ms
+            self.last_transition_reason = "CHAMBERING_TRIGGERED"
+        else:
+            self.last_transition_reason = "NONE"
 
     def _handle_chambering(self, knee_angle: float, speed: float, frame_idx: int, time_ms: float):
         if knee_angle < self.min_chamber_angle:
@@ -174,16 +276,20 @@ class KickAnalyzer:
             self.max_extension_angle = knee_angle
             self.impact_frame = frame_idx
             self.impact_time_ms = time_ms
+            self.last_transition_reason = "EXTENDING_TRIGGERED"
             return
 
         # Hủy nếu chân về thẳng (đá hụt)
         if knee_angle > 165:
             self.state = KickState.IDLE
+            self.last_transition_reason = "RESET_IDLE"
+        else:
+            self.last_transition_reason = "NONE"
 
     def _handle_extending(
         self,
         knee_angle: float,
-        hip_angle: float,
+        hip_angle: Optional[float],
         frame_idx: int,
         time_ms: float,
     ) -> Optional[KickResult]:
@@ -195,6 +301,11 @@ class KickAnalyzer:
         # Góc bắt đầu giảm -> chân đang thu về
         if knee_angle < self.max_extension_angle - 15:
             self.state = KickState.RECOVERING
+            if time_ms - self.kick_start_time_ms < self.min_cycle_duration_ms:
+                self._reset_to_idle()
+                self.last_transition_reason = "REJECTED_SHORT_CYCLE"
+                return None
+            self.last_transition_reason = "RECOVERING_TRIGGERED"
             result = self._score_kick(
                 hip_angle=hip_angle,
                 start_frame=self.kick_start_frame,
@@ -205,15 +316,19 @@ class KickAnalyzer:
             self.results.append(result)
             return result
 
+        self.last_transition_reason = "NONE"
         return None
 
     def _handle_recovering(self, knee_angle: float):
         if knee_angle > 155 or knee_angle < 60:
             self.state = KickState.IDLE
+            self.last_transition_reason = "RESET_IDLE"
+        else:
+            self.last_transition_reason = "NONE"
 
     def _score_kick(
         self,
-        hip_angle: float,
+        hip_angle: Optional[float],
         start_frame: int,
         end_frame: int,
         start_time_ms: float,
@@ -236,7 +351,27 @@ class KickAnalyzer:
 
         # ── Tiêu chí 1: Rút gối (Knee Chamber Depth) — Weight 0.35 ──
         chamber_finding: Optional[TechniqueFinding] = None
-        if self.min_chamber_angle <= 55.0:
+        if self.min_chamber_angle <= 0.0 or self.min_chamber_angle >= 180.0:
+            # Evidence Gating: Không có dữ liệu góc gối hợp lệ -> bỏ qua tiêu chí khỏi mẫu số
+            criterion_results.append(CriterionResult(
+                criterion_id="crit_kick_chamber",
+                criterion_name="Knee Chamber Depth",
+                phase="chamber",
+                feature_name="min_chamber_angle",
+                observed_value=0.0,
+                score=0.0,
+                weight=0.35,
+                confidence=0.0,
+                status=CriterionStatus.INSUFFICIENT_EVIDENCE,
+                evidence_frame_start=start_frame,
+                evidence_frame_end=chamber_peak_frame,
+                evidence_timestamp_start_ms=start_time_ms,
+                evidence_timestamp_end_ms=chamber_peak_time_ms,
+                affected_body_part=f"{leg}_knee",
+                detail="⚪ Không đủ dữ liệu góc gối rút",
+                finding=None,
+            ))
+        elif self.min_chamber_angle <= 55.0:
             chamber_score = 100.0
             chamber_status = CriterionStatus.EXCELLENT
             chamber_detail = f"✅ Rút gối xuất sắc ({self.min_chamber_angle:.0f}°)"
@@ -261,6 +396,24 @@ class KickAnalyzer:
                 metric_unit="degrees",
                 recommendation="Tuyệt vời! Tiếp tục duy trì độ rút gối nhanh và gọn gàng này.",
             )
+            criterion_results.append(CriterionResult(
+                criterion_id="crit_kick_chamber",
+                criterion_name="Knee Chamber Depth",
+                phase="chamber",
+                feature_name="min_chamber_angle",
+                observed_value=self.min_chamber_angle,
+                score=chamber_score,
+                weight=0.35,
+                confidence=chamber_finding.confidence,
+                status=chamber_status,
+                evidence_frame_start=start_frame,
+                evidence_frame_end=chamber_peak_frame,
+                evidence_timestamp_start_ms=start_time_ms,
+                evidence_timestamp_end_ms=chamber_peak_time_ms,
+                affected_body_part=f"{leg}_knee",
+                detail=chamber_detail,
+                finding=chamber_finding,
+            ))
         elif self.min_chamber_angle <= 75.0:
             chamber_score = 85.0
             chamber_status = CriterionStatus.GOOD
@@ -286,6 +439,24 @@ class KickAnalyzer:
                 metric_unit="degrees",
                 recommendation="Có thể nâng cao gối và ép cẳng chân sát đùi hơn một chút (<55°) để tăng thêm lực đòn bẩy.",
             )
+            criterion_results.append(CriterionResult(
+                criterion_id="crit_kick_chamber",
+                criterion_name="Knee Chamber Depth",
+                phase="chamber",
+                feature_name="min_chamber_angle",
+                observed_value=self.min_chamber_angle,
+                score=chamber_score,
+                weight=0.35,
+                confidence=chamber_finding.confidence,
+                status=chamber_status,
+                evidence_frame_start=start_frame,
+                evidence_frame_end=chamber_peak_frame,
+                evidence_timestamp_start_ms=start_time_ms,
+                evidence_timestamp_end_ms=chamber_peak_time_ms,
+                affected_body_part=f"{leg}_knee",
+                detail=chamber_detail,
+                finding=chamber_finding,
+            ))
         else:
             chamber_score = max(20.0, 75.0 - (self.min_chamber_angle - 75.0) * 1.5)
             chamber_status = CriterionStatus.NEEDS_WORK
@@ -311,25 +482,24 @@ class KickAnalyzer:
                 metric_unit="degrees",
                 recommendation="Nâng đầu gối hướng về mục tiêu trước khi vung cẳng chân ra ngoài.",
             )
-
-        criterion_results.append(CriterionResult(
-            criterion_id="crit_kick_chamber",
-            criterion_name="Knee Chamber Depth",
-            phase="chamber",
-            feature_name="min_chamber_angle",
-            observed_value=self.min_chamber_angle,
-            score=chamber_score,
-            weight=0.35,
-            confidence=chamber_finding.confidence,
-            status=chamber_status,
-            evidence_frame_start=start_frame,
-            evidence_frame_end=chamber_peak_frame,
-            evidence_timestamp_start_ms=start_time_ms,
-            evidence_timestamp_end_ms=chamber_peak_time_ms,
-            affected_body_part=f"{leg}_knee",
-            detail=chamber_detail,
-            finding=chamber_finding,
-        ))
+            criterion_results.append(CriterionResult(
+                criterion_id="crit_kick_chamber",
+                criterion_name="Knee Chamber Depth",
+                phase="chamber",
+                feature_name="min_chamber_angle",
+                observed_value=self.min_chamber_angle,
+                score=chamber_score,
+                weight=0.35,
+                confidence=chamber_finding.confidence,
+                status=chamber_status,
+                evidence_frame_start=start_frame,
+                evidence_frame_end=chamber_peak_frame,
+                evidence_timestamp_start_ms=start_time_ms,
+                evidence_timestamp_end_ms=chamber_peak_time_ms,
+                affected_body_part=f"{leg}_knee",
+                detail=chamber_detail,
+                finding=chamber_finding,
+            ))
 
         # ── Tiêu chí 2: Bung chân (Extension at Impact) — Weight 0.35 ──
         extension_finding: Optional[TechniqueFinding] = None
@@ -526,7 +696,7 @@ class KickAnalyzer:
         ))
 
         # ── Tiêu chí 4: Tư thế thân & mở hông (Torso & Hip Alignment) — Weight 0.15 ──
-        if hip_angle > 0.0:
+        if hip_angle is not None and hip_angle > 0.0:
             if hip_angle >= 135.0:
                 hip_score = 100.0
                 hip_status = CriterionStatus.EXCELLENT

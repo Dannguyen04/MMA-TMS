@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "evaluated_kinds": [
+    "kick"
+  ],
+  "video": {
+    "video_id": "vid_04_cage_striking",
+    "file": "validation_videos\\vid_04_cage_striking.mp4",
+    "fps": 59.94,
+    "total_frames": 719,
+    "annotator": "source_frame_visual_review",
+    "review_status": "provisional_single_reviewer",
+    "source_sha256": "3df39b333eead2f1b2e244a5622d2d169229a9f75cae0c6ca426f1423053d70c"
+  },
+  "target": {
+    "identity": "Cardy Wilson",
+    "description": "Athlete in dark shorts, same target as punch validation"
+  },
+  "annotation_method": "Chronological overview at 15-frame spacing, then frames 284-340 at 4-frame spacing without pose/prediction overlays. Provisional contact/peak timing, side and subtype unknown. Ground movement is outside standing-strike scope.",
+  "events": [
+    {
+      "event_id": "kick_001",
+      "strike_kind": "kick",
+      "technique": "unknown",
+      "side": "unknown",
+      "start_frame": 284,
+      "chamber_frame": 292,
+      "extension_frame": 296,
+      "impact_frame": 300,
+      "recovery_frame": 316,
+      "end_frame": 340,
+      "impact_uncertainty_frames": 4,
+      "evaluation_scope": "in_scope",
+      "notes": "Target athlete performs a jumping sweeping kick toward opponent head/guard. Contact occluded by opponent; timing is visual peak extension proxy."
+    }
+  ]
+}

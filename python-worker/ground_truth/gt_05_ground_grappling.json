@@ -1,18 +1,27 @@
-[
-  {
-    "id": 1,
-    "video": "vid_05_ground_grappling.mp4",
-    "arm": "both",
-    "technique": "none",
-    "type": "none",
-    "start_frame": 0,
-    "impact_frame": 0,
-    "end_frame": 719,
-    "start_time": 0.0,
-    "peak_time": 0.0,
-    "end_time": 12.0,
-    "label": "GESTURE",
-    "description": "Double-leg takedown scramble and cage ground grappling (zero standup punches)"
-  }
-]
-
+{
+  "video": "05_ground_grappling.mp4",
+  "mode": "single_target",
+  "target": {
+    "identity": "Tracked Grappler"
+  },
+  "events": [
+    {
+      "id": 1,
+      "video": "vid_05_ground_grappling.mp4",
+      "arm": "both",
+      "technique": "none",
+      "type": "none",
+      "start_frame": 0,
+      "impact_frame": 0,
+      "end_frame": 719,
+      "start_time": 0.0,
+      "peak_time": 0.0,
+      "end_time": 12.0,
+      "timestamp": 0.0,
+      "label": "GESTURE",
+      "actor": "target",
+      "evaluation_scope": "OUT_OF_SCOPE",
+      "description": "Double-leg takedown scramble and cage ground grappling (zero standup punches)"
+    }
+  ]
+}

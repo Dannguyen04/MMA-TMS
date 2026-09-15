@@ -15,7 +15,9 @@ from typing import Optional
 from pose_math import (
     KP, Point, calculate_angle, calculate_speed,
     calculate_arm_length, calculate_directional_reach_speed,
+    are_landmarks_valid,
 )
+from posture_gate import PostureGate, PostureState
 from technique_rubric import (
     CriterionResult,
     CriterionStatus,
@@ -181,6 +183,16 @@ class SingleArmTracker:
         self.guard_drop_time_ms = 0.0
         self.max_guard_drop_dist = 0.0
 
+    def reset_temporal_derivatives(self):
+        """
+        Xoá sạch lịch sử vi phân thời gian để ngăn vọt vận tốc ảo
+        khi nhảy toạ độ (teleport), mất track hoặc đổi đối tượng.
+        """
+        self.prev_wrist = None
+        self.prev_reach = None
+        if self.state != PunchState.GUARD:
+            self._reset_to_guard()
+
     def update(
         self,
         sh: Point,
@@ -190,19 +202,35 @@ class SingleArmTracker:
         opp_wr: Point,
         frame_idx: int,
         time_ms: float,
+        is_discontinuous: bool = False,
+        is_ground: bool = False,
     ) -> Optional[dict]:
         """
         Cập nhật máy trạng thái cho cánh tay này.
         Trả về dict thông số cú đấm nếu vừa hoàn thành một chu trình đấm hợp lệ.
         """
+        if is_discontinuous:
+            self.reset_temporal_derivatives()
+
+        if is_ground:
+            # Ở tư thế nằm sàn / mat posting: huỷ chu trình đấm dở dang và chặn vươn tay mới
+            if self.state != PunchState.GUARD:
+                self._reset_to_guard()
+            self.prev_wrist = wr
+            reach = math.dist((wr.x, wr.y), (sh.x, sh.y))
+            self.prev_reach = reach
+            self.last_time_ms = time_ms
+            return None
+
         dt = time_ms - self.last_time_ms
         if dt <= 0.0:
             dt = 16.67
 
         # Kiểm tra confidence tối thiểu
-        conf_ok = min(sh.conf, el.conf, wr.conf) >= self.config.min_confidence
+        conf_ok = are_landmarks_valid([sh, el, wr], self.config.min_confidence)
 
         if not conf_ok:
+            self.reset_temporal_derivatives()
             self.last_time_ms = time_ms
             # Nếu đang trong cú đấm mà mất landmark quá lâu (> 400ms), huỷ đòn
             if self.state != PunchState.GUARD and (time_ms - self.start_time_ms > 400.0):
@@ -218,7 +246,11 @@ class SingleArmTracker:
         reach = math.dist((wr.x, wr.y), (sh.x, sh.y))
 
         # Góc cùi chỏ
-        elbow_angle = calculate_angle(sh, el, wr)
+        elbow_angle = calculate_angle(sh, el, wr, min_confidence=self.config.min_confidence)
+        if elbow_angle is None:
+            self.reset_temporal_derivatives()
+            self.last_time_ms = time_ms
+            return None
 
         # Vận tốc tuyệt đối (scalar speed)
         wrist_speed = calculate_speed(self.prev_wrist, wr, dt)
@@ -242,6 +274,12 @@ class SingleArmTracker:
                 self.guard_dropped = True
                 if drop_dist > self.max_guard_drop_dist:
                     self.max_guard_drop_dist = drop_dist
+
+        # The configured maximum duration applies in EVERY phase, including
+        # a late retraction. A stale cycle is not evidence of a new punch.
+        if self.state != PunchState.GUARD and time_ms - self.start_time_ms > self.config.max_punch_duration_ms:
+            self._reset_to_guard()
+            return None
 
         # ─── STATE MACHINE ───
         if self.state == PunchState.GUARD:
@@ -270,7 +308,9 @@ class SingleArmTracker:
                 self.state = PunchState.EXTENDING
                 self.start_frame = frame_idx
                 self.start_time_ms = time_ms
-                self.start_reach = reach
+                # Include the displacement that crossed the launch threshold.
+                # Using the current reach discards most of a fast/low-fps punch.
+                self.start_reach = prev_r
                 self.start_elbow_angle = elbow_angle
                 self.max_reach = reach
                 self.max_elbow_angle = elbow_angle
@@ -423,6 +463,7 @@ class PunchAnalyzer:
     left_tracker: SingleArmTracker = field(init=False)
     right_tracker: SingleArmTracker = field(init=False)
 
+    posture_gate: PostureGate = field(default_factory=PostureGate)
     # Lịch sử các cú đấm đã ghi nhận
     results: list[PunchResult] = field(default_factory=list, repr=False)
 
@@ -446,18 +487,36 @@ class PunchAnalyzer:
             return self.left_tracker.peak_speed
         return 0.0
 
+    def reset_temporal_derivatives(self):
+        """Xoá sạch lịch sử vi phân thời gian của cả 2 tay."""
+        self.right_tracker.reset_temporal_derivatives()
+        self.left_tracker.reset_temporal_derivatives()
+        self.state = PunchState.GUARD
+        self.active_arm = "none"
+
     def update(
         self,
         keypoints: list[Point],
         frame_idx: int,
         time_ms: float,
+        is_discontinuous: bool = False,
     ) -> Optional[PunchResult]:
         """
         Cập nhật máy trạng thái với dữ liệu keypoints của frame hiện tại.
         Trả về PunchResult nếu vừa hoàn thành một cú đấm.
         """
+        if is_discontinuous:
+            self.reset_temporal_derivatives()
+
         if len(keypoints) < 17:
             return None
+
+        # Đánh giá ngữ cảnh tư thế (Standing / Crouched / Ground)
+        posture_state, just_stood_up = self.posture_gate.update(keypoints)
+        if just_stood_up:
+            self.reset_temporal_derivatives()
+
+        is_ground = (posture_state == PostureState.GROUND)
 
         l_sh = keypoints[KP.LEFT_SHOULDER]
         r_sh = keypoints[KP.RIGHT_SHOULDER]
@@ -471,13 +530,23 @@ class PunchAnalyzer:
             sh=r_sh, el=r_el, wr=r_wr,
             opp_sh=l_sh, opp_wr=l_wr,
             frame_idx=frame_idx, time_ms=time_ms,
+            is_discontinuous=is_discontinuous,
+            is_ground=is_ground,
         )
 
         l_punch_data = self.left_tracker.update(
             sh=l_sh, el=l_el, wr=l_wr,
             opp_sh=r_sh, opp_wr=r_wr,
             frame_idx=frame_idx, time_ms=time_ms,
+            is_discontinuous=is_discontinuous,
+            is_ground=is_ground,
         )
+
+        # Nếu đang ở tư thế nằm sàn / mat posting: cưỡng bức GUARD và không trả về cú đấm
+        if is_ground:
+            self.state = PunchState.GUARD
+            self.active_arm = "none"
+            return None
 
         # Đồng bộ trạng thái tổng thể cho frame (tương thích 100% với frontend)
         if self.right_tracker.state != PunchState.GUARD:

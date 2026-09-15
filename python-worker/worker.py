@@ -205,13 +205,20 @@ def run_worker():
 
     r = get_redis()
 
-    # Kiểm tra kết nối Redis
-    try:
-        r.ping()
-        log.info("✅ Kết nối Redis thành công")
-    except redis.ConnectionError as e:
-        log.error(f"❌ Không thể kết nối Redis: {e}")
-        sys.exit(1)
+    # Kiểm tra kết nối Redis (với retry để tránh chết ngay khi cold-start)
+    max_retries = 10
+    for attempt in range(1, max_retries + 1):
+        try:
+            r.ping()
+            log.info("✅ Kết nối Redis thành công")
+            break
+        except redis.ConnectionError as e:
+            if attempt < max_retries:
+                log.warning(f"⏳ Đang chờ Redis khởi động ({attempt}/{max_retries})... Thử lại sau 2s.")
+                time.sleep(2)
+            else:
+                log.error(f"❌ Không thể kết nối Redis sau {max_retries} lần thử: {e}")
+                sys.exit(1)
 
     log.info(f"👂 Đang lắng nghe queue '{QUEUE_NAME}'...")
 

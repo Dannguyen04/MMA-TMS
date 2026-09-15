@@ -29,6 +29,13 @@ def create_kps(
     kps[KP.RIGHT_ELBOW] = Point(x=r_elbow[0], y=r_elbow[1], conf=0.9)
     kps[KP.RIGHT_WRIST] = Point(x=r_wrist[0], y=r_wrist[1], conf=0.9)
 
+    kps[KP.LEFT_HIP] = Point(x=0.45, y=0.55, conf=0.9)
+    kps[KP.RIGHT_HIP] = Point(x=0.55, y=0.55, conf=0.9)
+    kps[KP.LEFT_KNEE] = Point(x=0.45, y=0.72, conf=0.9)
+    kps[KP.RIGHT_KNEE] = Point(x=0.55, y=0.72, conf=0.9)
+    kps[KP.LEFT_ANKLE] = Point(x=0.45, y=0.90, conf=0.9)
+    kps[KP.RIGHT_ANKLE] = Point(x=0.55, y=0.90, conf=0.9)
+
     return kps
 
 
