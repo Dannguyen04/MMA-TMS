@@ -73,6 +73,7 @@ def get_redis() -> redis.Redis:
 def upload_to_supabase(local_path: str, remote_path: str) -> str:
     """
     Upload file lên Supabase Storage.
+    Cấu hình timeout tối đa 5 phút (300 giây) và cơ chế retry khi mạng chập chờn.
     Trả về public URL.
     """
     if not SUPABASE_URL or not SUPABASE_KEY:
@@ -92,23 +93,49 @@ def upload_to_supabase(local_path: str, remote_path: str) -> str:
     with open(local_path, "rb") as f:
         file_bytes = f.read()
 
-    # Thử POST với x-upsert: true (chuẩn Supabase Storage upload)
-    response = httpx.post(url, content=file_bytes, headers=headers, timeout=30.0)
-    if response.status_code not in (200, 201):
-        # Fallback thử PUT nếu object đã tồn tại
-        response = httpx.put(url, content=file_bytes, headers=headers, timeout=30.0)
+    file_size_mb = len(file_bytes) / (1024 * 1024)
+    # Timeout 5 phút (300 giây)
+    upload_timeout = httpx.Timeout(300.0, connect=60.0)
+    max_retries = 3
 
-    if response.status_code not in (200, 201):
-        raise RuntimeError(f"Upload Supabase thất bại: {response.status_code} {response.text}")
+    for attempt in range(1, max_retries + 1):
+        try:
+            log.info(f"📤 Đang upload kết quả lên Supabase ({file_size_mb:.2f} MB, lần thử {attempt}/{max_retries}, timeout tối đa 5 phút)...")
+            response = httpx.post(url, content=file_bytes, headers=headers, timeout=upload_timeout)
+            if response.status_code not in (200, 201):
+                # Fallback thử PUT nếu object đã tồn tại
+                response = httpx.put(url, content=file_bytes, headers=headers, timeout=upload_timeout)
 
-    public_url = f"{SUPABASE_URL}/storage/v1/object/public/{bucket}/{remote_path}"
-    log.info(f"✅ Đã upload: {public_url}")
-    return public_url
+            if response.status_code in (200, 201):
+                public_url = f"{SUPABASE_URL}/storage/v1/object/public/{bucket}/{remote_path}"
+                log.info(f"✅ Đã upload thành công: {public_url}")
+                return public_url
+            else:
+                log.warning(f"⚠️ Lần thử {attempt}/{max_retries} thất bại HTTP {response.status_code}: {response.text}")
+        except (httpx.TimeoutException, httpx.NetworkError) as e:
+            log.warning(f"⚠️ Lần thử {attempt}/{max_retries} gặp lỗi mạng/timeout ({e})")
+            if attempt == max_retries:
+                raise
+
+        time.sleep(3)
+
+    raise RuntimeError(f"Upload Supabase thất bại sau {max_retries} lần thử.")
 
 
 # ─── NestJS API Callback (Bảo mật bằng Worker Secret Token) ───
-def notify_nestjs(job_id: str, status: str, result_url: str = "", score: int = 0):
-    """Gọi NestJS để cập nhật trạng thái job kèm token bảo mật."""
+def notify_nestjs(
+    job_id: str,
+    status: str,
+    result_url: str = "",
+    score: int = 0,
+    health_alerts: list | None = None,
+    joint_states: dict | None = None,
+):
+    """Gọi NestJS để cập nhật trạng thái job kèm token bảo mật.
+
+    health_alerts: list[dict] từ SessionHealthMonitor.get_confirmed_alerts()
+    joint_states:  dict[str, str] từ SessionHealthMonitor.get_joint_states()
+    """
     if not NESTJS_API_URL:
         return
 
@@ -119,7 +146,13 @@ def notify_nestjs(job_id: str, status: str, result_url: str = "", score: int = 0
         }
         httpx.patch(
             f"{NESTJS_API_URL}/jobs/{job_id}/status",
-            json={"status": status, "resultUrl": result_url, "score": score},
+            json={
+                "status":       status,
+                "resultUrl":    result_url,
+                "score":        score,
+                "healthAlerts": health_alerts or [],
+                "jointStates":  joint_states or {},
+            },
             headers=headers,
             timeout=10.0,
         )
@@ -168,21 +201,39 @@ def process_job(r: redis.Redis, job_id: str):
         remote_path = f"results/{db_job_id}/{result_filename}"
         result_url  = upload_to_supabase(local_result, remote_path)
 
-        # ── Lấy điểm tốt nhất ──
-        best_score = result["summary"].get("bestScore", 0)
+        # ── Lấy điểm tốt nhất & anomaly data ──
+        best_score   = result["summary"].get("bestScore", 0)
+        health_alerts = result.get("healthAlerts", [])
+        joint_states  = result["summary"].get("jointHealthStates", {})
 
         # ── Cập nhật Redis job status (BullMQ format) ──
         r.hset(job_key, mapping={
-            "returnvalue": json.dumps({"resultUrl": result_url, "score": best_score}),
+            "returnvalue": json.dumps({
+                "resultUrl":    result_url,
+                "score":        best_score,
+                "alertCount":   result["summary"].get("healthAlertCount", 0),
+                "hasImpairment": len(health_alerts) > 0,
+            }),
             "finishedOn":  int(time.time() * 1000),
         })
         # An toàn đa luồng: Chỉ xóa chính xác job_id này khỏi ACTIVE_KEY và đẩy sang COMPLETED_KEY
         r.lrem(ACTIVE_KEY, 1, job_id)
         r.rpush(COMPLETED_KEY, job_id)
 
-        # ── Thông báo NestJS ──
-        notify_nestjs(db_job_id, "DONE", result_url=result_url, score=best_score)
-        log.info(f"✅ Job {db_job_id} hoàn thành. Score: {best_score}")
+        # ── Thông báo NestJS (kèm anomaly data) ──
+        notify_nestjs(
+            db_job_id,
+            "DONE",
+            result_url=result_url,
+            score=best_score,
+            health_alerts=health_alerts,
+            joint_states=joint_states,
+        )
+
+        alert_count = len(health_alerts)
+        log.info(f"✅ Job {db_job_id} hoàn thành. Score: {best_score}, Health Alerts: {alert_count}")
+        if alert_count > 0:
+            log.warning(f"⚠️  {alert_count} CONFIRMED_IMPAIRMENT alert(s) phát hiện!")
 
     except Exception as e:
         log.error(f"❌ Job {db_job_id} thất bại: {e}", exc_info=True)

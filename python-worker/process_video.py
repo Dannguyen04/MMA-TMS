@@ -47,6 +47,7 @@ from pose_math import (
     is_landmark_valid, are_landmarks_valid,
     parse_yolo_keypoints, get_angle_color_label,
 )
+from joint_health_tracker import SessionHealthMonitor, estimate_torso_length
 
 
 # ─── Cấu hình EMA ───
@@ -126,10 +127,9 @@ def process_video(
 
     # ── 3. Khởi tạo state ──
     ema_states: dict[int, EMAState] = {i: EMAState() for i in range(17)}
-    kick_analyzer = KickAnalyzer()
+    kick_analyzer  = KickAnalyzer()
     punch_analyzer = PunchAnalyzer()
-    kick_posture_gate = PostureGate()
-    person_tracker = PersonTracker(max_missing_frames=15, max_landmark_jump=0.14)
+    health_monitor = SessionHealthMonitor()  # Anomaly Detection pipeline
 
     frame_records  = []
     last_ankle: Optional[Point] = None
@@ -322,6 +322,17 @@ def process_video(
             rejection_reason=rejection_reason,
         )
 
+        # ── 6b. Hook Kick vào Health Monitor ──
+        if kick_result is not None:
+            torso_len = estimate_torso_length(filtered_kps)
+            health_monitor.on_kick_event(
+                leg=active_leg if active_leg in ("left", "right") else "right",
+                max_extension_angle=kick_result.max_extension_angle,
+                peak_speed=kick_result.peak_speed,
+                time_ms=time_ms,
+                torso_length=torso_len,
+            )
+
         # ── 7. Tính metrics tay & máy trạng thái đấm ──
         l_sh = filtered_kps[KP.LEFT_SHOULDER]
         r_sh = filtered_kps[KP.RIGHT_SHOULDER]
@@ -343,6 +354,18 @@ def process_video(
             time_ms=time_ms,
             is_discontinuous=is_discontinuous,
         )
+
+        # ── 7b. Hook Punch vào Health Monitor ──
+        if punch_result is not None:
+            torso_len = estimate_torso_length(filtered_kps)
+            health_monitor.on_punch_event(
+                punch_type=punch_result.punch_type,
+                arm=punch_result.arm,
+                max_elbow_angle=punch_result.max_elbow_angle,
+                peak_speed=punch_result.peak_speed,
+                time_ms=time_ms,
+                torso_length=torso_len,
+            )
 
         # ── 8. Ghi record frame ──
         frame_records.append({
@@ -416,14 +439,20 @@ def process_video(
     else:
         primary_action = "mixed" if (total_punches > 0) else "idle"
 
+    # ── Anomaly Detection: thu thập tất cả alerts đã xác nhận ──
+    confirmed_alerts = [a.to_dict() for a in health_monitor.get_confirmed_alerts()]
+    joint_states     = health_monitor.get_joint_states()
+
     summary = {
-        "totalKicks":    total_kicks,
-        "totalPunches":  total_punches,
-        "primaryAction": primary_action,
-        "avgScore":      round(sum(all_scores) / len(all_scores), 1) if all_scores else 0,
-        "bestScore":     max(all_scores) if all_scores else 0,
-        "bestKickIdx":   [r.score for r in kick_analyzer.results].index(max([r.score for r in kick_analyzer.results])) if kick_analyzer.results else -1,
-        "bestPunchIdx":  [p.score for p in punch_analyzer.results].index(max([p.score for p in punch_analyzer.results])) if punch_analyzer.results else -1,
+        "totalKicks":         total_kicks,
+        "totalPunches":       total_punches,
+        "primaryAction":      primary_action,
+        "avgScore":           round(sum(all_scores) / len(all_scores), 1) if all_scores else 0,
+        "bestScore":          max(all_scores) if all_scores else 0,
+        "bestKickIdx":        [r.score for r in kick_analyzer.results].index(max([r.score for r in kick_analyzer.results])) if kick_analyzer.results else -1,
+        "bestPunchIdx":       [p.score for p in punch_analyzer.results].index(max([p.score for p in punch_analyzer.results])) if punch_analyzer.results else -1,
+        "healthAlertCount":   len(confirmed_alerts),
+        "jointHealthStates":  joint_states,
     }
 
     output = {
@@ -438,11 +467,12 @@ def process_video(
             "imgHeight":      img_h,
             "processedAt":    time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         },
-        "frames":   frame_records,
-        "kicks":    kicks_dicts,
-        "punches":  punches_dicts,
-        "findings": all_findings,
-        "summary":  summary,
+        "frames":        frame_records,
+        "kicks":         kicks_dicts,
+        "punches":       punches_dicts,
+        "findings":      all_findings,
+        "healthAlerts":  confirmed_alerts,  # ← Anomaly Detection output
+        "summary":       summary,
     }
 
     # ── 10. Xuất file JSON ──
@@ -464,6 +494,12 @@ def process_video(
         if all_scores:
             print(f"   • Điểm trung bình: {summary['avgScore']}")
             print(f"   • Điểm cao nhất: {summary['bestScore']}")
+        if confirmed_alerts:
+            print(f"   ⚠️  Health Alerts (CONFIRMED_IMPAIRMENT): {len(confirmed_alerts)}")
+            for a in confirmed_alerts:
+                print(f"      – {a['joint']}: avg_ROM={a['avgRomRatio']:.0%}, severity={a['severity']}")
+        else:
+            print(f"   ✅ Không phát hiện dấu hiệu chấn thương cơ học")
 
     return output
 
