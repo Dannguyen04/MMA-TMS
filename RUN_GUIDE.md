@@ -138,14 +138,12 @@ cd d:\test\ai\python-worker
 
 ## 🥊 6. Hướng Dẫn Sử Dụng Ứng Dụng Trên Web
 
-1. Mở trình duyệt truy cập: **`http://localhost:3000/analysis`**
-2. Bấm chọn video võ thuật của bạn (`.mp4`) và bấm **"Bắt đầu phân tích"**.
-3. Hệ thống tự động:
-    - Đẩy video lên Supabase Storage.
-    - Thêm task vào hàng đợi BullMQ.
-    - Python Worker dùng YOLOv8-Pose bóc tách 17 khớp xương, phân tích góc cùi chỏ, góc gối, tốc độ và thế thủ.
-    - Tự động chuyển hướng sang trang kết quả `/analysis/[jobId]`.
-4. Trên trang kết quả:
-    - Xem video phát kèm khung xương động và cung đo góc cùi chỏ `🥊 173.4°`.
-    - Chọn tốc độ phát chậm (`0.25x`, `0.5x`) hoặc tua từng khung hình (`⏮ -1`, `+1 ⏭`).
-    - Chuyển đổi giữa các tab **Đòn đấm**, **AI Findings** và **Cú đá** để xem chi tiết nhận xét của HLV ảo.
+1. Mở trình duyệt truy cập **`http://localhost:3000`** và đăng nhập bằng một tài khoản demo trên màn hình đăng nhập (Võ sĩ, HLV, Bác sĩ thể thao, Quản trị viên). Giao diện dùng tiếng Anh.
+2. Mặc định frontend chạy với dữ liệu giả lập (`NEXT_PUBLIC_VIDEO_PIPELINE=mock`): tải video lên sẽ mô phỏng toàn bộ quy trình AI mà không cần Redis, API hay Worker.
+3. Để dùng pipeline thật (Supabase Storage → NestJS BullMQ → Python Worker YOLOv8-Pose), đặt `NEXT_PUBLIC_VIDEO_PIPELINE=api` cùng các biến Supabase/API trong `nextjs-frontend/.env.local` (xem `nextjs-frontend/.env.local.example`).
+4. Luồng phân tích video:
+    - Võ sĩ: **Videos → Upload video** (`/fighter/videos/upload`), chọn loại bài tập, theo dõi tiến trình xử lý rồi mở trang phân tích.
+    - HLV: **Video analysis** (`/coach/video-analysis`) để xem hàng chờ duyệt, xác nhận / sửa / bác bỏ các phát hiện của AI và viết đánh giá.
+    - Trang phân tích gồm trình phát tái dựng khung xương, dòng thời gian đòn đánh, độ tin cậy, chỉ số hiệu suất và phần duyệt của con người.
+5. Các đường dẫn cũ `/analysis` và `/live` tự động chuyển hướng sang khu vực video của võ sĩ.
+6. Tài liệu kiến trúc frontend: `nextjs-frontend/docs/frontend-architecture.md`.
