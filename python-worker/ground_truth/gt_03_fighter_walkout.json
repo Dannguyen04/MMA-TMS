@@ -1,0 +1,18 @@
+[
+  {
+    "id": 1,
+    "video": "vid_03_fighter_walkout.mp4",
+    "arm": "both",
+    "technique": "none",
+    "type": "none",
+    "start_frame": 0,
+    "impact_frame": 0,
+    "end_frame": 719,
+    "start_time": 0.0,
+    "peak_time": 0.0,
+    "end_time": 12.0,
+    "label": "GESTURE",
+    "description": "Fighter walkout, bouncing, shaking arms, adjusting shorts/gloves (zero punches)"
+  }
+]
+
