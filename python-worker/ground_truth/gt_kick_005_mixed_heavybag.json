@@ -1,0 +1,125 @@
+{
+  "schema_version": "1.0",
+  "evaluated_kinds": [
+    "kick"
+  ],
+  "video": {
+    "video_id": "VIDEO_DATA_005",
+    "file": "video-data-test/VIDEO_DATA_005.mp4",
+    "fps": 25.0,
+    "total_frames": 362,
+    "annotator": "manual_visual_review",
+    "review_status": "second_visual_pass_same_reviewer"
+  },
+  "events": [
+    {
+      "event_id": "kick_001",
+      "strike_kind": "kick",
+      "technique": "roundhouse",
+      "side": "unknown",
+      "start_frame": 16,
+      "chamber_frame": 22,
+      "extension_frame": 24,
+      "impact_frame": 26,
+      "recovery_frame": 30,
+      "end_frame": 36,
+      "visibility": "partial",
+      "occlusion": "heavy_bag_partial",
+      "camera_angle": "front_oblique",
+      "evaluation_scope": "in_scope",
+      "notes": "High kick; striking leg identity requires second annotator review.",
+      "impact_uncertainty_frames": 2
+    },
+    {
+      "event_id": "kick_002",
+      "strike_kind": "kick",
+      "technique": "roundhouse",
+      "side": "unknown",
+      "start_frame": 140,
+      "chamber_frame": 142,
+      "extension_frame": 144,
+      "impact_frame": 146,
+      "recovery_frame": 152,
+      "end_frame": 158,
+      "visibility": "partial",
+      "occlusion": "heavy_bag_partial",
+      "camera_angle": "front_oblique",
+      "evaluation_scope": "in_scope",
+      "notes": "Body kick; impact occurs near the end of the source shot.",
+      "impact_uncertainty_frames": 2
+    },
+    {
+      "event_id": "kick_003",
+      "strike_kind": "kick",
+      "technique": "roundhouse",
+      "side": "unknown",
+      "start_frame": 212,
+      "chamber_frame": 220,
+      "extension_frame": 222,
+      "impact_frame": 222,
+      "recovery_frame": 228,
+      "end_frame": 236,
+      "visibility": "partial",
+      "occlusion": "heavy_bag_partial",
+      "camera_angle": "front",
+      "evaluation_scope": "in_scope",
+      "notes": "Visual frames 220-226 show chamber, lower-leg extension and retraction: roundhouse rather than knee. Bag occludes foot at contact.",
+      "impact_uncertainty_frames": 2
+    },
+    {
+      "event_id": "kick_004",
+      "strike_kind": "kick",
+      "technique": "unknown",
+      "side": "unknown",
+      "start_frame": 264,
+      "chamber_frame": 272,
+      "extension_frame": 274,
+      "impact_frame": 274,
+      "recovery_frame": 278,
+      "end_frame": 284,
+      "visibility": "partial",
+      "occlusion": "heavy_bag_partial",
+      "camera_angle": "front",
+      "evaluation_scope": "in_scope",
+      "notes": "Clear kick at frames 272-276; front versus roundhouse subtype uncertain from this projection. Retain unknown technique.",
+      "impact_uncertainty_frames": 2
+    },
+    {
+      "event_id": "kick_005",
+      "strike_kind": "kick",
+      "technique": "knee",
+      "side": "unknown",
+      "start_frame": 318,
+      "chamber_frame": 326,
+      "extension_frame": null,
+      "impact_frame": 328,
+      "recovery_frame": 334,
+      "end_frame": 340,
+      "visibility": "partial",
+      "occlusion": "heavy_bag_partial",
+      "camera_angle": "front",
+      "evaluation_scope": "in_scope",
+      "notes": "Bent-knee drive and contact around frames 326-330; no lower-leg extension observed.",
+      "impact_uncertainty_frames": 2
+    }
+  ],
+  "review_notes": "Rechecked source frames without pose overlays. Not an independent second annotator. Count and in-scope status unchanged; side remains unknown. Subtype and contact timing remain uncertain where the bag occludes contact.",
+  "annotation_revision": {
+    "revision": 2,
+    "basis": "Source-frame visual inspection, not detector output",
+    "previous_impact_frames": [
+      26,
+      148,
+      224,
+      274,
+      330
+    ],
+    "previous_techniques": [
+      "roundhouse",
+      "roundhouse",
+      "knee",
+      "front_kick",
+      "knee"
+    ]
+  }
+}

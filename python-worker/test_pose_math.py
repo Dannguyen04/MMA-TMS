@@ -60,8 +60,14 @@ a = Point(0, 1); b = Point(0, 0); c = Point(1, 1)
 angle = calculate_angle(a, b, c)
 check("Góc 45°", approx(angle, 45.0, tol=1.5), f"got {angle:.1f}°")
 
-# None input → 0
-check("None input → 0", calculate_angle(None, None, None) == 0)
+# None input → None
+check("None input → None", calculate_angle(None, None, None) is None)
+
+# Low confidence input → None
+check("Low confidence input → None", calculate_angle(Point(0, 1, 0.9), Point(0, 0, 0.1), Point(1, 0, 0.9)) is None)
+
+# Degenerate near-zero vector → None
+check("Degenerate near-zero vector → None", calculate_angle(Point(0, 0.005), Point(0, 0), Point(1, 0)) is None)
 
 
 # ════════════════════════════════════════════════

@@ -1,0 +1,198 @@
+{
+  "schema_version": "1.0",
+  "evaluated_kinds": [
+    "punch"
+  ],
+  "video": {
+    "video_id": "VIDEO_DATA_003",
+    "file": "video-data-test/VIDEO_DATA_003.mp4",
+    "fps": 25.0,
+    "total_frames": 232,
+    "source_sha256": "0dd140c30a92006bfa8cd9ec46713e21dee441fd4a21a1e110ee931c4987e118",
+    "annotator": "source_frame_visual_review",
+    "review_status": "provisional_single_reviewer"
+  },
+  "annotation_method": "Reviewed chronological source frames at 2-frame spacing across the whole clip, with a closer review of 003 frames 132-166. No pose overlays or prediction timestamps used to generate events. Unknown side/technique are not scored. Requires an independent human review; these are diagnostic annotations, not a held-out test set.",
+  "events": [
+    {
+      "event_id": "punch_001",
+      "strike_kind": "punch",
+      "technique": "unknown",
+      "side": "unknown",
+      "impact_frame": 10,
+      "impact_uncertainty_frames": 2,
+      "evaluation_scope": "in_scope"
+    },
+    {
+      "event_id": "punch_002",
+      "strike_kind": "punch",
+      "technique": "unknown",
+      "side": "unknown",
+      "impact_frame": 46,
+      "impact_uncertainty_frames": 2,
+      "evaluation_scope": "in_scope"
+    },
+    {
+      "event_id": "punch_003",
+      "strike_kind": "punch",
+      "technique": "unknown",
+      "side": "unknown",
+      "impact_frame": 50,
+      "impact_uncertainty_frames": 2,
+      "evaluation_scope": "in_scope"
+    },
+    {
+      "event_id": "punch_004",
+      "strike_kind": "punch",
+      "technique": "unknown",
+      "side": "unknown",
+      "impact_frame": 58,
+      "impact_uncertainty_frames": 2,
+      "evaluation_scope": "in_scope"
+    },
+    {
+      "event_id": "punch_005",
+      "strike_kind": "punch",
+      "technique": "unknown",
+      "side": "unknown",
+      "impact_frame": 72,
+      "impact_uncertainty_frames": 2,
+      "evaluation_scope": "in_scope"
+    },
+    {
+      "event_id": "punch_006",
+      "strike_kind": "punch",
+      "technique": "unknown",
+      "side": "unknown",
+      "impact_frame": 78,
+      "impact_uncertainty_frames": 2,
+      "evaluation_scope": "in_scope"
+    },
+    {
+      "event_id": "punch_007",
+      "strike_kind": "punch",
+      "technique": "unknown",
+      "side": "unknown",
+      "impact_frame": 86,
+      "impact_uncertainty_frames": 2,
+      "evaluation_scope": "in_scope"
+    },
+    {
+      "event_id": "punch_008",
+      "strike_kind": "punch",
+      "technique": "unknown",
+      "side": "unknown",
+      "impact_frame": 104,
+      "impact_uncertainty_frames": 2,
+      "evaluation_scope": "in_scope"
+    },
+    {
+      "event_id": "punch_009",
+      "strike_kind": "punch",
+      "technique": "unknown",
+      "side": "unknown",
+      "impact_frame": 122,
+      "impact_uncertainty_frames": 2,
+      "evaluation_scope": "in_scope"
+    },
+    {
+      "event_id": "punch_010",
+      "strike_kind": "punch",
+      "technique": "unknown",
+      "side": "unknown",
+      "impact_frame": 128,
+      "impact_uncertainty_frames": 2,
+      "evaluation_scope": "in_scope"
+    },
+    {
+      "event_id": "punch_011",
+      "strike_kind": "punch",
+      "technique": "unknown",
+      "side": "unknown",
+      "impact_frame": 134,
+      "impact_uncertainty_frames": 2,
+      "evaluation_scope": "in_scope"
+    },
+    {
+      "event_id": "punch_012",
+      "strike_kind": "punch",
+      "technique": "unknown",
+      "side": "unknown",
+      "impact_frame": 150,
+      "impact_uncertainty_frames": 2,
+      "evaluation_scope": "in_scope"
+    },
+    {
+      "event_id": "punch_013",
+      "strike_kind": "punch",
+      "technique": "unknown",
+      "side": "unknown",
+      "impact_frame": 158,
+      "impact_uncertainty_frames": 2,
+      "evaluation_scope": "in_scope"
+    },
+    {
+      "event_id": "punch_014",
+      "strike_kind": "punch",
+      "technique": "unknown",
+      "side": "unknown",
+      "impact_frame": 164,
+      "impact_uncertainty_frames": 2,
+      "evaluation_scope": "in_scope"
+    },
+    {
+      "event_id": "punch_015",
+      "strike_kind": "punch",
+      "technique": "unknown",
+      "side": "unknown",
+      "impact_frame": 184,
+      "impact_uncertainty_frames": 2,
+      "evaluation_scope": "in_scope"
+    },
+    {
+      "event_id": "punch_016",
+      "strike_kind": "punch",
+      "technique": "unknown",
+      "side": "unknown",
+      "impact_frame": 190,
+      "impact_uncertainty_frames": 2,
+      "evaluation_scope": "in_scope"
+    },
+    {
+      "event_id": "punch_017",
+      "strike_kind": "punch",
+      "technique": "unknown",
+      "side": "unknown",
+      "impact_frame": 198,
+      "impact_uncertainty_frames": 2,
+      "evaluation_scope": "in_scope"
+    },
+    {
+      "event_id": "punch_018",
+      "strike_kind": "punch",
+      "technique": "unknown",
+      "side": "unknown",
+      "impact_frame": 206,
+      "impact_uncertainty_frames": 2,
+      "evaluation_scope": "in_scope"
+    },
+    {
+      "event_id": "punch_019",
+      "strike_kind": "punch",
+      "technique": "unknown",
+      "side": "unknown",
+      "impact_frame": 218,
+      "impact_uncertainty_frames": 2,
+      "evaluation_scope": "in_scope"
+    },
+    {
+      "event_id": "punch_020",
+      "strike_kind": "punch",
+      "technique": "unknown",
+      "side": "unknown",
+      "impact_frame": 224,
+      "impact_uncertainty_frames": 2,
+      "evaluation_scope": "in_scope"
+    }
+  ]
+}

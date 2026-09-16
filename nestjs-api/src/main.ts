@@ -48,7 +48,7 @@ async function bootstrap() {
 
   const document = createOpenApiDocument(app);
   SwaggerModule.setup('docs', app, document);
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
   console.log(`🚀 NestJS API running on http://localhost:${port}`);
 }
 bootstrap();
