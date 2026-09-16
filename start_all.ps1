@@ -22,6 +22,12 @@ foreach ($pair in $envPairs) {
     }
 }
 
+# 0.1 Đảm bảo Node.js và pnpm có trong PATH
+$nodePath = "C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\VisualStudio\NodeJs"
+if ($env:Path -notlike "*$nodePath*") {
+    $env:Path = "$nodePath;$env:Path"
+}
+
 # 1. Kiểm tra Redis
 Write-Host "[1/4] Kiểm tra Redis Server (Port 6379)..." -ForegroundColor Yellow
 $redisActive = (Get-NetTCPConnection -LocalPort 6379 -ErrorAction SilentlyContinue | Where-Object State -eq 'Listen')
@@ -29,7 +35,7 @@ if ($redisActive) {
     Write-Host "    ✓ Redis Server đã đang chạy trên cổng 6379." -ForegroundColor Green
 } else {
     Write-Host "    + Đang khởi động Redis Server..." -ForegroundColor Yellow
-    $redisWinGet = "C:\Users\DAN\AppData\Local\Microsoft\WinGet\Packages\taizod1024.redis-windows-fork_Microsoft.Winget.Source_8wekyb3d8bbwe\Redis-8.10.1-Windows-x64-msys2\redis-server.exe"
+    $redisWinGet = "$env:LOCALAPPDATA\Microsoft\WinGet\Packages\taizod1024.redis-windows-fork_Microsoft.Winget.Source_8wekyb3d8bbwe\Redis-8.10.1-Windows-x64-msys2\redis-server.exe"
     if (Test-Path $redisWinGet) {
         Start-Process -FilePath $redisWinGet -WindowStyle Normal
     } else {

@@ -52,6 +52,7 @@ from pipeline import (
     normalize_martial_art,
     resolve_stance_context,
 )
+from joint_health_tracker import SessionHealthMonitor, estimate_torso_length
 
 
 # ─── Cấu hình EMA ───
@@ -190,8 +191,11 @@ def process_video(
         print(f"📹 Video: {img_w}x{img_h} @ {fps:.1f}fps — {total_frames} frames")
 
     # ── 3. Khởi tạo state ──
+    ema_states: dict[int, EMAState] = {i: EMAState() for i in range(17)}
+    kick_analyzer = KickAnalyzer()
+    punch_analyzer = PunchAnalyzer()
+    kick_posture_gate = PostureGate()
     person_tracker = PersonTracker(max_missing_frames=15, max_landmark_jump=0.14)
-    action_pipeline = ActionPipeline()
 
     frame_records  = []
     last_keypoints: Optional[list[Point]] = None  # cache frame trước
@@ -235,27 +239,215 @@ def process_video(
             )
         else:
             keypoints = last_keypoints
-            observation_kind = (
-                ObservationKind.CACHED_BETWEEN_DETECTION
-                if keypoints is not None
-                else ObservationKind.MISSING_DETECTION
-            )
 
-        observation = PoseObservation(
-            keypoints=keypoints,
-            observation_kind=observation_kind,
-            is_discontinuous=is_discontinuous,
+        # Nếu có bước nhảy toạ độ/đổi người, reinitialize EMA filter để không bị kéo lê toạ độ
+        if is_discontinuous:
+            for s in ema_states.values():
+                s.initialized = False
+            kick_analyzer.reset_motion()
+            kick_posture_gate.reset()
+
+        # ── 5. EMA Filter ──
+        filtered_kps: list[Point] = []
+        if keypoints:
+            for i, kp in enumerate(keypoints):
+                filtered = apply_ema(kp, ema_states[i], EMA_ALPHA)
+                filtered_kps.append(filtered)
+        else:
+            # Không có detection: ghi frame rỗng
+            punch_analyzer.reset_temporal_derivatives()
+            for s in ema_states.values():
+                s.initialized = False
+            kick_analyzer.update(active_leg="none", frame_idx=frame_idx,
+                                 time_ms=time_ms, landmarks_valid=False,
+                                 geometry_valid=False, rejection_reason="NO_DETECTION")
+            frame_records.append({
+                "frameIdx":             frame_idx,
+                "timeMs":               round(time_ms, 1),
+                "activeLeg":            "none",
+                "kneeAngle":            None,
+                "hipAngle":             None,
+                "elbowAngleLeft":       None,
+                "elbowAngleRight":      None,
+                "activeArm":            "none",
+                "punchState":           punch_analyzer.state.value,
+                "punchStateLabel":      PUNCH_STATE_LABELS[punch_analyzer.state],
+                "speed":                0,
+                "kickState":            kick_analyzer.state.value,
+                "kickStateLabel":       KICK_STATE_LABELS[kick_analyzer.state],
+                "kickPreviousState":    kick_analyzer.state.value,
+                "kickTransitionReason": "NONE",
+                "kickRejectionReason":  "NO_DETECTION",
+                "landmarksValid":       False,
+                "geometryValid":        False,
+                "leftHipConf":          0.0,
+                "leftKneeConf":         0.0,
+                "leftAnkleConf":        0.0,
+                "rightHipConf":         0.0,
+                "rightKneeConf":        0.0,
+                "rightAnkleConf":       0.0,
+                "angleColorLabel":      "none",
+                "landmarks":            [],
+            })
+            continue
+
+        # ── 6. Tính metrics chân & máy trạng thái đá (Phase 2A Validity Gate) ──
+        posture, _ = kick_posture_gate.update(filtered_kps)
+        if posture == PostureState.GROUND:
+            kick_analyzer.reset_motion()
+        active_leg = "none" if posture == PostureState.GROUND else detect_active_leg(
+            filtered_kps,
+            preferred_leg=kick_analyzer.active_leg if kick_analyzer.state != KickState.IDLE else "none",
         )
-        context = FrameContext(
+        prev_kick_state = kick_analyzer.state
+
+        l_hip_conf = round(filtered_kps[KP.LEFT_HIP].conf, 3)
+        l_knee_conf = round(filtered_kps[KP.LEFT_KNEE].conf, 3)
+        l_ankle_conf = round(filtered_kps[KP.LEFT_ANKLE].conf, 3)
+        r_hip_conf = round(filtered_kps[KP.RIGHT_HIP].conf, 3)
+        r_knee_conf = round(filtered_kps[KP.RIGHT_KNEE].conf, 3)
+        r_ankle_conf = round(filtered_kps[KP.RIGHT_ANKLE].conf, 3)
+
+        pose_config = PoseValidityConfig()
+        landmarks_valid = False
+        geometry_valid = False
+        rejection_reason = "NONE"
+        knee_angle: Optional[float] = None
+        hip_angle: Optional[float] = None
+        active_ankle: Optional[Point] = None
+
+        if active_leg == "left":
+            hip_idx, knee_idx, ankle_idx, shoulder_idx = (
+                KP.LEFT_HIP, KP.LEFT_KNEE, KP.LEFT_ANKLE, KP.LEFT_SHOULDER
+            )
+            hip = filtered_kps[hip_idx]
+            knee = filtered_kps[knee_idx]
+            ankle = filtered_kps[ankle_idx]
+            shoulder = filtered_kps[shoulder_idx]
+            active_ankle = ankle
+
+            if not are_landmarks_valid([hip, knee, ankle], min_confidence=pose_config.min_landmark_confidence):
+                landmarks_valid = False
+                geometry_valid = False
+                rejection_reason = "INSUFFICIENT_LOWER_BODY_CONFIDENCE"
+            else:
+                landmarks_valid = True
+                knee_angle = calculate_angle(hip, knee, ankle, config=pose_config)
+                if knee_angle is None:
+                    geometry_valid = False
+                    rejection_reason = "DEGENERATE_VECTOR_LENGTH"
+                else:
+                    geometry_valid = True
+                    rejection_reason = "NONE"
+
+                if is_landmark_valid(shoulder, min_confidence=pose_config.min_landmark_confidence):
+                    hip_angle = calculate_angle(shoulder, hip, knee, config=pose_config)
+
+        elif active_leg == "right":
+            hip_idx, knee_idx, ankle_idx, shoulder_idx = (
+                KP.RIGHT_HIP, KP.RIGHT_KNEE, KP.RIGHT_ANKLE, KP.RIGHT_SHOULDER
+            )
+            hip = filtered_kps[hip_idx]
+            knee = filtered_kps[knee_idx]
+            ankle = filtered_kps[ankle_idx]
+            shoulder = filtered_kps[shoulder_idx]
+            active_ankle = ankle
+
+            if not are_landmarks_valid([hip, knee, ankle], min_confidence=pose_config.min_landmark_confidence):
+                landmarks_valid = False
+                geometry_valid = False
+                rejection_reason = "INSUFFICIENT_LOWER_BODY_CONFIDENCE"
+            else:
+                landmarks_valid = True
+                knee_angle = calculate_angle(hip, knee, ankle, config=pose_config)
+                if knee_angle is None:
+                    geometry_valid = False
+                    rejection_reason = "DEGENERATE_VECTOR_LENGTH"
+                else:
+                    geometry_valid = True
+                    rejection_reason = "NONE"
+
+                if is_landmark_valid(shoulder, min_confidence=pose_config.min_landmark_confidence):
+                    hip_angle = calculate_angle(shoulder, hip, knee, config=pose_config)
+
+        else:
+            # active_leg == "none": tuyệt đối không rơi vào chân phải (Root Cause 1)
+            landmarks_valid = False
+            geometry_valid = False
+            max_leg_conf = max(l_ankle_conf, r_ankle_conf, l_knee_conf, r_knee_conf)
+            if max_leg_conf < pose_config.min_landmark_confidence:
+                rejection_reason = "INSUFFICIENT_LOWER_BODY_CONFIDENCE"
+            else:
+                rejection_reason = "ACTIVE_LEG_NONE"
+
+        kick_result = kick_analyzer.update(
+            knee_angle=knee_angle,
+            hip_angle=hip_angle,
+            ankle=active_ankle,
             frame_idx=frame_idx,
             time_ms=time_ms,
-            fps=fps,
-            img_w=img_w,
-            img_h=img_h,
+            active_leg=active_leg,
+            landmarks_valid=landmarks_valid,
+            geometry_valid=geometry_valid,
+            rejection_reason=rejection_reason,
         )
 
-        analysis_result = action_pipeline.process_frame(observation, context)
-        frame_records.append(analysis_result.to_legacy_dict())
+        # ── 7. Tính metrics tay & máy trạng thái đấm ──
+        l_sh = filtered_kps[KP.LEFT_SHOULDER]
+        r_sh = filtered_kps[KP.RIGHT_SHOULDER]
+        l_el = filtered_kps[KP.LEFT_ELBOW]
+        r_el = filtered_kps[KP.RIGHT_ELBOW]
+        l_wr = filtered_kps[KP.LEFT_WRIST]
+        r_wr = filtered_kps[KP.RIGHT_WRIST]
+
+        l_elbow_angle = calculate_angle(l_sh, l_el, l_wr, min_confidence=0.25) if min(l_sh.conf, l_el.conf, l_wr.conf) > 0.25 else 75.0
+        r_elbow_angle = calculate_angle(r_sh, r_el, r_wr, min_confidence=0.25) if min(r_sh.conf, r_el.conf, r_wr.conf) > 0.25 else 75.0
+        if l_elbow_angle is None:
+            l_elbow_angle = 75.0
+        if r_elbow_angle is None:
+            r_elbow_angle = 75.0
+
+        punch_result = punch_analyzer.update(
+            keypoints=filtered_kps,
+            frame_idx=frame_idx,
+            time_ms=time_ms,
+            is_discontinuous=is_discontinuous,
+        )
+
+        # ── 8. Ghi record frame ──
+        frame_records.append({
+            "frameIdx":             frame_idx,
+            "timeMs":               round(time_ms, 1),
+            "isDiscontinuous":      is_discontinuous,
+            "activeLeg":            active_leg,
+            "kneeAngle":            round(knee_angle, 1) if knee_angle is not None else None,
+            "hipAngle":             round(hip_angle, 1) if hip_angle is not None else None,
+            "elbowAngleLeft":       round(l_elbow_angle, 1) if l_elbow_angle is not None else None,
+            "elbowAngleRight":      round(r_elbow_angle, 1) if r_elbow_angle is not None else None,
+            "activeArm":            punch_analyzer.active_arm,
+            "punchState":           punch_analyzer.state.value,
+            "punchStateLabel":      PUNCH_STATE_LABELS[punch_analyzer.state],
+            "kickState":            kick_analyzer.state.value,
+            "kickStateLabel":       KICK_STATE_LABELS[kick_analyzer.state],
+            "kickPreviousState":    prev_kick_state.value,
+            "kickTransitionReason": kick_analyzer.last_transition_reason,
+            "kickRejectionReason":  kick_analyzer.last_rejection_reason if not (landmarks_valid and geometry_valid) else "NONE",
+            "landmarksValid":       landmarks_valid,
+            "geometryValid":        geometry_valid,
+            "leftHipConf":          l_hip_conf,
+            "leftKneeConf":         l_knee_conf,
+            "leftAnkleConf":        l_ankle_conf,
+            "rightHipConf":         r_hip_conf,
+            "rightKneeConf":        r_knee_conf,
+            "rightAnkleConf":       r_ankle_conf,
+            "angleColorLabel":      get_angle_color_label(knee_angle),
+            "landmarks": [
+                {"x": round(p.x, 4), "y": round(p.y, 4), "conf": round(p.conf, 3)}
+                for p in filtered_kps
+            ],
+        })
+
+        last_time_ms = time_ms
 
     cap.release()
 
@@ -325,14 +517,18 @@ def process_video(
     else:
         primary_action = "mixed" if (total_punches > 0) else "idle"
 
+    # ── Anomaly Detection: thu thập tất cả alerts đã xác nhận ──
+    confirmed_alerts = [a.to_dict() for a in health_monitor.get_confirmed_alerts()]
+    joint_states     = health_monitor.get_joint_states()
+
     summary = {
         "totalKicks":    total_kicks,
         "totalPunches":  total_punches,
         "primaryAction": primary_action,
         "avgScore":      round(sum(all_scores) / len(all_scores), 1) if all_scores else 0,
         "bestScore":     max(all_scores) if all_scores else 0,
-        "bestKickIdx":   [r.score for r in kicks].index(max([r.score for r in kicks])) if kicks else -1,
-        "bestPunchIdx":  [p.score for p in punches].index(max([p.score for p in punches])) if punches else -1,
+        "bestKickIdx":   [r.score for r in kick_analyzer.results].index(max([r.score for r in kick_analyzer.results])) if kick_analyzer.results else -1,
+        "bestPunchIdx":  [p.score for p in punch_analyzer.results].index(max([p.score for p in punch_analyzer.results])) if punch_analyzer.results else -1,
     }
 
     output = {
@@ -348,7 +544,6 @@ def process_video(
             "imgHeight":      img_h,
             "processedAt":    time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         },
-        "actions":  actions_dicts,
         "frames":   frame_records,
         "kicks":    kicks_dicts,
         "punches":  punches_dicts,
@@ -375,6 +570,12 @@ def process_video(
         if all_scores:
             print(f"   • Điểm trung bình: {summary['avgScore']}")
             print(f"   • Điểm cao nhất: {summary['bestScore']}")
+        if confirmed_alerts:
+            print(f"   ⚠️  Health Alerts (CONFIRMED_IMPAIRMENT): {len(confirmed_alerts)}")
+            for a in confirmed_alerts:
+                print(f"      – {a['joint']}: avg_ROM={a['avgRomRatio']:.0%}, severity={a['severity']}")
+        else:
+            print(f"   ✅ Không phát hiện dấu hiệu chấn thương cơ học")
 
     return output
 
