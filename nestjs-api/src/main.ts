@@ -1,6 +1,10 @@
-import { NestFactory } from '@nestjs/core';
+import { NestFactory, Reflector } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module.js';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import validationOptions from './shared/utils/validationOptions.js';
+import { ApiExceptionFilter } from './shared/filters/api-exception.filter.js';
+import { ApiResponseInterceptor } from './shared/interceptors/api-response.interceptor.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -36,9 +40,29 @@ async function bootstrap() {
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   });
 
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  app.useGlobalPipes(new ValidationPipe(validationOptions));
+  app.useGlobalFilters(new ApiExceptionFilter());
+  app.useGlobalInterceptors(new ApiResponseInterceptor(app.get(Reflector)));
 
   const port = process.env.PORT ?? 3001;
+
+  const options = new DocumentBuilder()
+    .setTitle('API')
+    .setDescription('API docs')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .addGlobalParameters({
+      in: 'header',
+      required: false,
+      name: process.env.APP_HEADER_LANGUAGE || 'x-custom-lang',
+      schema: {
+        example: 'en',
+      },
+    })
+    .build();
+
+  const document = SwaggerModule.createDocument(app, options);
+  SwaggerModule.setup('docs', app, document);
   await app.listen(port);
   console.log(`🚀 NestJS API running on http://localhost:${port}`);
 }
