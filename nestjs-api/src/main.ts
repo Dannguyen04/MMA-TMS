@@ -1,10 +1,9 @@
 import { NestFactory, Reflector } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module.js';
 import { SwaggerModule } from '@nestjs/swagger';
-import validationOptions from './shared/utils/validationOptions.js';
 import { ApiExceptionFilter } from './shared/filters/api-exception.filter.js';
 import { ApiResponseInterceptor } from './shared/interceptors/api-response.interceptor.js';
+import { AppValidationPipe } from './shared/pipes/app-validation.pipe.js';
 import { createOpenApiDocument } from './shared/utils/openapi.util.js';
 
 async function bootstrap() {
@@ -41,7 +40,7 @@ async function bootstrap() {
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   });
 
-  app.useGlobalPipes(new ValidationPipe(validationOptions));
+  app.useGlobalPipes(new AppValidationPipe());
   app.useGlobalFilters(new ApiExceptionFilter());
   app.useGlobalInterceptors(new ApiResponseInterceptor(app.get(Reflector)));
 

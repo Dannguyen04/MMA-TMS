@@ -10,6 +10,7 @@ import { AUTH_ACCESS_SERVICE } from '../src/shared/contracts/auth-access.contrac
 import { ApiExceptionFilter } from '../src/shared/filters/api-exception.filter.js';
 import { AccessTokenGuard } from '../src/shared/guards/auth.guard.js';
 import { ApiResponseInterceptor } from '../src/shared/interceptors/api-response.interceptor.js';
+import { AppValidationPipe } from '../src/shared/pipes/app-validation.pipe.js';
 
 describe('AuthController (e2e)', () => {
   let app: INestApplication<App>;
@@ -40,6 +41,7 @@ describe('AuthController (e2e)', () => {
       ],
     }).compile();
     app = moduleFixture.createNestApplication();
+    app.useGlobalPipes(new AppValidationPipe());
     app.useGlobalFilters(new ApiExceptionFilter());
     app.useGlobalInterceptors(new ApiResponseInterceptor(app.get(Reflector)));
     await app.init();
