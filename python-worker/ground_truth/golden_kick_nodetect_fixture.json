@@ -1,0 +1,3528 @@
+{
+  "schemaVersion": "1.0.0",
+  "meta": {
+    "videoPath": "fixtures/kick_nodetect_fixture.mp4",
+    "model": "yolov8n-pose",
+    "scoringVersion": "rubric-v3.0.0",
+    "fps": 30.0,
+    "totalFrames": 30,
+    "durationMs": 1000.0,
+    "imgWidth": 1080,
+    "imgHeight": 1920
+  },
+  "actions": [
+    {
+      "id": "action_001",
+      "sourceActionId": "kick_1",
+      "family": "kick",
+      "technique": "round_kick",
+      "attackingSide": "right",
+      "limbRole": "unknown",
+      "stance": "unknown",
+      "confidence": {
+        "detection": null,
+        "classification": null,
+        "assessment": 0.91
+      },
+      "phases": {
+        "startFrame": 6,
+        "chamberFrame": 8,
+        "launchFrame": null,
+        "peakFrame": null,
+        "impactFrame": 14,
+        "endFrame": 20,
+        "startTimeMs": 200.0,
+        "chamberTimeMs": 266.7,
+        "launchTimeMs": null,
+        "peakTimeMs": null,
+        "impactTimeMs": 466.7,
+        "endTimeMs": 666.7,
+        "impactType": "max_extension_proxy"
+      },
+      "metrics": {
+        "minChamberAngle": {
+          "value": 7.1,
+          "unit": "degree",
+          "confidence": 0.94
+        },
+        "maxExtensionAngle": {
+          "value": 158.7,
+          "unit": "degree",
+          "confidence": 0.9
+        },
+        "peakSpeed": {
+          "value": 3.317,
+          "unit": "normalized_image/s",
+          "confidence": 0.89
+        }
+      },
+      "assessment": {
+        "rubricId": "rubric_round_kick_v3",
+        "score": 86,
+        "grade": "GOOD",
+        "status": "good",
+        "primaryError": null,
+        "criteria": [
+          {
+            "criterionId": "crit_kick_chamber",
+            "criterionName": "Knee Chamber Depth",
+            "phase": "chamber",
+            "featureName": "min_chamber_angle",
+            "observedValue": 7.1,
+            "score": 100.0,
+            "weight": 0.35,
+            "confidence": 0.94,
+            "status": "excellent",
+            "evidenceFrameStart": 6,
+            "evidenceFrameEnd": 8,
+            "evidenceTimestampStartMs": 200.0,
+            "evidenceTimestampEndMs": 266.7,
+            "affectedBodyPart": "right_knee",
+            "detail": "✅ Rút gối xuất sắc (7°)",
+            "actionId": "action_001"
+          },
+          {
+            "criterionId": "crit_kick_extension",
+            "criterionName": "Full Leg Extension at Impact",
+            "phase": "impact",
+            "featureName": "max_extension_angle",
+            "observedValue": 158.73,
+            "score": 80.0,
+            "weight": 0.35,
+            "confidence": 0.9,
+            "status": "good",
+            "evidenceFrameStart": 8,
+            "evidenceFrameEnd": 14,
+            "evidenceTimestampStartMs": 266.7,
+            "evidenceTimestampEndMs": 466.7,
+            "affectedBodyPart": "right_knee",
+            "detail": "✅ Bung chân tốt (159°)",
+            "actionId": "action_001"
+          },
+          {
+            "criterionId": "crit_kick_speed",
+            "criterionName": "Striking Velocity",
+            "phase": "impact",
+            "featureName": "peak_speed",
+            "observedValue": 3.32,
+            "score": 100.0,
+            "weight": 0.15,
+            "confidence": 0.89,
+            "status": "excellent",
+            "evidenceFrameStart": 8,
+            "evidenceFrameEnd": 14,
+            "evidenceTimestampStartMs": 266.7,
+            "evidenceTimestampEndMs": 466.7,
+            "affectedBodyPart": "right_ankle",
+            "detail": "✅ Tốc độ mạnh (3.32 u/s)",
+            "actionId": "action_001"
+          },
+          {
+            "criterionId": "crit_kick_posture",
+            "criterionName": "Torso & Hip Alignment",
+            "phase": "impact",
+            "featureName": "hip_angle",
+            "observedValue": 40.04,
+            "score": 50.0,
+            "weight": 0.15,
+            "confidence": 0.86,
+            "status": "needs_work",
+            "evidenceFrameStart": 14,
+            "evidenceFrameEnd": 14,
+            "evidenceTimestampStartMs": 466.7,
+            "evidenceTimestampEndMs": 466.7,
+            "affectedBodyPart": "right_hip",
+            "detail": "⚠️ Gập thân khi đá (40°, nên > 115°)",
+            "actionId": "action_001"
+          }
+        ],
+        "findings": [
+          {
+            "id": "kick_1_chamber_perf",
+            "category": "technique",
+            "title": "Optimal Knee Chamber (Rút gối xuất sắc)",
+            "description": "Gối co gập sâu đạt 7°, tích lũy thế năng và tạo đòn bẩy bung cẳng chân tối ưu.",
+            "severity": "positive",
+            "confidence": 0.94,
+            "frameIdx": 8,
+            "timeMs": 266.7,
+            "metricName": "minChamberAngle",
+            "metricValue": 7.1,
+            "recommendation": "Tuyệt vời! Tiếp tục duy trì độ rút gối nhanh và gọn gàng này.",
+            "actionId": "action_001",
+            "phase": "chamber",
+            "metricUnit": "degrees",
+            "evidenceFrameStart": 6,
+            "evidenceFrameEnd": 8,
+            "evidenceTimestampStartMs": 200.0,
+            "evidenceTimestampEndMs": 266.7,
+            "affectedBodyPart": "right_knee",
+            "modelVersion": "yolov8n-pose",
+            "scoringVersion": "rubric-v3.0.0"
+          },
+          {
+            "id": "kick_1_ext_good",
+            "category": "technique",
+            "title": "Good Leg Extension (Bung chân khá)",
+            "description": "Gối mở góc 159°, đòn đánh đạt tầm với tốt nhưng chưa duỗi hết biên độ.",
+            "severity": "info",
+            "confidence": 0.9,
+            "frameIdx": 14,
+            "timeMs": 466.7,
+            "metricName": "maxExtensionAngle",
+            "metricValue": 158.7,
+            "recommendation": "Đẩy thêm hông trụ về trước để duỗi chân chạm bia dài hơn.",
+            "actionId": "action_001",
+            "phase": "impact",
+            "metricUnit": "degrees",
+            "evidenceFrameStart": 8,
+            "evidenceFrameEnd": 14,
+            "evidenceTimestampStartMs": 266.7,
+            "evidenceTimestampEndMs": 466.7,
+            "affectedBodyPart": "right_knee",
+            "modelVersion": "yolov8n-pose",
+            "scoringVersion": "rubric-v3.0.0"
+          },
+          {
+            "id": "kick_1_speed_high",
+            "category": "speed",
+            "title": "High Striking Velocity (Tốc độ đòn đá mạnh)",
+            "description": "Vận tốc cổ chân đạt 3.32 u/s, tạo xung lượng va chạm dũng mãnh.",
+            "severity": "positive",
+            "confidence": 0.89,
+            "frameIdx": 14,
+            "timeMs": 466.7,
+            "metricName": "peakSpeed",
+            "metricValue": 3.3,
+            "recommendation": "Tốc độ búng đòn rất tốt! Giữ vững tốc độ thu chân nhanh tương ứng.",
+            "actionId": "action_001",
+            "phase": "impact",
+            "metricUnit": "u/s",
+            "evidenceFrameStart": 8,
+            "evidenceFrameEnd": 14,
+            "evidenceTimestampStartMs": 266.7,
+            "evidenceTimestampEndMs": 466.7,
+            "affectedBodyPart": "right_ankle",
+            "modelVersion": "yolov8n-pose",
+            "scoringVersion": "rubric-v3.0.0"
+          },
+          {
+            "id": "kick_1_hip_warn",
+            "category": "posture",
+            "title": "Forward Trunk Lean (Gập thân người khi đá)",
+            "description": "Góc thân-hông chỉ 40°, thân bị gập ra phía trước làm kẹt khớp hông và giảm lực đá.",
+            "severity": "warning",
+            "confidence": 0.86,
+            "frameIdx": 14,
+            "timeMs": 466.7,
+            "metricName": "hipAngle",
+            "metricValue": 40.0,
+            "recommendation": "Mở khớp hông và đẩy xương chậu về phía mục tiêu, không gập người về phía trước.",
+            "actionId": "action_001",
+            "phase": "impact",
+            "metricUnit": "degrees",
+            "evidenceFrameStart": 14,
+            "evidenceFrameEnd": 14,
+            "evidenceTimestampStartMs": 466.7,
+            "evidenceTimestampEndMs": 466.7,
+            "affectedBodyPart": "right_hip",
+            "modelVersion": "yolov8n-pose",
+            "scoringVersion": "rubric-v3.0.0"
+          }
+        ]
+      },
+      "review": {
+        "status": "ai_generated",
+        "reviewerId": null,
+        "reviewNotes": null
+      },
+      "modelVersion": "yolov8n-pose",
+      "rubricVersion": "3.0.0"
+    }
+  ],
+  "frames": [
+    {
+      "frameIdx": 0,
+      "timeMs": 0.0,
+      "isDiscontinuous": false,
+      "activeLeg": "none",
+      "kneeAngle": null,
+      "hipAngle": null,
+      "elbowAngleLeft": 43.3,
+      "elbowAngleRight": 43.3,
+      "activeArm": "none",
+      "punchState": "guard",
+      "punchStateLabel": "Thế thủ",
+      "kickState": "idle",
+      "kickStateLabel": "Đứng thủ",
+      "kickPreviousState": "idle",
+      "kickTransitionReason": "NONE",
+      "kickRejectionReason": "ACTIVE_LEG_NONE",
+      "landmarksValid": false,
+      "geometryValid": false,
+      "leftHipConf": 0.95,
+      "leftKneeConf": 0.95,
+      "leftAnkleConf": 0.95,
+      "rightHipConf": 0.95,
+      "rightKneeConf": 0.95,
+      "rightAnkleConf": 0.95,
+      "angleColorLabel": "none",
+      "landmarks": [
+        {
+          "x": 0.5,
+          "y": 0.25,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.4,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.48,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.52,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.72,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.72,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.9,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.9,
+          "conf": 0.95
+        }
+      ]
+    },
+    {
+      "frameIdx": 1,
+      "timeMs": 33.3,
+      "isDiscontinuous": false,
+      "activeLeg": "none",
+      "kneeAngle": null,
+      "hipAngle": null,
+      "elbowAngleLeft": 43.3,
+      "elbowAngleRight": 43.3,
+      "activeArm": "none",
+      "punchState": "guard",
+      "punchStateLabel": "Thế thủ",
+      "kickState": "idle",
+      "kickStateLabel": "Đứng thủ",
+      "kickPreviousState": "idle",
+      "kickTransitionReason": "NONE",
+      "kickRejectionReason": "ACTIVE_LEG_NONE",
+      "landmarksValid": false,
+      "geometryValid": false,
+      "leftHipConf": 0.95,
+      "leftKneeConf": 0.95,
+      "leftAnkleConf": 0.95,
+      "rightHipConf": 0.95,
+      "rightKneeConf": 0.95,
+      "rightAnkleConf": 0.95,
+      "angleColorLabel": "none",
+      "landmarks": [
+        {
+          "x": 0.5,
+          "y": 0.25,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.4,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.48,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.52,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.72,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.72,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.9,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.9,
+          "conf": 0.95
+        }
+      ]
+    },
+    {
+      "frameIdx": 2,
+      "timeMs": 66.7,
+      "isDiscontinuous": false,
+      "activeLeg": "none",
+      "kneeAngle": null,
+      "hipAngle": null,
+      "elbowAngleLeft": 43.3,
+      "elbowAngleRight": 43.3,
+      "activeArm": "none",
+      "punchState": "guard",
+      "punchStateLabel": "Thế thủ",
+      "kickState": "idle",
+      "kickStateLabel": "Đứng thủ",
+      "kickPreviousState": "idle",
+      "kickTransitionReason": "NONE",
+      "kickRejectionReason": "ACTIVE_LEG_NONE",
+      "landmarksValid": false,
+      "geometryValid": false,
+      "leftHipConf": 0.95,
+      "leftKneeConf": 0.95,
+      "leftAnkleConf": 0.95,
+      "rightHipConf": 0.95,
+      "rightKneeConf": 0.95,
+      "rightAnkleConf": 0.95,
+      "angleColorLabel": "none",
+      "landmarks": [
+        {
+          "x": 0.5,
+          "y": 0.25,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.4,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.48,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.52,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.72,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.72,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.9,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.9,
+          "conf": 0.95
+        }
+      ]
+    },
+    {
+      "frameIdx": 3,
+      "timeMs": 100.0,
+      "isDiscontinuous": false,
+      "activeLeg": "none",
+      "kneeAngle": null,
+      "hipAngle": null,
+      "elbowAngleLeft": 43.3,
+      "elbowAngleRight": 43.3,
+      "activeArm": "none",
+      "punchState": "guard",
+      "punchStateLabel": "Thế thủ",
+      "kickState": "idle",
+      "kickStateLabel": "Đứng thủ",
+      "kickPreviousState": "idle",
+      "kickTransitionReason": "NONE",
+      "kickRejectionReason": "ACTIVE_LEG_NONE",
+      "landmarksValid": false,
+      "geometryValid": false,
+      "leftHipConf": 0.95,
+      "leftKneeConf": 0.95,
+      "leftAnkleConf": 0.95,
+      "rightHipConf": 0.95,
+      "rightKneeConf": 0.95,
+      "rightAnkleConf": 0.95,
+      "angleColorLabel": "none",
+      "landmarks": [
+        {
+          "x": 0.5,
+          "y": 0.25,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.4,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.48,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.52,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.72,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.72,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.9,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.9,
+          "conf": 0.95
+        }
+      ]
+    },
+    {
+      "frameIdx": 4,
+      "timeMs": 133.3,
+      "isDiscontinuous": false,
+      "activeLeg": "none",
+      "kneeAngle": null,
+      "hipAngle": null,
+      "elbowAngleLeft": 43.3,
+      "elbowAngleRight": 43.3,
+      "activeArm": "none",
+      "punchState": "guard",
+      "punchStateLabel": "Thế thủ",
+      "kickState": "idle",
+      "kickStateLabel": "Đứng thủ",
+      "kickPreviousState": "idle",
+      "kickTransitionReason": "NONE",
+      "kickRejectionReason": "ACTIVE_LEG_NONE",
+      "landmarksValid": false,
+      "geometryValid": false,
+      "leftHipConf": 0.95,
+      "leftKneeConf": 0.95,
+      "leftAnkleConf": 0.95,
+      "rightHipConf": 0.95,
+      "rightKneeConf": 0.95,
+      "rightAnkleConf": 0.95,
+      "angleColorLabel": "none",
+      "landmarks": [
+        {
+          "x": 0.5,
+          "y": 0.25,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.4,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.48,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.52,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.72,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.72,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.9,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.9,
+          "conf": 0.95
+        }
+      ]
+    },
+    {
+      "frameIdx": 5,
+      "timeMs": 166.7,
+      "isDiscontinuous": false,
+      "activeLeg": "none",
+      "kneeAngle": null,
+      "hipAngle": null,
+      "elbowAngleLeft": 43.3,
+      "elbowAngleRight": 43.3,
+      "activeArm": "none",
+      "punchState": "guard",
+      "punchStateLabel": "Thế thủ",
+      "kickState": "idle",
+      "kickStateLabel": "Đứng thủ",
+      "kickPreviousState": "idle",
+      "kickTransitionReason": "NONE",
+      "kickRejectionReason": "ACTIVE_LEG_NONE",
+      "landmarksValid": false,
+      "geometryValid": false,
+      "leftHipConf": 0.95,
+      "leftKneeConf": 0.95,
+      "leftAnkleConf": 0.95,
+      "rightHipConf": 0.95,
+      "rightKneeConf": 0.95,
+      "rightAnkleConf": 0.95,
+      "angleColorLabel": "none",
+      "landmarks": [
+        {
+          "x": 0.5,
+          "y": 0.25,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.4,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.48,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.52,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.72,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5675,
+          "y": 0.6255,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.9,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.746,
+          "conf": 0.95
+        }
+      ]
+    },
+    {
+      "frameIdx": 6,
+      "timeMs": 200.0,
+      "isDiscontinuous": false,
+      "activeLeg": "right",
+      "kneeAngle": 96.5,
+      "hipAngle": 102.0,
+      "elbowAngleLeft": 43.3,
+      "elbowAngleRight": 43.3,
+      "activeArm": "none",
+      "punchState": "guard",
+      "punchStateLabel": "Thế thủ",
+      "kickState": "chambering",
+      "kickStateLabel": "Rút gối",
+      "kickPreviousState": "idle",
+      "kickTransitionReason": "CHAMBERING_TRIGGERED",
+      "kickRejectionReason": "NONE",
+      "landmarksValid": true,
+      "geometryValid": true,
+      "leftHipConf": 0.95,
+      "leftKneeConf": 0.95,
+      "leftAnkleConf": 0.95,
+      "rightHipConf": 0.95,
+      "rightKneeConf": 0.95,
+      "rightAnkleConf": 0.95,
+      "angleColorLabel": "neutral",
+      "landmarks": [
+        {
+          "x": 0.5,
+          "y": 0.25,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.4,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.48,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.52,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.72,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5789,
+          "y": 0.5641,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.9,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.6459,
+          "conf": 0.95
+        }
+      ]
+    },
+    {
+      "frameIdx": 7,
+      "timeMs": 233.3,
+      "isDiscontinuous": false,
+      "activeLeg": "right",
+      "kneeAngle": 21.9,
+      "hipAngle": 40.5,
+      "elbowAngleLeft": 43.3,
+      "elbowAngleRight": 43.3,
+      "activeArm": "none",
+      "punchState": "guard",
+      "punchStateLabel": "Thế thủ",
+      "kickState": "chambering",
+      "kickStateLabel": "Rút gối",
+      "kickPreviousState": "chambering",
+      "kickTransitionReason": "NONE",
+      "kickRejectionReason": "NONE",
+      "landmarksValid": true,
+      "geometryValid": true,
+      "leftHipConf": 0.95,
+      "leftKneeConf": 0.95,
+      "leftAnkleConf": 0.95,
+      "rightHipConf": 0.95,
+      "rightKneeConf": 0.95,
+      "rightAnkleConf": 0.95,
+      "angleColorLabel": "good",
+      "landmarks": [
+        {
+          "x": 0.5,
+          "y": 0.25,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.4,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.48,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.52,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.72,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5863,
+          "y": 0.5241,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.9,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.5808,
+          "conf": 0.95
+        }
+      ]
+    },
+    {
+      "frameIdx": 8,
+      "timeMs": 266.7,
+      "isDiscontinuous": false,
+      "activeLeg": "right",
+      "kneeAngle": 7.1,
+      "hipAngle": 24.4,
+      "elbowAngleLeft": 43.3,
+      "elbowAngleRight": 43.3,
+      "activeArm": "none",
+      "punchState": "guard",
+      "punchStateLabel": "Thế thủ",
+      "kickState": "chambering",
+      "kickStateLabel": "Rút gối",
+      "kickPreviousState": "chambering",
+      "kickTransitionReason": "NONE",
+      "kickRejectionReason": "NONE",
+      "landmarksValid": true,
+      "geometryValid": true,
+      "leftHipConf": 0.95,
+      "leftKneeConf": 0.95,
+      "leftAnkleConf": 0.95,
+      "rightHipConf": 0.95,
+      "rightKneeConf": 0.95,
+      "rightAnkleConf": 0.95,
+      "angleColorLabel": "good",
+      "landmarks": [
+        {
+          "x": 0.5,
+          "y": 0.25,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.4,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.48,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.52,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.72,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5911,
+          "y": 0.4982,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.9,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.5385,
+          "conf": 0.95
+        }
+      ]
+    },
+    {
+      "frameIdx": 9,
+      "timeMs": 300.0,
+      "isDiscontinuous": false,
+      "activeLeg": "right",
+      "kneeAngle": 23.3,
+      "hipAngle": 18.7,
+      "elbowAngleLeft": 43.3,
+      "elbowAngleRight": 43.3,
+      "activeArm": "none",
+      "punchState": "guard",
+      "punchStateLabel": "Thế thủ",
+      "kickState": "extending",
+      "kickStateLabel": "Bung chân",
+      "kickPreviousState": "chambering",
+      "kickTransitionReason": "EXTENDING_TRIGGERED",
+      "kickRejectionReason": "NONE",
+      "landmarksValid": true,
+      "geometryValid": true,
+      "leftHipConf": 0.95,
+      "leftKneeConf": 0.95,
+      "leftAnkleConf": 0.95,
+      "rightHipConf": 0.95,
+      "rightKneeConf": 0.95,
+      "rightAnkleConf": 0.95,
+      "angleColorLabel": "good",
+      "landmarks": [
+        {
+          "x": 0.5,
+          "y": 0.25,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.4,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.48,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.52,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.72,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5942,
+          "y": 0.4813,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.9,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.5111,
+          "conf": 0.95
+        }
+      ]
+    },
+    {
+      "frameIdx": 10,
+      "timeMs": 333.3,
+      "isDiscontinuous": false,
+      "activeLeg": "right",
+      "kneeAngle": null,
+      "hipAngle": 28.6,
+      "elbowAngleLeft": 43.3,
+      "elbowAngleRight": 43.3,
+      "activeArm": "none",
+      "punchState": "guard",
+      "punchStateLabel": "Thế thủ",
+      "kickState": "extending",
+      "kickStateLabel": "Bung chân",
+      "kickPreviousState": "extending",
+      "kickTransitionReason": "HOLDING_INVALID_INPUT",
+      "kickRejectionReason": "DEGENERATE_VECTOR_LENGTH",
+      "landmarksValid": true,
+      "geometryValid": false,
+      "leftHipConf": 0.95,
+      "leftKneeConf": 0.95,
+      "leftAnkleConf": 0.95,
+      "rightHipConf": 0.95,
+      "rightKneeConf": 0.95,
+      "rightAnkleConf": 0.95,
+      "angleColorLabel": "none",
+      "landmarks": [
+        {
+          "x": 0.5,
+          "y": 0.25,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.4,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.48,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.52,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.72,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6137,
+          "y": 0.4809,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.9,
+          "conf": 0.95
+        },
+        {
+          "x": 0.62,
+          "y": 0.4897,
+          "conf": 0.95
+        }
+      ]
+    },
+    {
+      "frameIdx": 11,
+      "timeMs": 366.7,
+      "isDiscontinuous": false,
+      "activeLeg": "right",
+      "kneeAngle": 144.7,
+      "hipAngle": 33.7,
+      "elbowAngleLeft": 43.3,
+      "elbowAngleRight": 43.3,
+      "activeArm": "none",
+      "punchState": "guard",
+      "punchStateLabel": "Thế thủ",
+      "kickState": "extending",
+      "kickStateLabel": "Bung chân",
+      "kickPreviousState": "extending",
+      "kickTransitionReason": "NONE",
+      "kickRejectionReason": "NONE",
+      "landmarksValid": true,
+      "geometryValid": true,
+      "leftHipConf": 0.95,
+      "leftKneeConf": 0.95,
+      "leftAnkleConf": 0.95,
+      "rightHipConf": 0.95,
+      "rightKneeConf": 0.95,
+      "rightAnkleConf": 0.95,
+      "angleColorLabel": "poor",
+      "landmarks": [
+        {
+          "x": 0.5,
+          "y": 0.25,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.4,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.48,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.52,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.72,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6264,
+          "y": 0.4806,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.9,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6655,
+          "y": 0.4758,
+          "conf": 0.95
+        }
+      ]
+    },
+    {
+      "frameIdx": 12,
+      "timeMs": 400.0,
+      "isDiscontinuous": false,
+      "activeLeg": "right",
+      "kneeAngle": 153.3,
+      "hipAngle": 36.5,
+      "elbowAngleLeft": 43.3,
+      "elbowAngleRight": 43.3,
+      "activeArm": "none",
+      "punchState": "guard",
+      "punchStateLabel": "Thế thủ",
+      "kickState": "extending",
+      "kickStateLabel": "Bung chân",
+      "kickPreviousState": "extending",
+      "kickTransitionReason": "NONE",
+      "kickRejectionReason": "NONE",
+      "landmarksValid": true,
+      "geometryValid": true,
+      "leftHipConf": 0.95,
+      "leftKneeConf": 0.95,
+      "leftAnkleConf": 0.95,
+      "rightHipConf": 0.95,
+      "rightKneeConf": 0.95,
+      "rightAnkleConf": 0.95,
+      "angleColorLabel": "poor",
+      "landmarks": [
+        {
+          "x": 0.5,
+          "y": 0.25,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.4,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.48,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.52,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.72,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6347,
+          "y": 0.4804,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.9,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6951,
+          "y": 0.4668,
+          "conf": 0.95
+        }
+      ]
+    },
+    {
+      "frameIdx": 13,
+      "timeMs": 433.3,
+      "isDiscontinuous": false,
+      "activeLeg": "right",
+      "kneeAngle": 156.8,
+      "hipAngle": 38.2,
+      "elbowAngleLeft": 43.3,
+      "elbowAngleRight": 43.3,
+      "activeArm": "none",
+      "punchState": "guard",
+      "punchStateLabel": "Thế thủ",
+      "kickState": "extending",
+      "kickStateLabel": "Bung chân",
+      "kickPreviousState": "extending",
+      "kickTransitionReason": "NONE",
+      "kickRejectionReason": "NONE",
+      "landmarksValid": true,
+      "geometryValid": true,
+      "leftHipConf": 0.95,
+      "leftKneeConf": 0.95,
+      "leftAnkleConf": 0.95,
+      "rightHipConf": 0.95,
+      "rightKneeConf": 0.95,
+      "rightAnkleConf": 0.95,
+      "angleColorLabel": "poor",
+      "landmarks": [
+        {
+          "x": 0.5,
+          "y": 0.25,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.4,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.48,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.52,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.72,
+          "conf": 0.95
+        },
+        {
+          "x": 0.64,
+          "y": 0.4802,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.9,
+          "conf": 0.95
+        },
+        {
+          "x": 0.7143,
+          "y": 0.4609,
+          "conf": 0.95
+        }
+      ]
+    },
+    {
+      "frameIdx": 14,
+      "timeMs": 466.7,
+      "isDiscontinuous": false,
+      "activeLeg": "right",
+      "kneeAngle": 158.7,
+      "hipAngle": 39.2,
+      "elbowAngleLeft": 43.3,
+      "elbowAngleRight": 43.3,
+      "activeArm": "none",
+      "punchState": "guard",
+      "punchStateLabel": "Thế thủ",
+      "kickState": "extending",
+      "kickStateLabel": "Bung chân",
+      "kickPreviousState": "extending",
+      "kickTransitionReason": "NONE",
+      "kickRejectionReason": "NONE",
+      "landmarksValid": true,
+      "geometryValid": true,
+      "leftHipConf": 0.95,
+      "leftKneeConf": 0.95,
+      "leftAnkleConf": 0.95,
+      "rightHipConf": 0.95,
+      "rightKneeConf": 0.95,
+      "rightAnkleConf": 0.95,
+      "angleColorLabel": "poor",
+      "landmarks": [
+        {
+          "x": 0.5,
+          "y": 0.25,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.4,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.48,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.52,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.72,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6435,
+          "y": 0.4802,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.9,
+          "conf": 0.95
+        },
+        {
+          "x": 0.7268,
+          "y": 0.4571,
+          "conf": 0.95
+        }
+      ]
+    },
+    {
+      "frameIdx": 15,
+      "timeMs": 500.0,
+      "isDiscontinuous": false,
+      "activeLeg": "right",
+      "kneeAngle": 151.5,
+      "hipAngle": 40.6,
+      "elbowAngleLeft": 43.3,
+      "elbowAngleRight": 43.3,
+      "activeArm": "none",
+      "punchState": "guard",
+      "punchStateLabel": "Thế thủ",
+      "kickState": "extending",
+      "kickStateLabel": "Bung chân",
+      "kickPreviousState": "extending",
+      "kickTransitionReason": "NONE",
+      "kickRejectionReason": "NONE",
+      "landmarksValid": true,
+      "geometryValid": true,
+      "leftHipConf": 0.95,
+      "leftKneeConf": 0.95,
+      "leftAnkleConf": 0.95,
+      "rightHipConf": 0.95,
+      "rightKneeConf": 0.95,
+      "rightAnkleConf": 0.95,
+      "angleColorLabel": "poor",
+      "landmarks": [
+        {
+          "x": 0.5,
+          "y": 0.25,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.4,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.48,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.52,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.72,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6633,
+          "y": 0.4696,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.9,
+          "conf": 0.95
+        },
+        {
+          "x": 0.7874,
+          "y": 0.4546,
+          "conf": 0.95
+        }
+      ]
+    },
+    {
+      "frameIdx": 16,
+      "timeMs": 533.3,
+      "isDiscontinuous": false,
+      "activeLeg": "right",
+      "kneeAngle": 149.0,
+      "hipAngle": 41.3,
+      "elbowAngleLeft": 43.3,
+      "elbowAngleRight": 43.3,
+      "activeArm": "none",
+      "punchState": "guard",
+      "punchStateLabel": "Thế thủ",
+      "kickState": "extending",
+      "kickStateLabel": "Bung chân",
+      "kickPreviousState": "extending",
+      "kickTransitionReason": "NONE",
+      "kickRejectionReason": "NONE",
+      "landmarksValid": true,
+      "geometryValid": true,
+      "leftHipConf": 0.95,
+      "leftKneeConf": 0.95,
+      "leftAnkleConf": 0.95,
+      "rightHipConf": 0.95,
+      "rightKneeConf": 0.95,
+      "rightAnkleConf": 0.95,
+      "angleColorLabel": "poor",
+      "landmarks": [
+        {
+          "x": 0.5,
+          "y": 0.25,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.4,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.48,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.52,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.72,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6761,
+          "y": 0.4627,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.9,
+          "conf": 0.95
+        },
+        {
+          "x": 0.8268,
+          "y": 0.453,
+          "conf": 0.95
+        }
+      ]
+    },
+    {
+      "frameIdx": 17,
+      "timeMs": 566.7,
+      "isDiscontinuous": false,
+      "activeLeg": "right",
+      "kneeAngle": 147.9,
+      "hipAngle": 41.7,
+      "elbowAngleLeft": 43.3,
+      "elbowAngleRight": 43.3,
+      "activeArm": "none",
+      "punchState": "guard",
+      "punchStateLabel": "Thế thủ",
+      "kickState": "extending",
+      "kickStateLabel": "Bung chân",
+      "kickPreviousState": "extending",
+      "kickTransitionReason": "NONE",
+      "kickRejectionReason": "NONE",
+      "landmarksValid": true,
+      "geometryValid": true,
+      "leftHipConf": 0.95,
+      "leftKneeConf": 0.95,
+      "leftAnkleConf": 0.95,
+      "rightHipConf": 0.95,
+      "rightKneeConf": 0.95,
+      "rightAnkleConf": 0.95,
+      "angleColorLabel": "poor",
+      "landmarks": [
+        {
+          "x": 0.5,
+          "y": 0.25,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.4,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.48,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.52,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.72,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6845,
+          "y": 0.4583,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.9,
+          "conf": 0.95
+        },
+        {
+          "x": 0.8524,
+          "y": 0.4519,
+          "conf": 0.95
+        }
+      ]
+    },
+    {
+      "frameIdx": 18,
+      "timeMs": 600.0,
+      "isDiscontinuous": false,
+      "activeLeg": "right",
+      "kneeAngle": 147.2,
+      "hipAngle": 41.9,
+      "elbowAngleLeft": 43.3,
+      "elbowAngleRight": 43.3,
+      "activeArm": "none",
+      "punchState": "guard",
+      "punchStateLabel": "Thế thủ",
+      "kickState": "extending",
+      "kickStateLabel": "Bung chân",
+      "kickPreviousState": "extending",
+      "kickTransitionReason": "NONE",
+      "kickRejectionReason": "NONE",
+      "landmarksValid": true,
+      "geometryValid": true,
+      "leftHipConf": 0.95,
+      "leftKneeConf": 0.95,
+      "leftAnkleConf": 0.95,
+      "rightHipConf": 0.95,
+      "rightKneeConf": 0.95,
+      "rightAnkleConf": 0.95,
+      "angleColorLabel": "poor",
+      "landmarks": [
+        {
+          "x": 0.5,
+          "y": 0.25,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.4,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.48,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.52,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.72,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6899,
+          "y": 0.4554,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.9,
+          "conf": 0.95
+        },
+        {
+          "x": 0.8691,
+          "y": 0.4513,
+          "conf": 0.95
+        }
+      ]
+    },
+    {
+      "frameIdx": 19,
+      "timeMs": 633.3,
+      "isDiscontinuous": false,
+      "activeLeg": "right",
+      "kneeAngle": 146.9,
+      "hipAngle": 42.0,
+      "elbowAngleLeft": 43.3,
+      "elbowAngleRight": 43.3,
+      "activeArm": "none",
+      "punchState": "guard",
+      "punchStateLabel": "Thế thủ",
+      "kickState": "extending",
+      "kickStateLabel": "Bung chân",
+      "kickPreviousState": "extending",
+      "kickTransitionReason": "NONE",
+      "kickRejectionReason": "NONE",
+      "landmarksValid": true,
+      "geometryValid": true,
+      "leftHipConf": 0.95,
+      "leftKneeConf": 0.95,
+      "leftAnkleConf": 0.95,
+      "rightHipConf": 0.95,
+      "rightKneeConf": 0.95,
+      "rightAnkleConf": 0.95,
+      "angleColorLabel": "poor",
+      "landmarks": [
+        {
+          "x": 0.5,
+          "y": 0.25,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.4,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.48,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.52,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.72,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6934,
+          "y": 0.4535,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.9,
+          "conf": 0.95
+        },
+        {
+          "x": 0.8799,
+          "y": 0.4508,
+          "conf": 0.95
+        }
+      ]
+    },
+    {
+      "frameIdx": 20,
+      "timeMs": 666.7,
+      "isDiscontinuous": false,
+      "activeLeg": "right",
+      "kneeAngle": 136.2,
+      "hipAngle": 40.0,
+      "elbowAngleLeft": 43.3,
+      "elbowAngleRight": 43.3,
+      "activeArm": "none",
+      "punchState": "guard",
+      "punchStateLabel": "Thế thủ",
+      "kickState": "recovering",
+      "kickStateLabel": "Thu chân",
+      "kickPreviousState": "extending",
+      "kickTransitionReason": "RECOVERING_TRIGGERED",
+      "kickRejectionReason": "NONE",
+      "landmarksValid": true,
+      "geometryValid": true,
+      "leftHipConf": 0.95,
+      "leftKneeConf": 0.95,
+      "leftAnkleConf": 0.95,
+      "rightHipConf": 0.95,
+      "rightKneeConf": 0.95,
+      "rightAnkleConf": 0.95,
+      "angleColorLabel": "poor",
+      "landmarks": [
+        {
+          "x": 0.5,
+          "y": 0.25,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.4,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.48,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.52,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.72,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6607,
+          "y": 0.4698,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.9,
+          "conf": 0.95
+        },
+        {
+          "x": 0.7749,
+          "y": 0.4855,
+          "conf": 0.95
+        }
+      ]
+    },
+    {
+      "frameIdx": 21,
+      "timeMs": 700.0,
+      "isDiscontinuous": false,
+      "activeLeg": "right",
+      "kneeAngle": 119.7,
+      "hipAngle": 38.1,
+      "elbowAngleLeft": 43.3,
+      "elbowAngleRight": 43.3,
+      "activeArm": "none",
+      "punchState": "guard",
+      "punchStateLabel": "Thế thủ",
+      "kickState": "recovering",
+      "kickStateLabel": "Thu chân",
+      "kickPreviousState": "recovering",
+      "kickTransitionReason": "NONE",
+      "kickRejectionReason": "NONE",
+      "landmarksValid": true,
+      "geometryValid": true,
+      "leftHipConf": 0.95,
+      "leftKneeConf": 0.95,
+      "leftAnkleConf": 0.95,
+      "rightHipConf": 0.95,
+      "rightKneeConf": 0.95,
+      "rightAnkleConf": 0.95,
+      "angleColorLabel": "neutral",
+      "landmarks": [
+        {
+          "x": 0.5,
+          "y": 0.25,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.4,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.48,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.52,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.72,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6395,
+          "y": 0.4804,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.9,
+          "conf": 0.95
+        },
+        {
+          "x": 0.7067,
+          "y": 0.5081,
+          "conf": 0.95
+        }
+      ]
+    },
+    {
+      "frameIdx": 22,
+      "timeMs": 733.3,
+      "isDiscontinuous": false,
+      "activeLeg": "right",
+      "kneeAngle": 96.2,
+      "hipAngle": 36.3,
+      "elbowAngleLeft": 43.3,
+      "elbowAngleRight": 43.3,
+      "activeArm": "none",
+      "punchState": "guard",
+      "punchStateLabel": "Thế thủ",
+      "kickState": "recovering",
+      "kickStateLabel": "Thu chân",
+      "kickPreviousState": "recovering",
+      "kickTransitionReason": "NONE",
+      "kickRejectionReason": "NONE",
+      "landmarksValid": true,
+      "geometryValid": true,
+      "leftHipConf": 0.95,
+      "leftKneeConf": 0.95,
+      "leftAnkleConf": 0.95,
+      "rightHipConf": 0.95,
+      "rightKneeConf": 0.95,
+      "rightAnkleConf": 0.95,
+      "angleColorLabel": "neutral",
+      "landmarks": [
+        {
+          "x": 0.5,
+          "y": 0.25,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.4,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.48,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.52,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.72,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6257,
+          "y": 0.4872,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.9,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6624,
+          "y": 0.5228,
+          "conf": 0.95
+        }
+      ]
+    },
+    {
+      "frameIdx": 23,
+      "timeMs": 766.7,
+      "isDiscontinuous": false,
+      "activeLeg": "right",
+      "kneeAngle": 71.4,
+      "hipAngle": 34.8,
+      "elbowAngleLeft": 43.3,
+      "elbowAngleRight": 43.3,
+      "activeArm": "none",
+      "punchState": "guard",
+      "punchStateLabel": "Thế thủ",
+      "kickState": "recovering",
+      "kickStateLabel": "Thu chân",
+      "kickPreviousState": "recovering",
+      "kickTransitionReason": "NONE",
+      "kickRejectionReason": "NONE",
+      "landmarksValid": true,
+      "geometryValid": true,
+      "leftHipConf": 0.95,
+      "leftKneeConf": 0.95,
+      "leftAnkleConf": 0.95,
+      "rightHipConf": 0.95,
+      "rightKneeConf": 0.95,
+      "rightAnkleConf": 0.95,
+      "angleColorLabel": "good",
+      "landmarks": [
+        {
+          "x": 0.5,
+          "y": 0.25,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.4,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.48,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.52,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.72,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6167,
+          "y": 0.4917,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.9,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6335,
+          "y": 0.5323,
+          "conf": 0.95
+        }
+      ]
+    },
+    {
+      "frameIdx": 24,
+      "timeMs": 800.0,
+      "isDiscontinuous": false,
+      "activeLeg": "right",
+      "kneeAngle": 52.8,
+      "hipAngle": 33.6,
+      "elbowAngleLeft": 43.3,
+      "elbowAngleRight": 43.3,
+      "activeArm": "none",
+      "punchState": "guard",
+      "punchStateLabel": "Thế thủ",
+      "kickState": "idle",
+      "kickStateLabel": "Đứng thủ",
+      "kickPreviousState": "recovering",
+      "kickTransitionReason": "RESET_IDLE",
+      "kickRejectionReason": "NONE",
+      "landmarksValid": true,
+      "geometryValid": true,
+      "leftHipConf": 0.95,
+      "leftKneeConf": 0.95,
+      "leftAnkleConf": 0.95,
+      "rightHipConf": 0.95,
+      "rightKneeConf": 0.95,
+      "rightAnkleConf": 0.95,
+      "angleColorLabel": "good",
+      "landmarks": [
+        {
+          "x": 0.5,
+          "y": 0.25,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "conf": 0.95
+        },
+        {
+          "x": 0.4,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.45,
+          "conf": 0.95
+        },
+        {
+          "x": 0.48,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.52,
+          "y": 0.35,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.55,
+          "y": 0.55,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.72,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6108,
+          "y": 0.4946,
+          "conf": 0.95
+        },
+        {
+          "x": 0.45,
+          "y": 0.9,
+          "conf": 0.95
+        },
+        {
+          "x": 0.6148,
+          "y": 0.5385,
+          "conf": 0.95
+        }
+      ]
+    },
+    {
+      "frameIdx": 25,
+      "timeMs": 833.3,
+      "activeLeg": "none",
+      "kneeAngle": null,
+      "hipAngle": null,
+      "elbowAngleLeft": null,
+      "elbowAngleRight": null,
+      "activeArm": "none",
+      "punchState": "guard",
+      "punchStateLabel": "Thế thủ",
+      "speed": 0,
+      "kickState": "idle",
+      "kickStateLabel": "Đứng thủ",
+      "kickPreviousState": "idle",
+      "kickTransitionReason": "NONE",
+      "kickRejectionReason": "NO_DETECTION",
+      "landmarksValid": false,
+      "geometryValid": false,
+      "leftHipConf": 0.0,
+      "leftKneeConf": 0.0,
+      "leftAnkleConf": 0.0,
+      "rightHipConf": 0.0,
+      "rightKneeConf": 0.0,
+      "rightAnkleConf": 0.0,
+      "angleColorLabel": "none",
+      "landmarks": []
+    },
+    {
+      "frameIdx": 26,
+      "timeMs": 866.7,
+      "activeLeg": "none",
+      "kneeAngle": null,
+      "hipAngle": null,
+      "elbowAngleLeft": null,
+      "elbowAngleRight": null,
+      "activeArm": "none",
+      "punchState": "guard",
+      "punchStateLabel": "Thế thủ",
+      "speed": 0,
+      "kickState": "idle",
+      "kickStateLabel": "Đứng thủ",
+      "kickPreviousState": "idle",
+      "kickTransitionReason": "NONE",
+      "kickRejectionReason": "NO_DETECTION",
+      "landmarksValid": false,
+      "geometryValid": false,
+      "leftHipConf": 0.0,
+      "leftKneeConf": 0.0,
+      "leftAnkleConf": 0.0,
+      "rightHipConf": 0.0,
+      "rightKneeConf": 0.0,
+      "rightAnkleConf": 0.0,
+      "angleColorLabel": "none",
+      "landmarks": []
+    },
+    {
+      "frameIdx": 27,
+      "timeMs": 900.0,
+      "activeLeg": "none",
+      "kneeAngle": null,
+      "hipAngle": null,
+      "elbowAngleLeft": null,
+      "elbowAngleRight": null,
+      "activeArm": "none",
+      "punchState": "guard",
+      "punchStateLabel": "Thế thủ",
+      "speed": 0,
+      "kickState": "idle",
+      "kickStateLabel": "Đứng thủ",
+      "kickPreviousState": "idle",
+      "kickTransitionReason": "NONE",
+      "kickRejectionReason": "NO_DETECTION",
+      "landmarksValid": false,
+      "geometryValid": false,
+      "leftHipConf": 0.0,
+      "leftKneeConf": 0.0,
+      "leftAnkleConf": 0.0,
+      "rightHipConf": 0.0,
+      "rightKneeConf": 0.0,
+      "rightAnkleConf": 0.0,
+      "angleColorLabel": "none",
+      "landmarks": []
+    },
+    {
+      "frameIdx": 28,
+      "timeMs": 933.3,
+      "activeLeg": "none",
+      "kneeAngle": null,
+      "hipAngle": null,
+      "elbowAngleLeft": null,
+      "elbowAngleRight": null,
+      "activeArm": "none",
+      "punchState": "guard",
+      "punchStateLabel": "Thế thủ",
+      "speed": 0,
+      "kickState": "idle",
+      "kickStateLabel": "Đứng thủ",
+      "kickPreviousState": "idle",
+      "kickTransitionReason": "NONE",
+      "kickRejectionReason": "NO_DETECTION",
+      "landmarksValid": false,
+      "geometryValid": false,
+      "leftHipConf": 0.0,
+      "leftKneeConf": 0.0,
+      "leftAnkleConf": 0.0,
+      "rightHipConf": 0.0,
+      "rightKneeConf": 0.0,
+      "rightAnkleConf": 0.0,
+      "angleColorLabel": "none",
+      "landmarks": []
+    },
+    {
+      "frameIdx": 29,
+      "timeMs": 966.7,
+      "activeLeg": "none",
+      "kneeAngle": null,
+      "hipAngle": null,
+      "elbowAngleLeft": null,
+      "elbowAngleRight": null,
+      "activeArm": "none",
+      "punchState": "guard",
+      "punchStateLabel": "Thế thủ",
+      "speed": 0,
+      "kickState": "idle",
+      "kickStateLabel": "Đứng thủ",
+      "kickPreviousState": "idle",
+      "kickTransitionReason": "NONE",
+      "kickRejectionReason": "NO_DETECTION",
+      "landmarksValid": false,
+      "geometryValid": false,
+      "leftHipConf": 0.0,
+      "leftKneeConf": 0.0,
+      "leftAnkleConf": 0.0,
+      "rightHipConf": 0.0,
+      "rightKneeConf": 0.0,
+      "rightAnkleConf": 0.0,
+      "angleColorLabel": "none",
+      "landmarks": []
+    }
+  ],
+  "kicks": [
+    {
+      "score": 86,
+      "grade": "GOOD",
+      "emoji": "🟡",
+      "details": [
+        "✅ Rút gối xuất sắc (7°)",
+        "✅ Bung chân tốt (159°)",
+        "✅ Tốc độ mạnh (3.32 u/s)",
+        "⚠️ Gập thân khi đá (40°, nên > 115°)"
+      ],
+      "minChamberAngle": 7.1,
+      "maxExtensionAngle": 158.7,
+      "peakSpeed": 3.317,
+      "startFrame": 6,
+      "endFrame": 20,
+      "startTimeMs": 200.0,
+      "endTimeMs": 666.7,
+      "impactFrame": 14,
+      "impactTimeMs": 466.7,
+      "chamberPeakFrame": 8,
+      "chamberPeakTimeMs": 266.7,
+      "activeLeg": "right",
+      "criterionResults": [
+        {
+          "criterionId": "crit_kick_chamber",
+          "criterionName": "Knee Chamber Depth",
+          "phase": "chamber",
+          "featureName": "min_chamber_angle",
+          "observedValue": 7.1,
+          "score": 100.0,
+          "weight": 0.35,
+          "confidence": 0.94,
+          "status": "excellent",
+          "evidenceFrameStart": 6,
+          "evidenceFrameEnd": 8,
+          "evidenceTimestampStartMs": 200.0,
+          "evidenceTimestampEndMs": 266.7,
+          "affectedBodyPart": "right_knee",
+          "detail": "✅ Rút gối xuất sắc (7°)"
+        },
+        {
+          "criterionId": "crit_kick_extension",
+          "criterionName": "Full Leg Extension at Impact",
+          "phase": "impact",
+          "featureName": "max_extension_angle",
+          "observedValue": 158.73,
+          "score": 80.0,
+          "weight": 0.35,
+          "confidence": 0.9,
+          "status": "good",
+          "evidenceFrameStart": 8,
+          "evidenceFrameEnd": 14,
+          "evidenceTimestampStartMs": 266.7,
+          "evidenceTimestampEndMs": 466.7,
+          "affectedBodyPart": "right_knee",
+          "detail": "✅ Bung chân tốt (159°)"
+        },
+        {
+          "criterionId": "crit_kick_speed",
+          "criterionName": "Striking Velocity",
+          "phase": "impact",
+          "featureName": "peak_speed",
+          "observedValue": 3.32,
+          "score": 100.0,
+          "weight": 0.15,
+          "confidence": 0.89,
+          "status": "excellent",
+          "evidenceFrameStart": 8,
+          "evidenceFrameEnd": 14,
+          "evidenceTimestampStartMs": 266.7,
+          "evidenceTimestampEndMs": 466.7,
+          "affectedBodyPart": "right_ankle",
+          "detail": "✅ Tốc độ mạnh (3.32 u/s)"
+        },
+        {
+          "criterionId": "crit_kick_posture",
+          "criterionName": "Torso & Hip Alignment",
+          "phase": "impact",
+          "featureName": "hip_angle",
+          "observedValue": 40.04,
+          "score": 50.0,
+          "weight": 0.15,
+          "confidence": 0.86,
+          "status": "needs_work",
+          "evidenceFrameStart": 14,
+          "evidenceFrameEnd": 14,
+          "evidenceTimestampStartMs": 466.7,
+          "evidenceTimestampEndMs": 466.7,
+          "affectedBodyPart": "right_hip",
+          "detail": "⚠️ Gập thân khi đá (40°, nên > 115°)"
+        }
+      ],
+      "findings": [
+        {
+          "id": "kick_1_chamber_perf",
+          "category": "technique",
+          "title": "Optimal Knee Chamber (Rút gối xuất sắc)",
+          "description": "Gối co gập sâu đạt 7°, tích lũy thế năng và tạo đòn bẩy bung cẳng chân tối ưu.",
+          "severity": "positive",
+          "confidence": 0.94,
+          "frameIdx": 8,
+          "timeMs": 266.7,
+          "metricName": "minChamberAngle",
+          "metricValue": 7.1,
+          "recommendation": "Tuyệt vời! Tiếp tục duy trì độ rút gối nhanh và gọn gàng này.",
+          "actionId": "kick_1",
+          "phase": "chamber",
+          "metricUnit": "degrees",
+          "evidenceFrameStart": 6,
+          "evidenceFrameEnd": 8,
+          "evidenceTimestampStartMs": 200.0,
+          "evidenceTimestampEndMs": 266.7,
+          "affectedBodyPart": "right_knee",
+          "modelVersion": "yolov8n-pose",
+          "scoringVersion": "rubric-v3.0.0"
+        },
+        {
+          "id": "kick_1_ext_good",
+          "category": "technique",
+          "title": "Good Leg Extension (Bung chân khá)",
+          "description": "Gối mở góc 159°, đòn đánh đạt tầm với tốt nhưng chưa duỗi hết biên độ.",
+          "severity": "info",
+          "confidence": 0.9,
+          "frameIdx": 14,
+          "timeMs": 466.7,
+          "metricName": "maxExtensionAngle",
+          "metricValue": 158.7,
+          "recommendation": "Đẩy thêm hông trụ về trước để duỗi chân chạm bia dài hơn.",
+          "actionId": "kick_1",
+          "phase": "impact",
+          "metricUnit": "degrees",
+          "evidenceFrameStart": 8,
+          "evidenceFrameEnd": 14,
+          "evidenceTimestampStartMs": 266.7,
+          "evidenceTimestampEndMs": 466.7,
+          "affectedBodyPart": "right_knee",
+          "modelVersion": "yolov8n-pose",
+          "scoringVersion": "rubric-v3.0.0"
+        },
+        {
+          "id": "kick_1_speed_high",
+          "category": "speed",
+          "title": "High Striking Velocity (Tốc độ đòn đá mạnh)",
+          "description": "Vận tốc cổ chân đạt 3.32 u/s, tạo xung lượng va chạm dũng mãnh.",
+          "severity": "positive",
+          "confidence": 0.89,
+          "frameIdx": 14,
+          "timeMs": 466.7,
+          "metricName": "peakSpeed",
+          "metricValue": 3.3,
+          "recommendation": "Tốc độ búng đòn rất tốt! Giữ vững tốc độ thu chân nhanh tương ứng.",
+          "actionId": "kick_1",
+          "phase": "impact",
+          "metricUnit": "u/s",
+          "evidenceFrameStart": 8,
+          "evidenceFrameEnd": 14,
+          "evidenceTimestampStartMs": 266.7,
+          "evidenceTimestampEndMs": 466.7,
+          "affectedBodyPart": "right_ankle",
+          "modelVersion": "yolov8n-pose",
+          "scoringVersion": "rubric-v3.0.0"
+        },
+        {
+          "id": "kick_1_hip_warn",
+          "category": "posture",
+          "title": "Forward Trunk Lean (Gập thân người khi đá)",
+          "description": "Góc thân-hông chỉ 40°, thân bị gập ra phía trước làm kẹt khớp hông và giảm lực đá.",
+          "severity": "warning",
+          "confidence": 0.86,
+          "frameIdx": 14,
+          "timeMs": 466.7,
+          "metricName": "hipAngle",
+          "metricValue": 40.0,
+          "recommendation": "Mở khớp hông và đẩy xương chậu về phía mục tiêu, không gập người về phía trước.",
+          "actionId": "kick_1",
+          "phase": "impact",
+          "metricUnit": "degrees",
+          "evidenceFrameStart": 14,
+          "evidenceFrameEnd": 14,
+          "evidenceTimestampStartMs": 466.7,
+          "evidenceTimestampEndMs": 466.7,
+          "affectedBodyPart": "right_hip",
+          "modelVersion": "yolov8n-pose",
+          "scoringVersion": "rubric-v3.0.0"
+        }
+      ]
+    }
+  ],
+  "punches": [],
+  "findings": [
+    {
+      "id": "kick_1_chamber_perf",
+      "category": "technique",
+      "title": "Optimal Knee Chamber (Rút gối xuất sắc)",
+      "description": "Gối co gập sâu đạt 7°, tích lũy thế năng và tạo đòn bẩy bung cẳng chân tối ưu.",
+      "severity": "positive",
+      "confidence": 0.94,
+      "frameIdx": 8,
+      "timeMs": 266.7,
+      "metricName": "minChamberAngle",
+      "metricValue": 7.1,
+      "recommendation": "Tuyệt vời! Tiếp tục duy trì độ rút gối nhanh và gọn gàng này.",
+      "actionId": "kick_1",
+      "phase": "chamber",
+      "metricUnit": "degrees",
+      "evidenceFrameStart": 6,
+      "evidenceFrameEnd": 8,
+      "evidenceTimestampStartMs": 200.0,
+      "evidenceTimestampEndMs": 266.7,
+      "affectedBodyPart": "right_knee",
+      "modelVersion": "yolov8n-pose",
+      "scoringVersion": "rubric-v3.0.0"
+    },
+    {
+      "id": "kick_1_ext_good",
+      "category": "technique",
+      "title": "Good Leg Extension (Bung chân khá)",
+      "description": "Gối mở góc 159°, đòn đánh đạt tầm với tốt nhưng chưa duỗi hết biên độ.",
+      "severity": "info",
+      "confidence": 0.9,
+      "frameIdx": 14,
+      "timeMs": 466.7,
+      "metricName": "maxExtensionAngle",
+      "metricValue": 158.7,
+      "recommendation": "Đẩy thêm hông trụ về trước để duỗi chân chạm bia dài hơn.",
+      "actionId": "kick_1",
+      "phase": "impact",
+      "metricUnit": "degrees",
+      "evidenceFrameStart": 8,
+      "evidenceFrameEnd": 14,
+      "evidenceTimestampStartMs": 266.7,
+      "evidenceTimestampEndMs": 466.7,
+      "affectedBodyPart": "right_knee",
+      "modelVersion": "yolov8n-pose",
+      "scoringVersion": "rubric-v3.0.0"
+    },
+    {
+      "id": "kick_1_speed_high",
+      "category": "speed",
+      "title": "High Striking Velocity (Tốc độ đòn đá mạnh)",
+      "description": "Vận tốc cổ chân đạt 3.32 u/s, tạo xung lượng va chạm dũng mãnh.",
+      "severity": "positive",
+      "confidence": 0.89,
+      "frameIdx": 14,
+      "timeMs": 466.7,
+      "metricName": "peakSpeed",
+      "metricValue": 3.3,
+      "recommendation": "Tốc độ búng đòn rất tốt! Giữ vững tốc độ thu chân nhanh tương ứng.",
+      "actionId": "kick_1",
+      "phase": "impact",
+      "metricUnit": "u/s",
+      "evidenceFrameStart": 8,
+      "evidenceFrameEnd": 14,
+      "evidenceTimestampStartMs": 266.7,
+      "evidenceTimestampEndMs": 466.7,
+      "affectedBodyPart": "right_ankle",
+      "modelVersion": "yolov8n-pose",
+      "scoringVersion": "rubric-v3.0.0"
+    },
+    {
+      "id": "kick_1_hip_warn",
+      "category": "posture",
+      "title": "Forward Trunk Lean (Gập thân người khi đá)",
+      "description": "Góc thân-hông chỉ 40°, thân bị gập ra phía trước làm kẹt khớp hông và giảm lực đá.",
+      "severity": "warning",
+      "confidence": 0.86,
+      "frameIdx": 14,
+      "timeMs": 466.7,
+      "metricName": "hipAngle",
+      "metricValue": 40.0,
+      "recommendation": "Mở khớp hông và đẩy xương chậu về phía mục tiêu, không gập người về phía trước.",
+      "actionId": "kick_1",
+      "phase": "impact",
+      "metricUnit": "degrees",
+      "evidenceFrameStart": 14,
+      "evidenceFrameEnd": 14,
+      "evidenceTimestampStartMs": 466.7,
+      "evidenceTimestampEndMs": 466.7,
+      "affectedBodyPart": "right_hip",
+      "modelVersion": "yolov8n-pose",
+      "scoringVersion": "rubric-v3.0.0"
+    }
+  ],
+  "summary": {
+    "totalFrames": 30,
+    "totalKicks": 1,
+    "totalPunches": 0,
+    "primaryAction": "KICK",
+    "totalFindings": 4,
+    "avgScore": 86.0,
+    "bestScore": 86
+  }
+}

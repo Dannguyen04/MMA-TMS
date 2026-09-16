@@ -85,7 +85,98 @@ const punchSchema = z.object({
     findings: z.array(findingSchema),
 });
 
+const actionConfidenceSchema = z.object({
+    detection: z.number().min(0).max(1).nullable(),
+    classification: z.number().min(0).max(1).nullable(),
+    assessment: z.number().min(0).max(1).nullable(),
+});
+
+const actionPhasesSchema = z.object({
+    startFrame: z.number(),
+    chamberFrame: z.number().nullable().optional(),
+    launchFrame: z.number().nullable().optional(),
+    peakFrame: z.number().nullable().optional(),
+    impactFrame: z.number(),
+    endFrame: z.number(),
+    startTimeMs: z.number(),
+    chamberTimeMs: z.number().nullable().optional(),
+    launchTimeMs: z.number().nullable().optional(),
+    peakTimeMs: z.number().nullable().optional(),
+    impactTimeMs: z.number(),
+    endTimeMs: z.number(),
+    impactType: z.enum(["peak_extension_proxy", "max_extension_proxy"]),
+});
+
+const actionMetricItemSchema = z.object({
+    value: z.union([z.number(), z.boolean(), z.string()]).nullable(),
+    unit: z.string(),
+    confidence: z.number().min(0).max(1).nullable().optional(),
+});
+
+const actionAssessmentSchema = z.object({
+    rubricId: z.string().nullable().optional(),
+    score: z.number().nullable(),
+    grade: z.string(),
+    status: z.enum(["excellent", "good", "fair", "needs_improvement", "insufficient_evidence"]),
+    primaryError: z.string().nullable().optional(),
+    criteria: z.array(z.record(z.string(), z.unknown())).optional(),
+    findings: z.array(z.record(z.string(), z.unknown())).optional(),
+});
+
+const actionReviewSchema = z.object({
+    status: z.enum([
+        "ai_generated",
+        "needs_review",
+        "coach_approved",
+        "coach_corrected",
+        "coach_rejected",
+        "insufficient_evidence",
+    ]),
+    reviewerId: z.string().nullable().optional(),
+    reviewNotes: z.string().nullable().optional(),
+});
+
+export const techniqueCandidateSchema = z.object({
+    technique: z.string(),
+    family: z.string(),
+    attackingSide: z.enum(["left", "right", "unknown"]).or(z.string()),
+    limbRole: z.enum(["lead", "rear", "unknown"]).or(z.string()),
+    stance: z.enum(["orthodox", "southpaw", "switch", "unknown"]).or(z.string()),
+});
+
+export const shadowClassificationSchema = z.object({
+    status: z.enum(["classified", "abstained", "rejected_candidate"]),
+    candidate: techniqueCandidateSchema.nullable(),
+    confidence: z.number().nullable().optional(),
+    reasonCodes: z.array(z.string()),
+    classifierId: z.string(),
+    classifierVersion: z.string(),
+    configVersion: z.string(),
+    featureVersion: z.string(),
+    stanceSource: z.string(),
+    evidenceLevel: z.enum(["observed", "derived_proxy", "unavailable"]),
+});
+
+export const actionSchema = z.object({
+    id: z.string(),
+    sourceActionId: z.string(),
+    family: z.enum(["punch", "kick", "other_strike", "non_strike"]),
+    technique: z.string(),
+    attackingSide: z.enum(["left", "right", "unknown"]),
+    limbRole: z.enum(["lead", "rear", "unknown"]),
+    stance: z.enum(["orthodox", "southpaw", "switch", "unknown"]),
+    confidence: actionConfidenceSchema,
+    phases: actionPhasesSchema,
+    metrics: z.record(z.string(), actionMetricItemSchema),
+    assessment: actionAssessmentSchema,
+    review: actionReviewSchema,
+    modelVersion: z.string().nullable().optional(),
+    rubricVersion: z.string().nullable().optional(),
+    shadowClassification: shadowClassificationSchema.nullable().optional(),
+});
+
 export const workerResultSchema = z.object({
+    schemaVersion: z.literal("1.0.0").optional(),
     meta: z.object({
         fps: z.number(),
         totalFrames: z.number(),
@@ -94,6 +185,7 @@ export const workerResultSchema = z.object({
         imgHeight: z.number().optional(),
         model: z.string().optional(),
     }),
+    actions: z.array(actionSchema).optional(),
     frames: z.array(frameSchema),
     kicks: z.array(kickSchema),
     punches: z.array(punchSchema).optional(),
@@ -105,6 +197,9 @@ export type WorkerFrame = z.infer<typeof frameSchema>;
 export type WorkerFinding = z.infer<typeof findingSchema>;
 export type WorkerKick = z.infer<typeof kickSchema>;
 export type WorkerPunch = z.infer<typeof punchSchema>;
+export type WorkerTechniqueCandidate = z.infer<typeof techniqueCandidateSchema>;
+export type WorkerShadowClassification = z.infer<typeof shadowClassificationSchema>;
+export type WorkerAction = z.infer<typeof actionSchema>;
 export type WorkerResult = z.infer<typeof workerResultSchema>;
 
 /** Validates untrusted JSON from the result URL. */
