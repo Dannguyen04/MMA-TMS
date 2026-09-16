@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import type { UserRole } from '../shared/models/auth-context.model.js';
+import { USER } from '../shared/types/user.role.js';
 import { DRIZZLE, type DrizzleDB } from '../database/database.module.js';
 import { coaches, fighters, sportsDoctors, users } from '../database/schema.js';
 import type {
@@ -77,15 +78,15 @@ export class UsersRepository {
     input: CreateUserInput,
     database: DatabaseExecutor,
   ): Promise<void> {
-    if (input.role === 'FIGHTER') {
+    if (input.role === USER.FIGHTER) {
       await database.insert(fighters).values({ userId, ...input.profile });
       return;
     }
-    if (input.role === 'COACH') {
+    if (input.role === USER.COACH) {
       await database.insert(coaches).values({ userId, ...input.profile });
       return;
     }
-    if (input.role === 'DOCTOR') {
+    if (input.role === USER.DOCTOR) {
       await database.insert(sportsDoctors).values({ userId, ...input.profile });
     }
   }
@@ -110,7 +111,7 @@ export class UsersRepository {
     if (!user) return undefined;
 
     const profile = await this.findProfile(user.id, user.role, database);
-    if (user.role !== 'ADMIN' && !profile) return undefined;
+    if (user.role !== USER.ADMIN && !profile) return undefined;
     return { ...user, profile };
   }
 
@@ -119,21 +120,21 @@ export class UsersRepository {
     input: UpdateUserInput,
     database: DatabaseExecutor,
   ): Promise<void> {
-    if (user.role === 'FIGHTER' && input.role === 'FIGHTER') {
+    if (user.role === USER.FIGHTER && input.role === USER.FIGHTER) {
       await database
         .update(fighters)
         .set({ ...input.profile, updatedAt: new Date() })
         .where(eq(fighters.userId, user.id));
       return;
     }
-    if (user.role === 'COACH' && input.role === 'COACH') {
+    if (user.role === USER.COACH && input.role === USER.COACH) {
       await database
         .update(coaches)
         .set({ ...input.profile, updatedAt: new Date() })
         .where(eq(coaches.userId, user.id));
       return;
     }
-    if (user.role === 'DOCTOR' && input.role === 'DOCTOR') {
+    if (user.role === USER.DOCTOR && input.role === USER.DOCTOR) {
       await database
         .update(sportsDoctors)
         .set({ ...input.profile, updatedAt: new Date() })
@@ -148,17 +149,17 @@ export class UsersRepository {
     const deletedAt = new Date();
     const state = { isActive: false, deletedAt, updatedAt: deletedAt };
 
-    if (user.role === 'FIGHTER') {
+    if (user.role === USER.FIGHTER) {
       await database
         .update(fighters)
         .set(state)
         .where(eq(fighters.userId, user.id));
-    } else if (user.role === 'COACH') {
+    } else if (user.role === USER.COACH) {
       await database
         .update(coaches)
         .set(state)
         .where(eq(coaches.userId, user.id));
-    } else if (user.role === 'DOCTOR') {
+    } else if (user.role === USER.DOCTOR) {
       await database
         .update(sportsDoctors)
         .set(state)
@@ -173,8 +174,8 @@ export class UsersRepository {
     role: UserRole,
     database: DatabaseExecutor,
   ): Promise<PublicUser['profile']> {
-    if (role === 'ADMIN') return null;
-    if (role === 'FIGHTER') {
+    if (role === USER.ADMIN) return null;
+    if (role === USER.FIGHTER) {
       const [profile] = await database
         .select({
           id: fighters.id,
@@ -205,7 +206,7 @@ export class UsersRepository {
         .limit(1);
       return profile ?? null;
     }
-    if (role === 'COACH') {
+    if (role === USER.COACH) {
       const [profile] = await database
         .select({
           id: coaches.id,

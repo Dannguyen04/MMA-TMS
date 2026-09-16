@@ -1,14 +1,14 @@
-import {
-  BadRequestException,
-  ConflictException,
-  HttpException,
-  Inject,
-  Injectable,
-} from '@nestjs/common';
+import { HttpException, Inject, Injectable } from '@nestjs/common';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_ADMIN_CLIENT } from '../common/supabase/supabase.module.js';
 import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
-import { mapUserPersistenceError, userNotFound } from './users.error.js';
+import { USER } from '../shared/types/user.role.js';
+import {
+  mapUserPersistenceError,
+  userCreationFailed,
+  userNotFound,
+  userRoleMismatch,
+} from './users.error.js';
 import type {
   CreateUserInput,
   FighterProfileInput,
@@ -44,7 +44,7 @@ export class UsersService {
         );
         const user = await this.usersRepository.createUser(
           identity,
-          'FIGHTER',
+          USER.FIGHTER,
           transaction,
         );
         await this.usersRepository.createFighter(user.id, profile, transaction);
@@ -73,12 +73,7 @@ export class UsersService {
       email_confirm: true,
     });
     if (error || !data.user?.id) {
-      throw new ConflictException({
-        statusCode: 409,
-        error: 'Conflict',
-        code: 'USER_ALREADY_EXISTS',
-        message: 'The user could not be created',
-      });
+      throw userCreationFailed();
     }
 
     try {
@@ -132,12 +127,7 @@ export class UsersService {
         );
         if (!existing) throw userNotFound();
         if (existing.role !== input.role) {
-          throw new BadRequestException({
-            statusCode: 400,
-            error: 'Bad Request',
-            code: 'USER_ROLE_MISMATCH',
-            message: 'The profile type does not match the user role',
-          });
+          throw userRoleMismatch();
         }
 
         await this.usersRepository.setAuditContext(

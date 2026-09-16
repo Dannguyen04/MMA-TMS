@@ -24,6 +24,7 @@ import {
   AuthorizationGuard,
 } from '../shared/guards/auth.guard.js';
 import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
+import { USER } from '../shared/types/user.role.js';
 import { appZodValidationPipe } from '../shared/pipes/zod-validation.pipe.js';
 import { CreateUserDto, UpdateUserDto, UserIdParamsDto } from './users.dto.js';
 import { USER_PERMISSIONS } from './users.model.js';
@@ -31,7 +32,7 @@ import { UsersService } from './users.service.js';
 
 @Controller('users')
 @UseGuards(AccessTokenGuard, AuthorizationGuard)
-@RequireRoles('ADMIN')
+@RequireRoles(USER.ADMIN)
 @UsePipes(appZodValidationPipe)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
@@ -49,7 +50,7 @@ export class UsersController {
 
   @Get(':id')
   @RequirePermissions({ allOf: [USER_PERMISSIONS.READ] })
-  @ResponseMessage('User retrieved successfully')
+  @ResponseMessage('Get user successfully')
   async findOne(@Param() params: UserIdParamsDto) {
     return this.usersService.findOne(params.id);
   }

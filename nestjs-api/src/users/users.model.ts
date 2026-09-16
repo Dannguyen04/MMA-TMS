@@ -7,9 +7,9 @@ import {
   optionalNullablePositiveNumberSchema,
   trimmedTextSchema,
 } from '../shared/utils/zod-schema.util.js';
-import { userRoles } from '../shared/models/auth-context.model.js';
+import { USER, userRoles } from '../shared/types/user.role.js';
 
-export { userRoles } from '../shared/models/auth-context.model.js';
+export { USER, userRoles } from '../shared/types/user.role.js';
 
 export const USER_PERMISSIONS = {
   CREATE: 'users.create',
@@ -75,22 +75,22 @@ const credentialsSchema = {
 export const createUserSchema = z.discriminatedUnion('role', [
   z.strictObject({
     ...credentialsSchema,
-    role: z.literal('FIGHTER'),
+    role: z.literal(USER.FIGHTER),
     profile: fighterProfileSchema,
   }),
   z.strictObject({
     ...credentialsSchema,
-    role: z.literal('COACH'),
+    role: z.literal(USER.COACH),
     profile: coachProfileSchema,
   }),
   z.strictObject({
     ...credentialsSchema,
-    role: z.literal('DOCTOR'),
+    role: z.literal(USER.DOCTOR),
     profile: doctorProfileSchema,
   }),
   z.strictObject({
     ...credentialsSchema,
-    role: z.literal('ADMIN'),
+    role: z.literal(USER.ADMIN),
   }),
 ]);
 
@@ -105,15 +105,15 @@ const nonEmptyPartial = <T extends z.ZodRawShape>(schema: z.ZodObject<T>) =>
 
 export const updateUserSchema = z.discriminatedUnion('role', [
   z.strictObject({
-    role: z.literal('FIGHTER'),
+    role: z.literal(USER.FIGHTER),
     profile: nonEmptyPartial(fighterProfileSchema),
   }),
   z.strictObject({
-    role: z.literal('COACH'),
+    role: z.literal(USER.COACH),
     profile: nonEmptyPartial(coachProfileSchema),
   }),
   z.strictObject({
-    role: z.literal('DOCTOR'),
+    role: z.literal(USER.DOCTOR),
     profile: nonEmptyPartial(doctorProfileSchema),
   }),
 ]);

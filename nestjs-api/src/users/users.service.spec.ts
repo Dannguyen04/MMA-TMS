@@ -1,5 +1,7 @@
 import { HttpException } from '@nestjs/common';
 import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
+import { USER } from '../shared/types/user.role.js';
+import { USER_ERROR } from './users.error.js';
 import type { PublicUser } from './users.model.js';
 import { UsersRepository } from './users.repo.js';
 import { UsersService } from './users.service.js';
@@ -8,12 +10,12 @@ const actor: AuthenticatedUser = {
   id: '516a01dc-f842-40e4-ae88-abca224921b7',
   authSubject: '8473a317-317a-4b0a-8b01-eb4e961ff52f',
   email: 'admin@example.com',
-  role: 'ADMIN',
+  role: USER.ADMIN,
 };
 const fighter: PublicUser = {
   id: '59d6ba46-32f2-4e67-b486-e966b2064328',
   email: 'fighter@example.com',
-  role: 'FIGHTER',
+  role: USER.FIGHTER,
   isActive: true,
   createdAt: new Date('2026-01-01T00:00:00.000Z'),
   updatedAt: new Date('2026-01-01T00:00:00.000Z'),
@@ -83,7 +85,7 @@ describe('UsersService', () => {
     ).resolves.toEqual(fighter);
     expect(repository.createUser).toHaveBeenCalledWith(
       expect.any(Object),
-      'FIGHTER',
+      USER.FIGHTER,
       { scope: 'transaction' },
     );
   });
@@ -98,7 +100,7 @@ describe('UsersService', () => {
     const input = {
       email: 'coach@example.com',
       password: 'strong-password',
-      role: 'COACH' as const,
+      role: USER.COACH,
       profile: { firstName: 'Bao', lastName: 'Tran' },
     };
 
@@ -125,7 +127,7 @@ describe('UsersService', () => {
         fighter.id,
         actor,
         {
-          role: 'COACH',
+          role: USER.COACH,
           profile: { firstName: 'Wrong role' },
         },
         'request-id',
@@ -134,7 +136,7 @@ describe('UsersService', () => {
 
     expect(error).toBeInstanceOf(HttpException);
     expect((error as HttpException).getResponse()).toMatchObject({
-      code: 'USER_ROLE_MISMATCH',
+      code: USER_ERROR.ROLE_MISMATCH.code,
     });
   });
 
