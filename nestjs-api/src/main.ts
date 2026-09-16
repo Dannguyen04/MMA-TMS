@@ -1,6 +1,10 @@
-import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module.js';
+import { SwaggerModule } from '@nestjs/swagger';
+import { ApiExceptionFilter } from './shared/filters/api-exception.filter.js';
+import { ApiResponseInterceptor } from './shared/interceptors/api-response.interceptor.js';
+import { AppValidationPipe } from './shared/pipes/app-validation.pipe.js';
+import { createOpenApiDocument } from './shared/utils/openapi.util.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -36,9 +40,14 @@ async function bootstrap() {
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   });
 
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  app.useGlobalPipes(new AppValidationPipe());
+  app.useGlobalFilters(new ApiExceptionFilter());
+  app.useGlobalInterceptors(new ApiResponseInterceptor(app.get(Reflector)));
 
   const port = process.env.PORT ?? 3001;
+
+  const document = createOpenApiDocument(app);
+  SwaggerModule.setup('docs', app, document);
   await app.listen(port, '0.0.0.0');
   console.log(`🚀 NestJS API running on http://localhost:${port}`);
 }
