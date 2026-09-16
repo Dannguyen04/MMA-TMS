@@ -49,13 +49,18 @@ system instructions always take precedence.
 - **Codex (Testing & Refactoring Only)**:
   - **Scope:** Authoring unit/integration/e2e tests, running test commands, lint/format verification (Vitest, Supertest, Oxlint, Prettier), and non-breaking code refactoring.
   - **Strict Denial Rule:** Codex is **STRICTLY FORBIDDEN** from authoring initial feature implementations, new business modules, or primary application logic. If prompted or requested to implement new features or generate production code from scratch, Codex **MUST DENY** the request with `[DENIED BASED ON RULE: Code generation and feature implementation are exclusively reserved for Antigravity]` and instruct the user to delegate implementation to Antigravity.
-  - **Workflow:** Reads the Summary & Expectations produced by Antigravity, writes full test coverage, verifies edge cases, and refactors code for cleanliness and performance.
+  - **Workflow:** Testing is opt-in. Codex authors or runs only the test type and
+    validation scope explicitly requested by the user. Without that request,
+    Codex performs a read-only review of the handover and relevant artifacts,
+    then reports logic errors, security risks, contract mismatches, missing
+    coverage, and potential defects without modifying production or test files.
+    Follow `.agents/rules/testing-quality.md` for the exact authorization
+    boundary.
 
 
 
 ## Completion standard
 
-A change is complete only when the relevant validation described in
-`.agents/rules/testing-quality.md` has been run, or the final response clearly
-states why a check could not be run.
-
+A task is complete when the explicitly requested work is finished. Run only the
+validation authorized by the user under `.agents/rules/testing-quality.md`; when
+validation was not requested, state that it was not run.

@@ -2,6 +2,7 @@ import {
   loginBodySchema,
   refreshBodySchema,
   registerBodySchema,
+  registerResponseSchema,
 } from './auth.model.js';
 
 describe('auth Zod contracts', () => {
@@ -52,5 +53,37 @@ describe('auth Zod contracts', () => {
         accessToken: 'must-not-be-accepted-here',
       }).success,
     ).toBe(false);
+  });
+
+  it('documents registration responses with nullable sessions and confirmation state', () => {
+    const response = {
+      user: {
+        id: '516a01dc-f842-40e4-ae88-abca224921b7',
+        email: 'fighter@example.com',
+        role: 'FIGHTER' as const,
+        isActive: true,
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+        deletedAt: null,
+        profile: {
+          id: '59d6ba46-32f2-4e67-b486-e966b2064328',
+          firstName: 'An',
+          lastName: 'Nguyen',
+          dateOfBirth: '2000-01-01',
+          weightClass: 'LIGHTWEIGHT' as const,
+        },
+      },
+      session: null,
+      confirmationRequired: true,
+    };
+
+    expect(registerResponseSchema.parse(response)).toMatchObject({
+      session: null,
+      confirmationRequired: true,
+      user: {
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+    });
   });
 });

@@ -1,4 +1,24 @@
-# Migration 003 — Backend & Database
+# Migrations 003–004 — Backend, Database & API Permissions
+
+## Áp dụng migration 004
+
+Migration `004_seed_api_permissions.sql` đăng ký 14 permission cụ thể của hai
+module Users và Fighters trong `public.permissions`. Migration này không thêm dữ liệu vào
+`role_permissions` hoặc `user_permissions`; vì vậy permission mới chưa cấp quyền
+cho bất kỳ tài khoản nào, kể cả ADMIN, cho đến khi người vận hành gán quyền bằng
+quy trình SQL được kiểm soát.
+
+Sau khi xác nhận migration 003 đã có trong `mma_private.migration_history`, chạy:
+
+```sh
+pnpm db:check
+pnpm db:migrate:004
+```
+
+Runner chỉ áp dụng 004, không tự chạy lại migration cũ. Có thể chạy nguyên file
+004 trong SQL Editor bằng database owner; file tự quản lý transaction và
+preflight. Không chạy migration trên database chưa xác định hoặc môi trường dùng
+chung khi chưa có backup và phê duyệt vận hành.
 
 ## Áp dụng cho Supabase dev hiện tại
 
@@ -10,7 +30,7 @@ Trạng thái đầu vào đã được chủ dự án xác nhận: **001 và 00
 2. Kiểm tra file tại thư mục `nestjs-api`:
 
    ```sh
-   npm run db:check
+   pnpm db:check
    ```
 
    Lệnh này chỉ kiểm tra checksum file, không mở kết nối database.
@@ -42,7 +62,7 @@ Trạng thái đầu vào đã được chủ dự án xác nhận: **001 và 00
 Sau khi cài dependencies và cung cấp `DATABASE_URL` qua môi trường an toàn:
 
 ```sh
-npm run db:migrate:003
+pnpm db:migrate:003
 ```
 
 Runner chỉ chạy 003, kiểm tra checksum 001–003, bật xác minh chứng chỉ TLS cho kết nối remote, không tự đọc `.env`, không chứa thông tin đăng nhập trong source và không tự retry. Dùng direct connection hoặc session pooler của Supabase cho migration. Không đưa password vào câu lệnh được lưu trong shell history. Nếu cần CA riêng, cấu hình CA tin cậy cho Node; không tắt xác minh TLS.
@@ -51,20 +71,20 @@ Runner chỉ chạy 003, kiểm tra checksum 001–003, bật xác minh chứng 
 
 ## Những thay đổi trong 003
 
-| Phần | Thiết kế hiện tại |
-| --- | --- |
-| Baseline | Giữ nguyên 12 cột của `analysis_jobs`, enum `job_status`, 4 index và trigger cập nhật timestamp từ 001–002. Chỉ thêm 5 FK nullable và các ràng buộc cho liên kết mới. Không backfill JSON/score hoặc thay `user_id TEXT`. |
-| Identity | `users.auth_user_id` unique, FK đến `auth.users.id`. Role `FIGHTER / COACH / DOCTOR / ADMIN`; profile và role phải khớp bằng composite FK. Email được lưu lowercase, trim và unique. Không lưu mật khẩu ứng dụng. |
-| Phân công | `coach_fighters`, `doctor_fighters` lưu từng đợt với người giao/kết thúc và lý do. Một cặp chỉ có một đợt chưa kết thúc; đợt đã đóng không sửa/xóa. Không tự mở lại record cũ. |
-| Kế hoạch tập | Bổ sung `training_plan_exercises`; session exercises giữ tên/hướng dẫn tại thời điểm giao bài. Session phải cùng Fighter với plan; có kiểm tra trạng thái và timestamp. |
-| Hiệp và video | `session_rounds` thuộc buổi tập; `video_round_segments` giữ mốc milliseconds của hiệp trong từng video, có FK đảm bảo cùng session. |
-| Upload/phân tích | Mỗi upload có video riêng; mỗi video tối đa một job liên kết và một `ai_analyses`. Analysis bắt buộc tham chiếu job cùng video. Upload tiếp theo tạo record mới, kể cả cùng buổi tập. |
-| Kết quả | Liên kết Fighter/session/config nhất quán; summary khóa theo analysis để hai upload cùng session không ghi đè nhau. Review của coach lưu revision, giữ kết quả AI gốc. Không tạo pipeline xử lý mới. |
-| Provenance | Không seed model/config/baseline. Config đã công bố hoặc được sử dụng không sửa tham số. Baseline có nguồn, người và thời điểm phê duyệt; baseline đã duyệt không sửa số liệu. |
-| Y tế | Clearance, injury, treatment, recovery có FK, kiểm tra mốc thời gian và người phụ trách. Injury dẫn về source alert bằng một chiều FK; không tự suy ra chẩn đoán. |
-| Số đo | Thêm `fighter_measurements` để lưu lịch sử thể trạng và đính chính, chi tiết bên dưới. |
-| Audit | Ghi metadata thay đổi của identity/permission, phân công, y tế, config/baseline và coach review. Audit, lịch sử khớp, review và số đo có trigger chặn UPDATE/DELETE/TRUNCATE. |
-| Vận hành | Transaction, advisory lock, lock timeout, preflight baseline, ledger riêng `mma_private`, checksum file và kiểm thử PostgreSQL cô lập. |
+| Phần             | Thiết kế hiện tại                                                                                                                                                                                                         |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Baseline         | Giữ nguyên 12 cột của `analysis_jobs`, enum `job_status`, 4 index và trigger cập nhật timestamp từ 001–002. Chỉ thêm 5 FK nullable và các ràng buộc cho liên kết mới. Không backfill JSON/score hoặc thay `user_id TEXT`. |
+| Identity         | `users.auth_user_id` unique, FK đến `auth.users.id`. Role `FIGHTER / COACH / DOCTOR / ADMIN`; profile và role phải khớp bằng composite FK. Email được lưu lowercase, trim và unique. Không lưu mật khẩu ứng dụng.         |
+| Phân công        | `coach_fighters`, `doctor_fighters` lưu từng đợt với người giao/kết thúc và lý do. Một cặp chỉ có một đợt chưa kết thúc; đợt đã đóng không sửa/xóa. Không tự mở lại record cũ.                                            |
+| Kế hoạch tập     | Bổ sung `training_plan_exercises`; session exercises giữ tên/hướng dẫn tại thời điểm giao bài. Session phải cùng Fighter với plan; có kiểm tra trạng thái và timestamp.                                                   |
+| Hiệp và video    | `session_rounds` thuộc buổi tập; `video_round_segments` giữ mốc milliseconds của hiệp trong từng video, có FK đảm bảo cùng session.                                                                                       |
+| Upload/phân tích | Mỗi upload có video riêng; mỗi video tối đa một job liên kết và một `ai_analyses`. Analysis bắt buộc tham chiếu job cùng video. Upload tiếp theo tạo record mới, kể cả cùng buổi tập.                                     |
+| Kết quả          | Liên kết Fighter/session/config nhất quán; summary khóa theo analysis để hai upload cùng session không ghi đè nhau. Review của coach lưu revision, giữ kết quả AI gốc. Không tạo pipeline xử lý mới.                      |
+| Provenance       | Không seed model/config/baseline. Config đã công bố hoặc được sử dụng không sửa tham số. Baseline có nguồn, người và thời điểm phê duyệt; baseline đã duyệt không sửa số liệu.                                            |
+| Y tế             | Clearance, injury, treatment, recovery có FK, kiểm tra mốc thời gian và người phụ trách. Injury dẫn về source alert bằng một chiều FK; không tự suy ra chẩn đoán.                                                         |
+| Số đo            | Thêm `fighter_measurements` để lưu lịch sử thể trạng và đính chính, chi tiết bên dưới.                                                                                                                                    |
+| Audit            | Ghi metadata thay đổi của identity/permission, phân công, y tế, config/baseline và coach review. Audit, lịch sử khớp, review và số đo có trigger chặn UPDATE/DELETE/TRUNCATE.                                             |
+| Vận hành         | Transaction, advisory lock, lock timeout, preflight baseline, ledger riêng `mma_private`, checksum file và kiểm thử PostgreSQL cô lập.                                                                                    |
 
 Database sau 001–003 có **35 bảng public, 26 enum public**, cộng bảng lịch sử migration trong `mma_private`. SQL là nguồn quản lý cấu trúc; `schema.ts` ánh xạ đầy đủ bảng/cột/default/check/FK/key/index cho Drizzle. `auth.users` chỉ là tham chiếu ngoài, không thuộc quyền quản lý của migration.
 
@@ -102,13 +122,13 @@ Backend cần quy định ai được ghi số đo, xác thực thời điểm/n
 
 Theo yêu cầu cập nhật của chủ dự án, thay thế phần quyền đọc y tế mâu thuẫn trong spec; quyền Admin lấy từ spec V3 §13.3.
 
-| Vai trò ứng dụng | Hồ sơ/số đo y tế | Audit logs |
-| --- | --- | --- |
-| Fighter | Chỉ Fighter gắn với tài khoản đang hoạt động của mình | Không |
-| Coach | Tất cả Fighter, không giới hạn assignment | Không |
-| Doctor / Medical Staff | Tất cả Fighter, không giới hạn assignment | Không |
-| Admin | Tất cả Fighter | Đọc |
-| Anonymous, unmapped, inactive, deleted user | Không | Không |
+| Vai trò ứng dụng                            | Hồ sơ/số đo y tế                                      | Audit logs |
+| ------------------------------------------- | ----------------------------------------------------- | ---------- |
+| Fighter                                     | Chỉ Fighter gắn với tài khoản đang hoạt động của mình | Không      |
+| Coach                                       | Tất cả Fighter, không giới hạn assignment             | Không      |
+| Doctor / Medical Staff                      | Tất cả Fighter, không giới hạn assignment             | Không      |
+| Admin                                       | Tất cả Fighter                                        | Đọc        |
+| Anonymous, unmapped, inactive, deleted user | Không                                                 | Không      |
 
 RLS SELECT áp dụng cho `medical_clearances`, `injury_records`, `treatments`, `recovery_plans`, `fighter_measurements`, `health_alerts`, `fighter_joint_states`, `joint_health_history`, `fighter_baselines`. Role Doctor sử dụng identifier `DOCTOR`; hồ sơ chuyên môn vẫn ở `sports_doctors`.
 
@@ -138,12 +158,12 @@ Tham khảo cơ chế: [Supabase RLS](https://supabase.com/docs/guides/database/
 # Không cần npm dependencies: chỉ cần Node và PostgreSQL binaries.
 # Windows mặc định tìm C:/Program Files/PostgreSQL/18/bin.
 # Dùng PG_TEST_BIN nếu PostgreSQL cài nơi khác.
-npm run test:db
+pnpm test:db
 ```
 
 Test tạo cluster PostgreSQL mới trong thư mục tạm, listen localhost ở port tạm, dựng fixture Supabase Auth tối thiểu, rồi dừng cluster trong `finally`. Không đọc `.env` hoặc `DATABASE_URL`, không kết nối Supabase, không dùng database PostgreSQL đang có. Fixture auth không thay thế một bài integration test trên Supabase thật. Dữ liệu thử nghiệm nằm trong thư mục tạm in ở cuối test để điều tra khi cần.
 
-Phạm vi kiểm thử: chạy mới 001→002→003, nâng cấp baseline có dữ liệu khác shape, hợp đồng insert/update legacy, chạy lại 003, schema drift và partial collision rollback, FK/check/domain history, quyền đọc y tế và privilege dưới role thật của PostgreSQL.
+Phạm vi kiểm thử: chạy mới 001→002→003→004, nâng cấp baseline có dữ liệu khác shape, hợp đồng insert/update legacy, chạy lại migration, schema drift và partial collision rollback, permission catalogue không tự tạo role/user grant, FK/check/domain history, quyền đọc y tế và privilege dưới role thật của PostgreSQL.
 
 Đối chiếu SQL/Drizzle sau khi build:
 
@@ -154,7 +174,7 @@ node scripts/check-drizzle-catalog.mjs dist/database/schema.js ../tmp/schema-cat
 
 `--export-catalog` ghi vào `../tmp`; đây là output phục vụ test, không phải snapshot Supabase. Checker đối chiếu 35 bảng, 26 enum, type/nullability/default, checks, FK/actions, keys và indexes. RLS/functions/grants được kiểm tra qua bài SQL, không sinh từ Drizzle.
 
-`db:push` và `db:generate` được chặn để tránh để schema diff tự quản lý thiếu trigger, RLS, grants và ledger. Sau khi 003 đã áp dụng, mọi thay đổi tiếp theo phải tạo migration **004 trở đi**; không sửa rồi chạy lại 003. Manifest dùng SHA-256 của nội dung UTF-8 đã chuẩn hóa CRLF→LF để kiểm tra giống nhau giữa Windows/Linux.
+`db:push` và `db:generate` được chặn để tránh để schema diff tự quản lý thiếu trigger, RLS, grants và ledger. Sau khi 004 đã áp dụng, mọi thay đổi tiếp theo phải tạo migration **005 trở đi**; không sửa rồi chạy lại migration cũ. Manifest dùng SHA-256 của nội dung UTF-8 đã chuẩn hóa CRLF→LF để kiểm tra giống nhau giữa Windows/Linux.
 
 Rollback: lỗi trong lúc 003 chạy làm rollback toàn transaction. Sau khi đã COMMIT và phát sinh dữ liệu domain, không có down script xóa schema; sửa bằng migration kế tiếp hoặc phục hồi từ backup đã xác nhận.
 

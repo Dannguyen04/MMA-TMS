@@ -2,6 +2,7 @@ import { z } from 'zod';
 import {
   credentialPasswordSchema,
   dateOnlySchema,
+  isoDateTimeSchema,
   normalizedEmailSchema,
   nullableTrimmedTextSchema,
   optionalNullablePositiveNumberSchema,
@@ -14,6 +15,7 @@ export { USER, userRoles } from '../shared/types/user.role.js';
 export const USER_PERMISSIONS = {
   CREATE: 'users.create',
   READ: 'users.read',
+  PROFILE_READ: 'users.profile.read',
   UPDATE: 'users.update',
   DELETE: 'users.delete',
 } as const;
@@ -135,13 +137,13 @@ export const publicUserSchema = z.strictObject({
   email: z.email(),
   role: z.enum(userRoles),
   isActive: z.boolean(),
-  createdAt: z.date(),
-  updatedAt: z.date(),
-  deletedAt: z.date().nullable(),
+  createdAt: isoDateTimeSchema,
+  updatedAt: isoDateTimeSchema,
+  deletedAt: isoDateTimeSchema.nullable(),
   profile: publicProfileSchema.nullable(),
 });
 
 export type FighterProfileInput = z.infer<typeof fighterProfileSchema>;
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
-export type PublicUser = z.infer<typeof publicUserSchema>;
+export type PublicUser = z.input<typeof publicUserSchema>;

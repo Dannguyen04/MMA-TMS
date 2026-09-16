@@ -67,7 +67,8 @@ function migration(database, name) {
   return psql(database, readFileSync(join(api, 'migrations', name), 'utf8'));
 }
 const baseline = ['001_create_analysis_jobs.sql', '002_add_health_alerts.sql'];
-const target = '003_mma_tms_complete_schema.sql';
+const target003 = '003_mma_tms_complete_schema.sql';
+const target004 = '004_seed_api_permissions.sql';
 const authFixture = `CREATE SCHEMA auth;
 CREATE TABLE auth.users(id uuid PRIMARY KEY);
 CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
@@ -122,8 +123,51 @@ try {
   );
   prepare('mma_clean');
   check('001 -> 002 -> 003 on an empty isolated database', () =>
-    migration('mma_clean', target),
+    migration('mma_clean', target003),
   );
+  check('004 registers Users and Fighters permissions without grants', () => {
+    migration('mma_clean', target004);
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT string_agg(code, ',' ORDER BY code) FROM public.permissions;`,
+      ),
+      [
+        'fighters.coaches.assign',
+        'fighters.coaches.end',
+        'fighters.coaches.read',
+        'fighters.measurements.read',
+        'fighters.measurements.write',
+        'fighters.medical.read',
+        'fighters.read',
+        'fighters.sessions.read',
+        'fighters.update',
+        'users.create',
+        'users.delete',
+        'users.profile.read',
+        'users.read',
+        'users.update',
+      ].join(','),
+    );
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT (SELECT count(*) FROM public.role_permissions) + (SELECT count(*) FROM public.user_permissions);`,
+      ),
+      '0',
+    );
+  });
+  check('reapplying 004 fails without changing the catalogue', () => {
+    rejects(
+      'mma_clean',
+      readFileSync(join(api, 'migrations', target004), 'utf8'),
+      /already been applied|collision/,
+    );
+    assert.equal(
+      psql('mma_clean', `SELECT count(*) FROM public.permissions;`),
+      '14',
+    );
+  });
   if (process.argv.includes('--export-catalog')) {
     mkdirSync(resolve(api, '../tmp'), { recursive: true });
     const catalog = psql(
@@ -140,7 +184,7 @@ try {
     CREATE TABLE baseline_snapshot AS SELECT to_jsonb(j) AS payload FROM public.analysis_jobs j;`,
   );
   check('003 preserves nonempty legacy data without coercion', () => {
-    migration('mma_existing', target);
+    migration('mma_existing', target003);
     assert.equal(
       psql(
         'mma_existing',
@@ -172,7 +216,7 @@ try {
   check('reapplying 003 fails safely', () => {
     rejects(
       'mma_existing',
-      readFileSync(join(api, 'migrations', target), 'utf8'),
+      readFileSync(join(api, 'migrations', target003), 'utf8'),
       /Baseline drift|already/,
     );
     assert.equal(
@@ -188,7 +232,7 @@ try {
   check('baseline drift aborts before domain DDL', () => {
     rejects(
       'mma_drift',
-      readFileSync(join(api, 'migrations', target), 'utf8'),
+      readFileSync(join(api, 'migrations', target003), 'utf8'),
       /Baseline column drift/,
     );
     assert.equal(
@@ -204,7 +248,7 @@ try {
   check('partial domain collision rolls back all new objects', () => {
     rejects(
       'mma_partial',
-      readFileSync(join(api, 'migrations', target), 'utf8'),
+      readFileSync(join(api, 'migrations', target003), 'utf8'),
       /already exists/,
     );
     assert.equal(

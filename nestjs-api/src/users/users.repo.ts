@@ -1,5 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
+import {
+  type DatabaseExecutor,
+  setAuditContext,
+  type Transaction,
+} from '../shared/utils/audit-context.util.js';
 import type { UserRole } from '../shared/models/auth-context.model.js';
 import { USER } from '../shared/types/user.role.js';
 import { DRIZZLE, type DrizzleDB } from '../database/database.module.js';
@@ -10,9 +15,6 @@ import type {
   PublicUser,
   UpdateUserInput,
 } from './users.model.js';
-
-type Transaction = Parameters<Parameters<DrizzleDB['transaction']>[0]>[0];
-type DatabaseExecutor = DrizzleDB | Transaction;
 
 interface NewIdentity {
   subject: string;
@@ -37,16 +39,12 @@ export class UsersRepository {
     return this.db.transaction(work);
   }
 
-  async setAuditContext(
+  setAudit(
     subject: string,
     requestId: string,
     database: DatabaseExecutor,
   ): Promise<void> {
-    await database.execute(sql`
-      select
-        set_config('request.jwt.claims', ${JSON.stringify({ sub: subject })}, true),
-        set_config('mma.request_id', ${requestId}, true)
-    `);
+    return setAuditContext(subject, requestId, database);
   }
 
   async createUser(

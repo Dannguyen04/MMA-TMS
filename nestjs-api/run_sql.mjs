@@ -3,18 +3,29 @@ import { createHash } from 'node:crypto';
 
 // Default is local validation. No credentials in source; no automatic .env loading.
 const mode = process.argv[2] ?? '--check';
-if (!['--check', '--apply-003'].includes(mode) || process.argv.length > 3) {
-  console.error('Usage: node run_sql.mjs [--check | --apply-003]');
+const migrationByMode = new Map([
+  ['--apply-003', '003_mma_tms_complete_schema.sql'],
+  ['--apply-004', '004_seed_api_permissions.sql'],
+]);
+if (
+  !['--check', ...migrationByMode.keys()].includes(mode) ||
+  process.argv.length > 3
+) {
+  console.error(
+    'Usage: node run_sql.mjs [--check | --apply-003 | --apply-004]',
+  );
   process.exitCode = 1;
 } else {
   let client;
   try {
     const migrations = readVerifiedMigrations();
     if (mode === '--check') {
-      console.log('001–003 checksums OK. No database connection was opened.');
+      console.log('001-004 checksums OK. No database connection was opened.');
     } else {
+      const migrationName = migrationByMode.get(mode);
+      const migrationVersion = migrationName.slice(0, 3);
       if (!process.env.DATABASE_URL)
-        throw new Error('DATABASE_URL is required for --apply-003.');
+        throw new Error(`DATABASE_URL is required for ${mode}.`);
       let url;
       try {
         url = new URL(process.env.DATABASE_URL);
@@ -31,22 +42,24 @@ if (!['--check', '--apply-003'].includes(mode) || process.argv.length > 3) {
         connectionString: url.toString(),
         ssl: local ? false : { rejectUnauthorized: true },
         connectionTimeoutMillis: 10_000,
-        application_name: 'mma-tms-migration-003',
+        application_name: `mma-tms-migration-${migrationVersion}`,
       });
       await client.connect();
-      // 003 owns BEGIN/COMMIT and its preflight. Never replay 001/002 here.
-      const sql = migrations.get('003_mma_tms_complete_schema.sql');
+      // Each file owns BEGIN/COMMIT and its preflight; earlier files are not replayed.
+      const sql = migrations.get(migrationName);
       await client.query(
         "SELECT set_config('mma.migration_sha256', $1, false)",
         [createHash('sha256').update(sql).digest('hex')],
       );
       await client.query(sql);
-      console.log('Applied 003 successfully. 001 and 002 were not executed.');
+      console.log(
+        `Applied ${migrationVersion} successfully. Earlier migrations were not executed.`,
+      );
     }
   } catch (error) {
     console.error(
       client
-        ? `003 failed (${error.code ?? 'connection/query error'}). No automatic retry.`
+        ? `${mode} failed (${error.code ?? 'connection/query error'}). No automatic retry.`
         : error.message,
     );
     process.exitCode = 1;

@@ -1,6 +1,7 @@
 import {
   credentialPasswordSchema,
   dateOnlySchema,
+  isoDateTimeSchema,
   normalizedEmailSchema,
   nullableTrimmedTextSchema,
   optionalNullablePositiveNumberSchema,
@@ -42,5 +43,15 @@ describe('shared Zod schema utilities', () => {
     expect(schema.safeParse(0).success).toBe(false);
     expect(schema.safeParse(300).success).toBe(false);
     expect(schema.safeParse(Number.NaN).success).toBe(false);
+  });
+
+  it('normalizes Date inputs to an ISO date-time string', () => {
+    const date = new Date('2026-02-01T12:34:56.000Z');
+
+    expect(isoDateTimeSchema.parse(date)).toBe('2026-02-01T12:34:56.000Z');
+    expect(isoDateTimeSchema.parse(date.toISOString())).toBe(
+      '2026-02-01T12:34:56.000Z',
+    );
+    expect(isoDateTimeSchema.safeParse('not-a-date').success).toBe(false);
   });
 });

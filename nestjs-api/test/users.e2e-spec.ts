@@ -4,6 +4,10 @@ import { Reflector } from '@nestjs/core';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AUTH_ACCESS_SERVICE } from '../src/shared/contracts/auth-access.contract.js';
+import {
+  REQUIRED_PERMISSIONS,
+  REQUIRED_ROLES,
+} from '../src/shared/decorators/auth.decorator.js';
 import { ApiExceptionFilter } from '../src/shared/filters/api-exception.filter.js';
 import { ApiResponseInterceptor } from '../src/shared/interceptors/api-response.interceptor.js';
 import {
@@ -11,6 +15,7 @@ import {
   AuthorizationGuard,
 } from '../src/shared/guards/auth.guard.js';
 import { UsersController } from '../src/users/users.controller.js';
+import { USER_PERMISSIONS } from '../src/users/users.model.js';
 import { UsersService } from '../src/users/users.service.js';
 
 const userId = '59d6ba46-32f2-4e67-b486-e966b2064328';
@@ -56,6 +61,29 @@ describe('UsersController authorization (e2e)', () => {
 
   afterEach(async () => app.close());
 
+  it('declares a concrete permission for every Users route', () => {
+    const reflector = app.get(Reflector);
+    const permissionFor = (handler: (...args: never[]) => unknown) =>
+      reflector.get(REQUIRED_PERMISSIONS, handler);
+
+    expect(reflector.get(REQUIRED_ROLES, UsersController)).toBeUndefined();
+    expect(permissionFor(UsersController.prototype.create)).toEqual({
+      allOf: [USER_PERMISSIONS.CREATE],
+    });
+    expect(permissionFor(UsersController.prototype.findMe)).toEqual({
+      allOf: [USER_PERMISSIONS.PROFILE_READ],
+    });
+    expect(permissionFor(UsersController.prototype.findOne)).toEqual({
+      allOf: [USER_PERMISSIONS.READ],
+    });
+    expect(permissionFor(UsersController.prototype.update)).toEqual({
+      allOf: [USER_PERMISSIONS.UPDATE],
+    });
+    expect(permissionFor(UsersController.prototype.remove)).toEqual({
+      allOf: [USER_PERMISSIONS.DELETE],
+    });
+  });
+
   it('runs authentication before authorization', async () => {
     const response = await request(app.getHttpServer())
       .get(`/users/${userId}`)
@@ -83,11 +111,27 @@ describe('UsersController authorization (e2e)', () => {
       .expect(200);
     expect(response.body).toEqual({
       success: true,
-      message: 'User retrieved successfully',
+      message: 'Get user successfully',
       data: { id: userId, role: 'COACH' },
     });
     expect(authService.hasPermissions).toHaveBeenCalled();
     expect(usersService.findOne).toHaveBeenCalledWith(userId);
+  });
+
+  it('uses users.profile.read for the authenticated user profile', async () => {
+    const coach = { ...admin, role: 'COACH' as const };
+    authService.authenticate.mockResolvedValueOnce(coach);
+    usersService.findOne.mockResolvedValueOnce({ id: coach.id, role: 'COACH' });
+
+    await request(app.getHttpServer())
+      .get('/users/me')
+      .set('Authorization', 'Bearer valid-token')
+      .expect(200);
+
+    expect(authService.hasPermissions).toHaveBeenCalledWith(coach, {
+      allOf: [USER_PERMISSIONS.PROFILE_READ],
+    });
+    expect(usersService.findOne).toHaveBeenCalledWith(coach.id);
   });
 
   it('denies ADMIN when the concrete permission is absent', async () => {

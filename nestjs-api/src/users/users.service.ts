@@ -37,7 +37,7 @@ export class UsersService {
   ): Promise<PublicUser> {
     try {
       return await this.usersRepository.transaction(async (transaction) => {
-        await this.usersRepository.setAuditContext(
+        await this.usersRepository.setAudit(
           identity.subject,
           requestId,
           transaction,
@@ -78,7 +78,7 @@ export class UsersService {
 
     try {
       return await this.usersRepository.transaction(async (transaction) => {
-        await this.usersRepository.setAuditContext(
+        await this.usersRepository.setAudit(
           actor.authSubject,
           requestId,
           transaction,
@@ -130,7 +130,7 @@ export class UsersService {
           throw userRoleMismatch();
         }
 
-        await this.usersRepository.setAuditContext(
+        await this.usersRepository.setAudit(
           actor.authSubject,
           requestId,
           transaction,
@@ -165,7 +165,7 @@ export class UsersService {
           transaction,
         );
         if (!existing) throw userNotFound();
-        await this.usersRepository.setAuditContext(
+        await this.usersRepository.setAudit(
           actor.authSubject,
           requestId,
           transaction,

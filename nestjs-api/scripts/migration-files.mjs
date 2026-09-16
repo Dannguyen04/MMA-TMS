@@ -11,6 +11,7 @@ export const migrationNames = [
   '001_create_analysis_jobs.sql',
   '002_add_health_alerts.sql',
   '003_mma_tms_complete_schema.sql',
+  '004_seed_api_permissions.sql',
 ];
 export function readVerifiedMigrations() {
   const manifest = JSON.parse(

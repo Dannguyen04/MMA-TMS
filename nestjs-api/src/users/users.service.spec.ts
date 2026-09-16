@@ -1,7 +1,7 @@
 import { HttpException } from '@nestjs/common';
 import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import { USER } from '../shared/types/user.role.js';
-import { USER_ERROR } from './users.error.js';
+import { userRoleMismatch } from './users.error.js';
 import type { PublicUser } from './users.model.js';
 import { UsersRepository } from './users.repo.js';
 import { UsersService } from './users.service.js';
@@ -36,7 +36,7 @@ function repositoryMock() {
       async (work: (value: object) => Promise<unknown>): Promise<unknown> =>
         work(transaction),
     ),
-    setAuditContext: vi.fn().mockResolvedValue(undefined),
+    setAudit: vi.fn().mockResolvedValue(undefined),
     createUser: vi.fn().mockResolvedValue({ id: fighter.id }),
     createFighter: vi.fn().mockResolvedValue(undefined),
     createRoleProfile: vi.fn().mockResolvedValue(undefined),
@@ -88,6 +88,11 @@ describe('UsersService', () => {
       USER.FIGHTER,
       { scope: 'transaction' },
     );
+    expect(repository.setAudit).toHaveBeenCalledWith(
+      'e069ca8a-d0f1-44da-8bd5-48a60bf44b99',
+      'request-id',
+      { scope: 'transaction' },
+    );
   });
 
   it('uses Supabase Admin and supports creating another role', async () => {
@@ -135,9 +140,9 @@ describe('UsersService', () => {
       .catch((reason: unknown) => reason);
 
     expect(error).toBeInstanceOf(HttpException);
-    expect((error as HttpException).getResponse()).toMatchObject({
-      code: USER_ERROR.ROLE_MISMATCH.code,
-    });
+    expect((error as HttpException).getResponse()).toEqual(
+      userRoleMismatch().getResponse(),
+    );
   });
 
   it('soft-deletes the role profile and user atomically', async () => {

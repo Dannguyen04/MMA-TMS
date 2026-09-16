@@ -26,3 +26,8 @@ export const dateOnlySchema = z
       !Number.isNaN(date.valueOf()) && date.toISOString().startsWith(value)
     );
   }, 'Expected a valid calendar date');
+
+export const isoDateTimeSchema = z.preprocess(
+  (val: unknown) => (val instanceof Date ? val.toISOString() : val),
+  z.string().datetime(),
+) as z.ZodType<string, Date | string>;
