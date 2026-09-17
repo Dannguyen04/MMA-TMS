@@ -43,7 +43,13 @@ from pipeline.stance_context import (
     resolve_limb_role,
 )
 
-VALIDATION_STATUS_NOT_VALIDATED = "SHADOW_NOT_VALIDATED"
+class ValidationStatus(str, Enum):
+    SHADOW_NOT_VALIDATED = "SHADOW_NOT_VALIDATED"
+    VALIDATED = "VALIDATED"
+    REJECTED = "REJECTED"
+
+
+VALIDATION_STATUS_NOT_VALIDATED = ValidationStatus.SHADOW_NOT_VALIDATED.value
 
 
 @dataclass(frozen=True)
@@ -79,7 +85,7 @@ class ExtendedClassificationDecision(ClassificationDecision):
         provenance: ClassifierProvenance,
         confidence: Optional[float] = None,
         evidence_level: EvidenceLevel = EvidenceLevel.DERIVED_PROXY,
-        validation_status: str = VALIDATION_STATUS_NOT_VALIDATED,
+        validation_status: Union[ValidationStatus, str] = ValidationStatus.SHADOW_NOT_VALIDATED,
     ):
         super().__init__(
             status=status,
@@ -89,11 +95,26 @@ class ExtendedClassificationDecision(ClassificationDecision):
             confidence=confidence,
             evidence_level=evidence_level,
         )
-        object.__setattr__(self, "validation_status", validation_status)
+        if isinstance(validation_status, ValidationStatus):
+            v_status = validation_status
+        elif isinstance(validation_status, str):
+            try:
+                v_status = ValidationStatus(validation_status)
+            except ValueError:
+                raise ValueError(
+                    f"Invalid validation_status '{validation_status}'. "
+                    f"Must be one of {[e.value for e in ValidationStatus]}"
+                )
+        else:
+            raise TypeError(
+                f"validation_status must be a ValidationStatus or str, got {type(validation_status).__name__}"
+            )
+        object.__setattr__(self, "validation_status", v_status)
 
     def to_dict(self) -> dict[str, Any]:
         d = super().to_dict()
-        d["validationStatus"] = getattr(self, "validation_status", VALIDATION_STATUS_NOT_VALIDATED)
+        val = getattr(self, "validation_status", ValidationStatus.SHADOW_NOT_VALIDATED)
+        d["validationStatus"] = val.value if isinstance(val, ValidationStatus) else str(val)
         return d
 
 

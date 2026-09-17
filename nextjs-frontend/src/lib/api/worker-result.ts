@@ -29,19 +29,21 @@ import { KEYPOINT, KEYPOINT_COUNT, LIMB_CHAIN } from "@/lib/video/skeleton";
 
 const landmarkSchema = z.object({ x: z.number(), y: z.number(), conf: z.number() });
 
-const frameSchema = z.object({
+export const frameSchema = z.object({
     frameIdx: z.number(),
     timeMs: z.number(),
-    kneeAngle: z.number(),
-    hipAngle: z.number(),
-    elbowAngleLeft: z.number().optional(),
-    elbowAngleRight: z.number().optional(),
+    kneeAngle: z.number().nullable().optional(),
+    hipAngle: z.number().nullable().optional(),
+    elbowAngleLeft: z.number().nullable().optional(),
+    elbowAngleRight: z.number().nullable().optional(),
     activeArm: z.string().optional(),
     punchState: z.string().optional(),
     punchStateLabel: z.string().optional(),
-    kickState: z.string(),
-    kickStateLabel: z.string(),
-    activeLeg: z.string(),
+    kickState: z.string().optional(),
+    kickStateLabel: z.string().optional(),
+    activeLeg: z.string().optional(),
+    diagnosticOnly: z.boolean().optional(),
+    reasonCodes: z.array(z.string()).optional(),
     landmarks: z.array(landmarkSchema),
 });
 
@@ -96,15 +98,15 @@ const actionPhasesSchema = z.object({
     chamberFrame: z.number().nullable().optional(),
     launchFrame: z.number().nullable().optional(),
     peakFrame: z.number().nullable().optional(),
-    impactFrame: z.number(),
+    impactFrame: z.number().nullable().optional(),
     endFrame: z.number(),
     startTimeMs: z.number(),
     chamberTimeMs: z.number().nullable().optional(),
     launchTimeMs: z.number().nullable().optional(),
     peakTimeMs: z.number().nullable().optional(),
-    impactTimeMs: z.number(),
+    impactTimeMs: z.number().nullable().optional(),
     endTimeMs: z.number(),
-    impactType: z.enum(["peak_extension_proxy", "max_extension_proxy"]),
+    impactType: z.enum(["peak_extension_proxy", "max_extension_proxy", "unavailable"]),
 });
 
 const actionMetricItemSchema = z.object({
@@ -144,6 +146,8 @@ export const techniqueCandidateSchema = z.object({
     stance: z.enum(["orthodox", "southpaw", "switch", "unknown"]),
 });
 
+export const validationStatusSchema = z.enum(["SHADOW_NOT_VALIDATED", "VALIDATED", "REJECTED"]);
+
 export const shadowClassificationSchema = z.object({
     status: z.enum(["classified", "abstained", "rejected_candidate"]),
     candidate: techniqueCandidateSchema.nullable(),
@@ -155,7 +159,7 @@ export const shadowClassificationSchema = z.object({
     featureVersion: z.string(),
     stanceSource: z.string(),
     evidenceLevel: z.enum(["observed", "derived_proxy", "unavailable"]),
-    validationStatus: z.string().optional(),
+    validationStatus: validationStatusSchema.optional(),
 });
 
 export const actionSchema = z.object({
@@ -176,6 +180,7 @@ export const actionSchema = z.object({
     shadowClassification: shadowClassificationSchema.nullable().optional(),
     qualityStatus: z.enum(["pass", "degraded", "blocked"]).optional(),
     adjustedEvidenceLevel: z.enum(["observed", "derived_proxy", "unavailable"]).optional(),
+    reasonCodes: z.array(z.string()).optional(),
 });
 
 export const analysisQualitySchema = z.object({
@@ -342,6 +347,8 @@ export const standardFindingSchema = z.object({
     metricValue: z.number().optional(),
 });
 
+export const reviewerRoleSchema = z.enum(["coach", "head_coach", "expert_reviewer"]);
+
 export const reviewAuditRecordSchema = z.object({
     recordId: z.string(),
     actionId: z.string(),
@@ -350,7 +357,7 @@ export const reviewAuditRecordSchema = z.object({
     aiOriginalValue: z.unknown(),
     correctedValue: z.unknown(),
     reviewerId: z.string(),
-    reviewerRole: z.enum(["head_coach", "coach", "assistant_coach", "system_admin", "athlete"]),
+    reviewerRole: reviewerRoleSchema,
     reason: z.string(),
     timestamp: z.string(),
     idempotencyToken: z.string(),
@@ -397,6 +404,18 @@ export const datasetManifestSchema = z.object({
     contentHash: z.string(),
     datasetHash: z.string(),
     notes: z.string(),
+    backendAttestation: z.string().nullable().optional(),
+    attestationId: z.string().nullable().optional(),
+    attestationReference: z.string().nullable().optional(),
+    attestationDigest: z.string().nullable().optional(),
+    attestationStatus: z.string().nullable().optional(),
+    attestationIssuer: z.string().nullable().optional(),
+    reviewerAgreementPolicy: z.string().nullable().optional(),
+    reviewerAgreementPolicyVersion: z.string().nullable().optional(),
+    reviewerAgreementStatus: z.string().nullable().optional(),
+    consensusEvidenceDigest: z.string().nullable().optional(),
+    qualityPolicyVersion: z.string().optional(),
+    readinessGaps: z.array(z.string()).optional(),
 });
 
 export const datasetExportResultSchema = z.object({
@@ -407,6 +426,8 @@ export const datasetExportResultSchema = z.object({
 export type WorkerEvidenceReference = z.infer<typeof evidenceReferenceSchema>;
 export type WorkerRubricProvenance = z.infer<typeof rubricProvenanceSchema>;
 export type WorkerStandardFinding = z.infer<typeof standardFindingSchema>;
+export type WorkerReviewerRole = z.infer<typeof reviewerRoleSchema>;
+export type WorkerValidationStatus = z.infer<typeof validationStatusSchema>;
 export type WorkerReviewAuditRecord = z.infer<typeof reviewAuditRecordSchema>;
 export type WorkerMaterializedActionView = z.infer<typeof materializedActionViewSchema>;
 export type WorkerAnonymizedSample = z.infer<typeof anonymizedSampleSchema>;

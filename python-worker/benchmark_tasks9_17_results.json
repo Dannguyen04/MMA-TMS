@@ -4,46 +4,56 @@
     "cpu": "AMD64 Family 25 Model 80 Stepping 0, AuthenticAMD",
     "python_version": "3.11.15",
     "torch_cuda_available": "False (CPU fixture-safe benchmark)",
-    "timestamp_utc": "2026-09-17T05:12:30Z"
+    "timestamp_utc": "2026-09-17T15:21:09Z"
   },
   "tasks_5_8_action_analysis": {
     "warmup": 15,
     "iterations": 100,
-    "min_ms": 0.4707,
-    "mean_ms": 0.8375,
-    "median_ms": 0.7882,
-    "p95_ms": 1.3872,
-    "max_ms": 2.7894,
-    "throughput_ops_sec": 1194.0
+    "min_ms": 0.4205,
+    "mean_ms": 0.5521,
+    "median_ms": 0.4848,
+    "p95_ms": 0.7259,
+    "max_ms": 0.7825,
+    "throughput_ops_sec": 1811.2
   },
   "tasks_9_12_publish_path": {
     "warmup": 15,
     "iterations": 100,
-    "min_ms": 0.0471,
-    "mean_ms": 0.067,
-    "median_ms": 0.0534,
-    "p95_ms": 0.1059,
-    "max_ms": 0.1972,
-    "throughput_ops_sec": 14919.4
+    "min_ms": 1.443,
+    "mean_ms": 1.6356,
+    "median_ms": 1.5657,
+    "p95_ms": 1.9551,
+    "max_ms": 2.5546,
+    "throughput_ops_sec": 611.4
+  },
+  "tasks_13_14_not_gold_ready_export": {
+    "warmup": 10,
+    "iterations": 50,
+    "min_ms": 13.3915,
+    "mean_ms": 14.8896,
+    "median_ms": 14.8804,
+    "p95_ms": 16.0221,
+    "max_ms": 16.3981,
+    "throughput_ops_sec": 67.2
   },
   "tasks_13_14_review_export": {
     "warmup": 10,
     "iterations": 50,
-    "min_ms": 4.5249,
-    "mean_ms": 7.013,
-    "median_ms": 6.4703,
-    "p95_ms": 10.552,
-    "max_ms": 12.01,
-    "throughput_ops_sec": 142.6
+    "min_ms": 13.3915,
+    "mean_ms": 14.8896,
+    "median_ms": 14.8804,
+    "p95_ms": 16.0221,
+    "max_ms": 16.3981,
+    "throughput_ops_sec": 67.2
   },
   "task_17_fixture_orchestrator": {
     "warmup": 5,
     "iterations": 30,
-    "min_ms": 10.3494,
-    "mean_ms": 19.035,
-    "median_ms": 15.8263,
-    "p95_ms": 28.31,
-    "max_ms": 125.8622,
-    "throughput_ops_sec": 52.5
+    "min_ms": 6.2655,
+    "mean_ms": 8.8279,
+    "median_ms": 6.7204,
+    "p95_ms": 8.6865,
+    "max_ms": 65.4546,
+    "throughput_ops_sec": 113.3
   }
 }

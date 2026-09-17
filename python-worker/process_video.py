@@ -55,6 +55,8 @@ from pipeline import (
     SessionAggregationEngine,
     CoachingEngine,
     FindingEngine,
+    ShadowKickClassifier,
+    ShadowMultiPunchClassifier,
 )
 
 
@@ -314,6 +316,27 @@ def process_video(
 
     # ── Gate R1.1: Quality Gate Controls Conclusions ──
     if quality.status.value == "blocked":
+        # Neutralize derived technical labels and angles in frames; preserve raw landmarks strictly for diagnostics
+        for f in frame_records:
+            f["diagnosticOnly"] = True
+            f["kneeAngle"] = None
+            f["hipAngle"] = None
+            f["elbowAngleLeft"] = None
+            f["elbowAngleRight"] = None
+            f["activeLeg"] = "unknown"
+            f["activeArm"] = "unknown"
+            f["punchState"] = "BLOCKED"
+            f["punchStateLabel"] = "QUALITY_BLOCKED"
+            f["kickState"] = "BLOCKED"
+            f["kickStateLabel"] = "QUALITY_BLOCKED"
+            f["kickPreviousState"] = "BLOCKED"
+            f["kickTransitionReason"] = "QUALITY_BLOCKED"
+            f["kickRejectionReason"] = "QUALITY_BLOCKED"
+            f["speed"] = 0.0
+            f["angleColorLabel"] = "none"
+            f["geometryValid"] = False
+            f["reasonCodes"] = ["QUALITY_BLOCKED"]
+
         actions = build_actions_list(
             punches=punches,
             kicks=kicks,
@@ -331,35 +354,88 @@ def process_video(
             ad = a.to_dict()
             ad["qualityStatus"] = "blocked"
             ad["adjustedEvidenceLevel"] = "unavailable"
+            ad["technique"] = "unknown"
+            ad["attackingSide"] = "unknown"
+            ad["limbRole"] = "unknown"
+            ad["confidence"] = {
+                "detection": ad.get("confidence", {}).get("detection"),
+                "classification": None,
+                "assessment": None,
+            }
+            # Suppress all inferred biomechanics metrics
+            ad["metrics"] = {}
+            # Preserve only raw frame interval; suppress chamber/peak/impact boundaries
+            raw_start_f = ad.get("phases", {}).get("startFrame", 0)
+            raw_end_f = ad.get("phases", {}).get("endFrame", 0)
+            raw_start_t = ad.get("phases", {}).get("startTimeMs", 0.0)
+            raw_end_t = ad.get("phases", {}).get("endTimeMs", 0.0)
+            ad["phases"] = {
+                "startFrame": raw_start_f,
+                "chamberFrame": None,
+                "launchFrame": None,
+                "peakFrame": None,
+                "impactFrame": None,
+                "endFrame": raw_end_f,
+                "startTimeMs": raw_start_t,
+                "chamberTimeMs": None,
+                "launchTimeMs": None,
+                "peakTimeMs": None,
+                "impactTimeMs": None,
+                "endTimeMs": raw_end_t,
+                "impactType": "unavailable",
+            }
             ad["assessment"]["score"] = None
             ad["assessment"]["grade"] = "insufficient_evidence"
             ad["assessment"]["status"] = "insufficient_evidence"
             ad["assessment"]["primaryError"] = None
             ad["assessment"]["findings"] = []
-            ad["confidence"]["assessment"] = None
+            ad["assessment"]["criteria"] = []
+            ad["reasonCodes"] = ["QUALITY_BLOCKED"]
+
+            # Use actual family-specific classifier identity and authentic stance source
+            if a.family == "kick":
+                clf_prov = ShadowKickClassifier().provenance
+            else:
+                clf_prov = ShadowMultiPunchClassifier().provenance
+
             ad["shadowClassification"] = {
                 "status": "abstained",
                 "candidate": None,
                 "confidence": None,
                 "reasonCodes": ["QUALITY_BLOCKED"],
-                "classifierId": "shadow_classifier",
-                "classifierVersion": "2.0.0",
-                "configVersion": "2.0.0",
-                "featureVersion": "2.0.0",
-                "stanceSource": "quality_blocked",
+                "classifierId": clf_prov.classifier_id,
+                "classifierVersion": clf_prov.classifier_version,
+                "configVersion": clf_prov.config_version,
+                "featureVersion": clf_prov.feature_version,
+                "stanceSource": resolved_stance_ctx.source,
                 "evidenceLevel": "unavailable",
                 "validationStatus": "SHADOW_NOT_VALIDATED",
             }
             actions_dicts.append(ad)
 
-        # Legacy backward-compatibility score suppression
+        # Legacy backward-compatibility: symmetrical punch and kick suppression
         for p in punches_dicts:
             p["score"] = None
             p["grade"] = "INSUFFICIENT_EVIDENCE"
+            p["details"] = []
             p["findings"] = []
+            p["criterionResults"] = []
+            p["arm"] = "unknown"
+            p["maxElbowAngle"] = None
+            p["peakSpeed"] = None
+            p["guardPreserved"] = None
         for k in kicks_dicts:
             k["score"] = None
             k["grade"] = "INSUFFICIENT_EVIDENCE"
+            k["details"] = []
+            k["findings"] = []
+            k["criterionResults"] = []
+            k["activeLeg"] = "unknown"
+            k["minChamberAngle"] = None
+            k["maxExtensionAngle"] = None
+            k["peakSpeed"] = None
+            k["chamberPeakFrame"] = None
+            k["chamberPeakTimeMs"] = None
 
         all_findings = []
     elif quality.status.value == "degraded":
@@ -441,16 +517,19 @@ def process_video(
     # ── Anomaly Detection: thu thập tất cả alerts đã xác nhận ──
     confirmed_alerts = []
     joint_states     = {}
+    all_scores: list[float] = []
 
     if quality.status.value == "blocked":
         summary = {
             "totalKicks":    total_kicks,
             "totalPunches":  total_punches,
-            "primaryAction": primary_action,
+            "primaryAction": "unknown",
             "avgScore":      None,
             "bestScore":     None,
             "bestKickIdx":   -1,
             "bestPunchIdx":  -1,
+            "qualityStatus": "blocked",
+            "reasonCodes":   ["QUALITY_BLOCKED"],
         }
     else:
         all_scores = [r.score for r in kicks if r.score is not None] + [p.score for p in punches if p.score is not None]
@@ -496,6 +575,8 @@ def process_video(
         "sessionInsights": session_insights.to_dict(),
         "coachingPlan":    coaching_plan.to_dict(),
     }
+    if quality.status.value == "blocked":
+        output["reasonCodes"] = ["QUALITY_BLOCKED"]
 
     # ── 10. Xuất file JSON ──
     if output_path:

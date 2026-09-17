@@ -39,6 +39,7 @@ from pipeline.classification import ClassifiedTechnique
 from pipeline.coaching_engine import CoachingEngine
 from pipeline.dataset_export import (
     AnonymizedSample,
+    BackendAttestationVerifier,
     DatasetExportEngine,
     DatasetSplit,
     ExportApprovalPolicy,
@@ -645,32 +646,57 @@ class TestRemediationRound2(unittest.TestCase):
     # P1 Dataset Audit & Content Hash Tests (13–19)
     # ─────────────────────────────────────────────────────────────────────────
 
-    def _make_valid_view(self, action_id="act_100", tech="jab"):
+    def _make_valid_view(self, action_id="act_100", tech="jab", reviewer_id="coach_dan", second_reviewer_id=None):
         rec = ReviewAuditRecord(
-            record_id="rec_001",
+            record_id=f"rec_{action_id}",
             action_id=action_id,
             target_field=TargetField.TECHNIQUE,
             review_action=ReviewAction.ACCEPT,
             ai_original_value=tech,
             corrected_value=None,
-            reviewer_id="coach_dan",
+            reviewer_id=reviewer_id,
             reviewer_role=ReviewerRole.COACH,
             reason="Confirmed correct technique",
             timestamp="2026-09-17T10:00:00Z",
-            idempotency_token="tok_001",
+            idempotency_token=f"tok_{action_id}",
             version="1.0.0",
         )
+        audit = [rec]
+        if second_reviewer_id:
+            rec2 = ReviewAuditRecord(
+                record_id=f"rec2_{action_id}",
+                action_id=action_id,
+                target_field=TargetField.TECHNIQUE,
+                review_action=ReviewAction.ACCEPT,
+                ai_original_value=tech,
+                corrected_value=None,
+                reviewer_id=second_reviewer_id,
+                reviewer_role=ReviewerRole.EXPERT_REVIEWER,
+                reason="Confirmed correct technique agreement",
+                timestamp="2026-09-17T10:01:00Z",
+                idempotency_token=f"tok2_{action_id}",
+                version="1.0.0",
+            )
+            audit.append(rec2)
         return MaterializedActionView(
             action_id=action_id,
-            ai_original={"technique": tech, "attacking_side": "left", "phases": {"startFrame": 0, "endFrame": 30}, "metrics": {"speed": 8.0}},
+            ai_original={
+                "technique": tech,
+                "attacking_side": "left",
+                "limb_role": "lead",
+                "phases": {"startFrame": 0, "endFrame": 30},
+                "metrics": {"speed": 8.0},
+                "qualityStatus": "pass",
+                "adjustedEvidenceLevel": "observed",
+            },
             effective_technique=tech,
             effective_attacking_side="left",
             effective_limb_role="lead",
             effective_phases={"startFrame": 0, "endFrame": 30},
             effective_findings=(),
             review_status="coach_approved",
-            audit_trail=(rec,),
-            updated_at="2026-09-17T10:00:00Z",
+            audit_trail=tuple(audit),
+            updated_at="2026-09-17T10:01:00Z" if second_reviewer_id else "2026-09-17T10:00:00Z",
         )
 
     def test_dataset_audit_rejects_unmatched_action_id(self):
@@ -895,7 +921,7 @@ class TestRemediationRound2(unittest.TestCase):
         self.assertNotEqual(base_hash, res_phases.manifest.content_hash, "Changing phases must change contentHash")
 
         # Change only provenance
-        res_prov = DatasetExportEngine.export_dataset([(view_base, "ath_1")], salt=self.secret_salt, provenance_source="other_provenance")
+        res_prov = DatasetExportEngine.export_dataset([(view_base, "ath_1")], salt=self.secret_salt, provenance_source="expert_consensus")
         self.assertNotEqual(base_hash, res_prov.manifest.content_hash, "Changing provenance must change contentHash")
 
         # Change only review status
@@ -908,17 +934,35 @@ class TestRemediationRound2(unittest.TestCase):
         """19. GOLD_READY requires all 7 classes including side_kick, with at least 20 samples per class."""
         self.assertIn("side_kick", REQUIRED_GOLD_CLASSES)
 
-        # Build a dataset with 500 samples across athletes to satisfy train/val/test splits
+        trusted_key = "test_key_secret_2026_production_round2"
+        signed = BackendAttestationVerifier.create_signed_assertion(
+            issuer="mma_backend_authority",
+            secret_key=trusted_key,
+        )
+        verifier = BackendAttestationVerifier.create_configured_verifier(trusted_keys={"mma_backend_authority": trusted_key})
+        DatasetExportEngine.set_system_verifier(verifier)
+
+        # Build a dataset with 560 samples across athletes to satisfy train/val/test splits
         all_classes = list(REQUIRED_GOLD_CLASSES)
         views = []
         for i in range(560):
             tech = all_classes[i % len(all_classes)]
             # Spread across 20 distinct athletes to ensure all 3 splits are covered
             ath_id = f"athlete_{(i % 20) + 1:03d}"
-            v = self._make_valid_view(action_id=f"act_{i:04d}", tech=tech)
+            v = self._make_valid_view(
+                action_id=f"act_{i:04d}",
+                tech=tech,
+                reviewer_id="coach_dan",
+                second_reviewer_id="expert_elena",
+            )
             views.append((v, ath_id))
 
-        res = DatasetExportEngine.export_dataset(views, salt=self.secret_salt)
+        res = DatasetExportEngine.export_dataset(
+            views,
+            salt=self.secret_salt,
+            backend_attestation=signed,
+            reviewer_agreement_policy="dual_review_consensus",
+        )
         self.assertTrue(res.manifest.is_gold_ready)
         self.assertEqual(res.manifest.status, "GOLD_READY")
 
@@ -929,10 +973,20 @@ class TestRemediationRound2(unittest.TestCase):
             if tech == "side_kick" and i > 70:
                 tech = "jab"  # Reduce side_kick count below 20
             ath_id = f"athlete_{(i % 20) + 1:03d}"
-            v = self._make_valid_view(action_id=f"act_{i:04d}", tech=tech)
+            v = self._make_valid_view(
+                action_id=f"act_{i:04d}",
+                tech=tech,
+                reviewer_id="coach_dan",
+                second_reviewer_id="expert_elena",
+            )
             views_deficit.append((v, ath_id))
 
-        res_deficit = DatasetExportEngine.export_dataset(views_deficit, salt=self.secret_salt)
+        res_deficit = DatasetExportEngine.export_dataset(
+            views_deficit,
+            salt=self.secret_salt,
+            backend_attestation=signed,
+            reviewer_agreement_policy="dual_review_consensus",
+        )
         self.assertFalse(res_deficit.manifest.is_gold_ready)
         self.assertEqual(res_deficit.manifest.status, "NOT_GOLD_READY")
 

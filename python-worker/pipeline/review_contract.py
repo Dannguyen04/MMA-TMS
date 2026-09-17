@@ -32,6 +32,7 @@ import json
 from typing import Any, Mapping, Optional, Sequence
 
 from pipeline.contracts import deep_freeze, to_json_safe
+from pipeline.stance_context import resolve_limb_role
 
 
 class IdempotencyConflictError(Exception):
@@ -98,8 +99,8 @@ class ReviewAuditRecord:
 @dataclass(frozen=True)
 class MaterializedActionView:
     """
-    Trạng thái phản ánh (materialized view) được tính toán deterministically
-    từ AI Original kết hợp toàn bộ chuỗi ReviewAuditRecord.
+    View trạng thái mới nhất của action sau khi đã áp dụng chuỗi review.
+    Duy trì AI Original bất biến 100%.
     """
     action_id: str
     ai_original: Mapping[str, Any]
@@ -137,15 +138,20 @@ class ReviewStateMachine:
         """Khởi tạo view ban đầu từ action AI gốc."""
         action_id = str(ai_action_dict.get("id", ""))
         technique = str(ai_action_dict.get("technique", "unknown"))
-        side = str(ai_action_dict.get("attackingSide", "unknown"))
-        limb_role = str(ai_action_dict.get("limbRole", "unknown"))
+        side = str(ai_action_dict.get("attackingSide") or ai_action_dict.get("attacking_side") or "unknown")
+        limb_role = str(ai_action_dict.get("limbRole") or ai_action_dict.get("limb_role") or "unknown")
+        if limb_role == "unknown" and side in ("left", "right"):
+            stance = str(ai_action_dict.get("stance", "orthodox"))
+            resolved_role = resolve_limb_role(side, stance)
+            if resolved_role:
+                limb_role = resolved_role
         phases = ai_action_dict.get("phases", {})
         
         # Extract findings from assessment or root
         assessment = ai_action_dict.get("assessment", {})
         findings = assessment.get("findings", [])
 
-        frozen_orig = deep_freeze(copy.deepcopy(dict(ai_action_dict)))
+        frozen_orig = deep_freeze(to_json_safe(ai_action_dict))
 
         return MaterializedActionView(
             action_id=action_id,
@@ -153,8 +159,8 @@ class ReviewStateMachine:
             effective_technique=technique,
             effective_attacking_side=side,
             effective_limb_role=limb_role,
-            effective_phases=deep_freeze(phases),
-            effective_findings=tuple(deep_freeze(f) for f in findings),
+            effective_phases=deep_freeze(to_json_safe(phases)),
+            effective_findings=tuple(deep_freeze(to_json_safe(f)) for f in findings),
             review_status="ai_generated",
             audit_trail=(),
             updated_at=datetime.now(timezone.utc).isoformat(),
@@ -182,7 +188,7 @@ class ReviewStateMachine:
         - aiOriginalValue: Bắt buộc trỏ về AI Original ban đầu, KHÔNG lấy giá trị đã sửa đổi.
         """
         # Defensive deep copy and freeze corrected value
-        frozen_corrected = deep_freeze(copy.deepcopy(corrected_value))
+        frozen_corrected = deep_freeze(to_json_safe(corrected_value))
 
         # 1. Idempotency Check with Canonical Payload Verification
         for rec in current_view.audit_trail:

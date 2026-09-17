@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+    import { describe, expect, it } from "vitest";
 import {
     actionSchema,
     analysisQualitySchema,
@@ -340,13 +340,13 @@ describe("Worker Result Schema & Tasks 9-17 Extensions", () => {
                 featureVersion: "1.0.0",
                 stanceSource: "classifier_input",
                 evidenceLevel: "derived_proxy",
-                validationStatus: "NOT_VALIDATED",
+                validationStatus: "SHADOW_NOT_VALIDATED",
             },
         };
         const parsed = actionSchema.safeParse(actionPayload);
         expect(parsed.success).toBe(true);
         if (parsed.success) {
-            expect(parsed.data.shadowClassification?.validationStatus).toBe("NOT_VALIDATED");
+            expect(parsed.data.shadowClassification?.validationStatus).toBe("SHADOW_NOT_VALIDATED");
         }
     });
 
@@ -415,28 +415,108 @@ describe("Worker Result Schema & Tasks 9-17 Extensions", () => {
         }).success).toBe(false);
     });
 
-    it("successfully parses blocked action with qualityStatus and null score", () => {
+    it("strictly rejects invalid closed enums in reviewAuditRecordSchema", () => {
+        const baseAudit = {
+            recordId: "rec_1",
+            actionId: "act_1",
+            targetField: "technique",
+            reviewAction: "accept",
+            aiOriginalValue: "jab",
+            correctedValue: null,
+            reviewerId: "coach_1",
+            reviewerRole: "coach",
+            reason: "Looks good",
+            timestamp: "2026-09-17T00:00:00Z",
+            idempotencyToken: "tok_1",
+            version: "1.0.0",
+        };
+
+        expect(reviewAuditRecordSchema.safeParse(baseAudit).success).toBe(true);
+        expect(reviewAuditRecordSchema.safeParse({ ...baseAudit, reviewerRole: "head_coach" }).success).toBe(true);
+        expect(reviewAuditRecordSchema.safeParse({ ...baseAudit, reviewerRole: "expert_reviewer" }).success).toBe(true);
+
+        expect(reviewAuditRecordSchema.safeParse({ ...baseAudit, targetField: "invalid_field" }).success).toBe(false);
+        expect(reviewAuditRecordSchema.safeParse({ ...baseAudit, reviewAction: "invalid_action" }).success).toBe(false);
+        expect(reviewAuditRecordSchema.safeParse({ ...baseAudit, reviewerRole: "unauthorized_role" }).success).toBe(false);
+        expect(reviewAuditRecordSchema.safeParse({ ...baseAudit, reviewerRole: "athlete" }).success).toBe(false);
+    });
+
+    it("strictly rejects open strings in validationStatus", () => {
+        const baseShadow = {
+            status: "abstained",
+            candidate: null,
+            confidence: null,
+            reasonCodes: ["AMBIGUOUS_STANCE"],
+            classifierId: "shadow_punch_classifier",
+            classifierVersion: "1.0.0",
+            configVersion: "1.0.0",
+            featureVersion: "1.0.0",
+            stanceSource: "classifier_input",
+            evidenceLevel: "derived_proxy",
+            validationStatus: "SHADOW_NOT_VALIDATED",
+        };
+
+        expect(shadowClassificationSchema.safeParse(baseShadow).success).toBe(true);
+        expect(shadowClassificationSchema.safeParse({ ...baseShadow, validationStatus: "VALIDATED" }).success).toBe(true);
+        expect(shadowClassificationSchema.safeParse({ ...baseShadow, validationStatus: "REJECTED" }).success).toBe(true);
+        expect(shadowClassificationSchema.safeParse({ ...baseShadow, validationStatus: "ANY_OPEN_STRING" }).success).toBe(false);
+    });
+
+    it("validates Task 14 DatasetManifest with backendAttestation and readinessGaps from real serialized Python fixture", () => {
+        const pythonManifestFixture = {
+            datasetId: "mma_gold_v1",
+            schemaVersion: "1.0.0",
+            exportTimestamp: "2026-09-17T10:00:00Z",
+            policy: "coach_approved_or_corrected",
+            totalSamples: 140,
+            splitDistribution: { train: 98, val: 21, test: 21 },
+            techniqueDistribution: { jab: 20, cross: 20, hook: 20, uppercut: 20, round_kick: 20, front_kick: 20, side_kick: 20 },
+            isGoldReady: false,
+            status: "NOT_GOLD_READY",
+            contentHash: "abcdef1234567890",
+            datasetHash: "1234567890abcdef",
+            notes: "Readiness gaps: INSUFFICIENT_SAMPLE_COUNT, MISSING_BACKEND_ATTESTATION; status marked NOT_GOLD_READY.",
+            backendAttestation: null,
+            readinessGaps: ["INSUFFICIENT_SAMPLE_COUNT", "MISSING_BACKEND_ATTESTATION"],
+        };
+
+        const parsed = datasetManifestSchema.safeParse(pythonManifestFixture);
+        expect(parsed.success).toBe(true);
+        if (parsed.success) {
+            expect(parsed.data.isGoldReady).toBe(false);
+            expect(parsed.data.status).toBe("NOT_GOLD_READY");
+            expect(parsed.data.readinessGaps).toEqual(["INSUFFICIENT_SAMPLE_COUNT", "MISSING_BACKEND_ATTESTATION"]);
+        }
+    });
+
+    it("strictly validates ActionPayload on blocked quality", () => {
         const blockedAction = {
-            id: "act_blocked_1",
-            sourceActionId: "punch_0",
+            id: "action_001",
+            sourceActionId: "punch_1",
             family: "punch",
-            technique: "punch",
-            attackingSide: "left",
+            technique: "unknown",
+            attackingSide: "unknown",
             limbRole: "unknown",
-            stance: "unknown",
+            stance: "orthodox",
             confidence: {
-                detection: 0.8,
-                classification: 0.8,
+                detection: 0.95,
+                classification: null,
                 assessment: null,
             },
             phases: {
                 startFrame: 0,
-                impactFrame: 10,
-                endFrame: 20,
-                startTimeMs: 0,
-                impactTimeMs: 333.3,
-                endTimeMs: 666.6,
-                impactType: "peak_extension_proxy",
+                chamberFrame: null,
+                launchFrame: null,
+                peakFrame: null,
+                impactFrame: null,
+                endFrame: 15,
+                startTimeMs: 0.0,
+                chamberTimeMs: null,
+                launchTimeMs: null,
+                peakTimeMs: null,
+                impactTimeMs: null,
+                endTimeMs: 500.0,
+                impactType: "unavailable",
             },
             metrics: {},
             assessment: {
@@ -451,6 +531,7 @@ describe("Worker Result Schema & Tasks 9-17 Extensions", () => {
             },
             qualityStatus: "blocked",
             adjustedEvidenceLevel: "unavailable",
+            reasonCodes: ["QUALITY_BLOCKED"],
             shadowClassification: {
                 status: "abstained",
                 candidate: null,
@@ -469,6 +550,9 @@ describe("Worker Result Schema & Tasks 9-17 Extensions", () => {
         const parsed = actionSchema.safeParse(blockedAction);
         expect(parsed.success).toBe(true);
         if (parsed.success) {
+            expect(parsed.data.technique).toBe("unknown");
+            expect(parsed.data.attackingSide).toBe("unknown");
+            expect(parsed.data.limbRole).toBe("unknown");
             expect(parsed.data.qualityStatus).toBe("blocked");
             expect(parsed.data.adjustedEvidenceLevel).toBe("unavailable");
             expect(parsed.data.assessment.score).toBeNull();

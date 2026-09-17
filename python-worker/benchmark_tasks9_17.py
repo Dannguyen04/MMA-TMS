@@ -52,6 +52,7 @@ from pipeline.review_contract import (
     TargetField,
 )
 from pipeline.session_aggregation import SessionAggregationEngine
+from pipeline.shadow_classifier import DecisionStatus
 from pipeline.stance_context import resolve_stance_context
 from process_video import process_video
 from punch_analyzer import PunchResult
@@ -140,13 +141,18 @@ def benchmark_tasks5_8_action_analysis() -> dict[str, float]:
     )
 
     def run_analysis():
-        action_from_punch(
+        act = action_from_punch(
             punch=punch,
             action_id="act_bench",
             source_action_id="punch_0",
             keypoints_trajectory=frames,
             fps=30.0,
         )
+        assert act.id == "act_bench"
+        assert act.family == "punch"
+        assert act.assessment.rubricId == "rubric_punch_v3"
+        assert act.assessment.status in ("assessed", "insufficient_evidence")
+        return act
 
     return time_callable(run_analysis, warmup=15, iterations=100)
 
@@ -155,6 +161,10 @@ def benchmark_tasks5_8_action_analysis() -> dict[str, float]:
 # Benchmark 2: Tasks 9–12 & 15–16 Publish Path
 # ─────────────────────────────────────────────────────────────────────────────
 def benchmark_tasks9_12_publish_path() -> dict[str, float]:
+    from pipeline.finding_engine import FindingEngine
+    from pipeline.shadow_punch_classifier import ShadowMultiPunchClassifier
+    from pipeline.shadow_kick_classifier import ShadowKickClassifier
+
     # Stream of 20 analyzed actions across kick and punch families
     sample_actions: list[dict[str, Any]] = []
     for idx in range(20):
@@ -193,11 +203,14 @@ def benchmark_tasks9_12_publish_path() -> dict[str, float]:
     sample_frame_records = []
     for f in range(60):
         sample_frame_records.append({
-            "frame_idx": f,
-            "time_ms": f * 33.333,
-            "keypoints": [{"x": 0.5, "y": 0.5, "conf": 0.85} for _ in range(17)],
-            "observation_kind": "fresh_detection",
+            "frameIdx": f,
+            "timeMs": f * 33.333,
+            "landmarks": [{"x": 0.5, "y": 0.5, "conf": 0.85} for _ in range(17)],
         })
+
+    shadow_punch = ShadowMultiPunchClassifier()
+    shadow_kick = ShadowKickClassifier()
+    stance_ctx = resolve_stance_context(user_stance="orthodox")
 
     def run_publish_path():
         # 1. Quality gate
@@ -207,26 +220,66 @@ def benchmark_tasks9_12_publish_path() -> dict[str, float]:
             img_width=1280,
             img_height=720,
         )
-        # 2. Session aggregation
+
+        # 2. FindingEngine: adapt and deduplicate findings across actions
+        for act in sample_actions:
+            raw_findings = act.get("assessment", {}).get("findings", [])
+            _ = FindingEngine.adapt_and_deduplicate_findings(
+                findings=raw_findings,
+                action_id=act["id"],
+                family=act["family"],
+            )
+
+        # 3. Both Shadow Classifiers executed
+        _p_res = shadow_punch.classify(
+            features={
+                "attacking_side": "right",
+                "max_elbow_angle": 160.0,
+                "trajectory_directness": 0.88,
+                "tangential_curvature": 0.1,
+                "vertical_lift": 0.05,
+                "wrist_shoulder_separation_ratio": 0.5,
+            },
+            stance_context=stance_ctx,
+        )
+        _k_res = shadow_kick.classify(
+            features={
+                "attacking_side": "right",
+                "has_chamber_phase": True,
+                "has_extension_phase": True,
+                "hip_rotation_angle": 42.0,
+                "arc_curvature": 0.35,
+                "forward_trajectory_linearity": 0.2,
+                "lateral_displacement_ratio": 0.1,
+                "torso_lean_angle": 15.0,
+            },
+            stance_context=stance_ctx,
+        )
+
+        # 4. Session aggregation
         insights = SessionAggregationEngine.aggregate_session(
             actions=sample_actions,
             quality_status=quality.status.value,
         )
-        # 3. Coaching plan
+        # 5. Coaching plan
         coaching = CoachingEngine.generate_coaching_plan(insights)
+        assert quality.status == QualityStatus.PASS, f"Expected PASS quality, got {quality.status}"
+        assert insights.status in ("completed", "pass"), f"Expected completed/pass insights status, got {insights.status}"
+        assert _p_res.status in (DecisionStatus.CLASSIFIED, DecisionStatus.ABSTAINED)
+        assert _k_res.status in (DecisionStatus.CLASSIFIED, DecisionStatus.ABSTAINED)
         return quality, insights, coaching
 
     return time_callable(run_publish_path, warmup=15, iterations=100)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Benchmark 3: Tasks 13–14 Review & Dataset Export Library
+# Benchmark 3: Tasks 13–14 NOT_GOLD_READY Export Validation
 # ─────────────────────────────────────────────────────────────────────────────
-def benchmark_tasks13_14_review_export() -> dict[str, float]:
+def benchmark_tasks13_14_not_gold_ready_export() -> dict[str, float]:
     salt = "production_bench_salt_secret_2026_xyz"
     views = []
 
-    # 7 classes required for gold ready, 20 samples each = 140 samples
+    # 7 classes, 20 samples each = 140 samples (< 500 requirement, 1 athlete, 1 reviewer)
     for class_idx, tech in enumerate(REQUIRED_GOLD_CLASSES):
         fam = "kick" if "kick" in tech else "punch"
         for s in range(20):
@@ -254,6 +307,8 @@ def benchmark_tasks13_14_review_export() -> dict[str, float]:
                     "limb_role": "rear",
                     "metrics": {"speed": 8.5, "peak_speed": 8.5, "extension_deg": 155.0},
                     "phases": {"startFrame": 0, "chamberFrame": 5, "peakFrame": 10, "endFrame": 20},
+                    "qualityStatus": "pass",
+                    "adjustedEvidenceLevel": "observed",
                 },
                 effective_technique=tech,
                 effective_attacking_side="right",
@@ -269,18 +324,24 @@ def benchmark_tasks13_14_review_export() -> dict[str, float]:
     action_views_with_athlete = [(v, "athlete_olympic_dan") for v in views]
 
     def run_export():
-        return DatasetExportEngine.export_dataset(
+        res = DatasetExportEngine.export_dataset(
             action_views_with_athlete=action_views_with_athlete,
             salt=salt,
             policy=ExportApprovalPolicy.STRICT_COACH_APPROVED,
-            dataset_id="mma_gold_bench_v1",
+            dataset_id="mma_not_gold_bench_v1",
+            provenance_source="coach_review",
+            backend_attestation="att_prod_release_2026",
+            reviewer_agreement_policy="dual_review_consensus",
         )
+        assert res.manifest.status == "NOT_GOLD_READY", f"Expected NOT_GOLD_READY, got {res.manifest.status}"
+        assert res.manifest.is_gold_ready is False, "Expected is_gold_ready False"
+        return res
 
     return time_callable(run_export, warmup=10, iterations=50)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Benchmark 4: Task 17 Fixture-Safe Orchestrator
+# Benchmark 4: Task 17 Fixture-Injected Orchestrator
 # ─────────────────────────────────────────────────────────────────────────────
 def benchmark_task17_fixture_orchestrator() -> dict[str, float]:
     mock_punch = PunchResult(
@@ -344,7 +405,11 @@ def benchmark_task17_fixture_orchestrator() -> dict[str, float]:
             cap_inst.read.side_effect = [(True, dummy_frame)] * 45 + [(False, None)]
             mock_cap.return_value = cap_inst
 
-            return process_video("fixture_video_45f.mp4", verbose=False)
+            res = process_video("fixture_video_45f.mp4", verbose=False)
+            assert res["analysisQuality"]["status"] == "pass", f"Expected pass status, got {res['analysisQuality']['status']}"
+            assert len(res["actions"]) == 2, f"Expected 2 actions, got {len(res['actions'])}"
+            assert res["summary"]["primaryAction"] in ("mixed", "punch", "kick")
+            return res
 
     return time_callable(run_orchestrator, warmup=5, iterations=30)
 
@@ -372,7 +437,7 @@ def run_all_benchmarks():
     print(f"  Max:        {b1['max_ms']} ms")
     print(f"  Throughput: {b1['throughput_ops_sec']} actions/sec")
 
-    print("\n[BENCHMARK 2] Tasks 9–12 & 15–16 Publish Path (Quality gate + Session + Coaching)")
+    print("\n[BENCHMARK 2] Tasks 9–12 & 15–16 Publish Path (Quality + FindingEngine + Shadow Classifiers + Session + Coaching)")
     b2 = benchmark_tasks9_12_publish_path()
     print(f"  Warmup:     {b2['warmup']} runs")
     print(f"  Iterations: {b2['iterations']} runs")
@@ -383,8 +448,8 @@ def run_all_benchmarks():
     print(f"  Max:        {b2['max_ms']} ms")
     print(f"  Throughput: {b2['throughput_ops_sec']} batch_publishes/sec")
 
-    print("\n[BENCHMARK 3] Tasks 13–14 Review & Export Library (140 samples, Gold-ready validation)")
-    b3 = benchmark_tasks13_14_review_export()
+    print("\n[BENCHMARK 3] Tasks 13–14 NOT_GOLD_READY Export Validation (140 samples, single-athlete / single-reviewer)")
+    b3 = benchmark_tasks13_14_not_gold_ready_export()
     print(f"  Warmup:     {b3['warmup']} runs")
     print(f"  Iterations: {b3['iterations']} runs")
     print(f"  Min:        {b3['min_ms']} ms")
@@ -394,7 +459,7 @@ def run_all_benchmarks():
     print(f"  Max:        {b3['max_ms']} ms")
     print(f"  Throughput: {b3['throughput_ops_sec']} dataset_exports/sec")
 
-    print("\n[BENCHMARK 4] Task 17 Fixture-Safe Orchestrator (Full process_video loop, 45 frames)")
+    print("\n[BENCHMARK 4] Task 17 Fixture-Injected Orchestration Latency (Loop overhead with mock video/detector)")
     b4 = benchmark_task17_fixture_orchestrator()
     print(f"  Warmup:     {b4['warmup']} runs")
     print(f"  Iterations: {b4['iterations']} runs")
@@ -403,19 +468,21 @@ def run_all_benchmarks():
     print(f"  Median:     {b4['median_ms']} ms")
     print(f"  P95:        {b4['p95_ms']} ms")
     print(f"  Max:        {b4['max_ms']} ms")
-    print(f"  Throughput: {b4['throughput_ops_sec']} video_runs/sec")
+    print(f"  Throughput: {b4['throughput_ops_sec']} fixture_runs/sec")
 
     print("\n" + "=" * 78)
     print("Honest Measurement Disclosure:")
     print("- All measurements are execution time on CPU with synthetic fixture streams.")
     print("- No GPU or external video decode hardware was used; synthetic frame decode is simulated.")
-    print("- Full camera/video FPS is NOT claimed here; only algorithmic latency is reported.")
+    print("- Benchmark 4 measures fixture-injected orchestration latency (control flow, data structures, and pipeline wiring).")
+    print("- It does not claim a universal 10ms budget across unconstrained hardware, nor raw camera FPS.")
     print("=" * 78)
 
     results = {
         "environment": env,
         "tasks_5_8_action_analysis": b1,
         "tasks_9_12_publish_path": b2,
+        "tasks_13_14_not_gold_ready_export": b3,
         "tasks_13_14_review_export": b3,
         "task_17_fixture_orchestrator": b4,
     }
