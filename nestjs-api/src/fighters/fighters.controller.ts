@@ -62,7 +62,7 @@ export class FightersController {
   constructor(private readonly fightersService: FightersService) {}
   
   @Get()
-  @RequirePermissions({ allOf: [FIGHTER_PERMISSIONS.READ] })
+  @RequirePermissions({ allOf: [FIGHTER_PERMISSIONS.GET_ALL] })
   @ApiOperation({
     summary: 'List fighters',
     description:
@@ -77,7 +77,7 @@ export class FightersController {
   })
   @ApiValidationErrorEnvelope()
   @ApiUnauthorizedEnvelope()
-  @ApiForbiddenEnvelope('Requires fighters.read permission')
+  @ApiForbiddenEnvelope('Requires fighter:get_all permission')
   async findAll(
     @CurrentUser() actor: AuthenticatedUser | undefined,
     @Query() query: ListFightersQueryDto,
@@ -124,7 +124,7 @@ export class FightersController {
   @ApiValidationErrorEnvelope()
   @ApiUnauthorizedEnvelope()
   @ApiForbiddenEnvelope(
-    'Requires fighters.update; Fighter users may update only their own profile',
+    'Requires fighter:update; Fighter users may update only their own profile',
   )
   @ApiNotFoundEnvelope('FIGHTER_NOT_FOUND', 'Fighter profile not found')
   async updateProfile(
@@ -278,7 +278,7 @@ export class FightersController {
   @ApiOperation({
     summary: 'Assign coach to fighter',
     description:
-      'Creates a new temporal coach assignment period; requires fighters.coaches.assign',
+      'Creates a new temporal coach assignment period; requires fighter.coach:assign',
   })
   @ResponseMessage('Assign coach successfully')
   @ApiSuccessEnvelope({
@@ -288,7 +288,7 @@ export class FightersController {
   })
   @ApiValidationErrorEnvelope()
   @ApiUnauthorizedEnvelope()
-  @ApiForbiddenEnvelope('Requires fighters.coaches.assign permission')
+  @ApiForbiddenEnvelope('Requires fighter.coach:assign permission')
   @ApiNotFoundEnvelope('COACH_NOT_FOUND', 'Coach not found or inactive')
   @ApiConflictEnvelope(
     'COACH_ASSIGNMENT_ALREADY_ACTIVE',
@@ -312,7 +312,7 @@ export class FightersController {
   @ApiOperation({
     summary: 'End coach assignment',
     description:
-      'Ends an active coach-fighter assignment with a required reason; requires fighters.coaches.end',
+      'Ends an active coach-fighter assignment with a required reason; requires fighter.coach:end',
   })
   @ResponseMessage('End coach assignment successfully')
   @ApiSuccessEnvelope({
@@ -322,7 +322,7 @@ export class FightersController {
   })
   @ApiValidationErrorEnvelope()
   @ApiUnauthorizedEnvelope()
-  @ApiForbiddenEnvelope('Requires fighters.coaches.end permission')
+  @ApiForbiddenEnvelope('Requires fighter.coach:end permission')
   @ApiNotFoundEnvelope(
     'COACH_ASSIGNMENT_NOT_FOUND',
     'Coach assignment record not found',

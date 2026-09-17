@@ -79,4 +79,87 @@ describe('OpenAPI document (e2e)', () => {
 
     expect(JSON.stringify(healthResponse)).toContain('"data"');
   });
+
+  it('publishes every Training Management route with bearer security', () => {
+    const document = createOpenApiDocument(app);
+    const routes = {
+      '/training-plans': ['get', 'post'],
+      '/training-plans/{id}': ['get', 'patch'],
+      '/training-plans/{id}/status': ['patch'],
+      '/training-plans/{id}/exercises': ['get', 'post'],
+      '/training-plans/{id}/exercises/{exerciseId}': ['patch', 'delete'],
+      '/training-sessions': ['get', 'post'],
+      '/training-sessions/{id}': ['get', 'patch'],
+      '/training-sessions/{id}/status': ['patch'],
+      '/exercises': ['get', 'post'],
+      '/exercises/{id}': ['get', 'patch'],
+    } as const;
+
+    for (const [path, methods] of Object.entries(routes)) {
+      for (const method of methods) {
+        expect(document.paths[path]?.[method]).toMatchObject({
+          security: [{ bearer: [] }],
+        });
+      }
+    }
+  });
+
+  it('documents Training success and error contracts on stateful routes', () => {
+    const document = createOpenApiDocument(app);
+
+    expect(
+      document.paths['/training-plans/{id}/status']?.patch?.responses,
+    ).toMatchObject({
+      200: expect.any(Object),
+      401: expect.any(Object),
+      403: expect.any(Object),
+      404: expect.any(Object),
+      409: expect.any(Object),
+      422: expect.any(Object),
+    });
+    expect(
+      document.paths['/training-sessions/{id}/status']?.patch?.responses,
+    ).toMatchObject({
+      200: expect.any(Object),
+      400: expect.any(Object),
+      401: expect.any(Object),
+      403: expect.any(Object),
+      404: expect.any(Object),
+      409: expect.any(Object),
+      422: expect.any(Object),
+    });
+    expect(document.paths['/training-plans']?.post?.responses).toMatchObject({
+      201: expect.any(Object),
+      400: expect.any(Object),
+      401: expect.any(Object),
+      403: expect.any(Object),
+      409: expect.any(Object),
+      422: expect.any(Object),
+    });
+  });
+
+  it('keeps Training request and response schemas aligned with persistence names', () => {
+    const schemas = createOpenApiDocument(app).components?.schemas;
+    const exercise = schemas?.ExerciseResponseDto as {
+      properties?: Record<string, unknown>;
+    };
+    const sessionUpdate = schemas?.UpdateSessionDto as {
+      properties?: Record<string, unknown>;
+    };
+    const plan = schemas?.TrainingPlanResponseDto as {
+      properties?: Record<string, unknown>;
+    };
+
+    expect(exercise.properties).toHaveProperty('name');
+    expect(exercise.properties).toHaveProperty('targetMuscleGroups');
+    expect(exercise.properties).toHaveProperty('thumbnailUrl');
+    expect(exercise.properties).not.toHaveProperty('title');
+    expect(sessionUpdate.properties).toHaveProperty('coachNotes');
+    expect(sessionUpdate.properties).not.toHaveProperty('status');
+    expect(sessionUpdate.properties).not.toHaveProperty('fighterId');
+    expect(sessionUpdate.properties).not.toHaveProperty('coachId');
+    expect(sessionUpdate.properties).not.toHaveProperty('planId');
+    expect(plan.properties).toHaveProperty('milestones');
+    expect(plan.properties).toHaveProperty('progress');
+  });
 });

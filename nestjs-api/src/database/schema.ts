@@ -2694,11 +2694,16 @@ export const trainingPlans = pgTable(
       .notNull()
       .default(sql.raw('now()')),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    milestones: jsonb('milestones').notNull().default(sql.raw("'[]'::jsonb")),
   },
   (t): PgTableExtraConfigValue[] => [
     check(
       'training_plans_check',
       sql.raw('((end_date IS NULL) OR (end_date >= start_date))'),
+    ),
+    check(
+      'ck_training_plans_milestones',
+      sql.raw("(jsonb_typeof(milestones) = 'array'::text)"),
     ),
     primaryKey({ name: 'training_plans_pkey', columns: [t.id] }),
     unique('uq_plan_fighter').on(t.id, t.fighterId),

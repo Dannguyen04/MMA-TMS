@@ -160,6 +160,32 @@ describe('AuthService', () => {
     expect(adminClient.auth.admin.deleteUser).not.toHaveBeenCalled();
   });
 
+  it('cleans up created Supabase auth user when registerFighter fails', async () => {
+    const { service, usersService, adminClient } = dependencies();
+    usersService.registerFighter.mockRejectedValueOnce(new Error('auto grant failed'));
+
+    const error = await service
+      .register(
+        {
+          email: authenticatedUser.email,
+          password: 'strong-password',
+          profile: {
+            firstName: 'An',
+            lastName: 'Nguyen',
+            dateOfBirth: '2000-01-01',
+            weightClass: 'LIGHTWEIGHT',
+          },
+        },
+        'request-id',
+      )
+      .catch((reason: unknown) => reason);
+
+    expect(error).toBeInstanceOf(HttpException);
+    expect(adminClient.auth.admin.deleteUser).toHaveBeenCalledWith(
+      authenticatedUser.authSubject,
+    );
+  });
+
   it('logs in only a mapped active application user', async () => {
     const { service } = dependencies();
     await expect(

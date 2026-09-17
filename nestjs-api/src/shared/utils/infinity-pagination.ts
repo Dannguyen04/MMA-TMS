@@ -2,7 +2,7 @@ import { InfinityPaginationResponseDto } from "../dto/infinity-pagination-respon
 import { PaginationOptions } from "../types/PaginationOptions.js";
 
 
-export const infinityPagination = <T>(
+export const infinityPaginationSchema = <T>(
   data: T[],
   options: PaginationOptions,
 ): InfinityPaginationResponseDto<T> => {

@@ -8,6 +8,7 @@ import { AppService } from './app.service.js';
 import { UsersModule } from './users/users.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { FightersModule } from './fighters/fighters.module.js';
+import { TrainingModule } from './training/training.module.js';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { FightersModule } from './fighters/fighters.module.js';
     UsersModule,
     AuthModule,
     FightersModule,
+    TrainingModule,
   ],
   controllers: [AppController],
   providers: [AppService],
