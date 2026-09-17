@@ -175,5 +175,112 @@ __all__ = [
     "ClassificationDecision",
     "ShadowClassifier",
     "classify_shadow_punch",
+    # Task 9 Quality Gate
+    "QualityStatus",
+    "QualityReasonCode",
+    "QualityMetricsSnapshot",
+    "AnalysisQuality",
+    "QualityGateConfig",
+    "QualityGateEvaluator",
+    "evaluate_video_quality",
+    # Task 10 Finding Engine
+    "FindingScope",
+    "FindingSeverity",
+    "FindingErrorCode",
+    "EvidenceReference",
+    "RubricProvenance",
+    "StandardFinding",
+    "FindingEngine",
+    # Task 11 Session Aggregation
+    "SessionCoverageSummary",
+    "PriorityFindingSummary",
+    "SessionInsights",
+    "SessionAggregationEngine",
+    # Task 12 Coaching Engine
+    "CoachingDrill",
+    "CoachingRecommendation",
+    "SessionCoachingPlan",
+    "CoachingEngine",
+    "APPROVED_DRILL_CATALOG",
+    # Task 13 Review Contract
+    "ReviewAction",
+    "TargetField",
+    "ReviewerRole",
+    "ReviewAuditRecord",
+    "MaterializedActionView",
+    "ReviewStateMachine",
+    # Task 14 Dataset Export
+    "DatasetSplit",
+    "ExportApprovalPolicy",
+    "AnonymizedSample",
+    "DatasetManifest",
+    "DatasetExportResult",
+    "DatasetExportEngine",
+    # Task 15 & 16 Shadow Classifiers
+    "MultiPunchClassifierConfig",
+    "ExtendedClassificationDecision",
+    "ShadowMultiPunchClassifier",
+    "ShadowKickClassifierConfig",
+    "ShadowKickClassifier",
+    "VALIDATION_STATUS_NOT_VALIDATED",
 ]
+
+# Lazy imports for Task 9-16
+from pipeline.quality_gate import (
+    QualityStatus,
+    QualityReasonCode,
+    QualityMetricsSnapshot,
+    AnalysisQuality,
+    QualityGateConfig,
+    QualityGateEvaluator,
+    evaluate_video_quality,
+)
+from pipeline.finding_engine import (
+    FindingScope,
+    FindingSeverity,
+    FindingErrorCode,
+    EvidenceReference,
+    RubricProvenance,
+    StandardFinding,
+    FindingEngine,
+)
+from pipeline.session_aggregation import (
+    SessionCoverageSummary,
+    PriorityFindingSummary,
+    SessionInsights,
+    SessionAggregationEngine,
+)
+from pipeline.coaching_engine import (
+    CoachingDrill,
+    CoachingRecommendation,
+    SessionCoachingPlan,
+    CoachingEngine,
+    APPROVED_DRILL_CATALOG,
+)
+from pipeline.review_contract import (
+    ReviewAction,
+    TargetField,
+    ReviewerRole,
+    ReviewAuditRecord,
+    MaterializedActionView,
+    ReviewStateMachine,
+)
+from pipeline.dataset_export import (
+    DatasetSplit,
+    ExportApprovalPolicy,
+    AnonymizedSample,
+    DatasetManifest,
+    DatasetExportResult,
+    DatasetExportEngine,
+)
+from pipeline.shadow_punch_classifier import (
+    MultiPunchClassifierConfig,
+    ExtendedClassificationDecision,
+    ShadowMultiPunchClassifier,
+    VALIDATION_STATUS_NOT_VALIDATED,
+)
+from pipeline.shadow_kick_classifier import (
+    ShadowKickClassifierConfig,
+    ShadowKickClassifier,
+)
 

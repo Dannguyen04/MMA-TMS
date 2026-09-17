@@ -51,6 +51,10 @@ from pipeline import (
     normalize_stance,
     normalize_martial_art,
     resolve_stance_context,
+    evaluate_video_quality,
+    SessionAggregationEngine,
+    CoachingEngine,
+    FindingEngine,
 )
 
 
@@ -195,6 +199,8 @@ def process_video(
 
     frame_records  = []
     last_keypoints: Optional[list[Point]] = None  # cache frame trước
+    multi_person_counts: list[int] = []
+    target_tracked_frames: int = 0
 
     iterator = range(total_frames)
     if HAS_TQDM and verbose:
@@ -215,6 +221,9 @@ def process_video(
 
         if run_detect:
             results = model(frame, conf=conf_threshold, verbose=False)
+            boxes = getattr(results[0], "boxes", None) if results else None
+            num_persons = len(boxes) if boxes is not None else (1 if results else 0)
+            multi_person_counts.append(num_persons)
 
             # Khóa danh tính đối tượng (Identity Lock) và bảo vệ nhảy toạ độ (Discontinuity Protection)
             keypoints, is_discontinuous = person_tracker.update(
@@ -254,6 +263,9 @@ def process_video(
             img_h=img_h,
         )
 
+        if person_tracker.target is not None and person_tracker.target.missing_frames == 0:
+            target_tracked_frames += 1
+
         analysis_result = action_pipeline.process_frame(observation, context)
         frame_records.append(analysis_result.to_legacy_dict())
 
@@ -267,6 +279,16 @@ def process_video(
                 print(f"🧹 Đã xóa file video tạm: {local_path}")
         except Exception:
             pass
+
+    # ── Task 9: Quality Gate (Evaluated before technical conclusions) ──
+    quality = evaluate_video_quality(
+        frames=frame_records,
+        fps=fps,
+        img_width=img_w,
+        img_height=img_h,
+        multi_person_counts=multi_person_counts if multi_person_counts else None,
+        target_track_counts=target_tracked_frames if multi_person_counts else None,
+    )
 
     # ── 9. Tổng hợp kết quả (Actions, Kicks, Punches, Findings) ──
     punches, kicks = action_pipeline.get_results()
@@ -290,31 +312,122 @@ def process_video(
 
     # resolved_analysis_ctx đã được xác minh fail-fast tại step 0 (assessment boundary)
 
-    actions = build_actions_list(
-        punches=punches,
-        kicks=kicks,
-        stance=resolved_stance_ctx.resolved_stance,
-        model_version=model_name,
-        rubric_version=None,
-        stance_context=resolved_stance_ctx,
-        analysis_context=resolved_analysis_ctx,
-        keypoints_trajectory=frame_records,
-        fps=fps,
-    )
-    actions_dicts = [a.to_dict() for a in actions]
+    # ── Gate R1.1: Quality Gate Controls Conclusions ──
+    if quality.status.value == "blocked":
+        actions = build_actions_list(
+            punches=punches,
+            kicks=kicks,
+            stance=resolved_stance_ctx.resolved_stance,
+            model_version=model_name,
+            rubric_version=None,
+            stance_context=resolved_stance_ctx,
+            analysis_context=resolved_analysis_ctx,
+            keypoints_trajectory=frame_records,
+            fps=fps,
+            execute_shadow_classifier=False,
+        )
+        actions_dicts = []
+        for a in actions:
+            ad = a.to_dict()
+            ad["qualityStatus"] = "blocked"
+            ad["adjustedEvidenceLevel"] = "unavailable"
+            ad["assessment"]["score"] = None
+            ad["assessment"]["grade"] = "insufficient_evidence"
+            ad["assessment"]["status"] = "insufficient_evidence"
+            ad["assessment"]["primaryError"] = None
+            ad["assessment"]["findings"] = []
+            ad["confidence"]["assessment"] = None
+            ad["shadowClassification"] = {
+                "status": "abstained",
+                "candidate": None,
+                "confidence": None,
+                "reasonCodes": ["QUALITY_BLOCKED"],
+                "classifierId": "shadow_classifier",
+                "classifierVersion": "2.0.0",
+                "configVersion": "2.0.0",
+                "featureVersion": "2.0.0",
+                "stanceSource": "quality_blocked",
+                "evidenceLevel": "unavailable",
+                "validationStatus": "SHADOW_NOT_VALIDATED",
+            }
+            actions_dicts.append(ad)
 
-    all_findings = []
-    for p in punches:
-        for f in p.findings:
-            all_findings.append(f.to_dict())
-    for k in kicks:
-        for f in k.findings:
-            all_findings.append(f.to_dict())
+        # Legacy backward-compatibility score suppression
+        for p in punches_dicts:
+            p["score"] = None
+            p["grade"] = "INSUFFICIENT_EVIDENCE"
+            p["findings"] = []
+        for k in kicks_dicts:
+            k["score"] = None
+            k["grade"] = "INSUFFICIENT_EVIDENCE"
 
-    # Sắp xếp findings theo thứ tự thời gian xuất hiện trong video
-    all_findings.sort(key=lambda x: (x.get("timeMs", 0.0), x.get("frameIdx", 0)))
+        all_findings = []
+    elif quality.status.value == "degraded":
+        actions = build_actions_list(
+            punches=punches,
+            kicks=kicks,
+            stance=resolved_stance_ctx.resolved_stance,
+            model_version=model_name,
+            rubric_version=None,
+            stance_context=resolved_stance_ctx,
+            analysis_context=resolved_analysis_ctx,
+            keypoints_trajectory=frame_records,
+            fps=fps,
+        )
+        actions_dicts = []
+        for a in actions:
+            ad = a.to_dict()
+            ad["qualityStatus"] = "degraded"
+            ad["adjustedEvidenceLevel"] = "derived_proxy"
+            standard_findings = FindingEngine.adapt_and_deduplicate_findings(
+                findings=ad["assessment"]["findings"],
+                action_id=ad["id"],
+                family=ad["family"],
+            )
+            ad_findings = [sf.to_dict() for sf in standard_findings]
+            for f in ad_findings:
+                f["evidenceLevel"] = "derived_proxy"
+            ad["assessment"]["findings"] = ad_findings
+            if "shadowClassification" in ad and ad["shadowClassification"]:
+                ad["shadowClassification"]["evidenceLevel"] = "derived_proxy"
+            actions_dicts.append(ad)
 
-    all_scores = [r.score for r in kicks] + [p.score for p in punches]
+        all_findings = []
+        for ad in actions_dicts:
+            for f in ad["assessment"]["findings"]:
+                all_findings.append(f)
+        all_findings.sort(key=lambda x: (x.get("timeMs", 0.0), x.get("frameIdx", 0)))
+    else:
+        actions = build_actions_list(
+            punches=punches,
+            kicks=kicks,
+            stance=resolved_stance_ctx.resolved_stance,
+            model_version=model_name,
+            rubric_version=None,
+            stance_context=resolved_stance_ctx,
+            analysis_context=resolved_analysis_ctx,
+            keypoints_trajectory=frame_records,
+            fps=fps,
+        )
+        actions_dicts = []
+        for a in actions:
+            ad = a.to_dict()
+            ad["qualityStatus"] = "pass"
+            ad["adjustedEvidenceLevel"] = "observed"
+            standard_findings = FindingEngine.adapt_and_deduplicate_findings(
+                findings=ad["assessment"]["findings"],
+                action_id=ad["id"],
+                family=ad["family"],
+            )
+            ad["assessment"]["findings"] = [sf.to_dict() for sf in standard_findings]
+            actions_dicts.append(ad)
+
+        all_findings = []
+        for ad in actions_dicts:
+            for f in ad["assessment"]["findings"]:
+                all_findings.append(f)
+        all_findings.sort(key=lambda x: (x.get("timeMs", 0.0), x.get("frameIdx", 0)))
+
     total_punches = len(punches)
     total_kicks   = len(kicks)
 
@@ -326,18 +439,39 @@ def process_video(
         primary_action = "mixed" if (total_punches > 0) else "idle"
 
     # ── Anomaly Detection: thu thập tất cả alerts đã xác nhận ──
-    confirmed_alerts = [a.to_dict() for a in health_monitor.get_confirmed_alerts()]
-    joint_states     = health_monitor.get_joint_states()
+    confirmed_alerts = []
+    joint_states     = {}
 
-    summary = {
-        "totalKicks":    total_kicks,
-        "totalPunches":  total_punches,
-        "primaryAction": primary_action,
-        "avgScore":      round(sum(all_scores) / len(all_scores), 1) if all_scores else 0,
-        "bestScore":     max(all_scores) if all_scores else 0,
-        "bestKickIdx":   [r.score for r in kicks].index(max([r.score for r in kicks])) if kicks else -1,
-        "bestPunchIdx":  [p.score for p in punches].index(max([p.score for p in punches])) if punches else -1,
-    }
+    if quality.status.value == "blocked":
+        summary = {
+            "totalKicks":    total_kicks,
+            "totalPunches":  total_punches,
+            "primaryAction": primary_action,
+            "avgScore":      None,
+            "bestScore":     None,
+            "bestKickIdx":   -1,
+            "bestPunchIdx":  -1,
+        }
+    else:
+        all_scores = [r.score for r in kicks if r.score is not None] + [p.score for p in punches if p.score is not None]
+        summary = {
+            "totalKicks":    total_kicks,
+            "totalPunches":  total_punches,
+            "primaryAction": primary_action,
+            "avgScore":      round(sum(all_scores) / len(all_scores), 1) if all_scores else 0,
+            "bestScore":     max(all_scores) if all_scores else 0,
+            "bestKickIdx":   [r.score for r in kicks].index(max([r.score for r in kicks])) if kicks else -1,
+            "bestPunchIdx":  [p.score for p in punches].index(max([p.score for p in punches])) if punches else -1,
+        }
+
+    # ── Task 11: Session Aggregation ──
+    session_insights = SessionAggregationEngine.aggregate_session(
+        actions=actions_dicts,
+        quality_status=quality.status.value,
+    )
+
+    # ── Task 12: Coaching Feedback & Drill Recommendations ──
+    coaching_plan = CoachingEngine.generate_coaching_plan(session_insights)
 
     output = {
         "schemaVersion":  "1.0.0",
@@ -352,12 +486,15 @@ def process_video(
             "imgHeight":      img_h,
             "processedAt":    time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         },
-        "actions":  actions_dicts,
-        "frames":   frame_records,
-        "kicks":    kicks_dicts,
-        "punches":  punches_dicts,
-        "findings": all_findings,
-        "summary":  summary,
+        "actions":         actions_dicts,
+        "frames":          frame_records,
+        "kicks":           kicks_dicts,
+        "punches":         punches_dicts,
+        "findings":        all_findings,
+        "summary":         summary,
+        "analysisQuality": quality.to_dict(),
+        "sessionInsights": session_insights.to_dict(),
+        "coachingPlan":    coaching_plan.to_dict(),
     }
 
     # ── 10. Xuất file JSON ──

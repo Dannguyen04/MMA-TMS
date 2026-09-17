@@ -67,6 +67,18 @@ from pipeline.kinematic_features import (
 from pipeline.shadow_classifier import (
     ShadowClassifier,
     ClassificationDecision,
+    _unwrap_value,
+)
+from pipeline.shadow_punch_classifier import (
+    ShadowMultiPunchClassifier,
+    ExtendedClassificationDecision,
+)
+from pipeline.shadow_kick_classifier import (
+    ShadowKickClassifier,
+)
+from pipeline.finding_engine import (
+    FindingEngine,
+    StandardFinding,
 )
 
 
@@ -355,6 +367,7 @@ def copy_criteria_and_findings(
     criterion_results: list[Any],
     findings: list[Any],
     target_action_id: str,
+    family: str = "punch",
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """
     Tạo bản sao độc lập (deep copy) của criteria và findings, đồng thời
@@ -718,7 +731,7 @@ def action_from_punch(
     )
     shadow_classification: Optional[dict[str, Any]] = None
     if should_run_shadow:
-        shadow_classifier = ShadowClassifier()
+        shadow_classifier = ShadowMultiPunchClassifier()
         decision = shadow_classifier.classify(
             features=kinematics,
             stance_context=ctx,
@@ -792,6 +805,7 @@ def action_from_kick(
     rubric_registry: Optional[RubricRegistry] = None,
     keypoints_trajectory: Optional[Sequence[Any]] = None,
     fps: float = 30.0,
+    execute_shadow_classifier: Optional[bool] = None,
 ) -> ActionResult:
     """
     Adapter chuyển đổi một KickResult sang ActionResult thống nhất.
@@ -816,7 +830,7 @@ def action_from_kick(
 
     # Bản sao độc lập và remap actionId cả criteria và findings
     criteria_dicts, findings_dicts = copy_criteria_and_findings(
-        criteria_list, findings_list, target_action_id=action_id
+        criteria_list, findings_list, target_action_id=action_id, family="kick"
     )
 
     # Tìm các criterion tương ứng
@@ -995,6 +1009,55 @@ def action_from_kick(
         findings=findings_dicts,
     )
 
+    # Shadow Classification (Task 16)
+    should_run_shadow = (
+        execute_shadow_classifier is True
+        or (execute_shadow_classifier is None and keypoints_trajectory is not None)
+    )
+    shadow_classification: Optional[dict[str, Any]] = None
+    if should_run_shadow:
+        shadow_classifier = ShadowKickClassifier()
+        has_cham = (phases.chamberFrame is not None) or (chamber_frame_val is not None)
+        has_ext = (phases.peakFrame is not None) or (impact_f > 0)
+        kick_features: dict[str, Any] = {
+            "attacking_side": classified_technique.attacking_side,
+            "has_chamber_phase": has_cham,
+            "has_extension_phase": has_ext,
+            "hip_rotation_angle": None,
+            "forward_trajectory_linearity": None,
+            "arc_curvature": None,
+            "lateral_displacement_ratio": None,
+            "torso_lean_angle": None,
+        }
+        if kinematics is not None and hasattr(kinematics, "metrics"):
+            m = kinematics.metrics
+            if "hip_rotation" in m or "hip_rotation_angle" in m:
+                val = _unwrap_value(m.get("hip_rotation") or m.get("hip_rotation_angle"))
+                if val is not None:
+                    kick_features["hip_rotation_angle"] = val
+            if "forward_trajectory_linearity" in m or "trajectory_directness" in m:
+                val = _unwrap_value(m.get("forward_trajectory_linearity") or m.get("trajectory_directness"))
+                if val is not None:
+                    kick_features["forward_trajectory_linearity"] = val
+            if "arc_curvature" in m or "tangential_curvature" in m:
+                val = _unwrap_value(m.get("arc_curvature") or m.get("tangential_curvature"))
+                if val is not None:
+                    kick_features["arc_curvature"] = val
+            if "lateral_displacement_ratio" in m:
+                val = _unwrap_value(m.get("lateral_displacement_ratio"))
+                if val is not None:
+                    kick_features["lateral_displacement_ratio"] = val
+            if "torso_lean_angle" in m or "torso_lean" in m or "trunk_lean_angle" in m:
+                val = _unwrap_value(m.get("torso_lean_angle") or m.get("torso_lean") or m.get("trunk_lean_angle"))
+                if val is not None:
+                    kick_features["torso_lean_angle"] = val
+
+        decision = shadow_classifier.classify(
+            features=kick_features,
+            stance_context=ctx,
+        )
+        shadow_classification = decision.to_dict()
+
     return ActionResult(
         id=action_id,
         sourceActionId=source_action_id,
@@ -1014,7 +1077,7 @@ def action_from_kick(
         review=ActionReview(),
         modelVersion=mod_ver,
         rubricVersion=assessment_res.provenance.rubric_version,
-        shadowClassification=None,
+        shadowClassification=shadow_classification,
     )
 
 
@@ -1127,6 +1190,7 @@ def build_actions_list(
                 rubric_registry=rubric_registry,
                 keypoints_trajectory=keypoints_trajectory,
                 fps=fps,
+                execute_shadow_classifier=execute_shadow_classifier,
             )
         actions.append(action)
 

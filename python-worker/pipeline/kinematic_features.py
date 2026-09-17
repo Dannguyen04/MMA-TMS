@@ -365,6 +365,18 @@ def _build_empty_feature_set(action_family: str, method_version: str) -> Kinemat
         ("peak_wrist_velocity", "normalized_image/s"),
         ("wrist_displacement", "normalized_image"),
         ("wrist_path_length", "normalized_image"),
+        ("vertical_lift", "normalized_image"),
+        ("wrist_shoulder_separation_ratio", "ratio"),
+        ("ankle_displacement", "normalized_image"),
+        ("ankle_path_length", "normalized_image"),
+        ("knee_extension_angle", "degree"),
+        ("knee_chamber_angle", "degree"),
+        ("knee_angle_range", "degree"),
+        ("hip_rotation_angle", "degree"),
+        ("forward_trajectory_linearity", "ratio"),
+        ("arc_curvature", "normalized_curvature"),
+        ("lateral_displacement_ratio", "ratio"),
+        ("torso_lean_angle", "degree"),
     ]
     metrics = {
         name: make_unavailable_metric(name, unit, method_version)
@@ -523,6 +535,20 @@ def _extract_punch_kinematics(
             time_window_ms=time_window_ms,
             method_version=method_version,
         )
+        start_y = wrist_pts[0][2].y
+        min_y = min(pt[2].y for pt in wrist_pts)
+        vert_lift = max(0.0, start_y - min_y)
+        metrics_dict["vertical_lift"] = make_computed_metric(
+            name="vertical_lift",
+            value=vert_lift,
+            unit="normalized_image",
+            confidence=round(mean_conf, 3),
+            evidence_level=EvidenceLevel.DERIVED_PROXY,
+            evidence_quality=quality_literal,
+            frames_used=used_wrist_frames,
+            time_window_ms=time_window_ms,
+            method_version=method_version,
+        )
     else:
         for m_name, m_unit in [
             ("wrist_displacement", "normalized_image"),
@@ -530,6 +556,7 @@ def _extract_punch_kinematics(
             ("trajectory_directness", "ratio"),
             ("peak_wrist_velocity", "normalized_image/s"),
             ("peak_speed_proxy", "normalized_image/s"),
+            ("vertical_lift", "normalized_image"),
         ]:
             metrics_dict[m_name] = make_unavailable_metric(m_name, m_unit, method_version)
 
@@ -597,7 +624,7 @@ def _extract_punch_kinematics(
         metrics_dict["max_elbow_angle"] = make_unavailable_metric("max_elbow_angle", "degree", method_version)
         metrics_dict["elbow_angle_range"] = make_unavailable_metric("elbow_angle_range", "degree", method_version)
 
-    # 4. Tỷ lệ tầm với (Reach Ratio)
+    # 4. Tỷ lệ tầm với (Reach Ratio) & Phân tách cổ tay - vai
     if reach_ratios:
         used_reach_frames = tuple(rr[0] for rr in reach_ratios)
         max_reach = max(rr[1] for rr in reach_ratios)
@@ -612,8 +639,22 @@ def _extract_punch_kinematics(
             time_window_ms=time_window_ms,
             method_version=method_version,
         )
+        metrics_dict["wrist_shoulder_separation_ratio"] = make_computed_metric(
+            name="wrist_shoulder_separation_ratio",
+            value=max_reach,
+            unit="ratio",
+            confidence=round(mean_conf, 3),
+            evidence_level=EvidenceLevel.DERIVED_PROXY,
+            evidence_quality=quality_literal,
+            frames_used=used_reach_frames,
+            time_window_ms=time_window_ms,
+            method_version=method_version,
+        )
     else:
         metrics_dict["reach_ratio"] = make_unavailable_metric("reach_ratio", "ratio", method_version)
+        metrics_dict["wrist_shoulder_separation_ratio"] = make_unavailable_metric(
+            "wrist_shoulder_separation_ratio", "ratio", method_version
+        )
 
     # 5. Phân tích pha thời gian từ Task 6 (nếu có temporal_phases)
     if temporal_phases is not None and hasattr(temporal_phases, "boundaries"):
@@ -708,6 +749,9 @@ def _extract_kick_kinematics(
 
     ankle_pts: list[tuple[int, float, Point]] = []
     knee_angles: list[tuple[int, float]] = []
+    hip_orientations: list[tuple[int, float]] = []
+    torso_lean_angles: list[tuple[int, float]] = []
+    ankle_curvatures: list[float] = []
     confs: list[float] = []
 
     for idx, f in enumerate(frames):
@@ -715,6 +759,10 @@ def _extract_kick_kinematics(
         hip = _extract_point(f, hip_idx)
         knee = _extract_point(f, knee_idx)
         ank = _extract_point(f, ank_idx)
+        l_hip = _extract_point(f, KP.LEFT_HIP)
+        r_hip = _extract_point(f, KP.RIGHT_HIP)
+        l_sh = _extract_point(f, KP.LEFT_SHOULDER)
+        r_sh = _extract_point(f, KP.RIGHT_SHOULDER)
 
         if ank is not None and math.isfinite(ank.x) and math.isfinite(ank.y) and math.isfinite(ank.conf):
             confs.append(ank.conf)
@@ -730,6 +778,27 @@ def _extract_kick_kinematics(
                 ang = calculate_angle(hip, knee, ank, config=pose_config)
                 if ang is not None and math.isfinite(ang):
                     knee_angles.append((f_idx, ang))
+
+        if l_hip is not None and r_hip is not None:
+            if l_hip.conf >= pose_config.min_landmark_confidence and r_hip.conf >= pose_config.min_landmark_confidence:
+                theta = math.atan2(r_hip.y - l_hip.y, r_hip.x - l_hip.x)
+                hip_orientations.append((f_idx, theta))
+
+        if l_sh is not None and r_sh is not None and l_hip is not None and r_hip is not None:
+            if (
+                l_sh.conf >= pose_config.min_landmark_confidence
+                and r_sh.conf >= pose_config.min_landmark_confidence
+                and l_hip.conf >= pose_config.min_landmark_confidence
+                and r_hip.conf >= pose_config.min_landmark_confidence
+            ):
+                mid_sh_x = (l_sh.x + r_sh.x) / 2.0
+                mid_sh_y = (l_sh.y + r_sh.y) / 2.0
+                mid_hip_x = (l_hip.x + r_hip.x) / 2.0
+                mid_hip_y = (l_hip.y + r_hip.y) / 2.0
+                dx_t = mid_sh_x - mid_hip_x
+                dy_t = mid_sh_y - mid_hip_y
+                lean_deg = abs(math.atan2(dx_t, -dy_t)) * 180.0 / math.pi
+                torso_lean_angles.append((f_idx, lean_deg))
 
     mean_conf = sum(confs) / len(confs) if confs else 0.0
     quality_literal: EvidenceQuality = (
@@ -760,6 +829,11 @@ def _extract_kick_kinematics(
                 vel = seg_dist / dt_s
                 if vel > peak_vel:
                     peak_vel = vel
+
+            if i + 2 < len(ankle_pts):
+                p_after = ankle_pts[i + 2][2]
+                curv = _calculate_menger_curvature(p_curr, p_next, p_after)
+                ankle_curvatures.append(curv)
 
         directness = disp / path_len if path_len > 1e-6 else 0.0
         directness = min(1.0, max(0.0, directness))
@@ -797,10 +871,35 @@ def _extract_kick_kinematics(
             time_window_ms=time_window_ms,
             method_version=method_version,
         )
+        metrics_dict["forward_trajectory_linearity"] = make_computed_metric(
+            name="forward_trajectory_linearity",
+            value=directness,
+            unit="ratio",
+            confidence=round(mean_conf, 3),
+            evidence_level=EvidenceLevel.DERIVED_PROXY,
+            evidence_quality=quality_literal,
+            frames_used=used_ankle_frames,
+            time_window_ms=time_window_ms,
+            method_version=method_version,
+        )
         metrics_dict["peak_speed_proxy"] = make_computed_metric(
             name="peak_speed_proxy",
             value=peak_vel,
             unit="normalized_image/s",
+            confidence=round(mean_conf, 3),
+            evidence_level=EvidenceLevel.DERIVED_PROXY,
+            evidence_quality=quality_literal,
+            frames_used=used_ankle_frames,
+            time_window_ms=time_window_ms,
+            method_version=method_version,
+        )
+        lat_disp = abs(ankle_pts[-1][2].x - ankle_pts[0][2].x)
+        lat_ratio = lat_disp / disp if disp > 1e-6 else 0.0
+        lat_ratio = min(1.0, max(0.0, lat_ratio))
+        metrics_dict["lateral_displacement_ratio"] = make_computed_metric(
+            name="lateral_displacement_ratio",
+            value=lat_ratio,
+            unit="ratio",
             confidence=round(mean_conf, 3),
             evidence_level=EvidenceLevel.DERIVED_PROXY,
             evidence_quality=quality_literal,
@@ -813,9 +912,68 @@ def _extract_kick_kinematics(
             ("ankle_displacement", "normalized_image"),
             ("ankle_path_length", "normalized_image"),
             ("trajectory_directness", "ratio"),
+            ("forward_trajectory_linearity", "ratio"),
             ("peak_speed_proxy", "normalized_image/s"),
+            ("lateral_displacement_ratio", "ratio"),
         ]:
             metrics_dict[m_name] = make_unavailable_metric(m_name, m_unit, method_version)
+
+    # Arc curvature
+    if ankle_curvatures:
+        max_curv = max(ankle_curvatures)
+        metrics_dict["arc_curvature"] = make_computed_metric(
+            name="arc_curvature",
+            value=max_curv,
+            unit="normalized_curvature",
+            confidence=round(mean_conf, 3),
+            evidence_level=EvidenceLevel.DERIVED_PROXY,
+            evidence_quality=quality_literal,
+            frames_used=tuple(pt[0] for pt in ankle_pts),
+            time_window_ms=time_window_ms,
+            method_version=method_version,
+        )
+    else:
+        metrics_dict["arc_curvature"] = make_unavailable_metric("arc_curvature", "normalized_curvature", method_version)
+
+    # Hip rotation angle
+    if len(hip_orientations) >= 2:
+        theta_0 = hip_orientations[0][1]
+        max_rot = 0.0
+        for _, th in hip_orientations:
+            diff = (th - theta_0 + math.pi) % (2 * math.pi) - math.pi
+            deg = abs(diff) * 180.0 / math.pi
+            if deg > max_rot:
+                max_rot = deg
+        metrics_dict["hip_rotation_angle"] = make_computed_metric(
+            name="hip_rotation_angle",
+            value=max_rot,
+            unit="degree",
+            confidence=round(mean_conf, 3),
+            evidence_level=EvidenceLevel.DERIVED_PROXY,
+            evidence_quality=quality_literal,
+            frames_used=tuple(ho[0] for ho in hip_orientations),
+            time_window_ms=time_window_ms,
+            method_version=method_version,
+        )
+    else:
+        metrics_dict["hip_rotation_angle"] = make_unavailable_metric("hip_rotation_angle", "degree", method_version)
+
+    # Torso lean angle
+    if torso_lean_angles:
+        max_lean = max(tla[1] for tla in torso_lean_angles)
+        metrics_dict["torso_lean_angle"] = make_computed_metric(
+            name="torso_lean_angle",
+            value=max_lean,
+            unit="degree",
+            confidence=round(mean_conf, 3),
+            evidence_level=EvidenceLevel.DERIVED_PROXY,
+            evidence_quality=quality_literal,
+            frames_used=tuple(tla[0] for tla in torso_lean_angles),
+            time_window_ms=time_window_ms,
+            method_version=method_version,
+        )
+    else:
+        metrics_dict["torso_lean_angle"] = make_unavailable_metric("torso_lean_angle", "degree", method_version)
 
     # Góc gối (Knee Extension & Chamber Angles)
     if knee_angles:

@@ -60,7 +60,7 @@ const findingSchema = z.object({
 });
 
 const kickSchema = z.object({
-    score: z.number(),
+    score: z.number().nullable(),
     grade: z.string(),
     details: z.array(z.string()),
     minChamberAngle: z.number(),
@@ -73,7 +73,7 @@ const kickSchema = z.object({
 const punchSchema = z.object({
     punchType: z.string(),
     arm: z.string(),
-    score: z.number(),
+    score: z.number().nullable(),
     grade: z.string(),
     details: z.array(z.string()),
     maxElbowAngle: z.number(),
@@ -139,9 +139,9 @@ const actionReviewSchema = z.object({
 export const techniqueCandidateSchema = z.object({
     technique: z.string(),
     family: z.string(),
-    attackingSide: z.enum(["left", "right", "unknown"]).or(z.string()),
-    limbRole: z.enum(["lead", "rear", "unknown"]).or(z.string()),
-    stance: z.enum(["orthodox", "southpaw", "switch", "unknown"]).or(z.string()),
+    attackingSide: z.enum(["left", "right", "unknown"]),
+    limbRole: z.enum(["lead", "rear", "unknown"]),
+    stance: z.enum(["orthodox", "southpaw", "switch", "unknown"]),
 });
 
 export const shadowClassificationSchema = z.object({
@@ -155,6 +155,7 @@ export const shadowClassificationSchema = z.object({
     featureVersion: z.string(),
     stanceSource: z.string(),
     evidenceLevel: z.enum(["observed", "derived_proxy", "unavailable"]),
+    validationStatus: z.string().optional(),
 });
 
 export const actionSchema = z.object({
@@ -173,6 +174,98 @@ export const actionSchema = z.object({
     modelVersion: z.string().nullable().optional(),
     rubricVersion: z.string().nullable().optional(),
     shadowClassification: shadowClassificationSchema.nullable().optional(),
+    qualityStatus: z.enum(["pass", "degraded", "blocked"]).optional(),
+    adjustedEvidenceLevel: z.enum(["observed", "derived_proxy", "unavailable"]).optional(),
+});
+
+export const analysisQualitySchema = z.object({
+    status: z.enum(["pass", "degraded", "blocked"]),
+    reasonCodes: z.array(z.string()),
+    metrics: z.object({
+        fps: z.number(),
+        durationMs: z.number(),
+        totalFrames: z.number(),
+        missingFrameRatio: z.number(),
+        meanKeypointConfidence: z.number(),
+        upperBodyCoverage: z.number(),
+        lowerBodyCoverage: z.number(),
+        maxSimultaneousPersons: z.number().nullable().optional(),
+        targetTrackRatio: z.number().nullable().optional(),
+        imgWidth: z.number().nullable().optional(),
+        imgHeight: z.number().nullable().optional(),
+    }),
+    qualityVersion: z.string(),
+    evaluatorVersion: z.string(),
+    evaluatedAt: z.string(),
+    adjustedEvidenceLevel: z.enum(["observed", "derived_proxy", "unavailable"]),
+    recommendation: z.string(),
+});
+
+export const priorityFindingSummarySchema = z.object({
+    rank: z.number(),
+    code: z.string(),
+    title: z.string(),
+    description: z.string(),
+    severity: z.string(),
+    frequency: z.number(),
+    priorityScore: z.number(),
+    affectedActionIds: z.array(z.string()),
+    representativeFrame: z.number(),
+    representativeTimeMs: z.number(),
+    primaryRecommendation: z.string(),
+});
+
+export const sessionInsightsSchema = z.object({
+    status: z.string(),
+    totalActions: z.number(),
+    familyDistribution: z.record(z.string(), z.number()),
+    techniqueDistribution: z.record(z.string(), z.number()),
+    sideDistribution: z.record(z.string(), z.number()),
+    statusDistribution: z.record(z.string(), z.number()),
+    coverageSummary: z.object({
+        totalDetectedActions: z.number(),
+        assessedActionsCount: z.number(),
+        insufficientEvidenceCount: z.number(),
+        insufficientEvidenceRate: z.number(),
+        unknownTechniqueCount: z.number(),
+        unknownTechniqueRate: z.number(),
+        degradedQualityCount: z.number(),
+        degradedQualityRate: z.number(),
+    }),
+    priorityFindings: z.array(priorityFindingSummarySchema),
+    sessionVersion: z.string(),
+    qualityStatus: z.enum(["pass", "degraded", "blocked"]).optional(),
+    adjustedEvidenceLevel: z.enum(["observed", "derived_proxy", "unavailable"]).optional(),
+});
+
+export const coachingDrillSchema = z.object({
+    drillId: z.string(),
+    title: z.string(),
+    errorCode: z.string(),
+    targetTechnique: z.string(),
+    objective: z.string(),
+    instructions: z.array(z.string()),
+    safetyNote: z.string(),
+    applicability: z.string(),
+    contraindications: z.string(),
+    recommendedReps: z.string(),
+    catalogVersion: z.string(),
+});
+
+export const coachingRecommendationSchema = z.object({
+    priorityRank: z.number(),
+    errorCode: z.string(),
+    drill: coachingDrillSchema.nullable(),
+    athleteCue: z.string(),
+    coachNotes: z.record(z.string(), z.unknown()),
+});
+
+export const coachingPlanSchema = z.object({
+    sessionStatus: z.string(),
+    recommendations: z.array(coachingRecommendationSchema),
+    catalogVersion: z.string(),
+    engineVersion: z.string(),
+    qualityStatus: z.enum(["pass", "degraded", "blocked"]).optional(),
 });
 
 export const workerResultSchema = z.object({
@@ -190,6 +283,10 @@ export const workerResultSchema = z.object({
     kicks: z.array(kickSchema),
     punches: z.array(punchSchema).optional(),
     findings: z.array(findingSchema).optional(),
+    summary: z.record(z.string(), z.unknown()).optional(),
+    analysisQuality: analysisQualitySchema.optional(),
+    sessionInsights: sessionInsightsSchema.optional(),
+    coachingPlan: coachingPlanSchema.optional(),
 });
 
 export type WorkerLandmark = z.infer<typeof landmarkSchema>;
@@ -200,7 +297,121 @@ export type WorkerPunch = z.infer<typeof punchSchema>;
 export type WorkerTechniqueCandidate = z.infer<typeof techniqueCandidateSchema>;
 export type WorkerShadowClassification = z.infer<typeof shadowClassificationSchema>;
 export type WorkerAction = z.infer<typeof actionSchema>;
+export type WorkerAnalysisQuality = z.infer<typeof analysisQualitySchema>;
+export type WorkerSessionInsights = z.infer<typeof sessionInsightsSchema>;
+export type WorkerCoachingPlan = z.infer<typeof coachingPlanSchema>;
 export type WorkerResult = z.infer<typeof workerResultSchema>;
+
+/* ─── Task 10-14 Review, Findings, & Dataset Export Contracts ─────────────── */
+
+export const evidenceReferenceSchema = z.object({
+    frameIdx: z.number(),
+    timeMs: z.number(),
+    metricName: z.string(),
+    metricValue: z.number(),
+    thresholdValue: z.number().nullable().optional(),
+    operator: z.string().nullable().optional(),
+    unit: z.string(),
+});
+
+export const rubricProvenanceSchema = z.object({
+    rubricId: z.string(),
+    criterionId: z.string(),
+    rubricVersion: z.string(),
+});
+
+export const standardFindingSchema = z.object({
+    id: z.string(),
+    code: z.string(),
+    errorCode: z.string().optional(),
+    title: z.string(),
+    description: z.string(),
+    category: z.string(),
+    scope: z.enum(["action", "session"]),
+    severity: z.enum(["positive", "info", "warning", "critical"]),
+    confidence: z.number().nullable(),
+    evidenceLevel: z.enum(["observed", "derived_proxy", "unavailable"]),
+    evidenceRefs: z.array(evidenceReferenceSchema),
+    provenance: rubricProvenanceSchema,
+    recommendation: z.string(),
+    actionId: z.string().nullable().optional(),
+    legacyFindingId: z.string().nullable().optional(),
+    frameIdx: z.number().optional(),
+    timeMs: z.number().optional(),
+    metricName: z.string().optional(),
+    metricValue: z.number().optional(),
+});
+
+export const reviewAuditRecordSchema = z.object({
+    recordId: z.string(),
+    actionId: z.string(),
+    targetField: z.enum(["technique", "attacking_side", "limb_role", "phase", "finding"]),
+    reviewAction: z.enum(["accept", "correct", "reject"]),
+    aiOriginalValue: z.unknown(),
+    correctedValue: z.unknown(),
+    reviewerId: z.string(),
+    reviewerRole: z.enum(["head_coach", "coach", "assistant_coach", "system_admin", "athlete"]),
+    reason: z.string(),
+    timestamp: z.string(),
+    idempotencyToken: z.string(),
+    version: z.string(),
+});
+
+export const materializedActionViewSchema = z.object({
+    actionId: z.string(),
+    aiOriginal: z.record(z.string(), z.unknown()),
+    effectiveTechnique: z.string(),
+    effectiveAttackingSide: z.string(),
+    effectiveLimbRole: z.string(),
+    effectivePhases: z.record(z.string(), z.unknown()),
+    effectiveFindings: z.array(z.record(z.string(), z.unknown())),
+    reviewStatus: z.enum(["ai_generated", "coach_approved", "coach_corrected", "coach_rejected", "insufficient_evidence"]),
+    auditTrail: z.array(reviewAuditRecordSchema),
+    updatedAt: z.string(),
+});
+
+export const anonymizedSampleSchema = z.object({
+    sampleId: z.string(),
+    athleteHash: z.string(),
+    split: z.enum(["train", "val", "test"]),
+    technique: z.string(),
+    attackingSide: z.string(),
+    limbRole: z.string(),
+    phases: z.record(z.string(), z.unknown()),
+    metrics: z.record(z.string(), z.unknown()),
+    reviewStatus: z.string(),
+    auditHash: z.string(),
+    provenanceSource: z.string(),
+});
+
+export const datasetManifestSchema = z.object({
+    datasetId: z.string(),
+    schemaVersion: z.string(),
+    exportTimestamp: z.string(),
+    policy: z.string(),
+    totalSamples: z.number(),
+    splitDistribution: z.record(z.string(), z.number()),
+    techniqueDistribution: z.record(z.string(), z.number()),
+    isGoldReady: z.boolean(),
+    status: z.enum(["GOLD_READY", "NOT_GOLD_READY"]),
+    contentHash: z.string(),
+    datasetHash: z.string(),
+    notes: z.string(),
+});
+
+export const datasetExportResultSchema = z.object({
+    manifest: datasetManifestSchema,
+    samples: z.array(anonymizedSampleSchema),
+});
+
+export type WorkerEvidenceReference = z.infer<typeof evidenceReferenceSchema>;
+export type WorkerRubricProvenance = z.infer<typeof rubricProvenanceSchema>;
+export type WorkerStandardFinding = z.infer<typeof standardFindingSchema>;
+export type WorkerReviewAuditRecord = z.infer<typeof reviewAuditRecordSchema>;
+export type WorkerMaterializedActionView = z.infer<typeof materializedActionViewSchema>;
+export type WorkerAnonymizedSample = z.infer<typeof anonymizedSampleSchema>;
+export type WorkerDatasetManifest = z.infer<typeof datasetManifestSchema>;
+export type WorkerDatasetExportResult = z.infer<typeof datasetExportResultSchema>;
 
 /** Validates untrusted JSON from the result URL. */
 export function parseWorkerResult(json: unknown): WorkerResult | null {

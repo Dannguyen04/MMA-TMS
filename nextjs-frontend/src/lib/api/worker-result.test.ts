@@ -1,0 +1,479 @@
+import { describe, expect, it } from "vitest";
+import {
+    actionSchema,
+    analysisQualitySchema,
+    anonymizedSampleSchema,
+    coachingPlanSchema,
+    datasetExportResultSchema,
+    datasetManifestSchema,
+    materializedActionViewSchema,
+    parseWorkerResult,
+    reviewAuditRecordSchema,
+    sessionInsightsSchema,
+    shadowClassificationSchema,
+    standardFindingSchema,
+    workerResultSchema,
+} from "./worker-result";
+
+describe("Worker Result Schema & Tasks 9-17 Extensions", () => {
+    it("successfully parses minimal legacy worker result (backward compatibility)", () => {
+        const legacyJson = {
+            schemaVersion: "1.0.0",
+            meta: {
+                fps: 30,
+                totalFrames: 100,
+                durationMs: 3333.3,
+            },
+            frames: [],
+            kicks: [],
+        };
+        const parsed = parseWorkerResult(legacyJson);
+        expect(parsed).not.toBeNull();
+        expect(parsed?.meta.fps).toBe(30);
+        expect(parsed?.analysisQuality).toBeUndefined();
+        expect(parsed?.sessionInsights).toBeUndefined();
+        expect(parsed?.coachingPlan).toBeUndefined();
+    });
+
+    it("successfully validates Task 9-12 extended payload", () => {
+        const extendedPayload = {
+            schemaVersion: "1.0.0",
+            meta: {
+                fps: 30,
+                totalFrames: 60,
+                durationMs: 2000,
+                imgWidth: 1280,
+                imgHeight: 720,
+            },
+            frames: [],
+            kicks: [],
+            punches: [],
+            analysisQuality: {
+                status: "pass",
+                reasonCodes: [],
+                metrics: {
+                    fps: 30,
+                    durationMs: 2000,
+                    totalFrames: 60,
+                    missingFrameRatio: 0,
+                    meanKeypointConfidence: 0.88,
+                    upperBodyCoverage: 0.95,
+                    lowerBodyCoverage: 0.90,
+                    maxSimultaneousPersons: 1,
+                    targetTrackRatio: 1.0,
+                    imgWidth: 1280,
+                    imgHeight: 720,
+                },
+                qualityVersion: "1.0.0",
+                evaluatorVersion: "1.0.0",
+                evaluatedAt: "2026-09-17T00:00:00Z",
+                adjustedEvidenceLevel: "observed",
+                recommendation: "proceed_full_analysis",
+            },
+            sessionInsights: {
+                status: "completed",
+                totalActions: 1,
+                familyDistribution: { punch: 1 },
+                techniqueDistribution: { cross: 1 },
+                sideDistribution: { right: 1 },
+                statusDistribution: { needs_improvement: 1 },
+                coverageSummary: {
+                    totalDetectedActions: 1,
+                    assessedActionsCount: 1,
+                    insufficientEvidenceCount: 0,
+                    insufficientEvidenceRate: 0,
+                    unknownTechniqueCount: 0,
+                    unknownTechniqueRate: 0,
+                    degradedQualityCount: 0,
+                    degradedQualityRate: 0,
+                },
+                priorityFindings: [
+                    {
+                        rank: 1,
+                        code: "TECH_PUNCH_GUARD_DROPPED",
+                        title: "Hạ thấp tay thủ đối diện",
+                        description: "Tay thủ hạ thấp",
+                        severity: "critical",
+                        frequency: 1,
+                        priorityScore: 4.8,
+                        affectedActionIds: ["act_1"],
+                        representativeFrame: 25,
+                        representativeTimeMs: 833.3,
+                        primaryRecommendation: "Giữ găng sát cằm",
+                    },
+                ],
+                sessionVersion: "1.0.0",
+            },
+            coachingPlan: {
+                sessionStatus: "completed",
+                recommendations: [
+                    {
+                        priorityRank: 1,
+                        errorCode: "TECH_PUNCH_GUARD_DROPPED",
+                        drill: {
+                            drillId: "drill_guard_tennis_ball",
+                            title: "Phone-to-Ear & Tennis Ball Guard Drill",
+                            errorCode: "TECH_PUNCH_GUARD_DROPPED",
+                            targetTechnique: "all_punches",
+                            objective: "Găm chặt tay thủ đối diện bảo vệ hàm.",
+                            instructions: ["Kẹp bóng tennis vào cằm", "Đấm 20 lần"],
+                            safetyNote: "Giữ cổ thẳng",
+                            applicability: "Mọi cấp độ",
+                            contraindications: "Không áp dụng khi chóng mặt",
+                            recommendedReps: "3 hiệp x 20 lần",
+                            catalogVersion: "1.0.0",
+                        },
+                        athleteCue: "[Ưu tiên 1] Giữ găng sát cằm",
+                        coachNotes: {
+                            representativeFrame: 25,
+                            severity: "critical",
+                        },
+                    },
+                ],
+                catalogVersion: "1.0.0",
+                engineVersion: "1.0.0",
+            },
+        };
+
+        const parsed = parseWorkerResult(extendedPayload);
+        expect(parsed).not.toBeNull();
+        expect(parsed?.analysisQuality?.status).toBe("pass");
+        expect(parsed?.sessionInsights?.priorityFindings.length).toBe(1);
+        expect(parsed?.coachingPlan?.recommendations.length).toBe(1);
+    });
+
+    it("handles coachingPlan recommendation with null drill (NO_APPROVED_DRILL abstention)", () => {
+        const planWithNullDrill = {
+            sessionStatus: "pass",
+            recommendations: [
+                {
+                    priorityRank: 1,
+                    errorCode: "TECH_UNKNOWN_CODE",
+                    drill: null,
+                    athleteCue: "[Ưu tiên 1] Lỗi kỹ thuật chưa có bài tập mẫu",
+                    coachNotes: {
+                        status: "NO_APPROVED_DRILL",
+                        reason: "Unrecognized error code",
+                    },
+                },
+            ],
+            catalogVersion: "1.0.0",
+            engineVersion: "1.0.0",
+        };
+        const parsed = coachingPlanSchema.safeParse(planWithNullDrill);
+        expect(parsed.success).toBe(true);
+        if (parsed.success) {
+            expect(parsed.data.recommendations[0].drill).toBeNull();
+            expect(parsed.data.recommendations[0].coachNotes.status).toBe("NO_APPROVED_DRILL");
+        }
+    });
+
+    it("validates Task 10 StandardFinding schema", () => {
+        const findingPayload = {
+            id: "finding_001",
+            code: "TECH_PUNCH_GUARD_DROPPED",
+            errorCode: "TECH_PUNCH_GUARD_DROPPED",
+            title: "Hạ thấp tay thủ",
+            description: "Tay thủ hạ thấp dưới cằm khi ra đòn",
+            category: "technique",
+            scope: "action",
+            severity: "critical",
+            confidence: 0.92,
+            evidenceLevel: "observed",
+            evidenceRefs: [
+                {
+                    frameIdx: 15,
+                    timeMs: 500.0,
+                    metricName: "oppositeHandY",
+                    metricValue: 0.65,
+                    thresholdValue: 0.50,
+                    operator: ">",
+                    unit: "normalized_y",
+                },
+            ],
+            provenance: {
+                rubricId: "rubric_lead_jab_v3",
+                criterionId: "guard_retention",
+                rubricVersion: "3.0.0",
+            },
+            recommendation: "Kẹp bóng tennis vào cằm khi đấm",
+            actionId: "act_101",
+            legacyFindingId: "legacy_f_1",
+            frameIdx: 15,
+            timeMs: 500.0,
+            metricName: "oppositeHandY",
+            metricValue: 0.65,
+        };
+        const parsed = standardFindingSchema.safeParse(findingPayload);
+        expect(parsed.success).toBe(true);
+        if (parsed.success) {
+            expect(parsed.data.code).toBe("TECH_PUNCH_GUARD_DROPPED");
+            expect(parsed.data.evidenceRefs.length).toBe(1);
+        }
+    });
+
+    it("validates Task 13 ReviewAuditRecord and MaterializedActionView schemas", () => {
+        const auditRecord = {
+            recordId: "audit_rec_1",
+            actionId: "act_001",
+            targetField: "technique",
+            reviewAction: "correct",
+            aiOriginalValue: "jab",
+            correctedValue: "cross",
+            reviewerId: "coach_dan",
+            reviewerRole: "head_coach",
+            reason: "Athlete threw rear cross with pivot",
+            timestamp: "2026-09-17T02:00:00Z",
+            idempotencyToken: "tok_001",
+            version: "1.0.0",
+        };
+        const parsedAudit = reviewAuditRecordSchema.safeParse(auditRecord);
+        expect(parsedAudit.success).toBe(true);
+
+        const materializedView = {
+            actionId: "act_001",
+            aiOriginal: {
+                id: "act_001",
+                technique: "jab",
+            },
+            effectiveTechnique: "cross",
+            effectiveAttackingSide: "right",
+            effectiveLimbRole: "rear",
+            effectivePhases: { startFrame: 0, endFrame: 30 },
+            effectiveFindings: [],
+            reviewStatus: "coach_corrected",
+            auditTrail: [auditRecord],
+            updatedAt: "2026-09-17T02:00:00Z",
+        };
+        const parsedView = materializedActionViewSchema.safeParse(materializedView);
+        expect(parsedView.success).toBe(true);
+        if (parsedView.success) {
+            expect(parsedView.data.reviewStatus).toBe("coach_corrected");
+            expect(parsedView.data.auditTrail.length).toBe(1);
+        }
+    });
+
+    it("validates Task 14 DatasetManifest and DatasetExportResult schemas", () => {
+        const sample = {
+            sampleId: "s_abc123",
+            athleteHash: "ath_hash_89",
+            split: "train",
+            technique: "cross",
+            attackingSide: "right",
+            limbRole: "rear",
+            phases: { startFrame: 0, impactFrame: 15, endFrame: 30 },
+            metrics: { peakSpeed: 12.5 },
+            reviewStatus: "coach_approved",
+            auditHash: "hash_audit_1",
+            provenanceSource: "coach_review_v1",
+        };
+        const parsedSample = anonymizedSampleSchema.safeParse(sample);
+        expect(parsedSample.success).toBe(true);
+
+        const exportResult = {
+            manifest: {
+                datasetId: "ds_mma_2026",
+                schemaVersion: "1.0.0",
+                exportTimestamp: "2026-09-17T02:00:00Z",
+                policy: "coach_approved_or_corrected",
+                totalSamples: 1,
+                splitDistribution: { train: 1 },
+                techniqueDistribution: { cross: 1 },
+                isGoldReady: false,
+                status: "NOT_GOLD_READY",
+                contentHash: "content_hash_1",
+                datasetHash: "dataset_hash_1",
+                notes: "Insufficient samples (<500)",
+            },
+            samples: [sample],
+        };
+        const parsedExport = datasetExportResultSchema.safeParse(exportResult);
+        expect(parsedExport.success).toBe(true);
+        if (parsedExport.success) {
+            expect(parsedExport.data.manifest.status).toBe("NOT_GOLD_READY");
+            expect(parsedExport.data.samples.length).toBe(1);
+        }
+    });
+
+    it("validates ActionSchema with ShadowClassification including validationStatus", () => {
+        const actionPayload = {
+            id: "act_shadow_1",
+            sourceActionId: "punch_1",
+            family: "punch",
+            technique: "jab",
+            attackingSide: "left",
+            limbRole: "lead",
+            stance: "orthodox",
+            confidence: {
+                detection: 0.95,
+                classification: 0.90,
+                assessment: 0.85,
+            },
+            phases: {
+                startFrame: 0,
+                impactFrame: 15,
+                endFrame: 30,
+                startTimeMs: 0,
+                impactTimeMs: 500,
+                endTimeMs: 1000,
+                impactType: "peak_extension_proxy",
+            },
+            metrics: {
+                peakSpeed: { value: 8.5, unit: "m/s" },
+            },
+            assessment: {
+                score: 88,
+                grade: "good",
+                status: "good",
+            },
+            review: {
+                status: "ai_generated",
+            },
+            shadowClassification: {
+                status: "abstained",
+                candidate: null,
+                confidence: null,
+                reasonCodes: ["AMBIGUOUS_STANCE"],
+                classifierId: "shadow_punch_classifier",
+                classifierVersion: "1.0.0",
+                configVersion: "1.0.0",
+                featureVersion: "1.0.0",
+                stanceSource: "classifier_input",
+                evidenceLevel: "derived_proxy",
+                validationStatus: "NOT_VALIDATED",
+            },
+        };
+        const parsed = actionSchema.safeParse(actionPayload);
+        expect(parsed.success).toBe(true);
+        if (parsed.success) {
+            expect(parsed.data.shadowClassification?.validationStatus).toBe("NOT_VALIDATED");
+        }
+    });
+
+    it("strictly rejects invalid closed enums in reviewAuditRecordSchema", () => {
+        const baseAudit = {
+            recordId: "rec_1",
+            actionId: "act_1",
+            targetField: "technique",
+            reviewAction: "accept",
+            aiOriginalValue: "jab",
+            correctedValue: null,
+            reviewerId: "coach_1",
+            reviewerRole: "coach",
+            reason: "accurate",
+            timestamp: "2026-09-17T00:00:00Z",
+            idempotencyToken: "tok_1",
+            version: "1.0.0",
+        };
+
+        // Valid singular phase and finding
+        expect(reviewAuditRecordSchema.safeParse({ ...baseAudit, targetField: "phase" }).success).toBe(true);
+        expect(reviewAuditRecordSchema.safeParse({ ...baseAudit, targetField: "finding" }).success).toBe(true);
+
+        // Invalid plural or arbitrary strings rejected
+        expect(reviewAuditRecordSchema.safeParse({ ...baseAudit, targetField: "phases" }).success).toBe(false);
+        expect(reviewAuditRecordSchema.safeParse({ ...baseAudit, targetField: "findings" }).success).toBe(false);
+        expect(reviewAuditRecordSchema.safeParse({ ...baseAudit, targetField: "invalid_field" }).success).toBe(false);
+
+        // Invalid review action rejected
+        expect(reviewAuditRecordSchema.safeParse({ ...baseAudit, reviewAction: "invalid_action" }).success).toBe(false);
+
+        // Invalid reviewer role rejected
+        expect(reviewAuditRecordSchema.safeParse({ ...baseAudit, reviewerRole: "unauthorized_role" }).success).toBe(false);
+    });
+
+    it("strictly rejects invalid closed enums in shadow classification and quality schemas", () => {
+        expect(shadowClassificationSchema.safeParse({
+            status: "arbitrary_status",
+            candidate: null,
+            reasonCodes: [],
+            classifierId: "c1",
+            classifierVersion: "1.0",
+            configVersion: "1.0",
+            featureVersion: "1.0",
+            stanceSource: "s1",
+            evidenceLevel: "observed",
+        }).success).toBe(false);
+
+        expect(analysisQualitySchema.safeParse({
+            status: "arbitrary_quality",
+            reasonCodes: [],
+            metrics: {
+                fps: 30,
+                durationMs: 1000,
+                totalFrames: 30,
+                missingFrameRatio: 0,
+                meanKeypointConfidence: 0.9,
+                upperBodyCoverage: 0.9,
+                lowerBodyCoverage: 0.9,
+            },
+            qualityVersion: "1.0",
+            evaluatorVersion: "1.0",
+            evaluatedAt: "2026-09-17T00:00:00Z",
+            adjustedEvidenceLevel: "observed",
+            recommendation: "ok",
+        }).success).toBe(false);
+    });
+
+    it("successfully parses blocked action with qualityStatus and null score", () => {
+        const blockedAction = {
+            id: "act_blocked_1",
+            sourceActionId: "punch_0",
+            family: "punch",
+            technique: "punch",
+            attackingSide: "left",
+            limbRole: "unknown",
+            stance: "unknown",
+            confidence: {
+                detection: 0.8,
+                classification: 0.8,
+                assessment: null,
+            },
+            phases: {
+                startFrame: 0,
+                impactFrame: 10,
+                endFrame: 20,
+                startTimeMs: 0,
+                impactTimeMs: 333.3,
+                endTimeMs: 666.6,
+                impactType: "peak_extension_proxy",
+            },
+            metrics: {},
+            assessment: {
+                score: null,
+                grade: "insufficient_evidence",
+                status: "insufficient_evidence",
+                primaryError: null,
+                findings: [],
+            },
+            review: {
+                status: "insufficient_evidence",
+            },
+            qualityStatus: "blocked",
+            adjustedEvidenceLevel: "unavailable",
+            shadowClassification: {
+                status: "abstained",
+                candidate: null,
+                confidence: null,
+                reasonCodes: ["QUALITY_BLOCKED"],
+                classifierId: "shadow_classifier",
+                classifierVersion: "2.0.0",
+                configVersion: "2.0.0",
+                featureVersion: "2.0.0",
+                stanceSource: "quality_blocked",
+                evidenceLevel: "unavailable",
+                validationStatus: "SHADOW_NOT_VALIDATED",
+            },
+        };
+
+        const parsed = actionSchema.safeParse(blockedAction);
+        expect(parsed.success).toBe(true);
+        if (parsed.success) {
+            expect(parsed.data.qualityStatus).toBe("blocked");
+            expect(parsed.data.adjustedEvidenceLevel).toBe("unavailable");
+            expect(parsed.data.assessment.score).toBeNull();
+            expect(parsed.data.shadowClassification?.reasonCodes).toEqual(["QUALITY_BLOCKED"]);
+        }
+    });
+});
+
