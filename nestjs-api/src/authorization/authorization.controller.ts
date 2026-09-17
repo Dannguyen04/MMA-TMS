@@ -62,9 +62,7 @@ import { AuthorizationService } from './authorization.service.js';
 @RequireRoles(USER.ADMIN)
 @UsePipes(appZodValidationPipe)
 export class AuthorizationController {
-  constructor(
-    private readonly authorizationService: AuthorizationService,
-  ) {}
+  constructor(private readonly authorizationService: AuthorizationService) {}
 
   // -------------------------------------------------------------------------
   // User permission assignment

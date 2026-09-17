@@ -39,6 +39,40 @@ describe('OpenAPI document (e2e)', () => {
     expect(Object.keys(document.paths)).not.toContain('/permissions');
   });
 
+  it('publishes ADMIN permission-assignment routes without catalogue CRUD', () => {
+    const document = createOpenApiDocument(app);
+    const assignmentRoutes = [
+      '/authorization/users/{userId}/permissions/{permissionCode}',
+      '/authorization/roles/{role}/permissions/{permissionCode}',
+    ];
+
+    for (const path of assignmentRoutes) {
+      expect(document.paths[path]?.put).toMatchObject({
+        security: [{ bearer: [] }],
+        responses: {
+          200: expect.any(Object),
+          401: expect.any(Object),
+          403: expect.any(Object),
+          404: expect.any(Object),
+          422: expect.any(Object),
+        },
+      });
+      expect(document.paths[path]?.delete).toMatchObject({
+        security: [{ bearer: [] }],
+        responses: {
+          200: expect.any(Object),
+          401: expect.any(Object),
+          403: expect.any(Object),
+          404: expect.any(Object),
+          422: expect.any(Object),
+        },
+      });
+    }
+
+    expect(document.paths['/permissions']).toBeUndefined();
+    expect(document.paths['/permissions/{id}']).toBeUndefined();
+  });
+
   it('represents response date-times without OpenAPI 3.1-only null types', () => {
     const document = createOpenApiDocument(app);
     const schemas = document.components?.schemas;

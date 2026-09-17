@@ -3,7 +3,6 @@ import type { DatabaseExecutor } from '../shared/utils/audit-context.util.js';
 import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import { AuthorizationRepository } from './authorization.repo.js';
 import { AuthorizationService } from './authorization.service.js';
-import { FIGHTER_DEFAULT_PERMISSION_CODES } from './authorization.model.js';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -34,10 +33,6 @@ const rolePermRow = {
   createdAt: new Date('2026-01-01T00:00:00Z'),
 };
 
-function makeCodeMap(codes: readonly string[]): Map<string, string> {
-  return new Map(codes.map((c, i) => [c, `perm-id-${i}`]));
-}
-
 // ---------------------------------------------------------------------------
 // Repository mock factory
 // ---------------------------------------------------------------------------
@@ -49,7 +44,6 @@ function makeRepo(): AuthorizationRepository {
     setAudit: vi.fn().mockResolvedValue(undefined),
     findPermissionIdsByCodes: vi.fn().mockResolvedValue(new Map([['users.profile.read', 'perm-id']])),
     upsertUserPermission: vi.fn().mockResolvedValue(userPermRow),
-    bulkUpsertUserPermissions: vi.fn().mockResolvedValue(undefined),
     deleteUserPermissionOverride: vi.fn().mockResolvedValue(userPermRow),
     upsertRolePermission: vi.fn().mockResolvedValue(rolePermRow),
     deleteRolePermission: vi.fn().mockResolvedValue(rolePermRow),
@@ -208,79 +202,4 @@ describe('AuthorizationService', () => {
     });
   });
 
-  // -------------------------------------------------------------------------
-  // grantDefaultFighterPermissions
-  // -------------------------------------------------------------------------
-  describe('grantDefaultFighterPermissions', () => {
-    const db = {} as DatabaseExecutor;
-
-    it('resolves all codes in exactly 1 query', async () => {
-      const repo = makeRepo();
-      (repo.findPermissionIdsByCodes as ReturnType<typeof vi.fn>).mockResolvedValue(
-        makeCodeMap(FIGHTER_DEFAULT_PERMISSION_CODES),
-      );
-      const service = new AuthorizationService(repo);
-      await service.grantDefaultFighterPermissions('fighter-id', db);
-      expect(repo.findPermissionIdsByCodes).toHaveBeenCalledTimes(1);
-      expect(repo.findPermissionIdsByCodes).toHaveBeenCalledWith(
-        FIGHTER_DEFAULT_PERMISSION_CODES,
-        db,
-      );
-    });
-
-    it('bulk-upserts in exactly 1 call (no N+1)', async () => {
-      const repo = makeRepo();
-      (repo.findPermissionIdsByCodes as ReturnType<typeof vi.fn>).mockResolvedValue(
-        makeCodeMap(FIGHTER_DEFAULT_PERMISSION_CODES),
-      );
-      const service = new AuthorizationService(repo);
-      await service.grantDefaultFighterPermissions('fighter-id', db);
-      expect(repo.bulkUpsertUserPermissions).toHaveBeenCalledTimes(1);
-    });
-
-    it('sets grantedBy = null on every row (system grant)', async () => {
-      const repo = makeRepo();
-      (repo.findPermissionIdsByCodes as ReturnType<typeof vi.fn>).mockResolvedValue(
-        makeCodeMap(FIGHTER_DEFAULT_PERMISSION_CODES),
-      );
-      const service = new AuthorizationService(repo);
-      await service.grantDefaultFighterPermissions('fighter-id', db);
-      const [rows] = (repo.bulkUpsertUserPermissions as ReturnType<typeof vi.fn>).mock.calls[0] as [Array<{ grantedBy: unknown }>];
-      expect(rows.every((r) => r.grantedBy === null)).toBe(true);
-    });
-
-    it('throws permissionGrantFailed when catalogue is missing a code', async () => {
-      const repo = makeRepo();
-      // Return only a partial map — simulating missing catalogue entry
-      const partialMap = makeCodeMap(FIGHTER_DEFAULT_PERMISSION_CODES.slice(0, 5));
-      (repo.findPermissionIdsByCodes as ReturnType<typeof vi.fn>).mockResolvedValue(partialMap);
-      const service = new AuthorizationService(repo);
-      const err = await service
-        .grantDefaultFighterPermissions('fighter-id', db)
-        .catch((e: unknown) => e);
-      expect(err).toBeInstanceOf(HttpException);
-      expect((err as HttpException).getStatus()).toBe(500);
-    });
-
-    it('does NOT call setAudit — caller owns audit context', async () => {
-      const repo = makeRepo();
-      (repo.findPermissionIdsByCodes as ReturnType<typeof vi.fn>).mockResolvedValue(
-        makeCodeMap(FIGHTER_DEFAULT_PERMISSION_CODES),
-      );
-      const service = new AuthorizationService(repo);
-      await service.grantDefaultFighterPermissions('fighter-id', db);
-      expect(repo.setAudit).not.toHaveBeenCalled();
-    });
-
-    it('does NOT open its own transaction — uses provided db', async () => {
-      const repo = makeRepo();
-      (repo.findPermissionIdsByCodes as ReturnType<typeof vi.fn>).mockResolvedValue(
-        makeCodeMap(FIGHTER_DEFAULT_PERMISSION_CODES),
-      );
-      const service = new AuthorizationService(repo);
-      await service.grantDefaultFighterPermissions('fighter-id', db);
-      expect(repo.transaction).not.toHaveBeenCalled();
-    });
-  });
 });
-

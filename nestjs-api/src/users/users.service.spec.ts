@@ -5,7 +5,6 @@ import { userRoleMismatch } from './users.error.js';
 import type { PublicUser } from './users.model.js';
 import { UsersRepository } from './users.repo.js';
 import { UsersService } from './users.service.js';
-import { AuthorizationService } from '../authorization/authorization.service.js';
 
 const actor: AuthenticatedUser = {
   id: '516a01dc-f842-40e4-ae88-abca224921b7',
@@ -47,12 +46,6 @@ function repositoryMock() {
   };
 }
 
-function authorizationServiceMock() {
-  return {
-    grantDefaultFighterPermissions: vi.fn().mockResolvedValue(undefined),
-  } as unknown as AuthorizationService;
-}
-
 function adminClientMock() {
   return {
     auth: {
@@ -70,10 +63,8 @@ function adminClientMock() {
 describe('UsersService', () => {
   it('registers a fighter profile in one database transaction', async () => {
     const repository = repositoryMock();
-    const authzService = authorizationServiceMock();
     const service = new UsersService(
       repository as unknown as UsersRepository,
-      authzService,
       adminClientMock() as never,
     );
 
@@ -104,57 +95,11 @@ describe('UsersService', () => {
     );
   });
 
-  it('calls grantDefaultFighterPermissions with the new userId inside the transaction', async () => {
-    const repository = repositoryMock();
-    const authzService = authorizationServiceMock();
-    const service = new UsersService(
-      repository as unknown as UsersRepository,
-      authzService,
-      adminClientMock() as never,
-    );
-
-    await service.registerFighter(
-      { subject: 'sub', email: fighter.email },
-      { firstName: 'An', lastName: 'Nguyen', dateOfBirth: '2000-01-01', weightClass: 'LIGHTWEIGHT' },
-      'req-id',
-    );
-
-    expect(authzService.grantDefaultFighterPermissions).toHaveBeenCalledWith(
-      fighter.id,               // correct userId returned by createUser
-      { scope: 'transaction' }, // same transaction object
-    );
-  });
-
-  it('propagates exception from grantDefaultFighterPermissions to trigger rollback', async () => {
-    const repository = repositoryMock();
-    const authzService = authorizationServiceMock();
-    (authzService.grantDefaultFighterPermissions as ReturnType<typeof vi.fn>).mockRejectedValue(
-      new Error('catalogue missing'),
-    );
-    const service = new UsersService(
-      repository as unknown as UsersRepository,
-      authzService,
-      adminClientMock() as never,
-    );
-
-    const error = await service
-      .registerFighter(
-        { subject: 'sub', email: fighter.email },
-        { firstName: 'An', lastName: 'Nguyen', dateOfBirth: '2000-01-01', weightClass: 'LIGHTWEIGHT' },
-        'req-id',
-      )
-      .catch((e: unknown) => e);
-
-    // Must propagate — AuthService.register catch block will then delete Supabase user
-    expect(error).toBeInstanceOf(Error);
-  });
-
   it('uses Supabase Admin and supports creating another role', async () => {
     const repository = repositoryMock();
     const admin = adminClientMock();
     const service = new UsersService(
       repository as unknown as UsersRepository,
-      authorizationServiceMock(),
       admin as never,
     );
     const input = {
@@ -180,7 +125,6 @@ describe('UsersService', () => {
   it('rejects an update whose profile type differs from the stored role', async () => {
     const service = new UsersService(
       repositoryMock() as unknown as UsersRepository,
-      authorizationServiceMock(),
       adminClientMock() as never,
     );
     const error = await service
@@ -205,7 +149,6 @@ describe('UsersService', () => {
     const repository = repositoryMock();
     const service = new UsersService(
       repository as unknown as UsersRepository,
-      authorizationServiceMock(),
       adminClientMock() as never,
     );
 

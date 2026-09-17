@@ -2,11 +2,11 @@
 
 ## Áp dụng migration 004
 
-Migration `004_seed_api_permissions.sql` đăng ký 14 permission cụ thể của hai
-module Users và Fighters trong `public.permissions`. Migration này không thêm dữ liệu vào
-`role_permissions` hoặc `user_permissions`; vì vậy permission mới chưa cấp quyền
-cho bất kỳ tài khoản nào, kể cả ADMIN, cho đến khi người vận hành gán quyền bằng
-quy trình SQL được kiểm soát.
+- Mỗi migration catalogue mới phải đăng ký permission trong `public.permissions`
+và đồng thời cấp các permission mới đó cho role `ADMIN` trong
+`role_permissions`. Migration không được seed `user_permissions`; baseline của
+FIGHTER/COACH/DOCTOR và override theo user được quản lý riêng bằng admin-only
+assignment API hoặc quy trình SQL được kiểm soát.
 
 Sau khi xác nhận migration 003 đã có trong `mma_private.migration_history`, chạy:
 

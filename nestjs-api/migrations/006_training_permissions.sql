@@ -1,4 +1,4 @@
--- MMA-TMS 006: register concrete permissions for Training Management module.
+-- MMA-TMS 006: register Training permissions and grant them to ADMIN.
 BEGIN;
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '30s';
@@ -93,6 +93,30 @@ VALUES
    'Create an exercise in the global training library.'),
   ('training.exercise:update', 'Update exercise', 'training_exercise', 'update',
    'Update an exercise in the global training library.');
+
+INSERT INTO public.role_permissions (role, permission_id)
+SELECT 'ADMIN'::public.user_role, p.id
+FROM public.permissions AS p
+WHERE p.code = ANY (ARRAY[
+  'training.plan:get_all',
+  'training.plan:read',
+  'training.plan:create',
+  'training.plan:update',
+  'training.plan:transition',
+  'training.plan_exercise:read',
+  'training.plan_exercise:create',
+  'training.plan_exercise:update',
+  'training.plan_exercise:delete',
+  'training.session:get_all',
+  'training.session:read',
+  'training.session:create',
+  'training.session:update',
+  'training.session:transition',
+  'training.exercise:get_all',
+  'training.exercise:read',
+  'training.exercise:create',
+  'training.exercise:update'
+]);
 
 -- The verified runner supplies the source checksum. Manual SQL execution keeps it NULL.
 INSERT INTO mma_private.migration_history(version, name, source_sha256)

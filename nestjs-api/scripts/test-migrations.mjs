@@ -230,7 +230,7 @@ try {
       '17',
     );
   });
-  check('006 registers Training permissions without grants', () => {
+  check('006 registers Training permissions with ADMIN grants only', () => {
     migration('mma_clean', target006);
     assert.equal(
       psql(
@@ -242,8 +242,19 @@ try {
     assert.equal(
       psql(
         'mma_clean',
-        `SELECT (SELECT count(*) FROM public.role_permissions) + (SELECT count(*) FROM public.user_permissions);`,
+        `SELECT count(*) FROM public.role_permissions WHERE role = 'ADMIN';`,
       ),
+      String(trainingPermissionCodes.length),
+    );
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT count(*) FROM public.role_permissions WHERE role <> 'ADMIN';`,
+      ),
+      '0',
+    );
+    assert.equal(
+      psql('mma_clean', `SELECT count(*) FROM public.user_permissions;`),
       '0',
     );
     assert.equal(
@@ -264,6 +275,13 @@ try {
       psql(
         'mma_clean',
         `SELECT count(*) FROM public.permissions WHERE code LIKE 'training.%';`,
+      ),
+      String(trainingPermissionCodes.length),
+    );
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT count(*) FROM public.role_permissions WHERE role = 'ADMIN';`,
       ),
       String(trainingPermissionCodes.length),
     );

@@ -9,11 +9,9 @@ import type {
   UserPermissionParams,
   UserPermissionResponse,
 } from './authorization.model.js';
-import { FIGHTER_DEFAULT_PERMISSION_CODES } from './authorization.model.js';
 import {
   assignmentNotFound,
   mapAuthorizationPersistenceError,
-  permissionGrantFailed,
   permissionNotFound,
 } from './authorization.error.js';
 
@@ -148,58 +146,13 @@ export class AuthorizationService {
           params.permissionCode,
           tx,
         );
-        const deleted =
-          await this.authorizationRepository.deleteRolePermission(
-            { role: params.role as UserRole, permissionId },
-            tx,
-          );
+        const deleted = await this.authorizationRepository.deleteRolePermission(
+          { role: params.role as UserRole, permissionId },
+          tx,
+        );
         if (!deleted) throw assignmentNotFound();
       }),
     );
-  }
-
-  // =========================================================================
-  // System operation — registration flow (no own transaction, no own audit)
-  // =========================================================================
-
-  /**
-   * Bulk-grants FIGHTER_DEFAULT_PERMISSION_CODES into user_permissions with
-   * grantedBy = null (system grant).
-   *
-   * MUST be called inside an existing transaction that already has audit
-   * context set by the caller (UsersService.registerFighter). Does NOT open
-   * a new transaction and does NOT call setAudit — the caller owns both.
-   *
-   * Algorithm (2 queries):
-   *   1. findPermissionIdsByCodes — resolve all codes in one SELECT
-   *   2. bulkUpsertUserPermissions — insert all rows in one INSERT
-   *
-   * If any code is missing from the catalogue → throws permissionGrantFailed()
-   * → the caller's transaction is rolled back.
-   */
-  async grantDefaultFighterPermissions(
-    userId: string,
-    db: DatabaseExecutor,
-  ): Promise<void> {
-    await this.mapPersistenceErrors(async () => {
-      const codes = FIGHTER_DEFAULT_PERMISSION_CODES;
-      const idMap =
-        await this.authorizationRepository.findPermissionIdsByCodes(codes, db);
-
-      if (idMap.size < codes.length) {
-        // One or more catalogue codes are missing — fail the whole registration.
-        throw permissionGrantFailed();
-      }
-
-      const rows = codes.map((code) => ({
-        userId,
-        permissionId: idMap.get(code)!,
-        isGranted: true as const,
-        grantedBy: null,
-      }));
-
-      await this.authorizationRepository.bulkUpsertUserPermissions(rows, db);
-    });
   }
 
   // =========================================================================
@@ -220,17 +173,17 @@ export class AuthorizationService {
     code: string,
     db: DatabaseExecutor,
   ): Promise<string> {
-    const idMap =
-      await this.authorizationRepository.findPermissionIdsByCodes([code], db);
+    const idMap = await this.authorizationRepository.findPermissionIdsByCodes(
+      [code],
+      db,
+    );
     const permissionId = idMap.get(code);
     if (!permissionId) throw permissionNotFound();
     return permissionId;
   }
 
   private toUserPermissionResponse(
-    row: Awaited<
-      ReturnType<AuthorizationRepository['upsertUserPermission']>
-    >,
+    row: Awaited<ReturnType<AuthorizationRepository['upsertUserPermission']>>,
     permissionCode: string,
   ): UserPermissionResponse {
     return {
@@ -244,9 +197,7 @@ export class AuthorizationService {
   }
 
   private toRolePermissionResponse(
-    row: Awaited<
-      ReturnType<AuthorizationRepository['upsertRolePermission']>
-    >,
+    row: Awaited<ReturnType<AuthorizationRepository['upsertRolePermission']>>,
     permissionCode: string,
   ): RolePermissionResponse {
     return {

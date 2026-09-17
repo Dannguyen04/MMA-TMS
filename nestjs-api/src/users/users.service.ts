@@ -16,7 +16,6 @@ import type {
   UpdateUserInput,
 } from './users.model.js';
 import { UsersRepository } from './users.repo.js';
-import { AuthorizationService } from '../authorization/authorization.service.js';
 
 interface NewIdentity {
   subject: string;
@@ -27,7 +26,6 @@ interface NewIdentity {
 export class UsersService {
   constructor(
     private readonly usersRepository: UsersRepository,
-    private readonly authorizationService: AuthorizationService,
     @Inject(SUPABASE_ADMIN_CLIENT)
     private readonly supabaseAdmin: SupabaseClient,
   ) {}
@@ -50,10 +48,6 @@ export class UsersService {
           transaction,
         );
         await this.usersRepository.createFighter(user.id, profile, transaction);
-        await this.authorizationService.grantDefaultFighterPermissions(
-          user.id,
-          transaction,
-        );
         const created = await this.usersRepository.findActiveById(
           user.id,
           transaction,

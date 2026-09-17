@@ -121,38 +121,6 @@ export class AuthorizationRepository {
   }
 
   /**
-   * Bulk upsert for auto-grant at registration (all grantedBy = null).
-   * Uses a single INSERT ... VALUES (...), (...) statement.
-   */
-  async bulkUpsertUserPermissions(
-    rows: Array<{
-      userId: string;
-      permissionId: string;
-      isGranted: boolean;
-      grantedBy: null;
-    }>,
-    db: DatabaseExecutor,
-  ): Promise<void> {
-    if (rows.length === 0) return;
-    await db
-      .insert(userPermissions)
-      .values(
-        rows.map((r) => ({
-          userId: r.userId,
-          permissionId: r.permissionId,
-          isGranted: r.isGranted,
-        })),
-      )
-      .onConflictDoUpdate({
-        target: [userPermissions.userId, userPermissions.permissionId],
-        set: {
-          isGranted: sql`excluded.is_granted`,
-          grantedBy: sql`excluded.granted_by`,
-        },
-      });
-  }
-
-  /**
    * Deletes a user permission override.
    * Returns the deleted row, or undefined if no override existed.
    */
@@ -241,4 +209,3 @@ export class AuthorizationRepository {
     return row as RolePermissionRow | undefined;
   }
 }
-

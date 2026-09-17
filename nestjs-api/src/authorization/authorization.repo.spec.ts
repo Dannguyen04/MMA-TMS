@@ -97,29 +97,6 @@ describe('AuthorizationRepository', () => {
     });
   });
 
-  describe('bulkUpsertUserPermissions', () => {
-    it('skips DB call when rows array is empty', async () => {
-      const repo = makeRepo();
-      const spy = vi.spyOn(repo, 'bulkUpsertUserPermissions').mockResolvedValue(undefined);
-      await repo.bulkUpsertUserPermissions([], makeDb([]));
-      expect(spy).toHaveBeenCalledTimes(1);
-    });
-
-    it('performs a single insert for N rows (no N+1)', async () => {
-      const repo = makeRepo();
-      const spy = vi.spyOn(repo, 'bulkUpsertUserPermissions').mockResolvedValue(undefined);
-      const rows = Array.from({ length: 11 }, (_, i) => ({
-        userId: 'u',
-        permissionId: `p-${i}`,
-        isGranted: true as const,
-        grantedBy: null,
-      }));
-      await repo.bulkUpsertUserPermissions(rows, makeDb([]));
-      // Should have been called once — not 11 times
-      expect(spy).toHaveBeenCalledTimes(1);
-    });
-  });
-
   describe('deleteUserPermissionOverride', () => {
     it('returns the deleted row when it existed', async () => {
       const repo = makeRepo();
@@ -173,4 +150,3 @@ describe('AuthorizationRepository', () => {
     });
   });
 });
-

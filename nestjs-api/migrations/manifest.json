@@ -7,6 +7,6 @@
     "003_mma_tms_complete_schema.sql": "df22eef9cd83983a217441785a988ae29b0f5190cfc1299b7ee3d6c9dfde77ac",
     "004_seed_api_permissions.sql": "960063ba8ab5886a588328a1dc2f753b62d2bc742dea60bfd6979a5c76785a7d",
     "005_training_management.sql": "7d964bf791e816c5630f8115eb493abdb43b09587a4c761efb7ea734f7a381be",
-    "006_training_permissions.sql": "2bb92564d3fb9e101a3a82d8841073f2555593fb37d02cee98af410faa5ec252"
+    "006_training_permissions.sql": "1a06c2d20ffdbac8d4f578f7733aac80b5be7c771b907999e927d2b2ceaa9f16"
   }
 }
