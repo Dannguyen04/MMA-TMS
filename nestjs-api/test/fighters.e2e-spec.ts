@@ -156,7 +156,7 @@ describe('FightersController (e2e)', () => {
 
     expect(reflector.get(REQUIRED_ROLES, FightersController)).toBeUndefined();
     expect(permissionFor(FightersController.prototype.findAll)).toEqual({
-      allOf: [FIGHTER_PERMISSIONS.READ],
+      allOf: [FIGHTER_PERMISSIONS.GET_ALL],
     });
     expect(permissionFor(FightersController.prototype.findById)).toEqual({
       allOf: [FIGHTER_PERMISSIONS.READ],

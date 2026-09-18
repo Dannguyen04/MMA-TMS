@@ -25,6 +25,8 @@
     "db:check": "node run_sql.mjs --check",
     "db:migrate:003": "node run_sql.mjs --apply-003",
     "db:migrate:004": "node run_sql.mjs --apply-004",
+    "db:migrate:005": "node run_sql.mjs --apply-005",
+    "db:migrate:006": "node run_sql.mjs --apply-006",
     "test:db": "node scripts/test-migrations.mjs"
   },
   "dependencies": {

@@ -2,7 +2,6 @@ import { Inject, Injectable } from '@nestjs/common';
 import { and, eq, isNull } from 'drizzle-orm';
 import {
   type DatabaseExecutor,
-  setAuditContext,
   type Transaction,
 } from '../shared/utils/audit-context.util.js';
 import type { UserRole } from '../shared/models/auth-context.model.js';
@@ -37,14 +36,6 @@ export class UsersRepository {
 
   transaction<T>(work: (transaction: Transaction) => Promise<T>): Promise<T> {
     return this.db.transaction(work);
-  }
-
-  setAudit(
-    subject: string,
-    requestId: string,
-    database: DatabaseExecutor,
-  ): Promise<void> {
-    return setAuditContext(subject, requestId, database);
   }
 
   async createUser(

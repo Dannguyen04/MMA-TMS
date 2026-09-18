@@ -69,6 +69,28 @@ function migration(database, name) {
 const baseline = ['001_create_analysis_jobs.sql', '002_add_health_alerts.sql'];
 const target003 = '003_mma_tms_complete_schema.sql';
 const target004 = '004_seed_api_permissions.sql';
+const target005 = '005_training_management.sql';
+const target006 = '006_training_permissions.sql';
+const trainingPermissionCodes = [
+  'training.plan:get_all',
+  'training.plan:read',
+  'training.plan:create',
+  'training.plan:update',
+  'training.plan:transition',
+  'training.plan_exercise:read',
+  'training.plan_exercise:create',
+  'training.plan_exercise:update',
+  'training.plan_exercise:delete',
+  'training.session:get_all',
+  'training.session:read',
+  'training.session:create',
+  'training.session:update',
+  'training.session:transition',
+  'training.exercise:get_all',
+  'training.exercise:read',
+  'training.exercise:create',
+  'training.exercise:update',
+];
 const authFixture = `CREATE SCHEMA auth;
 CREATE TABLE auth.users(id uuid PRIMARY KEY);
 CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
@@ -133,21 +155,26 @@ try {
         `SELECT string_agg(code, ',' ORDER BY code) FROM public.permissions;`,
       ),
       [
-        'fighters.coaches.assign',
-        'fighters.coaches.end',
-        'fighters.coaches.read',
-        'fighters.measurements.read',
-        'fighters.measurements.write',
-        'fighters.medical.read',
-        'fighters.read',
-        'fighters.sessions.read',
-        'fighters.update',
+        'fighter:read',
+        'fighter:get_all',
+        'fighter:create',
+        'fighter:update',
+        'fighter:delete',
+        'fighter.coach:assign',
+        'fighter.coach:end',
+        'fighter.coach:read',
+        'fighter.measurement:read',
+        'fighter.measurement:write',
+        'fighter.medical:read',
+        'fighter.session:read',
         'users.create',
         'users.delete',
         'users.profile.read',
         'users.read',
         'users.update',
-      ].join(','),
+      ]
+        .sort()
+        .join(','),
     );
     assert.equal(
       psql(
@@ -155,6 +182,41 @@ try {
         `SELECT (SELECT count(*) FROM public.role_permissions) + (SELECT count(*) FROM public.user_permissions);`,
       ),
       '0',
+    );
+  });
+  check('005 adds milestones with defaults and constraints', () => {
+    migration('mma_clean', target005);
+    const info = psql(
+      'mma_clean',
+      `SELECT is_nullable, column_default FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'training_plans' AND column_name = 'milestones';`,
+    );
+    assert.ok(info.includes('NO'), 'Expected NO for is_nullable');
+    assert.ok(info.includes("'[]'::jsonb"), 'Expected default []');
+
+    rejects(
+      'mma_clean',
+      `INSERT INTO public.training_plans (fighter_id, coach_id, title, start_date, milestones) VALUES ('00000000-0000-0000-0000-000000000000', '00000000-0000-0000-0000-000000000000', 'Test', '2026-01-01', '{"a":1}');`,
+      /ck_training_plans_milestones/,
+    );
+
+    const version5 = psql(
+      'mma_clean',
+      `SELECT count(*) FROM mma_private.migration_history WHERE version = 5;`,
+    );
+    assert.equal(version5.trim(), '1');
+  });
+  check('reapplying 005 fails without changing migration history', () => {
+    rejects(
+      'mma_clean',
+      readFileSync(join(api, 'migrations', target005), 'utf8'),
+      /already been applied|collision/,
+    );
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT count(*) FROM mma_private.migration_history WHERE version = 5;`,
+      ),
+      '1',
     );
   });
   check('reapplying 004 fails without changing the catalogue', () => {
@@ -165,7 +227,70 @@ try {
     );
     assert.equal(
       psql('mma_clean', `SELECT count(*) FROM public.permissions;`),
-      '14',
+      '17',
+    );
+  });
+  check('006 registers Training permissions with ADMIN grants only', () => {
+    migration('mma_clean', target006);
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT string_agg(code, ',' ORDER BY code) FROM public.permissions WHERE code LIKE 'training.%';`,
+      ),
+      [...trainingPermissionCodes].sort().join(','),
+    );
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT count(*) FROM public.role_permissions WHERE role = 'ADMIN';`,
+      ),
+      String(trainingPermissionCodes.length),
+    );
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT count(*) FROM public.role_permissions WHERE role <> 'ADMIN';`,
+      ),
+      '0',
+    );
+    assert.equal(
+      psql('mma_clean', `SELECT count(*) FROM public.user_permissions;`),
+      '0',
+    );
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT name FROM mma_private.migration_history WHERE version = 6;`,
+      ),
+      target006,
+    );
+  });
+  check('reapplying 006 fails without changing the catalogue', () => {
+    rejects(
+      'mma_clean',
+      readFileSync(join(api, 'migrations', target006), 'utf8'),
+      /already been applied|collision/,
+    );
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT count(*) FROM public.permissions WHERE code LIKE 'training.%';`,
+      ),
+      String(trainingPermissionCodes.length),
+    );
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT count(*) FROM public.role_permissions WHERE role = 'ADMIN';`,
+      ),
+      String(trainingPermissionCodes.length),
+    );
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT count(*) FROM mma_private.migration_history WHERE version = 6;`,
+      ),
+      '1',
     );
   });
   if (process.argv.includes('--export-catalog')) {
@@ -176,6 +301,83 @@ try {
     );
     writeFileSync(resolve(api, '../tmp/schema-catalog.json'), catalog);
   }
+  prepare('mma_005_collision');
+  migration('mma_005_collision', target003);
+  migration('mma_005_collision', target004);
+  psql(
+    'mma_005_collision',
+    `ALTER TABLE public.training_plans ADD COLUMN milestones jsonb;`,
+  );
+  check(
+    '005 rejects a pre-existing milestones column without writing history',
+    () => {
+      rejects(
+        'mma_005_collision',
+        readFileSync(join(api, 'migrations', target005), 'utf8'),
+        /005 training_plans milestones collision/,
+      );
+      assert.equal(
+        psql(
+          'mma_005_collision',
+          `SELECT count(*) FROM mma_private.migration_history WHERE version = 5;`,
+        ),
+        '0',
+      );
+      assert.equal(
+        psql(
+          'mma_005_collision',
+          `SELECT is_nullable FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'training_plans' AND column_name = 'milestones';`,
+        ),
+        'YES',
+      );
+    },
+  );
+  prepare('mma_006_missing_005');
+  migration('mma_006_missing_005', target003);
+  migration('mma_006_missing_005', target004);
+  check('006 rejects a database without migration 005 history', () => {
+    rejects(
+      'mma_006_missing_005',
+      readFileSync(join(api, 'migrations', target006), 'utf8'),
+      /006 requires migration 005 history/,
+    );
+    assert.equal(
+      psql(
+        'mma_006_missing_005',
+        `SELECT count(*) FROM mma_private.migration_history WHERE version = 6;`,
+      ),
+      '0',
+    );
+  });
+  prepare('mma_006_collision');
+  migration('mma_006_collision', target003);
+  migration('mma_006_collision', target004);
+  migration('mma_006_collision', target005);
+  psql(
+    'mma_006_collision',
+    `INSERT INTO public.permissions (code, name, resource, action) VALUES ('training.plan:read', 'Collision', 'training_plan', 'read');`,
+  );
+  check('006 rejects a permission collision without partial inserts', () => {
+    rejects(
+      'mma_006_collision',
+      readFileSync(join(api, 'migrations', target006), 'utf8'),
+      /006 API permission catalogue collision/,
+    );
+    assert.equal(
+      psql(
+        'mma_006_collision',
+        `SELECT count(*) FROM public.permissions WHERE code LIKE 'training.%';`,
+      ),
+      '1',
+    );
+    assert.equal(
+      psql(
+        'mma_006_collision',
+        `SELECT count(*) FROM mma_private.migration_history WHERE version = 6;`,
+      ),
+      '0',
+    );
+  });
   prepare('mma_existing');
   psql(
     'mma_existing',

@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_ADMIN_CLIENT } from '../common/supabase/supabase.module.js';
 import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import { USER } from '../shared/types/user.role.js';
+import { setAuditContext } from '../shared/utils/audit-context.util.js';
 import {
   mapUserPersistenceError,
   userCreationFailed,
@@ -37,11 +38,7 @@ export class UsersService {
   ): Promise<PublicUser> {
     try {
       return await this.usersRepository.transaction(async (transaction) => {
-        await this.usersRepository.setAudit(
-          identity.subject,
-          requestId,
-          transaction,
-        );
+        await setAuditContext(identity.subject, requestId, transaction);
         const user = await this.usersRepository.createUser(
           identity,
           USER.FIGHTER,
@@ -78,11 +75,7 @@ export class UsersService {
 
     try {
       return await this.usersRepository.transaction(async (transaction) => {
-        await this.usersRepository.setAudit(
-          actor.authSubject,
-          requestId,
-          transaction,
-        );
+        await setAuditContext(actor.authSubject, requestId, transaction);
         const user = await this.usersRepository.createUser(
           { subject: data.user.id, email: input.email },
           input.role,
@@ -130,11 +123,7 @@ export class UsersService {
           throw userRoleMismatch();
         }
 
-        await this.usersRepository.setAudit(
-          actor.authSubject,
-          requestId,
-          transaction,
-        );
+        await setAuditContext(actor.authSubject, requestId, transaction);
         await this.usersRepository.updateRoleProfile(
           existing,
           input,
@@ -165,11 +154,7 @@ export class UsersService {
           transaction,
         );
         if (!existing) throw userNotFound();
-        await this.usersRepository.setAudit(
-          actor.authSubject,
-          requestId,
-          transaction,
-        );
+        await setAuditContext(actor.authSubject, requestId, transaction);
         await this.usersRepository.softDelete(existing, transaction);
       });
       return { id, deleted: true };

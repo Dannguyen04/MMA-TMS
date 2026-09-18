@@ -23,7 +23,6 @@ import {
 } from '../database/schema.js';
 import {
   type DatabaseExecutor,
-  setAuditContext,
   type Transaction,
 } from '../shared/utils/audit-context.util.js';
 import type {
@@ -45,14 +44,6 @@ export class FightersRepository {
 
   transaction<T>(work: (transaction: Transaction) => Promise<T>): Promise<T> {
     return this.db.transaction(work);
-  }
-
-  setAudit(
-    subject: string,
-    requestId: string,
-    database: DatabaseExecutor,
-  ): Promise<void> {
-    return setAuditContext(subject, requestId, database);
   }
 
   // --- Fighters CRUD ---

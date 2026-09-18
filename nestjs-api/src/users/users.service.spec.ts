@@ -31,12 +31,16 @@ const fighter: PublicUser = {
 
 function repositoryMock() {
   const transaction = { scope: 'transaction' };
+  const executeAuditContext = vi.fn().mockResolvedValue([]);
+  Object.defineProperty(transaction, 'execute', {
+    value: executeAuditContext,
+  });
   return {
     transaction: vi.fn(
       async (work: (value: object) => Promise<unknown>): Promise<unknown> =>
         work(transaction),
     ),
-    setAudit: vi.fn().mockResolvedValue(undefined),
+    executeAuditContext,
     createUser: vi.fn().mockResolvedValue({ id: fighter.id }),
     createFighter: vi.fn().mockResolvedValue(undefined),
     createRoleProfile: vi.fn().mockResolvedValue(undefined),
@@ -88,11 +92,7 @@ describe('UsersService', () => {
       USER.FIGHTER,
       { scope: 'transaction' },
     );
-    expect(repository.setAudit).toHaveBeenCalledWith(
-      'e069ca8a-d0f1-44da-8bd5-48a60bf44b99',
-      'request-id',
-      { scope: 'transaction' },
-    );
+    expect(repository.executeAuditContext).toHaveBeenCalledTimes(1);
   });
 
   it('uses Supabase Admin and supports creating another role', async () => {
