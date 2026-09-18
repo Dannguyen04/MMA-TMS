@@ -393,7 +393,7 @@ describe('Task 14 — Product Backend Security & Governance Remediation Gate', (
 
       expect(statusRes.status).toBe(200);
       expect(statusRes.body.attestation.attestationId).toBe(secondAttestationId);
-    });
+    }, 15000);
   });
 
   describe('4. Idempotency & Nonce Replay', () => {

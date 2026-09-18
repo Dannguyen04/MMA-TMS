@@ -61,7 +61,6 @@ export interface HealthAlert {
 /** Snapshot trạng thái tất cả khớp tại cuối session */
 export type JointStatesMap = Record<string, JointHealthState>;
 
-<<<<<<< HEAD
 export const jobStatusEnum = pgEnum('job_status', [
   'PENDING',
   'PROCESSING',
@@ -280,7 +279,6 @@ const authUsers = pgSchema('auth').table('users', {
   id: uuid('id').primaryKey(),
 });
 
-<<<<<<< HEAD
 export const aiAnalyses = pgTable(
   'ai_analyses',
   {
