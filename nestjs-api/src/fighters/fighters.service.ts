@@ -2,6 +2,7 @@ import { HttpException, Injectable } from '@nestjs/common';
 import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import { USER } from '../shared/types/user.role.js';
 import { forbidden } from '../shared/errors/access.error.js';
+import { setAuditContext } from '../shared/utils/audit-context.util.js';
 import {
   coachAssignmentAlreadyActive,
   coachAssignmentAlreadyClosed,
@@ -92,11 +93,7 @@ export class FightersService {
 
     try {
       return await this.fightersRepository.transaction(async (tx) => {
-        await this.fightersRepository.setAudit(
-          actor.authSubject,
-          requestId,
-          tx,
-        );
+        await setAuditContext(actor.authSubject, requestId, tx);
         const updated = await this.fightersRepository.update(id, input, tx);
         if (!updated) throw fighterNotFound();
         return updated;
@@ -154,11 +151,7 @@ export class FightersService {
 
     try {
       return await this.fightersRepository.transaction(async (tx) => {
-        await this.fightersRepository.setAudit(
-          actor.authSubject,
-          requestId,
-          tx,
-        );
+        await setAuditContext(actor.authSubject, requestId, tx);
         return this.fightersRepository.insertMeasurement(
           fighterId,
           actor.id,
@@ -203,11 +196,7 @@ export class FightersService {
 
     try {
       return await this.fightersRepository.transaction(async (tx) => {
-        await this.fightersRepository.setAudit(
-          actor.authSubject,
-          requestId,
-          tx,
-        );
+        await setAuditContext(actor.authSubject, requestId, tx);
         return this.fightersRepository.insertMeasurement(
           fighterId,
           actor.id,
@@ -259,11 +248,7 @@ export class FightersService {
 
     try {
       return await this.fightersRepository.transaction(async (tx) => {
-        await this.fightersRepository.setAudit(
-          actor.authSubject,
-          requestId,
-          tx,
-        );
+        await setAuditContext(actor.authSubject, requestId, tx);
         return this.fightersRepository.insertCoachAssignment(
           input.coachId,
           fighterId,
@@ -302,11 +287,7 @@ export class FightersService {
 
     try {
       return await this.fightersRepository.transaction(async (tx) => {
-        await this.fightersRepository.setAudit(
-          actor.authSubject,
-          requestId,
-          tx,
-        );
+        await setAuditContext(actor.authSubject, requestId, tx);
         return this.fightersRepository.closeCoachAssignment(
           assignmentId,
           actor.id,

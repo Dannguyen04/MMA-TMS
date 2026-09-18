@@ -64,3 +64,7 @@ system instructions always take precedence.
 A task is complete when the explicitly requested work is finished. Run only the
 validation authorized by the user under `.agents/rules/testing-quality.md`; when
 validation was not requested, state that it was not run.
+
+## User Communication & Planning Preference
+
+- Whenever the user asks for a plan, steps, phases, or uses terms like "phase" or "step", the agent MUST create/update an `implementation_plan.md` artifact file using the artifact writing tool so the user can easily review it in the UI.

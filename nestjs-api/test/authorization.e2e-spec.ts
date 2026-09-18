@@ -29,7 +29,7 @@ const admin = {
 describe('AuthorizationController (e2e)', () => {
   let app: INestApplication<App>;
   const authorizationService = {
-    grantUserPermission: vi.fn(),
+    setUserPermissionOverride: vi.fn(),
     removeUserPermissionOverride: vi.fn(),
     grantRolePermission: vi.fn(),
     revokeRolePermission: vi.fn(),
@@ -68,7 +68,7 @@ describe('AuthorizationController (e2e)', () => {
     ]);
 
     for (const handler of [
-      AuthorizationController.prototype.grantUserPermission,
+      AuthorizationController.prototype.setUserPermissionOverride,
       AuthorizationController.prototype.removeUserPermissionOverride,
       AuthorizationController.prototype.grantRolePermission,
       AuthorizationController.prototype.revokeRolePermission,
@@ -85,7 +85,9 @@ describe('AuthorizationController (e2e)', () => {
       )
       .expect(401);
 
-    expect(authorizationService.grantUserPermission).not.toHaveBeenCalled();
+    expect(
+      authorizationService.setUserPermissionOverride,
+    ).not.toHaveBeenCalled();
   });
 
   it('returns 403 for an authenticated non-ADMIN without resolving permissions', async () => {
@@ -99,46 +101,85 @@ describe('AuthorizationController (e2e)', () => {
         `/authorization/users/${targetUserId}/permissions/users.profile.read`,
       )
       .set('Authorization', 'Bearer valid-token')
+      .send({ isGranted: true })
       .expect(403);
 
     expect(authService.hasPermissions).not.toHaveBeenCalled();
-    expect(authorizationService.grantUserPermission).not.toHaveBeenCalled();
+    expect(
+      authorizationService.setUserPermissionOverride,
+    ).not.toHaveBeenCalled();
   });
 
-  it('allows ADMIN to grant a user permission', async () => {
-    authorizationService.grantUserPermission.mockResolvedValueOnce({
-      id: '2cd04cb8-61cc-45e4-8174-5b54107c4e98',
-      userId: targetUserId,
-      permissionCode: 'users.profile.read',
-      isGranted: true,
-      grantedBy: admin.id,
-      createdAt: '2026-09-17T00:00:00.000Z',
-    });
-
-    await request(app.getHttpServer())
-      .put(
-        `/authorization/users/${targetUserId}/permissions/users.profile.read`,
-      )
-      .set('Authorization', 'Bearer valid-token')
-      .expect(200);
-
-    expect(authService.hasPermissions).not.toHaveBeenCalled();
-    expect(authorizationService.grantUserPermission).toHaveBeenCalledWith(
-      {
+  it.each([true, false])(
+    'allows ADMIN to persist isGranted=%s',
+    async (isGranted) => {
+      authorizationService.setUserPermissionOverride.mockResolvedValueOnce({
+        id: '2cd04cb8-61cc-45e4-8174-5b54107c4e98',
         userId: targetUserId,
         permissionCode: 'users.profile.read',
-      },
-      admin,
-      expect.any(String),
-    );
-  });
+        isGranted,
+        grantedBy: admin.id,
+        createdAt: '2026-09-17T00:00:00.000Z',
+      });
+
+      const response = await request(app.getHttpServer())
+        .put(
+          `/authorization/users/${targetUserId}/permissions/users.profile.read`,
+        )
+        .set('Authorization', 'Bearer valid-token')
+        .send({ isGranted })
+        .expect(200);
+
+      expect(authService.hasPermissions).not.toHaveBeenCalled();
+      expect(
+        authorizationService.setUserPermissionOverride,
+      ).toHaveBeenCalledWith(
+        {
+          userId: targetUserId,
+          permissionCode: 'users.profile.read',
+        },
+        { isGranted },
+        admin,
+        expect.any(String),
+      );
+      expect(response.body.data.isGranted).toBe(isGranted);
+    },
+  );
+
+  it.each([undefined, null, 'true', 1, { isGranted: true, unexpected: true }])(
+    'rejects invalid override payload %# with 422',
+    async (payload) => {
+      const pendingRequest = request(app.getHttpServer())
+        .put(
+          `/authorization/users/${targetUserId}/permissions/users.profile.read`,
+        )
+        .set('Authorization', 'Bearer valid-token');
+
+      if (payload !== undefined)
+        pendingRequest.send(
+          typeof payload === 'object' &&
+            payload !== null &&
+            'isGranted' in payload
+            ? payload
+            : { isGranted: payload },
+        );
+
+      await pendingRequest.expect(422);
+      expect(
+        authorizationService.setUserPermissionOverride,
+      ).not.toHaveBeenCalled();
+    },
+  );
 
   it('rejects invalid route parameters before calling the service', async () => {
     await request(app.getHttpServer())
       .put('/authorization/users/not-a-uuid/permissions/users.profile.read')
       .set('Authorization', 'Bearer valid-token')
+      .send({ isGranted: true })
       .expect(422);
 
-    expect(authorizationService.grantUserPermission).not.toHaveBeenCalled();
+    expect(
+      authorizationService.setUserPermissionOverride,
+    ).not.toHaveBeenCalled();
   });
 });

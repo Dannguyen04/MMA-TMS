@@ -27,7 +27,6 @@ import {
 } from '../database/schema.js';
 import {
   type DatabaseExecutor,
-  setAuditContext,
   type Transaction,
 } from '../shared/utils/audit-context.util.js';
 import {
@@ -76,7 +75,6 @@ function mapToPlanExercise(
 
 export interface ITrainingRepository {
   transaction<T>(work: (transaction: Transaction) => Promise<T>): Promise<T>;
-  setAudit(subject: string, requestId: string, database: DatabaseExecutor): Promise<void>;
   findActiveFighterIdByUserId(
     userId: string,
     database?: DatabaseExecutor,
@@ -165,14 +163,6 @@ export class TrainingRepository implements ITrainingRepository {
 
   transaction<T>(work: (transaction: Transaction) => Promise<T>): Promise<T> {
     return this.db.transaction(work);
-  }
-
-  setAudit(
-    subject: string,
-    requestId: string,
-    database: DatabaseExecutor,
-  ): Promise<void> {
-    return setAuditContext(subject, requestId, database);
   }
 
   async findActiveFighterIdByUserId(

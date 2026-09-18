@@ -5,11 +5,12 @@ import {
   HttpStatus,
   Param,
   Put,
+  Body,
   UseGuards,
   UsePipes,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   ApiForbiddenEnvelope,
   ApiNotFoundEnvelope,
@@ -33,6 +34,7 @@ import { USER } from '../shared/types/user.role.js';
 import {
   RolePermissionParamsDto,
   RolePermissionResponseDto,
+  SetUserPermissionOverrideBodyDto,
   UserPermissionParamsDto,
   UserPermissionResponseDto,
 } from './authorization.dto.js';
@@ -71,39 +73,44 @@ export class AuthorizationController {
   /**
    * PUT /authorization/users/:userId/permissions/:permissionCode
    *
-   * Grants a permission directly to a user (is_granted = true).
-   * Idempotent — calling this on an already-granted permission returns 200
-   * with the current state; no conflict is raised.
+   * Sets a per-user permission override.
+   * - isGranted = true explicitly grants the permission (overrides role).
+   * - isGranted = false explicitly denies the permission (overrides role).
+   * Idempotent — calling this on an already-matching state returns 200.
    */
   @Put('users/:userId/permissions/:permissionCode')
   @RequireRoles(USER.ADMIN)
-  @ResponseMessage('Permission granted to user successfully')
+  @ResponseMessage('User permission override saved successfully')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Grant permission to user',
+    summary: 'Set user permission override',
     description:
-      'Grants a concrete permission directly to a user. Idempotent — ' +
-      're-granting an existing permission returns the current state. ' +
+      'Sets a per-user permission override. `isGranted: true` explicitly ' +
+      'grants the permission, bypassing role limits. `isGranted: false` ' +
+      'explicitly denies it, overriding role baseline grants. Idempotent. ' +
       'Requires ADMIN role.',
   })
+  @ApiBody({ type: SetUserPermissionOverrideBodyDto, required: true })
   @ApiSuccessEnvelope({
     status: HttpStatus.OK,
-    message: 'Permission granted to user successfully',
+    message: 'User permission override saved successfully',
     model: UserPermissionResponseDto,
   })
   @ApiUnauthorizedEnvelope()
   @ApiForbiddenEnvelope('Requires ADMIN role')
-  @ApiValidationErrorEnvelope('Invalid user ID or permission code')
+  @ApiValidationErrorEnvelope('Invalid payload or parameters')
   @ApiNotFoundEnvelope(
     'PERMISSION_NOT_FOUND',
     'The specified permission code does not exist',
   )
-  async grantUserPermission(
+  async setUserPermissionOverride(
     @Param() params: UserPermissionParamsDto,
+    @Body() body: SetUserPermissionOverrideBodyDto,
     @CurrentUser() actor: AuthenticatedUser | undefined,
   ) {
-    return this.authorizationService.grantUserPermission(
+    return this.authorizationService.setUserPermissionOverride(
       params,
+      body,
       this.requireActor(actor),
       randomUUID(),
     );

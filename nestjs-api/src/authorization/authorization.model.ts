@@ -19,6 +19,14 @@ export const rolePermissionParamsSchema = z.strictObject({
 });
 
 // ---------------------------------------------------------------------------
+// Body schemas
+// ---------------------------------------------------------------------------
+
+export const setUserPermissionOverrideBodySchema = z.strictObject({
+  isGranted: z.boolean(),
+});
+
+// ---------------------------------------------------------------------------
 // Response schemas
 // ---------------------------------------------------------------------------
 
@@ -44,6 +52,9 @@ export const rolePermissionResponseSchema = z.strictObject({
 
 export type UserPermissionParams = z.infer<typeof userPermissionParamsSchema>;
 export type RolePermissionParams = z.infer<typeof rolePermissionParamsSchema>;
+export type SetUserPermissionOverrideBody = z.infer<
+  typeof setUserPermissionOverrideBodySchema
+>;
 export type UserPermissionResponse = z.infer<
   typeof userPermissionResponseSchema
 >;

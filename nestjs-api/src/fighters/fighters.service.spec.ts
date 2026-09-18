@@ -117,12 +117,16 @@ const session: TrainingSessionSummary = {
 
 function repositoryMock() {
   const transaction = { scope: 'transaction' };
+  const executeAuditContext = vi.fn().mockResolvedValue([]);
+  Object.defineProperty(transaction, 'execute', {
+    value: executeAuditContext,
+  });
   return {
     transaction: vi.fn(
       async (work: (value: object) => Promise<unknown>): Promise<unknown> =>
         work(transaction),
     ),
-    setAudit: vi.fn().mockResolvedValue(undefined),
+    executeAuditContext,
     findByUserId: vi.fn().mockResolvedValue(fighter),
     findAll: vi.fn().mockResolvedValue({ data: [fighter], total: 11 }),
     findById: vi.fn().mockResolvedValue(fighter),
@@ -207,11 +211,7 @@ describe('FightersService', () => {
         requestId,
       ),
     ).resolves.toMatchObject({ bio: 'Updated bio' });
-    expect(repository.setAudit).toHaveBeenCalledWith(
-      fighterActor.authSubject,
-      requestId,
-      { scope: 'transaction' },
-    );
+    expect(repository.executeAuditContext).toHaveBeenCalledTimes(1);
     expect(repository.update).toHaveBeenCalledWith(
       fighterId,
       { bio: 'Updated bio' },

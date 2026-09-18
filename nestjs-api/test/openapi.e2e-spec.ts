@@ -73,6 +73,26 @@ describe('OpenAPI document (e2e)', () => {
     expect(document.paths['/permissions/{id}']).toBeUndefined();
   });
 
+  it('requires the user permission override body in OpenAPI', () => {
+    const operation =
+      createOpenApiDocument(app).paths[
+        '/authorization/users/{userId}/permissions/{permissionCode}'
+      ]?.put;
+
+    expect(operation?.requestBody).toMatchObject({ required: true });
+    expect(JSON.stringify(operation?.requestBody)).toContain(
+      'SetUserPermissionOverrideBodyDto',
+    );
+    expect(
+      createOpenApiDocument(app).components?.schemas
+        ?.SetUserPermissionOverrideBodyDto,
+    ).toMatchObject({
+      required: ['isGranted'],
+      properties: { isGranted: { type: 'boolean' } },
+      additionalProperties: false,
+    });
+  });
+
   it('represents response date-times without OpenAPI 3.1-only null types', () => {
     const document = createOpenApiDocument(app);
     const schemas = document.components?.schemas;

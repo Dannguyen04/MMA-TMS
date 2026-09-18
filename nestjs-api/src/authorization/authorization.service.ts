@@ -1,11 +1,15 @@
 import { HttpException, Injectable } from '@nestjs/common';
-import type { DatabaseExecutor } from '../shared/utils/audit-context.util.js';
+import {
+  type DatabaseExecutor,
+  setAuditContext,
+} from '../shared/utils/audit-context.util.js';
 import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import type { UserRole } from '../shared/types/user.role.js';
 import { AuthorizationRepository } from './authorization.repo.js';
 import type {
   RolePermissionParams,
   RolePermissionResponse,
+  SetUserPermissionOverrideBody,
   UserPermissionParams,
   UserPermissionResponse,
 } from './authorization.model.js';
@@ -26,24 +30,21 @@ export class AuthorizationService {
   // =========================================================================
 
   /**
-   * Grants a permission to a user (is_granted = true). Idempotent — PUT
-   * semantics: re-granting an existing permission returns 200 with current row.
+   * Sets a per-user permission override. Idempotent — PUT semantics:
+   * updates the override state and returns 200 with the current row.
    *
-   * Transaction: setAudit → resolvePermission → upsert → commit.
+   * Transaction: setAuditContext → resolvePermission → upsert → commit.
    * grantedBy = actor.id (not from request body).
    */
-  async grantUserPermission(
+  async setUserPermissionOverride(
     params: UserPermissionParams,
+    body: SetUserPermissionOverrideBody,
     actor: AuthenticatedUser,
     requestId: string,
   ): Promise<UserPermissionResponse> {
     return this.mapPersistenceErrors(() =>
       this.authorizationRepository.transaction(async (tx) => {
-        await this.authorizationRepository.setAudit(
-          actor.authSubject,
-          requestId,
-          tx,
-        );
+        await setAuditContext(actor.authSubject, requestId, tx);
         const permissionId = await this.resolvePermissionId(
           params.permissionCode,
           tx,
@@ -52,7 +53,7 @@ export class AuthorizationService {
           {
             userId: params.userId,
             permissionId,
-            isGranted: true,
+            isGranted: body.isGranted,
             grantedBy: actor.id,
           },
           tx,
@@ -66,7 +67,7 @@ export class AuthorizationService {
    * Removes a user permission override, reverting the user to role-based
    * inheritance. Throws assignmentNotFound() if no override exists.
    *
-   * Transaction: setAudit → resolvePermission → delete → commit.
+   * Transaction: setAuditContext → resolvePermission → delete → commit.
    */
   async removeUserPermissionOverride(
     params: UserPermissionParams,
@@ -75,11 +76,7 @@ export class AuthorizationService {
   ): Promise<void> {
     await this.mapPersistenceErrors(() =>
       this.authorizationRepository.transaction(async (tx) => {
-        await this.authorizationRepository.setAudit(
-          actor.authSubject,
-          requestId,
-          tx,
-        );
+        await setAuditContext(actor.authSubject, requestId, tx);
         const permissionId = await this.resolvePermissionId(
           params.permissionCode,
           tx,
@@ -97,7 +94,7 @@ export class AuthorizationService {
   /**
    * Grants a permission to a role. Idempotent — re-granting returns 200.
    *
-   * Transaction: setAudit → resolvePermission → upsert → commit.
+   * Transaction: setAuditContext → resolvePermission → upsert → commit.
    */
   async grantRolePermission(
     params: RolePermissionParams,
@@ -106,11 +103,7 @@ export class AuthorizationService {
   ): Promise<RolePermissionResponse> {
     return this.mapPersistenceErrors(() =>
       this.authorizationRepository.transaction(async (tx) => {
-        await this.authorizationRepository.setAudit(
-          actor.authSubject,
-          requestId,
-          tx,
-        );
+        await setAuditContext(actor.authSubject, requestId, tx);
         const permissionId = await this.resolvePermissionId(
           params.permissionCode,
           tx,
@@ -128,7 +121,7 @@ export class AuthorizationService {
    * Revokes a permission from a role. Throws assignmentNotFound() if the
    * role permission row does not exist.
    *
-   * Transaction: setAudit → resolvePermission → delete → commit.
+   * Transaction: setAuditContext → resolvePermission → delete → commit.
    */
   async revokeRolePermission(
     params: RolePermissionParams,
@@ -137,11 +130,7 @@ export class AuthorizationService {
   ): Promise<void> {
     await this.mapPersistenceErrors(() =>
       this.authorizationRepository.transaction(async (tx) => {
-        await this.authorizationRepository.setAudit(
-          actor.authSubject,
-          requestId,
-          tx,
-        );
+        await setAuditContext(actor.authSubject, requestId, tx);
         const permissionId = await this.resolvePermissionId(
           params.permissionCode,
           tx,

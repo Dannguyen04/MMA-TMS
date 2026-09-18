@@ -7,7 +7,6 @@ import {
   userPermissions,
 } from '../database/schema.js';
 import {
-  setAuditContext,
   type DatabaseExecutor,
   type Transaction,
 } from '../shared/utils/audit-context.util.js';
@@ -43,14 +42,6 @@ export class AuthorizationRepository {
 
   transaction<T>(work: (tx: Transaction) => Promise<T>): Promise<T> {
     return this.db.transaction(work);
-  }
-
-  setAudit(
-    subject: string,
-    requestId: string,
-    db: DatabaseExecutor,
-  ): Promise<void> {
-    return setAuditContext(subject, requestId, db);
   }
 
   // -------------------------------------------------------------------------
