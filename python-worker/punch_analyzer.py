@@ -81,8 +81,8 @@ class PunchResult:
             "impactTimeMs": round(self.impact_time_ms, 1),
             "endTimeMs": round(self.end_time_ms, 1),
             # Mở rộng v3.0
-            "criterionResults": [c.to_dict() for c in self.criterion_results],
-            "findings": [f.to_dict() for f in self.findings],
+            "criterionResults": [c.to_dict() if hasattr(c, "to_dict") else c for c in self.criterion_results],
+            "findings": [f.to_dict() if hasattr(f, "to_dict") else f for f in self.findings],
         }
 
 

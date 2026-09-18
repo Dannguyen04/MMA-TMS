@@ -81,8 +81,8 @@ class KickResult:
             "chamberPeakFrame": self.chamber_peak_frame,
             "chamberPeakTimeMs": round(self.chamber_peak_time_ms, 1),
             "activeLeg": self.active_leg,
-            "criterionResults": [c.to_dict() for c in self.criterion_results],
-            "findings": [f.to_dict() for f in self.findings],
+            "criterionResults": [c.to_dict() if hasattr(c, "to_dict") else c for c in self.criterion_results],
+            "findings": [f.to_dict() if hasattr(f, "to_dict") else f for f in self.findings],
         }
 
 

@@ -250,6 +250,30 @@ export const notificationTypeEnum = pgEnum('notification_type', [
   'JOINT_IMPAIRMENT_CONFIRMED',
 ]);
 
+// ─── Task 14 Enums ────────────────────────────────────────────────────────────
+
+export const attestationStatusEnum = pgEnum('attestation_status', [
+  'ACTIVE',
+  'REVOKED',
+  'EXPIRED',
+  'SUPERSEDED',
+]);
+
+export const attestationDecisionEnum = pgEnum('attestation_decision', [
+  'GOLD_READY',
+  'NOT_GOLD_READY',
+]);
+
+export const auditEventTypeEnum = pgEnum('audit_event_type', [
+  'requested',
+  'issued',
+  'rejected',
+  'revoked',
+  'key_rotated',
+]);
+
+// ─── Table Definition ─────────────────────────────────────────────────────────
+
 // External Supabase-owned table: FK metadata only; never exported or migrated here.
 const authUsers = pgSchema('auth').table('users', {
   id: uuid('id').primaryKey(),
@@ -403,6 +427,94 @@ export const aiAnalyses = pgTable(
     ),
   ],
 ).enableRLS();
+// ─── Task 14 Trust Boundary Tables ──────────────────────────────────────────
+
+export const datasetExportCandidates = pgTable('dataset_export_candidates', {
+  exportId:              text('export_id').primaryKey(),
+  datasetHash:           text('dataset_hash').notNull(),
+  manifestDigest:        text('manifest_digest').notNull(),
+  reviewEvidenceDigest:  text('review_evidence_digest').notNull(),
+  qualityEvidenceDigest: text('quality_evidence_digest').notNull(),
+  policyVersion:         text('policy_version').notNull(),
+  sourceSchemaVersion:   text('source_schema_version').notNull(),
+  sampleCount:           integer('sample_count').notNull(),
+  coveredActionIdsHash:  text('covered_action_ids_hash').notNull(),
+  candidateStatus:       text('candidate_status').notNull(),
+  readinessGaps:         jsonb('readiness_gaps').$type<string[]>().notNull().default([]),
+  sourceJobId:           text('source_job_id'),
+  createdAt:             timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const datasetReviews = pgTable('dataset_reviews', {
+  id:           uuid('id').primaryKey().defaultRandom(),
+  exportId:     text('export_id').notNull(),
+  reviewerId:   text('reviewer_id').notNull(),
+  reviewerRole: text('reviewer_role').notNull(),
+  reviewStatus: text('review_status').notNull().default('approved'),
+  comments:     text('comments'),
+  createdAt:    timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const datasetQualityReports = pgTable('dataset_quality_reports', {
+  id:            uuid('id').primaryKey().defaultRandom(),
+  exportId:      text('export_id').notNull().unique(),
+  qualityStatus: text('quality_status').notNull(),
+  policyVersion: text('policy_version').notNull(),
+  metrics:       jsonb('metrics').$type<Record<string, any>>().notNull().default({}),
+  createdAt:     timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const datasetAttestations = pgTable('dataset_attestations', {
+  attestationId:      text('attestation_id').primaryKey(),
+  exportId:           text('export_id').notNull().references(() => datasetExportCandidates.exportId),
+  issuer:             text('issuer').notNull(),
+  audience:           text('audience').notNull(),
+  purpose:            text('purpose').notNull(),
+  keyId:              text('key_id').notNull(),
+  algorithm:          text('algorithm').notNull().default('Ed25519'),
+  decision:           attestationDecisionEnum('decision').notNull(),
+  claims:             jsonb('claims').$type<Record<string, any>>().notNull(),
+  signature:          text('signature').notNull(),
+  status:             attestationStatusEnum('status').notNull().default('ACTIVE'),
+  issuedAt:           timestamp('issued_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt:          timestamp('expires_at', { withTimezone: true }).notNull().defaultNow(),
+  revokedAt:          timestamp('revoked_at', { withTimezone: true }),
+  revokedReason:      text('revoked_reason'),
+  actorId:            text('actor_id').notNull(),
+  auditCorrelationId: text('audit_correlation_id').notNull(),
+  createdAt:          timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const attestationNonces = pgTable('attestation_nonces', {
+  issuer:        text('issuer').notNull(),
+  nonce:         text('nonce').notNull(),
+  expiresAt:     timestamp('expires_at', { withTimezone: true }).notNull(),
+  attestationId: text('attestation_id'),
+  createdAt:     timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  primaryKey({ columns: [table.issuer, table.nonce] })
+]);
+
+export const datasetAttestationAudit = pgTable('dataset_attestation_audit', {
+  id:            uuid('id').primaryKey().defaultRandom(),
+  eventType:     auditEventTypeEnum('event_type').notNull(),
+  exportId:      text('export_id').notNull(),
+  attestationId: text('attestation_id'),
+  actorId:       text('actor_id').notNull(),
+  reasonCode:    text('reason_code'),
+  requestDigest: text('request_digest'),
+  details:       jsonb('details').$type<Record<string, any>>().notNull().default({}),
+  createdAt:     timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const datasetIdempotencyKeys = pgTable('dataset_idempotency_keys', {
+  idempotencyKey:  text('idempotency_key').primaryKey(),
+  operation:       text('operation').notNull(),
+  actorId:         text('actor_id').notNull(),
+  requestDigest:   text('request_digest').notNull(),
+  responsePayload: jsonb('response_payload').$type<Record<string, any>>().notNull(),
+  createdAt:       timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
 
 export const algorithmConfigs = pgTable(
   'algorithm_configs',
@@ -3123,3 +3235,24 @@ export const videos = pgTable(
 
 export type AnalysisJob = typeof analysisJobs.$inferSelect;
 export type InsertAnalysisJob = typeof analysisJobs.$inferInsert;
+
+export type DatasetExportCandidate = typeof datasetExportCandidates.$inferSelect;
+export type InsertDatasetExportCandidate = typeof datasetExportCandidates.$inferInsert;
+
+export type DatasetReview = typeof datasetReviews.$inferSelect;
+export type InsertDatasetReview = typeof datasetReviews.$inferInsert;
+
+export type DatasetQualityReport = typeof datasetQualityReports.$inferSelect;
+export type InsertDatasetQualityReport = typeof datasetQualityReports.$inferInsert;
+
+export type DatasetAttestation = typeof datasetAttestations.$inferSelect;
+export type InsertDatasetAttestation = typeof datasetAttestations.$inferInsert;
+
+export type AttestationNonce = typeof attestationNonces.$inferSelect;
+export type InsertAttestationNonce = typeof attestationNonces.$inferInsert;
+
+export type DatasetAttestationAudit = typeof datasetAttestationAudit.$inferSelect;
+export type InsertDatasetAttestationAudit = typeof datasetAttestationAudit.$inferInsert;
+
+export type DatasetIdempotencyKey = typeof datasetIdempotencyKeys.$inferSelect;
+export type InsertDatasetIdempotencyKey = typeof datasetIdempotencyKeys.$inferInsert;

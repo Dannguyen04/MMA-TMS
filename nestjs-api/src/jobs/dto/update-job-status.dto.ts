@@ -1,13 +1,6 @@
+import { IsObject, IsArray, IsOptional, ValidateNested, IsString, IsNumber, IsBoolean, IsIn, Min, Max } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsArray,
-  IsNumber,
-  IsObject,
-  IsOptional,
-  IsString,
-  Max,
-  Min,
-} from 'class-validator';
 import type { HealthAlert, JointStatesMap } from '../../database/schema.js';
 
 // ─── UpdateJobStatusDto ───────────────────────────────────────────────────────
@@ -18,24 +11,26 @@ import type { HealthAlert, JointStatesMap } from '../../database/schema.js';
  */
 export class UpdateJobStatusDto {
   @ApiProperty({
-    description: 'New job processing status',
+    description: 'Trạng thái xử lý của job (DONE hoặc FAILED)',
+    enum: ['DONE', 'FAILED'],
     example: 'DONE',
-    enum: ['PENDING', 'PROCESSING', 'DONE', 'FAILED'],
   })
   @IsString()
   status: string;
 
   @ApiPropertyOptional({
-    description: 'Storage URL of the full JSON result',
-    example: 'https://example.com/results/job-123.json',
+    description: 'URL chứa file JSON kết quả phân tích AI chi tiết trên Supabase Storage',
+    example: 'https://wskisxkpbhisnqfpjqrm.supabase.co/storage/v1/object/public/analysis-results/job-123-result.json',
   })
   @IsOptional()
   @IsString()
   resultUrl?: string;
 
   @ApiPropertyOptional({
-    description: 'Overall movement score (0–100)',
-    example: 85.5,
+    description: 'Điểm kỹ thuật tổng thể (0 - 100)',
+    example: 85,
+    minimum: 0,
+    maximum: 100,
   })
   @IsOptional()
   @IsNumber()
@@ -48,8 +43,20 @@ export class UpdateJobStatusDto {
    * Chỉ chứa các alert CONFIRMED_IMPAIRMENT.
    */
   @ApiPropertyOptional({
-    description:
-      'Array of confirmed impairment health alerts from Python worker',
+    description: 'Danh sách cảnh báo chấn thương CONFIRMED_IMPAIRMENT do Anomaly Detection Engine phát hiện',
+    example: [
+      {
+        joint: 'RIGHT_SHOULDER',
+        state: 'CONFIRMED_IMPAIRMENT',
+        severity: 'high',
+        triggerTimeMs: 1250,
+        windowStartMs: 500,
+        consecutiveLowRom: 3,
+        avgRomRatio: 0.55,
+        motionClass: 'POWER_STRIKE',
+        recommendation: 'Cảnh báo: Biên độ vận động vai phải bị suy giảm. HLV cần giảm cường độ đấm Cross.',
+      },
+    ],
   })
   @IsOptional()
   @IsArray()
@@ -60,9 +67,17 @@ export class UpdateJobStatusDto {
    * Vd: { "LEFT_SHOULDER": "CONFIRMED_IMPAIRMENT", "RIGHT_KNEE": "HEALTHY" }
    */
   @ApiPropertyOptional({
-    description: 'Map of final joint health states at end of video session',
+    description: 'Bản đồ trạng thái sức khỏe các khớp chính tại thời điểm kết thúc bài tập',
+    example: {
+      RIGHT_SHOULDER: 'CONFIRMED_IMPAIRMENT',
+      LEFT_SHOULDER: 'HEALTHY',
+      RIGHT_KNEE: 'HEALTHY',
+      LEFT_KNEE: 'HEALTHY',
+    },
   })
   @IsOptional()
   @IsObject()
   jointStates?: JointStatesMap;
 }
+
+

@@ -1,0 +1,16 @@
+{
+  "golden_punch_fixture.json": {
+    "sha256": "f01612f72f5ee450bf251b82bc50c054155128f59b5871849e160b60e396d2e5",
+    "punches": 1,
+    "kicks": 0,
+    "actions": 1,
+    "frames": 25
+  },
+  "golden_kick_nodetect_fixture.json": {
+    "sha256": "5ce68fd3e704e6644ff62dafdfec598143a1cb4cabf345f1aef4aac49bd73844",
+    "punches": 0,
+    "kicks": 1,
+    "actions": 1,
+    "frames": 30
+  }
+}
