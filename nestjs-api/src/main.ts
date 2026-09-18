@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module.js';
 
 async function bootstrap() {
@@ -38,8 +39,29 @@ async function bootstrap() {
 
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
+  // Cấu hình Swagger API Documentation UI
+  const config = new DocumentBuilder()
+    .setTitle('MMA-TMS Backend API Documentation')
+    .setDescription(
+      'Tài liệu Swagger UI tương tác cho hệ thống phân tích kỹ thuật võ thuật MMA-TMS: Quản lý Video Analysis Jobs, Python Worker Callback & Anomaly Detection Alerts.',
+    )
+    .setVersion('1.0')
+    .addApiKey(
+      { type: 'apiKey', name: 'x-worker-secret', in: 'header', description: 'Secret key dùng cho Python Worker callback' },
+      'x-worker-secret',
+    )
+    .addBearerAuth()
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api-docs', app, document, {
+    customSiteTitle: 'MMA-TMS API Documentation',
+  });
+
   const port = process.env.PORT ?? 3001;
   await app.listen(port, '0.0.0.0');
   console.log(`🚀 NestJS API running on http://localhost:${port}`);
+  console.log(`📚 Swagger UI API Docs available at http://localhost:${port}/api-docs`);
 }
 bootstrap();
+
