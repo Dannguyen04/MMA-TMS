@@ -223,6 +223,50 @@ __all__ = [
     "ShadowKickClassifierConfig",
     "ShadowKickClassifier",
     "VALIDATION_STATUS_NOT_VALIDATED",
+    # Tasks 18-31 Advanced AI Modules
+    "ValidationStatus",
+    "CalibrationStatus",
+    "SequenceCandidateType",
+    "ShadowEventFamily",
+    "ShadowGrapplingState",
+    "ActiveLearningReason",
+    "BaselineEligibilityStatus",
+    "ComparisonStatus",
+    "AlignmentStatus",
+    "EvaluationMetricResult",
+    "EvaluationManifest",
+    "MetricGovernanceEngine",
+    "AthleteGroupSplitManifest",
+    "CalibratedPrediction",
+    "TemperatureScalingCalibrator",
+    "PlattScalingCalibrator",
+    "CalibratorProvenance",
+    "ActiveLearningCandidate",
+    "ActiveLearningSelector",
+    "TrustedConsentPolicy",
+    "ModelArtifactManifest",
+    "RunManifest",
+    "DriftMonitor",
+    "ActionSequence",
+    "CombinationEngine",
+    "ElbowKneeShadowEvent",
+    "ElbowKneeShadowClassifier",
+    "GrapplingShadowSegment",
+    "GrapplingShadowSegmenter",
+    "ObservableMovementEvidence",
+    "MovementEvidenceEngine",
+    "PersonalizedBaseline",
+    "BaselineEngine",
+    "SessionComparisonDelta",
+    "SessionComparator",
+    "ReferenceMotionManifest",
+    "ReferenceNormalizer",
+    "GhostDifferenceExplanation",
+    "GhostAlignmentEngine",
+    "AdvancedVerticalSliceResult",
+    "ReleaseGateReport",
+    "AdvancedAIOrchestrator",
+    "AdvancedAnalysisInput",
 ]
 
 # Lazy imports for Task 9-16
@@ -282,5 +326,78 @@ from pipeline.shadow_punch_classifier import (
 from pipeline.shadow_kick_classifier import (
     ShadowKickClassifierConfig,
     ShadowKickClassifier,
+)
+
+# Tasks 18-31 Imports
+from pipeline.contracts import (
+    ValidationStatus,
+    CalibrationStatus,
+    SequenceCandidateType,
+    ShadowEventFamily,
+    ShadowGrapplingState,
+    ActiveLearningReason,
+    BaselineEligibilityStatus,
+    ComparisonStatus,
+    AlignmentStatus,
+)
+from pipeline.evaluation_protocol import (
+    EvaluationMetricResult,
+    EvaluationManifest,
+    MetricGovernanceEngine,
+    AthleteGroupSplitManifest,
+)
+from pipeline.confidence_calibration import (
+    CalibratedPrediction,
+    TemperatureScalingCalibrator,
+    PlattScalingCalibrator,
+    CalibratorProvenance,
+)
+from pipeline.active_learning_queue import (
+    ActiveLearningCandidate,
+    ActiveLearningSelector,
+    TrustedConsentPolicy,
+)
+from pipeline.model_registry import (
+    ModelArtifactManifest,
+    RunManifest,
+    DriftMonitor,
+)
+from pipeline.combination_engine import (
+    ActionSequence,
+    CombinationEngine,
+)
+from pipeline.elbow_knee_shadow import (
+    ElbowKneeShadowEvent,
+    ElbowKneeShadowClassifier,
+)
+from pipeline.grappling_shadow import (
+    GrapplingShadowSegment,
+    GrapplingShadowSegmenter,
+)
+from pipeline.observable_movement import (
+    ObservableMovementEvidence,
+    MovementEvidenceEngine,
+)
+from pipeline.personalized_baseline import (
+    PersonalizedBaseline,
+    BaselineEngine,
+)
+from pipeline.session_comparison import (
+    SessionComparisonDelta,
+    SessionComparator,
+)
+from pipeline.reference_normalization import (
+    ReferenceMotionManifest,
+    ReferenceNormalizer,
+)
+from pipeline.ghost_alignment import (
+    GhostDifferenceExplanation,
+    GhostAlignmentEngine,
+)
+from pipeline.vertical_slice_integration import (
+    AdvancedVerticalSliceResult,
+    ReleaseGateReport,
+    AdvancedAIOrchestrator,
+    AdvancedAnalysisInput,
 )
 

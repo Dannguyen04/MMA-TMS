@@ -559,5 +559,148 @@ describe("Worker Result Schema & Tasks 9-17 Extensions", () => {
             expect(parsed.data.shadowClassification?.reasonCodes).toEqual(["QUALITY_BLOCKED"]);
         }
     });
-});
 
+    it("validates Tasks 18-31 Advanced AI extension payload with full workerResultSchema", () => {
+
+        const advancedPayload = {
+            schemaVersion: "1.0.0",
+            meta: {
+                fps: 30,
+                totalFrames: 120,
+                durationMs: 4000,
+                imgWidth: 1280,
+                imgHeight: 720,
+                processedAt: "2026-09-17T00:00:00Z",
+            },
+            frames: [],
+            kicks: [],
+            punches: [],
+            actions: [],
+            findings: [],
+            advancedAI: {
+                sessionId: "session_test_slice_1",
+                sequences: [
+                    {
+                        sequenceId: "seq_1",
+                        sequenceType: "combination",
+                        actionIds: ["act_1", "act_2"],
+                        techniques: ["jab", "cross"],
+                        startFrame: 10,
+                        endFrame: 54,
+                        durationMs: 1466.7,
+                        interActionGapMs: 200.0,
+                        fluidityScore: 0.85,
+                        validationStatus: "NOT_VALIDATED",
+                    },
+                ],
+                shadowElbowKnee: [
+                    {
+                        eventId: "sh_ek_1",
+                        family: "elbow",
+                        startFrame: 60,
+                        endFrame: 75,
+                        peakFrame: 68,
+                        measuredKinematics: {
+                            elbowAngleAtPeak: 75.0,
+                            peakVelocityNorm: 3.5,
+                        },
+                        attackingSide: "left",
+                        validationStatus: "SHADOW_NOT_VALIDATED",
+                        reasonCodes: ["HIGH_PEAK_VELOCITY_WITH_ACUTE_ELBOW_FLEXION"],
+                    },
+                ],
+                shadowGrappling: [
+                    {
+                        segmentId: "sh_grp_1",
+                        state: "clinch_like",
+                        startFrame: 0,
+                        endFrame: 120,
+                        levelChangeDisplacementNorm: null,
+                        proximityDistanceNorm: 0.25,
+                        multiPersonAmbiguity: false,
+                        validationStatus: "SHADOW_NOT_VALIDATED",
+                        reasonCodes: ["HIGH_BOUNDING_BOX_INTERSECTION_OVER_UNION"],
+                    },
+                ],
+                observableMovement: {
+                    baseOfSupportRatio: 1.25,
+                    stanceWidthRatio: 1.15,
+                    guardDistanceRatio: 0.80,
+                    postureSwayVelocity: 0.05,
+                    recoveryDurationSec: 0.40,
+                    evidenceConfidence: 0.90,
+                    evidenceLevel: "derived_proxy",
+                },
+                activeLearningCandidates: [
+                    {
+                        candidateId: "al_cand_1",
+                        videoId: "anon_123456",
+                        actionId: "act_elbow_1",
+                        technique: "lead_elbow",
+                        reasons: ["low_confidence"],
+                        priority: {
+                            uncertaintyScore: 0.60,
+                            diversityScore: 0.0,
+                            disagreementScore: 0.0,
+                            totalPriority: 0.30,
+                        },
+                        isConsentGranted: true,
+                        isExportEligible: true,
+                        payloadDigest: "digest_123",
+                    },
+                ],
+                sessionComparison: {
+                    comparisonId: "comp_1",
+                    sessionAId: "session_test_slice_1",
+                    sessionBId: "sesh_prev",
+                    status: "compatible",
+                    metricDeltas: {
+                        totalActions: {
+                            metricName: "totalActions",
+                            sessionAValue: 3.0,
+                            sessionBValue: 2.0,
+                            deltaValue: 1.0,
+                            deltaPercent: 50.0,
+                        },
+                    },
+                    observedDifferences: ["totalActions increased by +50.00% (+1.00)"],
+                    evidenceRefs: [],
+                    comparisonVersion: "1.0.0",
+                },
+                ghostDifference: {
+                    explanationId: "gh_diff_1",
+                    referenceTechnique: "jab",
+                    referenceStance: "orthodox",
+                    athleteStance: "orthodox",
+                    alignmentStatus: "aligned",
+                    warpingDistanceNorm: 0.08,
+                    dtwPathLength: 30,
+                    timingDeltaSeconds: 0.05,
+                    spatialDeviations: {
+                        lead_wrist: 0.06,
+                    },
+                    primaryDeviationLimb: "lead_wrist",
+                    deviationSeverity: "minor",
+                    coachingSummary: "Good timing; slight deviation in lead_wrist.",
+                },
+                pipelineVersion: "2.0.0",
+            },
+        };
+
+        const parsed = workerResultSchema.safeParse(advancedPayload);
+        if (!parsed.success) {
+            console.error("Zod Validation Errors:", JSON.stringify(parsed.error.format(), null, 2));
+        }
+        expect(parsed.success).toBe(true);
+
+        if (parsed.success && parsed.data.advancedAI) {
+            expect(parsed.data.advancedAI.sequences?.length).toBe(1);
+            expect(parsed.data.advancedAI.shadowElbowKnee?.[0].family).toBe("elbow");
+            expect(parsed.data.advancedAI.shadowGrappling?.[0].state).toBe("clinch_like");
+            expect(parsed.data.advancedAI.observableMovement?.guardDistanceRatio).toBe(0.80);
+            expect(parsed.data.advancedAI.activeLearningCandidates?.[0].isConsentGranted).toBe(true);
+            expect(parsed.data.advancedAI.sessionComparison?.status).toBe("compatible");
+            expect(parsed.data.advancedAI.ghostDifference?.alignmentStatus).toBe("aligned");
+        }
+    });
+});

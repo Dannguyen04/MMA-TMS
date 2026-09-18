@@ -57,6 +57,7 @@ from pipeline import (
     FindingEngine,
     ShadowKickClassifier,
     ShadowMultiPunchClassifier,
+    AdvancedAIOrchestrator,
 )
 
 
@@ -552,6 +553,27 @@ def process_video(
     # ── Task 12: Coaching Feedback & Drill Recommendations ──
     coaching_plan = CoachingEngine.generate_coaching_plan(session_insights)
 
+    # ── Tasks 18–31: Advanced AI Extensions ──
+    cam_view_val = None
+    if resolved_analysis_ctx is not None and hasattr(resolved_analysis_ctx, "camera_view"):
+        cam_view_val = (
+            resolved_analysis_ctx.camera_view.value
+            if hasattr(resolved_analysis_ctx.camera_view, "value")
+            else str(resolved_analysis_ctx.camera_view)
+        )
+    athlete_st = resolved_stance_ctx.resolved_stance if resolved_stance_ctx else "unknown"
+    advanced_ai_orch = AdvancedAIOrchestrator()
+    advanced_ai_slice = advanced_ai_orch.process_session_extensions(
+        session_id=Path(input_path).stem if input_path else "session_direct",
+        actions=actions_dicts,
+        frame_records=frame_records,
+        quality_status=quality.status,
+        person_count=1,
+        fps=fps,
+        athlete_stance=athlete_st,
+        camera_view=cam_view_val,
+    )
+
     output = {
         "schemaVersion":  "1.0.0",
         "meta": {
@@ -574,6 +596,7 @@ def process_video(
         "analysisQuality": quality.to_dict(),
         "sessionInsights": session_insights.to_dict(),
         "coachingPlan":    coaching_plan.to_dict(),
+        "advancedAI":      advanced_ai_slice.to_dict(),
     }
     if quality.status.value == "blocked":
         output["reasonCodes"] = ["QUALITY_BLOCKED"]

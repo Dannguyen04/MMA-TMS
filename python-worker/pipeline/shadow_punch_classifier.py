@@ -42,12 +42,7 @@ from pipeline.stance_context import (
     normalize_attacking_side,
     resolve_limb_role,
 )
-
-class ValidationStatus(str, Enum):
-    SHADOW_NOT_VALIDATED = "SHADOW_NOT_VALIDATED"
-    VALIDATED = "VALIDATED"
-    REJECTED = "REJECTED"
-
+from pipeline.contracts import ValidationStatus
 
 VALIDATION_STATUS_NOT_VALIDATED = ValidationStatus.SHADOW_NOT_VALIDATED.value
 
