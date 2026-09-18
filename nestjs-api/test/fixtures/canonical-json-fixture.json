@@ -1,0 +1,26 @@
+{
+  "testCases": [
+    {
+      "name": "basic_object_key_sorting",
+      "input": { "z": 1, "a": 2, "m": 3 },
+      "expectedCanonicalJson": "{\"a\":2,\"m\":3,\"z\":1}",
+      "expectedSha256": "sha256:ebba85cfdc0a724b6cc327ecc545faeb38b9fe02eca603b430eb872f5cf75370"
+    },
+    {
+      "name": "nested_maps_and_arrays",
+      "input": {
+        "policy": "dataset-policy-v1",
+        "nested": { "b": true, "a": null, "c": [3, 1, 2] },
+        "count": 500
+      },
+      "expectedCanonicalJson": "{\"count\":500,\"nested\":{\"a\":null,\"b\":true,\"c\":[3,1,2]},\"policy\":\"dataset-policy-v1\"}",
+      "expectedSha256": "sha256:f8c29d544b98adf062afefd88be0408d11e6d06a7f5685690a767841f2e77103"
+    },
+    {
+      "name": "unicode_characters",
+      "input": { "greeting": "Xin chào", "symbol": "🥋" },
+      "expectedCanonicalJson": "{\"greeting\":\"Xin chào\",\"symbol\":\"🥋\"}",
+      "expectedSha256": "sha256:581c69da57223c008c1e068c045589c66002b506c9c15cfb8af6a2431f6c1c23"
+    }
+  ]
+}

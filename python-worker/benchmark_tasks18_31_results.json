@@ -1,0 +1,60 @@
+{
+  "benchmarkVersion": "1.1.0",
+  "timestampUtc": "2026-09-18T03:32:07Z",
+  "modules": {
+    "task23_combination_engine": {
+      "meanMs": 0.029,
+      "p50Ms": 0.0286,
+      "p95Ms": 0.0303,
+      "minMs": 0.028,
+      "maxMs": 0.0491,
+      "iterations": 100
+    },
+    "task20_confidence_calibration_predict": {
+      "meanMs": 0.1425,
+      "p50Ms": 0.1168,
+      "p95Ms": 0.2179,
+      "minMs": 0.1062,
+      "maxMs": 0.3968,
+      "iterations": 100
+    },
+    "task30_ghost_dtw_alignment": {
+      "meanMs": 8.2904,
+      "p50Ms": 7.4693,
+      "p95Ms": 12.6918,
+      "minMs": 5.8173,
+      "maxMs": 13.9539,
+      "iterations": 50
+    },
+    "task26_movement_evidence": {
+      "meanMs": 0.0318,
+      "p50Ms": 0.0316,
+      "p95Ms": 0.0348,
+      "minMs": 0.028,
+      "maxMs": 0.048,
+      "iterations": 100
+    },
+    "task21_active_learning_selection": {
+      "meanMs": 0.0916,
+      "p50Ms": 0.0651,
+      "p95Ms": 0.1409,
+      "minMs": 0.0578,
+      "maxMs": 0.1818,
+      "iterations": 100
+    },
+    "task31_vertical_slice_end_to_end": {
+      "meanMs": 0.1508,
+      "p50Ms": 0.1263,
+      "p95Ms": 0.2506,
+      "minMs": 0.116,
+      "maxMs": 0.2957,
+      "iterations": 50
+    }
+  },
+  "summary": {
+    "status": "PASS",
+    "endToEndMeanMs": 0.1508,
+    "meetsPerformanceBudget": true,
+    "notes": "All advanced AI modules operate well within realtime analysis thresholds."
+  }
+}

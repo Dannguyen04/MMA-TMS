@@ -29,19 +29,21 @@ import { KEYPOINT, KEYPOINT_COUNT, LIMB_CHAIN } from "@/lib/video/skeleton";
 
 const landmarkSchema = z.object({ x: z.number(), y: z.number(), conf: z.number() });
 
-const frameSchema = z.object({
+export const frameSchema = z.object({
     frameIdx: z.number(),
     timeMs: z.number(),
-    kneeAngle: z.number(),
-    hipAngle: z.number(),
-    elbowAngleLeft: z.number().optional(),
-    elbowAngleRight: z.number().optional(),
+    kneeAngle: z.number().nullable().optional(),
+    hipAngle: z.number().nullable().optional(),
+    elbowAngleLeft: z.number().nullable().optional(),
+    elbowAngleRight: z.number().nullable().optional(),
     activeArm: z.string().optional(),
     punchState: z.string().optional(),
     punchStateLabel: z.string().optional(),
-    kickState: z.string(),
-    kickStateLabel: z.string(),
-    activeLeg: z.string(),
+    kickState: z.string().optional(),
+    kickStateLabel: z.string().optional(),
+    activeLeg: z.string().optional(),
+    diagnosticOnly: z.boolean().optional(),
+    reasonCodes: z.array(z.string()).optional(),
     landmarks: z.array(landmarkSchema),
 });
 
@@ -60,7 +62,7 @@ const findingSchema = z.object({
 });
 
 const kickSchema = z.object({
-    score: z.number(),
+    score: z.number().nullable(),
     grade: z.string(),
     details: z.array(z.string()),
     minChamberAngle: z.number(),
@@ -73,7 +75,7 @@ const kickSchema = z.object({
 const punchSchema = z.object({
     punchType: z.string(),
     arm: z.string(),
-    score: z.number(),
+    score: z.number().nullable(),
     grade: z.string(),
     details: z.array(z.string()),
     maxElbowAngle: z.number(),
@@ -85,7 +87,455 @@ const punchSchema = z.object({
     findings: z.array(findingSchema),
 });
 
+const actionConfidenceSchema = z.object({
+    detection: z.number().min(0).max(1).nullable(),
+    classification: z.number().min(0).max(1).nullable(),
+    assessment: z.number().min(0).max(1).nullable(),
+});
+
+const actionPhasesSchema = z.object({
+    startFrame: z.number(),
+    chamberFrame: z.number().nullable().optional(),
+    launchFrame: z.number().nullable().optional(),
+    peakFrame: z.number().nullable().optional(),
+    impactFrame: z.number().nullable().optional(),
+    endFrame: z.number(),
+    startTimeMs: z.number(),
+    chamberTimeMs: z.number().nullable().optional(),
+    launchTimeMs: z.number().nullable().optional(),
+    peakTimeMs: z.number().nullable().optional(),
+    impactTimeMs: z.number().nullable().optional(),
+    endTimeMs: z.number(),
+    impactType: z.enum(["peak_extension_proxy", "max_extension_proxy", "unavailable"]),
+});
+
+const actionMetricItemSchema = z.object({
+    value: z.union([z.number(), z.boolean(), z.string()]).nullable(),
+    unit: z.string(),
+    confidence: z.number().min(0).max(1).nullable().optional(),
+});
+
+const actionAssessmentSchema = z.object({
+    rubricId: z.string().nullable().optional(),
+    score: z.number().nullable(),
+    grade: z.string(),
+    status: z.enum(["excellent", "good", "fair", "needs_improvement", "insufficient_evidence"]),
+    primaryError: z.string().nullable().optional(),
+    criteria: z.array(z.record(z.string(), z.unknown())).optional(),
+    findings: z.array(z.record(z.string(), z.unknown())).optional(),
+});
+
+const actionReviewSchema = z.object({
+    status: z.enum([
+        "ai_generated",
+        "needs_review",
+        "coach_approved",
+        "coach_corrected",
+        "coach_rejected",
+        "insufficient_evidence",
+    ]),
+    reviewerId: z.string().nullable().optional(),
+    reviewNotes: z.string().nullable().optional(),
+});
+
+export const techniqueCandidateSchema = z.object({
+    technique: z.string(),
+    family: z.string(),
+    attackingSide: z.enum(["left", "right", "unknown"]),
+    limbRole: z.enum(["lead", "rear", "unknown"]),
+    stance: z.enum(["orthodox", "southpaw", "switch", "unknown"]),
+});
+
+export const validationStatusSchema = z.enum([
+    "VALIDATED",
+    "NOT_VALIDATED",
+    "SHADOW_NOT_VALIDATED",
+    "REJECTED",
+    "NOT_EVALUABLE",
+]);
+
+export const qualityStatusSchema = z.enum([
+    "EXCELLENT",
+    "GOOD",
+    "ACCEPTABLE",
+    "DEGRADED",
+    "BLOCKED",
+]);
+
+export const calibrationStatusSchema = z.enum([
+    "CALIBRATED",
+    "NOT_CALIBRATED",
+    "HEURISTIC_ONLY",
+]);
+
+export const sequenceCandidateTypeSchema = z.enum([
+    "SINGLE",
+    "REPEATED_STRIKE",
+    "TWO_ACTION_COMBINATION",
+    "MULTI_ACTION_COMBINATION",
+    "UNKNOWN",
+]);
+
+export const shadowEventFamilySchema = z.enum([
+    "ELBOW",
+    "KNEE",
+    "TAKEDOWN",
+    "CLINCH",
+]);
+
+export const shadowGrapplingStateSchema = z.enum([
+    "approach",
+    "level_change",
+    "contact_transition",
+    "clinch_like",
+    "takedown_like",
+    "unknown",
+    "APPROACH",
+    "LEVEL_CHANGE",
+    "CONTACT_TRANSITION",
+    "CLINCH_LIKE",
+    "TAKEDOWN_LIKE",
+    "UNKNOWN",
+]);
+
+export const activeLearningReasonSchema = z.enum([
+    "low_confidence",
+    "model_disagreement",
+    "novelty_outlier",
+    "underrepresented_slice",
+    "boundary_uncertainty",
+    "LOW_CONFIDENCE",
+    "MODEL_DISAGREEMENT",
+    "NOVELTY_OUTLIER",
+    "UNDERREPRESENTED_SLICE",
+    "BOUNDARY_UNCERTAINTY",
+]);
+
+export const baselineEligibilityStatusSchema = z.enum([
+    "eligible",
+    "insufficient_sessions",
+    "poor_quality",
+    "inconsistent_technique",
+    "stale",
+    "not_applicable",
+    "ELIGIBLE",
+    "INSUFFICIENT_SESSIONS",
+    "POOR_QUALITY",
+    "INCONSISTENT_TECHNIQUE",
+    "STALE",
+    "NOT_APPLICABLE",
+]);
+
+export const comparisonStatusSchema = z.enum([
+    "compatible",
+    "incompatible_camera",
+    "incompatible_stance",
+    "insufficient_quality",
+    "unknown_mismatch",
+    "COMPATIBLE",
+    "INCOMPATIBLE_CAMERA",
+    "INCOMPATIBLE_STANCE",
+    "INSUFFICIENT_QUALITY",
+    "UNKNOWN_MISMATCH",
+]);
+
+export const alignmentStatusSchema = z.enum([
+    "aligned",
+    "camera_mismatch",
+    "quality_blocked",
+    "phase_mismatch",
+    "unstable_alignment",
+    "ALIGNED",
+    "CAMERA_MISMATCH",
+    "QUALITY_BLOCKED",
+    "PHASE_MISMATCH",
+    "UNSTABLE_ALIGNMENT",
+]);
+
+
+export const shadowClassificationSchema = z.object({
+    status: z.enum(["classified", "abstained", "rejected_candidate"]),
+    candidate: techniqueCandidateSchema.nullable(),
+    confidence: z.number().nullable().optional(),
+    reasonCodes: z.array(z.string()),
+    classifierId: z.string(),
+    classifierVersion: z.string(),
+    configVersion: z.string(),
+    featureVersion: z.string(),
+    stanceSource: z.string(),
+    evidenceLevel: z.enum(["observed", "derived_proxy", "unavailable"]),
+    validationStatus: validationStatusSchema.optional(),
+});
+
+export const actionSchema = z.object({
+    id: z.string(),
+    sourceActionId: z.string(),
+    family: z.enum(["punch", "kick", "other_strike", "non_strike"]),
+    technique: z.string(),
+    attackingSide: z.enum(["left", "right", "unknown"]),
+    limbRole: z.enum(["lead", "rear", "unknown"]),
+    stance: z.enum(["orthodox", "southpaw", "switch", "unknown"]),
+    confidence: actionConfidenceSchema,
+    phases: actionPhasesSchema,
+    metrics: z.record(z.string(), actionMetricItemSchema),
+    assessment: actionAssessmentSchema,
+    review: actionReviewSchema,
+    modelVersion: z.string().nullable().optional(),
+    rubricVersion: z.string().nullable().optional(),
+    shadowClassification: shadowClassificationSchema.nullable().optional(),
+    qualityStatus: z.enum(["pass", "degraded", "blocked"]).optional(),
+    adjustedEvidenceLevel: z.enum(["observed", "derived_proxy", "unavailable"]).optional(),
+    reasonCodes: z.array(z.string()).optional(),
+});
+
+export const analysisQualitySchema = z.object({
+    status: z.enum(["pass", "degraded", "blocked"]),
+    reasonCodes: z.array(z.string()),
+    metrics: z.object({
+        fps: z.number(),
+        durationMs: z.number(),
+        totalFrames: z.number(),
+        missingFrameRatio: z.number(),
+        meanKeypointConfidence: z.number(),
+        upperBodyCoverage: z.number(),
+        lowerBodyCoverage: z.number(),
+        maxSimultaneousPersons: z.number().nullable().optional(),
+        targetTrackRatio: z.number().nullable().optional(),
+        imgWidth: z.number().nullable().optional(),
+        imgHeight: z.number().nullable().optional(),
+    }),
+    qualityVersion: z.string(),
+    evaluatorVersion: z.string(),
+    evaluatedAt: z.string(),
+    adjustedEvidenceLevel: z.enum(["observed", "derived_proxy", "unavailable"]),
+    recommendation: z.string(),
+});
+
+export const priorityFindingSummarySchema = z.object({
+    rank: z.number(),
+    code: z.string(),
+    title: z.string(),
+    description: z.string(),
+    severity: z.string(),
+    frequency: z.number(),
+    priorityScore: z.number(),
+    affectedActionIds: z.array(z.string()),
+    representativeFrame: z.number(),
+    representativeTimeMs: z.number(),
+    primaryRecommendation: z.string(),
+});
+
+export const sessionInsightsSchema = z.object({
+    status: z.string(),
+    totalActions: z.number(),
+    familyDistribution: z.record(z.string(), z.number()),
+    techniqueDistribution: z.record(z.string(), z.number()),
+    sideDistribution: z.record(z.string(), z.number()),
+    statusDistribution: z.record(z.string(), z.number()),
+    coverageSummary: z.object({
+        totalDetectedActions: z.number(),
+        assessedActionsCount: z.number(),
+        insufficientEvidenceCount: z.number(),
+        insufficientEvidenceRate: z.number(),
+        unknownTechniqueCount: z.number(),
+        unknownTechniqueRate: z.number(),
+        degradedQualityCount: z.number(),
+        degradedQualityRate: z.number(),
+    }),
+    priorityFindings: z.array(priorityFindingSummarySchema),
+    sessionVersion: z.string(),
+    qualityStatus: z.enum(["pass", "degraded", "blocked"]).optional(),
+    adjustedEvidenceLevel: z.enum(["observed", "derived_proxy", "unavailable"]).optional(),
+});
+
+export const coachingDrillSchema = z.object({
+    drillId: z.string(),
+    title: z.string(),
+    errorCode: z.string(),
+    targetTechnique: z.string(),
+    objective: z.string(),
+    instructions: z.array(z.string()),
+    safetyNote: z.string(),
+    applicability: z.string(),
+    contraindications: z.string(),
+    recommendedReps: z.string(),
+    catalogVersion: z.string(),
+});
+
+export const coachingRecommendationSchema = z.object({
+    priorityRank: z.number(),
+    errorCode: z.string(),
+    drill: coachingDrillSchema.nullable(),
+    athleteCue: z.string(),
+    coachNotes: z.record(z.string(), z.unknown()),
+});
+
+export const coachingPlanSchema = z.object({
+    sessionStatus: z.string(),
+    recommendations: z.array(coachingRecommendationSchema),
+    catalogVersion: z.string(),
+    engineVersion: z.string(),
+    qualityStatus: z.enum(["pass", "degraded", "blocked"]).optional(),
+});
+
+export const sequenceActionRefSchema = z.object({
+    actionId: z.string(),
+    technique: z.string(),
+    startFrame: z.number(),
+    endFrame: z.number(),
+    confidence: z.number(),
+});
+
+export const actionSequenceSchema = z.object({
+    sequenceId: z.string(),
+    candidateType: z.enum(["single_strike", "combination", "interrupted_chain", "unknown", "SINGLE_STRIKE", "COMBINATION", "INTERRUPTED_CHAIN", "UNKNOWN"]).optional(),
+    sequenceType: z.string().optional(),
+    actions: z.array(z.union([z.string(), sequenceActionRefSchema])).optional(),
+    actionIds: z.array(z.string()).optional(),
+    techniques: z.array(z.string()).optional(),
+    startFrame: z.number().optional(),
+    endFrame: z.number().optional(),
+    durationMs: z.number().optional(),
+    interActionGapMs: z.number().optional(),
+    fluidityScore: z.number().nullable().optional(),
+    gapDurationsSec: z.array(z.number()).optional(),
+    totalDurationSec: z.number().optional(),
+    confidence: z.number().nullable().optional(),
+    validationStatus: z.string().optional(),
+});
+
+export const kinematicEvidenceSchema = z.object({
+    peakJointVelocityNorm: z.number().nullable().optional(),
+    jointFlexionAngleDeg: z.number().nullable().optional(),
+    extensionRatio: z.number().nullable().optional(),
+    torsoInclinationDeg: z.number().nullable().optional(),
+    elbowAngleAtPeak: z.number().nullable().optional(),
+    peakVelocityNorm: z.number().nullable().optional(),
+    kneeAngleAtPeak: z.number().nullable().optional(),
+});
+
+export const elbowKneeShadowEventSchema = z.object({
+    eventId: z.string(),
+    family: z.enum(["ELBOW", "KNEE", "elbow", "knee"]),
+    candidateTechnique: z.string().optional(),
+    startFrame: z.number(),
+    endFrame: z.number(),
+    peakFrame: z.number(),
+    measuredKinematics: kinematicEvidenceSchema.or(z.record(z.string(), z.number().nullable())).optional(),
+    kinematicEvidence: kinematicEvidenceSchema.or(z.record(z.string(), z.number().nullable())).optional(),
+    attackingSide: z.string().optional(),
+    validationStatus: z.string(),
+    reasonCodes: z.array(z.string()),
+});
+
+export const grapplingShadowSegmentSchema = z.object({
+    segmentId: z.string(),
+    state: shadowGrapplingStateSchema,
+    startFrame: z.number(),
+    endFrame: z.number(),
+    levelChangeDisplacementNorm: z.number().nullable(),
+    proximityDistanceNorm: z.number().nullable(),
+    multiPersonAmbiguity: z.boolean(),
+    validationStatus: z.string(),
+    reasonCodes: z.array(z.string()),
+});
+
+export const observableMovementEvidenceSchema = z.object({
+    baseOfSupportRatio: z.number().nullable(),
+    stanceWidthRatio: z.number().nullable(),
+    guardDistanceRatio: z.number().nullable(),
+    postureSwayVelocity: z.number().nullable(),
+    recoveryDurationSec: z.number().nullable(),
+    evidenceConfidence: z.number(),
+    evidenceLevel: z.enum(["observed", "derived_proxy", "unavailable"]).optional(),
+});
+
+export const metricDeltaItemSchema = z.object({
+    metricName: z.string(),
+    sessionAValue: z.number().nullable().optional(),
+    sessionBValue: z.number().nullable().optional(),
+    deltaValue: z.number().nullable(),
+    deltaPercent: z.number().nullable(),
+});
+
+export const evidenceRefSchema = z.object({
+    frameIdx: z.number().optional(),
+    timeMs: z.number().optional(),
+    metricName: z.string().optional(),
+    metricValue: z.number().nullable().optional(),
+    thresholdValue: z.number().nullable().optional(),
+    operator: z.string().optional(),
+    unit: z.string().optional(),
+    actionId: z.string().optional(),
+    details: z.string().optional(),
+});
+
+export const sessionComparisonDeltaSchema = z.object({
+
+    comparisonId: z.string(),
+    status: comparisonStatusSchema,
+    sessionAId: z.string(),
+    sessionBId: z.string(),
+    metricDeltas: z.record(z.string(), metricDeltaItemSchema),
+    observedDifferences: z.array(z.string()),
+    evidenceRefs: z.array(evidenceRefSchema).optional(),
+    comparisonVersion: z.string().optional(),
+    reasonCodes: z.array(z.string()).optional(),
+});
+
+export const ghostDifferenceExplanationSchema = z.object({
+    explanationId: z.string().optional(),
+    referenceTechnique: z.string().optional(),
+    referenceStance: z.string().optional(),
+    athleteStance: z.string().optional(),
+    alignmentStatus: alignmentStatusSchema,
+    warpingDistanceNorm: z.number().nullable().optional(),
+    warpDistance: z.number().nullable().optional(),
+    dtwPathLength: z.number().optional(),
+    warpingPathLength: z.number().optional(),
+    timingDeltaSeconds: z.number().nullable().optional(),
+    spatialDeviations: z.record(z.string(), z.number()).optional(),
+    phaseTimingDeltas: z.record(z.string(), z.number()).optional(),
+    primaryDeviationLimb: z.string().nullable().optional(),
+    deviationSeverity: z.string().optional(),
+    differenceHighlights: z.array(z.string()).optional(),
+    coachingSummary: z.string().optional(),
+});
+
+
+export const priorityComponentsSchema = z.object({
+    uncertaintyScore: z.number(),
+    diversityScore: z.number(),
+    disagreementScore: z.number(),
+    totalPriority: z.number(),
+});
+
+export const activeLearningCandidateSchema = z.object({
+    candidateId: z.string(),
+    videoId: z.string(),
+    actionId: z.string(),
+    technique: z.string(),
+    reasons: z.array(activeLearningReasonSchema),
+    priority: priorityComponentsSchema,
+    isConsentGranted: z.boolean(),
+    isExportEligible: z.boolean(),
+    payloadDigest: z.string(),
+});
+
+export const advancedAIExtensionSchema = z.object({
+    sessionId: z.string().optional(),
+    sequences: z.array(actionSequenceSchema).optional(),
+    shadowElbowKnee: z.array(elbowKneeShadowEventSchema).optional(),
+    shadowGrappling: z.array(grapplingShadowSegmentSchema).optional(),
+    observableMovement: observableMovementEvidenceSchema.optional(),
+    activeLearningCandidates: z.array(activeLearningCandidateSchema).optional(),
+    sessionComparison: sessionComparisonDeltaSchema.optional(),
+    ghostDifference: ghostDifferenceExplanationSchema.optional(),
+    pipelineVersion: z.string().optional(),
+});
+
 export const workerResultSchema = z.object({
+    schemaVersion: z.literal("1.0.0").optional(),
     meta: z.object({
         fps: z.number(),
         totalFrames: z.number(),
@@ -94,10 +544,16 @@ export const workerResultSchema = z.object({
         imgHeight: z.number().optional(),
         model: z.string().optional(),
     }),
+    actions: z.array(actionSchema).optional(),
     frames: z.array(frameSchema),
     kicks: z.array(kickSchema),
     punches: z.array(punchSchema).optional(),
     findings: z.array(findingSchema).optional(),
+    summary: z.record(z.string(), z.unknown()).optional(),
+    analysisQuality: analysisQualitySchema.optional(),
+    sessionInsights: sessionInsightsSchema.optional(),
+    coachingPlan: coachingPlanSchema.optional(),
+    advancedAI: advancedAIExtensionSchema.optional(),
 });
 
 export type WorkerLandmark = z.infer<typeof landmarkSchema>;
@@ -105,7 +561,140 @@ export type WorkerFrame = z.infer<typeof frameSchema>;
 export type WorkerFinding = z.infer<typeof findingSchema>;
 export type WorkerKick = z.infer<typeof kickSchema>;
 export type WorkerPunch = z.infer<typeof punchSchema>;
+export type WorkerTechniqueCandidate = z.infer<typeof techniqueCandidateSchema>;
+export type WorkerShadowClassification = z.infer<typeof shadowClassificationSchema>;
+export type WorkerAction = z.infer<typeof actionSchema>;
+export type WorkerAnalysisQuality = z.infer<typeof analysisQualitySchema>;
+export type WorkerSessionInsights = z.infer<typeof sessionInsightsSchema>;
+export type WorkerCoachingPlan = z.infer<typeof coachingPlanSchema>;
 export type WorkerResult = z.infer<typeof workerResultSchema>;
+
+/* ─── Task 10-14 Review, Findings, & Dataset Export Contracts ─────────────── */
+
+export const evidenceReferenceSchema = z.object({
+    frameIdx: z.number(),
+    timeMs: z.number(),
+    metricName: z.string(),
+    metricValue: z.number(),
+    thresholdValue: z.number().nullable().optional(),
+    operator: z.string().nullable().optional(),
+    unit: z.string(),
+});
+
+export const rubricProvenanceSchema = z.object({
+    rubricId: z.string(),
+    criterionId: z.string(),
+    rubricVersion: z.string(),
+});
+
+export const standardFindingSchema = z.object({
+    id: z.string(),
+    code: z.string(),
+    errorCode: z.string().optional(),
+    title: z.string(),
+    description: z.string(),
+    category: z.string(),
+    scope: z.enum(["action", "session"]),
+    severity: z.enum(["positive", "info", "warning", "critical"]),
+    confidence: z.number().nullable(),
+    evidenceLevel: z.enum(["observed", "derived_proxy", "unavailable"]),
+    evidenceRefs: z.array(evidenceReferenceSchema),
+    provenance: rubricProvenanceSchema,
+    recommendation: z.string(),
+    actionId: z.string().nullable().optional(),
+    legacyFindingId: z.string().nullable().optional(),
+    frameIdx: z.number().optional(),
+    timeMs: z.number().optional(),
+    metricName: z.string().optional(),
+    metricValue: z.number().optional(),
+});
+
+export const reviewerRoleSchema = z.enum(["coach", "head_coach", "expert_reviewer"]);
+
+export const reviewAuditRecordSchema = z.object({
+    recordId: z.string(),
+    actionId: z.string(),
+    targetField: z.enum(["technique", "attacking_side", "limb_role", "phase", "finding"]),
+    reviewAction: z.enum(["accept", "correct", "reject"]),
+    aiOriginalValue: z.unknown(),
+    correctedValue: z.unknown(),
+    reviewerId: z.string(),
+    reviewerRole: reviewerRoleSchema,
+    reason: z.string(),
+    timestamp: z.string(),
+    idempotencyToken: z.string(),
+    version: z.string(),
+});
+
+export const materializedActionViewSchema = z.object({
+    actionId: z.string(),
+    aiOriginal: z.record(z.string(), z.unknown()),
+    effectiveTechnique: z.string(),
+    effectiveAttackingSide: z.string(),
+    effectiveLimbRole: z.string(),
+    effectivePhases: z.record(z.string(), z.unknown()),
+    effectiveFindings: z.array(z.record(z.string(), z.unknown())),
+    reviewStatus: z.enum(["ai_generated", "coach_approved", "coach_corrected", "coach_rejected", "insufficient_evidence"]),
+    auditTrail: z.array(reviewAuditRecordSchema),
+    updatedAt: z.string(),
+});
+
+export const anonymizedSampleSchema = z.object({
+    sampleId: z.string(),
+    athleteHash: z.string(),
+    split: z.enum(["train", "val", "test"]),
+    technique: z.string(),
+    attackingSide: z.string(),
+    limbRole: z.string(),
+    phases: z.record(z.string(), z.unknown()),
+    metrics: z.record(z.string(), z.unknown()),
+    reviewStatus: z.string(),
+    auditHash: z.string(),
+    provenanceSource: z.string(),
+});
+
+export const datasetManifestSchema = z.object({
+    datasetId: z.string(),
+    schemaVersion: z.string(),
+    exportTimestamp: z.string(),
+    policy: z.string(),
+    totalSamples: z.number(),
+    splitDistribution: z.record(z.string(), z.number()),
+    techniqueDistribution: z.record(z.string(), z.number()),
+    isGoldReady: z.boolean(),
+    status: z.enum(["GOLD_READY", "NOT_GOLD_READY"]),
+    contentHash: z.string(),
+    datasetHash: z.string(),
+    notes: z.string(),
+    backendAttestation: z.string().nullable().optional(),
+    attestationId: z.string().nullable().optional(),
+    attestationReference: z.string().nullable().optional(),
+    attestationDigest: z.string().nullable().optional(),
+    attestationStatus: z.string().nullable().optional(),
+    attestationIssuer: z.string().nullable().optional(),
+    reviewerAgreementPolicy: z.string().nullable().optional(),
+    reviewerAgreementPolicyVersion: z.string().nullable().optional(),
+    reviewerAgreementStatus: z.string().nullable().optional(),
+    consensusEvidenceDigest: z.string().nullable().optional(),
+    qualityPolicyVersion: z.string().optional(),
+    readinessGaps: z.array(z.string()).optional(),
+});
+
+export const datasetExportResultSchema = z.object({
+    manifest: datasetManifestSchema,
+    samples: z.array(anonymizedSampleSchema),
+});
+
+export type WorkerEvidenceReference = z.infer<typeof evidenceReferenceSchema>;
+export type WorkerRubricProvenance = z.infer<typeof rubricProvenanceSchema>;
+export type WorkerStandardFinding = z.infer<typeof standardFindingSchema>;
+export type WorkerReviewerRole = z.infer<typeof reviewerRoleSchema>;
+export type WorkerValidationStatus = z.infer<typeof validationStatusSchema>;
+export type WorkerReviewAuditRecord = z.infer<typeof reviewAuditRecordSchema>;
+export type WorkerMaterializedActionView = z.infer<typeof materializedActionViewSchema>;
+export type WorkerAnonymizedSample = z.infer<typeof anonymizedSampleSchema>;
+export type WorkerDatasetManifest = z.infer<typeof datasetManifestSchema>;
+export type WorkerDatasetExportResult = z.infer<typeof datasetExportResultSchema>;
 
 /** Validates untrusted JSON from the result URL. */
 export function parseWorkerResult(json: unknown): WorkerResult | null {

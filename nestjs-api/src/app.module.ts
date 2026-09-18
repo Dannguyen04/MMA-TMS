@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { BullModule } from '@nestjs/bullmq';
 import { JobsModule } from './jobs/jobs.module.js';
 import { DatabaseModule } from './database/database.module.js';
+import { DatasetExportModule } from './dataset-export/dataset-export.module.js';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { UsersModule } from './users/users.module.js';
@@ -38,10 +39,10 @@ import { FightersModule } from './fighters/fighters.module.js';
       },
     }),
     DatabaseModule,
-    JobsModule,
     UsersModule,
     AuthModule,
     FightersModule,
+    DatasetExportModule,
   ],
   controllers: [AppController],
   providers: [AppService],
