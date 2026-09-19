@@ -7,12 +7,12 @@ import type { NextConfig } from "next";
  * Turbopack root and the output tracing root to this app. This keeps `server.js` at the top of
  * `.next/standalone`, matching the Dockerfile.
  */
-const appRoot = path.resolve(__dirname);
+const repoRoot = path.resolve(__dirname, "..");
 
 const nextConfig: NextConfig = {
     output: "standalone",
-    outputFileTracingRoot: appRoot,
-    turbopack: { root: appRoot },
+    outputFileTracingRoot: repoRoot,
+    turbopack: { root: repoRoot },
     /**
      * Legacy prototype routes now live in the fighter video area. Temporary (307) so the paths can be
      * reused later. Signed-out visitors are sent to login by the proxy; other roles are redirected to

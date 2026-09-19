@@ -4,7 +4,7 @@
     "private": true,
     "scripts": {
         "predev": "node scripts/ensure-redis.mjs",
-        "dev": "concurrently -n API,WORKER,WEB -c blue,yellow,cyan \"npm run start:dev --prefix nestjs-api\" \"python-worker\\.venv\\Scripts\\python.exe python-worker/worker.py\" \"npm run dev --prefix nextjs-frontend\"",
+        "dev": "concurrently -n API,WORKER,WEB -c blue,yellow,cyan \"pnpm --filter nestjs-api run start:dev\" \"python-worker\\.venv\\Scripts\\python.exe python-worker/worker.py\" \"pnpm --filter nextjs-frontend run dev\"",
         "start:services": "start_all.bat",
         "stop:services": "stop_all.bat",
         "test:full": "node scripts/test_full_suite.mjs"
@@ -14,5 +14,14 @@
     },
     "devDependencies": {
         "concurrently": "^10.0.5"
+    },
+    "pnpm": {
+        "onlyBuiltDependencies": [
+            "@scarf/scarf",
+            "esbuild",
+            "msgpackr-extract",
+            "puppeteer",
+            "unrs-resolver"
+        ]
     }
 }

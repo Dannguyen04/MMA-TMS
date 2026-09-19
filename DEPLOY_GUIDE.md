@@ -63,8 +63,8 @@ Tài liệu hướng dẫn từng bước triển khai hệ thống **MMA-TMS** 
     - **Name**: `mma-tms-api`
     - **Root Directory**: `nestjs-api`
     - **Runtime**: `Node`
-    - **Build Command**: `npm install && npm run build`
-    - **Start Command**: `npm run start:prod`
+    - **Build Command**: `pnpm install && pnpm run build`
+    - **Start Command**: `pnpm run start:prod`
     - **Health Check Path**: `/health`
 4. Cuộn xuống phần **Environment Variables**, thêm các biến:
     - `PORT`: `3001`

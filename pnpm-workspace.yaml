@@ -1,0 +1,18 @@
+packages:
+  - 'nestjs-api'
+  - 'nextjs-frontend'
+  - 'reactnative-mobile'
+
+allowBuilds:
+  '@scarf/scarf': set this to true or false
+  esbuild: set this to true or false
+  msgpackr-extract: set this to true or false
+  puppeteer: set this to true or false
+  unrs-resolver: set this to true or false
+
+onlyBuiltDependencies:
+  - '@scarf/scarf'
+  - 'esbuild'
+  - 'msgpackr-extract'
+  - 'puppeteer'
+  - 'unrs-resolver'

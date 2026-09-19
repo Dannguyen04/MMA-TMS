@@ -46,7 +46,7 @@ if ($redisActive) {
 
 # 2. NestJS API
 Write-Host "[2/4] Khởi động NestJS API (Port 3001)..." -ForegroundColor Yellow
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$rootDir\nestjs-api'; npm run start:dev" -WindowStyle Normal
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$rootDir\nestjs-api'; pnpm run start:dev" -WindowStyle Normal
 Start-Sleep -Seconds 3
 
 # 3. Python AI Worker
@@ -56,7 +56,7 @@ Start-Sleep -Seconds 2
 
 # 4. Next.js Frontend
 Write-Host "[4/4] Khởi động Next.js Frontend (Port 3000)..." -ForegroundColor Yellow
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$rootDir\nextjs-frontend'; npm run dev" -WindowStyle Normal
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$rootDir\nextjs-frontend'; pnpm run dev" -WindowStyle Normal
 
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Green
@@ -65,6 +65,6 @@ Write-Host "🌐 Giao diện Web:      http://localhost:3000" -ForegroundColor W
 Write-Host "📤 Trang tải lên:      http://localhost:3000/analysis" -ForegroundColor White
 Write-Host "📡 Backend API:        http://localhost:3001" -ForegroundColor White
 Write-Host ""
-Write-Host "Mẹo: Chạy 'npm run dev' ở thư mục gốc để gom chung log vào 1 terminal!" -ForegroundColor Cyan
+Write-Host "Mẹo: Chạy 'pnpm dev' ở thư mục gốc để gom chung log vào 1 terminal!" -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Green
 

@@ -55,7 +55,7 @@ _(Nếu đã cấu hình PATH cho Redis, bạn chỉ cần gõ `redis-server`)_
 
 ```powershell
 cd d:\test\ai\nestjs-api
-npm run dev
+pnpm run dev
 ```
 
 - Khi sẵn sàng sẽ thông báo: `Nest application successfully started on port 3001`
@@ -85,7 +85,7 @@ cd d:\test\ai\python-worker
 
 ```powershell
 cd d:\test\ai\nextjs-frontend
-npm run dev
+pnpm run dev
 ```
 
 - Khi sẵn sàng sẽ thông báo: `Ready in ...ms (http://localhost:3000)`
