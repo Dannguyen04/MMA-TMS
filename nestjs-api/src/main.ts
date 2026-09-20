@@ -9,9 +9,10 @@ import { createOpenApiDocument } from './shared/utils/openapi.util.js';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  const allowedOrigins = process.env.FRONTEND_URL
-    ? process.env.FRONTEND_URL.split(',').map((u) => u.trim())
-    : ['http://localhost:3000'];
+  const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+  const MOBILE_APP_URL = process.env.MOBILE_APP_URL || 'http://localhost:8081';
+
+  const allowedOrigins = [FRONTEND_URL, MOBILE_APP_URL];
 
   app.enableCors({
     origin: (
