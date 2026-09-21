@@ -2,7 +2,6 @@ import type { INestApplication } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import type { App } from 'supertest/types';
 import { AuthorizationController } from '../src/authorization/authorization.controller.js';
 import { AuthorizationService } from '../src/authorization/authorization.service.js';
 import { AUTH_ACCESS_SERVICE } from '../src/shared/contracts/auth-access.contract.js';
@@ -16,6 +15,12 @@ import {
   AuthorizationGuard,
 } from '../src/shared/guards/auth.guard.js';
 import { ApiResponseInterceptor } from '../src/shared/interceptors/api-response.interceptor.js';
+import {
+  assignmentNotFound,
+  permissionNotFound,
+  userNotFound,
+} from '../src/authorization/authorization.error.js';
+import { forbidden } from '../src/shared/errors/access.error.js';
 import { USER } from '../src/shared/types/user.role.js';
 
 const targetUserId = '59d6ba46-32f2-4e67-b486-e966b2064328';
@@ -27,7 +32,7 @@ const admin = {
 };
 
 describe('AuthorizationController (e2e)', () => {
-  let app: INestApplication<App>;
+  let app: INestApplication;
   const authorizationService = {
     setUserPermissionOverride: vi.fn(),
     removeUserPermissionOverride: vi.fn(),
@@ -181,5 +186,164 @@ describe('AuthorizationController (e2e)', () => {
     expect(
       authorizationService.setUserPermissionOverride,
     ).not.toHaveBeenCalled();
+  });
+
+  it('returns 404 USER_NOT_FOUND when target user is nonexistent or inactive', async () => {
+    authorizationService.setUserPermissionOverride.mockRejectedValueOnce(userNotFound());
+
+    const response = await request(app.getHttpServer())
+      .put(`/authorization/users/${targetUserId}/permissions/users.profile.read`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ isGranted: true })
+      .expect(404);
+
+    expect(response.body).toEqual({
+      success: false,
+      error: {
+        statusCode: 404,
+        code: 'USER_NOT_FOUND',
+        message: 'User not found',
+      },
+    });
+  });
+
+  it('returns 404 PERMISSION_NOT_FOUND when permission code is unknown', async () => {
+    authorizationService.setUserPermissionOverride.mockRejectedValueOnce(permissionNotFound());
+
+    const response = await request(app.getHttpServer())
+      .put(`/authorization/users/${targetUserId}/permissions/unknown.code`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ isGranted: true })
+      .expect(404);
+
+    expect(response.body).toEqual({
+      success: false,
+      error: {
+        statusCode: 404,
+        code: 'PERMISSION_NOT_FOUND',
+        message: 'The specified permission code does not exist',
+      },
+    });
+  });
+
+  it('deletes user permission override and returns 200', async () => {
+    authorizationService.removeUserPermissionOverride.mockResolvedValueOnce(undefined);
+
+    const response = await request(app.getHttpServer())
+      .delete(`/authorization/users/${targetUserId}/permissions/users.profile.read`)
+      .set('Authorization', 'Bearer valid-token')
+      .expect(200);
+
+    expect(response.body).toEqual({
+      success: true,
+      message: 'User permission override removed successfully',
+    });
+  });
+
+  it('returns 404 ASSIGNMENT_NOT_FOUND when deleting a non-existent user permission override', async () => {
+    authorizationService.removeUserPermissionOverride.mockRejectedValueOnce(assignmentNotFound());
+
+    const response = await request(app.getHttpServer())
+      .delete(`/authorization/users/${targetUserId}/permissions/users.profile.read`)
+      .set('Authorization', 'Bearer valid-token')
+      .expect(404);
+
+    expect(response.body).toEqual({
+      success: false,
+      error: {
+        statusCode: 404,
+        code: 'ASSIGNMENT_NOT_FOUND',
+        message: 'The permission assignment does not exist',
+      },
+    });
+  });
+
+  it('returns 403 FORBIDDEN when attempting to grant permission to ADMIN role', async () => {
+    authorizationService.grantRolePermission.mockRejectedValueOnce(forbidden());
+
+    const response = await request(app.getHttpServer())
+      .put('/authorization/roles/ADMIN/permissions/users.profile.read')
+      .set('Authorization', 'Bearer valid-token')
+      .expect(403);
+
+    expect(response.body).toEqual({
+      success: false,
+      error: {
+        statusCode: 403,
+        code: 'FORBIDDEN',
+        message: 'You are not allowed to perform this action',
+      },
+    });
+  });
+
+  it('returns 403 FORBIDDEN when attempting to revoke permission from ADMIN role', async () => {
+    authorizationService.revokeRolePermission.mockRejectedValueOnce(forbidden());
+
+    const response = await request(app.getHttpServer())
+      .delete('/authorization/roles/ADMIN/permissions/users.profile.read')
+      .set('Authorization', 'Bearer valid-token')
+      .expect(403);
+
+    expect(response.body).toEqual({
+      success: false,
+      error: {
+        statusCode: 403,
+        code: 'FORBIDDEN',
+        message: 'You are not allowed to perform this action',
+      },
+    });
+  });
+
+  it('grants permission to non-ADMIN role (FIGHTER) and returns 200', async () => {
+    authorizationService.grantRolePermission.mockResolvedValueOnce({
+      id: 'rp-123',
+      role: 'FIGHTER',
+      permissionCode: 'fighter:read',
+      createdAt: '2026-09-17T00:00:00.000Z',
+    });
+
+    const response = await request(app.getHttpServer())
+      .put('/authorization/roles/FIGHTER/permissions/fighter:read')
+      .set('Authorization', 'Bearer valid-token')
+      .expect(200);
+
+    expect(response.body.data).toEqual({
+      id: 'rp-123',
+      role: 'FIGHTER',
+      permissionCode: 'fighter:read',
+      createdAt: '2026-09-17T00:00:00.000Z',
+    });
+  });
+
+  it('revokes permission from non-ADMIN role (COACH) and returns 200', async () => {
+    authorizationService.revokeRolePermission.mockResolvedValueOnce(undefined);
+
+    const response = await request(app.getHttpServer())
+      .delete('/authorization/roles/COACH/permissions/coach:read')
+      .set('Authorization', 'Bearer valid-token')
+      .expect(200);
+
+    expect(response.body).toEqual({
+      success: true,
+      message: 'Role permission revoked successfully',
+    });
+  });
+
+  it('returns 404 ASSIGNMENT_NOT_FOUND when revoking missing permission from non-ADMIN role', async () => {
+    authorizationService.revokeRolePermission.mockRejectedValueOnce(assignmentNotFound());
+
+    const response = await request(app.getHttpServer())
+      .delete('/authorization/roles/DOCTOR/permissions/doctor:read')
+      .set('Authorization', 'Bearer valid-token')
+      .expect(404);
+
+    expect(response.body).toEqual({
+      success: false,
+      error: {
+        statusCode: 404,
+        code: 'ASSIGNMENT_NOT_FOUND',
+        message: 'The permission assignment does not exist',
+      },
+    });
   });
 });

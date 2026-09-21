@@ -73,6 +73,16 @@ function mapToPlanExercise(
   return trainingPlanExerciseBaseSchema.parse(row);
 }
 
+/**
+ * Server-owned columns written alongside a session status transition.
+ * Both are always supplied — including as `null` — so a transition can never
+ * leave a stale cancellation reason or a duration from a previous status.
+ */
+export interface SessionTransitionOutcome {
+  cancellationReason: string | null;
+  actualDurationSec: number | null;
+}
+
 export interface ITrainingRepository {
   transaction<T>(work: (transaction: Transaction) => Promise<T>): Promise<T>;
   findActiveFighterIdByUserId(
@@ -134,6 +144,7 @@ export interface ITrainingRepository {
     expectedStatus: SessionStatusType,
     newStatus: SessionStatusType,
     time: Date,
+    outcome: SessionTransitionOutcome,
     database?: DatabaseExecutor,
   ): Promise<TrainingSessionEntity | undefined>;
 
@@ -508,13 +519,16 @@ export class TrainingRepository implements ITrainingRepository {
     return rows.length > 0 ? mapToSession(rows[0]) : undefined;
   }
 
-  async updateSessionStatus(id: string, expectedStatus: SessionStatusType, newStatus: SessionStatusType, time: Date, database: DatabaseExecutor = this.db) {
+  async updateSessionStatus(id: string, expectedStatus: SessionStatusType, newStatus: SessionStatusType, time: Date, outcome: SessionTransitionOutcome, database: DatabaseExecutor = this.db) {
     const updateData: Partial<typeof trainingSessions.$inferInsert> = {
       status: newStatus,
       completedAt: null,
       cancelledAt: null,
       skippedAt: null,
       abandonedAt: null,
+      // Always rewritten from the caller's computed outcome, never left as-is.
+      cancellationReason: outcome.cancellationReason,
+      actualDurationSec: outcome.actualDurationSec,
       updatedAt: new Date(),
     };
 

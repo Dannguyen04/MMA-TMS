@@ -3,7 +3,6 @@ import { Test } from '@nestjs/testing';
 import { Reflector } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
 import request from 'supertest';
-import { App } from 'supertest/types';
 import { AuthController } from '../src/auth/auth.controller.js';
 import { AuthService } from '../src/auth/auth.service.js';
 import { AUTH_ACCESS_SERVICE } from '../src/shared/contracts/auth-access.contract.js';
@@ -13,7 +12,7 @@ import { ApiResponseInterceptor } from '../src/shared/interceptors/api-response.
 import { AppValidationPipe } from '../src/shared/pipes/app-validation.pipe.js';
 
 describe('AuthController (e2e)', () => {
-  let app: INestApplication<App>;
+  let app: INestApplication;
   const authService = {
     register: vi.fn(),
     login: vi.fn(),
