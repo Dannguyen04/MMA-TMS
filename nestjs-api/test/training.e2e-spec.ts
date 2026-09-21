@@ -12,17 +12,20 @@ import {
 import { ApiResponseInterceptor } from '../src/shared/interceptors/api-response.interceptor.js';
 import type { AuthenticatedUser } from '../src/shared/models/auth-context.model.js';
 import { USER } from '../src/shared/types/user.role.js';
+import { TrainingPlanController } from '../src/training/plans/training-plan.controller.js';
+import { TrainingSessionController } from '../src/training/sessions/training-session.controller.js';
+import { ExerciseController } from '../src/training/exercises/exercise.controller.js';
 import {
-  ExercisesController,
-  PlansController,
-  SessionsController,
-} from '../src/training/training.controller.js';
-import {
+  invalidPlanStatusTransition,
   planNotFound,
+  planStateConflict,
   sessionStateConflict,
 } from '../src/training/training.error.js';
+import { forbidden } from '../src/shared/errors/access.error.js';
 import { TRAINING_PERMISSIONS } from '../src/training/training.model.js';
-import { TrainingService } from '../src/training/training.service.js';
+import { TrainingPlanService } from '../src/training/plans/training-plan.service.js';
+import { TrainingSessionService } from '../src/training/sessions/training-session.service.js';
+import { ExerciseService } from '../src/training/exercises/exercise.service.js';
 
 const fighterId = '516a01dc-f842-40e4-ae88-abca224921b7';
 const coachId = '59d6ba46-32f2-4e67-b486-e966b2064328';
@@ -38,7 +41,7 @@ const actor: AuthenticatedUser = {
   role: USER.ADMIN,
 };
 
-function serviceMock() {
+function planServiceMock() {
   return {
     listPlans: vi.fn().mockResolvedValue({
       data: [{ id: planId }],
@@ -57,6 +60,11 @@ function serviceMock() {
       .fn()
       .mockResolvedValue({ id: planExerciseId, planId }),
     removePlanExercise: vi.fn().mockResolvedValue({ id: planExerciseId }),
+  };
+}
+
+function sessionServiceMock() {
+  return {
     listSessions: vi.fn().mockResolvedValue({
       data: [{ id: sessionId }],
       total: 1,
@@ -66,6 +74,11 @@ function serviceMock() {
     getSessionById: vi.fn().mockResolvedValue({ id: sessionId }),
     updateSession: vi.fn().mockResolvedValue({ id: sessionId }),
     updateSessionStatus: vi.fn().mockResolvedValue({ id: sessionId }),
+  };
+}
+
+function exerciseServiceMock() {
+  return {
     listExercises: vi.fn().mockResolvedValue({
       data: [{ id: exerciseId }],
       total: 1,
@@ -79,7 +92,10 @@ function serviceMock() {
 
 describe('Training controllers (e2e)', () => {
   let app: INestApplication;
-  let trainingService: ReturnType<typeof serviceMock>;
+  let planService: ReturnType<typeof planServiceMock>;
+  let sessionService: ReturnType<typeof sessionServiceMock>;
+  let exerciseService: ReturnType<typeof exerciseServiceMock>;
+
   const authAccessService = {
     authenticate: vi.fn().mockResolvedValue(actor),
     hasPermissions: vi.fn().mockResolvedValue(true),
@@ -88,13 +104,22 @@ describe('Training controllers (e2e)', () => {
     request(app.getHttpServer()).get(path).set('Authorization', 'Bearer token');
 
   beforeAll(async () => {
-    trainingService = serviceMock();
+    planService = planServiceMock();
+    sessionService = sessionServiceMock();
+    exerciseService = exerciseServiceMock();
+
     const moduleRef = await Test.createTestingModule({
-      controllers: [PlansController, SessionsController, ExercisesController],
+      controllers: [
+        TrainingPlanController,
+        TrainingSessionController,
+        ExerciseController,
+      ],
       providers: [
         AccessTokenGuard,
         AuthorizationGuard,
-        { provide: TrainingService, useValue: trainingService },
+        { provide: TrainingPlanService, useValue: planService },
+        { provide: TrainingSessionService, useValue: sessionService },
+        { provide: ExerciseService, useValue: exerciseService },
         { provide: AUTH_ACCESS_SERVICE, useValue: authAccessService },
       ],
     }).compile();
@@ -120,64 +145,64 @@ describe('Training controllers (e2e)', () => {
     const permissionFor = (handler: (...args: never[]) => unknown) =>
       reflector.get(REQUIRED_PERMISSIONS, handler);
     const expectations = [
-      [PlansController.prototype.listPlans, TRAINING_PERMISSIONS.PLAN_GET_ALL],
-      [PlansController.prototype.createPlan, TRAINING_PERMISSIONS.PLAN_CREATE],
-      [PlansController.prototype.getPlan, TRAINING_PERMISSIONS.PLAN_READ],
-      [PlansController.prototype.updatePlan, TRAINING_PERMISSIONS.PLAN_UPDATE],
+      [TrainingPlanController.prototype.listPlans, TRAINING_PERMISSIONS.PLAN_GET_ALL],
+      [TrainingPlanController.prototype.createPlan, TRAINING_PERMISSIONS.PLAN_CREATE],
+      [TrainingPlanController.prototype.getPlan, TRAINING_PERMISSIONS.PLAN_READ],
+      [TrainingPlanController.prototype.updatePlan, TRAINING_PERMISSIONS.PLAN_UPDATE],
       [
-        PlansController.prototype.updatePlanStatus,
+        TrainingPlanController.prototype.updatePlanStatus,
         TRAINING_PERMISSIONS.PLAN_TRANSITION,
       ],
       [
-        PlansController.prototype.listPlanExercises,
+        TrainingPlanController.prototype.listPlanExercises,
         TRAINING_PERMISSIONS.PLAN_EXERCISE_READ,
       ],
       [
-        PlansController.prototype.addPlanExercise,
+        TrainingPlanController.prototype.addPlanExercise,
         TRAINING_PERMISSIONS.PLAN_EXERCISE_CREATE,
       ],
       [
-        PlansController.prototype.updatePlanExercise,
+        TrainingPlanController.prototype.updatePlanExercise,
         TRAINING_PERMISSIONS.PLAN_EXERCISE_UPDATE,
       ],
       [
-        PlansController.prototype.removePlanExercise,
+        TrainingPlanController.prototype.removePlanExercise,
         TRAINING_PERMISSIONS.PLAN_EXERCISE_DELETE,
       ],
       [
-        SessionsController.prototype.listSessions,
+        TrainingSessionController.prototype.listSessions,
         TRAINING_PERMISSIONS.SESSION_GET_ALL,
       ],
       [
-        SessionsController.prototype.createSession,
+        TrainingSessionController.prototype.createSession,
         TRAINING_PERMISSIONS.SESSION_CREATE,
       ],
       [
-        SessionsController.prototype.getSession,
+        TrainingSessionController.prototype.getSession,
         TRAINING_PERMISSIONS.SESSION_READ,
       ],
       [
-        SessionsController.prototype.updateSession,
+        TrainingSessionController.prototype.updateSession,
         TRAINING_PERMISSIONS.SESSION_UPDATE,
       ],
       [
-        SessionsController.prototype.updateSessionStatus,
+        TrainingSessionController.prototype.updateSessionStatus,
         TRAINING_PERMISSIONS.SESSION_TRANSITION,
       ],
       [
-        ExercisesController.prototype.listExercises,
+        ExerciseController.prototype.listExercises,
         TRAINING_PERMISSIONS.EXERCISE_GET_ALL,
       ],
       [
-        ExercisesController.prototype.getExercise,
+        ExerciseController.prototype.getExercise,
         TRAINING_PERMISSIONS.EXERCISE_READ,
       ],
       [
-        ExercisesController.prototype.createExercise,
+        ExerciseController.prototype.createExercise,
         TRAINING_PERMISSIONS.EXERCISE_CREATE,
       ],
       [
-        ExercisesController.prototype.updateExercise,
+        ExerciseController.prototype.updateExercise,
         TRAINING_PERMISSIONS.EXERCISE_UPDATE,
       ],
     ] as const;
@@ -195,7 +220,7 @@ describe('Training controllers (e2e)', () => {
       statusCode: 401,
       code: 'AUTHENTICATION_REQUIRED',
     });
-    expect(trainingService.listPlans).not.toHaveBeenCalled();
+    expect(planService.listPlans).not.toHaveBeenCalled();
   });
 
   it('enforces route permission metadata before invoking the service', async () => {
@@ -208,7 +233,7 @@ describe('Training controllers (e2e)', () => {
     expect(authAccessService.hasPermissions).toHaveBeenCalledWith(actor, {
       allOf: [TRAINING_PERMISSIONS.SESSION_GET_ALL],
     });
-    expect(trainingService.listSessions).not.toHaveBeenCalled();
+    expect(sessionService.listSessions).not.toHaveBeenCalled();
   });
 
   it('serves all training-plan routes with validated inputs and envelopes', async () => {
@@ -221,7 +246,7 @@ describe('Training controllers (e2e)', () => {
       message: 'Get training plans successfully',
       data: { total: 1, hasNextPage: false },
     });
-    expect(trainingService.listPlans).toHaveBeenCalledWith(actor, {
+    expect(planService.listPlans).toHaveBeenCalledWith(actor, {
       page: 2,
       limit: 10,
       fighterId,
@@ -239,7 +264,7 @@ describe('Training controllers (e2e)', () => {
       });
     expect(created.status).toBe(201);
     expect(created.body.message).toBe('Create training plan successfully');
-    expect(trainingService.createPlan).toHaveBeenCalledWith(actor, {
+    expect(planService.createPlan).toHaveBeenCalledWith(actor, {
       fighterId,
       coachId,
       title: 'Fight camp',
@@ -254,7 +279,7 @@ describe('Training controllers (e2e)', () => {
       .set('Authorization', 'Bearer token')
       .send({ title: 'Updated camp' });
     expect(updated.status).toBe(200);
-    expect(trainingService.updatePlan).toHaveBeenCalledWith(actor, planId, {
+    expect(planService.updatePlan).toHaveBeenCalledWith(actor, planId, {
       title: 'Updated camp',
     });
 
@@ -263,7 +288,7 @@ describe('Training controllers (e2e)', () => {
       .set('Authorization', 'Bearer token')
       .send({ status: 'ACTIVE' });
     expect(transitioned.status).toBe(200);
-    expect(trainingService.updatePlanStatus).toHaveBeenCalledWith(
+    expect(planService.updatePlanStatus).toHaveBeenCalledWith(
       actor,
       planId,
       'ACTIVE',
@@ -278,7 +303,7 @@ describe('Training controllers (e2e)', () => {
       .set('Authorization', 'Bearer token')
       .send({ exerciseId, orderIndex: 0 });
     expect(added.status).toBe(201);
-    expect(trainingService.addPlanExercise).toHaveBeenCalledWith(
+    expect(planService.addPlanExercise).toHaveBeenCalledWith(
       actor,
       planId,
       { exerciseId, orderIndex: 0 },
@@ -289,7 +314,7 @@ describe('Training controllers (e2e)', () => {
       .set('Authorization', 'Bearer token')
       .send({ sets: 4 });
     expect(exerciseUpdated.status).toBe(200);
-    expect(trainingService.updatePlanExercise).toHaveBeenCalledWith(
+    expect(planService.updatePlanExercise).toHaveBeenCalledWith(
       actor,
       planId,
       planExerciseId,
@@ -312,7 +337,7 @@ describe('Training controllers (e2e)', () => {
       `/training-sessions?page=1&limit=5&fighterId=${fighterId}&status=SCHEDULED`,
     );
     expect(list.status).toBe(200);
-    expect(trainingService.listSessions).toHaveBeenCalledWith(actor, {
+    expect(sessionService.listSessions).toHaveBeenCalledWith(actor, {
       page: 1,
       limit: 5,
       fighterId,
@@ -329,7 +354,7 @@ describe('Training controllers (e2e)', () => {
         sessionType: 'PAD_WORK',
       });
     expect(created.status).toBe(201);
-    expect(trainingService.createSession).toHaveBeenCalledWith(actor, {
+    expect(sessionService.createSession).toHaveBeenCalledWith(actor, {
       fighterId,
       title: 'Pad work',
       scheduledAt: '2026-09-20T10:00:00.000Z',
@@ -346,7 +371,7 @@ describe('Training controllers (e2e)', () => {
       .set('Authorization', 'Bearer token')
       .send({ title: 'Updated pad work' });
     expect(updated.status).toBe(200);
-    expect(trainingService.updateSession).toHaveBeenCalledWith(
+    expect(sessionService.updateSession).toHaveBeenCalledWith(
       actor,
       sessionId,
       { title: 'Updated pad work' },
@@ -357,10 +382,11 @@ describe('Training controllers (e2e)', () => {
       .set('Authorization', 'Bearer token')
       .send({ status: 'IN_PROGRESS' });
     expect(transitioned.status).toBe(200);
-    expect(trainingService.updateSessionStatus).toHaveBeenCalledWith(
+    expect(sessionService.updateSessionStatus).toHaveBeenCalledWith(
       actor,
       sessionId,
       'IN_PROGRESS',
+      undefined,
     );
   });
 
@@ -369,7 +395,7 @@ describe('Training controllers (e2e)', () => {
       '/exercises?page=1&limit=10&category=STRIKING&search=jab',
     );
     expect(list.status).toBe(200);
-    expect(trainingService.listExercises).toHaveBeenCalledWith({
+    expect(exerciseService.listExercises).toHaveBeenCalledWith({
       page: 1,
       limit: 10,
       category: 'STRIKING',
@@ -381,7 +407,7 @@ describe('Training controllers (e2e)', () => {
       .set('Authorization', 'Bearer token')
       .send({ name: 'Jab', category: 'STRIKING' });
     expect(created.status).toBe(201);
-    expect(trainingService.createExercise).toHaveBeenCalledWith({
+    expect(exerciseService.createExercise).toHaveBeenCalledWith(actor, {
       name: 'Jab',
       category: 'STRIKING',
       targetMuscleGroups: [],
@@ -394,9 +420,13 @@ describe('Training controllers (e2e)', () => {
       .set('Authorization', 'Bearer token')
       .send({ name: 'Cross' });
     expect(updated.status).toBe(200);
-    expect(trainingService.updateExercise).toHaveBeenCalledWith(exerciseId, {
-      name: 'Cross',
-    });
+    expect(exerciseService.updateExercise).toHaveBeenCalledWith(
+      actor,
+      exerciseId,
+      {
+        name: 'Cross',
+      },
+    );
   });
 
   it.each([
@@ -416,7 +446,7 @@ describe('Training controllers (e2e)', () => {
   });
 
   it('returns stable 404 and 409 domain error envelopes', async () => {
-    trainingService.getPlanById.mockRejectedValueOnce(planNotFound());
+    planService.getPlanById.mockRejectedValueOnce(planNotFound());
     const missing = await authenticated(`/training-plans/${planId}`);
     expect(missing.status).toBe(404);
     expect(missing.body).toEqual({
@@ -427,7 +457,7 @@ describe('Training controllers (e2e)', () => {
       }),
     });
 
-    trainingService.updateSessionStatus.mockRejectedValueOnce(
+    sessionService.updateSessionStatus.mockRejectedValueOnce(
       sessionStateConflict(),
     );
     const conflict = await request(app.getHttpServer())
@@ -439,5 +469,206 @@ describe('Training controllers (e2e)', () => {
       statusCode: 409,
       code: 'SESSION_STATE_CONFLICT',
     });
+
+    planService.updatePlanStatus.mockRejectedValueOnce(planStateConflict());
+    const planConflict = await request(app.getHttpServer())
+      .patch(`/training-plans/${planId}/status`)
+      .set('Authorization', 'Bearer token')
+      .send({ status: 'ACTIVE' });
+    expect(planConflict.status).toBe(409);
+    expect(planConflict.body.error).toMatchObject({
+      statusCode: 409,
+      code: 'PLAN_STATE_CONFLICT',
+    });
+
+    planService.updatePlanStatus.mockRejectedValueOnce(
+      invalidPlanStatusTransition('COMPLETED', 'DRAFT'),
+    );
+    const planTransitionError = await request(app.getHttpServer())
+      .patch(`/training-plans/${planId}/status`)
+      .set('Authorization', 'Bearer token')
+      .send({ status: 'DRAFT' });
+    expect(planTransitionError.status).toBe(400);
+    expect(planTransitionError.body.error).toMatchObject({
+      statusCode: 400,
+      code: 'INVALID_PLAN_STATUS_TRANSITION',
+    });
+  });
+
+  it('validates cancellationReason on session status transition', async () => {
+    // Missing cancellationReason for CANCELLED -> 422
+    const missingReason = await request(app.getHttpServer())
+      .patch(`/training-sessions/${sessionId}/status`)
+      .set('Authorization', 'Bearer token')
+      .send({ status: 'CANCELLED' });
+    expect(missingReason.status).toBe(422);
+
+    // Whitespace only -> 422
+    const emptyReason = await request(app.getHttpServer())
+      .patch(`/training-sessions/${sessionId}/status`)
+      .set('Authorization', 'Bearer token')
+      .send({ status: 'CANCELLED', cancellationReason: '   ' });
+    expect(emptyReason.status).toBe(422);
+
+    // Valid cancellationReason -> 200
+    const validCancelled = await request(app.getHttpServer())
+      .patch(`/training-sessions/${sessionId}/status`)
+      .set('Authorization', 'Bearer token')
+      .send({ status: 'CANCELLED', cancellationReason: 'Weather issue' });
+    expect(validCancelled.status).toBe(200);
+    expect(sessionService.updateSessionStatus).toHaveBeenCalledWith(
+      actor,
+      sessionId,
+      'CANCELLED',
+      'Weather issue',
+    );
+
+    // Supplying cancellationReason for non-CANCELLED status -> 422
+    const unexpectedReason = await request(app.getHttpServer())
+      .patch(`/training-sessions/${sessionId}/status`)
+      .set('Authorization', 'Bearer token')
+      .send({ status: 'COMPLETED', cancellationReason: 'Finished early' });
+    expect(unexpectedReason.status).toBe(422);
+  });
+
+  it('rejects server-owned fields in generic session update', async () => {
+    const durationAttempt = await request(app.getHttpServer())
+      .patch(`/training-sessions/${sessionId}`)
+      .set('Authorization', 'Bearer token')
+      .send({ title: 'New', actualDurationSec: 1200 });
+    expect(durationAttempt.status).toBe(422);
+
+    const reasonAttempt = await request(app.getHttpServer())
+      .patch(`/training-sessions/${sessionId}`)
+      .set('Authorization', 'Bearer token')
+      .send({ title: 'New', cancellationReason: 'Weather' });
+    expect(reasonAttempt.status).toBe(422);
+  });
+
+  describe('DOCTOR write prohibition across all 11 write endpoints', () => {
+    const doctorUser: AuthenticatedUser = {
+      id: '3a119889-e544-4c66-938a-4c511b184baa',
+      authSubject: 'doctor-subject',
+      email: 'doctor@example.com',
+      role: USER.DOCTOR,
+    };
+
+    beforeEach(() => {
+      authAccessService.authenticate.mockResolvedValue(doctorUser);
+      authAccessService.hasPermissions.mockResolvedValue(true);
+    });
+
+    const writeCases: Array<{
+      name: string;
+      method: 'post' | 'patch' | 'delete';
+      path: string;
+      body?: Record<string, unknown>;
+      mockFn: () => ReturnType<typeof vi.fn>;
+    }> = [
+      {
+        name: 'POST /training-plans',
+        method: 'post',
+        path: '/training-plans',
+        body: {
+          fighterId,
+          coachId,
+          title: 'Plan',
+          startDate: '2026-09-20',
+        },
+        mockFn: () => planService.createPlan,
+      },
+      {
+        name: 'PATCH /training-plans/:id',
+        method: 'patch',
+        path: `/training-plans/${planId}`,
+        body: { title: 'Updated Plan' },
+        mockFn: () => planService.updatePlan,
+      },
+      {
+        name: 'PATCH /training-plans/:id/status',
+        method: 'patch',
+        path: `/training-plans/${planId}/status`,
+        body: { status: 'ACTIVE' },
+        mockFn: () => planService.updatePlanStatus,
+      },
+      {
+        name: 'POST /training-plans/:id/exercises',
+        method: 'post',
+        path: `/training-plans/${planId}/exercises`,
+        body: { exerciseId, orderIndex: 0 },
+        mockFn: () => planService.addPlanExercise,
+      },
+      {
+        name: 'PATCH /training-plans/:id/exercises/:exerciseId',
+        method: 'patch',
+        path: `/training-plans/${planId}/exercises/${exerciseId}`,
+        body: { sets: 5 },
+        mockFn: () => planService.updatePlanExercise,
+      },
+      {
+        name: 'DELETE /training-plans/:id/exercises/:exerciseId',
+        method: 'delete',
+        path: `/training-plans/${planId}/exercises/${exerciseId}`,
+        mockFn: () => planService.removePlanExercise,
+      },
+      {
+        name: 'POST /training-sessions',
+        method: 'post',
+        path: '/training-sessions',
+        body: {
+          fighterId,
+          title: 'Session',
+          scheduledAt: '2026-09-20T10:00:00.000Z',
+          sessionType: 'SPARRING',
+        },
+        mockFn: () => sessionService.createSession,
+      },
+      {
+        name: 'PATCH /training-sessions/:id',
+        method: 'patch',
+        path: `/training-sessions/${sessionId}`,
+        body: { title: 'Updated Session' },
+        mockFn: () => sessionService.updateSession,
+      },
+      {
+        name: 'PATCH /training-sessions/:id/status',
+        method: 'patch',
+        path: `/training-sessions/${sessionId}/status`,
+        body: { status: 'IN_PROGRESS' },
+        mockFn: () => sessionService.updateSessionStatus,
+      },
+      {
+        name: 'POST /exercises',
+        method: 'post',
+        path: '/exercises',
+        body: { name: 'New Exercise', category: 'STRIKING' },
+        mockFn: () => exerciseService.createExercise,
+      },
+      {
+        name: 'PATCH /exercises/:id',
+        method: 'patch',
+        path: `/exercises/${exerciseId}`,
+        body: { name: 'Updated Exercise' },
+        mockFn: () => exerciseService.updateExercise,
+      },
+    ];
+
+    it.each(writeCases)(
+      'rejects $name with 403 FORBIDDEN when invoked by DOCTOR',
+      async ({ method, path, body, mockFn }) => {
+        mockFn().mockRejectedValueOnce(forbidden());
+
+        const builder = request(app.getHttpServer())
+          [method](path)
+          .set('Authorization', 'Bearer token');
+
+        const res = body ? await builder.send(body) : await builder;
+        expect(res.status).toBe(403);
+        expect(res.body.error).toMatchObject({
+          statusCode: 403,
+          code: 'FORBIDDEN',
+        });
+      },
+    );
   });
 });

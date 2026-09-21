@@ -2,7 +2,6 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { Reflector } from '@nestjs/core';
 import request from 'supertest';
-import { App } from 'supertest/types';
 import { AUTH_ACCESS_SERVICE } from '../src/shared/contracts/auth-access.contract.js';
 import {
   REQUIRED_PERMISSIONS,
@@ -27,7 +26,7 @@ const admin = {
 };
 
 describe('UsersController authorization (e2e)', () => {
-  let app: INestApplication<App>;
+  let app: INestApplication;
   const usersService = {
     create: vi.fn(),
     findOne: vi.fn(),

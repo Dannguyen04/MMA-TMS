@@ -1,10 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { DRIZZLE, type DrizzleDB } from '../database/database.module.js';
 import {
   permissions,
   rolePermissions,
   userPermissions,
+  users,
 } from '../database/schema.js';
 import {
   type DatabaseExecutor,
@@ -63,6 +64,41 @@ export class AuthorizationRepository {
       .from(permissions)
       .where(inArray(permissions.code, [...codes]));
     return new Map(rows.map((r) => [r.code, r.id]));
+  }
+
+  // -------------------------------------------------------------------------
+  // Assignment target lookup
+  // -------------------------------------------------------------------------
+
+  /**
+   * Returns true when the target user is a valid assignment target.
+   *
+   * Eligibility mirrors the Users module's `findActiveById`: the row must
+   * exist, be active, and not be soft-deleted. `user_permissions.user_id`
+   * only requires row existence, but a deactivated or soft-deleted user is
+   * already denied at step 2 of effective-permission resolution, so an
+   * override for one would never take effect — and the rest of the API
+   * answers `USER_NOT_FOUND` for those users too.
+   *
+   * Selects a single constant column: only existence matters here, and no
+   * user attribute is read into the authorization module.
+   */
+  async isAssignableUser(
+    userId: string,
+    db: DatabaseExecutor,
+  ): Promise<boolean> {
+    const [row] = await db
+      .select({ exists: sql<number>`1` })
+      .from(users)
+      .where(
+        and(
+          eq(users.id, userId),
+          eq(users.isActive, true),
+          isNull(users.deletedAt),
+        ),
+      )
+      .limit(1);
+    return row !== undefined;
   }
 
   // -------------------------------------------------------------------------

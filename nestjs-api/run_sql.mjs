@@ -8,13 +8,14 @@ const migrationByMode = new Map([
   ['--apply-004', '004_seed_api_permissions.sql'],
   ['--apply-005', '005_training_management.sql'],
   ['--apply-006', '006_training_permissions.sql'],
+  ['--apply-007', '007_grant_api_permissions_to_admin.sql'],
 ]);
 if (
   !['--check', ...migrationByMode.keys()].includes(mode) ||
   process.argv.length > 3
 ) {
   console.error(
-    'Usage: node run_sql.mjs [--check | --apply-003 | --apply-004 | --apply-005 | --apply-006]',
+    'Usage: node run_sql.mjs [--check | --apply-003 | --apply-004 | --apply-005 | --apply-006 | --apply-007]',
   );
   process.exitCode = 1;
 } else {
@@ -22,7 +23,7 @@ if (
   try {
     const migrations = readVerifiedMigrations();
     if (mode === '--check') {
-      console.log('001-006 checksums OK. No database connection was opened.');
+      console.log('001-007 checksums OK. No database connection was opened.');
     } else {
       const migrationName = migrationByMode.get(mode);
       const migrationVersion = migrationName.slice(0, 3);
