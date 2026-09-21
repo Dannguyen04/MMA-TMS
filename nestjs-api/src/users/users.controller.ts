@@ -22,6 +22,7 @@ import {
   ApiValidationErrorEnvelope,
 } from '../shared/decorators/api-envelope.decorator.js';
 import {
+  AuthenticatedEndpoint,
   CurrentUser,
   RequirePermissions,
 } from '../shared/decorators/auth.decorator.js';
@@ -79,11 +80,11 @@ export class UsersController {
   }
 
   @Get('me')
-  @RequirePermissions({ allOf: [USER_PERMISSIONS.PROFILE_READ] })
+  @AuthenticatedEndpoint()
   @ApiOperation({
     summary: 'Get current user profile',
     description:
-      'Retrieves the currently authenticated user and profile; requires users.profile.read',
+      'Retrieves the currently authenticated user and profile. Any active authenticated user may read their own profile; no permission is required.',
   })
   @ResponseMessage('Get current user successfully')
   @ApiSuccessEnvelope({
@@ -92,7 +93,6 @@ export class UsersController {
     model: PublicUserDto,
   })
   @ApiUnauthorizedEnvelope()
-  @ApiForbiddenEnvelope('Requires users.profile.read permission')
   @ApiNotFoundEnvelope('USER_NOT_FOUND', 'User not found')
   async findMe(@CurrentUser() actor: AuthenticatedUser | undefined) {
     const currentActor = this.actor(actor);
