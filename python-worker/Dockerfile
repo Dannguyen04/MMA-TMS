@@ -12,15 +12,17 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Cài Python dependencies trước (cache layer)
-COPY requirements.txt .
+COPY python-worker/requirements.txt .
+RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy source code
-COPY *.py .
-COPY .env.example .env
+# Sao chép toàn bộ module pipeline và hợp đồng dùng chung.
+COPY python-worker/*.py .
+COPY python-worker/pipeline ./pipeline
+COPY contracts /contracts
 
 # Pre-download YOLO model (giảm cold-start time)
-RUN python -c "from ultralytics import YOLO; YOLO('yolov8n-pose')"
+RUN python -c "from ultralytics import YOLO; YOLO('yolov8n-pose.pt')"
 
 # Tmp directory cho video processing
 RUN mkdir -p /tmp/martial-arts-worker

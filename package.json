@@ -3,11 +3,12 @@
     "version": "1.0.0",
     "private": true,
     "scripts": {
-        "predev": "node scripts/ensure-redis.mjs",
-        "dev": "concurrently -n API,WORKER,WEB -c blue,yellow,cyan \"npm run start:dev --prefix nestjs-api\" \"python-worker\\.venv\\Scripts\\python.exe python-worker/worker.py\" \"npm run dev --prefix nextjs-frontend\"",
+        "dev": "docker compose -p mma-tms-local up --build --wait",
+        "dev:down": "docker compose -p mma-tms-local down",
         "start:services": "start_all.bat",
         "stop:services": "stop_all.bat",
-        "test:full": "node scripts/test_full_suite.mjs"
+        "test:full": "node scripts/test_full_suite.mjs",
+        "secret:scan": "node scripts/check-secrets.mjs"
     },
     "dependencies": {
         "puppeteer": "^25.10.0"
