@@ -1,53 +1,110 @@
 import "server-only";
 
-import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
+import { z } from "zod";
 
+import { ApiError, authenticatedApiRequest } from "@/lib/api/client";
 import type { Permission, Role, User } from "@/lib/domain/types";
-import { db } from "@/lib/mocks/db";
 import { dashboardPath, routes } from "@/lib/routes";
-import { isDemoAuthEnabled, SESSION_COOKIE } from "./constants";
 
-/**
- * Mock session. The cookie stores the signed-in user id.
- * When the real backend lands, swap this module for token verification against the
- * NestJS auth service — callers only depend on the functions exported here.
- */
+const permissionSchema = z.enum([
+    "fighters:read",
+    "fighters:write",
+    "training:read",
+    "training:write",
+    "videos:upload",
+    "videos:manage",
+    "ai_analysis:read",
+    "ai_findings:review",
+    "ai_alerts:review",
+    "goals:write",
+    "medical:read_summary",
+    "medical:read",
+    "medical:write",
+    "clearance:manage",
+    "users:manage",
+    "roles:manage",
+    "ai_jobs:manage",
+    "ai_models:manage",
+    "audit_logs:read",
+    "notifications:manage",
+    "settings:manage",
+]);
 
-export const getCurrentUser = cache(async (): Promise<User | null> => {
-    // The mock cookie is unsigned, so it is never trusted where demo auth is switched off.
-    if (!isDemoAuthEnabled()) return null;
-    const store = await cookies();
-    const userId = store.get(SESSION_COOKIE)?.value;
-    if (!userId) return null;
-    const user = db().users.find((u) => u.id === userId);
-    return user && user.status === "active" ? user : null;
+const currentUserSchema = z.object({
+    id: z.string().uuid(),
+    email: z.string().email(),
+    role: z.enum(["FIGHTER", "COACH", "DOCTOR", "ADMIN"]),
+    isActive: z.boolean(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+    profile: z
+        .object({
+            id: z.string().uuid(),
+            firstName: z.string(),
+            lastName: z.string(),
+            phone: z.string().nullable().optional(),
+            specialization: z.string().nullable().optional(),
+        })
+        .passthrough()
+        .nullable(),
+    effectiveCapabilities: z.array(permissionSchema).optional().default([]),
+    assignmentScope: z
+        .object({
+            fighterIds: z.array(z.string().uuid()),
+        })
+        .optional(),
 });
 
-/** Redirects to the login screen when there is no valid session. */
+function normalizeUser(input: z.output<typeof currentUserSchema>): User {
+    const profile = input.profile;
+    return {
+        id: input.id,
+        email: input.email,
+        name: profile ? `${profile.firstName} ${profile.lastName}`.trim() : input.email,
+        role: input.role.toLowerCase() as Role,
+        title: profile?.specialization ?? "",
+        phone: profile?.phone ?? null,
+        status: input.isActive ? "active" : "suspended",
+        createdAt: input.createdAt,
+        lastActiveAt: input.updatedAt,
+        profileId: profile?.id ?? null,
+        effectiveCapabilities: input.effectiveCapabilities,
+        assignmentScope: input.assignmentScope,
+    };
+}
+
+/** Đọc phiên từ cookie HTTP-only và để backend xác thực danh tính. */
+export const getCurrentUser = cache(async (): Promise<User | null> => {
+    try {
+        return normalizeUser(await authenticatedApiRequest("/users/me", currentUserSchema));
+    } catch (error) {
+        if (error instanceof ApiError && error.kind === "unauthorized") return null;
+        throw error;
+    }
+});
+
 export async function requireUser(): Promise<User> {
     const user = await getCurrentUser();
     if (!user) redirect(routes.login);
     return user;
 }
 
-/** Guards a role area. Users of another role are sent to their own dashboard. */
 export async function requireRole(role: Role): Promise<User> {
     const user = await requireUser();
     if (user.role !== role) redirect(dashboardPath(user.role));
     return user;
 }
 
-export function permissionsFor(role: Role): Permission[] {
-    return db().roleDefinitions.find((r) => r.role === role)?.permissions ?? [];
+export function permissionsFor(user: User): Permission[] {
+    return user.effectiveCapabilities ?? [];
 }
 
 export function hasPermission(user: User, permission: Permission): boolean {
-    return permissionsFor(user.role).includes(permission);
+    return permissionsFor(user).includes(permission);
 }
 
-/** For pages: responds as "not found" when the permission is missing, so restricted resources aren't revealed. */
 export async function requirePermission(permission: Permission): Promise<User> {
     const user = await requireUser();
     if (!hasPermission(user, permission)) notFound();
@@ -56,21 +113,13 @@ export async function requirePermission(permission: Permission): Promise<User> {
 
 export type ActionAuthResult = { ok: true; user: User } | { ok: false; message: string };
 
-/** For Server Actions: never trust the page guard, re-check on every call. */
 export async function authorizeAction(permission: Permission): Promise<ActionAuthResult> {
     const user = await getCurrentUser();
     if (!user) return { ok: false, message: "Your session has expired. Sign in again." };
-    if (!hasPermission(user, permission)) {
-        return { ok: false, message: "You don't have permission to do this." };
-    }
+    if (!hasPermission(user, permission)) return { ok: false, message: "You don't have permission to do this." };
     return { ok: true, user };
 }
 
-/**
- * For clinical Server Actions: the permission alone isn't enough — the actor must also be a sports
- * doctor with a doctor profile, so a mis-assigned permission can't open clinical records to other roles.
- * Pair with `canAccessFighterClinically()` for the fighter being changed.
- */
 export async function authorizeClinicalAction(permission: Permission): Promise<ActionAuthResult> {
     const auth = await authorizeAction(permission);
     if (!auth.ok) return auth;

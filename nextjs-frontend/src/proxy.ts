@@ -1,6 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { z } from "zod";
 
-import { SESSION_COOKIE } from "@/lib/auth/constants";
+import { apiEndpoint } from "@/lib/api/endpoint";
+import { ACCESS_EXPIRES_COOKIE, ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from "@/lib/auth/constants";
+import { ACCESS_TOKEN_REFRESH_MARGIN_SECONDS, refreshedSessionSchema, sessionCookies } from "@/lib/auth/session-tokens";
 import { routes } from "@/lib/routes";
 
 const PUBLIC_PATHS = [routes.login, routes.forgotPassword];
@@ -18,22 +21,51 @@ function withSecurityHeaders(response: NextResponse): NextResponse {
     return response;
 }
 
+const refreshEnvelopeSchema = z.object({ success: z.literal(true), data: refreshedSessionSchema });
+
+async function refreshIfNeeded(request: NextRequest, response: NextResponse): Promise<NextResponse> {
+    const expiresAt = Number(request.cookies.get(ACCESS_EXPIRES_COOKIE)?.value ?? 0);
+    const now = Math.floor(Date.now() / 1000);
+    if (!Number.isFinite(expiresAt) || expiresAt - now > ACCESS_TOKEN_REFRESH_MARGIN_SECONDS) return response;
+    const refreshToken = request.cookies.get(REFRESH_TOKEN_COOKIE)?.value;
+    if (!refreshToken) return response;
+
+    try {
+        const refreshResponse = await fetch(apiEndpoint("/auth/refresh"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ refreshToken }),
+            cache: "no-store",
+        });
+        if (!refreshResponse.ok) return response;
+        const envelope = refreshEnvelopeSchema.safeParse(await refreshResponse.json());
+        if (!envelope.success) return response;
+        // Without a usable access token the request would render signed-out, so replay it with the new cookies.
+        if (!request.cookies.has(ACCESS_TOKEN_COOKIE) || expiresAt <= now) response = withSecurityHeaders(NextResponse.redirect(request.url));
+        for (const { name, value, options } of sessionCookies(envelope.data.data.session)) response.cookies.set(name, value, options);
+    } catch {
+        // Backend vẫn là nơi quyết định phiên có hợp lệ hay không; Proxy chỉ làm mới chủ động.
+    }
+    return response;
+}
+
 /**
- * Optimistic auth gate: sends visitors without a session cookie to the login screen.
- * Real authorization happens in layouts (requireRole) and in every Server Action.
+ * Optimistic auth gate: sends visitors without a session cookie to the login screen and refreshes an
+ * access token that is about to expire. Real authorization happens in layouts (requireRole), Route
+ * Handlers and every Server Action.
  */
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
     const { pathname, search } = request.nextUrl;
     const isPublic = PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
     // API route handlers authenticate themselves and answer with JSON (401), never a login redirect.
     const isApi = pathname === "/api" || pathname.startsWith("/api/");
 
-    if (!isPublic && !isApi && !request.cookies.has(SESSION_COOKIE)) {
+    if (!isPublic && !isApi && !request.cookies.has(ACCESS_TOKEN_COOKIE) && !request.cookies.has(REFRESH_TOKEN_COOKIE)) {
         const loginUrl = new URL(routes.login, request.url);
         if (pathname !== "/") loginUrl.searchParams.set("next", `${pathname}${search}`);
         return withSecurityHeaders(NextResponse.redirect(loginUrl));
     }
-    return withSecurityHeaders(NextResponse.next());
+    return refreshIfNeeded(request, withSecurityHeaders(NextResponse.next()));
 }
 
 export const config = {
