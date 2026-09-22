@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { ApiError, apiRequest } from "@/lib/api/client";
-import { ACCESS_TOKEN_COOKIE, THEME_COOKIE, parseTheme } from "@/lib/auth/constants";
+import { ACCESS_TOKEN_COOKIE, THEME_COOKIE, isDemoAuthEnabled, parseTheme } from "@/lib/auth/constants";
 import { clearSessionCookies, setSessionCookies } from "@/lib/auth/session-cookies";
 import { sessionTokensSchema } from "@/lib/auth/session-tokens";
 import type { Role } from "@/lib/domain/types";
@@ -36,6 +36,13 @@ function loginError(error: unknown): ActionState {
     return actionError("Sign-in failed. Please try again.");
 }
 
+/** Chỉ theo `?next=` khi nó trỏ vào khu vực vai trò này được mở. */
+function redirectAfterSignIn(role: Role, next: string | null): never {
+    const target = safeRedirectPath(next);
+    const targetRole = target ? roleForPath(target) : null;
+    redirect(target && (targetRole === null || targetRole === role) ? target : dashboardPath(role));
+}
+
 export async function signIn(_prev: ActionState, formData: FormData): Promise<ActionState> {
     const parsed = signInSchema.safeParse({
         email: formData.get("email"),
@@ -43,29 +50,40 @@ export async function signIn(_prev: ActionState, formData: FormData): Promise<Ac
         next: formData.get("next") ?? undefined,
     });
     if (!parsed.success) return validationError(parsed.error);
+    const email = parsed.data.email.trim().toLowerCase();
+
+    if (isDemoAuthEnabled()) {
+        const demo = await (await import("@/lib/auth/demo-session")).signInDemoWithPassword(email, parsed.data.password);
+        if (!demo.ok) return actionError(demo.message);
+        redirectAfterSignIn(demo.user.role, parsed.data.next ?? null);
+    }
 
     let auth: z.output<typeof authResponseSchema>;
     try {
         auth = await apiRequest("/auth/login", authResponseSchema, {
             method: "POST",
-            body: JSON.stringify({ email: parsed.data.email.trim().toLowerCase(), password: parsed.data.password }),
+            body: JSON.stringify({ email, password: parsed.data.password }),
         });
     } catch (error) {
         return loginError(error);
     }
 
     await setSessionCookies(auth.session);
-    const role = auth.user.role.toLowerCase() as Role;
-    const target = safeRedirectPath(parsed.data.next ?? null);
-    const targetRole = target ? roleForPath(target) : null;
-    redirect(target && (targetRole === null || targetRole === role) ? target : dashboardPath(role));
+    redirectAfterSignIn(auth.user.role.toLowerCase() as Role, parsed.data.next ?? null);
 }
 
-/** Tài khoản demo không được nhập vào luồng xác thực thật. */
-export async function signInAsDemo(_role: Role, _next: string | null): Promise<void> {
-    void _role;
-    void _next;
-    redirect(routes.login);
+const demoSignInSchema = z.object({
+    role: z.enum(["fighter", "coach", "doctor", "admin"]),
+    next: z.string().nullable().catch(null),
+});
+
+/** Đăng nhập một chạm bằng tài khoản demo; tham số đến từ client nên được kiểm tra lại. */
+export async function signInAsDemo(role: Role, next: string | null): Promise<void> {
+    const parsed = demoSignInSchema.safeParse({ role, next });
+    if (!parsed.success || !isDemoAuthEnabled()) redirect(routes.login);
+    const demo = await (await import("@/lib/auth/demo-session")).signInDemoAccount(parsed.data.role);
+    if (!demo.ok) redirect(routes.login);
+    redirectAfterSignIn(demo.user.role, parsed.data.next);
 }
 
 const forgotSchema = z.object({ email: z.email("Enter a valid email address.") });
@@ -73,6 +91,8 @@ const forgotSchema = z.object({ email: z.email("Enter a valid email address.") }
 export async function requestPasswordReset(_prev: ActionState, formData: FormData): Promise<ActionState> {
     const parsed = forgotSchema.safeParse({ email: formData.get("email") });
     if (!parsed.success) return validationError(parsed.error);
+    // Demo không gửi email; luôn trả lời giống nhau để form không lộ tài khoản nào tồn tại.
+    if (isDemoAuthEnabled()) return actionSuccess("If that email belongs to an account, reset instructions are on the way.");
     try {
         await apiRequest("/auth/password-reset/request", z.unknown(), {
             method: "POST",
@@ -86,6 +106,10 @@ export async function requestPasswordReset(_prev: ActionState, formData: FormDat
 }
 
 export async function signOut(): Promise<void> {
+    if (isDemoAuthEnabled()) {
+        await (await import("@/lib/auth/demo-session")).endDemoSession();
+        redirect(routes.login);
+    }
     const store = await cookies();
     const accessToken = store.get(ACCESS_TOKEN_COOKIE)?.value;
     if (accessToken) {

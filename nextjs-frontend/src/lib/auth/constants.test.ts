@@ -8,13 +8,16 @@ describe("isDemoAuthEnabled", () => {
         vi.unstubAllEnvs();
     });
 
-    it("requires an explicit demo data mode outside production", () => {
+    it("defaults to demo outside production until the API mode is chosen", () => {
         vi.stubEnv("NODE_ENV", "development");
         vi.stubEnv("APP_DATA_MODE", "");
-        expect(isDemoAuthEnabled()).toBe(false);
+        expect(isDemoAuthEnabled()).toBe(true);
 
         vi.stubEnv("APP_DATA_MODE", "demo");
         expect(isDemoAuthEnabled()).toBe(true);
+
+        vi.stubEnv("APP_DATA_MODE", "api");
+        expect(isDemoAuthEnabled()).toBe(false);
     });
 
     it("is always off in production", () => {

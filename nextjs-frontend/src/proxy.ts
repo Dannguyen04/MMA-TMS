@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 
 import { apiEndpoint } from "@/lib/api/endpoint";
-import { ACCESS_EXPIRES_COOKIE, ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from "@/lib/auth/constants";
+import { ACCESS_EXPIRES_COOKIE, ACCESS_TOKEN_COOKIE, DEMO_SESSION_COOKIE, REFRESH_TOKEN_COOKIE, isDemoAuthEnabled } from "@/lib/auth/constants";
 import { ACCESS_TOKEN_REFRESH_MARGIN_SECONDS, refreshedSessionSchema, sessionCookies } from "@/lib/auth/session-tokens";
 import { routes } from "@/lib/routes";
 
@@ -60,7 +60,10 @@ export async function proxy(request: NextRequest) {
     // API route handlers authenticate themselves and answer with JSON (401), never a login redirect.
     const isApi = pathname === "/api" || pathname.startsWith("/api/");
 
-    if (!isPublic && !isApi && !request.cookies.has(ACCESS_TOKEN_COOKIE) && !request.cookies.has(REFRESH_TOKEN_COOKIE)) {
+    const hasSession = isDemoAuthEnabled()
+        ? request.cookies.has(DEMO_SESSION_COOKIE)
+        : request.cookies.has(ACCESS_TOKEN_COOKIE) || request.cookies.has(REFRESH_TOKEN_COOKIE);
+    if (!isPublic && !isApi && !hasSession) {
         const loginUrl = new URL(routes.login, request.url);
         if (pathname !== "/") loginUrl.searchParams.set("next", `${pathname}${search}`);
         return withSecurityHeaders(NextResponse.redirect(loginUrl));

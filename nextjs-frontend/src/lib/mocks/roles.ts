@@ -30,7 +30,8 @@ export const mockRoleDefinitions: RoleDefinition[] = [
         role: "fighter",
         label: "Fighter",
         description: "Athletes. See their own training, videos, performance and health.",
-        permissions: ["training:read", "videos:upload", "ai_analysis:read", "medical:read_summary"],
+        // Scoped to their own profile, matching the backend FIGHTER baseline (fighter:read).
+        permissions: ["fighters:read", "training:read", "videos:upload", "ai_analysis:read", "medical:read_summary"],
     },
     {
         role: "coach",

@@ -81,6 +81,7 @@ function backendSession(status: "SKIPPED" | "COMPLETED") {
 
 describe("training API adapter", () => {
     beforeEach(() => {
+        vi.stubEnv("APP_DATA_MODE", "api");
         authenticatedApiRequest.mockReset();
         authenticatedMutableApiRequest.mockReset();
     });

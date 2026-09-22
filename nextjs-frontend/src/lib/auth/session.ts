@@ -7,6 +7,7 @@ import { z } from "zod";
 import { ApiError, authenticatedApiRequest } from "@/lib/api/client";
 import type { Permission, Role, User } from "@/lib/domain/types";
 import { dashboardPath, routes } from "@/lib/routes";
+import { isDemoAuthEnabled } from "./constants";
 
 const permissionSchema = z.enum([
     "fighters:read",
@@ -75,8 +76,9 @@ function normalizeUser(input: z.output<typeof currentUserSchema>): User {
     };
 }
 
-/** Đọc phiên từ cookie HTTP-only và để backend xác thực danh tính. */
+/** Đọc phiên từ cookie HTTP-only và để backend xác thực danh tính (hoặc phiên demo ngoài production). */
 export const getCurrentUser = cache(async (): Promise<User | null> => {
+    if (isDemoAuthEnabled()) return (await import("./demo-session")).readDemoUser();
     try {
         return normalizeUser(await authenticatedApiRequest("/users/me", currentUserSchema));
     } catch (error) {
