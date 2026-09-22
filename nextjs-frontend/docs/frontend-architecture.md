@@ -9,17 +9,17 @@ TypeScript (strict), Tailwind CSS v4. UI copy is English.
 | Concern | Decision |
 | --- | --- |
 | Rendering | Server Components by default. `"use client"` only for interaction (forms, charts with hover, video player, filters). |
-| Data | `src/lib/services/*` — async, `server-only`. Today they read the in-memory mock DB; later they call the NestJS API. Pages never import mocks. |
+| Data | `src/lib/services/*` — async, `server-only`. API mode uses the authenticated client with Zod response validation and `no-store`. Retained demo implementations are dynamically imported only when demo mode is explicit. |
 | Mutations | Server Actions in `src/lib/actions/*` returning `ActionState` (`src/lib/actions/state.ts`), consumed through the shared form hooks (see [Forms and mutations](#forms-and-mutations)). Validate with `zod`, re-authorize with `authorizeAction()` (clinical actions: `authorizeClinicalAction()` + `canAccessFighterClinically()`), call a service, `recordAudit()`, `revalidatePath()`. |
-| Auth | Mock cookie session (`src/lib/auth/session.ts`), enabled only when `ALLOW_DEMO_AUTH` allows it (`isDemoAuthEnabled()`, read at call time). `src/proxy.ts` gates unauthenticated requests and adds the security headers; role layouts call `requireRole()`; record access via `src/lib/auth/access.ts`. Clinical permissions are doctor-only (`src/lib/auth/permissions.ts`). Redirect targets always go through `safeRedirectPath()`. |
-| Audit | `toAuditView()` redacts clinical entries for viewers without `medical:read`; list and detail reads project before filtering. Never write clearance levels, health status or restriction text into audit details. |
+| Auth | Backend login/refresh/logout with secure HTTP-only SameSite=Lax access and refresh cookies. `src/proxy.ts` performs optimistic redirects and proactive refresh; `/users/me` and backend guards remain authoritative. Record access fails closed without backend capabilities and assignment scope. |
+| Audit | API-mode audit reads rely on backend redaction and authorization. The demo adapter retains `toAuditView()` for explicit demo mode. Never expose clearance levels, health status, or restriction text in admin audit responses. |
 | Caching | No React `cache()` around entity reads in services (they would go stale inside Server Action re-renders). Detail pages share one page-local `const loadX = cache(getX)` between `generateMetadata` and the page; staff lists (`listCoaches`, `listDoctors`, `listPermissionCatalog`) are cached. Start independent reads in one `Promise.all` — no request waterfalls. |
 | Polling | Client polling uses `useVisibleInterval` (`components/ui/use-visible-interval.ts`: pauses while hidden, backs off when nothing changes) against route handlers (`routes.api.*`, `fetch` with `no-store`) — never Server Actions. |
 | Lists | URL-driven: `searchParams` → service filter → `paginate()`/`sortItems()` (`src/lib/query.ts`) → `<Table>` + `<Pagination>`; filters via `<FilterBar>`. |
 | Styling | Semantic design tokens only (`src/app/globals.css`). Light, dark and system themes via `data-theme` on `<html>` (cookie `mma_theme`). |
 | Icons | `lucide-react`. Decorative icons get `aria-hidden`. |
 | Charts | Hand-built SVG components in `src/components/charts` (no chart library). |
-| Video pipeline | `NEXT_PUBLIC_VIDEO_PIPELINE=mock` (default) simulates upload + processing; `api` uses Supabase Storage + NestJS jobs (`src/lib/api/*`). |
+| Video pipeline | `NEXT_PUBLIC_VIDEO_PIPELINE=api` is the default. Production and real E2E reject `mock`; uploads use same-origin Route Handlers and authenticated NestJS jobs. |
 
 ## Folder structure
 
@@ -239,12 +239,11 @@ groups). Required fields set `required` on both the `Field` (visible star) and t
 
 ## Mock data
 
-Seeds live in `src/lib/mocks/*` and follow the fighter storylines documented at the top of
+Demo-only seeds live in `src/lib/mocks/*` and follow the fighter storylines documented at the top of
 `src/lib/mocks/people.ts`. Dates are relative to today (`src/lib/mocks/time.ts`); randomness is seeded
 (`src/lib/mocks/random.ts`). The timeline is anchored once to server start (`MOCK_ANCHOR_MS`, shared through
 `globalThis`): seed past events on today with `pastToday(hour, minute)` or `clampPastToday(iso)`, and derive later
 events from an already-mapped time with `shiftPastToday(iso, minutes)`, so nothing seeded as past lands in the future. `db()` returns a mutable in-memory copy shared by the server process —
 restart the dev server to reset. `MOCK_LATENCY_MS` (default 180) simulates network latency.
 
-Replacing the mock backend: keep the function signatures in `src/lib/services/*` and swap their bodies
-for API calls; swap `src/lib/auth/session.ts` for real token verification.
+`APP_DATA_MODE=demo` is allowed only for an explicit non-production UI demo. API mode must not import, seed, or fall back to this state. The remaining adapter work is tracked in the root `implementation_plan.md`.

@@ -1,29 +1,24 @@
-"""
-worker.py — Redis Queue Listener (BullMQ format)
-Phase 3 integration: lắng nghe jobs từ NestJS BullMQ
+"""Worker BullMQ chính thức cho luồng phân tích video MMA-TMS."""
 
-BullMQ lưu jobs trong Redis với key pattern:
-  bull:<queue-name>:waiting  (list)
-  bull:<queue-name>:<job-id> (hash)
+from __future__ import annotations
 
-Worker này poll Redis, nhận job, chạy process_video.py,
-rồi ghi kết quả lên Supabase Storage và báo hoàn thành.
-
-Môi trường: xem .env.example
-"""
-
+import asyncio
 import json
 import logging
 import os
-import sys
-import time
-import uuid
+import signal
+import tempfile
 from pathlib import Path
+from typing import Any
 
 import httpx
-import redis
+from bullmq import Worker
+from dotenv import load_dotenv
+from jsonschema import Draft202012Validator, FormatChecker
 
 from process_video import process_video
+
+load_dotenv()
 
 logging.basicConfig(
     level=logging.INFO,
@@ -32,268 +27,233 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-
-# ─── Cấu hình (load từ .env qua python-dotenv) ───
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    pass
-
-REDIS_URL       = os.getenv("REDIS_URL", "redis://localhost:6379")
-QUEUE_NAME      = os.getenv("QUEUE_NAME", "video-analysis")
-SUPABASE_URL    = os.getenv("SUPABASE_URL", "")
-SUPABASE_KEY    = os.getenv("SUPABASE_SERVICE_KEY", "")  # service role key
-NESTJS_API_URL  = os.getenv("NESTJS_API_URL", "http://localhost:3001")
-WORKER_SECRET_TOKEN = os.getenv("WORKER_SECRET_TOKEN", "mma-tms-worker-local-secret-2026")
-YOLO_MODEL      = os.getenv("YOLO_MODEL", "yolov8n-pose")
-POLL_INTERVAL_S = float(os.getenv("POLL_INTERVAL_S", "2.0"))
-import tempfile
-default_tmp_dir = str(Path(tempfile.gettempdir()) / "martial-arts-worker")
-TMP_DIR         = Path(os.getenv("TMP_DIR", default_tmp_dir))
-if str(TMP_DIR).startswith("/tmp") and os.name == "nt":
-    TMP_DIR = Path(default_tmp_dir)
-
-TMP_DIR.mkdir(parents=True, exist_ok=True)
-
-# BullMQ Redis key patterns (BullMQ uses :wait, older Bull uses :waiting)
-WAIT_KEYS       = [f"bull:{QUEUE_NAME}:wait", f"bull:{QUEUE_NAME}:waiting"]
-ACTIVE_KEY      = f"bull:{QUEUE_NAME}:active"
-COMPLETED_KEY   = f"bull:{QUEUE_NAME}:completed"
-FAILED_KEY      = f"bull:{QUEUE_NAME}:failed"
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
+QUEUE_NAME = os.getenv("QUEUE_NAME", "video-analysis")
+NESTJS_API_URL = os.getenv("NESTJS_API_URL", "http://localhost:3001").rstrip("/")
+WORKER_SECRET_TOKEN = os.getenv("WORKER_SECRET_TOKEN", "")
+YOLO_MODEL = os.getenv("YOLO_MODEL", "yolov8n-pose")
+TMP_DIR = Path(
+    os.getenv(
+        "TMP_DIR",
+        str(Path(tempfile.gettempdir()) / "martial-arts-worker"),
+    )
+)
+CONTRACTS_DIR = Path(
+    os.getenv(
+        "CONTRACTS_DIR",
+        str(Path(__file__).resolve().parent.parent / "contracts"),
+    )
+)
+QUEUE_CONTRACT = "video-analysis-queue.v1.schema.json"
+STATUS_CONTRACT = "worker-job-status.v1.schema.json"
+RESULT_CONTRACT = "analysis-result.v1.schema.json"
+CALLBACK_ATTEMPTS = 3
 
 
-def get_redis() -> redis.Redis:
-    if REDIS_URL.startswith("rediss://"):
-        return redis.from_url(REDIS_URL, decode_responses=True, ssl_cert_reqs=None)
-    return redis.from_url(REDIS_URL, decode_responses=True)
+def validate_contract(name: str, value: Any) -> None:
+    """Kiểm tra dữ liệu qua JSON Schema dùng chung trước khi trao đổi giữa các runtime."""
+
+    schema_path = CONTRACTS_DIR / name
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    Draft202012Validator(schema, format_checker=FormatChecker()).validate(value)
 
 
-# ─── Supabase Storage Upload ───
-def upload_to_supabase(local_path: str, remote_path: str) -> str:
-    """
-    Upload file lên Supabase Storage.
-    Cấu hình timeout tối đa 5 phút (300 giây) và cơ chế retry khi mạng chập chờn.
-    Trả về public URL.
-    """
-    if not SUPABASE_URL or not SUPABASE_KEY:
-        log.warning("Supabase chưa cấu hình — bỏ qua upload, dùng local path")
-        return f"local://{local_path}"
+def require_configuration() -> None:
+    """Từ chối khởi động khi thiếu bí mật hoặc hợp đồng JSON Schema bắt buộc."""
 
-    bucket = "analysis-results"
-    url = f"{SUPABASE_URL}/storage/v1/object/{bucket}/{remote_path}"
+    missing = []
+    if not WORKER_SECRET_TOKEN:
+        missing.append("WORKER_SECRET_TOKEN")
+    # Thiếu schema khiến mọi job lỗi và không gửi được callback FAILED.
+    for name in (QUEUE_CONTRACT, STATUS_CONTRACT, RESULT_CONTRACT):
+        if not (CONTRACTS_DIR / name).is_file():
+            missing.append(str(CONTRACTS_DIR / name))
+    if missing:
+        raise RuntimeError(f"Thiếu cấu hình worker bắt buộc: {', '.join(missing)}")
 
+
+async def notify_nestjs(job_id: str, payload: dict[str, Any]) -> None:
+    """Gửi callback có kiểm tra HTTP và thử lại lỗi mạng tạm thời."""
+
+    validate_contract(STATUS_CONTRACT, payload)
     headers = {
-        "Authorization": f"Bearer {SUPABASE_KEY}",
-        "apikey": SUPABASE_KEY,
         "Content-Type": "application/json",
-        "x-upsert": "true",
+        "x-worker-secret": WORKER_SECRET_TOKEN,
     }
+    last_error: Exception | None = None
 
-    with open(local_path, "rb") as f:
-        file_bytes = f.read()
+    async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=10.0)) as client:
+        for attempt in range(1, CALLBACK_ATTEMPTS + 1):
+            try:
+                response = await client.patch(
+                    f"{NESTJS_API_URL}/jobs/{job_id}/status",
+                    json=payload,
+                    headers=headers,
+                )
+                response.raise_for_status()
+                return
+            except httpx.HTTPError as error:
+                last_error = error
+                if attempt < CALLBACK_ATTEMPTS:
+                    await asyncio.sleep(2 ** (attempt - 1))
 
-    file_size_mb = len(file_bytes) / (1024 * 1024)
-    # Timeout 5 phút (300 giây)
-    upload_timeout = httpx.Timeout(300.0, connect=60.0)
-    max_retries = 3
-
-    for attempt in range(1, max_retries + 1):
-        try:
-            log.info(f"📤 Đang upload kết quả lên Supabase ({file_size_mb:.2f} MB, lần thử {attempt}/{max_retries}, timeout tối đa 5 phút)...")
-            response = httpx.post(url, content=file_bytes, headers=headers, timeout=upload_timeout)
-            if response.status_code not in (200, 201):
-                # Fallback thử PUT nếu object đã tồn tại
-                response = httpx.put(url, content=file_bytes, headers=headers, timeout=upload_timeout)
-
-            if response.status_code in (200, 201):
-                public_url = f"{SUPABASE_URL}/storage/v1/object/public/{bucket}/{remote_path}"
-                log.info(f"✅ Đã upload thành công: {public_url}")
-                return public_url
-            else:
-                log.warning(f"⚠️ Lần thử {attempt}/{max_retries} thất bại HTTP {response.status_code}: {response.text}")
-        except (httpx.TimeoutException, httpx.NetworkError) as e:
-            log.warning(f"⚠️ Lần thử {attempt}/{max_retries} gặp lỗi mạng/timeout ({e})")
-            if attempt == max_retries:
-                raise
-
-        time.sleep(3)
-
-    raise RuntimeError(f"Upload Supabase thất bại sau {max_retries} lần thử.")
+    raise RuntimeError(f"Callback NestJS thất bại: {last_error}")
 
 
-# ─── NestJS API Callback (Bảo mật bằng Worker Secret Token) ───
-def notify_nestjs(
-    job_id: str,
-    status: str,
-    result_url: str = "",
-    score: int = 0,
-    health_alerts: list | None = None,
-    joint_states: dict | None = None,
-):
-    """Gọi NestJS để cập nhật trạng thái job kèm token bảo mật.
+async def download_job_input(job_id: str) -> Path:
+    """Tải video riêng tư qua API worker; queue không chứa URL do caller kiểm soát."""
 
-    health_alerts: list[dict] từ SessionHealthMonitor.get_confirmed_alerts()
-    joint_states:  dict[str, str] từ SessionHealthMonitor.get_joint_states()
-    """
-    if not NESTJS_API_URL:
-        return
-
+    target = TMP_DIR / f"{job_id}_input.mp4"
+    # File dở dang từ lần thử trước (tải lỗi giữa chừng/worker bị kill) sẽ làm
+    # open("xb") ném FileExistsError ở mọi lần retry.
+    target.unlink(missing_ok=True)
+    headers = {"x-worker-secret": WORKER_SECRET_TOKEN}
     try:
-        headers = {
-            "Content-Type": "application/json",
-            "x-worker-secret": WORKER_SECRET_TOKEN,
-        }
-        httpx.patch(
-            f"{NESTJS_API_URL}/jobs/{job_id}/status",
-            json={
-                "status":       status,
-                "resultUrl":    result_url,
-                "score":        score,
-                "healthAlerts": health_alerts or [],
-                "jointStates":  joint_states or {},
-            },
+        async with (
+            httpx.AsyncClient(timeout=httpx.Timeout(600.0, connect=30.0)) as client,
+            client.stream(
+                "GET",
+                f"{NESTJS_API_URL}/jobs/{job_id}/input",
+                headers=headers,
+            ) as response,
+        ):
+            response.raise_for_status()
+            with target.open("xb") as destination:
+                async for chunk in response.aiter_bytes():
+                    destination.write(chunk)
+    except BaseException:
+        target.unlink(missing_ok=True)
+        raise
+    return target
+
+
+async def finalize_result(job_id: str, local_path: Path) -> str:
+    """Gửi kết quả về backend để kiểm tra, lưu riêng tư và hoàn tất transaction."""
+
+    content = await asyncio.to_thread(local_path.read_bytes)
+    headers = {
+        "Content-Type": "application/octet-stream",
+        "Content-Length": str(len(content)),
+        "x-worker-secret": WORKER_SECRET_TOKEN,
+    }
+    async with httpx.AsyncClient(timeout=httpx.Timeout(300.0, connect=30.0)) as client:
+        response = await client.post(
+            f"{NESTJS_API_URL}/jobs/{job_id}/result",
+            content=content,
             headers=headers,
-            timeout=10.0,
         )
-    except Exception as e:
-        log.warning(f"Không thể báo NestJS: {e}")
+        response.raise_for_status()
+        payload = response.json()
+    data = payload.get("data") if isinstance(payload, dict) else None
+    result_url = data.get("resultUrl") if isinstance(data, dict) else None
+    if not isinstance(result_url, str) or not result_url:
+        raise RuntimeError("Backend không trả về đường dẫn kết quả đã bảo vệ")
+    return result_url
 
 
-# ─── Job Processing ───
-def process_job(r: redis.Redis, job_id: str):
-    """Xử lý một job từ BullMQ."""
-    job_key = f"bull:{QUEUE_NAME}:{job_id}"
+def is_final_attempt(job: Any) -> bool:
+    """Xác định lỗi hiện tại có làm cạn số lần thử của BullMQ hay chưa."""
 
-    # Đọc data job
-    job_data = r.hget(job_key, "data")
-    if not job_data:
-        log.error(f"Không tìm thấy data cho job {job_id}")
-        return
+    attempts_made = int(getattr(job, "attemptsMade", 0) or 0)
+    options = getattr(job, "opts", {}) or {}
+    attempts = int(options.get("attempts", 1) or 1)
+    return attempts_made + 1 >= attempts
 
-    payload = json.loads(job_data)
-    video_url = payload.get("videoUrl", "")
-    db_job_id = payload.get("jobId", job_id)
 
-    log.info(f"🎬 Đang xử lý job {db_job_id}: {video_url}")
+async def report_progress(job: Any, stage: str, percent: int) -> None:
+    """Ghi tiến độ bằng API BullMQ để giữ nguyên khóa và event stream."""
 
-    # Cập nhật trạng thái PROCESSING
-    r.hset(job_key, "processedOn", int(time.time() * 1000))
-    notify_nestjs(db_job_id, "PROCESSING")
+    await job.updateProgress({"stage": stage, "percent": percent})
 
+
+async def process_job(job: Any, _job_token: str) -> dict[str, Any]:
+    """Xử lý đúng một lần thử; BullMQ chịu trách nhiệm khóa và retry."""
+
+    payload = getattr(job, "data", {}) or {}
+    # Schema bắt buộc jobId/videoId là UUID nên không cần kiểm tra lại bên dưới.
+    validate_contract(QUEUE_CONTRACT, payload)
+    job_id = payload["jobId"]
+
+    result_path = TMP_DIR / f"{job_id}_result.json"
+    input_path: Path | None = None
     try:
-        # ── Đường dẫn output ──
-        result_filename = f"{db_job_id}_result.json"
-        local_result    = str(TMP_DIR / result_filename)
+        await notify_nestjs(job_id, {"status": "PROCESSING"})
+        await report_progress(job, "DOWNLOADING", 5)
+        input_path = await download_job_input(job_id)
+        await report_progress(job, "INFERENCE", 15)
 
-        # ── Chạy YOLO-Pose pipeline ──
-        start_t = time.time()
-        result = process_video(
-            input_path=video_url,
+        result = await asyncio.to_thread(
+            process_video,
+            input_path=str(input_path),
             model_name=YOLO_MODEL,
-            output_path=local_result,
+            output_path=str(result_path),
             verbose=True,
         )
-        elapsed = time.time() - start_t
-        log.info(f"⚡ Xử lý xong trong {elapsed:.1f}s")
+        validate_contract(RESULT_CONTRACT, result)
 
-        # ── Upload lên Supabase ──
-        remote_path = f"results/{db_job_id}/{result_filename}"
-        result_url  = upload_to_supabase(local_result, remote_path)
+        await report_progress(job, "UPLOADING", 85)
+        result_url = await finalize_result(job_id, result_path)
 
-        # ── Lấy điểm tốt nhất & anomaly data ──
-        best_score   = result["summary"].get("bestScore", 0)
+        score = result["summary"].get("bestScore")
         health_alerts = result.get("healthAlerts", [])
-        joint_states  = result["summary"].get("jointHealthStates", {})
 
-        # ── Cập nhật Redis job status (BullMQ format) ──
-        r.hset(job_key, mapping={
-            "returnvalue": json.dumps({
-                "resultUrl":    result_url,
-                "score":        best_score,
-                "alertCount":   result["summary"].get("healthAlertCount", 0),
-                "hasImpairment": len(health_alerts) > 0,
-            }),
-            "finishedOn":  int(time.time() * 1000),
-        })
-        # An toàn đa luồng: Chỉ xóa chính xác job_id này khỏi ACTIVE_KEY và đẩy sang COMPLETED_KEY
-        r.lrem(ACTIVE_KEY, 1, job_id)
-        r.rpush(COMPLETED_KEY, job_id)
+        await report_progress(job, "PERSISTING", 95)
+        await report_progress(job, "PERSISTING", 100)
 
-        # ── Thông báo NestJS (kèm anomaly data) ──
-        notify_nestjs(
-            db_job_id,
-            "DONE",
-            result_url=result_url,
-            score=best_score,
-            health_alerts=health_alerts,
-            joint_states=joint_states,
-        )
-
-        alert_count = len(health_alerts)
-        log.info(f"✅ Job {db_job_id} hoàn thành. Score: {best_score}, Health Alerts: {alert_count}")
-        if alert_count > 0:
-            log.warning(f"⚠️  {alert_count} CONFIRMED_IMPAIRMENT alert(s) phát hiện!")
-
-    except Exception as e:
-        log.error(f"❌ Job {db_job_id} thất bại: {e}", exc_info=True)
-
-        r.hset(job_key, "failedReason", str(e))
-        # An toàn đa luồng: Chỉ xóa chính xác job_id này khỏi ACTIVE_KEY và đẩy sang FAILED_KEY
-        r.lrem(ACTIVE_KEY, 1, job_id)
-        r.rpush(FAILED_KEY, job_id)
-        notify_nestjs(db_job_id, "FAILED")
+        return {
+            "resultUrl": result_url,
+            "score": score,
+            "alertCount": len(health_alerts),
+            "hasImpairment": bool(health_alerts),
+        }
+    except Exception:
+        log.exception("Job %s thất bại", job_id)
+        if is_final_attempt(job):
+            await notify_nestjs(
+                job_id,
+                {
+                    "status": "FAILED",
+                    "errorCode": "VIDEO_ANALYSIS_FAILED",
+                    "errorMessage": "Video analysis failed after all retry attempts.",
+                },
+            )
+        raise
+    finally:
+        if result_path.exists():
+            await asyncio.to_thread(result_path.unlink)
+        if input_path and input_path.exists():
+            await asyncio.to_thread(input_path.unlink)
 
 
-# ─── Main Loop ───
-def run_worker():
-    """Vòng lặp chính: poll Redis và xử lý jobs."""
-    log.info(f"🚀 Worker khởi động")
-    log.info(f"   Redis:      {REDIS_URL}")
-    log.info(f"   Queue:      {QUEUE_NAME}")
-    log.info(f"   Model:      {YOLO_MODEL}")
-    log.info(f"   Supabase:   {SUPABASE_URL or '(chưa cấu hình)'}")
+async def run_worker() -> None:
+    """Khởi động worker và đóng kết nối nhẹ nhàng khi nhận tín hiệu dừng."""
 
-    r = get_redis()
+    require_configuration()
+    TMP_DIR.mkdir(parents=True, exist_ok=True)
+    shutdown_event = asyncio.Event()
+    loop = asyncio.get_running_loop()
 
-    # Kiểm tra kết nối Redis (với retry để tránh chết ngay khi cold-start)
-    max_retries = 10
-    for attempt in range(1, max_retries + 1):
-        try:
-            r.ping()
-            log.info("✅ Kết nối Redis thành công")
-            break
-        except redis.ConnectionError as e:
-            if attempt < max_retries:
-                log.warning(f"⏳ Đang chờ Redis khởi động ({attempt}/{max_retries})... Thử lại sau 2s.")
-                time.sleep(2)
-            else:
-                log.error(f"❌ Không thể kết nối Redis sau {max_retries} lần thử: {e}")
-                sys.exit(1)
+    def request_shutdown(_signal: int, _frame: Any) -> None:
+        loop.call_soon_threadsafe(shutdown_event.set)
 
-    log.info(f"👂 Đang lắng nghe queue '{QUEUE_NAME}'...")
+    signal.signal(signal.SIGINT, request_shutdown)
+    signal.signal(signal.SIGTERM, request_shutdown)
 
-    while True:
-        try:
-            job_id = None
-            for wait_k in WAIT_KEYS:
-                job_id = r.lmove(wait_k, ACTIVE_KEY, "RIGHT", "LEFT")
-                if job_id:
-                    break
-
-            if job_id:
-                process_job(r, job_id)
-            else:
-                time.sleep(POLL_INTERVAL_S)
-
-        except KeyboardInterrupt:
-            log.info("\n⛔ Worker dừng.")
-            break
-        except Exception as e:
-            log.error(f"Lỗi không xác định: {e}", exc_info=True)
-            time.sleep(5)  # back-off trước khi thử lại
+    worker = Worker(
+        QUEUE_NAME,
+        process_job,
+        {
+            "connection": REDIS_URL,
+            "concurrency": 1,
+            "lockDuration": 120_000,
+            "stalledInterval": 30_000,
+        },
+    )
+    log.info("Worker BullMQ đang lắng nghe queue %s", QUEUE_NAME)
+    await shutdown_event.wait()
+    log.info("Đang đóng worker BullMQ")
+    await worker.close()
 
 
 if __name__ == "__main__":
-    run_worker()
-
+    asyncio.run(run_worker())

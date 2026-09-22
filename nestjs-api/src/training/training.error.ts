@@ -21,7 +21,8 @@ export function sessionNotFound(): NotFoundException {
     statusCode: HttpStatus.NOT_FOUND,
     error: 'Not Found',
     code: 'TRAINING_SESSION_NOT_FOUND',
-    message: 'The requested training session does not exist or has been deleted.',
+    message:
+      'The requested training session does not exist or has been deleted.',
   });
 }
 
@@ -39,7 +40,8 @@ export function planExerciseNotFound(): NotFoundException {
     statusCode: HttpStatus.NOT_FOUND,
     error: 'Not Found',
     code: 'PLAN_EXERCISE_NOT_FOUND',
-    message: 'The requested exercise configuration for this plan does not exist.',
+    message:
+      'The requested exercise configuration for this plan does not exist.',
   });
 }
 
@@ -97,6 +99,16 @@ export function fighterPlanMismatch(): BadRequestException {
     code: 'FIGHTER_PLAN_MISMATCH',
     message:
       'The training session fighter must match the training plan fighter.',
+  });
+}
+
+export function feedbackContextMismatch(): BadRequestException {
+  return new BadRequestException({
+    statusCode: HttpStatus.BAD_REQUEST,
+    error: 'Bad Request',
+    code: 'FEEDBACK_CONTEXT_MISMATCH',
+    message:
+      'The referenced session or video does not belong to the feedback fighter.',
   });
 }
 

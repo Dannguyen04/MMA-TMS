@@ -34,8 +34,11 @@ describe('OpenAPI document (e2e)', () => {
     expect(document.paths['/users/me']?.get).toMatchObject({
       tags: ['Users'],
       security: [{ bearer: [] }],
-      responses: { 200: expect.any(Object), 403: expect.any(Object) },
+      responses: { 200: expect.any(Object) },
     });
+    expect(document.paths['/users/me']?.get?.responses).not.toHaveProperty(
+      '403',
+    );
     expect(Object.keys(document.paths)).not.toContain('/permissions');
   });
 
@@ -112,6 +115,89 @@ describe('OpenAPI document (e2e)', () => {
       },
     });
     expect(JSON.stringify(document)).not.toContain('"type":"null"');
+  });
+
+  it('documents backend-derived capabilities and assignment scope for users/me', () => {
+    const document = createOpenApiDocument(app);
+    const schema = document.components?.schemas?.CurrentUserDto;
+    const response = document.paths['/users/me']?.get?.responses?.[200];
+
+    expect(schema).toMatchObject({
+      required: expect.arrayContaining([
+        'effectiveCapabilities',
+        'assignmentScope',
+      ]),
+      properties: {
+        effectiveCapabilities: {
+          type: 'array',
+          items: {
+            type: 'string',
+            enum: expect.arrayContaining(['fighters:read']),
+          },
+        },
+        assignmentScope: {
+          type: 'object',
+          required: ['fighterIds'],
+          properties: {
+            fighterIds: {
+              type: 'array',
+              items: { type: 'string', format: 'uuid' },
+            },
+          },
+        },
+      },
+    });
+    expect(JSON.stringify(response)).toContain('CurrentUserDto');
+  });
+
+  it('documents the authenticated navigation badge contract', () => {
+    const document = createOpenApiDocument(app);
+    const operation = document.paths['/navigation/badges']?.get;
+
+    expect(operation).toMatchObject({ security: [{ bearer: [] }] });
+    expect(JSON.stringify(operation?.responses?.[200])).toContain(
+      'NavigationBadgeCountsDto',
+    );
+    expect(
+      document.components?.schemas?.NavigationBadgeCountsDto,
+    ).toMatchObject({
+      required: ['notifications'],
+      properties: {
+        notifications: { type: 'integer', minimum: 0 },
+        reviewQueue: { type: 'integer', minimum: 0 },
+        newAlerts: { type: 'integer', minimum: 0 },
+        failedJobs: { type: 'integer', minimum: 0 },
+      },
+    });
+  });
+
+  it('documents the authenticated notification contracts', () => {
+    const document = createOpenApiDocument(app);
+
+    expect(document.paths['/notifications']?.get).toMatchObject({
+      security: [{ bearer: [] }],
+    });
+    expect(
+      JSON.stringify(document.paths['/notifications']?.get?.responses?.[200]),
+    ).toContain('NotificationPageDto');
+    expect(
+      JSON.stringify(
+        document.paths['/notifications/summary']?.get?.responses?.[200],
+      ),
+    ).toContain('NotificationSummaryDto');
+    expect(
+      document.paths['/notifications/{id}/read']?.patch?.responses,
+    ).toMatchObject({
+      200: expect.any(Object),
+      401: expect.any(Object),
+      404: expect.any(Object),
+      422: expect.any(Object),
+    });
+    expect(
+      JSON.stringify(
+        document.paths['/notifications/read-all']?.post?.responses?.[200],
+      ),
+    ).toContain('NotificationMutationCountDto');
   });
 
   it('uses the registration-specific response contract', () => {

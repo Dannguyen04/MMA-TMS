@@ -39,6 +39,7 @@ Bộ kiểm thử toàn diện cho Task 4:
 
 from dataclasses import FrozenInstanceError
 import math
+from pathlib import Path
 import subprocess
 import sys
 from types import MappingProxyType
@@ -1307,7 +1308,7 @@ class TestTask4AcceptancePatch(unittest.TestCase):
                 [sys.executable, "-c", code],
                 capture_output=True,
                 text=True,
-                cwd="d:/test/ai/python-worker",
+                cwd=Path(__file__).resolve().parent,
             )
             self.assertEqual(
                 result.returncode,

@@ -17,7 +17,7 @@ export const metadata: Metadata = { title: "Goals" };
 export default async function FighterGoalsPage() {
     const user = await requireRole("fighter");
     if (!user.profileId) notFound();
-    const fighter = requireFighterAccess(user, user.profileId);
+    const fighter = await requireFighterAccess(user, user.profileId);
     const goals = await listGoals({ fighterIds: [fighter.id] });
     const now = new Date().toISOString();
     const active = goals.filter((goal) => goal.status === "on_track" || goal.status === "at_risk");

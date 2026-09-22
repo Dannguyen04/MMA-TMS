@@ -14,7 +14,7 @@ export const metadata: Metadata = { title: "Performance" };
 export default async function FighterPerformancePage() {
     const user = await requireRole("fighter");
     if (!user.profileId) notFound();
-    const fighter = requireFighterAccess(user, user.profileId);
+    const fighter = await requireFighterAccess(user, user.profileId);
 
     return (
         <>

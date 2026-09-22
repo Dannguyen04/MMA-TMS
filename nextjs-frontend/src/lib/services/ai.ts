@@ -27,9 +27,9 @@ import { db, nowIso, simulateLatency } from "@/lib/mocks/db";
 import { matchesSearch } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { average, round } from "@/lib/utils";
-import { recordAudit } from "./audit";
-import { notifyUsers, staffUserIdsForFighter } from "./notifications";
-import { syncRuntimeJobs, trackRuntimeJob, untrackRuntimeJob } from "./videos";
+import { recordAudit } from "./audit.demo";
+import { notifyUsers, staffUserIdsForFighter } from "./notifications.demo";
+import { syncRuntimeJobs, trackRuntimeJob, untrackRuntimeJob } from "./videos.demo";
 
 /**
  * AI analysis review, pipeline jobs, model registry and abnormal movement observations.

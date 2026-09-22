@@ -30,7 +30,8 @@ Thumbs.db
 .DS_Store
 
 # Documentation
-docs
+docs/*
+!docs/FULLSTACK_INTEGRATION_CONTEXT.md
 
 # Local Cursor configuration, rules, and skills at any project depth
 .cursor/

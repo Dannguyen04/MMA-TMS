@@ -11,18 +11,21 @@ One product for four roles:
 | **Sports Doctor** | Clinical overview, health profiles, medical records, examinations, injuries & treatment, recovery plans, Medical Clearance, AI movement observations |
 | **Administrator** | Users, roles & permissions, videos, AI processing jobs, AI models & thresholds, audit logs, broadcasts, system settings |
 
-Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS v4. The backend is still in development, so the app runs on an in-memory mock data layer by default.
+Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS v4. Authenticated API mode is the default; production builds reject demo data and the mock video pipeline.
 
 ## Run it
 
+Run the repository Compose stack from the root after creating a non-placeholder `.env` from `.env.example`. Compose runs the backend with its local-auth and filesystem-storage adapters (`AUTH_PROVIDER=local`, `STORAGE_DRIVER=local`); see `../docs/FULLSTACK_INTEGRATION_CONTEXT.md` for the remaining blockers.
+
+For frontend-only checks:
+
 ```bash
-npm install
-npm run dev
+corepack pnpm install --dir . --frozen-lockfile
+corepack pnpm run lint
+corepack pnpm run typecheck
+corepack pnpm run test
+corepack pnpm run build
 ```
-
-Open http://localhost:3000 and use a **demo account** on the sign-in screen (Minh Trần — fighter, Rafael Costa — coach, Dr. Thu Lê — sports doctor, Nora Whitfield — administrator). Any demo email also works with the password `mma-demo`.
-
-Mock data resets when the dev server restarts. `MOCK_LATENCY_MS` (default 180) simulates network latency so loading states are visible; set it to `0` to disable.
 
 ## Scripts
 
@@ -41,13 +44,14 @@ Copy `.env.local.example` to `.env.local` when you need to change defaults.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `NEXT_PUBLIC_VIDEO_PIPELINE` | `mock` | `api` uploads footage to Supabase Storage and analyses it with the NestJS job API and the Python worker |
-| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_API_URL` | — | Required only in `api` mode |
-| `MOCK_LATENCY_MS` | `180` | Simulated service latency in ms |
-| `ALLOW_DEMO_AUTH` | unset | Production builds disable the mock sign-in unless this is `true`. It exposes every demo account, including medical data — use only for private demos |
+| `APP_DATA_MODE` | `api` | Set to `demo` only for an explicit non-production UI demo |
+| `NEXT_PUBLIC_VIDEO_PIPELINE` | `api` | Production and real E2E reject `mock` |
+| `API_URL`, `NEXT_PUBLIC_API_URL` | — | Internal server URL and browser-visible API URL |
+| `E2E_BASE_URL`, `E2E_PASSWORD` | — | Isolated real Playwright target and seeded-user password |
+| `MOCK_LATENCY_MS` | `180` | Explicit demo-mode service latency only |
 
 ## Architecture
 
 See [`docs/frontend-architecture.md`](docs/frontend-architecture.md) for folder structure, the data and auth layers, the design system, form patterns, AI and medical communication rules, accessibility and responsive behaviour.
 
-Replacing the mocks: keep the function signatures in `src/lib/services/*` and swap their bodies for API calls; swap `src/lib/auth/session.ts` for real token verification.
+The remaining AI, medical, and video service adapters are tracked in `../implementation_plan.md`. Real mode must never fall back to their demo data.

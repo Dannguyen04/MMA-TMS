@@ -1,20 +1,4 @@
-version: "3.9"
-
 services:
-    # ── Redis (Message Broker) ──────────────────────────────────
-    redis:
-        image: redis:7-alpine
-        ports:
-            - "6379:6379"
-        volumes:
-            - redis_data:/data
-        healthcheck:
-            test: ["CMD", "redis-cli", "ping"]
-            interval: 5s
-            retries: 5
-
-    # ── PostgreSQL (Database) ───────────────────────────────────
-    # Chú ý: Production nên dùng Supabase thay thế
     postgres:
         image: postgres:16-alpine
         environment:
@@ -25,83 +9,133 @@ services:
             - "5432:5432"
         volumes:
             - postgres_data:/var/lib/postgresql/data
+            - ./nestjs-api/local-postgres/000_local_only_supabase_compat.sql:/docker-entrypoint-initdb.d/000_local_only_supabase_compat.sql:ro
+            - ./nestjs-api/migrations/001_create_analysis_jobs.sql:/docker-entrypoint-initdb.d/001_create_analysis_jobs.sql:ro
+            - ./nestjs-api/migrations/002_add_health_alerts.sql:/docker-entrypoint-initdb.d/002_add_health_alerts.sql:ro
+            - ./nestjs-api/migrations/003_mma_tms_complete_schema.sql:/docker-entrypoint-initdb.d/003_mma_tms_complete_schema.sql:ro
+            - ./nestjs-api/migrations/004_seed_api_permissions.sql:/docker-entrypoint-initdb.d/004_seed_api_permissions.sql:ro
+            - ./nestjs-api/migrations/005_training_management.sql:/docker-entrypoint-initdb.d/005_training_management.sql:ro
+            - ./nestjs-api/migrations/006_training_permissions.sql:/docker-entrypoint-initdb.d/006_training_permissions.sql:ro
+            - ./nestjs-api/migrations/007_grant_api_permissions_to_admin.sql:/docker-entrypoint-initdb.d/007_grant_api_permissions_to_admin.sql:ro
+            - ./nestjs-api/migrations/008_grant_training_read_permissions_to_fighter.sql:/docker-entrypoint-initdb.d/008_grant_training_read_permissions_to_fighter.sql:ro
+            - ./nestjs-api/migrations/009_role_permission_baseline.sql:/docker-entrypoint-initdb.d/009_role_permission_baseline.sql:ro
+            - ./nestjs-api/migrations/010_restrict_clinical_rls.sql:/docker-entrypoint-initdb.d/010_restrict_clinical_rls.sql:ro
+            - ./nestjs-api/migrations/011_enable_assignment_scoped_fighter_access.sql:/docker-entrypoint-initdb.d/011_enable_assignment_scoped_fighter_access.sql:ro
+            - ./nestjs-api/migrations/012_local_auth_credentials_sessions.sql:/docker-entrypoint-initdb.d/012_local_auth_credentials_sessions.sql:ro
+            - ./nestjs-api/migrations/013_fix_local_password_hash_constraint.sql:/docker-entrypoint-initdb.d/013_fix_local_password_hash_constraint.sql:ro
+            - ./nestjs-api/migrations/014_password_reset_outbox.sql:/docker-entrypoint-initdb.d/014_password_reset_outbox.sql:ro
+            - ./nestjs-api/migrations/015_account_directory_status.sql:/docker-entrypoint-initdb.d/015_account_directory_status.sql:ro
+            - ./nestjs-api/migrations/016_user_invitations.sql:/docker-entrypoint-initdb.d/016_user_invitations.sql:ro
+            - ./nestjs-api/migrations/017_doctor_assignment_permissions.sql:/docker-entrypoint-initdb.d/017_doctor_assignment_permissions.sql:ro
+            - ./nestjs-api/migrations/018_video_storage_contract.sql:/docker-entrypoint-initdb.d/018_video_storage_contract.sql:ro
+            - ./nestjs-api/migrations/019_fighter_ui_profile_fields.sql:/docker-entrypoint-initdb.d/019_fighter_ui_profile_fields.sql:ro
+            - ./nestjs-api/migrations/020_coach_feedback.sql:/docker-entrypoint-initdb.d/020_coach_feedback.sql:ro
+            - ./nestjs-api/migrations/021_staff_directory.sql:/docker-entrypoint-initdb.d/021_staff_directory.sql:ro
+            - ./nestjs-api/migrations/022_performance_permissions.sql:/docker-entrypoint-initdb.d/022_performance_permissions.sql:ro
+            - ./nestjs-api/migrations/023_goals_progress.sql:/docker-entrypoint-initdb.d/023_goals_progress.sql:ro
         healthcheck:
-            test: ["CMD-SHELL", "pg_isready -U postgres"]
+            test:
+                [
+                    "CMD-SHELL",
+                    "psql -U postgres -d martial_arts_tracker -tAc \"SELECT count(*) FROM mma_private.migration_history WHERE version = 23\" 2>/dev/null | grep -qx 1",
+                ]
             interval: 5s
-            retries: 5
+            timeout: 5s
+            retries: 10
 
-    # ── NestJS API ──────────────────────────────────────────────
+    redis:
+        image: redis:7-alpine
+        command: ["redis-server", "--appendonly", "yes"]
+        ports:
+            - "6379:6379"
+        volumes:
+            - redis_data:/data
+        healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            interval: 5s
+            timeout: 5s
+            retries: 10
+
     nestjs-api:
+        image: mma-tms-nestjs-api:latest
         build:
             context: ./nestjs-api
             dockerfile: Dockerfile
         ports:
             - "3001:3001"
         environment:
+            NODE_ENV: production
+            AUTH_PROVIDER: local
             PORT: 3001
-            DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/martial_arts_tracker}
-            SUPABASE_URL: ${SUPABASE_URL}
-            SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
-            SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY}
+            DATABASE_URL: postgresql://postgres:postgres@postgres:5432/martial_arts_tracker
+            DATABASE_SSL_REJECT_UNAUTHORIZED: "true"
+            SUPABASE_URL: ${SUPABASE_URL:-}
+            SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
+            SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY:-}
             REDIS_HOST: redis
             REDIS_PORT: 6379
             FRONTEND_URL: http://localhost:3000
-            WORKER_SECRET_TOKEN: ${WORKER_SECRET_TOKEN:-mma-tms-worker-local-secret-2026}
+            WORKER_SECRET_TOKEN: ${WORKER_SECRET_TOKEN:?Set WORKER_SECRET_TOKEN}
+            STORAGE_DRIVER: local
+            LOCAL_STORAGE_PATH: /data/storage
+            VIDEO_MAX_SIZE_MB: 500
+        volumes:
+            - local_storage:/data/storage
         depends_on:
+            postgres:
+                condition: service_healthy
             redis:
                 condition: service_healthy
-        volumes:
-            - ./nestjs-api:/app
-            - /app/node_modules
+        healthcheck:
+            test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/ready"]
+            interval: 10s
+            timeout: 5s
+            retries: 12
 
-    # ── Python Worker (YOLO-Pose) ────────────────────────────────
     python-worker:
+        image: mma-tms-python-worker:latest
         build:
-            context: ./python-worker
-            dockerfile: Dockerfile
+            context: .
+            dockerfile: python-worker/Dockerfile
         environment:
             REDIS_URL: redis://redis:6379
             QUEUE_NAME: video-analysis
-            YOLO_MODEL: yolov8n-pose
+            YOLO_MODEL: yolov8n-pose.pt
             NESTJS_API_URL: http://nestjs-api:3001
-            WORKER_SECRET_TOKEN: ${WORKER_SECRET_TOKEN:-mma-tms-worker-local-secret-2026}
-            DATABASE_URL: ${DATABASE_URL}
-            SUPABASE_URL: ${SUPABASE_URL}
-            SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY}
+            WORKER_SECRET_TOKEN: ${WORKER_SECRET_TOKEN:?Set WORKER_SECRET_TOKEN}
             TMP_DIR: /tmp/worker
+            CONTRACTS_DIR: /contracts
         depends_on:
             redis:
                 condition: service_healthy
+            nestjs-api:
+                condition: service_healthy
         volumes:
-            - ./python-worker:/app
             - worker_tmp:/tmp/worker
-        # deploy:
-        #     resources:
-        #         reservations:
-        #             devices:
-        #                 - driver: nvidia # Bỏ comment nếu có GPU
-        #                   count: 1
-        #                   capabilities: [gpu]
 
-    # ── Next.js Frontend ─────────────────────────────────────────
     nextjs-frontend:
+        image: mma-tms-nextjs-frontend:latest
         build:
             context: ./nextjs-frontend
             dockerfile: Dockerfile
             args:
-                NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
-                NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL}
-                NEXT_PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+                NEXT_PUBLIC_API_URL: http://localhost:3001
+                NEXT_PUBLIC_VIDEO_PIPELINE: api
         ports:
             - "3000:3000"
         environment:
+            NODE_ENV: production
+            APP_DATA_MODE: api
+            API_URL: http://nestjs-api:3001
             NEXT_PUBLIC_API_URL: http://localhost:3001
-            NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL}
-            NEXT_PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+            NEXT_PUBLIC_VIDEO_PIPELINE: api
+            VIDEO_MAX_SIZE_MB: 500
         depends_on:
-            - nestjs-api
+            nestjs-api:
+                condition: service_healthy
 
 volumes:
-    redis_data:
     postgres_data:
+    redis_data:
     worker_tmp:
+    local_storage:

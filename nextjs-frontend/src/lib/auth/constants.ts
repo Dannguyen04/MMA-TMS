@@ -1,13 +1,10 @@
-/**
- * Auth constants shared by the proxy, server actions and the login screen.
- * Mock authentication: replace the session implementation in ./session.ts when the
- * NestJS auth endpoints are available — nothing else needs to change.
- */
+/** Hằng số xác thực dùng chung giữa Proxy, Route Handler và Server Action. */
 
-export const SESSION_COOKIE = "mma_session";
+export const ACCESS_TOKEN_COOKIE = "mma_access";
+export const REFRESH_TOKEN_COOKIE = "mma_refresh";
+export const ACCESS_EXPIRES_COOKIE = "mma_access_expires";
 export const THEME_COOKIE = "mma_theme";
-
-/** Password accepted for every demo account. */
+/** Chỉ dùng bởi giao diện demo tách biệt; luồng API không chấp nhận mật khẩu dùng chung này. */
 export const DEMO_PASSWORD = "mma-demo";
 
 export type ThemePreference = "light" | "dark" | "system";
@@ -16,12 +13,7 @@ export function parseTheme(value: string | undefined): ThemePreference {
     return value === "light" || value === "dark" ? value : "system";
 }
 
-/**
- * Whether the mock cookie session may be used. The mock trusts a plain user id, so production
- * deployments keep it off unless ALLOW_DEMO_AUTH=true is set on purpose (it exposes all data).
- * Read at call time, never at module load: `next build` evaluates modules in production mode.
- * Server-only — the variable isn't available in the browser.
- */
+/** Chế độ demo chỉ được bật rõ ràng và không bao giờ hợp lệ trong production. */
 export function isDemoAuthEnabled(): boolean {
-    return process.env.NODE_ENV !== "production" || process.env.ALLOW_DEMO_AUTH === "true";
+    return process.env.NODE_ENV !== "production" && process.env.APP_DATA_MODE === "demo";
 }

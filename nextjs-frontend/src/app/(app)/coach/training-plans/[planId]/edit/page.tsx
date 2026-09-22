@@ -32,7 +32,7 @@ export default async function EditPlanPage({ params }: PageProps<"/coach/trainin
         getClearanceSummaries(planRead.then((result) => (result && canAccessFighter(user, result.fighterId) ? [result.fighterId] : [])), now),
     ]);
     if (!plan) notFound();
-    const fighter = requireFighterAccess(user, plan.fighterId);
+    const fighter = await requireFighterAccess(user, plan.fighterId);
 
     const defaults: PlanFormValues = {
         fighterId: fighter.id,

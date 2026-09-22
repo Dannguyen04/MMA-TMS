@@ -1,3 +1,5 @@
+> **Current integration notice (2026-09-20):** production builds reject `APP_DATA_MODE=demo` and `NEXT_PUBLIC_VIDEO_PIPELINE=mock`. Do not set `ALLOW_DEMO_AUTH`; authentication uses the backend API and HTTP-only cookies. Deployment remains incomplete until the backend Supabase adapters and required route families are available. See the root `README.md` and `docs/FULLSTACK_INTEGRATION_CONTEXT.md`.
+
 # 🚀 Hướng Dẫn Triển Khai Thực Tế (Production Deployment Guide)
 
 Tài liệu hướng dẫn từng bước triển khai hệ thống **MMA-TMS** lên kiến trúc Cloud hiện đại với chi phí tối ưu (gần như $0):
@@ -16,10 +18,10 @@ Tài liệu hướng dẫn từng bước triển khai hệ thống **MMA-TMS** 
 | :--------------------- | :----------------------- | :----------------------------------------------------------------------------------------- |
 | `DATABASE_URL`         | NestJS, Supabase         | `postgresql://postgres.[ref]:[pwd]@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres` |
 | `REDIS_URL`            | NestJS, Worker           | `rediss://default:[token]@singapore-redis.upstash.io:6379` _(Upstash)_                     |
-| `SUPABASE_URL`         | Frontend, NestJS, Worker | `https://[project-ref].supabase.co`                                                        |
-| `SUPABASE_ANON_KEY`    | Frontend                 | Khóa công khai `anon` trên Supabase API                                                    |
-| `SUPABASE_SERVICE_KEY` | NestJS, Worker           | Khóa bí mật `service_role` trên Supabase API                                               |
-| `WORKER_SECRET_TOKEN`  | NestJS, Worker           | Chuỗi bảo mật ngẫu nhiên (ví dụ: `mma-tms-secret-key-prod-2026`)                           |
+| `SUPABASE_URL`         | NestJS                   | `https://[project-ref].supabase.co`                                                        |
+| `SUPABASE_ANON_KEY`    | NestJS                   | Khóa công khai `anon` trên Supabase API                                                    |
+| `SUPABASE_SERVICE_KEY` | NestJS                   | Khóa bí mật `service_role` trên Supabase API                                               |
+| `WORKER_SECRET_TOKEN`  | NestJS, Worker           | Chuỗi bảo mật ngẫu nhiên, tự sinh (ví dụ: `openssl rand -hex 32`); không dùng giá trị mẫu  |
 | `NEXT_PUBLIC_API_URL`  | Frontend (Vercel)        | URL của Backend trên Render (ví dụ: `https://mma-api.onrender.com`)                        |
 | `FRONTEND_URL`         | NestJS (Render)          | `https://*.vercel.app,https://your-domain.com`                                             |
 
@@ -72,7 +74,7 @@ Tài liệu hướng dẫn từng bước triển khai hệ thống **MMA-TMS** 
     - `REDIS_URL`: _(Lấy từ Upstash ở Bước 2)_
     - `SUPABASE_URL`: _(Lấy từ Supabase)_
     - `SUPABASE_SERVICE_KEY`: _(Lấy từ Supabase)_
-    - `WORKER_SECRET_TOKEN`: `mma-tms-secret-key-prod-2026`
+    - `WORKER_SECRET_TOKEN`: _(chuỗi ngẫu nhiên tự sinh, dùng chung với Worker)_
     - `FRONTEND_URL`: `https://*.vercel.app,http://localhost:3000`
 5. Bấm **Create Web Service**. Đợi ~2 phút đến khi hiển thị `Live`.
 6. Copy domain HTTPS do Render cấp (ví dụ: `https://mma-tms-api.onrender.com`).
@@ -89,10 +91,10 @@ Tài liệu hướng dẫn từng bước triển khai hệ thống **MMA-TMS** 
     - **Framework Preset**: `Next.js` (Tự động nhận diện).
 4. Thêm **Environment Variables** trên Vercel:
     - `NEXT_PUBLIC_API_URL`: `https://mma-tms-api.onrender.com` _(URL Render lấy ở Bước 3)_
-    - `NEXT_PUBLIC_SUPABASE_URL`: _(Lấy từ Supabase)_
-    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: _(Lấy từ Supabase)_
-    - `ALLOW_DEMO_AUTH`: `true` _(chỉ khi cần bật đăng nhập demo trên bản production)_
-        > ⚠️ **Cảnh báo:** Frontend hiện dùng phiên đăng nhập giả lập (mock), không phải xác thực thật. Bản build production sẽ **tắt** đăng nhập nếu thiếu biến này. Khi đặt `ALLOW_DEMO_AUTH=true`, bất kỳ ai truy cập trang cũng có thể đăng nhập bằng mọi tài khoản demo và xem **toàn bộ dữ liệu, kể cả hồ sơ y tế**. Chỉ bật cho bản demo riêng tư và gỡ biến này khi đã có dịch vụ xác thực thật.
+    - `APP_DATA_MODE`: `api`
+    - `NEXT_PUBLIC_VIDEO_PIPELINE`: `api`
+    - `API_URL`: URL nội bộ của NestJS API
+    - Frontend không cần biến Supabase: upload đi qua NestJS `/videos/upload`; không thêm service key vào Vercel
 5. Bấm **Deploy**. Vercel sẽ tự động build và cấp domain HTTPS (ví dụ: `https://mma-tms.vercel.app`).
 
 ---
@@ -109,16 +111,14 @@ Bạn có thể chọn 1 trong 2 phương án:
     ```env
     REDIS_URL=rediss://default:xxxxxx@singapore-xxxx.upstash.io:6379
     NESTJS_API_URL=https://mma-tms-api.onrender.com
-    SUPABASE_URL=https://wskisxkpbhisnqfpjqrm.supabase.co
-    SUPABASE_SERVICE_KEY=eyJhbGci...
-    WORKER_SECRET_TOKEN=mma-tms-secret-key-prod-2026
+    WORKER_SECRET_TOKEN=replace-with-random-worker-secret
     ```
 2. Khởi động worker:
     ```bash
     cd python-worker
     .venv\Scripts\python.exe worker.py
     ```
-3. Worker sẽ báo: `✅ Kết nối Redis thành công. 👂 Đang lắng nghe queue 'video-analysis'...`
+3. Worker sẽ báo: `Worker BullMQ đang lắng nghe queue video-analysis`
    👉 Bất kỳ ai vào web trên Vercel upload video, máy tính của bạn sẽ tự động kéo việc về xử lý và đẩy kết quả lên!
 
 ---
@@ -128,14 +128,12 @@ Bạn có thể chọn 1 trong 2 phương án:
 1. Đăng nhập [Railway.app](https://railway.app), chọn **New Project > Deploy from GitHub repo**.
 2. Chọn repository của bạn.
 3. Vào **Settings**:
-    - **Root Directory**: `python-worker`
-    - Railway sẽ tự động phát hiện `Dockerfile` và build container.
+    - **Root Directory**: để trống (gốc repo) — `python-worker/Dockerfile` cần build context ở gốc để sao chép `python-worker/` và `contracts/`.
+    - Đặt biến `RAILWAY_DOCKERFILE_PATH`: `python-worker/Dockerfile`.
 4. Vào tab **Variables**, thêm các biến:
     - `REDIS_URL`: _(Lấy từ Upstash)_
     - `NESTJS_API_URL`: `https://mma-tms-api.onrender.com`
-    - `SUPABASE_URL`: _(Lấy từ Supabase)_
-    - `SUPABASE_SERVICE_KEY`: _(Lấy từ Supabase)_
-    - `WORKER_SECRET_TOKEN`: `mma-tms-secret-key-prod-2026`
+    - `WORKER_SECRET_TOKEN`: _(cùng giá trị ngẫu nhiên đã đặt cho NestJS)_
 5. Bấm Deploy. Worker sẽ chạy nền liên tục 24/7 trên Cloud.
 
 ---

@@ -91,6 +91,42 @@ export function coachAssignmentAlreadyClosed(): ConflictException {
   });
 }
 
+export function doctorNotFound(): NotFoundException {
+  return new NotFoundException({
+    statusCode: HttpStatus.NOT_FOUND,
+    error: 'Not Found',
+    code: 'DOCTOR_NOT_FOUND',
+    message: 'Doctor profile not found or inactive',
+  });
+}
+
+export function doctorAssignmentNotFound(): NotFoundException {
+  return new NotFoundException({
+    statusCode: HttpStatus.NOT_FOUND,
+    error: 'Not Found',
+    code: 'DOCTOR_ASSIGNMENT_NOT_FOUND',
+    message: 'Doctor assignment record not found',
+  });
+}
+
+export function doctorAssignmentAlreadyActive(): ConflictException {
+  return new ConflictException({
+    statusCode: HttpStatus.CONFLICT,
+    error: 'Conflict',
+    code: 'DOCTOR_ASSIGNMENT_ALREADY_ACTIVE',
+    message: 'An active assignment already exists for this doctor and fighter',
+  });
+}
+
+export function doctorAssignmentAlreadyClosed(): ConflictException {
+  return new ConflictException({
+    statusCode: HttpStatus.CONFLICT,
+    error: 'Conflict',
+    code: 'DOCTOR_ASSIGNMENT_ALREADY_CLOSED',
+    message: 'This doctor assignment has already been ended',
+  });
+}
+
 export function invalidAssignmentPeriod(): BadRequestException {
   return new BadRequestException({
     statusCode: HttpStatus.BAD_REQUEST,
@@ -143,6 +179,9 @@ export function mapFighterPersistenceError(error: unknown): HttpException {
     if (error.constraint === 'uq_coach_fighter_open') {
       return coachAssignmentAlreadyActive();
     }
+    if (error.constraint === 'uq_doctor_fighter_open') {
+      return doctorAssignmentAlreadyActive();
+    }
     if (error.constraint === 'uq_measurement_successor') {
       return measurementAlreadySuperseded();
     }
@@ -159,6 +198,9 @@ export function mapFighterPersistenceError(error: unknown): HttpException {
     if (error.constraint?.includes('coach')) {
       return coachNotFound();
     }
+    if (error.constraint?.includes('doctor')) {
+      return doctorNotFound();
+    }
     if (error.constraint?.includes('fighter')) {
       return fighterNotFound();
     }
@@ -172,10 +214,16 @@ export function mapFighterPersistenceError(error: unknown): HttpException {
 
   // 23514: check_violation
   if (error.code === '23514') {
-    if (error.constraint === 'ck_coach_fighters_period') {
+    if (
+      error.constraint === 'ck_coach_fighters_period' ||
+      error.constraint === 'ck_doctor_fighters_period'
+    ) {
       return invalidAssignmentPeriod();
     }
-    if (error.constraint === 'ck_coach_fighters_closure') {
+    if (
+      error.constraint === 'ck_coach_fighters_closure' ||
+      error.constraint === 'ck_doctor_fighters_closure'
+    ) {
       return new BadRequestException({
         statusCode: HttpStatus.BAD_REQUEST,
         error: 'Bad Request',

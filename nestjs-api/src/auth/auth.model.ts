@@ -30,6 +30,10 @@ export const refreshBodySchema = z.strictObject({
   refreshToken: z.string().min(20).max(4_096),
 });
 
+export const passwordResetRequestBodySchema = z.strictObject({
+  email: normalizedEmailSchema,
+});
+
 export const authSessionSchema = z.strictObject({
   accessToken: z.string(),
   refreshToken: z.string(),
@@ -58,6 +62,10 @@ export const logoutResponseSchema = z.strictObject({
   loggedOut: z.literal(true),
 });
 
+export const passwordResetRequestResponseSchema = z.strictObject({
+  accepted: z.literal(true),
+});
+
 export type LoginInput = z.infer<typeof loginBodySchema>;
 export type RegisterInput = z.infer<typeof registerBodySchema>;
 export type RefreshInput = z.infer<typeof refreshBodySchema>;
@@ -65,3 +73,6 @@ export type AuthSession = z.infer<typeof authSessionSchema>;
 export type AuthResponse = z.infer<typeof authResponseSchema>;
 export type RegisterResponse = z.infer<typeof registerResponseSchema>;
 export type LogoutResponse = z.infer<typeof logoutResponseSchema>;
+export type PasswordResetRequestInput = z.infer<
+  typeof passwordResetRequestBodySchema
+>;

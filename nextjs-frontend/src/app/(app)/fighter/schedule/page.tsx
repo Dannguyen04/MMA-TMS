@@ -30,7 +30,7 @@ const UPCOMING_DAYS = 14;
 export default async function FighterSchedulePage({ searchParams }: PageProps<"/fighter/schedule">) {
     const user = await requireRole("fighter");
     if (!user.profileId) notFound();
-    const fighter = requireFighterAccess(user, user.profileId);
+    const fighter = await requireFighterAccess(user, user.profileId);
     const params = await searchParams;
 
     const current = new Date();

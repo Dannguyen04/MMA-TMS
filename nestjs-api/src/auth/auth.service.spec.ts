@@ -22,6 +22,11 @@ const publicUser: PublicUser = {
   email: authenticatedUser.email,
   role: 'FIGHTER',
   isActive: true,
+  status: 'ACTIVE',
+  displayName: 'An Nguyen',
+  phone: null,
+  title: 'Fighter',
+  lastActiveAt: null,
   createdAt: new Date('2026-01-01T00:00:00.000Z'),
   updatedAt: new Date('2026-01-01T00:00:00.000Z'),
   deletedAt: null,
@@ -78,6 +83,7 @@ function dependencies() {
   };
   const repository = {
     findActiveUserBySubject: vi.fn().mockResolvedValue(authenticatedUser),
+    touchLastActive: vi.fn().mockResolvedValue(undefined),
     resolvePermissions: vi.fn().mockResolvedValue(
       new Map([
         ['users.read', true],
@@ -93,6 +99,11 @@ function dependencies() {
     adminClient as never,
     repository as unknown as AuthRepository,
     usersService as unknown as UsersService,
+    {
+      get: vi.fn((key: string, fallback: unknown) =>
+        key === 'AUTH_PROVIDER' ? 'supabase' : fallback,
+      ),
+    } as never,
   );
   return { service, publicClient, adminClient, repository, usersService };
 }
@@ -162,7 +173,9 @@ describe('AuthService', () => {
 
   it('cleans up created Supabase auth user when registerFighter fails', async () => {
     const { service, usersService, adminClient } = dependencies();
-    usersService.registerFighter.mockRejectedValueOnce(new Error('auto grant failed'));
+    usersService.registerFighter.mockRejectedValueOnce(
+      new Error('auto grant failed'),
+    );
 
     const error = await service
       .register(
@@ -187,7 +200,7 @@ describe('AuthService', () => {
   });
 
   it('logs in only a mapped active application user', async () => {
-    const { service } = dependencies();
+    const { service, repository } = dependencies();
     await expect(
       service.login({
         email: authenticatedUser.email,
@@ -197,6 +210,9 @@ describe('AuthService', () => {
       user: authenticatedUser,
       session: { accessToken: session.access_token },
     });
+    expect(repository.touchLastActive).toHaveBeenCalledWith(
+      authenticatedUser.id,
+    );
   });
 
   it('rejects and revokes a Supabase session for an inactive app user', async () => {

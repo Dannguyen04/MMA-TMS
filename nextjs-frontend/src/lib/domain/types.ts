@@ -29,6 +29,12 @@ export interface User {
     lastActiveAt: ISODate | null;
     /** Profile id in the role-specific table (fighter/coach/doctor). Null for admins. */
     profileId: string | null;
+    /** Năng lực hiệu lực do backend trả về; thiếu trường này đồng nghĩa không có quyền UI. */
+    effectiveCapabilities?: Permission[];
+    /** Phạm vi võ sĩ do backend xác lập; thiếu phạm vi thì từ chối truy cập bản ghi. */
+    assignmentScope?: {
+        fighterIds: string[];
+    };
 }
 
 export type Permission =

@@ -1,4 +1,11 @@
 .venv
 __pycache__
 .env
+test_*.py
+benchmark_*.py
+benchmark_*.json
+scratch_*.py
+validation_videos
+*.md
+*_REPORT.md
 

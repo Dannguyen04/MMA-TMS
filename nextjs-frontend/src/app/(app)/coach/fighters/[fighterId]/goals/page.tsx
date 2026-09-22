@@ -11,13 +11,13 @@ import { listGoals } from "@/lib/services/goals";
 
 export async function generateMetadata({ params }: PageProps<"/coach/fighters/[fighterId]/goals">): Promise<Metadata> {
     const user = await requireRole("coach");
-    const fighter = requireFighterAccess(user, (await params).fighterId);
+    const fighter = await requireFighterAccess(user, (await params).fighterId);
     return { title: `Goals · ${fighter.name}` };
 }
 
 export default async function CoachFighterGoalsPage({ params }: PageProps<"/coach/fighters/[fighterId]/goals">) {
     const user = await requireRole("coach");
-    const fighter = requireFighterAccess(user, (await params).fighterId);
+    const fighter = await requireFighterAccess(user, (await params).fighterId);
     const goals = await listGoals({ fighterIds: [fighter.id] });
     const now = new Date().toISOString();
     const firstName = fighter.name.split(" ")[0];

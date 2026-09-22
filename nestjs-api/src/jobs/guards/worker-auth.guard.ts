@@ -4,15 +4,26 @@ import {
   ExecutionContext,
   UnauthorizedException,
 } from '@nestjs/common';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { Request } from 'express';
+
+/** So sánh bí mật với thời gian hằng định; băm trước để không lộ độ dài. */
+function secretsMatch(provided: string, expected: string): boolean {
+  const digest = (value: string) => createHash('sha256').update(value).digest();
+  return timingSafeEqual(digest(provided), digest(expected));
+}
 
 @Injectable()
 export class WorkerAuthGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<Request>();
+    const expectedToken = process.env.WORKER_SECRET_TOKEN;
 
-    const expectedToken =
-      process.env.WORKER_SECRET_TOKEN || 'mma-tms-worker-local-secret-2026';
+    if (!expectedToken) {
+      throw new UnauthorizedException(
+        'Máy chủ chưa cấu hình WORKER_SECRET_TOKEN.',
+      );
+    }
 
     const headerToken = request.headers['x-worker-secret'] as
       string | undefined;
@@ -26,7 +37,7 @@ export class WorkerAuthGuard implements CanActivate {
 
     const providedToken = headerToken || bearerToken;
 
-    if (!providedToken || providedToken !== expectedToken) {
+    if (!providedToken || !secretsMatch(providedToken, expectedToken)) {
       throw new UnauthorizedException(
         'Không có quyền truy cập: Worker Secret Token không hợp lệ.',
       );

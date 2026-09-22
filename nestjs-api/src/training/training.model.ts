@@ -157,6 +157,30 @@ export type TrainingPlanExerciseEntity = z.infer<
   typeof trainingPlanExerciseBaseSchema
 >;
 
+export const FeedbackKind = z.enum(['PRAISE', 'CORRECTION', 'NOTE']);
+export const FeedbackTechnique = z.enum([
+  'jab',
+  'cross',
+  'hook',
+  'kick',
+  'combination',
+  'footwork',
+  'guard',
+  'head_movement',
+]);
+export const coachFeedbackBaseSchema = z.object({
+  id: z.string().uuid(),
+  fighterId: z.string().uuid(),
+  coachId: z.string().uuid(),
+  sessionId: z.string().uuid().nullable(),
+  videoId: z.string().uuid().nullable(),
+  kind: FeedbackKind,
+  body: trimmedTextSchema(1000),
+  techniques: z.array(FeedbackTechnique),
+  createdAt: isoDateTimeSchema,
+});
+export type CoachFeedbackEntity = z.infer<typeof coachFeedbackBaseSchema>;
+
 // --- Request / Response Schemas ---
 
 const paginationSchema = {
@@ -197,6 +221,34 @@ export const listExercisesQuerySchema = z.strictObject({
   search: trimmedTextSchema(100).optional(),
 });
 export type ListExercisesQuery = z.infer<typeof listExercisesQuerySchema>;
+
+export const listFeedbackQuerySchema = z.strictObject({
+  ...paginationSchema,
+  fighterId: z.string().uuid().optional(),
+  coachId: z.string().uuid().optional(),
+  sessionId: z.string().uuid().optional(),
+  videoId: z.string().uuid().optional(),
+  kind: FeedbackKind.optional(),
+});
+export type ListFeedbackQuery = z.infer<typeof listFeedbackQuerySchema>;
+
+export const createFeedbackSchema = coachFeedbackBaseSchema
+  .pick({
+    fighterId: true,
+    sessionId: true,
+    videoId: true,
+    kind: true,
+    body: true,
+    techniques: true,
+  })
+  .strict()
+  .refine((value) => value.sessionId === null || value.videoId === null, {
+    message: 'Feedback can reference either a session or a video, not both.',
+  });
+export type CreateFeedbackInput = z.infer<typeof createFeedbackSchema>;
+export type CreateFeedbackRecordInput = CreateFeedbackInput & {
+  coachId: string;
+};
 
 export const createTrainingPlanSchema = trainingPlanBaseSchema
   .pick({
@@ -369,6 +421,8 @@ export const TRAINING_PERMISSIONS = {
   EXERCISE_READ: 'training.exercise:read',
   EXERCISE_CREATE: 'training.exercise:create',
   EXERCISE_UPDATE: 'training.exercise:update',
+  FEEDBACK_GET_ALL: 'training.feedback:get_all',
+  FEEDBACK_CREATE: 'training.feedback:create',
 } as const;
 
 export const updatePlanStatusSchema = z.strictObject({

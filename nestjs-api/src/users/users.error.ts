@@ -12,7 +12,7 @@ interface PostgreSqlError {
   constraint?: string;
 }
 
-function isPostgreSqlError(error: unknown): error is PostgreSqlError {
+export function isPostgreSqlError(error: unknown): error is PostgreSqlError {
   return (
     typeof error === 'object' &&
     error !== null &&
@@ -45,6 +45,42 @@ export function userRoleMismatch(): BadRequestException {
     error: 'Bad Request',
     code: 'USER_ROLE_MISMATCH',
     message: 'The profile type does not match the user role',
+  });
+}
+
+export function ownAccountStatusChange(): ConflictException {
+  return new ConflictException({
+    statusCode: HttpStatus.CONFLICT,
+    error: 'Conflict',
+    code: 'OWN_ACCOUNT',
+    message: 'You cannot change the status of your own account',
+  });
+}
+
+export function invalidUserStatusTransition(): ConflictException {
+  return new ConflictException({
+    statusCode: HttpStatus.CONFLICT,
+    error: 'Conflict',
+    code: 'INVALID_STATUS',
+    message: 'The requested account status transition is not allowed',
+  });
+}
+
+export function invitationEmailTaken(): ConflictException {
+  return new ConflictException({
+    statusCode: HttpStatus.CONFLICT,
+    error: 'Conflict',
+    code: 'EMAIL_TAKEN',
+    message: 'A user already exists for this email',
+  });
+}
+
+export function userNotInvited(): ConflictException {
+  return new ConflictException({
+    statusCode: HttpStatus.CONFLICT,
+    error: 'Conflict',
+    code: 'NOT_INVITED',
+    message: 'Only invited accounts can receive another invitation',
   });
 }
 

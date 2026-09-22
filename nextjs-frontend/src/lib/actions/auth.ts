@@ -4,24 +4,13 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { DEMO_PASSWORD, isDemoAuthEnabled, SESSION_COOKIE, THEME_COOKIE, parseTheme } from "@/lib/auth/constants";
-import { getCurrentUser } from "@/lib/auth/session";
-import type { Role, User } from "@/lib/domain/types";
-import { db } from "@/lib/mocks/db";
+import { ApiError, apiRequest } from "@/lib/api/client";
+import { ACCESS_TOKEN_COOKIE, THEME_COOKIE, parseTheme } from "@/lib/auth/constants";
+import { clearSessionCookies, setSessionCookies } from "@/lib/auth/session-cookies";
+import { sessionTokensSchema } from "@/lib/auth/session-tokens";
+import type { Role } from "@/lib/domain/types";
 import { dashboardPath, roleForPath, routes, safeRedirectPath } from "@/lib/routes";
-import { recordAudit } from "@/lib/services/audit";
-import { clamp } from "@/lib/utils";
 import { actionError, actionSuccess, validationError, type ActionState } from "./state";
-
-const DEMO_ACCOUNTS: Record<Role, string> = {
-    fighter: "u-minh-tran",
-    coach: "u-rafael-costa",
-    doctor: "u-thu-le",
-    admin: "u-nora-whitfield",
-};
-
-/** The cookie follows the admin session-timeout setting, kept within 5 minutes and 24 hours. */
-const SESSION_TIMEOUT_MIN = { min: 5, max: 1440 };
 
 const signInSchema = z.object({
     email: z.email("Enter a valid email address."),
@@ -29,40 +18,25 @@ const signInSchema = z.object({
     next: z.string().optional(),
 });
 
-const demoSignInSchema = z.object({
-    role: z.enum(["fighter", "coach", "doctor", "admin"]),
-    next: z.string().nullable().catch(null),
+const authResponseSchema = z.object({
+    user: z.object({
+        id: z.string().uuid(),
+        authSubject: z.string(),
+        email: z.email(),
+        role: z.enum(["FIGHTER", "COACH", "DOCTOR", "ADMIN"]),
+    }),
+    session: sessionTokensSchema.extend({ tokenType: z.string() }),
 });
 
-/** Why an account can't start a session, or null when it can. */
-function assertCanSignIn(user: User): string | null {
-    if (user.status === "suspended") return "This account is suspended. Contact your academy administrator.";
-    if (user.status === "invited") return "This invitation hasn't been accepted yet. Check your email for the setup link.";
-    return null;
-}
-
-async function startSession(user: User, next: string | null) {
-    const store = await cookies();
-    const { min, max } = SESSION_TIMEOUT_MIN;
-    store.set(SESSION_COOKIE, user.id, {
-        httpOnly: true,
-        sameSite: "lax",
-        secure: process.env.NODE_ENV === "production",
-        path: "/",
-        maxAge: clamp(db().settings.sessionTimeoutMin, min, max) * 60,
-    });
-    user.lastActiveAt = new Date().toISOString();
-    recordAudit({ actor: user, action: "auth.sign_in", resourceType: "auth", resourceId: user.id, resourceLabel: user.email });
-
-    const target = safeRedirectPath(next);
-    const targetRole = target ? roleForPath(target) : null;
-    // Only honour ?next= when it points into an area this role may open.
-    redirect(target && (targetRole === null || targetRole === user.role) ? target : dashboardPath(user.role));
+function loginError(error: unknown): ActionState {
+    if (error instanceof ApiError && (error.status === 400 || error.status === 401)) {
+        return actionError("That email and password combination is incorrect.");
+    }
+    if (error instanceof ApiError) return actionError(error.message);
+    return actionError("Sign-in failed. Please try again.");
 }
 
 export async function signIn(_prev: ActionState, formData: FormData): Promise<ActionState> {
-    if (!isDemoAuthEnabled()) return actionError("Sign-in isn't available on this deployment yet.");
-
     const parsed = signInSchema.safeParse({
         email: formData.get("email"),
         password: formData.get("password"),
@@ -70,36 +44,28 @@ export async function signIn(_prev: ActionState, formData: FormData): Promise<Ac
     });
     if (!parsed.success) return validationError(parsed.error);
 
-    const email = parsed.data.email.trim().toLowerCase();
-    const user = db().users.find((u) => u.email === email);
-
-    if (!user || parsed.data.password !== DEMO_PASSWORD) {
-        recordAudit({
-            actor: null,
-            action: "auth.sign_in",
-            resourceType: "auth",
-            resourceId: email,
-            resourceLabel: email,
-            status: "failure",
-            details: "Invalid credentials",
+    let auth: z.output<typeof authResponseSchema>;
+    try {
+        auth = await apiRequest("/auth/login", authResponseSchema, {
+            method: "POST",
+            body: JSON.stringify({ email: parsed.data.email.trim().toLowerCase(), password: parsed.data.password }),
         });
-        return actionError("That email and password combination is incorrect.");
+    } catch (error) {
+        return loginError(error);
     }
-    const blocked = assertCanSignIn(user);
-    if (blocked) return actionError(blocked);
 
-    await startSession(user, parsed.data.next ?? null);
-    return actionSuccess("Signed in.");
+    await setSessionCookies(auth.session);
+    const role = auth.user.role.toLowerCase() as Role;
+    const target = safeRedirectPath(parsed.data.next ?? null);
+    const targetRole = target ? roleForPath(target) : null;
+    redirect(target && (targetRole === null || targetRole === role) ? target : dashboardPath(role));
 }
 
-/** One-click demo sign-in. Arguments arrive from the client, so both are re-validated here. */
-export async function signInAsDemo(role: Role, next: string | null): Promise<void> {
-    const parsed = demoSignInSchema.safeParse({ role, next });
-    if (!parsed.success || !isDemoAuthEnabled()) redirect(routes.login);
-
-    const user = db().users.find((u) => u.id === DEMO_ACCOUNTS[parsed.data.role]);
-    if (!user || assertCanSignIn(user)) redirect(routes.login);
-    await startSession(user, parsed.data.next);
+/** Tài khoản demo không được nhập vào luồng xác thực thật. */
+export async function signInAsDemo(_role: Role, _next: string | null): Promise<void> {
+    void _role;
+    void _next;
+    redirect(routes.login);
 }
 
 const forgotSchema = z.object({ email: z.email("Enter a valid email address.") });
@@ -107,17 +73,29 @@ const forgotSchema = z.object({ email: z.email("Enter a valid email address.") }
 export async function requestPasswordReset(_prev: ActionState, formData: FormData): Promise<ActionState> {
     const parsed = forgotSchema.safeParse({ email: formData.get("email") });
     if (!parsed.success) return validationError(parsed.error);
-    // Always respond the same way so the form can't be used to discover accounts.
-    return actionSuccess(`If ${parsed.data.email} belongs to an account, a reset link is on its way. It expires in 30 minutes.`);
+    try {
+        await apiRequest("/auth/password-reset/request", z.unknown(), {
+            method: "POST",
+            body: JSON.stringify({ email: parsed.data.email.trim().toLowerCase() }),
+        });
+    } catch (error) {
+        if (!(error instanceof ApiError)) return actionError("Password reset is unavailable. Please try again later.");
+        return actionError(error.status === 404 ? "Password reset is not available on this server yet." : error.message);
+    }
+    return actionSuccess("If that email belongs to an account, reset instructions are on the way.");
 }
 
 export async function signOut(): Promise<void> {
-    const user = await getCurrentUser();
     const store = await cookies();
-    store.delete(SESSION_COOKIE);
-    if (user) {
-        recordAudit({ actor: user, action: "auth.sign_out", resourceType: "auth", resourceId: user.id, resourceLabel: user.email });
+    const accessToken = store.get(ACCESS_TOKEN_COOKIE)?.value;
+    if (accessToken) {
+        try {
+            await apiRequest("/auth/logout", z.object({ loggedOut: z.literal(true) }), { method: "POST", accessToken });
+        } catch {
+            // Việc thu hồi phía máy chủ là best effort; cookie cục bộ luôn bị xóa.
+        }
     }
+    await clearSessionCookies();
     redirect(routes.login);
 }
 
