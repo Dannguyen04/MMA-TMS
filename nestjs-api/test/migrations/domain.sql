@@ -26,6 +26,7 @@ INSERT INTO fighters(id,user_id,first_name,last_name,date_of_birth,weight_class)
   (pg_temp.id('fighter2'),pg_temp.id('u-f2'),'Test','Two','2000-01-01','WELTERWEIGHT');
 INSERT INTO coaches(id,user_id,first_name,last_name) VALUES (pg_temp.id('c1'),pg_temp.id('u-coach'),'Test','Coach');
 INSERT INTO sports_doctors(id,user_id,first_name,last_name,license_number) VALUES (pg_temp.id('d1'),pg_temp.id('u-doctor'),'Test','Doctor','TEST-LICENSE');
+INSERT INTO doctor_fighters(doctor_id,fighter_id,assigned_by_id,starts_at) VALUES(pg_temp.id('d1'),pg_temp.id('fighter1'),pg_temp.id('u-admin'),'2026-01-01');
 SELECT pg_temp.expect_error($q$INSERT INTO coaches(user_id,first_name,last_name) VALUES(pg_temp.id('u-f1'),'Wrong','Role')$q$,'23503');
 SELECT pg_temp.expect_error($q$UPDATE users SET email='UPPER@example.invalid' WHERE id=pg_temp.id('u-f1')$q$,'23514');
 SELECT pg_temp.expect_error($q$UPDATE users SET role='ADMIN' WHERE id=pg_temp.id('u-f1')$q$,'23503');
@@ -113,14 +114,15 @@ SELECT pg_temp.expect_error($q$UPDATE fighter_measurements SET weight_kg=71$q$,'
 SELECT set_config('request.jwt.claim.sub',pg_temp.id('f2')::text,false);
 SELECT pg_temp.assert_true((SELECT bool_and(fighter_id=pg_temp.id('fighter2')) FROM fighter_measurements),'fighter two cannot cross-read');
 SELECT set_config('request.jwt.claim.sub',pg_temp.id('coach')::text,false);
-SELECT pg_temp.assert_true((SELECT count(*)=2 FROM fighter_measurements),'coach reads ALL fighters without assignment restriction');
-SELECT pg_temp.assert_true((SELECT count(*)=2 FROM treatments),'coach reads all treatments');
+SELECT pg_temp.assert_true((SELECT count(*)=0 FROM fighter_measurements),'coach cannot read raw medical data');
+SELECT pg_temp.assert_true((SELECT count(*)=0 FROM treatments),'coach cannot read raw treatments');
 SELECT pg_temp.assert_true((SELECT count(*)=0 FROM audit_logs),'coach cannot read audit');
 SELECT set_config('request.jwt.claim.sub',pg_temp.id('doctor')::text,false);
-SELECT pg_temp.assert_true((SELECT count(*)=2 FROM fighter_measurements),'doctor reads ALL fighters without assignments');
+SELECT pg_temp.assert_true((SELECT count(*)=1 FROM fighter_measurements),'doctor reads only actively assigned fighter medical data');
+SELECT pg_temp.assert_true((SELECT bool_and(fighter_id=pg_temp.id('fighter1')) FROM fighter_measurements),'doctor cannot cross-read unassigned fighter medical data');
 SELECT pg_temp.assert_true((SELECT count(*)=0 FROM audit_logs),'doctor cannot read audit');
 SELECT set_config('request.jwt.claim.sub',pg_temp.id('admin')::text,false);
-SELECT pg_temp.assert_true((SELECT count(*)=2 FROM fighter_measurements),'admin reads all medical');
+SELECT pg_temp.assert_true((SELECT count(*)=0 FROM fighter_measurements),'admin cannot read raw medical data');
 SELECT pg_temp.assert_true((SELECT count(*)>0 FROM audit_logs),'admin reads audit');
 SELECT set_config('request.jwt.claim.sub',pg_temp.id('inactive')::text,false);
 SELECT pg_temp.assert_true((SELECT count(*)=0 FROM fighter_measurements),'inactive account denied');

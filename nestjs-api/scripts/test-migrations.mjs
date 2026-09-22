@@ -71,6 +71,38 @@ const target003 = '003_mma_tms_complete_schema.sql';
 const target004 = '004_seed_api_permissions.sql';
 const target005 = '005_training_management.sql';
 const target006 = '006_training_permissions.sql';
+const target007 = '007_role_permission_baseline.sql';
+const target008 = '008_restrict_clinical_rls.sql';
+const target009 = '009_enable_assignment_scoped_fighter_access.sql';
+const target010 = '010_local_auth_credentials_sessions.sql';
+const target011 = '011_fix_local_password_hash_constraint.sql';
+const target012 = '012_password_reset_outbox.sql';
+const target013 = '013_account_directory_status.sql';
+const target014 = '014_user_invitations.sql';
+const target015 = '015_doctor_assignment_permissions.sql';
+const target016 = '016_video_storage_contract.sql';
+const target017 = '017_fighter_ui_profile_fields.sql';
+const target018 = '018_coach_feedback.sql';
+const target019 = '019_staff_directory.sql';
+const target020 = '020_performance_permissions.sql';
+const target021 = '021_goals_progress.sql';
+const reapplyTargets = [
+  target007,
+  target008,
+  target009,
+  target010,
+  target011,
+  target012,
+  target013,
+  target014,
+  target015,
+  target016,
+  target017,
+  target018,
+  target019,
+  target020,
+  target021,
+];
 const trainingPermissionCodes = [
   'training.plan:get_all',
   'training.plan:read',
@@ -291,6 +323,356 @@ try {
         `SELECT count(*) FROM mma_private.migration_history WHERE version = 6;`,
       ),
       '1',
+    );
+  });
+  check('007 installs a least-privilege role baseline', () => {
+    migration('mma_clean', target007);
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT count(*) FROM public.role_permissions WHERE role = 'FIGHTER';`,
+      ),
+      '18',
+    );
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT count(*) FROM public.role_permissions rp JOIN public.permissions p ON p.id = rp.permission_id WHERE rp.role = 'COACH' AND p.code LIKE 'fighter:%';`,
+      ),
+      '0',
+    );
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT count(*) FROM public.role_permissions rp JOIN public.permissions p ON p.id = rp.permission_id WHERE rp.role = 'DOCTOR' AND (p.code LIKE 'fighter:%' OR p.code = 'fighter.medical:read');`,
+      ),
+      '0',
+    );
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT count(*) FROM public.role_permissions rp JOIN public.permissions p ON p.id = rp.permission_id WHERE rp.role = 'ADMIN' AND p.code IN ('fighter.medical:read','fighter.measurement:read','fighter.measurement:write');`,
+      ),
+      '0',
+    );
+  });
+  check('008 narrows the shared clinical RLS helper', () => {
+    migration('mma_clean', target008);
+    const helper = psql(
+      'mma_clean',
+      `SELECT pg_get_functiondef('mma_private.can_read_fighter_medical(uuid)'::regprocedure);`,
+    );
+    assert.match(helper, /actor\.role = 'FIGHTER'/);
+    assert.match(helper, /actor\.role = 'DOCTOR'/);
+    assert.doesNotMatch(helper, /IN \('COACH','DOCTOR','ADMIN'\)/);
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT count(*) FROM mma_private.migration_history WHERE version IN (7,8);`,
+      ),
+      '2',
+    );
+  });
+  check('009 enables only assignment-scoped Fighter API permissions', () => {
+    migration('mma_clean', target009);
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT string_agg(p.code, ',' ORDER BY p.code) FROM public.role_permissions rp JOIN public.permissions p ON p.id = rp.permission_id WHERE rp.role = 'COACH' AND p.code LIKE 'fighter%';`,
+      ),
+      [
+        'fighter:get_all',
+        'fighter.coach:read',
+        'fighter.medical:read',
+        'fighter.session:read',
+        'fighter:read',
+      ]
+        .sort()
+        .join(','),
+    );
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT string_agg(p.code, ',' ORDER BY p.code) FROM public.role_permissions rp JOIN public.permissions p ON p.id = rp.permission_id WHERE rp.role = 'DOCTOR' AND p.code LIKE 'fighter%';`,
+      ),
+      [
+        'fighter:get_all',
+        'fighter.measurement:read',
+        'fighter.measurement:write',
+        'fighter.medical:read',
+        'fighter.session:read',
+        'fighter:read',
+      ]
+        .sort()
+        .join(','),
+    );
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT count(*) FROM public.role_permissions rp JOIN public.permissions p ON p.id = rp.permission_id WHERE rp.role = 'ADMIN' AND p.code IN ('fighter.medical:read','fighter.measurement:read','fighter.measurement:write');`,
+      ),
+      '0',
+    );
+  });
+  check('010 creates private local credential and session storage', () => {
+    migration('mma_clean', target010);
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT to_regclass('public.local_auth_credentials') IS NOT NULL AND to_regclass('public.local_auth_sessions') IS NOT NULL;`,
+      ),
+      't',
+    );
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT has_table_privilege('authenticated', 'public.local_auth_credentials', 'SELECT') OR has_table_privilege('authenticated', 'public.local_auth_sessions', 'SELECT');`,
+      ),
+      'f',
+    );
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT count(*) FROM mma_private.migration_history WHERE version = 10;`,
+      ),
+      '1',
+    );
+  });
+  check('011 accepts the canonical scrypt credential format', () => {
+    migration('mma_clean', target011);
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT 'scrypt$16384$8$1$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' ~ $regex$^scrypt\\$16384\\$8\\$1\\$[A-Za-z0-9_-]{22}\\$[A-Za-z0-9_-]{86}$$regex$;`,
+      ),
+      't',
+    );
+  });
+  check('012 creates private reset requests and auth outbox', () => {
+    migration('mma_clean', target012);
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT to_regclass('public.password_reset_requests') IS NOT NULL AND to_regclass('public.auth_outbox') IS NOT NULL;`,
+      ),
+      't',
+    );
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT has_table_privilege('authenticated', 'public.password_reset_requests', 'SELECT') OR has_table_privilege('authenticated', 'public.auth_outbox', 'SELECT');`,
+      ),
+      'f',
+    );
+  });
+  check('013 adds account directory fields and enforced statuses', () => {
+    migration('mma_clean', target013);
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT string_agg(column_name, ',' ORDER BY column_name) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'users' AND column_name IN ('account_status','phone','title','last_active_at');`,
+      ),
+      'account_status,last_active_at,phone,title',
+    );
+    psql(
+      'mma_clean',
+      `INSERT INTO auth.users(id) VALUES ('10000000-0000-4000-8000-000000000013');
+       INSERT INTO public.users(email, auth_user_id, role)
+       VALUES ('status-check@example.test', '10000000-0000-4000-8000-000000000013', 'ADMIN');`,
+    );
+    rejects(
+      'mma_clean',
+      `UPDATE public.users SET account_status = 'DELETED';`,
+      /ck_users_account_status/,
+    );
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT count(*) FROM mma_private.migration_history WHERE version = 13;`,
+      ),
+      '1',
+    );
+  });
+  check(
+    '014 creates private invitation state and expands the auth outbox',
+    () => {
+      migration('mma_clean', target014);
+      assert.equal(
+        psql(
+          'mma_clean',
+          `SELECT to_regclass('public.user_invitation_requests') IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'display_name');`,
+        ),
+        't',
+      );
+      assert.equal(
+        psql(
+          'mma_clean',
+          `SELECT has_table_privilege('authenticated', 'public.user_invitation_requests', 'SELECT');`,
+        ),
+        'f',
+      );
+      psql(
+        'mma_clean',
+        `INSERT INTO public.auth_outbox(user_id, event_type, recipient_email, request_id)
+       SELECT id, 'USER_INVITED', email, '14000000-0000-4000-8000-000000000014'
+       FROM public.users WHERE email = 'status-check@example.test';`,
+      );
+      assert.equal(
+        psql(
+          'mma_clean',
+          `SELECT count(*) FROM mma_private.migration_history WHERE version = 14;`,
+        ),
+        '1',
+      );
+    },
+  );
+  check('015 grants scoped doctor-assignment permissions', () => {
+    migration('mma_clean', target015);
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT string_agg(code, ',' ORDER BY code) FROM public.permissions WHERE code LIKE 'fighter.doctor:%';`,
+      ),
+      'fighter.doctor:assign,fighter.doctor:end,fighter.doctor:read',
+    );
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT count(*) FROM public.role_permissions rp JOIN public.permissions p ON p.id = rp.permission_id WHERE p.code = 'fighter.doctor:read';`,
+      ),
+      '4',
+    );
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT count(*) FROM public.role_permissions rp JOIN public.permissions p ON p.id = rp.permission_id WHERE p.code IN ('fighter.doctor:assign','fighter.doctor:end') AND rp.role = 'ADMIN';`,
+      ),
+      '2',
+    );
+  });
+  check(
+    '016 adds persisted video training type and diagonal camera angle',
+    () => {
+      migration('mma_clean', target016);
+      assert.equal(
+        psql(
+          'mma_clean',
+          `SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'videos' AND column_name = 'training_type' AND is_nullable = 'NO');`,
+        ),
+        't',
+      );
+      assert.equal(
+        psql(
+          'mma_clean',
+          `SELECT EXISTS (SELECT 1 FROM pg_enum enum JOIN pg_type type ON type.oid = enum.enumtypid WHERE type.typname = 'camera_angle' AND enum.enumlabel = 'DIAGONAL');`,
+        ),
+        't',
+      );
+      assert.equal(
+        psql(
+          'mma_clean',
+          `SELECT pg_get_constraintdef(oid) LIKE '%SPARRING%' AND pg_get_constraintdef(oid) NOT LIKE '%RECOVERY%' FROM pg_constraint WHERE conname = 'ck_video_training_type' AND conrelid = 'public.videos'::regclass;`,
+        ),
+        't',
+      );
+    },
+  );
+  check('017 adds persisted fighter fields required by the UI', () => {
+    migration('mma_clean', target017);
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT count(*) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'fighters' AND column_name IN ('nickname','sex','weight_kg','body_fat_pct','resting_heart_rate','training_level','primary_discipline','record_wins','record_losses','record_draws','upcoming_bout');`,
+      ),
+      '11',
+    );
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT count(*) FROM mma_private.migration_history WHERE version = 17;`,
+      ),
+      '1',
+    );
+  });
+  check(
+    '018 adds assignment-scoped coach feedback storage and permissions',
+    () => {
+      migration('mma_clean', target018);
+      assert.equal(
+        psql(
+          'mma_clean',
+          `SELECT to_regclass('public.coach_feedback') IS NOT NULL;`,
+        ),
+        't',
+      );
+      assert.equal(
+        psql(
+          'mma_clean',
+          `SELECT count(*) FROM public.permissions WHERE code IN ('training.feedback:get_all','training.feedback:create');`,
+        ),
+        '2',
+      );
+      assert.equal(
+        psql(
+          'mma_clean',
+          `SELECT count(*) FROM mma_private.migration_history WHERE version = 18;`,
+        ),
+        '1',
+      );
+    },
+  );
+  check('019 adds complete staff directory fields and permissions', () => {
+    migration('mma_clean', target019);
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT count(*) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'coaches' AND column_name IN ('certifications','years_experience');`,
+      ),
+      '2',
+    );
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT count(*) FROM public.permissions WHERE code LIKE 'staff.%';`,
+      ),
+      '4',
+    );
+  });
+  check('020 grants scoped performance aggregate reads', () => {
+    migration('mma_clean', target020);
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT count(*) FROM public.role_permissions rp JOIN public.permissions p ON p.id = rp.permission_id WHERE p.code = 'performance:read';`,
+      ),
+      '4',
+    );
+  });
+  check('021 adds scoped goals and append-only progress', () => {
+    migration('mma_clean', target021);
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT (to_regclass('public.fighter_goals') IS NOT NULL AND to_regclass('public.goal_progress_events') IS NOT NULL AND EXISTS (SELECT 1 FROM public.role_permissions rp JOIN public.permissions p ON p.id = rp.permission_id WHERE rp.role = 'COACH' AND p.code = 'goals:write'))::text;`,
+      ),
+      'true',
+    );
+  });
+  check('reapplying 007 through 021 fails without duplicating history', () => {
+    for (const name of reapplyTargets) {
+      rejects(
+        'mma_clean',
+        readFileSync(join(api, 'migrations', name), 'utf8'),
+        new RegExp(`${name.slice(0, 3)} has already been applied`),
+      );
+    }
+    const versions = reapplyTargets.map((name) => Number(name.slice(0, 3)));
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT count(*) FROM mma_private.migration_history WHERE version IN (${versions.join(',')});`,
+      ),
+      String(versions.length),
     );
   });
   if (process.argv.includes('--export-catalog')) {
