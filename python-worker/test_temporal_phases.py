@@ -549,6 +549,27 @@ class TestPhaseSegmentationLogic(unittest.TestCase):
         # is_complete should be False due to anomaly
         self.assertFalse(res.is_complete)
 
+    def test_segment_phases_keep_recovery_time_monotonic_at_60_fps(self):
+        # Mốc thời gian đầu và cuối được làm tròn độc lập trong dữ liệu video thực.
+        common = {
+            "window_start_frame": 360,
+            "window_end_frame": 377,
+            "fps": 60.0,
+            "window_start_time_ms": 6000.1,
+            "window_end_time_ms": 6283.3,
+            "impact_frame": 377,
+        }
+
+        punch = segment_punch_phases(**common)
+        kick = segment_kick_phases(**common)
+
+        for result in (punch, kick):
+            retraction = result.boundaries["retraction"]
+            recovery = result.boundaries["recovery"]
+            self.assertEqual(retraction.frame_idx, recovery.frame_idx)
+            self.assertEqual(retraction.time_ms, recovery.time_ms)
+            self.assertEqual(recovery.time_ms, 6283.4)
+
     def test_segment_kick_phases_with_synthetic_trajectory(self):
         kick_seq = generate_kick_nodetect_sequence()  # 30 frames (0-4 idle, 5-9 chambering, 10-14 extending, 15-19 impact, 20-24 recovering, 25-29 None)
         res = segment_kick_phases(

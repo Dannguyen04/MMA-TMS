@@ -782,7 +782,11 @@ def segment_punch_phases(
 
     # 6. Recovery Boundary: trở về thế thủ
     rec_frame = window_end_frame
-    rec_time_ms = window_end_time_ms
+    rec_time_ms = round(
+        window_start_time_ms
+        + (rec_frame - window_start_frame) * frame_duration_ms,
+        1,
+    )
     boundaries["recovery"] = PhaseBoundary(
         frame_idx=rec_frame,
         time_ms=rec_time_ms,
@@ -1007,7 +1011,11 @@ def segment_kick_phases(
 
     # 6. Recovery Boundary
     rec_frame = window_end_frame
-    rec_time_ms = window_end_time_ms
+    rec_time_ms = round(
+        window_start_time_ms
+        + (rec_frame - window_start_frame) * frame_duration_ms,
+        1,
+    )
     boundaries["recovery"] = PhaseBoundary(
         frame_idx=rec_frame,
         time_ms=rec_time_ms,
