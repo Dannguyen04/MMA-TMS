@@ -1,8 +1,10 @@
 import { createZodDto } from 'nestjs-zod';
 import {
   assignCoachSchema,
+  assignDoctorSchema,
   assignmentIdParamsSchema,
   coachAssignmentSchema,
+  doctorAssignmentSchema,
   createMeasurementSchema,
   endCoachAssignmentSchema,
   fighterIdParamsSchema,
@@ -49,6 +51,8 @@ export class CreateMeasurementDto extends createZodDto(
 
 export class AssignCoachDto extends createZodDto(assignCoachSchema) {}
 
+export class AssignDoctorDto extends createZodDto(assignDoctorSchema) {}
+
 export class EndCoachAssignmentDto extends createZodDto(
   endCoachAssignmentSchema,
 ) {}
@@ -60,6 +64,8 @@ export class FighterMeasurementDto extends createZodDto(
 ) {}
 
 export class CoachAssignmentDto extends createZodDto(coachAssignmentSchema) {}
+
+export class DoctorAssignmentDto extends createZodDto(doctorAssignmentSchema) {}
 
 export class TrainingSessionSummaryDto extends createZodDto(
   trainingSessionSummarySchema,

@@ -35,8 +35,10 @@ import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import { appZodValidationPipe } from '../shared/pipes/zod-validation.pipe.js';
 import {
   AssignCoachDto,
+  AssignDoctorDto,
   AssignmentIdParamsDto,
   CoachAssignmentDto,
+  DoctorAssignmentDto,
   CreateMeasurementDto,
   EndCoachAssignmentDto,
   FighterIdParamsDto,
@@ -60,7 +62,7 @@ import { FightersService } from './fighters.service.js';
 @UsePipes(appZodValidationPipe)
 export class FightersController {
   constructor(private readonly fightersService: FightersService) {}
-  
+
   @Get()
   @RequirePermissions({ allOf: [FIGHTER_PERMISSIONS.GET_ALL] })
   @ApiOperation({
@@ -337,6 +339,98 @@ export class FightersController {
     @Body() body: EndCoachAssignmentDto,
   ) {
     return this.fightersService.endCoachAssignment(
+      this.requireActor(actor),
+      params.id,
+      params.assignmentId,
+      body,
+      randomUUID(),
+    );
+  }
+
+  @Get(':id/doctors')
+  @RequirePermissions({ allOf: [FIGHTER_PERMISSIONS.DOCTORS_READ] })
+  @ApiOperation({
+    summary: 'List doctor assignments',
+    description:
+      'Retrieves current and historical doctor assignments within fighter scope',
+  })
+  @ResponseMessage('Get doctor assignments successfully')
+  @ApiSuccessEnvelope({
+    status: HttpStatus.OK,
+    message: 'Get doctor assignments successfully',
+    model: DoctorAssignmentDto,
+    isArray: true,
+  })
+  @ApiUnauthorizedEnvelope()
+  @ApiForbiddenEnvelope('Requires fighter.doctor:read permission and scope')
+  @ApiNotFoundEnvelope('FIGHTER_NOT_FOUND', 'Fighter profile not found')
+  findDoctorAssignments(
+    @CurrentUser() actor: AuthenticatedUser | undefined,
+    @Param() params: FighterIdParamsDto,
+  ) {
+    return this.fightersService.findDoctorAssignments(
+      this.requireActor(actor),
+      params.id,
+    );
+  }
+
+  @Post(':id/doctors')
+  @RequirePermissions({ allOf: [FIGHTER_PERMISSIONS.DOCTORS_ASSIGN] })
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Assign doctor to fighter' })
+  @ResponseMessage('Assign doctor successfully')
+  @ApiSuccessEnvelope({
+    status: HttpStatus.CREATED,
+    message: 'Assign doctor successfully',
+    model: DoctorAssignmentDto,
+  })
+  @ApiValidationErrorEnvelope()
+  @ApiUnauthorizedEnvelope()
+  @ApiForbiddenEnvelope('Requires fighter.doctor:assign permission')
+  @ApiNotFoundEnvelope('DOCTOR_NOT_FOUND', 'Doctor not found or inactive')
+  @ApiConflictEnvelope(
+    'DOCTOR_ASSIGNMENT_ALREADY_ACTIVE',
+    'An active doctor assignment already exists',
+  )
+  assignDoctor(
+    @CurrentUser() actor: AuthenticatedUser | undefined,
+    @Param() params: FighterIdParamsDto,
+    @Body() body: AssignDoctorDto,
+  ) {
+    return this.fightersService.assignDoctor(
+      this.requireActor(actor),
+      params.id,
+      body,
+      randomUUID(),
+    );
+  }
+
+  @Post(':id/doctors/:assignmentId/end')
+  @RequirePermissions({ allOf: [FIGHTER_PERMISSIONS.DOCTORS_END] })
+  @ApiOperation({ summary: 'End doctor assignment' })
+  @ResponseMessage('End doctor assignment successfully')
+  @ApiSuccessEnvelope({
+    status: HttpStatus.OK,
+    message: 'End doctor assignment successfully',
+    model: DoctorAssignmentDto,
+  })
+  @ApiValidationErrorEnvelope()
+  @ApiUnauthorizedEnvelope()
+  @ApiForbiddenEnvelope('Requires fighter.doctor:end permission')
+  @ApiNotFoundEnvelope(
+    'DOCTOR_ASSIGNMENT_NOT_FOUND',
+    'Doctor assignment record not found',
+  )
+  @ApiConflictEnvelope(
+    'DOCTOR_ASSIGNMENT_ALREADY_CLOSED',
+    'This doctor assignment has already been closed',
+  )
+  endDoctorAssignment(
+    @CurrentUser() actor: AuthenticatedUser | undefined,
+    @Param() params: AssignmentIdParamsDto,
+    @Body() body: EndCoachAssignmentDto,
+  ) {
+    return this.fightersService.endDoctorAssignment(
       this.requireActor(actor),
       params.id,
       params.assignmentId,

@@ -90,6 +90,9 @@ function serviceMock() {
     findCoachAssignments: vi.fn().mockResolvedValue([]),
     assignCoach: vi.fn(),
     endCoachAssignment: vi.fn(),
+    findDoctorAssignments: vi.fn().mockResolvedValue([]),
+    assignDoctor: vi.fn(),
+    endDoctorAssignment: vi.fn(),
     findTrainingSessions: vi.fn().mockResolvedValue({
       data: [],
       total: 0,
@@ -182,6 +185,15 @@ describe('FightersController (e2e)', () => {
     expect(
       permissionFor(FightersController.prototype.endCoachAssignment),
     ).toEqual({ allOf: [FIGHTER_PERMISSIONS.COACHES_END] });
+    expect(
+      permissionFor(FightersController.prototype.findDoctorAssignments),
+    ).toEqual({ allOf: [FIGHTER_PERMISSIONS.DOCTORS_READ] });
+    expect(permissionFor(FightersController.prototype.assignDoctor)).toEqual({
+      allOf: [FIGHTER_PERMISSIONS.DOCTORS_ASSIGN],
+    });
+    expect(
+      permissionFor(FightersController.prototype.endDoctorAssignment),
+    ).toEqual({ allOf: [FIGHTER_PERMISSIONS.DOCTORS_END] });
     expect(
       permissionFor(FightersController.prototype.findTrainingSessions),
     ).toEqual({ allOf: [FIGHTER_PERMISSIONS.SESSIONS_READ] });
