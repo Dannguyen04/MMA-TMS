@@ -56,7 +56,6 @@ type Transfer = { kind: "ready" } | { kind: "uploading"; pct: number | null } | 
 
 function WizardFlow({
     role,
-    viewerId,
     fighters,
     sessions,
     settings,
@@ -242,7 +241,7 @@ function WizardFlow({
         if (!validateDetails()) return failStep(2);
         const formData = buildFormData();
         const file = footage.file;
-        if (!formData || !file) return;
+        if (!formData || !file || !details.trainingType || !details.cameraAngle || duration === null) return;
         setOutcome(null);
         setSavedServerErrors({});
         cancelledRef.current = false;
@@ -268,11 +267,20 @@ function WizardFlow({
         setTransfer({ kind: "uploading", pct: null });
         try {
             const [{ uploadVideoToStorage }, { createJob }] = await Promise.all([import("@/lib/api/storage"), import("@/lib/api/jobs-client")]);
-            const stored = await uploadVideoToStorage(file);
+            const stored = await uploadVideoToStorage(file, {
+                fighterId: details.fighterId,
+                title: details.title.trim(),
+                description: details.notes.trim() || undefined,
+                trainingType: details.trainingType,
+                cameraAngle: details.cameraAngle,
+                sessionId: details.sessionId || undefined,
+                durationMs: Math.round(duration * 1000),
+            });
             if (cancelledRef.current) return;
-            const { jobId } = await createJob({ videoUrl: stored.publicUrl, userId: viewerId });
+            const { jobId } = await createJob({ videoId: stored.videoId });
             if (cancelledRef.current) return;
-            formData.set("sourceUrl", stored.publicUrl);
+            formData.set("videoId", stored.videoId);
+            formData.set("sourceUrl", stored.sourceUrl);
             formData.set("externalJobId", jobId);
             submit(formData);
         } catch (error) {
