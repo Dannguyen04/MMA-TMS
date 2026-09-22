@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient } from '@supabase/supabase-js';
+import { readAuthProvider } from '../../auth/auth-provider.config.js';
 
 export const SUPABASE_AUTH_CLIENT = Symbol('SUPABASE_AUTH_CLIENT');
 export const SUPABASE_ADMIN_CLIENT = Symbol('SUPABASE_ADMIN_CLIENT');
@@ -18,22 +19,26 @@ const serverAuthOptions = {
     {
       provide: SUPABASE_AUTH_CLIENT,
       inject: [ConfigService],
-      useFactory: (config: ConfigService) =>
-        createClient(
+      useFactory: (config: ConfigService) => {
+        if (readAuthProvider(config) === 'local') return null;
+        return createClient(
           config.getOrThrow<string>('SUPABASE_URL'),
           config.getOrThrow<string>('SUPABASE_ANON_KEY'),
           serverAuthOptions,
-        ),
+        );
+      },
     },
     {
       provide: SUPABASE_ADMIN_CLIENT,
       inject: [ConfigService],
-      useFactory: (config: ConfigService) =>
-        createClient(
+      useFactory: (config: ConfigService) => {
+        if (readAuthProvider(config) === 'local') return null;
+        return createClient(
           config.getOrThrow<string>('SUPABASE_URL'),
           config.getOrThrow<string>('SUPABASE_SERVICE_KEY'),
           serverAuthOptions,
-        ),
+        );
+      },
     },
   ],
   exports: [SUPABASE_AUTH_CLIENT, SUPABASE_ADMIN_CLIENT],

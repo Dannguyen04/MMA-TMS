@@ -10,6 +10,7 @@
     "build": "nest build",
     "deploy": "nest deploy",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
@@ -27,6 +28,21 @@
     "db:migrate:004": "node run_sql.mjs --apply-004",
     "db:migrate:005": "node run_sql.mjs --apply-005",
     "db:migrate:006": "node run_sql.mjs --apply-006",
+    "db:migrate:007": "node run_sql.mjs --apply-007",
+    "db:migrate:008": "node run_sql.mjs --apply-008",
+    "db:migrate:009": "node run_sql.mjs --apply-009",
+    "db:migrate:010": "node run_sql.mjs --apply-010",
+    "db:migrate:011": "node run_sql.mjs --apply-011",
+    "db:migrate:012": "node run_sql.mjs --apply-012",
+    "db:migrate:013": "node run_sql.mjs --apply-013",
+    "db:migrate:014": "node run_sql.mjs --apply-014",
+    "db:migrate:015": "node run_sql.mjs --apply-015",
+    "db:migrate:016": "node run_sql.mjs --apply-016",
+    "db:migrate:017": "node run_sql.mjs --apply-017",
+    "db:migrate:018": "node run_sql.mjs --apply-018",
+    "db:migrate:019": "node run_sql.mjs --apply-019",
+    "db:migrate:020": "node run_sql.mjs --apply-020",
+    "db:migrate:021": "node run_sql.mjs --apply-021",
     "test:db": "node scripts/test-migrations.mjs"
   },
   "dependencies": {
@@ -68,5 +84,6 @@
     "typescript": "^6.0.2",
     "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^4.1.2"
-  }
+  },
+  "packageManager": "pnpm@12.4.2"
 }
