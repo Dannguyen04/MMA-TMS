@@ -26,6 +26,7 @@ const coachId = '88f97dd5-8f68-45bf-81db-4a778d30853a';
 const planId = '07fe1247-ac7a-4832-9fff-77f6effa35cb';
 const sessionId = '51c38f60-0f4e-48aa-848b-20f5ef828f57';
 const exerciseId = 'fc9d9ca7-b105-4650-aa80-e96872159309';
+const feedbackId = 'ba425c7d-f166-4800-a542-d2f5d1a96adc';
 const planExerciseId = '50ee2921-819a-4d0e-b8b1-813251da83a4';
 const now = '2026-09-17T10:00:00.000Z';
 
@@ -139,6 +140,9 @@ function repositoryMock() {
     addPlanExercise: vi.fn(),
     updatePlanExercise: vi.fn(),
     removePlanExercise: vi.fn(),
+    findFeedback: vi.fn(),
+    createFeedback: vi.fn(),
+    findVideoContext: vi.fn(),
   };
 }
 
@@ -160,6 +164,72 @@ describe('TrainingService', () => {
 
     service = module.get(TrainingService);
     repo = module.get<Mocked<TrainingRepository>>(TrainingRepository);
+  });
+
+  it('scopes fighter feedback queries to the authenticated fighter profile', async () => {
+    repo.findActiveFighterIdByUserId.mockResolvedValue(fighterId);
+    repo.findFeedback.mockResolvedValue({ data: [], total: 0 });
+
+    await expect(
+      service.listFeedback(fighterActor, { page: 1, limit: 20 }),
+    ).resolves.toEqual({ data: [], total: 0, hasNextPage: false });
+    expect(repo.findFeedback).toHaveBeenCalledWith(
+      { page: 1, limit: 20, fighterId },
+      {},
+    );
+  });
+
+  it('derives the coach profile when creating assigned-fighter feedback', async () => {
+    repo.findActiveCoachIdByUserId.mockResolvedValue(coachId);
+    repo.isCoachAssignedToFighter.mockResolvedValue(true);
+    repo.createFeedback.mockResolvedValue({
+      id: feedbackId,
+      fighterId,
+      coachId,
+      sessionId: null,
+      videoId: null,
+      kind: 'PRAISE',
+      body: 'Good balance after the cross.',
+      techniques: ['cross'],
+      createdAt: now,
+    });
+
+    await expect(
+      service.createFeedback(coachActor, {
+        fighterId,
+        sessionId: null,
+        videoId: null,
+        kind: 'PRAISE',
+        body: 'Good balance after the cross.',
+        techniques: ['cross'],
+      }),
+    ).resolves.toMatchObject({ id: feedbackId, coachId });
+    expect(repo.createFeedback).toHaveBeenCalledWith({
+      fighterId,
+      coachId,
+      sessionId: null,
+      videoId: null,
+      kind: 'PRAISE',
+      body: 'Good balance after the cross.',
+      techniques: ['cross'],
+    });
+  });
+
+  it('denies coach feedback creation outside an active assignment', async () => {
+    repo.findActiveCoachIdByUserId.mockResolvedValue(coachId);
+    repo.isCoachAssignedToFighter.mockResolvedValue(false);
+
+    await expect(
+      service.createFeedback(coachActor, {
+        fighterId: otherFighterId,
+        sessionId: null,
+        videoId: null,
+        kind: 'NOTE',
+        body: 'Review this later.',
+        techniques: [],
+      }),
+    ).rejects.toThrow(ForbiddenException);
+    expect(repo.createFeedback).not.toHaveBeenCalled();
   });
 
   it('computes plan progress after authorizing the fighter', async () => {

@@ -57,6 +57,9 @@ import {
   UpdateSessionDto,
   UpdateSessionStatusDto,
   UpdateTrainingPlanDto,
+  ListFeedbackQueryDto,
+  CreateFeedbackDto,
+  CoachFeedbackResponseDto,
 } from './training.dto.js';
 import { TRAINING_PERMISSIONS } from './training.model.js';
 import { TrainingService } from './training.service.js';
@@ -85,7 +88,9 @@ export class PlansController {
   })
   @ApiValidationErrorEnvelope()
   @ApiUnauthorizedEnvelope()
-  @ApiForbiddenEnvelope('Requires training.plan:get_all and valid resource scope')
+  @ApiForbiddenEnvelope(
+    'Requires training.plan:get_all and valid resource scope',
+  )
   @ApiErrorEnvelope({
     status: HttpStatus.BAD_REQUEST,
     code: 'FIGHTER_SCOPE_REQUIRED',
@@ -110,7 +115,9 @@ export class PlansController {
   })
   @ApiValidationErrorEnvelope()
   @ApiUnauthorizedEnvelope()
-  @ApiForbiddenEnvelope('Requires training.plan:create and valid resource scope')
+  @ApiForbiddenEnvelope(
+    'Requires training.plan:create and valid resource scope',
+  )
   @ApiErrorEnvelope({
     status: HttpStatus.BAD_REQUEST,
     code: 'INVALID_PLAN_DATE_RANGE',
@@ -138,10 +145,7 @@ export class PlansController {
   @ApiValidationErrorEnvelope()
   @ApiUnauthorizedEnvelope()
   @ApiForbiddenEnvelope('Requires training.plan:read and valid resource scope')
-  @ApiNotFoundEnvelope(
-    'TRAINING_PLAN_NOT_FOUND',
-    'Training plan not found',
-  )
+  @ApiNotFoundEnvelope('TRAINING_PLAN_NOT_FOUND', 'Training plan not found')
   async getPlan(
     @CurrentUser() actor: AuthenticatedUser | undefined,
     @Param() params: TrainingPlanIdParamsDto,
@@ -159,11 +163,10 @@ export class PlansController {
   })
   @ApiValidationErrorEnvelope()
   @ApiUnauthorizedEnvelope()
-  @ApiForbiddenEnvelope('Requires training.plan:update and valid resource scope')
-  @ApiNotFoundEnvelope(
-    'TRAINING_PLAN_NOT_FOUND',
-    'Training plan not found',
+  @ApiForbiddenEnvelope(
+    'Requires training.plan:update and valid resource scope',
   )
+  @ApiNotFoundEnvelope('TRAINING_PLAN_NOT_FOUND', 'Training plan not found')
   @ApiErrorEnvelope({
     status: HttpStatus.BAD_REQUEST,
     code: 'INVALID_PLAN_DATE_RANGE',
@@ -190,10 +193,7 @@ export class PlansController {
   @ApiForbiddenEnvelope(
     'Requires training.plan:transition and valid resource scope',
   )
-  @ApiNotFoundEnvelope(
-    'TRAINING_PLAN_NOT_FOUND',
-    'Training plan not found',
-  )
+  @ApiNotFoundEnvelope('TRAINING_PLAN_NOT_FOUND', 'Training plan not found')
   @ApiConflictEnvelope(
     'PLAN_STATE_CONFLICT',
     'The training plan state was modified concurrently.',
@@ -224,10 +224,7 @@ export class PlansController {
   @ApiForbiddenEnvelope(
     'Requires training.plan_exercise:read and valid resource scope',
   )
-  @ApiNotFoundEnvelope(
-    'TRAINING_PLAN_NOT_FOUND',
-    'Training plan not found',
-  )
+  @ApiNotFoundEnvelope('TRAINING_PLAN_NOT_FOUND', 'Training plan not found')
   async listPlanExercises(
     @CurrentUser() actor: AuthenticatedUser | undefined,
     @Param() params: TrainingPlanIdParamsDto,
@@ -250,10 +247,7 @@ export class PlansController {
   @ApiForbiddenEnvelope(
     'Requires training.plan_exercise:create and valid resource scope',
   )
-  @ApiNotFoundEnvelope(
-    'TRAINING_PLAN_NOT_FOUND',
-    'Training plan not found',
-  )
+  @ApiNotFoundEnvelope('TRAINING_PLAN_NOT_FOUND', 'Training plan not found')
   @ApiConflictEnvelope(
     'TRAINING_CONFLICT',
     'The operation violates a unique constraint.',
@@ -471,6 +465,64 @@ export class SessionsController {
       params.id,
       body.status,
     );
+  }
+}
+
+@ApiTags('Coach Feedback')
+@ApiBearerAuth()
+@Controller('coach-feedback')
+@UseGuards(AccessTokenGuard, AuthorizationGuard)
+@UsePipes(appZodValidationPipe)
+export class FeedbackController {
+  constructor(private readonly service: TrainingService) {}
+
+  @Get()
+  @RequirePermissions({ allOf: [TRAINING_PERMISSIONS.FEEDBACK_GET_ALL] })
+  @ApiOperation({ summary: 'List coach feedback' })
+  @ResponseMessage('Get coach feedback successfully')
+  @ApiSuccessEnvelope({
+    message: 'Get coach feedback successfully',
+    model: CoachFeedbackResponseDto,
+    isPaginated: true,
+  })
+  @ApiValidationErrorEnvelope()
+  @ApiUnauthorizedEnvelope()
+  @ApiForbiddenEnvelope(
+    'Requires training.feedback:get_all and valid resource scope',
+  )
+  async listFeedback(
+    @CurrentUser() actor: AuthenticatedUser | undefined,
+    @Query() query: ListFeedbackQueryDto,
+  ) {
+    return this.service.listFeedback(requireActor(actor), query);
+  }
+
+  @Post()
+  @RequirePermissions({ allOf: [TRAINING_PERMISSIONS.FEEDBACK_CREATE] })
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Create coach feedback' })
+  @ResponseMessage('Create coach feedback successfully')
+  @ApiSuccessEnvelope({
+    status: HttpStatus.CREATED,
+    message: 'Create coach feedback successfully',
+    model: CoachFeedbackResponseDto,
+  })
+  @ApiValidationErrorEnvelope()
+  @ApiUnauthorizedEnvelope()
+  @ApiForbiddenEnvelope(
+    'Requires training.feedback:create and an active coach assignment',
+  )
+  @ApiErrorEnvelope({
+    status: HttpStatus.BAD_REQUEST,
+    code: 'FEEDBACK_CONTEXT_MISMATCH',
+    message:
+      'The referenced session or video does not belong to the feedback fighter.',
+  })
+  async createFeedback(
+    @CurrentUser() actor: AuthenticatedUser | undefined,
+    @Body() body: CreateFeedbackDto,
+  ) {
+    return this.service.createFeedback(requireActor(actor), body);
   }
 }
 

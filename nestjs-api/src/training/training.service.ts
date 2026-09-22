@@ -13,6 +13,7 @@ import {
   fighterPlanMismatch,
   planStateConflict,
   sessionStateConflict,
+  feedbackContextMismatch,
 } from './training.error.js';
 import type {
   CreatePlanInput,
@@ -28,6 +29,8 @@ import type {
   ListExercisesQuery,
   SessionStatusType,
   TrainingPlanStatusType,
+  ListFeedbackQuery,
+  CreateFeedbackInput,
 } from './training.model.js';
 import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import { USER } from '../shared/types/user.role.js';
@@ -42,13 +45,21 @@ export class TrainingService {
     fighterId: string,
   ): Promise<void> {
     if (actor.role === USER.FIGHTER) {
-      const activeFighterId = await this.repo.findActiveFighterIdByUserId(actor.id);
+      const activeFighterId = await this.repo.findActiveFighterIdByUserId(
+        actor.id,
+      );
       if (activeFighterId !== fighterId) throw forbidden();
     } else if (actor.role === USER.COACH) {
-      const isAssigned = await this.repo.isCoachAssignedToFighter(actor.id, fighterId);
+      const isAssigned = await this.repo.isCoachAssignedToFighter(
+        actor.id,
+        fighterId,
+      );
       if (!isAssigned) throw forbidden();
     } else if (actor.role === USER.DOCTOR) {
-      const isAssigned = await this.repo.isDoctorAssignedToFighter(actor.id, fighterId);
+      const isAssigned = await this.repo.isDoctorAssignedToFighter(
+        actor.id,
+        fighterId,
+      );
       if (!isAssigned) throw forbidden();
     }
   }
@@ -60,7 +71,9 @@ export class TrainingService {
     let activeCoachId: string | undefined;
 
     if (actor.role === USER.FIGHTER) {
-      const activeFighterId = await this.repo.findActiveFighterIdByUserId(actor.id);
+      const activeFighterId = await this.repo.findActiveFighterIdByUserId(
+        actor.id,
+      );
       if (!activeFighterId) throw forbidden();
       scopedQuery.fighterId = activeFighterId;
     } else if (actor.role === USER.COACH) {
@@ -144,7 +157,11 @@ export class TrainingService {
     }
   }
 
-  async updatePlan(actor: AuthenticatedUser, id: string, data: UpdatePlanInput) {
+  async updatePlan(
+    actor: AuthenticatedUser,
+    id: string,
+    data: UpdatePlanInput,
+  ) {
     try {
       const existing = await this.repo.findPlanById(id);
       if (!existing) throw planNotFound();
@@ -327,6 +344,75 @@ export class TrainingService {
         throw sessionStateConflict();
       }
       return updated;
+    } catch (error) {
+      throw mapTrainingPersistenceError(error);
+    }
+  }
+
+  async listFeedback(actor: AuthenticatedUser, query: ListFeedbackQuery) {
+    const scopedQuery = { ...query };
+    let activeCoachId: string | undefined;
+
+    if (actor.role === USER.FIGHTER) {
+      const fighterId = await this.repo.findActiveFighterIdByUserId(actor.id);
+      if (!fighterId) throw forbidden();
+      scopedQuery.fighterId = fighterId;
+      delete scopedQuery.coachId;
+    } else if (actor.role === USER.COACH) {
+      activeCoachId = await this.repo.findActiveCoachIdByUserId(actor.id);
+      if (!activeCoachId) throw forbidden();
+      if (scopedQuery.coachId) {
+        const owns = await this.repo.isCoachProfileOwnedByUser(
+          actor.id,
+          scopedQuery.coachId,
+        );
+        if (!owns) throw forbidden();
+      } else if (!scopedQuery.fighterId) {
+        scopedQuery.coachId = activeCoachId;
+      }
+    } else if (actor.role === USER.DOCTOR && !scopedQuery.fighterId) {
+      throw fighterScopeRequired();
+    }
+
+    if (scopedQuery.fighterId) {
+      await this.assertFighterAccess(actor, scopedQuery.fighterId);
+    }
+
+    try {
+      const result = await this.repo.findFeedback(
+        scopedQuery,
+        activeCoachId ? { activeCoachId } : {},
+      );
+      return {
+        ...result,
+        hasNextPage: scopedQuery.page * scopedQuery.limit < result.total,
+      };
+    } catch (error) {
+      throw mapTrainingPersistenceError(error);
+    }
+  }
+
+  async createFeedback(actor: AuthenticatedUser, data: CreateFeedbackInput) {
+    if (actor.role !== USER.COACH) throw forbidden();
+    const coachId = await this.repo.findActiveCoachIdByUserId(actor.id);
+    if (!coachId) throw forbidden();
+    await this.assertFighterAccess(actor, data.fighterId);
+
+    if (data.sessionId) {
+      const session = await this.repo.findSessionById(data.sessionId);
+      if (!session || session.fighterId !== data.fighterId) {
+        throw feedbackContextMismatch();
+      }
+    }
+    if (data.videoId) {
+      const video = await this.repo.findVideoContext(data.videoId);
+      if (!video || video.fighterId !== data.fighterId) {
+        throw feedbackContextMismatch();
+      }
+    }
+
+    try {
+      return await this.repo.createFeedback({ ...data, coachId });
     } catch (error) {
       throw mapTrainingPersistenceError(error);
     }
