@@ -8,7 +8,6 @@ import {
   Param,
   Patch,
   Post,
-  Query,
   UseGuards,
   UsePipes,
 } from '@nestjs/common';
@@ -37,14 +36,8 @@ import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import { appZodValidationPipe } from '../shared/pipes/zod-validation.pipe.js';
 import {
   CreateUserDto,
-  CurrentUserDto,
-  InviteUserDto,
-  ListUsersQueryDto,
   PublicUserDto,
-  UpdateUserStatusDto,
   UpdateUserDto,
-  UpdateOwnProfileDto,
-  UserDirectoryPageDto,
   UserIdParamsDto,
 } from './users.dto.js';
 import { USER_PERMISSIONS } from './users.model.js';
@@ -86,31 +79,6 @@ export class UsersController {
     return this.usersService.create(this.actor(actor), body.user, randomUUID());
   }
 
-  @Post('invite')
-  @RequirePermissions({ allOf: [USER_PERMISSIONS.CREATE] })
-  @ApiOperation({
-    summary: 'Invite user',
-    description:
-      'Creates an invited account and a private delivery outbox event without a caller-controlled password',
-  })
-  @ResponseMessage('User invitation created successfully')
-  @HttpCode(HttpStatus.CREATED)
-  @ApiSuccessEnvelope({
-    status: HttpStatus.CREATED,
-    message: 'User invitation created successfully',
-    model: PublicUserDto,
-  })
-  @ApiValidationErrorEnvelope('Invalid invitation payload')
-  @ApiUnauthorizedEnvelope()
-  @ApiForbiddenEnvelope('Requires users.create permission')
-  @ApiConflictEnvelope('EMAIL_TAKEN', 'A user already exists for this email')
-  invite(
-    @CurrentUser() actor: AuthenticatedUser | undefined,
-    @Body() body: InviteUserDto,
-  ) {
-    return this.usersService.invite(this.actor(actor), body, randomUUID());
-  }
-
   @Get('me')
   @AuthenticatedEndpoint()
   @ApiOperation({
@@ -122,56 +90,13 @@ export class UsersController {
   @ApiSuccessEnvelope({
     status: HttpStatus.OK,
     message: 'Get current user successfully',
-    model: CurrentUserDto,
+    model: PublicUserDto,
   })
   @ApiUnauthorizedEnvelope()
   @ApiNotFoundEnvelope('USER_NOT_FOUND', 'User not found')
   async findMe(@CurrentUser() actor: AuthenticatedUser | undefined) {
     const currentActor = this.actor(actor);
-    return this.usersService.findMe(currentActor);
-  }
-
-  @Patch('me')
-  @RequirePermissions({ allOf: [USER_PERMISSIONS.PROFILE_READ] })
-  @ApiOperation({
-    summary: 'Update current user display profile',
-    description:
-      'Updates only the authenticated account display name and phone number',
-  })
-  @ResponseMessage('Current user profile updated successfully')
-  @ApiSuccessEnvelope({
-    status: HttpStatus.OK,
-    message: 'Current user profile updated successfully',
-    model: PublicUserDto,
-  })
-  @ApiValidationErrorEnvelope('Invalid current user profile fields')
-  @ApiUnauthorizedEnvelope()
-  @ApiForbiddenEnvelope('Requires users.profile.read permission')
-  @ApiNotFoundEnvelope('USER_NOT_FOUND', 'User not found')
-  updateMe(
-    @CurrentUser() actor: AuthenticatedUser | undefined,
-    @Body() body: UpdateOwnProfileDto,
-  ) {
-    return this.usersService.updateMe(this.actor(actor), body, randomUUID());
-  }
-
-  @Get()
-  @RequirePermissions({ allOf: [USER_PERMISSIONS.READ] })
-  @ApiOperation({
-    summary: 'List users',
-    description: 'Returns a filtered cursor-paginated user directory',
-  })
-  @ResponseMessage('Get users successfully')
-  @ApiSuccessEnvelope({
-    status: HttpStatus.OK,
-    message: 'Get users successfully',
-    model: UserDirectoryPageDto,
-  })
-  @ApiValidationErrorEnvelope('Invalid user directory filters')
-  @ApiUnauthorizedEnvelope()
-  @ApiForbiddenEnvelope('Requires users.read permission')
-  list(@Query() query: ListUsersQueryDto) {
-    return this.usersService.list(query);
+    return this.usersService.findOne(currentActor.id);
   }
 
   @Get(':id')
@@ -218,72 +143,6 @@ export class UsersController {
       params.id,
       this.actor(actor),
       body.user,
-      randomUUID(),
-    );
-  }
-
-  @Patch(':id/status')
-  @RequirePermissions({ allOf: [USER_PERMISSIONS.UPDATE] })
-  @ApiOperation({
-    summary: 'Update user account status',
-    description:
-      'Activates or suspends another account and revokes sessions when access is disabled',
-  })
-  @ResponseMessage('User status updated successfully')
-  @ApiSuccessEnvelope({
-    status: HttpStatus.OK,
-    message: 'User status updated successfully',
-    model: PublicUserDto,
-  })
-  @ApiValidationErrorEnvelope('Invalid account status')
-  @ApiUnauthorizedEnvelope()
-  @ApiForbiddenEnvelope('Requires users.update permission')
-  @ApiNotFoundEnvelope('USER_NOT_FOUND', 'User not found')
-  @ApiConflictEnvelope(
-    'OWN_ACCOUNT',
-    'You cannot change the status of your own account',
-  )
-  async updateStatus(
-    @CurrentUser() actor: AuthenticatedUser | undefined,
-    @Param() params: UserIdParamsDto,
-    @Body() body: UpdateUserStatusDto,
-  ) {
-    return this.usersService.updateStatus(
-      params.id,
-      this.actor(actor),
-      body.status,
-      randomUUID(),
-    );
-  }
-
-  @Post(':id/resend-invite')
-  @RequirePermissions({ allOf: [USER_PERMISSIONS.UPDATE] })
-  @ApiOperation({
-    summary: 'Resend user invitation',
-    description:
-      'Invalidates prior invitation requests and persists another private outbox event',
-  })
-  @ResponseMessage('User invitation resent successfully')
-  @HttpCode(HttpStatus.OK)
-  @ApiSuccessEnvelope({
-    status: HttpStatus.OK,
-    message: 'User invitation resent successfully',
-    model: PublicUserDto,
-  })
-  @ApiUnauthorizedEnvelope()
-  @ApiForbiddenEnvelope('Requires users.update permission')
-  @ApiNotFoundEnvelope('USER_NOT_FOUND', 'User not found')
-  @ApiConflictEnvelope(
-    'NOT_INVITED',
-    'Only invited accounts can receive another invitation',
-  )
-  resendInvite(
-    @CurrentUser() actor: AuthenticatedUser | undefined,
-    @Param() params: UserIdParamsDto,
-  ) {
-    return this.usersService.resendInvite(
-      params.id,
-      this.actor(actor),
       randomUUID(),
     );
   }

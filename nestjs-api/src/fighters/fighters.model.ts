@@ -56,9 +56,6 @@ export const FIGHTER_PERMISSIONS = {
   COACHES_READ: 'fighter.coach:read',
   COACHES_ASSIGN: 'fighter.coach:assign',
   COACHES_END: 'fighter.coach:end',
-  DOCTORS_READ: 'fighter.doctor:read',
-  DOCTORS_ASSIGN: 'fighter.doctor:assign',
-  DOCTORS_END: 'fighter.doctor:end',
   SESSIONS_READ: 'fighter.session:read',
   MEDICAL_READ: 'fighter.medical:read',
 } as const;
@@ -163,11 +160,6 @@ export const assignCoachSchema = z.strictObject({
   startsAt: z.string().datetime().optional(),
 });
 
-export const assignDoctorSchema = z.strictObject({
-  doctorId: z.uuid(),
-  startsAt: z.string().datetime().optional(),
-});
-
 export const endCoachAssignmentSchema = z.strictObject({
   endReason: trimmedTextSchema(500, 1),
   endsAt: z.string().datetime().optional(),
@@ -180,35 +172,12 @@ export const publicFighterSchema = z.strictObject({
   userId: z.uuid(),
   firstName: z.string(),
   lastName: z.string(),
-  nickname: z.string().nullable(),
-  sex: z.enum(['MALE', 'FEMALE']),
   dateOfBirth: z.string(),
   nationality: z.string().nullable(),
   weightClass: z.enum(weightClasses),
   heightCm: z.number().nullable(),
   reachCm: z.number().nullable(),
-  weightKg: z.number(),
-  bodyFatPct: z.number(),
-  restingHeartRate: z.number().int(),
   dominantStance: z.enum(fighterStances).nullable(),
-  level: z.enum(['AMATEUR', 'SEMI_PRO', 'PROFESSIONAL', 'ELITE']),
-  primaryDiscipline: z.string(),
-  record: z.strictObject({
-    wins: z.number().int().nonnegative(),
-    losses: z.number().int().nonnegative(),
-    draws: z.number().int().nonnegative(),
-  }),
-  coachIds: z.array(z.uuid()),
-  primaryCoachId: z.uuid().nullable(),
-  doctorIds: z.array(z.uuid()),
-  upcomingBout: z
-    .strictObject({
-      date: z.string(),
-      event: z.string(),
-      opponent: z.string(),
-      weightClass: z.enum(weightClasses),
-    })
-    .nullable(),
   leftArmCm: z.number().nullable(),
   rightArmCm: z.number().nullable(),
   leftLegCm: z.number().nullable(),
@@ -249,22 +218,6 @@ export const coachAssignmentSchema = z.strictObject({
   createdAt: isoDateTimeSchema,
   coachName: z.string().optional(),
   coachGym: z.string().nullable().optional(),
-});
-
-export const doctorAssignmentSchema = z.strictObject({
-  id: z.uuid(),
-  doctorId: z.uuid(),
-  doctorUserId: z.uuid().optional(),
-  fighterId: z.uuid(),
-  assignedById: z.uuid(),
-  startsAt: isoDateTimeSchema,
-  endsAt: isoDateTimeSchema.nullable(),
-  endedById: z.uuid().nullable(),
-  endReason: z.string().nullable(),
-  createdAt: isoDateTimeSchema,
-  doctorName: z.string().optional(),
-  doctorSpecialization: z.string().nullable().optional(),
-  doctorLicenseNumber: z.string().optional(),
 });
 
 export const trainingSessionSummarySchema = z.strictObject({
@@ -333,9 +286,7 @@ export type UpdateFighterProfileInput = z.infer<
 >;
 export type CreateMeasurementInput = z.infer<typeof createMeasurementSchema>;
 export type AssignCoachInput = z.infer<typeof assignCoachSchema>;
-export type AssignDoctorInput = z.infer<typeof assignDoctorSchema>;
 export type EndCoachAssignmentInput = z.infer<typeof endCoachAssignmentSchema>;
-export type DoctorAssignment = z.input<typeof doctorAssignmentSchema>;
 export type PublicFighter = z.input<typeof publicFighterSchema>;
 export type FighterMeasurement = z.input<typeof fighterMeasurementSchema>;
 export type CoachAssignment = z.input<typeof coachAssignmentSchema>;

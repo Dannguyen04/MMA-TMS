@@ -1,5 +1,6 @@
-import { InfinityPaginationResponseDto } from '../dto/infinity-pagination-response.dto.js';
-import { PaginationOptions } from '../types/PaginationOptions.js';
+import { InfinityPaginationResponseDto } from "../dto/infinity-pagination-response.dto.js";
+import { PaginationOptions } from "../types/PaginationOptions.js";
+
 
 export const infinityPaginationSchema = <T>(
   data: T[],

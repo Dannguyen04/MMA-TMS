@@ -12,15 +12,6 @@ export function createOpenApiDocument(app: INestApplication): OpenAPIObject {
     .setDescription('MMA Training & Movement Analysis System API documentation')
     .setVersion('1.0')
     .addBearerAuth()
-    .addApiKey(
-      {
-        type: 'apiKey',
-        name: 'x-worker-secret',
-        in: 'header',
-        description: 'Mã xác thực nội bộ dành riêng cho Python worker',
-      },
-      'x-worker-secret',
-    )
     .addGlobalParameters({
       in: 'header',
       required: false,

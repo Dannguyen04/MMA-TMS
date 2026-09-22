@@ -8,10 +8,6 @@ import {
   coachAssignmentAlreadyClosed,
   coachAssignmentNotFound,
   coachNotFound,
-  doctorAssignmentAlreadyActive,
-  doctorAssignmentAlreadyClosed,
-  doctorAssignmentNotFound,
-  doctorNotFound,
   fighterNotFound,
   invalidAssignmentPeriod,
   mapFighterPersistenceError,
@@ -22,10 +18,8 @@ import {
 } from './fighters.error.js';
 import type {
   AssignCoachInput,
-  AssignDoctorInput,
   CoachAssignment,
   CreateMeasurementInput,
-  DoctorAssignment,
   EndCoachAssignmentInput,
   FighterMeasurement,
   FighterMedicalSummary,
@@ -36,7 +30,7 @@ import type {
   TrainingSessionSummary,
   UpdateFighterProfileInput,
 } from './fighters.model.js';
-import { type FighterListScope, FightersRepository } from './fighters.repo.js';
+import { FightersRepository } from './fighters.repo.js';
 
 const MEDICAL_DISCLAIMER =
   'Measurements are estimated from 2D video using AI pose estimation. Results are NOT clinically validated. This system does not provide medical diagnosis. Consult a qualified healthcare professional for medical assessment.';
@@ -47,84 +41,27 @@ export class FightersService {
 
   // --- Profile Operations ---
 
-  private async assertFighterAccess(
+  private assertFighterOwnerScope(
     actor: AuthenticatedUser,
-    fighter: PublicFighter,
-  ): Promise<void> {
-    if (actor.role === USER.ADMIN) return;
-    if (actor.role === USER.FIGHTER) {
-      if (actor.id === fighter.userId) return;
+    fighterUserId: string,
+  ): void {
+    if (actor.role === USER.FIGHTER && actor.id !== fighterUserId) {
       throw forbidden();
     }
-    if (
-      actor.role === USER.COACH &&
-      (await this.fightersRepository.isCoachAssignedToFighter(
-        actor.id,
-        fighter.id,
-      ))
-    ) {
-      return;
-    }
-    if (
-      actor.role === USER.DOCTOR &&
-      (await this.fightersRepository.isDoctorAssignedToFighter(
-        actor.id,
-        fighter.id,
-      ))
-    ) {
-      return;
-    }
-    throw forbidden();
-  }
-
-  private async assertClinicalAccess(
-    actor: AuthenticatedUser,
-    fighter: PublicFighter,
-  ): Promise<void> {
-    if (actor.role === USER.FIGHTER && actor.id === fighter.userId) return;
-    if (
-      actor.role === USER.DOCTOR &&
-      (await this.fightersRepository.isDoctorAssignedToFighter(
-        actor.id,
-        fighter.id,
-      ))
-    ) {
-      return;
-    }
-    throw medicalAccessDenied();
-  }
-
-  private async assertMedicalSummaryAccess(
-    actor: AuthenticatedUser,
-    fighter: PublicFighter,
-  ): Promise<void> {
-    if (
-      actor.role === USER.COACH &&
-      (await this.fightersRepository.isCoachAssignedToFighter(
-        actor.id,
-        fighter.id,
-      ))
-    ) {
-      return;
-    }
-    await this.assertClinicalAccess(actor, fighter);
-  }
-
-  private fighterListScope(actor: AuthenticatedUser): FighterListScope {
-    if (actor.role === USER.FIGHTER) return { owningUserId: actor.id };
-    if (actor.role === USER.COACH) return { assignedCoachUserId: actor.id };
-    if (actor.role === USER.DOCTOR) return { assignedDoctorUserId: actor.id };
-    return {};
   }
 
   async findAll(
     actor: AuthenticatedUser,
     query: ListFightersQuery,
   ): Promise<{ data: PublicFighter[]; total: number; hasNextPage: boolean }> {
-    const { data, total } = await this.fightersRepository.findAll(
-      query,
-      this.fighterListScope(actor),
-    );
+    // If fighter, they only see themselves in listing to avoid leaking other fighters' data
+    if (actor.role === USER.FIGHTER) {
+      const self = await this.fightersRepository.findByUserId(actor.id);
+      if (!self) throw fighterNotFound();
+      return { data: [self], total: 1, hasNextPage: false };
+    }
+
+    const { data, total } = await this.fightersRepository.findAll(query);
     return {
       data,
       total,
@@ -136,7 +73,8 @@ export class FightersService {
     const fighter = await this.fightersRepository.findById(id);
     if (!fighter) throw fighterNotFound();
 
-    await this.assertFighterAccess(actor, fighter);
+    // Resource-level authorization: Fighter can only view own profile
+    this.assertFighterOwnerScope(actor, fighter.userId);
 
     return fighter;
   }
@@ -150,7 +88,8 @@ export class FightersService {
     const fighter = await this.fightersRepository.findById(id);
     if (!fighter) throw fighterNotFound();
 
-    await this.assertFighterAccess(actor, fighter);
+    // Fighters remain owner-scoped; other actors require the route permission.
+    this.assertFighterOwnerScope(actor, fighter.userId);
 
     try {
       return await this.fightersRepository.transaction(async (tx) => {
@@ -179,7 +118,7 @@ export class FightersService {
     const fighter = await this.fightersRepository.findById(fighterId);
     if (!fighter) throw fighterNotFound();
 
-    await this.assertClinicalAccess(actor, fighter);
+    this.assertFighterOwnerScope(actor, fighter.userId);
 
     const { data, total } = await this.fightersRepository.findMeasurements(
       fighterId,
@@ -201,7 +140,7 @@ export class FightersService {
     const fighter = await this.fightersRepository.findById(fighterId);
     if (!fighter) throw fighterNotFound();
 
-    await this.assertClinicalAccess(actor, fighter);
+    this.assertFighterOwnerScope(actor, fighter.userId);
 
     // Business rule: Fighter can only record for self and with SELF_REPORTED context
     if (actor.role === USER.FIGHTER) {
@@ -238,7 +177,7 @@ export class FightersService {
     if (!fighter) throw fighterNotFound();
 
     // Authorize the fighter scope before reading details about the target record.
-    await this.assertClinicalAccess(actor, fighter);
+    this.assertFighterOwnerScope(actor, fighter.userId);
 
     // Verify target measurement exists and belongs to this fighter
     const target = await this.fightersRepository.findMeasurementById(
@@ -281,7 +220,7 @@ export class FightersService {
     const fighter = await this.fightersRepository.findById(fighterId);
     if (!fighter) throw fighterNotFound();
 
-    await this.assertFighterAccess(actor, fighter);
+    this.assertFighterOwnerScope(actor, fighter.userId);
 
     return this.fightersRepository.findCoachAssignments(fighterId);
   }
@@ -363,88 +302,6 @@ export class FightersService {
     }
   }
 
-  async findDoctorAssignments(
-    actor: AuthenticatedUser,
-    fighterId: string,
-  ): Promise<DoctorAssignment[]> {
-    const fighter = await this.fightersRepository.findById(fighterId);
-    if (!fighter) throw fighterNotFound();
-    await this.assertFighterAccess(actor, fighter);
-    return this.fightersRepository.findDoctorAssignments(fighterId);
-  }
-
-  async assignDoctor(
-    actor: AuthenticatedUser,
-    fighterId: string,
-    input: AssignDoctorInput,
-    requestId: string,
-  ): Promise<DoctorAssignment> {
-    const fighter = await this.fightersRepository.findById(fighterId);
-    if (!fighter) throw fighterNotFound();
-    const doctor = await this.fightersRepository.findDoctorById(input.doctorId);
-    if (!doctor) throw doctorNotFound();
-    const activeAssignment =
-      await this.fightersRepository.findActiveDoctorAssignment(
-        input.doctorId,
-        fighterId,
-      );
-    if (activeAssignment) throw doctorAssignmentAlreadyActive();
-    const startsAt = input.startsAt ? new Date(input.startsAt) : new Date();
-
-    try {
-      return await this.fightersRepository.transaction(async (tx) => {
-        await setAuditContext(actor.authSubject, requestId, tx);
-        return this.fightersRepository.insertDoctorAssignment(
-          input.doctorId,
-          fighterId,
-          actor.id,
-          startsAt,
-          tx,
-        );
-      });
-    } catch (error) {
-      if (error instanceof HttpException) throw error;
-      throw mapFighterPersistenceError(error);
-    }
-  }
-
-  async endDoctorAssignment(
-    actor: AuthenticatedUser,
-    fighterId: string,
-    assignmentId: string,
-    input: EndCoachAssignmentInput,
-    requestId: string,
-  ): Promise<DoctorAssignment> {
-    const fighter = await this.fightersRepository.findById(fighterId);
-    if (!fighter) throw fighterNotFound();
-    const assignment = await this.fightersRepository.findDoctorAssignmentById(
-      fighterId,
-      assignmentId,
-    );
-    if (!assignment) throw doctorAssignmentNotFound();
-    if (assignment.endsAt !== null) throw doctorAssignmentAlreadyClosed();
-    const endsAt = input.endsAt ? new Date(input.endsAt) : new Date();
-    if (endsAt.getTime() <= assignment.startsAt.getTime()) {
-      throw invalidAssignmentPeriod();
-    }
-
-    try {
-      return await this.fightersRepository.transaction(async (tx) => {
-        await setAuditContext(actor.authSubject, requestId, tx);
-        return this.fightersRepository.closeDoctorAssignment(
-          assignmentId,
-          actor.id,
-          input.endReason,
-          endsAt,
-          tx,
-        );
-      });
-    } catch (error) {
-      if (error instanceof HttpException) throw error;
-      throw mapFighterPersistenceError(error);
-    }
-  }
-
   // --- Training History ---
 
   async findTrainingSessions(
@@ -459,7 +316,7 @@ export class FightersService {
     const fighter = await this.fightersRepository.findById(fighterId);
     if (!fighter) throw fighterNotFound();
 
-    await this.assertFighterAccess(actor, fighter);
+    this.assertFighterOwnerScope(actor, fighter.userId);
 
     const { data, total } = await this.fightersRepository.findTrainingSessions(
       fighterId,
@@ -481,30 +338,19 @@ export class FightersService {
     const fighter = await this.fightersRepository.findById(fighterId);
     if (!fighter) throw fighterNotFound();
 
-    await this.assertMedicalSummaryAccess(actor, fighter);
+    // Medical Read Matrix enforcement:
+    // - Fighter: only own records
+    // - Coach, Doctor, Admin: all fighters
+    if (actor.role === USER.FIGHTER && fighter.userId !== actor.id) {
+      throw medicalAccessDenied();
+    }
 
     const summary = await this.fightersRepository.findMedicalSummary(fighterId);
     if (!summary) throw fighterNotFound();
 
-    const result = {
+    return {
       ...summary,
       disclaimer: MEDICAL_DISCLAIMER,
-    };
-    if (actor.role !== USER.COACH) return result;
-
-    return {
-      ...result,
-      activeClearance: result.activeClearance
-        ? { ...result.activeClearance, notes: null }
-        : null,
-      activeInjuries: result.activeInjuries.map((injury) => ({
-        ...injury,
-        description: null,
-      })),
-      jointStates: result.jointStates.map((joint) => ({
-        ...joint,
-        notes: null,
-      })),
     };
   }
 }

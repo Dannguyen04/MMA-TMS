@@ -30,11 +30,17 @@ export type AlertSeverity = 'medium' | 'high' | 'critical';
 
 /** Trạng thái khớp trong state machine */
 export type JointHealthState =
-  'HEALTHY' | 'SUSPECTED' | 'SUSPECTED_AVOIDANCE' | 'CONFIRMED_IMPAIRMENT';
+  | 'HEALTHY'
+  | 'SUSPECTED'
+  | 'SUSPECTED_AVOIDANCE'
+  | 'CONFIRMED_IMPAIRMENT';
 
 /** Loại kỹ thuật phân loại chuyển động */
 export type MotionClass =
-  'TACTICAL_FEINT' | 'POWER_STRIKE' | 'PARTIAL_STRIKE' | 'UNKNOWN';
+  | 'TACTICAL_FEINT'
+  | 'POWER_STRIKE'
+  | 'PARTIAL_STRIKE'
+  | 'UNKNOWN';
 
 /**
  * AlertPayload — mirror của Python AlertPayload.to_dict()
@@ -82,13 +88,6 @@ export const fighterStanceEnum = pgEnum('fighter_stance', [
   'ORTHODOX',
   'SOUTHPAW',
   'SWITCH',
-]);
-export const fighterSexEnum = pgEnum('fighter_sex', ['MALE', 'FEMALE']);
-export const fighterTrainingLevelEnum = pgEnum('fighter_training_level', [
-  'AMATEUR',
-  'SEMI_PRO',
-  'PROFESSIONAL',
-  'ELITE',
 ]);
 export const medicalStatusEnum = pgEnum('medical_status', [
   'HEALTHY',
@@ -138,7 +137,6 @@ export const videoStatusEnum = pgEnum('video_status', [
 export const cameraAngleEnum = pgEnum('camera_angle', [
   'FRONT',
   'SIDE',
-  'DIAGONAL',
   'CORNER',
   'OVERHEAD',
   'UNKNOWN',
@@ -241,22 +239,6 @@ export const recoveryPlanStatusEnum = pgEnum('recovery_plan_status', [
   'ACTIVE',
   'COMPLETED',
   'CANCELLED',
-]);
-export const goalStatusEnum = pgEnum('goal_status', [
-  'ON_TRACK',
-  'AT_RISK',
-  'ACHIEVED',
-  'MISSED',
-]);
-export const goalTechniqueEnum = pgEnum('goal_technique', [
-  'JAB',
-  'CROSS',
-  'HOOK',
-  'KICK',
-  'COMBINATION',
-  'FOOTWORK',
-  'GUARD',
-  'HEAD_MOVEMENT',
 ]);
 export const notificationTypeEnum = pgEnum('notification_type', [
   'ANOMALY_HIGH',
@@ -448,117 +430,90 @@ export const aiAnalyses = pgTable(
 // ─── Task 14 Trust Boundary Tables ──────────────────────────────────────────
 
 export const datasetExportCandidates = pgTable('dataset_export_candidates', {
-  exportId: text('export_id').primaryKey(),
-  datasetHash: text('dataset_hash').notNull(),
-  manifestDigest: text('manifest_digest').notNull(),
-  reviewEvidenceDigest: text('review_evidence_digest').notNull(),
+  exportId:              text('export_id').primaryKey(),
+  datasetHash:           text('dataset_hash').notNull(),
+  manifestDigest:        text('manifest_digest').notNull(),
+  reviewEvidenceDigest:  text('review_evidence_digest').notNull(),
   qualityEvidenceDigest: text('quality_evidence_digest').notNull(),
-  policyVersion: text('policy_version').notNull(),
-  sourceSchemaVersion: text('source_schema_version').notNull(),
-  sampleCount: integer('sample_count').notNull(),
-  coveredActionIdsHash: text('covered_action_ids_hash').notNull(),
-  candidateStatus: text('candidate_status').notNull(),
-  readinessGaps: jsonb('readiness_gaps')
-    .$type<string[]>()
-    .notNull()
-    .default([]),
-  sourceJobId: text('source_job_id'),
-  createdAt: timestamp('created_at', { withTimezone: true })
-    .notNull()
-    .defaultNow(),
+  policyVersion:         text('policy_version').notNull(),
+  sourceSchemaVersion:   text('source_schema_version').notNull(),
+  sampleCount:           integer('sample_count').notNull(),
+  coveredActionIdsHash:  text('covered_action_ids_hash').notNull(),
+  candidateStatus:       text('candidate_status').notNull(),
+  readinessGaps:         jsonb('readiness_gaps').$type<string[]>().notNull().default([]),
+  sourceJobId:           text('source_job_id'),
+  createdAt:             timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const datasetReviews = pgTable('dataset_reviews', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  exportId: text('export_id').notNull(),
-  reviewerId: text('reviewer_id').notNull(),
+  id:           uuid('id').primaryKey().defaultRandom(),
+  exportId:     text('export_id').notNull(),
+  reviewerId:   text('reviewer_id').notNull(),
   reviewerRole: text('reviewer_role').notNull(),
   reviewStatus: text('review_status').notNull().default('approved'),
-  comments: text('comments'),
-  createdAt: timestamp('created_at', { withTimezone: true })
-    .notNull()
-    .defaultNow(),
+  comments:     text('comments'),
+  createdAt:    timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const datasetQualityReports = pgTable('dataset_quality_reports', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  exportId: text('export_id').notNull().unique(),
+  id:            uuid('id').primaryKey().defaultRandom(),
+  exportId:      text('export_id').notNull().unique(),
   qualityStatus: text('quality_status').notNull(),
   policyVersion: text('policy_version').notNull(),
-  metrics: jsonb('metrics').$type<Record<string, any>>().notNull().default({}),
-  createdAt: timestamp('created_at', { withTimezone: true })
-    .notNull()
-    .defaultNow(),
+  metrics:       jsonb('metrics').$type<Record<string, any>>().notNull().default({}),
+  createdAt:     timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const datasetAttestations = pgTable('dataset_attestations', {
-  attestationId: text('attestation_id').primaryKey(),
-  exportId: text('export_id')
-    .notNull()
-    .references(() => datasetExportCandidates.exportId),
-  issuer: text('issuer').notNull(),
-  audience: text('audience').notNull(),
-  purpose: text('purpose').notNull(),
-  keyId: text('key_id').notNull(),
-  algorithm: text('algorithm').notNull().default('Ed25519'),
-  decision: attestationDecisionEnum('decision').notNull(),
-  claims: jsonb('claims').$type<Record<string, any>>().notNull(),
-  signature: text('signature').notNull(),
-  status: attestationStatusEnum('status').notNull().default('ACTIVE'),
-  issuedAt: timestamp('issued_at', { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-  expiresAt: timestamp('expires_at', { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-  revokedAt: timestamp('revoked_at', { withTimezone: true }),
-  revokedReason: text('revoked_reason'),
-  actorId: text('actor_id').notNull(),
+  attestationId:      text('attestation_id').primaryKey(),
+  exportId:           text('export_id').notNull().references(() => datasetExportCandidates.exportId),
+  issuer:             text('issuer').notNull(),
+  audience:           text('audience').notNull(),
+  purpose:            text('purpose').notNull(),
+  keyId:              text('key_id').notNull(),
+  algorithm:          text('algorithm').notNull().default('Ed25519'),
+  decision:           attestationDecisionEnum('decision').notNull(),
+  claims:             jsonb('claims').$type<Record<string, any>>().notNull(),
+  signature:          text('signature').notNull(),
+  status:             attestationStatusEnum('status').notNull().default('ACTIVE'),
+  issuedAt:           timestamp('issued_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt:          timestamp('expires_at', { withTimezone: true }).notNull().defaultNow(),
+  revokedAt:          timestamp('revoked_at', { withTimezone: true }),
+  revokedReason:      text('revoked_reason'),
+  actorId:            text('actor_id').notNull(),
   auditCorrelationId: text('audit_correlation_id').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true })
-    .notNull()
-    .defaultNow(),
+  createdAt:          timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const attestationNonces = pgTable(
-  'attestation_nonces',
-  {
-    issuer: text('issuer').notNull(),
-    nonce: text('nonce').notNull(),
-    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
-    attestationId: text('attestation_id'),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-  },
-  (table) => [primaryKey({ columns: [table.issuer, table.nonce] })],
-);
+export const attestationNonces = pgTable('attestation_nonces', {
+  issuer:        text('issuer').notNull(),
+  nonce:         text('nonce').notNull(),
+  expiresAt:     timestamp('expires_at', { withTimezone: true }).notNull(),
+  attestationId: text('attestation_id'),
+  createdAt:     timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  primaryKey({ columns: [table.issuer, table.nonce] })
+]);
 
 export const datasetAttestationAudit = pgTable('dataset_attestation_audit', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  eventType: auditEventTypeEnum('event_type').notNull(),
-  exportId: text('export_id').notNull(),
+  id:            uuid('id').primaryKey().defaultRandom(),
+  eventType:     auditEventTypeEnum('event_type').notNull(),
+  exportId:      text('export_id').notNull(),
   attestationId: text('attestation_id'),
-  actorId: text('actor_id').notNull(),
-  reasonCode: text('reason_code'),
+  actorId:       text('actor_id').notNull(),
+  reasonCode:    text('reason_code'),
   requestDigest: text('request_digest'),
-  details: jsonb('details').$type<Record<string, any>>().notNull().default({}),
-  createdAt: timestamp('created_at', { withTimezone: true })
-    .notNull()
-    .defaultNow(),
+  details:       jsonb('details').$type<Record<string, any>>().notNull().default({}),
+  createdAt:     timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const datasetIdempotencyKeys = pgTable('dataset_idempotency_keys', {
-  idempotencyKey: text('idempotency_key').primaryKey(),
-  operation: text('operation').notNull(),
-  actorId: text('actor_id').notNull(),
-  requestDigest: text('request_digest').notNull(),
-  responsePayload: jsonb('response_payload')
-    .$type<Record<string, any>>()
-    .notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true })
-    .notNull()
-    .defaultNow(),
+  idempotencyKey:  text('idempotency_key').primaryKey(),
+  operation:       text('operation').notNull(),
+  actorId:         text('actor_id').notNull(),
+  requestDigest:   text('request_digest').notNull(),
+  responsePayload: jsonb('response_payload').$type<Record<string, any>>().notNull(),
+  createdAt:       timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const algorithmConfigs = pgTable(
@@ -973,11 +928,6 @@ export const coaches = pgTable(
     lastName: text('last_name').notNull(),
     isHeadCoach: boolean('is_head_coach').notNull().default(sql.raw('false')),
     specialization: text('specialization'),
-    certifications: text('certifications')
-      .array()
-      .notNull()
-      .default(sql.raw("'{}'")),
-    yearsExperience: integer('years_experience').notNull().default(0),
     profileImageUrl: text('profile_image_url'),
     isActive: boolean('is_active').notNull().default(sql.raw('true')),
     createdAt: timestamp('created_at', { withTimezone: true })
@@ -995,10 +945,6 @@ export const coaches = pgTable(
     check(
       'coaches_profile_role_check',
       sql.raw("(profile_role = 'COACH'::user_role)"),
-    ),
-    check(
-      'ck_coaches_years_experience',
-      sql.raw('years_experience BETWEEN 0 AND 100'),
     ),
     primaryKey({ name: 'coaches_pkey', columns: [t.id] }),
     unique('coaches_user_id_key').on(t.userId),
@@ -1383,30 +1329,12 @@ export const fighters = pgTable(
     userId: uuid('user_id').notNull(),
     firstName: text('first_name').notNull(),
     lastName: text('last_name').notNull(),
-    nickname: text('nickname'),
-    sex: fighterSexEnum('sex').notNull().default('MALE'),
     dateOfBirth: date('date_of_birth').notNull(),
     nationality: text('nationality'),
     weightClass: weightClassEnum('weight_class').notNull(),
     heightCm: doublePrecision('height_cm'),
     reachCm: doublePrecision('reach_cm'),
-    weightKg: doublePrecision('weight_kg').notNull().default(70),
-    bodyFatPct: doublePrecision('body_fat_pct').notNull().default(15),
-    restingHeartRate: integer('resting_heart_rate').notNull().default(60),
     dominantStance: fighterStanceEnum('dominant_stance'),
-    trainingLevel: fighterTrainingLevelEnum('training_level')
-      .notNull()
-      .default('AMATEUR'),
-    primaryDiscipline: text('primary_discipline').notNull().default('MMA'),
-    recordWins: integer('record_wins').notNull().default(0),
-    recordLosses: integer('record_losses').notNull().default(0),
-    recordDraws: integer('record_draws').notNull().default(0),
-    upcomingBout: jsonb('upcoming_bout').$type<{
-      date: string;
-      event: string;
-      opponent: string;
-      weightClass: string;
-    }>(),
     leftArmCm: doublePrecision('left_arm_cm'),
     rightArmCm: doublePrecision('right_arm_cm'),
     leftLegCm: doublePrecision('left_leg_cm'),
@@ -3109,14 +3037,6 @@ export const users = pgTable(
     authUserId: uuid('auth_user_id').notNull(),
     role: userRoleEnum('role').notNull(),
     isActive: boolean('is_active').notNull().default(sql.raw('true')),
-    accountStatus: text('account_status')
-      .$type<'ACTIVE' | 'INVITED' | 'SUSPENDED'>()
-      .notNull()
-      .default('ACTIVE'),
-    displayName: text('display_name').notNull().default(''),
-    phone: text('phone'),
-    title: text('title').notNull().default(''),
-    lastActiveAt: timestamp('last_active_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .default(sql.raw('now()')),
@@ -3143,93 +3063,6 @@ export const users = pgTable(
       .onUpdate('no action'),
   ],
 ).enableRLS();
-
-export const localAuthCredentials = pgTable('local_auth_credentials', {
-  userId: uuid('user_id')
-    .notNull()
-    .primaryKey()
-    .references(() => users.id, { onDelete: 'cascade' }),
-  passwordHash: text('password_hash').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true })
-    .notNull()
-    .default(sql.raw('now()')),
-  updatedAt: timestamp('updated_at', { withTimezone: true })
-    .notNull()
-    .default(sql.raw('now()')),
-}).enableRLS();
-
-export const localAuthSessions = pgTable('local_auth_sessions', {
-  id: uuid('id').notNull().default(sql.raw('gen_random_uuid()')).primaryKey(),
-  userId: uuid('user_id')
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
-  accessTokenHash: text('access_token_hash').notNull().unique(),
-  refreshTokenHash: text('refresh_token_hash').notNull().unique(),
-  accessExpiresAt: timestamp('access_expires_at', {
-    withTimezone: true,
-  }).notNull(),
-  refreshExpiresAt: timestamp('refresh_expires_at', {
-    withTimezone: true,
-  }).notNull(),
-  revokedAt: timestamp('revoked_at', { withTimezone: true }),
-  replacedBySessionId: uuid('replaced_by_session_id'),
-  createdAt: timestamp('created_at', { withTimezone: true })
-    .notNull()
-    .default(sql.raw('now()')),
-  lastUsedAt: timestamp('last_used_at', { withTimezone: true })
-    .notNull()
-    .default(sql.raw('now()')),
-}).enableRLS();
-
-export const passwordResetRequests = pgTable('password_reset_requests', {
-  id: uuid('id').notNull().default(sql.raw('gen_random_uuid()')).primaryKey(),
-  userId: uuid('user_id')
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
-  tokenHash: text('token_hash').notNull().unique(),
-  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
-  consumedAt: timestamp('consumed_at', { withTimezone: true }),
-  requestId: uuid('request_id').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true })
-    .notNull()
-    .default(sql.raw('now()')),
-}).enableRLS();
-
-export const userInvitationRequests = pgTable('user_invitation_requests', {
-  id: uuid('id').notNull().default(sql.raw('gen_random_uuid()')).primaryKey(),
-  userId: uuid('user_id')
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
-  tokenHash: text('token_hash').notNull().unique(),
-  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
-  consumedAt: timestamp('consumed_at', { withTimezone: true }),
-  requestId: uuid('request_id').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true })
-    .notNull()
-    .default(sql.raw('now()')),
-}).enableRLS();
-
-export const authOutbox = pgTable('auth_outbox', {
-  id: uuid('id').notNull().default(sql.raw('gen_random_uuid()')).primaryKey(),
-  userId: uuid('user_id')
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
-  eventType: text('event_type')
-    .$type<'PASSWORD_RESET_REQUESTED' | 'USER_INVITED'>()
-    .notNull(),
-  recipientEmail: text('recipient_email').notNull(),
-  payload: jsonb('payload').notNull().default(sql.raw("'{}'::jsonb")),
-  status: text('status').notNull().default('PENDING'),
-  attempts: integer('attempts').notNull().default(0),
-  availableAt: timestamp('available_at', { withTimezone: true })
-    .notNull()
-    .default(sql.raw('now()')),
-  processedAt: timestamp('processed_at', { withTimezone: true }),
-  requestId: uuid('request_id').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true })
-    .notNull()
-    .default(sql.raw('now()')),
-}).enableRLS();
 
 export const videoRoundSegments = pgTable(
   'video_round_segments',
@@ -3302,9 +3135,6 @@ export const videos = pgTable(
     sessionId: uuid('session_id'),
     title: text('title').notNull(),
     description: text('description'),
-    trainingType: sessionTypeEnum('training_type')
-      .notNull()
-      .default(sql.raw("'SHADOW_BOXING'::session_type")),
     storageKey: text('storage_key').notNull(),
     storageBucket: text('storage_bucket').notNull(),
     storageProvider: text('storage_provider').notNull(),
@@ -3350,12 +3180,6 @@ export const videos = pgTable(
       'ck_video_storage',
       sql.raw(
         '((length(btrim(storage_provider)) > 0) AND (length(btrim(storage_bucket)) > 0) AND (length(btrim(storage_key)) > 0))',
-      ),
-    ),
-    check(
-      'ck_video_training_type',
-      sql.raw(
-        "(training_type IN ('SHADOW_BOXING', 'PAD_WORK', 'HEAVY_BAG', 'SPARRING'))",
       ),
     ),
     primaryKey({ name: 'videos_pkey', columns: [t.id] }),
@@ -3409,198 +3233,17 @@ export const videos = pgTable(
   ],
 ).enableRLS();
 
-export const coachFeedback = pgTable(
-  'coach_feedback',
-  {
-    id: uuid('id').notNull().default(sql.raw('gen_random_uuid()')),
-    fighterId: uuid('fighter_id').notNull(),
-    coachId: uuid('coach_id').notNull(),
-    sessionId: uuid('session_id'),
-    videoId: uuid('video_id'),
-    kind: text('kind').$type<'PRAISE' | 'CORRECTION' | 'NOTE'>().notNull(),
-    body: text('body').notNull(),
-    techniques: text('techniques').array().notNull().default(sql.raw("'{}'")),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .default(sql.raw('now()')),
-  },
-  (t): PgTableExtraConfigValue[] => [
-    primaryKey({ name: 'coach_feedback_pkey', columns: [t.id] }),
-    foreignKey({
-      name: 'coach_feedback_fighter_id_fkey',
-      columns: [t.fighterId],
-      foreignColumns: [fighters.id],
-    })
-      .onDelete('restrict')
-      .onUpdate('no action'),
-    foreignKey({
-      name: 'coach_feedback_coach_id_fkey',
-      columns: [t.coachId],
-      foreignColumns: [coaches.id],
-    })
-      .onDelete('restrict')
-      .onUpdate('no action'),
-    foreignKey({
-      name: 'fk_coach_feedback_session_fighter',
-      columns: [t.sessionId, t.fighterId],
-      foreignColumns: [trainingSessions.id, trainingSessions.fighterId],
-    })
-      .onDelete('restrict')
-      .onUpdate('no action'),
-    foreignKey({
-      name: 'fk_coach_feedback_video_fighter',
-      columns: [t.videoId, t.fighterId],
-      foreignColumns: [videos.id, videos.subjectFighterId],
-    })
-      .onDelete('restrict')
-      .onUpdate('no action'),
-    check(
-      'ck_coach_feedback_kind',
-      sql.raw("kind IN ('PRAISE', 'CORRECTION', 'NOTE')"),
-    ),
-    check(
-      'ck_coach_feedback_body',
-      sql.raw('length(btrim(body)) BETWEEN 3 AND 1000'),
-    ),
-    check(
-      'ck_coach_feedback_single_context',
-      sql.raw('session_id IS NULL OR video_id IS NULL'),
-    ),
-    index('idx_coach_feedback_fighter_created').using(
-      'btree',
-      t.fighterId,
-      t.createdAt,
-    ),
-    index('idx_coach_feedback_coach_created').using(
-      'btree',
-      t.coachId,
-      t.createdAt,
-    ),
-  ],
-).enableRLS();
-
-export const fighterGoals = pgTable(
-  'fighter_goals',
-  {
-    id: uuid('id').notNull().default(sql.raw('gen_random_uuid()')),
-    fighterId: uuid('fighter_id').notNull(),
-    coachId: uuid('coach_id').notNull(),
-    title: text('title').notNull(),
-    technique: goalTechniqueEnum('technique'),
-    metricLabel: text('metric_label').notNull(),
-    unit: text('unit').notNull(),
-    lowerIsBetter: boolean('lower_is_better').notNull(),
-    baseline: doublePrecision('baseline').notNull(),
-    target: doublePrecision('target').notNull(),
-    current: doublePrecision('current').notNull(),
-    startDate: timestamp('start_date', { withTimezone: true }).notNull(),
-    dueDate: timestamp('due_date', { withTimezone: true }).notNull(),
-    status: goalStatusEnum('status').notNull(),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .default(sql.raw('now()')),
-    updatedAt: timestamp('updated_at', { withTimezone: true })
-      .notNull()
-      .default(sql.raw('now()')),
-    deletedAt: timestamp('deleted_at', { withTimezone: true }),
-  },
-  (t): PgTableExtraConfigValue[] => [
-    primaryKey({ name: 'fighter_goals_pkey', columns: [t.id] }),
-    foreignKey({
-      name: 'fighter_goals_fighter_id_fkey',
-      columns: [t.fighterId],
-      foreignColumns: [fighters.id],
-    })
-      .onDelete('restrict')
-      .onUpdate('no action'),
-    foreignKey({
-      name: 'fighter_goals_coach_id_fkey',
-      columns: [t.coachId],
-      foreignColumns: [coaches.id],
-    })
-      .onDelete('restrict')
-      .onUpdate('no action'),
-    check('ck_fighter_goals_dates', sql.raw('due_date > start_date')),
-    check(
-      'ck_fighter_goals_title',
-      sql.raw('length(btrim(title)) BETWEEN 3 AND 120'),
-    ),
-    check(
-      'ck_fighter_goals_metric',
-      sql.raw('length(btrim(metric_label)) BETWEEN 2 AND 80'),
-    ),
-    check(
-      'ck_fighter_goals_unit',
-      sql.raw('length(btrim(unit)) BETWEEN 1 AND 16'),
-    ),
-    check('ck_fighter_goals_target_change', sql.raw('target <> baseline')),
-    check(
-      'ck_fighter_goals_direction',
-      sql.raw(
-        '((lower_is_better AND target < baseline) OR (NOT lower_is_better AND target > baseline))',
-      ),
-    ),
-    index('idx_fighter_goals_fighter_created').using(
-      'btree',
-      t.fighterId,
-      t.createdAt,
-    ),
-    index('idx_fighter_goals_coach_created').using(
-      'btree',
-      t.coachId,
-      t.createdAt,
-    ),
-  ],
-).enableRLS();
-
-export const goalProgressEvents = pgTable(
-  'goal_progress_events',
-  {
-    id: uuid('id').notNull().default(sql.raw('gen_random_uuid()')),
-    goalId: uuid('goal_id').notNull(),
-    value: doublePrecision('value').notNull(),
-    recordedById: uuid('recorded_by_id').notNull(),
-    recordedAt: timestamp('recorded_at', { withTimezone: true })
-      .notNull()
-      .default(sql.raw('now()')),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .default(sql.raw('now()')),
-  },
-  (t): PgTableExtraConfigValue[] => [
-    primaryKey({ name: 'goal_progress_events_pkey', columns: [t.id] }),
-    foreignKey({
-      name: 'goal_progress_events_goal_id_fkey',
-      columns: [t.goalId],
-      foreignColumns: [fighterGoals.id],
-    })
-      .onDelete('restrict')
-      .onUpdate('no action'),
-    foreignKey({
-      name: 'goal_progress_events_recorded_by_id_fkey',
-      columns: [t.recordedById],
-      foreignColumns: [users.id],
-    })
-      .onDelete('restrict')
-      .onUpdate('no action'),
-    index('idx_goal_progress_goal_time').using('btree', t.goalId, t.recordedAt),
-  ],
-).enableRLS();
-
 export type AnalysisJob = typeof analysisJobs.$inferSelect;
 export type InsertAnalysisJob = typeof analysisJobs.$inferInsert;
 
-export type DatasetExportCandidate =
-  typeof datasetExportCandidates.$inferSelect;
-export type InsertDatasetExportCandidate =
-  typeof datasetExportCandidates.$inferInsert;
+export type DatasetExportCandidate = typeof datasetExportCandidates.$inferSelect;
+export type InsertDatasetExportCandidate = typeof datasetExportCandidates.$inferInsert;
 
 export type DatasetReview = typeof datasetReviews.$inferSelect;
 export type InsertDatasetReview = typeof datasetReviews.$inferInsert;
 
 export type DatasetQualityReport = typeof datasetQualityReports.$inferSelect;
-export type InsertDatasetQualityReport =
-  typeof datasetQualityReports.$inferInsert;
+export type InsertDatasetQualityReport = typeof datasetQualityReports.$inferInsert;
 
 export type DatasetAttestation = typeof datasetAttestations.$inferSelect;
 export type InsertDatasetAttestation = typeof datasetAttestations.$inferInsert;
@@ -3608,11 +3251,8 @@ export type InsertDatasetAttestation = typeof datasetAttestations.$inferInsert;
 export type AttestationNonce = typeof attestationNonces.$inferSelect;
 export type InsertAttestationNonce = typeof attestationNonces.$inferInsert;
 
-export type DatasetAttestationAudit =
-  typeof datasetAttestationAudit.$inferSelect;
-export type InsertDatasetAttestationAudit =
-  typeof datasetAttestationAudit.$inferInsert;
+export type DatasetAttestationAudit = typeof datasetAttestationAudit.$inferSelect;
+export type InsertDatasetAttestationAudit = typeof datasetAttestationAudit.$inferInsert;
 
 export type DatasetIdempotencyKey = typeof datasetIdempotencyKeys.$inferSelect;
-export type InsertDatasetIdempotencyKey =
-  typeof datasetIdempotencyKeys.$inferInsert;
+export type InsertDatasetIdempotencyKey = typeof datasetIdempotencyKeys.$inferInsert;

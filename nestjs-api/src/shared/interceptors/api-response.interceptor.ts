@@ -11,7 +11,7 @@ import { RESPONSE_MESSAGE_METADATA } from '../decorators/response-message.decora
 export interface ApiSuccessResponse<T> {
   success: true;
   message: string;
-  data: T | null;
+  data?: T;
 }
 
 @Injectable()
@@ -35,6 +35,8 @@ export class ApiResponseInterceptor<T> implements NestInterceptor<
   }
 
   private wrap(data: T, message: string): ApiSuccessResponse<T> {
-    return { success: true, message, data: data === undefined ? null : data };
+    return data === undefined
+      ? { success: true, message }
+      : { success: true, message, data };
   }
 }

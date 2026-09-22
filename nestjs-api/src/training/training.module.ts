@@ -8,8 +8,6 @@ import { TrainingSessionController } from './sessions/training-session.controlle
 import { TrainingSessionService } from './sessions/training-session.service.js';
 import { ExerciseController } from './exercises/exercise.controller.js';
 import { ExerciseService } from './exercises/exercise.service.js';
-import { CoachFeedbackController } from './feedback/coach-feedback.controller.js';
-import { CoachFeedbackService } from './feedback/coach-feedback.service.js';
 
 @Module({
   imports: [DatabaseModule],
@@ -17,7 +15,6 @@ import { CoachFeedbackService } from './feedback/coach-feedback.service.js';
     TrainingPlanController,
     TrainingSessionController,
     ExerciseController,
-    CoachFeedbackController,
   ],
   providers: [
     TrainingRepository,
@@ -25,13 +22,7 @@ import { CoachFeedbackService } from './feedback/coach-feedback.service.js';
     TrainingPlanService,
     TrainingSessionService,
     ExerciseService,
-    CoachFeedbackService,
   ],
-  exports: [
-    TrainingPlanService,
-    TrainingSessionService,
-    ExerciseService,
-    CoachFeedbackService,
-  ],
+  exports: [TrainingPlanService, TrainingSessionService, ExerciseService],
 })
 export class TrainingModule {}

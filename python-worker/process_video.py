@@ -40,7 +40,6 @@ except ImportError:
 from person_tracker import PersonTracker
 from pose_math import Point
 from action_result import build_actions_list, RubricSelectionError
-from joint_health_tracker import SessionHealthMonitor
 from pipeline import (
     ActionPipeline,
     PoseObservation,
@@ -516,44 +515,9 @@ def process_video(
     else:
         primary_action = "mixed" if (total_punches > 0) else "idle"
 
-    # ── Anomaly Detection: phát lại các sự kiện theo đúng thứ tự thời gian ──
-    health_monitor = SessionHealthMonitor()
-    health_events = []
-    if quality.status.value != "blocked":
-        for punch in punches_dicts:
-            event_time = punch.get("impactTimeMs", punch.get("endTimeMs", 0.0))
-            health_events.append((float(event_time or 0.0), "punch", punch))
-        for kick in kicks_dicts:
-            event_time = kick.get("endTimeMs", kick.get("startTimeMs", 0.0))
-            health_events.append((float(event_time or 0.0), "kick", kick))
-
-        for event_time, event_kind, event in sorted(health_events, key=lambda item: item[0]):
-            if event_kind == "punch":
-                elbow_angle = event.get("maxElbowAngle")
-                peak_speed = event.get("peakSpeed")
-                if elbow_angle is None or peak_speed is None:
-                    continue
-                health_monitor.on_punch_event(
-                    punch_type=event.get("punchType", "Cross"),
-                    arm=event.get("arm", "right"),
-                    max_elbow_angle=elbow_angle,
-                    peak_speed=peak_speed,
-                    time_ms=event_time,
-                )
-            else:
-                extension_angle = event.get("maxExtensionAngle")
-                peak_speed = event.get("peakSpeed")
-                if extension_angle is None or peak_speed is None:
-                    continue
-                health_monitor.on_kick_event(
-                    leg=event.get("activeLeg", "right"),
-                    max_extension_angle=extension_angle,
-                    peak_speed=peak_speed,
-                    time_ms=event_time,
-                )
-
-    confirmed_alerts = health_monitor.get_confirmed_alerts()
-    joint_states = health_monitor.get_joint_states()
+    # ── Anomaly Detection: thu thập tất cả alerts đã xác nhận ──
+    confirmed_alerts = []
+    joint_states     = {}
     all_scores: list[float] = []
 
     if quality.status.value == "blocked":
@@ -579,9 +543,6 @@ def process_video(
             "bestKickIdx":   [r.score for r in kicks].index(max([r.score for r in kicks])) if kicks else -1,
             "bestPunchIdx":  [p.score for p in punches].index(max([p.score for p in punches])) if punches else -1,
         }
-
-    summary["healthAlertCount"] = len(confirmed_alerts)
-    summary["jointHealthStates"] = joint_states
 
     # ── Task 11: Session Aggregation ──
     session_insights = SessionAggregationEngine.aggregate_session(
@@ -631,7 +592,6 @@ def process_video(
         "kicks":           kicks_dicts,
         "punches":         punches_dicts,
         "findings":        all_findings,
-        "healthAlerts":    confirmed_alerts,
         "summary":         summary,
         "analysisQuality": quality.to_dict(),
         "sessionInsights": session_insights.to_dict(),

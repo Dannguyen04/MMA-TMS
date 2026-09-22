@@ -15,22 +15,6 @@ export const migrationNames = [
   '005_training_management.sql',
   '006_training_permissions.sql',
   '007_grant_api_permissions_to_admin.sql',
-  '008_grant_training_read_permissions_to_fighter.sql',
-  '009_role_permission_baseline.sql',
-  '010_restrict_clinical_rls.sql',
-  '011_enable_assignment_scoped_fighter_access.sql',
-  '012_local_auth_credentials_sessions.sql',
-  '013_fix_local_password_hash_constraint.sql',
-  '014_password_reset_outbox.sql',
-  '015_account_directory_status.sql',
-  '016_user_invitations.sql',
-  '017_doctor_assignment_permissions.sql',
-  '018_video_storage_contract.sql',
-  '019_fighter_ui_profile_fields.sql',
-  '020_coach_feedback.sql',
-  '021_staff_directory.sql',
-  '022_performance_permissions.sql',
-  '023_goals_progress.sql',
 ];
 export function readVerifiedMigrations() {
   const manifest = JSON.parse(

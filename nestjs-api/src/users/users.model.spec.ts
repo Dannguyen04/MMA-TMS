@@ -1,12 +1,7 @@
 import {
   createUserBodySchema,
-  currentUserSchema,
   fighterProfileSchema,
-  inviteUserBodySchema,
-  listUsersQuerySchema,
-  publicUserSchema,
   updateUserBodySchema,
-  updateUserStatusBodySchema,
 } from './users.model.js';
 
 const fighterProfile = {
@@ -79,125 +74,6 @@ describe('users Zod contracts', () => {
     expect(
       updateUserBodySchema.safeParse({
         user: { role: 'COACH', profile: {} },
-      }).success,
-    ).toBe(false);
-  });
-
-  it('requires backend-derived capabilities and assignment scope for the current user', () => {
-    const currentUser = {
-      id: '59d6ba46-32f2-4e67-b486-e966b2064328',
-      email: 'fighter@example.com',
-      role: 'FIGHTER',
-      isActive: true,
-      status: 'ACTIVE',
-      displayName: 'An Nguyen',
-      phone: null,
-      title: 'Fighter',
-      lastActiveAt: null,
-      createdAt: '2026-01-01T00:00:00.000Z',
-      updatedAt: '2026-01-01T00:00:00.000Z',
-      deletedAt: null,
-      profile: {
-        id: 'b13d7792-fbf9-4421-a4a4-e2ed8466b4a7',
-        ...fighterProfile,
-      },
-      effectiveCapabilities: ['training:read', 'videos:upload'],
-      assignmentScope: {
-        fighterIds: ['b13d7792-fbf9-4421-a4a4-e2ed8466b4a7'],
-      },
-    };
-
-    expect(currentUserSchema.safeParse(currentUser).success).toBe(true);
-    expect(
-      currentUserSchema.safeParse({
-        ...currentUser,
-        effectiveCapabilities: ['unknown:permission'],
-      }).success,
-    ).toBe(false);
-    expect(
-      currentUserSchema.safeParse({
-        ...currentUser,
-        assignmentScope: undefined,
-      }).success,
-    ).toBe(false);
-  });
-
-  it('requires account fields consumed by the administration UI', () => {
-    const account = {
-      id: '59d6ba46-32f2-4e67-b486-e966b2064328',
-      email: 'fighter@example.com',
-      role: 'FIGHTER',
-      isActive: true,
-      status: 'SUSPENDED',
-      displayName: 'An Nguyen',
-      phone: null,
-      title: 'Professional Fighter',
-      lastActiveAt: '2026-09-21T01:02:03.000Z',
-      createdAt: '2026-01-01T00:00:00.000Z',
-      updatedAt: '2026-01-01T00:00:00.000Z',
-      deletedAt: null,
-      profile: {
-        id: 'b13d7792-fbf9-4421-a4a4-e2ed8466b4a7',
-        ...fighterProfile,
-      },
-    };
-
-    expect(publicUserSchema.safeParse(account).success).toBe(true);
-    expect(
-      publicUserSchema.safeParse({ ...account, status: undefined }).success,
-    ).toBe(false);
-    expect(
-      publicUserSchema.safeParse({ ...account, title: undefined }).success,
-    ).toBe(false);
-    expect(
-      publicUserSchema.safeParse({ ...account, lastActiveAt: undefined })
-        .success,
-    ).toBe(false);
-  });
-
-  it('validates bounded user-directory filters and account status updates', () => {
-    expect(
-      listUsersQuerySchema.parse({
-        search: '  coach  ',
-        role: 'COACH',
-        status: 'SUSPENDED',
-        limit: '25',
-      }),
-    ).toEqual({
-      search: 'coach',
-      role: 'COACH',
-      status: 'SUSPENDED',
-      limit: 25,
-    });
-    expect(listUsersQuerySchema.safeParse({ limit: 101 }).success).toBe(false);
-    expect(
-      updateUserStatusBodySchema.safeParse({ status: 'INVITED' }).success,
-    ).toBe(true);
-    expect(
-      updateUserStatusBodySchema.safeParse({ status: 'DELETED' }).success,
-    ).toBe(false);
-  });
-
-  it('validates the invitation fields supplied by the administration UI', () => {
-    expect(
-      inviteUserBodySchema.parse({
-        name: '  Linh Nguyen  ',
-        email: 'LINH@EXAMPLE.COM',
-        role: 'DOCTOR',
-        title: '  Team Doctor  ',
-      }),
-    ).toEqual({
-      name: 'Linh Nguyen',
-      email: 'linh@example.com',
-      role: 'DOCTOR',
-      title: 'Team Doctor',
-    });
-    expect(
-      inviteUserBodySchema.safeParse({
-        name: '',
-        email: 'not-an-email',
-        role: 'OWNER',
-        title: '',
       }).success,
     ).toBe(false);
   });

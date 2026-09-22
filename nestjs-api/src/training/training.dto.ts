@@ -22,21 +22,11 @@ import {
   exerciseBaseSchema,
   trainingPlanExerciseBaseSchema,
   removedPlanExerciseSchema,
-  listFeedbackQuerySchema,
-  createFeedbackSchema,
-  coachFeedbackBaseSchema,
 } from './training.model.js';
 
 export class ListPlansQueryDto extends createZodDto(listPlansQuerySchema) {}
-export class ListSessionsQueryDto extends createZodDto(
-  listSessionsQuerySchema,
-) {}
-export class ListExercisesQueryDto extends createZodDto(
-  listExercisesQuerySchema,
-) {}
-export class ListFeedbackQueryDto extends createZodDto(
-  listFeedbackQuerySchema,
-) {}
+export class ListSessionsQueryDto extends createZodDto(listSessionsQuerySchema) {}
+export class ListExercisesQueryDto extends createZodDto(listExercisesQuerySchema) {}
 
 export class CreateTrainingPlanDto extends createZodDto(
   createTrainingPlanSchema,
@@ -50,7 +40,6 @@ export class UpdateSessionDto extends createZodDto(updateSessionSchema) {}
 
 export class CreateExerciseDto extends createZodDto(createExerciseSchema) {}
 export class UpdateExerciseDto extends createZodDto(updateExerciseSchema) {}
-export class CreateFeedbackDto extends createZodDto(createFeedbackSchema) {}
 
 export class CreatePlanExerciseDto extends createZodDto(
   createPlanExerciseSchema,
@@ -60,9 +49,7 @@ export class UpdatePlanExerciseDto extends createZodDto(
 ) {}
 
 export class UpdatePlanStatusDto extends createZodDto(updatePlanStatusSchema) {}
-export class UpdateSessionStatusDto extends createZodDto(
-  updateSessionStatusSchema,
-) {}
+export class UpdateSessionStatusDto extends createZodDto(updateSessionStatusSchema) {}
 
 export class TrainingPlanIdParamsDto extends createZodDto(
   trainingPlanIdParamsSchema,
@@ -87,7 +74,4 @@ export class TrainingPlanExerciseResponseDto extends createZodDto(
 ) {}
 export class RemovedPlanExerciseDto extends createZodDto(
   removedPlanExerciseSchema,
-) {}
-export class CoachFeedbackResponseDto extends createZodDto(
-  coachFeedbackBaseSchema,
 ) {}

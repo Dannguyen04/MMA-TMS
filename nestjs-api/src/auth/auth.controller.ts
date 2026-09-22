@@ -30,8 +30,6 @@ import {
   AuthResponseDto,
   LoginDto,
   LogoutResponseDto,
-  PasswordResetRequestDto,
-  PasswordResetRequestResponseDto,
   RefreshDto,
   RegisterDto,
   RegisterResponseDto,
@@ -111,26 +109,6 @@ export class AuthController {
   @ApiUnauthorizedEnvelope('Refresh token is invalid or expired')
   async refresh(@Body() body: RefreshDto) {
     return this.authService.refresh(body);
-  }
-
-  @Post('password-reset/request')
-  @Throttle({ default: { limit: 5, ttl: 60_000 } })
-  @PublicEndpoint()
-  @ApiOperation({
-    summary: 'Request password reset',
-    description:
-      'Persists an enumeration-safe reset request and delivery outbox event when the account exists',
-  })
-  @ResponseMessage('Password reset request accepted')
-  @HttpCode(HttpStatus.OK)
-  @ApiSuccessEnvelope({
-    status: HttpStatus.OK,
-    message: 'Password reset request accepted',
-    model: PasswordResetRequestResponseDto,
-  })
-  @ApiValidationErrorEnvelope('Invalid email structure')
-  requestPasswordReset(@Body() body: PasswordResetRequestDto) {
-    return this.authService.requestPasswordReset(body.email, randomUUID());
   }
 
   @Post('logout')

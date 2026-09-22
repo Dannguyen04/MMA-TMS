@@ -3,8 +3,6 @@ import {
   authResponseSchema,
   loginBodySchema,
   logoutResponseSchema,
-  passwordResetRequestBodySchema,
-  passwordResetRequestResponseSchema,
   refreshBodySchema,
   registerBodySchema,
   registerResponseSchema,
@@ -16,9 +14,3 @@ export class RefreshDto extends createZodDto(refreshBodySchema) {}
 export class AuthResponseDto extends createZodDto(authResponseSchema) {}
 export class RegisterResponseDto extends createZodDto(registerResponseSchema) {}
 export class LogoutResponseDto extends createZodDto(logoutResponseSchema) {}
-export class PasswordResetRequestDto extends createZodDto(
-  passwordResetRequestBodySchema,
-) {}
-export class PasswordResetRequestResponseDto extends createZodDto(
-  passwordResetRequestResponseSchema,
-) {}

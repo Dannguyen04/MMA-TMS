@@ -8,7 +8,6 @@ export interface ApiSuccessEnvelopeOptions<TModel extends Type<unknown>> {
   model?: TModel;
   isArray?: boolean;
   isPaginated?: boolean;
-  nullable?: boolean;
 }
 
 export function ApiSuccessEnvelope<TModel extends Type<unknown>>(
@@ -55,7 +54,6 @@ export function ApiSuccessEnvelope<TModel extends Type<unknown>>(
         }
       : {
           $ref: getSchemaPath(options.model),
-          ...(options.nullable ? { nullable: true } : {}),
         };
 
   return applyDecorators(

@@ -6,9 +6,6 @@ export default defineConfig({
   test: {
     globals: true,
     root: './',
-    include: [
-      'test/**/*.e2e-spec.ts',
-      'test/dataset-export-trust-boundary.spec.ts',
-    ],
+    include: ['**/*.e2e-spec.ts'],
   },
 });

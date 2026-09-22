@@ -9,21 +9,6 @@
     "005_training_management.sql": "7d964bf791e816c5630f8115eb493abdb43b09587a4c761efb7ea734f7a381be",
     "006_training_permissions.sql": "1a06c2d20ffdbac8d4f578f7733aac80b5be7c771b907999e927d2b2ceaa9f16",
     "007_grant_api_permissions_to_admin.sql": "33c5ef3320b21a821e103cb1504d02f7b0ebce7cd94ef72852a3e2b03fb7123a",
-    "008_grant_training_read_permissions_to_fighter.sql": "0b030e250c0c03b8404a65bbc9793d686fd12e4a04e15130b41028c2d5513606",
-    "009_role_permission_baseline.sql": "8048916bf1b45e705cd09ead26f1904350c998f17350ddd593df45e7de4ec3b0",
-    "010_restrict_clinical_rls.sql": "ab0ec107f4641af353f93c193a565cb9288bb96002764c33e82e39b0bcff2f01",
-    "011_enable_assignment_scoped_fighter_access.sql": "1a17f0be8c9033b17f4456f54eab984a78c7c8d543fb8704c3168c8049be4159",
-    "012_local_auth_credentials_sessions.sql": "7ddfd84c437274c2f0e9ef8a74ae66dfb629402fad5ee879b334ef1e0b9ba814",
-    "013_fix_local_password_hash_constraint.sql": "243c9d8f4d91edd489fceac5063f45cffe298221f0e2c92c874cc58b91a44627",
-    "014_password_reset_outbox.sql": "f81feff829364a5ff12db9b86689cb3baf3275a3dfb3a9b87b425fa48167daae",
-    "015_account_directory_status.sql": "fb1b6fa91f7527bc999e12e608547b5e810e82cf6c2bc66680ba4b62701221b6",
-    "016_user_invitations.sql": "d744493f8de9920f37c22b1b9235fedd69feb994a78648c5eeb72633cfd65554",
-    "017_doctor_assignment_permissions.sql": "1c2e2c6eff1dbf03b7ba2c5a51c5770db9ef781dde5a01be82641de2013fa14f",
-    "018_video_storage_contract.sql": "e4967e9f6f2f5f05e9f16244d0c7ac9bc96c6459805d283191b7f7a3d9e7981c",
-    "019_fighter_ui_profile_fields.sql": "586e2cea48f3c66b5858341bef0029df4dd9b8c5e1a3074e77ac8b705d6f8cc8",
-    "020_coach_feedback.sql": "8020b48528511b9d36bf48162cd9bd5d88af13aa21b9eaa83b73ac627729b462",
-    "021_staff_directory.sql": "338933203ddc34644ad51dcfcaf14d947090cca9c78c32d1a72e62caac13e6db",
-    "022_performance_permissions.sql": "e3480bb13fcde20f28178b375743ea129c7263a8c79dae950e8f3fb7b932650b",
-    "023_goals_progress.sql": "185b573d1dfbc5f9ad1993d6cd6e38f791aec5e7ce69b9b7cce6a1347c202009"
+    "008_grant_training_read_permissions_to_fighter.sql": "0b030e250c0c03b8404a65bbc9793d686fd12e4a04e15130b41028c2d5513606"
   }
 }

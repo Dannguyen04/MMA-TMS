@@ -2,221 +2,170 @@ import {
   Body,
   Controller,
   Get,
-  Headers,
   HttpCode,
   HttpStatus,
   Param,
-  ParseUUIDPipe,
   Patch,
   Post,
   Query,
-  Req,
-  Res,
   UseGuards,
 } from '@nestjs/common';
-import type { Request, Response } from 'express';
 import {
-  ApiBearerAuth,
   ApiHeader,
   ApiOperation,
+  ApiParam,
+  ApiQuery,
   ApiSecurity,
   ApiTags,
+  ApiResponse,
 } from '@nestjs/swagger';
 import {
-  ApiForbiddenEnvelope,
   ApiNotFoundEnvelope,
   ApiSuccessEnvelope,
   ApiUnauthorizedEnvelope,
   ApiValidationErrorEnvelope,
 } from '../shared/decorators/api-envelope.decorator.js';
-import {
-  CurrentUser,
-  RequireRoles,
-} from '../shared/decorators/auth.decorator.js';
 import { ResponseMessage } from '../shared/decorators/response-message.decorator.js';
-import { authenticationRequired } from '../shared/errors/access.error.js';
-import {
-  AccessTokenGuard,
-  AuthorizationGuard,
-} from '../shared/guards/auth.guard.js';
-import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
-import {
-  parseByteRange,
-  sendStoredObject,
-} from '../videos/stored-object.response.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
 import { UpdateJobStatusDto } from './dto/update-job-status.dto.js';
 import { WorkerAuthGuard } from './guards/worker-auth.guard.js';
 import { JobsService } from './jobs.service.js';
 
-function requireActor(actor: AuthenticatedUser | undefined): AuthenticatedUser {
-  if (!actor) throw authenticationRequired();
-  return actor;
-}
-
-@ApiTags('Video Analysis Jobs')
+@ApiTags('Video Analysis Jobs (Hàng đợi AI)')
 @Controller('jobs')
 export class JobsController {
   constructor(private readonly jobsService: JobsService) {}
 
+  /** POST /jobs — Tạo job phân tích video mới */
   @Post()
-  @ApiBearerAuth()
-  @UseGuards(AccessTokenGuard, AuthorizationGuard)
-  @RequireRoles('FIGHTER', 'COACH', 'ADMIN')
-  @ApiOperation({ summary: 'Create an authenticated video-analysis job' })
+  @ApiOperation({
+    summary: 'Tạo job phân tích video mới',
+    description: 'Tạo một job mới trong CSDL (status: PENDING) và đẩy job vào hàng đợi Redis BullMQ (queue: video-analysis).',
+  })
   @ResponseMessage('Job created successfully')
   @HttpCode(HttpStatus.CREATED)
   @ApiSuccessEnvelope({
     status: HttpStatus.CREATED,
     message: 'Job created successfully',
   })
-  @ApiValidationErrorEnvelope()
-  @ApiUnauthorizedEnvelope()
-  @ApiForbiddenEnvelope('Requires fighter, coach, or admin role')
-  create(
-    @CurrentUser() actor: AuthenticatedUser | undefined,
-    @Body() dto: CreateJobDto,
-  ) {
-    return this.jobsService.createJob(requireActor(actor), dto);
+  @ApiValidationErrorEnvelope('Dữ liệu đầu vào không hợp lệ (ví dụ: videoUrl không đúng định dạng URL)')
+  create(@Body() dto: CreateJobDto) {
+    return this.jobsService.createJob(dto);
   }
 
+  /** GET /jobs — Danh sách jobs (tùy chọn lọc theo userId) */
   @Get()
-  @ApiBearerAuth()
-  @UseGuards(AccessTokenGuard, AuthorizationGuard)
-  @RequireRoles('FIGHTER', 'COACH', 'DOCTOR', 'ADMIN')
-  @ApiOperation({ summary: 'List jobs visible to the authenticated user' })
-  @ResponseMessage('Jobs retrieved successfully')
-  @ApiSuccessEnvelope({ message: 'Jobs retrieved successfully' })
-  @ApiUnauthorizedEnvelope()
-  @ApiForbiddenEnvelope()
-  list(
-    @CurrentUser() actor: AuthenticatedUser | undefined,
-    @Query('userId') userId?: string,
-  ) {
-    return this.jobsService.listJobs(requireActor(actor), userId);
-  }
-
-  @Get('impairments')
-  @ApiBearerAuth()
-  @UseGuards(AccessTokenGuard, AuthorizationGuard)
-  @RequireRoles('ADMIN')
-  @ApiOperation({ summary: 'List analysis jobs with confirmed impairments' })
-  @ResponseMessage('Impairment jobs retrieved successfully')
-  @ApiSuccessEnvelope({ message: 'Impairment jobs retrieved successfully' })
-  @ApiUnauthorizedEnvelope()
-  @ApiForbiddenEnvelope('Only administrators can query unscoped job alerts')
-  listImpairments(
-    @CurrentUser() actor: AuthenticatedUser | undefined,
-    @Query('userId') userId?: string,
-  ) {
-    return this.jobsService.listImpairmentAlerts(requireActor(actor), userId);
-  }
-
-  @Get(':id')
-  @ApiBearerAuth()
-  @UseGuards(AccessTokenGuard, AuthorizationGuard)
-  @RequireRoles('FIGHTER', 'COACH', 'DOCTOR', 'ADMIN')
-  @ApiOperation({ summary: 'Get an analysis job in the caller scope' })
-  @ResponseMessage('Job retrieved successfully')
-  @ApiSuccessEnvelope({ message: 'Job retrieved successfully' })
-  @ApiUnauthorizedEnvelope()
-  @ApiForbiddenEnvelope()
-  @ApiNotFoundEnvelope('JOB_NOT_FOUND', 'Analysis job not found')
-  findOne(
-    @CurrentUser() actor: AuthenticatedUser | undefined,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
-    return this.jobsService.getJobForActor(requireActor(actor), id);
-  }
-
-  @Get(':id/health-alerts')
-  @ApiBearerAuth()
-  @UseGuards(AccessTokenGuard, AuthorizationGuard)
-  @RequireRoles('FIGHTER', 'COACH', 'DOCTOR', 'ADMIN')
-  @ApiOperation({ summary: 'Get scoped health-alert data for a job' })
-  @ResponseMessage('Health alerts retrieved successfully')
-  @ApiSuccessEnvelope({ message: 'Health alerts retrieved successfully' })
-  @ApiUnauthorizedEnvelope()
-  @ApiForbiddenEnvelope()
-  @ApiNotFoundEnvelope('JOB_NOT_FOUND', 'Analysis job not found')
-  getHealthAlerts(
-    @CurrentUser() actor: AuthenticatedUser | undefined,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
-    return this.jobsService.getHealthAlerts(requireActor(actor), id);
-  }
-
-  @Get(':id/result')
-  @ApiBearerAuth()
-  @UseGuards(AccessTokenGuard, AuthorizationGuard)
-  @RequireRoles('FIGHTER', 'COACH', 'DOCTOR', 'ADMIN')
   @ApiOperation({
-    summary: 'Get a validated worker result in the caller scope',
+    summary: 'Lấy danh sách các jobs',
+    description: 'Trả về danh sách các jobs phân tích video, có thể lọc theo ID võ sĩ (userId).',
   })
-  @ResponseMessage('Analysis result retrieved successfully')
-  @ApiSuccessEnvelope({ message: 'Analysis result retrieved successfully' })
-  @ApiUnauthorizedEnvelope()
-  @ApiForbiddenEnvelope()
+  @ApiQuery({
+    name: 'userId',
+    required: false,
+    description: 'ID người dùng / Võ sĩ để lọc danh sách jobs',
+    example: 'u-minh-tran',
+  })
+  @ResponseMessage('Jobs retrieved successfully')
+  @ApiSuccessEnvelope({
+    status: HttpStatus.OK,
+    message: 'Jobs retrieved successfully',
+  })
+  list(@Query('userId') userId?: string) {
+    return this.jobsService.listJobs(userId);
+  }
+
+  /**
+   * GET /jobs/impairments — Tất cả jobs có cảnh báo chấn thương
+   * Dùng partial index has_impairment = TRUE → rất nhanh.
+   * Đặt TRƯỚC /:id để tránh conflict route.
+   */
+  @Get('impairments')
+  @ApiOperation({
+    summary: 'Lấy danh sách các jobs có cảnh báo chấn thương (Impairments)',
+    description: 'Truy vấn cực nhanh bằng Partial Index `has_impairment = TRUE` để hỗ trợ Bác sĩ thể thao lọc nhanh các ca nghi ngờ chấn thương.',
+  })
+  @ApiQuery({
+    name: 'userId',
+    required: false,
+    description: 'Lọc theo ID võ sĩ',
+    example: 'u-kenji-morita',
+  })
+  @ResponseMessage('Impairment jobs retrieved successfully')
+  @ApiSuccessEnvelope({
+    status: HttpStatus.OK,
+    message: 'Impairment jobs retrieved successfully',
+  })
+  listImpairments(@Query('userId') userId?: string) {
+    return this.jobsService.listImpairmentAlerts(userId);
+  }
+
+  /** GET /jobs/:id — Lấy trạng thái và toàn bộ kết quả job */
+  @Get(':id')
+  @ApiOperation({
+    summary: 'Lấy chi tiết và kết quả của một job theo UUID',
+    description: 'Trả về trạng thái xử lý (PENDING, PROCESSING, DONE, FAILED), điểm số và URL kết quả JSON từ Supabase Storage.',
+  })
+  @ApiParam({ name: 'id', description: 'UUID của job cần truy vấn', example: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' })
+  @ResponseMessage('Job retrieved successfully')
+  @ApiSuccessEnvelope({
+    status: HttpStatus.OK,
+    message: 'Job retrieved successfully',
+  })
   @ApiNotFoundEnvelope('JOB_NOT_FOUND', 'Analysis job not found')
-  result(
-    @CurrentUser() actor: AuthenticatedUser | undefined,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
-    return this.jobsService.getResultForActor(requireActor(actor), id);
+  findOne(@Param('id') id: string) {
+    return this.jobsService.getJob(id);
   }
 
-  @Get(':id/input')
-  @UseGuards(WorkerAuthGuard)
-  @ApiOperation({ summary: 'Stream private job input to the trusted worker' })
-  @ApiHeader({ name: 'x-worker-secret', required: true })
-  @ApiSecurity('x-worker-secret')
-  @ApiUnauthorizedEnvelope('Invalid or missing x-worker-secret header')
-  @ApiNotFoundEnvelope('JOB_VIDEO_NOT_FOUND', 'Job video was not found')
-  async input(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Headers('range') rangeHeader: string | undefined,
-    @Res() response: Response,
-  ) {
-    const content = await this.jobsService.openWorkerInput(
-      id,
-      parseByteRange(rangeHeader),
-    );
-    sendStoredObject(response, content);
+  /**
+   * GET /jobs/:id/health-alerts — Chỉ lấy anomaly detection data
+   * Trả về: { alertCount, hasImpairment, healthAlerts[], jointStates{} }
+   */
+  @Get(':id/health-alerts')
+  @ApiOperation({
+    summary: 'Lấy dữ liệu Anomaly Detection & Máy trạng thái sức khỏe khớp',
+    description: 'Chỉ trả về các thông tin cảnh báo chấn thương (healthAlerts) và trạng thái các khớp (jointStates) của bài tập.',
+  })
+  @ApiParam({ name: 'id', description: 'UUID của job', example: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' })
+  @ResponseMessage('Health alerts retrieved successfully')
+  @ApiSuccessEnvelope({
+    status: HttpStatus.OK,
+    message: 'Health alerts retrieved successfully',
+  })
+  @ApiNotFoundEnvelope('JOB_NOT_FOUND', 'Analysis job not found')
+  getHealthAlerts(@Param('id') id: string) {
+    return this.jobsService.getHealthAlerts(id);
   }
 
-  @Post(':id/result')
-  @UseGuards(WorkerAuthGuard)
-  @ApiOperation({ summary: 'Validate and finalize a trusted worker result' })
-  @ApiHeader({ name: 'x-worker-secret', required: true })
-  @ApiSecurity('x-worker-secret')
-  @ResponseMessage('Analysis result finalized successfully')
-  @ApiSuccessEnvelope({ message: 'Analysis result finalized successfully' })
-  @ApiUnauthorizedEnvelope('Invalid or missing x-worker-secret header')
-  async finalizeResult(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Headers('content-length') contentLength: string | undefined,
-    @Req() request: Request,
-  ) {
-    return this.jobsService.finalizeWorkerResult(
-      id,
-      request,
-      Number(contentLength),
-    );
-  }
-
+  /**
+   * PATCH /jobs/:id/status — Python Worker báo hoàn thành
+   * Yêu cầu header: x-worker-secret
+   * Body bao gồm cả healthAlerts và jointStates từ Anomaly Detection pipeline.
+   */
   @Patch(':id/status')
-  @UseGuards(WorkerAuthGuard)
-  @ApiOperation({ summary: 'Update a job from the trusted Python worker' })
-  @ApiHeader({ name: 'x-worker-secret', required: true })
+  @ApiOperation({
+    summary: 'Python Worker callback cập nhật trạng thái job',
+    description: 'Endpoint bảo mật dành cho Python Worker gọi sau khi phân tích xong video để cập nhật trạng thái (DONE/FAILED), score, resultUrl và mảng cảnh báo healthAlerts.',
+  })
+  @ApiParam({ name: 'id', description: 'UUID của job cần cập nhật' })
+  @ApiHeader({
+    name: 'x-worker-secret',
+    required: true,
+    description: 'Shared worker authentication secret',
+  })
   @ApiSecurity('x-worker-secret')
   @ResponseMessage('Job status updated successfully')
-  @ApiSuccessEnvelope({ message: 'Job status updated successfully' })
+  @UseGuards(WorkerAuthGuard)
+  @ApiSuccessEnvelope({
+    status: HttpStatus.OK,
+    message: 'Job status updated successfully',
+  })
   @ApiUnauthorizedEnvelope('Invalid or missing x-worker-secret header')
   @ApiNotFoundEnvelope('JOB_NOT_FOUND', 'Analysis job not found')
   updateStatus(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id') id: string,
     @Body() dto: UpdateJobStatusDto,
   ) {
     return this.jobsService.updateJobStatus(id, dto);
   }
 }
+

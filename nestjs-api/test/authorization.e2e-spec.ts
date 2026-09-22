@@ -237,7 +237,6 @@ describe('AuthorizationController (e2e)', () => {
     expect(response.body).toEqual({
       success: true,
       message: 'User permission override removed successfully',
-      data: null,
     });
   });
 
@@ -327,7 +326,6 @@ describe('AuthorizationController (e2e)', () => {
     expect(response.body).toEqual({
       success: true,
       message: 'Role permission revoked successfully',
-      data: null,
     });
   });
 

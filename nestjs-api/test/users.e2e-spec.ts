@@ -4,7 +4,6 @@ import { Reflector } from '@nestjs/core';
 import request from 'supertest';
 import { AUTH_ACCESS_SERVICE } from '../src/shared/contracts/auth-access.contract.js';
 import {
-  AUTHENTICATED_ENDPOINT,
   REQUIRED_PERMISSIONS,
   REQUIRED_ROLES,
 } from '../src/shared/decorators/auth.decorator.js';
@@ -30,14 +29,8 @@ describe('UsersController authorization (e2e)', () => {
   let app: INestApplication;
   const usersService = {
     create: vi.fn(),
-    invite: vi.fn(),
-    findMe: vi.fn(),
-    updateMe: vi.fn(),
-    list: vi.fn(),
     findOne: vi.fn(),
     update: vi.fn(),
-    updateStatus: vi.fn(),
-    resendInvite: vi.fn(),
     remove: vi.fn(),
   };
   const authService = {
@@ -76,29 +69,13 @@ describe('UsersController authorization (e2e)', () => {
     expect(permissionFor(UsersController.prototype.create)).toEqual({
       allOf: [USER_PERMISSIONS.CREATE],
     });
-    expect(permissionFor(UsersController.prototype.invite)).toEqual({
-      allOf: [USER_PERMISSIONS.CREATE],
-    });
-    expect(permissionFor(UsersController.prototype.findMe)).toBeUndefined();
-    expect(
-      reflector.get(AUTHENTICATED_ENDPOINT, UsersController.prototype.findMe),
-    ).toBe(true);
-    expect(permissionFor(UsersController.prototype.updateMe)).toEqual({
+    expect(permissionFor(UsersController.prototype.findMe)).toEqual({
       allOf: [USER_PERMISSIONS.PROFILE_READ],
-    });
-    expect(permissionFor(UsersController.prototype.list)).toEqual({
-      allOf: [USER_PERMISSIONS.READ],
     });
     expect(permissionFor(UsersController.prototype.findOne)).toEqual({
       allOf: [USER_PERMISSIONS.READ],
     });
     expect(permissionFor(UsersController.prototype.update)).toEqual({
-      allOf: [USER_PERMISSIONS.UPDATE],
-    });
-    expect(permissionFor(UsersController.prototype.updateStatus)).toEqual({
-      allOf: [USER_PERMISSIONS.UPDATE],
-    });
-    expect(permissionFor(UsersController.prototype.resendInvite)).toEqual({
       allOf: [USER_PERMISSIONS.UPDATE],
     });
     expect(permissionFor(UsersController.prototype.remove)).toEqual({
@@ -140,52 +117,20 @@ describe('UsersController authorization (e2e)', () => {
     expect(usersService.findOne).toHaveBeenCalledWith(userId);
   });
 
-  it('lets any authenticated user read their own profile', async () => {
+  it('uses users.profile.read for the authenticated user profile', async () => {
     const coach = { ...admin, role: 'COACH' as const };
     authService.authenticate.mockResolvedValueOnce(coach);
-    usersService.findMe.mockResolvedValueOnce({
-      id: coach.id,
-      role: 'COACH',
-      effectiveCapabilities: [],
-      assignmentScope: { fighterIds: [] },
-    });
+    usersService.findOne.mockResolvedValueOnce({ id: coach.id, role: 'COACH' });
 
     await request(app.getHttpServer())
       .get('/users/me')
       .set('Authorization', 'Bearer valid-token')
       .expect(200);
 
-    expect(authService.hasPermissions).not.toHaveBeenCalled();
-    expect(usersService.findMe).toHaveBeenCalledWith(coach);
-  });
-
-  it('updates only the authenticated user display profile', async () => {
-    usersService.updateMe.mockResolvedValueOnce({
-      id: admin.id,
-      displayName: 'Nora Updated',
-      phone: '+84 912 345 678',
+    expect(authService.hasPermissions).toHaveBeenCalledWith(coach, {
+      allOf: [USER_PERMISSIONS.PROFILE_READ],
     });
-
-    await request(app.getHttpServer())
-      .patch('/users/me')
-      .set('Authorization', 'Bearer valid-token')
-      .send({ displayName: 'Nora Updated', phone: '+84 912 345 678' })
-      .expect(200)
-      .expect({
-        success: true,
-        message: 'Current user profile updated successfully',
-        data: {
-          id: admin.id,
-          displayName: 'Nora Updated',
-          phone: '+84 912 345 678',
-        },
-      });
-
-    expect(usersService.updateMe).toHaveBeenCalledWith(
-      admin,
-      { displayName: 'Nora Updated', phone: '+84 912 345 678' },
-      expect.any(String),
-    );
+    expect(usersService.findOne).toHaveBeenCalledWith(coach.id);
   });
 
   it('denies ADMIN when the concrete permission is absent', async () => {
@@ -249,112 +194,5 @@ describe('UsersController authorization (e2e)', () => {
       })
       .expect(422);
     expect(usersService.create).not.toHaveBeenCalled();
-  });
-
-  it('returns a cursor-paginated user directory', async () => {
-    usersService.list.mockResolvedValueOnce({
-      items: [{ id: userId, role: 'COACH', status: 'ACTIVE' }],
-      pageInfo: { hasNextPage: false, endCursor: null },
-      total: 1,
-    });
-
-    const response = await request(app.getHttpServer())
-      .get('/users?role=COACH&status=ACTIVE&limit=25')
-      .set('Authorization', 'Bearer valid-token')
-      .expect(200);
-
-    expect(response.body).toEqual({
-      success: true,
-      message: 'Get users successfully',
-      data: {
-        items: [{ id: userId, role: 'COACH', status: 'ACTIVE' }],
-        pageInfo: { hasNextPage: false, endCursor: null },
-        total: 1,
-      },
-    });
-    expect(usersService.list).toHaveBeenCalledWith({
-      role: 'COACH',
-      status: 'ACTIVE',
-      limit: 25,
-    });
-  });
-
-  it('updates account status with the authenticated actor', async () => {
-    usersService.updateStatus.mockResolvedValueOnce({
-      id: userId,
-      role: 'COACH',
-      status: 'SUSPENDED',
-    });
-
-    await request(app.getHttpServer())
-      .patch(`/users/${userId}/status`)
-      .set('Authorization', 'Bearer valid-token')
-      .send({ status: 'SUSPENDED' })
-      .expect(200)
-      .expect({
-        success: true,
-        message: 'User status updated successfully',
-        data: { id: userId, role: 'COACH', status: 'SUSPENDED' },
-      });
-
-    expect(usersService.updateStatus).toHaveBeenCalledWith(
-      userId,
-      admin,
-      'SUSPENDED',
-      expect.any(String),
-    );
-  });
-
-  it('creates an invitation without accepting a caller-controlled password', async () => {
-    usersService.invite.mockResolvedValueOnce({
-      id: userId,
-      role: 'DOCTOR',
-      status: 'INVITED',
-    });
-
-    await request(app.getHttpServer())
-      .post('/users/invite')
-      .set('Authorization', 'Bearer valid-token')
-      .send({
-        name: 'Linh Nguyen',
-        email: 'linh@example.com',
-        role: 'DOCTOR',
-        title: 'Team Doctor',
-      })
-      .expect(201)
-      .expect({
-        success: true,
-        message: 'User invitation created successfully',
-        data: { id: userId, role: 'DOCTOR', status: 'INVITED' },
-      });
-
-    expect(usersService.invite).toHaveBeenCalledWith(
-      admin,
-      expect.not.objectContaining({ password: expect.anything() }),
-      expect.any(String),
-    );
-  });
-
-  it('resends an invitation for the requested account', async () => {
-    usersService.resendInvite.mockResolvedValueOnce({
-      id: userId,
-      role: 'DOCTOR',
-      status: 'INVITED',
-    });
-
-    await request(app.getHttpServer())
-      .post(`/users/${userId}/resend-invite`)
-      .set('Authorization', 'Bearer valid-token')
-      .expect(200)
-      .expect({
-        success: true,
-        message: 'User invitation resent successfully',
-        data: { id: userId, role: 'DOCTOR', status: 'INVITED' },
-      });
-    expect(usersService.resendInvite).toHaveBeenCalledWith(
-      userId,
-      admin,
-      expect.any(String),
-    );
   });
 });

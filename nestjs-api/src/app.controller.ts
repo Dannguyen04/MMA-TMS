@@ -1,17 +1,13 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AppService } from './app.service.js';
-import { AppReadinessService } from './app-readiness.service.js';
 import { ApiSuccessEnvelope } from './shared/decorators/api-envelope.decorator.js';
 import { ResponseMessage } from './shared/decorators/response-message.decorator.js';
 
 @ApiTags('System')
 @Controller()
 export class AppController {
-  constructor(
-    private readonly appService: AppService,
-    private readonly readinessService: AppReadinessService,
-  ) {}
+  constructor(private readonly appService: AppService) {}
 
   @Get()
   @ApiOperation({
@@ -38,16 +34,5 @@ export class AppController {
       uptime: process.uptime(),
       timestamp: new Date().toISOString(),
     };
-  }
-
-  @Get('ready')
-  @ApiOperation({
-    summary: 'System readiness check',
-    description: 'Checks PostgreSQL and Redis before accepting traffic',
-  })
-  @ResponseMessage('Readiness check successful')
-  @ApiSuccessEnvelope({ message: 'Readiness check successful' })
-  getReady() {
-    return this.readinessService.check();
   }
 }

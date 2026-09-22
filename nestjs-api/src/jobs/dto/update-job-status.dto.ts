@@ -1,40 +1,34 @@
+import { IsObject, IsArray, IsOptional, ValidateNested, IsString, IsNumber, IsBoolean, IsIn, Min, Max } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsArray,
-  IsIn,
-  IsNumber,
-  IsObject,
-  IsOptional,
-  IsString,
-  Max,
-  MaxLength,
-  Min,
-} from 'class-validator';
 import type { HealthAlert, JointStatesMap } from '../../database/schema.js';
 
-export const workerJobStatuses = ['PROCESSING', 'DONE', 'FAILED'] as const;
-export type WorkerJobStatus = (typeof workerJobStatuses)[number];
+// ─── UpdateJobStatusDto ───────────────────────────────────────────────────────
 
-/** Dữ liệu trạng thái do Python worker gửi về cho một lần xử lý. */
+/**
+ * DTO dùng cho PATCH /jobs/:id/status
+ * Gọi bởi Python Worker sau khi hoàn thành phân tích video.
+ */
 export class UpdateJobStatusDto {
   @ApiProperty({
-    description: 'Trạng thái xử lý hợp lệ do worker báo về',
-    enum: workerJobStatuses,
+    description: 'Trạng thái xử lý của job (DONE hoặc FAILED)',
+    enum: ['DONE', 'FAILED'],
     example: 'DONE',
   })
-  @IsIn(workerJobStatuses)
-  status!: WorkerJobStatus;
+  @IsString()
+  status: string;
 
   @ApiPropertyOptional({
-    description: 'Địa chỉ kết quả đã được lưu bởi storage adapter',
+    description: 'URL chứa file JSON kết quả phân tích AI chi tiết trên Supabase Storage',
+    example: 'https://wskisxkpbhisnqfpjqrm.supabase.co/storage/v1/object/public/analysis-results/job-123-result.json',
   })
   @IsOptional()
   @IsString()
-  @MaxLength(2048)
   resultUrl?: string;
 
   @ApiPropertyOptional({
-    description: 'Điểm kỹ thuật tổng thể từ 0 đến 100',
+    description: 'Điểm kỹ thuật tổng thể (0 - 100)',
+    example: 85,
     minimum: 0,
     maximum: 100,
   })
@@ -44,36 +38,46 @@ export class UpdateJobStatusDto {
   @Max(100)
   score?: number;
 
+  /**
+   * Mảng AlertPayload từ SessionHealthMonitor.get_confirmed_alerts().
+   * Chỉ chứa các alert CONFIRMED_IMPAIRMENT.
+   */
   @ApiPropertyOptional({
-    description: 'Mã lỗi ổn định, an toàn để hiển thị khi xử lý thất bại',
-  })
-  @IsOptional()
-  @IsString()
-  @MaxLength(64)
-  errorCode?: string;
-
-  @ApiPropertyOptional({
-    description: 'Thông báo lỗi đã loại bỏ dữ liệu nhạy cảm',
-  })
-  @IsOptional()
-  @IsString()
-  @MaxLength(500)
-  errorMessage?: string;
-
-  @ApiPropertyOptional({
-    description: 'Danh sách cảnh báo sức khỏe đã xác nhận',
-    type: 'array',
+    description: 'Danh sách cảnh báo chấn thương CONFIRMED_IMPAIRMENT do Anomaly Detection Engine phát hiện',
+    example: [
+      {
+        joint: 'RIGHT_SHOULDER',
+        state: 'CONFIRMED_IMPAIRMENT',
+        severity: 'high',
+        triggerTimeMs: 1250,
+        windowStartMs: 500,
+        consecutiveLowRom: 3,
+        avgRomRatio: 0.55,
+        motionClass: 'POWER_STRIKE',
+        recommendation: 'Cảnh báo: Biên độ vận động vai phải bị suy giảm. HLV cần giảm cường độ đấm Cross.',
+      },
+    ],
   })
   @IsOptional()
   @IsArray()
   healthAlerts?: HealthAlert[];
 
+  /**
+   * Snapshot { JointName → JointHealthState } tại cuối video.
+   * Vd: { "LEFT_SHOULDER": "CONFIRMED_IMPAIRMENT", "RIGHT_KNEE": "HEALTHY" }
+   */
   @ApiPropertyOptional({
-    description: 'Trạng thái sức khỏe cuối cùng của từng khớp',
-    type: 'object',
-    additionalProperties: true,
+    description: 'Bản đồ trạng thái sức khỏe các khớp chính tại thời điểm kết thúc bài tập',
+    example: {
+      RIGHT_SHOULDER: 'CONFIRMED_IMPAIRMENT',
+      LEFT_SHOULDER: 'HEALTHY',
+      RIGHT_KNEE: 'HEALTHY',
+      LEFT_KNEE: 'HEALTHY',
+    },
   })
   @IsOptional()
   @IsObject()
   jointStates?: JointStatesMap;
 }
+
+

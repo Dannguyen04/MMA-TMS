@@ -1,14 +1,15 @@
 import { spawnSync } from "node:child_process";
 
+// Only complete JWTs (header.payload.signature) count; truncated `eyJ...` placeholders in env examples do not.
 const patterns = [
-    { name: "Supabase JWT literal", needle: ["eyJ", "hbGciOiJ", "IUzI1Ni"].join("") },
-    { name: "private key", needle: ["-----BEGIN ", "PRIVATE KEY-----"].join("") },
+    { name: "Supabase JWT literal", regex: ["eyJ", "hbGciOiJ", "IUzI1Ni", "[A-Za-z0-9_-]*\\.eyJ[A-Za-z0-9_-]{20,}\\.[A-Za-z0-9_-]{20,}"].join("") },
+    { name: "private key", regex: ["-----BEGIN ", "[A-Z ]*PRIVATE KEY-----"].join("") },
 ];
 const allowedFixtureFiles = new Set(["nestjs-api/test/dataset-export-trust-boundary.spec.ts"]);
 const findings = [];
 
 for (const pattern of patterns) {
-    const result = spawnSync("git", ["grep", "-n", "-I", "-F", "-e", pattern.needle, "--", "."], { encoding: "utf8" });
+    const result = spawnSync("git", ["grep", "-n", "-I", "-E", "-e", pattern.regex, "--", "."], { encoding: "utf8" });
     if (result.status === 0) {
         for (const line of result.stdout.trim().split("\n").filter(Boolean)) {
             const file = line.split(":", 1)[0].replaceAll("\\", "/");

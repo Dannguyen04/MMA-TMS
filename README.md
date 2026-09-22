@@ -1,71 +1,184 @@
-# MMA-TMS
+# Martial Arts Tracker — Full Stack System
 
-MMA-TMS is a role-based training management system for fighters, coaches, sports doctors, and platform administrators. The repository contains a Next.js application, a NestJS/PostgreSQL API, Redis/BullMQ, and a Python YOLO pose-analysis worker.
+Hệ thống phân tích kỹ thuật võ thuật 3-tier với AI realtime.
 
-The real full-stack migration is active but not complete. Authentication and the job boundary now use authenticated APIs, while several frontend business services still use the legacy in-memory data store because their backend route families have not been implemented. The authoritative implementation status and blockers are in [`implementation_plan.md`](implementation_plan.md) and [`docs/FULLSTACK_INTEGRATION_CONTEXT.md`](docs/FULLSTACK_INTEGRATION_CONTEXT.md).
+## Kiến trúc
 
-## Runtime architecture
-
-```text
-Browser
-  -> Next.js :3000 (HTTP-only session cookies and same-origin upload/job routes)
-  -> NestJS :3001 (PostgreSQL, authorization, jobs, OpenAPI)
-  -> Redis/BullMQ -> Python worker -> private object storage
+```
+┌─────────────────────────────────────────────────────┐
+│                    BROWSER / CLIENT                 │
+│  Next.js App (port 3000) — theo vai trò             │
+│  ├── /fighter  → Lịch tập, video AI, hiệu suất, SK  │
+│  ├── /coach    → Võ sĩ, giáo án, duyệt phân tích AI │
+│  ├── /doctor   → Hồ sơ y tế, chấn thương, Clearance │
+│  └── /admin    → Người dùng, AI jobs, audit logs    │
+└────────────────────┬────────────────────────────────┘
+                     │ HTTP/REST
+┌────────────────────▼────────────────────────────────┐
+│               NestJS API (port 3001)                │
+│  POST /jobs     → Tạo job + đẩy vào BullMQ         │
+│  GET  /jobs/:id → Lấy status + result URL           │
+│  PATCH /jobs/:id/status → Worker callback           │
+└────────┬──────────────────────────┬─────────────────┘
+         │ Prisma ORM               │ BullMQ (Redis)
+┌────────▼────────┐      ┌──────────▼─────────────────┐
+│  PostgreSQL     │      │   Redis (port 6379)         │
+│  (Supabase DB)  │      │   Queue: video-analysis     │
+└─────────────────┘      └──────────┬─────────────────┘
+                                    │ poll jobs
+                         ┌──────────▼─────────────────┐
+                         │   Python Worker             │
+                         │   ├── YOLO-Pose detection  │
+                         │   ├── KickAnalyzer          │
+                         │   └── Upload JSON → Supabase│
+                         └─────────────────────────────┘
 ```
 
-- Successful API responses use `{ success, message, data }`.
-- API errors use `{ success: false, error: { statusCode, code, message, details? } }`.
-- OpenAPI is served at `/docs`, `/api-docs`, and `/docs-json`.
-- Uploaded videos and analysis results are private. The frontend never exposes a service-role key.
-- `/fighter/videos/live` remains a browser-only MediaPipe workflow.
+## Cấu trúc thư mục
 
-## Configuration
-
-Copy `.env.example` to `.env` and replace every placeholder. `start_all.bat` prefers this root file and falls back to `nestjs-api/.env` when the root file is absent. Never commit values for:
-
-- `SUPABASE_URL`
-- `SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_KEY`
-- `WORKER_SECRET_TOKEN`
-- `DATABASE_URL` when connecting outside Compose
-- `DATABASE_SSL_CA_FILE` or `DATABASE_SSL_CA` when the remote PostgreSQL provider uses a private CA
-- `E2E_BASE_URL` and `E2E_PASSWORD` for real Playwright runs
-
-Compose runs the API with `AUTH_PROVIDER=local` and `STORAGE_DRIVER=local` (local PostgreSQL credentials/sessions and a private filesystem volume), so the Supabase variables are only needed when switching to `AUTH_PROVIDER=supabase` or `STORAGE_DRIVER=supabase`. Deterministic four-role users are seeded only by the isolated E2E project (`docker-compose.e2e.yml`, requires `E2E_PASSWORD`).
-
-## Start and stop
-
-On Windows:
-
-```bat
-start_all.bat
-stop_all.bat
+```
+d:/test/ai/
+├── martial-arts-tracker/   ← Phase 1: Vite+React MVP (standalone)
+├── python-worker/          ← Phase 2: YOLO-Pose worker
+├── nestjs-api/             ← Phase 3: Backend API + BullMQ
+├── nextjs-frontend/        ← Phase 3: Full-stack frontend
+└── docker-compose.yml      ← Chạy toàn bộ hệ thống
 ```
 
-The launcher owns the `mma-tms-local` Compose project. The stop command only stops that project; it does not kill unrelated processes on ports 3000, 3001, or 6379.
+## Khởi động nhanh (Development)
 
-Direct Compose usage:
+### Yêu cầu
+
+- Node.js 18+
+- Python 3.11+ (hoặc uv)
+- Redis (local hoặc Docker)
+- PostgreSQL (hoặc Supabase)
+
+### 1. Redis (cần thiết cho NestJS + Worker)
 
 ```bash
-docker compose -p mma-tms-local up --build --wait
-docker compose -p mma-tms-local down
+# Dùng Docker
+docker run -d -p 6379:6379 redis:7-alpine
+
+# Hoặc trên Windows với winget
+winget install Redis.Redis
 ```
 
-## Development commands
-
-Use the repository pnpm lockfiles; do not use the untracked, git-ignored `nestjs-api/package-lock.json`.
+### 2. NestJS API
 
 ```bash
-corepack pnpm --dir nestjs-api run build
-corepack pnpm --dir nestjs-api run test
-corepack pnpm --dir nextjs-frontend run typecheck
-corepack pnpm --dir nextjs-frontend run test
-python-worker/.venv/Scripts/python.exe -m unittest discover -s python-worker -p "test_*.py"
-node scripts/check-secrets.mjs
+cd nestjs-api
+cp .env.example .env   # Điền DATABASE_URL và REDIS_*
+npm run start:dev
 ```
 
-`npm run test:full` runs the portable quality-gate sequence. If the Python virtual environment is absent, it builds and uses the production worker image. Set `RUN_REAL_E2E=1`, `E2E_BASE_URL`, and `E2E_PASSWORD` to include isolated Compose and real UI login through Playwright.
+### 3. Python Worker
 
-## Security note
+```bash
+cd python-worker
+.venv\Scripts\activate      # Windows
+cp .env.example .env        # Điền REDIS_URL, SUPABASE_*
+python worker.py
+```
 
-Tracked Supabase JWT literals were removed from `scripts/create_buckets.mjs` and `scripts/test_upload.mjs`. Repository cleanup cannot rotate credentials. The Supabase project owner must revoke and rotate any token that was previously committed, then update deployment secrets without adding them to Git.
+### 4. Next.js Frontend
+
+```bash
+cd nextjs-frontend
+npm run dev   # Mặc định dùng dữ liệu giả lập, không cần API/Worker
+```
+
+Để kết nối pipeline video thật, sao chép `.env.local.example` thành `.env.local`, đặt `NEXT_PUBLIC_VIDEO_PIPELINE=api` và điền `NEXT_PUBLIC_SUPABASE_*`, `NEXT_PUBLIC_API_URL`. Chi tiết frontend: `nextjs-frontend/README.md`.
+
+### 5. Mở trình duyệt
+
+- `http://localhost:3000` → Đăng nhập bằng tài khoản demo (Võ sĩ, HLV, Bác sĩ thể thao, Quản trị viên)
+- `http://localhost:3000/fighter/videos/upload` → Tải video lên để phân tích (đường dẫn cũ `/analysis` tự chuyển hướng)
+- `http://localhost:3000/fighter/videos/live` → Kiểm tra động tác trực tiếp bằng webcam (MediaPipe)
+
+---
+
+## Chạy toàn bộ bằng Docker Compose
+
+```bash
+# Tạo file .env tại thư mục gốc
+cp .env.example .env   # Điền SUPABASE_URL, SUPABASE_SERVICE_KEY, SUPABASE_ANON_KEY
+
+docker-compose up --build
+```
+
+---
+
+## Luồng xử lý Upload Video
+
+Chế độ `NEXT_PUBLIC_VIDEO_PIPELINE=api` (mặc định `mock` mô phỏng toàn bộ luồng dưới đây trong bộ nhớ):
+
+```
+Võ sĩ / HLV mở Upload wizard (/fighter/videos/upload, /coach/video-analysis/upload)
+    ↓
+uploadVideoToStorage(file) → Supabase Storage (bucket: videos)
+    ↓
+createJob(videoUrl) → POST /jobs (NestJS) → registerExternalUpload (Server Action)
+    ↓ NestJS
+drizzle insert → PostgreSQL (status: PENDING)
+queue.add() → Redis BullMQ
+    ↓ Python Worker (poll Redis)
+YOLO-Pose analyze frames
+PunchAnalyzer / KickAnalyzer
+    ↓
+Upload result.json → Supabase Storage (bucket: analysis-results)
+PATCH /jobs/:id/status (status: DONE, resultUrl, score)
+    ↓ Next.js
+GET /api/ai-jobs/[jobId] (poll) → đồng bộ trạng thái job NestJS
+    ↓ status === DONE
+mapWorkerResult(result.json) → AI Analysis
+    ↓
+Trang phân tích: khung xương, dòng thời gian, phát hiện AI, duyệt của HLV
+```
+
+---
+
+## Cấu hình Supabase (Project `wskisxkpbhisnqfpjqrm`)
+
+1. **Khởi tạo Database & Storage Buckets**:
+    - Vào **Supabase Dashboard** > **SQL Editor**.
+    - Mở file `supabase-setup.sql` trong dự án, copy toàn bộ nội dung và bấm **Run**.
+    - Script sẽ tự động:
+        - Tạo kiểu enum `job_status` và bảng `analysis_jobs` (với triggers & indexes).
+        - Tạo 2 storage buckets: `videos` và `analysis-results` (public).
+        - Thiết lập RLS policies cho phép upload & xem video / kết quả.
+
+2. **Lấy API Keys**:
+    - Vào **Settings** > **API**:
+        - Copy `anon` (public key) → điền vào `SUPABASE_ANON_KEY` trong `.env` và `nextjs-frontend/.env.local`.
+        - Copy `service_role` (secret key) → điền vào `SUPABASE_SERVICE_KEY` trong `.env` và `python-worker/.env`.
+
+3. **Database Password**:
+    - Thay `[YOUR-PASSWORD]` trong `DATABASE_URL` tại các file `.env` bằng mật khẩu database Supabase của bạn.
+
+4. **Sync Schema qua Drizzle Kit (tùy chọn thay cho SQL Editor)**:
+    ```bash
+    cd nestjs-api
+    npm run db:push
+    ```
+
+---
+
+## API Reference
+
+| Method  | Path               | Body                             | Response            |
+| ------- | ------------------ | -------------------------------- | ------------------- |
+| `POST`  | `/jobs`            | `{ videoUrl, userId? }`          | `{ jobId, status }` |
+| `GET`   | `/jobs`            | —                                | `AnalysisJob[]`     |
+| `GET`   | `/jobs/:id`        | —                                | `AnalysisJob`       |
+| `PATCH` | `/jobs/:id/status` | `{ status, resultUrl?, score? }` | `AnalysisJob`       |
+
+---
+
+## Phase Roadmap
+
+| Phase       | Status  | Mô tả                                |
+| ----------- | ------- | ------------------------------------ |
+| **Phase 1** | ✅ Done | Vite+React + MediaPipe realtime      |
+| **Phase 2** | ✅ Done | Python + YOLOv8-Pose video analysis  |
+| **Phase 3** | ✅ Done | NestJS + BullMQ + Next.js full-stack |

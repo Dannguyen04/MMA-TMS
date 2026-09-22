@@ -16,7 +16,6 @@ const fighterId = '59d6ba46-32f2-4e67-b486-e966b2064328';
 const measurementId = 'b13d7792-fbf9-4421-a4a4-e2ed8466b4a7';
 const assignmentId = 'e069ca8a-d0f1-44da-8bd5-48a60bf44b99';
 const coachId = '1317a43a-05af-4f2c-bc5b-781219643b68';
-const doctorId = '2f175fe4-11ef-4af0-88e8-9c91da38b815';
 const requestId = 'request-id';
 
 const fighterActor: AuthenticatedUser = {
@@ -52,24 +51,12 @@ const fighter: PublicFighter = {
   userId: fighterUserId,
   firstName: 'An',
   lastName: 'Nguyen',
-  nickname: null,
-  sex: 'MALE',
   dateOfBirth: '2000-01-01',
   nationality: 'VN',
   weightClass: 'LIGHTWEIGHT',
   heightCm: 175,
   reachCm: 180,
-  weightKg: 70,
-  bodyFatPct: 12,
-  restingHeartRate: 55,
   dominantStance: 'ORTHODOX',
-  level: 'PROFESSIONAL',
-  primaryDiscipline: 'MMA',
-  record: { wins: 0, losses: 0, draws: 0 },
-  coachIds: [],
-  primaryCoachId: null,
-  doctorIds: [],
-  upcomingBout: null,
   leftArmCm: null,
   rightArmCm: null,
   leftLegCm: null,
@@ -110,14 +97,6 @@ const assignment: CoachAssignment = {
   createdAt: new Date('2026-02-01T00:00:00.000Z'),
 };
 
-const doctorAssignment = {
-  ...assignment,
-  doctorId,
-  doctorName: 'Thu Le',
-  doctorSpecialization: 'Sports medicine',
-  doctorLicenseNumber: 'VN-SPORT-001',
-};
-
 const session: TrainingSessionSummary = {
   id: '0b5cbcd2-dd64-4d46-8024-b375f518a52d',
   fighterId,
@@ -151,8 +130,6 @@ function repositoryMock() {
     findByUserId: vi.fn().mockResolvedValue(fighter),
     findAll: vi.fn().mockResolvedValue({ data: [fighter], total: 11 }),
     findById: vi.fn().mockResolvedValue(fighter),
-    isCoachAssignedToFighter: vi.fn().mockResolvedValue(true),
-    isDoctorAssignedToFighter: vi.fn().mockResolvedValue(true),
     update: vi.fn().mockResolvedValue({ ...fighter, bio: 'Updated bio' }),
     findMeasurements: vi
       .fn()
@@ -173,21 +150,6 @@ function repositoryMock() {
       endsAt: new Date('2026-02-02T00:00:00.000Z'),
       endedById: coachId,
       endReason: 'Fighter moved to another camp',
-    }),
-    findDoctorAssignments: vi.fn().mockResolvedValue([doctorAssignment]),
-    findDoctorById: vi.fn().mockResolvedValue({ id: doctorId, isActive: true }),
-    findActiveDoctorAssignment: vi.fn().mockResolvedValue(undefined),
-    insertDoctorAssignment: vi.fn().mockResolvedValue(doctorAssignment),
-    findDoctorAssignmentById: vi.fn().mockResolvedValue({
-      id: assignmentId,
-      startsAt: assignment.startsAt,
-      endsAt: null,
-    }),
-    closeDoctorAssignment: vi.fn().mockResolvedValue({
-      ...doctorAssignment,
-      endsAt: new Date('2026-02-02T00:00:00.000Z'),
-      endedById: coachId,
-      endReason: 'Care transferred',
     }),
     findTrainingSessions: vi
       .fn()
@@ -235,31 +197,7 @@ describe('FightersService', () => {
       total: 11,
       hasNextPage: true,
     });
-    expect(repository.findAll).toHaveBeenCalledWith(query, {
-      assignedDoctorUserId: doctorActor.id,
-    });
-  });
-
-  it('scopes fighter listings to the active coach assignment', async () => {
-    const { service, repository } = serviceWith();
-    const query = { page: 1, limit: 10 };
-
-    await service.findAll(coachActor, query);
-
-    expect(repository.findAll).toHaveBeenCalledWith(query, {
-      assignedCoachUserId: coachActor.id,
-    });
-  });
-
-  it('rejects an unassigned coach before returning a fighter profile', async () => {
-    const repository = repositoryMock();
-    repository.isCoachAssignedToFighter.mockResolvedValueOnce(false);
-    const { service } = serviceWith(repository);
-
-    const error = await caught(service.findById(coachActor, fighterId));
-
-    expect(error.getStatus()).toBe(HttpStatus.FORBIDDEN);
-    expect(error.getResponse()).toMatchObject({ code: 'FORBIDDEN' });
+    expect(repository.findAll).toHaveBeenCalledWith(query);
   });
 
   it('updates the owner profile atomically with audit context', async () => {
@@ -400,35 +338,6 @@ describe('FightersService', () => {
     ).resolves.toEqual(assignment);
     expect(repository.insertCoachAssignment).toHaveBeenCalledWith(
       coachId,
-      fighterId,
-      coachActor.id,
-      new Date('2026-02-01T00:00:00.000Z'),
-      { scope: 'transaction' },
-    );
-  });
-
-  it('lists doctor assignments after enforcing fighter scope', async () => {
-    const { service, repository } = serviceWith();
-
-    await expect(
-      service.findDoctorAssignments(fighterActor, fighterId),
-    ).resolves.toEqual([doctorAssignment]);
-    expect(repository.findDoctorAssignments).toHaveBeenCalledWith(fighterId);
-  });
-
-  it('creates a temporal doctor assignment with actor provenance', async () => {
-    const { service, repository } = serviceWith();
-
-    await expect(
-      service.assignDoctor(
-        coachActor,
-        fighterId,
-        { doctorId, startsAt: '2026-02-01T00:00:00.000Z' },
-        requestId,
-      ),
-    ).resolves.toEqual(doctorAssignment);
-    expect(repository.insertDoctorAssignment).toHaveBeenCalledWith(
-      doctorId,
       fighterId,
       coachActor.id,
       new Date('2026-02-01T00:00:00.000Z'),
@@ -589,78 +498,6 @@ describe('FightersService', () => {
       fighterId,
       disclaimer:
         'Measurements are estimated from 2D video using AI pose estimation. Results are NOT clinically validated. This system does not provide medical diagnosis. Consult a qualified healthcare professional for medical assessment.',
-    });
-  });
-
-  it('denies raw medical summaries to admins and unassigned doctors', async () => {
-    const repository = repositoryMock();
-    repository.isDoctorAssignedToFighter.mockResolvedValueOnce(false);
-    const { service } = serviceWith(repository);
-    const adminActor: AuthenticatedUser = {
-      id: '65f1312d-3ba8-4196-8491-90d1de1536f7',
-      authSubject: 'admin-auth-subject',
-      email: 'admin@example.com',
-      role: USER.ADMIN,
-    };
-
-    const doctorError = await caught(
-      service.getMedicalSummary(doctorActor, fighterId),
-    );
-    const adminError = await caught(
-      service.getMedicalSummary(adminActor, fighterId),
-    );
-
-    expect(doctorError.getResponse()).toMatchObject({
-      code: 'MEDICAL_ACCESS_DENIED',
-    });
-    expect(adminError.getResponse()).toMatchObject({
-      code: 'MEDICAL_ACCESS_DENIED',
-    });
-    expect(repository.findMedicalSummary).not.toHaveBeenCalled();
-  });
-
-  it('returns only redacted safety information to an assigned coach', async () => {
-    const repository = repositoryMock();
-    repository.findMedicalSummary.mockResolvedValueOnce({
-      fighterId,
-      currentMedicalStatus: 'LIMITED',
-      activeClearance: {
-        id: 'fa0e1903-c6fc-44a3-b4f5-24f14bf3ea15',
-        clearanceType: 'TRAINING',
-        status: 'ACTIVE',
-        validFrom: new Date('2026-02-01T00:00:00.000Z'),
-        validUntil: null,
-        notes: 'Sensitive clinical note',
-      },
-      activeInjuries: [
-        {
-          id: 'be9448b4-fe04-4e03-a817-cac4acfe1036',
-          affectedJoint: 'LEFT_KNEE',
-          injuryType: 'STRAIN',
-          severity: 'MODERATE',
-          status: 'RECOVERING',
-          occurredAt: new Date('2026-01-28T00:00:00.000Z'),
-          description: 'Sensitive injury narrative',
-        },
-      ],
-      jointStates: [
-        {
-          id: 'b3b468c9-62f3-49c3-b9f8-f4844eb7d5d5',
-          joint: 'LEFT_KNEE',
-          currentState: 'LIMITED',
-          stateUpdatedAt: new Date('2026-02-01T00:00:00.000Z'),
-          notes: 'Sensitive joint note',
-        },
-      ],
-    });
-    const { service } = serviceWith(repository);
-
-    await expect(
-      service.getMedicalSummary(coachActor, fighterId),
-    ).resolves.toMatchObject({
-      activeClearance: { notes: null },
-      activeInjuries: [{ description: null }],
-      jointStates: [{ notes: null }],
     });
   });
 });

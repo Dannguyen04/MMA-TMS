@@ -12,8 +12,6 @@ import { USER, userRoles } from '../shared/types/user.role.js';
 
 export { USER, userRoles } from '../shared/types/user.role.js';
 
-export const accountStatuses = ['ACTIVE', 'INVITED', 'SUSPENDED'] as const;
-
 export const USER_PERMISSIONS = {
   CREATE: 'users.create',
   READ: 'users.read',
@@ -21,30 +19,6 @@ export const USER_PERMISSIONS = {
   UPDATE: 'users.update',
   DELETE: 'users.delete',
 } as const;
-
-export const uiCapabilities = [
-  'fighters:read',
-  'fighters:write',
-  'training:read',
-  'training:write',
-  'videos:upload',
-  'videos:manage',
-  'ai_analysis:read',
-  'ai_findings:review',
-  'ai_alerts:review',
-  'goals:write',
-  'medical:read_summary',
-  'medical:read',
-  'medical:write',
-  'clearance:manage',
-  'users:manage',
-  'roles:manage',
-  'ai_jobs:manage',
-  'ai_models:manage',
-  'audit_logs:read',
-  'notifications:manage',
-  'settings:manage',
-] as const;
 
 export const weightClasses = [
   'STRAWWEIGHT',
@@ -152,41 +126,6 @@ export const updateUserBodySchema = z.strictObject({
 
 export const userIdParamsSchema = z.strictObject({ id: z.uuid() });
 
-export const listUsersQuerySchema = z.strictObject({
-  search: trimmedTextSchema(200).optional(),
-  role: z.enum(userRoles).optional(),
-  status: z.enum(accountStatuses).optional(),
-  cursor: z.uuid().optional(),
-  limit: z.coerce.number().int().min(1).max(100).default(50),
-});
-
-export const updateUserStatusBodySchema = z.strictObject({
-  status: z.enum(accountStatuses),
-});
-
-export const updateOwnProfileBodySchema = z
-  .strictObject({
-    displayName: trimmedTextSchema(200).optional(),
-    phone: z
-      .string()
-      .trim()
-      .max(30)
-      .regex(/^\+?[0-9\s().-]+$/)
-      .refine((value) => value.replace(/\D/g, '').length >= 7)
-      .nullable()
-      .optional(),
-  })
-  .refine((value) => Object.keys(value).length > 0, {
-    message: 'At least one profile field is required',
-  });
-
-export const inviteUserBodySchema = z.strictObject({
-  name: trimmedTextSchema(200),
-  email: normalizedEmailSchema,
-  role: z.enum(userRoles),
-  title: trimmedTextSchema(150),
-});
-
 const publicProfileSchema = z.union([
   fighterProfileSchema.extend({ id: z.uuid() }),
   coachProfileSchema.required({ isHeadCoach: true }).extend({ id: z.uuid() }),
@@ -198,43 +137,13 @@ export const publicUserSchema = z.strictObject({
   email: z.email(),
   role: z.enum(userRoles),
   isActive: z.boolean(),
-  status: z.enum(accountStatuses),
-  displayName: z.string().trim().max(200),
-  phone: z.string().trim().min(3).max(30).nullable(),
-  title: z.string().trim().max(150),
-  lastActiveAt: isoDateTimeSchema.nullable(),
   createdAt: isoDateTimeSchema,
   updatedAt: isoDateTimeSchema,
   deletedAt: isoDateTimeSchema.nullable(),
   profile: publicProfileSchema.nullable(),
 });
 
-export const userDirectoryPageSchema = z.strictObject({
-  items: z.array(publicUserSchema),
-  pageInfo: z.strictObject({
-    hasNextPage: z.boolean(),
-    endCursor: z.uuid().nullable(),
-  }),
-  total: z.number().int().nonnegative(),
-});
-
-export const assignmentScopeSchema = z.strictObject({
-  fighterIds: z.array(z.uuid()),
-});
-
-export const currentUserSchema = publicUserSchema.extend({
-  effectiveCapabilities: z.array(z.enum(uiCapabilities)),
-  assignmentScope: assignmentScopeSchema,
-});
-
 export type FighterProfileInput = z.infer<typeof fighterProfileSchema>;
-export type AccountStatus = (typeof accountStatuses)[number];
-export type ListUsersQuery = z.infer<typeof listUsersQuerySchema>;
-export type InviteUserInput = z.infer<typeof inviteUserBodySchema>;
-export type UpdateOwnProfileInput = z.infer<typeof updateOwnProfileBodySchema>;
-export type UserDirectoryPage = z.input<typeof userDirectoryPageSchema>;
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 export type PublicUser = z.input<typeof publicUserSchema>;
-export type UiCapability = (typeof uiCapabilities)[number];
-export type CurrentUser = z.input<typeof currentUserSchema>;
