@@ -1,3 +1,5 @@
+> **Current integration notice (2026-09-20):** API mode is the default. Instructions below that describe mock authentication, demo accounts, or `NEXT_PUBLIC_VIDEO_PIPELINE=mock` as the default are obsolete and must not be used for real development or E2E. Use the root `README.md`, `.env.example`, and `docs/FULLSTACK_INTEGRATION_CONTEXT.md`; the Compose stack uses the backend local-auth and filesystem-storage adapters (`AUTH_PROVIDER=local`, `STORAGE_DRIVER=local`).
+
 # 🥋 Hướng Dẫn Vận Hành & Khởi Động Hệ Thống MMA-TMS
 
 Tài liệu hướng dẫn chi tiết cách cài đặt, khởi động và kiểm thử toàn bộ hệ thống phân tích võ thuật **MMA-TMS (MMA Training & Movement Analysis System)** trên môi trường Windows và Docker.
@@ -138,9 +140,9 @@ cd d:\test\ai\python-worker
 
 ## 🥊 6. Hướng Dẫn Sử Dụng Ứng Dụng Trên Web
 
-1. Mở trình duyệt truy cập **`http://localhost:3000`** và đăng nhập bằng một tài khoản demo trên màn hình đăng nhập (Võ sĩ, HLV, Bác sĩ thể thao, Quản trị viên). Giao diện dùng tiếng Anh.
-2. Mặc định frontend chạy với dữ liệu giả lập (`NEXT_PUBLIC_VIDEO_PIPELINE=mock`): tải video lên sẽ mô phỏng toàn bộ quy trình AI mà không cần Redis, API hay Worker.
-3. Để dùng pipeline thật (Supabase Storage → NestJS BullMQ → Python Worker YOLOv8-Pose), đặt `NEXT_PUBLIC_VIDEO_PIPELINE=api` cùng các biến Supabase/API trong `nextjs-frontend/.env.local` (xem `nextjs-frontend/.env.local.example`).
+1. Mở trình duyệt truy cập **`http://localhost:3000`** và đăng nhập bằng tài khoản đã được backend tạo. Giao diện dùng tiếng Anh.
+2. Frontend mặc định chạy ở chế độ API (`APP_DATA_MODE=api`, `NEXT_PUBLIC_VIDEO_PIPELINE=api`) và không tự chuyển sang dữ liệu giả lập khi có lỗi.
+3. Cấu hình URL API và adapter lưu trữ/xác thực trong `.env` theo `.env.example`. Stack Compose dùng adapter xác thực local (`AUTH_PROVIDER=local`) và lưu trữ filesystem riêng tư (`STORAGE_DRIVER=local`) phía backend.
 4. Luồng phân tích video:
     - Võ sĩ: **Videos → Upload video** (`/fighter/videos/upload`), chọn loại bài tập, theo dõi tiến trình xử lý rồi mở trang phân tích.
     - HLV: **Video analysis** (`/coach/video-analysis`) để xem hàng chờ duyệt, xác nhận / sửa / bác bỏ các phát hiện của AI và viết đánh giá.
