@@ -147,8 +147,8 @@ describe('AuthController (e2e)', () => {
     expect(response.body).toEqual({
       success: true,
       message: 'Logout successful',
+      data: null,
     });
-    expect(response.body).not.toHaveProperty('data');
     expect(authService.logout).toHaveBeenCalledWith('valid-access-token');
   });
 
