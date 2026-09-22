@@ -57,6 +57,23 @@ export function invalidSessionStatusTransition(
   });
 }
 
+/**
+ * A plan status transition the domain forbids — an invalid client intent,
+ * deliberately distinct from `planStateConflict()` (409), which means the row
+ * changed underneath an otherwise valid request.
+ */
+export function invalidPlanStatusTransition(
+  current: string,
+  next: string,
+): BadRequestException {
+  return new BadRequestException({
+    statusCode: HttpStatus.BAD_REQUEST,
+    error: 'Bad Request',
+    code: 'INVALID_PLAN_STATUS_TRANSITION',
+    message: `Cannot transition training plan from ${current} to ${next}.`,
+  });
+}
+
 export function fighterScopeRequired(): BadRequestException {
   return new BadRequestException({
     statusCode: HttpStatus.BAD_REQUEST,

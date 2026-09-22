@@ -43,6 +43,8 @@
     "db:migrate:019": "node run_sql.mjs --apply-019",
     "db:migrate:020": "node run_sql.mjs --apply-020",
     "db:migrate:021": "node run_sql.mjs --apply-021",
+    "db:migrate:022": "node run_sql.mjs --apply-022",
+    "db:migrate:023": "node run_sql.mjs --apply-023",
     "test:db": "node scripts/test-migrations.mjs"
   },
   "dependencies": {

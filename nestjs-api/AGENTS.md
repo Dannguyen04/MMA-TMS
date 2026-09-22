@@ -37,16 +37,32 @@ system instructions always take precedence.
   `scripts/run-git-bash.sh` so arguments and the user's Git Bash environment,
   including `pnpm`, are preserved consistently.
 
-## Agent roles
+## Choosing Agent / Agent Roles & Strict Boundaries
 
-- Codex may design and implement production application code, migrations,
-  infrastructure, and tests for this service.
-- Delegation is optional and should be used only when it improves delivery or
-  review quality; no specific external implementation agent is required.
-- The implementing agent owns proportional unit, integration, contract, and
-  security verification for each change.
-- Preserve the mandatory handoff standard: summarize changes, expected
-  behavior, edge cases, and verification results.
+Pipeline: **Codex (module prompt) → Claude (code) → Antigravity (tests/review)**.
+
+- **Codex (Module Prompt Authoring Only)**:
+  - **Scope:** Reading the specification (`docs/MMA-TMS-MASTER-SPECIFICATION-v3.md`), code, and migrations; asking the user to clarify gaps; producing exactly one self-contained implementation prompt per module for Claude.
+  - **Strict Denial Rule:** Codex is **STRICTLY FORBIDDEN** from writing or modifying application code, tests, migrations, or configuration. If requested to do so, Codex **MUST DENY** the request with `[DENIED BASED ON RULE: Codex only produces module prompts; implementation is reserved for Claude and testing for Antigravity]`.
+  - **No Guessing:** Codex MUST NOT assume, invent, or hallucinate requirements. Anything not traceable to the spec, migrations, code, or the user MUST be asked about before the prompt is finalized. Follow `.agents/rules/codex-module-prompt.md` for the exact protocol.
+
+- **Claude (Code Generation & Implementation Only)**:
+  - **Scope:** Architecture design, feature implementation, and creating/updating application code (services, controllers, schemas, DTOs, modules, shared utilities).
+  - **Strict Denial Rule:** Claude is **STRICTLY FORBIDDEN** from authoring, modifying, or running test files (`*.spec.ts`, `*.test.ts`, e2e suites). If prompted or requested to write tests or test suites, Claude **MUST DENY** the request with `[DENIED BASED ON RULE: Testing is exclusively reserved for Antigravity]` and output the Summary & Expectations instead.
+  - **Mandatory Handover:** Upon completing code changes, Claude **MUST ALWAYS** generate:
+    1. **Summary of Changes**: What was built, modified, or added.
+    2. **Expectations & Test Criteria**: Exact inputs/outputs, edge cases, business rules, and scenarios for Antigravity to verify.
+
+- **Antigravity (Testing & Refactoring Only)**:
+  - **Scope:** Authoring unit/integration/e2e tests, running test commands, lint/format verification (Vitest, Supertest, Oxlint, Prettier), and non-breaking code refactoring.
+  - **Strict Denial Rule:** Antigravity is **STRICTLY FORBIDDEN** from authoring initial feature implementations, new business modules, or primary application logic. If prompted or requested to implement new features or generate production code from scratch, Antigravity **MUST DENY** the request with `[DENIED BASED ON RULE: Code generation and feature implementation are exclusively reserved for Claude]` and instruct the user to delegate implementation to Antigravity.
+  - **Workflow:** Testing is opt-in. Antigravity authors or runs only the test type and
+    validation scope explicitly requested by the user. Without that request,
+    Antigravity performs a read-only review of the handover and relevant artifacts,
+    then reports logic errors, security risks, contract mismatches, missing
+    coverage, and potential defects without modifying production or test files.
+    Follow `.agents/rules/testing-quality.md` for the exact authorization
+    boundary.
 
 
 

@@ -1,9 +1,9 @@
--- MMA-TMS 018: lưu phản hồi huấn luyện viên và quyền truy cập theo phân công.
+-- MMA-TMS 020: lưu phản hồi huấn luyện viên và quyền truy cập theo phân công.
 BEGIN;
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '30s';
 SET LOCAL search_path = public, pg_catalog;
-SELECT pg_catalog.pg_advisory_xact_lock(20260922, 18);
+SELECT pg_catalog.pg_advisory_xact_lock(20260922, 20);
 
 DO $preflight$
 BEGIN
@@ -14,16 +14,16 @@ BEGIN
      OR to_regclass('public.permissions') IS NULL
      OR to_regclass('public.role_permissions') IS NULL
      OR to_regclass('mma_private.migration_history') IS NULL THEN
-    RAISE EXCEPTION '018 requires migration 003';
+    RAISE EXCEPTION '020 requires migration 003';
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM mma_private.migration_history WHERE version = 17) THEN
-    RAISE EXCEPTION '018 requires migration 017 history';
+  IF NOT EXISTS (SELECT 1 FROM mma_private.migration_history WHERE version = 19) THEN
+    RAISE EXCEPTION '020 requires migration 019 history';
   END IF;
-  IF EXISTS (SELECT 1 FROM mma_private.migration_history WHERE version = 18) THEN
-    RAISE EXCEPTION '018 has already been applied';
+  IF EXISTS (SELECT 1 FROM mma_private.migration_history WHERE version = 20) THEN
+    RAISE EXCEPTION '020 has already been applied';
   END IF;
   IF to_regclass('public.coach_feedback') IS NOT NULL THEN
-    RAISE EXCEPTION '018 coach feedback table collision';
+    RAISE EXCEPTION '020 coach feedback table collision';
   END IF;
 END
 $preflight$;
@@ -84,8 +84,8 @@ JOIN public.permissions AS permission ON permission.code = baseline.code;
 
 INSERT INTO mma_private.migration_history(version, name, source_sha256)
 VALUES (
-  18,
-  '018_coach_feedback.sql',
+  20,
+  '020_coach_feedback.sql',
   nullif(current_setting('mma.migration_sha256', true), '')
 );
 

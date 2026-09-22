@@ -1,9 +1,9 @@
--- MMA-TMS 021: lưu mục tiêu võ sĩ và lịch sử tiến độ theo phạm vi phân công.
+-- MMA-TMS 023: lưu mục tiêu võ sĩ và lịch sử tiến độ theo phạm vi phân công.
 BEGIN;
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '30s';
 SET LOCAL search_path = public, pg_catalog;
-SELECT pg_catalog.pg_advisory_xact_lock(20260922, 21);
+SELECT pg_catalog.pg_advisory_xact_lock(20260922, 23);
 
 DO $preflight$
 BEGIN
@@ -12,19 +12,19 @@ BEGIN
      OR to_regclass('public.permissions') IS NULL
      OR to_regclass('public.role_permissions') IS NULL
      OR to_regclass('mma_private.migration_history') IS NULL THEN
-    RAISE EXCEPTION '021 requires migration 003';
+    RAISE EXCEPTION '023 requires migration 003';
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM mma_private.migration_history WHERE version = 20) THEN
-    RAISE EXCEPTION '021 requires migration 020 history';
+  IF NOT EXISTS (SELECT 1 FROM mma_private.migration_history WHERE version = 22) THEN
+    RAISE EXCEPTION '023 requires migration 022 history';
   END IF;
-  IF EXISTS (SELECT 1 FROM mma_private.migration_history WHERE version = 21) THEN
-    RAISE EXCEPTION '021 has already been applied';
+  IF EXISTS (SELECT 1 FROM mma_private.migration_history WHERE version = 23) THEN
+    RAISE EXCEPTION '023 has already been applied';
   END IF;
   IF to_regclass('public.fighter_goals') IS NOT NULL
      OR to_regclass('public.goal_progress_events') IS NOT NULL
      OR EXISTS (SELECT 1 FROM pg_type WHERE typname IN ('goal_status', 'goal_technique'))
      OR EXISTS (SELECT 1 FROM public.permissions WHERE code = 'goals:write') THEN
-    RAISE EXCEPTION '021 goal integration objects collide';
+    RAISE EXCEPTION '023 goal integration objects collide';
   END IF;
 END
 $preflight$;
@@ -150,8 +150,8 @@ WHERE permission.code = 'goals:write';
 
 INSERT INTO mma_private.migration_history(version, name, source_sha256)
 VALUES (
-  21,
-  '021_goals_progress.sql',
+  23,
+  '023_goals_progress.sql',
   nullif(current_setting('mma.migration_sha256', true), '')
 );
 

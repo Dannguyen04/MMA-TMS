@@ -8,7 +8,7 @@ services:
             test:
                 [
                     "CMD-SHELL",
-                    "psql -U postgres -d martial_arts_tracker_e2e -tAc \"SELECT count(*) FROM mma_private.migration_history WHERE version = 21\" 2>/dev/null | grep -qx 1",
+                    "psql -U postgres -d martial_arts_tracker_e2e -tAc \"SELECT count(*) FROM mma_private.migration_history WHERE version = 23\" 2>/dev/null | grep -qx 1",
                 ]
     redis:
         ports: !override

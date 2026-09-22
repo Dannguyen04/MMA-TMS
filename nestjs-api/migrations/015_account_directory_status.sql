@@ -1,27 +1,27 @@
--- MMA-TMS 013: bổ sung trạng thái và trường hiển thị cho danh bạ tài khoản.
+-- MMA-TMS 015: bổ sung trạng thái và trường hiển thị cho danh bạ tài khoản.
 BEGIN;
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '30s';
 SET LOCAL search_path = public, pg_catalog;
-SELECT pg_catalog.pg_advisory_xact_lock(20260921, 13);
+SELECT pg_catalog.pg_advisory_xact_lock(20260921, 15);
 
 DO $preflight$
 BEGIN
   IF to_regclass('public.users') IS NULL
      OR to_regclass('mma_private.migration_history') IS NULL THEN
-    RAISE EXCEPTION '013 requires migration 003';
+    RAISE EXCEPTION '015 requires migration 003';
   END IF;
 
   IF NOT EXISTS (
-    SELECT 1 FROM mma_private.migration_history WHERE version = 12
+    SELECT 1 FROM mma_private.migration_history WHERE version = 14
   ) THEN
-    RAISE EXCEPTION '013 requires migration 012 history';
+    RAISE EXCEPTION '015 requires migration 014 history';
   END IF;
 
   IF EXISTS (
-    SELECT 1 FROM mma_private.migration_history WHERE version = 13
+    SELECT 1 FROM mma_private.migration_history WHERE version = 15
   ) THEN
-    RAISE EXCEPTION '013 has already been applied';
+    RAISE EXCEPTION '015 has already been applied';
   END IF;
 
   IF EXISTS (
@@ -31,7 +31,7 @@ BEGIN
       AND table_name = 'users'
       AND column_name IN ('account_status', 'phone', 'title', 'last_active_at')
   ) THEN
-    RAISE EXCEPTION '013 users account directory column collision';
+    RAISE EXCEPTION '015 users account directory column collision';
   END IF;
 END
 $preflight$;
@@ -67,8 +67,8 @@ COMMENT ON COLUMN public.users.last_active_at IS
 
 INSERT INTO mma_private.migration_history(version, name, source_sha256)
 VALUES (
-  13,
-  '013_account_directory_status.sql',
+  15,
+  '015_account_directory_status.sql',
   nullif(current_setting('mma.migration_sha256', true), '')
 );
 

@@ -19,8 +19,8 @@ Current verified foundation:
 - Bounded cursor-page draining rejects repeated cursors and item/page safety-limit overflow visibly.
 - Fighter and clinical record access uses backend capabilities and assignment scope and fails closed when either is absent.
 - `/users/me` now derives UI capabilities from effective role/user grants and returns active fighter assignment IDs for fighter, coach, and doctor sessions.
-- Migrations 007–015 install the role baseline, restrict clinical RLS, scope fighter access by active assignment, add private local credentials/sessions, password-reset and invitation outboxes, account directory/status fields, and doctor-assignment permissions.
-- Fresh local/E2E PostgreSQL volumes run a guarded local-only compatibility bootstrap for `auth.users`, `auth.uid()`, `anon`, and `authenticated` before migrations 001–015. It contains no users or credentials and refuses non-Compose database names.
+- Migrations 009–017 install the role baseline, restrict clinical RLS, scope fighter access by active assignment, add private local credentials/sessions, password-reset and invitation outboxes, account directory/status fields, and doctor-assignment permissions; 018–023 add the video storage contract, fighter UI fields, coach feedback, staff directory, performance permissions, and goals. They follow origin/main's 007 (ADMIN API grants) and 008 (FIGHTER training reads) and were renumbered from 007–021 when merging.
+- Fresh local/E2E PostgreSQL volumes run a guarded local-only compatibility bootstrap for `auth.users`, `auth.uid()`, `anon`, and `authenticated` before migrations 001–023. It contains no users or credentials and refuses non-Compose database names.
 - Local authentication uses scrypt password hashes and random opaque access/refresh tokens stored only as SHA-256 hashes. Access expires after 15 minutes; refresh sessions expire after seven days, rotate, and revoke atomically.
 - The account API now provides cursor-paginated `GET /users`, local/Supabase-aware user creation, invitations/resend, account status transitions, and authenticated `PATCH /users/me` display-name/phone updates. Suspending a local account revokes active sessions and blocks login/access/refresh.
 - Account/admin, people, training, goals, performance, notifications, audit reads, and navigation-badge services use authenticated API adapters in real mode. Their retained demo behavior is reached only through explicit dynamic imports.
@@ -35,7 +35,7 @@ Current verified foundation:
 Not complete:
 
 - Backend route families for goals/performance, clinical workflows, videos/analyses, dashboards, broadcasts, settings, notification preferences, and the complete admin surface.
-- Remaining domain integration-state migrations beyond the account/auth and doctor-assignment permission foundation in 015.
+- Remaining domain integration-state migrations beyond 023.
 - Transactional video/job/analysis/outbox creation.
 - Persisted progress, attempts, safe worker errors, normalized results, and reviews.
 - Replacement of the three remaining statically mock-backed frontend services: AI, medical, and videos.

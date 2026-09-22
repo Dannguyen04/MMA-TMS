@@ -1,9 +1,9 @@
--- MMA-TMS 015: bổ sung quyền riêng cho vòng đời phân công bác sĩ và võ sĩ.
+-- MMA-TMS 017: bổ sung quyền riêng cho vòng đời phân công bác sĩ và võ sĩ.
 BEGIN;
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '30s';
 SET LOCAL search_path = public, pg_catalog;
-SELECT pg_catalog.pg_advisory_xact_lock(20260921, 15);
+SELECT pg_catalog.pg_advisory_xact_lock(20260921, 17);
 
 DO $preflight$
 BEGIN
@@ -11,19 +11,19 @@ BEGIN
      OR to_regclass('public.role_permissions') IS NULL
      OR to_regclass('public.doctor_fighters') IS NULL
      OR to_regclass('mma_private.migration_history') IS NULL THEN
-    RAISE EXCEPTION '015 requires migration 003';
+    RAISE EXCEPTION '017 requires migration 003';
   END IF;
 
   IF NOT EXISTS (
-    SELECT 1 FROM mma_private.migration_history WHERE version = 14
+    SELECT 1 FROM mma_private.migration_history WHERE version = 16
   ) THEN
-    RAISE EXCEPTION '015 requires migration 014 history';
+    RAISE EXCEPTION '017 requires migration 016 history';
   END IF;
 
   IF EXISTS (
-    SELECT 1 FROM mma_private.migration_history WHERE version = 15
+    SELECT 1 FROM mma_private.migration_history WHERE version = 17
   ) THEN
-    RAISE EXCEPTION '015 has already been applied';
+    RAISE EXCEPTION '017 has already been applied';
   END IF;
 
   IF EXISTS (
@@ -34,7 +34,7 @@ BEGIN
       'fighter.doctor:end'
     ])
   ) THEN
-    RAISE EXCEPTION '015 doctor assignment permission collision';
+    RAISE EXCEPTION '017 doctor assignment permission collision';
   END IF;
 END
 $preflight$;
@@ -64,8 +64,8 @@ JOIN public.permissions AS permission ON permission.code = baseline.code;
 
 INSERT INTO mma_private.migration_history(version, name, source_sha256)
 VALUES (
-  15,
-  '015_doctor_assignment_permissions.sql',
+  17,
+  '017_doctor_assignment_permissions.sql',
   nullif(current_setting('mma.migration_sha256', true), '')
 );
 

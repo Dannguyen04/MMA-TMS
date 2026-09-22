@@ -71,21 +71,23 @@ const target003 = '003_mma_tms_complete_schema.sql';
 const target004 = '004_seed_api_permissions.sql';
 const target005 = '005_training_management.sql';
 const target006 = '006_training_permissions.sql';
-const target007 = '007_role_permission_baseline.sql';
-const target008 = '008_restrict_clinical_rls.sql';
-const target009 = '009_enable_assignment_scoped_fighter_access.sql';
-const target010 = '010_local_auth_credentials_sessions.sql';
-const target011 = '011_fix_local_password_hash_constraint.sql';
-const target012 = '012_password_reset_outbox.sql';
-const target013 = '013_account_directory_status.sql';
-const target014 = '014_user_invitations.sql';
-const target015 = '015_doctor_assignment_permissions.sql';
-const target016 = '016_video_storage_contract.sql';
-const target017 = '017_fighter_ui_profile_fields.sql';
-const target018 = '018_coach_feedback.sql';
-const target019 = '019_staff_directory.sql';
-const target020 = '020_performance_permissions.sql';
-const target021 = '021_goals_progress.sql';
+const target007 = '007_grant_api_permissions_to_admin.sql';
+const target008 = '008_grant_training_read_permissions_to_fighter.sql';
+const target009 = '009_role_permission_baseline.sql';
+const target010 = '010_restrict_clinical_rls.sql';
+const target011 = '011_enable_assignment_scoped_fighter_access.sql';
+const target012 = '012_local_auth_credentials_sessions.sql';
+const target013 = '013_fix_local_password_hash_constraint.sql';
+const target014 = '014_password_reset_outbox.sql';
+const target015 = '015_account_directory_status.sql';
+const target016 = '016_user_invitations.sql';
+const target017 = '017_doctor_assignment_permissions.sql';
+const target018 = '018_video_storage_contract.sql';
+const target019 = '019_fighter_ui_profile_fields.sql';
+const target020 = '020_coach_feedback.sql';
+const target021 = '021_staff_directory.sql';
+const target022 = '022_performance_permissions.sql';
+const target023 = '023_goals_progress.sql';
 const reapplyTargets = [
   target007,
   target008,
@@ -102,6 +104,8 @@ const reapplyTargets = [
   target019,
   target020,
   target021,
+  target022,
+  target023,
 ];
 const trainingPermissionCodes = [
   'training.plan:get_all',
@@ -325,8 +329,35 @@ try {
       '1',
     );
   });
-  check('007 installs a least-privilege role baseline', () => {
+  check('007 grants the migration 004 API permissions to ADMIN', () => {
     migration('mma_clean', target007);
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT count(*) FROM public.role_permissions rp JOIN public.permissions p ON p.id = rp.permission_id WHERE rp.role = 'ADMIN' AND p.code NOT LIKE 'training.%';`,
+      ),
+      '17',
+    );
+  });
+  check('008 grants read-only Training permissions to FIGHTER', () => {
+    migration('mma_clean', target008);
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT count(*) FROM public.role_permissions WHERE role = 'FIGHTER';`,
+      ),
+      '7',
+    );
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT count(*) FROM mma_private.migration_history WHERE version IN (7,8);`,
+      ),
+      '2',
+    );
+  });
+  check('009 installs a least-privilege role baseline', () => {
+    migration('mma_clean', target009);
     assert.equal(
       psql(
         'mma_clean',
@@ -353,11 +384,13 @@ try {
         'mma_clean',
         `SELECT count(*) FROM public.role_permissions rp JOIN public.permissions p ON p.id = rp.permission_id WHERE rp.role = 'ADMIN' AND p.code IN ('fighter.medical:read','fighter.measurement:read','fighter.measurement:write');`,
       ),
-      '0',
+      // Granted to ADMIN by 007; the fighters service and the 010 RLS helper
+      // still deny ADMIN clinical reads.
+      '3',
     );
   });
-  check('008 narrows the shared clinical RLS helper', () => {
-    migration('mma_clean', target008);
+  check('010 narrows the shared clinical RLS helper', () => {
+    migration('mma_clean', target010);
     const helper = psql(
       'mma_clean',
       `SELECT pg_get_functiondef('mma_private.can_read_fighter_medical(uuid)'::regprocedure);`,
@@ -368,13 +401,13 @@ try {
     assert.equal(
       psql(
         'mma_clean',
-        `SELECT count(*) FROM mma_private.migration_history WHERE version IN (7,8);`,
+        `SELECT count(*) FROM mma_private.migration_history WHERE version IN (9,10);`,
       ),
       '2',
     );
   });
-  check('009 enables only assignment-scoped Fighter API permissions', () => {
-    migration('mma_clean', target009);
+  check('011 enables only assignment-scoped Fighter API permissions', () => {
+    migration('mma_clean', target011);
     assert.equal(
       psql(
         'mma_clean',
@@ -411,11 +444,13 @@ try {
         'mma_clean',
         `SELECT count(*) FROM public.role_permissions rp JOIN public.permissions p ON p.id = rp.permission_id WHERE rp.role = 'ADMIN' AND p.code IN ('fighter.medical:read','fighter.measurement:read','fighter.measurement:write');`,
       ),
-      '0',
+      // Granted to ADMIN by 007; the fighters service and the 010 RLS helper
+      // still deny ADMIN clinical reads.
+      '3',
     );
   });
-  check('010 creates private local credential and session storage', () => {
-    migration('mma_clean', target010);
+  check('012 creates private local credential and session storage', () => {
+    migration('mma_clean', target012);
     assert.equal(
       psql(
         'mma_clean',
@@ -433,13 +468,13 @@ try {
     assert.equal(
       psql(
         'mma_clean',
-        `SELECT count(*) FROM mma_private.migration_history WHERE version = 10;`,
+        `SELECT count(*) FROM mma_private.migration_history WHERE version = 12;`,
       ),
       '1',
     );
   });
-  check('011 accepts the canonical scrypt credential format', () => {
-    migration('mma_clean', target011);
+  check('013 accepts the canonical scrypt credential format', () => {
+    migration('mma_clean', target013);
     assert.equal(
       psql(
         'mma_clean',
@@ -448,8 +483,8 @@ try {
       't',
     );
   });
-  check('012 creates private reset requests and auth outbox', () => {
-    migration('mma_clean', target012);
+  check('014 creates private reset requests and auth outbox', () => {
+    migration('mma_clean', target014);
     assert.equal(
       psql(
         'mma_clean',
@@ -465,8 +500,8 @@ try {
       'f',
     );
   });
-  check('013 adds account directory fields and enforced statuses', () => {
-    migration('mma_clean', target013);
+  check('015 adds account directory fields and enforced statuses', () => {
+    migration('mma_clean', target015);
     assert.equal(
       psql(
         'mma_clean',
@@ -488,15 +523,15 @@ try {
     assert.equal(
       psql(
         'mma_clean',
-        `SELECT count(*) FROM mma_private.migration_history WHERE version = 13;`,
+        `SELECT count(*) FROM mma_private.migration_history WHERE version = 15;`,
       ),
       '1',
     );
   });
   check(
-    '014 creates private invitation state and expands the auth outbox',
+    '016 creates private invitation state and expands the auth outbox',
     () => {
-      migration('mma_clean', target014);
+      migration('mma_clean', target016);
       assert.equal(
         psql(
           'mma_clean',
@@ -520,14 +555,14 @@ try {
       assert.equal(
         psql(
           'mma_clean',
-          `SELECT count(*) FROM mma_private.migration_history WHERE version = 14;`,
+          `SELECT count(*) FROM mma_private.migration_history WHERE version = 16;`,
         ),
         '1',
       );
     },
   );
-  check('015 grants scoped doctor-assignment permissions', () => {
-    migration('mma_clean', target015);
+  check('017 grants scoped doctor-assignment permissions', () => {
+    migration('mma_clean', target017);
     assert.equal(
       psql(
         'mma_clean',
@@ -551,9 +586,9 @@ try {
     );
   });
   check(
-    '016 adds persisted video training type and diagonal camera angle',
+    '018 adds persisted video training type and diagonal camera angle',
     () => {
-      migration('mma_clean', target016);
+      migration('mma_clean', target018);
       assert.equal(
         psql(
           'mma_clean',
@@ -577,8 +612,8 @@ try {
       );
     },
   );
-  check('017 adds persisted fighter fields required by the UI', () => {
-    migration('mma_clean', target017);
+  check('019 adds persisted fighter fields required by the UI', () => {
+    migration('mma_clean', target019);
     assert.equal(
       psql(
         'mma_clean',
@@ -589,15 +624,15 @@ try {
     assert.equal(
       psql(
         'mma_clean',
-        `SELECT count(*) FROM mma_private.migration_history WHERE version = 17;`,
+        `SELECT count(*) FROM mma_private.migration_history WHERE version = 19;`,
       ),
       '1',
     );
   });
   check(
-    '018 adds assignment-scoped coach feedback storage and permissions',
+    '020 adds assignment-scoped coach feedback storage and permissions',
     () => {
-      migration('mma_clean', target018);
+      migration('mma_clean', target020);
       assert.equal(
         psql(
           'mma_clean',
@@ -615,14 +650,14 @@ try {
       assert.equal(
         psql(
           'mma_clean',
-          `SELECT count(*) FROM mma_private.migration_history WHERE version = 18;`,
+          `SELECT count(*) FROM mma_private.migration_history WHERE version = 20;`,
         ),
         '1',
       );
     },
   );
-  check('019 adds complete staff directory fields and permissions', () => {
-    migration('mma_clean', target019);
+  check('021 adds complete staff directory fields and permissions', () => {
+    migration('mma_clean', target021);
     assert.equal(
       psql(
         'mma_clean',
@@ -638,8 +673,8 @@ try {
       '4',
     );
   });
-  check('020 grants scoped performance aggregate reads', () => {
-    migration('mma_clean', target020);
+  check('022 grants scoped performance aggregate reads', () => {
+    migration('mma_clean', target022);
     assert.equal(
       psql(
         'mma_clean',
@@ -648,8 +683,8 @@ try {
       '4',
     );
   });
-  check('021 adds scoped goals and append-only progress', () => {
-    migration('mma_clean', target021);
+  check('023 adds scoped goals and append-only progress', () => {
+    migration('mma_clean', target023);
     assert.equal(
       psql(
         'mma_clean',
@@ -658,7 +693,7 @@ try {
       'true',
     );
   });
-  check('reapplying 007 through 021 fails without duplicating history', () => {
+  check('reapplying 007 through 023 fails without duplicating history', () => {
     for (const name of reapplyTargets) {
       rejects(
         'mma_clean',

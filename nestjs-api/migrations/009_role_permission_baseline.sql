@@ -1,9 +1,9 @@
--- MMA-TMS 007: thiết lập quyền nền tảng theo vai trò cho các API hiện có.
+-- MMA-TMS 009: thiết lập quyền nền tảng theo vai trò cho các API hiện có.
 BEGIN;
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '30s';
 SET LOCAL search_path = public, pg_catalog;
-SELECT pg_catalog.pg_advisory_xact_lock(20260920, 7);
+SELECT pg_catalog.pg_advisory_xact_lock(20260920, 9);
 
 DO $preflight$
 DECLARE
@@ -12,19 +12,19 @@ BEGIN
   IF to_regclass('public.permissions') IS NULL
      OR to_regclass('public.role_permissions') IS NULL
      OR to_regclass('mma_private.migration_history') IS NULL THEN
-    RAISE EXCEPTION '007 requires migration 003';
+    RAISE EXCEPTION '009 requires migration 003';
   END IF;
 
   IF NOT EXISTS (
-    SELECT 1 FROM mma_private.migration_history WHERE version = 6
+    SELECT 1 FROM mma_private.migration_history WHERE version = 8
   ) THEN
-    RAISE EXCEPTION '007 requires migration 006 history';
+    RAISE EXCEPTION '009 requires migration 008 history';
   END IF;
 
   IF EXISTS (
-    SELECT 1 FROM mma_private.migration_history WHERE version = 7
+    SELECT 1 FROM mma_private.migration_history WHERE version = 9
   ) THEN
-    RAISE EXCEPTION '007 has already been applied';
+    RAISE EXCEPTION '009 has already been applied';
   END IF;
 
   SELECT array_agg(required.code ORDER BY required.code)
@@ -70,7 +70,7 @@ BEGIN
   WHERE permission.id IS NULL;
 
   IF missing_codes IS NOT NULL THEN
-    RAISE EXCEPTION '007 missing required permission catalogue entries: %', missing_codes;
+    RAISE EXCEPTION '009 missing required permission catalogue entries: %', missing_codes;
   END IF;
 END
 $preflight$;
@@ -169,8 +169,8 @@ ON CONFLICT (role, permission_id) DO NOTHING;
 -- Runner đã xác minh sẽ cung cấp checksum nguồn; chạy tay trong SQL Editor sẽ lưu NULL.
 INSERT INTO mma_private.migration_history(version, name, source_sha256)
 VALUES (
-  7,
-  '007_role_permission_baseline.sql',
+  9,
+  '009_role_permission_baseline.sql',
   nullif(current_setting('mma.migration_sha256', true), '')
 );
 

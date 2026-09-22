@@ -16,26 +16,28 @@ services:
             - ./nestjs-api/migrations/004_seed_api_permissions.sql:/docker-entrypoint-initdb.d/004_seed_api_permissions.sql:ro
             - ./nestjs-api/migrations/005_training_management.sql:/docker-entrypoint-initdb.d/005_training_management.sql:ro
             - ./nestjs-api/migrations/006_training_permissions.sql:/docker-entrypoint-initdb.d/006_training_permissions.sql:ro
-            - ./nestjs-api/migrations/007_role_permission_baseline.sql:/docker-entrypoint-initdb.d/007_role_permission_baseline.sql:ro
-            - ./nestjs-api/migrations/008_restrict_clinical_rls.sql:/docker-entrypoint-initdb.d/008_restrict_clinical_rls.sql:ro
-            - ./nestjs-api/migrations/009_enable_assignment_scoped_fighter_access.sql:/docker-entrypoint-initdb.d/009_enable_assignment_scoped_fighter_access.sql:ro
-            - ./nestjs-api/migrations/010_local_auth_credentials_sessions.sql:/docker-entrypoint-initdb.d/010_local_auth_credentials_sessions.sql:ro
-            - ./nestjs-api/migrations/011_fix_local_password_hash_constraint.sql:/docker-entrypoint-initdb.d/011_fix_local_password_hash_constraint.sql:ro
-            - ./nestjs-api/migrations/012_password_reset_outbox.sql:/docker-entrypoint-initdb.d/012_password_reset_outbox.sql:ro
-            - ./nestjs-api/migrations/013_account_directory_status.sql:/docker-entrypoint-initdb.d/013_account_directory_status.sql:ro
-            - ./nestjs-api/migrations/014_user_invitations.sql:/docker-entrypoint-initdb.d/014_user_invitations.sql:ro
-            - ./nestjs-api/migrations/015_doctor_assignment_permissions.sql:/docker-entrypoint-initdb.d/015_doctor_assignment_permissions.sql:ro
-            - ./nestjs-api/migrations/016_video_storage_contract.sql:/docker-entrypoint-initdb.d/016_video_storage_contract.sql:ro
-            - ./nestjs-api/migrations/017_fighter_ui_profile_fields.sql:/docker-entrypoint-initdb.d/017_fighter_ui_profile_fields.sql:ro
-            - ./nestjs-api/migrations/018_coach_feedback.sql:/docker-entrypoint-initdb.d/018_coach_feedback.sql:ro
-            - ./nestjs-api/migrations/019_staff_directory.sql:/docker-entrypoint-initdb.d/019_staff_directory.sql:ro
-            - ./nestjs-api/migrations/020_performance_permissions.sql:/docker-entrypoint-initdb.d/020_performance_permissions.sql:ro
-            - ./nestjs-api/migrations/021_goals_progress.sql:/docker-entrypoint-initdb.d/021_goals_progress.sql:ro
+            - ./nestjs-api/migrations/007_grant_api_permissions_to_admin.sql:/docker-entrypoint-initdb.d/007_grant_api_permissions_to_admin.sql:ro
+            - ./nestjs-api/migrations/008_grant_training_read_permissions_to_fighter.sql:/docker-entrypoint-initdb.d/008_grant_training_read_permissions_to_fighter.sql:ro
+            - ./nestjs-api/migrations/009_role_permission_baseline.sql:/docker-entrypoint-initdb.d/009_role_permission_baseline.sql:ro
+            - ./nestjs-api/migrations/010_restrict_clinical_rls.sql:/docker-entrypoint-initdb.d/010_restrict_clinical_rls.sql:ro
+            - ./nestjs-api/migrations/011_enable_assignment_scoped_fighter_access.sql:/docker-entrypoint-initdb.d/011_enable_assignment_scoped_fighter_access.sql:ro
+            - ./nestjs-api/migrations/012_local_auth_credentials_sessions.sql:/docker-entrypoint-initdb.d/012_local_auth_credentials_sessions.sql:ro
+            - ./nestjs-api/migrations/013_fix_local_password_hash_constraint.sql:/docker-entrypoint-initdb.d/013_fix_local_password_hash_constraint.sql:ro
+            - ./nestjs-api/migrations/014_password_reset_outbox.sql:/docker-entrypoint-initdb.d/014_password_reset_outbox.sql:ro
+            - ./nestjs-api/migrations/015_account_directory_status.sql:/docker-entrypoint-initdb.d/015_account_directory_status.sql:ro
+            - ./nestjs-api/migrations/016_user_invitations.sql:/docker-entrypoint-initdb.d/016_user_invitations.sql:ro
+            - ./nestjs-api/migrations/017_doctor_assignment_permissions.sql:/docker-entrypoint-initdb.d/017_doctor_assignment_permissions.sql:ro
+            - ./nestjs-api/migrations/018_video_storage_contract.sql:/docker-entrypoint-initdb.d/018_video_storage_contract.sql:ro
+            - ./nestjs-api/migrations/019_fighter_ui_profile_fields.sql:/docker-entrypoint-initdb.d/019_fighter_ui_profile_fields.sql:ro
+            - ./nestjs-api/migrations/020_coach_feedback.sql:/docker-entrypoint-initdb.d/020_coach_feedback.sql:ro
+            - ./nestjs-api/migrations/021_staff_directory.sql:/docker-entrypoint-initdb.d/021_staff_directory.sql:ro
+            - ./nestjs-api/migrations/022_performance_permissions.sql:/docker-entrypoint-initdb.d/022_performance_permissions.sql:ro
+            - ./nestjs-api/migrations/023_goals_progress.sql:/docker-entrypoint-initdb.d/023_goals_progress.sql:ro
         healthcheck:
             test:
                 [
                     "CMD-SHELL",
-                    "psql -U postgres -d martial_arts_tracker -tAc \"SELECT count(*) FROM mma_private.migration_history WHERE version = 21\" 2>/dev/null | grep -qx 1",
+                    "psql -U postgres -d martial_arts_tracker -tAc \"SELECT count(*) FROM mma_private.migration_history WHERE version = 23\" 2>/dev/null | grep -qx 1",
                 ]
             interval: 5s
             timeout: 5s

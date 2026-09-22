@@ -1,9 +1,9 @@
--- MMA-TMS 009: mở quyền Fighter API sau khi service đã giới hạn theo assignment.
+-- MMA-TMS 011: mở quyền Fighter API sau khi service đã giới hạn theo assignment.
 BEGIN;
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '30s';
 SET LOCAL search_path = public, pg_catalog;
-SELECT pg_catalog.pg_advisory_xact_lock(20260921, 9);
+SELECT pg_catalog.pg_advisory_xact_lock(20260921, 11);
 
 DO $preflight$
 DECLARE
@@ -12,19 +12,19 @@ BEGIN
   IF to_regclass('public.permissions') IS NULL
      OR to_regclass('public.role_permissions') IS NULL
      OR to_regclass('mma_private.migration_history') IS NULL THEN
-    RAISE EXCEPTION '009 requires migration 003';
+    RAISE EXCEPTION '011 requires migration 003';
   END IF;
 
   IF NOT EXISTS (
-    SELECT 1 FROM mma_private.migration_history WHERE version = 8
+    SELECT 1 FROM mma_private.migration_history WHERE version = 10
   ) THEN
-    RAISE EXCEPTION '009 requires migration 008 history';
+    RAISE EXCEPTION '011 requires migration 010 history';
   END IF;
 
   IF EXISTS (
-    SELECT 1 FROM mma_private.migration_history WHERE version = 9
+    SELECT 1 FROM mma_private.migration_history WHERE version = 11
   ) THEN
-    RAISE EXCEPTION '009 has already been applied';
+    RAISE EXCEPTION '011 has already been applied';
   END IF;
 
   SELECT array_agg(required.code ORDER BY required.code)
@@ -44,7 +44,7 @@ BEGIN
   WHERE permission.id IS NULL;
 
   IF missing_codes IS NOT NULL THEN
-    RAISE EXCEPTION '009 missing required permission catalogue entries: %', missing_codes;
+    RAISE EXCEPTION '011 missing required permission catalogue entries: %', missing_codes;
   END IF;
 END
 $preflight$;
@@ -74,8 +74,8 @@ ON CONFLICT (role, permission_id) DO NOTHING;
 
 INSERT INTO mma_private.migration_history(version, name, source_sha256)
 VALUES (
-  9,
-  '009_enable_assignment_scoped_fighter_access.sql',
+  11,
+  '011_enable_assignment_scoped_fighter_access.sql',
   nullif(current_setting('mma.migration_sha256', true), '')
 );
 

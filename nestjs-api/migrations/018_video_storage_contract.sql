@@ -1,28 +1,28 @@
--- MMA-TMS 016: lưu metadata video riêng tư và góc quay chéo.
+-- MMA-TMS 018: lưu metadata video riêng tư và góc quay chéo.
 BEGIN;
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '30s';
 SET LOCAL search_path = public, pg_catalog;
-SELECT pg_catalog.pg_advisory_xact_lock(20260921, 16);
+SELECT pg_catalog.pg_advisory_xact_lock(20260921, 18);
 
 DO $preflight$
 BEGIN
   IF to_regclass('public.videos') IS NULL
      OR to_regclass('public.training_sessions') IS NULL
      OR to_regclass('mma_private.migration_history') IS NULL THEN
-    RAISE EXCEPTION '016 requires migration 003';
+    RAISE EXCEPTION '018 requires migration 003';
   END IF;
 
   IF NOT EXISTS (
-    SELECT 1 FROM mma_private.migration_history WHERE version = 15
+    SELECT 1 FROM mma_private.migration_history WHERE version = 17
   ) THEN
-    RAISE EXCEPTION '016 requires migration 015 history';
+    RAISE EXCEPTION '018 requires migration 017 history';
   END IF;
 
   IF EXISTS (
-    SELECT 1 FROM mma_private.migration_history WHERE version = 16
+    SELECT 1 FROM mma_private.migration_history WHERE version = 18
   ) THEN
-    RAISE EXCEPTION '016 has already been applied';
+    RAISE EXCEPTION '018 has already been applied';
   END IF;
 END
 $preflight$;
@@ -67,8 +67,8 @@ $$;
 
 INSERT INTO mma_private.migration_history(version, name, source_sha256)
 VALUES (
-  16,
-  '016_video_storage_contract.sql',
+  18,
+  '018_video_storage_contract.sql',
   nullif(current_setting('mma.migration_sha256', true), '')
 );
 

@@ -1,23 +1,37 @@
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '../database/database.module.js';
 import { TrainingRepository } from './training.repo.js';
-import { TrainingService } from './training.service.js';
-import {
-  ExercisesController,
-  FeedbackController,
-  PlansController,
-  SessionsController,
-} from './training.controller.js';
+import { TrainingAccessService } from './training-access.service.js';
+import { TrainingPlanController } from './plans/training-plan.controller.js';
+import { TrainingPlanService } from './plans/training-plan.service.js';
+import { TrainingSessionController } from './sessions/training-session.controller.js';
+import { TrainingSessionService } from './sessions/training-session.service.js';
+import { ExerciseController } from './exercises/exercise.controller.js';
+import { ExerciseService } from './exercises/exercise.service.js';
+import { CoachFeedbackController } from './feedback/coach-feedback.controller.js';
+import { CoachFeedbackService } from './feedback/coach-feedback.service.js';
 
 @Module({
   imports: [DatabaseModule],
   controllers: [
-    PlansController,
-    SessionsController,
-    FeedbackController,
-    ExercisesController,
+    TrainingPlanController,
+    TrainingSessionController,
+    ExerciseController,
+    CoachFeedbackController,
   ],
-  providers: [TrainingRepository, TrainingService],
-  exports: [TrainingService],
+  providers: [
+    TrainingRepository,
+    TrainingAccessService,
+    TrainingPlanService,
+    TrainingSessionService,
+    ExerciseService,
+    CoachFeedbackService,
+  ],
+  exports: [
+    TrainingPlanService,
+    TrainingSessionService,
+    ExerciseService,
+    CoachFeedbackService,
+  ],
 })
 export class TrainingModule {}

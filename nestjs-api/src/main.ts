@@ -6,13 +6,14 @@ import { ApiResponseInterceptor } from './shared/interceptors/api-response.inter
 import { AppValidationPipe } from './shared/pipes/app-validation.pipe.js';
 import { createOpenApiDocument } from './shared/utils/openapi.util.js';
 
+/** FRONTEND_URL accepts a comma-separated list; the mobile app origin is always allowed. */
 function configuredOrigins(): Set<string> {
-  return new Set(
-    (process.env.FRONTEND_URL ?? 'http://localhost:3000')
-      .split(',')
-      .map((origin) => origin.trim())
-      .filter(Boolean),
-  );
+  const frontendOrigins = (process.env.FRONTEND_URL ?? 'http://localhost:3000')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  const mobileOrigin = process.env.MOBILE_APP_URL || 'http://localhost:8081';
+  return new Set([...frontendOrigins, mobileOrigin]);
 }
 
 async function bootstrap() {

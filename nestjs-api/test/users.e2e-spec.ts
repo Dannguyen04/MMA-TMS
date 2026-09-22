@@ -2,9 +2,9 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { Reflector } from '@nestjs/core';
 import request from 'supertest';
-import { App } from 'supertest/types';
 import { AUTH_ACCESS_SERVICE } from '../src/shared/contracts/auth-access.contract.js';
 import {
+  AUTHENTICATED_ENDPOINT,
   REQUIRED_PERMISSIONS,
   REQUIRED_ROLES,
 } from '../src/shared/decorators/auth.decorator.js';
@@ -27,7 +27,7 @@ const admin = {
 };
 
 describe('UsersController authorization (e2e)', () => {
-  let app: INestApplication<App>;
+  let app: INestApplication;
   const usersService = {
     create: vi.fn(),
     invite: vi.fn(),
@@ -79,9 +79,10 @@ describe('UsersController authorization (e2e)', () => {
     expect(permissionFor(UsersController.prototype.invite)).toEqual({
       allOf: [USER_PERMISSIONS.CREATE],
     });
-    expect(permissionFor(UsersController.prototype.findMe)).toEqual({
-      allOf: [USER_PERMISSIONS.PROFILE_READ],
-    });
+    expect(permissionFor(UsersController.prototype.findMe)).toBeUndefined();
+    expect(
+      reflector.get(AUTHENTICATED_ENDPOINT, UsersController.prototype.findMe),
+    ).toBe(true);
     expect(permissionFor(UsersController.prototype.updateMe)).toEqual({
       allOf: [USER_PERMISSIONS.PROFILE_READ],
     });
@@ -139,7 +140,7 @@ describe('UsersController authorization (e2e)', () => {
     expect(usersService.findOne).toHaveBeenCalledWith(userId);
   });
 
-  it('uses users.profile.read for the authenticated user profile', async () => {
+  it('lets any authenticated user read their own profile', async () => {
     const coach = { ...admin, role: 'COACH' as const };
     authService.authenticate.mockResolvedValueOnce(coach);
     usersService.findMe.mockResolvedValueOnce({
@@ -154,9 +155,7 @@ describe('UsersController authorization (e2e)', () => {
       .set('Authorization', 'Bearer valid-token')
       .expect(200);
 
-    expect(authService.hasPermissions).toHaveBeenCalledWith(coach, {
-      allOf: [USER_PERMISSIONS.PROFILE_READ],
-    });
+    expect(authService.hasPermissions).not.toHaveBeenCalled();
     expect(usersService.findMe).toHaveBeenCalledWith(coach);
   });
 

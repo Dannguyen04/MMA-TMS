@@ -1,27 +1,27 @@
--- MMA-TMS 011: sửa biểu thức kiểm tra định dạng scrypt của credential local.
+-- MMA-TMS 013: sửa biểu thức kiểm tra định dạng scrypt của credential local.
 BEGIN;
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '30s';
 SET LOCAL search_path = public, pg_catalog;
-SELECT pg_catalog.pg_advisory_xact_lock(20260921, 11);
+SELECT pg_catalog.pg_advisory_xact_lock(20260921, 13);
 
 DO $preflight$
 BEGIN
   IF to_regclass('public.local_auth_credentials') IS NULL
      OR to_regclass('mma_private.migration_history') IS NULL THEN
-    RAISE EXCEPTION '011 requires migration 010';
+    RAISE EXCEPTION '013 requires migration 012';
   END IF;
 
   IF NOT EXISTS (
-    SELECT 1 FROM mma_private.migration_history WHERE version = 10
+    SELECT 1 FROM mma_private.migration_history WHERE version = 12
   ) THEN
-    RAISE EXCEPTION '011 requires migration 010 history';
+    RAISE EXCEPTION '013 requires migration 012 history';
   END IF;
 
   IF EXISTS (
-    SELECT 1 FROM mma_private.migration_history WHERE version = 11
+    SELECT 1 FROM mma_private.migration_history WHERE version = 13
   ) THEN
-    RAISE EXCEPTION '011 has already been applied';
+    RAISE EXCEPTION '013 has already been applied';
   END IF;
 END
 $preflight$;
@@ -36,8 +36,8 @@ ALTER TABLE public.local_auth_credentials
 
 INSERT INTO mma_private.migration_history(version, name, source_sha256)
 VALUES (
-  11,
-  '011_fix_local_password_hash_constraint.sql',
+  13,
+  '013_fix_local_password_hash_constraint.sql',
   nullif(current_setting('mma.migration_sha256', true), '')
 );
 

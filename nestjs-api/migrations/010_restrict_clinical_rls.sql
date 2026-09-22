@@ -1,9 +1,9 @@
--- MMA-TMS 008: thu hẹp quyền đọc trực tiếp dữ liệu clinical theo chủ thể và phân công Doctor.
+-- MMA-TMS 010: thu hẹp quyền đọc trực tiếp dữ liệu clinical theo chủ thể và phân công Doctor.
 BEGIN;
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '30s';
 SET LOCAL search_path = public, pg_catalog;
-SELECT pg_catalog.pg_advisory_xact_lock(20260920, 8);
+SELECT pg_catalog.pg_advisory_xact_lock(20260920, 10);
 
 DO $preflight$
 DECLARE
@@ -13,19 +13,19 @@ BEGIN
   IF to_regclass('mma_private.migration_history') IS NULL
      OR to_regprocedure('mma_private.can_read_fighter_medical(uuid)') IS NULL
      OR to_regprocedure('auth.uid()') IS NULL THEN
-    RAISE EXCEPTION '008 requires migration 003 and Supabase auth helpers';
+    RAISE EXCEPTION '010 requires migration 003 and Supabase auth helpers';
   END IF;
 
   IF NOT EXISTS (
-    SELECT 1 FROM mma_private.migration_history WHERE version = 7
+    SELECT 1 FROM mma_private.migration_history WHERE version = 9
   ) THEN
-    RAISE EXCEPTION '008 requires migration 007 history';
+    RAISE EXCEPTION '010 requires migration 009 history';
   END IF;
 
   IF EXISTS (
-    SELECT 1 FROM mma_private.migration_history WHERE version = 8
+    SELECT 1 FROM mma_private.migration_history WHERE version = 10
   ) THEN
-    RAISE EXCEPTION '008 has already been applied';
+    RAISE EXCEPTION '010 has already been applied';
   END IF;
 
   SELECT array_agg(required.table_name ORDER BY required.table_name)
@@ -50,7 +50,7 @@ BEGIN
   WHERE relation.oid IS NULL;
 
   IF missing_tables IS NOT NULL THEN
-    RAISE EXCEPTION '008 requires RLS-enabled clinical tables: %', missing_tables;
+    RAISE EXCEPTION '010 requires RLS-enabled clinical tables: %', missing_tables;
   END IF;
 
   SELECT array_agg(required.table_name ORDER BY required.table_name)
@@ -77,7 +77,7 @@ BEGIN
   WHERE policy.policyname IS NULL;
 
   IF missing_policies IS NOT NULL THEN
-    RAISE EXCEPTION '008 requires the existing authenticated medical_read policies: %', missing_policies;
+    RAISE EXCEPTION '010 requires the existing authenticated medical_read policies: %', missing_policies;
   END IF;
 END
 $preflight$;
@@ -150,8 +150,8 @@ REVOKE SELECT ON public.fighter_baselines FROM PUBLIC, anon;
 -- Runner đã xác minh sẽ cung cấp checksum nguồn; chạy tay trong SQL Editor sẽ lưu NULL.
 INSERT INTO mma_private.migration_history(version, name, source_sha256)
 VALUES (
-  8,
-  '008_restrict_clinical_rls.sql',
+  10,
+  '010_restrict_clinical_rls.sql',
   nullif(current_setting('mma.migration_sha256', true), '')
 );
 

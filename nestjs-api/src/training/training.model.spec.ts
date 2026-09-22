@@ -6,6 +6,8 @@ import {
   listPlansQuerySchema,
   milestoneSchema,
   updateSessionSchema,
+  updateSessionStatusSchema,
+  updatePlanStatusSchema,
   updateExerciseSchema,
   updatePlanExerciseSchema,
   updateTrainingPlanSchema,
@@ -150,5 +152,100 @@ describe('training request schemas', () => {
   it('rejects empty exercise and plan-exercise updates', () => {
     expect(updateExerciseSchema.safeParse({}).success).toBe(false);
     expect(updatePlanExerciseSchema.safeParse({}).success).toBe(false);
+  });
+
+  describe('updateSessionSchema server-owned fields', () => {
+    it('rejects actualDurationSec and cancellationReason in generic session update', () => {
+      expect(
+        updateSessionSchema.safeParse({
+          title: 'New title',
+          actualDurationSec: 3600,
+        }).success,
+      ).toBe(false);
+
+      expect(
+        updateSessionSchema.safeParse({
+          title: 'New title',
+          cancellationReason: 'Rain',
+        }).success,
+      ).toBe(false);
+    });
+  });
+
+  describe('updateSessionStatusSchema', () => {
+    it('requires a nonempty cancellationReason when status is CANCELLED', () => {
+      const missingReason = updateSessionStatusSchema.safeParse({
+        status: 'CANCELLED',
+      });
+      expect(missingReason.success).toBe(false);
+      if (!missingReason.success) {
+        expect(missingReason.error.issues[0].path).toEqual(['cancellationReason']);
+      }
+
+      const emptyReason = updateSessionStatusSchema.safeParse({
+        status: 'CANCELLED',
+        cancellationReason: '',
+      });
+      expect(emptyReason.success).toBe(false);
+
+      const whitespaceReason = updateSessionStatusSchema.safeParse({
+        status: 'CANCELLED',
+        cancellationReason: '   ',
+      });
+      expect(whitespaceReason.success).toBe(false);
+
+      const tooLongReason = updateSessionStatusSchema.safeParse({
+        status: 'CANCELLED',
+        cancellationReason: 'a'.repeat(501),
+      });
+      expect(tooLongReason.success).toBe(false);
+
+      const validCancelled = updateSessionStatusSchema.safeParse({
+        status: 'CANCELLED',
+        cancellationReason: 'Fighter injured during warmup',
+      });
+      expect(validCancelled.success).toBe(true);
+      if (validCancelled.success) {
+        expect(validCancelled.data.cancellationReason).toBe(
+          'Fighter injured during warmup',
+        );
+      }
+    });
+
+    it.each(['SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'SKIPPED', 'ABANDONED'] as const)(
+      'rejects cancellationReason when status is %s',
+      (status) => {
+        const result = updateSessionStatusSchema.safeParse({
+          status,
+          cancellationReason: 'Not allowed here',
+        });
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error.issues[0].path).toEqual(['cancellationReason']);
+        }
+      },
+    );
+
+    it.each(['SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'SKIPPED', 'ABANDONED'] as const)(
+      'accepts valid status %s without cancellationReason',
+      (status) => {
+        expect(updateSessionStatusSchema.safeParse({ status }).success).toBe(true);
+      },
+    );
+  });
+
+  describe('updatePlanStatusSchema', () => {
+    it.each(['DRAFT', 'ACTIVE', 'COMPLETED', 'CANCELLED'] as const)(
+      'accepts valid plan status %s',
+      (status) => {
+        expect(updatePlanStatusSchema.safeParse({ status }).success).toBe(true);
+      },
+    );
+
+    it('rejects unknown plan status', () => {
+      expect(updatePlanStatusSchema.safeParse({ status: 'ARCHIVED' }).success).toBe(
+        false,
+      );
+    });
   });
 });

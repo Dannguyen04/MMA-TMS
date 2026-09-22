@@ -1,28 +1,28 @@
--- MMA-TMS 014: lưu lời mời tài khoản riêng tư và sự kiện outbox tương ứng.
+-- MMA-TMS 016: lưu lời mời tài khoản riêng tư và sự kiện outbox tương ứng.
 BEGIN;
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '30s';
 SET LOCAL search_path = public, pg_catalog;
-SELECT pg_catalog.pg_advisory_xact_lock(20260921, 14);
+SELECT pg_catalog.pg_advisory_xact_lock(20260921, 16);
 
 DO $preflight$
 BEGIN
   IF to_regclass('public.users') IS NULL
      OR to_regclass('public.auth_outbox') IS NULL
      OR to_regclass('mma_private.migration_history') IS NULL THEN
-    RAISE EXCEPTION '014 requires migrations 003 and 012';
+    RAISE EXCEPTION '016 requires migrations 003 and 014';
   END IF;
 
   IF NOT EXISTS (
-    SELECT 1 FROM mma_private.migration_history WHERE version = 13
+    SELECT 1 FROM mma_private.migration_history WHERE version = 15
   ) THEN
-    RAISE EXCEPTION '014 requires migration 013 history';
+    RAISE EXCEPTION '016 requires migration 015 history';
   END IF;
 
   IF EXISTS (
-    SELECT 1 FROM mma_private.migration_history WHERE version = 14
+    SELECT 1 FROM mma_private.migration_history WHERE version = 16
   ) THEN
-    RAISE EXCEPTION '014 has already been applied';
+    RAISE EXCEPTION '016 has already been applied';
   END IF;
 
   IF to_regclass('public.user_invitation_requests') IS NOT NULL
@@ -32,7 +32,7 @@ BEGIN
          AND table_name = 'users'
          AND column_name = 'display_name'
      ) THEN
-    RAISE EXCEPTION '014 invitation state collision';
+    RAISE EXCEPTION '016 invitation state collision';
   END IF;
 END
 $preflight$;
@@ -94,8 +94,8 @@ COMMENT ON COLUMN public.users.display_name IS
 
 INSERT INTO mma_private.migration_history(version, name, source_sha256)
 VALUES (
-  14,
-  '014_user_invitations.sql',
+  16,
+  '016_user_invitations.sql',
   nullif(current_setting('mma.migration_sha256', true), '')
 );
 

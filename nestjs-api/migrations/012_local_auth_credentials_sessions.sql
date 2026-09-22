@@ -1,32 +1,32 @@
--- MMA-TMS 010: lưu credential và session cho adapter xác thực local.
+-- MMA-TMS 012: lưu credential và session cho adapter xác thực local.
 BEGIN;
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '30s';
 SET LOCAL search_path = public, pg_catalog;
-SELECT pg_catalog.pg_advisory_xact_lock(20260921, 10);
+SELECT pg_catalog.pg_advisory_xact_lock(20260921, 12);
 
 DO $preflight$
 BEGIN
   IF to_regclass('public.users') IS NULL
      OR to_regclass('mma_private.migration_history') IS NULL THEN
-    RAISE EXCEPTION '010 requires migration 003';
+    RAISE EXCEPTION '012 requires migration 003';
   END IF;
 
   IF NOT EXISTS (
-    SELECT 1 FROM mma_private.migration_history WHERE version = 9
+    SELECT 1 FROM mma_private.migration_history WHERE version = 11
   ) THEN
-    RAISE EXCEPTION '010 requires migration 009 history';
+    RAISE EXCEPTION '012 requires migration 011 history';
   END IF;
 
   IF EXISTS (
-    SELECT 1 FROM mma_private.migration_history WHERE version = 10
+    SELECT 1 FROM mma_private.migration_history WHERE version = 12
   ) THEN
-    RAISE EXCEPTION '010 has already been applied';
+    RAISE EXCEPTION '012 has already been applied';
   END IF;
 
   IF to_regclass('public.local_auth_credentials') IS NOT NULL
      OR to_regclass('public.local_auth_sessions') IS NOT NULL THEN
-    RAISE EXCEPTION '010 local auth table collision';
+    RAISE EXCEPTION '012 local auth table collision';
   END IF;
 END
 $preflight$;
@@ -80,8 +80,8 @@ COMMENT ON TABLE public.local_auth_sessions IS
 
 INSERT INTO mma_private.migration_history(version, name, source_sha256)
 VALUES (
-  10,
-  '010_local_auth_credentials_sessions.sql',
+  12,
+  '012_local_auth_credentials_sessions.sql',
   nullif(current_setting('mma.migration_sha256', true), '')
 );
 

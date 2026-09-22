@@ -1,32 +1,32 @@
--- MMA-TMS 012: lưu yêu cầu đặt lại mật khẩu và outbox giao tiếp ngoài hệ thống.
+-- MMA-TMS 014: lưu yêu cầu đặt lại mật khẩu và outbox giao tiếp ngoài hệ thống.
 BEGIN;
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '30s';
 SET LOCAL search_path = public, pg_catalog;
-SELECT pg_catalog.pg_advisory_xact_lock(20260921, 12);
+SELECT pg_catalog.pg_advisory_xact_lock(20260921, 14);
 
 DO $preflight$
 BEGIN
   IF to_regclass('public.users') IS NULL
      OR to_regclass('mma_private.migration_history') IS NULL THEN
-    RAISE EXCEPTION '012 requires migration 003';
+    RAISE EXCEPTION '014 requires migration 003';
   END IF;
 
   IF NOT EXISTS (
-    SELECT 1 FROM mma_private.migration_history WHERE version = 11
+    SELECT 1 FROM mma_private.migration_history WHERE version = 13
   ) THEN
-    RAISE EXCEPTION '012 requires migration 011 history';
+    RAISE EXCEPTION '014 requires migration 013 history';
   END IF;
 
   IF EXISTS (
-    SELECT 1 FROM mma_private.migration_history WHERE version = 12
+    SELECT 1 FROM mma_private.migration_history WHERE version = 14
   ) THEN
-    RAISE EXCEPTION '012 has already been applied';
+    RAISE EXCEPTION '014 has already been applied';
   END IF;
 
   IF to_regclass('public.password_reset_requests') IS NOT NULL
      OR to_regclass('public.auth_outbox') IS NOT NULL THEN
-    RAISE EXCEPTION '012 auth outbox table collision';
+    RAISE EXCEPTION '014 auth outbox table collision';
   END IF;
 END
 $preflight$;
@@ -87,8 +87,8 @@ COMMENT ON TABLE public.auth_outbox IS
 
 INSERT INTO mma_private.migration_history(version, name, source_sha256)
 VALUES (
-  12,
-  '012_password_reset_outbox.sql',
+  14,
+  '014_password_reset_outbox.sql',
   nullif(current_setting('mma.migration_sha256', true), '')
 );
 

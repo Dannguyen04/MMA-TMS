@@ -1,21 +1,21 @@
--- MMA-TMS 017: bổ sung hồ sơ võ sĩ cần thiết cho giao diện thật.
+-- MMA-TMS 019: bổ sung hồ sơ võ sĩ cần thiết cho giao diện thật.
 BEGIN;
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '30s';
 SET LOCAL search_path = public, pg_catalog;
-SELECT pg_catalog.pg_advisory_xact_lock(20260921, 17);
+SELECT pg_catalog.pg_advisory_xact_lock(20260921, 19);
 
 DO $preflight$
 BEGIN
   IF to_regclass('public.fighters') IS NULL
      OR to_regclass('mma_private.migration_history') IS NULL THEN
-    RAISE EXCEPTION '017 requires migration 003';
+    RAISE EXCEPTION '019 requires migration 003';
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM mma_private.migration_history WHERE version = 16) THEN
-    RAISE EXCEPTION '017 requires migration 016 history';
+  IF NOT EXISTS (SELECT 1 FROM mma_private.migration_history WHERE version = 18) THEN
+    RAISE EXCEPTION '019 requires migration 018 history';
   END IF;
-  IF EXISTS (SELECT 1 FROM mma_private.migration_history WHERE version = 17) THEN
-    RAISE EXCEPTION '017 has already been applied';
+  IF EXISTS (SELECT 1 FROM mma_private.migration_history WHERE version = 19) THEN
+    RAISE EXCEPTION '019 has already been applied';
   END IF;
   IF EXISTS (SELECT 1 FROM pg_type WHERE typname IN ('fighter_sex', 'fighter_training_level'))
      OR EXISTS (
@@ -23,7 +23,7 @@ BEGIN
        WHERE table_schema = 'public' AND table_name = 'fighters'
          AND column_name IN ('nickname', 'sex', 'weight_kg', 'body_fat_pct', 'resting_heart_rate', 'training_level', 'primary_discipline', 'record_wins', 'record_losses', 'record_draws', 'upcoming_bout')
      ) THEN
-    RAISE EXCEPTION '017 fighter UI profile field collision';
+    RAISE EXCEPTION '019 fighter UI profile field collision';
   END IF;
 END
 $preflight$;
@@ -51,8 +51,8 @@ ALTER TABLE public.fighters
 
 INSERT INTO mma_private.migration_history(version, name, source_sha256)
 VALUES (
-  17,
-  '017_fighter_ui_profile_fields.sql',
+  19,
+  '019_fighter_ui_profile_fields.sql',
   nullif(current_setting('mma.migration_sha256', true), '')
 );
 

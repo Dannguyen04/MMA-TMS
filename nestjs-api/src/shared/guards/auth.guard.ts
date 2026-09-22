@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import {
+  AUTHENTICATED_ENDPOINT,
   REQUIRED_PERMISSIONS,
   REQUIRED_ROLES,
 } from '../decorators/auth.decorator.js';
@@ -64,7 +65,16 @@ export class AuthorizationGuard implements CanActivate {
       [context.getHandler(), context.getClass()],
     );
 
-    if (!roles?.length && !permission) throw forbidden();
+    if (!roles?.length && !permission) {
+      // Authenticated-only is an explicit, handler-level classification; a
+      // handler without any metadata stays denied by default.
+      const authenticatedOnly = this.reflector.get<boolean | undefined>(
+        AUTHENTICATED_ENDPOINT,
+        context.getHandler(),
+      );
+      if (authenticatedOnly) return true;
+      throw forbidden();
+    }
     if (permission) {
       try {
         if (
