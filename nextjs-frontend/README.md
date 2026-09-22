@@ -11,11 +11,13 @@ One product for four roles:
 | **Sports Doctor** | Clinical overview, health profiles, medical records, examinations, injuries & treatment, recovery plans, Medical Clearance, AI movement observations |
 | **Administrator** | Users, roles & permissions, videos, AI processing jobs, AI models & thresholds, audit logs, broadcasts, system settings |
 
-Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS v4. Authenticated API mode is the default; production builds reject demo data and the mock video pipeline.
+Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS v4. Outside production the app runs on demo data by default; production always uses the authenticated API and rejects demo data and the mock video pipeline.
 
 ## Run it
 
-Run the repository Compose stack from the root after creating a non-placeholder `.env` from `.env.example`. Compose runs the backend with its local-auth and filesystem-storage adapters (`AUTH_PROVIDER=local`, `STORAGE_DRIVER=local`); see `../docs/FULLSTACK_INTEGRATION_CONTEXT.md` for the remaining blockers.
+`npm run dev` starts the UI on demo data and the mock video pipeline, with no backend required.
+
+API mode (`APP_DATA_MODE=api`, `NEXT_PUBLIC_VIDEO_PIPELINE=api`, `API_URL`) talks to the NestJS API. Several routes it calls are not on the backend yet: the user directory, invitations and account status, password reset, fighter doctor assignments, coach feedback, the coach/doctor directory, goals, performance, notifications, navigation badges, videos and AI jobs; `/users/me` must also return `effectiveCapabilities` and `assignmentScope`.
 
 For frontend-only checks:
 
@@ -36,7 +38,7 @@ corepack pnpm run build
 | `npm run lint` | ESLint |
 | `npm run typecheck` | Route type generation + `tsc --noEmit` |
 | `npm test` | Vitest unit tests (domain rules, mock data integrity, charts, pose reconstruction, formatting) |
-| `npm run test:e2e` | Playwright end-to-end suite (see `playwright.config.ts`) |
+| `npm run test:e2e` | Playwright end-to-end suite against a running API-mode stack with seeded users (`E2E_BASE_URL`, `E2E_PASSWORD`) |
 
 ## Environment
 
@@ -44,14 +46,14 @@ Copy `.env.local.example` to `.env.local` when you need to change defaults.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `APP_DATA_MODE` | `api` | Set to `demo` only for an explicit non-production UI demo |
-| `NEXT_PUBLIC_VIDEO_PIPELINE` | `api` | Production and real E2E reject `mock` |
+| `APP_DATA_MODE` | `demo` outside production, `api` in production | Set to `api` to use the NestJS API; production never runs demo |
+| `NEXT_PUBLIC_VIDEO_PIPELINE` | `mock` outside production, `api` in production | Set to `api` together with `APP_DATA_MODE=api`; production and real E2E reject `mock` |
 | `API_URL`, `NEXT_PUBLIC_API_URL` | — | Internal server URL and browser-visible API URL |
 | `E2E_BASE_URL`, `E2E_PASSWORD` | — | Isolated real Playwright target and seeded-user password |
-| `MOCK_LATENCY_MS` | `180` | Explicit demo-mode service latency only |
+| `MOCK_LATENCY_MS` | `180` | Demo-mode service latency only |
 
 ## Architecture
 
 See [`docs/frontend-architecture.md`](docs/frontend-architecture.md) for folder structure, the data and auth layers, the design system, form patterns, AI and medical communication rules, accessibility and responsive behaviour.
 
-The remaining AI, medical, and video service adapters are tracked in `../implementation_plan.md`. Real mode must never fall back to their demo data.
+The AI and medical services still read demo data even in API mode until their backend routes exist. API mode must never fall back to demo data anywhere else.

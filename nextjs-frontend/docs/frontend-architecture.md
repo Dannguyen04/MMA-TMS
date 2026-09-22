@@ -19,7 +19,7 @@ TypeScript (strict), Tailwind CSS v4. UI copy is English.
 | Styling | Semantic design tokens only (`src/app/globals.css`). Light, dark and system themes via `data-theme` on `<html>` (cookie `mma_theme`). |
 | Icons | `lucide-react`. Decorative icons get `aria-hidden`. |
 | Charts | Hand-built SVG components in `src/components/charts` (no chart library). |
-| Video pipeline | `NEXT_PUBLIC_VIDEO_PIPELINE=api` is the default. Production and real E2E reject `mock`; uploads use same-origin Route Handlers and authenticated NestJS jobs. |
+| Video pipeline | `mock` is the default outside production and `api` in production (`NEXT_PUBLIC_VIDEO_PIPELINE` overrides). Production and real E2E reject `mock`; uploads use same-origin Route Handlers and authenticated NestJS jobs. |
 
 ## Folder structure
 
@@ -246,4 +246,4 @@ Demo-only seeds live in `src/lib/mocks/*` and follow the fighter storylines docu
 events from an already-mapped time with `shiftPastToday(iso, minutes)`, so nothing seeded as past lands in the future. `db()` returns a mutable in-memory copy shared by the server process —
 restart the dev server to reset. `MOCK_LATENCY_MS` (default 180) simulates network latency.
 
-`APP_DATA_MODE=demo` is allowed only for an explicit non-production UI demo. API mode must not import, seed, or fall back to this state. The remaining adapter work is tracked in the root `implementation_plan.md`.
+Demo is the default outside production until the backend exposes every endpoint the UI calls; set `APP_DATA_MODE=api` to use the NestJS API. Production never runs demo. API mode must not import, seed, or fall back to this state.
