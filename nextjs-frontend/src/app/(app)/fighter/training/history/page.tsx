@@ -70,7 +70,7 @@ function minutesDelta(current: number, previous: number): StatDelta {
 export default async function FighterHistoryPage({ searchParams }: PageProps<"/fighter/training/history">) {
     const user = await requireRole("fighter");
     if (!user.profileId) notFound();
-    const fighter = requireFighterAccess(user, user.profileId);
+    const fighter = await requireFighterAccess(user, user.profileId);
     const params = await searchParams;
 
     const nowMs = new Date().getTime();

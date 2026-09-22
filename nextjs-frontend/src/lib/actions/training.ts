@@ -344,7 +344,7 @@ export async function previewSessionConflicts(input: SessionConflictPreviewInput
     const { fighterId, type, targetRpe, exerciseIds, date, time } = parsed.data;
     if (!canAccessFighter(auth.user, fighterId)) return actionError(NOT_ON_ROSTER);
 
-    const conflicts = training.getSessionClearanceConflicts({
+    const conflicts = await training.loadSessionClearanceConflicts({
         fighterId,
         type,
         targetRpe,

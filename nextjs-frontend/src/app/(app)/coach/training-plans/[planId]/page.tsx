@@ -43,7 +43,7 @@ export default async function CoachPlanPage({ params, searchParams }: PageProps<
         ),
     ]);
     if (!data) notFound();
-    const fighter = requireFighterAccess(user, data.plan.fighterId);
+    const fighter = await requireFighterAccess(user, data.plan.fighterId);
 
     const { plan, sessions } = data;
     const clearance = clearances[fighter.id];

@@ -1,57 +1,79 @@
 import "server-only";
 
+import { z } from "zod";
+
+import { isDemoAuthEnabled } from "@/lib/auth/constants";
+import { authenticatedApiRequest, authenticatedMutableApiRequest, drainAuthenticatedCursorPages } from "@/lib/api/client";
 import type { Goal, GoalStatus, Technique, User } from "@/lib/domain/types";
-import { dayKey, daysBetween, formatDate } from "@/lib/format";
-import { db, newId, nowIso, simulateLatency } from "@/lib/mocks/db";
-import { routes } from "@/lib/routes";
-import { recordAudit } from "./audit";
-import { notifyUsers, staffUserIdsForFighter } from "./notifications";
+import { isNotFound, nullIfNotFound } from "./api-helpers";
 
-/** Below this many days of data a trend is not meaningful, so goals stay "on track". */
-const MIN_TREND_DAYS = 7;
+const techniqueSchema = z.enum(["JAB", "CROSS", "HOOK", "KICK", "COMBINATION", "FOOTWORK", "GUARD", "HEAD_MOVEMENT"]);
+const goalStatusSchema = z.enum(["ON_TRACK", "AT_RISK", "ACHIEVED", "MISSED"]);
+const backendGoalSchema = z.object({
+    id: z.string(),
+    fighterId: z.string(),
+    coachId: z.string(),
+    title: z.string(),
+    technique: techniqueSchema.nullable(),
+    metricLabel: z.string(),
+    unit: z.string(),
+    lowerIsBetter: z.boolean(),
+    baseline: z.number(),
+    target: z.number(),
+    current: z.number(),
+    startDate: z.string(),
+    dueDate: z.string(),
+    status: goalStatusSchema,
+    history: z.array(z.object({ date: z.string(), value: z.number() })),
+    createdAt: z.string(),
+});
 
-const STATUS_ORDER: GoalStatus[] = ["at_risk", "on_track", "achieved", "missed"];
+type BackendGoal = z.infer<typeof backendGoalSchema>;
 
-function fighterName(fighterId: string): string {
-    return db().fighters.find((f) => f.id === fighterId)?.name ?? "Unknown fighter";
+const techniqueFromApi: Record<z.infer<typeof techniqueSchema>, Technique> = {
+    JAB: "jab",
+    CROSS: "cross",
+    HOOK: "hook",
+    KICK: "kick",
+    COMBINATION: "combination",
+    FOOTWORK: "footwork",
+    GUARD: "guard",
+    HEAD_MOVEMENT: "head_movement",
+};
+const techniqueToApi: Record<Technique, keyof typeof techniqueFromApi> = {
+    jab: "JAB",
+    cross: "CROSS",
+    hook: "HOOK",
+    kick: "KICK",
+    combination: "COMBINATION",
+    footwork: "FOOTWORK",
+    guard: "GUARD",
+    head_movement: "HEAD_MOVEMENT",
+};
+const statusFromApi: Record<z.infer<typeof goalStatusSchema>, GoalStatus> = {
+    ON_TRACK: "on_track",
+    AT_RISK: "at_risk",
+    ACHIEVED: "achieved",
+    MISSED: "missed",
+};
+const statusToApi: Record<GoalStatus, keyof typeof statusFromApi> = {
+    on_track: "ON_TRACK",
+    at_risk: "AT_RISK",
+    achieved: "ACHIEVED",
+    missed: "MISSED",
+};
+
+function toGoal(goal: BackendGoal): Goal {
+    return {
+        ...goal,
+        technique: goal.technique === null ? null : techniqueFromApi[goal.technique],
+        status: statusFromApi[goal.status],
+    };
 }
 
-/** "68%", "7.9 m/s". */
-function withUnit(value: number, unit: string): string {
-    return unit === "%" ? `${value}%` : `${value} ${unit}`;
+async function demoService(): Promise<typeof import("./goals.demo")> {
+    return import("./goals.demo");
 }
-
-function goalLabel(goal: Pick<Goal, "fighterId" | "title">): string {
-    return `${fighterName(goal.fighterId)} — ${goal.title}`;
-}
-
-/** Fighter's user id(s) minus the actor. */
-function fighterRecipients(fighterId: string, actor: User): string[] {
-    return staffUserIdsForFighter(fighterId, ["fighter"]).filter((id) => id !== actor.id);
-}
-
-function hasReachedTarget(goal: Pick<Goal, "current" | "target" | "lowerIsBetter">): boolean {
-    return goal.lowerIsBetter ? goal.current <= goal.target : goal.current >= goal.target;
-}
-
-/**
- * Achieved when the target is reached; missed when the due date has passed without it; otherwise the
- * average daily rate since the start is projected to the due date — at risk when it falls short.
- */
-function projectStatus(
-    goal: Pick<Goal, "baseline" | "target" | "current" | "lowerIsBetter" | "startDate" | "dueDate">,
-    now: string,
-): GoalStatus {
-    if (hasReachedTarget(goal)) return "achieved";
-    const daysLeft = daysBetween(now, goal.dueDate);
-    if (daysLeft < 0) return "missed";
-    const elapsed = daysBetween(goal.startDate, now);
-    if (elapsed < MIN_TREND_DAYS) return "on_track";
-    const projected = goal.current + ((goal.current - goal.baseline) / elapsed) * daysLeft;
-    return hasReachedTarget({ ...goal, current: projected }) ? "on_track" : "at_risk";
-}
-
-/* ─── Reads ───────────────────────────────────────────────────────────────── */
 
 export interface GoalFilter {
     /** Fighters the viewer may see (from `accessibleFighterIds`). Omit for all. */
@@ -61,31 +83,27 @@ export interface GoalFilter {
     technique?: Technique;
 }
 
-/** Goals ordered by urgency (at risk first), then by due date. */
 export async function listGoals(filter: GoalFilter = {}): Promise<Goal[]> {
-    await simulateLatency();
-    const statuses = filter.status === undefined ? null : Array.isArray(filter.status) ? filter.status : [filter.status];
-    return db()
-        .goals.filter(
-            (g) =>
-                (filter.fighterIds === undefined || filter.fighterIds === "all" || filter.fighterIds.includes(g.fighterId)) &&
-                (!filter.coachId || g.coachId === filter.coachId) &&
-                (!statuses || statuses.includes(g.status)) &&
-                (!filter.technique || g.technique === filter.technique),
-        )
-        .sort(
-            (a, b) =>
-                STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status) || a.dueDate.localeCompare(b.dueDate),
-        );
+    if (isDemoAuthEnabled()) return (await demoService()).listGoals(filter);
+    if (Array.isArray(filter.fighterIds) && filter.fighterIds.length === 0) return [];
+
+    const params = new URLSearchParams();
+    if (Array.isArray(filter.fighterIds)) filter.fighterIds.forEach((fighterId) => params.append("fighterId", fighterId));
+    if (filter.coachId) params.set("coachId", filter.coachId);
+    const statuses = filter.status === undefined ? [] : Array.isArray(filter.status) ? filter.status : [filter.status];
+    statuses.forEach((status) => params.append("status", statusToApi[status]));
+    if (filter.technique) params.set("technique", techniqueToApi[filter.technique]);
+
+    const query = params.toString();
+    const goals = await drainAuthenticatedCursorPages(`/goals${query ? `?${query}` : ""}`, backendGoalSchema);
+    return goals.map(toGoal);
 }
 
-/** A single goal, or null when it doesn't exist. */
 export async function getGoal(id: string): Promise<Goal | null> {
-    await simulateLatency(0.5);
-    return db().goals.find((g) => g.id === id) ?? null;
+    if (isDemoAuthEnabled()) return (await demoService()).getGoal(id);
+    const goal = await nullIfNotFound(authenticatedApiRequest(`/goals/${encodeURIComponent(id)}`, backendGoalSchema));
+    return goal && toGoal(goal);
 }
-
-/* ─── Mutations ───────────────────────────────────────────────────────────── */
 
 export interface GoalInput {
     fighterId: string;
@@ -106,148 +124,52 @@ export interface GoalInput {
 /** Everything except the fighter and the measured value, which change through their own flows. */
 export type GoalUpdateInput = Partial<Omit<GoalInput, "fighterId" | "current">>;
 
-/** Creates a goal with an initial checkpoint and notifies the fighter. */
+function goalBody(input: GoalInput | GoalUpdateInput): Record<string, unknown> {
+    return {
+        ...input,
+        ...(input.technique !== undefined ? { technique: input.technique === null ? null : techniqueToApi[input.technique] } : {}),
+    };
+}
+
 export async function createGoal(input: GoalInput, actor: User): Promise<Goal> {
-    const now = nowIso();
-    const current = input.current ?? input.baseline;
-    const fields = {
-        fighterId: input.fighterId,
-        coachId: input.coachId,
-        title: input.title.trim(),
-        technique: input.technique,
-        metricLabel: input.metricLabel.trim(),
-        unit: input.unit.trim(),
-        lowerIsBetter: input.lowerIsBetter,
-        baseline: input.baseline,
-        target: input.target,
-        current,
-        startDate: input.startDate,
-        dueDate: input.dueDate,
-    };
-    const goal: Goal = {
-        ...fields,
-        id: newId("g"),
-        status: projectStatus(fields, now),
-        history: [{ date: now, value: current }],
-        createdAt: now,
-    };
-    db().goals.unshift(goal);
-
-    recordAudit({
-        actor,
-        action: "goal.create",
-        resourceType: "goal",
-        resourceId: goal.id,
-        resourceLabel: goalLabel(goal),
-        details: `${goal.metricLabel}: ${withUnit(goal.baseline, goal.unit)} → ${withUnit(goal.target, goal.unit)} by ${formatDate(goal.dueDate)}`,
-    });
-
-    const userIds = fighterRecipients(goal.fighterId, actor);
-    if (userIds.length > 0) {
-        notifyUsers({
-            userIds,
-            category: "goal",
-            title: "New goal set",
-            body: `${goal.title} — ${goal.metricLabel}: from ${withUnit(goal.baseline, goal.unit)} to ${withUnit(goal.target, goal.unit)} by ${formatDate(goal.dueDate)}.`,
-            href: routes.fighter.goals,
-        });
-    }
-    return goal;
+    if (isDemoAuthEnabled()) return (await demoService()).createGoal(input, actor);
+    return toGoal(
+        await authenticatedMutableApiRequest("/goals", backendGoalSchema, {
+            method: "POST",
+            body: JSON.stringify(goalBody(input)),
+        }),
+    );
 }
 
-/**
- * Records a new measurement: appends (or replaces today's) checkpoint, updates `current` and recomputes
- * the status. Notifies the fighter and coach when the goal becomes achieved. Returns null when not found.
- */
 export async function updateGoalProgress(id: string, value: number, actor: User): Promise<Goal | null> {
-    const goal = db().goals.find((g) => g.id === id);
-    if (!goal) return null;
-    const now = nowIso();
-    const previousValue = goal.current;
-    const previousStatus = goal.status;
-
-    const last = goal.history[goal.history.length - 1];
-    if (last && dayKey(last.date) === dayKey(now)) {
-        last.date = now;
-        last.value = value;
-    } else {
-        goal.history.push({ date: now, value });
-    }
-    goal.current = value;
-    goal.status = projectStatus(goal, now);
-
-    recordAudit({
-        actor,
-        action: "goal.progress_update",
-        resourceType: "goal",
-        resourceId: goal.id,
-        resourceLabel: goalLabel(goal),
-        details: `${goal.metricLabel}: ${withUnit(previousValue, goal.unit)} → ${withUnit(value, goal.unit)}${previousStatus === goal.status ? "" : ` (${previousStatus} → ${goal.status})`}`,
-    });
-
-    if (goal.status === "achieved" && previousStatus !== "achieved") {
-        const coachUserIds = db()
-            .coaches.filter((c) => c.id === goal.coachId)
-            .map((c) => c.userId);
-        const userIds = [...new Set([...staffUserIdsForFighter(goal.fighterId, ["fighter"]), ...coachUserIds])].filter(
-            (userId) => userId !== actor.id,
-        );
-        if (userIds.length > 0) {
-            notifyUsers({
-                userIds,
-                category: "goal",
-                severity: "success",
-                title: "Goal achieved",
-                body: `${fighterName(goal.fighterId)} reached the target of ${withUnit(goal.target, goal.unit)} on "${goal.title}" — ${goal.metricLabel.toLowerCase()} is now ${withUnit(goal.current, goal.unit)}.`,
-                href: routes.fighter.goals,
-            });
-        }
-    }
-    return goal;
+    if (isDemoAuthEnabled()) return (await demoService()).updateGoalProgress(id, value, actor);
+    const goal = await nullIfNotFound(
+        authenticatedMutableApiRequest(`/goals/${encodeURIComponent(id)}/progress`, backendGoalSchema, {
+            method: "POST",
+            body: JSON.stringify({ value }),
+        }),
+    );
+    return goal && toGoal(goal);
 }
 
-/** Edits goal details and recomputes the status. Returns null when not found. */
 export async function updateGoal(id: string, input: GoalUpdateInput, actor: User): Promise<Goal | null> {
-    const goal = db().goals.find((g) => g.id === id);
-    if (!goal) return null;
-    const changed = (Object.keys(input) as (keyof GoalUpdateInput)[]).filter((key) => input[key] !== undefined);
-
-    if (input.coachId !== undefined) goal.coachId = input.coachId;
-    if (input.title !== undefined) goal.title = input.title.trim();
-    if (input.technique !== undefined) goal.technique = input.technique;
-    if (input.metricLabel !== undefined) goal.metricLabel = input.metricLabel.trim();
-    if (input.unit !== undefined) goal.unit = input.unit.trim();
-    if (input.lowerIsBetter !== undefined) goal.lowerIsBetter = input.lowerIsBetter;
-    if (input.baseline !== undefined) goal.baseline = input.baseline;
-    if (input.target !== undefined) goal.target = input.target;
-    if (input.startDate !== undefined) goal.startDate = input.startDate;
-    if (input.dueDate !== undefined) goal.dueDate = input.dueDate;
-    goal.status = projectStatus(goal, nowIso());
-
-    recordAudit({
-        actor,
-        action: "goal.update",
-        resourceType: "goal",
-        resourceId: goal.id,
-        resourceLabel: goalLabel(goal),
-        details: changed.length > 0 ? `Changed: ${changed.join(", ")}` : null,
-    });
-    return goal;
+    if (isDemoAuthEnabled()) return (await demoService()).updateGoal(id, input, actor);
+    const goal = await nullIfNotFound(
+        authenticatedMutableApiRequest(`/goals/${encodeURIComponent(id)}`, backendGoalSchema, {
+            method: "PATCH",
+            body: JSON.stringify(goalBody(input)),
+        }),
+    );
+    return goal && toGoal(goal);
 }
 
-/** Permanently removes a goal. Returns false when it doesn't exist. */
 export async function deleteGoal(id: string, actor: User): Promise<boolean> {
-    const goals = db().goals;
-    const index = goals.findIndex((g) => g.id === id);
-    if (index === -1) return false;
-    const [goal] = goals.splice(index, 1);
-    recordAudit({
-        actor,
-        action: "goal.delete",
-        resourceType: "goal",
-        resourceId: goal.id,
-        resourceLabel: goalLabel(goal),
-        details: `${goal.metricLabel} (${goal.status})`,
-    });
-    return true;
+    if (isDemoAuthEnabled()) return (await demoService()).deleteGoal(id, actor);
+    try {
+        await authenticatedMutableApiRequest(`/goals/${encodeURIComponent(id)}`, z.null(), { method: "DELETE" });
+        return true;
+    } catch (error) {
+        if (isNotFound(error)) return false;
+        throw error;
+    }
 }

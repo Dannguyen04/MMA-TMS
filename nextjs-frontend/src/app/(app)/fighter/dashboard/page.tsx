@@ -64,7 +64,7 @@ const NEW_FIGHTER_DAYS = 30;
 export default async function FighterDashboardPage() {
     const user = await requireRole("fighter");
     if (!user.profileId) notFound();
-    const fighter = requireFighterAccess(user, user.profileId);
+    const fighter = await requireFighterAccess(user, user.profileId);
     const ids = [fighter.id];
 
     const now = new Date().toISOString();
