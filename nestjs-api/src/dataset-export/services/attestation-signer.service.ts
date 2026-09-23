@@ -142,7 +142,9 @@ export class AttestationSignerService {
     if (Array.isArray(data)) {
       return '[' + data.map((item) => this.canonicalizeJson(item)).join(',') + ']';
     }
-    const keys = Object.keys(data).sort();
+    const keys = Object.keys(data)
+      .filter((k) => data[k] !== undefined)
+      .sort();
     const parts = keys.map(
       (key) => `${JSON.stringify(key)}:${this.canonicalizeJson(data[key])}`,
     );

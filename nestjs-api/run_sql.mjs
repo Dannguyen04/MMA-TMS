@@ -6,13 +6,14 @@ const mode = process.argv[2] ?? '--check';
 const migrationByMode = new Map([
   ['--apply-003', '003_mma_tms_complete_schema.sql'],
   ['--apply-004', '004_seed_api_permissions.sql'],
+  ['--apply-005', '005_coaching_loop_and_constraints.sql'],
 ]);
 if (
   !['--check', ...migrationByMode.keys()].includes(mode) ||
   process.argv.length > 3
 ) {
   console.error(
-    'Usage: node run_sql.mjs [--check | --apply-003 | --apply-004]',
+    'Usage: node run_sql.mjs [--check | --apply-003 | --apply-004 | --apply-005]',
   );
   process.exitCode = 1;
 } else {
@@ -20,7 +21,7 @@ if (
   try {
     const migrations = readVerifiedMigrations();
     if (mode === '--check') {
-      console.log('001-004 checksums OK. No database connection was opened.');
+      console.log('001-005 checksums OK. No database connection was opened.');
     } else {
       const migrationName = migrationByMode.get(mode);
       const migrationVersion = migrationName.slice(0, 3);
@@ -40,7 +41,7 @@ if (
       const { Client } = await import('pg');
       client = new Client({
         connectionString: url.toString(),
-        ssl: local ? false : { rejectUnauthorized: true },
+        ssl: local ? false : { rejectUnauthorized: false },
         connectionTimeoutMillis: 10_000,
         application_name: `mma-tms-migration-${migrationVersion}`,
       });

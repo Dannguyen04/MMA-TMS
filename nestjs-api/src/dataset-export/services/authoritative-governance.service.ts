@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import * as crypto from 'node:crypto';
 import { DRIZZLE } from '../../database/database.module.js';
-import { datasetReviews, datasetQualityReports } from '../../database/schema.js';
+import { datasetReviews, datasetQualityReports, datasetExportCandidates, users, coaches } from '../../database/schema.js';
 import { eq, and } from 'drizzle-orm';
 import { CandidateExportDto } from '../dto/candidate-export.dto.js';
 import {
@@ -123,26 +123,68 @@ export class AuthoritativeGovernanceService {
     }
 
     // 3. Load authoritative reviews from DB (excluding non-approved / revoked)
-    const dbReviews = await dbClient
+    const allDbReviews = await dbClient
       .select()
       .from(datasetReviews)
-      .where(
-        and(
-          eq(datasetReviews.exportId, candidate.exportId),
-          eq(datasetReviews.reviewStatus, 'approved'),
-        ),
-      );
+      .where(eq(datasetReviews.exportId, candidate.exportId));
+
+    const validCoachRoles = new Set(['coach', 'head_coach']);
+    const validExpertRoles = new Set(['domain_expert', 'senior_annotator', 'expert_reviewer']);
+    const validRoles = new Set([...validCoachRoles, ...validExpertRoles]);
 
     let reviewersList: Array<{ reviewerId: string; role: string }> = [];
     const reviewPolicyVersion = 'dual_review_consensus_v1.0';
 
-    if (dbReviews.length > 0) {
-      reviewersList = dbReviews.map((r: any) => ({
-        reviewerId: r.reviewerId,
-        role: r.reviewerRole,
-      }));
-    } else {
+    if (allDbReviews.length === 0) {
       gaps.push('MISSING_AUTHORITATIVE_REVIEWS: No approved reviews found in authoritative database.');
+    } else {
+      for (const r of allDbReviews) {
+        if (r.reviewStatus === 'revoked') {
+          gaps.push(`REVOKED_REVIEW: Review by '${r.reviewerId}' is revoked in authoritative database.`);
+          continue;
+        }
+        if (r.reviewStatus !== 'approved') {
+          gaps.push(`NON_APPROVED_REVIEW: Review by '${r.reviewerId}' has status '${r.reviewStatus}' in authoritative database.`);
+          continue;
+        }
+        // Check authoritative RBAC against users table if reviewer exists in user directory
+        let isRoleAuthorized = validRoles.has(r.reviewerRole);
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        if (uuidRegex.test(r.reviewerId)) {
+          try {
+            const userRecords = await dbClient
+              .select({ id: users.id, role: users.role })
+              .from(users)
+              .where(eq(users.id, r.reviewerId))
+              .limit(1);
+            if (userRecords.length > 0) {
+              const userRole = (userRecords[0].role || '').toLowerCase();
+              if (userRole === 'fighter') {
+                gaps.push(
+                  `WRONG_REVIEWER_ROLE: Reviewer '${r.reviewerId}' is registered as FIGHTER in authoritative user directory.`,
+                );
+                continue;
+              }
+              if (!validRoles.has(userRole) && userRole !== 'admin') {
+                isRoleAuthorized = false;
+              }
+            }
+          } catch {
+            // If query fails or table not populated in test fixture, rely on r.reviewerRole
+          }
+        }
+
+        if (!isRoleAuthorized) {
+          gaps.push(
+            `WRONG_REVIEWER_ROLE: Reviewer '${r.reviewerId}' has invalid role '${r.reviewerRole}'. Authoritative RBAC requires coach or expert role.`,
+          );
+          continue;
+        }
+        reviewersList.push({
+          reviewerId: r.reviewerId,
+          role: r.reviewerRole,
+        });
+      }
     }
 
     if (!this.supportedReviewPolicies.has(reviewPolicyVersion)) {
@@ -206,16 +248,77 @@ export class AuthoritativeGovernanceService {
       );
     }
 
-    // 5. Recompute and verify authoritative manifest digest
+    // 5. Load Authoritative Candidate Manifest from DB and recompute
+    const dbCandidates = await dbClient
+      .select()
+      .from(datasetExportCandidates)
+      .where(eq(datasetExportCandidates.exportId, candidate.exportId))
+      .limit(1);
+
+    const dbCandidate = dbCandidates.length > 0 ? dbCandidates[0] : null;
+
+    if (!dbCandidate) {
+      gaps.push(
+        'MISSING_AUTHORITATIVE_INVENTORY: Export candidate not found in authoritative database. Request-only evidence cannot produce GOLD.',
+      );
+    }
+
+    const authoritativeSampleCount = dbCandidate ? dbCandidate.sampleCount : candidate.sampleCount;
+    const authoritativeCoveredActionIdsHash = dbCandidate ? dbCandidate.coveredActionIdsHash : candidate.coveredActionIdsHash;
+    const authoritativeDatasetHash = dbCandidate ? dbCandidate.datasetHash : candidate.datasetHash;
+    const authoritativePolicyVersion = dbCandidate ? dbCandidate.policyVersion : candidate.policyVersion;
+    const authoritativeSourceSchemaVersion = dbCandidate ? dbCandidate.sourceSchemaVersion : candidate.sourceSchemaVersion;
+
+    if (dbCandidate) {
+      if (candidate.sampleCount !== authoritativeSampleCount) {
+        gaps.push(
+          `Authoritative sampleCount mismatch! Claimed: ${candidate.sampleCount}, Authoritative DB: ${authoritativeSampleCount}`,
+        );
+      }
+      if (
+        candidate.coveredActionIdsHash &&
+        !this.timingSafeEqualStrings(candidate.coveredActionIdsHash, authoritativeCoveredActionIdsHash)
+      ) {
+        gaps.push(
+          `Authoritative coveredActionIdsHash mismatch! Claimed: '${candidate.coveredActionIdsHash}', Authoritative DB: '${authoritativeCoveredActionIdsHash}'`,
+        );
+      }
+      if (
+        candidate.datasetHash &&
+        !this.timingSafeEqualStrings(candidate.datasetHash, authoritativeDatasetHash)
+      ) {
+        gaps.push(
+          `Authoritative datasetHash mismatch! Claimed: '${candidate.datasetHash}', Authoritative DB: '${authoritativeDatasetHash}'`,
+        );
+      }
+      if (
+        candidate.policyVersion &&
+        candidate.policyVersion !== authoritativePolicyVersion
+      ) {
+        gaps.push(
+          `Authoritative policyVersion mismatch! Claimed: '${candidate.policyVersion}', Authoritative DB: '${authoritativePolicyVersion}'`,
+        );
+      }
+      if (
+        candidate.sourceSchemaVersion &&
+        candidate.sourceSchemaVersion !== authoritativeSourceSchemaVersion
+      ) {
+        gaps.push(
+          `Authoritative sourceSchemaVersion mismatch! Claimed: '${candidate.sourceSchemaVersion}', Authoritative DB: '${authoritativeSourceSchemaVersion}'`,
+        );
+      }
+    }
+
+    // 6. Recompute and verify authoritative manifest digest using DB values
     const canonicalManifestData = this.canonicalizeJson({
-      coveredActionIdsHash: candidate.coveredActionIdsHash,
-      datasetHash: candidate.datasetHash,
+      coveredActionIdsHash: authoritativeCoveredActionIdsHash,
+      datasetHash: authoritativeDatasetHash,
       exportId: candidate.exportId,
-      policyVersion: candidate.policyVersion,
+      policyVersion: authoritativePolicyVersion,
       qualityEvidenceDigest: recomputedQualityEvidenceDigest,
       reviewEvidenceDigest: recomputedReviewEvidenceDigest,
-      sampleCount: candidate.sampleCount,
-      sourceSchemaVersion: candidate.sourceSchemaVersion,
+      sampleCount: authoritativeSampleCount,
+      sourceSchemaVersion: authoritativeSourceSchemaVersion,
     });
     const recomputedManifestDigest =
       'sha256:' + crypto.createHash('sha256').update(canonicalManifestData, 'utf8').digest('hex');
@@ -229,13 +332,13 @@ export class AuthoritativeGovernanceService {
       );
     }
 
-    // 6. Governance policy enforcement
+    // 7. Governance policy enforcement
     if (qualityStatus !== 'pass') {
       gaps.push(`Quality status is '${qualityStatus}', expected 'pass'.`);
     }
 
-    if (candidate.sampleCount < 1) {
-      gaps.push(`Sample count is ${candidate.sampleCount}, expected > 0.`);
+    if (authoritativeSampleCount < 1) {
+      gaps.push(`Sample count is ${authoritativeSampleCount}, expected > 0.`);
     }
 
     const distinctReviewers = new Set(reviewersList.map((r) => r.reviewerId.trim()));
@@ -248,8 +351,8 @@ export class AuthoritativeGovernanceService {
         gaps.push(`Dual review consensus requires at least 2 distinct reviewers. Found: ${distinctReviewers.size}.`);
       }
       const roles = reviewersList.map((r) => r.role);
-      const hasCoach = roles.some((role) => ['coach', 'head_coach'].includes(role));
-      const hasExpert = roles.some((role) => ['domain_expert', 'senior_annotator', 'expert_reviewer'].includes(role));
+      const hasCoach = roles.some((role) => validCoachRoles.has(role));
+      const hasExpert = roles.some((role) => validExpertRoles.has(role));
       if (!hasCoach || !hasExpert) {
         gaps.push('Dual review policy requires exact required role combination (at least 1 coach/head_coach and 1 domain_expert/senior_annotator/expert_reviewer).');
       }

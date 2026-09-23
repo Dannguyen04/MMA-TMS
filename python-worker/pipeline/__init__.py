@@ -265,6 +265,15 @@ __all__ = [
     "GhostAlignmentEngine",
     "AdvancedVerticalSliceResult",
     "ReleaseGateReport",
+    "ReleaseGateInput",
+    "TestSummaryArtifact",
+    "ModuleGateArtifact",
+    "TrustBoundaryArtifact",
+    "REQUIRED_AI_GATE_TASK_IDS",
+    "TASK_NAMES",
+    "SUPPORTED_GATE_SCHEMA_VERSIONS",
+    "ALLOWED_IMPLEMENTATION_STATUSES",
+    "ALLOWED_VALIDATION_STATUSES",
     "AdvancedAIOrchestrator",
     "AdvancedAnalysisInput",
 ]
@@ -397,7 +406,20 @@ from pipeline.ghost_alignment import (
 from pipeline.vertical_slice_integration import (
     AdvancedVerticalSliceResult,
     ReleaseGateReport,
+    ReleaseGateInput,
+    TestSummaryArtifact,
+    ModuleGateArtifact,
+    TrustBoundaryArtifact,
+    REQUIRED_AI_GATE_TASK_IDS,
+    TASK_NAMES,
+    SUPPORTED_GATE_SCHEMA_VERSIONS,
+    ALLOWED_IMPLEMENTATION_STATUSES,
+    ALLOWED_VALIDATION_STATUSES,
     AdvancedAIOrchestrator,
     AdvancedAnalysisInput,
+    is_valid_non_negative_finite_number,
 )
-
+from pipeline.mvp_technique_discovery import (
+    MVPDiscoveryConfig,
+    MVPTechniqueDiscoveryEngine,
+)

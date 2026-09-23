@@ -1,4 +1,4 @@
-// SQL migrations are authoritative. This file maps public tables for Drizzle queries.
+    // SQL migrations are authoritative. This file maps public tables for Drizzle queries.
 // RLS, grants, trigger functions and migration history are owned by 003, not drizzle-kit.
 import { sql } from 'drizzle-orm';
 import {
@@ -3251,3 +3251,76 @@ export type InsertDatasetAttestationAudit = typeof datasetAttestationAudit.$infe
 
 export type DatasetIdempotencyKey = typeof datasetIdempotencyKeys.$inferSelect;
 export type InsertDatasetIdempotencyKey = typeof datasetIdempotencyKeys.$inferInsert;
+
+// ─── Task TL-09 Coaching Loop Persistence Tables ─────────────────────────────
+
+export const actionAssessments = pgTable('action_assessments', {
+  id:               uuid('id').primaryKey().defaultRandom(),
+  analysisId:       uuid('analysis_id').notNull(),
+  actionId:         text('action_id').notNull(),
+  technique:        text('technique').notNull(),
+  limbSide:         text('limb_side').notNull(),
+  assessmentStatus: text('assessment_status').notNull(),
+  overallScore:     integer('overall_score'),
+  grade:            text('grade'),
+  confidence:       doublePrecision('confidence').notNull().default(0.0),
+  rubricId:         text('rubric_id'),
+  evidence:         jsonb('evidence').$type<Record<string, any>>().notNull().default({}),
+  phases:           jsonb('phases').$type<Record<string, any>>().notNull().default({}),
+  kinematicFeatures:jsonb('kinematic_features').$type<Record<string, any>>().notNull().default({}),
+  criteriaScores:   jsonb('criteria_scores').$type<Record<string, any>>().notNull().default({}),
+  findings:         jsonb('findings').$type<any[]>().notNull().default([]),
+  provenance:       jsonb('provenance').$type<Record<string, any>>().notNull().default({}),
+  createdAt:        timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const actionFindingReviews = pgTable('action_finding_reviews', {
+  id:         uuid('id').primaryKey().defaultRandom(),
+  analysisId: uuid('analysis_id').notNull(),
+  actionId:   text('action_id').notNull(),
+  findingId:  text('finding_id').notNull(),
+  coachId:    uuid('coach_id').notNull(),
+  status:     text('status').notNull(), // 'approved' | 'rejected' | 'corrected'
+  notes:      text('notes'),
+  createdAt:  timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const techniqueReferences = pgTable('technique_references', {
+  id:            uuid('id').primaryKey().defaultRandom(),
+  fighterId:     uuid('fighter_id').notNull(),
+  technique:     text('technique').notNull(),
+  actionId:      text('action_id').notNull(),
+  videoId:       uuid('video_id').notNull(),
+  sessionId:     uuid('session_id'),
+  selectedById:  uuid('selected_by_id').notNull(),
+  status:        text('status').notNull().default('active'), // 'active' | 'revoked'
+  revokedById:   uuid('revoked_by_id'),
+  revokedAt:     timestamp('revoked_at', { withTimezone: true }),
+  revokedReason: text('revoked_reason'),
+  createdAt:     timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const progressSnapshots = pgTable('progress_snapshots', {
+  id:             uuid('id').primaryKey().defaultRandom(),
+  fighterId:      uuid('fighter_id').notNull(),
+  technique:      text('technique').notNull(),
+  sessionId:      uuid('session_id').notNull(),
+  baselineId:     uuid('baseline_id'),
+  movingAvgScore: doublePrecision('moving_avg_score'),
+  trend:          text('trend'), // 'improving' | 'stable' | 'regressing'
+  sampleCount:    integer('sample_count').notNull().default(0),
+  metrics:        jsonb('metrics').$type<Record<string, any>>().notNull().default({}),
+  createdAt:      timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type ActionAssessment = typeof actionAssessments.$inferSelect;
+export type InsertActionAssessment = typeof actionAssessments.$inferInsert;
+
+export type ActionFindingReview = typeof actionFindingReviews.$inferSelect;
+export type InsertActionFindingReview = typeof actionFindingReviews.$inferInsert;
+
+export type TechniqueReference = typeof techniqueReferences.$inferSelect;
+export type InsertTechniqueReference = typeof techniqueReferences.$inferInsert;
+
+export type ProgressSnapshot = typeof progressSnapshots.$inferSelect;
+export type InsertProgressSnapshot = typeof progressSnapshots.$inferInsert;

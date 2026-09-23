@@ -452,6 +452,7 @@ class AssessmentInput:
     metrics: MappingProxyType[str, AssessmentMetricItem] = field(default_factory=lambda: MappingProxyType({}))
     context: Optional[AnalysisContext] = None
     requested_rubric_version: Optional[str] = None
+    quality_status: Optional[str] = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.criterion_results, tuple):
@@ -469,11 +470,13 @@ class AssessmentInput:
         action_id: str = "",
         context: Optional[AnalysisContext] = None,
         requested_rubric_version: Optional[str] = None,
+        quality_status: Optional[str] = None,
     ) -> AssessmentInput:
         crit_results = tuple(getattr(punch, "criterion_results", ()))
         findings = tuple(getattr(punch, "findings", ()))
         p_type = getattr(punch, "punch_type", "punch")
         tech = str(p_type).lower() if p_type else "punch"
+        q_status = quality_status or getattr(punch, "quality_status", None)
         return cls(
             action_id=action_id,
             technique=tech,
@@ -482,6 +485,7 @@ class AssessmentInput:
             findings=findings,
             context=context,
             requested_rubric_version=requested_rubric_version,
+            quality_status=q_status,
         )
 
     @classmethod
@@ -491,11 +495,13 @@ class AssessmentInput:
         action_id: str = "",
         context: Optional[AnalysisContext] = None,
         requested_rubric_version: Optional[str] = None,
+        quality_status: Optional[str] = None,
     ) -> AssessmentInput:
         crit_results = tuple(getattr(kick, "criterion_results", ()))
         findings = tuple(getattr(kick, "findings", ()))
         k_type = getattr(kick, "kick_type", "round_kick")
         tech = str(k_type).lower() if k_type else "round_kick"
+        q_status = quality_status or getattr(kick, "quality_status", None)
         return cls(
             action_id=action_id,
             technique=tech,
@@ -504,6 +510,7 @@ class AssessmentInput:
             findings=findings,
             context=context,
             requested_rubric_version=requested_rubric_version,
+            quality_status=q_status,
         )
 
 
@@ -743,6 +750,7 @@ class DefaultPunchEvaluator:
         context: Optional[AnalysisContext] = None,
         rubric: Optional[TechniqueRubric] = None,
         raw_action: Optional[Any] = None,
+        quality_status: Optional[str] = None,
     ) -> AssessmentResult:
         # Chuẩn hóa input sang AssessmentInput (không lưu trữ raw_action trong state)
         if isinstance(action_or_input, AssessmentInput):
@@ -750,7 +758,7 @@ class DefaultPunchEvaluator:
             eff_context = context if context is not None else inp.context
             detector_source = raw_action
         else:
-            inp = AssessmentInput.from_punch(action_or_input, context=context)
+            inp = AssessmentInput.from_punch(action_or_input, context=context, quality_status=quality_status)
             eff_context = context
             detector_source = raw_action or action_or_input
 
@@ -766,6 +774,54 @@ class DefaultPunchEvaluator:
         # Derived rubric evidence confidence & scores
         assessment_conf = compute_derived_rubric_confidence(criteria_list)
         score, grade, status = calculate_score_and_grade(criteria_list)
+
+        # Quality propagation
+        eff_quality = None
+        if quality_status is not None:
+            eff_quality = str(quality_status).upper()
+        elif inp.quality_status:
+            eff_quality = str(inp.quality_status).upper()
+        elif eff_context is not None and hasattr(eff_context, "quality_status") and getattr(eff_context, "quality_status"):
+            eff_quality = str(getattr(eff_context, "quality_status")).upper()
+        elif raw is not None and hasattr(raw, "quality_status") and getattr(raw, "quality_status"):
+            eff_quality = str(getattr(raw, "quality_status")).upper()
+
+        if eff_quality == "BLOCKED":
+            score = None
+            grade = "NO_DATA"
+            status = AssessmentStatus.INSUFFICIENT_EVIDENCE
+            assessment_conf = None
+            blocked_criteria = []
+            for c in criteria_list:
+                c_dict = copy.deepcopy(c.to_dict() if hasattr(c, "to_dict") else dict(c))
+                c_dict["score"] = None
+                c_dict["status"] = CriterionStatus.INSUFFICIENT_EVIDENCE.value
+                c_dict["confidence"] = None
+                c_dict["detail"] = "Blocked due to video quality failure"
+                blocked_criteria.append(c_dict)
+            criteria_list = tuple(blocked_criteria)
+        elif eff_quality == "DEGRADED":
+            degraded_criteria = []
+            for c in criteria_list:
+                c_dict = copy.deepcopy(c.to_dict() if hasattr(c, "to_dict") else dict(c))
+                c_conf = c_dict.get("confidence")
+                if c_conf is not None and isinstance(c_conf, (int, float)):
+                    if float(c_conf) < 0.55:
+                        c_dict["status"] = CriterionStatus.INSUFFICIENT_EVIDENCE.value
+                        c_dict["score"] = None
+                        c_dict["confidence"] = None
+                        c_dict["detail"] = "Abstained under degraded video quality"
+                    else:
+                        c_dict["confidence"] = round(float(c_conf) * 0.75, 2)
+                degraded_criteria.append(c_dict)
+            criteria_list = tuple(degraded_criteria)
+            assessment_conf = compute_derived_rubric_confidence(criteria_list)
+            score, grade, status = calculate_score_and_grade(criteria_list)
+            if assessment_conf is None or grade == "NO_DATA":
+                score = None
+                grade = "NO_DATA"
+                status = AssessmentStatus.INSUFFICIENT_EVIDENCE
+                assessment_conf = None
 
         # Evidence Gating
         if assessment_conf is None or grade == "NO_DATA":
@@ -783,21 +839,31 @@ class DefaultPunchEvaluator:
         crit_guard = _find_criterion(criteria_list, "crit_punch_guard")
 
         # Trích xuất metrics an toàn
-        metrics_dict: dict[str, AssessmentMetricItem] = {
-            "maxElbowAngle": _extract_metric_item(
-                raw, "max_elbow_angle", unit="degree", criterion=crit_ext, val_type="float", round_digits=1
-            ),
-            "peakSpeed": _extract_metric_item(
-                raw, "peak_speed", unit="normalized_image/s", criterion=crit_speed, val_type="float", round_digits=3
-            ),
-            "guardPreserved": _extract_metric_item(
-                raw, "guard_preserved", unit="flag", criterion=crit_guard, val_type="bool"
-            ),
-        }
+        if eff_quality == "BLOCKED":
+            metrics_dict: dict[str, AssessmentMetricItem] = {
+                "maxElbowAngle": AssessmentMetricItem(value=None, unit="degree", confidence=None),
+                "peakSpeed": AssessmentMetricItem(value=None, unit="normalized_image/s", confidence=None),
+                "guardPreserved": AssessmentMetricItem(value=None, unit="flag", confidence=None),
+            }
+        else:
+            metrics_dict = {
+                "maxElbowAngle": _extract_metric_item(
+                    raw, "max_elbow_angle", unit="degree", criterion=crit_ext, val_type="float", round_digits=1
+                ),
+                "peakSpeed": _extract_metric_item(
+                    raw, "peak_speed", unit="normalized_image/s", criterion=crit_speed, val_type="float", round_digits=3
+                ),
+                "guardPreserved": _extract_metric_item(
+                    raw, "guard_preserved", unit="flag", criterion=crit_guard, val_type="bool"
+                ),
+            }
 
         # Nếu caller truyền thêm metrics trong AssessmentInput, merge an toàn
         for k, v in inp.metrics.items():
-            metrics_dict[k] = to_assessment_metric(v)
+            if eff_quality == "BLOCKED":
+                metrics_dict[k] = AssessmentMetricItem(value=None, unit=getattr(v, "unit", "ratio"), confidence=None)
+            else:
+                metrics_dict[k] = to_assessment_metric(v)
 
         # Evaluator generic không được tự nhận là discipline-specific
         provenance = AssessmentProvenance(
@@ -866,13 +932,14 @@ class DefaultKickEvaluator:
         context: Optional[AnalysisContext] = None,
         rubric: Optional[TechniqueRubric] = None,
         raw_action: Optional[Any] = None,
+        quality_status: Optional[str] = None,
     ) -> AssessmentResult:
         if isinstance(action_or_input, AssessmentInput):
             inp = action_or_input
             eff_context = context if context is not None else inp.context
             detector_source = raw_action
         else:
-            inp = AssessmentInput.from_kick(action_or_input, context=context)
+            inp = AssessmentInput.from_kick(action_or_input, context=context, quality_status=quality_status)
             eff_context = context
             detector_source = raw_action or action_or_input
 
@@ -886,6 +953,54 @@ class DefaultKickEvaluator:
 
         assessment_conf = compute_derived_rubric_confidence(criteria_list)
         score, grade, status = calculate_score_and_grade(criteria_list)
+
+        # Quality propagation
+        eff_quality = None
+        if quality_status is not None:
+            eff_quality = str(quality_status).upper()
+        elif inp.quality_status:
+            eff_quality = str(inp.quality_status).upper()
+        elif eff_context is not None and hasattr(eff_context, "quality_status") and getattr(eff_context, "quality_status"):
+            eff_quality = str(getattr(eff_context, "quality_status")).upper()
+        elif raw is not None and hasattr(raw, "quality_status") and getattr(raw, "quality_status"):
+            eff_quality = str(getattr(raw, "quality_status")).upper()
+
+        if eff_quality == "BLOCKED":
+            score = None
+            grade = "NO_DATA"
+            status = AssessmentStatus.INSUFFICIENT_EVIDENCE
+            assessment_conf = None
+            blocked_criteria = []
+            for c in criteria_list:
+                c_dict = copy.deepcopy(c.to_dict() if hasattr(c, "to_dict") else dict(c))
+                c_dict["score"] = None
+                c_dict["status"] = CriterionStatus.INSUFFICIENT_EVIDENCE.value
+                c_dict["confidence"] = None
+                c_dict["detail"] = "Blocked due to video quality failure"
+                blocked_criteria.append(c_dict)
+            criteria_list = tuple(blocked_criteria)
+        elif eff_quality == "DEGRADED":
+            degraded_criteria = []
+            for c in criteria_list:
+                c_dict = copy.deepcopy(c.to_dict() if hasattr(c, "to_dict") else dict(c))
+                c_conf = c_dict.get("confidence")
+                if c_conf is not None and isinstance(c_conf, (int, float)):
+                    if float(c_conf) < 0.55:
+                        c_dict["status"] = CriterionStatus.INSUFFICIENT_EVIDENCE.value
+                        c_dict["score"] = None
+                        c_dict["confidence"] = None
+                        c_dict["detail"] = "Abstained under degraded video quality"
+                    else:
+                        c_dict["confidence"] = round(float(c_conf) * 0.75, 2)
+                degraded_criteria.append(c_dict)
+            criteria_list = tuple(degraded_criteria)
+            assessment_conf = compute_derived_rubric_confidence(criteria_list)
+            score, grade, status = calculate_score_and_grade(criteria_list)
+            if assessment_conf is None or grade == "NO_DATA":
+                score = None
+                grade = "NO_DATA"
+                status = AssessmentStatus.INSUFFICIENT_EVIDENCE
+                assessment_conf = None
 
         # Evidence Gating
         if assessment_conf is None or grade == "NO_DATA":
@@ -901,20 +1016,28 @@ class DefaultKickEvaluator:
         crit_speed = _find_criterion(criteria_list, "crit_kick_speed")
         crit_posture = _find_criterion(criteria_list, "crit_kick_posture")
 
-        metrics_dict: dict[str, AssessmentMetricItem] = {
-            "minChamberAngle": _extract_metric_item(
-                raw, "min_chamber_angle", unit="degree", criterion=crit_chamber, val_type="float", round_digits=1
-            ),
-            "maxExtensionAngle": _extract_metric_item(
-                raw, "max_extension_angle", unit="degree", criterion=crit_ext, val_type="float", round_digits=1
-            ),
-            "peakSpeed": _extract_metric_item(
-                raw, "peak_speed", unit="normalized_image/s", criterion=crit_speed, val_type="float", round_digits=3
-            ),
-            "hipAngle": _extract_metric_item(
-                raw, "hip_angle", unit="degree", criterion=crit_posture, val_type="float", round_digits=1
-            ),
-        }
+        if eff_quality == "BLOCKED":
+            metrics_dict: dict[str, AssessmentMetricItem] = {
+                "minChamberAngle": AssessmentMetricItem(value=None, unit="degree", confidence=None),
+                "maxExtensionAngle": AssessmentMetricItem(value=None, unit="degree", confidence=None),
+                "peakSpeed": AssessmentMetricItem(value=None, unit="normalized_image/s", confidence=None),
+                "hipAngle": AssessmentMetricItem(value=None, unit="degree", confidence=None),
+            }
+        else:
+            metrics_dict = {
+                "minChamberAngle": _extract_metric_item(
+                    raw, "min_chamber_angle", unit="degree", criterion=crit_chamber, val_type="float", round_digits=1
+                ),
+                "maxExtensionAngle": _extract_metric_item(
+                    raw, "max_extension_angle", unit="degree", criterion=crit_ext, val_type="float", round_digits=1
+                ),
+                "peakSpeed": _extract_metric_item(
+                    raw, "peak_speed", unit="normalized_image/s", criterion=crit_speed, val_type="float", round_digits=3
+                ),
+                "hipAngle": _extract_metric_item(
+                    raw, "hip_angle", unit="degree", criterion=crit_posture, val_type="float", round_digits=1
+                ),
+            }
 
         for k, v in inp.metrics.items():
             metrics_dict[k] = to_assessment_metric(v)
@@ -1118,6 +1241,7 @@ class AssessmentEngine:
         allow_draft: bool = False,
         allow_deprecated_for_replay: bool = False,
         raw_action: Optional[Any] = None,
+        quality_status: Optional[str] = None,
     ) -> AssessmentResult:
         """
         Thực hiện đánh giá chuyên môn toàn diện cho một hành động.
@@ -1148,12 +1272,21 @@ class AssessmentEngine:
             allow_deprecated_for_replay=allow_deprecated_for_replay,
         )
 
-        return evaluator.evaluate(
-            action_or_input=action_or_input,
-            context=eff_context,
-            rubric=rubric,
-            raw_action=raw_action,
-        )
+        try:
+            return evaluator.evaluate(
+                action_or_input=action_or_input,
+                context=eff_context,
+                rubric=rubric,
+                raw_action=raw_action,
+                quality_status=quality_status,
+            )
+        except TypeError:
+            return evaluator.evaluate(
+                action_or_input=action_or_input,
+                context=eff_context,
+                rubric=rubric,
+                raw_action=raw_action,
+            )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1198,6 +1331,7 @@ def evaluate_action(
     allow_draft: bool = False,
     allow_deprecated_for_replay: bool = False,
     raw_action: Optional[Any] = None,
+    quality_status: Optional[str] = None,
 ) -> AssessmentResult:
     """Helper cấp module để đánh giá action nhanh chóng."""
     engine = get_default_assessment_engine()
@@ -1209,4 +1343,5 @@ def evaluate_action(
         allow_draft=allow_draft,
         allow_deprecated_for_replay=allow_deprecated_for_replay,
         raw_action=raw_action,
+        quality_status=quality_status,
     )

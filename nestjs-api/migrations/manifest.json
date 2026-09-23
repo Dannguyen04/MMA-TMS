@@ -5,6 +5,7 @@
     "001_create_analysis_jobs.sql": "ed83990f88fdc12356836362e113d0f7ebbd862635416b76d00f493c56b9c8f8",
     "002_add_health_alerts.sql": "549dd6618b432cbef1f6bebc96491ca001f4f806744327a1639624df5cd89b4c",
     "003_mma_tms_complete_schema.sql": "df22eef9cd83983a217441785a988ae29b0f5190cfc1299b7ee3d6c9dfde77ac",
-    "004_seed_api_permissions.sql": "36f067d45d7a733cb713bc438fbb365b04451edf8830111780f94ad1909fb2ba"
+    "004_seed_api_permissions.sql": "36f067d45d7a733cb713bc438fbb365b04451edf8830111780f94ad1909fb2ba",
+    "005_coaching_loop_and_constraints.sql": "810bcf053329b85455f2f4f415ade0e052a7e2a9fa64e96393301230e759ef98"
   }
 }

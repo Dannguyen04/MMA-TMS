@@ -9,6 +9,7 @@ import { AppService } from './app.service.js';
 import { UsersModule } from './users/users.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { FightersModule } from './fighters/fighters.module.js';
+import { CoachingModule } from './coaching/coaching.module.js';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { FightersModule } from './fighters/fighters.module.js';
     AuthModule,
     FightersModule,
     DatasetExportModule,
+    CoachingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

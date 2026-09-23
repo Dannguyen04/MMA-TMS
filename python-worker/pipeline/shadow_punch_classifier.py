@@ -35,6 +35,7 @@ from pipeline.shadow_classifier import (
     DecisionStatus,
     TechniqueCandidate,
     ClassificationDecision,
+    _unwrap_value,
 )
 from pipeline.stance_context import (
     StanceContext,
@@ -211,6 +212,12 @@ class ShadowMultiPunchClassifier:
             vertical_lift = features.get("vertical_delta_y")
 
         separation_ratio = features.get("wrist_shoulder_separation_ratio")
+
+        elbow_angle = _unwrap_value(elbow_angle)
+        directness = _unwrap_value(directness)
+        curvature = _unwrap_value(curvature)
+        vertical_lift = _unwrap_value(vertical_lift)
+        separation_ratio = _unwrap_value(separation_ratio)
 
         # 2. Guardrail: Camera view / wrist separation check
         if separation_ratio is None:

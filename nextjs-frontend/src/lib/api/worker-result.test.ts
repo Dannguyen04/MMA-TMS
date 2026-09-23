@@ -703,4 +703,223 @@ describe("Worker Result Schema & Tasks 9-17 Extensions", () => {
             expect(parsed.data.advancedAI.ghostDifference?.alignmentStatus).toBe("aligned");
         }
     });
+
+    describe("TL-02 Canonical Contract Freeze & Parity", () => {
+        it("strictly parses actionMetricItem with full provenance fields", async () => {
+            const { actionMetricItemSchema } = await import("./worker-result");
+            const validMetric = {
+                value: 85.5,
+                unit: "degree",
+                confidence: 0.92,
+                evidenceConfidence: 0.88,
+                framesUsed: [10, 11, 12],
+                source: "kinematic_features",
+                methodVersion: "1.0.0",
+            };
+            const result = actionMetricItemSchema.safeParse(validMetric);
+            expect(result.success).toBe(true);
+            if (result.success) {
+                expect(result.data.evidenceConfidence).toBe(0.88);
+                expect(result.data.framesUsed).toEqual([10, 11, 12]);
+                expect(result.data.source).toBe("kinematic_features");
+            }
+        });
+
+        it("strictly rejects Infinity and NaN in actionMetricItem", async () => {
+            const { actionMetricItemSchema } = await import("./worker-result");
+            const infMetric = {
+                value: Infinity,
+                unit: "degree",
+            };
+            expect(actionMetricItemSchema.safeParse(infMetric).success).toBe(false);
+
+            const nanMetric = {
+                value: NaN,
+                unit: "degree",
+            };
+            expect(actionMetricItemSchema.safeParse(nanMetric).success).toBe(false);
+        });
+
+        it("validates full canonical worker output with legacy and actions arrays", () => {
+            const canonicalWorkerOutput = {
+                schemaVersion: "1.0.0",
+                meta: {
+                    fps: 30,
+                    totalFrames: 100,
+                    durationMs: 3333.3,
+                    imgWidth: 1920,
+                    imgHeight: 1080,
+                    model: "yolov8n-pose",
+                },
+                actions: [
+                    {
+                        id: "action_001",
+                        sourceActionId: "punch_1",
+                        family: "punch",
+                        technique: "cross",
+                        attackingSide: "right",
+                        limbRole: "rear",
+                        stance: "orthodox",
+                        confidence: {
+                            detection: null,
+                            classification: 0.95,
+                            assessment: 0.85,
+                        },
+                        phases: {
+                            startFrame: 5,
+                            chamberFrame: null,
+                            launchFrame: 7,
+                            peakFrame: 12,
+                            impactFrame: 12,
+                            endFrame: 18,
+                            startTimeMs: 166.7,
+                            chamberTimeMs: null,
+                            launchTimeMs: 233.3,
+                            peakTimeMs: 400.0,
+                            impactTimeMs: 400.0,
+                            endTimeMs: 600.0,
+                            impactType: "peak_extension_proxy",
+                        },
+                        metrics: {
+                            maxElbowAngle: {
+                                value: 162.4,
+                                unit: "degree",
+                                confidence: 0.9,
+                                evidenceConfidence: 0.85,
+                                framesUsed: [11, 12, 13],
+                                source: "kinematic_features",
+                                methodVersion: "1.0.0",
+                            },
+                        },
+                        assessment: {
+                            rubricId: "rubric_punch_v3",
+                            score: 82,
+                            grade: "GOOD",
+                            status: "good",
+                            primaryError: null,
+                            criteria: [],
+                            findings: [],
+                        },
+                        review: {
+                            status: "ai_generated",
+                            reviewerId: null,
+                            reviewNotes: null,
+                        },
+                        qualityStatus: "pass",
+                    },
+                ],
+                frames: [],
+                kicks: [],
+                punches: [
+                    {
+                        punchType: "cross",
+                        arm: "right",
+                        score: 82,
+                        grade: "GOOD",
+                        details: [],
+                        maxElbowAngle: 162.4,
+                        peakSpeed: 0.85,
+                        guardPreserved: true,
+                        startTimeMs: 166.7,
+                        impactTimeMs: 400.0,
+                        endTimeMs: 600.0,
+                        findings: [],
+                    },
+                ],
+                findings: [],
+                summary: {},
+            };
+            const parsed = workerResultSchema.safeParse(canonicalWorkerOutput);
+            expect(parsed.success).toBe(true);
+        });
+
+        it("validates all 6 MVP technique classes against actionSchema (TL-04)", () => {
+            const mvpTechniques = [
+                { tech: "jab", family: "punch", side: "left", role: "lead" },
+                { tech: "cross", family: "punch", side: "right", role: "rear" },
+                { tech: "lead_hook", family: "punch", side: "left", role: "lead" },
+                { tech: "rear_hook", family: "punch", side: "right", role: "rear" },
+                { tech: "round_kick", family: "kick", side: "right", role: "rear" },
+                { tech: "rear_knee", family: "other_strike", side: "right", role: "rear" },
+            ] as const;
+
+            for (const { tech, family, side, role } of mvpTechniques) {
+                const actionPayload = {
+                    id: `act_${tech}_1`,
+                    sourceActionId: `${family}_1`,
+                    family,
+                    technique: tech,
+                    attackingSide: side,
+                    limbRole: role,
+                    stance: "orthodox",
+                    confidence: {
+                        detection: 0.9,
+                        classification: 0.85,
+                        assessment: 0.8,
+                    },
+                    phases: {
+                        startFrame: 10,
+                        chamberFrame: family === "punch" ? null : 15,
+                        launchFrame: 12,
+                        peakFrame: 20,
+                        impactFrame: 20,
+                        endFrame: 30,
+                        startTimeMs: 333.3,
+                        chamberTimeMs: family === "punch" ? null : 500.0,
+                        launchTimeMs: 400.0,
+                        peakTimeMs: 666.6,
+                        impactTimeMs: 666.6,
+                        endTimeMs: 1000.0,
+                        impactType: family === "punch" ? "peak_extension_proxy" : "max_extension_proxy",
+                    },
+                    metrics: {
+                        peakSpeed: {
+                            value: 3.5,
+                            unit: "normalized_image/s",
+                            confidence: 0.85,
+                            evidenceConfidence: 0.9,
+                            framesUsed: [12, 13, 14, 20],
+                            source: "kinematic_features",
+                            methodVersion: "1.0.0",
+                        },
+                    },
+                    assessment: {
+                        rubricId: "rubric_test_v3",
+                        score: 85,
+                        grade: "GOOD",
+                        status: "good",
+                        criteria: [],
+                        findings: [],
+                    },
+                    review: {
+                        status: "ai_generated",
+                        reviewerId: null,
+                        reviewNotes: null,
+                    },
+                    shadowClassification: {
+                        status: "classified",
+                        candidate: {
+                            technique: tech,
+                            family,
+                            attackingSide: side,
+                            limbRole: role,
+                            stance: "orthodox",
+                        },
+                        confidence: 0.85,
+                        reasonCodes: ["MVP_CLASSIFIED"],
+                        classifierId: "mvp_technique_discovery_engine",
+                        classifierVersion: "1.0.0",
+                        configVersion: "1.0.0",
+                        featureVersion: "1.0.0",
+                        stanceSource: "stance_context",
+                        evidenceLevel: "derived_proxy",
+                        validationStatus: "SHADOW_NOT_VALIDATED",
+                    },
+                };
+
+                const res = actionSchema.safeParse(actionPayload);
+                expect(res.success).toBe(true);
+            }
+        });
+    });
 });

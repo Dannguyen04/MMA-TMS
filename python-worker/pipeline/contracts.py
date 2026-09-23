@@ -156,8 +156,13 @@ class ActiveLearningReason(str, Enum):
 class BaselineEligibilityStatus(str, Enum):
     ELIGIBLE = "ELIGIBLE"
     INSUFFICIENT_SESSIONS = "INSUFFICIENT_SESSIONS"
+    INSUFFICIENT_REFERENCES = "INSUFFICIENT_REFERENCES"
     POOR_QUALITY = "POOR_QUALITY"
     INCONSISTENT_TECHNIQUE = "INCONSISTENT_TECHNIQUE"
+    INCOMPATIBLE_STANCE = "INCOMPATIBLE_STANCE"
+    INCOMPATIBLE_CAMERA = "INCOMPATIBLE_CAMERA"
+    INCOMPATIBLE_RUBRIC = "INCOMPATIBLE_RUBRIC"
+    LEAKAGE_DETECTED = "LEAKAGE_DETECTED"
     STALE = "STALE"
     NOT_APPLICABLE = "NOT_APPLICABLE"
 
@@ -176,6 +181,10 @@ class AlignmentStatus(str, Enum):
     QUALITY_BLOCKED = "QUALITY_BLOCKED"
     PHASE_MISMATCH = "PHASE_MISMATCH"
     UNSTABLE_ALIGNMENT = "UNSTABLE_ALIGNMENT"
+    STANCE_MISMATCH = "STANCE_MISMATCH"
+    TECHNIQUE_MISMATCH = "TECHNIQUE_MISMATCH"
+    TIMEBASE_MISMATCH = "TIMEBASE_MISMATCH"
+    SCHEMA_MISMATCH = "SCHEMA_MISMATCH"
 
 
 @dataclass
@@ -337,3 +346,127 @@ class FrameAnalysisResult:
             ],
         }
 
+
+def _check_finite_number(val: Any, name: str) -> None:
+    """Helper to reject NaN and Infinity."""
+    if isinstance(val, float):
+        if not math.isfinite(val):
+            raise ValueError(f"Field '{name}' must be finite, got {val}")
+
+
+def validate_contract_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
+    """
+    Validates that an analysis payload strictly conforms to the MMA-TMS contract:
+    - Finite numbers only (strictly rejects NaN and Infinity)
+    - Closed enum sets for action family, sides, stance, and statuses
+    - Legacy punch/kick array consistency with actions
+    """
+    if not isinstance(payload, Mapping):
+        raise TypeError(f"Payload must be a mapping, got {type(payload).__name__}")
+
+    # Recursive check for NaN / Inf
+    def _scan_finite(obj: Any, path: str = "root") -> None:
+        if isinstance(obj, float):
+            if not math.isfinite(obj):
+                raise ValueError(f"Non-finite float found at {path}: {obj}")
+        elif isinstance(obj, Mapping):
+            for k, v in obj.items():
+                _scan_finite(v, f"{path}.{k}")
+        elif isinstance(obj, (list, tuple)):
+            for idx, item in enumerate(obj):
+                _scan_finite(item, f"{path}[{idx}]")
+
+    _scan_finite(payload)
+
+    # Validate meta if present
+    if "meta" in payload:
+        meta = payload["meta"]
+        if not isinstance(meta, Mapping):
+            raise TypeError("meta must be a mapping")
+        for num_field in ("fps", "totalFrames", "durationMs"):
+            if num_field in meta:
+                val = meta[num_field]
+                if not isinstance(val, (int, float)) or isinstance(val, bool) or val < 0:
+                    raise ValueError(f"meta.{num_field} must be a non-negative number")
+
+    # Validate actions if present
+    actions = payload.get("actions")
+    if actions is not None:
+        if not isinstance(actions, Sequence) or isinstance(actions, (str, bytes)):
+            raise TypeError("actions must be a list/sequence")
+
+        valid_families = {"punch", "kick", "other_strike", "non_strike"}
+        valid_sides = {"left", "right", "unknown"}
+        valid_limb_roles = {"lead", "rear", "unknown"}
+        valid_stances = {"orthodox", "southpaw", "switch", "unknown"}
+        valid_assessment_statuses = {"excellent", "good", "fair", "needs_improvement", "insufficient_evidence"}
+
+        for idx, act in enumerate(actions):
+            if not isinstance(act, Mapping):
+                raise TypeError(f"actions[{idx}] must be a mapping")
+            act_id = act.get("id")
+            if not act_id or not isinstance(act_id, str):
+                raise ValueError(f"actions[{idx}].id must be a non-empty string")
+
+            fam = act.get("family")
+            if fam not in valid_families:
+                raise ValueError(f"actions[{idx}].family '{fam}' not in {valid_families}")
+
+            side = act.get("attackingSide")
+            if side not in valid_sides:
+                raise ValueError(f"actions[{idx}].attackingSide '{side}' not in {valid_sides}")
+
+            limb = act.get("limbRole")
+            if limb not in valid_limb_roles:
+                raise ValueError(f"actions[{idx}].limbRole '{limb}' not in {valid_limb_roles}")
+
+            st = act.get("stance")
+            if st not in valid_stances:
+                raise ValueError(f"actions[{idx}].stance '{st}' not in {valid_stances}")
+
+            # Validate phases
+            phases = act.get("phases")
+            if not isinstance(phases, Mapping):
+                raise TypeError(f"actions[{idx}].phases must be a mapping")
+
+            # Validate assessment
+            ass = act.get("assessment")
+            if isinstance(ass, Mapping):
+                st_val = ass.get("status")
+                if st_val and st_val not in valid_assessment_statuses:
+                    raise ValueError(f"actions[{idx}].assessment.status '{st_val}' not in {valid_assessment_statuses}")
+
+    # Legacy parity checks: punches & kicks vs actions
+    punches = payload.get("punches")
+    kicks = payload.get("kicks")
+    if actions is not None:
+        action_punches = [a for a in actions if a.get("family") == "punch"]
+        action_kicks = [a for a in actions if a.get("family") == "kick"]
+
+        if punches is not None and isinstance(punches, Sequence) and not isinstance(punches, (str, bytes)):
+            if len(punches) != len(action_punches):
+                raise ValueError(
+                    f"Legacy punches count ({len(punches)}) does not match actions punch count ({len(action_punches)})"
+                )
+            for p_idx, (p_item, a_item) in enumerate(zip(punches, action_punches)):
+                p_score = p_item.get("score")
+                a_score = a_item.get("assessment", {}).get("score")
+                if p_score != a_score:
+                    raise ValueError(
+                        f"Punch score mismatch at index {p_idx}: legacy={p_score}, action={a_score}"
+                    )
+
+        if kicks is not None and isinstance(kicks, Sequence) and not isinstance(kicks, (str, bytes)):
+            if len(kicks) != len(action_kicks):
+                raise ValueError(
+                    f"Legacy kicks count ({len(kicks)}) does not match actions kick count ({len(action_kicks)})"
+                )
+            for k_idx, (k_item, a_item) in enumerate(zip(kicks, action_kicks)):
+                k_score = k_item.get("score")
+                a_score = a_item.get("assessment", {}).get("score")
+                if k_score != a_score:
+                    raise ValueError(
+                        f"Kick score mismatch at index {k_idx}: legacy={k_score}, action={a_score}"
+                    )
+
+    return to_json_safe(payload)

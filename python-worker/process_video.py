@@ -20,7 +20,7 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Any, Mapping, Optional, Sequence
 
 import cv2
 import numpy as np
@@ -94,6 +94,8 @@ def process_video(
     stance_context: Optional[StanceContext] = None,
     analysis_context: Optional[AnalysisContext] = None,
     martial_art: Optional[str] = None,
+    expected_techniques: Optional[Sequence[str]] = None,
+    historical_references: Optional[Sequence[Mapping[str, Any]]] = None,
 ) -> dict:
     """
     Pipeline chính: xử lý video và trả về dict kết quả JSON.
@@ -562,16 +564,22 @@ def process_video(
             else str(resolved_analysis_ctx.camera_view)
         )
     athlete_st = resolved_stance_ctx.resolved_stance if resolved_stance_ctx else "unknown"
+    session_id = Path(input_path).stem if input_path else "session_direct"
     advanced_ai_orch = AdvancedAIOrchestrator()
-    advanced_ai_slice = advanced_ai_orch.process_session_extensions(
-        session_id=Path(input_path).stem if input_path else "session_direct",
+    analysis_res = advanced_ai_orch.analyze_session(
+        session_id=session_id,
+        athlete_id=getattr(resolved_analysis_ctx, "athlete_id", "ath_unknown") if resolved_analysis_ctx else "ath_unknown",
+        technique=summary.get("primaryAction") or "unknown",
+        stance=athlete_st,
         actions=actions_dicts,
         frame_records=frame_records,
+        historical_references=historical_references,
         quality_status=quality.status,
         person_count=1,
         fps=fps,
-        athlete_stance=athlete_st,
         camera_view=cam_view_val,
+        martial_art=resolved_analysis_ctx.martial_art if resolved_analysis_ctx else None,
+        expected_techniques=expected_techniques,
     )
 
     output = {
@@ -596,7 +604,9 @@ def process_video(
         "analysisQuality": quality.to_dict(),
         "sessionInsights": session_insights.to_dict(),
         "coachingPlan":    coaching_plan.to_dict(),
-        "advancedAI":      advanced_ai_slice.to_dict(),
+        "advancedAI":      analysis_res["verticalSlice"],
+        "baseline":        analysis_res["baseline"],
+        "discoveredTechniques": analysis_res["discoveredTechniques"],
     }
     if quality.status.value == "blocked":
         output["reasonCodes"] = ["QUALITY_BLOCKED"]

@@ -15,6 +15,7 @@ Nguyên tắc bắt buộc:
 from __future__ import annotations
 
 import copy
+import math
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Optional
@@ -79,6 +80,9 @@ from pipeline.shadow_kick_classifier import (
 from pipeline.finding_engine import (
     FindingEngine,
     StandardFinding,
+)
+from pipeline.mvp_technique_discovery import (
+    MVPTechniqueDiscoveryEngine,
 )
 
 
@@ -198,16 +202,32 @@ class ActionMetricItem:
     value: float | int | bool | str | None
     unit: str  # "degree", "normalized_image/s", "ms", "flag", "ratio"
     confidence: Optional[float] = None
+    evidenceConfidence: Optional[float] = None
+    framesUsed: Optional[list[int]] = None
+    source: Optional[str] = None
+    methodVersion: Optional[str] = None
 
     def to_dict(self) -> dict[str, Any]:
         val = self.value
         if isinstance(val, float):
-            val = round(val, 3)
-        return {
+            if not math.isfinite(val):
+                val = None
+            else:
+                val = round(val, 3)
+        res: dict[str, Any] = {
             "value": val,
             "unit": self.unit,
-            "confidence": round(self.confidence, 2) if self.confidence is not None else None,
+            "confidence": round(self.confidence, 2) if (self.confidence is not None and math.isfinite(self.confidence)) else None,
         }
+        if self.evidenceConfidence is not None:
+            res["evidenceConfidence"] = round(self.evidenceConfidence, 2) if math.isfinite(self.evidenceConfidence) else None
+        if self.framesUsed is not None:
+            res["framesUsed"] = [int(f) for f in self.framesUsed]
+        if self.source is not None:
+            res["source"] = str(self.source)
+        if self.methodVersion is not None:
+            res["methodVersion"] = str(self.methodVersion)
+        return res
 
 
 @dataclass
@@ -411,12 +431,17 @@ def extract_metric(
     criterion: Optional[Any] = None,
     val_type: str = "float",
     round_digits: int = 1,
+    evidence_confidence: Optional[float] = None,
+    frames_used: Optional[list[int]] = None,
+    source: Optional[str] = None,
+    method_version: Optional[str] = None,
 ) -> ActionMetricItem:
     """
     Trích xuất metric an toàn, không bịa dữ liệu giả mạo:
     - Nếu thuộc tính nguồn không tồn tại hoặc là None -> value = None, confidence = None.
     - Nếu criterion tương ứng có status 'insufficient_evidence' -> value = None, confidence = None.
     - Tuyệt đối không dùng 0.0 hay false làm fallback khi thiếu dữ liệu.
+    - Từ chối float không hữu hạn (NaN/Inf) bằng cách trả về None.
     """
     if _is_criterion_insufficient(criterion):
         return ActionMetricItem(value=None, unit=unit, confidence=None)
@@ -429,21 +454,38 @@ def extract_metric(
         return ActionMetricItem(value=None, unit=unit, confidence=None)
 
     if val_type == "float":
-        val = round(float(raw_val), round_digits)
+        try:
+            flt_val = float(raw_val)
+            if not math.isfinite(flt_val):
+                return ActionMetricItem(value=None, unit=unit, confidence=None)
+            val = round(flt_val, round_digits)
+        except (ValueError, TypeError):
+            return ActionMetricItem(value=None, unit=unit, confidence=None)
     elif val_type == "bool":
         val = bool(raw_val)
     elif val_type == "int":
-        val = int(raw_val)
+        try:
+            val = int(raw_val)
+        except (ValueError, TypeError):
+            return ActionMetricItem(value=None, unit=unit, confidence=None)
     else:
         val = str(raw_val)
 
     conf = None
     if criterion is not None:
         c_conf = getattr(criterion, "confidence", None)
-        if c_conf is not None and isinstance(c_conf, (int, float)) and 0.0 <= c_conf <= 1.0:
+        if c_conf is not None and isinstance(c_conf, (int, float)) and math.isfinite(c_conf) and 0.0 <= c_conf <= 1.0:
             conf = float(c_conf)
 
-    return ActionMetricItem(value=val, unit=unit, confidence=conf)
+    return ActionMetricItem(
+        value=val,
+        unit=unit,
+        confidence=conf,
+        evidenceConfidence=evidence_confidence,
+        framesUsed=frames_used,
+        source=source,
+        methodVersion=method_version,
+    )
 
 
 def _resolve_model_version(
@@ -556,6 +598,7 @@ def action_from_punch(
     keypoints_trajectory: Optional[Sequence[Any]] = None,
     fps: float = 30.0,
     execute_shadow_classifier: Optional[bool] = None,
+    quality_status: Optional[str] = None,
 ) -> ActionResult:
     """
     Adapter chuyển đổi một PunchResult sang ActionResult thống nhất.
@@ -718,10 +761,18 @@ def action_from_punch(
                     val = getattr(m_contract, "value", None)
                     unit = getattr(m_contract, "unit", "ratio")
                     conf = getattr(m_contract, "confidence", None)
+                    ev_conf = getattr(m_contract, "evidence_confidence", getattr(m_contract, "evidenceConfidence", None))
+                    frames_u = getattr(m_contract, "frames_used", getattr(m_contract, "framesUsed", None))
+                    src = getattr(m_contract, "source", None) or "kinematic_features"
+                    meth_ver = getattr(m_contract, "method_version", getattr(m_contract, "methodVersion", None))
                     metrics[m_name] = ActionMetricItem(
                         value=val,
                         unit=unit,
                         confidence=conf,
+                        evidenceConfidence=ev_conf,
+                        framesUsed=list(frames_u) if frames_u is not None else None,
+                        source=src,
+                        methodVersion=meth_ver,
                     )
 
     # Shadow Classification (Task 8)
@@ -745,13 +796,33 @@ def action_from_punch(
         if classified_technique.technique in {"cross", "jab", "hook", "straight_punch", "punch"}
         else "punch"
     )
+    eff_quality = None
+    if quality_status is not None:
+        eff_quality = str(quality_status).upper()
+    elif hasattr(punch, "quality_status") and getattr(punch, "quality_status"):
+        eff_quality = str(getattr(punch, "quality_status")).upper()
+    elif analysis_context is not None and hasattr(analysis_context, "quality_status") and getattr(analysis_context, "quality_status"):
+        eff_quality = str(getattr(analysis_context, "quality_status")).upper()
+
     assessment_res = evaluate_action(
         action_or_input=punch,
         technique=eval_tech,
         context=analysis_context,
         requested_version=rubric_version,
         raw_action=punch,
+        quality_status=eff_quality,
     )
+
+    if eff_quality in ("BLOCKED", "DEGRADED"):
+        criteria_dicts = []
+        for c in assessment_res.criteria:
+            c_dict = copy.deepcopy(c.to_dict() if hasattr(c, "to_dict") else dict(c))
+            c_dict["actionId"] = action_id
+            criteria_dicts.append(c_dict)
+
+    if eff_quality == "BLOCKED":
+        for k in list(metrics.keys()):
+            metrics[k] = ActionMetricItem(value=None, unit=metrics[k].unit, confidence=None)
 
     status_str = (
         assessment_res.status.value
@@ -806,6 +877,7 @@ def action_from_kick(
     keypoints_trajectory: Optional[Sequence[Any]] = None,
     fps: float = 30.0,
     execute_shadow_classifier: Optional[bool] = None,
+    quality_status: Optional[str] = None,
 ) -> ActionResult:
     """
     Adapter chuyển đổi một KickResult sang ActionResult thống nhất.
@@ -972,10 +1044,18 @@ def action_from_kick(
                     val = getattr(m_contract, "value", None)
                     unit = getattr(m_contract, "unit", "ratio")
                     conf = getattr(m_contract, "confidence", None)
+                    ev_conf = getattr(m_contract, "evidence_confidence", getattr(m_contract, "evidenceConfidence", None))
+                    frames_u = getattr(m_contract, "frames_used", getattr(m_contract, "framesUsed", None))
+                    src = getattr(m_contract, "source", None) or "kinematic_features"
+                    meth_ver = getattr(m_contract, "method_version", getattr(m_contract, "methodVersion", None))
                     metrics[m_name] = ActionMetricItem(
                         value=val,
                         unit=unit,
                         confidence=conf,
+                        evidenceConfidence=ev_conf,
+                        framesUsed=list(frames_u) if frames_u is not None else None,
+                        source=src,
+                        methodVersion=meth_ver,
                     )
 
     # Task 5 Assessment Engine Integration:
@@ -985,13 +1065,33 @@ def action_from_kick(
         if classified_technique.technique in {"round_kick", "kick"}
         else "round_kick"
     )
+    eff_quality = None
+    if quality_status is not None:
+        eff_quality = str(quality_status).upper()
+    elif hasattr(kick, "quality_status") and getattr(kick, "quality_status"):
+        eff_quality = str(getattr(kick, "quality_status")).upper()
+    elif analysis_context is not None and hasattr(analysis_context, "quality_status") and getattr(analysis_context, "quality_status"):
+        eff_quality = str(getattr(analysis_context, "quality_status")).upper()
+
     assessment_res = evaluate_action(
         action_or_input=kick,
         technique=eval_tech,
         context=analysis_context,
         requested_version=rubric_version,
         raw_action=kick,
+        quality_status=eff_quality,
     )
+
+    if eff_quality in ("BLOCKED", "DEGRADED"):
+        criteria_dicts = []
+        for c in assessment_res.criteria:
+            c_dict = copy.deepcopy(c.to_dict() if hasattr(c, "to_dict") else dict(c))
+            c_dict["actionId"] = action_id
+            criteria_dicts.append(c_dict)
+
+    if eff_quality == "BLOCKED":
+        for k in list(metrics.keys()):
+            metrics[k] = ActionMetricItem(value=None, unit=metrics[k].unit, confidence=None)
 
     status_str = (
         assessment_res.status.value
@@ -1093,6 +1193,7 @@ def build_actions_list(
     keypoints_trajectory: Optional[Sequence[Any]] = None,
     fps: float = 30.0,
     execute_shadow_classifier: Optional[bool] = None,
+    quality_status: Optional[str] = None,
 ) -> list[ActionResult]:
     """
     Tập hợp danh sách PunchResult và KickResult, sắp xếp với tie-breaker đầy đủ:
@@ -1174,6 +1275,7 @@ def build_actions_list(
                 keypoints_trajectory=keypoints_trajectory,
                 fps=fps,
                 execute_shadow_classifier=execute_shadow_classifier,
+                quality_status=quality_status,
             )
         else:
             ct = classify_kick(item, ctx)
@@ -1191,6 +1293,7 @@ def build_actions_list(
                 keypoints_trajectory=keypoints_trajectory,
                 fps=fps,
                 execute_shadow_classifier=execute_shadow_classifier,
+                quality_status=quality_status,
             )
         actions.append(action)
 

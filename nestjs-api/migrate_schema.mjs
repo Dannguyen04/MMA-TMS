@@ -126,6 +126,33 @@ async function run() {
       ALTER TABLE dataset_attestations ADD COLUMN IF NOT EXISTS algorithm TEXT NOT NULL DEFAULT 'Ed25519';
     `);
 
+    // 1. Enforce one active attestation per export at database level
+    await client.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS uidx_dataset_attestations_single_active
+      ON dataset_attestations (export_id)
+      WHERE (status = 'ACTIVE');
+    `);
+
+    // 2. Add expires_at to dataset_idempotency_keys if missing
+    await client.query(`
+      ALTER TABLE dataset_idempotency_keys ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;
+    `);
+
+    // 3. Enforce append-only immutable audit log via PostgreSQL trigger
+    await client.query(`
+      CREATE OR REPLACE FUNCTION prevent_audit_modification()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        RAISE EXCEPTION 'Audit logs are strictly append-only and cannot be updated or deleted.';
+      END;
+      $$ LANGUAGE plpgsql;
+
+      DROP TRIGGER IF EXISTS trg_dataset_attestation_audit_immutable ON dataset_attestation_audit;
+      CREATE TRIGGER trg_dataset_attestation_audit_immutable
+      BEFORE UPDATE OR DELETE ON dataset_attestation_audit
+      FOR EACH ROW EXECUTE FUNCTION prevent_audit_modification();
+    `);
+
     console.log('✅ Schema migration executed successfully!');
   } catch (err) {
     console.error('❌ Migration failed:', err);
