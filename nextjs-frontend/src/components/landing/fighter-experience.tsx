@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { createFighterController, gestureAction, type PointerPosition } from "./fighter-motion";
+import { createFighterController, gestureAction, type FighterAction, type PointerPosition } from "./fighter-motion";
 
 const FighterScene = dynamic(() => import("./fighter-scene").then((module) => module.FighterScene), { ssr: false });
 const INITIAL_POINTER: PointerPosition = { x: 0, y: 0 };
@@ -20,6 +20,7 @@ function supportsWebGL() {
 export function FighterExperience() {
     const [canRender, setCanRender] = useState(false);
     const [reducedMotion, setReducedMotion] = useState(true);
+    const [lastAction, setLastAction] = useState<FighterAction>("idle");
     const pointer = useRef<PointerPosition>({ ...INITIAL_POINTER });
     const pointerStart = useRef<{ x: number; y: number } | null>(null);
     const controller = useMemo(() => createFighterController({ reducedMotion, cooldownMs: 120 }), [reducedMotion]);
@@ -46,10 +47,15 @@ export function FighterExperience() {
         };
     };
 
+    const trigger = (action: FighterAction) => {
+        if (controller.trigger(action, performance.now())) setLastAction(action);
+    };
+
     return (
         <div
             className={`landing-fighter-stage absolute inset-x-0 bottom-0 z-10 h-[29rem] touch-pan-y select-none sm:h-[34rem] lg:inset-y-0 lg:right-0 lg:left-auto lg:h-auto lg:w-[58%] ${canRender ? "is-webgl" : ""}`}
             aria-label="Interactive stylized MMA fighter. Swipe sideways for hooks, swipe upward for an uppercut, or click for a combination."
+            data-fighter-action={lastAction}
             role="img"
             onPointerDown={(event) => {
                 pointerStart.current = { x: event.clientX, y: event.clientY };
@@ -65,10 +71,10 @@ export function FighterExperience() {
                 pointerStart.current = null;
                 if (!start) return;
                 const action = gestureAction(event.clientX - start.x, event.clientY - start.y) ?? "jab-cross";
-                controller.trigger(action, performance.now());
+                trigger(action);
             }}
             onWheel={(event) => {
-                if (event.deltaY < -30) controller.trigger("uppercut", performance.now());
+                if (event.deltaY < -30) trigger("uppercut");
             }}
         >
             <div aria-hidden className="landing-fighter-fallback absolute inset-0">
