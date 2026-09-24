@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { Component, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { createFighterController, gestureAction, type FighterAction, type PointerPosition } from "./fighter-motion";
+import { FighterPortrait } from "./fighter-portrait";
 
 const FighterScene = dynamic(() => import("./fighter-scene").then((module) => module.FighterScene), { ssr: false });
 const INITIAL_POINTER: PointerPosition = { x: 0, y: 0 };
@@ -37,6 +38,7 @@ export function FighterExperience() {
     const [canRender, setCanRender] = useState(false);
     const [reducedMotion, setReducedMotion] = useState(true);
     const [lastAction, setLastAction] = useState<FighterAction>("idle");
+    const [animationId, setAnimationId] = useState(0);
     const pointer = useRef<PointerPosition>({ ...INITIAL_POINTER });
     const pointerStart = useRef<{ x: number; y: number } | null>(null);
     const gestureFired = useRef(false);
@@ -58,14 +60,20 @@ export function FighterExperience() {
 
     const updatePointer = (element: HTMLDivElement, clientX: number, clientY: number) => {
         const bounds = element.getBoundingClientRect();
-        pointer.current = {
+        const nextPointer = {
             x: ((clientX - bounds.left) / bounds.width - 0.5) * 2,
             y: ((clientY - bounds.top) / bounds.height - 0.5) * -2,
         };
+        pointer.current = nextPointer;
+        element.style.setProperty("--fighter-shift-x", `${(nextPointer.x * 12).toFixed(2)}px`);
+        element.style.setProperty("--fighter-shift-y", `${(nextPointer.y * 7).toFixed(2)}px`);
+        element.style.setProperty("--fighter-tilt", `${(nextPointer.x * 1.2).toFixed(2)}deg`);
     };
 
     const trigger = (action: FighterAction) => {
-        if (controller.trigger(action, performance.now())) setLastAction(action);
+        if (!controller.trigger(action, performance.now())) return;
+        setLastAction(action);
+        setAnimationId((value) => value + 1);
     };
 
     return (
@@ -89,8 +97,11 @@ export function FighterExperience() {
                 gestureFired.current = true;
                 trigger(action);
             }}
-            onPointerLeave={() => {
+            onPointerLeave={(event) => {
                 pointer.current = { ...INITIAL_POINTER };
+                event.currentTarget.style.setProperty("--fighter-shift-x", "0px");
+                event.currentTarget.style.setProperty("--fighter-shift-y", "0px");
+                event.currentTarget.style.setProperty("--fighter-tilt", "0deg");
                 pointerStart.current = null;
                 gestureFired.current = false;
             }}
@@ -123,8 +134,8 @@ export function FighterExperience() {
         >
             <div aria-hidden className="landing-fighter-fallback absolute inset-0">
                 <div className="landing-fighter-aura" />
-                <div className="landing-fighter-silhouette" />
             </div>
+            <FighterPortrait action={lastAction} animationId={animationId} />
             {canRender ? (
                 <FighterSceneBoundary onFailure={() => setCanRender(false)}>
                     <FighterScene controller={controller} pointer={pointer} reducedMotion={reducedMotion} />

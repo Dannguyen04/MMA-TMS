@@ -7,6 +7,8 @@ test.describe("public landing", () => {
         await expect(page.getByRole("heading", { level: 1 })).toContainText("Train harder");
         await expect(page.getByRole("link", { name: "Enter the arena", exact: true }).first()).toHaveAttribute("href", "/login");
         await expect(page.getByText("AI-assisted analysis", { exact: true })).toBeVisible();
+        await expect(page.getByTestId("fighter-portrait")).toBeVisible();
+        await expect(page.getByTestId("fighter-portrait")).toHaveAttribute("src", /fighter-hero\.png/);
     });
 
     test("keeps the landing page visible after sign-in and routes the CTA to the role dashboard", async ({ page, signInAs }) => {
@@ -75,6 +77,7 @@ test.describe("public landing", () => {
 
         await expect(page.locator("canvas")).toHaveCount(0);
         await expect(page.getByRole("button", { name: /Interactive stylized MMA fighter/ })).toBeVisible();
+        await expect(page.getByTestId("fighter-portrait")).toBeVisible();
         await expect(page.getByText("AI-assisted analysis", { exact: true })).toBeVisible();
     });
 

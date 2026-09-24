@@ -6,7 +6,6 @@ import * as THREE from "three";
 
 import type { FighterController, PointerPosition } from "./fighter-motion";
 import { ImpactEffects } from "./impact-effects";
-import { ProceduralFighter } from "./procedural-fighter";
 
 interface FighterSceneProps {
     controller: FighterController;
@@ -40,11 +39,6 @@ export function FighterScene({ controller, pointer, reducedMotion }: FighterScen
             gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
         >
             <Suspense fallback={null}>
-                <ambientLight intensity={1.15} color="#9cb5da" />
-                <directionalLight position={[-4, 6, 5]} intensity={3.6} color="#ffe0c9" />
-                <pointLight position={[4, 1, 3]} intensity={10} distance={9} color="#e83a48" />
-                <pointLight position={[-4, 0, 2]} intensity={11} distance={8} color="#3388ff" />
-                <ProceduralFighter controller={controller} pointer={pointer} reducedMotion={reducedMotion} />
                 <ImpactEffects controller={controller} reducedMotion={reducedMotion} />
                 <CameraRig pointer={pointer} reducedMotion={reducedMotion} />
             </Suspense>
