@@ -53,6 +53,10 @@ import { AuthorizationService } from './authorization.service.js';
  * individually granted an authorization permission to bypass the ADMIN-only
  * restriction (see auth.guard.ts).
  *
+ * Role baselines are mutable for FIGHTER, COACH and DOCTOR only. ADMIN role
+ * grants are owned by numbered SQL migrations and are rejected here with 403;
+ * per-user overrides remain available for individual ADMIN accounts.
+ *
  * Later scope (not in this phase):
  *   - Explicit deny: PATCH /users/:userId/permissions/:permissionCode { isGranted: boolean }
  *   - List endpoints with pagination
@@ -88,6 +92,11 @@ export class AuthorizationController {
       'Sets a per-user permission override. `isGranted: true` explicitly ' +
       'grants the permission, bypassing role limits. `isGranted: false` ' +
       'explicitly denies it, overriding role baseline grants. Idempotent. ' +
+      'Supported for every role, including an individual ADMIN. ' +
+      'Returns 404 `PERMISSION_NOT_FOUND` when the permission code is ' +
+      'unknown, and 404 `USER_NOT_FOUND` when the target user does not ' +
+      'exist or is inactive/soft-deleted. The permission code is resolved ' +
+      'first, so an unknown code wins when both are invalid. ' +
       'Requires ADMIN role.',
   })
   @ApiBody({ type: SetUserPermissionOverrideBodyDto, required: true })
@@ -102,6 +111,8 @@ export class AuthorizationController {
   @ApiNotFoundEnvelope(
     'PERMISSION_NOT_FOUND',
     'The specified permission code does not exist',
+    'The permission code does not exist (`PERMISSION_NOT_FOUND`), or the ' +
+      'target user does not exist or is not active (`USER_NOT_FOUND`)',
   )
   async setUserPermissionOverride(
     @Param() params: UserPermissionParamsDto,
@@ -134,7 +145,9 @@ export class AuthorizationController {
     summary: 'Remove user permission override',
     description:
       'Deletes the user permission override, reverting the user to ' +
-      'role-based permission inheritance. Returns 404 if no override exists. ' +
+      'role-based permission inheritance. Returns 404 if no override exists ' +
+      '— including when the target user does not exist, so a stale override ' +
+      'on a deactivated account stays removable. ' +
       'Requires ADMIN role.',
   })
   @ApiSuccessEnvelope({
@@ -168,6 +181,7 @@ export class AuthorizationController {
    * PUT /authorization/roles/:role/permissions/:permissionCode
    *
    * Grants a permission to a role baseline. Idempotent.
+   * Role ADMIN is rejected with 403 — its baseline is migration-owned.
    */
   @Put('roles/:role/permissions/:permissionCode')
   @RequireRoles(USER.ADMIN)
@@ -178,7 +192,10 @@ export class AuthorizationController {
     description:
       'Grants a concrete permission to a role baseline. Idempotent — ' +
       're-granting an existing role permission returns the current state. ' +
-      'Requires ADMIN role.',
+      'The ADMIN baseline is owned by SQL migrations and is immutable here: ' +
+      'role `ADMIN` is rejected with 403 `FORBIDDEN` before any write, even ' +
+      'when the grant already exists. Use a per-user override to adjust one ' +
+      'ADMIN account. Requires ADMIN role.',
   })
   @ApiSuccessEnvelope({
     status: HttpStatus.OK,
@@ -186,7 +203,10 @@ export class AuthorizationController {
     model: RolePermissionResponseDto,
   })
   @ApiUnauthorizedEnvelope()
-  @ApiForbiddenEnvelope('Requires ADMIN role')
+  @ApiForbiddenEnvelope(
+    'Requires ADMIN role, or the request targets the immutable ADMIN role ' +
+      'baseline',
+  )
   @ApiValidationErrorEnvelope('Invalid role or permission code')
   @ApiNotFoundEnvelope(
     'PERMISSION_NOT_FOUND',
@@ -208,6 +228,7 @@ export class AuthorizationController {
    *
    * Revokes a permission from a role baseline. Returns 404 if no assignment
    * exists for this role/permission pair.
+   * Role ADMIN is rejected with 403 — its baseline is migration-owned.
    */
   @Delete('roles/:role/permissions/:permissionCode')
   @RequireRoles(USER.ADMIN)
@@ -217,14 +238,21 @@ export class AuthorizationController {
     summary: 'Revoke permission from role',
     description:
       'Removes a permission from a role baseline. Returns 404 if the ' +
-      'role permission assignment does not exist. Requires ADMIN role.',
+      'role permission assignment does not exist. The ADMIN baseline is ' +
+      'owned by SQL migrations and is immutable here: role `ADMIN` is ' +
+      'rejected with 403 `FORBIDDEN` before any write, even when no such ' +
+      'assignment exists. Use a per-user override with `isGranted: false` ' +
+      'to deny a permission to one ADMIN account. Requires ADMIN role.',
   })
   @ApiSuccessEnvelope({
     status: HttpStatus.OK,
     message: 'Role permission revoked successfully',
   })
   @ApiUnauthorizedEnvelope()
-  @ApiForbiddenEnvelope('Requires ADMIN role')
+  @ApiForbiddenEnvelope(
+    'Requires ADMIN role, or the request targets the immutable ADMIN role ' +
+      'baseline',
+  )
   @ApiValidationErrorEnvelope('Invalid role or permission code')
   @ApiNotFoundEnvelope(
     'ASSIGNMENT_NOT_FOUND',

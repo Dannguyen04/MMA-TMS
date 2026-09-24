@@ -2,23 +2,21 @@ import "server-only";
 
 import { notFound } from "next/navigation";
 
+import { hasPermission } from "@/lib/auth/session";
 import type { Fighter, User } from "@/lib/domain/types";
-import { db } from "@/lib/mocks/db";
 
 /**
- * Record-level access. Fighters see only themselves; coaches and doctors see their
- * assigned fighters; admins can see fighter accounts (never clinical detail — that is
- * enforced by permissions, not here).
+ * Quyền truy cập bản ghi do backend cấp qua phiên hiện tại.
  */
 export function accessibleFighterIds(user: User): string[] | "all" {
-    const store = db();
+    if (!hasPermission(user, "fighters:read")) return [];
+
     switch (user.role) {
         case "fighter":
             return user.profileId ? [user.profileId] : [];
         case "coach":
-            return store.coaches.find((c) => c.id === user.profileId)?.fighterIds ?? [];
         case "doctor":
-            return store.doctors.find((d) => d.id === user.profileId)?.fighterIds ?? [];
+            return user.assignmentScope?.fighterIds ?? [];
         case "admin":
             return "all";
     }
@@ -29,15 +27,18 @@ export function canAccessFighter(user: User, fighterId: string): boolean {
     return ids === "all" || ids.includes(fighterId);
 }
 
-/** Clinical access: only a sports doctor assigned to the fighter. Never "all", whatever the role's permissions. */
+/** Chỉ bác sĩ có quyền y tế và được phân công mới được xem hồ sơ lâm sàng. */
 export function canAccessFighterClinically(user: User, fighterId: string): boolean {
-    if (user.role !== "doctor" || !user.profileId) return false;
-    return db().doctors.find((d) => d.id === user.profileId)?.fighterIds.includes(fighterId) ?? false;
+    if (user.role !== "doctor" || !hasPermission(user, "medical:read")) return false;
+    return user.assignmentScope?.fighterIds.includes(fighterId) ?? false;
 }
 
-/** Loads a fighter the user may access, or renders not-found. */
-export function requireFighterAccess(user: User, fighterId: string): Fighter {
-    const fighter = db().fighters.find((f) => f.id === fighterId);
-    if (!fighter || !canAccessFighter(user, fighterId)) notFound();
+/** Tải võ sĩ sau khi kiểm tra phạm vi; không tự suy diễn quyền từ dữ liệu demo. */
+export async function requireFighterAccess(user: User, fighterId: string): Promise<Fighter> {
+    if (!canAccessFighter(user, fighterId)) notFound();
+
+    const { getFighter } = await import("@/lib/services/people");
+    const fighter = await getFighter(fighterId);
+    if (!fighter) notFound();
     return fighter;
 }

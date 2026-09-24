@@ -20,7 +20,7 @@ import { getSessionHistory, getUpcomingSessions, listPlans, listSessions } from 
 
 export async function generateMetadata({ params }: PageProps<"/coach/fighters/[fighterId]/training">): Promise<Metadata> {
     const user = await requireRole("coach");
-    const fighter = requireFighterAccess(user, (await params).fighterId);
+    const fighter = await requireFighterAccess(user, (await params).fighterId);
     return { title: `Training · ${fighter.name}` };
 }
 
@@ -30,7 +30,7 @@ const ADHERENCE_WEEKS = 8;
 
 export default async function CoachFighterTrainingPage({ params }: PageProps<"/coach/fighters/[fighterId]/training">) {
     const user = await requireRole("coach");
-    const fighter = requireFighterAccess(user, (await params).fighterId);
+    const fighter = await requireFighterAccess(user, (await params).fighterId);
     const now = new Date().toISOString();
     const firstName = fighter.name.split(" ")[0];
 

@@ -56,7 +56,7 @@ async function roleSections(user: User, now: string): Promise<RoleSections> {
     switch (user.role) {
         case "fighter": {
             if (!user.profileId) return { main: <MissingProfileCard kind="fighter" /> };
-            const fighter = requireFighterAccess(user, user.profileId);
+            const fighter = await requireFighterAccess(user, user.profileId);
             const [coaches, doctors] = await Promise.all([coachesForFighter(fighter.id), doctorsForFighter(fighter.id)]);
             return {
                 nickname: fighter.nickname,

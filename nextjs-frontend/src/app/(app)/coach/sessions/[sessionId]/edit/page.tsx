@@ -32,7 +32,7 @@ export default async function EditSessionPage({ params }: PageProps<"/coach/sess
     const { sessionId } = await params;
     const [session, library] = await Promise.all([loadSession(sessionId), listExercises()]);
     if (!session) notFound();
-    const fighter = requireFighterAccess(user, session.fighterId);
+    const fighter = await requireFighterAccess(user, session.fighterId);
     const back = { href: routes.coach.session(session.id), label: "Back to session" };
 
     if (session.status !== "scheduled") {

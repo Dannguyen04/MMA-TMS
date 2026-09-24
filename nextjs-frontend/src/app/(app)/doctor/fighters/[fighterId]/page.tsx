@@ -63,7 +63,7 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
     const user = await requireRole("doctor");
     const { fighterId } = await params;
     const query = await searchParams;
-    const fighter = requireFighterAccess(user, fighterId);
+    const fighter = await requireFighterAccess(user, fighterId);
     const now = new Date().toISOString();
 
     const [summary, record, examinations, injuries, clearances, doctors, settings] = await Promise.all([

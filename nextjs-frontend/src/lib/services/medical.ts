@@ -49,8 +49,8 @@ import { dayKey, daysBetween, formatDate } from "@/lib/format";
 import { db, newId, nowIso, simulateLatency } from "@/lib/mocks/db";
 import { matchesSearch } from "@/lib/query";
 import { routes } from "@/lib/routes";
-import { recordAudit } from "./audit";
-import { notifyUsers, staffUserIdsForFighter } from "./notifications";
+import { recordAudit } from "./audit.demo";
+import { notifyUsers, staffUserIdsForFighter } from "./notifications.demo";
 
 /* ─── Shared types & helpers ──────────────────────────────────────────────── */
 

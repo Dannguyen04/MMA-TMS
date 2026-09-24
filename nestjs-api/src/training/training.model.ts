@@ -268,17 +268,25 @@ export const createSessionSchema = trainingSessionBaseSchema
   .strict();
 export type CreateSessionInput = z.infer<typeof createSessionSchema>;
 
+/**
+ * Generic session update.
+ *
+ * `actualDurationSec` is deliberately absent: it is server-owned and derived
+ * from `checkedInAt` when a started session stops (see
+ * `updateSessionStatusSchema`). `cancellationReason` is deliberately absent
+ * too — it belongs to the CANCELLED transition and is sent with it, so a
+ * reason can never be attached to another status or left stale behind a
+ * status change.
+ */
 export const updateSessionSchema = trainingSessionBaseSchema
   .pick({
     title: true,
     scheduledAt: true,
     plannedDurationSec: true,
-    actualDurationSec: true,
     roundCount: true,
     location: true,
     sessionType: true,
     coachNotes: true,
-    cancellationReason: true,
     reportedRpe: true,
   })
   .partial()
@@ -366,6 +374,33 @@ export const TRAINING_PERMISSIONS = {
 export const updatePlanStatusSchema = z.strictObject({
   status: TrainingPlanStatus,
 });
-export const updateSessionStatusSchema = z.strictObject({
-  status: SessionStatus,
-});
+/**
+ * Session status transition.
+ *
+ * `cancellationReason` is required and nonempty exactly when `status` is
+ * CANCELLED, and rejected for every other status. Both violations surface
+ * through the shared Zod pipe as 422 VALIDATION_ERROR with the offending
+ * path, not as a domain error.
+ */
+export const updateSessionStatusSchema = z
+  .strictObject({
+    status: SessionStatus,
+    cancellationReason: trimmedTextSchema(500).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.status === 'CANCELLED' && data.cancellationReason === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'cancellationReason is required when status is CANCELLED',
+        path: ['cancellationReason'],
+      });
+    }
+    if (data.status !== 'CANCELLED' && data.cancellationReason !== undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'cancellationReason is only allowed when status is CANCELLED',
+        path: ['cancellationReason'],
+      });
+    }
+  });
+export type UpdateSessionStatusInput = z.infer<typeof updateSessionStatusSchema>;

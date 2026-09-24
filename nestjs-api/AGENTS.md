@@ -39,6 +39,13 @@ system instructions always take precedence.
 
 ## Choosing Agent / Agent Roles & Strict Boundaries
 
+Pipeline: **Codex (module prompt) → Claude (code) → Antigravity (tests/review)**.
+
+- **Codex (Module Prompt Authoring Only)**:
+  - **Scope:** Reading the specification (`docs/MMA-TMS-MASTER-SPECIFICATION-v3.md`), code, and migrations; asking the user to clarify gaps; producing exactly one self-contained implementation prompt per module for Claude.
+  - **Strict Denial Rule:** Codex is **STRICTLY FORBIDDEN** from writing or modifying application code, tests, migrations, or configuration. If requested to do so, Codex **MUST DENY** the request with `[DENIED BASED ON RULE: Codex only produces module prompts; implementation is reserved for Claude and testing for Antigravity]`.
+  - **No Guessing:** Codex MUST NOT assume, invent, or hallucinate requirements. Anything not traceable to the spec, migrations, code, or the user MUST be asked about before the prompt is finalized. Follow `.agents/rules/codex-module-prompt.md` for the exact protocol.
+
 - **Claude (Code Generation & Implementation Only)**:
   - **Scope:** Architecture design, feature implementation, and creating/updating application code (services, controllers, schemas, DTOs, modules, shared utilities).
   - **Strict Denial Rule:** Claude is **STRICTLY FORBIDDEN** from authoring, modifying, or running test files (`*.spec.ts`, `*.test.ts`, e2e suites). If prompted or requested to write tests or test suites, Claude **MUST DENY** the request with `[DENIED BASED ON RULE: Testing is exclusively reserved for Antigravity]` and output the Summary & Expectations instead.

@@ -26,7 +26,7 @@ const ADHERENCE_WEEKS = 8;
 export default async function FighterTrainingPage() {
     const user = await requireRole("fighter");
     if (!user.profileId) notFound();
-    const fighter = requireFighterAccess(user, user.profileId);
+    const fighter = await requireFighterAccess(user, user.profileId);
     const now = new Date().toISOString();
 
     const [plans, sessions, coachNames] = await Promise.all([listPlans({ fighterIds: [fighter.id] }), listSessions({ fighterIds: [fighter.id] }), getCoachNames()]);

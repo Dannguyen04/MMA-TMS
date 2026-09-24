@@ -165,6 +165,7 @@ describe('OpenAPI document (e2e)', () => {
       document.paths['/training-plans/{id}/status']?.patch?.responses,
     ).toMatchObject({
       200: expect.any(Object),
+      400: expect.any(Object),
       401: expect.any(Object),
       403: expect.any(Object),
       404: expect.any(Object),
@@ -192,12 +193,64 @@ describe('OpenAPI document (e2e)', () => {
     });
   });
 
+  it('documents DOCTOR write prohibition in 403 descriptions across all 11 write routes', () => {
+    const document = createOpenApiDocument(app);
+    const writeRoutes = [
+      { path: '/training-plans', method: 'post' as const },
+      { path: '/training-plans/{id}', method: 'patch' as const },
+      { path: '/training-plans/{id}/status', method: 'patch' as const },
+      { path: '/training-plans/{id}/exercises', method: 'post' as const },
+      { path: '/training-plans/{id}/exercises/{exerciseId}', method: 'patch' as const },
+      { path: '/training-plans/{id}/exercises/{exerciseId}', method: 'delete' as const },
+      { path: '/training-sessions', method: 'post' as const },
+      { path: '/training-sessions/{id}', method: 'patch' as const },
+      { path: '/training-sessions/{id}/status', method: 'patch' as const },
+      { path: '/exercises', method: 'post' as const },
+      { path: '/exercises/{id}', method: 'patch' as const },
+    ];
+
+    expect(writeRoutes).toHaveLength(11);
+    for (const { path, method } of writeRoutes) {
+      const operation = document.paths[path]?.[method];
+      expect(operation).toBeDefined();
+      const forbiddenResponse = operation?.responses?.[403] as {
+        description?: string;
+      };
+      expect(forbiddenResponse?.description).toBeDefined();
+      expect(forbiddenResponse?.description).toContain('DOCTOR');
+    }
+  });
+
+  it('documents session status cancellationReason and duration rules in operation description', () => {
+    const document = createOpenApiDocument(app);
+    const operation =
+      document.paths['/training-sessions/{id}/status']?.patch;
+
+    expect(operation?.description).toContain('cancellationReason');
+    expect(operation?.description).toContain('actualDurationSec');
+  });
+
+  it('documents both PERMISSION_NOT_FOUND and USER_NOT_FOUND in PUT user override 404 description', () => {
+    const document = createOpenApiDocument(app);
+    const operation =
+      document.paths['/authorization/users/{userId}/permissions/{permissionCode}']?.put;
+    const notFoundResponse = operation?.responses?.[404] as {
+      description?: string;
+    };
+
+    expect(notFoundResponse?.description).toContain('PERMISSION_NOT_FOUND');
+    expect(notFoundResponse?.description).toContain('USER_NOT_FOUND');
+  });
+
   it('keeps Training request and response schemas aligned with persistence names', () => {
     const schemas = createOpenApiDocument(app).components?.schemas;
     const exercise = schemas?.ExerciseResponseDto as {
       properties?: Record<string, unknown>;
     };
     const sessionUpdate = schemas?.UpdateSessionDto as {
+      properties?: Record<string, unknown>;
+    };
+    const sessionResponse = schemas?.TrainingSessionResponseDto as {
       properties?: Record<string, unknown>;
     };
     const plan = schemas?.TrainingPlanResponseDto as {
@@ -213,6 +266,11 @@ describe('OpenAPI document (e2e)', () => {
     expect(sessionUpdate.properties).not.toHaveProperty('fighterId');
     expect(sessionUpdate.properties).not.toHaveProperty('coachId');
     expect(sessionUpdate.properties).not.toHaveProperty('planId');
+    // Server-owned fields absent from request, present in response
+    expect(sessionUpdate.properties).not.toHaveProperty('actualDurationSec');
+    expect(sessionUpdate.properties).not.toHaveProperty('cancellationReason');
+    expect(sessionResponse.properties).toHaveProperty('actualDurationSec');
+    expect(sessionResponse.properties).toHaveProperty('cancellationReason');
     expect(plan.properties).toHaveProperty('milestones');
     expect(plan.properties).toHaveProperty('progress');
   });

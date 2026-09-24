@@ -1,90 +1,111 @@
 import "server-only";
 
-import type { Notification, NotificationCategory, NotificationSeverity, User } from "@/lib/domain/types";
-import { db, newId, nowIso, simulateLatency } from "@/lib/mocks/db";
+import { z } from "zod";
+
+import { isDemoAuthEnabled } from "@/lib/auth/constants";
+import { authenticatedApiRequest, authenticatedMutableApiRequest, drainAuthenticatedCursorPages } from "@/lib/api/client";
+import type { Notification, NotificationCategory, NotificationSeverity } from "@/lib/domain/types";
+import { isNotFound } from "./api-helpers";
+
+const categorySchema = z.enum(["TRAINING", "AI_ANALYSIS", "AI_ALERT", "FEEDBACK", "MEDICAL", "CLEARANCE", "GOAL", "SYSTEM"]);
+const severitySchema = z.enum(["INFO", "SUCCESS", "WARNING", "DANGER"]);
+const backendNotificationSchema = z.object({
+    id: z.string(),
+    userId: z.string(),
+    category: categorySchema,
+    severity: severitySchema,
+    title: z.string(),
+    body: z.string(),
+    href: z.string().nullable(),
+    createdAt: z.string(),
+    readAt: z.string().nullable(),
+});
+const summarySchema = z.object({
+    unread: z.number().int().nonnegative(),
+    latest: z.array(backendNotificationSchema),
+});
+
+type BackendNotification = z.infer<typeof backendNotificationSchema>;
+
+const categoryFromApi: Record<z.infer<typeof categorySchema>, NotificationCategory> = {
+    TRAINING: "training",
+    AI_ANALYSIS: "ai_analysis",
+    AI_ALERT: "ai_alert",
+    FEEDBACK: "feedback",
+    MEDICAL: "medical",
+    CLEARANCE: "clearance",
+    GOAL: "goal",
+    SYSTEM: "system",
+};
+const categoryToApi: Record<NotificationCategory, keyof typeof categoryFromApi> = {
+    training: "TRAINING",
+    ai_analysis: "AI_ANALYSIS",
+    ai_alert: "AI_ALERT",
+    feedback: "FEEDBACK",
+    medical: "MEDICAL",
+    clearance: "CLEARANCE",
+    goal: "GOAL",
+    system: "SYSTEM",
+};
+const severityFromApi: Record<z.infer<typeof severitySchema>, NotificationSeverity> = {
+    INFO: "info",
+    SUCCESS: "success",
+    WARNING: "warning",
+    DANGER: "danger",
+};
+
+function toNotification(notification: BackendNotification): Notification {
+    return {
+        ...notification,
+        category: categoryFromApi[notification.category],
+        severity: severityFromApi[notification.severity],
+    };
+}
+
+async function demoService(): Promise<typeof import("./notifications.demo")> {
+    return import("./notifications.demo");
+}
 
 export async function listNotifications(
     userId: string,
     filter: { category?: NotificationCategory; unreadOnly?: boolean } = {},
 ): Promise<Notification[]> {
-    await simulateLatency();
-    return db()
-        .notifications.filter(
-            (n) =>
-                n.userId === userId &&
-                (!filter.category || n.category === filter.category) &&
-                (!filter.unreadOnly || n.readAt === null),
-        )
-        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    if (isDemoAuthEnabled()) return (await demoService()).listNotifications(userId, filter);
+    const params = new URLSearchParams();
+    if (filter.category) params.set("category", categoryToApi[filter.category]);
+    if (filter.unreadOnly) params.set("unreadOnly", "true");
+    const query = params.toString();
+    return (await drainAuthenticatedCursorPages(`/notifications${query ? `?${query}` : ""}`, backendNotificationSchema)).map(
+        toNotification,
+    );
 }
 
-/** Unread count and latest items for the header bell. Not delayed: rendered on every page. */
-export function getNotificationSummary(userId: string, limit = 6): { unread: number; latest: Notification[] } {
-    const mine = db()
-        .notifications.filter((n) => n.userId === userId)
-        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-    return { unread: mine.filter((n) => n.readAt === null).length, latest: mine.slice(0, limit) };
+export async function getNotificationSummary(
+    userId: string,
+    limit = 6,
+): Promise<{ unread: number; latest: Notification[] }> {
+    if (isDemoAuthEnabled()) return (await demoService()).getNotificationSummary(userId, limit);
+    const summary = await authenticatedApiRequest(`/notifications/summary?limit=${encodeURIComponent(limit)}`, summarySchema);
+    return { unread: summary.unread, latest: summary.latest.map(toNotification) };
 }
 
-export function markNotificationRead(userId: string, notificationId: string): boolean {
-    const notification = db().notifications.find((n) => n.id === notificationId && n.userId === userId);
-    if (!notification) return false;
-    notification.readAt ??= nowIso();
-    return true;
-}
-
-export function markAllNotificationsRead(userId: string): number {
-    const now = nowIso();
-    let count = 0;
-    for (const n of db().notifications) {
-        if (n.userId === userId && n.readAt === null) {
-            n.readAt = now;
-            count += 1;
-        }
+export async function markNotificationRead(userId: string, notificationId: string): Promise<boolean> {
+    if (isDemoAuthEnabled()) return (await demoService()).markNotificationRead(userId, notificationId);
+    try {
+        await authenticatedMutableApiRequest(`/notifications/${encodeURIComponent(notificationId)}/read`, z.null(), { method: "PATCH" });
+        return true;
+    } catch (error) {
+        if (isNotFound(error)) return false;
+        throw error;
     }
-    return count;
 }
 
-export interface NotifyInput {
-    userIds: string[];
-    category: NotificationCategory;
-    severity?: NotificationSeverity;
-    title: string;
-    body: string;
-    href?: string | null;
-}
-
-/** Creates in-app notifications — used by other services when something relevant happens. */
-export function notifyUsers(input: NotifyInput): Notification[] {
-    const createdAt = nowIso();
-    const created = input.userIds.map<Notification>((userId) => ({
-        id: newId("ntf"),
-        userId,
-        category: input.category,
-        severity: input.severity ?? "info",
-        title: input.title,
-        body: input.body,
-        href: input.href ?? null,
-        createdAt,
-        readAt: null,
-    }));
-    db().notifications.unshift(...created);
-    return created;
-}
-
-/** Resolves user ids for staff assigned to a fighter, optionally filtered by role. */
-export function staffUserIdsForFighter(fighterId: string, roles: User["role"][]): string[] {
-    const store = db();
-    const ids: string[] = [];
-    if (roles.includes("coach")) {
-        ids.push(...store.coaches.filter((c) => c.fighterIds.includes(fighterId)).map((c) => c.userId));
-    }
-    if (roles.includes("doctor")) {
-        ids.push(...store.doctors.filter((d) => d.fighterIds.includes(fighterId)).map((d) => d.userId));
-    }
-    if (roles.includes("fighter")) {
-        const fighter = store.fighters.find((f) => f.id === fighterId);
-        if (fighter) ids.push(fighter.userId);
-    }
-    return ids;
+export async function markAllNotificationsRead(userId: string): Promise<number> {
+    if (isDemoAuthEnabled()) return (await demoService()).markAllNotificationsRead(userId);
+    const result = await authenticatedMutableApiRequest(
+        "/notifications/read-all",
+        z.object({ count: z.number().int().nonnegative() }),
+        { method: "POST" },
+    );
+    return result.count;
 }

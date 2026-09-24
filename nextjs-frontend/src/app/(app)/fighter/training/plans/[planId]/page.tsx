@@ -33,7 +33,7 @@ export default async function FighterPlanPage({ params, searchParams }: PageProp
     const [{ planId }, query] = await Promise.all([params, searchParams]);
     const [data, coachNames] = await Promise.all([loadPlan(planId), getCoachNames()]);
     if (!data || !isVisibleTo(data.plan, user)) notFound();
-    requireFighterAccess(user, data.plan.fighterId);
+    await requireFighterAccess(user, data.plan.fighterId);
 
     const { plan, sessions } = data;
     const now = new Date().toISOString();

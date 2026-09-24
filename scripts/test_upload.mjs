@@ -1,35 +1,27 @@
-import https from "https";
+const supabaseUrl = process.env.SUPABASE_URL;
+const serviceKey = process.env.SUPABASE_SERVICE_KEY;
 
-const SUPABASE_URL = "https://wskisxkpbhisnqfpjqrm.supabase.co";
-const ANON_KEY =
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indza2lzeGtwYmhpc25xZnBqcXJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwOTQ5MDEsImV4cCI6MjEwNDY3MDkwMX0.8v0LcQ_9ySo4XoZC-vaIRD1AzjKjV84qbJw5FCzNjp0";
+if (!supabaseUrl || !serviceKey) {
+    throw new Error("SUPABASE_URL and SUPABASE_SERVICE_KEY are required.");
+}
 
-async function testUpload() {
-    const data = "test data";
-
-    const options = {
-        hostname: "wskisxkpbhisnqfpjqrm.supabase.co",
-        port: 443,
-        path: "/storage/v1/object/videos/uploads/test.txt",
+const objectPath = `integration-checks/${crypto.randomUUID()}.txt`;
+const response = await fetch(
+    `${supabaseUrl}/storage/v1/object/analysis-results/${objectPath}`,
+    {
         method: "POST",
         headers: {
             "Content-Type": "text/plain",
-            apikey: ANON_KEY,
-            Authorization: `Bearer ${ANON_KEY}`,
-            "Content-Length": data.length,
+            apikey: serviceKey,
+            Authorization: `Bearer ${serviceKey}`,
+            "x-upsert": "false",
         },
-    };
+        body: "mma-tms storage integration check",
+    },
+);
 
-    return new Promise((resolve, reject) => {
-        const req = https.request(options, (res) => {
-            let body = "";
-            res.on("data", (chunk) => (body += chunk));
-            res.on("end", () => resolve({ status: res.statusCode, body }));
-        });
-        req.on("error", (e) => reject(e));
-        req.write(data);
-        req.end();
-    });
+if (!response.ok) {
+    throw new Error(`Storage upload failed: HTTP ${response.status}`);
 }
 
-testUpload().then((res) => console.log("Upload:", res.status, res.body));
+console.log(`Private storage upload succeeded: ${objectPath}`);

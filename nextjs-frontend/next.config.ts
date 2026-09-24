@@ -9,6 +9,10 @@ import type { NextConfig } from "next";
  */
 const appRoot = path.resolve(__dirname);
 
+if (process.env.NODE_ENV === "production" && (process.env.APP_DATA_MODE === "demo" || process.env.NEXT_PUBLIC_VIDEO_PIPELINE === "mock")) {
+    throw new Error("Demo and mock pipeline modes are disabled in production builds.");
+}
+
 const nextConfig: NextConfig = {
     output: "standalone",
     outputFileTracingRoot: appRoot,

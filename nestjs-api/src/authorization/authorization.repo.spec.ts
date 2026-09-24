@@ -40,7 +40,7 @@ describe('AuthorizationRepository', () => {
         { id: 'id-2', code: 'fighter:read' },
       ];
       // Spy on the internal DB call
-      vi.spyOn(repo as never, 'findPermissionIdsByCodes').mockResolvedValue(
+      vi.spyOn(repo, 'findPermissionIdsByCodes').mockResolvedValue(
         new Map([
           ['users.profile.read', 'id-1'],
           ['fighter:read', 'id-2'],
@@ -56,7 +56,7 @@ describe('AuthorizationRepository', () => {
 
     it('returns a smaller Map when some codes are missing from catalogue', async () => {
       const repo = makeRepo();
-      vi.spyOn(repo as never, 'findPermissionIdsByCodes').mockResolvedValue(
+      vi.spyOn(repo, 'findPermissionIdsByCodes').mockResolvedValue(
         new Map([['users.profile.read', 'id-1']]),
       );
       const result = await repo.findPermissionIdsByCodes(
@@ -65,6 +65,22 @@ describe('AuthorizationRepository', () => {
       );
       expect(result.size).toBe(1);
       expect(result.has('nonexistent.code')).toBe(false);
+    });
+  });
+
+  describe('isAssignableUser', () => {
+    it('returns true when an active, non-deleted user exists', async () => {
+      const repo = makeRepo();
+      const mockDb = makeDb([{ exists: 1 }]);
+      const result = await repo.isAssignableUser('valid-user-id', mockDb);
+      expect(result).toBe(true);
+    });
+
+    it('returns false when no matching row is returned (nonexistent, inactive, or soft-deleted)', async () => {
+      const repo = makeRepo();
+      const mockDb = makeDb([]);
+      const result = await repo.isAssignableUser('missing-user-id', mockDb);
+      expect(result).toBe(false);
     });
   });
 

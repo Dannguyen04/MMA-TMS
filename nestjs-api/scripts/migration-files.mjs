@@ -14,6 +14,7 @@ export const migrationNames = [
   '004_seed_api_permissions.sql',
   '005_training_management.sql',
   '006_training_permissions.sql',
+  '007_grant_api_permissions_to_admin.sql',
 ];
 export function readVerifiedMigrations() {
   const manifest = JSON.parse(

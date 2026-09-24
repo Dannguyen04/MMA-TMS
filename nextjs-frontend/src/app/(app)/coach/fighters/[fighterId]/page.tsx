@@ -33,13 +33,13 @@ const FEEDBACK_LIMIT = 3;
 
 export async function generateMetadata({ params }: PageProps<"/coach/fighters/[fighterId]">): Promise<Metadata> {
     const user = await requireRole("coach");
-    const fighter = requireFighterAccess(user, (await params).fighterId);
+    const fighter = await requireFighterAccess(user, (await params).fighterId);
     return { title: fighter.name };
 }
 
 export default async function CoachFighterOverviewPage({ params }: PageProps<"/coach/fighters/[fighterId]">) {
     const user = await requireRole("coach");
-    const fighter = requireFighterAccess(user, (await params).fighterId);
+    const fighter = await requireFighterAccess(user, (await params).fighterId);
     const now = new Date().toISOString();
     const ids = [fighter.id];
 

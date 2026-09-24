@@ -71,7 +71,7 @@ export default async function TechniqueDetailPage({ params }: PageProps<"/fighte
     const user = await requireRole("fighter");
     const technique = parseEnum((await params).technique, TECHNIQUES);
     if (!technique || !user.profileId) notFound();
-    const fighter = requireFighterAccess(user, user.profileId);
+    const fighter = await requireFighterAccess(user, user.profileId);
     const label = TECHNIQUE_LABELS[technique];
     const now = new Date().toISOString();
 

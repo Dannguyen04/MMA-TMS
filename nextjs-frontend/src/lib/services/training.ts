@@ -1,16 +1,17 @@
 import "server-only";
 
-import { TRAINING_TYPE_LABELS } from "@/lib/domain/labels";
-import { checkTrainingAgainstClearance, currentClearance, type ClearanceConflict } from "@/lib/domain/rules";
+import { z } from "zod";
+
+import { ApiError, authenticatedApiRequest, authenticatedMutableApiRequest } from "@/lib/api/client";
+import { isDemoAuthEnabled } from "@/lib/auth/constants";
+import type { ClearanceConflict } from "@/lib/domain/rules";
 import type {
-    BodyRegion,
     CoachFeedback,
     Exercise,
     ExerciseCategory,
     FeedbackKind,
     PlanStatus,
     SessionExercise,
-    SessionResult,
     SessionStatus,
     Technique,
     TrainingPhase,
@@ -20,43 +21,346 @@ import type {
     TrainingType,
     User,
 } from "@/lib/domain/types";
-import { academyDayStartIso, DAY_MS, dayKey, formatDateTime } from "@/lib/format";
-import { db, newId, nowIso, simulateLatency } from "@/lib/mocks/db";
-import { weekStart } from "@/lib/mocks/time";
+import { academyDayStartIso, DAY_MS, dayKey } from "@/lib/format";
 import { matchesSearch } from "@/lib/query";
-import { routes } from "@/lib/routes";
-import { recordAudit } from "./audit";
-import { notifyUsers, staffUserIdsForFighter } from "./notifications";
-
-/* ─── Shared helpers ──────────────────────────────────────────────────────── */
-
-const MINUTE_MS = 60_000;
+import { drainNumberedPages, nullIfNotFound } from "./api-helpers";
 
 type FighterScope = string[] | "all";
 
-const inScope = (scope: FighterScope | undefined, fighterId: string) =>
-    scope === undefined || scope === "all" || scope.includes(fighterId);
+const demoService = () => import("./training.demo");
 
-function fighterName(fighterId: string): string {
-    return db().fighters.find((f) => f.id === fighterId)?.name ?? "Unknown fighter";
+const isoDateSchema = z.string().min(1);
+const nullableTextSchema = z.string().nullable();
+const techniqueSchema = z.enum(["jab", "cross", "hook", "kick", "combination", "footwork", "guard", "head_movement"]);
+const bodyRegionSchema = z.enum([
+    "head",
+    "neck",
+    "left_shoulder",
+    "right_shoulder",
+    "left_elbow",
+    "right_elbow",
+    "left_hand",
+    "right_hand",
+    "chest",
+    "ribs",
+    "lower_back",
+    "left_hip",
+    "right_hip",
+    "left_hamstring",
+    "right_hamstring",
+    "left_knee",
+    "right_knee",
+    "left_shin",
+    "right_shin",
+    "left_ankle",
+    "right_ankle",
+]);
+
+const backendPlanSchema = z.object({
+    id: z.string(),
+    fighterId: z.string(),
+    coachId: z.string(),
+    title: z.string(),
+    description: nullableTextSchema,
+    startDate: isoDateSchema,
+    endDate: isoDateSchema.nullable(),
+    status: z.enum(["DRAFT", "ACTIVE", "COMPLETED", "CANCELLED"]),
+    goals: nullableTextSchema,
+    milestones: z.array(z.unknown()),
+    isActive: z.boolean(),
+    createdAt: isoDateSchema,
+    updatedAt: isoDateSchema,
+    deletedAt: isoDateSchema.nullable(),
+    progress: z.unknown().optional(),
+    phase: z.enum(["base", "build", "fight_camp", "taper", "rehab", "maintenance"]).optional(),
+    focusAreas: z.array(techniqueSchema).optional(),
+    weeklySessionTarget: z.number().int().positive().optional(),
+});
+
+const backendSessionSchema = z.object({
+    id: z.string(),
+    fighterId: z.string(),
+    coachId: z.string().nullable(),
+    planId: z.string().nullable(),
+    title: z.string(),
+    scheduledAt: isoDateSchema,
+    plannedDurationSec: z.number().int().positive().nullable(),
+    actualDurationSec: z.number().int().positive().nullable(),
+    roundCount: z.number().int().nonnegative(),
+    location: nullableTextSchema,
+    sessionType: z.enum([
+        "SHADOW_BOXING",
+        "PAD_WORK",
+        "HEAVY_BAG",
+        "SPARRING",
+        "GRAPPLING",
+        "STRENGTH_CONDITIONING",
+        "RECOVERY",
+        "PHYSICAL_THERAPY",
+        "TECHNICAL_DRILLING",
+        "RECOVERY_MOBILITY",
+    ]),
+    status: z.enum(["SCHEDULED", "IN_PROGRESS", "COMPLETED", "SKIPPED", "CANCELLED", "ABANDONED"]),
+    coachNotes: nullableTextSchema,
+    cancellationReason: nullableTextSchema,
+    checkedInAt: isoDateSchema.nullable(),
+    completedAt: isoDateSchema.nullable(),
+    abandonedAt: isoDateSchema.nullable(),
+    skippedAt: isoDateSchema.nullable(),
+    reportedRpe: z.number().int().min(1).max(10).nullable(),
+    isActive: z.boolean(),
+    createdAt: isoDateSchema,
+    updatedAt: isoDateSchema,
+    deletedAt: isoDateSchema.nullable(),
+    cancelledAt: isoDateSchema.nullable(),
+    targetRpe: z.number().int().min(1).max(10).optional(),
+    exercises: z
+        .array(
+            z.object({
+                exerciseId: z.string(),
+                rounds: z.number().int().positive().nullable(),
+                roundSec: z.number().int().positive().nullable(),
+                sets: z.number().int().positive().nullable(),
+                reps: z.number().int().positive().nullable(),
+                notes: z.string().nullable(),
+                completed: z.boolean(),
+            }),
+        )
+        .optional(),
+    videoIds: z.array(z.string()).optional(),
+    coachRating: z.number().int().min(1).max(5).nullable().optional(),
+    resultSummary: z.string().nullable().optional(),
+});
+
+const backendExerciseSchema = z.object({
+    id: z.string(),
+    name: z.string(),
+    description: nullableTextSchema,
+    category: z.enum(["STRIKING", "DEFENSE", "FOOTWORK", "GRAPPLING", "STRENGTH_CONDITIONING", "STRENGTH", "RECOVERY", "MOBILITY"]),
+    targetMuscleGroups: z.array(z.string()),
+    videoUrl: nullableTextSchema,
+    thumbnailUrl: nullableTextSchema,
+    isActive: z.boolean(),
+    createdAt: isoDateSchema,
+    updatedAt: isoDateSchema,
+    deletedAt: isoDateSchema.nullable(),
+    techniques: z.array(techniqueSchema).optional(),
+    intensity: z.enum(["low", "moderate", "high"]).optional(),
+    equipment: z.array(z.string()).optional(),
+    defaultRounds: z.number().int().positive().nullable().optional(),
+    defaultRoundSec: z.number().int().positive().nullable().optional(),
+    defaultSets: z.number().int().positive().nullable().optional(),
+    defaultReps: z.number().int().positive().nullable().optional(),
+    loadsRegions: z.array(bodyRegionSchema).optional(),
+});
+
+const backendFeedbackSchema = z.object({
+    id: z.string().uuid(),
+    fighterId: z.string().uuid(),
+    coachId: z.string().uuid(),
+    sessionId: z.string().uuid().nullable(),
+    videoId: z.string().uuid().nullable(),
+    kind: z.enum(["PRAISE", "CORRECTION", "NOTE"]),
+    body: z.string(),
+    techniques: z.array(techniqueSchema),
+    createdAt: isoDateSchema,
+});
+
+type BackendPlan = z.infer<typeof backendPlanSchema>;
+type BackendSession = z.infer<typeof backendSessionSchema>;
+type BackendExercise = z.infer<typeof backendExerciseSchema>;
+type BackendFeedback = z.infer<typeof backendFeedbackSchema>;
+
+const planStatusFromApi: Record<BackendPlan["status"], PlanStatus> = {
+    DRAFT: "draft",
+    ACTIVE: "active",
+    COMPLETED: "completed",
+    CANCELLED: "archived",
+};
+const planStatusToApi: Record<PlanStatus, BackendPlan["status"]> = {
+    draft: "DRAFT",
+    active: "ACTIVE",
+    completed: "COMPLETED",
+    archived: "CANCELLED",
+};
+const sessionStatusFromApi: Record<BackendSession["status"], SessionStatus> = {
+    SCHEDULED: "scheduled",
+    IN_PROGRESS: "in_progress",
+    COMPLETED: "completed",
+    SKIPPED: "missed",
+    CANCELLED: "cancelled",
+    ABANDONED: "cancelled",
+};
+const sessionStatusToApi: Record<SessionStatus, BackendSession["status"]> = {
+    scheduled: "SCHEDULED",
+    in_progress: "IN_PROGRESS",
+    completed: "COMPLETED",
+    missed: "SKIPPED",
+    cancelled: "CANCELLED",
+};
+const trainingTypeFromApi: Record<BackendSession["sessionType"], TrainingType> = {
+    SHADOW_BOXING: "shadow_boxing",
+    PAD_WORK: "pad_work",
+    HEAVY_BAG: "heavy_bag",
+    SPARRING: "sparring",
+    GRAPPLING: "grappling",
+    STRENGTH_CONDITIONING: "strength_conditioning",
+    RECOVERY: "recovery_mobility",
+    PHYSICAL_THERAPY: "recovery_mobility",
+    TECHNICAL_DRILLING: "technical_drilling",
+    RECOVERY_MOBILITY: "recovery_mobility",
+};
+const trainingTypeToApi: Record<TrainingType, BackendSession["sessionType"]> = {
+    shadow_boxing: "SHADOW_BOXING",
+    pad_work: "PAD_WORK",
+    heavy_bag: "HEAVY_BAG",
+    sparring: "SPARRING",
+    grappling: "GRAPPLING",
+    strength_conditioning: "STRENGTH_CONDITIONING",
+    recovery_mobility: "RECOVERY",
+    technical_drilling: "TECHNICAL_DRILLING",
+};
+const exerciseCategoryFromApi: Record<BackendExercise["category"], ExerciseCategory> = {
+    STRIKING: "striking",
+    DEFENSE: "defense",
+    FOOTWORK: "footwork",
+    GRAPPLING: "grappling",
+    STRENGTH_CONDITIONING: "conditioning",
+    STRENGTH: "strength",
+    RECOVERY: "mobility",
+    MOBILITY: "mobility",
+};
+
+function unsupported(operation: string, detail: string): never {
+    throw new ApiError({
+        message: `${operation} is unavailable because the backend does not yet support ${detail}.`,
+        kind: "http",
+        status: 501,
+        code: "API_OPERATION_UNSUPPORTED",
+        details: { operation, missingCapability: detail },
+    });
 }
 
-function fighterUserIds(fighterId: string): string[] {
-    return staffUserIdsForFighter(fighterId, ["fighter"]);
+/**
+ * The API filters by a single fighter, so scoped reads fan out one request per fighter and merge
+ * the results by id. An empty scope reads nothing.
+ */
+async function readPerFighter<T extends { id: string }>(
+    scope: FighterScope | undefined,
+    read: (fighterId: string | undefined) => Promise<T[]>,
+): Promise<T[]> {
+    if (Array.isArray(scope) && scope.length === 0) return [];
+    const pages = await Promise.all((Array.isArray(scope) ? scope : [undefined]).map(read));
+    return [...new Map(pages.flat().map((item) => [item.id, item])).values()];
 }
 
-function coachUserId(coachId: string): string | null {
-    return db().coaches.find((c) => c.id === coachId)?.userId ?? null;
+function toPlan(plan: BackendPlan): TrainingPlan {
+    if (plan.phase === undefined || plan.focusAreas === undefined || plan.weeklySessionTarget === undefined || plan.endDate === null) {
+        unsupported("Reading a training plan", "phase, focus areas, weekly target, and end-date fields");
+    }
+    return {
+        id: plan.id,
+        title: plan.title,
+        fighterId: plan.fighterId,
+        coachId: plan.coachId,
+        objective: plan.goals ?? "",
+        phase: plan.phase,
+        focusAreas: plan.focusAreas,
+        startDate: plan.startDate,
+        endDate: plan.endDate,
+        weeklySessionTarget: plan.weeklySessionTarget,
+        status: planStatusFromApi[plan.status],
+        notes: plan.description ?? "",
+        createdAt: plan.createdAt,
+        updatedAt: plan.updatedAt,
+    };
 }
 
-/** User ids of the given people, excluding the actor (nobody is notified about their own change). */
-function recipients(ids: (string | null)[], actor: User): string[] {
-    return [...new Set(ids.filter((id): id is string => id !== null && id !== actor.id))];
+function toSession(session: BackendSession): TrainingSession {
+    const completed = session.status === "COMPLETED" && session.completedAt !== null;
+    if (
+        session.coachId === null ||
+        session.plannedDurationSec === null ||
+        session.targetRpe === undefined ||
+        session.exercises === undefined ||
+        session.videoIds === undefined
+    ) {
+        unsupported("Reading a training session", "coach, planned duration, target RPE, exercises, and video-link fields");
+    }
+    if (
+        completed &&
+        (session.actualDurationSec === null ||
+            session.reportedRpe === null ||
+            session.coachRating === undefined ||
+            session.coachRating === null ||
+            session.resultSummary === undefined)
+    ) {
+        unsupported("Reading a completed training session", "duration, RPE, coach rating, and result-summary fields");
+    }
+    return {
+        id: session.id,
+        planId: session.planId,
+        fighterId: session.fighterId,
+        coachId: session.coachId,
+        title: session.title,
+        type: trainingTypeFromApi[session.sessionType],
+        scheduledAt: session.scheduledAt,
+        durationMin: Math.max(1, Math.round(session.plannedDurationSec / 60)),
+        location: session.location ?? "",
+        targetRpe: session.targetRpe,
+        status: sessionStatusFromApi[session.status],
+        exercises: session.exercises,
+        result: completed
+            ? {
+                  completedAt: session.completedAt!,
+                  actualDurationMin: Math.max(1, Math.round(session.actualDurationSec! / 60)),
+                  rpe: session.reportedRpe!,
+                  roundsCompleted: session.roundCount,
+                  coachRating: session.coachRating!,
+                  summary: session.resultSummary ?? "",
+              }
+            : null,
+        videoIds: session.videoIds,
+        cancellationReason: session.cancellationReason,
+        notes: session.coachNotes,
+    };
 }
 
-const unique = <T>(items: T[]): T[] => [...new Set(items)];
+function toExercise(exercise: BackendExercise): Exercise {
+    if (
+        exercise.techniques === undefined ||
+        exercise.intensity === undefined ||
+        exercise.equipment === undefined ||
+        exercise.defaultRounds === undefined ||
+        exercise.defaultRoundSec === undefined ||
+        exercise.defaultSets === undefined ||
+        exercise.defaultReps === undefined ||
+        exercise.loadsRegions === undefined
+    ) {
+        unsupported("Reading an exercise", "technique, intensity, equipment, default prescription, and body-load fields");
+    }
+    return {
+        id: exercise.id,
+        name: exercise.name,
+        category: exerciseCategoryFromApi[exercise.category],
+        description: exercise.description ?? "",
+        techniques: exercise.techniques,
+        intensity: exercise.intensity,
+        equipment: exercise.equipment,
+        defaultRounds: exercise.defaultRounds,
+        defaultRoundSec: exercise.defaultRoundSec,
+        defaultSets: exercise.defaultSets,
+        defaultReps: exercise.defaultReps,
+        loadsRegions: exercise.loadsRegions,
+    };
+}
 
-/* ─── Exercises ───────────────────────────────────────────────────────────── */
+function toFeedback(feedback: BackendFeedback): CoachFeedback {
+    return {
+        ...feedback,
+        kind: feedback.kind.toLowerCase() as FeedbackKind,
+    };
+}
 
 export interface ExerciseFilter {
     category?: ExerciseCategory;
@@ -64,25 +368,13 @@ export interface ExerciseFilter {
     search?: string;
 }
 
-const CATEGORY_ORDER: ExerciseCategory[] = ["striking", "defense", "footwork", "grappling", "conditioning", "strength", "mobility"];
-
-/** Exercise library, ordered by category then name. */
 export async function listExercises(filter: ExerciseFilter = {}): Promise<Exercise[]> {
-    await simulateLatency();
-    return db()
-        .exercises.filter(
-            (e) =>
-                (!filter.category || e.category === filter.category) &&
-                (!filter.technique || e.techniques.includes(filter.technique)) &&
-                matchesSearch(filter.search, e.name, e.description, e.equipment.join(" ")),
-        )
-        .sort(
-            (a, b) =>
-                CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category) || a.name.localeCompare(b.name),
-        );
+    if (isDemoAuthEnabled()) return (await demoService()).listExercises(filter);
+    const exercises = (await drainNumberedPages("/exercises", backendExerciseSchema, { search: filter.search })).map(toExercise);
+    return exercises
+        .filter((exercise) => (!filter.category || exercise.category === filter.category) && (!filter.technique || exercise.techniques.includes(filter.technique)))
+        .sort((left, right) => left.category.localeCompare(right.category) || left.name.localeCompare(right.name));
 }
-
-/* ─── Training plans ──────────────────────────────────────────────────────── */
 
 export interface PlanFilter {
     /** Fighters the viewer may see (from `accessibleFighterIds`). Omit for all. */
@@ -92,30 +384,28 @@ export interface PlanFilter {
     search?: string;
 }
 
-const PLAN_STATUS_ORDER: PlanStatus[] = ["active", "draft", "completed", "archived"];
-
-/** Plans ordered by status (active first) then most recent start date. */
-export async function listPlans(filter: PlanFilter = {}): Promise<TrainingPlan[]> {
-    await simulateLatency();
-    return db()
-        .trainingPlans.filter(
-            (p) =>
-                inScope(filter.fighterIds, p.fighterId) &&
-                (!filter.coachId || p.coachId === filter.coachId) &&
-                (!filter.status || p.status === filter.status) &&
-                matchesSearch(filter.search, p.title, p.objective, fighterName(p.fighterId)),
-        )
-        .sort(
-            (a, b) =>
-                PLAN_STATUS_ORDER.indexOf(a.status) - PLAN_STATUS_ORDER.indexOf(b.status) ||
-                b.startDate.localeCompare(a.startDate),
-        );
+function listBackendPlans(filter: PlanFilter): Promise<BackendPlan[]> {
+    return readPerFighter(filter.fighterIds, (fighterId) =>
+        drainNumberedPages("/training-plans", backendPlanSchema, {
+            fighterId,
+            coachId: filter.coachId,
+            status: filter.status ? planStatusToApi[filter.status] : undefined,
+        }),
+    );
 }
 
-/** A single plan, or null when it doesn't exist. */
+export async function listPlans(filter: PlanFilter = {}): Promise<TrainingPlan[]> {
+    if (isDemoAuthEnabled()) return (await demoService()).listPlans(filter);
+    return (await listBackendPlans(filter))
+        .map(toPlan)
+        .filter((plan) => matchesSearch(filter.search, plan.title, plan.objective, plan.notes))
+        .sort((left, right) => right.startDate.localeCompare(left.startDate));
+}
+
 export async function getPlan(id: string): Promise<TrainingPlan | null> {
-    await simulateLatency(0.5);
-    return db().trainingPlans.find((p) => p.id === id) ?? null;
+    if (isDemoAuthEnabled()) return (await demoService()).getPlan(id);
+    const plan = await nullIfNotFound(authenticatedApiRequest(`/training-plans/${encodeURIComponent(id)}`, backendPlanSchema));
+    return plan && toPlan(plan);
 }
 
 export interface PlanWithSessions {
@@ -124,16 +414,11 @@ export interface PlanWithSessions {
     sessions: TrainingSession[];
 }
 
-/** A plan with its linked sessions, or null when the plan doesn't exist. */
 export async function getPlanWithSessions(id: string): Promise<PlanWithSessions | null> {
-    await simulateLatency();
-    const store = db();
-    const plan = store.trainingPlans.find((p) => p.id === id);
+    if (isDemoAuthEnabled()) return (await demoService()).getPlanWithSessions(id);
+    const plan = await getPlan(id);
     if (!plan) return null;
-    const sessions = store.trainingSessions
-        .filter((s) => s.planId === id)
-        .sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt));
-    return { plan, sessions };
+    return { plan, sessions: await listSessions({ planId: id }) };
 }
 
 export interface PlanInput {
@@ -154,109 +439,43 @@ export interface PlanInput {
 /** Fields a coach can edit after creation. The fighter and status are changed through their own flows. */
 export type PlanUpdateInput = Partial<Omit<PlanInput, "fighterId" | "status">>;
 
-function notifyPlanActivated(plan: TrainingPlan, actor: User): void {
-    const userIds = recipients(fighterUserIds(plan.fighterId), actor);
-    if (userIds.length === 0) return;
-    notifyUsers({
-        userIds,
-        category: "training",
-        title: "New training plan",
-        body: `${plan.title} is now active. Objective: ${plan.objective}`,
-        href: routes.fighter.plan(plan.id),
-    });
-}
-
-/** Creates a training plan and tells the fighter when it is published as active. */
 export async function createPlan(input: PlanInput, actor: User): Promise<TrainingPlan> {
-    const now = nowIso();
-    const plan: TrainingPlan = {
-        id: newId("tp"),
-        title: input.title.trim(),
-        fighterId: input.fighterId,
-        coachId: input.coachId,
-        objective: input.objective.trim(),
-        phase: input.phase,
-        focusAreas: unique(input.focusAreas),
-        startDate: input.startDate,
-        endDate: input.endDate,
-        weeklySessionTarget: input.weeklySessionTarget,
-        status: input.status ?? "draft",
-        notes: input.notes.trim(),
-        createdAt: now,
-        updatedAt: now,
-    };
-    db().trainingPlans.unshift(plan);
-    recordAudit({
-        actor,
-        action: "training_plan.create",
-        resourceType: "training_plan",
-        resourceId: plan.id,
-        resourceLabel: `${fighterName(plan.fighterId)} — ${plan.title}`,
-        details: `Status ${plan.status}, phase ${plan.phase}`,
-    });
-    if (plan.status === "active") notifyPlanActivated(plan, actor);
-    return plan;
+    if (isDemoAuthEnabled()) return (await demoService()).createPlan(input, actor);
+    unsupported("Creating a training plan", "phase, focus-area, and weekly-target persistence");
 }
 
-/** Updates plan details. Returns null when the plan doesn't exist. */
 export async function updatePlan(id: string, input: PlanUpdateInput, actor: User): Promise<TrainingPlan | null> {
-    const plan = db().trainingPlans.find((p) => p.id === id);
-    if (!plan) return null;
-    const changed = (Object.keys(input) as (keyof PlanUpdateInput)[]).filter((key) => input[key] !== undefined);
-    if (input.title !== undefined) plan.title = input.title.trim();
-    if (input.coachId !== undefined) plan.coachId = input.coachId;
-    if (input.objective !== undefined) plan.objective = input.objective.trim();
-    if (input.phase !== undefined) plan.phase = input.phase;
-    if (input.focusAreas !== undefined) plan.focusAreas = unique(input.focusAreas);
-    if (input.startDate !== undefined) plan.startDate = input.startDate;
-    if (input.endDate !== undefined) plan.endDate = input.endDate;
-    if (input.weeklySessionTarget !== undefined) plan.weeklySessionTarget = input.weeklySessionTarget;
-    if (input.notes !== undefined) plan.notes = input.notes.trim();
-    plan.updatedAt = nowIso();
-    recordAudit({
-        actor,
-        action: "training_plan.update",
-        resourceType: "training_plan",
-        resourceId: plan.id,
-        resourceLabel: `${fighterName(plan.fighterId)} — ${plan.title}`,
-        details: changed.length > 0 ? `Changed: ${changed.join(", ")}` : null,
-    });
-    if (plan.status === "active") {
-        const userIds = recipients(fighterUserIds(plan.fighterId), actor);
-        if (userIds.length > 0) {
-            notifyUsers({
-                userIds,
-                category: "training",
-                title: "Training plan updated",
-                body: `${plan.title} was updated by ${actor.name}.`,
-                href: routes.fighter.plan(plan.id),
-            });
-        }
+    if (isDemoAuthEnabled()) return (await demoService()).updatePlan(id, input, actor);
+    if (input.phase !== undefined || input.focusAreas !== undefined || input.weeklySessionTarget !== undefined || input.coachId !== undefined) {
+        unsupported("Updating a training plan", "phase, focus-area, weekly-target, and coach reassignment persistence");
     }
-    return plan;
+    const body = {
+        ...(input.title !== undefined ? { title: input.title.trim() } : {}),
+        ...(input.objective !== undefined ? { goals: input.objective.trim() || null } : {}),
+        ...(input.notes !== undefined ? { description: input.notes.trim() || null } : {}),
+        ...(input.startDate !== undefined ? { startDate: input.startDate } : {}),
+        ...(input.endDate !== undefined ? { endDate: input.endDate || null } : {}),
+    };
+    if (Object.keys(body).length === 0) return getPlan(id);
+    const plan = await nullIfNotFound(
+        authenticatedMutableApiRequest(`/training-plans/${encodeURIComponent(id)}`, backendPlanSchema, {
+            method: "PATCH",
+            body: JSON.stringify(body),
+        }),
+    );
+    return plan && toPlan(plan);
 }
 
-/** Moves a plan through draft → active → completed/archived. Returns null when the plan doesn't exist. */
 export async function setPlanStatus(id: string, status: PlanStatus, actor: User): Promise<TrainingPlan | null> {
-    const plan = db().trainingPlans.find((p) => p.id === id);
-    if (!plan) return null;
-    if (plan.status === status) return plan;
-    const previous = plan.status;
-    plan.status = status;
-    plan.updatedAt = nowIso();
-    recordAudit({
-        actor,
-        action: "training_plan.status_change",
-        resourceType: "training_plan",
-        resourceId: plan.id,
-        resourceLabel: `${fighterName(plan.fighterId)} — ${plan.title}`,
-        details: `${previous} → ${status}`,
-    });
-    if (status === "active") notifyPlanActivated(plan, actor);
-    return plan;
+    if (isDemoAuthEnabled()) return (await demoService()).setPlanStatus(id, status, actor);
+    const plan = await nullIfNotFound(
+        authenticatedMutableApiRequest(`/training-plans/${encodeURIComponent(id)}/status`, backendPlanSchema, {
+            method: "PATCH",
+            body: JSON.stringify({ status: planStatusToApi[status] }),
+        }),
+    );
+    return plan && toPlan(plan);
 }
-
-/* ─── Training sessions ───────────────────────────────────────────────────── */
 
 export interface SessionFilter {
     /** Fighters the viewer may see (from `accessibleFighterIds`). Omit for all. */
@@ -274,73 +493,66 @@ export interface SessionFilter {
     order?: "asc" | "desc";
 }
 
-const toUtcIso = (value: string) => new Date(value).toISOString();
-
-/** Normalises an optional date bound from a URL or form; unparseable values are ignored. */
-function parseBound(value: string | undefined): string | null {
-    const ms = value ? Date.parse(value) : Number.NaN;
-    return Number.isNaN(ms) ? null : new Date(ms).toISOString();
+function validIso(value: string | undefined): string | undefined {
+    if (!value || Number.isNaN(Date.parse(value))) return undefined;
+    return new Date(value).toISOString();
 }
 
-/** Sessions matching the filter, sorted by scheduled time. */
+function listBackendSessions(filter: SessionFilter): Promise<BackendSession[]> {
+    const statuses = filter.status === undefined ? [undefined] : Array.isArray(filter.status) ? filter.status : [filter.status];
+    return readPerFighter(filter.fighterIds, async (fighterId) => {
+        const pages = await Promise.all(
+            statuses.map((status) =>
+                drainNumberedPages("/training-sessions", backendSessionSchema, {
+                    fighterId,
+                    coachId: filter.coachId,
+                    planId: filter.planId,
+                    status: status ? sessionStatusToApi[status] : undefined,
+                    sessionType: filter.type ? trainingTypeToApi[filter.type] : undefined,
+                    fromDate: validIso(filter.from),
+                    toDate: validIso(filter.to),
+                }),
+            ),
+        );
+        return pages.flat();
+    });
+}
+
 export async function listSessions(filter: SessionFilter = {}): Promise<TrainingSession[]> {
-    await simulateLatency();
-    const statuses = filter.status === undefined ? null : Array.isArray(filter.status) ? filter.status : [filter.status];
-    const from = parseBound(filter.from);
-    const to = parseBound(filter.to);
+    if (isDemoAuthEnabled()) return (await demoService()).listSessions(filter);
     const direction = filter.order === "desc" ? -1 : 1;
-    return db()
-        .trainingSessions.filter(
-            (s) =>
-                inScope(filter.fighterIds, s.fighterId) &&
-                (!filter.coachId || s.coachId === filter.coachId) &&
-                (!filter.planId || s.planId === filter.planId) &&
-                (!statuses || statuses.includes(s.status)) &&
-                (!filter.type || s.type === filter.type) &&
-                (!from || s.scheduledAt >= from) &&
-                (!to || s.scheduledAt <= to) &&
-                matchesSearch(filter.search, s.title, s.location, fighterName(s.fighterId)),
-        )
-        .sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt) * direction);
+    return (await listBackendSessions(filter))
+        .map(toSession)
+        .filter((session) => matchesSearch(filter.search, session.title, session.location, session.notes))
+        .sort((left, right) => left.scheduledAt.localeCompare(right.scheduledAt) * direction);
 }
 
-/** A single session, or null when it doesn't exist. */
 export async function getSession(id: string): Promise<TrainingSession | null> {
-    await simulateLatency(0.5);
-    return db().trainingSessions.find((s) => s.id === id) ?? null;
+    if (isDemoAuthEnabled()) return (await demoService()).getSession(id);
+    const session = await nullIfNotFound(authenticatedApiRequest(`/training-sessions/${encodeURIComponent(id)}`, backendSessionSchema));
+    return session && toSession(session);
 }
 
-/** Next scheduled (or currently running) sessions, soonest first. */
 export async function getUpcomingSessions(fighterIds: FighterScope, limit = 5): Promise<TrainingSession[]> {
-    await simulateLatency();
+    if (isDemoAuthEnabled()) return (await demoService()).getUpcomingSessions(fighterIds, limit);
     const now = Date.now();
-    return db()
-        .trainingSessions.filter(
-            (s) =>
-                inScope(fighterIds, s.fighterId) &&
-                (s.status === "scheduled" || s.status === "in_progress") &&
-                Date.parse(s.scheduledAt) + s.durationMin * MINUTE_MS >= now,
-        )
-        .sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt))
+    return (await listSessions({ fighterIds, status: ["scheduled", "in_progress"] }))
+        .filter((session) => Date.parse(session.scheduledAt) + session.durationMin * 60_000 >= now)
         .slice(0, limit);
 }
 
-const HISTORY_STATUSES: SessionStatus[] = ["completed", "missed", "cancelled"];
-
-/** A fighter's past sessions (completed, missed or cancelled), most recent first. */
 export async function getSessionHistory(fighterId: string, limit?: number): Promise<TrainingSession[]> {
-    await simulateLatency();
-    const now = nowIso();
-    const history = db()
-        .trainingSessions.filter(
-            (s) => s.fighterId === fighterId && s.scheduledAt <= now && HISTORY_STATUSES.includes(s.status),
-        )
-        .sort((a, b) => b.scheduledAt.localeCompare(a.scheduledAt));
+    if (isDemoAuthEnabled()) return (await demoService()).getSessionHistory(fighterId, limit);
+    const history = await listSessions({
+        fighterIds: [fighterId],
+        status: ["completed", "missed", "cancelled"],
+        to: new Date().toISOString(),
+        order: "desc",
+    });
     return limit === undefined ? history : history.slice(0, limit);
 }
 
 export type SessionExerciseInput = Omit<SessionExercise, "completed">;
-
 export interface SessionInput {
     fighterId: string;
     coachId: string;
@@ -357,10 +569,8 @@ export interface SessionInput {
     /** The coach has read the clearance warnings and schedules anyway. Blocking conflicts can never be overridden. */
     acknowledgeWarnings?: boolean;
 }
-
 /** Sessions stay with the fighter they were created for. */
 export type SessionUpdateInput = Omit<SessionInput, "fighterId">;
-
 export interface SessionResultInput {
     actualDurationMin: number;
     /** Session RPE reported by the fighter, 1–10. */
@@ -374,426 +584,74 @@ export interface SessionResultInput {
     /** Exercises that were finished. Defaults to every exercise in the session. */
     completedExerciseIds?: string[];
 }
-
 export type SessionFailureReason = "not_found" | "invalid" | "invalid_state" | "blocked" | "warnings_not_acknowledged";
-
 export type SessionMutationResult =
     | { ok: true; session: TrainingSession; conflicts: ClearanceConflict[] }
     | { ok: false; reason: SessionFailureReason; message: string; conflicts: ClearanceConflict[] };
-
 type PlannedSession = Pick<SessionInput, "fighterId" | "type" | "targetRpe" | "exercises" | "scheduledAt">;
 
-/**
- * Checks planned training against the fighter's current Medical Clearance, using the techniques and
- * loaded body regions of the session's exercises. Evaluated at the session time (or now, for past times)
- * so a clearance that lapses before the session is caught. Use it to preview conflicts in forms.
- */
-export function getSessionClearanceConflicts(planned: PlannedSession): ClearanceConflict[] {
-    const store = db();
-    const exercises = planned.exercises
-        .map((item) => store.exercises.find((e) => e.id === item.exerciseId))
-        .filter((e): e is Exercise => e !== undefined);
-    const scheduledMs = Date.parse(planned.scheduledAt);
-    const evaluatedAt = new Date(Number.isNaN(scheduledMs) ? Date.now() : Math.max(Date.now(), scheduledMs));
-    return checkTrainingAgainstClearance(
-        {
-            type: planned.type,
-            targetRpe: planned.targetRpe,
-            techniques: unique<Technique>(exercises.flatMap((e) => e.techniques)),
-            loadsRegions: unique<BodyRegion>(exercises.flatMap((e) => e.loadsRegions)),
-        },
-        currentClearance(store.medicalClearances, planned.fighterId),
-        evaluatedAt,
-    );
+/** Planned training checked against the fighter's Medical Clearance. The API has no endpoint for it yet. */
+export async function loadSessionClearanceConflicts(planned: PlannedSession): Promise<ClearanceConflict[]> {
+    if (isDemoAuthEnabled()) return (await demoService()).getSessionClearanceConflicts(planned);
+    unsupported("Previewing a training session", "the authenticated clearance-conflict endpoint");
 }
-
-/** Referential checks the form schema can't do. Returns an error message or null. */
-function validateSessionInput(input: SessionUpdateInput, fighterId: string): string | null {
-    const store = db();
-    if (!store.fighters.some((f) => f.id === fighterId)) return "That fighter no longer exists.";
-    if (!store.coaches.some((c) => c.id === input.coachId)) return "Choose a coach for this session.";
-    if (input.planId) {
-        const plan = store.trainingPlans.find((p) => p.id === input.planId);
-        if (!plan || plan.fighterId !== fighterId) return "The selected training plan doesn't belong to this fighter.";
-    }
-    if (Number.isNaN(Date.parse(input.scheduledAt))) return "Enter a valid date and time.";
-    if (!Number.isInteger(input.targetRpe) || input.targetRpe < 1 || input.targetRpe > 10) {
-        return "Target RPE must be a whole number from 1 to 10.";
-    }
-    if (input.durationMin <= 0) return "Duration must be longer than 0 minutes.";
-    const unknown = input.exercises.find((item) => !store.exercises.some((e) => e.id === item.exerciseId));
-    if (unknown) return `Exercise ${unknown.exerciseId} is not in the library.`;
-    return null;
-}
-
-/** Blocks are never overridable; warnings need explicit acknowledgement. */
-function clearanceGate(
-    conflicts: ClearanceConflict[],
-    acknowledged: boolean,
-): Extract<SessionMutationResult, { ok: false }> | null {
-    if (conflicts.some((c) => c.severity === "block")) {
-        return {
-            ok: false,
-            reason: "blocked",
-            message: "This session conflicts with the fighter's Medical Clearance and can't be scheduled as planned.",
-            conflicts,
-        };
-    }
-    if (conflicts.length > 0 && !acknowledged) {
-        return {
-            ok: false,
-            reason: "warnings_not_acknowledged",
-            message: "Review the Medical Clearance warnings and confirm to schedule this session anyway.",
-            conflicts,
-        };
-    }
-    return null;
-}
-
-const sessionLabel = (session: Pick<TrainingSession, "fighterId" | "title">) =>
-    `${fighterName(session.fighterId)} — ${session.title}`;
-
-const conflictSummary = (conflicts: ClearanceConflict[]) => conflicts.map((c) => c.message).join(" ");
-
-/** Doctors are told when a coach schedules training over clearance warnings. */
-function notifyDoctorsOfWarnings(session: TrainingSession, conflicts: ClearanceConflict[], actor: User): void {
-    const userIds = recipients(staffUserIdsForFighter(session.fighterId, ["doctor"]), actor);
-    if (conflicts.length === 0 || userIds.length === 0) return;
-    notifyUsers({
-        userIds,
-        category: "clearance",
-        severity: "warning",
-        title: "Session scheduled with clearance warnings",
-        body: `${actor.name} scheduled ${session.title} for ${fighterName(session.fighterId)} on ${formatDateTime(session.scheduledAt)}. ${conflictSummary(conflicts)}`,
-        href: routes.doctor.fighter(session.fighterId),
-    });
-}
-
-type EditableSessionFields = Pick<
-    TrainingSession,
-    "planId" | "coachId" | "title" | "type" | "scheduledAt" | "durationMin" | "location" | "targetRpe" | "exercises" | "notes"
->;
-
-function editableSessionFields(input: SessionUpdateInput): EditableSessionFields {
-    return {
-        planId: input.planId,
-        coachId: input.coachId,
-        title: input.title.trim(),
-        type: input.type,
-        scheduledAt: toUtcIso(input.scheduledAt),
-        durationMin: input.durationMin,
-        location: input.location.trim(),
-        targetRpe: input.targetRpe,
-        exercises: input.exercises.map((e) => ({ ...e, completed: false })),
-        notes: input.notes?.trim() || null,
-    };
-}
-
-/**
- * Schedules a session after checking it against the fighter's Medical Clearance.
- * Refuses blocking conflicts outright and warnings unless `acknowledgeWarnings` is set.
- * Notifies the fighter, the assigned coach and — when warnings were acknowledged — the fighter's doctors.
- */
 export async function createSession(input: SessionInput, actor: User): Promise<SessionMutationResult> {
-    const invalid = validateSessionInput(input, input.fighterId);
-    if (invalid) return { ok: false, reason: "invalid", message: invalid, conflicts: [] };
-
-    const conflicts = getSessionClearanceConflicts(input);
-    const refused = clearanceGate(conflicts, input.acknowledgeWarnings === true);
-    if (refused) {
-        if (refused.reason === "blocked") {
-            recordAudit({
-                actor,
-                action: "training_session.create",
-                resourceType: "training_session",
-                resourceId: "new",
-                resourceLabel: sessionLabel(input),
-                status: "failure",
-                details: `Blocked by Medical Clearance: ${conflictSummary(conflicts)}`,
-            });
-        }
-        return refused;
-    }
-
-    const session: TrainingSession = {
-        id: newId("s"),
-        fighterId: input.fighterId,
-        ...editableSessionFields(input),
-        status: "scheduled",
-        result: null,
-        videoIds: [],
-        cancellationReason: null,
-    };
-    db().trainingSessions.push(session);
-
-    recordAudit({
-        actor,
-        action: "training_session.create",
-        resourceType: "training_session",
-        resourceId: session.id,
-        resourceLabel: sessionLabel(session),
-        details: conflicts.length > 0 ? `Scheduled with acknowledged clearance warnings: ${conflictSummary(conflicts)}` : null,
-    });
-
-    const when = formatDateTime(session.scheduledAt);
-    const fighterIds = recipients(fighterUserIds(session.fighterId), actor);
-    if (fighterIds.length > 0) {
-        notifyUsers({
-            userIds: fighterIds,
-            category: "training",
-            title: "New session scheduled",
-            body: `${session.title} (${TRAINING_TYPE_LABELS[session.type]}) on ${when} — ${session.location}.`,
-            href: routes.fighter.session(session.id),
-        });
-    }
-    const coachIds = recipients([coachUserId(session.coachId)], actor);
-    if (coachIds.length > 0) {
-        notifyUsers({
-            userIds: coachIds,
-            category: "training",
-            title: "Session assigned to you",
-            body: `${actor.name} scheduled ${session.title} with ${fighterName(session.fighterId)} on ${when}.`,
-            href: routes.coach.session(session.id),
-        });
-    }
-    notifyDoctorsOfWarnings(session, conflicts, actor);
-    return { ok: true, session, conflicts };
+    if (isDemoAuthEnabled()) return (await demoService()).createSession(input, actor);
+    unsupported("Creating a training session", "exercise, target-RPE, and clearance-conflict persistence");
 }
-
-/** Edits a scheduled session with the same clearance checks as `createSession`. */
 export async function updateSession(id: string, input: SessionUpdateInput, actor: User): Promise<SessionMutationResult> {
-    const session = db().trainingSessions.find((s) => s.id === id);
-    if (!session) return { ok: false, reason: "not_found", message: "That session no longer exists.", conflicts: [] };
-    if (session.status !== "scheduled") {
-        return { ok: false, reason: "invalid_state", message: "Only scheduled sessions can be edited.", conflicts: [] };
-    }
-    const invalid = validateSessionInput(input, session.fighterId);
-    if (invalid) return { ok: false, reason: "invalid", message: invalid, conflicts: [] };
-
-    const conflicts = getSessionClearanceConflicts({ ...input, fighterId: session.fighterId });
-    const refused = clearanceGate(conflicts, input.acknowledgeWarnings === true);
-    if (refused) {
-        if (refused.reason === "blocked") {
-            recordAudit({
-                actor,
-                action: "training_session.update",
-                resourceType: "training_session",
-                resourceId: session.id,
-                resourceLabel: sessionLabel(session),
-                status: "failure",
-                details: `Blocked by Medical Clearance: ${conflictSummary(conflicts)}`,
-            });
-        }
-        return refused;
-    }
-
-    const previousStart = session.scheduledAt;
-    Object.assign(session, editableSessionFields(input));
-    const rescheduled = previousStart !== session.scheduledAt;
-
-    recordAudit({
-        actor,
-        action: "training_session.update",
-        resourceType: "training_session",
-        resourceId: session.id,
-        resourceLabel: sessionLabel(session),
-        details: [
-            rescheduled ? `Rescheduled from ${formatDateTime(previousStart)} to ${formatDateTime(session.scheduledAt)}` : null,
-            conflicts.length > 0 ? `Acknowledged clearance warnings: ${conflictSummary(conflicts)}` : null,
-        ]
-            .filter(Boolean)
-            .join(". ") || null,
-    });
-
-    const fighterIds = recipients(fighterUserIds(session.fighterId), actor);
-    if (fighterIds.length > 0) {
-        notifyUsers({
-            userIds: fighterIds,
-            category: "training",
-            title: rescheduled ? "Session rescheduled" : "Session updated",
-            body: rescheduled
-                ? `${session.title} moved to ${formatDateTime(session.scheduledAt)} — ${session.location}.`
-                : `${actor.name} updated ${session.title} on ${formatDateTime(session.scheduledAt)}.`,
-            href: routes.fighter.session(session.id),
-        });
-    }
-    notifyDoctorsOfWarnings(session, conflicts, actor);
-    return { ok: true, session, conflicts };
+    if (isDemoAuthEnabled()) return (await demoService()).updateSession(id, input, actor);
+    unsupported("Updating a training session", "exercise, target-RPE, and clearance-conflict persistence");
 }
-
-/** The lowest RPE cap in the fighter's current clearance, when that clearance already applied to the session. */
-function clearanceRpeCap(session: TrainingSession): number | null {
-    const clearance = currentClearance(db().medicalClearances, session.fighterId);
-    if (!clearance || clearance.issuedAt > session.scheduledAt) return null;
-    const caps = clearance.restrictions.map((r) => r.maxRpe).filter((cap): cap is number => cap !== null);
-    return caps.length > 0 ? Math.min(...caps) : null;
+export async function recordSessionResult(id: string, input: SessionResultInput, actor: User): Promise<SessionMutationResult> {
+    if (isDemoAuthEnabled()) return (await demoService()).recordSessionResult(id, input, actor);
+    unsupported("Recording a session result", "coach rating, summary, and completed-exercise persistence");
 }
-
-/**
- * Records how a session went and marks it completed. Corrections to an already completed session are allowed.
- * Notifies the fighter, and the fighter's doctors when the reported RPE exceeded the clearance cap.
- */
-export async function recordSessionResult(
-    id: string,
-    input: SessionResultInput,
-    actor: User,
-): Promise<SessionMutationResult> {
-    const session = db().trainingSessions.find((s) => s.id === id);
-    if (!session) return { ok: false, reason: "not_found", message: "That session no longer exists.", conflicts: [] };
-    if (session.status === "cancelled" || session.status === "missed") {
-        return {
-            ok: false,
-            reason: "invalid_state",
-            message: `This session was ${session.status}, so results can't be recorded.`,
-            conflicts: [],
-        };
-    }
-    if (Date.parse(session.scheduledAt) > Date.now()) {
-        return { ok: false, reason: "invalid_state", message: "This session hasn't started yet.", conflicts: [] };
-    }
-
-    const result: SessionResult = {
-        completedAt: input.completedAt ? toUtcIso(input.completedAt) : nowIso(),
-        actualDurationMin: input.actualDurationMin,
-        rpe: input.rpe,
-        roundsCompleted: input.roundsCompleted,
-        coachRating: input.coachRating,
-        summary: input.summary.trim(),
-    };
-    const correction = session.status === "completed";
-    session.status = "completed";
-    session.result = result;
-    session.exercises = session.exercises.map((e) => ({
-        ...e,
-        completed: input.completedExerciseIds ? input.completedExerciseIds.includes(e.exerciseId) : true,
-    }));
-
-    recordAudit({
-        actor,
-        action: correction ? "training_session.correct_result" : "training_session.record_result",
-        resourceType: "training_session",
-        resourceId: session.id,
-        resourceLabel: sessionLabel(session),
-        details: `RPE ${result.rpe}, coach rating ${result.coachRating}/5, ${result.actualDurationMin} min`,
-    });
-
-    const fighterIds = recipients(fighterUserIds(session.fighterId), actor);
-    if (fighterIds.length > 0) {
-        notifyUsers({
-            userIds: fighterIds,
-            category: "training",
-            severity: "success",
-            title: correction ? "Session results corrected" : "Session results recorded",
-            body: `${session.title}: RPE ${result.rpe}, coach rating ${result.coachRating}/5. ${result.summary}`,
-            href: routes.fighter.session(session.id),
-        });
-    }
-    const cap = clearanceRpeCap(session);
-    const doctorIds = recipients(staffUserIdsForFighter(session.fighterId, ["doctor"]), actor);
-    if (cap !== null && result.rpe > cap && doctorIds.length > 0) {
-        notifyUsers({
-            userIds: doctorIds,
-            category: "clearance",
-            severity: "warning",
-            title: "Session RPE above cleared maximum",
-            body: `${fighterName(session.fighterId)} reported RPE ${result.rpe} for ${session.title} on ${formatDateTime(session.scheduledAt)}. The current clearance allows up to RPE ${cap}.`,
-            href: routes.doctor.fighter(session.fighterId),
-        });
-    }
-    return { ok: true, session, conflicts: [] };
-}
-
-/** Cancels a scheduled session and tells the fighter and the assigned coach why. */
 export async function cancelSession(id: string, reason: string, actor: User): Promise<SessionMutationResult> {
-    const session = db().trainingSessions.find((s) => s.id === id);
-    if (!session) return { ok: false, reason: "not_found", message: "That session no longer exists.", conflicts: [] };
-    if (session.status !== "scheduled" && session.status !== "in_progress") {
-        return { ok: false, reason: "invalid_state", message: "Only upcoming sessions can be cancelled.", conflicts: [] };
-    }
-    const trimmedReason = reason.trim();
-    session.status = "cancelled";
-    session.cancellationReason = trimmedReason;
-    session.exercises = session.exercises.map((e) => ({ ...e, completed: false }));
-
-    recordAudit({
-        actor,
-        action: "training_session.cancel",
-        resourceType: "training_session",
-        resourceId: session.id,
-        resourceLabel: sessionLabel(session),
-        details: trimmedReason,
-    });
-
-    const body = `${session.title} on ${formatDateTime(session.scheduledAt)} was cancelled: ${trimmedReason}`;
-    const fighterIds = recipients(fighterUserIds(session.fighterId), actor);
-    if (fighterIds.length > 0) {
-        notifyUsers({
-            userIds: fighterIds,
-            category: "training",
-            severity: "warning",
-            title: "Session cancelled",
-            body,
-            href: routes.fighter.session(session.id),
-        });
-    }
-    const coachIds = recipients([coachUserId(session.coachId)], actor);
-    if (coachIds.length > 0) {
-        notifyUsers({
-            userIds: coachIds,
-            category: "training",
-            severity: "warning",
-            title: `Session cancelled — ${fighterName(session.fighterId)}`,
-            body,
-            href: routes.coach.session(session.id),
-        });
-    }
-    return { ok: true, session, conflicts: [] };
+    if (isDemoAuthEnabled()) return (await demoService()).cancelSession(id, reason, actor);
+    unsupported("Cancelling a training session", "an atomic cancellation-reason transition");
 }
-
-/* ─── Progress & agenda ───────────────────────────────────────────────────── */
 
 function mostCommonPlanId(sessions: TrainingSession[]): string | null {
     const counts = new Map<string, number>();
-    for (const s of sessions) {
-        if (s.planId) counts.set(s.planId, (counts.get(s.planId) ?? 0) + 1);
+    for (const session of sessions) {
+        if (session.planId) counts.set(session.planId, (counts.get(session.planId) ?? 0) + 1);
     }
-    let best: string | null = null;
-    let bestCount = 0;
-    counts.forEach((count, planId) => {
-        if (count > bestCount) {
-            best = planId;
-            bestCount = count;
-        }
-    });
-    return best;
+    return [...counts.entries()].sort((left, right) => right[1] - left[1])[0]?.[0] ?? null;
 }
 
-/**
- * Weekly plan adherence for the last `weeks` weeks (Monday–Sunday, academy time), oldest first; the last
- * entry is the current week. Planned = non-cancelled sessions scheduled that week (including ones still
- * upcoming), adherence = completed / planned (0 when nothing was planned).
- */
+function mondayStart(date: Date): Date {
+    const result = new Date(date);
+    const day = result.getUTCDay();
+    result.setUTCDate(result.getUTCDate() - (day === 0 ? 6 : day - 1));
+    result.setUTCHours(0, 0, 0, 0);
+    return result;
+}
+
 export async function getTrainingProgress(fighterId: string, weeks = 8): Promise<TrainingProgress[]> {
-    await simulateLatency();
-    const sessions = db().trainingSessions.filter((s) => s.fighterId === fighterId && s.status !== "cancelled");
-    const progress: TrainingProgress[] = [];
-    for (let weeksAgo = weeks - 1; weeksAgo >= 0; weeksAgo--) {
-        const start = weekStart(weeksAgo);
-        const end = weekStart(weeksAgo - 1);
-        const planned = sessions.filter((s) => s.scheduledAt >= start && s.scheduledAt < end);
-        const completed = planned.filter((s) => s.status === "completed");
-        progress.push({
+    if (isDemoAuthEnabled()) return (await demoService()).getTrainingProgress(fighterId, weeks);
+    const currentWeek = mondayStart(new Date());
+    const firstWeek = new Date(currentWeek.getTime() - (Math.max(1, weeks) - 1) * 7 * DAY_MS);
+    const sessions = await listSessions({ fighterIds: [fighterId], from: firstWeek.toISOString() });
+    return Array.from({ length: Math.max(0, weeks) }, (_, index) => {
+        const start = new Date(firstWeek.getTime() + index * 7 * DAY_MS);
+        const end = new Date(start.getTime() + 7 * DAY_MS);
+        const planned = sessions.filter((session) => {
+            const scheduled = Date.parse(session.scheduledAt);
+            return scheduled >= start.getTime() && scheduled < end.getTime() && session.status !== "cancelled";
+        });
+        const completed = planned.filter((session) => session.status === "completed");
+        return {
             fighterId,
             planId: mostCommonPlanId(planned),
-            weekStart: start,
+            weekStart: start.toISOString(),
             plannedSessions: planned.length,
             completedSessions: completed.length,
-            missedSessions: planned.filter((s) => s.status === "missed").length,
+            missedSessions: planned.filter((session) => session.status === "missed").length,
             adherencePct: planned.length === 0 ? 0 : Math.round((completed.length / planned.length) * 100),
-            trainingMinutes: completed.reduce((total, s) => total + (s.result?.actualDurationMin ?? s.durationMin), 0),
-        });
-    }
-    return progress;
+            trainingMinutes: completed.reduce((total, session) => total + (session.result?.actualDurationMin ?? session.durationMin), 0),
+        };
+    });
 }
 
 export interface AgendaDay {
@@ -803,27 +661,21 @@ export interface AgendaDay {
     sessions: TrainingSession[];
 }
 
-/** Day-by-day agenda starting on the academy-local day of `fromISO` (today when it can't be parsed). */
 export async function getWeekAgenda(fighterIds: FighterScope, fromISO: string, days = 7): Promise<AgendaDay[]> {
-    await simulateLatency();
-    const startMs = Date.parse(academyDayStartIso(dayKey(parseBound(fromISO) ?? nowIso())));
+    if (isDemoAuthEnabled()) return (await demoService()).getWeekAgenda(fighterIds, fromISO, days);
+    const parsedStart = validIso(fromISO) ?? new Date().toISOString();
+    const startMs = Date.parse(academyDayStartIso(dayKey(parsedStart)));
     const startIso = new Date(startMs).toISOString();
     const endIso = new Date(startMs + days * DAY_MS).toISOString();
-    const agenda: AgendaDay[] = Array.from({ length: days }, (_, index) => ({
+    const sessions = await listSessions({ fighterIds, from: startIso, to: endIso });
+    const agenda = Array.from({ length: days }, (_, index) => ({
         date: dayKey(new Date(startMs + (index + 0.5) * DAY_MS)),
-        sessions: [],
+        sessions: [] as TrainingSession[],
     }));
     const byDate = new Map(agenda.map((day) => [day.date, day]));
-    db()
-        .trainingSessions.filter(
-            (s) => inScope(fighterIds, s.fighterId) && s.scheduledAt >= startIso && s.scheduledAt < endIso,
-        )
-        .sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt))
-        .forEach((s) => byDate.get(dayKey(s.scheduledAt))?.sessions.push(s));
+    for (const session of sessions) byDate.get(dayKey(session.scheduledAt))?.sessions.push(session);
     return agenda;
 }
-
-/* ─── Coach feedback ──────────────────────────────────────────────────────── */
 
 export interface FeedbackFilter {
     fighterIds?: FighterScope;
@@ -832,61 +684,33 @@ export interface FeedbackFilter {
     videoId?: string;
     kind?: FeedbackKind;
 }
-
-/** Coach feedback, newest first. */
 export async function listCoachFeedback(filter: FeedbackFilter = {}): Promise<CoachFeedback[]> {
-    await simulateLatency();
-    return db()
-        .coachFeedback.filter(
-            (f) =>
-                inScope(filter.fighterIds, f.fighterId) &&
-                (!filter.coachId || f.coachId === filter.coachId) &&
-                (!filter.sessionId || f.sessionId === filter.sessionId) &&
-                (!filter.videoId || f.videoId === filter.videoId) &&
-                (!filter.kind || f.kind === filter.kind),
-        )
-        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    if (isDemoAuthEnabled()) return (await demoService()).listCoachFeedback(filter);
+    const feedback = await readPerFighter(filter.fighterIds, (fighterId) =>
+        drainNumberedPages("/coach-feedback", backendFeedbackSchema, {
+            fighterId,
+            coachId: filter.coachId,
+            sessionId: filter.sessionId,
+            videoId: filter.videoId,
+            kind: filter.kind?.toUpperCase(),
+        }),
+    );
+    return feedback.map(toFeedback).sort((left, right) => right.createdAt.localeCompare(left.createdAt));
 }
-
 export type FeedbackInput = Omit<CoachFeedback, "id" | "createdAt">;
-
-/** Adds coach feedback on a session, a video or the fighter in general, and notifies the fighter. */
 export async function addCoachFeedback(input: FeedbackInput, actor: User): Promise<CoachFeedback> {
-    const feedback: CoachFeedback = {
-        ...input,
-        body: input.body.trim(),
-        techniques: unique(input.techniques),
-        id: newId("fb"),
-        createdAt: nowIso(),
-    };
-    db().coachFeedback.unshift(feedback);
-
-    const resource = feedback.sessionId
-        ? { resourceType: "training_session" as const, resourceId: feedback.sessionId }
-        : feedback.videoId
-          ? { resourceType: "video" as const, resourceId: feedback.videoId }
-          : { resourceType: "fighter" as const, resourceId: feedback.fighterId };
-    recordAudit({
-        actor,
-        action: "coach_feedback.create",
-        ...resource,
-        resourceLabel: fighterName(feedback.fighterId),
-        details: `${feedback.kind} feedback`,
-    });
-
-    const userIds = recipients(fighterUserIds(feedback.fighterId), actor);
-    if (userIds.length > 0) {
-        notifyUsers({
-            userIds,
-            category: "feedback",
-            title: `New feedback from ${actor.name}`,
-            body: feedback.body.length > 160 ? `${feedback.body.slice(0, 157)}…` : feedback.body,
-            href: feedback.sessionId
-                ? routes.fighter.session(feedback.sessionId)
-                : feedback.videoId
-                  ? routes.fighter.video(feedback.videoId)
-                  : routes.fighter.training,
-        });
-    }
-    return feedback;
+    if (isDemoAuthEnabled()) return (await demoService()).addCoachFeedback(input, actor);
+    return toFeedback(
+        await authenticatedMutableApiRequest("/coach-feedback", backendFeedbackSchema, {
+            method: "POST",
+            body: JSON.stringify({
+                fighterId: input.fighterId,
+                sessionId: input.sessionId,
+                videoId: input.videoId,
+                kind: input.kind.toUpperCase(),
+                body: input.body,
+                techniques: input.techniques,
+            }),
+        }),
+    );
 }
