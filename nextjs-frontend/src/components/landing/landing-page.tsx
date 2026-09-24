@@ -19,7 +19,7 @@ export function LandingPage({ primaryHref, primaryLabel }: { primaryHref: string
 
             <main>
                 <section className="relative mx-auto grid min-h-[calc(100svh-84px)] w-full max-w-[90rem] items-center px-5 pb-10 sm:px-8 lg:grid-cols-[minmax(0,0.88fr)_minmax(34rem,1.12fr)] lg:px-12">
-                    <div className="relative z-20 max-w-2xl pb-[25rem] pt-16 sm:pb-[30rem] lg:pb-20 lg:pt-10">
+                    <div className="pointer-events-none relative z-20 max-w-2xl pb-[25rem] pt-16 sm:pb-[30rem] lg:pb-20 lg:pt-10">
                         <div className="mb-7 flex items-center gap-3 text-[11px] font-semibold tracking-[0.22em] text-nav-accent uppercase">
                             <span className="h-px w-8 bg-nav-accent" />
                             MMA performance intelligence
@@ -32,7 +32,7 @@ export function LandingPage({ primaryHref, primaryLabel }: { primaryHref: string
                         <p className="mt-7 max-w-lg text-base leading-7 text-nav-fg sm:text-lg">
                             One focused corner for technique, training and athlete health—built for every decision before fight night.
                         </p>
-                        <div className="mt-9 flex flex-wrap items-center gap-3">
+                        <div className="pointer-events-auto mt-9 flex flex-wrap items-center gap-3">
                             <ButtonLink href={primaryHref} size="lg" className="landing-primary-action rounded-none px-6 shadow-none">
                                 {primaryLabel}
                                 <ArrowRight aria-hidden />
