@@ -10,6 +10,7 @@ package-lock.json
 dist/
 build/
 *.tsbuildinfo
+.worktrees/
 
 # Environment variables
 .env
