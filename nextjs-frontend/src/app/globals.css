@@ -423,3 +423,143 @@
 @utility animate-indeterminate {
     animation: indeterminate 1.4s ease-in-out infinite;
 }
+
+/* Landing page atmosphere and WebGL fallback. Scoped to avoid affecting the app shell. */
+.landing-shell {
+    position: relative;
+    isolation: isolate;
+    background:
+        radial-gradient(circle at 80% 29%, rgb(47 125 225 / 16%), transparent 26rem),
+        radial-gradient(circle at 70% 52%, rgb(214 52 63 / 13%), transparent 30rem),
+        linear-gradient(135deg, #07090d 0%, var(--nav-bg) 48%, #101218 100%);
+}
+
+.landing-shell::before {
+    position: fixed;
+    z-index: 0;
+    inset: 0;
+    pointer-events: none;
+    content: "";
+    background: radial-gradient(ellipse at center, transparent 48%, rgb(0 0 0 / 62%) 115%);
+}
+
+.landing-grid {
+    z-index: 0;
+    opacity: 0.14;
+    pointer-events: none;
+    background-image:
+        linear-gradient(rgb(255 255 255 / 10%) 1px, transparent 1px),
+        linear-gradient(90deg, rgb(255 255 255 / 10%) 1px, transparent 1px);
+    background-size: 5rem 5rem;
+    mask-image: linear-gradient(to bottom, black, transparent 82%);
+}
+
+.landing-gradient-text {
+    color: transparent;
+    background: linear-gradient(100deg, #f3f6fb 0%, #9dc6ff 42%, #ef5964 92%);
+    background-clip: text;
+    -webkit-background-clip: text;
+}
+
+.landing-primary-action {
+    border: 1px solid rgb(255 255 255 / 14%);
+    background: linear-gradient(112deg, var(--brand-blue), var(--brand-red));
+    box-shadow: 0 16px 45px rgb(29 91 188 / 20%);
+}
+
+.landing-primary-action:hover {
+    filter: saturate(1.15) brightness(1.09);
+    transform: translateY(-1px);
+}
+
+.landing-octagon-panel {
+    clip-path: polygon(1.5rem 0, calc(100% - 1.5rem) 0, 100% 1.5rem, 100% calc(100% - 1.5rem), calc(100% - 1.5rem) 100%, 1.5rem 100%, 0 calc(100% - 1.5rem), 0 1.5rem);
+}
+
+.landing-fighter-stage {
+    cursor: crosshair;
+    contain: layout paint style;
+    mask-image: linear-gradient(to bottom, transparent 0, black 10%, black 88%, transparent 100%);
+}
+
+.landing-fighter-stage::before,
+.landing-fighter-stage::after {
+    position: absolute;
+    z-index: 2;
+    border: 1px solid rgb(255 255 255 / 8%);
+    pointer-events: none;
+    content: "";
+    transform: rotate(45deg);
+}
+
+.landing-fighter-stage::before {
+    top: 14%;
+    right: 8%;
+    width: min(62vw, 34rem);
+    aspect-ratio: 1;
+}
+
+.landing-fighter-stage::after {
+    top: 22%;
+    right: 16%;
+    width: min(45vw, 25rem);
+    aspect-ratio: 1;
+    border-color: rgb(47 125 225 / 14%);
+}
+
+.landing-fighter-aura {
+    position: absolute;
+    top: 16%;
+    left: 51%;
+    width: min(70%, 31rem);
+    aspect-ratio: 1;
+    border-radius: 9999px;
+    background: radial-gradient(circle, rgb(47 125 225 / 19%), rgb(214 52 63 / 8%) 44%, transparent 70%);
+    filter: blur(12px);
+    transform: translateX(-50%);
+    animation: landing-breathe 4.2s ease-in-out infinite;
+}
+
+.landing-fighter-silhouette {
+    position: absolute;
+    bottom: 8%;
+    left: 51%;
+    width: min(42%, 14rem);
+    height: 68%;
+    opacity: 0.32;
+    background: linear-gradient(130deg, rgb(47 125 225 / 55%), rgb(214 52 63 / 50%));
+    filter: blur(35px);
+    clip-path: polygon(34% 0, 65% 0, 71% 12%, 67% 20%, 86% 29%, 100% 45%, 81% 50%, 71% 39%, 69% 65%, 82% 100%, 60% 100%, 50% 72%, 39% 100%, 17% 100%, 31% 65%, 29% 39%, 17% 53%, 0 46%, 15% 29%, 34% 20%, 29% 12%);
+    transform: translateX(-50%);
+    animation: landing-shift 5.4s ease-in-out infinite;
+}
+
+.landing-fighter-stage.is-webgl .landing-fighter-silhouette {
+    opacity: 0.08;
+}
+
+@keyframes landing-breathe {
+    50% {
+        opacity: 0.72;
+        transform: translateX(-50%) scale(1.08);
+    }
+}
+
+@keyframes landing-shift {
+    50% {
+        transform: translateX(-50%) translateY(-0.45rem) rotate(-1deg);
+    }
+}
+
+@media (max-width: 63.99rem) {
+    .landing-fighter-stage {
+        mask-image: linear-gradient(to bottom, transparent 0, black 14%, black 92%, transparent 100%);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .landing-fighter-aura,
+    .landing-fighter-silhouette {
+        animation: none;
+    }
+}

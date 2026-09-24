@@ -27,6 +27,11 @@ export interface FighterSample {
     progress: number;
 }
 
+export interface FighterController {
+    trigger(action: FighterAction, now: number): boolean;
+    sample(now: number): FighterSample;
+}
+
 const ACTION_DURATION_MS: Record<Exclude<FighterAction, "idle">, number> = {
     uppercut: 880,
     "hook-left": 780,
@@ -172,7 +177,7 @@ export function poseForAction(action: FighterAction, progress: number, idleTime:
 }
 
 /** Small timestamp-based controller that serializes attacks and exposes animation progress. */
-export function createFighterController({ reducedMotion, cooldownMs }: { reducedMotion: boolean; cooldownMs: number }) {
+export function createFighterController({ reducedMotion, cooldownMs }: { reducedMotion: boolean; cooldownMs: number }): FighterController {
     let active: Exclude<FighterAction, "idle"> | null = null;
     let startedAt = 0;
     let lockedUntil = 0;

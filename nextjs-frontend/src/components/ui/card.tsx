@@ -1,4 +1,4 @@
-import type { ComponentProps, ElementType, ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -13,7 +13,7 @@ export interface CardHeaderProps {
     action?: ReactNode;
     icon?: ReactNode;
     /** Heading level; defaults to h2 because cards usually sit under the page h1. */
-    as?: ElementType;
+    as?: "h2" | "h3" | "h4";
     className?: string;
 }
 
