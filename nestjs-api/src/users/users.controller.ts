@@ -56,7 +56,7 @@ export class UsersController {
   @ApiOperation({
     summary: 'Create user with role profile',
     description:
-      'Creates a new identity and role profile; requires users.create',
+      'Creates a FIGHTER, COACH, DOCTOR or ADMIN identity with its role profile; requires users.create. Creating a FIGHTER here is the direct recruitment path for an already-signed athlete and produces no admission record; the self-service path (guest registration, coach assessment, admin approval, password recovery, activation) remains the route for applicants. GUEST accounts come from self-registration only.',
   })
   @ResponseMessage('User created successfully')
   @HttpCode(HttpStatus.CREATED)

@@ -33,9 +33,8 @@ system instructions always take precedence.
 ## Shell and command execution
 
 - Use Git Bash for all repository commands; do not use PowerShell.
-- In Codex sessions on Windows, invoke commands through
-  `scripts/run-git-bash.sh` so arguments and the user's Git Bash environment,
-  including `pnpm`, are preserved consistently.
+- In Codex sessions on Windows, run repository commands directly in a Git Bash
+  terminal so the user's Git Bash environment, including `pnpm`, is available.
 
 ## Choosing Agent / Agent Roles & Strict Boundaries
 

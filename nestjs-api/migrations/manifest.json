@@ -9,6 +9,7 @@
     "005_training_management.sql": "7d964bf791e816c5630f8115eb493abdb43b09587a4c761efb7ea734f7a381be",
     "006_training_permissions.sql": "1a06c2d20ffdbac8d4f578f7733aac80b5be7c771b907999e927d2b2ceaa9f16",
     "007_grant_api_permissions_to_admin.sql": "33c5ef3320b21a821e103cb1504d02f7b0ebce7cd94ef72852a3e2b03fb7123a",
-    "008_grant_training_read_permissions_to_fighter.sql": "0b030e250c0c03b8404a65bbc9793d686fd12e4a04e15130b41028c2d5513606"
+    "008_grant_training_read_permissions_to_fighter.sql": "0b030e250c0c03b8404a65bbc9793d686fd12e4a04e15130b41028c2d5513606",
+    "009_fighter_admissions.sql": "ff21b4c1bf1ed6deec0653d0903fc1dca6a6407b6b1bf65216fcf064ef9f7fda"
   }
 }

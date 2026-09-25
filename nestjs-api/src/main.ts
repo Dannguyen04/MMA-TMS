@@ -5,14 +5,12 @@ import { ApiExceptionFilter } from './shared/filters/api-exception.filter.js';
 import { ApiResponseInterceptor } from './shared/interceptors/api-response.interceptor.js';
 import { AppValidationPipe } from './shared/pipes/app-validation.pipe.js';
 import { createOpenApiDocument } from './shared/utils/openapi.util.js';
+import { env } from './shared/config/env.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
-  const MOBILE_APP_URL = process.env.MOBILE_APP_URL || 'http://localhost:8081';
-
-  const allowedOrigins = [FRONTEND_URL, MOBILE_APP_URL];
+  const allowedOrigins = [env.FRONTEND_URL, env.MOBILE_APP_URL];
 
   app.enableCors({
     origin: (
@@ -65,7 +63,7 @@ async function bootstrap() {
   });
   SwaggerModule.setup('docs', app, document);
 
-  const port = process.env.PORT ?? 3001;
+  const port = env.PORT;
   await app.listen(port, '0.0.0.0');
   console.log(`🚀 NestJS API running on http://localhost:${port}`);
   console.log(`📚 Swagger UI API Docs available at http://localhost:${port}/api-docs`);

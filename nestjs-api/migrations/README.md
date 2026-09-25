@@ -1,4 +1,29 @@
-# Migrations 003–004 — Backend, Database & API Permissions
+# Migrations 003–009 — Backend, Database & API Permissions
+
+## Áp dụng migration 009 (Fighter Admissions)
+
+Chủ dự án đã xác nhận **008 đã chạy** trên môi trường đích. Không chạy lại 008,
+không sửa file hay checksum của 001–008, không tự ghi ledger.
+
+009 thêm role `GUEST` vào `public.user_role` và 5 bảng admission
+(`fighter_applications`, `fighter_application_coach_assignments`,
+`fighter_application_assessments`, `fighter_application_decisions`,
+`fighter_application_activations`) cùng catalogue permission
+`fighter_application:get_all|read|evaluate` (cấp cho `ADMIN` và `COACH`).
+
+```sh
+pnpm db:check
+pnpm db:migrate:009
+```
+
+Lưu ý PostgreSQL: `ALTER TYPE ... ADD VALUE 'GUEST'` nằm trong transaction của
+009, nên **không** file nào trong cùng transaction được dùng literal `'GUEST'`
+(default, check, cast, seed, grant). Ràng buộc nào cần `'GUEST'` phải đưa sang
+migration sau.
+
+Trước đợt này, `scripts/migration-files.mjs` và `run_sql.mjs` mới đăng ký tới
+007 nên script `db:migrate:008` không dùng được; cả hai đã được bổ sung 008 và
+009. Việc này chỉ đồng bộ tooling, không áp dụng gì lên database.
 
 ## Áp dụng migration 004
 

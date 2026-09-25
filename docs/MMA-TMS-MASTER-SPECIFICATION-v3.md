@@ -2,10 +2,11 @@
 
 > **Single Source of Truth** cho sản phẩm, requirements, domain, AI, UX/UI và technical architecture của MMA-TMS.
 
-**Version:** 3.0  
+**Version:** 3.1  
 **Status:** Active Specification — Academic Hardening  
 **Project:** MMA-TMS — MMA Training & Movement Analysis System  
-**Supersedes:** v2.0 (Active Specification)  
+**Supersedes:** v3.0, v2.0 (Active Specification)  
+**Changes from v3.0:** Fighter Admissions policy (GUEST role, admission workflow, activation qua password recovery) — xem Section 27 (Change Log)  
 **Changes from v2.0:** Xem Section 27 (Change Log)
 
 ---
@@ -292,11 +293,14 @@ Reference Motion là một baseline tham chiếu, không phải "Golden Pose" á
 
 - Authentication (email/password, social login)
 - Authorization (JWT)
-- RBAC (Fighter, Coach, Doctor, Admin)
+- RBAC (Guest, Fighter, Coach, Doctor, Admin)
 - Profile management
+- Password recovery / reset (dùng chung cho mọi role)
+- Fighter admissions: Guest nộp hồ sơ → Admin phân công Coach → Coach đánh giá đầu vào (PASS/FAIL) → Admin phê duyệt → kích hoạt Fighter sau khi đặt lại mật khẩu
 
 ## 04.2 Fighter Management
 
+- Fighter profile được tạo khi một hồ sơ gia nhập đã duyệt được kích hoạt (không tạo lúc đăng ký)
 - Fighter profile (name, DOB, weight class, training level, height, weight)
 - Body statistics history
 - Coach assignment
@@ -397,6 +401,9 @@ Reference Motion là một baseline tham chiếu, không phải "Golden Pose" á
 | FR-AUTH-003 | User có thể quản lý thông tin profile cá nhân.                |
 | FR-AUTH-004 | Token hết hạn phải được xử lý gracefully (redirect to login). |
 | FR-AUTH-005 | Admin có thể deactivate account.                              |
+| FR-AUTH-006 | Đăng ký tự phục vụ tạo tài khoản role GUEST (chưa có Fighter profile, chưa có quyền Fighter). |
+| FR-AUTH-007 | Mọi role có thể yêu cầu email khôi phục mật khẩu; response không tiết lộ tài khoản có tồn tại hay không. |
+| FR-AUTH-008 | Đặt lại mật khẩu chỉ chấp nhận bằng chứng khôi phục do provider xác minh (recovery token), không tự cấp role. |
 
 ### AC — FR-AUTH-001
 
@@ -428,6 +435,76 @@ Then:
   - Không nhận data của endpoint đó
 
 Note: Role permission phải được enforce server-side, không chỉ UI.
+```
+
+## 05.1b Fighter Admissions
+
+| ID             | Requirement                                                                                          |
+| -------------- | ---------------------------------------------------------------------------------------------------- |
+| FR-ADMIT-001   | GUEST có thể nộp hồ sơ gia nhập gồm họ tên, ngày sinh, hạng cân và phần giới thiệu/nền tảng tuỳ chọn.  |
+| FR-ADMIT-002   | Mỗi GUEST chỉ có tối đa một hồ sơ đang mở; hồ sơ FAILED/REJECTED được giữ làm lịch sử và cho phép nộp lại. |
+| FR-ADMIT-003   | Admin phân công đúng một Coach đang hoạt động cho mỗi hồ sơ; đổi Coach tạo một kỳ phân công mới kèm lý do. |
+| FR-ADMIT-004   | Coach được phân công ghi các tiêu chí linh hoạt (tên, phương pháp, quan sát, giá trị/đơn vị tuỳ chọn) và kết luận thủ công PASS hoặc FAIL. |
+| FR-ADMIT-005   | Đánh giá đã nộp là bất biến; không có API sửa hoặc xoá. FAIL kết thúc lần nộp đó.                      |
+| FR-ADMIT-006   | Chỉ hồ sơ PASS mới được Admin phê duyệt hoặc từ chối; PASS không tự động cấp quyền Fighter.            |
+| FR-ADMIT-007   | Khi Admin phê duyệt, hệ thống gửi email khôi phục mật khẩu cho chính danh tính hiện có của GUEST.      |
+| FR-ADMIT-008   | Tài khoản chỉ trở thành FIGHTER sau khi mật khẩu được đổi thành công qua luồng khôi phục và bước kích hoạt hoàn tất. |
+| FR-ADMIT-009   | Không thu thập dữ liệu y tế trong luồng gia nhập; Fighter mới giữ `current_medical_status = NOT_CLEARED`. |
+| FR-ADMIT-010   | Có hai đường tạo FIGHTER: (a) tự ứng tuyển qua admission, (b) **chiêu mộ trực tiếp** bằng `POST /users` với `role: FIGHTER` cho vận động viên đã ký. Đường (b) không sinh hồ sơ admission — provenance nằm ở audit log của lần tạo. `POST /users` không tạo GUEST; GUEST chỉ đến từ tự đăng ký. |
+| FR-ADMIT-011   | `email` trong hồ sơ là **snapshot** email tài khoản tại thời điểm nộp, lấy từ session đã xác thực, không nhận từ body. Email khôi phục luôn gửi tới email **hiện tại** của tài khoản Supabase Auth tương ứng; staff view hiển thị cả hai khi lệch nhau. |
+| FR-ADMIT-012   | Mỗi lượt gửi email khôi phục phải được claim trong DB (trạng thái + cooldown) **trước khi** gọi provider; backend chỉ khẳng định “đã thử gửi” và “provider chấp nhận”, không bao giờ khẳng định “đã giao tới hộp thư”. |
+| FR-ADMIT-013   | FIGHTER đã kích hoạt vẫn đọc được lịch sử hồ sơ của chính mình; chỉ GUEST mới được nộp hồ sơ mới. |
+
+### AC — FR-ADMIT-008 (Activation)
+
+```
+Given: Hồ sơ đã được Admin phê duyệt
+When: GUEST mở link khôi phục và đặt mật khẩu mới thành công
+Then:
+  - Trạng thái activation chuyển PASSWORD_SET
+  - Gọi activation với session hợp lệ sẽ promote GUEST → FIGHTER trong cùng một transaction
+    (đổi role, tạo Fighter profile từ snapshot hồ sơ, activation COMPLETED, hồ sơ ACTIVATED)
+
+When: Mật khẩu chưa được đặt lại
+Then:
+  - Activation bị từ chối; tài khoản vẫn là GUEST và không có quyền Fighter
+
+When: Gọi activation lại sau khi đã hoàn tất
+Then:
+  - Vẫn yêu cầu xác thực hợp lệ, trả về kết quả idempotent "đã kích hoạt"
+  - Không tạo Supabase user thứ hai và không đổi email/identity
+
+Note: Một GUEST bị cấp nhầm permission vẫn không vượt được ranh giới này:
+      Authorization Guard từ chối mọi route permission-protected đối với role GUEST.
+```
+
+### AC — FR-ADMIT-012 (Recovery email & reset)
+
+```
+Given: Hồ sơ vừa được APPROVED hoặc Admin bấm resend
+When: Backend chuẩn bị gửi email khôi phục
+Then:
+  - Claim lượt gửi bằng một UPDATE có điều kiện (status = PENDING và cooldown đã hết),
+    tăng recovery_attempts và ghi attempted_at TRƯỚC khi gọi provider
+  - Không giữ transaction mở trong lúc gọi mạng
+  - accepted_at chỉ ghi khi provider trả về không lỗi; đây KHÔNG phải bằng chứng đã giao thư
+
+When: Hai request resend chạy đồng thời
+Then: Chỉ một request claim được; request còn lại nhận 409 (cooldown/đang xử lý)
+
+When: Process chết sau khi claim nhưng trước khi provider trả lời
+Then: attempted_at đã ghi, accepted_at rỗng; lượt gửi kế tiếp chỉ mở lại sau cooldown
+
+Given: Provider đã đổi mật khẩu thành công nhưng DB không ghi được PASSWORD_SET
+When: Người dùng thử lại
+Then:
+  - Không hệ thống nào được tự đánh dấu PASSWORD_SET khi thiếu bằng chứng đổi mật khẩu
+  - Claim IN_PROGRESS bị bỏ dở được giải phóng về PENDING sau cửa sổ stale
+  - Người dùng xin recovery link mới và đặt một mật khẩu KHÁC để tạo bằng chứng mới
+  - Gửi lại đúng mật khẩu cũ sẽ bị Supabase trả mã same_password (409, không phải lỗi mơ hồ)
+
+When: Reset token đã dùng hoặc hết hạn
+Then: 401 RESET_TOKEN_INVALID, không ghi bất kỳ thay đổi nào vào DB
 ```
 
 ## 05.2 Fighter
@@ -978,8 +1055,15 @@ Export Report (PDF — PROPOSED, phase 5)
 ```
 Authentication & Access:
   User
-  Role (FIGHTER | COACH | DOCTOR | ADMIN)
+  Role (GUEST | FIGHTER | COACH | DOCTOR | ADMIN)
   Permission
+
+Fighter Admissions:
+  FighterApplication (thuộc về một GUEST, giữ snapshot bất biến của ứng viên)
+  FighterApplicationCoachAssignment (lịch sử theo thời gian, đóng kỳ cũ khi đổi Coach)
+  FighterApplicationAssessment (1:1 với application, append-only, chứa criteria)
+  FighterApplicationDecision (1:1 với application, append-only, chỉ cho PASS)
+  FighterApplicationActivation (PENDING → IN_PROGRESS → PASSWORD_SET → COMPLETED)
 
 People:
   Fighter (extends User profile)
@@ -2673,6 +2757,43 @@ The system must always answer:
 ---
 
 # 27. CHANGE LOG
+
+## v3.1 (2026-09-22)
+
+**Fighter Admissions policy. Thay thế luồng đăng ký Fighter trực tiếp của v3.0.**
+
+### Functional Requirements
+
+- Added FR-AUTH-006 (đăng ký tạo GUEST), FR-AUTH-007 (forgot password dùng chung),
+  FR-AUTH-008 (reset password phải có bằng chứng recovery do provider xác minh)
+- Added Section 05.1b: FR-ADMIT-001 … FR-ADMIT-009 và AC cho activation
+- `POST /auth/register` không còn tạo Fighter profile; Fighter profile được tạo
+  tại bước activation từ snapshot của hồ sơ đã duyệt
+- Added FR-ADMIT-010 … FR-ADMIT-013 và AC cho recovery email/reset
+- `POST /users` giữ `role: FIGHTER` cho nghiệp vụ chiêu mộ trực tiếp; admission
+  là đường dành cho người tự ứng tuyển, không phải đường duy nhất tạo Fighter
+- `GET /fighter-admissions/applications/me[/:id]` mở cho cả GUEST và FIGHTER
+  theo ownership; `POST /fighter-admissions/applications` vẫn chỉ GUEST
+
+### Integration
+
+- Recovery email yêu cầu template dùng `{{ .TokenHash }}` (không dùng
+  `{{ .ConfirmationURL }}` mặc định) để frontend nhận `token_hash`; kèm redirect
+  allowlist và email provider — chi tiết trong `nestjs-api/README.md`
+
+### Domain Model
+
+- Added role `GUEST` vào `user_role`
+- Added 5 bảng admission (application, coach assignment history, assessment,
+  decision, activation) với trigger append-only và state machine ở tầng DB
+
+### Security
+
+- Authorization Guard từ chối mọi route permission-protected với role GUEST,
+  kể cả khi user được cấp nhầm `user_permissions`
+- Legacy `/jobs` read/create routes yêu cầu authenticated non-guest role.
+  Giới hạn còn lại: chưa scope theo chủ sở hữu vì `analysis_jobs.user_id` là
+  free text do client gửi, không có FK tới `public.users`
 
 ## v2.0 (2026-09-13)
 
