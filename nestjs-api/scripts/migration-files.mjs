@@ -15,6 +15,8 @@ export const migrationNames = [
   '005_training_management.sql',
   '006_training_permissions.sql',
   '007_grant_api_permissions_to_admin.sql',
+  '008_grant_training_read_permissions_to_fighter.sql',
+  '009_fighter_admissions.sql',
 ];
 export function readVerifiedMigrations() {
   const manifest = JSON.parse(
