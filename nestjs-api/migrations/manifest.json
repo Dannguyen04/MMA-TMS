@@ -10,6 +10,7 @@
     "006_training_permissions.sql": "1a06c2d20ffdbac8d4f578f7733aac80b5be7c771b907999e927d2b2ceaa9f16",
     "007_grant_api_permissions_to_admin.sql": "33c5ef3320b21a821e103cb1504d02f7b0ebce7cd94ef72852a3e2b03fb7123a",
     "008_grant_training_read_permissions_to_fighter.sql": "0b030e250c0c03b8404a65bbc9793d686fd12e4a04e15130b41028c2d5513606",
-    "009_fighter_admissions.sql": "ff21b4c1bf1ed6deec0653d0903fc1dca6a6407b6b1bf65216fcf064ef9f7fda"
+    "009_fighter_admissions.sql": "ff21b4c1bf1ed6deec0653d0903fc1dca6a6407b6b1bf65216fcf064ef9f7fda",
+    "010_grant_coach_permissions.sql": "2d3440fcd07e1a28864da97c1efbfacdaebbc3b1d27b1d2d53d927176f059b57"
   }
 }
