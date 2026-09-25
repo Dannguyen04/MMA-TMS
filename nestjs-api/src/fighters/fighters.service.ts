@@ -16,19 +16,19 @@ import {
   measurementNotFound,
   medicalAccessDenied,
 } from './fighters.error.js';
-import type {
-  AssignCoachInput,
-  CoachAssignment,
-  CreateMeasurementInput,
-  EndCoachAssignmentInput,
-  FighterMeasurement,
-  FighterMedicalSummary,
-  ListFighterSessionsQuery,
-  ListFightersQuery,
-  ListMeasurementsQuery,
-  PublicFighter,
-  TrainingSessionSummary,
-  UpdateFighterProfileInput,
+import {
+  type AssignCoachInput,
+  type CoachAssignment,
+  type CreateMeasurementInput,
+  type EndCoachAssignmentInput,
+  type FighterMeasurement,
+  type FighterMedicalSummary,
+  type ListFighterSessionsQuery,
+  type ListFightersQuery,
+  type ListMeasurementsQuery,
+  type PublicFighter,
+  type TrainingSessionSummary,
+  type UpdateFighterProfileInput,
 } from './fighters.model.js';
 import { FightersRepository } from './fighters.repo.js';
 
@@ -50,6 +50,27 @@ export class FightersService {
     }
   }
 
+  /**
+   * A Coach's access to any specific Fighter is bounded by a currently
+   * effective `coach_fighters` assignment, never by role alone. No-op for
+   * every other role; those keep their existing scope checks.
+   */
+  private async assertCoachAssignmentScope(
+    actor: AuthenticatedUser,
+    fighterId: string,
+  ): Promise<void> {
+    if (actor.role !== USER.COACH) return;
+    const coachId = await this.fightersRepository.findActiveCoachIdByUserId(
+      actor.id,
+    );
+    if (!coachId) throw forbidden();
+    const assigned = await this.fightersRepository.isFighterAssignedToCoach(
+      coachId,
+      fighterId,
+    );
+    if (!assigned) throw forbidden();
+  }
+
   async findAll(
     actor: AuthenticatedUser,
     query: ListFightersQuery,
@@ -59,6 +80,19 @@ export class FightersService {
       const self = await this.fightersRepository.findByUserId(actor.id);
       if (!self) throw fighterNotFound();
       return { data: [self], total: 1, hasNextPage: false };
+    }
+
+    // Coach athlete management means assigned Fighters, not a global directory.
+    if (actor.role === USER.COACH) {
+      const coachId = await this.fightersRepository.findActiveCoachIdByUserId(
+        actor.id,
+      );
+      if (!coachId) throw forbidden();
+      const { data, total } = await this.fightersRepository.findAllForCoach(
+        coachId,
+        query,
+      );
+      return { data, total, hasNextPage: query.page * query.limit < total };
     }
 
     const { data, total } = await this.fightersRepository.findAll(query);
@@ -75,6 +109,8 @@ export class FightersService {
 
     // Resource-level authorization: Fighter can only view own profile
     this.assertFighterOwnerScope(actor, fighter.userId);
+    // Coach can only view Fighters covered by a currently effective assignment
+    await this.assertCoachAssignmentScope(actor, id);
 
     return fighter;
   }
@@ -119,6 +155,7 @@ export class FightersService {
     if (!fighter) throw fighterNotFound();
 
     this.assertFighterOwnerScope(actor, fighter.userId);
+    await this.assertCoachAssignmentScope(actor, fighterId);
 
     const { data, total } = await this.fightersRepository.findMeasurements(
       fighterId,
@@ -221,6 +258,7 @@ export class FightersService {
     if (!fighter) throw fighterNotFound();
 
     this.assertFighterOwnerScope(actor, fighter.userId);
+    await this.assertCoachAssignmentScope(actor, fighterId);
 
     return this.fightersRepository.findCoachAssignments(fighterId);
   }
@@ -317,6 +355,7 @@ export class FightersService {
     if (!fighter) throw fighterNotFound();
 
     this.assertFighterOwnerScope(actor, fighter.userId);
+    await this.assertCoachAssignmentScope(actor, fighterId);
 
     const { data, total } = await this.fightersRepository.findTrainingSessions(
       fighterId,

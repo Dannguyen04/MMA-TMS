@@ -46,6 +46,13 @@ const doctorActor: AuthenticatedUser = {
   role: USER.DOCTOR,
 };
 
+const adminActor: AuthenticatedUser = {
+  id: 'ad310000-0000-4000-8000-000000000001',
+  authSubject: 'admin-auth-subject',
+  email: 'admin@example.com',
+  role: USER.ADMIN,
+};
+
 const fighter: PublicFighter = {
   id: fighterId,
   userId: fighterUserId,
@@ -161,6 +168,9 @@ function repositoryMock() {
       activeInjuries: [],
       jointStates: [],
     }),
+    findActiveCoachIdByUserId: vi.fn().mockResolvedValue(coachId),
+    isFighterAssignedToCoach: vi.fn().mockResolvedValue(true),
+    findAllForCoach: vi.fn().mockResolvedValue({ data: [fighter], total: 1 }),
   };
 }
 
@@ -498,6 +508,197 @@ describe('FightersService', () => {
       fighterId,
       disclaimer:
         'Measurements are estimated from 2D video using AI pose estimation. Results are NOT clinically validated. This system does not provide medical diagnosis. Consult a qualified healthcare professional for medical assessment.',
+    });
+  });
+
+  describe('COACH assignment scoping', () => {
+    // At unit level, unassigned, closed (ends_at <= now) and future
+    // (starts_at > now) assignments all surface as isFighterAssignedToCoach
+    // returning false; the temporal SQL itself is covered by DB tests.
+    const deniedAssignments = [
+      'unassigned',
+      'closed assignment',
+      'future assignment',
+    ] as const;
+
+    function coachDeniedRepository(
+      reason: 'assignment' | 'profile' = 'assignment',
+    ) {
+      const repository = repositoryMock();
+      if (reason === 'profile') {
+        repository.findActiveCoachIdByUserId.mockResolvedValueOnce(undefined);
+      } else {
+        repository.isFighterAssignedToCoach.mockResolvedValueOnce(false);
+      }
+      return repository;
+    }
+
+    describe('findAll', () => {
+      it('lists only assigned Fighters for COACH and passes filters through', async () => {
+        const { service, repository } = serviceWith();
+        const query = {
+          page: 1,
+          limit: 10,
+          medicalStatus: 'HEALTHY' as const,
+        };
+
+        await expect(service.findAll(coachActor, query)).resolves.toEqual({
+          data: [fighter],
+          total: 1,
+          hasNextPage: false,
+        });
+        expect(repository.findActiveCoachIdByUserId).toHaveBeenCalledWith(
+          coachActor.id,
+        );
+        expect(repository.findAllForCoach).toHaveBeenCalledWith(coachId, query);
+        expect(repository.findAll).not.toHaveBeenCalled();
+      });
+
+      it('rejects COACH with no active profile before listing', async () => {
+        const repository = coachDeniedRepository('profile');
+        const { service } = serviceWith(repository);
+
+        const error = await caught(
+          service.findAll(coachActor, { page: 1, limit: 10 }),
+        );
+
+        expect(error.getStatus()).toBe(HttpStatus.FORBIDDEN);
+        expect(error.getResponse()).toMatchObject({ code: 'FORBIDDEN' });
+        expect(repository.findAllForCoach).not.toHaveBeenCalled();
+      });
+
+      it('keeps ADMIN on the unscoped list', async () => {
+        const { service, repository } = serviceWith();
+        const query = { page: 1, limit: 10 };
+
+        await service.findAll(adminActor, query);
+
+        expect(repository.findAll).toHaveBeenCalledWith(query);
+        expect(repository.findActiveCoachIdByUserId).not.toHaveBeenCalled();
+        expect(repository.findAllForCoach).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('findById', () => {
+      it('returns the full profile to an assigned COACH', async () => {
+        const { service, repository } = serviceWith();
+
+        await expect(service.findById(coachActor, fighterId)).resolves.toEqual(
+          fighter,
+        );
+        expect(repository.isFighterAssignedToCoach).toHaveBeenCalledWith(
+          coachId,
+          fighterId,
+        );
+      });
+
+      it.each(deniedAssignments)('rejects COACH with %s', async () => {
+        const { service } = serviceWith(coachDeniedRepository());
+
+        const error = await caught(service.findById(coachActor, fighterId));
+
+        expect(error.getStatus()).toBe(HttpStatus.FORBIDDEN);
+        expect(error.getResponse()).toMatchObject({ code: 'FORBIDDEN' });
+      });
+
+      it('rejects COACH with no active profile without an assignment lookup', async () => {
+        const repository = coachDeniedRepository('profile');
+        const { service } = serviceWith(repository);
+
+        const error = await caught(service.findById(coachActor, fighterId));
+
+        expect(error.getStatus()).toBe(HttpStatus.FORBIDDEN);
+        expect(repository.isFighterAssignedToCoach).not.toHaveBeenCalled();
+      });
+
+      it('returns 404 before any assignment lookup for an unknown Fighter', async () => {
+        const repository = repositoryMock();
+        repository.findById.mockResolvedValueOnce(undefined);
+        const { service } = serviceWith(repository);
+
+        const error = await caught(service.findById(coachActor, fighterId));
+
+        expect(error.getStatus()).toBe(HttpStatus.NOT_FOUND);
+        expect(error.getResponse()).toMatchObject({ code: 'FIGHTER_NOT_FOUND' });
+        expect(repository.findActiveCoachIdByUserId).not.toHaveBeenCalled();
+      });
+
+      it('does not apply the assignment check to ADMIN or DOCTOR', async () => {
+        const { service, repository } = serviceWith();
+
+        await expect(service.findById(adminActor, fighterId)).resolves.toEqual(
+          fighter,
+        );
+        await expect(service.findById(doctorActor, fighterId)).resolves.toEqual(
+          fighter,
+        );
+        expect(repository.findActiveCoachIdByUserId).not.toHaveBeenCalled();
+      });
+    });
+
+    const scopedReads = [
+      {
+        name: 'findMeasurements',
+        run: (service: FightersService, actor: AuthenticatedUser) =>
+          service.findMeasurements(actor, fighterId, {
+            page: 1,
+            limit: 10,
+            includeSuperseded: false,
+          }),
+        dataMethod: 'findMeasurements',
+      },
+      {
+        name: 'findCoachAssignments',
+        run: (service: FightersService, actor: AuthenticatedUser) =>
+          service.findCoachAssignments(actor, fighterId),
+        dataMethod: 'findCoachAssignments',
+      },
+      {
+        name: 'findTrainingSessions',
+        run: (service: FightersService, actor: AuthenticatedUser) =>
+          service.findTrainingSessions(actor, fighterId, {
+            page: 1,
+            limit: 10,
+          }),
+        dataMethod: 'findTrainingSessions',
+      },
+    ] as const;
+
+    describe.each(scopedReads)('$name', ({ run, dataMethod }) => {
+      it('returns data to an assigned COACH', async () => {
+        const { service, repository } = serviceWith();
+
+        await run(service, coachActor);
+
+        expect(repository.isFighterAssignedToCoach).toHaveBeenCalledWith(
+          coachId,
+          fighterId,
+        );
+        expect(repository[dataMethod]).toHaveBeenCalled();
+      });
+
+      it.each(deniedAssignments)(
+        'rejects COACH with %s without reading data',
+        async () => {
+          const repository = coachDeniedRepository();
+          const { service } = serviceWith(repository);
+
+          const error = await caught(run(service, coachActor));
+
+          expect(error.getStatus()).toBe(HttpStatus.FORBIDDEN);
+          expect(repository[dataMethod]).not.toHaveBeenCalled();
+        },
+      );
+
+      it('rejects COACH with no active profile without reading data', async () => {
+        const repository = coachDeniedRepository('profile');
+        const { service } = serviceWith(repository);
+
+        const error = await caught(run(service, coachActor));
+
+        expect(error.getStatus()).toBe(HttpStatus.FORBIDDEN);
+        expect(repository[dataMethod]).not.toHaveBeenCalled();
+      });
     });
   });
 });

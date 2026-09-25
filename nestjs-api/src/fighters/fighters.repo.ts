@@ -3,16 +3,19 @@ import {
   and,
   desc,
   eq,
+  gt,
   gte,
   ilike,
   inArray,
   isNull,
   lte,
   or,
+  type SQL,
   sql,
 } from 'drizzle-orm';
 import { DRIZZLE, type DrizzleDB } from '../database/database.module.js';
 import {
+  coachFighters,
   coaches,
   fighterJointStates,
   fighterMeasurements,
@@ -46,13 +49,69 @@ export class FightersRepository {
     return this.db.transaction(work);
   }
 
+  // --- Coach resource-scope helpers ---
+  //
+  // Owned here (not shared/utils) because FightersRepository already owns all
+  // persistence for `coach_fighters` (assignCoach/endCoachAssignment below).
+  // Reused by FightersService for every Coach-scoped read and, via the
+  // exported FightersRepository, by CoachesModule for its own roster route.
+
+  private activeCoachAssignmentCondition(coachId: string): SQL {
+    const now = new Date();
+    return sql`EXISTS (
+      SELECT 1 FROM public.coach_fighters cf
+      WHERE cf.coach_id = ${coachId}
+        AND cf.fighter_id = ${fighters.id}
+        AND cf.starts_at <= ${now}
+        AND (cf.ends_at IS NULL OR cf.ends_at > ${now})
+    )`;
+  }
+
+  // Resolves only an unambiguous match (user_id is unique today; this keeps
+  // the check fail-closed regardless).
+  async findActiveCoachIdByUserId(
+    userId: string,
+    database: DatabaseExecutor = this.db,
+  ): Promise<string | undefined> {
+    const rows = await database
+      .select({ id: coaches.id })
+      .from(coaches)
+      .where(
+        and(
+          eq(coaches.userId, userId),
+          eq(coaches.isActive, true),
+          isNull(coaches.deletedAt),
+        ),
+      )
+      .limit(2);
+    return rows.length === 1 ? rows[0].id : undefined;
+  }
+
+  async isFighterAssignedToCoach(
+    coachId: string,
+    fighterId: string,
+    database: DatabaseExecutor = this.db,
+  ): Promise<boolean> {
+    const now = new Date();
+    const [row] = await database
+      .select({ id: coachFighters.id })
+      .from(coachFighters)
+      .where(
+        and(
+          eq(coachFighters.coachId, coachId),
+          eq(coachFighters.fighterId, fighterId),
+          lte(coachFighters.startsAt, now),
+          or(isNull(coachFighters.endsAt), gt(coachFighters.endsAt, now)),
+        ),
+      )
+      .limit(1);
+    return row !== undefined;
+  }
+
   // --- Fighters CRUD ---
 
-  async findAll(
-    query: ListFightersQuery,
-    database: DatabaseExecutor = this.db,
-  ): Promise<{ data: PublicFighter[]; total: number }> {
-    const conditions = [
+  private buildFighterFilterConditions(query: ListFightersQuery): SQL[] {
+    const conditions: SQL[] = [
       isNull(fighters.deletedAt),
       eq(fighters.isActive, true),
     ];
@@ -79,7 +138,43 @@ export class FightersRepository {
       );
     }
 
-    const whereClause = and(...conditions);
+    return conditions;
+  }
+
+  async findAll(
+    query: ListFightersQuery,
+    database: DatabaseExecutor = this.db,
+  ): Promise<{ data: PublicFighter[]; total: number }> {
+    const whereClause = and(...this.buildFighterFilterConditions(query));
+    const offset = (query.page - 1) * query.limit;
+
+    const [rows, countResult] = await Promise.all([
+      database
+        .select()
+        .from(fighters)
+        .where(whereClause)
+        .orderBy(desc(fighters.createdAt))
+        .limit(query.limit)
+        .offset(offset),
+      database
+        .select({ count: sql<number>`count(*)::int` })
+        .from(fighters)
+        .where(whereClause),
+    ]);
+
+    const total = countResult[0]?.count ?? 0;
+    return { data: rows.map(this.mapFighterRow), total };
+  }
+
+  async findAllForCoach(
+    coachId: string,
+    query: ListFightersQuery,
+    database: DatabaseExecutor = this.db,
+  ): Promise<{ data: PublicFighter[]; total: number }> {
+    const whereClause = and(
+      ...this.buildFighterFilterConditions(query),
+      this.activeCoachAssignmentCondition(coachId),
+    );
     const offset = (query.page - 1) * query.limit;
 
     const [rows, countResult] = await Promise.all([

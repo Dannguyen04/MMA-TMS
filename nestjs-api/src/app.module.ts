@@ -12,6 +12,7 @@ import { FighterAdmissionsModule } from './fighter-admissions/fighter-admissions
 import { FightersModule } from './fighters/fighters.module.js';
 import { TrainingModule } from './training/training.module.js';
 import { AuthorizationModule } from './authorization/authorization.module.js';
+import { CoachesModule } from './coaches/coaches.module.js';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { AuthorizationModule } from './authorization/authorization.module.js';
     TrainingModule,
     AuthorizationModule,
     DatasetExportModule,
+    CoachesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

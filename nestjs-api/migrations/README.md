@@ -1,4 +1,47 @@
-# Migrations 003–009 — Backend, Database & API Permissions
+# Migrations 003–010 — Backend, Database & API Permissions
+
+## Chính sách Medical mới — target đã duyệt, chưa triển khai (2026-09-25)
+
+Nguồn chuẩn: [Master Specification §05.10.1](../../docs/MMA-TMS-MASTER-SPECIFICATION-v3.md#05101-chính-sách-truy-cập-medical--đã-duyệt-chưa-triển-khai).
+Chỉ DOCTOR có assignment hiệu lực với Fighter và permission tương ứng được đọc,
+ghi/cập nhật medical và measurements. FIGHTER (kể cả self), COACH (kể cả assigned),
+ADMIN và GUEST không được đọc/ghi các dữ liệu này theo target mới; ADMIN không
+được sửa medical fields. Measurement corrections vẫn append-only qua `supersedes_id`.
+
+Đây **không phải** hành vi SQL/runtime hiện tại. 003 còn RLS đọc rộng; 010 vẫn
+cấp Coach đọc measurements trong scope; medical-summary legacy chưa kiểm tra
+Doctor assignment và chưa có read audit. Tính năng Medical tương lai phải dùng
+migration mới để đồng bộ RLS/grants với backend/projections/FE/tests, không sửa
+SQL/checksum lịch sử 003/007/010. Kiểm tra ledger môi trường và grants/overrides
+thực tế trước khi chuyển đổi; không cấp trong seed mới không đồng nghĩa thu hồi
+quyền cũ. Các ghi chú triển khai cũ bên dưới là lịch sử từng migration, không xác
+nhận trạng thái database đích hôm nay.
+
+## Áp dụng migration 010 (Coach Platform permission grants)
+
+010 không thêm permission code mới; chỉ cấp cho role `COACH` 21 permission
+code đã có từ 004/006: `fighter:get_all`, `fighter:read`,
+`fighter.measurement:read`, `fighter.coach:read`, `fighter.session:read`,
+`training.plan:get_all|read|create|update|transition`,
+`training.plan_exercise:read|create|update|delete`,
+`training.session:get_all|read|create|update|transition` và
+`training.exercise:get_all|read`.
+
+Không cấp cho COACH: `fighter:create|update|delete`,
+`fighter.measurement:write` (số đo chỉ đọc với Coach),
+`fighter.coach:assign|end`, `training.exercise:create|update` (thư viện bài
+tập chỉ ADMIN biên soạn), `fighter.medical:read` (medical là feature tương
+lai, chưa thuộc phạm vi này) và mọi quyền AI/analysis/feedback.
+
+Việc giới hạn Coach vào Fighter có `coach_fighters` đang hiệu lực
+(`starts_at <= now AND (ends_at IS NULL OR ends_at > now)`) nằm ở tầng
+application (`FightersService`, `CoachesService`, `TrainingAccessService`);
+migration chỉ mở permission ở tầng thô.
+
+```sh
+pnpm db:check
+pnpm db:migrate:010
+```
 
 ## Áp dụng migration 009 (Fighter Admissions)
 
@@ -29,7 +72,9 @@ Trước đợt này, `scripts/migration-files.mjs` và `run_sql.mjs` mới đă
 
 - Mỗi migration catalogue mới phải đăng ký permission trong `public.permissions`
 và đồng thời cấp các permission mới đó cho role `ADMIN` trong
-`role_permissions`. Migration không được seed `user_permissions`; baseline của
+`role_permissions`, **trừ medical/measurements của feature tương lai theo chính
+sách mới ở đầu tài liệu**. Không sửa lại 004 để áp dụng ngoại lệ này.
+Migration không được seed `user_permissions`; baseline của
 FIGHTER/COACH/DOCTOR và override theo user được quản lý riêng bằng admin-only
 assignment API hoặc quy trình SQL được kiểm soát.
 
@@ -143,9 +188,9 @@ LIMIT 1;
 
 Backend cần quy định ai được ghi số đo, xác thực thời điểm/nguồn đo và cung cấp ngữ cảnh phù hợp khi xếp hạng cân. Các quyền ghi này không được suy ra từ quyền đọc.
 
-## Quyền đọc y tế đã chốt
+## Quyền đọc y tế trong migration 003 — lịch sử, không phải target mới
 
-Theo yêu cầu cập nhật của chủ dự án, thay thế phần quyền đọc y tế mâu thuẫn trong spec; quyền Admin lấy từ spec V3 §13.3.
+Bảng dưới mô tả RLS SELECT của migration 003 và quyết định tại thời điểm viết migration. Chính sách tương lai đã được thay thế ngày 2026-09-25 (xem đầu tài liệu và spec §05.10.1); không dùng bảng này để thiết kế Medical mới. RLS không tự cấp permission HTTP.
 
 | Vai trò ứng dụng                            | Hồ sơ/số đo y tế                                      | Audit logs |
 | ------------------------------------------- | ----------------------------------------------------- | ---------- |
@@ -158,7 +203,7 @@ Theo yêu cầu cập nhật của chủ dự án, thay thế phần quyền đ�
 RLS SELECT áp dụng cho `medical_clearances`, `injury_records`, `treatments`, `recovery_plans`, `fighter_measurements`, `health_alerts`, `fighter_joint_states`, `joint_health_history`, `fighter_baselines`. Role Doctor sử dụng identifier `DOCTOR`; hồ sơ chuyên môn vẫn ở `sports_doctors`.
 
 - Authenticated clients không được ghi trực tiếp vào các bảng domain mới; không thể tự sửa role hoặc tự nhận danh tính người ghi.
-- Quyền ghi của Admin/Doctor và các vai trò khác phải đi qua backend có kiểm tra quyền. V3 cho Admin quản lý dữ liệu nhưng không cho phép phá tính append-only của audit/history.
+- Mọi quyền ghi phải qua backend có kiểm tra quyền. Với feature Medical tương lai, chỉ assigned Doctor có permission được ghi; Admin không được sửa medical. Không role nào được phá tính append-only của audit/history/measurements.
 - Các bảng domain ngoài nhóm trên bật RLS và chưa mở policy client. Backend sẽ cung cấp API theo scope nghiệp vụ tiếp theo.
 - **Kết nối owner/superuser/service role có thể bypass RLS**; migration không thay thế kiểm tra quyền ở NestJS. Không cung cấp credential này cho client. Giữ `mma_private` ngoài danh sách schema expose của Supabase.
 - Audit trigger ghi `SYSTEM` nếu request không mang Supabase subject. Khi backend sử dụng pooled connection, đặt subject đã xác thực và `mma.request_id` trong transaction bằng `SET LOCAL`/`set_config(..., true)`; không lấy actor từ body người dùng.
