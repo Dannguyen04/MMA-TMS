@@ -1,14 +1,23 @@
 import { expect, test } from "./fixtures";
 
+const CHAPTER_HEADINGS = [
+    "Every rep, read like a scorecard.",
+    "Plans that move with the camp.",
+    "Progress you can prove.",
+    "Cleared by a doctor, not a guess.",
+    "One corner. Four roles.",
+    "Every signal. One clear decision.",
+];
+
 test.describe("public landing", () => {
-    test("leads a signed-out visitor to login without hiding the product story", async ({ page }) => {
+    test("leads a signed-out visitor to login and tells the whole product story", async ({ page }) => {
         await page.goto("/");
 
         await expect(page.getByRole("heading", { level: 1 })).toContainText("Train harder");
         await expect(page.getByRole("link", { name: "Enter the arena", exact: true }).first()).toHaveAttribute("href", "/login");
-        await expect(page.getByText("AI-assisted analysis", { exact: true })).toBeVisible();
-        await expect(page.getByTestId("fighter-portrait")).toBeVisible();
-        await expect(page.getByTestId("fighter-portrait")).toHaveAttribute("src", /fighter-hero\.png/);
+        for (const heading of CHAPTER_HEADINGS) {
+            await expect(page.getByRole("heading", { level: 2, name: heading })).toBeAttached();
+        }
     });
 
     test("keeps the landing page visible after sign-in and routes the CTA to the role dashboard", async ({ page, signInAs }) => {
@@ -22,50 +31,48 @@ test.describe("public landing", () => {
         await expect(page).toHaveURL(/\/fighter\/dashboard$/);
     });
 
-    test("responds to fighter gestures without blocking normal page scrolling", async ({ page }) => {
+    test("builds the octagon stage from the fighter cutout in a single decorative canvas", async ({ page }) => {
+        const cutout = page.waitForResponse((response) => response.url().endsWith("/images/landing/fighter-guard.webp"));
         await page.goto("/");
-        const fighter = page.getByRole("button", { name: /Interactive stylized MMA fighter/ });
-        await expect(fighter).toBeVisible();
 
-        await fighter.click();
-        await expect(fighter).toHaveAttribute("data-fighter-action", "jab-cross");
-        await page.waitForTimeout(1_050);
-
-        const bounds = await fighter.boundingBox();
-        expect(bounds).not.toBeNull();
-        await page.mouse.move(bounds!.x + bounds!.width * 0.35, bounds!.y + bounds!.height * 0.55);
-        await page.mouse.down();
-        await page.mouse.move(bounds!.x + bounds!.width * 0.7, bounds!.y + bounds!.height * 0.55, { steps: 5 });
-        await page.mouse.up();
-        await expect(fighter).toHaveAttribute("data-fighter-action", "hook-right");
-
-        await page.mouse.wheel(0, 900);
-        await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+        expect((await cutout).status()).toBe(200);
+        await expect(page.locator("canvas")).toHaveCount(1);
+        await expect(page.locator(".landing-stage")).toHaveAttribute("aria-hidden", "true");
     });
 
-    test("ignores a downward drag instead of converting it to a punch", async ({ page }) => {
+    test("scrolling runs the analysis chapter without hijacking the page", async ({ page }) => {
         await page.goto("/");
-        const fighter = page.locator("[data-fighter-action]");
-        const bounds = await fighter.boundingBox();
-        expect(bounds).not.toBeNull();
+        await page.waitForResponse((response) => response.url().endsWith("/images/landing/fighter-guard.webp"));
 
-        await fighter.dispatchEvent("pointerdown", { clientX: bounds!.x + 100, clientY: bounds!.y + 100 });
-        await fighter.dispatchEvent("pointerup", { clientX: bounds!.x + 105, clientY: bounds!.y + 190 });
-        await expect(fighter).toHaveAttribute("data-fighter-action", "idle");
+        // About two viewports down: past the hero and into the pinned analysis chapter.
+        for (let step = 0; step < 6; step++) {
+            await page.mouse.wheel(0, 320);
+            await page.waitForTimeout(80);
+        }
+        await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(1200);
+        await expect(page.locator("[data-hud-item='analysis']")).toHaveAttribute("data-active", "");
+        await expect.poll(async () => Number(await page.locator("[data-analysis-percent]").textContent())).toBeGreaterThan(0);
     });
 
-    test("keeps content usable with reduced motion", async ({ page }) => {
+    test("header links glide to their chapter", async ({ page }) => {
+        await page.goto("/");
+
+        await page.getByRole("navigation", { name: "Landing navigation" }).getByRole("link", { name: "Sports medicine" }).click();
+        await expect(page.getByRole("heading", { level: 2, name: "Cleared by a doctor, not a guess." })).toBeInViewport();
+    });
+
+    test("keeps every chapter readable with reduced motion", async ({ page }) => {
         await page.emulateMedia({ reducedMotion: "reduce" });
         await page.goto("/");
 
-        const fighter = page.getByRole("button", { name: /Interactive stylized MMA fighter/ });
-        await fighter.click();
-        await expect(fighter).toHaveAttribute("data-fighter-action", "idle");
-        await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-        await expect(page.getByRole("link", { name: "Enter the arena", exact: true }).first()).toBeVisible();
+        await page.getByRole("heading", { level: 2, name: "Every rep, read like a scorecard." }).scrollIntoViewIfNeeded();
+        await expect(page.getByText("Area of concern", { exact: true })).toBeVisible();
+        await expect(page.getByText("Generating findings", { exact: true })).toBeVisible();
+        await page.getByRole("heading", { level: 2, name: "Cleared by a doctor, not a guess." }).scrollIntoViewIfNeeded();
+        await expect(page.getByText("Clinical notes stay with the medical team.", { exact: false })).toBeVisible();
     });
 
-    test("shows the decorative fallback when WebGL is unavailable", async ({ page }) => {
+    test("shows the poster and the full content when WebGL is unavailable", async ({ page }) => {
         await page.addInitScript(() => {
             const original = HTMLCanvasElement.prototype.getContext;
             HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, contextId: string, ...args: unknown[]) {
@@ -76,12 +83,12 @@ test.describe("public landing", () => {
         await page.goto("/");
 
         await expect(page.locator("canvas")).toHaveCount(0);
-        await expect(page.getByRole("button", { name: /Interactive stylized MMA fighter/ })).toBeVisible();
-        await expect(page.getByTestId("fighter-portrait")).toBeVisible();
-        await expect(page.getByText("AI-assisted analysis", { exact: true })).toBeVisible();
+        await expect(page.getByTestId("fighter-poster")).toBeVisible();
+        await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+        await expect(page.getByRole("heading", { level: 2, name: "Progress you can prove." })).toBeAttached();
     });
 
-    test("contains a WebGL2 initialization failure inside the fighter experience", async ({ page, consoleErrors }) => {
+    test("contains a WebGL initialization failure inside the stage", async ({ page, consoleErrors }) => {
         await page.addInitScript(() => {
             const original = HTMLCanvasElement.prototype.getContext;
             let webgl2Calls = 0;
@@ -90,12 +97,12 @@ test.describe("public landing", () => {
                 return original.call(this, contextId as never, ...(args as []));
             } as typeof HTMLCanvasElement.prototype.getContext;
         });
-        consoleErrors.allow(/WebGL|error boundary/i);
+        consoleErrors.allow(/WebGL|error boundary|THREE/i);
         await page.goto("/");
 
         await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+        await expect(page.getByTestId("fighter-poster")).toBeVisible();
         await expect(page.getByText("MMA-TMS is temporarily unavailable")).toHaveCount(0);
-        await expect(page.getByText("AI-assisted analysis", { exact: true })).toBeVisible();
     });
 
     test("@mobile has no horizontal overflow and retains the primary journey", async ({ page }) => {
@@ -105,27 +112,5 @@ test.describe("public landing", () => {
         await expect(page.getByRole("link", { name: "Enter the arena", exact: true }).first()).toBeVisible();
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
         expect(overflow).toBeLessThanOrEqual(1);
-    });
-
-    test("@mobile fighter remains hit-testable and recognizes an upward touch before pointer cancellation", async ({ page, isMobile }) => {
-        test.skip(!isMobile, "Native touch coverage runs in the mobile project.");
-        await page.goto("/");
-        const fighter = page.locator("[data-fighter-action]");
-        const bounds = await fighter.boundingBox();
-        expect(bounds).not.toBeNull();
-
-        await page.touchscreen.tap(bounds!.x + bounds!.width / 2, bounds!.y + bounds!.height * 0.65);
-        await expect(fighter).toHaveAttribute("data-fighter-action", "jab-cross");
-
-        await page.reload();
-        const refreshedFighter = page.locator("[data-fighter-action]");
-        const refreshedBounds = await refreshedFighter.boundingBox();
-        expect(refreshedBounds).not.toBeNull();
-        const x = refreshedBounds!.x + refreshedBounds!.width / 2;
-        const startY = refreshedBounds!.y + refreshedBounds!.height * 0.7;
-        await refreshedFighter.dispatchEvent("pointerdown", { pointerType: "touch", clientX: x, clientY: startY });
-        await refreshedFighter.dispatchEvent("pointermove", { pointerType: "touch", clientX: x, clientY: startY - 90 });
-        await refreshedFighter.dispatchEvent("pointercancel", { pointerType: "touch", clientX: x, clientY: startY - 90 });
-        await expect(refreshedFighter).toHaveAttribute("data-fighter-action", "uppercut");
     });
 });

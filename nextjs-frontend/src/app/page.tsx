@@ -10,6 +10,7 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-    const user = await getCurrentUser();
+    // The landing page is public: if the session can't be checked (API down), show it signed out.
+    const user = await getCurrentUser().catch(() => null);
     return <LandingPage primaryHref={user ? dashboardPath(user.role) : routes.login} primaryLabel={user ? "Open dashboard" : "Enter the arena"} />;
 }
