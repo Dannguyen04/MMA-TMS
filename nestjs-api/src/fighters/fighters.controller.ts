@@ -66,7 +66,8 @@ export class FightersController {
   @ApiOperation({
     summary: 'List fighters',
     description:
-      'Retrieves a permission-protected, scope-aware paginated fighter list with optional filtering',
+      'Retrieves a permission-protected, scope-aware paginated fighter list with optional filtering; ' +
+      'COACH receives only Fighters under a currently effective assignment',
   })
   @ResponseMessage('Get fighters list successfully')
   @ApiSuccessEnvelope({
@@ -99,7 +100,9 @@ export class FightersController {
     model: PublicFighterDto,
   })
   @ApiUnauthorizedEnvelope()
-  @ApiForbiddenEnvelope('Fighters cannot view profiles of other fighters')
+  @ApiForbiddenEnvelope(
+    'Fighters cannot view other profiles; Coaches only currently assigned Fighters',
+  )
   @ApiNotFoundEnvelope('FIGHTER_NOT_FOUND', 'Fighter profile not found')
   async findById(
     @CurrentUser() actor: AuthenticatedUser | undefined,

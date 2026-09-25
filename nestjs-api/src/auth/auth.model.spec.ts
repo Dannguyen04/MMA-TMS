@@ -1,8 +1,12 @@
 import {
+  forgotPasswordBodySchema,
   loginBodySchema,
   refreshBodySchema,
   registerBodySchema,
   registerResponseSchema,
+  resetPasswordBodySchema,
+  forgotPasswordResponseSchema,
+  resetPasswordResponseSchema,
 } from './auth.model.js';
 
 describe('auth Zod contracts', () => {
@@ -28,10 +32,19 @@ describe('auth Zod contracts', () => {
     ).toBe(false);
   });
 
-  it('requires a complete fighter profile during registration', () => {
+  it('accepts only email and password for registration (no profile)', () => {
     expect(
       registerBodySchema.safeParse({
-        email: 'fighter@example.com',
+        email: 'guest@example.com',
+        password: 'strong-password',
+      }).success,
+    ).toBe(true);
+  });
+
+  it('rejects registration with a profile or unknown keys', () => {
+    expect(
+      registerBodySchema.safeParse({
+        email: 'guest@example.com',
         password: 'strong-password',
         profile: {
           firstName: 'An',
@@ -40,7 +53,7 @@ describe('auth Zod contracts', () => {
           weightClass: 'LIGHTWEIGHT',
         },
       }).success,
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it('bounds refresh tokens and rejects unknown keys', () => {
@@ -59,19 +72,13 @@ describe('auth Zod contracts', () => {
     const response = {
       user: {
         id: '516a01dc-f842-40e4-ae88-abca224921b7',
-        email: 'fighter@example.com',
-        role: 'FIGHTER' as const,
+        email: 'guest@example.com',
+        role: 'GUEST' as const,
         isActive: true,
         createdAt: new Date('2026-01-01T00:00:00.000Z'),
         updatedAt: new Date('2026-01-01T00:00:00.000Z'),
         deletedAt: null,
-        profile: {
-          id: '59d6ba46-32f2-4e67-b486-e966b2064328',
-          firstName: 'An',
-          lastName: 'Nguyen',
-          dateOfBirth: '2000-01-01',
-          weightClass: 'LIGHTWEIGHT' as const,
-        },
+        profile: null,
       },
       session: null,
       confirmationRequired: true,
@@ -81,9 +88,87 @@ describe('auth Zod contracts', () => {
       session: null,
       confirmationRequired: true,
       user: {
+        role: 'GUEST',
+        profile: null,
         createdAt: '2026-01-01T00:00:00.000Z',
         updatedAt: '2026-01-01T00:00:00.000Z',
       },
     });
   });
+
+  it('normalizes and validates the forgot-password email', () => {
+    expect(
+      forgotPasswordBodySchema.parse({ email: 'User@Example.COM' }),
+    ).toEqual({ email: 'user@example.com' });
+
+    expect(
+      forgotPasswordBodySchema.safeParse({ email: 'not-an-email' }).success,
+    ).toBe(false);
+
+    expect(
+      forgotPasswordBodySchema.safeParse({
+        email: 'user@example.com',
+        extra: 'key',
+      }).success,
+    ).toBe(false);
+  });
+
+  it('validates reset-password token and new password', () => {
+    expect(
+      resetPasswordBodySchema.safeParse({
+        tokenHash: 'a'.repeat(16),
+        newPassword: 'strong-password',
+      }).success,
+    ).toBe(true);
+
+    // tokenHash too short
+    expect(
+      resetPasswordBodySchema.safeParse({
+        tokenHash: 'short',
+        newPassword: 'strong-password',
+      }).success,
+    ).toBe(false);
+
+    // rejects unknown keys
+    expect(
+      resetPasswordBodySchema.safeParse({
+        tokenHash: 'a'.repeat(16),
+        newPassword: 'strong-password',
+        extra: 'key',
+      }).success,
+    ).toBe(false);
+  });
+
+  it('constrains the forgot-password response to literal true', () => {
+    expect(
+      forgotPasswordResponseSchema.parse({ requested: true }),
+    ).toEqual({ requested: true });
+
+    expect(
+      forgotPasswordResponseSchema.safeParse({ requested: false }).success,
+    ).toBe(false);
+  });
+
+  it('validates the reset-password response with activation readiness', () => {
+    expect(
+      resetPasswordResponseSchema.parse({
+        passwordUpdated: true,
+        admissionActivationReady: true,
+      }),
+    ).toEqual({ passwordUpdated: true, admissionActivationReady: true });
+
+    expect(
+      resetPasswordResponseSchema.parse({
+        passwordUpdated: true,
+        admissionActivationReady: false,
+      }),
+    ).toEqual({ passwordUpdated: true, admissionActivationReady: false });
+
+    expect(
+      resetPasswordResponseSchema.safeParse({
+        passwordUpdated: true,
+      }).success,
+    ).toBe(false);
+  });
 });
+

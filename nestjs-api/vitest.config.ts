@@ -9,5 +9,9 @@ export default defineConfig({
     globals: true,
     root: './',
     include: ['**/*.spec.ts'],
+    env: {
+      // Satisfies shared/config/env.ts required-var validation at import time.
+      WORKER_SECRET_TOKEN: 'test-worker-secret-token',
+    },
   },
 });

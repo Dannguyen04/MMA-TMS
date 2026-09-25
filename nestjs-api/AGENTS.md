@@ -33,9 +33,8 @@ system instructions always take precedence.
 ## Shell and command execution
 
 - Use Git Bash for all repository commands; do not use PowerShell.
-- In Codex sessions on Windows, invoke commands through
-  `scripts/run-git-bash.sh` so arguments and the user's Git Bash environment,
-  including `pnpm`, are preserved consistently.
+- In Codex sessions on Windows, run repository commands directly in a Git Bash
+  terminal so the user's Git Bash environment, including `pnpm`, is available.
 
 ## Choosing Agent / Agent Roles & Strict Boundaries
 
@@ -49,9 +48,11 @@ Pipeline: **Codex (module prompt) → Claude (code) → Antigravity (tests/revie
 - **Claude (Code Generation & Implementation Only)**:
   - **Scope:** Architecture design, feature implementation, and creating/updating application code (services, controllers, schemas, DTOs, modules, shared utilities).
   - **Strict Denial Rule:** Claude is **STRICTLY FORBIDDEN** from authoring, modifying, or running test files (`*.spec.ts`, `*.test.ts`, e2e suites). If prompted or requested to write tests or test suites, Claude **MUST DENY** the request with `[DENIED BASED ON RULE: Testing is exclusively reserved for Antigravity]` and output the Summary & Expectations instead.
-  - **Mandatory Handover:** Upon completing code changes, Claude **MUST ALWAYS** generate:
+  - **Mandatory Self-Review Before Handover:** Before handing work to Antigravity, Claude **MUST** re-read its own diff against the module prompt, the relevant spec sections, and the affected schema/migrations, checking specifically for: logic errors (wrong conditions, off-by-one, incorrect state transitions, unhandled branches), contract mismatches against `validation-contracts.md`, `api-security.md`, and `permissions-authorization.md`, and clear optimization opportunities (redundant queries, N+1 patterns, unnecessary loops/allocations, missed reuse of an existing shared utility per `00-workflow.md`/`architecture.md`). Claude **MUST** fix any issue found by this self-review before handover, within the original task scope — this is not a license for unrelated refactors. This self-review does not authorize writing or running tests, which remain reserved for Antigravity.
+  - **Mandatory Handover:** Upon completing code changes (and the self-review above), Claude **MUST ALWAYS** generate:
     1. **Summary of Changes**: What was built, modified, or added.
-    2. **Expectations & Test Criteria**: Exact inputs/outputs, edge cases, business rules, and scenarios for Antigravity to verify.
+    2. **Self-Review Notes**: Issues found during self-review and how they were fixed, or an explicit statement that none were found.
+    3. **Expectations & Test Criteria**: Exact inputs/outputs, edge cases, business rules, and scenarios for Antigravity to verify.
 
 - **Antigravity (Testing & Refactoring Only)**:
   - **Scope:** Authoring unit/integration/e2e tests, running test commands, lint/format verification (Vitest, Supertest, Oxlint, Prettier), and non-breaking code refactoring.

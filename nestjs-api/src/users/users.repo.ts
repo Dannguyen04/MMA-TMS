@@ -8,6 +8,7 @@ import type { UserRole } from '../shared/models/auth-context.model.js';
 import { USER } from '../shared/types/user.role.js';
 import { DRIZZLE, type DrizzleDB } from '../database/database.module.js';
 import { coaches, fighters, sportsDoctors, users } from '../database/schema.js';
+import { PROFILE_LESS_ROLES } from './users.constants.js';
 import type {
   CreateUserInput,
   FighterProfileInput,
@@ -100,8 +101,26 @@ export class UsersRepository {
     if (!user) return undefined;
 
     const profile = await this.findProfile(user.id, user.role, database);
-    if (user.role !== USER.ADMIN && !profile) return undefined;
+    if (!PROFILE_LESS_ROLES.includes(user.role) && !profile) return undefined;
     return { ...user, profile };
+  }
+
+  /**
+   * Promotes an approved applicant in place. The same users row and Supabase
+   * subject are kept; only the role changes. Returns undefined when the row is
+   * no longer a GUEST, so the caller can treat it as a state conflict instead
+   * of assuming success.
+   */
+  async promoteGuestToFighter(
+    userId: string,
+    database: DatabaseExecutor,
+  ): Promise<{ id: string } | undefined> {
+    const [promoted] = await database
+      .update(users)
+      .set({ role: USER.FIGHTER, updatedAt: new Date() })
+      .where(and(eq(users.id, userId), eq(users.role, USER.GUEST)))
+      .returning({ id: users.id });
+    return promoted;
   }
 
   async updateRoleProfile(
@@ -163,7 +182,7 @@ export class UsersRepository {
     role: UserRole,
     database: DatabaseExecutor,
   ): Promise<PublicUser['profile']> {
-    if (role === USER.ADMIN) return null;
+    if (PROFILE_LESS_ROLES.includes(role)) return null;
     if (role === USER.FIGHTER) {
       const [profile] = await database
         .select({

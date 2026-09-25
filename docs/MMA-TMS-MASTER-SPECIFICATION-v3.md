@@ -2,10 +2,12 @@
 
 > **Single Source of Truth** cho sản phẩm, requirements, domain, AI, UX/UI và technical architecture của MMA-TMS.
 
-**Version:** 3.0  
+**Version:** 3.2\
 **Status:** Active Specification — Academic Hardening  
 **Project:** MMA-TMS — MMA Training & Movement Analysis System  
-**Supersedes:** v2.0 (Active Specification)  
+**Supersedes:** v3.1, v3.0, v2.0 (Active Specification)\
+**Changes from v3.1:** Chính sách Medical/measurements chỉ dành cho assigned Doctor — đã duyệt ngày 2026-09-25, chưa triển khai; xem §05.10.1 và Section 27.\
+**Changes from v3.0:** Fighter Admissions policy (GUEST role, admission workflow, activation qua password recovery) — xem Section 27 (Change Log)  
 **Changes from v2.0:** Xem Section 27 (Change Log)
 
 ---
@@ -292,11 +294,14 @@ Reference Motion là một baseline tham chiếu, không phải "Golden Pose" á
 
 - Authentication (email/password, social login)
 - Authorization (JWT)
-- RBAC (Fighter, Coach, Doctor, Admin)
+- RBAC (Guest, Fighter, Coach, Doctor, Admin)
 - Profile management
+- Password recovery / reset (dùng chung cho mọi role)
+- Fighter admissions: Guest nộp hồ sơ → Admin phân công Coach → Coach đánh giá đầu vào (PASS/FAIL) → Admin phê duyệt → kích hoạt Fighter sau khi đặt lại mật khẩu
 
 ## 04.2 Fighter Management
 
+- Fighter profile được tạo khi một hồ sơ gia nhập đã duyệt được kích hoạt (không tạo lúc đăng ký)
 - Fighter profile (name, DOB, weight class, training level, height, weight)
 - Body statistics history
 - Coach assignment
@@ -397,6 +402,9 @@ Reference Motion là một baseline tham chiếu, không phải "Golden Pose" á
 | FR-AUTH-003 | User có thể quản lý thông tin profile cá nhân.                |
 | FR-AUTH-004 | Token hết hạn phải được xử lý gracefully (redirect to login). |
 | FR-AUTH-005 | Admin có thể deactivate account.                              |
+| FR-AUTH-006 | Đăng ký tự phục vụ tạo tài khoản role GUEST (chưa có Fighter profile, chưa có quyền Fighter). |
+| FR-AUTH-007 | Mọi role có thể yêu cầu email khôi phục mật khẩu; response không tiết lộ tài khoản có tồn tại hay không. |
+| FR-AUTH-008 | Đặt lại mật khẩu chỉ chấp nhận bằng chứng khôi phục do provider xác minh (recovery token), không tự cấp role. |
 
 ### AC — FR-AUTH-001
 
@@ -428,6 +436,76 @@ Then:
   - Không nhận data của endpoint đó
 
 Note: Role permission phải được enforce server-side, không chỉ UI.
+```
+
+## 05.1b Fighter Admissions
+
+| ID             | Requirement                                                                                          |
+| -------------- | ---------------------------------------------------------------------------------------------------- |
+| FR-ADMIT-001   | GUEST có thể nộp hồ sơ gia nhập gồm họ tên, ngày sinh, hạng cân và phần giới thiệu/nền tảng tuỳ chọn.  |
+| FR-ADMIT-002   | Mỗi GUEST chỉ có tối đa một hồ sơ đang mở; hồ sơ FAILED/REJECTED được giữ làm lịch sử và cho phép nộp lại. |
+| FR-ADMIT-003   | Admin phân công đúng một Coach đang hoạt động cho mỗi hồ sơ; đổi Coach tạo một kỳ phân công mới kèm lý do. |
+| FR-ADMIT-004   | Coach được phân công ghi các tiêu chí linh hoạt (tên, phương pháp, quan sát, giá trị/đơn vị tuỳ chọn) và kết luận thủ công PASS hoặc FAIL. |
+| FR-ADMIT-005   | Đánh giá đã nộp là bất biến; không có API sửa hoặc xoá. FAIL kết thúc lần nộp đó.                      |
+| FR-ADMIT-006   | Chỉ hồ sơ PASS mới được Admin phê duyệt hoặc từ chối; PASS không tự động cấp quyền Fighter.            |
+| FR-ADMIT-007   | Khi Admin phê duyệt, hệ thống gửi email khôi phục mật khẩu cho chính danh tính hiện có của GUEST.      |
+| FR-ADMIT-008   | Tài khoản chỉ trở thành FIGHTER sau khi mật khẩu được đổi thành công qua luồng khôi phục và bước kích hoạt hoàn tất. |
+| FR-ADMIT-009   | Không thu thập dữ liệu y tế trong luồng gia nhập; Fighter mới giữ `current_medical_status = NOT_CLEARED`. |
+| FR-ADMIT-010   | Có hai đường tạo FIGHTER: (a) tự ứng tuyển qua admission, (b) **chiêu mộ trực tiếp** bằng `POST /users` với `role: FIGHTER` cho vận động viên đã ký. Đường (b) không sinh hồ sơ admission — provenance nằm ở audit log của lần tạo. `POST /users` không tạo GUEST; GUEST chỉ đến từ tự đăng ký. |
+| FR-ADMIT-011   | `email` trong hồ sơ là **snapshot** email tài khoản tại thời điểm nộp, lấy từ session đã xác thực, không nhận từ body. Email khôi phục luôn gửi tới email **hiện tại** của tài khoản Supabase Auth tương ứng; staff view hiển thị cả hai khi lệch nhau. |
+| FR-ADMIT-012   | Mỗi lượt gửi email khôi phục phải được claim trong DB (trạng thái + cooldown) **trước khi** gọi provider; backend chỉ khẳng định “đã thử gửi” và “provider chấp nhận”, không bao giờ khẳng định “đã giao tới hộp thư”. |
+| FR-ADMIT-013   | FIGHTER đã kích hoạt vẫn đọc được lịch sử hồ sơ của chính mình; chỉ GUEST mới được nộp hồ sơ mới. |
+
+### AC — FR-ADMIT-008 (Activation)
+
+```
+Given: Hồ sơ đã được Admin phê duyệt
+When: GUEST mở link khôi phục và đặt mật khẩu mới thành công
+Then:
+  - Trạng thái activation chuyển PASSWORD_SET
+  - Gọi activation với session hợp lệ sẽ promote GUEST → FIGHTER trong cùng một transaction
+    (đổi role, tạo Fighter profile từ snapshot hồ sơ, activation COMPLETED, hồ sơ ACTIVATED)
+
+When: Mật khẩu chưa được đặt lại
+Then:
+  - Activation bị từ chối; tài khoản vẫn là GUEST và không có quyền Fighter
+
+When: Gọi activation lại sau khi đã hoàn tất
+Then:
+  - Vẫn yêu cầu xác thực hợp lệ, trả về kết quả idempotent "đã kích hoạt"
+  - Không tạo Supabase user thứ hai và không đổi email/identity
+
+Note: Một GUEST bị cấp nhầm permission vẫn không vượt được ranh giới này:
+      Authorization Guard từ chối mọi route permission-protected đối với role GUEST.
+```
+
+### AC — FR-ADMIT-012 (Recovery email & reset)
+
+```
+Given: Hồ sơ vừa được APPROVED hoặc Admin bấm resend
+When: Backend chuẩn bị gửi email khôi phục
+Then:
+  - Claim lượt gửi bằng một UPDATE có điều kiện (status = PENDING và cooldown đã hết),
+    tăng recovery_attempts và ghi attempted_at TRƯỚC khi gọi provider
+  - Không giữ transaction mở trong lúc gọi mạng
+  - accepted_at chỉ ghi khi provider trả về không lỗi; đây KHÔNG phải bằng chứng đã giao thư
+
+When: Hai request resend chạy đồng thời
+Then: Chỉ một request claim được; request còn lại nhận 409 (cooldown/đang xử lý)
+
+When: Process chết sau khi claim nhưng trước khi provider trả lời
+Then: attempted_at đã ghi, accepted_at rỗng; lượt gửi kế tiếp chỉ mở lại sau cooldown
+
+Given: Provider đã đổi mật khẩu thành công nhưng DB không ghi được PASSWORD_SET
+When: Người dùng thử lại
+Then:
+  - Không hệ thống nào được tự đánh dấu PASSWORD_SET khi thiếu bằng chứng đổi mật khẩu
+  - Claim IN_PROGRESS bị bỏ dở được giải phóng về PENDING sau cửa sổ stale
+  - Người dùng xin recovery link mới và đặt một mật khẩu KHÁC để tạo bằng chứng mới
+  - Gửi lại đúng mật khẩu cũ sẽ bị Supabase trả mã same_password (409, không phải lỗi mơ hồ)
+
+When: Reset token đã dùng hoặc hết hạn
+Then: 401 RESET_TOKEN_INVALID, không ghi bất kỳ thay đổi nào vào DB
 ```
 
 ## 05.2 Fighter
@@ -788,8 +866,29 @@ Override không xóa AI finding — nó là layer trên cùng.
 | FR-MED-004 | System cung cấp historical movement trends.                    |
 | FR-MED-005 | System ghi lại rehabilitation measurements.                    |
 | FR-MED-006 | System tạo non-diagnostic monitoring alerts.                   |
-| FR-MED-007 | Chỉ authorized medical users mới xem được medical information. |
+| FR-MED-007 | Chỉ DOCTOR có assignment hiệu lực với Fighter và permission tương ứng được đọc medical information và measurements (§05.10.1). |
 | FR-MED-008 | Tất cả medical measurements phải kèm accuracy disclaimer.      |
+| FR-MED-009 | Chỉ assigned DOCTOR có permission tương ứng được ghi/cập nhật medical và measurements; ADMIN không được sửa medical; lịch sử số đo vẫn append-only. |
+
+### 05.10.1 Chính sách truy cập Medical — đã duyệt, chưa triển khai
+
+**Quyết định của chủ dự án ngày 2026-09-25; áp dụng cho feature Medical tương lai.** Chính sách này thay thế các yêu cầu cũ cho Fighter tự đọc medical, Coach đọc medical của Fighter được assign, Doctor đọc toàn bộ hoặc Admin toàn quyền medical. Không coi cập nhật spec là bằng chứng backend/database đã thực thi.
+
+| Actor | Đọc medical và measurements | Ghi/cập nhật medical và measurements |
+| --- | --- | --- |
+| DOCTOR có assignment hiệu lực với Fighter | Cho phép khi có permission tương ứng | Cho phép khi có permission tương ứng |
+| DOCTOR không có assignment hiệu lực | Từ chối | Từ chối |
+| FIGHTER (kể cả bản thân), COACH (kể cả đang phụ trách), ADMIN, GUEST | Từ chối | Từ chối |
+
+- Actor và Doctor profile phải đang hoạt động, không bị xóa; dùng quan hệ `doctor_fighters` với `starts_at <= now` và (`ends_at IS NULL` hoặc `ends_at > now`). Không dùng `coach_fighters` hay assignment đánh giá admission để cấp quyền medical.
+- Permission guard và resource scope đều bắt buộc. Explicit user deny vẫn thắng role grant; grant/override cho role khác không vượt được điều kiện chỉ assigned DOCTOR. Không tự cấp permission medical/measurement cho ADMIN theo quy tắc seed chung.
+- “Cập nhật measurements” không cho phép sửa/xóa lịch sử: `fighter_measurements` vẫn append-only, correction tạo record mới với `supersedes_id`; không tự cập nhật hạng cân hoặc số đo profile từ measurement.
+- Medical gồm hồ sơ, clearance, injuries, treatments, recovery, joint states/history, baselines, alerts và measurements. Quyền đọc/ghi profile hoặc Training không tự cấp quyền với các field này. Các đường trả dữ liệu hỗn hợp cũng phải áp dụng chính sách cho phần medical, gồm status/filter và dữ liệu sức khỏe nhúng.
+- Không thêm ngoại lệ ADMIN đọc toàn bộ hay Fighter tự đọc khi chưa có quyết định mới. Quản trị tài khoản/assignment không đồng nghĩa quyền đọc hoặc sửa nội dung y tế. Audit logs không được chứa bản sao nội dung y tế làm đường vòng cho Admin.
+
+**Hiện trạng sau Coach revert:** 010 cấp 21 quyền cho COACH, có `fighter.measurement:read`, không có `fighter.medical:read`. Coach vẫn đọc measurements trong assignment scope và nhận `PublicFighterDto` có `currentMedicalStatus`/số đo profile; filter `medicalStatus` vẫn tồn tại. `medical-summary` legacy chưa kiểm tra Doctor assignment, medical-read audit đã bị gỡ. RLS y tế của 003 còn là lịch sử quyền rộng; không được diễn giải thành policy mới.
+
+**Điều kiện triển khai sau này:** rà soát tất cả read/write paths (kể cả `/users/me`, Fighter list/detail/roster, profile mutation, dữ liệu nhúng và direct DB access), xác định projection/field contract và cập nhật FE; thêm scope/audit tại backend; dùng migration mới để chuyển RLS/grants, kiểm tra cả grant/override tồn tại. Không sửa lại SQL/checksum lịch sử 003/007/010. Giữ nguyên tính năng Training không thuộc medical. Chỉ công bố hoàn tất khi tests chứng minh role matrix, permission deny/override, assignment hiệu lực/hết hạn/tương lai/Doctor khác, và không rò dữ liệu qua route/filter khác. Đợt duyệt này không triển khai API, SQL, AI hay sửa tests.
 
 ### AC — FR-MED-001
 
@@ -978,8 +1077,15 @@ Export Report (PDF — PROPOSED, phase 5)
 ```
 Authentication & Access:
   User
-  Role (FIGHTER | COACH | DOCTOR | ADMIN)
+  Role (GUEST | FIGHTER | COACH | DOCTOR | ADMIN)
   Permission
+
+Fighter Admissions:
+  FighterApplication (thuộc về một GUEST, giữ snapshot bất biến của ứng viên)
+  FighterApplicationCoachAssignment (lịch sử theo thời gian, đóng kỳ cũ khi đổi Coach)
+  FighterApplicationAssessment (1:1 với application, append-only, chứa criteria)
+  FighterApplicationDecision (1:1 với application, append-only, chỉ cho PASS)
+  FighterApplicationActivation (PENDING → IN_PROGRESS → PASSWORD_SET → COMPLETED)
 
 People:
   Fighter (extends User profile)
@@ -1797,6 +1903,8 @@ notifications        (id, user_id FK, type, title, body, read, created_at)
 
 ## 13.3 Access Control Matrix
 
+Các hàng medical/measurements dưới đây là **target theo §05.10.1**, chưa phải RLS/runtime hiện tại. Quyền rộng trên bảng hỗn hợp (ví dụ `fighters`, `analyses`, `insights`) không bao gồm quyền đọc/ghi phần medical; projection/filter phải tôn trọng chính sách riêng.
+
 | Table              | FIGHTER         | COACH             | DOCTOR            | ADMIN |
 | ------------------ | --------------- | ----------------- | ----------------- | ----- |
 | users              | Own only        | Own only          | Own only          | Full  |
@@ -1806,10 +1914,11 @@ notifications        (id, user_id FK, type, title, body, read, created_at)
 | findings           | Own only        | Assigned fighters | Assigned fighters | Full  |
 | coach_overrides    | Read own        | Write + read own  | Read              | Full  |
 | insights           | Own, by persona | Coach persona     | Doctor persona    | Full  |
-| medical_records    | Own read        | No                | Assigned only     | Full  |
-| rom_readings       | Own read        | No                | Assigned only     | Full  |
-| asymmetry_analyses | Own read        | No                | Assigned only     | Full  |
-| medical_alerts     | No              | No                | Assigned only     | Full  |
+| medical_records    | No              | No                | Assigned only     | No    |
+| rom_readings       | No              | No                | Assigned only     | No    |
+| asymmetry_analyses | No              | No                | Assigned only     | No    |
+| medical_alerts     | No              | No                | Assigned only     | No    |
+| fighter_measurements | No            | No                | Assigned only; append-only corrections | No |
 | audit_logs         | No              | No                | No                | Full  |
 
 ---
@@ -1991,28 +2100,30 @@ GET /api/v1/comparisons/:id
 
 ## 14.8 Medical Endpoints
 
+Target design cho feature tương lai; không phải danh sách route hiện đang triển khai. Mọi route dưới đây cần permission tương ứng **và** Doctor assignment hiệu lực theo §05.10.1; role/permission đơn lẻ không đủ. Contract thực tế hiện tại được mô tả riêng trong tài liệu FE.
+
 ```
 GET /api/v1/fighters/:id/medical
-  Auth: Bearer required (DOCTOR | ADMIN)
+  Auth: Bearer required (assigned DOCTOR + effective permission)
   Response 200: MedicalRecordDto
 
 GET /api/v1/fighters/:id/rom
-  Auth: Bearer required (DOCTOR | ADMIN)
+  Auth: Bearer required (assigned DOCTOR + effective permission)
   Query: { joint?, from_date?, to_date? }
   Response 200: ROMReadingDto[] (includes disclaimer field)
 
 GET /api/v1/fighters/:id/asymmetry
-  Auth: Bearer required (DOCTOR | ADMIN)
+  Auth: Bearer required (assigned DOCTOR + effective permission)
   Query: { metric?, from_date? }
   Response 200: AsymmetryDto[]
 
 GET /api/v1/fighters/:id/alerts
-  Auth: Bearer required (DOCTOR | ADMIN)
+  Auth: Bearer required (assigned DOCTOR + effective permission)
   Query: { status?: "active" | "acknowledged" }
   Response 200: MedicalAlertDto[]
 
 PATCH /api/v1/alerts/:id/acknowledge
-  Auth: Bearer required (DOCTOR | ADMIN)
+  Auth: Bearer required (assigned DOCTOR of alert's Fighter + effective permission)
   Body: { notes?: string }
   Response 200: MedicalAlertDto
 ```
@@ -2132,7 +2243,7 @@ Training videos và health information là **sensitive data**.
 | --------------------- | ---------------- | ------------------------------------- | ----------------------------- |
 | Training videos       | Sensitive        | Owner + assigned coach/doctor + admin | Until user deletion request   |
 | Pose data (keypoints) | Sensitive        | Same as video                         | Same as video                 |
-| Medical records       | Highly sensitive | Fighter + assigned doctor + admin     | 7 years (healthcare standard) |
+| Medical records       | Highly sensitive | Assigned Doctor only (§05.10.1 target) | 7 years (healthcare standard) |
 | Analysis results      | Sensitive        | Owner + assigned + admin              | 3 years or user deletion      |
 | Audit logs            | System           | Admin only                            | 1 year minimum                |
 
@@ -2216,7 +2327,7 @@ AI output là **assistive**, không phải diagnostic.
 | ID           | Requirement                                                    |
 | ------------ | -------------------------------------------------------------- |
 | NFR-PRIV-001 | Video access phải authorized (không public URL)                |
-| NFR-PRIV-002 | Medical information có restricted access (DOCTOR + ADMIN only) |
+| NFR-PRIV-002 | Medical information và measurements chỉ cho DOCTOR có assignment hiệu lực và permission tương ứng (§05.10.1 target); không có Admin bypass. |
 | NFR-PRIV-003 | Data lifecycle phải documented và enforced                     |
 | NFR-PRIV-004 | User data deletion request phải được honored trong 30 ngày     |
 
@@ -2364,7 +2475,7 @@ Then:
   - Alert displays mandatory disclaimer
   - Alert type = THRESHOLD_EXCEEDED (not "injury" or "problem")
   - Alert status = ACTIVE until acknowledged by authorized user
-  - Alert visible only to DOCTOR and ADMIN roles
+  - Alert visible only to a DOCTOR currently assigned to this Fighter, with effective permission
   - Fighter does NOT see medical alerts directly
 ```
 
@@ -2673,6 +2784,52 @@ The system must always answer:
 ---
 
 # 27. CHANGE LOG
+
+## v3.2 (2026-09-25)
+
+**Chính sách Medical mới — approved target, chưa triển khai.**
+
+- FR-MED-007 làm rõ chỉ assigned DOCTOR được đọc; thêm FR-MED-009 về ghi/cập nhật medical và measurements, không có ngoại lệ ADMIN. Fighter self-read và Coach assigned medical-read từ yêu cầu cũ không còn là target.
+- Thêm §05.10.1 với role matrix, temporal assignment, permission precedence, append-only measurement corrections và khoảng cách với code sau Coach revert.
+- Đồng bộ §13.3, §14.8, §16.2, NFR-PRIV-002 và AC FR-MED-006; các mục này không chứng nhận runtime/RLS hiện tại đã thay đổi.
+- Tài liệu FE ghi đúng trạng thái hiện tại: 010 có 21 Coach grants, `PublicFighterDto` và filter `medicalStatus` được giữ; Coach measurements còn read-only. Chuyển đổi Medical cần công việc backend/database/FE/tests riêng, không sửa migration lịch sử.
+
+## v3.1 (2026-09-22)
+
+**Fighter Admissions policy. Thay thế luồng đăng ký Fighter trực tiếp của v3.0.**
+
+### Functional Requirements
+
+- Added FR-AUTH-006 (đăng ký tạo GUEST), FR-AUTH-007 (forgot password dùng chung),
+  FR-AUTH-008 (reset password phải có bằng chứng recovery do provider xác minh)
+- Added Section 05.1b: FR-ADMIT-001 … FR-ADMIT-009 và AC cho activation
+- `POST /auth/register` không còn tạo Fighter profile; Fighter profile được tạo
+  tại bước activation từ snapshot của hồ sơ đã duyệt
+- Added FR-ADMIT-010 … FR-ADMIT-013 và AC cho recovery email/reset
+- `POST /users` giữ `role: FIGHTER` cho nghiệp vụ chiêu mộ trực tiếp; admission
+  là đường dành cho người tự ứng tuyển, không phải đường duy nhất tạo Fighter
+- `GET /fighter-admissions/applications/me[/:id]` mở cho cả GUEST và FIGHTER
+  theo ownership; `POST /fighter-admissions/applications` vẫn chỉ GUEST
+
+### Integration
+
+- Recovery email yêu cầu template dùng `{{ .TokenHash }}` (không dùng
+  `{{ .ConfirmationURL }}` mặc định) để frontend nhận `token_hash`; kèm redirect
+  allowlist và email provider — chi tiết trong `nestjs-api/README.md`
+
+### Domain Model
+
+- Added role `GUEST` vào `user_role`
+- Added 5 bảng admission (application, coach assignment history, assessment,
+  decision, activation) với trigger append-only và state machine ở tầng DB
+
+### Security
+
+- Authorization Guard từ chối mọi route permission-protected với role GUEST,
+  kể cả khi user được cấp nhầm `user_permissions`
+- Legacy `/jobs` read/create routes yêu cầu authenticated non-guest role.
+  Giới hạn còn lại: chưa scope theo chủ sở hữu vì `analysis_jobs.user_id` là
+  free text do client gửi, không có FK tới `public.users`
 
 ## v2.0 (2026-09-13)
 

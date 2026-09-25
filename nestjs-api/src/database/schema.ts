@@ -72,6 +72,29 @@ export const userRoleEnum = pgEnum('user_role', [
   'COACH',
   'DOCTOR',
   'ADMIN',
+  'GUEST',
+]);
+export const fighterApplicationStatusEnum = pgEnum('fighter_application_status', [
+  'SUBMITTED',
+  'FAILED',
+  'PASSED',
+  'REJECTED',
+  'APPROVED',
+  'ACTIVATED',
+]);
+export const fighterAssessmentConclusionEnum = pgEnum(
+  'fighter_assessment_conclusion',
+  ['PASS', 'FAIL'],
+);
+export const fighterDecisionEnum = pgEnum('fighter_decision', [
+  'APPROVED',
+  'REJECTED',
+]);
+export const fighterActivationStatusEnum = pgEnum('fighter_activation_status', [
+  'PENDING',
+  'IN_PROGRESS',
+  'PASSWORD_SET',
+  'COMPLETED',
 ]);
 export const weightClassEnum = pgEnum('weight_class', [
   'STRAWWEIGHT',
@@ -1053,6 +1076,374 @@ export const exercises = pgTable(
   },
   (t): PgTableExtraConfigValue[] => [
     primaryKey({ name: 'exercises_pkey', columns: [t.id] }),
+  ],
+).enableRLS();
+
+export const fighterApplications = pgTable(
+  'fighter_applications',
+  {
+    id: uuid('id').notNull().default(sql.raw('gen_random_uuid()')),
+    guestUserId: uuid('guest_user_id').notNull(),
+    email: text('email').notNull(),
+    firstName: text('first_name').notNull(),
+    lastName: text('last_name').notNull(),
+    dateOfBirth: date('date_of_birth').notNull(),
+    weightClass: weightClassEnum('weight_class').notNull(),
+    nationality: text('nationality'),
+    contactPhone: text('contact_phone'),
+    trainingBackground: text('training_background'),
+    competitionBackground: text('competition_background'),
+    motivation: text('motivation'),
+    status: fighterApplicationStatusEnum('status')
+      .notNull()
+      .default('SUBMITTED'),
+    submittedAt: timestamp('submitted_at', { withTimezone: true })
+      .notNull()
+      .default(sql.raw('now()')),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .default(sql.raw('now()')),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .default(sql.raw('now()')),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    check(
+      'fighter_applications_email_check',
+      sql.raw('((email = lower(btrim(email))) AND (length(email) > 3))'),
+    ),
+    check(
+      'fighter_applications_first_name_check',
+      sql.raw('(length(btrim(first_name)) > 0)'),
+    ),
+    check(
+      'fighter_applications_last_name_check',
+      sql.raw('(length(btrim(last_name)) > 0)'),
+    ),
+    primaryKey({ name: 'fighter_applications_pkey', columns: [t.id] }),
+    unique('uq_fighter_application_guest').on(t.id, t.guestUserId),
+    foreignKey({
+      name: 'fighter_applications_guest_user_id_fkey',
+      columns: [t.guestUserId],
+      foreignColumns: [users.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    uniqueIndex('uq_fighter_application_open')
+      .using('btree', t.guestUserId)
+      .where(
+        sql.raw(
+          "(status = ANY (ARRAY['SUBMITTED'::fighter_application_status, 'PASSED'::fighter_application_status, 'APPROVED'::fighter_application_status]))",
+        ),
+      ),
+    index('idx_fighter_applications_status').using(
+      'btree',
+      t.status,
+      t.submittedAt.desc(),
+    ),
+    index('idx_fighter_applications_guest').using(
+      'btree',
+      t.guestUserId,
+      t.submittedAt.desc(),
+    ),
+  ],
+).enableRLS();
+
+export const fighterApplicationCoachAssignments = pgTable(
+  'fighter_application_coach_assignments',
+  {
+    id: uuid('id').notNull().default(sql.raw('gen_random_uuid()')),
+    applicationId: uuid('application_id').notNull(),
+    coachId: uuid('coach_id').notNull(),
+    assignedById: uuid('assigned_by_id').notNull(),
+    startsAt: timestamp('starts_at', { withTimezone: true })
+      .notNull()
+      .default(sql.raw('now()')),
+    endsAt: timestamp('ends_at', { withTimezone: true }),
+    endedById: uuid('ended_by_id'),
+    endReason: text('end_reason'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .default(sql.raw('now()')),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    check(
+      'ck_application_assignment_period',
+      sql.raw('((ends_at IS NULL) OR (ends_at > starts_at))'),
+    ),
+    check(
+      'ck_application_assignment_closure',
+      sql.raw(
+        "(((ends_at IS NULL) AND (ended_by_id IS NULL) AND (end_reason IS NULL)) OR ((ends_at IS NOT NULL) AND (ended_by_id IS NOT NULL) AND (NULLIF(btrim(end_reason), ''::text) IS NOT NULL)))",
+      ),
+    ),
+    primaryKey({
+      name: 'fighter_application_coach_assignments_pkey',
+      columns: [t.id],
+    }),
+    unique('uq_application_assignment_context').on(t.id, t.applicationId),
+    unique('uq_application_assignment_coach').on(t.id, t.coachId),
+    foreignKey({
+      name: 'fighter_application_coach_assignments_application_id_fkey',
+      columns: [t.applicationId],
+      foreignColumns: [fighterApplications.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    foreignKey({
+      name: 'fighter_application_coach_assignments_coach_id_fkey',
+      columns: [t.coachId],
+      foreignColumns: [coaches.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    foreignKey({
+      name: 'fighter_application_coach_assignments_assigned_by_id_fkey',
+      columns: [t.assignedById],
+      foreignColumns: [users.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    foreignKey({
+      name: 'fighter_application_coach_assignments_ended_by_id_fkey',
+      columns: [t.endedById],
+      foreignColumns: [users.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    uniqueIndex('uq_application_assignment_open')
+      .using('btree', t.applicationId)
+      .where(sql.raw('(ends_at IS NULL)')),
+    index('idx_application_assignment_coach_open')
+      .using('btree', t.coachId)
+      .where(sql.raw('(ends_at IS NULL)')),
+  ],
+).enableRLS();
+
+export const fighterApplicationAssessments = pgTable(
+  'fighter_application_assessments',
+  {
+    id: uuid('id').notNull().default(sql.raw('gen_random_uuid()')),
+    applicationId: uuid('application_id').notNull(),
+    assignmentId: uuid('assignment_id').notNull(),
+    coachId: uuid('coach_id').notNull(),
+    conclusion: fighterAssessmentConclusionEnum('conclusion').notNull(),
+    summary: text('summary').notNull(),
+    criteria: jsonb('criteria').notNull(),
+    assessedAt: timestamp('assessed_at', { withTimezone: true })
+      .notNull()
+      .default(sql.raw('now()')),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .default(sql.raw('now()')),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    check(
+      'fighter_application_assessments_summary_check',
+      sql.raw('(length(btrim(summary)) > 0)'),
+    ),
+    check(
+      'fighter_application_assessments_criteria_check',
+      sql.raw(
+        "((jsonb_typeof(criteria) = 'array'::text) AND ((jsonb_array_length(criteria) >= 1) AND (jsonb_array_length(criteria) <= 30)))",
+      ),
+    ),
+    primaryKey({
+      name: 'fighter_application_assessments_pkey',
+      columns: [t.id],
+    }),
+    unique('fighter_application_assessments_application_id_key').on(
+      t.applicationId,
+    ),
+    unique('uq_assessment_application').on(t.id, t.applicationId),
+    foreignKey({
+      name: 'fighter_application_assessments_application_id_fkey',
+      columns: [t.applicationId],
+      foreignColumns: [fighterApplications.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    foreignKey({
+      name: 'fighter_application_assessments_assignment_id_fkey',
+      columns: [t.assignmentId],
+      foreignColumns: [fighterApplicationCoachAssignments.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    foreignKey({
+      name: 'fighter_application_assessments_coach_id_fkey',
+      columns: [t.coachId],
+      foreignColumns: [coaches.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    foreignKey({
+      name: 'fk_assessment_assignment_application',
+      columns: [t.assignmentId, t.applicationId],
+      foreignColumns: [
+        fighterApplicationCoachAssignments.id,
+        fighterApplicationCoachAssignments.applicationId,
+      ],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    foreignKey({
+      name: 'fk_assessment_assignment_coach',
+      columns: [t.assignmentId, t.coachId],
+      foreignColumns: [
+        fighterApplicationCoachAssignments.id,
+        fighterApplicationCoachAssignments.coachId,
+      ],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    index('idx_assessment_coach').using('btree', t.coachId, t.assessedAt.desc()),
+  ],
+).enableRLS();
+
+export const fighterApplicationDecisions = pgTable(
+  'fighter_application_decisions',
+  {
+    id: uuid('id').notNull().default(sql.raw('gen_random_uuid()')),
+    applicationId: uuid('application_id').notNull(),
+    assessmentId: uuid('assessment_id').notNull(),
+    adminId: uuid('admin_id').notNull(),
+    decision: fighterDecisionEnum('decision').notNull(),
+    reason: text('reason').notNull(),
+    decidedAt: timestamp('decided_at', { withTimezone: true })
+      .notNull()
+      .default(sql.raw('now()')),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .default(sql.raw('now()')),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    check(
+      'fighter_application_decisions_reason_check',
+      sql.raw('(length(btrim(reason)) > 0)'),
+    ),
+    primaryKey({ name: 'fighter_application_decisions_pkey', columns: [t.id] }),
+    unique('fighter_application_decisions_application_id_key').on(
+      t.applicationId,
+    ),
+    unique('uq_decision_application').on(t.id, t.applicationId),
+    foreignKey({
+      name: 'fighter_application_decisions_application_id_fkey',
+      columns: [t.applicationId],
+      foreignColumns: [fighterApplications.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    foreignKey({
+      name: 'fighter_application_decisions_assessment_id_fkey',
+      columns: [t.assessmentId],
+      foreignColumns: [fighterApplicationAssessments.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    foreignKey({
+      name: 'fighter_application_decisions_admin_id_fkey',
+      columns: [t.adminId],
+      foreignColumns: [users.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    foreignKey({
+      name: 'fk_decision_assessment_application',
+      columns: [t.assessmentId, t.applicationId],
+      foreignColumns: [
+        fighterApplicationAssessments.id,
+        fighterApplicationAssessments.applicationId,
+      ],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    index('idx_decision_admin').using('btree', t.adminId, t.decidedAt.desc()),
+  ],
+).enableRLS();
+
+export const fighterApplicationActivations = pgTable(
+  'fighter_application_activations',
+  {
+    id: uuid('id').notNull().default(sql.raw('gen_random_uuid()')),
+    applicationId: uuid('application_id').notNull(),
+    decisionId: uuid('decision_id').notNull(),
+    guestUserId: uuid('guest_user_id').notNull(),
+    status: fighterActivationStatusEnum('status').notNull().default('PENDING'),
+    recoveryAttempts: integer('recovery_attempts').notNull().default(0),
+    attemptedAt: timestamp('attempted_at', { withTimezone: true }),
+    acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+    passwordSetAt: timestamp('password_set_at', { withTimezone: true }),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .default(sql.raw('now()')),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .default(sql.raw('now()')),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    check(
+      'fighter_application_activations_recovery_attempts_check',
+      sql.raw('(recovery_attempts >= 0)'),
+    ),
+    check(
+      'ck_activation_lifecycle',
+      sql.raw(
+        "((((status = 'COMPLETED'::fighter_activation_status) = (completed_at IS NOT NULL)) AND ((status = ANY (ARRAY['PASSWORD_SET'::fighter_activation_status, 'COMPLETED'::fighter_activation_status])) = (password_set_at IS NOT NULL))) AND ((accepted_at IS NULL) OR (attempted_at IS NOT NULL)) AND ((completed_at IS NULL) OR (password_set_at IS NULL) OR (completed_at >= password_set_at)))",
+      ),
+    ),
+    primaryKey({
+      name: 'fighter_application_activations_pkey',
+      columns: [t.id],
+    }),
+    unique('fighter_application_activations_application_id_key').on(
+      t.applicationId,
+    ),
+    foreignKey({
+      name: 'fighter_application_activations_application_id_fkey',
+      columns: [t.applicationId],
+      foreignColumns: [fighterApplications.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    foreignKey({
+      name: 'fighter_application_activations_decision_id_fkey',
+      columns: [t.decisionId],
+      foreignColumns: [fighterApplicationDecisions.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    foreignKey({
+      name: 'fighter_application_activations_guest_user_id_fkey',
+      columns: [t.guestUserId],
+      foreignColumns: [users.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    foreignKey({
+      name: 'fk_activation_application_guest',
+      columns: [t.applicationId, t.guestUserId],
+      foreignColumns: [fighterApplications.id, fighterApplications.guestUserId],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    foreignKey({
+      name: 'fk_activation_decision_application',
+      columns: [t.decisionId, t.applicationId],
+      foreignColumns: [
+        fighterApplicationDecisions.id,
+        fighterApplicationDecisions.applicationId,
+      ],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    index('idx_activation_status').using(
+      'btree',
+      t.status,
+      t.updatedAt.desc(),
+    ),
+    index('idx_activation_guest').using('btree', t.guestUserId),
   ],
 ).enableRLS();
 
