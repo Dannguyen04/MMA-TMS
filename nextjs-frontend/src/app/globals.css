@@ -423,3 +423,356 @@
 @utility animate-indeterminate {
     animation: indeterminate 1.4s ease-in-out infinite;
 }
+
+/*
+ * Landing page: a scroll tour over a fixed WebGL stage. Always dark, whatever the app theme.
+ * Scoped to .landing-* classes so nothing leaks into the app shell.
+ */
+@theme {
+    --color-landing-ink: #050608;
+    --color-landing-cyan: #5fe3ff;
+    --color-landing-success: #4ade80;
+    --color-landing-warning: #fbbf24;
+    --color-landing-danger: #fb7185;
+}
+
+.landing-shell {
+    background: var(--color-landing-ink);
+}
+
+.landing-shell ::selection {
+    background: rgb(95 227 255 / 30%);
+    color: white;
+}
+
+.landing-chapter {
+    position: relative;
+    z-index: 10;
+    min-height: 100svh;
+}
+
+.landing-chapter-inner {
+    display: flex;
+    position: relative;
+    align-items: center;
+    width: 100%;
+    max-width: 90rem;
+    min-height: 100svh;
+    margin-inline: auto;
+    padding: 6rem 1.25rem 3rem;
+}
+
+@media (min-width: 640px) {
+    .landing-chapter-inner {
+        padding-inline: 2rem;
+    }
+}
+
+@media (min-width: 1024px) {
+    .landing-chapter-inner {
+        padding: 5.5rem 3rem 3rem 6.5rem;
+    }
+}
+
+/*
+ * Below lg the fighter stays centred behind the copy. Each chapter opens with a clear window onto
+ * the stage, then the copy scrolls up over a soft scrim.
+ */
+@media (max-width: 1023px) {
+    .landing-chapter:not(#hero) .landing-chapter-inner {
+        align-items: flex-end;
+        padding-top: 62svh;
+        background: linear-gradient(to bottom, transparent 55svh, rgb(5 6 8 / 78%) calc(55svh + 14rem), rgb(5 6 8 / 88%));
+    }
+
+    .landing-hero-copy p {
+        text-shadow: 0 2px 20px rgb(5 6 8 / 85%);
+    }
+}
+
+/* Keeps the hero copy legible over the cage without boxing it in. */
+.landing-hero-scrim {
+    background: linear-gradient(90deg, rgb(5 6 8 / 72%) 0%, rgb(5 6 8 / 45%) 38%, transparent 62%);
+    /* Fades out at the bottom so no hard edge crosses the stage as the hero scrolls away. */
+    mask-image: linear-gradient(to bottom, black 55%, transparent);
+}
+
+@media (max-width: 1023px) {
+    .landing-hero-scrim {
+        background: linear-gradient(180deg, rgb(5 6 8 / 55%) 0%, rgb(5 6 8 / 35%) 45%, transparent 70%);
+    }
+}
+
+/* Cinematic vignette over the stage. */
+.landing-stage::after {
+    position: absolute;
+    inset: 0;
+    content: "";
+    pointer-events: none;
+    background: radial-gradient(ellipse 75% 70% at 55% 48%, transparent 55%, rgb(0 0 0 / 55%) 100%);
+}
+
+.landing-line-mask {
+    display: block;
+    overflow: hidden;
+    padding-bottom: 0.1em;
+    margin-bottom: -0.1em;
+}
+
+.landing-gradient-text {
+    color: transparent;
+    background: linear-gradient(100deg, #f3f6fb 0%, #9dc6ff 42%, #ef5964 92%);
+    background-clip: text;
+    -webkit-background-clip: text;
+}
+
+.landing-primary-action {
+    border: 1px solid rgb(255 255 255 / 14%);
+    background: linear-gradient(112deg, var(--brand-blue), var(--brand-red));
+    box-shadow: 0 16px 45px rgb(29 91 188 / 25%);
+    transition:
+        filter 200ms,
+        transform 200ms;
+}
+
+.landing-primary-action:hover {
+    filter: saturate(1.15) brightness(1.09);
+    transform: translateY(-1px);
+}
+
+.landing-header {
+    transition:
+        background-color 300ms,
+        backdrop-filter 300ms,
+        border-color 300ms;
+    border-bottom: 1px solid transparent;
+}
+
+.landing-header[data-scrolled] {
+    background: rgb(5 6 8 / 55%);
+    backdrop-filter: blur(18px) saturate(1.4);
+    border-bottom-color: rgb(255 255 255 / 8%);
+}
+
+.landing-scroll-cue {
+    display: block;
+    width: 1px;
+    height: 3rem;
+    background: linear-gradient(to bottom, transparent, white);
+    animation: landing-cue 2.2s cubic-bezier(0.6, 0, 0.3, 1) infinite;
+}
+
+@keyframes landing-cue {
+    0% {
+        transform: scaleY(0);
+        transform-origin: top;
+    }
+    45% {
+        transform: scaleY(1);
+        transform-origin: top;
+    }
+    55% {
+        transform: scaleY(1);
+        transform-origin: bottom;
+    }
+    100% {
+        transform: scaleY(0);
+        transform-origin: bottom;
+    }
+}
+
+/* Chapter rail. */
+.landing-hud-item {
+    color: rgb(255 255 255 / 35%);
+    transition: color 300ms;
+}
+
+.landing-hud-line {
+    display: block;
+    width: 1rem;
+    height: 1px;
+    background: currentColor;
+    transition:
+        width 400ms cubic-bezier(0.2, 0.8, 0.2, 1),
+        background-color 300ms;
+}
+
+.landing-hud-label {
+    opacity: 0;
+    transform: translateX(-6px);
+    transition:
+        opacity 300ms,
+        transform 300ms;
+}
+
+.landing-hud-item:hover,
+.landing-hud-item:focus-visible,
+.landing-hud-item[data-active] {
+    color: white;
+}
+
+.landing-hud-item[data-active] .landing-hud-line {
+    width: 2.5rem;
+    background: var(--color-landing-cyan);
+}
+
+.landing-hud-index {
+    opacity: 0;
+    transition: opacity 300ms;
+}
+
+.landing-hud-item[data-active] .landing-hud-index,
+.landing-hud-item:hover .landing-hud-index,
+.landing-hud-item:focus-visible .landing-hud-index {
+    opacity: 1;
+}
+
+/* The chapter name only on hover or focus, so the rail never covers the copy. */
+.landing-hud-item:hover .landing-hud-label,
+.landing-hud-item:focus-visible .landing-hud-label {
+    opacity: 1;
+    transform: none;
+}
+
+/* With motion on wide screens, the analysis pipeline and its results share one slot and cross-fade. */
+[data-motion="wide"] .landing-stack {
+    display: grid;
+}
+
+[data-motion="wide"] .landing-stack > * {
+    grid-area: 1 / 1;
+}
+
+.landing-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.landing-stage-step {
+    color: rgb(255 255 255 / 85%);
+    transition: color 300ms;
+}
+
+.landing-stage-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 999px;
+    background: var(--color-landing-success);
+    transition:
+        background-color 300ms,
+        box-shadow 300ms;
+}
+
+[data-motion] .landing-stage-step[data-state="pending"] {
+    color: rgb(255 255 255 / 35%);
+}
+
+[data-motion] .landing-stage-step[data-state="pending"] .landing-stage-dot {
+    background: rgb(255 255 255 / 18%);
+}
+
+[data-motion] .landing-stage-step[data-state="active"] {
+    color: white;
+}
+
+[data-motion] .landing-stage-step[data-state="active"] .landing-stage-dot {
+    background: var(--color-landing-cyan);
+    box-shadow: 0 0 0 4px rgb(95 227 255 / 18%);
+}
+
+.landing-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.6rem;
+    border: 1px solid rgb(255 255 255 / 14%);
+    border-radius: 999px;
+    color: white;
+}
+
+.landing-clearance-step {
+    opacity: 0.4;
+    transition:
+        opacity 400ms,
+        background-color 400ms;
+}
+
+.landing-clearance-step[data-active="true"] {
+    opacity: 1;
+    background: rgb(255 255 255 / 6%);
+}
+
+/* Labels pinned to 3D points by the scene; transform and opacity are set every frame. */
+.landing-label {
+    position: absolute;
+    top: 0;
+    left: 0;
+    opacity: 0;
+    translate: -50% -140%;
+    padding: 0.3rem 0.6rem;
+    border-radius: 999px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    color: white;
+    background: rgb(5 6 8 / 70%);
+    border: 1px solid rgb(255 255 255 / 16%);
+    backdrop-filter: blur(8px);
+    will-change: transform, opacity;
+}
+
+.landing-label b {
+    margin-left: 0.25rem;
+    font-weight: 600;
+}
+
+.landing-label-ai {
+    translate: 18px -50%;
+    border-color: rgb(95 227 255 / 45%);
+    box-shadow: 0 0 24px rgb(95 227 255 / 25%);
+}
+
+.landing-label-ai b {
+    color: var(--color-landing-cyan);
+}
+
+.landing-label-alert {
+    translate: 18px -50%;
+    border-color: rgb(251 113 133 / 50%);
+    box-shadow: 0 0 24px rgb(251 113 133 / 25%);
+}
+
+.landing-label-alert b {
+    color: var(--color-landing-danger);
+}
+
+.landing-label-bar {
+    font-size: 10px;
+}
+
+.landing-poster-glow {
+    background:
+        radial-gradient(circle at 64% 42%, rgb(47 125 225 / 20%), transparent 28rem),
+        radial-gradient(circle at 72% 58%, rgb(214 52 63 / 16%), transparent 30rem);
+}
+
+@media (max-width: 1023px) {
+    .landing-poster-glow {
+        background:
+            radial-gradient(circle at 42% 50%, rgb(47 125 225 / 20%), transparent 20rem),
+            radial-gradient(circle at 58% 60%, rgb(214 52 63 / 16%), transparent 20rem);
+    }
+}
+
+/* Reduced motion: the stage stays on the hero shot, so later chapters sit on their own dark ground. */
+@media (prefers-reduced-motion: reduce) {
+    .landing-scroll-cue {
+        animation: none;
+    }
+
+    .landing-chapter:not(#hero) {
+        background: rgb(5 6 8 / 90%);
+    }
+}

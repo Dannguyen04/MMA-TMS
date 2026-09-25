@@ -57,6 +57,14 @@ describe("proxy auth gate", () => {
 
     const pageRequest = (cookie: string) => new NextRequest("http://localhost:3000/coach/dashboard", { headers: { cookie } });
 
+    it("keeps the landing page public without weakening protected routes", async () => {
+        vi.stubEnv("APP_DATA_MODE", "demo");
+
+        expect((await proxy(new NextRequest("http://localhost:3000/"))).status).toBe(200);
+        const protectedResponse = await proxy(new NextRequest("http://localhost:3000/coach/dashboard"));
+        expect(protectedResponse.headers.get("location")).toBe("http://localhost:3000/login?next=%2Fcoach%2Fdashboard");
+    });
+
     it("accepts only the demo session cookie in demo mode", async () => {
         vi.stubEnv("APP_DATA_MODE", "demo");
 
