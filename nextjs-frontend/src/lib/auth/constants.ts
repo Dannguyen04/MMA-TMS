@@ -11,8 +11,9 @@ export const DEMO_PASSWORD = "mma-demo";
 
 export type ThemePreference = "light" | "dark" | "system";
 
+/** A stored preference is kept as is; anything else (no cookie, a stale value) falls back to the light theme. */
 export function parseTheme(value: string | undefined): ThemePreference {
-    return value === "light" || value === "dark" ? value : "system";
+    return value === "light" || value === "dark" || value === "system" ? value : "light";
 }
 
 /**

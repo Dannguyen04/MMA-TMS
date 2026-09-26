@@ -1,10 +1,14 @@
 @import "tailwindcss";
 
 /*
- * MMA-TMS design tokens.
+ * MMA-TMS design tokens — "Fight Night".
  * Every color in the app resolves through these semantic tokens so the light,
  * dark and system themes stay in sync. Never hardcode palette values in components.
- * Theme is selected by [data-theme] on <html>: "light" | "dark" | "system".
+ * Theme is selected by [data-theme] on <html>: "light" (default) | "dark" | "system".
+ *
+ * Light is a cool arena-mat grey with navy ink; the dark theme ("Arena night") is deep navy,
+ * never near-black. Red and blue are the fight corners: blue is the primary action colour,
+ * red is reserved for brand moments (active navigation, fight countdown, tab underline).
  */
 
 @custom-variant dark {
@@ -21,40 +25,58 @@
 :root {
     color-scheme: light;
 
-    /* Planes & surfaces — warm "canvas mat" neutrals */
-    --bg: #f5f4f0;
+    /* Planes & surfaces — cool "arena mat" neutrals */
+    --bg: #eef1f5;
     --surface: #ffffff;
-    --surface-muted: #f0efea;
-    --surface-hover: #e9e7e1;
-    --overlay: rgba(12, 13, 16, 0.48);
+    --surface-muted: #f2f4f8;
+    --surface-hover: #e6ebf1;
+    --overlay: rgba(14, 26, 43, 0.5);
 
-    --border: #e2e0d9;
-    --border-strong: #cdcac1;
+    --border: #d8dee7;
+    --border-strong: #bfc8d5;
     /* Form control edges: at least 3:1 against surface, surface-muted and bg */
-    --control-border: #8a877f;
+    --control-border: #7a8699;
 
     /* Ink */
-    --fg: #15161a;
-    --fg-muted: #51535a;
-    --fg-subtle: #65676e;
+    --fg: #0e1a2b;
+    --fg-muted: #4a5668;
+    --fg-subtle: #5b6778;
     --fg-inverse: #ffffff;
 
-    /* Primary action — "blue corner" */
-    --primary: #1c63c7;
-    --primary-hover: #1753a8;
+    /* Primary action — the blue corner */
+    --primary: #1846c4;
+    --primary-hover: #133a9e;
     --primary-fg: #ffffff;
-    --primary-soft: #e7effb;
-    --primary-soft-fg: #174f9e;
-    --ring: #2f7de1;
+    --primary-soft: #e6ecfb;
+    --primary-soft-fg: #173b9e;
+    --ring: #3b6be0;
 
-    /* Brand corners — used by the octagon mark only */
+    /* Fight corners and the championship belt. Red is for brand moments only, never for status. */
+    --corner-red: #c92637;
+    --corner-blue: #1846c4;
+    --belt-gold: #e3a82b;
+    --belt-gold-fg: #86600f;
+
+    /* Brand corners — used by the octagon mark and the landing page only */
     --brand-red: #d6343f;
     --brand-blue: #2f7de1;
 
-    /* Navigation rail — "the cage": dark in both themes */
-    --nav-bg: #111215;
-    --nav-surface: #1b1d21;
-    --nav-border: #24272d;
+    /* Navigation rail — light in the light theme, deep navy in the dark one */
+    --rail-bg: #ffffff;
+    --rail-border: #d8dee7;
+    --rail-fg: #4a5668;
+    --rail-fg-strong: #0e1a2b;
+    --rail-muted: #5b6778;
+    --rail-active-bg: #eef1f5;
+    --rail-accent: #c92637;
+
+    /*
+     * The stage — a fixed deep-navy ground for surfaces that stay dark in every theme: the landing page,
+     * the video player, the sign-in aside, fighter avatars and the theme previews.
+     */
+    --nav-bg: #0e1a2b;
+    --nav-surface: #16243a;
+    --nav-border: #22324c;
     --nav-fg: #b9bbc2;
     --nav-fg-active: #ffffff;
     --nav-accent: #4d94ec;
@@ -68,7 +90,7 @@
     --warning-soft: #fcf2da;
     --warning-fg: #855600;
     --warning-solid: #c98200;
-    --warning-solid-fg: #15161a;
+    --warning-solid-fg: #0e1a2b;
     --warning-border: #efd593;
 
     --danger-soft: #fce9ea;
@@ -86,10 +108,10 @@
     --ai-solid: #6a4cdc;
     --ai-border: #d3c9fa;
 
-    --neutral-soft: #eeede8;
-    --neutral-fg: #4c4e55;
-    --neutral-solid: #6b6d73;
-    --neutral-border: #dcdad3;
+    --neutral-soft: #edf0f4;
+    --neutral-fg: #4a5263;
+    --neutral-solid: #687284;
+    --neutral-border: #d8dee7;
 
     /* Data visualization (validated categorical order) */
     --chart-1: #2a78d6;
@@ -100,43 +122,57 @@
     --chart-6: #008300;
     --chart-7: #4a3aa7;
     --chart-8: #e34948;
-    --chart-grid: #e8e6df;
-    --chart-axis: #c6c3b9;
+    --chart-grid: #e3e8ef;
+    --chart-axis: #c3cbd7;
     --chart-surface: #ffffff;
 
-    --shadow-sm: 0 1px 2px rgba(16, 17, 20, 0.05);
-    --shadow-md: 0 4px 16px -4px rgba(16, 17, 20, 0.12), 0 1px 3px rgba(16, 17, 20, 0.06);
-    --shadow-lg: 0 24px 48px -12px rgba(16, 17, 20, 0.28);
+    --shadow-sm: 0 1px 2px rgba(14, 26, 43, 0.06);
+    --shadow-md: 0 4px 16px -4px rgba(14, 26, 43, 0.14), 0 1px 3px rgba(14, 26, 43, 0.06);
+    --shadow-lg: 0 24px 48px -12px rgba(14, 26, 43, 0.3);
 }
 
+/*
+ * "Arena night". The dark palette is written twice — for an explicit choice and for "system" on a
+ * dark device — because CSS can't share one declaration block between a selector and a media query.
+ * Keep the two blocks identical.
+ */
 [data-theme="dark"] {
     color-scheme: dark;
 
-    --bg: #0c0d0f;
-    --surface: #15171a;
-    --surface-muted: #1b1e22;
-    --surface-hover: #24272c;
-    --overlay: rgba(0, 0, 0, 0.64);
+    --bg: #0d1626;
+    --surface: #142036;
+    --surface-muted: #18263f;
+    --surface-hover: #1f2f4b;
+    --overlay: rgba(3, 7, 15, 0.66);
 
-    --border: #272a30;
-    --border-strong: #383c43;
-    --control-border: #666a72;
+    --border: #243552;
+    --border-strong: #33486b;
+    --control-border: #6b7c99;
 
-    --fg: #f1f1f3;
-    --fg-muted: #b2b4ba;
-    --fg-subtle: #8b8e95;
-    --fg-inverse: #0c0d0f;
+    --fg: #e9eef6;
+    --fg-muted: #aab6ca;
+    --fg-subtle: #8e9bb2;
+    --fg-inverse: #0d1626;
 
-    --primary: #2f6fca;
-    --primary-hover: #3b7fdc;
+    --primary: #3a6be6;
+    --primary-hover: #4d7cf0;
     --primary-fg: #ffffff;
-    --primary-soft: rgba(74, 144, 232, 0.14);
-    --primary-soft-fg: #8dbbf4;
-    --ring: #5a9cf0;
+    --primary-soft: rgba(96, 140, 255, 0.16);
+    --primary-soft-fg: #a9c1ff;
+    --ring: #6e93f5;
 
-    --nav-bg: #0f1012;
-    --nav-surface: #191b1f;
-    --nav-border: #22252a;
+    --corner-red: #f05a67;
+    --corner-blue: #6e93f5;
+    --belt-gold: #e8b84a;
+    --belt-gold-fg: #f0c766;
+
+    --rail-bg: #101b2e;
+    --rail-border: #22324c;
+    --rail-fg: #aab6ca;
+    --rail-fg-strong: #e9eef6;
+    --rail-muted: #8e9bb2;
+    --rail-active-bg: #1b2a44;
+    --rail-accent: #f05a67;
 
     --success-soft: rgba(42, 165, 90, 0.14);
     --success-fg: #74d49c;
@@ -146,7 +182,7 @@
     --warning-soft: rgba(224, 160, 30, 0.14);
     --warning-fg: #f0c263;
     --warning-solid: #c98a12;
-    --warning-solid-fg: #15161a;
+    --warning-solid-fg: #0d1626;
     --warning-border: rgba(240, 194, 99, 0.28);
 
     --danger-soft: rgba(230, 70, 82, 0.15);
@@ -165,8 +201,8 @@
     --ai-border: rgba(185, 168, 255, 0.3);
 
     --neutral-soft: rgba(255, 255, 255, 0.06);
-    --neutral-fg: #c2c4ca;
-    --neutral-solid: #6f727a;
+    --neutral-fg: #c3ccdb;
+    --neutral-solid: #6f7c93;
     --neutral-border: rgba(255, 255, 255, 0.12);
 
     --chart-1: #3987e5;
@@ -174,47 +210,56 @@
     --chart-3: #199e70;
     --chart-4: #c98500;
     --chart-5: #d55181;
-    --chart-6: #008300;
+    --chart-6: #3aa34a;
     --chart-7: #9085e9;
     --chart-8: #e66767;
-    --chart-grid: #26292e;
-    --chart-axis: #3a3d43;
-    --chart-surface: #15171a;
+    --chart-grid: #22324c;
+    --chart-axis: #33486b;
+    --chart-surface: #142036;
 
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-    --shadow-md: 0 6px 20px -6px rgba(0, 0, 0, 0.6), 0 1px 3px rgba(0, 0, 0, 0.4);
-    --shadow-lg: 0 28px 56px -12px rgba(0, 0, 0, 0.75);
+    --shadow-sm: 0 1px 2px rgba(3, 7, 15, 0.45);
+    --shadow-md: 0 6px 20px -6px rgba(3, 7, 15, 0.65), 0 1px 3px rgba(3, 7, 15, 0.45);
+    --shadow-lg: 0 28px 56px -12px rgba(3, 7, 15, 0.8);
 }
 
 @media (prefers-color-scheme: dark) {
     [data-theme="system"] {
         color-scheme: dark;
 
-        --bg: #0c0d0f;
-        --surface: #15171a;
-        --surface-muted: #1b1e22;
-        --surface-hover: #24272c;
-        --overlay: rgba(0, 0, 0, 0.64);
+        --bg: #0d1626;
+        --surface: #142036;
+        --surface-muted: #18263f;
+        --surface-hover: #1f2f4b;
+        --overlay: rgba(3, 7, 15, 0.66);
 
-        --border: #272a30;
-        --border-strong: #383c43;
-        --control-border: #666a72;
+        --border: #243552;
+        --border-strong: #33486b;
+        --control-border: #6b7c99;
 
-        --fg: #f1f1f3;
-        --fg-muted: #b2b4ba;
-        --fg-subtle: #8b8e95;
-        --fg-inverse: #0c0d0f;
+        --fg: #e9eef6;
+        --fg-muted: #aab6ca;
+        --fg-subtle: #8e9bb2;
+        --fg-inverse: #0d1626;
 
-        --primary: #2f6fca;
-        --primary-hover: #3b7fdc;
+        --primary: #3a6be6;
+        --primary-hover: #4d7cf0;
         --primary-fg: #ffffff;
-        --primary-soft: rgba(74, 144, 232, 0.14);
-        --primary-soft-fg: #8dbbf4;
-        --ring: #5a9cf0;
+        --primary-soft: rgba(96, 140, 255, 0.16);
+        --primary-soft-fg: #a9c1ff;
+        --ring: #6e93f5;
 
-        --nav-bg: #0f1012;
-        --nav-surface: #191b1f;
-        --nav-border: #22252a;
+        --corner-red: #f05a67;
+        --corner-blue: #6e93f5;
+        --belt-gold: #e8b84a;
+        --belt-gold-fg: #f0c766;
+
+        --rail-bg: #101b2e;
+        --rail-border: #22324c;
+        --rail-fg: #aab6ca;
+        --rail-fg-strong: #e9eef6;
+        --rail-muted: #8e9bb2;
+        --rail-active-bg: #1b2a44;
+        --rail-accent: #f05a67;
 
         --success-soft: rgba(42, 165, 90, 0.14);
         --success-fg: #74d49c;
@@ -224,7 +269,7 @@
         --warning-soft: rgba(224, 160, 30, 0.14);
         --warning-fg: #f0c263;
         --warning-solid: #c98a12;
-        --warning-solid-fg: #15161a;
+        --warning-solid-fg: #0d1626;
         --warning-border: rgba(240, 194, 99, 0.28);
 
         --danger-soft: rgba(230, 70, 82, 0.15);
@@ -243,8 +288,8 @@
         --ai-border: rgba(185, 168, 255, 0.3);
 
         --neutral-soft: rgba(255, 255, 255, 0.06);
-        --neutral-fg: #c2c4ca;
-        --neutral-solid: #6f727a;
+        --neutral-fg: #c3ccdb;
+        --neutral-solid: #6f7c93;
         --neutral-border: rgba(255, 255, 255, 0.12);
 
         --chart-1: #3987e5;
@@ -252,16 +297,16 @@
         --chart-3: #199e70;
         --chart-4: #c98500;
         --chart-5: #d55181;
-        --chart-6: #008300;
+        --chart-6: #3aa34a;
         --chart-7: #9085e9;
         --chart-8: #e66767;
-        --chart-grid: #26292e;
-        --chart-axis: #3a3d43;
-        --chart-surface: #15171a;
+        --chart-grid: #22324c;
+        --chart-axis: #33486b;
+        --chart-surface: #142036;
 
-        --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-        --shadow-md: 0 6px 20px -6px rgba(0, 0, 0, 0.6), 0 1px 3px rgba(0, 0, 0, 0.4);
-        --shadow-lg: 0 28px 56px -12px rgba(0, 0, 0, 0.75);
+        --shadow-sm: 0 1px 2px rgba(3, 7, 15, 0.45);
+        --shadow-md: 0 6px 20px -6px rgba(3, 7, 15, 0.65), 0 1px 3px rgba(3, 7, 15, 0.45);
+        --shadow-lg: 0 28px 56px -12px rgba(3, 7, 15, 0.8);
     }
 }
 
@@ -287,8 +332,21 @@
     --color-primary-soft-fg: var(--primary-soft-fg);
     --color-ring: var(--ring);
 
+    --color-corner-red: var(--corner-red);
+    --color-corner-blue: var(--corner-blue);
+    --color-belt-gold: var(--belt-gold);
+    --color-belt-gold-fg: var(--belt-gold-fg);
+
     --color-brand-red: var(--brand-red);
     --color-brand-blue: var(--brand-blue);
+
+    --color-rail-bg: var(--rail-bg);
+    --color-rail-border: var(--rail-border);
+    --color-rail-fg: var(--rail-fg);
+    --color-rail-fg-strong: var(--rail-fg-strong);
+    --color-rail-muted: var(--rail-muted);
+    --color-rail-active-bg: var(--rail-active-bg);
+    --color-rail-accent: var(--rail-accent);
 
     --color-nav-bg: var(--nav-bg);
     --color-nav-surface: var(--nav-surface);
@@ -338,8 +396,27 @@
     --shadow-popover: var(--shadow-md);
     --shadow-dialog: var(--shadow-lg);
 
-    --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    /* Be Vietnam Pro for reading, Barlow Condensed for numbers, titles and labels. */
+    --font-sans: var(--font-be-vietnam), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-display: var(--font-barlow), "Arial Narrow", "Roboto Condensed", ui-sans-serif, sans-serif;
     --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+
+/*
+ * Fixed miniature palettes for the theme preview cards in Preferences. They must not follow the
+ * active theme, so they live in a plain @theme block instead of the semantic tokens above.
+ */
+@theme {
+    --color-mock-light-bg: #eef1f5;
+    --color-mock-light-surface: #ffffff;
+    --color-mock-light-line: #c3cbd7;
+    --color-mock-light-ink: #0e1a2b;
+    --color-mock-dark-bg: #0d1626;
+    --color-mock-dark-surface: #142036;
+    --color-mock-dark-line: #33486b;
+    --color-mock-dark-ink: #e9eef6;
+    --color-mock-accent: #c92637;
+    --color-mock-primary: #1846c4;
 }
 
 @layer base {
@@ -351,7 +428,6 @@
         background-color: var(--bg);
         color: var(--fg);
         font-family: var(--font-sans);
-        font-feature-settings: "cv11", "ss01";
     }
 
     ::selection {
@@ -387,6 +463,29 @@
 
 @utility octagon {
     clip-path: polygon(29.3% 0, 70.7% 0, 100% 29.3%, 100% 70.7%, 70.7% 100%, 29.3% 100%, 0 70.7%, 0 29.3%);
+}
+
+/*
+ * Two opposite corners cut at 45°, like the octagon's edge. Clip-path also clips shadows and focus rings,
+ * so put it on an aria-hidden background layer behind the content, never on the interactive element itself.
+ * Set --chamfer to change the cut (default 1.25rem).
+ */
+@utility chamfer {
+    clip-path: polygon(
+        var(--chamfer, 1.25rem) 0,
+        100% 0,
+        100% calc(100% - var(--chamfer, 1.25rem)),
+        calc(100% - var(--chamfer, 1.25rem)) 100%,
+        0 100%,
+        0 var(--chamfer, 1.25rem)
+    );
+}
+
+/* Faint chain-link hatch for dark or saturated hero grounds. */
+@utility cage-hatch {
+    background-image:
+        repeating-linear-gradient(45deg, rgb(255 255 255 / 7%) 0 1px, transparent 1px 14px),
+        repeating-linear-gradient(-45deg, rgb(255 255 255 / 7%) 0 1px, transparent 1px 14px);
 }
 
 @utility scrollbar-thin {

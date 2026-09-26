@@ -4,7 +4,7 @@ import "./globals.css";
 
 export default function GlobalError({ retry }: { error: Error & { digest?: string }; retry: () => void }) {
     return (
-        <html lang="en" data-theme="system">
+        <html lang="en" data-theme="light">
             <body className="flex min-h-dvh items-center justify-center bg-bg px-6 text-fg">
                 <main className="max-w-md text-center">
                     <h1 className="text-2xl font-semibold tracking-tight">MMA-TMS is temporarily unavailable</h1>
