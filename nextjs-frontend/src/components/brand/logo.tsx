@@ -12,13 +12,18 @@ export function LogoMark({ className }: { className?: string }) {
     );
 }
 
-export function Logo({ className, subtitle = true }: { className?: string; subtitle?: boolean }) {
+/**
+ * Mark plus wordmark. `stage` is for the fixed dark grounds (landing, sign-in aside); `rail` follows the
+ * app's navigation rail, which is light in the light theme and navy in the dark one.
+ */
+export function Logo({ className, subtitle = true, ground = "stage" }: { className?: string; subtitle?: boolean; ground?: "stage" | "rail" }) {
+    const rail = ground === "rail";
     return (
         <span className={cn("flex items-center gap-2.5", className)}>
             <LogoMark />
             <span className="flex flex-col leading-none">
-                <span className="text-[15px] font-semibold tracking-tight text-white">MMA-TMS</span>
-                {subtitle && <span className="mt-1 text-[11px] text-nav-fg">Training &amp; Health</span>}
+                <span className={cn("font-display text-[19px] font-extrabold tracking-[0.01em] italic", rail ? "text-rail-fg-strong" : "text-white")}>MMA-TMS</span>
+                {subtitle && <span className={cn("mt-0.5 text-[11px]", rail ? "text-rail-muted" : "text-nav-fg")}>Training &amp; Health</span>}
             </span>
         </span>
     );

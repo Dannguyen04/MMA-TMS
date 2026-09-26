@@ -21,19 +21,18 @@ function NavLink({ item, counts, onNavigate }: { item: NavItem; counts: NavCount
             onClick={onNavigate}
             aria-current={active ? "page" : undefined}
             className={cn(
-                "group relative flex min-h-9 items-center gap-3 rounded-lg px-3 py-2 text-sm leading-5 font-medium transition-colors",
-                "focus-visible:outline-nav-accent",
-                active ? "bg-nav-surface text-nav-fg-active" : "text-nav-fg hover:bg-nav-surface/60 hover:text-nav-fg-active",
+                "group relative flex min-h-10 items-center gap-3 rounded-lg px-3 py-2 font-display text-[16px] leading-5 font-semibold tracking-[0.01em] transition-colors",
+                active ? "bg-rail-active-bg text-rail-fg-strong" : "text-rail-fg hover:bg-rail-active-bg/70 hover:text-rail-fg-strong",
             )}
         >
-            {active && <span aria-hidden className="absolute top-2 bottom-2 -left-3 w-[3px] rounded-r-full bg-nav-accent" />}
-            <Icon aria-hidden className={cn("size-[18px] shrink-0", active ? "text-nav-accent" : "text-nav-fg/80 group-hover:text-nav-fg-active")} />
+            {active && <span aria-hidden className="absolute top-2.5 bottom-2.5 left-1 w-1 -skew-x-[14deg] bg-rail-accent" />}
+            <Icon aria-hidden className={cn("size-[18px] shrink-0", active ? "text-rail-fg-strong" : "text-rail-muted group-hover:text-rail-fg-strong")} />
             <span className="min-w-0 text-pretty">{item.label}</span>
             {count > 0 && (
                 <span
                     className={cn(
-                        "ml-auto min-w-5 rounded-full px-1.5 text-center text-[11px] leading-5 font-semibold tabular-nums",
-                        item.badge === "failedJobs" ? "bg-danger-solid text-white" : "bg-nav-accent/20 text-nav-fg-active",
+                        "ml-auto min-w-5 rounded-full px-1.5 text-center font-sans text-[11px] leading-5 font-semibold tabular-nums",
+                        item.badge === "failedJobs" ? "bg-danger-solid text-white" : "bg-primary-soft text-primary-soft-fg",
                     )}
                 >
                     {count}
@@ -53,7 +52,7 @@ export function SidebarNav({ role, counts, onNavigate }: { role: Role; counts: N
             {sections.map((section, index) => (
                 <div key={section.label ?? index}>
                     {section.label && (
-                        <p className="mb-1.5 px-3 text-[11px] font-semibold tracking-[0.08em] text-nav-fg/75 uppercase">{section.label}</p>
+                        <p className="mb-1.5 px-3 font-display text-[12px] font-bold tracking-[0.12em] text-rail-muted uppercase">{section.label}</p>
                     )}
                     <ul className="flex flex-col gap-0.5">
                         {section.items.map((item) => (
@@ -64,8 +63,8 @@ export function SidebarNav({ role, counts, onNavigate }: { role: Role; counts: N
                     </ul>
                 </div>
             ))}
-            <div className="mt-auto border-t border-nav-border pt-4">
-                <p className="mb-1.5 px-3 text-[11px] font-semibold tracking-[0.08em] text-nav-fg/75 uppercase">Account</p>
+            <div className="mt-auto border-t border-rail-border pt-4">
+                <p className="mb-1.5 px-3 font-display text-[12px] font-bold tracking-[0.12em] text-rail-muted uppercase">Account</p>
                 <ul className="flex flex-col gap-0.5">
                     {accountItems.map((item) => (
                         <li key={item.href}>

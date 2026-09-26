@@ -417,6 +417,13 @@
     --color-mock-dark-ink: #e9eef6;
     --color-mock-accent: #c92637;
     --color-mock-primary: #1846c4;
+
+    /* Jiu-jitsu belt colours for BeltProgress. Physical colours, so they don't change with the theme. */
+    --color-belt-white: #f4f5f7;
+    --color-belt-blue: #2457b8;
+    --color-belt-purple: #6a3da3;
+    --color-belt-brown: #6b4526;
+    --color-belt-black: #16171b;
 }
 
 @layer base {

@@ -39,8 +39,8 @@ export function PageHeaderSkeleton({ eyebrow = false, back = false, meta = false
             {back && <Skeleton className="h-6 w-24" />}
             <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div className="min-w-0 flex-1">
-                    {eyebrow && <Skeleton className="mb-2.5 h-3 w-24" />}
-                    <Skeleton className="h-8 w-72 max-w-full" />
+                    {eyebrow && <Skeleton className="mb-2 h-3.5 w-24" />}
+                    <Skeleton className="h-9 w-72 max-w-full sm:h-10" />
                     <Skeleton className="mt-2.5 h-4 w-[28rem] max-w-full" />
                     {meta && <Skeleton className="mt-3.5 h-5 w-80 max-w-full" />}
                 </div>

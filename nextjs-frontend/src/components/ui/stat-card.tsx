@@ -47,12 +47,12 @@ export function StatCard({ label, value, unit, icon, delta, hint, href, children
     const body = (
         <>
             <div className="flex items-center justify-between gap-2">
-                <p className="text-[13px] font-medium text-fg-muted">{label}</p>
+                <p className="font-display text-[13px] leading-5 font-bold tracking-[0.08em] text-fg-subtle uppercase">{label}</p>
                 {icon && <span className="text-fg-subtle [&_svg]:size-4">{icon}</span>}
             </div>
-            <p className="mt-2 flex items-baseline gap-1 text-[28px] leading-none font-semibold tracking-tight text-fg">
+            <p className="mt-2 flex items-baseline gap-1 font-display text-[36px] leading-none font-extrabold tracking-tight text-fg italic">
                 {value}
-                {unit && <span className="text-sm font-medium text-fg-muted">{unit}</span>}
+                {unit && <span className="font-sans text-sm font-medium text-fg-muted not-italic">{unit}</span>}
             </p>
             {(delta || hint) && (
                 <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]">
