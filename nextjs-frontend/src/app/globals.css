@@ -56,6 +56,8 @@
     --corner-blue: #1846c4;
     --belt-gold: #e3a82b;
     --belt-gold-fg: #86600f;
+    /* Ground of the Today hero; white text on it stays above 4.5:1 in both themes. */
+    --hero-bg: #1846c4;
 
     /* Brand corners — used by the octagon mark and the landing page only */
     --brand-red: #d6343f;
@@ -165,6 +167,7 @@
     --corner-blue: #6e93f5;
     --belt-gold: #e8b84a;
     --belt-gold-fg: #f0c766;
+    --hero-bg: #1c3f9a;
 
     --rail-bg: #101b2e;
     --rail-border: #22324c;
@@ -252,6 +255,7 @@
         --corner-blue: #6e93f5;
         --belt-gold: #e8b84a;
         --belt-gold-fg: #f0c766;
+        --hero-bg: #1c3f9a;
 
         --rail-bg: #101b2e;
         --rail-border: #22324c;
@@ -336,6 +340,7 @@
     --color-corner-blue: var(--corner-blue);
     --color-belt-gold: var(--belt-gold);
     --color-belt-gold-fg: var(--belt-gold-fg);
+    --color-hero-bg: var(--hero-bg);
 
     --color-brand-red: var(--brand-red);
     --color-brand-blue: var(--brand-blue);
@@ -486,6 +491,15 @@
         0 100%,
         0 var(--chamfer, 1.25rem)
     );
+}
+
+/* Only the top-left or only the bottom-right corner, for grounds split across two cells. */
+@utility chamfer-tl {
+    clip-path: polygon(var(--chamfer, 1.25rem) 0, 100% 0, 100% 100%, 0 100%, 0 var(--chamfer, 1.25rem));
+}
+
+@utility chamfer-br {
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--chamfer, 1.25rem)), calc(100% - var(--chamfer, 1.25rem)) 100%, 0 100%);
 }
 
 /* Faint chain-link hatch for dark or saturated hero grounds. */

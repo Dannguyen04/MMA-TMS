@@ -179,6 +179,23 @@ export function DashboardSkeleton({ label = "Loading dashboard", eyebrow = false
     );
 }
 
+/** Fighter Today placeholder: header, the two-part fight hero, the readiness strip and this week. */
+export function TodaySkeleton({ label = "Loading today" }: { label?: string }) {
+    return (
+        <LoadingRegion label={label}>
+            <PageHeaderSkeleton eyebrow actions={1} />
+            <div className="flex flex-col gap-6">
+                <div className="grid grid-cols-1 gap-px lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+                    <Skeleton className="h-72 rounded-none" />
+                    <Skeleton className="h-60 rounded-none lg:h-72" />
+                </div>
+                <Skeleton className="h-28 rounded-xl" />
+                <WeekAgendaSkeleton />
+            </div>
+        </LoadingRegion>
+    );
+}
+
 /** List/table placeholder: header, filter row and rows. */
 export function TableSkeleton({ label = "Loading", rows = 8 }: { label?: string; rows?: number }) {
     return (
