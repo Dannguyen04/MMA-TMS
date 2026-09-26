@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 
 import type { Role } from "@/lib/domain/types";
 import { cn } from "@/lib/utils";
-import { ACCOUNT_NAVIGATION, BADGE_LABELS, NAVIGATION, isNavItemActive, type NavBadgeKey, type NavItem, type NavSection } from "./navigation";
+import { BADGE_LABELS, NAVIGATION, isNavItemActive, type NavBadgeKey, type NavItem, type NavSection } from "./navigation";
 
 export type NavCounts = Partial<Record<NavBadgeKey, number>>;
 
@@ -43,10 +43,12 @@ function NavLink({ item, counts, onNavigate }: { item: NavItem; counts: NavCount
     );
 }
 
-/** Icons are components and can't cross the server boundary, so the nav config is read here by role. */
+/**
+ * Icons are components and can't cross the server boundary, so the nav config is read here by role.
+ * Notifications, profile and preferences live in the header (bell and account menu), not here.
+ */
 export function SidebarNav({ role, counts, onNavigate }: { role: Role; counts: NavCounts; onNavigate?: () => void }) {
     const sections: NavSection[] = NAVIGATION[role];
-    const accountItems: NavItem[] = ACCOUNT_NAVIGATION;
     return (
         <nav aria-label="Main" className="flex flex-1 flex-col gap-5">
             {sections.map((section, index) => (
@@ -63,16 +65,6 @@ export function SidebarNav({ role, counts, onNavigate }: { role: Role; counts: N
                     </ul>
                 </div>
             ))}
-            <div className="mt-auto border-t border-rail-border pt-4">
-                <p className="mb-1.5 px-3 font-display text-[12px] font-bold tracking-[0.12em] text-rail-muted uppercase">Account</p>
-                <ul className="flex flex-col gap-0.5">
-                    {accountItems.map((item) => (
-                        <li key={item.href}>
-                            <NavLink item={item} counts={counts} onNavigate={onNavigate} />
-                        </li>
-                    ))}
-                </ul>
-            </div>
         </nav>
     );
 }

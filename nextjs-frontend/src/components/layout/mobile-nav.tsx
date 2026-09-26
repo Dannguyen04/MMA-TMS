@@ -9,7 +9,7 @@ import { Logo } from "@/components/brand/logo";
 import { ROLE_LABELS } from "@/lib/domain/labels";
 import type { Role } from "@/lib/domain/types";
 import { cn } from "@/lib/utils";
-import { BADGE_LABELS, MOBILE_PRIMARY, NAVIGATION, isNavItemActive, type NavItem } from "./navigation";
+import { BADGE_LABELS, isNavItemActive, mobilePrimaryItems } from "./navigation";
 import { SidebarNav, type NavCounts } from "./sidebar-nav";
 
 /** Hamburger + slide-in navigation drawer for small and medium screens. */
@@ -78,19 +78,19 @@ export function MobileNavDrawer({ role, counts }: { role: Role; counts: NavCount
     );
 }
 
-/** Thumb-reachable bar with the role's four primary destinations. */
+const GRID_COLS: Record<number, string> = { 4: "grid-cols-4", 5: "grid-cols-5" };
+
+/** Thumb-reachable bar with the role's hubs (admin: its four most-used pages). */
 export function MobileBottomBar({ role, counts }: { role: Role; counts: NavCounts }) {
     const pathname = usePathname();
-    const items = MOBILE_PRIMARY[role]
-        .map((href) => NAVIGATION[role].flatMap((s) => s.items).find((i) => i.href === href))
-        .filter((item): item is NavItem => Boolean(item));
+    const items = mobilePrimaryItems(role);
 
     return (
         <nav
             aria-label="Primary"
             className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
         >
-            <ul className="grid grid-cols-4">
+            <ul className={cn("grid", GRID_COLS[items.length] ?? "grid-cols-4")}>
                 {items.map((item) => {
                     const active = isNavItemActive(item, pathname);
                     const count = item.badge ? (counts[item.badge] ?? 0) : 0;

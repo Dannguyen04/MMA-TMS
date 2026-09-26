@@ -38,12 +38,6 @@ export default async function FighterGoalsPage() {
                         Goals are managed by your coaches — talk to them to adjust a target or due date.
                     </p>
                 }
-                actions={
-                    <ButtonLink href={routes.fighter.performance} variant="secondary">
-                        <ChartLine aria-hidden />
-                        Performance
-                    </ButtonLink>
-                }
             />
             {goals.length === 0 ? (
                 <EmptyState

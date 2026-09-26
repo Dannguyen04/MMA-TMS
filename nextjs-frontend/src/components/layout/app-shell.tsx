@@ -7,6 +7,7 @@ import { ROLE_LABELS } from "@/lib/domain/labels";
 import type { Notification, User } from "@/lib/domain/types";
 import { dashboardPath } from "@/lib/routes";
 import { MobileBottomBar, MobileNavDrawer } from "./mobile-nav";
+import { HubTabs } from "./hub-tabs";
 import { NotificationBell } from "./notification-bell";
 import { SidebarNav, type NavCounts } from "./sidebar-nav";
 import { UserMenu } from "./user-menu";
@@ -58,6 +59,7 @@ export function AppShell({ user, theme, counts, notifications, now, children }: 
                 </header>
 
                 <main id="main" tabIndex={-1} className="mx-auto w-full max-w-[1440px] px-4 pt-6 pb-24 focus:outline-none sm:px-6 md:pb-12 lg:px-8 lg:pt-8">
+                    <HubTabs role={user.role} />
                     {children}
                 </main>
             </div>

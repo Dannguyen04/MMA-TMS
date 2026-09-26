@@ -1,10 +1,9 @@
-import { CalendarClock, CalendarDays, ClipboardList, History } from "lucide-react";
+import { CalendarClock, CalendarDays, ClipboardList } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { WeekAgenda } from "@/components/domain/week-agenda";
-import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { ProgressBar } from "@/components/ui/progress";
@@ -70,12 +69,6 @@ export default async function FighterSchedulePage({ searchParams }: PageProps<"/
             <PageHeader
                 title="Schedule"
                 description="Your training week and what's coming up. Open a session for drills, targets and coach notes."
-                actions={
-                    <ButtonLink href={routes.fighter.history} variant="secondary">
-                        <History aria-hidden />
-                        Training history
-                    </ButtonLink>
-                }
             />
 
             <div className="flex flex-col gap-6">

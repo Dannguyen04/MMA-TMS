@@ -49,12 +49,6 @@ export default async function FighterTrainingPage() {
             <PageHeader
                 title="Training plans"
                 description="The plan your coach built for this phase, how consistently you're following it, and your past plans."
-                actions={
-                    <ButtonLink href={routes.fighter.schedule} variant="secondary">
-                        <CalendarClock aria-hidden />
-                        Schedule
-                    </ButtonLink>
-                }
             />
 
             <div className="flex flex-col gap-6">

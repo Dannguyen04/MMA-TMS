@@ -1,4 +1,4 @@
-import { CalendarCheck2, CalendarDays, CalendarX2, Gauge, History, Timer } from "lucide-react";
+import { CalendarCheck2, CalendarX2, Gauge, History, Timer } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -100,12 +100,6 @@ export default async function FighterHistoryPage({ searchParams }: PageProps<"/f
             <PageHeader
                 title="Training history"
                 description="Every session you've completed, missed or had cancelled — with your RPE and your coach's rating."
-                actions={
-                    <ButtonLink href={routes.fighter.schedule} variant="secondary">
-                        <CalendarDays aria-hidden />
-                        Schedule
-                    </ButtonLink>
-                }
             />
 
             <div className="flex flex-col gap-6">

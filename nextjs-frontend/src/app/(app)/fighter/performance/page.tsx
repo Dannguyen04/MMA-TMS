@@ -1,4 +1,4 @@
-import { Target, Upload } from "lucide-react";
+import { Upload } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -21,12 +21,6 @@ export default async function FighterPerformancePage() {
             <PageHeader
                 title="Performance"
                 description="How your technique, speed and training load are developing week by week."
-                actions={
-                    <ButtonLink href={routes.fighter.goals} variant="secondary">
-                        <Target aria-hidden />
-                        My goals
-                    </ButtonLink>
-                }
             />
             <PerformanceOverview
                 fighterId={fighter.id}

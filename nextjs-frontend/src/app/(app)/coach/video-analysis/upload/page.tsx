@@ -19,7 +19,7 @@ export default async function CoachUploadVideoPage({ searchParams }: PageProps<"
     return (
         <>
             <PageHeader
-                back={{ href: validFighter ? routes.coach.fighterVideos(validFighter) : routes.coach.videoAnalysis, label: validFighter ? "Fighter videos" : "Video analysis" }}
+                back={{ href: validFighter ? routes.coach.fighterVideos(validFighter) : routes.coach.videoAnalysis, label: validFighter ? "Fighter videos" : "Film room" }}
                 title="Upload training video"
                 description="Add footage for a fighter on your roster. The AI analyses it and the findings land in your review queue."
             />
