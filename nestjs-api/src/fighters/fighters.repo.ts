@@ -41,6 +41,66 @@ import type {
   UpdateFighterProfileInput,
 } from './fighters.model.js';
 
+// Shared with the Medical doctor roster, which lists Fighters under the same
+// filters and PublicFighter projection.
+export function buildFighterFilterConditions(query: ListFightersQuery): SQL[] {
+  const conditions: SQL[] = [
+    isNull(fighters.deletedAt),
+    eq(fighters.isActive, true),
+  ];
+
+  if (query.weightClass) {
+    conditions.push(eq(fighters.weightClass, query.weightClass));
+  }
+  if (query.dominantStance) {
+    conditions.push(eq(fighters.dominantStance, query.dominantStance));
+  }
+  if (query.gym) {
+    conditions.push(ilike(fighters.gym, `%${query.gym}%`));
+  }
+  if (query.medicalStatus) {
+    conditions.push(eq(fighters.currentMedicalStatus, query.medicalStatus));
+  }
+  if (query.search) {
+    const searchPattern = `%${query.search}%`;
+    conditions.push(
+      or(
+        ilike(fighters.firstName, searchPattern),
+        ilike(fighters.lastName, searchPattern),
+      )!,
+    );
+  }
+
+  return conditions;
+}
+
+export function mapFighterRow(row: typeof fighters.$inferSelect): PublicFighter {
+  return {
+    id: row.id,
+    userId: row.userId,
+    firstName: row.firstName,
+    lastName: row.lastName,
+    dateOfBirth: row.dateOfBirth,
+    nationality: row.nationality,
+    weightClass: row.weightClass as PublicFighter['weightClass'],
+    heightCm: row.heightCm,
+    reachCm: row.reachCm,
+    dominantStance: row.dominantStance as PublicFighter['dominantStance'],
+    leftArmCm: row.leftArmCm,
+    rightArmCm: row.rightArmCm,
+    leftLegCm: row.leftLegCm,
+    rightLegCm: row.rightLegCm,
+    gym: row.gym,
+    currentMedicalStatus:
+      row.currentMedicalStatus as PublicFighter['currentMedicalStatus'],
+    bio: row.bio,
+    profileImageUrl: row.profileImageUrl,
+    isActive: row.isActive,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
 @Injectable()
 export class FightersRepository {
   constructor(@Inject(DRIZZLE) private readonly db: DrizzleDB) {}
@@ -110,42 +170,11 @@ export class FightersRepository {
 
   // --- Fighters CRUD ---
 
-  private buildFighterFilterConditions(query: ListFightersQuery): SQL[] {
-    const conditions: SQL[] = [
-      isNull(fighters.deletedAt),
-      eq(fighters.isActive, true),
-    ];
-
-    if (query.weightClass) {
-      conditions.push(eq(fighters.weightClass, query.weightClass));
-    }
-    if (query.dominantStance) {
-      conditions.push(eq(fighters.dominantStance, query.dominantStance));
-    }
-    if (query.gym) {
-      conditions.push(ilike(fighters.gym, `%${query.gym}%`));
-    }
-    if (query.medicalStatus) {
-      conditions.push(eq(fighters.currentMedicalStatus, query.medicalStatus));
-    }
-    if (query.search) {
-      const searchPattern = `%${query.search}%`;
-      conditions.push(
-        or(
-          ilike(fighters.firstName, searchPattern),
-          ilike(fighters.lastName, searchPattern),
-        )!,
-      );
-    }
-
-    return conditions;
-  }
-
   async findAll(
     query: ListFightersQuery,
     database: DatabaseExecutor = this.db,
   ): Promise<{ data: PublicFighter[]; total: number }> {
-    const whereClause = and(...this.buildFighterFilterConditions(query));
+    const whereClause = and(...buildFighterFilterConditions(query));
     const offset = (query.page - 1) * query.limit;
 
     const [rows, countResult] = await Promise.all([
@@ -163,7 +192,7 @@ export class FightersRepository {
     ]);
 
     const total = countResult[0]?.count ?? 0;
-    return { data: rows.map(this.mapFighterRow), total };
+    return { data: rows.map(mapFighterRow), total };
   }
 
   async findAllForCoach(
@@ -172,7 +201,7 @@ export class FightersRepository {
     database: DatabaseExecutor = this.db,
   ): Promise<{ data: PublicFighter[]; total: number }> {
     const whereClause = and(
-      ...this.buildFighterFilterConditions(query),
+      ...buildFighterFilterConditions(query),
       this.activeCoachAssignmentCondition(coachId),
     );
     const offset = (query.page - 1) * query.limit;
@@ -192,7 +221,7 @@ export class FightersRepository {
     ]);
 
     const total = countResult[0]?.count ?? 0;
-    return { data: rows.map(this.mapFighterRow), total };
+    return { data: rows.map(mapFighterRow), total };
   }
 
   async findById(
@@ -203,7 +232,7 @@ export class FightersRepository {
       .select()
       .from(fighters)
       .where(and(eq(fighters.id, id), isNull(fighters.deletedAt)));
-    return row ? this.mapFighterRow(row) : undefined;
+    return row ? mapFighterRow(row) : undefined;
   }
 
   async findByUserId(
@@ -214,7 +243,7 @@ export class FightersRepository {
       .select()
       .from(fighters)
       .where(and(eq(fighters.userId, userId), isNull(fighters.deletedAt)));
-    return row ? this.mapFighterRow(row) : undefined;
+    return row ? mapFighterRow(row) : undefined;
   }
 
   async update(
@@ -230,7 +259,7 @@ export class FightersRepository {
       })
       .where(and(eq(fighters.id, id), isNull(fighters.deletedAt)))
       .returning();
-    return row ? this.mapFighterRow(row) : undefined;
+    return row ? mapFighterRow(row) : undefined;
   }
 
   // --- Body Measurements (Append-Only) ---
@@ -643,6 +672,9 @@ export class FightersRepository {
     const fighter = await this.findById(fighterId, database);
     if (!fighter) return undefined;
 
+    // Same real-time validity the Medical module uses: ACTIVE status alone is
+    // not enough once validUntil has passed (no expiry cron is assumed).
+    const now = new Date();
     const [activeClearances, injuries, joints] = await Promise.all([
       database
         .select()
@@ -651,6 +683,12 @@ export class FightersRepository {
           and(
             eq(medicalClearances.fighterId, fighterId),
             eq(medicalClearances.status, 'ACTIVE'),
+            isNull(medicalClearances.deletedAt),
+            lte(medicalClearances.validFrom, now),
+            or(
+              isNull(medicalClearances.validUntil),
+              gt(medicalClearances.validUntil, now),
+            ),
           ),
         )
         .orderBy(desc(medicalClearances.createdAt))
@@ -662,6 +700,7 @@ export class FightersRepository {
           and(
             eq(injuryRecords.fighterId, fighterId),
             inArray(injuryRecords.status, ['ACTIVE', 'RECOVERING']),
+            isNull(injuryRecords.deletedAt),
           ),
         )
         .orderBy(desc(injuryRecords.occurredAt)),
@@ -705,35 +744,6 @@ export class FightersRepository {
         stateUpdatedAt: new Date(j.stateUpdatedAt),
         notes: j.notes,
       })),
-    };
-  }
-
-  // --- Helper mapping ---
-
-  private mapFighterRow(row: typeof fighters.$inferSelect): PublicFighter {
-    return {
-      id: row.id,
-      userId: row.userId,
-      firstName: row.firstName,
-      lastName: row.lastName,
-      dateOfBirth: row.dateOfBirth,
-      nationality: row.nationality,
-      weightClass: row.weightClass as PublicFighter['weightClass'],
-      heightCm: row.heightCm,
-      reachCm: row.reachCm,
-      dominantStance: row.dominantStance as PublicFighter['dominantStance'],
-      leftArmCm: row.leftArmCm,
-      rightArmCm: row.rightArmCm,
-      leftLegCm: row.leftLegCm,
-      rightLegCm: row.rightLegCm,
-      gym: row.gym,
-      currentMedicalStatus:
-        row.currentMedicalStatus as PublicFighter['currentMedicalStatus'],
-      bio: row.bio,
-      profileImageUrl: row.profileImageUrl,
-      isActive: row.isActive,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
     };
   }
 }

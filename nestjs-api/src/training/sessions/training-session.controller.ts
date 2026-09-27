@@ -150,6 +150,12 @@ export class TrainingSessionController {
     'TRAINING_SESSION_NOT_FOUND',
     'Training session not found',
   )
+  @ApiConflictEnvelope(
+    'TRAINING_MEDICAL_ELIGIBILITY_REQUIRED',
+    'A medical review or a valid medical clearance is required before this training session can start.',
+    'Changing `sessionType` of an IN_PROGRESS session runs the medical gate ' +
+      'for the new type; `details.reasons` lists the eligibility reasons.',
+  )
   async updateSession(
     @CurrentUser() actor: AuthenticatedUser | undefined,
     @Param() params: TrainingSessionIdParamsDto,
@@ -193,6 +199,12 @@ export class TrainingSessionController {
   @ApiConflictEnvelope(
     'SESSION_STATE_CONFLICT',
     'The training session state was modified concurrently.',
+    'SESSION_STATE_CONFLICT when the session changed concurrently, or ' +
+      'TRAINING_MEDICAL_ELIGIBILITY_REQUIRED when starting (or re-confirming) ' +
+      'IN_PROGRESS while a medical obligation applies. The latter carries ' +
+      '`details.reasons` from REVIEW_REQUEST_PENDING, EXAMINATION_NOT_ELIGIBLE, ' +
+      'CLEARANCE_REQUIRED, CLEARANCE_EXPIRED, SESSION_TYPE_RESTRICTED. ' +
+      'Stopping or cancelling a session is never medically gated.',
   )
   async updateSessionStatus(
     @CurrentUser() actor: AuthenticatedUser | undefined,

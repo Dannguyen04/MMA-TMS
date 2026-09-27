@@ -48,30 +48,24 @@ describe('AuthController (e2e)', () => {
 
   afterEach(async () => app.close());
 
-  it('registers a default fighter profile', async () => {
+  it('registers a default guest profile', async () => {
     authService.register.mockResolvedValue({
-      user: { role: 'FIGHTER' },
+      user: { role: 'GUEST' },
       session: null,
       confirmationRequired: true,
     });
     const response = await request(app.getHttpServer())
       .post('/auth/register')
       .send({
-        email: 'fighter@example.com',
+        email: 'guest@example.com',
         password: 'strong-password',
-        profile: {
-          firstName: 'An',
-          lastName: 'Nguyen',
-          dateOfBirth: '2000-01-01',
-          weightClass: 'LIGHTWEIGHT',
-        },
       })
       .expect(201);
     expect(response.body).toEqual({
       success: true,
       message: 'Account registered successfully',
       data: {
-        user: { role: 'FIGHTER' },
+        user: { role: 'GUEST' },
         session: null,
         confirmationRequired: true,
       },

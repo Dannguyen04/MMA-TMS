@@ -137,6 +137,7 @@ export interface ITrainingRepository {
     database?: DatabaseExecutor,
   ): Promise<{ data: TrainingSessionEntity[]; total: number }>;
   findSessionById(id: string, database?: DatabaseExecutor): Promise<TrainingSessionEntity | undefined>;
+  lockSessionById(id: string, transaction: Transaction): Promise<TrainingSessionEntity | undefined>;
   createSession(data: CreateSessionInput, database?: DatabaseExecutor): Promise<TrainingSessionEntity>;
   updateSession(id: string, data: UpdateSessionInput, database?: DatabaseExecutor): Promise<TrainingSessionEntity | undefined>;
   updateSessionStatus(
@@ -486,6 +487,11 @@ export class TrainingRepository implements ITrainingRepository {
 
   async findSessionById(id: string, database: DatabaseExecutor = this.db) {
     const rows = await database.select().from(trainingSessions).where(and(eq(trainingSessions.id, id), isNull(trainingSessions.deletedAt))).limit(1);
+    return rows.length > 0 ? mapToSession(rows[0]) : undefined;
+  }
+
+  async lockSessionById(id: string, transaction: Transaction) {
+    const rows = await transaction.select().from(trainingSessions).where(and(eq(trainingSessions.id, id), isNull(trainingSessions.deletedAt))).limit(1).for('update');
     return rows.length > 0 ? mapToSession(rows[0]) : undefined;
   }
 

@@ -8,6 +8,7 @@ import { Test, type TestingModule } from '@nestjs/testing';
 import type { Mocked } from 'vitest';
 import type { AuthenticatedUser } from '../../shared/models/auth-context.model.js';
 import { USER } from '../../shared/types/user.role.js';
+import { MedicalService } from '../../medical/medical.service.js';
 import type {
   TrainingPlanEntity,
   TrainingSessionEntity,
@@ -97,7 +98,10 @@ const session: TrainingSessionEntity = {
 };
 
 function repositoryMock() {
+  const transaction = { execute: vi.fn() };
   return {
+    transaction: vi.fn(async (work) => work(transaction)),
+    lockSessionById: vi.fn(),
     findActiveFighterIdByUserId: vi.fn(),
     findActiveCoachIdByUserId: vi.fn(),
     findActiveDoctorIdByUserId: vi.fn(),
@@ -113,6 +117,15 @@ function repositoryMock() {
   };
 }
 
+function medicalServiceMock() {
+  return {
+    evaluateTrainingEligibility: vi.fn().mockResolvedValue({
+      eligible: true,
+      reasons: [],
+    }),
+  };
+}
+
 function responseOf(error: unknown): Record<string, unknown> {
   return (error as HttpException).getResponse() as Record<string, unknown>;
 }
@@ -120,6 +133,7 @@ function responseOf(error: unknown): Record<string, unknown> {
 describe('TrainingSessionService', () => {
   let service: TrainingSessionService;
   let repo: Mocked<TrainingRepository>;
+  let medical: Mocked<MedicalService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -127,11 +141,17 @@ describe('TrainingSessionService', () => {
         TrainingSessionService,
         TrainingAccessService,
         { provide: TrainingRepository, useValue: repositoryMock() },
+        { provide: MedicalService, useValue: medicalServiceMock() },
       ],
     }).compile();
 
     service = module.get(TrainingSessionService);
     repo = module.get<Mocked<TrainingRepository>>(TrainingRepository);
+    medical = module.get<Mocked<MedicalService>>(MedicalService);
+
+    repo.lockSessionById.mockImplementation(async (id) =>
+      repo.findSessionById(id),
+    );
   });
 
   describe('listSessions scoping', () => {
@@ -371,6 +391,7 @@ describe('TrainingSessionService', () => {
           actualDurationSec: null,
           cancellationReason: null,
         },
+        undefined,
       );
     });
 
@@ -452,8 +473,10 @@ describe('TrainingSessionService', () => {
             toStatus,
             expect.any(Date),
             expect.objectContaining({
-              cancellationReason: toStatus === 'CANCELLED' ? 'Valid reason' : null,
+              cancellationReason:
+                toStatus === 'CANCELLED' ? 'Valid reason' : null,
             }),
+            toStatus === 'IN_PROGRESS' ? expect.anything() : undefined,
           );
         },
       );
@@ -532,6 +555,7 @@ describe('TrainingSessionService', () => {
               actualDurationSec: expectedSec,
               cancellationReason: null,
             },
+            undefined,
           );
 
           vi.useRealTimers();
@@ -567,6 +591,7 @@ describe('TrainingSessionService', () => {
             actualDurationSec: null,
             cancellationReason: 'Weather',
           },
+          undefined,
         );
       });
     });
@@ -610,6 +635,101 @@ describe('TrainingSessionService', () => {
       await expect(service.getSessionById(doctorActor, sessionId)).resolves.toMatchObject({
         id: sessionId,
       });
+    });
+  });
+
+  describe('Medical eligibility gate', () => {
+    it('blocks start when fighter is not medically eligible (409 TRAINING_MEDICAL_ELIGIBILITY_REQUIRED)', async () => {
+      repo.findSessionById.mockResolvedValue(session);
+      repo.findActiveFighterIdByUserId.mockResolvedValue(fighterId);
+      medical.evaluateTrainingEligibility.mockResolvedValueOnce({
+        eligible: false,
+        reasons: ['REVIEW_REQUEST_PENDING'],
+      });
+
+      await expect(
+        service.updateSessionStatus(fighterActor, sessionId, 'IN_PROGRESS'),
+      ).rejects.toSatisfy((error: unknown) => {
+        const resp = responseOf(error);
+        return (
+          (error as HttpException).getStatus() === 409 &&
+          resp.code === 'TRAINING_MEDICAL_ELIGIBILITY_REQUIRED' &&
+          Array.isArray(resp.details?.reasons) &&
+          resp.details.reasons.includes('REVIEW_REQUEST_PENDING')
+        );
+      });
+      expect(repo.updateSessionStatus).not.toHaveBeenCalled();
+    });
+
+    it('re-evaluates gate on same-status IN_PROGRESS -> IN_PROGRESS request', async () => {
+      const inProgressSession = { ...session, status: 'IN_PROGRESS' as const };
+      repo.findSessionById.mockResolvedValue(inProgressSession);
+      repo.findActiveFighterIdByUserId.mockResolvedValue(fighterId);
+      medical.evaluateTrainingEligibility.mockResolvedValueOnce({
+        eligible: false,
+        reasons: ['CLEARANCE_EXPIRED'],
+      });
+
+      await expect(
+        service.updateSessionStatus(fighterActor, sessionId, 'IN_PROGRESS'),
+      ).rejects.toSatisfy((error: unknown) => {
+        const resp = responseOf(error);
+        return (
+          (error as HttpException).getStatus() === 409 &&
+          resp.code === 'TRAINING_MEDICAL_ELIGIBILITY_REQUIRED' &&
+          resp.details?.reasons?.includes('CLEARANCE_EXPIRED')
+        );
+      });
+    });
+
+    it('evaluates gate when updating sessionType on an IN_PROGRESS session', async () => {
+      const inProgressSession = {
+        ...session,
+        status: 'IN_PROGRESS' as const,
+        sessionType: 'PAD_WORK' as const,
+      };
+      repo.findSessionById.mockResolvedValue(inProgressSession);
+      medical.evaluateTrainingEligibility.mockResolvedValueOnce({
+        eligible: false,
+        reasons: ['SESSION_TYPE_RESTRICTED'],
+      });
+
+      await expect(
+        service.updateSession(adminActor, sessionId, {
+          sessionType: 'SPARRING',
+        }),
+      ).rejects.toSatisfy((error: unknown) => {
+        const resp = responseOf(error);
+        return (
+          (error as HttpException).getStatus() === 409 &&
+          resp.code === 'TRAINING_MEDICAL_ELIGIBILITY_REQUIRED' &&
+          resp.details?.reasons?.includes('SESSION_TYPE_RESTRICTED')
+        );
+      });
+    });
+
+    it('allows updating sessionType on an IN_PROGRESS session when medically eligible', async () => {
+      const inProgressSession = {
+        ...session,
+        status: 'IN_PROGRESS' as const,
+        sessionType: 'PAD_WORK' as const,
+      };
+      const updatedSession = {
+        ...inProgressSession,
+        sessionType: 'SPARRING' as const,
+      };
+      repo.findSessionById.mockResolvedValue(inProgressSession);
+      repo.updateSession.mockResolvedValue(updatedSession);
+      medical.evaluateTrainingEligibility.mockResolvedValueOnce({
+        eligible: true,
+        reasons: [],
+      });
+
+      await expect(
+        service.updateSession(adminActor, sessionId, {
+          sessionType: 'SPARRING',
+        }),
+      ).resolves.toEqual(updatedSession);
     });
   });
 });

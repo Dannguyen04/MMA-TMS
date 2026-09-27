@@ -14,8 +14,10 @@ import {
   measurementAlreadySuperseded,
   measurementContextForbidden,
   measurementNotFound,
-  medicalAccessDenied,
 } from './fighters.error.js';
+import { MedicalAccessService } from '../medical/medical-access.service.js';
+import { MEDICAL_READ_VIEW } from '../medical/medical.constants.js';
+import { MedicalService } from '../medical/medical.service.js';
 import {
   type AssignCoachInput,
   type CoachAssignment,
@@ -37,7 +39,11 @@ const MEDICAL_DISCLAIMER =
 
 @Injectable()
 export class FightersService {
-  constructor(private readonly fightersRepository: FightersRepository) {}
+  constructor(
+    private readonly fightersRepository: FightersRepository,
+    private readonly medicalAccess: MedicalAccessService,
+    private readonly medicalService: MedicalService,
+  ) {}
 
   // --- Profile Operations ---
 
@@ -95,6 +101,12 @@ export class FightersService {
       return { data, total, hasNextPage: query.page * query.limit < total };
     }
 
+    // Fighter data carries health-related fields: a Doctor sees only the
+    // Fighters under a currently effective doctor assignment.
+    if (actor.role === USER.DOCTOR) {
+      return this.medicalService.listFightersForDoctorUser(actor.id, query);
+    }
+
     const { data, total } = await this.fightersRepository.findAll(query);
     return {
       data,
@@ -111,6 +123,7 @@ export class FightersService {
     this.assertFighterOwnerScope(actor, fighter.userId);
     // Coach can only view Fighters covered by a currently effective assignment
     await this.assertCoachAssignmentScope(actor, id);
+    await this.medicalAccess.assertDoctorFighterScope(actor, id);
 
     return fighter;
   }
@@ -373,16 +386,16 @@ export class FightersService {
   async getMedicalSummary(
     actor: AuthenticatedUser,
     fighterId: string,
+    requestId: string,
   ): Promise<FighterMedicalSummary> {
-    const fighter = await this.fightersRepository.findById(fighterId);
-    if (!fighter) throw fighterNotFound();
-
-    // Medical Read Matrix enforcement:
-    // - Fighter: only own records
-    // - Coach, Doctor, Admin: all fighters
-    if (actor.role === USER.FIGHTER && fighter.userId !== actor.id) {
-      throw medicalAccessDenied();
-    }
+    // Same clinical READ matrix and access audit as the Medical module:
+    // ADMIN all, FIGHTER self, COACH/DOCTOR only currently assigned Fighters.
+    await this.medicalAccess.authorizeClinicalRead(
+      actor,
+      fighterId,
+      MEDICAL_READ_VIEW.SUMMARY,
+      requestId,
+    );
 
     const summary = await this.fightersRepository.findMedicalSummary(fighterId);
     if (!summary) throw fighterNotFound();
