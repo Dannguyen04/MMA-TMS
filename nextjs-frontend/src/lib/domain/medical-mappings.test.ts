@@ -59,6 +59,7 @@ describe("restrictionFromAllowLists", () => {
 
 describe("clearanceStateFromEligibility", () => {
     it("reads nothing on file as no clearance yet", () => {
+        expect(clearanceStateFromEligibility(eligibility(true), null, false)).toBe("none");
         expect(clearanceStateFromEligibility(eligibility(false, ["CLEARANCE_REQUIRED"]), null, false)).toBe("none");
     });
 

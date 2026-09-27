@@ -134,7 +134,8 @@ export const OUTCOME_FROM_DECISION: Record<ExaminationDecision, ExaminationOutco
  * The fighter's training clearance state from the service's eligibility verdict. The frontend never picks a
  * governing clearance itself: the verdict decides, and restrictions only colour an eligible fighter.
  *
- * - Nothing on file yet (no training examination, and only "clearance required") reads as "none".
+ * - Nothing on file yet reads as "none": the service lets a fighter with no training examination and no open review
+ *   train, but there is no clearance to show.
  * - A pending review, a not-eligible examination or a missing clearance means "not_cleared".
  * - An expired clearance means "expired".
  * - An eligible fighter is "restricted" when the examination or a valid clearance limits training, else "full".
@@ -145,7 +146,10 @@ export function clearanceStateFromEligibility(
     restricted: boolean,
 ): ClearanceState {
     const reasons = new Set(eligibility.reasons);
-    if (eligibility.eligible) return restricted || currentExamination?.decision === "ELIGIBLE_WITH_RESTRICTIONS" ? "restricted" : "full";
+    if (eligibility.eligible) {
+        if (!currentExamination) return "none";
+        return restricted || currentExamination.decision === "ELIGIBLE_WITH_RESTRICTIONS" ? "restricted" : "full";
+    }
     if (!currentExamination && [...reasons].every((reason) => reason === "CLEARANCE_REQUIRED")) return "none";
     if (reasons.has("REVIEW_REQUEST_PENDING") || reasons.has("EXAMINATION_NOT_ELIGIBLE") || reasons.has("CLEARANCE_REQUIRED")) return "not_cleared";
     if (reasons.has("CLEARANCE_EXPIRED")) return "expired";
