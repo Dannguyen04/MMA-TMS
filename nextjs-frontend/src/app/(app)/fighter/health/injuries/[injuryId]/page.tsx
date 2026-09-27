@@ -26,6 +26,7 @@ import { daysBetween, formatDate, pluralize } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { getInjuryDetail, type InjuryDetail } from "@/lib/services/medical";
 import { listDoctors } from "@/lib/services/people";
+import { medicalFeatureAvailable } from "@/lib/services/medical-features";
 
 /** The injury, only when it belongs to the signed-in fighter. Loaded once per request for the metadata and the page. */
 const loadOwnInjury = cache(async (injuryId: string): Promise<InjuryDetail> => {
@@ -46,9 +47,12 @@ export default async function FighterInjuryPage({ params }: PageProps<"/fighter/
     const now = new Date().toISOString();
     const planDoctor = recoveryPlan ? doctors.find((doctor) => doctor.id === recoveryPlan.doctorId)?.name : undefined;
     const doctorName = planDoctor ?? recordedBy?.name;
-    const expectation = whatToExpect(injury, now);
+    // The medical service keeps the expected return on the recovery plan, not on the injury.
+    const expectedReturnAt = injury.expectedReturnAt ?? (recoveryPlan?.status === "active" ? recoveryPlan.targetReturnDate : null);
+    const expectation = whatToExpect({ ...injury, expectedReturnAt }, now);
     /** Without a recovery plan the main column is short, so the facts sit there in columns; otherwise they go beside it. */
     const aboutInMain = !recoveryPlan;
+    const serviceRecord = injury.joint !== undefined;
 
     const about = (
         <Card className="min-w-0">
@@ -62,15 +66,22 @@ export default async function FighterInjuryPage({ params }: PageProps<"/fighter/
                         { label: "Type", value: injuryTypeName(injury) },
                         { label: "Body area", value: BODY_REGION_LABELS[injury.bodyRegion] },
                         { label: "Status", value: INJURY_STATUS_LABELS[injury.status] },
-                        { label: "How it happened", value: (labelOf(INJURY_MECHANISM_LABELS, injury.mechanism) ?? NOT_RECORDED) },
+                        // The medical service keeps no mechanism, diagnosis date or expected return; its records skip those rows.
+                        ...(serviceRecord ? [] : [{ label: "How it happened", value: labelOf(INJURY_MECHANISM_LABELS, injury.mechanism) ?? NOT_RECORDED }]),
                         { label: "Occurred", value: <time dateTime={injury.occurredAt}>{formatDate(injury.occurredAt)}</time> },
-                        { label: "Diagnosed", value: injury.diagnosedAt ? <time dateTime={injury.diagnosedAt}>{formatDate(injury.diagnosedAt)}</time> : NOT_RECORDED },
-                        injury.resolvedAt
-                            ? { label: "Resolved", value: <time dateTime={injury.resolvedAt}>{formatDate(injury.resolvedAt)}</time> }
-                            : {
-                                  label: "Expected return",
-                                  value: injury.expectedReturnAt ? <time dateTime={injury.expectedReturnAt}>{formatDate(injury.expectedReturnAt)}</time> : "To be assessed",
-                              },
+                        ...(serviceRecord
+                            ? []
+                            : [{ label: "Diagnosed", value: injury.diagnosedAt ? <time dateTime={injury.diagnosedAt}>{formatDate(injury.diagnosedAt)}</time> : NOT_RECORDED }]),
+                        ...(injury.resolvedAt
+                            ? [{ label: "Resolved", value: <time dateTime={injury.resolvedAt}>{formatDate(injury.resolvedAt)}</time> }]
+                            : serviceRecord
+                              ? []
+                              : [
+                                    {
+                                        label: "Expected return",
+                                        value: injury.expectedReturnAt ? <time dateTime={injury.expectedReturnAt}>{formatDate(injury.expectedReturnAt)}</time> : "To be assessed",
+                                    },
+                                ]),
                         { label: "Recorded by", value: recordedBy?.name ?? "Sports doctor" },
                         {
                             label: "Severity",
@@ -99,7 +110,7 @@ export default async function FighterInjuryPage({ params }: PageProps<"/fighter/
                 back={{ href: routes.fighter.health, label: "Health & Medical Clearance" }}
                 eyebrow="Injury"
                 title={injuryTitle(injury)}
-                description={`${(labelOf(INJURY_MECHANISM_LABELS, injury.mechanism) ?? NOT_RECORDED)} · ${formatDate(injury.occurredAt)}`}
+                description={[labelOf(INJURY_MECHANISM_LABELS, injury.mechanism), formatDate(injury.occurredAt)].filter(Boolean).join(" · ")}
                 meta={
                     <>
                         <InjurySeverityBadge severity={injury.severity} />
@@ -138,7 +149,7 @@ export default async function FighterInjuryPage({ params }: PageProps<"/fighter/
                         </Card>
                     )}
 
-                    {recoveryPlan && (
+                    {recoveryPlan && medicalFeatureAvailable("recoveryPhasesAndCheckIns") && (
                         <Card className="min-w-0">
                             <CardHeader title="Check-ins" description="How you've reported feeling at each check-in" icon={<LineChartIcon />} />
                             <CardContent className="flex flex-col gap-6">

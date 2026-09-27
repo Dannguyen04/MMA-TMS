@@ -62,6 +62,7 @@ export default async function InjuryDetailPage({ params, searchParams }: PagePro
     const justCreated = param(query.created) === "1";
     const openPlan = recoveryPlan && recoveryPlan.status !== "completed" ? recoveryPlan : null;
     const firstName = fighter.name.split(" ")[0];
+    const serviceForms = usesMedicalServiceForms();
 
     return (
         <>
@@ -116,7 +117,9 @@ export default async function InjuryDetailPage({ params, searchParams }: PagePro
                             </>
                         }
                     >
-                        {fighter.name}&apos;s coaches have been asked to check Medical Clearance. Review it now so training restrictions match this injury.
+                        {serviceForms
+                            ? `Medical Clearance doesn't change on its own. Examine ${fighter.name} and review it so training limits match this injury.`
+                            : `${fighter.name}'s coaches have been asked to check Medical Clearance. Review it now so training restrictions match this injury.`}
                     </Callout>
                 )}
 
@@ -171,7 +174,7 @@ export default async function InjuryDetailPage({ params, searchParams }: PagePro
                             <CardHeader
                                 title="Recovery plan"
                                 icon={<RefreshCw />}
-                                description={recoveryPlan ? recoveryPlan.title : "Phased return to training for this injury"}
+                                description={recoveryPlan ? recoveryPlan.title : "Return to training for this injury"}
                                 action={
                                     recoveryPlan ? (
                                         <div className="flex items-center gap-2">
@@ -188,7 +191,7 @@ export default async function InjuryDetailPage({ params, searchParams }: PagePro
                                             href={routes.doctor.recoveryPlan(recoveryPlan.id)}
                                             className="inline-flex w-fit items-center gap-1 rounded-md text-sm font-medium text-primary-soft-fg hover:underline"
                                         >
-                                            Open recovery plan — milestones and check-ins
+                                            {serviceForms ? "Open recovery plan — milestones" : "Open recovery plan — milestones and check-ins"}
                                             <ArrowRight aria-hidden className="size-4" />
                                         </Link>
                                     </div>
@@ -201,7 +204,11 @@ export default async function InjuryDetailPage({ params, searchParams }: PagePro
                                         compact
                                         icon={<RefreshCw />}
                                         title="No recovery plan yet"
-                                        description={`Plan ${firstName}'s return in phases with milestones, then track pain, mobility and strength at each check-in.`}
+                                        description={
+                                            serviceForms
+                                                ? `Plan ${firstName}'s return as milestones, each with how you'll know it's reached.`
+                                                : `Plan ${firstName}'s return in phases with milestones, then track pain, mobility and strength at each check-in.`
+                                        }
                                         action={
                                             <ButtonLink href={clinicalLinks.newRecoveryPlanFor(injury.id, fighter.id)} size="sm">
                                                 Create recovery plan
@@ -275,15 +282,21 @@ export default async function InjuryDetailPage({ params, searchParams }: PagePro
 }
 
 function detailItems(injury: Injury, now: string, recordedByName: string | null): DescriptionItem[] {
-    const items: DescriptionItem[] = [
-        { label: "Occurred", value: <time dateTime={injury.occurredAt}>{formatDateTime(injury.occurredAt)}</time> },
-        { label: "Diagnosed", value: injury.diagnosedAt ? <time dateTime={injury.diagnosedAt}>{formatDate(injury.diagnosedAt)}</time> : NOT_RECORDED },
-        { label: "Mechanism", value: (labelOf(INJURY_MECHANISM_LABELS, injury.mechanism) ?? NOT_RECORDED) },
-    ];
+    // The medical service keeps no diagnosis date, mechanism or expected return, so its records skip those rows.
+    const serviceRecord = injury.joint !== undefined;
+    const items: DescriptionItem[] = [{ label: "Occurred", value: <time dateTime={injury.occurredAt}>{formatDateTime(injury.occurredAt)}</time> }];
+    if (!serviceRecord) {
+        items.push(
+            { label: "Diagnosed", value: injury.diagnosedAt ? <time dateTime={injury.diagnosedAt}>{formatDate(injury.diagnosedAt)}</time> : NOT_RECORDED },
+            { label: "Mechanism", value: labelOf(INJURY_MECHANISM_LABELS, injury.mechanism) ?? NOT_RECORDED },
+        );
+    }
 
     if (injury.resolvedAt) {
         items.push({ label: "Resolved", value: <time dateTime={injury.resolvedAt}>{formatDate(injury.resolvedAt)}</time> });
         items.push({ label: "Time to resolve", value: pluralize(Math.max(0, daysBetween(injury.occurredAt, injury.resolvedAt)), "day") });
+    } else if (serviceRecord) {
+        // No expected return in the service's record; the recovery plan carries it.
     } else if (injury.expectedReturnAt) {
         const days = daysBetween(now, injury.expectedReturnAt);
         items.push({

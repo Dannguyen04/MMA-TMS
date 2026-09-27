@@ -150,7 +150,7 @@ function ClearanceDetails({
     if (variant === "clinical" && clearance.revokedReason) {
         items.push({ label: "Revocation reason", value: clearance.revokedReason, wide: true });
     }
-    if (variant === "clinical") {
+    if (variant === "clinical" && clearance.reason) {
         items.push({ label: "Clinical reason", value: <span className="font-normal">{clearance.reason}</span>, wide: true });
     }
 

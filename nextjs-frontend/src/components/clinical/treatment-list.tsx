@@ -26,24 +26,44 @@ export function TreatmentList({ treatments, editable = false, className }: Treat
                             {treatment.status && <TreatmentStatusBadge status={treatment.status} size="sm" />}
                         </div>
                         <p className="mt-0.5 text-sm text-pretty text-fg">{treatment.description}</p>
-                        <dl className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-fg-muted">
-                            <div className="flex gap-1">
-                                <dt className="sr-only">Provider</dt>
-                                <dd>{treatment.providerName ?? NOT_RECORDED}</dd>
-                            </div>
-                            <div className="flex gap-1">
-                                <dt className="sr-only">Frequency</dt>
-                                <dd>{treatment.frequency ?? NOT_RECORDED}</dd>
-                            </div>
-                            <div className="flex gap-1">
-                                <dt className="sr-only">Dates</dt>
-                                <dd>
-                                    <time dateTime={treatment.startDate}>{formatDate(treatment.startDate)}</time>
-                                    {" – "}
-                                    {treatment.endDate ? <time dateTime={treatment.endDate}>{formatDate(treatment.endDate)}</time> : "open-ended"}
-                                </dd>
-                            </div>
-                        </dl>
+                        {treatment.type === null ? (
+                            // A treatment from the medical service: a dated entry with an optional review, no provider or schedule.
+                            <dl className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-fg-muted">
+                                <div className="flex gap-1">
+                                    <dt>Given</dt>
+                                    <dd>
+                                        <time dateTime={treatment.startDate}>{formatDate(treatment.startDate)}</time>
+                                    </dd>
+                                </div>
+                                {treatment.nextReviewAt && (
+                                    <div className="flex gap-1">
+                                        <dt>Review</dt>
+                                        <dd>
+                                            <time dateTime={treatment.nextReviewAt}>{formatDate(treatment.nextReviewAt)}</time>
+                                        </dd>
+                                    </div>
+                                )}
+                            </dl>
+                        ) : (
+                            <dl className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-fg-muted">
+                                <div className="flex gap-1">
+                                    <dt className="sr-only">Provider</dt>
+                                    <dd>{treatment.providerName ?? NOT_RECORDED}</dd>
+                                </div>
+                                <div className="flex gap-1">
+                                    <dt className="sr-only">Frequency</dt>
+                                    <dd>{treatment.frequency ?? NOT_RECORDED}</dd>
+                                </div>
+                                <div className="flex gap-1">
+                                    <dt className="sr-only">Dates</dt>
+                                    <dd>
+                                        <time dateTime={treatment.startDate}>{formatDate(treatment.startDate)}</time>
+                                        {" – "}
+                                        {treatment.endDate ? <time dateTime={treatment.endDate}>{formatDate(treatment.endDate)}</time> : "open-ended"}
+                                    </dd>
+                                </div>
+                            </dl>
+                        )}
                         {treatment.notes && (
                             <p className="mt-2 rounded-md bg-surface-muted px-3 py-2 text-[13px] text-pretty text-fg-muted">{treatment.notes}</p>
                         )}

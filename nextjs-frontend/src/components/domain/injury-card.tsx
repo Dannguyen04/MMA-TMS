@@ -24,12 +24,19 @@ export function InjuryCard({ injury, now, href, headingLevel = 3, className }: I
     const Heading = headingLevel === 2 ? "h2" : "h3";
     const title = `${injuryTypeName(injury)} — ${BODY_REGION_LABELS[injury.bodyRegion]}`;
 
-    const items: DescriptionItem[] = [
-        { label: "Occurred", value: <time dateTime={injury.occurredAt}>{formatDate(injury.occurredAt)}</time> },
-        { label: "Diagnosed", value: injury.diagnosedAt ? <time dateTime={injury.diagnosedAt}>{formatDate(injury.diagnosedAt)}</time> : NOT_RECORDED },
-        { label: "Mechanism", value: (labelOf(INJURY_MECHANISM_LABELS, injury.mechanism) ?? NOT_RECORDED) },
-        { label: injury.resolvedAt ? "Resolved" : "Expected return", value: <ReturnValue injury={injury} now={now} /> },
-    ];
+    // The medical service records the joint but no diagnosis date, mechanism or expected return: show only what it keeps.
+    const serviceRecord = injury.joint !== undefined;
+    const items: DescriptionItem[] = serviceRecord
+        ? [
+              { label: "Occurred", value: <time dateTime={injury.occurredAt}>{formatDate(injury.occurredAt)}</time> },
+              ...(injury.resolvedAt ? [{ label: "Resolved", value: <time dateTime={injury.resolvedAt}>{formatDate(injury.resolvedAt)}</time> }] : []),
+          ]
+        : [
+              { label: "Occurred", value: <time dateTime={injury.occurredAt}>{formatDate(injury.occurredAt)}</time> },
+              { label: "Diagnosed", value: injury.diagnosedAt ? <time dateTime={injury.diagnosedAt}>{formatDate(injury.diagnosedAt)}</time> : NOT_RECORDED },
+              { label: "Mechanism", value: labelOf(INJURY_MECHANISM_LABELS, injury.mechanism) ?? NOT_RECORDED },
+              { label: injury.resolvedAt ? "Resolved" : "Expected return", value: <ReturnValue injury={injury} now={now} /> },
+          ];
 
     return (
         <article

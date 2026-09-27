@@ -28,6 +28,7 @@ import { examinationTitle } from "@/lib/domain/labels";
 import { formatDate, formatWeekdayDate } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
+import { medicalFeatureAvailable } from "@/lib/services/medical-features";
 import { getClearanceStatus, getFighterHealthSummary, listClearances, listExaminations, listInjuries, listReviewRequests } from "@/lib/services/medical";
 import { listDoctors } from "@/lib/services/people";
 import { cn } from "@/lib/utils";
@@ -127,7 +128,9 @@ export default async function FighterHealthPage() {
                                 </p>
                             </div>
                         ) : (
-                            <InlineNote icon={CalendarClock}>No follow-up booked — your doctor arranges your next check.</InlineNote>
+                            medicalFeatureAvailable("followUps") && (
+                                <InlineNote icon={CalendarClock}>No follow-up booked — your doctor arranges your next check.</InlineNote>
+                            )
                         )}
                         {contactDoctor && (
                             <InlineNote icon={HeartHandshake}>
@@ -146,9 +149,11 @@ export default async function FighterHealthPage() {
                             />
                             <CardContent className="flex flex-col gap-6">
                                 <RecoveryProgress plan={recovery.plan} now={now} />
-                                <div className="border-t border-border pt-5">
-                                    <CheckInTrends checkIns={recovery.plan.checkIns} now={now} />
-                                </div>
+                                {medicalFeatureAvailable("recoveryPhasesAndCheckIns") && (
+                                    <div className="border-t border-border pt-5">
+                                        <CheckInTrends checkIns={recovery.plan.checkIns} now={now} />
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
                     )}
