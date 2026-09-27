@@ -156,6 +156,20 @@ if not errorlevel 1 (
 )
 echo.
 
+echo [adb] USB reverse for mobile API (phone 127.0.0.1:3001 -^> PC:3001)...
+where adb.exe >nul 2>&1
+if errorlevel 1 (
+    echo     skipped: adb not in PATH. Phone login: adb reverse tcp:3001 tcp:3001
+) else (
+    adb reverse tcp:3001 tcp:3001 >nul 2>&1
+    if errorlevel 1 (
+        echo     skipped: no USB device. Phone login needs: adb reverse tcp:3001 tcp:3001
+    ) else (
+        echo     adb reverse tcp:3001 tcp:3001 is active.
+    )
+)
+echo.
+
 rem Python worker. It has no HTTP port, so its own window remains authoritative.
 echo [3/4] Starting Python AI worker...
 start "MMA-TMS: Python Worker" /D "%WORKER_DIR%" cmd /k ""%PYTHON_EXE%" worker.py"

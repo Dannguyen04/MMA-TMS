@@ -1,25 +1,74 @@
 {
   "expo": {
-    "name": "reactnative-mobile",
+    "name": "MMA Vision",
     "slug": "reactnative-mobile",
+    "scheme": "mma-tms",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
+    "androidStatusBar": {
+      "backgroundColor": "#000000",
+      "barStyle": "light-content",
+      "translucent": false
+    },
+    "androidNavigationBar": {
+      "backgroundColor": "#000000",
+      "barStyle": "light-content"
+    },
+    "splash": {
+      "backgroundColor": "#00000000"
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "splash": {
+        "backgroundColor": "#00000000"
+      }
     },
     "android": {
+      "userInterfaceStyle": "automatic",
+      "usesCleartextTraffic": true,
+      "softwareKeyboardLayoutMode": "resize",
+      "splash": {
+        "backgroundColor": "#00000000"
+      },
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#000000",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.fogit.reactnativemobile"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "./plugins/with-windows-cmake",
+      "expo-router",
+      "expo-status-bar",
+      "expo-system-ui",
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#00000000",
+          "dark": {
+            "backgroundColor": "#00000000"
+          }
+        }
+      ],
+      "./plugins/with-black-splash",
+      "expo-video",
+      "expo-secure-store"
+    ],
+    "extra": {
+      "EXPO_PUBLIC_API_URL": "http://localhost:3001"
+    },
+    "experiments": {
+      "typedRoutes": true
     }
   }
 }
