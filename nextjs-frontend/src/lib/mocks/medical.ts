@@ -4,7 +4,6 @@ import type {
     ExaminationAssessment,
     ExaminationOutcome,
     ExaminationType,
-    Fighter,
     Injury,
     MedicalClearance,
     MedicalDocument,
@@ -20,7 +19,7 @@ import type {
 } from "@/lib/domain/types";
 import { formatDate } from "@/lib/format";
 import { clamp, round } from "@/lib/utils";
-import { BAO_BASELINE_EXAM_DATE, mockFighters } from "./people";
+import { BAO_BASELINE_EXAM_DATE, mockFighters, type SeedFighter } from "./people";
 import { createRandom } from "./random";
 import { clampPastToday, daysAgo, daysFromNow, fromToday } from "./time";
 
@@ -40,7 +39,7 @@ const LOTUS_PHYSIO = "Lotus Physio Clinic";
 
 const fighterMap = new Map(mockFighters.map((f) => [f.id, f]));
 
-function fighter(fighterId: string): Fighter {
+function fighter(fighterId: string): SeedFighter {
     const found = fighterMap.get(fighterId);
     if (!found) throw new Error(`Unknown fighter in medical seed: ${fighterId}`);
     return found;

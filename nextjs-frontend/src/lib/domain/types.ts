@@ -103,29 +103,36 @@ export interface UpcomingBout {
     weightClass: WeightClass;
 }
 
+/**
+ * A fighter profile. Null fields are ones the API doesn't provide yet (or that haven't been measured); the
+ * interface hides or marks them rather than guessing.
+ */
 export interface Fighter {
     id: string;
     userId: string;
     name: string;
     nickname: string | null;
-    sex: Sex;
+    sex: Sex | null;
     dateOfBirth: ISODate;
-    nationality: string;
-    heightCm: number;
-    reachCm: number;
-    weightKg: number;
+    nationality: string | null;
+    heightCm: number | null;
+    reachCm: number | null;
+    /** Latest recorded body weight. */
+    weightKg: number | null;
     /** Fight-night limit for the weight class, in kg. */
     targetWeightKg: number;
-    bodyFatPct: number;
-    restingHeartRate: number;
+    bodyFatPct: number | null;
+    restingHeartRate: number | null;
     weightClass: WeightClass;
-    stance: Stance;
-    level: TrainingLevel;
-    primaryDiscipline: string;
-    record: FightRecord;
+    stance: Stance | null;
+    level: TrainingLevel | null;
+    primaryDiscipline: string | null;
+    record: FightRecord | null;
+    /** Current coaches, when known. */
     coachIds: string[];
-    /** Primary coach responsible for planning. Always included in coachIds. */
-    primaryCoachId: string;
+    /** Primary coach responsible for planning. Always included in coachIds when set. */
+    primaryCoachId: string | null;
+    /** Current sports doctors, when known. */
     doctorIds: string[];
     healthStatus: HealthStatus;
     joinedAt: ISODate;

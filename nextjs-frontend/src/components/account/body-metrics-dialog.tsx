@@ -14,9 +14,10 @@ import { formatNumber } from "@/lib/format";
 import { BODY_METRIC_LIMITS, type MeasurementLimit } from "./account-limits";
 
 export interface BodyMetricsDialogProps {
-    weightKg: number;
-    bodyFatPct: number;
-    restingHeartRate: number;
+    /** Current values; null ones start empty. */
+    weightKg: number | null;
+    bodyFatPct: number | null;
+    restingHeartRate: number | null;
     targetWeightKg: number;
     weightClassLabel: string;
 }
@@ -51,9 +52,13 @@ export function BodyMetricsDialog(props: BodyMetricsDialogProps) {
 }
 
 function BodyMetricsFields({ form, weightKg, bodyFatPct, restingHeartRate, targetWeightKg, weightClassLabel }: BodyMetricsDialogProps & { form: ActionForm<undefined> }) {
-    const [weightDraft, setWeightDraft] = useState(String(weightKg));
+    const [weightDraft, setWeightDraft] = useState(weightKg === null ? "" : String(weightKg));
     const { control, error } = form;
-    const defaults: Record<MetricName, number> = { weightKg, bodyFatPct, restingHeartRate };
+    const defaults: Record<MetricName, number | undefined> = {
+        weightKg: weightKg ?? undefined,
+        bodyFatPct: bodyFatPct ?? undefined,
+        restingHeartRate: restingHeartRate ?? undefined,
+    };
 
     const weight = Number(weightDraft);
     const weightValid = weightDraft.trim() !== "" && Number.isFinite(weight) && weight >= BODY_METRIC_LIMITS.weightKg.min && weight <= BODY_METRIC_LIMITS.weightKg.max;

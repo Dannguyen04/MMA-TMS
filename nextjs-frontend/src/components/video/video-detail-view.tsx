@@ -104,7 +104,7 @@ export async function VideoDetailView({ user, videoId, role, searchParams }: Vid
                     analysis={analysis}
                     video={video}
                     job={job}
-                    stance={fighter.stance}
+                    stance={fighter.stance ?? "orthodox"}
                     viewer={{ id: user.id, name: user.name }}
                     canReview={canReview}
                     initialMs={initialMs}

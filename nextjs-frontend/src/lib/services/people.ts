@@ -9,7 +9,7 @@ import { isDemoAuthEnabled } from "@/lib/auth/constants";
 import { getCurrentUser } from "@/lib/auth/session";
 import { ApiError, authenticatedApiRequest, authenticatedMutableApiRequest } from "@/lib/api/client";
 import { WEIGHT_CLASS_LIMIT_KG } from "@/lib/domain/labels";
-import type { Coach, Doctor, Fighter, HealthStatus, TrainingLevel, User, WeightClass } from "@/lib/domain/types";
+import type { Coach, Doctor, Fighter, HealthStatus, Sex, Stance, TrainingLevel, User, WeightClass } from "@/lib/domain/types";
 import { matchesSearch } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { drainNumberedPages, isNotFound, nullIfNotFound } from "./api-helpers";
@@ -69,34 +69,46 @@ const backendUpcomingBoutSchema = z.object({
     weightClass: weightClassSchema,
 });
 
-/** Hợp đồng gồm trường hiện có và các trường hồ sơ mà giao diện bắt buộc phải nhận. */
+/**
+ * The backend fighter profile. The optional fields are ones the interface can show but the API doesn't return yet;
+ * when they're missing the profile keeps them null instead of failing or guessing.
+ */
 export const backendFighterSchema = z.object({
     id: z.string().uuid(),
     userId: z.string().uuid(),
     firstName: z.string(),
     lastName: z.string(),
-    nickname: z.string().nullable(),
-    sex: z.enum(["MALE", "FEMALE"]),
     dateOfBirth: z.string(),
     nationality: z.string().nullable(),
     weightClass: weightClassSchema,
     heightCm: z.number().nullable(),
     reachCm: z.number().nullable(),
-    weightKg: z.number(),
-    bodyFatPct: z.number(),
-    restingHeartRate: z.number().int(),
     dominantStance: stanceSchema.nullable(),
-    level: z.enum(["AMATEUR", "SEMI_PRO", "PROFESSIONAL", "ELITE"]),
-    primaryDiscipline: z.string(),
-    record: z.object({ wins: z.number().int(), losses: z.number().int(), draws: z.number().int() }),
-    coachIds: z.array(z.string().uuid()),
-    primaryCoachId: z.string().uuid().nullable(),
-    doctorIds: z.array(z.string().uuid()),
-    upcomingBout: backendUpcomingBoutSchema.nullable(),
     currentMedicalStatus: medicalStatusSchema,
     isActive: z.boolean(),
     createdAt: z.string(),
     updatedAt: z.string(),
+    // Not in the API yet.
+    nickname: z.string().nullable().optional(),
+    sex: z.enum(["MALE", "FEMALE"]).optional(),
+    weightKg: z.number().optional(),
+    bodyFatPct: z.number().optional(),
+    restingHeartRate: z.number().int().optional(),
+    level: z.enum(["AMATEUR", "SEMI_PRO", "PROFESSIONAL", "ELITE"]).optional(),
+    primaryDiscipline: z.string().optional(),
+    record: z.object({ wins: z.number().int(), losses: z.number().int(), draws: z.number().int() }).optional(),
+    coachIds: z.array(z.string().uuid()).optional(),
+    primaryCoachId: z.string().uuid().nullable().optional(),
+    doctorIds: z.array(z.string().uuid()).optional(),
+    upcomingBout: backendUpcomingBoutSchema.nullable().optional(),
+});
+
+/** `GET /fighters/:id/measurements`: body measurements, the current (not superseded) ones by default. */
+const measurementSchema = z.object({
+    measuredAt: z.string(),
+    weightKg: z.number(),
+    heightCm: z.number().nullable(),
+    reachCm: z.number().nullable(),
 });
 
 const backendProfileSchema = z
@@ -180,36 +192,31 @@ function requirePresent<T>(value: T | undefined | null, field: string): T {
     return value;
 }
 
-/** Chuyển giá trị enum viết hoa của backend sang mô hình giao diện viết thường. */
+/** Chuyển giá trị enum viết hoa của backend sang mô hình giao diện viết thường. Missing profile fields stay null. */
 export function adaptBackendFighter(input: BackendFighter): Fighter {
-    const nationality = requirePresent(input.nationality, "nationality");
-    const heightCm = requirePresent(input.heightCm, "heightCm");
-    const reachCm = requirePresent(input.reachCm, "reachCm");
-    const stance = requirePresent(input.dominantStance, "dominantStance");
-    const primaryCoachId = requirePresent(input.primaryCoachId, "primaryCoachId");
-
+    const weightClass = input.weightClass.toLowerCase() as WeightClass;
     return {
         id: input.id,
         userId: input.userId,
         name: `${input.firstName} ${input.lastName}`.trim(),
-        nickname: input.nickname,
-        sex: input.sex.toLowerCase() as Fighter["sex"],
+        nickname: input.nickname ?? null,
+        sex: input.sex ? (input.sex.toLowerCase() as Sex) : null,
         dateOfBirth: input.dateOfBirth,
-        nationality,
-        heightCm,
-        reachCm,
-        weightKg: input.weightKg,
-        targetWeightKg: WEIGHT_CLASS_LIMIT_KG[input.weightClass.toLowerCase() as WeightClass],
-        bodyFatPct: input.bodyFatPct,
-        restingHeartRate: input.restingHeartRate,
-        weightClass: input.weightClass.toLowerCase() as WeightClass,
-        stance: stance.toLowerCase() as Fighter["stance"],
-        level: input.level.toLowerCase() as TrainingLevel,
-        primaryDiscipline: input.primaryDiscipline,
-        record: input.record,
-        coachIds: input.coachIds,
-        primaryCoachId,
-        doctorIds: input.doctorIds,
+        nationality: input.nationality,
+        heightCm: input.heightCm,
+        reachCm: input.reachCm,
+        weightKg: input.weightKg ?? null,
+        targetWeightKg: WEIGHT_CLASS_LIMIT_KG[weightClass],
+        bodyFatPct: input.bodyFatPct ?? null,
+        restingHeartRate: input.restingHeartRate ?? null,
+        weightClass,
+        stance: input.dominantStance ? (input.dominantStance.toLowerCase() as Stance) : null,
+        level: input.level ? (input.level.toLowerCase() as TrainingLevel) : null,
+        primaryDiscipline: input.primaryDiscipline ?? null,
+        record: input.record ?? null,
+        coachIds: input.coachIds ?? [],
+        primaryCoachId: input.primaryCoachId ?? null,
+        doctorIds: input.doctorIds ?? [],
         healthStatus: input.currentMedicalStatus.toLowerCase() as HealthStatus,
         joinedAt: input.createdAt,
         upcomingBout: input.upcomingBout
@@ -276,8 +283,30 @@ export async function listFighters(user: User, filter: FighterFilter = {}): Prom
 /** Đọc một hồ sơ võ sĩ; lỗi 404 được giữ tương thích dưới dạng null. */
 export async function getFighter(id: string): Promise<Fighter | null> {
     if (isDemoAuthEnabled()) return (await demoDb()).fighters.find((fighter) => fighter.id === id) ?? null;
-    const fighter = await nullIfNotFound(authenticatedApiRequest(`/fighters/${encodeURIComponent(id)}`, backendFighterSchema));
-    return fighter && adaptBackendFighter(fighter);
+    const [profile, measurement, coaches, doctors] = await Promise.all([
+        nullIfNotFound(authenticatedApiRequest(`/fighters/${encodeURIComponent(id)}`, backendFighterSchema)),
+        latestMeasurement(id),
+        coachAssignmentsFor(id),
+        doctorAssignmentsFor(id),
+    ]);
+    if (!profile) return null;
+    const fighter = adaptBackendFighter(profile);
+    // One profile read is worth the extra requests: the latest weigh-in and the current care team fill fields
+    // the profile itself doesn't carry.
+    return {
+        ...fighter,
+        weightKg: fighter.weightKg ?? measurement?.weightKg ?? null,
+        heightCm: fighter.heightCm ?? measurement?.heightCm ?? null,
+        reachCm: fighter.reachCm ?? measurement?.reachCm ?? null,
+        coachIds: fighter.coachIds.length > 0 ? fighter.coachIds : [...new Set(coaches.filter(isCurrent).map((a) => a.coachId))],
+        doctorIds: fighter.doctorIds.length > 0 ? fighter.doctorIds : [...new Set(doctors.filter(isCurrent).map((a) => a.doctorId))],
+    };
+}
+
+/** The most recent current body measurement, or null when there is none or the caller may not read it. */
+async function latestMeasurement(fighterId: string): Promise<z.output<typeof measurementSchema> | null> {
+    const measurements = await readableOrEmpty(drainNumberedPages(`/fighters/${encodeURIComponent(fighterId)}/measurements`, measurementSchema));
+    return measurements.reduce<z.output<typeof measurementSchema> | null>((latest, m) => (!latest || m.measuredAt > latest.measuredAt ? m : latest), null);
 }
 
 /*
@@ -475,7 +504,7 @@ export async function updateFighterProfile(fighterId: string, patch: FighterProf
         if (patch.heightCm !== undefined) body.heightCm = patch.heightCm;
         if (patch.reachCm !== undefined) body.reachCm = patch.reachCm;
         if (patch.weightClass !== undefined) body.weightClass = patch.weightClass.toUpperCase();
-        if (patch.stance !== undefined) body.dominantStance = patch.stance.toUpperCase();
+        if (patch.stance !== undefined) body.dominantStance = patch.stance?.toUpperCase() ?? null;
         if (Object.keys(body).length === 0) unsupported("No API-supported fighter profile field was provided.");
         try {
             // Kiểm tra trước để không ghi một phần dữ liệu rồi mới phát hiện hợp đồng đọc chưa đầy đủ.

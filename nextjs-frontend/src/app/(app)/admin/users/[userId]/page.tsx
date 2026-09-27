@@ -17,6 +17,7 @@ import { DescriptionList, type DescriptionItem } from "@/components/ui/descripti
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/states";
 import { requireRole } from "@/lib/auth/session";
+import { NOT_RECORDED, labelOf } from "@/components/domain/domain-format";
 import { ROLE_LABELS, STANCE_LABELS, TRAINING_LEVEL_LABELS, WEIGHT_CLASS_LABELS } from "@/lib/domain/labels";
 import type { Coach, Doctor, Fighter, User } from "@/lib/domain/types";
 import { formatDate, formatDateTime, formatRelative, pluralize } from "@/lib/format";
@@ -208,9 +209,9 @@ function LinkedProfile({ user, profile, coaches }: { user: User; profile: Fighte
                 items={[
                     { label: "Weight class", value: WEIGHT_CLASS_LABELS[profile.weightClass] },
                     { label: "Primary discipline", value: profile.primaryDiscipline },
-                    { label: "Level", value: TRAINING_LEVEL_LABELS[profile.level] },
-                    { label: "Stance", value: STANCE_LABELS[profile.stance] },
-                    { label: "Record (W–L–D)", value: `${profile.record.wins}–${profile.record.losses}–${profile.record.draws}` },
+                    { label: "Level", value: labelOf(TRAINING_LEVEL_LABELS, profile.level) ?? NOT_RECORDED },
+                    { label: "Stance", value: labelOf(STANCE_LABELS, profile.stance) ?? NOT_RECORDED },
+                    { label: "Record (W–L–D)", value: profile.record ? `${profile.record.wins}–${profile.record.losses}–${profile.record.draws}` : NOT_RECORDED },
                     { label: "Joined", value: formatDate(profile.joinedAt) },
                     {
                         label: "Coaches",

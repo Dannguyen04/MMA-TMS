@@ -8,7 +8,7 @@ import { FighterProfileHeader } from "@/components/dashboard/fighter-profile-hea
 import { AINotice } from "@/components/domain/ai-notice";
 import { BodyMap, type BodyMapHighlight } from "@/components/domain/body-map";
 import { ClearanceCard } from "@/components/domain/clearance-card";
-import { capitalize, describeDaysUntil } from "@/components/domain/domain-format";
+import { NOT_RECORDED, capitalize, describeDaysUntil, labelOf, presentFacts } from "@/components/domain/domain-format";
 import { InjuryCard } from "@/components/domain/injury-card";
 import { RecoveryProgress } from "@/components/domain/recovery-progress";
 import { DateBlock } from "@/components/domain/session-list-item";
@@ -85,7 +85,7 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
     const grantHref = `${routes.doctor.grantClearance}?fighter=${fighter.id}`;
     const newInjuryHref = `${routes.doctor.newInjury}?fighter=${fighter.id}`;
 
-    const weightDiff = fighter.weightKg - fighter.targetWeightKg;
+    const weightDiff = fighter.weightKg === null ? null : fighter.weightKg - fighter.targetWeightKg;
     const { clearance, clearanceState } = summary;
     const revoked = clearance?.status === "revoked";
     const canRevoke = clearance?.status === "active" && clearanceState !== "expired" && clearance.level !== "not_cleared";
@@ -360,17 +360,24 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                 back={{ href: routes.doctor.fighters, label: "Fighters" }}
                 now={now}
                 eyebrow="Health profile"
-                facts={[fighter.primaryDiscipline, WEIGHT_CLASS_LABELS[fighter.weightClass], TRAINING_LEVEL_LABELS[fighter.level]]}
+                facts={presentFacts(fighter.primaryDiscipline, WEIGHT_CLASS_LABELS[fighter.weightClass], labelOf(TRAINING_LEVEL_LABELS, fighter.level))}
                 meta={
                     <ul className="flex flex-wrap items-center gap-x-4 gap-y-1">
                         <li>
                             Age <span className="font-medium text-fg">{ageFromBirthDate(fighter.dateOfBirth, now)}</span>
                         </li>
                         <li>
-                            Weight <span className="font-medium text-fg">{formatNumber(fighter.weightKg, 1)} kg</span>{" "}
-                            {weightDiff > 0
-                                ? `(${formatNumber(weightDiff, 1)} kg over the ${formatNumber(fighter.targetWeightKg, 1)} kg limit)`
-                                : `(within the ${formatNumber(fighter.targetWeightKg, 1)} kg limit)`}
+                            Weight{" "}
+                            {fighter.weightKg === null || weightDiff === null ? (
+                                <span className="font-medium text-fg">{NOT_RECORDED.toLowerCase()}</span>
+                            ) : (
+                                <>
+                                    <span className="font-medium text-fg">{formatNumber(fighter.weightKg, 1)} kg</span>{" "}
+                                    {weightDiff > 0
+                                        ? `(${formatNumber(weightDiff, 1)} kg over the ${formatNumber(fighter.targetWeightKg, 1)} kg limit)`
+                                        : `(within the ${formatNumber(fighter.targetWeightKg, 1)} kg limit)`}
+                                </>
+                            )}
                         </li>
                         {primaryDoctorName && (
                             <li>

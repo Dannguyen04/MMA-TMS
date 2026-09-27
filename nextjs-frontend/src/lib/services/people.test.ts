@@ -111,15 +111,37 @@ describe("people API adapter", () => {
         );
     });
 
-    it("báo lỗi rõ ràng khi backend chưa trả đủ trường giao diện", () => {
-        expect(
-            backendFighterSchema.safeParse({
-                ...backendFighter,
-                nickname: undefined,
-                sex: undefined,
-                weightKg: undefined,
-            }).success,
-        ).toBe(false);
+    it("keeps profile fields the API doesn't return yet as null instead of failing or guessing", () => {
+        const current = {
+            id: fighterId,
+            userId,
+            firstName: "An",
+            lastName: "Nguyen",
+            dateOfBirth: "1995-04-03",
+            nationality: null,
+            weightClass: "LIGHTWEIGHT" as const,
+            heightCm: null,
+            reachCm: null,
+            dominantStance: null,
+            currentMedicalStatus: "HEALTHY" as const,
+            isActive: true,
+            createdAt: "2026-01-01T00:00:00.000Z",
+            updatedAt: "2026-01-02T00:00:00.000Z",
+        };
+        expect(adaptBackendFighter(backendFighterSchema.parse(current))).toMatchObject({
+            name: "An Nguyen",
+            nickname: null,
+            sex: null,
+            weightKg: null,
+            stance: null,
+            level: null,
+            record: null,
+            coachIds: [],
+            primaryCoachId: null,
+            upcomingBout: null,
+            targetWeightKg: 70.3,
+            healthStatus: "healthy",
+        });
     });
 
     it("builds the coach list from the assignments of fighters in scope, since the API has no coach directory", async () => {

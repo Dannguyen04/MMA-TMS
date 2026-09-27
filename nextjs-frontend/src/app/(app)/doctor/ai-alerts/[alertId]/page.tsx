@@ -203,7 +203,7 @@ export default async function AIAlertDetailPage({ params }: PageProps<"/doctor/a
                                 {video && analysis ? (
                                     <ObservationEvidence
                                         analysis={analysis}
-                                        stance={fighter.stance}
+                                        stance={fighter.stance ?? "orthodox"}
                                         cameraAngle={video.cameraAngle}
                                         sourceUrl={video.sourceUrl}
                                         title={video.title}

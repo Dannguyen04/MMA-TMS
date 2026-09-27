@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { DescriptionList } from "@/components/ui/description-list";
 import { ProgressBar } from "@/components/ui/progress";
 import { EmptyState } from "@/components/ui/states";
-import { STANCE_LABELS, WEIGHT_CLASS_LABELS } from "@/lib/domain/labels";
+import { NOT_RECORDED, labelOf } from "@/components/domain/domain-format";
+import { STANCE_LABELS, WEIGHT_CLASS_LABELS, WEIGHT_CLASS_LIMIT_KG } from "@/lib/domain/labels";
 import { goalProgressPct } from "@/lib/domain/rules";
 import type { Fighter, Goal } from "@/lib/domain/types";
 import { ageFromBirthDate, daysBetween, formatDate, formatNumber, formatRelative, pluralize } from "@/lib/format";
@@ -19,7 +20,8 @@ import type { SessionCheck } from "./roster-data";
 
 export function BodyProfileCard({ fighter, now, className }: { fighter: Fighter; now: string; className?: string }) {
     const bout = fighter.upcomingBout;
-    const check = weightCheck(fighter.weightKg, bout?.weightClass ?? fighter.weightClass, bout ? Math.max(0, daysBetween(now, bout.date)) : null);
+    const weightClass = bout?.weightClass ?? fighter.weightClass;
+    const check = fighter.weightKg === null ? null : weightCheck(fighter.weightKg, weightClass, bout ? Math.max(0, daysBetween(now, bout.date)) : null);
 
     return (
         <Card className={cn("min-w-0", className)}>
@@ -31,26 +33,28 @@ export function BodyProfileCard({ fighter, now, className }: { fighter: Fighter;
                             Weight vs {WEIGHT_CLASS_LABELS[bout?.weightClass ?? fighter.weightClass]} limit
                             {bout ? " for the next bout" : ""}
                         </p>
-                        <p className={cn("text-sm font-medium", check.onWeight ? "text-success-fg" : check.fastPace ? "text-warning-fg" : "text-fg")}>
-                            {weightGapText(check)}
-                            {check.pacePerWeek !== null && (
-                                <span className="font-normal text-fg-muted"> · ~{formatNumber(check.pacePerWeek, 1)} kg/week</span>
-                            )}
-                        </p>
+                        {check && (
+                            <p className={cn("text-sm font-medium", check.onWeight ? "text-success-fg" : check.fastPace ? "text-warning-fg" : "text-fg")}>
+                                {weightGapText(check)}
+                                {check.pacePerWeek !== null && (
+                                    <span className="font-normal text-fg-muted"> · ~{formatNumber(check.pacePerWeek, 1)} kg/week</span>
+                                )}
+                            </p>
+                        )}
                     </div>
                     <p className="mt-1 flex items-baseline gap-2">
-                        <span className="text-xl font-semibold text-fg">{formatNumber(check.currentKg, 1)} kg</span>
-                        <span className="text-[13px] text-fg-muted">limit {formatNumber(check.limitKg, 1)} kg</span>
+                        <span className="text-xl font-semibold text-fg">{check ? `${formatNumber(check.currentKg, 1)} kg` : NOT_RECORDED}</span>
+                        <span className="text-[13px] text-fg-muted">limit {formatNumber(WEIGHT_CLASS_LIMIT_KG[weightClass], 1)} kg</span>
                     </p>
                 </div>
                 <DescriptionList
                     columns={3}
                     items={[
-                        { label: "Height", value: `${fighter.heightCm} cm` },
-                        { label: "Reach", value: `${fighter.reachCm} cm` },
-                        { label: "Body fat", value: `${formatNumber(fighter.bodyFatPct, 1)}%` },
-                        { label: "Resting heart rate", value: `${fighter.restingHeartRate} bpm` },
-                        { label: "Stance", value: STANCE_LABELS[fighter.stance] },
+                        { label: "Height", value: fighter.heightCm === null ? NOT_RECORDED : `${fighter.heightCm} cm` },
+                        { label: "Reach", value: fighter.reachCm === null ? NOT_RECORDED : `${fighter.reachCm} cm` },
+                        { label: "Body fat", value: fighter.bodyFatPct === null ? NOT_RECORDED : `${formatNumber(fighter.bodyFatPct, 1)}%` },
+                        { label: "Resting heart rate", value: fighter.restingHeartRate === null ? NOT_RECORDED : `${fighter.restingHeartRate} bpm` },
+                        { label: "Stance", value: labelOf(STANCE_LABELS, fighter.stance) ?? NOT_RECORDED },
                         { label: "Age", value: `${ageFromBirthDate(fighter.dateOfBirth, now)} years` },
                         { label: "Nationality", value: fighter.nationality },
                         { label: "Discipline", value: fighter.primaryDiscipline },

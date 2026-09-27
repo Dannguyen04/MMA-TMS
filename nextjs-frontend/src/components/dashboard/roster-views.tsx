@@ -16,7 +16,8 @@ import { formatNumber, formatTime } from "@/lib/format";
 import type { SearchParams, SortDirection } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
-import { recordText, relativeDay } from "./dashboard-utils";
+import { NOT_RECORDED } from "@/components/domain/domain-format";
+import { recordSpoken, recordText, relativeDay } from "./dashboard-utils";
 import type { RosterEntry } from "./roster-data";
 
 function ScoreSparkline({ entry, width }: { entry: RosterEntry; width: number }) {
@@ -143,10 +144,14 @@ export function RosterTable({ entries, now, warningDays, pathname, searchParams,
                             </TD>
                             <TD className="whitespace-nowrap text-fg-muted">{WEIGHT_CLASS_LABELS[fighter.weightClass]}</TD>
                             <TD className="whitespace-nowrap">
-                                <span aria-hidden>{recordText(fighter)}</span>
-                                <span className="sr-only">
-                                    {fighter.record.wins} wins, {fighter.record.losses} losses, {fighter.record.draws} draws
-                                </span>
+                                {fighter.record ? (
+                                    <>
+                                        <span aria-hidden>{recordText(fighter)}</span>
+                                        <span className="sr-only">{recordSpoken(fighter)}</span>
+                                    </>
+                                ) : (
+                                    <span className="text-fg-subtle">{NOT_RECORDED}</span>
+                                )}
                             </TD>
                             <TD>
                                 <HealthStatusBadge status={fighter.healthStatus} size="sm" />

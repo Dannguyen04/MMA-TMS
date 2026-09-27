@@ -20,7 +20,8 @@ import { PageHeader } from "@/components/ui/page-header";
 import { ProgressBar } from "@/components/ui/progress";
 import { requireFighterAccess } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
-import { HEALTH_STATUS_DESCRIPTIONS, WEIGHT_CLASS_LABELS } from "@/lib/domain/labels";
+import { NOT_RECORDED } from "@/components/domain/domain-format";
+import { HEALTH_STATUS_DESCRIPTIONS, WEIGHT_CLASS_LABELS, WEIGHT_CLASS_LIMIT_KG } from "@/lib/domain/labels";
 import type { ClearanceState } from "@/lib/domain/rules";
 import { planAdherence } from "@/lib/domain/training-plan";
 import type { MedicalClearance, TrainingPlan, UpcomingBout } from "@/lib/domain/types";
@@ -118,7 +119,8 @@ export default async function FighterDashboardPage() {
     const weekToGo = weekPlanned.filter((session) => session.status === "scheduled" || session.status === "in_progress").length;
 
     const weightClass = bout?.weightClass ?? fighter.weightClass;
-    const weight = weightCheck(fighter.weightKg, weightClass, bout ? Math.max(0, daysBetween(now, bout.date)) : null);
+    const weight = fighter.weightKg === null ? null : weightCheck(fighter.weightKg, weightClass, bout ? Math.max(0, daysBetween(now, bout.date)) : null);
+    const weightLimit = `${WEIGHT_CLASS_LABELS[weightClass]} ${formatNumber(WEIGHT_CLASS_LIMIT_KG[weightClass], 1)} kg`;
 
     const openGoals = goals.filter((goal) => goal.status === "on_track" || goal.status === "at_risk");
     const atRisk = openGoals.filter((goal) => goal.status === "at_risk").length;
@@ -178,8 +180,14 @@ export default async function FighterDashboardPage() {
                     />
                     <ReadinessCell
                         label="Weight"
-                        value={<ReadinessNumber value={formatNumber(fighter.weightKg, 1)} unit="kg" />}
-                        hint={`${weightGapText(weight)} · ${WEIGHT_CLASS_LABELS[weightClass]} ${formatNumber(weight.limitKg, 1)} kg`}
+                        value={
+                            weight ? (
+                                <ReadinessNumber value={formatNumber(weight.currentKg, 1)} unit="kg" />
+                            ) : (
+                                <span className="text-sm font-medium text-fg-muted">{NOT_RECORDED}</span>
+                            )
+                        }
+                        hint={weight ? `${weightGapText(weight)} · ${weightLimit}` : `${weightLimit} limit`}
                         href={routes.profile}
                         className="sm:col-span-2 lg:col-span-1"
                     />

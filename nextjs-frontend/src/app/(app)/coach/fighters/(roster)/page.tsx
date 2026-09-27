@@ -35,7 +35,8 @@ const PAGE_SIZE = 12;
 const SORT_ACCESSORS: Record<SortKey, (entry: RosterEntry) => string | number | null> = {
     name: (entry) => entry.fighter.name,
     weight: (entry) => WEIGHT_CLASS_ORDER.indexOf(entry.fighter.weightClass),
-    record: (entry) => entry.fighter.record.wins - entry.fighter.record.losses,
+    // Fighters without a known record sort last.
+    record: (entry) => (entry.fighter.record ? entry.fighter.record.wins - entry.fighter.record.losses : Number.NEGATIVE_INFINITY),
     health: (entry) => HEALTH_PRIORITY[entry.fighter.healthStatus],
     clearance: (entry) => CLEARANCE_PRIORITY[entry.clearanceState] * 1000 + Math.min(999, Math.max(0, entry.daysRemaining ?? 999)),
     overall: (entry) => entry.performance?.overall ?? null,

@@ -1141,7 +1141,9 @@ interface UploadScriptInput {
 /** Script for footage uploaded at runtime, seeded by the video id so re-generation is stable. */
 export function buildUploadScript(input: UploadScriptInput): AnalysisScript {
     const { video, fighter } = input;
-    const speed = LEVEL_SPEED[fighter.level] * (fighter.sex === "female" ? 0.9 : 1);
+    // Runtime uploads can come from profiles with fields not yet recorded; the script falls back to neutral values.
+    const stance = fighter.stance ?? "orthodox";
+    const speed = LEVEL_SPEED[fighter.level ?? "amateur"] * (fighter.sex === "female" ? 0.9 : 1);
     const lossesPer3Min = TYPE_DEFAULTS[video.trainingType].trackingLosses;
     return {
         analysisId: input.analysisId,
@@ -1149,13 +1151,13 @@ export function buildUploadScript(input: UploadScriptInput): AnalysisScript {
         jobId: input.jobId,
         fighterId: fighter.id,
         trainingType: video.trainingType,
-        stance: fighter.stance,
+        stance,
         durationSec: video.durationSec,
         fps: video.fps,
         processedAt: input.processedAt,
         models: input.models,
         seed: video.id,
-        tuning: resolveTuning(video.trainingType, repertoireForDiscipline(fighter.primaryDiscipline), {
+        tuning: resolveTuning(video.trainingType, repertoireForDiscipline(fighter.primaryDiscipline ?? ""), {
             handSpeedFactor: speed,
             kickSpeedFactor: speed,
             trackingLosses: Math.max(0, Math.round((lossesPer3Min * video.durationSec) / 180)),
@@ -1164,7 +1166,7 @@ export function buildUploadScript(input: UploadScriptInput): AnalysisScript {
             video.trainingType === "sparring"
                 ? "Two fighters were in frame, so some detections carry lower confidence and should be reviewed."
                 : "Detections with confidence below 60% are marked for coach review.",
-        findings: defaultFindingTemplates(fighter.stance),
+        findings: defaultFindingTemplates(stance),
         reviewer: null,
         coachReview: null,
     };
