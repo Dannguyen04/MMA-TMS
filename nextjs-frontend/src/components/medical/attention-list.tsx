@@ -16,6 +16,8 @@ export interface AttentionItem {
     kind: string;
     /** Queue the item is filed under, for pages that filter the list (e.g. "clearance"). */
     group?: string;
+    /** When it fell or falls due (ISO), to order items of the same urgency: the earliest goes first. */
+    at?: string;
     /** The fighter it concerns; a summary row (e.g. "3 analyses to review") has none. */
     fighterName?: string;
     fighterHref?: string;

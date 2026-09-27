@@ -1105,6 +1105,8 @@ export interface FighterHealthSummary {
     /** AI movement observations with status new or follow_up, newest first. */
     openAlerts: AbnormalMovementAlert[];
     nextFollowUp: FollowUp | null;
+    /** Medical review requests still waiting for an examination, oldest first. */
+    openReviewRequests: MedicalReviewRequest[];
 }
 
 /** Everything needed for a fighter's health overview card. */
@@ -1130,6 +1132,9 @@ export async function getFighterHealthSummary(fighterId: string, now: string | D
             .filter((a) => a.fighterId === fighterId && (a.status === "new" || a.status === "follow_up"))
             .sort(byDateDesc((a) => a.detectedAt)),
         nextFollowUp: pendingFollowUps([fighter], now)[0] ?? null,
+        openReviewRequests: store.medicalReviewRequests
+            .filter((request) => request.fighterId === fighterId && request.status === "OPEN")
+            .sort((a, b) => a.requestedAt.localeCompare(b.requestedAt)),
     };
 }
 

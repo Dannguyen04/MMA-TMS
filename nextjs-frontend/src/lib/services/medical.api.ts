@@ -406,6 +406,7 @@ function summaryFrom(fighter: Fighter, dossier: Dossier): FighterHealthSummary {
         latestExamination: exams.map(toExamination).sort(byNewest((e) => e.date))[0] ?? null,
         openAlerts: [],
         nextFollowUp: null,
+        openReviewRequests: [...dossier.openReviewRequests].sort((a, b) => a.requestedAt.localeCompare(b.requestedAt)),
     };
 }
 

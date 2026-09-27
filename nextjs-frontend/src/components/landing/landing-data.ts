@@ -74,6 +74,6 @@ export const CLEARANCE_STEPS = [
 export const ROLES = [
     { role: "Fighter", color: "#e5484d", text: "Your week, your footage, your scores and your clearance, in one place." },
     { role: "Coach", color: "#3d8bff", text: "Roster, plans, sessions and the AI review queue, with what needs attention first." },
-    { role: "Sports doctor", color: "#3fd7e8", text: "Clinical overview, examinations, injuries, recovery plans and AI observations." },
+    { role: "Sports doctor", color: "#3fd7e8", text: "Triage queue, examinations, injuries, recovery plans and AI observations." },
     { role: "Admin", color: "#f4f6fb", text: "Users and roles, AI jobs and models, audit logs and platform settings." },
 ];
