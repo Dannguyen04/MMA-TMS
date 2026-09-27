@@ -51,9 +51,49 @@ export const SESSION_TYPES = [
 ] as const;
 export type SessionType = (typeof SESSION_TYPES)[number];
 
-export type ExaminationScope = "TRAINING" | "COMPETITION";
-export type ExaminationDecision = "ELIGIBLE" | "ELIGIBLE_WITH_RESTRICTIONS" | "NOT_ELIGIBLE";
-export type ClearanceType = "TRAINING" | "COMPETITION" | "RETURN_FROM_INJURY";
+export const EXAMINATION_SCOPES = ["TRAINING", "COMPETITION"] as const;
+export type ExaminationScope = (typeof EXAMINATION_SCOPES)[number];
+
+export const EXAMINATION_DECISIONS = ["ELIGIBLE", "ELIGIBLE_WITH_RESTRICTIONS", "NOT_ELIGIBLE"] as const;
+export type ExaminationDecision = (typeof EXAMINATION_DECISIONS)[number];
+
+export const CLEARANCE_TYPES = ["TRAINING", "COMPETITION", "RETURN_FROM_INJURY"] as const;
+export type ClearanceType = (typeof CLEARANCE_TYPES)[number];
+
+/** Clearance types an examination of each scope can back. */
+export const CLEARANCE_TYPES_BY_SCOPE: Record<ExaminationScope, readonly ClearanceType[]> = {
+    TRAINING: ["TRAINING", "RETURN_FROM_INJURY"],
+    COMPETITION: ["COMPETITION"],
+};
+
+export const API_INJURY_SEVERITIES = ["MINOR", "MODERATE", "SEVERE", "CRITICAL"] as const;
+export type ApiInjurySeverity = (typeof API_INJURY_SEVERITIES)[number];
+
+export const API_INJURY_STATUSES = ["ACTIVE", "RECOVERING", "RESOLVED"] as const;
+export type ApiInjuryStatus = (typeof API_INJURY_STATUSES)[number];
+
+/** Injury status changes the service allows. Resolved is final: a recurrence is recorded as a new injury. */
+export const INJURY_STATUS_TRANSITIONS: Record<ApiInjuryStatus, readonly ApiInjuryStatus[]> = {
+    ACTIVE: ["RECOVERING", "RESOLVED"],
+    RECOVERING: ["ACTIVE", "RESOLVED"],
+    RESOLVED: [],
+};
+
+/** Text limits the service validates, so forms can stop the same input before sending it. */
+export const MEDICAL_TEXT_LIMITS = {
+    reviewReason: 2_000,
+    examinationReason: 4_000,
+    restrictionNotes: 2_000,
+    clearanceNotes: 2_000,
+    revokeReason: 2_000,
+    injuryType: 200,
+    clinicalText: 4_000,
+    treatmentType: 200,
+    planTitle: 200,
+} as const;
+
+/** Most milestones one recovery plan request may carry. */
+export const RECOVERY_MILESTONES_MAX = 50;
 
 export const ELIGIBILITY_REASONS = [
     "REVIEW_REQUEST_PENDING",
@@ -176,4 +216,33 @@ export const CLEARANCE_TYPE_LABELS: Record<ClearanceType, string> = {
 export const EXAMINATION_SCOPE_LABELS: Record<ExaminationScope, string> = {
     TRAINING: "Training",
     COMPETITION: "Competition",
+};
+
+export const EXAMINATION_SCOPE_DESCRIPTIONS: Record<ExaminationScope, string> = {
+    TRAINING: "Whether the fighter may train. It can close open medical review requests.",
+    COMPETITION: "Whether the fighter may compete in a bout.",
+};
+
+export const EXAMINATION_DECISION_LABELS: Record<ExaminationDecision, string> = {
+    ELIGIBLE: "Eligible",
+    ELIGIBLE_WITH_RESTRICTIONS: "Eligible with restrictions",
+    NOT_ELIGIBLE: "Not eligible",
+};
+
+export const EXAMINATION_DECISION_DESCRIPTIONS: Record<ExaminationDecision, string> = {
+    ELIGIBLE: "No limits. Issue a clearance next so the fighter can train.",
+    ELIGIBLE_WITH_RESTRICTIONS: "Allowed within the limits you set. Issue a clearance next.",
+    NOT_ELIGIBLE: "Training stops. Active clearances of this scope are revoked straight away.",
+};
+
+export const REVIEW_REQUEST_STATUS_LABELS: Record<MedicalReviewRequest["status"], string> = {
+    OPEN: "Waiting for the doctor",
+    RESOLVED: "Reviewed",
+};
+
+export const REQUESTER_ROLE_LABELS: Record<MedicalReviewRequest["requesterRole"], string> = {
+    FIGHTER: "Fighter",
+    COACH: "Coach",
+    DOCTOR: "Doctor",
+    ADMIN: "Admin",
 };
