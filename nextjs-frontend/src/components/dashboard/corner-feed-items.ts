@@ -7,7 +7,7 @@ export type CornerFeedItem =
     | { kind: "feedback"; id: string; at: string; feedback: CoachFeedback }
     | { kind: "video"; id: string; at: string; item: VideoLibraryItem };
 
-export const CORNER_FEED_LIMIT = 3;
+const CORNER_FEED_LIMIT = 3;
 
 /**
  * Coach feedback and the fighter's own uploads, newest first. An upload the coach has already written

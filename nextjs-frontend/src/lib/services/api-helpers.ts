@@ -20,6 +20,16 @@ export async function nullIfNotFound<T>(request: Promise<T>): Promise<T | null> 
     }
 }
 
+/** Resolves to null when the caller may not read the record (403) or it no longer exists (404); anything else throws. */
+export async function nullIfUnreadable<T>(request: Promise<T>): Promise<T | null> {
+    try {
+        return await request;
+    } catch (error) {
+        if (error instanceof ApiError && (error.status === 403 || error.status === 404)) return null;
+        throw error;
+    }
+}
+
 type QueryValue = string | number | boolean | null | undefined;
 
 /** Appends the non-empty values as a query string. */

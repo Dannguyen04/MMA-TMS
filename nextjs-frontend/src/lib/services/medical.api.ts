@@ -3,7 +3,7 @@ import "server-only";
 import { cache } from "react";
 import { z } from "zod";
 
-import { ApiError, authenticatedApiRequest, authenticatedMutableApiRequest } from "@/lib/api/client";
+import { authenticatedApiRequest, authenticatedMutableApiRequest } from "@/lib/api/client";
 import { getCurrentUser } from "@/lib/auth/session";
 import {
     clearanceBody,
@@ -41,7 +41,7 @@ import type { Fighter, HealthStatus, Injury, MedicalClearance, MedicalExaminatio
 import { dayKey } from "@/lib/format";
 import { matchesSearch } from "@/lib/query";
 import { getSettings } from "./admin";
-import { drainNumberedPages } from "./api-helpers";
+import { drainNumberedPages, nullIfUnreadable } from "./api-helpers";
 import type {
     ClearanceFilter,
     ClearanceOverviewRow,
@@ -196,28 +196,18 @@ type HistoryRecordType = "INJURY" | "TREATMENT" | "RECOVERY_PLAN" | "MEDICAL_CLE
 
 /* ─── Reads (once per fighter per request) ────────────────────────────────── */
 
-/** A record the caller may no longer read (403) or that doesn't exist (404) reads as absent. */
-async function unlessUnreadable<T>(request: Promise<T>): Promise<T | null> {
-    try {
-        return await request;
-    } catch (error) {
-        if (error instanceof ApiError && (error.status === 403 || error.status === 404)) return null;
-        throw error;
-    }
-}
-
 const path = (fighterId: string, rest: string) => `/fighters/${encodeURIComponent(fighterId)}${rest}`;
 
-const dossierFor = cache((fighterId: string) => unlessUnreadable(authenticatedApiRequest(path(fighterId, "/medical"), dossierSchema)));
+const dossierFor = cache((fighterId: string) => nullIfUnreadable(authenticatedApiRequest(path(fighterId, "/medical"), dossierSchema)));
 
-const examinationsFor = cache(async (fighterId: string) => (await unlessUnreadable(drainNumberedPages(path(fighterId, "/medical-examinations"), examinationSchema))) ?? []);
+const examinationsFor = cache(async (fighterId: string) => (await nullIfUnreadable(drainNumberedPages(path(fighterId, "/medical-examinations"), examinationSchema))) ?? []);
 
 const historyFor = cache(
     async (fighterId: string, recordType: HistoryRecordType) =>
-        (await unlessUnreadable(drainNumberedPages(path(fighterId, "/medical/history"), historyEntrySchema, { recordType }))) ?? [],
+        (await nullIfUnreadable(drainNumberedPages(path(fighterId, "/medical/history"), historyEntrySchema, { recordType }))) ?? [],
 );
 
-const reviewRequestsFor = cache(async (fighterId: string) => (await unlessUnreadable(drainNumberedPages(path(fighterId, "/medical-review-requests"), reviewRequestSchema))) ?? []);
+const reviewRequestsFor = cache(async (fighterId: string) => (await nullIfUnreadable(drainNumberedPages(path(fighterId, "/medical-review-requests"), reviewRequestSchema))) ?? []);
 
 /** The newest revision of each record, parsed; snapshots in a shape the interface can't read are skipped. */
 function snapshots<T extends z.ZodType>(entries: z.output<typeof historyEntrySchema>[], schema: T): z.output<T>[] {

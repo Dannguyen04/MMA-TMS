@@ -69,15 +69,8 @@ export const CLEARANCE_TYPES_BY_SCOPE: Record<ExaminationScope, readonly Clearan
 export const API_INJURY_SEVERITIES = ["MINOR", "MODERATE", "SEVERE", "CRITICAL"] as const;
 export type ApiInjurySeverity = (typeof API_INJURY_SEVERITIES)[number];
 
-export const API_INJURY_STATUSES = ["ACTIVE", "RECOVERING", "RESOLVED"] as const;
-export type ApiInjuryStatus = (typeof API_INJURY_STATUSES)[number];
-
-/** Injury status changes the service allows. Resolved is final: a recurrence is recorded as a new injury. */
-export const INJURY_STATUS_TRANSITIONS: Record<ApiInjuryStatus, readonly ApiInjuryStatus[]> = {
-    ACTIVE: ["RECOVERING", "RESOLVED"],
-    RECOVERING: ["ACTIVE", "RESOLVED"],
-    RESOLVED: [],
-};
+/** Resolved is final in the service: a recurrence is recorded as a new injury. */
+export type ApiInjuryStatus = "ACTIVE" | "RECOVERING" | "RESOLVED";
 
 /** Text limits the service validates, so forms can stop the same input before sending it. */
 export const MEDICAL_TEXT_LIMITS = {
@@ -233,11 +226,6 @@ export const EXAMINATION_DECISION_DESCRIPTIONS: Record<ExaminationDecision, stri
     ELIGIBLE: "No limits. Issue a clearance next so the fighter can train.",
     ELIGIBLE_WITH_RESTRICTIONS: "Allowed within the limits you set. Issue a clearance next.",
     NOT_ELIGIBLE: "Training stops. Active clearances of this scope are revoked straight away.",
-};
-
-export const REVIEW_REQUEST_STATUS_LABELS: Record<MedicalReviewRequest["status"], string> = {
-    OPEN: "Waiting for the doctor",
-    RESOLVED: "Reviewed",
 };
 
 export const REQUESTER_ROLE_LABELS: Record<MedicalReviewRequest["requesterRole"], string> = {

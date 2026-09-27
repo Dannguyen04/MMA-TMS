@@ -12,7 +12,7 @@ import { WEIGHT_CLASS_LIMIT_KG } from "@/lib/domain/labels";
 import type { Coach, Doctor, Fighter, HealthStatus, Sex, Stance, TrainingLevel, User, WeightClass } from "@/lib/domain/types";
 import { matchesSearch } from "@/lib/query";
 import { routes } from "@/lib/routes";
-import { drainNumberedPages, isNotFound, nullIfNotFound } from "./api-helpers";
+import { drainNumberedPages, isNotFound, nullIfNotFound, nullIfUnreadable } from "./api-helpers";
 
 export interface FighterFilter {
     search?: string;
@@ -133,7 +133,7 @@ const coachAssignmentSchema = z.object({
 });
 
 /** `GET /fighters/:id/doctors`: every doctor assignment period, paginated. */
-export const doctorAssignmentSchema = z.object({
+const doctorAssignmentSchema = z.object({
     id: z.string().uuid(),
     doctorId: z.string().uuid(),
     fighterId: z.string().uuid(),
@@ -146,7 +146,7 @@ export const doctorAssignmentSchema = z.object({
     doctorName: z.string().optional(),
 });
 
-export type DoctorAssignment = z.output<typeof doctorAssignmentSchema>;
+type DoctorAssignment = z.output<typeof doctorAssignmentSchema>;
 
 export const backendUserSchema = z.object({
     id: z.string().uuid(),
@@ -328,12 +328,7 @@ export const listScopedFighterIds = cache(async (): Promise<string[]> => {
 
 /** An assignment list the caller may not read (403) or that no longer exists (404) counts as empty. */
 async function readableOrEmpty<T>(request: Promise<T[]>): Promise<T[]> {
-    try {
-        return await request;
-    } catch (error) {
-        if (error instanceof ApiError && (error.status === 403 || error.status === 404)) return [];
-        throw error;
-    }
+    return (await nullIfUnreadable(request)) ?? [];
 }
 
 const coachAssignmentsFor = cache((fighterId: string) =>
@@ -343,12 +338,6 @@ const coachAssignmentsFor = cache((fighterId: string) =>
 const doctorAssignmentsFor = cache((fighterId: string) =>
     readableOrEmpty(drainNumberedPages(`/fighters/${encodeURIComponent(fighterId)}/doctors`, doctorAssignmentSchema)),
 );
-
-/** Every doctor assignment period for a fighter, current and ended, newest first. Empty in demo mode. */
-export async function listDoctorAssignments(fighterId: string): Promise<DoctorAssignment[]> {
-    if (isDemoAuthEnabled()) return [];
-    return [...(await doctorAssignmentsFor(fighterId))].sort((a, b) => b.startsAt.localeCompare(a.startsAt));
-}
 
 const isCurrent = (assignment: { endsAt: string | null }) => assignment.endsAt === null;
 

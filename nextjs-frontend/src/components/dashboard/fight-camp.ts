@@ -8,7 +8,7 @@ const DAY_MS = 86_400_000;
 /** Camp length assumed when there is no fight-camp plan to date it from. */
 export const DEFAULT_CAMP_DAYS = 56;
 /** Fight week starts this many days before the bout. */
-export const FIGHT_WEEK_DAYS = 6;
+const FIGHT_WEEK_DAYS = 6;
 
 export interface CampTimeline {
     /** Academy calendar days until fight night, never negative. */

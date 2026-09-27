@@ -44,7 +44,7 @@ export function jointForRegion(region: BodyRegion): BodyJoint | null {
 /* ─── Training ────────────────────────────────────────────────────────────── */
 
 /** The frontend training type each service session type belongs to. */
-export const SESSION_TRAINING_TYPES: Record<SessionType, TrainingType> = {
+const SESSION_TRAINING_TYPES: Record<SessionType, TrainingType> = {
     SHADOW_BOXING: "shadow_boxing",
     PAD_WORK: "pad_work",
     HEAVY_BAG: "heavy_bag",
@@ -72,7 +72,7 @@ const TRAINING_TYPES: TrainingType[] = [
 ];
 
 /** The frontend strike family of each service technique; null for strikes the frontend doesn't track. */
-export const TECHNIQUE_FAMILIES: Record<TechniqueType, Technique | null> = {
+const TECHNIQUE_FAMILIES: Record<TechniqueType, Technique | null> = {
     JAB: "jab",
     CROSS: "cross",
     LEAD_HOOK: "hook",

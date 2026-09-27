@@ -14,7 +14,7 @@ export interface TriageSortable {
     at?: string;
 }
 
-export function compareTriage(a: TriageSortable, b: TriageSortable): number {
+function compareTriage(a: TriageSortable, b: TriageSortable): number {
     const urgency = (URGENCY[a.tone] ?? LAST) - (URGENCY[b.tone] ?? LAST);
     if (urgency !== 0) return urgency;
     if (a.at && b.at) return a.at.localeCompare(b.at);
