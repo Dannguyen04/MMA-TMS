@@ -16,6 +16,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   ApiConflictEnvelope,
   ApiForbiddenEnvelope,
+  ApiInternalServerErrorEnvelope,
   ApiNotFoundEnvelope,
   ApiSuccessEnvelope,
   ApiUnauthorizedEnvelope,
@@ -396,8 +397,11 @@ export class FightersController {
     model: FighterMedicalSummaryDto,
   })
   @ApiUnauthorizedEnvelope()
-  @ApiForbiddenEnvelope('Fighters can only view their own medical summary')
+  @ApiForbiddenEnvelope(
+    'Requires fighter.medical:read; ADMIN reads all, FIGHTER only self, COACH/DOCTOR only currently assigned Fighters (MEDICAL_ACCESS_DENIED)',
+  )
   @ApiNotFoundEnvelope('FIGHTER_NOT_FOUND', 'Fighter profile not found')
+  @ApiInternalServerErrorEnvelope('Medical access audit could not be recorded')
   async getMedicalSummary(
     @CurrentUser() actor: AuthenticatedUser | undefined,
     @Param() params: FighterIdParamsDto,
@@ -405,6 +409,7 @@ export class FightersController {
     return this.fightersService.getMedicalSummary(
       this.requireActor(actor),
       params.id,
+      randomUUID(),
     );
   }
 

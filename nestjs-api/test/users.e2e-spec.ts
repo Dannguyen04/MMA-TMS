@@ -4,6 +4,7 @@ import { Reflector } from '@nestjs/core';
 import request from 'supertest';
 import { AUTH_ACCESS_SERVICE } from '../src/shared/contracts/auth-access.contract.js';
 import {
+  AUTHENTICATED_ENDPOINT,
   REQUIRED_PERMISSIONS,
   REQUIRED_ROLES,
 } from '../src/shared/decorators/auth.decorator.js';
@@ -69,9 +70,9 @@ describe('UsersController authorization (e2e)', () => {
     expect(permissionFor(UsersController.prototype.create)).toEqual({
       allOf: [USER_PERMISSIONS.CREATE],
     });
-    expect(permissionFor(UsersController.prototype.findMe)).toEqual({
-      allOf: [USER_PERMISSIONS.PROFILE_READ],
-    });
+    expect(
+      reflector.get(AUTHENTICATED_ENDPOINT, UsersController.prototype.findMe),
+    ).toBe(true);
     expect(permissionFor(UsersController.prototype.findOne)).toEqual({
       allOf: [USER_PERMISSIONS.READ],
     });
@@ -117,7 +118,7 @@ describe('UsersController authorization (e2e)', () => {
     expect(usersService.findOne).toHaveBeenCalledWith(userId);
   });
 
-  it('uses users.profile.read for the authenticated user profile', async () => {
+  it('allows any authenticated user to read their own profile without permission', async () => {
     const coach = { ...admin, role: 'COACH' as const };
     authService.authenticate.mockResolvedValueOnce(coach);
     usersService.findOne.mockResolvedValueOnce({ id: coach.id, role: 'COACH' });
@@ -127,9 +128,7 @@ describe('UsersController authorization (e2e)', () => {
       .set('Authorization', 'Bearer valid-token')
       .expect(200);
 
-    expect(authService.hasPermissions).toHaveBeenCalledWith(coach, {
-      allOf: [USER_PERMISSIONS.PROFILE_READ],
-    });
+    expect(authService.hasPermissions).not.toHaveBeenCalled();
     expect(usersService.findOne).toHaveBeenCalledWith(coach.id);
   });
 

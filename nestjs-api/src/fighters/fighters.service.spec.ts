@@ -7,6 +7,9 @@ import type {
   PublicFighter,
   TrainingSessionSummary,
 } from './fighters.model.js';
+import { MedicalAccessService } from '../medical/medical-access.service.js';
+import { MedicalService } from '../medical/medical.service.js';
+import { medicalAccessDenied } from './fighters.error.js';
 import { FightersRepository } from './fighters.repo.js';
 import { FightersService } from './fighters.service.js';
 
@@ -174,10 +177,44 @@ function repositoryMock() {
   };
 }
 
-function serviceWith(repository = repositoryMock()) {
+function medicalAccessMock() {
+  return {
+    assertDoctorFighterScope: vi.fn().mockResolvedValue(undefined),
+    authorizeClinicalRead: vi
+      .fn()
+      .mockImplementation(async (actor: AuthenticatedUser) => {
+        if (actor.role === USER.FIGHTER && actor.id === otherUserId) {
+          throw medicalAccessDenied();
+        }
+        return undefined;
+      }),
+  };
+}
+
+function medicalServiceMock() {
+  return {
+    listFightersForDoctorUser: vi.fn().mockResolvedValue({
+      data: [fighter],
+      total: 11,
+      hasNextPage: true,
+    }),
+  };
+}
+
+function serviceWith(
+  repository = repositoryMock(),
+  medicalAccess = medicalAccessMock(),
+  medicalService = medicalServiceMock(),
+) {
   return {
     repository,
-    service: new FightersService(repository as unknown as FightersRepository),
+    medicalAccess,
+    medicalService,
+    service: new FightersService(
+      repository as unknown as FightersRepository,
+      medicalAccess as unknown as MedicalAccessService,
+      medicalService as unknown as MedicalService,
+    ),
   };
 }
 
@@ -202,12 +239,32 @@ describe('FightersService', () => {
       weightClass: 'LIGHTWEIGHT' as const,
     };
 
-    await expect(service.findAll(doctorActor, query)).resolves.toEqual({
+    await expect(service.findAll(adminActor, query)).resolves.toEqual({
       data: [fighter],
       total: 11,
       hasNextPage: true,
     });
     expect(repository.findAll).toHaveBeenCalledWith(query);
+  });
+
+  it('delegates to MedicalService for doctor actor listing', async () => {
+    const { service, medicalService, repository } = serviceWith();
+    const query = {
+      page: 1,
+      limit: 10,
+      weightClass: 'LIGHTWEIGHT' as const,
+    };
+
+    await expect(service.findAll(doctorActor, query)).resolves.toEqual({
+      data: [fighter],
+      total: 11,
+      hasNextPage: true,
+    });
+    expect(medicalService.listFightersForDoctorUser).toHaveBeenCalledWith(
+      doctorActor.id,
+      query,
+    );
+    expect(repository.findAll).not.toHaveBeenCalled();
   });
 
   it('updates the owner profile atomically with audit context', async () => {
@@ -492,9 +549,9 @@ describe('FightersService', () => {
   });
 
   it('enforces the medical read matrix and always adds the disclaimer', async () => {
-    const { service } = serviceWith();
+    const { service, medicalAccess } = serviceWith();
     const denied = await caught(
-      service.getMedicalSummary(otherFighterActor, fighterId),
+      service.getMedicalSummary(otherFighterActor, fighterId, requestId),
     );
 
     expect(denied.getStatus()).toBe(HttpStatus.FORBIDDEN);
@@ -503,12 +560,18 @@ describe('FightersService', () => {
     });
 
     await expect(
-      service.getMedicalSummary(doctorActor, fighterId),
+      service.getMedicalSummary(doctorActor, fighterId, requestId),
     ).resolves.toMatchObject({
       fighterId,
       disclaimer:
         'Measurements are estimated from 2D video using AI pose estimation. Results are NOT clinically validated. This system does not provide medical diagnosis. Consult a qualified healthcare professional for medical assessment.',
     });
+    expect(medicalAccess.authorizeClinicalRead).toHaveBeenCalledWith(
+      doctorActor,
+      fighterId,
+      'SUMMARY',
+      requestId,
+    );
   });
 
   describe('COACH assignment scoping', () => {

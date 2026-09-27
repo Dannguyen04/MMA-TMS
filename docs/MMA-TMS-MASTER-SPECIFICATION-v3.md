@@ -2,10 +2,11 @@
 
 > **Single Source of Truth** cho sản phẩm, requirements, domain, AI, UX/UI và technical architecture của MMA-TMS.
 
-**Version:** 3.2\
+**Version:** 3.3\
 **Status:** Active Specification — Academic Hardening  
 **Project:** MMA-TMS — MMA Training & Movement Analysis System  
-**Supersedes:** v3.1, v3.0, v2.0 (Active Specification)\
+**Supersedes:** v3.2, v3.1, v3.0, v2.0 (Active Specification)\
+**Changes from v3.2:** Medical clinical module — ma trận READ/WRITE D1–D9 ngày 2026-09-27 thay thế policy assigned-Doctor-only-read của v3.2 cho dữ liệu clinical; kết luận khám tách khỏi clearance; yêu cầu khám thủ công chặn bắt đầu Training; bệnh án không xóa, có lịch sử phiên bản. Xem §05.10.1 và Section 27.\
 **Changes from v3.1:** Chính sách Medical/measurements chỉ dành cho assigned Doctor — đã duyệt ngày 2026-09-25, chưa triển khai; xem §05.10.1 và Section 27.\
 **Changes from v3.0:** Fighter Admissions policy (GUEST role, admission workflow, activation qua password recovery) — xem Section 27 (Change Log)  
 **Changes from v2.0:** Xem Section 27 (Change Log)
@@ -866,29 +867,33 @@ Override không xóa AI finding — nó là layer trên cùng.
 | FR-MED-004 | System cung cấp historical movement trends.                    |
 | FR-MED-005 | System ghi lại rehabilitation measurements.                    |
 | FR-MED-006 | System tạo non-diagnostic monitoring alerts.                   |
-| FR-MED-007 | Chỉ DOCTOR có assignment hiệu lực với Fighter và permission tương ứng được đọc medical information và measurements (§05.10.1). |
+| FR-MED-007 | Đọc dữ liệu clinical theo §05.10.1: ADMIN tất cả, FIGHTER chính mình, COACH/DOCTOR Fighter đang được phân công hiệu lực, cùng permission tương ứng. Measurements giữ quyền hiện hữu cho tới khi có quyết định riêng. |
 | FR-MED-008 | Tất cả medical measurements phải kèm accuracy disclaimer.      |
-| FR-MED-009 | Chỉ assigned DOCTOR có permission tương ứng được ghi/cập nhật medical và measurements; ADMIN không được sửa medical; lịch sử số đo vẫn append-only. |
+| FR-MED-009 | Chỉ DOCTOR đang được phân công, có permission tương ứng, được ghi injury/treatment/recovery, kết luận khám và cấp/thu hồi clearance; ADMIN không quyết định chuyên môn; bệnh án không xóa và có lịch sử phiên bản. |
+| FR-MED-010 | Kết luận khám (ELIGIBLE / ELIGIBLE_WITH_RESTRICTIONS / NOT_ELIGIBLE, phạm vi TRAINING hoặc COMPETITION) tách khỏi clearance; NOT_ELIGIBLE vô hiệu hóa clearance cùng phạm vi; thi đấu luôn cần clearance COMPETITION hợp lệ. |
+| FR-MED-011 | FIGHTER (chính mình), COACH/DOCTOR (Fighter đang phụ trách) gửi yêu cầu khám; yêu cầu chưa xử lý chặn bắt đầu Training cho tới khi Doctor khám và cấp clearance phù hợp. Không bắt buộc khám đại trà. |
 
-### 05.10.1 Chính sách truy cập Medical — đã duyệt, chưa triển khai
+### 05.10.1 Chính sách truy cập Medical clinical — quyết định 2026-09-27
 
-**Quyết định của chủ dự án ngày 2026-09-25; áp dụng cho feature Medical tương lai.** Chính sách này thay thế các yêu cầu cũ cho Fighter tự đọc medical, Coach đọc medical của Fighter được assign, Doctor đọc toàn bộ hoặc Admin toàn quyền medical. Không coi cập nhật spec là bằng chứng backend/database đã thực thi.
+**Quyết định D1–D9 của chủ dự án ngày 2026-09-27.** Thay thế policy "chỉ assigned Doctor được đọc" ngày 2026-09-25 cho dữ liệu clinical thủ công (injuries, treatments, recovery plans, kết luận khám, clearances, yêu cầu khám, lịch sử của chúng và `/fighters/:id/medical-summary`). Cập nhật spec không phải bằng chứng database đích đã áp dụng migration 011.
 
-| Actor | Đọc medical và measurements | Ghi/cập nhật medical và measurements |
+| Actor | Đọc clinical | Ghi clinical |
 | --- | --- | --- |
-| DOCTOR có assignment hiệu lực với Fighter | Cho phép khi có permission tương ứng | Cho phép khi có permission tương ứng |
-| DOCTOR không có assignment hiệu lực | Từ chối | Từ chối |
-| FIGHTER (kể cả bản thân), COACH (kể cả đang phụ trách), ADMIN, GUEST | Từ chối | Từ chối |
+| ADMIN | Tất cả Fighter | Không; chỉ phân công/kết thúc assignment Doctor |
+| FIGHTER | Chính mình | Không; được gửi yêu cầu khám cho chính mình |
+| COACH | Fighter đang được phân công hiệu lực | Không; được gửi yêu cầu khám trong scope |
+| DOCTOR | Fighter đang được phân công hiệu lực | Có, chỉ khi assignment đang hiệu lực |
+| GUEST | Từ chối | Từ chối |
 
-- Actor và Doctor profile phải đang hoạt động, không bị xóa; dùng quan hệ `doctor_fighters` với `starts_at <= now` và (`ends_at IS NULL` hoặc `ends_at > now`). Không dùng `coach_fighters` hay assignment đánh giá admission để cấp quyền medical.
-- Permission guard và resource scope đều bắt buộc. Explicit user deny vẫn thắng role grant; grant/override cho role khác không vượt được điều kiện chỉ assigned DOCTOR. Không tự cấp permission medical/measurement cho ADMIN theo quy tắc seed chung.
-- “Cập nhật measurements” không cho phép sửa/xóa lịch sử: `fighter_measurements` vẫn append-only, correction tạo record mới với `supersedes_id`; không tự cập nhật hạng cân hoặc số đo profile từ measurement.
-- Medical gồm hồ sơ, clearance, injuries, treatments, recovery, joint states/history, baselines, alerts và measurements. Quyền đọc/ghi profile hoặc Training không tự cấp quyền với các field này. Các đường trả dữ liệu hỗn hợp cũng phải áp dụng chính sách cho phần medical, gồm status/filter và dữ liệu sức khỏe nhúng.
-- Không thêm ngoại lệ ADMIN đọc toàn bộ hay Fighter tự đọc khi chưa có quyết định mới. Quản trị tài khoản/assignment không đồng nghĩa quyền đọc hoặc sửa nội dung y tế. Audit logs không được chứa bản sao nội dung y tế làm đường vòng cho Admin.
+- Hiệu lực: actor và profile đang hoạt động, không bị xóa; assignment `starts_at <= now` và (`ends_at IS NULL` hoặc `ends_at > now`). Lịch sử dùng cùng scope hiện tại; từng là tác giả hay từng được phân công không cấp quyền.
+- Permission guard và resource scope đều bắt buộc; explicit user deny thắng role grant. Quyền ghi clinical còn đòi hỏi Doctor đang được phân công, override cho role khác không vượt được. ADMIN không nhận quyền ghi chuyên môn.
+- Kết luận khám tách khỏi clearance: ELIGIBLE / ELIGIBLE_WITH_RESTRICTIONS (đạt, clearance phải giữ nguyên hạn chế) / NOT_ELIGIBLE (không sinh clearance, vô hiệu hóa clearance cùng phạm vi). Kết luận append-only, correction tạo bản ghi mới; thứ tự do server quản lý.
+- Training (D9): không có yêu cầu khám hay kết luận đang áp dụng thì tập bình thường. Yêu cầu khám chưa xử lý, kết luận NOT_ELIGIBLE, hoặc kết luận đạt chưa có clearance phù hợp (có hạn chế thì clearance phải còn hạn) chặn việc bắt đầu buổi tập. Clearance hết hạn của kết luận đạt không hạn chế không tạo nghĩa vụ khám định kỳ. Dừng/hủy buổi tập không bị chặn.
+- Thi đấu luôn cần clearance COMPETITION hợp lệ từ kết luận COMPETITION hiện hành. Chưa có module giải đấu tiêu thụ quyết định này.
+- Bệnh án không xóa: chặn DELETE/TRUNCATE/soft-delete ở database; cập nhật ghi phiên bản cùng transaction. Đọc clinical được audit (metadata, không sao chép nội dung y tế vào audit logs).
+- Ngoài phạm vi, giữ nguyên: AI (ROM, asymmetry, alerts, joint states, baselines) và `fighter_measurements` với quyền hiện hữu (Coach đọc trong scope theo 010).
 
-**Hiện trạng sau Coach revert:** 010 cấp 21 quyền cho COACH, có `fighter.measurement:read`, không có `fighter.medical:read`. Coach vẫn đọc measurements trong assignment scope và nhận `PublicFighterDto` có `currentMedicalStatus`/số đo profile; filter `medicalStatus` vẫn tồn tại. `medical-summary` legacy chưa kiểm tra Doctor assignment, medical-read audit đã bị gỡ. RLS y tế của 003 còn là lịch sử quyền rộng; không được diễn giải thành policy mới.
-
-**Điều kiện triển khai sau này:** rà soát tất cả read/write paths (kể cả `/users/me`, Fighter list/detail/roster, profile mutation, dữ liệu nhúng và direct DB access), xác định projection/field contract và cập nhật FE; thêm scope/audit tại backend; dùng migration mới để chuyển RLS/grants, kiểm tra cả grant/override tồn tại. Không sửa lại SQL/checksum lịch sử 003/007/010. Giữ nguyên tính năng Training không thuộc medical. Chỉ công bố hoàn tất khi tests chứng minh role matrix, permission deny/override, assignment hiệu lực/hết hạn/tương lai/Doctor khác, và không rò dữ liệu qua route/filter khác. Đợt duyệt này không triển khai API, SQL, AI hay sửa tests.
+**Trạng thái triển khai (2026-09-27):** backend module `medical` và migration 011 đã được viết; chưa áp dụng lên database nào, chưa chạy tests. FE/mobile chưa cập nhật.
 
 ### AC — FR-MED-001
 
@@ -1903,7 +1908,7 @@ notifications        (id, user_id FK, type, title, body, read, created_at)
 
 ## 13.3 Access Control Matrix
 
-Các hàng medical/measurements dưới đây là **target theo §05.10.1**, chưa phải RLS/runtime hiện tại. Quyền rộng trên bảng hỗn hợp (ví dụ `fighters`, `analyses`, `insights`) không bao gồm quyền đọc/ghi phần medical; projection/filter phải tôn trọng chính sách riêng.
+Các hàng medical dưới đây theo **§05.10.1 (2026-09-27)**; runtime/RLS chỉ đổi khi migration 011 được áp dụng. `fighter_measurements` giữ quyền hiện hữu (ngoài phạm vi đợt clinical). Quyền rộng trên bảng hỗn hợp (ví dụ `fighters`, `analyses`, `insights`) không bao gồm quyền đọc/ghi phần medical; projection/filter phải tôn trọng chính sách riêng.
 
 | Table              | FIGHTER         | COACH             | DOCTOR            | ADMIN |
 | ------------------ | --------------- | ----------------- | ----------------- | ----- |
@@ -1914,11 +1919,11 @@ Các hàng medical/measurements dưới đây là **target theo §05.10.1**, ch�
 | findings           | Own only        | Assigned fighters | Assigned fighters | Full  |
 | coach_overrides    | Read own        | Write + read own  | Read              | Full  |
 | insights           | Own, by persona | Coach persona     | Doctor persona    | Full  |
-| medical_records    | No              | No                | Assigned only     | No    |
+| clinical records (injuries, treatments, recovery, examinations, clearances, review requests, history) | Read own | Read assigned | Read + write assigned | Read all, no write |
 | rom_readings       | No              | No                | Assigned only     | No    |
 | asymmetry_analyses | No              | No                | Assigned only     | No    |
 | medical_alerts     | No              | No                | Assigned only     | No    |
-| fighter_measurements | No            | No                | Assigned only; append-only corrections | No |
+| fighter_measurements | Existing 004/010 behavior (out of clinical scope); append-only corrections | Read assigned (010) | Existing behavior | Existing behavior |
 | audit_logs         | No              | No                | No                | Full  |
 
 ---
@@ -2100,7 +2105,34 @@ GET /api/v1/comparisons/:id
 
 ## 14.8 Medical Endpoints
 
-Target design cho feature tương lai; không phải danh sách route hiện đang triển khai. Mọi route dưới đây cần permission tương ứng **và** Doctor assignment hiệu lực theo §05.10.1; role/permission đơn lẻ không đủ. Contract thực tế hiện tại được mô tả riêng trong tài liệu FE.
+### 14.8.1 Clinical routes (backend module `medical`, 2026-09-27)
+
+Route prefix thực tế của ứng dụng (không có `/api/v1`). Đọc theo ma trận §05.10.1 với `fighter.medical:read`; ghi chỉ Doctor đang phụ trách. Không có route DELETE.
+
+```
+GET   /fighters/:id/medical                   dossier + eligibility TRAINING/COMPETITION
+GET   /fighters/:id/medical/history           lịch sử phiên bản (phân trang)
+GET   /fighters/:id/medical-examinations      kết luận khám (phân trang)
+POST  /fighters/:id/medical-examinations      Doctor ghi kết luận
+POST  /fighters/:id/medical-clearances        Doctor cấp clearance từ kết luận đạt hiện hành
+POST  /medical-clearances/:id/revoke          Doctor thu hồi clearance
+GET   /fighters/:id/medical-review-requests   yêu cầu khám (phân trang)
+POST  /fighters/:id/medical-review-requests   Fighter self / Coach / Doctor đang phụ trách
+POST  /fighters/:id/injuries                  Doctor ghi chấn thương
+PATCH /injuries/:id                           Doctor cập nhật diễn tiến (có lịch sử)
+POST  /injuries/:id/treatments                Doctor ghi điều trị (append-only)
+POST  /fighters/:id/recovery-plans            Doctor tạo kế hoạch phục hồi
+PATCH /recovery-plans/:id                     Doctor cập nhật kế hoạch (có lịch sử)
+POST  /fighters/:id/doctors                   Admin phân công Doctor (hiệu lực ngay)
+POST  /fighters/:id/doctors/:assignmentId/end Admin hoặc đúng Doctor kết thúc
+GET   /fighters/:id/doctors                   lịch sử phân công
+GET   /doctors/:id/fighters                   roster Doctor
+PATCH /training-sessions/:id/status           IN_PROGRESS bị chặn 409 TRAINING_MEDICAL_ELIGIBILITY_REQUIRED khi nghĩa vụ y tế đang áp dụng
+```
+
+### 14.8.2 AI medical routes — deferred
+
+Target design cho feature AI tương lai; không phải route đang triển khai và chưa được quyết định lại theo D1–D9.
 
 ```
 GET /api/v1/fighters/:id/medical
@@ -2243,11 +2275,11 @@ Training videos và health information là **sensitive data**.
 | --------------------- | ---------------- | ------------------------------------- | ----------------------------- |
 | Training videos       | Sensitive        | Owner + assigned coach/doctor + admin | Until user deletion request   |
 | Pose data (keypoints) | Sensitive        | Same as video                         | Same as video                 |
-| Medical records       | Highly sensitive | Assigned Doctor only (§05.10.1 target) | 7 years (healthcare standard) |
+| Medical records       | Highly sensitive | Admin; Fighter self; assigned Coach/Doctor read; assigned Doctor write (§05.10.1) | Không xóa (D4); thời hạn lưu trữ pháp lý chưa được quyết định |
 | Analysis results      | Sensitive        | Owner + assigned + admin              | 3 years or user deletion      |
 | Audit logs            | System           | Admin only                            | 1 year minimum                |
 
-Data deletion request: user xóa account → xóa videos, analyses, medical records (soft delete → purge after 30 days).
+Data deletion request: user xóa account → xóa videos, analyses (soft delete → purge after 30 days). Medical records **không bị xóa hay purge** (D4, 2026-09-27); chính sách lưu trữ/pháp lý cho bệnh án chưa được quyết định và không được suy ra từ dòng này.
 
 ## 16.3 Medical Safety
 
@@ -2327,7 +2359,7 @@ AI output là **assistive**, không phải diagnostic.
 | ID           | Requirement                                                    |
 | ------------ | -------------------------------------------------------------- |
 | NFR-PRIV-001 | Video access phải authorized (không public URL)                |
-| NFR-PRIV-002 | Medical information và measurements chỉ cho DOCTOR có assignment hiệu lực và permission tương ứng (§05.10.1 target); không có Admin bypass. |
+| NFR-PRIV-002 | Dữ liệu clinical chỉ đọc theo ma trận §05.10.1 (Admin, Fighter self, Coach/Doctor đang phụ trách) và chỉ Doctor đang phụ trách được ghi; permission override không vượt được scope; đọc clinical được audit không sao chép nội dung. |
 | NFR-PRIV-003 | Data lifecycle phải documented và enforced                     |
 | NFR-PRIV-004 | User data deletion request phải được honored trong 30 ngày     |
 
@@ -2784,6 +2816,16 @@ The system must always answer:
 ---
 
 # 27. CHANGE LOG
+
+## v3.3 (2026-09-27)
+
+**Medical clinical module — quyết định D1–D9. Thay thế policy assigned-Doctor-only-read của v3.2 cho dữ liệu clinical.**
+
+- READ: ADMIN tất cả, FIGHTER chính mình, COACH/DOCTOR Fighter đang được phân công hiệu lực; WRITE chỉ Doctor đang phụ trách; ADMIN chỉ quản lý assignment (§05.10.1, FR-MED-007/009, NFR-PRIV-002, §13.3).
+- Thêm FR-MED-010 (kết luận khám tách khỏi clearance) và FR-MED-011 (yêu cầu khám thủ công chặn bắt đầu Training, không khám đại trà).
+- Bệnh án không xóa, có lịch sử phiên bản; §16.2 bỏ purge medical records (thời hạn lưu trữ pháp lý chưa quyết định).
+- §14.8 tách route clinical đã triển khai ở backend khỏi route AI deferred.
+- Backend: module `medical`, migration `011_medical_clinical_records.sql`. Chưa áp dụng lên database, chưa chạy tests; FE/mobile chưa cập nhật. AI và `fighter_measurements` giữ nguyên.
 
 ## v3.2 (2026-09-25)
 

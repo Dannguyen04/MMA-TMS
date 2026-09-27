@@ -34,7 +34,7 @@ describe('OpenAPI document (e2e)', () => {
     expect(document.paths['/users/me']?.get).toMatchObject({
       tags: ['Users'],
       security: [{ bearer: [] }],
-      responses: { 200: expect.any(Object), 403: expect.any(Object) },
+      responses: { 200: expect.any(Object), 401: expect.any(Object) },
     });
     expect(Object.keys(document.paths)).not.toContain('/permissions');
   });
@@ -273,5 +273,105 @@ describe('OpenAPI document (e2e)', () => {
     expect(sessionResponse.properties).toHaveProperty('cancellationReason');
     expect(plan.properties).toHaveProperty('milestones');
     expect(plan.properties).toHaveProperty('progress');
+  });
+
+  it('publishes every Medical and Doctor Assignment route with bearer security', () => {
+    const document = createOpenApiDocument(app);
+    const medicalRoutes: Record<string, readonly string[]> = {
+      '/fighters/{id}/medical': ['get'],
+      '/fighters/{id}/medical/history': ['get'],
+      '/fighters/{id}/medical-examinations': ['get', 'post'],
+      '/fighters/{id}/medical-review-requests': ['get', 'post'],
+      '/fighters/{id}/injuries': ['post'],
+      '/injuries/{id}': ['patch'],
+      '/injuries/{id}/treatments': ['post'],
+      '/fighters/{id}/recovery-plans': ['post'],
+      '/recovery-plans/{id}': ['patch'],
+      '/fighters/{id}/medical-clearances': ['post'],
+      '/medical-clearances/{id}/revoke': ['post'],
+      '/fighters/{id}/doctors': ['get', 'post'],
+      '/fighters/{id}/doctors/{assignmentId}/end': ['post'],
+      '/doctors/{id}/fighters': ['get'],
+    };
+
+    for (const [path, methods] of Object.entries(medicalRoutes)) {
+      for (const method of methods) {
+        expect(document.paths[path]?.[method]).toMatchObject({
+          security: [{ bearer: [] }],
+        });
+      }
+    }
+  });
+
+  it('documents Medical clinical write prohibition in 403 descriptions across doctor-write routes', () => {
+    const document = createOpenApiDocument(app);
+    const doctorWriteRoutes = [
+      { path: '/fighters/{id}/injuries', method: 'post' as const },
+      { path: '/injuries/{id}', method: 'patch' as const },
+      { path: '/injuries/{id}/treatments', method: 'post' as const },
+      { path: '/fighters/{id}/recovery-plans', method: 'post' as const },
+      { path: '/recovery-plans/{id}', method: 'patch' as const },
+      { path: '/fighters/{id}/medical-examinations', method: 'post' as const },
+      { path: '/fighters/{id}/medical-clearances', method: 'post' as const },
+      { path: '/medical-clearances/{id}/revoke', method: 'post' as const },
+    ];
+
+    for (const { path, method } of doctorWriteRoutes) {
+      const operation = document.paths[path]?.[method];
+      expect(operation).toBeDefined();
+      const forbiddenResponse = operation?.responses?.[403] as {
+        description?: string;
+      };
+      expect(forbiddenResponse?.description).toBeDefined();
+      expect(forbiddenResponse?.description).toContain('DOCTOR');
+    }
+  });
+
+  it('documents Medical error contracts on stateful medical routes', () => {
+    const document = createOpenApiDocument(app);
+
+    expect(
+      document.paths['/fighters/{id}/medical-examinations']?.post?.responses,
+    ).toMatchObject({
+      201: expect.any(Object),
+      401: expect.any(Object),
+      403: expect.any(Object),
+      404: expect.any(Object),
+      409: expect.any(Object),
+      422: expect.any(Object),
+    });
+
+    expect(
+      document.paths['/fighters/{id}/medical-clearances']?.post?.responses,
+    ).toMatchObject({
+      201: expect.any(Object),
+      401: expect.any(Object),
+      403: expect.any(Object),
+      404: expect.any(Object),
+      409: expect.any(Object),
+      422: expect.any(Object),
+    });
+
+    expect(
+      document.paths['/medical-clearances/{id}/revoke']?.post?.responses,
+    ).toMatchObject({
+      200: expect.any(Object),
+      401: expect.any(Object),
+      403: expect.any(Object),
+      404: expect.any(Object),
+      409: expect.any(Object),
+      422: expect.any(Object),
+    });
+
+    expect(
+      document.paths['/fighters/{id}/doctors/{assignmentId}/end']?.post?.responses,
+    ).toMatchObject({
+      200: expect.any(Object),
+      401: expect.any(Object),
+      403: expect.any(Object),
+      404: expect.any(Object),
+      409: expect.any(Object),
+      422: expect.any(Object),
+    });
   });
 });

@@ -5,7 +5,8 @@ import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer } from 'node:net';
 import assert from 'node:assert/strict';
-import { readVerifiedMigrations } from './migration-files.mjs';
+import { migrationNames, readVerifiedMigrations } from './migration-files.mjs';
+import { testMedicalMigration } from './test-medical-migration.mjs';
 
 // Isolated disposable PostgreSQL only. Never reads .env or DATABASE_URL.
 const api = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -465,6 +466,33 @@ try {
   check('domain integrity and RLS role matrix', () =>
     psql('mma_clean', readFileSync(fixture, 'utf8')),
   );
+  prepare('mma_medical');
+  check('fresh clinical schema through 011', () => {
+    for (const name of migrationNames.filter((name) => {
+      const version = Number(name.slice(0, 3));
+      return version >= 3 && version <= 11;
+    }))
+      migration('mma_medical', name);
+  });
+  passed += await testMedicalMigration({
+    connection: {
+      host: '127.0.0.1',
+      port,
+      user: 'mma_test_owner',
+      password: '',
+    },
+    migrationSql: readFileSync(
+      join(api, 'migrations', '012_medical_clearance_issue_order.sql'),
+      'utf8',
+    ),
+  });
+  if (process.argv.includes('--export-catalog')) {
+    const catalog = psql(
+      'mma_medical_rollback',
+      readFileSync(join(api, 'scripts', 'schema-catalog.sql'), 'utf8'),
+    );
+    writeFileSync(resolve(api, '../tmp/schema-catalog.json'), catalog);
+  }
   console.log(
     `Migration checks passed: ${passed}. PostgreSQL stopped after tests. Scratch: ${scratch}`,
   );
