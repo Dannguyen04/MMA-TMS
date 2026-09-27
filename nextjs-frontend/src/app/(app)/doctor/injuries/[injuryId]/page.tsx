@@ -33,7 +33,7 @@ import { dayKey, daysBetween, formatDate, formatDateTime, pluralize } from "@/li
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
 import { getClearanceStatus, getInjuryDetail } from "@/lib/services/medical";
-import { usesMedicalServiceForms } from "@/lib/services/medical-features";
+import { medicalFeatureAvailable, usesMedicalServiceForms } from "@/lib/services/medical-features";
 import { getVideo } from "@/lib/services/videos";
 import { param } from "@/lib/utils";
 
@@ -139,10 +139,20 @@ export default async function InjuryDetailPage({ params, searchParams }: PagePro
                                 description={
                                     treatments.length === 0
                                         ? "What is being done for this injury"
-                                        : `${treatments.filter((t) => t.status === "ongoing").length} ongoing · ${treatments.length} in total`
+                                        : medicalFeatureAvailable("treatmentStatus")
+                                          ? `${treatments.filter((t) => t.status === "ongoing").length} ongoing · ${treatments.length} in total`
+                                          : `${pluralize(treatments.length, "treatment")} recorded`
                                 }
                                 icon={<ClipboardList />}
-                                action={<AddTreatmentDialog injuryId={injury.id} providerName={user.name} today={dayKey(now)} />}
+                                action={
+                                    <AddTreatmentDialog
+                                        injuryId={injury.id}
+                                        fighterId={fighter.id}
+                                        mode={usesMedicalServiceForms() ? "service" : "demo"}
+                                        providerName={user.name}
+                                        today={dayKey(now)}
+                                    />
+                                }
                             />
                             {treatments.length === 0 ? (
                                 <EmptyState
@@ -193,7 +203,7 @@ export default async function InjuryDetailPage({ params, searchParams }: PagePro
                                         title="No recovery plan yet"
                                         description={`Plan ${firstName}'s return in phases with milestones, then track pain, mobility and strength at each check-in.`}
                                         action={
-                                            <ButtonLink href={clinicalLinks.newRecoveryPlanFor(injury.id)} size="sm">
+                                            <ButtonLink href={clinicalLinks.newRecoveryPlanFor(injury.id, fighter.id)} size="sm">
                                                 Create recovery plan
                                             </ButtonLink>
                                         }
