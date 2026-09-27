@@ -31,14 +31,7 @@ import { Tabs } from "@/components/ui/tabs";
 import type { ToastInput } from "@/components/ui/toast";
 import { canAccessFighter, requireFighterAccess } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
-import {
-    EXAMINATION_TYPE_LABELS,
-    HEALTH_STATUS_DESCRIPTIONS,
-    INJURY_STATUS_LABELS,
-    INJURY_TYPE_LABELS,
-    TRAINING_LEVEL_LABELS,
-    WEIGHT_CLASS_LABELS,
-} from "@/lib/domain/labels";
+import { examinationTitle, HEALTH_STATUS_DESCRIPTIONS, INJURY_STATUS_LABELS, injuryTypeName, TRAINING_LEVEL_LABELS, WEIGHT_CLASS_LABELS } from "@/lib/domain/labels";
 import { ageFromBirthDate, daysBetween, formatDate, formatNumber, formatShortDate, pluralize } from "@/lib/format";
 import { hrefWith, parseEnum } from "@/lib/query";
 import { routes } from "@/lib/routes";
@@ -172,13 +165,13 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                     <CardHeader
                         title="Latest vitals"
                         description={
-                            latestExam ? `${EXAMINATION_TYPE_LABELS[latestExam.type]} on ${formatDate(latestExam.date)}` : "No examinations recorded yet"
+                            latestExam ? `${examinationTitle(latestExam)} on ${formatDate(latestExam.date)}` : "No examinations recorded yet"
                         }
                         icon={<Stethoscope />}
                         action={latestExam && <CardLink href={routes.doctor.examination(latestExam.id)}>View examination</CardLink>}
                     />
                     <CardContent>
-                        {latestExam ? (
+                        {latestExam?.vitals ? (
                             <VitalsGrid vitals={latestExam.vitals} weightLimitKg={fighter.targetWeightKg} />
                         ) : (
                             <EmptyState
@@ -223,7 +216,7 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                                                 : capitalize(describeDaysUntil(summary.nextFollowUp.daysUntil))}
                                         </p>
                                         <p className="text-[13px] text-fg-muted">
-                                            Set at the {EXAMINATION_TYPE_LABELS[summary.nextFollowUp.examination.type].toLowerCase()} on{" "}
+                                            Set at the {examinationTitle(summary.nextFollowUp.examination).toLowerCase()} on{" "}
                                             {formatShortDate(summary.nextFollowUp.examination.date)}
                                         </p>
                                     </div>
@@ -423,8 +416,8 @@ function bodyMapHighlights(injuries: Awaited<ReturnType<typeof listInjuries>>, n
             tone: INJURY_STATUS_META[injury.status].tone,
             label:
                 injury.status === "resolved" && injury.resolvedAt
-                    ? `${INJURY_TYPE_LABELS[injury.type]} · resolved ${formatShortDate(injury.resolvedAt)}`
-                    : `${INJURY_TYPE_LABELS[injury.type]} · ${INJURY_STATUS_LABELS[injury.status].toLowerCase()}`,
+                    ? `${injuryTypeName(injury)} · resolved ${formatShortDate(injury.resolvedAt)}`
+                    : `${injuryTypeName(injury)} · ${INJURY_STATUS_LABELS[injury.status].toLowerCase()}`,
         }),
         );
 }

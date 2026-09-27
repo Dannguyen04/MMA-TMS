@@ -2149,7 +2149,7 @@ const PHYSICAL_EXAM_TYPES: ExaminationType[] = ["baseline", "routine", "pre_figh
 
 function lastPhysicalAt(fighterId: string): string {
     const dates = mockMedicalExaminations
-        .filter((e) => e.fighterId === fighterId && PHYSICAL_EXAM_TYPES.includes(e.type))
+        .filter((e) => e.fighterId === fighterId && e.type !== null && PHYSICAL_EXAM_TYPES.includes(e.type))
         .map((e) => e.date)
         .sort();
     const latest = dates[dates.length - 1];

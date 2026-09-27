@@ -1,3 +1,5 @@
+import type { BodyJoint, ClearanceType, ClinicalRestrictions, ExaminationScope, RecoveryMilestone } from "./medical-contract";
+
 /**
  * Domain model for MMA-TMS.
  *
@@ -737,18 +739,28 @@ export interface ExaminationAssessment {
     note: string;
 }
 
+/**
+ * A medical examination. The medical service records a decision (with its scope, written restrictions and validity)
+ * rather than an exam type, vitals or per-area assessments; those stay null or empty for its examinations.
+ */
 export interface MedicalExamination {
     id: string;
     fighterId: string;
     doctorId: string;
     date: ISODate;
-    type: ExaminationType;
-    vitals: Vitals;
+    type: ExaminationType | null;
+    vitals: Vitals | null;
     assessments: ExaminationAssessment[];
     outcome: ExaminationOutcome;
     summary: string;
     recommendations: string;
     followUpDate: ISODate | null;
+    /** Whether the decision covers training or competition (medical service only). */
+    scope?: ExaminationScope;
+    /** The decision's written limits (medical service only). */
+    decisionRestrictions?: ClinicalRestrictions | null;
+    /** Until when the decision stands (medical service only). */
+    validUntil?: ISODate | null;
 }
 
 export type InjuryType =
@@ -761,23 +773,32 @@ export type InjuryType =
     | "tendinopathy"
     | "impingement";
 
-export type InjurySeverity = "minor" | "moderate" | "severe";
+export type InjurySeverity = "minor" | "moderate" | "severe" | "critical";
 
 export type InjuryStatus = "active" | "recovering" | "resolved";
 
 export type InjuryMechanism = "sparring" | "pad_work" | "heavy_bag" | "grappling" | "strength_conditioning" | "competition" | "outside_training";
 
+/**
+ * An injury. The medical service records a joint and a free-text injury type, with no mechanism, diagnosis date or
+ * expected return; those stay null for its injuries.
+ */
 export interface Injury {
     id: string;
     fighterId: string;
     recordedById: string;
-    type: InjuryType;
+    /** Null when the injury type is free text (see `typeLabel`). */
+    type: InjuryType | null;
+    /** The injury type as the doctor wrote it (medical service only). */
+    typeLabel?: string;
     bodyRegion: BodyRegion;
+    /** The joint recorded by the medical service. */
+    joint?: BodyJoint;
     severity: InjurySeverity;
     status: InjuryStatus;
-    mechanism: InjuryMechanism;
+    mechanism: InjuryMechanism | null;
     occurredAt: ISODate;
-    diagnosedAt: ISODate;
+    diagnosedAt: ISODate | null;
     description: string;
     expectedReturnAt: ISODate | null;
     resolvedAt: ISODate | null;
@@ -797,18 +818,27 @@ export type TreatmentType =
 
 export type TreatmentStatus = "planned" | "ongoing" | "completed";
 
+/**
+ * A treatment. The medical service records dated, free-text treatments with outcome notes and a next review, with no
+ * provider, frequency or status; those stay null for its treatments.
+ */
 export interface Treatment {
     id: string;
     injuryId: string;
     fighterId: string;
-    providerName: string;
-    type: TreatmentType;
+    providerName: string | null;
+    /** Null when the treatment type is free text (see `typeLabel`). */
+    type: TreatmentType | null;
+    /** The treatment as the doctor wrote it (medical service only). */
+    typeLabel?: string;
     description: string;
-    frequency: string;
+    frequency: string | null;
     startDate: ISODate;
     endDate: ISODate | null;
-    status: TreatmentStatus;
+    status: TreatmentStatus | null;
     notes: string | null;
+    /** When the doctor plans to review it next (medical service only). */
+    nextReviewAt?: ISODate | null;
 }
 
 export type RecoveryPhaseStatus = "completed" | "current" | "upcoming";
@@ -834,8 +864,12 @@ export interface RecoveryCheckIn {
     note: string;
 }
 
-export type RecoveryPlanStatus = "active" | "paused" | "completed";
+export type RecoveryPlanStatus = "active" | "paused" | "completed" | "cancelled";
 
+/**
+ * A recovery plan. The medical service tracks a flat list of milestones (no phases or check-ins); demo plans use
+ * phases and check-ins and have no `milestones`.
+ */
 export interface RecoveryPlan {
     id: string;
     injuryId: string;
@@ -843,10 +877,15 @@ export interface RecoveryPlan {
     doctorId: string;
     title: string;
     startDate: ISODate;
-    targetReturnDate: ISODate;
+    targetReturnDate: ISODate | null;
     status: RecoveryPlanStatus;
     phases: RecoveryPhase[];
     checkIns: RecoveryCheckIn[];
+    description?: string | null;
+    /** Standard milestones (medical service only). */
+    milestones?: RecoveryMilestone[];
+    /** Milestones stored in an older shape, shown as they are and never rewritten (medical service only). */
+    legacyMilestones?: unknown[];
 }
 
 export type ClearanceLevel = "full" | "restricted" | "not_cleared";
@@ -863,6 +902,10 @@ export interface TrainingRestriction {
     maxRpe: number | null;
 }
 
+/**
+ * A Medical Clearance. For the medical service, `level` and `restrictions` are derived from its allow-lists (kept in
+ * `allowLists`), and whether it is in force comes from `isCurrentlyValid`, not the stored status.
+ */
 export interface MedicalClearance {
     id: string;
     fighterId: string;
@@ -876,6 +919,9 @@ export interface MedicalClearance {
     examinationId: string | null;
     revokedAt: ISODate | null;
     revokedReason: string | null;
+    clearanceType?: ClearanceType;
+    allowLists?: ClinicalRestrictions;
+    isCurrentlyValid?: boolean;
 }
 
 /* ────────────────────────────────────────────────────────────────────────────

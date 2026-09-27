@@ -11,7 +11,7 @@ import { ConfirmDialog } from "@/components/ui/dialog";
 import { Field, FormMessage, FormSection, Input, Select } from "@/components/ui/form";
 import { useActionForm } from "@/components/ui/use-action-form";
 import { createRecoveryPlanAction } from "@/lib/actions/clinical";
-import { BODY_REGION_LABELS, INJURY_TYPE_LABELS } from "@/lib/domain/labels";
+import { BODY_REGION_LABELS, injuryTypeName } from "@/lib/domain/labels";
 import type { Injury } from "@/lib/domain/types";
 import { addDaysToKey, dayKey, daysBetweenKeys, formatDate, pluralize } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -68,7 +68,7 @@ function blankPhase(startDate: string, makeKey: KeyFactory): PhaseDraft {
 
 function defaultTitle(injury: Injury): string {
     if (injury.type === "concussion") return "Concussion — graded return to training";
-    return `${BODY_REGION_LABELS[injury.bodyRegion]} ${INJURY_TYPE_LABELS[injury.type].toLowerCase()} — return to training`;
+    return `${BODY_REGION_LABELS[injury.bodyRegion]} ${injuryTypeName(injury).toLowerCase()} — return to training`;
 }
 
 /** Creates a phased recovery plan for an open injury, optionally starting from a template. */
@@ -291,7 +291,7 @@ export function RecoveryPlanForm({ injuries, defaultInjuryId, today, now, cancel
                                             {template.label}
                                             {selected && recommended?.id === template.id && (
                                                 <Badge tone="primary" size="sm" icon={Sparkle}>
-                                                    Suggested for {INJURY_TYPE_LABELS[selected.injury.type].toLowerCase()}
+                                                    Suggested for {injuryTypeName(selected.injury).toLowerCase()}
                                                 </Badge>
                                             )}
                                         </span>

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { capitalize, describeDaysUntil } from "@/components/domain/domain-format";
 import { DateBlock } from "@/components/domain/session-list-item";
 import { EmptyState } from "@/components/ui/states";
-import { EXAMINATION_TYPE_LABELS } from "@/lib/domain/labels";
+import { examinationTitle } from "@/lib/domain/labels";
 import { pluralize } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import type { FollowUp } from "@/lib/services/medical";
@@ -49,7 +49,7 @@ export function FollowUpList({ followUps, className }: { followUps: FollowUp[]; 
                                     <span className="sr-only">: start follow-up examination</span>
                                 </Link>
                             </p>
-                            <p className="truncate text-[13px] text-fg-muted">After {EXAMINATION_TYPE_LABELS[followUp.examination.type].toLowerCase()}</p>
+                            <p className="truncate text-[13px] text-fg-muted">After {examinationTitle(followUp.examination).toLowerCase()}</p>
                         </div>
                         <span
                             className={cn(

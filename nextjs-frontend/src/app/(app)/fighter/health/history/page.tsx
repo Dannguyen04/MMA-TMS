@@ -15,7 +15,7 @@ import { EmptyState } from "@/components/ui/states";
 import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/table";
 import { requireFighterAccess } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
-import { EXAMINATION_TYPE_LABELS } from "@/lib/domain/labels";
+import { examinationTitle } from "@/lib/domain/labels";
 import type { Injury } from "@/lib/domain/types";
 import { daysBetween, formatDate, pluralize } from "@/lib/format";
 import { routes } from "@/lib/routes";
@@ -81,7 +81,7 @@ export default async function FighterMedicalHistoryPage() {
                                                 <TD className="whitespace-nowrap">
                                                     <time dateTime={exam.date}>{formatDate(exam.date)}</time>
                                                 </TD>
-                                                <TD className="min-w-44">{EXAMINATION_TYPE_LABELS[exam.type]}</TD>
+                                                <TD className="min-w-44">{examinationTitle(exam)}</TD>
                                                 <TD>
                                                     <ExaminationOutcomeBadge outcome={exam.outcome} size="sm" />
                                                 </TD>
@@ -97,7 +97,7 @@ export default async function FighterMedicalHistoryPage() {
                                 {examinations.map((exam) => (
                                     <li key={exam.id} className="flex items-start justify-between gap-3 px-5 py-3">
                                         <div className="min-w-0">
-                                            <p className="text-sm font-medium text-fg">{EXAMINATION_TYPE_LABELS[exam.type]}</p>
+                                            <p className="text-sm font-medium text-fg">{examinationTitle(exam)}</p>
                                             <p className="mt-0.5 text-[13px] text-fg-muted">
                                                 <time dateTime={exam.date}>{formatDate(exam.date)}</time> · {doctorNames.get(exam.doctorId) ?? "Sports doctor"}
                                             </p>

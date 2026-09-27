@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import { Avatar } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/ui/states";
-import { EXAMINATION_TYPE_LABELS } from "@/lib/domain/labels";
+import { examinationTitle } from "@/lib/domain/labels";
 import type { MedicalExamination } from "@/lib/domain/types";
 import { formatDate, formatTime } from "@/lib/format";
 import { routes } from "@/lib/routes";
@@ -41,7 +41,7 @@ export function ExaminationList({
                                 href={routes.doctor.examination(examination.id)}
                                 className="rounded-sm after:absolute after:inset-0 after:content-[''] hover:underline"
                             >
-                                {EXAMINATION_TYPE_LABELS[examination.type]}
+                                {examinationTitle(examination)}
                                 <span className="sr-only"> for {fighterName}</span>
                             </Link>
                         </p>

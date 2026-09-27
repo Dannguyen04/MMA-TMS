@@ -6,15 +6,7 @@ import { z } from "zod";
 
 import { canAccessFighterClinically } from "@/lib/auth/access";
 import { authorizeClinicalAction } from "@/lib/auth/session";
-import {
-    BODY_REGION_LABELS,
-    INJURY_MECHANISM_LABELS,
-    INJURY_SEVERITY_LABELS,
-    INJURY_STATUS_LABELS,
-    INJURY_TYPE_LABELS,
-    TREATMENT_STATUS_LABELS,
-    TREATMENT_TYPE_LABELS,
-} from "@/lib/domain/labels";
+import { BODY_REGION_LABELS, INJURY_MECHANISM_LABELS, INJURY_SEVERITY_LABELS, INJURY_STATUS_LABELS, INJURY_TYPE_LABELS, TREATMENT_STATUS_LABELS, TREATMENT_TYPE_LABELS, treatmentTitle } from "@/lib/domain/labels";
 import type { InjuryStatus } from "@/lib/domain/types";
 import { academyWallClockToIso, dayKey, isDateKey, isDateTimeInputValue } from "@/lib/format";
 import { routes } from "@/lib/routes";
@@ -285,7 +277,8 @@ export async function addTreatmentAction(_prev: ActionState, formData: FormData)
     if (!result.ok) return actionError(result.error);
 
     revalidateClinical();
-    return actionSuccess(`${TREATMENT_TYPE_LABELS[result.data.type]} added as ${TREATMENT_STATUS_LABELS[result.data.status].toLowerCase()}.`);
+    const added = result.data.status ? ` as ${TREATMENT_STATUS_LABELS[result.data.status].toLowerCase()}` : "";
+    return actionSuccess(`${treatmentTitle(result.data)} added${added}.`);
 }
 
 const treatmentStatusSchema = z.object({
@@ -312,7 +305,7 @@ export async function updateTreatmentStatusAction(input: { injuryId: string; tre
     if (!result.ok) return actionError(result.error);
 
     revalidateClinical();
-    return actionSuccess(`${TREATMENT_TYPE_LABELS[result.data.type]} marked ${TREATMENT_STATUS_LABELS[result.data.status].toLowerCase()}.`);
+    return actionSuccess(`${treatmentTitle(result.data)} marked ${TREATMENT_STATUS_LABELS[parsed.data.status].toLowerCase()}.`);
 }
 
 /* ─── Recovery plans ──────────────────────────────────────────────────────── */

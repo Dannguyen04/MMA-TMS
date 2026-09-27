@@ -1,9 +1,10 @@
-import { TREATMENT_TYPE_LABELS } from "@/lib/domain/labels";
+import { treatmentTitle } from "@/lib/domain/labels";
 import type { Treatment } from "@/lib/domain/types";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { TreatmentStatusBadge, TreatmentTypeIcon } from "./clinical-badges";
 import { TreatmentStatusMenu } from "./treatment-status-menu";
+import { NOT_RECORDED } from "@/components/domain/domain-format";
 
 export interface TreatmentListProps {
     treatments: Treatment[];
@@ -21,18 +22,18 @@ export function TreatmentList({ treatments, editable = false, className }: Treat
                     <TreatmentTypeIcon type={treatment.type} />
                     <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                            <h3 className="text-sm font-semibold text-fg">{TREATMENT_TYPE_LABELS[treatment.type]}</h3>
-                            <TreatmentStatusBadge status={treatment.status} size="sm" />
+                            <h3 className="text-sm font-semibold text-fg">{treatmentTitle(treatment)}</h3>
+                            {treatment.status && <TreatmentStatusBadge status={treatment.status} size="sm" />}
                         </div>
                         <p className="mt-0.5 text-sm text-pretty text-fg">{treatment.description}</p>
                         <dl className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-fg-muted">
                             <div className="flex gap-1">
                                 <dt className="sr-only">Provider</dt>
-                                <dd>{treatment.providerName}</dd>
+                                <dd>{treatment.providerName ?? NOT_RECORDED}</dd>
                             </div>
                             <div className="flex gap-1">
                                 <dt className="sr-only">Frequency</dt>
-                                <dd>{treatment.frequency}</dd>
+                                <dd>{treatment.frequency ?? NOT_RECORDED}</dd>
                             </div>
                             <div className="flex gap-1">
                                 <dt className="sr-only">Dates</dt>
@@ -47,7 +48,7 @@ export function TreatmentList({ treatments, editable = false, className }: Treat
                             <p className="mt-2 rounded-md bg-surface-muted px-3 py-2 text-[13px] text-pretty text-fg-muted">{treatment.notes}</p>
                         )}
                     </div>
-                    {editable && (
+                    {editable && treatment.type && treatment.status && (
                         <div className="-mt-1 -mr-2 shrink-0">
                             <TreatmentStatusMenu
                                 injuryId={treatment.injuryId}

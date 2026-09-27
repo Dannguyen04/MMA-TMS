@@ -5,17 +5,7 @@ import "server-only";
  * lazily and only in demo mode, so API mode never serves mock clinical data.
  */
 
-import {
-    BODY_REGION_LABELS,
-    CLEARANCE_LEVEL_LABELS,
-    EXAMINATION_TYPE_LABELS,
-    HEALTH_STATUS_DESCRIPTIONS,
-    HEALTH_STATUS_LABELS,
-    INJURY_STATUS_LABELS,
-    INJURY_TYPE_LABELS,
-    TREATMENT_STATUS_LABELS,
-    TREATMENT_TYPE_LABELS,
-} from "@/lib/domain/labels";
+import { BODY_REGION_LABELS, CLEARANCE_LEVEL_LABELS, examinationTitle, HEALTH_STATUS_DESCRIPTIONS, HEALTH_STATUS_LABELS, INJURY_STATUS_LABELS, injuryTypeName, TREATMENT_STATUS_LABELS, treatmentTitle } from "@/lib/domain/labels";
 import {
     clearanceDaysRemaining,
     clearanceExpiresSoon,
@@ -126,7 +116,7 @@ function joinDetails(parts: (string | null)[]): string | null {
 
 function latestPhysicalDate(fighterId: string): string | null {
     const dates = db()
-        .medicalExaminations.filter((e) => e.fighterId === fighterId && PHYSICAL_EXAM_TYPES.includes(e.type))
+        .medicalExaminations.filter((e) => e.fighterId === fighterId && e.type !== null && PHYSICAL_EXAM_TYPES.includes(e.type))
         .map((e) => e.date)
         .sort();
     return dates.at(-1) ?? null;
@@ -259,7 +249,7 @@ export async function createExamination(input: CreateExaminationInput, actor: Us
 
     const record = store.medicalRecords.find((r) => r.fighterId === fighter.id);
     if (record) {
-        if (PHYSICAL_EXAM_TYPES.includes(examination.type) && examination.date > record.lastPhysicalAt) {
+        if (examination.type !== null && PHYSICAL_EXAM_TYPES.includes(examination.type) && examination.date > record.lastPhysicalAt) {
             record.lastPhysicalAt = examination.date;
         }
         record.updatedAt = nowIso();
@@ -276,7 +266,7 @@ export async function createExamination(input: CreateExaminationInput, actor: Us
         userIds: fighterUserIds(fighter.id),
         category: "medical",
         title: "Examination recorded",
-        body: `${findDoctor(examination.doctorId)?.name ?? actor.name} recorded your ${EXAMINATION_TYPE_LABELS[examination.type].toLowerCase()}. See the outcome and recommendations on your Health page.`,
+        body: `${findDoctor(examination.doctorId)?.name ?? actor.name} recorded your ${examinationTitle(examination).toLowerCase()}. See the outcome and recommendations on your Health page.`,
         href: routes.fighter.health,
     });
     return success(examination);
@@ -311,7 +301,7 @@ export async function listInjuries(filter: InjuryFilter = {}): Promise<Injury[]>
                 (!filter.type || i.type === filter.type) &&
                 (!filter.bodyRegion || i.bodyRegion === filter.bodyRegion) &&
                 withinRange(i.occurredAt, filter.from, filter.to) &&
-                matchesSearch(filter.search, fighterNames.get(i.fighterId), i.description, INJURY_TYPE_LABELS[i.type], BODY_REGION_LABELS[i.bodyRegion]),
+                matchesSearch(filter.search, fighterNames.get(i.fighterId), i.description, injuryTypeName(i), BODY_REGION_LABELS[i.bodyRegion]),
         )
         .sort(byDateDesc((i) => i.occurredAt));
 }
@@ -517,7 +507,7 @@ export async function addTreatment(input: AddTreatmentInput, actor: User): Promi
         userIds: fighterUserIds(fighter.id),
         category: "medical",
         title: "Treatment added",
-        body: `${TREATMENT_TYPE_LABELS[treatment.type]} has been added to your treatment plan (${treatment.frequency}).`,
+        body: `${treatmentTitle(treatment)} has been added to your treatment plan (${treatment.frequency}).`,
         href: routes.fighter.injury(injury.id),
     });
     return success(treatment);
@@ -539,7 +529,7 @@ export async function updateTreatmentStatus(id: string, status: TreatmentStatus,
         resourceType: "treatment",
         resourceId: treatment.id,
         resourceLabel: `Treatment — ${findFighter(treatment.fighterId)?.name ?? treatment.fighterId}`,
-        details: `Status: ${TREATMENT_STATUS_LABELS[previous]} → ${TREATMENT_STATUS_LABELS[status]}`,
+        details: `Status: ${previous ? TREATMENT_STATUS_LABELS[previous] : "not set"} → ${TREATMENT_STATUS_LABELS[status]}`,
     });
     return success(treatment);
 }
@@ -659,7 +649,7 @@ export async function createRecoveryPlan(input: CreateRecoveryPlanInput, actor: 
         userIds: fighterUserIds(fighter.id),
         category: "medical",
         title: "Recovery plan ready",
-        body: `Your recovery plan "${plan.title}" has started. Target return: ${formatDate(plan.targetReturnDate)}.`,
+        body: `Your recovery plan "${plan.title}" has started.${plan.targetReturnDate ? ` Target return: ${formatDate(plan.targetReturnDate)}.` : ""}`,
         href: routes.fighter.injury(injury.id),
     });
     notifyUsers({

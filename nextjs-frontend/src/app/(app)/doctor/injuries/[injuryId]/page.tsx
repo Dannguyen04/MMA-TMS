@@ -14,7 +14,7 @@ import { TreatmentList } from "@/components/clinical/treatment-list";
 import { AINotice } from "@/components/domain/ai-notice";
 import { BodyMap } from "@/components/domain/body-map";
 import { ClearanceValidity } from "@/components/domain/clearance-validity";
-import { describeDaysUntil } from "@/components/domain/domain-format";
+import { describeDaysUntil, labelOf, NOT_RECORDED } from "@/components/domain/domain-format";
 import { RecoveryProgress } from "@/components/domain/recovery-progress";
 import { ClearanceBadge, FighterStatusBadges, INJURY_STATUS_META, InjurySeverityBadge, InjuryStatusBadge } from "@/components/domain/status-badges";
 import { RestrictionSummary } from "@/components/medical/restriction-summary";
@@ -266,8 +266,8 @@ export default async function InjuryDetailPage({ params, searchParams }: PagePro
 function detailItems(injury: Injury, now: string, recordedByName: string | null): DescriptionItem[] {
     const items: DescriptionItem[] = [
         { label: "Occurred", value: <time dateTime={injury.occurredAt}>{formatDateTime(injury.occurredAt)}</time> },
-        { label: "Diagnosed", value: <time dateTime={injury.diagnosedAt}>{formatDate(injury.diagnosedAt)}</time> },
-        { label: "Mechanism", value: INJURY_MECHANISM_LABELS[injury.mechanism] },
+        { label: "Diagnosed", value: injury.diagnosedAt ? <time dateTime={injury.diagnosedAt}>{formatDate(injury.diagnosedAt)}</time> : NOT_RECORDED },
+        { label: "Mechanism", value: (labelOf(INJURY_MECHANISM_LABELS, injury.mechanism) ?? NOT_RECORDED) },
     ];
 
     if (injury.resolvedAt) {

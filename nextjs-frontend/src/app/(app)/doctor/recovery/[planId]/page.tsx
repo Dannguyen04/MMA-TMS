@@ -31,6 +31,7 @@ import { getSettings } from "@/lib/services/admin";
 import { getCurrentClearanceFor, getRecoveryPlanDetail } from "@/lib/services/medical";
 import { getDoctor } from "@/lib/services/people";
 import { param } from "@/lib/utils";
+import { NOT_RECORDED } from "@/components/domain/domain-format";
 
 /** The plan with its fighter, injury, treatments and doctor, loaded once per request for the metadata and the page. */
 const loadRecoveryPlanDetail = cache(getRecoveryPlanDetail);
@@ -261,7 +262,7 @@ export default async function RecoveryPlanPage({ params, searchParams }: PagePro
                                         { label: "Started", value: <time dateTime={plan.startDate}>{formatDate(plan.startDate)}</time> },
                                         {
                                             label: "Target return",
-                                            value: <time dateTime={plan.targetReturnDate}>{formatDate(plan.targetReturnDate)}</time>,
+                                            value: plan.targetReturnDate ? <time dateTime={plan.targetReturnDate}>{formatDate(plan.targetReturnDate)}</time> : NOT_RECORDED,
                                         },
                                         {
                                             label: "Phases",

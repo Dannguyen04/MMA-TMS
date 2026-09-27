@@ -4,7 +4,7 @@ import { GrantClearanceForm, type ClearanceFighterContext } from "@/components/m
 import { PageHeader } from "@/components/ui/page-header";
 import { accessibleFighterIds, canAccessFighter } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
-import { BODY_REGION_LABELS, INJURY_STATUS_LABELS, INJURY_TYPE_LABELS } from "@/lib/domain/labels";
+import { BODY_REGION_LABELS, INJURY_STATUS_LABELS, injuryTypeName } from "@/lib/domain/labels";
 import { clearanceState, currentClearance } from "@/lib/domain/rules";
 import { dayKey } from "@/lib/format";
 import { routes } from "@/lib/routes";
@@ -51,7 +51,7 @@ export default async function GrantClearancePage({ searchParams }: PageProps<"/d
                 .filter((injury) => injury.fighterId === fighter.id && injury.status !== "resolved")
                 .map(
                     (injury) =>
-                        `${INJURY_TYPE_LABELS[injury.type]} — ${BODY_REGION_LABELS[injury.bodyRegion].toLowerCase()} (${INJURY_STATUS_LABELS[injury.status].toLowerCase()})`,
+                        `${injuryTypeName(injury)} — ${BODY_REGION_LABELS[injury.bodyRegion].toLowerCase()} (${INJURY_STATUS_LABELS[injury.status].toLowerCase()})`,
                 ),
             examinations: examinations
                 .filter((exam) => exam.fighterId === fighter.id)

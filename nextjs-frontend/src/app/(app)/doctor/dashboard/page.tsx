@@ -18,7 +18,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { accessibleFighterIds } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
-import { BODY_REGION_LABELS, EXAMINATION_TYPE_LABELS, INJURY_TYPE_LABELS } from "@/lib/domain/labels";
+import { BODY_REGION_LABELS, examinationTitle, injuryTypeName } from "@/lib/domain/labels";
 import { daysBetween, formatDate, formatRelative, formatWeekdayDate, pluralize } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
@@ -208,7 +208,7 @@ function buildAttentionItems(overview: DoctorOverview, summaries: FighterHealthS
             fighterName: summary.fighter.name,
             fighterHref: profile(summary.fighter.id),
             title: injury
-                ? `No training permitted — ${INJURY_TYPE_LABELS[injury.type].toLowerCase()} (${BODY_REGION_LABELS[injury.bodyRegion].toLowerCase()})`
+                ? `No training permitted — ${injuryTypeName(injury).toLowerCase()} (${BODY_REGION_LABELS[injury.bodyRegion].toLowerCase()})`
                 : "No training permitted until re-examined",
             detail:
                 summary.clearance.status === "revoked"
@@ -281,7 +281,7 @@ function buildAttentionItems(overview: DoctorOverview, summaries: FighterHealthS
             title: overdue
                 ? `Follow-up examination overdue by ${pluralize(-followUp.daysUntil, "day")}`
                 : `${capitalize(describeDaysUntil(followUp.daysUntil))}: follow-up examination`,
-            detail: `Set at the ${EXAMINATION_TYPE_LABELS[followUp.examination.type].toLowerCase()} on ${formatDate(followUp.examination.date)}`,
+            detail: `Set at the ${examinationTitle(followUp.examination).toLowerCase()} on ${formatDate(followUp.examination.date)}`,
             action: { href: followUpExaminationHref(followUp), label: "Start examination" },
         });
     }

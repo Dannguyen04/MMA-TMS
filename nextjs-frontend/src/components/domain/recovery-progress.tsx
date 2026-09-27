@@ -71,6 +71,7 @@ export function RecoveryProgress({ plan, now, className }: RecoveryProgressProps
 
 /** Target return date with the distance to it; an overdue target is shown in the warning tone. */
 export function RecoveryTargetReturn({ plan, now, className }: { plan: Pick<RecoveryPlan, "status" | "targetReturnDate">; now: string; className?: string }) {
+    if (!plan.targetReturnDate) return null;
     const days = daysBetween(now, plan.targetReturnDate);
     return (
         <div className={cn("flex shrink-0 items-center gap-2.5", className)}>

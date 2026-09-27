@@ -8,7 +8,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Card, CardHeader } from "@/components/ui/card";
 import { StatCard } from "@/components/ui/stat-card";
 import { TONE_SOLID } from "@/components/ui/tone";
-import { BODY_REGION_LABELS, INJURY_TYPE_LABELS } from "@/lib/domain/labels";
+import { BODY_REGION_LABELS, injuryTypeName } from "@/lib/domain/labels";
 import type { BodyRegion, Fighter, Injury } from "@/lib/domain/types";
 import { daysBetween, pluralize } from "@/lib/format";
 import { routes } from "@/lib/routes";
@@ -39,7 +39,7 @@ export function InjuryOverview({ injuries, fightersById, now, statusHref }: Inju
     const highlights: BodyMapHighlight[] = open.map((injury) => ({
         region: injury.bodyRegion,
         tone: INJURY_STATUS_META[injury.status].tone,
-        label: `${fightersById.get(injury.fighterId)?.name ?? "Fighter"} · ${INJURY_TYPE_LABELS[injury.type]}`,
+        label: `${fightersById.get(injury.fighterId)?.name ?? "Fighter"} · ${injuryTypeName(injury)}`,
     }));
     const hasPosterior = open.some((injury) => POSTERIOR_REGIONS.includes(injury.bodyRegion));
 
@@ -150,7 +150,7 @@ function OpenInjuryItem({ injury, number, fighter, now }: { injury: Injury; numb
                     <InjuryStatusBadge status={injury.status} size="sm" />
                 </p>
                 <p className="mt-0.5 text-[13px] text-fg-muted">
-                    {INJURY_TYPE_LABELS[injury.type]} · {BODY_REGION_LABELS[injury.bodyRegion]}
+                    {injuryTypeName(injury)} · {BODY_REGION_LABELS[injury.bodyRegion]}
                     {days !== null && (
                         <span className="text-fg-subtle">
                             {" "}

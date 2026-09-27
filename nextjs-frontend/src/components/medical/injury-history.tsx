@@ -4,10 +4,11 @@ import Link from "next/link";
 import { InjurySeverityBadge, InjuryStatusBadge } from "@/components/domain/status-badges";
 import { EmptyState } from "@/components/ui/states";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
-import { BODY_REGION_LABELS, INJURY_MECHANISM_LABELS, INJURY_TYPE_LABELS } from "@/lib/domain/labels";
+import { BODY_REGION_LABELS, INJURY_MECHANISM_LABELS, injuryTypeName } from "@/lib/domain/labels";
 import type { Injury } from "@/lib/domain/types";
 import { formatDate } from "@/lib/format";
 import { routes } from "@/lib/routes";
+import { NOT_RECORDED, labelOf } from "@/components/domain/domain-format";
 
 /** Every injury recorded for a fighter, open and resolved, most recent first. */
 export function InjuryHistory({ injuries }: { injuries: Injury[] }) {
@@ -39,7 +40,7 @@ export function InjuryHistory({ injuries }: { injuries: Injury[] }) {
                     <TR key={injury.id}>
                         <TD className="min-w-52">
                             <Link href={routes.doctor.injury(injury.id)} className="rounded-sm font-medium text-fg hover:underline">
-                                {INJURY_TYPE_LABELS[injury.type]}
+                                {injuryTypeName(injury)}
                             </Link>
                             <span className="block text-xs text-fg-muted">{BODY_REGION_LABELS[injury.bodyRegion]}</span>
                         </TD>
@@ -65,7 +66,7 @@ export function InjuryHistory({ injuries }: { injuries: Injury[] }) {
                                 <span className="text-fg-muted">To be assessed</span>
                             )}
                         </TD>
-                        <TD className="whitespace-nowrap text-[13px]">{INJURY_MECHANISM_LABELS[injury.mechanism]}</TD>
+                        <TD className="whitespace-nowrap text-[13px]">{(labelOf(INJURY_MECHANISM_LABELS, injury.mechanism) ?? NOT_RECORDED)}</TD>
                     </TR>
                 ))}
             </TBody>

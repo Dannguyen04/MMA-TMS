@@ -6,14 +6,7 @@ import type { ActivityTimelineItem } from "@/components/domain/activity-timeline
 import type { BodyMapHighlight } from "@/components/domain/body-map";
 import { INJURY_STATUS_META } from "@/components/domain/status-badges";
 import { injuryTitle } from "@/components/clinical/clinical-copy";
-import {
-    CLEARANCE_LEVEL_LABELS,
-    EXAMINATION_OUTCOME_LABELS,
-    EXAMINATION_TYPE_LABELS,
-    INJURY_STATUS_LABELS,
-    INJURY_TYPE_LABELS,
-    TREATMENT_TYPE_LABELS,
-} from "@/lib/domain/labels";
+import { CLEARANCE_LEVEL_LABELS, EXAMINATION_OUTCOME_LABELS, examinationTitle, INJURY_STATUS_LABELS, injuryTypeName, treatmentTitle } from "@/lib/domain/labels";
 import type { Fighter, Injury, MedicalClearance, MedicalExamination, Treatment } from "@/lib/domain/types";
 import { daysBetween, formatDate, formatMonthYear } from "@/lib/format";
 import { routes } from "@/lib/routes";
@@ -50,8 +43,8 @@ export function injuryHighlights(injuries: Injury[], now: string): BodyMapHighli
             tone: INJURY_STATUS_META[injury.status].tone,
             label:
                 injury.status === "resolved" && injury.resolvedAt
-                    ? `${INJURY_TYPE_LABELS[injury.type]} · resolved ${formatMonthYear(injury.resolvedAt)}`
-                    : `${INJURY_TYPE_LABELS[injury.type]} · ${INJURY_STATUS_LABELS[injury.status].toLowerCase()}`,
+                    ? `${injuryTypeName(injury)} · resolved ${formatMonthYear(injury.resolvedAt)}`
+                    : `${injuryTypeName(injury)} · ${INJURY_STATUS_LABELS[injury.status].toLowerCase()}`,
         }));
 }
 
@@ -74,7 +67,7 @@ export function medicalHistoryItems({ examinations, injuries, treatments, cleara
             id: `exam-${exam.id}`,
             icon: Stethoscope,
             tone: exam.outcome === "fit" ? "success" : exam.outcome === "fit_with_restrictions" ? "warning" : "danger",
-            title: `${EXAMINATION_TYPE_LABELS[exam.type]} — ${EXAMINATION_OUTCOME_LABELS[exam.outcome]}`,
+            title: `${examinationTitle(exam)} — ${EXAMINATION_OUTCOME_LABELS[exam.outcome]}`,
             description: `Examination · ${formatDate(exam.date)} · ${doctor(exam.doctorId)}`,
             time: exam.date,
         });
@@ -110,7 +103,7 @@ export function medicalHistoryItems({ examinations, injuries, treatments, cleara
             id: `treatment-${treatment.id}`,
             icon: Activity,
             tone: "info",
-            title: `Treatment started: ${TREATMENT_TYPE_LABELS[treatment.type]}`,
+            title: `Treatment started: ${treatmentTitle(treatment)}`,
             description: `Treatment${context} · ${formatDate(treatment.startDate)} · ${treatment.providerName}`,
             time: treatment.startDate,
             href: injury ? routes.fighter.injury(injury.id) : undefined,
@@ -120,7 +113,7 @@ export function medicalHistoryItems({ examinations, injuries, treatments, cleara
                 id: `treatment-done-${treatment.id}`,
                 icon: CircleCheck,
                 tone: "neutral",
-                title: `Treatment completed: ${TREATMENT_TYPE_LABELS[treatment.type]}`,
+                title: `Treatment completed: ${treatmentTitle(treatment)}`,
                 description: `Treatment${context} · ${formatDate(treatment.endDate)}`,
                 time: treatment.endDate,
                 href: injury ? routes.fighter.injury(injury.id) : undefined,

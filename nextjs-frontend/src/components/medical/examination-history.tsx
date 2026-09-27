@@ -7,7 +7,7 @@ import { LineChart } from "@/components/charts/line-chart";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/states";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
-import { EXAMINATION_TYPE_LABELS } from "@/lib/domain/labels";
+import { examinationTitle } from "@/lib/domain/labels";
 import type { MedicalExamination } from "@/lib/domain/types";
 import { formatDate, formatNumber, formatShortDate, formatTime, pluralize } from "@/lib/format";
 import { routes } from "@/lib/routes";
@@ -41,7 +41,11 @@ export function ExaminationHistory({ examinations, doctorNames, weightLimitKg, n
         );
     }
 
-    const trend = examinations.slice(0, TREND_POINTS).reverse();
+    // Only examinations that recorded vitals can be charted.
+    const trend = examinations
+        .flatMap((exam) => (exam.vitals ? [{ ...exam, vitals: exam.vitals }] : []))
+        .slice(0, TREND_POINTS)
+        .reverse();
 
     return (
         <div className="flex flex-col gap-5">
@@ -52,7 +56,7 @@ export function ExaminationHistory({ examinations, doctorNames, weightLimitKg, n
                         description={`Last ${pluralize(trend.length, "examination")}, against the ${formatNumber(weightLimitKg, 1)} kg class limit`}
                         table={{
                             columns: ["Examination", "Weight (kg)", "Resting HR (bpm)"],
-                            rows: trend.map((exam) => [`${formatDate(exam.date)} · ${EXAMINATION_TYPE_LABELS[exam.type]}`, exam.vitals.weightKg, exam.vitals.restingHeartRate]),
+                            rows: trend.map((exam) => [`${formatDate(exam.date)} · ${examinationTitle(exam)}`, exam.vitals.weightKg, exam.vitals.restingHeartRate]),
                         }}
                     >
                         <LineChart
@@ -91,7 +95,7 @@ export function ExaminationHistory({ examinations, doctorNames, weightLimitKg, n
                                     </Link>
                                     <span className="block text-xs text-fg-muted">{formatTime(exam.date)}</span>
                                 </TD>
-                                <TD className="min-w-44">{EXAMINATION_TYPE_LABELS[exam.type]}</TD>
+                                <TD className="min-w-44">{examinationTitle(exam)}</TD>
                                 <TD>
                                     <ExaminationOutcomeBadge outcome={exam.outcome} size="sm" />
                                 </TD>

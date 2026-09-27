@@ -23,7 +23,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/states";
 import { requireFighterAccess } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
-import { EXAMINATION_TYPE_LABELS } from "@/lib/domain/labels";
+import { examinationTitle } from "@/lib/domain/labels";
 import { formatDate, formatWeekdayDate } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
@@ -108,7 +108,7 @@ export default async function FighterHealthPage() {
                                     </time>
                                     <span className="text-fg-muted">
                                         {" "}
-                                        · {relativeDay(followUp.date, now).toLowerCase()} · after your {EXAMINATION_TYPE_LABELS[followUp.examination.type].toLowerCase()}
+                                        · {relativeDay(followUp.date, now).toLowerCase()} · after your {examinationTitle(followUp.examination).toLowerCase()}
                                     </span>
                                 </p>
                             </div>

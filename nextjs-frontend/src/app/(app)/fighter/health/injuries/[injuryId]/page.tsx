@@ -9,7 +9,7 @@ import { CheckInTrends } from "@/components/dashboard/check-in-trends";
 import { InlineNote } from "@/components/dashboard/inline-note";
 import { BodyMap } from "@/components/domain/body-map";
 import { CheckInCharts } from "@/components/domain/check-in-charts";
-import { describeDaysUntil } from "@/components/domain/domain-format";
+import { describeDaysUntil, labelOf, NOT_RECORDED } from "@/components/domain/domain-format";
 import { RecoveryProgress } from "@/components/domain/recovery-progress";
 import { INJURY_STATUS_META, InjurySeverityBadge, InjuryStatusBadge } from "@/components/domain/status-badges";
 import { Callout } from "@/components/training/callout";
@@ -20,7 +20,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/states";
 import type { Tone } from "@/components/ui/tone";
 import { requireRole } from "@/lib/auth/session";
-import { BODY_REGION_LABELS, INJURY_MECHANISM_LABELS, INJURY_SEVERITY_LABELS, INJURY_STATUS_LABELS, INJURY_TYPE_LABELS } from "@/lib/domain/labels";
+import { BODY_REGION_LABELS, INJURY_MECHANISM_LABELS, INJURY_SEVERITY_LABELS, INJURY_STATUS_LABELS, injuryTypeName } from "@/lib/domain/labels";
 import type { Injury } from "@/lib/domain/types";
 import { daysBetween, formatDate, pluralize } from "@/lib/format";
 import { routes } from "@/lib/routes";
@@ -59,12 +59,12 @@ export default async function FighterInjuryPage({ params }: PageProps<"/fighter/
                     columns={aboutInMain ? 3 : 1}
                     className={aboutInMain ? undefined : "gap-y-3"}
                     items={[
-                        { label: "Type", value: INJURY_TYPE_LABELS[injury.type] },
+                        { label: "Type", value: injuryTypeName(injury) },
                         { label: "Body area", value: BODY_REGION_LABELS[injury.bodyRegion] },
                         { label: "Status", value: INJURY_STATUS_LABELS[injury.status] },
-                        { label: "How it happened", value: INJURY_MECHANISM_LABELS[injury.mechanism] },
+                        { label: "How it happened", value: (labelOf(INJURY_MECHANISM_LABELS, injury.mechanism) ?? NOT_RECORDED) },
                         { label: "Occurred", value: <time dateTime={injury.occurredAt}>{formatDate(injury.occurredAt)}</time> },
-                        { label: "Diagnosed", value: <time dateTime={injury.diagnosedAt}>{formatDate(injury.diagnosedAt)}</time> },
+                        { label: "Diagnosed", value: injury.diagnosedAt ? <time dateTime={injury.diagnosedAt}>{formatDate(injury.diagnosedAt)}</time> : NOT_RECORDED },
                         injury.resolvedAt
                             ? { label: "Resolved", value: <time dateTime={injury.resolvedAt}>{formatDate(injury.resolvedAt)}</time> }
                             : {
@@ -99,7 +99,7 @@ export default async function FighterInjuryPage({ params }: PageProps<"/fighter/
                 back={{ href: routes.fighter.health, label: "Health & Medical Clearance" }}
                 eyebrow="Injury"
                 title={injuryTitle(injury)}
-                description={`${INJURY_MECHANISM_LABELS[injury.mechanism]} · ${formatDate(injury.occurredAt)}`}
+                description={`${(labelOf(INJURY_MECHANISM_LABELS, injury.mechanism) ?? NOT_RECORDED)} · ${formatDate(injury.occurredAt)}`}
                 meta={
                     <>
                         <InjurySeverityBadge severity={injury.severity} />
@@ -181,7 +181,7 @@ export default async function FighterInjuryPage({ params }: PageProps<"/fighter/
                                     {
                                         region: injury.bodyRegion,
                                         tone: INJURY_STATUS_META[injury.status].tone,
-                                        label: `${INJURY_TYPE_LABELS[injury.type]} · ${INJURY_STATUS_LABELS[injury.status].toLowerCase()}`,
+                                        label: `${injuryTypeName(injury)} · ${INJURY_STATUS_LABELS[injury.status].toLowerCase()}`,
                                     },
                                 ]}
                             />
