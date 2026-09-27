@@ -78,9 +78,10 @@ function toSummaryClearance(clearance: MedicalClearance): MedicalClearance {
 export async function getClearanceSummaries(fighterIds: string[] | Promise<string[]>, now: string): Promise<Record<string, ClearanceSummary>> {
     const [doctors, ids] = await Promise.all([listDoctors(), fighterIds]);
     const doctorNames = new Map(doctors.map((doctor) => [doctor.id, doctor.name]));
+    const clearances = await Promise.all(ids.map((fighterId) => getCurrentClearanceFor(fighterId)));
     return Object.fromEntries(
-        ids.map((fighterId) => {
-            const clearance = getCurrentClearanceFor(fighterId);
+        ids.map((fighterId, index) => {
+            const clearance = clearances[index];
             const summary: ClearanceSummary = {
                 clearance: clearance ? toSummaryClearance(clearance) : null,
                 state: clearanceState(clearance, now),

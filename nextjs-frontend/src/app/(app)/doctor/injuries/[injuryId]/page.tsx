@@ -57,7 +57,7 @@ export default async function InjuryDetailPage({ params, searchParams }: PagePro
     if (!detail || !canAccessFighter(user, detail.injury.fighterId)) notFound();
     const { injury, fighter, treatments, recoveryPlan, linkedAlert, recordedBy } = detail;
 
-    const clearance = getCurrentClearanceFor(fighter.id);
+    const clearance = await getCurrentClearanceFor(fighter.id);
     const clearanceNow = clearanceState(clearance, now);
     const linkedVideo = linkedAlert ? await getVideo(linkedAlert.videoId) : null;
     const justCreated = param(query.created) === "1";

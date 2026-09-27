@@ -52,7 +52,7 @@ export default async function RecoveryPlanPage({ params, searchParams }: PagePro
     if (!detail || !canAccessFighter(user, detail.plan.fighterId)) notFound();
     const { plan, fighter, injury, treatments, doctor } = detail;
 
-    const clearance = getCurrentClearanceFor(fighter.id);
+    const clearance = await getCurrentClearanceFor(fighter.id);
     const clearanceNow = clearanceState(clearance, now);
     const clearanceDoctor = clearance ? await getDoctor(clearance.doctorId) : null;
     const justCreated = param(query.created) === "1";

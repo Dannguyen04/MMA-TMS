@@ -32,6 +32,7 @@ import {
     updateInjury,
     updateTreatmentStatus,
 } from "@/lib/services/medical";
+import { FEATURE_UNAVAILABLE_MESSAGE, medicalFeatureAvailable } from "@/lib/services/medical-features";
 import { actionError, actionSuccess, validationError, type ActionState } from "./state";
 
 /* ─── Parsing helpers (not exported: a "use server" module may only export actions) ─── */
@@ -296,6 +297,7 @@ const treatmentStatusSchema = z.object({
 export async function updateTreatmentStatusAction(input: { injuryId: string; treatmentId: string; status: string }): Promise<ActionState> {
     const auth = await authorizeClinicalAction("medical:write");
     if (!auth.ok) return actionError(auth.message);
+    if (!medicalFeatureAvailable("treatmentStatus")) return actionError(FEATURE_UNAVAILABLE_MESSAGE);
 
     const parsed = treatmentStatusSchema.safeParse(input);
     if (!parsed.success) return actionError("That status change couldn't be read. Reload the page and try again.");
@@ -418,6 +420,7 @@ const checkInSchema = z.object({
 export async function addCheckInAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
     const auth = await authorizeClinicalAction("medical:write");
     if (!auth.ok) return actionError(auth.message);
+    if (!medicalFeatureAvailable("recoveryPhasesAndCheckIns")) return actionError(FEATURE_UNAVAILABLE_MESSAGE);
 
     const parsed = checkInSchema.safeParse({
         planId: text(formData, "planId"),
@@ -464,6 +467,7 @@ const milestoneSchema = z.object({
 export async function setMilestoneAction(input: { planId: string; phaseId: string; milestoneIndex: number; done: boolean }): Promise<ActionState> {
     const auth = await authorizeClinicalAction("medical:write");
     if (!auth.ok) return actionError(auth.message);
+    if (!medicalFeatureAvailable("recoveryPhasesAndCheckIns")) return actionError(FEATURE_UNAVAILABLE_MESSAGE);
 
     const parsed = milestoneSchema.safeParse(input);
     if (!parsed.success) return actionError("That milestone couldn't be read. Reload the page and try again.");
@@ -481,6 +485,7 @@ export async function setMilestoneAction(input: { planId: string; phaseId: strin
 export async function advancePhaseAction(input: { planId: string }): Promise<ActionState> {
     const auth = await authorizeClinicalAction("medical:write");
     if (!auth.ok) return actionError(auth.message);
+    if (!medicalFeatureAvailable("recoveryPhasesAndCheckIns")) return actionError(FEATURE_UNAVAILABLE_MESSAGE);
 
     const parsed = z.object({ planId: z.string().min(1) }).safeParse(input);
     if (!parsed.success) return actionError("The recovery plan is missing. Reload the page and try again.");
@@ -515,6 +520,7 @@ const DECISION_MESSAGES = {
 export async function reviewAlertAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
     const auth = await authorizeClinicalAction("ai_alerts:review");
     if (!auth.ok) return actionError(auth.message);
+    if (!medicalFeatureAvailable("aiObservations")) return actionError(FEATURE_UNAVAILABLE_MESSAGE);
 
     const parsed = reviewAlertSchema.safeParse({
         alertId: text(formData, "alertId"),

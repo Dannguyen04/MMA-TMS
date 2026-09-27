@@ -26,6 +26,7 @@ import {
     updateHealthStatus,
     updateMedicalRecord,
 } from "@/lib/services/medical";
+import { FEATURE_UNAVAILABLE_MESSAGE, medicalFeatureAvailable } from "@/lib/services/medical-features";
 import { actionError, actionSuccess, validationError, type ActionState } from "./state";
 
 /* ─── Parsing helpers (not exported: a "use server" module may only export actions) ─── */
@@ -119,6 +120,7 @@ const medicalRecordSchema = z.object({
 export async function updateMedicalRecordAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
     const auth = await authorizeClinicalAction("medical:write");
     if (!auth.ok) return actionError(auth.message);
+    if (!medicalFeatureAvailable("medicalRecord")) return actionError(FEATURE_UNAVAILABLE_MESSAGE);
 
     const parsed = medicalRecordSchema.safeParse({
         fighterId: text(formData, "fighterId"),
@@ -379,6 +381,7 @@ const healthStatusSchema = z.object({
 export async function updateHealthStatusAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
     const auth = await authorizeClinicalAction("medical:write");
     if (!auth.ok) return actionError(auth.message);
+    if (!medicalFeatureAvailable("healthStatusOverride")) return actionError(FEATURE_UNAVAILABLE_MESSAGE);
 
     const parsed = healthStatusSchema.safeParse({ fighterId: text(formData, "fighterId"), status: text(formData, "status") });
     if (!parsed.success) return validationError(parsed.error);

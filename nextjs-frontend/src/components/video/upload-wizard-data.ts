@@ -46,9 +46,11 @@ export async function loadUploadWizardData(user: User): Promise<UploadWizardData
         getSettings(),
     ]);
 
+    const clearances = await Promise.all(fighters.map((fighter) => getCurrentClearanceFor(fighter.id)));
+
     return {
-        fighters: fighters.map((fighter) => {
-            const clearance = getCurrentClearanceFor(fighter.id);
+        fighters: fighters.map((fighter, index) => {
+            const clearance = clearances[index];
             const state = clearanceState(clearance, now);
             const restrictions = state === "restricted" && clearance ? clearance.restrictions : [];
             return {
