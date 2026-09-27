@@ -451,7 +451,7 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                 }
             />
 
-            <Tabs key={tab} items={tabs} defaultTab={tab} label="Health profile sections" listClassName="mb-6" />
+            <Tabs key={tab} items={tabs} defaultTab={tab} urlParam="tab" label="Health profile sections" listClassName="mb-6" />
         </>
     );
 }

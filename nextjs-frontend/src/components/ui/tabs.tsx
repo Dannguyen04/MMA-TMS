@@ -54,11 +54,24 @@ export interface TabItem {
     content: ReactNode;
 }
 
+/**
+ * Writes the selected tab to the query string without a navigation, so a reload or a shared link opens the same tab.
+ * The first tab is the default and leaves the parameter out.
+ */
+function syncTabParam(param: string, id: string, isDefault: boolean) {
+    const params = new URLSearchParams(window.location.search);
+    if (isDefault) params.delete(param);
+    else params.set(param, id);
+    const query = params.toString();
+    window.history.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`);
+}
+
 /** In-page tabs with the WAI-ARIA tabs pattern (arrow keys move between tabs). */
 export function Tabs({
     items,
     defaultTab,
     label,
+    urlParam,
     className,
     listClassName,
     onChange,
@@ -66,6 +79,8 @@ export function Tabs({
     items: TabItem[];
     defaultTab?: string;
     label: string;
+    /** Query parameter that records the selected tab (e.g. "tab"); the page reads it back into `defaultTab`. */
+    urlParam?: string;
     className?: string;
     listClassName?: string;
     onChange?: (id: string) => void;
@@ -79,6 +94,7 @@ export function Tabs({
         if (!item) return;
         setActive(item.id);
         onChange?.(item.id);
+        if (urlParam) syncTabParam(urlParam, item.id, index === 0);
         refs.current[index]?.focus();
     };
 
