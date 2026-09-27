@@ -23,7 +23,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/states";
-import { Tabs } from "@/components/ui/tabs";
+import { TabLabel, Tabs } from "@/components/ui/tabs";
 import { requireFighterAccess } from "@/lib/auth/access";
 import { hasPermission, requireRole } from "@/lib/auth/session";
 import { examinationTitle } from "@/lib/domain/labels";
@@ -264,7 +264,7 @@ export default async function FighterHealthPage({ searchParams }: PageProps<"/fi
                 listClassName="mb-6"
                 items={[
                     { id: "status", label: "Status", content: status },
-                    { id: "injuries", label: <TabLabel label="Injuries & recovery" count={openInjuries.length} />, content: injuriesAndRecovery },
+                    { id: "injuries", label: <TabLabel label="Injuries & recovery" count={openInjuries.length || undefined} />, content: injuriesAndRecovery },
                     { id: "history", label: "History", content: history },
                 ]}
             />
@@ -278,14 +278,5 @@ function TwoColumns({ main, side }: { main: ReactNode; side: ReactNode }) {
             <div className="flex min-w-0 flex-col gap-6 lg:col-span-2">{main}</div>
             <div className="flex min-w-0 flex-col gap-6">{side}</div>
         </div>
-    );
-}
-
-function TabLabel({ label, count }: { label: string; count: number }) {
-    return (
-        <>
-            {label}
-            {count > 0 && <span className="rounded-full bg-surface-hover px-1.5 text-[11px] leading-5 text-fg-muted tabular-nums">{count}</span>}
-        </>
     );
 }

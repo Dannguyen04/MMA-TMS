@@ -3,9 +3,9 @@
 import { ArrowDown, ArrowUp, Info, ListPlus, Plus, Trash2 } from "lucide-react";
 import { useId, useState } from "react";
 
-import { Button, ButtonLink } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Field, FormMessage, FormSection, Input, Select, Textarea } from "@/components/ui/form";
+import { Field, FormFooter, FormSection, Input, Select, Textarea } from "@/components/ui/form";
 import { useActionForm } from "@/components/ui/use-action-form";
 import { createMilestonePlanAction } from "@/lib/actions/medical-contract";
 import { MEDICAL_TEXT_LIMITS, RECOVERY_MILESTONES_MAX } from "@/lib/domain/medical-contract";
@@ -203,17 +203,7 @@ export function MilestonePlanForm({ fighter, injuries, defaultInjuryId, today, c
                     {error("milestones") && <p className="text-[13px] font-medium text-danger-fg">{error("milestones")}</p>}
                 </FormSection>
 
-                <div className="flex flex-col gap-3 border-t border-border pt-5">
-                    <FormMessage {...form.message} />
-                    <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                        <ButtonLink href={cancelHref} variant="secondary" size="lg" className="sm:h-9 sm:px-3.5 sm:text-sm">
-                            Cancel
-                        </ButtonLink>
-                        <Button type="submit" size="lg" loading={form.pending} className="sm:h-9 sm:px-3.5 sm:text-sm">
-                            {form.pending ? "Creating plan…" : "Create recovery plan"}
-                        </Button>
-                    </div>
-                </div>
+                <FormFooter message={form.message} cancelHref={cancelHref} pending={form.pending} submitLabel="Create recovery plan" pendingLabel="Creating plan…" />
             </Card>
 
             <aside aria-label="How recovery plans work" className="min-w-0">

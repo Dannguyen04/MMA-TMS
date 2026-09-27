@@ -14,6 +14,16 @@ export interface TabNavItem {
     exact?: boolean;
 }
 
+/** A tab's label with an optional count chip, e.g. "Examinations 8". */
+export function TabLabel({ label, count }: { label: ReactNode; count?: number }) {
+    return (
+        <>
+            {label}
+            {count !== undefined && <span className="rounded-full bg-surface-hover px-1.5 text-[11px] leading-5 text-fg-muted tabular-nums">{count}</span>}
+        </>
+    );
+}
+
 /** Route-based tabs for sub-pages (e.g. a fighter profile). Uses aria-current, not the tab role. */
 export function TabNav({ items, label, className }: { items: TabNavItem[]; label: string; className?: string }) {
     const pathname = usePathname();
@@ -33,12 +43,7 @@ export function TabNav({ items, label, className }: { items: TabNavItem[]; label
                                     active ? "text-fg after:bg-corner-red" : "text-fg-muted hover:text-fg",
                                 )}
                             >
-                                {item.label}
-                                {item.count !== undefined && (
-                                    <span className="rounded-full bg-surface-hover px-1.5 text-[11px] leading-5 text-fg-muted tabular-nums">
-                                        {item.count}
-                                    </span>
-                                )}
+                                <TabLabel label={item.label} count={item.count} />
                             </Link>
                         </li>
                     );

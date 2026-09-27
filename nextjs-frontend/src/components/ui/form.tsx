@@ -2,6 +2,7 @@ import { ChevronDown } from "lucide-react";
 import { Children, Fragment, cloneElement, isValidElement, type ComponentProps, type ReactElement, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
+import { Button, ButtonLink } from "./button";
 
 const CONTROL =
     "w-full rounded-lg border border-control-border bg-surface text-sm text-fg shadow-card transition-colors " +
@@ -204,6 +205,33 @@ export function FormMessage({ status, message, className }: { status: "success" 
         >
             {message}
         </p>
+    );
+}
+
+export interface FormFooterProps {
+    message: { status: "success" | "error" | "idle"; message?: string };
+    cancelHref: string;
+    pending: boolean;
+    submitLabel: string;
+    /** Shown on the submit button while saving, e.g. "Recording injury…". */
+    pendingLabel: string;
+    disabled?: boolean;
+}
+
+/** A page form's footer: the form-level message, then Cancel and submit (large, stacked and full width on phones). */
+export function FormFooter({ message, cancelHref, pending, submitLabel, pendingLabel, disabled }: FormFooterProps) {
+    return (
+        <div className="flex flex-col gap-3 border-t border-border pt-5">
+            <FormMessage {...message} />
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <ButtonLink href={cancelHref} variant="secondary" size="lg" className="sm:h-9 sm:px-3.5 sm:text-sm">
+                    Cancel
+                </ButtonLink>
+                <Button type="submit" size="lg" loading={pending} disabled={disabled} className="sm:h-9 sm:px-3.5 sm:text-sm">
+                    {pending ? pendingLabel : submitLabel}
+                </Button>
+            </div>
+        </div>
     );
 }
 

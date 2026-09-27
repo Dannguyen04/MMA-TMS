@@ -1,4 +1,4 @@
-import { CalendarClock, CalendarX2, Hourglass, ShieldAlert, ShieldQuestion, ShieldX, Sparkles, Target, type LucideIcon } from "lucide-react";
+import { CalendarClock, CalendarX2, Hourglass, ShieldAlert, ShieldQuestion, ShieldX, Sparkles, Target } from "lucide-react";
 
 import { describeDaysUntil } from "@/components/domain/domain-format";
 import { AIGeneratedBadge } from "@/components/domain/status-badges";
@@ -10,13 +10,14 @@ import { daysBetween, formatDate, formatRelative, formatShortDate, formatWeekday
 import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import type { ReviewQueueItem } from "@/lib/services/videos";
+import type { QueueGroupMeta } from "./queue-card";
 import { sessionsWith, type RosterEntry, type SessionCheck } from "./roster-data";
 
 /** The corner queue's groups, in the order the filter shows them. */
 export const COACH_QUEUES = ["clearance", "sessions", "reviews", "goals"] as const;
 export type CoachQueue = (typeof COACH_QUEUES)[number];
 
-export const COACH_QUEUE_META: Record<CoachQueue, { label: string; icon: LucideIcon; empty: { title: string; description: string } }> = {
+export const COACH_QUEUE_META: Record<CoachQueue, QueueGroupMeta> = {
     clearance: {
         label: "Clearance",
         icon: ShieldAlert,

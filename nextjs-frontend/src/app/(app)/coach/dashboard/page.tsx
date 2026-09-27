@@ -1,19 +1,17 @@
-import { CalendarPlus, ClipboardPlus, ListTodo } from "lucide-react";
+import { CalendarPlus, ClipboardPlus } from "lucide-react";
 import type { Metadata } from "next";
 
 import { buildCoachAttention, COACH_QUEUE_META, COACH_QUEUES, type CoachQueue } from "@/components/dashboard/coach-attention";
 import { firstName, greetingFor } from "@/components/dashboard/dashboard-utils";
+import { QueueCard } from "@/components/dashboard/queue-card";
 import { loadRoster } from "@/components/dashboard/roster-data";
 import { TodaySchedule } from "@/components/dashboard/today-schedule";
-import { AttentionList } from "@/components/medical/attention-list";
 import { weekStartKey } from "@/components/training/training-utils";
 import { ButtonLink } from "@/components/ui/button";
-import { Card, CardFooter, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
-import { SegmentedLinks } from "@/components/ui/segmented-links";
 import { accessibleFighterIds } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
-import { academyDayStartIso, addDaysToKey, dayKey, formatWeekdayDate, pluralize } from "@/lib/format";
+import { academyDayStartIso, addDaysToKey, DAY_MS, dayKey, formatWeekdayDate, pluralize } from "@/lib/format";
 import { hrefWith, parseEnum } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
@@ -27,10 +25,7 @@ import { param } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Today" };
 
-/** The unfiltered queue shows this many; picking a group shows all of it. */
-const QUEUE_PREVIEW = 8;
 const MISSED_WINDOW_DAYS = 7;
-const DAY_MS = 86_400_000;
 
 /**
  * The coach's Today page answers one question: what needs me now? One corner queue, filterable by group, and
@@ -75,13 +70,10 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
     });
     const queues = COACH_QUEUES.filter((queue) => queue !== "goals" || goalsAtRisk !== null);
     const queue = parseEnum(param(query.queue), queues);
-    const inQueue = queue ? attention.filter((item) => item.group === queue) : attention;
-    const shown = queue ? inQueue : inQueue.slice(0, QUEUE_PREVIEW);
 
     const todaySessions = weekSessions.filter((session) => session.scheduledAt >= todayStart && session.scheduledAt < tomorrowStart);
     const todayActive = todaySessions.filter((session) => session.status !== "cancelled");
     const scheduleFighters = Object.fromEntries(roster.map((entry) => [entry.fighter.id, { name: entry.fighter.name, clearanceState: entry.clearanceState }]));
-    const queueHref = (next: CoachQueue | null) => hrefWith(routes.coach.dashboard, query, { queue: next });
 
     return (
         <>
@@ -104,47 +96,17 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
             />
 
             <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
-                <Card className="min-w-0 lg:col-span-2">
-                    <CardHeader
-                        title="Corner queue"
-                        icon={<ListTodo />}
-                        description={attention.length > 0 ? `${pluralize(attention.length, "item")} waiting, most urgent first` : "All clear — nothing needs you right now"}
-                    />
-                    {attention.length > 0 && (
-                        <div className="border-t border-border px-5 py-3">
-                            <SegmentedLinks
-                                label="Filter the corner queue"
-                                items={[
-                                    { href: queueHref(null), label: "All", count: attention.length, active: !queue },
-                                    // Empty groups stay out of the way unless they're the one selected.
-                                    ...queues
-                                        .map((group) => ({
-                                            href: queueHref(group),
-                                            label: COACH_QUEUE_META[group].label,
-                                            icon: COACH_QUEUE_META[group].icon,
-                                            count: attention.filter((item) => item.group === group).length,
-                                            active: queue === group,
-                                        }))
-                                        .filter((chip) => chip.count > 0 || chip.active),
-                                ]}
-                            />
-                        </div>
-                    )}
-                    <AttentionList
-                        items={shown}
-                        empty={
-                            queue
-                                ? COACH_QUEUE_META[queue].empty
-                                : { title: "Nothing needs your attention", description: "No clearance problems, session clashes, analyses to review or goals at risk." }
-                        }
-                        className="border-t border-border"
-                    />
-                    {!queue && inQueue.length > shown.length && (
-                        <CardFooter className="text-fg-muted">
-                            Showing the {shown.length} most urgent of {inQueue.length}. Pick a group above to see the rest.
-                        </CardFooter>
-                    )}
-                </Card>
+                <QueueCard
+                    title="Corner queue"
+                    filterLabel="Filter the corner queue"
+                    items={attention}
+                    queues={queues}
+                    meta={COACH_QUEUE_META}
+                    active={queue}
+                    hrefFor={(next: CoachQueue | null) => hrefWith(routes.coach.dashboard, query, { queue: next })}
+                    emptyAll={{ title: "Nothing needs your attention", description: "No clearance problems, session clashes, analyses to review or goals at risk." }}
+                    className="lg:col-span-2"
+                />
 
                 <TodaySchedule sessions={todaySessions} fighters={scheduleFighters} />
             </div>

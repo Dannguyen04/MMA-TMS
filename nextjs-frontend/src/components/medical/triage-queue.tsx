@@ -1,5 +1,7 @@
-import { CalendarClock, Hourglass, Radar, ShieldAlert, ShieldQuestion, ShieldX, type LucideIcon } from "lucide-react";
+import { CalendarClock, Hourglass, Radar, ShieldAlert, ShieldQuestion, ShieldX } from "lucide-react";
 
+import { clinicalLinks } from "@/components/clinical/clinical-links";
+import type { QueueGroupMeta } from "@/components/dashboard/queue-card";
 import { capitalize, describeDaysUntil } from "@/components/domain/domain-format";
 import { AIGeneratedBadge, ConfidenceBadge } from "@/components/domain/status-badges";
 import { REQUESTER_ROLE_LABELS } from "@/lib/domain/medical-contract";
@@ -16,7 +18,7 @@ import { sortTriage } from "./triage-sort";
 export const TRIAGE_QUEUES = ["clearance", "reviews", "follow-ups", "observations"] as const;
 export type TriageQueue = (typeof TRIAGE_QUEUES)[number];
 
-export const TRIAGE_QUEUE_META: Record<TriageQueue, { label: string; icon: LucideIcon; empty: { title: string; description: string } }> = {
+export const TRIAGE_QUEUE_META: Record<TriageQueue, QueueGroupMeta> = {
     clearance: {
         label: "Clearance",
         icon: ShieldAlert,
@@ -57,7 +59,7 @@ export interface TriageInput {
 export function buildTriageQueue({ overview, summaries, now, serviceForms }: TriageInput): AttentionItem[] {
     const items: AttentionItem[] = [];
     const profile = (fighterId: string) => routes.doctor.fighter(fighterId);
-    const grant = (fighterId: string) => hrefWith(routes.doctor.grantClearance, {}, { fighter: fighterId });
+    const grant = clinicalLinks.grantClearanceFor;
     const examine = (fighterId: string, kind: "baseline" | "pre_fight" | "review") =>
         serviceForms
             ? hrefWith(routes.doctor.newExamination, {}, { fighter: fighterId, scope: kind === "pre_fight" ? "COMPETITION" : "TRAINING" })

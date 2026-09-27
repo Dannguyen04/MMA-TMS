@@ -43,13 +43,7 @@ export function ExaminationList({
                         <Avatar name={fighterName} shape="octagon" size="sm" />
                         <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
                             <p className="text-sm font-medium text-pretty text-fg">
-                                <Link
-                                    href={routes.doctor.examination(examination.id)}
-                                    className="rounded-sm after:absolute after:inset-0 after:content-[''] hover:underline"
-                                >
-                                    {examinationTitle(examination)}
-                                    <span className="sr-only"> for {fighterName}</span>
-                                </Link>
+                                <ExaminationLink examination={examination} fighterName={fighterName} />
                             </p>
                             <p className="text-[13px] text-fg-muted">
                                 {fighterName} · <time dateTime={examination.date}>{formatShortDate(examination.date)}</time>
@@ -62,13 +56,7 @@ export function ExaminationList({
                         <Avatar name={fighterName} shape="octagon" size="sm" />
                         <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-medium text-fg">
-                                <Link
-                                    href={routes.doctor.examination(examination.id)}
-                                    className="rounded-sm after:absolute after:inset-0 after:content-[''] hover:underline"
-                                >
-                                    {examinationTitle(examination)}
-                                    <span className="sr-only"> for {fighterName}</span>
-                                </Link>
+                                <ExaminationLink examination={examination} fighterName={fighterName} />
                             </p>
                             <p className="truncate text-[13px] text-fg-muted">
                                 {fighterName} · <time dateTime={examination.date}>{formatDate(examination.date)}, {formatTime(examination.date)}</time>
@@ -79,5 +67,15 @@ export function ExaminationList({
                 ),
             )}
         </ul>
+    );
+}
+
+/** The examination's title, linking the whole row to it. */
+function ExaminationLink({ examination, fighterName }: { examination: MedicalExamination; fighterName: string }) {
+    return (
+        <Link href={routes.doctor.examination(examination.id)} className="rounded-sm after:absolute after:inset-0 after:content-[''] hover:underline">
+            {examinationTitle(examination)}
+            <span className="sr-only"> for {fighterName}</span>
+        </Link>
     );
 }

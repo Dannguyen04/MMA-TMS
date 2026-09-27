@@ -29,7 +29,7 @@ import { RevokedClearanceCard } from "@/components/medical/revoked-clearance-car
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { EmptyState, FeatureUnavailable } from "@/components/ui/states";
-import { Tabs } from "@/components/ui/tabs";
+import { TabLabel, Tabs } from "@/components/ui/tabs";
 import type { ToastInput } from "@/components/ui/toast";
 import { canAccessFighter, requireFighterAccess } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
@@ -452,15 +452,6 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
             />
 
             <Tabs key={tab} items={tabs} defaultTab={tab} urlParam="tab" label="Health profile sections" listClassName="mb-6" />
-        </>
-    );
-}
-
-function TabLabel({ label, count }: { label: string; count: number }) {
-    return (
-        <>
-            {label}
-            <span className="rounded-full bg-surface-hover px-1.5 text-[11px] leading-5 text-fg-muted tabular-nums">{count}</span>
         </>
     );
 }

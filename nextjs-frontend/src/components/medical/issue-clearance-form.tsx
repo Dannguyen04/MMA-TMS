@@ -4,10 +4,9 @@ import { Info, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 
 import { Callout } from "@/components/training/callout";
-import { Button, ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ChoiceGroup, type ChoiceOption } from "@/components/ui/choice-group";
-import { Field, FormMessage, FormSection, Input, Textarea } from "@/components/ui/form";
+import { Field, FormFooter, FormSection, Input, Textarea } from "@/components/ui/form";
 import { useActionForm } from "@/components/ui/use-action-form";
 import { issueClearanceAction } from "@/lib/actions/medical-contract";
 import {
@@ -135,17 +134,7 @@ export function IssueClearanceForm({ fighter, examinations, activeClearances, de
                     </>
                 )}
 
-                <div className="flex flex-col gap-3 border-t border-border pt-5">
-                    <FormMessage {...form.message} />
-                    <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                        <ButtonLink href={cancelHref} variant="secondary" size="lg" className="sm:h-9 sm:px-3.5 sm:text-sm">
-                            Cancel
-                        </ButtonLink>
-                        <Button type="submit" size="lg" loading={form.pending} disabled={!exam} className="sm:h-9 sm:px-3.5 sm:text-sm">
-                            {form.pending ? "Issuing…" : "Issue clearance"}
-                        </Button>
-                    </div>
-                </div>
+                <FormFooter message={form.message} cancelHref={cancelHref} pending={form.pending} submitLabel="Issue clearance" pendingLabel="Issuing…" disabled={!exam} />
             </Card>
 
             <aside aria-label="What happens next" className="min-w-0">

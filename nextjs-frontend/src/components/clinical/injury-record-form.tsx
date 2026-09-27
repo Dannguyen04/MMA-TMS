@@ -5,10 +5,9 @@ import { useState } from "react";
 
 import { BodyMap } from "@/components/domain/body-map";
 import { INJURY_SEVERITY_META } from "@/components/domain/status-badges";
-import { Button, ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ChoiceGroup, type ChoiceOption } from "@/components/ui/choice-group";
-import { Field, FormMessage, FormSection, Input, Select, Textarea } from "@/components/ui/form";
+import { Field, FormFooter, FormSection, Input, Select, Textarea } from "@/components/ui/form";
 import { useActionForm } from "@/components/ui/use-action-form";
 import { recordInjuryAction } from "@/lib/actions/medical-contract";
 import { API_INJURY_SEVERITIES, BODY_JOINT_LABELS, MEDICAL_TEXT_LIMITS, type ApiInjurySeverity, type BodyJoint } from "@/lib/domain/medical-contract";
@@ -113,17 +112,7 @@ export function InjuryRecordForm({ fighters, defaultFighterId, nowInput, cancelH
                     </Field>
                 </FormSection>
 
-                <div className="flex flex-col gap-3 border-t border-border pt-5">
-                    <FormMessage {...form.message} />
-                    <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                        <ButtonLink href={cancelHref} variant="secondary" size="lg" className="sm:h-9 sm:px-3.5 sm:text-sm">
-                            Cancel
-                        </ButtonLink>
-                        <Button type="submit" size="lg" loading={form.pending} className="sm:h-9 sm:px-3.5 sm:text-sm">
-                            {form.pending ? "Recording injury…" : "Record injury"}
-                        </Button>
-                    </div>
-                </div>
+                <FormFooter message={form.message} cancelHref={cancelHref} pending={form.pending} submitLabel="Record injury" pendingLabel="Recording injury…" />
             </Card>
 
             <aside aria-label="What happens next" className="min-w-0">

@@ -4,10 +4,9 @@ import { CircleCheck, CircleSlash, Info, ShieldAlert, TriangleAlert } from "luci
 import { useState } from "react";
 
 import { Callout } from "@/components/training/callout";
-import { Button, ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ChoiceGroup, type ChoiceOption } from "@/components/ui/choice-group";
-import { Checkbox, Field, FormMessage, FormSection, Input, Textarea } from "@/components/ui/form";
+import { Checkbox, Field, FormFooter, FormSection, Input, Textarea } from "@/components/ui/form";
 import { useActionForm } from "@/components/ui/use-action-form";
 import { recordExaminationDecisionAction } from "@/lib/actions/medical-contract";
 import {
@@ -198,17 +197,7 @@ export function ExaminationDecisionForm({ fighter, currentExaminations, openRevi
                     </FormSection>
                 )}
 
-                <div className="flex flex-col gap-3 border-t border-border pt-5">
-                    <FormMessage {...form.message} />
-                    <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                        <ButtonLink href={cancelHref} variant="secondary" size="lg" className="sm:h-9 sm:px-3.5 sm:text-sm">
-                            Cancel
-                        </ButtonLink>
-                        <Button type="submit" size="lg" loading={form.pending} className="sm:h-9 sm:px-3.5 sm:text-sm">
-                            {form.pending ? "Recording…" : "Record decision"}
-                        </Button>
-                    </div>
-                </div>
+                <FormFooter message={form.message} cancelHref={cancelHref} pending={form.pending} submitLabel="Record decision" pendingLabel="Recording…" />
             </Card>
 
             <aside aria-label="What happens next" className="min-w-0">

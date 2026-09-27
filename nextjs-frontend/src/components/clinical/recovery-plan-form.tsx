@@ -5,10 +5,10 @@ import { useRef, useState } from "react";
 
 import { InjuryCard } from "@/components/domain/injury-card";
 import { Badge } from "@/components/ui/badge";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/dialog";
-import { Field, FormMessage, FormSection, Input, Select } from "@/components/ui/form";
+import { Field, FormFooter, FormSection, Input, Select } from "@/components/ui/form";
 import { useActionForm } from "@/components/ui/use-action-form";
 import { createRecoveryPlanAction } from "@/lib/actions/clinical";
 import { BODY_REGION_LABELS, injuryTypeName } from "@/lib/domain/labels";
@@ -338,17 +338,7 @@ export function RecoveryPlanForm({ injuries, defaultInjuryId, today, now, cancel
                     </div>
                 </FormSection>
 
-                <div className="flex flex-col gap-3 border-t border-border pt-5">
-                    <FormMessage {...form.message} />
-                    <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                        <ButtonLink href={cancelHref} variant="secondary" size="lg" className="sm:h-9 sm:px-3.5 sm:text-sm">
-                            Cancel
-                        </ButtonLink>
-                        <Button type="submit" size="lg" loading={form.pending} disabled={injuries.length === 0} className="sm:h-9 sm:px-3.5 sm:text-sm">
-                            {form.pending ? "Creating plan…" : "Create recovery plan"}
-                        </Button>
-                    </div>
-                </div>
+                <FormFooter message={form.message} cancelHref={cancelHref} pending={form.pending} submitLabel="Create recovery plan" pendingLabel="Creating plan…" disabled={injuries.length === 0} />
             </Card>
 
             <aside aria-label="Selected injury" className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-20">
