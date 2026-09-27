@@ -97,7 +97,7 @@ export default async function FighterDashboardPage() {
           ? {
                 kind: "session",
                 session: nextSession,
-                coachName: coachNames.get(nextSession.coachId),
+                coachName: nextSession.coachId ? coachNames.get(nextSession.coachId) : undefined,
                 href: routes.fighter.session(nextSession.id),
                 note:
                     clearanceState === "none" ? (

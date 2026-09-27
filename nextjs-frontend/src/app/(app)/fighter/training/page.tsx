@@ -110,7 +110,7 @@ export default async function FighterTrainingPage() {
                             <ul className="divide-y divide-border border-t border-border">
                                 {nextSessions.map((session) => (
                                     <li key={session.id}>
-                                        <SessionListItem session={session} href={routes.fighter.session(session.id)} coachName={coachNames[session.coachId]} />
+                                        <SessionListItem session={session} href={routes.fighter.session(session.id)} coachName={session.coachId ? coachNames[session.coachId] : undefined} />
                                     </li>
                                 ))}
                             </ul>

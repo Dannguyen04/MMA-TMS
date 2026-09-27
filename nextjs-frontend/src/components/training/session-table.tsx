@@ -59,13 +59,14 @@ function NotRecorded({ label = "Not recorded" }: { label?: string }) {
 }
 
 function RpeValue({ session }: { session: TrainingSession }) {
-    if (session.result) return <span className="font-medium">{session.result.rpe}</span>;
-    if (isUpcoming(session)) return <span className="text-fg-muted">Target {session.targetRpe}</span>;
+    if (session.result?.rpe != null) return <span className="font-medium">{session.result.rpe}</span>;
+    if (isUpcoming(session) && session.targetRpe !== null) return <span className="text-fg-muted">Target {session.targetRpe}</span>;
     return <NotRecorded />;
 }
 
 function DurationValue({ session }: { session: TrainingSession }) {
-    if (session.result) return <>{formatMinutes(session.result.actualDurationMin)}</>;
+    if (session.result?.actualDurationMin != null) return <>{formatMinutes(session.result.actualDurationMin)}</>;
+    if (session.durationMin === null) return <NotRecorded />;
     return <span className="text-fg-muted">{formatMinutes(session.durationMin)}</span>;
 }
 
@@ -176,7 +177,7 @@ export function SessionTable({
                                     <TD className="whitespace-nowrap">
                                         <RpeValue session={session} />
                                     </TD>
-                                    <TD>{session.result ? <CoachRating rating={session.result.coachRating} compact /> : <NotRecorded />}</TD>
+                                    <TD>{session.result?.coachRating != null ? <CoachRating rating={session.result.coachRating} compact /> : <NotRecorded />}</TD>
                                     <TD>
                                         <SessionStatusBadge status={session.status} size="sm" />
                                     </TD>
@@ -232,7 +233,7 @@ export function SessionTable({
                                                 <RpeValue session={session} />
                                             </dd>
                                         </div>
-                                        {session.result && (
+                                        {session.result?.coachRating != null && (
                                             <div className="flex items-center gap-1">
                                                 <dt className="sr-only">Coach rating</dt>
                                                 <dd>

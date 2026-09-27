@@ -244,29 +244,32 @@ export interface SessionExercise {
     completed: boolean;
 }
 
+/** The outcome of a completed session. Null fields are ones the API doesn't provide yet. */
 export interface SessionResult {
     completedAt: ISODate;
-    actualDurationMin: number;
+    actualDurationMin: number | null;
     /** Session RPE reported by the fighter, 1–10. */
-    rpe: number;
+    rpe: number | null;
     roundsCompleted: number;
     /** Coach rating of the session quality, 1–5. */
-    coachRating: number;
+    coachRating: number | null;
     summary: string;
 }
 
+/** A training session. Null fields are ones the API doesn't provide yet; the interface hides them rather than guessing. */
 export interface TrainingSession {
     id: string;
     planId: string | null;
     fighterId: string;
-    coachId: string;
+    coachId: string | null;
     title: string;
     type: TrainingType;
     scheduledAt: ISODate;
-    durationMin: number;
+    /** Planned length in minutes. */
+    durationMin: number | null;
     location: string;
     /** Planned intensity on the RPE scale, 1–10. */
-    targetRpe: number;
+    targetRpe: number | null;
     status: SessionStatus;
     exercises: SessionExercise[];
     result: SessionResult | null;

@@ -89,9 +89,13 @@ export function SessionListItem({ session, coachName, fighter, href, compact = f
                     <time dateTime={session.scheduledAt} className="font-medium text-fg">
                         {formatTime(session.scheduledAt)}
                     </time>
-                    <span aria-hidden>·</span>
-                    <span aria-hidden>{shortDuration(session.durationMin)}</span>
-                    <span className="sr-only">{formatMinutes(session.durationMin)}</span>
+                    {session.durationMin !== null && (
+                        <>
+                            <span aria-hidden>·</span>
+                            <span aria-hidden>{shortDuration(session.durationMin)}</span>
+                            <span className="sr-only">{formatMinutes(session.durationMin)}</span>
+                        </>
+                    )}
                 </p>
                 <p className={cn("line-clamp-2 text-[13px] leading-snug font-medium", inactive ? "text-fg-muted" : "text-fg")}>{title}</p>
                 {fighter && (
@@ -128,8 +132,12 @@ export function SessionListItem({ session, coachName, fighter, href, compact = f
                     <li className="inline-flex items-center gap-1.5">
                         <Clock aria-hidden className="size-3.5 text-fg-subtle" />
                         <time dateTime={session.scheduledAt}>{formatTime(session.scheduledAt)}</time>
-                        <span aria-hidden>·</span>
-                        {formatMinutes(session.durationMin)}
+                        {session.durationMin !== null && (
+                            <>
+                                <span aria-hidden>·</span>
+                                {formatMinutes(session.durationMin)}
+                            </>
+                        )}
                     </li>
                     {coachName && (
                         <li className="inline-flex items-center gap-1.5">

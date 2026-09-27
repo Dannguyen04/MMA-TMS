@@ -24,6 +24,7 @@ import type {
 import { academyDayStartIso, DAY_MS, dayKey } from "@/lib/format";
 import { matchesSearch } from "@/lib/query";
 import { drainNumberedPages, nullIfNotFound } from "./api-helpers";
+import { plannedEndMs, sessionMinutes } from "@/components/training/training-utils";
 
 type FighterScope = string[] | "all";
 
@@ -113,7 +114,8 @@ const backendSessionSchema = z.object({
     updatedAt: isoDateSchema,
     deletedAt: isoDateSchema.nullable(),
     cancelledAt: isoDateSchema.nullable(),
-    targetRpe: z.number().int().min(1).max(10).optional(),
+    // Not in the API yet: sessions without them read as null or empty.
+    targetRpe: z.number().int().min(1).max(10).nullable().optional(),
     exercises: z
         .array(
             z.object({
@@ -276,27 +278,9 @@ function toPlan(plan: BackendPlan): TrainingPlan {
     };
 }
 
+/** Fields the API doesn't return yet (target RPE, exercises, linked videos, coach rating) read as null or empty. */
 function toSession(session: BackendSession): TrainingSession {
-    const completed = session.status === "COMPLETED" && session.completedAt !== null;
-    if (
-        session.coachId === null ||
-        session.plannedDurationSec === null ||
-        session.targetRpe === undefined ||
-        session.exercises === undefined ||
-        session.videoIds === undefined
-    ) {
-        unsupported("Reading a training session", "coach, planned duration, target RPE, exercises, and video-link fields");
-    }
-    if (
-        completed &&
-        (session.actualDurationSec === null ||
-            session.reportedRpe === null ||
-            session.coachRating === undefined ||
-            session.coachRating === null ||
-            session.resultSummary === undefined)
-    ) {
-        unsupported("Reading a completed training session", "duration, RPE, coach rating, and result-summary fields");
-    }
+    const completedAt = session.status === "COMPLETED" ? session.completedAt : null;
     return {
         id: session.id,
         planId: session.planId,
@@ -305,22 +289,22 @@ function toSession(session: BackendSession): TrainingSession {
         title: session.title,
         type: trainingTypeFromApi[session.sessionType],
         scheduledAt: session.scheduledAt,
-        durationMin: Math.max(1, Math.round(session.plannedDurationSec / 60)),
+        durationMin: session.plannedDurationSec === null ? null : Math.max(1, Math.round(session.plannedDurationSec / 60)),
         location: session.location ?? "",
-        targetRpe: session.targetRpe,
+        targetRpe: session.targetRpe ?? null,
         status: sessionStatusFromApi[session.status],
-        exercises: session.exercises,
-        result: completed
+        exercises: session.exercises ?? [],
+        result: completedAt
             ? {
-                  completedAt: session.completedAt!,
-                  actualDurationMin: Math.max(1, Math.round(session.actualDurationSec! / 60)),
-                  rpe: session.reportedRpe!,
+                  completedAt,
+                  actualDurationMin: session.actualDurationSec === null ? null : Math.max(1, Math.round(session.actualDurationSec / 60)),
+                  rpe: session.reportedRpe,
                   roundsCompleted: session.roundCount,
-                  coachRating: session.coachRating!,
+                  coachRating: session.coachRating ?? null,
                   summary: session.resultSummary ?? "",
               }
             : null,
-        videoIds: session.videoIds,
+        videoIds: session.videoIds ?? [],
         cancellationReason: session.cancellationReason,
         notes: session.coachNotes,
     };
@@ -537,7 +521,7 @@ export async function getUpcomingSessions(fighterIds: FighterScope, limit = 5): 
     if (isDemoAuthEnabled()) return (await demoService()).getUpcomingSessions(fighterIds, limit);
     const now = Date.now();
     return (await listSessions({ fighterIds, status: ["scheduled", "in_progress"] }))
-        .filter((session) => Date.parse(session.scheduledAt) + session.durationMin * 60_000 >= now)
+        .filter((session) => plannedEndMs(session) >= now)
         .slice(0, limit);
 }
 
@@ -588,12 +572,16 @@ export type SessionFailureReason = "not_found" | "invalid" | "invalid_state" | "
 export type SessionMutationResult =
     | { ok: true; session: TrainingSession; conflicts: ClearanceConflict[] }
     | { ok: false; reason: SessionFailureReason; message: string; conflicts: ClearanceConflict[] };
-type PlannedSession = Pick<SessionInput, "fighterId" | "type" | "targetRpe" | "exercises" | "scheduledAt">;
+type PlannedSession = Pick<SessionInput, "fighterId" | "type" | "exercises" | "scheduledAt"> & { targetRpe: number | null };
 
-/** Planned training checked against the fighter's Medical Clearance. The API has no endpoint for it yet. */
+/**
+ * Planned training checked against the fighter's Medical Clearance. The API has no preview for this: it enforces
+ * medical eligibility itself when a session starts (409 TRAINING_MEDICAL_ELIGIBILITY_REQUIRED), so in API mode
+ * there are no conflicts to show ahead of time.
+ */
 export async function loadSessionClearanceConflicts(planned: PlannedSession): Promise<ClearanceConflict[]> {
     if (isDemoAuthEnabled()) return (await demoService()).getSessionClearanceConflicts(planned);
-    unsupported("Previewing a training session", "the authenticated clearance-conflict endpoint");
+    return [];
 }
 export async function createSession(input: SessionInput, actor: User): Promise<SessionMutationResult> {
     if (isDemoAuthEnabled()) return (await demoService()).createSession(input, actor);
@@ -649,7 +637,7 @@ export async function getTrainingProgress(fighterId: string, weeks = 8): Promise
             completedSessions: completed.length,
             missedSessions: planned.filter((session) => session.status === "missed").length,
             adherencePct: planned.length === 0 ? 0 : Math.round((completed.length / planned.length) * 100),
-            trainingMinutes: completed.reduce((total, session) => total + (session.result?.actualDurationMin ?? session.durationMin), 0),
+            trainingMinutes: completed.reduce((total, session) => total + sessionMinutes(session), 0),
         };
     });
 }

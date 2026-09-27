@@ -99,7 +99,8 @@ export function clearanceExpiresSoon(
 
 export interface PlannedTraining {
     type: TrainingType;
-    targetRpe: number;
+    /** Planned intensity; null when none was set, which skips the intensity check. */
+    targetRpe: number | null;
     techniques: Technique[];
     loadsRegions: BodyRegion[];
 }
@@ -145,7 +146,7 @@ export function checkTrainingAgainstClearance(
                 message: `${TRAINING_TYPE_LABELS[planned.type]} is restricted: ${restriction.label}.`,
             });
         }
-        if (restriction.maxRpe !== null && planned.targetRpe > restriction.maxRpe) {
+        if (restriction.maxRpe !== null && planned.targetRpe !== null && planned.targetRpe > restriction.maxRpe) {
             conflicts.push({
                 severity: "block",
                 message: `Target intensity RPE ${planned.targetRpe} exceeds the cleared maximum of RPE ${restriction.maxRpe}.`,

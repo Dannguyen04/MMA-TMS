@@ -11,7 +11,7 @@ import { EmptyState } from "@/components/ui/states";
 import { Pagination } from "@/components/ui/table";
 import { SessionTable } from "@/components/training/session-table";
 import { MinutesChart } from "@/components/training/training-charts";
-import { SESSION_SORT_KEYS, fromTrainingProgress, rpeLabel, sortSessions, withinDayRange } from "@/components/training/training-utils";
+import { SESSION_SORT_KEYS, fromTrainingProgress, rpeLabel, sessionMinutes, sortSessions, withinDayRange } from "@/components/training/training-utils";
 import { requireFighterAccess } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { SESSION_STATUS_LABELS, TRAINING_TYPE_LABELS } from "@/lib/domain/labels";
@@ -38,11 +38,11 @@ interface WindowStats {
 
 function windowStats(sessions: TrainingSession[]): WindowStats {
     const completed = sessions.filter((s) => s.status === "completed");
-    const rpes = completed.flatMap((s) => (s.result ? [s.result.rpe] : []));
+    const rpes = completed.flatMap((s) => (s.result?.rpe != null ? [s.result.rpe] : []));
     return {
         completed: completed.length,
         missed: sessions.filter((s) => s.status === "missed").length,
-        minutes: sum(completed.map((s) => s.result?.actualDurationMin ?? s.durationMin)),
+        minutes: sum(completed.map(sessionMinutes)),
         avgRpe: rpes.length > 0 ? average(rpes) : null,
     };
 }

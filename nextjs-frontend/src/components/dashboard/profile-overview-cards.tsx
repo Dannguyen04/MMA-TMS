@@ -106,7 +106,7 @@ export function UpcomingSessionsCard({ checks, coachNames, sessionHref, allHref,
                         const shown = blocking ?? conflicts[0];
                         return (
                             <li key={session.id}>
-                                <SessionListItem session={session} coachName={coachNames.get(session.coachId)} href={sessionHref(session.id)} className="px-5!" />
+                                <SessionListItem session={session} coachName={session.coachId ? coachNames.get(session.coachId) : undefined} href={sessionHref(session.id)} className="px-5!" />
                                 {shown && (
                                     <p
                                         className={cn(

@@ -59,7 +59,7 @@ export function TodaySchedule({ sessions, fighters, className }: TodaySchedulePr
                                     <time dateTime={session.scheduledAt} className={cn("block text-sm font-semibold tabular-nums", inactive ? "text-fg-muted" : "text-fg")}>
                                         {formatTime(session.scheduledAt)}
                                     </time>
-                                    <span className="block text-[11px] text-fg-subtle">{formatMinutes(session.durationMin)}</span>
+                                    {session.durationMin !== null && <span className="block text-[11px] text-fg-subtle">{formatMinutes(session.durationMin)}</span>}
                                 </p>
                                 <div className="min-w-0 flex-1">
                                     <p className={cn("text-sm font-medium", inactive ? "text-fg-muted" : "text-fg")}>

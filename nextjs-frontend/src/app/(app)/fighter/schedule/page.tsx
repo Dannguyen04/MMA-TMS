@@ -10,7 +10,7 @@ import { ProgressBar } from "@/components/ui/progress";
 import { EmptyState } from "@/components/ui/states";
 import { ClearanceBanner } from "@/components/training/clearance-banner";
 import { getClearanceSummary, getCoachNames } from "@/components/training/training-data";
-import { describeWeekOffset, parseWeekOffset, planTimeline, weekStartKey } from "@/components/training/training-utils";
+import { describeWeekOffset, parseWeekOffset, planTimeline, plannedEndMs, weekStartKey } from "@/components/training/training-utils";
 import { UpcomingByDay } from "@/components/training/upcoming-by-day";
 import { WeekNav, weekRangeLabel } from "@/components/training/week-nav";
 import { WeekSummary } from "@/components/training/week-summary";
@@ -58,7 +58,7 @@ export default async function FighterSchedulePage({ searchParams }: PageProps<"/
     ]);
 
     const weekSessions = agenda.flatMap((day) => day.sessions);
-    const upcoming = later.filter((s) => Date.parse(s.scheduledAt) + s.durationMin * 60_000 >= nowMs);
+    const upcoming = later.filter((s) => plannedEndMs(s) >= nowMs);
     const activePlan = activePlans[0];
     const planProgress = activePlan ? planTimeline(activePlan, now) : null;
     const scheduledCount = weekSessions.filter((s) => s.status !== "cancelled").length;

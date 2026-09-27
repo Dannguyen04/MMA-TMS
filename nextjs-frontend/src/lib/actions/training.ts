@@ -315,8 +315,10 @@ export async function updateSession(
         return actionError("Please fix the highlighted fields.", { date: "Choose a date and time that hasn't passed." });
     }
 
-    // Keep the assigned coach when another roster coach edits the session.
-    const result = await training.updateSession(sessionId, toServiceInput(parsed.data, scheduledAt, existing.coachId), auth.user);
+    // Keep the assigned coach when another roster coach edits the session; a session without one takes the editor.
+    const coachId = existing.coachId ?? auth.user.profileId;
+    if (!coachId) return actionError("Your account isn't linked to a coach profile yet. Ask an administrator to link it.");
+    const result = await training.updateSession(sessionId, toServiceInput(parsed.data, scheduledAt, coachId), auth.user);
     if (!result.ok) return sessionFailure(result);
     revalidateSession(result.session);
     if (existing.planId && existing.planId !== result.session.planId) revalidatePlan(existing.planId, existing.fighterId);

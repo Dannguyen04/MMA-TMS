@@ -44,7 +44,7 @@ export function UpcomingByDay({ sessions, now, audience, coachNames, fightersByI
                                     <SessionListItem
                                         session={session}
                                         href={sessionHref(audience, session.id)}
-                                        coachName={coachNames?.[session.coachId]}
+                                        coachName={session.coachId ? coachNames?.[session.coachId] : undefined}
                                         fighter={fightersById?.[session.fighterId]}
                                         showDate={false}
                                     />

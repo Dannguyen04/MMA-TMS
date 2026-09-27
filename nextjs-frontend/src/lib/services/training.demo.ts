@@ -38,10 +38,9 @@ import type {
     SessionResultInput,
     SessionUpdateInput,
 } from "./training";
+import { plannedEndMs, sessionMinutes } from "@/components/training/training-utils";
 
 /* ─── Shared helpers ──────────────────────────────────────────────────────── */
-
-const MINUTE_MS = 60_000;
 
 type FighterScope = string[] | "all";
 
@@ -276,7 +275,7 @@ export async function getUpcomingSessions(fighterIds: FighterScope, limit = 5): 
             (s) =>
                 inScope(fighterIds, s.fighterId) &&
                 (s.status === "scheduled" || s.status === "in_progress") &&
-                Date.parse(s.scheduledAt) + s.durationMin * MINUTE_MS >= now,
+                plannedEndMs(s) >= now,
         )
         .sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt))
         .slice(0, limit);
@@ -296,7 +295,7 @@ export async function getSessionHistory(fighterId: string, limit?: number): Prom
     return limit === undefined ? history : history.slice(0, limit);
 }
 
-type PlannedSession = Pick<SessionInput, "fighterId" | "type" | "targetRpe" | "exercises" | "scheduledAt">;
+type PlannedSession = Pick<SessionInput, "fighterId" | "type" | "exercises" | "scheduledAt"> & { targetRpe: number | null };
 
 /**
  * Checks planned training against the fighter's current Medical Clearance, using the techniques and
@@ -461,7 +460,7 @@ export async function createSession(input: SessionInput, actor: User): Promise<S
             href: routes.fighter.session(session.id),
         });
     }
-    const coachIds = recipients([coachUserId(session.coachId)], actor);
+    const coachIds = recipients(session.coachId ? [coachUserId(session.coachId)] : [], actor);
     if (coachIds.length > 0) {
         notifyUsers({
             userIds: coachIds,
@@ -605,7 +604,7 @@ export async function recordSessionResult(
     }
     const cap = clearanceRpeCap(session);
     const doctorIds = recipients(staffUserIdsForFighter(session.fighterId, ["doctor"]), actor);
-    if (cap !== null && result.rpe > cap && doctorIds.length > 0) {
+    if (cap !== null && result.rpe !== null && result.rpe > cap && doctorIds.length > 0) {
         notifyUsers({
             userIds: doctorIds,
             category: "clearance",
@@ -651,7 +650,7 @@ export async function cancelSession(id: string, reason: string, actor: User): Pr
             href: routes.fighter.session(session.id),
         });
     }
-    const coachIds = recipients([coachUserId(session.coachId)], actor);
+    const coachIds = recipients(session.coachId ? [coachUserId(session.coachId)] : [], actor);
     if (coachIds.length > 0) {
         notifyUsers({
             userIds: coachIds,
@@ -705,7 +704,7 @@ export async function getTrainingProgress(fighterId: string, weeks = 8): Promise
             completedSessions: completed.length,
             missedSessions: planned.filter((s) => s.status === "missed").length,
             adherencePct: planned.length === 0 ? 0 : Math.round((completed.length / planned.length) * 100),
-            trainingMinutes: completed.reduce((total, s) => total + (s.result?.actualDurationMin ?? s.durationMin), 0),
+            trainingMinutes: completed.reduce((total, s) => total + sessionMinutes(s), 0),
         });
     }
     return progress;

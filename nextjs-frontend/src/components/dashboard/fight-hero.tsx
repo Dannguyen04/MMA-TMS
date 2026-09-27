@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { TrainingTypeIcon } from "@/components/domain/training-type-icon";
-import { rpeLabel } from "@/components/training/training-utils";
+import { plannedEndMs, rpeText } from "@/components/training/training-utils";
 import { ButtonLink } from "@/components/ui/button";
 import { CornerTag } from "@/components/ui/corner-tag";
 import { TRAINING_PHASE_LABELS, TRAINING_TYPE_LABELS, WEIGHT_CLASS_LABELS } from "@/lib/domain/labels";
@@ -12,8 +12,6 @@ import { formatPercent, formatShortDate, formatTime, formatWeekdayDate } from "@
 import { cn } from "@/lib/utils";
 import { relativeDay } from "./dashboard-utils";
 import { campDayLabel, campTimeline } from "./fight-camp";
-
-const MINUTE_MS = 60_000;
 
 /** What the right half of the hero shows: the next session, why training is paused, or that nothing is booked. */
 export type NextUp =
@@ -200,8 +198,9 @@ function NextUpPanel({ next, now }: { next: NextUp; now: string }) {
     }
 
     const { session, coachName, href, note } = next;
-    const end = new Date(Date.parse(session.scheduledAt) + session.durationMin * MINUTE_MS).toISOString();
-    const inProgress = session.status === "in_progress" || (Date.parse(session.scheduledAt) <= Date.parse(now) && Date.parse(end) > Date.parse(now));
+    const end = session.durationMin === null ? null : new Date(plannedEndMs(session)).toISOString();
+    const intensity = rpeText(session.targetRpe);
+    const inProgress = session.status === "in_progress" || (Date.parse(session.scheduledAt) <= Date.parse(now) && plannedEndMs(session) > Date.parse(now));
 
     return (
         <>
@@ -222,14 +221,15 @@ function NextUpPanel({ next, now }: { next: NextUp; now: string }) {
                         </Link>
                     </h2>
                     <p className="mt-0.5 text-[13px] text-fg-muted">
-                        {TRAINING_TYPE_LABELS[session.type]} · {formatWeekdayDate(session.scheduledAt)}, {formatTime(session.scheduledAt)}–{formatTime(end)}
+                        {TRAINING_TYPE_LABELS[session.type]} · {formatWeekdayDate(session.scheduledAt)}, {formatTime(session.scheduledAt)}
+                        {end && `–${formatTime(end)}`}
                     </p>
                 </div>
             </div>
             <dl className="grid grid-cols-3 gap-3 text-[13px]">
                 <Fact label="Where" value={session.location} />
                 <Fact label="Coach" value={coachName ?? "To be confirmed"} />
-                <Fact label="Intensity" value={`RPE ${session.targetRpe} · ${rpeLabel(session.targetRpe)}`} />
+                {intensity && <Fact label="Intensity" value={intensity} />}
             </dl>
             {note}
             <ButtonLink href={href} className="mt-auto w-fit">
