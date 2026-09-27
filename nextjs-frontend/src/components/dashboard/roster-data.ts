@@ -3,6 +3,7 @@ import "server-only";
 import { cache } from "react";
 
 import { accessibleFighterIds, requireFighterAccess } from "@/lib/auth/access";
+import type { MedicalEligibility } from "@/lib/domain/medical-contract";
 import { clearanceDaysRemaining, type ClearanceConflict, type ClearanceState } from "@/lib/domain/rules";
 import type { Fighter, MedicalClearance, TrainingSession, User } from "@/lib/domain/types";
 import { DAY_MS } from "@/lib/format";
@@ -26,6 +27,8 @@ export interface RosterEntry {
     /** The clearance governing training (the revoked record when a revocation is the latest decision). */
     clearance: MedicalClearance | null;
     clearanceState: ClearanceState;
+    /** Why the fighter may or may not train, when the medical service says (e.g. a pending review); null otherwise. */
+    eligibility: MedicalEligibility | null;
     revoked: boolean;
     /** Days until the clearance lapses; null when there is none, it is open-ended or it was revoked. */
     daysRemaining: number | null;
@@ -42,6 +45,8 @@ export interface RosterEntry {
 export interface RosterOptions {
     /** Fighters to build entries for, when the caller already has (or is fetching) them. Defaults to `listFighters(user)`. */
     fighters?: Fighter[] | Promise<Fighter[]>;
+    /** Read performance scores and trends (default true). Screens that don't show them skip the reads. */
+    performance?: boolean;
 }
 
 /**
@@ -61,7 +66,7 @@ export async function scopedFighterIds(user: User, fighters: Fighter[] | Promise
 export async function loadRoster(user: User, now: string, options: RosterOptions = {}): Promise<RosterEntry[]> {
     const fighters = options.fighters ?? listFighters(user);
     const ids = Array.isArray(fighters) ? Promise.resolve(fighters.map((fighter) => fighter.id)) : scopedFighterIds(user, fighters);
-    return buildRoster(fighters, ids, now);
+    return buildRoster(fighters, ids, now, options.performance ?? true);
 }
 
 /**
@@ -74,13 +79,15 @@ export const loadRosterEntry = cache(async (user: User, fighterId: string): Prom
     return entry;
 });
 
-async function buildRoster(fightersInput: Fighter[] | Promise<Fighter[]>, idsInput: Promise<string[]>, now: string): Promise<RosterEntry[]> {
+async function buildRoster(fightersInput: Fighter[] | Promise<Fighter[]>, idsInput: Promise<string[]>, now: string, withPerformance: boolean): Promise<RosterEntry[]> {
     const [fighters, clearances, team, upcoming, histories] = await Promise.all([
         fightersInput,
         idsInput.then(async (ids) => new Map(await Promise.all(ids.map(async (id) => [id, await getClearanceStatus(id, now)] as const)))),
-        idsInput.then((ids) => (ids.length === 0 ? [] : getTeamPerformance(ids))),
+        idsInput.then((ids) => (ids.length === 0 || !withPerformance ? [] : getTeamPerformance(ids))),
         idsInput.then((ids) => (ids.length === 0 ? [] : getUpcomingSessions(ids, Number.POSITIVE_INFINITY))),
-        idsInput.then(async (ids) => new Map(await Promise.all(ids.map(async (id) => [id, await getPerformanceHistory(id, TREND_WEEKS + 1)] as const)))),
+        idsInput.then(async (ids) =>
+            withPerformance ? new Map(await Promise.all(ids.map(async (id) => [id, await getPerformanceHistory(id, TREND_WEEKS + 1)] as const))) : new Map(),
+        ),
     ]);
     const horizon = Date.parse(now) + SESSION_HORIZON_DAYS * DAY_MS;
 
@@ -94,6 +101,7 @@ async function buildRoster(fightersInput: Fighter[] | Promise<Fighter[]>, idsInp
             fighter,
             clearance,
             clearanceState: status?.state ?? "none",
+            eligibility: status?.eligibility ?? null,
             revoked,
             daysRemaining: clearance && !revoked ? clearanceDaysRemaining(clearance, now) : null,
             performance: team.find((row) => row.fighterId === fighter.id) ?? null,

@@ -14,8 +14,11 @@ export interface AttentionItem {
     icon: LucideIcon;
     /** Short category, e.g. "Not cleared" or "Follow-up due". */
     kind: string;
-    fighterName: string;
-    fighterHref: string;
+    /** Queue the item is filed under, for pages that filter the list (e.g. "clearance"). */
+    group?: string;
+    /** The fighter it concerns; a summary row (e.g. "3 analyses to review") has none. */
+    fighterName?: string;
+    fighterHref?: string;
     /** What needs attention, in one line. */
     title: string;
     /** Why, and by when. */
@@ -25,24 +28,29 @@ export interface AttentionItem {
     action: { href: string; label: string };
 }
 
-/** Prioritised clinical to-do list: each row says what, why, and links straight to the next step. */
-export function AttentionList({ items, className }: { items: AttentionItem[]; className?: string }) {
+export interface AttentionListProps {
+    items: AttentionItem[];
+    /** What an empty list says; defaults to the doctor's wording. */
+    empty?: { title: string; description: string };
+    className?: string;
+}
+
+const DEFAULT_EMPTY = {
+    title: "Nothing needs your attention",
+    description: "Every assigned fighter has a valid clearance, no follow-ups are due this week and there are no new AI observations.",
+};
+
+/** Prioritised to-do list: each row says what, why, and links straight to the next step. */
+export function AttentionList({ items, empty = DEFAULT_EMPTY, className }: AttentionListProps) {
     if (items.length === 0) {
-        return (
-            <EmptyState
-                compact
-                icon={<CircleCheck />}
-                title="Nothing needs your attention"
-                description="Every assigned fighter has a valid clearance, no follow-ups are due this week and there are no new AI observations."
-                className={className}
-            />
-        );
+        return <EmptyState compact icon={<CircleCheck />} title={empty.title} description={empty.description} className={className} />;
     }
 
     return (
         <ol className={cn("flex flex-col divide-y divide-border", className)}>
             {items.map((item) => {
                 const Icon = item.icon;
+                const who = item.fighterName && item.fighterHref ? { name: item.fighterName, href: item.fighterHref } : null;
                 return (
                     <li key={item.id} className="flex flex-col gap-3 px-5 py-3.5 sm:flex-row sm:items-center">
                         <div className="flex min-w-0 flex-1 items-start gap-3">
@@ -60,17 +68,22 @@ export function AttentionList({ items, className }: { items: AttentionItem[]; cl
                                 <p className="mt-0.5 text-sm font-medium text-pretty text-fg">{item.title}</p>
                                 {/* Inline flow, not flex: long details wrap inside the text instead of leaving "Name ·" alone on a line. */}
                                 <p className="mt-0.5 text-[13px] leading-6 text-fg-muted">
-                                    <Link href={item.fighterHref} className="inline-flex items-center gap-1.5 rounded-sm align-top font-medium text-fg hover:underline">
-                                        <Avatar name={item.fighterName} shape="octagon" size="xs" />
-                                        {item.fighterName}
-                                    </Link>
-                                    <span aria-hidden>&nbsp;·</span> {item.detail}
+                                    {who && (
+                                        <>
+                                            <Link href={who.href} className="inline-flex items-center gap-1.5 rounded-sm align-top font-medium text-fg hover:underline">
+                                                <Avatar name={who.name} shape="octagon" size="xs" />
+                                                {who.name}
+                                            </Link>
+                                            <span aria-hidden>&nbsp;·</span>{" "}
+                                        </>
+                                    )}
+                                    {item.detail}
                                 </p>
                             </div>
                         </div>
                         <ButtonLink href={item.action.href} variant="secondary" size="sm" className="self-start sm:self-center">
                             {item.action.label}
-                            <span className="sr-only"> for {item.fighterName}</span>
+                            {who && <span className="sr-only"> for {who.name}</span>}
                             <ArrowRight aria-hidden />
                         </ButtonLink>
                     </li>

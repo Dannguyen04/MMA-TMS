@@ -179,6 +179,37 @@ export function DashboardSkeleton({ label = "Loading dashboard", eyebrow = false
     );
 }
 
+/** Queue dashboard placeholder (coach Today, doctor Triage): header, the filtered queue and the side column. */
+export function QueueSkeleton({ label = "Loading", actions = 2 }: { label?: string; actions?: number }) {
+    return (
+        <LoadingRegion label={label}>
+            <PageHeaderSkeleton eyebrow actions={actions} />
+            <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
+                <div className="flex flex-col overflow-hidden rounded-xl border border-border bg-surface lg:col-span-2">
+                    <div className="space-y-2 px-5 pt-4 pb-3">
+                        <Skeleton className="h-5 w-40" />
+                        <Skeleton className="h-4 w-56" />
+                    </div>
+                    <div className="border-t border-border px-5 py-3">
+                        <Skeleton className="h-10 w-full max-w-md rounded-xl" />
+                    </div>
+                    {Array.from({ length: 5 }, (_, i) => (
+                        <div key={i} className="flex items-center gap-3 border-t border-border px-5 py-3.5">
+                            <Skeleton className="size-9 rounded-lg" />
+                            <div className="flex-1 space-y-2">
+                                <Skeleton className="h-3 w-24" />
+                                <Skeleton className="h-4 w-3/4" />
+                            </div>
+                            <Skeleton className="h-8 w-28 rounded-lg max-sm:hidden" />
+                        </div>
+                    ))}
+                </div>
+                <Skeleton className="h-96 rounded-xl" />
+            </div>
+        </LoadingRegion>
+    );
+}
+
 /** Fighter Today placeholder: header, the two-part fight hero, the readiness strip and this week. */
 export function TodaySkeleton({ label = "Loading today" }: { label?: string }) {
     return (

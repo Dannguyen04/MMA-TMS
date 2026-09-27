@@ -1,46 +1,44 @@
-import { CalendarCheck2, CalendarPlus, CircleCheck, ClipboardPlus, ListTodo, MessageSquareText, ShieldAlert, Sparkles, Users } from "lucide-react";
+import { CalendarPlus, ClipboardPlus, ListTodo } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
 
-import { buildCoachAttention } from "@/components/dashboard/coach-attention";
+import { buildCoachAttention, COACH_QUEUE_META, COACH_QUEUES, type CoachQueue } from "@/components/dashboard/coach-attention";
 import { firstName, greetingFor } from "@/components/dashboard/dashboard-utils";
-import { loadRoster, scopedFighterIds } from "@/components/dashboard/roster-data";
-import { RosterGlance } from "@/components/dashboard/roster-glance";
-import { TeamTrendCard } from "@/components/dashboard/team-trend-card";
+import { loadRoster } from "@/components/dashboard/roster-data";
 import { TodaySchedule } from "@/components/dashboard/today-schedule";
-import { CoachFeedbackItem } from "@/components/domain/coach-feedback-item";
 import { AttentionList } from "@/components/medical/attention-list";
-import { HealthBreakdown } from "@/components/medical/health-breakdown";
 import { weekStartKey } from "@/components/training/training-utils";
 import { ButtonLink } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { Card, CardFooter, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
-import { ProgressBar } from "@/components/ui/progress";
-import { StatCard } from "@/components/ui/stat-card";
-import { EmptyState } from "@/components/ui/states";
+import { SegmentedLinks } from "@/components/ui/segmented-links";
 import { accessibleFighterIds } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
-import { clearanceExpiresSoon } from "@/lib/domain/rules";
-import type { HealthStatus } from "@/lib/domain/types";
 import { academyDayStartIso, addDaysToKey, dayKey, formatWeekdayDate, pluralize } from "@/lib/format";
+import { hrefWith, parseEnum } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
+import { nullIfNotFound } from "@/lib/services/api-helpers";
 import { listGoals } from "@/lib/services/goals";
 import { listFighters } from "@/lib/services/people";
-import { getWeeklyVolume } from "@/lib/services/performance";
-import { listCoachFeedback, listSessions } from "@/lib/services/training";
+import { getNavBadgeCounts } from "@/lib/services/shell";
+import { listSessions } from "@/lib/services/training";
 import { listReviewQueue } from "@/lib/services/videos";
+import { param } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Coach dashboard" };
+export const metadata: Metadata = { title: "Today" };
 
-const ATTENTION_LIMIT = 8;
-const FEEDBACK_LIMIT = 3;
-const VOLUME_WEEKS = 8;
+/** The unfiltered queue shows this many; picking a group shows all of it. */
+const QUEUE_PREVIEW = 8;
 const MISSED_WINDOW_DAYS = 7;
 const DAY_MS = 86_400_000;
 
-export default async function CoachDashboardPage() {
+/**
+ * The coach's Today page answers one question: what needs me now? One corner queue, filterable by group, and
+ * today's schedule beside it. Roster trends, volume and feedback live in their own hubs.
+ */
+export default async function CoachDashboardPage({ searchParams }: PageProps<"/coach/dashboard">) {
     const user = await requireRole("coach");
+    const query = await searchParams;
     const now = new Date().toISOString();
     const scope = accessibleFighterIds(user);
 
@@ -52,56 +50,45 @@ export default async function CoachDashboardPage() {
     const weekEnd = new Date(Date.parse(academyDayStartIso(addDaysToKey(weekKey, 7))) - 1).toISOString();
 
     const fighterList = listFighters(user);
-    const [fighters, roster, weekSessions, reviewQueue, missed, goalsAtRisk, settings, volume, feedback] = await Promise.all([
+    const [fighters, roster, weekSessions, reviewQueue, missed, goalsAtRisk, settings] = await Promise.all([
         fighterList,
-        loadRoster(user, now, { fighters: fighterList }),
+        loadRoster(user, now, { fighters: fighterList, performance: false }),
         listSessions({ fighterIds: scope, from: weekStart, to: weekEnd }),
         listReviewQueue(scope),
         listSessions({ fighterIds: scope, status: "missed", from: new Date(Date.parse(now) - MISSED_WINDOW_DAYS * DAY_MS).toISOString(), to: now, order: "desc" }),
-        listGoals({ fighterIds: scope, status: "at_risk" }),
+        // Goals have no backend endpoint yet: a 404 leaves the Goals group out rather than failing the page.
+        nullIfNotFound(listGoals({ fighterIds: scope, status: "at_risk" })),
         getSettings(),
-        scopedFighterIds(user, fighterList).then((ids) => getWeeklyVolume(ids, VOLUME_WEEKS + 1)),
-        user.profileId ? listCoachFeedback({ coachId: user.profileId, fighterIds: scope }) : [],
     ]);
+    // Without a per-analysis queue (API mode), the navigation's review count still says how many are waiting.
+    const reviewCount = reviewQueue.length === 0 ? ((await getNavBadgeCounts(user)).reviewQueue ?? 0) : 0;
+
+    const attention = buildCoachAttention({
+        roster,
+        weekSessions,
+        reviewQueue,
+        reviewCount,
+        missed,
+        goalsAtRisk: goalsAtRisk ?? [],
+        warningDays: settings.clearanceExpiryWarningDays,
+        now,
+    });
+    const queues = COACH_QUEUES.filter((queue) => queue !== "goals" || goalsAtRisk !== null);
+    const queue = parseEnum(param(query.queue), queues);
+    const inQueue = queue ? attention.filter((item) => item.group === queue) : attention;
+    const shown = queue ? inQueue : inQueue.slice(0, QUEUE_PREVIEW);
 
     const todaySessions = weekSessions.filter((session) => session.scheduledAt >= todayStart && session.scheduledAt < tomorrowStart);
     const todayActive = todaySessions.filter((session) => session.status !== "cancelled");
-    const todayCompleted = todayActive.filter((session) => session.status === "completed").length;
-    const weekPlanned = weekSessions.filter((session) => session.status !== "cancelled");
-    const weekCompleted = weekPlanned.filter((session) => session.status === "completed").length;
-
-    const healthCounts: Record<HealthStatus, number> = { healthy: 0, monitoring: 0, injured: 0, recovery: 0, not_cleared: 0 };
-    for (const fighter of fighters) healthCounts[fighter.healthStatus] += 1;
-
-    const warningDays = settings.clearanceExpiryWarningDays;
-    const notCleared = roster.filter((entry) => entry.clearanceState === "not_cleared" || entry.clearanceState === "expired").length;
-    const restricted = roster.filter((entry) => entry.clearanceState === "restricted").length;
-    const withoutClearance = roster.filter((entry) => entry.clearanceState === "none").length;
-    const expiring = roster.filter((entry) => clearanceExpiresSoon(entry.clearance, warningDays, now));
-    const clearanceAlerts = new Set([
-        ...roster.filter((entry) => entry.clearanceState !== "full").map((entry) => entry.fighter.id),
-        ...expiring.map((entry) => entry.fighter.id),
-    ]).size;
-    const lowConfidenceAnalyses = reviewQueue.filter((item) => item.lowConfidenceFindings > 0).length;
-
-    const attention = buildCoachAttention({ roster, weekSessions, reviewQueue, missed, goalsAtRisk, warningDays, now });
-    const fighterNames = new Map(fighters.map((fighter) => [fighter.id, fighter.name]));
     const scheduleFighters = Object.fromEntries(roster.map((entry) => [entry.fighter.id, { name: entry.fighter.name, clearanceState: entry.clearanceState }]));
-    const completeVolume = volume.filter((week) => week.complete).slice(-VOLUME_WEEKS);
-
-    const clearanceHint = [
-        notCleared > 0 ? `${notCleared} not cleared` : null,
-        withoutClearance > 0 ? `${withoutClearance} without clearance` : null,
-        restricted > 0 ? `${restricted} restricted` : null,
-        expiring.length > 0 ? `${expiring.length} expiring ≤ ${warningDays} days` : null,
-    ].filter(Boolean);
+    const queueHref = (next: CoachQueue | null) => hrefWith(routes.coach.dashboard, query, { queue: next });
 
     return (
         <>
             <PageHeader
                 eyebrow={formatWeekdayDate(now)}
                 title={`${greetingFor(now)}, ${firstName(user.name)}`}
-                description={`Coach dashboard · ${pluralize(fighters.length, "fighter")} on your roster · ${pluralize(todayActive.length, "session")} today`}
+                description={`${pluralize(fighters.length, "fighter")} in your corner · ${pluralize(todayActive.length, "session")} today`}
                 actions={
                     <>
                         <ButtonLink href={routes.coach.newPlan} variant="secondary">
@@ -116,130 +103,47 @@ export default async function CoachDashboardPage() {
                 }
             />
 
-            <div className="flex flex-col gap-6">
-                <section aria-label="Key figures" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                    <StatCard label="Roster health" value={fighters.length} unit={fighters.length === 1 ? "fighter" : "fighters"} icon={<Users />} href={routes.coach.fighters}>
-                        <HealthBreakdown counts={healthCounts} />
-                    </StatCard>
-                    <StatCard
-                        label="Sessions today"
-                        value={todayActive.length}
-                        icon={<CalendarCheck2 />}
-                        href={routes.coach.sessions}
-                        hint={todayActive.length === 0 ? "Nothing scheduled today" : `${todayCompleted} completed · ${todayActive.length - todayCompleted} to go`}
-                    >
-                        <ProgressBar
-                            value={weekCompleted}
-                            max={Math.max(1, weekPlanned.length)}
-                            size="sm"
-                            showLabel
-                            label="This week"
-                            valueText={`${weekCompleted} of ${weekPlanned.length} completed`}
-                        />
-                    </StatCard>
-                    <StatCard
-                        label="Analyses awaiting review"
-                        value={reviewQueue.length}
-                        icon={<Sparkles />}
-                        href={routes.coach.videoAnalysis}
-                        hint={
-                            reviewQueue.length === 0
-                                ? "Every analysis has your review"
-                                : lowConfidenceAnalyses > 0
-                                  ? `${lowConfidenceAnalyses} with low-confidence findings`
-                                  : "No low-confidence findings"
+            <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
+                <Card className="min-w-0 lg:col-span-2">
+                    <CardHeader
+                        title="Corner queue"
+                        icon={<ListTodo />}
+                        description={attention.length > 0 ? `${pluralize(attention.length, "item")} waiting, most urgent first` : "All clear — nothing needs you right now"}
+                    />
+                    {attention.length > 0 && (
+                        <div className="border-t border-border px-5 py-3">
+                            <SegmentedLinks
+                                label="Filter the corner queue"
+                                items={[
+                                    { href: queueHref(null), label: "All", count: attention.length, active: !queue },
+                                    ...queues.map((group) => ({
+                                        href: queueHref(group),
+                                        label: COACH_QUEUE_META[group].label,
+                                        icon: COACH_QUEUE_META[group].icon,
+                                        count: attention.filter((item) => item.group === group).length,
+                                        active: queue === group,
+                                    })),
+                                ]}
+                            />
+                        </div>
+                    )}
+                    <AttentionList
+                        items={shown}
+                        empty={
+                            queue
+                                ? COACH_QUEUE_META[queue].empty
+                                : { title: "Nothing needs your attention", description: "No clearance problems, session clashes, analyses to review or goals at risk." }
                         }
+                        className="border-t border-border"
                     />
-                    <StatCard
-                        label="Clearance alerts"
-                        value={clearanceAlerts}
-                        unit={clearanceAlerts === 1 ? "fighter" : "fighters"}
-                        icon={<ShieldAlert />}
-                        href={routes.coach.clearance}
-                        hint={clearanceHint.length > 0 ? clearanceHint.join(" · ") : "Everyone fully cleared"}
-                    />
-                </section>
-
-                <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
-                    <Card className="min-w-0 lg:col-span-2">
-                        <CardHeader
-                            title="Needs attention"
-                            description={attention.length > 0 ? `${pluralize(attention.length, "item")}, most urgent first` : "Clearance, sessions, analyses and goals are all in order"}
-                            icon={<ListTodo />}
-                        />
-                        {attention.length > 0 ? (
-                            <AttentionList items={attention.slice(0, ATTENTION_LIMIT)} className="border-t border-border" />
-                        ) : (
-                            <EmptyState
-                                compact
-                                icon={<CircleCheck />}
-                                title="Nothing needs your attention"
-                                description="No clearance conflicts, low-confidence findings, missed sessions or goals at risk."
-                                className="border-t border-border"
-                            />
-                        )}
-                        {attention.length > ATTENTION_LIMIT && (
-                            <CardFooter className="text-fg-muted">
-                                <span>
-                                    Showing the {ATTENTION_LIMIT} most urgent of {attention.length}.
-                                </span>
-                                <span className="flex flex-wrap gap-x-3">
-                                    <Link href={routes.coach.clearance} className="font-medium text-primary-soft-fg hover:underline">
-                                        Clearance
-                                    </Link>
-                                    <Link href={routes.coach.videoAnalysis} className="font-medium text-primary-soft-fg hover:underline">
-                                        Reviews
-                                    </Link>
-                                    <Link href={routes.coach.goals} className="font-medium text-primary-soft-fg hover:underline">
-                                        Goals
-                                    </Link>
-                                </span>
-                            </CardFooter>
-                        )}
-                    </Card>
-
-                    <TodaySchedule sessions={todaySessions} fighters={scheduleFighters} />
-                </div>
-
-                <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
-                    <RosterGlance entries={roster} now={now} className="lg:col-span-2" />
-                    <TeamTrendCard weeks={completeVolume} href={routes.coach.performance} />
-                </div>
-
-                <Card className="min-w-0">
-                    <CardHeader title="Your recent feedback" description="What you last told your fighters" icon={<MessageSquareText />} />
-                    <CardContent>
-                        {feedback.length === 0 ? (
-                            <EmptyState
-                                compact
-                                icon={<MessageSquareText />}
-                                title="No feedback yet"
-                                description="Feedback you leave on sessions and videos shows up here."
-                                className="pt-0"
-                            />
-                        ) : (
-                            <ul className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2 xl:grid-cols-3">
-                                {feedback.slice(0, FEEDBACK_LIMIT).map((item) => (
-                                    <li key={item.id} className="min-w-0">
-                                        <p className="mb-2 text-xs text-fg-muted">
-                                            To{" "}
-                                            <Link href={routes.coach.fighter(item.fighterId)} className="font-medium text-fg hover:underline">
-                                                {fighterNames.get(item.fighterId) ?? "fighter"}
-                                            </Link>
-                                        </p>
-                                        <CoachFeedbackItem
-                                            feedback={item}
-                                            coachName={user.name}
-                                            now={now}
-                                            sessionHref={item.sessionId ? routes.coach.session(item.sessionId) : undefined}
-                                            videoHref={item.videoId ? routes.coach.video(item.videoId) : undefined}
-                                        />
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </CardContent>
+                    {!queue && inQueue.length > shown.length && (
+                        <CardFooter className="text-fg-muted">
+                            Showing the {shown.length} most urgent of {inQueue.length}. Pick a group above to see the rest.
+                        </CardFooter>
+                    )}
                 </Card>
+
+                <TodaySchedule sessions={todaySessions} fighters={scheduleFighters} />
             </div>
         </>
     );
