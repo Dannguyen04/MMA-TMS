@@ -23,7 +23,7 @@ test.describe("notifications", () => {
         // The doctor's bell announces the unread count.
         await signInAs(USERS.samuelBrooks);
         await page.goto("/doctor/dashboard");
-        await expectPageReady(page, "Clinical overview");
+        await expectPageReady(page, "Triage");
         const bell = page.getByRole("banner").getByRole("button", { name: /^Notifications, \d+ unread$/ });
         await expect(bell).toBeVisible();
         const label = (await bell.getAttribute("aria-label")) ?? "";

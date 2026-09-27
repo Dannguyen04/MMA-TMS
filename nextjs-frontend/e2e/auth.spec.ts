@@ -3,7 +3,7 @@ import { DASHBOARDS, E2E_PASSWORD, emailFor, expect, expectPageReady, test, USER
 const DASHBOARD_HEADINGS: Record<Role, RegExp> = {
     fighter: /, Minh$/,
     coach: /, Rafael$/,
-    doctor: /^Clinical overview$/,
+    doctor: /^Triage$/,
     admin: /^Platform overview$/,
 };
 

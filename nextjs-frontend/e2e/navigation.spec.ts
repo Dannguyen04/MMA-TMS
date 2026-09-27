@@ -27,7 +27,7 @@ const SIDEBAR: Record<Role, NavTarget[]> = {
         { link: "Patients", href: "/doctor/fighters", h1: "Fighters" },
         { link: "Clinical", href: "/doctor/examinations", h1: "Examinations" },
         { link: "Observations", href: "/doctor/ai-alerts", h1: "AI movement observations" },
-        { link: "Triage", href: DASHBOARDS.doctor, h1: "Clinical overview" },
+        { link: "Triage", href: DASHBOARDS.doctor, h1: "Triage" },
     ],
     admin: [
         { link: "Users", href: "/admin/users", h1: "Users" },
