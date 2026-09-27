@@ -30,7 +30,7 @@ export async function loadCareTeam(fighter: Fighter): Promise<CareTeamMember[]> 
         ...doctors.map((doctor) => ({ profile: doctor, role: "doctor" as const, primary: doctor.id === record?.primaryDoctorId })),
         ...coaches.map((coach) => ({ profile: coach, role: "coach" as const, primary: coach.id === fighter.primaryCoachId })),
     ];
-    const users = await Promise.all(people.map((person) => getUser(person.profile.userId)));
+    const users = await Promise.all(people.map((person) => (person.profile.userId ? getUser(person.profile.userId) : null)));
     return people.map(({ profile, role, primary }, index) => ({
         id: profile.id,
         name: profile.name,

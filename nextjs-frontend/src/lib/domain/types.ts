@@ -132,22 +132,24 @@ export interface Fighter {
     upcomingBout: UpcomingBout | null;
 }
 
+/** Null fields are ones the API doesn't provide yet; the interface hides them rather than guessing. */
 export interface Coach {
     id: string;
-    userId: string;
+    userId: string | null;
     name: string;
     specialty: string;
     certifications: string[];
-    yearsExperience: number;
+    yearsExperience: number | null;
     fighterIds: string[];
 }
 
+/** Null fields are ones the API doesn't provide yet; the interface hides them rather than guessing. */
 export interface Doctor {
     id: string;
-    userId: string;
+    userId: string | null;
     name: string;
     specialty: string;
-    licenseNumber: string;
+    licenseNumber: string | null;
     fighterIds: string[];
 }
 

@@ -710,7 +710,7 @@ export async function addRecoveryCheckIn(planId: string, checkIn: RecoveryCheckI
     });
 
     const doctor = findDoctor(plan.doctorId);
-    if (doctor && doctor.userId !== actor.id) {
+    if (doctor?.userId && doctor.userId !== actor.id) {
         const painRose = previousPain !== null && entry.painLevel - previousPain >= PAIN_INCREASE_FLAG;
         const name = fighter?.name ?? "A fighter";
         notifyUsers({

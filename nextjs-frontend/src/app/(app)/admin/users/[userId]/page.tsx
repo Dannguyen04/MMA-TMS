@@ -221,7 +221,11 @@ function LinkedProfile({ user, profile, coaches }: { user: User; profile: Fighte
                             ) : (
                                 <span className="flex flex-wrap gap-2">
                                     {assigned.map((coach) => (
-                                        <Link key={coach.id} href={routes.admin.user(coach.userId)} className="inline-flex items-center gap-1.5 hover:underline">
+                                        <Link
+                                            key={coach.id}
+                                            href={coach.userId ? routes.admin.user(coach.userId) : routes.admin.users}
+                                            className="inline-flex items-center gap-1.5 hover:underline"
+                                        >
                                             <Avatar name={coach.name} size="xs" />
                                             {coach.name}
                                             {coach.id === profile.primaryCoachId && <span className="font-normal text-fg-subtle">(primary)</span>}
@@ -241,7 +245,7 @@ function LinkedProfile({ user, profile, coaches }: { user: User; profile: Fighte
                 columns={3}
                 items={[
                     { label: "Specialty", value: profile.specialty },
-                    { label: "Experience", value: pluralize(profile.yearsExperience, "year") },
+                    { label: "Experience", value: profile.yearsExperience === null ? "Not recorded" : pluralize(profile.yearsExperience, "year") },
                     { label: "Roster", value: pluralize(profile.fighterIds.length, "fighter") },
                     {
                         label: "Certifications",

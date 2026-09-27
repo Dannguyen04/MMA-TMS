@@ -2,10 +2,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const authenticatedApiRequest = vi.hoisted(() => vi.fn());
 const authenticatedMutableApiRequest = vi.hoisted(() => vi.fn());
+const getCurrentUser = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/api/client", async (loadOriginal) => {
     const original = await loadOriginal<typeof import("@/lib/api/client")>();
     return { ...original, authenticatedApiRequest, authenticatedMutableApiRequest };
+});
+
+vi.mock("@/lib/auth/session", async (loadOriginal) => {
+    const original = await loadOriginal<typeof import("@/lib/auth/session")>();
+    return { ...original, getCurrentUser };
 });
 
 import type { User } from "@/lib/domain/types";
@@ -22,7 +28,6 @@ const fighterId = "11111111-1111-4111-8111-111111111111";
 const userId = "22222222-2222-4222-8222-222222222222";
 const coachId = "33333333-3333-4333-8333-333333333333";
 const doctorId = "44444444-4444-4444-8444-444444444444";
-const doctorUserId = "88888888-8888-4888-8888-888888888888";
 
 const backendFighter = {
     id: fighterId,
@@ -76,6 +81,7 @@ describe("people API adapter", () => {
         vi.stubEnv("APP_DATA_MODE", "api");
         authenticatedApiRequest.mockReset();
         authenticatedMutableApiRequest.mockReset();
+        getCurrentUser.mockReset();
     });
 
     it("chuyển enum backend viết hoa thành mô hình giao diện viết thường", () => {
@@ -116,28 +122,34 @@ describe("people API adapter", () => {
         ).toBe(false);
     });
 
-    it("không âm thầm dùng dữ liệu demo khi endpoint danh mục chưa tồn tại", async () => {
-        authenticatedApiRequest.mockResolvedValue({
-            data: [
-                {
-                    id: coachId,
-                    userId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-                    firstName: "Rafael",
-                    lastName: "Santos",
-                    specialization: "Striking",
-                    certifications: ["Level 2"],
-                    yearsExperience: 12,
-                    fighterIds: [fighterId],
-                },
-            ],
-            total: 1,
-            hasNextPage: false,
+    it("builds the coach list from the assignments of fighters in scope, since the API has no coach directory", async () => {
+        getCurrentUser.mockResolvedValue({
+            ...viewer,
+            role: "coach",
+            effectiveCapabilities: ["fighters:read"],
+            assignmentScope: { fighterIds: [fighterId] },
+        });
+        authenticatedApiRequest.mockImplementation(async (path: string) => {
+            if (path === `/fighters/${fighterId}/coaches`) {
+                return [
+                    { id: "a1a1a1a1-a1a1-4a1a-8a1a-a1a1a1a1a1a1", coachId, fighterId, startsAt: "2026-01-01T00:00:00.000Z", endsAt: null, coachName: "Rafael Santos" },
+                    {
+                        id: "b2b2b2b2-b2b2-4b2b-8b2b-b2b2b2b2b2b2",
+                        coachId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+                        fighterId,
+                        startsAt: "2025-01-01T00:00:00.000Z",
+                        endsAt: "2025-06-01T00:00:00.000Z",
+                        coachName: "Former Coach",
+                    },
+                ];
+            }
+            return { data: [], total: 0, hasNextPage: false };
         });
 
         await expect(listCoaches()).resolves.toEqual([
-            expect.objectContaining({ id: coachId, name: "Rafael Santos", specialty: "Striking", fighterIds: [fighterId] }),
+            { id: coachId, userId: null, name: "Rafael Santos", specialty: "", certifications: [], yearsExperience: null, fighterIds: [fighterId] },
         ]);
-        expect(authenticatedApiRequest).toHaveBeenCalledWith("/coaches?page=1&limit=100", expect.anything());
+        expect(authenticatedApiRequest).not.toHaveBeenCalledWith(expect.stringContaining("/coaches?"), expect.anything());
     });
 
     it("cập nhật hồ sơ của chính người dùng qua API", async () => {
@@ -167,11 +179,13 @@ describe("people API adapter", () => {
     });
 
     it("chỉ trả về bác sĩ đang được phân công", async () => {
-        authenticatedApiRequest.mockResolvedValue([
+        authenticatedApiRequest.mockResolvedValue({
+            total: 2,
+            hasNextPage: false,
+            data: [
             {
                 id: "55555555-5555-4555-8555-555555555555",
                 doctorId,
-                doctorUserId,
                 fighterId,
                 assignedById: userId,
                 startsAt: "2026-01-01T00:00:00.000Z",
@@ -180,13 +194,10 @@ describe("people API adapter", () => {
                 endReason: null,
                 createdAt: "2026-01-01T00:00:00.000Z",
                 doctorName: "Thu Le",
-                doctorSpecialization: "Sports medicine",
-                doctorLicenseNumber: "VN-SPORT-001",
             },
             {
                 id: "66666666-6666-4666-8666-666666666666",
                 doctorId: "77777777-7777-4777-8777-777777777777",
-                doctorUserId: "99999999-9999-4999-8999-999999999999",
                 fighterId,
                 assignedById: userId,
                 startsAt: "2025-01-01T00:00:00.000Z",
@@ -195,24 +206,14 @@ describe("people API adapter", () => {
                 endReason: "Care transferred",
                 createdAt: "2025-01-01T00:00:00.000Z",
                 doctorName: "Former Doctor",
-                doctorSpecialization: null,
-                doctorLicenseNumber: "VN-OLD-001",
             },
-        ]);
+            ],
+        });
 
+        // Assignments carry the doctor's profile id and name only; the rest stays empty rather than guessed.
         await expect(doctorsForFighter(fighterId)).resolves.toEqual([
-            {
-                id: doctorId,
-                userId: doctorUserId,
-                name: "Thu Le",
-                specialty: "Sports medicine",
-                licenseNumber: "VN-SPORT-001",
-                fighterIds: [fighterId],
-            },
+            { id: doctorId, userId: null, name: "Thu Le", specialty: "", licenseNumber: null, fighterIds: [fighterId] },
         ]);
-        expect(authenticatedApiRequest).toHaveBeenCalledWith(
-            `/fighters/${fighterId}/doctors`,
-            expect.anything(),
-        );
+        expect(authenticatedApiRequest).toHaveBeenCalledWith(`/fighters/${fighterId}/doctors?page=1&limit=100`, expect.anything());
     });
 });

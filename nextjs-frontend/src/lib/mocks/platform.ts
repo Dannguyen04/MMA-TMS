@@ -131,7 +131,7 @@ function analysisOf(videoId: string): AIAnalysis {
 /** User id behind a coach or doctor profile id. */
 function staffUserId(profileId: string): string {
     const profile = mockCoaches.find((c) => c.id === profileId) ?? mockDoctors.find((d) => d.id === profileId);
-    if (!profile) throw new Error(`Platform seed references unknown staff profile "${profileId}".`);
+    if (!profile?.userId) throw new Error(`Platform seed references unknown staff profile "${profileId}".`);
     return profile.userId;
 }
 

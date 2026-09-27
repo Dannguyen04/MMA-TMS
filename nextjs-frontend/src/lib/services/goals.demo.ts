@@ -164,7 +164,7 @@ export async function updateGoalProgress(id: string, value: number, actor: User)
     if (goal.status === "achieved" && previousStatus !== "achieved") {
         const coachUserIds = db()
             .coaches.filter((c) => c.id === goal.coachId)
-            .map((c) => c.userId);
+            .flatMap((c) => (c.userId ? [c.userId] : []));
         const userIds = [...new Set([...staffUserIdsForFighter(goal.fighterId, ["fighter"]), ...coachUserIds])].filter(
             (userId) => userId !== actor.id,
         );

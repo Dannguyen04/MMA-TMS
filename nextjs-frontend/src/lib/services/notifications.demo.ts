@@ -79,10 +79,10 @@ export function staffUserIdsForFighter(fighterId: string, roles: User["role"][])
     const store = db();
     const ids: string[] = [];
     if (roles.includes("coach")) {
-        ids.push(...store.coaches.filter((c) => c.fighterIds.includes(fighterId)).map((c) => c.userId));
+        ids.push(...store.coaches.filter((c) => c.fighterIds.includes(fighterId)).flatMap((c) => (c.userId ? [c.userId] : [])));
     }
     if (roles.includes("doctor")) {
-        ids.push(...store.doctors.filter((d) => d.fighterIds.includes(fighterId)).map((d) => d.userId));
+        ids.push(...store.doctors.filter((d) => d.fighterIds.includes(fighterId)).flatMap((d) => (d.userId ? [d.userId] : [])));
     }
     if (roles.includes("fighter")) {
         const fighter = store.fighters.find((f) => f.id === fighterId);
