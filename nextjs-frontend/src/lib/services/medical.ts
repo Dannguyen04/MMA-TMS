@@ -2,8 +2,8 @@ import "server-only";
 
 import { ApiError } from "@/lib/api/client";
 import { isDemoAuthEnabled } from "@/lib/auth/constants";
-import type { MedicalReviewRequest } from "@/lib/domain/medical-contract";
-import { clearanceState } from "@/lib/domain/rules";
+import type { ClearanceInput, ExaminationDecisionInput, InjuryInput, RecoveryPlanInput, RecoveryPlanPatch, TreatmentInput } from "@/lib/domain/medical-bodies";
+import type { ApiInjuryStatus, MedicalReviewRequest } from "@/lib/domain/medical-contract";
 import type { Fighter, HealthStatus, Injury, MedicalClearance, MedicalExamination, MedicalRecord, RecoveryPlan, Treatment, TreatmentStatus, User } from "@/lib/domain/types";
 import type {
     AddTreatmentInput,
@@ -27,16 +27,20 @@ import type {
     UpdateInjuryPatch,
 } from "./medical.demo";
 import * as api from "./medical.api";
-import type { ClearanceStatus } from "./medical.api";
+import type { ClearanceStatus, ClinicalDossier } from "./medical.api";
 
 /*
  * Medical service. Demo mode delegates to the in-memory records in `medical.demo.ts`, loaded lazily so API
  * mode never touches mock state. In API mode every read and write goes to the NestJS medical API; anything
  * the backend doesn't offer yet fails with 501 API_OPERATION_UNSUPPORTED instead of falling back to mock
  * data. Pages hide those features up front (see `medical-features.ts`), so the 501 is only a backstop.
+ *
+ * API-mode writes throw the service's ApiError on failure; Server Actions map it with `medicalWriteFailure`.
+ * Writes in the service's own terms (examination decisions, clearances issued from an examination, flat recovery
+ * milestones) exist only in API mode; demo mode keeps its own forms for those.
  */
 
-export type { ClearanceStatus } from "./medical.api";
+export type { ClearanceStatus, ClinicalDossier, CurrentExamination } from "./medical.api";
 export type {
     AddTreatmentInput,
     ClearanceFilter,
@@ -128,9 +132,24 @@ export async function createInjury(input: CreateInjuryInput, actor: User): Promi
     unsupported("Recording an injury", "this injury form");
 }
 
+/** In API mode only the status can change, within the service's rules (a resolved injury stays resolved). */
 export async function updateInjury(id: string, patch: UpdateInjuryPatch, actor: User): Promise<MedicalResult<Injury>> {
     if (isDemoAuthEnabled()) return (await demoService()).updateInjury(id, patch, actor);
-    unsupported("Updating an injury", "this injury form");
+    const { status, ...rest } = patch;
+    if (!status || Object.keys(rest).length > 0) unsupported("Editing an injury's details", "this injury form");
+    return { ok: true, data: await api.updateInjury(id, { status: status.toUpperCase() as ApiInjuryStatus }) };
+}
+
+/** Records an injury in the medical service's terms (joint, free-text type). API mode only. */
+export async function recordInjury(fighterId: string, input: InjuryInput): Promise<Injury> {
+    if (isDemoAuthEnabled()) unsupported("Recording an injury by joint", "the demo injury form");
+    return api.recordInjury(fighterId, input);
+}
+
+/** Appends a treatment to an injury. API mode only; demo mode keeps its own treatment form. */
+export async function recordTreatment(injury: Pick<Injury, "id" | "fighterId">, input: TreatmentInput): Promise<Treatment> {
+    if (isDemoAuthEnabled()) unsupported("Recording a treatment", "the demo treatment form");
+    return api.recordTreatment(injury, input);
 }
 
 export async function addTreatment(input: AddTreatmentInput, actor: User): Promise<MedicalResult<Treatment>> {
@@ -180,6 +199,18 @@ export async function advanceRecoveryPhase(planId: string, actor: User): Promise
     unsupported("Advancing a recovery phase", "recovery phases");
 }
 
+/** Creates a recovery plan with flat milestones. API mode only; demo plans are phased. */
+export async function createMilestonePlan(fighterId: string, input: RecoveryPlanInput): Promise<RecoveryPlan> {
+    if (isDemoAuthEnabled()) unsupported("Creating a milestone recovery plan", "the demo's phased plans");
+    return api.createRecoveryPlan(fighterId, input);
+}
+
+/** Updates a milestone plan: its milestones (the whole list), end date or status. API mode only. */
+export async function updateMilestonePlan(planId: string, patch: RecoveryPlanPatch): Promise<RecoveryPlan> {
+    if (isDemoAuthEnabled()) unsupported("Updating a milestone recovery plan", "the demo's phased plans");
+    return api.updateRecoveryPlan(planId, patch);
+}
+
 /* ─── Medical Clearance ───────────────────────────────────────────────────── */
 
 export async function listClearances(filter: ClearanceFilter = {}): Promise<MedicalClearance[]> {
@@ -192,17 +223,41 @@ export async function listClearances(filter: ClearanceFilter = {}): Promise<Medi
  * verdict decides the state; the clearance is shown only when exactly one applies.
  */
 export async function getClearanceStatus(fighterId: string, now: string | Date = new Date()): Promise<ClearanceStatus> {
-    if (isDemoAuthEnabled()) {
-        const clearance = (await demoService()).getCurrentClearanceFor(fighterId);
-        return { state: clearanceState(clearance, now), clearance, eligibility: null };
-    }
+    if (isDemoAuthEnabled()) return (await demoService()).getClearanceStatusFor(fighterId, now);
     return api.clearanceStatus(fighterId);
 }
 
-/** Medical review requests for one fighter, newest first. Demo mode has none yet. */
+/** Medical review requests for one fighter, newest first. */
 export async function listReviewRequests(fighterId: string): Promise<MedicalReviewRequest[]> {
-    if (isDemoAuthEnabled()) return [];
+    if (isDemoAuthEnabled()) return (await demoService()).listReviewRequests(fighterId);
     return api.reviewRequests(fighterId);
+}
+
+/** Asks the fighter's doctors for a review; training pauses until an examination answers it. */
+export async function createReviewRequest(fighterId: string, reason: string, actor: User): Promise<MedicalResult<MedicalReviewRequest>> {
+    if (isDemoAuthEnabled()) return (await demoService()).createReviewRequest(fighterId, reason, actor);
+    return { ok: true, data: await api.createReviewRequest(fighterId, reason) };
+}
+
+/**
+ * What the doctor's forms need about one fighter: current examinations, active clearances, open review requests and
+ * eligibility, from one dossier read. Null in demo mode, whose forms work from the demo records instead.
+ */
+export async function getClinicalDossier(fighterId: string): Promise<ClinicalDossier | null> {
+    if (isDemoAuthEnabled()) return null;
+    return api.clinicalDossier(fighterId);
+}
+
+/** Records an examination decision for a scope. API mode only; demo mode records vitals-based examinations. */
+export async function recordExaminationDecision(fighterId: string, input: ExaminationDecisionInput): Promise<MedicalExamination> {
+    if (isDemoAuthEnabled()) unsupported("Recording an examination decision", "the demo examination form");
+    return api.recordExamination(fighterId, input);
+}
+
+/** Issues a clearance from the fighter's current positive examination. API mode only. */
+export async function issueClearance(fighterId: string, input: ClearanceInput): Promise<MedicalClearance> {
+    if (isDemoAuthEnabled()) unsupported("Issuing a clearance from an examination", "the demo clearance form");
+    return api.issueClearance(fighterId, input);
 }
 
 export async function getClearanceHistory(fighterId: string): Promise<MedicalClearance[]> {
@@ -217,7 +272,7 @@ export async function grantClearance(input: GrantClearanceInput, actor: User): P
 
 export async function revokeClearance(clearanceId: string, reason: string, actor: User): Promise<MedicalResult<MedicalClearance>> {
     if (isDemoAuthEnabled()) return (await demoService()).revokeClearance(clearanceId, reason, actor);
-    unsupported("Revoking a clearance", "this clearance form");
+    return { ok: true, data: await api.revokeClearance(clearanceId, reason) };
 }
 
 /* ─── Health status (demo only) ───────────────────────────────────────────── */

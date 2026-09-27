@@ -110,7 +110,7 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                                     <ShieldCheck aria-hidden />
                                     {clearance ? "Update" : "Issue"}
                                 </ButtonLink>
-                                {canRevoke && clearance && <RevokeClearanceButton clearanceId={clearance.id} fighterName={fighter.name} />}
+                                {canRevoke && clearance && <RevokeClearanceButton clearanceId={clearance.id} fighterId={fighter.id} fighterName={fighter.name} />}
                             </>
                         }
                     />

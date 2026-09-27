@@ -5,6 +5,7 @@ import "server-only";
  * lazily and only in demo mode, so API mode never serves mock clinical data.
  */
 
+import type { EligibilityReason, MedicalEligibility, MedicalReviewRequest } from "@/lib/domain/medical-contract";
 import { BODY_REGION_LABELS, CLEARANCE_LEVEL_LABELS, examinationTitle, HEALTH_STATUS_DESCRIPTIONS, HEALTH_STATUS_LABELS, INJURY_STATUS_LABELS, injuryTypeName, TREATMENT_STATUS_LABELS, treatmentTitle } from "@/lib/domain/labels";
 import {
     clearanceDaysRemaining,
@@ -246,6 +247,12 @@ export async function createExamination(input: CreateExaminationInput, actor: Us
 
     const examination: MedicalExamination = { ...input, id: newId("ex"), doctorId };
     store.medicalExaminations.push(examination);
+
+    // Like a training examination in the medical service, this answers the fighter's open review requests.
+    for (const request of store.medicalReviewRequests) {
+        if (request.fighterId !== fighter.id || request.status !== "OPEN") continue;
+        Object.assign(request, { status: "RESOLVED", resolvedAt: examination.date, resolvedByExaminationId: examination.id });
+    }
 
     const record = store.medicalRecords.find((r) => r.fighterId === fighter.id);
     if (record) {
@@ -811,6 +818,68 @@ export function getCurrentClearanceFor(fighterId: string): MedicalClearance | nu
     return currentClearance(db().medicalClearances, fighterId);
 }
 
+/**
+ * The fighter's training clearance state with the reasons the medical service would give. An open review request
+ * pauses training until the doctor examines the fighter, whatever the clearance says.
+ */
+export function getClearanceStatusFor(
+    fighterId: string,
+    now: string | Date = new Date(),
+): { state: ClearanceState; clearance: MedicalClearance | null; eligibility: MedicalEligibility } {
+    const clearance = getCurrentClearanceFor(fighterId);
+    const base = clearanceState(clearance, now);
+    const pending = db().medicalReviewRequests.some((request) => request.fighterId === fighterId && request.status === "OPEN");
+    const reasons: EligibilityReason[] = [];
+    if (pending) reasons.push("REVIEW_REQUEST_PENDING");
+    if (base === "not_cleared") reasons.push(clearance?.status === "revoked" ? "CLEARANCE_REQUIRED" : "EXAMINATION_NOT_ELIGIBLE");
+    if (base === "expired") reasons.push("CLEARANCE_EXPIRED");
+    return {
+        state: pending ? "not_cleared" : base,
+        clearance,
+        eligibility: { scope: "TRAINING", eligible: reasons.length === 0, reasons },
+    };
+}
+
+/* ─── Medical review requests ─────────────────────────────────────────────── */
+
+/** The fighter's review requests, newest first. */
+export async function listReviewRequests(fighterId: string): Promise<MedicalReviewRequest[]> {
+    await simulateLatency();
+    return db()
+        .medicalReviewRequests.filter((request) => request.fighterId === fighterId)
+        .sort(byDateDesc((request) => request.requestedAt));
+}
+
+/** Asks the fighter's doctors for a review. Training pauses until an examination answers it. */
+export async function createReviewRequest(fighterId: string, reason: string, actor: User): Promise<MedicalResult<MedicalReviewRequest>> {
+    const store = db();
+    const fighter = findFighter(fighterId);
+    if (!fighter) return failure("Fighter not found.");
+
+    const request: MedicalReviewRequest = {
+        id: newId("mrr"),
+        fighterId,
+        requestedById: actor.id,
+        requesterRole: actor.role === "fighter" ? "FIGHTER" : actor.role === "coach" ? "COACH" : actor.role === "doctor" ? "DOCTOR" : "ADMIN",
+        reason: reason.trim(),
+        status: "OPEN",
+        requestedAt: nowIso(),
+        resolvedByExaminationId: null,
+        resolvedAt: null,
+    };
+    store.medicalReviewRequests.push(request);
+
+    recordAudit({ actor, action: "medical_review.request", resourceType: "fighter", resourceId: fighter.id, resourceLabel: `Medical review — ${fighter.name}` });
+    notifyUsers({
+        userIds: staffUserIdsForFighter(fighter.id, ["doctor"]).filter((userId) => userId !== actor.id),
+        category: "medical",
+        title: `Medical review requested for ${fighter.name}`,
+        body: `${actor.name} asked for a review: “${request.reason}”. Training is paused until you record an examination.`,
+        href: routes.doctor.fighter(fighter.id),
+    });
+    return success(request);
+}
+
 /** Every clearance issued to the fighter, most recent first. */
 export async function getClearanceHistory(fighterId: string): Promise<MedicalClearance[]> {
     await simulateLatency();
@@ -1051,7 +1120,7 @@ export async function getFighterHealthSummary(fighterId: string, now: string | D
     return {
         fighter,
         clearance,
-        clearanceState: clearanceState(clearance, now),
+        clearanceState: getClearanceStatusFor(fighterId, now).state,
         activeInjuries: store.injuries.filter((i) => i.fighterId === fighterId && isOpenInjury(i)).sort(byDateDesc((i) => i.occurredAt)),
         activeRecoveryPlan: plan
             ? { plan, progressPct: recoveryProgressPct(plan), currentPhase: plan.phases.find((p) => p.status === "current") ?? null }

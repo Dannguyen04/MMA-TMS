@@ -33,6 +33,7 @@ import { dayKey, daysBetween, formatDate, formatDateTime, pluralize } from "@/li
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
 import { getClearanceStatus, getInjuryDetail } from "@/lib/services/medical";
+import { usesMedicalServiceForms } from "@/lib/services/medical-features";
 import { getVideo } from "@/lib/services/videos";
 import { param } from "@/lib/utils";
 
@@ -86,7 +87,9 @@ export default async function InjuryDetailPage({ params, searchParams }: PagePro
                 actions={
                     <InjuryStatusActions
                         injuryId={injury.id}
+                        fighterId={fighter.id}
                         status={injury.status}
+                        canReopen={!usesMedicalServiceForms()}
                         fighterName={fighter.name}
                         openPlanTitle={openPlan?.title ?? null}
                         todayLabel={formatDate(now)}

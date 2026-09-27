@@ -3,8 +3,26 @@ import "server-only";
 import { cache } from "react";
 import { z } from "zod";
 
-import { ApiError, authenticatedApiRequest } from "@/lib/api/client";
+import { ApiError, authenticatedApiRequest, authenticatedMutableApiRequest } from "@/lib/api/client";
 import { getCurrentUser } from "@/lib/auth/session";
+import {
+    clearanceBody,
+    examinationBody,
+    injuryBody,
+    injuryUpdateBody,
+    recoveryPlanBody,
+    recoveryPlanUpdateBody,
+    revokeClearanceBody,
+    reviewRequestBody,
+    treatmentBody,
+    type ClearanceInput,
+    type ExaminationDecisionInput,
+    type InjuryInput,
+    type InjuryPatch,
+    type RecoveryPlanInput,
+    type RecoveryPlanPatch,
+    type TreatmentInput,
+} from "@/lib/domain/medical-bodies";
 import {
     BODY_JOINTS,
     ELIGIBILITY_REASONS,
@@ -12,6 +30,8 @@ import {
     TECHNIQUE_TYPES,
     type ClinicalRestrictions,
     type EligibilityReason,
+    type ExaminationDecision,
+    type ExaminationScope,
     type MedicalEligibility,
     type MedicalReviewRequest,
 } from "@/lib/domain/medical-contract";
@@ -604,4 +624,89 @@ export async function clearanceOverview(scope: FighterScope, now: string): Promi
                 (a.daysRemaining ?? Number.POSITIVE_INFINITY) - (b.daysRemaining ?? Number.POSITIVE_INFINITY) ||
                 a.fighter.name.localeCompare(b.fighter.name),
         );
+}
+
+/* ─── Dossier for clinical forms ──────────────────────────────────────────── */
+
+/** An examination that currently decides a scope, in the service's own terms. */
+export interface CurrentExamination {
+    id: string;
+    scope: ExaminationScope;
+    decision: ExaminationDecision;
+    examinedAt: string;
+    reason: string;
+    restrictions: ClinicalRestrictions | null;
+    validUntil: string | null;
+}
+
+/** What the doctor's forms need to know about one fighter, from a single audited dossier read. */
+export interface ClinicalDossier {
+    fighterId: string;
+    currentExaminations: Record<ExaminationScope, CurrentExamination | null>;
+    activeClearances: MedicalClearance[];
+    openReviewRequests: MedicalReviewRequest[];
+    eligibility: Record<ExaminationScope, MedicalEligibility>;
+    activeInjuries: Injury[];
+    activeRecoveryPlans: RecoveryPlan[];
+}
+
+const currentExamination = (exam: ApiExamination | null): CurrentExamination | null =>
+    exam && { id: exam.id, scope: exam.scope, decision: exam.decision, examinedAt: exam.examinedAt, reason: exam.reason, restrictions: exam.restrictions, validUntil: exam.validUntil };
+
+export async function clinicalDossier(fighterId: string): Promise<ClinicalDossier | null> {
+    const dossier = await dossierFor(fighterId);
+    if (!dossier) return null;
+    return {
+        fighterId: dossier.fighterId,
+        currentExaminations: { TRAINING: currentExamination(dossier.currentExaminations.training), COMPETITION: currentExamination(dossier.currentExaminations.competition) },
+        activeClearances: dossier.activeClearances.map(toClearance),
+        openReviewRequests: [...dossier.openReviewRequests].sort(byNewest((r) => r.requestedAt)),
+        eligibility: { TRAINING: dossier.eligibility.training, COMPETITION: dossier.eligibility.competition },
+        activeInjuries: dossier.activeInjuries.map(toInjury).sort(byNewest((i) => i.occurredAt)),
+        activeRecoveryPlans: dossier.activeRecoveryPlans.map(toRecoveryPlan),
+    };
+}
+
+/* ─── Writes ──────────────────────────────────────────────────────────────── */
+// Every write throws the service's ApiError; callers map it with `medicalWriteFailure`. Nothing is retried.
+
+const send = <T extends z.ZodType>(target: string, schema: T, method: "POST" | "PATCH", body: unknown) =>
+    authenticatedMutableApiRequest(target, schema, { method, body: JSON.stringify(body) });
+
+const recordPath = (collection: string, id: string, rest = "") => `/${collection}/${encodeURIComponent(id)}${rest}`;
+
+export async function createReviewRequest(fighterId: string, reason: string): Promise<MedicalReviewRequest> {
+    return send(path(fighterId, "/medical-review-requests"), reviewRequestSchema, "POST", reviewRequestBody(reason));
+}
+
+export async function recordExamination(fighterId: string, input: ExaminationDecisionInput): Promise<MedicalExamination> {
+    return toExamination(await send(path(fighterId, "/medical-examinations"), examinationSchema, "POST", examinationBody(input)));
+}
+
+export async function issueClearance(fighterId: string, input: ClearanceInput): Promise<MedicalClearance> {
+    return toClearance(await send(path(fighterId, "/medical-clearances"), clearanceSchema, "POST", clearanceBody(input)));
+}
+
+export async function revokeClearance(clearanceId: string, reason: string): Promise<MedicalClearance> {
+    return toClearance(await send(recordPath("medical-clearances", clearanceId, "/revoke"), clearanceSchema, "POST", revokeClearanceBody(reason)));
+}
+
+export async function recordInjury(fighterId: string, input: InjuryInput): Promise<Injury> {
+    return toInjury(await send(path(fighterId, "/injuries"), injurySchema, "POST", injuryBody(input)));
+}
+
+export async function updateInjury(injuryId: string, patch: InjuryPatch): Promise<Injury> {
+    return toInjury(await send(recordPath("injuries", injuryId), injurySchema, "PATCH", injuryUpdateBody(patch)));
+}
+
+export async function recordTreatment(injury: Pick<Injury, "id" | "fighterId">, input: TreatmentInput): Promise<Treatment> {
+    return toTreatment(await send(recordPath("injuries", injury.id, "/treatments"), treatmentSchema, "POST", treatmentBody(input)), injury.fighterId);
+}
+
+export async function createRecoveryPlan(fighterId: string, input: RecoveryPlanInput): Promise<RecoveryPlan> {
+    return toRecoveryPlan(await send(path(fighterId, "/recovery-plans"), recoveryPlanSchema, "POST", recoveryPlanBody(input)));
+}
+
+export async function updateRecoveryPlan(planId: string, patch: RecoveryPlanPatch): Promise<RecoveryPlan> {
+    return toRecoveryPlan(await send(recordPath("recovery-plans", planId), recoveryPlanSchema, "PATCH", recoveryPlanUpdateBody(patch)));
 }

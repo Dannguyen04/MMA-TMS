@@ -53,6 +53,7 @@ export type Permission =
     | "medical:read_summary"
     | "medical:read"
     | "medical:write"
+    | "medical:request_review"
     | "clearance:manage"
     | "users:manage"
     | "roles:manage"

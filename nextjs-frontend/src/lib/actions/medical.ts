@@ -26,6 +26,7 @@ import {
     updateHealthStatus,
     updateMedicalRecord,
 } from "@/lib/services/medical";
+import { medicalWriteFailure } from "@/lib/services/medical-errors";
 import { FEATURE_UNAVAILABLE_MESSAGE, medicalFeatureAvailable } from "@/lib/services/medical-features";
 import { actionError, actionSuccess, validationError, type ActionState } from "./state";
 
@@ -344,6 +345,7 @@ export async function grantClearanceAction(_prev: ActionState, formData: FormDat
 
 const revokeSchema = z.object({
     clearanceId: z.string().min(1, "The clearance is missing. Reload the page and try again."),
+    fighterId: z.string(),
     reason: z
         .string()
         .trim()
@@ -355,17 +357,23 @@ export async function revokeClearanceAction(_prev: ActionState, formData: FormDa
     const auth = await authorizeClinicalAction("clearance:manage");
     if (!auth.ok) return actionError(auth.message);
 
-    const parsed = revokeSchema.safeParse({ clearanceId: text(formData, "clearanceId"), reason: text(formData, "reason") });
+    const parsed = revokeSchema.safeParse({ clearanceId: text(formData, "clearanceId"), fighterId: text(formData, "fighterId"), reason: text(formData, "reason") });
     if (!parsed.success) return validationError(parsed.error);
 
-    const scoped = await listClearances({ fighterIds: accessibleFighterIds(auth.user) });
-    const clearance = scoped.find((c) => c.id === parsed.data.clearanceId);
+    // Look in the one fighter's clearances when the page says whose it is: in API mode every fighter read is audited.
+    const scope = parsed.data.fighterId ? [parsed.data.fighterId] : accessibleFighterIds(auth.user);
+    const clearance = (await listClearances({ fighterIds: scope })).find((c) => c.id === parsed.data.clearanceId);
     if (!clearance || !canAccessFighterClinically(auth.user, clearance.fighterId)) {
         return actionError("This clearance isn't available. It may belong to a fighter you aren't assigned to.");
     }
 
-    const result = await revokeClearance(clearance.id, parsed.data.reason, auth.user);
-    if (!result.ok) return actionError(result.error);
+    try {
+        const result = await revokeClearance(clearance.id, parsed.data.reason, auth.user);
+        if (!result.ok) return actionError(result.error);
+    } catch (error) {
+        const failure = medicalWriteFailure(error, { fields: { revokedReason: "reason" } });
+        return actionError(failure.message, failure.fieldErrors);
+    }
 
     revalidateDoctorArea();
     return actionSuccess("Medical Clearance revoked. The fighter is now not cleared and their coaches have been notified.");

@@ -16,6 +16,7 @@ const FRONTEND_PERMISSIONS: ReadonlySet<string> = new Set<Permission>([
     "medical:read_summary",
     "medical:read",
     "medical:write",
+    "medical:request_review",
     "clearance:manage",
     "users:manage",
     "roles:manage",
@@ -33,6 +34,7 @@ const BACKEND_CAPABILITIES: Readonly<Record<string, readonly Permission[]>> = {
     "fighter.medical_examination:create": ["medical:write"],
     "fighter.medical_clearance:issue": ["clearance:manage"],
     "fighter.medical_clearance:revoke": ["clearance:manage"],
+    "fighter.medical_review_request:create": ["medical:request_review"],
 };
 
 /**

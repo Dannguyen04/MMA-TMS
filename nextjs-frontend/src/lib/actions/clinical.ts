@@ -20,10 +20,12 @@ import {
     getInjury,
     getInjuryDetail,
     getRecoveryPlan,
+    listInjuries,
     setMilestone,
     updateInjury,
     updateTreatmentStatus,
 } from "@/lib/services/medical";
+import { medicalWriteFailure } from "@/lib/services/medical-errors";
 import { FEATURE_UNAVAILABLE_MESSAGE, medicalFeatureAvailable } from "@/lib/services/medical-features";
 import { actionError, actionSuccess, validationError, type ActionState } from "./state";
 
@@ -181,6 +183,7 @@ export async function createInjuryAction(_prev: ActionState, formData: FormData)
 
 const updateInjurySchema = z.object({
     injuryId: z.string().min(1, "The injury is missing. Reload the page and try again."),
+    fighterId: z.string(),
     status: z.enum(keysOf(INJURY_STATUS_LABELS), { error: "Choose a status." }),
 });
 
@@ -194,17 +197,25 @@ export async function updateInjuryAction(_prev: ActionState, formData: FormData)
     const auth = await authorizeClinicalAction("medical:write");
     if (!auth.ok) return actionError(auth.message);
 
-    const parsed = updateInjurySchema.safeParse({ injuryId: text(formData, "injuryId"), status: text(formData, "status") });
+    const parsed = updateInjurySchema.safeParse({ injuryId: text(formData, "injuryId"), fighterId: text(formData, "fighterId"), status: text(formData, "status") });
     if (!parsed.success) return validationError(parsed.error);
 
-    const injury = await getInjury(parsed.data.injuryId);
+    // Search the one fighter's injuries when the page says whose it is: in API mode every fighter read is audited.
+    const injury = parsed.data.fighterId
+        ? ((await listInjuries({ fighterIds: [parsed.data.fighterId] })).find((candidate) => candidate.id === parsed.data.injuryId) ?? null)
+        : await getInjury(parsed.data.injuryId);
     if (!injury || !canAccessFighterClinically(auth.user, injury.fighterId)) {
         return actionError("This injury record isn't available. It may belong to a fighter you aren't assigned to.");
     }
     if (injury.status === parsed.data.status) return actionSuccess(`The injury is already ${INJURY_STATUS_LABELS[injury.status].toLowerCase()}.`);
 
     const reopened = injury.status === "resolved";
-    const result = await updateInjury(injury.id, { status: parsed.data.status }, auth.user);
+    let result: Awaited<ReturnType<typeof updateInjury>>;
+    try {
+        result = await updateInjury(injury.id, { status: parsed.data.status }, auth.user);
+    } catch (error) {
+        return actionError(medicalWriteFailure(error).message);
+    }
     if (!result.ok) return actionError(result.error);
 
     revalidateClinical();

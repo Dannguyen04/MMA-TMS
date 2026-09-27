@@ -18,6 +18,7 @@ export const ALL_PERMISSIONS: { permission: Permission; label: string; group: st
     { permission: "medical:read_summary", label: "View health status & clearance summary", group: "Medical" },
     { permission: "medical:read", label: "View full medical records", group: "Medical" },
     { permission: "medical:write", label: "Record examinations, injuries & treatment", group: "Medical" },
+    { permission: "medical:request_review", label: "Request a medical review", group: "Medical" },
     { permission: "clearance:manage", label: "Grant and revoke Medical Clearance", group: "Medical" },
     { permission: "users:manage", label: "Manage user accounts", group: "Administration" },
     { permission: "roles:manage", label: "Manage roles & permissions", group: "Administration" },

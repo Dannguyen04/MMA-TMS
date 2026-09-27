@@ -28,6 +28,7 @@ import type {
     User,
     Video,
 } from "@/lib/domain/types";
+import type { MedicalReviewRequest } from "@/lib/domain/medical-contract";
 import { mockAbnormalMovementAlerts, mockAIAnalyses, mockAIJobs, mockAIModels, mockVideos } from "./ai";
 import {
     mockInjuries,
@@ -74,6 +75,7 @@ export interface MockDatabase {
     treatments: Treatment[];
     recoveryPlans: RecoveryPlan[];
     medicalClearances: MedicalClearance[];
+    medicalReviewRequests: MedicalReviewRequest[];
     notifications: Notification[];
     broadcasts: NotificationBroadcast[];
     auditLogs: AuditLog[];
@@ -104,6 +106,7 @@ function seedData(): MockDatabase {
         treatments: mockTreatments,
         recoveryPlans: mockRecoveryPlans,
         medicalClearances: mockMedicalClearances,
+        medicalReviewRequests: [],
         notifications: mockNotifications,
         broadcasts: mockBroadcasts,
         auditLogs: mockAuditLogs,

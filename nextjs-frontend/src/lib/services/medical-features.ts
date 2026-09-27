@@ -38,5 +38,14 @@ export function medicalFeatureAvailable(feature: MedicalFeature): boolean {
     return isDemoAuthEnabled() || !DEMO_ONLY_FEATURES.has(feature);
 }
 
+/**
+ * Whether the doctor records clinical decisions in the medical service's own terms: examination decisions per scope,
+ * clearances issued from an examination, injuries by joint, flat recovery milestones. True in API mode; demo mode
+ * keeps its richer demo forms.
+ */
+export function usesMedicalServiceForms(): boolean {
+    return !isDemoAuthEnabled();
+}
+
 /** Message returned by server actions for a feature that isn't available in this mode. */
 export const FEATURE_UNAVAILABLE_MESSAGE = "This isn't available yet. The medical service will add it in a later release.";

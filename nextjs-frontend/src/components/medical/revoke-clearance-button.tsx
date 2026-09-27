@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 
 export interface RevokeClearanceButtonProps {
     clearanceId: string;
+    fighterId: string;
     fighterName: string;
     size?: ButtonSize;
     /** "quiet" suits dense lists where many rows show the action. */
@@ -25,14 +26,14 @@ export interface RevokeClearanceButtonProps {
 const REASON_HINT = "Saved to the clearance history and shared with other doctors assigned to this fighter.";
 
 /** Revokes an active clearance after a confirmation that requires a clinical reason. */
-export function RevokeClearanceButton({ clearanceId, fighterName, size = "sm", emphasis = "default", className }: RevokeClearanceButtonProps) {
+export function RevokeClearanceButton({ clearanceId, fighterId, fighterName, size = "sm", emphasis = "default", className }: RevokeClearanceButtonProps) {
     const toast = useToast();
     const reasonId = useId();
     const reasonRef = useRef<HTMLTextAreaElement>(null);
     const [reason, setReason] = useState("");
     const [reasonEdited, setReasonEdited] = useState(false);
 
-    const revoke = useConfirmAction((id: string) => revokeClearanceAction(IDLE, toFormData({ clearanceId: id, reason })), {
+    const revoke = useConfirmAction((id: string) => revokeClearanceAction(IDLE, toFormData({ clearanceId: id, fighterId, reason })), {
         onSuccess: () =>
             toast({
                 tone: "warning",
