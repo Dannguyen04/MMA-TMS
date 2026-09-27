@@ -5,16 +5,17 @@ import Link from "next/link";
 import { clinicalLinks } from "@/components/clinical/clinical-links";
 import { MilestonePlanForm } from "@/components/clinical/milestone-plan-form";
 import { FighterChooser } from "@/components/medical/fighter-chooser";
+import { loadFormFighter } from "@/components/medical/form-fighter";
 import { RecoveryPlanForm, type RecoveryInjuryOption } from "@/components/clinical/recovery-plan-form";
 import { ButtonLink } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/states";
-import { accessibleFighterIds, canAccessFighter } from "@/lib/auth/access";
+import { accessibleFighterIds } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { dayKey } from "@/lib/format";
 import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
-import { getClinicalDossier, listInjuries, listRecoveryPlans } from "@/lib/services/medical";
+import { listInjuries, listRecoveryPlans } from "@/lib/services/medical";
 import { usesMedicalServiceForms } from "@/lib/services/medical-features";
 import { listFighters } from "@/lib/services/people";
 import { param } from "@/lib/utils";
@@ -112,10 +113,7 @@ async function NewMilestonePlanPage({ searchParams }: PageProps<"/doctor/recover
     const user = await requireRole("doctor");
     const params = await searchParams;
     const now = new Date().toISOString();
-    const requestedFighter = param(params.fighter);
-    const fighters = await listFighters(user);
-    const fighter = requestedFighter && canAccessFighter(user, requestedFighter) ? fighters.find((candidate) => candidate.id === requestedFighter) : undefined;
-    const dossier = fighter ? await getClinicalDossier(fighter.id) : null;
+    const { fighters, fighter, dossier } = await loadFormFighter(user, param(params.fighter));
     const planned = new Set(dossier?.activeRecoveryPlans.map((plan) => plan.injuryId) ?? []);
     const injuries = dossier?.activeInjuries.filter((injury) => !planned.has(injury.id)) ?? [];
     const requestedInjury = param(params.injury) ?? "";
@@ -134,8 +132,8 @@ async function NewMilestonePlanPage({ searchParams }: PageProps<"/doctor/recover
                 <FighterChooser
                     fighters={fighters}
                     hrefFor={(fighterId) => hrefWith(clinicalLinks.newRecoveryPlan, {}, { fighter: fighterId })}
-                    title={fighter ? `${fighter.name}'s medical record couldn't be read` : "Whose recovery is this?"}
-                    description={fighter ? "You may no longer be assigned to this fighter. Choose again." : "Only your assigned fighters are listed."}
+                    title="Whose recovery is this?"
+                    unreadable={fighter}
                 />
             ) : injuries.length === 0 ? (
                 <EmptyState

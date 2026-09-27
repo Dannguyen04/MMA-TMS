@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { ExaminationDecisionForm } from "@/components/medical/examination-decision-form";
 import { ExaminationForm, type ExamFighterOption } from "@/components/medical/examination-form";
 import { FighterChooser } from "@/components/medical/fighter-chooser";
+import { loadFormFighter } from "@/components/medical/form-fighter";
 import { PageHeader } from "@/components/ui/page-header";
 import { accessibleFighterIds, canAccessFighter } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
@@ -13,7 +14,7 @@ import type { ExaminationType, MedicalExamination } from "@/lib/domain/types";
 import { toDateTimeInputValue } from "@/lib/format";
 import { hrefWith, parseEnum } from "@/lib/query";
 import { routes } from "@/lib/routes";
-import { getClinicalDossier, listClearances, listExaminations } from "@/lib/services/medical";
+import { listClearances, listExaminations } from "@/lib/services/medical";
 import { usesMedicalServiceForms } from "@/lib/services/medical-features";
 import { listFighters } from "@/lib/services/people";
 import { param } from "@/lib/utils";
@@ -91,10 +92,7 @@ async function NewExaminationDecisionPage({ searchParams }: PageProps<"/doctor/e
     const params = await searchParams;
     const now = new Date().toISOString();
     const defaultScope = parseEnum(param(params.scope), EXAMINATION_SCOPES) ?? "TRAINING";
-    const requestedFighter = param(params.fighter);
-    const fighters = await listFighters(user);
-    const fighter = requestedFighter && canAccessFighter(user, requestedFighter) ? fighters.find((candidate) => candidate.id === requestedFighter) : undefined;
-    const dossier = fighter ? await getClinicalDossier(fighter.id) : null;
+    const { fighters, fighter, dossier } = await loadFormFighter(user, param(params.fighter));
 
     return (
         <>
@@ -118,8 +116,8 @@ async function NewExaminationDecisionPage({ searchParams }: PageProps<"/doctor/e
                 <FighterChooser
                     fighters={fighters}
                     hrefFor={(fighterId) => hrefWith(routes.doctor.newExamination, {}, { fighter: fighterId, scope: defaultScope })}
-                    title={fighter ? `${fighter.name}'s medical record couldn't be read` : "Who did you examine?"}
-                    description={fighter ? "You may no longer be assigned to this fighter. Choose again." : "Only your assigned fighters are listed."}
+                    title="Who did you examine?"
+                    unreadable={fighter}
                 />
             )}
         </>

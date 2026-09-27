@@ -2,6 +2,7 @@ import { CircleCheck, ClipboardPlus, ShieldQuestion } from "lucide-react";
 import type { Metadata } from "next";
 
 import { FighterChooser } from "@/components/medical/fighter-chooser";
+import { loadFormFighter } from "@/components/medical/form-fighter";
 import { GrantClearanceForm, type ClearanceFighterContext } from "@/components/medical/grant-clearance-form";
 import { IssueClearanceForm } from "@/components/medical/issue-clearance-form";
 import { Callout } from "@/components/training/callout";
@@ -16,7 +17,7 @@ import { dayKey } from "@/lib/format";
 import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
-import { getClinicalDossier, listClearances, listExaminations, listInjuries, type CurrentExamination } from "@/lib/services/medical";
+import { listClearances, listExaminations, listInjuries, type CurrentExamination } from "@/lib/services/medical";
 import { usesMedicalServiceForms } from "@/lib/services/medical-features";
 import { listDoctors, listFighters } from "@/lib/services/people";
 import { param } from "@/lib/utils";
@@ -104,10 +105,7 @@ async function IssueClearancePage({ searchParams }: PageProps<"/doctor/medical-c
     const user = await requireRole("doctor");
     const params = await searchParams;
     const now = new Date().toISOString();
-    const requestedFighter = param(params.fighter);
-    const fighters = await listFighters(user);
-    const fighter = requestedFighter && canAccessFighter(user, requestedFighter) ? fighters.find((candidate) => candidate.id === requestedFighter) : undefined;
-    const dossier = fighter ? await getClinicalDossier(fighter.id) : null;
+    const { fighters, fighter, dossier } = await loadFormFighter(user, param(params.fighter));
     const positive = dossier
         ? Object.values(dossier.currentExaminations).filter((exam): exam is CurrentExamination => exam !== null && exam.decision !== "NOT_ELIGIBLE")
         : [];
@@ -131,8 +129,8 @@ async function IssueClearancePage({ searchParams }: PageProps<"/doctor/medical-c
                     <FighterChooser
                         fighters={fighters}
                         hrefFor={(fighterId) => hrefWith(routes.doctor.grantClearance, {}, { fighter: fighterId })}
-                        title={fighter ? `${fighter.name}'s medical record couldn't be read` : "Who is the clearance for?"}
-                        description={fighter ? "You may no longer be assigned to this fighter. Choose again." : "Only your assigned fighters are listed."}
+                        title="Who is the clearance for?"
+                        unreadable={fighter}
                     />
                 ) : positive.length === 0 ? (
                     <EmptyState

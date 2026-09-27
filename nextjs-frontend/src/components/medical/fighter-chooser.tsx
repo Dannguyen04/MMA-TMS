@@ -12,18 +12,24 @@ export interface FighterChooserProps {
     fighters: Fighter[];
     /** Link for a chosen fighter, e.g. the same form with ?fighter=. */
     hrefFor: (fighterId: string) => string;
-    title?: string;
-    description?: string;
+    /** The question the form asks, e.g. "Who did you examine?". */
+    title: string;
+    /** A fighter was chosen but their medical record couldn't be read: the chooser asks again and says why. */
+    unreadable?: Fighter;
 }
 
 /**
  * First step of a clinical form: pick the fighter. Every clinical read is audited, so a form loads one fighter's
  * record after this choice instead of every assigned fighter's up front.
  */
-export function FighterChooser({ fighters, hrefFor, title = "Choose a fighter", description = "Only your assigned fighters are listed." }: FighterChooserProps) {
+export function FighterChooser({ fighters, hrefFor, title, unreadable }: FighterChooserProps) {
     return (
         <Card className="max-w-2xl overflow-hidden">
-            <CardHeader title={title} description={description} icon={<Users />} />
+            <CardHeader
+                title={unreadable ? `${unreadable.name}'s medical record couldn't be read` : title}
+                description={unreadable ? "You may no longer be assigned to this fighter. Choose again." : "Only your assigned fighters are listed."}
+                icon={<Users />}
+            />
             {fighters.length === 0 ? (
                 <EmptyState compact icon={<Users />} title="No assigned fighters" description="An admin assigns fighters to you. Ask them if someone is missing." className="border-t border-border" />
             ) : (
