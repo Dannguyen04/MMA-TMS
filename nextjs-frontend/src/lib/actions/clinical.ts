@@ -147,7 +147,7 @@ export async function createInjuryAction(_prev: ActionState, formData: FormData)
         return actionError(FIX_FIELDS, { diagnosedAt: "The diagnosis date can't be in the future." });
     }
 
-    if (input.linkedAlertId) {
+    if (input.linkedAlertId && medicalFeatureAvailable("aiObservations")) {
         const detail = await getAlertDetail(input.linkedAlertId);
         if (!detail || detail.alert.fighterId !== input.fighterId) {
             return actionError(FIX_FIELDS, { linkedAlertId: "Choose an AI movement observation for this fighter, or leave it unlinked." });

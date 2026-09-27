@@ -11,6 +11,7 @@ import type { Fighter, Injury, MedicalClearance, MedicalExamination, Treatment }
 import { daysBetween, formatDate, formatMonthYear } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { getMedicalRecord } from "@/lib/services/medical";
+import { medicalFeatureAvailable } from "@/lib/services/medical-features";
 import { coachesForFighter, doctorsForFighter, getUser } from "@/lib/services/people";
 import type { CareTeamMember } from "./care-team-card";
 
@@ -18,7 +19,11 @@ const BODY_MAP_WINDOW_DAYS = 365;
 
 /** Assigned sports doctors and coaches with their account titles, primary contacts flagged. */
 export async function loadCareTeam(fighter: Fighter): Promise<CareTeamMember[]> {
-    const [doctors, coaches, record] = await Promise.all([doctorsForFighter(fighter.id), coachesForFighter(fighter.id), getMedicalRecord(fighter.id)]);
+    const [doctors, coaches, record] = await Promise.all([
+        doctorsForFighter(fighter.id),
+        coachesForFighter(fighter.id),
+        medicalFeatureAvailable("medicalRecord") ? getMedicalRecord(fighter.id) : null,
+    ]);
     const people = [
         ...doctors.map((doctor) => ({ profile: doctor, role: "doctor" as const, primary: doctor.id === record?.primaryDoctorId })),
         ...coaches.map((coach) => ({ profile: coach, role: "coach" as const, primary: coach.id === fighter.primaryCoachId })),

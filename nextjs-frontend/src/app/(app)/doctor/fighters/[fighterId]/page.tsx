@@ -26,7 +26,7 @@ import { RevokeClearanceButton } from "@/components/medical/revoke-clearance-but
 import { RevokedClearanceCard } from "@/components/medical/revoked-clearance-card";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { EmptyState } from "@/components/ui/states";
+import { EmptyState, FeatureUnavailable } from "@/components/ui/states";
 import { Tabs } from "@/components/ui/tabs";
 import type { ToastInput } from "@/components/ui/toast";
 import { canAccessFighter, requireFighterAccess } from "@/lib/auth/access";
@@ -37,6 +37,7 @@ import { hrefWith, parseEnum } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
 import { getClearanceHistory, getFighterHealthSummary, getMedicalRecord, listExaminations, listInjuries } from "@/lib/services/medical";
+import { medicalFeatureAvailable } from "@/lib/services/medical-features";
 import { getFighter, listDoctors } from "@/lib/services/people";
 import { param } from "@/lib/utils";
 
@@ -61,7 +62,7 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
 
     const [summary, record, examinations, injuries, clearances, doctors, settings] = await Promise.all([
         getFighterHealthSummary(fighter.id, now),
-        getMedicalRecord(fighter.id),
+        medicalFeatureAvailable("medicalRecord") ? getMedicalRecord(fighter.id) : null,
         listExaminations({ fighterIds: [fighter.id] }),
         listInjuries({ fighterIds: [fighter.id] }),
         getClearanceHistory(fighter.id),
@@ -198,14 +199,18 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                             <HealthStatusBadge status={fighter.healthStatus} />
                             <p className="mt-1.5 text-sm text-fg-muted">{HEALTH_STATUS_DESCRIPTIONS[fighter.healthStatus]}</p>
                         </div>
-                        <HealthStatusControl key={fighter.healthStatus} fighterId={fighter.id} fighterName={fighter.name} current={fighter.healthStatus} />
+                        {medicalFeatureAvailable("healthStatusOverride") && (
+                            <HealthStatusControl key={fighter.healthStatus} fighterId={fighter.id} fighterName={fighter.name} current={fighter.healthStatus} />
+                        )}
                     </CardContent>
                 </Card>
 
                 <Card>
                     <CardHeader title="Next follow-up" icon={<CalendarClock />} />
                     <CardContent>
-                        {summary.nextFollowUp ? (
+                        {!medicalFeatureAvailable("followUps") ? (
+                            <FeatureUnavailable title="Follow-ups aren't available yet" compact />
+                        ) : summary.nextFollowUp ? (
                             <div className="flex flex-col gap-3">
                                 <div className="flex items-center gap-3">
                                     <DateBlock date={summary.nextFollowUp.date} highlighted={summary.nextFollowUp.daysUntil === 0} />
@@ -251,8 +256,14 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                         action={<CardLink href={routes.doctor.aiAlerts}>All observations</CardLink>}
                     />
                     <CardContent className="flex flex-col gap-3">
-                        <AINotice audience="doctor" compact />
-                        <AIObservationList observations={summary.openAlerts.map((alert) => ({ alert }))} now={now} />
+                        {medicalFeatureAvailable("aiObservations") ? (
+                            <>
+                                <AINotice audience="doctor" compact />
+                                <AIObservationList observations={summary.openAlerts.map((alert) => ({ alert }))} now={now} />
+                            </>
+                        ) : (
+                            <FeatureUnavailable title="AI observations aren't available yet" compact />
+                        )}
                     </CardContent>
                 </Card>
             </div>
@@ -264,8 +275,10 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
         {
             id: "record",
             label: "Medical record",
-            content: (
+            content: medicalFeatureAvailable("medicalRecord") ? (
                 <MedicalRecordPanel fighterId={fighter.id} fighterName={fighter.name} record={record} primaryDoctorName={primaryDoctorName} now={now} />
+            ) : (
+                <FeatureUnavailable title="Medical records aren't available yet" />
             ),
         },
         {

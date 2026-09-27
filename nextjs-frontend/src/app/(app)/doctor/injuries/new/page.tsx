@@ -7,6 +7,7 @@ import { accessibleFighterIds, canAccessFighter } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { routes } from "@/lib/routes";
 import { listAlerts } from "@/lib/services/ai";
+import { medicalFeatureAvailable } from "@/lib/services/medical-features";
 import { listFighters } from "@/lib/services/people";
 import { listVideos } from "@/lib/services/videos";
 import { param } from "@/lib/utils";
@@ -19,7 +20,12 @@ export default async function NewInjuryPage({ searchParams }: PageProps<"/doctor
     const now = new Date().toISOString();
     const scope = accessibleFighterIds(user);
 
-    const [fighters, alerts, videos] = await Promise.all([listFighters(user), listAlerts({ fighterIds: scope }), listVideos({ fighterIds: scope })]);
+    // Linking an AI observation is only offered where observations exist (demo mode for now).
+    const [fighters, alerts, videos] = await Promise.all([
+        listFighters(user),
+        medicalFeatureAvailable("aiObservations") ? listAlerts({ fighterIds: scope }) : [],
+        listVideos({ fighterIds: scope }),
+    ]);
     const videosById = new Map(videos.map((video) => [video.id, video]));
 
     const requestedAlertId = param(params.alert) ?? "";

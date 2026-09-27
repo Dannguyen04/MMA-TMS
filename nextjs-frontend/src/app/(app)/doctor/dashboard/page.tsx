@@ -16,6 +16,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
+import { FeatureUnavailable } from "@/components/ui/states";
 import { accessibleFighterIds } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { BODY_REGION_LABELS, examinationTitle, injuryTypeName } from "@/lib/domain/labels";
@@ -23,6 +24,7 @@ import { daysBetween, formatDate, formatRelative, formatWeekdayDate, pluralize }
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
 import { getDoctorOverview, getFighterHealthSummary, type DoctorOverview, type FighterHealthSummary } from "@/lib/services/medical";
+import { medicalFeatureAvailable } from "@/lib/services/medical-features";
 import { listFighters } from "@/lib/services/people";
 
 export const metadata: Metadata = { title: "Clinical overview" };
@@ -55,6 +57,8 @@ export default async function DoctorDashboardPage() {
         .sort((a, b) => a.date.localeCompare(b.date))
         .slice(0, FOLLOW_UP_PREVIEW_LIMIT);
     const recovering = overview.activeInjuries.filter(({ injury }) => injury.status === "recovering").length;
+    const showFollowUps = medicalFeatureAvailable("followUps");
+    const showObservations = medicalFeatureAvailable("aiObservations");
 
     return (
         <>
@@ -105,10 +109,10 @@ export default async function DoctorDashboardPage() {
                     />
                     <StatCard
                         label="New AI observations"
-                        value={overview.newAlerts.length}
+                        value={showObservations ? overview.newAlerts.length : "—"}
                         icon={<Radar />}
                         href={routes.doctor.aiAlerts}
-                        hint={overview.newAlerts.length > 0 ? "Awaiting your review" : "Nothing new to review"}
+                        hint={!showObservations ? "Not available yet" : overview.newAlerts.length > 0 ? "Awaiting your review" : "Nothing new to review"}
                     />
                 </section>
 
@@ -119,7 +123,7 @@ export default async function DoctorDashboardPage() {
                             description={
                                 attention.length > 0
                                     ? `${pluralize(attention.length, "item")}, most urgent first`
-                                    : "Clearance, follow-ups and AI observations are all up to date"
+                                    : "Nothing needs you right now"
                             }
                         />
                         <AttentionList items={attention} className="border-t border-border" />
@@ -131,7 +135,11 @@ export default async function DoctorDashboardPage() {
                             description="Set on each fighter's latest examination"
                             icon={<CalendarClock />}
                         />
-                        <FollowUpList followUps={followUps} className="border-t border-border" />
+                        {showFollowUps ? (
+                            <FollowUpList followUps={followUps} className="border-t border-border" />
+                        ) : (
+                            <FeatureUnavailable title="Follow-ups aren't available yet" compact className="border-t border-border" />
+                        )}
                     </Card>
                 </div>
 
@@ -165,22 +173,28 @@ export default async function DoctorDashboardPage() {
                             action={<CardLink href={routes.doctor.aiAlerts}>All observations</CardLink>}
                         />
                         <div className="flex flex-col gap-3 px-5 pb-5">
-                            <AINotice audience="doctor" compact />
-                            <AIObservationList
-                                observations={overview.newAlerts
-                                    .slice(0, AI_PREVIEW_LIMIT)
-                                    .map(({ alert, fighter }) => ({ alert, fighterName: fighter.name }))}
-                                now={now}
-                                emptyTitle="No new AI observations"
-                            />
-                            {overview.newAlerts.length > AI_PREVIEW_LIMIT && (
-                                <p className="text-[13px] text-fg-muted">
-                                    {pluralize(overview.newAlerts.length - AI_PREVIEW_LIMIT, "more observation")} waiting in{" "}
-                                    <Link href={routes.doctor.aiAlerts} className="font-medium text-primary-soft-fg hover:underline">
-                                        AI alerts
-                                    </Link>
-                                    .
-                                </p>
+                            {showObservations ? (
+                                <>
+                                    <AINotice audience="doctor" compact />
+                                    <AIObservationList
+                                        observations={overview.newAlerts
+                                            .slice(0, AI_PREVIEW_LIMIT)
+                                            .map(({ alert, fighter }) => ({ alert, fighterName: fighter.name }))}
+                                        now={now}
+                                        emptyTitle="No new AI observations"
+                                    />
+                                    {overview.newAlerts.length > AI_PREVIEW_LIMIT && (
+                                        <p className="text-[13px] text-fg-muted">
+                                            {pluralize(overview.newAlerts.length - AI_PREVIEW_LIMIT, "more observation")} waiting in{" "}
+                                            <Link href={routes.doctor.aiAlerts} className="font-medium text-primary-soft-fg hover:underline">
+                                                AI alerts
+                                            </Link>
+                                            .
+                                        </p>
+                                    )}
+                                </>
+                            ) : (
+                                <FeatureUnavailable title="AI observations aren't available yet" compact />
                             )}
                         </div>
                     </Card>
