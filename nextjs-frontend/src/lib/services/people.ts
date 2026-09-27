@@ -317,8 +317,8 @@ async function latestMeasurement(fighterId: string): Promise<z.output<typeof mea
 
 const scopedFighterIdsSchema = z.object({ id: z.string().uuid() }).passthrough();
 
-/** Ids of the fighters the caller may see, read once per request. */
-const scopedFighterIds = cache(async (): Promise<string[]> => {
+/** Ids of the fighters the caller may see, read once per request. API mode only. */
+export const listScopedFighterIds = cache(async (): Promise<string[]> => {
     const user = await getCurrentUser();
     if (!user) return [];
     const scope = accessibleFighterIds(user);
@@ -385,7 +385,7 @@ function groupBy<T>(items: T[], key: (item: T) => string): Map<string, T[]> {
 
 /** Coaches and doctors currently assigned to the fighters the caller can see, read once per request. */
 const scopedStaff = cache(async (): Promise<{ coaches: Coach[]; doctors: Doctor[] }> => {
-    const ids = await scopedFighterIds();
+    const ids = await listScopedFighterIds();
     const [coachLists, doctorLists] = await Promise.all([Promise.all(ids.map(coachAssignmentsFor)), Promise.all(ids.map(doctorAssignmentsFor))]);
     const coaches = [...groupBy(coachLists.flat().filter(isCurrent), (a) => a.coachId)].map(([id, list]) => coachFromAssignments(id, list));
     const doctors = [...groupBy(doctorLists.flat().filter(isCurrent), (a) => a.doctorId)].map(([id, list]) => doctorFromAssignments(id, list));

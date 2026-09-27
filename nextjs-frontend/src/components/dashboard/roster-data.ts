@@ -3,10 +3,10 @@ import "server-only";
 import { cache } from "react";
 
 import { accessibleFighterIds, requireFighterAccess } from "@/lib/auth/access";
-import { clearanceDaysRemaining, clearanceState, currentClearance, type ClearanceConflict, type ClearanceState } from "@/lib/domain/rules";
+import { clearanceDaysRemaining, type ClearanceConflict, type ClearanceState } from "@/lib/domain/rules";
 import type { Fighter, MedicalClearance, TrainingSession, User } from "@/lib/domain/types";
 import { DAY_MS } from "@/lib/format";
-import { listClearances } from "@/lib/services/medical";
+import { getClearanceStatus } from "@/lib/services/medical";
 import { listFighters } from "@/lib/services/people";
 import { getPerformanceHistory, getTeamPerformance, overallScore, type TeamPerformanceRow } from "@/lib/services/performance";
 import { getUpcomingSessions, loadSessionClearanceConflicts } from "@/lib/services/training";
@@ -77,7 +77,7 @@ export const loadRosterEntry = cache(async (user: User, fighterId: string): Prom
 async function buildRoster(fightersInput: Fighter[] | Promise<Fighter[]>, idsInput: Promise<string[]>, now: string): Promise<RosterEntry[]> {
     const [fighters, clearances, team, upcoming, histories] = await Promise.all([
         fightersInput,
-        idsInput.then((ids) => (ids.length === 0 ? [] : listClearances({ fighterIds: ids }))),
+        idsInput.then(async (ids) => new Map(await Promise.all(ids.map(async (id) => [id, await getClearanceStatus(id, now)] as const)))),
         idsInput.then((ids) => (ids.length === 0 ? [] : getTeamPerformance(ids))),
         idsInput.then((ids) => (ids.length === 0 ? [] : getUpcomingSessions(ids, Number.POSITIVE_INFINITY))),
         idsInput.then(async (ids) => new Map(await Promise.all(ids.map(async (id) => [id, await getPerformanceHistory(id, TREND_WEEKS + 1)] as const)))),
@@ -85,14 +85,15 @@ async function buildRoster(fightersInput: Fighter[] | Promise<Fighter[]>, idsInp
     const horizon = Date.parse(now) + SESSION_HORIZON_DAYS * DAY_MS;
 
     return Promise.all(fighters.map(async (fighter) => {
-        const clearance = currentClearance(clearances, fighter.id);
+        const status = clearances.get(fighter.id);
+        const clearance = status?.clearance ?? null;
         const revoked = clearance?.status === "revoked";
         const weeks = completeWeeks(histories.get(fighter.id) ?? [], now).slice(-TREND_WEEKS);
         const own = upcoming.filter((session) => session.fighterId === fighter.id);
         return {
             fighter,
             clearance,
-            clearanceState: clearanceState(clearance, now),
+            clearanceState: status?.state ?? "none",
             revoked,
             daysRemaining: clearance && !revoked ? clearanceDaysRemaining(clearance, now) : null,
             performance: team.find((row) => row.fighterId === fighter.id) ?? null,

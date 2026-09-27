@@ -24,11 +24,10 @@ import { EmptyState } from "@/components/ui/states";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { canAccessFighter } from "@/lib/auth/access";
 import { getCurrentUser, requireRole } from "@/lib/auth/session";
-import { clearanceState } from "@/lib/domain/rules";
 import { dayKey, formatDate, pluralize } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
-import { getCurrentClearanceFor, getRecoveryPlanDetail } from "@/lib/services/medical";
+import { getClearanceStatus, getRecoveryPlanDetail } from "@/lib/services/medical";
 import { getDoctor } from "@/lib/services/people";
 import { param } from "@/lib/utils";
 import { NOT_RECORDED } from "@/components/domain/domain-format";
@@ -53,8 +52,7 @@ export default async function RecoveryPlanPage({ params, searchParams }: PagePro
     if (!detail || !canAccessFighter(user, detail.plan.fighterId)) notFound();
     const { plan, fighter, injury, treatments, doctor } = detail;
 
-    const clearance = await getCurrentClearanceFor(fighter.id);
-    const clearanceNow = clearanceState(clearance, now);
+    const { clearance, state: clearanceNow } = await getClearanceStatus(fighter.id, now);
     const clearanceDoctor = clearance ? await getDoctor(clearance.doctorId) : null;
     const justCreated = param(query.created) === "1";
     const checkInsNewestFirst = [...plan.checkIns].reverse();

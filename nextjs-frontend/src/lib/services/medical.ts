@@ -2,6 +2,8 @@ import "server-only";
 
 import { ApiError } from "@/lib/api/client";
 import { isDemoAuthEnabled } from "@/lib/auth/constants";
+import type { MedicalReviewRequest } from "@/lib/domain/medical-contract";
+import { clearanceState } from "@/lib/domain/rules";
 import type { Fighter, HealthStatus, Injury, MedicalClearance, MedicalExamination, MedicalRecord, RecoveryPlan, Treatment, TreatmentStatus, User } from "@/lib/domain/types";
 import type {
     AddTreatmentInput,
@@ -24,6 +26,8 @@ import type {
     RecoveryPlanFilter,
     UpdateInjuryPatch,
 } from "./medical.demo";
+import * as api from "./medical.api";
+import type { ClearanceStatus } from "./medical.api";
 
 /*
  * Medical service. Demo mode delegates to the in-memory records in `medical.demo.ts`, loaded lazily so API
@@ -32,6 +36,7 @@ import type {
  * data. Pages hide those features up front (see `medical-features.ts`), so the 501 is only a backstop.
  */
 
+export type { ClearanceStatus } from "./medical.api";
 export type {
     AddTreatmentInput,
     ClearanceFilter,
@@ -88,12 +93,12 @@ export async function updateMedicalRecord(fighterId: string, patch: MedicalRecor
 
 export async function listExaminations(filter: ExaminationFilter = {}): Promise<MedicalExamination[]> {
     if (isDemoAuthEnabled()) return (await demoService()).listExaminations(filter);
-    unsupported("Listing examinations", "this examination view");
+    return api.listExaminations(filter);
 }
 
 export async function getExamination(id: string): Promise<MedicalExamination | null> {
     if (isDemoAuthEnabled()) return (await demoService()).getExamination(id);
-    unsupported("Reading an examination", "examination lookups by id");
+    return api.getExamination(id);
 }
 
 export async function createExamination(input: CreateExaminationInput, actor: User): Promise<MedicalResult<MedicalExamination>> {
@@ -105,17 +110,17 @@ export async function createExamination(input: CreateExaminationInput, actor: Us
 
 export async function listInjuries(filter: InjuryFilter = {}): Promise<Injury[]> {
     if (isDemoAuthEnabled()) return (await demoService()).listInjuries(filter);
-    unsupported("Listing injuries", "this injury view");
+    return api.listInjuries(filter);
 }
 
 export async function getInjury(id: string): Promise<Injury | null> {
     if (isDemoAuthEnabled()) return (await demoService()).getInjury(id);
-    unsupported("Reading an injury", "injury lookups by id");
+    return api.getInjury(id);
 }
 
 export async function getInjuryDetail(id: string): Promise<InjuryDetail | null> {
     if (isDemoAuthEnabled()) return (await demoService()).getInjuryDetail(id);
-    unsupported("Reading an injury", "injury lookups by id");
+    return api.getInjuryDetail(id);
 }
 
 export async function createInjury(input: CreateInjuryInput, actor: User): Promise<MedicalResult<Injury>> {
@@ -142,17 +147,17 @@ export async function updateTreatmentStatus(id: string, status: TreatmentStatus,
 
 export async function listRecoveryPlans(filter: RecoveryPlanFilter = {}): Promise<RecoveryPlan[]> {
     if (isDemoAuthEnabled()) return (await demoService()).listRecoveryPlans(filter);
-    unsupported("Listing recovery plans", "this recovery plan view");
+    return api.listRecoveryPlans(filter);
 }
 
 export async function getRecoveryPlan(id: string): Promise<RecoveryPlan | null> {
     if (isDemoAuthEnabled()) return (await demoService()).getRecoveryPlan(id);
-    unsupported("Reading a recovery plan", "recovery plan lookups by id");
+    return api.getRecoveryPlan(id);
 }
 
 export async function getRecoveryPlanDetail(id: string): Promise<RecoveryPlanDetail | null> {
     if (isDemoAuthEnabled()) return (await demoService()).getRecoveryPlanDetail(id);
-    unsupported("Reading a recovery plan", "recovery plan lookups by id");
+    return api.getRecoveryPlanDetail(id);
 }
 
 export async function createRecoveryPlan(input: CreateRecoveryPlanInput, actor: User): Promise<MedicalResult<RecoveryPlan>> {
@@ -179,18 +184,30 @@ export async function advanceRecoveryPhase(planId: string, actor: User): Promise
 
 export async function listClearances(filter: ClearanceFilter = {}): Promise<MedicalClearance[]> {
     if (isDemoAuthEnabled()) return (await demoService()).listClearances(filter);
-    unsupported("Listing clearances", "this clearance view");
+    return api.listClearances(filter, new Date().toISOString());
 }
 
-/** The fighter's current Medical Clearance, or null. */
-export async function getCurrentClearanceFor(fighterId: string): Promise<MedicalClearance | null> {
-    if (isDemoAuthEnabled()) return (await demoService()).getCurrentClearanceFor(fighterId);
-    unsupported("Reading the current clearance", "this clearance view");
+/**
+ * The fighter's training clearance state and the clearance behind it. In API mode the medical service's eligibility
+ * verdict decides the state; the clearance is shown only when exactly one applies.
+ */
+export async function getClearanceStatus(fighterId: string, now: string | Date = new Date()): Promise<ClearanceStatus> {
+    if (isDemoAuthEnabled()) {
+        const clearance = (await demoService()).getCurrentClearanceFor(fighterId);
+        return { state: clearanceState(clearance, now), clearance, eligibility: null };
+    }
+    return api.clearanceStatus(fighterId);
+}
+
+/** Medical review requests for one fighter, newest first. Demo mode has none yet. */
+export async function listReviewRequests(fighterId: string): Promise<MedicalReviewRequest[]> {
+    if (isDemoAuthEnabled()) return [];
+    return api.reviewRequests(fighterId);
 }
 
 export async function getClearanceHistory(fighterId: string): Promise<MedicalClearance[]> {
     if (isDemoAuthEnabled()) return (await demoService()).getClearanceHistory(fighterId);
-    unsupported("Reading clearance history", "this clearance view");
+    return api.listClearances({ fighterIds: [fighterId] }, new Date().toISOString());
 }
 
 export async function grantClearance(input: GrantClearanceInput, actor: User): Promise<MedicalResult<MedicalClearance>> {
@@ -214,15 +231,15 @@ export async function updateHealthStatus(fighterId: string, status: HealthStatus
 
 export async function getFighterHealthSummary(fighterId: string, now: string | Date = new Date()): Promise<FighterHealthSummary | null> {
     if (isDemoAuthEnabled()) return (await demoService()).getFighterHealthSummary(fighterId, now);
-    unsupported("Reading a health summary", "this health summary");
+    return api.healthSummary(fighterId);
 }
 
 export async function getDoctorOverview(fighterIds: FighterScope, now: string | Date = new Date()): Promise<DoctorOverview> {
     if (isDemoAuthEnabled()) return (await demoService()).getDoctorOverview(fighterIds, now);
-    unsupported("Reading the doctor overview", "this overview");
+    return api.doctorOverview(fighterIds, new Date(now).toISOString());
 }
 
 export async function getClearanceOverview(fighterIds: FighterScope, now: string | Date = new Date()): Promise<ClearanceOverviewRow[]> {
     if (isDemoAuthEnabled()) return (await demoService()).getClearanceOverview(fighterIds, now);
-    unsupported("Reading the clearance overview", "this overview");
+    return api.clearanceOverview(fighterIds, new Date(now).toISOString());
 }

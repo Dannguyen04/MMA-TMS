@@ -28,12 +28,11 @@ import { EmptyState } from "@/components/ui/states";
 import { canAccessFighter } from "@/lib/auth/access";
 import { getCurrentUser, requireRole } from "@/lib/auth/session";
 import { INJURY_MECHANISM_LABELS, INJURY_SEVERITY_LABELS, INJURY_STATUS_LABELS } from "@/lib/domain/labels";
-import { clearanceState } from "@/lib/domain/rules";
 import type { Injury } from "@/lib/domain/types";
 import { dayKey, daysBetween, formatDate, formatDateTime, pluralize } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
-import { getCurrentClearanceFor, getInjuryDetail } from "@/lib/services/medical";
+import { getClearanceStatus, getInjuryDetail } from "@/lib/services/medical";
 import { getVideo } from "@/lib/services/videos";
 import { param } from "@/lib/utils";
 
@@ -57,8 +56,7 @@ export default async function InjuryDetailPage({ params, searchParams }: PagePro
     if (!detail || !canAccessFighter(user, detail.injury.fighterId)) notFound();
     const { injury, fighter, treatments, recoveryPlan, linkedAlert, recordedBy } = detail;
 
-    const clearance = await getCurrentClearanceFor(fighter.id);
-    const clearanceNow = clearanceState(clearance, now);
+    const { clearance, state: clearanceNow } = await getClearanceStatus(fighter.id, now);
     const linkedVideo = linkedAlert ? await getVideo(linkedAlert.videoId) : null;
     const justCreated = param(query.created) === "1";
     const openPlan = recoveryPlan && recoveryPlan.status !== "completed" ? recoveryPlan : null;

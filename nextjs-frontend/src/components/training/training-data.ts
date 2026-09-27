@@ -1,9 +1,8 @@
 import "server-only";
 
 import type { FighterIdentityData } from "@/components/domain/fighter-identity";
-import { clearanceState } from "@/lib/domain/rules";
 import type { Exercise, Fighter, MedicalClearance } from "@/lib/domain/types";
-import { getCurrentClearanceFor } from "@/lib/services/medical";
+import { getClearanceStatus } from "@/lib/services/medical";
 import { listCoaches, listDoctors } from "@/lib/services/people";
 import { listExercises } from "@/lib/services/training";
 import type { ClearanceSummary } from "./training-utils";
@@ -78,13 +77,13 @@ function toSummaryClearance(clearance: MedicalClearance): MedicalClearance {
 export async function getClearanceSummaries(fighterIds: string[] | Promise<string[]>, now: string): Promise<Record<string, ClearanceSummary>> {
     const [doctors, ids] = await Promise.all([listDoctors(), fighterIds]);
     const doctorNames = new Map(doctors.map((doctor) => [doctor.id, doctor.name]));
-    const clearances = await Promise.all(ids.map((fighterId) => getCurrentClearanceFor(fighterId)));
+    const statuses = await Promise.all(ids.map((fighterId) => getClearanceStatus(fighterId, now)));
     return Object.fromEntries(
         ids.map((fighterId, index) => {
-            const clearance = clearances[index];
+            const { clearance, state } = statuses[index];
             const summary: ClearanceSummary = {
                 clearance: clearance ? toSummaryClearance(clearance) : null,
-                state: clearanceState(clearance, now),
+                state,
                 doctorName: clearance ? doctorNames.get(clearance.doctorId) : undefined,
             };
             return [fighterId, summary];
