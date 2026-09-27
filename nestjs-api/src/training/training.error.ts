@@ -137,6 +137,24 @@ export function invalidPlanDateRange(): BadRequestException {
   });
 }
 
+/**
+ * The session cannot start or continue until the Fighter's medical
+ * obligation is met. `details.reasons` carries only the fixed eligibility
+ * reason codes, never clinical content.
+ */
+export function trainingMedicalEligibilityRequired(
+  reasons: readonly string[],
+): ConflictException {
+  return new ConflictException({
+    statusCode: HttpStatus.CONFLICT,
+    error: 'Conflict',
+    code: 'TRAINING_MEDICAL_ELIGIBILITY_REQUIRED',
+    message:
+      'A medical review or a valid medical clearance is required before this training session can start.',
+    details: { reasons },
+  });
+}
+
 export function trainingOperationFailed(): InternalServerErrorException {
   return new InternalServerErrorException({
     statusCode: HttpStatus.INTERNAL_SERVER_ERROR,

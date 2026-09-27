@@ -4,10 +4,12 @@ import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
 
-const [schemaArg, catalogArg] = process.argv.slice(2);
+const [schemaArg, catalogArg, scopeArg] = process.argv.slice(2);
+if (scopeArg !== undefined && scopeArg !== '--medical')
+  throw new Error(`Unknown catalog scope: ${scopeArg}`);
 if (!schemaArg || !catalogArg)
   throw new Error(
-    'Usage: node scripts/check-drizzle-catalog.mjs <compiled-schema.js> <isolated-catalog.json>',
+    'Usage: node scripts/check-drizzle-catalog.mjs <compiled-schema.js> <isolated-catalog.json> [--medical]',
   );
 const schemaPath = resolve(schemaArg);
 const schema = await import(pathToFileURL(schemaPath));
@@ -23,6 +25,34 @@ const configs = new Map(
       return [c.name, c];
     }),
 );
+if (scopeArg === '--medical') {
+  const names = new Set([
+    'sports_doctors',
+    'doctor_fighters',
+    'injury_records',
+    'treatments',
+    'recovery_plans',
+    'medical_clearances',
+    'medical_examinations',
+    'medical_review_requests',
+    'injury_record_revisions',
+    'recovery_plan_revisions',
+    'medical_clearance_revisions',
+    'medical_review_request_revisions',
+  ]);
+  for (const name of names) {
+    assert.ok(configs.has(name), `Missing Drizzle medical table: ${name}`);
+    assert.ok(
+      catalog.tables.some((table) => table.name === name),
+      `Missing SQL medical table: ${name}`,
+    );
+  }
+  for (const name of configs.keys()) if (!names.has(name)) configs.delete(name);
+  catalog.tables = catalog.tables.filter((table) => names.has(table.name));
+  console.log(
+    'Scope: 12 medical/assignment tables and all catalog enums; other tables excluded explicitly.',
+  );
+}
 const render = (s) => dialect.sqlToQuery(s).sql;
 const normalize = (s) => (s == null ? null : s.replace(/\s+/g, ' ').trim());
 const actions = {
@@ -45,6 +75,16 @@ for (const table of catalog.tables) {
   );
   for (const column of table.columns) {
     const c = actual.columns.find((c) => c.name === column.name);
+    if (column.identity !== undefined)
+      assert.equal(
+        c.generatedIdentity?.type === 'always'
+          ? 'a'
+          : c.generatedIdentity?.type === 'byDefault'
+            ? 'd'
+            : '',
+        column.identity,
+        `${table.name}.${column.name}: identity`,
+      );
     assert.equal(
       c.notNull,
       column.required,

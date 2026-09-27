@@ -1,6 +1,15 @@
 import { HttpException } from '@nestjs/common';
+import type { ConfigService } from '@nestjs/config';
+import type {
+  AdmissionActivationClaimResult,
+  AdmissionActivationPort,
+} from '../shared/contracts/admission-activation.contract.js';
 import type { PublicUser } from '../users/users.model.js';
 import { UsersService } from '../users/users.service.js';
+import {
+  SAME_PASSWORD_ERROR_CODE,
+  WEAK_PASSWORD_ERROR_CODE,
+} from './auth.constants.js';
 import { AuthRepository } from './auth.repo.js';
 import { AuthService } from './auth.service.js';
 
@@ -17,21 +26,15 @@ const authenticatedUser = {
   email: 'fighter@example.com',
   role: 'FIGHTER' as const,
 };
-const publicUser: PublicUser = {
+const guestUser: PublicUser = {
   id: authenticatedUser.id,
   email: authenticatedUser.email,
-  role: 'FIGHTER',
+  role: 'GUEST',
   isActive: true,
   createdAt: new Date('2026-01-01T00:00:00.000Z'),
   updatedAt: new Date('2026-01-01T00:00:00.000Z'),
   deletedAt: null,
-  profile: {
-    id: '1317a43a-05af-4f2c-bc5b-781219643b68',
-    firstName: 'An',
-    lastName: 'Nguyen',
-    dateOfBirth: '2000-01-01',
-    weightClass: 'LIGHTWEIGHT',
-  },
+  profile: null,
 };
 
 function dependencies() {
@@ -66,6 +69,7 @@ function dependencies() {
         data: { user: { id: authenticatedUser.authSubject } },
         error: null,
       }),
+      resetPasswordForEmail: vi.fn().mockResolvedValue({ error: null }),
     },
   };
   const adminClient = {
@@ -75,6 +79,29 @@ function dependencies() {
         signOut: vi.fn().mockResolvedValue({ error: null }),
       },
     },
+  };
+  const requestClient = {
+    auth: {
+      verifyOtp: vi.fn().mockResolvedValue({
+        data: { user: { id: authenticatedUser.authSubject } },
+        error: null,
+      }),
+      updateUser: vi.fn().mockResolvedValue({
+        data: { user: { id: authenticatedUser.authSubject } },
+        error: null,
+      }),
+    },
+  };
+  const createRequestClient = vi.fn().mockReturnValue(requestClient);
+  const admissionActivation: Record<string, ReturnType<typeof vi.fn>> = {
+    claimPendingActivation: vi
+      .fn()
+      .mockResolvedValue({ outcome: 'NOT_APPLICABLE' } satisfies AdmissionActivationClaimResult),
+    markPasswordSet: vi.fn().mockResolvedValue(undefined),
+    releaseClaim: vi.fn().mockResolvedValue(undefined),
+  };
+  const config = {
+    getOrThrow: vi.fn().mockReturnValue('https://app.example.com/reset'),
   };
   const repository = {
     findActiveUserBySubject: vi.fn().mockResolvedValue(authenticatedUser),
@@ -86,40 +113,48 @@ function dependencies() {
     ),
   };
   const usersService = {
-    registerFighter: vi.fn().mockResolvedValue(publicUser),
+    registerGuest: vi.fn().mockResolvedValue(guestUser),
   };
   const service = new AuthService(
     publicClient as never,
     adminClient as never,
+    createRequestClient as never,
+    admissionActivation as unknown as AdmissionActivationPort,
+    config as unknown as ConfigService,
     repository as unknown as AuthRepository,
     usersService as unknown as UsersService,
   );
-  return { service, publicClient, adminClient, repository, usersService };
+  return {
+    service,
+    publicClient,
+    adminClient,
+    requestClient,
+    createRequestClient,
+    admissionActivation,
+    config,
+    repository,
+    usersService,
+  };
 }
 
 describe('AuthService', () => {
-  it('registers only a FIGHTER profile and returns the Supabase session', async () => {
+  // ── Registration ──────────────────────────────────────────────────────────
+
+  it('registers a GUEST identity and returns the Supabase session', async () => {
     const { service, usersService } = dependencies();
     const result = await service.register(
       {
         email: authenticatedUser.email,
         password: 'strong-password',
-        profile: {
-          firstName: 'An',
-          lastName: 'Nguyen',
-          dateOfBirth: '2000-01-01',
-          weightClass: 'LIGHTWEIGHT',
-        },
       },
       'request-id',
     );
 
-    expect(usersService.registerFighter).toHaveBeenCalledWith(
+    expect(usersService.registerGuest).toHaveBeenCalledWith(
       {
         subject: authenticatedUser.authSubject,
         email: authenticatedUser.email,
       },
-      expect.any(Object),
       'request-id',
     );
     expect(result.session?.refreshToken).toBe(session.refresh_token);
@@ -144,12 +179,6 @@ describe('AuthService', () => {
         {
           email: authenticatedUser.email,
           password: 'strong-password',
-          profile: {
-            firstName: 'An',
-            lastName: 'Nguyen',
-            dateOfBirth: '2000-01-01',
-            weightClass: 'LIGHTWEIGHT',
-          },
         },
         'request-id',
       )
@@ -160,21 +189,17 @@ describe('AuthService', () => {
     expect(adminClient.auth.admin.deleteUser).not.toHaveBeenCalled();
   });
 
-  it('cleans up created Supabase auth user when registerFighter fails', async () => {
+  it('cleans up created Supabase auth user when registerGuest fails', async () => {
     const { service, usersService, adminClient } = dependencies();
-    usersService.registerFighter.mockRejectedValueOnce(new Error('auto grant failed'));
+    usersService.registerGuest.mockRejectedValueOnce(
+      new Error('auto grant failed'),
+    );
 
     const error = await service
       .register(
         {
           email: authenticatedUser.email,
           password: 'strong-password',
-          profile: {
-            firstName: 'An',
-            lastName: 'Nguyen',
-            dateOfBirth: '2000-01-01',
-            weightClass: 'LIGHTWEIGHT',
-          },
         },
         'request-id',
       )
@@ -185,6 +210,8 @@ describe('AuthService', () => {
       authenticatedUser.authSubject,
     );
   });
+
+  // ── Login / Refresh / Authenticate / Logout ───────────────────────────────
 
   it('logs in only a mapped active application user', async () => {
     const { service } = dependencies();
@@ -268,5 +295,237 @@ describe('AuthService', () => {
         allOf: ['unknown.permission'],
       }),
     ).resolves.toBe(false);
+  });
+
+  // ── sendPasswordRecoveryEmail (§8 handover) ──────────────────────────────
+
+  it('returns accepted true when the provider takes the recovery request', async () => {
+    const { service } = dependencies();
+    await expect(
+      service.sendPasswordRecoveryEmail('user@example.com'),
+    ).resolves.toEqual({ accepted: true });
+  });
+
+  it('returns accepted false when the provider returns an error', async () => {
+    const { service, publicClient } = dependencies();
+    publicClient.auth.resetPasswordForEmail.mockResolvedValueOnce({
+      error: { message: 'rate limited' },
+    });
+    await expect(
+      service.sendPasswordRecoveryEmail('user@example.com'),
+    ).resolves.toEqual({ accepted: false });
+  });
+
+  it('returns accepted false when the provider throws', async () => {
+    const { service, publicClient } = dependencies();
+    publicClient.auth.resetPasswordForEmail.mockRejectedValueOnce(
+      new Error('network down'),
+    );
+    await expect(
+      service.sendPasswordRecoveryEmail('user@example.com'),
+    ).resolves.toEqual({ accepted: false });
+  });
+
+  // ── resetPassword (§5 handover) ──────────────────────────────────────────
+
+  it('resets a password without admission claim (non-applicant)', async () => {
+    const { service, admissionActivation } = dependencies();
+    const result = await service.resetPassword(
+      { tokenHash: 'a'.repeat(32), newPassword: 'new-strong-password' },
+      'request-id',
+    );
+
+    expect(result).toEqual({
+      passwordUpdated: true,
+      admissionActivationReady: false,
+    });
+    expect(admissionActivation.claimPendingActivation).toHaveBeenCalledWith(
+      authenticatedUser.authSubject,
+      'request-id',
+    );
+  });
+
+  it('resets a password and marks admission activation as ready', async () => {
+    const { service, admissionActivation } = dependencies();
+    const claim = {
+      applicationId: 'app-1',
+      activationId: 'act-1',
+      authSubject: authenticatedUser.authSubject,
+    };
+    admissionActivation.claimPendingActivation.mockResolvedValueOnce({
+      outcome: 'CLAIMED',
+      claim,
+    });
+
+    const result = await service.resetPassword(
+      { tokenHash: 'a'.repeat(32), newPassword: 'new-strong-password' },
+      'request-id',
+    );
+
+    expect(result).toEqual({
+      passwordUpdated: true,
+      admissionActivationReady: true,
+    });
+    expect(admissionActivation.markPasswordSet).toHaveBeenCalledWith(
+      claim,
+      'request-id',
+    );
+  });
+
+  it('rejects an expired or reused recovery token with 401', async () => {
+    const { service, requestClient, admissionActivation } = dependencies();
+    requestClient.auth.verifyOtp.mockResolvedValueOnce({
+      data: { user: null },
+      error: { message: 'OTP expired' },
+    });
+
+    const error = await service
+      .resetPassword(
+        { tokenHash: 'expired-token-hash-long-enough', newPassword: 'pw' },
+        'request-id',
+      )
+      .catch((reason: unknown) => reason);
+
+    expect(error).toBeInstanceOf(HttpException);
+    expect((error as HttpException).getStatus()).toBe(401);
+    expect(
+      ((error as HttpException).getResponse() as { code: string }).code,
+    ).toBe('RESET_TOKEN_INVALID');
+    expect(admissionActivation.claimPendingActivation).not.toHaveBeenCalled();
+  });
+
+  it('returns 409 when the same password is submitted', async () => {
+    const { service, requestClient, admissionActivation } = dependencies();
+    admissionActivation.claimPendingActivation.mockResolvedValueOnce({
+      outcome: 'CLAIMED',
+      claim: {
+        applicationId: 'app-1',
+        activationId: 'act-1',
+        authSubject: authenticatedUser.authSubject,
+      },
+    });
+    requestClient.auth.updateUser.mockResolvedValueOnce({
+      data: null,
+      error: { code: SAME_PASSWORD_ERROR_CODE, message: 'same password' },
+    });
+
+    const error = await service
+      .resetPassword(
+        { tokenHash: 'a'.repeat(32), newPassword: 'same-password' },
+        'request-id',
+      )
+      .catch((reason: unknown) => reason);
+
+    expect(error).toBeInstanceOf(HttpException);
+    expect((error as HttpException).getStatus()).toBe(409);
+    expect(
+      ((error as HttpException).getResponse() as { code: string }).code,
+    ).toBe('RESET_PASSWORD_SAME_AS_CURRENT');
+    expect(admissionActivation.releaseClaim).toHaveBeenCalled();
+  });
+
+  it('returns 422 when the new password is too weak', async () => {
+    const { service, requestClient, admissionActivation } = dependencies();
+    admissionActivation.claimPendingActivation.mockResolvedValueOnce({
+      outcome: 'NOT_APPLICABLE',
+    });
+    requestClient.auth.updateUser.mockResolvedValueOnce({
+      data: null,
+      error: { code: WEAK_PASSWORD_ERROR_CODE, message: 'weak' },
+    });
+
+    const error = await service
+      .resetPassword(
+        { tokenHash: 'a'.repeat(32), newPassword: 'weak' },
+        'request-id',
+      )
+      .catch((reason: unknown) => reason);
+
+    expect(error).toBeInstanceOf(HttpException);
+    expect((error as HttpException).getStatus()).toBe(422);
+    expect(
+      ((error as HttpException).getResponse() as { code: string }).code,
+    ).toBe('RESET_PASSWORD_TOO_WEAK');
+  });
+
+  it('returns 500 when DB fails after provider password change', async () => {
+    vi.useFakeTimers();
+    try {
+      const { service, admissionActivation } = dependencies();
+      const claim = {
+        applicationId: 'app-1',
+        activationId: 'act-1',
+        authSubject: authenticatedUser.authSubject,
+      };
+      admissionActivation.claimPendingActivation.mockResolvedValueOnce({
+        outcome: 'CLAIMED',
+        claim,
+      });
+      admissionActivation.markPasswordSet.mockRejectedValue(
+        new Error('DB down'),
+      );
+
+      let rejectedError: unknown;
+      const promise = service
+        .resetPassword(
+          { tokenHash: 'a'.repeat(32), newPassword: 'new-strong-password' },
+          'request-id',
+        )
+        .catch((reason: unknown) => {
+          rejectedError = reason;
+          return reason;
+        });
+
+      // Advance past all retry delays
+      await vi.runAllTimersAsync();
+      await promise;
+
+      expect(rejectedError).toBeInstanceOf(HttpException);
+      expect((rejectedError as HttpException).getStatus()).toBe(500);
+      expect(
+        ((rejectedError as HttpException).getResponse() as { code: string }).code,
+      ).toBe('RESET_PASSWORD_CONFIRMATION_FAILED');
+      // Claim is NOT released — the password was already changed
+      expect(admissionActivation.releaseClaim).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('returns 409 when another request already claimed the activation', async () => {
+    const { service, admissionActivation } = dependencies();
+    admissionActivation.claimPendingActivation.mockResolvedValueOnce({
+      outcome: 'CLAIMED_BY_ANOTHER_REQUEST',
+    });
+
+    const error = await service
+      .resetPassword(
+        { tokenHash: 'a'.repeat(32), newPassword: 'new-strong-password' },
+        'request-id',
+      )
+      .catch((reason: unknown) => reason);
+
+    expect(error).toBeInstanceOf(HttpException);
+    expect((error as HttpException).getStatus()).toBe(409);
+    expect(
+      ((error as HttpException).getResponse() as { code: string }).code,
+    ).toBe('RESET_PASSWORD_IN_PROGRESS');
+  });
+
+  it('reports activation ready when password was already set', async () => {
+    const { service, admissionActivation } = dependencies();
+    admissionActivation.claimPendingActivation.mockResolvedValueOnce({
+      outcome: 'ALREADY_PASSWORD_SET',
+    });
+
+    const result = await service.resetPassword(
+      { tokenHash: 'a'.repeat(32), newPassword: 'new-strong-password' },
+      'request-id',
+    );
+
+    expect(result).toEqual({
+      passwordUpdated: true,
+      admissionActivationReady: true,
+    });
   });
 });

@@ -3,8 +3,12 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_ADMIN_CLIENT } from '../common/supabase/supabase.module.js';
 import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import { USER } from '../shared/types/user.role.js';
-import { setAuditContext } from '../shared/utils/audit-context.util.js';
 import {
+  setAuditContext,
+  type Transaction,
+} from '../shared/utils/audit-context.util.js';
+import {
+  guestPromotionConflict,
   mapUserPersistenceError,
   userCreationFailed,
   userNotFound,
@@ -31,9 +35,12 @@ export class UsersService {
     private readonly supabaseAdmin: SupabaseClient,
   ) {}
 
-  async registerFighter(
+  /**
+   * Registration creates the pre-admission identity only. A Guest has no role
+   * profile until an approved admission is activated.
+   */
+  async registerGuest(
     identity: NewIdentity,
-    profile: FighterProfileInput,
     requestId: string,
   ): Promise<PublicUser> {
     try {
@@ -41,10 +48,9 @@ export class UsersService {
         await setAuditContext(identity.subject, requestId, transaction);
         const user = await this.usersRepository.createUser(
           identity,
-          USER.FIGHTER,
+          USER.GUEST,
           transaction,
         );
-        await this.usersRepository.createFighter(user.id, profile, transaction);
         const created = await this.usersRepository.findActiveById(
           user.id,
           transaction,
@@ -57,6 +63,24 @@ export class UsersService {
       if (error instanceof HttpException) throw error;
       throw mapUserPersistenceError(error);
     }
+  }
+
+  /**
+   * Joins the caller's activation transaction: the role change and the fighter
+   * profile must commit together. Throws when the row is no longer a GUEST so
+   * the caller never continues on an unverified promotion.
+   */
+  async promoteGuestToFighter(
+    userId: string,
+    profile: FighterProfileInput,
+    transaction: Transaction,
+  ): Promise<void> {
+    const promoted = await this.usersRepository.promoteGuestToFighter(
+      userId,
+      transaction,
+    );
+    if (!promoted) throw guestPromotionConflict();
+    await this.usersRepository.createFighter(userId, profile, transaction);
   }
 
   async create(

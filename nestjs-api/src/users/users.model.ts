@@ -74,6 +74,17 @@ const credentialsSchema = {
   password: credentialPasswordSchema,
 };
 
+/**
+ * Administrative creation. A fighter account can arrive two ways, and both are
+ * intentional:
+ *   - self-service admission (GUEST -> application -> coach PASS -> admin
+ *     APPROVED -> password recovery -> activation), which produces the
+ *     assessment and approval history;
+ *   - direct recruitment, where an admin onboards an already-signed fighter
+ *     here. This path has no admission record by design, so the fighter's
+ *     provenance lives in the audit log for this creation instead.
+ * GUEST accounts are never created here; they come from self-registration.
+ */
 export const createUserSchema = z.discriminatedUnion('role', [
   z.strictObject({
     ...credentialsSchema,

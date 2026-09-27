@@ -77,4 +77,29 @@ describe('users Zod contracts', () => {
       }).success,
     ).toBe(false);
   });
+
+  it('allows direct recruitment of FIGHTER without admission application', () => {
+    expect(
+      createUserBodySchema.safeParse({
+        user: {
+          email: 'direct_recruit@example.com',
+          password: 'strong-password',
+          role: 'FIGHTER',
+          profile: fighterProfile,
+        },
+      }).success,
+    ).toBe(true);
+  });
+
+  it('rejects creation of GUEST via POST /users (only self-registration allowed)', () => {
+    expect(
+      createUserBodySchema.safeParse({
+        user: {
+          email: 'guest@example.com',
+          password: 'strong-password',
+          role: 'GUEST',
+        },
+      }).success,
+    ).toBe(false);
+  });
 });

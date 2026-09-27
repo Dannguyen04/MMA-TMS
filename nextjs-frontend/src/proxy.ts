@@ -6,7 +6,7 @@ import { ACCESS_EXPIRES_COOKIE, ACCESS_TOKEN_COOKIE, DEMO_SESSION_COOKIE, REFRES
 import { ACCESS_TOKEN_REFRESH_MARGIN_SECONDS, refreshedSessionSchema, sessionCookies } from "@/lib/auth/session-tokens";
 import { routes } from "@/lib/routes";
 
-const PUBLIC_PATHS = [routes.login, routes.forgotPassword];
+const PUBLIC_PATHS = ["/", routes.login, routes.forgotPassword];
 
 /** Sent on every response the proxy returns: no framing (clickjacking), no cross-site referrers, no MIME sniffing. */
 const SECURITY_HEADERS: Record<string, string> = {
@@ -56,7 +56,7 @@ async function refreshIfNeeded(request: NextRequest, response: NextResponse): Pr
  */
 export async function proxy(request: NextRequest) {
     const { pathname, search } = request.nextUrl;
-    const isPublic = PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+    const isPublic = PUBLIC_PATHS.some((path) => pathname === path || (path !== "/" && pathname.startsWith(`${path}/`)));
     // API route handlers authenticate themselves and answer with JSON (401), never a login redirect.
     const isApi = pathname === "/api" || pathname.startsWith("/api/");
 

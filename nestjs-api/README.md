@@ -57,6 +57,68 @@ $ npm run test:e2e
 $ npm run test:cov
 ```
 
+## Password recovery configuration (required by Fighter Admissions)
+
+`POST /auth/reset-password` redeems a recovery link server side with
+`supabase.auth.verifyOtp({ token_hash, type: 'recovery' })`, so the frontend must
+receive a **`token_hash`**. The default Supabase "Reset Password" template sends
+`{{ .ConfirmationURL }}`, which routes through `/auth/v1/verify` and returns the
+user with a **session in the URL fragment** — that flow yields no `token_hash`
+and does not satisfy this contract. Setting `redirectTo` alone does not change
+it: the template itself decides which variable is sent.
+
+### 1. Email template (Supabase Dashboard → Authentication → Email Templates → Reset Password)
+
+Replace the confirmation URL with an explicit `token_hash` link:
+
+```html
+<a href="{{ .SiteURL }}/auth/reset-password?token_hash={{ .TokenHash }}&type=recovery">
+  Reset password
+</a>
+```
+
+- `{{ .TokenHash }}` is the hashed one-time token this backend verifies.
+- `{{ .RedirectTo }}` may replace `{{ .SiteURL }}` when the link target should
+  follow the `redirectTo` passed by the backend.
+- Recovery links are **single use**. Mail scanners and clients that prefetch
+  links can consume a link before the user clicks it, which then surfaces as
+  `RESET_TOKEN_INVALID`; the landing page should require an explicit user action
+  and must not verify automatically on load.
+
+### 2. Redirect URL allowlist (Authentication → URL Configuration)
+
+Add the exact value of `PASSWORD_RESET_REDIRECT_URL` to the allowlist. The
+backend passes it as `redirectTo` to `resetPasswordForEmail`, and Supabase
+rejects values that are not allowlisted. This is deliberately a single exact URL
+and is **not** derived from the CORS origin list, which accepts wildcard and
+substring matches.
+
+### 3. Email provider
+
+Password recovery requires a working email sender for the project (the built-in
+sender is rate limited; configure SMTP for anything beyond local testing).
+Without it, `POST /auth/forgot-password` still answers with its uniform message,
+and an approved admission records the send attempt with `accepted = false`.
+
+### 4. Environment variables
+
+| Variable | Purpose |
+| --- | --- |
+| `SUPABASE_URL`, `SUPABASE_ANON_KEY` | Recovery mail request and the request-scoped client that verifies the token and updates the password |
+| `SUPABASE_SERVICE_KEY` | Existing admin operations; **not** used to change a user password |
+| `PASSWORD_RESET_REDIRECT_URL` | Exact recovery redirect target, allowlisted in Supabase |
+
+### 5. Frontend contract
+
+1. Read `token_hash` and `type=recovery` from the recovery link.
+2. `POST /auth/reset-password` with `{ tokenHash, newPassword }`.
+3. Sign in with the new password (this endpoint returns no tokens), then call
+   `POST /fighter-admissions/activation` with that bearer token.
+4. `RESET_PASSWORD_SAME_AS_CURRENT` means the account already uses that
+   password: prompt for a different one rather than resubmitting the same value.
+
+Tokens and passwords are never logged by the backend.
+
 ## Deployment
 
 When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.

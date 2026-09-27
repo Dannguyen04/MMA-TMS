@@ -65,31 +65,32 @@ function adminClientMock() {
 }
 
 describe('UsersService', () => {
-  it('registers a fighter profile in one database transaction', async () => {
+  it('registers a guest identity in one database transaction', async () => {
     const repository = repositoryMock();
+    // registerGuest returns a GUEST with no profile
+    const guest = {
+      ...fighter,
+      role: USER.GUEST,
+      profile: null,
+    };
+    repository.findActiveById.mockResolvedValueOnce(guest);
     const service = new UsersService(
       repository as unknown as UsersRepository,
       adminClientMock() as never,
     );
 
     await expect(
-      service.registerFighter(
+      service.registerGuest(
         {
           subject: 'e069ca8a-d0f1-44da-8bd5-48a60bf44b99',
           email: fighter.email,
         },
-        {
-          firstName: 'An',
-          lastName: 'Nguyen',
-          dateOfBirth: '2000-01-01',
-          weightClass: 'LIGHTWEIGHT',
-        },
         'request-id',
       ),
-    ).resolves.toEqual(fighter);
+    ).resolves.toEqual(guest);
     expect(repository.createUser).toHaveBeenCalledWith(
       expect.any(Object),
-      USER.FIGHTER,
+      USER.GUEST,
       { scope: 'transaction' },
     );
     expect(repository.executeAuditContext).toHaveBeenCalledTimes(1);

@@ -48,6 +48,15 @@ export function userRoleMismatch(): BadRequestException {
   });
 }
 
+export function guestPromotionConflict(): ConflictException {
+  return new ConflictException({
+    statusCode: HttpStatus.CONFLICT,
+    error: 'Conflict',
+    code: 'USER_GUEST_PROMOTION_CONFLICT',
+    message: 'The account is no longer awaiting fighter activation',
+  });
+}
+
 export function mapUserPersistenceError(error: unknown): HttpException {
   if (!isPostgreSqlError(error)) {
     return new InternalServerErrorException({

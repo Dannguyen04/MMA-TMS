@@ -5,14 +5,14 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Request } from 'express';
+import { env } from '../../shared/config/env.js';
 
 @Injectable()
 export class WorkerAuthGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<Request>();
 
-    const expectedToken =
-      process.env.WORKER_SECRET_TOKEN || 'mma-tms-worker-local-secret-2026';
+    const expectedToken = env.WORKER_SECRET_TOKEN;
 
     const headerToken = request.headers['x-worker-secret'] as
       string | undefined;

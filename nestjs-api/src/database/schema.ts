@@ -72,6 +72,29 @@ export const userRoleEnum = pgEnum('user_role', [
   'COACH',
   'DOCTOR',
   'ADMIN',
+  'GUEST',
+]);
+export const fighterApplicationStatusEnum = pgEnum('fighter_application_status', [
+  'SUBMITTED',
+  'FAILED',
+  'PASSED',
+  'REJECTED',
+  'APPROVED',
+  'ACTIVATED',
+]);
+export const fighterAssessmentConclusionEnum = pgEnum(
+  'fighter_assessment_conclusion',
+  ['PASS', 'FAIL'],
+);
+export const fighterDecisionEnum = pgEnum('fighter_decision', [
+  'APPROVED',
+  'REJECTED',
+]);
+export const fighterActivationStatusEnum = pgEnum('fighter_activation_status', [
+  'PENDING',
+  'IN_PROGRESS',
+  'PASSWORD_SET',
+  'COMPLETED',
 ]);
 export const weightClassEnum = pgEnum('weight_class', [
   'STRAWWEIGHT',
@@ -239,6 +262,22 @@ export const recoveryPlanStatusEnum = pgEnum('recovery_plan_status', [
   'ACTIVE',
   'COMPLETED',
   'CANCELLED',
+]);
+export const medicalExaminationScopeEnum = pgEnum(
+  'medical_examination_scope',
+  ['TRAINING', 'COMPETITION'],
+);
+export const medicalExaminationDecisionEnum = pgEnum(
+  'medical_examination_decision',
+  ['ELIGIBLE', 'ELIGIBLE_WITH_RESTRICTIONS', 'NOT_ELIGIBLE'],
+);
+export const medicalReviewRequestStatusEnum = pgEnum(
+  'medical_review_request_status',
+  ['OPEN', 'RESOLVED'],
+);
+export const medicalRevisionSourceEnum = pgEnum('medical_revision_source', [
+  'APPLICATION',
+  'MIGRATION_BASELINE',
 ]);
 export const notificationTypeEnum = pgEnum('notification_type', [
   'ANOMALY_HIGH',
@@ -1025,7 +1064,7 @@ export const doctorFighters = pgTable(
     uniqueIndex('uq_doctor_fighter_open')
       .using('btree', t.doctorId, t.fighterId)
       .where(sql.raw('(ends_at IS NULL)')),
-    index('idx_doctor_fighter_history').using('btree', t.fighterId, t.startsAt),
+    index('idx_doctor_fighter_history').using('btree', t.fighterId, t.startsAt.desc()),
   ],
 ).enableRLS();
 
@@ -1053,6 +1092,374 @@ export const exercises = pgTable(
   },
   (t): PgTableExtraConfigValue[] => [
     primaryKey({ name: 'exercises_pkey', columns: [t.id] }),
+  ],
+).enableRLS();
+
+export const fighterApplications = pgTable(
+  'fighter_applications',
+  {
+    id: uuid('id').notNull().default(sql.raw('gen_random_uuid()')),
+    guestUserId: uuid('guest_user_id').notNull(),
+    email: text('email').notNull(),
+    firstName: text('first_name').notNull(),
+    lastName: text('last_name').notNull(),
+    dateOfBirth: date('date_of_birth').notNull(),
+    weightClass: weightClassEnum('weight_class').notNull(),
+    nationality: text('nationality'),
+    contactPhone: text('contact_phone'),
+    trainingBackground: text('training_background'),
+    competitionBackground: text('competition_background'),
+    motivation: text('motivation'),
+    status: fighterApplicationStatusEnum('status')
+      .notNull()
+      .default('SUBMITTED'),
+    submittedAt: timestamp('submitted_at', { withTimezone: true })
+      .notNull()
+      .default(sql.raw('now()')),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .default(sql.raw('now()')),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .default(sql.raw('now()')),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    check(
+      'fighter_applications_email_check',
+      sql.raw('((email = lower(btrim(email))) AND (length(email) > 3))'),
+    ),
+    check(
+      'fighter_applications_first_name_check',
+      sql.raw('(length(btrim(first_name)) > 0)'),
+    ),
+    check(
+      'fighter_applications_last_name_check',
+      sql.raw('(length(btrim(last_name)) > 0)'),
+    ),
+    primaryKey({ name: 'fighter_applications_pkey', columns: [t.id] }),
+    unique('uq_fighter_application_guest').on(t.id, t.guestUserId),
+    foreignKey({
+      name: 'fighter_applications_guest_user_id_fkey',
+      columns: [t.guestUserId],
+      foreignColumns: [users.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    uniqueIndex('uq_fighter_application_open')
+      .using('btree', t.guestUserId)
+      .where(
+        sql.raw(
+          "(status = ANY (ARRAY['SUBMITTED'::fighter_application_status, 'PASSED'::fighter_application_status, 'APPROVED'::fighter_application_status]))",
+        ),
+      ),
+    index('idx_fighter_applications_status').using(
+      'btree',
+      t.status,
+      t.submittedAt.desc(),
+    ),
+    index('idx_fighter_applications_guest').using(
+      'btree',
+      t.guestUserId,
+      t.submittedAt.desc(),
+    ),
+  ],
+).enableRLS();
+
+export const fighterApplicationCoachAssignments = pgTable(
+  'fighter_application_coach_assignments',
+  {
+    id: uuid('id').notNull().default(sql.raw('gen_random_uuid()')),
+    applicationId: uuid('application_id').notNull(),
+    coachId: uuid('coach_id').notNull(),
+    assignedById: uuid('assigned_by_id').notNull(),
+    startsAt: timestamp('starts_at', { withTimezone: true })
+      .notNull()
+      .default(sql.raw('now()')),
+    endsAt: timestamp('ends_at', { withTimezone: true }),
+    endedById: uuid('ended_by_id'),
+    endReason: text('end_reason'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .default(sql.raw('now()')),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    check(
+      'ck_application_assignment_period',
+      sql.raw('((ends_at IS NULL) OR (ends_at > starts_at))'),
+    ),
+    check(
+      'ck_application_assignment_closure',
+      sql.raw(
+        "(((ends_at IS NULL) AND (ended_by_id IS NULL) AND (end_reason IS NULL)) OR ((ends_at IS NOT NULL) AND (ended_by_id IS NOT NULL) AND (NULLIF(btrim(end_reason), ''::text) IS NOT NULL)))",
+      ),
+    ),
+    primaryKey({
+      name: 'fighter_application_coach_assignments_pkey',
+      columns: [t.id],
+    }),
+    unique('uq_application_assignment_context').on(t.id, t.applicationId),
+    unique('uq_application_assignment_coach').on(t.id, t.coachId),
+    foreignKey({
+      name: 'fighter_application_coach_assignments_application_id_fkey',
+      columns: [t.applicationId],
+      foreignColumns: [fighterApplications.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    foreignKey({
+      name: 'fighter_application_coach_assignments_coach_id_fkey',
+      columns: [t.coachId],
+      foreignColumns: [coaches.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    foreignKey({
+      name: 'fighter_application_coach_assignments_assigned_by_id_fkey',
+      columns: [t.assignedById],
+      foreignColumns: [users.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    foreignKey({
+      name: 'fighter_application_coach_assignments_ended_by_id_fkey',
+      columns: [t.endedById],
+      foreignColumns: [users.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    uniqueIndex('uq_application_assignment_open')
+      .using('btree', t.applicationId)
+      .where(sql.raw('(ends_at IS NULL)')),
+    index('idx_application_assignment_coach_open')
+      .using('btree', t.coachId)
+      .where(sql.raw('(ends_at IS NULL)')),
+  ],
+).enableRLS();
+
+export const fighterApplicationAssessments = pgTable(
+  'fighter_application_assessments',
+  {
+    id: uuid('id').notNull().default(sql.raw('gen_random_uuid()')),
+    applicationId: uuid('application_id').notNull(),
+    assignmentId: uuid('assignment_id').notNull(),
+    coachId: uuid('coach_id').notNull(),
+    conclusion: fighterAssessmentConclusionEnum('conclusion').notNull(),
+    summary: text('summary').notNull(),
+    criteria: jsonb('criteria').notNull(),
+    assessedAt: timestamp('assessed_at', { withTimezone: true })
+      .notNull()
+      .default(sql.raw('now()')),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .default(sql.raw('now()')),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    check(
+      'fighter_application_assessments_summary_check',
+      sql.raw('(length(btrim(summary)) > 0)'),
+    ),
+    check(
+      'fighter_application_assessments_criteria_check',
+      sql.raw(
+        "((jsonb_typeof(criteria) = 'array'::text) AND ((jsonb_array_length(criteria) >= 1) AND (jsonb_array_length(criteria) <= 30)))",
+      ),
+    ),
+    primaryKey({
+      name: 'fighter_application_assessments_pkey',
+      columns: [t.id],
+    }),
+    unique('fighter_application_assessments_application_id_key').on(
+      t.applicationId,
+    ),
+    unique('uq_assessment_application').on(t.id, t.applicationId),
+    foreignKey({
+      name: 'fighter_application_assessments_application_id_fkey',
+      columns: [t.applicationId],
+      foreignColumns: [fighterApplications.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    foreignKey({
+      name: 'fighter_application_assessments_assignment_id_fkey',
+      columns: [t.assignmentId],
+      foreignColumns: [fighterApplicationCoachAssignments.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    foreignKey({
+      name: 'fighter_application_assessments_coach_id_fkey',
+      columns: [t.coachId],
+      foreignColumns: [coaches.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    foreignKey({
+      name: 'fk_assessment_assignment_application',
+      columns: [t.assignmentId, t.applicationId],
+      foreignColumns: [
+        fighterApplicationCoachAssignments.id,
+        fighterApplicationCoachAssignments.applicationId,
+      ],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    foreignKey({
+      name: 'fk_assessment_assignment_coach',
+      columns: [t.assignmentId, t.coachId],
+      foreignColumns: [
+        fighterApplicationCoachAssignments.id,
+        fighterApplicationCoachAssignments.coachId,
+      ],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    index('idx_assessment_coach').using('btree', t.coachId, t.assessedAt.desc()),
+  ],
+).enableRLS();
+
+export const fighterApplicationDecisions = pgTable(
+  'fighter_application_decisions',
+  {
+    id: uuid('id').notNull().default(sql.raw('gen_random_uuid()')),
+    applicationId: uuid('application_id').notNull(),
+    assessmentId: uuid('assessment_id').notNull(),
+    adminId: uuid('admin_id').notNull(),
+    decision: fighterDecisionEnum('decision').notNull(),
+    reason: text('reason').notNull(),
+    decidedAt: timestamp('decided_at', { withTimezone: true })
+      .notNull()
+      .default(sql.raw('now()')),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .default(sql.raw('now()')),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    check(
+      'fighter_application_decisions_reason_check',
+      sql.raw('(length(btrim(reason)) > 0)'),
+    ),
+    primaryKey({ name: 'fighter_application_decisions_pkey', columns: [t.id] }),
+    unique('fighter_application_decisions_application_id_key').on(
+      t.applicationId,
+    ),
+    unique('uq_decision_application').on(t.id, t.applicationId),
+    foreignKey({
+      name: 'fighter_application_decisions_application_id_fkey',
+      columns: [t.applicationId],
+      foreignColumns: [fighterApplications.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    foreignKey({
+      name: 'fighter_application_decisions_assessment_id_fkey',
+      columns: [t.assessmentId],
+      foreignColumns: [fighterApplicationAssessments.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    foreignKey({
+      name: 'fighter_application_decisions_admin_id_fkey',
+      columns: [t.adminId],
+      foreignColumns: [users.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    foreignKey({
+      name: 'fk_decision_assessment_application',
+      columns: [t.assessmentId, t.applicationId],
+      foreignColumns: [
+        fighterApplicationAssessments.id,
+        fighterApplicationAssessments.applicationId,
+      ],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    index('idx_decision_admin').using('btree', t.adminId, t.decidedAt.desc()),
+  ],
+).enableRLS();
+
+export const fighterApplicationActivations = pgTable(
+  'fighter_application_activations',
+  {
+    id: uuid('id').notNull().default(sql.raw('gen_random_uuid()')),
+    applicationId: uuid('application_id').notNull(),
+    decisionId: uuid('decision_id').notNull(),
+    guestUserId: uuid('guest_user_id').notNull(),
+    status: fighterActivationStatusEnum('status').notNull().default('PENDING'),
+    recoveryAttempts: integer('recovery_attempts').notNull().default(0),
+    attemptedAt: timestamp('attempted_at', { withTimezone: true }),
+    acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+    passwordSetAt: timestamp('password_set_at', { withTimezone: true }),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .default(sql.raw('now()')),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .default(sql.raw('now()')),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    check(
+      'fighter_application_activations_recovery_attempts_check',
+      sql.raw('(recovery_attempts >= 0)'),
+    ),
+    check(
+      'ck_activation_lifecycle',
+      sql.raw(
+        "((((status = 'COMPLETED'::fighter_activation_status) = (completed_at IS NOT NULL)) AND ((status = ANY (ARRAY['PASSWORD_SET'::fighter_activation_status, 'COMPLETED'::fighter_activation_status])) = (password_set_at IS NOT NULL))) AND ((accepted_at IS NULL) OR (attempted_at IS NOT NULL)) AND ((completed_at IS NULL) OR (password_set_at IS NULL) OR (completed_at >= password_set_at)))",
+      ),
+    ),
+    primaryKey({
+      name: 'fighter_application_activations_pkey',
+      columns: [t.id],
+    }),
+    unique('fighter_application_activations_application_id_key').on(
+      t.applicationId,
+    ),
+    foreignKey({
+      name: 'fighter_application_activations_application_id_fkey',
+      columns: [t.applicationId],
+      foreignColumns: [fighterApplications.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    foreignKey({
+      name: 'fighter_application_activations_decision_id_fkey',
+      columns: [t.decisionId],
+      foreignColumns: [fighterApplicationDecisions.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    foreignKey({
+      name: 'fighter_application_activations_guest_user_id_fkey',
+      columns: [t.guestUserId],
+      foreignColumns: [users.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    foreignKey({
+      name: 'fk_activation_application_guest',
+      columns: [t.applicationId, t.guestUserId],
+      foreignColumns: [fighterApplications.id, fighterApplications.guestUserId],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    foreignKey({
+      name: 'fk_activation_decision_application',
+      columns: [t.decisionId, t.applicationId],
+      foreignColumns: [
+        fighterApplicationDecisions.id,
+        fighterApplicationDecisions.applicationId,
+      ],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    index('idx_activation_status').using(
+      'btree',
+      t.status,
+      t.updatedAt.desc(),
+    ),
+    index('idx_activation_guest').using('btree', t.guestUserId),
   ],
 ).enableRLS();
 
@@ -1641,8 +2048,10 @@ export const injuryRecords = pgTable(
       .notNull()
       .default(sql.raw('now()')),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    revision: integer('revision').notNull().default(sql.raw('1')),
   },
   (t): PgTableExtraConfigValue[] => [
+    check('ck_injury_records_revision', sql.raw('(revision > 0)')),
     check(
       'injury_records_trigger_time_ms_check',
       sql.raw('(trigger_time_ms >= (0)::double precision)'),
@@ -1714,7 +2123,7 @@ export const injuryRecords = pgTable(
       'btree',
       t.fighterId,
       t.status,
-      t.occurredAt,
+      t.occurredAt.desc(),
     ),
   ],
 ).enableRLS();
@@ -1835,12 +2244,37 @@ export const medicalClearances = pgTable(
       .notNull()
       .default(sql.raw('now()')),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    examinationId: uuid('examination_id'),
+    revision: integer('revision').notNull().default(sql.raw('1')),
+    issueSequence: bigint('issue_sequence', { mode: 'number' })
+      .notNull()
+      .generatedAlwaysAsIdentity(),
   },
   (t): PgTableExtraConfigValue[] => [
+    unique('uq_medical_clearance_issue_sequence').on(t.issueSequence),
+    index('idx_clearance_examination_issue')
+      .using('btree', t.examinationId, t.issueSequence.desc())
+      .where(sql.raw('(examination_id IS NOT NULL)')),
     check(
       'medical_clearances_check',
       sql.raw('((valid_until IS NULL) OR (valid_until > valid_from))'),
     ),
+    check('ck_medical_clearances_revision', sql.raw('(revision > 0)')),
+    unique('uq_medical_clearance_fighter').on(t.id, t.fighterId),
+    foreignKey({
+      name: 'fk_medical_clearance_examination',
+      columns: [t.examinationId, t.fighterId],
+      foreignColumns: [medicalExaminations.id, medicalExaminations.fighterId],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    uniqueIndex('uq_medical_clearance_examination_active')
+      .using('btree', t.examinationId, t.clearanceType)
+      .where(
+        sql.raw(
+          "((status = 'ACTIVE'::clearance_status) AND (examination_id IS NOT NULL))",
+        ),
+      ),
     check(
       'ck_clearance_revocation',
       sql.raw(
@@ -1872,7 +2306,363 @@ export const medicalClearances = pgTable(
     index('idx_clearance_fighter_valid').using(
       'btree',
       t.fighterId,
-      t.validFrom,
+      t.validFrom.desc(),
+    ),
+  ],
+).enableRLS();
+
+// ─── Migration 011: clinical Medical module ──────────────────────────────────
+
+export const medicalExaminations = pgTable(
+  'medical_examinations',
+  {
+    id: uuid('id').notNull().default(sql.raw('gen_random_uuid()')),
+    sequenceNo: bigint('sequence_no', { mode: 'number' })
+      .notNull()
+      .generatedAlwaysAsIdentity(),
+    fighterId: uuid('fighter_id').notNull(),
+    doctorId: uuid('doctor_id').notNull(),
+    recordedById: uuid('recorded_by_id').notNull(),
+    scope: medicalExaminationScopeEnum('scope').notNull(),
+    decision: medicalExaminationDecisionEnum('decision').notNull(),
+    examinedAt: timestamp('examined_at', { withTimezone: true }).notNull(),
+    reason: text('reason').notNull(),
+    allowedSessionTypes: sessionTypeEnum('allowed_session_types').array(),
+    allowedTechniqueTypes: techniqueTypeEnum('allowed_technique_types').array(),
+    excludedJoints: bodyJointEnum('excluded_joints').array(),
+    restrictionNotes: text('restriction_notes'),
+    validUntil: timestamp('valid_until', { withTimezone: true }),
+    supersedesId: uuid('supersedes_id'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .default(sql.raw('clock_timestamp()')),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    primaryKey({ name: 'medical_examinations_pkey', columns: [t.id] }),
+    unique('uq_medical_examination_sequence').on(t.sequenceNo),
+    unique('uq_medical_examination_fighter').on(t.id, t.fighterId),
+    unique('uq_medical_examination_scope').on(t.id, t.fighterId, t.scope),
+    unique('uq_medical_examination_successor').on(t.supersedesId),
+    check(
+      'ck_medical_examination_reason',
+      sql.raw('(length(btrim(reason)) > 0)'),
+    ),
+    check('ck_medical_examination_correction', sql.raw('(supersedes_id <> id)')),
+    check(
+      'ck_medical_examination_restrictions',
+      sql.raw(
+        "(((decision = 'ELIGIBLE_WITH_RESTRICTIONS'::medical_examination_decision) = ((allowed_session_types IS NOT NULL) OR (allowed_technique_types IS NOT NULL) OR (excluded_joints IS NOT NULL) OR (restriction_notes IS NOT NULL))) AND ((allowed_session_types IS NULL) OR (cardinality(allowed_session_types) > 0)) AND ((allowed_technique_types IS NULL) OR (cardinality(allowed_technique_types) > 0)) AND ((excluded_joints IS NULL) OR (cardinality(excluded_joints) > 0)) AND ((restriction_notes IS NULL) OR (length(btrim(restriction_notes)) > 0)))",
+      ),
+    ),
+    check(
+      'ck_medical_examination_validity',
+      sql.raw(
+        "(((valid_until IS NULL) OR (valid_until > examined_at)) AND ((decision <> 'NOT_ELIGIBLE'::medical_examination_decision) OR (valid_until IS NULL)))",
+      ),
+    ),
+    foreignKey({
+      name: 'medical_examinations_fighter_id_fkey',
+      columns: [t.fighterId],
+      foreignColumns: [fighters.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    foreignKey({
+      name: 'medical_examinations_doctor_id_fkey',
+      columns: [t.doctorId],
+      foreignColumns: [sportsDoctors.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    foreignKey({
+      name: 'medical_examinations_recorded_by_id_fkey',
+      columns: [t.recordedById],
+      foreignColumns: [users.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    foreignKey({
+      name: 'fk_medical_examination_correction',
+      columns: [t.supersedesId, t.fighterId, t.scope],
+      foreignColumns: [t.id, t.fighterId, t.scope],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    index('idx_medical_examination_fighter_scope').using(
+      'btree',
+      t.fighterId,
+      t.scope,
+      t.sequenceNo.desc(),
+    ),
+  ],
+).enableRLS();
+
+export const medicalReviewRequests = pgTable(
+  'medical_review_requests',
+  {
+    id: uuid('id').notNull().default(sql.raw('gen_random_uuid()')),
+    fighterId: uuid('fighter_id').notNull(),
+    requestedById: uuid('requested_by_id').notNull(),
+    requesterRole: userRoleEnum('requester_role').notNull(),
+    reason: text('reason').notNull(),
+    status: medicalReviewRequestStatusEnum('status')
+      .notNull()
+      .default(sql.raw("'OPEN'::medical_review_request_status")),
+    requestedAt: timestamp('requested_at', { withTimezone: true })
+      .notNull()
+      .default(sql.raw('clock_timestamp()')),
+    resolvedByExaminationId: uuid('resolved_by_examination_id'),
+    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+    revision: integer('revision').notNull().default(sql.raw('1')),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .default(sql.raw('now()')),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .default(sql.raw('now()')),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    primaryKey({ name: 'medical_review_requests_pkey', columns: [t.id] }),
+    unique('uq_medical_review_request_fighter').on(t.id, t.fighterId),
+    check(
+      'ck_medical_review_request_reason',
+      sql.raw('(length(btrim(reason)) > 0)'),
+    ),
+    check(
+      'ck_medical_review_request_requester',
+      sql.raw(
+        "(requester_role = ANY (ARRAY['FIGHTER'::user_role, 'COACH'::user_role, 'DOCTOR'::user_role]))",
+      ),
+    ),
+    check('ck_medical_review_request_revision', sql.raw('(revision > 0)')),
+    check(
+      'ck_medical_review_request_resolution',
+      sql.raw(
+        "(((status = 'RESOLVED'::medical_review_request_status) = (resolved_by_examination_id IS NOT NULL)) AND ((status = 'RESOLVED'::medical_review_request_status) = (resolved_at IS NOT NULL)) AND ((resolved_at IS NULL) OR (resolved_at >= requested_at)))",
+      ),
+    ),
+    foreignKey({
+      name: 'medical_review_requests_fighter_id_fkey',
+      columns: [t.fighterId],
+      foreignColumns: [fighters.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    foreignKey({
+      name: 'medical_review_requests_requested_by_id_fkey',
+      columns: [t.requestedById],
+      foreignColumns: [users.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    foreignKey({
+      name: 'fk_medical_review_request_examination',
+      columns: [t.resolvedByExaminationId, t.fighterId],
+      foreignColumns: [medicalExaminations.id, medicalExaminations.fighterId],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    index('idx_medical_review_request_fighter_status').using(
+      'btree',
+      t.fighterId,
+      t.status,
+      t.requestedAt.desc(),
+    ),
+  ],
+).enableRLS();
+
+const REVISION_SNAPSHOT_CHECK = "(jsonb_typeof(snapshot) = 'object'::text)";
+const REVISION_ACTOR_CHECK =
+  "((source = 'APPLICATION'::medical_revision_source) = (recorded_by_user_id IS NOT NULL))";
+
+export const injuryRecordRevisions = pgTable(
+  'injury_record_revisions',
+  {
+    id: uuid('id').notNull().default(sql.raw('gen_random_uuid()')),
+    injuryId: uuid('injury_id').notNull(),
+    fighterId: uuid('fighter_id').notNull(),
+    revision: integer('revision').notNull(),
+    source: medicalRevisionSourceEnum('source').notNull(),
+    recordedByUserId: uuid('recorded_by_user_id'),
+    snapshot: jsonb('snapshot').notNull(),
+    recordedAt: timestamp('recorded_at', { withTimezone: true })
+      .notNull()
+      .default(sql.raw('clock_timestamp()')),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    primaryKey({ name: 'injury_record_revisions_pkey', columns: [t.id] }),
+    unique('uq_injury_record_revision').on(t.injuryId, t.revision),
+    check('ck_injury_record_revision_number', sql.raw('(revision > 0)')),
+    check(
+      'ck_injury_record_revision_snapshot',
+      sql.raw(REVISION_SNAPSHOT_CHECK),
+    ),
+    check('ck_injury_record_revision_actor', sql.raw(REVISION_ACTOR_CHECK)),
+    foreignKey({
+      name: 'injury_record_revisions_recorded_by_user_id_fkey',
+      columns: [t.recordedByUserId],
+      foreignColumns: [users.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    foreignKey({
+      name: 'fk_injury_record_revision_source',
+      columns: [t.injuryId, t.fighterId],
+      foreignColumns: [injuryRecords.id, injuryRecords.fighterId],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    index('idx_injury_record_revisions_fighter').using(
+      'btree',
+      t.fighterId,
+      t.recordedAt.desc(),
+    ),
+  ],
+).enableRLS();
+
+export const recoveryPlanRevisions = pgTable(
+  'recovery_plan_revisions',
+  {
+    id: uuid('id').notNull().default(sql.raw('gen_random_uuid()')),
+    recoveryPlanId: uuid('recovery_plan_id').notNull(),
+    fighterId: uuid('fighter_id').notNull(),
+    revision: integer('revision').notNull(),
+    source: medicalRevisionSourceEnum('source').notNull(),
+    recordedByUserId: uuid('recorded_by_user_id'),
+    snapshot: jsonb('snapshot').notNull(),
+    recordedAt: timestamp('recorded_at', { withTimezone: true })
+      .notNull()
+      .default(sql.raw('clock_timestamp()')),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    primaryKey({ name: 'recovery_plan_revisions_pkey', columns: [t.id] }),
+    unique('uq_recovery_plan_revision').on(t.recoveryPlanId, t.revision),
+    check('ck_recovery_plan_revision_number', sql.raw('(revision > 0)')),
+    check(
+      'ck_recovery_plan_revision_snapshot',
+      sql.raw(REVISION_SNAPSHOT_CHECK),
+    ),
+    check('ck_recovery_plan_revision_actor', sql.raw(REVISION_ACTOR_CHECK)),
+    foreignKey({
+      name: 'recovery_plan_revisions_recorded_by_user_id_fkey',
+      columns: [t.recordedByUserId],
+      foreignColumns: [users.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    foreignKey({
+      name: 'fk_recovery_plan_revision_source',
+      columns: [t.recoveryPlanId, t.fighterId],
+      foreignColumns: [recoveryPlans.id, recoveryPlans.fighterId],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    index('idx_recovery_plan_revisions_fighter').using(
+      'btree',
+      t.fighterId,
+      t.recordedAt.desc(),
+    ),
+  ],
+).enableRLS();
+
+export const medicalClearanceRevisions = pgTable(
+  'medical_clearance_revisions',
+  {
+    id: uuid('id').notNull().default(sql.raw('gen_random_uuid()')),
+    clearanceId: uuid('clearance_id').notNull(),
+    fighterId: uuid('fighter_id').notNull(),
+    revision: integer('revision').notNull(),
+    source: medicalRevisionSourceEnum('source').notNull(),
+    recordedByUserId: uuid('recorded_by_user_id'),
+    snapshot: jsonb('snapshot').notNull(),
+    recordedAt: timestamp('recorded_at', { withTimezone: true })
+      .notNull()
+      .default(sql.raw('clock_timestamp()')),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    primaryKey({ name: 'medical_clearance_revisions_pkey', columns: [t.id] }),
+    unique('uq_medical_clearance_revision').on(t.clearanceId, t.revision),
+    check('ck_medical_clearance_revision_number', sql.raw('(revision > 0)')),
+    check(
+      'ck_medical_clearance_revision_snapshot',
+      sql.raw(REVISION_SNAPSHOT_CHECK),
+    ),
+    check('ck_medical_clearance_revision_actor', sql.raw(REVISION_ACTOR_CHECK)),
+    foreignKey({
+      name: 'medical_clearance_revisions_recorded_by_user_id_fkey',
+      columns: [t.recordedByUserId],
+      foreignColumns: [users.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    foreignKey({
+      name: 'fk_medical_clearance_revision_source',
+      columns: [t.clearanceId, t.fighterId],
+      foreignColumns: [medicalClearances.id, medicalClearances.fighterId],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    index('idx_medical_clearance_revisions_fighter').using(
+      'btree',
+      t.fighterId,
+      t.recordedAt.desc(),
+    ),
+  ],
+).enableRLS();
+
+export const medicalReviewRequestRevisions = pgTable(
+  'medical_review_request_revisions',
+  {
+    id: uuid('id').notNull().default(sql.raw('gen_random_uuid()')),
+    reviewRequestId: uuid('review_request_id').notNull(),
+    fighterId: uuid('fighter_id').notNull(),
+    revision: integer('revision').notNull(),
+    source: medicalRevisionSourceEnum('source').notNull(),
+    recordedByUserId: uuid('recorded_by_user_id'),
+    snapshot: jsonb('snapshot').notNull(),
+    recordedAt: timestamp('recorded_at', { withTimezone: true })
+      .notNull()
+      .default(sql.raw('clock_timestamp()')),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    primaryKey({
+      name: 'medical_review_request_revisions_pkey',
+      columns: [t.id],
+    }),
+    unique('uq_medical_review_request_revision').on(
+      t.reviewRequestId,
+      t.revision,
+    ),
+    check(
+      'ck_medical_review_request_revision_number',
+      sql.raw('(revision > 0)'),
+    ),
+    check(
+      'ck_medical_review_request_revision_snapshot',
+      sql.raw(REVISION_SNAPSHOT_CHECK),
+    ),
+    check(
+      'ck_medical_review_request_revision_actor',
+      sql.raw(REVISION_ACTOR_CHECK),
+    ),
+    foreignKey({
+      name: 'medical_review_request_revisions_recorded_by_user_id_fkey',
+      columns: [t.recordedByUserId],
+      foreignColumns: [users.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    foreignKey({
+      name: 'fk_medical_review_request_revision_source',
+      columns: [t.reviewRequestId, t.fighterId],
+      foreignColumns: [medicalReviewRequests.id, medicalReviewRequests.fighterId],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    index('idx_medical_review_request_revisions_fighter').using(
+      'btree',
+      t.fighterId,
+      t.recordedAt.desc(),
     ),
   ],
 ).enableRLS();
@@ -1962,8 +2752,11 @@ export const recoveryPlans = pgTable(
       .notNull()
       .default(sql.raw('now()')),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    revision: integer('revision').notNull().default(sql.raw('1')),
   },
   (t): PgTableExtraConfigValue[] => [
+    check('ck_recovery_plans_revision', sql.raw('(revision > 0)')),
+    unique('uq_recovery_plan_fighter').on(t.id, t.fighterId),
     check(
       'ck_recovery_dates',
       sql.raw(
@@ -2009,7 +2802,7 @@ export const recoveryPlans = pgTable(
     })
       .onDelete('restrict')
       .onUpdate('no action'),
-    index('idx_recovery_fighter').using('btree', t.fighterId, t.startDate),
+    index('idx_recovery_fighter').using('btree', t.fighterId, t.startDate.desc()),
   ],
 ).enableRLS();
 
@@ -2985,7 +3778,7 @@ export const treatments = pgTable(
     index('idx_treatment_injury_date').using(
       'btree',
       t.injuryId,
-      t.treatmentDate,
+      t.treatmentDate.desc(),
     ),
   ],
 ).enableRLS();

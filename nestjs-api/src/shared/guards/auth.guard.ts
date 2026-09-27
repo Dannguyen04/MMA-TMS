@@ -20,6 +20,7 @@ import type {
   PermissionRequirement,
   UserRole,
 } from '../models/auth-context.model.js';
+import { USER } from '../types/user.role.js';
 
 @Injectable()
 export class AccessTokenGuard implements CanActivate {
@@ -76,6 +77,11 @@ export class AuthorizationGuard implements CanActivate {
       throw forbidden();
     }
     if (permission) {
+      // A Guest is a pre-admission identity and never holds an operational
+      // permission. Denying here keeps an accidental user_permissions grant
+      // from bypassing the role restriction, because permission metadata takes
+      // precedence over role metadata below.
+      if (request.auth.user.role === USER.GUEST) throw forbidden();
       try {
         if (
           !(await this.authAccessService.hasPermissions(

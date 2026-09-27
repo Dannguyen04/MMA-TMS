@@ -16,6 +16,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   ApiConflictEnvelope,
   ApiForbiddenEnvelope,
+  ApiInternalServerErrorEnvelope,
   ApiNotFoundEnvelope,
   ApiSuccessEnvelope,
   ApiUnauthorizedEnvelope,
@@ -66,7 +67,8 @@ export class FightersController {
   @ApiOperation({
     summary: 'List fighters',
     description:
-      'Retrieves a permission-protected, scope-aware paginated fighter list with optional filtering',
+      'Retrieves a permission-protected, scope-aware paginated fighter list with optional filtering; ' +
+      'COACH receives only Fighters under a currently effective assignment',
   })
   @ResponseMessage('Get fighters list successfully')
   @ApiSuccessEnvelope({
@@ -99,7 +101,9 @@ export class FightersController {
     model: PublicFighterDto,
   })
   @ApiUnauthorizedEnvelope()
-  @ApiForbiddenEnvelope('Fighters cannot view profiles of other fighters')
+  @ApiForbiddenEnvelope(
+    'Fighters cannot view other profiles; Coaches only currently assigned Fighters',
+  )
   @ApiNotFoundEnvelope('FIGHTER_NOT_FOUND', 'Fighter profile not found')
   async findById(
     @CurrentUser() actor: AuthenticatedUser | undefined,
@@ -393,8 +397,11 @@ export class FightersController {
     model: FighterMedicalSummaryDto,
   })
   @ApiUnauthorizedEnvelope()
-  @ApiForbiddenEnvelope('Fighters can only view their own medical summary')
+  @ApiForbiddenEnvelope(
+    'Requires fighter.medical:read; ADMIN reads all, FIGHTER only self, COACH/DOCTOR only currently assigned Fighters (MEDICAL_ACCESS_DENIED)',
+  )
   @ApiNotFoundEnvelope('FIGHTER_NOT_FOUND', 'Fighter profile not found')
+  @ApiInternalServerErrorEnvelope('Medical access audit could not be recorded')
   async getMedicalSummary(
     @CurrentUser() actor: AuthenticatedUser | undefined,
     @Param() params: FighterIdParamsDto,
@@ -402,6 +409,7 @@ export class FightersController {
     return this.fightersService.getMedicalSummary(
       this.requireActor(actor),
       params.id,
+      randomUUID(),
     );
   }
 

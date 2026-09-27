@@ -28,11 +28,15 @@ import type { AuthenticatedRequest } from '../shared/models/auth-context.model.j
 import { appZodValidationPipe } from '../shared/pipes/zod-validation.pipe.js';
 import {
   AuthResponseDto,
+  ForgotPasswordDto,
+  ForgotPasswordResponseDto,
   LoginDto,
   LogoutResponseDto,
   RefreshDto,
   RegisterDto,
   RegisterResponseDto,
+  ResetPasswordDto,
+  ResetPasswordResponseDto,
 } from './auth.dto.js';
 import { AuthService } from './auth.service.js';
 
@@ -47,9 +51,9 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @PublicEndpoint()
   @ApiOperation({
-    summary: 'Register new fighter account',
+    summary: 'Register new guest account',
     description:
-      'Registers credentials and creates fighter profile in application database',
+      'Registers credentials and creates the pre-admission GUEST identity. Fighter access is granted only after an admission application is approved and activated.',
   })
   @ResponseMessage('Account registered successfully')
   @HttpCode(HttpStatus.CREATED)
@@ -109,6 +113,58 @@ export class AuthController {
   @ApiUnauthorizedEnvelope('Refresh token is invalid or expired')
   async refresh(@Body() body: RefreshDto) {
     return this.authService.refresh(body);
+  }
+
+  @Post('forgot-password')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @PublicEndpoint()
+  @ApiOperation({
+    summary: 'Request a password recovery email',
+    description:
+      'Sends a password recovery link for any role. The response is identical whether or not an account exists, so it cannot be used to discover registered addresses.',
+  })
+  @ResponseMessage(
+    'If an account exists, password reset instructions will be sent.',
+  )
+  @HttpCode(HttpStatus.OK)
+  @ApiSuccessEnvelope({
+    status: HttpStatus.OK,
+    message: 'If an account exists, password reset instructions will be sent.',
+    model: ForgotPasswordResponseDto,
+  })
+  @ApiValidationErrorEnvelope('Invalid email structure')
+  async forgotPassword(@Body() body: ForgotPasswordDto) {
+    await this.authService.sendPasswordRecoveryEmail(body.email);
+    return { requested: true as const };
+  }
+
+  @Post('reset-password')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @PublicEndpoint()
+  @ApiOperation({
+    summary: 'Set a new password from a recovery link',
+    description:
+      'Redeems the token_hash carried by the recovery email and sets a new password. When the account has an approved admission awaiting activation, the successful change is recorded so the activation step can proceed.',
+  })
+  @ResponseMessage('Password updated successfully')
+  @HttpCode(HttpStatus.OK)
+  @ApiSuccessEnvelope({
+    status: HttpStatus.OK,
+    message: 'Password updated successfully',
+    model: ResetPasswordResponseDto,
+  })
+  @ApiValidationErrorEnvelope(
+    'Invalid recovery token or password structure (VALIDATION_ERROR), or the provider rejected the password policy (RESET_PASSWORD_TOO_WEAK)',
+  )
+  @ApiUnauthorizedEnvelope(
+    'The recovery link is invalid, already used, or expired',
+  )
+  @ApiConflictEnvelope(
+    'RESET_PASSWORD_SAME_AS_CURRENT',
+    'The account already uses this password, or another recovery for the same activation is in progress',
+  )
+  async resetPassword(@Body() body: ResetPasswordDto) {
+    return this.authService.resetPassword(body, randomUUID());
   }
 
   @Post('logout')
