@@ -23,6 +23,7 @@ import { HealthStatusControl } from "@/components/medical/health-status-control"
 import { InjuryHistory } from "@/components/medical/injury-history";
 import { MedicalRecordPanel } from "@/components/medical/medical-record-panel";
 import { RevokeClearanceButton } from "@/components/medical/revoke-clearance-button";
+import { ReviewRequestCard } from "@/components/medical/review-request-card";
 import { RevokedClearanceCard } from "@/components/medical/revoked-clearance-card";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -36,7 +37,7 @@ import { ageFromBirthDate, daysBetween, formatDate, formatNumber, formatShortDat
 import { hrefWith, parseEnum } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
-import { getClearanceHistory, getFighterHealthSummary, getMedicalRecord, listExaminations, listInjuries } from "@/lib/services/medical";
+import { getClearanceHistory, getClearanceStatus, getFighterHealthSummary, getMedicalRecord, listExaminations, listInjuries, listReviewRequests } from "@/lib/services/medical";
 import { medicalFeatureAvailable } from "@/lib/services/medical-features";
 import { getFighter, listDoctors } from "@/lib/services/people";
 import { param } from "@/lib/utils";
@@ -60,7 +61,7 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
     const fighter = await requireFighterAccess(user, fighterId);
     const now = new Date().toISOString();
 
-    const [summary, record, examinations, injuries, clearances, doctors, settings] = await Promise.all([
+    const [summary, record, examinations, injuries, clearances, doctors, settings, reviewRequests, { eligibility }] = await Promise.all([
         getFighterHealthSummary(fighter.id, now),
         medicalFeatureAvailable("medicalRecord") ? getMedicalRecord(fighter.id) : null,
         listExaminations({ fighterIds: [fighter.id] }),
@@ -68,6 +69,8 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
         getClearanceHistory(fighter.id),
         listDoctors(),
         getSettings(),
+        listReviewRequests(fighter.id),
+        getClearanceStatus(fighter.id, now),
     ]);
     if (!summary) notFound();
 
@@ -104,6 +107,7 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                         now={now}
                         variant="clinical"
                         warningDays={settings.clearanceExpiryWarningDays}
+                        pausedForReview={eligibility?.reasons.includes("REVIEW_REQUEST_PENDING")}
                         actions={
                             <>
                                 <ButtonLink href={grantHref} variant="secondary" size="sm">
@@ -192,6 +196,18 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
             </div>
 
             <div className="flex min-w-0 flex-col gap-6">
+                {(reviewRequests.some((request) => request.status === "OPEN") || (eligibility && !eligibility.eligible)) && (
+                    <ReviewRequestCard
+                        fighterId={fighter.id}
+                        fighterName={fighter.name}
+                        audience="doctor"
+                        requests={reviewRequests}
+                        eligibility={eligibility}
+                        canRequest={false}
+                        examineHref={`${newExamHref}&scope=TRAINING`}
+                        now={now}
+                    />
+                )}
                 <Card>
                     <CardHeader title="Health status" icon={<HeartPulse />} />
                     <CardContent className="flex flex-col gap-4">

@@ -42,8 +42,16 @@ export interface ClearanceCardProps {
     actions?: ReactNode;
     /** Days before expiry at which the validity turns into a warning. */
     warningDays?: number;
+    /**
+     * Training is paused for a pending medical review. The clearance itself still stands, so the card says why
+     * training stopped instead of calling the clearance "not cleared".
+     */
+    pausedForReview?: boolean;
     className?: string;
 }
+
+const PAUSED_HEADLINE = "Paused for a medical review";
+const PAUSED_EXPLANATION = "The clearance below still stands, but training waits until the sports doctor examines the fighter.";
 
 /** Medical Clearance at a glance: state, validity, issuing doctor and restrictions. */
 export function ClearanceCard({
@@ -54,6 +62,7 @@ export function ClearanceCard({
     variant,
     actions,
     warningDays = CLEARANCE_WARNING_DAYS,
+    pausedForReview = false,
     className,
 }: ClearanceCardProps) {
     return (
@@ -79,6 +88,7 @@ export function ClearanceCard({
                         now={now}
                         variant={variant}
                         warningDays={warningDays}
+                        paused={pausedForReview && state === "not_cleared" && clearance.status === "active" && clearance.level !== "not_cleared"}
                     />
                 )}
             </CardContent>
@@ -93,6 +103,7 @@ function ClearanceDetails({
     now,
     variant,
     warningDays,
+    paused,
 }: {
     clearance: MedicalClearance;
     state: Exclude<ClearanceState, "none">;
@@ -100,14 +111,17 @@ function ClearanceDetails({
     now: string;
     variant: "clinical" | "summary";
     warningDays: number;
+    paused: boolean;
 }) {
     const meta = CLEARANCE_STATE_META[state];
     const isExpired = state === "expired";
+    // While paused, the clearance's own level describes its validity and restrictions.
+    const recordState = paused ? clearance.level : state;
 
     const items: DescriptionItem[] = [
         {
             label: "Validity",
-            value: <ClearanceValidity clearance={clearance} state={state} now={now} warningDays={warningDays} />,
+            value: <ClearanceValidity clearance={clearance} state={recordState} now={now} warningDays={warningDays} />,
         },
         {
             label: "Issued by",
@@ -143,16 +157,16 @@ function ClearanceDetails({
     return (
         <div className="flex flex-col gap-5">
             <Callout
-                tone={meta.tone}
+                tone={paused ? "warning" : meta.tone}
                 icon={meta.icon}
                 title={
                     <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                        {HEADLINES[state]}
+                        {paused ? PAUSED_HEADLINE : HEADLINES[state]}
                         <ClearanceBadge state={state} size="sm" />
                     </span>
                 }
             >
-                {EXPLANATIONS[state]}
+                {paused ? PAUSED_EXPLANATION : EXPLANATIONS[state]}
             </Callout>
 
             <DescriptionList items={items} />

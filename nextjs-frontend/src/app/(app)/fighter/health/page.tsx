@@ -14,6 +14,7 @@ import { injuryTitle } from "@/components/clinical/clinical-copy";
 import { BodyMap } from "@/components/domain/body-map";
 import { ClearanceCard } from "@/components/domain/clearance-card";
 import { InjuryCard } from "@/components/domain/injury-card";
+import { ReviewRequestCard } from "@/components/medical/review-request-card";
 import { MetricTile } from "@/components/domain/metric-tile";
 import { RecoveryProgress } from "@/components/domain/recovery-progress";
 import { ClearanceBadge } from "@/components/domain/status-badges";
@@ -22,12 +23,12 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/states";
 import { requireFighterAccess } from "@/lib/auth/access";
-import { requireRole } from "@/lib/auth/session";
+import { hasPermission, requireRole } from "@/lib/auth/session";
 import { examinationTitle } from "@/lib/domain/labels";
 import { formatDate, formatWeekdayDate } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
-import { getFighterHealthSummary, listClearances, listExaminations, listInjuries } from "@/lib/services/medical";
+import { getClearanceStatus, getFighterHealthSummary, listClearances, listExaminations, listInjuries, listReviewRequests } from "@/lib/services/medical";
 import { listDoctors } from "@/lib/services/people";
 import { cn } from "@/lib/utils";
 
@@ -40,7 +41,7 @@ export default async function FighterHealthPage() {
     const ids = [fighter.id];
     const now = new Date().toISOString();
 
-    const [health, clearances, injuries, examinations, doctors, careTeam, settings] = await Promise.all([
+    const [health, clearances, injuries, examinations, doctors, careTeam, settings, reviewRequests, { eligibility }] = await Promise.all([
         getFighterHealthSummary(fighter.id, now),
         listClearances({ fighterIds: ids }),
         listInjuries({ fighterIds: ids }),
@@ -48,6 +49,8 @@ export default async function FighterHealthPage() {
         listDoctors(),
         loadCareTeam(fighter),
         getSettings(),
+        listReviewRequests(fighter.id),
+        getClearanceStatus(fighter.id, now),
     ]);
     if (!health) notFound();
 
@@ -92,9 +95,20 @@ export default async function FighterHealthPage() {
                             now={now}
                             variant="clinical"
                             warningDays={settings.clearanceExpiryWarningDays}
+                            pausedForReview={eligibility?.reasons.includes("REVIEW_REQUEST_PENDING")}
                             className="min-w-0"
                         />
                     )}
+                    <ReviewRequestCard
+                        fighterId={fighter.id}
+                        fighterName={fighter.name}
+                        audience="fighter"
+                        requests={reviewRequests}
+                        eligibility={eligibility}
+                        canRequest={hasPermission(user, "medical:request_review")}
+                        now={now}
+                        className="min-w-0"
+                    />
                     <HealthStatusCard status={fighter.healthStatus} wide>
                         {followUp ? (
                             <div className="rounded-lg border border-border px-3 py-2.5 text-[13px]">
