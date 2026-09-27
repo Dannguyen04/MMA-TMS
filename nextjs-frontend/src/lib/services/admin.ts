@@ -18,7 +18,7 @@ import type {
     User,
     UserStatus,
 } from "@/lib/domain/types";
-import { isNotFound } from "./api-helpers";
+import { isNotFound, nullIfNotFound } from "./api-helpers";
 import { adaptBackendAuditLog, backendAuditLogSchema, listAuditLogs } from "./audit";
 import { adaptBackendUser, backendUserSchema, getDoctor, getFighter, getUser, listCoaches } from "./people";
 
@@ -325,9 +325,28 @@ export async function updateRolePermissions(
     }
 }
 
+/**
+ * Settings the interface runs with while the backend has no settings endpoint: `GET /settings` answers 404 today.
+ * These are configuration defaults, not user data.
+ */
+export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
+    organizationName: "MMA-TMS",
+    timezone: "Asia/Ho_Chi_Minh",
+    sessionTimeoutMin: 480,
+    requireMfa: false,
+    videoMaxSizeMb: 500,
+    videoRetentionDays: 365,
+    allowedVideoFormats: ["mp4", "mov", "webm"],
+    aiConfidenceThreshold: 0.35,
+    aiLowConfidenceThreshold: 0.6,
+    abnormalMovementAlertsEnabled: true,
+    notifyDoctorOnAlert: true,
+    clearanceExpiryWarningDays: 14,
+};
+
 export async function getSettings(): Promise<SystemSettings> {
     if (isDemoAuthEnabled()) return (await demoService()).getSettings();
-    return authenticatedApiRequest("/settings", settingsSchema);
+    return (await nullIfNotFound(authenticatedApiRequest("/settings", settingsSchema))) ?? DEFAULT_SYSTEM_SETTINGS;
 }
 
 export async function updateSettings(patch: Partial<SystemSettings>, actor: User): Promise<UpdateSettingsResult> {

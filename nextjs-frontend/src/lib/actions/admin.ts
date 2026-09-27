@@ -21,6 +21,7 @@ import {
     updateUser,
 } from "@/lib/services/admin";
 import { cancelJob, retryJob, setModelStatus, updateModelThresholds } from "@/lib/services/ai";
+import { isNotFound } from "@/lib/services/api-helpers";
 import { deleteVideo, getJobProgress, getVideo } from "@/lib/services/videos";
 import { actionError, actionSuccess, validationError, type ActionState } from "./state";
 
@@ -466,7 +467,12 @@ export async function updateSettingsAction(_prev: ActionState<SystemSettings>, f
             aiLowConfidenceThreshold: values.aiLowConfidenceThreshold / 100,
         },
         auth.user,
-    );
+    ).catch((error: unknown) => {
+        // The backend has no settings endpoint yet; the form shows the defaults the app runs with.
+        if (isNotFound(error)) return null;
+        throw error;
+    });
+    if (!result) return actionError("Saving system settings isn't available yet. The backend doesn't store them.");
     if (!result.ok) return actionError(result.message, { [result.field]: result.message });
 
     revalidatePath("/", "layout");

@@ -12,7 +12,8 @@ vi.mock("@/lib/api/client", async (loadOriginal) => ({
 }));
 
 import type { User } from "@/lib/domain/types";
-import { listUsers, updateRolePermissions } from "./admin";
+import { ApiError } from "@/lib/api/client";
+import { DEFAULT_SYSTEM_SETTINGS, getSettings, listUsers, updateRolePermissions } from "./admin";
 
 const actor = {} as User;
 const backendUser = {
@@ -76,5 +77,17 @@ describe("admin API adapter", () => {
         drainAuthenticatedCursorPages.mockRejectedValue(new Error("backend unavailable"));
 
         await expect(listUsers()).rejects.toThrow("backend unavailable");
+    });
+
+    it("dung cau hinh mac dinh khi backend chua co endpoint settings", async () => {
+        authenticatedApiRequest.mockRejectedValue(new ApiError({ message: "Not Found", kind: "http", status: 404, code: "NOT_FOUND" }));
+
+        await expect(getSettings()).resolves.toEqual(DEFAULT_SYSTEM_SETTINGS);
+    });
+
+    it("van bao loi settings khi backend loi that", async () => {
+        authenticatedApiRequest.mockRejectedValue(new ApiError({ message: "Server error", kind: "http", status: 500, code: "INTERNAL" }));
+
+        await expect(getSettings()).rejects.toThrow("Server error");
     });
 });
