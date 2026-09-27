@@ -85,6 +85,8 @@ function dayIso(key: string): string {
     return key === dayKey(new Date()) ? new Date().toISOString() : academyWallClockToIso(key, "12:00");
 }
 
+const maxIso = (a: string, b: string) => (Date.parse(a) >= Date.parse(b) ? a : b);
+
 const inFuture = (iso: string) => Date.parse(iso) > Date.now() + FUTURE_TOLERANCE_MS;
 
 function failed(error: unknown, options?: MedicalWriteErrorOptions): ActionState<never> {
@@ -313,7 +315,8 @@ export async function issueClearanceAction(_prev: ActionState, formData: FormDat
             Object.fromEntries(widened.map((name) => [name, name === "excludedJoints" ? "Keep out at least the joints the examination excluded." : "Allow only what the examination allows."])),
         );
     }
-    const validFrom = input.validFrom ? dayIso(input.validFrom) : null;
+    // Starting on the examination day means starting once the examination was done.
+    const validFrom = !input.validFrom ? null : input.validFrom === dayKey(exam.examinedAt) ? maxIso(dayIso(input.validFrom), exam.examinedAt) : dayIso(input.validFrom);
     if (validFrom && validFrom < exam.examinedAt) return actionError(FIX_FIELDS, { validFrom: "The clearance can't start before the examination." });
     const validUntil = input.validUntil ? academyWallClockToIso(input.validUntil, "23:59") : null;
     if (validUntil && exam.validUntil && validUntil > exam.validUntil) {

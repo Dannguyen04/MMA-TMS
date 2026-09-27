@@ -17,6 +17,7 @@ import { VitalsGrid } from "@/components/domain/vitals-grid";
 import { AIObservationList } from "@/components/medical/ai-observation-list";
 import { ClearanceHistory } from "@/components/medical/clearance-history";
 import { ExaminationHistory } from "@/components/medical/examination-history";
+import { ExaminationOutcomeBadge } from "@/components/medical/clinical-badges";
 import { FlashToast } from "@/components/medical/flash-toast";
 import { followUpExaminationHref } from "@/components/medical/follow-up-list";
 import { HealthStatusControl } from "@/components/medical/health-status-control";
@@ -166,33 +167,61 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                     </Card>
                 )}
 
-                <Card>
-                    <CardHeader
-                        title="Latest vitals"
-                        description={
-                            latestExam ? `${examinationTitle(latestExam)} on ${formatDate(latestExam.date)}` : "No examinations recorded yet"
-                        }
-                        icon={<Stethoscope />}
-                        action={latestExam && <CardLink href={routes.doctor.examination(latestExam.id)}>View examination</CardLink>}
-                    />
-                    <CardContent>
-                        {latestExam?.vitals ? (
-                            <VitalsGrid vitals={latestExam.vitals} weightLimitKg={fighter.targetWeightKg} />
-                        ) : (
-                            <EmptyState
-                                compact
-                                icon={<Stethoscope />}
-                                title="No vitals yet"
-                                description="A baseline physical records the reference vitals for this fighter."
-                                action={
-                                    <ButtonLink href={`${newExamHref}&type=baseline`} variant="secondary" size="sm">
-                                        Start baseline exam
-                                    </ButtonLink>
-                                }
-                            />
-                        )}
-                    </CardContent>
-                </Card>
+                {medicalFeatureAvailable("vitals") ? (
+                    <Card>
+                        <CardHeader
+                            title="Latest vitals"
+                            description={
+                                latestExam ? `${examinationTitle(latestExam)} on ${formatDate(latestExam.date)}` : "No examinations recorded yet"
+                            }
+                            icon={<Stethoscope />}
+                            action={latestExam && <CardLink href={routes.doctor.examination(latestExam.id)}>View examination</CardLink>}
+                        />
+                        <CardContent>
+                            {latestExam?.vitals ? (
+                                <VitalsGrid vitals={latestExam.vitals} weightLimitKg={fighter.targetWeightKg} />
+                            ) : (
+                                <EmptyState
+                                    compact
+                                    icon={<Stethoscope />}
+                                    title="No vitals yet"
+                                    description="A baseline physical records the reference vitals for this fighter."
+                                    action={
+                                        <ButtonLink href={`${newExamHref}&type=baseline`} variant="secondary" size="sm">
+                                            Start baseline exam
+                                        </ButtonLink>
+                                    }
+                                />
+                            )}
+                        </CardContent>
+                    </Card>
+                ) : (
+                    <Card>
+                        <CardHeader
+                            title="Latest examination"
+                            description={latestExam ? `${examinationTitle(latestExam)} on ${formatDate(latestExam.date)}` : "No examinations recorded yet"}
+                            icon={<Stethoscope />}
+                            action={
+                                <ButtonLink href={newExamHref} variant="ghost" size="sm">
+                                    New examination
+                                </ButtonLink>
+                            }
+                        />
+                        <CardContent>
+                            {latestExam ? (
+                                <div className="flex flex-col gap-2">
+                                    <ExaminationOutcomeBadge outcome={latestExam.outcome} className="w-fit" />
+                                    <p className="text-sm text-pretty whitespace-pre-line text-fg">{latestExam.summary}</p>
+                                    {latestExam.decisionRestrictions?.notes && (
+                                        <p className="text-[13px] text-fg-muted">Restriction notes: {latestExam.decisionRestrictions.notes}</p>
+                                    )}
+                                </div>
+                            ) : (
+                                <p className="text-sm text-fg-muted">Record an examination to decide whether {fighter.name} may train.</p>
+                            )}
+                        </CardContent>
+                    </Card>
+                )}
             </div>
 
             <div className="flex min-w-0 flex-col gap-6">
@@ -462,6 +491,17 @@ function noticeFor(code: string | undefined, fighterName: string): ToastInput | 
             return {
                 title: "Restricted clearance issued",
                 description: `Coaches now plan ${fighterName}'s sessions against these restrictions. Everyone involved has been notified.`,
+            };
+        case "clearance-issued":
+            return {
+                title: `Clearance issued for ${fighterName}`,
+                description: "It's in force now. Coaches and the fighter have been notified.",
+            };
+        case "examination-not-eligible":
+            return {
+                title: `${fighterName} is not eligible`,
+                description: "Training stops and active clearances of that scope were revoked. A later examination can change this.",
+                tone: "warning",
             };
         case "clearance-not_cleared":
             return {
