@@ -8,7 +8,7 @@ import { canAccessFighter } from "@/lib/auth/access";
 import { DOCTOR_ONLY_PERMISSION_REASON, isDoctorOnlyPermission } from "@/lib/auth/permissions";
 import { authorizeAction } from "@/lib/auth/session";
 import { BROADCAST_CHANNEL_LABELS, ROLE_LABELS } from "@/lib/domain/labels";
-import type { AIModelStatus, BroadcastChannel, Permission, Role, SystemSettings, UserStatus } from "@/lib/domain/types";
+import { PERMISSIONS, type AIModelStatus, type BroadcastChannel, type Permission, type Role, type SystemSettings, type UserStatus } from "@/lib/domain/types";
 import { academyWallClockToIso, formatDateTime, isDateKey, isTimeValue, pluralize } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import {
@@ -31,30 +31,6 @@ const ROLES = ["fighter", "coach", "doctor", "admin"] as const satisfies readonl
 const SETTABLE_STATUSES = ["active", "suspended"] as const satisfies readonly UserStatus[];
 const MODEL_STATUSES = ["active", "staging", "deprecated"] as const satisfies readonly AIModelStatus[];
 const CHANNELS = ["in_app", "email", "in_app_email"] as const satisfies readonly BroadcastChannel[];
-const PERMISSIONS = [
-    "fighters:read",
-    "fighters:write",
-    "training:read",
-    "training:write",
-    "videos:upload",
-    "videos:manage",
-    "ai_analysis:read",
-    "ai_findings:review",
-    "ai_alerts:review",
-    "goals:write",
-    "medical:read_summary",
-    "medical:read",
-    "medical:write",
-    "medical:request_review",
-    "clearance:manage",
-    "users:manage",
-    "roles:manage",
-    "ai_jobs:manage",
-    "ai_models:manage",
-    "audit_logs:read",
-    "notifications:manage",
-    "settings:manage",
-] as const satisfies readonly Permission[];
 
 const text = (value: FormDataEntryValue | null) => (typeof value === "string" ? value : undefined);
 const texts = (values: FormDataEntryValue[]) => values.filter((value): value is string => typeof value === "string");

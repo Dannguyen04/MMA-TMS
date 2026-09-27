@@ -4,19 +4,20 @@ import { z } from "zod";
 
 import { isDemoAuthEnabled } from "@/lib/auth/constants";
 import { ApiError, authenticatedApiRequest, authenticatedMutableApiRequest, drainAuthenticatedCursorPages } from "@/lib/api/client";
-import type {
-    AuditLog,
-    BroadcastChannel,
-    Coach,
-    Doctor,
-    Fighter,
-    NotificationBroadcast,
-    Permission,
-    Role,
-    RoleDefinition,
-    SystemSettings,
-    User,
-    UserStatus,
+import {
+    PERMISSIONS,
+    type AuditLog,
+    type BroadcastChannel,
+    type Coach,
+    type Doctor,
+    type Fighter,
+    type NotificationBroadcast,
+    type Permission,
+    type Role,
+    type RoleDefinition,
+    type SystemSettings,
+    type User,
+    type UserStatus,
 } from "@/lib/domain/types";
 import { isNotFound, nullIfNotFound } from "./api-helpers";
 import { adaptBackendAuditLog, backendAuditLogSchema, listAuditLogs } from "./audit";
@@ -25,30 +26,7 @@ import { adaptBackendUser, backendUserSchema, getDoctor, getFighter, getUser, li
 type Failure<Code extends string> = { ok: false; code: Code; message: string };
 
 const roleSchema = z.enum(["FIGHTER", "COACH", "DOCTOR", "ADMIN"]);
-const permissionSchema = z.enum([
-    "fighters:read",
-    "fighters:write",
-    "training:read",
-    "training:write",
-    "videos:upload",
-    "videos:manage",
-    "ai_analysis:read",
-    "ai_findings:review",
-    "ai_alerts:review",
-    "goals:write",
-    "medical:read_summary",
-    "medical:read",
-    "medical:write",
-    "medical:request_review",
-    "clearance:manage",
-    "users:manage",
-    "roles:manage",
-    "ai_jobs:manage",
-    "ai_models:manage",
-    "audit_logs:read",
-    "notifications:manage",
-    "settings:manage",
-]);
+const permissionSchema = z.enum(PERMISSIONS);
 const backendRoleDefinitionSchema = z.object({
     role: roleSchema,
     label: z.string(),

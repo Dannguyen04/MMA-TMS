@@ -39,29 +39,33 @@ export interface User {
     };
 }
 
-export type Permission =
-    | "fighters:read"
-    | "fighters:write"
-    | "training:read"
-    | "training:write"
-    | "videos:upload"
-    | "videos:manage"
-    | "ai_analysis:read"
-    | "ai_findings:review"
-    | "ai_alerts:review"
-    | "goals:write"
-    | "medical:read_summary"
-    | "medical:read"
-    | "medical:write"
-    | "medical:request_review"
-    | "clearance:manage"
-    | "users:manage"
-    | "roles:manage"
-    | "ai_jobs:manage"
-    | "ai_models:manage"
-    | "audit_logs:read"
-    | "notifications:manage"
-    | "settings:manage";
+/** Every permission the interface knows, in the order the role matrix lists them. */
+export const PERMISSIONS = [
+    "fighters:read",
+    "fighters:write",
+    "training:read",
+    "training:write",
+    "videos:upload",
+    "videos:manage",
+    "ai_analysis:read",
+    "ai_findings:review",
+    "ai_alerts:review",
+    "goals:write",
+    "medical:read_summary",
+    "medical:read",
+    "medical:write",
+    "medical:request_review",
+    "clearance:manage",
+    "users:manage",
+    "roles:manage",
+    "ai_jobs:manage",
+    "ai_models:manage",
+    "audit_logs:read",
+    "notifications:manage",
+    "settings:manage",
+] as const;
+
+export type Permission = (typeof PERMISSIONS)[number];
 
 export interface RoleDefinition {
     role: Role;

@@ -1,31 +1,8 @@
-import type { Permission, Role } from "@/lib/domain/types";
+import { PERMISSIONS, type Permission, type Role } from "@/lib/domain/types";
 import { ROLE_DEFAULT_PERMISSIONS, isDoctorOnlyPermission } from "./permissions";
 
 /** Every permission name the interface understands. */
-const FRONTEND_PERMISSIONS: ReadonlySet<string> = new Set<Permission>([
-    "fighters:read",
-    "fighters:write",
-    "training:read",
-    "training:write",
-    "videos:upload",
-    "videos:manage",
-    "ai_analysis:read",
-    "ai_findings:review",
-    "ai_alerts:review",
-    "goals:write",
-    "medical:read_summary",
-    "medical:read",
-    "medical:write",
-    "medical:request_review",
-    "clearance:manage",
-    "users:manage",
-    "roles:manage",
-    "ai_jobs:manage",
-    "ai_models:manage",
-    "audit_logs:read",
-    "notifications:manage",
-    "settings:manage",
-]);
+const FRONTEND_PERMISSIONS: ReadonlySet<string> = new Set<Permission>(PERMISSIONS);
 
 /** Backend medical capability names and the interface permissions they grant. */
 const BACKEND_CAPABILITIES: Readonly<Record<string, readonly Permission[]>> = {
