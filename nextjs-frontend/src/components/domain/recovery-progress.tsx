@@ -22,6 +22,7 @@ export interface RecoveryProgressProps {
 
 /** Recovery plan stepper: overall progress, target return, phases and current milestones. */
 export function RecoveryProgress({ plan, now, className }: RecoveryProgressProps) {
+    if (plan.milestones || plan.legacyMilestones) return <MilestoneProgress plan={plan} now={now} className={className} />;
     const progress = recoveryProgressPct(plan);
     const current = plan.phases.find((phase) => phase.status === "current");
 
@@ -68,6 +69,53 @@ export function RecoveryProgress({ plan, now, className }: RecoveryProgressProps
         </div>
     );
 }
+
+/** How many milestones are reached, and the next ones to reach, for a milestone plan. */
+function MilestoneProgress({ plan, now, className }: RecoveryProgressProps) {
+    const milestones = plan.milestones ?? [];
+    const reached = milestones.filter((milestone) => milestone.isCompleted).length;
+    const next = milestones.filter((milestone) => !milestone.isCompleted).slice(0, NEXT_MILESTONES);
+
+    return (
+        <div className={cn("flex flex-col gap-5", className)}>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:gap-8">
+                <ProgressBar
+                    value={recoveryProgressPct(plan)}
+                    label="Milestones reached"
+                    showLabel
+                    valueText={plan.milestones ? `${reached} of ${milestones.length}` : undefined}
+                    hideValue={!plan.milestones}
+                    tone={plan.status === "completed" ? "success" : "info"}
+                    className="flex-1"
+                />
+                <RecoveryTargetReturn plan={plan} now={now} />
+            </div>
+            {plan.legacyMilestones ? (
+                <p className="text-[13px] text-fg-muted">This plan&apos;s milestones were recorded in an older format. Open the plan to see them.</p>
+            ) : (
+                next.length > 0 && (
+                    <div className="rounded-lg bg-surface-muted px-4 py-3">
+                        <h3 className="text-[13px] font-semibold text-fg">Next milestones</h3>
+                        <ul className="mt-2 flex flex-col gap-1.5">
+                            {next.map((milestone) => (
+                                <li key={milestone.id} className="flex items-start gap-2 text-[13px]">
+                                    <Circle aria-hidden className="mt-px size-4 shrink-0 text-fg-subtle" />
+                                    <span className="min-w-0 text-fg">
+                                        {milestone.title}
+                                        {milestone.targetDate && <span className="text-fg-muted"> · by {formatShortDate(milestone.targetDate)}</span>}
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )
+            )}
+        </div>
+    );
+}
+
+/** Upcoming milestones listed under a milestone plan's progress. */
+const NEXT_MILESTONES = 3;
 
 /** Target return date with the distance to it; an overdue target is shown in the warning tone. */
 export function RecoveryTargetReturn({ plan, now, className }: { plan: Pick<RecoveryPlan, "status" | "targetReturnDate">; now: string; className?: string }) {
