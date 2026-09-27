@@ -5,7 +5,7 @@ import { z } from "zod";
 import { isDemoAuthEnabled } from "@/lib/auth/constants";
 import { authenticatedApiRequest, authenticatedMutableApiRequest, drainAuthenticatedCursorPages } from "@/lib/api/client";
 import type { Notification, NotificationCategory, NotificationSeverity } from "@/lib/domain/types";
-import { isNotFound } from "./api-helpers";
+import { isNotFound, nullIfNotFound } from "./api-helpers";
 
 const categorySchema = z.enum(["TRAINING", "AI_ANALYSIS", "AI_ALERT", "FEEDBACK", "MEDICAL", "CLEARANCE", "GOAL", "SYSTEM"]);
 const severitySchema = z.enum(["INFO", "SUCCESS", "WARNING", "DANGER"]);
@@ -75,9 +75,9 @@ export async function listNotifications(
     if (filter.category) params.set("category", categoryToApi[filter.category]);
     if (filter.unreadOnly) params.set("unreadOnly", "true");
     const query = params.toString();
-    return (await drainAuthenticatedCursorPages(`/notifications${query ? `?${query}` : ""}`, backendNotificationSchema)).map(
-        toNotification,
-    );
+    // No notifications endpoint on the backend yet (404) means no notifications, not a broken page.
+    const notifications = await nullIfNotFound(drainAuthenticatedCursorPages(`/notifications${query ? `?${query}` : ""}`, backendNotificationSchema));
+    return (notifications ?? []).map(toNotification);
 }
 
 export async function getNotificationSummary(
@@ -85,8 +85,9 @@ export async function getNotificationSummary(
     limit = 6,
 ): Promise<{ unread: number; latest: Notification[] }> {
     if (isDemoAuthEnabled()) return (await demoService()).getNotificationSummary(userId, limit);
-    const summary = await authenticatedApiRequest(`/notifications/summary?limit=${encodeURIComponent(limit)}`, summarySchema);
-    return { unread: summary.unread, latest: summary.latest.map(toNotification) };
+    // Every page's layout reads the summary, so a missing endpoint (404) shows an empty bell instead of failing the page.
+    const summary = await nullIfNotFound(authenticatedApiRequest(`/notifications/summary?limit=${encodeURIComponent(limit)}`, summarySchema));
+    return summary ? { unread: summary.unread, latest: summary.latest.map(toNotification) } : { unread: 0, latest: [] };
 }
 
 export async function markNotificationRead(userId: string, notificationId: string): Promise<boolean> {
