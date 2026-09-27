@@ -12,6 +12,7 @@ type ErrorDetails = Record<string, unknown> | readonly unknown[];
 
 interface ErrorPayload {
   code?: unknown;
+  details?: unknown;
   error?: unknown;
   errors?: unknown;
   issues?: unknown;
@@ -81,11 +82,14 @@ export class ApiExceptionFilter implements ExceptionFilter {
     const statusCode = exception.getStatus();
     const rawResponse = exception.getResponse();
     const payload: ErrorPayload = isRecord(rawResponse) ? rawResponse : {};
-    const details =
+    const validationDetails =
       asDetails(payload.issues) ??
       asDetails(payload.errors) ??
       (Array.isArray(payload.message) ? payload.message : undefined);
-    const validationError = details !== undefined;
+    const validationError = validationDetails !== undefined;
+    // Domain errors may carry explicit, pre-sanitized `details` (for example
+    // eligibility reasons); these never mark the error as a validation failure.
+    const details = validationDetails ?? asDetails(payload.details);
 
     return {
       statusCode,

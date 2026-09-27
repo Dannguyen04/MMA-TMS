@@ -9,13 +9,20 @@ import {
   unavailableSessionPlan,
   fighterPlanMismatch,
   sessionStateConflict,
+  trainingMedicalEligibilityRequired,
 } from '../training.error.js';
 import type {
   CreateSessionInput,
   UpdateSessionInput,
   ListSessionsQuery,
   SessionStatusType,
+  TrainingSessionEntity,
 } from '../training.model.js';
+import type {
+  DatabaseExecutor,
+  Transaction,
+} from '../../shared/utils/audit-context.util.js';
+import { MedicalService } from '../../medical/medical.service.js';
 import type { AuthenticatedUser } from '../../shared/models/auth-context.model.js';
 import { USER } from '../../shared/types/user.role.js';
 import { forbidden } from '../../shared/errors/access.error.js';
@@ -29,6 +36,7 @@ export class TrainingSessionService {
   constructor(
     private readonly repo: TrainingRepository,
     private readonly access: TrainingAccessService,
+    private readonly medical: MedicalService,
   ) {}
 
   async listSessions(actor: AuthenticatedUser, query: ListSessionsQuery) {
@@ -101,9 +109,32 @@ export class TrainingSessionService {
       if (!existing) throw sessionNotFound();
       await this.access.assertFighterAccess(actor, existing.fighterId);
 
-      const updated = await this.repo.updateSession(id, data);
-      if (!updated) throw sessionNotFound();
-      return updated;
+      const nextSessionType = data.sessionType;
+      if (nextSessionType === undefined) {
+        const updated = await this.repo.updateSession(id, data);
+        if (!updated) throw sessionNotFound();
+        return updated;
+      }
+
+      // Switching a running session to another type could step outside a
+      // medical restriction, so it passes the same gate as starting it.
+      return await this.repo.transaction(async (transaction) => {
+        const locked = await this.repo.lockSessionById(id, transaction);
+        if (!locked) throw sessionNotFound();
+        if (
+          locked.status === 'IN_PROGRESS' &&
+          nextSessionType !== locked.sessionType
+        ) {
+          await this.assertMedicallyEligible(
+            locked.fighterId,
+            nextSessionType,
+            transaction,
+          );
+        }
+        const updated = await this.repo.updateSession(id, data, transaction);
+        if (!updated) throw sessionNotFound();
+        return updated;
+      });
     } catch (error) {
       throw mapTrainingPersistenceError(error);
     }
@@ -128,39 +159,103 @@ export class TrainingSessionService {
       await this.access.assertFighterAccess(actor, session.fighterId);
 
       const currentStatus = session.status;
-      if (currentStatus === newStatus) return session;
-
-      if (!ALLOWED_SESSION_TRANSITIONS[currentStatus]?.includes(newStatus)) {
+      const isSameStatus = currentStatus === newStatus;
+      if (
+        !isSameStatus &&
+        !ALLOWED_SESSION_TRANSITIONS[currentStatus]?.includes(newStatus)
+      ) {
         throw invalidSessionStatusTransition(currentStatus, newStatus);
       }
 
-      // One server instant for both the status timestamp and the elapsed
-      // duration, so they can never disagree.
-      const stoppedAt = new Date();
-      const outcome: SessionTransitionOutcome = {
-        cancellationReason:
-          newStatus === 'CANCELLED' ? (cancellationReason ?? null) : null,
-        actualDurationSec: this.measureElapsedSeconds(
-          session.checkedInAt,
+      // Stopping, cancelling or reading is never medically gated.
+      if (newStatus !== 'IN_PROGRESS') {
+        if (isSameStatus) return session;
+        return await this.applyStatusTransition(
+          session,
           newStatus,
-          stoppedAt,
-        ),
-      };
-
-      const updated = await this.repo.updateSessionStatus(
-        id,
-        currentStatus,
-        newStatus,
-        stoppedAt,
-        outcome,
-      );
-      if (!updated) {
-        throw sessionStateConflict();
+          cancellationReason,
+        );
       }
-      return updated;
+
+      // Starting (or re-confirming) IN_PROGRESS runs the medical gate first,
+      // including the same-status request. The session row is locked and
+      // re-read so the gate judges the type actually being started, and the
+      // per-Fighter medical lock keeps a concurrent review request, negative
+      // decision or revoke from interleaving with the start.
+      return await this.repo.transaction(async (transaction) => {
+        const locked = await this.repo.lockSessionById(id, transaction);
+        if (!locked) throw sessionNotFound();
+        const lockedSameStatus = locked.status === newStatus;
+        if (
+          !lockedSameStatus &&
+          !ALLOWED_SESSION_TRANSITIONS[locked.status]?.includes(newStatus)
+        ) {
+          throw invalidSessionStatusTransition(locked.status, newStatus);
+        }
+        await this.assertMedicallyEligible(
+          locked.fighterId,
+          locked.sessionType,
+          transaction,
+        );
+        if (lockedSameStatus) return locked;
+        return this.applyStatusTransition(
+          locked,
+          newStatus,
+          cancellationReason,
+          transaction,
+        );
+      });
     } catch (error) {
       throw mapTrainingPersistenceError(error);
     }
+  }
+
+  private async assertMedicallyEligible(
+    fighterId: string,
+    sessionType: TrainingSessionEntity['sessionType'],
+    transaction: Transaction,
+  ): Promise<void> {
+    const eligibility = await this.medical.evaluateTrainingEligibility(
+      fighterId,
+      sessionType,
+      transaction,
+    );
+    if (!eligibility.eligible) {
+      throw trainingMedicalEligibilityRequired(eligibility.reasons);
+    }
+  }
+
+  private async applyStatusTransition(
+    session: TrainingSessionEntity,
+    newStatus: SessionStatusType,
+    cancellationReason: string | undefined,
+    database?: DatabaseExecutor,
+  ): Promise<TrainingSessionEntity> {
+    // One server instant for both the status timestamp and the elapsed
+    // duration, so they can never disagree.
+    const stoppedAt = new Date();
+    const outcome: SessionTransitionOutcome = {
+      cancellationReason:
+        newStatus === 'CANCELLED' ? (cancellationReason ?? null) : null,
+      actualDurationSec: this.measureElapsedSeconds(
+        session.checkedInAt,
+        newStatus,
+        stoppedAt,
+      ),
+    };
+
+    const updated = await this.repo.updateSessionStatus(
+      session.id,
+      session.status,
+      newStatus,
+      stoppedAt,
+      outcome,
+      database,
+    );
+    if (!updated) {
+      throw sessionStateConflict();
+    }
+    return updated;
   }
 
   /**
