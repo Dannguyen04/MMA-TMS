@@ -116,13 +116,16 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
                                 label="Filter the corner queue"
                                 items={[
                                     { href: queueHref(null), label: "All", count: attention.length, active: !queue },
-                                    ...queues.map((group) => ({
-                                        href: queueHref(group),
-                                        label: COACH_QUEUE_META[group].label,
-                                        icon: COACH_QUEUE_META[group].icon,
-                                        count: attention.filter((item) => item.group === group).length,
-                                        active: queue === group,
-                                    })),
+                                    // Empty groups stay out of the way unless they're the one selected.
+                                    ...queues
+                                        .map((group) => ({
+                                            href: queueHref(group),
+                                            label: COACH_QUEUE_META[group].label,
+                                            icon: COACH_QUEUE_META[group].icon,
+                                            count: attention.filter((item) => item.group === group).length,
+                                            active: queue === group,
+                                        }))
+                                        .filter((chip) => chip.count > 0 || chip.active),
                                 ]}
                             />
                         </div>
