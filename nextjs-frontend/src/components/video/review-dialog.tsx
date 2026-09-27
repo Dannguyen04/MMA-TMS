@@ -7,7 +7,7 @@ import { ActionDialog } from "@/components/ui/action-dialog";
 import { ChoiceGroup, type ChoiceOption } from "@/components/ui/choice-group";
 import { Field, Textarea } from "@/components/ui/form";
 import { useToast } from "@/components/ui/toast";
-import type { ActionState } from "@/lib/actions/state";
+import { FIX_FIELDS, type ActionState } from "@/lib/actions/state";
 import { FINDING_CATEGORY_LABELS, STRIKE_TYPES, TECHNIQUE_LABELS, TECHNIQUES } from "@/lib/domain/labels";
 import type { AIFinding, Detection, ReviewDecision } from "@/lib/domain/types";
 import { formatConfidence, formatTimestamp } from "@/lib/format";
@@ -51,7 +51,7 @@ export function ReviewDialog({ open, onClose, target, initialDecision }: ReviewD
         const fieldErrors: Record<string, string> = {};
         if (decision === "corrected" && !fd.get("correctedLabel")) fieldErrors.correctedLabel = "Choose the correct label.";
         if (decision === "rejected" && !String(fd.get("note") ?? "").trim()) fieldErrors.note = "Explain why this is wrong — it helps retrain the model.";
-        if (Object.keys(fieldErrors).length > 0) return { status: "error", message: "Please fix the highlighted fields.", fieldErrors };
+        if (Object.keys(fieldErrors).length > 0) return { status: "error", message: FIX_FIELDS, fieldErrors };
     };
 
     /** Errors stay inside the dialog; the success toast fires once it has closed (see `onSuccess`). */

@@ -28,36 +28,12 @@ import {
 } from "@/lib/services/medical";
 import { medicalWriteFailure } from "@/lib/services/medical-errors";
 import { FEATURE_UNAVAILABLE_MESSAGE, medicalFeatureAvailable } from "@/lib/services/medical-features";
-import { actionError, actionSuccess, validationError, type ActionState } from "./state";
+import { NOT_ASSIGNED, isInFuture, jsonArray, keysOf, text } from "./form-helpers";
+import { actionError, actionSuccess, FIX_FIELDS, validationError, type ActionState } from "./state";
 
 /* ─── Parsing helpers (not exported: a "use server" module may only export actions) ─── */
 
-const NOT_ASSIGNED = "You aren't assigned to this fighter, so you can't change their medical information.";
 const MAX_CLEARANCE_DAYS = 365;
-
-function keysOf<T extends string>(record: Record<T, string>): [T, ...T[]] {
-    return Object.keys(record) as [T, ...T[]];
-}
-
-function text(formData: FormData, name: string): string {
-    const value = formData.get(name);
-    return typeof value === "string" ? value : "";
-}
-
-/** A JSON-encoded array posted from a client-side builder. */
-function jsonArray<T extends z.ZodType>(item: T, label: string, minItems = 0, minMessage = "") {
-    return z
-        .string()
-        .transform((value, ctx) => {
-            try {
-                return JSON.parse(value || "[]") as unknown;
-            } catch {
-                ctx.addIssue({ code: "custom", message: `The ${label} couldn't be read. Reload the page and try again.` });
-                return z.NEVER;
-            }
-        })
-        .pipe(z.array(item).min(minItems, minMessage));
-}
 
 /** A required numeric measurement within a plausible clinical range. */
 function measurement(label: string, min: number, max: number, unit: string, integer = false) {
@@ -184,7 +160,7 @@ const examinationSchema = z
         temperatureC: measurement("Temperature", 33, 42, "°C"),
         spo2Pct: measurement("SpO₂", 70, 100, "%", true),
         hydration: z.enum(["good", "fair", "poor"], { error: "Choose the hydration status." }),
-        assessments: jsonArray(assessmentSchema, "assessments", 1, "Add at least one assessment."),
+        assessments: jsonArray(assessmentSchema, "assessments", { min: 1, minMessage: "Add at least one assessment." }),
         outcome: z.enum(keysOf(EXAMINATION_OUTCOME_LABELS), { error: "Choose the examination outcome." }),
         summary: z.string().trim().min(10, "Summarise the findings in a sentence or two.").max(3000, "Keep the summary under 3,000 characters."),
         recommendations: z
@@ -230,8 +206,8 @@ export async function createExaminationAction(_prev: ActionState, formData: Form
 
     const [day, time] = input.date.split("T");
     const examinedAt = academyWallClockToIso(day, time);
-    if (Date.parse(examinedAt) > Date.now() + 5 * 60_000) {
-        return actionError("Please fix the highlighted fields.", { date: "The examination time can't be in the future." });
+    if (isInFuture(examinedAt)) {
+        return actionError(FIX_FIELDS, { date: "The examination time can't be in the future." });
     }
 
     const result = await createExamination(
@@ -319,9 +295,9 @@ export async function grantClearanceAction(_prev: ActionState, formData: FormDat
     let validUntil: string | null = null;
     if (input.level !== "not_cleared") {
         const days = daysBetween(new Date(), `${input.validUntil}T12:00:00Z`);
-        if (days < 0) return actionError("Please fix the highlighted fields.", { validUntil: "The validity date can't be in the past." });
+        if (days < 0) return actionError(FIX_FIELDS, { validUntil: "The validity date can't be in the past." });
         if (days > MAX_CLEARANCE_DAYS) {
-            return actionError("Please fix the highlighted fields.", { validUntil: "Issue clearances for 12 months at most, then re-examine." });
+            return actionError(FIX_FIELDS, { validUntil: "Issue clearances for 12 months at most, then re-examine." });
         }
         validUntil = academyWallClockToIso(input.validUntil, "23:59");
     }

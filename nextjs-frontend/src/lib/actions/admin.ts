@@ -23,7 +23,7 @@ import {
 import { cancelJob, retryJob, setModelStatus, updateModelThresholds } from "@/lib/services/ai";
 import { isNotFound } from "@/lib/services/api-helpers";
 import { deleteVideo, getJobProgress, getVideo } from "@/lib/services/videos";
-import { actionError, actionSuccess, validationError, type ActionState } from "./state";
+import { actionError, actionSuccess, FIX_FIELDS, validationError, type ActionState } from "./state";
 
 /* ─── Shared ──────────────────────────────────────────────────────────────── */
 
@@ -393,7 +393,7 @@ export async function createBroadcastAction(_prev: ActionState<BroadcastData>, f
     let scheduledIso: string | null = null;
     if (delivery === "schedule" && scheduledFor) {
         const [day, time] = scheduledFor.split("T");
-        if (!isDateKey(day) || !isTimeValue(time)) return actionError("Please fix the highlighted fields.", { scheduledFor: "Enter a valid date and time." });
+        if (!isDateKey(day) || !isTimeValue(time)) return actionError(FIX_FIELDS, { scheduledFor: "Enter a valid date and time." });
         scheduledIso = academyWallClockToIso(day, time);
     }
 

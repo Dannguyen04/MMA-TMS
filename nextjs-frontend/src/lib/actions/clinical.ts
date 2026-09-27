@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
@@ -27,29 +26,10 @@ import {
 } from "@/lib/services/medical";
 import { medicalWriteFailure } from "@/lib/services/medical-errors";
 import { FEATURE_UNAVAILABLE_MESSAGE, medicalFeatureAvailable } from "@/lib/services/medical-features";
-import { actionError, actionSuccess, validationError, type ActionState } from "./state";
+import { NOT_ASSIGNED, isInFuture, jsonArray, keysOf, optionalDate, revalidateClinical, text } from "./form-helpers";
+import { actionError, actionSuccess, FIX_FIELDS, validationError, type ActionState } from "./state";
 
 /* ─── Parsing helpers (not exported: a "use server" module may only export actions) ─── */
-
-const NOT_ASSIGNED = "You aren't assigned to this fighter, so you can't change their medical information.";
-const FIX_FIELDS = "Please fix the highlighted fields.";
-/** Clock skew tolerated when checking that a time isn't in the future. */
-const FUTURE_TOLERANCE_MS = 5 * 60_000;
-
-function keysOf<T extends string>(record: Record<T, string>): [T, ...T[]] {
-    return Object.keys(record) as [T, ...T[]];
-}
-
-function text(formData: FormData, name: string): string {
-    const value = formData.get(name);
-    return typeof value === "string" ? value : "";
-}
-
-const optionalDate = (message: string) =>
-    z
-        .string()
-        .trim()
-        .refine((value) => value === "" || isDateKey(value), message);
 
 /** Today's calendar day (YYYY-MM-DD) in the academy timezone. */
 function todayKey(): string {
@@ -67,27 +47,6 @@ function wholeNumber(label: string, min: number, max: number) {
         .pipe(z.number({ error: range }).int(range).min(min, range).max(max, range));
 }
 
-/** A JSON-encoded array posted from a client-side builder. */
-function jsonArray<T extends z.ZodType>(item: T, label: string, bounds: { min: number; minMessage: string; max: number; maxMessage: string }) {
-    return z
-        .string()
-        .transform((value, ctx) => {
-            try {
-                return JSON.parse(value || "[]") as unknown;
-            } catch {
-                ctx.addIssue({ code: "custom", message: `The ${label} couldn't be read. Reload the page and try again.` });
-                return z.NEVER;
-            }
-        })
-        .pipe(z.array(item).min(bounds.min, bounds.minMessage).max(bounds.max, bounds.maxMessage));
-}
-
-/** Clinical changes show up on doctor, fighter and coach screens. */
-function revalidateClinical() {
-    revalidatePath("/doctor", "layout");
-    revalidatePath("/fighter", "layout");
-    revalidatePath("/coach", "layout");
-}
 
 /* ─── Injuries ────────────────────────────────────────────────────────────── */
 
@@ -142,7 +101,7 @@ export async function createInjuryAction(_prev: ActionState, formData: FormData)
 
     const [occurredDay, occurredTime] = input.occurredAt.split("T");
     const occurredAt = academyWallClockToIso(occurredDay, occurredTime);
-    if (Date.parse(occurredAt) > Date.now() + FUTURE_TOLERANCE_MS) {
+    if (isInFuture(occurredAt)) {
         return actionError(FIX_FIELDS, { occurredAt: "The injury time can't be in the future." });
     }
     if (input.diagnosedAt > todayKey()) {

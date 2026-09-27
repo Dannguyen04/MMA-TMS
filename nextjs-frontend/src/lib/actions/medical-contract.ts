@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
@@ -34,7 +33,8 @@ import {
     updateMilestonePlan,
 } from "@/lib/services/medical";
 import { medicalWriteFailure, type MedicalWriteErrorOptions } from "@/lib/services/medical-errors";
-import { actionError, actionSuccess, validationError, type ActionState } from "./state";
+import { NOT_ASSIGNED, checked, isInFuture, jsonArray, optionalDate, revalidateClinical, text, texts } from "./form-helpers";
+import { actionError, actionSuccess, FIX_FIELDS, validationError, type ActionState } from "./state";
 
 /*
  * Server Actions for the medical service's own records (API mode). Each one validates the form, checks the
@@ -42,22 +42,6 @@ import { actionError, actionSuccess, validationError, type ActionState } from ".
  */
 
 /* ─── Parsing helpers (not exported: a "use server" module may only export actions) ─── */
-
-const NOT_ASSIGNED = "You aren't assigned to this fighter, so you can't change their medical information.";
-const FIX_FIELDS = "Please fix the highlighted fields.";
-/** Clock skew tolerated when checking that a time isn't in the future. */
-const FUTURE_TOLERANCE_MS = 5 * 60_000;
-
-function text(formData: FormData, name: string): string {
-    const value = formData.get(name);
-    return typeof value === "string" ? value : "";
-}
-
-function texts(formData: FormData, name: string): string[] {
-    return formData.getAll(name).filter((value): value is string => typeof value === "string" && value !== "");
-}
-
-const on = (formData: FormData, name: string) => formData.get(name) === "on";
 
 const required = (message: string) => z.string().trim().min(1, message);
 
@@ -67,12 +51,6 @@ const boundedText = (label: string, max: number, min = 0, minMessage = "") =>
         .trim()
         .min(min, minMessage)
         .max(max, `Keep the ${label} under ${max.toLocaleString("en-US")} characters.`);
-
-const optionalDate = (message: string) =>
-    z
-        .string()
-        .trim()
-        .refine((value) => value === "" || isDateKey(value), message);
 
 /** A datetime-local value in academy time, as an ISO timestamp. */
 function wallClockIso(value: string): string {
@@ -87,18 +65,9 @@ function dayIso(key: string): string {
 
 const maxIso = (a: string, b: string) => (Date.parse(a) >= Date.parse(b) ? a : b);
 
-const inFuture = (iso: string) => Date.parse(iso) > Date.now() + FUTURE_TOLERANCE_MS;
-
 function failed(error: unknown, options?: MedicalWriteErrorOptions): ActionState<never> {
     const failure = medicalWriteFailure(error, options);
     return actionError(failure.message, failure.fieldErrors);
-}
-
-/** Clinical changes show up on doctor, fighter and coach screens. */
-function revalidateClinical() {
-    revalidatePath("/doctor", "layout");
-    revalidatePath("/fighter", "layout");
-    revalidatePath("/coach", "layout");
 }
 
 /* ─── Restriction lists (shared by examinations and clearances) ───────────── */
@@ -130,9 +99,9 @@ const restrictionListsSchema = z
 
 function restrictionListsFrom(formData: FormData) {
     return {
-        limitSessions: on(formData, "limitSessions"),
+        limitSessions: checked(formData, "limitSessions"),
         allowedSessionTypes: texts(formData, "allowedSessionTypes"),
-        limitTechniques: on(formData, "limitTechniques"),
+        limitTechniques: checked(formData, "limitTechniques"),
         allowedTechniqueTypes: texts(formData, "allowedTechniqueTypes"),
         excludedJoints: texts(formData, "excludedJoints"),
     };
@@ -144,6 +113,12 @@ function toLists(lists: z.output<typeof restrictionListsSchema>): RestrictionLis
         allowedTechniqueTypes: lists.limitTechniques ? lists.allowedTechniqueTypes : null,
         excludedJoints: lists.excludedJoints.length > 0 ? lists.excludedJoints : null,
     };
+}
+
+/** Validation errors with restriction list errors reported under the list's own field name, as the form names them. */
+function restrictionFormError(error: z.ZodError): ActionState<never> {
+    const state = validationError(error);
+    return { ...state, fieldErrors: Object.fromEntries(Object.entries(state.fieldErrors ?? {}).map(([key, message]) => [key.replace(/^lists\./, ""), message])) };
 }
 
 const limitsSomething = (lists: RestrictionLists) => lists.allowedSessionTypes !== null || lists.allowedTechniqueTypes !== null || lists.excludedJoints !== null;
@@ -219,20 +194,15 @@ export async function recordExaminationDecisionAction(_prev: ActionState, formDa
         lists: restrictionListsFrom(formData),
         restrictionNotes: text(formData, "restrictionNotes"),
         validUntil: text(formData, "validUntil"),
-        supersedesId: on(formData, "correction") ? text(formData, "supersedesId") : "",
+        supersedesId: checked(formData, "correction") ? text(formData, "supersedesId") : "",
         reviewRequestIds: texts(formData, "reviewRequestIds"),
     });
-    if (!parsed.success) {
-        // Restriction list errors are reported under the list's own field name.
-        const state = validationError(parsed.error);
-        const fieldErrors = Object.fromEntries(Object.entries(state.fieldErrors ?? {}).map(([key, message]) => [key.replace(/^lists\./, ""), message]));
-        return { ...state, fieldErrors };
-    }
+    if (!parsed.success) return restrictionFormError(parsed.error);
     const input = parsed.data;
     if (!canAccessFighterClinically(auth.user, input.fighterId)) return actionError(NOT_ASSIGNED, { fighterId: "Choose one of your assigned fighters." });
 
     const examinedAt = wallClockIso(input.examinedAt);
-    if (inFuture(examinedAt)) return actionError(FIX_FIELDS, { examinedAt: "The examination time can't be in the future." });
+    if (isInFuture(examinedAt)) return actionError(FIX_FIELDS, { examinedAt: "The examination time can't be in the future." });
 
     let examinationId: string;
     try {
@@ -288,10 +258,7 @@ export async function issueClearanceAction(_prev: ActionState, formData: FormDat
         lists: restrictionListsFrom(formData),
         notes: text(formData, "notes"),
     });
-    if (!parsed.success) {
-        const state = validationError(parsed.error);
-        return { ...state, fieldErrors: Object.fromEntries(Object.entries(state.fieldErrors ?? {}).map(([key, message]) => [key.replace(/^lists\./, ""), message])) };
-    }
+    if (!parsed.success) return restrictionFormError(parsed.error);
     const input = parsed.data;
     if (!canAccessFighterClinically(auth.user, input.fighterId)) return actionError(NOT_ASSIGNED, { fighterId: "Choose one of your assigned fighters." });
 
@@ -371,7 +338,7 @@ export async function recordInjuryAction(_prev: ActionState, formData: FormData)
     if (!canAccessFighterClinically(auth.user, input.fighterId)) return actionError(NOT_ASSIGNED, { fighterId: "Choose one of your assigned fighters." });
 
     const occurredAt = wallClockIso(input.occurredAt);
-    if (inFuture(occurredAt)) return actionError(FIX_FIELDS, { occurredAt: "The injury time can't be in the future." });
+    if (isInFuture(occurredAt)) return actionError(FIX_FIELDS, { occurredAt: "The injury time can't be in the future." });
 
     let injuryId: string;
     try {
@@ -455,18 +422,7 @@ const milestoneSchema = z.object({
     notes: boundedText("notes", MEDICAL_TEXT_LIMITS.clinicalText),
 });
 
-/** A JSON-encoded milestone list posted from the client-side builder. */
-const milestoneList = z
-    .string()
-    .transform((value, ctx) => {
-        try {
-            return JSON.parse(value || "[]") as unknown;
-        } catch {
-            ctx.addIssue({ code: "custom", message: "The milestones couldn't be read. Reload the page and try again." });
-            return z.NEVER;
-        }
-    })
-    .pipe(z.array(milestoneSchema).max(RECOVERY_MILESTONES_MAX, `Use at most ${RECOVERY_MILESTONES_MAX} milestones.`));
+const milestoneList = jsonArray(milestoneSchema, "milestones", { max: RECOVERY_MILESTONES_MAX, maxMessage: `Use at most ${RECOVERY_MILESTONES_MAX} milestones.` });
 
 const recoveryPlanSchema = z
     .object({
