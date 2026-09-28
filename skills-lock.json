@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "skills": {
+    "analyze-component-set-figma": {
+      "source": "southleft/skills-for-figma",
+      "sourceType": "github",
+      "skillPath": "skills/analyze-component-set-figma/SKILL.md",
+      "computedHash": "a24975e20f95b54a68a28964a1778d387e2d21521732ab32d5d9ef67f7dfbb89"
+    },
+    "annotations-figma": {
+      "source": "southleft/skills-for-figma",
+      "sourceType": "github",
+      "skillPath": "skills/annotations-figma/SKILL.md",
+      "computedHash": "3d48607797d279af91ff76f532714a4abe86ae0cdeb2ed6fd333b8e1f9869960"
+    },
+    "arrange-component-set-figma": {
+      "source": "southleft/skills-for-figma",
+      "sourceType": "github",
+      "skillPath": "skills/arrange-component-set-figma/SKILL.md",
+      "computedHash": "6c6d2a7ee366ac400cb8351504e9e38cc552d0a266438a5da7f894bdfcaadefb"
+    },
+    "audit-accessibility-figma": {
+      "source": "southleft/skills-for-figma",
+      "sourceType": "github",
+      "skillPath": "skills/audit-accessibility-figma/SKILL.md",
+      "computedHash": "54aa744b9bc60f6670191cb0bdfecbfdd3e6cbc77b4fac662ac9b547a00e6c1f"
+    },
+    "build-slides-figma": {
+      "source": "southleft/skills-for-figma",
+      "sourceType": "github",
+      "skillPath": "skills/build-slides-figma/SKILL.md",
+      "computedHash": "b8ee3b45ebad6d518e76c274e7447e06da7ecf1c13cf2957680929f2242e445e"
+    },
+    "check-design-parity-figma": {
+      "source": "southleft/skills-for-figma",
+      "sourceType": "github",
+      "skillPath": "skills/check-design-parity-figma/SKILL.md",
+      "computedHash": "9ad345db4356a269cdff3ea76eb431dfdbd5bbd0c9ff053b17c34f0274dfd132"
+    },
+    "component-properties-figma": {
+      "source": "southleft/skills-for-figma",
+      "sourceType": "github",
+      "skillPath": "skills/component-properties-figma/SKILL.md",
+      "computedHash": "a3dc41fd6f128acfecbb78723d9c67b36df1314c87fc4cf73cdebe2abcc8dc0c"
+    },
+    "create-figjam-content": {
+      "source": "southleft/skills-for-figma",
+      "sourceType": "github",
+      "skillPath": "skills/create-figjam-content/SKILL.md",
+      "computedHash": "25101357deb7a60427837769a92deef1e7a055b030236922e6583aeae93eaa99"
+    },
+    "deep-component-figma": {
+      "source": "southleft/skills-for-figma",
+      "sourceType": "github",
+      "skillPath": "skills/deep-component-figma/SKILL.md",
+      "computedHash": "b4ecee61d401f09ce53db00ac7293436bf642f3b3f4874bfc56f377cc64d7441"
+    },
+    "design-system-inventory-figma": {
+      "source": "southleft/skills-for-figma",
+      "sourceType": "github",
+      "skillPath": "skills/design-system-inventory-figma/SKILL.md",
+      "computedHash": "b5045420cf1e6dbb6de78823c7c0d211d899b1690eafc2c676dc0eeecade7647"
+    },
+    "export-tokens-figma": {
+      "source": "southleft/skills-for-figma",
+      "sourceType": "github",
+      "skillPath": "skills/export-tokens-figma/SKILL.md",
+      "computedHash": "bc8aa2eed5f95ed19433b7066c639cf1c7ea7de026aaa242cae4d074ec1d964a"
+    },
+    "generate-component-doc-figma": {
+      "source": "southleft/skills-for-figma",
+      "sourceType": "github",
+      "skillPath": "skills/generate-component-doc-figma/SKILL.md",
+      "computedHash": "53a0bbb9ef8dda713a3dc82052a11e34a95bfd7de061d449890608280fd512f7"
+    },
+    "import-tokens-figma": {
+      "source": "southleft/skills-for-figma",
+      "sourceType": "github",
+      "skillPath": "skills/import-tokens-figma/SKILL.md",
+      "computedHash": "d9e4b5e90cb1feb8d65069bdcb6cfc9ab439ed555bc1bfcb313721e38fb743af"
+    },
+    "library-variables-figma": {
+      "source": "southleft/skills-for-figma",
+      "sourceType": "github",
+      "skillPath": "skills/library-variables-figma/SKILL.md",
+      "computedHash": "2e179b6c0b0ea59371307a26a0666b7ee27f07e3f75b353661b2daf0bdcb44fd"
+    },
+    "lint-design-figma": {
+      "source": "southleft/skills-for-figma",
+      "sourceType": "github",
+      "skillPath": "skills/lint-design-figma/SKILL.md",
+      "computedHash": "37bb928aa26213dd9492d32677df2cb975127278cd4332863763f5cb5df2210a"
+    },
+    "manage-variables-figma": {
+      "source": "southleft/skills-for-figma",
+      "sourceType": "github",
+      "skillPath": "skills/manage-variables-figma/SKILL.md",
+      "computedHash": "93852842d3c1cfb25f152a34f3a46270a0185eafb0a9cc1936f2be725351c666"
+    },
+    "scan-code-accessibility-figma": {
+      "source": "southleft/skills-for-figma",
+      "sourceType": "github",
+      "skillPath": "skills/scan-code-accessibility-figma/SKILL.md",
+      "computedHash": "cd405b1732769898f46d03e9f0f38800e6e8c90c73e0b58248c839080bf5a46d"
+    },
+    "setup-design-tokens-figma": {
+      "source": "southleft/skills-for-figma",
+      "sourceType": "github",
+      "skillPath": "skills/setup-design-tokens-figma/SKILL.md",
+      "computedHash": "d2b8bbec1ba804773a53e6620b8f6a22d03e3e49eaf190d151f96d535a284ab0"
+    }
+  }
+}

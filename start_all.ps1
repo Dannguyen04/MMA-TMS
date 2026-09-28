@@ -64,6 +64,17 @@ Write-Host "✅ CẢ 4 DỊCH VỤ ĐÃ ĐƯỢC KHỞI ĐỘNG THÀNH CÔNG!" -
 Write-Host "🌐 Giao diện Web:      http://localhost:3000" -ForegroundColor White
 Write-Host "📤 Trang tải lên:      http://localhost:3000/analysis" -ForegroundColor White
 Write-Host "📡 Backend API:        http://localhost:3001" -ForegroundColor White
+Write-Host "[*] USB adb reverse for mobile API (port 3001)..." -ForegroundColor Yellow
+try {
+    & adb reverse tcp:3001 tcp:3001 2>$null | Out-Null
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "    ✓ adb reverse tcp:3001 tcp:3001" -ForegroundColor Green
+    } else {
+        Write-Host "    skipped (no USB device). Phone login: adb reverse tcp:3001 tcp:3001" -ForegroundColor DarkYellow
+    }
+} catch {
+    Write-Host "    skipped (adb not in PATH). Phone login: adb reverse tcp:3001 tcp:3001" -ForegroundColor DarkYellow
+}
 Write-Host ""
 Write-Host "Mẹo: Chạy 'npm run dev' ở thư mục gốc để gom chung log vào 1 terminal!" -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Green
