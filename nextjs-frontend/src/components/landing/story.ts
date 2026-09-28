@@ -59,8 +59,6 @@ export interface StageFrame {
     rim: RimLight;
     /** 0 while the arena lights are off during the intro, 1 once they are on. */
     lights: number;
-    /** How far the cage's LED strips and the mat markings have lit up. */
-    strips: number;
     /** Height of the analysis scan line in metres, and how bright it is. */
     scanY: number;
     scan: number;
@@ -187,7 +185,6 @@ export function stageAt(story: StoryState): StageFrame {
         camera,
         rim,
         lights: flicker(intro),
-        strips: smoothstep(0.35, 1, intro),
         scanY: lerp(SCAN_TOP, SCAN_BOTTOM, scanProgress),
         scan: analysis * (scanProgress > 0 && scanProgress < 1 ? 1 : 0.35),
         skeleton: analysis,

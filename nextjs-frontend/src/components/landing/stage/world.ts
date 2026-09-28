@@ -1,17 +1,19 @@
 import * as THREE from "three";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
-import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 
-import { FIGHTER_IMAGE, KEYPOINTS, LEFT_KNEE } from "../pose-skeleton";
+import { FIGHTER_IMAGE, KEYPOINTS, LEFT_KNEE, pixelToModel } from "../pose-skeleton";
 import type { StageFrame } from "../story";
 import { createArena } from "./arena";
+import { createBackdrop } from "./backdrop";
 import { createFighterMaterial } from "./fighter-material";
+import { createGrainOutputPass } from "./output-pass";
 import { createRelief } from "./relief";
 import { createSkeletonOverlay } from "./skeleton";
 import { createTechniqueBars } from "./technique-bars";
+import { radialTexture } from "./textures";
 
 /** HTML labels pinned to points on the stage, positioned by the scene every frame. */
 export type LabelId = "knee" | "focus" | `bar-${number}`;
@@ -20,6 +22,15 @@ export type LabelRegistry = Map<LabelId, HTMLElement>;
 /** How far the relief bulges toward the camera at its thickest, in metres. */
 const RELIEF_DEPTH = 0.1;
 
+/**
+ * Contact shadows under the top light, in the fighter's own space so they turn with him: a soft
+ * pool under his body and a tight, dark one under each foot (centre pixel column, width, depth).
+ */
+const FOOT_SHADOWS = [
+    { x: pixelToModel(740, 0)[0], width: 0.42, depth: 0.16 },
+    { x: pixelToModel(250, 0)[0], width: 0.24, depth: 0.18 },
+] as const;
+
 export interface World {
     object: THREE.Group;
     update(frame: StageFrame, camera: THREE.PerspectiveCamera, time: number, delta: number, size: { width: number; height: number }, labels: LabelRegistry): void;
@@ -27,7 +38,14 @@ export interface World {
     dispose(): void;
 }
 
-export function createWorld(photo: THREE.Texture, { compact, animate }: { compact: boolean; animate: boolean }): World {
+/** The photographs the stage is built from: the fighter cutout, the stands and the mat canvas. */
+export interface StagePhotos {
+    fighter: THREE.Texture;
+    plate: THREE.Texture;
+    canvas: THREE.Texture;
+}
+
+export function createWorld({ fighter: photo, plate, canvas }: StagePhotos, { compact, animate }: { compact: boolean; animate: boolean }): World {
     const object = new THREE.Group();
     const glow = radialGlow();
 
@@ -51,11 +69,26 @@ export function createWorld(photo: THREE.Texture, { compact, animate }: { compac
     };
     const fighter = new THREE.Group();
     const skeleton = createSkeletonOverlay(glow, depthAt);
+    const shadowTexture = radialTexture("rgba(0,0,0,0.85)");
+    const shadowMaterial = new THREE.MeshBasicMaterial({ map: shadowTexture, transparent: true, depthWrite: false, fog: false });
+    const shadowGeometry = new THREE.PlaneGeometry(1, 1);
+    shadowGeometry.rotateX(-Math.PI / 2);
+    const pool = new THREE.Mesh(shadowGeometry, shadowMaterial);
+    pool.scale.set(1.5, 1, 1.05);
+    pool.position.set(-0.03, 0.004, 0);
+    fighter.add(pool);
+    for (const foot of FOOT_SHADOWS) {
+        const shadow = new THREE.Mesh(shadowGeometry, shadowMaterial);
+        shadow.scale.set(foot.width, 1, foot.depth);
+        shadow.position.set(foot.x, 0.005, 0.02);
+        fighter.add(shadow);
+    }
     fighter.add(body, skeleton.object);
 
-    const arena = createArena({ dust: compact ? 110 : 240, crowd: compact ? 900 : 2400 });
+    const backdrop = createBackdrop(plate);
+    const arena = createArena({ dust: compact ? 70 : 160, canvas });
     const bars = createTechniqueBars(glow);
-    object.add(arena.object, fighter, bars.object);
+    object.add(backdrop.object, arena.object, fighter, bars.object);
 
     const [kneeX, kneeY] = KEYPOINTS[LEFT_KNEE];
     const focusPoint = new THREE.Vector3(kneeX, kneeY, depthAt(kneeX, kneeY));
@@ -86,6 +119,7 @@ export function createWorld(photo: THREE.Texture, { compact, animate }: { compac
                 camera.fov = frame.camera.fov;
                 camera.updateProjectionMatrix();
             }
+            backdrop.update(frame, camera);
             // A cutout has no back: he keeps turning to face the camera as it orbits.
             fighter.rotation.y = frame.camera.facing;
             // Light on his toes: a small bounce and breath in his guard.
@@ -94,6 +128,7 @@ export function createWorld(photo: THREE.Texture, { compact, animate }: { compac
             fighter.updateMatrixWorld();
 
             uniforms.uTime.value = time;
+            uniforms.uLights.value = frame.lights;
             uniforms.uScanY.value = frame.scanY;
             uniforms.uScan.value = frame.scan;
             uniforms.uXray.value = frame.xray;
@@ -116,28 +151,36 @@ export function createWorld(photo: THREE.Texture, { compact, animate }: { compac
             skeleton.setResolution(width, height);
         },
         dispose() {
+            backdrop.dispose();
             arena.dispose();
             skeleton.dispose();
             bars.dispose();
             relief.dispose();
             geometry.dispose();
             material.dispose();
+            shadowGeometry.dispose();
+            shadowMaterial.dispose();
+            shadowTexture.dispose();
             glow.dispose();
         },
     };
 }
 
-/** Bloom on bright emissive details only (scan line, keypoints, LED strips, lenses, beams). */
+/** Bloom on bright details only (scan line, keypoints, lenses, beams, the brightest bokeh), then film grain. */
 export function createComposer(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera) {
     // Multisampled so the cutout's alpha-to-coverage edges stay smooth.
     const target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 });
     const composer = new EffectComposer(renderer, target);
-    const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.42, 0.4, 0.9);
+    const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.5, 0.55, 0.85);
+    const output = createGrainOutputPass(0.045);
     composer.addPass(new RenderPass(scene, camera));
     composer.addPass(bloom);
-    composer.addPass(new OutputPass());
+    composer.addPass(output.pass);
     return {
-        composer,
+        render(time: number, delta: number) {
+            output.setTime(time);
+            composer.render(delta);
+        },
         setBloom(enabled: boolean) {
             bloom.enabled = enabled;
         },
@@ -149,24 +192,31 @@ export function createComposer(renderer: THREE.WebGLRenderer, scene: THREE.Scene
         dispose() {
             composer.dispose();
             bloom.dispose();
+            output.pass.dispose();
             target.dispose();
         },
     };
 }
 
-/** Soft reflections for the metal truss and a dark, even background colour behind the backdrop. */
-export function applyStudioEnvironment(renderer: THREE.WebGLRenderer, scene: THREE.Scene): () => void {
+/**
+ * The venue's air: faint reflections for the metal and vinyl, and a dark haze that settles over
+ * the far side of the cage and the platform, so they sink into the stands instead of cutting
+ * against them.
+ */
+export function applyVenueAtmosphere(renderer: THREE.WebGLRenderer, scene: THREE.Scene): () => void {
     const generator = new THREE.PMREMGenerator(renderer);
     const room = new RoomEnvironment();
     const environment = generator.fromScene(room, 0.04);
     room.dispose();
     generator.dispose();
     scene.environment = environment.texture;
-    scene.environmentIntensity = 0.18;
+    scene.environmentIntensity = 0.06;
     scene.background = new THREE.Color("#050608");
+    scene.fog = new THREE.FogExp2("#0b0c10", 0.045);
     return () => {
         scene.environment = null;
         scene.background = null;
+        scene.fog = null;
         environment.dispose();
     };
 }
