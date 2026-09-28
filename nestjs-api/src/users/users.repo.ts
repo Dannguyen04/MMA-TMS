@@ -1,5 +1,15 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, isNull } from 'drizzle-orm';
+import {
+  and,
+  count,
+  desc,
+  eq,
+  ilike,
+  isNotNull,
+  isNull,
+  or,
+  type SQL,
+} from 'drizzle-orm';
 import {
   type DatabaseExecutor,
   type Transaction,
@@ -9,11 +19,13 @@ import { USER } from '../shared/types/user.role.js';
 import { DRIZZLE, type DrizzleDB } from '../database/database.module.js';
 import { coaches, fighters, sportsDoctors, users } from '../database/schema.js';
 import { PROFILE_LESS_ROLES } from './users.constants.js';
-import type {
-  CreateUserInput,
-  FighterProfileInput,
-  PublicUser,
-  UpdateUserInput,
+import {
+  USER_STATUS,
+  type CreateUserInput,
+  type FighterProfileInput,
+  type ListUsersQuery,
+  type PublicUser,
+  type UpdateUserInput,
 } from './users.model.js';
 
 interface NewIdentity {
@@ -30,6 +42,59 @@ const userProjection = {
   updatedAt: users.updatedAt,
   deletedAt: users.deletedAt,
 };
+
+const fighterProfileProjection = {
+  id: fighters.id,
+  firstName: fighters.firstName,
+  lastName: fighters.lastName,
+  dateOfBirth: fighters.dateOfBirth,
+  nationality: fighters.nationality,
+  weightClass: fighters.weightClass,
+  heightCm: fighters.heightCm,
+  reachCm: fighters.reachCm,
+  dominantStance: fighters.dominantStance,
+  leftArmCm: fighters.leftArmCm,
+  rightArmCm: fighters.rightArmCm,
+  leftLegCm: fighters.leftLegCm,
+  rightLegCm: fighters.rightLegCm,
+  gym: fighters.gym,
+  bio: fighters.bio,
+  profileImageUrl: fighters.profileImageUrl,
+};
+
+const coachProfileProjection = {
+  id: coaches.id,
+  firstName: coaches.firstName,
+  lastName: coaches.lastName,
+  isHeadCoach: coaches.isHeadCoach,
+  specialization: coaches.specialization,
+  profileImageUrl: coaches.profileImageUrl,
+};
+
+const doctorProfileProjection = {
+  id: sportsDoctors.id,
+  firstName: sportsDoctors.firstName,
+  lastName: sportsDoctors.lastName,
+  licenseNumber: sportsDoctors.licenseNumber,
+  specialization: sportsDoctors.specialization,
+  profileImageUrl: sportsDoctors.profileImageUrl,
+};
+
+const activeFighterProfile = and(
+  eq(fighters.userId, users.id),
+  eq(fighters.isActive, true),
+  isNull(fighters.deletedAt),
+);
+const activeCoachProfile = and(
+  eq(coaches.userId, users.id),
+  eq(coaches.isActive, true),
+  isNull(coaches.deletedAt),
+);
+const activeDoctorProfile = and(
+  eq(sportsDoctors.userId, users.id),
+  eq(sportsDoctors.isActive, true),
+  isNull(sportsDoctors.deletedAt),
+);
 
 @Injectable()
 export class UsersRepository {
@@ -103,6 +168,79 @@ export class UsersRepository {
     const profile = await this.findProfile(user.id, user.role, database);
     if (!PROFILE_LESS_ROLES.includes(user.role) && !profile) return undefined;
     return { ...user, profile };
+  }
+
+  /**
+   * Administrative listing. Profiles are left-joined in the same query
+   * (each profile table is unique by user_id), so a page is two queries
+   * regardless of size. A user whose active profile is missing is still
+   * listed, with a null profile.
+   */
+  async listUsers(
+    query: ListUsersQuery,
+    database: DatabaseExecutor = this.db,
+  ): Promise<{ items: PublicUser[]; total: number }> {
+    const conditions: (SQL | undefined)[] = [];
+    if (query.role) conditions.push(eq(users.role, query.role));
+    if (query.status === USER_STATUS.ACTIVE) {
+      conditions.push(eq(users.isActive, true), isNull(users.deletedAt));
+    } else if (query.status === USER_STATUS.INACTIVE) {
+      conditions.push(
+        or(eq(users.isActive, false), isNotNull(users.deletedAt)),
+      );
+    }
+    if (query.search) {
+      const pattern = `%${query.search}%`;
+      conditions.push(
+        or(
+          ilike(users.email, pattern),
+          ilike(fighters.firstName, pattern),
+          ilike(fighters.lastName, pattern),
+          ilike(coaches.firstName, pattern),
+          ilike(coaches.lastName, pattern),
+          ilike(sportsDoctors.firstName, pattern),
+          ilike(sportsDoctors.lastName, pattern),
+        ),
+      );
+    }
+    const where = and(...conditions);
+
+    const [rows, [totals]] = await Promise.all([
+      database
+        .select({
+          ...userProjection,
+          fighter: fighterProfileProjection,
+          coach: coachProfileProjection,
+          doctor: doctorProfileProjection,
+        })
+        .from(users)
+        .leftJoin(fighters, activeFighterProfile)
+        .leftJoin(coaches, activeCoachProfile)
+        .leftJoin(sportsDoctors, activeDoctorProfile)
+        .where(where)
+        .orderBy(desc(users.createdAt), desc(users.id))
+        .limit(query.limit)
+        .offset((query.page - 1) * query.limit),
+      database
+        .select({ total: count() })
+        .from(users)
+        .leftJoin(fighters, activeFighterProfile)
+        .leftJoin(coaches, activeCoachProfile)
+        .leftJoin(sportsDoctors, activeDoctorProfile)
+        .where(where),
+    ]);
+
+    const items = rows.map(({ fighter, coach, doctor, ...user }) => {
+      const profiles = {
+        [USER.FIGHTER]: fighter,
+        [USER.COACH]: coach,
+        [USER.DOCTOR]: doctor,
+        [USER.ADMIN]: null,
+        [USER.GUEST]: null,
+      } satisfies Record<UserRole, PublicUser['profile']>;
+      return { ...user, profile: profiles[user.role] };
+    });
+    return { items, total: totals?.total ?? 0 };
   }
 
   /**
@@ -185,24 +323,7 @@ export class UsersRepository {
     if (PROFILE_LESS_ROLES.includes(role)) return null;
     if (role === USER.FIGHTER) {
       const [profile] = await database
-        .select({
-          id: fighters.id,
-          firstName: fighters.firstName,
-          lastName: fighters.lastName,
-          dateOfBirth: fighters.dateOfBirth,
-          nationality: fighters.nationality,
-          weightClass: fighters.weightClass,
-          heightCm: fighters.heightCm,
-          reachCm: fighters.reachCm,
-          dominantStance: fighters.dominantStance,
-          leftArmCm: fighters.leftArmCm,
-          rightArmCm: fighters.rightArmCm,
-          leftLegCm: fighters.leftLegCm,
-          rightLegCm: fighters.rightLegCm,
-          gym: fighters.gym,
-          bio: fighters.bio,
-          profileImageUrl: fighters.profileImageUrl,
-        })
+        .select(fighterProfileProjection)
         .from(fighters)
         .where(
           and(
@@ -216,14 +337,7 @@ export class UsersRepository {
     }
     if (role === USER.COACH) {
       const [profile] = await database
-        .select({
-          id: coaches.id,
-          firstName: coaches.firstName,
-          lastName: coaches.lastName,
-          isHeadCoach: coaches.isHeadCoach,
-          specialization: coaches.specialization,
-          profileImageUrl: coaches.profileImageUrl,
-        })
+        .select(coachProfileProjection)
         .from(coaches)
         .where(
           and(
@@ -237,14 +351,7 @@ export class UsersRepository {
     }
 
     const [profile] = await database
-      .select({
-        id: sportsDoctors.id,
-        firstName: sportsDoctors.firstName,
-        lastName: sportsDoctors.lastName,
-        licenseNumber: sportsDoctors.licenseNumber,
-        specialization: sportsDoctors.specialization,
-        profileImageUrl: sportsDoctors.profileImageUrl,
-      })
+      .select(doctorProfileProjection)
       .from(sportsDoctors)
       .where(
         and(

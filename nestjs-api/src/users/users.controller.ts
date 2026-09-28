@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
   UsePipes,
 } from '@nestjs/common';
@@ -36,7 +37,9 @@ import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import { appZodValidationPipe } from '../shared/pipes/zod-validation.pipe.js';
 import {
   CreateUserDto,
+  ListUsersQueryDto,
   PublicUserDto,
+  PublicUserListDto,
   UpdateUserDto,
   UserIdParamsDto,
 } from './users.dto.js';
@@ -77,6 +80,26 @@ export class UsersController {
     @Body() body: CreateUserDto,
   ) {
     return this.usersService.create(this.actor(actor), body.user, randomUUID());
+  }
+
+  @Get()
+  @RequirePermissions({ allOf: [USER_PERMISSIONS.READ] })
+  @ApiOperation({
+    summary: 'List users',
+    description:
+      'Lists users of every role with their active role profile, newest first, with bounded pagination. Filters: role; status (ACTIVE = active and not deleted, INACTIVE = deactivated or soft-deleted; omitted = all); search (case-insensitive match on email or profile first/last name). Requires users.read.',
+  })
+  @ResponseMessage('Get users successfully')
+  @ApiSuccessEnvelope({
+    status: HttpStatus.OK,
+    message: 'Get users successfully',
+    model: PublicUserListDto,
+  })
+  @ApiValidationErrorEnvelope('Invalid pagination or filter')
+  @ApiUnauthorizedEnvelope()
+  @ApiForbiddenEnvelope('Requires users.read permission')
+  async findAll(@Query() query: ListUsersQueryDto) {
+    return this.usersService.list(query);
   }
 
   @Get('me')

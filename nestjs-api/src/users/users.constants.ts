@@ -9,3 +9,6 @@ export const PROFILE_LESS_ROLES: readonly UserRole[] = [
   USER.ADMIN,
   USER.GUEST,
 ];
+
+export const USER_PAGE_SIZE_DEFAULT = 20;
+export const USER_PAGE_SIZE_MAX = 100;
