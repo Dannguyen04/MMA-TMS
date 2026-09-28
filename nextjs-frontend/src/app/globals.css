@@ -641,24 +641,20 @@
     margin-bottom: -0.1em;
 }
 
-.landing-gradient-text {
-    color: transparent;
-    background: linear-gradient(100deg, #f3f6fb 0%, #9dc6ff 42%, #ef5964 92%);
-    background-clip: text;
-    -webkit-background-clip: text;
-}
-
+/* The red corner: one solid colour with a lit top edge, no gradient. */
 .landing-primary-action {
-    border: 1px solid rgb(255 255 255 / 14%);
-    background: linear-gradient(112deg, var(--brand-blue), var(--brand-red));
-    box-shadow: 0 16px 45px rgb(29 91 188 / 25%);
+    border: 1px solid rgb(255 255 255 / 10%);
+    background: var(--brand-red);
+    box-shadow:
+        inset 0 1px 0 rgb(255 255 255 / 22%),
+        0 18px 40px -18px rgb(214 52 63 / 70%);
     transition:
         filter 200ms,
         transform 200ms;
 }
 
 .landing-primary-action:hover {
-    filter: saturate(1.15) brightness(1.09);
+    filter: brightness(1.1);
     transform: translateY(-1px);
 }
 
