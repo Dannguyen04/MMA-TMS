@@ -193,7 +193,7 @@ Reach for these before building anything new. Primitives in `components/ui` have
 | Brand label, belt progress | `CornerTag` (`ui/corner-tag.tsx`; decoration only) and `BeltProgress` (`ui/belt-progress.tsx`; `role="img"`, status still needs a badge) |
 | In-page and route tabs | `Tabs` (`ui/tabs.tsx`; `urlParam` for `?tab=`), `TabNav` for sub-routes, `HubTabs` (`layout/hub-tabs.tsx`) for hub pages |
 | Prioritised to-do list | `AttentionList` (`medical/attention-list.tsx`; `group`, `at`, `empty`), built by `buildCoachAttention` / `buildTriageQueue` |
-| Feature the backend doesn't offer yet | `FeatureUnavailable` (`ui/states.tsx`), gated by `medicalFeatureAvailable()` |
+| Feature the backend doesn't offer yet | `FeatureUnavailable` (`ui/states.tsx`), gated by `medicalFeatureAvailable()` or `adminFeatureAvailable()` |
 | Clearance validity ("Expires in 5 days") | `ClearanceValidity`, `ClearanceCell` (`domain/clearance-validity.tsx`) |
 | Check-in trends | `CheckInCharts`, `CheckInTrendTile` (`domain/check-in-charts.tsx`; colours from `CHECK_IN_COLORS`) |
 | Charts | `components/charts/*`; `BarChart` `details` adds breakdown rows to a single-series tooltip |
@@ -274,6 +274,20 @@ groups). Required fields set `required` on both the `Field` (visible star) and t
   - 5xx and timeouts say "may not have been saved, reload first".
 - Review requests: fighters ask for themselves, coaches and doctors for assigned fighters. A coach never sees what a
   fighter wrote to the doctor, only that a review was requested.
+
+### User accounts (API mode)
+
+- `GET /users` pages by number (`{ items, total, page, limit }`); `drainNumberedPages` reads it like the other
+  numbered lists. Self-registered applicants (`GUEST`) belong to fighter admissions and are left out of the list.
+- Status comes from the account: active unless `isActive` is false or `deletedAt` is set, which shows as
+  suspended. The status filter sends `ACTIVE` / `INACTIVE`; the service has no invitations.
+- The service keeps no phone, job title, last sign-in, coach certifications or experience. `adaptBackendUser` leaves
+  them null or empty (a job title falls back to the profile's specialisation) and the pages leave them out.
+- `GET /users/:id` reads active accounts only, so suspended rows aren't linked. A coach's or doctor's linked profile
+  comes from the account itself (`getApiUserWithProfile`), with the fighters they hold from current assignments.
+- Inviting, editing, suspending, reactivating, resending an invitation, an account's activity and role permissions
+  are demo-only: `adminFeatureAvailable()` (`services/admin-features.ts`) hides them and the server actions refuse
+  with "not available yet".
 
 ## Accessibility checklist
 
