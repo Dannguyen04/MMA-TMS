@@ -12,7 +12,8 @@ import type { FeedbackKind, PlanStatus, TrainingPhase, TrainingSession, Training
 import { academyDayEndIso, academyDayStartIso, academyWallClockToIso, isDateKey, isTimeValue } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import * as training from "@/lib/services/training";
-import { actionError, actionSuccess, validationError, type ActionState } from "./state";
+import { text, texts } from "./form-helpers";
+import { actionError, actionSuccess, FIX_FIELDS, validationError, type ActionState } from "./state";
 
 /* ─── Shared ──────────────────────────────────────────────────────────────── */
 
@@ -27,15 +28,6 @@ const NO_COACH_PROFILE = "Your account isn't linked to a coach profile, so you c
 export interface SessionFormResult {
     /** Clearance conflicts found when the server checked the session. */
     conflicts: ClearanceConflict[];
-}
-
-function text(formData: FormData, name: string): string {
-    const value = formData.get(name);
-    return typeof value === "string" ? value : "";
-}
-
-function texts(formData: FormData, name: string): string[] {
-    return formData.getAll(name).filter((value): value is string => typeof value === "string");
 }
 
 /** Whole number within bounds, coerced from a form value. */
@@ -284,7 +276,7 @@ export async function createSession(_prev: ActionState<SessionFormResult>, formD
 
     const scheduledAt = academyWallClockToIso(parsed.data.date, parsed.data.time);
     if (Date.parse(scheduledAt) < Date.now() - PAST_GRACE_MS) {
-        return actionError("Please fix the highlighted fields.", { date: "Choose a date and time that hasn't passed." });
+        return actionError(FIX_FIELDS, { date: "Choose a date and time that hasn't passed." });
     }
 
     const result = await training.createSession({ ...toServiceInput(parsed.data, scheduledAt, auth.coachId), fighterId }, auth.user);
@@ -312,11 +304,13 @@ export async function updateSession(
     const scheduledAt = academyWallClockToIso(parsed.data.date, parsed.data.time);
     const rescheduled = scheduledAt !== existing.scheduledAt;
     if (rescheduled && Date.parse(scheduledAt) < Date.now() - PAST_GRACE_MS) {
-        return actionError("Please fix the highlighted fields.", { date: "Choose a date and time that hasn't passed." });
+        return actionError(FIX_FIELDS, { date: "Choose a date and time that hasn't passed." });
     }
 
-    // Keep the assigned coach when another roster coach edits the session.
-    const result = await training.updateSession(sessionId, toServiceInput(parsed.data, scheduledAt, existing.coachId), auth.user);
+    // Keep the assigned coach when another roster coach edits the session; a session without one takes the editor.
+    const coachId = existing.coachId ?? auth.user.profileId;
+    if (!coachId) return actionError("Your account isn't linked to a coach profile yet. Ask an administrator to link it.");
+    const result = await training.updateSession(sessionId, toServiceInput(parsed.data, scheduledAt, coachId), auth.user);
     if (!result.ok) return sessionFailure(result);
     revalidateSession(result.session);
     if (existing.planId && existing.planId !== result.session.planId) revalidatePlan(existing.planId, existing.fighterId);

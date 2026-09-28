@@ -42,10 +42,12 @@ export function goalProgressPct(goal: Pick<Goal, "baseline" | "target" | "curren
 
 /**
  * Recovery plan progress, 0–100: each completed phase counts fully and the current
- * phase counts by the share of its milestones that are done.
+ * phase counts by the share of its milestones that are done. A milestone plan (the medical
+ * service's) counts the share of milestones reached.
  */
-export function recoveryProgressPct(plan: Pick<RecoveryPlan, "status" | "phases">): number {
+export function recoveryProgressPct(plan: Pick<RecoveryPlan, "status" | "phases" | "milestones">): number {
     if (plan.status === "completed") return 100;
+    if (plan.milestones) return plan.milestones.length === 0 ? 0 : Math.round((plan.milestones.filter((m) => m.isCompleted).length / plan.milestones.length) * 100);
     if (plan.phases.length === 0) return 0;
     const units = plan.phases.reduce((total, phase) => {
         if (phase.status === "completed") return total + 1;
@@ -99,7 +101,8 @@ export function clearanceExpiresSoon(
 
 export interface PlannedTraining {
     type: TrainingType;
-    targetRpe: number;
+    /** Planned intensity; null when none was set, which skips the intensity check. */
+    targetRpe: number | null;
     techniques: Technique[];
     loadsRegions: BodyRegion[];
 }
@@ -145,7 +148,7 @@ export function checkTrainingAgainstClearance(
                 message: `${TRAINING_TYPE_LABELS[planned.type]} is restricted: ${restriction.label}.`,
             });
         }
-        if (restriction.maxRpe !== null && planned.targetRpe > restriction.maxRpe) {
+        if (restriction.maxRpe !== null && planned.targetRpe !== null && planned.targetRpe > restriction.maxRpe) {
             conflicts.push({
                 severity: "block",
                 message: `Target intensity RPE ${planned.targetRpe} exceeds the cleared maximum of RPE ${restriction.maxRpe}.`,

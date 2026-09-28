@@ -30,7 +30,7 @@ export function RecoveryPlanCard({ plan, fighter, injury, now, className }: Reco
     const progress = recoveryProgressPct(plan);
     const currentIndex = plan.phases.findIndex((phase) => phase.status === "current");
     const current = currentIndex === -1 ? null : plan.phases[currentIndex];
-    const daysToReturn = daysBetween(now, plan.targetReturnDate);
+    const daysToReturn = plan.targetReturnDate ? daysBetween(now, plan.targetReturnDate) : null;
     const recent = plan.checkIns.slice(-TREND_POINTS);
     const last = recent.at(-1) ?? null;
 
@@ -75,16 +75,18 @@ export function RecoveryPlanCard({ plan, fighter, injury, now, className }: Reco
                     <ProgressBar value={progress} hideValue size="sm" tone="info" label={`${plan.title} progress`} valueText={`${progress}%`} />
                 </div>
 
-                <p className="flex items-center gap-2 text-[13px]">
-                    <Flag aria-hidden className="size-3.5 shrink-0 text-fg-subtle" />
-                    <span className="text-fg-muted">Target return</span>
-                    <time dateTime={plan.targetReturnDate} className="font-medium text-fg">
-                        {formatDate(plan.targetReturnDate)}
-                    </time>
-                    <span className={daysToReturn < 0 ? "font-medium text-warning-fg" : "text-fg-muted"}>
-                        · {daysToReturn < 0 ? `passed ${describeDaysUntil(daysToReturn)}` : describeDaysUntil(daysToReturn)}
-                    </span>
+                {plan.targetReturnDate && daysToReturn !== null && (
+                    <p className="flex items-center gap-2 text-[13px]">
+                        <Flag aria-hidden className="size-3.5 shrink-0 text-fg-subtle" />
+                        <span className="text-fg-muted">Target return</span>
+                        <time dateTime={plan.targetReturnDate} className="font-medium text-fg">
+                            {formatDate(plan.targetReturnDate)}
+                        </time>
+                        <span className={daysToReturn < 0 ? "font-medium text-warning-fg" : "text-fg-muted"}>
+                            · {daysToReturn < 0 ? `passed ${describeDaysUntil(daysToReturn)}` : describeDaysUntil(daysToReturn)}
+                        </span>
                 </p>
+                )}
 
                 <div className="mt-auto flex flex-col gap-2">
                     {last ? (

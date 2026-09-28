@@ -1,7 +1,21 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { isDemoAuthEnabled } from "./constants";
+import { isDemoAuthEnabled, parseTheme } from "./constants";
 import { DOCTOR_ONLY_PERMISSIONS, isDoctorOnlyPermission } from "./permissions";
+
+describe("parseTheme", () => {
+    it("keeps every stored preference, including following the device", () => {
+        expect(parseTheme("light")).toBe("light");
+        expect(parseTheme("dark")).toBe("dark");
+        expect(parseTheme("system")).toBe("system");
+    });
+
+    it("defaults to the light theme when nothing valid is stored", () => {
+        expect(parseTheme(undefined)).toBe("light");
+        expect(parseTheme("")).toBe("light");
+        expect(parseTheme("sepia")).toBe("light");
+    });
+});
 
 describe("isDemoAuthEnabled", () => {
     afterEach(() => {

@@ -7,7 +7,7 @@ import { VideoLibrary } from "@/components/video/video-library";
 import { requireRole } from "@/lib/auth/session";
 import { routes } from "@/lib/routes";
 
-export const metadata: Metadata = { title: "Videos" };
+export const metadata: Metadata = { title: "Film" };
 
 export default async function FighterVideosPage({ searchParams }: PageProps<"/fighter/videos">) {
     const user = await requireRole("fighter");
@@ -17,7 +17,7 @@ export default async function FighterVideosPage({ searchParams }: PageProps<"/fi
     return (
         <>
             <PageHeader
-                title="Videos"
+                title="Film"
                 description="Your training footage and what the AI saw in it — strikes, guard, footwork — plus your coach's review."
                 actions={
                     <>

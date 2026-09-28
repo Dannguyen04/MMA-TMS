@@ -1,20 +1,11 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { canAccessFighterClinically } from "@/lib/auth/access";
 import { authorizeClinicalAction } from "@/lib/auth/session";
-import {
-    BODY_REGION_LABELS,
-    INJURY_MECHANISM_LABELS,
-    INJURY_SEVERITY_LABELS,
-    INJURY_STATUS_LABELS,
-    INJURY_TYPE_LABELS,
-    TREATMENT_STATUS_LABELS,
-    TREATMENT_TYPE_LABELS,
-} from "@/lib/domain/labels";
+import { BODY_REGION_LABELS, INJURY_MECHANISM_LABELS, INJURY_SEVERITY_LABELS, INJURY_STATUS_LABELS, INJURY_TYPE_LABELS, TREATMENT_STATUS_LABELS, TREATMENT_TYPE_LABELS, treatmentTitle } from "@/lib/domain/labels";
 import type { InjuryStatus } from "@/lib/domain/types";
 import { academyWallClockToIso, dayKey, isDateKey, isDateTimeInputValue } from "@/lib/format";
 import { routes } from "@/lib/routes";
@@ -28,33 +19,17 @@ import {
     getInjury,
     getInjuryDetail,
     getRecoveryPlan,
+    listInjuries,
     setMilestone,
     updateInjury,
     updateTreatmentStatus,
 } from "@/lib/services/medical";
-import { actionError, actionSuccess, validationError, type ActionState } from "./state";
+import { medicalWriteFailure } from "@/lib/services/medical-errors";
+import { FEATURE_UNAVAILABLE_MESSAGE, medicalFeatureAvailable } from "@/lib/services/medical-features";
+import { NOT_ASSIGNED, isInFuture, jsonArray, keysOf, optionalDate, revalidateClinical, text } from "./form-helpers";
+import { actionError, actionSuccess, FIX_FIELDS, validationError, type ActionState } from "./state";
 
 /* ─── Parsing helpers (not exported: a "use server" module may only export actions) ─── */
-
-const NOT_ASSIGNED = "You aren't assigned to this fighter, so you can't change their medical information.";
-const FIX_FIELDS = "Please fix the highlighted fields.";
-/** Clock skew tolerated when checking that a time isn't in the future. */
-const FUTURE_TOLERANCE_MS = 5 * 60_000;
-
-function keysOf<T extends string>(record: Record<T, string>): [T, ...T[]] {
-    return Object.keys(record) as [T, ...T[]];
-}
-
-function text(formData: FormData, name: string): string {
-    const value = formData.get(name);
-    return typeof value === "string" ? value : "";
-}
-
-const optionalDate = (message: string) =>
-    z
-        .string()
-        .trim()
-        .refine((value) => value === "" || isDateKey(value), message);
 
 /** Today's calendar day (YYYY-MM-DD) in the academy timezone. */
 function todayKey(): string {
@@ -72,27 +47,6 @@ function wholeNumber(label: string, min: number, max: number) {
         .pipe(z.number({ error: range }).int(range).min(min, range).max(max, range));
 }
 
-/** A JSON-encoded array posted from a client-side builder. */
-function jsonArray<T extends z.ZodType>(item: T, label: string, bounds: { min: number; minMessage: string; max: number; maxMessage: string }) {
-    return z
-        .string()
-        .transform((value, ctx) => {
-            try {
-                return JSON.parse(value || "[]") as unknown;
-            } catch {
-                ctx.addIssue({ code: "custom", message: `The ${label} couldn't be read. Reload the page and try again.` });
-                return z.NEVER;
-            }
-        })
-        .pipe(z.array(item).min(bounds.min, bounds.minMessage).max(bounds.max, bounds.maxMessage));
-}
-
-/** Clinical changes show up on doctor, fighter and coach screens. */
-function revalidateClinical() {
-    revalidatePath("/doctor", "layout");
-    revalidatePath("/fighter", "layout");
-    revalidatePath("/coach", "layout");
-}
 
 /* ─── Injuries ────────────────────────────────────────────────────────────── */
 
@@ -147,14 +101,14 @@ export async function createInjuryAction(_prev: ActionState, formData: FormData)
 
     const [occurredDay, occurredTime] = input.occurredAt.split("T");
     const occurredAt = academyWallClockToIso(occurredDay, occurredTime);
-    if (Date.parse(occurredAt) > Date.now() + FUTURE_TOLERANCE_MS) {
+    if (isInFuture(occurredAt)) {
         return actionError(FIX_FIELDS, { occurredAt: "The injury time can't be in the future." });
     }
     if (input.diagnosedAt > todayKey()) {
         return actionError(FIX_FIELDS, { diagnosedAt: "The diagnosis date can't be in the future." });
     }
 
-    if (input.linkedAlertId) {
+    if (input.linkedAlertId && medicalFeatureAvailable("aiObservations")) {
         const detail = await getAlertDetail(input.linkedAlertId);
         if (!detail || detail.alert.fighterId !== input.fighterId) {
             return actionError(FIX_FIELDS, { linkedAlertId: "Choose an AI movement observation for this fighter, or leave it unlinked." });
@@ -188,6 +142,7 @@ export async function createInjuryAction(_prev: ActionState, formData: FormData)
 
 const updateInjurySchema = z.object({
     injuryId: z.string().min(1, "The injury is missing. Reload the page and try again."),
+    fighterId: z.string(),
     status: z.enum(keysOf(INJURY_STATUS_LABELS), { error: "Choose a status." }),
 });
 
@@ -201,17 +156,25 @@ export async function updateInjuryAction(_prev: ActionState, formData: FormData)
     const auth = await authorizeClinicalAction("medical:write");
     if (!auth.ok) return actionError(auth.message);
 
-    const parsed = updateInjurySchema.safeParse({ injuryId: text(formData, "injuryId"), status: text(formData, "status") });
+    const parsed = updateInjurySchema.safeParse({ injuryId: text(formData, "injuryId"), fighterId: text(formData, "fighterId"), status: text(formData, "status") });
     if (!parsed.success) return validationError(parsed.error);
 
-    const injury = await getInjury(parsed.data.injuryId);
+    // Search the one fighter's injuries when the page says whose it is: in API mode every fighter read is audited.
+    const injury = parsed.data.fighterId
+        ? ((await listInjuries({ fighterIds: [parsed.data.fighterId] })).find((candidate) => candidate.id === parsed.data.injuryId) ?? null)
+        : await getInjury(parsed.data.injuryId);
     if (!injury || !canAccessFighterClinically(auth.user, injury.fighterId)) {
         return actionError("This injury record isn't available. It may belong to a fighter you aren't assigned to.");
     }
     if (injury.status === parsed.data.status) return actionSuccess(`The injury is already ${INJURY_STATUS_LABELS[injury.status].toLowerCase()}.`);
 
     const reopened = injury.status === "resolved";
-    const result = await updateInjury(injury.id, { status: parsed.data.status }, auth.user);
+    let result: Awaited<ReturnType<typeof updateInjury>>;
+    try {
+        result = await updateInjury(injury.id, { status: parsed.data.status }, auth.user);
+    } catch (error) {
+        return actionError(medicalWriteFailure(error).message);
+    }
     if (!result.ok) return actionError(result.error);
 
     revalidateClinical();
@@ -284,7 +247,8 @@ export async function addTreatmentAction(_prev: ActionState, formData: FormData)
     if (!result.ok) return actionError(result.error);
 
     revalidateClinical();
-    return actionSuccess(`${TREATMENT_TYPE_LABELS[result.data.type]} added as ${TREATMENT_STATUS_LABELS[result.data.status].toLowerCase()}.`);
+    const added = result.data.status ? ` as ${TREATMENT_STATUS_LABELS[result.data.status].toLowerCase()}` : "";
+    return actionSuccess(`${treatmentTitle(result.data)} added${added}.`);
 }
 
 const treatmentStatusSchema = z.object({
@@ -296,6 +260,7 @@ const treatmentStatusSchema = z.object({
 export async function updateTreatmentStatusAction(input: { injuryId: string; treatmentId: string; status: string }): Promise<ActionState> {
     const auth = await authorizeClinicalAction("medical:write");
     if (!auth.ok) return actionError(auth.message);
+    if (!medicalFeatureAvailable("treatmentStatus")) return actionError(FEATURE_UNAVAILABLE_MESSAGE);
 
     const parsed = treatmentStatusSchema.safeParse(input);
     if (!parsed.success) return actionError("That status change couldn't be read. Reload the page and try again.");
@@ -310,7 +275,7 @@ export async function updateTreatmentStatusAction(input: { injuryId: string; tre
     if (!result.ok) return actionError(result.error);
 
     revalidateClinical();
-    return actionSuccess(`${TREATMENT_TYPE_LABELS[result.data.type]} marked ${TREATMENT_STATUS_LABELS[result.data.status].toLowerCase()}.`);
+    return actionSuccess(`${treatmentTitle(result.data)} marked ${TREATMENT_STATUS_LABELS[parsed.data.status].toLowerCase()}.`);
 }
 
 /* ─── Recovery plans ──────────────────────────────────────────────────────── */
@@ -418,6 +383,7 @@ const checkInSchema = z.object({
 export async function addCheckInAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
     const auth = await authorizeClinicalAction("medical:write");
     if (!auth.ok) return actionError(auth.message);
+    if (!medicalFeatureAvailable("recoveryPhasesAndCheckIns")) return actionError(FEATURE_UNAVAILABLE_MESSAGE);
 
     const parsed = checkInSchema.safeParse({
         planId: text(formData, "planId"),
@@ -464,6 +430,7 @@ const milestoneSchema = z.object({
 export async function setMilestoneAction(input: { planId: string; phaseId: string; milestoneIndex: number; done: boolean }): Promise<ActionState> {
     const auth = await authorizeClinicalAction("medical:write");
     if (!auth.ok) return actionError(auth.message);
+    if (!medicalFeatureAvailable("recoveryPhasesAndCheckIns")) return actionError(FEATURE_UNAVAILABLE_MESSAGE);
 
     const parsed = milestoneSchema.safeParse(input);
     if (!parsed.success) return actionError("That milestone couldn't be read. Reload the page and try again.");
@@ -481,6 +448,7 @@ export async function setMilestoneAction(input: { planId: string; phaseId: strin
 export async function advancePhaseAction(input: { planId: string }): Promise<ActionState> {
     const auth = await authorizeClinicalAction("medical:write");
     if (!auth.ok) return actionError(auth.message);
+    if (!medicalFeatureAvailable("recoveryPhasesAndCheckIns")) return actionError(FEATURE_UNAVAILABLE_MESSAGE);
 
     const parsed = z.object({ planId: z.string().min(1) }).safeParse(input);
     if (!parsed.success) return actionError("The recovery plan is missing. Reload the page and try again.");
@@ -515,6 +483,7 @@ const DECISION_MESSAGES = {
 export async function reviewAlertAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
     const auth = await authorizeClinicalAction("ai_alerts:review");
     if (!auth.ok) return actionError(auth.message);
+    if (!medicalFeatureAvailable("aiObservations")) return actionError(FEATURE_UNAVAILABLE_MESSAGE);
 
     const parsed = reviewAlertSchema.safeParse({
         alertId: text(formData, "alertId"),

@@ -2,8 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const authenticatedApiRequest = vi.hoisted(() => vi.fn());
 
-vi.mock("@/lib/api/client", () => ({ authenticatedApiRequest }));
+vi.mock("@/lib/api/client", async (loadOriginal) => ({ ...(await loadOriginal<typeof import("@/lib/api/client")>()), authenticatedApiRequest }));
 
+import { ApiError } from "@/lib/api/client";
 import type { User } from "@/lib/domain/types";
 import { getNavBadgeCounts } from "./shell";
 
@@ -31,6 +32,12 @@ describe("navigation badge API adapter", () => {
 
         await expect(getNavBadgeCounts(user)).resolves.toEqual({ notifications: 3, reviewQueue: 2 });
         expect(authenticatedApiRequest).toHaveBeenCalledWith("/navigation/badges", expect.anything());
+    });
+
+    it("không hiện bộ đếm khi backend chưa có endpoint", async () => {
+        authenticatedApiRequest.mockRejectedValue(new ApiError({ message: "Not Found", kind: "http", status: 404, code: "NOT_FOUND" }));
+
+        await expect(getNavBadgeCounts(user)).resolves.toEqual({});
     });
 
     it("không quay lại kho dữ liệu demo khi API bị lỗi", async () => {

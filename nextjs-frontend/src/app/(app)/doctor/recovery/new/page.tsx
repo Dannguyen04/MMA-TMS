@@ -3,6 +3,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { clinicalLinks } from "@/components/clinical/clinical-links";
+import { MilestonePlanForm } from "@/components/clinical/milestone-plan-form";
+import { FighterChooser } from "@/components/medical/fighter-chooser";
+import { loadFormFighter } from "@/components/medical/form-fighter";
 import { RecoveryPlanForm, type RecoveryInjuryOption } from "@/components/clinical/recovery-plan-form";
 import { ButtonLink } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
@@ -10,14 +13,18 @@ import { EmptyState } from "@/components/ui/states";
 import { accessibleFighterIds } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { dayKey } from "@/lib/format";
+import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { listInjuries, listRecoveryPlans } from "@/lib/services/medical";
+import { usesMedicalServiceForms } from "@/lib/services/medical-features";
 import { listFighters } from "@/lib/services/people";
 import { param } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "New recovery plan" };
 
-export default async function NewRecoveryPlanPage({ searchParams }: PageProps<"/doctor/recovery/new">) {
+export default async function NewRecoveryPlanPage(props: PageProps<"/doctor/recovery/new">) {
+    if (usesMedicalServiceForms()) return <NewMilestonePlanPage {...props} />;
+    const { searchParams } = props;
     const user = await requireRole("doctor");
     const params = await searchParams;
     const now = new Date().toISOString();
@@ -96,6 +103,59 @@ export default async function NewRecoveryPlanPage({ searchParams }: PageProps<"/
                         cancelHref={back.href}
                     />
                 </div>
+            )}
+        </>
+    );
+}
+
+/** API mode: a milestone plan for one of the chosen fighter's open injuries, from that fighter's dossier only. */
+async function NewMilestonePlanPage({ searchParams }: PageProps<"/doctor/recovery/new">) {
+    const user = await requireRole("doctor");
+    const params = await searchParams;
+    const now = new Date().toISOString();
+    const { fighters, fighter, dossier } = await loadFormFighter(user, param(params.fighter));
+    const planned = new Set(dossier?.activeRecoveryPlans.map((plan) => plan.injuryId) ?? []);
+    const injuries = dossier?.activeInjuries.filter((injury) => !planned.has(injury.id)) ?? [];
+    const requestedInjury = param(params.injury) ?? "";
+    const existingPlan = dossier?.activeRecoveryPlans.find((plan) => plan.injuryId === requestedInjury);
+    const back = fighter ? { href: requestedInjury ? routes.doctor.injury(requestedInjury) : routes.doctor.fighter(fighter.id), label: requestedInjury ? "Injury record" : fighter.name } : { href: routes.doctor.recovery, label: "Recovery" };
+
+    return (
+        <>
+            <PageHeader
+                back={back}
+                eyebrow="Recovery plan"
+                title={fighter ? `Recovery plan for ${fighter.name}` : "New recovery plan"}
+                description="Plan the return to training as milestones, each with how you'll know it's reached."
+            />
+            {!fighter || !dossier ? (
+                <FighterChooser
+                    fighters={fighters}
+                    hrefFor={(fighterId) => hrefWith(clinicalLinks.newRecoveryPlan, {}, { fighter: fighterId })}
+                    title="Whose recovery is this?"
+                    unreadable={fighter}
+                />
+            ) : injuries.length === 0 ? (
+                <EmptyState
+                    icon={<Bandage />}
+                    title={existingPlan ? "That injury already has a plan in progress" : "No injury needs a recovery plan"}
+                    description={
+                        existingPlan
+                            ? `Open “${existingPlan.title}” to track its milestones.`
+                            : `Every open injury of ${fighter.name} already has a plan in progress. Record an injury first to plan its recovery.`
+                    }
+                    action={
+                        existingPlan ? (
+                            <ButtonLink href={routes.doctor.recoveryPlan(existingPlan.id)} variant="secondary">
+                                Open “{existingPlan.title}”
+                            </ButtonLink>
+                        ) : (
+                            <ButtonLink href={clinicalLinks.newInjuryFor({ fighterId: fighter.id })}>Record injury</ButtonLink>
+                        )
+                    }
+                />
+            ) : (
+                <MilestonePlanForm fighter={{ id: fighter.id, name: fighter.name }} injuries={injuries} defaultInjuryId={requestedInjury} today={dayKey(now)} cancelHref={back.href} />
             )}
         </>
     );

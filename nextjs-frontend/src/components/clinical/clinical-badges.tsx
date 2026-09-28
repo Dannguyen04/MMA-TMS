@@ -4,6 +4,7 @@ import {
     BedDouble,
     CalendarClock,
     CircleCheck,
+    CircleSlash,
     Dumbbell,
     Hand,
     Pause,
@@ -41,6 +42,7 @@ export const RECOVERY_PLAN_STATUS_META: Record<RecoveryPlanStatus, StatusMeta> =
     active: { label: RECOVERY_PLAN_STATUS_LABELS.active, tone: "info", icon: RefreshCw },
     paused: { label: RECOVERY_PLAN_STATUS_LABELS.paused, tone: "warning", icon: Pause },
     completed: { label: RECOVERY_PLAN_STATUS_LABELS.completed, tone: "success", icon: CircleCheck },
+    cancelled: { label: RECOVERY_PLAN_STATUS_LABELS.cancelled, tone: "neutral", icon: CircleSlash },
 };
 
 export function RecoveryPlanStatusBadge({ status, size, className }: { status: RecoveryPlanStatus; size?: BadgeSize; className?: string }) {
@@ -68,8 +70,8 @@ export const TREATMENT_TYPE_ICONS: Record<TreatmentType, LucideIcon> = {
 };
 
 /** Treatment type icon in a soft tile; labelled for assistive technology unless the label sits next to it. */
-export function TreatmentTypeIcon({ type, labelled = false, className }: { type: TreatmentType; labelled?: boolean; className?: string }) {
-    const Icon = TREATMENT_TYPE_ICONS[type];
+export function TreatmentTypeIcon({ type, labelled = false, className }: { type: TreatmentType | null; labelled?: boolean; className?: string }) {
+    const Icon = type ? TREATMENT_TYPE_ICONS[type] : Stethoscope;
     return (
         <span
             className={cn(
@@ -77,7 +79,7 @@ export function TreatmentTypeIcon({ type, labelled = false, className }: { type:
                 className,
             )}
             role={labelled ? "img" : undefined}
-            aria-label={labelled ? TREATMENT_TYPE_LABELS[type] : undefined}
+            aria-label={labelled ? (type ? TREATMENT_TYPE_LABELS[type] : "Treatment") : undefined}
             aria-hidden={labelled ? undefined : true}
         >
             <Icon className="size-[18px]" aria-hidden />

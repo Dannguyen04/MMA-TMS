@@ -14,7 +14,7 @@ import { Field, FormMessage, FormSection, Input, Select, Textarea } from "@/comp
 import { TONE_SOFT, TONE_TEXT } from "@/components/ui/tone";
 import { useActionForm } from "@/components/ui/use-action-form";
 import { createExaminationAction } from "@/lib/actions/medical";
-import { ASSESSMENT_RESULT_LABELS, CLEARANCE_LEVEL_LABELS, EXAMINATION_OUTCOME_LABELS, EXAMINATION_TYPE_LABELS } from "@/lib/domain/labels";
+import { ASSESSMENT_RESULT_LABELS, CLEARANCE_LEVEL_LABELS, EXAMINATION_OUTCOME_LABELS, EXAMINATION_TYPE_LABELS, examinationTitle } from "@/lib/domain/labels";
 import type { ClearanceState } from "@/lib/domain/rules";
 import type { AssessmentResult, ExaminationOutcome, ExaminationType, Vitals } from "@/lib/domain/types";
 import { addDaysToKey, formatDate, formatNumber } from "@/lib/format";
@@ -34,7 +34,7 @@ export interface ExamFighterOption extends FighterIdentityData {
     weightLimitKg: number;
     clearanceState: ClearanceState;
     clearanceValidUntil: string | null;
-    lastExamination: { date: string; type: ExaminationType; outcome: ExaminationOutcome; vitals: Vitals } | null;
+    lastExamination: { date: string; type: ExaminationType | null; outcome: ExaminationOutcome; vitals: Vitals | null } | null;
 }
 
 export interface ExaminationFormProps {
@@ -576,30 +576,32 @@ function PatientContext({ fighter }: { fighter: ExamFighterOption | null }) {
                 {last ? (
                     <>
                         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-fg-muted">
-                            Last examination: <span className="font-medium text-fg">{EXAMINATION_TYPE_LABELS[last.type]}</span>
+                            Last examination: <span className="font-medium text-fg">{examinationTitle(last)}</span>
                             <span>{formatDate(last.date)}</span>
                             <ExaminationOutcomeBadge outcome={last.outcome} size="sm" />
                         </p>
+                        {last.vitals && (
                         <dl className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-fg-muted">
-                            <div className="flex gap-1">
-                                <dt>Weight</dt>
-                                <dd className="font-medium text-fg">{formatNumber(last.vitals.weightKg, 1)} kg</dd>
-                            </div>
-                            <div className="flex gap-1">
-                                <dt>Resting HR</dt>
-                                <dd className="font-medium text-fg">{last.vitals.restingHeartRate} bpm</dd>
-                            </div>
-                            <div className="flex gap-1">
-                                <dt>BP</dt>
-                                <dd className="font-medium text-fg">
-                                    {last.vitals.bloodPressureSystolic}/{last.vitals.bloodPressureDiastolic}
-                                </dd>
-                            </div>
-                            <div className="flex gap-1">
-                                <dt>Class limit</dt>
-                                <dd className="font-medium text-fg">{formatNumber(fighter.weightLimitKg, 1)} kg</dd>
-                            </div>
-                        </dl>
+                                <div className="flex gap-1">
+                                    <dt>Weight</dt>
+                                    <dd className="font-medium text-fg">{formatNumber(last.vitals.weightKg, 1)} kg</dd>
+                                </div>
+                                <div className="flex gap-1">
+                                    <dt>Resting HR</dt>
+                                    <dd className="font-medium text-fg">{last.vitals.restingHeartRate} bpm</dd>
+                                </div>
+                                <div className="flex gap-1">
+                                    <dt>BP</dt>
+                                    <dd className="font-medium text-fg">
+                                        {last.vitals.bloodPressureSystolic}/{last.vitals.bloodPressureDiastolic}
+                                    </dd>
+                                </div>
+                                <div className="flex gap-1">
+                                    <dt>Class limit</dt>
+                                    <dd className="font-medium text-fg">{formatNumber(fighter.weightLimitKg, 1)} kg</dd>
+                                </div>
+                            </dl>
+                        )}
                     </>
                 ) : (
                     <p className="text-fg-muted">No previous examinations — this will be their first. A baseline physical is recommended.</p>

@@ -17,6 +17,7 @@ import { addSessionFeedback, cancelSession, recordSessionResult } from "@/lib/ac
 import type { FeedbackKind, SessionResult, Technique } from "@/lib/domain/types";
 import { RpeSlider } from "./rpe-slider";
 import { TechniqueCheckboxes } from "./technique-checkboxes";
+import { MID_RPE } from "./training-utils";
 
 type TriggerProps = Pick<ButtonProps, "variant" | "size" | "className">;
 
@@ -31,8 +32,8 @@ export interface ResultExercise {
 export interface RecordResultButtonProps extends TriggerProps {
     sessionId: string;
     sessionTitle: string;
-    plannedDurationMin: number;
-    targetRpe: number;
+    plannedDurationMin: number | null;
+    targetRpe: number | null;
     plannedRounds: number;
     exercises: ResultExercise[];
     /** Existing result when correcting a completed session. */
@@ -91,20 +92,21 @@ export function RecordResultButton({
 
 interface RecordResultFieldsProps {
     form: ActionForm<undefined>;
-    plannedDurationMin: number;
-    targetRpe: number;
+    plannedDurationMin: number | null;
+    targetRpe: number | null;
     plannedRounds: number;
     exercises: ResultExercise[];
     result: SessionResult | null;
 }
 
 function RecordResultFields({ form, plannedDurationMin, targetRpe, plannedRounds, exercises, result }: RecordResultFieldsProps) {
-    const [rpe, setRpe] = useState(result?.rpe ?? targetRpe);
+    // The slider needs a starting point; with no target it starts mid-scale.
+    const [rpe, setRpe] = useState(result?.rpe ?? targetRpe ?? MID_RPE);
     const [rating, setRating] = useState(result?.coachRating ?? 0);
     const [done, setDone] = useState<string[]>(exercises.filter((e) => (result ? e.completed : true)).map((e) => e.exerciseId));
     const { control, error } = form;
 
-    const numberField = (name: "actualDurationMin" | "roundsCompleted", label: string, defaultValue: number, max: number, hint: string) => (
+    const numberField = (name: "actualDurationMin" | "roundsCompleted", label: string, defaultValue: number | undefined, max: number, hint: string) => (
         <Field label={label} htmlFor={control(name).id} required error={error(name)} hint={hint}>
             <Input
                 {...control(name, { hint, required: true })}
@@ -121,7 +123,13 @@ function RecordResultFields({ form, plannedDurationMin, targetRpe, plannedRounds
     return (
         <>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {numberField("actualDurationMin", "Actual duration (min)", result?.actualDurationMin ?? plannedDurationMin, 300, `Planned ${plannedDurationMin} min`)}
+                {numberField(
+                    "actualDurationMin",
+                    "Actual duration (min)",
+                    result?.actualDurationMin ?? plannedDurationMin ?? undefined,
+                    300,
+                    plannedDurationMin === null ? "No planned length on file" : `Planned ${plannedDurationMin} min`,
+                )}
                 {numberField(
                     "roundsCompleted",
                     "Rounds completed",

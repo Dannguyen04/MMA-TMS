@@ -4,9 +4,11 @@ import { Canvas, useFrame, useLoader, useThree } from "@react-three/fiber";
 import { Suspense, useEffect, useRef, useState, type RefObject } from "react";
 import * as THREE from "three";
 
+import { ARENA_PLATE } from "./arena-plate";
 import { FIGHTER_IMAGE } from "./pose-skeleton";
 import { stageAt, type StoryState } from "./story";
-import { applyStudioEnvironment, createComposer, createWorld, type LabelRegistry } from "./stage/world";
+import { MAT_TEXTURE } from "./stage/mat";
+import { applyVenueAtmosphere, createComposer, createWorld, type LabelRegistry } from "./stage/world";
 
 export interface FighterSceneProps {
     story: RefObject<StoryState>;
@@ -38,18 +40,18 @@ export default function FighterScene({ story, labels, compact, animate, onReady 
 }
 
 function Stage({ story, labels, compact, animate, onReady }: FighterSceneProps) {
-    const photo = useLoader(THREE.TextureLoader, FIGHTER_IMAGE.url);
+    const [fighter, plate, canvas] = useLoader(THREE.TextureLoader, [FIGHTER_IMAGE.url, ARENA_PLATE.url, MAT_TEXTURE]);
     const gl = useThree((state) => state.gl);
     const scene = useThree((state) => state.scene);
     const camera = useThree((state) => state.camera);
     const size = useThree((state) => state.size);
     const dpr = useThree((state) => state.viewport.dpr);
-    const [world] = useState(() => createWorld(photo, { compact, animate }));
+    const [world] = useState(() => createWorld({ fighter, plate, canvas }, { compact, animate }));
     const [composer] = useState(() => createComposer(gl, scene, camera));
 
     useEffect(() => () => world.dispose(), [world]);
     useEffect(() => () => composer.dispose(), [composer]);
-    useEffect(() => applyStudioEnvironment(gl, scene), [gl, scene]);
+    useEffect(() => applyVenueAtmosphere(gl, scene), [gl, scene]);
     useEffect(() => {
         composer.setSize(size.width, size.height, dpr);
         world.setResolution(size.width, size.height);
@@ -67,7 +69,7 @@ function Stage({ story, labels, compact, animate, onReady }: FighterSceneProps) 
     useFrame((state, delta) => {
         const time = state.clock.elapsedTime;
         world.update(stageAt(story.current), state.camera as THREE.PerspectiveCamera, time, Math.min(delta, 1 / 20), state.size, labels.current);
-        composer.composer.render(delta);
+        composer.render(time, delta);
 
         // Long single frames (tab switches, shader compiles, GC) say nothing about sustained speed.
         const quality = pacing.current;

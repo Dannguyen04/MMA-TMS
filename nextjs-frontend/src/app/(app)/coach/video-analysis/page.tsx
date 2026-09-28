@@ -17,7 +17,7 @@ import type { User, VideoStatus } from "@/lib/domain/types";
 import { routes } from "@/lib/routes";
 import { listReviewQueue, listVideoLibrary, type VideoLibraryItem } from "@/lib/services/videos";
 
-export const metadata: Metadata = { title: "Video analysis" };
+export const metadata: Metadata = { title: "Film room" };
 
 /** Footage that can't be reviewed yet: listed on its own and left out of the unfiltered library grid. */
 const ATTENTION_STATUSES: VideoStatus[] = ["processing", "queued", "failed"];
@@ -30,7 +30,7 @@ export default async function CoachVideoAnalysisPage({ searchParams }: PageProps
     return (
         <>
             <PageHeader
-                title="Video analysis"
+                title="Film room"
                 description="See what the AI found in your fighters' footage, then confirm or correct it before it shapes training."
                 actions={
                     <ButtonLink href={routes.coach.uploadVideo}>

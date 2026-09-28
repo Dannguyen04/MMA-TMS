@@ -16,8 +16,11 @@ type Transition = "recovering" | "resolved" | "reopen";
 
 export interface InjuryStatusActionsProps {
     injuryId: string;
+    fighterId: string;
     status: InjuryStatus;
     fighterName: string;
+    /** False where resolved is final (the medical service): a recurrence is recorded as a new injury instead. */
+    canReopen: boolean;
     /** Title of a recovery plan still in progress for this injury, if any. */
     openPlanTitle: string | null;
     /** Today's date, already formatted for display. */
@@ -27,9 +30,9 @@ export interface InjuryStatusActionsProps {
 const TARGET_STATUS: Record<Transition, InjuryStatus> = { recovering: "recovering", resolved: "resolved", reopen: "recovering" };
 
 /** Moves an injury through active → recovering → resolved (or reopens it), each behind a confirmation. */
-export function InjuryStatusActions({ injuryId, status, fighterName, openPlanTitle, todayLabel }: InjuryStatusActionsProps) {
+export function InjuryStatusActions({ injuryId, fighterId, status, fighterName, canReopen, openPlanTitle, todayLabel }: InjuryStatusActionsProps) {
     const toast = useToast();
-    const transition = useConfirmAction((next: Transition) => updateInjuryAction(IDLE, toFormData({ injuryId, status: TARGET_STATUS[next] })), {
+    const transition = useConfirmAction((next: Transition) => updateInjuryAction(IDLE, toFormData({ injuryId, fighterId, status: TARGET_STATUS[next] })), {
         onSuccess: (state) => toast({ title: "Injury updated", description: state.message }),
     });
 
@@ -41,7 +44,9 @@ export function InjuryStatusActions({ injuryId, status, fighterName, openPlanTit
         },
         resolved: {
             title: "Resolve this injury?",
-            description: `This closes the injury record. ${fighterName}'s health status is recalculated from their clearance and any other open injuries, and the fighter and their coaches are notified. Medical Clearance does not change — review it separately.`,
+            description: canReopen
+                ? `This closes the injury record. ${fighterName}'s health status is recalculated from their clearance and any other open injuries, and the fighter and their coaches are notified. Medical Clearance does not change — review it separately.`
+                : `This closes the injury record for good: if it flares up again, record a new injury. Medical Clearance does not change — review it separately.`,
             confirmLabel: "Resolve injury",
         },
         reopen: {
@@ -67,7 +72,7 @@ export function InjuryStatusActions({ injuryId, status, fighterName, openPlanTit
                     Mark resolved
                 </Button>
             )}
-            {status === "resolved" && (
+            {status === "resolved" && canReopen && (
                 <Button variant="secondary" onClick={() => transition.request("reopen")}>
                     <RotateCcw aria-hidden />
                     Reopen injury

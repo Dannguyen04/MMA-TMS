@@ -27,10 +27,18 @@ export function relativeDay(value: string, now: string): string {
     return capitalize(describeDaysUntil(daysBetween(now, value)));
 }
 
-/** W-L-D record as text, e.g. "14-3-0". */
-export function recordText(fighter: Pick<Fighter, "record">): string {
+/** W-L-D record as text, e.g. "14-3-0"; null when the record isn't known. */
+export function recordText(fighter: Pick<Fighter, "record">): string | null {
+    if (!fighter.record) return null;
     const { wins, losses, draws } = fighter.record;
     return `${wins}-${losses}-${draws}`;
+}
+
+/** The record read out in words, e.g. "Record 14 wins, 3 losses, 0 draws"; null when it isn't known. */
+export function recordSpoken(fighter: Pick<Fighter, "record">): string | null {
+    if (!fighter.record) return null;
+    const { wins, losses, draws } = fighter.record;
+    return `Record ${wins} wins, ${losses} losses, ${draws} draws`;
 }
 
 /* ─── Weight ──────────────────────────────────────────────────────────────── */

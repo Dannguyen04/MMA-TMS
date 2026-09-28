@@ -590,7 +590,7 @@ describe("timeline", () => {
         const violations = mockTrainingSessions.flatMap((s) => {
             const happened = s.status === "completed" || s.status === "missed" || s.status === "in_progress";
             const today = dayKey(s.scheduledAt) === TODAY_KEY;
-            const plannedEnd = Date.parse(s.scheduledAt) + s.durationMin * 60_000;
+            const plannedEnd = Date.parse(s.scheduledAt) + (s.durationMin ?? 0) * 60_000;
             return [
                 ...(happened && after(s.scheduledAt) ? [`${s.id} is ${s.status} but starts after the anchor`] : []),
                 ...(s.result && after(s.result.completedAt) ? [`${s.id} has a result completed after the anchor`] : []),

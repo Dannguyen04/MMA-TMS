@@ -5,13 +5,13 @@ import { useRef, useState } from "react";
 
 import { InjuryCard } from "@/components/domain/injury-card";
 import { Badge } from "@/components/ui/badge";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/dialog";
-import { Field, FormMessage, FormSection, Input, Select } from "@/components/ui/form";
+import { Field, FormFooter, FormSection, Input, Select } from "@/components/ui/form";
 import { useActionForm } from "@/components/ui/use-action-form";
 import { createRecoveryPlanAction } from "@/lib/actions/clinical";
-import { BODY_REGION_LABELS, INJURY_TYPE_LABELS } from "@/lib/domain/labels";
+import { BODY_REGION_LABELS, injuryTypeName } from "@/lib/domain/labels";
 import type { Injury } from "@/lib/domain/types";
 import { addDaysToKey, dayKey, daysBetweenKeys, formatDate, pluralize } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -68,7 +68,7 @@ function blankPhase(startDate: string, makeKey: KeyFactory): PhaseDraft {
 
 function defaultTitle(injury: Injury): string {
     if (injury.type === "concussion") return "Concussion — graded return to training";
-    return `${BODY_REGION_LABELS[injury.bodyRegion]} ${INJURY_TYPE_LABELS[injury.type].toLowerCase()} — return to training`;
+    return `${BODY_REGION_LABELS[injury.bodyRegion]} ${injuryTypeName(injury).toLowerCase()} — return to training`;
 }
 
 /** Creates a phased recovery plan for an open injury, optionally starting from a template. */
@@ -291,7 +291,7 @@ export function RecoveryPlanForm({ injuries, defaultInjuryId, today, now, cancel
                                             {template.label}
                                             {selected && recommended?.id === template.id && (
                                                 <Badge tone="primary" size="sm" icon={Sparkle}>
-                                                    Suggested for {INJURY_TYPE_LABELS[selected.injury.type].toLowerCase()}
+                                                    Suggested for {injuryTypeName(selected.injury).toLowerCase()}
                                                 </Badge>
                                             )}
                                         </span>
@@ -338,17 +338,7 @@ export function RecoveryPlanForm({ injuries, defaultInjuryId, today, now, cancel
                     </div>
                 </FormSection>
 
-                <div className="flex flex-col gap-3 border-t border-border pt-5">
-                    <FormMessage {...form.message} />
-                    <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                        <ButtonLink href={cancelHref} variant="secondary" size="lg" className="sm:h-9 sm:px-3.5 sm:text-sm">
-                            Cancel
-                        </ButtonLink>
-                        <Button type="submit" size="lg" loading={form.pending} disabled={injuries.length === 0} className="sm:h-9 sm:px-3.5 sm:text-sm">
-                            {form.pending ? "Creating plan…" : "Create recovery plan"}
-                        </Button>
-                    </div>
-                </div>
+                <FormFooter message={form.message} cancelHref={cancelHref} pending={form.pending} submitLabel="Create recovery plan" pendingLabel="Creating plan…" disabled={injuries.length === 0} />
             </Card>
 
             <aside aria-label="Selected injury" className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-20">

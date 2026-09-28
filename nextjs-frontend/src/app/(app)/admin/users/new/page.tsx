@@ -6,9 +6,11 @@ import { InviteUserForm, type RoleOption } from "@/components/admin/invite-user-
 import { Callout } from "@/components/training/callout";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
+import { FeatureUnavailable } from "@/components/ui/states";
 import { requireRole } from "@/lib/auth/session";
 import { routes } from "@/lib/routes";
 import { listRoleDefinitions } from "@/lib/services/admin";
+import { adminFeatureAvailable } from "@/lib/services/admin-features";
 
 export const metadata: Metadata = { title: "Invite user" };
 
@@ -32,6 +34,17 @@ const STEPS = [
 
 export default async function InviteUserPage() {
     await requireRole("admin");
+    if (!adminFeatureAvailable("inviteUsers")) {
+        return (
+            <>
+                <PageHeader back={{ href: routes.admin.users, label: "Users" }} title="Invite user" />
+                <FeatureUnavailable
+                    title="Invitations aren't available yet"
+                    description="The user service creates an account only with a password and the person's full profile, and doesn't send invitations yet. Inviting people will appear here once it does."
+                />
+            </>
+        );
+    }
     const definitions = await listRoleDefinitions();
 
     const roles: RoleOption[] = ROLE_ORDER.flatMap((role) => {

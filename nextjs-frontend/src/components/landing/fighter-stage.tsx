@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Component, useState, useSyncExternalStore, type ReactNode, type RefObject } from "react";
 
 import { cn } from "@/lib/utils";
+import { ARENA_PLATE } from "./arena-plate";
 import { SAMPLE_SCORES } from "./landing-data";
 import { FIGHTER_IMAGE, LEFT_KNEE_ANGLE } from "./pose-skeleton";
 import type { LabelId, LabelRegistry } from "./stage/world";
@@ -22,8 +23,9 @@ interface FighterStageProps {
 }
 
 /**
- * The fixed stage behind the whole page. Shows the fighter cutout as a poster until WebGL is ready
- * (or for good, without WebGL), then the live octagon. Decorative: hidden from assistive tech.
+ * The fixed stage behind the whole page. Shows the fighter cutout over the arena plate as a poster
+ * until WebGL is ready (or for good, without WebGL), then the live octagon. The poster loads the
+ * same files as the scene, so neither is downloaded twice. Decorative: hidden from assistive tech.
  */
 export function FighterStage({ story, labels, compact, animate, ready, onReady }: FighterStageProps) {
     const webgl = useSyncExternalStore(subscribeNever, supportsWebGL, () => null);
@@ -42,13 +44,14 @@ export function FighterStage({ story, labels, compact, animate, ready, onReady }
     return (
         <div aria-hidden className="landing-stage pointer-events-none fixed inset-0 z-0 overflow-hidden bg-landing-ink">
             <div className={cn("absolute inset-0 transition-opacity duration-[1400ms]", live && ready ? "opacity-0" : "opacity-100")}>
-                <div className="landing-poster-glow absolute inset-0" />
+                <Image src={ARENA_PLATE.url} alt="" fill unoptimized sizes="100vw" className="landing-poster-plate object-cover" />
                 <Image
                     src={FIGHTER_IMAGE.url}
                     alt=""
                     width={FIGHTER_IMAGE.width}
                     height={FIGHTER_IMAGE.height}
                     priority
+                    unoptimized
                     data-testid="fighter-poster"
                     className="absolute bottom-0 left-1/2 h-[88svh] w-auto max-w-none -translate-x-1/2 object-contain lg:left-[64%]"
                 />

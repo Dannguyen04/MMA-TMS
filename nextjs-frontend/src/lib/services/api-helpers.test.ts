@@ -36,6 +36,22 @@ describe("service API helpers", () => {
         expect(authenticatedApiRequest).toHaveBeenNthCalledWith(2, "/items?page=2&limit=100&search=x", expect.anything());
     });
 
+    it("reads `items` pages until page × limit covers the total", async () => {
+        authenticatedApiRequest
+            .mockResolvedValueOnce({ items: ["a", "b"], total: 3, page: 1, limit: 2 })
+            .mockResolvedValueOnce({ items: ["c"], total: 3, page: 2, limit: 2 });
+
+        await expect(drainNumberedPages("/users", z.string())).resolves.toEqual(["a", "b", "c"]);
+        expect(authenticatedApiRequest).toHaveBeenCalledTimes(2);
+        expect(authenticatedApiRequest).toHaveBeenNthCalledWith(2, "/users?page=2&limit=100", expect.anything());
+    });
+
+    it("fails instead of truncating an oversized `items` list", async () => {
+        authenticatedApiRequest.mockResolvedValue({ items: [], total: 501, page: 1, limit: 100 });
+
+        await expect(drainNumberedPages("/users", z.string())).rejects.toMatchObject({ code: "PAGINATION_LIMIT_EXCEEDED" });
+    });
+
     it("fails instead of truncating an oversized list", async () => {
         authenticatedApiRequest.mockResolvedValue({ data: [], total: 501, hasNextPage: true });
 

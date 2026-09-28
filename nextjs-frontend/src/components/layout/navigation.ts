@@ -1,28 +1,20 @@
 import {
-    Bandage,
-    Bell,
+    Activity,
     BrainCircuit,
     CalendarDays,
     ChartLine,
-    ClipboardList,
     Cpu,
-    FileText,
     Film,
     HeartPulse,
-    History,
     KeyRound,
     LayoutDashboard,
     Megaphone,
     Radar,
-    RefreshCw,
     ScanLine,
     ScrollText,
     Settings,
     ShieldCheck,
-    SlidersHorizontal,
     Stethoscope,
-    Target,
-    UserRound,
     Users,
     Video,
     type LucideIcon,
@@ -41,15 +33,24 @@ export const BADGE_LABELS: Record<NavBadgeKey, string> = {
     failedJobs: "failed",
 };
 
+/** A page inside a hub, shown as a route tab above that page's header. */
+export interface NavTab {
+    label: string;
+    href: string;
+}
+
 export interface NavItem {
     label: string;
     /** Compact label for the mobile bottom bar; defaults to `label`. */
     shortLabel?: string;
+    /** Where the link goes. For a hub, this is its first tab. */
     href: string;
     icon: LucideIcon;
     badge?: NavBadgeKey;
     /** Highlight only on an exact path match. */
     exact?: boolean;
+    /** Makes the item a hub: the link stays current on every tab and on the pages under them. */
+    tabs?: NavTab[];
 }
 
 export interface NavSection {
@@ -58,71 +59,93 @@ export interface NavSection {
 }
 
 /**
- * Role-based information architecture. Each role only sees the areas it is responsible for.
+ * Role-based information architecture. Fighters, coaches and doctors get a handful of hubs, each
+ * answering one kind of question; related pages sit behind the hub's tabs. Admin keeps its sections.
  */
 export const NAVIGATION: Record<Role, NavSection[]> = {
     fighter: [
-        { items: [{ label: "Dashboard", href: routes.fighter.dashboard, icon: LayoutDashboard }] },
         {
-            label: "Training",
             items: [
-                { label: "Schedule", href: routes.fighter.schedule, icon: CalendarDays },
-                { label: "Training plans", shortLabel: "Plans", href: routes.fighter.training, icon: ClipboardList, exact: true },
-                { label: "History", href: routes.fighter.history, icon: History },
+                { label: "Today", href: routes.fighter.dashboard, icon: LayoutDashboard },
+                {
+                    label: "Training",
+                    href: routes.fighter.schedule,
+                    icon: CalendarDays,
+                    tabs: [
+                        { label: "Schedule", href: routes.fighter.schedule },
+                        { label: "Plans", href: routes.fighter.training },
+                        { label: "History", href: routes.fighter.history },
+                    ],
+                },
+                { label: "Film", href: routes.fighter.videos, icon: Video },
+                {
+                    label: "Progress",
+                    href: routes.fighter.performance,
+                    icon: ChartLine,
+                    tabs: [
+                        { label: "Performance", href: routes.fighter.performance },
+                        { label: "Goals", href: routes.fighter.goals },
+                    ],
+                },
+                { label: "Health", href: routes.fighter.health, icon: HeartPulse },
             ],
         },
-        {
-            label: "Analysis",
-            items: [
-                { label: "Videos", href: routes.fighter.videos, icon: Video },
-                { label: "Performance", href: routes.fighter.performance, icon: ChartLine },
-                { label: "Goals", href: routes.fighter.goals, icon: Target },
-            ],
-        },
-        { label: "Health", items: [{ label: "Health & Medical Clearance", shortLabel: "Health", href: routes.fighter.health, icon: HeartPulse }] },
     ],
     coach: [
-        { items: [{ label: "Dashboard", href: routes.coach.dashboard, icon: LayoutDashboard }] },
         {
-            label: "Athletes",
             items: [
-                { label: "Fighters", href: routes.coach.fighters, icon: Users },
-                { label: "Performance", href: routes.coach.performance, icon: ChartLine },
-                { label: "Goals", href: routes.coach.goals, icon: Target },
+                { label: "Today", href: routes.coach.dashboard, icon: LayoutDashboard },
+                {
+                    label: "Roster",
+                    href: routes.coach.fighters,
+                    icon: Users,
+                    tabs: [
+                        { label: "Fighters", href: routes.coach.fighters },
+                        { label: "Performance", href: routes.coach.performance },
+                        { label: "Goals", href: routes.coach.goals },
+                    ],
+                },
+                {
+                    label: "Training",
+                    href: routes.coach.sessions,
+                    icon: CalendarDays,
+                    tabs: [
+                        { label: "Sessions", href: routes.coach.sessions },
+                        { label: "Plans", href: routes.coach.plans },
+                    ],
+                },
+                { label: "Film room", shortLabel: "Film", href: routes.coach.videoAnalysis, icon: ScanLine, badge: "reviewQueue" },
+                { label: "Clearance", href: routes.coach.clearance, icon: ShieldCheck },
             ],
         },
-        {
-            label: "Training",
-            items: [
-                { label: "Training plans", shortLabel: "Plans", href: routes.coach.plans, icon: ClipboardList },
-                { label: "Sessions", href: routes.coach.sessions, icon: CalendarDays },
-            ],
-        },
-        {
-            label: "Analysis",
-            items: [{ label: "Video analysis", shortLabel: "Video", href: routes.coach.videoAnalysis, icon: ScanLine, badge: "reviewQueue" }],
-        },
-        { label: "Health", items: [{ label: "Medical Clearance", shortLabel: "Clearance", href: routes.coach.clearance, icon: ShieldCheck }] },
     ],
     doctor: [
-        { items: [{ label: "Dashboard", href: routes.doctor.dashboard, icon: LayoutDashboard }] },
         {
-            label: "Patients",
             items: [
-                { label: "Fighters", href: routes.doctor.fighters, icon: Users },
-                { label: "Medical records", shortLabel: "Records", href: routes.doctor.records, icon: FileText },
+                { label: "Triage", href: routes.doctor.dashboard, icon: Activity },
+                {
+                    label: "Patients",
+                    href: routes.doctor.fighters,
+                    icon: Users,
+                    tabs: [
+                        { label: "Fighters", href: routes.doctor.fighters },
+                        { label: "Records", href: routes.doctor.records },
+                    ],
+                },
+                {
+                    label: "Clinical",
+                    href: routes.doctor.examinations,
+                    icon: Stethoscope,
+                    tabs: [
+                        { label: "Examinations", href: routes.doctor.examinations },
+                        { label: "Injuries", href: routes.doctor.injuries },
+                        { label: "Recovery", href: routes.doctor.recovery },
+                        { label: "Clearance", href: routes.doctor.clearance },
+                    ],
+                },
+                { label: "Observations", href: routes.doctor.aiAlerts, icon: Radar, badge: "newAlerts" },
             ],
         },
-        {
-            label: "Clinical",
-            items: [
-                { label: "Examinations", href: routes.doctor.examinations, icon: Stethoscope },
-                { label: "Injuries", href: routes.doctor.injuries, icon: Bandage },
-                { label: "Recovery", href: routes.doctor.recovery, icon: RefreshCw },
-                { label: "Medical Clearance", shortLabel: "Clearance", href: routes.doctor.clearance, icon: ShieldCheck },
-            ],
-        },
-        { items: [{ label: "AI observations", shortLabel: "Observations", href: routes.doctor.aiAlerts, icon: Radar, badge: "newAlerts" }] },
     ],
     admin: [
         { items: [{ label: "Dashboard", href: routes.admin.dashboard, icon: LayoutDashboard }] },
@@ -152,21 +175,43 @@ export const NAVIGATION: Record<Role, NavSection[]> = {
     ],
 };
 
-export const ACCOUNT_NAVIGATION: NavItem[] = [
-    { label: "Notifications", href: routes.notifications, icon: Bell, badge: "notifications" },
-    { label: "Profile", href: routes.profile, icon: UserRound },
-    { label: "Preferences", href: routes.settings, icon: SlidersHorizontal },
-];
+/**
+ * Destinations for the mobile bottom bar. Roles built on hubs show every hub; admin picks its four
+ * most-used pages.
+ */
+export function mobilePrimaryItems(role: Role): NavItem[] {
+    const items = NAVIGATION[role].flatMap((section) => section.items);
+    if (role !== "admin") return items;
+    const admin = [routes.admin.dashboard, routes.admin.users, routes.admin.aiJobs, routes.admin.auditLogs];
+    return admin.map((href) => items.find((item) => item.href === href)).filter((item): item is NavItem => Boolean(item));
+}
 
-/** Four most-used destinations per role for the mobile bottom bar. */
-export const MOBILE_PRIMARY: Record<Role, string[]> = {
-    fighter: [routes.fighter.dashboard, routes.fighter.schedule, routes.fighter.videos, routes.fighter.health],
-    coach: [routes.coach.dashboard, routes.coach.fighters, routes.coach.sessions, routes.coach.videoAnalysis],
-    doctor: [routes.doctor.dashboard, routes.doctor.fighters, routes.doctor.injuries, routes.doctor.aiAlerts],
-    admin: [routes.admin.dashboard, routes.admin.users, routes.admin.aiJobs, routes.admin.auditLogs],
-};
+function matchesPath(href: string, pathname: string): boolean {
+    return pathname === href || pathname.startsWith(`${href}/`);
+}
 
-export function isNavItemActive(item: Pick<NavItem, "href" | "exact">, pathname: string): boolean {
+export function isNavItemActive(item: Pick<NavItem, "href" | "exact" | "tabs">, pathname: string): boolean {
+    if (item.tabs) return matchesPath(item.href, pathname) || item.tabs.some((tab) => matchesPath(tab.href, pathname));
     if (item.exact) return pathname === item.href;
-    return pathname === item.href || pathname.startsWith(`${item.href}/`);
+    return matchesPath(item.href, pathname);
+}
+
+/** The hub the current page belongs to, if any. */
+export function hubForPath(role: Role, pathname: string): NavItem | null {
+    for (const section of NAVIGATION[role]) {
+        for (const item of section.items) {
+            if (item.tabs && isNavItemActive(item, pathname)) return item;
+        }
+    }
+    return null;
+}
+
+/**
+ * Tabs to show above the page, only on a hub's own tab pages. Detail pages under a tab (a plan, a session,
+ * a fighter profile) keep their back link instead, so they never stack a second row of tabs.
+ */
+export function hubTabsFor(role: Role, pathname: string): { label: string; tabs: NavTab[] } | null {
+    const hub = hubForPath(role, pathname);
+    if (!hub?.tabs || !hub.tabs.some((tab) => tab.href === pathname)) return null;
+    return { label: hub.label, tabs: hub.tabs };
 }

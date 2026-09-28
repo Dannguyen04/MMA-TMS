@@ -5,6 +5,7 @@ import type { ClearanceState } from "@/lib/domain/rules";
 import type { Fighter } from "@/lib/domain/types";
 import { daysBetween, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { recordSpoken, recordText } from "@/components/dashboard/dashboard-utils";
 import { capitalize, describeDaysUntil } from "./domain-format";
 import { FighterIdentity } from "./fighter-identity";
 import { FighterStatusBadges } from "./status-badges";
@@ -23,7 +24,6 @@ export interface FighterCardProps {
 
 /** Roster card: identity, record, discipline, health + clearance, and the next bout. */
 export function FighterCard({ fighter, clearanceState, now, href, children, className }: FighterCardProps) {
-    const { wins, losses, draws } = fighter.record;
     const bout = fighter.upcomingBout;
     const daysToBout = bout ? daysBetween(now, bout.date) : null;
 
@@ -37,22 +37,22 @@ export function FighterCard({ fighter, clearanceState, now, href, children, clas
         >
             <div className="flex items-start justify-between gap-3">
                 <FighterIdentity fighter={fighter} href={href} stretchedLink={Boolean(href)} />
-                <p className="shrink-0 text-right">
-                    <span className="block text-[15px] font-semibold text-fg" aria-hidden>
-                        {wins}-{losses}-{draws}
-                    </span>
-                    <span className="sr-only">
-                        Record: {wins} wins, {losses} losses, {draws} draws
-                    </span>
-                    <span aria-hidden className="block text-[11px] tracking-wide text-fg-subtle uppercase">
-                        W-L-D
-                    </span>
-                </p>
+                {fighter.record && (
+                    <p className="shrink-0 text-right">
+                        <span className="block text-[15px] font-semibold text-fg" aria-hidden>
+                            {recordText(fighter)}
+                        </span>
+                        <span className="sr-only">{recordSpoken(fighter)}</span>
+                        <span aria-hidden className="block text-[11px] tracking-wide text-fg-subtle uppercase">
+                            W-L-D
+                        </span>
+                    </p>
+                )}
             </div>
 
             <div className="flex flex-wrap items-center gap-1.5">
                 <FighterStatusBadges healthStatus={fighter.healthStatus} clearanceState={clearanceState} size="sm" />
-                <span className="text-xs text-fg-muted">{fighter.primaryDiscipline}</span>
+                {fighter.primaryDiscipline && <span className="text-xs text-fg-muted">{fighter.primaryDiscipline}</span>}
             </div>
 
             {bout && daysToBout !== null ? (

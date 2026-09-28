@@ -2,17 +2,27 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const authenticatedApiRequest = vi.hoisted(() => vi.fn());
 const authenticatedMutableApiRequest = vi.hoisted(() => vi.fn());
+const getCurrentUser = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/api/client", async (loadOriginal) => {
     const original = await loadOriginal<typeof import("@/lib/api/client")>();
     return { ...original, authenticatedApiRequest, authenticatedMutableApiRequest };
 });
 
+vi.mock("@/lib/auth/session", async (loadOriginal) => {
+    const original = await loadOriginal<typeof import("@/lib/auth/session")>();
+    return { ...original, getCurrentUser };
+});
+
+import { ApiError } from "@/lib/api/client";
 import type { User } from "@/lib/domain/types";
 import {
     adaptBackendFighter,
+    adaptBackendUser,
     backendFighterSchema,
+    backendUserSchema,
     doctorsForFighter,
+    getApiUserWithProfile,
     listCoaches,
     listFighters,
     updateOwnProfile,
@@ -22,7 +32,6 @@ const fighterId = "11111111-1111-4111-8111-111111111111";
 const userId = "22222222-2222-4222-8222-222222222222";
 const coachId = "33333333-3333-4333-8333-333333333333";
 const doctorId = "44444444-4444-4444-8444-444444444444";
-const doctorUserId = "88888888-8888-4888-8888-888888888888";
 
 const backendFighter = {
     id: fighterId,
@@ -58,6 +67,19 @@ const backendFighter = {
     },
 };
 
+/** An account as `GET /users` and `GET /users/:id` return it (the service's `publicUserSchema`). */
+const doctorUserId = "88888888-8888-4888-8888-888888888888";
+const backendAccount = {
+    id: doctorUserId,
+    email: "thu.le@example.test",
+    role: "DOCTOR" as const,
+    isActive: true,
+    createdAt: "2026-02-01T00:00:00.000Z",
+    updatedAt: "2026-02-03T00:00:00.000Z",
+    deletedAt: null,
+    profile: { id: doctorId, firstName: "Thu", lastName: "Le", licenseNumber: "VN-SM-2231", specialization: "Sports medicine", profileImageUrl: null },
+};
+
 const viewer: User = {
     id: userId,
     email: "an@example.test",
@@ -76,6 +98,7 @@ describe("people API adapter", () => {
         vi.stubEnv("APP_DATA_MODE", "api");
         authenticatedApiRequest.mockReset();
         authenticatedMutableApiRequest.mockReset();
+        getCurrentUser.mockReset();
     });
 
     it("chuyển enum backend viết hoa thành mô hình giao diện viết thường", () => {
@@ -105,39 +128,67 @@ describe("people API adapter", () => {
         );
     });
 
-    it("báo lỗi rõ ràng khi backend chưa trả đủ trường giao diện", () => {
-        expect(
-            backendFighterSchema.safeParse({
-                ...backendFighter,
-                nickname: undefined,
-                sex: undefined,
-                weightKg: undefined,
-            }).success,
-        ).toBe(false);
+    it("keeps profile fields the API doesn't return yet as null instead of failing or guessing", () => {
+        const current = {
+            id: fighterId,
+            userId,
+            firstName: "An",
+            lastName: "Nguyen",
+            dateOfBirth: "1995-04-03",
+            nationality: null,
+            weightClass: "LIGHTWEIGHT" as const,
+            heightCm: null,
+            reachCm: null,
+            dominantStance: null,
+            currentMedicalStatus: "HEALTHY" as const,
+            isActive: true,
+            createdAt: "2026-01-01T00:00:00.000Z",
+            updatedAt: "2026-01-02T00:00:00.000Z",
+        };
+        expect(adaptBackendFighter(backendFighterSchema.parse(current))).toMatchObject({
+            name: "An Nguyen",
+            nickname: null,
+            sex: null,
+            weightKg: null,
+            stance: null,
+            level: null,
+            record: null,
+            coachIds: [],
+            primaryCoachId: null,
+            upcomingBout: null,
+            targetWeightKg: 70.3,
+            healthStatus: "healthy",
+        });
     });
 
-    it("không âm thầm dùng dữ liệu demo khi endpoint danh mục chưa tồn tại", async () => {
-        authenticatedApiRequest.mockResolvedValue({
-            data: [
-                {
-                    id: coachId,
-                    userId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-                    firstName: "Rafael",
-                    lastName: "Santos",
-                    specialization: "Striking",
-                    certifications: ["Level 2"],
-                    yearsExperience: 12,
-                    fighterIds: [fighterId],
-                },
-            ],
-            total: 1,
-            hasNextPage: false,
+    it("builds the coach list from the assignments of fighters in scope, since the API has no coach directory", async () => {
+        getCurrentUser.mockResolvedValue({
+            ...viewer,
+            role: "coach",
+            effectiveCapabilities: ["fighters:read"],
+            assignmentScope: { fighterIds: [fighterId] },
+        });
+        authenticatedApiRequest.mockImplementation(async (path: string) => {
+            if (path === `/fighters/${fighterId}/coaches`) {
+                return [
+                    { id: "a1a1a1a1-a1a1-4a1a-8a1a-a1a1a1a1a1a1", coachId, fighterId, startsAt: "2026-01-01T00:00:00.000Z", endsAt: null, coachName: "Rafael Santos" },
+                    {
+                        id: "b2b2b2b2-b2b2-4b2b-8b2b-b2b2b2b2b2b2",
+                        coachId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+                        fighterId,
+                        startsAt: "2025-01-01T00:00:00.000Z",
+                        endsAt: "2025-06-01T00:00:00.000Z",
+                        coachName: "Former Coach",
+                    },
+                ];
+            }
+            return { data: [], total: 0, hasNextPage: false };
         });
 
         await expect(listCoaches()).resolves.toEqual([
-            expect.objectContaining({ id: coachId, name: "Rafael Santos", specialty: "Striking", fighterIds: [fighterId] }),
+            { id: coachId, userId: null, name: "Rafael Santos", specialty: "", certifications: [], yearsExperience: null, fighterIds: [fighterId] },
         ]);
-        expect(authenticatedApiRequest).toHaveBeenCalledWith("/coaches?page=1&limit=100", expect.anything());
+        expect(authenticatedApiRequest).not.toHaveBeenCalledWith(expect.stringContaining("/coaches?"), expect.anything());
     });
 
     it("cập nhật hồ sơ của chính người dùng qua API", async () => {
@@ -166,12 +217,77 @@ describe("people API adapter", () => {
         });
     });
 
+    it("adapts a service account without inventing the fields the service doesn't keep", () => {
+        expect(adaptBackendUser(backendUserSchema.parse(backendAccount))).toEqual({
+            id: doctorUserId,
+            email: "thu.le@example.test",
+            name: "Thu Le",
+            role: "doctor",
+            title: "Sports medicine",
+            phone: null,
+            status: "active",
+            createdAt: "2026-02-01T00:00:00.000Z",
+            lastActiveAt: null,
+            profileId: doctorId,
+            effectiveCapabilities: undefined,
+            assignmentScope: undefined,
+        });
+    });
+
+    it("treats deactivated and deleted accounts as suspended, and an account without a profile by its email", () => {
+        const admin = { ...backendAccount, role: "ADMIN" as const, profile: null };
+        expect(adaptBackendUser(backendUserSchema.parse({ ...admin, isActive: false }))).toMatchObject({ status: "suspended", name: "thu.le@example.test", title: "", profileId: null });
+        expect(adaptBackendUser(backendUserSchema.parse({ ...admin, deletedAt: "2026-03-01T00:00:00.000Z" }))).toMatchObject({ status: "suspended" });
+    });
+
+    it("builds a doctor's linked profile from the account and the fighters currently assigned", async () => {
+        getCurrentUser.mockResolvedValue({ ...viewer, role: "doctor", effectiveCapabilities: ["fighters:read"], assignmentScope: { fighterIds: [fighterId] } });
+        authenticatedApiRequest.mockImplementation(async (path: string) => {
+            if (path === `/users/${doctorUserId}`) return backendAccount;
+            if (path === `/fighters/${fighterId}/coaches`) return [];
+            if (path.startsWith(`/fighters/${fighterId}/doctors`)) {
+                return {
+                    data: [
+                        {
+                            id: "55555555-5555-4555-8555-555555555555",
+                            doctorId,
+                            fighterId,
+                            assignedById: userId,
+                            startsAt: "2026-01-01T00:00:00.000Z",
+                            endsAt: null,
+                            endedById: null,
+                            endReason: null,
+                            createdAt: "2026-01-01T00:00:00.000Z",
+                            doctorName: "Thu Le",
+                        },
+                    ],
+                    total: 1,
+                    hasNextPage: false,
+                };
+            }
+            return { data: [], total: 0, hasNextPage: false };
+        });
+
+        await expect(getApiUserWithProfile(doctorUserId)).resolves.toMatchObject({
+            user: { name: "Thu Le", role: "doctor" },
+            profile: { id: doctorId, userId: doctorUserId, name: "Thu Le", specialty: "Sports medicine", licenseNumber: "VN-SM-2231", fighterIds: [fighterId] },
+        });
+    });
+
+    it("reads a deactivated account as missing, since the service only returns active ones", async () => {
+        authenticatedApiRequest.mockRejectedValue(new ApiError({ message: "Not Found", kind: "http", status: 404, code: "USER_NOT_FOUND" }));
+
+        await expect(getApiUserWithProfile(doctorUserId)).resolves.toBeNull();
+    });
+
     it("chỉ trả về bác sĩ đang được phân công", async () => {
-        authenticatedApiRequest.mockResolvedValue([
+        authenticatedApiRequest.mockResolvedValue({
+            total: 2,
+            hasNextPage: false,
+            data: [
             {
                 id: "55555555-5555-4555-8555-555555555555",
                 doctorId,
-                doctorUserId,
                 fighterId,
                 assignedById: userId,
                 startsAt: "2026-01-01T00:00:00.000Z",
@@ -180,13 +296,10 @@ describe("people API adapter", () => {
                 endReason: null,
                 createdAt: "2026-01-01T00:00:00.000Z",
                 doctorName: "Thu Le",
-                doctorSpecialization: "Sports medicine",
-                doctorLicenseNumber: "VN-SPORT-001",
             },
             {
                 id: "66666666-6666-4666-8666-666666666666",
                 doctorId: "77777777-7777-4777-8777-777777777777",
-                doctorUserId: "99999999-9999-4999-8999-999999999999",
                 fighterId,
                 assignedById: userId,
                 startsAt: "2025-01-01T00:00:00.000Z",
@@ -195,24 +308,14 @@ describe("people API adapter", () => {
                 endReason: "Care transferred",
                 createdAt: "2025-01-01T00:00:00.000Z",
                 doctorName: "Former Doctor",
-                doctorSpecialization: null,
-                doctorLicenseNumber: "VN-OLD-001",
             },
-        ]);
+            ],
+        });
 
+        // Assignments carry the doctor's profile id and name only; the rest stays empty rather than guessed.
         await expect(doctorsForFighter(fighterId)).resolves.toEqual([
-            {
-                id: doctorId,
-                userId: doctorUserId,
-                name: "Thu Le",
-                specialty: "Sports medicine",
-                licenseNumber: "VN-SPORT-001",
-                fighterIds: [fighterId],
-            },
+            { id: doctorId, userId: null, name: "Thu Le", specialty: "", licenseNumber: null, fighterIds: [fighterId] },
         ]);
-        expect(authenticatedApiRequest).toHaveBeenCalledWith(
-            `/fighters/${fighterId}/doctors`,
-            expect.anything(),
-        );
+        expect(authenticatedApiRequest).toHaveBeenCalledWith(`/fighters/${fighterId}/doctors?page=1&limit=100`, expect.anything());
     });
 });

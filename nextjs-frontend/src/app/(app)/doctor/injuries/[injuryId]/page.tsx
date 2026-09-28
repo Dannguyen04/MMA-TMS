@@ -14,7 +14,7 @@ import { TreatmentList } from "@/components/clinical/treatment-list";
 import { AINotice } from "@/components/domain/ai-notice";
 import { BodyMap } from "@/components/domain/body-map";
 import { ClearanceValidity } from "@/components/domain/clearance-validity";
-import { describeDaysUntil } from "@/components/domain/domain-format";
+import { describeDaysUntil, labelOf, NOT_RECORDED } from "@/components/domain/domain-format";
 import { RecoveryProgress } from "@/components/domain/recovery-progress";
 import { ClearanceBadge, FighterStatusBadges, INJURY_STATUS_META, InjurySeverityBadge, InjuryStatusBadge } from "@/components/domain/status-badges";
 import { RestrictionSummary } from "@/components/medical/restriction-summary";
@@ -28,12 +28,12 @@ import { EmptyState } from "@/components/ui/states";
 import { canAccessFighter } from "@/lib/auth/access";
 import { getCurrentUser, requireRole } from "@/lib/auth/session";
 import { INJURY_MECHANISM_LABELS, INJURY_SEVERITY_LABELS, INJURY_STATUS_LABELS } from "@/lib/domain/labels";
-import { clearanceState } from "@/lib/domain/rules";
 import type { Injury } from "@/lib/domain/types";
 import { dayKey, daysBetween, formatDate, formatDateTime, pluralize } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
-import { getCurrentClearanceFor, getInjuryDetail } from "@/lib/services/medical";
+import { getClearanceStatus, getInjuryDetail } from "@/lib/services/medical";
+import { medicalFeatureAvailable, usesMedicalServiceForms } from "@/lib/services/medical-features";
 import { getVideo } from "@/lib/services/videos";
 import { param } from "@/lib/utils";
 
@@ -57,12 +57,12 @@ export default async function InjuryDetailPage({ params, searchParams }: PagePro
     if (!detail || !canAccessFighter(user, detail.injury.fighterId)) notFound();
     const { injury, fighter, treatments, recoveryPlan, linkedAlert, recordedBy } = detail;
 
-    const clearance = getCurrentClearanceFor(fighter.id);
-    const clearanceNow = clearanceState(clearance, now);
+    const { clearance, state: clearanceNow } = await getClearanceStatus(fighter.id, now);
     const linkedVideo = linkedAlert ? await getVideo(linkedAlert.videoId) : null;
     const justCreated = param(query.created) === "1";
     const openPlan = recoveryPlan && recoveryPlan.status !== "completed" ? recoveryPlan : null;
     const firstName = fighter.name.split(" ")[0];
+    const serviceForms = usesMedicalServiceForms();
 
     return (
         <>
@@ -88,7 +88,9 @@ export default async function InjuryDetailPage({ params, searchParams }: PagePro
                 actions={
                     <InjuryStatusActions
                         injuryId={injury.id}
+                        fighterId={fighter.id}
                         status={injury.status}
+                        canReopen={!usesMedicalServiceForms()}
                         fighterName={fighter.name}
                         openPlanTitle={openPlan?.title ?? null}
                         todayLabel={formatDate(now)}
@@ -115,7 +117,9 @@ export default async function InjuryDetailPage({ params, searchParams }: PagePro
                             </>
                         }
                     >
-                        {fighter.name}&apos;s coaches have been asked to check Medical Clearance. Review it now so training restrictions match this injury.
+                        {serviceForms
+                            ? `Medical Clearance doesn't change on its own. Examine ${fighter.name} and review it so training limits match this injury.`
+                            : `${fighter.name}'s coaches have been asked to check Medical Clearance. Review it now so training restrictions match this injury.`}
                     </Callout>
                 )}
 
@@ -138,10 +142,20 @@ export default async function InjuryDetailPage({ params, searchParams }: PagePro
                                 description={
                                     treatments.length === 0
                                         ? "What is being done for this injury"
-                                        : `${treatments.filter((t) => t.status === "ongoing").length} ongoing · ${treatments.length} in total`
+                                        : medicalFeatureAvailable("treatmentStatus")
+                                          ? `${treatments.filter((t) => t.status === "ongoing").length} ongoing · ${treatments.length} in total`
+                                          : `${pluralize(treatments.length, "treatment")} recorded`
                                 }
                                 icon={<ClipboardList />}
-                                action={<AddTreatmentDialog injuryId={injury.id} providerName={user.name} today={dayKey(now)} />}
+                                action={
+                                    <AddTreatmentDialog
+                                        injuryId={injury.id}
+                                        fighterId={fighter.id}
+                                        mode={usesMedicalServiceForms() ? "service" : "demo"}
+                                        providerName={user.name}
+                                        today={dayKey(now)}
+                                    />
+                                }
                             />
                             {treatments.length === 0 ? (
                                 <EmptyState
@@ -160,7 +174,7 @@ export default async function InjuryDetailPage({ params, searchParams }: PagePro
                             <CardHeader
                                 title="Recovery plan"
                                 icon={<RefreshCw />}
-                                description={recoveryPlan ? recoveryPlan.title : "Phased return to training for this injury"}
+                                description={recoveryPlan ? recoveryPlan.title : "Return to training for this injury"}
                                 action={
                                     recoveryPlan ? (
                                         <div className="flex items-center gap-2">
@@ -177,7 +191,7 @@ export default async function InjuryDetailPage({ params, searchParams }: PagePro
                                             href={routes.doctor.recoveryPlan(recoveryPlan.id)}
                                             className="inline-flex w-fit items-center gap-1 rounded-md text-sm font-medium text-primary-soft-fg hover:underline"
                                         >
-                                            Open recovery plan — milestones and check-ins
+                                            {serviceForms ? "Open recovery plan — milestones" : "Open recovery plan — milestones and check-ins"}
                                             <ArrowRight aria-hidden className="size-4" />
                                         </Link>
                                     </div>
@@ -190,9 +204,13 @@ export default async function InjuryDetailPage({ params, searchParams }: PagePro
                                         compact
                                         icon={<RefreshCw />}
                                         title="No recovery plan yet"
-                                        description={`Plan ${firstName}'s return in phases with milestones, then track pain, mobility and strength at each check-in.`}
+                                        description={
+                                            serviceForms
+                                                ? `Plan ${firstName}'s return as milestones, each with how you'll know it's reached.`
+                                                : `Plan ${firstName}'s return in phases with milestones, then track pain, mobility and strength at each check-in.`
+                                        }
                                         action={
-                                            <ButtonLink href={clinicalLinks.newRecoveryPlanFor(injury.id)} size="sm">
+                                            <ButtonLink href={clinicalLinks.newRecoveryPlanFor(injury.id, fighter.id)} size="sm">
                                                 Create recovery plan
                                             </ButtonLink>
                                         }
@@ -264,15 +282,21 @@ export default async function InjuryDetailPage({ params, searchParams }: PagePro
 }
 
 function detailItems(injury: Injury, now: string, recordedByName: string | null): DescriptionItem[] {
-    const items: DescriptionItem[] = [
-        { label: "Occurred", value: <time dateTime={injury.occurredAt}>{formatDateTime(injury.occurredAt)}</time> },
-        { label: "Diagnosed", value: <time dateTime={injury.diagnosedAt}>{formatDate(injury.diagnosedAt)}</time> },
-        { label: "Mechanism", value: INJURY_MECHANISM_LABELS[injury.mechanism] },
-    ];
+    // The medical service keeps no diagnosis date, mechanism or expected return, so its records skip those rows.
+    const serviceRecord = injury.joint !== undefined;
+    const items: DescriptionItem[] = [{ label: "Occurred", value: <time dateTime={injury.occurredAt}>{formatDateTime(injury.occurredAt)}</time> }];
+    if (!serviceRecord) {
+        items.push(
+            { label: "Diagnosed", value: injury.diagnosedAt ? <time dateTime={injury.diagnosedAt}>{formatDate(injury.diagnosedAt)}</time> : NOT_RECORDED },
+            { label: "Mechanism", value: labelOf(INJURY_MECHANISM_LABELS, injury.mechanism) ?? NOT_RECORDED },
+        );
+    }
 
     if (injury.resolvedAt) {
         items.push({ label: "Resolved", value: <time dateTime={injury.resolvedAt}>{formatDate(injury.resolvedAt)}</time> });
         items.push({ label: "Time to resolve", value: pluralize(Math.max(0, daysBetween(injury.occurredAt, injury.resolvedAt)), "day") });
+    } else if (serviceRecord) {
+        // No expected return in the service's record; the recovery plan carries it.
     } else if (injury.expectedReturnAt) {
         const days = daysBetween(now, injury.expectedReturnAt);
         items.push({

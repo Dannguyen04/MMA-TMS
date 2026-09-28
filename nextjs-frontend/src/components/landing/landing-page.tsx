@@ -19,7 +19,7 @@ import { LandingHeader } from "./landing-header";
 export function LandingPage({ primaryHref, primaryLabel }: { primaryHref: string; primaryLabel: string }) {
     return (
         <LandingExperience>
-            <div aria-hidden data-scroll-progress className="fixed inset-x-0 top-0 z-50 h-0.5 origin-left scale-x-0 bg-gradient-to-r from-brand-red via-landing-cyan to-brand-blue" />
+            <div aria-hidden data-scroll-progress className="fixed inset-x-0 top-0 z-50 h-0.5 origin-left scale-x-0 bg-brand-red" />
             <LandingHeader primaryHref={primaryHref} primaryLabel={primaryLabel} />
             <nav aria-label="Tour chapters" className="landing-hud fixed top-1/2 left-6 z-30 hidden -translate-y-1/2 xl:block">
                 <ol className="space-y-3">
@@ -53,8 +53,8 @@ export function LandingPage({ primaryHref, primaryLabel }: { primaryHref: string
                                     </span>
                                 </span>
                                 <span className="landing-line-mask">
-                                    <span data-hero-line className="landing-gradient-text block">
-                                        Fight cleared.
+                                    <span data-hero-line className="block">
+                                        Fight cleared<span className="text-brand-red">.</span>
                                     </span>
                                 </span>
                             </h1>

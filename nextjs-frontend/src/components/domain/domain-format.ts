@@ -20,6 +20,19 @@ export function describeDaysUntil(days: number): string {
     return days > 0 ? `in ${pluralize(days, "day")}` : `${pluralize(-days, "day")} ago`;
 }
 
+/** Shown in place of a profile value the API hasn't provided yet. */
+export const NOT_RECORDED = "Not recorded";
+
+/** The label for a value that may not be recorded yet; null when it isn't. */
+export function labelOf<K extends string>(labels: Record<K, string>, value: K | null): string | null {
+    return value === null ? null : labels[value];
+}
+
+/** Facts for a one-line summary, leaving out the ones not recorded yet. */
+export function presentFacts(...facts: (string | null | undefined)[]): string[] {
+    return facts.filter((fact): fact is string => Boolean(fact));
+}
+
 /** Capitalises the first letter, e.g. for sentence starts built from `describeDaysUntil`. */
 export function capitalize(text: string): string {
     return text.charAt(0).toUpperCase() + text.slice(1);

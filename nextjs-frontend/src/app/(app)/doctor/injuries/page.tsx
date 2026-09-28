@@ -12,7 +12,7 @@ import { EmptyState } from "@/components/ui/states";
 import { Pagination } from "@/components/ui/table";
 import { accessibleFighterIds } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
-import { BODY_REGION_LABELS, INJURY_SEVERITY_LABELS, INJURY_STATUS_LABELS, INJURY_TYPE_LABELS } from "@/lib/domain/labels";
+import { BODY_REGION_LABELS, INJURY_SEVERITY_LABELS, INJURY_STATUS_LABELS, INJURY_TYPE_LABELS, injuryTypeName } from "@/lib/domain/labels";
 import { recoveryProgressPct } from "@/lib/domain/rules";
 import type { BodyRegion, InjurySeverity, InjuryStatus, InjuryType, RecoveryPlan } from "@/lib/domain/types";
 import { hrefWith, paginate, parseEnum, parseSortDirection, sortItems } from "@/lib/query";
@@ -32,7 +32,7 @@ const REGIONS = Object.keys(BODY_REGION_LABELS) as BodyRegion[];
 const SORT_KEYS = ["fighter", "injury", "severity", "status", "occurred", "return"] as const;
 const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/;
 
-const SEVERITY_RANK: Record<InjurySeverity, number> = { minor: 0, moderate: 1, severe: 2 };
+const SEVERITY_RANK: Record<InjurySeverity, number> = { minor: 0, moderate: 1, severe: 2, critical: 3 };
 const STATUS_RANK: Record<InjuryStatus, number> = { active: 0, recovering: 1, resolved: 2 };
 
 export default async function DoctorInjuriesPage({ searchParams }: PageProps<"/doctor/injuries">) {
@@ -237,7 +237,7 @@ function sortValue(row: InjuryRow, sort: (typeof SORT_KEYS)[number]): string | n
         case "fighter":
             return row.fighter.name;
         case "injury":
-            return `${INJURY_TYPE_LABELS[row.injury.type]} ${BODY_REGION_LABELS[row.injury.bodyRegion]}`;
+            return `${injuryTypeName(row.injury)} ${BODY_REGION_LABELS[row.injury.bodyRegion]}`;
         case "severity":
             return SEVERITY_RANK[row.injury.severity];
         case "status":

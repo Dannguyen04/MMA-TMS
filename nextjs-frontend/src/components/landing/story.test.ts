@@ -12,11 +12,9 @@ describe("stageAt", () => {
         const lit = stageAt(story({ intro: 1 }));
 
         expect(dark.lights).toBe(0);
-        expect(dark.strips).toBe(0);
         const reach = (frame: typeof dark) => Math.hypot(...frame.camera.position.map((value, axis) => value - frame.camera.target[axis]));
         expect(reach(dark)).toBeGreaterThan(reach(lit) + 5);
         expect(lit.lights).toBe(1);
-        expect(lit.strips).toBe(1);
     });
 
     it("orbits between chapter framings instead of cutting through the fighter", () => {

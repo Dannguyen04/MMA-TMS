@@ -69,35 +69,41 @@ export function AppearanceSettings({ initial }: { initial: ThemePreference }) {
 }
 
 /**
- * Miniature app screen. Drawn with the navigation tokens, which keep the same values in every
+ * Miniature app screen. Drawn with the fixed `mock-*` palette, which keeps the same values in every
  * theme, so a light preview still looks light while the page itself is dark (and vice versa).
  */
 function ThemeMock({ variant, className }: { variant: "light" | "dark"; className?: string }) {
     const light = variant === "light";
-    const card = light ? "bg-nav-fg-active ring-nav-fg/50" : "bg-nav-surface ring-nav-border";
-    const line = light ? "bg-nav-bg/35" : "bg-nav-fg/35";
+    const ground = light ? "bg-mock-light-bg" : "bg-mock-dark-bg";
+    const surface = light ? "bg-mock-light-surface" : "bg-mock-dark-surface";
+    const edge = light ? "ring-mock-light-line" : "ring-mock-dark-line";
+    const line = light ? "bg-mock-light-line" : "bg-mock-dark-line";
+    const ink = light ? "bg-mock-light-ink/70" : "bg-mock-dark-ink/80";
 
     return (
-        <span className={cn("flex size-full", light ? "bg-nav-fg/20" : "bg-nav-bg", className)}>
-            <span className={cn("flex w-1/4 flex-col gap-1 bg-nav-bg p-1.5", !light && "border-r border-nav-border")}>
-                <span className="h-1.5 w-3/4 rounded-full bg-nav-accent" />
-                <span className="mt-1 h-1 w-full rounded-full bg-nav-fg/50" />
-                <span className="h-1 w-5/6 rounded-full bg-nav-fg/25" />
-                <span className="h-1 w-2/3 rounded-full bg-nav-fg/25" />
+        <span className={cn("flex size-full", ground, className)}>
+            <span className={cn("flex w-1/4 flex-col gap-1 p-1.5 ring-1", surface, edge)}>
+                <span className={cn("h-1.5 w-3/4 rounded-full", ink)} />
+                <span className="mt-1 flex items-center gap-0.5">
+                    <span className="h-1.5 w-0.5 -skew-x-12 bg-mock-accent" />
+                    <span className={cn("h-1 flex-1 rounded-full", ink)} />
+                </span>
+                <span className={cn("h-1 w-5/6 rounded-full", line)} />
+                <span className={cn("h-1 w-2/3 rounded-full", line)} />
             </span>
             <span className="flex min-w-0 flex-1 flex-col gap-1.5 p-2">
-                <span className={cn("h-1.5 w-1/2 rounded-full", light ? "bg-nav-bg/70" : "bg-nav-fg-active/80")} />
+                <span className={cn("h-1.5 w-1/2 rounded-full", ink)} />
+                <span className="flex h-4 flex-col justify-center gap-0.5 rounded-[3px] bg-mock-primary px-1">
+                    <span className="h-1 w-1/3 rounded-full bg-mock-accent" />
+                    <span className="h-1 w-2/3 rounded-full bg-mock-light-surface/60" />
+                </span>
                 <span className="grid grid-cols-2 gap-1.5">
                     {[0, 1].map((index) => (
-                        <span key={index} className={cn("flex flex-col gap-1 rounded-[4px] p-1 ring-1", card)}>
+                        <span key={index} className={cn("flex flex-col gap-1 rounded-[3px] p-1 ring-1", surface, edge)}>
                             <span className={cn("h-1 w-2/3 rounded-full", line)} />
-                            <span className={cn("h-1.5 w-1/2 rounded-full", index === 0 ? "bg-nav-accent" : line)} />
+                            <span className={cn("h-1.5 w-1/2 rounded-full", index === 0 ? "bg-mock-primary" : line)} />
                         </span>
                     ))}
-                </span>
-                <span className={cn("flex flex-1 flex-col gap-1 rounded-[4px] p-1 ring-1", card)}>
-                    <span className={cn("h-1 w-3/4 rounded-full", line)} />
-                    <span className={cn("h-1 w-1/2 rounded-full", line)} />
                 </span>
             </span>
         </span>

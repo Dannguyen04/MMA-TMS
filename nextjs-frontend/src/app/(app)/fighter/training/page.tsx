@@ -49,12 +49,6 @@ export default async function FighterTrainingPage() {
             <PageHeader
                 title="Training plans"
                 description="The plan your coach built for this phase, how consistently you're following it, and your past plans."
-                actions={
-                    <ButtonLink href={routes.fighter.schedule} variant="secondary">
-                        <CalendarClock aria-hidden />
-                        Schedule
-                    </ButtonLink>
-                }
             />
 
             <div className="flex flex-col gap-6">
@@ -116,7 +110,7 @@ export default async function FighterTrainingPage() {
                             <ul className="divide-y divide-border border-t border-border">
                                 {nextSessions.map((session) => (
                                     <li key={session.id}>
-                                        <SessionListItem session={session} href={routes.fighter.session(session.id)} coachName={coachNames[session.coachId]} />
+                                        <SessionListItem session={session} href={routes.fighter.session(session.id)} coachName={session.coachId ? coachNames[session.coachId] : undefined} />
                                     </li>
                                 ))}
                             </ul>

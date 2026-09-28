@@ -2,12 +2,12 @@ import "server-only";
 
 import type { FighterIdentityData } from "@/components/domain/fighter-identity";
 import { VIDEO_TRAINING_TYPES } from "@/lib/domain/labels";
-import { clearanceState, type ClearanceState } from "@/lib/domain/rules";
+import type { ClearanceState } from "@/lib/domain/rules";
 import type { TrainingType, User, VideoTrainingType } from "@/lib/domain/types";
 import { VIDEO_PIPELINE_MODE, type VideoPipelineMode } from "@/lib/api/pipeline-mode";
 import { accessibleFighterIds } from "@/lib/auth/access";
 import { getSettings } from "@/lib/services/admin";
-import { getCurrentClearanceFor } from "@/lib/services/medical";
+import { getClearanceStatus } from "@/lib/services/medical";
 import { listFighters } from "@/lib/services/people";
 import { listSessions } from "@/lib/services/training";
 
@@ -46,10 +46,11 @@ export async function loadUploadWizardData(user: User): Promise<UploadWizardData
         getSettings(),
     ]);
 
+    const statuses = await Promise.all(fighters.map((fighter) => getClearanceStatus(fighter.id, now)));
+
     return {
-        fighters: fighters.map((fighter) => {
-            const clearance = getCurrentClearanceFor(fighter.id);
-            const state = clearanceState(clearance, now);
+        fighters: fighters.map((fighter, index) => {
+            const { clearance, state } = statuses[index];
             const restrictions = state === "restricted" && clearance ? clearance.restrictions : [];
             return {
                 id: fighter.id,

@@ -15,7 +15,7 @@ import { ConfirmDialog } from "@/components/ui/dialog";
 import { Field, FormMessage, Input, Select, Textarea } from "@/components/ui/form";
 import { useActionForm } from "@/components/ui/use-action-form";
 import { grantClearanceAction } from "@/lib/actions/medical";
-import { CLEARANCE_LEVEL_LABELS, EXAMINATION_OUTCOME_LABELS, EXAMINATION_TYPE_LABELS } from "@/lib/domain/labels";
+import { CLEARANCE_LEVEL_LABELS, EXAMINATION_OUTCOME_LABELS, examinationTitle } from "@/lib/domain/labels";
 import { clearanceState, type ClearanceState } from "@/lib/domain/rules";
 import type { ClearanceLevel, ExaminationOutcome, ExaminationType, MedicalClearance } from "@/lib/domain/types";
 import { addDaysToKey, daysBetween, formatDate, pluralize } from "@/lib/format";
@@ -28,7 +28,7 @@ import { RestrictionSummary } from "./restriction-summary";
 export interface ClearanceExaminationOption {
     id: string;
     date: string;
-    type: ExaminationType;
+    type: ExaminationType | null;
     outcome: ExaminationOutcome;
     summary: string;
 }
@@ -204,8 +204,8 @@ export function GrantClearanceForm({ fighters, defaultFighterId, defaultExaminat
                                 {linkedExam && level && (
                                     <InlineNote icon={Info} tone={examMismatch ? "warning" : "neutral"} className="mt-2">
                                         {examMismatch
-                                            ? `The linked ${EXAMINATION_TYPE_LABELS[linkedExam.type].toLowerCase()} concluded “${EXAMINATION_OUTCOME_LABELS[linkedExam.outcome]}”. Explain the difference in the clinical reason.`
-                                            : `Matches the outcome of the linked ${EXAMINATION_TYPE_LABELS[linkedExam.type].toLowerCase()}.`}
+                                            ? `The linked ${examinationTitle(linkedExam).toLowerCase()} concluded “${EXAMINATION_OUTCOME_LABELS[linkedExam.outcome]}”. Explain the difference in the clinical reason.`
+                                            : `Matches the outcome of the linked ${examinationTitle(linkedExam).toLowerCase()}.`}
                                     </InlineNote>
                                 )}
                             </div>
@@ -307,7 +307,7 @@ export function GrantClearanceForm({ fighters, defaultFighterId, defaultExaminat
                                 <option value="">No linked examination</option>
                                 {fighter?.examinations.map((exam) => (
                                     <option key={exam.id} value={exam.id}>
-                                        {EXAMINATION_TYPE_LABELS[exam.type]} · {formatDate(exam.date)} · {EXAMINATION_OUTCOME_LABELS[exam.outcome]}
+                                        {examinationTitle(exam)} · {formatDate(exam.date)} · {EXAMINATION_OUTCOME_LABELS[exam.outcome]}
                                     </option>
                                 ))}
                             </Select>
@@ -419,7 +419,7 @@ function CurrentStatus({ fighter, now, warningDays }: { fighter: ClearanceFighte
                     <>
                         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]">
                             <Link href={routes.doctor.examination(latest.id)} className="font-medium text-fg hover:underline">
-                                {EXAMINATION_TYPE_LABELS[latest.type]}
+                                {examinationTitle(latest)}
                             </Link>
                             <span className="text-fg-muted">{formatDate(latest.date)}</span>
                         </p>

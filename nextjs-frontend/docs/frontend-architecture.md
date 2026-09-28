@@ -13,7 +13,7 @@ TypeScript (strict), Tailwind CSS v4. UI copy is English.
 | Mutations | Server Actions in `src/lib/actions/*` returning `ActionState` (`src/lib/actions/state.ts`), consumed through the shared form hooks (see [Forms and mutations](#forms-and-mutations)). Validate with `zod`, re-authorize with `authorizeAction()` (clinical actions: `authorizeClinicalAction()` + `canAccessFighterClinically()`), call a service, `recordAudit()`, `revalidatePath()`. |
 | Auth | Backend login/refresh/logout with secure HTTP-only SameSite=Lax access and refresh cookies. `src/proxy.ts` performs optimistic redirects and proactive refresh; `/users/me` and backend guards remain authoritative. Record access fails closed without backend capabilities and assignment scope. |
 | Audit | API-mode audit reads rely on backend redaction and authorization. The demo adapter retains `toAuditView()` for explicit demo mode. Never expose clearance levels, health status, or restriction text in admin audit responses. |
-| Caching | No React `cache()` around entity reads in services (they would go stale inside Server Action re-renders). Detail pages share one page-local `const loadX = cache(getX)` between `generateMetadata` and the page; staff lists (`listCoaches`, `listDoctors`, `listPermissionCatalog`) are cached. Start independent reads in one `Promise.all` — no request waterfalls. |
+| Caching | No React `cache()` around entity reads in services (they would go stale inside Server Action re-renders). Detail pages share one page-local `const loadX = cache(getX)` between `generateMetadata` and the page; staff lists (`listCoaches`, `listDoctors`, `listPermissionCatalog`) are cached. The exception is the medical service (`services/medical.api.ts`): every clinical read writes an audit row, so each fighter's dossier, history, examinations and review requests are read once per render. Server Actions run outside the render, so a write never reads a cached value. Start independent reads in one `Promise.all` — no request waterfalls. |
 | Polling | Client polling uses `useVisibleInterval` (`components/ui/use-visible-interval.ts`: pauses while hidden, backs off when nothing changes) against route handlers (`routes.api.*`, `fetch` with `no-store`) — never Server Actions. |
 | Lists | URL-driven: `searchParams` → service filter → `paginate()`/`sortItems()` (`src/lib/query.ts`) → `<Table>` + `<Pagination>`; filters via `<FilterBar>`. |
 | Styling | Semantic design tokens only (`src/app/globals.css`). Light, dark and system themes via `data-theme` on `<html>` (cookie `mma_theme`). |
@@ -78,8 +78,8 @@ export default async function Page({ searchParams }: PageProps<"/coach/fighters"
 ```
 
 - `params`/`searchParams` are Promises (Next 16). Use the global `PageProps<"/route">` / `LayoutProps` helpers.
-- Every significant route gets a `loading.tsx`. Use `DashboardSkeleton`, `TableSkeleton` or `DetailSkeleton` when they
-  match the page; otherwise compose the page's real shape from the blocks in `components/ui/skeleton.tsx`
+- Every significant route gets a `loading.tsx`. Use `QueueSkeleton` (coach Today, doctor Triage), `TodaySkeleton`
+  (fighter Today), `DashboardSkeleton`, `TableSkeleton` or `DetailSkeleton` when they match the page; otherwise compose the page's real shape from the blocks in `components/ui/skeleton.tsx`
   (`LoadingRegion`, `PageHeaderSkeleton`, `KpiRowSkeleton`, `FilterRowSkeleton`, `CardGridSkeleton`, `TableCardSkeleton`,
   `WeekAgendaSkeleton`) so content doesn't jump when it streams in. One `LoadingRegion` per loading state.
 - Missing or inaccessible records → `notFound()` (never reveal records a user isn't assigned to).
@@ -87,11 +87,26 @@ export default async function Page({ searchParams }: PageProps<"/coach/fighters"
 
 ## Design system rules
 
+- **"Fight Night" identity.** A cool light theme is the default (`--bg #EEF1F5`, navy ink `--fg #0E1A2B`, primary blue
+  `#1846C4`); dark mode is the navy "Arena night" (`#0D1626`). Brand accents are tokens too:
+  - `corner-red` is a brand accent only: the active tab underline, the active nav slash and `CornerTag`. Never use it
+    for a status; danger has its own tone.
+  - `corner-blue` equals `primary`.
+  - `belt-gold` is for `BeltProgress`; text on it is ink (`warning-solid-fg`).
+  - `rail-*` colour the light sidebar.
+  - `nav-*` is the fixed navy "stage" (landing, auth screens, the video stage): the same value in every theme.
+  - `hero-bg` is the ground of the fighter Today hero.
+  - Utilities in `globals.css`: `octagon`, `chamfer` / `chamfer-tl` / `chamfer-br` (cut corners; put them on an
+    `aria-hidden` backing layer so focus rings and shadows aren't clipped) and `cage-hatch` (faint cage mesh).
+- **Fonts.** `font-display` is Barlow Condensed. It is used for the page h1 (italic), card titles, stat numbers, tabs,
+  nav labels and eyebrows. Body text is Be Vietnam Pro (`font-sans`), mono is Geist Mono. Fonts come from `next/font`
+  in `app/layout.tsx`; only the latin subset is preloaded.
 - **Tokens only.** Use `bg-surface`, `text-fg-muted`, `border-border`, `bg-primary`, tone tokens
   (`success|warning|danger|info|ai|neutral` × `soft|fg|solid|border`) and `chart-1…8`. Never raw hex or
   Tailwind palette colours (`bg-blue-500`), never `dark:` overrides for colours.
-- **Typography.** Page title via `PageHeader` (h1). Card titles via `CardHeader` (h2). Body 14px,
-  secondary text `text-fg-muted`, tertiary `text-fg-subtle`. `tabular-nums` only in tables/axes.
+- **Typography.** One h1 per page, always from `PageHeader`: display font, italic, sentence case. It is never
+  uppercased, so screen readers read words, not letters. Card titles via `CardHeader` (h2). Body 14px, secondary text
+  `text-fg-muted`, tertiary `text-fg-subtle`. `tabular-nums` only in tables/axes.
 - **Surfaces.** Page on `bg-bg`; content in `Card` (`rounded-xl border bg-surface shadow-card`). Nested
   areas use `bg-surface-muted`. Radius: cards `rounded-xl`, controls `rounded-lg`, badges `rounded-md`.
 - **Spacing.** Page sections `gap-6`; card padding `px-5 py-4`; grids `gap-4`/`gap-6`.
@@ -109,6 +124,26 @@ export default async function Page({ searchParams }: PageProps<"/coach/fighters"
 - **Page eyebrows.** `PageHeader`'s `eyebrow` names the kind of record on detail, edit and create pages
   ("Examination", "Injury record", "Edit training plan"); role dashboards may show the date or organisation. List and
   index pages have no eyebrow — the navigation already names the section.
+- **Navigation hubs.** The sidebar lists each role's hubs, not every page (`components/layout/navigation.ts`):
+  - Fighter: Today · Training · Film · Progress · Health.
+  - Coach: Today · Roster · Training · Film room · Clearance.
+  - Doctor: Triage · Patients · Clinical · Observations.
+  - Admin keeps its sections.
+
+  A hub's sub-pages are tabs (`tabs` on the nav item, rendered by `HubTabs`; `hubForPath` and `hubTabsFor` decide the
+  active hub and tab). Add a page to an existing hub's tabs before adding a sidebar item. Account links live in the
+  avatar menu and the notification bell, not the sidebar.
+- **Today pages answer one question.** No KPI rows on role Today pages; figures live in their hub.
+  - Fighter Today: what do I do now (fight hero, readiness, this week).
+  - Coach Today: a corner queue and today's schedule.
+  - Doctor Triage: who needs me first, with recent examinations beside it.
+
+  A queue is an `AttentionList` whose items carry a `group` (and an `at` due time). It is filtered by `?queue=` through
+  `SegmentedLinks`, which hides empty groups, and the unfiltered view shows the most urgent eight. The doctor's order
+  comes from `sortTriage` (`components/medical/triage-sort.ts`): danger, warning, AI, info, then the earliest due.
+- **In-page tabs.** `Tabs` with `urlParam="tab"` records the open tab in the query string (`history.replaceState`, no
+  navigation); the page reads `?tab=` back into `defaultTab`, so reloads and shared links open the same tab. Long pages
+  (fighter Health, the doctor's fighter profile) split into tabs rather than stacking every card.
 - **Notices.** `Callout` (tone, icon, title, text, optional action) for page- or card-level notices;
   `InlineNote` for a one-sentence note inside a card, form or dialog. Don't hand-roll tinted boxes. See the
   [inventory](#shared-ui-inventory) for their current paths.
@@ -155,6 +190,10 @@ Reach for these before building anything new. Primitives in `components/ui` have
 | Card header link | `CardLink` (`components/dashboard/card-link.tsx`) |
 | Toast after a redirect | `FlashToast` (`components/medical/flash-toast.tsx`) |
 | Status badges | `StatusBadge`, the per-enum badges and `FighterStatusBadges` (health + clearance) in `domain/status-badges.tsx` |
+| Brand label, belt progress | `CornerTag` (`ui/corner-tag.tsx`; decoration only) and `BeltProgress` (`ui/belt-progress.tsx`; `role="img"`, status still needs a badge) |
+| In-page and route tabs | `Tabs` (`ui/tabs.tsx`; `urlParam` for `?tab=`), `TabNav` for sub-routes, `HubTabs` (`layout/hub-tabs.tsx`) for hub pages |
+| Prioritised to-do list | `AttentionList` (`medical/attention-list.tsx`; `group`, `at`, `empty`), built by `buildCoachAttention` / `buildTriageQueue` |
+| Feature the backend doesn't offer yet | `FeatureUnavailable` (`ui/states.tsx`), gated by `medicalFeatureAvailable()` or `adminFeatureAvailable()` |
 | Clearance validity ("Expires in 5 days") | `ClearanceValidity`, `ClearanceCell` (`domain/clearance-validity.tsx`) |
 | Check-in trends | `CheckInCharts`, `CheckInTrendTile` (`domain/check-in-charts.tsx`; colours from `CHECK_IN_COLORS`) |
 | Charts | `components/charts/*`; `BarChart` `details` adds breakdown rows to a single-series tooltip |
@@ -212,6 +251,43 @@ groups). Required fields set `required` on both the `Field` (visible star) and t
 - Medical Clearance is readable at a glance: `ClearanceBadge` + restrictions list + validity date.
   Coaches see clearance and restrictions (`medical:read_summary`) but never clinical notes.
 - Warnings are calm and specific (what, why, what to do) — no alarmist language.
+
+### Medical service (API mode)
+
+- The NestJS medical service has its own vocabulary: examination decisions per scope, clearances issued from an
+  examination, allow-list restrictions, 13 joints, flat recovery milestones and review requests.
+  - `lib/domain/medical-contract.ts` holds its types and labels.
+  - `medical-mappings.ts` translates them to the frontend domain.
+  - `medical-bodies.ts` builds request bodies (pure, tested).
+- The clearance state comes from the service's `eligibility` verdict (`clearanceStateFromEligibility`). The frontend
+  never picks a governing clearance itself. A pending review request pauses training even while the clearance stands;
+  `ClearanceCard pausedForReview` says so.
+- `usesMedicalServiceForms()` picks the doctor's forms: the service's forms in API mode, the richer demo forms in demo
+  mode. Features the service doesn't offer (medical record, vitals, follow-ups, AI observations, check-ins, treatment
+  status) are demo-only: `medicalFeatureAvailable()` hides them in API mode and shows `FeatureUnavailable`, never mock
+  data.
+- Writes are never retried: a create that timed out may already be saved. Map failures with `medicalWriteFailure()`
+  (`services/medical-errors.ts`):
+  - 422 lands on the form field.
+  - 403 means the doctor is no longer assigned.
+  - 404 and 409 get a message per code.
+  - 5xx and timeouts say "may not have been saved, reload first".
+- Review requests: fighters ask for themselves, coaches and doctors for assigned fighters. A coach never sees what a
+  fighter wrote to the doctor, only that a review was requested.
+
+### User accounts (API mode)
+
+- `GET /users` pages by number (`{ items, total, page, limit }`); `drainNumberedPages` reads it like the other
+  numbered lists. Self-registered applicants (`GUEST`) belong to fighter admissions and are left out of the list.
+- Status comes from the account: active unless `isActive` is false or `deletedAt` is set, which shows as
+  suspended. The status filter sends `ACTIVE` / `INACTIVE`; the service has no invitations.
+- The service keeps no phone, job title, last sign-in, coach certifications or experience. `adaptBackendUser` leaves
+  them null or empty (a job title falls back to the profile's specialisation) and the pages leave them out.
+- `GET /users/:id` reads active accounts only, so suspended rows aren't linked. A coach's or doctor's linked profile
+  comes from the account itself (`getApiUserWithProfile`), with the fighters they hold from current assignments.
+- Inviting, editing, suspending, reactivating, resending an invitation, an account's activity and role permissions
+  are demo-only: `adminFeatureAvailable()` (`services/admin-features.ts`) hides them and the server actions refuse
+  with "not available yet".
 
 ## Accessibility checklist
 

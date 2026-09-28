@@ -1,5 +1,5 @@
-import { DashboardSkeleton } from "@/components/ui/skeleton";
+import { QueueSkeleton } from "@/components/ui/skeleton";
 
 export default function CoachDashboardLoading() {
-    return <DashboardSkeleton label="Loading coach dashboard" eyebrow />;
+    return <QueueSkeleton label="Loading today" />;
 }

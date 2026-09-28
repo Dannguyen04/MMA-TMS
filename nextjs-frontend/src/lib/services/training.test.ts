@@ -100,7 +100,8 @@ describe("training API adapter", () => {
     it("checks clearance conflicts through the demo service in demo mode only", async () => {
         const planned = { fighterId: "fighter-1", type: "sparring" as const, targetRpe: 8, exercises: [], scheduledAt: "2026-09-10T10:00:00.000Z" };
 
-        await expect(loadSessionClearanceConflicts(planned)).rejects.toMatchObject({ status: 501, code: "API_OPERATION_UNSUPPORTED" });
+        // The API has no preview; it enforces medical eligibility when a session starts, so nothing shows ahead of time.
+        await expect(loadSessionClearanceConflicts(planned)).resolves.toEqual([]);
 
         vi.stubEnv("APP_DATA_MODE", "demo");
         await expect(loadSessionClearanceConflicts(planned)).resolves.toBeInstanceOf(Array);
@@ -117,6 +118,23 @@ describe("training API adapter", () => {
             expect.stringContaining("status=SKIPPED"),
             expect.anything(),
         );
+    });
+
+    it("reads a session the API returns without target intensity, exercises, videos or a coach rating", async () => {
+        const current: Record<string, unknown> = { ...backendSession("COMPLETED"), coachId: null };
+        for (const missing of ["targetRpe", "exercises", "videoIds", "coachRating", "resultSummary"]) delete current[missing];
+        authenticatedApiRequest.mockResolvedValue({ data: [current], total: 1, hasNextPage: false });
+
+        await expect(listSessions({ fighterIds: ["fighter-1"] })).resolves.toEqual([
+            expect.objectContaining({
+                coachId: null,
+                durationMin: 60,
+                targetRpe: null,
+                exercises: [],
+                videoIds: [],
+                result: { completedAt: "2026-09-10T11:00:00.000Z", actualDurationMin: 55, rpe: 7, roundsCompleted: 6, coachRating: null, summary: "" },
+            }),
+        ]);
     });
 
     it("maps archived plan transitions through the existing CANCELLED backend state", async () => {

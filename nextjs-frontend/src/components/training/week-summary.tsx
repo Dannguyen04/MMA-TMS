@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import type { TrainingSession } from "@/lib/domain/types";
 import { formatMinutes } from "@/lib/format";
 import { sum } from "@/lib/utils";
-import { rpeLabel } from "./training-utils";
+import { rpeLabel, sessionMinutes } from "./training-utils";
 
 export interface WeekSummaryProps {
     sessions: TrainingSession[];
@@ -20,8 +20,8 @@ export function WeekSummary({ sessions, title = "Week at a glance", description,
     const planned = sessions.filter((s) => s.status !== "cancelled");
     const completed = planned.filter((s) => s.status === "completed");
     const cancelled = sessions.length - planned.length;
-    const minutes = sum(planned.map((s) => s.result?.actualDurationMin ?? s.durationMin));
-    const peak = planned.reduce((max, s) => Math.max(max, s.targetRpe), 0);
+    const minutes = sum(planned.map(sessionMinutes));
+    const peak = planned.reduce((max, s) => Math.max(max, s.targetRpe ?? 0), 0);
 
     return (
         <Card>

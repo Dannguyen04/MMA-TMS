@@ -14,6 +14,16 @@ export interface TabNavItem {
     exact?: boolean;
 }
 
+/** A tab's label with an optional count chip, e.g. "Examinations 8". */
+export function TabLabel({ label, count }: { label: ReactNode; count?: number }) {
+    return (
+        <>
+            {label}
+            {count !== undefined && <span className="rounded-full bg-surface-hover px-1.5 text-[11px] leading-5 text-fg-muted tabular-nums">{count}</span>}
+        </>
+    );
+}
+
 /** Route-based tabs for sub-pages (e.g. a fighter profile). Uses aria-current, not the tab role. */
 export function TabNav({ items, label, className }: { items: TabNavItem[]; label: string; className?: string }) {
     const pathname = usePathname();
@@ -28,17 +38,12 @@ export function TabNav({ items, label, className }: { items: TabNavItem[]; label
                                 href={item.href}
                                 aria-current={active ? "page" : undefined}
                                 className={cn(
-                                    "relative inline-flex h-10 items-center gap-2 px-3 text-sm font-medium transition-colors",
-                                    "after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full",
-                                    active ? "text-fg after:bg-primary" : "text-fg-muted hover:text-fg",
+                                    "relative inline-flex h-10 items-center gap-2 px-3 font-display text-[16px] font-semibold tracking-[0.01em] transition-colors",
+                                    "after:absolute after:inset-x-2 after:-bottom-px after:h-[3px] after:-skew-x-12",
+                                    active ? "text-fg after:bg-corner-red" : "text-fg-muted hover:text-fg",
                                 )}
                             >
-                                {item.label}
-                                {item.count !== undefined && (
-                                    <span className="rounded-full bg-surface-hover px-1.5 text-[11px] leading-5 text-fg-muted tabular-nums">
-                                        {item.count}
-                                    </span>
-                                )}
+                                <TabLabel label={item.label} count={item.count} />
                             </Link>
                         </li>
                     );
@@ -54,11 +59,24 @@ export interface TabItem {
     content: ReactNode;
 }
 
+/**
+ * Writes the selected tab to the query string without a navigation, so a reload or a shared link opens the same tab.
+ * The first tab is the default and leaves the parameter out.
+ */
+function syncTabParam(param: string, id: string, isDefault: boolean) {
+    const params = new URLSearchParams(window.location.search);
+    if (isDefault) params.delete(param);
+    else params.set(param, id);
+    const query = params.toString();
+    window.history.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`);
+}
+
 /** In-page tabs with the WAI-ARIA tabs pattern (arrow keys move between tabs). */
 export function Tabs({
     items,
     defaultTab,
     label,
+    urlParam,
     className,
     listClassName,
     onChange,
@@ -66,6 +84,8 @@ export function Tabs({
     items: TabItem[];
     defaultTab?: string;
     label: string;
+    /** Query parameter that records the selected tab (e.g. "tab"); the page reads it back into `defaultTab`. */
+    urlParam?: string;
     className?: string;
     listClassName?: string;
     onChange?: (id: string) => void;
@@ -79,6 +99,7 @@ export function Tabs({
         if (!item) return;
         setActive(item.id);
         onChange?.(item.id);
+        if (urlParam) syncTabParam(urlParam, item.id, index === 0);
         refs.current[index]?.focus();
     };
 
@@ -112,9 +133,9 @@ export function Tabs({
                             onClick={() => select(index)}
                             onKeyDown={(event) => onKeyDown(event, index)}
                             className={cn(
-                                "relative inline-flex h-10 shrink-0 items-center gap-2 px-3 text-sm font-medium whitespace-nowrap transition-colors",
-                                "after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full",
-                                selected ? "text-fg after:bg-primary" : "text-fg-muted hover:text-fg",
+                                "relative inline-flex h-10 shrink-0 items-center gap-2 px-3 font-display text-[16px] font-semibold tracking-[0.01em] whitespace-nowrap transition-colors",
+                                "after:absolute after:inset-x-2 after:-bottom-px after:h-[3px] after:-skew-x-12",
+                                selected ? "text-fg after:bg-corner-red" : "text-fg-muted hover:text-fg",
                             )}
                         >
                             {item.label}

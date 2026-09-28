@@ -62,7 +62,7 @@ export function Tooltip({ content, children, side = "top", className }: TooltipP
                 hidden={!open}
                 className={cn("absolute left-1/2 z-50 w-max max-w-64 -translate-x-1/2", side === "top" ? "bottom-full pb-1.5" : "top-full pt-1.5")}
             >
-                <span className="block rounded-md bg-nav-bg px-2 py-1 text-xs font-medium text-white shadow-popover">{content}</span>
+                <span className="block rounded-md bg-fg px-2 py-1 text-xs font-medium text-fg-inverse shadow-popover">{content}</span>
             </span>
         </span>
     );

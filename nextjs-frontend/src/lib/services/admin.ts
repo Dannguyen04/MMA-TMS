@@ -4,50 +4,30 @@ import { z } from "zod";
 
 import { isDemoAuthEnabled } from "@/lib/auth/constants";
 import { ApiError, authenticatedApiRequest, authenticatedMutableApiRequest, drainAuthenticatedCursorPages } from "@/lib/api/client";
-import type {
-    AuditLog,
-    BroadcastChannel,
-    Coach,
-    Doctor,
-    Fighter,
-    NotificationBroadcast,
-    Permission,
-    Role,
-    RoleDefinition,
-    SystemSettings,
-    User,
-    UserStatus,
+import {
+    PERMISSIONS,
+    type AuditLog,
+    type BroadcastChannel,
+    type Coach,
+    type Doctor,
+    type Fighter,
+    type NotificationBroadcast,
+    type Permission,
+    type Role,
+    type RoleDefinition,
+    type SystemSettings,
+    type User,
+    type UserStatus,
 } from "@/lib/domain/types";
-import { isNotFound } from "./api-helpers";
+import { adminFeatureAvailable } from "./admin-features";
+import { drainNumberedPages, isNotFound, nullIfNotFound } from "./api-helpers";
 import { adaptBackendAuditLog, backendAuditLogSchema, listAuditLogs } from "./audit";
-import { adaptBackendUser, backendUserSchema, getDoctor, getFighter, getUser, listCoaches } from "./people";
+import { adaptBackendUser, backendUserSchema, getApiUserWithProfile } from "./people";
 
 type Failure<Code extends string> = { ok: false; code: Code; message: string };
 
 const roleSchema = z.enum(["FIGHTER", "COACH", "DOCTOR", "ADMIN"]);
-const permissionSchema = z.enum([
-    "fighters:read",
-    "fighters:write",
-    "training:read",
-    "training:write",
-    "videos:upload",
-    "videos:manage",
-    "ai_analysis:read",
-    "ai_findings:review",
-    "ai_alerts:review",
-    "goals:write",
-    "medical:read_summary",
-    "medical:read",
-    "medical:write",
-    "clearance:manage",
-    "users:manage",
-    "roles:manage",
-    "ai_jobs:manage",
-    "ai_models:manage",
-    "audit_logs:read",
-    "notifications:manage",
-    "settings:manage",
-]);
+const permissionSchema = z.enum(PERMISSIONS);
 const backendRoleDefinitionSchema = z.object({
     role: roleSchema,
     label: z.string(),
@@ -200,27 +180,31 @@ export interface PermissionCatalogEntry {
     group: string;
 }
 
+/**
+ * `GET /users` lists self-registered applicants (`GUEST`) too. They belong to fighter admissions, not to the
+ * staff and fighter accounts managed here, so the list drops them.
+ */
+const listedUserSchema = backendUserSchema.extend({ role: z.enum([...roleSchema.options, "GUEST"]) });
+
+/** The service's account status: `INACTIVE` covers deactivated and deleted accounts. It has no invitations. */
+const statusToApi: Record<UserStatus, "ACTIVE" | "INACTIVE" | null> = { active: "ACTIVE", suspended: "INACTIVE", invited: null };
+
 export async function listUsers(filter: UserFilter = {}): Promise<User[]> {
     if (isDemoAuthEnabled()) return (await demoService()).listUsers(filter);
-    const params = new URLSearchParams();
-    if (filter.search) params.set("search", filter.search);
-    if (filter.role) params.set("role", roleToApi[filter.role]);
-    if (filter.status) params.set("status", filter.status.toUpperCase());
-    const query = params.toString();
-    return (await drainAuthenticatedCursorPages(`/users${query ? `?${query}` : ""}`, backendUserSchema)).map(adaptBackendUser);
+    const status = filter.status ? statusToApi[filter.status] : undefined;
+    if (status === null) return [];
+    const users = await drainNumberedPages("/users", listedUserSchema, { search: filter.search, role: filter.role && roleToApi[filter.role], status });
+    return users.flatMap((user) => (user.role === "GUEST" ? [] : [adaptBackendUser({ ...user, role: user.role })]));
 }
 
 export async function getUserDetail(id: string, viewer?: User | null): Promise<UserDetail | null> {
     if (isDemoAuthEnabled()) return (await demoService()).getUserDetail(id, viewer);
-    const user = await getUser(id);
-    if (!user) return null;
-    let profile: Fighter | Coach | Doctor | null = null;
-    if (user.profileId && user.role === "fighter") profile = await getFighter(user.profileId);
-    if (user.profileId && user.role === "coach") profile = (await listCoaches()).find((coach) => coach.id === user.profileId) ?? null;
-    if (user.profileId && user.role === "doctor") profile = await getDoctor(user.profileId);
+    const account = await getApiUserWithProfile(id);
+    if (!account) return null;
+    const { user, profile } = account;
     const [recentAudit, roles] = await Promise.all([
-        listAuditLogs({ actorId: user.id }, viewer).then((logs) => logs.slice(0, 10)),
-        listRoleDefinitions(),
+        adminFeatureAvailable("auditTrail") ? listAuditLogs({ actorId: user.id }, viewer).then((logs) => logs.slice(0, 10)) : [],
+        adminFeatureAvailable("rolePermissions") ? listRoleDefinitions() : [],
     ]);
     return { user, profile, recentAudit, permissions: roles.find((definition) => definition.role === user.role)?.permissions ?? [] };
 }
@@ -325,9 +309,28 @@ export async function updateRolePermissions(
     }
 }
 
+/**
+ * Settings the interface runs with while the backend has no settings endpoint: `GET /settings` answers 404 today.
+ * These are configuration defaults, not user data.
+ */
+export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
+    organizationName: "MMA-TMS",
+    timezone: "Asia/Ho_Chi_Minh",
+    sessionTimeoutMin: 480,
+    requireMfa: false,
+    videoMaxSizeMb: 500,
+    videoRetentionDays: 365,
+    allowedVideoFormats: ["mp4", "mov", "webm"],
+    aiConfidenceThreshold: 0.35,
+    aiLowConfidenceThreshold: 0.6,
+    abnormalMovementAlertsEnabled: true,
+    notifyDoctorOnAlert: true,
+    clearanceExpiryWarningDays: 14,
+};
+
 export async function getSettings(): Promise<SystemSettings> {
     if (isDemoAuthEnabled()) return (await demoService()).getSettings();
-    return authenticatedApiRequest("/settings", settingsSchema);
+    return (await nullIfNotFound(authenticatedApiRequest("/settings", settingsSchema))) ?? DEFAULT_SYSTEM_SETTINGS;
 }
 
 export async function updateSettings(patch: Partial<SystemSettings>, actor: User): Promise<UpdateSettingsResult> {

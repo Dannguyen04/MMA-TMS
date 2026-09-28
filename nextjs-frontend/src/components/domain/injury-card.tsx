@@ -1,12 +1,13 @@
 import Link from "next/link";
 
 import { DescriptionList, type DescriptionItem } from "@/components/ui/description-list";
-import { BODY_REGION_LABELS, INJURY_MECHANISM_LABELS, INJURY_TYPE_LABELS } from "@/lib/domain/labels";
+import { BODY_REGION_LABELS, INJURY_MECHANISM_LABELS, injuryTypeName } from "@/lib/domain/labels";
 import type { Injury } from "@/lib/domain/types";
 import { daysBetween, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { describeDaysUntil } from "./domain-format";
 import { InjurySeverityBadge, InjuryStatusBadge } from "./status-badges";
+import { labelOf, NOT_RECORDED } from "@/components/domain/domain-format";
 
 export interface InjuryCardProps {
     injury: Injury;
@@ -21,14 +22,21 @@ export interface InjuryCardProps {
 /** Injury summary: what and where, severity + status, key dates and mechanism. */
 export function InjuryCard({ injury, now, href, headingLevel = 3, className }: InjuryCardProps) {
     const Heading = headingLevel === 2 ? "h2" : "h3";
-    const title = `${INJURY_TYPE_LABELS[injury.type]} — ${BODY_REGION_LABELS[injury.bodyRegion]}`;
+    const title = `${injuryTypeName(injury)} — ${BODY_REGION_LABELS[injury.bodyRegion]}`;
 
-    const items: DescriptionItem[] = [
-        { label: "Occurred", value: <time dateTime={injury.occurredAt}>{formatDate(injury.occurredAt)}</time> },
-        { label: "Diagnosed", value: <time dateTime={injury.diagnosedAt}>{formatDate(injury.diagnosedAt)}</time> },
-        { label: "Mechanism", value: INJURY_MECHANISM_LABELS[injury.mechanism] },
-        { label: injury.resolvedAt ? "Resolved" : "Expected return", value: <ReturnValue injury={injury} now={now} /> },
-    ];
+    // The medical service records the joint but no diagnosis date, mechanism or expected return: show only what it keeps.
+    const serviceRecord = injury.joint !== undefined;
+    const items: DescriptionItem[] = serviceRecord
+        ? [
+              { label: "Occurred", value: <time dateTime={injury.occurredAt}>{formatDate(injury.occurredAt)}</time> },
+              ...(injury.resolvedAt ? [{ label: "Resolved", value: <time dateTime={injury.resolvedAt}>{formatDate(injury.resolvedAt)}</time> }] : []),
+          ]
+        : [
+              { label: "Occurred", value: <time dateTime={injury.occurredAt}>{formatDate(injury.occurredAt)}</time> },
+              { label: "Diagnosed", value: injury.diagnosedAt ? <time dateTime={injury.diagnosedAt}>{formatDate(injury.diagnosedAt)}</time> : NOT_RECORDED },
+              { label: "Mechanism", value: labelOf(INJURY_MECHANISM_LABELS, injury.mechanism) ?? NOT_RECORDED },
+              { label: injury.resolvedAt ? "Resolved" : "Expected return", value: <ReturnValue injury={injury} now={now} /> },
+          ];
 
     return (
         <article

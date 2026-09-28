@@ -6,7 +6,9 @@ import { routes } from "@/lib/routes";
  */
 export const clinicalLinks = {
     newRecoveryPlan: `${routes.doctor.recovery}/new`,
-    newRecoveryPlanFor: (injuryId: string) => `${routes.doctor.recovery}/new?injury=${encodeURIComponent(injuryId)}`,
+    /** The fighter id lets the form read just that fighter's record. */
+    newRecoveryPlanFor: (injuryId: string, fighterId?: string) =>
+        `${routes.doctor.recovery}/new?injury=${encodeURIComponent(injuryId)}${fighterId ? `&fighter=${encodeURIComponent(fighterId)}` : ""}`,
     newInjuryFor: ({ fighterId, alertId }: { fighterId?: string; alertId?: string }) => {
         const params = new URLSearchParams();
         if (fighterId) params.set("fighter", fighterId);

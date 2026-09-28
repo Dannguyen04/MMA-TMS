@@ -1,4 +1,4 @@
-import { CalendarCheck2, ChartLine, Clock, Gauge, SearchX, Target, TrendingUp, Users } from "lucide-react";
+import { CalendarCheck2, ChartLine, Clock, Gauge, SearchX, TrendingUp, Users } from "lucide-react";
 import type { Metadata } from "next";
 
 import { scopedFighterIds } from "@/components/dashboard/roster-data";
@@ -129,12 +129,6 @@ export default async function CoachPerformancePage({ searchParams }: PageProps<"
                             <ScoreInfo />
                         </span>
                     </>
-                }
-                actions={
-                    <ButtonLink href={routes.coach.goals} variant="secondary">
-                        <Target aria-hidden />
-                        Goals
-                    </ButtonLink>
                 }
             />
 

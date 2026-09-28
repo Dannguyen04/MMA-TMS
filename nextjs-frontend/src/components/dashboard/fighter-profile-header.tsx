@@ -2,14 +2,14 @@ import { ChevronLeft, Trophy } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { describeDaysUntil } from "@/components/domain/domain-format";
+import { describeDaysUntil, labelOf, presentFacts } from "@/components/domain/domain-format";
 import { FighterStatusBadges } from "@/components/domain/status-badges";
 import { Avatar } from "@/components/ui/avatar";
 import { STANCE_LABELS, TRAINING_LEVEL_LABELS, WEIGHT_CLASS_LABELS } from "@/lib/domain/labels";
 import type { ClearanceState } from "@/lib/domain/rules";
 import type { Fighter } from "@/lib/domain/types";
 import { daysBetween, formatDate } from "@/lib/format";
-import { recordText } from "./dashboard-utils";
+import { recordSpoken, recordText } from "./dashboard-utils";
 
 export interface FighterProfileHeaderProps {
     fighter: Fighter;
@@ -29,12 +29,15 @@ export interface FighterProfileHeaderProps {
 /** Page header for a fighter profile: octagon avatar, name as the page h1, key facts, status and the next bout. */
 export function FighterProfileHeader({ fighter, clearanceState, back, actions, now, eyebrow = "Fighter profile", facts, meta }: FighterProfileHeaderProps) {
     const bout = fighter.upcomingBout;
-    const factList = facts ?? [
-        fighter.primaryDiscipline,
-        WEIGHT_CLASS_LABELS[fighter.weightClass],
-        STANCE_LABELS[fighter.stance],
-        TRAINING_LEVEL_LABELS[fighter.level],
-    ];
+    const factList =
+        facts ??
+        presentFacts(
+            fighter.primaryDiscipline,
+            WEIGHT_CLASS_LABELS[fighter.weightClass],
+            labelOf(STANCE_LABELS, fighter.stance),
+            labelOf(TRAINING_LEVEL_LABELS, fighter.level),
+        );
+    const record = recordText(fighter);
 
     return (
         <header className="mb-6 flex flex-col gap-4">
@@ -52,13 +55,16 @@ export function FighterProfileHeader({ fighter, clearanceState, back, actions, n
                             {fighter.nickname && <span className="ml-2 text-lg font-normal tracking-normal text-fg-muted">“{fighter.nickname}”</span>}
                         </h1>
                         <p className="mt-1 text-[15px] text-pretty text-fg-muted">
-                            {factList.join(" · ")} ·{" "}
-                            <span className="font-medium text-fg" aria-hidden>
-                                {recordText(fighter)}
-                            </span>
-                            <span className="sr-only">
-                                Record {fighter.record.wins} wins, {fighter.record.losses} losses, {fighter.record.draws} draws
-                            </span>
+                            {factList.join(" · ")}
+                            {record && (
+                                <>
+                                    {" · "}
+                                    <span className="font-medium text-fg" aria-hidden>
+                                        {record}
+                                    </span>
+                                    <span className="sr-only">{recordSpoken(fighter)}</span>
+                                </>
+                            )}
                         </p>
                         <div className="mt-3 flex flex-wrap items-center gap-2">
                             <FighterStatusBadges healthStatus={fighter.healthStatus} clearanceState={clearanceState} />

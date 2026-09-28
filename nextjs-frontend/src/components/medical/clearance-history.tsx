@@ -7,7 +7,7 @@ import { RestrictionList } from "@/components/domain/restriction-list";
 import { CLEARANCE_STATE_META, ClearanceBadge } from "@/components/domain/status-badges";
 import { EmptyState } from "@/components/ui/states";
 import { TONE_SOFT } from "@/components/ui/tone";
-import { EXAMINATION_TYPE_LABELS } from "@/lib/domain/labels";
+import { examinationTitle } from "@/lib/domain/labels";
 import { clearanceState } from "@/lib/domain/rules";
 import type { ClearanceStatus, MedicalClearance, MedicalExamination } from "@/lib/domain/types";
 import { formatDate, formatDateTime } from "@/lib/format";
@@ -122,7 +122,7 @@ export function ClearanceHistory({ clearances, examinationsById, doctorNames, no
                                     <Stethoscope aria-hidden className="size-3.5 shrink-0" />
                                     Based on{" "}
                                     <Link href={routes.doctor.examination(examination.id)} className="rounded-sm font-medium text-primary-soft-fg hover:underline">
-                                        {EXAMINATION_TYPE_LABELS[examination.type].toLowerCase()} on {formatDate(examination.date)}
+                                        {examinationTitle(examination).toLowerCase()} on {formatDate(examination.date)}
                                     </Link>
                                 </p>
                             )}

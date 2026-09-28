@@ -1,7 +1,7 @@
 import { ClearanceCell } from "@/components/domain/clearance-validity";
 import { FighterIdentity } from "@/components/domain/fighter-identity";
 import { HealthStatusBadge } from "@/components/domain/status-badges";
-import { EXAMINATION_TYPE_LABELS } from "@/lib/domain/labels";
+import { examinationTitle } from "@/lib/domain/labels";
 import { formatDate } from "@/lib/format";
 import type { FighterHealthSummary } from "@/lib/services/medical";
 import { cn } from "@/lib/utils";
@@ -52,7 +52,7 @@ export function PatientCard({ summary, href, now, warningDays, className }: Pati
                                 <time dateTime={latestExamination.date} className="text-fg">
                                     {formatDate(latestExamination.date)}
                                 </time>
-                                <span className="text-fg-muted">{EXAMINATION_TYPE_LABELS[latestExamination.type]}</span>
+                                <span className="text-fg-muted">{examinationTitle(latestExamination)}</span>
                             </span>
                         ) : (
                             <span className="text-fg-muted">None recorded</span>

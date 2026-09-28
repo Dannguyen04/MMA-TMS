@@ -11,6 +11,7 @@ vi.mock("@/lib/api/client", async (loadOriginal) => ({
     drainAuthenticatedCursorPages,
 }));
 
+import { ApiError } from "@/lib/api/client";
 import { getNotificationSummary, listNotifications, markAllNotificationsRead } from "./notifications";
 
 const backendNotification = {
@@ -64,5 +65,14 @@ describe("notifications API adapter", () => {
             expect.anything(),
             { method: "POST" },
         );
+    });
+
+    it("hien chuong rong khi backend chua co endpoint thong bao", async () => {
+        const notFound = new ApiError({ message: "Not Found", kind: "http", status: 404, code: "NOT_FOUND" });
+        authenticatedApiRequest.mockRejectedValue(notFound);
+        drainAuthenticatedCursorPages.mockRejectedValue(notFound);
+
+        await expect(getNotificationSummary("user-1")).resolves.toEqual({ unread: 0, latest: [] });
+        await expect(listNotifications("user-1")).resolves.toEqual([]);
     });
 });

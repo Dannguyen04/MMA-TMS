@@ -14,6 +14,9 @@ export interface ActionState<T = undefined> {
 
 export const IDLE: ActionState = { status: "idle" };
 
+/** Form-level message when individual fields carry the errors. */
+export const FIX_FIELDS = "Please fix the highlighted fields.";
+
 export function actionError(message: string, fieldErrors?: Record<string, string>): ActionState<never> {
     return { status: "error", message, fieldErrors };
 }
@@ -28,5 +31,5 @@ export function validationError(error: ZodError): ActionState<never> {
         const key = issue.path.join(".");
         if (key && !fieldErrors[key]) fieldErrors[key] = issue.message;
     }
-    return { status: "error", message: "Please fix the highlighted fields.", fieldErrors };
+    return { status: "error", message: FIX_FIELDS, fieldErrors };
 }
