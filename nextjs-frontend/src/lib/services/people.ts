@@ -187,11 +187,6 @@ function unsupported(message: string, details?: unknown): never {
     throw new ApiError({ message, kind: "invalid_response", code: "PEOPLE_API_CONTRACT_UNSUPPORTED", details });
 }
 
-function requirePresent<T>(value: T | undefined | null, field: string): T {
-    if (value === undefined || value === null) unsupported(`The people API does not provide the required ${field} field.`, { field });
-    return value;
-}
-
 /** Chuyển giá trị enum viết hoa của backend sang mô hình giao diện viết thường. Missing profile fields stay null. */
 export function adaptBackendFighter(input: BackendFighter): Fighter {
     const weightClass = input.weightClass.toLowerCase() as WeightClass;
@@ -225,21 +220,23 @@ export function adaptBackendFighter(input: BackendFighter): Fighter {
     };
 }
 
+/**
+ * The user service keeps no phone, job title, invitation state or last sign-in: those stay null or empty
+ * instead of being made up. Status follows the account: active unless deactivated or deleted. A job
+ * title falls back to the profile's specialisation, as the signed-in user's does.
+ */
 export function adaptBackendUser(input: BackendUser): User {
-    const phone = input.phone === undefined ? unsupported("The user API does not provide the required phone field.", { field: "phone" }) : input.phone;
-    const status = requirePresent(input.status, "status");
-    const lastActiveAt = input.lastActiveAt === undefined ? unsupported("The user API does not provide lastActiveAt.", { field: "lastActiveAt" }) : input.lastActiveAt;
-    const title = requirePresent(input.title, "title");
+    const status = input.status ?? (input.isActive && !input.deletedAt ? "ACTIVE" : "SUSPENDED");
     return {
         id: input.id,
         email: input.email,
         name: input.displayName || (input.profile ? `${input.profile.firstName} ${input.profile.lastName}`.trim() : input.email),
         role: input.role.toLowerCase() as User["role"],
-        title,
-        phone,
+        title: input.title ?? input.profile?.specialization ?? "",
+        phone: input.phone ?? null,
         status: status.toLowerCase() as User["status"],
         createdAt: input.createdAt,
-        lastActiveAt,
+        lastActiveAt: input.lastActiveAt ?? null,
         profileId: input.profile?.id ?? null,
         effectiveCapabilities: input.effectiveCapabilities as User["effectiveCapabilities"],
         assignmentScope: input.assignmentScope,
@@ -438,10 +435,43 @@ export async function doctorsForFighter(fighterId: string): Promise<Doctor[]> {
     return [...groupBy(current, (a) => a.doctorId)].map(([id, list]) => doctorFromAssignments(id, list)).sort(byName);
 }
 
+/** `GET /users/:id`. The service reads active accounts only: a deactivated or deleted one is null. */
+function readApiUser(id: string) {
+    return nullIfNotFound(authenticatedApiRequest(`/users/${encodeURIComponent(id)}`, backendUserSchema));
+}
+
 export async function getUser(id: string): Promise<User | null> {
     if (isDemoAuthEnabled()) return (await demoDb()).users.find((user) => user.id === id) ?? null;
-    const user = await nullIfNotFound(authenticatedApiRequest(`/users/${encodeURIComponent(id)}`, backendUserSchema));
+    const user = await readApiUser(id);
     return user && adaptBackendUser(user);
+}
+
+/**
+ * An account and its linked profile, in API mode. A fighter profile is read from the fighter service. Coaches and
+ * doctors come from the profile embedded in the account, with the fighters they currently hold from the assignments
+ * the caller can see; the service keeps no certifications or years of experience.
+ */
+export async function getApiUserWithProfile(id: string): Promise<{ user: User; profile: Fighter | Coach | Doctor | null } | null> {
+    const record = await readApiUser(id);
+    if (!record) return null;
+    const user = adaptBackendUser(record);
+    const linked = record.profile;
+    if (!linked) return { user, profile: null };
+    const staff = { id: linked.id, userId: user.id, name: user.name, specialty: linked.specialization ?? "" };
+    switch (user.role) {
+        case "fighter":
+            return { user, profile: await getFighter(linked.id) };
+        case "coach": {
+            const current = (await listCoaches()).find((coach) => coach.id === linked.id);
+            return { user, profile: { ...staff, certifications: [], yearsExperience: null, fighterIds: current?.fighterIds ?? [] } };
+        }
+        case "doctor": {
+            const current = (await listDoctors()).find((doctor) => doctor.id === linked.id);
+            return { user, profile: { ...staff, licenseNumber: linked.licenseNumber ?? null, fighterIds: current?.fighterIds ?? [] } };
+        }
+        default:
+            return { user, profile: null };
+    }
 }
 
 export async function updateOwnProfile(userId: string, patch: OwnProfilePatch, actor: User): Promise<UpdateOwnProfileResult> {

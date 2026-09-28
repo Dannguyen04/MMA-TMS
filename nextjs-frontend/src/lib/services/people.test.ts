@@ -14,11 +14,15 @@ vi.mock("@/lib/auth/session", async (loadOriginal) => {
     return { ...original, getCurrentUser };
 });
 
+import { ApiError } from "@/lib/api/client";
 import type { User } from "@/lib/domain/types";
 import {
     adaptBackendFighter,
+    adaptBackendUser,
     backendFighterSchema,
+    backendUserSchema,
     doctorsForFighter,
+    getApiUserWithProfile,
     listCoaches,
     listFighters,
     updateOwnProfile,
@@ -61,6 +65,19 @@ const backendFighter = {
         opponent: "B. Tran",
         weightClass: "LIGHTWEIGHT" as const,
     },
+};
+
+/** An account as `GET /users` and `GET /users/:id` return it (the service's `publicUserSchema`). */
+const doctorUserId = "88888888-8888-4888-8888-888888888888";
+const backendAccount = {
+    id: doctorUserId,
+    email: "thu.le@example.test",
+    role: "DOCTOR" as const,
+    isActive: true,
+    createdAt: "2026-02-01T00:00:00.000Z",
+    updatedAt: "2026-02-03T00:00:00.000Z",
+    deletedAt: null,
+    profile: { id: doctorId, firstName: "Thu", lastName: "Le", licenseNumber: "VN-SM-2231", specialization: "Sports medicine", profileImageUrl: null },
 };
 
 const viewer: User = {
@@ -198,6 +215,69 @@ describe("people API adapter", () => {
             method: "PATCH",
             body: JSON.stringify({ displayName: "An Updated", phone: "+84 912 345 678" }),
         });
+    });
+
+    it("adapts a service account without inventing the fields the service doesn't keep", () => {
+        expect(adaptBackendUser(backendUserSchema.parse(backendAccount))).toEqual({
+            id: doctorUserId,
+            email: "thu.le@example.test",
+            name: "Thu Le",
+            role: "doctor",
+            title: "Sports medicine",
+            phone: null,
+            status: "active",
+            createdAt: "2026-02-01T00:00:00.000Z",
+            lastActiveAt: null,
+            profileId: doctorId,
+            effectiveCapabilities: undefined,
+            assignmentScope: undefined,
+        });
+    });
+
+    it("treats deactivated and deleted accounts as suspended, and an account without a profile by its email", () => {
+        const admin = { ...backendAccount, role: "ADMIN" as const, profile: null };
+        expect(adaptBackendUser(backendUserSchema.parse({ ...admin, isActive: false }))).toMatchObject({ status: "suspended", name: "thu.le@example.test", title: "", profileId: null });
+        expect(adaptBackendUser(backendUserSchema.parse({ ...admin, deletedAt: "2026-03-01T00:00:00.000Z" }))).toMatchObject({ status: "suspended" });
+    });
+
+    it("builds a doctor's linked profile from the account and the fighters currently assigned", async () => {
+        getCurrentUser.mockResolvedValue({ ...viewer, role: "doctor", effectiveCapabilities: ["fighters:read"], assignmentScope: { fighterIds: [fighterId] } });
+        authenticatedApiRequest.mockImplementation(async (path: string) => {
+            if (path === `/users/${doctorUserId}`) return backendAccount;
+            if (path === `/fighters/${fighterId}/coaches`) return [];
+            if (path.startsWith(`/fighters/${fighterId}/doctors`)) {
+                return {
+                    data: [
+                        {
+                            id: "55555555-5555-4555-8555-555555555555",
+                            doctorId,
+                            fighterId,
+                            assignedById: userId,
+                            startsAt: "2026-01-01T00:00:00.000Z",
+                            endsAt: null,
+                            endedById: null,
+                            endReason: null,
+                            createdAt: "2026-01-01T00:00:00.000Z",
+                            doctorName: "Thu Le",
+                        },
+                    ],
+                    total: 1,
+                    hasNextPage: false,
+                };
+            }
+            return { data: [], total: 0, hasNextPage: false };
+        });
+
+        await expect(getApiUserWithProfile(doctorUserId)).resolves.toMatchObject({
+            user: { name: "Thu Le", role: "doctor" },
+            profile: { id: doctorId, userId: doctorUserId, name: "Thu Le", specialty: "Sports medicine", licenseNumber: "VN-SM-2231", fighterIds: [fighterId] },
+        });
+    });
+
+    it("reads a deactivated account as missing, since the service only returns active ones", async () => {
+        authenticatedApiRequest.mockRejectedValue(new ApiError({ message: "Not Found", kind: "http", status: 404, code: "USER_NOT_FOUND" }));
+
+        await expect(getApiUserWithProfile(doctorUserId)).resolves.toBeNull();
     });
 
     it("chỉ trả về bác sĩ đang được phân công", async () => {

@@ -19,9 +19,10 @@ import {
     type User,
     type UserStatus,
 } from "@/lib/domain/types";
-import { isNotFound, nullIfNotFound } from "./api-helpers";
+import { adminFeatureAvailable } from "./admin-features";
+import { drainNumberedPages, isNotFound, nullIfNotFound } from "./api-helpers";
 import { adaptBackendAuditLog, backendAuditLogSchema, listAuditLogs } from "./audit";
-import { adaptBackendUser, backendUserSchema, getDoctor, getFighter, getUser, listCoaches } from "./people";
+import { adaptBackendUser, backendUserSchema, getApiUserWithProfile } from "./people";
 
 type Failure<Code extends string> = { ok: false; code: Code; message: string };
 
@@ -179,27 +180,31 @@ export interface PermissionCatalogEntry {
     group: string;
 }
 
+/**
+ * `GET /users` lists self-registered applicants (`GUEST`) too. They belong to fighter admissions, not to the
+ * staff and fighter accounts managed here, so the list drops them.
+ */
+const listedUserSchema = backendUserSchema.extend({ role: z.enum([...roleSchema.options, "GUEST"]) });
+
+/** The service's account status: `INACTIVE` covers deactivated and deleted accounts. It has no invitations. */
+const statusToApi: Record<UserStatus, "ACTIVE" | "INACTIVE" | null> = { active: "ACTIVE", suspended: "INACTIVE", invited: null };
+
 export async function listUsers(filter: UserFilter = {}): Promise<User[]> {
     if (isDemoAuthEnabled()) return (await demoService()).listUsers(filter);
-    const params = new URLSearchParams();
-    if (filter.search) params.set("search", filter.search);
-    if (filter.role) params.set("role", roleToApi[filter.role]);
-    if (filter.status) params.set("status", filter.status.toUpperCase());
-    const query = params.toString();
-    return (await drainAuthenticatedCursorPages(`/users${query ? `?${query}` : ""}`, backendUserSchema)).map(adaptBackendUser);
+    const status = filter.status ? statusToApi[filter.status] : undefined;
+    if (status === null) return [];
+    const users = await drainNumberedPages("/users", listedUserSchema, { search: filter.search, role: filter.role && roleToApi[filter.role], status });
+    return users.flatMap((user) => (user.role === "GUEST" ? [] : [adaptBackendUser({ ...user, role: user.role })]));
 }
 
 export async function getUserDetail(id: string, viewer?: User | null): Promise<UserDetail | null> {
     if (isDemoAuthEnabled()) return (await demoService()).getUserDetail(id, viewer);
-    const user = await getUser(id);
-    if (!user) return null;
-    let profile: Fighter | Coach | Doctor | null = null;
-    if (user.profileId && user.role === "fighter") profile = await getFighter(user.profileId);
-    if (user.profileId && user.role === "coach") profile = (await listCoaches()).find((coach) => coach.id === user.profileId) ?? null;
-    if (user.profileId && user.role === "doctor") profile = await getDoctor(user.profileId);
+    const account = await getApiUserWithProfile(id);
+    if (!account) return null;
+    const { user, profile } = account;
     const [recentAudit, roles] = await Promise.all([
-        listAuditLogs({ actorId: user.id }, viewer).then((logs) => logs.slice(0, 10)),
-        listRoleDefinitions(),
+        adminFeatureAvailable("auditTrail") ? listAuditLogs({ actorId: user.id }, viewer).then((logs) => logs.slice(0, 10)) : [],
+        adminFeatureAvailable("rolePermissions") ? listRoleDefinitions() : [],
     ]);
     return { user, profile, recentAudit, permissions: roles.find((definition) => definition.role === user.role)?.permissions ?? [] };
 }
