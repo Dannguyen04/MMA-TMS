@@ -20,6 +20,7 @@ import {
     updateSettings,
     updateUser,
 } from "@/lib/services/admin";
+import { ADMIN_FEATURE_UNAVAILABLE_MESSAGE, adminFeatureAvailable } from "@/lib/services/admin-features";
 import { cancelJob, retryJob, setModelStatus, updateModelThresholds } from "@/lib/services/ai";
 import { isNotFound } from "@/lib/services/api-helpers";
 import { deleteVideo, getJobProgress, getVideo } from "@/lib/services/videos";
@@ -79,6 +80,7 @@ const inviteSchema = z.object({
 export async function inviteUserAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
     const auth = await authorizeAction("users:manage");
     if (!auth.ok) return actionError(auth.message);
+    if (!adminFeatureAvailable("inviteUsers")) return actionError(ADMIN_FEATURE_UNAVAILABLE_MESSAGE);
     const parsed = inviteSchema.safeParse({
         name: text(formData.get("name")),
         email: text(formData.get("email"))?.trim().toLowerCase(),
@@ -105,6 +107,7 @@ const updateUserSchema = z.object({
 export async function updateUserAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
     const auth = await authorizeAction("users:manage");
     if (!auth.ok) return actionError(auth.message);
+    if (!adminFeatureAvailable("editUsers")) return actionError(ADMIN_FEATURE_UNAVAILABLE_MESSAGE);
     const parsed = updateUserSchema.safeParse({
         userId: text(formData.get("userId")),
         name: text(formData.get("name")),
@@ -131,6 +134,7 @@ const statusSchema = z.object({
 export async function setUserStatusAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
     const auth = await authorizeAction("users:manage");
     if (!auth.ok) return actionError(auth.message);
+    if (!adminFeatureAvailable("accountStatus")) return actionError(ADMIN_FEATURE_UNAVAILABLE_MESSAGE);
     const parsed = statusSchema.safeParse({ userId: text(formData.get("userId")), status: text(formData.get("status")) });
     if (!parsed.success) return validationError(parsed.error);
 
@@ -147,6 +151,7 @@ export async function setUserStatusAction(_prev: ActionState, formData: FormData
 export async function resendInviteAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
     const auth = await authorizeAction("users:manage");
     if (!auth.ok) return actionError(auth.message);
+    if (!adminFeatureAvailable("accountStatus")) return actionError(ADMIN_FEATURE_UNAVAILABLE_MESSAGE);
     const parsed = z.object({ userId: idSchema("The account is missing.") }).safeParse({ userId: text(formData.get("userId")) });
     if (!parsed.success) return validationError(parsed.error);
 

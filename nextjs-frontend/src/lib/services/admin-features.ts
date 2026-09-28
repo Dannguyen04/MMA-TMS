@@ -15,15 +15,31 @@ export type AdminFeature =
     | "editUsers"
     /** Suspending and reactivating an account, and resending an invitation. */
     | "accountStatus"
+    /** A phone number on the account. */
+    | "accountPhone"
+    /** A coach's certifications and years of experience. */
+    | "coachCredentials"
     /** When each account last signed in. */
     | "lastActive"
+    /** Opening a deactivated or deleted account: the service reads active accounts only. */
+    | "inactiveAccountDetail"
     /** The audit trail of what an account did. */
     | "auditTrail"
     /** Reading which permissions each role grants. */
     | "rolePermissions";
 
 /** Features with no user-service API yet. Remove one from this set once the service offers it. */
-const DEMO_ONLY_FEATURES: ReadonlySet<AdminFeature> = new Set(["inviteUsers", "editUsers", "accountStatus", "lastActive", "auditTrail", "rolePermissions"]);
+const DEMO_ONLY_FEATURES: ReadonlySet<AdminFeature> = new Set([
+    "inviteUsers",
+    "editUsers",
+    "accountStatus",
+    "accountPhone",
+    "coachCredentials",
+    "lastActive",
+    "inactiveAccountDetail",
+    "auditTrail",
+    "rolePermissions",
+]);
 
 export function adminFeatureAvailable(feature: AdminFeature): boolean {
     return isDemoAuthEnabled() || !DEMO_ONLY_FEATURES.has(feature);
