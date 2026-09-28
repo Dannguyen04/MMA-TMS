@@ -17,7 +17,9 @@ import {
 import type {
   CreateUserInput,
   FighterProfileInput,
+  ListUsersQuery,
   PublicUser,
+  PublicUserList,
   UpdateUserInput,
 } from './users.model.js';
 import { UsersRepository } from './users.repo.js';
@@ -128,6 +130,11 @@ export class UsersService {
     const user = await this.usersRepository.findActiveById(id);
     if (!user) throw userNotFound();
     return user;
+  }
+
+  async list(query: ListUsersQuery): Promise<PublicUserList> {
+    const { items, total } = await this.usersRepository.listUsers(query);
+    return { items, total, page: query.page, limit: query.limit };
   }
 
   async update(
