@@ -55,7 +55,8 @@ export function createTechniqueBars(glow: THREE.Texture): TechniqueBars {
                 uniform vec3 uColor;
                 uniform float uStrength;
                 void main() {
-                    float body = 0.18 + 0.82 * pow(vHeight, 1.6);
+                    // Clamped: multisampling can read the varying just outside the box, and pow() of a negative is NaN.
+                    float body = 0.18 + 0.82 * pow(clamp(vHeight, 0.0, 1.0), 1.6);
                     gl_FragColor = vec4(uColor * body * 1.4 * uStrength, 1.0);
                 }`,
         });
