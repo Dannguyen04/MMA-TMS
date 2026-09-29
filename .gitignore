@@ -30,7 +30,6 @@ Thumbs.db
 .DS_Store
 
 # Documentation
-docs
 
 # Local Cursor configuration, rules, and skills at any project depth
 .cursor/
