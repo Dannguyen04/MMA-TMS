@@ -1,27 +1,25 @@
-/**
- * Auth constants shared by the proxy, server actions and the login screen.
- * Mock authentication: replace the session implementation in ./session.ts when the
- * NestJS auth endpoints are available — nothing else needs to change.
- */
+/** Hằng số xác thực dùng chung giữa Proxy, Route Handler và Server Action. */
 
-export const SESSION_COOKIE = "mma_session";
+export const ACCESS_TOKEN_COOKIE = "mma_access";
+export const REFRESH_TOKEN_COOKIE = "mma_refresh";
+export const ACCESS_EXPIRES_COOKIE = "mma_access_expires";
 export const THEME_COOKIE = "mma_theme";
-
-/** Password accepted for every demo account. */
+/** Phiên demo (id người dùng mock); chỉ được đọc khi `isDemoAuthEnabled()`. */
+export const DEMO_SESSION_COOKIE = "mma_session";
+/** Chỉ dùng bởi giao diện demo tách biệt; luồng API không chấp nhận mật khẩu dùng chung này. */
 export const DEMO_PASSWORD = "mma-demo";
 
 export type ThemePreference = "light" | "dark" | "system";
 
+/** A stored preference is kept as is; anything else (no cookie, a stale value) falls back to the light theme. */
 export function parseTheme(value: string | undefined): ThemePreference {
-    return value === "light" || value === "dark" ? value : "system";
+    return value === "light" || value === "dark" || value === "system" ? value : "light";
 }
 
 /**
- * Whether the mock cookie session may be used. The mock trusts a plain user id, so production
- * deployments keep it off unless ALLOW_DEMO_AUTH=true is set on purpose (it exposes all data).
- * Read at call time, never at module load: `next build` evaluates modules in production mode.
- * Server-only — the variable isn't available in the browser.
+ * Ngoài production, demo là mặc định cho tới khi backend có đủ endpoint; đặt `APP_DATA_MODE=api`
+ * để gọi API thật. Production luôn dùng API và không bao giờ bật demo.
  */
 export function isDemoAuthEnabled(): boolean {
-    return process.env.NODE_ENV !== "production" || process.env.ALLOW_DEMO_AUTH === "true";
+    return process.env.NODE_ENV !== "production" && process.env.APP_DATA_MODE !== "api";
 }

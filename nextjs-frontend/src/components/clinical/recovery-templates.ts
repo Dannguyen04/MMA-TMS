@@ -208,7 +208,7 @@ const TEMPLATE_FOR_TYPE: Record<InjuryType, RecoveryTemplate["id"]> = {
     impingement: "general",
 };
 
-export function recommendedTemplate(type: InjuryType): RecoveryTemplate {
-    const id = TEMPLATE_FOR_TYPE[type];
+export function recommendedTemplate(type: InjuryType | null): RecoveryTemplate {
+    const id = type ? TEMPLATE_FOR_TYPE[type] : undefined;
     return RECOVERY_TEMPLATES.find((template) => template.id === id) ?? RECOVERY_TEMPLATES[RECOVERY_TEMPLATES.length - 1];
 }

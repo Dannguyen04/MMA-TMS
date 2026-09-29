@@ -1,5 +1,5 @@
-import { DashboardSkeleton } from "@/components/ui/skeleton";
+import { TodaySkeleton } from "@/components/ui/skeleton";
 
 export default function FighterDashboardLoading() {
-    return <DashboardSkeleton label="Loading your dashboard" eyebrow />;
+    return <TodaySkeleton label="Loading your day" />;
 }

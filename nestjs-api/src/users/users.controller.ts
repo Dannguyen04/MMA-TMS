@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
   UsePipes,
 } from '@nestjs/common';
@@ -22,6 +23,7 @@ import {
   ApiValidationErrorEnvelope,
 } from '../shared/decorators/api-envelope.decorator.js';
 import {
+  AuthenticatedEndpoint,
   CurrentUser,
   RequirePermissions,
 } from '../shared/decorators/auth.decorator.js';
@@ -35,7 +37,9 @@ import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import { appZodValidationPipe } from '../shared/pipes/zod-validation.pipe.js';
 import {
   CreateUserDto,
+  ListUsersQueryDto,
   PublicUserDto,
+  PublicUserListDto,
   UpdateUserDto,
   UserIdParamsDto,
 } from './users.dto.js';
@@ -55,7 +59,7 @@ export class UsersController {
   @ApiOperation({
     summary: 'Create user with role profile',
     description:
-      'Creates a new identity and role profile; requires users.create',
+      'Creates a FIGHTER, COACH, DOCTOR or ADMIN identity with its role profile; requires users.create. Creating a FIGHTER here is the direct recruitment path for an already-signed athlete and produces no admission record; the self-service path (guest registration, coach assessment, admin approval, password recovery, activation) remains the route for applicants. GUEST accounts come from self-registration only.',
   })
   @ResponseMessage('User created successfully')
   @HttpCode(HttpStatus.CREATED)
@@ -78,12 +82,32 @@ export class UsersController {
     return this.usersService.create(this.actor(actor), body.user, randomUUID());
   }
 
+  @Get()
+  @RequirePermissions({ allOf: [USER_PERMISSIONS.READ] })
+  @ApiOperation({
+    summary: 'List users',
+    description:
+      'Lists users of every role with their active role profile, newest first, with bounded pagination. Filters: role; status (ACTIVE = active and not deleted, INACTIVE = deactivated or soft-deleted; omitted = all); search (case-insensitive match on email or profile first/last name). Requires users.read.',
+  })
+  @ResponseMessage('Get users successfully')
+  @ApiSuccessEnvelope({
+    status: HttpStatus.OK,
+    message: 'Get users successfully',
+    model: PublicUserListDto,
+  })
+  @ApiValidationErrorEnvelope('Invalid pagination or filter')
+  @ApiUnauthorizedEnvelope()
+  @ApiForbiddenEnvelope('Requires users.read permission')
+  async findAll(@Query() query: ListUsersQueryDto) {
+    return this.usersService.list(query);
+  }
+
   @Get('me')
-  @RequirePermissions({ allOf: [USER_PERMISSIONS.PROFILE_READ] })
+  @AuthenticatedEndpoint()
   @ApiOperation({
     summary: 'Get current user profile',
     description:
-      'Retrieves the currently authenticated user and profile; requires users.profile.read',
+      'Retrieves the currently authenticated user and profile. Any active authenticated user may read their own profile; no permission is required.',
   })
   @ResponseMessage('Get current user successfully')
   @ApiSuccessEnvelope({
@@ -92,7 +116,6 @@ export class UsersController {
     model: PublicUserDto,
   })
   @ApiUnauthorizedEnvelope()
-  @ApiForbiddenEnvelope('Requires users.profile.read permission')
   @ApiNotFoundEnvelope('USER_NOT_FOUND', 'User not found')
   async findMe(@CurrentUser() actor: AuthenticatedUser | undefined) {
     const currentActor = this.actor(actor);

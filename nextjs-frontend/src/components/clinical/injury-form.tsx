@@ -7,10 +7,10 @@ import { AINotice } from "@/components/domain/ai-notice";
 import { BodyMap } from "@/components/domain/body-map";
 import type { FighterIdentityData } from "@/components/domain/fighter-identity";
 import { INJURY_SEVERITY_META } from "@/components/domain/status-badges";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ChoiceGroup, type ChoiceOption } from "@/components/ui/choice-group";
-import { Field, FormMessage, FormSection, Input, Select, Textarea } from "@/components/ui/form";
+import { Field, FormFooter, FormSection, Input, Select, Textarea } from "@/components/ui/form";
 import { useActionForm } from "@/components/ui/use-action-form";
 import { createInjuryAction } from "@/lib/actions/clinical";
 import { BODY_REGION_LABELS, HEALTH_STATUS_LABELS, INJURY_MECHANISM_LABELS, INJURY_SEVERITY_LABELS, INJURY_TYPE_LABELS } from "@/lib/domain/labels";
@@ -332,17 +332,7 @@ export function InjuryForm({ fighters, alerts, defaultFighterId, defaultAlertId,
                     </Field>
                 </FormSection>
 
-                <div className="flex flex-col gap-3 border-t border-border pt-5">
-                    <FormMessage {...form.message} />
-                    <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                        <ButtonLink href={cancelHref} variant="secondary" size="lg" className="sm:h-9 sm:px-3.5 sm:text-sm">
-                            Cancel
-                        </ButtonLink>
-                        <Button type="submit" size="lg" loading={form.pending} className="sm:h-9 sm:px-3.5 sm:text-sm">
-                            {form.pending ? "Recording injury…" : "Record injury"}
-                        </Button>
-                    </div>
-                </div>
+                <FormFooter message={form.message} cancelHref={cancelHref} pending={form.pending} submitLabel="Record injury" pendingLabel="Recording injury…" />
             </Card>
 
             <aside aria-label="What happens next" className={cn("min-w-0 lg:col-start-2", selectedAlert ? "lg:row-start-2" : "lg:row-start-1")}>

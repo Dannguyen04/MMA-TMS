@@ -104,7 +104,7 @@ export async function updateBodyMetricsAction(_prev: ActionState, formData: Form
     if (!result.ok) return actionError(result.message);
 
     revalidatePath("/", "layout");
-    const { weightKg, bodyFatPct, restingHeartRate } = result.fighter;
+    const { weightKg, bodyFatPct, restingHeartRate } = parsed.data;
     return actionSuccess(
         `${formatNumber(weightKg, 1)} kg · ${formatNumber(bodyFatPct, 1)}% body fat · ${restingHeartRate} bpm resting. Your coaches now see these numbers.`,
     );

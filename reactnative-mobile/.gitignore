@@ -10,7 +10,32 @@ web-build/
 expo-env.d.ts
 
 # Native
+.cxx/
+android-build.log
 .kotlin/
+.gradle/
+**/.gradle/
+.gradle-isolated/
+**/.gradle-isolated/
+
+# Test / screenshot dumps (keep assets/splash and assets/icon.png)
+tmp-*/
+**/tmp-*/
+tmp-clip-frames/
+tmp-error-video-analysis/
+screenshots/
+**/screenshots/
+screen-shots/
+**/screen-shots/
+captures/
+**/captures/
+**/__screenshots__/
+testdata/
+**/testdata/
+testdata-images/
+**/testdata-images/
+test-screenshots/
+**/test-screenshots/
 *.orig.*
 *.jks
 *.p8
@@ -31,6 +56,7 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
 .env*.local
 
 # typescript

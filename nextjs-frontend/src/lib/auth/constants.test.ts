@@ -1,32 +1,46 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { isDemoAuthEnabled } from "./constants";
+import { isDemoAuthEnabled, parseTheme } from "./constants";
 import { DOCTOR_ONLY_PERMISSIONS, isDoctorOnlyPermission } from "./permissions";
+
+describe("parseTheme", () => {
+    it("keeps every stored preference, including following the device", () => {
+        expect(parseTheme("light")).toBe("light");
+        expect(parseTheme("dark")).toBe("dark");
+        expect(parseTheme("system")).toBe("system");
+    });
+
+    it("defaults to the light theme when nothing valid is stored", () => {
+        expect(parseTheme(undefined)).toBe("light");
+        expect(parseTheme("")).toBe("light");
+        expect(parseTheme("sepia")).toBe("light");
+    });
+});
 
 describe("isDemoAuthEnabled", () => {
     afterEach(() => {
         vi.unstubAllEnvs();
     });
 
-    it("is on outside production", () => {
+    it("defaults to demo outside production until the API mode is chosen", () => {
         vi.stubEnv("NODE_ENV", "development");
-        vi.stubEnv("ALLOW_DEMO_AUTH", "");
+        vi.stubEnv("APP_DATA_MODE", "");
         expect(isDemoAuthEnabled()).toBe(true);
 
-        vi.stubEnv("NODE_ENV", "test");
+        vi.stubEnv("APP_DATA_MODE", "demo");
         expect(isDemoAuthEnabled()).toBe(true);
+
+        vi.stubEnv("APP_DATA_MODE", "api");
+        expect(isDemoAuthEnabled()).toBe(false);
     });
 
-    it("is off in production unless explicitly allowed", () => {
+    it("is always off in production", () => {
         vi.stubEnv("NODE_ENV", "production");
-        vi.stubEnv("ALLOW_DEMO_AUTH", "");
+        vi.stubEnv("APP_DATA_MODE", "");
         expect(isDemoAuthEnabled()).toBe(false);
 
-        vi.stubEnv("ALLOW_DEMO_AUTH", "1");
+        vi.stubEnv("APP_DATA_MODE", "demo");
         expect(isDemoAuthEnabled()).toBe(false);
-
-        vi.stubEnv("ALLOW_DEMO_AUTH", "true");
-        expect(isDemoAuthEnabled()).toBe(true);
     });
 });
 

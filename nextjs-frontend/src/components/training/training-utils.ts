@@ -9,6 +9,26 @@ import { clamp } from "@/lib/utils";
  * Pure helpers for the training screens. Safe for Server and Client Components.
  */
 
+const MINUTE_MS = 60_000;
+
+/** Middle of the 1–10 RPE scale: where an intensity input starts when nothing was planned. */
+export const MID_RPE = 5;
+
+/** When a session is planned to end, in ms. A session with no planned length counts as ending when it starts. */
+export function plannedEndMs(session: Pick<TrainingSession, "scheduledAt" | "durationMin">): number {
+    return Date.parse(session.scheduledAt) + (session.durationMin ?? 0) * MINUTE_MS;
+}
+
+/** Minutes a session took, or was planned to take, for totals; 0 when neither is known. */
+export function sessionMinutes(session: Pick<TrainingSession, "durationMin" | "result">): number {
+    return session.result?.actualDurationMin ?? session.durationMin ?? 0;
+}
+
+/** "RPE 7 · Hard", or null when no intensity was set. */
+export function rpeText(rpe: number | null): string | null {
+    return rpe === null ? null : `RPE ${rpe} · ${rpeLabel(rpe)}`;
+}
+
 /** Monday (academy calendar) of the week containing `now`, shifted by `offset` weeks. */
 export function weekStartKey(now: string | Date, offset = 0): string {
     const key = dayKey(now);
@@ -111,7 +131,7 @@ export function weeklyAdherence(sessions: TrainingSession[], fromKey: string, to
             due: now === undefined ? undefined : planned.filter((s) => isDueSession(s, now)).length,
             completed: completed.length,
             missed: planned.filter((s) => s.status === "missed").length,
-            minutes: completed.reduce((total, s) => total + (s.result?.actualDurationMin ?? s.durationMin), 0),
+            minutes: completed.reduce((total, s) => total + sessionMinutes(s), 0),
         });
     }
     return Number.isFinite(maxWeeks) ? weeks.slice(-maxWeeks) : weeks;

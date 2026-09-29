@@ -42,7 +42,7 @@ export function CoachProfileCard({ coach, rosterHref, roster }: { coach: Coach; 
                     columns={3}
                     items={[
                         { label: "Specialty", value: coach.specialty },
-                        { label: "Experience", value: pluralize(coach.yearsExperience, "year") },
+                        { label: "Experience", value: coach.yearsExperience === null ? "Not recorded" : pluralize(coach.yearsExperience, "year") },
                         { label: "Roster", value: pluralize(coach.fighterIds.length, "fighter") },
                     ]}
                 />

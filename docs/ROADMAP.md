@@ -8,6 +8,16 @@
 
 ---
 
+## Điều Hướng Tài Liệu
+
+- [Tổng quan dự án](./PROJECT-OVERVIEW.md) — đọc trước khi nhận task
+- [Luồng nghiệp vụ](./BUSINESS-FLOWS.md) — bối cảnh và quy tắc nghiệp vụ
+- [Phân tích thị trường Việt Nam](./VIETNAM-MARKET-ANALYSIS.md) — nguồn gốc các ưu tiên
+- **Roadmap** — tài liệu hiện tại, dùng checklist trong từng task
+- [Spec kỹ thuật v3](./MMA-TMS-MASTER-SPECIFICATION-v3.md) — tham chiếu khi thiết kế và triển khai
+
+---
+
 ## Tổng Quan Ưu Tiên
 
 ### Nguyên tắc ưu tiên

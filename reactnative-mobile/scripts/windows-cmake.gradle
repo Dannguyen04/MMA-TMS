@@ -1,0 +1,116 @@
+// Keep CMake's staging files out of deeply nested node_modules paths on Windows.
+// Namespace the normal Gradle cache by checkout and module to avoid collisions.
+if (System.getProperty('os.name').toLowerCase(java.util.Locale.ROOT).contains('windows')) {
+    def clearStaleCxxLockFiles = { File cxxRoot ->
+        if (cxxRoot == null || !cxxRoot.exists()) {
+            return
+        }
+        cxxRoot.eachFileRecurse { file ->
+            if (!file.isFile()) {
+                return
+            }
+            // AGP writes these under intermediates/cxx; a sibling Gradle daemon or
+            // Defender scan can briefly lock them and fail configureCMake with
+            // FileNotFoundException (... being used by another process).
+            def name = file.name
+            if (name.endsWith('_timing.txt') || name == 'metadata_generation_command.txt') {
+                try {
+                    file.delete()
+                } catch (Throwable ignored) {
+                    // Best-effort; configure will retry the write after doFirst.
+                }
+            }
+        }
+    }
+
+    subprojects { nativeProject ->
+        ['com.android.application', 'com.android.library'].each { pluginId ->
+            nativeProject.pluginManager.withPlugin(pluginId) {
+                nativeProject.extensions.getByName('androidComponents').finalizeDsl { android ->
+                    // React Native can assign the CMake path later in finalizeDsl.
+                    def cacheKey = rootDir.canonicalPath + ':' + nativeProject.path
+                    def moduleId = java.security.MessageDigest.getInstance('SHA-256')
+                        .digest(cacheKey.getBytes('UTF-8')).encodeHex().toString().take(12)
+                    android.externalNativeBuild.cmake.buildStagingDirectory =
+                        new File(gradle.gradleUserHomeDir, "cxx/${moduleId}")
+                    // Do not set CMAKE_OBJECT_PATH_MAX: 240 leaves ninja over the
+                    // Windows 260-char Stat limit; 128 hashes names and breaks
+                    // worklets mkdir. Omit so CMake keeps short object names.
+                }
+
+                nativeProject.tasks.configureEach { task ->
+                    if (!task.name.startsWith('configureCMake')) {
+                        return
+                    }
+                    task.doFirst {
+                        clearStaleCxxLockFiles(new File(nativeProject.buildDir, 'intermediates/cxx'))
+                    }
+                }
+            }
+        }
+    }
+}
+
+gradle.projectsEvaluated {
+    def worklets = subprojects.find { it.name == 'react-native-worklets' }
+    def expoCore = subprojects.find { it.name == 'expo-modules-core' }
+    if (!worklets || !expoCore) {
+        return
+    }
+
+    def copyWorkletsLib = {
+        def tree = worklets.fileTree(dir: worklets.file('build'), include: '**/arm64-v8a/libworklets.so')
+        def src = tree.files.find { it.isFile() }
+        if (src == null) {
+            return
+        }
+        def cxxDebug = new File(worklets.projectDir, 'build/intermediates/cxx/Debug')
+        if (cxxDebug.exists()) {
+            cxxDebug.eachDir { hashDir ->
+                def dest = new File(hashDir, 'obj/arm64-v8a/libworklets.so')
+                dest.parentFile.mkdirs()
+                if (!dest.exists() || dest.length() != src.length()) {
+                    dest.bytes = src.bytes
+                }
+            }
+        }
+        def expoBuild = expoCore.file('build')
+        if (!expoBuild.exists()) {
+            return
+        }
+        expoBuild.eachFileRecurse { file ->
+            if (!(file.name.endsWith('.ninja') || file.name.endsWith('.txt'))) {
+                return
+            }
+            def text = file.getText('UTF-8')
+            def matcher = (text =~ /([A-Za-z]:[^\s"'<>]+libworklets\.so)/)
+            matcher.each { _all, path ->
+                def dest = new File(path)
+                dest.parentFile.mkdirs()
+                if (!dest.exists() || dest.length() != src.length()) {
+                    dest.bytes = src.bytes
+                }
+            }
+        }
+    }
+
+    expoCore.tasks.configureEach { task ->
+        def cmakeTask = task.name.startsWith('configureCMake') || task.name.startsWith('buildCMake')
+        if (!cmakeTask) {
+            return
+        }
+        // Release assemble must not pull worklets Debug CMake (Windows file locks).
+        if (task.name.contains('Debug')) {
+            task.dependsOn worklets.tasks.matching { t ->
+                t.name.startsWith('buildCMakeDebug') || t.name.startsWith('externalNativeBuildDebug') || t.name == 'mergeDebugNativeLibs'
+            }
+        } else {
+            task.dependsOn worklets.tasks.matching { t ->
+                t.name.startsWith('buildCMakeRelWithDebInfo') || t.name.startsWith('externalNativeBuildRelease') || t.name == 'mergeReleaseNativeLibs'
+            }
+        }
+        task.doFirst {
+            copyWorkletsLib()
+        }
+    }
+}

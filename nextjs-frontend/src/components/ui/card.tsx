@@ -1,4 +1,4 @@
-import type { ComponentProps, ElementType, ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -13,21 +13,17 @@ export interface CardHeaderProps {
     action?: ReactNode;
     icon?: ReactNode;
     /** Heading level; defaults to h2 because cards usually sit under the page h1. */
-    as?: ElementType;
+    as?: "h2" | "h3" | "h4";
     className?: string;
 }
 
 export function CardHeader({ title, description, action, icon, as: Heading = "h2", className }: CardHeaderProps) {
     return (
         <div className={cn("flex items-start justify-between gap-3 px-5 pt-4 pb-3", className)}>
-            <div className="flex min-w-0 items-start gap-3">
-                {icon && (
-                    <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface-muted text-fg-muted [&_svg]:size-4">
-                        {icon}
-                    </span>
-                )}
+            <div className="flex min-w-0 items-start gap-2.5">
+                {icon && <span className="mt-[3px] flex shrink-0 items-center text-primary-soft-fg [&_svg]:size-[18px]">{icon}</span>}
                 <div className="min-w-0">
-                    <Heading className="text-[15px] leading-6 font-semibold text-fg">{title}</Heading>
+                    <Heading className="font-display text-[19px] leading-6 font-bold tracking-[0.01em] text-fg">{title}</Heading>
                     {description && <p className="mt-0.5 text-sm text-fg-muted">{description}</p>}
                 </div>
             </div>

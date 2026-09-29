@@ -10,5 +10,9 @@ export default defineConfig({
     root: './',
     include: ['**/*.spec.ts'],
     testTimeout: 30000,
+    env: {
+      // Satisfies shared/config/env.ts required-var validation at import time.
+      WORKER_SECRET_TOKEN: 'test-worker-secret-token',
+    },
   },
 });

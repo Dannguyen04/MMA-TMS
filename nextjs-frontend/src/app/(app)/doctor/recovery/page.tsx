@@ -20,6 +20,7 @@ import { daysBetween, formatDate, pluralize } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { listInjuries, listRecoveryPlans } from "@/lib/services/medical";
 import { listFighters } from "@/lib/services/people";
+import { NOT_RECORDED } from "@/components/domain/domain-format";
 
 export const metadata: Metadata = { title: "Recovery" };
 
@@ -47,9 +48,11 @@ export default async function RecoveryBoardPage() {
 
     const inProgress = plans
         .filter((plan) => plan.status !== "completed" && fightersById.has(plan.fighterId))
-        .sort((a, b) => a.targetReturnDate.localeCompare(b.targetReturnDate));
+        // Plans without a target return sort last.
+        .sort((a, b) => (a.targetReturnDate ?? "9999").localeCompare(b.targetReturnDate ?? "9999"));
     const completed = plans.filter((plan) => plan.status === "completed" && fightersById.has(plan.fighterId));
     const returningSoon = inProgress.filter((plan) => {
+        if (!plan.targetReturnDate) return false;
         const days = daysBetween(now, plan.targetReturnDate);
         return days >= 0 && days <= RETURN_WINDOW_DAYS;
     });
@@ -192,7 +195,7 @@ export default async function RecoveryBoardPage() {
                                                         <time dateTime={plan.startDate}>{formatDate(plan.startDate)}</time>
                                                     </TD>
                                                     <TD className="whitespace-nowrap">
-                                                        <time dateTime={plan.targetReturnDate}>{formatDate(plan.targetReturnDate)}</time>
+                                                        {plan.targetReturnDate ? <time dateTime={plan.targetReturnDate}>{formatDate(plan.targetReturnDate)}</time> : NOT_RECORDED}
                                                     </TD>
                                                     <TD className="text-right">{plan.phases.length}</TD>
                                                     <TD>

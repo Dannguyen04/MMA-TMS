@@ -9,7 +9,9 @@ import { Field, Input, Select, Textarea } from "@/components/ui/form";
 import { useToast } from "@/components/ui/toast";
 import type { ActionForm } from "@/components/ui/use-action-form";
 import { addTreatmentAction } from "@/lib/actions/clinical";
+import { recordTreatmentAction } from "@/lib/actions/medical-contract";
 import { TREATMENT_STATUS_LABELS, TREATMENT_TYPE_LABELS } from "@/lib/domain/labels";
+import { MEDICAL_TEXT_LIMITS } from "@/lib/domain/medical-contract";
 import type { TreatmentStatus, TreatmentType } from "@/lib/domain/types";
 
 const TYPES = Object.keys(TREATMENT_TYPE_LABELS) as TreatmentType[];
@@ -17,6 +19,9 @@ const STATUSES = Object.keys(TREATMENT_STATUS_LABELS) as TreatmentStatus[];
 
 export interface AddTreatmentDialogProps {
     injuryId: string;
+    fighterId: string;
+    /** "service" records a treatment in the medical service's terms (append-only, no status); "demo" uses the demo form. */
+    mode: "demo" | "service";
     /** Default provider — usually the signed-in doctor. */
     providerName: string;
     /** YYYY-MM-DD in the academy timezone. */
@@ -25,7 +30,7 @@ export interface AddTreatmentDialogProps {
 }
 
 /** "Add treatment" button with a dialog form. Stays on the injury and confirms with a toast. */
-export function AddTreatmentDialog({ injuryId, providerName, today, variant = "secondary" }: AddTreatmentDialogProps) {
+export function AddTreatmentDialog({ injuryId, fighterId, mode, providerName, today, variant = "secondary" }: AddTreatmentDialogProps) {
     const [open, setOpen] = useState(false);
     const toast = useToast();
 
@@ -40,13 +45,23 @@ export function AddTreatmentDialog({ injuryId, providerName, today, variant = "s
                 onClose={() => setOpen(false)}
                 size="lg"
                 title="Add treatment"
-                description="Treatments are shared with the fighter on their Health page. Coaches don't see them."
-                action={addTreatmentAction}
+                description={
+                    mode === "service"
+                        ? "Shared with the fighter on their Health page; coaches don't see it. Treatments can't be edited later."
+                        : "Treatments are shared with the fighter on their Health page. Coaches don't see them."
+                }
+                action={mode === "service" ? recordTreatmentAction : addTreatmentAction}
                 submitLabel="Add treatment"
                 pendingLabel="Adding…"
                 onSuccess={(state) => toast({ title: "Treatment added", description: state.message })}
             >
-                {(form) => <TreatmentFields form={form} injuryId={injuryId} providerName={providerName} today={today} />}
+                {(form) =>
+                    mode === "service" ? (
+                        <ServiceTreatmentFields form={form} injuryId={injuryId} fighterId={fighterId} today={today} />
+                    ) : (
+                        <TreatmentFields form={form} injuryId={injuryId} providerName={providerName} today={today} />
+                    )
+                }
             </ActionDialog>
         </>
     );
@@ -108,6 +123,35 @@ function TreatmentFields({ form, injuryId, providerName, today }: { form: Action
             </Field>
             <Field label="Notes" {...field("notes")} optional className="sm:col-span-2">
                 <Textarea {...control("notes")} rows={3} maxLength={1000} />
+            </Field>
+        </div>
+    );
+}
+
+/** A treatment as the medical service records it: what was done, when, and when to review it. */
+function ServiceTreatmentFields({ form, injuryId, fighterId, today }: { form: ActionForm<undefined>; injuryId: string; fighterId: string; today: string }) {
+    const [treatmentDate, setTreatmentDate] = useState(today);
+    const { control, error } = form;
+    const field = (name: string) => ({ htmlFor: control(name).id, error: error(name) });
+
+    return (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <input type="hidden" name="injuryId" value={injuryId} />
+            <input type="hidden" name="fighterId" value={fighterId} />
+            <Field label="Treatment" {...field("treatmentType")} required hint="e.g. Physiotherapy, ice and compression, MRI referral" className="sm:col-span-2">
+                <Input {...control("treatmentType", { hint: true, required: true })} maxLength={MEDICAL_TEXT_LIMITS.treatmentType} />
+            </Field>
+            <Field label="Date" {...field("treatmentDate")} required>
+                <Input {...control("treatmentDate", { required: true })} type="date" value={treatmentDate} max={today} onChange={(event) => setTreatmentDate(event.target.value)} />
+            </Field>
+            <Field label="Review on" {...field("nextReviewAt")} optional hint="When you'll check how it went.">
+                <Input {...control("nextReviewAt", { hint: true })} type="date" min={treatmentDate || undefined} />
+            </Field>
+            <Field label="Details" {...field("description")} optional className="sm:col-span-2">
+                <Textarea {...control("description")} rows={3} maxLength={MEDICAL_TEXT_LIMITS.clinicalText} />
+            </Field>
+            <Field label="Outcome notes" {...field("outcomeNotes")} optional className="sm:col-span-2">
+                <Textarea {...control("outcomeNotes")} rows={2} maxLength={MEDICAL_TEXT_LIMITS.clinicalText} />
             </Field>
         </div>
     );

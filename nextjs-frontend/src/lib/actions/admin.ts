@@ -8,7 +8,7 @@ import { canAccessFighter } from "@/lib/auth/access";
 import { DOCTOR_ONLY_PERMISSION_REASON, isDoctorOnlyPermission } from "@/lib/auth/permissions";
 import { authorizeAction } from "@/lib/auth/session";
 import { BROADCAST_CHANNEL_LABELS, ROLE_LABELS } from "@/lib/domain/labels";
-import type { AIModelStatus, BroadcastChannel, Permission, Role, SystemSettings, UserStatus } from "@/lib/domain/types";
+import { PERMISSIONS, type AIModelStatus, type BroadcastChannel, type Permission, type Role, type SystemSettings, type UserStatus } from "@/lib/domain/types";
 import { academyWallClockToIso, formatDateTime, isDateKey, isTimeValue, pluralize } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import {
@@ -20,9 +20,11 @@ import {
     updateSettings,
     updateUser,
 } from "@/lib/services/admin";
+import { ADMIN_FEATURE_UNAVAILABLE_MESSAGE, adminFeatureAvailable } from "@/lib/services/admin-features";
 import { cancelJob, retryJob, setModelStatus, updateModelThresholds } from "@/lib/services/ai";
+import { isNotFound } from "@/lib/services/api-helpers";
 import { deleteVideo, getJobProgress, getVideo } from "@/lib/services/videos";
-import { actionError, actionSuccess, validationError, type ActionState } from "./state";
+import { actionError, actionSuccess, FIX_FIELDS, validationError, type ActionState } from "./state";
 
 /* ─── Shared ──────────────────────────────────────────────────────────────── */
 
@@ -30,29 +32,6 @@ const ROLES = ["fighter", "coach", "doctor", "admin"] as const satisfies readonl
 const SETTABLE_STATUSES = ["active", "suspended"] as const satisfies readonly UserStatus[];
 const MODEL_STATUSES = ["active", "staging", "deprecated"] as const satisfies readonly AIModelStatus[];
 const CHANNELS = ["in_app", "email", "in_app_email"] as const satisfies readonly BroadcastChannel[];
-const PERMISSIONS = [
-    "fighters:read",
-    "fighters:write",
-    "training:read",
-    "training:write",
-    "videos:upload",
-    "videos:manage",
-    "ai_analysis:read",
-    "ai_findings:review",
-    "ai_alerts:review",
-    "goals:write",
-    "medical:read_summary",
-    "medical:read",
-    "medical:write",
-    "clearance:manage",
-    "users:manage",
-    "roles:manage",
-    "ai_jobs:manage",
-    "ai_models:manage",
-    "audit_logs:read",
-    "notifications:manage",
-    "settings:manage",
-] as const satisfies readonly Permission[];
 
 const text = (value: FormDataEntryValue | null) => (typeof value === "string" ? value : undefined);
 const texts = (values: FormDataEntryValue[]) => values.filter((value): value is string => typeof value === "string");
@@ -101,6 +80,7 @@ const inviteSchema = z.object({
 export async function inviteUserAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
     const auth = await authorizeAction("users:manage");
     if (!auth.ok) return actionError(auth.message);
+    if (!adminFeatureAvailable("inviteUsers")) return actionError(ADMIN_FEATURE_UNAVAILABLE_MESSAGE);
     const parsed = inviteSchema.safeParse({
         name: text(formData.get("name")),
         email: text(formData.get("email"))?.trim().toLowerCase(),
@@ -127,6 +107,7 @@ const updateUserSchema = z.object({
 export async function updateUserAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
     const auth = await authorizeAction("users:manage");
     if (!auth.ok) return actionError(auth.message);
+    if (!adminFeatureAvailable("editUsers")) return actionError(ADMIN_FEATURE_UNAVAILABLE_MESSAGE);
     const parsed = updateUserSchema.safeParse({
         userId: text(formData.get("userId")),
         name: text(formData.get("name")),
@@ -153,6 +134,7 @@ const statusSchema = z.object({
 export async function setUserStatusAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
     const auth = await authorizeAction("users:manage");
     if (!auth.ok) return actionError(auth.message);
+    if (!adminFeatureAvailable("accountStatus")) return actionError(ADMIN_FEATURE_UNAVAILABLE_MESSAGE);
     const parsed = statusSchema.safeParse({ userId: text(formData.get("userId")), status: text(formData.get("status")) });
     if (!parsed.success) return validationError(parsed.error);
 
@@ -169,6 +151,7 @@ export async function setUserStatusAction(_prev: ActionState, formData: FormData
 export async function resendInviteAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
     const auth = await authorizeAction("users:manage");
     if (!auth.ok) return actionError(auth.message);
+    if (!adminFeatureAvailable("accountStatus")) return actionError(ADMIN_FEATURE_UNAVAILABLE_MESSAGE);
     const parsed = z.object({ userId: idSchema("The account is missing.") }).safeParse({ userId: text(formData.get("userId")) });
     if (!parsed.success) return validationError(parsed.error);
 
@@ -391,7 +374,7 @@ export async function createBroadcastAction(_prev: ActionState<BroadcastData>, f
     let scheduledIso: string | null = null;
     if (delivery === "schedule" && scheduledFor) {
         const [day, time] = scheduledFor.split("T");
-        if (!isDateKey(day) || !isTimeValue(time)) return actionError("Please fix the highlighted fields.", { scheduledFor: "Enter a valid date and time." });
+        if (!isDateKey(day) || !isTimeValue(time)) return actionError(FIX_FIELDS, { scheduledFor: "Enter a valid date and time." });
         scheduledIso = academyWallClockToIso(day, time);
     }
 
@@ -466,7 +449,12 @@ export async function updateSettingsAction(_prev: ActionState<SystemSettings>, f
             aiLowConfidenceThreshold: values.aiLowConfidenceThreshold / 100,
         },
         auth.user,
-    );
+    ).catch((error: unknown) => {
+        // The backend has no settings endpoint yet; the form shows the defaults the app runs with.
+        if (isNotFound(error)) return null;
+        throw error;
+    });
+    if (!result) return actionError("Saving system settings isn't available yet. The backend doesn't store them.");
     if (!result.ok) return actionError(result.message, { [result.field]: result.message });
 
     revalidatePath("/", "layout");

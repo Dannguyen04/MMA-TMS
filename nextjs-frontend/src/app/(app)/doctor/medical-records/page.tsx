@@ -8,7 +8,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { PageHeader } from "@/components/ui/page-header";
-import { EmptyState } from "@/components/ui/states";
+import { EmptyState, FeatureUnavailable } from "@/components/ui/states";
 import { Pagination, SortableTH, Table, TBody, TD, THead, TR } from "@/components/ui/table";
 import { requireRole } from "@/lib/auth/session";
 import type { Fighter, MedicalRecord } from "@/lib/domain/types";
@@ -16,6 +16,7 @@ import { formatDate, formatDateTime, formatRelative, pluralize } from "@/lib/for
 import { paginate, parseEnum, parseSortDirection, sortItems } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { getMedicalRecord } from "@/lib/services/medical";
+import { medicalFeatureAvailable } from "@/lib/services/medical-features";
 import { listFighters } from "@/lib/services/people";
 import { cn, param } from "@/lib/utils";
 
@@ -44,6 +45,14 @@ const recordHref = (fighterId: string) => `${routes.doctor.fighter(fighterId)}?t
 
 export default async function MedicalRecordsPage({ searchParams }: PageProps<"/doctor/medical-records">) {
     const user = await requireRole("doctor");
+    if (!medicalFeatureAvailable("medicalRecord")) {
+        return (
+            <>
+                <PageHeader title="Medical records" />
+                <FeatureUnavailable title="Medical records aren't available yet" />
+            </>
+        );
+    }
     const params = await searchParams;
     const now = new Date().toISOString();
 

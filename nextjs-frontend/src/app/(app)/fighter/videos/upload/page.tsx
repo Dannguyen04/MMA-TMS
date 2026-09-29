@@ -17,7 +17,7 @@ export default async function FighterUploadVideoPage({ searchParams }: PageProps
     return (
         <>
             <PageHeader
-                back={{ href: routes.fighter.videos, label: "Videos" }}
+                back={{ href: routes.fighter.videos, label: "Film" }}
                 title="Upload training video"
                 description="The AI detects your strikes, guard drops and footwork. Your coach then reviews the findings with you."
             />

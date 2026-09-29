@@ -1,16 +1,34 @@
 import "server-only";
 
+import { z } from "zod";
+
 import type { NavBadgeKey } from "@/components/layout/navigation";
 import { accessibleFighterIds } from "@/lib/auth/access";
+import { isDemoAuthEnabled } from "@/lib/auth/constants";
+import { authenticatedApiRequest } from "@/lib/api/client";
 import type { User } from "@/lib/domain/types";
-import { db } from "@/lib/mocks/db";
-import { getNotificationSummary } from "./notifications";
+import { nullIfNotFound } from "./api-helpers";
 
-/** Counts shown as badges in the navigation. Cheap reads, computed once per layout render. */
-export function getNavBadgeCounts(user: User): Partial<Record<NavBadgeKey, number>> {
+const navBadgeCountsSchema = z.object({
+    notifications: z.number().int().nonnegative().optional(),
+    reviewQueue: z.number().int().nonnegative().optional(),
+    newAlerts: z.number().int().nonnegative().optional(),
+    failedJobs: z.number().int().nonnegative().optional(),
+});
+
+/**
+ * Lay cac bo dem hien thi tren thanh dieu huong. Every page's layout reads them, so while the backend has no
+ * `/navigation/badges` endpoint (404) the navigation simply shows no counts instead of failing the page.
+ */
+export async function getNavBadgeCounts(user: User): Promise<Partial<Record<NavBadgeKey, number>>> {
+    if (!isDemoAuthEnabled()) {
+        return (await nullIfNotFound(authenticatedApiRequest("/navigation/badges", navBadgeCountsSchema))) ?? {};
+    }
+
+    const { db } = await import("@/lib/mocks/db");
     const store = db();
     const counts: Partial<Record<NavBadgeKey, number>> = {
-        notifications: getNotificationSummary(user.id).unread,
+        notifications: store.notifications.filter((notification) => notification.userId === user.id && notification.readAt === null).length,
     };
     const fighterIds = accessibleFighterIds(user);
     const inScope = (fighterId: string) => fighterIds === "all" || fighterIds.includes(fighterId);

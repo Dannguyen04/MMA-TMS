@@ -7,6 +7,16 @@
 
 ---
 
+## Điều Hướng Tài Liệu
+
+- [Tổng quan dự án](./PROJECT-OVERVIEW.md) — điểm bắt đầu cho thành viên mới
+- **Luồng nghiệp vụ** — tài liệu hiện tại
+- [Phân tích thị trường Việt Nam](./VIETNAM-MARKET-ANALYSIS.md) — kiểm chứng các luồng với thực tế vận hành
+- [Roadmap](./ROADMAP.md) — chuyển các khoảng cách nghiệp vụ thành task và checklist
+- [Spec kỹ thuật v3](./MMA-TMS-MASTER-SPECIFICATION-v3.md) — hợp đồng kỹ thuật chi tiết
+
+---
+
 ## Tổng Quan
 
 Hệ thống MMA-TMS vận hành qua **8 luồng nghiệp vụ chính**, xoay quanh vòng đời của một võ sĩ thi đấu tại CLB:
@@ -329,3 +339,9 @@ If Actual ≥ Target → achieved
 | Medical | 📖 Xem clearance | 📖 Xem clearance & injuries | ✅ **Toàn quyền** | 📋 Audit |
 | Performance | ✅ Đặt goals | 📖 Xem điểm & tiến độ | — | — |
 | Fight Camp | ✅ Plan camp | 📖 Countdown, weight | ✅ Pre-fight exam | — |
+
+---
+
+## Đọc Tiếp
+
+Đối chiếu các luồng trên với [thực tế thị trường Việt Nam](./VIETNAM-MARKET-ANALYSIS.md), sau đó chọn hạng mục triển khai trong [Roadmap](./ROADMAP.md). Nếu cần tra cứu cấu trúc dữ liệu hoặc API, xem [spec kỹ thuật v3](./MMA-TMS-MASTER-SPECIFICATION-v3.md).

@@ -71,7 +71,7 @@ export class CoachingService implements OnModuleInit {
 
       if (missing.length > 0) {
         throw new Error(
-          `CoachingService startup failed: required tables [${missing.join(', ')}] missing. Please run migration 005_coaching_loop_and_constraints.sql.`,
+          `CoachingService startup failed: required tables [${missing.join(', ')}] missing. Please run migration 013_coaching_loop_and_constraints.sql.`,
         );
       }
 

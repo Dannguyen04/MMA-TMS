@@ -22,12 +22,14 @@ export interface UserActionsProps {
     /** Why the role can't change (own account or linked profile); null when it can. */
     roleLockReason: string | null;
     isSelf: boolean;
+    /** Which actions the service offers; the others stay hidden. */
+    available: { edit: boolean; status: boolean };
 }
 
 type AccountStatus = "active" | "suspended";
 
 /** Edit, suspend / reactivate and resend-invite actions for one account. */
-export function UserActions({ user, roleLockReason, isSelf }: UserActionsProps) {
+export function UserActions({ user, roleLockReason, isSelf, available }: UserActionsProps) {
     const toast = useToast();
     const [editing, setEditing] = useState(false);
     const nextStatus: AccountStatus = user.status === "suspended" ? "active" : "suspended";
@@ -49,17 +51,20 @@ export function UserActions({ user, roleLockReason, isSelf }: UserActionsProps) 
 
     return (
         <>
-            {user.status === "invited" && (
+            {available.status && user.status === "invited" && (
                 <Button onClick={() => resend.request(user.id)}>
                     <MailPlus aria-hidden />
                     Resend invite
                 </Button>
             )}
-            <Button variant="secondary" onClick={() => setEditing(true)}>
-                <PenLine aria-hidden />
-                Edit account
-            </Button>
-            {!isSelf &&
+            {available.edit && (
+                <Button variant="secondary" onClick={() => setEditing(true)}>
+                    <PenLine aria-hidden />
+                    Edit account
+                </Button>
+            )}
+            {available.status &&
+                !isSelf &&
                 (user.status === "suspended" ? (
                     <Button onClick={() => statusChange.request("active")}>
                         <RotateCcw aria-hidden />

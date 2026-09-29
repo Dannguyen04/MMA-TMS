@@ -9,7 +9,7 @@ import { Logo } from "@/components/brand/logo";
 import { ROLE_LABELS } from "@/lib/domain/labels";
 import type { Role } from "@/lib/domain/types";
 import { cn } from "@/lib/utils";
-import { BADGE_LABELS, MOBILE_PRIMARY, NAVIGATION, isNavItemActive, type NavItem } from "./navigation";
+import { BADGE_LABELS, isNavItemActive, mobilePrimaryItems } from "./navigation";
 import { SidebarNav, type NavCounts } from "./sidebar-nav";
 
 /** Hamburger + slide-in navigation drawer for small and medium screens. */
@@ -52,22 +52,22 @@ export function MobileNavDrawer({ role, counts }: { role: Role; counts: NavCount
                 onClick={(event) => {
                     if (event.target === event.currentTarget) setOpen(false);
                 }}
-                className="m-0 h-dvh max-h-dvh w-[min(20rem,86vw)] max-w-none border-0 bg-nav-bg p-0 text-nav-fg shadow-dialog lg:hidden"
+                className="m-0 h-dvh max-h-dvh w-[min(20rem,86vw)] max-w-none border-0 bg-rail-bg p-0 text-rail-fg shadow-dialog lg:hidden"
             >
                 {open && (
                     <div className="flex h-full flex-col px-3 py-4">
                         <div className="mb-5 flex items-center justify-between px-2">
-                            <Logo />
+                            <Logo ground="rail" />
                             <button
                                 type="button"
                                 onClick={() => setOpen(false)}
-                                className="inline-flex size-9 items-center justify-center rounded-lg text-nav-fg hover:bg-nav-surface hover:text-white"
+                                className="inline-flex size-9 items-center justify-center rounded-lg text-rail-fg hover:bg-rail-active-bg hover:text-rail-fg-strong"
                                 aria-label="Close navigation"
                             >
                                 <X aria-hidden className="size-5" />
                             </button>
                         </div>
-                        <p className="mb-4 px-3 text-xs font-medium text-nav-fg/70">{ROLE_LABELS[role]} workspace</p>
+                        <p className="mb-4 px-3 font-display text-[13px] font-bold tracking-[0.1em] text-rail-muted uppercase">{ROLE_LABELS[role]} workspace</p>
                         <div className="scrollbar-thin flex min-h-0 flex-1 flex-col overflow-y-auto py-1 pr-1 pl-3">
                             <SidebarNav role={role} counts={counts} onNavigate={() => setOpen(false)} />
                         </div>
@@ -78,19 +78,19 @@ export function MobileNavDrawer({ role, counts }: { role: Role; counts: NavCount
     );
 }
 
-/** Thumb-reachable bar with the role's four primary destinations. */
+const GRID_COLS: Record<number, string> = { 4: "grid-cols-4", 5: "grid-cols-5" };
+
+/** Thumb-reachable bar with the role's hubs (admin: its four most-used pages). */
 export function MobileBottomBar({ role, counts }: { role: Role; counts: NavCounts }) {
     const pathname = usePathname();
-    const items = MOBILE_PRIMARY[role]
-        .map((href) => NAVIGATION[role].flatMap((s) => s.items).find((i) => i.href === href))
-        .filter((item): item is NavItem => Boolean(item));
+    const items = mobilePrimaryItems(role);
 
     return (
         <nav
             aria-label="Primary"
             className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
         >
-            <ul className="grid grid-cols-4">
+            <ul className={cn("grid", GRID_COLS[items.length] ?? "grid-cols-4")}>
                 {items.map((item) => {
                     const active = isNavItemActive(item, pathname);
                     const count = item.badge ? (counts[item.badge] ?? 0) : 0;
@@ -101,11 +101,11 @@ export function MobileBottomBar({ role, counts }: { role: Role; counts: NavCount
                                 href={item.href}
                                 aria-current={active ? "page" : undefined}
                                 className={cn(
-                                    "relative flex h-14 flex-col items-center justify-center gap-1 text-[11px] font-medium",
-                                    active ? "text-primary-soft-fg" : "text-fg-muted",
+                                    "relative flex h-14 flex-col items-center justify-center gap-1 font-display text-[13px] font-semibold tracking-[0.01em]",
+                                    active ? "text-fg" : "text-fg-muted",
                                 )}
                             >
-                                {active && <span aria-hidden className="absolute top-0 h-0.5 w-8 rounded-b-full bg-primary" />}
+                                {active && <span aria-hidden className="absolute top-0 h-[3px] w-8 -skew-x-12 bg-corner-red" />}
                                 <span className="relative">
                                     <Icon aria-hidden className="size-5" />
                                 </span>

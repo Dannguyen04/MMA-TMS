@@ -1,4 +1,4 @@
-import { CalendarCheck2, CalendarDays, CalendarX2, Gauge, History, Timer } from "lucide-react";
+import { CalendarCheck2, CalendarX2, Gauge, History, Timer } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -11,7 +11,7 @@ import { EmptyState } from "@/components/ui/states";
 import { Pagination } from "@/components/ui/table";
 import { SessionTable } from "@/components/training/session-table";
 import { MinutesChart } from "@/components/training/training-charts";
-import { SESSION_SORT_KEYS, fromTrainingProgress, rpeLabel, sortSessions, withinDayRange } from "@/components/training/training-utils";
+import { SESSION_SORT_KEYS, fromTrainingProgress, rpeLabel, sessionMinutes, sortSessions, withinDayRange } from "@/components/training/training-utils";
 import { requireFighterAccess } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { SESSION_STATUS_LABELS, TRAINING_TYPE_LABELS } from "@/lib/domain/labels";
@@ -38,11 +38,11 @@ interface WindowStats {
 
 function windowStats(sessions: TrainingSession[]): WindowStats {
     const completed = sessions.filter((s) => s.status === "completed");
-    const rpes = completed.flatMap((s) => (s.result ? [s.result.rpe] : []));
+    const rpes = completed.flatMap((s) => (s.result?.rpe != null ? [s.result.rpe] : []));
     return {
         completed: completed.length,
         missed: sessions.filter((s) => s.status === "missed").length,
-        minutes: sum(completed.map((s) => s.result?.actualDurationMin ?? s.durationMin)),
+        minutes: sum(completed.map(sessionMinutes)),
         avgRpe: rpes.length > 0 ? average(rpes) : null,
     };
 }
@@ -70,7 +70,7 @@ function minutesDelta(current: number, previous: number): StatDelta {
 export default async function FighterHistoryPage({ searchParams }: PageProps<"/fighter/training/history">) {
     const user = await requireRole("fighter");
     if (!user.profileId) notFound();
-    const fighter = requireFighterAccess(user, user.profileId);
+    const fighter = await requireFighterAccess(user, user.profileId);
     const params = await searchParams;
 
     const nowMs = new Date().getTime();
@@ -100,12 +100,6 @@ export default async function FighterHistoryPage({ searchParams }: PageProps<"/f
             <PageHeader
                 title="Training history"
                 description="Every session you've completed, missed or had cancelled — with your RPE and your coach's rating."
-                actions={
-                    <ButtonLink href={routes.fighter.schedule} variant="secondary">
-                        <CalendarDays aria-hidden />
-                        Schedule
-                    </ButtonLink>
-                }
             />
 
             <div className="flex flex-col gap-6">

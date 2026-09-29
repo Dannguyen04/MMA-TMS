@@ -17,11 +17,12 @@ import { formatDate, formatDateTime, formatRelative, pluralize } from "@/lib/for
 import { paginate, parseEnum, parseSortDirection, sortItems } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { listUsers } from "@/lib/services/admin";
+import { adminFeatureAvailable } from "@/lib/services/admin-features";
 import { param } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Users" };
 
-const STATUSES = Object.keys(USER_STATUS_LABELS) as UserStatus[];
+const ALL_STATUSES = Object.keys(USER_STATUS_LABELS) as UserStatus[];
 const SORT_KEYS = ["name", "role", "title", "status", "lastActive", "created"] as const;
 type SortKey = (typeof SORT_KEYS)[number];
 const PAGE_SIZE = 12;
@@ -40,19 +41,28 @@ export default async function AdminUsersPage({ searchParams }: PageProps<"/admin
     const params = await searchParams;
     const now = new Date().toISOString();
     const pathname = routes.admin.users;
+    // Without invitations there is no invited status; without sign-in tracking there is no last-active column.
+    const canInvite = adminFeatureAvailable("inviteUsers");
+    const showLastActive = adminFeatureAvailable("lastActive");
+    const opensInactive = adminFeatureAvailable("inactiveAccountDetail");
+    const statuses = canInvite ? ALL_STATUSES : ALL_STATUSES.filter((value) => value !== "invited");
+    const sortKeys = showLastActive ? SORT_KEYS : SORT_KEYS.filter((key) => key !== "lastActive");
 
     const role = parseEnum(param(params.role), ROLE_ORDER);
-    const status = parseEnum(param(params.status), STATUSES);
+    const status = parseEnum(param(params.status), statuses);
     const search = param(params.q)?.trim() || undefined;
-    const sort = parseEnum(param(params.sort), SORT_KEYS) ?? "name";
+    const sort = parseEnum(param(params.sort), sortKeys) ?? "name";
     const dir = parseSortDirection(param(params.dir), "asc");
     const hasFilters = Boolean(role || status || search);
 
-    const [users, everyone] = await Promise.all([listUsers({ search, role, status }), listUsers()]);
+    const [everyone, filtered] = await Promise.all([listUsers(), hasFilters ? listUsers({ search, role, status }) : null]);
+    const users = filtered ?? everyone;
     const page = paginate(sortItems(users, SORT_ACCESSORS[sort], dir), param(params.page), PAGE_SIZE);
     const countBy = (value: UserStatus) => everyone.filter((u) => u.status === value).length;
+    const counts = statuses.map((value) => `${countBy(value)} ${USER_STATUS_LABELS[value].toLowerCase()}`).join(" · ");
+    const userHref = (user: User) => (opensInactive || user.status === "active" ? routes.admin.user(user.id) : undefined);
 
-    const inviteButton = (
+    const inviteButton = canInvite && (
         <ButtonLink href={routes.admin.newUser}>
             <UserPlus aria-hidden />
             Invite user
@@ -64,7 +74,9 @@ export default async function AdminUsersPage({ searchParams }: PageProps<"/admin
         <>
             <PageHeader
                 title="Users"
-                description="Every account on the platform — invite staff and fighters, change roles and control who can sign in."
+                description={
+                    canInvite ? "Every account on the platform — invite staff and fighters, change roles and control who can sign in." : "Every staff and fighter account on the platform."
+                }
                 actions={inviteButton}
             />
 
@@ -73,14 +85,14 @@ export default async function AdminUsersPage({ searchParams }: PageProps<"/admin
                     filters={[
                         { type: "search", name: "q", label: "Search users", placeholder: "Search name, email or title" },
                         { type: "select", name: "role", label: "Roles", options: ROLE_ORDER.map((value) => ({ value, label: ROLE_LABELS[value] })) },
-                        { type: "select", name: "status", label: "Statuses", options: STATUSES.map((value) => ({ value, label: USER_STATUS_LABELS[value] })) },
+                        { type: "select", name: "status", label: "Statuses", options: statuses.map((value) => ({ value, label: USER_STATUS_LABELS[value] })) },
                     ]}
                 />
 
                 <Card className="overflow-hidden">
                     <CardHeader
                         title={hasFilters ? `${pluralize(users.length, "matching account")}` : `${pluralize(everyone.length, "account")}`}
-                        description={`${countBy("active")} active · ${countBy("invited")} invited · ${countBy("suspended")} suspended`}
+                        description={opensInactive || countBy("suspended") === 0 ? counts : `${counts}. Suspended accounts can't be opened yet.`}
                         icon={<Users />}
                     />
                     {page.total === 0 ? (
@@ -97,7 +109,12 @@ export default async function AdminUsersPage({ searchParams }: PageProps<"/admin
                                     }
                                 />
                             ) : (
-                                <EmptyState compact title="No accounts yet" description="Invite the first coach, doctor or fighter to get started." action={inviteButton} />
+                                <EmptyState
+                                    compact
+                                    title="No accounts yet"
+                                    description={canInvite ? "Invite the first coach, doctor or fighter to get started." : "Accounts created in the user service appear here."}
+                                    action={inviteButton}
+                                />
                             )}
                         </CardContent>
                     ) : (
@@ -110,7 +127,7 @@ export default async function AdminUsersPage({ searchParams }: PageProps<"/admin
                                             <SortableTH label="Role" sortKey="role" {...sortProps} />
                                             <SortableTH label="Title" sortKey="title" {...sortProps} />
                                             <SortableTH label="Status" sortKey="status" {...sortProps} />
-                                            <SortableTH label="Last active" sortKey="lastActive" {...sortProps} />
+                                            {showLastActive && <SortableTH label="Last active" sortKey="lastActive" {...sortProps} />}
                                             <SortableTH label="Created" sortKey="created" {...sortProps} />
                                         </tr>
                                     </THead>
@@ -118,20 +135,22 @@ export default async function AdminUsersPage({ searchParams }: PageProps<"/admin
                                         {page.items.map((user) => (
                                             <TR key={user.id}>
                                                 <TD className="max-w-72">
-                                                    <UserIdentity user={user} href={routes.admin.user(user.id)} isSelf={user.id === admin.id} />
+                                                    <UserIdentity user={user} href={userHref(user)} isSelf={user.id === admin.id} />
                                                 </TD>
                                                 <TD>
                                                     <RoleBadge role={user.role} size="sm" />
                                                 </TD>
-                                                <TD className="max-w-56 truncate text-fg-muted" title={user.title}>
-                                                    {user.title}
+                                                <TD className="max-w-56 truncate text-fg-muted" title={user.title || undefined}>
+                                                    {user.title || <span className="text-fg-subtle">—</span>}
                                                 </TD>
                                                 <TD>
                                                     <UserStatusBadge status={user.status} size="sm" />
                                                 </TD>
-                                                <TD className="whitespace-nowrap text-fg-muted">
-                                                    <LastActive user={user} now={now} />
-                                                </TD>
+                                                {showLastActive && (
+                                                    <TD className="whitespace-nowrap text-fg-muted">
+                                                        <LastActive user={user} now={now} />
+                                                    </TD>
+                                                )}
                                                 <TD className="whitespace-nowrap text-fg-muted">{formatDate(user.createdAt)}</TD>
                                             </TR>
                                         ))}
@@ -142,16 +161,18 @@ export default async function AdminUsersPage({ searchParams }: PageProps<"/admin
                             <ul className="divide-y divide-border md:hidden" aria-label="User accounts">
                                 {page.items.map((user) => (
                                     <li key={user.id} className="flex flex-col gap-2.5 px-4 py-3.5">
-                                        <UserIdentity user={user} href={routes.admin.user(user.id)} isSelf={user.id === admin.id} size="md" />
+                                        <UserIdentity user={user} href={userHref(user)} isSelf={user.id === admin.id} size="md" />
                                         <div className="flex flex-wrap items-center gap-2">
                                             <RoleBadge role={user.role} size="sm" />
                                             <UserStatusBadge status={user.status} size="sm" />
                                         </div>
                                         <p className="flex flex-wrap justify-between gap-x-3 gap-y-1 text-[13px] text-fg-muted">
                                             <span className="min-w-0 truncate">{user.title}</span>
-                                            <span className="shrink-0">
-                                                <LastActive user={user} now={now} />
-                                            </span>
+                                            {showLastActive && (
+                                                <span className="shrink-0">
+                                                    <LastActive user={user} now={now} />
+                                                </span>
+                                            )}
                                         </p>
                                     </li>
                                 ))}

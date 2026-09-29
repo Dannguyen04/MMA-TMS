@@ -34,9 +34,63 @@ describe('OpenAPI document (e2e)', () => {
     expect(document.paths['/users/me']?.get).toMatchObject({
       tags: ['Users'],
       security: [{ bearer: [] }],
-      responses: { 200: expect.any(Object), 403: expect.any(Object) },
+      responses: { 200: expect.any(Object), 401: expect.any(Object) },
     });
     expect(Object.keys(document.paths)).not.toContain('/permissions');
+  });
+
+  it('publishes ADMIN permission-assignment routes without catalogue CRUD', () => {
+    const document = createOpenApiDocument(app);
+    const assignmentRoutes = [
+      '/authorization/users/{userId}/permissions/{permissionCode}',
+      '/authorization/roles/{role}/permissions/{permissionCode}',
+    ];
+
+    for (const path of assignmentRoutes) {
+      expect(document.paths[path]?.put).toMatchObject({
+        security: [{ bearer: [] }],
+        responses: {
+          200: expect.any(Object),
+          401: expect.any(Object),
+          403: expect.any(Object),
+          404: expect.any(Object),
+          422: expect.any(Object),
+        },
+      });
+      expect(document.paths[path]?.delete).toMatchObject({
+        security: [{ bearer: [] }],
+        responses: {
+          200: expect.any(Object),
+          401: expect.any(Object),
+          403: expect.any(Object),
+          404: expect.any(Object),
+          422: expect.any(Object),
+        },
+      });
+    }
+
+    expect(document.paths['/permissions']).toBeUndefined();
+    expect(document.paths['/permissions/{id}']).toBeUndefined();
+  });
+
+  it('requires the user permission override body in OpenAPI', () => {
+    const operation =
+      createOpenApiDocument(app).paths[
+        '/authorization/users/{userId}/permissions/{permissionCode}'
+      ]?.put;
+
+    expect(operation?.requestBody).toMatchObject({ required: true });
+    expect(JSON.stringify(operation?.requestBody)).toContain(
+      'SetUserPermissionOverrideBodyDto',
+    );
+    expect(
+      createOpenApiDocument(app).components?.schemas
+        ?.SetUserPermissionOverrideBodyDto,
+    ).toMatchObject({
+      required: ['isGranted'],
+      properties: { isGranted: { type: 'boolean' } },
+      additionalProperties: false,
+    });
   });
 
   it('represents response date-times without OpenAPI 3.1-only null types', () => {
@@ -78,5 +132,246 @@ describe('OpenAPI document (e2e)', () => {
     const healthResponse = document.paths['/health']?.get?.responses?.[200];
 
     expect(JSON.stringify(healthResponse)).toContain('"data"');
+  });
+
+  it('publishes every Training Management route with bearer security', () => {
+    const document = createOpenApiDocument(app);
+    const routes = {
+      '/training-plans': ['get', 'post'],
+      '/training-plans/{id}': ['get', 'patch'],
+      '/training-plans/{id}/status': ['patch'],
+      '/training-plans/{id}/exercises': ['get', 'post'],
+      '/training-plans/{id}/exercises/{exerciseId}': ['patch', 'delete'],
+      '/training-sessions': ['get', 'post'],
+      '/training-sessions/{id}': ['get', 'patch'],
+      '/training-sessions/{id}/status': ['patch'],
+      '/exercises': ['get', 'post'],
+      '/exercises/{id}': ['get', 'patch'],
+    } as const;
+
+    for (const [path, methods] of Object.entries(routes)) {
+      for (const method of methods) {
+        expect(document.paths[path]?.[method]).toMatchObject({
+          security: [{ bearer: [] }],
+        });
+      }
+    }
+  });
+
+  it('documents Training success and error contracts on stateful routes', () => {
+    const document = createOpenApiDocument(app);
+
+    expect(
+      document.paths['/training-plans/{id}/status']?.patch?.responses,
+    ).toMatchObject({
+      200: expect.any(Object),
+      400: expect.any(Object),
+      401: expect.any(Object),
+      403: expect.any(Object),
+      404: expect.any(Object),
+      409: expect.any(Object),
+      422: expect.any(Object),
+    });
+    expect(
+      document.paths['/training-sessions/{id}/status']?.patch?.responses,
+    ).toMatchObject({
+      200: expect.any(Object),
+      400: expect.any(Object),
+      401: expect.any(Object),
+      403: expect.any(Object),
+      404: expect.any(Object),
+      409: expect.any(Object),
+      422: expect.any(Object),
+    });
+    expect(document.paths['/training-plans']?.post?.responses).toMatchObject({
+      201: expect.any(Object),
+      400: expect.any(Object),
+      401: expect.any(Object),
+      403: expect.any(Object),
+      409: expect.any(Object),
+      422: expect.any(Object),
+    });
+  });
+
+  it('documents DOCTOR write prohibition in 403 descriptions across all 11 write routes', () => {
+    const document = createOpenApiDocument(app);
+    const writeRoutes = [
+      { path: '/training-plans', method: 'post' as const },
+      { path: '/training-plans/{id}', method: 'patch' as const },
+      { path: '/training-plans/{id}/status', method: 'patch' as const },
+      { path: '/training-plans/{id}/exercises', method: 'post' as const },
+      { path: '/training-plans/{id}/exercises/{exerciseId}', method: 'patch' as const },
+      { path: '/training-plans/{id}/exercises/{exerciseId}', method: 'delete' as const },
+      { path: '/training-sessions', method: 'post' as const },
+      { path: '/training-sessions/{id}', method: 'patch' as const },
+      { path: '/training-sessions/{id}/status', method: 'patch' as const },
+      { path: '/exercises', method: 'post' as const },
+      { path: '/exercises/{id}', method: 'patch' as const },
+    ];
+
+    expect(writeRoutes).toHaveLength(11);
+    for (const { path, method } of writeRoutes) {
+      const operation = document.paths[path]?.[method];
+      expect(operation).toBeDefined();
+      const forbiddenResponse = operation?.responses?.[403] as {
+        description?: string;
+      };
+      expect(forbiddenResponse?.description).toBeDefined();
+      expect(forbiddenResponse?.description).toContain('DOCTOR');
+    }
+  });
+
+  it('documents session status cancellationReason and duration rules in operation description', () => {
+    const document = createOpenApiDocument(app);
+    const operation =
+      document.paths['/training-sessions/{id}/status']?.patch;
+
+    expect(operation?.description).toContain('cancellationReason');
+    expect(operation?.description).toContain('actualDurationSec');
+  });
+
+  it('documents both PERMISSION_NOT_FOUND and USER_NOT_FOUND in PUT user override 404 description', () => {
+    const document = createOpenApiDocument(app);
+    const operation =
+      document.paths['/authorization/users/{userId}/permissions/{permissionCode}']?.put;
+    const notFoundResponse = operation?.responses?.[404] as {
+      description?: string;
+    };
+
+    expect(notFoundResponse?.description).toContain('PERMISSION_NOT_FOUND');
+    expect(notFoundResponse?.description).toContain('USER_NOT_FOUND');
+  });
+
+  it('keeps Training request and response schemas aligned with persistence names', () => {
+    const schemas = createOpenApiDocument(app).components?.schemas;
+    const exercise = schemas?.ExerciseResponseDto as {
+      properties?: Record<string, unknown>;
+    };
+    const sessionUpdate = schemas?.UpdateSessionDto as {
+      properties?: Record<string, unknown>;
+    };
+    const sessionResponse = schemas?.TrainingSessionResponseDto as {
+      properties?: Record<string, unknown>;
+    };
+    const plan = schemas?.TrainingPlanResponseDto as {
+      properties?: Record<string, unknown>;
+    };
+
+    expect(exercise.properties).toHaveProperty('name');
+    expect(exercise.properties).toHaveProperty('targetMuscleGroups');
+    expect(exercise.properties).toHaveProperty('thumbnailUrl');
+    expect(exercise.properties).not.toHaveProperty('title');
+    expect(sessionUpdate.properties).toHaveProperty('coachNotes');
+    expect(sessionUpdate.properties).not.toHaveProperty('status');
+    expect(sessionUpdate.properties).not.toHaveProperty('fighterId');
+    expect(sessionUpdate.properties).not.toHaveProperty('coachId');
+    expect(sessionUpdate.properties).not.toHaveProperty('planId');
+    // Server-owned fields absent from request, present in response
+    expect(sessionUpdate.properties).not.toHaveProperty('actualDurationSec');
+    expect(sessionUpdate.properties).not.toHaveProperty('cancellationReason');
+    expect(sessionResponse.properties).toHaveProperty('actualDurationSec');
+    expect(sessionResponse.properties).toHaveProperty('cancellationReason');
+    expect(plan.properties).toHaveProperty('milestones');
+    expect(plan.properties).toHaveProperty('progress');
+  });
+
+  it('publishes every Medical and Doctor Assignment route with bearer security', () => {
+    const document = createOpenApiDocument(app);
+    const medicalRoutes: Record<string, readonly string[]> = {
+      '/fighters/{id}/medical': ['get'],
+      '/fighters/{id}/medical/history': ['get'],
+      '/fighters/{id}/medical-examinations': ['get', 'post'],
+      '/fighters/{id}/medical-review-requests': ['get', 'post'],
+      '/fighters/{id}/injuries': ['post'],
+      '/injuries/{id}': ['patch'],
+      '/injuries/{id}/treatments': ['post'],
+      '/fighters/{id}/recovery-plans': ['post'],
+      '/recovery-plans/{id}': ['patch'],
+      '/fighters/{id}/medical-clearances': ['post'],
+      '/medical-clearances/{id}/revoke': ['post'],
+      '/fighters/{id}/doctors': ['get', 'post'],
+      '/fighters/{id}/doctors/{assignmentId}/end': ['post'],
+      '/doctors/{id}/fighters': ['get'],
+    };
+
+    for (const [path, methods] of Object.entries(medicalRoutes)) {
+      for (const method of methods) {
+        expect(document.paths[path]?.[method]).toMatchObject({
+          security: [{ bearer: [] }],
+        });
+      }
+    }
+  });
+
+  it('documents Medical clinical write prohibition in 403 descriptions across doctor-write routes', () => {
+    const document = createOpenApiDocument(app);
+    const doctorWriteRoutes = [
+      { path: '/fighters/{id}/injuries', method: 'post' as const },
+      { path: '/injuries/{id}', method: 'patch' as const },
+      { path: '/injuries/{id}/treatments', method: 'post' as const },
+      { path: '/fighters/{id}/recovery-plans', method: 'post' as const },
+      { path: '/recovery-plans/{id}', method: 'patch' as const },
+      { path: '/fighters/{id}/medical-examinations', method: 'post' as const },
+      { path: '/fighters/{id}/medical-clearances', method: 'post' as const },
+      { path: '/medical-clearances/{id}/revoke', method: 'post' as const },
+    ];
+
+    for (const { path, method } of doctorWriteRoutes) {
+      const operation = document.paths[path]?.[method];
+      expect(operation).toBeDefined();
+      const forbiddenResponse = operation?.responses?.[403] as {
+        description?: string;
+      };
+      expect(forbiddenResponse?.description).toBeDefined();
+      expect(forbiddenResponse?.description).toContain('DOCTOR');
+    }
+  });
+
+  it('documents Medical error contracts on stateful medical routes', () => {
+    const document = createOpenApiDocument(app);
+
+    expect(
+      document.paths['/fighters/{id}/medical-examinations']?.post?.responses,
+    ).toMatchObject({
+      201: expect.any(Object),
+      401: expect.any(Object),
+      403: expect.any(Object),
+      404: expect.any(Object),
+      409: expect.any(Object),
+      422: expect.any(Object),
+    });
+
+    expect(
+      document.paths['/fighters/{id}/medical-clearances']?.post?.responses,
+    ).toMatchObject({
+      201: expect.any(Object),
+      401: expect.any(Object),
+      403: expect.any(Object),
+      404: expect.any(Object),
+      409: expect.any(Object),
+      422: expect.any(Object),
+    });
+
+    expect(
+      document.paths['/medical-clearances/{id}/revoke']?.post?.responses,
+    ).toMatchObject({
+      200: expect.any(Object),
+      401: expect.any(Object),
+      403: expect.any(Object),
+      404: expect.any(Object),
+      409: expect.any(Object),
+      422: expect.any(Object),
+    });
+
+    expect(
+      document.paths['/fighters/{id}/doctors/{assignmentId}/end']?.post?.responses,
+    ).toMatchObject({
+      200: expect.any(Object),
+      401: expect.any(Object),
+      403: expect.any(Object),
+      404: expect.any(Object),
+      409: expect.any(Object),
+      422: expect.any(Object),
+    });
   });
 });

@@ -1,5 +1,5 @@
 import { formatMeasure } from "@/components/domain/domain-format";
-import { BODY_REGION_LABELS, INJURY_TYPE_LABELS } from "@/lib/domain/labels";
+import { BODY_REGION_LABELS, injuryTypeName } from "@/lib/domain/labels";
 import type { AbnormalMovementAlert, BodyRegion, DoctorDecision, Injury, InjurySeverity, InjuryStatus } from "@/lib/domain/types";
 
 /** Plain-language clinical copy shared by the injury, recovery and AI observation screens. */
@@ -29,6 +29,7 @@ export const INJURY_SEVERITY_DESCRIPTIONS: Record<InjurySeverity, string> = {
     minor: "Little or no training time lost. Symptoms usually settle within about a week with modified training.",
     moderate: "Training time lost, typically one to four weeks. Needs structured treatment and a recovery plan.",
     severe: "Significant structural damage or more than four weeks out. May need imaging, specialist referral or surgery.",
+    critical: "Needs urgent specialist care. No training until the sports doctor says otherwise.",
 };
 
 export const OPEN_INJURY_STATUS_DESCRIPTIONS: Record<Exclude<InjuryStatus, "resolved">, string> = {
@@ -36,13 +37,13 @@ export const OPEN_INJURY_STATUS_DESCRIPTIONS: Record<Exclude<InjuryStatus, "reso
     recovering: "Past the acute phase, progressing through a return-to-training plan.",
 };
 
-export function injuryTitle(injury: Pick<Injury, "type" | "bodyRegion">): string {
-    return `${INJURY_TYPE_LABELS[injury.type]} — ${BODY_REGION_LABELS[injury.bodyRegion]}`;
+export function injuryTitle(injury: Pick<Injury, "type" | "typeLabel" | "bodyRegion">): string {
+    return `${injuryTypeName(injury)} — ${BODY_REGION_LABELS[injury.bodyRegion]}`;
 }
 
 /** Lower-case "muscle strain, left hamstring" for use inside sentences and option labels. */
 export function injuryPhrase(injury: Pick<Injury, "type" | "bodyRegion">): string {
-    return `${INJURY_TYPE_LABELS[injury.type].toLowerCase()}, ${BODY_REGION_LABELS[injury.bodyRegion].toLowerCase()}`;
+    return `${injuryTypeName(injury).toLowerCase()}, ${BODY_REGION_LABELS[injury.bodyRegion].toLowerCase()}`;
 }
 
 export function painLabel(level: number): string {

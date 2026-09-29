@@ -3,16 +3,19 @@ import {
   and,
   desc,
   eq,
+  gt,
   gte,
   ilike,
   inArray,
   isNull,
   lte,
   or,
+  type SQL,
   sql,
 } from 'drizzle-orm';
 import { DRIZZLE, type DrizzleDB } from '../database/database.module.js';
 import {
+  coachFighters,
   coaches,
   fighterJointStates,
   fighterMeasurements,
@@ -23,7 +26,6 @@ import {
 } from '../database/schema.js';
 import {
   type DatabaseExecutor,
-  setAuditContext,
   type Transaction,
 } from '../shared/utils/audit-context.util.js';
 import type {
@@ -39,6 +41,66 @@ import type {
   UpdateFighterProfileInput,
 } from './fighters.model.js';
 
+// Shared with the Medical doctor roster, which lists Fighters under the same
+// filters and PublicFighter projection.
+export function buildFighterFilterConditions(query: ListFightersQuery): SQL[] {
+  const conditions: SQL[] = [
+    isNull(fighters.deletedAt),
+    eq(fighters.isActive, true),
+  ];
+
+  if (query.weightClass) {
+    conditions.push(eq(fighters.weightClass, query.weightClass));
+  }
+  if (query.dominantStance) {
+    conditions.push(eq(fighters.dominantStance, query.dominantStance));
+  }
+  if (query.gym) {
+    conditions.push(ilike(fighters.gym, `%${query.gym}%`));
+  }
+  if (query.medicalStatus) {
+    conditions.push(eq(fighters.currentMedicalStatus, query.medicalStatus));
+  }
+  if (query.search) {
+    const searchPattern = `%${query.search}%`;
+    conditions.push(
+      or(
+        ilike(fighters.firstName, searchPattern),
+        ilike(fighters.lastName, searchPattern),
+      )!,
+    );
+  }
+
+  return conditions;
+}
+
+export function mapFighterRow(row: typeof fighters.$inferSelect): PublicFighter {
+  return {
+    id: row.id,
+    userId: row.userId,
+    firstName: row.firstName,
+    lastName: row.lastName,
+    dateOfBirth: row.dateOfBirth,
+    nationality: row.nationality,
+    weightClass: row.weightClass as PublicFighter['weightClass'],
+    heightCm: row.heightCm,
+    reachCm: row.reachCm,
+    dominantStance: row.dominantStance as PublicFighter['dominantStance'],
+    leftArmCm: row.leftArmCm,
+    rightArmCm: row.rightArmCm,
+    leftLegCm: row.leftLegCm,
+    rightLegCm: row.rightLegCm,
+    gym: row.gym,
+    currentMedicalStatus:
+      row.currentMedicalStatus as PublicFighter['currentMedicalStatus'],
+    bio: row.bio,
+    profileImageUrl: row.profileImageUrl,
+    isActive: row.isActive,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
 @Injectable()
 export class FightersRepository {
   constructor(@Inject(DRIZZLE) private readonly db: DrizzleDB) {}
@@ -47,12 +109,63 @@ export class FightersRepository {
     return this.db.transaction(work);
   }
 
-  setAudit(
-    subject: string,
-    requestId: string,
-    database: DatabaseExecutor,
-  ): Promise<void> {
-    return setAuditContext(subject, requestId, database);
+  // --- Coach resource-scope helpers ---
+  //
+  // Owned here (not shared/utils) because FightersRepository already owns all
+  // persistence for `coach_fighters` (assignCoach/endCoachAssignment below).
+  // Reused by FightersService for every Coach-scoped read and, via the
+  // exported FightersRepository, by CoachesModule for its own roster route.
+
+  private activeCoachAssignmentCondition(coachId: string): SQL {
+    const now = new Date();
+    return sql`EXISTS (
+      SELECT 1 FROM public.coach_fighters cf
+      WHERE cf.coach_id = ${coachId}
+        AND cf.fighter_id = ${fighters.id}
+        AND cf.starts_at <= ${now}
+        AND (cf.ends_at IS NULL OR cf.ends_at > ${now})
+    )`;
+  }
+
+  // Resolves only an unambiguous match (user_id is unique today; this keeps
+  // the check fail-closed regardless).
+  async findActiveCoachIdByUserId(
+    userId: string,
+    database: DatabaseExecutor = this.db,
+  ): Promise<string | undefined> {
+    const rows = await database
+      .select({ id: coaches.id })
+      .from(coaches)
+      .where(
+        and(
+          eq(coaches.userId, userId),
+          eq(coaches.isActive, true),
+          isNull(coaches.deletedAt),
+        ),
+      )
+      .limit(2);
+    return rows.length === 1 ? rows[0].id : undefined;
+  }
+
+  async isFighterAssignedToCoach(
+    coachId: string,
+    fighterId: string,
+    database: DatabaseExecutor = this.db,
+  ): Promise<boolean> {
+    const now = new Date();
+    const [row] = await database
+      .select({ id: coachFighters.id })
+      .from(coachFighters)
+      .where(
+        and(
+          eq(coachFighters.coachId, coachId),
+          eq(coachFighters.fighterId, fighterId),
+          lte(coachFighters.startsAt, now),
+          or(isNull(coachFighters.endsAt), gt(coachFighters.endsAt, now)),
+        ),
+      )
+      .limit(1);
+    return row !== undefined;
   }
 
   // --- Fighters CRUD ---
@@ -61,34 +174,7 @@ export class FightersRepository {
     query: ListFightersQuery,
     database: DatabaseExecutor = this.db,
   ): Promise<{ data: PublicFighter[]; total: number }> {
-    const conditions = [
-      isNull(fighters.deletedAt),
-      eq(fighters.isActive, true),
-    ];
-
-    if (query.weightClass) {
-      conditions.push(eq(fighters.weightClass, query.weightClass));
-    }
-    if (query.dominantStance) {
-      conditions.push(eq(fighters.dominantStance, query.dominantStance));
-    }
-    if (query.gym) {
-      conditions.push(ilike(fighters.gym, `%${query.gym}%`));
-    }
-    if (query.medicalStatus) {
-      conditions.push(eq(fighters.currentMedicalStatus, query.medicalStatus));
-    }
-    if (query.search) {
-      const searchPattern = `%${query.search}%`;
-      conditions.push(
-        or(
-          ilike(fighters.firstName, searchPattern),
-          ilike(fighters.lastName, searchPattern),
-        )!,
-      );
-    }
-
-    const whereClause = and(...conditions);
+    const whereClause = and(...buildFighterFilterConditions(query));
     const offset = (query.page - 1) * query.limit;
 
     const [rows, countResult] = await Promise.all([
@@ -106,7 +192,36 @@ export class FightersRepository {
     ]);
 
     const total = countResult[0]?.count ?? 0;
-    return { data: rows.map(this.mapFighterRow), total };
+    return { data: rows.map(mapFighterRow), total };
+  }
+
+  async findAllForCoach(
+    coachId: string,
+    query: ListFightersQuery,
+    database: DatabaseExecutor = this.db,
+  ): Promise<{ data: PublicFighter[]; total: number }> {
+    const whereClause = and(
+      ...buildFighterFilterConditions(query),
+      this.activeCoachAssignmentCondition(coachId),
+    );
+    const offset = (query.page - 1) * query.limit;
+
+    const [rows, countResult] = await Promise.all([
+      database
+        .select()
+        .from(fighters)
+        .where(whereClause)
+        .orderBy(desc(fighters.createdAt))
+        .limit(query.limit)
+        .offset(offset),
+      database
+        .select({ count: sql<number>`count(*)::int` })
+        .from(fighters)
+        .where(whereClause),
+    ]);
+
+    const total = countResult[0]?.count ?? 0;
+    return { data: rows.map(mapFighterRow), total };
   }
 
   async findById(
@@ -117,7 +232,7 @@ export class FightersRepository {
       .select()
       .from(fighters)
       .where(and(eq(fighters.id, id), isNull(fighters.deletedAt)));
-    return row ? this.mapFighterRow(row) : undefined;
+    return row ? mapFighterRow(row) : undefined;
   }
 
   async findByUserId(
@@ -128,7 +243,7 @@ export class FightersRepository {
       .select()
       .from(fighters)
       .where(and(eq(fighters.userId, userId), isNull(fighters.deletedAt)));
-    return row ? this.mapFighterRow(row) : undefined;
+    return row ? mapFighterRow(row) : undefined;
   }
 
   async update(
@@ -144,7 +259,7 @@ export class FightersRepository {
       })
       .where(and(eq(fighters.id, id), isNull(fighters.deletedAt)))
       .returning();
-    return row ? this.mapFighterRow(row) : undefined;
+    return row ? mapFighterRow(row) : undefined;
   }
 
   // --- Body Measurements (Append-Only) ---
@@ -557,6 +672,9 @@ export class FightersRepository {
     const fighter = await this.findById(fighterId, database);
     if (!fighter) return undefined;
 
+    // Same real-time validity the Medical module uses: ACTIVE status alone is
+    // not enough once validUntil has passed (no expiry cron is assumed).
+    const now = new Date();
     const [activeClearances, injuries, joints] = await Promise.all([
       database
         .select()
@@ -565,6 +683,12 @@ export class FightersRepository {
           and(
             eq(medicalClearances.fighterId, fighterId),
             eq(medicalClearances.status, 'ACTIVE'),
+            isNull(medicalClearances.deletedAt),
+            lte(medicalClearances.validFrom, now),
+            or(
+              isNull(medicalClearances.validUntil),
+              gt(medicalClearances.validUntil, now),
+            ),
           ),
         )
         .orderBy(desc(medicalClearances.createdAt))
@@ -576,6 +700,7 @@ export class FightersRepository {
           and(
             eq(injuryRecords.fighterId, fighterId),
             inArray(injuryRecords.status, ['ACTIVE', 'RECOVERING']),
+            isNull(injuryRecords.deletedAt),
           ),
         )
         .orderBy(desc(injuryRecords.occurredAt)),
@@ -619,35 +744,6 @@ export class FightersRepository {
         stateUpdatedAt: new Date(j.stateUpdatedAt),
         notes: j.notes,
       })),
-    };
-  }
-
-  // --- Helper mapping ---
-
-  private mapFighterRow(row: typeof fighters.$inferSelect): PublicFighter {
-    return {
-      id: row.id,
-      userId: row.userId,
-      firstName: row.firstName,
-      lastName: row.lastName,
-      dateOfBirth: row.dateOfBirth,
-      nationality: row.nationality,
-      weightClass: row.weightClass as PublicFighter['weightClass'],
-      heightCm: row.heightCm,
-      reachCm: row.reachCm,
-      dominantStance: row.dominantStance as PublicFighter['dominantStance'],
-      leftArmCm: row.leftArmCm,
-      rightArmCm: row.rightArmCm,
-      leftLegCm: row.leftLegCm,
-      rightLegCm: row.rightLegCm,
-      gym: row.gym,
-      currentMedicalStatus:
-        row.currentMedicalStatus as PublicFighter['currentMedicalStatus'],
-      bio: row.bio,
-      profileImageUrl: row.profileImageUrl,
-      isActive: row.isActive,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
     };
   }
 }

@@ -9,6 +9,7 @@ import { HealthStatusCard } from "@/components/dashboard/health-status-card";
 import { BodyProfileCard, GoalsSnapshotCard, UpcomingSessionsCard } from "@/components/dashboard/profile-overview-cards";
 import { loadRosterEntry } from "@/components/dashboard/roster-data";
 import { ClearanceCard } from "@/components/domain/clearance-card";
+import { ReviewRequestCard } from "@/components/medical/review-request-card";
 import { CoachFeedbackItem } from "@/components/domain/coach-feedback-item";
 import { PlanCard } from "@/components/domain/plan-card";
 import { planAdherencePct } from "@/lib/domain/training-plan";
@@ -16,14 +17,14 @@ import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/states";
 import { requireFighterAccess } from "@/lib/auth/access";
-import { requireRole } from "@/lib/auth/session";
+import { hasPermission, requireRole } from "@/lib/auth/session";
 import { formatWeekdayDate } from "@/lib/format";
 import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { getAnalysis } from "@/lib/services/ai";
 import { getSettings } from "@/lib/services/admin";
 import { listGoals } from "@/lib/services/goals";
-import { getFighterHealthSummary } from "@/lib/services/medical";
+import { getClearanceStatus, getFighterHealthSummary, listReviewRequests } from "@/lib/services/medical";
 import { listCoaches, listDoctors } from "@/lib/services/people";
 import { getPlanWithSessions, listCoachFeedback, listPlans } from "@/lib/services/training";
 import { listVideoLibrary } from "@/lib/services/videos";
@@ -33,18 +34,18 @@ const FEEDBACK_LIMIT = 3;
 
 export async function generateMetadata({ params }: PageProps<"/coach/fighters/[fighterId]">): Promise<Metadata> {
     const user = await requireRole("coach");
-    const fighter = requireFighterAccess(user, (await params).fighterId);
+    const fighter = await requireFighterAccess(user, (await params).fighterId);
     return { title: fighter.name };
 }
 
 export default async function CoachFighterOverviewPage({ params }: PageProps<"/coach/fighters/[fighterId]">) {
     const user = await requireRole("coach");
-    const fighter = requireFighterAccess(user, (await params).fighterId);
+    const fighter = await requireFighterAccess(user, (await params).fighterId);
     const now = new Date().toISOString();
     const ids = [fighter.id];
 
     // Reads that depend on another result chain onto it, so nothing waits for the whole first batch.
-    const [entry, planDetail, { latest, analysis }, feedback, goals, coaches, doctors, health, settings] = await Promise.all([
+    const [entry, planDetail, { latest, analysis }, feedback, goals, coaches, doctors, health, settings, reviewRequests, { eligibility }] = await Promise.all([
         loadRosterEntry(user, fighter.id),
         listPlans({ fighterIds: ids, status: "active" }).then((plans) => (plans[0] ? getPlanWithSessions(plans[0].id) : null)),
         listVideoLibrary({ fighterIds: ids, status: "completed" }).then(async (library) => {
@@ -57,6 +58,8 @@ export default async function CoachFighterOverviewPage({ params }: PageProps<"/c
         listDoctors(),
         getFighterHealthSummary(fighter.id, now),
         getSettings(),
+        listReviewRequests(fighter.id),
+        getClearanceStatus(fighter.id, now),
     ]);
     const activePlan = planDetail?.plan ?? null;
 
@@ -74,7 +77,18 @@ export default async function CoachFighterOverviewPage({ params }: PageProps<"/c
                     now={now}
                     variant="summary"
                     warningDays={settings.clearanceExpiryWarningDays}
+                    pausedForReview={eligibility?.reasons.includes("REVIEW_REQUEST_PENDING")}
                     actions={<CardLink href={routes.coach.clearance}>Roster</CardLink>}
+                />
+
+                <ReviewRequestCard
+                    fighterId={fighter.id}
+                    fighterName={fighter.name}
+                    audience="coach"
+                    requests={reviewRequests}
+                    eligibility={eligibility}
+                    canRequest={hasPermission(user, "medical:request_review")}
+                    now={now}
                 />
 
                 <HealthStatusCard status={fighter.healthStatus}>

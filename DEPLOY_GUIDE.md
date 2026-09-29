@@ -19,7 +19,7 @@ Tài liệu hướng dẫn từng bước triển khai hệ thống **MMA-TMS** 
 | `SUPABASE_URL`         | Frontend, NestJS, Worker | `https://[project-ref].supabase.co`                                                        |
 | `SUPABASE_ANON_KEY`    | Frontend                 | Khóa công khai `anon` trên Supabase API                                                    |
 | `SUPABASE_SERVICE_KEY` | NestJS, Worker           | Khóa bí mật `service_role` trên Supabase API                                               |
-| `WORKER_SECRET_TOKEN`  | NestJS, Worker           | Chuỗi bảo mật ngẫu nhiên (ví dụ: `mma-tms-secret-key-prod-2026`)                           |
+| `WORKER_SECRET_TOKEN`  | NestJS, Worker           | Chuỗi bảo mật ngẫu nhiên (tự sinh, ví dụ: `openssl rand -hex 32`)                           |
 | `NEXT_PUBLIC_API_URL`  | Frontend (Vercel)        | URL của Backend trên Render (ví dụ: `https://mma-api.onrender.com`)                        |
 | `FRONTEND_URL`         | NestJS (Render)          | `https://*.vercel.app,https://your-domain.com`                                             |
 
@@ -72,7 +72,7 @@ Tài liệu hướng dẫn từng bước triển khai hệ thống **MMA-TMS** 
     - `REDIS_URL`: _(Lấy từ Upstash ở Bước 2)_
     - `SUPABASE_URL`: _(Lấy từ Supabase)_
     - `SUPABASE_SERVICE_KEY`: _(Lấy từ Supabase)_
-    - `WORKER_SECRET_TOKEN`: `mma-tms-secret-key-prod-2026`
+    - `WORKER_SECRET_TOKEN`: _(chuỗi ngẫu nhiên tự sinh, dùng chung giữa NestJS và Worker)_
     - `FRONTEND_URL`: `https://*.vercel.app,http://localhost:3000`
 5. Bấm **Create Web Service**. Đợi ~2 phút đến khi hiển thị `Live`.
 6. Copy domain HTTPS do Render cấp (ví dụ: `https://mma-tms-api.onrender.com`).
@@ -111,7 +111,7 @@ Bạn có thể chọn 1 trong 2 phương án:
     NESTJS_API_URL=https://mma-tms-api.onrender.com
     SUPABASE_URL=https://wskisxkpbhisnqfpjqrm.supabase.co
     SUPABASE_SERVICE_KEY=eyJhbGci...
-    WORKER_SECRET_TOKEN=mma-tms-secret-key-prod-2026
+    WORKER_SECRET_TOKEN=replace-with-random-worker-secret
     ```
 2. Khởi động worker:
     ```bash
@@ -135,7 +135,7 @@ Bạn có thể chọn 1 trong 2 phương án:
     - `NESTJS_API_URL`: `https://mma-tms-api.onrender.com`
     - `SUPABASE_URL`: _(Lấy từ Supabase)_
     - `SUPABASE_SERVICE_KEY`: _(Lấy từ Supabase)_
-    - `WORKER_SECRET_TOKEN`: `mma-tms-secret-key-prod-2026`
+    - `WORKER_SECRET_TOKEN`: _(chuỗi ngẫu nhiên tự sinh, dùng chung giữa NestJS và Worker)_
 5. Bấm Deploy. Worker sẽ chạy nền liên tục 24/7 trên Cloud.
 
 ---

@@ -1,8 +1,6 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { z } from "zod";
 
-/** Supabase Storage adapter for training footage (browser uploads, public URLs for the worker). */
-
-const VIDEO_BUCKET = "videos";
+import type { CameraAngle, VideoTrainingType } from "@/lib/domain/types";
 
 export class StorageUploadError extends Error {
     constructor(message: string) {
@@ -11,31 +9,50 @@ export class StorageUploadError extends Error {
     }
 }
 
-let client: SupabaseClient | null = null;
-
-/** Created on first use so builds and mock mode never need Supabase credentials. */
-function storageClient(): SupabaseClient {
-    if (client) return client;
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!url || !key) {
-        throw new StorageUploadError("Video storage isn't configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.");
-    }
-    client = createClient(url, key);
-    return client;
-}
+const storedVideoSchema = z.object({ videoId: z.string().uuid(), sourceUrl: z.string().startsWith("/api/videos/") });
 
 export interface StoredVideo {
-    path: string;
-    publicUrl: string;
+    videoId: string;
+    /** URL cùng-origin có xác thực dùng cho trình phát video. */
+    sourceUrl: string;
 }
 
-/** Uploads a video file and returns its storage path and public URL. */
-export async function uploadVideoToStorage(file: File): Promise<StoredVideo> {
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-    const path = `uploads/${Date.now()}_${safeName}`;
-    const bucket = storageClient().storage.from(VIDEO_BUCKET);
-    const { error } = await bucket.upload(path, file, { cacheControl: "3600", upsert: false, contentType: file.type || undefined });
-    if (error) throw new StorageUploadError(`The upload failed: ${error.message}`);
-    return { path, publicUrl: bucket.getPublicUrl(path).data.publicUrl };
+export interface VideoUploadMetadata {
+    fighterId: string;
+    title: string;
+    description?: string;
+    trainingType: VideoTrainingType;
+    cameraAngle: CameraAngle;
+    sessionId?: string;
+    durationMs: number;
+}
+
+/** Truyền thẳng nội dung file qua same-origin Route Handler, không đưa khóa storage vào trình duyệt. */
+export async function uploadVideoToStorage(file: File, metadata: VideoUploadMetadata): Promise<StoredVideo> {
+    let response: Response;
+    try {
+        const query = new URLSearchParams();
+        // Skip absent optional fields: URLSearchParams would otherwise send the literal string "undefined".
+        for (const [key, value] of Object.entries({ ...metadata, originalFilename: file.name, fileSizeBytes: file.size })) {
+            if (value !== undefined) query.set(key, String(value));
+        }
+        response = await fetch(`/api/videos/upload?${query.toString()}`, {
+            method: "POST",
+            headers: {
+                "Content-Type": file.type || "application/octet-stream",
+            },
+            body: file,
+            cache: "no-store",
+        });
+    } catch {
+        throw new StorageUploadError("The video storage service can't be reached.");
+    }
+    const body: unknown = await response.json().catch(() => null);
+    if (!response.ok) {
+        const error = z.object({ message: z.string() }).safeParse(body);
+        throw new StorageUploadError(error.success ? error.data.message : `The upload failed (HTTP ${response.status}).`);
+    }
+    const parsed = storedVideoSchema.safeParse(body);
+    if (!parsed.success) throw new StorageUploadError("Video storage returned an unexpected response.");
+    return parsed.data;
 }

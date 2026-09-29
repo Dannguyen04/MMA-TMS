@@ -1,16 +1,21 @@
 import type { Metadata } from "next";
 
+import { ExaminationDecisionForm } from "@/components/medical/examination-decision-form";
 import { ExaminationForm, type ExamFighterOption } from "@/components/medical/examination-form";
+import { FighterChooser } from "@/components/medical/fighter-chooser";
+import { loadFormFighter } from "@/components/medical/form-fighter";
 import { PageHeader } from "@/components/ui/page-header";
 import { accessibleFighterIds, canAccessFighter } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { EXAMINATION_TYPE_LABELS } from "@/lib/domain/labels";
+import { EXAMINATION_SCOPES } from "@/lib/domain/medical-contract";
 import { clearanceState, currentClearance } from "@/lib/domain/rules";
 import type { ExaminationType, MedicalExamination } from "@/lib/domain/types";
 import { toDateTimeInputValue } from "@/lib/format";
-import { parseEnum } from "@/lib/query";
+import { hrefWith, parseEnum } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { listClearances, listExaminations } from "@/lib/services/medical";
+import { usesMedicalServiceForms } from "@/lib/services/medical-features";
 import { listFighters } from "@/lib/services/people";
 import { param } from "@/lib/utils";
 
@@ -18,7 +23,9 @@ export const metadata: Metadata = { title: "New examination" };
 
 const TYPES = Object.keys(EXAMINATION_TYPE_LABELS) as ExaminationType[];
 
-export default async function NewExaminationPage({ searchParams }: PageProps<"/doctor/examinations/new">) {
+export default async function NewExaminationPage(props: PageProps<"/doctor/examinations/new">) {
+    if (usesMedicalServiceForms()) return <NewExaminationDecisionPage {...props} />;
+    const { searchParams } = props;
     const user = await requireRole("doctor");
     const params = await searchParams;
     const now = new Date().toISOString();
@@ -75,6 +82,44 @@ export default async function NewExaminationPage({ searchParams }: PageProps<"/d
                 defaultType={parseEnum(param(params.type), TYPES) ?? ""}
                 defaultDateTime={toDateTimeInputValue(now)}
             />
+        </>
+    );
+}
+
+/** API mode: pick the fighter first, then record a decision from that one fighter's audited dossier. */
+async function NewExaminationDecisionPage({ searchParams }: PageProps<"/doctor/examinations/new">) {
+    const user = await requireRole("doctor");
+    const params = await searchParams;
+    const now = new Date().toISOString();
+    const defaultScope = parseEnum(param(params.scope), EXAMINATION_SCOPES) ?? "TRAINING";
+    const { fighters, fighter, dossier } = await loadFormFighter(user, param(params.fighter));
+
+    return (
+        <>
+            <PageHeader
+                back={fighter ? { href: routes.doctor.fighter(fighter.id), label: fighter.name } : { href: routes.doctor.examinations, label: "Examinations" }}
+                eyebrow="Examination"
+                title={fighter ? `Examination for ${fighter.name}` : "New examination"}
+                description="Record your decision on whether the fighter may train or compete. Clearance is issued next, from this examination."
+            />
+            {fighter && dossier ? (
+                <ExaminationDecisionForm
+                    fighter={{ id: fighter.id, name: fighter.name }}
+                    currentExaminations={dossier.currentExaminations}
+                    openReviewRequests={dossier.openReviewRequests}
+                    defaultScope={defaultScope}
+                    nowInput={toDateTimeInputValue(now)}
+                    now={now}
+                    cancelHref={routes.doctor.fighter(fighter.id)}
+                />
+            ) : (
+                <FighterChooser
+                    fighters={fighters}
+                    hrefFor={(fighterId) => hrefWith(routes.doctor.newExamination, {}, { fighter: fighterId, scope: defaultScope })}
+                    title="Who did you examine?"
+                    unreadable={fighter}
+                />
+            )}
         </>
     );
 }

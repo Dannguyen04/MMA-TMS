@@ -7,7 +7,7 @@ import { InjurySeverityBadge, InjuryStatusBadge } from "@/components/domain/stat
 import { Avatar } from "@/components/ui/avatar";
 import { ProgressBar } from "@/components/ui/progress";
 import { SortableTH, Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
-import { BODY_REGION_LABELS, INJURY_TYPE_LABELS } from "@/lib/domain/labels";
+import { BODY_REGION_LABELS, injuryTypeName } from "@/lib/domain/labels";
 import type { Fighter, Injury } from "@/lib/domain/types";
 import { daysBetween, formatDate } from "@/lib/format";
 import type { SearchParams, SortDirection } from "@/lib/query";
@@ -63,7 +63,7 @@ export function InjuryList({ rows, now, pathname, searchParams, sort, direction 
                                 </TD>
                                 <TD className="min-w-48">
                                     <Link href={routes.doctor.injury(injury.id)} className="font-medium text-fg hover:underline">
-                                        {INJURY_TYPE_LABELS[injury.type]}
+                                        {injuryTypeName(injury)}
                                     </Link>
                                     <p className="text-[13px] text-fg-muted">{BODY_REGION_LABELS[injury.bodyRegion]}</p>
                                 </TD>

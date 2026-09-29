@@ -6,7 +6,7 @@ import { AINotice } from "@/components/domain/ai-notice";
 import { ButtonLink } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { SegmentedLinks, type SegmentedLinkItem } from "@/components/ui/segmented-links";
-import { EmptyState } from "@/components/ui/states";
+import { EmptyState, FeatureUnavailable } from "@/components/ui/states";
 import { Pagination } from "@/components/ui/table";
 import { accessibleFighterIds } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
@@ -14,6 +14,7 @@ import type { AlertStatus } from "@/lib/domain/types";
 import { hrefWith, paginate, parseEnum } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { listAlerts } from "@/lib/services/ai";
+import { medicalFeatureAvailable } from "@/lib/services/medical-features";
 import { listFighters } from "@/lib/services/people";
 import { listVideos } from "@/lib/services/videos";
 import { param } from "@/lib/utils";
@@ -52,6 +53,14 @@ const EMPTY_COPY: Record<AlertView, { title: string; description: string }> = {
 
 export default async function AIAlertsPage({ searchParams }: PageProps<"/doctor/ai-alerts">) {
     const user = await requireRole("doctor");
+    if (!medicalFeatureAvailable("aiObservations")) {
+        return (
+            <>
+                <PageHeader title="AI movement observations" />
+                <FeatureUnavailable title="AI movement observations aren't available yet" />
+            </>
+        );
+    }
     const params = await searchParams;
     const now = new Date().toISOString();
     const scope = accessibleFighterIds(user);

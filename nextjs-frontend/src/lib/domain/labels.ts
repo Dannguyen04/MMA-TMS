@@ -1,5 +1,9 @@
+import { EXAMINATION_SCOPE_LABELS } from "./medical-contract";
 import type {
     AIJobStatus,
+    Injury,
+    MedicalExamination,
+    Treatment,
     AIModelStatus,
     AIModelTask,
     AlertStatus,
@@ -474,6 +478,7 @@ export const INJURY_SEVERITY_LABELS: Record<InjurySeverity, string> = {
     minor: "Minor",
     moderate: "Moderate",
     severe: "Severe",
+    critical: "Critical",
 };
 
 export const INJURY_STATUS_LABELS: Record<InjuryStatus, string> = {
@@ -514,6 +519,7 @@ export const RECOVERY_PLAN_STATUS_LABELS: Record<RecoveryPlanStatus, string> = {
     active: "Active",
     paused: "Paused",
     completed: "Completed",
+    cancelled: "Cancelled",
 };
 
 export const CLEARANCE_LEVEL_LABELS: Record<ClearanceLevel, string> = {
@@ -551,3 +557,23 @@ export const BROADCAST_CHANNEL_LABELS: Record<BroadcastChannel, string> = {
     email: "Email",
     in_app_email: "In-app + email",
 };
+
+/* ─── Display titles for records the medical service describes in free text ── */
+
+/** "Routine check", or the decision's scope for a medical-service examination ("Training examination"). */
+export function examinationTitle(examination: Pick<MedicalExamination, "type" | "scope">): string {
+    if (examination.type) return EXAMINATION_TYPE_LABELS[examination.type];
+    return examination.scope ? `${EXAMINATION_SCOPE_LABELS[examination.scope]} examination` : "Examination";
+}
+
+/** "Strain", or the injury type as the doctor wrote it. */
+export function injuryTypeName(injury: Pick<Injury, "type" | "typeLabel">): string {
+    if (injury.type) return INJURY_TYPE_LABELS[injury.type];
+    return injury.typeLabel?.trim() || "Injury";
+}
+
+/** "Physiotherapy", or the treatment as the doctor wrote it. */
+export function treatmentTitle(treatment: Pick<Treatment, "type" | "typeLabel">): string {
+    if (treatment.type) return TREATMENT_TYPE_LABELS[treatment.type];
+    return treatment.typeLabel?.trim() || "Treatment";
+}

@@ -9,6 +9,17 @@
 
 ---
 
+## Lộ Trình Đọc Khuyến Nghị
+
+1. **Bắt đầu tại đây** để nắm mục tiêu, kiến trúc và cách chạy dự án.
+2. Đọc [Luồng nghiệp vụ](./BUSINESS-FLOWS.md) để hiểu hệ thống phục vụ Fighter, Coach, Doctor và Admin như thế nào.
+3. Đọc [Phân tích thị trường Việt Nam](./VIETNAM-MARKET-ANALYSIS.md) để hiểu bối cảnh, khách hàng và khoảng cách sản phẩm.
+4. Mở [Roadmap](./ROADMAP.md) để chọn task và theo dõi checklist triển khai.
+
+Spec kỹ thuật chính: [MMA-TMS Master Specification v3](./MMA-TMS-MASTER-SPECIFICATION-v3.md) và [Martial Arts AI Coaching Spec v1](./MARTIAL-ARTS-AI-COACHING-SPEC-v1.md).
+
+---
+
 ## 1. Giới Thiệu
 
 MMA-TMS là nền tảng phần mềm giúp **các CLB / trung tâm võ thuật** quản lý quá trình huấn luyện và chuẩn bị thi đấu cho võ sĩ, sử dụng trí tuệ nhân tạo (AI) để phân tích kỹ thuật từ video tập luyện.
@@ -168,8 +179,8 @@ pnpm dev
 |---|---|
 | [`MMA-TMS-MASTER-SPECIFICATION-v3.md`](./MMA-TMS-MASTER-SPECIFICATION-v3.md) | Spec kỹ thuật chi tiết (2,792 dòng) |
 | [`MARTIAL-ARTS-AI-COACHING-SPEC-v1.md`](./MARTIAL-ARTS-AI-COACHING-SPEC-v1.md) | Spec AI coaching & rubrics |
-| [`CODEX-TECH-LEAD-REMEDIATION-PLAN.md`](./CODEX-TECH-LEAD-REMEDIATION-PLAN.md) | Kế hoạch sửa lỗi TL-01 → TL-13 |
-| [`AI-BACKEND-EXECUTION-PLAN-TASKS-18-31.md`](./AI-BACKEND-EXECUTION-PLAN-TASKS-18-31.md) | Kế hoạch AI pipeline tasks 18-31 |
+| [`MMA-TMS-MASTER-SPECIFICATION-v2.md`](./MMA-TMS-MASTER-SPECIFICATION-v2.md) | Bản đặc tả v2 để đối chiếu lịch sử |
+| [`MMA-TMS-MASTER-SPECIFICATION.md`](./MMA-TMS-MASTER-SPECIFICATION.md) | Bản đặc tả nền tảng ban đầu |
 
 ---
 

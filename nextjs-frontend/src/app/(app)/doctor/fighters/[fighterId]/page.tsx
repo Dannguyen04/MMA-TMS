@@ -8,7 +8,7 @@ import { FighterProfileHeader } from "@/components/dashboard/fighter-profile-hea
 import { AINotice } from "@/components/domain/ai-notice";
 import { BodyMap, type BodyMapHighlight } from "@/components/domain/body-map";
 import { ClearanceCard } from "@/components/domain/clearance-card";
-import { capitalize, describeDaysUntil } from "@/components/domain/domain-format";
+import { NOT_RECORDED, capitalize, describeDaysUntil, labelOf, presentFacts } from "@/components/domain/domain-format";
 import { InjuryCard } from "@/components/domain/injury-card";
 import { RecoveryProgress } from "@/components/domain/recovery-progress";
 import { DateBlock } from "@/components/domain/session-list-item";
@@ -17,33 +17,29 @@ import { VitalsGrid } from "@/components/domain/vitals-grid";
 import { AIObservationList } from "@/components/medical/ai-observation-list";
 import { ClearanceHistory } from "@/components/medical/clearance-history";
 import { ExaminationHistory } from "@/components/medical/examination-history";
+import { ExaminationOutcomeBadge } from "@/components/medical/clinical-badges";
 import { FlashToast } from "@/components/medical/flash-toast";
 import { followUpExaminationHref } from "@/components/medical/follow-up-list";
 import { HealthStatusControl } from "@/components/medical/health-status-control";
 import { InjuryHistory } from "@/components/medical/injury-history";
 import { MedicalRecordPanel } from "@/components/medical/medical-record-panel";
 import { RevokeClearanceButton } from "@/components/medical/revoke-clearance-button";
+import { ReviewRequestCard } from "@/components/medical/review-request-card";
 import { RevokedClearanceCard } from "@/components/medical/revoked-clearance-card";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { EmptyState } from "@/components/ui/states";
-import { Tabs } from "@/components/ui/tabs";
+import { EmptyState, FeatureUnavailable } from "@/components/ui/states";
+import { TabLabel, Tabs } from "@/components/ui/tabs";
 import type { ToastInput } from "@/components/ui/toast";
 import { canAccessFighter, requireFighterAccess } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
-import {
-    EXAMINATION_TYPE_LABELS,
-    HEALTH_STATUS_DESCRIPTIONS,
-    INJURY_STATUS_LABELS,
-    INJURY_TYPE_LABELS,
-    TRAINING_LEVEL_LABELS,
-    WEIGHT_CLASS_LABELS,
-} from "@/lib/domain/labels";
+import { examinationTitle, HEALTH_STATUS_DESCRIPTIONS, INJURY_STATUS_LABELS, injuryTypeName, TRAINING_LEVEL_LABELS, WEIGHT_CLASS_LABELS } from "@/lib/domain/labels";
 import { ageFromBirthDate, daysBetween, formatDate, formatNumber, formatShortDate, pluralize } from "@/lib/format";
 import { hrefWith, parseEnum } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
-import { getClearanceHistory, getFighterHealthSummary, getMedicalRecord, listExaminations, listInjuries } from "@/lib/services/medical";
+import { getClearanceHistory, getClearanceStatus, getFighterHealthSummary, getMedicalRecord, listExaminations, listInjuries, listReviewRequests } from "@/lib/services/medical";
+import { medicalFeatureAvailable } from "@/lib/services/medical-features";
 import { getFighter, listDoctors } from "@/lib/services/people";
 import { param } from "@/lib/utils";
 
@@ -63,17 +59,19 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
     const user = await requireRole("doctor");
     const { fighterId } = await params;
     const query = await searchParams;
-    const fighter = requireFighterAccess(user, fighterId);
+    const fighter = await requireFighterAccess(user, fighterId);
     const now = new Date().toISOString();
 
-    const [summary, record, examinations, injuries, clearances, doctors, settings] = await Promise.all([
+    const [summary, record, examinations, injuries, clearances, doctors, settings, reviewRequests, { eligibility }] = await Promise.all([
         getFighterHealthSummary(fighter.id, now),
-        getMedicalRecord(fighter.id),
+        medicalFeatureAvailable("medicalRecord") ? getMedicalRecord(fighter.id) : null,
         listExaminations({ fighterIds: [fighter.id] }),
         listInjuries({ fighterIds: [fighter.id] }),
         getClearanceHistory(fighter.id),
         listDoctors(),
         getSettings(),
+        listReviewRequests(fighter.id),
+        getClearanceStatus(fighter.id, now),
     ]);
     if (!summary) notFound();
 
@@ -85,7 +83,7 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
     const grantHref = `${routes.doctor.grantClearance}?fighter=${fighter.id}`;
     const newInjuryHref = `${routes.doctor.newInjury}?fighter=${fighter.id}`;
 
-    const weightDiff = fighter.weightKg - fighter.targetWeightKg;
+    const weightDiff = fighter.weightKg === null ? null : fighter.weightKg - fighter.targetWeightKg;
     const { clearance, clearanceState } = summary;
     const revoked = clearance?.status === "revoked";
     const canRevoke = clearance?.status === "active" && clearanceState !== "expired" && clearance.level !== "not_cleared";
@@ -110,13 +108,14 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                         now={now}
                         variant="clinical"
                         warningDays={settings.clearanceExpiryWarningDays}
+                        pausedForReview={eligibility?.reasons.includes("REVIEW_REQUEST_PENDING")}
                         actions={
                             <>
                                 <ButtonLink href={grantHref} variant="secondary" size="sm">
                                     <ShieldCheck aria-hidden />
                                     {clearance ? "Update" : "Issue"}
                                 </ButtonLink>
-                                {canRevoke && clearance && <RevokeClearanceButton clearanceId={clearance.id} fighterName={fighter.name} />}
+                                {canRevoke && clearance && <RevokeClearanceButton clearanceId={clearance.id} fighterId={fighter.id} fighterName={fighter.name} />}
                             </>
                         }
                     />
@@ -168,36 +167,76 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                     </Card>
                 )}
 
-                <Card>
-                    <CardHeader
-                        title="Latest vitals"
-                        description={
-                            latestExam ? `${EXAMINATION_TYPE_LABELS[latestExam.type]} on ${formatDate(latestExam.date)}` : "No examinations recorded yet"
-                        }
-                        icon={<Stethoscope />}
-                        action={latestExam && <CardLink href={routes.doctor.examination(latestExam.id)}>View examination</CardLink>}
-                    />
-                    <CardContent>
-                        {latestExam ? (
-                            <VitalsGrid vitals={latestExam.vitals} weightLimitKg={fighter.targetWeightKg} />
-                        ) : (
-                            <EmptyState
-                                compact
-                                icon={<Stethoscope />}
-                                title="No vitals yet"
-                                description="A baseline physical records the reference vitals for this fighter."
-                                action={
-                                    <ButtonLink href={`${newExamHref}&type=baseline`} variant="secondary" size="sm">
-                                        Start baseline exam
-                                    </ButtonLink>
-                                }
-                            />
-                        )}
-                    </CardContent>
-                </Card>
+                {medicalFeatureAvailable("vitals") ? (
+                    <Card>
+                        <CardHeader
+                            title="Latest vitals"
+                            description={
+                                latestExam ? `${examinationTitle(latestExam)} on ${formatDate(latestExam.date)}` : "No examinations recorded yet"
+                            }
+                            icon={<Stethoscope />}
+                            action={latestExam && <CardLink href={routes.doctor.examination(latestExam.id)}>View examination</CardLink>}
+                        />
+                        <CardContent>
+                            {latestExam?.vitals ? (
+                                <VitalsGrid vitals={latestExam.vitals} weightLimitKg={fighter.targetWeightKg} />
+                            ) : (
+                                <EmptyState
+                                    compact
+                                    icon={<Stethoscope />}
+                                    title="No vitals yet"
+                                    description="A baseline physical records the reference vitals for this fighter."
+                                    action={
+                                        <ButtonLink href={`${newExamHref}&type=baseline`} variant="secondary" size="sm">
+                                            Start baseline exam
+                                        </ButtonLink>
+                                    }
+                                />
+                            )}
+                        </CardContent>
+                    </Card>
+                ) : (
+                    <Card>
+                        <CardHeader
+                            title="Latest examination"
+                            description={latestExam ? `${examinationTitle(latestExam)} on ${formatDate(latestExam.date)}` : "No examinations recorded yet"}
+                            icon={<Stethoscope />}
+                            action={
+                                <ButtonLink href={newExamHref} variant="ghost" size="sm">
+                                    New examination
+                                </ButtonLink>
+                            }
+                        />
+                        <CardContent>
+                            {latestExam ? (
+                                <div className="flex flex-col gap-2">
+                                    <ExaminationOutcomeBadge outcome={latestExam.outcome} className="w-fit" />
+                                    <p className="text-sm text-pretty whitespace-pre-line text-fg">{latestExam.summary}</p>
+                                    {latestExam.decisionRestrictions?.notes && (
+                                        <p className="text-[13px] text-fg-muted">Restriction notes: {latestExam.decisionRestrictions.notes}</p>
+                                    )}
+                                </div>
+                            ) : (
+                                <p className="text-sm text-fg-muted">Record an examination to decide whether {fighter.name} may train.</p>
+                            )}
+                        </CardContent>
+                    </Card>
+                )}
             </div>
 
             <div className="flex min-w-0 flex-col gap-6">
+                {(reviewRequests.some((request) => request.status === "OPEN") || (eligibility && !eligibility.eligible)) && (
+                    <ReviewRequestCard
+                        fighterId={fighter.id}
+                        fighterName={fighter.name}
+                        audience="doctor"
+                        requests={reviewRequests}
+                        eligibility={eligibility}
+                        canRequest={false}
+                        examineHref={`${newExamHref}&scope=TRAINING`}
+                        now={now}
+                    />
+                )}
                 <Card>
                     <CardHeader title="Health status" icon={<HeartPulse />} />
                     <CardContent className="flex flex-col gap-4">
@@ -205,14 +244,18 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                             <HealthStatusBadge status={fighter.healthStatus} />
                             <p className="mt-1.5 text-sm text-fg-muted">{HEALTH_STATUS_DESCRIPTIONS[fighter.healthStatus]}</p>
                         </div>
-                        <HealthStatusControl key={fighter.healthStatus} fighterId={fighter.id} fighterName={fighter.name} current={fighter.healthStatus} />
+                        {medicalFeatureAvailable("healthStatusOverride") && (
+                            <HealthStatusControl key={fighter.healthStatus} fighterId={fighter.id} fighterName={fighter.name} current={fighter.healthStatus} />
+                        )}
                     </CardContent>
                 </Card>
 
                 <Card>
                     <CardHeader title="Next follow-up" icon={<CalendarClock />} />
                     <CardContent>
-                        {summary.nextFollowUp ? (
+                        {!medicalFeatureAvailable("followUps") ? (
+                            <FeatureUnavailable title="Follow-ups aren't available yet" compact />
+                        ) : summary.nextFollowUp ? (
                             <div className="flex flex-col gap-3">
                                 <div className="flex items-center gap-3">
                                     <DateBlock date={summary.nextFollowUp.date} highlighted={summary.nextFollowUp.daysUntil === 0} />
@@ -223,7 +266,7 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                                                 : capitalize(describeDaysUntil(summary.nextFollowUp.daysUntil))}
                                         </p>
                                         <p className="text-[13px] text-fg-muted">
-                                            Set at the {EXAMINATION_TYPE_LABELS[summary.nextFollowUp.examination.type].toLowerCase()} on{" "}
+                                            Set at the {examinationTitle(summary.nextFollowUp.examination).toLowerCase()} on{" "}
                                             {formatShortDate(summary.nextFollowUp.examination.date)}
                                         </p>
                                     </div>
@@ -258,8 +301,14 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                         action={<CardLink href={routes.doctor.aiAlerts}>All observations</CardLink>}
                     />
                     <CardContent className="flex flex-col gap-3">
-                        <AINotice audience="doctor" compact />
-                        <AIObservationList observations={summary.openAlerts.map((alert) => ({ alert }))} now={now} />
+                        {medicalFeatureAvailable("aiObservations") ? (
+                            <>
+                                <AINotice audience="doctor" compact />
+                                <AIObservationList observations={summary.openAlerts.map((alert) => ({ alert }))} now={now} />
+                            </>
+                        ) : (
+                            <FeatureUnavailable title="AI observations aren't available yet" compact />
+                        )}
                     </CardContent>
                 </Card>
             </div>
@@ -271,8 +320,10 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
         {
             id: "record",
             label: "Medical record",
-            content: (
+            content: medicalFeatureAvailable("medicalRecord") ? (
                 <MedicalRecordPanel fighterId={fighter.id} fighterName={fighter.name} record={record} primaryDoctorName={primaryDoctorName} now={now} />
+            ) : (
+                <FeatureUnavailable title="Medical records aren't available yet" />
             ),
         },
         {
@@ -360,17 +411,24 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                 back={{ href: routes.doctor.fighters, label: "Fighters" }}
                 now={now}
                 eyebrow="Health profile"
-                facts={[fighter.primaryDiscipline, WEIGHT_CLASS_LABELS[fighter.weightClass], TRAINING_LEVEL_LABELS[fighter.level]]}
+                facts={presentFacts(fighter.primaryDiscipline, WEIGHT_CLASS_LABELS[fighter.weightClass], labelOf(TRAINING_LEVEL_LABELS, fighter.level))}
                 meta={
                     <ul className="flex flex-wrap items-center gap-x-4 gap-y-1">
                         <li>
                             Age <span className="font-medium text-fg">{ageFromBirthDate(fighter.dateOfBirth, now)}</span>
                         </li>
                         <li>
-                            Weight <span className="font-medium text-fg">{formatNumber(fighter.weightKg, 1)} kg</span>{" "}
-                            {weightDiff > 0
-                                ? `(${formatNumber(weightDiff, 1)} kg over the ${formatNumber(fighter.targetWeightKg, 1)} kg limit)`
-                                : `(within the ${formatNumber(fighter.targetWeightKg, 1)} kg limit)`}
+                            Weight{" "}
+                            {fighter.weightKg === null || weightDiff === null ? (
+                                <span className="font-medium text-fg">{NOT_RECORDED.toLowerCase()}</span>
+                            ) : (
+                                <>
+                                    <span className="font-medium text-fg">{formatNumber(fighter.weightKg, 1)} kg</span>{" "}
+                                    {weightDiff > 0
+                                        ? `(${formatNumber(weightDiff, 1)} kg over the ${formatNumber(fighter.targetWeightKg, 1)} kg limit)`
+                                        : `(within the ${formatNumber(fighter.targetWeightKg, 1)} kg limit)`}
+                                </>
+                            )}
                         </li>
                         {primaryDoctorName && (
                             <li>
@@ -393,16 +451,7 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                 }
             />
 
-            <Tabs key={tab} items={tabs} defaultTab={tab} label="Health profile sections" listClassName="mb-6" />
-        </>
-    );
-}
-
-function TabLabel({ label, count }: { label: string; count: number }) {
-    return (
-        <>
-            {label}
-            <span className="rounded-full bg-surface-hover px-1.5 text-[11px] leading-5 text-fg-muted tabular-nums">{count}</span>
+            <Tabs key={tab} items={tabs} defaultTab={tab} urlParam="tab" label="Health profile sections" listClassName="mb-6" />
         </>
     );
 }
@@ -416,8 +465,8 @@ function bodyMapHighlights(injuries: Awaited<ReturnType<typeof listInjuries>>, n
             tone: INJURY_STATUS_META[injury.status].tone,
             label:
                 injury.status === "resolved" && injury.resolvedAt
-                    ? `${INJURY_TYPE_LABELS[injury.type]} · resolved ${formatShortDate(injury.resolvedAt)}`
-                    : `${INJURY_TYPE_LABELS[injury.type]} · ${INJURY_STATUS_LABELS[injury.status].toLowerCase()}`,
+                    ? `${injuryTypeName(injury)} · resolved ${formatShortDate(injury.resolvedAt)}`
+                    : `${injuryTypeName(injury)} · ${INJURY_STATUS_LABELS[injury.status].toLowerCase()}`,
         }),
         );
 }
@@ -433,6 +482,17 @@ function noticeFor(code: string | undefined, fighterName: string): ToastInput | 
             return {
                 title: "Restricted clearance issued",
                 description: `Coaches now plan ${fighterName}'s sessions against these restrictions. Everyone involved has been notified.`,
+            };
+        case "clearance-issued":
+            return {
+                title: `Clearance issued for ${fighterName}`,
+                description: "It's in force now. Coaches and the fighter have been notified.",
+            };
+        case "examination-not-eligible":
+            return {
+                title: `${fighterName} is not eligible`,
+                description: "Training stops and active clearances of that scope were revoked. A later examination can change this.",
+                tone: "warning",
             };
         case "clearance-not_cleared":
             return {

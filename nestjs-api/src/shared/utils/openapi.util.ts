@@ -5,6 +5,7 @@ import {
   SwaggerModule,
 } from '@nestjs/swagger';
 import { cleanupOpenApiDoc } from 'nestjs-zod';
+import { env } from '../config/env.js';
 
 export function createOpenApiDocument(app: INestApplication): OpenAPIObject {
   const options = new DocumentBuilder()
@@ -15,7 +16,7 @@ export function createOpenApiDocument(app: INestApplication): OpenAPIObject {
     .addGlobalParameters({
       in: 'header',
       required: false,
-      name: process.env.APP_HEADER_LANGUAGE || 'x-custom-lang',
+      name: env.APP_HEADER_LANGUAGE,
       schema: {
         example: 'en',
       },

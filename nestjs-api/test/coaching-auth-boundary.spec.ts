@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { GUARDS_METADATA } from '@nestjs/common/constants.js';
 import { CoachingController, CoachingWorkerController } from '../src/coaching/coaching.controller.js';
 import { AccessTokenGuard, AuthorizationGuard } from '../src/shared/guards/auth.guard.js';
@@ -6,14 +6,6 @@ import { WorkerAuthGuard } from '../src/jobs/guards/worker-auth.guard.js';
 import { REQUIRED_ROLES } from '../src/shared/decorators/auth.decorator.js';
 
 describe('coaching authentication boundary', () => {
-  const originalNodeEnv = process.env.NODE_ENV;
-  const originalWorkerSecret = process.env.WORKER_SECRET_TOKEN;
-
-  afterEach(() => {
-    process.env.NODE_ENV = originalNodeEnv;
-    if (originalWorkerSecret === undefined) delete process.env.WORKER_SECRET_TOKEN;
-    else process.env.WORKER_SECRET_TOKEN = originalWorkerSecret;
-  });
   it('declares allowed user roles so AuthorizationGuard does not fail every route closed', () => {
     expect(Reflect.getMetadata(REQUIRED_ROLES, CoachingController)).toEqual([
       'FIGHTER',
@@ -32,9 +24,7 @@ describe('coaching authentication boundary', () => {
     expect(Reflect.getMetadata(GUARDS_METADATA, CoachingWorkerController)).toBeUndefined();
   });
 
-  it('fails closed in production when no worker secret is configured', () => {
-    process.env.NODE_ENV = 'production';
-    delete process.env.WORKER_SECRET_TOKEN;
+  it('rejects the historical development fallback token', () => {
     const context = {
       switchToHttp: () => ({
         getRequest: () => ({ headers: { 'x-worker-secret': 'mma-tms-worker-local-secret-2026' } }),

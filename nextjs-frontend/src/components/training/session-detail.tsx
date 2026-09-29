@@ -21,9 +21,8 @@ import { routes } from "@/lib/routes";
 import { sum } from "@/lib/utils";
 import { Callout } from "./callout";
 import { videoHref, type TrainingAudience } from "./session-table";
-import { exerciseVolume, rpeLabel } from "./training-utils";
-
-const MINUTE_MS = 60_000;
+import { NOT_RECORDED } from "@/components/domain/domain-format";
+import { exerciseVolume, plannedEndMs, rpeLabel, rpeText } from "./training-utils";
 
 /** Status, type and start time for the session page header. */
 export function SessionHeaderMeta({ session }: { session: TrainingSession }) {
@@ -246,7 +245,7 @@ function ClearanceNote({ conflicts, audience }: { conflicts: ClearanceConflict[]
 }
 
 function ResultCard({ session, result }: { session: TrainingSession; result: SessionResult }) {
-    const durationDelta = result.actualDurationMin - session.durationMin;
+    const durationDelta = result.actualDurationMin !== null && session.durationMin !== null ? result.actualDurationMin - session.durationMin : null;
     return (
         <Card>
             <CardHeader
@@ -262,12 +261,32 @@ function ResultCard({ session, result }: { session: TrainingSession; result: Ses
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                     <MetricTile
                         label="Actual duration"
-                        value={formatMinutes(result.actualDurationMin)}
-                        hint={durationDelta === 0 ? "As planned" : `Planned ${formatMinutes(session.durationMin)}`}
+                        value={result.actualDurationMin === null ? NOT_RECORDED : formatMinutes(result.actualDurationMin)}
+                        hint={
+                            durationDelta === null
+                                ? undefined
+                                : durationDelta === 0
+                                  ? "As planned"
+                                  : `Planned ${formatMinutes(session.durationMin ?? 0)}`
+                        }
                     />
-                    <MetricTile label="Session RPE" value={result.rpe} unit={rpeLabel(result.rpe)} hint={`Target ${session.targetRpe}`} />
+                    <MetricTile
+                        label="Session RPE"
+                        value={result.rpe ?? NOT_RECORDED}
+                        unit={result.rpe === null ? undefined : rpeLabel(result.rpe)}
+                        hint={session.targetRpe === null ? undefined : `Target ${session.targetRpe}`}
+                    />
                     <MetricTile label="Rounds completed" value={result.roundsCompleted} />
-                    <MetricTile label="Coach rating" value={<CoachRating rating={result.coachRating} className="flex-wrap gap-y-1 text-base font-normal" />} />
+                    <MetricTile
+                        label="Coach rating"
+                        value={
+                            result.coachRating === null ? (
+                                NOT_RECORDED
+                            ) : (
+                                <CoachRating rating={result.coachRating} className="flex-wrap gap-y-1 text-base font-normal" />
+                            )
+                        }
+                    />
                 </div>
                 {result.summary && (
                     <div className="rounded-lg border border-border px-4 py-3">
@@ -361,7 +380,7 @@ function DetailsCard({
     fighterHref?: string;
     plan: Pick<TrainingPlan, "id" | "title"> | null;
 }) {
-    const end = new Date(Date.parse(session.scheduledAt) + session.durationMin * MINUTE_MS).toISOString();
+    const end = session.durationMin === null ? null : new Date(plannedEndMs(session)).toISOString();
     const items: DescriptionItem[] = [];
     if (fighter) {
         items.push({ label: "Fighter", value: <FighterIdentity fighter={fighter} href={fighterHref} size="sm" className="mt-1" />, wide: true });
@@ -372,12 +391,18 @@ function DetailsCard({
             label: "Time",
             value: (
                 <>
-                    <time dateTime={session.scheduledAt}>{formatTime(session.scheduledAt)}</time> – <time dateTime={end}>{formatTime(end)}</time>
+                    <time dateTime={session.scheduledAt}>{formatTime(session.scheduledAt)}</time>
+                    {end && (
+                        <>
+                            {" – "}
+                            <time dateTime={end}>{formatTime(end)}</time>
+                        </>
+                    )}
                 </>
             ),
         },
-        { label: "Planned duration", value: formatMinutes(session.durationMin) },
-        { label: "Target intensity", value: `RPE ${session.targetRpe} · ${rpeLabel(session.targetRpe)}` },
+        { label: "Planned duration", value: session.durationMin === null ? NOT_RECORDED : formatMinutes(session.durationMin) },
+        { label: "Target intensity", value: rpeText(session.targetRpe) ?? NOT_RECORDED },
         { label: "Location", value: session.location, wide: true },
         { label: "Coach", value: coachName, wide: true },
         {

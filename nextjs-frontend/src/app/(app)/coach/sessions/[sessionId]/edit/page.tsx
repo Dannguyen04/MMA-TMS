@@ -17,6 +17,7 @@ import { dayKey, formatTime } from "@/lib/format";
 import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { getSession, listExercises, listPlans, listSessions } from "@/lib/services/training";
+import { MID_RPE } from "@/components/training/training-utils";
 
 /** One session read per request, shared by the metadata and the page. */
 const loadSession = cache(getSession);
@@ -32,7 +33,7 @@ export default async function EditSessionPage({ params }: PageProps<"/coach/sess
     const { sessionId } = await params;
     const [session, library] = await Promise.all([loadSession(sessionId), listExercises()]);
     if (!session) notFound();
-    const fighter = requireFighterAccess(user, session.fighterId);
+    const fighter = await requireFighterAccess(user, session.fighterId);
     const back = { href: routes.coach.session(session.id), label: "Back to session" };
 
     if (session.status !== "scheduled") {
@@ -70,9 +71,10 @@ export default async function EditSessionPage({ params }: PageProps<"/coach/sess
         type: session.type,
         date: dayKey(session.scheduledAt),
         time: formatTime(session.scheduledAt),
-        durationMin: String(session.durationMin),
+        durationMin: session.durationMin === null ? "" : String(session.durationMin),
         location: session.location,
-        targetRpe: session.targetRpe,
+        // The form needs an intensity; a session without one starts mid-scale.
+        targetRpe: session.targetRpe ?? MID_RPE,
         exercises: session.exercises.map(rowFromSessionExercise),
         notes: session.notes ?? "",
     };

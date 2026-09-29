@@ -16,6 +16,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   ApiConflictEnvelope,
   ApiForbiddenEnvelope,
+  ApiInternalServerErrorEnvelope,
   ApiNotFoundEnvelope,
   ApiSuccessEnvelope,
   ApiUnauthorizedEnvelope,
@@ -62,11 +63,12 @@ export class FightersController {
   constructor(private readonly fightersService: FightersService) {}
   
   @Get()
-  @RequirePermissions({ allOf: [FIGHTER_PERMISSIONS.READ] })
+  @RequirePermissions({ allOf: [FIGHTER_PERMISSIONS.GET_ALL] })
   @ApiOperation({
     summary: 'List fighters',
     description:
-      'Retrieves a permission-protected, scope-aware paginated fighter list with optional filtering',
+      'Retrieves a permission-protected, scope-aware paginated fighter list with optional filtering; ' +
+      'COACH receives only Fighters under a currently effective assignment',
   })
   @ResponseMessage('Get fighters list successfully')
   @ApiSuccessEnvelope({
@@ -77,7 +79,7 @@ export class FightersController {
   })
   @ApiValidationErrorEnvelope()
   @ApiUnauthorizedEnvelope()
-  @ApiForbiddenEnvelope('Requires fighters.read permission')
+  @ApiForbiddenEnvelope('Requires fighter:get_all permission')
   async findAll(
     @CurrentUser() actor: AuthenticatedUser | undefined,
     @Query() query: ListFightersQueryDto,
@@ -99,7 +101,9 @@ export class FightersController {
     model: PublicFighterDto,
   })
   @ApiUnauthorizedEnvelope()
-  @ApiForbiddenEnvelope('Fighters cannot view profiles of other fighters')
+  @ApiForbiddenEnvelope(
+    'Fighters cannot view other profiles; Coaches only currently assigned Fighters',
+  )
   @ApiNotFoundEnvelope('FIGHTER_NOT_FOUND', 'Fighter profile not found')
   async findById(
     @CurrentUser() actor: AuthenticatedUser | undefined,
@@ -124,7 +128,7 @@ export class FightersController {
   @ApiValidationErrorEnvelope()
   @ApiUnauthorizedEnvelope()
   @ApiForbiddenEnvelope(
-    'Requires fighters.update; Fighter users may update only their own profile',
+    'Requires fighter:update; Fighter users may update only their own profile',
   )
   @ApiNotFoundEnvelope('FIGHTER_NOT_FOUND', 'Fighter profile not found')
   async updateProfile(
@@ -278,7 +282,7 @@ export class FightersController {
   @ApiOperation({
     summary: 'Assign coach to fighter',
     description:
-      'Creates a new temporal coach assignment period; requires fighters.coaches.assign',
+      'Creates a new temporal coach assignment period; requires fighter.coach:assign',
   })
   @ResponseMessage('Assign coach successfully')
   @ApiSuccessEnvelope({
@@ -288,7 +292,7 @@ export class FightersController {
   })
   @ApiValidationErrorEnvelope()
   @ApiUnauthorizedEnvelope()
-  @ApiForbiddenEnvelope('Requires fighters.coaches.assign permission')
+  @ApiForbiddenEnvelope('Requires fighter.coach:assign permission')
   @ApiNotFoundEnvelope('COACH_NOT_FOUND', 'Coach not found or inactive')
   @ApiConflictEnvelope(
     'COACH_ASSIGNMENT_ALREADY_ACTIVE',
@@ -312,7 +316,7 @@ export class FightersController {
   @ApiOperation({
     summary: 'End coach assignment',
     description:
-      'Ends an active coach-fighter assignment with a required reason; requires fighters.coaches.end',
+      'Ends an active coach-fighter assignment with a required reason; requires fighter.coach:end',
   })
   @ResponseMessage('End coach assignment successfully')
   @ApiSuccessEnvelope({
@@ -322,7 +326,7 @@ export class FightersController {
   })
   @ApiValidationErrorEnvelope()
   @ApiUnauthorizedEnvelope()
-  @ApiForbiddenEnvelope('Requires fighters.coaches.end permission')
+  @ApiForbiddenEnvelope('Requires fighter.coach:end permission')
   @ApiNotFoundEnvelope(
     'COACH_ASSIGNMENT_NOT_FOUND',
     'Coach assignment record not found',
@@ -393,8 +397,11 @@ export class FightersController {
     model: FighterMedicalSummaryDto,
   })
   @ApiUnauthorizedEnvelope()
-  @ApiForbiddenEnvelope('Fighters can only view their own medical summary')
+  @ApiForbiddenEnvelope(
+    'Requires fighter.medical:read; ADMIN reads all, FIGHTER only self, COACH/DOCTOR only currently assigned Fighters (MEDICAL_ACCESS_DENIED)',
+  )
   @ApiNotFoundEnvelope('FIGHTER_NOT_FOUND', 'Fighter profile not found')
+  @ApiInternalServerErrorEnvelope('Medical access audit could not be recorded')
   async getMedicalSummary(
     @CurrentUser() actor: AuthenticatedUser | undefined,
     @Param() params: FighterIdParamsDto,
@@ -402,6 +409,7 @@ export class FightersController {
     return this.fightersService.getMedicalSummary(
       this.requireActor(actor),
       params.id,
+      randomUUID(),
     );
   }
 

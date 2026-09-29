@@ -1,8 +1,12 @@
 import "server-only";
 
+import { z } from "zod";
+
+import { isDemoAuthEnabled } from "@/lib/auth/constants";
+import { authenticatedApiRequest } from "@/lib/api/client";
 import { STRIKE_TYPES, TECHNIQUES } from "@/lib/domain/labels";
 import type { AIFeedback, FindingImpact, ISODate, PerformanceMetric, StrikeType, Technique } from "@/lib/domain/types";
-import { db, simulateLatency } from "@/lib/mocks/db";
+import type { MockDatabase } from "@/lib/mocks/db";
 import { average, groupBy, round, sum } from "@/lib/utils";
 
 /**
@@ -123,10 +127,117 @@ const MIN_STRIKE_SHARE = 0.05;
 const RECENT_FINDINGS_LIMIT = 6;
 const WEEK_MS = 7 * 86_400_000;
 
+const techniqueSchema = z.enum(["jab", "cross", "hook", "kick", "combination", "footwork", "guard", "head_movement"]);
+const techniqueScoresSchema = z.object({
+    jab: z.number(),
+    cross: z.number(),
+    hook: z.number(),
+    kick: z.number(),
+    combination: z.number(),
+    footwork: z.number(),
+    guard: z.number(),
+    head_movement: z.number(),
+});
+const strikeCountsSchema = z.object({ jab: z.number(), cross: z.number(), hook: z.number(), kick: z.number() });
+const performanceMetricSchema = z.object({
+    id: z.string(),
+    fighterId: z.string(),
+    weekStart: z.string(),
+    scores: techniqueScoresSchema,
+    strikeCounts: strikeCountsSchema,
+    combinations: z.number(),
+    sessionsCompleted: z.number(),
+    trainingMinutes: z.number(),
+    avgRpe: z.number(),
+    avgPunchSpeed: z.number(),
+    avgKickSpeed: z.number(),
+    guardUptimePct: z.number(),
+    headMovementsPerMin: z.number(),
+});
+const feedbackSchema = z.object({
+    decision: z.enum(["confirmed", "corrected", "rejected"]),
+    reviewerId: z.string(),
+    reviewerName: z.string(),
+    reviewedAt: z.string(),
+    note: z.string().nullable(),
+    correctedLabel: z.string().nullable(),
+});
+const findingRefSchema = z.object({
+    id: z.string(),
+    analysisId: z.string(),
+    videoId: z.string(),
+    title: z.string(),
+    impact: z.enum(["strength", "improvement", "concern"]),
+    confidence: z.number(),
+    review: feedbackSchema.nullable(),
+    processedAt: z.string(),
+});
+const weeklyValueSchema = z.object({ weekStart: z.string(), value: z.number() });
+const weeklyReadingSchema = z.object({ weekStart: z.string(), value: z.number().nullable() });
+const performanceSummarySchema = z.object({
+    latest: performanceMetricSchema,
+    previous: performanceMetricSchema.nullable(),
+    overall: z.number(),
+    overallDelta: z.number(),
+    deltas: techniqueScoresSchema,
+    comparisonWeeks: z.number().int().nonnegative(),
+    strongest: techniqueSchema,
+    weakest: techniqueSchema,
+    trend: z.enum(["improving", "steady", "declining"]),
+});
+const techniqueDetailSchema = z.object({
+    technique: techniqueSchema,
+    history: z.array(z.object({ weekStart: z.string(), score: z.number() })),
+    latestScore: z.number(),
+    change4w: z.number(),
+    relatedCounts: z.array(weeklyValueSchema).nullable(),
+    speedSeries: z
+        .object({ kind: z.enum(["punch", "kick"]), points: z.array(weeklyReadingSchema) })
+        .nullable(),
+    rateSeries: z
+        .object({ metric: z.enum(["guardUptimePct", "headMovementsPerMin"]), points: z.array(weeklyReadingSchema) })
+        .nullable(),
+    findings: z.array(findingRefSchema),
+});
+const teamPerformanceRowSchema = z.object({
+    fighterId: z.string(),
+    overall: z.number(),
+    overallDelta: z.number(),
+    scores: techniqueScoresSchema,
+    trainingMinutes: z.number(),
+    sessionsCompleted: z.number(),
+    trend: z.enum(["improving", "steady", "declining"]),
+});
+const weeklyVolumeSchema = z.object({
+    weekStart: z.string(),
+    complete: z.boolean(),
+    fighters: z.number().int().nonnegative(),
+    sessionsCompleted: z.number().int().nonnegative(),
+    trainingMinutes: z.number().nonnegative(),
+    strikes: z.number().int().nonnegative(),
+    combinations: z.number().int().nonnegative(),
+    avgRpe: z.number(),
+});
+
+type PerformanceStore = Pick<MockDatabase, "performanceMetrics" | "aiAnalyses">;
+
+/** The demo store after the simulated latency. Loaded lazily so API mode never evaluates it. */
+async function demoStore(): Promise<PerformanceStore> {
+    const { db, simulateLatency } = await import("@/lib/mocks/db");
+    await simulateLatency();
+    return db();
+}
+
 /** Weekly snapshots for a fighter, oldest first, limited to the most recent `weeks`. */
 export async function getPerformanceHistory(fighterId: string, weeks = 12): Promise<PerformanceMetric[]> {
-    await simulateLatency();
-    return fighterHistory(fighterId).slice(-weeks);
+    if (!isDemoAuthEnabled()) {
+        return authenticatedApiRequest(
+            `/performance/fighters/${encodeURIComponent(fighterId)}/history?weeks=${encodeURIComponent(weeks)}`,
+            z.array(performanceMetricSchema),
+        );
+    }
+    const store = await demoStore();
+    return fighterHistory(store, fighterId).slice(-weeks);
 }
 
 /** Weighted mean of technique scores using {@link TECHNIQUE_WEIGHTS}, rounded to one decimal. */
@@ -136,14 +247,26 @@ export function overallScore(scores: Record<Technique, number>): number {
 
 /** Headline performance for a fighter, or null when no snapshots exist. */
 export async function getPerformanceSummary(fighterId: string): Promise<PerformanceSummary | null> {
-    await simulateLatency();
-    return summarize(fighterHistory(fighterId));
+    if (!isDemoAuthEnabled()) {
+        return authenticatedApiRequest(
+            `/performance/fighters/${encodeURIComponent(fighterId)}/summary`,
+            performanceSummarySchema.nullable(),
+        );
+    }
+    const store = await demoStore();
+    return summarize(fighterHistory(store, fighterId));
 }
 
 /** Weekly score, detections, speed and recent AI findings for one technique; null without history. */
 export async function getTechniqueDetail(fighterId: string, technique: Technique): Promise<TechniqueDetail | null> {
-    await simulateLatency();
-    const history = fighterHistory(fighterId);
+    if (!isDemoAuthEnabled()) {
+        return authenticatedApiRequest(
+            `/performance/fighters/${encodeURIComponent(fighterId)}/techniques/${encodeURIComponent(technique)}`,
+            techniqueDetailSchema.nullable(),
+        );
+    }
+    const store = await demoStore();
+    const history = fighterHistory(store, fighterId);
     const comparison = comparisonWindow(history);
     if (!comparison) return null;
 
@@ -157,16 +280,22 @@ export async function getTechniqueDetail(fighterId: string, technique: Technique
         relatedCounts: relatedCounts(history, technique),
         speedSeries: speedSeries(history, technique),
         rateSeries: rateSeries(history, technique),
-        findings: recentFindings(fighterId, technique),
+        findings: recentFindings(store, fighterId, technique),
     };
 }
 
 /** One row per fighter with snapshots, best overall score first. */
 export async function getTeamPerformance(fighterIds: string[]): Promise<TeamPerformanceRow[]> {
-    await simulateLatency();
+    if (!isDemoAuthEnabled()) {
+        if (fighterIds.length === 0) return [];
+        const params = new URLSearchParams();
+        fighterIds.forEach((fighterId) => params.append("fighterId", fighterId));
+        return authenticatedApiRequest(`/performance/team?${params.toString()}`, z.array(teamPerformanceRowSchema));
+    }
+    const store = await demoStore();
     const rows: TeamPerformanceRow[] = [];
     for (const fighterId of fighterIds) {
-        const summary = summarize(fighterHistory(fighterId));
+        const summary = summarize(fighterHistory(store, fighterId));
         if (!summary) continue;
         rows.push({
             fighterId,
@@ -183,10 +312,16 @@ export async function getTeamPerformance(fighterIds: string[]): Promise<TeamPerf
 
 /** Team totals per week for the most recent `weeks` weeks, oldest first. */
 export async function getWeeklyVolume(fighterIds: string[], weeks = 12): Promise<WeeklyVolumeTotals[]> {
-    await simulateLatency();
+    if (!isDemoAuthEnabled()) {
+        if (fighterIds.length === 0) return [];
+        const params = new URLSearchParams({ weeks: String(weeks) });
+        fighterIds.forEach((fighterId) => params.append("fighterId", fighterId));
+        return authenticatedApiRequest(`/performance/weekly-volume?${params.toString()}`, z.array(weeklyVolumeSchema));
+    }
+    const store = await demoStore();
     const selected = new Set(fighterIds);
     const byWeek = groupBy(
-        db().performanceMetrics.filter((m) => selected.has(m.fighterId)),
+        store.performanceMetrics.filter((m) => selected.has(m.fighterId)),
         (m) => m.weekStart,
     );
     const now = Date.now();
@@ -210,9 +345,9 @@ export async function getWeeklyVolume(fighterIds: string[], weeks = 12): Promise
 
 /* ─── Helpers ─────────────────────────────────────────────────────────────── */
 
-function fighterHistory(fighterId: string): PerformanceMetric[] {
-    return db()
-        .performanceMetrics.filter((m) => m.fighterId === fighterId)
+function fighterHistory(store: PerformanceStore, fighterId: string): PerformanceMetric[] {
+    return store.performanceMetrics
+        .filter((m) => m.fighterId === fighterId)
         .sort((a, b) => Date.parse(a.weekStart) - Date.parse(b.weekStart));
 }
 
@@ -325,9 +460,9 @@ function reading(weekStart: ISODate, value: number): WeeklyReading {
     return { weekStart, value: value > 0 ? value : null };
 }
 
-function recentFindings(fighterId: string, technique: Technique): TechniqueFindingRef[] {
-    return db()
-        .aiAnalyses.filter((analysis) => analysis.fighterId === fighterId)
+function recentFindings(store: PerformanceStore, fighterId: string, technique: Technique): TechniqueFindingRef[] {
+    return store.aiAnalyses
+        .filter((analysis) => analysis.fighterId === fighterId)
         .flatMap((analysis) =>
             analysis.findings
                 .filter((finding) => finding.category === technique)

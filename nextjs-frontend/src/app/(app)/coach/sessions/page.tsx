@@ -203,7 +203,7 @@ function WeekView({
                                         session={session}
                                         href={routes.coach.session(session.id)}
                                         fighter={fightersById[session.fighterId]}
-                                        coachName={coachNames[session.coachId]}
+                                        coachName={session.coachId ? coachNames[session.coachId] : undefined}
                                     />
                                 </li>
                             ))}

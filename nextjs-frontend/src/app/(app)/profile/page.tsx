@@ -15,6 +15,7 @@ import {
 import { PageHeader } from "@/components/ui/page-header";
 import { requireFighterAccess } from "@/lib/auth/access";
 import { requireUser } from "@/lib/auth/session";
+import { presentFacts } from "@/components/domain/domain-format";
 import { WEIGHT_CLASS_LABELS } from "@/lib/domain/labels";
 import type { Fighter, User } from "@/lib/domain/types";
 import { routes } from "@/lib/routes";
@@ -56,11 +57,11 @@ async function roleSections(user: User, now: string): Promise<RoleSections> {
     switch (user.role) {
         case "fighter": {
             if (!user.profileId) return { main: <MissingProfileCard kind="fighter" /> };
-            const fighter = requireFighterAccess(user, user.profileId);
+            const fighter = await requireFighterAccess(user, user.profileId);
             const [coaches, doctors] = await Promise.all([coachesForFighter(fighter.id), doctorsForFighter(fighter.id)]);
             return {
                 nickname: fighter.nickname,
-                facts: [fighter.primaryDiscipline, WEIGHT_CLASS_LABELS[fighter.weightClass], fighter.nationality],
+                facts: presentFacts(fighter.primaryDiscipline, WEIGHT_CLASS_LABELS[fighter.weightClass], fighter.nationality),
                 main: (
                     <>
                         <BodyMetricsCard fighter={fighter} />
@@ -74,7 +75,7 @@ async function roleSections(user: User, now: string): Promise<RoleSections> {
             const [coach, fighters] = await Promise.all([getCoachByUserId(user.id), listFighters(user)]);
             if (!coach) return { main: <MissingProfileCard kind="coaching" /> };
             return {
-                facts: [coach.specialty],
+                facts: presentFacts(coach.specialty),
                 main: <CoachProfileCard coach={coach} rosterHref={routes.coach.fighters} roster={toRoster(fighters, routes.coach.fighter)} />,
             };
         }
@@ -82,7 +83,7 @@ async function roleSections(user: User, now: string): Promise<RoleSections> {
             const [doctor, fighters] = await Promise.all([getDoctorByUserId(user.id), listFighters(user)]);
             if (!doctor) return { main: <MissingProfileCard kind="clinical" /> };
             return {
-                facts: [doctor.specialty],
+                facts: presentFacts(doctor.specialty),
                 main: <DoctorProfileCard doctor={doctor} patientsHref={routes.doctor.fighters} roster={toRoster(fighters, routes.doctor.fighter)} />,
             };
         }

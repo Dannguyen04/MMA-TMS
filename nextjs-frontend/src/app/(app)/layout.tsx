@@ -8,14 +8,19 @@ import { getNavBadgeCounts } from "@/lib/services/shell";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
     const user = await requireUser();
-    const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
+    const [store, counts, notifications] = await Promise.all([
+        cookies(),
+        getNavBadgeCounts(user),
+        getNotificationSummary(user.id),
+    ]);
+    const theme = parseTheme(store.get(THEME_COOKIE)?.value);
 
     return (
         <AppShell
             user={user}
             theme={theme}
-            counts={getNavBadgeCounts(user)}
-            notifications={getNotificationSummary(user.id)}
+            counts={counts}
+            notifications={notifications}
             now={new Date().toISOString()}
         >
             {children}

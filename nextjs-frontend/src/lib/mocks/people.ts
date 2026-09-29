@@ -75,7 +75,10 @@ export const mockUsers: User[] = [
     user("u-quang-vu", "Quang Vũ", "admin", "Platform Engineer", null, 710, 2),
 ];
 
-export const mockFighters: Fighter[] = [
+/** Seed fighters carry every profile field, unlike API fighters whose missing fields are null. */
+export type SeedFighter = { [K in keyof Fighter]: K extends "nickname" | "upcomingBout" ? Fighter[K] : NonNullable<Fighter[K]> };
+
+export const mockFighters: SeedFighter[] = [
     {
         id: "f-minh-tran",
         userId: "u-minh-tran",

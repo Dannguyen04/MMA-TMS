@@ -8,6 +8,7 @@ import { CheckInDialog } from "@/components/clinical/check-in-dialog";
 import { RecoveryPlanStatusBadge } from "@/components/clinical/clinical-badges";
 import { injuryTitle, painLabel } from "@/components/clinical/clinical-copy";
 import { clinicalLinks } from "@/components/clinical/clinical-links";
+import { LegacyMilestones, MilestoneTracker, PlanCloseActions } from "@/components/clinical/milestone-tracker";
 import { RecoveryTracker } from "@/components/clinical/recovery-tracker";
 import { TreatmentList } from "@/components/clinical/treatment-list";
 import { CardLink } from "@/components/dashboard/card-link";
@@ -24,13 +25,14 @@ import { EmptyState } from "@/components/ui/states";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { canAccessFighter } from "@/lib/auth/access";
 import { getCurrentUser, requireRole } from "@/lib/auth/session";
-import { clearanceState } from "@/lib/domain/rules";
 import { dayKey, formatDate, pluralize } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
-import { getCurrentClearanceFor, getRecoveryPlanDetail } from "@/lib/services/medical";
+import { getClearanceStatus, getRecoveryPlanDetail } from "@/lib/services/medical";
+import { medicalFeatureAvailable, usesMedicalServiceForms } from "@/lib/services/medical-features";
 import { getDoctor } from "@/lib/services/people";
 import { param } from "@/lib/utils";
+import { NOT_RECORDED } from "@/components/domain/domain-format";
 
 /** The plan with its fighter, injury, treatments and doctor, loaded once per request for the metadata and the page. */
 const loadRecoveryPlanDetail = cache(getRecoveryPlanDetail);
@@ -52,13 +54,15 @@ export default async function RecoveryPlanPage({ params, searchParams }: PagePro
     if (!detail || !canAccessFighter(user, detail.plan.fighterId)) notFound();
     const { plan, fighter, injury, treatments, doctor } = detail;
 
-    const clearance = getCurrentClearanceFor(fighter.id);
-    const clearanceNow = clearanceState(clearance, now);
+    const { clearance, state: clearanceNow } = await getClearanceStatus(fighter.id, now);
     const clearanceDoctor = clearance ? await getDoctor(clearance.doctorId) : null;
     const justCreated = param(query.created) === "1";
     const checkInsNewestFirst = [...plan.checkIns].reverse();
     const lastCheckIn = plan.checkIns.at(-1) ?? null;
     const isCompleted = plan.status === "completed";
+    // API mode: the service's plans are flat milestone lists, closed by completing or cancelling them.
+    const serviceForms = usesMedicalServiceForms();
+    const milestones = plan.milestones ?? [];
 
     return (
         <>
@@ -94,7 +98,9 @@ export default async function RecoveryPlanPage({ params, searchParams }: PagePro
                     </>
                 }
                 actions={
-                    !isCompleted && (
+                    serviceForms ? (
+                        plan.status === "active" && <PlanCloseActions fighterId={fighter.id} planId={plan.id} />
+                    ) : !isCompleted && (
                         <CheckInDialog
                             planId={plan.id}
                             fighterName={fighter.name}
@@ -119,8 +125,9 @@ export default async function RecoveryPlanPage({ params, searchParams }: PagePro
                             </ButtonLink>
                         }
                     >
-                        {fighter.name} has been notified, and their coaches were told a return-to-training plan has started — without clinical detail. Log the
-                        first check-in to start tracking.
+                        {serviceForms
+                            ? `${fighter.name} can follow the plan on their Health page. Tick milestones off as they're reached.`
+                            : `${fighter.name} has been notified, and their coaches were told a return-to-training plan has started — without clinical detail. Log the first check-in to start tracking.`}
                     </Callout>
                 )}
 
@@ -128,7 +135,7 @@ export default async function RecoveryPlanPage({ params, searchParams }: PagePro
                     <Callout
                         tone="success"
                         icon={CircleCheck}
-                        title="Every phase is complete"
+                        title={serviceForms ? "Plan completed" : "Every phase is complete"}
                         action={
                             <>
                                 <ButtonLink href={routes.doctor.injury(injury.id)} size="sm" variant="secondary">
@@ -146,80 +153,99 @@ export default async function RecoveryPlanPage({ params, searchParams }: PagePro
                     </Callout>
                 )}
 
-                <Card>
-                    <CardHeader
-                        title="Phases & milestones"
-                        icon={<ListChecks />}
-                        description="Tick milestones as they're met. Progress updates straight away."
-                    />
-                    <CardContent>
-                        <RecoveryTracker plan={plan} now={now} />
-                    </CardContent>
-                </Card>
-
-                <Card className="overflow-hidden">
-                    <CardHeader
-                        title="Check-ins"
-                        icon={<LineChartIcon />}
-                        description={
-                            plan.checkIns.length === 0
-                                ? "Pain, mobility and strength over time"
-                                : `${pluralize(plan.checkIns.length, "check-in")} · last on ${formatDate(plan.checkIns.at(-1)?.date ?? now)}`
-                        }
-                    />
-                    {plan.checkIns.length === 0 ? (
-                        <EmptyState
-                            compact
-                            icon={<LineChartIcon />}
-                            title="No check-ins yet"
-                            description="Log pain, mobility and strength at each review to see how the fighter is responding to the plan."
-                            className="border-t border-border"
+                {serviceForms ? (
+                    <Card>
+                        <CardHeader
+                            title="Milestones"
+                            icon={<ListChecks />}
+                            description={plan.status === "active" ? "Tick milestones as they're reached. The fighter sees them on their Health page." : "This plan is closed."}
                         />
-                    ) : (
-                        <>
-                            <CardContent>
-                                {plan.checkIns.length >= 2 ? (
-                                    <CheckInCharts checkIns={plan.checkIns} audience="clinical" />
-                                ) : (
-                                    <p className="rounded-lg bg-surface-muted px-4 py-3 text-sm text-fg-muted">
-                                        Trends appear after the second check-in.
-                                    </p>
-                                )}
-                            </CardContent>
-                            <div className="border-t border-border">
-                                <h3 className="sr-only">Check-in history</h3>
-                                <Table caption="Check-in history, newest first">
-                                    <THead>
-                                        <tr>
-                                            <TH>Date</TH>
-                                            <TH className="text-right">Pain</TH>
-                                            <TH className="text-right">Mobility</TH>
-                                            <TH className="text-right">Strength</TH>
-                                            <TH>Note</TH>
-                                        </tr>
-                                    </THead>
-                                    <TBody>
-                                        {checkInsNewestFirst.map((checkIn) => (
-                                            <TR key={checkIn.date}>
-                                                <TD className="whitespace-nowrap">
-                                                    <time dateTime={checkIn.date}>{formatDate(checkIn.date)}</time>
-                                                </TD>
-                                                <TD className="text-right whitespace-nowrap">
-                                                    <span className="font-medium">{checkIn.painLevel}</span>
-                                                    <span className="text-fg-muted">/10</span>
-                                                    <span className="block text-xs text-fg-muted">{painLabel(checkIn.painLevel)}</span>
-                                                </TD>
-                                                <TD className="text-right">{checkIn.mobilityPct}%</TD>
-                                                <TD className="text-right">{checkIn.strengthPct}%</TD>
-                                                <TD className="min-w-64 text-[13px] text-pretty text-fg-muted">{checkIn.note || "—"}</TD>
-                                            </TR>
-                                        ))}
-                                    </TBody>
-                                </Table>
-                            </div>
-                        </>
-                    )}
-                </Card>
+                        <CardContent>
+                            {plan.legacyMilestones ? (
+                                <LegacyMilestones items={plan.legacyMilestones} />
+                            ) : (
+                                <MilestoneTracker fighterId={fighter.id} planId={plan.id} milestones={milestones} editable={plan.status === "active"} startDate={dayKey(plan.startDate)} />
+                            )}
+                        </CardContent>
+                    </Card>
+                ) : (
+                    <Card>
+                        <CardHeader
+                            title="Phases & milestones"
+                            icon={<ListChecks />}
+                            description="Tick milestones as they're met. Progress updates straight away."
+                        />
+                        <CardContent>
+                            <RecoveryTracker plan={plan} now={now} />
+                        </CardContent>
+                    </Card>
+                )}
+
+                {medicalFeatureAvailable("recoveryPhasesAndCheckIns") && (
+                    <Card className="overflow-hidden">
+                        <CardHeader
+                            title="Check-ins"
+                            icon={<LineChartIcon />}
+                            description={
+                                plan.checkIns.length === 0
+                                    ? "Pain, mobility and strength over time"
+                                    : `${pluralize(plan.checkIns.length, "check-in")} · last on ${formatDate(plan.checkIns.at(-1)?.date ?? now)}`
+                            }
+                        />
+                        {plan.checkIns.length === 0 ? (
+                            <EmptyState
+                                compact
+                                icon={<LineChartIcon />}
+                                title="No check-ins yet"
+                                description="Log pain, mobility and strength at each review to see how the fighter is responding to the plan."
+                                className="border-t border-border"
+                            />
+                        ) : (
+                            <>
+                                <CardContent>
+                                    {plan.checkIns.length >= 2 ? (
+                                        <CheckInCharts checkIns={plan.checkIns} audience="clinical" />
+                                    ) : (
+                                        <p className="rounded-lg bg-surface-muted px-4 py-3 text-sm text-fg-muted">
+                                            Trends appear after the second check-in.
+                                        </p>
+                                    )}
+                                </CardContent>
+                                <div className="border-t border-border">
+                                    <h3 className="sr-only">Check-in history</h3>
+                                    <Table caption="Check-in history, newest first">
+                                        <THead>
+                                            <tr>
+                                                <TH>Date</TH>
+                                                <TH className="text-right">Pain</TH>
+                                                <TH className="text-right">Mobility</TH>
+                                                <TH className="text-right">Strength</TH>
+                                                <TH>Note</TH>
+                                            </tr>
+                                        </THead>
+                                        <TBody>
+                                            {checkInsNewestFirst.map((checkIn) => (
+                                                <TR key={checkIn.date}>
+                                                    <TD className="whitespace-nowrap">
+                                                        <time dateTime={checkIn.date}>{formatDate(checkIn.date)}</time>
+                                                    </TD>
+                                                    <TD className="text-right whitespace-nowrap">
+                                                        <span className="font-medium">{checkIn.painLevel}</span>
+                                                        <span className="text-fg-muted">/10</span>
+                                                        <span className="block text-xs text-fg-muted">{painLabel(checkIn.painLevel)}</span>
+                                                    </TD>
+                                                    <TD className="text-right">{checkIn.mobilityPct}%</TD>
+                                                    <TD className="text-right">{checkIn.strengthPct}%</TD>
+                                                    <TD className="min-w-64 text-[13px] text-pretty text-fg-muted">{checkIn.note || "—"}</TD>
+                                                </TR>
+                                            ))}
+                                        </TBody>
+                                    </Table>
+                                </div>
+                            </>
+                        )}
+                    </Card>
+                )}
 
                 <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                     <Card className="min-w-0 overflow-hidden lg:col-span-2">
@@ -261,12 +287,15 @@ export default async function RecoveryPlanPage({ params, searchParams }: PagePro
                                         { label: "Started", value: <time dateTime={plan.startDate}>{formatDate(plan.startDate)}</time> },
                                         {
                                             label: "Target return",
-                                            value: <time dateTime={plan.targetReturnDate}>{formatDate(plan.targetReturnDate)}</time>,
+                                            value: plan.targetReturnDate ? <time dateTime={plan.targetReturnDate}>{formatDate(plan.targetReturnDate)}</time> : NOT_RECORDED,
                                         },
-                                        {
-                                            label: "Phases",
-                                            value: `${plan.phases.filter((p) => p.status === "completed").length} of ${plan.phases.length} completed`,
-                                        },
+                                        serviceForms
+                                            ? { label: "Milestones", value: `${milestones.filter((m) => m.isCompleted).length} of ${milestones.length} reached` }
+                                            : {
+                                                  label: "Phases",
+                                                  value: `${plan.phases.filter((p) => p.status === "completed").length} of ${plan.phases.length} completed`,
+                                              },
+                                        ...(plan.description ? [{ label: "Approach", value: <span className="font-normal">{plan.description}</span> }] : []),
                                     ]}
                                 />
                             </CardContent>

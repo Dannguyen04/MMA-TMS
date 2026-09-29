@@ -2,6 +2,7 @@ import { HttpException, Injectable } from '@nestjs/common';
 import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import { USER } from '../shared/types/user.role.js';
 import { forbidden } from '../shared/errors/access.error.js';
+import { setAuditContext } from '../shared/utils/audit-context.util.js';
 import {
   coachAssignmentAlreadyActive,
   coachAssignmentAlreadyClosed,
@@ -13,21 +14,23 @@ import {
   measurementAlreadySuperseded,
   measurementContextForbidden,
   measurementNotFound,
-  medicalAccessDenied,
 } from './fighters.error.js';
-import type {
-  AssignCoachInput,
-  CoachAssignment,
-  CreateMeasurementInput,
-  EndCoachAssignmentInput,
-  FighterMeasurement,
-  FighterMedicalSummary,
-  ListFighterSessionsQuery,
-  ListFightersQuery,
-  ListMeasurementsQuery,
-  PublicFighter,
-  TrainingSessionSummary,
-  UpdateFighterProfileInput,
+import { MedicalAccessService } from '../medical/medical-access.service.js';
+import { MEDICAL_READ_VIEW } from '../medical/medical.constants.js';
+import { MedicalService } from '../medical/medical.service.js';
+import {
+  type AssignCoachInput,
+  type CoachAssignment,
+  type CreateMeasurementInput,
+  type EndCoachAssignmentInput,
+  type FighterMeasurement,
+  type FighterMedicalSummary,
+  type ListFighterSessionsQuery,
+  type ListFightersQuery,
+  type ListMeasurementsQuery,
+  type PublicFighter,
+  type TrainingSessionSummary,
+  type UpdateFighterProfileInput,
 } from './fighters.model.js';
 import { FightersRepository } from './fighters.repo.js';
 
@@ -36,7 +39,11 @@ const MEDICAL_DISCLAIMER =
 
 @Injectable()
 export class FightersService {
-  constructor(private readonly fightersRepository: FightersRepository) {}
+  constructor(
+    private readonly fightersRepository: FightersRepository,
+    private readonly medicalAccess: MedicalAccessService,
+    private readonly medicalService: MedicalService,
+  ) {}
 
   // --- Profile Operations ---
 
@@ -49,6 +56,27 @@ export class FightersService {
     }
   }
 
+  /**
+   * A Coach's access to any specific Fighter is bounded by a currently
+   * effective `coach_fighters` assignment, never by role alone. No-op for
+   * every other role; those keep their existing scope checks.
+   */
+  private async assertCoachAssignmentScope(
+    actor: AuthenticatedUser,
+    fighterId: string,
+  ): Promise<void> {
+    if (actor.role !== USER.COACH) return;
+    const coachId = await this.fightersRepository.findActiveCoachIdByUserId(
+      actor.id,
+    );
+    if (!coachId) throw forbidden();
+    const assigned = await this.fightersRepository.isFighterAssignedToCoach(
+      coachId,
+      fighterId,
+    );
+    if (!assigned) throw forbidden();
+  }
+
   async findAll(
     actor: AuthenticatedUser,
     query: ListFightersQuery,
@@ -58,6 +86,25 @@ export class FightersService {
       const self = await this.fightersRepository.findByUserId(actor.id);
       if (!self) throw fighterNotFound();
       return { data: [self], total: 1, hasNextPage: false };
+    }
+
+    // Coach athlete management means assigned Fighters, not a global directory.
+    if (actor.role === USER.COACH) {
+      const coachId = await this.fightersRepository.findActiveCoachIdByUserId(
+        actor.id,
+      );
+      if (!coachId) throw forbidden();
+      const { data, total } = await this.fightersRepository.findAllForCoach(
+        coachId,
+        query,
+      );
+      return { data, total, hasNextPage: query.page * query.limit < total };
+    }
+
+    // Fighter data carries health-related fields: a Doctor sees only the
+    // Fighters under a currently effective doctor assignment.
+    if (actor.role === USER.DOCTOR) {
+      return this.medicalService.listFightersForDoctorUser(actor.id, query);
     }
 
     const { data, total } = await this.fightersRepository.findAll(query);
@@ -74,6 +121,9 @@ export class FightersService {
 
     // Resource-level authorization: Fighter can only view own profile
     this.assertFighterOwnerScope(actor, fighter.userId);
+    // Coach can only view Fighters covered by a currently effective assignment
+    await this.assertCoachAssignmentScope(actor, id);
+    await this.medicalAccess.assertDoctorFighterScope(actor, id);
 
     return fighter;
   }
@@ -92,11 +142,7 @@ export class FightersService {
 
     try {
       return await this.fightersRepository.transaction(async (tx) => {
-        await this.fightersRepository.setAudit(
-          actor.authSubject,
-          requestId,
-          tx,
-        );
+        await setAuditContext(actor.authSubject, requestId, tx);
         const updated = await this.fightersRepository.update(id, input, tx);
         if (!updated) throw fighterNotFound();
         return updated;
@@ -122,6 +168,7 @@ export class FightersService {
     if (!fighter) throw fighterNotFound();
 
     this.assertFighterOwnerScope(actor, fighter.userId);
+    await this.assertCoachAssignmentScope(actor, fighterId);
 
     const { data, total } = await this.fightersRepository.findMeasurements(
       fighterId,
@@ -154,11 +201,7 @@ export class FightersService {
 
     try {
       return await this.fightersRepository.transaction(async (tx) => {
-        await this.fightersRepository.setAudit(
-          actor.authSubject,
-          requestId,
-          tx,
-        );
+        await setAuditContext(actor.authSubject, requestId, tx);
         return this.fightersRepository.insertMeasurement(
           fighterId,
           actor.id,
@@ -203,11 +246,7 @@ export class FightersService {
 
     try {
       return await this.fightersRepository.transaction(async (tx) => {
-        await this.fightersRepository.setAudit(
-          actor.authSubject,
-          requestId,
-          tx,
-        );
+        await setAuditContext(actor.authSubject, requestId, tx);
         return this.fightersRepository.insertMeasurement(
           fighterId,
           actor.id,
@@ -232,6 +271,7 @@ export class FightersService {
     if (!fighter) throw fighterNotFound();
 
     this.assertFighterOwnerScope(actor, fighter.userId);
+    await this.assertCoachAssignmentScope(actor, fighterId);
 
     return this.fightersRepository.findCoachAssignments(fighterId);
   }
@@ -259,11 +299,7 @@ export class FightersService {
 
     try {
       return await this.fightersRepository.transaction(async (tx) => {
-        await this.fightersRepository.setAudit(
-          actor.authSubject,
-          requestId,
-          tx,
-        );
+        await setAuditContext(actor.authSubject, requestId, tx);
         return this.fightersRepository.insertCoachAssignment(
           input.coachId,
           fighterId,
@@ -302,11 +338,7 @@ export class FightersService {
 
     try {
       return await this.fightersRepository.transaction(async (tx) => {
-        await this.fightersRepository.setAudit(
-          actor.authSubject,
-          requestId,
-          tx,
-        );
+        await setAuditContext(actor.authSubject, requestId, tx);
         return this.fightersRepository.closeCoachAssignment(
           assignmentId,
           actor.id,
@@ -336,6 +368,7 @@ export class FightersService {
     if (!fighter) throw fighterNotFound();
 
     this.assertFighterOwnerScope(actor, fighter.userId);
+    await this.assertCoachAssignmentScope(actor, fighterId);
 
     const { data, total } = await this.fightersRepository.findTrainingSessions(
       fighterId,
@@ -353,16 +386,16 @@ export class FightersService {
   async getMedicalSummary(
     actor: AuthenticatedUser,
     fighterId: string,
+    requestId: string,
   ): Promise<FighterMedicalSummary> {
-    const fighter = await this.fightersRepository.findById(fighterId);
-    if (!fighter) throw fighterNotFound();
-
-    // Medical Read Matrix enforcement:
-    // - Fighter: only own records
-    // - Coach, Doctor, Admin: all fighters
-    if (actor.role === USER.FIGHTER && fighter.userId !== actor.id) {
-      throw medicalAccessDenied();
-    }
+    // Same clinical READ matrix and access audit as the Medical module:
+    // ADMIN all, FIGHTER self, COACH/DOCTOR only currently assigned Fighters.
+    await this.medicalAccess.authorizeClinicalRead(
+      actor,
+      fighterId,
+      MEDICAL_READ_VIEW.SUMMARY,
+      requestId,
+    );
 
     const summary = await this.fightersRepository.findMedicalSummary(fighterId);
     if (!summary) throw fighterNotFound();

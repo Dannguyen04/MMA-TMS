@@ -12,7 +12,15 @@ export const migrationNames = [
   '002_add_health_alerts.sql',
   '003_mma_tms_complete_schema.sql',
   '004_seed_api_permissions.sql',
-  '005_coaching_loop_and_constraints.sql',
+  '005_training_management.sql',
+  '006_training_permissions.sql',
+  '007_grant_api_permissions_to_admin.sql',
+  '008_grant_training_read_permissions_to_fighter.sql',
+  '009_fighter_admissions.sql',
+  '010_grant_coach_permissions.sql',
+  '011_medical_clinical_records.sql',
+  '012_medical_clearance_issue_order.sql',
+  '013_coaching_loop_and_constraints.sql',
 ];
 export function readVerifiedMigrations() {
   const manifest = JSON.parse(

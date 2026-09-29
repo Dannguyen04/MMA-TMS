@@ -9,7 +9,6 @@ import {
     materializedActionViewSchema,
     parseWorkerResult,
     reviewAuditRecordSchema,
-    sessionInsightsSchema,
     shadowClassificationSchema,
     standardFindingSchema,
     workerResultSchema,

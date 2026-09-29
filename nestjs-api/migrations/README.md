@@ -1,12 +1,205 @@
-# Migrations 003–004 — Backend, Database & API Permissions
+# Migrations 003–012 — Backend, Database & API Permissions
+
+## Chính sách Medical clinical — thay thế ngày 2026-09-27 (D1–D9)
+
+Nguồn chuẩn: quyết định chủ dự án ngày 2026-09-27 (D1–D9, xem
+[`docs/prompts/medical-CLAUDE-PROMPT.md`](../../docs/prompts/medical-CLAUDE-PROMPT.md))
+và [Master Specification §05.10.1](../../docs/MMA-TMS-MASTER-SPECIFICATION-v3.md).
+Chính sách "chỉ assigned Doctor được đọc" ngày 2026-09-25 **đã bị thay thế** cho
+phần clinical thủ công:
+
+| Actor | Đọc clinical (dossier, history, examinations, review requests, `/medical-summary`) | Ghi clinical (injury, treatment, recovery, examination, clearance) |
+| --- | --- | --- |
+| ADMIN | Tất cả Fighter | Không; chỉ quản lý assignment |
+| FIGHTER | Chính mình | Không; chỉ gửi yêu cầu khám cho chính mình |
+| COACH | Fighter đang được phân công hiệu lực | Không; chỉ gửi yêu cầu khám trong scope |
+| DOCTOR | Fighter đang được phân công hiệu lực | Có, chỉ khi assignment đang hiệu lực |
+| GUEST | Không | Không |
+
+"Hiệu lực" nghĩa là `starts_at <= now AND (ends_at IS NULL OR ends_at > now)`,
+profile active và chưa xóa. Permission guard và resource scope đều bắt buộc;
+explicit user deny vẫn thắng role grant; quyền ghi clinical còn đòi hỏi Doctor
+đang được phân công, bất kể override. Kết luận khám (`medical_examinations`) tách
+khỏi clearance; `NOT_ELIGIBLE` thu hồi clearance cùng phạm vi trong cùng
+transaction. Bệnh án không bị xóa; cập nhật ghi phiên bản.
+
+Ngoài phạm vi đợt này và **giữ nguyên**: bảng AI (health_alerts, joint
+states/history, baselines) cùng predicate `mma_private.can_read_fighter_medical`
+của 003; `fighter_measurements` và quyền measurements hiện hữu (010). Chỉ khi
+chạy 011 thì RLS/grants mới có hiệu lực; README này không xác nhận database đích
+đã áp dụng.
+
+## Áp dụng migration 012 (thứ tự phát hành clearance)
+
+012 yêu cầu ledger đã có version 11. `medical_clearances.created_at` mặc định
+là `now()` (thời điểm bắt đầu transaction); khi các lệnh cấp giấy bị serialize
+bởi advisory lock theo Fighter, transaction bắt đầu trước có thể commit sau nên
+`created_at` không phản ánh thứ tự phát hành. 012 thêm
+`issue_sequence BIGINT GENERATED ALWAYS AS IDENTITY` (unique) và index
+`(examination_id, issue_sequence DESC)`. Eligibility chọn giấy chi phối là giấy
+có `issue_sequence` lớn nhất của examination hiện hành, **trước** khi xét trạng
+thái: giấy chi phối đã REVOKED hoặc chưa hiệu lực không để giấy cũ hơn thay thế.
+
+- Không fire row trigger, không tạo revision/audit, không đổi điều khoản giấy.
+- Preflight **từ chối chạy** nếu đã có clearance gắn examination: thứ tự phát
+  hành thật của chúng không tái dựng được. Khi đó cần quyết định vận hành riêng.
+- Preflight giữ khóa `ACCESS EXCLUSIVE` trên `medical_clearances` trước khi
+  đọc dữ liệu đến hết transaction. Lệnh cấp giấy đang chạy phải commit/rollback
+  trước bước kiểm tra; không thể insert giữa preflight và việc thêm sequence.
+- Không đụng bảng/policy/grant AI hay `fighter_measurements`.
+
+```sh
+pnpm db:check
+pnpm db:migrate:012
+```
+
+Đã kiểm tra ngày 2026-09-27: checksum 001–012 đạt; `pnpm test:db
+--export-catalog` đạt 21 kiểm tra trên PostgreSQL tạm cô lập, gồm issuer đồng
+thời commit/rollback khi chạy 012, thứ tự cấp giấy trùng `created_at` và chống
+chạy lại. Không áp dụng migration lên database dự án.
+
+Đối chiếu riêng 12 bảng medical/assignment và 34 enum đạt sau khi bổ sung
+chiều index và identity vào công cụ catalog, sửa 5 mapping index medical thiếu
+`DESC`. Chạy lại bằng:
+
+```sh
+pnpm build
+pnpm test:db --export-catalog
+node scripts/check-drizzle-catalog.mjs dist/database/schema.js ../tmp/schema-catalog.json --medical
+```
+
+Đối chiếu toàn bộ vẫn báo lệch: Drizzle có thêm 7 bảng dataset/AI không có
+trong chuỗi migration hiện tại. Các bảng đó nằm ngoài phạm vi lần sửa này.
+
+## Áp dụng migration 011 (Medical clinical records)
+
+011 yêu cầu ledger đã có version 10. Nội dung:
+
+- Enum mới: `medical_examination_scope` (`TRAINING | COMPETITION`),
+  `medical_examination_decision` (`ELIGIBLE | ELIGIBLE_WITH_RESTRICTIONS |
+  NOT_ELIGIBLE`), `medical_review_request_status` (`OPEN | RESOLVED`),
+  `medical_revision_source` (`APPLICATION | MIGRATION_BASELINE`).
+  - `ELIGIBLE_WITH_RESTRICTIONS` là kết luận đạt; clearance cấp từ nó phải giữ
+    nguyên mọi hạn chế.
+  - `RESOLVED` nghĩa là yêu cầu khám đã được một lần khám TRAINING xử lý,
+    **không** có nghĩa Fighter đủ điều kiện; kết luận của lần khám đó quyết định.
+  - `MIGRATION_BASELINE` là snapshot trạng thái lúc chạy 011, không phải phiên
+    bản lịch sử được tái dựng và không phải kết luận mới của bác sĩ.
+- Bảng mới: `medical_examinations` (append-only, `sequence_no` là thứ tự phát
+  hành do server quản lý, correction qua `supersedes_id` cùng Fighter + scope và
+  chỉ trên kết luận hiện hành), `medical_review_requests` (OPEN → RESOLVED, không
+  xóa), và 4 bảng lịch sử `injury_record_revisions`, `recovery_plan_revisions`,
+  `medical_clearance_revisions`, `medical_review_request_revisions`.
+- Cột mới: `medical_clearances.examination_id` (NULL chỉ cho clearance có từ
+  trước 011 — được giữ nguyên, không tính vào eligibility), `revision` trên
+  injury/recovery/clearance.
+- Trigger: mọi insert/update injury, recovery plan, clearance, review request
+  ghi snapshot cùng transaction (actor lấy từ audit context; thiếu context thì
+  fail closed); chặn DELETE/TRUNCATE và soft-delete (`deleted_at`, `is_active`);
+  treatments và examinations append-only; clearance mới phải xuất phát từ kết
+  luận đạt hiện hành, không nới hạn chế/thời hạn; điều khoản clearance đã cấp
+  bất biến.
+- Baseline: 011 chụp trạng thái injury/recovery/clearance hiện có thành revision
+  `MIGRATION_BASELINE` (không gán bác sĩ). Dữ liệu cũ không bị đổi trạng thái,
+  không được hợp thức hóa thành kết luận khám mới.
+- RLS: bảng mới chỉ backend truy cập. Policy `medical_read` (003) trên
+  `medical_clearances`, `injury_records`, `treatments`, `recovery_plans` được
+  thay bằng `clinical_read` dùng `mma_private.can_read_fighter_clinical` (cùng
+  ma trận ở trên, gồm effective permission `fighter.medical:read`). Policy của
+  bảng AI và measurements không đổi.
+- Permission mới và baseline:
+
+  | Code | ADMIN | DOCTOR | COACH | FIGHTER |
+  | --- | --- | --- | --- | --- |
+  | `fighter.medical:read` (đã có từ 004) | có từ 007 | + | + | + |
+  | `fighter.medical:write` (injury/treatment/recovery; **không** gồm examination, clearance, assignment) | | + | | |
+  | `fighter.medical_examination:create` | | + | | |
+  | `fighter.medical_clearance:issue` / `:revoke` | | + | | |
+  | `fighter.medical_review_request:create` | | + | + | + |
+  | `fighter.doctor:read` | + | + | + | + |
+  | `fighter.doctor:assign` | + | | | |
+  | `fighter.doctor:end` (Doctor chỉ kết thúc assignment của chính mình) | + | + | | |
+  | `doctor.fighter:get_all` | + | + | | |
+
+  Không seed `user_permissions`; ADMIN không nhận quyền ghi chuyên môn.
+
+Trước khi áp dụng, kiểm tra `mma_private.migration_history` và các
+`user_permissions` override hiện có cho `fighter.medical:read` trên môi trường
+đích (override `is_granted = true` vẫn chỉ mở trong scope; override `false` vẫn
+chặn). Không áp dụng lên môi trường chưa xác định.
+
+```sh
+pnpm db:check
+pnpm db:migrate:011
+```
+
+Chưa chạy `pnpm db:check`, `pnpm test:db` hay catalog comparison cho 011 trong
+đợt triển khai 2026-09-27; Drizzle mapping của các CHECK mới được viết theo định
+dạng `pg_get_constraintdef` nhưng chưa được đối chiếu với database thật.
+
+Các ghi chú triển khai bên dưới là lịch sử từng migration, không xác nhận trạng
+thái database đích hôm nay.
+
+## Áp dụng migration 010 (Coach Platform permission grants)
+
+010 không thêm permission code mới; chỉ cấp cho role `COACH` 21 permission
+code đã có từ 004/006: `fighter:get_all`, `fighter:read`,
+`fighter.measurement:read`, `fighter.coach:read`, `fighter.session:read`,
+`training.plan:get_all|read|create|update|transition`,
+`training.plan_exercise:read|create|update|delete`,
+`training.session:get_all|read|create|update|transition` và
+`training.exercise:get_all|read`.
+
+Không cấp cho COACH: `fighter:create|update|delete`,
+`fighter.measurement:write` (số đo chỉ đọc với Coach),
+`fighter.coach:assign|end`, `training.exercise:create|update` (thư viện bài
+tập chỉ ADMIN biên soạn), `fighter.medical:read` (medical là feature tương
+lai, chưa thuộc phạm vi này) và mọi quyền AI/analysis/feedback.
+
+Việc giới hạn Coach vào Fighter có `coach_fighters` đang hiệu lực
+(`starts_at <= now AND (ends_at IS NULL OR ends_at > now)`) nằm ở tầng
+application (`FightersService`, `CoachesService`, `TrainingAccessService`);
+migration chỉ mở permission ở tầng thô.
+
+```sh
+pnpm db:check
+pnpm db:migrate:010
+```
+
+## Áp dụng migration 009 (Fighter Admissions)
+
+Chủ dự án đã xác nhận **008 đã chạy** trên môi trường đích. Không chạy lại 008,
+không sửa file hay checksum của 001–008, không tự ghi ledger.
+
+009 thêm role `GUEST` vào `public.user_role` và 5 bảng admission
+(`fighter_applications`, `fighter_application_coach_assignments`,
+`fighter_application_assessments`, `fighter_application_decisions`,
+`fighter_application_activations`) cùng catalogue permission
+`fighter_application:get_all|read|evaluate` (cấp cho `ADMIN` và `COACH`).
+
+```sh
+pnpm db:check
+pnpm db:migrate:009
+```
+
+Lưu ý PostgreSQL: `ALTER TYPE ... ADD VALUE 'GUEST'` nằm trong transaction của
+009, nên **không** file nào trong cùng transaction được dùng literal `'GUEST'`
+(default, check, cast, seed, grant). Ràng buộc nào cần `'GUEST'` phải đưa sang
+migration sau.
+
+Trước đợt này, `scripts/migration-files.mjs` và `run_sql.mjs` mới đăng ký tới
+007 nên script `db:migrate:008` không dùng được; cả hai đã được bổ sung 008 và
+009. Việc này chỉ đồng bộ tooling, không áp dụng gì lên database.
 
 ## Áp dụng migration 004
 
-Migration `004_seed_api_permissions.sql` đăng ký 14 permission cụ thể của hai
-module Users và Fighters trong `public.permissions`. Migration này không thêm dữ liệu vào
-`role_permissions` hoặc `user_permissions`; vì vậy permission mới chưa cấp quyền
-cho bất kỳ tài khoản nào, kể cả ADMIN, cho đến khi người vận hành gán quyền bằng
-quy trình SQL được kiểm soát.
+- Mỗi migration catalogue mới phải đăng ký permission trong `public.permissions`
+và đồng thời cấp các permission mới đó cho role `ADMIN` trong
+`role_permissions`, **trừ quyền ghi clinical Medical (chỉ DOCTOR, xem 011 ở đầu
+tài liệu)**. Không sửa lại 004 để áp dụng ngoại lệ này.
+Migration không được seed `user_permissions`; baseline của
+FIGHTER/COACH/DOCTOR và override theo user được quản lý riêng bằng admin-only
+assignment API hoặc quy trình SQL được kiểm soát.
 
 Sau khi xác nhận migration 003 đã có trong `mma_private.migration_history`, chạy:
 
@@ -118,9 +311,9 @@ LIMIT 1;
 
 Backend cần quy định ai được ghi số đo, xác thực thời điểm/nguồn đo và cung cấp ngữ cảnh phù hợp khi xếp hạng cân. Các quyền ghi này không được suy ra từ quyền đọc.
 
-## Quyền đọc y tế đã chốt
+## Quyền đọc y tế trong migration 003 — lịch sử, không phải target mới
 
-Theo yêu cầu cập nhật của chủ dự án, thay thế phần quyền đọc y tế mâu thuẫn trong spec; quyền Admin lấy từ spec V3 §13.3.
+Bảng dưới mô tả RLS SELECT của migration 003 và quyết định tại thời điểm viết migration. Với `medical_clearances`, `injury_records`, `treatments`, `recovery_plans`, bảng này đã được 011 thay bằng `clinical_read` (ma trận D1 ở đầu tài liệu); các bảng AI và `fighter_measurements` vẫn giữ predicate 003. Không dùng bảng này để thiết kế Medical mới. RLS không tự cấp permission HTTP.
 
 | Vai trò ứng dụng                            | Hồ sơ/số đo y tế                                      | Audit logs |
 | ------------------------------------------- | ----------------------------------------------------- | ---------- |
@@ -133,7 +326,7 @@ Theo yêu cầu cập nhật của chủ dự án, thay thế phần quyền đ�
 RLS SELECT áp dụng cho `medical_clearances`, `injury_records`, `treatments`, `recovery_plans`, `fighter_measurements`, `health_alerts`, `fighter_joint_states`, `joint_health_history`, `fighter_baselines`. Role Doctor sử dụng identifier `DOCTOR`; hồ sơ chuyên môn vẫn ở `sports_doctors`.
 
 - Authenticated clients không được ghi trực tiếp vào các bảng domain mới; không thể tự sửa role hoặc tự nhận danh tính người ghi.
-- Quyền ghi của Admin/Doctor và các vai trò khác phải đi qua backend có kiểm tra quyền. V3 cho Admin quản lý dữ liệu nhưng không cho phép phá tính append-only của audit/history.
+- Mọi quyền ghi phải qua backend có kiểm tra quyền. Với dữ liệu clinical (011), chỉ Doctor đang được phân công có permission được ghi; Admin không được sửa nội dung chuyên môn. Không role nào được phá tính append-only của audit/history/measurements.
 - Các bảng domain ngoài nhóm trên bật RLS và chưa mở policy client. Backend sẽ cung cấp API theo scope nghiệp vụ tiếp theo.
 - **Kết nối owner/superuser/service role có thể bypass RLS**; migration không thay thế kiểm tra quyền ở NestJS. Không cung cấp credential này cho client. Giữ `mma_private` ngoài danh sách schema expose của Supabase.
 - Audit trigger ghi `SYSTEM` nếu request không mang Supabase subject. Khi backend sử dụng pooled connection, đặt subject đã xác thực và `mma.request_id` trong transaction bằng `SET LOCAL`/`set_config(..., true)`; không lấy actor từ body người dùng.

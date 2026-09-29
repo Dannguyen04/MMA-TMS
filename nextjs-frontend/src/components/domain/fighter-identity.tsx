@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { Avatar } from "@/components/ui/avatar";
 import { STANCE_LABELS, TRAINING_LEVEL_LABELS, WEIGHT_CLASS_LABELS } from "@/lib/domain/labels";
+import { labelOf, presentFacts } from "./domain-format";
 import type { Fighter } from "@/lib/domain/types";
 import { cn } from "@/lib/utils";
 import { HealthStatusBadge } from "./status-badges";
@@ -40,7 +41,7 @@ export function FighterIdentity({
     showMeta = true,
     className,
 }: FighterIdentityProps) {
-    const meta = [WEIGHT_CLASS_LABELS[fighter.weightClass], STANCE_LABELS[fighter.stance], TRAINING_LEVEL_LABELS[fighter.level]].join(" · ");
+    const meta = presentFacts(WEIGHT_CLASS_LABELS[fighter.weightClass], labelOf(STANCE_LABELS, fighter.stance), labelOf(TRAINING_LEVEL_LABELS, fighter.level)).join(" · ");
 
     return (
         <div className={cn("flex min-w-0 items-center", size === "lg" ? "gap-4" : "gap-3", className)}>

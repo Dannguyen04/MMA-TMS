@@ -3,7 +3,7 @@ import { Stethoscope } from "lucide-react";
 import { ExaminationOutcomeBadge } from "@/components/medical/clinical-badges";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/states";
-import { EXAMINATION_TYPE_LABELS } from "@/lib/domain/labels";
+import { examinationTitle } from "@/lib/domain/labels";
 import type { MedicalExamination } from "@/lib/domain/types";
 import { formatDate, formatRelative } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -34,7 +34,7 @@ export function ExaminationSummaryCard({ examination, doctorName, historyHref, n
                     <div className={cn("flex flex-col", compact ? "gap-2" : "gap-3")}>
                         <div>
                             <div className="flex flex-wrap items-center justify-between gap-2">
-                                <p className={cn("font-semibold text-fg", compact ? "text-sm" : "text-[15px]")}>{EXAMINATION_TYPE_LABELS[examination.type]}</p>
+                                <p className={cn("font-semibold text-fg", compact ? "text-sm" : "text-[15px]")}>{examinationTitle(examination)}</p>
                                 <ExaminationOutcomeBadge outcome={examination.outcome} size="sm" />
                             </div>
                             <p className="mt-0.5 text-[13px] text-fg-muted">

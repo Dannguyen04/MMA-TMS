@@ -305,6 +305,7 @@ export const INJURY_SEVERITY_META: Record<InjurySeverity, StatusMeta> = {
     minor: { label: INJURY_SEVERITY_LABELS.minor, tone: "warning", icon: TriangleAlert },
     moderate: { label: INJURY_SEVERITY_LABELS.moderate, tone: "danger", icon: TriangleAlert },
     severe: { label: INJURY_SEVERITY_LABELS.severe, tone: "danger", icon: TriangleAlert, solid: true },
+    critical: { label: INJURY_SEVERITY_LABELS.critical, tone: "danger", icon: TriangleAlert, solid: true },
 };
 
 export function InjurySeverityBadge({ severity, size, className }: { severity: InjurySeverity; size?: BadgeSize; className?: string }) {

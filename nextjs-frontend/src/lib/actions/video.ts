@@ -12,8 +12,6 @@ import { getAnalysis, retryJob, reviewDetection, reviewFinding, submitCoachRevie
 import {
     createVideoUpload,
     getVideo,
-    registerExternalUpload as registerExternalUploadService,
-    type RegisterExternalUploadResult,
 } from "@/lib/services/videos";
 import { actionError, actionSuccess, validationError, type ActionState } from "./state";
 
@@ -64,21 +62,13 @@ const uploadSchema = z.object({
 /** Job ids issued by the NestJS job API (UUIDs and similar opaque ids). */
 const EXTERNAL_JOB_ID_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
 
-/** Footage must be served over HTTPS and, when storage is configured, from the academy's Supabase project. */
-function isTrustedStorageUrl(value: string): boolean {
-    try {
-        const url = new URL(value);
-        if (url.protocol !== "https:") return false;
-        const storageUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        return !storageUrl || url.host === new URL(storageUrl).host;
-    } catch {
-        return false;
-    }
-}
-
 const externalSchema = uploadSchema.extend({
-    sourceUrl: z.url("The uploaded file URL is missing.").refine(isTrustedStorageUrl, "The uploaded file must come from the academy's video storage."),
+    videoId: z.string().uuid("The uploaded video id is invalid."),
+    sourceUrl: z.string().startsWith("/api/videos/", "The protected video URL is invalid."),
     externalJobId: z.string().regex(EXTERNAL_JOB_ID_PATTERN, "The analysis job wasn't created. Start the upload again."),
+}).refine((value) => value.sourceUrl === `/api/videos/${value.videoId}/content`, {
+    path: ["sourceUrl"],
+    message: "The protected video URL does not match the uploaded video.",
 });
 
 function uploadFields(formData: FormData) {
@@ -95,7 +85,7 @@ function uploadFields(formData: FormData) {
     };
 }
 
-function uploadFailure(result: Extract<RegisterExternalUploadResult, { ok: false }>): ActionState<never> {
+function uploadFailure(result: { ok: false; code: string; message: string }): ActionState<never> {
     switch (result.code) {
         case "fighter_not_found":
             return actionError(result.message, { fighterId: result.message });
@@ -134,6 +124,7 @@ export async function registerExternalUpload(_prev: ActionState<UploadActionData
     if (VIDEO_PIPELINE_MODE !== "api") return actionError("External uploads aren't enabled on this deployment. Upload the video from this page instead.");
     const parsed = externalSchema.safeParse({
         ...uploadFields(formData),
+        videoId: text(formData.get("videoId")),
         sourceUrl: text(formData.get("sourceUrl")),
         externalJobId: text(formData.get("externalJobId")),
     });
@@ -142,14 +133,11 @@ export async function registerExternalUpload(_prev: ActionState<UploadActionData
         return actionError("You can only upload videos for fighters you work with.", { fighterId: "Choose a fighter from your roster." });
     }
 
-    const result = await registerExternalUploadService(parsed.data, auth.user);
-    if (!result.ok) return uploadFailure(result);
-
-    revalidateVideo(result.video.id, result.video.fighterId);
+    revalidateVideo(parsed.data.videoId, parsed.data.fighterId);
     return actionSuccess("Upload complete. AI analysis has started.", {
-        videoId: result.video.id,
-        jobId: result.job.id,
-        href: videoHref(auth.user, result.video.id),
+        videoId: parsed.data.videoId,
+        jobId: parsed.data.externalJobId,
+        href: videoHref(auth.user, parsed.data.videoId),
     });
 }
 

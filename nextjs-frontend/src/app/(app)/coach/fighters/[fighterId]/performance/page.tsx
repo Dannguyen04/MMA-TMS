@@ -9,13 +9,13 @@ import { routes } from "@/lib/routes";
 
 export async function generateMetadata({ params }: PageProps<"/coach/fighters/[fighterId]/performance">): Promise<Metadata> {
     const user = await requireRole("coach");
-    const fighter = requireFighterAccess(user, (await params).fighterId);
+    const fighter = await requireFighterAccess(user, (await params).fighterId);
     return { title: `Performance · ${fighter.name}` };
 }
 
 export default async function CoachFighterPerformancePage({ params }: PageProps<"/coach/fighters/[fighterId]/performance">) {
     const user = await requireRole("coach");
-    const fighter = requireFighterAccess(user, (await params).fighterId);
+    const fighter = await requireFighterAccess(user, (await params).fighterId);
 
     return (
         <section aria-labelledby="performance-heading" className="flex flex-col gap-5">

@@ -55,7 +55,7 @@ export async function VideoDetailView({ user, videoId, role, searchParams }: Vid
     return (
         <>
             <PageHeader
-                back={role === "fighter" ? { href: routes.fighter.videos, label: "Videos" } : { href: routes.coach.videoAnalysis, label: "Video analysis" }}
+                back={role === "fighter" ? { href: routes.fighter.videos, label: "Film" } : { href: routes.coach.videoAnalysis, label: "Film room" }}
                 eyebrow={
                     <span className="inline-flex items-center gap-1.5">
                         <TrainingTypeIcon type={video.trainingType} className="size-3.5" />
@@ -104,7 +104,7 @@ export async function VideoDetailView({ user, videoId, role, searchParams }: Vid
                     analysis={analysis}
                     video={video}
                     job={job}
-                    stance={fighter.stance}
+                    stance={fighter.stance ?? "orthodox"}
                     viewer={{ id: user.id, name: user.name }}
                     canReview={canReview}
                     initialMs={initialMs}

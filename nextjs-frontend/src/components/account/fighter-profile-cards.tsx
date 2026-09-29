@@ -1,6 +1,7 @@
 import { Activity, Swords, Trophy, Users } from "lucide-react";
 
-import { capitalize, describeDaysUntil } from "@/components/domain/domain-format";
+import { recordSpoken, recordText } from "@/components/dashboard/dashboard-utils";
+import { NOT_RECORDED, capitalize, describeDaysUntil, labelOf } from "@/components/domain/domain-format";
 import { MetricTile } from "@/components/domain/metric-tile";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +16,6 @@ import { BodyMetricsDialog } from "./body-metrics-dialog";
 
 export function FightProfileCard({ fighter, now }: { fighter: Fighter; now: string }) {
     const bout = fighter.upcomingBout;
-    const { wins, losses, draws } = fighter.record;
 
     return (
         <Card className="min-w-0">
@@ -52,24 +52,22 @@ export function FightProfileCard({ fighter, now }: { fighter: Fighter; now: stri
                     className="grid-cols-2"
                     items={[
                         { label: "Weight class", value: WEIGHT_CLASS_LABELS[fighter.weightClass] },
-                        { label: "Stance", value: STANCE_LABELS[fighter.stance] },
-                        { label: "Level", value: TRAINING_LEVEL_LABELS[fighter.level] },
-                        { label: "Discipline", value: fighter.primaryDiscipline },
+                        { label: "Stance", value: labelOf(STANCE_LABELS, fighter.stance) ?? NOT_RECORDED },
+                        { label: "Level", value: labelOf(TRAINING_LEVEL_LABELS, fighter.level) ?? NOT_RECORDED },
+                        { label: "Discipline", value: fighter.primaryDiscipline ?? NOT_RECORDED },
                         {
                             label: "Record (W-L-D)",
-                            value: (
+                            value: fighter.record ? (
                                 <>
-                                    <span aria-hidden>
-                                        {wins}-{losses}-{draws}
-                                    </span>
-                                    <span className="sr-only">
-                                        {wins} wins, {losses} losses, {draws} draws
-                                    </span>
+                                    <span aria-hidden>{recordText(fighter)}</span>
+                                    <span className="sr-only">{recordSpoken(fighter)}</span>
                                 </>
+                            ) : (
+                                NOT_RECORDED
                             ),
                         },
-                        { label: "Height", value: `${fighter.heightCm} cm` },
-                        { label: "Reach", value: `${fighter.reachCm} cm` },
+                        { label: "Height", value: fighter.heightCm === null ? NOT_RECORDED : `${fighter.heightCm} cm` },
+                        { label: "Reach", value: fighter.reachCm === null ? NOT_RECORDED : `${fighter.reachCm} cm` },
                         { label: "Nationality", value: fighter.nationality },
                     ]}
                 />
@@ -82,7 +80,7 @@ export function FightProfileCard({ fighter, now }: { fighter: Fighter; now: stri
 
 export function BodyMetricsCard({ fighter }: { fighter: Fighter }) {
     const classLabel = WEIGHT_CLASS_LABELS[fighter.weightClass];
-    const gap = Number((fighter.weightKg - fighter.targetWeightKg).toFixed(1));
+    const gap = fighter.weightKg === null ? null : Number((fighter.weightKg - fighter.targetWeightKg).toFixed(1));
 
     return (
         <Card className="min-w-0">
@@ -105,13 +103,21 @@ export function BodyMetricsCard({ fighter }: { fighter: Fighter }) {
                 <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                     <MetricTile
                         label="Current weight"
-                        value={formatNumber(fighter.weightKg, 1)}
-                        unit="kg"
-                        hint={gap > 0 ? `${formatNumber(gap, 1)} kg to cut` : "On weight"}
+                        value={fighter.weightKg === null ? NOT_RECORDED : formatNumber(fighter.weightKg, 1)}
+                        unit={fighter.weightKg === null ? undefined : "kg"}
+                        hint={gap === null ? undefined : gap > 0 ? `${formatNumber(gap, 1)} kg to cut` : "On weight"}
                     />
                     <MetricTile label="Target weight" value={formatNumber(fighter.targetWeightKg, 1)} unit="kg" hint={`${classLabel} limit`} />
-                    <MetricTile label="Body fat" value={formatNumber(fighter.bodyFatPct, 1)} unit="%" />
-                    <MetricTile label="Resting heart rate" value={fighter.restingHeartRate} unit="bpm" />
+                    <MetricTile
+                        label="Body fat"
+                        value={fighter.bodyFatPct === null ? NOT_RECORDED : formatNumber(fighter.bodyFatPct, 1)}
+                        unit={fighter.bodyFatPct === null ? undefined : "%"}
+                    />
+                    <MetricTile
+                        label="Resting heart rate"
+                        value={fighter.restingHeartRate ?? NOT_RECORDED}
+                        unit={fighter.restingHeartRate === null ? undefined : "bpm"}
+                    />
                 </div>
             </CardContent>
         </Card>
@@ -120,7 +126,7 @@ export function BodyMetricsCard({ fighter }: { fighter: Fighter }) {
 
 /* ─── Care team ───────────────────────────────────────────────────────────── */
 
-export function CareTeamCard({ coaches, doctors, primaryCoachId }: { coaches: Coach[]; doctors: Doctor[]; primaryCoachId: string }) {
+export function CareTeamCard({ coaches, doctors, primaryCoachId }: { coaches: Coach[]; doctors: Doctor[]; primaryCoachId: string | null }) {
     return (
         <Card className="min-w-0">
             <CardHeader title="Care team" icon={<Users />} description="The coaches and sports doctors assigned to you." />

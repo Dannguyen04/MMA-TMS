@@ -75,7 +75,7 @@ export default async function MedicalClearanceBoardPage({ searchParams }: PagePr
                     {label}
                     <span className="sr-only"> clearance for {row.fighter.name}</span>
                 </ButtonLink>
-                {canRevoke && row.clearance && <RevokeClearanceButton clearanceId={row.clearance.id} fighterName={row.fighter.name} emphasis="quiet" />}
+                {canRevoke && row.clearance && <RevokeClearanceButton clearanceId={row.clearance.id} fighterId={row.fighter.id} fighterName={row.fighter.name} emphasis="quiet" />}
             </div>
         );
     };

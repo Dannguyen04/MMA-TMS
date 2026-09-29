@@ -1,4 +1,4 @@
-import { CircleAlert, Inbox } from "lucide-react";
+import { CircleAlert, Clock3, Inbox } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
@@ -66,4 +66,22 @@ export function ErrorState({ title, description, icon, action, compact, classNam
             {action && <div className="mt-1 flex flex-wrap justify-center gap-2">{action}</div>}
         </div>
     );
+}
+
+/**
+ * A feature that exists in the demo but that the live service doesn't offer yet. Shown in place of the feature
+ * instead of demo data, with no call to action because there is nothing the user can do about it.
+ */
+export function FeatureUnavailable({
+    title,
+    description = "The medical service doesn't offer this yet. It will appear here once it does.",
+    compact,
+    className,
+}: {
+    title: string;
+    description?: ReactNode;
+    compact?: boolean;
+    className?: string;
+}) {
+    return <EmptyState icon={<Clock3 />} title={title} description={description} compact={compact} className={className} />;
 }

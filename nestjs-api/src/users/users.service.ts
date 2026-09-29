@@ -4,6 +4,11 @@ import { SUPABASE_ADMIN_CLIENT } from '../common/supabase/supabase.module.js';
 import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import { USER } from '../shared/types/user.role.js';
 import {
+  setAuditContext,
+  type Transaction,
+} from '../shared/utils/audit-context.util.js';
+import {
+  guestPromotionConflict,
   mapUserPersistenceError,
   userCreationFailed,
   userNotFound,
@@ -12,7 +17,9 @@ import {
 import type {
   CreateUserInput,
   FighterProfileInput,
+  ListUsersQuery,
   PublicUser,
+  PublicUserList,
   UpdateUserInput,
 } from './users.model.js';
 import { UsersRepository } from './users.repo.js';
@@ -30,24 +37,22 @@ export class UsersService {
     private readonly supabaseAdmin: SupabaseClient,
   ) {}
 
-  async registerFighter(
+  /**
+   * Registration creates the pre-admission identity only. A Guest has no role
+   * profile until an approved admission is activated.
+   */
+  async registerGuest(
     identity: NewIdentity,
-    profile: FighterProfileInput,
     requestId: string,
   ): Promise<PublicUser> {
     try {
       return await this.usersRepository.transaction(async (transaction) => {
-        await this.usersRepository.setAudit(
-          identity.subject,
-          requestId,
-          transaction,
-        );
+        await setAuditContext(identity.subject, requestId, transaction);
         const user = await this.usersRepository.createUser(
           identity,
-          USER.FIGHTER,
+          USER.GUEST,
           transaction,
         );
-        await this.usersRepository.createFighter(user.id, profile, transaction);
         const created = await this.usersRepository.findActiveById(
           user.id,
           transaction,
@@ -60,6 +65,24 @@ export class UsersService {
       if (error instanceof HttpException) throw error;
       throw mapUserPersistenceError(error);
     }
+  }
+
+  /**
+   * Joins the caller's activation transaction: the role change and the fighter
+   * profile must commit together. Throws when the row is no longer a GUEST so
+   * the caller never continues on an unverified promotion.
+   */
+  async promoteGuestToFighter(
+    userId: string,
+    profile: FighterProfileInput,
+    transaction: Transaction,
+  ): Promise<void> {
+    const promoted = await this.usersRepository.promoteGuestToFighter(
+      userId,
+      transaction,
+    );
+    if (!promoted) throw guestPromotionConflict();
+    await this.usersRepository.createFighter(userId, profile, transaction);
   }
 
   async create(
@@ -78,11 +101,7 @@ export class UsersService {
 
     try {
       return await this.usersRepository.transaction(async (transaction) => {
-        await this.usersRepository.setAudit(
-          actor.authSubject,
-          requestId,
-          transaction,
-        );
+        await setAuditContext(actor.authSubject, requestId, transaction);
         const user = await this.usersRepository.createUser(
           { subject: data.user.id, email: input.email },
           input.role,
@@ -113,6 +132,11 @@ export class UsersService {
     return user;
   }
 
+  async list(query: ListUsersQuery): Promise<PublicUserList> {
+    const { items, total } = await this.usersRepository.listUsers(query);
+    return { items, total, page: query.page, limit: query.limit };
+  }
+
   async update(
     id: string,
     actor: AuthenticatedUser,
@@ -130,11 +154,7 @@ export class UsersService {
           throw userRoleMismatch();
         }
 
-        await this.usersRepository.setAudit(
-          actor.authSubject,
-          requestId,
-          transaction,
-        );
+        await setAuditContext(actor.authSubject, requestId, transaction);
         await this.usersRepository.updateRoleProfile(
           existing,
           input,
@@ -165,11 +185,7 @@ export class UsersService {
           transaction,
         );
         if (!existing) throw userNotFound();
-        await this.usersRepository.setAudit(
-          actor.authSubject,
-          requestId,
-          transaction,
-        );
+        await setAuditContext(actor.authSubject, requestId, transaction);
         await this.usersRepository.softDelete(existing, transaction);
       });
       return { id, deleted: true };

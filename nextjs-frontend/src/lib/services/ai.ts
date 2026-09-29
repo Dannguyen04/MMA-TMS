@@ -1,5 +1,7 @@
 import "server-only";
 
+import { ApiError } from "@/lib/api/client";
+import { isDemoAuthEnabled } from "@/lib/auth/constants";
 import { AI_MODEL_STATUS_LABELS, ALERT_STATUS_LABELS, REVIEW_DECISION_LABELS } from "@/lib/domain/labels";
 import type {
     AbnormalMovementAlert,
@@ -27,9 +29,9 @@ import { db, nowIso, simulateLatency } from "@/lib/mocks/db";
 import { matchesSearch } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { average, round } from "@/lib/utils";
-import { recordAudit } from "./audit";
-import { notifyUsers, staffUserIdsForFighter } from "./notifications";
-import { syncRuntimeJobs, trackRuntimeJob, untrackRuntimeJob } from "./videos";
+import { recordAudit } from "./audit.demo";
+import { notifyUsers, staffUserIdsForFighter } from "./notifications.demo";
+import { syncRuntimeJobs, trackRuntimeJob, untrackRuntimeJob } from "./videos.demo";
 
 /**
  * AI analysis review, pipeline jobs, model registry and abnormal movement observations.
@@ -500,6 +502,21 @@ export async function setModelStatus(id: string, status: AIModelStatus, actor: U
 
 /* ─── AI movement observations (abnormal movement alerts) ─────────────────── */
 
+/**
+ * The backend has no movement-observation API yet, so observations exist only in demo mode. In API mode
+ * these functions refuse instead of serving demo records; pages hide the feature before calling them.
+ */
+function requireDemoObservations(operation: string): void {
+    if (isDemoAuthEnabled()) return;
+    throw new ApiError({
+        message: `${operation} is unavailable because the backend does not yet support AI movement observations.`,
+        kind: "http",
+        status: 501,
+        code: "API_OPERATION_UNSUPPORTED",
+        details: { operation, missingCapability: "AI movement observations" },
+    });
+}
+
 export interface AlertFilter {
     fighterIds?: string[] | "all";
     status?: AlertStatus;
@@ -508,6 +525,7 @@ export interface AlertFilter {
 
 /** Movement observations, newest first. */
 export async function listAlerts(filter: AlertFilter = {}): Promise<AbnormalMovementAlert[]> {
+    requireDemoObservations("Listing AI movement observations");
     await simulateLatency();
     return db()
         .abnormalMovementAlerts.filter(
@@ -530,6 +548,7 @@ export interface AlertDetail {
 
 /** An observation with its footage, analysis and any injury it was linked to. */
 export async function getAlertDetail(id: string): Promise<AlertDetail | null> {
+    requireDemoObservations("Reading an AI movement observation");
     await simulateLatency();
     const store = db();
     const alert = store.abnormalMovementAlerts.find((a) => a.id === id);
@@ -555,6 +574,7 @@ export type ReviewAlertResult = { ok: true; alert: AbnormalMovementAlert } | Fai
  * scheduled, without clinical detail.
  */
 export async function reviewAlert(id: string, input: AlertReviewInput, actor: User): Promise<ReviewAlertResult> {
+    requireDemoObservations("Reviewing an AI movement observation");
     const store = db();
     const alert = store.abnormalMovementAlerts.find((a) => a.id === id);
     if (!alert) return { ok: false, code: "not_found", message: "This observation no longer exists." };

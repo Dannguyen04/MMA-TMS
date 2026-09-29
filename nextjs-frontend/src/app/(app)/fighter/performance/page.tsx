@@ -1,4 +1,4 @@
-import { Target, Upload } from "lucide-react";
+import { Upload } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -14,19 +14,13 @@ export const metadata: Metadata = { title: "Performance" };
 export default async function FighterPerformancePage() {
     const user = await requireRole("fighter");
     if (!user.profileId) notFound();
-    const fighter = requireFighterAccess(user, user.profileId);
+    const fighter = await requireFighterAccess(user, user.profileId);
 
     return (
         <>
             <PageHeader
                 title="Performance"
                 description="How your technique, speed and training load are developing week by week."
-                actions={
-                    <ButtonLink href={routes.fighter.goals} variant="secondary">
-                        <Target aria-hidden />
-                        My goals
-                    </ButtonLink>
-                }
             />
             <PerformanceOverview
                 fighterId={fighter.id}

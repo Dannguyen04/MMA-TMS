@@ -2,7 +2,7 @@ import { CalendarClock, TriangleAlert } from "lucide-react";
 
 import { capitalize, describeDaysUntil } from "@/components/domain/domain-format";
 import { InjuryStatusBadge } from "@/components/domain/status-badges";
-import { BODY_REGION_LABELS, INJURY_TYPE_LABELS } from "@/lib/domain/labels";
+import { BODY_REGION_LABELS, injuryTypeName } from "@/lib/domain/labels";
 import type { Injury } from "@/lib/domain/types";
 import { formatDate, pluralize } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -46,7 +46,7 @@ export function ActiveInjuryCell({ injuries, className }: { injuries: Injury[]; 
     return (
         <span className={cn("flex min-w-0 flex-col items-start gap-1 text-[13px]", className)}>
             <span className="text-fg">
-                {INJURY_TYPE_LABELS[first.type]} — {BODY_REGION_LABELS[first.bodyRegion].toLowerCase()}
+                {injuryTypeName(first)} — {BODY_REGION_LABELS[first.bodyRegion].toLowerCase()}
             </span>
             <span className="flex flex-wrap items-center gap-1.5">
                 <InjuryStatusBadge status={first.status} size="sm" />

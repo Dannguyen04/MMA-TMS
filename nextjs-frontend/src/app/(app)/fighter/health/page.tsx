@@ -1,6 +1,7 @@
 import { Bandage, CalendarClock, FileClock, HeartHandshake, History, MapPinned, RefreshCw, ShieldQuestion } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import type { ReactNode } from "react";
 
 import { CardLink } from "@/components/dashboard/card-link";
 import { CareTeamCard } from "@/components/dashboard/care-team-card";
@@ -14,6 +15,7 @@ import { injuryTitle } from "@/components/clinical/clinical-copy";
 import { BodyMap } from "@/components/domain/body-map";
 import { ClearanceCard } from "@/components/domain/clearance-card";
 import { InjuryCard } from "@/components/domain/injury-card";
+import { ReviewRequestCard } from "@/components/medical/review-request-card";
 import { MetricTile } from "@/components/domain/metric-tile";
 import { RecoveryProgress } from "@/components/domain/recovery-progress";
 import { ClearanceBadge } from "@/components/domain/status-badges";
@@ -21,26 +23,36 @@ import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/states";
+import { TabLabel, Tabs } from "@/components/ui/tabs";
 import { requireFighterAccess } from "@/lib/auth/access";
-import { requireRole } from "@/lib/auth/session";
-import { EXAMINATION_TYPE_LABELS } from "@/lib/domain/labels";
+import { hasPermission, requireRole } from "@/lib/auth/session";
+import { examinationTitle } from "@/lib/domain/labels";
 import { formatDate, formatWeekdayDate } from "@/lib/format";
+import { parseEnum } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
-import { getFighterHealthSummary, listClearances, listExaminations, listInjuries } from "@/lib/services/medical";
+import { medicalFeatureAvailable } from "@/lib/services/medical-features";
+import { getClearanceStatus, getFighterHealthSummary, listClearances, listExaminations, listInjuries, listReviewRequests } from "@/lib/services/medical";
 import { listDoctors } from "@/lib/services/people";
-import { cn } from "@/lib/utils";
+import { cn, param } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Health & Medical Clearance" };
 
-export default async function FighterHealthPage() {
+const TABS = ["status", "injuries", "history"] as const;
+
+/**
+ * The fighter's health in three tabs instead of one long page: whether they may train (and asking for a review),
+ * injuries and recovery, and what the doctor has recorded. `?tab=` keeps the open tab across reloads and links.
+ */
+export default async function FighterHealthPage({ searchParams }: PageProps<"/fighter/health">) {
     const user = await requireRole("fighter");
     if (!user.profileId) notFound();
-    const fighter = requireFighterAccess(user, user.profileId);
+    const fighter = await requireFighterAccess(user, user.profileId);
     const ids = [fighter.id];
     const now = new Date().toISOString();
+    const tab = parseEnum(param((await searchParams).tab), TABS) ?? "status";
 
-    const [health, clearances, injuries, examinations, doctors, careTeam, settings] = await Promise.all([
+    const [health, clearances, injuries, examinations, doctors, careTeam, settings, reviewRequests, { eligibility }] = await Promise.all([
         getFighterHealthSummary(fighter.id, now),
         listClearances({ fighterIds: ids }),
         listInjuries({ fighterIds: ids }),
@@ -48,6 +60,8 @@ export default async function FighterHealthPage() {
         listDoctors(),
         loadCareTeam(fighter),
         getSettings(),
+        listReviewRequests(fighter.id),
+        getClearanceStatus(fighter.id, now),
     ]);
     if (!health) notFound();
 
@@ -63,15 +77,10 @@ export default async function FighterHealthPage() {
     const followUp = health.nextFollowUp;
     const highlights = injuryHighlights(injuries, now);
 
-    return (
-        <>
-            <PageHeader
-                title="Health & Medical Clearance"
-                description="Your clearance, injuries and recovery — kept up to date by your sports doctor."
-            />
-
-            <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
-                <div className="flex min-w-0 flex-col gap-6 lg:col-span-2">
+    const status = (
+        <TwoColumns
+            main={
+                <>
                     {clearanceState === "none" ? (
                         <Card className="min-w-0">
                             <CardHeader title="Medical Clearance" icon={<ShieldQuestion />} />
@@ -92,10 +101,25 @@ export default async function FighterHealthPage() {
                             now={now}
                             variant="clinical"
                             warningDays={settings.clearanceExpiryWarningDays}
+                            pausedForReview={eligibility?.reasons.includes("REVIEW_REQUEST_PENDING")}
                             className="min-w-0"
                         />
                     )}
-                    <HealthStatusCard status={fighter.healthStatus} wide>
+                    <ReviewRequestCard
+                        fighterId={fighter.id}
+                        fighterName={fighter.name}
+                        audience="fighter"
+                        requests={reviewRequests}
+                        eligibility={eligibility}
+                        canRequest={hasPermission(user, "medical:request_review")}
+                        now={now}
+                        className="min-w-0"
+                    />
+                </>
+            }
+            side={
+                <>
+                    <HealthStatusCard status={fighter.healthStatus}>
                         {followUp ? (
                             <div className="rounded-lg border border-border px-3 py-2.5 text-[13px]">
                                 <p className="flex items-center gap-1.5 text-fg-muted">
@@ -108,12 +132,14 @@ export default async function FighterHealthPage() {
                                     </time>
                                     <span className="text-fg-muted">
                                         {" "}
-                                        · {relativeDay(followUp.date, now).toLowerCase()} · after your {EXAMINATION_TYPE_LABELS[followUp.examination.type].toLowerCase()}
+                                        · {relativeDay(followUp.date, now).toLowerCase()} · after your {examinationTitle(followUp.examination).toLowerCase()}
                                     </span>
                                 </p>
                             </div>
                         ) : (
-                            <InlineNote icon={CalendarClock}>No follow-up booked — your doctor arranges your next check.</InlineNote>
+                            medicalFeatureAvailable("followUps") && (
+                                <InlineNote icon={CalendarClock}>No follow-up booked — your doctor arranges your next check.</InlineNote>
+                            )
                         )}
                         {contactDoctor && (
                             <InlineNote icon={HeartHandshake}>
@@ -121,7 +147,16 @@ export default async function FighterHealthPage() {
                             </InlineNote>
                         )}
                     </HealthStatusCard>
+                    <CareTeamCard members={careTeam} />
+                </>
+            }
+        />
+    );
 
+    const injuriesAndRecovery = (
+        <TwoColumns
+            main={
+                <>
                     {recovery && (
                         <Card className="min-w-0">
                             <CardHeader
@@ -132,9 +167,11 @@ export default async function FighterHealthPage() {
                             />
                             <CardContent className="flex flex-col gap-6">
                                 <RecoveryProgress plan={recovery.plan} now={now} />
-                                <div className="border-t border-border pt-5">
-                                    <CheckInTrends checkIns={recovery.plan.checkIns} now={now} />
-                                </div>
+                                {medicalFeatureAvailable("recoveryPhasesAndCheckIns") && (
+                                    <div className="border-t border-border pt-5">
+                                        <CheckInTrends checkIns={recovery.plan.checkIns} now={now} />
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
                     )}
@@ -169,44 +206,77 @@ export default async function FighterHealthPage() {
                             )}
                         </CardContent>
                     </Card>
+                </>
+            }
+            side={
+                <Card className="min-w-0">
+                    <CardHeader title="Body map" description="Current injuries and those resolved in the last 12 months" icon={<MapPinned />} />
+                    <CardContent>
+                        <BodyMap highlights={highlights} size="md" />
+                        {highlights.length === 0 && <p className="mt-3 text-center text-[13px] text-fg-muted">No injuries in the last 12 months.</p>}
+                    </CardContent>
+                </Card>
+            }
+        />
+    );
 
-                    <Card className="min-w-0">
-                        <CardHeader title="Medical history" description="Everything your sports doctor has recorded" icon={<FileClock />} />
-                        <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                            <div className="grid flex-1 grid-cols-3 gap-2">
-                                <MetricTile label="Examinations" value={examinations.length} />
-                                <MetricTile label="Injuries" value={injuries.length} hint={resolvedCount > 0 ? `${resolvedCount} resolved` : undefined} />
-                                <MetricTile
-                                    label="Clearance decisions"
-                                    value={clearances.length}
-                                    hint={latestDecision ? `Latest ${formatDate(latestDecision.issuedAt)}` : undefined}
-                                />
-                            </div>
-                            <ButtonLink href={routes.fighter.medicalHistory} variant="secondary" className="shrink-0">
-                                <History aria-hidden />
-                                View history
-                            </ButtonLink>
-                        </CardContent>
-                    </Card>
-                </div>
+    const history = (
+        <TwoColumns
+            main={
+                <Card className="min-w-0">
+                    <CardHeader title="Medical history" description="Everything your sports doctor has recorded" icon={<FileClock />} />
+                    <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                        <div className="grid flex-1 grid-cols-3 gap-2">
+                            <MetricTile label="Examinations" value={examinations.length} />
+                            <MetricTile label="Injuries" value={injuries.length} hint={resolvedCount > 0 ? `${resolvedCount} resolved` : undefined} />
+                            <MetricTile
+                                label="Clearance decisions"
+                                value={clearances.length}
+                                hint={latestDecision ? `Latest ${formatDate(latestDecision.issuedAt)}` : undefined}
+                            />
+                        </div>
+                        <ButtonLink href={routes.fighter.medicalHistory} variant="secondary" className="shrink-0">
+                            <History aria-hidden />
+                            View timeline
+                        </ButtonLink>
+                    </CardContent>
+                </Card>
+            }
+            side={
+                <ExaminationSummaryCard
+                    examination={health.latestExamination}
+                    doctorName={health.latestExamination ? doctorNames.get(health.latestExamination.doctorId) : undefined}
+                    historyHref={routes.fighter.medicalHistory}
+                    now={now}
+                />
+            }
+        />
+    );
 
-                <div className="flex min-w-0 flex-col gap-6">
-                    <ExaminationSummaryCard
-                        examination={health.latestExamination}
-                        doctorName={health.latestExamination ? doctorNames.get(health.latestExamination.doctorId) : undefined}
-                        historyHref={routes.fighter.medicalHistory}
-                        now={now}
-                    />
-                    <Card className="min-w-0">
-                        <CardHeader title="Body map" description="Current injuries and those resolved in the last 12 months" icon={<MapPinned />} />
-                        <CardContent>
-                            <BodyMap highlights={highlights} size="md" />
-                            {highlights.length === 0 && <p className="mt-3 text-center text-[13px] text-fg-muted">No injuries in the last 12 months.</p>}
-                        </CardContent>
-                    </Card>
-                    <CareTeamCard members={careTeam} />
-                </div>
-            </div>
+    return (
+        <>
+            <PageHeader title="Health & Medical Clearance" description="Your clearance, injuries and recovery — kept up to date by your sports doctor." />
+            <Tabs
+                key={tab}
+                defaultTab={tab}
+                urlParam="tab"
+                label="Health sections"
+                listClassName="mb-6"
+                items={[
+                    { id: "status", label: "Status", content: status },
+                    { id: "injuries", label: <TabLabel label="Injuries & recovery" count={openInjuries.length || undefined} />, content: injuriesAndRecovery },
+                    { id: "history", label: "History", content: history },
+                ]}
+            />
         </>
+    );
+}
+
+function TwoColumns({ main, side }: { main: ReactNode; side: ReactNode }) {
+    return (
+        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
+            <div className="flex min-w-0 flex-col gap-6 lg:col-span-2">{main}</div>
+            <div className="flex min-w-0 flex-col gap-6">{side}</div>
+        </div>
     );
 }

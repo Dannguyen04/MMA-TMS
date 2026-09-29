@@ -13,9 +13,10 @@ import { getCurrentUser, requireRole } from "@/lib/auth/session";
 import { formatDateTime } from "@/lib/format";
 import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
-import { getPlan, getSession, getSessionClearanceConflicts, listCoachFeedback } from "@/lib/services/training";
+import { getPlan, getSession, listCoachFeedback, loadSessionClearanceConflicts } from "@/lib/services/training";
 import { listVideos } from "@/lib/services/videos";
 import { sum } from "@/lib/utils";
+import { plannedEndMs } from "@/components/training/training-utils";
 
 /** One session read per request, shared by the metadata and the page. */
 const loadSession = cache(getSession);
@@ -32,7 +33,7 @@ export default async function CoachSessionPage({ params }: PageProps<"/coach/ses
     // Reference lookups start with the session read; everything about the session waits for the access check.
     const [session, coachNames, exercises] = await Promise.all([loadSession(sessionId), getCoachNames(), getExerciseLibrary()]);
     if (!session) notFound();
-    const fighter = requireFighterAccess(user, session.fighterId);
+    const fighter = await requireFighterAccess(user, session.fighterId);
 
     const current = new Date();
     const now = current.toISOString();
@@ -44,8 +45,8 @@ export default async function CoachSessionPage({ params }: PageProps<"/coach/ses
 
     const active = session.status === "scheduled" || session.status === "in_progress";
     const started = session.scheduledAt <= now;
-    const upcoming = active && Date.parse(session.scheduledAt) + session.durationMin * 60_000 >= current.getTime();
-    const conflicts = upcoming ? getSessionClearanceConflicts(session) : [];
+    const upcoming = active && plannedEndMs(session) >= current.getTime();
+    const conflicts = upcoming ? await loadSessionClearanceConflicts(session) : [];
     const canRecord = started && (active || session.status === "completed");
     const canUpload = session.status !== "cancelled" && session.status !== "missed";
     const firstName = fighter.name.split(" ")[0];
@@ -95,7 +96,7 @@ export default async function CoachSessionPage({ params }: PageProps<"/coach/ses
                 session={session}
                 audience="coach"
                 now={now}
-                coachName={coachNames[session.coachId] ?? "Coach"}
+                coachName={(session.coachId && coachNames[session.coachId]) || "Coach"}
                 coachNames={coachNames}
                 fighter={toIdentity(fighter)}
                 fighterHref={routes.coach.fighter(fighter.id)}

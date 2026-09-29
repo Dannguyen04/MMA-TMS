@@ -3,18 +3,19 @@ import "server-only";
 import { cache } from "react";
 
 import { accessibleFighterIds, requireFighterAccess } from "@/lib/auth/access";
-import { clearanceDaysRemaining, clearanceState, currentClearance, type ClearanceConflict, type ClearanceState } from "@/lib/domain/rules";
+import type { MedicalEligibility } from "@/lib/domain/medical-contract";
+import { clearanceDaysRemaining, type ClearanceConflict, type ClearanceState } from "@/lib/domain/rules";
 import type { Fighter, MedicalClearance, TrainingSession, User } from "@/lib/domain/types";
-import { listClearances } from "@/lib/services/medical";
+import { DAY_MS } from "@/lib/format";
+import { getClearanceStatus } from "@/lib/services/medical";
 import { listFighters } from "@/lib/services/people";
 import { getPerformanceHistory, getTeamPerformance, overallScore, type TeamPerformanceRow } from "@/lib/services/performance";
-import { getSessionClearanceConflicts, getUpcomingSessions } from "@/lib/services/training";
+import { getUpcomingSessions, loadSessionClearanceConflicts } from "@/lib/services/training";
 import { completeWeeks } from "./dashboard-utils";
 
 /** How far ahead upcoming sessions are checked against Medical Clearance. */
 export const SESSION_HORIZON_DAYS = 14;
 const TREND_WEEKS = 8;
-const DAY_MS = 86_400_000;
 
 export interface SessionCheck {
     session: TrainingSession;
@@ -26,6 +27,8 @@ export interface RosterEntry {
     /** The clearance governing training (the revoked record when a revocation is the latest decision). */
     clearance: MedicalClearance | null;
     clearanceState: ClearanceState;
+    /** Why the fighter may or may not train, when the medical service says (e.g. a pending review); null otherwise. */
+    eligibility: MedicalEligibility | null;
     revoked: boolean;
     /** Days until the clearance lapses; null when there is none, it is open-ended or it was revoked. */
     daysRemaining: number | null;
@@ -42,6 +45,8 @@ export interface RosterEntry {
 export interface RosterOptions {
     /** Fighters to build entries for, when the caller already has (or is fetching) them. Defaults to `listFighters(user)`. */
     fighters?: Fighter[] | Promise<Fighter[]>;
+    /** Read performance scores and trends (default true). Screens that don't show them skip the reads. */
+    performance?: boolean;
 }
 
 /**
@@ -61,7 +66,7 @@ export async function scopedFighterIds(user: User, fighters: Fighter[] | Promise
 export async function loadRoster(user: User, now: string, options: RosterOptions = {}): Promise<RosterEntry[]> {
     const fighters = options.fighters ?? listFighters(user);
     const ids = Array.isArray(fighters) ? Promise.resolve(fighters.map((fighter) => fighter.id)) : scopedFighterIds(user, fighters);
-    return buildRoster(fighters, ids, now);
+    return buildRoster(fighters, ids, now, options.performance ?? true);
 }
 
 /**
@@ -69,41 +74,47 @@ export async function loadRoster(user: User, now: string, options: RosterOptions
  * Cached per request, so the profile layout and page share a single set of reads.
  */
 export const loadRosterEntry = cache(async (user: User, fighterId: string): Promise<RosterEntry> => {
-    const fighter = requireFighterAccess(user, fighterId);
+    const fighter = await requireFighterAccess(user, fighterId);
     const [entry] = await loadRoster(user, new Date().toISOString(), { fighters: [fighter] });
     return entry;
 });
 
-async function buildRoster(fightersInput: Fighter[] | Promise<Fighter[]>, idsInput: Promise<string[]>, now: string): Promise<RosterEntry[]> {
+async function buildRoster(fightersInput: Fighter[] | Promise<Fighter[]>, idsInput: Promise<string[]>, now: string, withPerformance: boolean): Promise<RosterEntry[]> {
     const [fighters, clearances, team, upcoming, histories] = await Promise.all([
         fightersInput,
-        idsInput.then((ids) => (ids.length === 0 ? [] : listClearances({ fighterIds: ids }))),
-        idsInput.then((ids) => (ids.length === 0 ? [] : getTeamPerformance(ids))),
+        idsInput.then(async (ids) => new Map(await Promise.all(ids.map(async (id) => [id, await getClearanceStatus(id, now)] as const)))),
+        idsInput.then((ids) => (ids.length === 0 || !withPerformance ? [] : getTeamPerformance(ids))),
         idsInput.then((ids) => (ids.length === 0 ? [] : getUpcomingSessions(ids, Number.POSITIVE_INFINITY))),
-        idsInput.then(async (ids) => new Map(await Promise.all(ids.map(async (id) => [id, await getPerformanceHistory(id, TREND_WEEKS + 1)] as const)))),
+        idsInput.then(async (ids) =>
+            withPerformance ? new Map(await Promise.all(ids.map(async (id) => [id, await getPerformanceHistory(id, TREND_WEEKS + 1)] as const))) : new Map(),
+        ),
     ]);
     const horizon = Date.parse(now) + SESSION_HORIZON_DAYS * DAY_MS;
 
-    return fighters.map((fighter) => {
-        const clearance = currentClearance(clearances, fighter.id);
+    return Promise.all(fighters.map(async (fighter) => {
+        const status = clearances.get(fighter.id);
+        const clearance = status?.clearance ?? null;
         const revoked = clearance?.status === "revoked";
         const weeks = completeWeeks(histories.get(fighter.id) ?? [], now).slice(-TREND_WEEKS);
         const own = upcoming.filter((session) => session.fighterId === fighter.id);
         return {
             fighter,
             clearance,
-            clearanceState: clearanceState(clearance, now),
+            clearanceState: status?.state ?? "none",
+            eligibility: status?.eligibility ?? null,
             revoked,
             daysRemaining: clearance && !revoked ? clearanceDaysRemaining(clearance, now) : null,
             performance: team.find((row) => row.fighterId === fighter.id) ?? null,
             hasComparison: weeks.length > 1,
             overallSeries: weeks.map((week) => overallScore(week.scores)),
             nextSession: own[0] ?? null,
-            upcoming: own
-                .filter((session) => Date.parse(session.scheduledAt) <= horizon)
-                .map((session) => ({ session, conflicts: getSessionClearanceConflicts(session) })),
+            upcoming: await Promise.all(
+                own
+                    .filter((session) => Date.parse(session.scheduledAt) <= horizon)
+                    .map(async (session) => ({ session, conflicts: await loadSessionClearanceConflicts(session) })),
+            ),
         };
-    });
+    }));
 }
 
 /** Sessions whose conflicts include at least one of the given severity. */

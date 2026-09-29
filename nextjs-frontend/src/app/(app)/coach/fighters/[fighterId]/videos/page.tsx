@@ -9,14 +9,14 @@ import { routes } from "@/lib/routes";
 
 export async function generateMetadata({ params }: PageProps<"/coach/fighters/[fighterId]/videos">): Promise<Metadata> {
     const user = await requireRole("coach");
-    const fighter = requireFighterAccess(user, (await params).fighterId);
+    const fighter = await requireFighterAccess(user, (await params).fighterId);
     return { title: `Videos · ${fighter.name}` };
 }
 
 export default async function CoachFighterVideosPage({ params, searchParams }: PageProps<"/coach/fighters/[fighterId]/videos">) {
     const user = await requireRole("coach");
     const [{ fighterId }, query] = await Promise.all([params, searchParams]);
-    const fighter = requireFighterAccess(user, fighterId);
+    const fighter = await requireFighterAccess(user, fighterId);
     const uploadHref = `${routes.coach.uploadVideo}?fighter=${encodeURIComponent(fighter.id)}`;
     const firstName = fighter.name.split(" ")[0];
 

@@ -15,14 +15,16 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { DescriptionList, type DescriptionItem } from "@/components/ui/description-list";
 import { PageHeader } from "@/components/ui/page-header";
-import { EmptyState } from "@/components/ui/states";
+import { EmptyState, FeatureUnavailable } from "@/components/ui/states";
 import { requireRole } from "@/lib/auth/session";
+import { NOT_RECORDED, labelOf } from "@/components/domain/domain-format";
 import { ROLE_LABELS, STANCE_LABELS, TRAINING_LEVEL_LABELS, WEIGHT_CLASS_LABELS } from "@/lib/domain/labels";
 import type { Coach, Doctor, Fighter, User } from "@/lib/domain/types";
 import { formatDate, formatDateTime, formatRelative, pluralize } from "@/lib/format";
 import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { getUserDetail, listPermissionCatalog } from "@/lib/services/admin";
+import { adminFeatureAvailable } from "@/lib/services/admin-features";
 import { listCoaches } from "@/lib/services/people";
 import { param } from "@/lib/utils";
 
@@ -42,7 +44,10 @@ export default async function AdminUserDetailPage({ params, searchParams }: Page
     const query = await searchParams;
     const now = new Date().toISOString();
 
-    const [detail, catalog, allCoaches] = await Promise.all([loadUserDetail(userId), listPermissionCatalog(), listCoaches()]);
+    const showPermissions = adminFeatureAvailable("rolePermissions");
+    const showActivity = adminFeatureAvailable("auditTrail");
+    const actions = { edit: adminFeatureAvailable("editUsers"), status: adminFeatureAvailable("accountStatus") };
+    const [detail, catalog, allCoaches] = await Promise.all([loadUserDetail(userId), showPermissions ? listPermissionCatalog() : [], listCoaches()]);
     if (!detail) notFound();
     const { user, profile, recentAudit, permissions } = detail;
     const coaches = user.role === "fighter" && profile ? allCoaches : [];
@@ -54,13 +59,14 @@ export default async function AdminUserDetailPage({ params, searchParams }: Page
           ? `${user.name} has a linked ${ROLE_LABELS[user.role].toLowerCase()} profile, so the role can't change. Invite a new account instead.`
           : null;
 
-    const accountItems: DescriptionItem[] = [
+    // Fields the user service doesn't keep are left out rather than shown as empty.
+    const accountItems: (DescriptionItem | false)[] = [
         { label: "Email", value: user.email },
-        { label: "Phone", value: user.phone ?? <span className="font-normal text-fg-subtle">Not provided</span> },
+        adminFeatureAvailable("accountPhone") && { label: "Phone", value: user.phone ?? <span className="font-normal text-fg-subtle">Not provided</span> },
         { label: "Job title", value: user.title || <span className="font-normal text-fg-subtle">Not set</span> },
         { label: "Role", value: ROLE_LABELS[user.role] },
         { label: "Created", value: formatDate(user.createdAt) },
-        {
+        adminFeatureAvailable("lastActive") && {
             label: "Last active",
             value: user.lastActiveAt ? (
                 <time dateTime={user.lastActiveAt} title={formatDateTime(user.lastActiveAt)}>
@@ -88,7 +94,7 @@ export default async function AdminUserDetailPage({ params, searchParams }: Page
                         <span className="min-w-0 break-words">{user.name}</span>
                     </span>
                 }
-                description={`${user.title} · ${user.email}`}
+                description={[user.title, user.email].filter(Boolean).join(" · ")}
                 meta={
                     <>
                         <RoleBadge role={user.role} />
@@ -97,11 +103,14 @@ export default async function AdminUserDetailPage({ params, searchParams }: Page
                     </>
                 }
                 actions={
-                    <UserActions
-                        user={{ id: user.id, name: user.name, email: user.email, title: user.title, role: user.role, status: user.status }}
-                        roleLockReason={roleLockReason}
-                        isSelf={isSelf}
-                    />
+                    (actions.edit || actions.status) && (
+                        <UserActions
+                            user={{ id: user.id, name: user.name, email: user.email, title: user.title, role: user.role, status: user.status }}
+                            roleLockReason={roleLockReason}
+                            isSelf={isSelf}
+                            available={actions}
+                        />
+                    )
                 }
             />
 
@@ -113,7 +122,7 @@ export default async function AdminUserDetailPage({ params, searchParams }: Page
                         <Card>
                             <CardHeader title="Account" icon={<IdCard />} />
                             <CardContent>
-                                <DescriptionList items={accountItems} />
+                                <DescriptionList items={accountItems.filter((item) => item !== false)} />
                             </CardContent>
                         </Card>
 
@@ -124,13 +133,21 @@ export default async function AdminUserDetailPage({ params, searchParams }: Page
                                 icon={<UserRound />}
                             />
                             <CardContent>
-                                <LinkedProfile user={user} profile={profile} coaches={coaches} />
+                                <LinkedProfile user={user} profile={profile} coaches={coaches} showCredentials={adminFeatureAvailable("coachCredentials")} />
                             </CardContent>
                         </Card>
 
                         <Card className="overflow-hidden">
-                            <CardHeader title="Recent activity" description={recentAudit.length === 0 ? "Nothing recorded yet" : `Latest ${pluralize(recentAudit.length, "action")} by ${user.name}`} icon={<ScrollText />} />
-                            {recentAudit.length === 0 ? (
+                            <CardHeader
+                                title="Recent activity"
+                                description={showActivity ? (recentAudit.length === 0 ? "Nothing recorded yet" : `Latest ${pluralize(recentAudit.length, "action")} by ${user.name}`) : undefined}
+                                icon={<ScrollText />}
+                            />
+                            {!showActivity ? (
+                                <CardContent>
+                                    <FeatureUnavailable compact title="Activity isn't available yet" description="The user service doesn't share an account's activity yet. It will appear here once it does." />
+                                </CardContent>
+                            ) : recentAudit.length === 0 ? (
                                 <CardContent>
                                     <EmptyState compact title="No activity recorded" description="Sign-ins and changes this person makes will appear here." />
                                 </CardContent>
@@ -151,18 +168,24 @@ export default async function AdminUserDetailPage({ params, searchParams }: Page
                     <Card className="min-w-0">
                         <CardHeader
                             title="Effective permissions"
-                            description={`${pluralize(permissions.length, "permission")} from the ${ROLE_LABELS[user.role]} role`}
+                            description={showPermissions ? `${pluralize(permissions.length, "permission")} from the ${ROLE_LABELS[user.role]} role` : undefined}
                             icon={<KeyRound />}
                         />
                         <CardContent>
-                            <PermissionList catalog={catalog} granted={permissions} />
+                            {showPermissions ? (
+                                <PermissionList catalog={catalog} granted={permissions} />
+                            ) : (
+                                <FeatureUnavailable compact title="Role permissions aren't available yet" description="The user service doesn't share what each role grants yet. It will appear here once it does." />
+                            )}
                         </CardContent>
-                        <CardFooter>
-                            <span className="text-fg-muted">Permissions are set per role</span>
-                            <Link href={routes.admin.roles} className="font-medium text-primary-soft-fg hover:underline">
-                                Edit role
-                            </Link>
-                        </CardFooter>
+                        {showPermissions && (
+                            <CardFooter>
+                                <span className="text-fg-muted">Permissions are set per role</span>
+                                <Link href={routes.admin.roles} className="font-medium text-primary-soft-fg hover:underline">
+                                    Edit role
+                                </Link>
+                            </CardFooter>
+                        )}
                     </Card>
                 </div>
             </div>
@@ -184,7 +207,18 @@ function StatusCallout({ user, now }: { user: User; now: string }) {
     );
 }
 
-function LinkedProfile({ user, profile, coaches }: { user: User; profile: Fighter | Coach | Doctor | null; coaches: Coach[] }) {
+function LinkedProfile({
+    user,
+    profile,
+    coaches,
+    showCredentials,
+}: {
+    user: User;
+    profile: Fighter | Coach | Doctor | null;
+    coaches: Coach[];
+    /** False where the service keeps no certifications or experience: those rows are left out rather than shown as empty. */
+    showCredentials: boolean;
+}) {
     if (!profile) {
         return user.role === "admin" ? (
             <EmptyState compact title="No profile needed" description="Administrator accounts operate the platform and have no athlete or staff profile." />
@@ -207,10 +241,10 @@ function LinkedProfile({ user, profile, coaches }: { user: User; profile: Fighte
                 columns={3}
                 items={[
                     { label: "Weight class", value: WEIGHT_CLASS_LABELS[profile.weightClass] },
-                    { label: "Primary discipline", value: profile.primaryDiscipline },
-                    { label: "Level", value: TRAINING_LEVEL_LABELS[profile.level] },
-                    { label: "Stance", value: STANCE_LABELS[profile.stance] },
-                    { label: "Record (W–L–D)", value: `${profile.record.wins}–${profile.record.losses}–${profile.record.draws}` },
+                    { label: "Primary discipline", value: profile.primaryDiscipline ?? NOT_RECORDED },
+                    { label: "Level", value: labelOf(TRAINING_LEVEL_LABELS, profile.level) ?? NOT_RECORDED },
+                    { label: "Stance", value: labelOf(STANCE_LABELS, profile.stance) ?? NOT_RECORDED },
+                    { label: "Record (W–L–D)", value: profile.record ? `${profile.record.wins}–${profile.record.losses}–${profile.record.draws}` : NOT_RECORDED },
                     { label: "Joined", value: formatDate(profile.joinedAt) },
                     {
                         label: "Coaches",
@@ -221,7 +255,11 @@ function LinkedProfile({ user, profile, coaches }: { user: User; profile: Fighte
                             ) : (
                                 <span className="flex flex-wrap gap-2">
                                     {assigned.map((coach) => (
-                                        <Link key={coach.id} href={routes.admin.user(coach.userId)} className="inline-flex items-center gap-1.5 hover:underline">
+                                        <Link
+                                            key={coach.id}
+                                            href={coach.userId ? routes.admin.user(coach.userId) : routes.admin.users}
+                                            className="inline-flex items-center gap-1.5 hover:underline"
+                                        >
                                             <Avatar name={coach.name} size="xs" />
                                             {coach.name}
                                             {coach.id === profile.primaryCoachId && <span className="font-normal text-fg-subtle">(primary)</span>}
@@ -240,14 +278,18 @@ function LinkedProfile({ user, profile, coaches }: { user: User; profile: Fighte
             <DescriptionList
                 columns={3}
                 items={[
-                    { label: "Specialty", value: profile.specialty },
-                    { label: "Experience", value: pluralize(profile.yearsExperience, "year") },
+                    { label: "Specialty", value: profile.specialty || <span className="font-normal text-fg-subtle">{NOT_RECORDED}</span> },
+                    ...(showCredentials ? [{ label: "Experience", value: profile.yearsExperience === null ? NOT_RECORDED : pluralize(profile.yearsExperience, "year") }] : []),
                     { label: "Roster", value: pluralize(profile.fighterIds.length, "fighter") },
-                    {
-                        label: "Certifications",
-                        wide: true,
-                        value: profile.certifications.length > 0 ? profile.certifications.join(" · ") : <span className="font-normal text-fg-subtle">None recorded</span>,
-                    },
+                    ...(showCredentials
+                        ? [
+                              {
+                                  label: "Certifications",
+                                  wide: true,
+                                  value: profile.certifications.length > 0 ? profile.certifications.join(" · ") : <span className="font-normal text-fg-subtle">None recorded</span>,
+                              },
+                          ]
+                        : []),
                 ]}
             />
         );
@@ -259,7 +301,10 @@ function LinkedProfile({ user, profile, coaches }: { user: User; profile: Fighte
                 columns={3}
                 items={[
                     { label: "Specialty", value: profile.specialty },
-                    { label: "License number", value: <code className="font-mono text-[13px]">{profile.licenseNumber}</code> },
+                    {
+                        label: "License number",
+                        value: profile.licenseNumber ? <code className="font-mono text-[13px]">{profile.licenseNumber}</code> : <span className="font-normal text-fg-subtle">{NOT_RECORDED}</span>,
+                    },
                     { label: "Patients", value: pluralize(profile.fighterIds.length, "fighter") },
                 ]}
             />

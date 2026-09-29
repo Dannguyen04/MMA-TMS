@@ -12,7 +12,7 @@ export default async function FighterLiveFormCheckPage() {
     return (
         <>
             <PageHeader
-                back={{ href: routes.fighter.videos, label: "Videos" }}
+                back={{ href: routes.fighter.videos, label: "Film" }}
                 eyebrow="Beta"
                 title="Live form check"
                 description="Practise your roundhouse kick in front of the camera and get instant feedback on knee chamber, extension and speed."

@@ -1,15 +1,24 @@
+import { CircleCheck, ClipboardPlus, ShieldQuestion } from "lucide-react";
 import type { Metadata } from "next";
 
+import { FighterChooser } from "@/components/medical/fighter-chooser";
+import { loadFormFighter } from "@/components/medical/form-fighter";
 import { GrantClearanceForm, type ClearanceFighterContext } from "@/components/medical/grant-clearance-form";
+import { IssueClearanceForm } from "@/components/medical/issue-clearance-form";
+import { Callout } from "@/components/training/callout";
+import { ButtonLink } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/ui/states";
 import { accessibleFighterIds, canAccessFighter } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
-import { BODY_REGION_LABELS, INJURY_STATUS_LABELS, INJURY_TYPE_LABELS } from "@/lib/domain/labels";
+import { BODY_REGION_LABELS, INJURY_STATUS_LABELS, injuryTypeName } from "@/lib/domain/labels";
 import { clearanceState, currentClearance } from "@/lib/domain/rules";
 import { dayKey } from "@/lib/format";
+import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
-import { listClearances, listExaminations, listInjuries } from "@/lib/services/medical";
+import { listClearances, listExaminations, listInjuries, type CurrentExamination } from "@/lib/services/medical";
+import { usesMedicalServiceForms } from "@/lib/services/medical-features";
 import { listDoctors, listFighters } from "@/lib/services/people";
 import { param } from "@/lib/utils";
 
@@ -18,7 +27,9 @@ export const metadata: Metadata = { title: "Update Medical Clearance" };
 /** Recent examinations offered as evidence for the decision. */
 const EXAMINATION_OPTIONS = 8;
 
-export default async function GrantClearancePage({ searchParams }: PageProps<"/doctor/medical-clearance/new">) {
+export default async function GrantClearancePage(props: PageProps<"/doctor/medical-clearance/new">) {
+    if (usesMedicalServiceForms()) return <IssueClearancePage {...props} />;
+    const { searchParams } = props;
     const user = await requireRole("doctor");
     const params = await searchParams;
     const now = new Date().toISOString();
@@ -51,7 +62,7 @@ export default async function GrantClearancePage({ searchParams }: PageProps<"/d
                 .filter((injury) => injury.fighterId === fighter.id && injury.status !== "resolved")
                 .map(
                     (injury) =>
-                        `${INJURY_TYPE_LABELS[injury.type]} — ${BODY_REGION_LABELS[injury.bodyRegion].toLowerCase()} (${INJURY_STATUS_LABELS[injury.status].toLowerCase()})`,
+                        `${injuryTypeName(injury)} — ${BODY_REGION_LABELS[injury.bodyRegion].toLowerCase()} (${INJURY_STATUS_LABELS[injury.status].toLowerCase()})`,
                 ),
             examinations: examinations
                 .filter((exam) => exam.fighterId === fighter.id)
@@ -85,6 +96,65 @@ export default async function GrantClearancePage({ searchParams }: PageProps<"/d
                 doctorName={user.name}
                 warningDays={settings.clearanceExpiryWarningDays}
             />
+        </>
+    );
+}
+
+/** API mode: a clearance is issued from the chosen fighter's current positive examination. */
+async function IssueClearancePage({ searchParams }: PageProps<"/doctor/medical-clearance/new">) {
+    const user = await requireRole("doctor");
+    const params = await searchParams;
+    const now = new Date().toISOString();
+    const { fighters, fighter, dossier } = await loadFormFighter(user, param(params.fighter));
+    const positive = dossier
+        ? Object.values(dossier.currentExaminations).filter((exam): exam is CurrentExamination => exam !== null && exam.decision !== "NOT_ELIGIBLE")
+        : [];
+    const justExamined = param(params.notice) === "examination-recorded";
+
+    return (
+        <>
+            <PageHeader
+                back={fighter ? { href: routes.doctor.fighter(fighter.id), label: fighter.name } : { href: routes.doctor.clearance, label: "Medical Clearance" }}
+                eyebrow="Medical Clearance"
+                title={fighter ? `Issue clearance for ${fighter.name}` : "Issue Medical Clearance"}
+                description="Coaches plan training against the clearance, and the fighter and their coaches are notified."
+            />
+            <div className="flex flex-col gap-6">
+                {fighter && justExamined && (
+                    <Callout tone="success" icon={CircleCheck} role="status" title="Examination recorded">
+                        Issue the clearance now so {fighter.name} can train within your decision.
+                    </Callout>
+                )}
+                {!fighter || !dossier ? (
+                    <FighterChooser
+                        fighters={fighters}
+                        hrefFor={(fighterId) => hrefWith(routes.doctor.grantClearance, {}, { fighter: fighterId })}
+                        title="Who is the clearance for?"
+                        unreadable={fighter}
+                    />
+                ) : positive.length === 0 ? (
+                    <EmptyState
+                        icon={<ShieldQuestion />}
+                        title="No examination to issue it from"
+                        description={`A clearance comes from ${fighter.name}'s current eligible examination. Record one first.`}
+                        action={
+                            <ButtonLink href={hrefWith(routes.doctor.newExamination, {}, { fighter: fighter.id })}>
+                                <ClipboardPlus aria-hidden />
+                                New examination
+                            </ButtonLink>
+                        }
+                    />
+                ) : (
+                    <IssueClearanceForm
+                        fighter={{ id: fighter.id, name: fighter.name }}
+                        examinations={positive}
+                        activeClearances={dossier.activeClearances}
+                        defaultExaminationId={param(params.exam) ?? ""}
+                        today={dayKey(now)}
+                        cancelHref={routes.doctor.fighter(fighter.id)}
+                    />
+                )}
+            </div>
         </>
     );
 }

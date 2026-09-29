@@ -1701,7 +1701,7 @@ const registrySessionSpecs: RegistrySessionSpec[] = [
     },
 ];
 
-function registrySession(spec: RegistrySessionSpec): TrainingSession {
+function registrySession(spec: RegistrySessionSpec): SeedSession {
     const blueprint: Blueprint = BLUEPRINTS[spec.blueprint];
     const { result } = spec;
     const authoredStart = fromToday(spec.day, spec.hour, spec.minute);
@@ -2029,7 +2029,7 @@ function dayLabel(day: number): string {
     return day < 0 ? `${-day}d` : `in${day}d`;
 }
 
-function generateSessions(): TrainingSession[] {
+function generateSessions(): SeedSession[] {
     const rng = createRandom("lotus-training-calendar");
     const sessions = registrySessionSpecs.map(registrySession);
     const usedIds = new Set(sessions.map((s) => s.id));
@@ -2128,7 +2128,10 @@ function generateSessions(): TrainingSession[] {
     return sessions.sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt));
 }
 
-export const mockTrainingSessions: TrainingSession[] = generateSessions();
+/** Seed sessions always carry a coach, a planned length and a target intensity, unlike API sessions. */
+export type SeedSession = TrainingSession & { coachId: string; durationMin: number; targetRpe: number };
+
+export const mockTrainingSessions: SeedSession[] = generateSessions();
 
 /* ────────────────────────────────────────────────────────────────────────────
  * Coach feedback

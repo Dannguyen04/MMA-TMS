@@ -7,7 +7,8 @@
         "dev": "concurrently -n API,WORKER,WEB -c blue,yellow,cyan \"pnpm --filter nestjs-api run start:dev\" \"python-worker\\.venv\\Scripts\\python.exe python-worker/worker.py\" \"pnpm --filter nextjs-frontend run dev\"",
         "start:services": "start_all.bat",
         "stop:services": "stop_all.bat",
-        "test:full": "node scripts/test_full_suite.mjs"
+        "test:full": "node scripts/test_full_suite.mjs",
+        "secret:scan": "node scripts/check-secrets.mjs"
     },
     "dependencies": {
         "puppeteer": "^25.10.0"
@@ -15,6 +16,7 @@
     "devDependencies": {
         "concurrently": "^10.0.5"
     },
+    "packageManager": "pnpm@12.4.2+sha512.08adc6613180275c7c9edada39dcf08c9c61ad4e7eaf330a4f3461f102b0f907423454d117f98e72d47fef0616070644d7bffc973a6a57f5090a6d7c368b07c9",
     "pnpm": {
         "onlyBuiltDependencies": [
             "@scarf/scarf",

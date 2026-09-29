@@ -1,70 +1,53 @@
-import { CalendarCheck2, CalendarDays, ClipboardList, Clock, Gauge, MessageSquareText, ShieldAlert, ShieldQuestion, Target, Upload } from "lucide-react";
+import { CalendarDays, ShieldAlert, ShieldQuestion, Upload } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { CHART_SERIES } from "@/components/charts/colors";
-import { Sparkline } from "@/components/charts/sparkline";
 import { CardLink } from "@/components/dashboard/card-link";
-import { completeWeeks, firstName, greetingFor } from "@/components/dashboard/dashboard-utils";
-import { ExaminationSummaryCard } from "@/components/dashboard/examination-summary-card";
-import { FightCampCard, type FightCampPlan } from "@/components/dashboard/fight-camp-card";
+import { CornerFeed } from "@/components/dashboard/corner-feed";
+import { cornerFeedItems } from "@/components/dashboard/corner-feed-items";
+import { firstName, greetingFor, weightCheck, weightGapText } from "@/components/dashboard/dashboard-utils";
+import { FightHero, type NextUp } from "@/components/dashboard/fight-hero";
 import { InlineNote } from "@/components/dashboard/inline-note";
-import { LatestAnalysesCard } from "@/components/dashboard/latest-analyses-card";
-import { NextSessionCard } from "@/components/dashboard/next-session-card";
-import { OnboardingCard, type OnboardingStep } from "@/components/dashboard/onboarding-card";
-import { RecentSessionsCard } from "@/components/dashboard/recent-sessions-card";
-import { TechniqueRadarCard } from "@/components/dashboard/technique-radar-card";
-import { TrainingPausedCard } from "@/components/dashboard/training-paused-card";
-import { CoachFeedbackItem } from "@/components/domain/coach-feedback-item";
-import { GoalCard } from "@/components/domain/goal-card";
-import { HealthSummaryCard } from "@/components/domain/health-summary-card";
-import { PlanCard } from "@/components/domain/plan-card";
+import { OnboardingStrip, type OnboardingStep } from "@/components/dashboard/onboarding-strip";
+import { ReadinessCell, ReadinessNumber, ReadinessStrip } from "@/components/dashboard/readiness-strip";
+import { ClearanceBadge, HealthStatusBadge } from "@/components/domain/status-badges";
 import { WeekAgenda } from "@/components/domain/week-agenda";
-import { scoreDelta } from "@/components/performance/performance-format";
 import { weekStartKey } from "@/components/training/training-utils";
+import { BeltProgress } from "@/components/ui/belt-progress";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { ProgressBar } from "@/components/ui/progress";
-import { StatCard } from "@/components/ui/stat-card";
-import { EmptyState } from "@/components/ui/states";
 import { requireFighterAccess } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
-import { TRAINING_PHASE_LABELS } from "@/lib/domain/labels";
+import { NOT_RECORDED } from "@/components/domain/domain-format";
+import { HEALTH_STATUS_DESCRIPTIONS, WEIGHT_CLASS_LABELS, WEIGHT_CLASS_LIMIT_KG } from "@/lib/domain/labels";
 import type { ClearanceState } from "@/lib/domain/rules";
 import { planAdherence } from "@/lib/domain/training-plan";
-import type { TrainingPlan, UpcomingBout } from "@/lib/domain/types";
-import { academyDayStartIso, addDaysToKey, dayKey, daysBetween, formatMinutes, formatNumber, formatShortDate, formatWeekdayDate, pluralize } from "@/lib/format";
+import type { MedicalClearance, TrainingPlan, UpcomingBout } from "@/lib/domain/types";
+import { academyDayStartIso, addDaysToKey, dayKey, daysBetween, formatNumber, formatShortDate, formatWeekdayDate, pluralize } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { listGoals } from "@/lib/services/goals";
 import { getFighterHealthSummary } from "@/lib/services/medical";
 import { listCoaches, listDoctors } from "@/lib/services/people";
-import { getPerformanceHistory, getPerformanceSummary, overallScore } from "@/lib/services/performance";
-import {
-    getPlanWithSessions,
-    getSessionHistory,
-    getTrainingProgress,
-    getUpcomingSessions,
-    listCoachFeedback,
-    listPlans,
-    listSessions,
-} from "@/lib/services/training";
+import { getPlanWithSessions, getUpcomingSessions, listCoachFeedback, listPlans, listSessions } from "@/lib/services/training";
 import { listVideoLibrary, type VideoLibraryItem } from "@/lib/services/videos";
 
-export const metadata: Metadata = { title: "Dashboard" };
+export const metadata: Metadata = { title: "Today" };
 
-const ANALYSES_LIMIT = 4;
-const RECENT_SESSIONS_LIMIT = 3;
-const FEEDBACK_LIMIT = 3;
-const GOALS_LIMIT = 3;
-const TREND_WEEKS = 8;
 /** Fighters who joined this recently see the getting-started checklist until every step is done. */
 const NEW_FIGHTER_DAYS = 30;
+/** Belt stripes stand for the share of open goals on track. */
+const GOAL_STRIPES = 4;
 
+/**
+ * The fighter's Today page answers one question: what do I do now? The fight camp and next session lead,
+ * one strip carries readiness, then this week and the latest from the corner. Everything else lives in its hub.
+ */
 export default async function FighterDashboardPage() {
     const user = await requireRole("fighter");
     if (!user.profileId) notFound();
-    const fighter = requireFighterAccess(user, user.profileId);
+    const fighter = await requireFighterAccess(user, user.profileId);
     const ids = [fighter.id];
 
     const now = new Date().toISOString();
@@ -74,14 +57,10 @@ export default async function FighterDashboardPage() {
 
     // The active plan's sessions chain onto the plan list, so they don't wait for the rest of the batch.
     const plansRead = listPlans({ fighterIds: ids });
-    const [health, upcoming, recentSessions, weekSessions, progress, summary, history, plans, planDetail, videos, feedback, goals, coaches, doctors] = await Promise.all([
+    const [health, upcoming, weekSessions, plans, planDetail, videos, feedback, goals, coaches, doctors] = await Promise.all([
         getFighterHealthSummary(fighter.id, now),
         getUpcomingSessions(ids, 1),
-        getSessionHistory(fighter.id),
         listSessions({ fighterIds: ids, from: weekStart, to: new Date(Date.parse(nextWeekStart) - 1).toISOString() }),
-        getTrainingProgress(fighter.id, 2),
-        getPerformanceSummary(fighter.id),
-        getPerformanceHistory(fighter.id, 12),
         plansRead,
         plansRead.then((list) => {
             const active = list.find((plan) => plan.status === "active");
@@ -97,192 +76,167 @@ export default async function FighterDashboardPage() {
 
     const activePlan = planDetail?.plan ?? null;
     const adherence = planDetail ? planAdherence(planDetail.sessions, now) : null;
-
     const coachNames = new Map(coaches.map((coach) => [coach.id, coach.name]));
     const doctorNames = new Map(doctors.map((doctor) => [doctor.id, doctor.name]));
     const { clearance, clearanceState } = health;
     const paused = clearanceState === "not_cleared" || clearanceState === "expired";
     const nextSession = upcoming[0] ?? null;
-
     const bout = fighter.upcomingBout;
-    // A fight-camp plan preparing the booked bout is shown inside the fight camp card rather than as its own plan card.
-    const campPlan: FightCampPlan | undefined =
-        activePlan && isCampFor(activePlan, bout) ? { plan: activePlan, href: routes.fighter.plan(activePlan.id), adherence } : undefined;
-    const phaseText = activePlan ? `${TRAINING_PHASE_LABELS[activePlan.phase]} phase` : "No active training plan";
-    const boutText = bout ? `${bout.event} in ${pluralize(Math.max(0, daysBetween(now, bout.date)), "day")}` : "No bout scheduled";
-
-    const trendWeeks = completeWeeks(history, now).slice(-TREND_WEEKS);
-    const overallSeries = trendWeeks.map((week) => overallScore(week.scores));
-    const thisWeek = progress.at(-1);
-    const lastWeek = progress.length > 1 ? progress[0] : null;
-    const planned = thisWeek?.plannedSessions ?? 0;
-    const completed = thisWeek?.completedSessions ?? 0;
-    const openGoals = goals.filter((goal) => goal.status === "on_track" || goal.status === "at_risk");
-    const atRisk = openGoals.filter((goal) => goal.status === "at_risk").length;
-    const cancelledThisWeek = weekSessions.filter((session) => session.status === "cancelled").length;
-    const plannedThisWeek = weekSessions.filter((session) => session.status !== "cancelled").length;
-
     const followUpDoctor = health.nextFollowUp ? doctorNames.get(health.nextFollowUp.examination.doctorId) : undefined;
     const clearanceDoctor = clearance ? doctorNames.get(clearance.doctorId) : undefined;
+
+    const next: NextUp = paused
+        ? {
+              kind: "paused",
+              reason: clearanceState === "expired" ? "expired" : "not_cleared",
+              doctorName: followUpDoctor ?? clearanceDoctor,
+              followUpDate: health.nextFollowUp?.date ?? null,
+              healthHref: routes.fighter.health,
+          }
+        : nextSession
+          ? {
+                kind: "session",
+                session: nextSession,
+                coachName: nextSession.coachId ? coachNames.get(nextSession.coachId) : undefined,
+                href: routes.fighter.session(nextSession.id),
+                note:
+                    clearanceState === "none" ? (
+                        <InlineNote icon={ShieldQuestion} tone="warning">
+                            No Medical Clearance on file yet. Your sports doctor issues it after your baseline physical.
+                        </InlineNote>
+                    ) : clearanceState === "restricted" ? (
+                        <InlineNote icon={ShieldAlert} tone="info">
+                            You&apos;re cleared with restrictions — your coach plans every session within them.
+                        </InlineNote>
+                    ) : undefined,
+            }
+          : { kind: "none", scheduleHref: routes.fighter.schedule };
+
+    // This week, counted from the same academy week the agenda shows.
+    const weekPlanned = weekSessions.filter((session) => session.status !== "cancelled");
+    const weekCompleted = weekPlanned.filter((session) => session.status === "completed").length;
+    const weekMissed = weekPlanned.filter((session) => session.status === "missed").length;
+    const weekToGo = weekPlanned.filter((session) => session.status === "scheduled" || session.status === "in_progress").length;
+
+    const weightClass = bout?.weightClass ?? fighter.weightClass;
+    const weight = fighter.weightKg === null ? null : weightCheck(fighter.weightKg, weightClass, bout ? Math.max(0, daysBetween(now, bout.date)) : null);
+    const weightLimit = `${WEIGHT_CLASS_LABELS[weightClass]} ${formatNumber(WEIGHT_CLASS_LIMIT_KG[weightClass], 1)} kg`;
+
+    const openGoals = goals.filter((goal) => goal.status === "on_track" || goal.status === "at_risk");
+    const atRisk = openGoals.filter((goal) => goal.status === "at_risk").length;
+    const onTrack = openGoals.length - atRisk;
 
     const onboarding =
         daysBetween(fighter.joinedAt, now) <= NEW_FIGHTER_DAYS
             ? onboardingSteps({ clearanceState, videos, plans, activePlan, goalCount: goals.length })
             : [];
-    const showOnboarding = onboarding.some((step) => !step.done);
 
     return (
         <>
             <PageHeader
                 eyebrow={formatWeekdayDate(now)}
                 title={`${greetingFor(now)}, ${firstName(fighter.name)}`}
-                description={`${phaseText} · ${boutText}`}
                 actions={
-                    <>
-                        <ButtonLink href={routes.fighter.schedule} variant="secondary">
-                            <CalendarDays aria-hidden />
-                            View schedule
-                        </ButtonLink>
-                        <ButtonLink href={routes.fighter.uploadVideo}>
-                            <Upload aria-hidden />
-                            Upload video
-                        </ButtonLink>
-                    </>
+                    <ButtonLink href={routes.fighter.uploadVideo} variant="secondary">
+                        <Upload aria-hidden />
+                        Upload video
+                    </ButtonLink>
                 }
             />
 
             <div className="flex flex-col gap-6">
-                {showOnboarding && <OnboardingCard steps={onboarding} />}
+                <FightHero
+                    bout={bout}
+                    campStart={activePlan && isCampFor(activePlan, bout) ? activePlan.startDate : null}
+                    plan={
+                        activePlan
+                            ? { title: activePlan.title, href: routes.fighter.plan(activePlan.id), phase: activePlan.phase, adherencePct: adherence?.pct ?? null }
+                            : null
+                    }
+                    next={next}
+                    now={now}
+                />
 
-                <section aria-label="Today at a glance" className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                    {paused ? (
-                        <TrainingPausedCard
-                            reason={clearanceState === "expired" ? "expired" : "not_cleared"}
-                            doctorName={followUpDoctor ?? clearanceDoctor}
-                            followUpDate={health.nextFollowUp?.date ?? null}
-                            recovery={
-                                health.activeRecoveryPlan
-                                    ? { phaseName: health.activeRecoveryPlan.currentPhase?.name ?? null, progressPct: health.activeRecoveryPlan.progressPct }
-                                    : null
-                            }
-                            cancelledThisWeek={cancelledThisWeek}
-                            healthHref={routes.fighter.health}
-                            now={now}
-                        />
-                    ) : (
-                        <NextSessionCard
-                            session={nextSession}
-                            coachName={nextSession ? coachNames.get(nextSession.coachId) : undefined}
-                            sessionHref={nextSession ? routes.fighter.session(nextSession.id) : null}
-                            scheduleHref={routes.fighter.schedule}
-                            now={now}
-                            note={
-                                nextSession && clearanceState === "none" ? (
-                                    <InlineNote icon={ShieldQuestion} tone="warning">
-                                        No Medical Clearance on file yet. Your sports doctor issues it after your baseline physical.
-                                    </InlineNote>
-                                ) : nextSession && clearanceState === "restricted" ? (
-                                    <InlineNote icon={ShieldAlert} tone="info">
-                                        You&apos;re cleared with restrictions — your coach plans every session within them.
-                                    </InlineNote>
-                                ) : undefined
-                            }
-                        />
-                    )}
-                    <FightCampCard
-                        bout={bout}
-                        weightKg={fighter.weightKg}
-                        weightClass={fighter.weightClass}
-                        campStart={activePlan?.phase === "fight_camp" ? activePlan.startDate : null}
-                        campPlan={campPlan}
-                        now={now}
+                {onboarding.some((step) => !step.done) && <OnboardingStrip steps={onboarding} />}
+
+                <ReadinessStrip label="Readiness">
+                    <ReadinessCell
+                        label="Medical Clearance"
+                        value={<ClearanceBadge state={clearanceState} />}
+                        hint={clearanceHint(clearanceState, clearance)}
+                        href={routes.fighter.health}
+                        className="col-span-2 sm:col-span-2 lg:col-span-1"
                     />
-                    <div className="flex min-w-0 flex-col gap-6">
-                        <HealthSummaryCard
-                            healthStatus={fighter.healthStatus}
-                            clearanceState={clearanceState}
-                            restrictionsCount={clearanceState === "restricted" ? (clearance?.restrictions.length ?? 0) : 0}
-                            nextFollowUpDate={health.nextFollowUp?.date ?? null}
-                            now={now}
-                            href={routes.fighter.health}
-                            className="flex-1"
-                        />
-                        <ExaminationSummaryCard
-                            compact
-                            examination={health.latestExamination}
-                            doctorName={health.latestExamination ? doctorNames.get(health.latestExamination.doctorId) : undefined}
-                            historyHref={routes.fighter.medicalHistory}
-                            now={now}
-                        />
-                    </div>
-                </section>
-
-                <section aria-label="Key figures" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                    <StatCard
-                        label="Overall performance"
-                        value={summary ? formatNumber(summary.overall, 1) : "—"}
-                        unit={summary ? "/ 100" : undefined}
-                        icon={<Gauge />}
-                        delta={summary ? scoreDelta(summary.overallDelta, summary.comparisonWeeks) : undefined}
-                        hint={!summary ? "Appears after your first analysed week" : summary.comparisonWeeks === 0 ? "No earlier week to compare yet" : undefined}
-                        href={routes.fighter.performance}
+                    <ReadinessCell
+                        label="Health"
+                        value={<HealthStatusBadge status={fighter.healthStatus} />}
+                        hint={
+                            health.nextFollowUp
+                                ? `Follow-up ${formatShortDate(health.nextFollowUp.date)}${followUpDoctor ? ` · ${followUpDoctor}` : ""}`
+                                : HEALTH_STATUS_DESCRIPTIONS[fighter.healthStatus]
+                        }
+                        href={routes.fighter.health}
+                        className="sm:col-span-2 lg:col-span-1"
+                    />
+                    <ReadinessCell
+                        label="Weight"
+                        value={
+                            weight ? (
+                                <ReadinessNumber value={formatNumber(weight.currentKg, 1)} unit="kg" />
+                            ) : (
+                                <span className="text-sm font-medium text-fg-muted">{NOT_RECORDED}</span>
+                            )
+                        }
+                        hint={weight ? `${weightGapText(weight)} · ${weightLimit}` : `${weightLimit} limit`}
+                        href={routes.profile}
+                        className="sm:col-span-2 lg:col-span-1"
+                    />
+                    <ReadinessCell
+                        label="This week"
+                        value={<ReadinessNumber value={weekCompleted} unit={`of ${weekPlanned.length} done`} />}
+                        hint={weekHint({ planned: weekPlanned.length, toGo: weekToGo, missed: weekMissed, paused })}
+                        href={routes.fighter.schedule}
+                        className="sm:col-span-3 lg:col-span-1"
                     >
-                        {overallSeries.length >= 2 && (
-                            <Sparkline
-                                values={overallSeries}
-                                color={CHART_SERIES[0]}
-                                width={136}
-                                ariaLabel={`Overall score over the last ${overallSeries.length} complete weeks, from ${formatNumber(overallSeries[0], 1)} to ${formatNumber(overallSeries[overallSeries.length - 1], 1)}`}
+                        {weekPlanned.length > 0 && (
+                            <ProgressBar
+                                value={weekCompleted}
+                                max={weekPlanned.length}
+                                size="sm"
+                                hideValue
+                                label="Sessions completed this week"
+                                valueText={`${weekCompleted} of ${weekPlanned.length}`}
                             />
                         )}
-                    </StatCard>
-                    <StatCard
-                        label="Sessions this week"
-                        value={completed}
-                        unit={`of ${planned}`}
-                        icon={<CalendarCheck2 />}
-                        hint={planned === 0 ? (paused ? "Training paused" : "Nothing planned yet") : completed >= planned ? "All done — great week" : `${planned - completed} still to go`}
-                        href={routes.fighter.schedule}
-                    >
-                        {planned > 0 && (
-                            <ProgressBar value={completed} max={planned} size="sm" hideValue label="Sessions completed this week" valueText={`${completed} of ${planned}`} />
-                        )}
-                    </StatCard>
-                    <StatCard
-                        label="Training minutes this week"
-                        value={formatNumber(thisWeek?.trainingMinutes ?? 0)}
-                        unit="min"
-                        icon={<Clock />}
-                        hint={lastWeek ? `Last week: ${formatMinutes(lastWeek.trainingMinutes)}` : undefined}
-                        href={routes.fighter.history}
-                    />
-                    <StatCard
-                        label="Goals on track"
-                        value={openGoals.length - atRisk}
-                        unit={`of ${openGoals.length}`}
-                        icon={<Target />}
-                        hint={openGoals.length === 0 ? "No open goals right now" : atRisk > 0 ? `${atRisk} at risk — talk it through with your coach` : "Every open goal is on track"}
+                    </ReadinessCell>
+                    <ReadinessCell
+                        label="Goals"
+                        value={
+                            openGoals.length > 0 ? (
+                                <ReadinessNumber value={onTrack} unit={`of ${openGoals.length} on track`} />
+                            ) : (
+                                <span className="text-sm font-medium text-fg-muted">No open goals</span>
+                            )
+                        }
+                        hint={openGoals.length === 0 ? "Agree one with your coach" : atRisk > 0 ? `${pluralize(atRisk, "goal")} at risk` : "Every open goal is on track"}
                         href={routes.fighter.goals}
-                    />
-                </section>
-
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-                    <TechniqueRadarCard weeks={trendWeeks} summary={summary} href={routes.fighter.performance} className="lg:col-span-2" />
-                    <LatestAnalysesCard
-                        items={videos.slice(0, ANALYSES_LIMIT)}
-                        videoHref={routes.fighter.video}
-                        libraryHref={routes.fighter.videos}
-                        uploadHref={routes.fighter.uploadVideo}
-                        now={now}
-                        className="lg:col-span-3"
-                    />
-                </div>
+                        className="sm:col-span-3 lg:col-span-1"
+                    >
+                        {openGoals.length > 0 && (
+                            <BeltProgress
+                                stripes={(onTrack / openGoals.length) * GOAL_STRIPES}
+                                max={GOAL_STRIPES}
+                                label={`${onTrack} of ${openGoals.length} open goals on track`}
+                            />
+                        )}
+                    </ReadinessCell>
+                </ReadinessStrip>
 
                 <Card className="min-w-0">
                     <CardHeader
                         title="This week"
                         description={`${formatShortDate(weekStart)} – ${formatShortDate(addDaysToKey(weekKey, 6))} · ${
-                            paused && plannedThisWeek === 0 ? "training paused" : pluralize(plannedThisWeek, "session")
+                            paused && weekPlanned.length === 0 ? "training paused" : pluralize(weekPlanned.length, "session")
                         }`}
                         icon={<CalendarDays />}
                         action={<CardLink href={routes.fighter.schedule}>Full schedule</CardLink>}
@@ -292,104 +246,39 @@ export default async function FighterDashboardPage() {
                     </CardContent>
                 </Card>
 
-                <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
-                    <Card className="min-w-0 lg:col-span-2">
-                        <CardHeader title="Coach feedback" description="The latest notes from your coaches" icon={<MessageSquareText />} />
-                        <CardContent>
-                            {feedback.length === 0 ? (
-                                <EmptyState
-                                    compact
-                                    icon={<MessageSquareText />}
-                                    title="No feedback yet"
-                                    description="Your coaches' notes on sessions and videos will appear here."
-                                />
-                            ) : (
-                                <ul className="flex flex-col divide-y divide-border">
-                                    {feedback.slice(0, FEEDBACK_LIMIT).map((item) => (
-                                        <li key={item.id} className="py-4 first:pt-0 last:pb-0">
-                                            <CoachFeedbackItem
-                                                feedback={item}
-                                                coachName={coachNames.get(item.coachId) ?? "Coach"}
-                                                now={now}
-                                                sessionHref={item.sessionId ? routes.fighter.session(item.sessionId) : undefined}
-                                                videoHref={item.videoId ? routes.fighter.video(item.videoId) : undefined}
-                                            />
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                        </CardContent>
-                    </Card>
-
-                    <div className="flex min-w-0 flex-col gap-6">
-                        {activePlan ? (
-                            !campPlan && (
-                                <PlanCard
-                                    plan={activePlan}
-                                    now={now}
-                                    coachName={coachNames.get(activePlan.coachId)}
-                                    adherencePct={adherence?.pct}
-                                    href={routes.fighter.plan(activePlan.id)}
-                                    headingLevel={2}
-                                />
-                            )
-                        ) : (
-                            <Card>
-                                <CardHeader title="Training plan" icon={<ClipboardList />} />
-                                <CardContent>
-                                    <EmptyState
-                                        compact
-                                        title="No active training plan"
-                                        description="Your coach shares your plan here once it's ready. Until then, follow your scheduled sessions."
-                                        className="pt-0"
-                                    />
-                                </CardContent>
-                            </Card>
-                        )}
-                        <RecentSessionsCard
-                            sessions={recentSessions.filter((session) => session.status !== "cancelled").slice(0, RECENT_SESSIONS_LIMIT)}
-                            sessionHref={routes.fighter.session}
-                            historyHref={routes.fighter.history}
-                            now={now}
-                        />
-                    </div>
-                </div>
-
-                <section aria-labelledby="goals-heading" className="flex min-w-0 flex-col gap-3">
-                    <div className="flex items-end justify-between gap-3">
-                        <div className="min-w-0">
-                            <h2 id="goals-heading" className="text-[15px] leading-6 font-semibold text-fg">
-                                Goals
-                            </h2>
-                            <p className="text-sm text-fg-muted">
-                                {openGoals.length === 0
-                                    ? "Goals you set with your coach appear here."
-                                    : atRisk > 0
-                                      ? `${pluralize(atRisk, "goal")} at risk · ${openGoals.length - atRisk} on track`
-                                      : `All ${pluralize(openGoals.length, "open goal")} on track`}
-                            </p>
-                        </div>
-                        <CardLink href={routes.fighter.goals}>All goals</CardLink>
-                    </div>
-                    {openGoals.length === 0 ? (
-                        <EmptyState
-                            compact
-                            icon={<Target />}
-                            title="No open goals"
-                            description="Agree a measurable goal with your coach — progress checkpoints show up here."
-                            className="rounded-xl border border-dashed border-border-strong"
-                        />
-                    ) : (
-                        <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-3">
-                            {openGoals.slice(0, GOALS_LIMIT).map((goal) => (
-                                <GoalCard key={goal.id} goal={goal} now={now} className="min-w-0" />
-                            ))}
-                        </div>
-                    )}
-                </section>
+                <CornerFeed
+                    items={cornerFeedItems(feedback, videos)}
+                    coachNames={coachNames}
+                    sessionHref={routes.fighter.session}
+                    videoHref={routes.fighter.video}
+                    filmHref={routes.fighter.videos}
+                    uploadHref={routes.fighter.uploadVideo}
+                    now={now}
+                />
             </div>
         </>
     );
+}
+
+function clearanceHint(state: ClearanceState, clearance: MedicalClearance | null): string {
+    switch (state) {
+        case "full":
+            return clearance?.validUntil ? `Valid until ${formatShortDate(clearance.validUntil)}` : "Cleared for full training";
+        case "restricted":
+            return `${pluralize(clearance?.restrictions.length ?? 0, "restriction")} · your coach plans around them`;
+        case "none":
+            return "Issued after your baseline physical";
+        case "expired":
+            return "Needs renewing before you train";
+        case "not_cleared":
+            return "Training paused by your doctor";
+    }
+}
+
+function weekHint({ planned, toGo, missed, paused }: { planned: number; toGo: number; missed: number; paused: boolean }): string {
+    if (planned === 0) return paused ? "Training paused" : "Nothing planned yet";
+    const parts = [toGo > 0 ? `${toGo} still to go` : null, missed > 0 ? `${missed} missed` : null].filter(Boolean);
+    return parts.length > 0 ? parts.join(" · ") : "All done — great week";
 }
 
 /** Whether a plan is the fight camp for the booked bout: a fight-camp plan whose window includes fight night. */

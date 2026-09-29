@@ -46,15 +46,18 @@ export const sessionTypes = [
 ] as const;
 
 export const FIGHTER_PERMISSIONS = {
-  READ: 'fighters.read',
-  UPDATE: 'fighters.update',
-  MEASUREMENTS_READ: 'fighters.measurements.read',
-  MEASUREMENTS_WRITE: 'fighters.measurements.write',
-  COACHES_READ: 'fighters.coaches.read',
-  COACHES_ASSIGN: 'fighters.coaches.assign',
-  COACHES_END: 'fighters.coaches.end',
-  SESSIONS_READ: 'fighters.sessions.read',
-  MEDICAL_READ: 'fighters.medical.read',
+  GET_ALL: 'fighter:get_all',
+  READ: 'fighter:read',
+  CREATE: 'fighter:create',
+  UPDATE: 'fighter:update',
+  DELETE: 'fighter:delete',
+  MEASUREMENTS_READ: 'fighter.measurement:read',
+  MEASUREMENTS_WRITE: 'fighter.measurement:write',
+  COACHES_READ: 'fighter.coach:read',
+  COACHES_ASSIGN: 'fighter.coach:assign',
+  COACHES_END: 'fighter.coach:end',
+  SESSIONS_READ: 'fighter.session:read',
+  MEDICAL_READ: 'fighter.medical:read',
 } as const;
 
 // --- Params Schemas ---

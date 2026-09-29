@@ -8,6 +8,16 @@
 
 ---
 
+## Điều Hướng Tài Liệu
+
+- [Tổng quan dự án](./PROJECT-OVERVIEW.md) — sản phẩm, kiến trúc và cách khởi động
+- [Luồng nghiệp vụ](./BUSINESS-FLOWS.md) — quy trình vận hành mà phân tích này đánh giá
+- **Phân tích thị trường Việt Nam** — tài liệu hiện tại
+- [Roadmap](./ROADMAP.md) — các ưu tiên được rút ra từ những khoảng cách thị trường
+- [Spec kỹ thuật v3](./MMA-TMS-MASTER-SPECIFICATION-v3.md) — chi tiết hiện thực hệ thống
+
+---
+
 ## 1. Bối Cảnh Thị Trường
 
 ### 1.1 Quy mô & Tăng trưởng
@@ -287,3 +297,9 @@ Thị trường VN           MMA-TMS              Chuẩn quốc tế
 1. **Phase 1**: CLB chuyên nghiệp (10-20 CLB) + Ban tổ chức giải — validate product
 2. **Phase 2**: Mở rộng freemium cho gym phong trào — scale user base
 3. **Phase 3**: Fighter Passport platform — trở thành data infrastructure cho ngành
+
+---
+
+## Đọc Tiếp
+
+Các gap trong tài liệu này được chuyển thành hạng mục có checklist tại [Roadmap](./ROADMAP.md). Để truy ngược về trải nghiệm người dùng, xem [Luồng nghiệp vụ](./BUSINESS-FLOWS.md); để hiểu nền tảng kỹ thuật hiện có, xem [Tổng quan dự án](./PROJECT-OVERVIEW.md) và [spec kỹ thuật v3](./MMA-TMS-MASTER-SPECIFICATION-v3.md).

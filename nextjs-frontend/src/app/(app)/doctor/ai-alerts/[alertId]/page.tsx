@@ -21,6 +21,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { DescriptionList } from "@/components/ui/description-list";
 import { PageHeader } from "@/components/ui/page-header";
+import { FeatureUnavailable } from "@/components/ui/states";
 import { canAccessFighter } from "@/lib/auth/access";
 import { getCurrentUser, requireRole } from "@/lib/auth/session";
 import { BODY_REGION_LABELS, CAMERA_ANGLE_LABELS, TRAINING_TYPE_LABELS } from "@/lib/domain/labels";
@@ -30,11 +31,13 @@ import { daysBetween, formatClock, formatConfidence, formatDate, formatDateTime,
 import { routes } from "@/lib/routes";
 import { getAlertDetail, listAlerts } from "@/lib/services/ai";
 import { getFighterHealthSummary } from "@/lib/services/medical";
+import { medicalFeatureAvailable } from "@/lib/services/medical-features";
 
 /** The observation with its fighter, footage and linked injury, loaded once per request for the metadata and the page. */
 const loadAlertDetail = cache(getAlertDetail);
 
 export async function generateMetadata({ params }: PageProps<"/doctor/ai-alerts/[alertId]">): Promise<Metadata> {
+    if (!medicalFeatureAvailable("aiObservations")) return { title: "AI movement observation" };
     const [{ alertId }, user] = await Promise.all([params, getCurrentUser()]);
     const detail = await loadAlertDetail(alertId);
     // The title must not reveal an observation the viewer isn't assigned to.
@@ -46,6 +49,14 @@ const HISTORY_LIMIT = 6;
 
 export default async function AIAlertDetailPage({ params }: PageProps<"/doctor/ai-alerts/[alertId]">) {
     const user = await requireRole("doctor");
+    if (!medicalFeatureAvailable("aiObservations")) {
+        return (
+            <>
+                <PageHeader back={{ href: routes.doctor.aiAlerts, label: "AI movement observations" }} title="AI movement observation" />
+                <FeatureUnavailable title="AI movement observations aren't available yet" />
+            </>
+        );
+    }
     const { alertId } = await params;
     const now = new Date().toISOString();
 
@@ -192,7 +203,7 @@ export default async function AIAlertDetailPage({ params }: PageProps<"/doctor/a
                                 {video && analysis ? (
                                     <ObservationEvidence
                                         analysis={analysis}
-                                        stance={fighter.stance}
+                                        stance={fighter.stance ?? "orthodox"}
                                         cameraAngle={video.cameraAngle}
                                         sourceUrl={video.sourceUrl}
                                         title={video.title}

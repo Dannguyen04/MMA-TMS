@@ -1,0 +1,16 @@
+<svg width="300" height="300" viewBox="0 0 300 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="300" height="300" fill="#E5E5E5"/>
+<g id="Splash / Loading">
+<rect width="390" height="844" transform="translate(-45 -208)" fill="#07080C"/>
+<g id="Mark" clip-path="url(#clip0_0_1)">
+<g id="Fighter Arena">
+<circle id="Ring Outer" cx="150" cy="150" r="149.25" stroke="#22E1FF" stroke-width="1.5"/>
+</g>
+</g>
+</g>
+<defs>
+<clipPath id="clip0_0_1">
+<rect width="334" height="520" fill="white" transform="translate(-17 -90)"/>
+</clipPath>
+</defs>
+</svg>

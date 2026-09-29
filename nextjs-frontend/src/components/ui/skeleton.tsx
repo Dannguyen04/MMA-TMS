@@ -39,8 +39,8 @@ export function PageHeaderSkeleton({ eyebrow = false, back = false, meta = false
             {back && <Skeleton className="h-6 w-24" />}
             <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div className="min-w-0 flex-1">
-                    {eyebrow && <Skeleton className="mb-2.5 h-3 w-24" />}
-                    <Skeleton className="h-8 w-72 max-w-full" />
+                    {eyebrow && <Skeleton className="mb-2 h-3.5 w-24" />}
+                    <Skeleton className="h-9 w-72 max-w-full sm:h-10" />
                     <Skeleton className="mt-2.5 h-4 w-[28rem] max-w-full" />
                     {meta && <Skeleton className="mt-3.5 h-5 w-80 max-w-full" />}
                 </div>
@@ -174,6 +174,54 @@ export function DashboardSkeleton({ label = "Loading dashboard", eyebrow = false
             <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
                 <Skeleton className="h-80 rounded-xl lg:col-span-2" />
                 <Skeleton className="h-80 rounded-xl" />
+            </div>
+        </LoadingRegion>
+    );
+}
+
+/** Queue dashboard placeholder (coach Today, doctor Triage): header, the filtered queue and the side column. */
+export function QueueSkeleton({ label = "Loading", actions = 2 }: { label?: string; actions?: number }) {
+    return (
+        <LoadingRegion label={label}>
+            <PageHeaderSkeleton eyebrow actions={actions} />
+            <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
+                <div className="flex flex-col overflow-hidden rounded-xl border border-border bg-surface lg:col-span-2">
+                    <div className="space-y-2 px-5 pt-4 pb-3">
+                        <Skeleton className="h-5 w-40" />
+                        <Skeleton className="h-4 w-56" />
+                    </div>
+                    <div className="border-t border-border px-5 py-3">
+                        <Skeleton className="h-10 w-full max-w-md rounded-xl" />
+                    </div>
+                    {Array.from({ length: 5 }, (_, i) => (
+                        <div key={i} className="flex items-center gap-3 border-t border-border px-5 py-3.5">
+                            <Skeleton className="size-9 rounded-lg" />
+                            <div className="flex-1 space-y-2">
+                                <Skeleton className="h-3 w-24" />
+                                <Skeleton className="h-4 w-3/4" />
+                            </div>
+                            <Skeleton className="h-8 w-28 rounded-lg max-sm:hidden" />
+                        </div>
+                    ))}
+                </div>
+                <Skeleton className="h-96 rounded-xl" />
+            </div>
+        </LoadingRegion>
+    );
+}
+
+/** Fighter Today placeholder: header, the two-part fight hero, the readiness strip and this week. */
+export function TodaySkeleton({ label = "Loading today" }: { label?: string }) {
+    return (
+        <LoadingRegion label={label}>
+            <PageHeaderSkeleton eyebrow actions={1} />
+            <div className="flex flex-col gap-6">
+                <div className="grid grid-cols-1 gap-px lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+                    <Skeleton className="h-72 rounded-none" />
+                    <Skeleton className="h-60 rounded-none lg:h-72" />
+                </div>
+                <Skeleton className="h-28 rounded-xl" />
+                <WeekAgendaSkeleton />
             </div>
         </LoadingRegion>
     );

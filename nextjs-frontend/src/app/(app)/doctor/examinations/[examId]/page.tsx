@@ -27,7 +27,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { canAccessFighter } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
-import { CLEARANCE_LEVEL_LABELS, EXAMINATION_TYPE_LABELS } from "@/lib/domain/labels";
+import { CLEARANCE_LEVEL_LABELS, examinationTitle } from "@/lib/domain/labels";
 import { clearanceState, currentClearance, type ClearanceState } from "@/lib/domain/rules";
 import { daysBetween, formatDate, formatDateTime, pluralize } from "@/lib/format";
 import { hrefWith } from "@/lib/query";
@@ -57,7 +57,7 @@ const loadExamination = cache(async (examId: string) => {
 
 export async function generateMetadata({ params }: PageProps<"/doctor/examinations/[examId]">): Promise<Metadata> {
     const loaded = await loadExamination((await params).examId);
-    return { title: loaded ? `${EXAMINATION_TYPE_LABELS[loaded.exam.type]} — ${loaded.fighter.name}` : "Examination not found" };
+    return { title: loaded ? `${examinationTitle(loaded.exam)} — ${loaded.fighter.name}` : "Examination not found" };
 }
 
 export default async function ExaminationDetailPage({ params, searchParams }: PageProps<"/doctor/examinations/[examId]">) {
@@ -107,7 +107,7 @@ export default async function ExaminationDetailPage({ params, searchParams }: Pa
             <PageHeader
                 back={{ href: `${routes.doctor.fighter(fighter.id)}?tab=examinations`, label: fighter.name }}
                 eyebrow="Examination"
-                title={EXAMINATION_TYPE_LABELS[exam.type]}
+                title={examinationTitle(exam)}
                 description={
                     <>
                         <Link href={routes.doctor.fighter(fighter.id)} className="font-medium text-fg hover:underline">
@@ -156,12 +156,14 @@ export default async function ExaminationDetailPage({ params, searchParams }: Pa
 
                 <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                     <div className="flex min-w-0 flex-col gap-6 lg:col-span-2">
-                        <Card>
-                            <CardHeader title="Vitals" icon={<Stethoscope />} description={`Checked against athlete ranges and the ${fighter.targetWeightKg} kg class limit`} />
-                            <CardContent>
-                                <VitalsGrid vitals={exam.vitals} weightLimitKg={fighter.targetWeightKg} />
-                            </CardContent>
-                        </Card>
+                        {exam.vitals && (
+                            <Card>
+                                <CardHeader title="Vitals" icon={<Stethoscope />} description={`Checked against athlete ranges and the ${fighter.targetWeightKg} kg class limit`} />
+                                <CardContent>
+                                    <VitalsGrid vitals={exam.vitals} weightLimitKg={fighter.targetWeightKg} />
+                                </CardContent>
+                            </Card>
+                        )}
 
                         <Card>
                             <CardHeader

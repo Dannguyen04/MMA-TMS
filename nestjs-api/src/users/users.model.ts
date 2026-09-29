@@ -9,6 +9,10 @@ import {
   trimmedTextSchema,
 } from '../shared/utils/zod-schema.util.js';
 import { USER, userRoles } from '../shared/types/user.role.js';
+import {
+  USER_PAGE_SIZE_DEFAULT,
+  USER_PAGE_SIZE_MAX,
+} from './users.constants.js';
 
 export { USER, userRoles } from '../shared/types/user.role.js';
 
@@ -74,6 +78,17 @@ const credentialsSchema = {
   password: credentialPasswordSchema,
 };
 
+/**
+ * Administrative creation. A fighter account can arrive two ways, and both are
+ * intentional:
+ *   - self-service admission (GUEST -> application -> coach PASS -> admin
+ *     APPROVED -> password recovery -> activation), which produces the
+ *     assessment and approval history;
+ *   - direct recruitment, where an admin onboards an already-signed fighter
+ *     here. This path has no admission record by design, so the fighter's
+ *     provenance lives in the audit log for this creation instead.
+ * GUEST accounts are never created here; they come from self-registration.
+ */
 export const createUserSchema = z.discriminatedUnion('role', [
   z.strictObject({
     ...credentialsSchema,
@@ -126,6 +141,26 @@ export const updateUserBodySchema = z.strictObject({
 
 export const userIdParamsSchema = z.strictObject({ id: z.uuid() });
 
+/** INACTIVE covers both deactivated and soft-deleted accounts. */
+export const USER_STATUS = {
+  ACTIVE: 'ACTIVE',
+  INACTIVE: 'INACTIVE',
+} as const;
+export const userStatuses = [USER_STATUS.ACTIVE, USER_STATUS.INACTIVE] as const;
+
+export const listUsersQuerySchema = z.strictObject({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(USER_PAGE_SIZE_MAX)
+    .default(USER_PAGE_SIZE_DEFAULT),
+  role: z.enum(userRoles).optional(),
+  status: z.enum(userStatuses).optional(),
+  search: z.string().trim().max(100).optional(),
+});
+
 const publicProfileSchema = z.union([
   fighterProfileSchema.extend({ id: z.uuid() }),
   coachProfileSchema.required({ isHeadCoach: true }).extend({ id: z.uuid() }),
@@ -143,7 +178,16 @@ export const publicUserSchema = z.strictObject({
   profile: publicProfileSchema.nullable(),
 });
 
+export const publicUserListSchema = z.strictObject({
+  items: z.array(publicUserSchema),
+  total: z.number().int().nonnegative(),
+  page: z.number().int().positive(),
+  limit: z.number().int().positive(),
+});
+
 export type FighterProfileInput = z.infer<typeof fighterProfileSchema>;
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 export type PublicUser = z.input<typeof publicUserSchema>;
+export type ListUsersQuery = z.infer<typeof listUsersQuerySchema>;
+export type PublicUserList = z.input<typeof publicUserListSchema>;

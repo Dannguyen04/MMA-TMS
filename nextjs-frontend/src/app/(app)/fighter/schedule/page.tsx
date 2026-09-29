@@ -1,17 +1,16 @@
-import { CalendarClock, CalendarDays, ClipboardList, History } from "lucide-react";
+import { CalendarClock, CalendarDays, ClipboardList } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { WeekAgenda } from "@/components/domain/week-agenda";
-import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { ProgressBar } from "@/components/ui/progress";
 import { EmptyState } from "@/components/ui/states";
 import { ClearanceBanner } from "@/components/training/clearance-banner";
 import { getClearanceSummary, getCoachNames } from "@/components/training/training-data";
-import { describeWeekOffset, parseWeekOffset, planTimeline, weekStartKey } from "@/components/training/training-utils";
+import { describeWeekOffset, parseWeekOffset, planTimeline, plannedEndMs, weekStartKey } from "@/components/training/training-utils";
 import { UpcomingByDay } from "@/components/training/upcoming-by-day";
 import { WeekNav, weekRangeLabel } from "@/components/training/week-nav";
 import { WeekSummary } from "@/components/training/week-summary";
@@ -30,7 +29,7 @@ const UPCOMING_DAYS = 14;
 export default async function FighterSchedulePage({ searchParams }: PageProps<"/fighter/schedule">) {
     const user = await requireRole("fighter");
     if (!user.profileId) notFound();
-    const fighter = requireFighterAccess(user, user.profileId);
+    const fighter = await requireFighterAccess(user, user.profileId);
     const params = await searchParams;
 
     const current = new Date();
@@ -59,7 +58,7 @@ export default async function FighterSchedulePage({ searchParams }: PageProps<"/
     ]);
 
     const weekSessions = agenda.flatMap((day) => day.sessions);
-    const upcoming = later.filter((s) => Date.parse(s.scheduledAt) + s.durationMin * 60_000 >= nowMs);
+    const upcoming = later.filter((s) => plannedEndMs(s) >= nowMs);
     const activePlan = activePlans[0];
     const planProgress = activePlan ? planTimeline(activePlan, now) : null;
     const scheduledCount = weekSessions.filter((s) => s.status !== "cancelled").length;
@@ -70,12 +69,6 @@ export default async function FighterSchedulePage({ searchParams }: PageProps<"/
             <PageHeader
                 title="Schedule"
                 description="Your training week and what's coming up. Open a session for drills, targets and coach notes."
-                actions={
-                    <ButtonLink href={routes.fighter.history} variant="secondary">
-                        <History aria-hidden />
-                        Training history
-                    </ButtonLink>
-                }
             />
 
             <div className="flex flex-col gap-6">

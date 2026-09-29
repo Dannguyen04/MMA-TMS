@@ -1,6 +1,6 @@
 /**
  * Every error code an AI job can finish with. Produced by the mock pipeline (seeded failures and
- * runtime completion), admin cancellation and the real-pipeline sync (`lib/api/sync-external-job`).
+ * runtime completion) and admin cancellation.
  * User and operator copy for each code is keyed by this list, so a new code is a type error until
  * both explanations exist.
  */

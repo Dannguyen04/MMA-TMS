@@ -29,6 +29,51 @@ video-data-test/
 Thumbs.db
 .DS_Store
 
+# Gradle / Android caches (do not commit class files)
+.gradle/
+**/.gradle/
+.gradle-isolated/
+**/.gradle-isolated/
+
+# Dot directories only (not `.*` files — that would hide .env.example, .prettierrc, .dockerignore)
+.*/
+!.github/
+!.github/**
+!.gitignore
+
+# Explicit IDE / tool caches (also covered by `.*/`)
+.idea/
+.cursor/
+.expo/
+.vs/
+.kotlin/
+.cxx/
+.vscode/
+.agents/
+.claude/
+.codex/
+.vercel/
+.metro-health-check*
+
+# Test / screenshot dumps (not app assets such as reactnative-mobile/assets/splash)
+tmp-*/
+**/tmp-*/
+tmp-clip-frames/
+tmp-error-video-analysis/
+screenshots/
+**/screenshots/
+screen-shots/
+**/screen-shots/
+captures/
+**/captures/
+**/__screenshots__/
+testdata/
+**/testdata/
+testdata-images/
+**/testdata-images/
+test-screenshots/
+**/test-screenshots/
+
 # Documentation
 
 # Local Cursor configuration, rules, and skills at any project depth

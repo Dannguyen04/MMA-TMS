@@ -8,8 +8,9 @@ import { getCoachNames, getExerciseLibrary } from "@/components/training/trainin
 import { requireFighterAccess } from "@/lib/auth/access";
 import { getCurrentUser, requireRole } from "@/lib/auth/session";
 import { routes } from "@/lib/routes";
-import { getPlan, getSession, getSessionClearanceConflicts, listCoachFeedback } from "@/lib/services/training";
+import { getPlan, getSession, listCoachFeedback, loadSessionClearanceConflicts } from "@/lib/services/training";
 import { listVideos } from "@/lib/services/videos";
+import { plannedEndMs } from "@/components/training/training-utils";
 
 /** One session read per request, shared by the metadata and the page. */
 const loadSession = cache(getSession);
@@ -27,7 +28,7 @@ export default async function FighterSessionPage({ params }: PageProps<"/fighter
     // Reference lookups start with the session read; everything about the session waits for the access check.
     const [session, coachNames, exercises] = await Promise.all([loadSession(sessionId), getCoachNames(), getExerciseLibrary()]);
     if (!session || session.fighterId !== user.profileId) notFound();
-    requireFighterAccess(user, session.fighterId);
+    await requireFighterAccess(user, session.fighterId);
 
     const now = new Date().toISOString();
     const [videos, feedback, plan] = await Promise.all([
@@ -36,8 +37,8 @@ export default async function FighterSessionPage({ params }: PageProps<"/fighter
         session.planId ? getPlan(session.planId) : Promise.resolve(null),
     ]);
 
-    const upcoming = (session.status === "scheduled" || session.status === "in_progress") && Date.parse(session.scheduledAt) + session.durationMin * 60_000 >= Date.parse(now);
-    const conflicts = upcoming ? getSessionClearanceConflicts(session) : [];
+    const upcoming = (session.status === "scheduled" || session.status === "in_progress") && plannedEndMs(session) >= Date.parse(now);
+    const conflicts = upcoming ? await loadSessionClearanceConflicts(session) : [];
     const past = session.scheduledAt < now && !upcoming;
 
     return (
@@ -52,7 +53,7 @@ export default async function FighterSessionPage({ params }: PageProps<"/fighter
                 session={session}
                 audience="fighter"
                 now={now}
-                coachName={coachNames[session.coachId] ?? "Coach"}
+                coachName={(session.coachId && coachNames[session.coachId]) || "Coach"}
                 coachNames={coachNames}
                 plan={plan ? { id: plan.id, title: plan.title } : null}
                 exercises={exercises}

@@ -11,6 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
+  ApiBearerAuth,
   ApiHeader,
   ApiOperation,
   ApiParam,
@@ -25,12 +26,27 @@ import {
   ApiUnauthorizedEnvelope,
   ApiValidationErrorEnvelope,
 } from '../shared/decorators/api-envelope.decorator.js';
+import { RequireRoles } from '../shared/decorators/auth.decorator.js';
 import { ResponseMessage } from '../shared/decorators/response-message.decorator.js';
+import {
+  AccessTokenGuard,
+  AuthorizationGuard,
+} from '../shared/guards/auth.guard.js';
+import { USER } from '../shared/types/user.role.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
 import { UpdateJobStatusDto } from './dto/update-job-status.dto.js';
 import { WorkerAuthGuard } from './guards/worker-auth.guard.js';
 import { JobsService } from './jobs.service.js';
 
+/**
+ * Legacy analysis-job surface (migrations 001/002). The read and create routes
+ * now require an authenticated non-guest role, which closes unauthenticated
+ * access. Per-fighter ownership scoping is still NOT implemented here, because
+ * `analysis_jobs.user_id` is untrusted free text supplied by the request body
+ * with no relation to `public.users`; filtering on it would present an
+ * attacker-controlled value as an ownership claim. Narrowing that access needs a
+ * schema change in a future migration.
+ */
 @ApiTags('Video Analysis Jobs (Hàng đợi AI)')
 @Controller('jobs')
 export class JobsController {
@@ -38,6 +54,9 @@ export class JobsController {
 
   /** POST /jobs — Tạo job phân tích video mới */
   @Post()
+  @UseGuards(AccessTokenGuard, AuthorizationGuard)
+  @RequireRoles(USER.FIGHTER, USER.COACH, USER.DOCTOR, USER.ADMIN)
+  @ApiBearerAuth()
   @ApiOperation({
     summary: 'Tạo job phân tích video mới',
     description: 'Tạo một job mới trong CSDL (status: PENDING) và đẩy job vào hàng đợi Redis BullMQ (queue: video-analysis).',
@@ -55,6 +74,9 @@ export class JobsController {
 
   /** GET /jobs — Danh sách jobs (tùy chọn lọc theo userId) */
   @Get()
+  @UseGuards(AccessTokenGuard, AuthorizationGuard)
+  @RequireRoles(USER.FIGHTER, USER.COACH, USER.DOCTOR, USER.ADMIN)
+  @ApiBearerAuth()
   @ApiOperation({
     summary: 'Lấy danh sách các jobs',
     description: 'Trả về danh sách các jobs phân tích video, có thể lọc theo ID võ sĩ (userId).',
@@ -80,6 +102,9 @@ export class JobsController {
    * Đặt TRƯỚC /:id để tránh conflict route.
    */
   @Get('impairments')
+  @UseGuards(AccessTokenGuard, AuthorizationGuard)
+  @RequireRoles(USER.FIGHTER, USER.COACH, USER.DOCTOR, USER.ADMIN)
+  @ApiBearerAuth()
   @ApiOperation({
     summary: 'Lấy danh sách các jobs có cảnh báo chấn thương (Impairments)',
     description: 'Truy vấn cực nhanh bằng Partial Index `has_impairment = TRUE` để hỗ trợ Bác sĩ thể thao lọc nhanh các ca nghi ngờ chấn thương.',
@@ -101,6 +126,9 @@ export class JobsController {
 
   /** GET /jobs/:id — Lấy trạng thái và toàn bộ kết quả job */
   @Get(':id')
+  @UseGuards(AccessTokenGuard, AuthorizationGuard)
+  @RequireRoles(USER.FIGHTER, USER.COACH, USER.DOCTOR, USER.ADMIN)
+  @ApiBearerAuth()
   @ApiOperation({
     summary: 'Lấy chi tiết và kết quả của một job theo UUID',
     description: 'Trả về trạng thái xử lý (PENDING, PROCESSING, DONE, FAILED), điểm số và URL kết quả JSON từ Supabase Storage.',
@@ -121,6 +149,9 @@ export class JobsController {
    * Trả về: { alertCount, hasImpairment, healthAlerts[], jointStates{} }
    */
   @Get(':id/health-alerts')
+  @UseGuards(AccessTokenGuard, AuthorizationGuard)
+  @RequireRoles(USER.FIGHTER, USER.COACH, USER.DOCTOR, USER.ADMIN)
+  @ApiBearerAuth()
   @ApiOperation({
     summary: 'Lấy dữ liệu Anomaly Detection & Máy trạng thái sức khỏe khớp',
     description: 'Chỉ trả về các thông tin cảnh báo chấn thương (healthAlerts) và trạng thái các khớp (jointStates) của bài tập.',

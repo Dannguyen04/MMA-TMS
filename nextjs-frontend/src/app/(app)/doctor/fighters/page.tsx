@@ -14,7 +14,7 @@ import { EmptyState } from "@/components/ui/states";
 import { Pagination, SortableTH, Table, TBody, TD, THead, TR } from "@/components/ui/table";
 import { accessibleFighterIds } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
-import { EXAMINATION_TYPE_LABELS, HEALTH_STATUS_LABELS, WEIGHT_CLASS_LABELS, WEIGHT_CLASS_ORDER } from "@/lib/domain/labels";
+import { examinationTitle, HEALTH_STATUS_LABELS, WEIGHT_CLASS_LABELS, WEIGHT_CLASS_ORDER } from "@/lib/domain/labels";
 import { clearanceDaysRemaining, type ClearanceState } from "@/lib/domain/rules";
 import type { HealthStatus, WeightClass } from "@/lib/domain/types";
 import { formatDate } from "@/lib/format";
@@ -185,7 +185,7 @@ export default async function DoctorFightersPage({ searchParams }: PageProps<"/d
                                                 {summary.latestExamination ? (
                                                     <span className="flex flex-col gap-0.5 text-[13px]">
                                                         <time dateTime={summary.latestExamination.date}>{formatDate(summary.latestExamination.date)}</time>
-                                                        <span className="text-fg-muted">{EXAMINATION_TYPE_LABELS[summary.latestExamination.type]}</span>
+                                                        <span className="text-fg-muted">{examinationTitle(summary.latestExamination)}</span>
                                                     </span>
                                                 ) : (
                                                     <span className="text-[13px] text-fg-muted">None recorded</span>

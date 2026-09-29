@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import {
+  AUTHENTICATED_ENDPOINT,
   REQUIRED_PERMISSIONS,
   REQUIRED_ROLES,
 } from '../decorators/auth.decorator.js';
@@ -19,6 +20,7 @@ import type {
   PermissionRequirement,
   UserRole,
 } from '../models/auth-context.model.js';
+import { USER } from '../types/user.role.js';
 
 @Injectable()
 export class AccessTokenGuard implements CanActivate {
@@ -64,8 +66,22 @@ export class AuthorizationGuard implements CanActivate {
       [context.getHandler(), context.getClass()],
     );
 
-    if (!roles?.length && !permission) throw forbidden();
+    if (!roles?.length && !permission) {
+      // Authenticated-only is an explicit, handler-level classification; a
+      // handler without any metadata stays denied by default.
+      const authenticatedOnly = this.reflector.get<boolean | undefined>(
+        AUTHENTICATED_ENDPOINT,
+        context.getHandler(),
+      );
+      if (authenticatedOnly) return true;
+      throw forbidden();
+    }
     if (permission) {
+      // A Guest is a pre-admission identity and never holds an operational
+      // permission. Denying here keeps an accidental user_permissions grant
+      // from bypassing the role restriction, because permission metadata takes
+      // precedence over role metadata below.
+      if (request.auth.user.role === USER.GUEST) throw forbidden();
       try {
         if (
           !(await this.authAccessService.hasPermissions(

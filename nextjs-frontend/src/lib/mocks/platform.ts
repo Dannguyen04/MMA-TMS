@@ -131,7 +131,7 @@ function analysisOf(videoId: string): AIAnalysis {
 /** User id behind a coach or doctor profile id. */
 function staffUserId(profileId: string): string {
     const profile = mockCoaches.find((c) => c.id === profileId) ?? mockDoctors.find((d) => d.id === profileId);
-    if (!profile) throw new Error(`Platform seed references unknown staff profile "${profileId}".`);
+    if (!profile?.userId) throw new Error(`Platform seed references unknown staff profile "${profileId}".`);
     return profile.userId;
 }
 
@@ -1420,7 +1420,7 @@ function medicalAudit(): AuditSeed[] {
         const doctor = staffUserId(injury.recordedById);
         const label = `${fighterName(injury.fighterId)} — Injury record`;
         entries.push(audit(minutesAfter(injury.occurredAt, 45), doctor, "injury.create", "injury", injury.id, label, "Suspected injury recorded"));
-        entries.push(audit(injury.diagnosedAt, doctor, "injury.update", "injury", injury.id, label, "Diagnosis confirmed"));
+        entries.push(audit(injury.diagnosedAt ?? injury.occurredAt, doctor, "injury.update", "injury", injury.id, label, "Diagnosis confirmed"));
     }
 
     for (const exam of mockMedicalExaminations) {

@@ -17,7 +17,7 @@ export const metadata: Metadata = { title: "Goals" };
 export default async function FighterGoalsPage() {
     const user = await requireRole("fighter");
     if (!user.profileId) notFound();
-    const fighter = requireFighterAccess(user, user.profileId);
+    const fighter = await requireFighterAccess(user, user.profileId);
     const goals = await listGoals({ fighterIds: [fighter.id] });
     const now = new Date().toISOString();
     const active = goals.filter((goal) => goal.status === "on_track" || goal.status === "at_risk");
@@ -37,12 +37,6 @@ export default async function FighterGoalsPage() {
                         <Info aria-hidden className="size-3.5" />
                         Goals are managed by your coaches — talk to them to adjust a target or due date.
                     </p>
-                }
-                actions={
-                    <ButtonLink href={routes.fighter.performance} variant="secondary">
-                        <ChartLine aria-hidden />
-                        Performance
-                    </ButtonLink>
                 }
             />
             {goals.length === 0 ? (

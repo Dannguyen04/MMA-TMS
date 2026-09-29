@@ -1,3 +1,5 @@
+import type { BodyJoint, ClearanceType, ClinicalRestrictions, ExaminationScope, RecoveryMilestone } from "./medical-contract";
+
 /**
  * Domain model for MMA-TMS.
  *
@@ -29,30 +31,41 @@ export interface User {
     lastActiveAt: ISODate | null;
     /** Profile id in the role-specific table (fighter/coach/doctor). Null for admins. */
     profileId: string | null;
+    /** Năng lực hiệu lực do backend trả về; thiếu trường này đồng nghĩa không có quyền UI. */
+    effectiveCapabilities?: Permission[];
+    /** Phạm vi võ sĩ do backend xác lập; thiếu phạm vi thì từ chối truy cập bản ghi. */
+    assignmentScope?: {
+        fighterIds: string[];
+    };
 }
 
-export type Permission =
-    | "fighters:read"
-    | "fighters:write"
-    | "training:read"
-    | "training:write"
-    | "videos:upload"
-    | "videos:manage"
-    | "ai_analysis:read"
-    | "ai_findings:review"
-    | "ai_alerts:review"
-    | "goals:write"
-    | "medical:read_summary"
-    | "medical:read"
-    | "medical:write"
-    | "clearance:manage"
-    | "users:manage"
-    | "roles:manage"
-    | "ai_jobs:manage"
-    | "ai_models:manage"
-    | "audit_logs:read"
-    | "notifications:manage"
-    | "settings:manage";
+/** Every permission the interface knows, in the order the role matrix lists them. */
+export const PERMISSIONS = [
+    "fighters:read",
+    "fighters:write",
+    "training:read",
+    "training:write",
+    "videos:upload",
+    "videos:manage",
+    "ai_analysis:read",
+    "ai_findings:review",
+    "ai_alerts:review",
+    "goals:write",
+    "medical:read_summary",
+    "medical:read",
+    "medical:write",
+    "medical:request_review",
+    "clearance:manage",
+    "users:manage",
+    "roles:manage",
+    "ai_jobs:manage",
+    "ai_models:manage",
+    "audit_logs:read",
+    "notifications:manage",
+    "settings:manage",
+] as const;
+
+export type Permission = (typeof PERMISSIONS)[number];
 
 export interface RoleDefinition {
     role: Role;
@@ -97,51 +110,60 @@ export interface UpcomingBout {
     weightClass: WeightClass;
 }
 
+/**
+ * A fighter profile. Null fields are ones the API doesn't provide yet (or that haven't been measured); the
+ * interface hides or marks them rather than guessing.
+ */
 export interface Fighter {
     id: string;
     userId: string;
     name: string;
     nickname: string | null;
-    sex: Sex;
+    sex: Sex | null;
     dateOfBirth: ISODate;
-    nationality: string;
-    heightCm: number;
-    reachCm: number;
-    weightKg: number;
+    nationality: string | null;
+    heightCm: number | null;
+    reachCm: number | null;
+    /** Latest recorded body weight. */
+    weightKg: number | null;
     /** Fight-night limit for the weight class, in kg. */
     targetWeightKg: number;
-    bodyFatPct: number;
-    restingHeartRate: number;
+    bodyFatPct: number | null;
+    restingHeartRate: number | null;
     weightClass: WeightClass;
-    stance: Stance;
-    level: TrainingLevel;
-    primaryDiscipline: string;
-    record: FightRecord;
+    stance: Stance | null;
+    level: TrainingLevel | null;
+    primaryDiscipline: string | null;
+    record: FightRecord | null;
+    /** Current coaches, when known. */
     coachIds: string[];
-    /** Primary coach responsible for planning. Always included in coachIds. */
-    primaryCoachId: string;
+    /** Primary coach responsible for planning. Always included in coachIds when set. */
+    primaryCoachId: string | null;
+    /** Current sports doctors, when known. */
     doctorIds: string[];
     healthStatus: HealthStatus;
     joinedAt: ISODate;
     upcomingBout: UpcomingBout | null;
 }
 
+/** Null fields are ones the API doesn't provide yet; the interface hides them rather than guessing. */
 export interface Coach {
     id: string;
-    userId: string;
+    userId: string | null;
     name: string;
     specialty: string;
     certifications: string[];
-    yearsExperience: number;
+    yearsExperience: number | null;
     fighterIds: string[];
 }
 
+/** Null fields are ones the API doesn't provide yet; the interface hides them rather than guessing. */
 export interface Doctor {
     id: string;
-    userId: string;
+    userId: string | null;
     name: string;
     specialty: string;
-    licenseNumber: string;
+    licenseNumber: string | null;
     fighterIds: string[];
 }
 
@@ -229,29 +251,32 @@ export interface SessionExercise {
     completed: boolean;
 }
 
+/** The outcome of a completed session. Null fields are ones the API doesn't provide yet. */
 export interface SessionResult {
     completedAt: ISODate;
-    actualDurationMin: number;
+    actualDurationMin: number | null;
     /** Session RPE reported by the fighter, 1–10. */
-    rpe: number;
+    rpe: number | null;
     roundsCompleted: number;
     /** Coach rating of the session quality, 1–5. */
-    coachRating: number;
+    coachRating: number | null;
     summary: string;
 }
 
+/** A training session. Null fields are ones the API doesn't provide yet; the interface hides them rather than guessing. */
 export interface TrainingSession {
     id: string;
     planId: string | null;
     fighterId: string;
-    coachId: string;
+    coachId: string | null;
     title: string;
     type: TrainingType;
     scheduledAt: ISODate;
-    durationMin: number;
+    /** Planned length in minutes. */
+    durationMin: number | null;
     location: string;
     /** Planned intensity on the RPE scale, 1–10. */
-    targetRpe: number;
+    targetRpe: number | null;
     status: SessionStatus;
     exercises: SessionExercise[];
     result: SessionResult | null;
@@ -719,18 +744,28 @@ export interface ExaminationAssessment {
     note: string;
 }
 
+/**
+ * A medical examination. The medical service records a decision (with its scope, written restrictions and validity)
+ * rather than an exam type, vitals or per-area assessments; those stay null or empty for its examinations.
+ */
 export interface MedicalExamination {
     id: string;
     fighterId: string;
     doctorId: string;
     date: ISODate;
-    type: ExaminationType;
-    vitals: Vitals;
+    type: ExaminationType | null;
+    vitals: Vitals | null;
     assessments: ExaminationAssessment[];
     outcome: ExaminationOutcome;
     summary: string;
     recommendations: string;
     followUpDate: ISODate | null;
+    /** Whether the decision covers training or competition (medical service only). */
+    scope?: ExaminationScope;
+    /** The decision's written limits (medical service only). */
+    decisionRestrictions?: ClinicalRestrictions | null;
+    /** Until when the decision stands (medical service only). */
+    validUntil?: ISODate | null;
 }
 
 export type InjuryType =
@@ -743,23 +778,32 @@ export type InjuryType =
     | "tendinopathy"
     | "impingement";
 
-export type InjurySeverity = "minor" | "moderate" | "severe";
+export type InjurySeverity = "minor" | "moderate" | "severe" | "critical";
 
 export type InjuryStatus = "active" | "recovering" | "resolved";
 
 export type InjuryMechanism = "sparring" | "pad_work" | "heavy_bag" | "grappling" | "strength_conditioning" | "competition" | "outside_training";
 
+/**
+ * An injury. The medical service records a joint and a free-text injury type, with no mechanism, diagnosis date or
+ * expected return; those stay null for its injuries.
+ */
 export interface Injury {
     id: string;
     fighterId: string;
     recordedById: string;
-    type: InjuryType;
+    /** Null when the injury type is free text (see `typeLabel`). */
+    type: InjuryType | null;
+    /** The injury type as the doctor wrote it (medical service only). */
+    typeLabel?: string;
     bodyRegion: BodyRegion;
+    /** The joint recorded by the medical service. */
+    joint?: BodyJoint;
     severity: InjurySeverity;
     status: InjuryStatus;
-    mechanism: InjuryMechanism;
+    mechanism: InjuryMechanism | null;
     occurredAt: ISODate;
-    diagnosedAt: ISODate;
+    diagnosedAt: ISODate | null;
     description: string;
     expectedReturnAt: ISODate | null;
     resolvedAt: ISODate | null;
@@ -779,18 +823,27 @@ export type TreatmentType =
 
 export type TreatmentStatus = "planned" | "ongoing" | "completed";
 
+/**
+ * A treatment. The medical service records dated, free-text treatments with outcome notes and a next review, with no
+ * provider, frequency or status; those stay null for its treatments.
+ */
 export interface Treatment {
     id: string;
     injuryId: string;
     fighterId: string;
-    providerName: string;
-    type: TreatmentType;
+    providerName: string | null;
+    /** Null when the treatment type is free text (see `typeLabel`). */
+    type: TreatmentType | null;
+    /** The treatment as the doctor wrote it (medical service only). */
+    typeLabel?: string;
     description: string;
-    frequency: string;
+    frequency: string | null;
     startDate: ISODate;
     endDate: ISODate | null;
-    status: TreatmentStatus;
+    status: TreatmentStatus | null;
     notes: string | null;
+    /** When the doctor plans to review it next (medical service only). */
+    nextReviewAt?: ISODate | null;
 }
 
 export type RecoveryPhaseStatus = "completed" | "current" | "upcoming";
@@ -816,8 +869,12 @@ export interface RecoveryCheckIn {
     note: string;
 }
 
-export type RecoveryPlanStatus = "active" | "paused" | "completed";
+export type RecoveryPlanStatus = "active" | "paused" | "completed" | "cancelled";
 
+/**
+ * A recovery plan. The medical service tracks a flat list of milestones (no phases or check-ins); demo plans use
+ * phases and check-ins and have no `milestones`.
+ */
 export interface RecoveryPlan {
     id: string;
     injuryId: string;
@@ -825,10 +882,15 @@ export interface RecoveryPlan {
     doctorId: string;
     title: string;
     startDate: ISODate;
-    targetReturnDate: ISODate;
+    targetReturnDate: ISODate | null;
     status: RecoveryPlanStatus;
     phases: RecoveryPhase[];
     checkIns: RecoveryCheckIn[];
+    description?: string | null;
+    /** Standard milestones (medical service only). */
+    milestones?: RecoveryMilestone[];
+    /** Milestones stored in an older shape, shown as they are and never rewritten (medical service only). */
+    legacyMilestones?: unknown[];
 }
 
 export type ClearanceLevel = "full" | "restricted" | "not_cleared";
@@ -845,6 +907,10 @@ export interface TrainingRestriction {
     maxRpe: number | null;
 }
 
+/**
+ * A Medical Clearance. For the medical service, `level` and `restrictions` are derived from its allow-lists (kept in
+ * `allowLists`), and whether it is in force comes from `isCurrentlyValid`, not the stored status.
+ */
 export interface MedicalClearance {
     id: string;
     fighterId: string;
@@ -858,6 +924,9 @@ export interface MedicalClearance {
     examinationId: string | null;
     revokedAt: ISODate | null;
     revokedReason: string | null;
+    clearanceType?: ClearanceType;
+    allowLists?: ClinicalRestrictions;
+    isCurrentlyValid?: boolean;
 }
 
 /* ────────────────────────────────────────────────────────────────────────────

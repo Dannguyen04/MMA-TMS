@@ -13,7 +13,7 @@ import { EmptyState } from "@/components/ui/states";
 import { Pagination, SortableTH, Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { accessibleFighterIds, canAccessFighter } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
-import { EXAMINATION_OUTCOME_LABELS, EXAMINATION_TYPE_LABELS } from "@/lib/domain/labels";
+import { EXAMINATION_OUTCOME_LABELS, EXAMINATION_TYPE_LABELS, examinationTitle } from "@/lib/domain/labels";
 import type { ExaminationOutcome, ExaminationType, MedicalExamination } from "@/lib/domain/types";
 import { formatDate, formatTime } from "@/lib/format";
 import { paginate, parseEnum, parseSortDirection, sortItems } from "@/lib/query";
@@ -58,7 +58,7 @@ export default async function ExaminationsPage({ searchParams }: PageProps<"/doc
     const accessors: Record<(typeof SORTS)[number], (exam: MedicalExamination) => string | number | null> = {
         date: (exam) => exam.date,
         fighter: (exam) => fighterById.get(exam.fighterId)?.name ?? null,
-        type: (exam) => EXAMINATION_TYPE_LABELS[exam.type],
+        type: (exam) => examinationTitle(exam),
         outcome: (exam) => OUTCOME_RANK[exam.outcome],
         followUp: (exam) => exam.followUpDate,
     };
@@ -155,7 +155,7 @@ export default async function ExaminationsPage({ searchParams }: PageProps<"/doc
                                                 <TD className="whitespace-nowrap">
                                                     <Link href={routes.doctor.examination(exam.id)} className="rounded-sm font-medium text-fg hover:underline">
                                                         <time dateTime={exam.date}>{formatDate(exam.date)}</time>
-                                                        <span className="sr-only">, {EXAMINATION_TYPE_LABELS[exam.type]}</span>
+                                                        <span className="sr-only">, {examinationTitle(exam)}</span>
                                                     </Link>
                                                     <span className="block text-xs text-fg-muted">{formatTime(exam.date)}</span>
                                                 </TD>
@@ -169,7 +169,7 @@ export default async function ExaminationsPage({ searchParams }: PageProps<"/doc
                                                         <span className="text-fg-muted">Unknown fighter</span>
                                                     )}
                                                 </TD>
-                                                <TD className="min-w-48">{EXAMINATION_TYPE_LABELS[exam.type]}</TD>
+                                                <TD className="min-w-48">{examinationTitle(exam)}</TD>
                                                 <TD>
                                                     <ExaminationOutcomeBadge outcome={exam.outcome} size="sm" />
                                                 </TD>
