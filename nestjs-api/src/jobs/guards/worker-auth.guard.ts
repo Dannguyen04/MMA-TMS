@@ -6,14 +6,16 @@ import {
 } from '@nestjs/common';
 import { Request } from 'express';
 import { timingSafeEqual } from 'node:crypto';
-import { env } from '../../shared/config/env.js';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class WorkerAuthGuard implements CanActivate {
+  constructor(private readonly config: ConfigService) {}
+
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<Request>();
 
-    const expectedToken = env.WORKER_SECRET_TOKEN;
+    const expectedToken = this.config.getOrThrow<string>('WORKER_SECRET_TOKEN');
 
     const headerToken = request.headers['x-worker-secret'] as
       string | undefined;

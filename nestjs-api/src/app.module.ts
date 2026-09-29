@@ -15,10 +15,17 @@ import { AuthorizationModule } from './authorization/authorization.module.js';
 import { CoachesModule } from './coaches/coaches.module.js';
 import { MedicalModule } from './medical/medical.module.js';
 import { CoachingModule } from './coaching/coaching.module.js';
+import { loadEnv } from './shared/config/env.js';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      // ConfigModule uses the validator's return value as the complete config.
+      // Preserve unrelated service settings (Supabase, database, Redis, etc.)
+      // while replacing the shared keys with their validated/coerced values.
+      validate: (config) => ({ ...config, ...loadEnv(config) }),
+    }),
     BullModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {

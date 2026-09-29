@@ -4,6 +4,7 @@ import { CoachingController, CoachingWorkerController } from '../src/coaching/co
 import { AccessTokenGuard, AuthorizationGuard } from '../src/shared/guards/auth.guard.js';
 import { WorkerAuthGuard } from '../src/jobs/guards/worker-auth.guard.js';
 import { REQUIRED_ROLES } from '../src/shared/decorators/auth.decorator.js';
+import { ConfigService } from '@nestjs/config';
 
 describe('coaching authentication boundary', () => {
   it('declares allowed user roles so AuthorizationGuard does not fail every route closed', () => {
@@ -31,7 +32,8 @@ describe('coaching authentication boundary', () => {
       }),
     } as any;
 
-    expect(() => new WorkerAuthGuard().canActivate(context)).toThrowError(
+    const config = new ConfigService({ WORKER_SECRET_TOKEN: 'configured-secret' });
+    expect(() => new WorkerAuthGuard(config).canActivate(context)).toThrowError(
       /Worker Secret Token/,
     );
   });

@@ -18,7 +18,7 @@ describe('Task 14 — Product Backend Security & Governance Remediation Gate', (
   let signerService: AttestationSignerService;
   let governanceService: AuthoritativeGovernanceService;
 
-  const validWorkerSecret = 'mma-tms-worker-local-secret-2026';
+  let validWorkerSecret = 'mma-tms-worker-local-secret-2026';
 
   const computeDigest = (obj: any): string => {
     const canonicalStr = governanceService.canonicalizeJson(obj);
@@ -162,6 +162,9 @@ describe('Task 14 — Product Backend Security & Governance Remediation Gate', (
     await app.init();
 
     db = moduleFixture.get(DRIZZLE);
+    validWorkerSecret = moduleFixture
+      .get(ConfigService)
+      .getOrThrow<string>('WORKER_SECRET_TOKEN');
     signerService = moduleFixture.get<AttestationSignerService>(AttestationSignerService);
     governanceService = moduleFixture.get<AuthoritativeGovernanceService>(AuthoritativeGovernanceService);
   }, 30000);
@@ -198,20 +201,25 @@ describe('Task 14 — Product Backend Security & Governance Remediation Gate', (
     });
 
     it('1.2 rejects development secret when NODE_ENV=production', async () => {
+      const previousNodeEnv = process.env.NODE_ENV;
+      const previousWorkerSecret = process.env.WORKER_SECRET_TOKEN;
       process.env.NODE_ENV = 'production';
       process.env.WORKER_SECRET_TOKEN = 'prod_secret_token_key_2026_x';
+      try {
+        const payload = samplePayload();
+        const res = await request(app.getHttpServer())
+          .post(`/internal/dataset-exports/${payload.candidate.exportId}/promotions`)
+          .set('x-worker-secret', 'mma-tms-worker-local-secret-2026') // dev token
+          .set('idempotency-key', `idemp_${Date.now()}`)
+          .send(payload);
 
-      const payload = samplePayload();
-      const res = await request(app.getHttpServer())
-        .post(`/internal/dataset-exports/${payload.candidate.exportId}/promotions`)
-        .set('x-worker-secret', 'mma-tms-worker-local-secret-2026') // dev token
-        .set('idempotency-key', `idemp_${Date.now()}`)
-        .send(payload);
-
-      expect(res.status).toBe(401);
-
-      process.env.NODE_ENV = 'test';
-      delete process.env.WORKER_SECRET_TOKEN;
+        expect(res.status).toBe(401);
+      } finally {
+        if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+        else process.env.NODE_ENV = previousNodeEnv;
+        if (previousWorkerSecret === undefined) delete process.env.WORKER_SECRET_TOKEN;
+        else process.env.WORKER_SECRET_TOKEN = previousWorkerSecret;
+      }
     });
 
     it('1.3 derives actor identity from authentication context, rejecting body actorId spoofing', async () => {
