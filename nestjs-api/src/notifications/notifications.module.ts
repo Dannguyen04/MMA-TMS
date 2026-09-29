@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { DatabaseModule } from '../database/database.module.js';
 import { NOTIFICATION_PUBLISHER } from '../shared/contracts/notification.contract.js';
 import { NotificationDistributionService } from './notification-distribution.service.js';
+import { NotificationProducer } from './notification-producer.service.js';
 import { NotificationStreamService } from './notification-stream.service.js';
 import { loadNotificationsConfig } from './notifications.config.js';
 import {
@@ -18,7 +19,9 @@ import { NotificationsService } from './notifications.service.js';
 /**
  * Shared notification module. Business modules import it and inject
  * `NOTIFICATION_PUBLISHER`; they never depend on the queue, repository or
- * worker. The queue reuses the root BullMQ connection from AppModule.
+ * worker. The registered queue (root BullMQ connection from AppModule) serves
+ * the worker only; request-time enqueue goes through NotificationProducer,
+ * which owns a fail-fast connection to the same Redis endpoint.
  * This module imports no business module, so it cannot form a cycle.
  */
 @Module({
@@ -34,6 +37,7 @@ import { NotificationsService } from './notifications.service.js';
       useFactory: loadNotificationsConfig,
     },
     NotificationsRepository,
+    NotificationProducer,
     NotificationDistributionService,
     NotificationStreamService,
     NotificationsService,

@@ -2858,6 +2858,7 @@ The system must always answer:
 - Backend: module `notifications` (REST inbox tự-scope, SSE `GET /notifications/stream`, BullMQ worker, Redis Pub/Sub fan-out), migration `014_notifications_delivery.sql` (`dedupe_key`, unique `(user_id, dedupe_key)`, index danh sách, 13 giá trị `notification_type`).
 - Enqueue sau commit; khoảng trống commit→enqueue có thể làm thiếu thông báo (chấp nhận, không outbox). Retry không chứng minh đã giao; không replay/Last-Event-ID.
 - Chưa build, chưa chạy tests, chưa áp dụng 014 lên database, chưa deploy. FE/mobile chưa tích hợp. Medical M1–M5 và nhắc lịch chưa làm.
+- Sửa sau review (cùng ngày, không đổi nghiệp vụ): producer enqueue tách khỏi worker và fail-fast khi Redis mất kết nối; queue job identity gồm cả tập người nhận chuẩn hóa (không bỏ sót người nhận mới của cùng sự kiện); đổi lịch buổi tập xác định từ row bị khóa trong cùng transaction; stream chỉ `ready`/`resync` sau khi SUBSCRIBE được xác nhận; client đọc chậm bị cắt kết nối ngay.
 
 ## v3.3 (2026-09-27)
 

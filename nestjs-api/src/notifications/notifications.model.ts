@@ -7,6 +7,8 @@ import {
 } from '../shared/contracts/notification.contract.js';
 import { isoDateTimeSchema } from '../shared/utils/zod-schema.util.js';
 import {
+  NOTIFICATION_CORRELATION_ID_MAX,
+  NOTIFICATION_DELIVERY_DEDUPE_KEY_MAX,
   NOTIFICATION_LIMITS,
   NOTIFICATION_PAGE_SIZE_DEFAULT,
   NOTIFICATION_PAGE_SIZE_MAX,
@@ -76,8 +78,8 @@ export const deliveryJobSchema = z.strictObject({
   message: z.string().trim().min(1).max(NOTIFICATION_LIMITS.MESSAGE_MAX),
   payload: notificationPayloadSchema,
   /** Namespaced as `<type>:<caller dedupe key>`. */
-  dedupeKey: z.string().min(1).max(300),
-  correlationId: z.string().max(100).optional(),
+  dedupeKey: z.string().min(1).max(NOTIFICATION_DELIVERY_DEDUPE_KEY_MAX),
+  correlationId: z.string().max(NOTIFICATION_CORRELATION_ID_MAX).optional(),
 });
 
 export type DeliveryJob = z.infer<typeof deliveryJobSchema>;

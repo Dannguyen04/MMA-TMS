@@ -123,54 +123,54 @@ export class TrainingSessionService {
     data: UpdateSessionInput,
   ) {
     this.access.assertTrainingWriteAllowed(actor);
+    let result: { updated: TrainingSessionEntity; rescheduled: boolean };
     try {
       const existing = await this.repo.findSessionById(id);
       if (!existing) throw sessionNotFound();
       await this.access.assertFighterAccess(actor, existing.fighterId);
 
-      const nextSessionType = data.sessionType;
-      let change: { before: TrainingSessionEntity; after: TrainingSessionEntity };
-      if (nextSessionType === undefined) {
-        const updated = await this.repo.updateSession(id, data);
-        if (!updated) throw sessionNotFound();
-        change = { before: existing, after: updated };
-      } else {
+      // The row is locked for the whole mutation, so the "before" state used
+      // to detect a reschedule is exactly the state this UPDATE replaced,
+      // never a snapshot another request changed in between.
+      result = await this.repo.transaction(async (transaction) => {
+        const locked = await this.repo.lockSessionById(id, transaction);
+        if (!locked) throw sessionNotFound();
+        const nextSessionType = data.sessionType;
         // Switching a running session to another type could step outside a
         // medical restriction, so it passes the same gate as starting it.
-        change = await this.repo.transaction(async (transaction) => {
-          const locked = await this.repo.lockSessionById(id, transaction);
-          if (!locked) throw sessionNotFound();
-          if (
-            locked.status === 'IN_PROGRESS' &&
-            nextSessionType !== locked.sessionType
-          ) {
-            await this.assertMedicallyEligible(
-              locked.fighterId,
-              nextSessionType,
-              transaction,
-            );
-          }
-          const updated = await this.repo.updateSession(id, data, transaction);
-          if (!updated) throw sessionNotFound();
-          return { before: locked, after: updated };
-        });
-      }
-
-      // T4, after commit: only a real change of time or location. Notes, RPE,
-      // title or type edits notify nobody.
-      if (this.isRescheduled(change.before, change.after)) {
-        await this.notifySessionEvent(
-          actor,
-          change.after,
-          NOTIFICATION_TYPE.TRAINING_SESSION_RESCHEDULED,
-          TRAINING_NOTIFICATION_TEXT.SESSION_RESCHEDULED,
-          `session:${id}:rescheduled:${change.after.updatedAt}`,
-        );
-      }
-      return change.after;
+        if (
+          nextSessionType !== undefined &&
+          locked.status === 'IN_PROGRESS' &&
+          nextSessionType !== locked.sessionType
+        ) {
+          await this.assertMedicallyEligible(
+            locked.fighterId,
+            nextSessionType,
+            transaction,
+          );
+        }
+        const rescheduled = this.isRescheduled(locked, data);
+        const updated = await this.repo.updateSession(id, data, transaction);
+        if (!updated) throw sessionNotFound();
+        return { updated, rescheduled };
+      });
     } catch (error) {
       throw mapTrainingPersistenceError(error);
     }
+
+    // T4, after commit and outside the lock: only a real change of time or
+    // location sent in this mutation. Notes, RPE, title or type edits, and a
+    // repeated request with the same values, notify nobody.
+    if (result.rescheduled) {
+      await this.notifySessionEvent(
+        actor,
+        result.updated,
+        NOTIFICATION_TYPE.TRAINING_SESSION_RESCHEDULED,
+        TRAINING_NOTIFICATION_TEXT.SESSION_RESCHEDULED,
+        `session:${id}:rescheduled:${result.updated.updatedAt}`,
+      );
+    }
+    return result.updated;
   }
 
   /**
@@ -255,15 +255,24 @@ export class TrainingSessionService {
     }
   }
 
+  /**
+   * True only when the mutation sends `scheduledAt` or `location` and the sent
+   * value differs from the locked row. Instants are compared, not ISO strings;
+   * `location` keeps the contract's null normalization (validated input is
+   * already trimmed and never empty).
+   */
   private isRescheduled(
-    before: TrainingSessionEntity,
-    after: TrainingSessionEntity,
+    locked: TrainingSessionEntity,
+    data: UpdateSessionInput,
   ): boolean {
-    return (
-      new Date(before.scheduledAt).getTime() !==
-        new Date(after.scheduledAt).getTime() ||
-      (before.location ?? null) !== (after.location ?? null)
-    );
+    const timeChanged =
+      data.scheduledAt !== undefined &&
+      new Date(data.scheduledAt).getTime() !==
+        new Date(locked.scheduledAt).getTime();
+    const locationChanged =
+      data.location !== undefined &&
+      (data.location ?? null) !== (locked.location ?? null);
+    return timeChanged || locationChanged;
   }
 
   /**

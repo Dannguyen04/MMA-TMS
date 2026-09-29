@@ -1,43 +1,54 @@
 import type { ConfigService } from '@nestjs/config';
 import { z } from 'zod';
-import { NOTIFICATION_CONFIG_DEFAULTS } from './notifications.constant.js';
+import {
+  MAX_TIMER_DELAY_MS,
+  NOTIFICATION_CONFIG_DEFAULTS,
+  NOTIFICATION_CONFIG_MAX,
+  type NotificationConfigKey,
+} from './notifications.constant.js';
 
-type ConfigKey = keyof typeof NOTIFICATION_CONFIG_DEFAULTS;
+const keys = Object.keys(NOTIFICATION_CONFIG_DEFAULTS) as NotificationConfigKey[];
 
-const positiveInt = (fallback: number) =>
-  z.coerce.number().int().positive().default(fallback);
+const boundedInt = (fallback: number, maximum: number) =>
+  z.coerce
+    .number()
+    .int()
+    .positive()
+    // Timer values above the 32-bit limit would silently fire after 1 ms.
+    .max(Math.min(maximum, MAX_TIMER_DELAY_MS))
+    .default(fallback);
 
 const configSchema = z.strictObject(
   Object.fromEntries(
-    Object.entries(NOTIFICATION_CONFIG_DEFAULTS).map(([key, fallback]) => [
+    keys.map((key) => [
       key,
-      positiveInt(fallback),
+      boundedInt(NOTIFICATION_CONFIG_DEFAULTS[key], NOTIFICATION_CONFIG_MAX[key]),
     ]),
-  ) as Record<ConfigKey, ReturnType<typeof positiveInt>>,
+  ) as Record<NotificationConfigKey, ReturnType<typeof boundedInt>>,
 );
 
-export type NotificationsConfig = Readonly<Record<ConfigKey, number>>;
+export type NotificationsConfig = Readonly<Record<NotificationConfigKey, number>>;
 
 /**
  * Reads `NOTIFICATION_<KEY>` values through ConfigService and validates them
- * once at startup; a malformed value fails the boot instead of silently
- * falling back.
+ * once at startup (finite positive integers within `NOTIFICATION_CONFIG_MAX`);
+ * a malformed value fails the boot instead of silently falling back.
  */
 export function loadNotificationsConfig(
   config: ConfigService,
 ): NotificationsConfig {
   const raw = Object.fromEntries(
-    (Object.keys(NOTIFICATION_CONFIG_DEFAULTS) as ConfigKey[]).map((key) => {
+    keys.map((key) => {
       const value = config.get<string>(`NOTIFICATION_${key}`);
       return [key, value === undefined || value === '' ? undefined : value];
     }),
   );
   const parsed = configSchema.safeParse(raw);
   if (!parsed.success) {
-    const keys = parsed.error.issues
+    const invalid = parsed.error.issues
       .map((issue) => `NOTIFICATION_${String(issue.path[0])}`)
       .join(', ');
-    throw new Error(`Invalid notification configuration: ${keys}`);
+    throw new Error(`Invalid notification configuration: ${invalid}`);
   }
   return Object.freeze(parsed.data);
 }

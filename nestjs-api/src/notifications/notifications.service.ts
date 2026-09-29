@@ -1,7 +1,5 @@
 import { createHash } from 'node:crypto';
-import { InjectQueue } from '@nestjs/bullmq';
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import type { Queue } from 'bullmq';
 import type {
   NotificationPublisher,
   NotifyContext,
@@ -10,12 +8,12 @@ import type {
 } from '../shared/contracts/notification.contract.js';
 import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import { NotificationDistributionService } from './notification-distribution.service.js';
+import { NotificationProducer } from './notification-producer.service.js';
 import {
-  NOTIFICATION_JOB,
+  NOTIFICATION_JOB_ID,
   NOTIFICATION_PAYLOAD_VERSION,
   NOTIFICATION_SIGNAL_KIND,
   NOTIFICATIONS_CONFIG,
-  NOTIFICATIONS_QUEUE,
 } from './notifications.constant.js';
 import type { NotificationsConfig } from './notifications.config.js';
 import { notificationNotFound } from './notifications.error.js';
@@ -43,7 +41,7 @@ export class NotificationsService implements NotificationPublisher {
   private readonly logger = new Logger(NotificationsService.name);
 
   constructor(
-    @InjectQueue(NOTIFICATIONS_QUEUE) private readonly queue: Queue,
+    private readonly producer: NotificationProducer,
     private readonly repository: NotificationsRepository,
     private readonly distribution: NotificationDistributionService,
     @Inject(NOTIFICATIONS_CONFIG)
@@ -52,45 +50,48 @@ export class NotificationsService implements NotificationPublisher {
 
   // ── Publisher (shared contract) ───────────────────────────────────────────
 
+  /**
+   * Never throws: normalization, validation and enqueue all sit inside one
+   * error boundary, so a notification problem cannot reach the committed
+   * business response.
+   */
   async notify(
     input: NotifyInput,
     context: NotifyContext = {},
   ): Promise<NotifyResult> {
-    const recipients = [...new Set(input.recipientUserIds)].filter(
-      (userId) => userId !== input.actorUserId,
-    );
-    if (recipients.length === 0) {
-      return { status: 'skipped', reason: 'NO_RECIPIENTS' };
-    }
-
-    const job = this.buildJob(input, recipients, context);
-    if (!job) {
-      this.logFailure(input, 'INVALID_INPUT', context);
-      return { status: 'failed', reason: 'INVALID_INPUT' };
-    }
-
     let timer: NodeJS.Timeout | undefined;
     try {
+      // Canonical recipient set: unique, actor removed, stably sorted.
+      const recipients = [...new Set(input.recipientUserIds)]
+        .filter((userId) => userId !== input.actorUserId)
+        .sort();
+      if (recipients.length === 0) {
+        return { status: 'skipped', reason: 'NO_RECIPIENTS' };
+      }
+
+      const job = this.buildJob(input, recipients, context);
+      if (!job) {
+        this.logFailure(input, 'INVALID_INPUT', context);
+        return { status: 'failed', reason: 'INVALID_INPUT' };
+      }
+
       const timeout = new Promise<typeof ENQUEUE_TIMED_OUT>((resolve) => {
         timer = setTimeout(
           () => resolve(ENQUEUE_TIMED_OUT),
           this.settings.ENQUEUE_TIMEOUT_MS,
         );
       });
-      // The jobId is derived from the event identity, so a second enqueue of
-      // the same event (for example after an ambiguous timeout) is ignored by
-      // BullMQ while the first job is retained.
-      const enqueue = this.queue.add(NOTIFICATION_JOB.DELIVER, job, {
-        jobId: this.jobId(job.dedupeKey),
-        attempts: this.settings.JOB_ATTEMPTS,
-        backoff: { type: 'exponential', delay: this.settings.JOB_BACKOFF_MS },
-        removeOnComplete: { age: this.settings.JOB_KEEP_COMPLETED_SEC },
-        removeOnFail: { age: this.settings.JOB_KEEP_FAILED_SEC },
-      });
-      const outcome = await Promise.race([enqueue, timeout]);
+      // The producer fails fast while Redis is down and bounds each command,
+      // so no pending work outlives this call for long. The race only bounds
+      // the caller's wait on top of that.
+      const outcome = await Promise.race([
+        this.producer.add(job, this.jobId(job)),
+        timeout,
+      ]);
       if (outcome === ENQUEUE_TIMED_OUT) {
-        // Unknown state: Redis may still accept the job later. The dedupe key
-        // keeps a later retry of the same event harmless.
+        // Unknown state: Redis may still have stored the job. A later enqueue
+        // of the same event and recipients maps to the same jobId, and the DB
+        // dedupe index keeps any overlap harmless.
         this.logFailure(input, 'ENQUEUE_TIMEOUT', context);
         return { status: 'failed', reason: 'ENQUEUE_TIMEOUT' };
       }
@@ -118,7 +119,19 @@ export class NotificationsService implements NotificationPublisher {
       });
       return [{ status: 'failed', reason: 'RECIPIENT_RESOLUTION_FAILED' }];
     }
-    return Promise.all(inputs.map((input) => this.notify(input, context)));
+    try {
+      return await Promise.all(
+        inputs.map((input) => this.notify(input, context)),
+      );
+    } catch (error) {
+      // notify() does not throw; this guards a malformed resolver result.
+      this.logger.warn({
+        event: 'notification.dispatch_failed',
+        errorType: error instanceof Error ? error.name : 'Unknown',
+        correlationId: context.correlationId,
+      });
+      return [{ status: 'failed', reason: 'INVALID_INPUT' }];
+    }
   }
 
   // ── Inbox (self-scoped) ───────────────────────────────────────────────────
@@ -201,25 +214,46 @@ export class NotificationsService implements NotificationPublisher {
     return parsed.success ? parsed.data : undefined;
   }
 
-  /** BullMQ custom IDs must not contain ':'; a digest keeps them bounded too. */
-  private jobId(dedupeKey: string): string {
-    return `notification-${createHash('sha256').update(dedupeKey).digest('hex')}`;
+  /**
+   * Deterministic queue identity of one event for one recipient set: the same
+   * event re-sent to the same recipients (in any order, with duplicates) maps
+   * to the same job, while the same event for another set is a new job, so no
+   * recipient is silently dropped. Content is not part of the identity: an
+   * event key stands for immutable content. The structured (JSON array)
+   * serialization avoids delimiter ambiguity; the hex digest keeps the ID
+   * free of ':' and bounded, as BullMQ requires. Re-enqueueing an ID that is
+   * still retained (completed or failed) is ignored by BullMQ and does not
+   * retry a failed job.
+   */
+  private jobId(job: DeliveryJob): string {
+    const identity = JSON.stringify([
+      NOTIFICATION_JOB_ID.IDENTITY_VERSION,
+      job.dedupeKey,
+      job.recipientUserIds,
+    ]);
+    const digest = createHash(NOTIFICATION_JOB_ID.HASH_ALGORITHM)
+      .update(identity)
+      .digest('hex');
+    return `${NOTIFICATION_JOB_ID.PREFIX}-v${NOTIFICATION_JOB_ID.IDENTITY_VERSION}-${digest}`;
   }
 
+  /** Logs identifiers only; must not throw even for a malformed input. */
   private logFailure(
     input: NotifyInput,
     reason: string,
     context: NotifyContext,
     error?: unknown,
   ): void {
+    const recipients: unknown = input?.recipientUserIds;
     this.logger.warn({
       event: 'notification.enqueue_failed',
       reason,
-      type: input.type,
-      dedupeKey: input.dedupeKey,
-      recipientCount: input.recipientUserIds.length,
+      type: typeof input?.type === 'string' ? input.type : undefined,
+      dedupeKey:
+        typeof input?.dedupeKey === 'string' ? input.dedupeKey : undefined,
+      recipientCount: Array.isArray(recipients) ? recipients.length : undefined,
       errorType: error instanceof Error ? error.name : undefined,
-      correlationId: context.correlationId,
+      correlationId: context?.correlationId,
     });
   }
 

@@ -364,7 +364,9 @@ Mọi route chỉ đọc/sửa hộp của chính token; không có tham số us
 | `notification.read` | `{ notificationId }` | Tab/thiết bị khác đã đọc; cập nhật trạng thái và count |
 | `resync` | `{}` | Server có thể đã lỡ signal; tải lại list + count |
 | `heartbeat` | `{}` | Giữ kết nối; không cần xử lý |
-| `closing` | `{ reason }` | Server đóng stream: `TOKEN_EXPIRED`, `AUTH_REVOKED`, `LIFETIME_REACHED`, `SLOW_CONSUMER`, `SERVER_SHUTDOWN` |
+| `closing` | `{ reason }` | Server đóng stream có trật tự: `TOKEN_EXPIRED`, `AUTH_REVOKED`, `LIFETIME_REACHED`, `SERVER_SHUTDOWN` |
+
+Client đọc chậm (buffer vượt giới hạn) hoặc lỗi socket bị server **cắt ngay, không có event `closing`**; xử lý như mất kết nối: reconnect có backoff rồi tải lại từ REST. `resync` chỉ được gửi sau khi server đăng ký lại kênh realtime thành công, tối đa một lần cho mỗi lần đăng ký lại.
 
 Quy tắc đồng bộ:
 

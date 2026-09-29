@@ -15,6 +15,7 @@ import { authenticationRequired } from '../shared/errors/access.error.js';
 import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import { NotificationDistributionService } from './notification-distribution.service.js';
 import {
+  MAX_TIMER_DELAY_MS,
   NOTIFICATION_SIGNAL_KIND,
   NOTIFICATION_STREAM_CLOSE_REASON,
   NOTIFICATION_STREAM_EVENT,
@@ -28,8 +29,8 @@ import {
 } from './notifications.error.js';
 import type { NotificationSignal } from './notifications.model.js';
 
-/** setTimeout stores its delay as a signed 32-bit integer. */
-const MAX_TIMER_DELAY_MS = 2_147_483_647;
+/** Frame prefix of the only event still written while a stream is closing. */
+const CLOSING_FRAME_PREFIX = `event: ${NOTIFICATION_STREAM_EVENT.CLOSING}\ndata: `;
 
 type StreamEvent =
   (typeof NOTIFICATION_STREAM_EVENT)[keyof typeof NOTIFICATION_STREAM_EVENT];
@@ -108,15 +109,23 @@ export class NotificationStreamService implements OnModuleInit, OnModuleDestroy 
       throw authenticationRequired();
     }
     this.assertBelowConnectionLimit(user.id);
-    if (
-      !(await this.distribution.waitUntilSubscribed(
+    // Abort the wait (and drop its listener) as soon as the client leaves.
+    const clientGone = new AbortController();
+    const onEarlyClose = () => clientGone.abort();
+    response.once('close', onEarlyClose);
+    let live: boolean;
+    try {
+      live = await this.distribution.waitUntilSubscribed(
         this.settings.SSE_SUBSCRIBE_TIMEOUT_MS,
-      ))
-    ) {
-      throw notificationStreamUnavailable();
+        clientGone.signal,
+      );
+    } finally {
+      response.off('close', onEarlyClose);
     }
     // The client left while the subscription was awaited: nothing to open.
-    if (request.socket.destroyed || response.writableEnded) return;
+    if (clientGone.signal.aborted || request.socket.destroyed) return;
+    if (response.writableEnded) return;
+    if (!live) throw notificationStreamUnavailable();
     // Re-checked after the wait so concurrent opens cannot exceed the limit.
     this.assertBelowConnectionLimit(user.id);
 
@@ -135,72 +144,136 @@ export class NotificationStreamService implements OnModuleInit, OnModuleDestroy 
     // Disables response buffering in nginx-compatible proxies.
     response.setHeader('X-Accel-Buffering', 'no');
     response.flushHeaders();
-    response.write(`retry: ${this.settings.SSE_RETRY_MS}\n\n`);
 
     const timers: NodeJS.Timeout[] = [];
-    let closed = false;
+    // open → closing (graceful end in progress) → closed (transport gone).
+    let state: 'open' | 'closing' | 'closed' = 'open';
+
+    /** Releases everything this connection owns; idempotent. */
+    const release = () => {
+      if (state === 'closed') return;
+      state = 'closed';
+      timers.forEach((timer) => clearTimeout(timer));
+      timers.length = 0;
+      response.off('close', release);
+      this.unregister(connection);
+    };
+
+    /**
+     * Hard teardown for an unhealthy transport (slow consumer, write error):
+     * nothing more is written and buffered data is discarded, so the socket
+     * is freed immediately instead of waiting for a flush that may never come.
+     */
+    const terminate = (reason: NotificationStreamCloseReason) => {
+      if (state === 'closed') return;
+      this.logger.warn({ event: 'notification.stream_terminated', reason });
+      release();
+      response.destroy();
+    };
+
+    /** The single write path: bounded by the buffer limit, never throws. */
+    const write = (frame: string): boolean => {
+      if (state !== 'open' && !frame.startsWith(CLOSING_FRAME_PREFIX)) {
+        return false;
+      }
+      if (response.destroyed || response.writableEnded) {
+        release();
+        return false;
+      }
+      if (response.writableLength > this.settings.SSE_MAX_BUFFERED_BYTES) {
+        terminate(NOTIFICATION_STREAM_CLOSE_REASON.SLOW_CONSUMER);
+        return false;
+      }
+      try {
+        response.write(frame);
+        return true;
+      } catch {
+        terminate(NOTIFICATION_STREAM_CLOSE_REASON.TRANSPORT_ERROR);
+        return false;
+      }
+    };
+
     const connection: StreamConnection = {
       id: randomUUID(),
       userId: user.id,
       send: (event, data) => {
-        if (closed) return;
-        if (response.writableLength > this.settings.SSE_MAX_BUFFERED_BYTES) {
-          connection.close(NOTIFICATION_STREAM_CLOSE_REASON.SLOW_CONSUMER);
-          return;
-        }
-        response.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+        if (state !== 'open') return;
+        write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
       },
       close: (reason) => {
-        if (closed) return;
-        if (response.writableLength <= this.settings.SSE_MAX_BUFFERED_BYTES) {
-          response.write(
-            `event: ${NOTIFICATION_STREAM_EVENT.CLOSING}\ndata: ${JSON.stringify({ reason })}\n\n`,
-          );
+        if (state !== 'open') return;
+        state = 'closing';
+        timers.forEach((timer) => clearTimeout(timer));
+        timers.length = 0;
+        // Graceful only for a healthy transport; an unhealthy one is destroyed
+        // by write(). The connection stays counted until the transport is
+        // really closed, and a flush that does not finish is forced down.
+        if (
+          !write(
+            `${CLOSING_FRAME_PREFIX}${JSON.stringify({ reason })}\n\n`,
+          )
+        ) {
+          return;
         }
-        cleanup();
-        response.end();
+        const grace = setTimeout(() => {
+          if (state !== 'closed') terminate(reason);
+        }, this.settings.SSE_CLOSE_GRACE_MS);
+        grace.unref();
+        response.once('close', () => clearTimeout(grace));
+        try {
+          response.end();
+        } catch {
+          terminate(NOTIFICATION_STREAM_CLOSE_REASON.TRANSPORT_ERROR);
+        }
       },
     };
-    const cleanup = () => {
-      if (closed) return;
-      closed = true;
-      timers.forEach((timer) => clearTimeout(timer));
-      this.unregister(connection);
-    };
 
-    // The response (not the request) closes when the client goes away.
-    response.on('close', cleanup);
-    response.on('error', cleanup);
+    // The response (not the request) closes when the client goes away, after
+    // a graceful end has flushed, or after destroy().
+    response.on('close', release);
+    response.on('error', () =>
+      terminate(NOTIFICATION_STREAM_CLOSE_REASON.TRANSPORT_ERROR),
+    );
     this.register(connection);
 
+    // Timer callbacks must never throw into the event loop.
+    const guarded = (work: () => void) => () => {
+      try {
+        work();
+      } catch {
+        terminate(NOTIFICATION_STREAM_CLOSE_REASON.TRANSPORT_ERROR);
+      }
+    };
     const schedule = (timer: NodeJS.Timeout) => {
       timer.unref();
       timers.push(timer);
     };
     schedule(
       setInterval(
-        () => connection.send(NOTIFICATION_STREAM_EVENT.HEARTBEAT, {}),
+        guarded(() => connection.send(NOTIFICATION_STREAM_EVENT.HEARTBEAT, {})),
         this.settings.SSE_HEARTBEAT_MS,
       ),
     );
     schedule(
       setInterval(
-        () => void this.revalidate(connection, accessToken),
+        guarded(() => void this.revalidate(connection, accessToken)),
         this.settings.SSE_REVALIDATE_MS,
       ),
     );
     schedule(
       setTimeout(
-        () =>
+        guarded(() =>
           connection.close(
             closesAtExpiry
               ? NOTIFICATION_STREAM_CLOSE_REASON.TOKEN_EXPIRED
               : NOTIFICATION_STREAM_CLOSE_REASON.LIFETIME_REACHED,
           ),
+        ),
         lifetimeMs,
       ),
     );
 
+    write(`retry: ${this.settings.SSE_RETRY_MS}\n\n`);
     connection.send(NOTIFICATION_STREAM_EVENT.READY, {
       connectionId: connection.id,
     });
@@ -244,8 +317,9 @@ export class NotificationStreamService implements OnModuleInit, OnModuleDestroy 
   }
 
   private broadcastResync(): void {
-    for (const set of this.connections.values()) {
-      for (const connection of set) {
+    // Copy first: a send may terminate (and unregister) a slow connection.
+    for (const set of [...this.connections.values()]) {
+      for (const connection of [...set]) {
         connection.send(NOTIFICATION_STREAM_EVENT.RESYNC, {});
       }
     }
@@ -258,14 +332,10 @@ export class NotificationStreamService implements OnModuleInit, OnModuleDestroy 
   ): void {
     const set = this.connections.get(userId);
     if (!set) return;
-    // Copy first: a send may close (and unregister) a slow connection.
+    // Copy first: a send may terminate (and unregister) a slow connection.
+    // send() never throws; its write path handles transport failures.
     for (const connection of [...set]) {
-      try {
-        connection.send(event, data);
-      } catch {
-        this.logger.warn('Closing a notification stream after a write error');
-        connection.close(NOTIFICATION_STREAM_CLOSE_REASON.SLOW_CONSUMER);
-      }
+      connection.send(event, data);
     }
   }
 
