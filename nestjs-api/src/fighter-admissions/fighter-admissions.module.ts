@@ -1,6 +1,7 @@
 import { forwardRef, Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module.js';
 import { DatabaseModule } from '../database/database.module.js';
+import { NotificationsModule } from '../notifications/notifications.module.js';
 import { ADMISSION_ACTIVATION_PORT } from '../shared/contracts/admission-activation.contract.js';
 import { UsersModule } from '../users/users.module.js';
 import {

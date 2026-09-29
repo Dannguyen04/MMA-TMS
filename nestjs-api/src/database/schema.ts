@@ -287,6 +287,20 @@ export const notificationTypeEnum = pgEnum('notification_type', [
   'VIDEO_PROCESSED',
   'SYSTEM',
   'JOINT_IMPAIRMENT_CONFIRMED',
+  // 014: approved Admission (A1-A6) and Training (T1-T4) triggers.
+  'ADMISSION_APPLICATION_SUBMITTED',
+  'ADMISSION_ASSESSMENT_ASSIGNED',
+  'ADMISSION_ASSESSMENT_UNASSIGNED',
+  'ADMISSION_DECISION_REQUIRED',
+  'ADMISSION_ASSESSMENT_RESULT',
+  'ADMISSION_DECISION_RECORDED',
+  'ADMISSION_ACTIVATION_COMPLETED',
+  'COACH_ASSIGNMENT_STARTED',
+  'COACH_ASSIGNMENT_ENDED',
+  'TRAINING_PLAN_ACTIVATED',
+  'TRAINING_SESSION_SCHEDULED',
+  'TRAINING_SESSION_RESCHEDULED',
+  'TRAINING_SESSION_CANCELLED',
 ]);
 
 // ─── Task 14 Enums ────────────────────────────────────────────────────────────
@@ -2681,6 +2695,7 @@ export const notifications = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .default(sql.raw('now()')),
+    dedupeKey: text('dedupe_key'),
   },
   (t): PgTableExtraConfigValue[] => [
     check(
@@ -2704,6 +2719,21 @@ export const notifications = pgTable(
     index('idx_notifications_user_unread')
       .using('btree', t.userId, t.createdAt)
       .where(sql.raw('(is_read = false)')),
+    check(
+      'ck_notification_dedupe_key',
+      sql.raw(
+        '((dedupe_key IS NULL) OR ((length(dedupe_key) >= 1) AND (length(dedupe_key) <= 300)))',
+      ),
+    ),
+    uniqueIndex('uq_notifications_user_dedupe')
+      .using('btree', t.userId, t.dedupeKey)
+      .where(sql.raw('(dedupe_key IS NOT NULL)')),
+    index('idx_notifications_user_created').using(
+      'btree',
+      t.userId,
+      t.createdAt.desc(),
+      t.id.desc(),
+    ),
   ],
 ).enableRLS();
 

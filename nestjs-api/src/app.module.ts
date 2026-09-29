@@ -15,36 +15,23 @@ import { AuthorizationModule } from './authorization/authorization.module.js';
 import { CoachesModule } from './coaches/coaches.module.js';
 import { MedicalModule } from './medical/medical.module.js';
 import { CoachingModule } from './coaching/coaching.module.js';
+import { NotificationsModule } from './notifications/notifications.module.js';
+import { resolveRedisConnection } from './shared/config/redis.config.js';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     BullModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => {
-        const redisUrl = config.get<string>('REDIS_URL');
-        if (redisUrl) {
-          const isTls = redisUrl.startsWith('rediss://');
-          return {
-            connection: {
-              url: redisUrl,
-              tls: isTls ? { rejectUnauthorized: false } : undefined,
-              maxRetriesPerRequest: null,
-            },
-          };
-        }
-
-        return {
-          connection: {
-            host: config.get('REDIS_HOST', 'localhost'),
-            port: config.get<number>('REDIS_PORT', 6379),
-            password: config.get('REDIS_PASSWORD') || undefined,
-            maxRetriesPerRequest: null,
-          },
-        };
-      },
+      useFactory: (config: ConfigService) => ({
+        connection: {
+          ...resolveRedisConnection(config),
+          maxRetriesPerRequest: null,
+        },
+      }),
     }),
     DatabaseModule,
+    NotificationsModule,
     UsersModule,
     AuthModule,
     FightersModule,
