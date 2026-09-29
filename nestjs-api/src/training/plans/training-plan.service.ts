@@ -1,4 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import {
+  NOTIFICATION_PUBLISHER,
+  NOTIFICATION_TARGET,
+  NOTIFICATION_TYPE,
+  type NotificationPublisher,
+} from '../../shared/contracts/notification.contract.js';
 import { TrainingRepository } from '../training.repo.js';
 import { TrainingAccessService } from '../training-access.service.js';
 import {
@@ -15,18 +21,24 @@ import type {
   CreatePlanExerciseInput,
   UpdatePlanExerciseInput,
   ListPlansQuery,
+  TrainingPlanEntity,
   TrainingPlanStatusType,
 } from '../training.model.js';
 import type { AuthenticatedUser } from '../../shared/models/auth-context.model.js';
 import { USER } from '../../shared/types/user.role.js';
 import { forbidden } from '../../shared/errors/access.error.js';
-import { FORBIDDEN_PLAN_TRANSITIONS } from '../training.constants.js';
+import {
+  FORBIDDEN_PLAN_TRANSITIONS,
+  TRAINING_NOTIFICATION_TEXT,
+} from '../training.constants.js';
 
 @Injectable()
 export class TrainingPlanService {
   constructor(
     private readonly repo: TrainingRepository,
     private readonly access: TrainingAccessService,
+    @Inject(NOTIFICATION_PUBLISHER)
+    private readonly notifications: NotificationPublisher,
   ) {}
 
   async listPlans(actor: AuthenticatedUser, query: ListPlansQuery) {
@@ -123,6 +135,8 @@ export class TrainingPlanService {
     newStatus: TrainingPlanStatusType,
   ) {
     this.access.assertTrainingWriteAllowed(actor);
+    let previousStatus: TrainingPlanStatusType;
+    let updated: TrainingPlanEntity;
     try {
       const existing = await this.repo.findPlanById(id);
       if (!existing) throw planNotFound();
@@ -134,18 +148,47 @@ export class TrainingPlanService {
         throw invalidPlanStatusTransition(existing.status, newStatus);
       }
 
-      const updated = await this.repo.updatePlanStatus(
+      const result = await this.repo.updatePlanStatus(
         id,
         existing.status,
         newStatus,
       );
-      if (!updated) {
+      if (!result) {
         throw planStateConflict();
       }
-      return updated;
+      previousStatus = existing.status;
+      updated = result;
     } catch (error) {
       throw mapTrainingPersistenceError(error);
     }
+
+    // T2: only a real transition into ACTIVE (never a same-status request or
+    // a DRAFT save). The conditional update above already committed.
+    if (previousStatus !== 'ACTIVE' && updated.status === 'ACTIVE') {
+      await this.notifyPlanActivated(actor, updated);
+    }
+    return updated;
+  }
+
+  private notifyPlanActivated(
+    actor: AuthenticatedUser,
+    plan: TrainingPlanEntity,
+  ) {
+    return this.notifications.notifyResolved(async () => [
+      {
+        recipientUserIds: await this.repo.findParticipantUserIds(
+          plan.fighterId,
+          null,
+        ),
+        actorUserId: actor.id,
+        type: NOTIFICATION_TYPE.TRAINING_PLAN_ACTIVATED,
+        ...TRAINING_NOTIFICATION_TEXT.PLAN_ACTIVATED,
+        target: { type: NOTIFICATION_TARGET.TRAINING_PLAN, id: plan.id },
+        // updatedAt is the revision written by this transition, so a later
+        // re-activation is a distinct event.
+        dedupeKey: `plan:${plan.id}:activated:${plan.updatedAt}`,
+      },
+    ]);
   }
 
   // --- Plan Exercises ---

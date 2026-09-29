@@ -1,4 +1,29 @@
-# Migrations 003–012 — Backend, Database & API Permissions
+# Migrations 003–014 — Backend, Database & API Permissions
+
+## Áp dụng migration 014 (Notification delivery)
+
+014 yêu cầu ledger đã có version 13. Nội dung:
+
+- Thêm 13 giá trị `notification_type` cho trigger Admission A1–A6 và Training
+  T1–T4 (xem Master Specification §05.12). Không rename/drop giá trị cũ; giá
+  trị mới không được dùng làm literal trong cùng transaction.
+- Cột `notifications.dedupe_key TEXT` nullable (record trước 014 giữ NULL và
+  vẫn đọc được), check độ dài 1–300.
+- Unique partial index `uq_notifications_user_dedupe (user_id, dedupe_key)
+  WHERE dedupe_key IS NOT NULL`: worker insert `ON CONFLICT DO NOTHING` rồi đọc
+  lại, nên retry/race không tạo record trùng, không reset `is_read/read_at`.
+- Index danh sách `idx_notifications_user_created (user_id, created_at DESC, id
+  DESC)`; index unread của 003 giữ nguyên.
+- Không đổi RLS/grant (bảng chỉ backend truy cập), FK, check đọc/payload.
+
+```sh
+pnpm db:check
+pnpm db:migrate:014
+```
+
+Chưa chạy `pnpm db:check`, `pnpm test:db` hay catalog comparison cho 014; chưa
+áp dụng lên database nào. Drizzle mapping (`schema.ts`) đã cập nhật cột, check,
+hai index và enum.
 
 ## Chính sách Medical clinical — thay thế ngày 2026-09-27 (D1–D9)
 

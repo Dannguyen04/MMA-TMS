@@ -586,6 +586,19 @@ export class FightersRepository {
     };
   }
 
+  /** Account user of a coach profile, whatever its state (notification recipient). */
+  async findCoachUserId(
+    coachId: string,
+    database: DatabaseExecutor = this.db,
+  ): Promise<string | undefined> {
+    const [row] = await database
+      .select({ userId: coaches.userId })
+      .from(coaches)
+      .where(eq(coaches.id, coachId))
+      .limit(1);
+    return row?.userId;
+  }
+
   async findCoachById(coachId: string, database: DatabaseExecutor = this.db) {
     const [row] = await database
       .select()

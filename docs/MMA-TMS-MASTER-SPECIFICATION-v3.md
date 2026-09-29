@@ -2,10 +2,11 @@
 
 > **Single Source of Truth** cho sản phẩm, requirements, domain, AI, UX/UI và technical architecture của MMA-TMS.
 
-**Version:** 3.3\
+**Version:** 3.4\
 **Status:** Active Specification — Academic Hardening  
 **Project:** MMA-TMS — MMA Training & Movement Analysis System  
-**Supersedes:** v3.2, v3.1, v3.0, v2.0 (Active Specification)\
+**Supersedes:** v3.3, v3.2, v3.1, v3.0, v2.0 (Active Specification)\
+**Changes from v3.3:** Notification module — hộp thông báo cá nhân, SSE realtime, trigger Admission A1–A6 và Training T1–T4 ngày 2026-09-29. Xem §05.12 và Section 27.\
 **Changes from v3.2:** Medical clinical module — ma trận READ/WRITE D1–D9 ngày 2026-09-27 thay thế policy assigned-Doctor-only-read của v3.2 cho dữ liệu clinical; kết luận khám tách khỏi clearance; yêu cầu khám thủ công chặn bắt đầu Training; bệnh án không xóa, có lịch sử phiên bản. Xem §05.10.1 và Section 27.\
 **Changes from v3.1:** Chính sách Medical/measurements chỉ dành cho assigned Doctor — đã duyệt ngày 2026-09-25, chưa triển khai; xem §05.10.1 và Section 27.\
 **Changes from v3.0:** Fighter Admissions policy (GUEST role, admission workflow, activation qua password recovery) — xem Section 27 (Change Log)  
@@ -968,6 +969,36 @@ Audit logs phải immutable (append-only, không được xóa).
 Retention: tối thiểu 1 năm.
 ```
 
+## 05.12 Notifications
+
+Quyết định chủ dự án ngày 2026-09-29: phạm vi lần đầu gồm module dùng chung và trigger Admission A1–A6, Training T1–T4. Medical (M1–M5), nhắc lịch/clearance sắp hết hạn, cảnh báo AI và broadcast **chưa** thuộc phạm vi.
+
+| ID            | Requirement |
+| ------------- | ----------- |
+| FR-NOTIF-001  | Mỗi người nhận có một record thông báo riêng trong `notifications`; trạng thái đọc độc lập giữa các người nhận. |
+| FR-NOTIF-002  | Mọi user đã xác thực (kể cả GUEST) chỉ xem, đếm chưa đọc, đánh dấu đã đọc và nhận stream của **chính mình**; không route nào nhận userId, kể cả với Admin. Không có API tạo/gửi/broadcast công khai. |
+| FR-NOTIF-003  | Thông báo chỉ được yêu cầu sau khi thao tác nghiệp vụ đã COMMIT; lỗi xếp hàng/xử lý thông báo không rollback và không đổi response nghiệp vụ. No-op/same-status/replay không tạo thông báo. |
+| FR-NOTIF-004  | Mỗi lần phát sinh sự kiện có dedupe key ổn định; retry hoặc chạy đồng thời không tạo record trùng và không reset trạng thái đọc. |
+| FR-NOTIF-005  | Realtime qua Server-Sent Events với Bearer header; PostgreSQL là hộp thông báo cho client offline. Không hứa exactly-once, thứ tự, hay replay; client đồng bộ lại từ REST. |
+| FR-NOTIF-006  | Người gây ra sự kiện không nhận thông báo của chính sự kiện đó. Nội dung chỉ chứa tối thiểu; thông báo kết thúc assignment không trỏ tới dữ liệu người nhận đã mất quyền đọc; không chứa ghi chú staff, lý do quyết định hay dữ liệu clinical. |
+
+Trigger đã triển khai:
+
+| ID | Sự kiện | Người nhận |
+| --- | --- | --- |
+| A1 | Guest nộp hồ sơ | Mọi ADMIN đang hoạt động |
+| A2 | Admin phân công/đổi Coach đánh giá (khác Coach hiện tại) | Coach mới; Coach cũ nhận nhắc bàn giao tối thiểu |
+| A3 | Coach nộp PASS | Ứng viên (chờ quyết định, chưa kích hoạt) + mọi ADMIN đang hoạt động |
+| A4 | Coach nộp FAIL | Ứng viên (lần nộp kết thúc, có thể nộp lại) |
+| A5 | Admin APPROVED/REJECTED | Ứng viên; APPROVED hướng dẫn recovery/activation, không khẳng định email đã tới hộp thư |
+| A6 | Activation hoàn tất lần đầu | ADMIN có effective permission `fighter.coach:assign` |
+| T1 | Tạo/kết thúc `coach_fighters` | Coach và Fighter liên quan |
+| T2 | Plan chuyển thực sự sang ACTIVE | Fighter của plan |
+| T3 | Tạo buổi tập | Fighter + Coach gắn trên session (nếu có) |
+| T4 | Đổi thực sự giờ/địa điểm hoặc hủy buổi tập | Fighter + Coach gắn trên session (nếu có); PATCH ghi chú/RPE/tiêu đề/loại không phát |
+
+Giới hạn đã chấp nhận: khoảng trống giữa commit và enqueue (process chết, Redis lỗi hoặc timeout) có thể làm thiếu thông báo; không có transactional outbox hay reconciliation job. Đã đọc thông báo không có nghĩa việc nghiệp vụ đã được xử lý.
+
 ---
 
 # 06. CORE USER FLOWS
@@ -1903,7 +1934,8 @@ scoring_versions     (id, version, technique_type, criteria JSON,
                       weights JSON, released_at, deprecated_at)
 audit_logs           (id, event_type, user_id FK, target_type, target_id,
                       details JSON, ip_address, user_agent, created_at)
-notifications        (id, user_id FK, type, title, body, read, created_at)
+notifications        (id, user_id FK, type, title, message, payload JSON,
+                      is_read, read_at, created_at, dedupe_key)
 ```
 
 ## 13.3 Access Control Matrix
@@ -2732,6 +2764,7 @@ FR-COMPARE-xxx  Comparison features
 FR-MED-xxx      Medical / ROM / Asymmetry
 FR-REHAB-xxx    Rehabilitation tracking
 FR-ADMIN-xxx    Administration
+FR-NOTIF-xxx    Notifications (inbox, realtime, triggers)
 
 NFR-PERF-xxx    Performance non-functional
 NFR-SEC-xxx     Security non-functional
@@ -2816,6 +2849,15 @@ The system must always answer:
 ---
 
 # 27. CHANGE LOG
+
+## v3.4 (2026-09-29)
+
+**Notification module — phạm vi được chủ dự án chọn: module dùng chung, Admission A1–A6, Training T1–T4.**
+
+- Thêm §05.12 với FR-NOTIF-001…006, bảng trigger đã triển khai và giới hạn đã chấp nhận; thêm prefix `FR-NOTIF-xxx` vào Section 23; cập nhật cột `notifications` ở §13.2.
+- Backend: module `notifications` (REST inbox tự-scope, SSE `GET /notifications/stream`, BullMQ worker, Redis Pub/Sub fan-out), migration `014_notifications_delivery.sql` (`dedupe_key`, unique `(user_id, dedupe_key)`, index danh sách, 13 giá trị `notification_type`).
+- Enqueue sau commit; khoảng trống commit→enqueue có thể làm thiếu thông báo (chấp nhận, không outbox). Retry không chứng minh đã giao; không replay/Last-Event-ID.
+- Chưa build, chưa chạy tests, chưa áp dụng 014 lên database, chưa deploy. FE/mobile chưa tích hợp. Medical M1–M5 và nhắc lịch chưa làm.
 
 ## v3.3 (2026-09-27)
 

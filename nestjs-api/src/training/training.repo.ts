@@ -305,6 +305,32 @@ export class TrainingRepository implements ITrainingRepository {
     return row !== undefined;
   }
 
+  /**
+   * Account user IDs behind a Fighter and an optional Coach profile, used as
+   * notification recipients after a committed write.
+   */
+  async findParticipantUserIds(
+    fighterId: string,
+    coachId: string | null,
+    database: DatabaseExecutor = this.db,
+  ): Promise<string[]> {
+    const [fighterRows, coachRows] = await Promise.all([
+      database
+        .select({ userId: fighters.userId })
+        .from(fighters)
+        .where(eq(fighters.id, fighterId))
+        .limit(1),
+      coachId
+        ? database
+            .select({ userId: coaches.userId })
+            .from(coaches)
+            .where(eq(coaches.id, coachId))
+            .limit(1)
+        : Promise.resolve([]),
+    ]);
+    return [...fighterRows, ...coachRows].map((row) => row.userId);
+  }
+
   // --- Training Plans ---
 
   async findPlans(

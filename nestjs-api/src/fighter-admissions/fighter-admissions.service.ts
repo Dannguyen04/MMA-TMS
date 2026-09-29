@@ -267,63 +267,63 @@ export class FighterAdmissionsService implements AdmissionActivationPort {
     try {
       const change = await this.repository.transaction(
         async (transaction): Promise<AssignmentChange | undefined> => {
-        await setAuditContext(actor.authSubject, requestId, transaction);
-        const application = await this.repository.lockApplication(
-          applicationId,
-          transaction,
-        );
-        if (!application) throw applicationNotFound();
-        if (application.status !== APPLICATION_STATUS.SUBMITTED) {
-          throw applicationStateConflict();
-        }
-        if (
-          await this.repository.findAssessmentByApplication(
+          await setAuditContext(actor.authSubject, requestId, transaction);
+          const application = await this.repository.lockApplication(
             applicationId,
-            transaction,
-          )
-        ) {
-          throw assignmentLockedByAssessment();
-        }
-        if (
-          !(await this.repository.findActiveCoachById(
-            input.coachId,
-            transaction,
-          ))
-        ) {
-          throw coachNotAssignable();
-        }
-
-        const open = await this.repository.findOpenAssignment(
-          applicationId,
-          transaction,
-        );
-        if (open?.coachId === input.coachId) return undefined;
-        if (open) {
-          const reason = input.reassignmentReason?.trim();
-          if (!reason) throw reassignmentReasonRequired();
-          const closed = await this.repository.closeOpenAssignment(
-            applicationId,
-            { endedById: actor.id, endReason: reason },
             transaction,
           );
-          if (!closed) throw applicationStateConflict();
-        }
+          if (!application) throw applicationNotFound();
+          if (application.status !== APPLICATION_STATUS.SUBMITTED) {
+            throw applicationStateConflict();
+          }
+          if (
+            await this.repository.findAssessmentByApplication(
+              applicationId,
+              transaction,
+            )
+          ) {
+            throw assignmentLockedByAssessment();
+          }
+          if (
+            !(await this.repository.findActiveCoachById(
+              input.coachId,
+              transaction,
+            ))
+          ) {
+            throw coachNotAssignable();
+          }
 
-        const assignment = await this.repository.insertAssignment(
-          {
+          const open = await this.repository.findOpenAssignment(
             applicationId,
+            transaction,
+          );
+          if (open?.coachId === input.coachId) return undefined;
+          if (open) {
+            const reason = input.reassignmentReason?.trim();
+            if (!reason) throw reassignmentReasonRequired();
+            const closed = await this.repository.closeOpenAssignment(
+              applicationId,
+              { endedById: actor.id, endReason: reason },
+              transaction,
+            );
+            if (!closed) throw applicationStateConflict();
+          }
+
+          const assignment = await this.repository.insertAssignment(
+            {
+              applicationId,
+              coachId: input.coachId,
+              assignedById: actor.id,
+            },
+            transaction,
+          );
+          return {
+            assignmentId: assignment.id,
             coachId: input.coachId,
-            assignedById: actor.id,
-          },
-          transaction,
-        );
-        return {
-          assignmentId: assignment.id,
-          coachId: input.coachId,
-          previous: open
-            ? { assignmentId: open.id, coachId: open.coachId }
-            : undefined,
-        };
+            previous: open
+              ? { assignmentId: open.id, coachId: open.coachId }
+              : undefined,
+          };
         },
       );
       // A same-Coach request changes nothing and notifies nobody.

@@ -119,6 +119,65 @@ and an approved admission records the send attempt with `accepted = false`.
 
 Tokens and passwords are never logged by the backend.
 
+## Notifications
+
+Module `src/notifications` (spec §05.12, FR-NOTIF-001…006). Status: code on
+branch `User_Feature`; not built or tested, migration 014 not applied, not
+deployed.
+
+- **Flow:** business service commits → injects `NOTIFICATION_PUBLISHER`
+  (`src/shared/contracts/notification.contract.ts`) and calls `notify` /
+  `notifyResolved` → BullMQ queue `notifications` → worker stores one row per
+  recipient (dedupe on `(user_id, dedupe_key)`) → Redis Pub/Sub channel
+  `mma-tms:notifications:signals` → every API instance routes the signal to its
+  local SSE connections.
+- **Guarantees and limits:** notifications are requested only after commit and
+  never fail the business response. A crash, Redis outage or enqueue timeout
+  between commit and enqueue can lose a notification (accepted; no outbox or
+  reconciliation job). `queued` means only that Redis accepted the job; retry
+  does not prove delivery; there is no exactly-once delivery, ordering or
+  `Last-Event-ID` replay. Offline users read the inbox from PostgreSQL.
+- **Endpoints:** `GET /notifications`, `GET /notifications/unread-count`,
+  `PATCH /notifications/:id/read`, `GET /notifications/stream` (SSE, Bearer
+  header, no JSON envelope). All are self-scoped; there is no send endpoint.
+  Frontend contract: `docs/FE-FIGHTER-COACH-FLOWS.md` §12.
+- **Adding a trigger:** import `NotificationsModule`, inject
+  `NOTIFICATION_PUBLISHER`, call it after the transaction commits with a stable
+  `dedupeKey` taken from the mutation (row ID or written revision), and put the
+  texts in the owning module's constants file. Add new types to the contract
+  and to `notification_type` through a new migration.
+
+Optional environment variables (defaults in `notifications.constant.ts`,
+positive integers, validated at startup):
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `NOTIFICATION_ENQUEUE_TIMEOUT_MS` | 2000 | Max wait for Redis to accept a job before reporting `failed` |
+| `NOTIFICATION_JOB_ATTEMPTS` | 5 | Worker attempts per job |
+| `NOTIFICATION_JOB_BACKOFF_MS` | 2000 | Exponential backoff base |
+| `NOTIFICATION_WORKER_CONCURRENCY` | 5 | Jobs processed in parallel per instance |
+| `NOTIFICATION_JOB_KEEP_COMPLETED_SEC` | 86400 | Completed job retention (also the jobId dedupe window) |
+| `NOTIFICATION_JOB_KEEP_FAILED_SEC` | 604800 | Failed job retention for inspection/re-run |
+| `NOTIFICATION_PUBLISH_TIMEOUT_MS` | 2000 | Pub/Sub publish command timeout |
+| `NOTIFICATION_SSE_HEARTBEAT_MS` | 25000 | Heartbeat event interval |
+| `NOTIFICATION_SSE_REVALIDATE_MS` | 300000 | Token/account re-check interval for open streams |
+| `NOTIFICATION_SSE_MAX_LIFETIME_MS` | 3600000 | Max stream lifetime (also capped by token `exp`) |
+| `NOTIFICATION_SSE_MAX_CONNECTIONS_PER_USER` | 5 | Per user, per API instance |
+| `NOTIFICATION_SSE_MAX_BUFFERED_BYTES` | 65536 | Unsent bytes before a slow client is disconnected |
+| `NOTIFICATION_SSE_SUBSCRIBE_TIMEOUT_MS` | 3000 | Wait for the Pub/Sub subscription before answering 503 |
+| `NOTIFICATION_SSE_RETRY_MS` | 5000 | `retry:` hint sent to clients |
+
+Redis connection settings (`REDIS_URL` or `REDIS_HOST`/`REDIS_PORT`/
+`REDIS_PASSWORD`) are shared with the root BullMQ config through
+`src/shared/config/redis.config.ts`.
+
+**Proxy/hosting for SSE:** disable response buffering and compression for
+`/notifications/stream` (the API sends `X-Accel-Buffering: no` and
+`Cache-Control: no-cache, no-transform`), keep idle/read timeouts above the
+heartbeat interval, and do not cache the route. Failed jobs stay in the
+`notifications` queue for `NOTIFICATION_JOB_KEEP_FAILED_SEC` and can be
+inspected or retried with BullMQ tooling; there is no admin retry API.
+
 ## Deployment
 
 When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.

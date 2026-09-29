@@ -332,3 +332,46 @@ Khi lỗi 409 có `error.code = TRAINING_MEDICAL_ELIGIBILITY_REQUIRED`, đọc `
 Giữ trạng thái session theo server khi mutation bị từ chối, không optimistic chuyển sang `IN_PROGRESS`; refetch session, dossier và yêu cầu khám để hiện thông tin mới. Tạo yêu cầu khám hay thu hồi giấy không tự đổi một session đang chạy thành `ABANDONED`: code hiện chặn tại các thao tác nêu trên, không tự dừng session hoặc phát sự kiện realtime. `allowedTechniqueTypes`, `excludedJoints` và ghi chú cần được Coach đọc khi chọn bài; gate Training hiện kiểm tra `sessionType`, không tự kiểm từng bài tập/kỹ thuật/khớp.
 
 Nguồn đối chiếu: [Medical routes](../nestjs-api/src/medical/medical.controller.ts), [assignment routes](../nestjs-api/src/medical/medical-assignment.controller.ts), [input/output schemas](../nestjs-api/src/medical/medical.model.ts), [scope và audit](../nestjs-api/src/medical/medical-access.service.ts), [business logic và eligibility](../nestjs-api/src/medical/medical.service.ts), [history và clearance queries](../nestjs-api/src/medical/medical.repo.ts), [reason codes](../nestjs-api/src/medical/medical.constants.ts), [Training gate](../nestjs-api/src/training/sessions/training-session.service.ts), [migration 011](../nestjs-api/migrations/011_medical_clinical_records.sql), [migration 012](../nestjs-api/migrations/012_medical_clearance_issue_order.sql).
+
+## 12. Thông báo — hộp thông báo và realtime (SSE)
+
+> Bổ sung ngày 29/09/2026, nhánh `User_Feature`. Backend đã viết nhưng **chưa build, chưa test, chưa áp dụng migration 014, chưa deploy**. Áp dụng cho mọi user đã đăng nhập (GUEST, FIGHTER, COACH, DOCTOR, ADMIN).
+
+### 12.1 REST (có envelope chung)
+
+| Route | Kết quả |
+| --- | --- |
+| `GET /notifications?page=&limit=&unreadOnly=true` | `body.data.data` là array, `body.data.total`, `body.data.hasNextPage`; mới nhất trước |
+| `GET /notifications/unread-count` | `body.data.count` |
+| `PATCH /notifications/:id/read` | `body.data` là notification. Idempotent: gọi lại giữ `readAt` lần đầu. ID của người khác hoặc không tồn tại trả 404 `NOTIFICATION_NOT_FOUND` |
+
+Mọi route chỉ đọc/sửa hộp của chính token; không có tham số userId. Mỗi item: `id`, `type`, `title`, `message`, `payload`, `isRead`, `readAt`, `createdAt`. `payload` có dạng `{ v: 1, target?: { type, id }, data? }`. `target.type` là `FIGHTER_APPLICATION | FIGHTER | COACH_ASSIGNMENT | TRAINING_PLAN | TRAINING_SESSION`: mở màn hình qua API của resource đó, và API vẫn kiểm tra quyền hiện tại (có thể trả 403/404 nếu quyền đã đổi). Thông báo kết thúc assignment có thể không có `target`. Record cũ (trước 014) có thể có `payload` rỗng và `type` cũ.
+
+`type` mới: `ADMISSION_APPLICATION_SUBMITTED`, `ADMISSION_ASSESSMENT_ASSIGNED`, `ADMISSION_ASSESSMENT_UNASSIGNED`, `ADMISSION_DECISION_REQUIRED`, `ADMISSION_ASSESSMENT_RESULT` (`data.conclusion`), `ADMISSION_DECISION_RECORDED` (`data.decision`), `ADMISSION_ACTIVATION_COMPLETED`, `COACH_ASSIGNMENT_STARTED`, `COACH_ASSIGNMENT_ENDED`, `TRAINING_PLAN_ACTIVATED`, `TRAINING_SESSION_SCHEDULED`, `TRAINING_SESSION_RESCHEDULED`, `TRAINING_SESSION_CANCELLED` (session có `data.scheduledAt`, `data.location`). Hiển thị `title`/`message` do server trả; renderer nên chịu được `type` lạ.
+
+Đã đọc thông báo **không** có nghĩa việc nghiệp vụ đã được xử lý (ví dụ hồ sơ vẫn chờ quyết định).
+
+### 12.2 Stream `GET /notifications/stream`
+
+- Trả `text/event-stream` chuẩn, **không** có envelope. Native `EventSource` không gửi được header `Authorization`, nên dùng SSE client dựa trên `fetch` (có parser event và retry), ví dụ `@microsoft/fetch-event-source`. Không đặt token trên query string.
+- SSE là một HTTP response giữ mở, không phải polling. Server gửi `retry:` gợi ý thời gian reconnect.
+- Lỗi trước khi mở stream trả JSON envelope thường: 401 (token), 429 `NOTIFICATION_STREAM_LIMIT` (quá số kết nối/tài khoản trên một instance), 503 `NOTIFICATION_STREAM_UNAVAILABLE` (Redis chưa sẵn sàng; thử lại có backoff).
+
+| `event:` | `data` | FE làm gì |
+| --- | --- | --- |
+| `ready` | `{ connectionId }` | Stream đã đăng ký. **Sau** event này mới tải `GET /notifications` + `unread-count` |
+| `notification.created` | `{ notificationId }` | Refetch list/count (hoặc chèn sau khi tải item), dedupe theo `id` |
+| `notification.read` | `{ notificationId }` | Tab/thiết bị khác đã đọc; cập nhật trạng thái và count |
+| `resync` | `{}` | Server có thể đã lỡ signal; tải lại list + count |
+| `heartbeat` | `{}` | Giữ kết nối; không cần xử lý |
+| `closing` | `{ reason }` | Server đóng stream: `TOKEN_EXPIRED`, `AUTH_REVOKED`, `LIFETIME_REACHED`, `SLOW_CONSUMER`, `SERVER_SHUTDOWN` |
+
+Quy tắc đồng bộ:
+
+1. Mở stream → chờ `ready` → tải list + count. Nếu có event tới trong lúc đang tải, đặt cờ dirty và tải lại sau khi xong, để không mất cập nhật.
+2. Mỗi lần reconnect hoặc tab được focus lại: tải lại từ REST, dedupe theo `id`. Có thể thêm đối soát nhẹ định kỳ (ví dụ vài phút) khi stream vẫn mở.
+3. Không có replay: server không xử lý `Last-Event-ID`, event trong lúc mất kết nối chỉ khôi phục bằng REST.
+4. `TOKEN_EXPIRED`/401: refresh token bằng luồng auth hiện có rồi mở lại; `AUTH_REVOKED` lặp lại hoặc 401 sau refresh thì dừng retry và về đăng nhập. Logout phải abort stream. Không retry vô hạn lỗi auth.
+5. Proxy/CDN phải không buffer và không cắt kết nối idle ngắn hơn chu kỳ heartbeat (mặc định 25 giây); server gửi `X-Accel-Buffering: no` và `Cache-Control: no-cache, no-transform`.
+
+Nguồn: [controller](../nestjs-api/src/notifications/notifications.controller.ts), [stream](../nestjs-api/src/notifications/notification-stream.service.ts), [constants](../nestjs-api/src/notifications/notifications.constant.ts), [contract](../nestjs-api/src/shared/contracts/notification.contract.ts), [migration 014](../nestjs-api/migrations/014_notifications_delivery.sql).

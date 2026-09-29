@@ -18,7 +18,12 @@ import { FighterAdmissionsService } from './fighter-admissions.service.js';
  * forwardRef and depend only on the shared contract interfaces.
  */
 @Module({
-  imports: [DatabaseModule, UsersModule, forwardRef(() => AuthModule)],
+  imports: [
+    DatabaseModule,
+    UsersModule,
+    NotificationsModule,
+    forwardRef(() => AuthModule),
+  ],
   controllers: [
     FighterAdmissionsApplicantController,
     FighterAdmissionsAdminController,
