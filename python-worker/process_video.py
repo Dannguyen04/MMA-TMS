@@ -40,6 +40,7 @@ except ImportError:
 from person_tracker import PersonTracker
 from pose_math import Point
 from action_result import build_actions_list, RubricSelectionError
+from punch_event_detector_v2 import build_heavy_bag_punch_results
 from pipeline import (
     ActionPipeline,
     PoseObservation,
@@ -96,6 +97,8 @@ def process_video(
     martial_art: Optional[str] = None,
     expected_techniques: Optional[Sequence[str]] = None,
     historical_references: Optional[Sequence[Mapping[str, Any]]] = None,
+    training_mode: Optional[str] = None,
+    camera_view: Optional[str] = None,
 ) -> dict:
     """
     Pipeline chính: xử lý video và trả về dict kết quả JSON.
@@ -297,6 +300,17 @@ def process_video(
 
     # ── 9. Tổng hợp kết quả (Actions, Kicks, Punches, Findings) ──
     punches, kicks = action_pipeline.get_results()
+    detector_version = "legacy_fsm_v1"
+    normalized_training_mode = str(training_mode or "").strip().lower()
+    if normalized_training_mode == "heavy_bag":
+        v2_punches = build_heavy_bag_punch_results(frame_records, fps)
+        # Preserve the proven single-strike FSM when it already explains at least
+        # as many events. V2 is selected for dense combinations it was designed
+        # to recover; its outputs remain gated from autonomous coaching until
+        # calibrated detector confidence is available.
+        if len(v2_punches) > max(len(punches) + 1, int(len(punches) * 1.5)):
+            punches = v2_punches
+            detector_version = "heavy_bag_peak_v2"
     kicks_dicts   = [r.to_dict() for r in kicks]
     punches_dicts = [p.to_dict() for p in punches]
 
@@ -587,6 +601,9 @@ def process_video(
         "meta": {
             "videoPath":      input_path,
             "model":          model_name,
+            "detectorVersion": detector_version,
+            "trainingMode":   normalized_training_mode or None,
+            "cameraView":     str(camera_view).strip().lower() if camera_view else None,
             "scoringVersion": "rubric-v3.0.0",
             "fps":            round(fps, 2),
             "totalFrames":    len(frame_records),
@@ -691,6 +708,12 @@ if __name__ == "__main__":
     parser.add_argument("--martial-art", default=None,
                         choices=["boxing", "muay_thai", "kickboxing", "karate", "taekwondo", "mma", "generic", "unknown"],
                         help="Môn võ phân tích (mặc định: None -> generic)")
+    parser.add_argument("--training-mode", default=None,
+                        choices=["HEAVY_BAG", "PAD_WORK", "SHADOW_BOXING", "SPARRING"],
+                        help="Loại buổi tập, dùng để chọn detector phù hợp")
+    parser.add_argument("--camera-view", default=None,
+                        choices=["FRONT", "SIDE", "DIAGONAL"],
+                        help="Góc máy do nguồn upload khai báo")
 
     args = parser.parse_args()
 
@@ -704,6 +727,8 @@ if __name__ == "__main__":
             stance=args.stance,
             coach_stance=args.coach_stance,
             martial_art=args.martial_art,
+            training_mode=args.training_mode,
+            camera_view=args.camera_view,
         )
     except KeyboardInterrupt:
         print("\n⛔ Đã dừng.")

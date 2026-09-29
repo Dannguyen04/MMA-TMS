@@ -96,7 +96,13 @@ export class JobsService {
     try {
       await this.queue.add(
         'analyze',
-        { jobId: job.id, videoId: video.id, videoUrl: url },
+        {
+          jobId: job.id,
+          videoId: video.id,
+          videoUrl: url,
+          trainingMode: video.trainingType,
+          cameraView: video.cameraAngle,
+        },
         {
           jobId: job.id,
           attempts: 3,

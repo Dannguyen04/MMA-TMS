@@ -821,12 +821,6 @@ export function mapWorkerResult(result: WorkerResult, context: WorkerResultConte
     );
     const metresPerUnit = span && span > 0.05 ? ((context.fighterHeightCm / 100) * 0.78) / span : (context.fighterHeightCm / 100) * 1.2;
 
-    const limbConfidence = (limb: Limb, windowFrames: WorkerFrame[]): number => {
-        const chain = LIMB_CHAIN[limb];
-        const values = windowFrames.flatMap((f) => [f.landmarks[chain.root].conf, f.landmarks[chain.joint].conf, f.landmarks[chain.end].conf]);
-        return values.length > 0 ? round(average(values), 2) : 0.5;
-    };
-
     const motion = (limb: Limb, windowFrames: WorkerFrame[]): { peakSpeed: number | null; accelerationProxy: number } => {
         const end = LIMB_CHAIN[limb].end;
         const speeds: { t: number; v: number }[] = [];
@@ -870,6 +864,11 @@ export function mapWorkerResult(result: WorkerResult, context: WorkerResultConte
     }
 
     const drafts: Draft[] = [];
+    const actionConfidence = (index: number): number | null => {
+        const value = result.actions?.[index]?.confidence?.detection;
+        return typeof value === "number" && Number.isFinite(value) ? clamp(value, 0, 1) : null;
+    };
+    let actionIndex = 0;
     for (const punch of result.punches ?? []) {
         const limb: Limb = punch.arm === "left" ? "left_arm" : "right_arm";
         const windowFrames = within(punch.startTimeMs, punch.endTimeMs);
@@ -882,7 +881,7 @@ export function mapWorkerResult(result: WorkerResult, context: WorkerResultConte
                 startMs: Math.round(punch.startTimeMs),
                 peakMs: Math.round(punch.impactTimeMs),
                 endMs: Math.round(punch.endTimeMs),
-                confidence: limbConfidence(limb, windowFrames),
+                confidence: actionConfidence(actionIndex++) ?? 0,
                 peakSpeed: round(clamp(peakSpeed ?? punch.peakSpeed * metresPerUnit, 0, 30), 1),
                 accelerationProxy,
                 jointAngleDeg: Math.round(punch.maxElbowAngle),
@@ -911,7 +910,7 @@ export function mapWorkerResult(result: WorkerResult, context: WorkerResultConte
                 startMs: Math.round(kick.startTimeMs),
                 peakMs,
                 endMs: Math.round(kick.endTimeMs),
-                confidence: limbConfidence(limb, windowFrames),
+                confidence: actionConfidence(actionIndex++) ?? 0,
                 peakSpeed: round(clamp(peakSpeed ?? kick.peakSpeed * metresPerUnit, 0, 30), 1),
                 accelerationProxy,
                 jointAngleDeg: Math.round(kick.maxExtensionAngle),
@@ -924,7 +923,11 @@ export function mapWorkerResult(result: WorkerResult, context: WorkerResultConte
     }
 
     drafts.sort((a, b) => a.detection.startMs - b.detection.startMs);
-    const detections: Detection[] = drafts.map((d, i) => ({ ...d.detection, id: `det-${key}-${pad(i + 1, 3)}` }));
+    const detections: Detection[] = drafts.map((d, i) => ({
+        ...d.detection,
+        id: `det-${key}-${pad(i + 1, 3)}`,
+        confidenceAvailable: d.detection.confidence > 0,
+    }));
 
     // Combinations: strikes that follow each other within 450 ms.
     const combinations: Combination[] = [];
@@ -1031,8 +1034,22 @@ export function mapWorkerResult(result: WorkerResult, context: WorkerResultConte
         };
     });
 
-    const overallConfidence = detections.length > 0 ? round(average(detections.map((d) => d.confidence)), 2) : 0;
+    const measuredDetectionConfidences = (result.actions ?? [])
+        .map((action) => action.confidence.detection)
+        .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+    const confidenceAvailable = detections.length > 0 && measuredDetectionConfidences.length === detections.length;
+    const overallConfidence = confidenceAvailable ? round(average(measuredDetectionConfidences), 2) : 0;
     const lowCount = detections.filter((d) => d.confidence < LOW_CONFIDENCE_THRESHOLD).length;
+    const rawEvidenceQuality = result.analysisQuality?.status?.toLowerCase();
+    const evidenceQuality = rawEvidenceQuality === "blocked"
+        ? "blocked"
+        : rawEvidenceQuality === "degraded" || rawEvidenceQuality === "acceptable"
+          ? "degraded"
+          : rawEvidenceQuality === "pass" || rawEvidenceQuality === "excellent" || rawEvidenceQuality === "good"
+            ? "pass"
+            : "unknown";
+    const poseConfidence = result.analysisQuality?.metrics.meanKeypointConfidence ?? null;
+    const coachingEligible = evidenceQuality === "pass" && confidenceAvailable;
 
     return {
         id: context.analysisId,
@@ -1044,10 +1061,19 @@ export function mapWorkerResult(result: WorkerResult, context: WorkerResultConte
         fps: result.meta.fps,
         models: { ...context.models, pose: result.meta.model ?? context.models.pose },
         overallConfidence,
-        trackingQuality: frames.length > 0 ? round(tracked.length / frames.length, 2) : 0,
+        confidenceAvailable,
+        evidenceQuality,
+        poseConfidence,
+        coachingEligible,
+        qualityReasons: result.analysisQuality?.reasonCodes ?? [],
+        trackingQuality: result.analysisQuality?.metrics.targetTrackRatio ?? (frames.length > 0 ? round(tracked.length / frames.length, 2) : 0),
         summary:
-            `The model detected ${detections.length} strikes (${metrics.strikesPerMin} per minute), including ${metrics.combinations} combinations, with an estimated guard uptime of ${metrics.guard.uptimePct}%. ` +
-            (lowCount > 0 ? `${lowCount} detections fell below 60% confidence and are marked for coach review.` : "Detections with confidence below 60% are marked for coach review."),
+            `The model detected ${detections.length} strike candidates (${metrics.strikesPerMin} per minute), including ${metrics.combinations} combinations. ` +
+            (!coachingEligible
+                ? "Evidence quality or calibrated detection confidence is insufficient; a coach must verify the events before using technique findings."
+                : lowCount > 0
+                  ? `${lowCount} detections fell below 60% confidence and are marked for coach review.`
+                  : "Detections with confidence below 60% are marked for coach review."),
         detections,
         combinations,
         movementEvents: events,

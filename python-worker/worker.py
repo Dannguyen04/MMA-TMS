@@ -127,7 +127,7 @@ def notify_nestjs(
     job_id: str,
     status: str,
     result_url: str = "",
-    score: int = 0,
+    score: int | None = None,
     health_alerts: list | None = None,
     joint_states: dict | None = None,
 ):
@@ -148,10 +148,11 @@ def notify_nestjs(
     payload = {
         "status":       status,
         "resultUrl":    result_url,
-        "score":        score,
         "healthAlerts": health_alerts or [],
         "jointStates":  joint_states or {},
     }
+    if score is not None:
+        payload["score"] = score
     last_error = None
     for attempt in range(1, 4):
         try:
@@ -185,6 +186,8 @@ def process_job(r: redis.Redis, job_id: str):
     payload = json.loads(job_data)
     video_url = payload.get("videoUrl", "")
     db_job_id = payload.get("jobId", job_id)
+    training_mode = payload.get("trainingMode")
+    camera_view = payload.get("cameraView")
 
     log.info(f"🎬 Đang xử lý job {db_job_id}: {video_url}")
 
@@ -204,6 +207,8 @@ def process_job(r: redis.Redis, job_id: str):
             model_name=YOLO_MODEL,
             output_path=local_result,
             verbose=True,
+            training_mode=training_mode,
+            camera_view=camera_view,
         )
         elapsed = time.time() - start_t
         log.info(f"⚡ Xử lý xong trong {elapsed:.1f}s")
@@ -213,7 +218,8 @@ def process_job(r: redis.Redis, job_id: str):
         result_url  = upload_to_supabase(local_result, remote_path)
 
         # ── Lấy điểm tốt nhất & anomaly data ──
-        best_score   = result["summary"].get("bestScore", 0)
+        quality_status = str(result.get("analysisQuality", {}).get("status", "unknown")).lower()
+        best_score = result["summary"].get("bestScore") if quality_status == "pass" else None
         health_alerts = result.get("healthAlerts", [])
         joint_states  = result["summary"].get("jointHealthStates", {})
 
@@ -244,7 +250,8 @@ def process_job(r: redis.Redis, job_id: str):
         r.rpush(COMPLETED_KEY, job_id)
 
         alert_count = len(health_alerts)
-        log.info(f"✅ Job {db_job_id} hoàn thành. Score: {best_score}, Health Alerts: {alert_count}")
+        score_label = best_score if best_score is not None else "WITHHELD_REQUIRES_REVIEW"
+        log.info(f"✅ Job {db_job_id} hoàn thành. Score: {score_label}, Health Alerts: {alert_count}")
         if alert_count > 0:
             log.warning(f"⚠️  {alert_count} CONFIRMED_IMPAIRMENT alert(s) phát hiện!")
 

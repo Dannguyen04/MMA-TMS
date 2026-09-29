@@ -5,7 +5,7 @@ import { formatConfidence, formatDateTime, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export interface ProvenanceCardProps {
-    analysis: Pick<AIAnalysis, "id" | "jobId" | "processedAt" | "models" | "trackingQuality" | "overallConfidence" | "fps">;
+    analysis: Pick<AIAnalysis, "id" | "jobId" | "processedAt" | "models" | "trackingQuality" | "overallConfidence" | "confidenceAvailable" | "fps">;
     job: Pick<AIJob, "id" | "durationSec" | "attempts" | "workerId"> | null;
     video: Pick<Video, "resolution" | "fileName">;
     className?: string;
@@ -19,7 +19,7 @@ export function ProvenanceCard({ analysis, job, video, className }: ProvenanceCa
         { label: "Processing time", value: job?.durationSec != null ? `${formatNumber(job.durationSec)} s` : "—" },
         { label: "Attempts", value: job ? String(job.attempts) : "—" },
         { label: "Tracking quality", value: formatConfidence(analysis.trackingQuality) },
-        { label: "Mean confidence", value: formatConfidence(analysis.overallConfidence) },
+        { label: "Detection confidence", value: analysis.confidenceAvailable === false ? "Unavailable" : formatConfidence(analysis.overallConfidence) },
         { label: "Source", value: `${video.fileName} · ${video.resolution} · ${formatNumber(analysis.fps)} fps` },
         { label: "Fighter detection", value: analysis.models.detection },
         { label: "Pose estimation", value: analysis.models.pose },

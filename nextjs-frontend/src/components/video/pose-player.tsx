@@ -382,7 +382,7 @@ function StageChips({ analysis, detections, showLabel }: { analysis: AIAnalysis;
                     ) : (
                         <span className="size-2.5 rounded-[3px]" style={{ backgroundColor: TECHNIQUE_COLOR[detection.type] }} />
                     )}
-                    {strikeObservation(detection.type)} · {formatConfidence(detection.confidence)}
+                    {strikeObservation(detection.type)} · {detection.confidenceAvailable === false ? "confidence unavailable" : formatConfidence(detection.confidence)}
                     {low && <span className="font-medium">· needs review</span>}
                     {detection.review && detection.review.decision !== "rejected" && (
                         <span className="inline-flex items-center gap-1 font-medium text-nav-fg">

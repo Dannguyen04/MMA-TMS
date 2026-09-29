@@ -152,7 +152,9 @@ function MetaItem({ icon, children }: { icon: ReactNode; children: ReactNode }) 
 function AnalysisSummary({ analysis, role }: { analysis: AIAnalysis; role: "fighter" | "coach" }) {
     const counts = reviewCounts(analysis);
     const [unreviewed] = formatReviewCounts({ unreviewedFindings: counts.unreviewedFindings });
-    const lowOverall = analysis.overallConfidence < LOW_CONFIDENCE_THRESHOLD;
+    const confidenceAvailable = analysis.confidenceAvailable !== false;
+    const coachingEligible = analysis.coachingEligible !== false;
+    const lowOverall = !confidenceAvailable || analysis.overallConfidence < LOW_CONFIDENCE_THRESHOLD;
     const observations = analysis.alertIds.length;
 
     const stats = [
@@ -163,7 +165,10 @@ function AnalysisSummary({ analysis, role }: { analysis: AIAnalysis; role: "figh
             value: formatNumber(counts.lowConfidenceDetections),
             hint: `unreviewed, below ${formatPercent(LOW_CONFIDENCE_THRESHOLD * 100)}`,
         },
-        { label: "Tracking quality", value: formatConfidence(analysis.trackingQuality) },
+        { label: "Frames tracked", value: formatConfidence(analysis.trackingQuality), hint: "not action accuracy" },
+        ...(analysis.poseConfidence !== undefined
+            ? [{ label: "Mean pose confidence", value: analysis.poseConfidence === null ? "Unavailable" : formatConfidence(analysis.poseConfidence) }]
+            : []),
     ];
 
     return (
@@ -172,7 +177,7 @@ function AnalysisSummary({ analysis, role }: { analysis: AIAnalysis; role: "figh
                 <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                         <AIGeneratedBadge size="sm" label="AI summary" />
-                        <ConfidenceBadge confidence={analysis.overallConfidence} size="sm" />
+                        {confidenceAvailable ? <ConfidenceBadge confidence={analysis.overallConfidence} size="sm" /> : <span className="text-xs font-semibold text-warning">Detection confidence unavailable</span>}
                     </div>
                     <p className="mt-2 text-sm text-pretty text-fg">{analysis.summary}</p>
                 </div>
@@ -190,9 +195,15 @@ function AnalysisSummary({ analysis, role }: { analysis: AIAnalysis; role: "figh
             </Card>
             <div className={cn("grid grid-cols-1 gap-3", (lowOverall || (role === "coach" && observations > 0)) && "lg:grid-cols-2")}>
                 <AINotice audience={role} compact />
+                {!coachingEligible && (
+                    <InlineNote icon={TriangleAlert} tone="warning">
+                        <span className="font-semibold">Not cleared for autonomous coaching.</span>{" "}
+                        Evidence quality is {analysis.evidenceQuality ?? "unknown"}. Detected events and technique findings require coach verification before they are used for training decisions.
+                    </InlineNote>
+                )}
                 {lowOverall && (
                     <InlineNote icon={TriangleAlert} tone="warning">
-                        <span className="font-semibold">Several detections need manual review.</span> Overall confidence is {formatConfidence(analysis.overallConfidence)} — low light, the camera angle
+                        <span className="font-semibold">Several detections need manual review.</span> {confidenceAvailable ? `Overall detection confidence is ${formatConfidence(analysis.overallConfidence)}.` : "The worker did not provide calibrated detection confidence."} Low light, the camera angle
                         or a second person in frame can reduce accuracy.{" "}
                         {role === "coach" ? "Confirm or correct the flagged items before sharing." : "Your coach will check the flagged items."}
                     </InlineNote>

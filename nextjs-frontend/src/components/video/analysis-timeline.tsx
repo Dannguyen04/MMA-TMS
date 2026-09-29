@@ -347,6 +347,7 @@ const StrikeMarker = memo(function StrikeMarker({
 }) {
     const needsReview = isNeedsReview(detection);
     const reviewText = detection.review ? `, ${detection.review.decision} by ${detection.review.reviewerName}` : needsReview ? `, ${AI_REVIEW_TERMS.needsReview.toLowerCase()}` : "";
+    const confidenceText = detection.confidenceAvailable === false ? "confidence unavailable" : `${formatConfidence(detection.confidence)} confidence`;
     return (
         <button
             type="button"
@@ -354,8 +355,8 @@ const StrikeMarker = memo(function StrikeMarker({
             tabIndex={tabbable ? 0 : -1}
             onFocus={() => onFocusIndex(index)}
             onClick={() => onSeek(detection.peakMs)}
-            aria-label={`${TECHNIQUE_LABELS[detection.type]} at ${formatTimestamp(detection.peakMs)}, ${formatConfidence(detection.confidence)} confidence${reviewText}`}
-            title={`${TECHNIQUE_LABELS[detection.type]} · ${formatTimestamp(detection.peakMs)} · ${formatConfidence(detection.confidence)}`}
+            aria-label={`${TECHNIQUE_LABELS[detection.type]} at ${formatTimestamp(detection.peakMs)}, ${confidenceText}${reviewText}`}
+            title={`${TECHNIQUE_LABELS[detection.type]} · ${formatTimestamp(detection.peakMs)} · ${confidenceText}`}
             className={cn("group", MARKER, active && "z-10", detection.review?.decision === "rejected" && "opacity-35")}
             style={{ left, top: `${STRIKE_LANES.indexOf(detection.type) * LANE_PX}px` }}
         >

@@ -90,7 +90,11 @@ export function MetricsPanel({ analysis, className }: { analysis: AIAnalysis; cl
                         <MetricTile label="Strikes per minute" value={formatNumber(metrics.strikesPerMin, 1)} hint={`${total} strikes`} />
                         <MetricTile label="Combinations" value={metrics.combinations} hint="2+ strikes in a row" />
                         <MetricTile label="Tracking quality" value={formatPercent(analysis.trackingQuality * 100)} hint="frames with the fighter" />
-                        <MetricTile label="Overall confidence" value={formatConfidence(analysis.overallConfidence)} hint="mean of detections" />
+                        <MetricTile
+                            label="Detection confidence"
+                            value={analysis.confidenceAvailable === false ? "Unavailable" : formatConfidence(analysis.overallConfidence)}
+                            hint={analysis.confidenceAvailable === false ? "not calibrated by worker" : "mean of detections"}
+                        />
                     </TileGrid>
                     <ChartFigure
                         title="Strikes detected"

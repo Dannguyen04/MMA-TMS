@@ -449,6 +449,8 @@ export interface Detection {
     endMs: number;
     /** Model confidence, 0–1. */
     confidence: number;
+    /** False when the worker has not emitted a calibrated detector probability. */
+    confidenceAvailable?: boolean;
     /** Estimated peak speed of the striking hand/foot in m/s. */
     peakSpeed: number;
     /** Relative acceleration proxy derived from keypoint velocity deltas, 0–10. */
@@ -633,6 +635,15 @@ export interface AIAnalysis {
     fps: number;
     models: ModelVersions;
     overallConfidence: number;
+    /** Whether overallConfidence came from an action detector, rather than a pose-quality proxy. */
+    confidenceAvailable?: boolean;
+    /** Worker evidence gate. Mock analyses omit this field. */
+    evidenceQuality?: "pass" | "degraded" | "blocked" | "unknown";
+    /** Mean keypoint confidence reported by the worker, when available. */
+    poseConfidence?: number | null;
+    /** False when outputs require coach verification and must not be treated as prescriptive coaching. */
+    coachingEligible?: boolean;
+    qualityReasons?: string[];
     /** Share of frames where the fighter was tracked, 0–1. */
     trackingQuality: number;
     summary: string;
