@@ -69,6 +69,7 @@ function migration(database, name) {
 const baseline = ['001_create_analysis_jobs.sql', '002_add_health_alerts.sql'];
 const target003 = '003_mma_tms_complete_schema.sql';
 const target004 = '004_seed_api_permissions.sql';
+const target005 = '005_coaching_loop_and_constraints.sql';
 const authFixture = `CREATE SCHEMA auth;
 CREATE TABLE auth.users(id uuid PRIMARY KEY);
 CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
@@ -166,6 +167,45 @@ try {
     assert.equal(
       psql('mma_clean', `SELECT count(*) FROM public.permissions;`),
       '14',
+    );
+  });
+  prepare('mma_005');
+  migration('mma_005', target003);
+  migration('mma_005', target004);
+  check('005 applies with migration history and coach identity foreign keys', () => {
+    migration('mma_005', target005);
+    assert.equal(
+      psql(
+        'mma_005',
+        `SELECT count(*) FROM mma_private.migration_history WHERE version = 5;`,
+      ),
+      '1',
+    );
+    assert.equal(
+      psql(
+        'mma_005',
+        `SELECT string_agg(f.attname || '->' || ft.relname, ',' ORDER BY f.attname)
+         FROM pg_constraint c
+         JOIN pg_class t ON t.oid = c.conrelid
+         JOIN pg_class ft ON ft.oid = c.confrelid
+         JOIN LATERAL unnest(c.conkey) k(attnum) ON true
+         JOIN pg_attribute f ON f.attrelid = t.oid AND f.attnum = k.attnum
+         WHERE t.relname = 'technique_references'
+           AND c.contype = 'f'
+           AND f.attname IN ('selected_by_id', 'revoked_by_id');`,
+      ),
+      'revoked_by_id->coaches,selected_by_id->coaches',
+    );
+  });
+  check('reapplying 005 fails without duplicating migration history', () => {
+    rejects(
+      'mma_005',
+      readFileSync(join(api, 'migrations', target005), 'utf8'),
+      /already been applied/,
+    );
+    assert.equal(
+      psql('mma_005', `SELECT count(*) FROM mma_private.migration_history WHERE version = 5;`),
+      '1',
     );
   });
   if (process.argv.includes('--export-catalog')) {

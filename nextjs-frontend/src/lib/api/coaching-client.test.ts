@@ -60,7 +60,7 @@ describe("Task TL-11 — Real Web Integration for MVP Workflow", () => {
 
     // ─── 2. Coaching API Client ───────────────────────────────────────────────
 
-    it("2.1 createAssignment sends POST /coaching/assignments with x-user-id header", async () => {
+    it("2.1 createAssignment sends an authenticated Bearer request", async () => {
         const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
             new Response(JSON.stringify({ id: "asgn_1", title: "Jab Drills" }), {
                 status: 201,
@@ -76,7 +76,7 @@ describe("Task TL-11 — Real Web Integration for MVP Workflow", () => {
                 martialArt: "boxing",
                 targetReps: 50,
             },
-            "usr_coach_user_1",
+            "valid-access-token",
         );
 
         expect(fetchSpy).toHaveBeenCalledWith(
@@ -84,7 +84,7 @@ describe("Task TL-11 — Real Web Integration for MVP Workflow", () => {
             expect.objectContaining({
                 method: "POST",
                 headers: expect.objectContaining({
-                    "x-user-id": "usr_coach_user_1",
+                    Authorization: "Bearer valid-access-token",
                     "Content-Type": "application/json",
                 }),
             }),
@@ -107,7 +107,7 @@ describe("Task TL-11 — Real Web Integration for MVP Workflow", () => {
                 title: "Morning Sparring",
                 storageKey: "videos/vid_1.mp4",
             },
-            "usr_athlete_1",
+            "valid-access-token",
         );
         expect(videoRes).toEqual({ id: "vid_1", title: "Morning Sparring" });
 
@@ -116,7 +116,7 @@ describe("Task TL-11 — Real Web Integration for MVP Workflow", () => {
                 videoId: "vid_1",
                 fighterId: "ath_1",
             },
-            "usr_athlete_1",
+            "valid-access-token",
         );
         expect(jobRes).toEqual({ jobId: "job_1", analysisId: "ana_1", status: "QUEUED" });
     });
@@ -135,7 +135,7 @@ describe("Task TL-11 — Real Web Integration for MVP Workflow", () => {
                 fighterId: "nonexistent_ath",
                 title: "Test",
                 martialArt: "boxing",
-            }),
+            }, "valid-access-token"),
         ).rejects.toThrow("Assignment target fighter not found.");
     });
 

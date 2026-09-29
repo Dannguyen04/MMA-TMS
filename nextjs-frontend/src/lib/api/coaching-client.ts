@@ -132,78 +132,82 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     return (await response.json()) as T;
 }
 
+function authenticated(accessToken: string): HeadersInit {
+    const token = accessToken.trim();
+    if (!token) throw new CoachingApiError("A valid access token is required.", 401, "AUTHENTICATION_REQUIRED");
+    return { Authorization: `Bearer ${token}` };
+}
+
 export const coachingApiClient = {
-    async createAssignment(dto: CreateAssignmentDto, userId?: string) {
+    async createAssignment(dto: CreateAssignmentDto, accessToken: string) {
         return request("/coaching/assignments", {
             method: "POST",
-            headers: userId ? { "x-user-id": userId } : {},
+            headers: authenticated(accessToken),
             body: JSON.stringify(dto),
         });
     },
 
-    async uploadVideo(dto: UploadVideoDto, userId?: string) {
+    async uploadVideo(dto: UploadVideoDto, accessToken: string) {
         return request("/coaching/videos", {
             method: "POST",
-            headers: userId ? { "x-user-id": userId } : {},
+            headers: authenticated(accessToken),
             body: JSON.stringify(dto),
         });
     },
 
-    async createAnalysisJob(dto: CreateAnalysisJobDto, userId?: string) {
+    async createAnalysisJob(dto: CreateAnalysisJobDto, accessToken: string) {
         return request<{ jobId: string; analysisId: string; status: string }>("/coaching/jobs", {
             method: "POST",
-            headers: userId ? { "x-user-id": userId } : {},
+            headers: authenticated(accessToken),
             body: JSON.stringify(dto),
         });
     },
 
-    async reanalyzeVideo(videoId: string, fighterId: string, userId?: string) {
+    async reanalyzeVideo(videoId: string, fighterId: string, accessToken: string) {
         return request(`/coaching/videos/${encodeURIComponent(videoId)}/reanalyze`, {
             method: "POST",
-            headers: userId ? { "x-user-id": userId } : {},
+            headers: authenticated(accessToken),
             body: JSON.stringify({ fighterId }),
         });
     },
 
-    async persistWorkerResult(dto: PersistWorkerResultDto, userId?: string) {
-        return request("/coaching/results", {
-            method: "POST",
-            headers: userId ? { "x-user-id": userId } : {},
-            body: JSON.stringify(dto),
-        });
-    },
-
-    async reviewFinding(dto: ReviewFindingDto) {
+    async reviewFinding(dto: ReviewFindingDto, accessToken: string) {
         return request("/coaching/findings/review", {
             method: "POST",
+            headers: authenticated(accessToken),
             body: JSON.stringify(dto),
         });
     },
 
-    async submitCoachCorrection(dto: CoachCorrectionDto) {
+    async submitCoachCorrection(dto: CoachCorrectionDto, accessToken: string) {
         return request("/coaching/corrections", {
             method: "POST",
+            headers: authenticated(accessToken),
             body: JSON.stringify(dto),
         });
     },
 
-    async selectReference(dto: SelectReferenceDto) {
+    async selectReference(dto: SelectReferenceDto, accessToken: string) {
         return request("/coaching/references", {
             method: "POST",
+            headers: authenticated(accessToken),
             body: JSON.stringify(dto),
         });
     },
 
-    async revokeReference(dto: RevokeReferenceDto) {
+    async revokeReference(dto: RevokeReferenceDto, accessToken: string) {
         return request("/coaching/references/revoke", {
             method: "POST",
+            headers: authenticated(accessToken),
             body: JSON.stringify(dto),
         });
     },
 
-    async getCoachingLoopState(fighterId: string, sessionId?: string) {
+    async getCoachingLoopState(fighterId: string, accessToken: string, sessionId?: string) {
         const query = sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : "";
-        return request<any>(`/coaching/loop-state/${encodeURIComponent(fighterId)}${query}`);
+        return request<any>(`/coaching/loop-state/${encodeURIComponent(fighterId)}${query}`, {
+            headers: authenticated(accessToken),
+        });
     },
 };
 

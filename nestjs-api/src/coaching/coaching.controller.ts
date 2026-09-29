@@ -13,7 +13,8 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { CoachingService } from './coaching.service.js';
 import { AccessTokenGuard, AuthorizationGuard } from '../shared/guards/auth.guard.js';
-import { CurrentUser } from '../shared/decorators/auth.decorator.js';
+import { CurrentUser, RequireRoles } from '../shared/decorators/auth.decorator.js';
+import { WorkerAuthGuard } from '../jobs/guards/worker-auth.guard.js';
 import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import { USER } from '../shared/types/user.role.js';
 import {
@@ -31,6 +32,7 @@ import {
 @ApiTags('Coaching Loop')
 @ApiBearerAuth()
 @UseGuards(AccessTokenGuard, AuthorizationGuard)
+@RequireRoles(USER.FIGHTER, USER.COACH, USER.ADMIN)
 @Controller('coaching')
 export class CoachingController {
   constructor(private readonly coachingService: CoachingService) {}
@@ -121,16 +123,6 @@ export class CoachingController {
       await this.coachingService.verifyCoachAuthorization(coach.id, fighterId);
     }
     return this.coachingService.reanalyzeVideo(videoId, fighterId, user.id);
-  }
-
-  @Post('results')
-  @ApiOperation({ summary: 'Persist structured worker analysis result' })
-  @HttpCode(HttpStatus.OK)
-  async persistWorkerResult(
-    @CurrentUser() user: AuthenticatedUser,
-    @Body() dto: PersistWorkerResultDto,
-  ) {
-    return this.coachingService.persistWorkerResult(dto, user.id);
   }
 
   @Post('findings/review')
@@ -224,9 +216,13 @@ export class CoachingController {
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreateBaselineDto,
   ) {
-    if (user.role !== USER.ADMIN && user.role !== USER.COACH) {
-      throw new ForbiddenException('Only coaches or admins can create baselines.');
+    if (user.role !== USER.COACH) {
+      throw new ForbiddenException('Only an assigned coach can approve a baseline.');
     }
+    const coach = await this.coachingService.getCoachByUserId(user.id);
+    if (!coach) throw new ForbiddenException('Not a registered coach.');
+    await this.coachingService.verifyCoachAuthorization(coach.id, dto.fighterId);
+    dto.approvedById = coach.id;
     return this.coachingService.createBaseline(dto);
   }
 
@@ -248,5 +244,20 @@ export class CoachingController {
       await this.coachingService.verifyCoachAuthorization(coach.id, fighterId);
     }
     return this.coachingService.getCoachingLoopState(fighterId, sessionId);
+  }
+}
+
+/** Machine-only callback surface. It deliberately does not inherit user JWT guards. */
+@ApiTags('Coaching Loop')
+@Controller('coaching')
+export class CoachingWorkerController {
+  constructor(private readonly coachingService: CoachingService) {}
+
+  @Post('results')
+  @UseGuards(WorkerAuthGuard)
+  @ApiOperation({ summary: 'Persist structured worker analysis result' })
+  @HttpCode(HttpStatus.OK)
+  async persistWorkerResult(@Body() dto: PersistWorkerResultDto) {
+    return this.coachingService.persistWorkerResult(dto);
   }
 }

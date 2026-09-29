@@ -31,6 +31,7 @@ from pipeline.contracts import (
 )
 from pipeline.shadow_classifier import DecisionStatus
 from pipeline.stance_context import resolve_stance_context
+from pipeline.vertical_slice_integration import AdvancedAIOrchestrator
 
 
 @pytest.fixture
@@ -494,4 +495,34 @@ def test_mvp_classes_zod_compatible_payload(technique, family, side, role):
     assert action_dict["attackingSide"] in ("left", "right", "unknown")
     assert action_dict["limbRole"] in ("lead", "rear", "unknown")
     assert action_dict["stance"] in ("orthodox", "southpaw", "switch", "unknown")
+
+
+def test_knee_candidate_is_reached_by_real_session_orchestrator():
+    """Regression: knee actions must not be limited to the lower-level shadow helper."""
+    result = AdvancedAIOrchestrator().analyze_session(
+        session_id="session-knee-integration",
+        athlete_id="fighter-1",
+        technique="rear_knee",
+        stance="orthodox",
+        actions=[{
+            "id": "knee-1",
+            "family": "knee",
+            "startFrame": 10,
+            "peakFrame": 15,
+            "endFrame": 20,
+            "attackingSide": "right",
+            "metrics": {
+                "kneeAngleAtPeak": 82.0,
+                "kneeVelocity": 0.8,
+                "keypointVisibility": 0.95,
+                "ankleExtensionPastKnee": 0.05,
+            },
+        }],
+        expected_techniques=["rear_knee"],
+    )
+
+    assert len(result["discoveredTechniques"]) == 1
+    decision = result["discoveredTechniques"][0]["decision"]
+    assert decision["status"] == "classified"
+    assert decision["candidate"]["technique"] == "rear_knee"
 

@@ -2,6 +2,23 @@
 -- Migration: Add Coaching Loop Tables, Check Constraints, Partial Unique Indexes, and Append-Only Triggers
 
 BEGIN;
+SET LOCAL lock_timeout = '5s';
+SET LOCAL statement_timeout = '30s';
+SET LOCAL search_path = public, pg_catalog;
+SELECT pg_catalog.pg_advisory_xact_lock(20260916, 5);
+
+DO $preflight$
+BEGIN
+    IF to_regclass('mma_private.migration_history') IS NULL
+       OR NOT EXISTS (SELECT 1 FROM mma_private.migration_history WHERE version = 3)
+       OR NOT EXISTS (SELECT 1 FROM mma_private.migration_history WHERE version = 4) THEN
+        RAISE EXCEPTION '005 requires migrations 003 and 004';
+    END IF;
+    IF EXISTS (SELECT 1 FROM mma_private.migration_history WHERE version = 5) THEN
+        RAISE EXCEPTION '005 has already been applied';
+    END IF;
+END
+$preflight$;
 
 -- 1. Action Assessments (Immutable Worker Output)
 CREATE TABLE IF NOT EXISTS public.action_assessments (
@@ -53,9 +70,9 @@ CREATE TABLE IF NOT EXISTS public.technique_references (
     action_id           TEXT                NOT NULL,
     video_id            UUID                NOT NULL REFERENCES public.videos(id) ON DELETE RESTRICT,
     session_id          UUID                REFERENCES public.training_sessions(id) ON DELETE SET NULL,
-    selected_by_id      UUID                NOT NULL REFERENCES public.users(id) ON DELETE RESTRICT,
+    selected_by_id      UUID                NOT NULL REFERENCES public.coaches(id) ON DELETE RESTRICT,
     status              TEXT                NOT NULL DEFAULT 'active',
-    revoked_by_id       UUID                REFERENCES public.users(id) ON DELETE SET NULL,
+    revoked_by_id       UUID                REFERENCES public.coaches(id) ON DELETE SET NULL,
     revoked_at          TIMESTAMPTZ,
     revoked_reason      TEXT,
     created_at          TIMESTAMPTZ         NOT NULL DEFAULT now(),
@@ -69,6 +86,34 @@ CREATE TABLE IF NOT EXISTS public.technique_references (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_technique_references_single_active
     ON public.technique_references (fighter_id, technique)
     WHERE status = 'active';
+
+-- Older development builds created this table at application startup without
+-- constraints. Replace any stale identity FKs with the canonical coach identity.
+DO $reference_identity_upgrade$
+DECLARE constraint_name text;
+BEGIN
+    FOR constraint_name IN
+        SELECT c.conname
+        FROM pg_constraint c
+        WHERE c.conrelid = 'public.technique_references'::regclass
+          AND c.contype = 'f'
+          AND ARRAY(
+              SELECT a.attname::text
+              FROM unnest(c.conkey) WITH ORDINALITY key(attnum, ord)
+              JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = key.attnum
+              ORDER BY key.ord
+          ) && ARRAY['selected_by_id', 'revoked_by_id']
+    LOOP
+        EXECUTE format('ALTER TABLE public.technique_references DROP CONSTRAINT %I', constraint_name);
+    END LOOP;
+
+    ALTER TABLE public.technique_references
+        ADD CONSTRAINT technique_references_selected_by_coach_fkey
+        FOREIGN KEY (selected_by_id) REFERENCES public.coaches(id) ON DELETE RESTRICT,
+        ADD CONSTRAINT technique_references_revoked_by_coach_fkey
+        FOREIGN KEY (revoked_by_id) REFERENCES public.coaches(id) ON DELETE SET NULL;
+END
+$reference_identity_upgrade$;
 
 -- 4. Progress Snapshots (Longitudinal Tracking)
 CREATE TABLE IF NOT EXISTS public.progress_snapshots (
@@ -87,6 +132,68 @@ CREATE TABLE IF NOT EXISTS public.progress_snapshots (
 );
 
 CREATE INDEX IF NOT EXISTS idx_progress_snapshots_fighter ON public.progress_snapshots(fighter_id, technique);
+
+-- Upgrade tables created by pre-migration development builds. Named checks and
+-- foreign keys are added only when absent; violating legacy rows abort the whole
+-- transaction instead of silently leaving a weaker schema.
+DO $legacy_constraint_upgrade$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'public.action_assessments'::regclass AND conname = 'action_assessments_analysis_id_fkey') THEN
+        ALTER TABLE public.action_assessments ADD CONSTRAINT action_assessments_analysis_id_fkey FOREIGN KEY (analysis_id) REFERENCES public.ai_analyses(id) ON DELETE CASCADE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'public.action_assessments'::regclass AND conname = 'ck_action_assessment_status') THEN
+        ALTER TABLE public.action_assessments ADD CONSTRAINT ck_action_assessment_status CHECK (assessment_status IN ('EVALUATED', 'NOT_EVALUATED', 'INSUFFICIENT_EVIDENCE', 'REJECTED'));
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'public.action_assessments'::regclass AND conname = 'ck_action_overall_score') THEN
+        ALTER TABLE public.action_assessments ADD CONSTRAINT ck_action_overall_score CHECK (overall_score IS NULL OR (overall_score >= 0 AND overall_score <= 100));
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'public.action_assessments'::regclass AND conname = 'ck_action_confidence') THEN
+        ALTER TABLE public.action_assessments ADD CONSTRAINT ck_action_confidence CHECK (confidence >= 0.0 AND confidence <= 1.0);
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'public.action_finding_reviews'::regclass AND conname = 'action_finding_reviews_analysis_id_fkey') THEN
+        ALTER TABLE public.action_finding_reviews ADD CONSTRAINT action_finding_reviews_analysis_id_fkey FOREIGN KEY (analysis_id) REFERENCES public.ai_analyses(id) ON DELETE CASCADE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'public.action_finding_reviews'::regclass AND conname = 'action_finding_reviews_coach_id_fkey') THEN
+        ALTER TABLE public.action_finding_reviews ADD CONSTRAINT action_finding_reviews_coach_id_fkey FOREIGN KEY (coach_id) REFERENCES public.coaches(id) ON DELETE RESTRICT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'public.action_finding_reviews'::regclass AND conname = 'ck_finding_review_status') THEN
+        ALTER TABLE public.action_finding_reviews ADD CONSTRAINT ck_finding_review_status CHECK (status IN ('approved', 'rejected', 'corrected', 'APPROVED', 'REJECTED', 'CORRECTED'));
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'public.technique_references'::regclass AND conname = 'technique_references_fighter_id_fkey') THEN
+        ALTER TABLE public.technique_references ADD CONSTRAINT technique_references_fighter_id_fkey FOREIGN KEY (fighter_id) REFERENCES public.fighters(id) ON DELETE RESTRICT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'public.technique_references'::regclass AND conname = 'technique_references_video_id_fkey') THEN
+        ALTER TABLE public.technique_references ADD CONSTRAINT technique_references_video_id_fkey FOREIGN KEY (video_id) REFERENCES public.videos(id) ON DELETE RESTRICT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'public.technique_references'::regclass AND conname = 'technique_references_session_id_fkey') THEN
+        ALTER TABLE public.technique_references ADD CONSTRAINT technique_references_session_id_fkey FOREIGN KEY (session_id) REFERENCES public.training_sessions(id) ON DELETE SET NULL;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'public.technique_references'::regclass AND conname = 'ck_reference_status') THEN
+        ALTER TABLE public.technique_references ADD CONSTRAINT ck_reference_status CHECK (status IN ('active', 'revoked'));
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'public.technique_references'::regclass AND conname = 'ck_reference_revocation') THEN
+        ALTER TABLE public.technique_references ADD CONSTRAINT ck_reference_revocation CHECK ((status = 'active' AND revoked_at IS NULL AND revoked_by_id IS NULL) OR (status = 'revoked' AND revoked_at IS NOT NULL));
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'public.progress_snapshots'::regclass AND conname = 'progress_snapshots_fighter_id_fkey') THEN
+        ALTER TABLE public.progress_snapshots ADD CONSTRAINT progress_snapshots_fighter_id_fkey FOREIGN KEY (fighter_id) REFERENCES public.fighters(id) ON DELETE RESTRICT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'public.progress_snapshots'::regclass AND conname = 'progress_snapshots_session_id_fkey') THEN
+        ALTER TABLE public.progress_snapshots ADD CONSTRAINT progress_snapshots_session_id_fkey FOREIGN KEY (session_id) REFERENCES public.training_sessions(id) ON DELETE RESTRICT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'public.progress_snapshots'::regclass AND conname = 'progress_snapshots_baseline_id_fkey') THEN
+        ALTER TABLE public.progress_snapshots ADD CONSTRAINT progress_snapshots_baseline_id_fkey FOREIGN KEY (baseline_id) REFERENCES public.fighter_baselines(id) ON DELETE SET NULL;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'public.progress_snapshots'::regclass AND conname = 'ck_snapshot_moving_avg') THEN
+        ALTER TABLE public.progress_snapshots ADD CONSTRAINT ck_snapshot_moving_avg CHECK (moving_avg_score IS NULL OR (moving_avg_score >= 0.0 AND moving_avg_score <= 100.0));
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'public.progress_snapshots'::regclass AND conname = 'ck_snapshot_samples') THEN
+        ALTER TABLE public.progress_snapshots ADD CONSTRAINT ck_snapshot_samples CHECK (sample_count >= 0);
+    END IF;
+END
+$legacy_constraint_upgrade$;
 
 -- 5. Partial Unique Index on Fighter Baselines for Single Active Baseline
 CREATE UNIQUE INDEX IF NOT EXISTS idx_fighter_baselines_single_active
@@ -145,10 +252,18 @@ INSERT INTO public.algorithm_configs (
     id, version_tag, yolo_model_name, conf_threshold, ema_alpha, jerk_smooth_threshold,
     rom_low_threshold, rom_recovery_threshold, consecutive_low_rom_limit,
     window_sec_min, window_sec_max, disuse_sec_trigger, is_active, activated_at
-) VALUES (
+) SELECT
     '00000000-0000-0000-0000-000000000001'::uuid, 'v1.0-default', 'yolov8x-pose',
     0.5, 0.5, 1.0, 0.5, 1.0, 1, 1, 2, 1, true, now()
-) ON CONFLICT (id) DO NOTHING;
+WHERE NOT EXISTS (SELECT 1 FROM public.algorithm_configs WHERE is_active = true)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO mma_private.migration_history(version, name, source_sha256)
+VALUES (
+    5,
+    '005_coaching_loop_and_constraints.sql',
+    nullif(current_setting('mma.migration_sha256', true), '')
+);
 
 COMMIT;
 

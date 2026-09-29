@@ -657,6 +657,23 @@ class AdvancedAIOrchestrator:
                         "actionId": act.get("id") or act.get("actionId"),
                         "decision": dec.to_dict(),
                     })
+                elif fam == "knee":
+                    dec = self.technique_discovery_engine.classify_knee_candidate(
+                        start_frame=int(act.get("startFrame") or act.get("start_frame") or 0),
+                        end_frame=int(act.get("endFrame") or act.get("end_frame") or 0),
+                        peak_frame=int(act.get("peakFrame") or act.get("peak_frame") or 0),
+                        knee_angle_at_peak=unwrapped.get("kneeAngleAtPeak", unwrapped.get("maxKneeAngle")),
+                        knee_velocity_norm=unwrapped.get("kneeVelocity", unwrapped.get("peakVelocity")),
+                        attacking_side=str(unwrapped.get("attacking_side") or "right"),
+                        stance_context=stance_ctx,
+                        keypoint_visibility=float(unwrapped.get("keypointVisibility", 1.0)),
+                        ankle_extension_past_knee=unwrapped.get("ankleExtensionPastKnee"),
+                        expected_techniques=expected_techniques,
+                    )
+                    discovered_techniques.append({
+                        "actionId": act.get("id") or act.get("actionId"),
+                        "decision": dec.to_dict(),
+                    })
 
         baseline = self.baseline_engine.compute_baseline(
             athlete_id=athlete_id,
