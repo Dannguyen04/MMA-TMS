@@ -1,8 +1,12 @@
 """
-session_comparison.py — Session-to-Session Comparison Engine (Task 28)
+session_comparison.py — Session-to-Session Comparison Engine (Task 28 & TL-07)
 
 Provides:
-- Strict compatibility gating across sessions (stance, camera angle, quality status, technique).
+- Strict compatibility gating across sessions:
+  * Explicit stance gating (no implicit defaults; rejects missing/invalid stance).
+  * Camera angle compatibility gating with alias normalization.
+  * Technique matching.
+  * Quality status gating (rejects BLOCKED or DEGRADED).
 - Quantitative metric deltas (deltaValue, deltaPercent).
 - Safe zero-denominator handling: percent delta is None (undefined) when baseline value is zero.
 - Neutral, evidence-backed observed difference descriptors with full provenance.
@@ -25,6 +29,11 @@ from pipeline.contracts import (
     ValidationStatus,
     deep_freeze,
     to_json_safe,
+)
+from pipeline.personalized_baseline import (
+    are_camera_views_compatible,
+    normalize_camera_view,
+    normalize_stance,
 )
 
 
@@ -106,10 +115,10 @@ class SessionComparator:
                 reason_codes=("ONE_OR_BOTH_SESSIONS_HAVE_INSUFFICIENT_QUALITY",),
             )
 
-        # 2. Camera Gate (Strict: if camera view is unknown or different, reject compatibility)
-        cam_a = session_a.get("cameraView") or session_a.get("camera_view") or "unknown"
-        cam_b = session_b.get("cameraView") or session_b.get("camera_view") or "unknown"
-        if cam_a == "unknown" or cam_b == "unknown" or cam_a != cam_b:
+        # 2. Camera Gate (Strict: if camera view is unknown or incompatible, reject compatibility)
+        cam_a = session_a.get("cameraView") or session_a.get("camera_view")
+        cam_b = session_b.get("cameraView") or session_b.get("camera_view")
+        if not are_camera_views_compatible(cam_a, cam_b):
             return SessionComparisonDelta(
                 comparison_id=comp_id,
                 status=ComparisonStatus.INCOMPATIBLE_CAMERA,
@@ -120,10 +129,12 @@ class SessionComparator:
                 reason_codes=(f"CAMERA_VIEW_INCOMPATIBLE_{cam_a}_VS_{cam_b}",),
             )
 
-        # 3. Stance Gate (Strict: if stance is unknown or different, reject compatibility)
-        st_a = session_a.get("stance") or "unknown"
-        st_b = session_b.get("stance") or "unknown"
-        if st_a == "unknown" or st_b == "unknown" or st_a != st_b:
+        # 3. Stance Gate (Strict: if stance is missing or different, reject compatibility)
+        st_a = normalize_stance(session_a.get("stance"))
+        st_b = normalize_stance(session_b.get("stance"))
+        if st_a is None or st_b is None or st_a != st_b:
+            raw_a = session_a.get("stance")
+            raw_b = session_b.get("stance")
             return SessionComparisonDelta(
                 comparison_id=comp_id,
                 status=ComparisonStatus.INCOMPATIBLE_STANCE,
@@ -131,10 +142,24 @@ class SessionComparator:
                 session_b_id=s_b_id,
                 metric_deltas={},
                 observed_differences=(),
-                reason_codes=(f"STANCE_INCOMPATIBLE_{st_a}_VS_{st_b}",),
+                reason_codes=(f"STANCE_INCOMPATIBLE_{raw_a}_VS_{raw_b}",),
             )
 
-        # 4. Compute Deltas
+        # 4. Technique Gate (if provided, must match)
+        tech_a = session_a.get("technique") or session_a.get("techniqueType") or session_a.get("technique_type")
+        tech_b = session_b.get("technique") or session_b.get("techniqueType") or session_b.get("technique_type")
+        if tech_a and tech_b and str(tech_a) != str(tech_b):
+            return SessionComparisonDelta(
+                comparison_id=comp_id,
+                status=ComparisonStatus.UNKNOWN_MISMATCH,
+                session_a_id=s_a_id,
+                session_b_id=s_b_id,
+                metric_deltas={},
+                observed_differences=(),
+                reason_codes=(f"TECHNIQUE_MISMATCH_{tech_a}_VS_{tech_b}",),
+            )
+
+        # 5. Compute Deltas
         metrics_a = session_a.get("metrics", {})
         metrics_b = session_b.get("metrics", {})
         all_metric_keys = set(metrics_a.keys()).union(metrics_b.keys())

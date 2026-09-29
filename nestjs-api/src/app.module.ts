@@ -14,6 +14,7 @@ import { TrainingModule } from './training/training.module.js';
 import { AuthorizationModule } from './authorization/authorization.module.js';
 import { CoachesModule } from './coaches/coaches.module.js';
 import { MedicalModule } from './medical/medical.module.js';
+import { CoachingModule } from './coaching/coaching.module.js';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { MedicalModule } from './medical/medical.module.js';
     DatasetExportModule,
     CoachesModule,
     MedicalModule,
+    CoachingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

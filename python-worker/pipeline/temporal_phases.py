@@ -781,17 +781,28 @@ def segment_punch_phases(
     )
 
     # 6. Recovery Boundary: trở về thế thủ
-    rec_frame = window_end_frame
-    rec_time_ms = window_end_time_ms
-    boundaries["recovery"] = PhaseBoundary(
-        frame_idx=rec_frame,
-        time_ms=rec_time_ms,
-        evidence=PhaseEvidence(
-            level=EvidenceLevel.DERIVED_PROXY,
-            confidence=None,
-            source_signal="guard_return_frame",
-        ),
-    )
+    if window_end_frame <= peak_frame:
+        boundaries["recovery"] = PhaseBoundary(
+            frame_idx=None,
+            time_ms=None,
+            evidence=PhaseEvidence(
+                level=EvidenceLevel.UNAVAILABLE,
+                confidence=None,
+                source_signal="truncated_at_peak_no_recovery",
+            ),
+        )
+    else:
+        rec_frame = window_end_frame
+        rec_time_ms = window_end_time_ms
+        boundaries["recovery"] = PhaseBoundary(
+            frame_idx=rec_frame,
+            time_ms=rec_time_ms,
+            evidence=PhaseEvidence(
+                level=EvidenceLevel.DERIVED_PROXY,
+                confidence=None,
+                source_signal="guard_return_frame",
+            ),
+        )
 
     return TemporalPhaseSequence(
         action_family="punch",
@@ -1006,17 +1017,28 @@ def segment_kick_phases(
     )
 
     # 6. Recovery Boundary
-    rec_frame = window_end_frame
-    rec_time_ms = window_end_time_ms
-    boundaries["recovery"] = PhaseBoundary(
-        frame_idx=rec_frame,
-        time_ms=rec_time_ms,
-        evidence=PhaseEvidence(
-            level=EvidenceLevel.DERIVED_PROXY,
-            confidence=None,
-            source_signal="stance_recovery",
-        ),
-    )
+    if window_end_frame <= peak_frame:
+        boundaries["recovery"] = PhaseBoundary(
+            frame_idx=None,
+            time_ms=None,
+            evidence=PhaseEvidence(
+                level=EvidenceLevel.UNAVAILABLE,
+                confidence=None,
+                source_signal="truncated_at_peak_no_recovery",
+            ),
+        )
+    else:
+        rec_frame = window_end_frame
+        rec_time_ms = window_end_time_ms
+        boundaries["recovery"] = PhaseBoundary(
+            frame_idx=rec_frame,
+            time_ms=rec_time_ms,
+            evidence=PhaseEvidence(
+                level=EvidenceLevel.DERIVED_PROXY,
+                confidence=None,
+                source_signal="stance_recovery",
+            ),
+        )
 
     return TemporalPhaseSequence(
         action_family="kick",

@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Redis } from 'ioredis';
 import { DRIZZLE } from '../../database/database.module.js';
 import { attestationNonces } from '../../database/schema.js';
-import { eq, and, gt } from 'drizzle-orm';
+import { eq, and, gt, sql } from 'drizzle-orm';
 
 @Injectable()
 export class NonceStoreService {
@@ -110,5 +110,33 @@ export class NonceStoreService {
       .limit(1);
 
     return existing.length > 0;
+  }
+
+  /**
+   * Reconciles state when a transaction rolls back after Redis reservation.
+   * Releases speculative Redis nonce lock.
+   */
+  async releaseNonce(issuer: string, nonce: string): Promise<void> {
+    if (this.redisClient && this.redisClient.status === 'ready') {
+      try {
+        const redisKey = `nonce:${issuer}:${nonce}`;
+        await this.redisClient.del(redisKey);
+        this.logger.debug(`Released speculative Redis nonce: ${redisKey}`);
+      } catch (err) {
+        this.logger.warn(`Failed releasing Redis nonce '${nonce}': ${(err as Error).message}`);
+      }
+    }
+  }
+
+  /**
+   * Cleans up expired nonces from the database.
+   */
+  async cleanupExpiredNonces(): Promise<number> {
+    const now = new Date();
+    const result = await this.db
+      .delete(attestationNonces)
+      .where(sql`expires_at < ${now}`)
+      .returning();
+    return result.length;
   }
 }

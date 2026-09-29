@@ -24,6 +24,10 @@ from pipeline.vertical_slice_integration import (
     AdvancedAIOrchestrator,
     AdvancedVerticalSliceResult,
     ReleaseGateReport,
+    ReleaseGateInput,
+    TestSummaryArtifact,
+    ModuleGateArtifact,
+    REQUIRED_AI_GATE_TASK_IDS,
 )
 from pipeline.active_learning_queue import TrustedConsentPolicy
 
@@ -155,12 +159,63 @@ def test_vertical_slice_end_to_end_orchestration():
 
 def test_release_gate_report_readiness():
     orchestrator = AdvancedAIOrchestrator()
-    gate_report = orchestrator.generate_release_gate_report()
-    assert isinstance(gate_report, ReleaseGateReport)
-    assert gate_report.ai_pipeline_readiness == "READY"
-    # Strict Invariant: product deployment readiness remains fail-closed
-    assert gate_report.product_deployment_readiness == "GOLD_READY_DISABLED_PENDING_TRUST_BOUNDARY"
-    assert "540" in gate_report.tasks_1_17_regression_check
+    # 1. Unsupplied inputs fail closed to NOT_RUN (no false READY claim)
+    gate_report_default = orchestrator.generate_release_gate_report()
+    assert isinstance(gate_report_default, ReleaseGateReport)
+    assert gate_report_default.ai_pipeline_readiness == "NOT_RUN"
+    assert gate_report_default.product_deployment_readiness == "DISABLED_PENDING_TRUST_BOUNDARY"
+    assert "NOT_RUN" in gate_report_default.tasks_1_17_regression_check
+
+    # 2. When evaluated with machine-readable baseline artifacts where modules are not all gold-validated:
+    # aggregate AI status must be NOT_VALIDATED (NEVER READY).
+    valid_hash = "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    test_sum = TestSummaryArtifact(
+        artifact_id="test_run_task31",
+        artifact_type="test_execution_summary",
+        schema_version="1.0.0",
+        generated_at="2026-09-21T00:00:00+00:00",
+        source_revision="abc",
+        artifact_hash=valid_hash,
+        total_tests=604,
+        passed=604,
+        failed=0,
+        skipped=0,
+        errors=0,
+    )
+    # Tasks 23, 24, 25, 27, 29, 30 are not gold-validated per remediation baseline
+    unvalidated_tasks = {"Task 23", "Task 24", "Task 25", "Task 27", "Task 29", "Task 30"}
+    mods = {}
+    for task_id in REQUIRED_AI_GATE_TASK_IDS:
+        val_status = "NOT_VALIDATED" if task_id in unvalidated_tasks else "VALIDATED"
+        if task_id in ("Task 24", "Task 25"):
+            val_status = "SHADOW_NOT_VALIDATED"
+        mods[task_id] = ModuleGateArtifact(
+            artifact_id=f"mod_art_{task_id}",
+            artifact_type="module_gate_artifact",
+            schema_version="1.0.0",
+            generated_at="2026-09-21T00:00:00+00:00",
+            source_revision="abc",
+            artifact_hash=valid_hash,
+            task_id=task_id,
+            implementation_status="IMPLEMENTED",
+            validation_status=val_status,
+        )
+
+    inp = ReleaseGateInput(
+        artifact_id="gate_inp_task31",
+        schema_version="1.0.0",
+        generated_at="2026-09-21T00:00:00+00:00",
+        source_revision="abc",
+        artifact_hash=valid_hash,
+        test_summary=test_sum,
+        module_evaluations=mods,
+    )
+    gate_report = orchestrator.generate_release_gate_report(inp)
+    # A NOT_VALIDATED module can never make aggregate validation READY
+    assert gate_report.ai_pipeline_readiness == "NOT_VALIDATED"
+    assert gate_report.ai_pipeline_readiness != "READY"
+    assert gate_report.product_deployment_readiness == "DISABLED_PENDING_TRUST_BOUNDARY"
+    assert "PASS (604 passed, 0 failed)" in gate_report.tasks_1_17_regression_check
     assert len(gate_report.tasks_18_30_modules_evaluated) == 14
     for mod_name, status in gate_report.tasks_18_30_modules_evaluated.items():
         assert status in ("IMPLEMENTED_AND_CONTRACT_TESTED", "NOT_VALIDATED", "SHADOW_NOT_VALIDATED")

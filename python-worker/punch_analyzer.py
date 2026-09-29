@@ -264,16 +264,17 @@ class SingleArmTracker:
         self.prev_reach = reach
         self.last_time_ms = time_ms
 
-        # Kiểm tra tay đối diện (Dropped Guard Check)
-        if opp_wr.conf >= self.config.min_confidence and opp_sh.conf >= self.config.min_confidence:
-            drop_dist = opp_wr.y - opp_sh.y
-            if drop_dist > 0.10:
-                if not self.guard_dropped:
-                    self.guard_drop_frame = frame_idx
-                    self.guard_drop_time_ms = time_ms
-                self.guard_dropped = True
-                if drop_dist > self.max_guard_drop_dist:
-                    self.max_guard_drop_dist = drop_dist
+        # Kiểm tra tay đối diện (Dropped Guard Check) — chỉ trong pha vươn đòn và va chạm
+        if self.state in (PunchState.EXTENDING, PunchState.IMPACT):
+            if opp_wr.conf >= self.config.min_confidence and opp_sh.conf >= self.config.min_confidence:
+                drop_dist = opp_wr.y - opp_sh.y
+                if drop_dist > 0.10:
+                    if not self.guard_dropped:
+                        self.guard_drop_frame = frame_idx
+                        self.guard_drop_time_ms = time_ms
+                    self.guard_dropped = True
+                    if drop_dist > self.max_guard_drop_dist:
+                        self.max_guard_drop_dist = drop_dist
 
         # The configured maximum duration applies in EVERY phase, including
         # a late retraction. A stale cycle is not evidence of a new punch.

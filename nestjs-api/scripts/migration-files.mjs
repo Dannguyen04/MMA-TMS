@@ -20,6 +20,7 @@ export const migrationNames = [
   '010_grant_coach_permissions.sql',
   '011_medical_clinical_records.sql',
   '012_medical_clearance_issue_order.sql',
+  '013_coaching_loop_and_constraints.sql',
 ];
 export function readVerifiedMigrations() {
   const manifest = JSON.parse(

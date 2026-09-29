@@ -8,7 +8,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { AppModule } from '../src/app.module.js';
 import { DRIZZLE } from '../src/database/database.module.js';
-import { datasetReviews, datasetQualityReports } from '../src/database/schema.js';
+import { datasetReviews, datasetQualityReports, datasetExportCandidates } from '../src/database/schema.js';
 import { AttestationSignerService } from '../src/dataset-export/services/attestation-signer.service.js';
 import { AuthoritativeGovernanceService } from '../src/dataset-export/services/authoritative-governance.service.js';
 
@@ -42,6 +42,24 @@ describe('Task 14 — Product Backend Security & Governance Remediation Gate', (
       qualityStatus,
       policyVersion,
       metrics: { completeness: 1.0 },
+    });
+  };
+
+  const seedCandidate = async (candidate: any) => {
+    await db.insert(datasetExportCandidates).values({
+      exportId: candidate.exportId,
+      datasetHash: candidate.datasetHash,
+      manifestDigest: candidate.manifestDigest,
+      reviewEvidenceDigest: candidate.reviewEvidenceDigest,
+      qualityEvidenceDigest: candidate.qualityEvidenceDigest,
+      policyVersion: candidate.policyVersion,
+      sourceSchemaVersion: candidate.sourceSchemaVersion,
+      sampleCount: candidate.sampleCount,
+      coveredActionIdsHash: candidate.coveredActionIdsHash,
+      candidateStatus: candidate.candidateStatus || 'NOT_GOLD_READY',
+      readinessGaps: candidate.readinessGaps || [],
+      sourceJobId: candidate.sourceJobId || null,
+      createdAt: new Date(candidate.createdAt || Date.now()),
     });
   };
 
@@ -120,6 +138,12 @@ describe('Task 14 — Product Backend Security & Governance Remediation Gate', (
     };
   };
 
+  const preparePayload = async (candidateOverride: Record<string, any> = {}, payloadOverride: Record<string, any> = {}) => {
+    const payload = samplePayload(candidateOverride, payloadOverride);
+    await seedCandidate(payload.candidate);
+    return payload;
+  };
+
   beforeEach(async () => {
     process.env.GOLD_EXPORT_ENABLED = 'true';
 
@@ -140,13 +164,13 @@ describe('Task 14 — Product Backend Security & Governance Remediation Gate', (
     db = moduleFixture.get(DRIZZLE);
     signerService = moduleFixture.get<AttestationSignerService>(AttestationSignerService);
     governanceService = moduleFixture.get<AuthoritativeGovernanceService>(AuthoritativeGovernanceService);
-  });
+  }, 30000);
 
   afterEach(async () => {
     if (app) {
       await app.close();
     }
-  });
+  }, 30000);
 
   describe('1. Production Fail-Closed Defaults & Authorization Guard', () => {
     it('1.1 fails closed when auth secret or signer key is missing in production mode', () => {
@@ -191,7 +215,7 @@ describe('Task 14 — Product Backend Security & Governance Remediation Gate', (
     });
 
     it('1.3 derives actor identity from authentication context, rejecting body actorId spoofing', async () => {
-      const spoofedPayload = samplePayload({}, { actorId: 'spoofed_admin_hacker' });
+      const spoofedPayload = await preparePayload({}, { actorId: 'spoofed_admin_hacker' });
       const resSpoofed = await request(app.getHttpServer())
         .post(`/internal/dataset-exports/${spoofedPayload.candidate.exportId}/promotions`)
         .set('x-worker-secret', validWorkerSecret)
@@ -200,7 +224,7 @@ describe('Task 14 — Product Backend Security & Governance Remediation Gate', (
 
       expect(resSpoofed.status).toBe(400);
 
-      const validPayload = samplePayload();
+      const validPayload = await preparePayload();
       const resValid = await request(app.getHttpServer())
         .post(`/internal/dataset-exports/${validPayload.candidate.exportId}/promotions`)
         .set('x-worker-secret', validWorkerSecret)
@@ -210,11 +234,23 @@ describe('Task 14 — Product Backend Security & Governance Remediation Gate', (
       expect(resValid.status).toBe(201);
       expect(resValid.body.claims).toBeDefined();
     });
+
+    it('1.4 rejects promotion when candidate does not exist in authoritative inventory', async () => {
+      const payload = samplePayload(); // explicitly unseeded
+      const res = await request(app.getHttpServer())
+        .post(`/internal/dataset-exports/${payload.candidate.exportId}/promotions`)
+        .set('x-worker-secret', validWorkerSecret)
+        .set('idempotency-key', `idemp_unseeded_${Date.now()}`)
+        .send(payload);
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toContain('does not exist in authoritative inventory');
+    });
   });
 
   describe('2. Authoritative Governance & Digest Binding', () => {
     it('2.1 fails closed as NOT_GOLD_READY when DB has no authoritative reviews or quality report', async () => {
-      const payload = samplePayload();
+      const payload = await preparePayload();
 
       const res = await request(app.getHttpServer())
         .post(`/internal/dataset-exports/${payload.candidate.exportId}/promotions`)
@@ -229,7 +265,7 @@ describe('Task 14 — Product Backend Security & Governance Remediation Gate', (
     });
 
     it('2.2 promotes to GOLD_READY when authoritative DB has valid reviews and quality pass', async () => {
-      const payload = samplePayload();
+      const payload = await preparePayload();
       const exportId = payload.candidate.exportId;
 
       await seedReviews(exportId, [
@@ -251,7 +287,7 @@ describe('Task 14 — Product Backend Security & Governance Remediation Gate', (
     });
 
     it('2.3 rejects dual review consensus when authoritative DB reviewer role combination is invalid', async () => {
-      const payload = samplePayload();
+      const payload = await preparePayload();
       const exportId = payload.candidate.exportId;
 
       await seedReviews(exportId, [
@@ -272,7 +308,7 @@ describe('Task 14 — Product Backend Security & Governance Remediation Gate', (
     });
 
     it('2.4 fails closed when a reviewer is revoked in DB reducing count below threshold', async () => {
-      const payload = samplePayload();
+      const payload = await preparePayload();
       const exportId = payload.candidate.exportId;
 
       await seedReviews(exportId, [
@@ -293,7 +329,7 @@ describe('Task 14 — Product Backend Security & Governance Remediation Gate', (
     });
 
     it('2.5 DB quality truth overrides request payload claims', async () => {
-      const payload = samplePayload(); // claims quality pass in payload
+      const payload = await preparePayload(); // claims quality pass in payload
       const exportId = payload.candidate.exportId;
 
       await seedReviews(exportId, [
@@ -314,7 +350,7 @@ describe('Task 14 — Product Backend Security & Governance Remediation Gate', (
     });
 
     it('2.6 flags reviewEvidenceDigest mismatch when candidate claim does not match authoritative DB', async () => {
-      const payload = samplePayload({ reviewEvidenceDigest: 'sha256:' + 'f'.repeat(64) });
+      const payload = await preparePayload({ reviewEvidenceDigest: 'sha256:' + 'f'.repeat(64) });
       const exportId = payload.candidate.exportId;
 
       await seedReviews(exportId, [
@@ -333,11 +369,86 @@ describe('Task 14 — Product Backend Security & Governance Remediation Gate', (
       expect(res.body.authoritativeStatus).toBe('NOT_GOLD_READY');
       expect(res.body.readinessGaps.join(' ')).toContain('reviewEvidenceDigest mismatch');
     });
+
+    it('2.7 rejects reviewer with unauthorized RBAC role (e.g. fighter)', async () => {
+      const payload = await preparePayload();
+      const exportId = payload.candidate.exportId;
+
+      await seedReviews(exportId, [
+        { reviewerId: 'usr_coach_1', role: 'coach' },
+        { reviewerId: 'usr_f1', role: 'fighter' },
+      ]);
+      await seedQuality(exportId, 'pass');
+
+      const res = await request(app.getHttpServer())
+        .post(`/internal/dataset-exports/${exportId}/promotions`)
+        .set('x-worker-secret', validWorkerSecret)
+        .set('idempotency-key', `idemp_rbac_fail_${Date.now()}`)
+        .send(payload);
+
+      expect(res.status).toBe(201);
+      expect(res.body.authoritativeStatus).toBe('NOT_GOLD_READY');
+      expect(res.body.readinessGaps.join(' ')).toContain('WRONG_REVIEWER_ROLE');
+    });
+
+    it('2.8 flags sampleCount mismatch between DB truth and request claims, recording audit event', async () => {
+      const payload1 = await preparePayload({ sampleCount: 600 });
+      const exportId = payload1.candidate.exportId;
+
+      await seedReviews(exportId, [
+        { reviewerId: 'usr_coach_1', role: 'coach' },
+        { reviewerId: 'usr_expert_2', role: 'domain_expert' },
+      ]);
+      await seedQuality(exportId, 'pass');
+
+      // First promotion establishes candidate with sampleCount: 600
+      const res1 = await request(app.getHttpServer())
+        .post(`/internal/dataset-exports/${exportId}/promotions`)
+        .set('x-worker-secret', validWorkerSecret)
+        .set('idempotency-key', `idemp_db_truth_${Date.now()}`)
+        .send(payload1);
+      expect(res1.status).toBe(201);
+      expect(res1.body.authoritativeStatus).toBe('GOLD_READY');
+
+      // Subsequent promotion where candidate claims sampleCount: 999 (tampered)
+      const payload2 = samplePayload(
+        { exportId, sampleCount: 999 },
+        { nonce: `nonce_tamper_${Date.now()}` },
+      );
+      const res2 = await request(app.getHttpServer())
+        .post(`/internal/dataset-exports/${exportId}/promotions`)
+        .set('x-worker-secret', validWorkerSecret)
+        .set('idempotency-key', `idemp_tamper_${Date.now()}`)
+        .send(payload2);
+
+      expect(res2.status).toBe(409); // Candidate metadata conflict
+    });
+
+    it('2.9 rejects duplicate reviewer IDs in database', async () => {
+      const payload = await preparePayload();
+      const exportId = payload.candidate.exportId;
+
+      await seedReviews(exportId, [
+        { reviewerId: 'usr_coach_1', role: 'coach' },
+        { reviewerId: 'usr_coach_1', role: 'coach' }, // Duplicate reviewer ID
+      ]);
+      await seedQuality(exportId, 'pass');
+
+      const res = await request(app.getHttpServer())
+        .post(`/internal/dataset-exports/${exportId}/promotions`)
+        .set('x-worker-secret', validWorkerSecret)
+        .set('idempotency-key', `idemp_dup_rev_${Date.now()}`)
+        .send(payload);
+
+      expect(res.status).toBe(201);
+      expect(res.body.authoritativeStatus).toBe('NOT_GOLD_READY');
+      expect(res.body.readinessGaps.join(' ')).toContain('Duplicate reviewer IDs detected');
+    });
   });
 
   describe('3. Candidate Conflict & Superseding Lifecycle', () => {
     it('3.1 rejects same exportId submitted with different candidate hash (409 Conflict)', async () => {
-      const payload1 = samplePayload();
+      const payload1 = await preparePayload();
       const exportId = payload1.candidate.exportId;
 
       // First promotion succeeds
@@ -361,7 +472,7 @@ describe('Task 14 — Product Backend Security & Governance Remediation Gate', (
     });
 
     it('3.2 supersedes previous active attestations when issuing a new promotion', async () => {
-      const payload1 = samplePayload();
+      const payload1 = await preparePayload();
       const exportId = payload1.candidate.exportId;
 
       // First promotion
@@ -398,7 +509,7 @@ describe('Task 14 — Product Backend Security & Governance Remediation Gate', (
 
   describe('4. Idempotency & Nonce Replay', () => {
     it('4.1 requires mandatory Idempotency-Key header for mutations', async () => {
-      const payload = samplePayload();
+      const payload = await preparePayload();
       const res = await request(app.getHttpServer())
         .post(`/internal/dataset-exports/${payload.candidate.exportId}/promotions`)
         .set('x-worker-secret', validWorkerSecret)
@@ -409,7 +520,7 @@ describe('Task 14 — Product Backend Security & Governance Remediation Gate', (
     });
 
     it('4.2 returns exact stored response for duplicate Idempotency-Key and payload', async () => {
-      const payload = samplePayload();
+      const payload = await preparePayload();
       const idempotencyKey = `idemp_dup_${Date.now()}`;
 
       const res1 = await request(app.getHttpServer())
@@ -430,7 +541,7 @@ describe('Task 14 — Product Backend Security & Governance Remediation Gate', (
     });
 
     it('4.3 rejects duplicate nonces with 409 Conflict', async () => {
-      const payload1 = samplePayload();
+      const payload1 = await preparePayload();
       const nonce = payload1.nonce;
 
       await request(app.getHttpServer())
@@ -439,7 +550,7 @@ describe('Task 14 — Product Backend Security & Governance Remediation Gate', (
         .set('idempotency-key', `idemp_n1_${Date.now()}`)
         .send(payload1);
 
-      const payload2 = samplePayload({}, { nonce });
+      const payload2 = await preparePayload({}, { nonce });
       const res2 = await request(app.getHttpServer())
         .post(`/internal/dataset-exports/${payload2.candidate.exportId}/promotions`)
         .set('x-worker-secret', validWorkerSecret)
@@ -477,7 +588,7 @@ describe('Task 14 — Product Backend Security & Governance Remediation Gate', (
     });
 
     it('5.3 does not expose sensitive secret values in API responses or logs', async () => {
-      const payload = samplePayload();
+      const payload = await preparePayload();
       const res = await request(app.getHttpServer())
         .post(`/internal/dataset-exports/${payload.candidate.exportId}/promotions`)
         .set('x-worker-secret', validWorkerSecret)

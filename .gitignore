@@ -75,7 +75,6 @@ test-screenshots/
 **/test-screenshots/
 
 # Documentation
-docs
 
 # Local Cursor configuration, rules, and skills at any project depth
 .cursor/

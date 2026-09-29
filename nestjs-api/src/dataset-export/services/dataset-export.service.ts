@@ -122,27 +122,40 @@ export class DatasetExportService {
           existing.sampleCount === candidate.sampleCount;
 
         if (!isIdentical) {
+          await tx.insert(datasetAttestationAudit).values({
+            eventType: 'rejected',
+            exportId: candidate.exportId,
+            attestationId: null,
+            actorId: authenticatedActorId,
+            reasonCode: 'CANDIDATE_METADATA_CONFLICT',
+            requestDigest,
+            details: {
+              error: 'Candidate exportId conflict: Export ID already exists with different candidate metadata.',
+              existingDatasetHash: existing.datasetHash,
+              claimedDatasetHash: candidate.datasetHash,
+            },
+            createdAt: new Date(),
+          });
           throw new ConflictException(
             `Candidate exportId conflict: Export ID '${candidate.exportId}' already exists with different candidate metadata.`,
           );
         }
       } else {
-        // Register candidate in DB
-        await tx.insert(datasetExportCandidates).values({
+        await tx.insert(datasetAttestationAudit).values({
+          eventType: 'rejected',
           exportId: candidate.exportId,
-          datasetHash: candidate.datasetHash,
-          manifestDigest: candidate.manifestDigest,
-          reviewEvidenceDigest: candidate.reviewEvidenceDigest,
-          qualityEvidenceDigest: candidate.qualityEvidenceDigest,
-          policyVersion: candidate.policyVersion,
-          sourceSchemaVersion: candidate.sourceSchemaVersion,
-          sampleCount: candidate.sampleCount,
-          coveredActionIdsHash: candidate.coveredActionIdsHash,
-          candidateStatus: candidate.candidateStatus,
-          readinessGaps: candidate.readinessGaps || [],
-          sourceJobId: candidate.sourceJobId || null,
-          createdAt: new Date(candidate.createdAt),
+          attestationId: null,
+          actorId: authenticatedActorId,
+          reasonCode: 'MISSING_AUTHORITATIVE_INVENTORY',
+          requestDigest,
+          details: {
+            error: `Export candidate '${candidate.exportId}' does not exist in authoritative inventory.`,
+          },
+          createdAt: new Date(),
         });
+        throw new BadRequestException(
+          `Export candidate '${candidate.exportId}' does not exist in authoritative inventory. Candidate must originate from trusted export pipeline prior to promotion.`,
+        );
       }
 
       // 3. Evaluate Authoritative Governance & Consensus
@@ -219,12 +232,21 @@ export class DatasetExportService {
       });
 
       // 8. Log Audit Event
+      const hasDisagreement = governance.readinessGaps.some(
+        (g) => g.includes('mismatch') || g.includes('MISSING_AUTHORITATIVE') || g.includes('WRONG_REVIEWER'),
+      );
+      const auditReasonCode = hasDisagreement
+        ? 'AUTHORITATIVE_DISAGREEMENT'
+        : governance.passed
+          ? `idempotency:${idempotencyKey}`
+          : 'GOVERNANCE_FAILED';
+
       await tx.insert(datasetAttestationAudit).values({
         eventType: governance.passed ? 'issued' : 'rejected',
         exportId: candidate.exportId,
         attestationId,
         actorId: authenticatedActorId,
-        reasonCode: `idempotency:${idempotencyKey}`,
+        reasonCode: auditReasonCode,
         requestDigest,
         details: {
           readinessGaps: governance.readinessGaps,

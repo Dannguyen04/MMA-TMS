@@ -1,6 +1,4 @@
 {
-  "format": 1,
-  "normalization": "UTF-8, CRLF to LF",
   "sha256_lf": {
     "001_create_analysis_jobs.sql": "ed83990f88fdc12356836362e113d0f7ebbd862635416b76d00f493c56b9c8f8",
     "002_add_health_alerts.sql": "549dd6618b432cbef1f6bebc96491ca001f4f806744327a1639624df5cd89b4c",
@@ -13,6 +11,7 @@
     "009_fighter_admissions.sql": "ff21b4c1bf1ed6deec0653d0903fc1dca6a6407b6b1bf65216fcf064ef9f7fda",
     "010_grant_coach_permissions.sql": "2d3440fcd07e1a28864da97c1efbfacdaebbc3b1d27b1d2d53d927176f059b57",
     "011_medical_clinical_records.sql": "b0f480d435bd279dc3f8a0f9aa99213696bab0fdca50bda94e79c1e97eb39c19",
-    "012_medical_clearance_issue_order.sql": "f620cc3f29b5d7e26c10edd5c2f6f7e55468a5a8cb6f4ff6135613f7210ad9a6"
+    "012_medical_clearance_issue_order.sql": "f620cc3f29b5d7e26c10edd5c2f6f7e55468a5a8cb6f4ff6135613f7210ad9a6",
+    "013_coaching_loop_and_constraints.sql": "fb02d566caacb1fe78408bbcdc6ec3676af32fa67816ada8f18923391f23e8f1"
   }
 }

@@ -692,15 +692,15 @@ def _extract_punch_kinematics(
         else:
             metrics_dict["extension_duration_ms"] = make_unavailable_metric("extension_duration_ms", "ms", method_version)
 
-        # Retraction duration (peak -> recovery/retraction)
+        # Retraction duration (peak -> retraction/recovery)
         end_ms = None
         end_frame = None
-        if b_rec and b_rec.time_ms is not None:
-            end_ms = b_rec.time_ms
-            end_frame = b_rec.frame_idx
-        elif b_ret and b_ret.time_ms is not None:
+        if b_ret and b_ret.time_ms is not None:
             end_ms = b_ret.time_ms
             end_frame = b_ret.frame_idx
+        elif b_rec and b_rec.time_ms is not None:
+            end_ms = b_rec.time_ms
+            end_frame = b_rec.frame_idx
 
         if peak_ms is not None and end_ms is not None and end_ms >= peak_ms and peak_frame is not None and end_frame is not None:
             ret_dur = end_ms - peak_ms
@@ -717,6 +717,97 @@ def _extract_punch_kinematics(
             )
         else:
             metrics_dict["retraction_duration_ms"] = make_unavailable_metric("retraction_duration_ms", "ms", method_version)
+
+        # Recovery duration (peak -> recovery) — unavailable unless measured recovery window exists
+        rec_ev_level = getattr(getattr(b_rec, "evidence", None), "level", None)
+        if (
+            b_rec is not None
+            and b_rec.time_ms is not None
+            and b_rec.frame_idx is not None
+            and rec_ev_level != EvidenceLevel.UNAVAILABLE
+            and peak_ms is not None
+            and peak_frame is not None
+            and b_rec.time_ms > peak_ms
+        ):
+            rec_dur = b_rec.time_ms - peak_ms
+            metrics_dict["recovery_duration_ms"] = make_computed_metric(
+                name="recovery_duration_ms",
+                value=rec_dur,
+                unit="ms",
+                confidence=round(mean_conf, 3),
+                evidence_level=EvidenceLevel.DERIVED_PROXY,
+                evidence_quality=quality_literal,
+                frames_used=(peak_frame, b_rec.frame_idx),
+                time_window_ms=(peak_ms, b_rec.time_ms),
+                method_version=method_version,
+            )
+        else:
+            metrics_dict["recovery_duration_ms"] = make_unavailable_metric("recovery_duration_ms", "ms", method_version)
+
+    # Phase-aware Guard Evidence (Opposite hand protection during preparation -> peak window)
+    opp_sh_idx = KP.RIGHT_SHOULDER if side == "left" else KP.LEFT_SHOULDER
+    opp_wr_idx = KP.RIGHT_WRIST if side == "left" else KP.LEFT_WRIST
+    guard_drop_diffs: list[float] = []
+    guard_used_frames: list[int] = []
+    guard_confs: list[float] = []
+
+    g_start_frame = start_frame if "start_frame" in locals() and start_frame is not None else (frame_metas[0][0] if frame_metas else 0)
+    g_peak_frame = peak_frame if "peak_frame" in locals() and peak_frame is not None else (frame_metas[-1][0] if frame_metas else 0)
+
+    for idx, f in enumerate(frames):
+        f_idx, t_ms = frame_metas[idx]
+        if g_start_frame <= f_idx <= g_peak_frame:
+            osh = _extract_point(f, opp_sh_idx)
+            owr = _extract_point(f, opp_wr_idx)
+            if (
+                osh is not None and owr is not None
+                and math.isfinite(osh.x) and math.isfinite(osh.y)
+                and math.isfinite(owr.x) and math.isfinite(owr.y)
+                and osh.conf >= pose_config.min_landmark_confidence
+                and owr.conf >= pose_config.min_landmark_confidence
+            ):
+                drop_d = owr.y - osh.y
+                guard_drop_diffs.append(drop_d)
+                guard_used_frames.append(f_idx)
+                guard_confs.append(float(min(osh.conf, owr.conf)))
+
+    if guard_used_frames and len(guard_drop_diffs) > 0:
+        max_guard_drop = max(guard_drop_diffs)
+        is_guard_ok = 1.0 if max_guard_drop <= 0.10 else 0.0
+        mean_g_conf = sum(guard_confs) / len(guard_confs)
+        g_quality: EvidenceQuality = (
+            "GOOD" if mean_g_conf >= 0.75
+            else "DEGRADED" if mean_g_conf >= 0.50
+            else "LOW" if mean_g_conf >= 0.35
+            else "INSUFFICIENT"
+        )
+        g_time_start = start_ms if "start_ms" in locals() and start_ms is not None else (frame_metas[0][1] if frame_metas else 0.0)
+        g_time_end = peak_ms if "peak_ms" in locals() and peak_ms is not None else (frame_metas[-1][1] if frame_metas else 0.0)
+        metrics_dict["guard_preserved"] = make_computed_metric(
+            name="guard_preserved",
+            value=is_guard_ok,
+            unit="flag",
+            confidence=round(mean_g_conf, 3),
+            evidence_level=EvidenceLevel.OBSERVED,
+            evidence_quality=g_quality,
+            frames_used=tuple(guard_used_frames),
+            time_window_ms=(g_time_start, g_time_end),
+            method_version=method_version,
+        )
+        metrics_dict["guard_drop_distance"] = make_computed_metric(
+            name="guard_drop_distance",
+            value=max(0.0, max_guard_drop),
+            unit="normalized_image",
+            confidence=round(mean_g_conf, 3),
+            evidence_level=EvidenceLevel.DERIVED_PROXY,
+            evidence_quality=g_quality,
+            frames_used=tuple(guard_used_frames),
+            time_window_ms=(g_time_start, g_time_end),
+            method_version=method_version,
+        )
+    else:
+        metrics_dict["guard_preserved"] = make_unavailable_metric("guard_preserved", "flag", method_version)
+        metrics_dict["guard_drop_distance"] = make_unavailable_metric("guard_drop_distance", "normalized_image", method_version)
 
     quality_summary = {
         "mean_landmark_confidence": mean_conf,
@@ -1019,6 +1110,38 @@ def _extract_kick_kinematics(
         metrics_dict["knee_extension_angle"] = make_unavailable_metric("knee_extension_angle", "degree", method_version)
         metrics_dict["knee_chamber_angle"] = make_unavailable_metric("knee_chamber_angle", "degree", method_version)
         metrics_dict["knee_angle_range"] = make_unavailable_metric("knee_angle_range", "degree", method_version)
+
+    # Phân tích pha thời gian cho kick (recovery duration)
+    if temporal_phases is not None and hasattr(temporal_phases, "boundaries"):
+        b_peak = temporal_phases.boundaries.get("peak")
+        b_rec = temporal_phases.boundaries.get("recovery")
+        peak_ms = b_peak.time_ms if b_peak else None
+        peak_frame = b_peak.frame_idx if b_peak else None
+
+        rec_ev_level = getattr(getattr(b_rec, "evidence", None), "level", None)
+        if (
+            b_rec is not None
+            and b_rec.time_ms is not None
+            and b_rec.frame_idx is not None
+            and rec_ev_level != EvidenceLevel.UNAVAILABLE
+            and peak_ms is not None
+            and peak_frame is not None
+            and b_rec.time_ms > peak_ms
+        ):
+            rec_dur = b_rec.time_ms - peak_ms
+            metrics_dict["recovery_duration_ms"] = make_computed_metric(
+                name="recovery_duration_ms",
+                value=rec_dur,
+                unit="ms",
+                confidence=round(mean_conf, 3),
+                evidence_level=EvidenceLevel.DERIVED_PROXY,
+                evidence_quality=quality_literal,
+                frames_used=(peak_frame, b_rec.frame_idx),
+                time_window_ms=(peak_ms, b_rec.time_ms),
+                method_version=method_version,
+            )
+        else:
+            metrics_dict["recovery_duration_ms"] = make_unavailable_metric("recovery_duration_ms", "ms", method_version)
 
     quality_summary = {
         "mean_landmark_confidence": mean_conf,

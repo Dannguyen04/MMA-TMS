@@ -109,10 +109,14 @@ const actionPhasesSchema = z.object({
     impactType: z.enum(["peak_extension_proxy", "max_extension_proxy", "unavailable"]),
 });
 
-const actionMetricItemSchema = z.object({
-    value: z.union([z.number(), z.boolean(), z.string()]).nullable(),
+export const actionMetricItemSchema = z.object({
+    value: z.union([z.number().finite(), z.boolean(), z.string()]).nullable(),
     unit: z.string(),
-    confidence: z.number().min(0).max(1).nullable().optional(),
+    confidence: z.number().finite().min(0).max(1).nullable().optional(),
+    evidenceConfidence: z.number().finite().min(0).max(1).nullable().optional(),
+    framesUsed: z.array(z.number().int().nonnegative()).nullable().optional(),
+    source: z.string().nullable().optional(),
+    methodVersion: z.string().nullable().optional(),
 });
 
 const actionAssessmentSchema = z.object({
@@ -214,14 +218,24 @@ export const activeLearningReasonSchema = z.enum([
 export const baselineEligibilityStatusSchema = z.enum([
     "eligible",
     "insufficient_sessions",
+    "insufficient_references",
     "poor_quality",
     "inconsistent_technique",
+    "incompatible_stance",
+    "incompatible_camera",
+    "incompatible_rubric",
+    "leakage_detected",
     "stale",
     "not_applicable",
     "ELIGIBLE",
     "INSUFFICIENT_SESSIONS",
+    "INSUFFICIENT_REFERENCES",
     "POOR_QUALITY",
     "INCONSISTENT_TECHNIQUE",
+    "INCOMPATIBLE_STANCE",
+    "INCOMPATIBLE_CAMERA",
+    "INCOMPATIBLE_RUBRIC",
+    "LEAKAGE_DETECTED",
     "STALE",
     "NOT_APPLICABLE",
 ]);
@@ -245,11 +259,19 @@ export const alignmentStatusSchema = z.enum([
     "quality_blocked",
     "phase_mismatch",
     "unstable_alignment",
+    "stance_mismatch",
+    "technique_mismatch",
+    "timebase_mismatch",
+    "schema_mismatch",
     "ALIGNED",
     "CAMERA_MISMATCH",
     "QUALITY_BLOCKED",
     "PHASE_MISMATCH",
     "UNSTABLE_ALIGNMENT",
+    "STANCE_MISMATCH",
+    "TECHNIQUE_MISMATCH",
+    "TIMEBASE_MISMATCH",
+    "SCHEMA_MISMATCH",
 ]);
 
 
@@ -283,13 +305,21 @@ export const actionSchema = z.object({
     modelVersion: z.string().nullable().optional(),
     rubricVersion: z.string().nullable().optional(),
     shadowClassification: shadowClassificationSchema.nullable().optional(),
-    qualityStatus: z.enum(["pass", "degraded", "blocked"]).optional(),
+    qualityStatus: z.enum([
+        "pass", "degraded", "blocked",
+        "PASS", "DEGRADED", "BLOCKED",
+        "EXCELLENT", "GOOD", "ACCEPTABLE",
+    ]).optional(),
     adjustedEvidenceLevel: z.enum(["observed", "derived_proxy", "unavailable"]).optional(),
     reasonCodes: z.array(z.string()).optional(),
 });
 
 export const analysisQualitySchema = z.object({
-    status: z.enum(["pass", "degraded", "blocked"]),
+    status: z.enum([
+        "pass", "degraded", "blocked",
+        "PASS", "DEGRADED", "BLOCKED",
+        "EXCELLENT", "GOOD", "ACCEPTABLE",
+    ]),
     reasonCodes: z.array(z.string()),
     metrics: z.object({
         fps: z.number(),
@@ -554,7 +584,7 @@ export const workerResultSchema = z.object({
     sessionInsights: sessionInsightsSchema.optional(),
     coachingPlan: coachingPlanSchema.optional(),
     advancedAI: advancedAIExtensionSchema.optional(),
-});
+}).passthrough();
 
 export type WorkerLandmark = z.infer<typeof landmarkSchema>;
 export type WorkerFrame = z.infer<typeof frameSchema>;
