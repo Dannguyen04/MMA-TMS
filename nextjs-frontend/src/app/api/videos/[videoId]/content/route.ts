@@ -1,7 +1,8 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 
-import { apiEndpoint, apiErrorResponse, getMutableAccessToken } from "@/lib/api/client";
+import { apiEndpoint, apiErrorResponse } from "@/lib/api/client";
+import { getPipelineAccessToken } from "@/lib/api/pipeline-auth";
 
 export const runtime = "nodejs";
 
@@ -16,7 +17,7 @@ export async function GET(request: NextRequest, context: RouteContext<"/api/vide
         return Response.json({ message: "Video not found." }, { status: 404, headers: { "Cache-Control": "no-store" } });
     }
     try {
-        const token = await getMutableAccessToken();
+        const token = await getPipelineAccessToken();
         const range = request.headers.get("range");
         const upstream = await fetch(apiEndpoint(`/videos/${encodeURIComponent(videoId)}/content`), {
             headers: {

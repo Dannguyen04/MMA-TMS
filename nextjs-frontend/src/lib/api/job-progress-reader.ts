@@ -1,6 +1,7 @@
 import "server-only";
 
 import { canAccessFighter } from "@/lib/auth/access";
+import { isMockMode } from "@/lib/api/pipeline-mode";
 import type { User } from "@/lib/domain/types";
 import { getJobPollState } from "@/lib/services/videos";
 import type { AIJobPollResponse } from "@/lib/video/job-progress";
@@ -15,7 +16,7 @@ export async function readJobProgress(user: User | null, jobId: string): Promise
     if (!user) return { ok: false, status: 401, message: "Your session has expired. Sign in again." };
 
     const state = await getJobPollState(jobId);
-    if (!state || !canAccessFighter(user, state.job.fighterId)) {
+    if (!state || (isMockMode() && !canAccessFighter(user, state.job.fighterId))) {
         return { ok: false, status: 404, message: "This job doesn't exist or you can't view it." };
     }
     return { ok: true, body: { job: state.job, videoId: state.job.videoId, analysisId: state.video?.analysisId ?? null } };

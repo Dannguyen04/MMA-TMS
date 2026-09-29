@@ -1,23 +1,11 @@
-import { IsString, IsUrl, IsOptional, MaxLength } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsUUID } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateJobDto {
   @ApiProperty({
-    description: 'URL công khai của video đòn đánh cần phân tích (Supabase Storage hoặc HTTP URL)',
-    example: 'https://wskisxkpbhisnqfpjqrm.supabase.co/storage/v1/object/public/videos/sample.mp4',
+    description: 'ID của video đã upload và được phân quyền trong hệ thống',
+    example: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
   })
-  @IsUrl({}, { message: 'videoUrl phải là URL hợp lệ' })
-  videoUrl: string;
-
-  @ApiPropertyOptional({
-    description: 'ID người dùng (Võ sĩ) thực hiện upload video',
-    example: 'u-minh-tran',
-    maxLength: 64,
-  })
-  @IsOptional()
-  @IsString()
-  @MaxLength(64)
-  userId?: string;
+  @IsUUID()
+  videoId: string;
 }
-
-

@@ -88,7 +88,7 @@ cd nextjs-frontend
 npm run dev   # Mặc định dùng dữ liệu giả lập, không cần API/Worker
 ```
 
-Để kết nối pipeline video thật, sao chép `.env.local.example` thành `.env.local`, đặt `NEXT_PUBLIC_VIDEO_PIPELINE=api` và điền `NEXT_PUBLIC_SUPABASE_*`, `NEXT_PUBLIC_API_URL`. Chi tiết frontend: `nextjs-frontend/README.md`.
+Để kết nối pipeline video thật, sao chép `.env.local.example` thành `.env.local`. Đặt `APP_DATA_MODE=api`, `NEXT_PUBLIC_VIDEO_PIPELINE=api` và `API_URL=http://localhost:3001`. Khóa Supabase chỉ cấu hình ở NestJS/Python worker, không đưa vào frontend.
 
 ### 5. Mở trình duyệt
 
@@ -116,9 +116,9 @@ Chế độ `NEXT_PUBLIC_VIDEO_PIPELINE=api` (mặc định `mock` mô phỏng t
 ```
 Võ sĩ / HLV mở Upload wizard (/fighter/videos/upload, /coach/video-analysis/upload)
     ↓
-uploadVideoToStorage(file) → Supabase Storage (bucket: videos)
+uploadVideoToStorage(file) → Next.js same-origin route → NestJS → private Supabase Storage (bucket: videos)
     ↓
-createJob(videoUrl) → POST /jobs (NestJS) → registerExternalUpload (Server Action)
+createJob(videoId) → POST /jobs (NestJS) → registerExternalUpload (Server Action)
     ↓ NestJS
 drizzle insert → PostgreSQL (status: PENDING)
 queue.add() → Redis BullMQ
@@ -131,6 +131,8 @@ PATCH /jobs/:id/status (status: DONE, resultUrl, score)
     ↓ Next.js
 GET /api/ai-jobs/[jobId] (poll) → đồng bộ trạng thái job NestJS
     ↓ status === DONE
+GET /api/ai-jobs/[jobId]/result → NestJS validates private result.json
+    ↓
 mapWorkerResult(result.json) → AI Analysis
     ↓
 Trang phân tích: khung xương, dòng thời gian, phát hiện AI, duyệt của HLV
@@ -145,7 +147,7 @@ Trang phân tích: khung xương, dòng thời gian, phát hiện AI, duyệt c�
     - Mở file `supabase-setup.sql` trong dự án, copy toàn bộ nội dung và bấm **Run**.
     - Script sẽ tự động:
         - Tạo kiểu enum `job_status` và bảng `analysis_jobs` (với triggers & indexes).
-        - Tạo 2 storage buckets: `videos` và `analysis-results` (public).
+        - Tạo 2 storage buckets riêng tư: `videos` và `analysis-results`. Browser chỉ truy cập qua route có xác thực; worker/backend dùng service role.
         - Thiết lập RLS policies cho phép upload & xem video / kết quả.
 
 2. **Lấy API Keys**:

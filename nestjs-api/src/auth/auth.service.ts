@@ -1,9 +1,11 @@
 import {
   forwardRef,
+  ForbiddenException,
   HttpException,
   Inject,
   Injectable,
   Logger,
+  NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Session, SupabaseClient } from '@supabase/supabase-js';
@@ -50,6 +52,7 @@ import {
 } from './auth.error.js';
 import type {
   AuthSession,
+  DemoSessionExchangeInput,
   LoginInput,
   RefreshInput,
   RegisterInput,
@@ -88,7 +91,7 @@ export class AuthService implements AuthAccessService, RecoveryEmailService {
         email: input.email,
         password: input.password,
       });
-      
+
       if (error) throw registrationConflict();
       if (!data.user?.id || !data.user.email) throw registrationFailed();
       if (data.user.identities?.length === 0) throw registrationConflict();
@@ -134,6 +137,50 @@ export class AuthService implements AuthAccessService, RecoveryEmailService {
         throw invalidCredentials();
       }
       return { user, session: this.toSession(data.session) };
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw authProviderUnavailable();
+    }
+  }
+
+  async exchangeDemoSession(
+    input: DemoSessionExchangeInput,
+    suppliedSecret: string | undefined,
+  ): Promise<{ user: AuthenticatedUser; session: AuthSession }> {
+    const nodeEnv = this.config.get<string>('NODE_ENV');
+    const expectedSecret = this.config.get<string>(
+      'DEMO_SESSION_EXCHANGE_SECRET',
+    );
+    if (nodeEnv === 'production' || !expectedSecret) {
+      throw new NotFoundException(
+        'Development session exchange is unavailable',
+      );
+    }
+    if (!suppliedSecret || suppliedSecret !== expectedSecret) {
+      throw new ForbiddenException('Development session exchange is forbidden');
+    }
+
+    try {
+      const generated = await this.supabaseAdmin.auth.admin.generateLink({
+        type: 'magiclink',
+        email: input.email,
+      });
+      const tokenHash = generated.data.properties?.hashed_token;
+      if (generated.error || !tokenHash) throw invalidCredentials();
+
+      const requestClient = this.createRequestClient();
+      const verified = await requestClient.auth.verifyOtp({
+        token_hash: tokenHash,
+        type: 'magiclink',
+      });
+      if (verified.error || !verified.data.session || !verified.data.user) {
+        throw invalidCredentials();
+      }
+      const user = await this.authRepository.findActiveUserBySubject(
+        verified.data.user.id,
+      );
+      if (!user) throw invalidCredentials();
+      return { user, session: this.toSession(verified.data.session) };
     } catch (error) {
       if (error instanceof HttpException) throw error;
       throw authProviderUnavailable();
@@ -198,7 +245,9 @@ export class AuthService implements AuthAccessService, RecoveryEmailService {
       }
       return { accepted: true };
     } catch {
-      this.logger.warn('Password recovery request failed to reach the provider');
+      this.logger.warn(
+        'Password recovery request failed to reach the provider',
+      );
       return { accepted: false };
     }
   }
@@ -279,7 +328,11 @@ export class AuthService implements AuthAccessService, RecoveryEmailService {
     claim: AdmissionActivationClaim,
     requestId: string,
   ): Promise<boolean> {
-    for (let attempt = 1; attempt <= PASSWORD_SET_RETRY_ATTEMPTS; attempt += 1) {
+    for (
+      let attempt = 1;
+      attempt <= PASSWORD_SET_RETRY_ATTEMPTS;
+      attempt += 1
+    ) {
       try {
         await this.admissionActivation.markPasswordSet(claim, requestId);
         return true;

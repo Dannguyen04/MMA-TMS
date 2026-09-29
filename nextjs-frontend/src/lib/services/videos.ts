@@ -2,7 +2,9 @@ import "server-only";
 
 import { z } from "zod";
 
-import { authenticatedApiRequest, authenticatedMutableApiRequest, drainAuthenticatedCursorPages } from "@/lib/api/client";
+import { authenticatedMutableApiRequest } from "@/lib/api/client";
+import { pipelineApiRequest } from "@/lib/api/pipeline-auth";
+import { isMockMode } from "@/lib/api/pipeline-mode";
 import { mapWorkerResult, workerResultSchema } from "@/lib/api/worker-result";
 import { isDemoAuthEnabled } from "@/lib/auth/constants";
 import type {
@@ -20,6 +22,7 @@ import { nullIfNotFound } from "./api-helpers";
 import { getFighter } from "./people";
 
 const demoService = () => import("./videos.demo");
+const uuidSchema = z.string().uuid();
 
 type Failure<Code extends string> = { ok: false; code: Code; message: string };
 
@@ -109,11 +112,31 @@ function mapVideo(video: BackendVideo, job: AIJob | null): Video {
 }
 
 async function listApiJobs(): Promise<AIJob[]> {
-    return (await authenticatedApiRequest("/jobs", z.array(backendJobSchema))).map(mapJob);
+    return (await pipelineApiRequest("/jobs", z.array(backendJobSchema))).map(mapJob);
 }
 
 function apiVideo(id: string): Promise<BackendVideo | null> {
-    return nullIfNotFound(authenticatedApiRequest(`/videos/${encodeURIComponent(id)}`, backendVideoSchema));
+    return nullIfNotFound(pipelineApiRequest(`/videos/${encodeURIComponent(id)}`, backendVideoSchema));
+}
+
+const backendFighterIdentitySchema = z.object({ id: z.string().uuid(), firstName: z.string(), lastName: z.string() });
+
+function foldName(value: string): string {
+    return value
+        .normalize("NFKD")
+        .replace(/\p{Diacritic}/gu, "")
+        .replace(/đ/giu, "d")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLocaleLowerCase("en");
+}
+
+async function demoFighterForBackendId(backendFighterId: string): Promise<Fighter | null> {
+    const backend = await nullIfNotFound(pipelineApiRequest(`/fighters/${encodeURIComponent(backendFighterId)}`, backendFighterIdentitySchema));
+    if (!backend) return null;
+    const { db } = await import("@/lib/mocks/db");
+    const wanted = foldName(`${backend.firstName} ${backend.lastName}`);
+    return db().fighters.find((fighter) => foldName(fighter.name) === wanted) ?? null;
 }
 
 export interface VideoFilter {
@@ -125,25 +148,38 @@ export interface VideoFilter {
     uploadedById?: string;
 }
 
-export async function listVideos(filter: VideoFilter = {}): Promise<Video[]> {
-    if (isDemoAuthEnabled()) return (await demoService()).listVideos(filter);
+async function listPipelineVideos(filter: VideoFilter = {}): Promise<Video[]> {
     if (Array.isArray(filter.fighterIds) && filter.fighterIds.length === 0) return [];
     const query = new URLSearchParams({ limit: "100" });
-    if (filter.fighterIds !== undefined && filter.fighterIds !== "all" && filter.fighterIds.length === 1) query.set("fighterId", filter.fighterIds[0]);
+    if (
+        filter.fighterIds !== undefined &&
+        filter.fighterIds !== "all" &&
+        filter.fighterIds.length === 1 &&
+        uuidSchema.safeParse(filter.fighterIds[0]).success
+    )
+        query.set("fighterId", filter.fighterIds[0]);
     if (filter.trainingType) query.set("trainingType", filter.trainingType.toUpperCase());
     if (filter.search) query.set("search", filter.search);
-    const [backendVideos, jobs] = await Promise.all([
-        drainAuthenticatedCursorPages(`/videos?${query.toString()}`, backendVideoSchema, { maxItems: 500, maxPages: 5 }),
-        listApiJobs(),
-    ]);
+    const videoPageSchema = z.object({
+        items: z.array(backendVideoSchema),
+        pageInfo: z.object({ hasNextPage: z.boolean(), endCursor: z.string().nullable() }),
+        total: z.number().int().nonnegative(),
+    });
+    const [page, jobs] = await Promise.all([pipelineApiRequest(`/videos?${query.toString()}`, videoPageSchema), listApiJobs()]);
+    const backendVideos = page.items;
     const byVideo = new Map(jobs.filter((job) => job.videoId).map((job) => [job.videoId, job]));
     return backendVideos
         .map((video) => mapVideo(video, byVideo.get(video.id) ?? null))
         .filter((video) => (filter.fighterIds === undefined || filter.fighterIds === "all" || filter.fighterIds.includes(video.fighterId)) && (!filter.status || video.status === filter.status) && (!filter.uploadedById || video.uploadedById === filter.uploadedById));
 }
 
+export async function listVideos(filter: VideoFilter = {}): Promise<Video[]> {
+    if (isDemoAuthEnabled()) return (await demoService()).listVideos(filter);
+    return listPipelineVideos(filter);
+}
+
 export async function getVideo(id: string): Promise<Video | null> {
-    if (isDemoAuthEnabled()) return (await demoService()).getVideo(id);
+    if (isDemoAuthEnabled() && (!uuidSchema.safeParse(id).success || isMockMode())) return (await demoService()).getVideo(id);
     const [video, jobs] = await Promise.all([apiVideo(id), listApiJobs()]);
     if (!video) return null;
     return mapVideo(video, jobs.find((job) => job.videoId === id) ?? null);
@@ -161,15 +197,16 @@ export interface VideoDetail {
 }
 
 export async function getVideoDetail(id: string): Promise<VideoDetail | null> {
-    if (isDemoAuthEnabled()) return (await demoService()).getVideoDetail(id);
+    if (isDemoAuthEnabled() && (!uuidSchema.safeParse(id).success || isMockMode())) return (await demoService()).getVideoDetail(id);
     const video = await getVideo(id);
     if (!video) return null;
-    const fighter = await getFighter(video.fighterId);
+    const fighter = isDemoAuthEnabled() ? await demoFighterForBackendId(video.fighterId) : await getFighter(video.fighterId);
     if (!fighter) return null;
+    if (isDemoAuthEnabled()) video.fighterId = fighter.id;
     const job = video.jobId ? await getJobProgress(video.jobId) : null;
     let analysis: AIAnalysis | null = null;
     if (job?.status === "completed") {
-        const result = await authenticatedApiRequest(`/jobs/${encodeURIComponent(job.id)}/result`, workerResultSchema);
+        const result = await pipelineApiRequest(`/jobs/${encodeURIComponent(job.id)}/result`, workerResultSchema);
         analysis = mapWorkerResult(result, {
             analysisId: `an-${job.id}`,
             videoId: video.id,
@@ -192,9 +229,15 @@ export async function getVideoDetail(id: string): Promise<VideoDetail | null> {
 }
 
 export async function getJobProgress(jobId: string): Promise<AIJob | null> {
-    if (isDemoAuthEnabled()) return (await demoService()).getJobProgress(jobId);
-    const job = await nullIfNotFound(authenticatedApiRequest(`/jobs/${encodeURIComponent(jobId)}`, backendJobSchema));
-    return job && mapJob(job);
+    if (isDemoAuthEnabled() && (!uuidSchema.safeParse(jobId).success || isMockMode())) return (await demoService()).getJobProgress(jobId);
+    const job = await nullIfNotFound(pipelineApiRequest(`/jobs/${encodeURIComponent(jobId)}`, backendJobSchema));
+    if (!job) return null;
+    const mapped = mapJob(job);
+    if (isDemoAuthEnabled() && mapped.fighterId) {
+        const fighter = await demoFighterForBackendId(mapped.fighterId);
+        if (fighter) mapped.fighterId = fighter.id;
+    }
+    return mapped;
 }
 
 export interface ReviewQueueItem {
@@ -232,7 +275,24 @@ export interface VideoLibraryItem {
 }
 
 export async function listVideoLibrary(filter: VideoFilter = {}): Promise<VideoLibraryItem[]> {
-    if (isDemoAuthEnabled()) return (await demoService()).listVideoLibrary(filter);
+    if (isDemoAuthEnabled()) {
+        const demoItems = await (await demoService()).listVideoLibrary(filter);
+        if (isMockMode()) return demoItems;
+
+        const apiVideos = await listPipelineVideos({ ...filter, fighterIds: undefined });
+        const apiItems = await Promise.all(
+            apiVideos.map(async (video): Promise<VideoLibraryItem | null> => {
+                const fighter = await demoFighterForBackendId(video.fighterId);
+                if (!fighter) return null;
+                video.fighterId = fighter.id;
+                if (Array.isArray(filter.fighterIds) && !filter.fighterIds.includes(fighter.id)) return null;
+                if (filter.status && video.status !== filter.status) return null;
+                return { video, fighter, job: null, analysis: null };
+            }),
+        );
+        const realItems = apiItems.filter((item): item is VideoLibraryItem => item !== null);
+        return [...realItems, ...demoItems.filter((item) => !realItems.some((real) => real.video.id === item.video.id))];
+    }
     const videos = await listVideos(filter);
     const fighters = await Promise.all([...new Set(videos.map((video) => video.fighterId))].map(getFighter));
     const byId = new Map(fighters.filter((fighter): fighter is Fighter => fighter !== null).map((fighter) => [fighter.id, fighter]));
@@ -243,7 +303,7 @@ export async function listVideoLibrary(filter: VideoFilter = {}): Promise<VideoL
 }
 
 export async function getJobPollState(jobId: string): Promise<{ job: AIJob; video: Video | null } | null> {
-    if (isDemoAuthEnabled()) return (await demoService()).getJobPollState(jobId);
+    if (isDemoAuthEnabled() && (!uuidSchema.safeParse(jobId).success || isMockMode())) return (await demoService()).getJobPollState(jobId);
     const job = await getJobProgress(jobId);
     return job ? { job, video: job.videoId ? await getVideo(job.videoId) : null } : null;
 }

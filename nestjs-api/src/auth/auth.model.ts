@@ -17,6 +17,10 @@ export const loginBodySchema = z.strictObject({
   password: credentialPasswordSchema,
 });
 
+export const demoSessionExchangeBodySchema = z.strictObject({
+  email: normalizedEmailSchema,
+});
+
 // Registration creates the pre-admission GUEST identity only. Fighter details are
 // collected later by the admission application and applied at activation.
 export const registerBodySchema = z.strictObject({
@@ -79,6 +83,9 @@ export const resetPasswordResponseSchema = z.strictObject({
 });
 
 export type LoginInput = z.infer<typeof loginBodySchema>;
+export type DemoSessionExchangeInput = z.infer<
+  typeof demoSessionExchangeBodySchema
+>;
 export type RegisterInput = z.infer<typeof registerBodySchema>;
 export type RefreshInput = z.infer<typeof refreshBodySchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordBodySchema>;
