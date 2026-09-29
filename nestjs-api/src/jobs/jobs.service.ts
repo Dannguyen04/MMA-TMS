@@ -1,51 +1,118 @@
-import { Injectable, Inject, NotFoundException } from '@nestjs/common';
+import {
+  BadGatewayException,
+  BadRequestException,
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
-import { eq, desc, and } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
+import { z } from 'zod';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { DRIZZLE, type DrizzleDB } from '../database/database.module.js';
-import { analysisJobs, type HealthAlert, type JointStatesMap } from '../database/schema.js';
+import {
+  analysisJobs,
+  type HealthAlert,
+  type JointStatesMap,
+} from '../database/schema.js';
+import { SUPABASE_ADMIN_CLIENT } from '../common/supabase/supabase.module.js';
+import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
+import { VideosService } from '../videos/videos.service.js';
+import { VideoAccessService } from '../videos/video-access.service.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
 import { UpdateJobStatusDto } from './dto/update-job-status.dto.js';
 
+const workerResultBoundarySchema = z
+  .object({
+    schemaVersion: z.literal('1.0.0').optional(),
+    meta: z
+      .object({
+        fps: z.number().finite().nonnegative(),
+        totalFrames: z.number().int().nonnegative(),
+        durationMs: z.number().finite().nonnegative(),
+      })
+      .passthrough(),
+    frames: z.array(z.unknown()),
+    kicks: z.array(z.unknown()),
+  })
+  .passthrough();
+
 @Injectable()
 export class JobsService {
+  private readonly resultBucket: string;
+  private readonly supabaseOrigin: string;
+
   constructor(
     @InjectQueue('video-analysis') private readonly queue: Queue,
     @Inject(DRIZZLE) private readonly db: DrizzleDB,
-  ) {}
-
-  // ─── Tạo job mới ────────────────────────────────────────────────────────────
-
-  async createJob(dto: CreateJobDto) {
-    // 1. Lưu job metadata vào PostgreSQL
-    const [job] = await this.db
-      .insert(analysisJobs)
-      .values({
-        videoUrl: dto.videoUrl,
-        userId: dto.userId ?? 'anonymous',
-        status: 'PENDING',
-      })
-      .returning();
-
-    // 2. Đẩy job vào BullMQ queue
-    await this.queue.add(
-      'analyze',
-      { jobId: job.id, videoUrl: job.videoUrl },
-      {
-        jobId: job.id,
-        attempts: 3,
-        backoff: { type: 'exponential', delay: 5000 },
-      },
+    @Inject(SUPABASE_ADMIN_CLIENT) private readonly supabase: SupabaseClient,
+    private readonly config: ConfigService,
+    private readonly videosService: VideosService,
+    private readonly videoAccess: VideoAccessService,
+  ) {
+    this.resultBucket = config.get<string>(
+      'ANALYSIS_RESULTS_BUCKET',
+      'analysis-results',
     );
-
-    return {
-      jobId: job.id,
-      status: job.status,
-      message: 'Job đã được tạo và đưa vào hàng đợi',
-    };
+    this.supabaseOrigin = new URL(
+      config.getOrThrow<string>('SUPABASE_URL'),
+    ).origin;
   }
 
-  // ─── Lấy thông tin job ───────────────────────────────────────────────────────
+  async createJob(actor: AuthenticatedUser, dto: CreateJobDto) {
+    const { video, url } = await this.videosService.signedWorkerUrl(
+      actor,
+      dto.videoId,
+    );
+
+    let job: typeof analysisJobs.$inferSelect;
+    try {
+      [job] = await this.db
+        .insert(analysisJobs)
+        .values({
+          userId: actor.id,
+          videoUrl: url,
+          status: 'PENDING',
+          fighterId: video.subjectFighterId,
+          sessionId: video.sessionId,
+          videoId: video.id,
+          createdById: actor.id,
+        })
+        .returning();
+    } catch (error) {
+      if (this.isUniqueViolation(error)) {
+        throw new ConflictException({
+          code: 'VIDEO_JOB_EXISTS',
+          message: 'This video already has an analysis job',
+        });
+      }
+      throw error;
+    }
+
+    try {
+      await this.queue.add(
+        'analyze',
+        { jobId: job.id, videoId: video.id, videoUrl: url },
+        {
+          jobId: job.id,
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 5000 },
+        },
+      );
+    } catch {
+      await this.db.delete(analysisJobs).where(eq(analysisJobs.id, job.id));
+      throw new ServiceUnavailableException({
+        code: 'ANALYSIS_QUEUE_UNAVAILABLE',
+        message: 'The analysis queue is unavailable',
+      });
+    }
+
+    return { jobId: job.id, status: job.status };
+  }
 
   async getJob(id: string) {
     const [job] = await this.db
@@ -53,96 +120,214 @@ export class JobsService {
       .from(analysisJobs)
       .where(eq(analysisJobs.id, id))
       .limit(1);
-
-    if (!job) throw new NotFoundException(`Không tìm thấy job: ${id}`);
+    if (!job)
+      throw new NotFoundException({
+        code: 'JOB_NOT_FOUND',
+        message: 'Analysis job not found',
+      });
     return job;
   }
 
-  // ─── Danh sách jobs ──────────────────────────────────────────────────────────
-
-  async listJobs(userId?: string) {
-    return this.db
-      .select()
-      .from(analysisJobs)
-      .where(userId ? eq(analysisJobs.userId, userId) : undefined)
-      .orderBy(desc(analysisJobs.createdAt))
-      .limit(20);
+  async getJobForActor(actor: AuthenticatedUser, id: string) {
+    const job = await this.getJob(id);
+    if (!job.fighterId)
+      throw new NotFoundException({
+        code: 'JOB_NOT_FOUND',
+        message: 'Analysis job not found',
+      });
+    await this.videoAccess.assertFighterAccess(actor, job.fighterId);
+    return job;
   }
 
-  // ─── Lấy health alerts của một job ──────────────────────────────────────────
+  async listJobs(actor: AuthenticatedUser) {
+    const rows = await this.db
+      .select()
+      .from(analysisJobs)
+      .orderBy(desc(analysisJobs.createdAt))
+      .limit(100);
+    const visible = [];
+    for (const job of rows) {
+      if (
+        job.fighterId &&
+        (await this.videoAccess.canAccessFighter(actor, job.fighterId))
+      )
+        visible.push(job);
+    }
+    return visible;
+  }
 
-  /**
-   * Trả về danh sách CONFIRMED_IMPAIRMENT alerts của job,
-   * cùng với snapshot trạng thái từng khớp.
-   */
-  async getHealthAlerts(jobId: string) {
-    const job = await this.getJob(jobId);
+  async getResult(actor: AuthenticatedUser, id: string): Promise<unknown> {
+    const job = await this.getJobForActor(actor, id);
+    if (job.status !== 'DONE') {
+      throw new ConflictException({
+        code: 'JOB_NOT_COMPLETE',
+        message: 'The analysis result is not ready',
+      });
+    }
+    if (!job.resultUrl)
+      throw new NotFoundException({
+        code: 'JOB_RESULT_NOT_FOUND',
+        message: 'Analysis result not found',
+      });
+    const storageKey = this.resultStorageKey(job.resultUrl);
+    const { data, error } = await this.supabase.storage
+      .from(this.resultBucket)
+      .download(storageKey);
+    if (error || !data)
+      throw new BadGatewayException({
+        code: 'JOB_RESULT_UNAVAILABLE',
+        message: 'The analysis result is unavailable',
+      });
+    if (data.size > 25 * 1024 * 1024)
+      throw new BadGatewayException({
+        code: 'JOB_RESULT_TOO_LARGE',
+        message: 'The analysis result exceeds the allowed size',
+      });
+    let json: unknown;
+    try {
+      json = JSON.parse(await data.text());
+    } catch {
+      throw new BadGatewayException({
+        code: 'JOB_RESULT_INVALID',
+        message: 'The analysis result is invalid',
+      });
+    }
+    const parsed = workerResultBoundarySchema.safeParse(json);
+    if (!parsed.success)
+      throw new BadGatewayException({
+        code: 'JOB_RESULT_INVALID',
+        message: 'The analysis result does not match the worker contract',
+      });
+    return parsed.data;
+  }
+
+  async getHealthAlerts(actor: AuthenticatedUser, jobId: string) {
+    const job = await this.getJobForActor(actor, jobId);
     return {
       jobId,
-      status:       job.status,
-      alertCount:   job.alertCount,
+      status: job.status,
+      alertCount: job.alertCount,
       hasImpairment: job.hasImpairment,
       healthAlerts: job.healthAlerts as HealthAlert[],
-      jointStates:  job.jointStates as JointStatesMap,
+      jointStates: job.jointStates as JointStatesMap,
     };
   }
 
-  /**
-   * Lấy tất cả jobs có cảnh báo chấn thương (has_impairment = true).
-   * Dùng partial index idx_analysis_jobs_has_impairment — rất nhanh.
-   */
-  async listImpairmentAlerts(userId?: string) {
-    return this.db
-      .select({
-        id:            analysisJobs.id,
-        userId:        analysisJobs.userId,
-        videoUrl:      analysisJobs.videoUrl,
-        status:        analysisJobs.status,
-        score:         analysisJobs.score,
-        alertCount:    analysisJobs.alertCount,
-        hasImpairment: analysisJobs.hasImpairment,
-        healthAlerts:  analysisJobs.healthAlerts,
-        jointStates:   analysisJobs.jointStates,
-        createdAt:     analysisJobs.createdAt,
-      })
+  async listImpairmentAlerts(actor: AuthenticatedUser) {
+    const rows = await this.db
+      .select()
       .from(analysisJobs)
-      .where(
-        and(
-          eq(analysisJobs.hasImpairment, true),
-          userId ? eq(analysisJobs.userId, userId) : undefined,
-        ),
-      )
+      .where(eq(analysisJobs.hasImpairment, true))
       .orderBy(desc(analysisJobs.createdAt))
       .limit(50);
+    const visible = [];
+    for (const job of rows) {
+      if (
+        job.fighterId &&
+        (await this.videoAccess.canAccessFighter(actor, job.fighterId))
+      )
+        visible.push(job);
+    }
+    return visible;
   }
 
-  // ─── Cập nhật trạng thái (gọi bởi Python Worker) ────────────────────────────
-
-  /**
-   * Python Worker gọi endpoint này sau khi xử lý xong video.
-   * Bao gồm cả healthAlerts và jointStates từ SessionHealthMonitor.
-   */
   async updateJobStatus(id: string, dto: UpdateJobStatusDto) {
+    const current = await this.getJob(id);
+    if (current.status === 'DONE' || current.status === 'FAILED') {
+      throw new ConflictException({
+        code: 'JOB_TERMINAL',
+        message: 'A terminal analysis job cannot change state',
+      });
+    }
+    if (current.status === 'PENDING' && dto.status === 'DONE') {
+      throw new ConflictException({
+        code: 'JOB_STATUS_CONFLICT',
+        message: 'A pending job must enter processing before completion',
+      });
+    }
+    if (dto.status === 'DONE') {
+      if (!dto.resultUrl) {
+        throw new BadRequestException({
+          code: 'JOB_RESULT_REQUIRED',
+          message: 'A completed job requires a result URL',
+        });
+      }
+      this.resultStorageKey(dto.resultUrl);
+    }
     const alerts = dto.healthAlerts ?? [];
-    const alertCount = alerts.length;
-    const hasImpairment = alertCount > 0;
-
     const [updated] = await this.db
       .update(analysisJobs)
       .set({
-        status:        dto.status as any,
-        resultUrl:     dto.resultUrl,
-        score:         dto.score,
-        // ── Anomaly Detection fields ──
-        healthAlerts:  alerts,
-        jointStates:   dto.jointStates ?? {},
-        alertCount,
-        hasImpairment,
-        updatedAt:     new Date(),
+        status: dto.status as typeof current.status,
+        resultUrl: dto.resultUrl,
+        score: dto.score,
+        healthAlerts: alerts,
+        jointStates: dto.jointStates ?? {},
+        alertCount: alerts.length,
+        hasImpairment: alerts.length > 0,
+        updatedAt: new Date(),
       })
       .where(eq(analysisJobs.id, id))
       .returning();
-
+    if (current.videoId) {
+      const videoStatus =
+        dto.status === 'PROCESSING'
+          ? 'PROCESSING'
+          : dto.status === 'DONE'
+            ? 'PROCESSED'
+            : dto.status === 'FAILED'
+              ? 'FAILED'
+              : undefined;
+      if (videoStatus)
+        await this.videosService.markStatus(current.videoId, videoStatus);
+    }
     return updated;
+  }
+
+  private resultStorageKey(rawUrl: string): string {
+    let url: URL;
+    try {
+      url = new URL(rawUrl);
+    } catch {
+      throw new BadGatewayException({
+        code: 'JOB_RESULT_URL_INVALID',
+        message: 'The analysis result location is invalid',
+      });
+    }
+    const prefix = `/storage/v1/object/public/${this.resultBucket}/`;
+    if (
+      url.origin !== this.supabaseOrigin ||
+      !url.pathname.startsWith(prefix)
+    ) {
+      throw new BadGatewayException({
+        code: 'JOB_RESULT_URL_INVALID',
+        message: 'The analysis result location is not trusted',
+      });
+    }
+    const key = decodeURIComponent(url.pathname.slice(prefix.length));
+    if (
+      !key ||
+      key
+        .split('/')
+        .some(
+          (segment) =>
+            segment === '..' || segment === '.' || segment.includes('\\'),
+        )
+    ) {
+      throw new BadGatewayException({
+        code: 'JOB_RESULT_URL_INVALID',
+        message: 'The analysis result location is invalid',
+      });
+    }
+    return key;
+  }
+
+  private isUniqueViolation(error: unknown): boolean {
+    return (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      (error as { code?: unknown }).code === '23505'
+    );
   }
 }

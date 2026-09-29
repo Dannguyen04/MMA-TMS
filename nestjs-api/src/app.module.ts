@@ -16,6 +16,7 @@ import { CoachesModule } from './coaches/coaches.module.js';
 import { MedicalModule } from './medical/medical.module.js';
 import { CoachingModule } from './coaching/coaching.module.js';
 import { loadEnv } from './shared/config/env.js';
+import { VideosModule } from './videos/videos.module.js';
 
 @Module({
   imports: [
@@ -52,6 +53,8 @@ import { loadEnv } from './shared/config/env.js';
       },
     }),
     DatabaseModule,
+    VideosModule,
+    JobsModule,
     UsersModule,
     AuthModule,
     FightersModule,

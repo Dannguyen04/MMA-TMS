@@ -14,6 +14,7 @@ describe('loadEnv', () => {
       MOBILE_APP_URL: 'http://localhost:8081',
       APP_HEADER_LANGUAGE: 'x-custom-lang',
       WORKER_SECRET_TOKEN: 'secret-token',
+      DEMO_SESSION_EXCHANGE_SECRET: '',
     });
   });
 

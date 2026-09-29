@@ -73,6 +73,7 @@ const target004 = '004_seed_api_permissions.sql';
 const target005 = '005_training_management.sql';
 const target006 = '006_training_permissions.sql';
 const target013 = '013_coaching_loop_and_constraints.sql';
+const target014 = '014_video_ai_vertical_slice.sql';
 const trainingPermissionCodes = [
   'training.plan:get_all',
   'training.plan:read',
@@ -299,20 +300,23 @@ try {
   for (const name of migrationNames.filter((name) => {
     const version = Number(name.slice(0, 3));
     return version >= 3 && version <= 12;
-  })) migration('mma_013', name);
-  check('013 applies with migration history and coach identity foreign keys', () => {
-    migration('mma_013', target013);
-    assert.equal(
-      psql(
-        'mma_013',
-        `SELECT count(*) FROM mma_private.migration_history WHERE version = 13;`,
-      ),
-      '1',
-    );
-    assert.equal(
-      psql(
-        'mma_013',
-        `SELECT string_agg(f.attname || '->' || ft.relname, ',' ORDER BY f.attname)
+  }))
+    migration('mma_013', name);
+  check(
+    '013 applies with migration history and coach identity foreign keys',
+    () => {
+      migration('mma_013', target013);
+      assert.equal(
+        psql(
+          'mma_013',
+          `SELECT count(*) FROM mma_private.migration_history WHERE version = 13;`,
+        ),
+        '1',
+      );
+      assert.equal(
+        psql(
+          'mma_013',
+          `SELECT string_agg(f.attname || '->' || ft.relname, ',' ORDER BY f.attname)
          FROM pg_constraint c
          JOIN pg_class t ON t.oid = c.conrelid
          JOIN pg_class ft ON ft.oid = c.confrelid
@@ -321,10 +325,11 @@ try {
          WHERE t.relname = 'technique_references'
            AND c.contype = 'f'
            AND f.attname IN ('selected_by_id', 'revoked_by_id');`,
-      ),
-      'revoked_by_id->coaches,selected_by_id->coaches',
-    );
-  });
+        ),
+        'revoked_by_id->coaches,selected_by_id->coaches',
+      );
+    },
+  );
   check('reapplying 013 fails without duplicating migration history', () => {
     rejects(
       'mma_013',
@@ -332,7 +337,51 @@ try {
       /already been applied/,
     );
     assert.equal(
-      psql('mma_013', `SELECT count(*) FROM mma_private.migration_history WHERE version = 13;`),
+      psql(
+        'mma_013',
+        `SELECT count(*) FROM mma_private.migration_history WHERE version = 13;`,
+      ),
+      '1',
+    );
+  });
+  check('014 adds video training context and diagonal camera support', () => {
+    migration('mma_013', target014);
+    assert.equal(
+      psql(
+        'mma_013',
+        `SELECT data_type || ':' || is_nullable || ':' || column_default
+         FROM information_schema.columns
+         WHERE table_schema = 'public' AND table_name = 'videos' AND column_name = 'training_type';`,
+      ),
+      "USER-DEFINED:NO:'SHADOW_BOXING'::session_type",
+    );
+    assert.equal(
+      psql(
+        'mma_013',
+        `SELECT enumlabel FROM pg_enum e JOIN pg_type t ON t.oid=e.enumtypid
+         WHERE t.typname='camera_angle' AND enumlabel='DIAGONAL';`,
+      ),
+      'DIAGONAL',
+    );
+    assert.equal(
+      psql(
+        'mma_013',
+        `SELECT count(*) FROM mma_private.migration_history WHERE version = 14;`,
+      ),
+      '1',
+    );
+  });
+  check('reapplying 014 fails without duplicating migration history', () => {
+    rejects(
+      'mma_013',
+      readFileSync(join(api, 'migrations', target014), 'utf8'),
+      /already been applied/,
+    );
+    assert.equal(
+      psql(
+        'mma_013',
+        `SELECT count(*) FROM mma_private.migration_history WHERE version = 14;`,
+      ),
       '1',
     );
   });

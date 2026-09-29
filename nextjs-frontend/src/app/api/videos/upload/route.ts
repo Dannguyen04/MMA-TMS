@@ -1,17 +1,18 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 
-import { apiEndpoint, apiErrorResponse, getMutableAccessToken } from "@/lib/api/client";
+import { apiEndpoint, apiErrorResponse } from "@/lib/api/client";
+import { getPipelineAccessToken, resolvePipelineFighterId } from "@/lib/api/pipeline-auth";
 
 export const runtime = "nodejs";
 
 const metadataSchema = z.object({
-    fighterId: z.string().uuid(),
+    fighterId: z.string().min(1).max(100),
     title: z.string().trim().min(3).max(200),
     description: z.string().max(2_000).optional(),
     trainingType: z.enum(["shadow_boxing", "pad_work", "heavy_bag", "sparring"]),
     cameraAngle: z.enum(["front", "side", "diagonal"]),
-    sessionId: z.string().uuid().optional(),
+    sessionId: z.string().min(1).max(100).optional(),
     durationMs: z.coerce.number().int().positive(),
     originalFilename: z.string().min(1).max(255),
     fileSizeBytes: z.coerce.number().int().positive(),
@@ -34,10 +35,11 @@ export async function POST(request: NextRequest) {
     if (!parsed.success || !request.body) return failure("Video metadata is invalid.", 400, "VIDEO_METADATA_INVALID");
 
     try {
-        const token = await getMutableAccessToken();
+        const token = await getPipelineAccessToken();
         const metadata = parsed.data;
+        const fighterId = await resolvePipelineFighterId(metadata.fighterId, token);
         const query = new URLSearchParams({
-            fighterId: metadata.fighterId,
+            fighterId,
             title: metadata.title,
             trainingType: metadata.trainingType.toUpperCase(),
             cameraAngle: metadata.cameraAngle.toUpperCase(),
@@ -45,7 +47,7 @@ export async function POST(request: NextRequest) {
             originalFilename: metadata.originalFilename,
         });
         if (metadata.description) query.set("description", metadata.description);
-        if (metadata.sessionId) query.set("sessionId", metadata.sessionId);
+        if (metadata.sessionId && z.string().uuid().safeParse(metadata.sessionId).success) query.set("sessionId", metadata.sessionId);
 
         const response = await fetch(apiEndpoint(`/videos/upload?${query.toString()}`), {
             method: "POST",
@@ -68,6 +70,7 @@ export async function POST(request: NextRequest) {
         const videoId = envelope.data.data.id;
         return Response.json({ videoId, sourceUrl: `/api/videos/${videoId}/content` }, { status: 201, headers: noStore });
     } catch (error) {
+        console.error("Video upload proxy failed", error instanceof Error ? error.message : "Unknown error");
         return apiErrorResponse(error, "The video storage service can't be reached.", noStore);
     }
 }

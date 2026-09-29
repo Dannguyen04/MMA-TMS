@@ -1,5 +1,13 @@
-import { IsObject, IsArray, IsOptional, ValidateNested, IsString, IsNumber, IsBoolean, IsIn, Min, Max } from 'class-validator';
-import { Type } from 'class-transformer';
+import {
+  IsObject,
+  IsArray,
+  IsOptional,
+  IsString,
+  IsNumber,
+  IsIn,
+  Min,
+  Max,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import type { HealthAlert, JointStatesMap } from '../../database/schema.js';
 
@@ -16,11 +24,14 @@ export class UpdateJobStatusDto {
     example: 'DONE',
   })
   @IsString()
+  @IsIn(['PROCESSING', 'DONE', 'FAILED'])
   status: string;
 
   @ApiPropertyOptional({
-    description: 'URL chứa file JSON kết quả phân tích AI chi tiết trên Supabase Storage',
-    example: 'https://wskisxkpbhisnqfpjqrm.supabase.co/storage/v1/object/public/analysis-results/job-123-result.json',
+    description:
+      'URL chứa file JSON kết quả phân tích AI chi tiết trên Supabase Storage',
+    example:
+      'https://wskisxkpbhisnqfpjqrm.supabase.co/storage/v1/object/public/analysis-results/job-123-result.json',
   })
   @IsOptional()
   @IsString()
@@ -43,7 +54,8 @@ export class UpdateJobStatusDto {
    * Chỉ chứa các alert CONFIRMED_IMPAIRMENT.
    */
   @ApiPropertyOptional({
-    description: 'Danh sách cảnh báo chấn thương CONFIRMED_IMPAIRMENT do Anomaly Detection Engine phát hiện',
+    description:
+      'Danh sách cảnh báo chấn thương CONFIRMED_IMPAIRMENT do Anomaly Detection Engine phát hiện',
     example: [
       {
         joint: 'RIGHT_SHOULDER',
@@ -54,7 +66,8 @@ export class UpdateJobStatusDto {
         consecutiveLowRom: 3,
         avgRomRatio: 0.55,
         motionClass: 'POWER_STRIKE',
-        recommendation: 'Cảnh báo: Biên độ vận động vai phải bị suy giảm. HLV cần giảm cường độ đấm Cross.',
+        recommendation:
+          'Cảnh báo: Biên độ vận động vai phải bị suy giảm. HLV cần giảm cường độ đấm Cross.',
       },
     ],
   })
@@ -67,7 +80,8 @@ export class UpdateJobStatusDto {
    * Vd: { "LEFT_SHOULDER": "CONFIRMED_IMPAIRMENT", "RIGHT_KNEE": "HEALTHY" }
    */
   @ApiPropertyOptional({
-    description: 'Bản đồ trạng thái sức khỏe các khớp chính tại thời điểm kết thúc bài tập',
+    description:
+      'Bản đồ trạng thái sức khỏe các khớp chính tại thời điểm kết thúc bài tập',
     example: {
       RIGHT_SHOULDER: 'CONFIRMED_IMPAIRMENT',
       LEFT_SHOULDER: 'HEALTHY',
@@ -79,5 +93,3 @@ export class UpdateJobStatusDto {
   @IsObject()
   jointStates?: JointStatesMap;
 }
-
-
