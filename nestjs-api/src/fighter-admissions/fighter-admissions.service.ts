@@ -10,6 +10,7 @@ import type {
   AdmissionActivationClaimResult,
   AdmissionActivationPort,
 } from '../shared/contracts/admission-activation.contract.js';
+import { AuthorizationService } from '../authorization/authorization.service.js';
 import { FIGHTER_PERMISSIONS } from '../fighters/fighters.model.js';
 import {
   NOTIFICATION_PUBLISHER,
@@ -23,6 +24,7 @@ import {
   type RecoveryEmailService,
 } from '../shared/contracts/recovery-email.contract.js';
 import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
+import { USER } from '../shared/types/user.role.js';
 import {
   setAuditContext,
   type Transaction,
@@ -95,6 +97,7 @@ export class FighterAdmissionsService implements AdmissionActivationPort {
     private readonly recoveryEmail: RecoveryEmailService,
     @Inject(NOTIFICATION_PUBLISHER)
     private readonly notifications: NotificationPublisher,
+    private readonly authorization: AuthorizationService,
   ) {}
 
   // ── Applicant use cases ───────────────────────────────────────────────────
@@ -709,13 +712,9 @@ export class FighterAdmissionsService implements AdmissionActivationPort {
     });
   }
 
-  // ── Notifications (post-commit, A1–A6) ────────────────────────────────────
-  //
-  // Each helper runs after the business transaction committed. Recipient
-  // lookups run inside notifyResolved, so neither a lookup nor an enqueue
-  // failure can reach the business response.
+  // Post-commit; lookups run inside notifyResolved so no failure reaches the response.
 
-  /** A1 — every active Admin can assign the evaluating Coach. */
+  /** A1 — every active Admin. */
   private notifyApplicationSubmitted(
     actor: AuthenticatedUser,
     applicationId: string,
@@ -739,10 +738,7 @@ export class FighterAdmissionsService implements AdmissionActivationPort {
     );
   }
 
-  /**
-   * A2 — the new Coach receives the task; a replaced Coach receives a minimal
-   * hand-over reminder without the application it can no longer read.
-   */
+  /** A2 — the replaced Coach gets no link to the application it can no longer read. */
   private notifyAssessmentAssignment(
     actor: AuthenticatedUser,
     applicationId: string,
@@ -788,10 +784,7 @@ export class FighterAdmissionsService implements AdmissionActivationPort {
     );
   }
 
-  /**
-   * A3/A4 — the applicant learns the outcome of the attempt; on PASS every
-   * active Admin is asked for the decision.
-   */
+  /** A3/A4 — applicant; on PASS also every active Admin. */
   private notifyAssessmentRecorded(
     actor: AuthenticatedUser,
     applicationId: string,
@@ -836,10 +829,7 @@ export class FighterAdmissionsService implements AdmissionActivationPort {
     );
   }
 
-  /**
-   * A5 — the applicant learns the decision. The text never claims the recovery
-   * email reached the inbox.
-   */
+  /** A5 — the text never claims the recovery email reached the inbox. */
   private notifyDecisionRecorded(
     actor: AuthenticatedUser,
     applicationId: string,
@@ -866,11 +856,8 @@ export class FighterAdmissionsService implements AdmissionActivationPort {
     );
   }
 
-  /**
-   * A6 — Admins whose effective permissions allow assigning a training Coach
-   * receive the new Fighter. The admission evaluator is not treated as the
-   * training Coach.
-   */
+  // A6 — only Admins with effective `fighter.coach:assign`; a lookup error fails
+  // this notification and never widens it to every Admin.
   private notifyActivationCompleted(
     actor: AuthenticatedUser,
     applicationId: string,
@@ -879,7 +866,8 @@ export class FighterAdmissionsService implements AdmissionActivationPort {
     return this.notifications.notifyResolved(
       async () => {
         const [recipientUserIds, fighterId] = await Promise.all([
-          this.repository.findActiveAdminUserIds(
+          this.authorization.findActiveUserIdsWithPermission(
+            USER.ADMIN,
             FIGHTER_PERMISSIONS.COACHES_ASSIGN,
           ),
           this.repository.findFighterIdByUserId(actor.id),

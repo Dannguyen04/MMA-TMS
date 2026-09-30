@@ -27,21 +27,8 @@ import {
 
 const SUBSCRIBE_TIMED_OUT = Symbol('SUBSCRIBE_TIMED_OUT');
 
-/**
- * Realtime fan-out between API instances. BullMQ consumers compete for jobs,
- * so the instance that stored a notification is usually not the one holding
- * the recipient's stream: every instance subscribes to one Redis channel and
- * routes each signal to its local connections. Pub/Sub is not durable; a
- * missed signal is recovered by the client re-reading PostgreSQL.
- *
- * Subscription lifecycle: ioredis emits `ready` before its automatic
- * re-subscribe is acknowledged, so auto-resubscribe is disabled and every
- * connection generation subscribes explicitly. The channel counts as live only
- * after the SUBSCRIBE acknowledgement of the current generation; a close or
- * reconnect starts a new generation, so a late acknowledgement or rejection of
- * an older one is ignored. A failed or timed-out SUBSCRIBE on a live
- * connection is retried after a fixed delay, one attempt at a time.
- */
+// ioredis emits `ready` before auto-resubscribe is acknowledged, so each connection
+// generation subscribes itself and is live only after its own SUBSCRIBE ACK.
 @Injectable()
 export class NotificationDistributionService
   implements OnModuleInit, OnModuleDestroy
@@ -50,9 +37,7 @@ export class NotificationDistributionService
   private readonly events = new EventEmitter();
   private publisher?: Redis;
   private subscriber?: Redis;
-  /** Bumped on every (re)connect and close of the subscriber connection. */
   private generation = 0;
-  /** Generation whose SUBSCRIBE was acknowledged; undefined while not live. */
   private liveGeneration?: number;
   private everSubscribed = false;
   private retryTimer?: NodeJS.Timeout;
@@ -69,15 +54,12 @@ export class NotificationDistributionService
   onModuleInit(): void {
     const connection = resolveRedisConnection(this.config);
 
-    // Publishing fails fast while Redis is unreachable: the worker then retries
-    // the job, and a read-state sync is simply skipped.
+    // Fail fast: the worker retries the job and a read-state sync is skipped.
     this.publisher = createRedisClient(connection, {
       enableOfflineQueue: false,
       maxRetriesPerRequest: NOTIFICATION_FAIL_FAST_MAX_RETRIES_PER_REQUEST,
       commandTimeout: this.settings.PUBLISH_TIMEOUT_MS,
     });
-    // SUBSCRIBE is only sent on a ready connection, so nothing is buffered
-    // while Redis is down; the connection itself keeps reconnecting.
     this.subscriber = createRedisClient(connection, {
       autoResubscribe: false,
       enableOfflineQueue: false,
@@ -115,7 +97,7 @@ export class NotificationDistributionService
     );
   }
 
-  /** Publishes a signal. Rejects when Redis is unreachable; zero subscribers is not an error. */
+  /** Zero subscribers is not an error. */
   async publish(signal: NotificationSignal): Promise<void> {
     if (!this.publisher) throw new Error('Notification publisher not initialised');
     await this.publisher.publish(
@@ -124,11 +106,6 @@ export class NotificationDistributionService
     );
   }
 
-  /**
-   * Resolves true once the channel subscription of the current connection is
-   * acknowledged, false after the timeout or when `signal` aborts (the client
-   * left), removing its listener in every case.
-   */
   async waitUntilSubscribed(
     timeoutMs: number,
     signal?: AbortSignal,
@@ -169,7 +146,6 @@ export class NotificationDistributionService
     );
   }
 
-  /** Invalidates the current subscription state and any pending retry. */
   private startGeneration(): number {
     this.generation += 1;
     this.liveGeneration = undefined;
@@ -214,8 +190,7 @@ export class NotificationDistributionService
       clearTimeout(timer);
     }
 
-    // A late acknowledgement of an older connection, or a second one for this
-    // generation, must not mark the channel live or trigger another resync.
+    // A stale or repeated ACK must not mark the channel live or resync again.
     if (!this.isCurrent(generation) || this.liveGeneration === generation) {
       return;
     }
@@ -225,8 +200,7 @@ export class NotificationDistributionService
     const isResubscription = this.everSubscribed;
     this.everSubscribed = true;
     this.events.emit(NOTIFICATION_DISTRIBUTION_EVENT.SUBSCRIBED);
-    // Signals published while the channel was not live are lost; local
-    // clients re-read their inbox once per successful re-subscription.
+    // Signals sent while not live are lost; clients re-read once per re-subscription.
     if (isResubscription) this.events.emit(NOTIFICATION_DISTRIBUTION_EVENT.RESYNC);
   }
 

@@ -29,17 +29,8 @@ export class NotificationProducerUnavailableError extends Error {
   }
 }
 
-/**
- * Request-path producer for the notification queue, isolated from the worker.
- *
- * The root BullMQ connection is configured for workers (`maxRetriesPerRequest:
- * null`, offline queue on), which lets a request-time `queue.add` wait for
- * Redis indefinitely and accumulate pending commands. This producer owns one
- * client with finite retries, no offline queue and bounded connect/command
- * timeouts, and never calls BullMQ unless the client is `ready`, because the
- * queue's own readiness wait has no bound. The worker keeps the root
- * connection and background reconnect policy; the AI queue is untouched.
- */
+// The root worker connection would let a request wait for Redis indefinitely;
+// BullMQ is called only on a `ready` client because its readiness wait is unbounded.
 @Injectable()
 export class NotificationProducer implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(NotificationProducer.name);
@@ -66,13 +57,8 @@ export class NotificationProducer implements OnModuleInit, OnModuleDestroy {
     this.createQueue(this.client);
   }
 
-  /**
-   * Reusing the owned client: BullMQ does not close a connection it did not
-   * create, so this provider closes it on shutdown. If the queue's connection
-   * initialisation fails (for example Redis drops right after `ready`), its
-   * readiness promise stays rejected; the queue is then rebuilt on the next
-   * enqueue attempt instead of failing until restart.
-   */
+  // A failed queue init stays rejected forever, so it is rebuilt on the next
+  // enqueue. BullMQ never closes the shared client; this provider does.
   private createQueue(client: Redis): void {
     const queue = new Queue(NOTIFICATIONS_QUEUE, { connection: client });
     queue.on('error', (error: Error) =>
@@ -101,12 +87,7 @@ export class NotificationProducer implements OnModuleInit, OnModuleDestroy {
     if (this.client) await closeRedisClient(this.client, timeoutMs);
   }
 
-  /**
-   * Adds one delivery job. Rejects immediately with
-   * `NotificationProducerUnavailableError` while Redis is not connected, so no
-   * work accumulates during an outage; otherwise the Redis commands are bounded
-   * by the command timeout.
-   */
+  /** Rejects immediately while Redis is not connected, so no work accumulates. */
   async add(job: DeliveryJob, jobId: string): Promise<void> {
     if (!this.client || this.client.status !== 'ready') {
       throw new NotificationProducerUnavailableError();

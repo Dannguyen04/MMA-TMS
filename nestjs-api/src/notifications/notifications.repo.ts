@@ -16,17 +16,11 @@ const notificationProjection = {
   createdAt: notifications.createdAt,
 };
 
-export type NotificationRow = {
-  id: string;
-  userId: string;
-  type: string;
-  title: string;
-  message: string;
-  payload: unknown;
-  isRead: boolean;
-  readAt: Date | null;
-  createdAt: Date;
-};
+/** Selected columns of `notifications`; `dedupe_key` stays internal. */
+export type NotificationRow = Pick<
+  typeof notifications.$inferSelect,
+  keyof typeof notificationProjection
+>;
 
 @Injectable()
 export class NotificationsRepository {
@@ -62,12 +56,8 @@ export class NotificationsRepository {
     return row?.total ?? 0;
   }
 
-  /**
-   * Marks one unread notification of the user as read. Returns undefined when
-   * nothing changed (already read, another user's row or no row), so the
-   * caller re-reads instead of assuming. `read_at` uses the database clock to
-   * keep `read_at >= created_at` true regardless of the API host clock.
-   */
+  // Undefined when nothing changed, so the caller re-reads; the DB clock keeps
+  // `read_at >= created_at` true regardless of the API host clock.
   async markRead(
     id: string,
     userId: string,
@@ -98,10 +88,7 @@ export class NotificationsRepository {
     return row;
   }
 
-  /**
-   * Recipients that can still own an inbox row. A deleted or deactivated
-   * account is skipped instead of failing the whole fan-out.
-   */
+  /** Deactivated or deleted accounts are skipped instead of failing the fan-out. */
   async findDeliverableUserIds(userIds: readonly string[]): Promise<string[]> {
     if (userIds.length === 0) return [];
     const rows = await this.db
@@ -117,12 +104,8 @@ export class NotificationsRepository {
     return rows.map((row) => row.id);
   }
 
-  /**
-   * Inserts one row per recipient and returns every row of this event for
-   * those recipients, including rows a previous attempt already stored. A
-   * conflict on (user_id, dedupe_key) keeps the existing row untouched: read
-   * state and content are never reset or overwritten.
-   */
+  // A conflict keeps the existing row (read state and content untouched); the
+  // re-read also returns rows a previous attempt already stored.
   async insertOrReuse(
     job: DeliveryJob,
     recipientUserIds: readonly string[],

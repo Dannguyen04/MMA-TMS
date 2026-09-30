@@ -165,6 +165,17 @@ export class AuthorizationService {
     );
   }
 
+  /** Internal, not an HTTP route. Errors propagate; callers must not widen the set. */
+  findActiveUserIdsWithPermission(
+    role: UserRole,
+    permissionCode: string,
+  ): Promise<string[]> {
+    return this.authorizationRepository.findActiveUserIdsWithPermission(
+      role,
+      permissionCode,
+    );
+  }
+
   // =========================================================================
   // Private helpers
   // =========================================================================

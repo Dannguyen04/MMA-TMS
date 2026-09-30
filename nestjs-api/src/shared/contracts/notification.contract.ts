@@ -1,10 +1,7 @@
 export const NOTIFICATION_PUBLISHER = Symbol('NOTIFICATION_PUBLISHER');
 
-/**
- * Notification types a business module may request. Each value exists in the
- * `notification_type` enum (migration 014) and belongs to an approved trigger;
- * legacy enum values stay readable in the inbox but are not accepted here.
- */
+// Approved trigger types (migration 014). Legacy enum values stay readable in
+// the inbox but cannot be published.
 export const NOTIFICATION_TYPE = {
   /** A1 — Admin: a Guest submitted an application to triage. */
   ADMISSION_APPLICATION_SUBMITTED: 'ADMISSION_APPLICATION_SUBMITTED',
@@ -41,7 +38,7 @@ export const notificationTypes = Object.values(
   NOTIFICATION_TYPE,
 ) as readonly NotificationType[];
 
-/** Resource a notification points at. Clients re-read it through its own API. */
+/** Clients re-read the target through its own API, which re-checks access. */
 export const NOTIFICATION_TARGET = {
   FIGHTER_APPLICATION: 'FIGHTER_APPLICATION',
   FIGHTER: 'FIGHTER',
@@ -63,18 +60,15 @@ export type NotificationDataValue = string | number | boolean | null;
 export interface NotifyInput {
   /** `public.users.id` values, never auth subjects or profile IDs. */
   recipientUserIds: readonly string[];
-  /** The user who caused the event; removed from the recipients. */
+  /** Removed from the recipients. */
   actorUserId?: string;
   type: NotificationType;
   title: string;
   message: string;
   target?: { type: NotificationTargetType; id: string };
   data?: Readonly<Record<string, NotificationDataValue>>;
-  /**
-   * Stable identity of one occurrence of the event (for example the ID of the
-   * row the mutation created, or its revision timestamp). Never random per
-   * call: a retry of the same occurrence must produce the same key.
-   */
+  // Stable per event occurrence (row ID or written revision), never random:
+  // a retry must produce the same key.
   dedupeKey: string;
 }
 
@@ -82,11 +76,8 @@ export interface NotifyContext {
   correlationId?: string;
 }
 
-/**
- * State of the enqueue request only. `queued` never means the notification was
- * stored or delivered; `failed` may still hide a job Redis accepted after the
- * enqueue timeout, which the dedupe key makes harmless.
- */
+// Enqueue state only: `queued` is not stored/delivered, and `failed` may hide a
+// job Redis accepted after the timeout (harmless thanks to the dedupe key).
 export type NotifyResult =
   | { status: 'queued' }
   | { status: 'skipped'; reason: 'NO_RECIPIENTS' }
@@ -99,19 +90,12 @@ export type NotifyResult =
         | 'ENQUEUE_TIMEOUT';
     };
 
-/**
- * Post-commit notification port. Implementations never throw: a failure is
- * logged and reported as `failed`, so it can never turn a committed business
- * operation into an error response. Never call it inside a transaction.
- */
+// Call only after commit, never inside a transaction. Implementations never
+// throw, so a committed operation never becomes an error response.
 export interface NotificationPublisher {
   notify(input: NotifyInput, context?: NotifyContext): Promise<NotifyResult>;
 
-  /**
-   * Runs caller-owned recipient resolution and then `notify` for each input,
-   * under the same isolation: a resolution error is logged and reported as
-   * `RECIPIENT_RESOLUTION_FAILED` instead of reaching the business response.
-   */
+  /** A resolver error is reported as `RECIPIENT_RESOLUTION_FAILED`, never thrown. */
   notifyResolved(
     resolve: () => Promise<readonly NotifyInput[]>,
     context?: NotifyContext,

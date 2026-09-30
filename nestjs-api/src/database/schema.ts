@@ -2717,7 +2717,7 @@ export const notifications = pgTable(
       .onDelete('restrict')
       .onUpdate('no action'),
     index('idx_notifications_user_unread')
-      .using('btree', t.userId, t.createdAt)
+      .using('btree', t.userId, t.createdAt.desc())
       .where(sql.raw('(is_read = false)')),
     check(
       'ck_notification_dedupe_key',

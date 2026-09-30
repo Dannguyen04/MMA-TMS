@@ -1,4 +1,5 @@
 import { HttpException } from '@nestjs/common';
+import type { NotificationPublisher } from '../shared/contracts/notification.contract.js';
 import type { RecoveryEmailService } from '../shared/contracts/recovery-email.contract.js';
 import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import { USER } from '../shared/types/user.role.js';
@@ -102,13 +103,19 @@ describe('FighterAdmissionsService', () => {
       sendPasswordRecoveryEmail: vi.fn().mockResolvedValue({ accepted: true }),
     };
 
+    const notifications: NotificationPublisher = {
+      notify: vi.fn().mockResolvedValue({ status: 'queued' }),
+      notifyResolved: vi.fn().mockResolvedValue([{ status: 'queued' }]),
+    };
+
     const service = new FighterAdmissionsService(
       repository as unknown as FighterAdmissionsRepository,
       usersService as unknown as UsersService,
       recoveryEmail,
+      notifications,
     );
 
-    return { service, repository, usersService, recoveryEmail };
+    return { service, repository, usersService, recoveryEmail, notifications };
   }
 
   // ── 1. Hai đường tạo FIGHTER & GUEST boundary (§1, §2) ───────────────────

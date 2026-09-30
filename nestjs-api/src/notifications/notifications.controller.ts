@@ -43,7 +43,7 @@ import type {
 import { appZodValidationPipe } from '../shared/pipes/zod-validation.pipe.js';
 import { NotificationStreamService } from './notification-stream.service.js';
 import {
-  NOTIFICATION_ERROR_CODE,
+  NOTIFICATION_RESPONSE_MESSAGE,
   NOTIFICATION_STREAM_EVENT,
 } from './notifications.constant.js';
 import {
@@ -52,13 +52,11 @@ import {
   NotificationIdParamsDto,
   UnreadCountDto,
 } from './notifications.dto.js';
+import { NOTIFICATION_ERROR } from './notifications.error.js';
 import { NotificationsService } from './notifications.service.js';
 
-/**
- * The caller's own inbox. Every route is authenticated-only and scoped to the
- * authenticated user; no route accepts a user ID, so no role (Admin included)
- * can read, modify or stream another inbox. There is no public send endpoint.
- */
+// Self-scoped: no route takes a user ID, so no role (Admin included) can reach
+// another inbox. There is no public send endpoint.
 @ApiTags('Notifications')
 @ApiBearerAuth()
 @Controller('notifications')
@@ -77,10 +75,10 @@ export class NotificationsController {
     description:
       'Newest first (createdAt DESC, id DESC); optional unreadOnly filter.',
   })
-  @ResponseMessage('Get notifications successfully')
+  @ResponseMessage(NOTIFICATION_RESPONSE_MESSAGE.LIST)
   @ApiSuccessEnvelope({
     status: HttpStatus.OK,
-    message: 'Get notifications successfully',
+    message: NOTIFICATION_RESPONSE_MESSAGE.LIST,
     model: NotificationDto,
     isPaginated: true,
   })
@@ -96,10 +94,10 @@ export class NotificationsController {
   @Get('unread-count')
   @AuthenticatedEndpoint()
   @ApiOperation({ summary: 'Count my unread notifications' })
-  @ResponseMessage('Get unread notification count successfully')
+  @ResponseMessage(NOTIFICATION_RESPONSE_MESSAGE.UNREAD_COUNT)
   @ApiSuccessEnvelope({
     status: HttpStatus.OK,
-    message: 'Get unread notification count successfully',
+    message: NOTIFICATION_RESPONSE_MESSAGE.UNREAD_COUNT,
     model: UnreadCountDto,
   })
   @ApiUnauthorizedEnvelope()
@@ -115,17 +113,17 @@ export class NotificationsController {
       'Idempotent; an already-read notification keeps its first readAt. ' +
       'Reading a notification does not resolve the business task it points to.',
   })
-  @ResponseMessage('Mark notification as read successfully')
+  @ResponseMessage(NOTIFICATION_RESPONSE_MESSAGE.MARK_READ)
   @ApiSuccessEnvelope({
     status: HttpStatus.OK,
-    message: 'Mark notification as read successfully',
+    message: NOTIFICATION_RESPONSE_MESSAGE.MARK_READ,
     model: NotificationDto,
   })
   @ApiValidationErrorEnvelope()
   @ApiUnauthorizedEnvelope()
   @ApiNotFoundEnvelope(
-    NOTIFICATION_ERROR_CODE.NOT_FOUND,
-    'Notification not found',
+    NOTIFICATION_ERROR.NOT_FOUND.code,
+    NOTIFICATION_ERROR.NOT_FOUND.message,
     'Unknown ID or a notification owned by another user',
   )
   async markRead(
@@ -158,13 +156,11 @@ export class NotificationsController {
   @ApiUnauthorizedEnvelope()
   @ApiErrorEnvelope({
     status: HttpStatus.TOO_MANY_REQUESTS,
-    code: NOTIFICATION_ERROR_CODE.STREAM_LIMIT,
-    message: 'Too many open notification streams for this account',
+    ...NOTIFICATION_ERROR.STREAM_LIMIT,
   })
   @ApiErrorEnvelope({
     status: HttpStatus.SERVICE_UNAVAILABLE,
-    code: NOTIFICATION_ERROR_CODE.STREAM_UNAVAILABLE,
-    message: 'Realtime notifications are temporarily unavailable',
+    ...NOTIFICATION_ERROR.STREAM_UNAVAILABLE,
   })
   async stream(
     @Req() request: AuthenticatedRequest,

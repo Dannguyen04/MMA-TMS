@@ -392,8 +392,7 @@ export class FightersService {
       throw mapFighterPersistenceError(error);
     }
 
-    // T1, after commit. Minimal reminders: no end reason and, for the Coach,
-    // no link to Fighter data it can no longer read.
+    // T1, after commit: no end reason, and no link the Coach can no longer read.
     await this.notifications.notifyResolved(
       async () => {
         const coachUserId = await this.fightersRepository.findCoachUserId(

@@ -16,14 +16,8 @@ import { NotificationsProcessor } from './notifications.processor.js';
 import { NotificationsRepository } from './notifications.repo.js';
 import { NotificationsService } from './notifications.service.js';
 
-/**
- * Shared notification module. Business modules import it and inject
- * `NOTIFICATION_PUBLISHER`; they never depend on the queue, repository or
- * worker. The registered queue (root BullMQ connection from AppModule) serves
- * the worker only; request-time enqueue goes through NotificationProducer,
- * which owns a fail-fast connection to the same Redis endpoint.
- * This module imports no business module, so it cannot form a cycle.
- */
+// Business modules depend only on NOTIFICATION_PUBLISHER. The registered queue
+// serves the worker; request-time enqueue uses the fail-fast NotificationProducer.
 @Module({
   imports: [
     DatabaseModule,

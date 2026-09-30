@@ -29,11 +29,7 @@ const configSchema = z.strictObject(
 
 export type NotificationsConfig = Readonly<Record<NotificationConfigKey, number>>;
 
-/**
- * Reads `NOTIFICATION_<KEY>` values through ConfigService and validates them
- * once at startup (finite positive integers within `NOTIFICATION_CONFIG_MAX`);
- * a malformed value fails the boot instead of silently falling back.
- */
+/** A malformed value fails the boot instead of silently falling back. */
 export function loadNotificationsConfig(
   config: ConfigService,
 ): NotificationsConfig {

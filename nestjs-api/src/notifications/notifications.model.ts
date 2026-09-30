@@ -2,8 +2,6 @@ import { z } from 'zod';
 import {
   notificationTargetTypes,
   notificationTypes,
-  type NotificationTargetType,
-  type NotificationType,
 } from '../shared/contracts/notification.contract.js';
 import { isoDateTimeSchema } from '../shared/utils/zod-schema.util.js';
 import {
@@ -15,8 +13,6 @@ import {
   NOTIFICATION_PAYLOAD_VERSION,
   NOTIFICATION_SIGNAL_KIND,
 } from './notifications.constant.js';
-
-// --- Delivery (facade input and queue job) ---
 
 const dataValueSchema = z.union([
   z.string().max(NOTIFICATION_LIMITS.DATA_STRING_MAX),
@@ -40,13 +36,10 @@ const dataSchema = z
   );
 
 const targetSchema = z.strictObject({
-  type: z.enum(
-    notificationTargetTypes as [NotificationTargetType, ...NotificationTargetType[]],
-  ),
+  type: z.enum(notificationTargetTypes),
   id: z.uuid(),
 });
 
-/** Stored JSONB payload. The version lets clients evolve their renderer. */
 export const notificationPayloadSchema = z
   .strictObject({
     v: z.literal(NOTIFICATION_PAYLOAD_VERSION),
@@ -62,33 +55,24 @@ export const notificationPayloadSchema = z
 
 export type NotificationPayload = z.infer<typeof notificationPayloadSchema>;
 
-/**
- * Serialized BullMQ job. It carries only what the worker needs to write the
- * inbox rows: never an access token, request object or clinical record.
- */
+/** Never carries an access token, request object or clinical record. */
 export const deliveryJobSchema = z.strictObject({
   recipientUserIds: z
     .array(z.uuid())
     .min(1)
     .max(NOTIFICATION_LIMITS.RECIPIENTS_MAX),
-  type: z.enum(
-    notificationTypes as [NotificationType, ...NotificationType[]],
-  ),
+  type: z.enum(notificationTypes),
   title: z.string().trim().min(1).max(NOTIFICATION_LIMITS.TITLE_MAX),
   message: z.string().trim().min(1).max(NOTIFICATION_LIMITS.MESSAGE_MAX),
   payload: notificationPayloadSchema,
-  /** Namespaced as `<type>:<caller dedupe key>`. */
+  /** `<type>:<caller dedupe key>`. */
   dedupeKey: z.string().min(1).max(NOTIFICATION_DELIVERY_DEDUPE_KEY_MAX),
   correlationId: z.string().max(NOTIFICATION_CORRELATION_ID_MAX).optional(),
 });
 
 export type DeliveryJob = z.infer<typeof deliveryJobSchema>;
 
-/**
- * Realtime signal fanned out to every API instance over Redis Pub/Sub. It only
- * names rows already committed; instances route it to local connections and
- * clients re-read content through the REST API.
- */
+/** Names committed rows only; clients re-read content through REST. */
 export const notificationSignalSchema = z.discriminatedUnion('kind', [
   z.strictObject({
     kind: z.literal(NOTIFICATION_SIGNAL_KIND.CREATED),
@@ -111,8 +95,6 @@ export const callerDedupeKeySchema = z
   .trim()
   .min(1)
   .max(NOTIFICATION_LIMITS.DEDUPE_KEY_MAX);
-
-// --- HTTP ---
 
 export const listNotificationsQuerySchema = z.strictObject({
   page: z.coerce.number().int().positive().default(1),
@@ -155,8 +137,13 @@ export const unreadCountSchema = z.strictObject({
   count: z.number().int().nonnegative(),
 });
 
-export type NotificationPage = {
-  data: NotificationView[];
-  total: number;
-  hasNextPage: boolean;
-};
+export type UnreadCount = z.infer<typeof unreadCountSchema>;
+
+/** Inner pagination inside the envelope's `data` (FE §12.1). */
+export const notificationPageSchema = z.strictObject({
+  data: z.array(notificationSchema),
+  total: z.number().int().nonnegative(),
+  hasNextPage: z.boolean(),
+});
+
+export type NotificationPage = z.infer<typeof notificationPageSchema>;

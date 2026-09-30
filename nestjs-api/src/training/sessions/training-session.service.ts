@@ -129,9 +129,8 @@ export class TrainingSessionService {
       if (!existing) throw sessionNotFound();
       await this.access.assertFighterAccess(actor, existing.fighterId);
 
-      // The row is locked for the whole mutation, so the "before" state used
-      // to detect a reschedule is exactly the state this UPDATE replaced,
-      // never a snapshot another request changed in between.
+      // The lock makes the reschedule check compare against exactly the row this
+      // UPDATE replaces, never a snapshot a concurrent request changed.
       result = await this.repo.transaction(async (transaction) => {
         const locked = await this.repo.lockSessionById(id, transaction);
         if (!locked) throw sessionNotFound();
@@ -158,9 +157,8 @@ export class TrainingSessionService {
       throw mapTrainingPersistenceError(error);
     }
 
-    // T4, after commit and outside the lock: only a real change of time or
-    // location sent in this mutation. Notes, RPE, title or type edits, and a
-    // repeated request with the same values, notify nobody.
+    // T4, after commit: only a real time/location change; notes, RPE, title, type
+    // or a repeated request notify nobody.
     if (result.rescheduled) {
       await this.notifySessionEvent(
         actor,
@@ -208,8 +206,7 @@ export class TrainingSessionService {
           newStatus,
           cancellationReason,
         );
-        // T4, after the committed transition. CANCELLED is terminal, so the
-        // session ID identifies the single cancellation.
+        // T4: CANCELLED is terminal, so the session ID identifies the cancellation.
         if (updated.status === 'CANCELLED') {
           await this.notifySessionEvent(
             actor,

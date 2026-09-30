@@ -634,31 +634,8 @@ export class FighterAdmissionsRepository {
     return released;
   }
 
-  // ── Notification recipients (read after commit) ───────────────────────────
-
-  /**
-   * Active, non-deleted ADMIN accounts. With `permissionCode`, only those whose
-   * effective permission grants it, resolved like the authorization guard: an
-   * explicit user override wins over the role grant.
-   */
-  async findActiveAdminUserIds(permissionCode?: string): Promise<string[]> {
-    const effectivePermission = permissionCode
-      ? sql`coalesce(
-          (
-            select up.is_granted
-            from public.user_permissions up
-            join public.permissions p on p.id = up.permission_id
-            where up.user_id = ${users.id} and p.code = ${permissionCode}
-            limit 1
-          ),
-          exists (
-            select 1
-            from public.role_permissions rp
-            join public.permissions p on p.id = rp.permission_id
-            where rp.role = ${users.role} and p.code = ${permissionCode}
-          )
-        )`
-      : undefined;
+  /** A1/A3 recipients; permission-filtered sets belong to the Authorization module. */
+  async findActiveAdminUserIds(): Promise<string[]> {
     const rows = await this.db
       .select({ id: users.id })
       .from(users)
@@ -667,7 +644,6 @@ export class FighterAdmissionsRepository {
           eq(users.role, USER.ADMIN),
           eq(users.isActive, true),
           isNull(users.deletedAt),
-          effectivePermission,
         ),
       );
     return rows.map((row) => row.id);

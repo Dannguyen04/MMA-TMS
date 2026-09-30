@@ -24,6 +24,7 @@ import {
   type ListNotificationsQuery,
   type NotificationPage,
   type NotificationView,
+  type UnreadCount,
 } from './notifications.model.js';
 import {
   NotificationsRepository,
@@ -32,10 +33,10 @@ import {
 
 const ENQUEUE_TIMED_OUT = Symbol('ENQUEUE_TIMED_OUT');
 
-/**
- * Notification facade (post-commit enqueue) and the caller's own inbox use
- * cases. Background storage and realtime publishing live in the processor.
- */
+function isJsonObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 @Injectable()
 export class NotificationsService implements NotificationPublisher {
   private readonly logger = new Logger(NotificationsService.name);
@@ -48,19 +49,19 @@ export class NotificationsService implements NotificationPublisher {
     private readonly settings: NotificationsConfig,
   ) {}
 
-  // ── Publisher (shared contract) ───────────────────────────────────────────
-
-  /**
-   * Never throws: normalization, validation and enqueue all sit inside one
-   * error boundary, so a notification problem cannot reach the committed
-   * business response.
-   */
+  /** Never throws, so a notification problem cannot reach the committed business response. */
   async notify(
     input: NotifyInput,
     context: NotifyContext = {},
   ): Promise<NotifyResult> {
     let timer: NodeJS.Timeout | undefined;
     try {
+      // Checked before normalizing so malformed input is INVALID_INPUT, not an enqueue failure.
+      const requested: unknown = input?.recipientUserIds;
+      if (!Array.isArray(requested)) {
+        this.logFailure(input, 'INVALID_INPUT', context);
+        return { status: 'failed', reason: 'INVALID_INPUT' };
+      }
       // Canonical recipient set: unique, actor removed, stably sorted.
       const recipients = [...new Set(input.recipientUserIds)]
         .filter((userId) => userId !== input.actorUserId)
@@ -81,17 +82,14 @@ export class NotificationsService implements NotificationPublisher {
           this.settings.ENQUEUE_TIMEOUT_MS,
         );
       });
-      // The producer fails fast while Redis is down and bounds each command,
-      // so no pending work outlives this call for long. The race only bounds
-      // the caller's wait on top of that.
+      // The producer already bounds each command; the race only bounds the caller's wait.
       const outcome = await Promise.race([
         this.producer.add(job, this.jobId(job)),
         timeout,
       ]);
       if (outcome === ENQUEUE_TIMED_OUT) {
-        // Unknown state: Redis may still have stored the job. A later enqueue
-        // of the same event and recipients maps to the same jobId, and the DB
-        // dedupe index keeps any overlap harmless.
+        // Unknown outcome: Redis may still store the job; the same jobId and the DB
+        // dedupe index keep a later retry harmless.
         this.logFailure(input, 'ENQUEUE_TIMEOUT', context);
         return { status: 'failed', reason: 'ENQUEUE_TIMEOUT' };
       }
@@ -134,8 +132,6 @@ export class NotificationsService implements NotificationPublisher {
     }
   }
 
-  // ── Inbox (self-scoped) ───────────────────────────────────────────────────
-
   async list(
     user: AuthenticatedUser,
     query: ListNotificationsQuery,
@@ -148,14 +144,11 @@ export class NotificationsService implements NotificationPublisher {
     };
   }
 
-  async unreadCount(user: AuthenticatedUser): Promise<{ count: number }> {
+  async unreadCount(user: AuthenticatedUser): Promise<UnreadCount> {
     return { count: await this.repository.countUnread(user.id) };
   }
 
-  /**
-   * Idempotent: an already-read notification is returned unchanged with its
-   * first `readAt`. Another user's notification is reported as not found.
-   */
+  /** Idempotent (keeps the first `readAt`); another user's row is reported as not found. */
   async markRead(
     user: AuthenticatedUser,
     notificationId: string,
@@ -170,8 +163,7 @@ export class NotificationsService implements NotificationPublisher {
       return this.toView(existing);
     }
 
-    // Keeps the user's other tabs/devices in sync. Best effort: the state is
-    // already committed and clients reconcile from the REST API.
+    // Best effort: the state is committed and other tabs reconcile from REST.
     try {
       await this.distribution.publish({
         kind: NOTIFICATION_SIGNAL_KIND.READ,
@@ -186,8 +178,6 @@ export class NotificationsService implements NotificationPublisher {
     }
     return this.toView(updated);
   }
-
-  // ── Internals ─────────────────────────────────────────────────────────────
 
   private buildJob(
     input: NotifyInput,
@@ -206,25 +196,15 @@ export class NotificationsService implements NotificationPublisher {
         ...(input.target ? { target: input.target } : {}),
         ...(input.data ? { data: input.data } : {}),
       },
-      // Namespaced by type so two notifications of one event never collide on
-      // (user_id, dedupe_key).
+      // Namespaced by type so two notifications of one event never collide.
       dedupeKey: `${input.type}:${dedupeKey.data}`,
       ...(context.correlationId ? { correlationId: context.correlationId } : {}),
     });
     return parsed.success ? parsed.data : undefined;
   }
 
-  /**
-   * Deterministic queue identity of one event for one recipient set: the same
-   * event re-sent to the same recipients (in any order, with duplicates) maps
-   * to the same job, while the same event for another set is a new job, so no
-   * recipient is silently dropped. Content is not part of the identity: an
-   * event key stands for immutable content. The structured (JSON array)
-   * serialization avoids delimiter ambiguity; the hex digest keeps the ID
-   * free of ':' and bounded, as BullMQ requires. Re-enqueueing an ID that is
-   * still retained (completed or failed) is ignored by BullMQ and does not
-   * retry a failed job.
-   */
+  // Same event + same recipient set = same job, a new set is a new job, so no
+  // recipient is dropped. BullMQ ignores a retained ID: it never retries a failed job.
   private jobId(job: DeliveryJob): string {
     const identity = JSON.stringify([
       NOTIFICATION_JOB_ID.IDENTITY_VERSION,
@@ -237,7 +217,7 @@ export class NotificationsService implements NotificationPublisher {
     return `${NOTIFICATION_JOB_ID.PREFIX}-v${NOTIFICATION_JOB_ID.IDENTITY_VERSION}-${digest}`;
   }
 
-  /** Logs identifiers only; must not throw even for a malformed input. */
+  /** Identifiers only; must not throw even for a malformed input. */
   private logFailure(
     input: NotifyInput,
     reason: string,
@@ -263,7 +243,8 @@ export class NotificationsService implements NotificationPublisher {
       type: row.type,
       title: row.title,
       message: row.message,
-      payload: (row.payload ?? {}) as Record<string, unknown>,
+      // Legacy rows may hold any keys, so the delivery schema is not applied.
+      payload: isJsonObject(row.payload) ? row.payload : {},
       isRead: row.isRead,
       readAt: row.readAt ? row.readAt.toISOString() : null,
       createdAt: row.createdAt.toISOString(),

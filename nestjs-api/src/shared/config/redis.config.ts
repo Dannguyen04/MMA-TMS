@@ -1,12 +1,6 @@
 import type { ConfigService } from '@nestjs/config';
 import { Redis, type RedisOptions } from 'ioredis';
 
-/**
- * Redis connection settings resolved once from configuration. Shared by the
- * root BullMQ configuration and by modules that need a plain Redis client
- * (for example Pub/Sub), so host, port, password, URL and TLS are never
- * re-derived or hard-coded elsewhere.
- */
 export type RedisConnectionSettings =
   | {
       url: string;
@@ -37,11 +31,7 @@ export function resolveRedisConnection(
   };
 }
 
-/**
- * Creates a dedicated ioredis client for the shared endpoint/auth/TLS with a
- * caller-specific behaviour policy (retries, offline queue, timeouts). The
- * caller owns the client and must close it.
- */
+/** The caller owns the client and must close it. */
 export function createRedisClient(
   settings: RedisConnectionSettings,
   policy: RedisOptions,
@@ -52,10 +42,7 @@ export function createRedisClient(
   return new Redis({ ...settings, ...policy });
 }
 
-/**
- * Closes an owned client: QUIT when possible, forced disconnect when Redis is
- * unreachable or QUIT does not finish within `timeoutMs`.
- */
+/** Forces a disconnect when QUIT fails or exceeds `timeoutMs`. */
 export async function closeRedisClient(
   client: Redis,
   timeoutMs: number,

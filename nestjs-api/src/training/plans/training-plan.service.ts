@@ -184,8 +184,7 @@ export class TrainingPlanService {
         type: NOTIFICATION_TYPE.TRAINING_PLAN_ACTIVATED,
         ...TRAINING_NOTIFICATION_TEXT.PLAN_ACTIVATED,
         target: { type: NOTIFICATION_TARGET.TRAINING_PLAN, id: plan.id },
-        // updatedAt is the revision written by this transition, so a later
-        // re-activation is a distinct event.
+        // The written revision makes a later re-activation a distinct event.
         dedupeKey: `plan:${plan.id}:activated:${plan.updatedAt}`,
       },
     ]);

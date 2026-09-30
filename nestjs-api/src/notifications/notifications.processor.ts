@@ -17,13 +17,8 @@ interface DeliveryResult {
   skippedRecipients: number;
 }
 
-/**
- * validate job → create or reuse one row per recipient → commit → publish the
- * realtime signal. Storage always precedes publishing. A publish failure fails
- * the attempt so the retry re-publishes the already stored rows (the insert is
- * a no-op on the dedupe index). An offline user or a channel without
- * subscribers is not a failure: the inbox row is the delivery of record.
- */
+// Storage precedes publishing; a publish failure fails the attempt so the retry
+// re-publishes stored rows. An offline user is not a failure: the inbox is the record.
 @Processor(NOTIFICATIONS_QUEUE)
 export class NotificationsProcessor
   extends WorkerHost
@@ -48,8 +43,7 @@ export class NotificationsProcessor
     if (job.name !== NOTIFICATION_JOB.DELIVER) {
       throw new UnrecoverableError('Unknown notification job name');
     }
-    // Re-validated here: the queue is a trust boundary and the payload may have
-    // been written by another release.
+    // The queue is a trust boundary; another release may have written the job.
     const parsed = deliveryJobSchema.safeParse(job.data);
     if (!parsed.success) {
       throw new UnrecoverableError('Invalid notification job payload');
