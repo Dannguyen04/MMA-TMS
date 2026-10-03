@@ -606,7 +606,8 @@ export interface AbnormalMovementAlert {
     bodyRegion: BodyRegion;
     pattern: string;
     description: string;
-    confidence: number;
+    /** Null when the movement model gives none; no confidence is shown in its place. */
+    confidence: number | null;
     metric: {
         label: string;
         observed: number;

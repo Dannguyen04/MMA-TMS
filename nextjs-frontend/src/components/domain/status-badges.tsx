@@ -253,7 +253,9 @@ export function AlertStatusBadge({ status, size, className }: { status: AlertSta
 }
 
 /** Confidence as text + band, e.g. "87% · High". */
-export function ConfidenceBadge({ confidence, size, className }: { confidence: number; size?: BadgeSize; className?: string }) {
+/** Nothing when the model gave no confidence: a number is never shown in its place. */
+export function ConfidenceBadge({ confidence, size, className }: { confidence: number | null; size?: BadgeSize; className?: string }) {
+    if (confidence === null) return null;
     const band = confidenceBand(confidence);
     const tone: Tone = band === "high" ? "neutral" : band === "medium" ? "neutral" : "warning";
     return (

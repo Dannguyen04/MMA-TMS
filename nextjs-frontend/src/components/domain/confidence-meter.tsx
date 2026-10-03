@@ -11,8 +11,8 @@ const BAND_LABELS: Record<ConfidenceBand, string> = {
 };
 
 export interface ConfidenceMeterProps {
-    /** Model confidence, 0–1. */
-    confidence: number;
+    /** Model confidence, 0–1; null when the model gave none. */
+    confidence: number | null;
     /** Accessible name. */
     label?: string;
     /** Review threshold, 0–1. Defaults to the platform low-confidence threshold. */
@@ -22,6 +22,8 @@ export interface ConfidenceMeterProps {
 
 /** Horizontal 0–100% meter with the band label and a tick at the review threshold. */
 export function ConfidenceMeter({ confidence, label = "AI confidence", lowThreshold = LOW_CONFIDENCE_THRESHOLD, className }: ConfidenceMeterProps) {
+    // A model that gave no confidence gets no meter: a number is never shown in its place.
+    if (confidence === null) return <p className={cn("text-[13px] text-fg-muted", className)}>Not reported by the model</p>;
     const value = clamp(confidence, 0, 1);
     const band = confidenceBand(value, lowThreshold);
     const isLow = band === "low";

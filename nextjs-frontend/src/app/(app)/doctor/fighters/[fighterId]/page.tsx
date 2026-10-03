@@ -38,6 +38,7 @@ import { ageFromBirthDate, daysBetween, formatDate, formatNumber, formatShortDat
 import { hrefWith, parseEnum } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
+import { listAlerts } from "@/lib/services/ai";
 import { getClearanceHistory, getClearanceStatus, getFighterHealthSummary, getMedicalRecord, listExaminations, listInjuries, listReviewRequests } from "@/lib/services/medical";
 import { medicalFeatureAvailable } from "@/lib/services/medical-features";
 import { getFighter, listDoctors } from "@/lib/services/people";
@@ -62,7 +63,7 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
     const fighter = await requireFighterAccess(user, fighterId);
     const now = new Date().toISOString();
 
-    const [summary, record, examinations, injuries, clearances, doctors, settings, reviewRequests, { eligibility }] = await Promise.all([
+    const [summary, record, examinations, injuries, clearances, doctors, settings, reviewRequests, { eligibility }, observations] = await Promise.all([
         getFighterHealthSummary(fighter.id, now),
         medicalFeatureAvailable("medicalRecord") ? getMedicalRecord(fighter.id) : null,
         listExaminations({ fighterIds: [fighter.id] }),
@@ -72,7 +73,9 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
         getSettings(),
         listReviewRequests(fighter.id),
         getClearanceStatus(fighter.id, now),
+        medicalFeatureAvailable("aiObservations") ? listAlerts({ fighterIds: [fighter.id] }) : [],
     ]);
+    const openAlerts = observations.filter((alert) => alert.status === "new" || alert.status === "follow_up");
     if (!summary) notFound();
 
     const doctorNames = new Map(doctors.map((doctor) => [doctor.id, doctor.name]));
@@ -296,7 +299,7 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                 <Card>
                     <CardHeader
                         title="AI observations"
-                        description={summary.openAlerts.length > 0 ? `${summary.openAlerts.length} open` : undefined}
+                        description={openAlerts.length > 0 ? `${openAlerts.length} open` : undefined}
                         icon={<Sparkles />}
                         action={<CardLink href={routes.doctor.aiAlerts}>All observations</CardLink>}
                     />
@@ -304,7 +307,7 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                         {medicalFeatureAvailable("aiObservations") ? (
                             <>
                                 <AINotice audience="doctor" compact />
-                                <AIObservationList observations={summary.openAlerts.map((alert) => ({ alert }))} now={now} />
+                                <AIObservationList observations={openAlerts.map((alert) => ({ alert }))} now={now} />
                             </>
                         ) : (
                             <FeatureUnavailable title="AI observations aren't available yet" compact />

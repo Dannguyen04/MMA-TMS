@@ -15,6 +15,7 @@ import { accessibleFighterIds } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import type { User, VideoStatus } from "@/lib/domain/types";
 import { routes } from "@/lib/routes";
+import { platformFeatureAvailable } from "@/lib/services/platform-features";
 import { listReviewQueue, listVideoLibrary, type VideoLibraryItem } from "@/lib/services/videos";
 
 export const metadata: Metadata = { title: "Film room" };
@@ -26,12 +27,17 @@ export default async function CoachVideoAnalysisPage({ searchParams }: PageProps
     const user = await requireRole("coach");
     const params = await searchParams;
     const now = new Date().toISOString();
+    const reviews = platformFeatureAvailable("coachAiReview");
 
     return (
         <>
             <PageHeader
                 title="Film room"
-                description="See what the AI found in your fighters' footage, then confirm or correct it before it shapes training."
+                description={
+                    reviews
+                        ? "See what the AI found in your fighters' footage, then confirm or correct it before it shapes training."
+                        : "See what the AI found in your fighters' footage."
+                }
                 actions={
                     <ButtonLink href={routes.coach.uploadVideo}>
                         <Upload aria-hidden />
@@ -41,7 +47,7 @@ export default async function CoachVideoAnalysisPage({ searchParams }: PageProps
             />
             {/* The review sections and the library are sibling async components, so their data loads in parallel. */}
             <div className="flex flex-col gap-8">
-                <ReviewSections user={user} now={now} />
+                <ReviewSections user={user} now={now} reviews={reviews} />
                 <section aria-labelledby="library-heading" className="flex flex-col gap-4">
                     <div>
                         <h2 id="library-heading" className="text-lg font-semibold text-fg">
@@ -64,14 +70,15 @@ export default async function CoachVideoAnalysisPage({ searchParams }: PageProps
     );
 }
 
-async function ReviewSections({ user, now }: { user: User; now: string }) {
+/** `reviews` adds the queue of analyses awaiting the coach's review, where coaches can review them. */
+async function ReviewSections({ user, now, reviews }: { user: User; now: string; reviews: boolean }) {
     const scope = accessibleFighterIds(user);
-    const [queue, roster] = await Promise.all([listReviewQueue(scope), listVideoLibrary({ fighterIds: scope })]);
+    const [queue, roster] = await Promise.all([reviews ? listReviewQueue(scope) : [], listVideoLibrary({ fighterIds: scope })]);
     const attention = roster.filter((item) => ATTENTION_STATUSES.includes(item.video.status));
 
     return (
         <>
-            <ReviewQueue items={queue} now={now} />
+            {reviews && <ReviewQueue items={queue} now={now} />}
             {attention.length > 0 && (
                 <Card>
                     <CardHeader icon={<LoaderCircle />} title="Processing and needs attention" description="Footage still being analysed, and analyses that didn't finish." />

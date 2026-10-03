@@ -6,6 +6,8 @@ import { isDemoAuthEnabled } from "@/lib/auth/constants";
 import { ApiError, authenticatedApiRequest, authenticatedMutableApiRequest, drainAuthenticatedCursorPages } from "@/lib/api/client";
 import { PERMISSION_CATALOG, ROLE_DEFINITIONS } from "@/lib/auth/role-catalog";
 import { DEFAULT_SYSTEM_SETTINGS } from "@/lib/domain/system-settings";
+import { DAY_MS } from "@/lib/format";
+import { round } from "@/lib/utils";
 import {
     type AuditLog,
     type BroadcastChannel,
@@ -23,9 +25,10 @@ import {
 } from "@/lib/domain/types";
 import { adminFeatureAvailable } from "./admin-features";
 import { drainNumberedPages, isNotFound, unsupportedOperation } from "./api-helpers";
-import { adaptBackendAuditLog, backendAuditLogSchema, listAuditLogs } from "./audit";
+import { listAuditLogs } from "./audit";
 import { adaptBackendUser, backendUserSchema, getApiUserWithProfile } from "./people";
 import { platformFeatureAvailable } from "./platform-features";
+import { listVideos } from "./videos";
 
 type Failure<Code extends string> = { ok: false; code: Code; message: string };
 
@@ -56,17 +59,6 @@ const backendBroadcastSchema = z.object({
     recipientCount: z.number().int().nonnegative(),
     createdById: z.string(),
     createdAt: z.string(),
-});
-const backendOverviewSchema = z.object({
-    usersByRole: z.object({ FIGHTER: z.number(), COACH: z.number(), DOCTOR: z.number(), ADMIN: z.number() }),
-    activeUsers7d: z.number().int().nonnegative(),
-    invitedUsers: z.number().int().nonnegative(),
-    suspendedUsers: z.number().int().nonnegative(),
-    videosTotal: z.number().int().nonnegative(),
-    videosLast7d: z.number().int().nonnegative(),
-    storageUsedGb: z.number().nonnegative(),
-    recentAudit: z.array(backendAuditLogSchema),
-    recentFailures: z.array(backendAuditLogSchema),
 });
 
 const roleToApi: Record<Role, z.infer<typeof roleSchema>> = {
@@ -149,8 +141,10 @@ export type CreateBroadcastResult =
 export interface AdminOverview {
     /** All accounts per role, whatever their status. */
     usersByRole: Record<Role, number>;
-    /** Active accounts seen in the last 7 days. */
-    activeUsers7d: number;
+    /** Active accounts seen in the last 7 days; null when sign-ins aren't recorded. */
+    activeUsers7d: number | null;
+    /** Accounts that are active, whenever they last signed in. */
+    activeAccounts: number;
     invitedUsers: number;
     suspendedUsers: number;
     videosTotal: number;
@@ -335,18 +329,26 @@ export async function createBroadcast(input: CreateBroadcastInput, actor: User):
     }
 }
 
+/**
+ * The admin dashboard's figures. API mode builds them from the user and video lists, since the backend has no
+ * dashboard endpoint: it keeps no sign-in times or invitations, and audit entries aren't available yet.
+ */
 export async function getAdminOverview(now: Date = new Date(), viewer?: User | null): Promise<AdminOverview> {
     if (isDemoAuthEnabled()) return (await demoService()).getAdminOverview(now, viewer);
-    const data = await authenticatedApiRequest(`/dashboards/admin?at=${encodeURIComponent(now.toISOString())}`, backendOverviewSchema);
+    const [users, videos] = await Promise.all([listUsers(), listVideos()]);
+    const weekAgo = now.getTime() - 7 * DAY_MS;
+    const accounts = (role: Role) => users.filter((user) => user.role === role).length;
     return {
-        ...data,
-        usersByRole: {
-            fighter: data.usersByRole.FIGHTER,
-            coach: data.usersByRole.COACH,
-            doctor: data.usersByRole.DOCTOR,
-            admin: data.usersByRole.ADMIN,
-        },
-        recentAudit: data.recentAudit.map(adaptBackendAuditLog),
-        recentFailures: data.recentFailures.map(adaptBackendAuditLog),
+        usersByRole: { fighter: accounts("fighter"), coach: accounts("coach"), doctor: accounts("doctor"), admin: accounts("admin") },
+        activeUsers7d: null,
+        activeAccounts: users.filter((user) => user.status === "active").length,
+        invitedUsers: 0,
+        suspendedUsers: users.filter((user) => user.status === "suspended").length,
+        // The video list is capped at the service's 100 newest, so these are lower bounds on a large library.
+        videosTotal: videos.length,
+        videosLast7d: videos.filter((video) => Date.parse(video.uploadedAt) >= weekAgo).length,
+        storageUsedGb: round(videos.reduce((total, video) => total + video.fileSizeMb, 0) / 1024, 1),
+        recentAudit: [],
+        recentFailures: [],
     };
 }

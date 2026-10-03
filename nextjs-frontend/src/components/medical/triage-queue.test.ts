@@ -15,7 +15,6 @@ const summary = (overrides: Partial<FighterHealthSummary> & Pick<FighterHealthSu
     activeInjuries: [],
     activeRecoveryPlan: null,
     latestExamination: null,
-    openAlerts: [],
     nextFollowUp: null,
     openReviewRequests: [],
     ...overrides,

@@ -222,6 +222,7 @@ export async function deleteVideoAction(_prev: ActionState, formData: FormData):
 async function loadJob(formData: FormData) {
     const auth = await authorizeAction("ai_jobs:manage");
     if (!auth.ok) return { ok: false, error: actionError(auth.message) } as const;
+    if (!platformFeatureAvailable("aiJobControl")) return { ok: false, error: actionError(PLATFORM_FEATURE_UNAVAILABLE_MESSAGE) } as const;
     const parsed = z.object({ jobId: idSchema("The job is missing.") }).safeParse({ jobId: text(formData.get("jobId")) });
     if (!parsed.success) return { ok: false, error: validationError(parsed.error) } as const;
     const job = await getJobProgress(parsed.data.jobId);
@@ -287,6 +288,7 @@ const thresholdsSchema = z
 export async function updateModelThresholdsAction(_prev: ActionState<ThresholdsData>, formData: FormData): Promise<ActionState<ThresholdsData>> {
     const auth = await authorizeAction("ai_models:manage");
     if (!auth.ok) return actionError(auth.message);
+    if (!platformFeatureAvailable("aiModels")) return actionError(PLATFORM_FEATURE_UNAVAILABLE_MESSAGE);
     const parsed = thresholdsSchema.safeParse({
         modelId: text(formData.get("modelId")),
         confidencePct: text(formData.get("confidencePct")),
@@ -318,6 +320,7 @@ const modelStatusSchema = z.object({
 export async function setModelStatusAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
     const auth = await authorizeAction("ai_models:manage");
     if (!auth.ok) return actionError(auth.message);
+    if (!platformFeatureAvailable("aiModels")) return actionError(PLATFORM_FEATURE_UNAVAILABLE_MESSAGE);
     const parsed = modelStatusSchema.safeParse({ modelId: text(formData.get("modelId")), status: text(formData.get("status")) });
     if (!parsed.success) return validationError(parsed.error);
 

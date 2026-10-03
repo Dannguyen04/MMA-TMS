@@ -32,7 +32,7 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { PageHeader } from "@/components/ui/page-header";
 import { ProgressBar } from "@/components/ui/progress";
 import { StatCard, type StatDelta } from "@/components/ui/stat-card";
-import { EmptyState } from "@/components/ui/states";
+import { EmptyState, FeatureUnavailable } from "@/components/ui/states";
 import { requireRole } from "@/lib/auth/session";
 import { AI_MODEL_TASK_LABELS, PIPELINE_STAGE_LABELS, ROLE_LABELS } from "@/lib/domain/labels";
 import type { AIModelTask } from "@/lib/domain/types";
@@ -40,8 +40,10 @@ import { formatDateTime, formatDelta, formatNumber, formatPercent, formatRelativ
 import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { getAdminOverview, getSettings } from "@/lib/services/admin";
+import { adminFeatureAvailable } from "@/lib/services/admin-features";
 import { getAIJobStats, listAIJobs, listAIModels, type AIJobListItem } from "@/lib/services/ai";
 import { listAuditLogs } from "@/lib/services/audit";
+import { platformFeatureAvailable } from "@/lib/services/platform-features";
 import { round } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Platform overview" };
@@ -91,6 +93,8 @@ export default async function AdminDashboardPage() {
                   label: "failure rate vs 7 d",
               };
     const totalUsers = ROLE_ORDER.reduce((total, role) => total + overview.usersByRole[role], 0);
+    const invitations = adminFeatureAvailable("inviteUsers");
+    const jobControl = platformFeatureAvailable("aiJobControl");
 
     const attention: AttentionItem[] = [];
     if (failed > 0) {
@@ -108,7 +112,7 @@ export default async function AdminDashboardPage() {
             id: "stalled-jobs",
             icon: Hourglass,
             title: `${pluralize(stalled.length, "job")} processing for over 30 minutes`,
-            description: "The worker may be stuck. Cancel and retry if progress doesn't move.",
+            description: jobControl ? "The worker may be stuck. Cancel and retry if progress doesn't move." : "The worker may be stuck. Check that it's running.",
             href: stalled.length === 1 ? routes.admin.aiJob(stalled[0].job.id) : hrefWith(routes.admin.aiJobs, {}, { status: "processing" }),
             actionLabel: "Inspect",
         });
@@ -169,11 +173,11 @@ export default async function AdminDashboardPage() {
 
                 <section aria-label="Key figures" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                     <StatCard
-                        label="Active users · 7 days"
-                        value={formatNumber(overview.activeUsers7d)}
+                        label={overview.activeUsers7d === null ? "Active accounts" : "Active users · 7 days"}
+                        value={formatNumber(overview.activeUsers7d ?? overview.activeAccounts)}
                         unit={`of ${totalUsers}`}
                         icon={<Users aria-hidden />}
-                        hint={`${overview.invitedUsers} invited · ${overview.suspendedUsers} suspended`}
+                        hint={invitations ? `${overview.invitedUsers} invited · ${overview.suspendedUsers} suspended` : `${overview.suspendedUsers} suspended`}
                         href={routes.admin.users}
                     />
                     <StatCard
@@ -234,8 +238,8 @@ export default async function AdminDashboardPage() {
                                 <MetricTile label="Failure rate · 7 d" value={formatPercent(stats.failureRate7d, 1)} hint="of finished jobs" />
                                 <MetricTile
                                     label="Low confidence · 7 d"
-                                    value={formatPercent(stats.lowConfidenceRate7d, 1)}
-                                    hint={`below ${formatPercent(settings.aiLowConfidenceThreshold * 100)} review line`}
+                                    value={stats.lowConfidenceRate7d === null ? "—" : formatPercent(stats.lowConfidenceRate7d, 1)}
+                                    hint={stats.lowConfidenceRate7d === null ? "jobs report no confidence" : `below ${formatPercent(settings.aiLowConfidenceThreshold * 100)} review line`}
                                 />
                                 <MetricTile label="Processing now" value={formatNumber(processing.length)} hint={stalled.length > 0 ? `${stalled.length} over 30 min` : "workers busy"} />
                                 <MetricTile label="Queued" value={formatNumber(queued.length)} hint={queued.length > 0 ? `oldest ${formatRelative(queued[0].job.queuedAt, now)}` : "nothing waiting"} />
@@ -245,7 +249,7 @@ export default async function AdminDashboardPage() {
 
                     <div className="flex min-w-0 flex-col gap-6">
                         <QueueCard processing={processing} queued={queued} now={now} />
-                        <FailuresCard failures={recentFailures} now={now} />
+                        <FailuresCard failures={recentFailures} now={now} canRetry={jobControl} />
                     </div>
                 </div>
 
@@ -257,7 +261,11 @@ export default async function AdminDashboardPage() {
                             icon={<ScrollText />}
                             action={<CardLink href={routes.admin.auditLogs}>Audit logs</CardLink>}
                         />
-                        {overview.recentAudit.length === 0 ? (
+                        {!platformFeatureAvailable("auditLogs") ? (
+                            <CardContent>
+                                <FeatureUnavailable service="platform" title="Activity isn't available yet" compact />
+                            </CardContent>
+                        ) : overview.recentAudit.length === 0 ? (
                             <CardContent>
                                 <EmptyState compact title="No activity yet" description="Sign-ins, changes and pipeline events will appear here." />
                             </CardContent>
@@ -276,50 +284,54 @@ export default async function AdminDashboardPage() {
                                 />
                             </CardContent>
                             <CardFooter>
-                                <span className="text-fg-muted">{overview.invitedUsers > 0 ? `${pluralize(overview.invitedUsers, "invitation")} pending` : "No pending invitations"}</span>
+                                <span className="text-fg-muted">
+                                    {invitations && (overview.invitedUsers > 0 ? `${pluralize(overview.invitedUsers, "invitation")} pending` : "No pending invitations")}
+                                </span>
                                 <Link href={routes.admin.users} className="font-medium text-primary-soft-fg hover:underline">
                                     Manage users
                                 </Link>
                             </CardFooter>
                         </Card>
 
-                        <Card className="overflow-hidden">
-                            <CardHeader
-                                title="Model status"
-                                description="Active model per task"
-                                icon={<BrainCircuit />}
-                                action={<CardLink href={routes.admin.aiModels}>Models</CardLink>}
-                            />
-                            <ul className="divide-y divide-border border-t border-border">
-                                {TASKS.map((task) => {
-                                    const active = models.find((m) => m.task === task && m.status === "active");
-                                    const staging = models.filter((m) => m.task === task && m.status === "staging");
-                                    return (
-                                        <li key={task} className="px-5 py-3">
-                                            <p className="text-xs font-medium text-fg-subtle">{AI_MODEL_TASK_LABELS[task]}</p>
-                                            {active ? (
-                                                <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
-                                                    <Link href={routes.admin.aiModel(active.id)} className="min-w-0 truncate text-sm font-medium text-fg hover:underline">
-                                                        {active.name} <span className="font-mono text-[13px] text-fg-muted">{active.version}</span>
-                                                    </Link>
-                                                    <ModelStatusBadge status="active" size="sm" />
-                                                </div>
-                                            ) : (
-                                                <p className="mt-1 text-sm text-danger-fg">No active model</p>
-                                            )}
-                                            {staging.map((model) => (
-                                                <div key={model.id} className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
-                                                    <Link href={routes.admin.aiModel(model.id)} className="min-w-0 truncate text-[13px] text-fg-muted hover:text-fg hover:underline">
-                                                        Candidate <span className="font-mono">{model.version}</span>
-                                                    </Link>
-                                                    <ModelStatusBadge status="staging" size="sm" />
-                                                </div>
-                                            ))}
-                                        </li>
-                                    );
-                                })}
-                            </ul>
-                        </Card>
+                        {platformFeatureAvailable("aiModels") && (
+                            <Card className="overflow-hidden">
+                                <CardHeader
+                                    title="Model status"
+                                    description="Active model per task"
+                                    icon={<BrainCircuit />}
+                                    action={<CardLink href={routes.admin.aiModels}>Models</CardLink>}
+                                />
+                                <ul className="divide-y divide-border border-t border-border">
+                                    {TASKS.map((task) => {
+                                        const active = models.find((m) => m.task === task && m.status === "active");
+                                        const staging = models.filter((m) => m.task === task && m.status === "staging");
+                                        return (
+                                            <li key={task} className="px-5 py-3">
+                                                <p className="text-xs font-medium text-fg-subtle">{AI_MODEL_TASK_LABELS[task]}</p>
+                                                {active ? (
+                                                    <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+                                                        <Link href={routes.admin.aiModel(active.id)} className="min-w-0 truncate text-sm font-medium text-fg hover:underline">
+                                                            {active.name} <span className="font-mono text-[13px] text-fg-muted">{active.version}</span>
+                                                        </Link>
+                                                        <ModelStatusBadge status="active" size="sm" />
+                                                    </div>
+                                                ) : (
+                                                    <p className="mt-1 text-sm text-danger-fg">No active model</p>
+                                                )}
+                                                {staging.map((model) => (
+                                                    <div key={model.id} className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
+                                                        <Link href={routes.admin.aiModel(model.id)} className="min-w-0 truncate text-[13px] text-fg-muted hover:text-fg hover:underline">
+                                                            Candidate <span className="font-mono">{model.version}</span>
+                                                        </Link>
+                                                        <ModelStatusBadge status="staging" size="sm" />
+                                                    </div>
+                                                ))}
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            </Card>
+                        )}
                     </div>
                 </div>
             </div>
@@ -389,18 +401,20 @@ function QueueCard({ processing, queued, now }: { processing: AIJobListItem[]; q
     );
 }
 
-function FailuresCard({ failures, now }: { failures: AIJobListItem[]; now: string }) {
+/** `canRetry` when failed jobs can be queued again; otherwise only a new upload fixes them. */
+function FailuresCard({ failures, now, canRetry }: { failures: AIJobListItem[]; now: string; canRetry: boolean }) {
+    const remedy = canRetry ? "a retry or a new upload" : "a new upload";
     return (
         <Card className="overflow-hidden">
             <CardHeader
                 title="Recent failures"
-                description={failures.length === 0 ? "No unresolved failures" : "Need a retry or a new upload"}
+                description={failures.length === 0 ? "No unresolved failures" : `Need ${remedy}`}
                 icon={<CircleX />}
                 action={failures.length > 0 ? <CardLink href={hrefWith(routes.admin.aiJobs, {}, { status: "failed" })}>All failed</CardLink> : undefined}
             />
             {failures.length === 0 ? (
                 <CardContent>
-                    <EmptyState compact title="No unresolved failures" description="Failed jobs that still need a retry or a new upload appear here with their error code." />
+                    <EmptyState compact title="No unresolved failures" description={`Failed jobs that still need ${remedy} appear here with their error code.`} />
                 </CardContent>
             ) : (
                 <ul className="divide-y divide-border border-t border-border">
@@ -417,7 +431,8 @@ function FailuresCard({ failures, now }: { failures: AIJobListItem[]; now: strin
                                 </p>
                             </div>
                             <ButtonLink href={routes.admin.aiJob(item.job.id)} variant="secondary" size="sm">
-                                Retry<span className="sr-only"> {item.job.id}</span>
+                                {canRetry ? "Retry" : "Inspect"}
+                                <span className="sr-only"> {item.job.id}</span>
                             </ButtonLink>
                         </li>
                     ))}

@@ -30,7 +30,7 @@ const resourceTypeSchema = z.enum([
     "NOTIFICATION",
     "SETTINGS",
 ]);
-export const backendAuditLogSchema = z.object({
+const backendAuditLogSchema = z.object({
     id: z.string(),
     actorId: z.string().nullable(),
     actorName: z.string(),
@@ -87,7 +87,7 @@ const resourceTypeFromApi = Object.fromEntries(
     Object.entries(resourceTypeToApi).map(([uiValue, apiValue]) => [apiValue, uiValue]),
 ) as Record<z.infer<typeof resourceTypeSchema>, AuditResourceType>;
 
-export function adaptBackendAuditLog(log: BackendAuditLog): AuditLog {
+function adaptBackendAuditLog(log: BackendAuditLog): AuditLog {
     return {
         ...log,
         actorRole: roleFromApi[log.actorRole],

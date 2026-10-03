@@ -9,6 +9,7 @@ import { accessibleFighterIds } from "@/lib/auth/access";
 import { getSettings } from "@/lib/services/admin";
 import { getClearanceStatus } from "@/lib/services/medical";
 import { listFighters } from "@/lib/services/people";
+import { platformFeatureAvailable } from "@/lib/services/platform-features";
 import { listSessions } from "@/lib/services/training";
 
 export interface WizardFighterOption extends FighterIdentityData {
@@ -31,6 +32,8 @@ export interface UploadWizardData {
     sessions: WizardSessionOption[];
     settings: { allowedVideoFormats: string[]; videoMaxSizeMb: number };
     mode: VideoPipelineMode;
+    /** Whether a failed analysis can be run again; the jobs API keeps one job per video. */
+    canRetry: boolean;
     now: string;
 }
 
@@ -71,6 +74,7 @@ export async function loadUploadWizardData(user: User): Promise<UploadWizardData
             .map((s) => ({ id: s.id, fighterId: s.fighterId, title: s.title, type: s.type, scheduledAt: s.scheduledAt })),
         settings: { allowedVideoFormats: settings.allowedVideoFormats, videoMaxSizeMb: settings.videoMaxSizeMb },
         mode: VIDEO_PIPELINE_MODE,
+        canRetry: platformFeatureAvailable("aiJobControl"),
         now: now.toISOString(),
     };
 }

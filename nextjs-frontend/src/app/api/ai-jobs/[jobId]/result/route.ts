@@ -1,7 +1,8 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 
-import { apiErrorResponse, authenticatedMutableApiRequest } from "@/lib/api/client";
+import { apiErrorResponse } from "@/lib/api/client";
+import { pipelineApiRequest } from "@/lib/api/pipeline-auth";
 import { workerResultSchema } from "@/lib/api/worker-result";
 
 const noStore = { "Cache-Control": "private, no-store" };
@@ -13,7 +14,8 @@ export async function GET(_request: NextRequest, context: RouteContext<"/api/ai-
     // Backend job ids are UUIDs; rejecting anything else keeps dot segments out of the upstream path.
     if (!jobIdSchema.safeParse(jobId).success) return Response.json({ message: "Analysis result not found." }, { status: 404, headers: noStore });
     try {
-        const result = await authenticatedMutableApiRequest(`/jobs/${encodeURIComponent(jobId)}/result`, workerResultSchema);
+        // The same token as the other pipeline routes, so the demo session bridge reads results too.
+        const result = await pipelineApiRequest(`/jobs/${encodeURIComponent(jobId)}/result`, workerResultSchema);
         return Response.json(result, { headers: noStore });
     } catch (error) {
         return apiErrorResponse(error, "The analysis result is unavailable.", noStore);

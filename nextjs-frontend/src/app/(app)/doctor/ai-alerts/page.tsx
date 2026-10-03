@@ -65,7 +65,9 @@ export default async function AIAlertsPage({ searchParams }: PageProps<"/doctor/
     const now = new Date().toISOString();
     const scope = accessibleFighterIds(user);
 
-    const view: AlertView = parseEnum(param(params.status), FILTERS) ?? "new";
+    // Without review every observation stays new, so the review-status filter only applies where doctors can review.
+    const reviews = medicalFeatureAvailable("aiObservationReview");
+    const view: AlertView = reviews ? (parseEnum(param(params.status), FILTERS) ?? "new") : "all";
     const [alerts, fighters, videos] = await Promise.all([listAlerts({ fighterIds: scope }), listFighters(user), listVideos({ fighterIds: scope })]);
     const fightersById = new Map(fighters.map((fighter) => [fighter.id, fighter]));
     const videosById = new Map(videos.map((video) => [video.id, video]));
@@ -80,22 +82,24 @@ export default async function AIAlertsPage({ searchParams }: PageProps<"/doctor/
         <>
             <PageHeader
                 title="AI movement observations"
-                description="Movement patterns the AI flagged in your fighters' training footage, compared with their own earlier footage. Review each one and record your clinical decision."
+                description={`Movement patterns the AI flagged in your fighters' training footage, compared with their own earlier footage.${reviews ? " Review each one and record your clinical decision." : ""}`}
             />
 
             <div className="flex flex-col gap-5">
                 <AINotice audience="doctor" />
 
-                <SegmentedLinks
-                    label="Filter observations by review status"
-                    items={SEGMENTS.map((segment) => ({
-                        href: hrefWith(PATH, {}, { status: segment.value === "new" ? null : segment.value }),
-                        label: segment.label,
-                        count: count(segment.value),
-                        active: segment.value === view,
-                        icon: segment.icon,
-                    }))}
-                />
+                {reviews && (
+                    <SegmentedLinks
+                        label="Filter observations by review status"
+                        items={SEGMENTS.map((segment) => ({
+                            href: hrefWith(PATH, {}, { status: segment.value === "new" ? null : segment.value }),
+                            label: segment.label,
+                            count: count(segment.value),
+                            active: segment.value === view,
+                            icon: segment.icon,
+                        }))}
+                    />
+                )}
 
                 <section aria-label={`${SEGMENTS.find((segment) => segment.value === view)?.label ?? "All"} observations`}>
                     {page.total === 0 ? (

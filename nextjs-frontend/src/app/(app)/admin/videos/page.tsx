@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { DeleteVideoButton } from "@/components/admin/delete-video-button";
+import { formatVideoResolution } from "@/components/domain/domain-format";
 import { TrainingTypeIcon } from "@/components/domain/training-type-icon";
 import { VideoStatusBadge } from "@/components/domain/status-badges";
 import { Avatar } from "@/components/ui/avatar";
@@ -216,7 +217,7 @@ export default async function AdminVideosPage({ searchParams }: PageProps<"/admi
                                                     <TD className="text-right whitespace-nowrap">
                                                         {formatFileSize(video.fileSizeMb)}
                                                         <span className="block text-xs text-fg-subtle">
-                                                            {video.resolution.replace("x", "×")} · {video.fps} fps
+                                                            {formatVideoResolution(video)}
                                                         </span>
                                                     </TD>
                                                     <TD className="text-right">{formatClock(video.durationSec)}</TD>

@@ -9,6 +9,7 @@ import { authorizeAction } from "@/lib/auth/session";
 import type { AIFinding, CameraAngle, CoachReview, Detection, ReviewDecision, User, VideoTrainingType } from "@/lib/domain/types";
 import { routes } from "@/lib/routes";
 import { getAnalysis, retryJob, reviewDetection, reviewFinding, submitCoachReview } from "@/lib/services/ai";
+import { PLATFORM_FEATURE_UNAVAILABLE_MESSAGE, platformFeatureAvailable } from "@/lib/services/platform-features";
 import {
     createVideoUpload,
     getVideo,
@@ -145,6 +146,7 @@ export async function registerExternalUpload(_prev: ActionState<UploadActionData
 export async function retryAnalysis(_prev: ActionState<{ jobId: string }>, formData: FormData): Promise<ActionState<{ jobId: string }>> {
     const auth = await authorizeAction("videos:upload");
     if (!auth.ok) return actionError(auth.message);
+    if (!platformFeatureAvailable("aiJobControl")) return actionError(PLATFORM_FEATURE_UNAVAILABLE_MESSAGE);
     const parsed = z.object({ videoId: z.string().min(1, "The video is missing.") }).safeParse({ videoId: text(formData.get("videoId")) });
     if (!parsed.success) return validationError(parsed.error);
 
@@ -195,6 +197,7 @@ const DECISION_MESSAGES: Record<ReviewDecision, string> = {
 async function reviewTarget(formData: FormData, idField: string) {
     const auth = await authorizeAction("ai_findings:review");
     if (!auth.ok) return { ok: false, error: actionError(auth.message) } as const;
+    if (!platformFeatureAvailable("coachAiReview")) return { ok: false, error: actionError(PLATFORM_FEATURE_UNAVAILABLE_MESSAGE) } as const;
     const parsed = reviewSchema.safeParse({
         analysisId: text(formData.get("analysisId")),
         targetId: text(formData.get(idField)),
@@ -252,6 +255,7 @@ const coachReviewSchema = z.object({
 export async function submitCoachReviewAction(_prev: ActionState<CoachReview>, formData: FormData): Promise<ActionState<CoachReview>> {
     const auth = await authorizeAction("ai_findings:review");
     if (!auth.ok) return actionError(auth.message);
+    if (!platformFeatureAvailable("coachAiReview")) return actionError(PLATFORM_FEATURE_UNAVAILABLE_MESSAGE);
     const parsed = coachReviewSchema.safeParse({
         analysisId: text(formData.get("analysisId")),
         rating: text(formData.get("rating")) ?? "",

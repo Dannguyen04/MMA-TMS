@@ -25,8 +25,9 @@ export function confidenceBand(confidence: number, lowThreshold = LOW_CONFIDENCE
     return "high";
 }
 
-export function isLowConfidence(confidence: number, lowThreshold = LOW_CONFIDENCE_THRESHOLD): boolean {
-    return confidence < lowThreshold;
+/** False when there is no confidence to judge. */
+export function isLowConfidence(confidence: number | null, lowThreshold = LOW_CONFIDENCE_THRESHOLD): boolean {
+    return confidence !== null && confidence < lowThreshold;
 }
 
 /* ─── Goals ───────────────────────────────────────────────────────────────── */

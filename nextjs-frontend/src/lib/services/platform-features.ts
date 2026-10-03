@@ -32,6 +32,8 @@ export type PlatformFeature =
     | "aiModels"
     /** Retrying or cancelling an AI processing job. */
     | "aiJobControl"
+    /** The models a job ran, its analysis summary and earlier runs of the same footage. */
+    | "aiJobInsights"
     /** A coach confirming, correcting or rejecting AI findings on an analysed video. */
     | "coachAiReview"
     /** A user editing their own name and phone number (`PATCH /users/me`). */
@@ -51,6 +53,7 @@ export const platformFeatureAvailable = demoOnlyFeatureGate<PlatformFeature>([
     "systemSettings",
     "aiModels",
     "aiJobControl",
+    "aiJobInsights",
     "coachAiReview",
     "selfProfileEdit",
     "bodyMetrics",

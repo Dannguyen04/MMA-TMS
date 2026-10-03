@@ -483,7 +483,7 @@ const DECISION_MESSAGES = {
 export async function reviewAlertAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
     const auth = await authorizeClinicalAction("ai_alerts:review");
     if (!auth.ok) return actionError(auth.message);
-    if (!medicalFeatureAvailable("aiObservations")) return actionError(FEATURE_UNAVAILABLE_MESSAGE);
+    if (!medicalFeatureAvailable("aiObservationReview")) return actionError(FEATURE_UNAVAILABLE_MESSAGE);
 
     const parsed = reviewAlertSchema.safeParse({
         alertId: text(formData, "alertId"),

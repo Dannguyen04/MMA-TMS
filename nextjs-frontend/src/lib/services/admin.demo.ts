@@ -472,6 +472,7 @@ export async function getAdminOverview(now: Date = new Date(), viewer?: User | n
         activeUsers7d: store.users.filter(
             (u) => u.status === "active" && u.lastActiveAt !== null && Date.parse(u.lastActiveAt) >= weekAgo,
         ).length,
+        activeAccounts: store.users.filter((u) => u.status === "active").length,
         invitedUsers: store.users.filter((u) => u.status === "invited").length,
         suspendedUsers: store.users.filter((u) => u.status === "suspended").length,
         videosTotal: store.videos.length,

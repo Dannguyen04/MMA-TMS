@@ -17,8 +17,10 @@ export type MedicalFeature =
     | "recoveryPhasesAndCheckIns"
     /** Planned / ongoing / completed status on a treatment. */
     | "treatmentStatus"
-    /** AI movement observations raised from video analysis. */
+    /** AI movement observations raised from video analysis. The jobs API offers them read-only. */
     | "aiObservations"
+    /** A doctor recording a decision on an observation, and the triage queue of observations awaiting one. */
+    | "aiObservationReview"
     /** Follow-up dates set on examinations. */
     | "followUps"
     /** Setting a fighter's health status by hand. */
@@ -30,7 +32,7 @@ export const medicalFeatureAvailable = demoOnlyFeatureGate<MedicalFeature>([
     "vitals",
     "recoveryPhasesAndCheckIns",
     "treatmentStatus",
-    "aiObservations",
+    "aiObservationReview",
     "followUps",
     "healthStatusOverride",
 ]);

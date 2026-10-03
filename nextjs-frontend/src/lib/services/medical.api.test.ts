@@ -155,7 +155,6 @@ describe("medical service reads in API mode", () => {
             activeInjuries: [{ id: "inj-1", type: null, typeLabel: "MCL sprain", bodyRegion: "left_knee", joint: "LEFT_KNEE", severity: "moderate", status: "recovering" }],
             activeRecoveryPlan: { progressPct: 50, currentPhase: null, plan: { targetReturnDate: "2026-10-15", phases: [] } },
             latestExamination: { id: "exam-1", scope: "TRAINING", outcome: "fit_with_restrictions", vitals: null, type: null },
-            openAlerts: [],
             nextFollowUp: null,
         });
         expect(authenticatedApiRequest).toHaveBeenCalledWith(`/fighters/${FIGHTER}/medical`, expect.anything());

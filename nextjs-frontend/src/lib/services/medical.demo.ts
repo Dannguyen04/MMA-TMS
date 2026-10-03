@@ -1102,8 +1102,6 @@ export interface FighterHealthSummary {
     activeInjuries: Injury[];
     activeRecoveryPlan: RecoveryPlanProgress | null;
     latestExamination: MedicalExamination | null;
-    /** AI movement observations with status new or follow_up, newest first. */
-    openAlerts: AbnormalMovementAlert[];
     nextFollowUp: FollowUp | null;
     /** Medical review requests still waiting for an examination, oldest first. */
     openReviewRequests: MedicalReviewRequest[];
@@ -1128,9 +1126,6 @@ export async function getFighterHealthSummary(fighterId: string, now: string | D
             ? { plan, progressPct: recoveryProgressPct(plan), currentPhase: plan.phases.find((p) => p.status === "current") ?? null }
             : null,
         latestExamination: store.medicalExaminations.filter((e) => e.fighterId === fighterId).sort(byDateDesc((e) => e.date))[0] ?? null,
-        openAlerts: store.abnormalMovementAlerts
-            .filter((a) => a.fighterId === fighterId && (a.status === "new" || a.status === "follow_up"))
-            .sort(byDateDesc((a) => a.detectedAt)),
         nextFollowUp: pendingFollowUps([fighter], now)[0] ?? null,
         openReviewRequests: store.medicalReviewRequests
             .filter((request) => request.fighterId === fighterId && request.status === "OPEN")

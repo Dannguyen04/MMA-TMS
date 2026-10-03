@@ -419,13 +419,15 @@ function clearanceForCoach(clearanceId: string, title?: string): NotificationSee
 
 function alertForDoctor(alertId: string): NotificationSeed {
     const alert = alertById(alertId);
-    const low = alert.confidence < LOW_CONFIDENCE_THRESHOLD;
+    // Seeded observations always carry a confidence.
+    const confidence = alert.confidence ?? 0;
+    const low = confidence < LOW_CONFIDENCE_THRESHOLD;
     return note(
         minutesAfter(alert.detectedAt, 1),
         "ai_alert",
         low ? "info" : "warning",
         `New AI movement observation — ${fighterName(alert.fighterId)}, ${BODY_REGION_LABELS[alert.bodyRegion].toLowerCase()}`,
-        `${alert.pattern} (${formatConfidence(alert.confidence)} confidence${low ? " — below the review threshold, check the clip" : ""}).`,
+        `${alert.pattern} (${formatConfidence(confidence)} confidence${low ? " — below the review threshold, check the clip" : ""}).`,
         routes.doctor.aiAlert(alertId),
     );
 }

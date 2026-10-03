@@ -5,12 +5,13 @@ import { ModelCard } from "@/components/admin/model-card";
 import { AINotice } from "@/components/domain/ai-notice";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
-import { EmptyState } from "@/components/ui/states";
+import { EmptyState, FeatureUnavailable } from "@/components/ui/states";
 import { requireRole } from "@/lib/auth/session";
 import { AI_MODEL_TASK_LABELS } from "@/lib/domain/labels";
 import type { AIModelStatus, AIModelTask } from "@/lib/domain/types";
 import { pluralize } from "@/lib/format";
 import { listAIModels } from "@/lib/services/ai";
+import { platformFeatureAvailable } from "@/lib/services/platform-features";
 
 export const metadata: Metadata = { title: "AI models" };
 
@@ -26,6 +27,14 @@ const TASK_DESCRIPTIONS: Record<AIModelTask, string> = {
 
 export default async function AdminAIModelsPage() {
     await requireRole("admin");
+    if (!platformFeatureAvailable("aiModels")) {
+        return (
+            <>
+                <PageHeader title="AI models" />
+                <FeatureUnavailable service="video analysis" title="The model registry isn't available yet" />
+            </>
+        );
+    }
     const models = await listAIModels();
 
     return (
