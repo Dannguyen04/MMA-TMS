@@ -19,6 +19,7 @@ import type {
     Notification,
     NotificationBroadcast,
     PerformanceMetric,
+    PlanExercise,
     RecoveryPlan,
     RoleDefinition,
     SystemSettings,
@@ -61,6 +62,7 @@ export interface MockDatabase {
     exercises: Exercise[];
     trainingPlans: TrainingPlan[];
     trainingSessions: TrainingSession[];
+    planExercises: PlanExercise[];
     coachFeedback: CoachFeedback[];
     goals: Goal[];
     performanceMetrics: PerformanceMetric[];
@@ -92,6 +94,7 @@ function seedData(): MockDatabase {
         exercises: mockExercises,
         trainingPlans: mockTrainingPlans,
         trainingSessions: mockTrainingSessions,
+        planExercises: [],
         coachFeedback: mockCoachFeedback,
         goals: mockGoals,
         performanceMetrics: mockPerformanceMetrics,

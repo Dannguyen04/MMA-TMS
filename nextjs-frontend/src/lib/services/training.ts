@@ -2,7 +2,7 @@ import "server-only";
 
 import { z } from "zod";
 
-import { authenticatedApiRequest, authenticatedMutableApiRequest } from "@/lib/api/client";
+import { ApiError, authenticatedApiRequest, authenticatedMutableApiRequest } from "@/lib/api/client";
 import { isDemoAuthEnabled } from "@/lib/auth/constants";
 import type { ClearanceConflict } from "@/lib/domain/rules";
 import type {
@@ -10,6 +10,7 @@ import type {
     Exercise,
     ExerciseCategory,
     FeedbackKind,
+    PlanExercise,
     PlanStatus,
     SessionExercise,
     SessionStatus,
@@ -21,7 +22,19 @@ import type {
     TrainingType,
     User,
 } from "@/lib/domain/types";
-import { academyDayStartIso, DAY_MS, dayKey } from "@/lib/format";
+import { SESSION_TYPES } from "@/lib/domain/medical-contract";
+import {
+    planBody,
+    planCreateBody,
+    planExerciseBody,
+    sessionBody,
+    sessionCreateBody,
+    sessionResultBody,
+    sessionStatusBody,
+    TRAINING_TYPE_FOR,
+    type PlanExerciseFields,
+} from "@/lib/domain/training-contract";
+import { academyDayEndIso, academyDayStartIso, DAY_MS, dayKey } from "@/lib/format";
 import { matchesSearch } from "@/lib/query";
 import { drainNumberedPages, nullIfNotFound, unsupportedOperation } from "./api-helpers";
 import { platformFeatureAvailable } from "./platform-features";
@@ -90,18 +103,7 @@ const backendSessionSchema = z.object({
     actualDurationSec: z.number().int().positive().nullable(),
     roundCount: z.number().int().nonnegative(),
     location: nullableTextSchema,
-    sessionType: z.enum([
-        "SHADOW_BOXING",
-        "PAD_WORK",
-        "HEAVY_BAG",
-        "SPARRING",
-        "GRAPPLING",
-        "STRENGTH_CONDITIONING",
-        "RECOVERY",
-        "PHYSICAL_THERAPY",
-        "TECHNICAL_DRILLING",
-        "RECOVERY_MOBILITY",
-    ]),
+    sessionType: z.enum(SESSION_TYPES),
     status: z.enum(["SCHEDULED", "IN_PROGRESS", "COMPLETED", "SKIPPED", "CANCELLED", "ABANDONED"]),
     coachNotes: nullableTextSchema,
     cancellationReason: nullableTextSchema,
@@ -157,6 +159,18 @@ const backendExerciseSchema = z.object({
     loadsRegions: z.array(bodyRegionSchema).optional(),
 });
 
+const backendPlanExerciseSchema = z.object({
+    id: z.string(),
+    planId: z.string(),
+    exerciseId: z.string(),
+    orderIndex: z.number().int().nonnegative(),
+    sets: z.number().int().positive().nullable(),
+    reps: z.number().int().positive().nullable(),
+    durationSeconds: z.number().int().positive().nullable(),
+    targetRpe: z.number().int().min(1).max(10).nullable(),
+    coachNotes: nullableTextSchema,
+});
+
 const backendFeedbackSchema = z.object({
     id: z.string().uuid(),
     fighterId: z.string().uuid(),
@@ -173,6 +187,7 @@ type BackendPlan = z.infer<typeof backendPlanSchema>;
 type BackendSession = z.infer<typeof backendSessionSchema>;
 type BackendExercise = z.infer<typeof backendExerciseSchema>;
 type BackendFeedback = z.infer<typeof backendFeedbackSchema>;
+type BackendPlanExercise = z.infer<typeof backendPlanExerciseSchema>;
 
 const planStatusFromApi: Record<BackendPlan["status"], PlanStatus> = {
     DRAFT: "draft",
@@ -201,28 +216,6 @@ const sessionStatusToApi: Record<SessionStatus, BackendSession["status"]> = {
     missed: "SKIPPED",
     cancelled: "CANCELLED",
 };
-const trainingTypeFromApi: Record<BackendSession["sessionType"], TrainingType> = {
-    SHADOW_BOXING: "shadow_boxing",
-    PAD_WORK: "pad_work",
-    HEAVY_BAG: "heavy_bag",
-    SPARRING: "sparring",
-    GRAPPLING: "grappling",
-    STRENGTH_CONDITIONING: "strength_conditioning",
-    RECOVERY: "recovery_mobility",
-    PHYSICAL_THERAPY: "recovery_mobility",
-    TECHNICAL_DRILLING: "technical_drilling",
-    RECOVERY_MOBILITY: "recovery_mobility",
-};
-const trainingTypeToApi: Record<TrainingType, BackendSession["sessionType"]> = {
-    shadow_boxing: "SHADOW_BOXING",
-    pad_work: "PAD_WORK",
-    heavy_bag: "HEAVY_BAG",
-    sparring: "SPARRING",
-    grappling: "GRAPPLING",
-    strength_conditioning: "STRENGTH_CONDITIONING",
-    recovery_mobility: "RECOVERY",
-    technical_drilling: "TECHNICAL_DRILLING",
-};
 const exerciseCategoryFromApi: Record<BackendExercise["category"], ExerciseCategory> = {
     STRIKING: "striking",
     DEFENSE: "defense",
@@ -247,21 +240,22 @@ async function readPerFighter<T extends { id: string }>(
     return [...new Map(pages.flat().map((item) => [item.id, item])).values()];
 }
 
+/**
+ * The service stores plan dates as academy calendar days; the interface keeps them as the start of the first day and
+ * the end of the last, as the demo does. Phase, focus areas and weekly target aren't stored yet and stay empty.
+ */
 function toPlan(plan: BackendPlan): TrainingPlan {
-    if (plan.phase === undefined || plan.focusAreas === undefined || plan.weeklySessionTarget === undefined || plan.endDate === null) {
-        unsupportedOperation("Reading a training plan", "phase, focus areas, weekly target, and end-date fields");
-    }
     return {
         id: plan.id,
         title: plan.title,
         fighterId: plan.fighterId,
         coachId: plan.coachId,
         objective: plan.goals ?? "",
-        phase: plan.phase,
-        focusAreas: plan.focusAreas,
-        startDate: plan.startDate,
-        endDate: plan.endDate,
-        weeklySessionTarget: plan.weeklySessionTarget,
+        phase: plan.phase ?? null,
+        focusAreas: plan.focusAreas ?? [],
+        startDate: academyDayStartIso(dayKey(plan.startDate)),
+        endDate: plan.endDate === null ? null : academyDayEndIso(dayKey(plan.endDate)),
+        weeklySessionTarget: plan.weeklySessionTarget ?? null,
         status: planStatusFromApi[plan.status],
         notes: plan.description ?? "",
         createdAt: plan.createdAt,
@@ -278,7 +272,7 @@ function toSession(session: BackendSession): TrainingSession {
         fighterId: session.fighterId,
         coachId: session.coachId,
         title: session.title,
-        type: trainingTypeFromApi[session.sessionType],
+        type: TRAINING_TYPE_FOR[session.sessionType],
         scheduledAt: session.scheduledAt,
         durationMin: session.plannedDurationSec === null ? null : Math.max(1, Math.round(session.plannedDurationSec / 60)),
         location: session.location ?? "",
@@ -301,32 +295,21 @@ function toSession(session: BackendSession): TrainingSession {
     };
 }
 
+/** Library details the training service doesn't keep yet (techniques, intensity, prescription, body load) stay empty. */
 function toExercise(exercise: BackendExercise): Exercise {
-    if (
-        exercise.techniques === undefined ||
-        exercise.intensity === undefined ||
-        exercise.equipment === undefined ||
-        exercise.defaultRounds === undefined ||
-        exercise.defaultRoundSec === undefined ||
-        exercise.defaultSets === undefined ||
-        exercise.defaultReps === undefined ||
-        exercise.loadsRegions === undefined
-    ) {
-        unsupportedOperation("Reading an exercise", "technique, intensity, equipment, default prescription, and body-load fields");
-    }
     return {
         id: exercise.id,
         name: exercise.name,
         category: exerciseCategoryFromApi[exercise.category],
         description: exercise.description ?? "",
-        techniques: exercise.techniques,
-        intensity: exercise.intensity,
-        equipment: exercise.equipment,
-        defaultRounds: exercise.defaultRounds,
-        defaultRoundSec: exercise.defaultRoundSec,
-        defaultSets: exercise.defaultSets,
-        defaultReps: exercise.defaultReps,
-        loadsRegions: exercise.loadsRegions,
+        techniques: exercise.techniques ?? [],
+        intensity: exercise.intensity ?? null,
+        equipment: exercise.equipment ?? [],
+        defaultRounds: exercise.defaultRounds ?? null,
+        defaultRoundSec: exercise.defaultRoundSec ?? null,
+        defaultSets: exercise.defaultSets ?? null,
+        defaultReps: exercise.defaultReps ?? null,
+        loadsRegions: exercise.loadsRegions ?? [],
     };
 }
 
@@ -401,41 +384,45 @@ export interface PlanInput {
     fighterId: string;
     coachId: string;
     objective: string;
-    phase: TrainingPhase;
+    /** Phase, focus areas and weekly target are demo-only: the training service doesn't store them. */
+    phase: TrainingPhase | null;
     focusAreas: Technique[];
     startDate: string;
     endDate: string;
-    weeklySessionTarget: number;
+    weeklySessionTarget: number | null;
     notes: string;
     /** New plans start as drafts unless published straight away. */
     status?: Extract<PlanStatus, "draft" | "active">;
 }
 
 /** Fields a coach can edit after creation. The fighter and status are changed through their own flows. */
-export type PlanUpdateInput = Partial<Omit<PlanInput, "fighterId" | "status">>;
+export type PlanUpdateInput = Omit<PlanInput, "fighterId" | "coachId" | "status">;
 
+/**
+ * API mode creates the plan, then publishes it when asked: the service always creates drafts. When publishing is
+ * refused the draft is returned as it is, so the caller can tell the coach it wasn't activated.
+ */
 export async function createPlan(input: PlanInput, actor: User): Promise<TrainingPlan> {
     if (isDemoAuthEnabled()) return (await demoService()).createPlan(input, actor);
-    unsupportedOperation("Creating a training plan", "phase, focus-area, and weekly-target persistence");
+    const plan = toPlan(
+        await authenticatedMutableApiRequest("/training-plans", backendPlanSchema, { method: "POST", body: JSON.stringify(planCreateBody(input)) }),
+    );
+    if (input.status !== "active") return plan;
+    try {
+        return (await setPlanStatus(plan.id, "active", actor)) ?? plan;
+    } catch (error) {
+        if (error instanceof ApiError) return plan;
+        throw error;
+    }
 }
 
+/** The whole plan as the form edits it. API mode saves what the service stores; the fighter and coach stay. */
 export async function updatePlan(id: string, input: PlanUpdateInput, actor: User): Promise<TrainingPlan | null> {
     if (isDemoAuthEnabled()) return (await demoService()).updatePlan(id, input, actor);
-    if (input.phase !== undefined || input.focusAreas !== undefined || input.weeklySessionTarget !== undefined || input.coachId !== undefined) {
-        unsupportedOperation("Updating a training plan", "phase, focus-area, weekly-target, and coach reassignment persistence");
-    }
-    const body = {
-        ...(input.title !== undefined ? { title: input.title.trim() } : {}),
-        ...(input.objective !== undefined ? { goals: input.objective.trim() || null } : {}),
-        ...(input.notes !== undefined ? { description: input.notes.trim() || null } : {}),
-        ...(input.startDate !== undefined ? { startDate: input.startDate } : {}),
-        ...(input.endDate !== undefined ? { endDate: input.endDate || null } : {}),
-    };
-    if (Object.keys(body).length === 0) return getPlan(id);
     const plan = await nullIfNotFound(
         authenticatedMutableApiRequest(`/training-plans/${encodeURIComponent(id)}`, backendPlanSchema, {
             method: "PATCH",
-            body: JSON.stringify(body),
+            body: JSON.stringify(planBody(input)),
         }),
     );
     return plan && toPlan(plan);
@@ -450,6 +437,61 @@ export async function setPlanStatus(id: string, status: PlanStatus, actor: User)
         }),
     );
     return plan && toPlan(plan);
+}
+
+/* ─── Plan exercises ──────────────────────────────────────────────────────── */
+
+function toPlanExercise(item: BackendPlanExercise): PlanExercise {
+    return {
+        id: item.id,
+        planId: item.planId,
+        exerciseId: item.exerciseId,
+        orderIndex: item.orderIndex,
+        sets: item.sets,
+        reps: item.reps,
+        durationSec: item.durationSeconds,
+        targetRpe: item.targetRpe,
+        notes: item.coachNotes,
+    };
+}
+
+function planExercisesPath(planId: string, id?: string): string {
+    return `/training-plans/${encodeURIComponent(planId)}/exercises${id ? `/${encodeURIComponent(id)}` : ""}`;
+}
+
+/** A plan's exercises in running order. */
+export async function listPlanExercises(planId: string): Promise<PlanExercise[]> {
+    if (isDemoAuthEnabled()) return (await demoService()).listPlanExercises(planId);
+    const items = await authenticatedApiRequest(planExercisesPath(planId), z.array(backendPlanExerciseSchema));
+    return items.map(toPlanExercise).sort((left, right) => left.orderIndex - right.orderIndex);
+}
+
+/** Adds an exercise at the end of the plan. API-mode writes throw the service's ApiError on failure. */
+export async function addPlanExercise(planId: string, exerciseId: string, input: PlanExerciseFields, actor: User): Promise<PlanExercise> {
+    if (isDemoAuthEnabled()) return (await demoService()).addPlanExercise(planId, exerciseId, input, actor);
+    const current = await listPlanExercises(planId);
+    const orderIndex = current.reduce((next, item) => Math.max(next, item.orderIndex + 1), 0);
+    return toPlanExercise(
+        await authenticatedMutableApiRequest(planExercisesPath(planId), backendPlanExerciseSchema, {
+            method: "POST",
+            body: JSON.stringify({ exerciseId, orderIndex, ...planExerciseBody(input) }),
+        }),
+    );
+}
+
+export async function updatePlanExercise(planId: string, id: string, input: PlanExerciseFields, actor: User): Promise<PlanExercise | null> {
+    if (isDemoAuthEnabled()) return (await demoService()).updatePlanExercise(planId, id, input, actor);
+    const item = await nullIfNotFound(
+        authenticatedMutableApiRequest(planExercisesPath(planId, id), backendPlanExerciseSchema, { method: "PATCH", body: JSON.stringify(planExerciseBody(input)) }),
+    );
+    return item && toPlanExercise(item);
+}
+
+/** False when the exercise was no longer on the plan. */
+export async function removePlanExercise(planId: string, id: string, actor: User): Promise<boolean> {
+    if (isDemoAuthEnabled()) return (await demoService()).removePlanExercise(planId, id, actor);
+    const removed = await nullIfNotFound(authenticatedMutableApiRequest(planExercisesPath(planId, id), z.object({ id: z.string() }), { method: "DELETE" }));
+    return removed !== null;
 }
 
 export interface SessionFilter {
@@ -483,7 +525,6 @@ function listBackendSessions(filter: SessionFilter): Promise<BackendSession[]> {
                     coachId: filter.coachId,
                     planId: filter.planId,
                     status: status ? sessionStatusToApi[status] : undefined,
-                    sessionType: filter.type ? trainingTypeToApi[filter.type] : undefined,
                     fromDate: validIso(filter.from),
                     toDate: validIso(filter.to),
                 }),
@@ -496,9 +537,10 @@ function listBackendSessions(filter: SessionFilter): Promise<BackendSession[]> {
 export async function listSessions(filter: SessionFilter = {}): Promise<TrainingSession[]> {
     if (isDemoAuthEnabled()) return (await demoService()).listSessions(filter);
     const direction = filter.order === "desc" ? -1 : 1;
+    // Types filter here: physical therapy and recovery sessions both read as recovery & mobility.
     return (await listBackendSessions(filter))
         .map(toSession)
-        .filter((session) => matchesSearch(filter.search, session.title, session.location, session.notes))
+        .filter((session) => (!filter.type || session.type === filter.type) && matchesSearch(filter.search, session.title, session.location, session.notes))
         .sort((left, right) => left.scheduledAt.localeCompare(right.scheduledAt) * direction);
 }
 
@@ -537,8 +579,8 @@ export interface SessionInput {
     scheduledAt: string;
     durationMin: number;
     location: string;
-    /** Planned intensity, RPE 1–10. */
-    targetRpe: number;
+    /** Planned intensity, RPE 1–10. Demo-only, like the exercise list: the training service stores neither. */
+    targetRpe: number | null;
     exercises: SessionExerciseInput[];
     notes: string | null;
     /** The coach has read the clearance warnings and schedules anyway. Blocking conflicts can never be overridden. */
@@ -546,13 +588,14 @@ export interface SessionInput {
 }
 /** Sessions stay with the fighter they were created for. */
 export type SessionUpdateInput = Omit<SessionInput, "fighterId">;
+/** The service measures the actual duration itself and keeps no rating or summary: those are demo-only. */
 export interface SessionResultInput {
-    actualDurationMin: number;
+    actualDurationMin: number | null;
     /** Session RPE reported by the fighter, 1–10. */
     rpe: number;
     roundsCompleted: number;
     /** Coach rating of the session quality, 1–5. */
-    coachRating: number;
+    coachRating: number | null;
     summary: string;
     /** Defaults to now. */
     completedAt?: string;
@@ -574,21 +617,61 @@ export async function loadSessionClearanceConflicts(planned: PlannedSession): Pr
     if (isDemoAuthEnabled()) return (await demoService()).getSessionClearanceConflicts(planned);
     return [];
 }
+/*
+ * API-mode session writes throw the service's ApiError on failure (Server Actions map it with `trainingWriteFailure`).
+ * The service checks Medical Clearance itself when a session starts, so they report no conflicts of their own.
+ */
+
+function sessionPath(id: string, rest = ""): string {
+    return `/training-sessions/${encodeURIComponent(id)}${rest}`;
+}
+
+async function sendSession(path: string, method: "POST" | "PATCH", body: object): Promise<SessionMutationResult> {
+    const session = await authenticatedMutableApiRequest(path, backendSessionSchema, { method, body: JSON.stringify(body) });
+    return { ok: true, session: toSession(session), conflicts: [] };
+}
+
+function unsupportedType(operation: string): never {
+    unsupportedOperation(operation, "this training type");
+}
+
 export async function createSession(input: SessionInput, actor: User): Promise<SessionMutationResult> {
     if (isDemoAuthEnabled()) return (await demoService()).createSession(input, actor);
-    unsupportedOperation("Creating a training session", "exercise, target-RPE, and clearance-conflict persistence");
+    return sendSession("/training-sessions", "POST", sessionCreateBody(input) ?? unsupportedType("Scheduling a session"));
 }
+
+/** API mode keeps the session's plan and coach: the service doesn't move a session between them. */
 export async function updateSession(id: string, input: SessionUpdateInput, actor: User): Promise<SessionMutationResult> {
     if (isDemoAuthEnabled()) return (await demoService()).updateSession(id, input, actor);
-    unsupportedOperation("Updating a training session", "exercise, target-RPE, and clearance-conflict persistence");
+    return sendSession(sessionPath(id), "PATCH", sessionBody(input) ?? unsupportedType("Updating a session"));
 }
+
+/** Checks the fighter in. The service refuses (409) when their Medical Clearance doesn't allow this training now. */
+export async function startSession(id: string, actor: User): Promise<SessionMutationResult> {
+    if (isDemoAuthEnabled()) return (await demoService()).startSession(id, actor);
+    return sendSession(sessionPath(id, "/status"), "PATCH", sessionStatusBody("IN_PROGRESS"));
+}
+
+/** Records that a scheduled session didn't happen. */
+export async function markSessionMissed(id: string, actor: User): Promise<SessionMutationResult> {
+    if (isDemoAuthEnabled()) return (await demoService()).markSessionMissed(id, actor);
+    return sendSession(sessionPath(id, "/status"), "PATCH", sessionStatusBody("SKIPPED"));
+}
+
+/**
+ * API mode saves the RPE and rounds, then completes a running session; a completed one only has its numbers
+ * corrected. The service measures the duration from the check-in.
+ */
 export async function recordSessionResult(id: string, input: SessionResultInput, actor: User): Promise<SessionMutationResult> {
     if (isDemoAuthEnabled()) return (await demoService()).recordSessionResult(id, input, actor);
-    unsupportedOperation("Recording a session result", "coach rating, summary, and completed-exercise persistence");
+    const saved = await sendSession(sessionPath(id), "PATCH", sessionResultBody(input));
+    if (!saved.ok || saved.session.status === "completed") return saved;
+    return sendSession(sessionPath(id, "/status"), "PATCH", sessionStatusBody("COMPLETED"));
 }
+
 export async function cancelSession(id: string, reason: string, actor: User): Promise<SessionMutationResult> {
     if (isDemoAuthEnabled()) return (await demoService()).cancelSession(id, reason, actor);
-    unsupportedOperation("Cancelling a training session", "an atomic cancellation-reason transition");
+    return sendSession(sessionPath(id, "/status"), "PATCH", sessionStatusBody("CANCELLED", reason));
 }
 
 function mostCommonPlanId(sessions: TrainingSession[]): string | null {

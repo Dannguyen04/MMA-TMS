@@ -13,14 +13,24 @@ vi.mock("@/lib/api/client", async (importOriginal) => ({
 vi.mock("./platform-features", () => import("@/test/platform-features-mock"));
 
 import { platformFeatureAvailable } from "@/test/platform-features-mock";
+import { ApiError } from "@/lib/api/client";
 import {
     addCoachFeedback,
+    addPlanExercise,
+    cancelSession,
     createPlan,
+    createSession,
+    getPlan,
     listCoachFeedback,
     listExercises,
+    listPlanExercises,
     listSessions,
     loadSessionClearanceConflicts,
+    markSessionMissed,
+    recordSessionResult,
+    removePlanExercise,
     setPlanStatus,
+    startSession,
 } from "./training";
 
 const actor = {} as User;
@@ -202,25 +212,157 @@ describe("training API adapter", () => {
         );
     });
 
-    it("fails visibly instead of falling back to mocks for an unsupported write", async () => {
-        await expect(
-            createPlan(
-                {
-                    title: "Camp",
-                    fighterId: "fighter-1",
-                    coachId: "coach-1",
-                    objective: "Improve defense",
-                    phase: "fight_camp",
-                    focusAreas: ["guard"],
-                    startDate: "2026-09-01",
-                    endDate: "2026-10-01",
-                    weeklySessionTarget: 4,
-                    notes: "",
-                },
-                actor,
-            ),
-        ).rejects.toMatchObject({ status: 501, code: "API_OPERATION_UNSUPPORTED" });
-        expect(authenticatedMutableApiRequest).not.toHaveBeenCalled();
+    describe("writes", () => {
+        const planInput = {
+            title: "Camp",
+            fighterId: "fighter-1",
+            coachId: "coach-1",
+            objective: "Improve defense",
+            phase: null,
+            focusAreas: [],
+            startDate: "2026-08-31T17:00:00.000Z",
+            endDate: "2026-10-01T16:59:59.999Z",
+            weeklySessionTarget: null,
+            notes: "",
+        };
+        const sessionInput = {
+            fighterId: "fighter-1",
+            coachId: "coach-1",
+            planId: "plan-1",
+            title: "Heavy bag",
+            type: "heavy_bag" as const,
+            scheduledAt: "2026-09-10T10:00:00.000Z",
+            durationMin: 60,
+            location: "Main gym",
+            targetRpe: null,
+            exercises: [],
+            notes: null,
+        };
+        const sent = (call: number) => JSON.parse(authenticatedMutableApiRequest.mock.calls[call][2].body);
+
+        it("creates a plan with the service's own fields and academy days, then publishes it", async () => {
+            authenticatedMutableApiRequest.mockResolvedValueOnce(backendPlan("DRAFT")).mockResolvedValueOnce(backendPlan("ACTIVE"));
+
+            await expect(createPlan({ ...planInput, status: "active" }, actor)).resolves.toMatchObject({ status: "active" });
+            expect(authenticatedMutableApiRequest.mock.calls[0][0]).toBe("/training-plans");
+            expect(sent(0)).toEqual({
+                fighterId: "fighter-1",
+                coachId: "coach-1",
+                title: "Camp",
+                goals: "Improve defense",
+                description: null,
+                startDate: "2026-09-01",
+                endDate: "2026-10-01",
+            });
+            expect(sent(1)).toEqual({ status: "ACTIVE" });
+        });
+
+        it("keeps the draft when publishing a new plan is refused", async () => {
+            authenticatedMutableApiRequest
+                .mockResolvedValueOnce(backendPlan("DRAFT"))
+                .mockRejectedValueOnce(new ApiError({ message: "Conflict", kind: "http", status: 409, code: "PLAN_STATE_CONFLICT" }));
+
+            await expect(createPlan({ ...planInput, status: "active" }, actor)).resolves.toMatchObject({ status: "draft" });
+        });
+
+        it("reads a plan the service stores without phase, focus areas or weekly target", async () => {
+            const stored: Record<string, unknown> = backendPlan("ACTIVE");
+            for (const missing of ["phase", "focusAreas", "weeklySessionTarget"]) delete stored[missing];
+            authenticatedApiRequest.mockResolvedValue({ ...stored, endDate: null });
+
+            await expect(getPlan("plan-1")).resolves.toMatchObject({
+                phase: null,
+                focusAreas: [],
+                weeklySessionTarget: null,
+                startDate: "2026-08-31T17:00:00.000Z",
+                endDate: null,
+            });
+        });
+
+        it("schedules a session with the service's session type and planned seconds", async () => {
+            authenticatedMutableApiRequest.mockResolvedValue({ ...backendSession("COMPLETED"), status: "SCHEDULED", completedAt: null });
+
+            await expect(createSession(sessionInput, actor)).resolves.toMatchObject({ ok: true, conflicts: [] });
+            expect(sent(0)).toEqual({
+                fighterId: "fighter-1",
+                coachId: "coach-1",
+                planId: "plan-1",
+                title: "Heavy bag",
+                sessionType: "HEAVY_BAG",
+                scheduledAt: "2026-09-10T10:00:00.000Z",
+                plannedDurationSec: 3600,
+                location: "Main gym",
+                coachNotes: null,
+            });
+        });
+
+        it("refuses a training type the service has no equivalent for, without asking it", async () => {
+            await expect(createSession({ ...sessionInput, type: "technical_drilling" }, actor)).rejects.toMatchObject({ code: "API_OPERATION_UNSUPPORTED" });
+            expect(authenticatedMutableApiRequest).not.toHaveBeenCalled();
+        });
+
+        it("saves a running session's result, then completes it", async () => {
+            const running = { ...backendSession("COMPLETED"), status: "IN_PROGRESS", completedAt: null };
+            authenticatedMutableApiRequest.mockResolvedValueOnce(running).mockResolvedValueOnce(backendSession("COMPLETED"));
+
+            await expect(
+                recordSessionResult("session-1", { rpe: 8, roundsCompleted: 5, actualDurationMin: null, coachRating: null, summary: "" }, actor),
+            ).resolves.toMatchObject({ ok: true, session: { status: "completed" } });
+            expect(authenticatedMutableApiRequest.mock.calls.map((call) => call[0])).toEqual(["/training-sessions/session-1", "/training-sessions/session-1/status"]);
+            expect(sent(0)).toEqual({ reportedRpe: 8, roundCount: 5 });
+            expect(sent(1)).toEqual({ status: "COMPLETED" });
+        });
+
+        it("only corrects the numbers of a session that is already completed", async () => {
+            authenticatedMutableApiRequest.mockResolvedValue(backendSession("COMPLETED"));
+
+            await recordSessionResult("session-1", { rpe: 6, roundsCompleted: 6, actualDurationMin: null, coachRating: null, summary: "" }, actor);
+            expect(authenticatedMutableApiRequest).toHaveBeenCalledTimes(1);
+        });
+
+        it("starts, misses and cancels sessions through status changes", async () => {
+            authenticatedMutableApiRequest.mockResolvedValue(backendSession("SKIPPED"));
+
+            await startSession("session-1", actor);
+            await markSessionMissed("session-1", actor);
+            await cancelSession("session-1", "  Coach unwell  ", actor);
+            expect([sent(0), sent(1), sent(2)]).toEqual([{ status: "IN_PROGRESS" }, { status: "SKIPPED" }, { status: "CANCELLED", cancellationReason: "Coach unwell" }]);
+        });
+    });
+
+    it("adds a plan exercise at the end of the plan, in the service's terms", async () => {
+        const stored = { id: "pe-1", planId: "plan-1", exerciseId: "ex-1", orderIndex: 3, sets: 4, reps: 10, durationSeconds: null, targetRpe: 7, coachNotes: null, createdAt: "2026-09-01T00:00:00.000Z" };
+        authenticatedApiRequest.mockResolvedValue([{ ...stored, orderIndex: 2 }, { ...stored, id: "pe-0", orderIndex: 0 }]);
+        authenticatedMutableApiRequest.mockResolvedValue(stored);
+
+        await expect(listPlanExercises("plan-1")).resolves.toEqual([
+            expect.objectContaining({ id: "pe-0", orderIndex: 0 }),
+            expect.objectContaining({ id: "pe-1", orderIndex: 2, durationSec: null, notes: null }),
+        ]);
+        await addPlanExercise("plan-1", "ex-1", { sets: 4, reps: 10, durationSec: null, targetRpe: 7, notes: "  " }, actor);
+        expect(authenticatedMutableApiRequest).toHaveBeenCalledWith("/training-plans/plan-1/exercises", expect.anything(), expect.objectContaining({ method: "POST" }));
+        expect(JSON.parse(authenticatedMutableApiRequest.mock.calls[0][2].body)).toEqual({
+            exerciseId: "ex-1",
+            orderIndex: 3,
+            sets: 4,
+            reps: 10,
+            durationSeconds: null,
+            targetRpe: 7,
+            coachNotes: null,
+        });
+    });
+
+    it("reads a removed plan exercise as gone", async () => {
+        authenticatedMutableApiRequest.mockRejectedValue(new ApiError({ message: "Not found", kind: "http", status: 404, code: "PLAN_EXERCISE_NOT_FOUND" }));
+
+        await expect(removePlanExercise("plan-1", "pe-1", actor)).resolves.toBe(false);
+    });
+
+    it("filters sessions by type after reading them, since physical therapy reads as recovery", async () => {
+        authenticatedApiRequest.mockResolvedValue({ data: [{ ...backendSession("COMPLETED"), sessionType: "PHYSICAL_THERAPY" }], total: 1, hasNextPage: false });
+
+        await expect(listSessions({ fighterIds: ["fighter-1"], type: "recovery_mobility" })).resolves.toHaveLength(1);
+        expect(authenticatedApiRequest).toHaveBeenCalledWith(expect.not.stringContaining("sessionType"), expect.anything());
     });
 
     it("asks nothing about coach feedback while the feedback service isn't available", async () => {

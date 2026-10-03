@@ -142,7 +142,8 @@ export function weeklyAdherence(sessions: TrainingSession[], fromKey: string, to
  * so the weekly totals add up to `planAdherence` for the same sessions.
  */
 export function planAdherenceWeeks(plan: Pick<TrainingPlan, "startDate" | "endDate">, sessions: TrainingSession[], now: string): WeeklyAdherence[] {
-    return weeklyAdherence(sessions, dayKey(plan.startDate), dayKey(plan.endDate < now ? plan.endDate : now), { maxWeeks: Number.POSITIVE_INFINITY, now });
+    const last = plan.endDate !== null && plan.endDate < now ? plan.endDate : now;
+    return weeklyAdherence(sessions, dayKey(plan.startDate), dayKey(last), { maxWeeks: Number.POSITIVE_INFINITY, now });
 }
 
 /** The last `weeks` academy weeks up to and including the current one, counting due sessions. */

@@ -295,7 +295,7 @@ function weekHint({ planned, toGo, missed, paused }: { planned: number; toGo: nu
 function isCampFor(plan: TrainingPlan, bout: UpcomingBout | null): boolean {
     if (!bout || plan.phase !== "fight_camp") return false;
     const fightDay = dayKey(bout.date);
-    return dayKey(plan.startDate) <= fightDay && fightDay <= dayKey(plan.endDate);
+    return dayKey(plan.startDate) <= fightDay && (plan.endDate === null || fightDay <= dayKey(plan.endDate));
 }
 
 interface OnboardingInput {

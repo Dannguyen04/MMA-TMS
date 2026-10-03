@@ -23,7 +23,7 @@ export interface PlanFormValues {
     fighterId: string;
     title: string;
     objective: string;
-    phase: TrainingPhase;
+    phase: TrainingPhase | "";
     focusAreas: Technique[];
     startDate: string;
     endDate: string;
@@ -46,6 +46,8 @@ export interface PlanFormProps {
     /** Server time (ISO). */
     now: string;
     cancelHref: string;
+    /** Only what the training service stores: no phase, focus areas or weekly target (`usesTrainingServiceForms`). */
+    serviceForm: boolean;
 }
 
 const PHASE_OPTIONS = (Object.entries(TRAINING_PHASE_LABELS) as [TrainingPhase, string][]).map(([value, label]) => ({ value, label }));
@@ -62,7 +64,7 @@ const HINTS = {
 };
 
 /** Create or edit a training plan, with the fighter's Medical Clearance alongside. */
-export function PlanForm({ mode, action, fighters, clearances, defaults, now, cancelHref }: PlanFormProps) {
+export function PlanForm({ mode, action, fighters, clearances, defaults, now, cancelHref, serviceForm }: PlanFormProps) {
     const form = useActionForm(action, { id: "plan" });
     const [values, setValues] = useState(defaults);
     const { error } = form;
@@ -113,41 +115,43 @@ export function PlanForm({ mode, action, fighters, clearances, defaults, now, ca
                         </Field>
                     </FormSection>
 
-                    <FormSection title="Focus" description="The training phase and the techniques this block develops.">
-                        <ChoiceGroup
-                            id="plan-phase"
-                            name="phase"
-                            legend="Phase"
-                            required
-                            variant="compact"
-                            columns={3}
-                            options={PHASE_OPTIONS}
-                            value={values.phase}
-                            onChange={(next) => set("phase", next)}
-                            error={error("phase")}
-                        />
-                        <div className="flex flex-col gap-2">
-                            <TechniqueCheckboxes
-                                id="plan-focusAreas"
-                                name="focusAreas"
-                                legend="Focus areas"
+                    {!serviceForm && (
+                        <FormSection title="Focus" description="The training phase and the techniques this block develops.">
+                            <ChoiceGroup
+                                id="plan-phase"
+                                name="phase"
+                                legend="Phase"
                                 required
-                                value={values.focusAreas}
-                                onChange={(next) => set("focusAreas", next)}
-                                restricted={restrictedTechniques}
-                                error={error("focusAreas")}
-                                hint={restrictedTechniques.length > 0 ? "Marked techniques are restricted by the current Medical Clearance." : "Choose one or more."}
+                                variant="compact"
+                                columns={3}
+                                options={PHASE_OPTIONS}
+                                value={values.phase}
+                                onChange={(next) => set("phase", next)}
+                                error={error("phase")}
                             />
-                            {restrictedFocus.length > 0 && (
-                                <Callout tone="warning" icon={ShieldAlert} title="Some focus areas are restricted right now">
-                                    {restrictedFocus.map((t) => TECHNIQUE_LABELS[t]).join(", ")} can&apos;t be trained under the current clearance. Sessions that
-                                    include them will show a warning when you schedule them.
-                                </Callout>
-                            )}
-                        </div>
-                    </FormSection>
+                            <div className="flex flex-col gap-2">
+                                <TechniqueCheckboxes
+                                    id="plan-focusAreas"
+                                    name="focusAreas"
+                                    legend="Focus areas"
+                                    required
+                                    value={values.focusAreas}
+                                    onChange={(next) => set("focusAreas", next)}
+                                    restricted={restrictedTechniques}
+                                    error={error("focusAreas")}
+                                    hint={restrictedTechniques.length > 0 ? "Marked techniques are restricted by the current Medical Clearance." : "Choose one or more."}
+                                />
+                                {restrictedFocus.length > 0 && (
+                                    <Callout tone="warning" icon={ShieldAlert} title="Some focus areas are restricted right now">
+                                        {restrictedFocus.map((t) => TECHNIQUE_LABELS[t]).join(", ")} can&apos;t be trained under the current clearance. Sessions that
+                                        include them will show a warning when you schedule them.
+                                    </Callout>
+                                )}
+                            </div>
+                        </FormSection>
+                    )}
 
-                    <FormSection title="Schedule" description="Plan window and how often the fighter should train.">
+                    <FormSection title="Schedule" description={serviceForm ? "When the plan starts and ends." : "Plan window and how often the fighter should train."}>
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <Field label="Start date" htmlFor="plan-startDate" required error={error("startDate")}>
                                 <Input {...input("startDate")} type="date" value={values.startDate} onChange={(event) => set("startDate", event.target.value)} />
@@ -162,25 +166,27 @@ export function PlanForm({ mode, action, fighters, clearances, defaults, now, ca
                                 />
                             </Field>
                         </div>
-                        <Field
-                            label="Weekly session target"
-                            htmlFor="plan-weeklySessionTarget"
-                            required
-                            error={error("weeklySessionTarget")}
-                            hint={HINTS.weeklySessionTarget}
-                            className="sm:max-w-56"
-                        >
-                            <Input
-                                {...input("weeklySessionTarget")}
-                                type="number"
-                                inputMode="numeric"
-                                min={1}
-                                max={14}
-                                step={1}
-                                value={values.weeklySessionTarget}
-                                onChange={(event) => set("weeklySessionTarget", event.target.value)}
-                            />
-                        </Field>
+                        {!serviceForm && (
+                            <Field
+                                label="Weekly session target"
+                                htmlFor="plan-weeklySessionTarget"
+                                required
+                                error={error("weeklySessionTarget")}
+                                hint={HINTS.weeklySessionTarget}
+                                className="sm:max-w-56"
+                            >
+                                <Input
+                                    {...input("weeklySessionTarget")}
+                                    type="number"
+                                    inputMode="numeric"
+                                    min={1}
+                                    max={14}
+                                    step={1}
+                                    value={values.weeklySessionTarget}
+                                    onChange={(event) => set("weeklySessionTarget", event.target.value)}
+                                />
+                            </Field>
+                        )}
                     </FormSection>
 
                     {mode === "create" && (
@@ -206,7 +212,7 @@ export function PlanForm({ mode, action, fighters, clearances, defaults, now, ca
                                 value={values.notes}
                                 onChange={(event) => set("notes", event.target.value)}
                                 rows={4}
-                                maxLength={2000}
+                                maxLength={1000}
                             />
                         </Field>
                     </FormSection>

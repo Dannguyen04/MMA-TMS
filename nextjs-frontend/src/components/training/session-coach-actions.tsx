@@ -1,9 +1,10 @@
 "use client";
 
-import { Ban, ClipboardCheck, MessageSquarePlus, PenLine, StickyNote, ThumbsUp, Wrench } from "lucide-react";
+import { Ban, CalendarX2, ClipboardCheck, MessageSquarePlus, PenLine, Play, StickyNote, ThumbsUp, Wrench } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { CoachRatingInput } from "@/components/domain/coach-rating";
+import { EligibilityReasons } from "@/components/medical/eligibility-reasons";
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { ChoiceGroup, type ChoiceOption } from "@/components/ui/choice-group";
@@ -13,7 +14,8 @@ import { useToast } from "@/components/ui/toast";
 import type { ActionForm } from "@/components/ui/use-action-form";
 import { useConfirmAction } from "@/components/ui/use-confirm-action";
 import type { ActionState } from "@/lib/actions/state";
-import { addSessionFeedback, cancelSession, recordSessionResult } from "@/lib/actions/training";
+import { addSessionFeedback, cancelSession, markSessionMissed, recordSessionResult, startSession } from "@/lib/actions/training";
+import type { EligibilityReason } from "@/lib/domain/medical-contract";
 import type { FeedbackKind, SessionResult, Technique } from "@/lib/domain/types";
 import { RpeSlider } from "./rpe-slider";
 import { TechniqueCheckboxes } from "./technique-checkboxes";
@@ -39,6 +41,8 @@ export interface RecordResultButtonProps extends TriggerProps {
     /** Existing result when correcting a completed session. */
     result: SessionResult | null;
     label?: string;
+    /** Only what the training service keeps: RPE and rounds (it measures the duration and keeps no rating or summary). */
+    serviceForm: boolean;
 }
 
 export function RecordResultButton({
@@ -50,6 +54,7 @@ export function RecordResultButton({
     exercises,
     result,
     label,
+    serviceForm,
     variant = "primary",
     size,
     className,
@@ -83,6 +88,7 @@ export function RecordResultButton({
                         plannedRounds={plannedRounds}
                         exercises={exercises}
                         result={result}
+                        serviceForm={serviceForm}
                     />
                 )}
             </ActionDialog>
@@ -97,9 +103,10 @@ interface RecordResultFieldsProps {
     plannedRounds: number;
     exercises: ResultExercise[];
     result: SessionResult | null;
+    serviceForm: boolean;
 }
 
-function RecordResultFields({ form, plannedDurationMin, targetRpe, plannedRounds, exercises, result }: RecordResultFieldsProps) {
+function RecordResultFields({ form, plannedDurationMin, targetRpe, plannedRounds, exercises, result, serviceForm }: RecordResultFieldsProps) {
     // The slider needs a starting point; with no target it starts mid-scale.
     const [rpe, setRpe] = useState(result?.rpe ?? targetRpe ?? MID_RPE);
     const [rating, setRating] = useState(result?.coachRating ?? 0);
@@ -123,13 +130,14 @@ function RecordResultFields({ form, plannedDurationMin, targetRpe, plannedRounds
     return (
         <>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {numberField(
-                    "actualDurationMin",
-                    "Actual duration (min)",
-                    result?.actualDurationMin ?? plannedDurationMin ?? undefined,
-                    300,
-                    plannedDurationMin === null ? "No planned length on file" : `Planned ${plannedDurationMin} min`,
-                )}
+                {!serviceForm &&
+                    numberField(
+                        "actualDurationMin",
+                        "Actual duration (min)",
+                        result?.actualDurationMin ?? plannedDurationMin ?? undefined,
+                        300,
+                        plannedDurationMin === null ? "No planned length on file" : `Planned ${plannedDurationMin} min`,
+                    )}
                 {numberField(
                     "roundsCompleted",
                     "Rounds completed",
@@ -148,19 +156,24 @@ function RecordResultFields({ form, plannedDurationMin, targetRpe, plannedRounds
                 required
                 error={error("rpe")}
             />
-            <CoachRatingInput
-                id={control("coachRating").id}
-                name="coachRating"
-                legend="Your rating of the session"
-                value={rating}
-                onChange={setRating}
-                error={error("coachRating")}
-                required
-            />
-            <Field label="Summary" htmlFor={control("summary").id} required error={error("summary")} hint={summaryHint}>
-                <Textarea {...control("summary", { hint: summaryHint, required: true })} rows={3} maxLength={1000} defaultValue={result?.summary ?? ""} />
-            </Field>
-            {exercises.length > 0 && (
+            {!serviceForm && (
+                <>
+                    <CoachRatingInput
+                        id={control("coachRating").id}
+                        name="coachRating"
+                        legend="Your rating of the session"
+                        value={rating}
+                        onChange={setRating}
+                        error={error("coachRating")}
+                        required
+                    />
+                    <Field label="Summary" htmlFor={control("summary").id} required error={error("summary")} hint={summaryHint}>
+                        <Textarea {...control("summary", { hint: summaryHint, required: true })} rows={3} maxLength={1000} defaultValue={result?.summary ?? ""} />
+                    </Field>
+                </>
+            )}
+            {serviceForm && <p className="text-[13px] text-fg-muted">The session&apos;s length is measured from when you started it.</p>}
+            {!serviceForm && exercises.length > 0 && (
                 <fieldset className="flex flex-col gap-2">
                     <legend className="mb-1.5 text-sm font-medium text-fg">Exercises completed</legend>
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -183,6 +196,70 @@ function RecordResultFields({ form, plannedDurationMin, targetRpe, plannedRounds
                     </div>
                 </fieldset>
             )}
+        </>
+    );
+}
+
+/* ─── Start session ───────────────────────────────────────────────────────── */
+
+export interface SessionTransitionButtonProps extends TriggerProps {
+    sessionId: string;
+    sessionTitle: string;
+    fighterName: string;
+}
+
+/** Checks the fighter in. A refusal from the fighter's Medical Clearance lists its reasons in the dialog. */
+export function StartSessionButton({ sessionId, sessionTitle, fighterName, variant = "primary", size, className }: SessionTransitionButtonProps) {
+    const toast = useToast();
+    const [reasons, setReasons] = useState<EligibilityReason[]>([]);
+    const start = useConfirmAction((id: string) => startSession(id), {
+        onSuccess: (state) => toast({ title: state.message ?? "Session started." }),
+        onError: (state) => setReasons(state.data?.reasons ?? []),
+    });
+
+    return (
+        <>
+            <Button
+                variant={variant}
+                size={size}
+                className={className}
+                onClick={() => {
+                    setReasons([]);
+                    start.request(sessionId);
+                }}
+            >
+                <Play aria-hidden />
+                Start session
+            </Button>
+            <ConfirmDialog
+                {...start.dialogProps}
+                title="Start this session?"
+                description={`${sessionTitle} starts now for ${fighterName}. Their Medical Clearance is checked first, and the session's length is measured from now.`}
+                confirmLabel="Start session"
+            >
+                {reasons.length > 0 && <EligibilityReasons reasons={reasons} />}
+            </ConfirmDialog>
+        </>
+    );
+}
+
+/** Records that a scheduled session didn't happen. */
+export function MarkMissedButton({ sessionId, sessionTitle, fighterName, variant = "secondary", size, className }: SessionTransitionButtonProps) {
+    const toast = useToast();
+    const miss = useConfirmAction((id: string) => markSessionMissed(id), { onSuccess: (state) => toast({ title: state.message ?? "Session marked as missed." }) });
+
+    return (
+        <>
+            <Button variant={variant} size={size} className={className} onClick={() => miss.request(sessionId)}>
+                <CalendarX2 aria-hidden />
+                Mark as missed
+            </Button>
+            <ConfirmDialog
+                {...miss.dialogProps}
+                title="Mark this session as missed?"
+                description={`${sessionTitle} stays in ${fighterName}'s history as missed and counts against their adherence. This can't be undone.`}
+                confirmLabel="Mark as missed"
+            />
         </>
     );
 }

@@ -1,25 +1,44 @@
 import { daysBetween, pluralize } from "@/lib/format";
 import { clamp } from "@/lib/utils";
-import type { TrainingPlan, TrainingSession } from "./types";
+import type { PlanStatus, TrainingPlan, TrainingSession } from "./types";
+
+/* ─── Status ──────────────────────────────────────────────────────────────── */
+
+const PLAN_TRANSITIONS: Record<PlanStatus, readonly PlanStatus[]> = {
+    draft: ["active", "archived"],
+    active: ["completed", "archived"],
+    completed: ["archived"],
+    archived: ["draft"],
+};
+
+/**
+ * Status changes a coach can make to a plan. Archived plans can be restored as drafts, unless `restoreArchived` is
+ * off: the training service keeps finished and archived plans final.
+ */
+export function planTransitions(status: PlanStatus, { restoreArchived }: { restoreArchived: boolean }): PlanStatus[] {
+    return PLAN_TRANSITIONS[status].filter((next) => restoreArchived || next !== "draft");
+}
 
 /* ─── Timeline ────────────────────────────────────────────────────────────── */
 
 export interface PlanTimeline {
-    /** Share of the plan window that has passed, 0–100. */
-    elapsedPct: number;
-    /** "Starts in 3 days", "Week 3 of 8 · 40 days left" or "Finished". */
+    /** Share of the plan window that has passed, 0–100; null for an open-ended plan that has started. */
+    elapsedPct: number | null;
+    /** "Starts in 3 days", "Week 3 of 8 · 40 days left", "Week 3" (no end date) or "Finished". */
     text: string;
 }
 
 /** Elapsed share of the plan window and a short phrase such as "Week 3 of 8 · 40 days left". */
 export function planTimeline(plan: Pick<TrainingPlan, "startDate" | "endDate" | "status">, now: string): PlanTimeline {
-    const totalDays = Math.max(1, daysBetween(plan.startDate, plan.endDate));
     const elapsedDays = daysBetween(plan.startDate, now);
     if (elapsedDays < 0) {
         const days = -elapsedDays;
         return { elapsedPct: 0, text: days === 1 ? "Starts tomorrow" : `Starts in ${pluralize(days, "day")}` };
     }
-    if (elapsedDays > totalDays || plan.status === "completed") return { elapsedPct: 100, text: "Finished" };
+    if (plan.status === "completed") return { elapsedPct: 100, text: "Finished" };
+    if (plan.endDate === null) return { elapsedPct: null, text: `Week ${Math.floor(elapsedDays / 7) + 1}` };
+    const totalDays = Math.max(1, daysBetween(plan.startDate, plan.endDate));
+    if (elapsedDays > totalDays) return { elapsedPct: 100, text: "Finished" };
     const weeks = Math.max(1, Math.ceil(totalDays / 7));
     const week = clamp(Math.floor(elapsedDays / 7) + 1, 1, weeks);
     return {

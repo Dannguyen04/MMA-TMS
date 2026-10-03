@@ -216,7 +216,8 @@ export interface Exercise {
     category: ExerciseCategory;
     description: string;
     techniques: Technique[];
-    intensity: Intensity;
+    /** Null when the exercise library doesn't say (the training service keeps no intensity yet). */
+    intensity: Intensity | null;
     equipment: string[];
     defaultRounds: number | null;
     defaultRoundSec: number | null;
@@ -230,21 +231,37 @@ export type TrainingPhase = "base" | "build" | "fight_camp" | "taper" | "rehab" 
 
 export type PlanStatus = "draft" | "active" | "completed" | "archived";
 
+/** A training plan. Null fields are ones the training service doesn't store yet; the interface leaves them out. */
 export interface TrainingPlan {
     id: string;
     title: string;
     fighterId: string;
     coachId: string;
     objective: string;
-    phase: TrainingPhase;
+    phase: TrainingPhase | null;
     focusAreas: Technique[];
     startDate: ISODate;
-    endDate: ISODate;
-    weeklySessionTarget: number;
+    /** Null for an open-ended plan. */
+    endDate: ISODate | null;
+    weeklySessionTarget: number | null;
     status: PlanStatus;
     notes: string;
     createdAt: ISODate;
     updatedAt: ISODate;
+}
+
+/** An exercise prescribed across a training plan, in running order. Every prescription field is optional. */
+export interface PlanExercise {
+    id: string;
+    planId: string;
+    exerciseId: string;
+    orderIndex: number;
+    sets: number | null;
+    reps: number | null;
+    durationSec: number | null;
+    /** Planned intensity on the RPE scale, 1–10. */
+    targetRpe: number | null;
+    notes: string | null;
 }
 
 export type SessionStatus = "scheduled" | "in_progress" | "completed" | "missed" | "cancelled";

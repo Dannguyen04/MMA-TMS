@@ -10,6 +10,7 @@ import { canAccessFighter, requireFighterAccess } from "@/lib/auth/access";
 import { getCurrentUser, requireRole } from "@/lib/auth/session";
 import { dayKey } from "@/lib/format";
 import { routes } from "@/lib/routes";
+import { usesTrainingServiceForms } from "@/lib/services/platform-features";
 import { getPlan } from "@/lib/services/training";
 
 /** One plan read per request, shared by the metadata and the page. */
@@ -38,11 +39,11 @@ export default async function EditPlanPage({ params }: PageProps<"/coach/trainin
         fighterId: fighter.id,
         title: plan.title,
         objective: plan.objective,
-        phase: plan.phase,
+        phase: plan.phase ?? "",
         focusAreas: plan.focusAreas,
         startDate: dayKey(plan.startDate),
-        endDate: dayKey(plan.endDate),
-        weeklySessionTarget: String(plan.weeklySessionTarget),
+        endDate: plan.endDate === null ? "" : dayKey(plan.endDate),
+        weeklySessionTarget: plan.weeklySessionTarget === null ? "" : String(plan.weeklySessionTarget),
         status: plan.status === "active" ? "active" : "draft",
         notes: plan.notes,
     };
@@ -63,6 +64,7 @@ export default async function EditPlanPage({ params }: PageProps<"/coach/trainin
                 defaults={defaults}
                 now={now}
                 cancelHref={routes.coach.plan(plan.id)}
+                serviceForm={usesTrainingServiceForms()}
             />
         </>
     );

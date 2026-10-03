@@ -5,7 +5,7 @@ import { cache } from "react";
 
 import { ButtonLink } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
-import { AddFeedbackButton, CancelSessionButton, RecordResultButton } from "@/components/training/session-coach-actions";
+import { AddFeedbackButton, CancelSessionButton, MarkMissedButton, RecordResultButton, StartSessionButton } from "@/components/training/session-coach-actions";
 import { SessionDetail, SessionHeaderMeta } from "@/components/training/session-detail";
 import { getCoachNames, getExerciseLibrary, toIdentity } from "@/components/training/training-data";
 import { canAccessFighter, requireFighterAccess } from "@/lib/auth/access";
@@ -13,7 +13,7 @@ import { getCurrentUser, requireRole } from "@/lib/auth/session";
 import { formatDateTime } from "@/lib/format";
 import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
-import { platformFeatureAvailable } from "@/lib/services/platform-features";
+import { platformFeatureAvailable, usesTrainingServiceForms } from "@/lib/services/platform-features";
 import { getPlan, getSession, listCoachFeedback, loadSessionClearanceConflicts } from "@/lib/services/training";
 import { listVideos } from "@/lib/services/videos";
 import { sum } from "@/lib/utils";
@@ -44,17 +44,22 @@ export default async function CoachSessionPage({ params }: PageProps<"/coach/ses
         session.planId ? getPlan(session.planId) : Promise.resolve(null),
     ]);
 
-    const active = session.status === "scheduled" || session.status === "in_progress";
+    const serviceForm = usesTrainingServiceForms();
+    const scheduled = session.status === "scheduled";
+    const active = scheduled || session.status === "in_progress";
     const started = session.scheduledAt <= now;
     const upcoming = active && plannedEndMs(session) >= current.getTime();
     const conflicts = upcoming ? await loadSessionClearanceConflicts(session) : [];
-    const canRecord = started && (active || session.status === "completed");
+    // The demo records a result straight from a scheduled session once it has begun; the training service only
+    // completes a session that was started.
+    const canRecord = session.status === "completed" || session.status === "in_progress" || (!serviceForm && scheduled && started);
+    const transitionProps = { sessionId: session.id, sessionTitle: session.title, fighterName: fighter.name };
     const canUpload = session.status !== "cancelled" && session.status !== "missed";
     const firstName = fighter.name.split(" ")[0];
 
     const recordButton = (
         <RecordResultButton
-            variant={session.status === "completed" ? "secondary" : "primary"}
+            variant={session.status === "completed" || scheduled ? "secondary" : "primary"}
             sessionId={session.id}
             sessionTitle={session.title}
             plannedDurationMin={session.durationMin}
@@ -62,6 +67,7 @@ export default async function CoachSessionPage({ params }: PageProps<"/coach/ses
             plannedRounds={sum(session.exercises.map((e) => e.rounds ?? 0))}
             exercises={session.exercises.map((e) => ({ exerciseId: e.exerciseId, name: exercises[e.exerciseId]?.name ?? "Exercise", completed: e.completed }))}
             result={session.result}
+            serviceForm={serviceForm}
         />
     );
     const uploadLink = (
@@ -80,16 +86,16 @@ export default async function CoachSessionPage({ params }: PageProps<"/coach/ses
                 meta={<SessionHeaderMeta session={session} />}
                 actions={
                     <>
-                        {session.status === "scheduled" && (
+                        {scheduled && (
                             <ButtonLink href={routes.coach.editSession(session.id)} variant="secondary">
                                 <PenLine aria-hidden />
                                 Edit
                             </ButtonLink>
                         )}
-                        {active && (
-                            <CancelSessionButton sessionId={session.id} sessionTitle={session.title} fighterName={fighter.name} when={formatDateTime(session.scheduledAt)} />
-                        )}
+                        {scheduled && started && <MarkMissedButton {...transitionProps} />}
+                        {active && <CancelSessionButton {...transitionProps} when={formatDateTime(session.scheduledAt)} />}
                         {canRecord && recordButton}
+                        {scheduled && <StartSessionButton {...transitionProps} />}
                     </>
                 }
             />
@@ -108,6 +114,7 @@ export default async function CoachSessionPage({ params }: PageProps<"/coach/ses
                 conflicts={conflicts}
                 feedbackAction={<AddFeedbackButton sessionId={session.id} fighterName={firstName} size="sm" />}
                 videoAction={canUpload ? uploadLink : undefined}
+                serviceForm={serviceForm}
             />
         </>
     );

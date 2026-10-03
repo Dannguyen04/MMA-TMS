@@ -1,5 +1,6 @@
 import "server-only";
 
+import { isDemoAuthEnabled } from "@/lib/auth/constants";
 import { demoOnlyFeatureGate } from "./feature-gate";
 
 /**
@@ -54,6 +55,15 @@ export const platformFeatureAvailable = demoOnlyFeatureGate<PlatformFeature>([
     "selfProfileEdit",
     "bodyMetrics",
 ]);
+
+/**
+ * Whether coaches plan training in the training service's own terms: plans without a phase, focus areas or weekly
+ * target, sessions without a target RPE or exercise list, and results without a rating or summary. True in API mode;
+ * demo mode keeps its richer forms.
+ */
+export function usesTrainingServiceForms(): boolean {
+    return !isDemoAuthEnabled();
+}
 
 /** Message returned by server actions for a feature that isn't available in this mode. */
 export const PLATFORM_FEATURE_UNAVAILABLE_MESSAGE = "This isn't available yet. The service will add it in a later release.";

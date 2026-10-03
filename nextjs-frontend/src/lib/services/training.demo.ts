@@ -1,12 +1,14 @@
 import "server-only";
 
 import { TRAINING_TYPE_LABELS } from "@/lib/domain/labels";
+import type { PlanExerciseFields } from "@/lib/domain/training-contract";
 import { checkTrainingAgainstClearance, currentClearance, type ClearanceConflict } from "@/lib/domain/rules";
 import type {
     BodyRegion,
     CoachFeedback,
     Exercise,
     ExerciseCategory,
+    PlanExercise,
     PlanStatus,
     SessionResult,
     SessionStatus,
@@ -176,7 +178,6 @@ export async function updatePlan(id: string, input: PlanUpdateInput, actor: User
     if (!plan) return null;
     const changed = (Object.keys(input) as (keyof PlanUpdateInput)[]).filter((key) => input[key] !== undefined);
     if (input.title !== undefined) plan.title = input.title.trim();
-    if (input.coachId !== undefined) plan.coachId = input.coachId;
     if (input.objective !== undefined) plan.objective = input.objective.trim();
     if (input.phase !== undefined) plan.phase = input.phase;
     if (input.focusAreas !== undefined) plan.focusAreas = unique(input.focusAreas);
@@ -331,9 +332,8 @@ function validateSessionInput(input: SessionUpdateInput, fighterId: string): str
         if (!plan || plan.fighterId !== fighterId) return "The selected training plan doesn't belong to this fighter.";
     }
     if (Number.isNaN(Date.parse(input.scheduledAt))) return "Enter a valid date and time.";
-    if (!Number.isInteger(input.targetRpe) || input.targetRpe < 1 || input.targetRpe > 10) {
-        return "Target RPE must be a whole number from 1 to 10.";
-    }
+    const rpe = input.targetRpe;
+    if (rpe === null || !Number.isInteger(rpe) || rpe < 1 || rpe > 10) return "Target RPE must be a whole number from 1 to 10.";
     if (input.durationMin <= 0) return "Duration must be longer than 0 minutes.";
     const unknown = input.exercises.find((item) => !store.exercises.some((e) => e.id === item.exerciseId));
     if (unknown) return `Exercise ${unknown.exerciseId} is not in the library.`;
@@ -615,6 +615,80 @@ export async function recordSessionResult(
         });
     }
     return { ok: true, session, conflicts: [] };
+}
+
+/** Checks the fighter in, unless their Medical Clearance blocks this training now (as the training service does). */
+export async function startSession(id: string, actor: User): Promise<SessionMutationResult> {
+    const session = db().trainingSessions.find((s) => s.id === id);
+    if (!session) return { ok: false, reason: "not_found", message: "That session no longer exists.", conflicts: [] };
+    if (session.status !== "scheduled") return { ok: false, reason: "invalid_state", message: "Only a scheduled session can be started.", conflicts: [] };
+    const conflicts = getSessionClearanceConflicts({ ...session, scheduledAt: nowIso() });
+    if (conflicts.some((c) => c.severity === "block")) {
+        return { ok: false, reason: "blocked", message: "The fighter's Medical Clearance doesn't allow this training right now.", conflicts };
+    }
+    session.status = "in_progress";
+    recordAudit({ actor, action: "training_session.start", resourceType: "training_session", resourceId: session.id, resourceLabel: sessionLabel(session) });
+    return { ok: true, session, conflicts };
+}
+
+/** Records that a scheduled session didn't happen once its start time has passed. */
+export async function markSessionMissed(id: string, actor: User): Promise<SessionMutationResult> {
+    const session = db().trainingSessions.find((s) => s.id === id);
+    if (!session) return { ok: false, reason: "not_found", message: "That session no longer exists.", conflicts: [] };
+    if (session.status !== "scheduled" || Date.parse(session.scheduledAt) > Date.now()) {
+        return { ok: false, reason: "invalid_state", message: "Only a scheduled session whose start time has passed can be marked as missed.", conflicts: [] };
+    }
+    session.status = "missed";
+    recordAudit({ actor, action: "training_session.miss", resourceType: "training_session", resourceId: session.id, resourceLabel: sessionLabel(session) });
+    return { ok: true, session, conflicts: [] };
+}
+
+/* ─── Plan exercises ──────────────────────────────────────────────────────── */
+
+export async function listPlanExercises(planId: string): Promise<PlanExercise[]> {
+    await simulateLatency();
+    return db()
+        .planExercises.filter((item) => item.planId === planId)
+        .sort((left, right) => left.orderIndex - right.orderIndex);
+}
+
+function planExerciseAudit(action: string, item: PlanExercise, actor: User): void {
+    const plan = db().trainingPlans.find((p) => p.id === item.planId);
+    const exercise = db().exercises.find((e) => e.id === item.exerciseId);
+    recordAudit({
+        actor,
+        action,
+        resourceType: "training_plan",
+        resourceId: item.planId,
+        resourceLabel: plan ? `${fighterName(plan.fighterId)} — ${plan.title}` : item.planId,
+        details: exercise?.name ?? null,
+    });
+}
+
+export async function addPlanExercise(planId: string, exerciseId: string, input: PlanExerciseFields, actor: User): Promise<PlanExercise> {
+    const store = db();
+    const orderIndex = store.planExercises.filter((item) => item.planId === planId).reduce((next, item) => Math.max(next, item.orderIndex + 1), 0);
+    const item: PlanExercise = { id: newId("plan-exercise"), planId, exerciseId, orderIndex, ...input, notes: input.notes?.trim() || null };
+    store.planExercises.push(item);
+    planExerciseAudit("training_plan.add_exercise", item, actor);
+    return item;
+}
+
+export async function updatePlanExercise(planId: string, id: string, input: PlanExerciseFields, actor: User): Promise<PlanExercise | null> {
+    const item = db().planExercises.find((candidate) => candidate.id === id && candidate.planId === planId);
+    if (!item) return null;
+    Object.assign(item, input, { notes: input.notes?.trim() || null });
+    planExerciseAudit("training_plan.update_exercise", item, actor);
+    return item;
+}
+
+export async function removePlanExercise(planId: string, id: string, actor: User): Promise<boolean> {
+    const store = db();
+    const item = store.planExercises.find((candidate) => candidate.id === id && candidate.planId === planId);
+    if (!item) return false;
+    store.planExercises = store.planExercises.filter((candidate) => candidate !== item);
+    planExerciseAudit("training_plan.remove_exercise", item, actor);
+    return true;
 }
 
 /** Cancels a scheduled session and tells the fighter and the assigned coach why. */

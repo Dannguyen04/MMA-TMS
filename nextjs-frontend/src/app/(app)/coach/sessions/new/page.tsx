@@ -8,11 +8,13 @@ import { createSession } from "@/lib/actions/training";
 import { accessibleFighterIds } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { TRAINING_TYPE_LABELS } from "@/lib/domain/labels";
+import { SERVICE_TRAINING_TYPES } from "@/lib/domain/training-contract";
 import type { TrainingType } from "@/lib/domain/types";
 import { addDaysToKey, dayKey } from "@/lib/format";
 import { parseEnum } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { listFighters } from "@/lib/services/people";
+import { usesTrainingServiceForms } from "@/lib/services/platform-features";
 import { listExercises, listPlans, listSessions } from "@/lib/services/training";
 import { param } from "@/lib/utils";
 
@@ -25,12 +27,14 @@ export default async function NewSessionPage({ searchParams }: PageProps<"/coach
     const params = await searchParams;
     const now = new Date().toISOString();
     const scope = accessibleFighterIds(user);
+    const serviceForm = usesTrainingServiceForms();
 
     const fighterList = listFighters(user);
     const [fighters, plans, library, sessions, clearances] = await Promise.all([
         fighterList,
         listPlans({ fighterIds: scope }),
-        listExercises(),
+        // Exercises are part of the demo's session form only.
+        serviceForm ? [] : listExercises(),
         listSessions({ fighterIds: scope }),
         getClearanceSummaries(scopedFighterIds(user, fighterList), now),
     ]);
@@ -44,7 +48,7 @@ export default async function NewSessionPage({ searchParams }: PageProps<"/coach
         fighterId: fighter?.id ?? "",
         planId: plan && plan.fighterId === fighter?.id ? plan.id : "",
         title: "",
-        type: parseEnum(param(params.type), TRAINING_TYPES) ?? "pad_work",
+        type: parseEnum(param(params.type), serviceForm ? SERVICE_TRAINING_TYPES : TRAINING_TYPES) ?? "pad_work",
         date: addDaysToKey(today, 1),
         time: "17:30",
         durationMin: "60",
@@ -53,7 +57,7 @@ export default async function NewSessionPage({ searchParams }: PageProps<"/coach
         exercises: [],
         notes: "",
     };
-    const locations = [...new Set(sessions.map((s) => s.location))].sort();
+    const locations = [...new Set(sessions.map((s) => s.location).filter(Boolean))].sort();
     const back = plan
         ? { href: routes.coach.plan(plan.id), label: plan.title }
         : fighter
@@ -64,7 +68,11 @@ export default async function NewSessionPage({ searchParams }: PageProps<"/coach
         <>
             <PageHeader
                 title="Schedule a session"
-                description="Every session is checked live against the fighter's Medical Clearance. The fighter is notified when you schedule it."
+                description={
+                    serviceForm
+                        ? "The fighter's Medical Clearance is checked when the session starts."
+                        : "Every session is checked live against the fighter's Medical Clearance. The fighter is notified when you schedule it."
+                }
                 back={back}
             />
             <SessionForm
@@ -79,6 +87,7 @@ export default async function NewSessionPage({ searchParams }: PageProps<"/coach
                 now={now}
                 minDate={today}
                 cancelHref={back.href}
+                serviceForm={serviceForm}
             />
         </>
     );

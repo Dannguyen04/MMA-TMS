@@ -3,16 +3,16 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { FighterIdentity, type FighterIdentityData } from "@/components/domain/fighter-identity";
+import { PlanDates, PlanTimelineBar } from "@/components/domain/plan-schedule";
 import { PlanStatusBadge } from "@/components/domain/status-badges";
 import { TechniqueChips } from "@/components/domain/technique-chip";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { ProgressBar } from "@/components/ui/progress";
 import { TRAINING_PHASE_LABELS } from "@/lib/domain/labels";
 import type { TrainingPlan } from "@/lib/domain/types";
-import { daysBetween, formatDate, formatPercent, pluralize } from "@/lib/format";
+import { daysBetween, formatPercent, pluralize } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { planTimeline, type PlanAdherence } from "./training-utils";
+import type { PlanAdherence } from "./training-utils";
 
 export interface PlanOverviewProps {
     plan: TrainingPlan;
@@ -36,8 +36,7 @@ export interface PlanOverviewProps {
 
 /** Plan hero: objective, phase, focus areas, timeline, weekly target, adherence and coach. */
 export function PlanOverview({ plan, now, coachName, fighter, fighterHref, adherence, titleHref, titleAs: TitleHeading = "h2", showNotes = false, actions, className }: PlanOverviewProps) {
-    const timeline = planTimeline(plan, now);
-    const weeks = Math.max(1, Math.ceil(daysBetween(plan.startDate, plan.endDate) / 7));
+    const weeks = plan.endDate === null ? null : Math.max(1, Math.ceil(daysBetween(plan.startDate, plan.endDate) / 7));
 
     return (
         <Card className={cn("overflow-hidden", className)}>
@@ -45,7 +44,7 @@ export function PlanOverview({ plan, now, coachName, fighter, fighterHref, adher
                 <div className="flex min-w-0 flex-col gap-4">
                     <div className="flex flex-wrap items-center gap-2">
                         <PlanStatusBadge status={plan.status} />
-                        <Badge variant="outline">{TRAINING_PHASE_LABELS[plan.phase]} phase</Badge>
+                        {plan.phase && <Badge variant="outline">{TRAINING_PHASE_LABELS[plan.phase]} phase</Badge>}
                     </div>
                     {titleHref && (
                         <TitleHeading className="-mt-1 text-xl leading-snug font-semibold tracking-tight text-fg">
@@ -79,23 +78,19 @@ export function PlanOverview({ plan, now, coachName, fighter, fighterHref, adher
                     <div>
                         <p className="mb-2 flex flex-wrap items-center gap-1.5 text-[13px] text-fg-muted">
                             <CalendarRange aria-hidden className="size-3.5 text-fg-subtle" />
-                            <time dateTime={plan.startDate}>{formatDate(plan.startDate)}</time>
-                            <span aria-hidden>–</span>
-                            <span className="sr-only">to</span>
-                            <time dateTime={plan.endDate}>{formatDate(plan.endDate)}</time>
+                            <span>
+                                <PlanDates plan={plan} />
+                            </span>
                         </p>
-                        <ProgressBar
-                            value={timeline.elapsedPct}
-                            label={`Time elapsed in ${plan.title}`}
-                            valueText={timeline.text}
-                            tone={plan.status === "completed" ? "success" : "primary"}
-                        />
+                        <PlanTimelineBar plan={plan} now={now} />
                     </div>
                     <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-                        <div className="min-w-0">
-                            <dt className="text-[13px] text-fg-muted">Weekly target</dt>
-                            <dd className="mt-0.5 font-semibold text-fg">{pluralize(plan.weeklySessionTarget, "session")}</dd>
-                        </div>
+                        {plan.weeklySessionTarget !== null && (
+                            <div className="min-w-0">
+                                <dt className="text-[13px] text-fg-muted">Weekly target</dt>
+                                <dd className="mt-0.5 font-semibold text-fg">{pluralize(plan.weeklySessionTarget, "session")}</dd>
+                            </div>
+                        )}
                         <div className="min-w-0">
                             <dt className="text-[13px] text-fg-muted">Adherence so far</dt>
                             <dd className="mt-0.5 font-semibold text-fg">
@@ -105,10 +100,12 @@ export function PlanOverview({ plan, now, coachName, fighter, fighterHref, adher
                                 </span>
                             </dd>
                         </div>
-                        <div className="min-w-0">
-                            <dt className="text-[13px] text-fg-muted">Length</dt>
-                            <dd className="mt-0.5 font-semibold text-fg">{pluralize(weeks, "week")}</dd>
-                        </div>
+                        {weeks !== null && (
+                            <div className="min-w-0">
+                                <dt className="text-[13px] text-fg-muted">Length</dt>
+                                <dd className="mt-0.5 font-semibold text-fg">{pluralize(weeks, "week")}</dd>
+                            </div>
+                        )}
                         {coachName && (
                             <div className="min-w-0">
                                 <dt className="text-[13px] text-fg-muted">Coach</dt>

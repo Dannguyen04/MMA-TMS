@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { FighterIdentity } from "@/components/domain/fighter-identity";
 import { PlanCard } from "@/components/domain/plan-card";
+import { PlanDates } from "@/components/domain/plan-schedule";
 import { PlanStatusBadge } from "@/components/domain/status-badges";
 import { ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -19,10 +20,11 @@ import { accessibleFighterIds } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { PLAN_STATUS_LABELS, TRAINING_PHASE_LABELS } from "@/lib/domain/labels";
 import type { PlanStatus, TrainingPhase, TrainingPlan } from "@/lib/domain/types";
-import { formatDate, formatPercent, formatShortDate, pluralize } from "@/lib/format";
+import { formatPercent, pluralize } from "@/lib/format";
 import { paginate, parseEnum, parseSortDirection, sortItems } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { listFighters } from "@/lib/services/people";
+import { usesTrainingServiceForms } from "@/lib/services/platform-features";
 import { listPlans, listSessions } from "@/lib/services/training";
 import { groupBy, param } from "@/lib/utils";
 
@@ -42,7 +44,9 @@ export default async function CoachPlansPage({ searchParams }: PageProps<"/coach
     const search = param(params.q);
     const fighterId = param(params.fighter);
     const status = parseEnum(param(params.status), STATUSES);
-    const phase = parseEnum(param(params.phase), PHASES);
+    // The training service keeps no phase, so API mode neither filters, sorts nor shows by it.
+    const withPhase = !usesTrainingServiceForms();
+    const phase = withPhase ? parseEnum(param(params.phase), PHASES) : undefined;
     const view = parseEnum(param(params.view), VIEWS) ?? "grid";
     const sort = parseEnum(param(params.sort), SORT_KEYS);
     const dir = parseSortDirection(param(params.dir));
@@ -70,7 +74,7 @@ export default async function CoachPlansPage({ searchParams }: PageProps<"/coach
                       title: plan.title,
                       fighter: fightersById[plan.fighterId]?.name ?? "",
                       status: STATUSES.indexOf(plan.status),
-                      phase: TRAINING_PHASE_LABELS[plan.phase],
+                      phase: plan.phase ? TRAINING_PHASE_LABELS[plan.phase] : "",
                       start: plan.startDate,
                       adherence: adherence(plan) ?? null,
                   })[sort],
@@ -104,7 +108,9 @@ export default async function CoachPlansPage({ searchParams }: PageProps<"/coach
                             { type: "search", name: "q", label: "Search plans", placeholder: "Search title, objective or fighter" },
                             { type: "select", name: "fighter", label: "Fighters", options: fighters.map((f) => ({ value: f.id, label: f.name })) },
                             { type: "select", name: "status", label: "Statuses", options: STATUSES.map((value) => ({ value, label: PLAN_STATUS_LABELS[value] })) },
-                            { type: "select", name: "phase", label: "Phases", options: PHASES.map((value) => ({ value, label: TRAINING_PHASE_LABELS[value] })) },
+                            ...(withPhase
+                                ? [{ type: "select" as const, name: "phase", label: "Phases", options: PHASES.map((value) => ({ value, label: TRAINING_PHASE_LABELS[value] })) }]
+                                : []),
                         ]}
                     />
                     <ViewToggle
@@ -130,7 +136,7 @@ export default async function CoachPlansPage({ searchParams }: PageProps<"/coach
                         <EmptyState
                             icon={<ClipboardList />}
                             title="No plans match these filters"
-                            description="Try another fighter, status or phase, or clear the search."
+                            description="Try different filters, or clear the search."
                             action={
                                 <ButtonLink href={view === "grid" ? pathname : `${pathname}?view=table`} variant="secondary">
                                     Clear filters
@@ -141,7 +147,7 @@ export default async function CoachPlansPage({ searchParams }: PageProps<"/coach
                         <EmptyState
                             icon={<ClipboardList />}
                             title="No training plans yet"
-                            description="Create a plan to set the objective, phase and weekly target for a fighter, then schedule sessions against it."
+                            description="Create a plan to set a fighter's objective and dates, then schedule sessions against it."
                             action={newPlanButton}
                         />
                     )
@@ -191,7 +197,7 @@ export default async function CoachPlansPage({ searchParams }: PageProps<"/coach
                                             ["start", "Dates"],
                                             ["adherence", "Adherence"],
                                         ] as const
-                                    ).map(([key, label]) => (
+                                    ).filter(([key]) => withPhase || key !== "phase").map(([key, label]) => (
                                         <SortableTH
                                             key={key}
                                             label={label}
@@ -215,17 +221,17 @@ export default async function CoachPlansPage({ searchParams }: PageProps<"/coach
                                                     {plan.title}
                                                 </Link>
                                                 <p className="text-xs text-fg-muted">
-                                                    {pluralize(plan.weeklySessionTarget, "session")} a week · Coach {coachNames[plan.coachId] ?? "—"}
+                                                    {plan.weeklySessionTarget !== null && `${pluralize(plan.weeklySessionTarget, "session")} a week · `}Coach{" "}
+                                                    {coachNames[plan.coachId] ?? "—"}
                                                 </p>
                                             </TD>
                                             <TD className="min-w-44">{fighter && <FighterIdentity fighter={fighter} size="sm" showMeta={false} />}</TD>
                                             <TD>
                                                 <PlanStatusBadge status={plan.status} size="sm" />
                                             </TD>
-                                            <TD className="whitespace-nowrap text-fg-muted">{TRAINING_PHASE_LABELS[plan.phase]}</TD>
+                                            {withPhase && <TD className="whitespace-nowrap text-fg-muted">{plan.phase ? TRAINING_PHASE_LABELS[plan.phase] : "—"}</TD>}
                                             <TD className="whitespace-nowrap">
-                                                <time dateTime={plan.startDate}>{formatShortDate(plan.startDate)}</time> –{" "}
-                                                <time dateTime={plan.endDate}>{formatDate(plan.endDate)}</time>
+                                                <PlanDates plan={plan} short />
                                             </TD>
                                             <TD className="min-w-36">
                                                 {pct === undefined ? (

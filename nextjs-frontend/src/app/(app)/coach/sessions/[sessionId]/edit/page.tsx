@@ -16,6 +16,7 @@ import { SESSION_STATUS_LABELS } from "@/lib/domain/labels";
 import { dayKey, formatTime } from "@/lib/format";
 import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
+import { usesTrainingServiceForms } from "@/lib/services/platform-features";
 import { getSession, listExercises, listPlans, listSessions } from "@/lib/services/training";
 import { MID_RPE } from "@/components/training/training-utils";
 
@@ -31,7 +32,9 @@ export async function generateMetadata({ params }: PageProps<"/coach/sessions/[s
 export default async function EditSessionPage({ params }: PageProps<"/coach/sessions/[sessionId]/edit">) {
     const user = await requireRole("coach");
     const { sessionId } = await params;
-    const [session, library] = await Promise.all([loadSession(sessionId), listExercises()]);
+    const serviceForm = usesTrainingServiceForms();
+    // Exercises are part of the demo's session form only.
+    const [session, library] = await Promise.all([loadSession(sessionId), serviceForm ? [] : listExercises()]);
     if (!session) notFound();
     const fighter = await requireFighterAccess(user, session.fighterId);
     const back = { href: routes.coach.session(session.id), label: "Back to session" };
@@ -84,7 +87,7 @@ export default async function EditSessionPage({ params }: PageProps<"/coach/sess
             <PageHeader
                 eyebrow="Edit session"
                 title={session.title}
-                description={`${fighter.name} is notified about the change. The clearance check runs again as you edit.`}
+                description={`${fighter.name} is notified about the change.${serviceForm ? "" : " The clearance check runs again as you edit."}`}
                 back={back}
             />
             <SessionForm
@@ -94,10 +97,11 @@ export default async function EditSessionPage({ params }: PageProps<"/coach/sess
                 plans={plans.map((p) => ({ id: p.id, title: p.title, fighterId: p.fighterId, status: p.status }))}
                 library={library}
                 clearances={clearances}
-                locations={[...new Set(sessions.map((s) => s.location))].sort()}
+                locations={[...new Set(sessions.map((s) => s.location).filter(Boolean))].sort()}
                 defaults={defaults}
                 now={now}
                 cancelHref={back.href}
+                serviceForm={serviceForm}
             />
         </>
     );

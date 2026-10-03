@@ -104,8 +104,11 @@ export function PlanStatsCard({ sessions, now }: { sessions: TrainingSession[]; 
     const adherence = planAdherence(sessions, now);
     const completed = sessions.filter((s) => s.status === "completed" && s.result);
     const minutes = sum(completed.map((s) => s.result?.actualDurationMin ?? 0));
-    const avgRpe = average(completed.map((s) => s.result?.rpe ?? 0));
-    const avgRating = average(completed.map((s) => s.result?.coachRating ?? 0));
+    // Averages count only the sessions that have the value, so a result without a rating doesn't read as zero.
+    const rpes = completed.flatMap((s) => (s.result?.rpe == null ? [] : [s.result.rpe]));
+    const ratings = completed.flatMap((s) => (s.result?.coachRating == null ? [] : [s.result.coachRating]));
+    const avgRpe = average(rpes);
+    const avgRating = average(ratings);
 
     return (
         <Card>
@@ -117,8 +120,8 @@ export function PlanStatsCard({ sessions, now }: { sessions: TrainingSession[]; 
                     hint={adherence ? `${formatPercent(adherence.pct)} of due sessions` : "Nothing due yet"}
                 />
                 <MetricTile label="Training time" value={formatMinutes(minutes)} />
-                <MetricTile label="Average RPE" value={completed.length ? formatNumber(avgRpe, 1) : "—"} hint={completed.length ? rpeLabel(avgRpe) : undefined} />
-                <MetricTile label="Coach rating" value={completed.length ? formatNumber(avgRating, 1) : "—"} unit={completed.length ? "/ 5" : undefined} />
+                <MetricTile label="Average RPE" value={rpes.length ? formatNumber(avgRpe, 1) : "—"} hint={rpes.length ? rpeLabel(avgRpe) : undefined} />
+                <MetricTile label="Coach rating" value={ratings.length ? formatNumber(avgRating, 1) : "—"} unit={ratings.length ? "/ 5" : undefined} />
             </CardContent>
         </Card>
     );

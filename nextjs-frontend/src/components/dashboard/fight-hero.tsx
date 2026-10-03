@@ -23,7 +23,7 @@ export type NextUp =
 export interface HeroPlan {
     title: string;
     href: string;
-    phase: TrainingPhase;
+    phase: TrainingPhase | null;
     adherencePct: number | null;
 }
 
@@ -116,7 +116,7 @@ function Milestone({ label, date, className }: { label: string; date: string; cl
 function OffCamp({ plan }: { plan: HeroPlan | null }) {
     return (
         <>
-            <CornerTag tone="stage">{plan ? `${TRAINING_PHASE_LABELS[plan.phase]} phase` : "Off camp"}</CornerTag>
+            <CornerTag tone="stage">{plan?.phase ? `${TRAINING_PHASE_LABELS[plan.phase]} phase` : plan ? "Training plan" : "Off camp"}</CornerTag>
             <div>
                 <h2 className="font-display text-[30px] leading-[1.05] font-extrabold italic sm:text-[34px]">No bout booked</h2>
                 <p className="mt-1 max-w-md text-[15px] text-pretty text-white/85">

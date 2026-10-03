@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 
 import { PageHeader } from "@/components/ui/page-header";
+import { PlanExercisesCard } from "@/components/training/plan-exercises";
 import { PlanOverview } from "@/components/training/plan-overview";
 import { PlanSessionsCard, PlanStatsCard } from "@/components/training/plan-sessions";
 import { AdherenceChart } from "@/components/training/training-charts";
@@ -12,7 +13,7 @@ import { requireFighterAccess } from "@/lib/auth/access";
 import { getCurrentUser, requireRole } from "@/lib/auth/session";
 import type { TrainingPlan, User } from "@/lib/domain/types";
 import { routes } from "@/lib/routes";
-import { getPlanWithSessions } from "@/lib/services/training";
+import { getPlanWithSessions, listExercises, listPlanExercises } from "@/lib/services/training";
 
 /** One plan read per request, shared by the metadata and the page. */
 const loadPlan = cache(getPlanWithSessions);
@@ -34,6 +35,7 @@ export default async function FighterPlanPage({ params, searchParams }: PageProp
     const [data, coachNames] = await Promise.all([loadPlan(planId), getCoachNames()]);
     if (!data || !isVisibleTo(data.plan, user)) notFound();
     await requireFighterAccess(user, data.plan.fighterId);
+    const [planExercises, library] = await Promise.all([listPlanExercises(data.plan.id), listExercises()]);
 
     const { plan, sessions } = data;
     const now = new Date().toISOString();
@@ -53,6 +55,7 @@ export default async function FighterPlanPage({ params, searchParams }: PageProp
                     />
                     <PlanStatsCard sessions={sessions} now={now} />
                 </div>
+                <PlanExercisesCard planId={plan.id} items={planExercises} library={library} editable={false} />
                 <PlanSessionsCard
                     sessions={sessions}
                     audience="fighter"
