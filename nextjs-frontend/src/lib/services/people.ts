@@ -9,6 +9,7 @@ import { isDemoAuthEnabled } from "@/lib/auth/constants";
 import { getCurrentUser, readCurrentAccount } from "@/lib/auth/session";
 import { ApiError, authenticatedApiRequest, authenticatedMutableApiRequest } from "@/lib/api/client";
 import { WEIGHT_CLASS_LIMIT_KG } from "@/lib/domain/labels";
+import type { AccountProfile } from "@/lib/domain/account-contract";
 import type { Coach, Doctor, Fighter, HealthStatus, Sex, Stance, TrainingLevel, User, WeightClass } from "@/lib/domain/types";
 import { matchesSearch } from "@/lib/query";
 import { routes } from "@/lib/routes";
@@ -103,7 +104,7 @@ export const backendFighterSchema = z.object({
     upcomingBout: backendUpcomingBoutSchema.nullable().optional(),
 });
 
-/** The fighter profile embedded in `/users/me`. It has no medical status or record dates. */
+/** The fighter profile embedded in an account (`/users/me`, `/users/:id`). It has no medical status or record dates. */
 const ownFighterProfileSchema = z.object({
     id: z.string().uuid(),
     firstName: z.string(),
@@ -136,6 +137,10 @@ const backendProfileSchema = z
         licenseNumber: z.string().optional(),
     })
     .passthrough();
+
+/** The coach and doctor profiles embedded in an account, with the fields an administrator edits. */
+const coachAccountProfileSchema = z.object({ firstName: z.string(), lastName: z.string(), specialization: z.string().nullish(), isHeadCoach: z.boolean().optional() });
+const doctorAccountProfileSchema = z.object({ firstName: z.string(), lastName: z.string(), licenseNumber: z.string(), specialization: z.string().nullish() });
 
 /** `GET /fighters/:id/coaches`: every coach assignment period, as a plain array. */
 const coachAssignmentSchema = z.object({
@@ -257,6 +262,41 @@ export function adaptBackendUser(input: BackendUser): User {
         effectiveCapabilities: input.effectiveCapabilities as User["effectiveCapabilities"],
         assignmentScope: input.assignmentScope,
     };
+}
+
+/** The account's role and profile as the user service edits them; null when the profile is missing or unreadable. */
+export function accountProfileOf(record: Pick<BackendUser, "role" | "profile">): AccountProfile | null {
+    switch (record.role) {
+        case "ADMIN":
+            return { role: "admin", profile: null };
+        case "FIGHTER": {
+            const parsed = ownFighterProfileSchema.safeParse(record.profile);
+            if (!parsed.success) return null;
+            const { firstName, lastName, dateOfBirth, weightClass, dominantStance, nationality } = parsed.data;
+            return {
+                role: "fighter",
+                profile: {
+                    firstName,
+                    lastName,
+                    dateOfBirth,
+                    weightClass: weightClass.toLowerCase() as WeightClass,
+                    dominantStance: dominantStance ? (dominantStance.toLowerCase() as Stance) : null,
+                    nationality: nationality ?? null,
+                },
+            };
+        }
+        case "COACH": {
+            const parsed = coachAccountProfileSchema.safeParse(record.profile);
+            if (!parsed.success) return null;
+            const { specialization, isHeadCoach, ...names } = parsed.data;
+            return { role: "coach", profile: { ...names, specialization: specialization ?? null, isHeadCoach: isHeadCoach ?? false } };
+        }
+        case "DOCTOR": {
+            const parsed = doctorAccountProfileSchema.safeParse(record.profile);
+            if (!parsed.success) return null;
+            return { role: "doctor", profile: { ...parsed.data, specialization: parsed.data.specialization ?? null } };
+        }
+    }
 }
 
 async function listApiFighters(user: User, filter: FighterFilter): Promise<Fighter[]> {
@@ -505,26 +545,29 @@ export async function getUser(id: string): Promise<User | null> {
  * doctors come from the profile embedded in the account, with the fighters they currently hold from the assignments
  * the caller can see; the service keeps no certifications or years of experience.
  */
-export async function getApiUserWithProfile(id: string): Promise<{ user: User; profile: Fighter | Coach | Doctor | null } | null> {
+export async function getApiUserWithProfile(
+    id: string,
+): Promise<{ user: User; profile: Fighter | Coach | Doctor | null; account: AccountProfile | null } | null> {
     const record = await readApiUser(id);
     if (!record) return null;
     const user = adaptBackendUser(record);
+    const account = accountProfileOf(record);
     const linked = record.profile;
-    if (!linked) return { user, profile: null };
+    if (!linked) return { user, profile: null, account };
     const staff = { id: linked.id, userId: user.id, name: user.name, specialty: linked.specialization ?? "" };
     switch (user.role) {
         case "fighter":
-            return { user, profile: await getFighter(linked.id) };
+            return { user, profile: await getFighter(linked.id), account };
         case "coach": {
             const current = (await listCoaches()).find((coach) => coach.id === linked.id);
-            return { user, profile: { ...staff, certifications: [], yearsExperience: null, fighterIds: current?.fighterIds ?? [] } };
+            return { user, profile: { ...staff, certifications: [], yearsExperience: null, fighterIds: current?.fighterIds ?? [] }, account };
         }
         case "doctor": {
             const current = (await listDoctors()).find((doctor) => doctor.id === linked.id);
-            return { user, profile: { ...staff, licenseNumber: linked.licenseNumber ?? null, fighterIds: current?.fighterIds ?? [] } };
+            return { user, profile: { ...staff, licenseNumber: linked.licenseNumber ?? null, fighterIds: current?.fighterIds ?? [] }, account };
         }
         default:
-            return { user, profile: null };
+            return { user, profile: null, account };
     }
 }
 

@@ -107,6 +107,7 @@ export async function getUserDetail(id: string, viewer?: User | null): Promise<U
             .slice(0, RECENT_USER_AUDIT_LIMIT)
             .map((log) => toAuditView(log, reader)),
         permissions: store.roleDefinitions.find((r) => r.role === user.role)?.permissions ?? [],
+        account: null,
     };
 }
 

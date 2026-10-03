@@ -162,7 +162,7 @@ export default async function AdminDashboardPage() {
                         </ButtonLink>
                         <ButtonLink href={routes.admin.newUser}>
                             <UserPlus aria-hidden />
-                            Invite user
+                            {invitations ? "Invite user" : "Add user"}
                         </ButtonLink>
                     </>
                 }

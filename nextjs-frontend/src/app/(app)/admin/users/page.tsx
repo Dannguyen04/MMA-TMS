@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { ROLE_ORDER, USER_STATUS_ORDER } from "@/components/admin/admin-format";
 import { UserIdentity } from "@/components/admin/user-identity";
 import { RoleBadge, UserStatusBadge } from "@/components/domain/status-badges";
+import { FlashToast } from "@/components/medical/flash-toast";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { FilterBar } from "@/components/ui/filter-bar";
@@ -17,7 +18,7 @@ import { formatDate, formatDateTime, formatRelative, pluralize } from "@/lib/for
 import { paginate, parseEnum, parseSortDirection, sortItems } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { listUsers } from "@/lib/services/admin";
-import { adminFeatureAvailable } from "@/lib/services/admin-features";
+import { adminFeatureAvailable, usesUserServiceForms } from "@/lib/services/admin-features";
 import { param } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Users" };
@@ -62,20 +63,27 @@ export default async function AdminUsersPage({ searchParams }: PageProps<"/admin
     const counts = statuses.map((value) => `${countBy(value)} ${USER_STATUS_LABELS[value].toLowerCase()}`).join(" · ");
     const userHref = (user: User) => (opensInactive || user.status === "active" ? routes.admin.user(user.id) : undefined);
 
-    const inviteButton = canInvite && (
+    // API mode creates accounts outright; the demo sends invitations.
+    const canAdd = canInvite || usesUserServiceForms();
+    const inviteButton = canAdd && (
         <ButtonLink href={routes.admin.newUser}>
             <UserPlus aria-hidden />
-            Invite user
+            {canInvite ? "Invite user" : "Add user"}
         </ButtonLink>
     );
     const sortProps = { pathname, searchParams: params, activeSort: sort, direction: dir };
 
     return (
         <>
+            <FlashToast notice={param(params.notice) === "account-deleted" ? { title: "Account deleted", description: "It can no longer sign in." } : null} cleanHref={pathname} />
             <PageHeader
                 title="Users"
                 description={
-                    canInvite ? "Every account on the platform — invite staff and fighters, change roles and control who can sign in." : "Every staff and fighter account on the platform."
+                    canInvite
+                        ? "Every account on the platform — invite staff and fighters, change roles and control who can sign in."
+                        : canAdd
+                          ? "Every staff and fighter account on the platform — add accounts, edit profiles and remove access."
+                          : "Every staff and fighter account on the platform."
                 }
                 actions={inviteButton}
             />
@@ -112,7 +120,7 @@ export default async function AdminUsersPage({ searchParams }: PageProps<"/admin
                                 <EmptyState
                                     compact
                                     title="No accounts yet"
-                                    description={canInvite ? "Invite the first coach, doctor or fighter to get started." : "Accounts created in the user service appear here."}
+                                    description={canAdd ? `${canInvite ? "Invite" : "Add"} the first coach, doctor or fighter to get started.` : "Accounts created in the user service appear here."}
                                     action={inviteButton}
                                 />
                             )}

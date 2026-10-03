@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 
+import { AccountActions } from "@/components/admin/account-actions";
 import { PermissionList } from "@/components/admin/permission-list";
 import { AuditActivityList } from "@/components/admin/audit-activity-list";
 import { UserActions } from "@/components/admin/user-actions";
@@ -20,11 +21,11 @@ import { requireRole } from "@/lib/auth/session";
 import { NOT_RECORDED, labelOf } from "@/components/domain/domain-format";
 import { ROLE_LABELS, STANCE_LABELS, TRAINING_LEVEL_LABELS, WEIGHT_CLASS_LABELS } from "@/lib/domain/labels";
 import type { Coach, Doctor, Fighter, User } from "@/lib/domain/types";
-import { formatDate, formatDateTime, formatRelative, pluralize } from "@/lib/format";
+import { dayKey, formatDate, formatDateTime, formatRelative, pluralize } from "@/lib/format";
 import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { getUserDetail, listPermissionCatalog } from "@/lib/services/admin";
-import { adminFeatureAvailable } from "@/lib/services/admin-features";
+import { adminFeatureAvailable, usesUserServiceForms } from "@/lib/services/admin-features";
 import { listCoaches } from "@/lib/services/people";
 import { param } from "@/lib/utils";
 
@@ -49,7 +50,7 @@ export default async function AdminUserDetailPage({ params, searchParams }: Page
     const actions = { edit: adminFeatureAvailable("editUsers"), status: adminFeatureAvailable("accountStatus") };
     const [detail, catalog, allCoaches] = await Promise.all([loadUserDetail(userId), showPermissions ? listPermissionCatalog() : [], listCoaches()]);
     if (!detail) notFound();
-    const { user, profile, recentAudit, permissions } = detail;
+    const { user, profile, recentAudit, permissions, account } = detail;
     const coaches = user.role === "fighter" && profile ? allCoaches : [];
 
     const isSelf = user.id === admin.id;
@@ -79,12 +80,34 @@ export default async function AdminUserDetailPage({ params, searchParams }: Page
         { label: "Account ID", value: <code className="font-mono text-[13px]">{user.id}</code>, wide: true },
     ];
 
+    const notices = {
+        invited: { title: "Invitation sent", description: `${user.email} will receive a link to set a password.` },
+        created: { title: "Account created", description: `${user.name} can sign in now with the password you set.` },
+    };
+    const notice = param(query.notice);
+
+    // API mode edits the profile and deletes the account; the demo edits name, title and role, and suspends.
+    const headerActions = usesUserServiceForms() ? (
+        <AccountActions
+            user={{ id: user.id, name: user.name, email: user.email }}
+            account={account?.role === "admin" ? null : account}
+            canDelete={!isSelf}
+            today={dayKey(now)}
+        />
+    ) : (
+        (actions.edit || actions.status) && (
+            <UserActions
+                user={{ id: user.id, name: user.name, email: user.email, title: user.title, role: user.role, status: user.status }}
+                roleLockReason={roleLockReason}
+                isSelf={isSelf}
+                available={actions}
+            />
+        )
+    );
+
     return (
         <>
-            <FlashToast
-                notice={param(query.notice) === "invited" ? { title: "Invitation sent", description: `${user.email} will receive a link to set a password.` } : null}
-                cleanHref={routes.admin.user(user.id)}
-            />
+            <FlashToast notice={notice === "invited" || notice === "created" ? notices[notice] : null} cleanHref={routes.admin.user(user.id)} />
             <PageHeader
                 back={{ href: routes.admin.users, label: "Users" }}
                 eyebrow="User account"
@@ -102,16 +125,7 @@ export default async function AdminUserDetailPage({ params, searchParams }: Page
                         {isSelf && <Badge tone="primary">Your account</Badge>}
                     </>
                 }
-                actions={
-                    (actions.edit || actions.status) && (
-                        <UserActions
-                            user={{ id: user.id, name: user.name, email: user.email, title: user.title, role: user.role, status: user.status }}
-                            roleLockReason={roleLockReason}
-                            isSelf={isSelf}
-                            available={actions}
-                        />
-                    )
-                }
+                actions={headerActions}
             />
 
             <div className="flex flex-col gap-6">

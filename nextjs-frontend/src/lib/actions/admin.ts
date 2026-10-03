@@ -7,20 +7,26 @@ import { z } from "zod";
 import { canAccessFighter } from "@/lib/auth/access";
 import { DOCTOR_ONLY_PERMISSION_REASON, isDoctorOnlyPermission } from "@/lib/auth/permissions";
 import { authorizeAction } from "@/lib/auth/session";
-import { BROADCAST_CHANNEL_LABELS, ROLE_LABELS } from "@/lib/domain/labels";
-import { PERMISSIONS, type AIModelStatus, type BroadcastChannel, type Permission, type Role, type SystemSettings, type UserStatus } from "@/lib/domain/types";
-import { academyWallClockToIso, formatDateTime, isDateKey, isTimeValue, pluralize } from "@/lib/format";
+import { ACCOUNT_LIMITS } from "@/lib/domain/account-contract";
+import { BROADCAST_CHANNEL_LABELS, ROLE_LABELS, WEIGHT_CLASS_ORDER } from "@/lib/domain/labels";
+import { PERMISSIONS, type AIModelStatus, type BroadcastChannel, type Permission, type Role, type Stance, type SystemSettings, type UserStatus } from "@/lib/domain/types";
+import { academyWallClockToIso, dayKey, formatDateTime, isDateKey, isTimeValue, pluralize } from "@/lib/format";
+import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
+import { accountWriteFailure } from "@/lib/services/account-errors";
 import {
+    createAccount,
     createBroadcast,
+    deleteAccount,
     inviteUser,
     resendInvite,
     setUserStatus,
+    updateAccount,
     updateRolePermissions,
     updateSettings,
     updateUser,
 } from "@/lib/services/admin";
-import { ADMIN_FEATURE_UNAVAILABLE_MESSAGE, adminFeatureAvailable } from "@/lib/services/admin-features";
+import { ADMIN_FEATURE_UNAVAILABLE_MESSAGE, adminFeatureAvailable, usesUserServiceForms } from "@/lib/services/admin-features";
 import { PLATFORM_FEATURE_UNAVAILABLE_MESSAGE, platformFeatureAvailable } from "@/lib/services/platform-features";
 import { cancelJob, retryJob, setModelStatus, updateModelThresholds } from "@/lib/services/ai";
 import { deleteVideo, getJobProgress, getVideo } from "@/lib/services/videos";
@@ -160,6 +166,129 @@ export async function resendInviteAction(_prev: ActionState, formData: FormData)
 
     revalidateUser(parsed.data.userId);
     return actionSuccess(`Invitation sent again to ${result.user.email}.`);
+}
+
+/* ─── Accounts in the user service's terms ───────────────────────────────── */
+
+const STANCES = ["orthodox", "southpaw", "switch"] as const satisfies readonly Stance[];
+/** Profile controls are named `profile.<field>`, so validation and service errors land on them by path. */
+const PROFILE_FIELDS = ["firstName", "lastName", "dateOfBirth", "weightClass", "dominantStance", "nationality", "specialization", "licenseNumber"] as const;
+
+const requiredText = (label: string, max: number) =>
+    z.string(`Enter the ${label}.`).trim().min(1, `Enter the ${label}.`).max(max, `Keep the ${label} under ${max} characters.`);
+const optionalText = (label: string, max: number) =>
+    z
+        .string()
+        .trim()
+        .max(max, `Keep the ${label} under ${max} characters.`)
+        .optional()
+        .transform((value) => value || null);
+
+const names = { firstName: requiredText("first name", ACCOUNT_LIMITS.name), lastName: requiredText("last name", ACCOUNT_LIMITS.name) };
+const specialization = optionalText("specialisation", ACCOUNT_LIMITS.specialization);
+
+const staffAccountSchemas = [
+    z.object({
+        role: z.literal("fighter"),
+        profile: z.object({
+            ...names,
+            dateOfBirth: z
+                .string("Enter the date of birth.")
+                .refine(isDateKey, "Enter the date of birth.")
+                .refine((value) => value <= dayKey(new Date()), "The date of birth can't be in the future."),
+            weightClass: z.enum(WEIGHT_CLASS_ORDER, "Choose a weight class."),
+            dominantStance: z.preprocess((value) => value || null, z.enum(STANCES, "Choose a stance from the list.").nullable()),
+            nationality: optionalText("nationality", ACCOUNT_LIMITS.nationality),
+        }),
+    }),
+    z.object({ role: z.literal("coach"), profile: z.object({ ...names, specialization, isHeadCoach: z.boolean() }) }),
+    z.object({ role: z.literal("doctor"), profile: z.object({ ...names, licenseNumber: requiredText("license number", ACCOUNT_LIMITS.licenseNumber), specialization }) }),
+] as const;
+
+const ROLE_MESSAGE = "Choose the role for this account.";
+const staffAccountSchema = z.discriminatedUnion("role", staffAccountSchemas, ROLE_MESSAGE);
+const newAccountSchema = z.intersection(
+    z.object({
+        email: z.email("Enter a valid email address, e.g. name@lotuscombat.vn."),
+        password: z
+            .string("Set a first password.")
+            .min(ACCOUNT_LIMITS.passwordMin, `Use at least ${ACCOUNT_LIMITS.passwordMin} characters.`)
+            .max(ACCOUNT_LIMITS.passwordMax, `Keep the password under ${ACCOUNT_LIMITS.passwordMax} characters.`),
+    }),
+    z.discriminatedUnion("role", [...staffAccountSchemas, z.object({ role: z.literal("admin"), profile: z.null() })], ROLE_MESSAGE),
+);
+
+/** The role and its profile fields as the form sent them. Administrators have no profile. */
+function accountInput(formData: FormData) {
+    const role = text(formData.get("role"));
+    if (role === "admin") return { role, profile: null };
+    const fields = Object.fromEntries(PROFILE_FIELDS.map((field) => [field, text(formData.get(`profile.${field}`))]));
+    return { role, profile: { ...fields, isHeadCoach: formData.get("profile.isHeadCoach") === "on" } };
+}
+
+function accountFailure(error: unknown): ActionState<never> {
+    const failure = accountWriteFailure(error);
+    return actionError(failure.message, failure.fieldErrors);
+}
+
+/** Creates an account with its first password and full profile, then opens it. */
+export async function createAccountAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+    const auth = await authorizeAction("users:manage");
+    if (!auth.ok) return actionError(auth.message);
+    if (!usesUserServiceForms()) return actionError(ADMIN_FEATURE_UNAVAILABLE_MESSAGE);
+    const parsed = newAccountSchema.safeParse({ email: text(formData.get("email"))?.trim().toLowerCase(), password: text(formData.get("password")), ...accountInput(formData) });
+    if (!parsed.success) return validationError(parsed.error);
+
+    const { email, password } = parsed.data;
+    let userId: string;
+    try {
+        userId = (await createAccount({ email, password, account: parsed.data })).id;
+    } catch (error) {
+        return accountFailure(error);
+    }
+    revalidateUser(userId);
+    redirect(hrefWith(routes.admin.user(userId), {}, { notice: "created" }));
+}
+
+/** Saves the profile of a fighter, coach or doctor account. The role itself can't change. */
+export async function updateAccountAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+    const auth = await authorizeAction("users:manage");
+    if (!auth.ok) return actionError(auth.message);
+    if (!usesUserServiceForms()) return actionError(ADMIN_FEATURE_UNAVAILABLE_MESSAGE);
+    const userId = idSchema("The account is missing.").safeParse(text(formData.get("userId")));
+    if (!userId.success) return validationError(userId.error);
+    const parsed = staffAccountSchema.safeParse(accountInput(formData));
+    if (!parsed.success) return validationError(parsed.error);
+
+    let name: string;
+    try {
+        const updated = await updateAccount(userId.data, parsed.data);
+        if (!updated) return actionError("This account no longer exists. Reload the page.");
+        name = updated.name;
+    } catch (error) {
+        return accountFailure(error);
+    }
+    revalidateUser(userId.data);
+    return actionSuccess(`${name}'s profile was updated.`);
+}
+
+/** Deletes another account: its records stay, but it can no longer sign in or be opened here. */
+export async function deleteAccountAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+    const auth = await authorizeAction("users:manage");
+    if (!auth.ok) return actionError(auth.message);
+    if (!usesUserServiceForms()) return actionError(ADMIN_FEATURE_UNAVAILABLE_MESSAGE);
+    const userId = idSchema("The account is missing.").safeParse(text(formData.get("userId")));
+    if (!userId.success) return validationError(userId.error);
+    if (userId.data === auth.user.id) return actionError("You can't delete your own account. Ask another administrator.");
+
+    try {
+        // Already gone counts as done: the list no longer shows it either way.
+        await deleteAccount(userId.data);
+    } catch (error) {
+        return accountFailure(error);
+    }
+    revalidateUser(userId.data);
+    redirect(hrefWith(routes.admin.users, {}, { notice: "account-deleted" }));
 }
 
 /* ─── Roles ───────────────────────────────────────────────────────────────── */

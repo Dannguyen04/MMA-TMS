@@ -5,6 +5,7 @@ import { z } from "zod";
 import { isDemoAuthEnabled } from "@/lib/auth/constants";
 import { ApiError, authenticatedApiRequest, authenticatedMutableApiRequest, drainAuthenticatedCursorPages } from "@/lib/api/client";
 import { PERMISSION_CATALOG, ROLE_DEFINITIONS } from "@/lib/auth/role-catalog";
+import { createAccountBody, updateAccountBody, type AccountProfile } from "@/lib/domain/account-contract";
 import { DEFAULT_SYSTEM_SETTINGS } from "@/lib/domain/system-settings";
 import { DAY_MS } from "@/lib/format";
 import { round } from "@/lib/utils";
@@ -24,7 +25,7 @@ import {
     type UserStatus,
 } from "@/lib/domain/types";
 import { adminFeatureAvailable } from "./admin-features";
-import { drainNumberedPages, isNotFound, unsupportedOperation } from "./api-helpers";
+import { drainNumberedPages, isNotFound, nullIfNotFound, unsupportedOperation } from "./api-helpers";
 import { listAuditLogs } from "./audit";
 import { adaptBackendUser, backendUserSchema, getApiUserWithProfile } from "./people";
 import { platformFeatureAvailable } from "./platform-features";
@@ -100,6 +101,8 @@ export interface UserDetail {
     recentAudit: AuditLog[];
     /** Permissions granted by the user's role. */
     permissions: Permission[];
+    /** The role and profile as the user service edits them (API mode); null where the demo edits accounts its own way. */
+    account: AccountProfile | null;
 }
 
 export interface InviteUserInput {
@@ -183,11 +186,43 @@ export async function getUserDetail(id: string, viewer?: User | null): Promise<U
         adminFeatureAvailable("auditTrail") ? listAuditLogs({ actorId: user.id }, viewer).then((logs) => logs.slice(0, 10)) : [],
         adminFeatureAvailable("rolePermissions") ? listRoleDefinitions() : [],
     ]);
-    return { user, profile, recentAudit, permissions: roles.find((definition) => definition.role === user.role)?.permissions ?? [] };
+    return { user, profile, recentAudit, permissions: roles.find((definition) => definition.role === user.role)?.permissions ?? [], account: account.account };
+}
+
+/*
+ * Accounts with a password and a full profile, in the user service's own terms (`usesUserServiceForms`). The demo
+ * manages accounts through invitations instead, so these run in API mode only and throw the service's ApiError on
+ * failure.
+ */
+
+function requireUserService(): void {
+    if (isDemoAuthEnabled()) throw new Error("The demo manages accounts through invitations; this runs in API mode only.");
+}
+
+export async function createAccount(input: { email: string; password: string; account: AccountProfile }): Promise<User> {
+    requireUserService();
+    return adaptBackendUser(await authenticatedMutableApiRequest("/users", backendUserSchema, { method: "POST", body: JSON.stringify(createAccountBody(input)) }));
+}
+
+/** Null when the account no longer exists. */
+export async function updateAccount(id: string, account: Exclude<AccountProfile, { role: "admin" }>): Promise<User | null> {
+    requireUserService();
+    const updated = await nullIfNotFound(
+        authenticatedMutableApiRequest(`/users/${encodeURIComponent(id)}`, backendUserSchema, { method: "PATCH", body: JSON.stringify(updateAccountBody(account)) }),
+    );
+    return updated && adaptBackendUser(updated);
+}
+
+/** Soft-deletes an account. False when it was already gone. */
+export async function deleteAccount(id: string): Promise<boolean> {
+    requireUserService();
+    const removed = await nullIfNotFound(authenticatedMutableApiRequest(`/users/${encodeURIComponent(id)}`, z.object({ id: z.string(), deleted: z.literal(true) }), { method: "DELETE" }));
+    return removed !== null;
 }
 
 export async function inviteUser(input: InviteUserInput, actor: User): Promise<InviteUserResult> {
     if (isDemoAuthEnabled()) return (await demoService()).inviteUser(input, actor);
+    if (!adminFeatureAvailable("inviteUsers")) unsupportedOperation("Inviting a user", "invitations");
     try {
         const user = await authenticatedMutableApiRequest("/users/invite", backendUserSchema, {
             method: "POST",
@@ -202,6 +237,7 @@ export async function inviteUser(input: InviteUserInput, actor: User): Promise<I
 
 export async function updateUser(id: string, patch: UserPatch, actor: User): Promise<UpdateUserResult> {
     if (isDemoAuthEnabled()) return (await demoService()).updateUser(id, patch, actor);
+    if (!adminFeatureAvailable("editUsers")) unsupportedOperation("Changing an account's name, title or role", "account name, title and role edits");
     try {
         const user = await authenticatedMutableApiRequest(`/users/${encodeURIComponent(id)}`, backendUserSchema, {
             method: "PATCH",
@@ -219,6 +255,7 @@ export async function updateUser(id: string, patch: UserPatch, actor: User): Pro
 
 export async function setUserStatus(id: string, status: UserStatus, actor: User): Promise<SetUserStatusResult> {
     if (isDemoAuthEnabled()) return (await demoService()).setUserStatus(id, status, actor);
+    if (!adminFeatureAvailable("accountStatus")) unsupportedOperation("Suspending or reactivating an account", "account status changes");
     try {
         const user = await authenticatedMutableApiRequest(`/users/${encodeURIComponent(id)}/status`, backendUserSchema, {
             method: "PATCH",
@@ -236,6 +273,7 @@ export async function setUserStatus(id: string, status: UserStatus, actor: User)
 
 export async function resendInvite(id: string, actor: User): Promise<ResendInviteResult> {
     if (isDemoAuthEnabled()) return (await demoService()).resendInvite(id, actor);
+    if (!adminFeatureAvailable("accountStatus")) unsupportedOperation("Resending an invitation", "invitations");
     try {
         const user = await authenticatedMutableApiRequest(`/users/${encodeURIComponent(id)}/resend-invite`, backendUserSchema, {
             method: "POST",
@@ -271,7 +309,6 @@ export async function updateRolePermissions(
     // interface's role matrix has nothing to save against yet. The roles page hides editing in API mode.
     unsupportedOperation("Changing a role's permissions", "role permission lists");
 }
-
 
 export async function getSettings(): Promise<SystemSettings> {
     if (isDemoAuthEnabled()) return (await demoService()).getSettings();

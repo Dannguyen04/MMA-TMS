@@ -14,7 +14,20 @@ vi.mock("@/lib/api/client", async (loadOriginal) => ({
 import type { User } from "@/lib/domain/types";
 import { PERMISSION_CATALOG, ROLE_DEFINITIONS } from "@/lib/auth/role-catalog";
 import { DEFAULT_SYSTEM_SETTINGS } from "@/lib/domain/system-settings";
-import { getSettings, getUserDetail, listPermissionCatalog, listRoleDefinitions, listUsers, updateRolePermissions } from "./admin";
+import { ApiError } from "@/lib/api/client";
+import {
+    createAccount,
+    deleteAccount,
+    getSettings,
+    getUserDetail,
+    inviteUser,
+    listPermissionCatalog,
+    listRoleDefinitions,
+    listUsers,
+    setUserStatus,
+    updateAccount,
+    updateRolePermissions,
+} from "./admin";
 
 const actor = {} as User;
 /** Accounts as `GET /users` returns them (the service's `publicUserSchema`). */
@@ -108,5 +121,70 @@ describe("admin API adapter", () => {
     it("uses the default settings without asking the service, which has no settings endpoint", async () => {
         await expect(getSettings()).resolves.toEqual(DEFAULT_SYSTEM_SETTINGS);
         expect(authenticatedApiRequest).not.toHaveBeenCalled();
+    });
+});
+
+describe("accounts in the user service's terms", () => {
+    const coachProfile = { firstName: "Rafael", lastName: "Santos", specialization: "Striking", isHeadCoach: true };
+
+    beforeEach(() => {
+        vi.stubEnv("APP_DATA_MODE", "api");
+        authenticatedApiRequest.mockReset();
+        authenticatedMutableApiRequest.mockReset();
+    });
+
+    it("reads the profile an administrator edits along with the account", async () => {
+        const responses: Record<string, unknown> = { "/users/me": backendUser, [`/users/${backendCoach.id}`]: { ...backendCoach, isActive: true } };
+        authenticatedApiRequest.mockImplementation(async (path: string) => responses[path] ?? usersPage([]));
+
+        await expect(getUserDetail(backendCoach.id)).resolves.toMatchObject({ account: { role: "coach", profile: coachProfile } });
+    });
+
+    it("creates an account with its first password and profile", async () => {
+        authenticatedMutableApiRequest.mockResolvedValue({ ...backendCoach, isActive: true });
+
+        await expect(createAccount({ email: "Rafael@Example.test", password: "a long first password", account: { role: "coach", profile: coachProfile } })).resolves.toMatchObject({
+            name: "Rafael Santos",
+            role: "coach",
+        });
+        expect(authenticatedMutableApiRequest).toHaveBeenCalledWith(
+            "/users",
+            expect.anything(),
+            expect.objectContaining({
+                method: "POST",
+                body: JSON.stringify({ user: { email: "rafael@example.test", password: "a long first password", role: "COACH", profile: coachProfile } }),
+            }),
+        );
+    });
+
+    it("edits a profile, and reports an account that has gone", async () => {
+        authenticatedMutableApiRequest.mockResolvedValueOnce({ ...backendCoach, isActive: true });
+        await expect(updateAccount(backendCoach.id, { role: "coach", profile: coachProfile })).resolves.toMatchObject({ role: "coach" });
+        expect(authenticatedMutableApiRequest).toHaveBeenCalledWith(`/users/${backendCoach.id}`, expect.anything(), expect.objectContaining({ method: "PATCH" }));
+
+        authenticatedMutableApiRequest.mockRejectedValueOnce(new ApiError({ message: "User not found", kind: "http", status: 404, code: "USER_NOT_FOUND" }));
+        await expect(updateAccount(backendCoach.id, { role: "coach", profile: coachProfile })).resolves.toBeNull();
+    });
+
+    it("deletes an account, treating one already gone as done", async () => {
+        authenticatedMutableApiRequest.mockResolvedValueOnce({ id: backendCoach.id, deleted: true });
+        await expect(deleteAccount(backendCoach.id)).resolves.toBe(true);
+        expect(authenticatedMutableApiRequest).toHaveBeenCalledWith(`/users/${backendCoach.id}`, expect.anything(), { method: "DELETE" });
+
+        authenticatedMutableApiRequest.mockRejectedValueOnce(new ApiError({ message: "User not found", kind: "http", status: 404, code: "USER_NOT_FOUND" }));
+        await expect(deleteAccount(backendCoach.id)).resolves.toBe(false);
+    });
+
+    it("doesn't call invitation or suspension routes the service doesn't have", async () => {
+        await expect(inviteUser({ name: "Nora", email: "nora@example.test", role: "admin", title: "Ops" }, actor)).rejects.toMatchObject({ status: 501 });
+        await expect(setUserStatus(backendCoach.id, "suspended", actor)).rejects.toMatchObject({ status: 501 });
+        expect(authenticatedMutableApiRequest).not.toHaveBeenCalled();
+    });
+
+    it("runs in API mode only: the demo manages accounts through invitations", async () => {
+        vi.stubEnv("APP_DATA_MODE", "demo");
+
+        await expect(deleteAccount(backendCoach.id)).rejects.toThrow("API mode only");
+        expect(authenticatedMutableApiRequest).not.toHaveBeenCalled();
     });
 });

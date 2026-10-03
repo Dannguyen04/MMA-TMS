@@ -1,5 +1,6 @@
 import "server-only";
 
+import { isDemoAuthEnabled } from "@/lib/auth/constants";
 import { demoOnlyFeatureGate } from "./feature-gate";
 
 /**
@@ -40,6 +41,15 @@ export const adminFeatureAvailable = demoOnlyFeatureGate<AdminFeature>([
     "auditTrail",
     "rolePermissions",
 ]);
+
+/**
+ * Whether administrators manage accounts in the user service's own terms: a new account gets its first password and
+ * full role profile up front, profiles are edited field by field, and accounts are deleted rather than suspended.
+ * True in API mode; demo mode keeps its invitation, edit and suspend flows.
+ */
+export function usesUserServiceForms(): boolean {
+    return !isDemoAuthEnabled();
+}
 
 /** Message returned by server actions for an account feature that isn't available in this mode. */
 export const ADMIN_FEATURE_UNAVAILABLE_MESSAGE = "This isn't available yet. The user service will add it in a later release.";
