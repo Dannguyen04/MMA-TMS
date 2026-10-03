@@ -275,6 +275,28 @@ groups). Required fields set `required` on both the `Field` (visible star) and t
 - Review requests: fighters ask for themselves, coaches and doctors for assigned fighters. A coach never sees what a
   fighter wrote to the doctor, only that a review was requested.
 
+### Features the backend doesn't offer yet
+
+Each service area has a gate built on `demoOnlyFeatureGate` (`services/feature-gate.ts`): `platformFeatureAvailable()`
+(goals, performance, coach feedback, notifications and badges, audit logs, broadcasts, system settings, AI models, AI
+job retry/cancel and insights, coach AI review, self profile edits, body metrics), `adminFeatureAvailable()` and
+`medicalFeatureAvailable()`. In API mode a gated read comes back empty or as the static baseline, the page shows
+`FeatureUnavailable`, and the server action refuses with "not available yet"; the service function itself throws
+`unsupportedOperation()` (501) as a backstop. Remove a feature from its gate's list once the backend serves it.
+
+Where the backend models something differently, a `uses…ServiceForms()` helper picks the form: the service's own terms
+in API mode, the richer demo forms in demo mode (`usesTrainingServiceForms`, `usesMedicalServiceForms`,
+`usesUserServiceForms`).
+
+### Training and video analysis (API mode)
+
+- `lib/domain/training-contract.ts` maps session types and builds plan, plan exercise and session bodies. Plans are
+  created as drafts and then activated; a result is recorded on the session before it is completed. Starting a session
+  can be refused by medical eligibility; `trainingEligibilityReasons()` lists why.
+- Jobs and videos come from `/videos` and `/jobs`. A job's `score` is not a confidence, so confidence shows as "Not
+  reported by the model" (`null`). Doctor-facing AI observations are the jobs' health alerts (`/jobs/impairments`);
+  reviewing them is demo-only.
+
 ### User accounts (API mode)
 
 - `GET /users` pages by number (`{ items, total, page, limit }`); `drainNumberedPages` reads it like the other
@@ -285,9 +307,25 @@ groups). Required fields set `required` on both the `Field` (visible star) and t
   them null or empty (a job title falls back to the profile's specialisation) and the pages leave them out.
 - `GET /users/:id` reads active accounts only, so suspended rows aren't linked. A coach's or doctor's linked profile
   comes from the account itself (`getApiUserWithProfile`), with the fighters they hold from current assignments.
-- Inviting, editing, suspending, reactivating, resending an invitation, an account's activity and role permissions
-  are demo-only: `adminFeatureAvailable()` (`services/admin-features.ts`) hides them and the server actions refuse
-  with "not available yet".
+- Administrators create an account with its first password and full role profile (`POST /users`), edit a profile
+  (`PATCH /users/:id`, same role) and delete other accounts (`DELETE /users/:id`); `lib/domain/account-contract.ts`
+  builds the bodies and `accountWriteFailure()` puts refusals on the form fields. Inviting, name/title/role edits,
+  suspending and reactivating stay demo-only.
+- A fighter's care team (coaches through `/fighters/:id/coaches`, sports doctors through `/fighters/:id/doctors`) is
+  assigned and ended with a reason from the fighter's account page (`services/care-team.ts`).
+
+### Fighter admissions
+
+- A signed-in account is either an academy member or an applicant: `getSessionAccount()` returns
+  `{ kind: "user" }` or `{ kind: "applicant" }` (`GUEST` in the API). `getCurrentUser()` is null for applicants,
+  `requireUser()` sends them to `/apply` and `requireApplicant()` sends members to their dashboard.
+- Applicants register at `/register` (`POST /auth/register`), apply and follow their application at `/apply`, and
+  activate their fighter account once approved and their password is set from the activation email.
+- Administrators assign the assessing coach and approve or reject passed applicants at `/admin/admissions`; coaches
+  record the entrance assessment under Roster › Applicants (`/coach/admissions`). `lib/domain/admissions.ts` holds
+  the types, labels and request bodies; `services/admissions.ts` reads and writes `/fighter-admissions/*`.
+- The demo seeds applications at every stage and an "Applicant" demo account. It has no email step: an approved
+  application is ready to activate, and activating turns the applicant into a fighter with a new profile.
 
 ## Accessibility checklist
 

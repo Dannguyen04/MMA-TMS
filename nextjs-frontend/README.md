@@ -2,14 +2,15 @@
 
 MMA Fighter Training & Health Management System — _Hệ thống Quản lý Huấn luyện và Theo dõi Sức khỏe Võ sĩ_.
 
-One product for four roles:
+One product for four roles, plus the people applying to join:
 
 | Role | Workspace |
 | --- | --- |
 | **Fighter** | Dashboard, schedule, training plans & history, video upload and AI analysis, performance by technique, goals, health & Medical Clearance |
-| **Coach** | Roster and fighter profiles, training plans, sessions with live clearance checks, AI finding review, team performance, goals, clearance overview |
+| **Coach** | Roster and fighter profiles, training plans, sessions with live clearance checks, AI finding review, team performance, goals, clearance overview, applicant assessments |
 | **Sports Doctor** | Clinical overview, health profiles, medical records, examinations, injuries & treatment, recovery plans, Medical Clearance, AI movement observations |
-| **Administrator** | Users, roles & permissions, videos, AI processing jobs, AI models & thresholds, audit logs, broadcasts, system settings |
+| **Administrator** | Users and care teams, fighter admissions, roles & permissions, videos, AI processing jobs, AI models & thresholds, audit logs, broadcasts, system settings |
+| **Applicant** | Self-registration, the application and its progress, fighter account activation |
 
 Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS v4. Outside production the app runs on demo data by default; production always uses the authenticated API and rejects demo data and the mock video pipeline.
 
@@ -17,7 +18,7 @@ Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS v4. Outside pr
 
 `npm run dev` starts the UI on demo data and the mock video pipeline, with no backend required.
 
-API mode (`APP_DATA_MODE=api`, `NEXT_PUBLIC_VIDEO_PIPELINE=api`, `API_URL`) talks to the NestJS API. Several routes it calls are not on the backend yet: the user directory, invitations and account status, password reset, fighter doctor assignments, coach feedback, the coach/doctor directory, goals, performance, notifications, navigation badges, videos and AI jobs; `/users/me` must also return `effectiveCapabilities` and `assignmentScope`.
+API mode (`APP_DATA_MODE=api`, `NEXT_PUBLIC_VIDEO_PIPELINE=api`, `API_URL`) talks to the NestJS API. Features the backend doesn't offer yet show "not available yet" instead of calling missing routes: goals, performance, coach feedback, notifications and navigation badges, audit logs, broadcasts, system settings, role permission lists, AI models, AI job retry and cancel, invitations and account suspension. Password recovery links need the auth service's recovery email to carry `token_hash` to `/auth/reset-password`.
 
 For frontend-only checks:
 
@@ -56,4 +57,4 @@ Copy `.env.local.example` to `.env.local` when you need to change defaults.
 
 See [`docs/frontend-architecture.md`](docs/frontend-architecture.md) for folder structure, the data and auth layers, the design system, form patterns, AI and medical communication rules, accessibility and responsive behaviour.
 
-The AI and medical services still read demo data even in API mode until their backend routes exist. API mode must never fall back to demo data anywhere else.
+API mode must never fall back to demo data: a feature without a backend route is hidden, not filled with mock data.
