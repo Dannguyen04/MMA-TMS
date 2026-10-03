@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 
 import { AccountActions } from "@/components/admin/account-actions";
+import { CareTeamCard } from "@/components/admin/care-team-card";
 import { PermissionList } from "@/components/admin/permission-list";
 import { AuditActivityList } from "@/components/admin/audit-activity-list";
 import { UserActions } from "@/components/admin/user-actions";
@@ -26,7 +27,7 @@ import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { getUserDetail, listPermissionCatalog } from "@/lib/services/admin";
 import { adminFeatureAvailable, usesUserServiceForms } from "@/lib/services/admin-features";
-import { listCoaches } from "@/lib/services/people";
+import { getCareTeam, listAssignableStaff } from "@/lib/services/care-team";
 import { param } from "@/lib/utils";
 
 /** One read per request, shared by the metadata and the page. */
@@ -48,10 +49,11 @@ export default async function AdminUserDetailPage({ params, searchParams }: Page
     const showPermissions = adminFeatureAvailable("rolePermissions");
     const showActivity = adminFeatureAvailable("auditTrail");
     const actions = { edit: adminFeatureAvailable("editUsers"), status: adminFeatureAvailable("accountStatus") };
-    const [detail, catalog, allCoaches] = await Promise.all([loadUserDetail(userId), showPermissions ? listPermissionCatalog() : [], listCoaches()]);
+    const [detail, catalog] = await Promise.all([loadUserDetail(userId), showPermissions ? listPermissionCatalog() : []]);
     if (!detail) notFound();
     const { user, profile, recentAudit, permissions, account } = detail;
-    const coaches = user.role === "fighter" && profile ? allCoaches : [];
+    const fighterProfile = user.role === "fighter" ? profile : null;
+    const [careTeam, assignableStaff] = fighterProfile ? await Promise.all([getCareTeam(fighterProfile.id), listAssignableStaff()]) : [null, null];
 
     const isSelf = user.id === admin.id;
     const roleLockReason = isSelf
@@ -147,9 +149,13 @@ export default async function AdminUserDetailPage({ params, searchParams }: Page
                                 icon={<UserRound />}
                             />
                             <CardContent>
-                                <LinkedProfile user={user} profile={profile} coaches={coaches} showCredentials={adminFeatureAvailable("coachCredentials")} />
+                                <LinkedProfile user={user} profile={profile} showCredentials={adminFeatureAvailable("coachCredentials")} />
                             </CardContent>
                         </Card>
+
+                        {fighterProfile && careTeam && assignableStaff && (
+                            <CareTeamCard fighterId={fighterProfile.id} fighterName={user.name} team={careTeam} staff={assignableStaff} />
+                        )}
 
                         <Card className="overflow-hidden">
                             <CardHeader
@@ -224,12 +230,10 @@ function StatusCallout({ user, now }: { user: User; now: string }) {
 function LinkedProfile({
     user,
     profile,
-    coaches,
     showCredentials,
 }: {
     user: User;
     profile: Fighter | Coach | Doctor | null;
-    coaches: Coach[];
     /** False where the service keeps no certifications or experience: those rows are left out rather than shown as empty. */
     showCredentials: boolean;
 }) {
@@ -246,10 +250,6 @@ function LinkedProfile({
     }
 
     if (user.role === "fighter" && "weightClass" in profile) {
-        const assigned = profile.coachIds
-            .map((id) => coaches.find((coach) => coach.id === id))
-            .filter((coach): coach is Coach => coach !== undefined)
-            .sort((a, b) => Number(b.id === profile.primaryCoachId) - Number(a.id === profile.primaryCoachId));
         return (
             <DescriptionList
                 columns={3}
@@ -260,28 +260,6 @@ function LinkedProfile({
                     { label: "Stance", value: labelOf(STANCE_LABELS, profile.stance) ?? NOT_RECORDED },
                     { label: "Record (W–L–D)", value: profile.record ? `${profile.record.wins}–${profile.record.losses}–${profile.record.draws}` : NOT_RECORDED },
                     { label: "Joined", value: formatDate(profile.joinedAt) },
-                    {
-                        label: "Coaches",
-                        wide: true,
-                        value:
-                            assigned.length === 0 ? (
-                                <span className="font-normal text-fg-subtle">No coach assigned</span>
-                            ) : (
-                                <span className="flex flex-wrap gap-2">
-                                    {assigned.map((coach) => (
-                                        <Link
-                                            key={coach.id}
-                                            href={coach.userId ? routes.admin.user(coach.userId) : routes.admin.users}
-                                            className="inline-flex items-center gap-1.5 hover:underline"
-                                        >
-                                            <Avatar name={coach.name} size="xs" />
-                                            {coach.name}
-                                            {coach.id === profile.primaryCoachId && <span className="font-normal text-fg-subtle">(primary)</span>}
-                                        </Link>
-                                    ))}
-                                </span>
-                            ),
-                    },
                 ]}
             />
         );

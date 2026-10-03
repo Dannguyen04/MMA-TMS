@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const services = vi.hoisted(() => ({ inviteUser: vi.fn(), updateUser: vi.fn(), setUserStatus: vi.fn(), resendInvite: vi.fn() }));
 const accountServices = vi.hoisted(() => ({ createAccount: vi.fn(), updateAccount: vi.fn(), deleteAccount: vi.fn() }));
+const careTeam = vi.hoisted(() => ({ assignStaff: vi.fn(), endAssignment: vi.fn() }));
 const navigation = vi.hoisted(() => ({
     redirect: vi.fn((href: string) => {
         throw new Error(`redirect:${href}`);
@@ -9,6 +10,7 @@ const navigation = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/services/admin", async (loadOriginal) => ({ ...(await loadOriginal<typeof import("@/lib/services/admin")>()), ...services, ...accountServices }));
+vi.mock("@/lib/services/care-team", () => careTeam);
 vi.mock("next/navigation", () => navigation);
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/auth/session", async (loadOriginal) => ({
@@ -18,7 +20,17 @@ vi.mock("@/lib/auth/session", async (loadOriginal) => ({
 
 import { ApiError } from "@/lib/api/client";
 import { ADMIN_FEATURE_UNAVAILABLE_MESSAGE } from "@/lib/services/admin-features";
-import { createAccountAction, deleteAccountAction, inviteUserAction, resendInviteAction, setUserStatusAction, updateAccountAction, updateUserAction } from "./admin";
+import {
+    assignStaffAction,
+    createAccountAction,
+    deleteAccountAction,
+    endAssignmentAction,
+    inviteUserAction,
+    resendInviteAction,
+    setUserStatusAction,
+    updateAccountAction,
+    updateUserAction,
+} from "./admin";
 import { IDLE } from "./state";
 
 function form(fields: Record<string, string>): FormData {
@@ -124,5 +136,34 @@ describe("accounts in the user service's terms", () => {
 
         await expect(createAccountAction(IDLE, form(fighter))).resolves.toMatchObject({ message: ADMIN_FEATURE_UNAVAILABLE_MESSAGE });
         expect(accountServices.createAccount).not.toHaveBeenCalled();
+    });
+});
+
+describe("care team actions", () => {
+    beforeEach(() => {
+        for (const service of Object.values(careTeam)) service.mockReset();
+    });
+
+    it("assigns the chosen coach", async () => {
+        careTeam.assignStaff.mockResolvedValue({ ok: true });
+
+        await expect(assignStaffAction(IDLE, form({ fighterId: "fighter-1", role: "coach", staffId: "coach-1" }))).resolves.toMatchObject({ status: "success" });
+        expect(careTeam.assignStaff).toHaveBeenCalledWith("fighter-1", "coach", "coach-1", expect.objectContaining({ id: "admin-1" }));
+    });
+
+    it("asks for a reason before ending an assignment", async () => {
+        const state = await endAssignmentAction(IDLE, form({ fighterId: "fighter-1", role: "doctor", assignmentId: "a-1", reason: "   " }));
+
+        expect(state.fieldErrors).toEqual({ reason: "Say why the assignment ends." });
+        expect(careTeam.endAssignment).not.toHaveBeenCalled();
+    });
+
+    it("shows the service's refusal on the form", async () => {
+        careTeam.endAssignment.mockResolvedValue({ ok: false, message: "This assignment has already ended. Reload the page." });
+
+        await expect(endAssignmentAction(IDLE, form({ fighterId: "fighter-1", role: "doctor", assignmentId: "a-1", reason: "Moved camp" }))).resolves.toMatchObject({
+            status: "error",
+            message: "This assignment has already ended. Reload the page.",
+        });
     });
 });

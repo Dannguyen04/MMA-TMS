@@ -8,6 +8,7 @@ import { canAccessFighter } from "@/lib/auth/access";
 import { DOCTOR_ONLY_PERMISSION_REASON, isDoctorOnlyPermission } from "@/lib/auth/permissions";
 import { authorizeAction } from "@/lib/auth/session";
 import { ACCOUNT_LIMITS } from "@/lib/domain/account-contract";
+import { CARE_ROLE_LABELS, CARE_ROLES, END_REASON_MAX, type CareTeamWrite } from "@/lib/domain/care-team";
 import { BROADCAST_CHANNEL_LABELS, ROLE_LABELS, WEIGHT_CLASS_ORDER } from "@/lib/domain/labels";
 import { PERMISSIONS, type AIModelStatus, type BroadcastChannel, type Permission, type Role, type Stance, type SystemSettings, type UserStatus } from "@/lib/domain/types";
 import { academyWallClockToIso, dayKey, formatDateTime, isDateKey, isTimeValue, pluralize } from "@/lib/format";
@@ -27,6 +28,7 @@ import {
     updateUser,
 } from "@/lib/services/admin";
 import { ADMIN_FEATURE_UNAVAILABLE_MESSAGE, adminFeatureAvailable, usesUserServiceForms } from "@/lib/services/admin-features";
+import { assignStaff, endAssignment } from "@/lib/services/care-team";
 import { PLATFORM_FEATURE_UNAVAILABLE_MESSAGE, platformFeatureAvailable } from "@/lib/services/platform-features";
 import { cancelJob, retryJob, setModelStatus, updateModelThresholds } from "@/lib/services/ai";
 import { deleteVideo, getJobProgress, getVideo } from "@/lib/services/videos";
@@ -289,6 +291,58 @@ export async function deleteAccountAction(_prev: ActionState, formData: FormData
     }
     revalidateUser(userId.data);
     redirect(hrefWith(routes.admin.users, {}, { notice: "account-deleted" }));
+}
+
+/* ─── Care team ───────────────────────────────────────────────────────────── */
+
+const careTeamFields = { fighterId: idSchema("The fighter is missing."), role: z.enum(CARE_ROLES, "Choose a coach or a sports doctor.") };
+
+function careTeamResult(result: CareTeamWrite, message: string): ActionState {
+    if (!result.ok) return actionError(result.message, result.fieldErrors);
+    revalidatePath("/admin/users/[userId]", "page");
+    revalidatePath(routes.admin.auditLogs);
+    return actionSuccess(message);
+}
+
+/** Assigns a coach or sports doctor to a fighter from now. */
+export async function assignStaffAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+    const auth = await authorizeAction("users:manage");
+    if (!auth.ok) return actionError(auth.message);
+    const parsed = z.object({ ...careTeamFields, staffId: idSchema("Choose who to assign.") }).safeParse({
+        fighterId: text(formData.get("fighterId")),
+        role: text(formData.get("role")),
+        staffId: text(formData.get("staffId")),
+    });
+    if (!parsed.success) return validationError(parsed.error);
+
+    const { fighterId, role, staffId } = parsed.data;
+    return careTeamResult(await assignStaff(fighterId, role, staffId, auth.user), `The ${CARE_ROLE_LABELS[role]} was assigned.`);
+}
+
+/** Ends a coach's or sports doctor's assignment; it stays in the fighter's history with the reason. */
+export async function endAssignmentAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+    const auth = await authorizeAction("users:manage");
+    if (!auth.ok) return actionError(auth.message);
+    const parsed = z
+        .object({
+            ...careTeamFields,
+            assignmentId: idSchema("The assignment is missing."),
+            reason: z
+                .string("Say why the assignment ends.")
+                .trim()
+                .min(1, "Say why the assignment ends.")
+                .max(END_REASON_MAX, `Keep the reason under ${END_REASON_MAX} characters.`),
+        })
+        .safeParse({
+            fighterId: text(formData.get("fighterId")),
+            role: text(formData.get("role")),
+            assignmentId: text(formData.get("assignmentId")),
+            reason: text(formData.get("reason")),
+        });
+    if (!parsed.success) return validationError(parsed.error);
+
+    const { fighterId, role, assignmentId, reason } = parsed.data;
+    return careTeamResult(await endAssignment(fighterId, role, assignmentId, reason, auth.user), `The ${CARE_ROLE_LABELS[role]}'s assignment has ended.`);
 }
 
 /* ─── Roles ───────────────────────────────────────────────────────────────── */

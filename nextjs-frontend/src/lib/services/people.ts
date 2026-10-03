@@ -432,6 +432,12 @@ const doctorAssignmentsFor = cache((fighterId: string) =>
 
 const isCurrent = (assignment: { endsAt: string | null }) => assignment.endsAt === null;
 
+/** The fighter's open coach and doctor assignment periods. API mode only. */
+export async function currentAssignments(fighterId: string) {
+    const [coaches, doctors] = await Promise.all([coachAssignmentsFor(fighterId), doctorAssignmentsFor(fighterId)]);
+    return { coaches: coaches.filter(isCurrent), doctors: doctors.filter(isCurrent) };
+}
+
 function coachFromAssignments(coachId: string, assignments: z.output<typeof coachAssignmentSchema>[]): Coach {
     const named = assignments.find((assignment) => assignment.coachName);
     return {
