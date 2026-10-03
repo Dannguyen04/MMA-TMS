@@ -1,7 +1,7 @@
 "use client";
 
 import { CircleCheck, CircleX, Plus, Trash2 } from "lucide-react";
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { ChoiceGroup, type ChoiceOption } from "@/components/ui/choice-group";
@@ -22,8 +22,7 @@ interface CriterionRow {
     note: string;
 }
 
-let rowCounter = 0;
-const newRow = (): CriterionRow => ({ key: `c${(rowCounter += 1)}`, criterionName: "", method: "", observation: "", value: "", unit: "", note: "" });
+const emptyRow = (key: string): CriterionRow => ({ key, criterionName: "", method: "", observation: "", value: "", unit: "", note: "" });
 
 const CONCLUSIONS: ChoiceOption<AssessmentConclusion>[] = [
     { value: "pass", label: "Pass", description: "An administrator makes the final decision.", icon: CircleCheck, tone: "success" },
@@ -44,7 +43,9 @@ export function AssessmentForm({ applicationId, applicantName }: { applicationId
     const { control, error } = form;
     const baseId = useId();
     const [conclusion, setConclusion] = useState<AssessmentConclusion | "">("");
-    const [rows, setRows] = useState<CriterionRow[]>(() => [newRow()]);
+    // Keys come from a per-form counter, so the first row renders the same on the server and the client.
+    const rowCount = useRef(1);
+    const [rows, setRows] = useState<CriterionRow[]>(() => [emptyRow("c0")]);
 
     const update = (key: string, patch: Partial<CriterionRow>, field: string) => {
         setRows((current) => current.map((row) => (row.key === key ? { ...row, ...patch } : row)));
@@ -114,7 +115,8 @@ export function AssessmentForm({ applicationId, applicantName }: { applicationId
                         size="sm"
                         disabled={rows.length >= ADMISSION_LIMITS.criteriaMax}
                         onClick={() => {
-                            setRows((current) => [...current, newRow()]);
+                            const row = emptyRow(`c${rowCount.current++}`);
+                            setRows((current) => [...current, row]);
                             form.markEdited("criteria");
                         }}
                     >

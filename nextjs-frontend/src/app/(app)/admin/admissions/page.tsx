@@ -12,7 +12,7 @@ import { pluralize } from "@/lib/format";
 import { hrefWith, parseEnum } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { listApplications } from "@/lib/services/admissions";
-import { listAssignableStaff } from "@/lib/services/care-team";
+import { listStaffAccounts } from "@/lib/services/care-team";
 import { param } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Admissions" };
@@ -32,9 +32,9 @@ type Segment = keyof typeof SEGMENTS;
 export default async function AdminAdmissionsPage({ searchParams }: PageProps<"/admin/admissions">) {
     await requireRole("admin");
     const segment: Segment = parseEnum(param((await searchParams).view), Object.keys(SEGMENTS) as Segment[]) ?? "all";
-    const [applications, staff] = await Promise.all([listApplications(), listAssignableStaff()]);
+    const [applications, coaches] = await Promise.all([listApplications(), listStaffAccounts("coach")]);
     const shown = applications.filter(SEGMENTS[segment].matches);
-    const coachName = (coachId: string) => staff.coach.find((coach) => coach.staffId === coachId)?.name ?? "Coach";
+    const coachName = (coachId: string) => coaches.find((coach) => coach.staffId === coachId)?.name ?? "Coach";
 
     return (
         <>

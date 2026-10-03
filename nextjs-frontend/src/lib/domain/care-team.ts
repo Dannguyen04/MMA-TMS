@@ -23,13 +23,14 @@ export interface CareTeamMember {
 
 export type CareTeam = Record<CareRole, CareTeamMember[]>;
 
-/** An active coach or doctor account that can be assigned. */
+/** A coach or doctor account with a profile. Only active ones can be assigned. */
 export interface StaffOption {
     /** Their coach or doctor profile id, which an assignment refers to. */
     staffId: string;
     userId: string;
     name: string;
     title: string;
+    active: boolean;
 }
 
 /** Limit on the reason for ending an assignment, as both services enforce it. */

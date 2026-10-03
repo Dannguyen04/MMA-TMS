@@ -3,6 +3,7 @@ import "server-only";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
+import { PASSWORD_LENGTH } from "@/lib/auth/password-rules";
 import { dayKey, isDateKey } from "@/lib/format";
 
 /*
@@ -35,6 +36,16 @@ export function checked(formData: FormData, name: string): boolean {
 export function keysOf<T extends string>(record: Record<T, string>): [T, ...T[]] {
     return Object.keys(record) as [T, ...T[]];
 }
+
+/** A required id posted with a form; `message` explains it's missing. */
+export const idSchema = (message: string) => z.string(message).min(1, message);
+
+/** A new password within the auth service's length rule; `message` asks for one when it's missing. */
+export const passwordText = (message: string) =>
+    z
+        .string(message)
+        .min(PASSWORD_LENGTH.min, `Use at least ${PASSWORD_LENGTH.min} characters.`)
+        .max(PASSWORD_LENGTH.max, `Use at most ${PASSWORD_LENGTH.max} characters.`);
 
 /** Free text that must be filled in, trimmed and within `max` characters. */
 export const requiredText = (label: string, max: number) =>

@@ -1,3 +1,4 @@
+import { trimToNull } from "@/lib/utils";
 import type { WeightClass } from "./types";
 
 /**
@@ -77,7 +78,8 @@ export interface Application {
     evaluator: { coachId: string; since: string } | null;
     assessment: { coachId: string; conclusion: AssessmentConclusion; summary: string; criteria: AssessmentCriterion[]; assessedAt: string } | null;
     decision: { decision: AdmissionDecision; reason: string; decidedAt: string } | null;
-    activation: { status: ActivationStatus; emailsSent: number; lastEmailAt: string | null; completedAt: string | null } | null;
+    /** The activation emails: how often one was sent, and when the email service last took one (not a delivery receipt). */
+    activation: { status: ActivationStatus; emailAttempts: number; lastAttemptAt: string | null; lastAcceptedAt: string | null; completedAt: string | null } | null;
 }
 
 /** Limits the admissions service enforces, mirrored on the forms. */
@@ -131,6 +133,7 @@ export const ADMISSION_MESSAGES = {
     decisionExists: "A decision has already been recorded. Reload the page.",
     notApproved: "There's no approved application to activate. Reload the page.",
     passwordNotSet: "Set your password from the activation email first, then sign in again and activate.",
+    emailNotAccepted: "The email service didn't take the activation email. Wait a few minutes, then try again.",
 } as const;
 
 export const applicantName = (details: Pick<ApplicantDetails, "firstName" | "lastName">) => `${details.firstName} ${details.lastName}`;
@@ -171,8 +174,6 @@ export interface AssessmentInput {
     criteria: AssessmentCriterion[];
 }
 
-const optional = (value: string | null) => value?.trim() || null;
-
 /** `POST /fighter-admissions/applications`. The email comes from the signed-in account, never the form. */
 export function applicationBody(input: ApplicationInput) {
     return {
@@ -180,17 +181,17 @@ export function applicationBody(input: ApplicationInput) {
         lastName: input.lastName.trim(),
         dateOfBirth: input.dateOfBirth,
         weightClass: input.weightClass.toUpperCase(),
-        nationality: optional(input.nationality),
-        contactPhone: optional(input.contactPhone),
-        trainingBackground: optional(input.trainingBackground),
-        competitionBackground: optional(input.competitionBackground),
-        motivation: optional(input.motivation),
+        nationality: trimToNull(input.nationality),
+        contactPhone: trimToNull(input.contactPhone),
+        trainingBackground: trimToNull(input.trainingBackground),
+        competitionBackground: trimToNull(input.competitionBackground),
+        motivation: trimToNull(input.motivation),
     };
 }
 
 /** `POST /fighter-admissions/applications/:id/assign-coach`. A reason is needed only when replacing the coach. */
 export function evaluatorBody(coachId: string, reassignmentReason: string | null) {
-    const reason = optional(reassignmentReason);
+    const reason = trimToNull(reassignmentReason);
     return reason ? { coachId, reassignmentReason: reason } : { coachId };
 }
 
@@ -204,8 +205,8 @@ export function assessmentBody(input: AssessmentInput) {
             method: criterion.method.trim(),
             observation: criterion.observation.trim(),
             value: criterion.value,
-            unit: optional(criterion.unit),
-            note: optional(criterion.note),
+            unit: trimToNull(criterion.unit),
+            note: trimToNull(criterion.note),
         })),
     };
 }

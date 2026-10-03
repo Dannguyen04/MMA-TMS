@@ -132,7 +132,7 @@ export const mockApplications: Application[] = [
         },
         decision: { decision: "approved", reason: "Passed the assessment; space in the flyweight group.", decidedAt: daysAgo(14, 9) },
         // The demo has no email step: the activation is ready as soon as the application is approved.
-        activation: { status: "password_set", emailsSent: 1, lastEmailAt: daysAgo(14, 9), completedAt: null },
+        activation: { status: "password_set", emailAttempts: 1, lastAttemptAt: daysAgo(14, 9), lastAcceptedAt: daysAgo(14, 9), completedAt: null },
     },
     {
         id: "app-tom-reyes",

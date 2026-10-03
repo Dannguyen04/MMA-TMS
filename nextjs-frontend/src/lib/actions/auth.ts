@@ -12,6 +12,7 @@ import type { SessionAccount } from "@/lib/auth/session";
 import { sessionTokensSchema } from "@/lib/auth/session-tokens";
 import type { Role } from "@/lib/domain/types";
 import { dashboardPath, roleForPath, routes, safeRedirectPath } from "@/lib/routes";
+import { passwordText } from "./form-helpers";
 import { actionError, actionSuccess, FIX_FIELDS, validationError, type ActionState } from "./state";
 
 const signInSchema = z.object({
@@ -96,7 +97,7 @@ export async function signInAsDemo(role: SignInRole, next: string | null): Promi
 
 /** A new password typed twice, as both the registration and the reset forms ask for it. */
 const choosePassword = {
-    newPassword: z.string().min(8, "Use at least 8 characters.").max(128, "Use at most 128 characters."),
+    newPassword: passwordText("Choose a password."),
     confirmPassword: z.string(),
 };
 const passwordsMatch = (data: { newPassword: string; confirmPassword: string }) => data.newPassword === data.confirmPassword;

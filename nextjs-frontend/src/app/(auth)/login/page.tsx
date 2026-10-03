@@ -7,6 +7,7 @@ import type { ToastInput } from "@/components/ui/toast";
 import type { SignInNotice } from "@/lib/actions/auth";
 import { isDemoAuthEnabled } from "@/lib/auth/constants";
 import { getSessionAccount, homePath } from "@/lib/auth/session";
+import { parseEnum } from "@/lib/query";
 import { routes, safeRedirectPath } from "@/lib/routes";
 import { param } from "@/lib/utils";
 import { DemoAccounts } from "./demo-accounts";
@@ -27,10 +28,12 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
 
     const query = await searchParams;
     const next = safeRedirectPath(param(query.next));
+    // Only known notices: a crafted `?notice=constructor` must not reach the prototype.
+    const notice = parseEnum(param(query.notice), Object.keys(SIGN_IN_NOTICES) as SignInNotice[]);
 
     return (
         <div>
-            <FlashToast notice={SIGN_IN_NOTICES[param(query.notice) as SignInNotice] ?? null} cleanHref={routes.login} />
+            <FlashToast notice={notice ? SIGN_IN_NOTICES[notice] : null} cleanHref={routes.login} />
             <h1 className="text-2xl font-semibold tracking-tight text-fg">Sign in</h1>
             <p className="mt-1.5 text-[15px] text-fg-muted">Welcome back. Use your academy account to continue.</p>
             <LoginForm next={next} />

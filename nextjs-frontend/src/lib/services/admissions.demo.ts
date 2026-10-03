@@ -151,7 +151,7 @@ export async function decideApplication(id: string, decision: AdmissionDecision,
     const now = nowIso();
     application.decision = { decision, reason, decidedAt: now };
     application.status = decision;
-    if (decision === "approved") application.activation = { status: "password_set", emailsSent: 1, lastEmailAt: now, completedAt: null };
+    if (decision === "approved") application.activation = { status: "password_set", emailAttempts: 1, lastAttemptAt: now, lastAcceptedAt: now, completedAt: null };
     audit(actor, `admission.${decision === "approved" ? "approve" : "reject"}`, application, reason);
     return { ok: true };
 }
@@ -162,7 +162,8 @@ export async function resendActivationEmail(id: string, actor: User): Promise<Wr
     if (!application) return refused(ADMISSION_MESSAGES.notFound);
     if (application.status !== "approved" || !application.activation) return refused(ADMISSION_MESSAGES.movedOn);
 
-    application.activation = { ...application.activation, emailsSent: application.activation.emailsSent + 1, lastEmailAt: nowIso() };
+    const now = nowIso();
+    application.activation = { ...application.activation, emailAttempts: application.activation.emailAttempts + 1, lastAttemptAt: now, lastAcceptedAt: now };
     audit(actor, "admission.resend_activation", application);
     return { ok: true };
 }

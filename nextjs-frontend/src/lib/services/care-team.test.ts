@@ -68,13 +68,15 @@ describe("care team in API mode", () => {
     });
 
     it("puts a refusal about the chosen person on the picker", async () => {
-        authenticatedMutableApiRequest.mockRejectedValue(new ApiError({ message: "Conflict", kind: "http", status: 409, code: "COACH_ASSIGNMENT_ALREADY_ACTIVE" }));
-
+        authenticatedMutableApiRequest.mockRejectedValueOnce(new ApiError({ message: "Conflict", kind: "http", status: 409, code: "COACH_ASSIGNMENT_ALREADY_ACTIVE" }));
         await expect(assignStaff(fighterId, "coach", coachId, admin)).resolves.toEqual({
             ok: false,
             message: "This coach is already assigned to the fighter.",
             fieldErrors: { staffId: "This coach is already assigned to the fighter." },
         });
+
+        authenticatedMutableApiRequest.mockRejectedValueOnce(new ApiError({ message: "Not found", kind: "http", status: 404, code: "DOCTOR_NOT_FOUND" }));
+        await expect(assignStaff(fighterId, "doctor", "doctor-9", admin)).resolves.toMatchObject({ ok: false, fieldErrors: { staffId: expect.stringContaining("no longer active") } });
     });
 });
 

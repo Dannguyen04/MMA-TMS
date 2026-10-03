@@ -161,8 +161,8 @@ export interface AdminOverview {
 }
 
 /**
- * `GET /users` lists self-registered applicants (`GUEST`) too. They belong to fighter admissions, not to the
- * staff and fighter accounts managed here, so the list drops them.
+ * `GET /users` lists self-registered applicants (`GUEST`) and deleted accounts too. Applicants belong to fighter
+ * admissions, and a deleted account can't be opened or restored, so the list drops both.
  */
 const listedUserSchema = backendUserSchema.extend({ role: z.enum([...roleSchema.options, "GUEST"]) });
 
@@ -174,7 +174,7 @@ export async function listUsers(filter: UserFilter = {}): Promise<User[]> {
     const status = filter.status ? statusToApi[filter.status] : undefined;
     if (status === null) return [];
     const users = await drainNumberedPages("/users", listedUserSchema, { search: filter.search, role: filter.role && roleToApi[filter.role], status });
-    return users.flatMap((user) => (user.role === "GUEST" ? [] : [adaptBackendUser({ ...user, role: user.role })]));
+    return users.flatMap((user) => (user.role === "GUEST" || user.deletedAt !== null ? [] : [adaptBackendUser({ ...user, role: user.role })]));
 }
 
 export async function getUserDetail(id: string, viewer?: User | null): Promise<UserDetail | null> {

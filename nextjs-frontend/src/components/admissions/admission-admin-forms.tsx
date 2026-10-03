@@ -18,11 +18,11 @@ function useApplicationForm(action: FormAction<undefined>, id: string) {
     return useActionForm(action, { id, onSuccess: (state) => toast({ tone: "success", title: state.message ?? "Saved." }) });
 }
 
-/** Picks the coach who assesses the applicant, or replaces them with a reason. */
+/** Picks the coach who assesses the applicant, or replaces them with a reason. `coaches` may include inactive ones. */
 export function EvaluatorForm({ applicationId, coaches, currentCoachId }: { applicationId: string; coaches: StaffOption[]; currentCoachId: string | null }) {
     const form = useApplicationForm(assignEvaluatorAction, "evaluator");
     const { control, error } = form;
-    const choices = coaches.filter((coach) => coach.staffId !== currentCoachId);
+    const choices = coaches.filter((coach) => coach.active && coach.staffId !== currentCoachId);
     const reassigning = currentCoachId !== null;
 
     return (

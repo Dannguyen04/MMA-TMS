@@ -104,7 +104,7 @@ export function apiWriteFailure(error: unknown, messages: ServiceErrorMessages, 
     const known = messages.codes[error.code];
     if (status === 422 || status === 400) return known ? fromCode(known, error.code, options.conflictFields) : fromValidation(error, service, options.fields ?? {});
     if (status === 403) return { message: messages.forbidden };
-    if (status === 404) return { message: known ?? messages.notFound };
+    if (status === 404) return known ? fromCode(known, error.code, options.conflictFields) : { message: messages.notFound };
     if (status === 409) return fromCode(known ?? sentence(error.message), error.code, options.conflictFields);
     if (status === 429) return { message: "Too many changes in a short time. Wait a moment, then reload the page and try again." };
     if (status >= 500) return { message: maybeNotSavedMessage(service) };

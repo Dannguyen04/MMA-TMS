@@ -20,6 +20,7 @@ import {
     getApplication,
     listApplications,
     listOwnApplications,
+    resendActivationEmail,
     submitApplication,
     submitAssessment,
 } from "./admissions";
@@ -128,6 +129,17 @@ describe("admissions in API mode", () => {
 
         authenticatedMutableApiRequest.mockRejectedValueOnce(refused(409, "FIGHTER_ACTIVATION_PASSWORD_NOT_SET"));
         await expect(activateFighterAccount(applicant)).resolves.toMatchObject({ ok: false, message: expect.stringContaining("activation email") });
+
+        authenticatedMutableApiRequest.mockRejectedValueOnce(refused(404, "FIGHTER_APPLICATION_COACH_NOT_ASSIGNABLE"));
+        await expect(assignEvaluator("app-1", "coach-9", null, admin)).resolves.toMatchObject({ ok: false, fieldErrors: { coachId: expect.any(String) } });
+    });
+
+    it("reports an activation email the email service didn't take, though the service answered 200", async () => {
+        authenticatedMutableApiRequest.mockResolvedValueOnce({ applicationId: "app-1", accepted: false, recoveryAttempts: 2, attemptedAt: "2026-09-07T09:00:00.000Z" });
+        await expect(resendActivationEmail("app-1", admin)).resolves.toMatchObject({ ok: false, message: expect.stringContaining("didn't take") });
+
+        authenticatedMutableApiRequest.mockResolvedValueOnce({ applicationId: "app-1", accepted: true, recoveryAttempts: 3, attemptedAt: "2026-09-07T09:10:00.000Z" });
+        await expect(resendActivationEmail("app-1", admin)).resolves.toEqual({ ok: true });
     });
 });
 

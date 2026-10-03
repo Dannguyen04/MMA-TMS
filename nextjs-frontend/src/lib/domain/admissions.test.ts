@@ -25,7 +25,7 @@ const application: Application = {
     evaluator: { coachId: "coach-1", since: "2026-09-02T09:00:00.000Z" },
     assessment: { coachId: "coach-1", conclusion: "pass", summary: "Ready.", criteria: [], assessedAt: "2026-09-05T09:00:00.000Z" },
     decision: { decision: "approved", reason: "Space in the group.", decidedAt: "2026-09-06T09:00:00.000Z" },
-    activation: { status: "pending", emailsSent: 1, lastEmailAt: "2026-09-06T09:00:00.000Z", completedAt: null },
+    activation: { status: "pending", emailAttempts: 1, lastAttemptAt: "2026-09-06T09:00:00.000Z", lastAcceptedAt: "2026-09-06T09:00:00.000Z", completedAt: null },
 };
 
 describe("admission bodies", () => {

@@ -10,7 +10,7 @@ import { WEIGHT_CLASS_ORDER } from "@/lib/domain/labels";
 import type { User } from "@/lib/domain/types";
 import { dashboardPath, routes } from "@/lib/routes";
 import { activateFighterAccount, assignEvaluator, decideApplication, resendActivationEmail, submitApplication, submitAssessment } from "@/lib/services/admissions";
-import { jsonArray, nullableText, pastDate, requiredText, text } from "./form-helpers";
+import { idSchema, jsonArray, nullableText, pastDate, requiredText, text } from "./form-helpers";
 import { actionError, validationError, writeResultState, type ActionState } from "./state";
 
 /* ─── Applicant ─────────────────────────────────────────────────────────── */
@@ -57,7 +57,7 @@ export async function activateFighterAccountAction(): Promise<ActionState> {
 
 /* ─── Administrator ─────────────────────────────────────────────────────── */
 
-const applicationIdSchema = z.string("The application is missing.").min(1, "The application is missing.");
+const applicationIdSchema = idSchema("The application is missing.");
 
 function revalidateApplication(applicationId: string) {
     revalidatePath(routes.admin.admissions);

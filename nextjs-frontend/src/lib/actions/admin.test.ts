@@ -154,7 +154,7 @@ describe("care team actions", () => {
     it("asks for a reason before ending an assignment", async () => {
         const state = await endAssignmentAction(IDLE, form({ fighterId: "fighter-1", role: "doctor", assignmentId: "a-1", reason: "   " }));
 
-        expect(state.fieldErrors).toEqual({ reason: "Say why the assignment ends." });
+        expect(state.fieldErrors).toEqual({ reason: "Enter the reason." });
         expect(careTeam.endAssignment).not.toHaveBeenCalled();
     });
 

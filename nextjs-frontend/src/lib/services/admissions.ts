@@ -86,7 +86,13 @@ const applicationSchema = z.object({
     assessment: z.object({ coachId: z.string(), conclusion: conclusionSchema, summary: z.string(), criteria: z.array(criterionSchema), assessedAt: z.string() }).nullable(),
     decision: z.object({ decision: decisionSchema, reason: z.string(), decidedAt: z.string() }).nullable(),
     activation: z
-        .object({ status: activationStatusSchema, recoveryAttempts: z.number(), attemptedAt: z.string().nullable(), completedAt: z.string().nullable() })
+        .object({
+            status: activationStatusSchema,
+            recoveryAttempts: z.number(),
+            attemptedAt: z.string().nullable(),
+            acceptedAt: z.string().nullable(),
+            completedAt: z.string().nullable(),
+        })
         .nullable(),
 });
 
@@ -126,8 +132,9 @@ function adaptApplication(input: z.output<typeof applicationSchema>): Applicatio
         decision: decision && { ...decision, decision: lower<AdmissionDecision>(decision.decision) },
         activation: activation && {
             status: lower<ActivationStatus>(activation.status),
-            emailsSent: activation.recoveryAttempts,
-            lastEmailAt: activation.attemptedAt,
+            emailAttempts: activation.recoveryAttempts,
+            lastAttemptAt: activation.attemptedAt,
+            lastAcceptedAt: activation.acceptedAt,
             completedAt: activation.completedAt,
         },
     };
@@ -159,10 +166,16 @@ const ADMISSION_FIELDS = {
     conflictFields: { FIGHTER_APPLICATION_COACH_NOT_ASSIGNABLE: "coachId", FIGHTER_APPLICATION_REASSIGNMENT_REASON_REQUIRED: "reassignmentReason" },
 };
 
-function admissionWrite(path: string, body?: unknown): Promise<WriteResult> {
-    const request = authenticatedMutableApiRequest(path, z.unknown(), { method: "POST", ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
-    return settleWrite(request, ADMISSION_ERRORS, ADMISSION_FIELDS);
+function admissionRequest<T extends z.ZodType>(path: string, schema: T, body?: unknown) {
+    return authenticatedMutableApiRequest(path, schema, { method: "POST", ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
 }
+
+function admissionWrite(path: string, body?: unknown): Promise<WriteResult> {
+    return settleWrite(admissionRequest(path, z.unknown(), body), ADMISSION_ERRORS, ADMISSION_FIELDS);
+}
+
+/** `recoveryEmailStatusSchema`: whether the email service took the message. It isn't a delivery receipt. */
+const recoveryEmailSchema = z.object({ accepted: z.boolean() });
 
 const byNewest = (a: { submittedAt: string }, b: { submittedAt: string }) => b.submittedAt.localeCompare(a.submittedAt);
 const applicationPath = (id: string) => `/fighter-admissions/applications/${encodeURIComponent(id)}`;
@@ -213,9 +226,13 @@ export async function decideApplication(id: string, decision: AdmissionDecision,
     return admissionWrite(`${applicationPath(id)}/decision`, decisionBody(decision, reason));
 }
 
+/** Sends the activation email again. The service answers 200 even when the email service refuses it, so check. */
 export async function resendActivationEmail(id: string, actor: User): Promise<WriteResult> {
     if (isDemoAuthEnabled()) return (await demoService()).resendActivationEmail(id, actor);
-    return admissionWrite(`${applicationPath(id)}/resend-activation-email`);
+    const reply = admissionRequest(`${applicationPath(id)}/resend-activation-email`, recoveryEmailSchema);
+    const result = await settleWrite(reply, ADMISSION_ERRORS, ADMISSION_FIELDS);
+    if (!result.ok) return result;
+    return (await reply).accepted ? result : { ok: false, message: ADMISSION_MESSAGES.emailNotAccepted };
 }
 
 /* ─── Coach ─────────────────────────────────────────────────────────────── */

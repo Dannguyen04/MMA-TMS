@@ -1,3 +1,4 @@
+import { trimToNull } from "@/lib/utils";
 import type { Role, Stance, WeightClass } from "./types";
 
 /**
@@ -37,7 +38,7 @@ export type AccountProfile =
     | { role: "admin"; profile: null };
 
 /** Limits the user service enforces, mirrored on the forms. */
-export const ACCOUNT_LIMITS = { name: 100, nationality: 100, specialization: 200, licenseNumber: 100, passwordMin: 8, passwordMax: 128 } as const;
+export const ACCOUNT_LIMITS = { name: 100, nationality: 100, specialization: 200, licenseNumber: 100 } as const;
 
 type ApiRole = "FIGHTER" | "COACH" | "DOCTOR" | "ADMIN";
 
@@ -48,7 +49,6 @@ function profileBody(account: AccountProfile): Record<string, unknown> | null {
     if (account.role === "admin") return null;
     const { profile } = account;
     const names = { firstName: profile.firstName.trim(), lastName: profile.lastName.trim() };
-    const text = (value: string | null) => value?.trim() || null;
     switch (account.role) {
         case "fighter":
             return {
@@ -56,12 +56,12 @@ function profileBody(account: AccountProfile): Record<string, unknown> | null {
                 dateOfBirth: account.profile.dateOfBirth,
                 weightClass: account.profile.weightClass.toUpperCase(),
                 dominantStance: account.profile.dominantStance?.toUpperCase() ?? null,
-                nationality: text(account.profile.nationality),
+                nationality: trimToNull(account.profile.nationality),
             };
         case "coach":
-            return { ...names, specialization: text(account.profile.specialization), isHeadCoach: account.profile.isHeadCoach };
+            return { ...names, specialization: trimToNull(account.profile.specialization), isHeadCoach: account.profile.isHeadCoach };
         case "doctor":
-            return { ...names, licenseNumber: account.profile.licenseNumber.trim(), specialization: text(account.profile.specialization) };
+            return { ...names, licenseNumber: account.profile.licenseNumber.trim(), specialization: trimToNull(account.profile.specialization) };
     }
 }
 

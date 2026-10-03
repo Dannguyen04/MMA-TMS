@@ -3,6 +3,7 @@
 import { Eye, EyeOff } from "lucide-react";
 import { useState, type ComponentProps } from "react";
 
+import { PASSWORD_LENGTH } from "@/lib/auth/password-rules";
 import { Field, Input } from "./form";
 import type { ActionForm } from "./use-action-form";
 
@@ -25,7 +26,7 @@ export function PasswordInput(props: Omit<ComponentProps<typeof Input>, "type">)
     );
 }
 
-const NEW_PASSWORD_HINT = "8 to 128 characters. A few unrelated words make a strong password.";
+const NEW_PASSWORD_HINT = `${PASSWORD_LENGTH.min} to ${PASSWORD_LENGTH.max} characters. A few unrelated words make a strong password.`;
 
 /** A new password typed twice, named `newPassword` and `confirmPassword` as the auth actions read them. */
 export function NewPasswordFields({ form, label = "New password" }: { form: ActionForm<undefined>; label?: string }) {
@@ -34,10 +35,10 @@ export function NewPasswordFields({ form, label = "New password" }: { form: Acti
     return (
         <>
             <Field label={label} htmlFor={newPassword.id} required hint={NEW_PASSWORD_HINT} error={form.error("newPassword")}>
-                <PasswordInput {...newPassword} autoComplete="new-password" minLength={8} maxLength={128} />
+                <PasswordInput {...newPassword} autoComplete="new-password" minLength={PASSWORD_LENGTH.min} maxLength={PASSWORD_LENGTH.max} />
             </Field>
             <Field label={`Confirm ${label.toLowerCase()}`} htmlFor={confirmPassword.id} required error={form.error("confirmPassword")}>
-                <PasswordInput {...confirmPassword} autoComplete="new-password" maxLength={128} />
+                <PasswordInput {...confirmPassword} autoComplete="new-password" maxLength={PASSWORD_LENGTH.max} />
             </Field>
         </>
     );

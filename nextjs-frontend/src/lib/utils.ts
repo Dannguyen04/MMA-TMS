@@ -49,6 +49,11 @@ export function initials(name: string): string {
 }
 
 /** Reads a single string value from Next.js searchParams. */
+/** Trimmed text, or null when nothing is left. */
+export function trimToNull(value: string | null | undefined): string | null {
+    return value?.trim() || null;
+}
+
 export function param(value: string | string[] | undefined): string | undefined {
     return Array.isArray(value) ? value[0] : value;
 }

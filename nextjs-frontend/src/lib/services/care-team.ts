@@ -70,11 +70,18 @@ function careTeamWrite(role: CareRole, path: string, body: Record<string, string
     return settleWrite(authenticatedMutableApiRequest(path, assignmentReplySchema, { method: "POST", body: JSON.stringify(body) }), CARE_TEAM_ERRORS[role], CARE_TEAM_FIELDS);
 }
 
-/** Active coach and doctor accounts with a profile, to choose from when assigning. */
+/** Coach or doctor accounts with a profile, whatever their status, so earlier staff can still be named. */
+export async function listStaffAccounts(role: CareRole): Promise<StaffOption[]> {
+    const options = (users: User[]) =>
+        users.flatMap((user) => (user.profileId ? [{ staffId: user.profileId, userId: user.id, name: user.name, title: user.title, active: user.status === "active" }] : []));
+    return options(await listUsers({ role }));
+}
+
+/** Active coach and doctor accounts, to choose from when assigning. */
 export async function listAssignableStaff(): Promise<Record<CareRole, StaffOption[]>> {
-    const [coaches, doctors] = await Promise.all([listUsers({ role: "coach", status: "active" }), listUsers({ role: "doctor", status: "active" })]);
-    const options = (users: User[]) => users.flatMap((user) => (user.profileId ? [{ staffId: user.profileId, userId: user.id, name: user.name, title: user.title }] : []));
-    return { coach: options(coaches), doctor: options(doctors) };
+    const [coaches, doctors] = await Promise.all([listStaffAccounts("coach"), listStaffAccounts("doctor")]);
+    const active = (options: StaffOption[]) => options.filter((option) => option.active);
+    return { coach: active(coaches), doctor: active(doctors) };
 }
 
 /** The fighter's current coaches and sports doctors. */

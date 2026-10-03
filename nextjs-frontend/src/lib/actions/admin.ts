@@ -33,7 +33,7 @@ import { assignStaff, endAssignment } from "@/lib/services/care-team";
 import { PLATFORM_FEATURE_UNAVAILABLE_MESSAGE, platformFeatureAvailable } from "@/lib/services/platform-features";
 import { cancelJob, retryJob, setModelStatus, updateModelThresholds } from "@/lib/services/ai";
 import { deleteVideo, getJobProgress, getVideo } from "@/lib/services/videos";
-import { nullableText, pastDate, requiredText } from "./form-helpers";
+import { idSchema, nullableText, passwordText, pastDate, requiredText } from "./form-helpers";
 import { actionError, actionSuccess, FIX_FIELDS, validationError, writeResultState, type ActionState } from "./state";
 
 /* ─── Shared ──────────────────────────────────────────────────────────────── */
@@ -46,7 +46,6 @@ const CHANNELS = ["in_app", "email", "in_app_email"] as const satisfies readonly
 const text = (value: FormDataEntryValue | null) => (typeof value === "string" ? value : undefined);
 const texts = (values: FormDataEntryValue[]) => values.filter((value): value is string => typeof value === "string");
 
-const idSchema = (message: string) => z.string(message).min(1, message);
 
 /** Whole number within a range; empty input reports the same message as an out-of-range value. */
 function wholeNumber(message: string, min: number, max: number) {
@@ -201,10 +200,7 @@ const staffAccountSchema = z.discriminatedUnion("role", staffAccountSchemas, ROL
 const newAccountSchema = z.intersection(
     z.object({
         email: z.email("Enter a valid email address, e.g. name@lotuscombat.vn."),
-        password: z
-            .string("Set a first password.")
-            .min(ACCOUNT_LIMITS.passwordMin, `Use at least ${ACCOUNT_LIMITS.passwordMin} characters.`)
-            .max(ACCOUNT_LIMITS.passwordMax, `Keep the password under ${ACCOUNT_LIMITS.passwordMax} characters.`),
+        password: passwordText("Set a first password."),
     }),
     z.discriminatedUnion("role", [...staffAccountSchemas, z.object({ role: z.literal("admin"), profile: z.null() })], ROLE_MESSAGE),
 );
@@ -317,11 +313,7 @@ export async function endAssignmentAction(_prev: ActionState, formData: FormData
         .object({
             ...careTeamFields,
             assignmentId: idSchema("The assignment is missing."),
-            reason: z
-                .string("Say why the assignment ends.")
-                .trim()
-                .min(1, "Say why the assignment ends.")
-                .max(END_REASON_MAX, `Keep the reason under ${END_REASON_MAX} characters.`),
+            reason: requiredText("reason", END_REASON_MAX),
         })
         .safeParse({
             fighterId: text(formData.get("fighterId")),

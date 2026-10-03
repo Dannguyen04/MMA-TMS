@@ -83,8 +83,9 @@ describe("admin API adapter", () => {
         expect(authenticatedApiRequest).not.toHaveBeenCalled();
     });
 
-    it("leaves self-registered applicants out of the account list", async () => {
-        authenticatedApiRequest.mockResolvedValue(usersPage([backendUser, backendApplicant]));
+    it("leaves self-registered applicants and deleted accounts out of the account list", async () => {
+        const deleted = { ...backendCoach, isActive: false, deletedAt: "2026-09-03T00:00:00.000Z" };
+        authenticatedApiRequest.mockResolvedValue(usersPage([backendUser, backendApplicant, deleted]));
 
         await expect(listUsers()).resolves.toEqual([expect.objectContaining({ email: "admin@example.test" })]);
     });

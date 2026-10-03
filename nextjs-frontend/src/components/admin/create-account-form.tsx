@@ -12,7 +12,7 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useActionForm } from "@/components/ui/use-action-form";
 import { createAccountAction } from "@/lib/actions/admin";
-import { ACCOUNT_LIMITS } from "@/lib/domain/account-contract";
+import { PASSWORD_LENGTH } from "@/lib/auth/password-rules";
 import { ROLE_LABELS } from "@/lib/domain/labels";
 import type { Role } from "@/lib/domain/types";
 import { routes } from "@/lib/routes";
@@ -20,7 +20,7 @@ import { AccountProfileFields } from "./account-profile-fields";
 import { ROLE_HINT, roleChoiceOptions, type RoleOption } from "./role-options";
 
 const EMAIL_HINT = "They sign in with this email. Each account needs its own.";
-const PASSWORD_HINT = `${ACCOUNT_LIMITS.passwordMin} to ${ACCOUNT_LIMITS.passwordMax} characters. Share it privately; they can choose their own with “Forgot password”.`;
+const PASSWORD_HINT = `${PASSWORD_LENGTH.min} to ${PASSWORD_LENGTH.max} characters. Share it privately; they can choose their own with “Forgot password”.`;
 
 /** Creates an account with its first password and the role's profile, as the user service requires. On success the action opens it. */
 export function CreateAccountForm({ roles, defaultRole, today }: { roles: RoleOption[]; defaultRole: Role; today: string }) {
@@ -51,7 +51,7 @@ export function CreateAccountForm({ roles, defaultRole, today }: { roles: RoleOp
                         <Input {...email} type="email" autoComplete="off" placeholder="name@lotus-combat.test" />
                     </Field>
                     <Field label="First password" htmlFor={password.id} required hint={PASSWORD_HINT} error={error("password")}>
-                        <PasswordInput {...password} autoComplete="new-password" minLength={ACCOUNT_LIMITS.passwordMin} maxLength={ACCOUNT_LIMITS.passwordMax} />
+                        <PasswordInput {...password} autoComplete="new-password" minLength={PASSWORD_LENGTH.min} maxLength={PASSWORD_LENGTH.max} />
                     </Field>
                 </div>
 

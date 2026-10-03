@@ -15,7 +15,7 @@ import type { StaffOption } from "@/lib/domain/care-team";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { getApplication } from "@/lib/services/admissions";
-import { listAssignableStaff } from "@/lib/services/care-team";
+import { listStaffAccounts } from "@/lib/services/care-team";
 
 /** One read per request, shared by the metadata and the page. */
 const loadApplication = cache((applicationId: string) => getApplication(applicationId));
@@ -28,10 +28,10 @@ export async function generateMetadata({ params }: PageProps<"/admin/admissions/
 
 export default async function AdminAdmissionPage({ params }: PageProps<"/admin/admissions/[applicationId]">) {
     await requireRole("admin");
-    const [application, staff] = await Promise.all([loadApplication((await params).applicationId), listAssignableStaff()]);
+    const [application, coaches] = await Promise.all([loadApplication((await params).applicationId), listStaffAccounts("coach")]);
     if (!application) notFound();
     const name = applicantName(application.applicant);
-    const coachName = (coachId: string) => staff.coach.find((coach) => coach.staffId === coachId)?.name ?? "Coach";
+    const coachName = (coachId: string) => coaches.find((coach) => coach.staffId === coachId)?.name ?? "Coach";
 
     return (
         <>
@@ -70,7 +70,7 @@ export default async function AdminAdmissionPage({ params }: PageProps<"/admin/a
                     <DecisionCard application={application} />
                 </div>
                 <div className="flex min-w-0 flex-col gap-6">
-                    <EvaluatorCard application={application} coaches={staff.coach} coachName={coachName} />
+                    <EvaluatorCard application={application} coaches={coaches} coachName={coachName} />
                     {application.activation && <ActivationCard application={application} activation={application.activation} />}
                 </div>
             </div>
@@ -135,8 +135,12 @@ function ActivationCard({ application, activation }: { application: Application;
                     columns={1}
                     items={[
                         { label: "Status", value: ACTIVATION_STATUS_LABELS[activation.status] },
-                        { label: "Activation emails sent", value: activation.emailsSent },
-                        ...(activation.lastEmailAt ? [{ label: "Last sent", value: formatDateTime(activation.lastEmailAt) }] : []),
+                        { label: "Activation email attempts", value: activation.emailAttempts },
+                        ...(activation.lastAttemptAt ? [{ label: "Last attempt", value: formatDateTime(activation.lastAttemptAt) }] : []),
+                        {
+                            label: "Last taken by the email service",
+                            value: activation.lastAcceptedAt ? formatDateTime(activation.lastAcceptedAt) : <span className="font-normal text-fg-subtle">Not yet</span>,
+                        },
                         ...(activation.completedAt ? [{ label: "Activated", value: formatDateTime(activation.completedAt) }] : []),
                     ]}
                 />
