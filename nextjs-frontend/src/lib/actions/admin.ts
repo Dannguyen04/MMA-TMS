@@ -8,10 +8,11 @@ import { canAccessFighter } from "@/lib/auth/access";
 import { DOCTOR_ONLY_PERMISSION_REASON, isDoctorOnlyPermission } from "@/lib/auth/permissions";
 import { authorizeAction } from "@/lib/auth/session";
 import { ACCOUNT_LIMITS } from "@/lib/domain/account-contract";
-import { CARE_ROLE_LABELS, CARE_ROLES, END_REASON_MAX, type CareTeamWrite } from "@/lib/domain/care-team";
+import { CARE_ROLE_LABELS, CARE_ROLES, END_REASON_MAX } from "@/lib/domain/care-team";
 import { BROADCAST_CHANNEL_LABELS, ROLE_LABELS, WEIGHT_CLASS_ORDER } from "@/lib/domain/labels";
 import { PERMISSIONS, type AIModelStatus, type BroadcastChannel, type Permission, type Role, type Stance, type SystemSettings, type UserStatus } from "@/lib/domain/types";
-import { academyWallClockToIso, dayKey, formatDateTime, isDateKey, isTimeValue, pluralize } from "@/lib/format";
+import type { WriteResult } from "@/lib/domain/write-result";
+import { academyWallClockToIso, formatDateTime, isDateKey, isTimeValue, pluralize } from "@/lib/format";
 import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { accountWriteFailure } from "@/lib/services/account-errors";
@@ -32,7 +33,8 @@ import { assignStaff, endAssignment } from "@/lib/services/care-team";
 import { PLATFORM_FEATURE_UNAVAILABLE_MESSAGE, platformFeatureAvailable } from "@/lib/services/platform-features";
 import { cancelJob, retryJob, setModelStatus, updateModelThresholds } from "@/lib/services/ai";
 import { deleteVideo, getJobProgress, getVideo } from "@/lib/services/videos";
-import { actionError, actionSuccess, FIX_FIELDS, validationError, type ActionState } from "./state";
+import { nullableText, pastDate, requiredText } from "./form-helpers";
+import { actionError, actionSuccess, FIX_FIELDS, validationError, writeResultState, type ActionState } from "./state";
 
 /* ─── Shared ──────────────────────────────────────────────────────────────── */
 
@@ -176,31 +178,18 @@ const STANCES = ["orthodox", "southpaw", "switch"] as const satisfies readonly S
 /** Profile controls are named `profile.<field>`, so validation and service errors land on them by path. */
 const PROFILE_FIELDS = ["firstName", "lastName", "dateOfBirth", "weightClass", "dominantStance", "nationality", "specialization", "licenseNumber"] as const;
 
-const requiredText = (label: string, max: number) =>
-    z.string(`Enter the ${label}.`).trim().min(1, `Enter the ${label}.`).max(max, `Keep the ${label} under ${max} characters.`);
-const optionalText = (label: string, max: number) =>
-    z
-        .string()
-        .trim()
-        .max(max, `Keep the ${label} under ${max} characters.`)
-        .optional()
-        .transform((value) => value || null);
-
 const names = { firstName: requiredText("first name", ACCOUNT_LIMITS.name), lastName: requiredText("last name", ACCOUNT_LIMITS.name) };
-const specialization = optionalText("specialisation", ACCOUNT_LIMITS.specialization);
+const specialization = nullableText("specialisation", ACCOUNT_LIMITS.specialization);
 
 const staffAccountSchemas = [
     z.object({
         role: z.literal("fighter"),
         profile: z.object({
             ...names,
-            dateOfBirth: z
-                .string("Enter the date of birth.")
-                .refine(isDateKey, "Enter the date of birth.")
-                .refine((value) => value <= dayKey(new Date()), "The date of birth can't be in the future."),
+            dateOfBirth: pastDate("date of birth"),
             weightClass: z.enum(WEIGHT_CLASS_ORDER, "Choose a weight class."),
             dominantStance: z.preprocess((value) => value || null, z.enum(STANCES, "Choose a stance from the list.").nullable()),
-            nationality: optionalText("nationality", ACCOUNT_LIMITS.nationality),
+            nationality: nullableText("nationality", ACCOUNT_LIMITS.nationality),
         }),
     }),
     z.object({ role: z.literal("coach"), profile: z.object({ ...names, specialization, isHeadCoach: z.boolean() }) }),
@@ -297,11 +286,12 @@ export async function deleteAccountAction(_prev: ActionState, formData: FormData
 
 const careTeamFields = { fighterId: idSchema("The fighter is missing."), role: z.enum(CARE_ROLES, "Choose a coach or a sports doctor.") };
 
-function careTeamResult(result: CareTeamWrite, message: string): ActionState {
-    if (!result.ok) return actionError(result.message, result.fieldErrors);
-    revalidatePath("/admin/users/[userId]", "page");
-    revalidatePath(routes.admin.auditLogs);
-    return actionSuccess(message);
+function careTeamResult(result: WriteResult, message: string): ActionState {
+    if (result.ok) {
+        revalidatePath("/admin/users/[userId]", "page");
+        revalidatePath(routes.admin.auditLogs);
+    }
+    return writeResultState(result, message);
 }
 
 /** Assigns a coach or sports doctor to a fighter from now. */

@@ -1,7 +1,8 @@
 import "server-only";
 
-import { ALREADY_ASSIGNED, ASSIGNMENT_ALREADY_ENDED, CARE_ROLE_LABELS, STAFF_UNAVAILABLE, type CareRole, type CareTeam, type CareTeamWrite } from "@/lib/domain/care-team";
+import { ALREADY_ASSIGNED, ASSIGNMENT_ALREADY_ENDED, CARE_ROLE_LABELS, STAFF_UNAVAILABLE, type CareRole, type CareTeam } from "@/lib/domain/care-team";
 import type { Coach, Doctor, Fighter, User } from "@/lib/domain/types";
+import type { WriteResult } from "@/lib/domain/write-result";
 import { db, simulateLatency } from "@/lib/mocks/db";
 import { recordAudit } from "./audit.demo";
 
@@ -12,7 +13,7 @@ import { recordAudit } from "./audit.demo";
 
 const assignmentId = (role: CareRole, fighterId: string, staffId: string) => `${role}~${fighterId}~${staffId}`;
 
-const FIGHTER_GONE: CareTeamWrite = { ok: false, message: "This fighter's profile no longer exists. Reload the page." };
+const FIGHTER_GONE: WriteResult = { ok: false, message: "This fighter's profile no longer exists. Reload the page." };
 
 function staffFor(role: CareRole, staffId: string): Coach | Doctor | undefined {
     const store = db();
@@ -44,7 +45,7 @@ export async function getCareTeam(fighterId: string): Promise<CareTeam> {
     return { coach: members("coach"), doctor: members("doctor") };
 }
 
-export async function assignStaff(fighterId: string, role: CareRole, staffId: string, actor: User): Promise<CareTeamWrite> {
+export async function assignStaff(fighterId: string, role: CareRole, staffId: string, actor: User): Promise<WriteResult> {
     await simulateLatency();
     const fighter = db().fighters.find((item) => item.id === fighterId);
     if (!fighter) return FIGHTER_GONE;
@@ -58,7 +59,7 @@ export async function assignStaff(fighterId: string, role: CareRole, staffId: st
     return { ok: true };
 }
 
-export async function endAssignment(fighterId: string, role: CareRole, id: string, reason: string, actor: User): Promise<CareTeamWrite> {
+export async function endAssignment(fighterId: string, role: CareRole, id: string, reason: string, actor: User): Promise<WriteResult> {
     await simulateLatency();
     const fighter = db().fighters.find((item) => item.id === fighterId);
     if (!fighter) return FIGHTER_GONE;

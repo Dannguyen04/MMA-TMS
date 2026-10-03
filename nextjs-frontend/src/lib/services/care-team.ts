@@ -4,10 +4,11 @@ import { z } from "zod";
 
 import { authenticatedMutableApiRequest } from "@/lib/api/client";
 import { isDemoAuthEnabled } from "@/lib/auth/constants";
-import { ALREADY_ASSIGNED, ASSIGNMENT_ALREADY_ENDED, STAFF_UNAVAILABLE, type CareRole, type CareTeam, type CareTeamWrite, type StaffOption } from "@/lib/domain/care-team";
+import { ALREADY_ASSIGNED, ASSIGNMENT_ALREADY_ENDED, STAFF_UNAVAILABLE, type CareRole, type CareTeam, type StaffOption } from "@/lib/domain/care-team";
 import type { User } from "@/lib/domain/types";
+import type { WriteResult } from "@/lib/domain/write-result";
 import { listUsers } from "./admin";
-import { apiWriteFailure, type ServiceErrorMessages } from "./api-write-errors";
+import { settleWrite, type ServiceErrorMessages } from "./api-write-errors";
 import { currentAssignments } from "./people";
 
 /*
@@ -65,13 +66,8 @@ const CARE_TEAM_FIELDS = {
 /** The new or ended assignment: only its id is read, since the page reads the care team again afterwards. */
 const assignmentReplySchema = z.object({ id: z.string() });
 
-async function careTeamWrite(role: CareRole, path: string, body: Record<string, string>): Promise<CareTeamWrite> {
-    try {
-        await authenticatedMutableApiRequest(path, assignmentReplySchema, { method: "POST", body: JSON.stringify(body) });
-        return { ok: true };
-    } catch (error) {
-        return { ok: false, ...apiWriteFailure(error, CARE_TEAM_ERRORS[role], CARE_TEAM_FIELDS) };
-    }
+function careTeamWrite(role: CareRole, path: string, body: Record<string, string>): Promise<WriteResult> {
+    return settleWrite(authenticatedMutableApiRequest(path, assignmentReplySchema, { method: "POST", body: JSON.stringify(body) }), CARE_TEAM_ERRORS[role], CARE_TEAM_FIELDS);
 }
 
 /** Active coach and doctor accounts with a profile, to choose from when assigning. */
@@ -92,13 +88,13 @@ export async function getCareTeam(fighterId: string): Promise<CareTeam> {
 }
 
 /** Starts an assignment from now. */
-export async function assignStaff(fighterId: string, role: CareRole, staffId: string, actor: User): Promise<CareTeamWrite> {
+export async function assignStaff(fighterId: string, role: CareRole, staffId: string, actor: User): Promise<WriteResult> {
     if (isDemoAuthEnabled()) return (await demoService()).assignStaff(fighterId, role, staffId, actor);
     return careTeamWrite(role, `/fighters/${encodeURIComponent(fighterId)}/${ASSIGNMENTS_PATH[role]}`, role === "coach" ? { coachId: staffId } : { doctorId: staffId });
 }
 
 /** Ends an assignment now, keeping it in the fighter's history with the reason. */
-export async function endAssignment(fighterId: string, role: CareRole, assignmentId: string, reason: string, actor: User): Promise<CareTeamWrite> {
+export async function endAssignment(fighterId: string, role: CareRole, assignmentId: string, reason: string, actor: User): Promise<WriteResult> {
     if (isDemoAuthEnabled()) return (await demoService()).endAssignment(fighterId, role, assignmentId, reason, actor);
     return careTeamWrite(role, `/fighters/${encodeURIComponent(fighterId)}/${ASSIGNMENTS_PATH[role]}/${encodeURIComponent(assignmentId)}/end`, { endReason: reason.trim() });
 }

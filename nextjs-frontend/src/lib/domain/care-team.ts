@@ -32,8 +32,6 @@ export interface StaffOption {
     title: string;
 }
 
-export type CareTeamWrite = { ok: true } | { ok: false; message: string; fieldErrors?: Record<string, string> };
-
 /** Limit on the reason for ending an assignment, as both services enforce it. */
 export const END_REASON_MAX = 500;
 

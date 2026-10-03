@@ -3,7 +3,7 @@ import "server-only";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { isDateKey } from "@/lib/format";
+import { dayKey, isDateKey } from "@/lib/format";
 
 /*
  * Parsing and follow-up helpers shared by the Server Action modules. They live here because a "use server" module
@@ -35,6 +35,26 @@ export function checked(formData: FormData, name: string): boolean {
 export function keysOf<T extends string>(record: Record<T, string>): [T, ...T[]] {
     return Object.keys(record) as [T, ...T[]];
 }
+
+/** Free text that must be filled in, trimmed and within `max` characters. */
+export const requiredText = (label: string, max: number) =>
+    z.string(`Enter the ${label}.`).trim().min(1, `Enter the ${label}.`).max(max, `Keep the ${label} under ${max} characters.`);
+
+/** Free text that may be left empty, trimmed and within `max` characters; empty or missing becomes null. */
+export const nullableText = (label: string, max: number) =>
+    z
+        .string()
+        .trim()
+        .max(max, `Keep the ${label} under ${max} characters.`)
+        .optional()
+        .transform((value) => value || null);
+
+/** A YYYY-MM-DD date that has already come, such as a date of birth. */
+export const pastDate = (label: string) =>
+    z
+        .string(`Enter the ${label}.`)
+        .refine(isDateKey, `Enter the ${label}.`)
+        .refine((value) => value <= dayKey(new Date()), `The ${label} can't be in the future.`);
 
 /** A YYYY-MM-DD date, or "" when the field was left empty. */
 export const optionalDate = (message: string) =>

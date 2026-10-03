@@ -1,6 +1,7 @@
 import "server-only";
 
 import { ApiError } from "@/lib/api/client";
+import type { WriteResult } from "@/lib/domain/write-result";
 
 /**
  * Turns a failed API write into what the form shows. Writes are never retried automatically: a create that timed out
@@ -108,4 +109,14 @@ export function apiWriteFailure(error: unknown, messages: ServiceErrorMessages, 
     if (status === 429) return { message: "Too many changes in a short time. Wait a moment, then reload the page and try again." };
     if (status >= 500) return { message: maybeNotSavedMessage(service) };
     return { message: sentence(error.message) };
+}
+
+/** Runs a write whose reply isn't needed (the page reads the record again), turning a refusal into what the form shows. */
+export async function settleWrite(request: Promise<unknown>, messages: ServiceErrorMessages, options: WriteErrorOptions = {}): Promise<WriteResult> {
+    try {
+        await request;
+        return { ok: true };
+    } catch (error) {
+        return { ok: false, ...apiWriteFailure(error, messages, options) };
+    }
 }
