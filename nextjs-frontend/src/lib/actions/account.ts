@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { BODY_METRIC_LIMITS, NAME_MAX_LENGTH, PHONE_MAX_LENGTH, type MeasurementLimit } from "@/components/account/account-limits";
 import { canAccessFighter } from "@/lib/auth/access";
+import { requestPasswordRecovery } from "@/lib/auth/password-recovery";
 import { getCurrentUser } from "@/lib/auth/session";
 import { formatNumber } from "@/lib/format";
 import { updateFighterProfile, updateOwnProfile } from "@/lib/services/people";
@@ -116,5 +117,7 @@ export async function updateBodyMetricsAction(_prev: ActionState, formData: Form
 export async function requestPasswordResetEmail(): Promise<ActionState> {
     const user = await getCurrentUser();
     if (!user) return actionError(SESSION_EXPIRED);
-    return actionSuccess(`We sent a reset link to ${user.email}. It expires in 30 minutes.`);
+    const result = await requestPasswordRecovery(user.email);
+    if (!result.ok) return actionError(result.message);
+    return actionSuccess(`We sent a reset link to ${user.email}. Follow it to choose a new password.`);
 }

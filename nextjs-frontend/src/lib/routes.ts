@@ -22,6 +22,8 @@ export function roleForPath(pathname: string): Role | null {
 export const routes = {
     login: "/login",
     forgotPassword: "/forgot-password",
+    /** Where the auth service's recovery email lands (PASSWORD_RESET_REDIRECT_URL on the API). */
+    resetPassword: "/auth/reset-password",
     notifications: "/notifications",
     profile: "/profile",
     settings: "/settings",

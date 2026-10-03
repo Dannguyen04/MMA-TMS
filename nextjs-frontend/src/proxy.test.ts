@@ -65,6 +65,12 @@ describe("proxy auth gate", () => {
         expect(protectedResponse.headers.get("location")).toBe("http://localhost:3000/login?next=%2Fcoach%2Fdashboard");
     });
 
+    it("lets a signed-out visitor open a password recovery link", async () => {
+        vi.stubEnv("APP_DATA_MODE", "api");
+
+        expect((await proxy(new NextRequest("http://localhost:3000/auth/reset-password?token_hash=abc"))).status).toBe(200);
+    });
+
     it("accepts only the demo session cookie in demo mode", async () => {
         vi.stubEnv("APP_DATA_MODE", "demo");
 

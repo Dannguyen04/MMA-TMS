@@ -7,10 +7,11 @@ import { z } from "zod";
 import { ApiError, apiRequest } from "@/lib/api/client";
 import { ACCESS_TOKEN_COOKIE, THEME_COOKIE, isDemoAuthEnabled, parseTheme } from "@/lib/auth/constants";
 import { clearSessionCookies, setSessionCookies } from "@/lib/auth/session-cookies";
+import { requestPasswordRecovery, resetPassword } from "@/lib/auth/password-recovery";
 import { sessionTokensSchema } from "@/lib/auth/session-tokens";
 import type { Role } from "@/lib/domain/types";
 import { dashboardPath, roleForPath, routes, safeRedirectPath } from "@/lib/routes";
-import { actionError, actionSuccess, validationError, type ActionState } from "./state";
+import { actionError, actionSuccess, FIX_FIELDS, validationError, type ActionState } from "./state";
 
 const signInSchema = z.object({
     email: z.email("Enter a valid email address."),
@@ -91,18 +92,35 @@ const forgotSchema = z.object({ email: z.email("Enter a valid email address.") }
 export async function requestPasswordReset(_prev: ActionState, formData: FormData): Promise<ActionState> {
     const parsed = forgotSchema.safeParse({ email: formData.get("email") });
     if (!parsed.success) return validationError(parsed.error);
-    // Demo không gửi email; luôn trả lời giống nhau để form không lộ tài khoản nào tồn tại.
-    if (isDemoAuthEnabled()) return actionSuccess("If that email belongs to an account, reset instructions are on the way.");
-    try {
-        await apiRequest("/auth/password-reset/request", z.unknown(), {
-            method: "POST",
-            body: JSON.stringify({ email: parsed.data.email.trim().toLowerCase() }),
-        });
-    } catch (error) {
-        if (!(error instanceof ApiError)) return actionError("Password reset is unavailable. Please try again later.");
-        return actionError(error.status === 404 ? "Password reset is not available on this server yet." : error.message);
-    }
+    // Luôn trả lời giống nhau để form không lộ tài khoản nào tồn tại.
+    const result = await requestPasswordRecovery(parsed.data.email);
+    if (!result.ok) return actionError(result.message);
     return actionSuccess("If that email belongs to an account, reset instructions are on the way.");
+}
+
+const resetSchema = z
+    .object({
+        tokenHash: z.string().min(16, "This link is incomplete. Open it again from the email.").max(512, "This link is incomplete. Open it again from the email."),
+        newPassword: z.string().min(8, "Use at least 8 characters.").max(128, "Use at most 128 characters."),
+        confirmPassword: z.string(),
+    })
+    .refine((data) => data.newPassword === data.confirmPassword, { path: ["confirmPassword"], error: "The passwords don't match." });
+
+/** `?notice=` on the sign-in page once a new password is set. */
+export type PasswordNotice = "password-updated" | "activation-ready";
+
+/** Sets a new password from a recovery link, then sends the person to sign in. */
+export async function resetPasswordAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+    const parsed = resetSchema.safeParse({
+        tokenHash: formData.get("tokenHash"),
+        newPassword: formData.get("newPassword"),
+        confirmPassword: formData.get("confirmPassword"),
+    });
+    if (!parsed.success) return validationError(parsed.error);
+    const result = await resetPassword(parsed.data.tokenHash, parsed.data.newPassword);
+    if (!result.ok) return result.field ? actionError(FIX_FIELDS, { [result.field]: result.message }) : actionError(result.message);
+    const notice: PasswordNotice = result.admissionActivationReady ? "activation-ready" : "password-updated";
+    redirect(`${routes.login}?notice=${notice}`);
 }
 
 export async function signOut(): Promise<void> {
