@@ -7,7 +7,7 @@ import { z } from "zod";
 import { ApiError, authenticatedApiRequest } from "@/lib/api/client";
 import type { Permission, Role, User } from "@/lib/domain/types";
 import { dashboardPath, routes } from "@/lib/routes";
-import { drainNumberedPages } from "@/lib/services/api-helpers";
+import { drainNumberedPages, fighterRosterPath } from "@/lib/services/api-helpers";
 import { permissionsForRole } from "./capabilities";
 import { isDemoAuthEnabled } from "./constants";
 
@@ -37,7 +37,9 @@ const currentUserSchema = z.object({
         .optional(),
 });
 
-function normalizeUser(input: z.output<typeof currentUserSchema>): User {
+export type CurrentAccount = z.output<typeof currentUserSchema>;
+
+function normalizeUser(input: CurrentAccount): User {
     const profile = input.profile;
     const role = input.role.toLowerCase() as Role;
     return {
@@ -60,13 +62,13 @@ const scopedFighterSchema = z.object({ id: z.string().uuid() }).passthrough();
 
 /**
  * Coaches and doctors see only the fighters assigned to them. When `/users/me` doesn't carry that scope, it is
- * read from `GET /fighters`, which the backend already limits to the caller's current assignments. A refusal
- * (no active coach or doctor profile) means no fighters, never all of them.
+ * read from their roster (`fighterRosterPath`), which the backend already limits to the caller's current
+ * assignments. A refusal (no active coach or doctor profile) means no fighters, never all of them.
  */
 async function withAssignmentScope(user: User): Promise<User> {
     if (user.assignmentScope || (user.role !== "coach" && user.role !== "doctor")) return user;
     try {
-        const fighters = await drainNumberedPages("/fighters", scopedFighterSchema);
+        const fighters = await drainNumberedPages(fighterRosterPath(user), scopedFighterSchema);
         return { ...user, assignmentScope: { fighterIds: fighters.map((fighter) => fighter.id) } };
     } catch (error) {
         if (error instanceof ApiError && error.status === 403) return { ...user, assignmentScope: { fighterIds: [] } };
@@ -74,11 +76,14 @@ async function withAssignmentScope(user: User): Promise<User> {
     }
 }
 
+/** `/users/me` as the service returns it, profile fields included, read once per request. API mode only. */
+export const readCurrentAccount = cache((): Promise<CurrentAccount> => authenticatedApiRequest("/users/me", currentUserSchema));
+
 /** Đọc phiên từ cookie HTTP-only và để backend xác thực danh tính (hoặc phiên demo ngoài production). */
 export const getCurrentUser = cache(async (): Promise<User | null> => {
     if (isDemoAuthEnabled()) return (await import("./demo-session")).readDemoUser();
     try {
-        return await withAssignmentScope(normalizeUser(await authenticatedApiRequest("/users/me", currentUserSchema)));
+        return await withAssignmentScope(normalizeUser(await readCurrentAccount()));
     } catch (error) {
         if (error instanceof ApiError && error.kind === "unauthorized") return null;
         throw error;

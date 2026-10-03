@@ -61,6 +61,20 @@ export function parseEnum<T extends string>(value: string | undefined, allowed: 
     return allowed.includes(value as T) ? (value as T) : undefined;
 }
 
+/**
+ * A name folded for comparison: no diacritics (đ becomes d), single spaces, lower case. Vietnamese names then match
+ * whether or not they were typed with accents.
+ */
+export function foldName(value: string): string {
+    return value
+        .normalize("NFKD")
+        .replace(/\p{Diacritic}/gu, "")
+        .replace(/đ/giu, "d")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLocaleLowerCase("en");
+}
+
 export function matchesSearch(query: string | undefined, ...fields: (string | null | undefined)[]): boolean {
     const q = query?.trim().toLowerCase();
     if (!q) return true;

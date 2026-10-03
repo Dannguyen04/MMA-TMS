@@ -18,6 +18,7 @@ import type {
     VideoStatus,
     VideoTrainingType,
 } from "@/lib/domain/types";
+import { foldName } from "@/lib/query";
 import { nullIfNotFound } from "./api-helpers";
 import { getFighter } from "./people";
 
@@ -120,16 +121,6 @@ function apiVideo(id: string): Promise<BackendVideo | null> {
 }
 
 const backendFighterIdentitySchema = z.object({ id: z.string().uuid(), firstName: z.string(), lastName: z.string() });
-
-function foldName(value: string): string {
-    return value
-        .normalize("NFKD")
-        .replace(/\p{Diacritic}/gu, "")
-        .replace(/đ/giu, "d")
-        .replace(/\s+/g, " ")
-        .trim()
-        .toLocaleLowerCase("en");
-}
 
 async function demoFighterForBackendId(backendFighterId: string): Promise<Fighter | null> {
     const backend = await nullIfNotFound(pipelineApiRequest(`/fighters/${encodeURIComponent(backendFighterId)}`, backendFighterIdentitySchema));

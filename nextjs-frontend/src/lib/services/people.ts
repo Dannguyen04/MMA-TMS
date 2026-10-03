@@ -6,13 +6,13 @@ import { cache } from "react";
 
 import { accessibleFighterIds } from "@/lib/auth/access";
 import { isDemoAuthEnabled } from "@/lib/auth/constants";
-import { getCurrentUser } from "@/lib/auth/session";
+import { getCurrentUser, readCurrentAccount } from "@/lib/auth/session";
 import { ApiError, authenticatedApiRequest, authenticatedMutableApiRequest } from "@/lib/api/client";
 import { WEIGHT_CLASS_LIMIT_KG } from "@/lib/domain/labels";
 import type { Coach, Doctor, Fighter, HealthStatus, Sex, Stance, TrainingLevel, User, WeightClass } from "@/lib/domain/types";
 import { matchesSearch } from "@/lib/query";
 import { routes } from "@/lib/routes";
-import { drainNumberedPages, isNotFound, nullIfNotFound, nullIfUnreadable } from "./api-helpers";
+import { drainNumberedPages, fighterRosterPath, isNotFound, nullIfNotFound, nullIfUnreadable } from "./api-helpers";
 
 export interface FighterFilter {
     search?: string;
@@ -102,6 +102,22 @@ export const backendFighterSchema = z.object({
     doctorIds: z.array(z.string().uuid()).optional(),
     upcomingBout: backendUpcomingBoutSchema.nullable().optional(),
 });
+
+/** The fighter profile embedded in `/users/me`. It has no medical status or record dates. */
+const ownFighterProfileSchema = z.object({
+    id: z.string().uuid(),
+    firstName: z.string(),
+    lastName: z.string(),
+    dateOfBirth: z.string(),
+    nationality: z.string().nullish(),
+    weightClass: weightClassSchema,
+    heightCm: z.number().nullish(),
+    reachCm: z.number().nullish(),
+    dominantStance: stanceSchema.nullish(),
+});
+
+/** `GET /fighters/:id/medical-summary`, which a fighter may read about themselves. */
+const medicalSummarySchema = z.object({ currentMedicalStatus: medicalStatusSchema });
 
 /** `GET /fighters/:id/measurements`: body measurements, the current (not superseded) ones by default. */
 const measurementSchema = z.object({
@@ -243,10 +259,10 @@ export function adaptBackendUser(input: BackendUser): User {
     };
 }
 
-async function listApiFighters(filter: FighterFilter): Promise<Fighter[]> {
+async function listApiFighters(user: User, filter: FighterFilter): Promise<Fighter[]> {
     if (filter.level) unsupported("Filtering fighters by training level is not supported by the current API.", { field: "level" });
     if (filter.coachId) unsupported("Filtering fighters by coach is not supported by the current API.", { field: "coachId" });
-    const fighters = await drainNumberedPages("/fighters", backendFighterSchema, {
+    const fighters = await drainNumberedPages(fighterRosterPath(user), backendFighterSchema, {
         search: filter.search,
         weightClass: filter.weightClass?.toUpperCase(),
         medicalStatus: filter.healthStatus?.toUpperCase(),
@@ -263,7 +279,7 @@ async function demoDb() {
 
 /** Liệt kê võ sĩ theo phạm vi do backend xác thực. */
 export async function listFighters(user: User, filter: FighterFilter = {}): Promise<Fighter[]> {
-    if (!isDemoAuthEnabled()) return listApiFighters(filter);
+    if (!isDemoAuthEnabled()) return listApiFighters(user, filter);
     const scope = accessibleFighterIds(user);
     return (await demoDb())
         .fighters.filter((fighter) => {
@@ -281,7 +297,7 @@ export async function listFighters(user: User, filter: FighterFilter = {}): Prom
 export async function getFighter(id: string): Promise<Fighter | null> {
     if (isDemoAuthEnabled()) return (await demoDb()).fighters.find((fighter) => fighter.id === id) ?? null;
     const [profile, measurement, coaches, doctors] = await Promise.all([
-        nullIfNotFound(authenticatedApiRequest(`/fighters/${encodeURIComponent(id)}`, backendFighterSchema)),
+        readFighterProfile(id),
         latestMeasurement(id),
         coachAssignmentsFor(id),
         doctorAssignmentsFor(id),
@@ -297,6 +313,44 @@ export async function getFighter(id: string): Promise<Fighter | null> {
         reachCm: fighter.reachCm ?? measurement?.reachCm ?? null,
         coachIds: fighter.coachIds.length > 0 ? fighter.coachIds : [...new Set(coaches.filter(isCurrent).map((a) => a.coachId))],
         doctorIds: fighter.doctorIds.length > 0 ? fighter.doctorIds : [...new Set(doctors.filter(isCurrent).map((a) => a.doctorId))],
+    };
+}
+
+/** A doctor's assigned fighters, read once per request. */
+const assignedFighters = cache((rosterPath: string) => drainNumberedPages(rosterPath, backendFighterSchema));
+
+/**
+ * One fighter profile as the caller's role may read it; null when it doesn't exist or isn't theirs to see. Neither
+ * doctors nor fighters have the fighter-directory permission behind `GET /fighters/:id`: a doctor's fighters come
+ * from their assigned roster, and a fighter's own profile from `/users/me`.
+ */
+async function readFighterProfile(id: string): Promise<BackendFighter | null> {
+    const user = await getCurrentUser();
+    if (user?.role === "doctor") return (await assignedFighters(fighterRosterPath(user))).find((fighter) => fighter.id === id) ?? null;
+    if (user?.role === "fighter") return user.profileId === id ? ownFighterProfile() : null;
+    return nullIfNotFound(authenticatedApiRequest(`/fighters/${encodeURIComponent(id)}`, backendFighterSchema));
+}
+
+/** The signed-in fighter's profile from `/users/me`, with the medical status from their medical summary. */
+async function ownFighterProfile(): Promise<BackendFighter | null> {
+    const account = await readCurrentAccount();
+    const profile = ownFighterProfileSchema.safeParse(account.profile);
+    if (!profile.success) return null;
+    const { currentMedicalStatus } = await authenticatedApiRequest(
+        `/fighters/${encodeURIComponent(profile.data.id)}/medical-summary`,
+        medicalSummarySchema,
+    );
+    return {
+        ...profile.data,
+        userId: account.id,
+        nationality: profile.data.nationality ?? null,
+        heightCm: profile.data.heightCm ?? null,
+        reachCm: profile.data.reachCm ?? null,
+        dominantStance: profile.data.dominantStance ?? null,
+        currentMedicalStatus,
+        isActive: account.isActive,
+        createdAt: account.createdAt,
+        updatedAt: account.updatedAt,
     };
 }
 

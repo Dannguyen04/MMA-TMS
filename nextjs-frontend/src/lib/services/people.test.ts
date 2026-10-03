@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const authenticatedApiRequest = vi.hoisted(() => vi.fn());
 const authenticatedMutableApiRequest = vi.hoisted(() => vi.fn());
 const getCurrentUser = vi.hoisted(() => vi.fn());
+const readCurrentAccount = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/api/client", async (loadOriginal) => {
     const original = await loadOriginal<typeof import("@/lib/api/client")>();
@@ -11,7 +12,7 @@ vi.mock("@/lib/api/client", async (loadOriginal) => {
 
 vi.mock("@/lib/auth/session", async (loadOriginal) => {
     const original = await loadOriginal<typeof import("@/lib/auth/session")>();
-    return { ...original, getCurrentUser };
+    return { ...original, getCurrentUser, readCurrentAccount };
 });
 
 import { ApiError } from "@/lib/api/client";
@@ -23,6 +24,7 @@ import {
     backendUserSchema,
     doctorsForFighter,
     getApiUserWithProfile,
+    getFighter,
     listCoaches,
     listFighters,
     updateOwnProfile,
@@ -99,6 +101,7 @@ describe("people API adapter", () => {
         authenticatedApiRequest.mockReset();
         authenticatedMutableApiRequest.mockReset();
         getCurrentUser.mockReset();
+        readCurrentAccount.mockReset();
     });
 
     it("chuyển enum backend viết hoa thành mô hình giao diện viết thường", () => {
@@ -317,5 +320,80 @@ describe("people API adapter", () => {
             { id: doctorId, userId: null, name: "Thu Le", specialty: "", licenseNumber: null, fighterIds: [fighterId] },
         ]);
         expect(authenticatedApiRequest).toHaveBeenCalledWith(`/fighters/${fighterId}/doctors?page=1&limit=100`, expect.anything());
+    });
+
+    describe("fighter reads per role", () => {
+        const doctorViewer: User = { ...viewer, id: doctorUserId, role: "doctor", profileId: doctorId };
+        const forbidden = new ApiError({ message: "Forbidden", kind: "http", status: 403, code: "FORBIDDEN" });
+        const emptyPage = { data: [], total: 0, hasNextPage: false };
+
+        /** Answers each path the profile read asks for; anything else is unexpected. */
+        function answer(responses: Record<string, unknown>) {
+            authenticatedApiRequest.mockImplementation(async (path: string) => {
+                const key = Object.keys(responses).find((prefix) => path.startsWith(prefix));
+                if (key === undefined) throw new Error(`Unexpected request: ${path}`);
+                const response = responses[key];
+                if (response instanceof Error) throw response;
+                return response;
+            });
+        }
+
+        it("lists a doctor's fighters from their assigned roster, which takes the same filters", async () => {
+            authenticatedApiRequest.mockResolvedValue({ data: [backendFighter], total: 1, hasNextPage: false });
+
+            await expect(listFighters(doctorViewer, { search: "An" })).resolves.toHaveLength(1);
+            expect(authenticatedApiRequest).toHaveBeenCalledWith(`/doctors/${doctorId}/fighters?page=1&limit=100&search=An`, expect.anything());
+        });
+
+        it("reads a doctor's fighter from their roster, since doctors can't read the fighter directory", async () => {
+            getCurrentUser.mockResolvedValue(doctorViewer);
+            answer({
+                [`/doctors/${doctorId}/fighters`]: { data: [backendFighter], total: 1, hasNextPage: false },
+                [`/fighters/${fighterId}/measurements`]: forbidden,
+                [`/fighters/${fighterId}/coaches`]: forbidden,
+                [`/fighters/${fighterId}/doctors`]: emptyPage,
+            });
+
+            await expect(getFighter(fighterId)).resolves.toMatchObject({ id: fighterId, name: "An Nguyen", healthStatus: "monitoring" });
+            expect(authenticatedApiRequest).not.toHaveBeenCalledWith(`/fighters/${fighterId}`, expect.anything());
+        });
+
+        it("builds a fighter's own profile from their account and medical summary", async () => {
+            getCurrentUser.mockResolvedValue(viewer);
+            readCurrentAccount.mockResolvedValue({
+                id: userId,
+                email: "an@example.test",
+                role: "FIGHTER",
+                isActive: true,
+                createdAt: "2026-01-01T00:00:00.000Z",
+                updatedAt: "2026-01-02T00:00:00.000Z",
+                profile: { id: fighterId, firstName: "An", lastName: "Nguyen", dateOfBirth: "1995-04-03", weightClass: "LIGHTWEIGHT", dominantStance: "ORTHODOX" },
+            });
+            answer({
+                [`/fighters/${fighterId}/medical-summary`]: { fighterId, currentMedicalStatus: "RECOVERY" },
+                [`/fighters/${fighterId}/measurements`]: forbidden,
+                [`/fighters/${fighterId}/coaches`]: forbidden,
+                [`/fighters/${fighterId}/doctors`]: emptyPage,
+            });
+
+            await expect(getFighter(fighterId)).resolves.toMatchObject({
+                id: fighterId,
+                userId,
+                name: "An Nguyen",
+                stance: "orthodox",
+                nationality: null,
+                heightCm: null,
+                healthStatus: "recovery",
+                joinedAt: "2026-01-01T00:00:00.000Z",
+            });
+        });
+
+        it("doesn't look up another fighter's profile for a fighter", async () => {
+            getCurrentUser.mockResolvedValue(viewer);
+            answer({ "/fighters/": forbidden });
+
+            await expect(getFighter("99999999-9999-4999-8999-999999999999")).resolves.toBeNull();
+            expect(readCurrentAccount).not.toHaveBeenCalled();
+        });
     });
 });

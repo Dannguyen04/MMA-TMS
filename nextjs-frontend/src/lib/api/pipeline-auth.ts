@@ -6,6 +6,7 @@ import { isDemoAuthEnabled } from "@/lib/auth/constants";
 import { readDemoUser } from "@/lib/auth/demo-session";
 import { setSessionCookies } from "@/lib/auth/session-cookies";
 import { sessionTokensSchema } from "@/lib/auth/session-tokens";
+import { foldName } from "@/lib/query";
 import { apiRequest, getMutableAccessToken, type ApiRequestOptions } from "./client";
 
 const exchangeSchema = z.object({
@@ -99,14 +100,6 @@ export async function resolvePipelineFighterId(fighterId: string, accessToken: s
     const page = await apiRequest("/fighters?page=1&limit=100", fighterPageSchema, {
         accessToken,
     });
-    const foldName = (value: string) =>
-        value
-            .normalize("NFKD")
-            .replace(/\p{Diacritic}/gu, "")
-            .replace(/đ/giu, "d")
-            .replace(/\s+/g, " ")
-            .trim()
-            .toLocaleLowerCase("en");
     const wanted = foldName(demoFighter.name);
     const matches = page.data.filter((fighter) => foldName(`${fighter.firstName} ${fighter.lastName}`) === wanted);
     if (matches.length !== 1) throw new Error("The demo fighter does not have one unambiguous API profile.");

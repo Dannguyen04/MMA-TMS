@@ -3,6 +3,7 @@ import "server-only";
 import { z } from "zod";
 
 import { ApiError, authenticatedApiRequest } from "@/lib/api/client";
+import type { User } from "@/lib/domain/types";
 
 /** Helpers shared by the API-mode adapters in this folder. Demo mode never reaches them. */
 
@@ -42,6 +43,14 @@ export function unsupportedOperation(operation: string, missingCapability: strin
         code: "API_OPERATION_UNSUPPORTED",
         details: { operation, missingCapability },
     });
+}
+
+/**
+ * The list of fighters the caller may read. Sports doctors can't use `GET /fighters` (the service gives them no
+ * fighter-directory permission), so their assigned roster has its own route; it takes the same filters.
+ */
+export function fighterRosterPath(user: Pick<User, "role" | "profileId">): string {
+    return user.role === "doctor" && user.profileId ? `/doctors/${encodeURIComponent(user.profileId)}/fighters` : "/fighters";
 }
 
 type QueryValue = string | number | boolean | null | undefined;
