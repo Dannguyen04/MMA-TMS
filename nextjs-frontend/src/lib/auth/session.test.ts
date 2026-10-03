@@ -8,7 +8,7 @@ vi.mock("@/lib/api/client", async (loadOriginal) => ({
 }));
 
 import { ApiError } from "@/lib/api/client";
-import { getCurrentUser } from "./session";
+import { getCurrentUser, getSessionAccount } from "./session";
 
 const doctorProfileId = "44444444-4444-4444-8444-444444444444";
 const fighterId = "11111111-1111-4111-8111-111111111111";
@@ -45,5 +45,13 @@ describe("current user in API mode", () => {
 
         await expect(getCurrentUser()).resolves.toMatchObject({ role: "coach", assignmentScope: { fighterIds: [] } });
         expect(authenticatedApiRequest).toHaveBeenCalledWith("/fighters?page=1&limit=100", expect.anything());
+    });
+
+    it("treats a self-registered applicant as an applicant, not an academy member", async () => {
+        authenticatedApiRequest.mockResolvedValue({ ...account, role: "GUEST", profile: null });
+
+        await expect(getSessionAccount()).resolves.toEqual({ kind: "applicant", applicant: { id: account.id, email: account.email } });
+        await expect(getCurrentUser()).resolves.toBeNull();
+        expect(authenticatedApiRequest).toHaveBeenCalledWith("/users/me", expect.anything());
     });
 });

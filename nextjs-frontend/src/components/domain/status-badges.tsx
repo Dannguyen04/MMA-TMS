@@ -31,6 +31,7 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import type { Tone } from "@/components/ui/tone";
+import { APPLICATION_STATUS_LABELS, CONCLUSION_LABELS, type ApplicationStatus, type AssessmentConclusion } from "@/lib/domain/admissions";
 import {
     AI_JOB_STATUS_LABELS,
     ALERT_STATUS_LABELS,
@@ -342,4 +343,28 @@ export function RoleBadge({ role, size, className }: { role: Role; size?: BadgeS
             {ROLE_LABELS[role]}
         </Badge>
     );
+}
+
+/* ─── Fighter admissions ──────────────────────────────────────────────────── */
+
+export const APPLICATION_STATUS_META: Record<ApplicationStatus, StatusMeta> = {
+    submitted: { label: APPLICATION_STATUS_LABELS.submitted, tone: "info", icon: Clock },
+    passed: { label: APPLICATION_STATUS_LABELS.passed, tone: "primary", icon: Flag },
+    approved: { label: APPLICATION_STATUS_LABELS.approved, tone: "success", icon: UserCheck },
+    activated: { label: APPLICATION_STATUS_LABELS.activated, tone: "success", icon: CircleCheck },
+    failed: { label: APPLICATION_STATUS_LABELS.failed, tone: "neutral", icon: CircleX },
+    rejected: { label: APPLICATION_STATUS_LABELS.rejected, tone: "danger", icon: UserX },
+};
+
+export function ApplicationStatusBadge({ status, size, className }: { status: ApplicationStatus; size?: BadgeSize; className?: string }) {
+    return <StatusBadge meta={APPLICATION_STATUS_META[status]} size={size} className={className} />;
+}
+
+export const CONCLUSION_META: Record<AssessmentConclusion, StatusMeta> = {
+    pass: { label: CONCLUSION_LABELS.pass, tone: "success", icon: CircleCheck },
+    fail: { label: CONCLUSION_LABELS.fail, tone: "danger", icon: CircleX },
+};
+
+export function ConclusionBadge({ conclusion, size, className }: { conclusion: AssessmentConclusion; size?: BadgeSize; className?: string }) {
+    return <StatusBadge meta={CONCLUSION_META[conclusion]} size={size} className={className} />;
 }

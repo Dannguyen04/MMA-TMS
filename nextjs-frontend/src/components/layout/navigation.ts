@@ -1,6 +1,7 @@
 import {
     Activity,
     BrainCircuit,
+    ClipboardList,
     CalendarDays,
     ChartLine,
     Cpu,
@@ -103,6 +104,7 @@ export const NAVIGATION: Record<Role, NavSection[]> = {
                         { label: "Fighters", href: routes.coach.fighters },
                         { label: "Performance", href: routes.coach.performance },
                         { label: "Goals", href: routes.coach.goals },
+                        { label: "Applicants", href: routes.coach.admissions },
                     ],
                 },
                 {
@@ -153,6 +155,7 @@ export const NAVIGATION: Record<Role, NavSection[]> = {
             label: "Access",
             items: [
                 { label: "Users", href: routes.admin.users, icon: Users },
+                { label: "Admissions", href: routes.admin.admissions, icon: ClipboardList },
                 { label: "Roles & permissions", shortLabel: "Roles", href: routes.admin.roles, icon: KeyRound },
             ],
         },

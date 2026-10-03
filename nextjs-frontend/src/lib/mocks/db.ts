@@ -29,7 +29,9 @@ import type {
     User,
     Video,
 } from "@/lib/domain/types";
+import type { Applicant, Application } from "@/lib/domain/admissions";
 import type { MedicalReviewRequest } from "@/lib/domain/medical-contract";
+import { mockApplicants, mockApplications } from "./admissions";
 import { mockAbnormalMovementAlerts, mockAIAnalyses, mockAIJobs, mockAIModels, mockVideos } from "./ai";
 import {
     mockInjuries,
@@ -81,6 +83,9 @@ export interface MockDatabase {
     notifications: Notification[];
     broadcasts: NotificationBroadcast[];
     auditLogs: AuditLog[];
+    /** Self-registered accounts that can apply but aren't fighters yet. */
+    applicants: Applicant[];
+    admissionApplications: Application[];
 }
 
 function seedData(): MockDatabase {
@@ -113,6 +118,8 @@ function seedData(): MockDatabase {
         notifications: mockNotifications,
         broadcasts: mockBroadcasts,
         auditLogs: mockAuditLogs,
+        applicants: mockApplicants,
+        admissionApplications: mockApplications,
     };
 }
 

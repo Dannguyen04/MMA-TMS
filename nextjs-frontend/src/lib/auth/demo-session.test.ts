@@ -13,7 +13,7 @@ vi.mock("next/headers", () => ({
 }));
 
 import { db } from "@/lib/mocks/db";
-import { DEMO_ACCOUNTS, endDemoSession, readDemoUser, signInDemoAccount, signInDemoWithPassword } from "./demo-session";
+import { DEMO_ACCOUNTS, DEMO_APPLICANT, endDemoSession, readDemoAccount, readDemoUser, registerDemoApplicant, signInDemoAccount, signInDemoWithPassword } from "./demo-session";
 
 describe("demo session", () => {
     beforeEach(() => {
@@ -66,5 +66,20 @@ describe("demo session", () => {
 
         expect(cookieValues.has(DEMO_SESSION_COOKIE)).toBe(false);
         await expect(readDemoUser()).resolves.toBeNull();
+    });
+
+    it("signs applicants in as applicants and registers new ones", async () => {
+        await expect(signInDemoAccount("applicant")).resolves.toMatchObject({ ok: true, account: { kind: "applicant" } });
+        expect(cookieValues.get(DEMO_SESSION_COOKIE)).toBe(DEMO_APPLICANT);
+        await expect(readDemoUser()).resolves.toBeNull();
+
+        const email = "new.applicant@lotus-combat.test";
+        await expect(registerDemoApplicant(email)).resolves.toMatchObject({ ok: true, account: { kind: "applicant", applicant: { email } } });
+        await expect(readDemoAccount()).resolves.toMatchObject({ kind: "applicant", applicant: { email } });
+        await expect(registerDemoApplicant(email)).resolves.toMatchObject({ ok: false });
+
+        cookieValues.clear();
+        await expect(signInDemoWithPassword(email, DEMO_PASSWORD)).resolves.toMatchObject({ ok: true, account: { kind: "applicant" } });
+        db().applicants = db().applicants.filter((applicant) => applicant.email !== email);
     });
 });

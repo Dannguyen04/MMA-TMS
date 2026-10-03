@@ -49,7 +49,8 @@ type NotFoundFailure = { ok: false; code: "not_found"; message: string };
 export type UpdateOwnProfileResult = { ok: true; user: User } | NotFoundFailure;
 export type UpdateFighterProfileResult = { ok: true; fighter: Fighter } | NotFoundFailure;
 
-const weightClassSchema = z.enum([
+/** Weight classes as every service writes them. */
+export const weightClassSchema = z.enum([
     "STRAWWEIGHT",
     "FLYWEIGHT",
     "BANTAMWEIGHT",
