@@ -10,8 +10,9 @@ vi.mock("@/lib/api/client", async (loadOriginal) => ({
     authenticatedMutableApiRequest,
     drainAuthenticatedCursorPages,
 }));
+vi.mock("./platform-features", () => import("@/test/platform-features-mock"));
 
-import { ApiError } from "@/lib/api/client";
+import { platformFeatureAvailable } from "@/test/platform-features-mock";
 import { getNotificationSummary, listNotifications, markAllNotificationsRead } from "./notifications";
 
 const backendNotification = {
@@ -28,6 +29,7 @@ const backendNotification = {
 
 describe("notifications API adapter", () => {
     beforeEach(() => {
+        platformFeatureAvailable.mockReturnValue(true);
         vi.stubEnv("APP_DATA_MODE", "api");
         authenticatedApiRequest.mockReset();
         authenticatedMutableApiRequest.mockReset();
@@ -67,12 +69,14 @@ describe("notifications API adapter", () => {
         );
     });
 
-    it("hien chuong rong khi backend chua co endpoint thong bao", async () => {
-        const notFound = new ApiError({ message: "Not Found", kind: "http", status: 404, code: "NOT_FOUND" });
-        authenticatedApiRequest.mockRejectedValue(notFound);
-        drainAuthenticatedCursorPages.mockRejectedValue(notFound);
+    it("asks nothing while the notification service isn't available", async () => {
+        platformFeatureAvailable.mockReturnValue(false);
 
         await expect(getNotificationSummary("user-1")).resolves.toEqual({ unread: 0, latest: [] });
         await expect(listNotifications("user-1")).resolves.toEqual([]);
+        await expect(markAllNotificationsRead("user-1")).rejects.toMatchObject({ code: "API_OPERATION_UNSUPPORTED" });
+        expect(authenticatedApiRequest).not.toHaveBeenCalled();
+        expect(drainAuthenticatedCursorPages).not.toHaveBeenCalled();
+        expect(authenticatedMutableApiRequest).not.toHaveBeenCalled();
     });
 });

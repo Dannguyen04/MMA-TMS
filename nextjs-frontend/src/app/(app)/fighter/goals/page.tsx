@@ -5,12 +5,13 @@ import { notFound } from "next/navigation";
 import { GoalGroups } from "@/components/performance/goal-groups";
 import { ButtonLink } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
-import { EmptyState } from "@/components/ui/states";
+import { EmptyState, FeatureUnavailable } from "@/components/ui/states";
 import { requireFighterAccess } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { pluralize } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { listGoals } from "@/lib/services/goals";
+import { platformFeatureAvailable } from "@/lib/services/platform-features";
 
 export const metadata: Metadata = { title: "Goals" };
 
@@ -18,6 +19,14 @@ export default async function FighterGoalsPage() {
     const user = await requireRole("fighter");
     if (!user.profileId) notFound();
     const fighter = await requireFighterAccess(user, user.profileId);
+    if (!platformFeatureAvailable("goals")) {
+        return (
+            <>
+                <PageHeader title="Goals" />
+                <FeatureUnavailable service="training" title="Goals aren't available yet" />
+            </>
+        );
+    }
     const goals = await listGoals({ fighterIds: [fighter.id] });
     const now = new Date().toISOString();
     const active = goals.filter((goal) => goal.status === "on_track" || goal.status === "at_risk");

@@ -10,7 +10,9 @@ vi.mock("@/lib/api/client", async (importOriginal) => ({
     authenticatedApiRequest,
     authenticatedMutableApiRequest,
 }));
+vi.mock("./platform-features", () => import("@/test/platform-features-mock"));
 
+import { platformFeatureAvailable } from "@/test/platform-features-mock";
 import {
     addCoachFeedback,
     createPlan,
@@ -81,6 +83,7 @@ function backendSession(status: "SKIPPED" | "COMPLETED") {
 
 describe("training API adapter", () => {
     beforeEach(() => {
+        platformFeatureAvailable.mockReturnValue(true);
         vi.stubEnv("APP_DATA_MODE", "api");
         authenticatedApiRequest.mockReset();
         authenticatedMutableApiRequest.mockReset();
@@ -218,5 +221,12 @@ describe("training API adapter", () => {
             ),
         ).rejects.toMatchObject({ status: 501, code: "API_OPERATION_UNSUPPORTED" });
         expect(authenticatedMutableApiRequest).not.toHaveBeenCalled();
+    });
+
+    it("asks nothing about coach feedback while the feedback service isn't available", async () => {
+        platformFeatureAvailable.mockReturnValue(false);
+
+        await expect(listCoachFeedback({ fighterIds: ["fighter-1"] })).resolves.toEqual([]);
+        expect(authenticatedApiRequest).not.toHaveBeenCalled();
     });
 });

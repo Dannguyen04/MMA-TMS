@@ -13,6 +13,7 @@ import { getCurrentUser, requireRole } from "@/lib/auth/session";
 import { formatDateTime } from "@/lib/format";
 import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
+import { platformFeatureAvailable } from "@/lib/services/platform-features";
 import { getPlan, getSession, listCoachFeedback, loadSessionClearanceConflicts } from "@/lib/services/training";
 import { listVideos } from "@/lib/services/videos";
 import { sum } from "@/lib/utils";
@@ -39,7 +40,7 @@ export default async function CoachSessionPage({ params }: PageProps<"/coach/ses
     const now = current.toISOString();
     const [videos, feedback, plan] = await Promise.all([
         listVideos({ fighterIds: [fighter.id] }),
-        listCoachFeedback({ sessionId: session.id }),
+        platformFeatureAvailable("coachFeedback") ? listCoachFeedback({ sessionId: session.id }) : null,
         session.planId ? getPlan(session.planId) : Promise.resolve(null),
     ]);
 

@@ -50,7 +50,7 @@ function NextSessionText({ entry, now, narrow = false, className }: { entry: Ros
 
 /* ─── Grid ────────────────────────────────────────────────────────────────── */
 
-export function RosterGrid({ entries, now, warningDays }: { entries: RosterEntry[]; now: string; warningDays: number }) {
+export function RosterGrid({ entries, now, warningDays, showPerformance }: { entries: RosterEntry[]; now: string; warningDays: number; showPerformance: boolean }) {
     return (
         <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {entries.map((entry) => (
@@ -62,7 +62,7 @@ export function RosterGrid({ entries, now, warningDays }: { entries: RosterEntry
                         href={routes.coach.fighter(entry.fighter.id)}
                         className="h-full"
                     >
-                        <RosterCardDetails entry={entry} now={now} warningDays={warningDays} />
+                        <RosterCardDetails entry={entry} now={now} warningDays={warningDays} showPerformance={showPerformance} />
                     </FighterCard>
                 </li>
             ))}
@@ -70,28 +70,30 @@ export function RosterGrid({ entries, now, warningDays }: { entries: RosterEntry
     );
 }
 
-function RosterCardDetails({ entry, now, warningDays }: { entry: RosterEntry; now: string; warningDays: number }) {
+function RosterCardDetails({ entry, now, warningDays, showPerformance }: { entry: RosterEntry; now: string; warningDays: number; showPerformance: boolean }) {
     const { performance, clearance, clearanceState } = entry;
 
     return (
         <div className="flex flex-col gap-3 border-t border-border pt-3">
-            <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                    <p className="text-xs text-fg-muted">Overall score</p>
-                    {performance ? (
-                        <p className="mt-0.5 flex flex-wrap items-baseline gap-x-1.5">
-                            <span className="text-lg leading-tight font-semibold text-fg">{formatNumber(performance.overall, 1)}</span>
-                            {entry.hasComparison && <DeltaText delta={changeDelta(performance.overallDelta, { decimals: 1, neutralWithin: SCORE_NOISE_POINTS })} />}
-                        </p>
-                    ) : (
-                        <p className="mt-0.5 text-sm text-fg-subtle">No scored weeks yet</p>
-                    )}
+            {showPerformance && (
+                <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                        <p className="text-xs text-fg-muted">Overall score</p>
+                        {performance ? (
+                            <p className="mt-0.5 flex flex-wrap items-baseline gap-x-1.5">
+                                <span className="text-lg leading-tight font-semibold text-fg">{formatNumber(performance.overall, 1)}</span>
+                                {entry.hasComparison && <DeltaText delta={changeDelta(performance.overallDelta, { decimals: 1, neutralWithin: SCORE_NOISE_POINTS })} />}
+                            </p>
+                        ) : (
+                            <p className="mt-0.5 text-sm text-fg-subtle">No scored weeks yet</p>
+                        )}
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-1.5">
+                        <ScoreSparkline entry={entry} width={88} />
+                        {performance && entry.hasComparison && <TrendBadge trend={performance.trend} size="sm" />}
+                    </div>
                 </div>
-                <div className="flex shrink-0 flex-col items-end gap-1.5">
-                    <ScoreSparkline entry={entry} width={88} />
-                    {performance && entry.hasComparison && <TrendBadge trend={performance.trend} size="sm" />}
-                </div>
-            </div>
+            )}
             <p className="flex items-start gap-2 text-[13px] leading-snug">
                 <CalendarClock aria-hidden className="mt-0.5 size-3.5 shrink-0 text-fg-subtle" />
                 <span className="sr-only">Next session: </span>
@@ -114,9 +116,11 @@ export interface RosterTableProps {
     searchParams: SearchParams;
     sort: string;
     direction: SortDirection;
+    /** Overall score and trend columns; off while the performance service isn't available. */
+    showPerformance: boolean;
 }
 
-export function RosterTable({ entries, now, warningDays, pathname, searchParams, sort, direction }: RosterTableProps) {
+export function RosterTable({ entries, now, warningDays, pathname, searchParams, sort, direction, showPerformance }: RosterTableProps) {
     const sortProps = { pathname, searchParams, activeSort: sort, direction };
 
     return (
@@ -128,8 +132,12 @@ export function RosterTable({ entries, now, warningDays, pathname, searchParams,
                     <SortableTH label="Record" sortKey="record" {...sortProps} />
                     <SortableTH label="Health" sortKey="health" {...sortProps} />
                     <SortableTH label="Clearance" sortKey="clearance" {...sortProps} />
-                    <SortableTH label="Overall" sortKey="overall" {...sortProps} />
-                    <SortableTH label="Trend" sortKey="trend" {...sortProps} />
+                    {showPerformance && (
+                        <>
+                            <SortableTH label="Overall" sortKey="overall" {...sortProps} />
+                            <SortableTH label="Trend" sortKey="trend" {...sortProps} />
+                        </>
+                    )}
                     <SortableTH label="Next session" sortKey="next" {...sortProps} />
                 </tr>
             </THead>
@@ -159,21 +167,25 @@ export function RosterTable({ entries, now, warningDays, pathname, searchParams,
                             <TD className="min-w-44">
                                 <ClearanceCell clearance={clearance} state={clearanceState} now={now} warningDays={warningDays} />
                             </TD>
-                            <TD className="whitespace-nowrap">
-                                {performance ? (
-                                    <span className="inline-flex items-center gap-2">
-                                        <span className="font-semibold text-fg">{formatNumber(performance.overall, 1)}</span>
-                                        {entry.hasComparison && (
-                                            <DeltaText delta={changeDelta(performance.overallDelta, { decimals: 1, neutralWithin: SCORE_NOISE_POINTS })} />
+                            {showPerformance && (
+                                <>
+                                    <TD className="whitespace-nowrap">
+                                        {performance ? (
+                                            <span className="inline-flex items-center gap-2">
+                                                <span className="font-semibold text-fg">{formatNumber(performance.overall, 1)}</span>
+                                                {entry.hasComparison && (
+                                                    <DeltaText delta={changeDelta(performance.overallDelta, { decimals: 1, neutralWithin: SCORE_NOISE_POINTS })} />
+                                                )}
+                                            </span>
+                                        ) : (
+                                            <span className="text-xs text-fg-subtle">No data yet</span>
                                         )}
-                                    </span>
-                                ) : (
-                                    <span className="text-xs text-fg-subtle">No data yet</span>
-                                )}
-                            </TD>
-                            <TD>
-                                {performance && entry.hasComparison ? <TrendBadge trend={performance.trend} size="sm" /> : <span className="text-xs text-fg-subtle">Too early</span>}
-                            </TD>
+                                    </TD>
+                                    <TD>
+                                        {performance && entry.hasComparison ? <TrendBadge trend={performance.trend} size="sm" /> : <span className="text-xs text-fg-subtle">Too early</span>}
+                                    </TD>
+                                </>
+                            )}
                             <TD className="text-[13px] leading-snug">
                                 <NextSessionText entry={entry} now={now} narrow className="block" />
                             </TD>

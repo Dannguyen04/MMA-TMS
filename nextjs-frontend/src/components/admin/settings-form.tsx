@@ -75,10 +75,12 @@ export interface SettingsFormProps {
     settings: SystemSettings;
     /** Video container formats an administrator can allow. */
     formatOptions: string[];
+    /** Shows the settings without a way to save them, while the settings service isn't available. */
+    readOnly?: boolean;
 }
 
 /** System settings in sections with a sticky save bar, dirty-state tracking and inline server errors. */
-export function SettingsForm({ settings, formatOptions }: SettingsFormProps) {
+export function SettingsForm({ settings, formatOptions, readOnly = false }: SettingsFormProps) {
     const toast = useToast();
     const baseline = toFormValues(settings);
     const [values, setValues] = useState<FormValues>(baseline);
@@ -112,7 +114,7 @@ export function SettingsForm({ settings, formatOptions }: SettingsFormProps) {
 
     return (
         <form {...form.formProps} className="flex flex-col">
-            <div className="px-5 py-6">
+            <fieldset disabled={readOnly} className="min-w-0 px-5 py-6">
                 <FormSection title="Organization" description={<SectionHint modified={modified("organization")}>How the academy appears across the platform.</SectionHint>}>
                     <Field label="Organization name" htmlFor="settings-org" required error={error("organizationName")}>
                         <Input
@@ -294,30 +296,32 @@ export function SettingsForm({ settings, formatOptions }: SettingsFormProps) {
                         error={error("clearanceExpiryWarningDays")}
                     />
                 </FormSection>
-            </div>
+            </fieldset>
 
-            <div className="sticky bottom-20 z-10 flex flex-wrap items-center justify-between gap-3 rounded-b-xl border-t border-border bg-surface/95 px-5 py-3 backdrop-blur md:bottom-0">
-                <div aria-live="polite" className="min-w-0 text-[13px]">
-                    {form.message.status === "error" ? (
-                        <FormMessage {...form.message} />
-                    ) : dirty ? (
-                        <p className="flex items-center gap-2 font-medium text-warning-fg">
-                            <span aria-hidden className="size-2 rounded-full bg-warning-solid" />
-                            Unsaved changes in {dirtySections.map((section) => section.title).join(", ")}
-                        </p>
-                    ) : (
-                        <p className="text-fg-subtle">All changes saved</p>
-                    )}
+            {!readOnly && (
+                <div className="sticky bottom-20 z-10 flex flex-wrap items-center justify-between gap-3 rounded-b-xl border-t border-border bg-surface/95 px-5 py-3 backdrop-blur md:bottom-0">
+                    <div aria-live="polite" className="min-w-0 text-[13px]">
+                        {form.message.status === "error" ? (
+                            <FormMessage {...form.message} />
+                        ) : dirty ? (
+                            <p className="flex items-center gap-2 font-medium text-warning-fg">
+                                <span aria-hidden className="size-2 rounded-full bg-warning-solid" />
+                                Unsaved changes in {dirtySections.map((section) => section.title).join(", ")}
+                            </p>
+                        ) : (
+                            <p className="text-fg-subtle">All changes saved</p>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button variant="secondary" disabled={!dirty} onClick={discard}>
+                            Discard
+                        </Button>
+                        <SubmitButton pending={form.pending} pendingLabel="Saving…" disabled={!dirty}>
+                            Save changes
+                        </SubmitButton>
+                    </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    <Button variant="secondary" disabled={!dirty} onClick={discard}>
-                        Discard
-                    </Button>
-                    <SubmitButton pending={form.pending} pendingLabel="Saving…" disabled={!dirty}>
-                        Save changes
-                    </SubmitButton>
-                </div>
-            </div>
+            )}
         </form>
     );
 }

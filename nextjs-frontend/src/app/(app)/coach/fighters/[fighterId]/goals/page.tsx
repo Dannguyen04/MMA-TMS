@@ -3,11 +3,12 @@ import type { Metadata } from "next";
 
 import { GoalGroups } from "@/components/performance/goal-groups";
 import { NewGoalButton } from "@/components/performance/new-goal-button";
-import { EmptyState } from "@/components/ui/states";
+import { EmptyState, FeatureUnavailable } from "@/components/ui/states";
 import { requireFighterAccess } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { pluralize } from "@/lib/format";
 import { listGoals } from "@/lib/services/goals";
+import { platformFeatureAvailable } from "@/lib/services/platform-features";
 
 export async function generateMetadata({ params }: PageProps<"/coach/fighters/[fighterId]/goals">): Promise<Metadata> {
     const user = await requireRole("coach");
@@ -18,6 +19,7 @@ export async function generateMetadata({ params }: PageProps<"/coach/fighters/[f
 export default async function CoachFighterGoalsPage({ params }: PageProps<"/coach/fighters/[fighterId]/goals">) {
     const user = await requireRole("coach");
     const fighter = await requireFighterAccess(user, (await params).fighterId);
+    if (!platformFeatureAvailable("goals")) return <FeatureUnavailable service="training" title="Goals aren't available yet" />;
     const goals = await listGoals({ fighterIds: [fighter.id] });
     const now = new Date().toISOString();
     const firstName = fighter.name.split(" ")[0];

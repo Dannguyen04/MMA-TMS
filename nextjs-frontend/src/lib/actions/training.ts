@@ -11,6 +11,7 @@ import type { ClearanceConflict } from "@/lib/domain/rules";
 import type { FeedbackKind, PlanStatus, TrainingPhase, TrainingSession, TrainingType, User } from "@/lib/domain/types";
 import { academyDayEndIso, academyDayStartIso, academyWallClockToIso, isDateKey, isTimeValue } from "@/lib/format";
 import { routes } from "@/lib/routes";
+import { PLATFORM_FEATURE_UNAVAILABLE_MESSAGE, platformFeatureAvailable } from "@/lib/services/platform-features";
 import * as training from "@/lib/services/training";
 import { text, texts } from "./form-helpers";
 import { actionError, actionSuccess, FIX_FIELDS, validationError, type ActionState } from "./state";
@@ -425,6 +426,7 @@ const feedbackSchema = z.object({
 export async function addSessionFeedback(sessionId: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
     const auth = await authorizeCoach();
     if (!auth.ok) return auth.state;
+    if (!platformFeatureAvailable("coachFeedback")) return actionError(PLATFORM_FEATURE_UNAVAILABLE_MESSAGE);
 
     const parsed = feedbackSchema.safeParse({
         kind: text(formData, "kind"),

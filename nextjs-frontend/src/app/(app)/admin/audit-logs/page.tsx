@@ -8,7 +8,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { PageHeader } from "@/components/ui/page-header";
-import { EmptyState } from "@/components/ui/states";
+import { EmptyState, FeatureUnavailable } from "@/components/ui/states";
 import { Pagination, SortableTH, Table, TH, THead } from "@/components/ui/table";
 import { requireRole } from "@/lib/auth/session";
 import type { AuditLog, AuditResourceType } from "@/lib/domain/types";
@@ -16,6 +16,7 @@ import { dayKey, formatNumber, pluralize } from "@/lib/format";
 import { paginate, parseEnum, parseSortDirection, sortItems } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { listAuditLogs } from "@/lib/services/audit";
+import { platformFeatureAvailable } from "@/lib/services/platform-features";
 import { param } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Audit logs" };
@@ -33,6 +34,14 @@ const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 export default async function AdminAuditLogsPage({ searchParams }: PageProps<"/admin/audit-logs">) {
     await requireRole("admin");
+    if (!platformFeatureAvailable("auditLogs")) {
+        return (
+            <>
+                <PageHeader title="Audit logs" />
+                <FeatureUnavailable service="platform" title="Audit logs aren't available yet" />
+            </>
+        );
+    }
     const params = await searchParams;
     const now = new Date().toISOString();
     const pathname = routes.admin.auditLogs;

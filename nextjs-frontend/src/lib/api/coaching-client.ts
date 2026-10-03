@@ -3,8 +3,6 @@
  * Connects Next.js web application directly to NestJS CoachingController.
  */
 
-import { z } from "zod";
-
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 export interface CreateAssignmentDto {
@@ -42,12 +40,12 @@ export interface PersistActionAssessmentDto {
     grade?: string;
     confidence: number;
     rubricId?: string;
-    evidence?: Record<string, any>;
-    phases?: Record<string, any>;
-    kinematicFeatures?: Record<string, any>;
-    criteriaScores?: Record<string, any>;
-    findings?: any[];
-    provenance?: Record<string, any>;
+    evidence?: Record<string, unknown>;
+    phases?: Record<string, unknown>;
+    kinematicFeatures?: Record<string, unknown>;
+    criteriaScores?: Record<string, unknown>;
+    findings?: unknown[];
+    provenance?: Record<string, unknown>;
 }
 
 export interface PersistWorkerResultDto {
@@ -55,7 +53,7 @@ export interface PersistWorkerResultDto {
     analysisId: string;
     overallScore?: number;
     actions: PersistActionAssessmentDto[];
-    provenance?: Record<string, any>;
+    provenance?: Record<string, unknown>;
 }
 
 export interface ReviewFindingDto {
@@ -205,7 +203,7 @@ export const coachingApiClient = {
 
     async getCoachingLoopState(fighterId: string, accessToken: string, sessionId?: string) {
         const query = sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : "";
-        return request<any>(`/coaching/loop-state/${encodeURIComponent(fighterId)}${query}`, {
+        return request<unknown>(`/coaching/loop-state/${encodeURIComponent(fighterId)}${query}`, {
             headers: authenticated(accessToken),
         });
     },

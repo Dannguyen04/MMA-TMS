@@ -7,7 +7,7 @@ import { accessibleFighterIds } from "@/lib/auth/access";
 import { isDemoAuthEnabled } from "@/lib/auth/constants";
 import { authenticatedApiRequest } from "@/lib/api/client";
 import type { User } from "@/lib/domain/types";
-import { nullIfNotFound } from "./api-helpers";
+import { platformFeatureAvailable } from "./platform-features";
 
 const navBadgeCountsSchema = z.object({
     notifications: z.number().int().nonnegative().optional(),
@@ -16,13 +16,10 @@ const navBadgeCountsSchema = z.object({
     failedJobs: z.number().int().nonnegative().optional(),
 });
 
-/**
- * Lay cac bo dem hien thi tren thanh dieu huong. Every page's layout reads them, so while the backend has no
- * `/navigation/badges` endpoint (404) the navigation simply shows no counts instead of failing the page.
- */
+/** Lay cac bo dem hien thi tren thanh dieu huong. Without the badge API the navigation shows no counts. */
 export async function getNavBadgeCounts(user: User): Promise<Partial<Record<NavBadgeKey, number>>> {
     if (!isDemoAuthEnabled()) {
-        return (await nullIfNotFound(authenticatedApiRequest("/navigation/badges", navBadgeCountsSchema))) ?? {};
+        return platformFeatureAvailable("navBadges") ? authenticatedApiRequest("/navigation/badges", navBadgeCountsSchema) : {};
     }
 
     const { db } = await import("@/lib/mocks/db");

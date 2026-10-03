@@ -1,11 +1,11 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { coachingApiClient, CoachingApiError } from "./coaching-client";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { coachingApiClient } from "./coaching-client";
 import {
     COACHING_FINDING_STATE_LABELS,
     COACHING_FINDING_STATE_STYLES,
     resolveFindingState,
 } from "../domain/labels";
-import { getPipelineBadge, isMockMode, VIDEO_PIPELINE_MODE } from "./pipeline-mode";
+import { getPipelineBadge, isMockMode } from "./pipeline-mode";
 
 describe("Task TL-11 — Real Web Integration for MVP Workflow", () => {
     beforeEach(() => {
@@ -93,7 +93,7 @@ describe("Task TL-11 — Real Web Integration for MVP Workflow", () => {
     });
 
     it("2.2 uploadVideo and createAnalysisJob invoke corresponding endpoints", async () => {
-        const fetchSpy = vi.spyOn(globalThis, "fetch")
+        vi.spyOn(globalThis, "fetch")
             .mockResolvedValueOnce(
                 new Response(JSON.stringify({ id: "vid_1", title: "Morning Sparring" }), { status: 201 }),
             )

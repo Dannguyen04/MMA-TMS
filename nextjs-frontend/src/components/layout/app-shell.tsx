@@ -16,7 +16,8 @@ export interface AppShellProps {
     user: User;
     theme: ThemePreference;
     counts: NavCounts;
-    notifications: { unread: number; latest: Notification[] };
+    /** Null while notifications aren't available, which leaves the bell out. */
+    notifications: { unread: number; latest: Notification[] } | null;
     now: string;
     children: ReactNode;
 }
@@ -52,8 +53,12 @@ export function AppShell({ user, theme, counts, notifications, now, children }: 
                         <span className="font-display text-[17px] font-extrabold tracking-[0.01em] italic max-sm:hidden">MMA-TMS</span>
                     </Link>
                     <div className="ml-auto flex items-center gap-1">
-                        <NotificationBell unread={notifications.unread} latest={notifications.latest} now={now} />
-                        <span aria-hidden className="mx-1 h-6 w-px bg-border" />
+                        {notifications && (
+                            <>
+                                <NotificationBell unread={notifications.unread} latest={notifications.latest} now={now} />
+                                <span aria-hidden className="mx-1 h-6 w-px bg-border" />
+                            </>
+                        )}
                         <UserMenu user={shellUser} theme={theme} />
                     </div>
                 </header>

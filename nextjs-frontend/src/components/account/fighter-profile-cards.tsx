@@ -78,7 +78,8 @@ export function FightProfileCard({ fighter, now }: { fighter: Fighter; now: stri
 
 /* ─── Body metrics ────────────────────────────────────────────────────────── */
 
-export function BodyMetricsCard({ fighter }: { fighter: Fighter }) {
+/** `canLog` offers the fighter's own weigh-in log; off while body metrics can't be saved. */
+export function BodyMetricsCard({ fighter, canLog }: { fighter: Fighter; canLog: boolean }) {
     const classLabel = WEIGHT_CLASS_LABELS[fighter.weightClass];
     const gap = fighter.weightKg === null ? null : Number((fighter.weightKg - fighter.targetWeightKg).toFixed(1));
 
@@ -87,15 +88,17 @@ export function BodyMetricsCard({ fighter }: { fighter: Fighter }) {
             <CardHeader
                 title="Body metrics"
                 icon={<Activity />}
-                description="Log changes after a weigh-in so your coaches plan around current numbers."
+                description={canLog ? "Log changes after a weigh-in so your coaches plan around current numbers." : "Your latest recorded measurements."}
                 action={
-                    <BodyMetricsDialog
-                        weightKg={fighter.weightKg}
-                        bodyFatPct={fighter.bodyFatPct}
-                        restingHeartRate={fighter.restingHeartRate}
-                        targetWeightKg={fighter.targetWeightKg}
-                        weightClassLabel={classLabel}
-                    />
+                    canLog && (
+                        <BodyMetricsDialog
+                            weightKg={fighter.weightKg}
+                            bodyFatPct={fighter.bodyFatPct}
+                            restingHeartRate={fighter.restingHeartRate}
+                            targetWeightKg={fighter.targetWeightKg}
+                            weightClassLabel={classLabel}
+                        />
+                    )
                 }
                 className="flex-col sm:flex-row"
             />

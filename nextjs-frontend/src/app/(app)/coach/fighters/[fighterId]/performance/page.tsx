@@ -6,6 +6,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { requireFighterAccess } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { routes } from "@/lib/routes";
+import { platformFeatureAvailable } from "@/lib/services/platform-features";
 
 export async function generateMetadata({ params }: PageProps<"/coach/fighters/[fighterId]/performance">): Promise<Metadata> {
     const user = await requireRole("coach");
@@ -28,10 +29,12 @@ export default async function CoachFighterPerformancePage({ params }: PageProps<
                         Weekly technique scores, volume, speed and training load for {fighter.name}.
                     </p>
                 </div>
-                <ButtonLink href={routes.coach.fighterGoals(fighter.id)} variant="secondary">
-                    <Target aria-hidden />
-                    Manage goals
-                </ButtonLink>
+                {platformFeatureAvailable("goals") && (
+                    <ButtonLink href={routes.coach.fighterGoals(fighter.id)} variant="secondary">
+                        <Target aria-hidden />
+                        Manage goals
+                    </ButtonLink>
+                )}
             </div>
             <PerformanceOverview
                 fighterId={fighter.id}

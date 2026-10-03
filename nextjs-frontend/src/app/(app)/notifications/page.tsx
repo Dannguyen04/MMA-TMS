@@ -10,7 +10,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { SegmentedLinks } from "@/components/ui/segmented-links";
-import { EmptyState } from "@/components/ui/states";
+import { EmptyState, FeatureUnavailable } from "@/components/ui/states";
 import { Pagination } from "@/components/ui/table";
 import { requireUser } from "@/lib/auth/session";
 import { NOTIFICATION_CATEGORY_LABELS } from "@/lib/domain/labels";
@@ -19,6 +19,7 @@ import { pluralize } from "@/lib/format";
 import { hrefWith, paginate, parseEnum } from "@/lib/query";
 import { dashboardPath, routes } from "@/lib/routes";
 import { listNotifications } from "@/lib/services/notifications";
+import { platformFeatureAvailable } from "@/lib/services/platform-features";
 import { param } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Notifications" };
@@ -35,6 +36,14 @@ const ROLE_DESCRIPTIONS: Record<Role, string> = {
 
 export default async function NotificationsPage({ searchParams }: PageProps<"/notifications">) {
     const user = await requireUser();
+    if (!platformFeatureAvailable("notifications")) {
+        return (
+            <>
+                <PageHeader title="Notifications" />
+                <FeatureUnavailable service="notification" title="Notifications aren't available yet" />
+            </>
+        );
+    }
     const params = await searchParams;
     const now = new Date().toISOString();
     const pathname = routes.notifications;

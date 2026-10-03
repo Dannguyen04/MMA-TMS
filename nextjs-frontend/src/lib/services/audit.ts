@@ -5,6 +5,7 @@ import { z } from "zod";
 import { isDemoAuthEnabled } from "@/lib/auth/constants";
 import { drainAuthenticatedCursorPages } from "@/lib/api/client";
 import type { AuditLog, AuditResourceType, Role, User } from "@/lib/domain/types";
+import { platformFeatureAvailable } from "./platform-features";
 
 const actorRoleSchema = z.enum(["FIGHTER", "COACH", "DOCTOR", "ADMIN", "SYSTEM"]);
 const resourceTypeSchema = z.enum([
@@ -111,6 +112,7 @@ export interface AuditLogQuery {
 
 export async function listAuditLogs(query: AuditLogQuery = {}, viewer?: User | null): Promise<AuditLog[]> {
     if (isDemoAuthEnabled()) return (await demoService()).listAuditLogs(query, viewer);
+    if (!platformFeatureAvailable("auditLogs")) return [];
     const params = new URLSearchParams();
     if (query.search) params.set("search", query.search);
     if (query.actorId) params.set("actorId", query.actorId);

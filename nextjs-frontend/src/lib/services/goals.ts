@@ -5,7 +5,8 @@ import { z } from "zod";
 import { isDemoAuthEnabled } from "@/lib/auth/constants";
 import { authenticatedApiRequest, authenticatedMutableApiRequest, drainAuthenticatedCursorPages } from "@/lib/api/client";
 import type { Goal, GoalStatus, Technique, User } from "@/lib/domain/types";
-import { isNotFound, nullIfNotFound } from "./api-helpers";
+import { isNotFound, nullIfNotFound, unsupportedOperation } from "./api-helpers";
+import { platformFeatureAvailable } from "./platform-features";
 
 const techniqueSchema = z.enum(["JAB", "CROSS", "HOOK", "KICK", "COMBINATION", "FOOTWORK", "GUARD", "HEAD_MOVEMENT"]);
 const goalStatusSchema = z.enum(["ON_TRACK", "AT_RISK", "ACHIEVED", "MISSED"]);
@@ -85,7 +86,7 @@ export interface GoalFilter {
 
 export async function listGoals(filter: GoalFilter = {}): Promise<Goal[]> {
     if (isDemoAuthEnabled()) return (await demoService()).listGoals(filter);
-    if (Array.isArray(filter.fighterIds) && filter.fighterIds.length === 0) return [];
+    if (!platformFeatureAvailable("goals") || (Array.isArray(filter.fighterIds) && filter.fighterIds.length === 0)) return [];
 
     const params = new URLSearchParams();
     if (Array.isArray(filter.fighterIds)) filter.fighterIds.forEach((fighterId) => params.append("fighterId", fighterId));
@@ -101,6 +102,7 @@ export async function listGoals(filter: GoalFilter = {}): Promise<Goal[]> {
 
 export async function getGoal(id: string): Promise<Goal | null> {
     if (isDemoAuthEnabled()) return (await demoService()).getGoal(id);
+    if (!platformFeatureAvailable("goals")) return null;
     const goal = await nullIfNotFound(authenticatedApiRequest(`/goals/${encodeURIComponent(id)}`, backendGoalSchema));
     return goal && toGoal(goal);
 }
@@ -133,6 +135,7 @@ function goalBody(input: GoalInput | GoalUpdateInput): Record<string, unknown> {
 
 export async function createGoal(input: GoalInput, actor: User): Promise<Goal> {
     if (isDemoAuthEnabled()) return (await demoService()).createGoal(input, actor);
+    if (!platformFeatureAvailable("goals")) unsupportedOperation("Creating a goal", "goals");
     return toGoal(
         await authenticatedMutableApiRequest("/goals", backendGoalSchema, {
             method: "POST",
@@ -143,6 +146,7 @@ export async function createGoal(input: GoalInput, actor: User): Promise<Goal> {
 
 export async function updateGoalProgress(id: string, value: number, actor: User): Promise<Goal | null> {
     if (isDemoAuthEnabled()) return (await demoService()).updateGoalProgress(id, value, actor);
+    if (!platformFeatureAvailable("goals")) unsupportedOperation("Logging goal progress", "goals");
     const goal = await nullIfNotFound(
         authenticatedMutableApiRequest(`/goals/${encodeURIComponent(id)}/progress`, backendGoalSchema, {
             method: "POST",
@@ -154,6 +158,7 @@ export async function updateGoalProgress(id: string, value: number, actor: User)
 
 export async function updateGoal(id: string, input: GoalUpdateInput, actor: User): Promise<Goal | null> {
     if (isDemoAuthEnabled()) return (await demoService()).updateGoal(id, input, actor);
+    if (!platformFeatureAvailable("goals")) unsupportedOperation("Updating a goal", "goals");
     const goal = await nullIfNotFound(
         authenticatedMutableApiRequest(`/goals/${encodeURIComponent(id)}`, backendGoalSchema, {
             method: "PATCH",
@@ -165,6 +170,7 @@ export async function updateGoal(id: string, input: GoalUpdateInput, actor: User
 
 export async function deleteGoal(id: string, actor: User): Promise<boolean> {
     if (isDemoAuthEnabled()) return (await demoService()).deleteGoal(id, actor);
+    if (!platformFeatureAvailable("goals")) unsupportedOperation("Deleting a goal", "goals");
     try {
         await authenticatedMutableApiRequest(`/goals/${encodeURIComponent(id)}`, z.null(), { method: "DELETE" });
         return true;

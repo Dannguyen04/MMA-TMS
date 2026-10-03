@@ -2,7 +2,7 @@ import "server-only";
 
 import { z } from "zod";
 
-import { ApiError, authenticatedApiRequest, authenticatedMutableApiRequest } from "@/lib/api/client";
+import { authenticatedApiRequest, authenticatedMutableApiRequest } from "@/lib/api/client";
 import { isDemoAuthEnabled } from "@/lib/auth/constants";
 import type { ClearanceConflict } from "@/lib/domain/rules";
 import type {
@@ -23,7 +23,8 @@ import type {
 } from "@/lib/domain/types";
 import { academyDayStartIso, DAY_MS, dayKey } from "@/lib/format";
 import { matchesSearch } from "@/lib/query";
-import { drainNumberedPages, nullIfNotFound } from "./api-helpers";
+import { drainNumberedPages, nullIfNotFound, unsupportedOperation } from "./api-helpers";
+import { platformFeatureAvailable } from "./platform-features";
 import { plannedEndMs, sessionMinutes } from "@/components/training/training-utils";
 
 type FighterScope = string[] | "all";
@@ -233,16 +234,6 @@ const exerciseCategoryFromApi: Record<BackendExercise["category"], ExerciseCateg
     MOBILITY: "mobility",
 };
 
-function unsupported(operation: string, detail: string): never {
-    throw new ApiError({
-        message: `${operation} is unavailable because the backend does not yet support ${detail}.`,
-        kind: "http",
-        status: 501,
-        code: "API_OPERATION_UNSUPPORTED",
-        details: { operation, missingCapability: detail },
-    });
-}
-
 /**
  * The API filters by a single fighter, so scoped reads fan out one request per fighter and merge
  * the results by id. An empty scope reads nothing.
@@ -258,7 +249,7 @@ async function readPerFighter<T extends { id: string }>(
 
 function toPlan(plan: BackendPlan): TrainingPlan {
     if (plan.phase === undefined || plan.focusAreas === undefined || plan.weeklySessionTarget === undefined || plan.endDate === null) {
-        unsupported("Reading a training plan", "phase, focus areas, weekly target, and end-date fields");
+        unsupportedOperation("Reading a training plan", "phase, focus areas, weekly target, and end-date fields");
     }
     return {
         id: plan.id,
@@ -321,7 +312,7 @@ function toExercise(exercise: BackendExercise): Exercise {
         exercise.defaultReps === undefined ||
         exercise.loadsRegions === undefined
     ) {
-        unsupported("Reading an exercise", "technique, intensity, equipment, default prescription, and body-load fields");
+        unsupportedOperation("Reading an exercise", "technique, intensity, equipment, default prescription, and body-load fields");
     }
     return {
         id: exercise.id,
@@ -425,13 +416,13 @@ export type PlanUpdateInput = Partial<Omit<PlanInput, "fighterId" | "status">>;
 
 export async function createPlan(input: PlanInput, actor: User): Promise<TrainingPlan> {
     if (isDemoAuthEnabled()) return (await demoService()).createPlan(input, actor);
-    unsupported("Creating a training plan", "phase, focus-area, and weekly-target persistence");
+    unsupportedOperation("Creating a training plan", "phase, focus-area, and weekly-target persistence");
 }
 
 export async function updatePlan(id: string, input: PlanUpdateInput, actor: User): Promise<TrainingPlan | null> {
     if (isDemoAuthEnabled()) return (await demoService()).updatePlan(id, input, actor);
     if (input.phase !== undefined || input.focusAreas !== undefined || input.weeklySessionTarget !== undefined || input.coachId !== undefined) {
-        unsupported("Updating a training plan", "phase, focus-area, weekly-target, and coach reassignment persistence");
+        unsupportedOperation("Updating a training plan", "phase, focus-area, weekly-target, and coach reassignment persistence");
     }
     const body = {
         ...(input.title !== undefined ? { title: input.title.trim() } : {}),
@@ -585,19 +576,19 @@ export async function loadSessionClearanceConflicts(planned: PlannedSession): Pr
 }
 export async function createSession(input: SessionInput, actor: User): Promise<SessionMutationResult> {
     if (isDemoAuthEnabled()) return (await demoService()).createSession(input, actor);
-    unsupported("Creating a training session", "exercise, target-RPE, and clearance-conflict persistence");
+    unsupportedOperation("Creating a training session", "exercise, target-RPE, and clearance-conflict persistence");
 }
 export async function updateSession(id: string, input: SessionUpdateInput, actor: User): Promise<SessionMutationResult> {
     if (isDemoAuthEnabled()) return (await demoService()).updateSession(id, input, actor);
-    unsupported("Updating a training session", "exercise, target-RPE, and clearance-conflict persistence");
+    unsupportedOperation("Updating a training session", "exercise, target-RPE, and clearance-conflict persistence");
 }
 export async function recordSessionResult(id: string, input: SessionResultInput, actor: User): Promise<SessionMutationResult> {
     if (isDemoAuthEnabled()) return (await demoService()).recordSessionResult(id, input, actor);
-    unsupported("Recording a session result", "coach rating, summary, and completed-exercise persistence");
+    unsupportedOperation("Recording a session result", "coach rating, summary, and completed-exercise persistence");
 }
 export async function cancelSession(id: string, reason: string, actor: User): Promise<SessionMutationResult> {
     if (isDemoAuthEnabled()) return (await demoService()).cancelSession(id, reason, actor);
-    unsupported("Cancelling a training session", "an atomic cancellation-reason transition");
+    unsupportedOperation("Cancelling a training session", "an atomic cancellation-reason transition");
 }
 
 function mostCommonPlanId(sessions: TrainingSession[]): string | null {
@@ -674,6 +665,7 @@ export interface FeedbackFilter {
 }
 export async function listCoachFeedback(filter: FeedbackFilter = {}): Promise<CoachFeedback[]> {
     if (isDemoAuthEnabled()) return (await demoService()).listCoachFeedback(filter);
+    if (!platformFeatureAvailable("coachFeedback")) return [];
     const feedback = await readPerFighter(filter.fighterIds, (fighterId) =>
         drainNumberedPages("/coach-feedback", backendFeedbackSchema, {
             fighterId,
@@ -688,6 +680,7 @@ export async function listCoachFeedback(filter: FeedbackFilter = {}): Promise<Co
 export type FeedbackInput = Omit<CoachFeedback, "id" | "createdAt">;
 export async function addCoachFeedback(input: FeedbackInput, actor: User): Promise<CoachFeedback> {
     if (isDemoAuthEnabled()) return (await demoService()).addCoachFeedback(input, actor);
+    if (!platformFeatureAvailable("coachFeedback")) unsupportedOperation("Adding coach feedback", "coach feedback");
     return toFeedback(
         await authenticatedMutableApiRequest("/coach-feedback", backendFeedbackSchema, {
             method: "POST",

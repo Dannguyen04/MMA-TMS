@@ -3,11 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const authenticatedApiRequest = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/api/client", () => ({ authenticatedApiRequest }));
+vi.mock("./platform-features", () => import("@/test/platform-features-mock"));
 
+import { platformFeatureAvailable } from "@/test/platform-features-mock";
 import { getPerformanceHistory, getTeamPerformance, getWeeklyVolume, overallScore } from "./performance";
 
 describe("performance API adapter", () => {
     beforeEach(() => {
+        platformFeatureAvailable.mockReturnValue(true);
         vi.stubEnv("APP_DATA_MODE", "api");
         authenticatedApiRequest.mockReset();
     });
@@ -55,5 +58,13 @@ describe("performance API adapter", () => {
         expect(
             overallScore({ jab: 80, cross: 80, hook: 80, kick: 80, combination: 80, footwork: 80, guard: 80, head_movement: 80 }),
         ).toBe(80);
+    });
+
+    it("asks nothing while the performance service isn't available", async () => {
+        platformFeatureAvailable.mockReturnValue(false);
+
+        await expect(getPerformanceHistory("fighter-1")).resolves.toEqual([]);
+        await expect(getTeamPerformance(["fighter-1"])).resolves.toEqual([]);
+        expect(authenticatedApiRequest).not.toHaveBeenCalled();
     });
 });

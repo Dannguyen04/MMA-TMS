@@ -56,7 +56,8 @@ export interface SessionDetailProps {
     /** Exercise library by id. */
     exercises: Record<string, Exercise>;
     videos: Video[];
-    feedback: CoachFeedback[];
+    /** Null while coach feedback isn't available, which leaves the card out. */
+    feedback: CoachFeedback[] | null;
     /** Clearance conflicts for an upcoming session (empty for past sessions). */
     conflicts: ClearanceConflict[];
     /** Coach: opens the feedback dialog. */
@@ -126,41 +127,43 @@ export function SessionDetail({
 
                 <ExercisesCard session={session} exercises={exercises} />
 
-                <Card>
-                    <CardHeader
-                        title="Coach feedback"
-                        description="Notes on this session"
-                        icon={<MessageSquare />}
-                        action={feedbackAction}
-                    />
-                    <CardContent>
-                        {feedback.length === 0 ? (
-                            <EmptyState
-                                compact
-                                icon={<MessageSquare />}
-                                title="No feedback yet"
-                                description={
-                                    audience === "fighter"
-                                        ? "Feedback from your coach about this session will appear here."
-                                        : "Share praise, corrections or notes so the fighter knows what to work on."
-                                }
-                            />
-                        ) : (
-                            <ul className="flex flex-col divide-y divide-border">
-                                {feedback.map((item) => (
-                                    <li key={item.id} className="py-4 first:pt-0 last:pb-0">
-                                        <CoachFeedbackItem
-                                            feedback={item}
-                                            coachName={coachNames[item.coachId] ?? "Coach"}
-                                            now={now}
-                                            videoHref={item.videoId ? videoHref(audience, item.videoId) : undefined}
-                                        />
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </CardContent>
-                </Card>
+                {feedback && (
+                    <Card>
+                        <CardHeader
+                            title="Coach feedback"
+                            description="Notes on this session"
+                            icon={<MessageSquare />}
+                            action={feedbackAction}
+                        />
+                        <CardContent>
+                            {feedback.length === 0 ? (
+                                <EmptyState
+                                    compact
+                                    icon={<MessageSquare />}
+                                    title="No feedback yet"
+                                    description={
+                                        audience === "fighter"
+                                            ? "Feedback from your coach about this session will appear here."
+                                            : "Share praise, corrections or notes so the fighter knows what to work on."
+                                    }
+                                />
+                            ) : (
+                                <ul className="flex flex-col divide-y divide-border">
+                                    {feedback.map((item) => (
+                                        <li key={item.id} className="py-4 first:pt-0 last:pb-0">
+                                            <CoachFeedbackItem
+                                                feedback={item}
+                                                coachName={coachNames[item.coachId] ?? "Coach"}
+                                                now={now}
+                                                videoHref={item.videoId ? videoHref(audience, item.videoId) : undefined}
+                                            />
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </CardContent>
+                    </Card>
+                )}
             </div>
 
             <div className="flex min-w-0 flex-col gap-6">

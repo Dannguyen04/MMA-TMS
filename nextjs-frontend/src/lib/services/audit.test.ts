@@ -3,11 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const drainAuthenticatedCursorPages = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/api/client", () => ({ drainAuthenticatedCursorPages }));
+vi.mock("./platform-features", () => import("@/test/platform-features-mock"));
 
+import { platformFeatureAvailable } from "@/test/platform-features-mock";
 import { listAuditLogs } from "./audit";
 
 describe("audit API adapter", () => {
     beforeEach(() => {
+        platformFeatureAvailable.mockReturnValue(true);
         vi.stubEnv("APP_DATA_MODE", "api");
         drainAuthenticatedCursorPages.mockReset();
     });
@@ -43,5 +46,12 @@ describe("audit API adapter", () => {
         drainAuthenticatedCursorPages.mockRejectedValue(new Error("backend unavailable"));
 
         await expect(listAuditLogs()).rejects.toThrow("backend unavailable");
+    });
+
+    it("asks nothing while the audit log service isn't available", async () => {
+        platformFeatureAvailable.mockReturnValue(false);
+
+        await expect(listAuditLogs()).resolves.toEqual([]);
+        expect(drainAuthenticatedCursorPages).not.toHaveBeenCalled();
     });
 });

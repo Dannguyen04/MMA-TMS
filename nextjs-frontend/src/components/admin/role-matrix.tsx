@@ -13,9 +13,8 @@ import { useToast } from "@/components/ui/toast";
 import { updateRolePermissionsAction } from "@/lib/actions/admin";
 import type { ActionState } from "@/lib/actions/state";
 import { DOCTOR_ONLY_PERMISSION_REASON, isDoctorOnlyPermission } from "@/lib/auth/permissions";
-import type { Permission, Role } from "@/lib/domain/types";
+import type { Permission, PermissionCatalogEntry, Role } from "@/lib/domain/types";
 import { pluralize } from "@/lib/format";
-import type { PermissionCatalogEntry } from "@/lib/services/admin";
 import { cn } from "@/lib/utils";
 import { PERMISSION_GROUP_ORDER, SENSITIVE_PERMISSION_GROUP, SENSITIVE_PERMISSION_NOTE } from "./admin-format";
 
@@ -38,8 +37,11 @@ function diffFor(saved: Permission[], draft: Permission[]): Diff {
     return { added: draft.filter((p) => !saved.includes(p)), removed: saved.filter((p) => !draft.includes(p)) };
 }
 
-/** Permission × role checkbox grid with per-role save, diff summary and confirmation. */
-export function RoleMatrix({ roles, catalog }: { roles: MatrixRole[]; catalog: PermissionCatalogEntry[] }) {
+/**
+ * Permission × role checkbox grid with per-role save, diff summary and confirmation. Read-only while role permissions
+ * can't be saved: it then shows each role's baseline grants.
+ */
+export function RoleMatrix({ roles, catalog, readOnly = false }: { roles: MatrixRole[]; catalog: PermissionCatalogEntry[]; readOnly?: boolean }) {
     const toast = useToast();
     const [draft, setDraft] = useState<Record<Role, Permission[]>>(
         () => Object.fromEntries(roles.map((r) => [r.role, r.permissions])) as Record<Role, Permission[]>,
@@ -99,11 +101,13 @@ export function RoleMatrix({ roles, catalog }: { roles: MatrixRole[]; catalog: P
         <>
             <CardHeader
                 title="Permission matrix"
-                description="Tick what each role may do, then save that role. Nothing changes until you save."
+                description={readOnly ? "What each role may do by default." : "Tick what each role may do, then save that role. Nothing changes until you save."}
                 action={
-                    <p aria-live="polite" className={cn("text-[13px]", dirtyRoles.length > 0 ? "font-medium text-warning-fg" : "text-fg-subtle")}>
-                        {dirtyRoles.length > 0 ? `Unsaved changes: ${dirtyRoles.map((r) => r.label).join(", ")}` : "All changes saved"}
-                    </p>
+                    readOnly ? undefined : (
+                        <p aria-live="polite" className={cn("text-[13px]", dirtyRoles.length > 0 ? "font-medium text-warning-fg" : "text-fg-subtle")}>
+                            {dirtyRoles.length > 0 ? `Unsaved changes: ${dirtyRoles.map((r) => r.label).join(", ")}` : "All changes saved"}
+                        </p>
+                    )
                 }
                 className="flex-wrap"
             />
@@ -168,7 +172,7 @@ export function RoleMatrix({ roles, catalog }: { roles: MatrixRole[]; catalog: P
                                                     <input
                                                         type="checkbox"
                                                         checked={checked}
-                                                        disabled={pending || locked}
+                                                        disabled={readOnly || pending || locked}
                                                         onChange={(event) => toggle(r.role, entry.permission, event.target.checked)}
                                                         aria-label={`${r.label}: ${entry.label}${changed ? " (unsaved)" : ""}`}
                                                         aria-describedby={locked ? CLINICAL_REASON_ID : undefined}
@@ -183,39 +187,41 @@ export function RoleMatrix({ roles, catalog }: { roles: MatrixRole[]; catalog: P
                             </tbody>
                         );
                     })}
-                    <tfoot className="border-t border-border bg-surface-muted">
-                        <tr>
-                            <th scope="row" className="sticky left-0 z-10 bg-surface-muted px-5 py-3 text-left text-xs font-semibold text-fg-muted">
-                                Save per role
-                            </th>
-                            {roles.map((r) => {
-                                const diff = diffs[r.role];
-                                const dirty = diff.added.length + diff.removed.length > 0;
-                                return (
-                                    <td key={r.role} className="px-2 py-3 text-center align-top">
-                                        {dirty ? (
-                                            <div className="flex flex-col items-center gap-1.5">
-                                                <span className="text-xs font-medium text-fg tabular-nums">
-                                                    {diff.added.length > 0 && <span className="text-success-fg">+{diff.added.length}</span>}
-                                                    {diff.added.length > 0 && diff.removed.length > 0 && " "}
-                                                    {diff.removed.length > 0 && <span className="text-danger-fg">−{diff.removed.length}</span>}
-                                                    <span className="sr-only"> unsaved changes for {r.label}</span>
-                                                </span>
-                                                <Button size="sm" onClick={() => openConfirm(r.role)}>
-                                                    Save<span className="sr-only"> {r.label}</span>
-                                                </Button>
-                                                <Button size="sm" variant="ghost" onClick={() => discard(r.role)}>
-                                                    Discard<span className="sr-only"> {r.label} changes</span>
-                                                </Button>
-                                            </div>
-                                        ) : (
-                                            <span className="text-xs text-fg-subtle">No changes</span>
-                                        )}
-                                    </td>
-                                );
-                            })}
-                        </tr>
-                    </tfoot>
+                    {!readOnly && (
+                        <tfoot className="border-t border-border bg-surface-muted">
+                            <tr>
+                                <th scope="row" className="sticky left-0 z-10 bg-surface-muted px-5 py-3 text-left text-xs font-semibold text-fg-muted">
+                                    Save per role
+                                </th>
+                                {roles.map((r) => {
+                                    const diff = diffs[r.role];
+                                    const dirty = diff.added.length + diff.removed.length > 0;
+                                    return (
+                                        <td key={r.role} className="px-2 py-3 text-center align-top">
+                                            {dirty ? (
+                                                <div className="flex flex-col items-center gap-1.5">
+                                                    <span className="text-xs font-medium text-fg tabular-nums">
+                                                        {diff.added.length > 0 && <span className="text-success-fg">+{diff.added.length}</span>}
+                                                        {diff.added.length > 0 && diff.removed.length > 0 && " "}
+                                                        {diff.removed.length > 0 && <span className="text-danger-fg">−{diff.removed.length}</span>}
+                                                        <span className="sr-only"> unsaved changes for {r.label}</span>
+                                                    </span>
+                                                    <Button size="sm" onClick={() => openConfirm(r.role)}>
+                                                        Save<span className="sr-only"> {r.label}</span>
+                                                    </Button>
+                                                    <Button size="sm" variant="ghost" onClick={() => discard(r.role)}>
+                                                        Discard<span className="sr-only"> {r.label} changes</span>
+                                                    </Button>
+                                                </div>
+                                            ) : (
+                                                <span className="text-xs text-fg-subtle">No changes</span>
+                                            )}
+                                        </td>
+                                    );
+                                })}
+                            </tr>
+                        </tfoot>
+                    )}
                 </Table>
             </div>
 

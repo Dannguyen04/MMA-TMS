@@ -26,6 +26,7 @@ import { getSettings } from "@/lib/services/admin";
 import { listGoals } from "@/lib/services/goals";
 import { getClearanceStatus, getFighterHealthSummary, listReviewRequests } from "@/lib/services/medical";
 import { listCoaches, listDoctors } from "@/lib/services/people";
+import { platformFeatureAvailable } from "@/lib/services/platform-features";
 import { getPlanWithSessions, listCoachFeedback, listPlans } from "@/lib/services/training";
 import { listVideoLibrary } from "@/lib/services/videos";
 
@@ -139,7 +140,7 @@ export default async function CoachFighterOverviewPage({ params }: PageProps<"/c
                     </Card>
                 )}
 
-                <GoalsSnapshotCard goals={goals} href={routes.coach.fighterGoals(fighter.id)} />
+                {platformFeatureAvailable("goals") && <GoalsSnapshotCard goals={goals} href={routes.coach.fighterGoals(fighter.id)} />}
             </div>
 
             <div className="flex min-w-0 flex-col gap-6 lg:col-span-2 lg:col-start-1 lg:row-start-1">
@@ -166,34 +167,36 @@ export default async function CoachFighterOverviewPage({ params }: PageProps<"/c
                     now={now}
                 />
 
-                <Card className="min-w-0">
-                    <CardHeader title="Recent feedback" icon={<MessageSquareText />} />
-                    <CardContent>
-                        {feedback.length === 0 ? (
-                            <EmptyState
-                                compact
-                                icon={<MessageSquareText />}
-                                title="No feedback yet"
-                                description="Feedback left on sessions and videos appears here."
-                                className="pt-0"
-                            />
-                        ) : (
-                            <ul className="flex flex-col divide-y divide-border">
-                                {feedback.slice(0, FEEDBACK_LIMIT).map((item) => (
-                                    <li key={item.id} className="py-4 first:pt-0 last:pb-0">
-                                        <CoachFeedbackItem
-                                            feedback={item}
-                                            coachName={coachNames.get(item.coachId) ?? "Coach"}
-                                            now={now}
-                                            sessionHref={item.sessionId ? routes.coach.session(item.sessionId) : undefined}
-                                            videoHref={item.videoId ? routes.coach.video(item.videoId) : undefined}
-                                        />
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </CardContent>
-                </Card>
+                {platformFeatureAvailable("coachFeedback") && (
+                    <Card className="min-w-0">
+                        <CardHeader title="Recent feedback" icon={<MessageSquareText />} />
+                        <CardContent>
+                            {feedback.length === 0 ? (
+                                <EmptyState
+                                    compact
+                                    icon={<MessageSquareText />}
+                                    title="No feedback yet"
+                                    description="Feedback left on sessions and videos appears here."
+                                    className="pt-0"
+                                />
+                            ) : (
+                                <ul className="flex flex-col divide-y divide-border">
+                                    {feedback.slice(0, FEEDBACK_LIMIT).map((item) => (
+                                        <li key={item.id} className="py-4 first:pt-0 last:pb-0">
+                                            <CoachFeedbackItem
+                                                feedback={item}
+                                                coachName={coachNames.get(item.coachId) ?? "Coach"}
+                                                now={now}
+                                                sessionHref={item.sessionId ? routes.coach.session(item.sessionId) : undefined}
+                                                videoHref={item.videoId ? routes.coach.video(item.videoId) : undefined}
+                                            />
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </CardContent>
+                    </Card>
+                )}
             </div>
         </div>
     );

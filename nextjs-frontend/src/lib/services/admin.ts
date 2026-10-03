@@ -4,8 +4,9 @@ import { z } from "zod";
 
 import { isDemoAuthEnabled } from "@/lib/auth/constants";
 import { ApiError, authenticatedApiRequest, authenticatedMutableApiRequest, drainAuthenticatedCursorPages } from "@/lib/api/client";
+import { PERMISSION_CATALOG, ROLE_DEFINITIONS } from "@/lib/auth/role-catalog";
+import { DEFAULT_SYSTEM_SETTINGS } from "@/lib/domain/system-settings";
 import {
-    PERMISSIONS,
     type AuditLog,
     type BroadcastChannel,
     type Coach,
@@ -13,6 +14,7 @@ import {
     type Fighter,
     type NotificationBroadcast,
     type Permission,
+    type PermissionCatalogEntry,
     type Role,
     type RoleDefinition,
     type SystemSettings,
@@ -20,21 +22,14 @@ import {
     type UserStatus,
 } from "@/lib/domain/types";
 import { adminFeatureAvailable } from "./admin-features";
-import { drainNumberedPages, isNotFound, nullIfNotFound } from "./api-helpers";
+import { drainNumberedPages, isNotFound, unsupportedOperation } from "./api-helpers";
 import { adaptBackendAuditLog, backendAuditLogSchema, listAuditLogs } from "./audit";
 import { adaptBackendUser, backendUserSchema, getApiUserWithProfile } from "./people";
+import { platformFeatureAvailable } from "./platform-features";
 
 type Failure<Code extends string> = { ok: false; code: Code; message: string };
 
 const roleSchema = z.enum(["FIGHTER", "COACH", "DOCTOR", "ADMIN"]);
-const permissionSchema = z.enum(PERMISSIONS);
-const backendRoleDefinitionSchema = z.object({
-    role: roleSchema,
-    label: z.string(),
-    description: z.string(),
-    permissions: z.array(permissionSchema),
-});
-const permissionCatalogEntrySchema = z.object({ permission: permissionSchema, label: z.string(), group: z.string() });
 const settingsSchema = z.object({
     organizationName: z.string(),
     timezone: z.string(),
@@ -80,10 +75,6 @@ const roleToApi: Record<Role, z.infer<typeof roleSchema>> = {
     doctor: "DOCTOR",
     admin: "ADMIN",
 };
-
-function adaptRoleDefinition(input: z.infer<typeof backendRoleDefinitionSchema>): RoleDefinition {
-    return { ...input, role: input.role.toLowerCase() as Role };
-}
 
 function adaptBroadcast(input: z.infer<typeof backendBroadcastSchema>): NotificationBroadcast {
     return {
@@ -170,14 +161,6 @@ export interface AdminOverview {
     recentAudit: AuditLog[];
     /** Latest 5 failed audit entries (sign-ins, AI jobs, rejected changes). */
     recentFailures: AuditLog[];
-}
-
-export interface PermissionCatalogEntry {
-    permission: Permission;
-    /** Plain-language description, e.g. "View full medical records". */
-    label: string;
-    /** Area the permission belongs to: Fighters, Training, Video & AI, Medical or Administration. */
-    group: string;
 }
 
 /**
@@ -273,14 +256,15 @@ export async function resendInvite(id: string, actor: User): Promise<ResendInvit
     }
 }
 
+/** The roles and their grants. API mode shows each role's baseline: the backend has no endpoint that lists them. */
 export async function listRoleDefinitions(): Promise<RoleDefinition[]> {
     if (isDemoAuthEnabled()) return (await demoService()).listRoleDefinitions();
-    return (await authenticatedApiRequest("/authorization/roles", z.array(backendRoleDefinitionSchema))).map(adaptRoleDefinition);
+    return ROLE_DEFINITIONS.map((definition) => ({ ...definition, permissions: [...definition.permissions] }));
 }
 
 export async function listPermissionCatalog(): Promise<PermissionCatalogEntry[]> {
     if (isDemoAuthEnabled()) return (await demoService()).listPermissionCatalog();
-    return authenticatedApiRequest("/authorization/permissions", z.array(permissionCatalogEntrySchema));
+    return PERMISSION_CATALOG.map((entry) => ({ ...entry }));
 }
 
 export async function updateRolePermissions(
@@ -289,52 +273,21 @@ export async function updateRolePermissions(
     actor: User,
 ): Promise<UpdateRolePermissionsResult> {
     if (isDemoAuthEnabled()) return (await demoService()).updateRolePermissions(role, permissions, actor);
-    try {
-        const definition = await authenticatedMutableApiRequest(
-            `/authorization/roles/${roleToApi[role]}/permissions`,
-            backendRoleDefinitionSchema,
-            { method: "PUT", body: JSON.stringify({ permissions }) },
-        );
-        return { ok: true, role: adaptRoleDefinition(definition) };
-    } catch (error) {
-        if (isNotFound(error)) return { ok: false, code: "not_found", message: "That role no longer exists." };
-        if (error instanceof ApiError && ["admin_lockout", "clinical_permission_forbidden"].includes(normalizedCode(error))) {
-            return {
-                ok: false,
-                code: normalizedCode(error) as "admin_lockout" | "clinical_permission_forbidden",
-                message: error.message,
-            };
-        }
-        throw error;
-    }
+    // The backend grants permissions one backend capability at a time and can't list a role's grants, so the
+    // interface's role matrix has nothing to save against yet. The roles page hides editing in API mode.
+    unsupportedOperation("Changing a role's permissions", "role permission lists");
 }
 
-/**
- * Settings the interface runs with while the backend has no settings endpoint: `GET /settings` answers 404 today.
- * These are configuration defaults, not user data.
- */
-export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
-    organizationName: "MMA-TMS",
-    timezone: "Asia/Ho_Chi_Minh",
-    sessionTimeoutMin: 480,
-    requireMfa: false,
-    videoMaxSizeMb: 500,
-    videoRetentionDays: 365,
-    allowedVideoFormats: ["mp4", "mov", "webm"],
-    aiConfidenceThreshold: 0.35,
-    aiLowConfidenceThreshold: 0.6,
-    abnormalMovementAlertsEnabled: true,
-    notifyDoctorOnAlert: true,
-    clearanceExpiryWarningDays: 14,
-};
 
 export async function getSettings(): Promise<SystemSettings> {
     if (isDemoAuthEnabled()) return (await demoService()).getSettings();
-    return (await nullIfNotFound(authenticatedApiRequest("/settings", settingsSchema))) ?? DEFAULT_SYSTEM_SETTINGS;
+    if (!platformFeatureAvailable("systemSettings")) return DEFAULT_SYSTEM_SETTINGS;
+    return authenticatedApiRequest("/settings", settingsSchema);
 }
 
 export async function updateSettings(patch: Partial<SystemSettings>, actor: User): Promise<UpdateSettingsResult> {
     if (isDemoAuthEnabled()) return (await demoService()).updateSettings(patch, actor);
+    if (!platformFeatureAvailable("systemSettings")) unsupportedOperation("Saving system settings", "system settings");
     try {
         return {
             ok: true,
@@ -356,11 +309,13 @@ export async function updateSettings(patch: Partial<SystemSettings>, actor: User
 
 export async function listBroadcasts(): Promise<NotificationBroadcast[]> {
     if (isDemoAuthEnabled()) return (await demoService()).listBroadcasts();
+    if (!platformFeatureAvailable("broadcasts")) return [];
     return (await drainAuthenticatedCursorPages("/broadcasts", backendBroadcastSchema)).map(adaptBroadcast);
 }
 
 export async function createBroadcast(input: CreateBroadcastInput, actor: User): Promise<CreateBroadcastResult> {
     if (isDemoAuthEnabled()) return (await demoService()).createBroadcast(input, actor);
+    if (!platformFeatureAvailable("broadcasts")) unsupportedOperation("Sending a broadcast", "broadcasts");
     try {
         const broadcast = await authenticatedMutableApiRequest("/broadcasts", backendBroadcastSchema, {
             method: "POST",

@@ -12,8 +12,9 @@ vi.mock("@/lib/api/client", async (loadOriginal) => ({
 }));
 
 import type { User } from "@/lib/domain/types";
-import { ApiError } from "@/lib/api/client";
-import { DEFAULT_SYSTEM_SETTINGS, getSettings, getUserDetail, listUsers, updateRolePermissions } from "./admin";
+import { PERMISSION_CATALOG, ROLE_DEFINITIONS } from "@/lib/auth/role-catalog";
+import { DEFAULT_SYSTEM_SETTINGS } from "@/lib/domain/system-settings";
+import { getSettings, getUserDetail, listPermissionCatalog, listRoleDefinitions, listUsers, updateRolePermissions } from "./admin";
 
 const actor = {} as User;
 /** Accounts as `GET /users` returns them (the service's `publicUserSchema`). */
@@ -84,23 +85,18 @@ describe("admin API adapter", () => {
         expect(drainAuthenticatedCursorPages).not.toHaveBeenCalled();
     });
 
-    it("thay the toan bo quyen cua vai tro trong mot yeu cau", async () => {
-        authenticatedMutableApiRequest.mockResolvedValue({
-            role: "COACH",
-            label: "Coach",
-            description: "Training staff",
-            permissions: ["fighters:read", "training:write"],
-        });
+    it("shows each role's baseline grants without asking the service, which can't list them", async () => {
+        await expect(listRoleDefinitions()).resolves.toEqual(ROLE_DEFINITIONS);
+        await expect(listPermissionCatalog()).resolves.toEqual(PERMISSION_CATALOG);
+        expect(authenticatedApiRequest).not.toHaveBeenCalled();
+    });
 
-        await expect(updateRolePermissions("coach", ["fighters:read", "training:write"], actor)).resolves.toEqual({
-            ok: true,
-            role: expect.objectContaining({ role: "coach", permissions: ["fighters:read", "training:write"] }),
+    it("refuses to change a role's permissions, because the service has no role permission list", async () => {
+        await expect(updateRolePermissions("coach", ["fighters:read", "training:write"], actor)).rejects.toMatchObject({
+            status: 501,
+            code: "API_OPERATION_UNSUPPORTED",
         });
-        expect(authenticatedMutableApiRequest).toHaveBeenCalledWith(
-            "/authorization/roles/COACH/permissions",
-            expect.anything(),
-            expect.objectContaining({ method: "PUT" }),
-        );
+        expect(authenticatedMutableApiRequest).not.toHaveBeenCalled();
     });
 
     it("khong lui ve du lieu demo khi API loi", async () => {
@@ -109,15 +105,8 @@ describe("admin API adapter", () => {
         await expect(listUsers()).rejects.toThrow("backend unavailable");
     });
 
-    it("dung cau hinh mac dinh khi backend chua co endpoint settings", async () => {
-        authenticatedApiRequest.mockRejectedValue(new ApiError({ message: "Not Found", kind: "http", status: 404, code: "NOT_FOUND" }));
-
+    it("uses the default settings without asking the service, which has no settings endpoint", async () => {
         await expect(getSettings()).resolves.toEqual(DEFAULT_SYSTEM_SETTINGS);
-    });
-
-    it("van bao loi settings khi backend loi that", async () => {
-        authenticatedApiRequest.mockRejectedValue(new ApiError({ message: "Server error", kind: "http", status: 500, code: "INTERNAL" }));
-
-        await expect(getSettings()).rejects.toThrow("Server error");
+        expect(authenticatedApiRequest).not.toHaveBeenCalled();
     });
 });

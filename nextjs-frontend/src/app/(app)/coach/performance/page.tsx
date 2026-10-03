@@ -14,7 +14,7 @@ import { Card, CardHeader } from "@/components/ui/card";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
-import { EmptyState } from "@/components/ui/states";
+import { EmptyState, FeatureUnavailable } from "@/components/ui/states";
 import { Pagination } from "@/components/ui/table";
 import { requireRole } from "@/lib/auth/session";
 import { formatDate, formatNumber } from "@/lib/format";
@@ -22,6 +22,7 @@ import { matchesSearch, paginate, parseEnum, parseSortDirection, sortItems } fro
 import { routes } from "@/lib/routes";
 import { listFighters } from "@/lib/services/people";
 import { getPerformanceHistory, getPerformanceSummary, getTeamPerformance, getWeeklyVolume } from "@/lib/services/performance";
+import { platformFeatureAvailable } from "@/lib/services/platform-features";
 import { average, param } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Team performance" };
@@ -33,6 +34,14 @@ type SortKey = (typeof SORT_KEYS)[number];
 
 export default async function CoachPerformancePage({ searchParams }: PageProps<"/coach/performance">) {
     const user = await requireRole("coach");
+    if (!platformFeatureAvailable("performance")) {
+        return (
+            <>
+                <PageHeader title="Team performance" />
+                <FeatureUnavailable service="training" title="Performance scores aren't available yet" />
+            </>
+        );
+    }
     const params = await searchParams;
     const pathname = routes.coach.performance;
 

@@ -21,8 +21,8 @@ import {
     updateUser,
 } from "@/lib/services/admin";
 import { ADMIN_FEATURE_UNAVAILABLE_MESSAGE, adminFeatureAvailable } from "@/lib/services/admin-features";
+import { PLATFORM_FEATURE_UNAVAILABLE_MESSAGE, platformFeatureAvailable } from "@/lib/services/platform-features";
 import { cancelJob, retryJob, setModelStatus, updateModelThresholds } from "@/lib/services/ai";
-import { isNotFound } from "@/lib/services/api-helpers";
 import { deleteVideo, getJobProgress, getVideo } from "@/lib/services/videos";
 import { actionError, actionSuccess, FIX_FIELDS, validationError, type ActionState } from "./state";
 
@@ -179,6 +179,7 @@ const rolePermissionsSchema = z
 export async function updateRolePermissionsAction(_prev: ActionState<Permission[]>, formData: FormData): Promise<ActionState<Permission[]>> {
     const auth = await authorizeAction("roles:manage");
     if (!auth.ok) return actionError(auth.message);
+    if (!adminFeatureAvailable("rolePermissions")) return actionError(ADMIN_FEATURE_UNAVAILABLE_MESSAGE);
     const parsed = rolePermissionsSchema.safeParse({ role: text(formData.get("role")), permissions: texts(formData.getAll("permissions")) });
     if (!parsed.success) {
         // The matrix shows the message only, so surface the permission rule itself rather than the generic prompt.
@@ -360,6 +361,7 @@ const broadcastSchema = z
 export async function createBroadcastAction(_prev: ActionState<BroadcastData>, formData: FormData): Promise<ActionState<BroadcastData>> {
     const auth = await authorizeAction("notifications:manage");
     if (!auth.ok) return actionError(auth.message);
+    if (!platformFeatureAvailable("broadcasts")) return actionError(PLATFORM_FEATURE_UNAVAILABLE_MESSAGE);
     const parsed = broadcastSchema.safeParse({
         title: text(formData.get("title")),
         body: text(formData.get("body")),
@@ -426,6 +428,7 @@ const settingsSchema = z
 export async function updateSettingsAction(_prev: ActionState<SystemSettings>, formData: FormData): Promise<ActionState<SystemSettings>> {
     const auth = await authorizeAction("settings:manage");
     if (!auth.ok) return actionError(auth.message);
+    if (!platformFeatureAvailable("systemSettings")) return actionError(PLATFORM_FEATURE_UNAVAILABLE_MESSAGE);
     const parsed = settingsSchema.safeParse({
         organizationName: text(formData.get("organizationName")),
         sessionTimeoutMin: text(formData.get("sessionTimeoutMin")),
@@ -449,12 +452,7 @@ export async function updateSettingsAction(_prev: ActionState<SystemSettings>, f
             aiLowConfidenceThreshold: values.aiLowConfidenceThreshold / 100,
         },
         auth.user,
-    ).catch((error: unknown) => {
-        // The backend has no settings endpoint yet; the form shows the defaults the app runs with.
-        if (isNotFound(error)) return null;
-        throw error;
-    });
-    if (!result) return actionError("Saving system settings isn't available yet. The backend doesn't store them.");
+    );
     if (!result.ok) return actionError(result.message, { [result.field]: result.message });
 
     revalidatePath("/", "layout");

@@ -4,11 +4,13 @@ import { revalidatePath } from "next/cache";
 
 import { getCurrentUser } from "@/lib/auth/session";
 import { markAllNotificationsRead, markNotificationRead } from "@/lib/services/notifications";
+import { PLATFORM_FEATURE_UNAVAILABLE_MESSAGE, platformFeatureAvailable } from "@/lib/services/platform-features";
 import { actionError, actionSuccess, type ActionState } from "./state";
 
 export async function markAllRead(): Promise<ActionState> {
     const user = await getCurrentUser();
     if (!user) return actionError("Your session has expired. Sign in again.");
+    if (!platformFeatureAvailable("notifications")) return actionError(PLATFORM_FEATURE_UNAVAILABLE_MESSAGE);
     const count = await markAllNotificationsRead(user.id);
     revalidatePath("/", "layout");
     return actionSuccess(count === 0 ? "You're all caught up." : `Marked ${count} notification${count === 1 ? "" : "s"} as read.`);
@@ -17,6 +19,7 @@ export async function markAllRead(): Promise<ActionState> {
 export async function markRead(notificationId: string): Promise<ActionState> {
     const user = await getCurrentUser();
     if (!user) return actionError("Your session has expired. Sign in again.");
+    if (!platformFeatureAvailable("notifications")) return actionError(PLATFORM_FEATURE_UNAVAILABLE_MESSAGE);
     if (!(await markNotificationRead(user.id, notificationId))) return actionError("That notification no longer exists.");
     revalidatePath("/", "layout");
     return actionSuccess("Marked as read.");

@@ -4,11 +4,12 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { canAccessFighter } from "@/lib/auth/access";
-import { authorizeAction } from "@/lib/auth/session";
+import { authorizeAction, type ActionAuthResult } from "@/lib/auth/session";
 import { GOAL_STATUS_LABELS, TECHNIQUES } from "@/lib/domain/labels";
 import type { Goal, Technique, User } from "@/lib/domain/types";
 import { academyDayEndIso, academyDayStartIso, dayKey, isDateKey } from "@/lib/format";
 import { routes } from "@/lib/routes";
+import { PLATFORM_FEATURE_UNAVAILABLE_MESSAGE, platformFeatureAvailable } from "@/lib/services/platform-features";
 import {
     createGoal as createGoalRecord,
     deleteGoal as deleteGoalRecord,
@@ -137,10 +138,16 @@ function revalidateGoalPages(fighterId: string) {
     revalidatePath("/fighter/performance/[technique]", "page");
 }
 
+/** Goal changes need the goals service as well as the permission. */
+async function authorizeGoalChange(): Promise<ActionAuthResult> {
+    if (!platformFeatureAvailable("goals")) return { ok: false, message: PLATFORM_FEATURE_UNAVAILABLE_MESSAGE };
+    return authorizeAction("goals:write");
+}
+
 /* ─── Actions ─────────────────────────────────────────────────────────────── */
 
 export async function createGoal(_prev: ActionState, formData: FormData): Promise<ActionState> {
-    const auth = await authorizeAction("goals:write");
+    const auth = await authorizeGoalChange();
     if (!auth.ok) return actionError(auth.message);
 
     const values = readForm(formData, [...GOAL_TEXT_FIELDS, "fighterId", "current"], ["lowerIsBetter"]);
@@ -176,7 +183,7 @@ export async function createGoal(_prev: ActionState, formData: FormData): Promis
 }
 
 export async function updateGoal(_prev: ActionState, formData: FormData): Promise<ActionState> {
-    const auth = await authorizeAction("goals:write");
+    const auth = await authorizeGoalChange();
     if (!auth.ok) return actionError(auth.message);
 
     const values = readForm(formData, [...GOAL_TEXT_FIELDS, "goalId"], ["lowerIsBetter"]);
@@ -209,7 +216,7 @@ export async function updateGoal(_prev: ActionState, formData: FormData): Promis
 }
 
 export async function logGoalProgress(_prev: ActionState, formData: FormData): Promise<ActionState> {
-    const auth = await authorizeAction("goals:write");
+    const auth = await authorizeGoalChange();
     if (!auth.ok) return actionError(auth.message);
 
     const parsed = progressSchema.safeParse(readForm(formData, ["goalId", "value"]));
@@ -234,7 +241,7 @@ export async function logGoalProgress(_prev: ActionState, formData: FormData): P
 }
 
 export async function deleteGoal(goalId: string): Promise<ActionState> {
-    const auth = await authorizeAction("goals:write");
+    const auth = await authorizeGoalChange();
     if (!auth.ok) return actionError(auth.message);
 
     const parsed = z.string().min(1).safeParse(goalId);
