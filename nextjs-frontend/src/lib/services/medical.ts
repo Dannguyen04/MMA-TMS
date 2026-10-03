@@ -1,6 +1,5 @@
 import "server-only";
 
-import { ApiError } from "@/lib/api/client";
 import { isDemoAuthEnabled } from "@/lib/auth/constants";
 import type { ClearanceInput, ExaminationDecisionInput, InjuryInput, RecoveryPlanInput, RecoveryPlanPatch, TreatmentInput } from "@/lib/domain/medical-bodies";
 import type { ApiInjuryStatus, MedicalReviewRequest } from "@/lib/domain/medical-contract";
@@ -26,6 +25,7 @@ import type {
     RecoveryPlanFilter,
     UpdateInjuryPatch,
 } from "./medical.demo";
+import { unsupportedOperation } from "./api-helpers";
 import * as api from "./medical.api";
 import type { ClearanceStatus, ClinicalDossier } from "./medical.api";
 
@@ -71,26 +71,16 @@ async function demoService(): Promise<typeof import("./medical.demo")> {
     return import("./medical.demo");
 }
 
-function unsupported(operation: string, detail: string): never {
-    throw new ApiError({
-        message: `${operation} is unavailable because the backend does not yet support ${detail}.`,
-        kind: "http",
-        status: 501,
-        code: "API_OPERATION_UNSUPPORTED",
-        details: { operation, missingCapability: detail },
-    });
-}
-
 /* ─── Medical records (demo only) ─────────────────────────────────────────── */
 
 export async function getMedicalRecord(fighterId: string): Promise<MedicalRecord | null> {
     if (isDemoAuthEnabled()) return (await demoService()).getMedicalRecord(fighterId);
-    unsupported("Reading a medical record", "medical records");
+    unsupportedOperation("Reading a medical record", "medical records");
 }
 
 export async function updateMedicalRecord(fighterId: string, patch: MedicalRecordPatch, actor: User): Promise<MedicalResult<MedicalRecord>> {
     if (isDemoAuthEnabled()) return (await demoService()).updateMedicalRecord(fighterId, patch, actor);
-    unsupported("Updating a medical record", "medical records");
+    unsupportedOperation("Updating a medical record", "medical records");
 }
 
 /* ─── Examinations ────────────────────────────────────────────────────────── */
@@ -107,7 +97,7 @@ export async function getExamination(id: string): Promise<MedicalExamination | n
 
 export async function createExamination(input: CreateExaminationInput, actor: User): Promise<MedicalResult<MedicalExamination>> {
     if (isDemoAuthEnabled()) return (await demoService()).createExamination(input, actor);
-    unsupported("Recording an examination with vitals", "vitals and assessments");
+    unsupportedOperation("Recording an examination with vitals", "vitals and assessments");
 }
 
 /* ─── Injuries & treatments ───────────────────────────────────────────────── */
@@ -129,37 +119,37 @@ export async function getInjuryDetail(id: string): Promise<InjuryDetail | null> 
 
 export async function createInjury(input: CreateInjuryInput, actor: User): Promise<MedicalResult<Injury>> {
     if (isDemoAuthEnabled()) return (await demoService()).createInjury(input, actor);
-    unsupported("Recording an injury", "this injury form");
+    unsupportedOperation("Recording an injury", "this injury form");
 }
 
 /** In API mode only the status can change, within the service's rules (a resolved injury stays resolved). */
 export async function updateInjury(id: string, patch: UpdateInjuryPatch, actor: User): Promise<MedicalResult<Injury>> {
     if (isDemoAuthEnabled()) return (await demoService()).updateInjury(id, patch, actor);
     const { status, ...rest } = patch;
-    if (!status || Object.keys(rest).length > 0) unsupported("Editing an injury's details", "this injury form");
+    if (!status || Object.keys(rest).length > 0) unsupportedOperation("Editing an injury's details", "this injury form");
     return { ok: true, data: await api.updateInjury(id, { status: status.toUpperCase() as ApiInjuryStatus }) };
 }
 
 /** Records an injury in the medical service's terms (joint, free-text type). API mode only. */
 export async function recordInjury(fighterId: string, input: InjuryInput): Promise<Injury> {
-    if (isDemoAuthEnabled()) unsupported("Recording an injury by joint", "the demo injury form");
+    if (isDemoAuthEnabled()) unsupportedOperation("Recording an injury by joint", "the demo injury form");
     return api.recordInjury(fighterId, input);
 }
 
 /** Appends a treatment to an injury. API mode only; demo mode keeps its own treatment form. */
 export async function recordTreatment(injury: Pick<Injury, "id" | "fighterId">, input: TreatmentInput): Promise<Treatment> {
-    if (isDemoAuthEnabled()) unsupported("Recording a treatment", "the demo treatment form");
+    if (isDemoAuthEnabled()) unsupportedOperation("Recording a treatment", "the demo treatment form");
     return api.recordTreatment(injury, input);
 }
 
 export async function addTreatment(input: AddTreatmentInput, actor: User): Promise<MedicalResult<Treatment>> {
     if (isDemoAuthEnabled()) return (await demoService()).addTreatment(input, actor);
-    unsupported("Adding a treatment", "this treatment form");
+    unsupportedOperation("Adding a treatment", "this treatment form");
 }
 
 export async function updateTreatmentStatus(id: string, status: TreatmentStatus, actor: User): Promise<MedicalResult<Treatment>> {
     if (isDemoAuthEnabled()) return (await demoService()).updateTreatmentStatus(id, status, actor);
-    unsupported("Changing a treatment's status", "treatment status");
+    unsupportedOperation("Changing a treatment's status", "treatment status");
 }
 
 /* ─── Recovery plans ──────────────────────────────────────────────────────── */
@@ -181,33 +171,33 @@ export async function getRecoveryPlanDetail(id: string): Promise<RecoveryPlanDet
 
 export async function createRecoveryPlan(input: CreateRecoveryPlanInput, actor: User): Promise<MedicalResult<RecoveryPlan>> {
     if (isDemoAuthEnabled()) return (await demoService()).createRecoveryPlan(input, actor);
-    unsupported("Creating a phased recovery plan", "recovery phases");
+    unsupportedOperation("Creating a phased recovery plan", "recovery phases");
 }
 
 export async function addRecoveryCheckIn(planId: string, checkIn: RecoveryCheckInInput, actor: User): Promise<MedicalResult<RecoveryPlan>> {
     if (isDemoAuthEnabled()) return (await demoService()).addRecoveryCheckIn(planId, checkIn, actor);
-    unsupported("Logging a recovery check-in", "recovery check-ins");
+    unsupportedOperation("Logging a recovery check-in", "recovery check-ins");
 }
 
 export async function setMilestone(planId: string, phaseId: string, milestoneIndex: number, done: boolean, actor: User): Promise<MedicalResult<RecoveryPlan>> {
     if (isDemoAuthEnabled()) return (await demoService()).setMilestone(planId, phaseId, milestoneIndex, done, actor);
-    unsupported("Updating a recovery phase milestone", "recovery phases");
+    unsupportedOperation("Updating a recovery phase milestone", "recovery phases");
 }
 
 export async function advanceRecoveryPhase(planId: string, actor: User): Promise<MedicalResult<RecoveryPlan>> {
     if (isDemoAuthEnabled()) return (await demoService()).advanceRecoveryPhase(planId, actor);
-    unsupported("Advancing a recovery phase", "recovery phases");
+    unsupportedOperation("Advancing a recovery phase", "recovery phases");
 }
 
 /** Creates a recovery plan with flat milestones. API mode only; demo plans are phased. */
 export async function createMilestonePlan(fighterId: string, input: RecoveryPlanInput): Promise<RecoveryPlan> {
-    if (isDemoAuthEnabled()) unsupported("Creating a milestone recovery plan", "the demo's phased plans");
+    if (isDemoAuthEnabled()) unsupportedOperation("Creating a milestone recovery plan", "the demo's phased plans");
     return api.createRecoveryPlan(fighterId, input);
 }
 
 /** Updates a milestone plan: its milestones (the whole list), end date or status. API mode only. */
 export async function updateMilestonePlan(planId: string, patch: RecoveryPlanPatch): Promise<RecoveryPlan> {
-    if (isDemoAuthEnabled()) unsupported("Updating a milestone recovery plan", "the demo's phased plans");
+    if (isDemoAuthEnabled()) unsupportedOperation("Updating a milestone recovery plan", "the demo's phased plans");
     return api.updateRecoveryPlan(planId, patch);
 }
 
@@ -250,13 +240,13 @@ export async function getClinicalDossier(fighterId: string): Promise<ClinicalDos
 
 /** Records an examination decision for a scope. API mode only; demo mode records vitals-based examinations. */
 export async function recordExaminationDecision(fighterId: string, input: ExaminationDecisionInput): Promise<MedicalExamination> {
-    if (isDemoAuthEnabled()) unsupported("Recording an examination decision", "the demo examination form");
+    if (isDemoAuthEnabled()) unsupportedOperation("Recording an examination decision", "the demo examination form");
     return api.recordExamination(fighterId, input);
 }
 
 /** Issues a clearance from the fighter's current positive examination. API mode only. */
 export async function issueClearance(fighterId: string, input: ClearanceInput): Promise<MedicalClearance> {
-    if (isDemoAuthEnabled()) unsupported("Issuing a clearance from an examination", "the demo clearance form");
+    if (isDemoAuthEnabled()) unsupportedOperation("Issuing a clearance from an examination", "the demo clearance form");
     return api.issueClearance(fighterId, input);
 }
 
@@ -267,7 +257,7 @@ export async function getClearanceHistory(fighterId: string): Promise<MedicalCle
 
 export async function grantClearance(input: GrantClearanceInput, actor: User): Promise<MedicalResult<MedicalClearance>> {
     if (isDemoAuthEnabled()) return (await demoService()).grantClearance(input, actor);
-    unsupported("Granting a clearance with blocked lists", "blocked-list restrictions");
+    unsupportedOperation("Granting a clearance with blocked lists", "blocked-list restrictions");
 }
 
 export async function revokeClearance(clearanceId: string, reason: string, actor: User): Promise<MedicalResult<MedicalClearance>> {
@@ -279,7 +269,7 @@ export async function revokeClearance(clearanceId: string, reason: string, actor
 
 export async function updateHealthStatus(fighterId: string, status: HealthStatus, actor: User): Promise<MedicalResult<Fighter>> {
     if (isDemoAuthEnabled()) return (await demoService()).updateHealthStatus(fighterId, status, actor);
-    unsupported("Setting a fighter's health status", "manual health status");
+    unsupportedOperation("Setting a fighter's health status", "manual health status");
 }
 
 /* ─── Overviews ───────────────────────────────────────────────────────────── */

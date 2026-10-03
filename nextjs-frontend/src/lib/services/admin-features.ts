@@ -1,6 +1,6 @@
 import "server-only";
 
-import { isDemoAuthEnabled } from "@/lib/auth/constants";
+import { demoOnlyFeatureGate } from "./feature-gate";
 
 /**
  * Account-management features the frontend has but the user service doesn't offer yet. They stay available
@@ -28,8 +28,8 @@ export type AdminFeature =
     /** Reading which permissions each role grants. */
     | "rolePermissions";
 
-/** Features with no user-service API yet. Remove one from this set once the service offers it. */
-const DEMO_ONLY_FEATURES: ReadonlySet<AdminFeature> = new Set([
+/** Features with no user-service API yet. Remove one from this list once the service offers it. */
+export const adminFeatureAvailable = demoOnlyFeatureGate<AdminFeature>([
     "inviteUsers",
     "editUsers",
     "accountStatus",
@@ -40,10 +40,6 @@ const DEMO_ONLY_FEATURES: ReadonlySet<AdminFeature> = new Set([
     "auditTrail",
     "rolePermissions",
 ]);
-
-export function adminFeatureAvailable(feature: AdminFeature): boolean {
-    return isDemoAuthEnabled() || !DEMO_ONLY_FEATURES.has(feature);
-}
 
 /** Message returned by server actions for an account feature that isn't available in this mode. */
 export const ADMIN_FEATURE_UNAVAILABLE_MESSAGE = "This isn't available yet. The user service will add it in a later release.";

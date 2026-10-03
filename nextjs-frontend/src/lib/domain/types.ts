@@ -74,6 +74,14 @@ export interface RoleDefinition {
     permissions: Permission[];
 }
 
+export interface PermissionCatalogEntry {
+    permission: Permission;
+    /** Plain-language description, e.g. "View full medical records". */
+    label: string;
+    /** Area the permission belongs to: Fighters, Training, Video & AI, Medical or Administration. */
+    group: string;
+}
+
 /* ────────────────────────────────────────────────────────────────────────────
  * People
  * ──────────────────────────────────────────────────────────────────────────── */

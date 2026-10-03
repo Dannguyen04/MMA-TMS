@@ -1,6 +1,5 @@
 import "server-only";
 
-import { ApiError } from "@/lib/api/client";
 import { isDemoAuthEnabled } from "@/lib/auth/constants";
 import { AI_MODEL_STATUS_LABELS, ALERT_STATUS_LABELS, REVIEW_DECISION_LABELS } from "@/lib/domain/labels";
 import type {
@@ -29,6 +28,7 @@ import { db, nowIso, simulateLatency } from "@/lib/mocks/db";
 import { matchesSearch } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { average, round } from "@/lib/utils";
+import { unsupportedOperation } from "./api-helpers";
 import { recordAudit } from "./audit.demo";
 import { notifyUsers, staffUserIdsForFighter } from "./notifications.demo";
 import { syncRuntimeJobs, trackRuntimeJob, untrackRuntimeJob } from "./videos.demo";
@@ -507,14 +507,7 @@ export async function setModelStatus(id: string, status: AIModelStatus, actor: U
  * these functions refuse instead of serving demo records; pages hide the feature before calling them.
  */
 function requireDemoObservations(operation: string): void {
-    if (isDemoAuthEnabled()) return;
-    throw new ApiError({
-        message: `${operation} is unavailable because the backend does not yet support AI movement observations.`,
-        kind: "http",
-        status: 501,
-        code: "API_OPERATION_UNSUPPORTED",
-        details: { operation, missingCapability: "AI movement observations" },
-    });
+    if (!isDemoAuthEnabled()) unsupportedOperation(operation, "AI movement observations");
 }
 
 export interface AlertFilter {

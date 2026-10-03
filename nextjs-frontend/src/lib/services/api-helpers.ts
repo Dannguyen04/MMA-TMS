@@ -30,6 +30,20 @@ export async function nullIfUnreadable<T>(request: Promise<T>): Promise<T | null
     }
 }
 
+/**
+ * Refuses an operation the API doesn't offer yet with 501 API_OPERATION_UNSUPPORTED, instead of falling back to
+ * demo data. Pages hide those features up front (see the feature gates), so this is only a backstop.
+ */
+export function unsupportedOperation(operation: string, missingCapability: string): never {
+    throw new ApiError({
+        message: `${operation} is unavailable because the backend does not yet support ${missingCapability}.`,
+        kind: "http",
+        status: 501,
+        code: "API_OPERATION_UNSUPPORTED",
+        details: { operation, missingCapability },
+    });
+}
+
 type QueryValue = string | number | boolean | null | undefined;
 
 /** Appends the non-empty values as a query string. */

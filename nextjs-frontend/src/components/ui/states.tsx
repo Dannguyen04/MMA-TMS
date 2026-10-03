@@ -74,11 +74,14 @@ export function ErrorState({ title, description, icon, action, compact, classNam
  */
 export function FeatureUnavailable({
     title,
-    description = "The medical service doesn't offer this yet. It will appear here once it does.",
+    service = "medical",
+    description = `The ${service} service doesn't offer this yet. It will appear here once it does.`,
     compact,
     className,
 }: {
     title: string;
+    /** The backend service that will offer the feature, named in the default description. */
+    service?: "medical" | "training" | "notification" | "platform" | "video analysis";
     description?: ReactNode;
     compact?: boolean;
     className?: string;
