@@ -394,6 +394,7 @@ export class TrainingRepository implements ITrainingRepository {
       description: data.description ?? null,
       startDate: data.startDate,
       endDate: data.endDate ?? null,
+      phase: data.phase,
       goals: data.goals ?? null,
       milestones: data.milestones ?? [],
     }).returning();

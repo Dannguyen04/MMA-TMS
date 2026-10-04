@@ -19,13 +19,14 @@ const migrationByMode = new Map([
   ['--apply-015', '015_notifications_delivery.sql'],
   ['--apply-016', '016_medical_examination_details.sql'],
   ['--apply-017', '017_doctor_assignment_notification.sql'],
+  ['--apply-018', '018_training_plan_phase.sql'],
 ]);
 if (
   !['--check', ...migrationByMode.keys()].includes(mode) ||
   process.argv.length > 3
 ) {
   console.error(
-    'Usage: node run_sql.mjs [--check | --apply-003 | --apply-004 | --apply-005 | --apply-006 | --apply-007 | --apply-008 | --apply-009 | --apply-010 | --apply-011 | --apply-012 | --apply-013 | --apply-014 | --apply-015 | --apply-016 | --apply-017]',
+    'Usage: node run_sql.mjs [--check | --apply-003 | --apply-004 | --apply-005 | --apply-006 | --apply-007 | --apply-008 | --apply-009 | --apply-010 | --apply-011 | --apply-012 | --apply-013 | --apply-014 | --apply-015 | --apply-016 | --apply-017 | --apply-018]',
   );
   process.exitCode = 1;
 } else {
@@ -33,7 +34,7 @@ if (
   try {
     const migrations = readVerifiedMigrations();
     if (mode === '--check') {
-      console.log('001-017 checksums OK. No database connection was opened.');
+      console.log('001-018 checksums OK. No database connection was opened.');
     } else {
       const migrationName = migrationByMode.get(mode);
       const migrationVersion = migrationName.slice(0, 3);

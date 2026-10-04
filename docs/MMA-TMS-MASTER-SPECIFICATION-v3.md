@@ -544,6 +544,16 @@ Note: KHÔNG hiển thị raw joint angles (ví dụ "147°") trực tiếp tron
 | FR-TRAIN-003 | Fighter có thể xem training plans được assign.            |
 | FR-TRAIN-004 | System ghi lại completed training sessions với timestamp. |
 | FR-TRAIN-005 | Training session có thể link đến một video analysis.      |
+| FR-TRAIN-006 | Training Plan có một `phase` bắt buộc: `base`, `build`, `fight_camp`, `taper`, `rehab`, `maintenance`; phase được chọn khi tạo, sửa qua API cập nhật plan và trả trong các response plan. |
+
+### AC — FR-TRAIN-006 (quyết định chủ dự án 2026-10-04; chưa triển khai)
+
+- `POST /training-plans` bắt buộc nhận `phase`, dùng đúng sáu giá trị lowercase trên; thiếu, `null` hoặc ngoài enum trả `422 VALIDATION_ERROR` theo convention Zod backend hiện tại.
+- `PATCH /training-plans/:id` nhận `phase` tùy chọn; bỏ qua trường này thì giữ nguyên, gửi giá trị mới thì phải hợp lệ và không `null`. Giữ nguyên permission, resource scope và quy tắc cập nhật plan hiện tại.
+- Response tạo, danh sách, chi tiết, cập nhật và chuyển trạng thái plan đều có `phase` không nullable.
+- Chủ dự án xác nhận chưa có plan cũ. Thêm cột `phase NOT NULL` bằng migration forward-only mới, không default hoặc backfill; nếu database đích có plan thì dừng để chốt cách xử lý dữ liệu.
+- Phase là phân loại độc lập với `status`, không tự đổi phase, bài tập, RPE, medical eligibility hay công thức progress. Không bổ sung lịch sử phase hoặc các giai đoạn có khoảng ngày riêng trong phạm vi này.
+- Phạm vi chỉ là backend Training Plan; weekly target, focus areas, session drills, adherence, medical warnings và frontend/mobile được để lại cho công việc riêng.
 
 ## 05.4 Video
 
@@ -2862,6 +2872,8 @@ The system must always answer:
 # 27. CHANGE LOG
 
 ## v3.5 (2026-10-04)
+
+**Bổ sung đã duyệt, chưa triển khai:** Training Plan phase bắt buộc (`FR-TRAIN-006`), gồm `base`, `build`, `fight_camp`, `taper`, `rehab`, `maintenance`. Chủ dự án xác nhận chưa có plan cũ; cần migration mới với cột non-null không default/backfill và contract tạo/sửa/đọc plan tương ứng. Quyết định này không xác nhận migration đã được viết hoặc áp dụng.
 
 **Fighter onboarding và khám baseline — bắt buộc khám trước khi tập.**
 

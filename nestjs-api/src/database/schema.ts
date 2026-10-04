@@ -115,6 +115,14 @@ export const trainingPlanStatusEnum = pgEnum('training_plan_status', [
   'COMPLETED',
   'CANCELLED',
 ]);
+export const trainingPlanPhaseEnum = pgEnum('training_plan_phase', [
+  'base',
+  'build',
+  'fight_camp',
+  'taper',
+  'rehab',
+  'maintenance',
+]);
 export const sessionStatusEnum = pgEnum('session_status', [
   'SCHEDULED',
   'IN_PROGRESS',
@@ -3761,6 +3769,7 @@ export const trainingPlans = pgTable(
       .default(sql.raw('now()')),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     milestones: jsonb('milestones').notNull().default(sql.raw("'[]'::jsonb")),
+    phase: trainingPlanPhaseEnum('phase').notNull(),
   },
   (t): PgTableExtraConfigValue[] => [
     check(

@@ -202,13 +202,14 @@ export class CoachingService implements OnModuleInit {
           coachId: dto.coachId,
           title: planTitle,
           startDate: new Date().toISOString().split('T')[0],
+          phase: dto.phase,
           status: 'ACTIVE',
         })
         .returning();
 
       // 3. Create training session
       const scheduledAt = dto.scheduledAt ? new Date(dto.scheduledAt) : new Date();
-      const sessionType = (dto.sessionType as any) || 'SHADOW_BOXING';
+      const sessionType = dto.sessionType ?? 'SHADOW_BOXING';
 
       const [session] = await tx
         .insert(trainingSessions)

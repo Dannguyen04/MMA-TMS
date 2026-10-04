@@ -15,6 +15,16 @@ export const TrainingPlanStatus = z.enum([
 ]);
 export type TrainingPlanStatusType = z.infer<typeof TrainingPlanStatus>;
 
+export const TrainingPlanPhase = z.enum([
+  'base',
+  'build',
+  'fight_camp',
+  'taper',
+  'rehab',
+  'maintenance',
+]);
+export type TrainingPlanPhaseType = z.infer<typeof TrainingPlanPhase>;
+
 export const SessionType = z.enum([
   'SHADOW_BOXING',
   'PAD_WORK',
@@ -89,6 +99,7 @@ export const trainingPlanBaseSchema = z.object({
   startDate: dateOnlySchema,
   endDate: dateOnlySchema.nullable(),
   status: TrainingPlanStatus,
+  phase: TrainingPlanPhase,
   goals: nullableTrimmedTextSchema(1000),
   milestones: z.array(milestoneSchema),
   isActive: z.boolean(),
@@ -204,6 +215,7 @@ export const createTrainingPlanSchema = trainingPlanBaseSchema
     coachId: true,
     title: true,
     startDate: true,
+    phase: true,
   })
   .extend({
     description: nullableTrimmedTextSchema(1000).optional(),
@@ -223,6 +235,7 @@ export const updateTrainingPlanSchema = trainingPlanBaseSchema
     goals: true,
     milestones: true,
     isActive: true,
+    phase: true,
   })
   .partial()
   .strict()

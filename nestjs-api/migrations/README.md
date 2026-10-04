@@ -1,4 +1,24 @@
-# Migrations 003–017 — Backend, Database & API Permissions
+# Migrations 003–018 — Backend, Database & API Permissions
+
+## Áp dụng migration 018 (phase bắt buộc của Training Plan)
+
+018 yêu cầu ledger đã có version 5 (005 thêm milestones) và ghi ledger version
+18. Thêm enum `public.training_plan_phase` (`base`, `build`, `fight_camp`,
+`taper`, `rehab`, `maintenance`) và cột `public.training_plans.phase`
+`NOT NULL`, không default, không index. Migration khóa
+`public.training_plans` (ACCESS EXCLUSIVE) rồi kiểm tra bảng rỗng: nếu có bất
+kỳ plan nào, kể cả soft-deleted, nó rollback — không backfill, không xóa dữ
+liệu. Collision enum/cột hoặc ledger đã có version 18 cũng dừng migration.
+Backend chọn cột `phase` chỉ được deploy sau khi 018 đã áp dụng; request tạo
+plan thiếu `phase` bị từ chối với 422.
+
+```sh
+pnpm db:check
+pnpm db:migrate:018
+```
+
+Chưa chạy `pnpm db:check`/`pnpm test:db`/catalog comparison cho 018; chưa áp
+dụng lên database nào.
 
 ## Áp dụng migration 017 (notification nhắc phân công bác sĩ)
 

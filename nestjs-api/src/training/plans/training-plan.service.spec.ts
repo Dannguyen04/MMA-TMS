@@ -58,6 +58,7 @@ const plan: TrainingPlanEntity = {
   fighterId,
   coachId,
   title: 'Fight camp',
+  phase: 'base',
   description: null,
   startDate: '2026-09-20',
   endDate: null,
@@ -263,6 +264,7 @@ describe('TrainingPlanService', () => {
           coachId,
           title: 'Fight camp',
           startDate: '2026-09-20',
+          phase: 'base',
           milestones: [],
         }),
       ).resolves.toEqual(plan);
@@ -276,6 +278,7 @@ describe('TrainingPlanService', () => {
           title: 'Fight camp',
           startDate: '2026-09-20',
           endDate: '2026-09-19',
+          phase: 'base',
           milestones: [],
         }),
       ).rejects.toThrow(BadRequestException);
@@ -291,6 +294,7 @@ describe('TrainingPlanService', () => {
           coachId,
           title: 'Fight camp',
           startDate: '2026-09-20',
+          phase: 'base',
           milestones: [],
         }),
       ).rejects.toThrow(ForbiddenException);
@@ -473,6 +477,7 @@ describe('TrainingPlanService', () => {
           coachId,
           title: 'Plan',
           startDate: '2026-09-20',
+          phase: 'base',
           milestones: [],
         }),
       ).rejects.toSatisfy(
@@ -491,6 +496,7 @@ describe('TrainingPlanService', () => {
           coachId,
           title: 'Plan',
           startDate: '2026-09-20',
+          phase: 'base',
           milestones: [],
         }),
       ).rejects.toThrow(ForbiddenException);
