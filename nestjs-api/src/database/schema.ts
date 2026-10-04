@@ -270,6 +270,14 @@ export const medicalRevisionSourceEnum = pgEnum('medical_revision_source', [
   'APPLICATION',
   'MIGRATION_BASELINE',
 ]);
+export const medicalExaminationTypeEnum = pgEnum('medical_examination_type', [
+  'BASELINE',
+  'ROUTINE',
+  'PRE_FIGHT',
+  'POST_INJURY',
+  'CONCUSSION_SCREEN',
+  'RETURN_TO_PLAY',
+]);
 export const notificationTypeEnum = pgEnum('notification_type', [
   'ANOMALY_HIGH',
   'ANOMALY_MEDIUM',
@@ -278,6 +286,22 @@ export const notificationTypeEnum = pgEnum('notification_type', [
   'VIDEO_PROCESSED',
   'SYSTEM',
   'JOINT_IMPAIRMENT_CONFIRMED',
+  // 014: approved Admission (A1-A6) and Training (T1-T4) triggers.
+  'ADMISSION_APPLICATION_SUBMITTED',
+  'ADMISSION_ASSESSMENT_ASSIGNED',
+  'ADMISSION_ASSESSMENT_UNASSIGNED',
+  'ADMISSION_DECISION_REQUIRED',
+  'ADMISSION_ASSESSMENT_RESULT',
+  'ADMISSION_DECISION_RECORDED',
+  'ADMISSION_ACTIVATION_COMPLETED',
+  'COACH_ASSIGNMENT_STARTED',
+  'COACH_ASSIGNMENT_ENDED',
+  'TRAINING_PLAN_ACTIVATED',
+  'TRAINING_SESSION_SCHEDULED',
+  'TRAINING_SESSION_RESCHEDULED',
+  'TRAINING_SESSION_CANCELLED',
+  // 017: Admin task to assign a Doctor to a new Fighter.
+  'FIGHTER_DOCTOR_ASSIGNMENT_REQUIRED',
 ]);
 
 // ─── Task 14 Enums ────────────────────────────────────────────────────────────
@@ -2422,6 +2446,95 @@ export const medicalExaminations = pgTable(
   ],
 ).enableRLS();
 
+// ─── Migration 016: examination details and baseline SCAT6 ───────────────────
+
+export const medicalExaminationDetails = pgTable(
+  'medical_examination_details',
+  {
+    examinationId: uuid('examination_id').notNull(),
+    fighterId: uuid('fighter_id').notNull(),
+    examinationType: medicalExaminationTypeEnum('examination_type').notNull(),
+    weightKg: numeric('weight_kg', { precision: 5, scale: 2 }),
+    restingHeartRate: smallint('resting_heart_rate'),
+    bloodPressureSystolic: smallint('blood_pressure_systolic'),
+    bloodPressureDiastolic: smallint('blood_pressure_diastolic'),
+    temperatureC: numeric('temperature_c', { precision: 4, scale: 1 }),
+    spo2Pct: smallint('spo2_pct'),
+    hydration: text('hydration'),
+    assessments: jsonb('assessments')
+      .notNull()
+      .default(sql.raw("'[]'::jsonb")),
+    recommendations: text('recommendations'),
+    followUpDate: date('follow_up_date'),
+    scat6FormVersion: text('scat6_form_version'),
+    scat6Responses: jsonb('scat6_responses'),
+    scat6ScoringVersion: smallint('scat6_scoring_version'),
+    scat6Scores: jsonb('scat6_scores'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .default(sql.raw('clock_timestamp()')),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    primaryKey({
+      name: 'medical_examination_details_pkey',
+      columns: [t.examinationId],
+    }),
+    foreignKey({
+      name: 'fk_medical_examination_details_examination',
+      columns: [t.examinationId, t.fighterId],
+      foreignColumns: [medicalExaminations.id, medicalExaminations.fighterId],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+    check(
+      'ck_medical_examination_details_vitals',
+      sql.raw(
+        "((num_nulls(weight_kg, resting_heart_rate, blood_pressure_systolic, blood_pressure_diastolic, temperature_c, spo2_pct, hydration) = ANY (ARRAY[0, 7])) AND ((weight_kg IS NULL) OR (weight_kg > (0)::numeric)) AND ((resting_heart_rate IS NULL) OR (resting_heart_rate > 0)) AND ((blood_pressure_systolic IS NULL) OR (blood_pressure_systolic > 0)) AND ((blood_pressure_diastolic IS NULL) OR (blood_pressure_diastolic > 0)) AND ((temperature_c IS NULL) OR (temperature_c > (0)::numeric)) AND ((spo2_pct IS NULL) OR ((spo2_pct >= 0) AND (spo2_pct <= 100))) AND ((hydration IS NULL) OR (hydration = ANY (ARRAY['GOOD'::text, 'FAIR'::text, 'POOR'::text]))))",
+      ),
+    ),
+    check(
+      'ck_medical_examination_details_text',
+      sql.raw(
+        "((jsonb_typeof(assessments) = 'array'::text) AND ((recommendations IS NULL) OR (length(btrim(recommendations)) > 0)))",
+      ),
+    ),
+    check(
+      'ck_medical_examination_details_scat6',
+      sql.raw(
+        "((num_nulls(scat6_form_version, scat6_responses) = ANY (ARRAY[0, 2])) AND (num_nulls(scat6_scoring_version, scat6_scores) = ANY (ARRAY[0, 2])) AND ((scat6_scores IS NULL) OR (scat6_responses IS NOT NULL)) AND ((examination_type = 'BASELINE'::medical_examination_type) = (scat6_responses IS NOT NULL)) AND ((scat6_form_version IS NULL) OR (length(btrim(scat6_form_version)) > 0)) AND ((scat6_responses IS NULL) OR (jsonb_typeof(scat6_responses) = 'object'::text)) AND ((scat6_scores IS NULL) OR (jsonb_typeof(scat6_scores) = 'object'::text)))",
+      ),
+    ),
+    index('idx_medical_examination_details_fighter').using(
+      'btree',
+      t.fighterId,
+      t.examinationType,
+    ),
+  ],
+).enableRLS();
+
+export const medicalBaselineExemptions = pgTable(
+  'medical_baseline_exemptions',
+  {
+    fighterId: uuid('fighter_id').notNull(),
+    recordedAt: timestamp('recorded_at', { withTimezone: true })
+      .notNull()
+      .default(sql.raw('clock_timestamp()')),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    primaryKey({
+      name: 'medical_baseline_exemptions_pkey',
+      columns: [t.fighterId],
+    }),
+    foreignKey({
+      name: 'medical_baseline_exemptions_fighter_id_fkey',
+      columns: [t.fighterId],
+      foreignColumns: [fighters.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
+  ],
+).enableRLS();
+
 export const medicalReviewRequests = pgTable(
   'medical_review_requests',
   {
@@ -2709,6 +2822,7 @@ export const notifications = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .default(sql.raw('now()')),
+    dedupeKey: text('dedupe_key'),
   },
   (t): PgTableExtraConfigValue[] => [
     check(
@@ -2730,8 +2844,23 @@ export const notifications = pgTable(
       .onDelete('restrict')
       .onUpdate('no action'),
     index('idx_notifications_user_unread')
-      .using('btree', t.userId, t.createdAt)
+      .using('btree', t.userId, t.createdAt.desc())
       .where(sql.raw('(is_read = false)')),
+    check(
+      'ck_notification_dedupe_key',
+      sql.raw(
+        '((dedupe_key IS NULL) OR ((length(dedupe_key) >= 1) AND (length(dedupe_key) <= 300)))',
+      ),
+    ),
+    uniqueIndex('uq_notifications_user_dedupe')
+      .using('btree', t.userId, t.dedupeKey)
+      .where(sql.raw('(dedupe_key IS NOT NULL)')),
+    index('idx_notifications_user_created').using(
+      'btree',
+      t.userId,
+      t.createdAt.desc(),
+      t.id.desc(),
+    ),
   ],
 ).enableRLS();
 

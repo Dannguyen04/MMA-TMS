@@ -1,3 +1,6 @@
 .agents
 
 scripts/run-git-bash.sh
+
+# Backend-local documentation, prompts, handovers, and review reports
+/docs/

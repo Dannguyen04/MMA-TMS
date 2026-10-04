@@ -120,6 +120,25 @@ export class UsersRepository {
     return user;
   }
 
+  /**
+   * Inserts a GUEST for a verified auth subject unless one already exists for
+   * that subject (concurrent or repeated verification). An existing row of any
+   * role or state is left untouched.
+   */
+  async insertGuestIfAbsent(
+    identity: NewIdentity,
+    database: DatabaseExecutor,
+  ): Promise<void> {
+    await database
+      .insert(users)
+      .values({
+        authUserId: identity.subject,
+        email: identity.email.toLowerCase().trim(),
+        role: USER.GUEST,
+      })
+      .onConflictDoNothing({ target: users.authUserId });
+  }
+
   async createFighter(
     userId: string,
     profile: FighterProfileInput,

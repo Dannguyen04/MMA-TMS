@@ -31,7 +31,28 @@ const TERMINAL_SESSION_STATUSES: readonly SessionStatusType[] = [
   'ABANDONED',
 ];
 
+/** Inbox texts of the Training triggers (T2–T4). */
+const TRAINING_NOTIFICATION_TEXT = {
+  PLAN_ACTIVATED: {
+    title: 'Training plan active',
+    message: 'A training plan assigned to you is now active.',
+  },
+  SESSION_SCHEDULED: {
+    title: 'Training session scheduled',
+    message: 'A new training session was scheduled.',
+  },
+  SESSION_RESCHEDULED: {
+    title: 'Training session changed',
+    message: 'The time or location of a training session changed.',
+  },
+  SESSION_CANCELLED: {
+    title: 'Training session cancelled',
+    message: 'A training session was cancelled.',
+  },
+} as const;
+
 export {
+  TRAINING_NOTIFICATION_TEXT,
   FORBIDDEN_PLAN_TRANSITIONS,
   ALLOWED_SESSION_TRANSITIONS,
   TERMINAL_SESSION_STATUSES,

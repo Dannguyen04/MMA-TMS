@@ -97,11 +97,15 @@ describe('UsersService', () => {
   });
 
   it('uses Supabase Admin and supports creating another role', async () => {
-    const repository = repositoryMock();
+    const doctorAssignmentReminder = {
+      remind: vi.fn().mockResolvedValue([{ status: 'queued' }]),
+    };
     const admin = adminClientMock();
+    const repository = repositoryMock();
     const service = new UsersService(
       repository as unknown as UsersRepository,
       admin as never,
+      doctorAssignmentReminder as never,
     );
     const input = {
       email: 'coach@example.com',
@@ -120,6 +124,24 @@ describe('UsersService', () => {
       fighter.id,
       input,
       { scope: 'transaction' },
+    );
+    expect(doctorAssignmentReminder.remind).not.toHaveBeenCalled();
+
+    const fighterInput = {
+      email: 'fighter@example.com',
+      password: 'strong-password',
+      role: USER.FIGHTER,
+      profile: {
+        firstName: 'An',
+        lastName: 'Nguyen',
+        dateOfBirth: '2000-01-01',
+        weightClass: 'LIGHTWEIGHT' as const,
+      },
+    };
+    await service.create(actor, fighterInput, 'req-fighter');
+    expect(doctorAssignmentReminder.remind).toHaveBeenCalledWith(
+      fighter.id,
+      'req-fighter',
     );
   });
 

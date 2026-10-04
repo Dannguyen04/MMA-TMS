@@ -1,4 +1,5 @@
 import { HttpException } from '@nestjs/common';
+import type { NotificationPublisher } from '../shared/contracts/notification.contract.js';
 import type { RecoveryEmailService } from '../shared/contracts/recovery-email.contract.js';
 import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import { USER } from '../shared/types/user.role.js';
@@ -102,13 +103,37 @@ describe('FighterAdmissionsService', () => {
       sendPasswordRecoveryEmail: vi.fn().mockResolvedValue({ accepted: true }),
     };
 
+    const notifications: NotificationPublisher = {
+      notify: vi.fn().mockResolvedValue({ status: 'queued' }),
+      notifyResolved: vi.fn().mockResolvedValue([{ status: 'queued' }]),
+    };
+
+    const authorization = {
+      findActiveUserIdsWithPermission: vi.fn().mockResolvedValue(['admin-1']),
+    };
+
+    const doctorAssignmentReminder = {
+      remind: vi.fn().mockResolvedValue([{ status: 'queued' }]),
+    };
+
     const service = new FighterAdmissionsService(
       repository as unknown as FighterAdmissionsRepository,
       usersService as unknown as UsersService,
       recoveryEmail,
+      notifications,
+      authorization as never,
+      doctorAssignmentReminder as never,
     );
 
-    return { service, repository, usersService, recoveryEmail };
+    return {
+      service,
+      repository,
+      usersService,
+      recoveryEmail,
+      notifications,
+      authorization,
+      doctorAssignmentReminder,
+    };
   }
 
   // ── 1. Hai đường tạo FIGHTER & GUEST boundary (§1, §2) ───────────────────
@@ -242,7 +267,8 @@ describe('FighterAdmissionsService', () => {
   // ── 4. Admission Activation State Machine (§6) ────────────────────────────
   describe('Fighter Activation state machine (§6)', () => {
     it('promotes GUEST to FIGHTER in atomic transaction when PASSWORD_SET', async () => {
-      const { service, repository, usersService } = mockDependencies();
+      const { service, repository, usersService, doctorAssignmentReminder } =
+        mockDependencies();
       repository.lockActivationByGuestUserId.mockResolvedValueOnce({
         activation: {
           id: 'act-1',
@@ -282,10 +308,15 @@ describe('FighterAdmissionsService', () => {
         role: 'FIGHTER',
         alreadyActive: false,
       });
+      expect(doctorAssignmentReminder.remind).toHaveBeenCalledWith(
+        guestActor.id,
+        'req-1',
+        guestActor.id,
+      );
     });
 
     it('returns idempotent response if activation is already COMPLETED', async () => {
-      const { service, repository, usersService } = mockDependencies();
+      const { service, repository, usersService, doctorAssignmentReminder } = mockDependencies();
       repository.lockActivationByGuestUserId.mockResolvedValueOnce({
         activation: {
           id: 'act-1',
@@ -297,6 +328,7 @@ describe('FighterAdmissionsService', () => {
       const response = await service.activate(guestActor, 'req-1');
 
       expect(usersService.promoteGuestToFighter).not.toHaveBeenCalled();
+      expect(doctorAssignmentReminder.remind).not.toHaveBeenCalled();
       expect(response).toEqual({
         applicationId: sampleApplicationRow.id,
         status: ACTIVATION_STATUS.COMPLETED,

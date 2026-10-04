@@ -10,6 +10,7 @@ import type {
 import { MedicalAccessService } from '../medical/medical-access.service.js';
 import { MedicalService } from '../medical/medical.service.js';
 import { medicalAccessDenied } from './fighters.error.js';
+import type { NotificationPublisher } from '../shared/contracts/notification.contract.js';
 import { FightersRepository } from './fighters.repo.js';
 import { FightersService } from './fighters.service.js';
 
@@ -205,15 +206,21 @@ function serviceWith(
   repository = repositoryMock(),
   medicalAccess = medicalAccessMock(),
   medicalService = medicalServiceMock(),
+  notifications = {
+    notify: vi.fn().mockResolvedValue({ status: 'queued' }),
+    notifyResolved: vi.fn().mockResolvedValue([{ status: 'queued' }]),
+  },
 ) {
   return {
     repository,
     medicalAccess,
     medicalService,
+    notifications,
     service: new FightersService(
       repository as unknown as FightersRepository,
       medicalAccess as unknown as MedicalAccessService,
       medicalService as unknown as MedicalService,
+      notifications as unknown as NotificationPublisher,
     ),
   };
 }

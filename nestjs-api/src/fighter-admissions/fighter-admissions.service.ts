@@ -10,11 +10,21 @@ import type {
   AdmissionActivationClaimResult,
   AdmissionActivationPort,
 } from '../shared/contracts/admission-activation.contract.js';
+import { AuthorizationService } from '../authorization/authorization.service.js';
+import { FIGHTER_PERMISSIONS } from '../fighters/fighters.model.js';
+import {
+  NOTIFICATION_PUBLISHER,
+  NOTIFICATION_TARGET,
+  NOTIFICATION_TYPE,
+  type NotificationPublisher,
+  type NotifyInput,
+} from '../shared/contracts/notification.contract.js';
 import {
   RECOVERY_EMAIL_SERVICE,
   type RecoveryEmailService,
 } from '../shared/contracts/recovery-email.contract.js';
 import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
+import { USER } from '../shared/types/user.role.js';
 import {
   setAuditContext,
   type Transaction,
@@ -24,6 +34,7 @@ import {
   ACTIVATION_CLAIM_STALE_MS,
   ACTIVATION_STATUS,
   ADMIN_DECISION,
+  ADMISSION_NOTIFICATION_TEXT,
   APPLICATION_STATUS,
   ASSESSMENT_CONCLUSION,
   RECOVERY_RESEND_COOLDOWN_MS,
@@ -61,10 +72,18 @@ import type {
   SubmitDecisionInput,
 } from './fighter-admissions.model.js';
 import { FighterAdmissionsRepository } from './fighter-admissions.repo.js';
+import { DoctorAssignmentReminder } from '../medical/doctor-assignment-reminder.service.js';
 
 type ApplicationRow = NonNullable<
   Awaited<ReturnType<FighterAdmissionsRepository['findApplicationById']>>
 >;
+
+/** What an assignment write actually changed; undefined for a same-Coach no-op. */
+interface AssignmentChange {
+  assignmentId: string;
+  coachId: string;
+  previous?: { assignmentId: string; coachId: string };
+}
 
 @Injectable()
 export class FighterAdmissionsService implements AdmissionActivationPort {
@@ -77,6 +96,10 @@ export class FighterAdmissionsService implements AdmissionActivationPort {
     // forwardRef is required at this injection site, not just on the module).
     @Inject(forwardRef(() => RECOVERY_EMAIL_SERVICE))
     private readonly recoveryEmail: RecoveryEmailService,
+    @Inject(NOTIFICATION_PUBLISHER)
+    private readonly notifications: NotificationPublisher,
+    private readonly authorization: AuthorizationService,
+    private readonly doctorAssignmentReminder: DoctorAssignmentReminder,
   ) {}
 
   // ── Applicant use cases ───────────────────────────────────────────────────
@@ -102,6 +125,8 @@ export class FighterAdmissionsService implements AdmissionActivationPort {
           );
         },
       );
+      // After commit; the publisher never throws.
+      await this.notifyApplicationSubmitted(actor, application.id, requestId);
       return this.toApplicantView(application, null, null, null);
     } catch (error) {
       throw this.toHttpError(error);
@@ -144,7 +169,7 @@ export class FighterAdmissionsService implements AdmissionActivationPort {
     requestId: string,
   ): Promise<ActivationResponse> {
     try {
-      return await this.repository.transaction(async (transaction) => {
+      const result = await this.repository.transaction(async (transaction) => {
         await setAuditContext(actor.authSubject, requestId, transaction);
         const row = await this.repository.lockActivationByGuestUserId(
           actor.id,
@@ -203,6 +228,23 @@ export class FighterAdmissionsService implements AdmissionActivationPort {
           alreadyActive: false,
         };
       });
+      // Only the first completion hands the new Fighter over; a replayed
+      // activation (alreadyActive) notifies nobody.
+      if (!result.alreadyActive) {
+        await this.notifyActivationCompleted(
+          actor,
+          result.applicationId,
+          requestId,
+        );
+        // M1: the new Fighter cannot train before a baseline examination,
+        // which needs an assigned Doctor.
+        await this.doctorAssignmentReminder.remind(
+          actor.id,
+          requestId,
+          actor.id,
+        );
+      }
+      return result;
     } catch (error) {
       throw this.toHttpError(error);
     }
@@ -235,58 +277,76 @@ export class FighterAdmissionsService implements AdmissionActivationPort {
     requestId: string,
   ): Promise<StaffApplication> {
     try {
-      await this.repository.transaction(async (transaction) => {
-        await setAuditContext(actor.authSubject, requestId, transaction);
-        const application = await this.repository.lockApplication(
-          applicationId,
-          transaction,
-        );
-        if (!application) throw applicationNotFound();
-        if (application.status !== APPLICATION_STATUS.SUBMITTED) {
-          throw applicationStateConflict();
-        }
-        if (
-          await this.repository.findAssessmentByApplication(
+      const change = await this.repository.transaction(
+        async (transaction): Promise<AssignmentChange | undefined> => {
+          await setAuditContext(actor.authSubject, requestId, transaction);
+          const application = await this.repository.lockApplication(
             applicationId,
-            transaction,
-          )
-        ) {
-          throw assignmentLockedByAssessment();
-        }
-        if (
-          !(await this.repository.findActiveCoachById(
-            input.coachId,
-            transaction,
-          ))
-        ) {
-          throw coachNotAssignable();
-        }
-
-        const open = await this.repository.findOpenAssignment(
-          applicationId,
-          transaction,
-        );
-        if (open?.coachId === input.coachId) return;
-        if (open) {
-          const reason = input.reassignmentReason?.trim();
-          if (!reason) throw reassignmentReasonRequired();
-          const closed = await this.repository.closeOpenAssignment(
-            applicationId,
-            { endedById: actor.id, endReason: reason },
             transaction,
           );
-          if (!closed) throw applicationStateConflict();
-        }
+          if (!application) throw applicationNotFound();
+          if (application.status !== APPLICATION_STATUS.SUBMITTED) {
+            throw applicationStateConflict();
+          }
+          if (
+            await this.repository.findAssessmentByApplication(
+              applicationId,
+              transaction,
+            )
+          ) {
+            throw assignmentLockedByAssessment();
+          }
+          if (
+            !(await this.repository.findActiveCoachById(
+              input.coachId,
+              transaction,
+            ))
+          ) {
+            throw coachNotAssignable();
+          }
 
-        await this.repository.insertAssignment(
-          {
+          const open = await this.repository.findOpenAssignment(
             applicationId,
+            transaction,
+          );
+          if (open?.coachId === input.coachId) return undefined;
+          if (open) {
+            const reason = input.reassignmentReason?.trim();
+            if (!reason) throw reassignmentReasonRequired();
+            const closed = await this.repository.closeOpenAssignment(
+              applicationId,
+              { endedById: actor.id, endReason: reason },
+              transaction,
+            );
+            if (!closed) throw applicationStateConflict();
+          }
+
+          const assignment = await this.repository.insertAssignment(
+            {
+              applicationId,
+              coachId: input.coachId,
+              assignedById: actor.id,
+            },
+            transaction,
+          );
+          return {
+            assignmentId: assignment.id,
             coachId: input.coachId,
-            assignedById: actor.id,
-          },
-          transaction,
+            previous: open
+              ? { assignmentId: open.id, coachId: open.coachId }
+              : undefined,
+          };
+        },
+      );
+      // A same-Coach request changes nothing and notifies nobody.
+      if (change) {
+        await this.notifyAssessmentAssignment(
+          actor,
+          applicationId,
+          change,
+          requestId,
         );
-      });
+      }
       return this.getApplication(applicationId);
     } catch (error) {
       throw this.toHttpError(error);
@@ -302,6 +362,7 @@ export class FighterAdmissionsService implements AdmissionActivationPort {
     let approvedActivation:
       | { id: string; applicationId: string; guestUserId: string }
       | undefined;
+    let recorded: { decisionId: string; guestUserId: string } | undefined;
 
     try {
       await this.repository.transaction(async (transaction) => {
@@ -353,6 +414,10 @@ export class FighterAdmissionsService implements AdmissionActivationPort {
           transaction,
         );
         if (!advanced) throw applicationStateConflict();
+        recorded = {
+          decisionId: decision.id,
+          guestUserId: application.guestUserId,
+        };
 
         if (input.decision === ADMIN_DECISION.APPROVED) {
           // The decision and the pending activation commit before any mail is
@@ -391,6 +456,15 @@ export class FighterAdmissionsService implements AdmissionActivationPort {
           `Approved application ${applicationId} could not start its recovery email; use the resend endpoint`,
         );
       }
+    }
+    if (recorded) {
+      await this.notifyDecisionRecorded(
+        actor,
+        applicationId,
+        input.decision,
+        recorded,
+        requestId,
+      );
     }
     return this.getApplication(applicationId);
   }
@@ -465,7 +539,7 @@ export class FighterAdmissionsService implements AdmissionActivationPort {
   ): Promise<StaffApplication> {
     const coach = await this.requireCoach(actor);
     try {
-      await this.repository.transaction(async (transaction) => {
+      const assessed = await this.repository.transaction(async (transaction) => {
         await setAuditContext(actor.authSubject, requestId, transaction);
         const application = await this.repository.lockApplication(
           applicationId,
@@ -494,7 +568,7 @@ export class FighterAdmissionsService implements AdmissionActivationPort {
           throw assessmentAlreadySubmitted();
         }
 
-        await this.repository.insertAssessment(
+        const assessment = await this.repository.insertAssessment(
           {
             applicationId,
             assignmentId: open.id,
@@ -517,7 +591,18 @@ export class FighterAdmissionsService implements AdmissionActivationPort {
           transaction,
         );
         if (!advanced) throw applicationStateConflict();
+        return {
+          assessmentId: assessment.id,
+          guestUserId: application.guestUserId,
+        };
       });
+      await this.notifyAssessmentRecorded(
+        actor,
+        applicationId,
+        input.conclusion,
+        assessed,
+        requestId,
+      );
       return this.getApplication(applicationId);
     } catch (error) {
       throw this.toHttpError(error);
@@ -634,6 +719,187 @@ export class FighterAdmissionsService implements AdmissionActivationPort {
         transaction,
       );
     });
+  }
+
+  // Post-commit; lookups run inside notifyResolved so no failure reaches the response.
+
+  /** A1 — every active Admin. */
+  private notifyApplicationSubmitted(
+    actor: AuthenticatedUser,
+    applicationId: string,
+    requestId: string,
+  ) {
+    return this.notifications.notifyResolved(
+      async () => [
+        {
+          recipientUserIds: await this.repository.findActiveAdminUserIds(),
+          actorUserId: actor.id,
+          type: NOTIFICATION_TYPE.ADMISSION_APPLICATION_SUBMITTED,
+          ...ADMISSION_NOTIFICATION_TEXT.APPLICATION_SUBMITTED,
+          target: {
+            type: NOTIFICATION_TARGET.FIGHTER_APPLICATION,
+            id: applicationId,
+          },
+          dedupeKey: `application:${applicationId}`,
+        },
+      ],
+      { correlationId: requestId },
+    );
+  }
+
+  /** A2 — the replaced Coach gets no link to the application it can no longer read. */
+  private notifyAssessmentAssignment(
+    actor: AuthenticatedUser,
+    applicationId: string,
+    change: AssignmentChange,
+    requestId: string,
+  ) {
+    return this.notifications.notifyResolved(
+      async () => {
+        const coachUserIds = await this.repository.findCoachUserIds(
+          change.previous
+            ? [change.coachId, change.previous.coachId]
+            : [change.coachId],
+        );
+        const recipientsOf = (coachId: string) => {
+          const userId = coachUserIds.get(coachId);
+          return userId ? [userId] : [];
+        };
+        const inputs: NotifyInput[] = [
+          {
+            recipientUserIds: recipientsOf(change.coachId),
+            actorUserId: actor.id,
+            type: NOTIFICATION_TYPE.ADMISSION_ASSESSMENT_ASSIGNED,
+            ...ADMISSION_NOTIFICATION_TEXT.ASSESSMENT_ASSIGNED,
+            target: {
+              type: NOTIFICATION_TARGET.FIGHTER_APPLICATION,
+              id: applicationId,
+            },
+            dedupeKey: `assignment:${change.assignmentId}`,
+          },
+        ];
+        if (change.previous) {
+          inputs.push({
+            recipientUserIds: recipientsOf(change.previous.coachId),
+            actorUserId: actor.id,
+            type: NOTIFICATION_TYPE.ADMISSION_ASSESSMENT_UNASSIGNED,
+            ...ADMISSION_NOTIFICATION_TEXT.ASSESSMENT_UNASSIGNED,
+            dedupeKey: `assignment:${change.previous.assignmentId}`,
+          });
+        }
+        return inputs;
+      },
+      { correlationId: requestId },
+    );
+  }
+
+  /** A3/A4 — applicant; on PASS also every active Admin. */
+  private notifyAssessmentRecorded(
+    actor: AuthenticatedUser,
+    applicationId: string,
+    conclusion: 'PASS' | 'FAIL',
+    assessed: { assessmentId: string; guestUserId: string },
+    requestId: string,
+  ) {
+    const passed = conclusion === ASSESSMENT_CONCLUSION.PASS;
+    const target = {
+      type: NOTIFICATION_TARGET.FIGHTER_APPLICATION,
+      id: applicationId,
+    };
+    const dedupeKey = `assessment:${assessed.assessmentId}`;
+    return this.notifications.notifyResolved(
+      async () => {
+        const inputs: NotifyInput[] = [
+          {
+            recipientUserIds: [assessed.guestUserId],
+            actorUserId: actor.id,
+            type: NOTIFICATION_TYPE.ADMISSION_ASSESSMENT_RESULT,
+            ...(passed
+              ? ADMISSION_NOTIFICATION_TEXT.ASSESSMENT_PASSED
+              : ADMISSION_NOTIFICATION_TEXT.ASSESSMENT_FAILED),
+            target,
+            data: { conclusion },
+            dedupeKey,
+          },
+        ];
+        if (passed) {
+          inputs.push({
+            recipientUserIds: await this.repository.findActiveAdminUserIds(),
+            actorUserId: actor.id,
+            type: NOTIFICATION_TYPE.ADMISSION_DECISION_REQUIRED,
+            ...ADMISSION_NOTIFICATION_TEXT.DECISION_REQUIRED,
+            target,
+            dedupeKey,
+          });
+        }
+        return inputs;
+      },
+      { correlationId: requestId },
+    );
+  }
+
+  /** A5 — the text never claims the recovery email reached the inbox. */
+  private notifyDecisionRecorded(
+    actor: AuthenticatedUser,
+    applicationId: string,
+    decision: 'APPROVED' | 'REJECTED',
+    recorded: { decisionId: string; guestUserId: string },
+    requestId: string,
+  ) {
+    return this.notifications.notify(
+      {
+        recipientUserIds: [recorded.guestUserId],
+        actorUserId: actor.id,
+        type: NOTIFICATION_TYPE.ADMISSION_DECISION_RECORDED,
+        ...(decision === ADMIN_DECISION.APPROVED
+          ? ADMISSION_NOTIFICATION_TEXT.DECISION_APPROVED
+          : ADMISSION_NOTIFICATION_TEXT.DECISION_REJECTED),
+        target: {
+          type: NOTIFICATION_TARGET.FIGHTER_APPLICATION,
+          id: applicationId,
+        },
+        data: { decision },
+        dedupeKey: `decision:${recorded.decisionId}`,
+      },
+      { correlationId: requestId },
+    );
+  }
+
+  // A6 — only Admins with effective `fighter.coach:assign`; a lookup error fails
+  // this notification and never widens it to every Admin.
+  private notifyActivationCompleted(
+    actor: AuthenticatedUser,
+    applicationId: string,
+    requestId: string,
+  ) {
+    return this.notifications.notifyResolved(
+      async () => {
+        const [recipientUserIds, fighterId] = await Promise.all([
+          this.authorization.findActiveUserIdsWithPermission(
+            USER.ADMIN,
+            FIGHTER_PERMISSIONS.COACHES_ASSIGN,
+          ),
+          this.repository.findFighterIdByUserId(actor.id),
+        ]);
+        return [
+          {
+            recipientUserIds,
+            actorUserId: actor.id,
+            type: NOTIFICATION_TYPE.ADMISSION_ACTIVATION_COMPLETED,
+            ...ADMISSION_NOTIFICATION_TEXT.ACTIVATION_COMPLETED,
+            target: fighterId
+              ? { type: NOTIFICATION_TARGET.FIGHTER, id: fighterId }
+              : {
+                  type: NOTIFICATION_TARGET.FIGHTER_APPLICATION,
+                  id: applicationId,
+                },
+            data: { applicationId },
+            dedupeKey: `application:${applicationId}`,
+          },
+        ];
+      },
+      { correlationId: requestId },
+    );
   }
 
   // ── Internals ─────────────────────────────────────────────────────────────

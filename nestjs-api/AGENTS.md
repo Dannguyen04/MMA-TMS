@@ -4,6 +4,24 @@
 
 These instructions apply only to files under `nestjs-api/`.
 
+## Documentation location
+
+- Store backend-specific documentation, implementation prompts, handovers,
+  review reports, and planning artifacts under `nestjs-api/docs/`. Create the
+  required subdirectory when it does not exist; prompts belong in
+  `nestjs-api/docs/prompts/`.
+- For backend work, an unspecified `docs/` output path means this service's
+  `docs/`, not the repository-root `docs/`. Put backend implementation plans
+  at `nestjs-api/docs/implementation_plan.md`.
+- Reserve repository-root `docs/` for shared documents synchronized across
+  machines or covering multiple services, including the existing master
+  specification. Continue reading and maintaining those shared sources in
+  their current location; do not move them into backend-local docs.
+- Backend `docs/` is intentionally ignored by Git. Do not force-add its files
+  unless the user explicitly requests tracking them. For cross-machine or
+  cross-worktree handoff, transfer the required local documents explicitly or
+  use the repository-root docs for documents intended to be shared.
+
 ## Required instruction loading
 
 Before planning, reviewing, or modifying this service:
@@ -75,4 +93,4 @@ validation was not requested, state that it was not run.
 
 ## User Communication & Planning Preference
 
-- Whenever the user asks for a plan, steps, phases, or uses terms like "phase" or "step", the agent MUST create/update an `implementation_plan.md` artifact file using the artifact writing tool so the user can easily review it in the UI.
+- Whenever the user asks for a plan, steps, phases, or uses terms like "phase" or "step", the agent MUST create/update `nestjs-api/docs/implementation_plan.md` (relative to the repository root) using the artifact writing tool so the user can easily review it in the UI.

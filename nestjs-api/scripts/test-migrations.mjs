@@ -74,6 +74,9 @@ const target005 = '005_training_management.sql';
 const target006 = '006_training_permissions.sql';
 const target013 = '013_coaching_loop_and_constraints.sql';
 const target014 = '014_video_ai_vertical_slice.sql';
+const target015 = '015_notifications_delivery.sql';
+const target016 = '016_medical_examination_details.sql';
+const target017 = '017_doctor_assignment_notification.sql';
 const trainingPermissionCodes = [
   'training.plan:get_all',
   'training.plan:read',
@@ -383,6 +386,71 @@ try {
         `SELECT count(*) FROM mma_private.migration_history WHERE version = 14;`,
       ),
       '1',
+    );
+  });
+  check('015 adds notification dedupe and records ledger version 15', () => {
+    migration('mma_013', target015);
+    assert.equal(
+      psql(
+        'mma_013',
+        `SELECT count(*) FROM mma_private.migration_history WHERE version = 15;`,
+      ),
+      '1',
+    );
+    assert.equal(
+      psql(
+        'mma_013',
+        `SELECT is_nullable FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'notifications' AND column_name = 'dedupe_key';`,
+      ),
+      'YES',
+    );
+  });
+  check('reapplying 015 fails without duplicating migration history', () => {
+    rejects(
+      'mma_013',
+      readFileSync(join(api, 'migrations', target015), 'utf8'),
+      /already been applied/,
+    );
+    assert.equal(
+      psql(
+        'mma_013',
+        `SELECT count(*) FROM mma_private.migration_history WHERE version = 15;`,
+      ),
+      '1',
+    );
+  });
+  check('016 adds examination details, snapshot exemptions, and ledger 16', () => {
+    migration('mma_013', target016);
+    assert.equal(
+      psql(
+        'mma_013',
+        `SELECT count(*) FROM mma_private.migration_history WHERE version = 16;`,
+      ),
+      '1',
+    );
+    assert.equal(
+      psql(
+        'mma_013',
+        `SELECT to_regclass('public.medical_examination_details') IS NOT NULL AND to_regclass('public.medical_baseline_exemptions') IS NOT NULL;`,
+      ),
+      't',
+    );
+  });
+  check('017 adds doctor assignment notification type and ledger 17', () => {
+    migration('mma_013', target017);
+    assert.equal(
+      psql(
+        'mma_013',
+        `SELECT count(*) FROM mma_private.migration_history WHERE version = 17;`,
+      ),
+      '1',
+    );
+    assert.equal(
+      psql(
+        'mma_013',
+        `SELECT enumlabel FROM pg_enum e JOIN pg_type t ON t.oid=e.enumtypid WHERE t.typname='notification_type' AND enumlabel='FIGHTER_DOCTOR_ASSIGNMENT_REQUIRED';`,
+      ),
+      'FIGHTER_DOCTOR_ASSIGNMENT_REQUIRED',
     );
   });
   if (process.argv.includes('--export-catalog')) {

@@ -81,7 +81,7 @@ export class MedicalController {
   @ApiOperation({
     summary: 'Get fighter clinical dossier',
     description:
-      'Current injuries, active recovery plans, current examination per scope, active clearances, open review requests and TRAINING/COMPETITION eligibility. Contains no AI/ROM data. Every read is access-audited.',
+      'Current injuries, active recovery plans, current examination per scope, active clearances, open review requests and TRAINING/COMPETITION eligibility. TRAINING is not eligible until the Fighter has a BASELINE examination on file (EXAMINATION_REQUIRED), whatever created the account; Fighters with a TRAINING examination recorded before migration 016 are exempt once. Current examinations include their details (type, vitals, assessments, baseline SCAT6 with server scores) or null for examinations recorded without details. Contains no AI/ROM data. Every read is access-audited.',
   })
   @ResponseMessage('Get fighter medical dossier successfully')
   @ApiSuccessEnvelope({
@@ -109,7 +109,7 @@ export class MedicalController {
   @ApiOperation({
     summary: 'Get fighter medical history report',
     description:
-      'Paginated revisions of injuries, recovery plans, clearances and review requests plus append-only treatments and examinations, including inactive records. MIGRATION_BASELINE entries are the state captured by migration 011, not reconstructed history.',
+      'Paginated revisions of injuries, recovery plans, clearances and review requests plus append-only treatments and examinations (with their `details`, null when none were recorded), including inactive records. MIGRATION_BASELINE entries are the state captured by migration 011, not reconstructed history.',
   })
   @ResponseMessage('Get fighter medical history successfully')
   @ApiSuccessEnvelope({
@@ -408,7 +408,7 @@ export class MedicalController {
   @ApiOperation({
     summary: 'Record a medical examination decision',
     description:
-      'ELIGIBLE, ELIGIBLE_WITH_RESTRICTIONS or NOT_ELIGIBLE for TRAINING or COMPETITION. NOT_ELIGIBLE revokes active clearances of the same scope in the same transaction and never produces a clearance. Corrections create a new record via supersedesId. A TRAINING examination may resolve listed OPEN review requests.',
+      'ELIGIBLE, ELIGIBLE_WITH_RESTRICTIONS or NOT_ELIGIBLE for TRAINING or COMPETITION. NOT_ELIGIBLE revokes active clearances of the same scope in the same transaction and never produces a clearance. Corrections create a new record via supersedesId. A TRAINING examination may resolve listed OPEN review requests. Optional details (examinationType, vitals, assessments, recommendations, followUpDate) are stored in the same transaction; a BASELINE requires vitals, at least one assessment and a SCAT6 record (ADMINISTERED with raw answers, or NOT_ADMINISTERED with a reason). SCAT6 scores are computed by the server from the raw answers (client totals are not accepted) and never decide eligibility or clearance. An ADMINISTERED SCAT6 for a Fighter under 13 at administeredAt returns 409 MEDICAL_DATA_CONSTRAINT_CONFLICT.',
   })
   @ResponseMessage('Record medical examination successfully')
   @ApiSuccessEnvelope({
@@ -427,7 +427,7 @@ export class MedicalController {
   @ApiConflictEnvelope(
     'EXAMINATION_CORRECTION_CONFLICT',
     'A correction must supersede the current examination of the same scope',
-    'EXAMINATION_CORRECTION_CONFLICT or REVIEW_REQUEST_NOT_RESOLVABLE',
+    'EXAMINATION_CORRECTION_CONFLICT, REVIEW_REQUEST_NOT_RESOLVABLE or MEDICAL_DATA_CONSTRAINT_CONFLICT (SCAT6 under its minimum age)',
   )
   async createExamination(
     @CurrentUser() actor: AuthenticatedUser | undefined,
