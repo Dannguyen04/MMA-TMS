@@ -72,6 +72,7 @@ import type {
   SubmitDecisionInput,
 } from './fighter-admissions.model.js';
 import { FighterAdmissionsRepository } from './fighter-admissions.repo.js';
+import { DoctorAssignmentReminder } from '../medical/doctor-assignment-reminder.service.js';
 
 type ApplicationRow = NonNullable<
   Awaited<ReturnType<FighterAdmissionsRepository['findApplicationById']>>
@@ -98,6 +99,7 @@ export class FighterAdmissionsService implements AdmissionActivationPort {
     @Inject(NOTIFICATION_PUBLISHER)
     private readonly notifications: NotificationPublisher,
     private readonly authorization: AuthorizationService,
+    private readonly doctorAssignmentReminder: DoctorAssignmentReminder,
   ) {}
 
   // ── Applicant use cases ───────────────────────────────────────────────────
@@ -233,6 +235,13 @@ export class FighterAdmissionsService implements AdmissionActivationPort {
           actor,
           result.applicationId,
           requestId,
+        );
+        // M1: the new Fighter cannot train before a baseline examination,
+        // which needs an assigned Doctor.
+        await this.doctorAssignmentReminder.remind(
+          actor.id,
+          requestId,
+          actor.id,
         );
       }
       return result;

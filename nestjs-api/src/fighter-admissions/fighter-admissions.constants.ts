@@ -117,7 +117,7 @@ export const ADMISSION_NOTIFICATION_TEXT = {
   DECISION_APPROVED: {
     title: 'Application approved',
     message:
-      'Your application was approved. Set a new password through the password recovery email for your account (you can request another one from the sign-in page if it does not arrive), then complete activation to become a Fighter.',
+      'Your application was approved. Set your password from the email we sent to activate your Fighter account (if it does not arrive, request another one with "Forgot password" on the sign-in page), then complete activation.',
   },
   DECISION_REJECTED: {
     title: 'Application not approved',

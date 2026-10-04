@@ -8,6 +8,7 @@ import { Test, type TestingModule } from '@nestjs/testing';
 import type { Mocked } from 'vitest';
 import type { AuthenticatedUser } from '../../shared/models/auth-context.model.js';
 import { USER } from '../../shared/types/user.role.js';
+import { NOTIFICATION_PUBLISHER } from '../../shared/contracts/notification.contract.js';
 import { MedicalService } from '../../medical/medical.service.js';
 import type {
   TrainingPlanEntity,
@@ -142,6 +143,13 @@ describe('TrainingSessionService', () => {
         TrainingAccessService,
         { provide: TrainingRepository, useValue: repositoryMock() },
         { provide: MedicalService, useValue: medicalServiceMock() },
+        {
+          provide: NOTIFICATION_PUBLISHER,
+          useValue: {
+            notify: vi.fn().mockResolvedValue({ status: 'queued' }),
+            notifyResolved: vi.fn().mockResolvedValue([{ status: 'queued' }]),
+          },
+        },
       ],
     }).compile();
 
@@ -345,9 +353,13 @@ describe('TrainingSessionService', () => {
       await expect(
         service.updateSession(adminActor, sessionId, { title: 'New Title' }),
       ).resolves.toEqual(updated);
-      expect(repo.updateSession).toHaveBeenCalledWith(sessionId, {
-        title: 'New Title',
-      });
+      expect(repo.updateSession).toHaveBeenCalledWith(
+        sessionId,
+        {
+          title: 'New Title',
+        },
+        expect.anything(),
+      );
     });
 
     it('throws 404 if session to update does not exist', async () => {
@@ -656,6 +668,28 @@ describe('TrainingSessionService', () => {
           resp.code === 'TRAINING_MEDICAL_ELIGIBILITY_REQUIRED' &&
           Array.isArray(resp.details?.reasons) &&
           resp.details.reasons.includes('REVIEW_REQUEST_PENDING')
+        );
+      });
+      expect(repo.updateSessionStatus).not.toHaveBeenCalled();
+    });
+
+    it('blocks start when fighter has no baseline on file (409 EXAMINATION_REQUIRED)', async () => {
+      repo.findSessionById.mockResolvedValue(session);
+      repo.findActiveFighterIdByUserId.mockResolvedValue(fighterId);
+      medical.evaluateTrainingEligibility.mockResolvedValueOnce({
+        eligible: false,
+        reasons: ['EXAMINATION_REQUIRED'],
+      });
+
+      await expect(
+        service.updateSessionStatus(fighterActor, sessionId, 'IN_PROGRESS'),
+      ).rejects.toSatisfy((error: unknown) => {
+        const resp = responseOf(error);
+        return (
+          (error as HttpException).getStatus() === 409 &&
+          resp.code === 'TRAINING_MEDICAL_ELIGIBILITY_REQUIRED' &&
+          Array.isArray(resp.details?.reasons) &&
+          resp.details.reasons.includes('EXAMINATION_REQUIRED')
         );
       });
       expect(repo.updateSessionStatus).not.toHaveBeenCalled();

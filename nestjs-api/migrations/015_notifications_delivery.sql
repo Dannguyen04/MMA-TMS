@@ -6,12 +6,14 @@
 -- Training (T1-T4) triggers.
 -- Existing rows keep dedupe_key = NULL and stay readable; no value is renamed
 -- or dropped, RLS/grants of 003 are untouched (backend-only table).
--- PostgreSQL 15+ / Supabase. Forward-only. Does not modify migrations 001-013.
+-- PostgreSQL 15+ / Supabase. Forward-only. Does not modify migrations 001-014.
+-- Ledger version 15 (was 14 before the rename from 014_notifications_delivery.sql,
+-- which collided with 014_video_ai_vertical_slice.sql).
 BEGIN;
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '120s';
 SET LOCAL search_path = public, pg_catalog;
-SELECT pg_catalog.pg_advisory_xact_lock(20260916, 14);
+SELECT pg_catalog.pg_advisory_xact_lock(20260916, 15);
 
 DO $preflight$
 BEGIN
@@ -25,7 +27,7 @@ BEGIN
     RAISE EXCEPTION '015 requires migration 013 history';
   END IF;
 
-  IF EXISTS (SELECT 1 FROM mma_private.migration_history WHERE version = 14) THEN
+  IF EXISTS (SELECT 1 FROM mma_private.migration_history WHERE version = 15) THEN
     RAISE EXCEPTION '015 has already been applied';
   END IF;
 
@@ -82,7 +84,7 @@ COMMENT ON COLUMN public.notifications.dedupe_key IS
 -- The verified runner supplies the source checksum. Manual SQL execution keeps it NULL.
 INSERT INTO mma_private.migration_history(version, name, source_sha256)
 VALUES (
-  14,
+  15,
   '015_notifications_delivery.sql',
   nullif(current_setting('mma.migration_sha256', true), '')
 );

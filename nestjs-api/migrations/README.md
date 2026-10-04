@@ -1,13 +1,69 @@
-# Migrations 003–014 — Backend, Database & API Permissions
+# Migrations 003–017 — Backend, Database & API Permissions
 
-## Áp dụng migration 014 (Notification delivery)
+## Áp dụng migration 017 (notification nhắc phân công bác sĩ)
 
-014 yêu cầu ledger đã có version 13. Nội dung:
+017 yêu cầu ledger đã có version 15 (enum notification từ 015) và ghi ledger
+version 17. Chỉ thêm giá trị `notification_type`
+`FIGHTER_DOCTOR_ASSIGNMENT_REQUIRED` (không dùng làm literal trong cùng
+transaction); không đổi bảng, RLS hay grant. Backend phát notification này sau
+khi activation admission hoặc Admin tạo Fighter commit, tới Admin có quyền hiệu
+lực `fighter.doctor:assign`, chỉ khi Fighter chưa có phân công bác sĩ hiệu lực.
+
+```sh
+pnpm db:check
+pnpm db:migrate:017
+```
+
+Thứ tự trên DB đích: 015 → 016 → 017. Chưa chạy `db:check`/`test:db`/catalog
+comparison cho 017; chưa áp dụng lên database nào.
+
+## Áp dụng migration 016 (chi tiết khám và SCAT6 baseline)
+
+016 yêu cầu ledger đã có version 12 (ghi ledger version 16). Nội dung:
+
+- Enum `medical_examination_type` (BASELINE, ROUTINE, PRE_FIGHT, POST_INJURY,
+  CONCUSSION_SCREEN, RETURN_TO_PLAY) — cùng tập loại khám mà web đang dùng.
+- Bảng append-only `medical_examination_details`, tối đa một dòng/kết luận,
+  FK `(examination_id, fighter_id)` → `medical_examinations(id, fighter_id)`:
+  vitals typed (ghi cùng nhau hoặc không ghi), `assessments` JSON array,
+  `recommendations`, `follow_up_date`, và với BASELINE bắt buộc hồ sơ SCAT6
+  (`scat6_form_version`, `scat6_responses`, `scat6_scoring_version`,
+  `scat6_scores`). Check ràng buộc: chỉ BASELINE có SCAT6; điểm luôn đi kèm
+  phiên bản thuật toán.
+- Kết luận ghi trước 016 không có dòng chi tiết, không bị coi là baseline,
+  không backfill. Append-only (UPDATE/DELETE/TRUNCATE bị trigger từ chối); RLS
+  bật, revoke client như các bảng clinical của 011. Không có audit trigger
+  riêng: việc insert kết luận cùng transaction đã được audit bởi 011.
+- Bảng `medical_baseline_exemptions` (PK `fighter_id`): ảnh chụp **một lần**
+  lúc áp dụng 016 các Fighter đã có kết luận TRAINING thật. Từ 016, TRAINING
+  chỉ đủ điều kiện khi Fighter có kết luận BASELINE hoặc nằm trong bảng này;
+  Fighter chưa từng khám không được miễn. Không tạo kết luận/clearance giả.
+  Trigger từ chối mọi INSERT/UPDATE/DELETE/TRUNCATE sau khi 016 ghi xong.
+- Không đụng bảng AI, `fighter_measurements`, policy/grant khác.
+
+```sh
+pnpm db:check
+pnpm db:migrate:016
+```
+
+Chưa chạy `pnpm db:check`/`pnpm test:db`/catalog comparison cho 016; chưa áp
+dụng lên database nào.
+
+## Áp dụng migration 015 (Notification delivery)
+
+015 yêu cầu ledger đã có version 13 và ghi ledger **version 15** (advisory
+lock key 15). File này trước đây tên `014_notifications_delivery.sql` và ghi
+version 14, trùng `014_video_ai_vertical_slice.sql`. Ngày 2026-10-04 ledger của
+database đích có version 14 = `014_video_ai_vertical_slice.sql` (2026-09-29) và
+chưa có bản notification, nên 015 được sửa thành version 15 trước khi áp dụng
+lần nào; checksum đã đăng ký trong `manifest.json`. Database nào từng chạy bản
+`014_notifications_delivery.sql` cũ (ledger 14 mang tên đó) **không** được chạy
+015 mà cần quyết định vận hành riêng. Nội dung:
 
 - Thêm 13 giá trị `notification_type` cho trigger Admission A1–A6 và Training
   T1–T4 (xem Master Specification §05.12). Không rename/drop giá trị cũ; giá
   trị mới không được dùng làm literal trong cùng transaction.
-- Cột `notifications.dedupe_key TEXT` nullable (record trước 014 giữ NULL và
+- Cột `notifications.dedupe_key TEXT` nullable (record trước 015 giữ NULL và
   vẫn đọc được), check độ dài 1–300.
 - Unique partial index `uq_notifications_user_dedupe (user_id, dedupe_key)
   WHERE dedupe_key IS NOT NULL`: worker insert `ON CONFLICT DO NOTHING` rồi đọc
@@ -18,10 +74,10 @@
 
 ```sh
 pnpm db:check
-pnpm db:migrate:014
+pnpm db:migrate:015
 ```
 
-Chưa chạy `pnpm db:check`, `pnpm test:db` hay catalog comparison cho 014; chưa
+Chưa chạy `pnpm db:check`, `pnpm test:db` hay catalog comparison cho 015; chưa
 áp dụng lên database nào. Drizzle mapping (`schema.ts`) đã cập nhật cột, check,
 hai index và enum.
 

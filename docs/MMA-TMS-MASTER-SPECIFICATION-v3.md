@@ -2,11 +2,11 @@
 
 > **Single Source of Truth** cho sản phẩm, requirements, domain, AI, UX/UI và technical architecture của MMA-TMS.
 
-**Version:** 3.4\
+**Version:** 3.5\
 **Status:** Active Specification — Academic Hardening  
 **Project:** MMA-TMS — MMA Training & Movement Analysis System  
-**Supersedes:** v3.3, v3.2, v3.1, v3.0, v2.0 (Active Specification)\
-**Changes from v3.3:** Notification module — hộp thông báo cá nhân, SSE realtime, trigger Admission A1–A6 và Training T1–T4 ngày 2026-09-29. Xem §05.12 và Section 27.\
+**Supersedes:** v3.4, v3.3, v3.2, v3.1, v3.0, v2.0 (Active Specification)\
+**Changes from v3.4:** Bắt buộc khám BASELINE trước khi tập cho mọi Fighter (thay ngoại lệ D9 cũ); khám baseline lưu loại khám, vitals, hạng mục khám và hồ sơ SCAT6 với điểm do server tính (migration 016). Đăng ký admission bằng xác minh email (mã OTP), thiết lập mật khẩu sau khi duyệt; nhắc Admin phân công bác sĩ cho Fighter mới (migration 017). Xem §05.1, §05.1b, §05.10.1, §05.12 và Section 27.\n**Changes from v3.3:** Notification module — hộp thông báo cá nhân, SSE realtime, trigger Admission A1–A6 và Training T1–T4 ngày 2026-09-29. Xem §05.12 và Section 27.\
 **Changes from v3.2:** Medical clinical module — ma trận READ/WRITE D1–D9 ngày 2026-09-27 thay thế policy assigned-Doctor-only-read của v3.2 cho dữ liệu clinical; kết luận khám tách khỏi clearance; yêu cầu khám thủ công chặn bắt đầu Training; bệnh án không xóa, có lịch sử phiên bản. Xem §05.10.1 và Section 27.\
 **Changes from v3.1:** Chính sách Medical/measurements chỉ dành cho assigned Doctor — đã duyệt ngày 2026-09-25, chưa triển khai; xem §05.10.1 và Section 27.\
 **Changes from v3.0:** Fighter Admissions policy (GUEST role, admission workflow, activation qua password recovery) — xem Section 27 (Change Log)  
@@ -299,7 +299,7 @@ Reference Motion là một baseline tham chiếu, không phải "Golden Pose" á
 - RBAC (Guest, Fighter, Coach, Doctor, Admin)
 - Profile management
 - Password recovery / reset (dùng chung cho mọi role)
-- Fighter admissions: Guest nộp hồ sơ → Admin phân công Coach → Coach đánh giá đầu vào (PASS/FAIL) → Admin phê duyệt → kích hoạt Fighter sau khi đặt lại mật khẩu
+- Fighter admissions: ứng viên xác minh email bằng mã OTP (chưa cần mật khẩu) và trở thành GUEST → nộp hồ sơ → Admin phân công Coach → Coach đánh giá đầu vào (PASS/FAIL) → Admin phê duyệt → thiết lập mật khẩu → kích hoạt Fighter
 
 ## 04.2 Fighter Management
 
@@ -404,7 +404,7 @@ Reference Motion là một baseline tham chiếu, không phải "Golden Pose" á
 | FR-AUTH-003 | User có thể quản lý thông tin profile cá nhân.                |
 | FR-AUTH-004 | Token hết hạn phải được xử lý gracefully (redirect to login). |
 | FR-AUTH-005 | Admin có thể deactivate account.                              |
-| FR-AUTH-006 | Đăng ký tự phục vụ tạo tài khoản role GUEST (chưa có Fighter profile, chưa có quyền Fighter). |
+| FR-AUTH-006 | Đăng ký tự phục vụ tạo tài khoản role GUEST (chưa có Fighter profile, chưa có quyền Fighter) bằng **xác minh email qua mã OTP, không cần mật khẩu**; xác minh trả session và tạo GUEST theo kiểu find-or-create gắn với danh tính provider đã xác minh. GUEST quay lại trước khi được duyệt đăng nhập lại bằng mã email; chỉ GUEST dùng được đường này, các role khác đăng nhập bằng mật khẩu. Yêu cầu gửi mã có cùng response với mọi email. `POST /auth/register` có mật khẩu chỉ giữ cho client cũ (legacy). |
 | FR-AUTH-007 | Mọi role có thể yêu cầu email khôi phục mật khẩu; response không tiết lộ tài khoản có tồn tại hay không. |
 | FR-AUTH-008 | Đặt lại mật khẩu chỉ chấp nhận bằng chứng khôi phục do provider xác minh (recovery token), không tự cấp role. |
 
@@ -450,8 +450,8 @@ Note: Role permission phải được enforce server-side, không chỉ UI.
 | FR-ADMIT-004   | Coach được phân công ghi các tiêu chí linh hoạt (tên, phương pháp, quan sát, giá trị/đơn vị tuỳ chọn) và kết luận thủ công PASS hoặc FAIL. |
 | FR-ADMIT-005   | Đánh giá đã nộp là bất biến; không có API sửa hoặc xoá. FAIL kết thúc lần nộp đó.                      |
 | FR-ADMIT-006   | Chỉ hồ sơ PASS mới được Admin phê duyệt hoặc từ chối; PASS không tự động cấp quyền Fighter.            |
-| FR-ADMIT-007   | Khi Admin phê duyệt, hệ thống gửi email khôi phục mật khẩu cho chính danh tính hiện có của GUEST.      |
-| FR-ADMIT-008   | Tài khoản chỉ trở thành FIGHTER sau khi mật khẩu được đổi thành công qua luồng khôi phục và bước kích hoạt hoàn tất. |
+| FR-ADMIT-007   | Khi Admin phê duyệt, hệ thống gửi email thiết lập mật khẩu (qua luồng recovery của provider) cho chính danh tính hiện có của GUEST. Với ứng viên đăng ký bằng mã email, đây là lần đặt mật khẩu đầu tiên. |
+| FR-ADMIT-008   | Tài khoản chỉ trở thành FIGHTER sau khi mật khẩu được thiết lập thành công qua luồng recovery và bước kích hoạt hoàn tất. Xác minh email không phải phê duyệt hay kích hoạt. |
 | FR-ADMIT-009   | Không thu thập dữ liệu y tế trong luồng gia nhập; Fighter mới giữ `current_medical_status = NOT_CLEARED`. |
 | FR-ADMIT-010   | Có hai đường tạo FIGHTER: (a) tự ứng tuyển qua admission, (b) **chiêu mộ trực tiếp** bằng `POST /users` với `role: FIGHTER` cho vận động viên đã ký. Đường (b) không sinh hồ sơ admission — provenance nằm ở audit log của lần tạo. `POST /users` không tạo GUEST; GUEST chỉ đến từ tự đăng ký. |
 | FR-ADMIT-011   | `email` trong hồ sơ là **snapshot** email tài khoản tại thời điểm nộp, lấy từ session đã xác thực, không nhận từ body. Email khôi phục luôn gửi tới email **hiện tại** của tài khoản Supabase Auth tương ứng; staff view hiển thị cả hai khi lệch nhau. |
@@ -462,13 +462,13 @@ Note: Role permission phải được enforce server-side, không chỉ UI.
 
 ```
 Given: Hồ sơ đã được Admin phê duyệt
-When: GUEST mở link khôi phục và đặt mật khẩu mới thành công
+When: GUEST mở link trong email thiết lập mật khẩu và đặt mật khẩu thành công
 Then:
   - Trạng thái activation chuyển PASSWORD_SET
   - Gọi activation với session hợp lệ sẽ promote GUEST → FIGHTER trong cùng một transaction
     (đổi role, tạo Fighter profile từ snapshot hồ sơ, activation COMPLETED, hồ sơ ACTIVATED)
 
-When: Mật khẩu chưa được đặt lại
+When: Mật khẩu chưa được thiết lập qua luồng recovery
 Then:
   - Activation bị từ chối; tài khoản vẫn là GUEST và không có quyền Fighter
 
@@ -872,7 +872,7 @@ Override không xóa AI finding — nó là layer trên cùng.
 | FR-MED-008 | Tất cả medical measurements phải kèm accuracy disclaimer.      |
 | FR-MED-009 | Chỉ DOCTOR đang được phân công, có permission tương ứng, được ghi injury/treatment/recovery, kết luận khám và cấp/thu hồi clearance; ADMIN không quyết định chuyên môn; bệnh án không xóa và có lịch sử phiên bản. |
 | FR-MED-010 | Kết luận khám (ELIGIBLE / ELIGIBLE_WITH_RESTRICTIONS / NOT_ELIGIBLE, phạm vi TRAINING hoặc COMPETITION) tách khỏi clearance; NOT_ELIGIBLE vô hiệu hóa clearance cùng phạm vi; thi đấu luôn cần clearance COMPETITION hợp lệ. |
-| FR-MED-011 | FIGHTER (chính mình), COACH/DOCTOR (Fighter đang phụ trách) gửi yêu cầu khám; yêu cầu chưa xử lý chặn bắt đầu Training cho tới khi Doctor khám và cấp clearance phù hợp. Không bắt buộc khám đại trà. |
+| FR-MED-011 | FIGHTER (chính mình), COACH/DOCTOR (Fighter đang phụ trách) gửi yêu cầu khám; yêu cầu chưa xử lý chặn bắt đầu Training cho tới khi Doctor khám và cấp clearance phù hợp. Ngoài yêu cầu này, mọi Fighter đều phải có kết luận khám BASELINE trước buổi tập đầu tiên (D9 sửa đổi 2026-10-04); không thêm nghĩa vụ tái khám định kỳ. |
 
 ### 05.10.1 Chính sách truy cập Medical clinical — quyết định 2026-09-27
 
@@ -889,7 +889,7 @@ Override không xóa AI finding — nó là layer trên cùng.
 - Hiệu lực: actor và profile đang hoạt động, không bị xóa; assignment `starts_at <= now` và (`ends_at IS NULL` hoặc `ends_at > now`). Lịch sử dùng cùng scope hiện tại; từng là tác giả hay từng được phân công không cấp quyền.
 - Permission guard và resource scope đều bắt buộc; explicit user deny thắng role grant. Quyền ghi clinical còn đòi hỏi Doctor đang được phân công, override cho role khác không vượt được. ADMIN không nhận quyền ghi chuyên môn.
 - Kết luận khám tách khỏi clearance: ELIGIBLE / ELIGIBLE_WITH_RESTRICTIONS (đạt, clearance phải giữ nguyên hạn chế) / NOT_ELIGIBLE (không sinh clearance, vô hiệu hóa clearance cùng phạm vi). Kết luận append-only, correction tạo bản ghi mới; thứ tự do server quản lý.
-- Training (D9): không có yêu cầu khám hay kết luận đang áp dụng thì tập bình thường. Yêu cầu khám chưa xử lý, kết luận NOT_ELIGIBLE, hoặc kết luận đạt chưa có clearance phù hợp (có hạn chế thì clearance phải còn hạn) chặn việc bắt đầu buổi tập. Clearance hết hạn của kết luận đạt không hạn chế không tạo nghĩa vụ khám định kỳ. Dừng/hủy buổi tập không bị chặn.
+- Training (D9, sửa đổi 2026-10-04 — thay ngoại lệ "chưa khám vẫn được tập"): mọi Fighter phải có kết luận khám BASELINE (vitals, hạng mục khám, hồ sơ SCAT6) trước khi bắt đầu buổi tập, bất kể tài khoản do Admin tạo hay đi qua admission (khám sau khi HLV kết luận PASS và tài khoản được kích hoạt); chưa có thì `eligible = false` với lý do `EXAMINATION_REQUIRED`, kể cả khi không có yêu cầu khám. Fighter đã có kết luận TRAINING thật trước migration 016 được ghi nhận miễn một lần (`medical_baseline_exemptions`), không bị buộc khám lại vì thiếu chi tiết baseline; Fighter chưa từng khám không được miễn; snapshot `MIGRATION_BASELINE` không phải một lần khám. Phân công Doctor, PASS đầu vào, activation hay điểm SCAT6 không tự đủ điều kiện. Tạo kế hoạch/lên lịch buổi tập không bị chặn. Sau khi khám: yêu cầu khám chưa xử lý, kết luận NOT_ELIGIBLE, hoặc kết luận đạt chưa có clearance phù hợp (có hạn chế thì clearance phải còn hạn) chặn việc bắt đầu buổi tập. Clearance hết hạn của kết luận đạt không hạn chế không tạo nghĩa vụ khám định kỳ. Dừng/hủy buổi tập không bị chặn.
 - Thi đấu luôn cần clearance COMPETITION hợp lệ từ kết luận COMPETITION hiện hành. Chưa có module giải đấu tiêu thụ quyết định này.
 - Bệnh án không xóa: chặn DELETE/TRUNCATE/soft-delete ở database; cập nhật ghi phiên bản cùng transaction. Đọc clinical được audit (metadata, không sao chép nội dung y tế vào audit logs).
 - Ngoài phạm vi, giữ nguyên: AI (ROM, asymmetry, alerts, joint states, baselines) và `fighter_measurements` với quyền hiện hữu (Coach đọc trong scope theo 010).
@@ -971,7 +971,7 @@ Retention: tối thiểu 1 năm.
 
 ## 05.12 Notifications
 
-Quyết định chủ dự án ngày 2026-09-29: phạm vi lần đầu gồm module dùng chung và trigger Admission A1–A6, Training T1–T4. Medical (M1–M5), nhắc lịch/clearance sắp hết hạn, cảnh báo AI và broadcast **chưa** thuộc phạm vi.
+Quyết định chủ dự án ngày 2026-09-29: phạm vi lần đầu gồm module dùng chung và trigger Admission A1–A6, Training T1–T4. Medical (M1–M5), nhắc lịch/clearance sắp hết hạn, cảnh báo AI và broadcast **chưa** thuộc phạm vi. Bổ sung 2026-10-04: A7 nhắc phân công bác sĩ cho Fighter mới (v3.5).
 
 | ID            | Requirement |
 | ------------- | ----------- |
@@ -980,7 +980,7 @@ Quyết định chủ dự án ngày 2026-09-29: phạm vi lần đầu gồm mo
 | FR-NOTIF-003  | Thông báo chỉ được yêu cầu sau khi thao tác nghiệp vụ đã COMMIT; lỗi xếp hàng/xử lý thông báo không rollback và không đổi response nghiệp vụ. No-op/same-status/replay không tạo thông báo. |
 | FR-NOTIF-004  | Mỗi lần phát sinh sự kiện có dedupe key ổn định; retry hoặc chạy đồng thời không tạo record trùng và không reset trạng thái đọc. |
 | FR-NOTIF-005  | Realtime qua Server-Sent Events với Bearer header; PostgreSQL là hộp thông báo cho client offline. Không hứa exactly-once, thứ tự, hay replay; client đồng bộ lại từ REST. |
-| FR-NOTIF-006  | Người gây ra sự kiện không nhận thông báo của chính sự kiện đó. Nội dung chỉ chứa tối thiểu; thông báo kết thúc assignment không trỏ tới dữ liệu người nhận đã mất quyền đọc; không chứa ghi chú staff, lý do quyết định hay dữ liệu clinical. |
+| FR-NOTIF-006  | Người gây ra sự kiện không nhận thông báo của chính sự kiện đó. Ngoại lệ: thông báo giao việc kế tiếp cho chính người đó vẫn được gửi (A7: Admin vừa tạo FIGHTER vẫn nhận nhắc phân công bác sĩ nếu có `fighter.doctor:assign`). Nội dung chỉ chứa tối thiểu; thông báo kết thúc assignment không trỏ tới dữ liệu người nhận đã mất quyền đọc; không chứa ghi chú staff, lý do quyết định hay dữ liệu clinical. |
 
 Trigger đã triển khai:
 
@@ -992,6 +992,7 @@ Trigger đã triển khai:
 | A4 | Coach nộp FAIL | Ứng viên (lần nộp kết thúc, có thể nộp lại) |
 | A5 | Admin APPROVED/REJECTED | Ứng viên; APPROVED hướng dẫn recovery/activation, không khẳng định email đã tới hộp thư |
 | A6 | Activation hoàn tất lần đầu | ADMIN có effective permission `fighter.coach:assign` |
+| A7 | Fighter mới chưa có Doctor phân công hiệu lực: activation hoàn tất lần đầu, hoặc Admin tạo user `FIGHTER` (`POST /users`) | ADMIN có effective permission `fighter.doctor:assign`, kể cả Admin vừa tạo Fighter (ngoại lệ FR-NOTIF-006: đây là việc kế tiếp). Một lần mỗi Fighter (dedupe `fighter:<fighterId>:doctor-assignment-required`); type `FIGHTER_DOCTOR_ASSIGNMENT_REQUIRED`, target `FIGHTER`, migration 017 |
 | T1 | Tạo/kết thúc `coach_fighters` | Coach và Fighter liên quan |
 | T2 | Plan chuyển thực sự sang ACTIVE | Fighter của plan |
 | T3 | Tạo buổi tập | Fighter + Coach gắn trên session (nếu có) |
@@ -1992,6 +1993,16 @@ POST /api/v1/auth/login
   Body: { email: string, password: string }
   Response 200: { access_token: string, refresh_token: string, user: UserDto }
 
+POST /auth/admission/email-code            (public, throttled)
+  Body: { email: string }
+  Response 200: { requested: true }   — giống nhau với mọi email
+
+POST /auth/admission/verify-email          (public, throttled)
+  Body: { email: string, token: string /* mã số 6–10 chữ số */ }
+  Response 200: { user: { id, authSubject, email, role: "GUEST" }, session }  — cùng shape /auth/login
+  Errors: 401 INVALID_CREDENTIALS (mã sai/hết hạn/đã dùng, hoặc không phải GUEST active),
+          409 USER_ALREADY_EXISTS, 502 AUTH_PROVIDER_UNAVAILABLE, 422, 429
+
 POST /api/v1/auth/refresh
   Body: { refresh_token: string }
   Response 200: { access_token: string }
@@ -2849,6 +2860,18 @@ The system must always answer:
 ---
 
 # 27. CHANGE LOG
+
+## v3.5 (2026-10-04)
+
+**Fighter onboarding và khám baseline — bắt buộc khám trước khi tập.**
+
+- Admission không mật khẩu (§05.1 FR-AUTH-006, §05.1b FR-ADMIT-007/008, §14.2): `POST /auth/admission/email-code` và `POST /auth/admission/verify-email` (mã OTP, không magic link) tạo/đăng nhập GUEST; mật khẩu được thiết lập sau khi duyệt qua luồng recovery, claim và `PASSWORD_SET` sẵn có. `/auth/register` có mật khẩu giữ cho client cũ. Không migration auth. Cấu hình template email Supabase chưa kiểm chứng trên sandbox; email thiết lập lần đầu và quên mật khẩu dùng chung template recovery.
+- Trigger A7 (§05.12): nhắc Admin có `fighter.doctor:assign` phân công bác sĩ cho Fighter mới (activation lần đầu hoặc Admin tạo FIGHTER); migration `017_doctor_assignment_notification.sql`. Migration notification trước đây đổi số thành 015 (ledger 15) vì trùng 014 AI. Thứ tự áp dụng: 015 → 016 → 017.
+
+- D9 sửa đổi: TRAINING không đủ điều kiện khi Fighter chưa có kết luận khám BASELINE (`EXAMINATION_REQUIRED`; Fighter có kết luận TRAINING trước 016 được miễn một lần), áp dụng cho Fighter do Admin tạo và Fighter từ admission; các quy tắc clearance sau khám giữ nguyên (§05.10.1, FR-MED-011). Cổng chặn ở backend tại chuyển/xác nhận lại `IN_PROGRESS` và đổi loại buổi đang tập (409 `TRAINING_MEDICAL_ELIGIBILITY_REQUIRED`).
+- Khám: request tạo kết luận nhận thêm `examinationType`, `vitals`, `assessments`, `recommendations`, `followUpDate`, `scat6` (tùy chọn với client cũ; BASELINE bắt buộc vitals, ≥1 hạng mục và hồ sơ SCAT6). Lưu cùng transaction trong bảng append-only `medical_examination_details` (migration 016). SCAT6 theo biểu mẫu chính thức tiếng Anh (BJSM/CISG 2023, 13+), ghi theo vị trí mục; điểm thành phần do server tính, có `scoringVersion`; không tự chẩn đoán/cấp clearance. Validation request giữ convention 422 `VALIDATION_ERROR` của module.
+- Phụ thuộc bên ngoài: biểu mẫu SCAT6 ghi rõ digital re-formatting cần chấp thuận bằng văn bản của BMJ; dự án chưa có chấp thuận nên giao diện không nhúng nội dung chính thức (câu hỏi, danh sách từ, chuỗi số) — bác sĩ thực hiện theo biểu mẫu giấy và ghi kết quả theo vị trí mục.
+- Chưa áp dụng 015/016/017 lên database nào, chưa chạy build/tests.
 
 ## v3.4 (2026-09-29)
 

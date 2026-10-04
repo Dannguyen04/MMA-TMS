@@ -2,6 +2,7 @@ import { forwardRef, Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module.js';
 import { AuthorizationModule } from '../authorization/authorization.module.js';
 import { DatabaseModule } from '../database/database.module.js';
+import { MedicalModule } from '../medical/medical.module.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { ADMISSION_ACTIVATION_PORT } from '../shared/contracts/admission-activation.contract.js';
 import { UsersModule } from '../users/users.module.js';
@@ -25,6 +26,8 @@ import { FighterAdmissionsService } from './fighter-admissions.service.js';
     NotificationsModule,
     // A6 recipient lookup; imports only DatabaseModule, so no cycle.
     AuthorizationModule,
+    // M1 Doctor-assignment reminder; Medical imports no feature module.
+    MedicalModule,
     forwardRef(() => AuthModule),
   ],
   controllers: [

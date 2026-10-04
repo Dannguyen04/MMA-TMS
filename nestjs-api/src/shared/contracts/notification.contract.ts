@@ -1,6 +1,6 @@
 export const NOTIFICATION_PUBLISHER = Symbol('NOTIFICATION_PUBLISHER');
 
-// Approved trigger types (migration 014). Legacy enum values stay readable in
+// Approved trigger types (migrations 015, 017). Legacy enum values stay readable in
 // the inbox but cannot be published.
 export const NOTIFICATION_TYPE = {
   /** A1 — Admin: a Guest submitted an application to triage. */
@@ -29,6 +29,11 @@ export const NOTIFICATION_TYPE = {
   TRAINING_SESSION_RESCHEDULED: 'TRAINING_SESSION_RESCHEDULED',
   /** T4 — session participants: the session was cancelled. */
   TRAINING_SESSION_CANCELLED: 'TRAINING_SESSION_CANCELLED',
+  /**
+   * M1 — Admins with `fighter.doctor:assign` (migration 017): a new Fighter has
+   * no effective Doctor assignment, needed for the baseline examination.
+   */
+  FIGHTER_DOCTOR_ASSIGNMENT_REQUIRED: 'FIGHTER_DOCTOR_ASSIGNMENT_REQUIRED',
 } as const;
 
 export type NotificationType =

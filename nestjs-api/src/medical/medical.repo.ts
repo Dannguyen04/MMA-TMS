@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { z } from 'zod';
 import {
   and,
   desc,
@@ -18,6 +19,7 @@ import {
   fighters,
   injuryRecords,
   medicalClearances,
+  medicalExaminationDetails,
   medicalExaminations,
   medicalReviewRequests,
   recoveryPlans,
@@ -55,7 +57,9 @@ import type {
   DoctorAssignment,
   Examination,
   ExaminationDecision,
+  ExaminationDetails,
   ExaminationScope,
+  ExaminationType,
   Injury,
   InjuryStatus,
   ListDoctorAssignmentsQuery,
@@ -70,6 +74,16 @@ import type {
   SessionTypeValue,
   Treatment,
 } from './medical.model.js';
+import {
+  examinationAssessmentSchema,
+  hydrationLevels,
+} from './medical.model.js';
+import {
+  scat6ScoresSchema,
+  storedScat6ResponsesSchema,
+  type Scat6Input,
+  type Scat6Scores,
+} from './scat6.model.js';
 
 type InjuryRow = typeof injuryRecords.$inferSelect;
 type TreatmentRow = typeof treatments.$inferSelect;
@@ -78,6 +92,21 @@ type ExaminationRow = typeof medicalExaminations.$inferSelect;
 type ClearanceRow = typeof medicalClearances.$inferSelect;
 type ReviewRequestRow = typeof medicalReviewRequests.$inferSelect;
 type AssignmentRow = typeof doctorFighters.$inferSelect;
+type ExaminationDetailsRow = typeof medicalExaminationDetails.$inferSelect;
+
+export interface ExaminationDetailsInsert {
+  examinationType: ExaminationType;
+  vitals: ExaminationDetails['vitals'];
+  assessments: ExaminationDetails['assessments'];
+  recommendations: string | null;
+  followUpDate: string | null;
+  scat6: {
+    formVersion: string;
+    responses: Scat6Input;
+    scoringVersion: number | null;
+    scores: Scat6Scores | null;
+  } | null;
+}
 
 export interface ExaminationInsert {
   fighterId: string;
@@ -148,7 +177,14 @@ function projectSnapshot(
   const source = isRecord(snapshot) ? snapshot : {};
   const projected: Record<string, unknown> = {};
   for (const key of MEDICAL_HISTORY_SNAPSHOT_FIELDS[recordType]) {
-    if (key in source) projected[toCamelCase(key)] = source[key];
+    if (!(key in source)) continue;
+    const value = source[key];
+    // Nested detail rows (examination `details`) are camelCased one level.
+    projected[toCamelCase(key)] = isRecord(value)
+      ? Object.fromEntries(
+          Object.entries(value).map(([inner, v]) => [toCamelCase(inner), v]),
+        )
+      : value;
   }
   return projected;
 }
@@ -218,7 +254,54 @@ function toRecoveryPlan(row: RecoveryPlanRow): RecoveryPlan {
   };
 }
 
-export function toExamination(row: ExaminationRow): Examination {
+/**
+ * Stored details are re-validated on read: a row that no longer matches its
+ * contract fails closed instead of reaching a client half-parsed.
+ */
+function toExaminationDetails(row: ExaminationDetailsRow): ExaminationDetails {
+  const vitals =
+    row.weightKg === null ||
+    row.restingHeartRate === null ||
+    row.bloodPressureSystolic === null ||
+    row.bloodPressureDiastolic === null ||
+    row.temperatureC === null ||
+    row.spo2Pct === null ||
+    row.hydration === null
+      ? null
+      : {
+          weightKg: Number(row.weightKg),
+          restingHeartRate: row.restingHeartRate,
+          bloodPressureSystolic: row.bloodPressureSystolic,
+          bloodPressureDiastolic: row.bloodPressureDiastolic,
+          temperatureC: Number(row.temperatureC),
+          spo2Pct: row.spo2Pct,
+          hydration: z.enum(hydrationLevels).parse(row.hydration),
+        };
+  return {
+    examinationType: row.examinationType,
+    vitals,
+    assessments: z.array(examinationAssessmentSchema).parse(row.assessments),
+    recommendations: row.recommendations,
+    followUpDate: row.followUpDate,
+    scat6:
+      row.scat6FormVersion === null || row.scat6Responses === null
+        ? null
+        : {
+            formVersion: row.scat6FormVersion,
+            responses: storedScat6ResponsesSchema.parse(row.scat6Responses),
+            scoringVersion: row.scat6ScoringVersion,
+            scores:
+              row.scat6Scores === null
+                ? null
+                : scat6ScoresSchema.parse(row.scat6Scores),
+          },
+  };
+}
+
+export function toExamination(
+  row: ExaminationRow,
+  details: ExaminationDetails | null = null,
+): Examination {
   const restricted = row.decision === 'ELIGIBLE_WITH_RESTRICTIONS';
   return {
     id: row.id,
@@ -241,6 +324,7 @@ export function toExamination(row: ExaminationRow): Examination {
     validUntil: row.validUntil,
     supersedesId: row.supersedesId,
     createdAt: row.createdAt,
+    details,
   };
 }
 
@@ -328,6 +412,46 @@ export class MedicalRepository {
       .where(and(eq(fighters.id, fighterId), isNull(fighters.deletedAt)))
       .limit(1);
     return row;
+  }
+
+  /**
+   * The Fighter profile of a user and whether it has an effective Doctor
+   * assignment (period in force, active non-deleted Doctor profile).
+   */
+  async findFighterDoctorAssignmentState(
+    fighterUserId: string,
+    database: DatabaseExecutor = this.db,
+  ): Promise<{ fighterId: string; hasEffectiveDoctor: boolean } | undefined> {
+    const [row] = await database
+      .select({
+        fighterId: fighters.id,
+        hasEffectiveDoctor: sql<boolean>`EXISTS (
+          SELECT 1 FROM public.doctor_fighters df
+          JOIN public.sports_doctors d ON d.id = df.doctor_id
+          WHERE df.fighter_id = ${fighters.id}
+            AND d.is_active AND d.deleted_at IS NULL
+            AND df.starts_at <= now()
+            AND (df.ends_at IS NULL OR df.ends_at > now())
+        )`,
+      })
+      .from(fighters)
+      .where(
+        and(eq(fighters.userId, fighterUserId), isNull(fighters.deletedAt)),
+      )
+      .limit(1);
+    return row;
+  }
+
+  async findFighterDateOfBirth(
+    fighterId: string,
+    database: DatabaseExecutor = this.db,
+  ): Promise<string | undefined> {
+    const [row] = await database
+      .select({ dateOfBirth: fighters.dateOfBirth })
+      .from(fighters)
+      .where(eq(fighters.id, fighterId))
+      .limit(1);
+    return row?.dateOfBirth;
   }
 
   // Resolves only an unambiguous active profile (user_id is unique today).
@@ -899,6 +1023,71 @@ export class MedicalRepository {
     return row;
   }
 
+  async insertExaminationDetails(
+    examination: Pick<ExaminationRow, 'id' | 'fighterId'>,
+    values: ExaminationDetailsInsert,
+    transaction: Transaction,
+  ): Promise<ExaminationDetails> {
+    const { vitals, scat6 } = values;
+    const [row] = await transaction
+      .insert(medicalExaminationDetails)
+      .values({
+        examinationId: examination.id,
+        fighterId: examination.fighterId,
+        examinationType: values.examinationType,
+        weightKg: vitals ? String(vitals.weightKg) : null,
+        restingHeartRate: vitals?.restingHeartRate ?? null,
+        bloodPressureSystolic: vitals?.bloodPressureSystolic ?? null,
+        bloodPressureDiastolic: vitals?.bloodPressureDiastolic ?? null,
+        temperatureC: vitals ? String(vitals.temperatureC) : null,
+        spo2Pct: vitals?.spo2Pct ?? null,
+        hydration: vitals?.hydration ?? null,
+        assessments: values.assessments,
+        recommendations: values.recommendations,
+        followUpDate: values.followUpDate,
+        scat6FormVersion: scat6?.formVersion ?? null,
+        scat6Responses: scat6?.responses ?? null,
+        scat6ScoringVersion: scat6?.scoringVersion ?? null,
+        scat6Scores: scat6?.scores ?? null,
+      })
+      .returning();
+    return toExaminationDetails(row);
+  }
+
+  /**
+   * Before-training requirement: a BASELINE examination on file, or the
+   * one-time 016 exemption for Fighters examined for TRAINING before it.
+   */
+  async hasBaselineOnFile(
+    fighterId: string,
+    database: DatabaseExecutor = this.db,
+  ): Promise<boolean> {
+    const result = await database.execute<{ on_file: boolean }>(sql`
+      SELECT EXISTS (
+               SELECT 1 FROM public.medical_examination_details d
+                WHERE d.fighter_id = ${fighterId} AND d.examination_type = 'BASELINE')
+          OR EXISTS (
+               SELECT 1 FROM public.medical_baseline_exemptions x
+                WHERE x.fighter_id = ${fighterId}) AS on_file
+    `);
+    return result.rows[0]?.on_file === true;
+  }
+
+  /** Details of several examinations in one query, keyed by examination id. */
+  async findExaminationDetails(
+    examinationIds: readonly string[],
+    database: DatabaseExecutor = this.db,
+  ): Promise<Map<string, ExaminationDetails>> {
+    if (examinationIds.length === 0) return new Map();
+    const rows = await database
+      .select()
+      .from(medicalExaminationDetails)
+      .where(inArray(medicalExaminationDetails.examinationId, [...examinationIds]));
+    return new Map(
+      rows.map((row) => [row.examinationId, toExaminationDetails(row)] as const),
+    );
+  }
+
   async findExamination(
     fighterId: string,
     examinationId: string,
@@ -958,7 +1147,14 @@ export class MedicalRepository {
         .from(medicalExaminations)
         .where(where),
     ]);
-    return { data: rows.map(toExamination), total: counted?.count ?? 0 };
+    const details = await this.findExaminationDetails(
+      rows.map((row) => row.id),
+      database,
+    );
+    return {
+      data: rows.map((row) => toExamination(row, details.get(row.id) ?? null)),
+      total: counted?.count ?? 0,
+    };
   }
 
   // --- Clearances ---
@@ -1137,8 +1333,11 @@ export class MedicalRepository {
         JOIN public.injury_records i ON i.id = t.injury_id
        WHERE i.fighter_id = ${fighterId}
       UNION ALL
-      SELECT 'MEDICAL_EXAMINATION', e.id, 1, NULL, e.created_at, e.recorded_by_id, to_jsonb(e)
-        FROM public.medical_examinations e WHERE e.fighter_id = ${fighterId}
+      SELECT 'MEDICAL_EXAMINATION', e.id, 1, NULL, e.created_at, e.recorded_by_id,
+             to_jsonb(e) || jsonb_build_object('details', to_jsonb(d) - 'examination_id' - 'fighter_id')
+        FROM public.medical_examinations e
+        LEFT JOIN public.medical_examination_details d ON d.examination_id = e.id
+       WHERE e.fighter_id = ${fighterId}
     ) AS h`;
     const filter = sql`(${recordType}::text IS NULL OR h.record_type = ${recordType}::text)`;
 

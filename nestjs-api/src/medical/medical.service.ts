@@ -19,6 +19,7 @@ import {
   MEDICAL_ELIGIBILITY_REASON,
   MEDICAL_READ_VIEW,
   RECOVERY_PLAN_STATUS_TRANSITIONS,
+  SCAT6,
   type MedicalEligibilityReason,
 } from './medical.constants.js';
 import {
@@ -31,6 +32,7 @@ import {
   invalidInjuryStatusTransition,
   invalidRecoveryPlanStatusTransition,
   mapMedicalPersistenceError,
+  medicalDataConstraintConflict,
   medicalClearanceNotActive,
   medicalClearanceNotFound,
   medicalReferenceNotFound,
@@ -80,11 +82,16 @@ import {
   MedicalRepository,
   toExamination,
   type ClearanceEligibilityRow,
+  type ExaminationDetailsInsert,
 } from './medical.repo.js';
+import type { Scat6Input } from './scat6.model.js';
+import { scoreScat6 } from './scat6.scoring.js';
 
 interface EligibilityState {
   scope: ExaminationScope;
   openReviewRequests: number;
+  /** TRAINING only: a BASELINE examination (or the 016 legacy exemption) is on file. */
+  baselineOnFile: boolean;
   currentExamination:
     | { decision: Examination['decision'] }
     | undefined;
@@ -102,10 +109,16 @@ function isRestricted(clearance: ClearanceEligibilityRow): boolean {
 }
 
 /**
- * Medical eligibility for one scope (D6, D8, D9).
+ * Medical eligibility for one scope (D6, D8, D9 as amended 2026-10-04).
  *
- * TRAINING has no obligation until something creates one: an OPEN review
- * request, or a current examination. A current NOT_ELIGIBLE decision blocks.
+ * Every Fighter has a BASELINE examination before training, whatever created
+ * the account (Admin or admission): without one TRAINING is not eligible
+ * (EXAMINATION_REQUIRED). Fighters with a real TRAINING examination recorded
+ * before migration 016 are exempt once (`medical_baseline_exemptions`); their
+ * records keep counting without SCAT6 details. An OPEN review request also
+ * blocks. Having the baseline is necessary, not sufficient: the current
+ * examination and clearance rules below still apply. A current NOT_ELIGIBLE
+ * decision blocks.
  * A current positive decision needs a clearance issued from that examination.
  * The governing clearance is the newest by server issuance order, chosen
  * BEFORE its status is considered: if it is revoked or not yet valid, no older
@@ -121,15 +134,22 @@ export function evaluateEligibility(state: EligibilityState): MedicalEligibility
   const reasons: MedicalEligibilityReason[] = [];
   const { scope, currentExamination: exam, now } = state;
 
+  if (scope === 'TRAINING' && !state.baselineOnFile) {
+    reasons.push(MEDICAL_ELIGIBILITY_REASON.EXAMINATION_REQUIRED);
+  }
   if (scope === 'TRAINING' && state.openReviewRequests > 0) {
     reasons.push(MEDICAL_ELIGIBILITY_REASON.REVIEW_REQUEST_PENDING);
   }
 
   if (!exam) {
-    if (scope === 'COMPETITION') {
-      reasons.push(MEDICAL_ELIGIBILITY_REASON.CLEARANCE_REQUIRED);
-    }
-    return { scope, eligible: reasons.length === 0, reasons };
+    // A baseline of another scope (COMPETITION) does not stand in for the
+    // TRAINING examination: still EXAMINATION_REQUIRED, never twice.
+    const missing =
+      scope === 'TRAINING'
+        ? MEDICAL_ELIGIBILITY_REASON.EXAMINATION_REQUIRED
+        : MEDICAL_ELIGIBILITY_REASON.CLEARANCE_REQUIRED;
+    if (!reasons.includes(missing)) reasons.push(missing);
+    return { scope, eligible: false, reasons };
   }
 
   if (exam.decision === 'NOT_ELIGIBLE') {
@@ -250,6 +270,17 @@ function replaceMilestones(
     });
   }
   return result;
+}
+
+/** Whole years between a date of birth (YYYY-MM-DD) and an instant, in UTC. */
+function ageInYears(dateOfBirth: string, at: Date): number {
+  const [year, month, day] = dateOfBirth.split('-').map(Number);
+  let age = at.getUTCFullYear() - year;
+  const beforeBirthday =
+    at.getUTCMonth() + 1 < month ||
+    (at.getUTCMonth() + 1 === month && at.getUTCDate() < day);
+  if (beforeBirthday) age -= 1;
+  return age;
 }
 
 function todayUtc(): string {
@@ -405,6 +436,7 @@ export class MedicalService {
       openReviewRequests,
       trainingExam,
       competitionExam,
+      baselineOnFile,
     ] = await Promise.all([
       this.repo.listActiveInjuries(fighterId),
       this.repo.listActiveRecoveryPlans(fighterId),
@@ -412,19 +444,33 @@ export class MedicalService {
       this.repo.listOpenReviewRequests(fighterId),
       this.repo.findCurrentExamination(fighterId, 'TRAINING'),
       this.repo.findCurrentExamination(fighterId, 'COMPETITION'),
+      this.repo.hasBaselineOnFile(fighterId),
     ]);
-    const [training, competition] = await Promise.all([
-      this.eligibilityFrom('TRAINING', trainingExam, openReviewRequests.length, now),
-      this.eligibilityFrom('COMPETITION', competitionExam, 0, now),
+    const [training, competition, details] = await Promise.all([
+      this.eligibilityFrom(
+        'TRAINING',
+        trainingExam,
+        openReviewRequests.length,
+        baselineOnFile,
+        now,
+      ),
+      this.eligibilityFrom('COMPETITION', competitionExam, 0, true, now),
+      this.repo.findExaminationDetails(
+        [trainingExam?.id, competitionExam?.id].filter(
+          (id): id is string => id !== undefined,
+        ),
+      ),
     ]);
+    const withDetails = (exam: typeof trainingExam) =>
+      exam ? toExamination(exam, details.get(exam.id) ?? null) : null;
 
     return {
       fighterId,
       activeInjuries,
       activeRecoveryPlans,
       currentExaminations: {
-        training: trainingExam ? toExamination(trainingExam) : null,
-        competition: competitionExam ? toExamination(competitionExam) : null,
+        training: withDetails(trainingExam),
+        competition: withDetails(competitionExam),
       },
       activeClearances,
       openReviewRequests,
@@ -486,6 +532,7 @@ export class MedicalService {
     scope: ExaminationScope,
     exam: Awaited<ReturnType<MedicalRepository['findCurrentExamination']>>,
     openReviewRequests: number,
+    baselineOnFile: boolean,
     now: Date,
     database?: DatabaseExecutor,
     sessionType?: SessionTypeValue,
@@ -501,6 +548,7 @@ export class MedicalService {
     return evaluateEligibility({
       scope,
       openReviewRequests,
+      baselineOnFile,
       currentExamination: exam,
       clearances,
       now,
@@ -528,10 +576,15 @@ export class MedicalService {
       'TRAINING',
       transaction,
     );
+    const baselineOnFile = await this.repo.hasBaselineOnFile(
+      fighterId,
+      transaction,
+    );
     return this.eligibilityFrom(
       'TRAINING',
       exam,
       openReviewRequests,
+      baselineOnFile,
       new Date(),
       transaction,
       sessionType,
@@ -810,6 +863,25 @@ export class MedicalService {
         tx,
       );
 
+      // Details and SCAT6 are written in the examination's transaction: a
+      // rejected detail rolls the whole examination back.
+      const details = input.examinationType
+        ? await this.repo.insertExaminationDetails(
+            row,
+            {
+              examinationType: input.examinationType,
+              vitals: input.vitals ?? null,
+              assessments: input.assessments ?? [],
+              recommendations: input.recommendations ?? null,
+              followUpDate: input.followUpDate ?? null,
+              scat6: input.scat6
+                ? await this.scat6Record(fighterId, input.scat6, tx)
+                : null,
+            },
+            tx,
+          )
+        : null;
+
       if (requestIds.length > 0) {
         const resolved = await this.repo.resolveReviewRequests(
           requestIds,
@@ -818,8 +890,42 @@ export class MedicalService {
         );
         if (resolved !== requestIds.length) throw reviewRequestNotResolvable();
       }
-      return toExamination(row);
+      return toExamination(row, details);
     });
+  }
+
+  /**
+   * The SCAT6 applies from age 13 (Child SCAT6 is out of scope): an
+   * administered SCAT6 for a younger Fighter is rejected rather than scored.
+   * Scores are always computed here from the raw answers.
+   */
+  private async scat6Record(
+    fighterId: string,
+    scat6: Scat6Input,
+    tx: Transaction,
+  ): Promise<ExaminationDetailsInsert['scat6']> {
+    if (scat6.status === 'NOT_ADMINISTERED') {
+      return {
+        formVersion: scat6.formVersion,
+        responses: scat6,
+        scoringVersion: null,
+        scores: null,
+      };
+    }
+    const dateOfBirth = await this.repo.findFighterDateOfBirth(fighterId, tx);
+    if (
+      !dateOfBirth ||
+      ageInYears(dateOfBirth, new Date(scat6.administeredAt)) <
+        SCAT6.MIN_AGE_YEARS
+    ) {
+      throw medicalDataConstraintConflict();
+    }
+    return {
+      formVersion: scat6.formVersion,
+      responses: scat6,
+      scoringVersion: SCAT6.SCORING_VERSION,
+      scores: scoreScat6(scat6),
+    };
   }
 
   async issueClearance(

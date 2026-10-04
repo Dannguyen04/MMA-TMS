@@ -332,7 +332,7 @@ export class FightersService {
           type: NOTIFICATION_TYPE.COACH_ASSIGNMENT_STARTED,
           ...COACH_ASSIGNMENT_NOTIFICATION_TEXT.STARTED_COACH,
           target: { type: NOTIFICATION_TARGET.FIGHTER, id: fighterId },
-          data: { startsAt: assignment.startsAt.toISOString() },
+          data: { startsAt: new Date(assignment.startsAt).toISOString() },
           dedupeKey: `coach-assignment:${assignment.id}:coach`,
         },
         {
@@ -344,7 +344,7 @@ export class FightersService {
             type: NOTIFICATION_TARGET.COACH_ASSIGNMENT,
             id: assignment.id,
           },
-          data: { startsAt: assignment.startsAt.toISOString() },
+          data: { startsAt: new Date(assignment.startsAt).toISOString() },
           dedupeKey: `coach-assignment:${assignment.id}:fighter`,
         },
       ],

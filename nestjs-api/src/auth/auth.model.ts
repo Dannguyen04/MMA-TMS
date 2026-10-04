@@ -21,8 +21,29 @@ export const demoSessionExchangeBodySchema = z.strictObject({
   email: normalizedEmailSchema,
 });
 
-// Registration creates the pre-admission GUEST identity only. Fighter details are
-// collected later by the admission application and applied at activation.
+// Passwordless admission (decided 2026-10-04): the applicant proves the email
+// with a one-time code, gets a session and a GUEST identity, and sets a
+// password only after approval, through the existing recovery/reset flow.
+export const admissionEmailCodeBodySchema = z.strictObject({
+  email: normalizedEmailSchema,
+});
+
+export const admissionEmailVerifyBodySchema = z.strictObject({
+  email: normalizedEmailSchema,
+  // The numeric email OTP; its length is configured in the provider.
+  token: z
+    .string()
+    .trim()
+    .regex(/^\d{6,10}$/, 'Expected the numeric code from the email'),
+});
+
+// Identical for every address so it cannot reveal accounts or applications.
+export const admissionEmailCodeResponseSchema = z.strictObject({
+  requested: z.literal(true),
+});
+
+// Legacy password registration of a pre-admission GUEST, kept for existing
+// clients. Fighter details are collected later by the admission application.
 export const registerBodySchema = z.strictObject({
   email: normalizedEmailSchema,
   password: credentialPasswordSchema,
@@ -87,6 +108,9 @@ export type DemoSessionExchangeInput = z.infer<
   typeof demoSessionExchangeBodySchema
 >;
 export type RegisterInput = z.infer<typeof registerBodySchema>;
+export type AdmissionEmailVerifyInput = z.infer<
+  typeof admissionEmailVerifyBodySchema
+>;
 export type RefreshInput = z.infer<typeof refreshBodySchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordBodySchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordBodySchema>;
