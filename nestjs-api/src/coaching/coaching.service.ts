@@ -696,30 +696,57 @@ export class CoachingService implements OnModuleInit {
   // ─── 8. Baseline & Progress Snapshots ──────────────────────────────────────
 
   async createBaseline(dto: CreateBaselineDto) {
-    const isApproved = !!dto.approvedById;
+    if (!dto.approvedById) {
+      throw new BadRequestException('An authenticated assigned coach is required to approve a baseline.');
+    }
     const now = new Date();
 
-    let sampleCount = dto.sampleCount ?? 0;
-    try {
-      const activeRefs = await this.db
-        .select({ id: techniqueReferences.id })
-        .from(techniqueReferences)
-        .where(
-          and(
-            eq(techniqueReferences.fighterId, dto.fighterId),
-            eq(techniqueReferences.technique, dto.techniqueType),
-            eq(techniqueReferences.status, 'active'),
-          ),
-        );
-      if (activeRefs.length > 0 && (!dto.sampleCount || dto.sampleCount === 0)) {
-        sampleCount = activeRefs.length;
-      }
-    } catch {
-      // fallback to dto.sampleCount
+    // The reference catalogue and immutable worker assessments are the only
+    // authoritative input. Client-supplied metrics/counts are intentionally ignored.
+    const result = await this.db.execute(sql`
+      SELECT aa.kinematic_features, ai.session_id
+      FROM public.technique_references tr
+      JOIN public.ai_analyses ai
+        ON ai.video_id = tr.video_id AND ai.fighter_id = tr.fighter_id
+      JOIN public.action_assessments aa
+        ON aa.analysis_id = ai.id AND aa.action_id = tr.action_id
+      WHERE tr.fighter_id = ${dto.fighterId}
+        AND lower(tr.technique) = lower(${dto.techniqueType})
+        AND tr.status = 'active'
+        AND aa.assessment_status = 'EVALUATED'
+      ORDER BY aa.created_at ASC
+    `);
+    const references = result.rows || result || [];
+    if (references.length === 0) {
+      throw new BadRequestException(
+        'Cannot create baseline without an active reference backed by an evaluated worker assessment.',
+      );
     }
 
-    const sampleSessions = dto.sampleSessions ?? (sampleCount > 0 ? 1 : 0);
-    const sourceDescription = dto.sourceDescription || (dto.approvedById ? 'Coach approved baseline snapshot' : 'Baseline snapshot');
+    const numericMetric = (features: any, keys: string[]): number | undefined => {
+      for (const key of keys) {
+        const raw = features?.[key];
+        const value = typeof raw === 'object' && raw !== null ? raw.value : raw;
+        if (typeof value === 'number' && Number.isFinite(value)) return value;
+      }
+      return undefined;
+    };
+    const average = (values: Array<number | undefined>): number | null => {
+      const valid = values.filter((v): v is number => v !== undefined);
+      return valid.length ? valid.reduce((sum, value) => sum + value, 0) / valid.length : null;
+    };
+    const romBaselineDeg = average(references.map((r: any) =>
+      numericMetric(r.kinematic_features, ['romDeg', 'maxElbowAngle', 'maxKneeAngle', 'kneeAngleAtPeak']),
+    ));
+    const velocityBaseline = average(references.map((r: any) =>
+      numericMetric(r.kinematic_features, ['peakVelocity', 'peakSpeed', 'kneeVelocity']),
+    ));
+    const jerkThreshold = average(references.map((r: any) =>
+      numericMetric(r.kinematic_features, ['jerkThreshold', 'peakJerk', 'jerk']),
+    ));
+    const sampleCount = references.length;
+    const sampleSessions = new Set(references.map((r: any) => r.session_id).filter(Boolean)).size;
+    const sourceDescription = `Derived from ${sampleCount} active coach-selected worker reference(s)`;
 
     const [baseline] = await this.db
       .insert(fighterBaselines)
@@ -728,16 +755,16 @@ export class CoachingService implements OnModuleInit {
         algorithmConfigId: dto.algorithmConfigId,
         techniqueType: dto.techniqueType as any,
         limbSide: dto.limbSide as any,
-        romBaselineDeg: dto.romBaselineDeg,
-        velocityBaseline: dto.velocityBaseline,
-        jerkThreshold: dto.jerkThreshold,
-        covarianceMatrix: dto.covarianceMatrix || [],
+        romBaselineDeg,
+        velocityBaseline,
+        jerkThreshold,
+        covarianceMatrix: [],
         sampleCount,
         sampleSessions,
         sourceDescription,
-        isLocked: isApproved,
-        approvedById: dto.approvedById || null,
-        approvedAt: isApproved ? now : null,
+        isLocked: true,
+        approvedById: dto.approvedById,
+        approvedAt: now,
         isActive: true,
       })
       .returning();

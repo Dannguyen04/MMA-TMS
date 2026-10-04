@@ -17,10 +17,18 @@ import { MedicalModule } from './medical/medical.module.js';
 import { CoachingModule } from './coaching/coaching.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { resolveRedisConnection } from './shared/config/redis.config.js';
+import { loadEnv } from './shared/config/env.js';
+import { VideosModule } from './videos/videos.module.js';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      // ConfigModule uses the validator's return value as the complete config.
+      // Preserve unrelated service settings (Supabase, database, Redis, etc.)
+      // while replacing the shared keys with their validated/coerced values.
+      validate: (config) => ({ ...config, ...loadEnv(config) }),
+    }),
     BullModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
@@ -31,7 +39,6 @@ import { resolveRedisConnection } from './shared/config/redis.config.js';
       }),
     }),
     DatabaseModule,
-    NotificationsModule,
     UsersModule,
     AuthModule,
     FightersModule,

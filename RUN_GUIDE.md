@@ -55,6 +55,7 @@ _(Nếu đã cấu hình PATH cho Redis, bạn chỉ cần gõ `redis-server`)_
 
 ```powershell
 cd d:\test\ai\nestjs-api
+node --env-file=.env run_sql.mjs --apply-014   # chạy một lần sau khi backup DB
 pnpm run dev
 ```
 
@@ -87,6 +88,8 @@ cd d:\test\ai\python-worker
 cd d:\test\ai\nextjs-frontend
 pnpm run dev
 ```
+
+`.env.local` phải bật `APP_DATA_MODE=api`, `NEXT_PUBLIC_VIDEO_PIPELINE=api` và đặt `API_URL=http://localhost:3001` để dùng pipeline AI thật. Frontend không cần Supabase service key.
 
 - Khi sẵn sàng sẽ thông báo: `Ready in ...ms (http://localhost:3000)`
 

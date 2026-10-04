@@ -418,7 +418,22 @@ export const sequenceActionRefSchema = z.object({
 
 export const actionSequenceSchema = z.object({
     sequenceId: z.string(),
-    candidateType: z.enum(["single_strike", "combination", "interrupted_chain", "unknown", "SINGLE_STRIKE", "COMBINATION", "INTERRUPTED_CHAIN", "UNKNOWN"]).optional(),
+    candidateType: z
+        .enum([
+            "single_strike",
+            "combination",
+            "interrupted_chain",
+            "unknown",
+            "SINGLE_STRIKE",
+            "COMBINATION",
+            "INTERRUPTED_CHAIN",
+            "SINGLE",
+            "REPEATED_STRIKE",
+            "TWO_ACTION_COMBINATION",
+            "MULTI_ACTION_COMBINATION",
+            "UNKNOWN",
+        ])
+        .optional(),
     sequenceType: z.string().optional(),
     actions: z.array(z.union([z.string(), sequenceActionRefSchema])).optional(),
     actionIds: z.array(z.string()).optional(),
@@ -559,8 +574,8 @@ export const advancedAIExtensionSchema = z.object({
     shadowGrappling: z.array(grapplingShadowSegmentSchema).optional(),
     observableMovement: observableMovementEvidenceSchema.optional(),
     activeLearningCandidates: z.array(activeLearningCandidateSchema).optional(),
-    sessionComparison: sessionComparisonDeltaSchema.optional(),
-    ghostDifference: ghostDifferenceExplanationSchema.optional(),
+    sessionComparison: sessionComparisonDeltaSchema.nullable().optional(),
+    ghostDifference: ghostDifferenceExplanationSchema.nullable().optional(),
     pipelineVersion: z.string().optional(),
 });
 

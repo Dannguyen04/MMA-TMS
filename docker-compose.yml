@@ -47,6 +47,9 @@ services:
             REDIS_PORT: 6379
             FRONTEND_URL: http://localhost:3000
             WORKER_SECRET_TOKEN: ${WORKER_SECRET_TOKEN:-mma-tms-worker-local-secret-2026}
+            VIDEO_STORAGE_BUCKET: ${VIDEO_STORAGE_BUCKET:-videos}
+            ANALYSIS_RESULTS_BUCKET: ${ANALYSIS_RESULTS_BUCKET:-analysis-results}
+            VIDEO_MAX_SIZE_MB: ${VIDEO_MAX_SIZE_MB:-500}
         depends_on:
             redis:
                 condition: service_healthy
@@ -90,14 +93,14 @@ services:
             dockerfile: Dockerfile
             args:
                 NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
-                NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL}
-                NEXT_PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+                NEXT_PUBLIC_VIDEO_PIPELINE: api
         ports:
             - "3000:3000"
         environment:
+            API_URL: http://nestjs-api:3001
             NEXT_PUBLIC_API_URL: http://localhost:3001
-            NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL}
-            NEXT_PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+            APP_DATA_MODE: api
+            NEXT_PUBLIC_VIDEO_PIPELINE: api
         depends_on:
             - nestjs-api
 

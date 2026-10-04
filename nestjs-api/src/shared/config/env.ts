@@ -78,11 +78,18 @@ export function loadEnv(source: EnvSource) {
     PORT: getNumber(source, 'PORT', 3001),
     FRONTEND_URL: getUrl(source, 'FRONTEND_URL', 'http://localhost:3000'),
     MOBILE_APP_URL: getUrl(source, 'MOBILE_APP_URL', 'http://localhost:8081'),
-    APP_HEADER_LANGUAGE: getString(source, 'APP_HEADER_LANGUAGE', 'x-custom-lang'),
+    APP_HEADER_LANGUAGE: getString(
+      source,
+      'APP_HEADER_LANGUAGE',
+      'x-custom-lang',
+    ),
     WORKER_SECRET_TOKEN: getRequiredString(source, 'WORKER_SECRET_TOKEN'),
+    DEMO_SESSION_EXCHANGE_SECRET: getString(
+      source,
+      'DEMO_SESSION_EXCHANGE_SECRET',
+      '',
+    ),
   });
 }
 
 export type Env = ReturnType<typeof loadEnv>;
-
-export const env: Env = loadEnv(process.env);

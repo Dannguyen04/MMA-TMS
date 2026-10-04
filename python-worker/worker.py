@@ -45,7 +45,7 @@ QUEUE_NAME      = os.getenv("QUEUE_NAME", "video-analysis")
 SUPABASE_URL    = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY    = os.getenv("SUPABASE_SERVICE_KEY", "")  # service role key
 NESTJS_API_URL  = os.getenv("NESTJS_API_URL", "http://localhost:3001")
-WORKER_SECRET_TOKEN = os.getenv("WORKER_SECRET_TOKEN", "mma-tms-worker-local-secret-2026")
+WORKER_SECRET_TOKEN = os.getenv("WORKER_SECRET_TOKEN", "")
 YOLO_MODEL      = os.getenv("YOLO_MODEL", "yolov8n-pose")
 POLL_INTERVAL_S = float(os.getenv("POLL_INTERVAL_S", "2.0"))
 import tempfile
@@ -137,27 +137,38 @@ def notify_nestjs(
     joint_states:  dict[str, str] từ SessionHealthMonitor.get_joint_states()
     """
     if not NESTJS_API_URL:
-        return
+        raise RuntimeError("NESTJS_API_URL is required for authoritative worker callbacks")
+    if not WORKER_SECRET_TOKEN:
+        raise RuntimeError("WORKER_SECRET_TOKEN is required for authoritative worker callbacks")
 
-    try:
-        headers = {
-            "Content-Type": "application/json",
-            "x-worker-secret": WORKER_SECRET_TOKEN,
-        }
-        httpx.patch(
-            f"{NESTJS_API_URL}/jobs/{job_id}/status",
-            json={
-                "status":       status,
-                "resultUrl":    result_url,
-                "score":        score,
-                "healthAlerts": health_alerts or [],
-                "jointStates":  joint_states or {},
-            },
-            headers=headers,
-            timeout=10.0,
-        )
-    except Exception as e:
-        log.warning(f"Không thể báo NestJS: {e}")
+    headers = {
+        "Content-Type": "application/json",
+        "x-worker-secret": WORKER_SECRET_TOKEN,
+    }
+    payload = {
+        "status":       status,
+        "resultUrl":    result_url,
+        "score":        score,
+        "healthAlerts": health_alerts or [],
+        "jointStates":  joint_states or {},
+    }
+    last_error = None
+    for attempt in range(1, 4):
+        try:
+            response = httpx.patch(
+                f"{NESTJS_API_URL}/jobs/{job_id}/status",
+                json=payload,
+                headers=headers,
+                timeout=10.0,
+            )
+            response.raise_for_status()
+            return
+        except (httpx.HTTPError, httpx.TimeoutException) as exc:
+            last_error = exc
+            log.warning("NestJS callback %s failed (attempt %d/3): %s", status, attempt, exc)
+            if attempt < 3:
+                time.sleep(attempt)
+    raise RuntimeError(f"NestJS callback {status} failed after 3 attempts") from last_error
 
 
 # ─── Job Processing ───
@@ -206,6 +217,18 @@ def process_job(r: redis.Redis, job_id: str):
         health_alerts = result.get("healthAlerts", [])
         joint_states  = result["summary"].get("jointHealthStates", {})
 
+        # Persist the authoritative API state before acknowledging completion
+        # in Redis. A failed callback must keep the job retryable/failed rather
+        # than showing a false positive completion to the UI.
+        notify_nestjs(
+            db_job_id,
+            "DONE",
+            result_url=result_url,
+            score=best_score,
+            health_alerts=health_alerts,
+            joint_states=joint_states,
+        )
+
         # ── Cập nhật Redis job status (BullMQ format) ──
         r.hset(job_key, mapping={
             "returnvalue": json.dumps({
@@ -220,16 +243,6 @@ def process_job(r: redis.Redis, job_id: str):
         r.lrem(ACTIVE_KEY, 1, job_id)
         r.rpush(COMPLETED_KEY, job_id)
 
-        # ── Thông báo NestJS (kèm anomaly data) ──
-        notify_nestjs(
-            db_job_id,
-            "DONE",
-            result_url=result_url,
-            score=best_score,
-            health_alerts=health_alerts,
-            joint_states=joint_states,
-        )
-
         alert_count = len(health_alerts)
         log.info(f"✅ Job {db_job_id} hoàn thành. Score: {best_score}, Health Alerts: {alert_count}")
         if alert_count > 0:
@@ -242,7 +255,10 @@ def process_job(r: redis.Redis, job_id: str):
         # An toàn đa luồng: Chỉ xóa chính xác job_id này khỏi ACTIVE_KEY và đẩy sang FAILED_KEY
         r.lrem(ACTIVE_KEY, 1, job_id)
         r.rpush(FAILED_KEY, job_id)
-        notify_nestjs(db_job_id, "FAILED")
+        try:
+            notify_nestjs(db_job_id, "FAILED")
+        except Exception as callback_error:
+            log.error("Không thể báo trạng thái FAILED cho NestJS: %s", callback_error)
 
 
 # ─── Main Loop ───

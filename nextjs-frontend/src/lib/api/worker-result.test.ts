@@ -703,6 +703,44 @@ describe("Worker Result Schema & Tasks 9-17 Extensions", () => {
         }
     });
 
+    it("accepts canonical single-action sequences and unavailable comparisons", () => {
+        const parsed = workerResultSchema.safeParse({
+            schemaVersion: "1.0.0",
+            meta: {
+                fps: 25,
+                totalFrames: 1,
+                durationMs: 40,
+                imgWidth: 1920,
+                imgHeight: 1080,
+                processedAt: "2026-09-29T00:00:00Z",
+            },
+            frames: [],
+            kicks: [],
+            punches: [],
+            actions: [],
+            findings: [],
+            advancedAI: {
+                sequences: [
+                    {
+                        sequenceId: "seq_single_1",
+                        sequenceType: "single",
+                        candidateType: "SINGLE",
+                        actionIds: ["act_1"],
+                        techniques: ["jab"],
+                        startFrame: 0,
+                        endFrame: 0,
+                        durationMs: 0,
+                        validationStatus: "NOT_VALIDATED",
+                    },
+                ],
+                sessionComparison: null,
+                ghostDifference: null,
+            },
+        });
+
+        expect(parsed.success).toBe(true);
+    });
+
     describe("TL-02 Canonical Contract Freeze & Parity", () => {
         it("strictly parses actionMetricItem with full provenance fields", async () => {
             const { actionMetricItemSchema } = await import("./worker-result");

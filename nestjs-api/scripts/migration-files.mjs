@@ -21,7 +21,8 @@ export const migrationNames = [
   '011_medical_clinical_records.sql',
   '012_medical_clearance_issue_order.sql',
   '013_coaching_loop_and_constraints.sql',
-  '014_notifications_delivery.sql',
+  '014_video_ai_vertical_slice.sql',
+  '015_notifications_delivery.sql',
 ];
 export function readVerifiedMigrations() {
   const manifest = JSON.parse(

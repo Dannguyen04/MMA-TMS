@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Headers,
   HttpCode,
   HttpStatus,
   Post,
@@ -28,6 +29,7 @@ import type { AuthenticatedRequest } from '../shared/models/auth-context.model.j
 import { appZodValidationPipe } from '../shared/pipes/zod-validation.pipe.js';
 import {
   AuthResponseDto,
+  DemoSessionExchangeDto,
   ForgotPasswordDto,
   ForgotPasswordResponseDto,
   LoginDto,
@@ -92,6 +94,28 @@ export class AuthController {
   @ApiUnauthorizedEnvelope('Email, password, or session is invalid')
   async login(@Body() body: LoginDto) {
     return this.authService.login(body);
+  }
+
+  @Post('demo-session')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @PublicEndpoint()
+  @ApiOperation({
+    summary: 'Exchange a local demo identity for a development API session',
+    description:
+      'Development-only server-to-server bridge. It is unavailable in production and requires the configured internal secret.',
+  })
+  @ResponseMessage('Development session created successfully')
+  @HttpCode(HttpStatus.OK)
+  @ApiSuccessEnvelope({
+    status: HttpStatus.OK,
+    message: 'Development session created successfully',
+    model: AuthResponseDto,
+  })
+  async exchangeDemoSession(
+    @Body() body: DemoSessionExchangeDto,
+    @Headers('x-demo-session-secret') secret: string | undefined,
+  ) {
+    return this.authService.exchangeDemoSession(body, secret);
   }
 
   @Post('refresh')

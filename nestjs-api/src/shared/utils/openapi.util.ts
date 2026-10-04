@@ -5,9 +5,10 @@ import {
   SwaggerModule,
 } from '@nestjs/swagger';
 import { cleanupOpenApiDoc } from 'nestjs-zod';
-import { env } from '../config/env.js';
+import { ConfigService } from '@nestjs/config';
 
 export function createOpenApiDocument(app: INestApplication): OpenAPIObject {
+  const config = app.get(ConfigService);
   const options = new DocumentBuilder()
     .setTitle('MMA-TMS API')
     .setDescription('MMA Training & Movement Analysis System API documentation')
@@ -16,7 +17,7 @@ export function createOpenApiDocument(app: INestApplication): OpenAPIObject {
     .addGlobalParameters({
       in: 'header',
       required: false,
-      name: env.APP_HEADER_LANGUAGE,
+      name: config.get<string>('APP_HEADER_LANGUAGE', 'x-custom-lang'),
       schema: {
         example: 'en',
       },

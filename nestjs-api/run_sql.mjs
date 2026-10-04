@@ -15,7 +15,8 @@ const migrationByMode = new Map([
   ['--apply-011', '011_medical_clinical_records.sql'],
   ['--apply-012', '012_medical_clearance_issue_order.sql'],
   ['--apply-013', '013_coaching_loop_and_constraints.sql'],
-  ['--apply-014', '014_notifications_delivery.sql'],
+  ['--apply-014', '014_video_ai_vertical_slice.sql'],
+  ['--apply-015', '015_notifications_delivery.sql'],
 ]);
 if (
   !['--check', ...migrationByMode.keys()].includes(mode) ||

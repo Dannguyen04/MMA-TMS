@@ -72,5 +72,8 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-    matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.[a-zA-Z0-9]+$).*)"],
+    // Uploads are authenticated inside their Route Handler and must stay a true
+    // stream. Running them through Proxy makes Next.js clone/buffer the body and
+    // truncates footage at the framework's 10 MB proxy limit.
+    matcher: ["/((?!api/videos/upload|_next/static|_next/image|favicon.ico|.*\\.[a-zA-Z0-9]+$).*)"],
 };
