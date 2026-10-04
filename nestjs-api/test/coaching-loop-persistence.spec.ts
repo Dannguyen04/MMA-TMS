@@ -139,6 +139,7 @@ describe('Task TL-09 — Persist the Complete Coaching Loop', () => {
       coachId,
       fighterId,
       title: 'Jab & Cross Masterclass',
+      phase: 'base',
       sessionType: 'SHADOW_BOXING',
     });
 
@@ -152,6 +153,7 @@ describe('Task TL-09 — Persist the Complete Coaching Loop', () => {
         coachId: unauthorizedCoachId,
         fighterId,
         title: 'Unauthorized Assignment',
+        phase: 'base',
       }),
     ).rejects.toThrow(ForbiddenException);
   });
@@ -162,6 +164,7 @@ describe('Task TL-09 — Persist the Complete Coaching Loop', () => {
       coachId,
       fighterId,
       title: 'Power Strike Session',
+      phase: 'base',
     });
 
     // 2. Upload video

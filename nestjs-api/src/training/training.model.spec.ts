@@ -25,15 +25,58 @@ describe('training request schemas', () => {
         coachId,
         title: '  Fight camp  ',
         startDate: '2026-09-20',
+        phase: 'base',
       }),
     ).toEqual({
       fighterId,
       coachId,
       title: 'Fight camp',
       startDate: '2026-09-20',
+      phase: 'base',
       milestones: [],
     });
   });
+
+  it.each(['base', 'build', 'fight_camp', 'taper', 'rehab', 'maintenance'])(
+    'accepts plan phase %s on create and update',
+    (phase) => {
+      const body = {
+        fighterId,
+        coachId,
+        title: 'P',
+        startDate: '2026-09-20',
+        phase,
+      };
+      expect(createTrainingPlanSchema.safeParse(body).success).toBe(true);
+      expect(updateTrainingPlanSchema.safeParse({ phase }).success).toBe(true);
+    },
+  );
+
+  it.each([
+    ['missing', undefined],
+    ['null', null],
+    ['uppercase', 'BASE'],
+    ['empty', ''],
+    ['number', 1],
+    ['unknown', 'peak'],
+  ])('rejects %s phase on create', (_label, phase) => {
+    const body: Record<string, unknown> = {
+      fighterId,
+      coachId,
+      title: 'P',
+      startDate: '2026-09-20',
+    };
+    if (phase !== undefined) body.phase = phase;
+    expect(createTrainingPlanSchema.safeParse(body).success).toBe(false);
+  });
+
+  it.each([null, 'BASE', '', 1, 'peak'])(
+    'rejects phase %j on update',
+    (phase) => {
+      expect(updateTrainingPlanSchema.safeParse({ phase }).success).toBe(false);
+    },
+  );
+
 
   it('enforces milestone completion timestamps in both directions', () => {
     expect(

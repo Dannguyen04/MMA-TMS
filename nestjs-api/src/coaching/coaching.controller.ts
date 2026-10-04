@@ -9,11 +9,14 @@ import {
   HttpCode,
   HttpStatus,
   ForbiddenException,
+  UsePipes,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { CoachingService } from './coaching.service.js';
 import { AccessTokenGuard, AuthorizationGuard } from '../shared/guards/auth.guard.js';
 import { CurrentUser, RequireRoles } from '../shared/decorators/auth.decorator.js';
+import { appZodValidationPipe } from '../shared/pipes/zod-validation.pipe.js';
+import { ApiValidationErrorEnvelope } from '../shared/decorators/api-envelope.decorator.js';
 import { WorkerAuthGuard } from '../jobs/guards/worker-auth.guard.js';
 import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import { USER } from '../shared/types/user.role.js';
@@ -39,6 +42,8 @@ export class CoachingController {
 
   @Post('assignments')
   @ApiOperation({ summary: 'Coach creates assignment for fighter' })
+  @ApiValidationErrorEnvelope()
+  @UsePipes(appZodValidationPipe)
   @HttpCode(HttpStatus.CREATED)
   async createAssignment(
     @CurrentUser() user: AuthenticatedUser,
