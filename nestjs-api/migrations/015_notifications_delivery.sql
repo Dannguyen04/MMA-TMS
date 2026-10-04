@@ -1,4 +1,4 @@
--- MMA-TMS 014: notification inbox delivery support.
+-- MMA-TMS 015: notification inbox delivery support.
 -- One recipient = one row in the existing public.notifications table. This adds
 -- a per-recipient dedupe identity so a retried or concurrent delivery job can
 -- never create a second row for the same event, the list index used by the
@@ -18,15 +18,15 @@ BEGIN
   IF to_regclass('public.notifications') IS NULL
      OR to_regtype('public.notification_type') IS NULL
      OR to_regclass('mma_private.migration_history') IS NULL THEN
-    RAISE EXCEPTION '014 requires the migration 003 notification objects';
+    RAISE EXCEPTION '015 requires the migration 003 notification objects';
   END IF;
 
   IF NOT EXISTS (SELECT 1 FROM mma_private.migration_history WHERE version = 13) THEN
-    RAISE EXCEPTION '014 requires migration 013 history';
+    RAISE EXCEPTION '015 requires migration 013 history';
   END IF;
 
   IF EXISTS (SELECT 1 FROM mma_private.migration_history WHERE version = 14) THEN
-    RAISE EXCEPTION '014 has already been applied';
+    RAISE EXCEPTION '015 has already been applied';
   END IF;
 
   IF EXISTS (
@@ -35,7 +35,7 @@ BEGIN
       AND column_name = 'dedupe_key'
   ) OR to_regclass('public.uq_notifications_user_dedupe') IS NOT NULL
     OR to_regclass('public.idx_notifications_user_created') IS NOT NULL THEN
-    RAISE EXCEPTION '014 notification delivery collision';
+    RAISE EXCEPTION '015 notification delivery collision';
   END IF;
 END
 $preflight$;
@@ -56,7 +56,7 @@ ALTER TYPE public.notification_type ADD VALUE IF NOT EXISTS 'TRAINING_SESSION_SC
 ALTER TYPE public.notification_type ADD VALUE IF NOT EXISTS 'TRAINING_SESSION_RESCHEDULED';
 ALTER TYPE public.notification_type ADD VALUE IF NOT EXISTS 'TRAINING_SESSION_CANCELLED';
 
--- Nullable for compatibility with rows written before 014. New rows written by
+-- Nullable for compatibility with rows written before 015. New rows written by
 -- the notification service always carry the stable identity of one event.
 ALTER TABLE public.notifications
     ADD COLUMN dedupe_key TEXT,
@@ -77,13 +77,13 @@ CREATE INDEX idx_notifications_user_created
     ON public.notifications (user_id, created_at DESC, id DESC);
 
 COMMENT ON COLUMN public.notifications.dedupe_key IS
-  'Server-owned identity of the business event, namespaced by notification type. Unique per recipient when present; NULL only for rows written before 014.';
+  'Server-owned identity of the business event, namespaced by notification type. Unique per recipient when present; NULL only for rows written before 015.';
 
 -- The verified runner supplies the source checksum. Manual SQL execution keeps it NULL.
 INSERT INTO mma_private.migration_history(version, name, source_sha256)
 VALUES (
   14,
-  '014_notifications_delivery.sql',
+  '015_notifications_delivery.sql',
   nullif(current_setting('mma.migration_sha256', true), '')
 );
 

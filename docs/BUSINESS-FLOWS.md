@@ -42,7 +42,7 @@ Onboarding → Training Plan → Session → Video AI → Coach Review
 
 ### Quy trình
 
-1. **Admin tạo tài khoản**: Thông tin cơ bản (tên, cân nặng, bộ môn, hạng cân)
+1. **Admin tạo tài khoản**: Thông tin cơ bản (tên, cân nặng, bộ môn, hạng cân) / Fighter nộp đơn (ktra đầu vào)
 2. **Bác sĩ khám baseline**: Examination type `baseline` — tim mạch, thần kinh, cơ-xương, SCAT6
 3. **BS cấp Medical Clearance**: `full` / `restricted` / `not_cleared`
 4. **HLV được assign**: Giao coach phụ trách
