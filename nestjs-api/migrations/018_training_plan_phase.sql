@@ -1,7 +1,11 @@
 -- MMA-TMS 018: required Training Plan phase.
 -- Adds enum public.training_plan_phase and public.training_plans.phase
--- (NOT NULL, no default, no backfill). Aborts when any plan row exists,
--- including soft-deleted rows. No index: there is no phase filter yet.
+-- (NOT NULL, no default). Existing plans, including soft-deleted rows, are
+-- backfilled once to 'base' by explicit owner decision (2026-10-04); the
+-- column keeps no default, so every new plan must supply its own phase.
+-- No index: there is no phase filter yet.
+-- Recovery: if rolled back nothing changes; after commit, phase values can be
+-- corrected with a plain UPDATE through the plan API/SQL.
 -- PostgreSQL 15+ / Supabase. Forward-only. Does not modify migrations 001-017.
 BEGIN;
 SET LOCAL lock_timeout = '5s';
@@ -43,16 +47,8 @@ BEGIN
 END
 $preflight$;
 
--- Block concurrent inserts so the emptiness check below stays valid until commit.
+-- Block concurrent inserts/updates so the backfill covers every row until commit.
 LOCK TABLE public.training_plans IN ACCESS EXCLUSIVE MODE;
-
-DO $emptiness$
-BEGIN
-  IF EXISTS (SELECT 1 FROM public.training_plans) THEN
-    RAISE EXCEPTION '018 requires an empty training_plans table; no backfill is performed';
-  END IF;
-END
-$emptiness$;
 
 CREATE TYPE public.training_plan_phase AS ENUM (
   'base',
@@ -64,7 +60,20 @@ CREATE TYPE public.training_plan_phase AS ENUM (
 );
 
 ALTER TABLE public.training_plans
-  ADD COLUMN phase public.training_plan_phase NOT NULL;
+  ADD COLUMN phase public.training_plan_phase;
+
+-- Owner decision: every pre-existing plan becomes 'base'. No default remains.
+UPDATE public.training_plans SET phase = 'base' WHERE phase IS NULL;
+
+DO $verify$
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.training_plans WHERE phase IS NULL) THEN
+    RAISE EXCEPTION '018 backfill left training_plans rows without phase';
+  END IF;
+END
+$verify$;
+
+ALTER TABLE public.training_plans ALTER COLUMN phase SET NOT NULL;
 
 INSERT INTO mma_private.migration_history(version, name, source_sha256)
 VALUES (

@@ -17,6 +17,6 @@
     "015_notifications_delivery.sql": "58b261f369692bad9457efe6b66937fe9cc0bfbb5559280e294248bc72b36b85",
     "016_medical_examination_details.sql": "b458de28b0f92aca05099665105a4bccc3254ca83656cb57288e8f60ecf39bfb",
     "017_doctor_assignment_notification.sql": "c25d6db96e9bf4a08a972499a9249d148219a273ff6ef073460e5146a4e57799",
-    "018_training_plan_phase.sql": "0daf9fc637aba1cbfc8c8679dabb62159037fb0606452722ce441687d2a395e7"
+    "018_training_plan_phase.sql": "e5c0aaa4133a21f28ebda45b718a87da10b4ec226ad588755404dc3f788ffeac"
   }
 }

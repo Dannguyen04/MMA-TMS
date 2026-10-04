@@ -6,9 +6,12 @@
 18. Thêm enum `public.training_plan_phase` (`base`, `build`, `fight_camp`,
 `taper`, `rehab`, `maintenance`) và cột `public.training_plans.phase`
 `NOT NULL`, không default, không index. Migration khóa
-`public.training_plans` (ACCESS EXCLUSIVE) rồi kiểm tra bảng rỗng: nếu có bất
-kỳ plan nào, kể cả soft-deleted, nó rollback — không backfill, không xóa dữ
-liệu. Collision enum/cột hoặc ledger đã có version 18 cũng dừng migration.
+`public.training_plans` (ACCESS EXCLUSIVE), thêm cột nullable, backfill mọi plan
+hiện có (kể cả soft-deleted) thành `base` theo quyết định của chủ dự án ngày
+2026-10-04, kiểm tra không còn NULL rồi mới `SET NOT NULL`; không xóa dữ liệu.
+Collision enum/cột hoặc ledger đã có version 18 cũng dừng migration. Bản đầu
+của 018 (abort khi bảng có dữ liệu) đã rollback và chưa vào ledger nên được sửa
+trước khi áp dụng.
 Backend chọn cột `phase` chỉ được deploy sau khi 018 đã áp dụng; request tạo
 plan thiếu `phase` bị từ chối với 422.
 

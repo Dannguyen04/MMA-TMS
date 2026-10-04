@@ -15,6 +15,7 @@ import type {
 import { TrainingRepository } from '../training.repo.js';
 import { TrainingAccessService } from '../training-access.service.js';
 import { TrainingPlanService } from './training-plan.service.js';
+import { NOTIFICATION_PUBLISHER } from '../../shared/contracts/notification.contract.js';
 
 const fighterUserId = '516a01dc-f842-40e4-ae88-abca224921b7';
 const coachUserId = '59d6ba46-32f2-4e67-b486-e966b2064328';
@@ -120,6 +121,13 @@ describe('TrainingPlanService', () => {
         TrainingPlanService,
         TrainingAccessService,
         { provide: TrainingRepository, useValue: repositoryMock() },
+        {
+          provide: NOTIFICATION_PUBLISHER,
+          useValue: {
+            notify: vi.fn().mockResolvedValue({ status: 'queued' }),
+            notifyResolved: vi.fn().mockResolvedValue([{ status: 'queued' }]),
+          },
+        },
       ],
     }).compile();
 
