@@ -536,6 +536,7 @@ export const CLEARANCE_STATUS_LABELS: Record<ClearanceStatus, string> = {
 };
 
 export const NOTIFICATION_CATEGORY_LABELS: Record<NotificationCategory, string> = {
+    admission: "Admissions",
     training: "Training",
     ai_analysis: "AI analysis",
     ai_alert: "AI alert",

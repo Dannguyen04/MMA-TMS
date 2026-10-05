@@ -963,6 +963,7 @@ export interface MedicalClearance {
  * ──────────────────────────────────────────────────────────────────────────── */
 
 export type NotificationCategory =
+    | "admission"
     | "training"
     | "ai_analysis"
     | "ai_alert"

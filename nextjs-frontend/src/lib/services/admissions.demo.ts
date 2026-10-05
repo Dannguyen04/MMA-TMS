@@ -18,7 +18,9 @@ import type { User } from "@/lib/domain/types";
 import type { WriteResult } from "@/lib/domain/write-result";
 import { dayKey } from "@/lib/format";
 import { db, newId, nowIso, simulateLatency } from "@/lib/mocks/db";
+import { routes } from "@/lib/routes";
 import { recordAudit } from "./audit.demo";
+import { notifyUsers } from "./notifications.demo";
 
 /*
  * Admissions on the in-memory store. The demo has no email step: an approved application is ready to activate
@@ -30,6 +32,17 @@ const byNewest = (a: Application, b: Application) => b.submittedAt.localeCompare
 
 function audit(actor: User | null, action: string, application: Application, details?: string) {
     recordAudit({ actor, action, resourceType: "user", resourceId: application.applicantId, resourceLabel: applicantName(application.applicant), details });
+}
+
+/* Notifications as the admission service sends them; whoever acted isn't told about their own step. */
+
+function notifyAdmins(title: string, body: string, href: string) {
+    const userIds = db().users.filter((user) => user.role === "admin" && user.status === "active").map((user) => user.id);
+    if (userIds.length > 0) notifyUsers({ userIds, category: "admission", title, body, href });
+}
+
+function notifyApplicant(application: Application, title: string, body: string, severity: "success" | "warning") {
+    notifyUsers({ userIds: [application.applicantId], category: "admission", severity, title, body, href: routes.apply });
 }
 
 /* ─── Applicant ─────────────────────────────────────────────────────────── */
@@ -60,6 +73,7 @@ export async function submitApplication(applicant: Applicant, input: Application
     };
     store.admissionApplications.push(application);
     audit(null, "admission.apply", application);
+    notifyAdmins("New fighter application", `${applicantName(application.applicant)} applied to train. Assign a coach to assess them.`, routes.admin.admission(application.id));
     return { ok: true };
 }
 
@@ -107,6 +121,7 @@ export async function activateFighterAccount(applicant: Applicant): Promise<Writ
     application.status = "activated";
     application.activation = { ...application.activation, status: "completed", completedAt: now };
     audit(user, "admission.activate", application);
+    notifyAdmins("New Fighter activated", `${name} activated their fighter account. Assign a coach and a sports doctor.`, routes.admin.user(user.id));
     return { ok: true };
 }
 
@@ -138,6 +153,15 @@ export async function assignEvaluator(id: string, coachId: string, reassignmentR
 
     application.evaluator = { coachId, since: nowIso() };
     audit(actor, "admission.assign_coach", application, reassignmentReason ? `${coach.name} now assessing: ${reassignmentReason}` : `${coach.name} assessing`);
+    if (coach.userId && coach.userId !== actor.id) {
+        notifyUsers({
+            userIds: [coach.userId],
+            category: "admission",
+            title: "Application assigned to you",
+            body: `Assess ${applicantName(application.applicant)} for the fighter programme.`,
+            href: routes.coach.admission(application.id),
+        });
+    }
     return { ok: true };
 }
 
@@ -153,6 +177,8 @@ export async function decideApplication(id: string, decision: AdmissionDecision,
     application.status = decision;
     if (decision === "approved") application.activation = { status: "password_set", emailAttempts: 1, lastAttemptAt: now, lastAcceptedAt: now, completedAt: null };
     audit(actor, `admission.${decision === "approved" ? "approve" : "reject"}`, application, reason);
+    if (decision === "approved") notifyApplicant(application, "Application approved", "Welcome to the academy. Activate your fighter account from your application.", "success");
+    else notifyApplicant(application, "Application not admitted", "The academy decided not to admit you this time. See your application for details.", "warning");
     return { ok: true };
 }
 
@@ -192,5 +218,11 @@ export async function submitAssessment(id: string, input: AssessmentInput, coach
     application.assessment = { ...input, coachId: coach.profileId, assessedAt: nowIso() };
     application.status = input.conclusion === "pass" ? "passed" : "failed";
     audit(coach, "admission.assess", application, input.conclusion === "pass" ? "Passed the assessment" : "Did not pass the assessment");
+    if (input.conclusion === "pass") {
+        notifyApplicant(application, "Assessment passed", "You passed the entrance assessment. The academy makes the final decision next.", "success");
+        notifyAdmins("Application awaiting decision", `${applicantName(application.applicant)} passed the assessment.`, routes.admin.admission(application.id));
+    } else {
+        notifyApplicant(application, "Assessment not passed", "You didn't pass the entrance assessment this time. You can apply again.", "warning");
+    }
     return { ok: true };
 }

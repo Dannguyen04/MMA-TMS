@@ -18,8 +18,6 @@ export type PlatformFeature =
     | "performance"
     /** Praise, corrections and notes a coach leaves on a session or video (`/coach-feedback`). */
     | "coachFeedback"
-    /** The notification inbox and the bell (`/notifications`). */
-    | "notifications"
     /** Counts on navigation items (`/navigation/badges`). */
     | "navBadges"
     /** The platform audit log (`/audit-logs`). */
@@ -46,7 +44,6 @@ export const platformFeatureAvailable = demoOnlyFeatureGate<PlatformFeature>([
     "goals",
     "performance",
     "coachFeedback",
-    "notifications",
     "navBadges",
     "auditLogs",
     "broadcasts",

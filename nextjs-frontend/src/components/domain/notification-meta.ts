@@ -7,6 +7,7 @@ import {
     Settings,
     ShieldCheck,
     Target,
+    UserPlus,
     type LucideIcon,
 } from "lucide-react";
 
@@ -14,6 +15,7 @@ import type { Tone } from "@/components/ui/tone";
 import type { NotificationCategory, NotificationSeverity } from "@/lib/domain/types";
 
 export const NOTIFICATION_CATEGORY_ICONS: Record<NotificationCategory, LucideIcon> = {
+    admission: UserPlus,
     training: CalendarDays,
     ai_analysis: Bot,
     ai_alert: Radar,

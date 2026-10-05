@@ -9,21 +9,20 @@ export interface ChannelPreference {
 /** Category order and the categories each role normally receives. */
 export const ROLE_NOTIFICATION_CATEGORIES: Record<Role, NotificationCategory[]> = {
     fighter: ["training", "feedback", "ai_analysis", "goal", "medical", "clearance", "system"],
-    coach: ["training", "ai_analysis", "goal", "clearance", "medical", "system"],
+    coach: ["training", "admission", "ai_analysis", "goal", "clearance", "medical", "system"],
     doctor: ["ai_alert", "medical", "clearance", "training", "system"],
-    admin: ["system", "ai_analysis"],
+    admin: ["admission", "medical", "system", "ai_analysis"],
 };
 
-const CATEGORY_ORDER: NotificationCategory[] = ["training", "feedback", "ai_analysis", "ai_alert", "goal", "medical", "clearance", "system"];
+const CATEGORY_ORDER: NotificationCategory[] = ["admission", "training", "feedback", "ai_analysis", "ai_alert", "goal", "medical", "clearance", "system"];
 
-/** Role categories plus any other category the user has actually received, in a stable order. */
-export function preferenceCategories(role: Role, received: NotificationCategory[]): NotificationCategory[] {
-    const roleOrder = ROLE_NOTIFICATION_CATEGORIES[role];
-    const extras = CATEGORY_ORDER.filter((category) => received.includes(category) && !roleOrder.includes(category));
-    return [...roleOrder, ...extras];
+/** The categories a role receives, in a stable order. */
+export function preferenceCategories(role: Role): NotificationCategory[] {
+    return CATEGORY_ORDER.filter((category) => ROLE_NOTIFICATION_CATEGORIES[role].includes(category));
 }
 
 const GENERIC_DESCRIPTIONS: Record<NotificationCategory, string> = {
+    admission: "Applications, entrance assessments and admission decisions.",
     training: "Session changes, cancellations and reminders.",
     feedback: "New notes and corrections from coaches.",
     ai_analysis: "AI analysis results for uploaded footage.",
@@ -43,6 +42,7 @@ const ROLE_DESCRIPTIONS: Record<Role, Partial<Record<NotificationCategory, strin
     },
     coach: {
         training: "Sessions completed, missed or blocked by a clearance.",
+        admission: "Applicants you're asked to assess.",
         ai_analysis: "New analyses to review, including low-confidence results.",
         goal: "Goals that are at risk or achieved.",
         medical: "Health status changes for your fighters — never clinical detail.",
@@ -54,6 +54,8 @@ const ROLE_DESCRIPTIONS: Record<Role, Partial<Record<NotificationCategory, strin
         clearance: "Clearances that are about to expire.",
     },
     admin: {
+        admission: "New applications, passed assessments and fighters activated.",
+        medical: "New fighters waiting for a sports doctor.",
         system: "Security summaries, model deployments and broadcasts.",
         ai_analysis: "Failed or stalled AI processing jobs.",
     },
