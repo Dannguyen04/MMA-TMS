@@ -24,7 +24,7 @@ const TRAINING_ERRORS: ServiceErrorMessages = {
         INVALID_PLAN_DATE_RANGE: "The end date must be on or after the start date.",
         PLAN_STATE_CONFLICT: "Someone changed this plan at the same time. Reload the page and try again.",
         SESSION_STATE_CONFLICT: "Someone changed this session at the same time. Reload the page and try again.",
-        TRAINING_MEDICAL_ELIGIBILITY_REQUIRED: "The fighter isn't medically cleared for this training right now.",
+        TRAINING_MEDICAL_ELIGIBILITY_REQUIRED: "The fighter isn't medically cleared for this training right now. Every fighter needs a baseline examination and a valid clearance first.",
         TRAINING_CONFLICT: "This conflicts with the fighter's existing training. Reload the page and check it.",
         TRAINING_CHECK_VIOLATION: "The training service rejected some of the values. Check the form and try again.",
         TRAINING_INVARIANT_CONFLICT: "The training service rejected this change because the record changed. Reload the page and try again.",

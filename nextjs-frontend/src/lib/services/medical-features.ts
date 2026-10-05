@@ -11,8 +11,6 @@ import { demoOnlyFeatureGate } from "./feature-gate";
 export type MedicalFeature =
     /** Blood type, allergies, medications, surgical history, emergency contact, documents. */
     | "medicalRecord"
-    /** Vitals and per-area assessments on an examination. */
-    | "vitals"
     /** Phased recovery plans with check-ins (pain, mobility, strength). */
     | "recoveryPhasesAndCheckIns"
     /** Planned / ongoing / completed status on a treatment. */
@@ -21,19 +19,15 @@ export type MedicalFeature =
     | "aiObservations"
     /** A doctor recording a decision on an observation, and the triage queue of observations awaiting one. */
     | "aiObservationReview"
-    /** Follow-up dates set on examinations. */
-    | "followUps"
     /** Setting a fighter's health status by hand. */
     | "healthStatusOverride";
 
 /** Features with no backend API yet. Remove one from this list once the medical service offers it. */
 export const medicalFeatureAvailable = demoOnlyFeatureGate<MedicalFeature>([
     "medicalRecord",
-    "vitals",
     "recoveryPhasesAndCheckIns",
     "treatmentStatus",
     "aiObservationReview",
-    "followUps",
     "healthStatusOverride",
 ]);
 

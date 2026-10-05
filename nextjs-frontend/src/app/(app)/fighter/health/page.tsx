@@ -137,9 +137,7 @@ export default async function FighterHealthPage({ searchParams }: PageProps<"/fi
                                 </p>
                             </div>
                         ) : (
-                            medicalFeatureAvailable("followUps") && (
-                                <InlineNote icon={CalendarClock}>No follow-up booked — your doctor arranges your next check.</InlineNote>
-                            )
+                            <InlineNote icon={CalendarClock}>No follow-up booked — your doctor arranges your next check.</InlineNote>
                         )}
                         {contactDoctor && (
                             <InlineNote icon={HeartHandshake}>

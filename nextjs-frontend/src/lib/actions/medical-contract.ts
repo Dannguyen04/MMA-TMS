@@ -12,6 +12,7 @@ import {
     CLEARANCE_TYPES,
     CLEARANCE_TYPES_BY_SCOPE,
     EXAMINATION_DECISIONS,
+    EXAMINATION_DETAIL_LIMITS,
     EXAMINATION_SCOPES,
     MEDICAL_TEXT_LIMITS,
     RECOVERY_MILESTONES_MAX,
@@ -33,6 +34,8 @@ import {
     updateMilestonePlan,
 } from "@/lib/services/medical";
 import { medicalWriteFailure, type MedicalWriteErrorOptions } from "@/lib/services/medical-errors";
+import { allBlank } from "@/lib/utils";
+import { assessmentSchema, checkBloodPressure, checkFollowUpDate, EXAMINATION_TYPES, issuesOf, readVitals, scat6Field, scat6Issues, toVitals, VITAL_FIELDS } from "./examination-fields";
 import { NOT_ASSIGNED, checked, isInFuture, jsonArray, optionalDate, revalidateClinical, text, texts } from "./form-helpers";
 import { actionError, actionSuccess, FIX_FIELDS, validationError, type ActionState } from "./state";
 
@@ -166,6 +169,13 @@ const examinationSchema = z
         validUntil: optionalDate("Enter a valid date, or leave it empty."),
         supersedesId: z.string().trim(),
         reviewRequestIds: z.array(z.string().min(1)).max(50, "Choose at most 50 review requests."),
+        type: z.enum(EXAMINATION_TYPES, { error: "Choose the examination type." }),
+        assessments: jsonArray(assessmentSchema, "assessments", {
+            max: EXAMINATION_DETAIL_LIMITS.assessments,
+            maxMessage: `Record at most ${EXAMINATION_DETAIL_LIMITS.assessments} assessments.`,
+        }),
+        recommendations: boundedText("recommendations", MEDICAL_TEXT_LIMITS.clinicalText),
+        followUpDate: optionalDate("Enter a valid follow-up date, or leave it empty."),
     })
     .superRefine((input, ctx) => {
         if (input.decision === "ELIGIBLE_WITH_RESTRICTIONS" && !limitsSomething(toLists(input.lists)) && !input.restrictionNotes) {
@@ -174,10 +184,33 @@ const examinationSchema = z
         if (input.validUntil && isDateTimeInputValue(input.examinedAt) && input.validUntil <= input.examinedAt.slice(0, 10)) {
             ctx.addIssue({ code: "custom", path: ["validUntil"], message: "The decision must stay valid past the examination day." });
         }
+        if (input.type === "baseline" && input.assessments.length === 0) {
+            ctx.addIssue({ code: "custom", path: ["assessments"], message: "A baseline needs at least one assessed area." });
+        }
+        checkFollowUpDate(input.followUpDate, input.examinedAt, ctx);
     });
 
+/** Vitals go together: a baseline needs them, any other examination sends them only when some were entered. */
+const vitalsSchema = z.object(VITAL_FIELDS).superRefine(checkBloodPressure);
+
 const EXAMINATION_FIELDS: MedicalWriteErrorOptions = {
-    fields: { scope: "scope", decision: "decision", examinedAt: "examinedAt", reason: "reason", validUntil: "validUntil", supersedesId: "supersedesId", reviewRequestIds: "reviewRequestIds", ...RESTRICTION_FIELDS },
+    fields: {
+        scope: "scope",
+        decision: "decision",
+        examinedAt: "examinedAt",
+        reason: "reason",
+        validUntil: "validUntil",
+        supersedesId: "supersedesId",
+        reviewRequestIds: "reviewRequestIds",
+        examinationType: "type",
+        ...Object.fromEntries(Object.keys(VITAL_FIELDS).map((key) => [`vitals.${key}`, key])),
+        vitals: "weightKg",
+        assessments: "assessments",
+        recommendations: "recommendations",
+        followUpDate: "followUpDate",
+        scat6: "scat6",
+        ...RESTRICTION_FIELDS,
+    },
     conflictFields: { EXAMINATION_CORRECTION_CONFLICT: "supersedesId", REVIEW_REQUEST_NOT_RESOLVABLE: "reviewRequestIds" },
 };
 
@@ -196,8 +229,18 @@ export async function recordExaminationDecisionAction(_prev: ActionState, formDa
         validUntil: text(formData, "validUntil"),
         supersedesId: checked(formData, "correction") ? text(formData, "supersedesId") : "",
         reviewRequestIds: texts(formData, "reviewRequestIds"),
+        type: text(formData, "type"),
+        assessments: text(formData, "assessments"),
+        recommendations: text(formData, "recommendations"),
+        followUpDate: text(formData, "followUpDate"),
     });
-    if (!parsed.success) return restrictionFormError(parsed.error);
+    const baseline = text(formData, "type") === "baseline";
+    const rawVitals = readVitals(formData);
+    const vitals = baseline || !allBlank(rawVitals) ? vitalsSchema.safeParse(rawVitals) : undefined;
+    const scat6 = baseline ? scat6Field.safeParse(text(formData, "scat6")) : undefined;
+    if (!parsed.success || vitals?.success === false || scat6?.success === false) {
+        return restrictionFormError(new z.ZodError([...issuesOf(parsed), ...issuesOf(vitals), ...scat6Issues(scat6)]));
+    }
     const input = parsed.data;
     if (!canAccessFighterClinically(auth.user, input.fighterId)) return actionError(NOT_ASSIGNED, { fighterId: "Choose one of your assigned fighters." });
 
@@ -215,6 +258,14 @@ export async function recordExaminationDecisionAction(_prev: ActionState, formDa
             validUntil: input.validUntil ? academyWallClockToIso(input.validUntil, "23:59") : null,
             supersedesId: input.supersedesId || null,
             reviewRequestIds: input.reviewRequestIds,
+            details: {
+                type: input.type,
+                vitals: vitals?.success ? toVitals(vitals.data) : null,
+                assessments: input.assessments,
+                recommendations: input.recommendations || null,
+                followUpDate: input.followUpDate || null,
+                scat6: scat6?.success ? scat6.data : null,
+            },
         });
         examinationId = exam.id;
     } catch (error) {

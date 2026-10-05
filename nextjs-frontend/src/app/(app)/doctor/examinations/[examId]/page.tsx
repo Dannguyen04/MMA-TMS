@@ -19,6 +19,7 @@ import {
 } from "@/components/medical/clinical-badges";
 import { FlashToast } from "@/components/medical/flash-toast";
 import { PrintButton } from "@/components/medical/print-button";
+import { Scat6Summary } from "@/components/medical/scat6-summary";
 import { Callout } from "@/components/training/callout";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
@@ -165,43 +166,45 @@ export default async function ExaminationDetailPage({ params, searchParams }: Pa
                             </Card>
                         )}
 
-                        <Card>
-                            <CardHeader
-                                title="Assessments"
-                                icon={<ClipboardList />}
-                                description={[
-                                    counts.normal > 0 ? `${counts.normal} normal` : null,
-                                    counts.abnormal > 0 ? `${counts.abnormal} abnormal` : null,
-                                    counts.inconclusive > 0 ? `${counts.inconclusive} inconclusive` : null,
-                                ]
-                                    .filter(Boolean)
-                                    .join(" · ")}
-                            />
-                            <div className="pb-2">
-                                <Table caption="Assessments">
-                                    <THead>
-                                        <tr>
-                                            <TH>Area</TH>
-                                            <TH>Result</TH>
-                                            <TH>Findings</TH>
-                                        </tr>
-                                    </THead>
-                                    <TBody>
-                                        {exam.assessments.map((assessment, index) => (
-                                            <TR key={`${assessment.area}-${index}`} className={cn(assessment.result === "abnormal" && "bg-warning-soft/30")}>
-                                                <TD className="min-w-44 font-medium">{assessment.area}</TD>
-                                                <TD className="whitespace-nowrap">
-                                                    <AssessmentResultBadge result={assessment.result} size="sm" />
-                                                </TD>
-                                                <TD className="min-w-64 text-[13px] text-pretty">
-                                                    {assessment.note || <span className="text-fg-muted">No notes</span>}
-                                                </TD>
-                                            </TR>
-                                        ))}
-                                    </TBody>
-                                </Table>
-                            </div>
-                        </Card>
+                        {exam.assessments.length > 0 && (
+                            <Card>
+                                <CardHeader
+                                    title="Assessments"
+                                    icon={<ClipboardList />}
+                                    description={[
+                                        counts.normal > 0 ? `${counts.normal} normal` : null,
+                                        counts.abnormal > 0 ? `${counts.abnormal} abnormal` : null,
+                                        counts.inconclusive > 0 ? `${counts.inconclusive} inconclusive` : null,
+                                    ]
+                                        .filter(Boolean)
+                                        .join(" · ")}
+                                />
+                                <div className="pb-2">
+                                    <Table caption="Assessments">
+                                        <THead>
+                                            <tr>
+                                                <TH>Area</TH>
+                                                <TH>Result</TH>
+                                                <TH>Findings</TH>
+                                            </tr>
+                                        </THead>
+                                        <TBody>
+                                            {exam.assessments.map((assessment, index) => (
+                                                <TR key={`${assessment.area}-${index}`} className={cn(assessment.result === "abnormal" && "bg-warning-soft/30")}>
+                                                    <TD className="min-w-44 font-medium">{assessment.area}</TD>
+                                                    <TD className="whitespace-nowrap">
+                                                        <AssessmentResultBadge result={assessment.result} size="sm" />
+                                                    </TD>
+                                                    <TD className="min-w-64 text-[13px] text-pretty">
+                                                        {assessment.note || <span className="text-fg-muted">No notes</span>}
+                                                    </TD>
+                                                </TR>
+                                            ))}
+                                        </TBody>
+                                    </Table>
+                                </div>
+                            </Card>
+                        )}
 
                         <Card>
                             <CardHeader title="Summary & recommendations" icon={<NotebookPen />} />
@@ -212,10 +215,18 @@ export default async function ExaminationDetailPage({ params, searchParams }: Pa
                                 </div>
                                 <div>
                                     <h3 className="text-[13px] font-semibold text-fg-muted">Recommendations</h3>
-                                    <p className="mt-1 text-sm text-pretty whitespace-pre-line text-fg">{exam.recommendations}</p>
+                                    <p className="mt-1 text-sm text-pretty whitespace-pre-line text-fg">{exam.recommendations || <span className="text-fg-muted">None recorded.</span>}</p>
                                 </div>
+                                {exam.decisionRestrictions?.notes && (
+                                    <div>
+                                        <h3 className="text-[13px] font-semibold text-fg-muted">Restriction notes</h3>
+                                        <p className="mt-1 text-sm text-pretty whitespace-pre-line text-fg">{exam.decisionRestrictions.notes}</p>
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
+
+                        {exam.scat6 && <Scat6Summary record={exam.scat6} />}
                     </div>
 
                     <div className="flex min-w-0 flex-col gap-6">

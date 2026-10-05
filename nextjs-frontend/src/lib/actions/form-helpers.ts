@@ -74,6 +74,21 @@ export const optionalDate = (message: string) =>
         .trim()
         .refine((value) => value === "" || isDateKey(value), message);
 
+/** A JSON value posted from a client-side builder, read with `schema`; an empty field reads as `empty`. */
+export function jsonField<T extends z.ZodType>(schema: T, label: string, empty = "null") {
+    return z
+        .string()
+        .transform((value, ctx) => {
+            try {
+                return JSON.parse(value || empty) as unknown;
+            } catch {
+                ctx.addIssue({ code: "custom", message: `The ${label} couldn't be read. Reload the page and try again.` });
+                return z.NEVER;
+            }
+        })
+        .pipe(schema);
+}
+
 /** A JSON-encoded array posted from a client-side builder, with optional size bounds. */
 export function jsonArray<T extends z.ZodType>(
     item: T,
@@ -83,17 +98,7 @@ export function jsonArray<T extends z.ZodType>(
     let array = z.array(item);
     if (bounds.min !== undefined) array = array.min(bounds.min, bounds.minMessage);
     if (bounds.max !== undefined) array = array.max(bounds.max, bounds.maxMessage);
-    return z
-        .string()
-        .transform((value, ctx) => {
-            try {
-                return JSON.parse(value || "[]") as unknown;
-            } catch {
-                ctx.addIssue({ code: "custom", message: `The ${label} couldn't be read. Reload the page and try again.` });
-                return z.NEVER;
-            }
-        })
-        .pipe(array);
+    return jsonField(array, label, "[]");
 }
 
 /** Whether an ISO time lies in the future, allowing for clock skew between browser and server. */

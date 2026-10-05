@@ -1,6 +1,7 @@
 import type {
     BodyJoint,
     ClinicalRestrictions,
+    EligibilityReason,
     ExaminationDecision,
     MedicalEligibility,
     RecoveryMilestone,
@@ -130,13 +131,15 @@ export const OUTCOME_FROM_DECISION: Record<ExaminationDecision, ExaminationOutco
     NOT_ELIGIBLE: "unfit",
 };
 
+const NOT_CLEARED_REASONS: readonly EligibilityReason[] = ["EXAMINATION_REQUIRED", "REVIEW_REQUEST_PENDING", "EXAMINATION_NOT_ELIGIBLE", "CLEARANCE_REQUIRED"];
+
 /**
  * The fighter's training clearance state from the service's eligibility verdict. The frontend never picks a
  * governing clearance itself: the verdict decides, and restrictions only colour an eligible fighter.
  *
- * - Nothing on file yet reads as "none": the service lets a fighter with no training examination and no open review
- *   train, but there is no clearance to show.
- * - A pending review, a not-eligible examination or a missing clearance means "not_cleared".
+ * - Nothing on file yet reads as "none": there is no clearance to show, and the fighter waits for a baseline examination.
+ * - A pending review, a not-eligible examination, a missing baseline next to an examination, or a missing clearance
+ *   means "not_cleared".
  * - An expired clearance means "expired".
  * - An eligible fighter is "restricted" when the examination or a valid clearance limits training, else "full".
  */
@@ -150,8 +153,8 @@ export function clearanceStateFromEligibility(
         if (!currentExamination) return "none";
         return restricted || currentExamination.decision === "ELIGIBLE_WITH_RESTRICTIONS" ? "restricted" : "full";
     }
-    if (!currentExamination && [...reasons].every((reason) => reason === "CLEARANCE_REQUIRED")) return "none";
-    if (reasons.has("REVIEW_REQUEST_PENDING") || reasons.has("EXAMINATION_NOT_ELIGIBLE") || reasons.has("CLEARANCE_REQUIRED")) return "not_cleared";
+    if (!currentExamination && [...reasons].every((reason) => reason === "CLEARANCE_REQUIRED" || reason === "EXAMINATION_REQUIRED")) return "none";
+    if (NOT_CLEARED_REASONS.some((reason) => reasons.has(reason))) return "not_cleared";
     if (reasons.has("CLEARANCE_EXPIRED")) return "expired";
     return "not_cleared";
 }

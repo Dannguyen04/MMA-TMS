@@ -21,7 +21,7 @@ import { param } from "@/lib/utils";
 export const metadata: Metadata = { title: "Triage" };
 
 /** Groups backed by features the medical service doesn't offer yet are only shown where they exist (demo mode). */
-const QUEUE_FEATURE: Partial<Record<TriageQueue, "followUps" | "aiObservationReview">> = { "follow-ups": "followUps", observations: "aiObservationReview" };
+const QUEUE_FEATURE: Partial<Record<TriageQueue, "aiObservationReview">> = { observations: "aiObservationReview" };
 
 /**
  * The sports doctor's Today page answers one question: who needs me first? One triage queue, most urgent first and

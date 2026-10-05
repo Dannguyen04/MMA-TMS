@@ -276,7 +276,7 @@ export async function updateHealthStatus(fighterId: string, status: HealthStatus
 
 export async function getFighterHealthSummary(fighterId: string, now: string | Date = new Date()): Promise<FighterHealthSummary | null> {
     if (isDemoAuthEnabled()) return (await demoService()).getFighterHealthSummary(fighterId, now);
-    return api.healthSummary(fighterId);
+    return api.healthSummary(fighterId, now);
 }
 
 export async function getDoctorOverview(fighterIds: FighterScope, now: string | Date = new Date()): Promise<DoctorOverview> {

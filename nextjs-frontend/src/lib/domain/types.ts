@@ -1,4 +1,5 @@
 import type { BodyJoint, ClearanceType, ClinicalRestrictions, ExaminationScope, RecoveryMilestone } from "./medical-contract";
+import type { Scat6Record } from "./scat6";
 
 /**
  * Domain model for MMA-TMS.
@@ -792,6 +793,8 @@ export interface MedicalExamination {
     decisionRestrictions?: ClinicalRestrictions | null;
     /** Until when the decision stands (medical service only). */
     validUntil?: ISODate | null;
+    /** A baseline's SCAT6: the answers as recorded and the scores the service computed. */
+    scat6?: Scat6Record | null;
 }
 
 export type InjuryType =

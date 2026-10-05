@@ -53,6 +53,7 @@ export default async function NewExaminationPage(props: PageProps<"/doctor/exami
                 level: fighter.level,
                 healthStatus: fighter.healthStatus,
                 weightLimitKg: fighter.targetWeightKg,
+                dateOfBirth: fighter.dateOfBirth,
                 clearanceState: clearanceState(clearance, now),
                 clearanceValidUntil: clearance?.status === "revoked" ? null : (clearance?.validUntil ?? null),
                 lastExamination: last ? { date: last.date, type: last.type, outcome: last.outcome, vitals: last.vitals } : null,
@@ -100,14 +101,16 @@ async function NewExaminationDecisionPage({ searchParams }: PageProps<"/doctor/e
                 back={fighter ? { href: routes.doctor.fighter(fighter.id), label: fighter.name } : { href: routes.doctor.examinations, label: "Examinations" }}
                 eyebrow="Examination"
                 title={fighter ? `Examination for ${fighter.name}` : "New examination"}
-                description="Record your decision on whether the fighter may train or compete. Clearance is issued next, from this examination."
+                description="Record what you found and whether the fighter may train or compete. Clearance is issued next, from this examination."
             />
             {fighter && dossier ? (
                 <ExaminationDecisionForm
-                    fighter={{ id: fighter.id, name: fighter.name }}
+                    fighter={{ id: fighter.id, name: fighter.name, dateOfBirth: fighter.dateOfBirth }}
                     currentExaminations={dossier.currentExaminations}
                     openReviewRequests={dossier.openReviewRequests}
                     defaultScope={defaultScope}
+                    defaultType={parseEnum(param(params.type), TYPES) ?? ""}
+                    weightLimitKg={fighter.targetWeightKg}
                     nowInput={toDateTimeInputValue(now)}
                     now={now}
                     cancelHref={routes.doctor.fighter(fighter.id)}
@@ -115,7 +118,7 @@ async function NewExaminationDecisionPage({ searchParams }: PageProps<"/doctor/e
             ) : (
                 <FighterChooser
                     fighters={fighters}
-                    hrefFor={(fighterId) => hrefWith(routes.doctor.newExamination, {}, { fighter: fighterId, scope: defaultScope })}
+                    hrefFor={(fighterId) => hrefWith(routes.doctor.newExamination, {}, { fighter: fighterId, scope: defaultScope, type: param(params.type) })}
                     title="Who did you examine?"
                     unreadable={fighter}
                 />

@@ -21,15 +21,21 @@ import {
     type ExaminationScope,
     type MedicalReviewRequest,
 } from "@/lib/domain/medical-contract";
+import type { ExaminationType } from "@/lib/domain/types";
 import { formatDate, formatDateTime, formatRelative } from "@/lib/format";
 import type { CurrentExamination } from "@/lib/services/medical";
+import { AssessmentsField, EMPTY_VITALS, ExaminationTypeField, FollowUpField, useAssessmentRows, VitalsFields } from "./examination-details-fields";
 import { RestrictionFields } from "./restriction-fields";
+import { Scat6Fields } from "./scat6-fields";
 
 export interface ExaminationDecisionFormProps {
-    fighter: { id: string; name: string };
+    fighter: { id: string; name: string; dateOfBirth: string };
     currentExaminations: Record<ExaminationScope, CurrentExamination | null>;
     openReviewRequests: MedicalReviewRequest[];
     defaultScope: ExaminationScope;
+    defaultType: ExaminationType | "";
+    /** The fighter's class limit, for the weight check. */
+    weightLimitKg: number | null;
     /** YYYY-MM-DDTHH:mm in the academy timezone. */
     nowInput: string;
     now: string;
@@ -56,14 +62,29 @@ const DECISION_OPTIONS: ChoiceOption<ExaminationDecision>[] = EXAMINATION_DECISI
 }));
 
 /**
- * Records an examination as the medical service keeps it: what it decides (training or competition), the decision,
- * the reasoning and, for a restricted decision, the limits. A training examination can answer open review requests,
- * and a new examination can correct the current one of the same scope.
+ * Records an examination as the medical service keeps it: what it decides (training or competition), what the doctor
+ * found (type, vitals, assessed areas and, for a baseline, the SCAT6), the decision, the reasoning and, for a restricted
+ * decision, the limits. A training examination can answer open review requests, and a new examination can correct
+ * the current one of the same scope.
  */
-export function ExaminationDecisionForm({ fighter, currentExaminations, openReviewRequests, defaultScope, nowInput, now, cancelHref }: ExaminationDecisionFormProps) {
-    const form = useActionForm(recordExaminationDecisionAction, { id: "exam-decision", hiddenFields: ["supersedesId"] });
+export function ExaminationDecisionForm({
+    fighter,
+    currentExaminations,
+    openReviewRequests,
+    defaultScope,
+    defaultType,
+    weightLimitKg,
+    nowInput,
+    now,
+    cancelHref,
+}: ExaminationDecisionFormProps) {
+    const form = useActionForm(recordExaminationDecisionAction, { id: "exam-decision", hiddenFields: ["supersedesId", "scat6"] });
     const { control, error } = form;
     const [scope, setScope] = useState<ExaminationScope>(defaultScope);
+    const [type, setType] = useState<ExaminationType | "">(defaultType);
+    const [vitals, setVitals] = useState(EMPTY_VITALS);
+    const rows = useAssessmentRows(form, defaultType);
+    const [followUpDate, setFollowUpDate] = useState("");
     const [decision, setDecision] = useState<ExaminationDecision | "">("");
     const [examinedAt, setExaminedAt] = useState(nowInput);
     const [correcting, setCorrecting] = useState(false);
@@ -71,6 +92,7 @@ export function ExaminationDecisionForm({ fighter, currentExaminations, openRevi
 
     const current = currentExaminations[scope];
     const answersRequests = scope === "TRAINING" && openReviewRequests.length > 0;
+    const baseline = type === "baseline";
 
     return (
         <form {...form.formProps} className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -114,6 +136,32 @@ export function ExaminationDecisionForm({ fighter, currentExaminations, openRevi
                         </div>
                     )}
                 </FormSection>
+
+                <FormSection title="Examination" description="What kind of visit it was. A baseline is needed before the fighter's first session.">
+                    <ExaminationTypeField
+                        form={form}
+                        value={type}
+                        onChange={(next) => {
+                            setType(next);
+                            rows.typeChanged(next);
+                        }}
+                    />
+                    {baseline && scope === "COMPETITION" && (
+                        <Callout tone="warning" icon={TriangleAlert} title="A competition baseline doesn't count for training">
+                            Record the baseline under Training so {fighter.name} can start training.
+                        </Callout>
+                    )}
+                </FormSection>
+
+                <FormSection title="Vitals" description={baseline ? "Required for a baseline. Readings outside athlete ranges are flagged, not blocked." : "Optional. Enter every reading, or none."}>
+                    <VitalsFields form={form} value={vitals} onChange={setVitals} weightLimitKg={weightLimitKg} required={baseline} />
+                </FormSection>
+
+                <FormSection title="Assessments" description={baseline ? "One row per area examined; a baseline needs at least one." : "One row per area examined, if any."}>
+                    <AssessmentsField form={form} type={type} rows={rows} />
+                </FormSection>
+
+                <Scat6Fields form={form} nowInput={nowInput} active={baseline} dateOfBirth={fighter.dateOfBirth} />
 
                 <FormSection title="Decision" description="Your clinical decision and the reasoning behind it.">
                     <ChoiceGroup
@@ -161,6 +209,13 @@ export function ExaminationDecisionForm({ fighter, currentExaminations, openRevi
                             {fighter.name} stops {scope === "TRAINING" ? "training" : "competing"} as soon as you record this. A later examination is needed to change it.
                         </Callout>
                     )}
+                </FormSection>
+
+                <FormSection title="Recommendations & follow-up" description="Next steps for the fighter and staff, and when to examine again.">
+                    <Field label="Recommendations" htmlFor={control("recommendations").id} error={error("recommendations")} optional hint="Visible to the fighter with the examination.">
+                        <Textarea {...control("recommendations", { hint: true })} rows={3} maxLength={MEDICAL_TEXT_LIMITS.clinicalText} />
+                    </Field>
+                    <FollowUpField form={form} examDay={examinedAt.slice(0, 10)} value={followUpDate} onChange={setFollowUpDate} hint="Shows on your dashboard as the date approaches." />
                 </FormSection>
 
                 {decision === "ELIGIBLE_WITH_RESTRICTIONS" && (

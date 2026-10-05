@@ -27,8 +27,12 @@ const decision = (overrides: Partial<ExaminationDecisionInput> = {}): Examinatio
     validUntil: null,
     supersedesId: null,
     reviewRequestIds: [],
+    details: null,
     ...overrides,
 });
+
+const VITALS = { weightKg: 77.3, restingHeartRate: 52, bloodPressureSystolic: 118, bloodPressureDiastolic: 76, temperatureC: 36.6, spo2Pct: 98, hydration: "good" as const };
+const NOT_ADMINISTERED = { status: "NOT_ADMINISTERED" as const, formVersion: "SCAT6-2023-EN" as const, reason: "Paper form unavailable." };
 
 describe("examinationBody", () => {
     it("sends only what an unrestricted decision needs", () => {
@@ -68,6 +72,40 @@ describe("examinationBody", () => {
 
     it("marks a correction", () => {
         expect(examinationBody(decision({ supersedesId: "exam-1" })).supersedesId).toBe("exam-1");
+    });
+
+    it("sends a baseline's details in the service's codes, with empty notes as null", () => {
+        const body = examinationBody(
+            decision({
+                details: {
+                    type: "baseline",
+                    vitals: VITALS,
+                    assessments: [
+                        { area: " Cervical spine ", result: "normal", note: "  " },
+                        { area: "Shoulders", result: "abnormal", note: "Mild impingement left" },
+                    ],
+                    recommendations: "  ",
+                    followUpDate: "2026-10-20",
+                    scat6: NOT_ADMINISTERED,
+                },
+            }),
+        );
+        expect(body).toMatchObject({
+            examinationType: "BASELINE",
+            vitals: { ...VITALS, hydration: "GOOD" },
+            assessments: [
+                { area: "Cervical spine", result: "NORMAL", note: null },
+                { area: "Shoulders", result: "ABNORMAL", note: "Mild impingement left" },
+            ],
+            followUpDate: "2026-10-20",
+            scat6: NOT_ADMINISTERED,
+        });
+        expect(body).not.toHaveProperty("recommendations");
+    });
+
+    it("sends a SCAT6 only with a baseline, and nothing empty with another type", () => {
+        const body = examinationBody(decision({ details: { type: "routine", vitals: null, assessments: [], recommendations: null, followUpDate: null, scat6: NOT_ADMINISTERED } }));
+        expect(body).toEqual({ ...examinationBody(decision()), examinationType: "ROUTINE" });
     });
 });
 

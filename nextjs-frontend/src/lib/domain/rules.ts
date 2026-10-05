@@ -85,6 +85,9 @@ export function clearanceState(clearance: MedicalClearance | null, now: string |
     return clearance.level;
 }
 
+/** Follow-ups due within this many days, and every overdue one, wait for the doctor. */
+export const FOLLOW_UP_WINDOW_DAYS = 7;
+
 /** Days until the clearance lapses; null when open-ended. */
 export function clearanceDaysRemaining(clearance: MedicalClearance, now: string | Date = new Date()): number | null {
     return clearance.validUntil ? daysBetween(now, clearance.validUntil) : null;

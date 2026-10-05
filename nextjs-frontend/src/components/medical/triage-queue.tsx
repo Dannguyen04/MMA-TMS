@@ -1,4 +1,4 @@
-import { CalendarClock, Hourglass, Radar, ShieldAlert, ShieldQuestion, ShieldX } from "lucide-react";
+import { CalendarClock, ClipboardPlus, Hourglass, Radar, ShieldAlert, ShieldQuestion, ShieldX } from "lucide-react";
 
 import { clinicalLinks } from "@/components/clinical/clinical-links";
 import type { QueueGroupMeta } from "@/components/dashboard/queue-card";
@@ -60,10 +60,16 @@ export function buildTriageQueue({ overview, summaries, now, serviceForms }: Tri
     const items: AttentionItem[] = [];
     const profile = (fighterId: string) => routes.doctor.fighter(fighterId);
     const grant = clinicalLinks.grantClearanceFor;
-    const examine = (fighterId: string, kind: "baseline" | "pre_fight" | "review") =>
+    // The service's form picks a scope as well as the type. A baseline or a pre-fight medical presets the type; what a
+    // review or a renewal calls for is the doctor's choice there.
+    const examine = (fighterId: string, kind: "baseline" | "pre_fight" | "review" | "renewal") =>
         serviceForms
-            ? hrefWith(routes.doctor.newExamination, {}, { fighter: fighterId, scope: kind === "pre_fight" ? "COMPETITION" : "TRAINING" })
-            : hrefWith(routes.doctor.newExamination, {}, { fighter: fighterId, type: kind === "review" ? "routine" : kind });
+            ? hrefWith(routes.doctor.newExamination, {}, {
+                  fighter: fighterId,
+                  scope: kind === "pre_fight" ? "COMPETITION" : "TRAINING",
+                  type: kind === "baseline" || kind === "pre_fight" ? kind : undefined,
+              })
+            : hrefWith(routes.doctor.newExamination, {}, { fighter: fighterId, type: kind === "review" || kind === "renewal" ? "routine" : kind });
 
     for (const summary of summaries) {
         const { fighter, clearance, clearanceState, openReviewRequests: requests } = summary;
@@ -85,10 +91,26 @@ export function buildTriageQueue({ overview, summaries, now, serviceForms }: Tri
             });
         }
 
-        // A pending review pauses training on its own; list "not cleared" only when a decision says so.
+        // Nothing else unblocks training until a baseline is on file. A fighter with nothing on file yet is listed
+        // under "No clearance" below instead.
+        if (summary.needsBaseline && clearanceState !== "none") {
+            items.push({
+                id: `baseline-${fighter.id}`,
+                group: "clearance",
+                tone: "danger",
+                icon: ClipboardPlus,
+                kind: "Baseline needed",
+                ...who,
+                title: "No training until a baseline examination is on file",
+                detail: summary.latestExamination ? `Last examined ${formatDate(summary.latestExamination.date)}` : "No baseline examination yet",
+                action: { href: examine(fighter.id, "baseline"), label: "Start baseline exam" },
+            });
+        }
+
+        // A pending review or a missing baseline pauses training on its own; list "not cleared" only when a decision says so.
         const decidedNotCleared =
             clearance?.status === "revoked" || clearance?.level === "not_cleared" || summary.latestExamination?.outcome === "unfit";
-        if (clearanceState !== "not_cleared" || (requests.length > 0 && !decidedNotCleared)) continue;
+        if (clearanceState !== "not_cleared" || ((requests.length > 0 || summary.needsBaseline) && !decidedNotCleared)) continue;
         const injury = summary.activeInjuries[0];
         const since =
             clearance?.status === "revoked"
@@ -129,10 +151,11 @@ export function buildTriageQueue({ overview, summaries, now, serviceForms }: Tri
                 ...who,
                 title: "Training is blocked until the clearance is renewed",
                 detail: lapsed ? `Expired ${describeDaysUntil(daysBetween(now, lapsed))}` : "Expired",
-                action: serviceForms ? { href: examine(fighter.id, "baseline"), label: "Re-examine" } : { href: grant(fighter.id), label: "Renew clearance" },
+                action: serviceForms ? { href: examine(fighter.id, "renewal"), label: "Re-examine" } : { href: grant(fighter.id), label: "Renew clearance" },
             });
         } else {
             const examined = Boolean(summary?.latestExamination);
+            const baselineFirst = !examined || Boolean(summary?.needsBaseline);
             items.push({
                 id: `none-${fighter.id}`,
                 group: "clearance",
@@ -141,10 +164,12 @@ export function buildTriageQueue({ overview, summaries, now, serviceForms }: Tri
                 kind: "No clearance",
                 ...who,
                 title: "No Medical Clearance on file — coaches can't check training against it",
-                detail: examined ? "Examined, clearance not yet issued" : `Joined ${formatRelative(fighter.joinedAt, now)} · no examinations yet`,
-                action: examined
-                    ? { href: grant(fighter.id), label: "Issue clearance" }
-                    : { href: examine(fighter.id, "baseline"), label: serviceForms ? "Record examination" : "Start baseline exam" },
+                detail: !examined
+                    ? `Joined ${formatRelative(fighter.joinedAt, now)} · no examinations yet`
+                    : baselineFirst
+                      ? "Examined, no baseline examination yet"
+                      : "Examined, clearance not yet issued",
+                action: baselineFirst ? { href: examine(fighter.id, "baseline"), label: "Start baseline exam" } : { href: grant(fighter.id), label: "Issue clearance" },
             });
         }
     }
@@ -166,7 +191,7 @@ export function buildTriageQueue({ overview, summaries, now, serviceForms }: Tri
             action: boutSoon
                 ? { href: examine(fighter.id, "pre_fight"), label: "Start pre-fight medical" }
                 : serviceForms
-                  ? { href: examine(fighter.id, "baseline"), label: "Re-examine" }
+                  ? { href: examine(fighter.id, "renewal"), label: "Re-examine" }
                   : { href: grant(fighter.id), label: "Renew clearance" },
         });
     }

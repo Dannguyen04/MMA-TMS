@@ -91,6 +91,7 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
     const revoked = clearance?.status === "revoked";
     const canRevoke = clearance?.status === "active" && clearanceState !== "expired" && clearance.level !== "not_cleared";
     const latestExam = summary.latestExamination;
+    const needsBaseline = eligibility?.reasons.includes("EXAMINATION_REQUIRED") ?? false;
     const mapHighlights = bodyMapHighlights(injuries, now);
 
     const overview = (
@@ -170,32 +171,16 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                     </Card>
                 )}
 
-                {medicalFeatureAvailable("vitals") ? (
+                {latestExam?.vitals ? (
                     <Card>
                         <CardHeader
                             title="Latest vitals"
-                            description={
-                                latestExam ? `${examinationTitle(latestExam)} on ${formatDate(latestExam.date)}` : "No examinations recorded yet"
-                            }
+                            description={`${examinationTitle(latestExam)} on ${formatDate(latestExam.date)}`}
                             icon={<Stethoscope />}
-                            action={latestExam && <CardLink href={routes.doctor.examination(latestExam.id)}>View examination</CardLink>}
+                            action={<CardLink href={routes.doctor.examination(latestExam.id)}>View examination</CardLink>}
                         />
                         <CardContent>
-                            {latestExam?.vitals ? (
-                                <VitalsGrid vitals={latestExam.vitals} weightLimitKg={fighter.targetWeightKg} />
-                            ) : (
-                                <EmptyState
-                                    compact
-                                    icon={<Stethoscope />}
-                                    title="No vitals yet"
-                                    description="A baseline physical records the reference vitals for this fighter."
-                                    action={
-                                        <ButtonLink href={`${newExamHref}&type=baseline`} variant="secondary" size="sm">
-                                            Start baseline exam
-                                        </ButtonLink>
-                                    }
-                                />
-                            )}
+                            <VitalsGrid vitals={latestExam.vitals} weightLimitKg={fighter.targetWeightKg} />
                         </CardContent>
                     </Card>
                 ) : (
@@ -205,9 +190,13 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                             description={latestExam ? `${examinationTitle(latestExam)} on ${formatDate(latestExam.date)}` : "No examinations recorded yet"}
                             icon={<Stethoscope />}
                             action={
-                                <ButtonLink href={newExamHref} variant="ghost" size="sm">
-                                    New examination
-                                </ButtonLink>
+                                latestExam ? (
+                                    <CardLink href={routes.doctor.examination(latestExam.id)}>View examination</CardLink>
+                                ) : (
+                                    <ButtonLink href={newExamHref} variant="ghost" size="sm">
+                                        New examination
+                                    </ButtonLink>
+                                )
                             }
                         />
                         <CardContent>
@@ -220,7 +209,21 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                                     )}
                                 </div>
                             ) : (
-                                <p className="text-sm text-fg-muted">Record an examination to decide whether {fighter.name} may train.</p>
+                                <EmptyState
+                                    compact
+                                    icon={<Stethoscope />}
+                                    title={needsBaseline ? "Baseline examination needed" : "No examinations yet"}
+                                    description={
+                                        needsBaseline
+                                            ? `A baseline records ${fighter.name}'s reference vitals and SCAT6, and is needed before training.`
+                                            : `Record an examination to decide whether ${fighter.name} may train.`
+                                    }
+                                    action={
+                                        <ButtonLink href={needsBaseline ? `${newExamHref}&scope=TRAINING&type=baseline` : newExamHref} variant="secondary" size="sm">
+                                            {needsBaseline ? "Start baseline exam" : "New examination"}
+                                        </ButtonLink>
+                                    }
+                                />
                             )}
                         </CardContent>
                     </Card>
@@ -256,9 +259,7 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                 <Card>
                     <CardHeader title="Next follow-up" icon={<CalendarClock />} />
                     <CardContent>
-                        {!medicalFeatureAvailable("followUps") ? (
-                            <FeatureUnavailable title="Follow-ups aren't available yet" compact />
-                        ) : summary.nextFollowUp ? (
+                        {summary.nextFollowUp ? (
                             <div className="flex flex-col gap-3">
                                 <div className="flex items-center gap-3">
                                     <DateBlock date={summary.nextFollowUp.date} highlighted={summary.nextFollowUp.daysUntil === 0} />

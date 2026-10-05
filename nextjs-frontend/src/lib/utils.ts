@@ -48,12 +48,17 @@ export function initials(name: string): string {
     return (first + last).toUpperCase();
 }
 
-/** Reads a single string value from Next.js searchParams. */
 /** Trimmed text, or null when nothing is left. */
 export function trimToNull(value: string | null | undefined): string | null {
     return value?.trim() || null;
 }
 
+/** Whether every field of a form group was left empty, e.g. optional vitals. */
+export function allBlank(values: Record<string, string>): boolean {
+    return Object.values(values).every((value) => value.trim() === "");
+}
+
+/** Reads a single string value from Next.js searchParams. */
 export function param(value: string | string[] | undefined): string | undefined {
     return Array.isArray(value) ? value[0] : value;
 }

@@ -320,7 +320,7 @@ function onboardingSteps({ clearanceState, videos, plans, activePlan, goalCount 
             description:
                 clearanceState !== "none"
                     ? "Your Medical Clearance is on file."
-                    : "Your sports doctor issues your Medical Clearance after a baseline physical. Until then, sessions can't be checked against medical guidance.",
+                    : "An administrator assigns your sports doctor, who records your baseline examination and issues your Medical Clearance. Training starts after that.",
             href: routes.fighter.health,
             actionLabel: "View health",
         },

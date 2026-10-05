@@ -58,13 +58,16 @@ describe("restrictionFromAllowLists", () => {
 });
 
 describe("clearanceStateFromEligibility", () => {
-    it("reads nothing on file as no clearance yet", () => {
+    it("reads nothing on file as no clearance yet, including a fighter waiting for a baseline examination", () => {
         expect(clearanceStateFromEligibility(eligibility(true), null, false)).toBe("none");
         expect(clearanceStateFromEligibility(eligibility(false, ["CLEARANCE_REQUIRED"]), null, false)).toBe("none");
+        expect(clearanceStateFromEligibility(eligibility(false, ["EXAMINATION_REQUIRED"]), null, false)).toBe("none");
+        expect(clearanceStateFromEligibility(eligibility(false, ["EXAMINATION_REQUIRED", "REVIEW_REQUEST_PENDING"]), null, false)).toBe("not_cleared");
     });
 
-    it("pauses training for a pending review, a not-eligible examination or a missing clearance", () => {
+    it("pauses training for a missing baseline, a pending review, a not-eligible examination or a missing clearance", () => {
         const exam = { decision: "ELIGIBLE" as const };
+        expect(clearanceStateFromEligibility(eligibility(false, ["EXAMINATION_REQUIRED"]), exam, false)).toBe("not_cleared");
         expect(clearanceStateFromEligibility(eligibility(false, ["REVIEW_REQUEST_PENDING"]), exam, false)).toBe("not_cleared");
         expect(clearanceStateFromEligibility(eligibility(false, ["EXAMINATION_NOT_ELIGIBLE"]), { decision: "NOT_ELIGIBLE" }, false)).toBe("not_cleared");
         expect(clearanceStateFromEligibility(eligibility(false, ["CLEARANCE_REQUIRED"]), exam, false)).toBe("not_cleared");

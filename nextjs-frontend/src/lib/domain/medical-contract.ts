@@ -89,6 +89,7 @@ export const MEDICAL_TEXT_LIMITS = {
 export const RECOVERY_MILESTONES_MAX = 50;
 
 export const ELIGIBILITY_REASONS = [
+    "EXAMINATION_REQUIRED",
     "REVIEW_REQUEST_PENDING",
     "EXAMINATION_NOT_ELIGIBLE",
     "CLEARANCE_REQUIRED",
@@ -96,6 +97,21 @@ export const ELIGIBILITY_REASONS = [
     "SESSION_TYPE_RESTRICTED",
 ] as const;
 export type EligibilityReason = (typeof ELIGIBILITY_REASONS)[number];
+
+/* ─── Examination details ─────────────────────────────────────────────────── */
+
+/** A BASELINE examination (with SCAT6, vitals and at least one assessed area) is needed before a fighter's first session. */
+export const API_EXAMINATION_TYPES = ["BASELINE", "ROUTINE", "PRE_FIGHT", "POST_INJURY", "CONCUSSION_SCREEN", "RETURN_TO_PLAY"] as const;
+export type ApiExaminationType = (typeof API_EXAMINATION_TYPES)[number];
+
+export const API_ASSESSMENT_RESULTS = ["NORMAL", "ABNORMAL", "INCONCLUSIVE"] as const;
+export type ApiAssessmentResult = (typeof API_ASSESSMENT_RESULTS)[number];
+
+export const API_HYDRATION_LEVELS = ["GOOD", "FAIR", "POOR"] as const;
+export type ApiHydration = (typeof API_HYDRATION_LEVELS)[number];
+
+/** Limits the service validates on examination details. */
+export const EXAMINATION_DETAIL_LIMITS = { assessments: 30, area: 150, note: 1_000 } as const;
 
 /** A doctor's written limits: what the fighter may do (allow-lists) and which joints to keep out of training. */
 export interface ClinicalRestrictions {
@@ -140,6 +156,7 @@ export interface MedicalReviewRequest {
 /* ─── Labels ──────────────────────────────────────────────────────────────── */
 
 export const ELIGIBILITY_REASON_LABELS: Record<EligibilityReason, string> = {
+    EXAMINATION_REQUIRED: "Baseline examination required",
     REVIEW_REQUEST_PENDING: "Medical review pending",
     EXAMINATION_NOT_ELIGIBLE: "Not eligible after examination",
     CLEARANCE_REQUIRED: "Clearance required",
@@ -149,6 +166,7 @@ export const ELIGIBILITY_REASON_LABELS: Record<EligibilityReason, string> = {
 
 /** What each reason means for the fighter and what happens next, in plain words. */
 export const ELIGIBILITY_REASON_DESCRIPTIONS: Record<EligibilityReason, string> = {
+    EXAMINATION_REQUIRED: "Every fighter needs a baseline examination by their sports doctor, with a SCAT6, before training.",
     REVIEW_REQUEST_PENDING: "A medical review has been requested. Training waits until a sports doctor records an examination.",
     EXAMINATION_NOT_ELIGIBLE: "The latest examination found the fighter not eligible to train. A new examination is needed first.",
     CLEARANCE_REQUIRED: "There is no valid Medical Clearance on file. A sports doctor needs to issue one.",
