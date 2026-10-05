@@ -1,0 +1,23 @@
+# API image uses the repository root as build context. Keep credentials and
+# unrelated application/media trees out of the Docker build transfer.
+**/node_modules
+**/.git
+**/.env
+**/.env.*
+**/*.env
+**/.venv
+**/dist
+**/.next
+**/test_results
+**/__pycache__
+**/.agents
+**/.codex
+**/.aws
+artifacts
+tmp
+screenshots
+python-worker
+nextjs-frontend
+reactnative-mobile
+*.pt
+dump.rdb

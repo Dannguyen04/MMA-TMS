@@ -24,6 +24,7 @@ screenshots/
 worker_tmp/
 tmp/
 video-data-test/
+artifacts/
 
 # OS files
 Thumbs.db

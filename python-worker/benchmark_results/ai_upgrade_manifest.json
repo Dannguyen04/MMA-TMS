@@ -1,0 +1,531 @@
+{
+  "schemaVersion": "1.0.0",
+  "purpose": "development_diagnostic_only",
+  "annotationReview": "provisional_single_reviewer",
+  "split": "development",
+  "independentHeldOut": false,
+  "predictionDirectory": "test_results/strike_suite",
+  "inputs": [
+    {
+      "path": "ground_truth/gt_01_cross_heavybag.json",
+      "sha256": "072f96283a392ca8bb4c6869937e8e71e4dd62a7e132ca93b02f2cdcdfb6c113"
+    },
+    {
+      "path": "ground_truth/gt_02_referee_gestures.json",
+      "sha256": "dffb666098943d9162d6de14249245369a4afe65e7d141fbec0bf1a609163869"
+    },
+    {
+      "path": "ground_truth/gt_03_fighter_walkout.json",
+      "sha256": "75564f96270b713f1efec22837ce8f946ff1a5e03f985252794617546a0295b6"
+    },
+    {
+      "path": "ground_truth/gt_04_cage_striking.json",
+      "sha256": "eeaa9e8c9815a9b34ec2c049f5f1a839c394bdbc01e4dcc3190b5363129bb9c9"
+    },
+    {
+      "path": "ground_truth/gt_05_ground_grappling.json",
+      "sha256": "323cc2f057e7c96549b81c5313cc790f804a6e12695299cde24e21d5c797c033"
+    },
+    {
+      "path": "ground_truth/gt_06_post_fight.json",
+      "sha256": "9a135587b9a1cfa2a853308d6a151e989f5be5b0df8c56b8b9614b75a6bf8414"
+    },
+    {
+      "path": "ground_truth/gt_kick_005_mixed_heavybag.json",
+      "sha256": "799d56f9a16d5420e205d58756c4ea55abe273f10a3e5b427d953eac3645ef47"
+    },
+    {
+      "path": "ground_truth/gt_kick_04_cage_visual.json",
+      "sha256": "e623c20c57e29ecd1e0a01139a82a7230c851d86ab90830ee2c1a97c373013c1"
+    },
+    {
+      "path": "ground_truth/gt_kick_05_ground_control.json",
+      "sha256": "9f5c7395d72902b6b5142ef8a3c6726edc52c3564ea19e1adb5f9c27325f23b9"
+    },
+    {
+      "path": "ground_truth/gt_punch_002_visual.json",
+      "sha256": "f0d5865abd68c777cd0004c70ae2ee94fc388bda5dc9287e5d7b3b1aa7def51c"
+    },
+    {
+      "path": "ground_truth/gt_punch_003_visual.json",
+      "sha256": "cd524721512b59af12787d704661c19a3368e529a878bf2e3e5d7dc870065869"
+    },
+    {
+      "path": "test_results/strike_suite/VIDEO_DATA_002.json",
+      "sha256": "afb8e6888626ae54d69b93507dcc8f198c2fe04967b45774c91c3bf894c6605e"
+    },
+    {
+      "path": "test_results/strike_suite/VIDEO_DATA_003.json",
+      "sha256": "35d591e214f52a7b219f232f70dd4914723bdc5354df5a38dd24189b9206aca9"
+    },
+    {
+      "path": "test_results/strike_suite/VIDEO_DATA_005.json",
+      "sha256": "5bec52d8256f1fc6cc2225f977b7df661f35183d73bd26cc6ed06031bdeb5501"
+    },
+    {
+      "path": "test_results/strike_suite/vid_01_cross_heavybag.json",
+      "sha256": "4e1a2854f7dbfcbd770fcdca5c180bcbb095b7939adcf53ea05252b71e22fb31"
+    },
+    {
+      "path": "test_results/strike_suite/vid_02_referee_gestures.json",
+      "sha256": "b654db947ae0ca4f2aa02d267621246ced5ec48a5bdb09aa985818a205ed6535"
+    },
+    {
+      "path": "test_results/strike_suite/vid_03_fighter_walkout.json",
+      "sha256": "0212b9a9bbec534c32b6ea31ee81e7f467cbc4364faa433800f7ad822d07da34"
+    },
+    {
+      "path": "test_results/strike_suite/vid_04_cage_striking.json",
+      "sha256": "24d1f9417ea3a505e0c5596e36e2c98722746161a3ef713c6b3dca36c4425be2"
+    },
+    {
+      "path": "test_results/strike_suite/vid_05_ground_grappling.json",
+      "sha256": "7b5c4fdcb34ac59571b40d41dc2de3d80bfe16d8744e82cb9af86cd2b1fd601f"
+    },
+    {
+      "path": "test_results/strike_suite/vid_06_post_fight.json",
+      "sha256": "8f0cf003b61e6d8fe5ebf2606d032c402cf715b0932cf45692fecd40f8f1918e"
+    }
+  ],
+  "runtimeAtFreeze": {
+    "action_result.py": "2b988d5eed32c3d9979bacb19b136b3c1589fce1e7ca8e3ee83cb2b52391ad9d",
+    "ai_upgrade_benchmark.py": "eaa99461f3a69571c084f2a96e4c351ba1a9b94a507fabf67ea26457170127a1",
+    "create_golden_baseline.py": "a1256c63b6d3508e0fe0e1c0d569516176b51ca51c7931c9856a4f218ca78860",
+    "evaluate_public_dataset.py": "9b1f8c3556c57a02dd22a055514a5816d6c562fce7aff039deefd96ce02904d6",
+    "evaluate_punch_detector.py": "69d7e5cbe14ce4ccc221cc248bd67b55ec63c2961d6883579aa5a18b14f2a728",
+    "evaluate_punches.py": "580806a60789545c6c145ef8445f036c1c20301b85177da6f59d6dd3d4a2fd45",
+    "evaluate_strike_suite.py": "b69cc25c7593ebe84b2a58c474b261531fbb88a870cfc8fdce167395ccaf0d75",
+    "extract_motion_features.py": "edb084a7c23b73139e6502f19254d8080e924d128d817e8e2ef702a979b6f177",
+    "joint_health_tracker.py": "d71fc72526c1c762dabe052ffd0d47c966359ebc1d63429dcbcdf346669d29f1",
+    "kick_analyzer.py": "ea224955490fc7a77ed3cfc659a1301e583cd1d15de869bb0802350013bf7c27",
+    "kick_event_detector_v2.py": "88cb3678eee0de5fa96a91e583b6585bbfb3d5bdb42ce4189fd7f813ada710ab",
+    "person_tracker.py": "7483c56d93950aae4208faf0e793ed4aa6d7038a699431f46202134f470713b9",
+    "pipeline/__init__.py": "beaaec3b7efcec998435ce6ec1b8980f1dac800eb749e7e627be4df272db8f23",
+    "pipeline/action_pipeline.py": "b0d11777bbe8cfba6e56419d2a05279665fe81bceace82685ba499acfa05a956",
+    "pipeline/active_learning_queue.py": "df384955dbf306723ebbb3824cf95951f6e50aec7729dbbf801810cb3139d86c",
+    "pipeline/analysis_context.py": "0d2ccd89fe0861cb9f0c94f0d6d0a80cd1d490d85976a83f738db9d03895c471",
+    "pipeline/assessment_engine.py": "1444ec90321af935e3056b3dada1b3364cf33551e3b023660fdde163c83559d4",
+    "pipeline/classification.py": "c35c63d95a588accdf1e940fc66a78880201eb34ca316282947fea74552524bf",
+    "pipeline/coaching_engine.py": "d682431f541c29819d75b26f1971273b30e2cc36cd91b67d01d11a9814afa1ee",
+    "pipeline/combination_engine.py": "ec8c25e53ccc1a088dfd5438903cf81c3636c22da6ff3b960f91ba60aa30bd13",
+    "pipeline/confidence_calibration.py": "4ed696fbdef31573d41bc6deb970fa7d097bf25697f637f0e70790aaf80cba1f",
+    "pipeline/contracts.py": "852f5859e439b8f2c0d2aeb66cc2a837c5d837d7488f06063c22d5355880f43d",
+    "pipeline/dataset_export.py": "faa4d53233c1fd8b43c78194e6efc8bba6d749310dde1c287142a880a5cf0013",
+    "pipeline/elbow_knee_shadow.py": "a84c1797bb9683300184fc0d0fc82e575990b5ac89f3700452e9002357cd8bed",
+    "pipeline/evaluation_protocol.py": "8e40910d7d49e56cc74d3e9aa4e19087f0ad22cd2f928a4bffd8dc7c868bf704",
+    "pipeline/feature_extraction.py": "7551b1a916ffb823cc601bf8797fa24ec2f4be1aba269991854d1e4e6b994934",
+    "pipeline/finding_engine.py": "d3e8dc0ffde05c6647ece3f75b5129bbf9526525f163664ce5747074cd65ec06",
+    "pipeline/ghost_alignment.py": "a64edca9a5d8260745ddfc30a82f2dfecb85c5b398c847d97bc816dc84918892",
+    "pipeline/gold_evaluation_runner.py": "2ecd29df47ab0357e31507f7933afd767e16fc01e11255b6d46e125396f9ae9f",
+    "pipeline/grappling_shadow.py": "ee334178af4b97762e256a05ed63e7d26d59471a2d8d98f3d55f3bd636f0cec2",
+    "pipeline/kinematic_features.py": "f64d9877377857a0aaca88da8af10c72948c65b0b7ff3de2a4f52edb67bf451c",
+    "pipeline/model_registry.py": "24882016ecfb1142dcb5b9800ce2d9a179ab754d02575f6cd5c1f20c3dc58bb4",
+    "pipeline/mvp_technique_discovery.py": "9c63e0937b3b51ebb6f3ba4380401b86a3ca0e47d8694ac898be2fc5d7a95c40",
+    "pipeline/observable_movement.py": "aecc48e967293bde8249b104cdcd71a5fa9718a0db91e0cb58ae610f7e6a6ed1",
+    "pipeline/personalized_baseline.py": "f97c6d436e489097217ea0e1d65bb1650698469c995338dcf36677b1862da927",
+    "pipeline/public_dataset.py": "7273a5305101cdc1dcac4d615e08d35cf81e7612a35446a6f0615cd7cc5e4547",
+    "pipeline/quality_gate.py": "5512f3031336e1bcf46d1143fca64d436232c30a0c4e4e1b207b087256b9c752",
+    "pipeline/reference_normalization.py": "d2ce13c023368d9389defad5d8fcb94abecf692a0b84a764474e02979b22a3bf",
+    "pipeline/review_contract.py": "8ad4136cdff3ab8c0e0e6228642f72c43f96a056c261337babb3378ec8338d04",
+    "pipeline/rubric_registry.py": "e5b8ca7f1485a1911e935a351eb600b6ab71f69c889f5207508e93e0ab18ee7e",
+    "pipeline/session_aggregation.py": "e6375d18a9da18bafc6c269ef56ea3ddca6ad45fc59622f9ddba7f8ed64e18c4",
+    "pipeline/session_comparison.py": "2de411d2a421c966b9b2bc6bf235684641f21f3a95bbd548efa6c25f9193a9ca",
+    "pipeline/shadow_classifier.py": "ba09e66654af5d897448a6e9acac8e9d23c643d1e28fa66ff65825e9f1fc3a8e",
+    "pipeline/shadow_kick_classifier.py": "0a9c76059e050dab06128dfdcaa82a377af927b446f70177f9685a16bc5252fe",
+    "pipeline/shadow_punch_classifier.py": "490a0381ecbe7c1590d7ace374ffc32d813ac40305d3f443957895004cb3902d",
+    "pipeline/stance_context.py": "c3a4bf16d11149515ba6221f51bab6a3392b2e9f300b7da691e21fd1367a35a8",
+    "pipeline/temporal_phases.py": "9467094e8ab5c1cd7723b91a1292cdf4fd623461a8562ebc2dec26a768ce0601",
+    "pipeline/vertical_slice_integration.py": "512f7cfaa597b5d3a01ecbc5ad2e3df6ee93a69da508c5f586b9882b835ef61f",
+    "pose_math.py": "c9a2263bf5e6b7d06307fd09de1336097236026c4dc4f104889a724533807694",
+    "posture_gate.py": "76e9946ca054c96100f245b14c57665641f98e8dbc59f627b97a2e86ebfeb4a8",
+    "prepare_public_dataset.py": "984893733f169789c183f901f6346d166e3a2ecf28ebf4cd77af07702c7d92ba",
+    "process_video.py": "50eb684c3451047d8a44f75f9c6b408906a1df76cfcb672e147c8eea19eb9dac",
+    "punch_analyzer.py": "b064369abe9ab6363d930244df5283cb3ba0d4008833bd87ab6c4a6d97662cc4",
+    "punch_event_detector_v2.py": "0cdb9516d67d724e61567643ae942aad0df2f3d525553d2c4d623eb1cb7cce5a",
+    "replay_strikes.py": "167c3882f8705538b624432bcbb28c509340519acf40b4adcf3e1cc36351f3f9",
+    "rubric_primitives.py": "6a2e9e436eb63a63154382704f5c76e870619f46d5967ae7d6adc4161568ebff",
+    "run_strike_suite.py": "afb1cb61d48e87fcede540b4e977cc0ec5aeb1c03833a5a2e0da4552d1a2474b",
+    "strike_benchmark.py": "4bed9f311bb88187c601824542a64f59f14e4545e94da943e234102cece49a11",
+    "technique_rubric.py": "7a9c26c69bc7298821698355bd96a3d93d1e9ed80ae0ac9fa8a199ef7be1ac32",
+    "worker.py": "9e7448bf3fc00ce3b780c7de0c2fd2c064f99aa5ad22e11a5791999a5fe74ef6"
+  },
+  "modelSha256": "c6fa93dd1ee4a2c18c900a45c1d864a1c6f7aba75d84f91648a30b7fb641d212",
+  "cachedPredictionRuntimeVerified": false,
+  "baseline": {
+    "status": "complete_for_declared_annotation_scopes",
+    "tolerance_ms": 350,
+    "matching": "maximum one-to-one cardinality, then minimum total timing error; known sides must match",
+    "limitations": [
+      "Expanded annotations are provisional, same-reviewer development data, not an independent held-out test.",
+      "Unknown-side annotations test event timing/kind only; technique classification is not evaluated.",
+      "No corpus-wide P/R/F1 for all video-data-test: 001, 004, 006 lack exhaustive original-video labels.",
+      "Unannotated strike kinds are excluded, not assumed negative. Validation clips overlap original video 001."
+    ],
+    "baseline_legacy_cached": {
+      "total_videos": 6,
+      "total_gt": 6,
+      "total_pred": 20,
+      "tp": 5,
+      "fp": 15,
+      "fn": 1,
+      "precision": 0.25,
+      "recall": 0.8333,
+      "f1": 0.3846
+    },
+    "current_legacy_same_six_clips": {
+      "tp": 5,
+      "fp": 9,
+      "fn": 1,
+      "precision": 0.3571,
+      "recall": 0.8333,
+      "f1": 0.5
+    },
+    "expanded_by_kind": {
+      "punch": {
+        "tp": 9,
+        "fp": 10,
+        "fn": 33,
+        "precision": 0.4737,
+        "recall": 0.2143,
+        "f1": 0.2951
+      },
+      "kick": {
+        "tp": 1,
+        "fp": 3,
+        "fn": 5,
+        "precision": 0.25,
+        "recall": 0.1667,
+        "f1": 0.2
+      }
+    },
+    "expanded_overall": {
+      "tp": 10,
+      "fp": 13,
+      "fn": 38,
+      "precision": 0.4348,
+      "recall": 0.2083,
+      "f1": 0.2817
+    },
+    "per_scope": [
+      {
+        "video_id": "vid_01_cross_heavybag",
+        "evaluated_kinds": [
+          "punch"
+        ],
+        "tp": 5,
+        "fp": 1,
+        "fn": 0,
+        "precision": 0.8333,
+        "recall": 1.0,
+        "f1": 0.9091,
+        "matches": [
+          {
+            "prediction_id": "pred_1",
+            "ground_truth_id": "1",
+            "impact_error_ms": 0.0
+          },
+          {
+            "prediction_id": "pred_2",
+            "ground_truth_id": "2",
+            "impact_error_ms": 0.0
+          },
+          {
+            "prediction_id": "pred_3",
+            "ground_truth_id": "3",
+            "impact_error_ms": 83.3
+          },
+          {
+            "prediction_id": "pred_4",
+            "ground_truth_id": "4",
+            "impact_error_ms": 3.3
+          },
+          {
+            "prediction_id": "pred_6",
+            "ground_truth_id": "6",
+            "impact_error_ms": 103.3
+          }
+        ],
+        "false_positives": [
+          "pred_5"
+        ],
+        "false_negatives": []
+      },
+      {
+        "video_id": "vid_02_referee_gestures",
+        "evaluated_kinds": [
+          "punch"
+        ],
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "matches": [],
+        "false_positives": [],
+        "false_negatives": []
+      },
+      {
+        "video_id": "vid_03_fighter_walkout",
+        "evaluated_kinds": [
+          "punch"
+        ],
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "matches": [],
+        "false_positives": [],
+        "false_negatives": []
+      },
+      {
+        "video_id": "vid_04_cage_striking",
+        "evaluated_kinds": [
+          "punch"
+        ],
+        "tp": 0,
+        "fp": 5,
+        "fn": 1,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "matches": [],
+        "false_positives": [
+          "pred_1",
+          "pred_2",
+          "pred_3",
+          "pred_4",
+          "pred_5"
+        ],
+        "false_negatives": [
+          "1"
+        ]
+      },
+      {
+        "video_id": "vid_05_ground_grappling",
+        "evaluated_kinds": [
+          "punch"
+        ],
+        "tp": 0,
+        "fp": 2,
+        "fn": 0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "matches": [],
+        "false_positives": [
+          "pred_1",
+          "pred_2"
+        ],
+        "false_negatives": []
+      },
+      {
+        "video_id": "vid_06_post_fight",
+        "evaluated_kinds": [
+          "punch"
+        ],
+        "tp": 0,
+        "fp": 1,
+        "fn": 0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "matches": [],
+        "false_positives": [
+          "pred_1"
+        ],
+        "false_negatives": []
+      },
+      {
+        "video_id": "VIDEO_DATA_002",
+        "fps": 25.0,
+        "evaluated_kinds": [
+          "punch"
+        ],
+        "tolerance_ms": 350.0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 15,
+        "precision": 1.0,
+        "recall": 0.0625,
+        "f1": 0.1176,
+        "matches": [
+          {
+            "prediction_id": "pred_1",
+            "ground_truth_id": "punch_015",
+            "impact_error_ms": 280.0
+          }
+        ],
+        "false_positives": [],
+        "false_negatives": [
+          "punch_001",
+          "punch_002",
+          "punch_003",
+          "punch_004",
+          "punch_005",
+          "punch_006",
+          "punch_007",
+          "punch_008",
+          "punch_009",
+          "punch_010",
+          "punch_011",
+          "punch_012",
+          "punch_013",
+          "punch_014",
+          "punch_016"
+        ]
+      },
+      {
+        "video_id": "VIDEO_DATA_003",
+        "fps": 25.0,
+        "evaluated_kinds": [
+          "punch"
+        ],
+        "tolerance_ms": 350.0,
+        "tp": 3,
+        "fp": 1,
+        "fn": 17,
+        "precision": 0.75,
+        "recall": 0.15,
+        "f1": 0.25,
+        "matches": [
+          {
+            "prediction_id": "pred_1",
+            "ground_truth_id": "punch_004",
+            "impact_error_ms": 160.0
+          },
+          {
+            "prediction_id": "pred_2",
+            "ground_truth_id": "punch_008",
+            "impact_error_ms": 40.0
+          },
+          {
+            "prediction_id": "pred_4",
+            "ground_truth_id": "punch_015",
+            "impact_error_ms": 240.0
+          }
+        ],
+        "false_positives": [
+          "pred_3"
+        ],
+        "false_negatives": [
+          "punch_001",
+          "punch_002",
+          "punch_003",
+          "punch_005",
+          "punch_006",
+          "punch_007",
+          "punch_009",
+          "punch_010",
+          "punch_011",
+          "punch_012",
+          "punch_013",
+          "punch_014",
+          "punch_016",
+          "punch_017",
+          "punch_018",
+          "punch_019",
+          "punch_020"
+        ]
+      },
+      {
+        "video_id": "VIDEO_DATA_005",
+        "fps": 25.0,
+        "evaluated_kinds": [
+          "kick"
+        ],
+        "tolerance_ms": 350.0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 4,
+        "precision": 1.0,
+        "recall": 0.2,
+        "f1": 0.3333,
+        "matches": [
+          {
+            "prediction_id": "pred_1",
+            "ground_truth_id": "kick_002",
+            "impact_error_ms": 40.0
+          }
+        ],
+        "false_positives": [],
+        "false_negatives": [
+          "kick_001",
+          "kick_003",
+          "kick_004",
+          "kick_005"
+        ]
+      },
+      {
+        "video_id": "vid_04_cage_striking",
+        "fps": 59.94,
+        "evaluated_kinds": [
+          "kick"
+        ],
+        "tolerance_ms": 350.0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "matches": [],
+        "false_positives": [],
+        "false_negatives": [
+          "kick_001"
+        ]
+      },
+      {
+        "video_id": "vid_05_ground_grappling",
+        "fps": 59.94,
+        "evaluated_kinds": [
+          "kick"
+        ],
+        "tolerance_ms": 350.0,
+        "tp": 0,
+        "fp": 3,
+        "fn": 0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "matches": [],
+        "false_positives": [
+          "pred_1",
+          "pred_2",
+          "pred_3"
+        ],
+        "false_negatives": []
+      }
+    ],
+    "evidence_sha256": {
+      "gt_01_cross_heavybag.json": "072f96283a392ca8bb4c6869937e8e71e4dd62a7e132ca93b02f2cdcdfb6c113",
+      "vid_01_cross_heavybag.json": "4e1a2854f7dbfcbd770fcdca5c180bcbb095b7939adcf53ea05252b71e22fb31",
+      "gt_02_referee_gestures.json": "dffb666098943d9162d6de14249245369a4afe65e7d141fbec0bf1a609163869",
+      "vid_02_referee_gestures.json": "b654db947ae0ca4f2aa02d267621246ced5ec48a5bdb09aa985818a205ed6535",
+      "gt_03_fighter_walkout.json": "75564f96270b713f1efec22837ce8f946ff1a5e03f985252794617546a0295b6",
+      "vid_03_fighter_walkout.json": "0212b9a9bbec534c32b6ea31ee81e7f467cbc4364faa433800f7ad822d07da34",
+      "gt_04_cage_striking.json": "eeaa9e8c9815a9b34ec2c049f5f1a839c394bdbc01e4dcc3190b5363129bb9c9",
+      "vid_04_cage_striking.json": "24d1f9417ea3a505e0c5596e36e2c98722746161a3ef713c6b3dca36c4425be2",
+      "gt_05_ground_grappling.json": "323cc2f057e7c96549b81c5313cc790f804a6e12695299cde24e21d5c797c033",
+      "vid_05_ground_grappling.json": "7b5c4fdcb34ac59571b40d41dc2de3d80bfe16d8744e82cb9af86cd2b1fd601f",
+      "gt_06_post_fight.json": "9a135587b9a1cfa2a853308d6a151e989f5be5b0df8c56b8b9614b75a6bf8414",
+      "vid_06_post_fight.json": "8f0cf003b61e6d8fe5ebf2606d032c402cf715b0932cf45692fecd40f8f1918e",
+      "gt_punch_002_visual.json": "f0d5865abd68c777cd0004c70ae2ee94fc388bda5dc9287e5d7b3b1aa7def51c",
+      "VIDEO_DATA_002.json": "afb8e6888626ae54d69b93507dcc8f198c2fe04967b45774c91c3bf894c6605e",
+      "gt_punch_003_visual.json": "cd524721512b59af12787d704661c19a3368e529a878bf2e3e5d7dc870065869",
+      "VIDEO_DATA_003.json": "35d591e214f52a7b219f232f70dd4914723bdc5354df5a38dd24189b9206aca9",
+      "gt_kick_005_mixed_heavybag.json": "799d56f9a16d5420e205d58756c4ea55abe273f10a3e5b427d953eac3645ef47",
+      "VIDEO_DATA_005.json": "5bec52d8256f1fc6cc2225f977b7df661f35183d73bd26cc6ed06031bdeb5501",
+      "gt_kick_04_cage_visual.json": "e623c20c57e29ecd1e0a01139a82a7230c851d86ab90830ee2c1a97c373013c1",
+      "gt_kick_05_ground_control.json": "9f5c7395d72902b6b5142ef8a3c6726edc52c3564ea19e1adb5f9c27325f23b9"
+    },
+    "model_sha256": "c6fa93dd1ee4a2c18c900a45c1d864a1c6f7aba75d84f91648a30b7fb641d212"
+  },
+  "limitations": [
+    "Cached outputs are historical evidence; runtimeAtFreeze does not establish their generating runtime.",
+    "No independent held-out/calibration corpus or validated classifier checkpoint is present.",
+    "Replayed poses are rounded and already smoothed. Fresh video inference is required before release."
+  ]
+}

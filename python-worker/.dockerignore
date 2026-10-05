@@ -1,4 +1,14 @@
 .venv
 __pycache__
 .env
+*.env
+.env.*
+test_results
+validation_videos
+ground_truth
+benchmark_results
+test_fixtures
+tests
+test_*.py
+.pytest_cache
 

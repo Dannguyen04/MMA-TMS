@@ -1,0 +1,2176 @@
+{
+  "modelCard": {
+    "schemaVersion": "1.0.0",
+    "modelId": "boxing-pose-tcn-research-v1",
+    "mode": "research_only",
+    "featureVersion": "body_relative_image_pose_v1",
+    "labels": [
+      "jab",
+      "cross",
+      "lead_hook",
+      "rear_hook",
+      "lead_uppercut",
+      "rear_uppercut"
+    ],
+    "seed": 20261003,
+    "temperature": 1.087648297355191,
+    "weightsSha256": "23898c2a5f646e3a0a1a2700cd97e413b0ae801debd8bf6647a66d391142fee1",
+    "dataAuditSha256": "b28208158fe958d0e77171b0f371aef5b7fb511dcd9cf40c3130c053830e6558",
+    "productionEligible": false,
+    "blockedReasons": [
+      "COMMERCIAL_DATA_RIGHTS_UNVERIFIED",
+      "FIGHTER_INDEPENDENCE_UNVERIFIED",
+      "NO_BACKGROUND_TRAINING",
+      "NO_COACH_QUALITY_LABELS",
+      "NO_INDEPENDENT_PRODUCTION_ACCEPTANCE",
+      "POSE_SOURCE_DOMAIN_SHIFT"
+    ],
+    "sourceHashes": {
+      "train_boxing_research.py": "f7ddfc8b6288e21adfa623c0b9eca0ea4219d10b73bad9053c385c01d6e24fb9",
+      "pipeline/boxing_research.py": "11a52401638b4f4fa64ce742c3e4ffc5b579d4fb20269f7b9b894ca975733a39"
+    }
+  },
+  "bestEpoch": 53,
+  "seconds": 20.0,
+  "history": [
+    {
+      "epoch": 1,
+      "loss": 1.7796757180115272,
+      "validationMacroF1": 0.1154667760739867
+    },
+    {
+      "epoch": 2,
+      "loss": 1.6445984470433201,
+      "validationMacroF1": 0.1524639485423799
+    },
+    {
+      "epoch": 3,
+      "loss": 1.4590210462438649,
+      "validationMacroF1": 0.17302899854022882
+    },
+    {
+      "epoch": 4,
+      "loss": 1.3162233993924897,
+      "validationMacroF1": 0.24685542709619482
+    },
+    {
+      "epoch": 5,
+      "loss": 1.2067348669315208,
+      "validationMacroF1": 0.3188869619879014
+    },
+    {
+      "epoch": 6,
+      "loss": 1.1401527585654423,
+      "validationMacroF1": 0.29341145656935125
+    },
+    {
+      "epoch": 7,
+      "loss": 1.0903505765158554,
+      "validationMacroF1": 0.28928316352558775
+    },
+    {
+      "epoch": 8,
+      "loss": 1.038362350957147,
+      "validationMacroF1": 0.2780080244651716
+    },
+    {
+      "epoch": 9,
+      "loss": 0.9984333412400608,
+      "validationMacroF1": 0.26491447099223336
+    },
+    {
+      "epoch": 10,
+      "loss": 0.9261870302003006,
+      "validationMacroF1": 0.3000117421457324
+    },
+    {
+      "epoch": 11,
+      "loss": 0.9045751937504473,
+      "validationMacroF1": 0.4109179118924902
+    },
+    {
+      "epoch": 12,
+      "loss": 0.8601277922761852,
+      "validationMacroF1": 0.36842919867382434
+    },
+    {
+      "epoch": 13,
+      "loss": 0.7945060195593998,
+      "validationMacroF1": 0.4263330984261217
+    },
+    {
+      "epoch": 14,
+      "loss": 0.7782354827584892,
+      "validationMacroF1": 0.4413880666220907
+    },
+    {
+      "epoch": 15,
+      "loss": 0.7492149348916679,
+      "validationMacroF1": 0.3853239166801576
+    },
+    {
+      "epoch": 16,
+      "loss": 0.7073329399371969,
+      "validationMacroF1": 0.4882939904199186
+    },
+    {
+      "epoch": 17,
+      "loss": 0.7086245006528394,
+      "validationMacroF1": 0.47129700920003764
+    },
+    {
+      "epoch": 18,
+      "loss": 0.6531621341047615,
+      "validationMacroF1": 0.5035662210467421
+    },
+    {
+      "epoch": 19,
+      "loss": 0.6410795922937065,
+      "validationMacroF1": 0.5339100996282939
+    },
+    {
+      "epoch": 20,
+      "loss": 0.6134765918912559,
+      "validationMacroF1": 0.5841313545907353
+    },
+    {
+      "epoch": 21,
+      "loss": 0.6157730324514981,
+      "validationMacroF1": 0.5197744038801252
+    },
+    {
+      "epoch": 22,
+      "loss": 0.574546093570775,
+      "validationMacroF1": 0.5740272799096329
+    },
+    {
+      "epoch": 23,
+      "loss": 0.5612926524260948,
+      "validationMacroF1": 0.5829472234055657
+    },
+    {
+      "epoch": 24,
+      "loss": 0.537827396187289,
+      "validationMacroF1": 0.5846696559760856
+    },
+    {
+      "epoch": 25,
+      "loss": 0.5370665655053896,
+      "validationMacroF1": 0.5846803832580152
+    },
+    {
+      "epoch": 26,
+      "loss": 0.539015353753649,
+      "validationMacroF1": 0.5424121374501844
+    },
+    {
+      "epoch": 27,
+      "loss": 0.5236864203009112,
+      "validationMacroF1": 0.5911750569793135
+    },
+    {
+      "epoch": 28,
+      "loss": 0.47629551127039155,
+      "validationMacroF1": 0.5659123126196297
+    },
+    {
+      "epoch": 29,
+      "loss": 0.48432656197712337,
+      "validationMacroF1": 0.5868185742016016
+    },
+    {
+      "epoch": 30,
+      "loss": 0.4661096293350746,
+      "validationMacroF1": 0.5851072937279834
+    },
+    {
+      "epoch": 31,
+      "loss": 0.458170047094082,
+      "validationMacroF1": 0.6127466786087475
+    },
+    {
+      "epoch": 32,
+      "loss": 0.4472408880447519,
+      "validationMacroF1": 0.6143275244662051
+    },
+    {
+      "epoch": 33,
+      "loss": 0.44857340434501913,
+      "validationMacroF1": 0.6254553049289892
+    },
+    {
+      "epoch": 34,
+      "loss": 0.4423320796982995,
+      "validationMacroF1": 0.6032475886316077
+    },
+    {
+      "epoch": 35,
+      "loss": 0.4497317743712458,
+      "validationMacroF1": 0.6165048025436687
+    },
+    {
+      "epoch": 36,
+      "loss": 0.41758362897511186,
+      "validationMacroF1": 0.6043705027179618
+    },
+    {
+      "epoch": 37,
+      "loss": 0.3932233231848684,
+      "validationMacroF1": 0.622011343799449
+    },
+    {
+      "epoch": 38,
+      "loss": 0.4204181535490628,
+      "validationMacroF1": 0.6279119256578273
+    },
+    {
+      "epoch": 39,
+      "loss": 0.4001837444716486,
+      "validationMacroF1": 0.6082239789160284
+    },
+    {
+      "epoch": 40,
+      "loss": 0.39964253018642293,
+      "validationMacroF1": 0.6163927137161023
+    },
+    {
+      "epoch": 41,
+      "loss": 0.37845567999214963,
+      "validationMacroF1": 0.6489753586244814
+    },
+    {
+      "epoch": 42,
+      "loss": 0.3720224705235711,
+      "validationMacroF1": 0.6438741899787637
+    },
+    {
+      "epoch": 43,
+      "loss": 0.36211189473497457,
+      "validationMacroF1": 0.5818657793420597
+    },
+    {
+      "epoch": 44,
+      "loss": 0.37054429485880097,
+      "validationMacroF1": 0.6405961585802932
+    },
+    {
+      "epoch": 45,
+      "loss": 0.36250639886691655,
+      "validationMacroF1": 0.630924955960438
+    },
+    {
+      "epoch": 46,
+      "loss": 0.3716853245578963,
+      "validationMacroF1": 0.6605397859186094
+    },
+    {
+      "epoch": 47,
+      "loss": 0.35880624374438974,
+      "validationMacroF1": 0.6740684989875438
+    },
+    {
+      "epoch": 48,
+      "loss": 0.3253565517992809,
+      "validationMacroF1": 0.659356489483599
+    },
+    {
+      "epoch": 49,
+      "loss": 0.35145245646608286,
+      "validationMacroF1": 0.6721313486534609
+    },
+    {
+      "epoch": 50,
+      "loss": 0.3340828023080168,
+      "validationMacroF1": 0.6495651668742731
+    },
+    {
+      "epoch": 51,
+      "loss": 0.351356775596224,
+      "validationMacroF1": 0.6756844999373649
+    },
+    {
+      "epoch": 52,
+      "loss": 0.34665127355476905,
+      "validationMacroF1": 0.668430965098601
+    },
+    {
+      "epoch": 53,
+      "loss": 0.3126010483708875,
+      "validationMacroF1": 0.694821538467277
+    },
+    {
+      "epoch": 54,
+      "loss": 0.30447902453356773,
+      "validationMacroF1": 0.6643835505632768
+    },
+    {
+      "epoch": 55,
+      "loss": 0.2853838857905618,
+      "validationMacroF1": 0.6201141934288844
+    },
+    {
+      "epoch": 56,
+      "loss": 0.3062650037222895,
+      "validationMacroF1": 0.6126502367044407
+    },
+    {
+      "epoch": 57,
+      "loss": 0.2910771282582447,
+      "validationMacroF1": 0.661276172059787
+    },
+    {
+      "epoch": 58,
+      "loss": 0.3081849402394788,
+      "validationMacroF1": 0.6637935930138941
+    },
+    {
+      "epoch": 59,
+      "loss": 0.29866635850791273,
+      "validationMacroF1": 0.6625355348819788
+    },
+    {
+      "epoch": 60,
+      "loss": 0.28445006752836294,
+      "validationMacroF1": 0.6764810330912026
+    }
+  ],
+  "splitMetrics": {
+    "train": {
+      "count": 3660,
+      "accuracy": 0.9234972677595629,
+      "macroF1": 0.9106391961784982,
+      "perClass": {
+        "jab": {
+          "support": 943,
+          "precision": 0.9398907103825137,
+          "recall": 0.911983032873807,
+          "f1": 0.9257265877287405
+        },
+        "cross": {
+          "support": 1135,
+          "precision": 0.9800904977375565,
+          "recall": 0.9541850220264317,
+          "f1": 0.9669642857142857
+        },
+        "lead_hook": {
+          "support": 705,
+          "precision": 0.8794326241134752,
+          "recall": 0.8794326241134752,
+          "f1": 0.8794326241134752
+        },
+        "rear_hook": {
+          "support": 240,
+          "precision": 0.81640625,
+          "recall": 0.8708333333333333,
+          "f1": 0.842741935483871
+        },
+        "lead_uppercut": {
+          "support": 325,
+          "precision": 0.8739255014326648,
+          "recall": 0.9384615384615385,
+          "f1": 0.9050445103857566
+        },
+        "rear_uppercut": {
+          "support": 312,
+          "precision": 0.9181818181818182,
+          "recall": 0.9711538461538461,
+          "f1": 0.9439252336448598
+        }
+      },
+      "confusionRows": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut"
+      ],
+      "confusionColumns": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut",
+        "unknown"
+      ],
+      "confusionMatrix": [
+        [
+          860,
+          6,
+          71,
+          0,
+          6,
+          0,
+          0
+        ],
+        [
+          5,
+          1083,
+          2,
+          39,
+          3,
+          3,
+          0
+        ],
+        [
+          48,
+          0,
+          620,
+          2,
+          33,
+          2,
+          0
+        ],
+        [
+          0,
+          10,
+          1,
+          209,
+          0,
+          20,
+          0
+        ],
+        [
+          2,
+          4,
+          11,
+          1,
+          305,
+          2,
+          0
+        ],
+        [
+          0,
+          2,
+          0,
+          5,
+          2,
+          303,
+          0
+        ]
+      ],
+      "abstained": 0,
+      "perVideo": {
+        "V1": {
+          "count": 1863,
+          "accuracy": 0.9495437466451959,
+          "macroF1": 0.9417753704242827,
+          "perClass": {
+            "jab": {
+              "support": 451,
+              "precision": 0.9763593380614657,
+              "recall": 0.9157427937915743,
+              "f1": 0.9450800915331807
+            },
+            "cross": {
+              "support": 679,
+              "precision": 0.9847560975609756,
+              "recall": 0.9513991163475699,
+              "f1": 0.9677902621722847
+            },
+            "lead_hook": {
+              "support": 365,
+              "precision": 0.9107142857142857,
+              "recall": 0.9780821917808219,
+              "f1": 0.9431968295904888
+            },
+            "rear_hook": {
+              "support": 128,
+              "precision": 0.8082191780821918,
+              "recall": 0.921875,
+              "f1": 0.8613138686131386
+            },
+            "lead_uppercut": {
+              "support": 124,
+              "precision": 0.968503937007874,
+              "recall": 0.9919354838709677,
+              "f1": 0.9800796812749005
+            },
+            "rear_uppercut": {
+              "support": 116,
+              "precision": 0.9411764705882353,
+              "recall": 0.9655172413793104,
+              "f1": 0.9531914893617022
+            }
+          },
+          "confusionRows": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut"
+          ],
+          "confusionColumns": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut",
+            "unknown"
+          ],
+          "confusionMatrix": [
+            [
+              413,
+              4,
+              32,
+              0,
+              2,
+              0,
+              0
+            ],
+            [
+              4,
+              646,
+              1,
+              23,
+              2,
+              3,
+              0
+            ],
+            [
+              6,
+              0,
+              357,
+              2,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              5,
+              1,
+              118,
+              0,
+              4,
+              0
+            ],
+            [
+              0,
+              0,
+              1,
+              0,
+              123,
+              0,
+              0
+            ],
+            [
+              0,
+              1,
+              0,
+              3,
+              0,
+              112,
+              0
+            ]
+          ],
+          "abstained": 0
+        },
+        "V2": {
+          "count": 232,
+          "accuracy": 0.9655172413793104,
+          "macroF1": 0.8076623850859375,
+          "perClass": {
+            "jab": {
+              "support": 30,
+              "precision": 1.0,
+              "recall": 0.9333333333333333,
+              "f1": 0.9655172413793104
+            },
+            "cross": {
+              "support": 33,
+              "precision": 1.0,
+              "recall": 0.9090909090909091,
+              "f1": 0.9523809523809523
+            },
+            "lead_hook": {
+              "support": 53,
+              "precision": 0.9622641509433962,
+              "recall": 0.9622641509433962,
+              "f1": 0.9622641509433962
+            },
+            "rear_hook": {
+              "support": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "lead_uppercut": {
+              "support": 58,
+              "precision": 0.9661016949152542,
+              "recall": 0.9827586206896551,
+              "f1": 0.9743589743589743
+            },
+            "rear_uppercut": {
+              "support": 58,
+              "precision": 0.9830508474576272,
+              "recall": 1.0,
+              "f1": 0.9914529914529915
+            }
+          },
+          "confusionRows": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut"
+          ],
+          "confusionColumns": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut",
+            "unknown"
+          ],
+          "confusionMatrix": [
+            [
+              28,
+              0,
+              2,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              30,
+              0,
+              3,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              51,
+              0,
+              2,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              57,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              58,
+              0
+            ]
+          ],
+          "abstained": 0
+        },
+        "V3": {
+          "count": 811,
+          "accuracy": 0.9210850801479655,
+          "macroF1": 0.8519940612218767,
+          "perClass": {
+            "jab": {
+              "support": 312,
+              "precision": 0.906060606060606,
+              "recall": 0.9583333333333334,
+              "f1": 0.9314641744548287
+            },
+            "cross": {
+              "support": 354,
+              "precision": 0.9773371104815864,
+              "recall": 0.9745762711864406,
+              "f1": 0.9759547383309759
+            },
+            "lead_hook": {
+              "support": 83,
+              "precision": 0.819672131147541,
+              "recall": 0.6024096385542169,
+              "f1": 0.6944444444444445
+            },
+            "rear_hook": {
+              "support": 32,
+              "precision": 0.7647058823529411,
+              "recall": 0.8125,
+              "f1": 0.787878787878788
+            },
+            "lead_uppercut": {
+              "support": 17,
+              "precision": 0.7894736842105263,
+              "recall": 0.8823529411764706,
+              "f1": 0.8333333333333333
+            },
+            "rear_uppercut": {
+              "support": 13,
+              "precision": 0.8571428571428571,
+              "recall": 0.9230769230769231,
+              "f1": 0.888888888888889
+            }
+          },
+          "confusionRows": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut"
+          ],
+          "confusionColumns": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut",
+            "unknown"
+          ],
+          "confusionMatrix": [
+            [
+              299,
+              2,
+              10,
+              0,
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              345,
+              0,
+              8,
+              1,
+              0,
+              0
+            ],
+            [
+              30,
+              0,
+              50,
+              0,
+              2,
+              1,
+              0
+            ],
+            [
+              0,
+              5,
+              0,
+              26,
+              0,
+              1,
+              0
+            ],
+            [
+              1,
+              0,
+              1,
+              0,
+              15,
+              0,
+              0
+            ],
+            [
+              0,
+              1,
+              0,
+              0,
+              0,
+              12,
+              0
+            ]
+          ],
+          "abstained": 0
+        },
+        "V4": {
+          "count": 559,
+          "accuracy": 0.8264758497316637,
+          "macroF1": 0.8425989408047249,
+          "perClass": {
+            "jab": {
+              "support": 120,
+              "precision": 0.9183673469387755,
+              "recall": 0.75,
+              "f1": 0.8256880733944955
+            },
+            "cross": {
+              "support": 39,
+              "precision": 1.0,
+              "recall": 0.8974358974358975,
+              "f1": 0.945945945945946
+            },
+            "lead_hook": {
+              "support": 144,
+              "precision": 0.7552447552447552,
+              "recall": 0.75,
+              "f1": 0.7526132404181185
+            },
+            "rear_hook": {
+              "support": 75,
+              "precision": 0.9090909090909091,
+              "recall": 0.8,
+              "f1": 0.8510638297872342
+            },
+            "lead_uppercut": {
+              "support": 76,
+              "precision": 0.67,
+              "recall": 0.881578947368421,
+              "f1": 0.7613636363636364
+            },
+            "rear_uppercut": {
+              "support": 105,
+              "precision": 0.8717948717948718,
+              "recall": 0.9714285714285714,
+              "f1": 0.9189189189189189
+            }
+          },
+          "confusionRows": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut"
+          ],
+          "confusionColumns": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut",
+            "unknown"
+          ],
+          "confusionMatrix": [
+            [
+              90,
+              0,
+              27,
+              0,
+              3,
+              0,
+              0
+            ],
+            [
+              0,
+              35,
+              0,
+              4,
+              0,
+              0,
+              0
+            ],
+            [
+              7,
+              0,
+              108,
+              0,
+              29,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              60,
+              0,
+              15,
+              0
+            ],
+            [
+              1,
+              0,
+              8,
+              0,
+              67,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              2,
+              1,
+              102,
+              0
+            ]
+          ],
+          "abstained": 0
+        },
+        "V7": {
+          "count": 195,
+          "accuracy": 0.9128205128205128,
+          "macroF1": 0.9000712520226944,
+          "perClass": {
+            "jab": {
+              "support": 30,
+              "precision": 0.8333333333333334,
+              "recall": 1.0,
+              "f1": 0.9090909090909091
+            },
+            "cross": {
+              "support": 30,
+              "precision": 0.8709677419354839,
+              "recall": 0.9,
+              "f1": 0.8852459016393444
+            },
+            "lead_hook": {
+              "support": 60,
+              "precision": 0.9642857142857143,
+              "recall": 0.9,
+              "f1": 0.9310344827586207
+            },
+            "rear_hook": {
+              "support": 5,
+              "precision": 0.7142857142857143,
+              "recall": 1.0,
+              "f1": 0.8333333333333333
+            },
+            "lead_uppercut": {
+              "support": 50,
+              "precision": 0.9772727272727273,
+              "recall": 0.86,
+              "f1": 0.9148936170212766
+            },
+            "rear_uppercut": {
+              "support": 20,
+              "precision": 0.9047619047619048,
+              "recall": 0.95,
+              "f1": 0.9268292682926829
+            }
+          },
+          "confusionRows": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut"
+          ],
+          "confusionColumns": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut",
+            "unknown"
+          ],
+          "confusionMatrix": [
+            [
+              30,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              1,
+              27,
+              1,
+              1,
+              0,
+              0,
+              0
+            ],
+            [
+              5,
+              0,
+              54,
+              0,
+              0,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              5,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              4,
+              1,
+              1,
+              43,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              1,
+              19,
+              0
+            ]
+          ],
+          "abstained": 0
+        }
+      },
+      "uncalibrated": {
+        "ece10Bins": 0.04404525186784125,
+        "nll": 0.24474140687500467,
+        "temperature": 1.0,
+        "scope": "trimmed_positive_clips_only"
+      },
+      "calibrated": {
+        "ece10Bins": 0.05782851789197121,
+        "nll": 0.2535207012266012,
+        "temperature": 1.087648297355191,
+        "scope": "trimmed_positive_clips_only"
+      },
+      "fixedThreshold080": {
+        "accepted": 2753,
+        "coverage": 0.7521857923497268,
+        "accuracyWhenAccepted": 0.9807482746095169,
+        "note": "Descriptive only; not a validated production acceptance policy."
+      },
+      "coarseFamily": {
+        "count": 3660,
+        "accuracy": 0.9281420765027323,
+        "macroF1": 0.9184590160023932,
+        "perClass": {
+          "straight": {
+            "support": 2078,
+            "precision": 0.966864490603363,
+            "recall": 0.940808469682387,
+            "f1": 0.9536585365853659
+          },
+          "hook": {
+            "support": 945,
+            "precision": 0.865625,
+            "recall": 0.8793650793650793,
+            "f1": 0.8724409448818896
+          },
+          "uppercut": {
+            "support": 637,
+            "precision": 0.9011799410029498,
+            "recall": 0.9591836734693877,
+            "f1": 0.929277566539924
+          }
+        },
+        "confusionRows": [
+          "straight",
+          "hook",
+          "uppercut"
+        ],
+        "confusionColumns": [
+          "straight",
+          "hook",
+          "uppercut",
+          "unknown"
+        ],
+        "confusionMatrix": [
+          [
+            1955,
+            112,
+            11,
+            0
+          ],
+          [
+            58,
+            831,
+            56,
+            0
+          ],
+          [
+            9,
+            17,
+            611,
+            0
+          ]
+        ],
+        "abstained": 0
+      }
+    },
+    "validation": {
+      "count": 199,
+      "accuracy": 0.8241206030150754,
+      "macroF1": 0.694821538467277,
+      "perClass": {
+        "jab": {
+          "support": 25,
+          "precision": 0.4897959183673469,
+          "recall": 0.96,
+          "f1": 0.6486486486486486
+        },
+        "cross": {
+          "support": 32,
+          "precision": 0.9032258064516129,
+          "recall": 0.875,
+          "f1": 0.8888888888888888
+        },
+        "lead_hook": {
+          "support": 88,
+          "precision": 0.9565217391304348,
+          "recall": 0.75,
+          "f1": 0.8407643312101911
+        },
+        "rear_hook": {
+          "support": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "lead_uppercut": {
+          "support": 29,
+          "precision": 0.92,
+          "recall": 0.7931034482758621,
+          "f1": 0.851851851851852
+        },
+        "rear_uppercut": {
+          "support": 25,
+          "precision": 0.9583333333333334,
+          "recall": 0.92,
+          "f1": 0.9387755102040817
+        }
+      },
+      "confusionRows": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut"
+      ],
+      "confusionColumns": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut",
+        "unknown"
+      ],
+      "confusionMatrix": [
+        [
+          24,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          2,
+          28,
+          0,
+          1,
+          1,
+          0,
+          0
+        ],
+        [
+          20,
+          1,
+          66,
+          0,
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          2,
+          1,
+          2,
+          0,
+          23,
+          1,
+          0
+        ],
+        [
+          1,
+          1,
+          0,
+          0,
+          0,
+          23,
+          0
+        ]
+      ],
+      "abstained": 0,
+      "perVideo": {
+        "V8": {
+          "count": 199,
+          "accuracy": 0.8241206030150754,
+          "macroF1": 0.694821538467277,
+          "perClass": {
+            "jab": {
+              "support": 25,
+              "precision": 0.4897959183673469,
+              "recall": 0.96,
+              "f1": 0.6486486486486486
+            },
+            "cross": {
+              "support": 32,
+              "precision": 0.9032258064516129,
+              "recall": 0.875,
+              "f1": 0.8888888888888888
+            },
+            "lead_hook": {
+              "support": 88,
+              "precision": 0.9565217391304348,
+              "recall": 0.75,
+              "f1": 0.8407643312101911
+            },
+            "rear_hook": {
+              "support": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "lead_uppercut": {
+              "support": 29,
+              "precision": 0.92,
+              "recall": 0.7931034482758621,
+              "f1": 0.851851851851852
+            },
+            "rear_uppercut": {
+              "support": 25,
+              "precision": 0.9583333333333334,
+              "recall": 0.92,
+              "f1": 0.9387755102040817
+            }
+          },
+          "confusionRows": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut"
+          ],
+          "confusionColumns": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut",
+            "unknown"
+          ],
+          "confusionMatrix": [
+            [
+              24,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              2,
+              28,
+              0,
+              1,
+              1,
+              0,
+              0
+            ],
+            [
+              20,
+              1,
+              66,
+              0,
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              2,
+              1,
+              2,
+              0,
+              23,
+              1,
+              0
+            ],
+            [
+              1,
+              1,
+              0,
+              0,
+              0,
+              23,
+              0
+            ]
+          ],
+          "abstained": 0
+        }
+      },
+      "uncalibrated": {
+        "ece10Bins": 0.05760184565183932,
+        "nll": 0.5946307034025227,
+        "temperature": 1.0,
+        "scope": "trimmed_positive_clips_only"
+      },
+      "calibrated": {
+        "ece10Bins": 0.053700565818257356,
+        "nll": 0.5817828324051788,
+        "temperature": 1.087648297355191,
+        "scope": "trimmed_positive_clips_only"
+      },
+      "fixedThreshold080": {
+        "accepted": 132,
+        "coverage": 0.6633165829145728,
+        "accuracyWhenAccepted": 0.8863636363636364,
+        "note": "Descriptive only; not a validated production acceptance policy."
+      },
+      "coarseFamily": {
+        "count": 199,
+        "accuracy": 0.8391959798994975,
+        "macroF1": 0.8454618550270654,
+        "perClass": {
+          "straight": {
+            "support": 57,
+            "precision": 0.675,
+            "recall": 0.9473684210526315,
+            "f1": 0.7883211678832116
+          },
+          "hook": {
+            "support": 88,
+            "precision": 0.9428571428571428,
+            "recall": 0.75,
+            "f1": 0.8354430379746834
+          },
+          "uppercut": {
+            "support": 54,
+            "precision": 0.9591836734693877,
+            "recall": 0.8703703703703703,
+            "f1": 0.912621359223301
+          }
+        },
+        "confusionRows": [
+          "straight",
+          "hook",
+          "uppercut"
+        ],
+        "confusionColumns": [
+          "straight",
+          "hook",
+          "uppercut",
+          "unknown"
+        ],
+        "confusionMatrix": [
+          [
+            54,
+            2,
+            1,
+            0
+          ],
+          [
+            21,
+            66,
+            1,
+            0
+          ],
+          [
+            5,
+            2,
+            47,
+            0
+          ]
+        ],
+        "abstained": 0
+      }
+    },
+    "calibration": {
+      "count": 595,
+      "accuracy": 0.8571428571428571,
+      "macroF1": 0.7487943623560082,
+      "perClass": {
+        "jab": {
+          "support": 234,
+          "precision": 0.8659003831417624,
+          "recall": 0.9658119658119658,
+          "f1": 0.9131313131313132
+        },
+        "cross": {
+          "support": 140,
+          "precision": 0.9183673469387755,
+          "recall": 0.9642857142857143,
+          "f1": 0.9407665505226481
+        },
+        "lead_hook": {
+          "support": 69,
+          "precision": 0.84375,
+          "recall": 0.782608695652174,
+          "f1": 0.81203007518797
+        },
+        "rear_hook": {
+          "support": 39,
+          "precision": 0.68,
+          "recall": 0.4358974358974359,
+          "f1": 0.53125
+        },
+        "lead_uppercut": {
+          "support": 39,
+          "precision": 1.0,
+          "recall": 0.3076923076923077,
+          "f1": 0.47058823529411764
+        },
+        "rear_uppercut": {
+          "support": 74,
+          "precision": 0.7674418604651163,
+          "recall": 0.8918918918918919,
+          "f1": 0.825
+        }
+      },
+      "confusionRows": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut"
+      ],
+      "confusionColumns": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut",
+        "unknown"
+      ],
+      "confusionMatrix": [
+        [
+          226,
+          2,
+          3,
+          3,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          135,
+          0,
+          4,
+          0,
+          1,
+          0
+        ],
+        [
+          15,
+          0,
+          54,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          3,
+          0,
+          17,
+          0,
+          19,
+          0
+        ],
+        [
+          20,
+          0,
+          7,
+          0,
+          12,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          0,
+          1,
+          0,
+          66,
+          0
+        ]
+      ],
+      "abstained": 0,
+      "perVideo": {
+        "V5": {
+          "count": 595,
+          "accuracy": 0.8571428571428571,
+          "macroF1": 0.7487943623560082,
+          "perClass": {
+            "jab": {
+              "support": 234,
+              "precision": 0.8659003831417624,
+              "recall": 0.9658119658119658,
+              "f1": 0.9131313131313132
+            },
+            "cross": {
+              "support": 140,
+              "precision": 0.9183673469387755,
+              "recall": 0.9642857142857143,
+              "f1": 0.9407665505226481
+            },
+            "lead_hook": {
+              "support": 69,
+              "precision": 0.84375,
+              "recall": 0.782608695652174,
+              "f1": 0.81203007518797
+            },
+            "rear_hook": {
+              "support": 39,
+              "precision": 0.68,
+              "recall": 0.4358974358974359,
+              "f1": 0.53125
+            },
+            "lead_uppercut": {
+              "support": 39,
+              "precision": 1.0,
+              "recall": 0.3076923076923077,
+              "f1": 0.47058823529411764
+            },
+            "rear_uppercut": {
+              "support": 74,
+              "precision": 0.7674418604651163,
+              "recall": 0.8918918918918919,
+              "f1": 0.825
+            }
+          },
+          "confusionRows": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut"
+          ],
+          "confusionColumns": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut",
+            "unknown"
+          ],
+          "confusionMatrix": [
+            [
+              226,
+              2,
+              3,
+              3,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              135,
+              0,
+              4,
+              0,
+              1,
+              0
+            ],
+            [
+              15,
+              0,
+              54,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              3,
+              0,
+              17,
+              0,
+              19,
+              0
+            ],
+            [
+              20,
+              0,
+              7,
+              0,
+              12,
+              0,
+              0
+            ],
+            [
+              0,
+              7,
+              0,
+              1,
+              0,
+              66,
+              0
+            ]
+          ],
+          "abstained": 0
+        }
+      },
+      "uncalibrated": {
+        "ece10Bins": 0.02607986366537586,
+        "nll": 0.4314139854215571,
+        "temperature": 1.0,
+        "scope": "trimmed_positive_clips_only"
+      },
+      "calibrated": {
+        "ece10Bins": 0.032002891905039924,
+        "nll": 0.4298527375651933,
+        "temperature": 1.087648297355191,
+        "scope": "trimmed_positive_clips_only"
+      },
+      "fixedThreshold080": {
+        "accepted": 390,
+        "coverage": 0.6554621848739496,
+        "accuracyWhenAccepted": 0.9461538461538461,
+        "note": "Descriptive only; not a validated production acceptance policy."
+      },
+      "coarseFamily": {
+        "count": 595,
+        "accuracy": 0.8605042016806723,
+        "macroF1": 0.796179140811727,
+        "perClass": {
+          "straight": {
+            "support": 374,
+            "precision": 0.8897058823529411,
+            "recall": 0.9705882352941176,
+            "f1": 0.9283887468030689
+          },
+          "hook": {
+            "support": 108,
+            "precision": 0.797752808988764,
+            "recall": 0.6574074074074074,
+            "f1": 0.7208121827411168
+          },
+          "uppercut": {
+            "support": 113,
+            "precision": 0.7959183673469388,
+            "recall": 0.6902654867256637,
+            "f1": 0.7393364928909952
+          }
+        },
+        "confusionRows": [
+          "straight",
+          "hook",
+          "uppercut"
+        ],
+        "confusionColumns": [
+          "straight",
+          "hook",
+          "uppercut",
+          "unknown"
+        ],
+        "confusionMatrix": [
+          [
+            363,
+            10,
+            1,
+            0
+          ],
+          [
+            18,
+            71,
+            19,
+            0
+          ],
+          [
+            27,
+            8,
+            78,
+            0
+          ]
+        ],
+        "abstained": 0
+      }
+    },
+    "test": {
+      "count": 300,
+      "accuracy": 0.47,
+      "macroF1": 0.37861615643682933,
+      "perClass": {
+        "jab": {
+          "support": 80,
+          "precision": 0.4217687074829932,
+          "recall": 0.775,
+          "f1": 0.5462555066079297
+        },
+        "cross": {
+          "support": 63,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "lead_hook": {
+          "support": 45,
+          "precision": 0.6086956521739131,
+          "recall": 0.3111111111111111,
+          "f1": 0.411764705882353
+        },
+        "rear_hook": {
+          "support": 17,
+          "precision": 0.5,
+          "recall": 0.11764705882352941,
+          "f1": 0.19047619047619047
+        },
+        "lead_uppercut": {
+          "support": 35,
+          "precision": 0.25,
+          "recall": 0.4857142857142857,
+          "f1": 0.33009708737864074
+        },
+        "rear_uppercut": {
+          "support": 60,
+          "precision": 0.8214285714285714,
+          "recall": 0.7666666666666667,
+          "f1": 0.793103448275862
+        }
+      },
+      "confusionRows": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut"
+      ],
+      "confusionColumns": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut",
+        "unknown"
+      ],
+      "confusionMatrix": [
+        [
+          62,
+          0,
+          1,
+          0,
+          16,
+          1,
+          0
+        ],
+        [
+          49,
+          0,
+          1,
+          0,
+          4,
+          9,
+          0
+        ],
+        [
+          21,
+          0,
+          14,
+          2,
+          8,
+          0,
+          0
+        ],
+        [
+          2,
+          2,
+          2,
+          2,
+          9,
+          0,
+          0
+        ],
+        [
+          13,
+          0,
+          5,
+          0,
+          17,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          14,
+          46,
+          0
+        ]
+      ],
+      "abstained": 0,
+      "perVideo": {
+        "V9": {
+          "count": 149,
+          "accuracy": 0.5234899328859061,
+          "macroF1": 0.3673976608187135,
+          "perClass": {
+            "jab": {
+              "support": 31,
+              "precision": 0.34831460674157305,
+              "recall": 1.0,
+              "f1": 0.5166666666666667
+            },
+            "cross": {
+              "support": 27,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "lead_hook": {
+              "support": 20,
+              "precision": 0.4,
+              "recall": 0.2,
+              "f1": 0.26666666666666666
+            },
+            "rear_hook": {
+              "support": 11,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "lead_uppercut": {
+              "support": 25,
+              "precision": 0.6153846153846154,
+              "recall": 0.32,
+              "f1": 0.4210526315789474
+            },
+            "rear_uppercut": {
+              "support": 35,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0
+            }
+          },
+          "confusionRows": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut"
+          ],
+          "confusionColumns": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut",
+            "unknown"
+          ],
+          "confusionMatrix": [
+            [
+              31,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              27,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              16,
+              0,
+              4,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              2,
+              2,
+              2,
+              0,
+              5,
+              0,
+              0
+            ],
+            [
+              13,
+              0,
+              4,
+              0,
+              8,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              35,
+              0
+            ]
+          ],
+          "abstained": 0
+        },
+        "V10": {
+          "count": 151,
+          "accuracy": 0.41721854304635764,
+          "macroF1": 0.3768231647164045,
+          "perClass": {
+            "jab": {
+              "support": 49,
+              "precision": 0.5344827586206896,
+              "recall": 0.6326530612244898,
+              "f1": 0.5794392523364486
+            },
+            "cross": {
+              "support": 36,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "lead_hook": {
+              "support": 25,
+              "precision": 0.7692307692307693,
+              "recall": 0.4,
+              "f1": 0.5263157894736842
+            },
+            "rear_hook": {
+              "support": 6,
+              "precision": 0.5,
+              "recall": 0.3333333333333333,
+              "f1": 0.4
+            },
+            "lead_uppercut": {
+              "support": 10,
+              "precision": 0.16363636363636364,
+              "recall": 0.9,
+              "f1": 0.27692307692307694
+            },
+            "rear_uppercut": {
+              "support": 25,
+              "precision": 0.5238095238095238,
+              "recall": 0.44,
+              "f1": 0.4782608695652174
+            }
+          },
+          "confusionRows": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut"
+          ],
+          "confusionColumns": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut",
+            "unknown"
+          ],
+          "confusionMatrix": [
+            [
+              31,
+              0,
+              1,
+              0,
+              16,
+              1,
+              0
+            ],
+            [
+              22,
+              0,
+              1,
+              0,
+              4,
+              9,
+              0
+            ],
+            [
+              5,
+              0,
+              10,
+              2,
+              8,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              2,
+              4,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              1,
+              0,
+              9,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              14,
+              11,
+              0
+            ]
+          ],
+          "abstained": 0
+        }
+      },
+      "uncalibrated": {
+        "ece10Bins": 0.24925130803385903,
+        "nll": 1.7456444730964615,
+        "temperature": 1.0,
+        "scope": "trimmed_positive_clips_only"
+      },
+      "calibrated": {
+        "ece10Bins": 0.22690689595269944,
+        "nll": 1.668147115107216,
+        "temperature": 1.087648297355191,
+        "scope": "trimmed_positive_clips_only"
+      },
+      "fixedThreshold080": {
+        "accepted": 98,
+        "coverage": 0.32666666666666666,
+        "accuracyWhenAccepted": 0.6836734693877551,
+        "note": "Descriptive only; not a validated production acceptance policy."
+      },
+      "coarseFamily": {
+        "count": 300,
+        "accuracy": 0.69,
+        "macroF1": 0.6353530689378003,
+        "perClass": {
+          "straight": {
+            "support": 143,
+            "precision": 0.738255033557047,
+            "recall": 0.7692307692307693,
+            "f1": 0.7534246575342467
+          },
+          "hook": {
+            "support": 62,
+            "precision": 0.7407407407407407,
+            "recall": 0.3225806451612903,
+            "f1": 0.449438202247191
+          },
+          "uppercut": {
+            "support": 95,
+            "precision": 0.6209677419354839,
+            "recall": 0.8105263157894737,
+            "f1": 0.7031963470319634
+          }
+        },
+        "confusionRows": [
+          "straight",
+          "hook",
+          "uppercut"
+        ],
+        "confusionColumns": [
+          "straight",
+          "hook",
+          "uppercut",
+          "unknown"
+        ],
+        "confusionMatrix": [
+          [
+            110,
+            2,
+            31,
+            0
+          ],
+          [
+            26,
+            20,
+            16,
+            0
+          ],
+          [
+            13,
+            5,
+            77,
+            0
+          ]
+        ],
+        "abstained": 0
+      }
+    }
+  },
+  "limitations": [
+    "Research mirror split, not the official BoxingVI benchmark.",
+    "Annotated positive clips have oracle boundaries; these scores are not continuous-video detection accuracy.",
+    "Same athlete could appear across source videos; identity metadata is unavailable.",
+    "V8 has no rear_hook; validation macro F1 includes its zero-support class as zero.",
+    "Calibration on one video does not establish population-wide calibration.",
+    "Technique identity is not technique correctness. No scoring/coaching validation labels exist."
+  ]
+}

@@ -76,7 +76,8 @@ export function PosePlayer({ analysis, stance, cameraAngle, sourceUrl, title, cl
     const [poseData, setPoseData] = useState<PoseDataState>(() => (sourceUrl && analysis.resultUrl ? { status: "loading" } : { status: "none" }));
 
     const { detections: analysisDetections, movementEvents, durationMs } = analysis;
-    const detections = useMemo(() => byStart(analysisDetections), [analysisDetections]);
+    // Evidence mode does not decorate the footage with unvalidated strike/angle claims.
+    const detections = useMemo(() => byStart(analysis.movementEvidence ? [] : analysisDetections), [analysis.movementEvidence, analysisDetections]);
     const reconstruction = sourceUrl === null;
     // Only the reconstruction needs the synthetic fighter; review updates to findings keep the same sampler.
     const sampler = useMemo(

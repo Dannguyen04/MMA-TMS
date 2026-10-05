@@ -17,6 +17,10 @@ build/
 *.onnx
 runs/
 
+# Public datasets are acquired locally and must not be committed.
+data/public/
+data/manifests/*.json
+
 # Temp files
 /tmp/
 *.log

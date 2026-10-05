@@ -19,14 +19,14 @@ export const HIGH_CONFIDENCE_THRESHOLD = 0.8;
 
 export type ConfidenceBand = "high" | "medium" | "low";
 
-export function confidenceBand(confidence: number, lowThreshold = LOW_CONFIDENCE_THRESHOLD): ConfidenceBand {
-    if (confidence < lowThreshold) return "low";
+export function confidenceBand(confidence: number | null, lowThreshold = LOW_CONFIDENCE_THRESHOLD): ConfidenceBand {
+    if (confidence === null || confidence < lowThreshold) return "low";
     if (confidence < HIGH_CONFIDENCE_THRESHOLD) return "medium";
     return "high";
 }
 
-export function isLowConfidence(confidence: number, lowThreshold = LOW_CONFIDENCE_THRESHOLD): boolean {
-    return confidence < lowThreshold;
+export function isLowConfidence(confidence: number | null, lowThreshold = LOW_CONFIDENCE_THRESHOLD): boolean {
+    return confidence === null || confidence < lowThreshold;
 }
 
 /* ─── Goals ───────────────────────────────────────────────────────────────── */

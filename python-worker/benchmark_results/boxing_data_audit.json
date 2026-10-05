@@ -1,0 +1,247 @@
+{
+  "sourceRepository": "https://github.com/leonardosm14/boxe.ml",
+  "sourceCommit": "96f3a7d0716040682381fb63f80afac96f74cfa6",
+  "upstream": "https://github.com/Bikudebug/BoxingVI",
+  "inputHashes": {
+    "clean_annotation_data/V1.csv": "7a2f9a2b9ab6b9901d95c24fb7f8eb6a07f07942058ad7667516699c1bca377d",
+    "skeleton_data/V1.npy": "48383eaafc3a1725df150f03f24156cffee0eb24279891ccaca863532bf6325e",
+    "clean_annotation_data/V2.csv": "3c3c14e34a6a7f69593d731388f0a89d6e84e48fc50f8c60acddf6e7324fc226",
+    "skeleton_data/V2.npy": "8d988de999d6ec1e4ec2f6156e1a9f0fa86d55e638ffe9c4efbf9a876feb4b1a",
+    "clean_annotation_data/V3.csv": "bb8aacbf49ee5a378e0d76a2ff1bcb3e20f5581e84fae34a4f5336b75f40dc84",
+    "skeleton_data/V3.npy": "3b7534941afa3ee9860bb8ea5345ed867b4fca8586dc9d08555c4b51c80d130a",
+    "clean_annotation_data/V4.csv": "86117d8196be5f1463d3b2b0de4734cda4baa10d90ba18e1628149be0407605d",
+    "skeleton_data/V4.npy": "4beadbd620db3e3875ff4ba9f38328931d722e76b8691b598520f232803fb3a4",
+    "clean_annotation_data/V7.csv": "3816baa6e48c34a60cd88cc4e42a2dc86b496d192b9159c01cff25db6ea90061",
+    "skeleton_data/V7.npy": "f9e1fe171f15c4c93587fcb4f7eafeb00348d659438a2b80a1bf798988f77066",
+    "clean_annotation_data/V8.csv": "04601cd64897df1b0da10b789fce1028e906e134db9c6f8dbefb3529092c78e0",
+    "skeleton_data/V8.npy": "a5a3265ac22150ea7142fcd1a102294469226c8485c86b4a8258ab07a88cf098",
+    "clean_annotation_data/V5.csv": "4133293703edd858ba40f3f194ba9f558ed9925d61c922bd03c4e3fa63d8a453",
+    "skeleton_data/V5.npy": "961f905f8131efda649ec6ef247099efeb39ebb565cdbe4157c86c3eaf858095",
+    "clean_annotation_data/V9.csv": "2e339550daf3033debabcb4a31ff08fcca008dba02cbcc3c75d31a9e25192125",
+    "skeleton_data/V9.npy": "407c5e90d22d96496ac62bcaadb5ce763dd2e83d0b834ad2c3bacc775c57f2d5",
+    "clean_annotation_data/V10.csv": "876eb6c05c54c6438994f2855fa75e077f16261c68e10986c53663d2e12fc819",
+    "skeleton_data/V10.npy": "7e3376303d7207f0a08602ca8d979516e3ab9651cbe9b225f50a3248bfaa72b6",
+    "skeleton_data/V6.npy": "70232bd51736ed59e869921c14fefb59972d1cb8814d76988ce724888d21bafd",
+    "clean_annotation_data/V6.csv": "cfd7be5d48c0c9def9c21955bf7607f31fef656cfd1816788484bfe944ef4c8e",
+    "adam.mp4": "4398c790c6b7139d2cec90aa8678ab4a0b0b44afcbf45c64d0124f31111f781d",
+    "adam_gt.csv": "e7df3f784466f311a84b7d7d6aa6449e7eea5f9c3f91a1d512281b41769fdefb",
+    "LICENSE": "627cf3d4e14999a7e74cf5dc8a500dccba3dddc054034828334417466a92ea60",
+    "NOTICES.md": "7aeec27edb6fc87441a786d823721c54b37b1b19aa4638e37de3352c18dd363f"
+  },
+  "splitPolicy": {
+    "train": [
+      "V1",
+      "V2",
+      "V3",
+      "V4",
+      "V7"
+    ],
+    "validation": [
+      "V8"
+    ],
+    "calibration": [
+      "V5"
+    ],
+    "test": [
+      "V9",
+      "V10"
+    ]
+  },
+  "officialBenchmarkSplit": false,
+  "fighterIndependenceVerified": false,
+  "commercialDataRightsVerified": false,
+  "excluded": [
+    {
+      "video": "V6",
+      "reason": "INCOMPATIBLE_FRAME_LEVEL_SCHEMA"
+    }
+  ],
+  "videos": [
+    {
+      "video": "V1",
+      "split": "train",
+      "sourceRows": 1866,
+      "accepted": 1863,
+      "classes": {
+        "jab": 451,
+        "cross": 679,
+        "lead_uppercut": 124,
+        "lead_hook": 365,
+        "rear_uppercut": 116,
+        "rear_hook": 128
+      },
+      "rejected": [
+        {
+          "row": 787,
+          "reason": "Insufficient pose frames"
+        },
+        {
+          "row": 1166,
+          "reason": "Insufficient pose frames"
+        },
+        {
+          "row": 1204,
+          "reason": "Insufficient pose frames"
+        }
+      ]
+    },
+    {
+      "video": "V2",
+      "split": "train",
+      "sourceRows": 232,
+      "accepted": 232,
+      "classes": {
+        "jab": 30,
+        "cross": 33,
+        "lead_hook": 53,
+        "lead_uppercut": 58,
+        "rear_uppercut": 58
+      },
+      "rejected": []
+    },
+    {
+      "video": "V3",
+      "split": "train",
+      "sourceRows": 815,
+      "accepted": 811,
+      "classes": {
+        "jab": 312,
+        "cross": 354,
+        "lead_uppercut": 17,
+        "rear_hook": 32,
+        "lead_hook": 83,
+        "rear_uppercut": 13
+      },
+      "rejected": [
+        {
+          "row": 260,
+          "reason": "INVALID_SOURCE_INTERVAL"
+        },
+        {
+          "row": 295,
+          "reason": "INVALID_SOURCE_INTERVAL"
+        },
+        {
+          "row": 332,
+          "reason": "Insufficient pose frames"
+        },
+        {
+          "row": 625,
+          "reason": "Insufficient pose frames"
+        }
+      ]
+    },
+    {
+      "video": "V4",
+      "split": "train",
+      "sourceRows": 560,
+      "accepted": 559,
+      "classes": {
+        "jab": 120,
+        "rear_hook": 75,
+        "lead_hook": 144,
+        "cross": 39,
+        "rear_uppercut": 105,
+        "lead_uppercut": 76
+      },
+      "rejected": [
+        {
+          "row": 66,
+          "reason": "Insufficient pose frames"
+        }
+      ]
+    },
+    {
+      "video": "V7",
+      "split": "train",
+      "sourceRows": 195,
+      "accepted": 195,
+      "classes": {
+        "jab": 30,
+        "lead_hook": 60,
+        "rear_uppercut": 20,
+        "cross": 30,
+        "lead_uppercut": 50,
+        "rear_hook": 5
+      },
+      "rejected": []
+    },
+    {
+      "video": "V8",
+      "split": "validation",
+      "sourceRows": 199,
+      "accepted": 199,
+      "classes": {
+        "jab": 25,
+        "cross": 32,
+        "lead_uppercut": 29,
+        "rear_uppercut": 25,
+        "lead_hook": 88
+      },
+      "rejected": []
+    },
+    {
+      "video": "V5",
+      "split": "calibration",
+      "sourceRows": 598,
+      "accepted": 595,
+      "classes": {
+        "jab": 234,
+        "cross": 140,
+        "rear_uppercut": 74,
+        "lead_uppercut": 39,
+        "rear_hook": 39,
+        "lead_hook": 69
+      },
+      "rejected": [
+        {
+          "row": 321,
+          "reason": "INVALID_SOURCE_INTERVAL"
+        },
+        {
+          "row": 440,
+          "reason": "Insufficient pose frames"
+        },
+        {
+          "row": 534,
+          "reason": "INVALID_SOURCE_INTERVAL"
+        }
+      ]
+    },
+    {
+      "video": "V9",
+      "split": "test",
+      "sourceRows": 149,
+      "accepted": 149,
+      "classes": {
+        "jab": 31,
+        "cross": 27,
+        "lead_uppercut": 25,
+        "rear_uppercut": 35,
+        "lead_hook": 20,
+        "rear_hook": 11
+      },
+      "rejected": []
+    },
+    {
+      "video": "V10",
+      "split": "test",
+      "sourceRows": 152,
+      "accepted": 151,
+      "classes": {
+        "cross": 36,
+        "lead_hook": 25,
+        "jab": 49,
+        "rear_hook": 6,
+        "lead_uppercut": 10,
+        "rear_uppercut": 25
+      },
+      "rejected": [
+        {
+          "row": 121,
+          "reason": "INVALID_SOURCE_INTERVAL"
+        }
+      ]
+    }
+  ]
+}

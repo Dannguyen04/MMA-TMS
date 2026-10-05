@@ -153,9 +153,10 @@ export const VIDEO_TRAINING_TYPE_HINTS: Record<VideoTrainingType, string> = {
 
 export const TECHNIQUES: Technique[] = ["jab", "cross", "hook", "kick", "combination", "footwork", "guard", "head_movement"];
 
-export const STRIKE_TYPES: StrikeType[] = ["jab", "cross", "hook", "kick"];
+export const STRIKE_TYPES: StrikeType[] = ["punch", "jab", "cross", "hook", "kick"];
 
-export const TECHNIQUE_LABELS: Record<Technique, string> = {
+export const TECHNIQUE_LABELS: Record<Technique | StrikeType, string> = {
+    punch: "Punch (unclassified)",
     jab: "Jab",
     cross: "Cross",
     hook: "Hook",

@@ -1,0 +1,3296 @@
+{
+  "schemaVersion": "1.0.0",
+  "purpose": "external_diagnostic_not_production_acceptance",
+  "source": {
+    "repository": "https://github.com/leonardosm14/boxe.ml",
+    "commit": "96f3a7d0716040682381fb63f80afac96f74cfa6",
+    "video": "videos/adam.mp4",
+    "annotation": "evaluation/adam_gt.csv"
+  },
+  "inputHashes": {
+    "video": "4398c790c6b7139d2cec90aa8678ab4a0b0b44afcbf45c64d0124f31111f781d",
+    "annotation": "e7df3f784466f311a84b7d7d6aa6449e7eea5f9c3f91a1d512281b41769fdefb",
+    "inference": "7a3c4232b5f0e9dc8c425270dfc176ef0b5720cdaf3d3e54645d2acfcb24c6e1"
+  },
+  "poseModelSha256": "c6fa93dd1ee4a2c18c900a45c1d864a1c6f7aba75d84f91648a30b7fb641d212",
+  "evaluationRuntimeHashes": {
+    "process_video.py": "a1fa3afa2f4032b7feb2a3f1b3af65e34c2d0a4a13f80141fb6520761da0a5c3",
+    "pipeline/strike_events.py": "a090b28f8da98823798d97d2daa20d05da69456bdc4856860aefa99d22e86765",
+    "pipeline/boxing_research.py": "11a52401638b4f4fa64ce742c3e4ffc5b579d4fb20269f7b9b894ca975733a39",
+    "evaluate_external_boxing.py": "f47187f12aa67e123f121a2e38acb1a41d30b827f283d63c9846938b107326c6"
+  },
+  "cachedInferenceRuntimeVerified": false,
+  "frameConvention": "zero_based_inclusive_upstream_evaluator",
+  "annotationCount": 18,
+  "fps": 30.0,
+  "processedFrames": 597,
+  "lastProcessedFrame": 596,
+  "groundTruth": [
+    {
+      "id": "0",
+      "startFrame": 1,
+      "endFrame": 39,
+      "technique": "jab",
+      "validInterval": true
+    },
+    {
+      "id": "1",
+      "startFrame": 42,
+      "endFrame": 92,
+      "technique": "cross",
+      "validInterval": true
+    },
+    {
+      "id": "2",
+      "startFrame": 93,
+      "endFrame": 139,
+      "technique": "lead_hook",
+      "validInterval": true
+    },
+    {
+      "id": "3",
+      "startFrame": 144,
+      "endFrame": 189,
+      "technique": "rear_hook",
+      "validInterval": true
+    },
+    {
+      "id": "4",
+      "startFrame": 192,
+      "endFrame": 240,
+      "technique": "lead_uppercut",
+      "validInterval": true
+    },
+    {
+      "id": "5",
+      "startFrame": 243,
+      "endFrame": 286,
+      "technique": "rear_uppercut",
+      "validInterval": true
+    },
+    {
+      "id": "6",
+      "startFrame": 293,
+      "endFrame": 311,
+      "technique": "jab",
+      "validInterval": true
+    },
+    {
+      "id": "7",
+      "startFrame": 311,
+      "endFrame": 325,
+      "technique": "cross",
+      "validInterval": true
+    },
+    {
+      "id": "8",
+      "startFrame": 327,
+      "endFrame": 348,
+      "technique": "lead_hook",
+      "validInterval": true
+    },
+    {
+      "id": "9",
+      "startFrame": 349,
+      "endFrame": 364,
+      "technique": "rear_hook",
+      "validInterval": true
+    },
+    {
+      "id": "10",
+      "startFrame": 368,
+      "endFrame": 388,
+      "technique": "lead_uppercut",
+      "validInterval": true
+    },
+    {
+      "id": "11",
+      "startFrame": 390,
+      "endFrame": 404,
+      "technique": "rear_uppercut",
+      "validInterval": true
+    },
+    {
+      "id": "12",
+      "startFrame": 424,
+      "endFrame": 435,
+      "technique": "jab",
+      "validInterval": true
+    },
+    {
+      "id": "13",
+      "startFrame": 435,
+      "endFrame": 443,
+      "technique": "cross",
+      "validInterval": true
+    },
+    {
+      "id": "14",
+      "startFrame": 443,
+      "endFrame": 453,
+      "technique": "lead_hook",
+      "validInterval": true
+    },
+    {
+      "id": "15",
+      "startFrame": 453,
+      "endFrame": 460,
+      "technique": "rear_hook",
+      "validInterval": true
+    },
+    {
+      "id": "16",
+      "startFrame": 462,
+      "endFrame": 473,
+      "technique": "lead_uppercut",
+      "validInterval": true
+    },
+    {
+      "id": "17",
+      "startFrame": 474,
+      "endFrame": 483,
+      "technique": "rear_uppercut",
+      "validInterval": true
+    }
+  ],
+  "productionEligible": false,
+  "limitations": [
+    "One external video, not representative of athlete/camera population.",
+    "Annotations are upstream single-source labels, not independently coach-adjudicated here.",
+    "Unmatched predictions count as false positives under assumed exhaustive annotation; exhaustiveness is unverified.",
+    "Temporal IoU is not impact-timing accuracy. Source has no impact or technique-quality labels.",
+    "Commercial media and upstream data rights remain unverified.",
+    "Research classifier has AlphaPose-to-YOLO pose-source and image-aspect domain shift."
+  ],
+  "researchModel": {
+    "schemaVersion": "1.0.0",
+    "modelId": "boxing-pose-tcn-research-v1",
+    "mode": "research_only",
+    "featureVersion": "body_relative_image_pose_v1",
+    "labels": [
+      "jab",
+      "cross",
+      "lead_hook",
+      "rear_hook",
+      "lead_uppercut",
+      "rear_uppercut"
+    ],
+    "seed": 20261003,
+    "temperature": 1.087648297355191,
+    "weightsSha256": "23898c2a5f646e3a0a1a2700cd97e413b0ae801debd8bf6647a66d391142fee1",
+    "dataAuditSha256": "b28208158fe958d0e77171b0f371aef5b7fb511dcd9cf40c3130c053830e6558",
+    "productionEligible": false,
+    "blockedReasons": [
+      "COMMERCIAL_DATA_RIGHTS_UNVERIFIED",
+      "FIGHTER_INDEPENDENCE_UNVERIFIED",
+      "NO_BACKGROUND_TRAINING",
+      "NO_COACH_QUALITY_LABELS",
+      "NO_INDEPENDENT_PRODUCTION_ACCEPTANCE",
+      "POSE_SOURCE_DOMAIN_SHIFT"
+    ],
+    "sourceHashes": {
+      "train_boxing_research.py": "f7ddfc8b6288e21adfa623c0b9eca0ea4219d10b73bad9053c385c01d6e24fb9",
+      "pipeline/boxing_research.py": "11a52401638b4f4fa64ce742c3e4ffc5b579d4fb20269f7b9b894ca975733a39"
+    }
+  },
+  "oracleBoundaryClassifier": {
+    "allCandidates": {
+      "count": 18,
+      "accuracy": 0.3333333333333333,
+      "macroF1": 0.22142857142857142,
+      "perClass": {
+        "jab": {
+          "support": 3,
+          "precision": 0.5,
+          "recall": 0.3333333333333333,
+          "f1": 0.4
+        },
+        "cross": {
+          "support": 3,
+          "precision": 0.2727272727272727,
+          "recall": 1.0,
+          "f1": 0.42857142857142855
+        },
+        "lead_hook": {
+          "support": 3,
+          "precision": 0.4,
+          "recall": 0.6666666666666666,
+          "f1": 0.5
+        },
+        "rear_hook": {
+          "support": 3,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "lead_uppercut": {
+          "support": 3,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "rear_uppercut": {
+          "support": 3,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        }
+      },
+      "confusionRows": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut"
+      ],
+      "confusionColumns": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut",
+        "unknown"
+      ],
+      "confusionMatrix": [
+        [
+          1,
+          2,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          3,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          2,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          1,
+          1,
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          3,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          2,
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "abstained": 0
+    },
+    "withAbstention": {
+      "count": 18,
+      "accuracy": 0.2222222222222222,
+      "macroF1": 0.1346153846153846,
+      "perClass": {
+        "jab": {
+          "support": 3,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "cross": {
+          "support": 3,
+          "precision": 0.2,
+          "recall": 0.6666666666666666,
+          "f1": 0.30769230769230765
+        },
+        "lead_hook": {
+          "support": 3,
+          "precision": 0.4,
+          "recall": 0.6666666666666666,
+          "f1": 0.5
+        },
+        "rear_hook": {
+          "support": 3,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "lead_uppercut": {
+          "support": 3,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "rear_uppercut": {
+          "support": 3,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        }
+      },
+      "confusionRows": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut"
+      ],
+      "confusionColumns": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut",
+        "unknown"
+      ],
+      "confusionMatrix": [
+        [
+          0,
+          2,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        [
+          0,
+          2,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        [
+          0,
+          1,
+          2,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          1,
+          1,
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          3,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          2,
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "abstained": 2
+    },
+    "predictions": [
+      {
+        "technique": "unknown",
+        "candidate": "jab",
+        "researchSoftmax": 0.5514709949715177,
+        "confidence": null,
+        "reason": "LOW_RESEARCH_PROBABILITY"
+      },
+      {
+        "technique": "unknown",
+        "candidate": "cross",
+        "researchSoftmax": 0.6167512639748457,
+        "confidence": null,
+        "reason": "LOW_RESEARCH_PROBABILITY"
+      },
+      {
+        "technique": "lead_hook",
+        "candidate": "lead_hook",
+        "researchSoftmax": 0.9976418476445958,
+        "confidence": null,
+        "reason": "RESEARCH_ONLY_ACCEPTED_AT_FIXED_THRESHOLD"
+      },
+      {
+        "technique": "cross",
+        "candidate": "cross",
+        "researchSoftmax": 0.994640607313673,
+        "confidence": null,
+        "reason": "RESEARCH_ONLY_ACCEPTED_AT_FIXED_THRESHOLD"
+      },
+      {
+        "technique": "cross",
+        "candidate": "cross",
+        "researchSoftmax": 0.8796887003617365,
+        "confidence": null,
+        "reason": "RESEARCH_ONLY_ACCEPTED_AT_FIXED_THRESHOLD"
+      },
+      {
+        "technique": "lead_hook",
+        "candidate": "lead_hook",
+        "researchSoftmax": 0.9978396427672181,
+        "confidence": null,
+        "reason": "RESEARCH_ONLY_ACCEPTED_AT_FIXED_THRESHOLD"
+      },
+      {
+        "technique": "cross",
+        "candidate": "cross",
+        "researchSoftmax": 0.99340640653714,
+        "confidence": null,
+        "reason": "RESEARCH_ONLY_ACCEPTED_AT_FIXED_THRESHOLD"
+      },
+      {
+        "technique": "cross",
+        "candidate": "cross",
+        "researchSoftmax": 0.9982089076726287,
+        "confidence": null,
+        "reason": "RESEARCH_ONLY_ACCEPTED_AT_FIXED_THRESHOLD"
+      },
+      {
+        "technique": "lead_hook",
+        "candidate": "lead_hook",
+        "researchSoftmax": 0.8035684258868879,
+        "confidence": null,
+        "reason": "RESEARCH_ONLY_ACCEPTED_AT_FIXED_THRESHOLD"
+      },
+      {
+        "technique": "lead_hook",
+        "candidate": "lead_hook",
+        "researchSoftmax": 0.9482898771734708,
+        "confidence": null,
+        "reason": "RESEARCH_ONLY_ACCEPTED_AT_FIXED_THRESHOLD"
+      },
+      {
+        "technique": "cross",
+        "candidate": "cross",
+        "researchSoftmax": 0.9157302966533933,
+        "confidence": null,
+        "reason": "RESEARCH_ONLY_ACCEPTED_AT_FIXED_THRESHOLD"
+      },
+      {
+        "technique": "lead_hook",
+        "candidate": "lead_hook",
+        "researchSoftmax": 0.8663032685545848,
+        "confidence": null,
+        "reason": "RESEARCH_ONLY_ACCEPTED_AT_FIXED_THRESHOLD"
+      },
+      {
+        "technique": "cross",
+        "candidate": "cross",
+        "researchSoftmax": 0.9996799138409543,
+        "confidence": null,
+        "reason": "RESEARCH_ONLY_ACCEPTED_AT_FIXED_THRESHOLD"
+      },
+      {
+        "technique": "cross",
+        "candidate": "cross",
+        "researchSoftmax": 0.9993535101691141,
+        "confidence": null,
+        "reason": "RESEARCH_ONLY_ACCEPTED_AT_FIXED_THRESHOLD"
+      },
+      {
+        "technique": "cross",
+        "candidate": "cross",
+        "researchSoftmax": 0.9711037770818722,
+        "confidence": null,
+        "reason": "RESEARCH_ONLY_ACCEPTED_AT_FIXED_THRESHOLD"
+      },
+      {
+        "technique": "jab",
+        "candidate": "jab",
+        "researchSoftmax": 0.9500318715392799,
+        "confidence": null,
+        "reason": "RESEARCH_ONLY_ACCEPTED_AT_FIXED_THRESHOLD"
+      },
+      {
+        "technique": "cross",
+        "candidate": "cross",
+        "researchSoftmax": 0.978159797581881,
+        "confidence": null,
+        "reason": "RESEARCH_ONLY_ACCEPTED_AT_FIXED_THRESHOLD"
+      },
+      {
+        "technique": "cross",
+        "candidate": "cross",
+        "researchSoftmax": 0.9992787118944403,
+        "confidence": null,
+        "reason": "RESEARCH_ONLY_ACCEPTED_AT_FIXED_THRESHOLD"
+      }
+    ],
+    "note": "Uses ground-truth intervals: classification diagnostic only, not end-to-end accuracy."
+  },
+  "detectors": {
+    "legacy": {
+      "predictionCount": 13,
+      "predictions": [
+        {
+          "startFrame": 9,
+          "endFrame": 15,
+          "technique": "unknown_punch"
+        },
+        {
+          "startFrame": 10,
+          "endFrame": 35,
+          "technique": "unknown_punch"
+        },
+        {
+          "startFrame": 125,
+          "endFrame": 139,
+          "technique": "unknown_punch"
+        },
+        {
+          "startFrame": 183,
+          "endFrame": 206,
+          "technique": "unknown_punch"
+        },
+        {
+          "startFrame": 246,
+          "endFrame": 254,
+          "technique": "unknown_punch"
+        },
+        {
+          "startFrame": 243,
+          "endFrame": 272,
+          "technique": "unknown_punch"
+        },
+        {
+          "startFrame": 355,
+          "endFrame": 369,
+          "technique": "unknown_punch"
+        },
+        {
+          "startFrame": 363,
+          "endFrame": 375,
+          "technique": "unknown_punch"
+        },
+        {
+          "startFrame": 397,
+          "endFrame": 404,
+          "technique": "unknown_punch"
+        },
+        {
+          "startFrame": 424,
+          "endFrame": 430,
+          "technique": "unknown_punch"
+        },
+        {
+          "startFrame": 492,
+          "endFrame": 520,
+          "technique": "unknown_punch"
+        },
+        {
+          "startFrame": 531,
+          "endFrame": 535,
+          "technique": "unknown_punch"
+        },
+        {
+          "startFrame": 541,
+          "endFrame": 556,
+          "technique": "unknown_punch"
+        }
+      ],
+      "byIoU": {
+        "0.1": {
+          "minIntervalIoU": 0.1,
+          "tp": 8,
+          "fp": 5,
+          "fn": 10,
+          "precision": 0.6153846153846154,
+          "recall": 0.4444444444444444,
+          "f1": 0.5161290322580646,
+          "matches": [
+            {
+              "truthIndex": 0,
+              "predictionIndex": 1,
+              "iou": 0.6666666666666666
+            },
+            {
+              "truthIndex": 2,
+              "predictionIndex": 2,
+              "iou": 0.3191489361702128
+            },
+            {
+              "truthIndex": 3,
+              "predictionIndex": 3,
+              "iou": 0.1111111111111111
+            },
+            {
+              "truthIndex": 5,
+              "predictionIndex": 5,
+              "iou": 0.6818181818181818
+            },
+            {
+              "truthIndex": 9,
+              "predictionIndex": 6,
+              "iou": 0.47619047619047616
+            },
+            {
+              "truthIndex": 10,
+              "predictionIndex": 7,
+              "iou": 0.3076923076923077
+            },
+            {
+              "truthIndex": 11,
+              "predictionIndex": 8,
+              "iou": 0.5333333333333333
+            },
+            {
+              "truthIndex": 12,
+              "predictionIndex": 9,
+              "iou": 0.5833333333333334
+            }
+          ],
+          "classificationAcrossAllAnnotatedEvents": {
+            "count": 18,
+            "accuracy": 0.0,
+            "macroF1": 0.0,
+            "perClass": {
+              "jab": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "cross": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "lead_hook": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "rear_hook": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "lead_uppercut": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "rear_uppercut": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              }
+            },
+            "confusionRows": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut"
+            ],
+            "confusionColumns": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut",
+              "unknown"
+            ],
+            "confusionMatrix": [
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ]
+            ],
+            "abstained": 18
+          },
+          "impactTimingErrorMs": null,
+          "impactTimingReason": "GROUND_TRUTH_HAS_NO_IMPACT_LABELS"
+        },
+        "0.3": {
+          "minIntervalIoU": 0.3,
+          "tp": 7,
+          "fp": 6,
+          "fn": 11,
+          "precision": 0.5384615384615384,
+          "recall": 0.3888888888888889,
+          "f1": 0.45161290322580644,
+          "matches": [
+            {
+              "truthIndex": 0,
+              "predictionIndex": 1,
+              "iou": 0.6666666666666666
+            },
+            {
+              "truthIndex": 2,
+              "predictionIndex": 2,
+              "iou": 0.3191489361702128
+            },
+            {
+              "truthIndex": 5,
+              "predictionIndex": 5,
+              "iou": 0.6818181818181818
+            },
+            {
+              "truthIndex": 9,
+              "predictionIndex": 6,
+              "iou": 0.47619047619047616
+            },
+            {
+              "truthIndex": 10,
+              "predictionIndex": 7,
+              "iou": 0.3076923076923077
+            },
+            {
+              "truthIndex": 11,
+              "predictionIndex": 8,
+              "iou": 0.5333333333333333
+            },
+            {
+              "truthIndex": 12,
+              "predictionIndex": 9,
+              "iou": 0.5833333333333334
+            }
+          ],
+          "classificationAcrossAllAnnotatedEvents": {
+            "count": 18,
+            "accuracy": 0.0,
+            "macroF1": 0.0,
+            "perClass": {
+              "jab": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "cross": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "lead_hook": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "rear_hook": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "lead_uppercut": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "rear_uppercut": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              }
+            },
+            "confusionRows": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut"
+            ],
+            "confusionColumns": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut",
+              "unknown"
+            ],
+            "confusionMatrix": [
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ]
+            ],
+            "abstained": 18
+          },
+          "impactTimingErrorMs": null,
+          "impactTimingReason": "GROUND_TRUTH_HAS_NO_IMPACT_LABELS"
+        },
+        "0.5": {
+          "minIntervalIoU": 0.5,
+          "tp": 4,
+          "fp": 9,
+          "fn": 14,
+          "precision": 0.3076923076923077,
+          "recall": 0.2222222222222222,
+          "f1": 0.2580645161290323,
+          "matches": [
+            {
+              "truthIndex": 0,
+              "predictionIndex": 1,
+              "iou": 0.6666666666666666
+            },
+            {
+              "truthIndex": 5,
+              "predictionIndex": 5,
+              "iou": 0.6818181818181818
+            },
+            {
+              "truthIndex": 11,
+              "predictionIndex": 8,
+              "iou": 0.5333333333333333
+            },
+            {
+              "truthIndex": 12,
+              "predictionIndex": 9,
+              "iou": 0.5833333333333334
+            }
+          ],
+          "classificationAcrossAllAnnotatedEvents": {
+            "count": 18,
+            "accuracy": 0.0,
+            "macroF1": 0.0,
+            "perClass": {
+              "jab": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "cross": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "lead_hook": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "rear_hook": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "lead_uppercut": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "rear_uppercut": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              }
+            },
+            "confusionRows": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut"
+            ],
+            "confusionColumns": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut",
+              "unknown"
+            ],
+            "confusionMatrix": [
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ]
+            ],
+            "abstained": 18
+          },
+          "impactTimingErrorMs": null,
+          "impactTimingReason": "GROUND_TRUTH_HAS_NO_IMPACT_LABELS"
+        }
+      }
+    },
+    "shadow": {
+      "predictionCount": 11,
+      "predictions": [
+        {
+          "id": "shadow-punch-left-133",
+          "arm": "left",
+          "impactFrame": 133,
+          "impactTimeMs": 4433.3,
+          "strike_kind": "punch",
+          "technique": "unknown_punch",
+          "side": "left",
+          "startFrame": 126,
+          "endFrame": 140,
+          "startTimeMs": 4200.0,
+          "endTimeMs": 4666.7,
+          "confidence": null,
+          "impactType": "kinematic_proxy",
+          "reasonCodes": [
+            "EXTENSION_PEAK",
+            "RETRACTION_OBSERVED"
+          ],
+          "features": {
+            "reachTorsoLengths": 0.8450741376239863,
+            "prominenceTorsoLengths": 0.09188139677584739,
+            "extensionSpeedTorsoLengthsPerSecond": 1.4083658670446473,
+            "elbowAngleDeg": 154.8804258261844
+          }
+        },
+        {
+          "id": "shadow-punch-left-248",
+          "arm": "left",
+          "impactFrame": 248,
+          "impactTimeMs": 8266.7,
+          "strike_kind": "punch",
+          "technique": "unknown_punch",
+          "side": "left",
+          "startFrame": 241,
+          "endFrame": 255,
+          "startTimeMs": 8033.3,
+          "endTimeMs": 8500.0,
+          "confidence": null,
+          "impactType": "kinematic_proxy",
+          "reasonCodes": [
+            "EXTENSION_PEAK",
+            "RETRACTION_OBSERVED"
+          ],
+          "features": {
+            "reachTorsoLengths": 0.8889510841552949,
+            "prominenceTorsoLengths": 0.10004518104439997,
+            "extensionSpeedTorsoLengthsPerSecond": 0.7499638758950492,
+            "elbowAngleDeg": 101.68119131490504
+          }
+        },
+        {
+          "id": "shadow-punch-right-274",
+          "arm": "right",
+          "impactFrame": 274,
+          "impactTimeMs": 9133.3,
+          "strike_kind": "punch",
+          "technique": "unknown_punch",
+          "side": "right",
+          "startFrame": 268,
+          "endFrame": 281,
+          "startTimeMs": 8933.3,
+          "endTimeMs": 9366.7,
+          "confidence": null,
+          "impactType": "kinematic_proxy",
+          "reasonCodes": [
+            "EXTENSION_PEAK",
+            "RETRACTION_OBSERVED"
+          ],
+          "features": {
+            "reachTorsoLengths": 0.7275487121288584,
+            "prominenceTorsoLengths": 0.14740293052509068,
+            "extensionSpeedTorsoLengthsPerSecond": 1.5009095421594343,
+            "elbowAngleDeg": 107.83985771898557
+          }
+        },
+        {
+          "id": "shadow-punch-left-363",
+          "arm": "left",
+          "impactFrame": 363,
+          "impactTimeMs": 12100.0,
+          "strike_kind": "punch",
+          "technique": "unknown_punch",
+          "side": "left",
+          "startFrame": 356,
+          "endFrame": 370,
+          "startTimeMs": 11866.7,
+          "endTimeMs": 12333.3,
+          "confidence": null,
+          "impactType": "kinematic_proxy",
+          "reasonCodes": [
+            "EXTENSION_PEAK",
+            "RETRACTION_OBSERVED"
+          ],
+          "features": {
+            "reachTorsoLengths": 1.0174400937829704,
+            "prominenceTorsoLengths": 0.07938582717998921,
+            "extensionSpeedTorsoLengthsPerSecond": 0.8123064296873561,
+            "elbowAngleDeg": 167.2889159085345
+          }
+        },
+        {
+          "id": "shadow-punch-right-380",
+          "arm": "right",
+          "impactFrame": 380,
+          "impactTimeMs": 12666.7,
+          "strike_kind": "punch",
+          "technique": "unknown_punch",
+          "side": "right",
+          "startFrame": 374,
+          "endFrame": 387,
+          "startTimeMs": 12466.7,
+          "endTimeMs": 12900.0,
+          "confidence": null,
+          "impactType": "kinematic_proxy",
+          "reasonCodes": [
+            "EXTENSION_PEAK",
+            "RETRACTION_OBSERVED"
+          ],
+          "features": {
+            "reachTorsoLengths": 0.8883376985381848,
+            "prominenceTorsoLengths": 0.2562764293796027,
+            "extensionSpeedTorsoLengthsPerSecond": 2.5693947443912917,
+            "elbowAngleDeg": 154.14964695824085
+          }
+        },
+        {
+          "id": "shadow-punch-left-401",
+          "arm": "left",
+          "impactFrame": 401,
+          "impactTimeMs": 13366.7,
+          "strike_kind": "punch",
+          "technique": "unknown_punch",
+          "side": "left",
+          "startFrame": 394,
+          "endFrame": 408,
+          "startTimeMs": 13133.3,
+          "endTimeMs": 13600.0,
+          "confidence": null,
+          "impactType": "kinematic_proxy",
+          "reasonCodes": [
+            "EXTENSION_PEAK",
+            "RETRACTION_OBSERVED"
+          ],
+          "features": {
+            "reachTorsoLengths": 0.6972198670096689,
+            "prominenceTorsoLengths": 0.12832253532372495,
+            "extensionSpeedTorsoLengthsPerSecond": 1.680869027842957,
+            "elbowAngleDeg": 146.51584495793634
+          }
+        },
+        {
+          "id": "shadow-punch-right-427",
+          "arm": "right",
+          "impactFrame": 427,
+          "impactTimeMs": 14233.3,
+          "strike_kind": "punch",
+          "technique": "unknown_punch",
+          "side": "right",
+          "startFrame": 423,
+          "endFrame": 434,
+          "startTimeMs": 14100.0,
+          "endTimeMs": 14466.7,
+          "confidence": null,
+          "impactType": "kinematic_proxy",
+          "reasonCodes": [
+            "EXTENSION_PEAK",
+            "RETRACTION_OBSERVED"
+          ],
+          "features": {
+            "reachTorsoLengths": 0.6693296379961378,
+            "prominenceTorsoLengths": 0.1610221199009375,
+            "extensionSpeedTorsoLengthsPerSecond": 1.45243732595329,
+            "elbowAngleDeg": 146.63137945884824
+          }
+        },
+        {
+          "id": "shadow-punch-left-447",
+          "arm": "left",
+          "impactFrame": 447,
+          "impactTimeMs": 14900.0,
+          "strike_kind": "punch",
+          "technique": "unknown_punch",
+          "side": "left",
+          "startFrame": 440,
+          "endFrame": 450,
+          "startTimeMs": 14666.7,
+          "endTimeMs": 15000.0,
+          "confidence": null,
+          "impactType": "kinematic_proxy",
+          "reasonCodes": [
+            "EXTENSION_PEAK",
+            "RETRACTION_OBSERVED"
+          ],
+          "features": {
+            "reachTorsoLengths": 0.8255874319144875,
+            "prominenceTorsoLengths": 0.34032425479814304,
+            "extensionSpeedTorsoLengthsPerSecond": 2.6190088554174418,
+            "elbowAngleDeg": 105.41409493218175
+          }
+        },
+        {
+          "id": "shadow-punch-right-456",
+          "arm": "right",
+          "impactFrame": 456,
+          "impactTimeMs": 15200.0,
+          "strike_kind": "punch",
+          "technique": "unknown_punch",
+          "side": "right",
+          "startFrame": 455,
+          "endFrame": 457,
+          "startTimeMs": 15166.7,
+          "endTimeMs": 15233.3,
+          "confidence": null,
+          "impactType": "kinematic_proxy",
+          "reasonCodes": [
+            "EXTENSION_PEAK",
+            "RETRACTION_OBSERVED"
+          ],
+          "features": {
+            "reachTorsoLengths": 0.7835012193945259,
+            "prominenceTorsoLengths": 0.057379451727050945,
+            "extensionSpeedTorsoLengthsPerSecond": 1.723106658470036,
+            "elbowAngleDeg": 104.67994570313948
+          }
+        },
+        {
+          "id": "shadow-punch-left-517",
+          "arm": "left",
+          "impactFrame": 517,
+          "impactTimeMs": 17233.3,
+          "strike_kind": "punch",
+          "technique": "unknown_punch",
+          "side": "left",
+          "startFrame": 510,
+          "endFrame": 521,
+          "startTimeMs": 17000.0,
+          "endTimeMs": 17366.7,
+          "confidence": null,
+          "impactType": "kinematic_proxy",
+          "reasonCodes": [
+            "EXTENSION_PEAK",
+            "RETRACTION_OBSERVED"
+          ],
+          "features": {
+            "reachTorsoLengths": 0.8708511232055329,
+            "prominenceTorsoLengths": 0.32143467826197825,
+            "extensionSpeedTorsoLengthsPerSecond": 2.841556904490364,
+            "elbowAngleDeg": 145.0867008575571
+          }
+        },
+        {
+          "id": "shadow-punch-left-555",
+          "arm": "left",
+          "impactFrame": 555,
+          "impactTimeMs": 18500.0,
+          "strike_kind": "punch",
+          "technique": "unknown_punch",
+          "side": "left",
+          "startFrame": 552,
+          "endFrame": 559,
+          "startTimeMs": 18400.0,
+          "endTimeMs": 18633.3,
+          "confidence": null,
+          "impactType": "kinematic_proxy",
+          "reasonCodes": [
+            "EXTENSION_PEAK",
+            "RETRACTION_OBSERVED"
+          ],
+          "features": {
+            "reachTorsoLengths": 0.7023242127417373,
+            "prominenceTorsoLengths": 0.15062938516434554,
+            "extensionSpeedTorsoLengthsPerSecond": 2.0651967614666193,
+            "elbowAngleDeg": 83.1333828981348
+          }
+        }
+      ],
+      "byIoU": {
+        "0.1": {
+          "minIntervalIoU": 0.1,
+          "tp": 8,
+          "fp": 3,
+          "fn": 10,
+          "precision": 0.7272727272727273,
+          "recall": 0.4444444444444444,
+          "f1": 0.5517241379310345,
+          "matches": [
+            {
+              "truthIndex": 2,
+              "predictionIndex": 0,
+              "iou": 0.2916666666666667
+            },
+            {
+              "truthIndex": 5,
+              "predictionIndex": 2,
+              "iou": 0.3181818181818182
+            },
+            {
+              "truthIndex": 9,
+              "predictionIndex": 3,
+              "iou": 0.4090909090909091
+            },
+            {
+              "truthIndex": 10,
+              "predictionIndex": 4,
+              "iou": 0.6666666666666666
+            },
+            {
+              "truthIndex": 11,
+              "predictionIndex": 5,
+              "iou": 0.5789473684210527
+            },
+            {
+              "truthIndex": 12,
+              "predictionIndex": 6,
+              "iou": 0.8461538461538461
+            },
+            {
+              "truthIndex": 13,
+              "predictionIndex": 7,
+              "iou": 0.25
+            },
+            {
+              "truthIndex": 15,
+              "predictionIndex": 8,
+              "iou": 0.375
+            }
+          ],
+          "classificationAcrossAllAnnotatedEvents": {
+            "count": 18,
+            "accuracy": 0.0,
+            "macroF1": 0.0,
+            "perClass": {
+              "jab": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "cross": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "lead_hook": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "rear_hook": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "lead_uppercut": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "rear_uppercut": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              }
+            },
+            "confusionRows": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut"
+            ],
+            "confusionColumns": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut",
+              "unknown"
+            ],
+            "confusionMatrix": [
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ]
+            ],
+            "abstained": 18
+          },
+          "impactTimingErrorMs": null,
+          "impactTimingReason": "GROUND_TRUTH_HAS_NO_IMPACT_LABELS"
+        },
+        "0.3": {
+          "minIntervalIoU": 0.3,
+          "tp": 7,
+          "fp": 4,
+          "fn": 11,
+          "precision": 0.6363636363636364,
+          "recall": 0.3888888888888889,
+          "f1": 0.4827586206896552,
+          "matches": [
+            {
+              "truthIndex": 5,
+              "predictionIndex": 2,
+              "iou": 0.3181818181818182
+            },
+            {
+              "truthIndex": 9,
+              "predictionIndex": 3,
+              "iou": 0.4090909090909091
+            },
+            {
+              "truthIndex": 10,
+              "predictionIndex": 4,
+              "iou": 0.6666666666666666
+            },
+            {
+              "truthIndex": 11,
+              "predictionIndex": 5,
+              "iou": 0.5789473684210527
+            },
+            {
+              "truthIndex": 12,
+              "predictionIndex": 6,
+              "iou": 0.8461538461538461
+            },
+            {
+              "truthIndex": 14,
+              "predictionIndex": 7,
+              "iou": 0.5714285714285714
+            },
+            {
+              "truthIndex": 15,
+              "predictionIndex": 8,
+              "iou": 0.375
+            }
+          ],
+          "classificationAcrossAllAnnotatedEvents": {
+            "count": 18,
+            "accuracy": 0.0,
+            "macroF1": 0.0,
+            "perClass": {
+              "jab": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "cross": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "lead_hook": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "rear_hook": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "lead_uppercut": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "rear_uppercut": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              }
+            },
+            "confusionRows": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut"
+            ],
+            "confusionColumns": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut",
+              "unknown"
+            ],
+            "confusionMatrix": [
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ]
+            ],
+            "abstained": 18
+          },
+          "impactTimingErrorMs": null,
+          "impactTimingReason": "GROUND_TRUTH_HAS_NO_IMPACT_LABELS"
+        },
+        "0.5": {
+          "minIntervalIoU": 0.5,
+          "tp": 4,
+          "fp": 7,
+          "fn": 14,
+          "precision": 0.36363636363636365,
+          "recall": 0.2222222222222222,
+          "f1": 0.27586206896551724,
+          "matches": [
+            {
+              "truthIndex": 10,
+              "predictionIndex": 4,
+              "iou": 0.6666666666666666
+            },
+            {
+              "truthIndex": 11,
+              "predictionIndex": 5,
+              "iou": 0.5789473684210527
+            },
+            {
+              "truthIndex": 12,
+              "predictionIndex": 6,
+              "iou": 0.8461538461538461
+            },
+            {
+              "truthIndex": 14,
+              "predictionIndex": 7,
+              "iou": 0.5714285714285714
+            }
+          ],
+          "classificationAcrossAllAnnotatedEvents": {
+            "count": 18,
+            "accuracy": 0.0,
+            "macroF1": 0.0,
+            "perClass": {
+              "jab": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "cross": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "lead_hook": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "rear_hook": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "lead_uppercut": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "rear_uppercut": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              }
+            },
+            "confusionRows": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut"
+            ],
+            "confusionColumns": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut",
+              "unknown"
+            ],
+            "confusionMatrix": [
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ]
+            ],
+            "abstained": 18
+          },
+          "impactTimingErrorMs": null,
+          "impactTimingReason": "GROUND_TRUTH_HAS_NO_IMPACT_LABELS"
+        }
+      }
+    },
+    "legacy_research_classifier": {
+      "predictionCount": 13,
+      "predictions": [
+        {
+          "startFrame": 9,
+          "endFrame": 15,
+          "technique": "unknown",
+          "candidate": "jab",
+          "researchSoftmax": 0.633457414462715,
+          "confidence": null,
+          "reason": "LOW_RESEARCH_PROBABILITY"
+        },
+        {
+          "startFrame": 10,
+          "endFrame": 35,
+          "technique": "unknown",
+          "candidate": "lead_hook",
+          "researchSoftmax": 0.7940301373117613,
+          "confidence": null,
+          "reason": "LOW_RESEARCH_PROBABILITY"
+        },
+        {
+          "startFrame": 125,
+          "endFrame": 139,
+          "technique": "unknown",
+          "candidate": "lead_hook",
+          "researchSoftmax": 0.6466468562743789,
+          "confidence": null,
+          "reason": "LOW_RESEARCH_PROBABILITY"
+        },
+        {
+          "startFrame": 183,
+          "endFrame": 206,
+          "technique": "cross",
+          "candidate": "cross",
+          "researchSoftmax": 0.9965502752039064,
+          "confidence": null,
+          "reason": "RESEARCH_ONLY_ACCEPTED_AT_FIXED_THRESHOLD"
+        },
+        {
+          "startFrame": 246,
+          "endFrame": 254,
+          "technique": "lead_hook",
+          "candidate": "lead_hook",
+          "researchSoftmax": 0.893702394871662,
+          "confidence": null,
+          "reason": "RESEARCH_ONLY_ACCEPTED_AT_FIXED_THRESHOLD"
+        },
+        {
+          "startFrame": 243,
+          "endFrame": 272,
+          "technique": "lead_hook",
+          "candidate": "lead_hook",
+          "researchSoftmax": 0.9903403961840366,
+          "confidence": null,
+          "reason": "RESEARCH_ONLY_ACCEPTED_AT_FIXED_THRESHOLD"
+        },
+        {
+          "startFrame": 355,
+          "endFrame": 369,
+          "technique": "lead_hook",
+          "candidate": "lead_hook",
+          "researchSoftmax": 0.9099715528123555,
+          "confidence": null,
+          "reason": "RESEARCH_ONLY_ACCEPTED_AT_FIXED_THRESHOLD"
+        },
+        {
+          "startFrame": 363,
+          "endFrame": 375,
+          "technique": "unknown",
+          "candidate": "jab",
+          "researchSoftmax": 0.6695739900687003,
+          "confidence": null,
+          "reason": "LOW_RESEARCH_PROBABILITY"
+        },
+        {
+          "startFrame": 397,
+          "endFrame": 404,
+          "technique": "lead_hook",
+          "candidate": "lead_hook",
+          "researchSoftmax": 0.8207871250125586,
+          "confidence": null,
+          "reason": "RESEARCH_ONLY_ACCEPTED_AT_FIXED_THRESHOLD"
+        },
+        {
+          "startFrame": 424,
+          "endFrame": 430,
+          "technique": "cross",
+          "candidate": "cross",
+          "researchSoftmax": 0.9997231034317362,
+          "confidence": null,
+          "reason": "RESEARCH_ONLY_ACCEPTED_AT_FIXED_THRESHOLD"
+        },
+        {
+          "startFrame": 492,
+          "endFrame": 520,
+          "technique": "lead_hook",
+          "candidate": "lead_hook",
+          "researchSoftmax": 0.9363524026703945,
+          "confidence": null,
+          "reason": "RESEARCH_ONLY_ACCEPTED_AT_FIXED_THRESHOLD"
+        },
+        {
+          "startFrame": 531,
+          "endFrame": 535,
+          "technique": "jab",
+          "candidate": "jab",
+          "researchSoftmax": 0.9429074684912613,
+          "confidence": null,
+          "reason": "RESEARCH_ONLY_ACCEPTED_AT_FIXED_THRESHOLD"
+        },
+        {
+          "startFrame": 541,
+          "endFrame": 556,
+          "technique": "cross",
+          "candidate": "cross",
+          "researchSoftmax": 0.9987480586472606,
+          "confidence": null,
+          "reason": "RESEARCH_ONLY_ACCEPTED_AT_FIXED_THRESHOLD"
+        }
+      ],
+      "byIoU": {
+        "0.1": {
+          "minIntervalIoU": 0.1,
+          "tp": 8,
+          "fp": 5,
+          "fn": 10,
+          "precision": 0.6153846153846154,
+          "recall": 0.4444444444444444,
+          "f1": 0.5161290322580646,
+          "matches": [
+            {
+              "truthIndex": 0,
+              "predictionIndex": 1,
+              "iou": 0.6666666666666666
+            },
+            {
+              "truthIndex": 2,
+              "predictionIndex": 2,
+              "iou": 0.3191489361702128
+            },
+            {
+              "truthIndex": 3,
+              "predictionIndex": 3,
+              "iou": 0.1111111111111111
+            },
+            {
+              "truthIndex": 5,
+              "predictionIndex": 5,
+              "iou": 0.6818181818181818
+            },
+            {
+              "truthIndex": 9,
+              "predictionIndex": 6,
+              "iou": 0.47619047619047616
+            },
+            {
+              "truthIndex": 10,
+              "predictionIndex": 7,
+              "iou": 0.3076923076923077
+            },
+            {
+              "truthIndex": 11,
+              "predictionIndex": 8,
+              "iou": 0.5333333333333333
+            },
+            {
+              "truthIndex": 12,
+              "predictionIndex": 9,
+              "iou": 0.5833333333333334
+            }
+          ],
+          "classificationAcrossAllAnnotatedEvents": {
+            "count": 18,
+            "accuracy": 0.0,
+            "macroF1": 0.0,
+            "perClass": {
+              "jab": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "cross": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "lead_hook": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "rear_hook": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "lead_uppercut": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "rear_uppercut": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              }
+            },
+            "confusionRows": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut"
+            ],
+            "confusionColumns": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut",
+              "unknown"
+            ],
+            "confusionMatrix": [
+              [
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                2
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                1,
+                1,
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                0,
+                2,
+                0,
+                0,
+                0,
+                1
+              ]
+            ],
+            "abstained": 13
+          },
+          "impactTimingErrorMs": null,
+          "impactTimingReason": "GROUND_TRUTH_HAS_NO_IMPACT_LABELS"
+        },
+        "0.3": {
+          "minIntervalIoU": 0.3,
+          "tp": 7,
+          "fp": 6,
+          "fn": 11,
+          "precision": 0.5384615384615384,
+          "recall": 0.3888888888888889,
+          "f1": 0.45161290322580644,
+          "matches": [
+            {
+              "truthIndex": 0,
+              "predictionIndex": 1,
+              "iou": 0.6666666666666666
+            },
+            {
+              "truthIndex": 2,
+              "predictionIndex": 2,
+              "iou": 0.3191489361702128
+            },
+            {
+              "truthIndex": 5,
+              "predictionIndex": 5,
+              "iou": 0.6818181818181818
+            },
+            {
+              "truthIndex": 9,
+              "predictionIndex": 6,
+              "iou": 0.47619047619047616
+            },
+            {
+              "truthIndex": 10,
+              "predictionIndex": 7,
+              "iou": 0.3076923076923077
+            },
+            {
+              "truthIndex": 11,
+              "predictionIndex": 8,
+              "iou": 0.5333333333333333
+            },
+            {
+              "truthIndex": 12,
+              "predictionIndex": 9,
+              "iou": 0.5833333333333334
+            }
+          ],
+          "classificationAcrossAllAnnotatedEvents": {
+            "count": 18,
+            "accuracy": 0.0,
+            "macroF1": 0.0,
+            "perClass": {
+              "jab": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "cross": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "lead_hook": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "rear_hook": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "lead_uppercut": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "rear_uppercut": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              }
+            },
+            "confusionRows": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut"
+            ],
+            "confusionColumns": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut",
+              "unknown"
+            ],
+            "confusionMatrix": [
+              [
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                2
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                2
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                0,
+                2,
+                0,
+                0,
+                0,
+                1
+              ]
+            ],
+            "abstained": 14
+          },
+          "impactTimingErrorMs": null,
+          "impactTimingReason": "GROUND_TRUTH_HAS_NO_IMPACT_LABELS"
+        },
+        "0.5": {
+          "minIntervalIoU": 0.5,
+          "tp": 4,
+          "fp": 9,
+          "fn": 14,
+          "precision": 0.3076923076923077,
+          "recall": 0.2222222222222222,
+          "f1": 0.2580645161290323,
+          "matches": [
+            {
+              "truthIndex": 0,
+              "predictionIndex": 1,
+              "iou": 0.6666666666666666
+            },
+            {
+              "truthIndex": 5,
+              "predictionIndex": 5,
+              "iou": 0.6818181818181818
+            },
+            {
+              "truthIndex": 11,
+              "predictionIndex": 8,
+              "iou": 0.5333333333333333
+            },
+            {
+              "truthIndex": 12,
+              "predictionIndex": 9,
+              "iou": 0.5833333333333334
+            }
+          ],
+          "classificationAcrossAllAnnotatedEvents": {
+            "count": 18,
+            "accuracy": 0.0,
+            "macroF1": 0.0,
+            "perClass": {
+              "jab": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "cross": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "lead_hook": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "rear_hook": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "lead_uppercut": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "rear_uppercut": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              }
+            },
+            "confusionRows": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut"
+            ],
+            "confusionColumns": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut",
+              "unknown"
+            ],
+            "confusionMatrix": [
+              [
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                2
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                0,
+                2,
+                0,
+                0,
+                0,
+                1
+              ]
+            ],
+            "abstained": 15
+          },
+          "impactTimingErrorMs": null,
+          "impactTimingReason": "GROUND_TRUTH_HAS_NO_IMPACT_LABELS"
+        }
+      }
+    },
+    "shadow_research_classifier": {
+      "predictionCount": 11,
+      "predictions": [
+        {
+          "id": "shadow-punch-left-133",
+          "arm": "left",
+          "impactFrame": 133,
+          "impactTimeMs": 4433.3,
+          "strike_kind": "punch",
+          "technique": "unknown",
+          "side": "left",
+          "startFrame": 126,
+          "endFrame": 140,
+          "startTimeMs": 4200.0,
+          "endTimeMs": 4666.7,
+          "confidence": null,
+          "impactType": "kinematic_proxy",
+          "reasonCodes": [
+            "EXTENSION_PEAK",
+            "RETRACTION_OBSERVED"
+          ],
+          "features": {
+            "reachTorsoLengths": 0.8450741376239863,
+            "prominenceTorsoLengths": 0.09188139677584739,
+            "extensionSpeedTorsoLengthsPerSecond": 1.4083658670446473,
+            "elbowAngleDeg": 154.8804258261844
+          },
+          "candidate": "lead_hook",
+          "researchSoftmax": 0.6800876771532481,
+          "reason": "LOW_RESEARCH_PROBABILITY"
+        },
+        {
+          "id": "shadow-punch-left-248",
+          "arm": "left",
+          "impactFrame": 248,
+          "impactTimeMs": 8266.7,
+          "strike_kind": "punch",
+          "technique": "lead_hook",
+          "side": "left",
+          "startFrame": 241,
+          "endFrame": 255,
+          "startTimeMs": 8033.3,
+          "endTimeMs": 8500.0,
+          "confidence": null,
+          "impactType": "kinematic_proxy",
+          "reasonCodes": [
+            "EXTENSION_PEAK",
+            "RETRACTION_OBSERVED"
+          ],
+          "features": {
+            "reachTorsoLengths": 0.8889510841552949,
+            "prominenceTorsoLengths": 0.10004518104439997,
+            "extensionSpeedTorsoLengthsPerSecond": 0.7499638758950492,
+            "elbowAngleDeg": 101.68119131490504
+          },
+          "candidate": "lead_hook",
+          "researchSoftmax": 0.9520214197473454,
+          "reason": "RESEARCH_ONLY_ACCEPTED_AT_FIXED_THRESHOLD"
+        },
+        {
+          "id": "shadow-punch-right-274",
+          "arm": "right",
+          "impactFrame": 274,
+          "impactTimeMs": 9133.3,
+          "strike_kind": "punch",
+          "technique": "unknown",
+          "side": "right",
+          "startFrame": 268,
+          "endFrame": 281,
+          "startTimeMs": 8933.3,
+          "endTimeMs": 9366.7,
+          "confidence": null,
+          "impactType": "kinematic_proxy",
+          "reasonCodes": [
+            "EXTENSION_PEAK",
+            "RETRACTION_OBSERVED"
+          ],
+          "features": {
+            "reachTorsoLengths": 0.7275487121288584,
+            "prominenceTorsoLengths": 0.14740293052509068,
+            "extensionSpeedTorsoLengthsPerSecond": 1.5009095421594343,
+            "elbowAngleDeg": 107.83985771898557
+          },
+          "candidate": "jab",
+          "researchSoftmax": 0.5255216041275723,
+          "reason": "LOW_RESEARCH_PROBABILITY"
+        },
+        {
+          "id": "shadow-punch-left-363",
+          "arm": "left",
+          "impactFrame": 363,
+          "impactTimeMs": 12100.0,
+          "strike_kind": "punch",
+          "technique": "lead_hook",
+          "side": "left",
+          "startFrame": 356,
+          "endFrame": 370,
+          "startTimeMs": 11866.7,
+          "endTimeMs": 12333.3,
+          "confidence": null,
+          "impactType": "kinematic_proxy",
+          "reasonCodes": [
+            "EXTENSION_PEAK",
+            "RETRACTION_OBSERVED"
+          ],
+          "features": {
+            "reachTorsoLengths": 1.0174400937829704,
+            "prominenceTorsoLengths": 0.07938582717998921,
+            "extensionSpeedTorsoLengthsPerSecond": 0.8123064296873561,
+            "elbowAngleDeg": 167.2889159085345
+          },
+          "candidate": "lead_hook",
+          "researchSoftmax": 0.8505342884499401,
+          "reason": "RESEARCH_ONLY_ACCEPTED_AT_FIXED_THRESHOLD"
+        },
+        {
+          "id": "shadow-punch-right-380",
+          "arm": "right",
+          "impactFrame": 380,
+          "impactTimeMs": 12666.7,
+          "strike_kind": "punch",
+          "technique": "cross",
+          "side": "right",
+          "startFrame": 374,
+          "endFrame": 387,
+          "startTimeMs": 12466.7,
+          "endTimeMs": 12900.0,
+          "confidence": null,
+          "impactType": "kinematic_proxy",
+          "reasonCodes": [
+            "EXTENSION_PEAK",
+            "RETRACTION_OBSERVED"
+          ],
+          "features": {
+            "reachTorsoLengths": 0.8883376985381848,
+            "prominenceTorsoLengths": 0.2562764293796027,
+            "extensionSpeedTorsoLengthsPerSecond": 2.5693947443912917,
+            "elbowAngleDeg": 154.14964695824085
+          },
+          "candidate": "cross",
+          "researchSoftmax": 0.9994366810812636,
+          "reason": "RESEARCH_ONLY_ACCEPTED_AT_FIXED_THRESHOLD"
+        },
+        {
+          "id": "shadow-punch-left-401",
+          "arm": "left",
+          "impactFrame": 401,
+          "impactTimeMs": 13366.7,
+          "strike_kind": "punch",
+          "technique": "lead_hook",
+          "side": "left",
+          "startFrame": 394,
+          "endFrame": 408,
+          "startTimeMs": 13133.3,
+          "endTimeMs": 13600.0,
+          "confidence": null,
+          "impactType": "kinematic_proxy",
+          "reasonCodes": [
+            "EXTENSION_PEAK",
+            "RETRACTION_OBSERVED"
+          ],
+          "features": {
+            "reachTorsoLengths": 0.6972198670096689,
+            "prominenceTorsoLengths": 0.12832253532372495,
+            "extensionSpeedTorsoLengthsPerSecond": 1.680869027842957,
+            "elbowAngleDeg": 146.51584495793634
+          },
+          "candidate": "lead_hook",
+          "researchSoftmax": 0.9692954359723528,
+          "reason": "RESEARCH_ONLY_ACCEPTED_AT_FIXED_THRESHOLD"
+        },
+        {
+          "id": "shadow-punch-right-427",
+          "arm": "right",
+          "impactFrame": 427,
+          "impactTimeMs": 14233.3,
+          "strike_kind": "punch",
+          "technique": "cross",
+          "side": "right",
+          "startFrame": 423,
+          "endFrame": 434,
+          "startTimeMs": 14100.0,
+          "endTimeMs": 14466.7,
+          "confidence": null,
+          "impactType": "kinematic_proxy",
+          "reasonCodes": [
+            "EXTENSION_PEAK",
+            "RETRACTION_OBSERVED"
+          ],
+          "features": {
+            "reachTorsoLengths": 0.6693296379961378,
+            "prominenceTorsoLengths": 0.1610221199009375,
+            "extensionSpeedTorsoLengthsPerSecond": 1.45243732595329,
+            "elbowAngleDeg": 146.63137945884824
+          },
+          "candidate": "cross",
+          "researchSoftmax": 0.9997456131994331,
+          "reason": "RESEARCH_ONLY_ACCEPTED_AT_FIXED_THRESHOLD"
+        },
+        {
+          "id": "shadow-punch-left-447",
+          "arm": "left",
+          "impactFrame": 447,
+          "impactTimeMs": 14900.0,
+          "strike_kind": "punch",
+          "technique": "cross",
+          "side": "left",
+          "startFrame": 440,
+          "endFrame": 450,
+          "startTimeMs": 14666.7,
+          "endTimeMs": 15000.0,
+          "confidence": null,
+          "impactType": "kinematic_proxy",
+          "reasonCodes": [
+            "EXTENSION_PEAK",
+            "RETRACTION_OBSERVED"
+          ],
+          "features": {
+            "reachTorsoLengths": 0.8255874319144875,
+            "prominenceTorsoLengths": 0.34032425479814304,
+            "extensionSpeedTorsoLengthsPerSecond": 2.6190088554174418,
+            "elbowAngleDeg": 105.41409493218175
+          },
+          "candidate": "cross",
+          "researchSoftmax": 0.9956140812752817,
+          "reason": "RESEARCH_ONLY_ACCEPTED_AT_FIXED_THRESHOLD"
+        },
+        {
+          "id": "shadow-punch-right-456",
+          "arm": "right",
+          "impactFrame": 456,
+          "impactTimeMs": 15200.0,
+          "strike_kind": "punch",
+          "technique": "jab",
+          "side": "right",
+          "startFrame": 455,
+          "endFrame": 457,
+          "startTimeMs": 15166.7,
+          "endTimeMs": 15233.3,
+          "confidence": null,
+          "impactType": "kinematic_proxy",
+          "reasonCodes": [
+            "EXTENSION_PEAK",
+            "RETRACTION_OBSERVED"
+          ],
+          "features": {
+            "reachTorsoLengths": 0.7835012193945259,
+            "prominenceTorsoLengths": 0.057379451727050945,
+            "extensionSpeedTorsoLengthsPerSecond": 1.723106658470036,
+            "elbowAngleDeg": 104.67994570313948
+          },
+          "candidate": "jab",
+          "researchSoftmax": 0.9347366739296645,
+          "reason": "RESEARCH_ONLY_ACCEPTED_AT_FIXED_THRESHOLD"
+        },
+        {
+          "id": "shadow-punch-left-517",
+          "arm": "left",
+          "impactFrame": 517,
+          "impactTimeMs": 17233.3,
+          "strike_kind": "punch",
+          "technique": "unknown",
+          "side": "left",
+          "startFrame": 510,
+          "endFrame": 521,
+          "startTimeMs": 17000.0,
+          "endTimeMs": 17366.7,
+          "confidence": null,
+          "impactType": "kinematic_proxy",
+          "reasonCodes": [
+            "EXTENSION_PEAK",
+            "RETRACTION_OBSERVED"
+          ],
+          "features": {
+            "reachTorsoLengths": 0.8708511232055329,
+            "prominenceTorsoLengths": 0.32143467826197825,
+            "extensionSpeedTorsoLengthsPerSecond": 2.841556904490364,
+            "elbowAngleDeg": 145.0867008575571
+          },
+          "candidate": "lead_hook",
+          "researchSoftmax": 0.6485284879328976,
+          "reason": "LOW_RESEARCH_PROBABILITY"
+        },
+        {
+          "id": "shadow-punch-left-555",
+          "arm": "left",
+          "impactFrame": 555,
+          "impactTimeMs": 18500.0,
+          "strike_kind": "punch",
+          "technique": "cross",
+          "side": "left",
+          "startFrame": 552,
+          "endFrame": 559,
+          "startTimeMs": 18400.0,
+          "endTimeMs": 18633.3,
+          "confidence": null,
+          "impactType": "kinematic_proxy",
+          "reasonCodes": [
+            "EXTENSION_PEAK",
+            "RETRACTION_OBSERVED"
+          ],
+          "features": {
+            "reachTorsoLengths": 0.7023242127417373,
+            "prominenceTorsoLengths": 0.15062938516434554,
+            "extensionSpeedTorsoLengthsPerSecond": 2.0651967614666193,
+            "elbowAngleDeg": 83.1333828981348
+          },
+          "candidate": "cross",
+          "researchSoftmax": 0.9980849888088257,
+          "reason": "RESEARCH_ONLY_ACCEPTED_AT_FIXED_THRESHOLD"
+        }
+      ],
+      "byIoU": {
+        "0.1": {
+          "minIntervalIoU": 0.1,
+          "tp": 8,
+          "fp": 3,
+          "fn": 10,
+          "precision": 0.7272727272727273,
+          "recall": 0.4444444444444444,
+          "f1": 0.5517241379310345,
+          "matches": [
+            {
+              "truthIndex": 2,
+              "predictionIndex": 0,
+              "iou": 0.2916666666666667
+            },
+            {
+              "truthIndex": 5,
+              "predictionIndex": 2,
+              "iou": 0.3181818181818182
+            },
+            {
+              "truthIndex": 9,
+              "predictionIndex": 3,
+              "iou": 0.4090909090909091
+            },
+            {
+              "truthIndex": 10,
+              "predictionIndex": 4,
+              "iou": 0.6666666666666666
+            },
+            {
+              "truthIndex": 11,
+              "predictionIndex": 5,
+              "iou": 0.5789473684210527
+            },
+            {
+              "truthIndex": 12,
+              "predictionIndex": 6,
+              "iou": 0.8461538461538461
+            },
+            {
+              "truthIndex": 13,
+              "predictionIndex": 7,
+              "iou": 0.25
+            },
+            {
+              "truthIndex": 15,
+              "predictionIndex": 8,
+              "iou": 0.375
+            }
+          ],
+          "classificationAcrossAllAnnotatedEvents": {
+            "count": 18,
+            "accuracy": 0.05555555555555555,
+            "macroF1": 0.05555555555555555,
+            "perClass": {
+              "jab": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "cross": {
+                "support": 3,
+                "precision": 0.3333333333333333,
+                "recall": 0.3333333333333333,
+                "f1": 0.3333333333333333
+              },
+              "lead_hook": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "rear_hook": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "lead_uppercut": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "rear_uppercut": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              }
+            },
+            "confusionRows": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut"
+            ],
+            "confusionColumns": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut",
+              "unknown"
+            ],
+            "confusionMatrix": [
+              [
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                2
+              ],
+              [
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                2
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                1,
+                0,
+                1,
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                2
+              ],
+              [
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                2
+              ]
+            ],
+            "abstained": 12
+          },
+          "impactTimingErrorMs": null,
+          "impactTimingReason": "GROUND_TRUTH_HAS_NO_IMPACT_LABELS"
+        },
+        "0.3": {
+          "minIntervalIoU": 0.3,
+          "tp": 7,
+          "fp": 4,
+          "fn": 11,
+          "precision": 0.6363636363636364,
+          "recall": 0.3888888888888889,
+          "f1": 0.4827586206896552,
+          "matches": [
+            {
+              "truthIndex": 5,
+              "predictionIndex": 2,
+              "iou": 0.3181818181818182
+            },
+            {
+              "truthIndex": 9,
+              "predictionIndex": 3,
+              "iou": 0.4090909090909091
+            },
+            {
+              "truthIndex": 10,
+              "predictionIndex": 4,
+              "iou": 0.6666666666666666
+            },
+            {
+              "truthIndex": 11,
+              "predictionIndex": 5,
+              "iou": 0.5789473684210527
+            },
+            {
+              "truthIndex": 12,
+              "predictionIndex": 6,
+              "iou": 0.8461538461538461
+            },
+            {
+              "truthIndex": 14,
+              "predictionIndex": 7,
+              "iou": 0.5714285714285714
+            },
+            {
+              "truthIndex": 15,
+              "predictionIndex": 8,
+              "iou": 0.375
+            }
+          ],
+          "classificationAcrossAllAnnotatedEvents": {
+            "count": 18,
+            "accuracy": 0.0,
+            "macroF1": 0.0,
+            "perClass": {
+              "jab": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "cross": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "lead_hook": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "rear_hook": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "lead_uppercut": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "rear_uppercut": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              }
+            },
+            "confusionRows": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut"
+            ],
+            "confusionColumns": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut",
+              "unknown"
+            ],
+            "confusionMatrix": [
+              [
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                2
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                2
+              ],
+              [
+                1,
+                0,
+                1,
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                2
+              ],
+              [
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                2
+              ]
+            ],
+            "abstained": 12
+          },
+          "impactTimingErrorMs": null,
+          "impactTimingReason": "GROUND_TRUTH_HAS_NO_IMPACT_LABELS"
+        },
+        "0.5": {
+          "minIntervalIoU": 0.5,
+          "tp": 4,
+          "fp": 7,
+          "fn": 14,
+          "precision": 0.36363636363636365,
+          "recall": 0.2222222222222222,
+          "f1": 0.27586206896551724,
+          "matches": [
+            {
+              "truthIndex": 10,
+              "predictionIndex": 4,
+              "iou": 0.6666666666666666
+            },
+            {
+              "truthIndex": 11,
+              "predictionIndex": 5,
+              "iou": 0.5789473684210527
+            },
+            {
+              "truthIndex": 12,
+              "predictionIndex": 6,
+              "iou": 0.8461538461538461
+            },
+            {
+              "truthIndex": 14,
+              "predictionIndex": 7,
+              "iou": 0.5714285714285714
+            }
+          ],
+          "classificationAcrossAllAnnotatedEvents": {
+            "count": 18,
+            "accuracy": 0.0,
+            "macroF1": 0.0,
+            "perClass": {
+              "jab": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "cross": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "lead_hook": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "rear_hook": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "lead_uppercut": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "rear_uppercut": {
+                "support": 3,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              }
+            },
+            "confusionRows": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut"
+            ],
+            "confusionColumns": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut",
+              "unknown"
+            ],
+            "confusionMatrix": [
+              [
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                2
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                2
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3
+              ],
+              [
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                2
+              ],
+              [
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                2
+              ]
+            ],
+            "abstained": 14
+          },
+          "impactTimingErrorMs": null,
+          "impactTimingReason": "GROUND_TRUTH_HAS_NO_IMPACT_LABELS"
+        }
+      }
+    }
+  }
+}

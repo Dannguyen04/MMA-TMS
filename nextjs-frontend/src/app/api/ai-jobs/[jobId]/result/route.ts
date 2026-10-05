@@ -1,7 +1,8 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 
-import { apiErrorResponse, authenticatedMutableApiRequest } from "@/lib/api/client";
+import { apiErrorResponse } from "@/lib/api/client";
+import { pipelineApiRequest } from "@/lib/api/pipeline-auth";
 import { workerResultSchema } from "@/lib/api/worker-result";
 
 const noStore = { "Cache-Control": "private, no-store" };
@@ -13,7 +14,11 @@ export async function GET(_request: NextRequest, context: RouteContext<"/api/ai-
     // Backend job ids are UUIDs; rejecting anything else keeps dot segments out of the upstream path.
     if (!jobIdSchema.safeParse(jobId).success) return Response.json({ message: "Analysis result not found." }, { status: 404, headers: noStore });
     try {
-        const result = await authenticatedMutableApiRequest(`/jobs/${encodeURIComponent(jobId)}/result`, workerResultSchema);
+        // Use the same pipeline authentication path as the server-rendered
+        // analysis page. In local demo mode there may be no backend access
+        // cookie because Server Components cannot persist the exchanged demo
+        // session, even though the pipeline token is valid and cached.
+        const result = await pipelineApiRequest(`/jobs/${encodeURIComponent(jobId)}/result`, workerResultSchema);
         return Response.json(result, { headers: noStore });
     } catch (error) {
         return apiErrorResponse(error, "The analysis result is unavailable.", noStore);

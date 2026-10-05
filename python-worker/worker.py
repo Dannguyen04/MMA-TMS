@@ -24,6 +24,7 @@ import httpx
 import redis
 
 from process_video import process_video
+from coaching_delivery import build_coaching_delivery
 
 logging.basicConfig(
     level=logging.INFO,
@@ -193,9 +194,8 @@ def process_job(r: redis.Redis, job_id: str):
 
     # Cập nhật trạng thái PROCESSING
     r.hset(job_key, "processedOn", int(time.time() * 1000))
-    notify_nestjs(db_job_id, "PROCESSING")
-
     try:
+        notify_nestjs(db_job_id, "PROCESSING")
         # ── Đường dẫn output ──
         result_filename = f"{db_job_id}_result.json"
         local_result    = str(TMP_DIR / result_filename)
@@ -209,6 +209,7 @@ def process_job(r: redis.Redis, job_id: str):
             verbose=True,
             training_mode=training_mode,
             camera_view=camera_view,
+            exercise_context=payload.get("exerciseContext"),
         )
         elapsed = time.time() - start_t
         log.info(f"⚡ Xử lý xong trong {elapsed:.1f}s")
@@ -217,9 +218,25 @@ def process_job(r: redis.Redis, job_id: str):
         remote_path = f"results/{db_job_id}/{result_filename}"
         result_url  = upload_to_supabase(local_result, remote_path)
 
+        # Durable structured evidence must exist before a job is announced DONE.
+        # The API serializes receipts per job and accepts identical retries.
+        delivery = build_coaching_delivery(db_job_id, result)
+        for attempt in range(1, 4):
+            try:
+                response = httpx.post(
+                    f"{NESTJS_API_URL}/coaching/results", json=delivery,
+                    headers={"x-worker-secret": WORKER_SECRET_TOKEN}, timeout=60.0,
+                )
+                response.raise_for_status()
+                break
+            except httpx.HTTPError:
+                if attempt == 3:
+                    raise
+                time.sleep(attempt)
+
         # ── Lấy điểm tốt nhất & anomaly data ──
-        quality_status = str(result.get("analysisQuality", {}).get("status", "unknown")).lower()
-        best_score = result["summary"].get("bestScore") if quality_status == "pass" else None
+        # Session coverage and calibrated probabilities are not yet validated.
+        best_score = None
         health_alerts = result.get("healthAlerts", [])
         joint_states  = result["summary"].get("jointHealthStates", {})
 
@@ -253,7 +270,7 @@ def process_job(r: redis.Redis, job_id: str):
         score_label = best_score if best_score is not None else "WITHHELD_REQUIRES_REVIEW"
         log.info(f"✅ Job {db_job_id} hoàn thành. Score: {score_label}, Health Alerts: {alert_count}")
         if alert_count > 0:
-            log.warning(f"⚠️  {alert_count} CONFIRMED_IMPAIRMENT alert(s) phát hiện!")
+            log.warning("%d movement observation(s) require human review; not diagnoses", alert_count)
 
     except Exception as e:
         log.error(f"❌ Job {db_job_id} thất bại: {e}", exc_info=True)

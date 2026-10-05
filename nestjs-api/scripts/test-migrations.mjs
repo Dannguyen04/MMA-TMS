@@ -385,6 +385,28 @@ try {
       '1',
     );
   });
+  check('015 and 016 add immutable movement review history with scoped grants', () => {
+    migration('mma_013', '015_ai_delivery_receipts.sql');
+    migration('mma_013', '016_movement_evidence_reviews.sql');
+    assert.equal(psql('mma_013', `SELECT relrowsecurity FROM pg_class WHERE oid='public.movement_evidence_reviews'::regclass;`), 't');
+    assert.equal(psql('mma_013', `SELECT string_agg(role::text, ',' ORDER BY role::text) FROM role_permissions rp JOIN permissions p ON p.id=rp.permission_id WHERE p.code='movement.evidence:review';`), 'COACH,DOCTOR');
+    assert.equal(psql('mma_013', `SELECT count(*) FROM pg_trigger WHERE tgrelid='public.movement_evidence_reviews'::regclass AND NOT tgisinternal;`), '2');
+    psql('mma_013', `
+      INSERT INTO auth.users(id) VALUES ('20000000-0000-4000-8000-000000000001');
+      INSERT INTO public.users(id, auth_user_id, email, role) VALUES
+        ('20000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000001', 'review-test@example.invalid', 'COACH');
+      INSERT INTO public.analysis_jobs(id, video_url) VALUES ('20000000-0000-4000-8000-000000000003', 'https://example.invalid/test');
+      INSERT INTO public.movement_evidence_reviews(job_id, window_id, reviewer_id, reviewer_role, revision, request_id, request_hash, evidence_hash, decision, notes)
+      VALUES ('20000000-0000-4000-8000-000000000003', 'w1', '20000000-0000-4000-8000-000000000002', 'COACH', 1, '20000000-0000-4000-8000-000000000004', 'request', 'evidence', 'confirmed', 'Visible observation');
+    `);
+    rejects('mma_013', `UPDATE public.movement_evidence_reviews SET notes='overwritten';`, /append-only/);
+    rejects('mma_013', `DELETE FROM public.movement_evidence_reviews;`, /append-only/);
+    rejects('mma_013', `INSERT INTO public.movement_evidence_reviews SELECT * FROM public.movement_evidence_reviews;`, /duplicate key/);
+    assert.equal(psql('mma_013', `SELECT count(*) FROM public.movement_evidence_reviews WHERE notes='Visible observation';`), '1');
+    rejects('mma_013', `TRUNCATE public.movement_evidence_reviews;`, /append-only/);
+    rejects('mma_013', `SET ROLE authenticated; SELECT * FROM public.movement_evidence_reviews;`, /permission denied/);
+    rejects('mma_013', readFileSync(join(api, 'migrations', '016_movement_evidence_reviews.sql'), 'utf8'), /already applied/);
+  });
   if (process.argv.includes('--export-catalog')) {
     mkdirSync(resolve(api, '../tmp'), { recursive: true });
     const catalog = psql(

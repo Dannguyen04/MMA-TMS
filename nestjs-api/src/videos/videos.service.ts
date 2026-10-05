@@ -135,11 +135,13 @@ export class VideosService {
       .where(and(...conditions))
       .orderBy(desc(videos.createdAt))
       .limit(query.limit);
-    const visible = [];
-    for (const row of rows) {
-      if (await this.access.canAccessFighter(actor, row.subjectFighterId))
-        visible.push(row);
-    }
+    const accessibleIds = await this.access.accessibleFighterIds(
+      actor,
+      rows.map((row) => row.subjectFighterId),
+    );
+    const visible = rows.filter((row) =>
+      accessibleIds.has(row.subjectFighterId),
+    );
     return {
       items: visible.map((row) => this.toDto(row)),
       pageInfo: { hasNextPage: false, endCursor: null },
@@ -282,9 +284,24 @@ export class VideosService {
       });
     }
     if (!response.ok) {
+      const upstreamMessage = await response.text().catch(() => '');
+      const normalizedMessage = upstreamMessage.toLowerCase();
+      const rejectedForSize =
+        response.status === 413 ||
+        normalizedMessage.includes('maximum allowed size') ||
+        normalizedMessage.includes('file size limit') ||
+        normalizedMessage.includes('payload too large') ||
+        normalizedMessage.includes('entity too large');
+      if (rejectedForSize) {
+        throw new PayloadTooLargeException({
+          code: 'VIDEO_STORAGE_FILE_TOO_LARGE',
+          message:
+            'The video exceeds the Supabase project storage limit. Increase the global Storage file-size limit or upload a smaller video.',
+        });
+      }
       throw new BadGatewayException({
         code: 'VIDEO_STORAGE_REJECTED',
-        message: 'The video storage service rejected the upload',
+        message: `The video storage service rejected the upload (status ${response.status})`,
       });
     }
   }

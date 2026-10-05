@@ -209,7 +209,8 @@ export function formatNumber(value: number, decimals = 0): string {
 }
 
 /** 0.873 → "87%" */
-export function formatConfidence(confidence: number): string {
+export function formatConfidence(confidence: number | null): string {
+    if (confidence === null) return "Unavailable";
     return `${Math.round(confidence * 100)}%`;
 }
 

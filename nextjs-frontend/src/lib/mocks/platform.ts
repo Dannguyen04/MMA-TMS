@@ -278,7 +278,7 @@ const jobEndedAt = (jobId: string) => minutesAfter(jobById(jobId).finishedAt ?? 
 function analysisReadyForFighter(videoId: string): NotificationSeed {
     const video = videoById(videoId);
     const analysis = analysisOf(videoId);
-    const low = analysis.overallConfidence < LOW_CONFIDENCE_THRESHOLD;
+    const low = (analysis.overallConfidence !== null && analysis.overallConfidence < LOW_CONFIDENCE_THRESHOLD);
     return note(
         readyAt(videoId),
         "ai_analysis",
@@ -294,7 +294,7 @@ function analysisReadyForFighter(videoId: string): NotificationSeed {
 function analysisReadyForCoach(videoId: string): NotificationSeed {
     const video = videoById(videoId);
     const analysis = analysisOf(videoId);
-    const low = analysis.overallConfidence < LOW_CONFIDENCE_THRESHOLD;
+    const low = (analysis.overallConfidence !== null && analysis.overallConfidence < LOW_CONFIDENCE_THRESHOLD);
     const subject = `${fighterName(video.fighterId)} ${typeLabel(video.trainingType).toLowerCase()}`;
     return note(
         readyAt(videoId),
@@ -499,7 +499,7 @@ const RAFAEL_MISSED_SESSION: TrainingSession | undefined = mockTrainingSessions
     .sort((a, b) => b.scheduledAt.localeCompare(a.scheduledAt))[0];
 
 const MINH_PADS = videoById("v-minh-pads-2d");
-const MINH_PADS_LOW_DETECTIONS = analysisOf(MINH_PADS.id).detections.filter((d) => d.confidence < LOW_CONFIDENCE_THRESHOLD).length;
+const MINH_PADS_LOW_DETECTIONS = analysisOf(MINH_PADS.id).detections.filter((d) => (d.confidence !== null && d.confidence < LOW_CONFIDENCE_THRESHOLD)).length;
 const MINH_CLEARANCE = clearanceById("cl-minh-current");
 const MINH_ROUTINE_EXAM = mockMedicalExaminations
     .filter((e) => e.fighterId === "f-minh-tran" && e.type === "routine" && e.date >= daysAgo(21, 0, 0))

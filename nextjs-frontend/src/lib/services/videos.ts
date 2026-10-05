@@ -20,6 +20,7 @@ import type {
 } from "@/lib/domain/types";
 import { nullIfNotFound } from "./api-helpers";
 import { getFighter } from "./people";
+import { applyPersistedReviews, readReviewState } from "./ai-coaching.api";
 
 const demoService = () => import("./videos.demo");
 const uuidSchema = z.string().uuid();
@@ -111,7 +112,7 @@ function mapVideo(video: BackendVideo, job: AIJob | null): Video {
     };
 }
 
-async function listApiJobs(): Promise<AIJob[]> {
+export async function listApiJobs(): Promise<AIJob[]> {
     return (await pipelineApiRequest("/jobs", z.array(backendJobSchema))).map(mapJob);
 }
 
@@ -224,6 +225,7 @@ export async function getVideoDetail(id: string): Promise<VideoDetail | null> {
             resultUrl: `/api/ai-jobs/${job.id}/result`,
         });
         video.analysisId = analysis.id;
+        applyPersistedReviews(analysis, await readReviewState(job.id));
     }
     return { video, fighter, job, analysis, alerts: [], session: null, uploadedBy: null };
 }
@@ -263,7 +265,7 @@ export interface VideoAnalysisSummary {
     unreviewedFindings: number;
     /** Unreviewed detections below the low-confidence threshold. */
     lowConfidenceDetections: number;
-    overallConfidence: number;
+    overallConfidence: number | null;
     coachReviewed: boolean;
 }
 

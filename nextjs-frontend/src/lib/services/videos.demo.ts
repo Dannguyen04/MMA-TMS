@@ -102,7 +102,7 @@ function completeRuntimeJob(job: AIJob, finishedAtMs: number): void {
     job.finishedAt = processedAt;
     job.durationSec = Math.round(WORK_MS / 1000);
     job.avgConfidence = analysis.overallConfidence;
-    job.lowConfidence = analysis.overallConfidence < store.settings.aiLowConfidenceThreshold;
+    job.lowConfidence = (analysis.overallConfidence !== null && analysis.overallConfidence < store.settings.aiLowConfidenceThreshold);
     job.errorCode = null;
     job.errorMessage = null;
     video.status = "completed";
@@ -240,7 +240,7 @@ export async function listReviewQueue(fighterIds: string[] | "all"): Promise<Rev
                     fighter,
                     unreviewedFindings: unreviewed.length,
                     lowConfidenceFindings: unreviewed.filter((f) => f.confidence < threshold).length,
-                    lowConfidenceDetections: analysis.detections.filter((d) => d.confidence < threshold && d.review === null).length,
+                    lowConfidenceDetections: analysis.detections.filter((d) => (d.confidence !== null && d.confidence < threshold) && d.review === null).length,
                 },
             ];
         });
@@ -265,7 +265,7 @@ export async function listVideoLibrary(filter: VideoFilter = {}): Promise<VideoL
                           analysisId: analysis.id,
                           findings: analysis.findings.length,
                           unreviewedFindings: analysis.findings.filter((f) => f.review === null).length,
-                          lowConfidenceDetections: analysis.detections.filter((d) => d.confidence < threshold && d.review === null).length,
+                          lowConfidenceDetections: analysis.detections.filter((d) => (d.confidence !== null && d.confidence < threshold) && d.review === null).length,
                           overallConfidence: analysis.overallConfidence,
                           coachReviewed: analysis.coachReview !== null,
                       }

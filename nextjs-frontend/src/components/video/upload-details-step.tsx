@@ -13,6 +13,7 @@ import type { CameraAngle, VideoTrainingType } from "@/lib/domain/types";
 import { formatWeekdayDate } from "@/lib/format";
 import type { WizardFighterOption, WizardSessionOption } from "./upload-wizard-data";
 import type { DetailsState } from "./upload-wizard-state";
+import { ExerciseContextFields } from "./exercise-context-fields";
 
 const CAMERA_TIPS: Record<CameraAngle, string> = {
     front: "Best for guard and head movement.",
@@ -27,6 +28,7 @@ const CAMERA_OPTIONS: ChoiceOption<CameraAngle>[] = (["diagonal", "side", "front
 }));
 
 export interface DetailsStepProps {
+    evidenceEnabled?: boolean;
     role: "fighter" | "coach";
     details: DetailsState;
     fighters: WizardFighterOption[];
@@ -36,7 +38,7 @@ export interface DetailsStepProps {
 }
 
 /** Step 2: who, what and how it was filmed. */
-export function DetailsStep({ role, details, fighters, sessions, errors, onChange }: DetailsStepProps) {
+export function DetailsStep({ role, details, fighters, sessions, errors, onChange, evidenceEnabled }: DetailsStepProps) {
     const baseId = useId();
     const ids = { fighter: `${baseId}-fighter`, type: `${baseId}-type`, angle: `${baseId}-angle`, session: `${baseId}-session`, title: `${baseId}-title`, notes: `${baseId}-notes` };
     const fighter = fighters.find((f) => f.id === details.fighterId) ?? null;
@@ -152,6 +154,7 @@ export function DetailsStep({ role, details, fighters, sessions, errors, onChang
                 </Field>
             </div>
 
+            {evidenceEnabled && <ExerciseContextFields details={details} onChange={onChange} />}
             <Field label="Notes for the coach" htmlFor={ids.notes} optional hint="Anything that helps read the footage, e.g. “Round 3 of 4, working the hook off the jab.”" error={errors.notes}>
                 <Textarea id={ids.notes} name="notes" rows={3} maxLength={1000} value={details.notes} onChange={(event) => onChange({ notes: event.target.value })} />
             </Field>

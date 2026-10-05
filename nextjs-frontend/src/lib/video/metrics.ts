@@ -19,7 +19,7 @@ type DetectionField = "peakSpeed" | "jointAngleDeg" | "hipRotationDeg" | "confid
 
 /** Mean of a numeric detection field, rounded. 0 for an empty list. */
 export function meanOf(detections: Detection[], field: DetectionField, decimals = 1): number {
-    return round(average(detections.map((d) => d[field])), decimals);
+    return round(average(detections.map((d) => d[field]).filter((value): value is number => value !== null)), decimals);
 }
 
 /** Converts raw movement-energy weights into whole-number shares that add up to 100. */
@@ -99,10 +99,11 @@ export function computeAnalysisMetrics(input: MetricsInput): AnalysisMetrics {
     });
 
     return {
-        strikeCounts: { jab: ofType("jab").length, cross: ofType("cross").length, hook: ofType("hook").length, kick: kicks.length },
+        strikeCounts: { punch: ofType("punch").length, jab: ofType("jab").length, cross: ofType("cross").length, hook: ofType("hook").length, kick: kicks.length },
         combinations: input.combinationCount,
         strikesPerMin: round(detections.length / minutes, 1),
         avgPeakSpeed: {
+            punch: meanOf(ofType("punch"), "peakSpeed"),
             jab: meanOf(ofType("jab"), "peakSpeed"),
             cross: meanOf(ofType("cross"), "peakSpeed"),
             hook: meanOf(ofType("hook"), "peakSpeed"),

@@ -1,4 +1,4 @@
-import type { Technique } from "@/lib/domain/types";
+import type { StrikeType, Technique } from "@/lib/domain/types";
 
 /**
  * Categorical chart colours, in the validated order defined in `globals.css`.
@@ -20,7 +20,8 @@ export const CHART_SERIES = [
 export const CHART_MUTED = "var(--neutral-solid)";
 
 /** Fixed technique → colour identity, so a technique keeps its hue on every screen. */
-export const TECHNIQUE_COLOR: Record<Technique, string> = {
+export const TECHNIQUE_COLOR: Record<Technique | StrikeType, string> = {
+    punch: CHART_MUTED,
     jab: CHART_SERIES[0],
     cross: CHART_SERIES[1],
     hook: CHART_SERIES[2],

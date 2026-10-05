@@ -40,7 +40,10 @@ except ImportError:
 from person_tracker import PersonTracker
 from pose_math import Point
 from action_result import build_actions_list, RubricSelectionError
-from punch_event_detector_v2 import build_heavy_bag_punch_results
+from pipeline.strike_events import detect_punch_events
+from pipeline.release_safety import withhold_unvalidated_assessment
+from pipeline.movement_evidence import build_movement_evidence, normalize_exercise_context
+from kick_event_detector_v2 import merge_kick_events, recover_kick_events, suppress_punches_during_kicks
 from pipeline import (
     ActionPipeline,
     PoseObservation,
@@ -99,6 +102,7 @@ def process_video(
     historical_references: Optional[Sequence[Mapping[str, Any]]] = None,
     training_mode: Optional[str] = None,
     camera_view: Optional[str] = None,
+    exercise_context: Optional[Mapping[str, Any]] = None,
 ) -> dict:
     """
     Pipeline chính: xử lý video và trả về dict kết quả JSON.
@@ -123,6 +127,8 @@ def process_video(
       "summary": { totalKicks, avgScore, bestScore, bestKickIdx }
     }
     """
+    # Validate declared exercise metadata before loading a model or downloading media.
+    normalize_exercise_context(exercise_context)
     # ── 0. Fail-fast Context & Discipline Verification (Assessment Boundary) ──
     # a. Kiểm tra kiểu dữ liệu analysis_context trước khi truy cập thuộc tính
     if analysis_context is not None and not isinstance(analysis_context, AnalysisContext):
@@ -190,7 +196,8 @@ def process_video(
     if not cap.isOpened():
         raise ValueError(f"Không thể mở video: {local_path}")
 
-    fps         = cap.get(cv2.CAP_PROP_FPS) or 30.0
+    source_fps  = cap.get(cv2.CAP_PROP_FPS)
+    fps         = source_fps or 30.0
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     img_w       = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     img_h       = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -275,7 +282,10 @@ def process_video(
             target_tracked_frames += 1
 
         analysis_result = action_pipeline.process_frame(observation, context)
-        frame_records.append(analysis_result.to_legacy_dict())
+        record = analysis_result.to_legacy_dict()
+        record["observationKind"] = observation_kind.value
+        record["posture"] = analysis_result.lower_body.posture if analysis_result.lower_body else "unknown"
+        frame_records.append(record)
 
     cap.release()
 
@@ -302,15 +312,17 @@ def process_video(
     punches, kicks = action_pipeline.get_results()
     detector_version = "legacy_fsm_v1"
     normalized_training_mode = str(training_mode or "").strip().lower()
-    if normalized_training_mode == "heavy_bag":
-        v2_punches = build_heavy_bag_punch_results(frame_records, fps)
-        # Preserve the proven single-strike FSM when it already explains at least
-        # as many events. V2 is selected for dense combinations it was designed
-        # to recover; its outputs remain gated from autonomous coaching until
-        # calibrated detector confidence is available.
-        if len(v2_punches) > max(len(punches) + 1, int(len(punches) * 1.5)):
-            punches = v2_punches
-            detector_version = "heavy_bag_peak_v2"
+    # Candidate count is not evidence of accuracy. Experimental detectors run
+    # in shadow and never replace authoritative actions before release gates.
+    shadow_events = detect_punch_events(
+        frame_records, fps, training_mode=normalized_training_mode,
+        aspect=img_w / img_h if img_h else 1.0,
+    )
+    recovered_kicks = recover_kick_events(frame_records, fps)
+    punches = suppress_punches_during_kicks(punches, recovered_kicks)
+    kicks = merge_kick_events(kicks, recovered_kicks)
+    if recovered_kicks:
+        detector_version = f"{detector_version}+kick_recovery_v2"
     kicks_dicts   = [r.to_dict() for r in kicks]
     punches_dicts = [p.to_dict() for p in punches]
 
@@ -556,7 +568,7 @@ def process_video(
             "primaryAction": primary_action,
             "avgScore":      round(sum(all_scores) / len(all_scores), 1) if all_scores else 0,
             "bestScore":     max(all_scores) if all_scores else 0,
-            "bestKickIdx":   [r.score for r in kicks].index(max([r.score for r in kicks])) if kicks else -1,
+            "bestKickIdx":   ([r.score for r in kicks].index(max([r.score for r in kicks if r.score is not None])) if any(r.score is not None for r in kicks) else -1),
             "bestPunchIdx":  [p.score for p in punches].index(max([p.score for p in punches])) if punches else -1,
         }
 
@@ -568,6 +580,17 @@ def process_video(
 
     # ── Task 12: Coaching Feedback & Drill Recommendations ──
     coaching_plan = CoachingEngine.generate_coaching_plan(session_insights)
+
+    # Pose coverage does not measure missed strikes. Until event coverage and
+    # calibration are validated, retain rubric evidence but withhold a session
+    # score and prescriptive drill plan.
+    summary["avgScore"] = None
+    summary["bestScore"] = None
+    summary["scoringStatus"] = "WITHHELD_UNKNOWN_EVENT_COVERAGE"
+    coaching_output = coaching_plan.to_dict()
+    coaching_output["recommendations"] = []
+    coaching_output["sessionStatus"] = "requires_coach_review"
+    coaching_output["reasonCodes"] = ["DETECTION_COVERAGE_UNKNOWN", "CONFIDENCE_NOT_CALIBRATED"]
 
     # ── Tasks 18–31: Advanced AI Extensions ──
     cam_view_val = None
@@ -619,14 +642,22 @@ def process_video(
         "findings":        all_findings,
         "summary":         summary,
         "analysisQuality": quality.to_dict(),
+        "shadowEventDetection": shadow_events,
         "sessionInsights": session_insights.to_dict(),
-        "coachingPlan":    coaching_plan.to_dict(),
+        "coachingPlan":    coaching_output,
         "advancedAI":      analysis_res["verticalSlice"],
         "baseline":        analysis_res["baseline"],
         "discoveredTechniques": analysis_res["discoveredTechniques"],
     }
     if quality.status.value == "blocked":
         output["reasonCodes"] = ["QUALITY_BLOCKED"]
+
+    output = withhold_unvalidated_assessment(output)
+    output["movementEvidence"] = build_movement_evidence(
+        frame_records, fps=source_fps, width=img_w, height=img_h, quality=quality.to_dict(),
+        exercise_context=exercise_context, training_mode=training_mode,
+        camera_view=camera_view, model_version=model_name,
+    )
 
     # ── 10. Xuất file JSON ──
     if output_path:
@@ -643,16 +674,16 @@ def process_video(
         print(f"   • Hành động chính: {summary['primaryAction'].upper()}")
         print(f"   • Cú đấm phát hiện: {summary['totalPunches']}")
         print(f"   • Cú đá phát hiện: {summary['totalKicks']}")
-        print(f"   • AI Technique Findings: {len(all_findings)}")
+        print(f"   • AI Technique Findings: {len(output['findings'])}")
         if all_scores:
             print(f"   • Điểm trung bình: {summary['avgScore']}")
             print(f"   • Điểm cao nhất: {summary['bestScore']}")
         if confirmed_alerts:
-            print(f"   ⚠️  Health Alerts (CONFIRMED_IMPAIRMENT): {len(confirmed_alerts)}")
+            print(f"   ⚠️  Movement observations requiring human review: {len(confirmed_alerts)} (not diagnoses)")
             for a in confirmed_alerts:
                 print(f"      – {a['joint']}: avg_ROM={a['avgRomRatio']:.0%}, severity={a['severity']}")
         else:
-            print(f"   ✅ Không phát hiện dấu hiệu chấn thương cơ học")
+            print("   Không có cảnh báo chuyển động; kết quả không xác nhận hay loại trừ chấn thương.")
 
     return output
 
@@ -714,6 +745,13 @@ if __name__ == "__main__":
     parser.add_argument("--camera-view", default=None,
                         choices=["FRONT", "SIDE", "DIAGONAL"],
                         help="Góc máy do nguồn upload khai báo")
+    parser.add_argument("--exercise-id", default=None,
+                        help="Declared assigned exercise ID; never an AI-confirmed label")
+    parser.add_argument("--evidence-protocol", default="whole_body_v1",
+                        choices=["whole_body_v1", "upper_body_v1", "lower_body_v1"])
+    parser.add_argument("--analysis-purpose", default="training",
+                        choices=["training", "longitudinal_monitoring", "rehabilitation"],
+                        help="Declared review context; does not grant clinical permissions")
 
     args = parser.parse_args()
 
@@ -729,6 +767,8 @@ if __name__ == "__main__":
             martial_art=args.martial_art,
             training_mode=args.training_mode,
             camera_view=args.camera_view,
+            exercise_context={"exerciseId": args.exercise_id, "protocolId": args.evidence_protocol,
+                              "purpose": args.analysis_purpose},
         )
     except KeyboardInterrupt:
         print("\n⛔ Đã dừng.")

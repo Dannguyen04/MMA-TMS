@@ -1,4 +1,4 @@
-import { IsUUID } from 'class-validator';
+import { IsUUID, IsOptional, IsIn } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateJobDto {
@@ -8,4 +8,12 @@ export class CreateJobDto {
   })
   @IsUUID()
   videoId: string;
+
+  @IsOptional()
+  @IsUUID()
+  sessionExerciseId?: string;
+
+  @IsOptional()
+  @IsIn(['whole_body_v1', 'upper_body_v1', 'lower_body_v1'])
+  evidenceProtocol?: 'whole_body_v1' | 'upper_body_v1' | 'lower_body_v1';
 }

@@ -16,7 +16,7 @@ export const AI_REVIEW_TERMS = {
 } as const;
 
 /** Unreviewed and below the low-confidence threshold. */
-export function isNeedsReview(item: { confidence: number; review: unknown }): boolean {
+export function isNeedsReview(item: { confidence: number | null; review: unknown }): boolean {
     return item.review === null && isLowConfidence(item.confidence);
 }
 

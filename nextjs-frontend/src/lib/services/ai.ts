@@ -32,6 +32,9 @@ import { average, round } from "@/lib/utils";
 import { recordAudit } from "./audit.demo";
 import { notifyUsers, staffUserIdsForFighter } from "./notifications.demo";
 import { syncRuntimeJobs, trackRuntimeJob, untrackRuntimeJob } from "./videos.demo";
+import { persistEvidenceReview, persistCoachSummary, readReviewState } from "./ai-coaching.api";
+
+const usesRealAnalysis = (id: string) => /^an-[0-9a-f-]{36}$/i.test(id) || !isDemoAuthEnabled();
 
 /**
  * AI analysis review, pipeline jobs, model registry and abnormal movement observations.
@@ -64,6 +67,11 @@ const REVIEW_AUDIT_ACTIONS: Record<ReviewDecision, string> = {
 
 /** A single analysis, or null. */
 export async function getAnalysis(id: string): Promise<AIAnalysis | null> {
+    if (usesRealAnalysis(id)) {
+        const jobId = id.replace(/^an-/, "");
+        const state = await readReviewState(jobId);
+        return (await (await import("./videos")).getVideoDetail(state.videoId))?.analysis ?? null;
+    }
     await simulateLatency();
     syncRuntimeJobs();
     return db().aiAnalyses.find((a) => a.id === id) ?? null;
@@ -101,6 +109,15 @@ function reviewDetails(feedback: AIFeedback, aiLabel: string): string {
 
 /** Records a coach's confirm / correct / reject decision on an AI finding. */
 export async function reviewFinding(analysisId: string, findingId: string, input: AIReviewInput, actor: User): Promise<ReviewFindingResult> {
+    if (usesRealAnalysis(analysisId)) {
+        const analysis = await getAnalysis(analysisId);
+        const finding = analysis?.findings.find((f) => f.id === findingId);
+        if (!analysis || !finding?.workerActionId || !finding.workerFindingId) return { ok: false, code: "not_found", message: "This finding has no persisted worker evidence." };
+        const feedback = feedbackFrom(input, actor);
+        if ("ok" in feedback) return feedback;
+        await persistEvidenceReview(analysis.jobId, finding.workerActionId, finding.workerFindingId, input);
+        return { ok: true, finding: { ...finding, review: feedback } };
+    }
     const finding = db()
         .aiAnalyses.find((a) => a.id === analysisId)
         ?.findings.find((f) => f.id === findingId);
@@ -123,6 +140,15 @@ export async function reviewFinding(analysisId: string, findingId: string, input
 
 /** Records a human decision on a single strike detection (doubles as model feedback). */
 export async function reviewDetection(analysisId: string, detectionId: string, input: AIReviewInput, actor: User): Promise<ReviewDetectionResult> {
+    if (usesRealAnalysis(analysisId)) {
+        const analysis = await getAnalysis(analysisId);
+        const detection = analysis?.detections.find((d) => d.id === detectionId);
+        if (!analysis || !detection?.workerActionId) return { ok: false, code: "not_found", message: "This detection has no persisted worker evidence." };
+        const feedback = feedbackFrom(input, actor);
+        if ("ok" in feedback) return feedback;
+        await persistEvidenceReview(analysis.jobId, detection.workerActionId, "@action", input);
+        return { ok: true, detection: { ...detection, review: feedback } };
+    }
     const detection = db()
         .aiAnalyses.find((a) => a.id === analysisId)
         ?.detections.find((d) => d.id === detectionId);
@@ -153,6 +179,15 @@ export type SubmitCoachReviewResult = { ok: true; analysis: AIAnalysis } | Failu
 
 /** Completes the coach review of an analysis and tells the fighter. */
 export async function submitCoachReview(analysisId: string, input: CoachReviewInput, actor: User): Promise<SubmitCoachReviewResult> {
+    if (usesRealAnalysis(analysisId)) {
+        const analysis = await getAnalysis(analysisId);
+        if (!analysis) return { ok: false, code: "not_found", message: "Analysis not found." };
+        if (!Number.isInteger(input.rating) || input.rating < 1 || input.rating > 5) return { ok: false, code: "invalid_rating", message: "Rate from 1 to 5." };
+        if (!input.summary.trim()) return { ok: false, code: "summary_required", message: "A review summary is required." };
+        await persistCoachSummary(analysis.jobId, input);
+        analysis.coachReview = { reviewerId: actor.id, reviewerName: actor.name, reviewedAt: nowIso(), rating: input.rating, summary: input.summary.trim() };
+        return { ok: true, analysis };
+    }
     const store = db();
     const analysis = store.aiAnalyses.find((a) => a.id === analysisId);
     if (!analysis) return { ok: false, code: "not_found", message: "This analysis no longer exists." };
@@ -205,6 +240,12 @@ export interface AIJobListItem {
 
 /** Pipeline jobs, newest queued first. */
 export async function listAIJobs(filter: AIJobFilter = {}): Promise<AIJobListItem[]> {
+    if (!isDemoAuthEnabled()) {
+        const jobs = await (await import("./videos")).listApiJobs();
+        return jobs.filter((job) => (!filter.status || job.status === filter.status) &&
+            (filter.lowConfidence === undefined || job.lowConfidence === filter.lowConfidence) && matchesSearch(filter.search, job.id, job.errorCode))
+            .map((job) => ({ job, video: null, fighter: null }));
+    }
     await simulateLatency();
     syncRuntimeJobs();
     const store = db();
@@ -229,7 +270,7 @@ export interface AIAnalysisSummary {
     processedAt: string;
     durationMs: number;
     fps: number;
-    overallConfidence: number;
+    overallConfidence: number | null;
     trackingQuality: number;
     detectionCount: number;
     lowConfidenceDetectionCount: number;
@@ -249,6 +290,12 @@ export interface AIJobDetail {
 
 /** A job with its video, models and a non-clinical analysis summary (admin AI Jobs detail). */
 export async function getAIJobDetail(id: string): Promise<AIJobDetail | null> {
+    if (!isDemoAuthEnabled()) {
+        const { getJobProgress, getVideo } = await import("./videos");
+        const job = await getJobProgress(id);
+        if (!job) return null;
+        return { job, video: job.videoId ? await getVideo(job.videoId) : null, fighter: null, models: [], analysis: null, otherRuns: [] };
+    }
     await simulateLatency();
     syncRuntimeJobs();
     const store = db();
@@ -270,7 +317,7 @@ export async function getAIJobDetail(id: string): Promise<AIJobDetail | null> {
                   overallConfidence: analysis.overallConfidence,
                   trackingQuality: analysis.trackingQuality,
                   detectionCount: analysis.detections.length,
-                  lowConfidenceDetectionCount: analysis.detections.filter((d) => d.confidence < threshold).length,
+                  lowConfidenceDetectionCount: analysis.detections.filter((d) => d.confidence !== null && d.confidence < threshold).length,
                   combinationCount: analysis.combinations.length,
                   findingCount: analysis.findings.length,
               }
@@ -283,6 +330,7 @@ export type JobActionResult = { ok: true; job: AIJob } | Failure<"not_found" | "
 
 /** Re-queues a failed job (attempts + 1). The mock pipeline then processes it like a new upload. */
 export async function retryJob(id: string, actor: User): Promise<JobActionResult> {
+    if (!isDemoAuthEnabled() || /^[0-9a-f-]{36}$/i.test(id)) return { ok: false, code: "invalid_state", message: "This API does not support retrying a terminal job. Upload a new video revision." };
     const store = db();
     const job = store.aiJobs.find((j) => j.id === id);
     if (!job) return { ok: false, code: "not_found", message: "This job no longer exists." };
@@ -322,6 +370,7 @@ export async function retryJob(id: string, actor: User): Promise<JobActionResult
 
 /** Cancels a queued or processing job; the uploader is told processing stopped. */
 export async function cancelJob(id: string, actor: User): Promise<JobActionResult> {
+    if (!isDemoAuthEnabled() || /^[0-9a-f-]{36}$/i.test(id)) return { ok: false, code: "invalid_state", message: "Cancelling a running worker is not supported by the API." };
     const store = db();
     syncRuntimeJobs();
     const job = store.aiJobs.find((j) => j.id === id);
@@ -381,7 +430,7 @@ export interface AIJobStats {
 export async function getAIJobStats(now: Date = new Date()): Promise<AIJobStats> {
     await simulateLatency();
     syncRuntimeJobs(now.getTime());
-    const jobs = db().aiJobs;
+    const jobs = isDemoAuthEnabled() ? db().aiJobs : await (await import("./videos")).listApiJobs();
     const nowMs = now.getTime();
     const finishedWithin = (ms: number) => jobs.filter((j) => j.finishedAt !== null && nowMs - Date.parse(j.finishedAt) <= ms && Date.parse(j.finishedAt) <= nowMs);
 
@@ -419,8 +468,9 @@ const STATUS_ORDER: AIModelStatus[] = ["active", "staging", "deprecated"];
 
 /** Models grouped by pipeline task, active first. */
 export async function listAIModels(): Promise<AIModel[]> {
+    if (!isDemoAuthEnabled()) return [];
     await simulateLatency();
-    return [...db().aiModels].sort(
+    return [...db().aiModels].map((model) => ({ ...model, description: `DEMO ONLY: simulated model and evaluation metrics. ${model.description}` })).sort(
         (a, b) =>
             TASK_ORDER.indexOf(a.task) - TASK_ORDER.indexOf(b.task) ||
             STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status) ||
@@ -430,8 +480,9 @@ export async function listAIModels(): Promise<AIModel[]> {
 
 /** A single model, or null. */
 export async function getAIModel(id: string): Promise<AIModel | null> {
+    if (!isDemoAuthEnabled()) return null;
     await simulateLatency();
-    return db().aiModels.find((m) => m.id === id) ?? null;
+    return (await listAIModels()).find((m) => m.id === id) ?? null;
 }
 
 export interface ModelThresholdsInput {
@@ -445,6 +496,7 @@ export type ModelResult = { ok: true; model: AIModel } | Failure<"not_found" | "
 
 /** Updates a model's thresholds. Requires 0 < confidence < low-confidence < 1. */
 export async function updateModelThresholds(id: string, input: ModelThresholdsInput, actor: User): Promise<ModelResult> {
+    if (!isDemoAuthEnabled()) return { ok: false, code: "not_found", message: "Production model registry is not connected." };
     const model = db().aiModels.find((m) => m.id === id);
     if (!model) return { ok: false, code: "not_found", message: "This model no longer exists." };
     const { confidenceThreshold, lowConfidenceThreshold } = input;
@@ -468,6 +520,7 @@ export async function updateModelThresholds(id: string, input: ModelThresholdsIn
  * for the same task; a task can't be left without an active model.
  */
 export async function setModelStatus(id: string, status: AIModelStatus, actor: User): Promise<ModelResult> {
+    if (!isDemoAuthEnabled()) return { ok: false, code: "not_found", message: "Production model registry is not connected." };
     const models = db().aiModels;
     const model = models.find((m) => m.id === id);
     if (!model) return { ok: false, code: "not_found", message: "This model no longer exists." };

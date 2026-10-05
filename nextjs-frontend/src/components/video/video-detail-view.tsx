@@ -154,11 +154,14 @@ function AnalysisSummary({ analysis, role }: { analysis: AIAnalysis; role: "figh
     const [unreviewed] = formatReviewCounts({ unreviewedFindings: counts.unreviewedFindings });
     const confidenceAvailable = analysis.confidenceAvailable !== false;
     const coachingEligible = analysis.coachingEligible !== false;
-    const lowOverall = !confidenceAvailable || analysis.overallConfidence < LOW_CONFIDENCE_THRESHOLD;
+    const lowOverall = !confidenceAvailable || analysis.overallConfidence === null || analysis.overallConfidence < LOW_CONFIDENCE_THRESHOLD;
     const observations = analysis.alertIds.length;
 
-    const stats = [
-        { label: "Strikes detected", value: formatNumber(analysis.detections.length) },
+    const stats = analysis.movementEvidence ? [
+        { label: "Review windows", value: formatNumber(analysis.movementEvidence.windows.length), hint: "not repetitions" },
+        { label: "Usable frames", value: `${analysis.movementEvidence.coverage.usableFrames} / ${analysis.movementEvidence.coverage.totalFrames}`, hint: "visibility checks only" },
+    ] : [
+        { label: "Strike candidates", value: formatNumber(analysis.detections.length) },
         { label: "Findings", value: formatNumber(analysis.findings.length), hint: unreviewed ?? "all reviewed" },
         {
             label: "Low-confidence detections",

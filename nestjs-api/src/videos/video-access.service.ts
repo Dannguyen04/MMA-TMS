@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, gt, isNull, lte, or } from 'drizzle-orm';
+import { and, eq, gt, inArray, isNull, lte, or } from 'drizzle-orm';
 import { DRIZZLE, type DrizzleDB } from '../database/database.module.js';
 import {
   coachFighters,
@@ -78,6 +78,77 @@ export class VideoAccessService {
     }
 
     return false;
+  }
+
+  /**
+   * Resolve access for a collection in one database round trip. List endpoints
+   * must not call canAccessFighter once per row: that creates an N+1 query and
+   * can exceed the frontend request deadline as the library grows.
+   */
+  async accessibleFighterIds(
+    actor: AuthenticatedUser,
+    fighterIds: string[],
+  ): Promise<Set<string>> {
+    const uniqueIds = [...new Set(fighterIds)];
+    if (uniqueIds.length === 0) return new Set();
+    if (actor.role === USER.ADMIN) return new Set(uniqueIds);
+
+    if (actor.role === USER.FIGHTER) {
+      const rows = await this.db
+        .select({ id: fighters.id })
+        .from(fighters)
+        .where(
+          and(
+            inArray(fighters.id, uniqueIds),
+            eq(fighters.userId, actor.id),
+            eq(fighters.isActive, true),
+            isNull(fighters.deletedAt),
+          ),
+        );
+      return new Set(rows.map((row) => row.id));
+    }
+
+    const now = new Date();
+    if (actor.role === USER.COACH) {
+      const rows = await this.db
+        .select({ fighterId: coachFighters.fighterId })
+        .from(coachFighters)
+        .innerJoin(coaches, eq(coachFighters.coachId, coaches.id))
+        .where(
+          and(
+            eq(coaches.userId, actor.id),
+            eq(coaches.isActive, true),
+            isNull(coaches.deletedAt),
+            inArray(coachFighters.fighterId, uniqueIds),
+            lte(coachFighters.startsAt, now),
+            or(isNull(coachFighters.endsAt), gt(coachFighters.endsAt, now)),
+          ),
+        );
+      return new Set(rows.map((row) => row.fighterId));
+    }
+
+    if (actor.role === USER.DOCTOR) {
+      const rows = await this.db
+        .select({ fighterId: doctorFighters.fighterId })
+        .from(doctorFighters)
+        .innerJoin(
+          sportsDoctors,
+          eq(doctorFighters.doctorId, sportsDoctors.id),
+        )
+        .where(
+          and(
+            eq(sportsDoctors.userId, actor.id),
+            eq(sportsDoctors.isActive, true),
+            isNull(sportsDoctors.deletedAt),
+            inArray(doctorFighters.fighterId, uniqueIds),
+            lte(doctorFighters.startsAt, now),
+            or(isNull(doctorFighters.endsAt), gt(doctorFighters.endsAt, now)),
+          ),
+        );
+      return new Set(rows.map((row) => row.fighterId));
+    }
+
+    return new Set();
   }
 
   async assertFighterAccess(

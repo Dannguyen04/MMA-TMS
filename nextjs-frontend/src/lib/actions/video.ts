@@ -270,5 +270,5 @@ export async function submitCoachReviewAction(_prev: ActionState<CoachReview>, f
     }
     revalidateVideo(analysis.videoId, analysis.fighterId);
     if (!result.analysis.coachReview) return actionError("The review couldn't be saved. Try again.");
-    return actionSuccess("Coach review saved. The fighter has been notified.", result.analysis.coachReview);
+    return actionSuccess("Coach review saved.", result.analysis.coachReview);
 }

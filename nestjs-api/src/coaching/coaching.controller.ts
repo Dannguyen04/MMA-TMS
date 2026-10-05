@@ -9,6 +9,7 @@ import {
   HttpCode,
   HttpStatus,
   ForbiddenException,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { CoachingService } from './coaching.service.js';
@@ -17,6 +18,7 @@ import { CurrentUser, RequireRoles } from '../shared/decorators/auth.decorator.j
 import { WorkerAuthGuard } from '../jobs/guards/worker-auth.guard.js';
 import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import { USER } from '../shared/types/user.role.js';
+import { VideoAccessService } from '../videos/video-access.service.js';
 import {
   CreateAssignmentDto,
   UploadVideoDto,
@@ -35,7 +37,14 @@ import {
 @RequireRoles(USER.FIGHTER, USER.COACH, USER.ADMIN)
 @Controller('coaching')
 export class CoachingController {
-  constructor(private readonly coachingService: CoachingService) {}
+  constructor(private readonly coachingService: CoachingService, private readonly videoAccess: VideoAccessService) {}
+
+  @Get('jobs/:jobId/state')
+  async getJobReviewState(@CurrentUser() user: AuthenticatedUser, @Param('jobId', new ParseUUIDPipe()) jobId: string) {
+    const state = await this.coachingService.getJobReviewState(jobId);
+    await this.videoAccess.assertFighterAccess(user, state.fighterId);
+    return state;
+  }
 
   @Post('assignments')
   @ApiOperation({ summary: 'Coach creates assignment for fighter' })
@@ -132,7 +141,8 @@ export class CoachingController {
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: ReviewFindingDto,
   ) {
-    if (user.role !== USER.ADMIN) {
+    if (user.role === USER.ADMIN) throw new ForbiddenException('An assigned coach must author technical reviews.');
+    {
       if (user.role !== USER.COACH) {
         throw new ForbiddenException('Only coaches or admins can review findings.');
       }
@@ -153,7 +163,8 @@ export class CoachingController {
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CoachCorrectionDto,
   ) {
-    if (user.role !== USER.ADMIN) {
+    if (user.role === USER.ADMIN) throw new ForbiddenException('An assigned coach must author technical corrections.');
+    {
       if (user.role !== USER.COACH) {
         throw new ForbiddenException('Only coaches or admins can submit corrections.');
       }

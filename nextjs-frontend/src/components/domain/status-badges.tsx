@@ -202,7 +202,7 @@ export function ReviewStateBadge({
     className,
 }: {
     review: AIFeedback | null;
-    confidence: number;
+    confidence: number | null;
     size?: BadgeSize;
     className?: string;
 }) {
@@ -253,7 +253,7 @@ export function AlertStatusBadge({ status, size, className }: { status: AlertSta
 }
 
 /** Confidence as text + band, e.g. "87% · High". */
-export function ConfidenceBadge({ confidence, size, className }: { confidence: number; size?: BadgeSize; className?: string }) {
+export function ConfidenceBadge({ confidence, size, className }: { confidence: number | null; size?: BadgeSize; className?: string }) {
     const band = confidenceBand(confidence);
     const tone: Tone = band === "high" ? "neutral" : band === "medium" ? "neutral" : "warning";
     return (
