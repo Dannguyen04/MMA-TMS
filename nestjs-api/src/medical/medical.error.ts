@@ -168,6 +168,9 @@ const CHECK_VIOLATIONS: Readonly<Record<string, () => HttpException>> = {
   ck_medical_examination_restrictions: medicalDataConstraintConflict,
   ck_medical_examination_validity: medicalDataConstraintConflict,
   ck_medical_review_request_resolution: medicalDataConstraintConflict,
+  ck_medical_examination_details_vitals: medicalDataConstraintConflict,
+  ck_medical_examination_details_text: medicalDataConstraintConflict,
+  ck_medical_examination_details_scat6: medicalDataConstraintConflict,
 };
 
 // Business references a client can name; actor/provenance FKs are backend-owned

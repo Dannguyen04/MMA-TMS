@@ -23,6 +23,7 @@ import type {
   UpdateUserInput,
 } from './users.model.js';
 import { UsersRepository } from './users.repo.js';
+import { DoctorAssignmentReminder } from '../medical/doctor-assignment-reminder.service.js';
 
 interface NewIdentity {
   subject: string;
@@ -35,6 +36,7 @@ export class UsersService {
     private readonly usersRepository: UsersRepository,
     @Inject(SUPABASE_ADMIN_CLIENT)
     private readonly supabaseAdmin: SupabaseClient,
+    private readonly doctorAssignmentReminder: DoctorAssignmentReminder,
   ) {}
 
   /**
@@ -60,6 +62,28 @@ export class UsersService {
         );
         if (!created) throw userNotFound();
         return created;
+      });
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw mapUserPersistenceError(error);
+    }
+  }
+
+  /**
+   * Passwordless admission: makes sure a verified auth subject has its public
+   * user, creating a GUEST only when none exists. Idempotent for retries and
+   * concurrent callbacks; never changes the role or state of an existing user
+   * and never matches another user by email (a different subject with the
+   * same email is a uniqueness conflict, not a merge).
+   */
+  async provisionGuest(
+    identity: NewIdentity,
+    requestId: string,
+  ): Promise<void> {
+    try {
+      await this.usersRepository.transaction(async (transaction) => {
+        await setAuditContext(identity.subject, requestId, transaction);
+        await this.usersRepository.insertGuestIfAbsent(identity, transaction);
       });
     } catch (error) {
       if (error instanceof HttpException) throw error;
@@ -99,8 +123,9 @@ export class UsersService {
       throw userCreationFailed();
     }
 
+    let created: PublicUser;
     try {
-      return await this.usersRepository.transaction(async (transaction) => {
+      created = await this.usersRepository.transaction(async (transaction) => {
         await setAuditContext(actor.authSubject, requestId, transaction);
         const user = await this.usersRepository.createUser(
           { subject: data.user.id, email: input.email },
@@ -112,18 +137,24 @@ export class UsersService {
           input,
           transaction,
         );
-        const created = await this.usersRepository.findActiveById(
+        const found = await this.usersRepository.findActiveById(
           user.id,
           transaction,
         );
-        if (!created) throw userNotFound();
-        return created;
+        if (!found) throw userNotFound();
+        return found;
       });
     } catch (databaseError) {
       await this.supabaseAdmin.auth.admin.deleteUser(data.user.id);
       if (databaseError instanceof HttpException) throw databaseError;
       throw mapUserPersistenceError(databaseError);
     }
+    // M1, after commit: a directly created Fighter needs a Doctor for the
+    // baseline examination. The creating Admin is a recipient too.
+    if (input.role === USER.FIGHTER) {
+      await this.doctorAssignmentReminder.remind(created.id, requestId);
+    }
+    return created;
   }
 
   async findOne(id: string): Promise<PublicUser> {

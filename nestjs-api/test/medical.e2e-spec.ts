@@ -19,6 +19,7 @@ import { MedicalController } from '../src/medical/medical.controller.js';
 import { MedicalAssignmentController } from '../src/medical/medical-assignment.controller.js';
 import { MEDICAL_PERMISSIONS } from '../src/medical/medical.constants.js';
 import { MedicalService } from '../src/medical/medical.service.js';
+import { medicalDataConstraintConflict } from '../src/medical/medical.error.js';
 import { authenticationRequired } from '../src/shared/errors/access.error.js';
 import { TrainingSessionController } from '../src/training/sessions/training-session.controller.js';
 import { TrainingSessionService } from '../src/training/sessions/training-session.service.js';
@@ -477,6 +478,139 @@ describe('Medical API (e2e)', () => {
         .expect(422);
     });
 
+    it('POST /fighters/:id/medical-examinations creates BASELINE examination with vitals and SCAT6 (201)', async () => {
+      const examinedAt = '2026-10-01T10:00:00.000Z';
+      const baselinePayload = {
+        scope: 'TRAINING',
+        decision: 'ELIGIBLE',
+        examinedAt,
+        reason: 'Onboarding baseline',
+        examinationType: 'BASELINE',
+        vitals: {
+          weightKg: 75.5,
+          restingHeartRate: 60,
+          bloodPressureSystolic: 120,
+          bloodPressureDiastolic: 80,
+          temperatureC: 36.6,
+          spo2Pct: 98,
+          hydration: 'GOOD',
+        },
+        assessments: [
+          { area: 'Musculoskeletal', result: 'NORMAL', note: null },
+        ],
+        scat6: {
+          status: 'NOT_ADMINISTERED',
+          formVersion: 'SCAT6-2023-EN',
+          reason: 'Baseline assessment deferred',
+        },
+      };
+
+      medicalService.createExamination.mockResolvedValueOnce({
+        id: examId,
+        fighterId,
+        scope: 'TRAINING',
+        decision: 'ELIGIBLE',
+        examinedAt,
+        validUntil: null,
+        restrictions: null,
+        supersedesId: null,
+        createdAt: examinedAt,
+        details: {
+          examinationType: 'BASELINE',
+          vitals: baselinePayload.vitals,
+          assessments: baselinePayload.assessments,
+          recommendations: null,
+          followUpDate: null,
+          scat6: {
+            formVersion: 'SCAT6-2023-EN',
+            responses: baselinePayload.scat6,
+            scoringVersion: null,
+            scores: null,
+          },
+        },
+      });
+
+      const res = await request(app.getHttpServer())
+        .post(`/fighters/${fighterId}/medical-examinations`)
+        .send(baselinePayload)
+        .expect(201);
+
+      expect(res.body).toMatchObject({
+        success: true,
+        message: 'Record medical examination successfully',
+        data: {
+          id: examId,
+          details: {
+            examinationType: 'BASELINE',
+          },
+        },
+      });
+    });
+
+    it('POST /fighters/:id/medical-examinations rejects BASELINE without scat6 with 422', async () => {
+      await request(app.getHttpServer())
+        .post(`/fighters/${fighterId}/medical-examinations`)
+        .send({
+          scope: 'TRAINING',
+          decision: 'ELIGIBLE',
+          examinedAt: '2026-10-01T10:00:00.000Z',
+          reason: 'Onboarding baseline missing scat6',
+          examinationType: 'BASELINE',
+          vitals: {
+            weightKg: 75.5,
+            restingHeartRate: 60,
+            bloodPressureSystolic: 120,
+            bloodPressureDiastolic: 80,
+            temperatureC: 36.6,
+            spo2Pct: 98,
+            hydration: 'GOOD',
+          },
+          assessments: [{ area: 'General', result: 'NORMAL', note: null }],
+          // scat6 omitted
+        })
+        .expect(422);
+    });
+
+    it('POST /fighters/:id/medical-examinations maps age < 13 SCAT6 constraint to 409 MEDICAL_DATA_CONSTRAINT_CONFLICT', async () => {
+      medicalService.createExamination.mockRejectedValueOnce(
+        medicalDataConstraintConflict(),
+      );
+
+      const res = await request(app.getHttpServer())
+        .post(`/fighters/${fighterId}/medical-examinations`)
+        .send({
+          scope: 'TRAINING',
+          decision: 'ELIGIBLE',
+          examinedAt: '2026-10-01T10:00:00.000Z',
+          reason: 'Underage baseline exam',
+          examinationType: 'BASELINE',
+          vitals: {
+            weightKg: 40.0,
+            restingHeartRate: 70,
+            bloodPressureSystolic: 110,
+            bloodPressureDiastolic: 70,
+            temperatureC: 36.6,
+            spo2Pct: 99,
+            hydration: 'GOOD',
+          },
+          assessments: [{ area: 'Pediatric', result: 'NORMAL', note: null }],
+          scat6: {
+            status: 'NOT_ADMINISTERED',
+            formVersion: 'SCAT6-2023-EN',
+            reason: 'Under age 13',
+          },
+        })
+        .expect(409);
+
+      expect(res.body).toMatchObject({
+        success: false,
+        error: {
+          statusCode: 409,
+          code: 'MEDICAL_DATA_CONSTRAINT_CONFLICT',
+        },
+      });
+    });
+
     it('POST /medical-clearances/:id/revoke returns 200 (not 201)', async () => {
       const res = await request(app.getHttpServer())
         .post(`/medical-clearances/${clearanceId}/revoke`)
@@ -527,6 +661,34 @@ describe('Medical API (e2e)', () => {
           },
         },
       });
+    });
+
+    it('Expectation C: starting session with only ROUTINE examination + clearance returns 409 and status remains unchanged', async () => {
+      trainingService.updateSessionStatus.mockRejectedValueOnce(
+        trainingMedicalEligibilityRequired(['EXAMINATION_REQUIRED']),
+      );
+
+      const res = await request(app.getHttpServer())
+        .patch(`/training-sessions/${sessionId}/status`)
+        .send({ status: 'IN_PROGRESS' })
+        .expect(409);
+
+      expect(res.body).toMatchObject({
+        success: false,
+        error: {
+          statusCode: 409,
+          code: 'TRAINING_MEDICAL_ELIGIBILITY_REQUIRED',
+          details: {
+            reasons: ['EXAMINATION_REQUIRED'],
+          },
+        },
+      });
+      expect(trainingService.updateSessionStatus).toHaveBeenCalledWith(
+        expect.anything(),
+        sessionId,
+        'IN_PROGRESS',
+        undefined,
+      );
     });
   });
 });

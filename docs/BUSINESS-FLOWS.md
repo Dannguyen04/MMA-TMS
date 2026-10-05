@@ -3,7 +3,7 @@
 > Phân tích 8 luồng nghiệp vụ từ góc nhìn CLB võ thuật quản lý võ sĩ thi đấu
 
 **Phiên bản**: 1.0
-**Cập nhật**: 2026-09-29
+**Cập nhật**: 2026-10-04
 
 ---
 
@@ -42,7 +42,7 @@ Onboarding → Training Plan → Session → Video AI → Coach Review
 
 ### Quy trình
 
-1. **Admin tạo tài khoản**: Thông tin cơ bản (tên, cân nặng, bộ môn, hạng cân)
+1. **Admin tạo tài khoản**: Thông tin cơ bản (tên, cân nặng, bộ môn, hạng cân) / Fighter nộp đơn (ktra đầu vào)
 2. **Bác sĩ khám baseline**: Examination type `baseline` — tim mạch, thần kinh, cơ-xương, SCAT6
 3. **BS cấp Medical Clearance**: `full` / `restricted` / `not_cleared`
 4. **HLV được assign**: Giao coach phụ trách
@@ -62,49 +62,115 @@ Võ sĩ mới thấy **Onboarding Checklist** (hiện ≤30 ngày, đến khi ho
 
 ## Luồng 2: Lập Kế Hoạch Huấn Luyện (Training Plan)
 
+> Phạm vi: mô tả backend hiện tại trong `nestjs-api/`, đối chiếu source ngày 2026-10-04, và yêu cầu bổ sung phase cho Training Plan. Phần phase bên dưới là yêu cầu cần triển khai, chưa phải hành vi backend hiện tại. Không xác nhận trạng thái triển khai hoặc migration trên database đích.
+
 ### Cấu trúc kế hoạch
 
 ```
-Training Plan (Macrocycle)
-├── Phase: base | build | fight_camp | taper | rehab | maintenance
-├── Duration: startDate → endDate (thường 6-12 tuần)
-├── weeklySessionTarget: 1-14 buổi/tuần
-├── focusAreas: [jab, cross, round_kick, ...]
-├── Status: draft → active → completed → archived
+Training Plan
+├── fighterId, coachId, title
+├── description, goals: nội dung text, có thể để trống
+├── startDate: bắt buộc; endDate: có thể để trống
+├── milestones: danh sách mốc mục tiêu
+├── status: DRAFT | ACTIVE | COMPLETED | CANCELLED
+├── isActive: cờ hoạt động riêng, độc lập với status
 │
-└── Training Sessions (Microcycle)
-    ├── Mỗi session có: type, scheduledAt, durationMin, targetRpe
-    └── Mỗi session gồm nhiều drills:
-        ├── Drill 1: Pad Work — 6 rounds × 3min
-        ├── Drill 2: Heavy Bag — 4 rounds × 3min
-        └── Drill 3: Clinch entries — 4 sets × 8 reps
+├── Plan Exercises
+│   └── exerciseId, orderIndex, sets, reps, durationSeconds, targetRpe, coachNotes
+│
+└── Training Sessions (liên kết qua planId)
+    ├── fighterId, coachId (có thể để trống), title
+    ├── sessionType, scheduledAt, plannedDurationSec, roundCount, location
+    ├── coachNotes, reportedRpe
+    └── status, checkedInAt, completedAt, actualDurationSec và các mốc kết thúc
 ```
 
-### Training Phases (Các giai đoạn huấn luyện)
+Backend chưa có `phase`, `weeklySessionTarget`, `focusAreas` trong contract và schema Training Plan. Bài tập ở cấp plan có API quản lý riêng; bảng `session_exercises` đã có trong database nhưng chưa có API/service đọc và ghi drills cho từng session. Backend chưa có `targetRpe` ở cấp session.
 
-| Phase | Mục tiêu | RPE trung bình | Thời gian |
-|---|---|---|---|
-| `base` | Sức bền nền, kỹ thuật cơ bản, volume cao | 5-6 | 2-4 tuần |
-| `build` | Sức mạnh bùng nổ, combos nâng cao | 6-8 | 2-4 tuần |
-| `fight_camp` | Sparring chuyên sâu, game plan đối thủ | 7-9 | 2-4 tuần |
-| `taper` | Giảm volume, giữ sharpness, quản lý cân | 4-6 | 1-2 tuần |
-| `rehab` | Phục hồi chấn thương, theo hướng dẫn BS | 2-5 | Linh hoạt |
-| `maintenance` | Active recovery giữa các camp | 4-6 | Linh hoạt |
+### Phase của kế hoạch — yêu cầu bổ sung
+
+Yêu cầu ngày 2026-10-04: bổ sung trường `phase` cho Training Plan trong backend. Phase mô tả giai đoạn huấn luyện của kế hoạch, tách biệt với `status` mô tả vòng đời kế hoạch. Việc lưu phase cần migration mới, cập nhật schema và contract API; hiện chưa triển khai.
+
+Bộ phase được chủ dự án xác nhận ngày 2026-10-04, dùng cùng giá trị lowercase trong API và database:
+
+| Phase | Ý nghĩa |
+|---|---|
+| `base` | Xây dựng sức bền nền và kỹ thuật cơ bản |
+| `build` | Phát triển sức mạnh, tốc độ và kỹ thuật nâng cao |
+| `fight_camp` | Chuẩn bị chuyên sâu cho thi đấu |
+| `taper` | Giảm khối lượng tập trước thi đấu |
+| `rehab` | Huấn luyện phục hồi theo hướng dẫn bác sĩ |
+| `maintenance` | Duy trì thể trạng và kỹ thuật giữa các đợt tập |
+
+Contract triển khai đã chốt:
+
+- Mỗi plan có một `phase`; khi tạo plan qua `POST /training-plans`, client bắt buộc gửi một trong sáu giá trị trên. Thiếu, `null` hoặc giá trị ngoài enum bị từ chối với `422 VALIDATION_ERROR` theo convention backend.
+- `PATCH /training-plans/:id` cho phép sửa `phase` qua quyền sửa plan hiện hữu; không gửi `phase` thì giữ nguyên. Phase luôn phải hợp lệ và không được đặt `null`.
+- Các API trả Training Plan phải trả `phase`, bao gồm tạo, danh sách, chi tiết, sửa thông tin và chuyển trạng thái.
+- Chủ dự án xác nhận chưa có plan cũ. Migration mới thêm cột `phase` bắt buộc (`NOT NULL`), không gán mặc định và không backfill. Nếu database đích có plan trước khi nâng cấp, migration phải dừng thay vì tự suy ra phase.
+- Phase là phân loại của plan, độc lập với `status`; không tự chuyển phase hoặc tự điều chỉnh bài tập, cường độ, clearance hay progress.
+
+Sau khi triển khai, HLV chọn phase khi tạo plan và có thể sửa phase cùng thông tin kế hoạch qua API hiện hữu. Trước khi triển khai, quy trình hiện tại bên dưới vẫn chưa có trường này.
+
+Phạm vi bổ sung hiện tại chỉ là phase của plan; các khoảng cách về weekly target, focus areas, session drills, adherence và medical warnings vẫn giữ trạng thái chưa triển khai như mô tả trong luồng này.
+
+### Quy trình hiện tại
+
+1. **HLV tạo plan** qua `POST /training-plans`: có permission tương ứng và Fighter thuộc phạm vi được phân công. Plan mới mặc định `DRAFT`; nếu có `endDate`, ngày này phải bằng hoặc sau `startDate`.
+2. **HLV giao bài tập cấp plan** qua `/training-plans/:id/exercises`: thêm/sửa/xóa bài tập, thứ tự và prescription (sets, reps, thời lượng, target RPE, ghi chú). Backend chưa tự chuyển các bài tập này thành drills của session.
+3. **HLV kích hoạt plan** qua `PATCH /training-plans/:id/status`: khi thực sự chuyển vào `ACTIVE`, backend phát thông báo cho Fighter.
+4. **HLV lên lịch session** qua `POST /training-sessions`: session có thể thuộc plan hoặc độc lập (`planId` để trống). Khi gắn plan, backend kiểm tra plan tồn tại, `isActive = true` và cùng Fighter; chưa yêu cầu `status = ACTIVE`. Session mới mặc định `SCHEDULED`.
+5. **HLV bắt đầu session** qua `PATCH /training-sessions/:id/status`, chuyển sang `IN_PROGRESS`: backend kiểm tra điều kiện y tế trước khi cho bắt đầu.
+6. **HLV kết thúc session**: từ `IN_PROGRESS` chuyển sang `COMPLETED`, `ABANDONED` hoặc `CANCELLED`. Backend tính `actualDurationSec` từ `checkedInAt` tới thời điểm kết thúc; RPE thực tế (`reportedRpe`) được cập nhật qua API sửa session. Session còn `SCHEDULED` có thể chuyển sang `SKIPPED` hoặc `CANCELLED`; hủy buổi bắt buộc có lý do.
+7. **HLV xem progress và cập nhật trạng thái plan**: tiến độ được trả trong API chi tiết plan; trạng thái plan được chuyển bằng lệnh riêng, không tự hoàn thành theo progress.
+
+### Trạng thái kế hoạch
+
+| Trạng thái hiện tại | Trạng thái tiếp theo backend cho phép |
+|---|---|
+| `DRAFT` | `ACTIVE`, `COMPLETED`, `CANCELLED` |
+| `ACTIVE` | `DRAFT`, `COMPLETED`, `CANCELLED` |
+| `COMPLETED` | `ACTIVE`, `CANCELLED` |
+| `CANCELLED` | `ACTIVE`, `COMPLETED` |
+
+Gửi lại cùng trạng thái được chấp nhận. Backend chỉ cấm `COMPLETED → DRAFT` và `CANCELLED → DRAFT`; enum hiện tại không có `ARCHIVED`. `isActive` là cờ riêng, không đồng nghĩa với trạng thái `ACTIVE`.
 
 ### Medical Clearance Gate
 
-Khi HLV tạo/sửa plan, hệ thống tự động kiểm tra clearance:
-- **Block (chặn cứng)**: `not_cleared`, `expired`, training type bị cấm, RPE > maxRpe
-- **Warn (cảnh báo)**: Kỹ thuật trong danh sách hạn chế, vùng cơ thể được bảo vệ → HLV tick xác nhận + thông báo BS
+Theo quyết định D9 cập nhật ngày 2026-10-04 trong [Master Specification §05.10.1](./MMA-TMS-MASTER-SPECIFICATION-v3.md), tạo/sửa plan và lên lịch session không bị chặn bởi medical gate. Backend kiểm tra khi chuyển hoặc xác nhận lại `IN_PROGRESS`, và khi đổi loại session đang `IN_PROGRESS`.
 
-### Adherence (Tỷ lệ tuân thủ)
+- Fighter phải có khám BASELINE; Fighter đã có kết luận TRAINING thật trước migration 016 có thể thuộc diện miễn baseline một lần được ghi nhận trong database.
+- Yêu cầu khám chưa xử lý hoặc kết luận TRAINING hiện hành `NOT_ELIGIBLE` chặn bắt đầu tập.
+- Kết luận đạt cần clearance từ chính kết luận hiện hành. Clearance mới nhất quyết định hiệu lực; không lấy clearance cũ thay thế khi bản mới bị thu hồi hoặc chưa có hiệu lực.
+- Clearance có hạn chế phải còn hiệu lực; loại session phải thuộc `allowedSessionTypes` khi danh sách này được đặt.
+- Clearance TRAINING không hạn chế đã hết hạn không tự tạo nghĩa vụ tái khám định kỳ.
+- Khi không đủ điều kiện, backend trả `409 TRAINING_MEDICAL_ELIGIBILITY_REQUIRED` kèm các lý do. Dừng/hủy buổi tập không bị medical gate chặn.
+
+Training backend chưa triển khai kiểm tra `maxRpe`, cảnh báo theo kỹ thuật/vùng cơ thể, xác nhận cảnh báo của HLV hoặc thông báo BS khi chấp nhận cảnh báo.
+
+### Progress (Tiến độ kế hoạch)
 
 ```
-Adherence% = round(CompletedDueSessions / TotalDueSessions × 100)
+completionPercentage = round(completedSessions / totalSessions × 100)
 
-- Due Session: scheduledAt ≤ now, trừ cancelled
-- Buổi tập tương lai KHÔNG tính vào mẫu số (tránh phạt giả giữa tuần)
+- totalSessions: tất cả session thuộc plan có deletedAt = NULL
+- completedSessions: các session trong tập trên có status = COMPLETED
+- totalSessions = 0: completionPercentage = 0
 ```
+
+Backend trả `progress` khi đọc `GET /training-plans/:id`. Buổi tập tương lai và buổi `CANCELLED`, `SKIPPED`, `ABANDONED` vẫn nằm trong mẫu số. Ví dụ 1 buổi completed, 1 buổi tương lai và 1 buổi cancelled trả `completionPercentage = 33%`.
+
+Chỉ số hiện tại là tiến độ trên toàn bộ session của plan; backend chưa cung cấp adherence tính riêng các buổi đã đến hạn và loại cancelled.
+
+### Nguồn đối chiếu backend
+
+- `nestjs-api/src/training/training.model.ts`: request/response contract.
+- `nestjs-api/src/training/plans/training-plan.service.ts`: thao tác plan và plan exercises.
+- `nestjs-api/src/training/sessions/training-session.service.ts`: lên lịch, chuyển trạng thái và medical gate của session.
+- `nestjs-api/src/training/training.constants.ts`: quy tắc chuyển trạng thái.
+- `nestjs-api/src/training/training.repo.ts`: persistence và cách tính progress.
+- `nestjs-api/src/medical/medical.service.ts`: điều kiện bắt đầu training.
+- `nestjs-api/src/database/schema.ts`, migrations 003 và 005: cấu trúc plan/session/exercises.
 
 ---
 

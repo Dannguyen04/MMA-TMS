@@ -1,5 +1,8 @@
 import { createZodDto } from 'nestjs-zod';
 import {
+  admissionEmailCodeBodySchema,
+  admissionEmailCodeResponseSchema,
+  admissionEmailVerifyBodySchema,
   authResponseSchema,
   demoSessionExchangeBodySchema,
   forgotPasswordBodySchema,
@@ -18,6 +21,15 @@ export class DemoSessionExchangeDto extends createZodDto(
   demoSessionExchangeBodySchema,
 ) {}
 export class RegisterDto extends createZodDto(registerBodySchema) {}
+export class AdmissionEmailCodeDto extends createZodDto(
+  admissionEmailCodeBodySchema,
+) {}
+export class AdmissionEmailVerifyDto extends createZodDto(
+  admissionEmailVerifyBodySchema,
+) {}
+export class AdmissionEmailCodeResponseDto extends createZodDto(
+  admissionEmailCodeResponseSchema,
+) {}
 export class RefreshDto extends createZodDto(refreshBodySchema) {}
 export class ForgotPasswordDto extends createZodDto(forgotPasswordBodySchema) {}
 export class ResetPasswordDto extends createZodDto(resetPasswordBodySchema) {}

@@ -374,4 +374,38 @@ describe('OpenAPI document (e2e)', () => {
       422: expect.any(Object),
     });
   });
+
+  it('documents POST /coaching/assignments with required phase enum and 422 response', () => {
+    const document = createOpenApiDocument(app);
+    const operation = document.paths['/coaching/assignments']?.post;
+    expect(operation).toBeDefined();
+
+    expect(operation?.responses).toMatchObject({
+      422: expect.any(Object),
+    });
+
+    const requestBody = operation?.requestBody as any;
+    expect(requestBody).toBeDefined();
+
+    const schemaRef = requestBody?.content?.['application/json']?.schema?.$ref;
+    let schema = requestBody?.content?.['application/json']?.schema;
+    if (schemaRef) {
+      const schemaName = schemaRef.replace('#/components/schemas/', '');
+      schema = (document.components?.schemas as any)?.[schemaName];
+    }
+
+    expect(schema).toBeDefined();
+    expect(schema?.properties?.phase).toBeDefined();
+    expect(schema?.properties?.phase?.enum).toEqual([
+      'base',
+      'build',
+      'fight_camp',
+      'taper',
+      'rehab',
+      'maintenance',
+    ]);
+    expect(schema?.required).toContain('phase');
+  });
+
 });
+

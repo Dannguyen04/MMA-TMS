@@ -2,15 +2,15 @@ BEGIN;
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '30s';
 SET LOCAL search_path = public, pg_catalog;
-SELECT pg_catalog.pg_advisory_xact_lock(20260916, 16);
+SELECT pg_catalog.pg_advisory_xact_lock(20260916, 20);
 
 DO $preflight$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM mma_private.migration_history WHERE version = 15) THEN
-    RAISE EXCEPTION '016 requires migration 015';
+  IF NOT EXISTS (SELECT 1 FROM mma_private.migration_history WHERE version = 19) THEN
+    RAISE EXCEPTION '020 requires migration 019';
   END IF;
-  IF EXISTS (SELECT 1 FROM mma_private.migration_history WHERE version = 16) THEN
-    RAISE EXCEPTION '016 already applied';
+  IF EXISTS (SELECT 1 FROM mma_private.migration_history WHERE version = 20) THEN
+    RAISE EXCEPTION '020 already applied';
   END IF;
 END
 $preflight$;
@@ -66,5 +66,5 @@ WHERE p.code = 'movement.evidence:read'
 ON CONFLICT DO NOTHING;
 
 INSERT INTO mma_private.migration_history(version, name, source_sha256)
-VALUES (16, '016_movement_evidence_reviews.sql', nullif(current_setting('mma.migration_sha256', true), ''));
+VALUES (20, '020_movement_evidence_reviews.sql', nullif(current_setting('mma.migration_sha256', true), ''));
 COMMIT;

@@ -261,6 +261,7 @@ describe('Training controllers (e2e)', () => {
         coachId,
         title: 'Fight camp',
         startDate: '2026-09-20',
+        phase: 'build',
       });
     expect(created.status).toBe(201);
     expect(created.body.message).toBe('Create training plan successfully');
@@ -269,6 +270,7 @@ describe('Training controllers (e2e)', () => {
       coachId,
       title: 'Fight camp',
       startDate: '2026-09-20',
+      phase: 'build',
       milestones: [],
     });
 
@@ -574,6 +576,7 @@ describe('Training controllers (e2e)', () => {
           coachId,
           title: 'Plan',
           startDate: '2026-09-20',
+          phase: 'base',
         },
         mockFn: () => planService.createPlan,
       },

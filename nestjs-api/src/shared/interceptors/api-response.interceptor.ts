@@ -7,6 +7,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { type Observable, map } from 'rxjs';
 import { RESPONSE_MESSAGE_METADATA } from '../decorators/response-message.decorator.js';
+import { SKIP_RESPONSE_ENVELOPE } from '../decorators/skip-response-envelope.decorator.js';
 
 export interface ApiSuccessResponse<T> {
   success: true;
@@ -25,6 +26,14 @@ export class ApiResponseInterceptor<T> implements NestInterceptor<
     context: ExecutionContext,
     next: CallHandler<T>,
   ): Observable<ApiSuccessResponse<T>> {
+    const skipEnvelope = this.reflector.getAllAndOverride<boolean | undefined>(
+      SKIP_RESPONSE_ENVELOPE,
+      [context.getHandler(), context.getClass()],
+    );
+    if (skipEnvelope) {
+      return next.handle() as unknown as Observable<ApiSuccessResponse<T>>;
+    }
+
     const message =
       this.reflector.getAllAndOverride<string>(RESPONSE_MESSAGE_METADATA, [
         context.getHandler(),

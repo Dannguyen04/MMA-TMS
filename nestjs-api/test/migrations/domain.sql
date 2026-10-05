@@ -37,7 +37,17 @@ INSERT INTO coach_fighters(coach_id,fighter_id,assigned_by_id,starts_at) VALUES(
 SELECT pg_temp.expect_error($q$UPDATE coach_fighters SET ends_at=NULL, ended_by_id=NULL,end_reason=NULL WHERE ends_at IS NOT NULL$q$,'23514');
 SELECT pg_temp.assert_true((SELECT count(*)=2 FROM coach_fighters),'assignment episodes retained');
 
-INSERT INTO training_plans(id,fighter_id,coach_id,title,start_date) VALUES(pg_temp.id('plan1'),pg_temp.id('fighter1'),pg_temp.id('c1'),'Plan','2026-01-01');
+INSERT INTO training_plans(id,fighter_id,coach_id,title,start_date,phase) VALUES(pg_temp.id('plan1'),pg_temp.id('fighter1'),pg_temp.id('c1'),'Plan','2026-01-01','base');
+SELECT pg_temp.expect_error($q$INSERT INTO training_plans(fighter_id,coach_id,title,start_date) VALUES(pg_temp.id('fighter1'),pg_temp.id('c1'),'No phase','2026-01-01')$q$,'23502');
+SELECT pg_temp.expect_error($q$INSERT INTO training_plans(fighter_id,coach_id,title,start_date,phase) VALUES(pg_temp.id('fighter1'),pg_temp.id('c1'),'Null phase','2026-01-01',NULL)$q$,'23502');
+SELECT pg_temp.expect_error($q$INSERT INTO training_plans(fighter_id,coach_id,title,start_date,phase) VALUES(pg_temp.id('fighter1'),pg_temp.id('c1'),'Upper phase','2026-01-01','BASE')$q$,'22P02');
+SELECT pg_temp.expect_error($q$INSERT INTO training_plans(fighter_id,coach_id,title,start_date,phase) VALUES(pg_temp.id('fighter1'),pg_temp.id('c1'),'Empty phase','2026-01-01','')$q$,'22P02');
+SELECT pg_temp.expect_error($q$UPDATE training_plans SET phase=NULL WHERE id=pg_temp.id('plan1')$q$,'23502');
+INSERT INTO training_plans(fighter_id,coach_id,title,start_date,phase)
+  SELECT pg_temp.id('fighter1'),pg_temp.id('c1'),'Phase '||p,'2026-01-01',p::training_plan_phase
+  FROM unnest(ARRAY['base','build','fight_camp','taper','rehab','maintenance']) p;
+SELECT pg_temp.assert_true((SELECT count(DISTINCT phase)=6 FROM training_plans),'all six phases stored');
+DELETE FROM training_plans WHERE title LIKE 'Phase %';
 INSERT INTO training_sessions(id,fighter_id,plan_id,title,scheduled_at,session_type) VALUES
   (pg_temp.id('s1'),pg_temp.id('fighter1'),pg_temp.id('plan1'),'S1','2026-01-02','SHADOW_BOXING'),
   (pg_temp.id('s2'),pg_temp.id('fighter2'),NULL,'S2','2026-01-02','PAD_WORK');

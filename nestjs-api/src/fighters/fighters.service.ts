@@ -1,4 +1,10 @@
-import { HttpException, Injectable } from '@nestjs/common';
+import { HttpException, Inject, Injectable } from '@nestjs/common';
+import {
+  NOTIFICATION_PUBLISHER,
+  NOTIFICATION_TARGET,
+  NOTIFICATION_TYPE,
+  type NotificationPublisher,
+} from '../shared/contracts/notification.contract.js';
 import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import { USER } from '../shared/types/user.role.js';
 import { forbidden } from '../shared/errors/access.error.js';
@@ -32,6 +38,7 @@ import {
   type TrainingSessionSummary,
   type UpdateFighterProfileInput,
 } from './fighters.model.js';
+import { COACH_ASSIGNMENT_NOTIFICATION_TEXT } from './fighters.constants.js';
 import { FightersRepository } from './fighters.repo.js';
 
 const MEDICAL_DISCLAIMER =
@@ -43,6 +50,8 @@ export class FightersService {
     private readonly fightersRepository: FightersRepository,
     private readonly medicalAccess: MedicalAccessService,
     private readonly medicalService: MedicalService,
+    @Inject(NOTIFICATION_PUBLISHER)
+    private readonly notifications: NotificationPublisher,
   ) {}
 
   // --- Profile Operations ---
@@ -297,8 +306,9 @@ export class FightersService {
 
     const startsAt = input.startsAt ? new Date(input.startsAt) : new Date();
 
+    let assignment: CoachAssignment;
     try {
-      return await this.fightersRepository.transaction(async (tx) => {
+      assignment = await this.fightersRepository.transaction(async (tx) => {
         await setAuditContext(actor.authSubject, requestId, tx);
         return this.fightersRepository.insertCoachAssignment(
           input.coachId,
@@ -312,6 +322,35 @@ export class FightersService {
       if (error instanceof HttpException) throw error;
       throw mapFighterPersistenceError(error);
     }
+
+    // T1, after commit; the publisher never throws.
+    await this.notifications.notifyResolved(
+      async () => [
+        {
+          recipientUserIds: [coach.userId],
+          actorUserId: actor.id,
+          type: NOTIFICATION_TYPE.COACH_ASSIGNMENT_STARTED,
+          ...COACH_ASSIGNMENT_NOTIFICATION_TEXT.STARTED_COACH,
+          target: { type: NOTIFICATION_TARGET.FIGHTER, id: fighterId },
+          data: { startsAt: new Date(assignment.startsAt).toISOString() },
+          dedupeKey: `coach-assignment:${assignment.id}:coach`,
+        },
+        {
+          recipientUserIds: [fighter.userId],
+          actorUserId: actor.id,
+          type: NOTIFICATION_TYPE.COACH_ASSIGNMENT_STARTED,
+          ...COACH_ASSIGNMENT_NOTIFICATION_TEXT.STARTED_FIGHTER,
+          target: {
+            type: NOTIFICATION_TARGET.COACH_ASSIGNMENT,
+            id: assignment.id,
+          },
+          data: { startsAt: new Date(assignment.startsAt).toISOString() },
+          dedupeKey: `coach-assignment:${assignment.id}:fighter`,
+        },
+      ],
+      { correlationId: requestId },
+    );
+    return assignment;
   }
 
   async endCoachAssignment(
@@ -336,8 +375,9 @@ export class FightersService {
       throw invalidAssignmentPeriod();
     }
 
+    let closed: CoachAssignment;
     try {
-      return await this.fightersRepository.transaction(async (tx) => {
+      closed = await this.fightersRepository.transaction(async (tx) => {
         await setAuditContext(actor.authSubject, requestId, tx);
         return this.fightersRepository.closeCoachAssignment(
           assignmentId,
@@ -351,6 +391,37 @@ export class FightersService {
       if (error instanceof HttpException) throw error;
       throw mapFighterPersistenceError(error);
     }
+
+    // T1, after commit: no end reason, and no link the Coach can no longer read.
+    await this.notifications.notifyResolved(
+      async () => {
+        const coachUserId = await this.fightersRepository.findCoachUserId(
+          closed.coachId,
+        );
+        return [
+          {
+            recipientUserIds: coachUserId ? [coachUserId] : [],
+            actorUserId: actor.id,
+            type: NOTIFICATION_TYPE.COACH_ASSIGNMENT_ENDED,
+            ...COACH_ASSIGNMENT_NOTIFICATION_TEXT.ENDED_COACH,
+            dedupeKey: `coach-assignment:${closed.id}:coach`,
+          },
+          {
+            recipientUserIds: [fighter.userId],
+            actorUserId: actor.id,
+            type: NOTIFICATION_TYPE.COACH_ASSIGNMENT_ENDED,
+            ...COACH_ASSIGNMENT_NOTIFICATION_TEXT.ENDED_FIGHTER,
+            target: {
+              type: NOTIFICATION_TARGET.COACH_ASSIGNMENT,
+              id: closed.id,
+            },
+            dedupeKey: `coach-assignment:${closed.id}:fighter`,
+          },
+        ];
+      },
+      { correlationId: requestId },
+    );
+    return closed;
   }
 
   // --- Training History ---

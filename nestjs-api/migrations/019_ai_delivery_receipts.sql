@@ -2,15 +2,15 @@ BEGIN;
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '30s';
 SET LOCAL search_path = public, pg_catalog;
-SELECT pg_catalog.pg_advisory_xact_lock(20260916, 15);
+SELECT pg_catalog.pg_advisory_xact_lock(20260916, 19);
 
 DO $preflight$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM mma_private.migration_history WHERE version = 14) THEN
-    RAISE EXCEPTION '015 requires migration 014';
+  IF NOT EXISTS (SELECT 1 FROM mma_private.migration_history WHERE version = 18) THEN
+    RAISE EXCEPTION '019 requires migration 018';
   END IF;
-  IF EXISTS (SELECT 1 FROM mma_private.migration_history WHERE version = 15) THEN
-    RAISE EXCEPTION '015 already applied';
+  IF EXISTS (SELECT 1 FROM mma_private.migration_history WHERE version = 19) THEN
+    RAISE EXCEPTION '019 already applied';
   END IF;
 END
 $preflight$;
@@ -24,5 +24,5 @@ CREATE UNIQUE INDEX uq_action_assessment_delivery
 ALTER TABLE public.action_finding_reviews ADD COLUMN corrected_label text;
 
 INSERT INTO mma_private.migration_history(version, name, source_sha256)
-VALUES (15, '015_ai_delivery_receipts.sql', nullif(current_setting('mma.migration_sha256', true), ''));
+VALUES (19, '019_ai_delivery_receipts.sql', nullif(current_setting('mma.migration_sha256', true), ''));
 COMMIT;

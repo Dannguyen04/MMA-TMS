@@ -8,12 +8,14 @@ import {
   fighterApplicationCoachAssignments,
   fighterApplicationDecisions,
   fighterApplications,
+  fighters,
   users,
 } from '../database/schema.js';
 import {
   type DatabaseExecutor,
   type Transaction,
 } from '../shared/utils/audit-context.util.js';
+import { USER } from '../shared/types/user.role.js';
 import {
   ACTIVATION_STATUS,
   OPEN_APPLICATION_STATUSES,
@@ -630,6 +632,46 @@ export class FighterAdmissionsRepository {
       )
       .returning(activationProjection);
     return released;
+  }
+
+  /** A1/A3 recipients; permission-filtered sets belong to the Authorization module. */
+  async findActiveAdminUserIds(): Promise<string[]> {
+    const rows = await this.db
+      .select({ id: users.id })
+      .from(users)
+      .where(
+        and(
+          eq(users.role, USER.ADMIN),
+          eq(users.isActive, true),
+          isNull(users.deletedAt),
+        ),
+      );
+    return rows.map((row) => row.id);
+  }
+
+  /** Account user IDs of coach profiles; inactive profiles are left out. */
+  async findCoachUserIds(coachIds: readonly string[]) {
+    if (coachIds.length === 0) return new Map<string, string>();
+    const rows = await this.db
+      .select({ coachId: coaches.id, userId: coaches.userId })
+      .from(coaches)
+      .where(
+        and(
+          inArray(coaches.id, [...coachIds]),
+          eq(coaches.isActive, true),
+          isNull(coaches.deletedAt),
+        ),
+      );
+    return new Map(rows.map((row) => [row.coachId, row.userId]));
+  }
+
+  async findFighterIdByUserId(userId: string): Promise<string | undefined> {
+    const [row] = await this.db
+      .select({ id: fighters.id })
+      .from(fighters)
+      .where(and(eq(fighters.userId, userId), isNull(fighters.deletedAt)))
+      .limit(1);
+    return row?.id;
   }
 
   /** Current account email, which may differ from the application snapshot. */
