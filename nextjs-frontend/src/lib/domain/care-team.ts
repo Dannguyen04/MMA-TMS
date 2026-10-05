@@ -21,7 +21,8 @@ export interface CareTeamMember {
     primary: boolean;
 }
 
-export type CareTeam = Record<CareRole, CareTeamMember[]>;
+/** Each role's current members; null when the service couldn't list them. */
+export type CareTeam = Record<CareRole, CareTeamMember[] | null>;
 
 /** A coach or doctor account with a profile. Only active ones can be assigned. */
 export interface StaffOption {

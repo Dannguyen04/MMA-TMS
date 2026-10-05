@@ -89,8 +89,8 @@ export async function getCareTeam(fighterId: string): Promise<CareTeam> {
     if (isDemoAuthEnabled()) return (await demoService()).getCareTeam(fighterId);
     const { coaches, doctors } = await currentAssignments(fighterId);
     return {
-        coach: coaches.map((a) => ({ assignmentId: a.id, staffId: a.coachId, name: a.coachName ?? "Coach", since: a.startsAt, primary: false })),
-        doctor: doctors.map((a) => ({ assignmentId: a.id, staffId: a.doctorId, name: a.doctorName ?? "Sports doctor", since: a.startsAt, primary: false })),
+        coach: coaches?.map((a) => ({ assignmentId: a.id, staffId: a.coachId, name: a.coachName ?? "Coach", since: a.startsAt, primary: false })) ?? null,
+        doctor: doctors?.map((a) => ({ assignmentId: a.id, staffId: a.doctorId, name: a.doctorName ?? "Sports doctor", since: a.startsAt, primary: false })) ?? null,
     };
 }
 

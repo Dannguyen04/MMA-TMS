@@ -43,6 +43,15 @@ describe("care team in API mode", () => {
         });
     });
 
+    it("says which list the service failed to give and still shows the other", async () => {
+        authenticatedApiRequest.mockImplementation(async (path: string) => {
+            if (path.endsWith("/coaches")) throw new ApiError({ message: "Internal server error", kind: "http", status: 500, code: "INTERNAL_SERVER_ERROR" });
+            return { data: [], total: 0, hasNextPage: false };
+        });
+
+        await expect(getCareTeam(fighterId)).resolves.toEqual({ coach: null, doctor: [] });
+    });
+
     it("assigns a coach through the fighter service and a doctor through the medical service", async () => {
         authenticatedMutableApiRequest.mockResolvedValue({ id: "a-2" });
 
@@ -92,7 +101,7 @@ describe("care team in demo mode", () => {
 
         try {
             const team = await getCareTeam(fighter.id);
-            const primary = team.coach.find((member) => member.staffId === "c-rafael-costa")!;
+            const primary = team.coach!.find((member) => member.staffId === "c-rafael-costa")!;
             expect(primary.primary).toBe(true);
 
             await expect(endAssignment(fighter.id, "coach", primary.assignmentId, "Moved camp", admin)).resolves.toEqual({ ok: true });

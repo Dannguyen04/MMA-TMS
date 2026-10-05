@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const authenticatedApiRequest = vi.hoisted(() => vi.fn());
 const authenticatedMutableApiRequest = vi.hoisted(() => vi.fn());
 const drainAuthenticatedCursorPages = vi.hoisted(() => vi.fn());
+const listVideos = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/api/client", async (loadOriginal) => ({
     ...(await loadOriginal<typeof import("@/lib/api/client")>()),
@@ -12,12 +13,15 @@ vi.mock("@/lib/api/client", async (loadOriginal) => ({
 }));
 
 import type { User } from "@/lib/domain/types";
+vi.mock("./videos", () => ({ listVideos }));
+
 import { PERMISSION_CATALOG, ROLE_DEFINITIONS } from "@/lib/auth/role-catalog";
 import { DEFAULT_SYSTEM_SETTINGS } from "@/lib/domain/system-settings";
 import { ApiError } from "@/lib/api/client";
 import {
     createAccount,
     deleteAccount,
+    getAdminOverview,
     getSettings,
     getUserDetail,
     inviteUser,
@@ -58,6 +62,18 @@ describe("admin API adapter", () => {
         authenticatedApiRequest.mockReset();
         authenticatedMutableApiRequest.mockReset();
         drainAuthenticatedCursorPages.mockReset();
+    });
+
+    it("counts accounts and leaves the footage figures empty, not the overview, when the video service fails", async () => {
+        authenticatedApiRequest.mockResolvedValue(usersPage([backendUser, backendCoach]));
+        listVideos.mockRejectedValueOnce(new ApiError({ message: "Cannot GET /videos", kind: "http", status: 404, code: "NOT_FOUND" }));
+
+        await expect(getAdminOverview(new Date("2026-10-05T00:00:00.000Z"))).resolves.toMatchObject({
+            usersByRole: { admin: 1, coach: 1 },
+            videosTotal: null,
+            videosLast7d: null,
+            storageUsedGb: null,
+        });
     });
 
     it("lists users with the service's page, role, status and search parameters", async () => {

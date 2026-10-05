@@ -9,7 +9,7 @@ vi.mock("@/lib/api/client", async (loadOriginal) => ({
 }));
 
 import { ApiError } from "@/lib/api/client";
-import { drainNumberedPages, nullIfNotFound, queryPath } from "./api-helpers";
+import { drainNumberedPages, nullIfNotFound, nullIfServiceFails, queryPath } from "./api-helpers";
 
 describe("service API helpers", () => {
     beforeEach(() => {
@@ -19,6 +19,13 @@ describe("service API helpers", () => {
     it("maps only a 404 to null", async () => {
         await expect(nullIfNotFound(Promise.reject(new ApiError({ message: "Missing", kind: "http", status: 404 })))).resolves.toBeNull();
         await expect(nullIfNotFound(Promise.reject(new ApiError({ message: "Denied", kind: "http", status: 403 })))).rejects.toThrow("Denied");
+    });
+
+    it("maps a failing service to null, but not a lapsed session or a bug", async () => {
+        await expect(nullIfServiceFails(Promise.reject(new ApiError({ message: "Down", kind: "http", status: 500 })))).resolves.toBeNull();
+        await expect(nullIfServiceFails(Promise.reject(new ApiError({ message: "Unreachable", kind: "network" })))).resolves.toBeNull();
+        await expect(nullIfServiceFails(Promise.reject(new ApiError({ message: "Expired", kind: "unauthorized", status: 401 })))).rejects.toThrow("Expired");
+        await expect(nullIfServiceFails(Promise.reject(new Error("Bug")))).rejects.toThrow("Bug");
     });
 
     it("skips empty query values", () => {

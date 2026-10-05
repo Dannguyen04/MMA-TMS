@@ -35,7 +35,7 @@ export function CareTeamCard({ fighterId, fighterName, team, staff }: CareTeamCa
     const [ending, setEnding] = useState<{ role: CareRole; member: CareTeamMember } | null>(null);
     const [endOpen, setEndOpen] = useState(false);
 
-    const unassigned = (role: CareRole) => staff[role].filter((option) => !team[role].some((member) => member.staffId === option.staffId));
+    const unassigned = (role: CareRole) => staff[role].filter((option) => !team[role]?.some((member) => member.staffId === option.staffId));
     const accountOf = (role: CareRole, staffId: string) => staff[role].find((option) => option.staffId === staffId);
     const notify = (state: { message?: string }) => toast({ title: state.message ?? "Care team updated." });
 
@@ -50,7 +50,7 @@ export function CareTeamCard({ fighterId, fighterName, team, staff }: CareTeamCa
                             <Button
                                 size="sm"
                                 variant="secondary"
-                                disabled={unassigned(role).length === 0}
+                                disabled={team[role] === null || unassigned(role).length === 0}
                                 onClick={() => {
                                     setAssignRole(role);
                                     setAssigning(true);
@@ -60,7 +60,11 @@ export function CareTeamCard({ fighterId, fighterName, team, staff }: CareTeamCa
                                 Assign {CARE_ROLE_LABELS[role]}
                             </Button>
                         </div>
-                        {team[role].length === 0 ? (
+                        {team[role] === null ? (
+                            <p className="mt-2 text-sm text-danger-fg">
+                                The current {SECTION_TITLES[role].toLowerCase()} couldn&apos;t be loaded: the fighter service returned an error. Try again later.
+                            </p>
+                        ) : team[role].length === 0 ? (
                             <p className="mt-2 text-sm text-fg-subtle">No {CARE_ROLE_LABELS[role]} assigned.</p>
                         ) : (
                             <ul className="mt-2 divide-y divide-border">

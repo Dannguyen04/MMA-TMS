@@ -21,6 +21,19 @@ export async function nullIfNotFound<T>(request: Promise<T>): Promise<T | null> 
     }
 }
 
+/**
+ * Resolves to null when a service the page only leans on fails (an error status, unreachable, an unexpected answer), so
+ * the rest of the page still loads. A lapsed session still throws.
+ */
+export async function nullIfServiceFails<T>(request: Promise<T>): Promise<T | null> {
+    try {
+        return await request;
+    } catch (error) {
+        if (error instanceof ApiError && error.kind !== "unauthorized") return null;
+        throw error;
+    }
+}
+
 /** Resolves to null when the caller may not read the record (403) or it no longer exists (404); anything else throws. */
 export async function nullIfUnreadable<T>(request: Promise<T>): Promise<T | null> {
     try {

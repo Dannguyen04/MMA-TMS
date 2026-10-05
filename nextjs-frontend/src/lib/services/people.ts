@@ -13,7 +13,7 @@ import type { AccountProfile } from "@/lib/domain/account-contract";
 import type { Coach, Doctor, Fighter, HealthStatus, Sex, Stance, TrainingLevel, User, WeightClass } from "@/lib/domain/types";
 import { matchesSearch } from "@/lib/query";
 import { routes } from "@/lib/routes";
-import { drainNumberedPages, fighterRosterPath, isNotFound, nullIfNotFound, nullIfUnreadable } from "./api-helpers";
+import { drainNumberedPages, fighterRosterPath, isNotFound, nullIfNotFound, nullIfServiceFails, nullIfUnreadable } from "./api-helpers";
 
 export interface FighterFilter {
     search?: string;
@@ -433,10 +433,10 @@ const doctorAssignmentsFor = cache((fighterId: string) =>
 
 const isCurrent = (assignment: { endsAt: string | null }) => assignment.endsAt === null;
 
-/** The fighter's open coach and doctor assignment periods. API mode only. */
+/** The fighter's open coach and doctor assignment periods; null for a list the fighter service fails to give. API mode only. */
 export async function currentAssignments(fighterId: string) {
-    const [coaches, doctors] = await Promise.all([coachAssignmentsFor(fighterId), doctorAssignmentsFor(fighterId)]);
-    return { coaches: coaches.filter(isCurrent), doctors: doctors.filter(isCurrent) };
+    const [coaches, doctors] = await Promise.all([nullIfServiceFails(coachAssignmentsFor(fighterId)), nullIfServiceFails(doctorAssignmentsFor(fighterId))]);
+    return { coaches: coaches?.filter(isCurrent) ?? null, doctors: doctors?.filter(isCurrent) ?? null };
 }
 
 function coachFromAssignments(coachId: string, assignments: z.output<typeof coachAssignmentSchema>[]): Coach {
@@ -470,11 +470,20 @@ function groupBy<T>(items: T[], key: (item: T) => string): Map<string, T[]> {
     return groups;
 }
 
-/** Coaches and doctors currently assigned to the fighters the caller can see, read once per request. */
+/**
+ * Coaches and doctors currently assigned to the fighters the caller can see, read once per request. Pages only show
+ * their names, so a list the fighter service fails to give is left out; the signed-in coach is always known.
+ */
 const scopedStaff = cache(async (): Promise<{ coaches: Coach[]; doctors: Doctor[] }> => {
-    const ids = await listScopedFighterIds();
-    const [coachLists, doctorLists] = await Promise.all([Promise.all(ids.map(coachAssignmentsFor)), Promise.all(ids.map(doctorAssignmentsFor))]);
+    const [ids, user] = await Promise.all([listScopedFighterIds(), getCurrentUser()]);
+    const lists = <T>(read: (fighterId: string) => Promise<T[]>) => Promise.all(ids.map(async (id) => (await nullIfServiceFails(read(id))) ?? []));
+    const [coachLists, doctorLists, self] = await Promise.all([
+        lists(coachAssignmentsFor),
+        lists(doctorAssignmentsFor),
+        user?.role === "coach" ? getCoachByUserId(user.id) : null,
+    ]);
     const coaches = [...groupBy(coachLists.flat().filter(isCurrent), (a) => a.coachId)].map(([id, list]) => coachFromAssignments(id, list));
+    if (self && !coaches.some((coach) => coach.id === self.id)) coaches.push(self);
     const doctors = [...groupBy(doctorLists.flat().filter(isCurrent), (a) => a.doctorId)].map(([id, list]) => doctorFromAssignments(id, list));
     return { coaches: coaches.sort(byName), doctors: doctors.sort(byName) };
 });

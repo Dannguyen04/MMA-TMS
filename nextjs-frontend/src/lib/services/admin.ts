@@ -25,7 +25,7 @@ import {
     type UserStatus,
 } from "@/lib/domain/types";
 import { adminFeatureAvailable } from "./admin-features";
-import { drainNumberedPages, isNotFound, nullIfNotFound, unsupportedOperation } from "./api-helpers";
+import { drainNumberedPages, isNotFound, nullIfNotFound, nullIfServiceFails, unsupportedOperation } from "./api-helpers";
 import { listAuditLogs } from "./audit";
 import { adaptBackendUser, backendUserSchema, getApiUserWithProfile } from "./people";
 import { platformFeatureAvailable } from "./platform-features";
@@ -150,10 +150,11 @@ export interface AdminOverview {
     activeAccounts: number;
     invitedUsers: number;
     suspendedUsers: number;
-    videosTotal: number;
-    videosLast7d: number;
+    /** Null, like the two below, when the video service doesn't answer. */
+    videosTotal: number | null;
+    videosLast7d: number | null;
     /** Total size of stored footage, in GB (one decimal). */
-    storageUsedGb: number;
+    storageUsedGb: number | null;
     /** Latest 8 audit entries. */
     recentAudit: AuditLog[];
     /** Latest 5 failed audit entries (sign-ins, AI jobs, rejected changes). */
@@ -372,7 +373,7 @@ export async function createBroadcast(input: CreateBroadcastInput, actor: User):
  */
 export async function getAdminOverview(now: Date = new Date(), viewer?: User | null): Promise<AdminOverview> {
     if (isDemoAuthEnabled()) return (await demoService()).getAdminOverview(now, viewer);
-    const [users, videos] = await Promise.all([listUsers(), listVideos()]);
+    const [users, videos] = await Promise.all([listUsers(), nullIfServiceFails(listVideos())]);
     const weekAgo = now.getTime() - 7 * DAY_MS;
     const accounts = (role: Role) => users.filter((user) => user.role === role).length;
     return {
@@ -382,9 +383,9 @@ export async function getAdminOverview(now: Date = new Date(), viewer?: User | n
         invitedUsers: 0,
         suspendedUsers: users.filter((user) => user.status === "suspended").length,
         // The video list is capped at the service's 100 newest, so these are lower bounds on a large library.
-        videosTotal: videos.length,
-        videosLast7d: videos.filter((video) => Date.parse(video.uploadedAt) >= weekAgo).length,
-        storageUsedGb: round(videos.reduce((total, video) => total + video.fileSizeMb, 0) / 1024, 1),
+        videosTotal: videos?.length ?? null,
+        videosLast7d: videos && videos.filter((video) => Date.parse(video.uploadedAt) >= weekAgo).length,
+        storageUsedGb: videos && round(videos.reduce((total, video) => total + video.fileSizeMb, 0) / 1024, 1),
         recentAudit: [],
         recentFailures: [],
     };

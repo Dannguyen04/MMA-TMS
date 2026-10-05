@@ -168,6 +168,7 @@ describe("people API adapter", () => {
         getCurrentUser.mockResolvedValue({
             ...viewer,
             role: "coach",
+            profileId: coachId,
             effectiveCapabilities: ["fighters:read"],
             assignmentScope: { fighterIds: [fighterId] },
         });
@@ -192,6 +193,25 @@ describe("people API adapter", () => {
             { id: coachId, userId: null, name: "Rafael Santos", specialty: "", certifications: [], yearsExperience: null, fighterIds: [fighterId] },
         ]);
         expect(authenticatedApiRequest).not.toHaveBeenCalledWith(expect.stringContaining("/coaches?"), expect.anything());
+    });
+
+    it("still names the signed-in coach when the fighter service can't list assignments", async () => {
+        getCurrentUser.mockResolvedValue({
+            ...viewer,
+            role: "coach",
+            title: "Head Coach",
+            profileId: coachId,
+            effectiveCapabilities: ["fighters:read"],
+            assignmentScope: { fighterIds: [fighterId] },
+        });
+        authenticatedApiRequest.mockImplementation(async (path: string) => {
+            if (path === `/fighters/${fighterId}/coaches`) throw new ApiError({ message: "Internal server error", kind: "http", status: 500, code: "INTERNAL_SERVER_ERROR" });
+            return { data: [], total: 0, hasNextPage: false };
+        });
+
+        await expect(listCoaches()).resolves.toEqual([
+            { id: coachId, userId, name: "An Nguyen", specialty: "Head Coach", certifications: [], yearsExperience: null, fighterIds: [fighterId] },
+        ]);
     });
 
     it("cập nhật hồ sơ của chính người dùng qua API", async () => {
