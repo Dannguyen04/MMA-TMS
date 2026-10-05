@@ -32,7 +32,7 @@ import { getFighterHealthSummary } from "@/lib/services/medical";
 import { listCoaches, listDoctors } from "@/lib/services/people";
 import { getPlanWithSessions, getUpcomingSessions, listCoachFeedback, listPlans, listSessions } from "@/lib/services/training";
 import { platformFeatureAvailable } from "@/lib/services/platform-features";
-import { nullIfUnreadable } from "@/lib/services/api-helpers";
+import { nullIfServiceFails } from "@/lib/services/api-helpers";
 import { listVideoLibrary, type VideoLibraryItem } from "@/lib/services/videos";
 
 export const metadata: Metadata = { title: "Today" };
@@ -69,7 +69,7 @@ export default async function FighterDashboardPage() {
             return active ? getPlanWithSessions(active.id) : null;
         }),
         // Video analysis is a separate service: when it doesn't answer, the day's training still shows.
-        nullIfUnreadable(listVideoLibrary({ fighterIds: ids })).then((items) => items ?? []),
+        nullIfServiceFails(listVideoLibrary({ fighterIds: ids })).then((items) => items ?? []),
         listCoachFeedback({ fighterIds: ids }),
         listGoals({ fighterIds: ids }),
         listCoaches(),

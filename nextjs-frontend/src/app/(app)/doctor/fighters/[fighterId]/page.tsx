@@ -39,7 +39,7 @@ import { hrefWith, parseEnum } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
 import { listAlerts } from "@/lib/services/ai";
-import { nullIfUnreadable } from "@/lib/services/api-helpers";
+import { nullIfServiceFails } from "@/lib/services/api-helpers";
 import { getClearanceHistory, getClearanceStatus, getFighterHealthSummary, getMedicalRecord, listExaminations, listInjuries, listReviewRequests } from "@/lib/services/medical";
 import { medicalFeatureAvailable } from "@/lib/services/medical-features";
 import { getFighter, listDoctors } from "@/lib/services/people";
@@ -75,7 +75,7 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
         listReviewRequests(fighter.id),
         getClearanceStatus(fighter.id, now),
         // The AI pipeline is optional here: when it doesn't answer, the rest of the health profile still loads.
-        medicalFeatureAvailable("aiObservations") ? nullIfUnreadable(listAlerts({ fighterIds: [fighter.id] })) : [],
+        medicalFeatureAvailable("aiObservations") ? nullIfServiceFails(listAlerts({ fighterIds: [fighter.id] })) : [],
     ]);
     const openAlerts = (observations ?? []).filter((alert) => alert.status === "new" || alert.status === "follow_up");
     if (!summary) notFound();

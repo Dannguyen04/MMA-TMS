@@ -19,7 +19,7 @@ import type {
     VideoTrainingType,
 } from "@/lib/domain/types";
 import { foldName } from "@/lib/query";
-import { nullIfNotFound } from "./api-helpers";
+import { nullIfNotFound, nullIfServiceFails } from "./api-helpers";
 import { getFighter } from "./people";
 import { applyPersistedReviews, readReviewState } from "./ai-coaching.api";
 
@@ -144,7 +144,7 @@ export interface VideoFilter {
 }
 
 /** Videos with the jobs that analysed them, one read each. API mode only. */
-export async function listVideosAndJobs(filter: VideoFilter = {}): Promise<{ videos: Video[]; jobs: AIJob[] }> {
+export async function listVideosAndJobs(filter: VideoFilter = {}, readJobs: () => Promise<AIJob[]> = listAnalysisJobs): Promise<{ videos: Video[]; jobs: AIJob[] }> {
     if (Array.isArray(filter.fighterIds) && filter.fighterIds.length === 0) return { videos: [], jobs: [] };
     const query = new URLSearchParams({ limit: "100" });
     if (
@@ -161,7 +161,7 @@ export async function listVideosAndJobs(filter: VideoFilter = {}): Promise<{ vid
         pageInfo: z.object({ hasNextPage: z.boolean(), endCursor: z.string().nullable() }),
         total: z.number().int().nonnegative(),
     });
-    const [page, jobs] = await Promise.all([pipelineApiRequest(`/videos?${query.toString()}`, videoPageSchema), listAnalysisJobs()]);
+    const [page, jobs] = await Promise.all([pipelineApiRequest(`/videos?${query.toString()}`, videoPageSchema), readJobs()]);
     const byVideo = new Map(jobs.filter((job) => job.videoId).map((job) => [job.videoId, job]));
     const videos = page.items
         .map((video) => mapVideo(video, byVideo.get(video.id) ?? null))
@@ -169,8 +169,9 @@ export async function listVideosAndJobs(filter: VideoFilter = {}): Promise<{ vid
     return { videos, jobs };
 }
 
+/** A video's job only adds its analysis status, so the videos still list when the analysis service doesn't answer. */
 async function listPipelineVideos(filter: VideoFilter = {}): Promise<Video[]> {
-    return (await listVideosAndJobs(filter)).videos;
+    return (await listVideosAndJobs(filter, async () => (await nullIfServiceFails(listAnalysisJobs())) ?? [])).videos;
 }
 
 export async function listVideos(filter: VideoFilter = {}): Promise<Video[]> {
