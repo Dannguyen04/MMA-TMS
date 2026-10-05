@@ -18,7 +18,7 @@ Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS v4. Outside pr
 
 `npm run dev` starts the UI on demo data and the mock video pipeline, with no backend required.
 
-API mode (`APP_DATA_MODE=api`, `NEXT_PUBLIC_VIDEO_PIPELINE=api`, `API_URL`) talks to the NestJS API. Features the backend doesn't offer yet show "not available yet" instead of calling missing routes: goals, performance, coach feedback, notifications and navigation badges, audit logs, broadcasts, system settings, role permission lists, AI models, AI job retry and cancel, invitations and account suspension. Password recovery links need the auth service's recovery email to carry `token_hash` to `/auth/reset-password`.
+API mode (`APP_DATA_MODE=api`, `NEXT_PUBLIC_VIDEO_PIPELINE=api`, `API_URL`) talks to the NestJS API. Features the backend doesn't offer yet show "not available yet" instead of calling missing routes: goals, performance, coach feedback, navigation badges, audit logs, broadcasts, system settings, role permission lists, AI models, AI job retry and cancel, invitations and account suspension. Notifications stream live through `/api/notifications/stream`. Password recovery links need the auth service's recovery email to carry `token_hash` to `/auth/reset-password`.
 
 For frontend-only checks:
 
