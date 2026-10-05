@@ -87,7 +87,7 @@ export default async function EditSessionPage({ params }: PageProps<"/coach/sess
             <PageHeader
                 eyebrow="Edit session"
                 title={session.title}
-                description={`${fighter.name} is notified about the change.${serviceForm ? "" : " The clearance check runs again as you edit."}`}
+                description={`${fighter.name} is notified when the time or location changes.${serviceForm ? "" : " The clearance check runs again as you edit."}`}
                 back={back}
             />
             <SessionForm

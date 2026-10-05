@@ -23,7 +23,7 @@ export interface PlanFormValues {
     fighterId: string;
     title: string;
     objective: string;
-    phase: TrainingPhase | "";
+    phase: TrainingPhase;
     focusAreas: Technique[];
     startDate: string;
     endDate: string;
@@ -46,7 +46,7 @@ export interface PlanFormProps {
     /** Server time (ISO). */
     now: string;
     cancelHref: string;
-    /** Only what the training service stores: no phase, focus areas or weekly target (`usesTrainingServiceForms`). */
+    /** Only what the training service stores: no focus areas or weekly target (`usesTrainingServiceForms`). */
     serviceForm: boolean;
 }
 
@@ -115,20 +115,23 @@ export function PlanForm({ mode, action, fighters, clearances, defaults, now, ca
                         </Field>
                     </FormSection>
 
-                    {!serviceForm && (
-                        <FormSection title="Focus" description="The training phase and the techniques this block develops.">
-                            <ChoiceGroup
-                                id="plan-phase"
-                                name="phase"
-                                legend="Phase"
-                                required
-                                variant="compact"
-                                columns={3}
-                                options={PHASE_OPTIONS}
-                                value={values.phase}
-                                onChange={(next) => set("phase", next)}
-                                error={error("phase")}
-                            />
+                    <FormSection
+                        title="Focus"
+                        description={serviceForm ? "The training phase this block belongs to." : "The training phase and the techniques this block develops."}
+                    >
+                        <ChoiceGroup
+                            id="plan-phase"
+                            name="phase"
+                            legend="Phase"
+                            required
+                            variant="compact"
+                            columns={3}
+                            options={PHASE_OPTIONS}
+                            value={values.phase}
+                            onChange={(next) => set("phase", next)}
+                            error={error("phase")}
+                        />
+                        {!serviceForm && (
                             <div className="flex flex-col gap-2">
                                 <TechniqueCheckboxes
                                     id="plan-focusAreas"
@@ -148,8 +151,8 @@ export function PlanForm({ mode, action, fighters, clearances, defaults, now, ca
                                     </Callout>
                                 )}
                             </div>
-                        </FormSection>
-                    )}
+                        )}
+                    </FormSection>
 
                     <FormSection title="Schedule" description={serviceForm ? "When the plan starts and ends." : "Plan window and how often the fighter should train."}>
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

@@ -44,7 +44,7 @@ export default async function NewPlanPage({ searchParams }: PageProps<"/coach/tr
         <>
             <PageHeader
                 title="New training plan"
-                description={`Set the objective${serviceForm ? " and dates" : ", phase and weekly target"}. Check the fighter's Medical Clearance so the plan fits their restrictions.`}
+                description={`Set the objective, phase and ${serviceForm ? "dates" : "weekly target"}. Check the fighter's Medical Clearance so the plan fits their restrictions.`}
                 back={prefilled ? { href: routes.coach.fighterTraining(prefilled.id), label: prefilled.name } : { href: routes.coach.plans, label: "Training plans" }}
             />
             <PlanForm

@@ -218,7 +218,7 @@ describe("training API adapter", () => {
             fighterId: "fighter-1",
             coachId: "coach-1",
             objective: "Improve defense",
-            phase: null,
+            phase: "build" as const,
             focusAreas: [],
             startDate: "2026-08-31T17:00:00.000Z",
             endDate: "2026-10-01T16:59:59.999Z",
@@ -240,7 +240,7 @@ describe("training API adapter", () => {
         };
         const sent = (call: number) => JSON.parse(authenticatedMutableApiRequest.mock.calls[call][2].body);
 
-        it("creates a plan with the service's own fields and academy days, then publishes it", async () => {
+        it("creates a plan with the service's own fields, its phase and academy days, then publishes it", async () => {
             authenticatedMutableApiRequest.mockResolvedValueOnce(backendPlan("DRAFT")).mockResolvedValueOnce(backendPlan("ACTIVE"));
 
             await expect(createPlan({ ...planInput, status: "active" }, actor)).resolves.toMatchObject({ status: "active" });
@@ -251,6 +251,7 @@ describe("training API adapter", () => {
                 title: "Camp",
                 goals: "Improve defense",
                 description: null,
+                phase: "build",
                 startDate: "2026-09-01",
                 endDate: "2026-10-01",
             });
@@ -265,13 +266,13 @@ describe("training API adapter", () => {
             await expect(createPlan({ ...planInput, status: "active" }, actor)).resolves.toMatchObject({ status: "draft" });
         });
 
-        it("reads a plan the service stores without phase, focus areas or weekly target", async () => {
+        it("reads a plan the service stores with a phase but without focus areas or weekly target", async () => {
             const stored: Record<string, unknown> = backendPlan("ACTIVE");
-            for (const missing of ["phase", "focusAreas", "weeklySessionTarget"]) delete stored[missing];
+            for (const missing of ["focusAreas", "weeklySessionTarget"]) delete stored[missing];
             authenticatedApiRequest.mockResolvedValue({ ...stored, endDate: null });
 
             await expect(getPlan("plan-1")).resolves.toMatchObject({
-                phase: null,
+                phase: "fight_camp",
                 focusAreas: [],
                 weeklySessionTarget: null,
                 startDate: "2026-08-31T17:00:00.000Z",

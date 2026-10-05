@@ -10,11 +10,14 @@ describe("training contract", () => {
         expect(sessionTypeFor("technical_drilling")).toBeNull();
     });
 
-    it("sends plan dates as academy days and empty text as null", () => {
-        expect(planBody({ title: "  Camp ", objective: " ", notes: "Sparring capped", startDate: "2026-08-31T17:00:00.000Z", endDate: "2026-10-01T16:59:59.999Z" })).toEqual({
+    it("sends plan dates as academy days, the phase, and empty text as null", () => {
+        expect(
+            planBody({ title: "  Camp ", objective: " ", phase: "fight_camp", notes: "Sparring capped", startDate: "2026-08-31T17:00:00.000Z", endDate: "2026-10-01T16:59:59.999Z" }),
+        ).toEqual({
             title: "Camp",
             goals: null,
             description: "Sparring capped",
+            phase: "fight_camp",
             startDate: "2026-09-01",
             endDate: "2026-10-01",
         });

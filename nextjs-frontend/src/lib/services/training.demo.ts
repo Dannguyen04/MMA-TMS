@@ -194,18 +194,6 @@ export async function updatePlan(id: string, input: PlanUpdateInput, actor: User
         resourceLabel: `${fighterName(plan.fighterId)} — ${plan.title}`,
         details: changed.length > 0 ? `Changed: ${changed.join(", ")}` : null,
     });
-    if (plan.status === "active") {
-        const userIds = recipients(fighterUserIds(plan.fighterId), actor);
-        if (userIds.length > 0) {
-            notifyUsers({
-                userIds,
-                category: "training",
-                title: "Training plan updated",
-                body: `${plan.title} was updated by ${actor.name}.`,
-                href: routes.fighter.plan(plan.id),
-            });
-        }
-    }
     return plan;
 }
 
@@ -502,6 +490,7 @@ export async function updateSession(id: string, input: SessionUpdateInput, actor
     }
 
     const previousStart = session.scheduledAt;
+    const previousLocation = session.location;
     Object.assign(session, editableSessionFields(input));
     const rescheduled = previousStart !== session.scheduledAt;
 
@@ -519,15 +508,14 @@ export async function updateSession(id: string, input: SessionUpdateInput, actor
             .join(". ") || null,
     });
 
+    // Like the training service, the fighter hears about a change of time or place only.
     const fighterIds = recipients(fighterUserIds(session.fighterId), actor);
-    if (fighterIds.length > 0) {
+    if ((rescheduled || previousLocation !== session.location) && fighterIds.length > 0) {
         notifyUsers({
             userIds: fighterIds,
             category: "training",
-            title: rescheduled ? "Session rescheduled" : "Session updated",
-            body: rescheduled
-                ? `${session.title} moved to ${formatDateTime(session.scheduledAt)} — ${session.location}.`
-                : `${actor.name} updated ${session.title} on ${formatDateTime(session.scheduledAt)}.`,
+            title: "Session changed",
+            body: `${session.title} is now on ${formatDateTime(session.scheduledAt)} — ${session.location}.`,
             href: routes.fighter.session(session.id),
         });
     }
@@ -591,17 +579,6 @@ export async function recordSessionResult(
         details: `RPE ${result.rpe}, coach rating ${result.coachRating}/5, ${result.actualDurationMin} min`,
     });
 
-    const fighterIds = recipients(fighterUserIds(session.fighterId), actor);
-    if (fighterIds.length > 0) {
-        notifyUsers({
-            userIds: fighterIds,
-            category: "training",
-            severity: "success",
-            title: correction ? "Session results corrected" : "Session results recorded",
-            body: `${session.title}: RPE ${result.rpe}, coach rating ${result.coachRating}/5. ${result.summary}`,
-            href: routes.fighter.session(session.id),
-        });
-    }
     const cap = clearanceRpeCap(session);
     const doctorIds = recipients(staffUserIdsForFighter(session.fighterId, ["doctor"]), actor);
     if (cap !== null && result.rpe !== null && result.rpe > cap && doctorIds.length > 0) {

@@ -24,7 +24,6 @@ import { formatPercent, pluralize } from "@/lib/format";
 import { paginate, parseEnum, parseSortDirection, sortItems } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { listFighters } from "@/lib/services/people";
-import { usesTrainingServiceForms } from "@/lib/services/platform-features";
 import { listPlans, listSessions } from "@/lib/services/training";
 import { groupBy, param } from "@/lib/utils";
 
@@ -44,9 +43,7 @@ export default async function CoachPlansPage({ searchParams }: PageProps<"/coach
     const search = param(params.q);
     const fighterId = param(params.fighter);
     const status = parseEnum(param(params.status), STATUSES);
-    // The training service keeps no phase, so API mode neither filters, sorts nor shows by it.
-    const withPhase = !usesTrainingServiceForms();
-    const phase = withPhase ? parseEnum(param(params.phase), PHASES) : undefined;
+    const phase = parseEnum(param(params.phase), PHASES);
     const view = parseEnum(param(params.view), VIEWS) ?? "grid";
     const sort = parseEnum(param(params.sort), SORT_KEYS);
     const dir = parseSortDirection(param(params.dir));
@@ -74,7 +71,7 @@ export default async function CoachPlansPage({ searchParams }: PageProps<"/coach
                       title: plan.title,
                       fighter: fightersById[plan.fighterId]?.name ?? "",
                       status: STATUSES.indexOf(plan.status),
-                      phase: plan.phase ? TRAINING_PHASE_LABELS[plan.phase] : "",
+                      phase: TRAINING_PHASE_LABELS[plan.phase],
                       start: plan.startDate,
                       adherence: adherence(plan) ?? null,
                   })[sort],
@@ -108,9 +105,7 @@ export default async function CoachPlansPage({ searchParams }: PageProps<"/coach
                             { type: "search", name: "q", label: "Search plans", placeholder: "Search title, objective or fighter" },
                             { type: "select", name: "fighter", label: "Fighters", options: fighters.map((f) => ({ value: f.id, label: f.name })) },
                             { type: "select", name: "status", label: "Statuses", options: STATUSES.map((value) => ({ value, label: PLAN_STATUS_LABELS[value] })) },
-                            ...(withPhase
-                                ? [{ type: "select" as const, name: "phase", label: "Phases", options: PHASES.map((value) => ({ value, label: TRAINING_PHASE_LABELS[value] })) }]
-                                : []),
+                            { type: "select", name: "phase", label: "Phases", options: PHASES.map((value) => ({ value, label: TRAINING_PHASE_LABELS[value] })) },
                         ]}
                     />
                     <ViewToggle
@@ -197,7 +192,7 @@ export default async function CoachPlansPage({ searchParams }: PageProps<"/coach
                                             ["start", "Dates"],
                                             ["adherence", "Adherence"],
                                         ] as const
-                                    ).filter(([key]) => withPhase || key !== "phase").map(([key, label]) => (
+                                    ).map(([key, label]) => (
                                         <SortableTH
                                             key={key}
                                             label={label}
@@ -229,7 +224,7 @@ export default async function CoachPlansPage({ searchParams }: PageProps<"/coach
                                             <TD>
                                                 <PlanStatusBadge status={plan.status} size="sm" />
                                             </TD>
-                                            {withPhase && <TD className="whitespace-nowrap text-fg-muted">{plan.phase ? TRAINING_PHASE_LABELS[plan.phase] : "—"}</TD>}
+                                            <TD className="whitespace-nowrap text-fg-muted">{TRAINING_PHASE_LABELS[plan.phase]}</TD>
                                             <TD className="whitespace-nowrap">
                                                 <PlanDates plan={plan} short />
                                             </TD>

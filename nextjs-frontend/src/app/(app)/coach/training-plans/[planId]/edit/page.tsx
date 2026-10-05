@@ -39,7 +39,7 @@ export default async function EditPlanPage({ params }: PageProps<"/coach/trainin
         fighterId: fighter.id,
         title: plan.title,
         objective: plan.objective,
-        phase: plan.phase ?? "",
+        phase: plan.phase,
         focusAreas: plan.focusAreas,
         startDate: dayKey(plan.startDate),
         endDate: plan.endDate === null ? "" : dayKey(plan.endDate),
@@ -53,7 +53,7 @@ export default async function EditPlanPage({ params }: PageProps<"/coach/trainin
             <PageHeader
                 eyebrow="Edit training plan"
                 title={plan.title}
-                description={plan.status === "active" ? `${fighter.name} is notified when you save changes to an active plan.` : undefined}
+                description={plan.status === "active" ? `${fighter.name} sees your changes on the active plan straight away.` : undefined}
                 back={{ href: routes.coach.plan(plan.id), label: "Back to plan" }}
             />
             <PlanForm

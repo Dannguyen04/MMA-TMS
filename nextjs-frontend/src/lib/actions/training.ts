@@ -85,12 +85,11 @@ function revalidateSession(session: Pick<TrainingSession, "id" | "fighterId" | "
 /* ─── Training plans ──────────────────────────────────────────────────────── */
 
 /**
- * Plan fields. Phase, focus areas and weekly target belong to the demo's richer form: the training service doesn't
- * store them, so they are optional when it's in use and required otherwise.
+ * Plan fields. Focus areas and weekly target belong to the demo's richer form: the training service doesn't store
+ * them, so they are optional when it's in use and required otherwise. Every plan has a phase.
  */
 function planFieldsSchema(serviceForms: boolean) {
     const focusAreas = z.array(z.enum(TECHNIQUES, "Choose focus areas from the list."));
-    const phase = z.enum(PHASES, "Choose a training phase.");
     const weeklySessionTarget = wholeNumber("Weekly sessions", 1, 14);
     return z
         .object({
@@ -100,7 +99,7 @@ function planFieldsSchema(serviceForms: boolean) {
                 .trim()
                 .min(10, "Describe the objective in at least 10 characters.")
                 .max(600, "Keep the objective under 600 characters."),
-            phase: serviceForms ? phase.optional() : phase,
+            phase: z.enum(PHASES, "Choose a training phase."),
             focusAreas: serviceForms ? focusAreas : focusAreas.min(1, "Choose at least one focus area."),
             startDate: z.string().refine(isDateKey, "Enter a valid start date."),
             endDate: z.string().refine(isDateKey, "Enter a valid end date."),
@@ -122,7 +121,7 @@ function toPlanInput(fields: PlanFields) {
     return {
         title: fields.title,
         objective: fields.objective,
-        phase: fields.phase ?? null,
+        phase: fields.phase,
         focusAreas: fields.focusAreas,
         startDate: academyDayStartIso(fields.startDate),
         endDate: academyDayEndIso(fields.endDate),
@@ -134,7 +133,7 @@ function toPlanInput(fields: PlanFields) {
 /** Maps a failed plan write to the form; a bad date range lands on the end date. */
 function planWriteFailure(error: unknown): ActionState<never> {
     const failure = trainingWriteFailure(error, {
-        fields: { title: "title", goals: "objective", description: "notes", startDate: "startDate", endDate: "endDate" },
+        fields: { title: "title", goals: "objective", description: "notes", phase: "phase", startDate: "startDate", endDate: "endDate" },
         conflictFields: { INVALID_PLAN_DATE_RANGE: "endDate" },
     });
     return actionError(failure.message, failure.fieldErrors);

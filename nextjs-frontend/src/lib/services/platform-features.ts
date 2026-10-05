@@ -60,9 +60,9 @@ export const platformFeatureAvailable = demoOnlyFeatureGate<PlatformFeature>([
 ]);
 
 /**
- * Whether coaches plan training in the training service's own terms: plans without a phase, focus areas or weekly
- * target, sessions without a target RPE or exercise list, and results without a rating or summary. True in API mode;
- * demo mode keeps its richer forms.
+ * Whether coaches plan training in the training service's own terms: plans without focus areas or a weekly target,
+ * sessions without a target RPE or exercise list, and results without a rating or summary. True in API mode; demo mode
+ * keeps its richer forms.
  */
 export function usesTrainingServiceForms(): boolean {
     return !isDemoAuthEnabled();

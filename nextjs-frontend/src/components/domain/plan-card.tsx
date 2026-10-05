@@ -48,7 +48,7 @@ export function PlanCard({ plan, now, coachName, fighter, showObjective = false,
             )}
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                    {plan.phase && <p className="text-xs font-semibold tracking-wide text-fg-subtle uppercase">{TRAINING_PHASE_LABELS[plan.phase]} phase</p>}
+                    <p className="text-xs font-semibold tracking-wide text-fg-subtle uppercase">{TRAINING_PHASE_LABELS[plan.phase]} phase</p>
                     <Heading className="mt-0.5 text-[15px] leading-6 font-semibold text-fg">
                         {href ? (
                             <Link href={href} className="rounded-sm after:absolute after:inset-0 after:rounded-xl after:content-[''] hover:underline">

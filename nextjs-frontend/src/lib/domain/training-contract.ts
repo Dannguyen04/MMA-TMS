@@ -1,6 +1,6 @@
 import { dayKey } from "@/lib/format";
 import type { SessionType } from "./medical-contract";
-import type { TrainingType } from "./types";
+import type { TrainingPhase, TrainingType } from "./types";
 
 /**
  * The training service's vocabulary and request bodies, built from input a form has already validated. Pure, so the
@@ -50,6 +50,7 @@ function textOrNull(value: string | null | undefined): string | null {
 export interface PlanFields {
     title: string;
     objective: string;
+    phase: TrainingPhase;
     /** ISO instant on the first academy day of the plan. */
     startDate: string;
     /** ISO instant on the last academy day of the plan. */
@@ -61,6 +62,8 @@ export interface PlanBody {
     title: string;
     goals: string | null;
     description: string | null;
+    /** Required when creating; the service never takes null. */
+    phase: TrainingPhase;
     /** Academy calendar days (YYYY-MM-DD): the service stores plan dates without a time. */
     startDate: string;
     endDate: string;
@@ -71,6 +74,7 @@ export function planBody(input: PlanFields): PlanBody {
         title: input.title.trim(),
         goals: textOrNull(input.objective),
         description: textOrNull(input.notes),
+        phase: input.phase,
         startDate: dayKey(input.startDate),
         endDate: dayKey(input.endDate),
     };

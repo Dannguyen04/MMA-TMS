@@ -87,7 +87,7 @@ const backendPlanSchema = z.object({
     updatedAt: isoDateSchema,
     deletedAt: isoDateSchema.nullable(),
     progress: z.unknown().optional(),
-    phase: z.enum(["base", "build", "fight_camp", "taper", "rehab", "maintenance"]).optional(),
+    phase: z.enum(["base", "build", "fight_camp", "taper", "rehab", "maintenance"]),
     focusAreas: z.array(techniqueSchema).optional(),
     weeklySessionTarget: z.number().int().positive().optional(),
 });
@@ -242,7 +242,7 @@ async function readPerFighter<T extends { id: string }>(
 
 /**
  * The service stores plan dates as academy calendar days; the interface keeps them as the start of the first day and
- * the end of the last, as the demo does. Phase, focus areas and weekly target aren't stored yet and stay empty.
+ * the end of the last, as the demo does. Focus areas and weekly target aren't stored yet and stay empty.
  */
 function toPlan(plan: BackendPlan): TrainingPlan {
     return {
@@ -251,7 +251,7 @@ function toPlan(plan: BackendPlan): TrainingPlan {
         fighterId: plan.fighterId,
         coachId: plan.coachId,
         objective: plan.goals ?? "",
-        phase: plan.phase ?? null,
+        phase: plan.phase,
         focusAreas: plan.focusAreas ?? [],
         startDate: academyDayStartIso(dayKey(plan.startDate)),
         endDate: plan.endDate === null ? null : academyDayEndIso(dayKey(plan.endDate)),
@@ -384,8 +384,8 @@ export interface PlanInput {
     fighterId: string;
     coachId: string;
     objective: string;
-    /** Phase, focus areas and weekly target are demo-only: the training service doesn't store them. */
-    phase: TrainingPhase | null;
+    phase: TrainingPhase;
+    /** Focus areas and weekly target are demo-only: the training service doesn't store them. */
     focusAreas: Technique[];
     startDate: string;
     endDate: string;

@@ -74,7 +74,7 @@ export function RecordResultButton({
                 onClose={() => setOpen(false)}
                 size="lg"
                 title={correcting ? "Edit session result" : "Record session result"}
-                description={`${sessionTitle} — what actually happened. The fighter is notified when you save.`}
+                description={`${sessionTitle} — what actually happened. The fighter sees it in their session history.`}
                 action={(previous: ActionState, fd: FormData) => recordSessionResult(sessionId, previous, fd)}
                 submitLabel={correcting ? "Save result" : "Record result"}
                 pendingLabel="Saving…"

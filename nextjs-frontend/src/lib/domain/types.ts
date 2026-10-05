@@ -238,7 +238,7 @@ export interface TrainingPlan {
     fighterId: string;
     coachId: string;
     objective: string;
-    phase: TrainingPhase | null;
+    phase: TrainingPhase;
     focusAreas: Technique[];
     startDate: ISODate;
     /** Null for an open-ended plan. */

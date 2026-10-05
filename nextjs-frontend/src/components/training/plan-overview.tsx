@@ -44,7 +44,7 @@ export function PlanOverview({ plan, now, coachName, fighter, fighterHref, adher
                 <div className="flex min-w-0 flex-col gap-4">
                     <div className="flex flex-wrap items-center gap-2">
                         <PlanStatusBadge status={plan.status} />
-                        {plan.phase && <Badge variant="outline">{TRAINING_PHASE_LABELS[plan.phase]} phase</Badge>}
+                        <Badge variant="outline">{TRAINING_PHASE_LABELS[plan.phase]} phase</Badge>
                     </div>
                     {titleHref && (
                         <TitleHeading className="-mt-1 text-xl leading-snug font-semibold tracking-tight text-fg">
