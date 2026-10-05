@@ -74,6 +74,10 @@ const target005 = '005_training_management.sql';
 const target006 = '006_training_permissions.sql';
 const target013 = '013_coaching_loop_and_constraints.sql';
 const target014 = '014_video_ai_vertical_slice.sql';
+const target015 = '015_notifications_delivery.sql';
+const target016 = '016_medical_examination_details.sql';
+const target017 = '017_doctor_assignment_notification.sql';
+const target018 = '018_training_plan_phase.sql';
 const trainingPermissionCodes = [
   'training.plan:get_all',
   'training.plan:read',
@@ -296,6 +300,132 @@ try {
       '1',
     );
   });
+  check('018 adds the required plan phase enum and records ledger 18', () => {
+    migration('mma_clean', target018);
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT string_agg(enumlabel, ',' ORDER BY enumsortorder) FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid WHERE t.typname = 'training_plan_phase';`,
+      ),
+      'base,build,fight_camp,taper,rehab,maintenance',
+    );
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT data_type || ':' || udt_name || ':' || is_nullable || ':' || coalesce(column_default, 'none') FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'training_plans' AND column_name = 'phase';`,
+      ),
+      'USER-DEFINED:training_plan_phase:NO:none',
+    );
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT name FROM mma_private.migration_history WHERE version = 18;`,
+      ),
+      target018,
+    );
+  });
+  check('reapplying 018 fails without duplicating migration history', () => {
+    rejects(
+      'mma_clean',
+      readFileSync(join(api, 'migrations', target018), 'utf8'),
+      /018 has already been applied/,
+    );
+    assert.equal(
+      psql(
+        'mma_clean',
+        `SELECT count(*) FROM mma_private.migration_history WHERE version = 18;`,
+      ),
+      '1',
+    );
+  });
+  const planFixture = (deletedAt) => `
+    INSERT INTO auth.users(id) VALUES ('00000000-0000-4000-8000-0000000000a1'), ('00000000-0000-4000-8000-0000000000a2');
+    INSERT INTO public.users(id, auth_user_id, email, role) VALUES
+      ('00000000-0000-4000-8000-0000000000b1', '00000000-0000-4000-8000-0000000000a1', 'f018@example.invalid', 'FIGHTER'),
+      ('00000000-0000-4000-8000-0000000000b2', '00000000-0000-4000-8000-0000000000a2', 'c018@example.invalid', 'COACH');
+    INSERT INTO fighters(id, user_id, first_name, last_name, date_of_birth, weight_class)
+      VALUES ('00000000-0000-4000-8000-0000000000c1', '00000000-0000-4000-8000-0000000000b1', 'Test', 'Fighter', '2000-01-01', 'LIGHTWEIGHT');
+    INSERT INTO coaches(id, user_id, first_name, last_name)
+      VALUES ('00000000-0000-4000-8000-0000000000c2', '00000000-0000-4000-8000-0000000000b2', 'Test', 'Coach');
+    INSERT INTO training_plans(fighter_id, coach_id, title, start_date, deleted_at)
+      VALUES ('00000000-0000-4000-8000-0000000000c1', '00000000-0000-4000-8000-0000000000c2', 'Legacy plan', '2026-01-01', ${deletedAt ? "'2026-02-01'" : 'NULL'});`;
+  for (const [database, deletedAt] of [
+    ['mma_018_active_plan', false],
+    ['mma_018_deleted_plan', true],
+  ]) {
+    prepare(database);
+    for (const name of [target003, target004, target005])
+      migration(database, name);
+    psql(database, planFixture(deletedAt));
+    check(
+      `018 aborts without changes when a ${deletedAt ? 'soft-deleted' : 'live'} plan exists`,
+      () => {
+        rejects(
+          database,
+          readFileSync(join(api, 'migrations', target018), 'utf8'),
+          /018 requires an empty training_plans table/,
+        );
+        assert.equal(
+          psql(
+            database,
+            `SELECT to_regtype('public.training_plan_phase') IS NULL
+               AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'training_plans' AND column_name = 'phase')
+               AND NOT EXISTS (SELECT 1 FROM mma_private.migration_history WHERE version = 18)
+               AND (SELECT count(*) FROM training_plans) = 1;`,
+          ),
+          't',
+        );
+      },
+    );
+  }
+  prepare('mma_018_missing_005');
+  migration('mma_018_missing_005', target003);
+  migration('mma_018_missing_005', target004);
+  check('018 rejects a database without migration 005 history', () => {
+    rejects(
+      'mma_018_missing_005',
+      readFileSync(join(api, 'migrations', target018), 'utf8'),
+      /018 requires migration 005 history/,
+    );
+    assert.equal(
+      psql(
+        'mma_018_missing_005',
+        `SELECT count(*) FROM mma_private.migration_history WHERE version = 18;`,
+      ),
+      '0',
+    );
+  });
+  for (const [database, prepareSql, pattern] of [
+    [
+      'mma_018_enum_collision',
+      `CREATE TYPE public.training_plan_phase AS ENUM ('base');`,
+      /018 training_plan_phase enum collision/,
+    ],
+    [
+      'mma_018_column_collision',
+      `ALTER TABLE public.training_plans ADD COLUMN phase text;`,
+      /018 training_plans phase collision/,
+    ],
+  ]) {
+    prepare(database);
+    for (const name of [target003, target004, target005])
+      migration(database, name);
+    psql(database, prepareSql);
+    check(`018 rejects ${database} without writing history`, () => {
+      rejects(
+        database,
+        readFileSync(join(api, 'migrations', target018), 'utf8'),
+        pattern,
+      );
+      assert.equal(
+        psql(
+          database,
+          `SELECT count(*) FROM mma_private.migration_history WHERE version = 18;`,
+        ),
+        '0',
+      );
+    });
+  }
   prepare('mma_013');
   for (const name of migrationNames.filter((name) => {
     const version = Number(name.slice(0, 3));
@@ -383,6 +513,88 @@ try {
         `SELECT count(*) FROM mma_private.migration_history WHERE version = 14;`,
       ),
       '1',
+    );
+  });
+  check('015 adds notification dedupe and records ledger version 15', () => {
+    migration('mma_013', target015);
+    assert.equal(
+      psql(
+        'mma_013',
+        `SELECT count(*) FROM mma_private.migration_history WHERE version = 15;`,
+      ),
+      '1',
+    );
+    assert.equal(
+      psql(
+        'mma_013',
+        `SELECT is_nullable FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'notifications' AND column_name = 'dedupe_key';`,
+      ),
+      'YES',
+    );
+  });
+  check('reapplying 015 fails without duplicating migration history', () => {
+    rejects(
+      'mma_013',
+      readFileSync(join(api, 'migrations', target015), 'utf8'),
+      /already been applied/,
+    );
+    assert.equal(
+      psql(
+        'mma_013',
+        `SELECT count(*) FROM mma_private.migration_history WHERE version = 15;`,
+      ),
+      '1',
+    );
+  });
+  check('016 adds examination details, snapshot exemptions, and ledger 16', () => {
+    migration('mma_013', target016);
+    assert.equal(
+      psql(
+        'mma_013',
+        `SELECT count(*) FROM mma_private.migration_history WHERE version = 16;`,
+      ),
+      '1',
+    );
+    assert.equal(
+      psql(
+        'mma_013',
+        `SELECT to_regclass('public.medical_examination_details') IS NOT NULL AND to_regclass('public.medical_baseline_exemptions') IS NOT NULL;`,
+      ),
+      't',
+    );
+  });
+  check('017 adds doctor assignment notification type and ledger 17', () => {
+    migration('mma_013', target017);
+    assert.equal(
+      psql(
+        'mma_013',
+        `SELECT count(*) FROM mma_private.migration_history WHERE version = 17;`,
+      ),
+      '1',
+    );
+    assert.equal(
+      psql(
+        'mma_013',
+        `SELECT enumlabel FROM pg_enum e JOIN pg_type t ON t.oid=e.enumtypid WHERE t.typname='notification_type' AND enumlabel='FIGHTER_DOCTOR_ASSIGNMENT_REQUIRED';`,
+      ),
+      'FIGHTER_DOCTOR_ASSIGNMENT_REQUIRED',
+    );
+  });
+  check('018 applies on the upgraded 013-017 chain and records ledger 18', () => {
+    migration('mma_013', target018);
+    assert.equal(
+      psql(
+        'mma_013',
+        `SELECT count(*) FROM mma_private.migration_history WHERE version = 18;`,
+      ),
+      '1',
+    );
+    assert.equal(
+      psql(
+        'mma_013',
+        `SELECT is_nullable FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'training_plans' AND column_name = 'phase';`,
+      ),
+      'NO',
     );
   });
   if (process.argv.includes('--export-catalog')) {

@@ -1,4 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import {
+  NOTIFICATION_PUBLISHER,
+  NOTIFICATION_TARGET,
+  NOTIFICATION_TYPE,
+  type NotificationPublisher,
+  type NotificationType,
+} from '../../shared/contracts/notification.contract.js';
 import { TrainingRepository } from '../training.repo.js';
 import type { SessionTransitionOutcome } from '../training.repo.js';
 import { TrainingAccessService } from '../training-access.service.js';
@@ -29,6 +36,7 @@ import { forbidden } from '../../shared/errors/access.error.js';
 import {
   ALLOWED_SESSION_TRANSITIONS,
   TERMINAL_SESSION_STATUSES,
+  TRAINING_NOTIFICATION_TEXT,
 } from '../training.constants.js';
 
 @Injectable()
@@ -37,6 +45,8 @@ export class TrainingSessionService {
     private readonly repo: TrainingRepository,
     private readonly access: TrainingAccessService,
     private readonly medical: MedicalService,
+    @Inject(NOTIFICATION_PUBLISHER)
+    private readonly notifications: NotificationPublisher,
   ) {}
 
   async listSessions(actor: AuthenticatedUser, query: ListSessionsQuery) {
@@ -92,7 +102,16 @@ export class TrainingSessionService {
         }
       }
 
-      return await this.repo.createSession(data);
+      const created = await this.repo.createSession(data);
+      // T3, after the autocommitted insert; the publisher never throws.
+      await this.notifySessionEvent(
+        actor,
+        created,
+        NOTIFICATION_TYPE.TRAINING_SESSION_SCHEDULED,
+        TRAINING_NOTIFICATION_TEXT.SESSION_SCHEDULED,
+        `session:${created.id}`,
+      );
+      return created;
     } catch (error) {
       throw mapTrainingPersistenceError(error);
     }
@@ -104,24 +123,22 @@ export class TrainingSessionService {
     data: UpdateSessionInput,
   ) {
     this.access.assertTrainingWriteAllowed(actor);
+    let result: { updated: TrainingSessionEntity; rescheduled: boolean };
     try {
       const existing = await this.repo.findSessionById(id);
       if (!existing) throw sessionNotFound();
       await this.access.assertFighterAccess(actor, existing.fighterId);
 
-      const nextSessionType = data.sessionType;
-      if (nextSessionType === undefined) {
-        const updated = await this.repo.updateSession(id, data);
-        if (!updated) throw sessionNotFound();
-        return updated;
-      }
-
-      // Switching a running session to another type could step outside a
-      // medical restriction, so it passes the same gate as starting it.
-      return await this.repo.transaction(async (transaction) => {
+      // The lock makes the reschedule check compare against exactly the row this
+      // UPDATE replaces, never a snapshot a concurrent request changed.
+      result = await this.repo.transaction(async (transaction) => {
         const locked = await this.repo.lockSessionById(id, transaction);
         if (!locked) throw sessionNotFound();
+        const nextSessionType = data.sessionType;
+        // Switching a running session to another type could step outside a
+        // medical restriction, so it passes the same gate as starting it.
         if (
+          nextSessionType !== undefined &&
           locked.status === 'IN_PROGRESS' &&
           nextSessionType !== locked.sessionType
         ) {
@@ -131,13 +148,27 @@ export class TrainingSessionService {
             transaction,
           );
         }
+        const rescheduled = this.isRescheduled(locked, data);
         const updated = await this.repo.updateSession(id, data, transaction);
         if (!updated) throw sessionNotFound();
-        return updated;
+        return { updated, rescheduled };
       });
     } catch (error) {
       throw mapTrainingPersistenceError(error);
     }
+
+    // T4, after commit: only a real time/location change; notes, RPE, title, type
+    // or a repeated request notify nobody.
+    if (result.rescheduled) {
+      await this.notifySessionEvent(
+        actor,
+        result.updated,
+        NOTIFICATION_TYPE.TRAINING_SESSION_RESCHEDULED,
+        TRAINING_NOTIFICATION_TEXT.SESSION_RESCHEDULED,
+        `session:${id}:rescheduled:${result.updated.updatedAt}`,
+      );
+    }
+    return result.updated;
   }
 
   /**
@@ -170,11 +201,22 @@ export class TrainingSessionService {
       // Stopping, cancelling or reading is never medically gated.
       if (newStatus !== 'IN_PROGRESS') {
         if (isSameStatus) return session;
-        return await this.applyStatusTransition(
+        const updated = await this.applyStatusTransition(
           session,
           newStatus,
           cancellationReason,
         );
+        // T4: CANCELLED is terminal, so the session ID identifies the cancellation.
+        if (updated.status === 'CANCELLED') {
+          await this.notifySessionEvent(
+            actor,
+            updated,
+            NOTIFICATION_TYPE.TRAINING_SESSION_CANCELLED,
+            TRAINING_NOTIFICATION_TEXT.SESSION_CANCELLED,
+            `session:${id}:cancelled`,
+          );
+        }
+        return updated;
       }
 
       // Starting (or re-confirming) IN_PROGRESS runs the medical gate first,
@@ -208,6 +250,57 @@ export class TrainingSessionService {
     } catch (error) {
       throw mapTrainingPersistenceError(error);
     }
+  }
+
+  /**
+   * True only when the mutation sends `scheduledAt` or `location` and the sent
+   * value differs from the locked row. Instants are compared, not ISO strings;
+   * `location` keeps the contract's null normalization (validated input is
+   * already trimmed and never empty).
+   */
+  private isRescheduled(
+    locked: TrainingSessionEntity,
+    data: UpdateSessionInput,
+  ): boolean {
+    const timeChanged =
+      data.scheduledAt !== undefined &&
+      new Date(data.scheduledAt).getTime() !==
+        new Date(locked.scheduledAt).getTime();
+    const locationChanged =
+      data.location !== undefined &&
+      (data.location ?? null) !== (locked.location ?? null);
+    return timeChanged || locationChanged;
+  }
+
+  /**
+   * Notifies the session's Fighter and, when set, its Coach, never the user
+   * who made the change. Recipient lookup runs inside the publisher's
+   * isolation, so it cannot fail the committed operation.
+   */
+  private notifySessionEvent(
+    actor: AuthenticatedUser,
+    session: TrainingSessionEntity,
+    type: NotificationType,
+    text: { title: string; message: string },
+    dedupeKey: string,
+  ) {
+    return this.notifications.notifyResolved(async () => [
+      {
+        recipientUserIds: await this.repo.findParticipantUserIds(
+          session.fighterId,
+          session.coachId,
+        ),
+        actorUserId: actor.id,
+        type,
+        ...text,
+        target: { type: NOTIFICATION_TARGET.TRAINING_SESSION, id: session.id },
+        data: {
+          scheduledAt: session.scheduledAt,
+          location: session.location,
+        },
+        dedupeKey,
+      },
+    ]);
   }
 
   private async assertMedicallyEligible(

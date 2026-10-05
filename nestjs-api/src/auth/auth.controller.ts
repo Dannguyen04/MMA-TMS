@@ -28,6 +28,9 @@ import { AccessTokenGuard } from '../shared/guards/auth.guard.js';
 import type { AuthenticatedRequest } from '../shared/models/auth-context.model.js';
 import { appZodValidationPipe } from '../shared/pipes/zod-validation.pipe.js';
 import {
+  AdmissionEmailCodeDto,
+  AdmissionEmailCodeResponseDto,
+  AdmissionEmailVerifyDto,
   AuthResponseDto,
   DemoSessionExchangeDto,
   ForgotPasswordDto,
@@ -53,9 +56,9 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @PublicEndpoint()
   @ApiOperation({
-    summary: 'Register new guest account',
+    summary: 'Register new guest account (legacy, with password)',
     description:
-      'Registers credentials and creates the pre-admission GUEST identity. Fighter access is granted only after an admission application is approved and activated.',
+      'Legacy registration kept for existing clients: registers credentials and creates the pre-admission GUEST identity. New admissions use POST /auth/admission/email-code and /auth/admission/verify-email (no password before approval). Fighter access is granted only after an admission application is approved and activated.',
   })
   @ResponseMessage('Account registered successfully')
   @HttpCode(HttpStatus.CREATED)
@@ -73,6 +76,57 @@ export class AuthController {
   )
   async register(@Body() body: RegisterDto) {
     return this.authService.register(body, randomUUID());
+  }
+
+  @Post('admission/email-code')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @PublicEndpoint()
+  @ApiOperation({
+    summary: 'Send an admission verification code by email',
+    description:
+      'Passwordless admission, step 1. Emails a one-time numeric code for the address (a new address gets an auth identity, but no application account until the code is verified). The response is identical for every address, so it reveals nothing about existing accounts or applications.',
+  })
+  @ResponseMessage(
+    'If the address can receive email, a verification code has been sent.',
+  )
+  @HttpCode(HttpStatus.OK)
+  @ApiSuccessEnvelope({
+    status: HttpStatus.OK,
+    message:
+      'If the address can receive email, a verification code has been sent.',
+    model: AdmissionEmailCodeResponseDto,
+  })
+  @ApiValidationErrorEnvelope('Invalid email structure')
+  async requestAdmissionEmailCode(@Body() body: AdmissionEmailCodeDto) {
+    await this.authService.requestAdmissionEmailCode(body.email);
+    return { requested: true as const };
+  }
+
+  @Post('admission/verify-email')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @PublicEndpoint()
+  @ApiOperation({
+    summary: 'Verify the admission email code and start an applicant session',
+    description:
+      'Passwordless admission, step 2. Verifies the emailed code with the provider, creates the GUEST applicant identity if it does not exist yet (idempotent per verified subject) and returns a session. It never grants FIGHTER or records a password. Only GUEST accounts sign in this way; other roles use password login. If it fails after the code was consumed, request a new code: verifying it reaches the same identity.',
+  })
+  @ResponseMessage('Email verified successfully')
+  @HttpCode(HttpStatus.OK)
+  @ApiSuccessEnvelope({
+    status: HttpStatus.OK,
+    message: 'Email verified successfully',
+    model: AuthResponseDto,
+  })
+  @ApiValidationErrorEnvelope('Invalid email or code structure')
+  @ApiUnauthorizedEnvelope(
+    'The code is wrong, expired or already used, or the account cannot sign in this way',
+  )
+  @ApiConflictEnvelope(
+    'USER_ALREADY_EXISTS',
+    'Another account already uses this email',
+  )
+  async verifyAdmissionEmail(@Body() body: AdmissionEmailVerifyDto) {
+    return this.authService.verifyAdmissionEmail(body, randomUUID());
   }
 
   @Post('login')
@@ -166,9 +220,9 @@ export class AuthController {
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @PublicEndpoint()
   @ApiOperation({
-    summary: 'Set a new password from a recovery link',
+    summary: 'Set a password from a recovery or activation link',
     description:
-      'Redeems the token_hash carried by the recovery email and sets a new password. When the account has an approved admission awaiting activation, the successful change is recorded so the activation step can proceed.',
+      'Redeems the token_hash carried by the recovery email and sets the password. For an approved admission this is the one-time password setup that unlocks activation (a passwordless applicant has no previous password): the successful change is recorded so the activation step can proceed. For other accounts it is a normal password reset.',
   })
   @ResponseMessage('Password updated successfully')
   @HttpCode(HttpStatus.OK)

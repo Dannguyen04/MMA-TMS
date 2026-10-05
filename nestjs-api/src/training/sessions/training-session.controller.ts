@@ -201,8 +201,9 @@ export class TrainingSessionController {
     'The training session state was modified concurrently.',
     'SESSION_STATE_CONFLICT when the session changed concurrently, or ' +
       'TRAINING_MEDICAL_ELIGIBILITY_REQUIRED when starting (or re-confirming) ' +
-      'IN_PROGRESS while a medical obligation applies. The latter carries ' +
-      '`details.reasons` from REVIEW_REQUEST_PENDING, EXAMINATION_NOT_ELIGIBLE, ' +
+      'IN_PROGRESS while the Fighter is not medically eligible (every Fighter ' +
+      'has a BASELINE examination before training). The latter carries `details.reasons` from ' +
+      'EXAMINATION_REQUIRED, REVIEW_REQUEST_PENDING, EXAMINATION_NOT_ELIGIBLE, ' +
       'CLEARANCE_REQUIRED, CLEARANCE_EXPIRED, SESSION_TYPE_RESTRICTED. ' +
       'Stopping or cancelling a session is never medically gated.',
   )

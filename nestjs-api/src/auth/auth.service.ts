@@ -30,6 +30,7 @@ import type {
   AuthenticatedUser,
   PermissionRequirement,
 } from '../shared/models/auth-context.model.js';
+import { USER } from '../shared/types/user.role.js';
 import { UsersService } from '../users/users.service.js';
 import {
   PASSWORD_RESET_REDIRECT_URL_KEY,
@@ -51,6 +52,7 @@ import {
   resetTokenInvalid,
 } from './auth.error.js';
 import type {
+  AdmissionEmailVerifyInput,
   AuthSession,
   DemoSessionExchangeInput,
   LoginInput,
@@ -115,6 +117,79 @@ export class AuthService implements AuthAccessService, RecoveryEmailService {
       }
       if (error instanceof HttpException) throw error;
       throw registrationFailed();
+    }
+  }
+
+  /**
+   * Passwordless admission, step 1: asks the provider to email a one-time
+   * code. `shouldCreateUser` lets a brand-new address get an auth identity;
+   * no public user exists until the code is verified. The caller always gets
+   * the same answer, so the endpoint reveals nothing about accounts.
+   */
+  async requestAdmissionEmailCode(email: string): Promise<void> {
+    try {
+      const { error } = await this.supabase.auth.signInWithOtp({
+        email,
+        options: { shouldCreateUser: true },
+      });
+      if (error) {
+        this.logger.warn('Admission email code request was not accepted');
+      }
+    } catch {
+      this.logger.warn(
+        'Admission email code request failed to reach the provider',
+      );
+    }
+  }
+
+  /**
+   * Passwordless admission, step 2: the provider verifies the code and returns
+   * a session for that subject, then the GUEST is provisioned idempotently
+   * (find-or-create by verified subject). Verification never grants FIGHTER,
+   * never records PASSWORD_SET and never touches an existing user's role.
+   * Only GUEST accounts sign in this way; other roles keep password login.
+   *
+   * Provider and database are not one transaction: when provisioning fails
+   * after a consumed code, the session is signed out and the applicant asks
+   * for a new code; verifying it reaches the same subject, and the
+   * provisioning step completes without creating a second user.
+   */
+  async verifyAdmissionEmail(
+    input: AdmissionEmailVerifyInput,
+    requestId: string,
+  ): Promise<{ user: AuthenticatedUser; session: AuthSession }> {
+    const client = this.createRequestClient();
+    const verified = await client.auth
+      .verifyOtp({ email: input.email, token: input.token, type: 'email' })
+      .catch(() => null);
+    const session = verified?.data.session;
+    const authUser = verified?.data.user;
+    if (
+      !verified ||
+      verified.error ||
+      !session ||
+      !authUser?.id ||
+      !authUser.email
+    ) {
+      throw invalidCredentials();
+    }
+
+    try {
+      await this.usersService.provisionGuest(
+        { subject: authUser.id, email: authUser.email },
+        requestId,
+      );
+      const user = await this.authRepository.findActiveUserBySubject(
+        authUser.id,
+      );
+      if (!user || user.role !== USER.GUEST) throw invalidCredentials();
+      return { user, session: this.toSession(session) };
+    } catch (error) {
+      await this.supabaseAdmin.auth.admin
+        .signOut(session.access_token, 'local')
+        .catch(() => undefined);
+      if (error instanceof HttpException) throw error;
+      throw authProviderUnavailable();
     }
   }
 

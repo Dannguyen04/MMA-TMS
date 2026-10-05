@@ -11,28 +11,12 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { createZodDto } from 'nestjs-zod';
+import { createAssignmentBodySchema } from '../coaching.model.js';
 
-export class CreateAssignmentDto {
-  @IsUUID()
-  coachId: string;
-
-  @IsUUID()
-  fighterId: string;
-
-  @IsString()
-  title: string;
-
-  @IsOptional()
-  scheduledAt?: string;
-
-  @IsOptional()
-  @IsString()
-  sessionType?: string;
-
-  @IsOptional()
-  @IsString()
-  planTitle?: string;
-}
+export class CreateAssignmentDto extends createZodDto(
+  createAssignmentBodySchema,
+) {}
 
 export class UploadVideoDto {
   @IsUUID()

@@ -101,6 +101,42 @@ export class AuthorizationRepository {
     return row !== undefined;
   }
 
+  // A user override is final (deny beats a role grant); the role grant counts only
+  // without one. Unknown codes join nothing; unique keys keep one row per user.
+  async findActiveUserIdsWithPermission(
+    role: UserRole,
+    permissionCode: string,
+    db: DatabaseExecutor = this.db,
+  ): Promise<string[]> {
+    const rows = await db
+      .select({ id: users.id })
+      .from(users)
+      .innerJoin(permissions, eq(permissions.code, permissionCode))
+      .leftJoin(
+        userPermissions,
+        and(
+          eq(userPermissions.userId, users.id),
+          eq(userPermissions.permissionId, permissions.id),
+        ),
+      )
+      .leftJoin(
+        rolePermissions,
+        and(
+          eq(rolePermissions.role, users.role),
+          eq(rolePermissions.permissionId, permissions.id),
+        ),
+      )
+      .where(
+        and(
+          eq(users.role, role),
+          eq(users.isActive, true),
+          isNull(users.deletedAt),
+          sql`coalesce(${userPermissions.isGranted}, ${rolePermissions.permissionId} is not null)`,
+        ),
+      );
+    return rows.map((row) => row.id);
+  }
+
   // -------------------------------------------------------------------------
   // User permission operations
   // -------------------------------------------------------------------------

@@ -19,6 +19,8 @@ export const MEDICAL_PERMISSIONS = {
 } as const;
 
 export const MEDICAL_ELIGIBILITY_REASON = {
+  /** TRAINING: no BASELINE examination on file (nor the 016 legacy exemption). */
+  EXAMINATION_REQUIRED: 'EXAMINATION_REQUIRED',
   REVIEW_REQUEST_PENDING: 'REVIEW_REQUEST_PENDING',
   EXAMINATION_NOT_ELIGIBLE: 'EXAMINATION_NOT_ELIGIBLE',
   CLEARANCE_REQUIRED: 'CLEARANCE_REQUIRED',
@@ -62,7 +64,7 @@ export const MEDICAL_HISTORY_SNAPSHOT_FIELDS = {
     'id', 'sequence_no', 'fighter_id', 'doctor_id', 'scope', 'decision',
     'examined_at', 'reason', 'allowed_session_types',
     'allowed_technique_types', 'excluded_joints', 'restriction_notes',
-    'valid_until', 'supersedes_id', 'created_at',
+    'valid_until', 'supersedes_id', 'created_at', 'details',
   ],
   MEDICAL_CLEARANCE: [
     'id', 'fighter_id', 'examination_id', 'issued_by_id', 'clearance_type',
@@ -108,6 +110,55 @@ export const CLINICAL_TEXT_MAX_LENGTH = 4_000;
  * protocol limit, and never applied to stored/legacy data when reading.
  */
 export const RECOVERY_MILESTONES_MAX_INPUT = 50;
+
+/**
+ * Structure of the official SCAT6 (adolescents 13+ and adults; BJSM/CISG 2023,
+ * doi:10.1136/bjsports-2023-107036) and its supplement "Guidelines to using
+ * the SCAT6". Answers are recorded by item position on the official English
+ * form; the form's own wording is not reproduced here (BMJ consent is
+ * required for digital re-formatting). Bump SCORING_VERSION whenever scoring
+ * changes: stored scores keep the version that produced them.
+ */
+export const SCAT6 = {
+  FORM_VERSION: 'SCAT6-2023-EN',
+  /** 2: Months scores 1 only when every response is correct (2026-10-04). */
+  SCORING_VERSION: 2,
+  MIN_AGE_YEARS: 13,
+  OBSERVABLE_SIGNS: 8,
+  GCS_MAX_ASSESSMENTS: 3,
+  MADDOCKS_QUESTIONS: 5,
+  SYMPTOMS: 22,
+  SYMPTOM_MAX_RATING: 6,
+  ORIENTATION_QUESTIONS: 5,
+  WORDS_PER_LIST: 10,
+  MEMORY_TRIALS: 3,
+  DIGIT_STRING_LENGTHS: 4,
+  /** "1 point if no errors and completion under 30 seconds". */
+  MONTHS_TIME_LIMIT_SECONDS: 30,
+  MONTHS: 12,
+  /** "after a minimum of 5 minutes has elapsed since the end of the Immediate Memory". */
+  DELAYED_RECALL_MIN_DELAY_MS: 5 * 60 * 1000,
+  /** Max errors per stance; also the score of a stance not held for 5 s. */
+  MBESS_MAX_ERRORS: 10,
+  GAIT_TRIALS: 3,
+  /** Printed dual-task sequences (serial 7s): practice 93…44, trials 88/90/98…. */
+  DUAL_TASK_STEP: 7,
+  DUAL_TASK_PRACTICE_RESPONSES: 8,
+  DUAL_TASK_TRIAL_RESPONSES: 13,
+  /** Cells of the form's alternate starting-integer row. */
+  DUAL_TASK_ALTERNATE_MAX_RESPONSES: 30,
+} as const;
+
+export const SCAT6_LISTS = ['A', 'B', 'C'] as const;
+
+/** Inbox text follows the existing English notification convention. */
+export const MEDICAL_NOTIFICATION_TEXT = {
+  DOCTOR_ASSIGNMENT_REQUIRED: {
+    title: 'Assign a Doctor',
+    message:
+      'A new Fighter needs an assigned Doctor for the baseline examination before training.',
+  },
+} as const;
 
 export const ACTIVE_INJURY_STATUSES: readonly InjuryStatus[] = [
   'ACTIVE',

@@ -79,5 +79,56 @@ export const RECOVERY_RESEND_COOLDOWN_MS = 5 * 60_000;
  */
 export const ACTIVATION_CLAIM_STALE_MS = 15 * 60_000;
 
+/**
+ * Inbox texts of the admission triggers (A1–A6). Applicant texts share only
+ * outcomes, never staff notes (assessment summary/criteria, decision reason).
+ */
+export const ADMISSION_NOTIFICATION_TEXT = {
+  APPLICATION_SUBMITTED: {
+    title: 'New fighter application',
+    message:
+      'A Guest submitted a fighter application. Assign a Coach to evaluate it.',
+  },
+  ASSESSMENT_ASSIGNED: {
+    title: 'Application assigned to you',
+    message:
+      'You were assigned to evaluate a fighter application. Record the PASS or FAIL assessment when you are done.',
+  },
+  ASSESSMENT_UNASSIGNED: {
+    title: 'Application evaluation reassigned',
+    message:
+      'A fighter application you were evaluating was reassigned to another Coach. No further action is needed from you.',
+  },
+  DECISION_REQUIRED: {
+    title: 'Application awaiting decision',
+    message:
+      'A Coach recorded a PASS assessment. Approve or reject the application.',
+  },
+  ASSESSMENT_PASSED: {
+    title: 'Assessment passed',
+    message:
+      'Your application passed the assessment and is waiting for an Admin decision. Passing does not activate your Fighter account yet.',
+  },
+  ASSESSMENT_FAILED: {
+    title: 'Assessment not passed',
+    message:
+      'Your application did not pass the assessment and this attempt is closed. You may submit a new application.',
+  },
+  DECISION_APPROVED: {
+    title: 'Application approved',
+    message:
+      'Your application was approved. Set your password from the email we sent to activate your Fighter account (if it does not arrive, request another one with "Forgot password" on the sign-in page), then complete activation.',
+  },
+  DECISION_REJECTED: {
+    title: 'Application not approved',
+    message: 'Your application was not approved. This attempt is closed.',
+  },
+  ACTIVATION_COMPLETED: {
+    title: 'New Fighter activated',
+    message:
+      'A new Fighter completed activation. Assign a training Coach; the admission evaluator is not assigned automatically.',
+  },
+} as const;
+
 export const APPLICATION_PAGE_SIZE_DEFAULT = 20;
 export const APPLICATION_PAGE_SIZE_MAX = 100;

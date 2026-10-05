@@ -7,6 +7,7 @@ import {
   injuryStatusEnum,
   medicalExaminationDecisionEnum,
   medicalExaminationScopeEnum,
+  medicalExaminationTypeEnum,
   medicalReviewRequestStatusEnum,
   medicalRevisionSourceEnum,
   recoveryPlanStatusEnum,
@@ -20,6 +21,7 @@ import {
   trimmedTextSchema,
 } from '../shared/utils/zod-schema.util.js';
 import { userRoles } from '../shared/types/user.role.js';
+import { scat6InputSchema, scat6RecordSchema } from './scat6.model.js';
 import {
   CLINICAL_TEXT_MAX_LENGTH,
   MEDICAL_ELIGIBILITY_REASON,
@@ -32,6 +34,9 @@ import {
 
 export const examinationScopes = medicalExaminationScopeEnum.enumValues;
 export const examinationDecisions = medicalExaminationDecisionEnum.enumValues;
+export const examinationTypes = medicalExaminationTypeEnum.enumValues;
+export const assessmentResults = ['NORMAL', 'ABNORMAL', 'INCONCLUSIVE'] as const;
+export const hydrationLevels = ['GOOD', 'FAIR', 'POOR'] as const;
 export const reviewRequestStatuses = medicalReviewRequestStatusEnum.enumValues;
 export const revisionSources = medicalRevisionSourceEnum.enumValues;
 export const injuryStatuses = injuryStatusEnum.enumValues;
@@ -45,6 +50,7 @@ export const techniqueTypes = techniqueTypeEnum.enumValues;
 
 export type ExaminationScope = (typeof examinationScopes)[number];
 export type ExaminationDecision = (typeof examinationDecisions)[number];
+export type ExaminationType = (typeof examinationTypes)[number];
 export type InjuryStatus = (typeof injuryStatuses)[number];
 export type RecoveryPlanStatus = (typeof recoveryPlanStatuses)[number];
 export type ClearanceType = (typeof clearanceTypes)[number];
@@ -257,6 +263,36 @@ export const examinationRestrictionsInputSchema = z
     message: 'At least one restriction must be provided',
   });
 
+/**
+ * Vitals are recorded together. Bounds are input sanity only (finite,
+ * positive, storable precision); they are not health thresholds.
+ */
+export const examinationVitalsSchema = z.strictObject({
+  weightKg: z
+    .number()
+    .finite()
+    .positive()
+    .max(999)
+    .transform((value) => Number(value.toFixed(2))),
+  restingHeartRate: z.number().int().positive().max(400),
+  bloodPressureSystolic: z.number().int().positive().max(400),
+  bloodPressureDiastolic: z.number().int().positive().max(400),
+  temperatureC: z
+    .number()
+    .finite()
+    .positive()
+    .max(99)
+    .transform((value) => Number(value.toFixed(1))),
+  spo2Pct: z.number().int().min(0).max(100),
+  hydration: z.enum(hydrationLevels),
+});
+
+export const examinationAssessmentSchema = z.strictObject({
+  area: trimmedTextSchema(150),
+  result: z.enum(assessmentResults),
+  note: nullableTrimmedTextSchema(1_000),
+});
+
 export const createExaminationSchema = z
   .strictObject({
     scope: z.enum(examinationScopes),
@@ -267,8 +303,63 @@ export const createExaminationSchema = z
     validUntil: z.string().datetime().optional(),
     supersedesId: z.uuid().optional(),
     reviewRequestIds: z.array(z.uuid()).min(1).max(50).optional(),
+    // Details (016). All optional for existing clients; a BASELINE carries
+    // vitals, at least one assessed area and its SCAT6 record.
+    examinationType: z.enum(examinationTypes).optional(),
+    vitals: examinationVitalsSchema.optional(),
+    assessments: z.array(examinationAssessmentSchema).max(30).optional(),
+    recommendations: nullableTrimmedTextSchema(CLINICAL_TEXT_MAX_LENGTH).optional(),
+    followUpDate: dateOnlySchema.optional(),
+    scat6: scat6InputSchema.optional(),
   })
   .superRefine((data, ctx) => {
+    const hasDetails =
+      data.vitals !== undefined ||
+      data.assessments !== undefined ||
+      data.recommendations !== undefined ||
+      data.followUpDate !== undefined ||
+      data.scat6 !== undefined;
+    if (hasDetails && data.examinationType === undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['examinationType'],
+        message: 'examinationType is required when examination details are sent',
+      });
+    }
+    const baseline = data.examinationType === 'BASELINE';
+    if (baseline !== (data.scat6 !== undefined)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['scat6'],
+        message: baseline
+          ? 'A BASELINE examination requires its SCAT6 record'
+          : 'scat6 is only recorded with a BASELINE examination',
+      });
+    }
+    if (baseline && data.vitals === undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['vitals'],
+        message: 'A BASELINE examination requires vitals',
+      });
+    }
+    if (baseline && (data.assessments?.length ?? 0) === 0) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['assessments'],
+        message: 'A BASELINE examination requires at least one assessed area',
+      });
+    }
+    if (
+      data.followUpDate !== undefined &&
+      data.followUpDate < data.examinedAt.slice(0, 10)
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['followUpDate'],
+        message: 'followUpDate must not be before examinedAt',
+      });
+    }
     const restricted = data.decision === 'ELIGIBLE_WITH_RESTRICTIONS';
     if (restricted !== (data.restrictions !== undefined)) {
       ctx.addIssue({
@@ -442,6 +533,27 @@ export const examinationSchema = z.strictObject({
   validUntil: isoDateTimeSchema.nullable(),
   supersedesId: z.uuid().nullable(),
   createdAt: isoDateTimeSchema,
+  /** null for examinations recorded without details (all before 016). */
+  details: z
+    .strictObject({
+      examinationType: z.enum(examinationTypes),
+      vitals: z
+        .strictObject({
+          weightKg: z.number(),
+          restingHeartRate: z.number().int(),
+          bloodPressureSystolic: z.number().int(),
+          bloodPressureDiastolic: z.number().int(),
+          temperatureC: z.number(),
+          spo2Pct: z.number().int(),
+          hydration: z.enum(hydrationLevels),
+        })
+        .nullable(),
+      assessments: z.array(examinationAssessmentSchema),
+      recommendations: z.string().nullable(),
+      followUpDate: z.string().nullable(),
+      scat6: scat6RecordSchema.nullable(),
+    })
+    .nullable(),
 });
 
 export const clearanceSchema = z.strictObject({
@@ -539,6 +651,7 @@ export type Injury = z.input<typeof injurySchema>;
 export type Treatment = z.input<typeof treatmentSchema>;
 export type RecoveryPlan = z.input<typeof recoveryPlanSchema>;
 export type Examination = z.input<typeof examinationSchema>;
+export type ExaminationDetails = NonNullable<Examination['details']>;
 export type Clearance = z.input<typeof clearanceSchema>;
 export type MedicalEligibility = z.infer<typeof medicalEligibilitySchema>;
 export type MedicalDossier = z.input<typeof medicalDossierSchema>;

@@ -81,6 +81,10 @@ function repositoryMock(): Mocked<MedicalRepository> {
     findActiveClearanceForType: vi.fn().mockResolvedValue(undefined),
     revokeClearance: vi.fn(),
     countOpenReviewRequests: vi.fn().mockResolvedValue(0),
+    hasBaselineOnFile: vi.fn().mockResolvedValue(true),
+    insertExaminationDetails: vi.fn(),
+    findExaminationDetails: vi.fn().mockResolvedValue(undefined),
+    findFighterDateOfBirth: vi.fn().mockResolvedValue('1995-01-01'),
     listClearancesForEligibility: vi.fn().mockResolvedValue([]),
     listClearancesForExamination: vi.fn().mockResolvedValue([]),
     findMedicalDossierData: vi.fn().mockResolvedValue({
@@ -223,6 +227,7 @@ describe('MedicalService', () => {
     };
     const state = {
       scope: 'TRAINING' as const, now, openReviewRequests: 0,
+      baselineOnFile: true,
       currentExamination: { decision: 'ELIGIBLE' as const },
     };
 
@@ -242,6 +247,65 @@ describe('MedicalService', () => {
         .toEqual(['SESSION_TYPE_RESTRICTED']);
       expect(evaluateEligibility({ ...state, clearances, sessionType: 'PHYSICAL_THERAPY' }).eligible)
         .toBe(true);
+    });
+
+    describe('Expectation A - Eligibility without current examination', () => {
+      it('returns EXAMINATION_REQUIRED without current TRAINING examination even when baselineOnFile is true', () => {
+        const result = evaluateEligibility({
+          ...state,
+          baselineOnFile: true,
+          currentExamination: undefined,
+          clearances: [],
+        });
+        expect(result).toEqual({
+          scope: 'TRAINING',
+          eligible: false,
+          reasons: ['EXAMINATION_REQUIRED'],
+        });
+      });
+
+      it('does not duplicate EXAMINATION_REQUIRED when baselineOnFile is false and no examination exists', () => {
+        const result = evaluateEligibility({
+          ...state,
+          baselineOnFile: false,
+          currentExamination: undefined,
+          clearances: [],
+        });
+        expect(result).toEqual({
+          scope: 'TRAINING',
+          eligible: false,
+          reasons: ['EXAMINATION_REQUIRED'],
+        });
+      });
+
+      it('returns reasons in exact order [EXAMINATION_REQUIRED, REVIEW_REQUEST_PENDING] when review is open and no exam exists', () => {
+        const result = evaluateEligibility({
+          ...state,
+          baselineOnFile: false,
+          currentExamination: undefined,
+          openReviewRequests: 1,
+          clearances: [],
+        });
+        expect(result).toEqual({
+          scope: 'TRAINING',
+          eligible: false,
+          reasons: ['EXAMINATION_REQUIRED', 'REVIEW_REQUEST_PENDING'],
+        });
+      });
+
+      it('returns CLEARANCE_REQUIRED for COMPETITION scope when no examination exists', () => {
+        const result = evaluateEligibility({
+          ...state,
+          scope: 'COMPETITION',
+          currentExamination: undefined,
+          clearances: [],
+        });
+        expect(result).toEqual({
+          scope: 'COMPETITION',
+          eligible: false,
+          reasons: ['CLEARANCE_REQUIRED'],
+        });
+      });
     });
   });
 
@@ -490,6 +554,7 @@ describe('MedicalService', () => {
         reason: 'Severe concussion',
         restrictions: null,
         supersedesId: null,
+        details: null,
         createdAt: now.toISOString(),
       };
       repo.insertExamination.mockResolvedValueOnce(exam);
@@ -545,6 +610,386 @@ describe('MedicalService', () => {
       ).rejects.toMatchObject({
         status: HttpStatus.CONFLICT,
         response: { code: 'EXAMINATION_CORRECTION_CONFLICT' },
+      });
+    });
+
+    it('createExamination: persists details and computes SCAT6 scores atomically for BASELINE examination', async () => {
+      const examRow = {
+        id: 'exam-baseline-1',
+        sequenceNo: 1,
+        fighterId,
+        doctorId: doctorProfileId,
+        recordedById: doctorActor.id,
+        scope: 'TRAINING',
+        decision: 'ELIGIBLE',
+        examinedAt: now.toISOString(),
+        validUntil: null,
+        reason: 'Baseline onboarding exam',
+        restrictions: null,
+        supersedesId: null,
+        details: null,
+        createdAt: now.toISOString(),
+      };
+      repo.insertExamination.mockResolvedValueOnce(examRow);
+      repo.findFighterDateOfBirth.mockResolvedValueOnce('2000-01-01');
+
+      const detailsInput = {
+        examinationType: 'BASELINE' as const,
+        vitals: {
+          weightKg: 75.0,
+          restingHeartRate: 60,
+          bloodPressureSystolic: 120,
+          bloodPressureDiastolic: 80,
+          temperatureC: 36.6,
+          spo2Pct: 98,
+          hydration: 'GOOD' as const,
+        },
+        assessments: [
+          { area: 'General', result: 'NORMAL' as const, note: 'Fit' },
+        ],
+        scat6: {
+          status: 'NOT_ADMINISTERED' as const,
+          formVersion: 'SCAT6-2023-EN',
+          reason: 'Clinically deferred',
+        },
+      };
+
+      const storedDetails = {
+        examinationType: 'BASELINE' as const,
+        vitals: detailsInput.vitals,
+        assessments: detailsInput.assessments,
+        recommendations: null,
+        followUpDate: null,
+        scat6: {
+          formVersion: 'SCAT6-2023-EN',
+          responses: detailsInput.scat6,
+          scoringVersion: null,
+          scores: null,
+        },
+      };
+      repo.insertExaminationDetails.mockResolvedValueOnce(storedDetails);
+
+      const result = await service.createExamination(
+        doctorActor,
+        fighterId,
+        {
+          scope: 'TRAINING',
+          decision: 'ELIGIBLE',
+          examinedAt: now.toISOString(),
+          reason: 'Baseline onboarding exam',
+          ...detailsInput,
+        },
+        requestId,
+      );
+
+      expect(repo.insertExaminationDetails).toHaveBeenCalledWith(
+        examRow,
+        expect.objectContaining({
+          examinationType: 'BASELINE',
+          scat6: expect.objectContaining({
+            formVersion: 'SCAT6-2023-EN',
+            scoringVersion: null,
+            scores: null,
+          }),
+        }),
+        expect.anything(),
+      );
+      expect(result.details).toEqual(storedDetails);
+    });
+
+    it('createExamination: persists ADMINISTERED SCAT6 with scoringVersion = 2 and computed scores', async () => {
+      const examRow = {
+        id: 'exam-baseline-scat6',
+        sequenceNo: 1,
+        fighterId,
+        doctorId: doctorProfileId,
+        recordedById: doctorActor.id,
+        scope: 'TRAINING',
+        decision: 'ELIGIBLE',
+        examinedAt: now.toISOString(),
+        validUntil: null,
+        reason: 'Baseline onboarding exam with full SCAT6',
+        restrictions: null,
+        supersedesId: null,
+        details: null,
+        createdAt: now.toISOString(),
+      };
+      repo.insertExamination.mockResolvedValueOnce(examRow);
+      // Fighter DOB is 20 years old
+      repo.findFighterDateOfBirth.mockResolvedValueOnce('2006-01-01');
+
+      const administeredPayload = {
+        status: 'ADMINISTERED' as const,
+        formVersion: 'SCAT6-2023-EN',
+        administeredAt: now.toISOString(),
+        examinerAttestation: true as const,
+        athlete: {
+          dominantHand: 'RIGHT' as const,
+          sportTeamSchool: null,
+          currentSchoolYear: null,
+          yearsOfEducation: 12,
+          firstLanguage: 'English',
+          preferredLanguage: 'English',
+        },
+        concussionHistory: {
+          priorDiagnosedConcussions: 0,
+          mostRecentConcussion: null,
+          primarySymptoms: null,
+          mostRecentRecoveryDays: null,
+        },
+        immediateAssessment: { performed: false as const, reason: 'N/A' },
+        background: {
+          hospitalisedForHeadInjury: false,
+          headacheDisorderOrMigraine: false,
+          learningDisabilityOrDyslexia: false,
+          adhd: false,
+          depressionAnxietyOrOtherPsychological: false,
+          notes: null,
+          currentMedications: null,
+        },
+        symptoms: {
+          performed: true as const,
+          ratings: Array(22).fill(0),
+          worseWithPhysicalActivity: false,
+          worseWithMentalActivity: false,
+          percentOfNormal: 100,
+          notNormalReason: null,
+        },
+        orientation: { performed: true as const, answers: [true, true, true, true, true] },
+        immediateMemory: {
+          performed: true as const,
+          wordList: 'A' as const,
+          trials: [Array(10).fill(true), Array(10).fill(true), Array(10).fill(true)],
+          lastTrialCompletedAt: now.toISOString(),
+        },
+        digitsBackward: {
+          performed: true as const,
+          digitList: 'A' as const,
+          strings: [
+            { trial1Correct: true, trial2Correct: null },
+            { trial1Correct: true, trial2Correct: null },
+            { trial1Correct: true, trial2Correct: null },
+            { trial1Correct: true, trial2Correct: null },
+          ],
+        },
+        monthsReverse: {
+          performed: true as const,
+          correctResponses: Array(12).fill(true),
+          timeSeconds: 15,
+          errors: 0,
+        },
+        mbess: {
+          performed: true as const,
+          footTested: 'RIGHT' as const,
+          testingSurface: 'Mat',
+          footwear: 'Barefoot',
+          firm: {
+            doubleLeg: { unableToHoldFiveSeconds: false as const, errors: 0 },
+            singleLeg: { unableToHoldFiveSeconds: false as const, errors: 0 },
+            tandem: { unableToHoldFiveSeconds: false as const, errors: 0 },
+          },
+          foam: { performed: false as const },
+        },
+        tandemGait: {
+          performed: true as const,
+          trials: [
+            { completed: true as const, timeSeconds: 12 },
+            { completed: true as const, timeSeconds: 12 },
+            { completed: true as const, timeSeconds: 12 },
+          ],
+        },
+        dualTaskGait: { performed: false as const, reason: 'N/A' },
+        gaitIncompleteReason: null,
+        delayedRecall: {
+          performed: true as const,
+          startedAt: new Date(now.getTime() + 600000).toISOString(),
+          words: Array(10).fill(true),
+        },
+        differentFromUsualSelf: 'NO' as const,
+        concussionDiagnosed: 'NO' as const,
+        clinicalNotes: null,
+      };
+
+      await service.createExamination(
+        doctorActor,
+        fighterId,
+        {
+          scope: 'TRAINING',
+          decision: 'ELIGIBLE',
+          examinedAt: now.toISOString(),
+          reason: 'Baseline onboarding exam with full SCAT6',
+          examinationType: 'BASELINE',
+          vitals: {
+            weightKg: 70.0,
+            restingHeartRate: 60,
+            bloodPressureSystolic: 120,
+            bloodPressureDiastolic: 80,
+            temperatureC: 36.6,
+            spo2Pct: 98,
+            hydration: 'GOOD',
+          },
+          assessments: [{ area: 'Neurological', result: 'NORMAL', note: null }],
+          scat6: administeredPayload,
+        },
+        requestId,
+      );
+
+      expect(repo.insertExaminationDetails).toHaveBeenCalledWith(
+        examRow,
+        expect.objectContaining({
+          examinationType: 'BASELINE',
+          scat6: expect.objectContaining({
+            formVersion: 'SCAT6-2023-EN',
+            scoringVersion: 2,
+            scores: expect.objectContaining({
+              complete: true,
+              cognitiveTotal: 50,
+              monthsReverse: 1,
+            }),
+          }),
+        }),
+        expect.anything(),
+      );
+    });
+
+    it('createExamination: rejects ADMINISTERED SCAT6 for fighter under age 13 with 409', async () => {
+      const examRow = {
+        id: 'exam-baseline-young',
+        sequenceNo: 1,
+        fighterId,
+        doctorId: doctorProfileId,
+        recordedById: doctorActor.id,
+        scope: 'TRAINING',
+        decision: 'ELIGIBLE',
+        examinedAt: now.toISOString(),
+        validUntil: null,
+        reason: 'Underage baseline exam',
+        restrictions: null,
+        supersedesId: null,
+        details: null,
+        createdAt: now.toISOString(),
+      };
+      repo.insertExamination.mockResolvedValueOnce(examRow);
+      // Fighter DOB is 10 years before examination date
+      repo.findFighterDateOfBirth.mockResolvedValueOnce('2016-10-01');
+
+      await expect(
+        service.createExamination(
+          doctorActor,
+          fighterId,
+          {
+            scope: 'TRAINING',
+            decision: 'ELIGIBLE',
+            examinedAt: now.toISOString(),
+            reason: 'Underage baseline exam',
+            examinationType: 'BASELINE',
+            vitals: {
+              weightKg: 45.0,
+              restingHeartRate: 75,
+              bloodPressureSystolic: 110,
+              bloodPressureDiastolic: 70,
+              temperatureC: 36.5,
+              spo2Pct: 99,
+              hydration: 'GOOD',
+            },
+            assessments: [{ area: 'Pediatric', result: 'NORMAL', note: null }],
+            scat6: {
+              status: 'ADMINISTERED',
+              formVersion: 'SCAT6-2023-EN',
+              administeredAt: now.toISOString(),
+              examinerAttestation: true,
+              athlete: {
+                dominantHand: 'RIGHT',
+                sportTeamSchool: null,
+                currentSchoolYear: null,
+                yearsOfEducation: 5,
+                firstLanguage: 'English',
+                preferredLanguage: 'English',
+              },
+              concussionHistory: {
+                priorDiagnosedConcussions: 0,
+                mostRecentConcussion: null,
+                primarySymptoms: null,
+                mostRecentRecoveryDays: null,
+              },
+              immediateAssessment: { performed: false, reason: 'N/A' },
+              background: {
+                hospitalisedForHeadInjury: false,
+                headacheDisorderOrMigraine: false,
+                learningDisabilityOrDyslexia: false,
+                adhd: false,
+                depressionAnxietyOrOtherPsychological: false,
+                notes: null,
+                currentMedications: null,
+              },
+              symptoms: {
+                performed: true,
+                ratings: Array(22).fill(0),
+                worseWithPhysicalActivity: false,
+                worseWithMentalActivity: false,
+                percentOfNormal: 100,
+                notNormalReason: null,
+              },
+              orientation: { performed: true, answers: [true, true, true, true, true] },
+              immediateMemory: {
+                performed: true,
+                wordList: 'A',
+                trials: [Array(10).fill(true), Array(10).fill(true), Array(10).fill(true)],
+                lastTrialCompletedAt: now.toISOString(),
+              },
+              digitsBackward: {
+                performed: true,
+                digitList: 'A',
+                strings: [
+                  { trial1Correct: true, trial2Correct: null },
+                  { trial1Correct: true, trial2Correct: null },
+                  { trial1Correct: true, trial2Correct: null },
+                  { trial1Correct: true, trial2Correct: null },
+                ],
+              },
+              monthsReverse: {
+                performed: true,
+                correctResponses: Array(12).fill(true),
+                timeSeconds: 15,
+                errors: 0,
+              },
+              mbess: {
+                performed: true,
+                footTested: 'RIGHT',
+                testingSurface: 'Mat',
+                footwear: 'Barefoot',
+                firm: {
+                  doubleLeg: { unableToHoldFiveSeconds: false, errors: 0 },
+                  singleLeg: { unableToHoldFiveSeconds: false, errors: 0 },
+                  tandem: { unableToHoldFiveSeconds: false, errors: 0 },
+                },
+                foam: { performed: false },
+              },
+              tandemGait: {
+                performed: true,
+                trials: [
+                  { completed: true, timeSeconds: 12 },
+                  { completed: true, timeSeconds: 12 },
+                  { completed: true, timeSeconds: 12 },
+                ],
+              },
+              dualTaskGait: { performed: false, reason: 'N/A' },
+              gaitIncompleteReason: null,
+              delayedRecall: {
+                performed: true,
+                startedAt: new Date(now.getTime() + 600000).toISOString(),
+                words: Array(10).fill(true),
+              },
+              differentFromUsualSelf: 'NO',
+              concussionDiagnosed: 'NO',
+              clinicalNotes: null,
+            },
+          },
+          requestId,
+        ),
+      ).rejects.toMatchObject({
+        status: HttpStatus.CONFLICT,
+        response: { code: 'MEDICAL_DATA_CONSTRAINT_CONFLICT' },
       });
     });
 
@@ -650,9 +1095,19 @@ describe('MedicalService', () => {
   });
 
   describe('evaluateTrainingEligibility (D9 Gate)', () => {
-    it('returns eligible for never-examined fighter with no open review request', async () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(now);
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('blocks start when fighter has no baseline on file (EXAMINATION_REQUIRED)', async () => {
       repo.countOpenReviewRequests.mockResolvedValueOnce(0);
       repo.findCurrentExamination.mockResolvedValueOnce(undefined);
+      repo.hasBaselineOnFile.mockResolvedValueOnce(false);
       repo.listClearancesForEligibility.mockResolvedValueOnce([]);
 
       const result = await service.evaluateTrainingEligibility(
@@ -661,7 +1116,10 @@ describe('MedicalService', () => {
         dummyTx,
       );
 
-      expect(result).toEqual({ scope: 'TRAINING', eligible: true, reasons: [] });
+      expect(result.eligible).toBe(false);
+      expect(result.reasons).toContain(
+        MEDICAL_ELIGIBILITY_REASON.EXAMINATION_REQUIRED,
+      );
     });
 
     it('blocks start when an open review request is pending', async () => {

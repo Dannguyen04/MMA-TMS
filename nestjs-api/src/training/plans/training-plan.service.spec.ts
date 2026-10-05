@@ -15,6 +15,7 @@ import type {
 import { TrainingRepository } from '../training.repo.js';
 import { TrainingAccessService } from '../training-access.service.js';
 import { TrainingPlanService } from './training-plan.service.js';
+import { NOTIFICATION_PUBLISHER } from '../../shared/contracts/notification.contract.js';
 
 const fighterUserId = '516a01dc-f842-40e4-ae88-abca224921b7';
 const coachUserId = '59d6ba46-32f2-4e67-b486-e966b2064328';
@@ -58,6 +59,7 @@ const plan: TrainingPlanEntity = {
   fighterId,
   coachId,
   title: 'Fight camp',
+  phase: 'base',
   description: null,
   startDate: '2026-09-20',
   endDate: null,
@@ -119,6 +121,13 @@ describe('TrainingPlanService', () => {
         TrainingPlanService,
         TrainingAccessService,
         { provide: TrainingRepository, useValue: repositoryMock() },
+        {
+          provide: NOTIFICATION_PUBLISHER,
+          useValue: {
+            notify: vi.fn().mockResolvedValue({ status: 'queued' }),
+            notifyResolved: vi.fn().mockResolvedValue([{ status: 'queued' }]),
+          },
+        },
       ],
     }).compile();
 
@@ -263,6 +272,7 @@ describe('TrainingPlanService', () => {
           coachId,
           title: 'Fight camp',
           startDate: '2026-09-20',
+          phase: 'base',
           milestones: [],
         }),
       ).resolves.toEqual(plan);
@@ -276,6 +286,7 @@ describe('TrainingPlanService', () => {
           title: 'Fight camp',
           startDate: '2026-09-20',
           endDate: '2026-09-19',
+          phase: 'base',
           milestones: [],
         }),
       ).rejects.toThrow(BadRequestException);
@@ -291,6 +302,7 @@ describe('TrainingPlanService', () => {
           coachId,
           title: 'Fight camp',
           startDate: '2026-09-20',
+          phase: 'base',
           milestones: [],
         }),
       ).rejects.toThrow(ForbiddenException);
@@ -473,6 +485,7 @@ describe('TrainingPlanService', () => {
           coachId,
           title: 'Plan',
           startDate: '2026-09-20',
+          phase: 'base',
           milestones: [],
         }),
       ).rejects.toSatisfy(
@@ -491,6 +504,7 @@ describe('TrainingPlanService', () => {
           coachId,
           title: 'Plan',
           startDate: '2026-09-20',
+          phase: 'base',
           milestones: [],
         }),
       ).rejects.toThrow(ForbiddenException);

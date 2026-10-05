@@ -150,7 +150,7 @@ export function trainingMedicalEligibilityRequired(
     error: 'Conflict',
     code: 'TRAINING_MEDICAL_ELIGIBILITY_REQUIRED',
     message:
-      'A medical review or a valid medical clearance is required before this training session can start.',
+      'A baseline medical examination and a valid medical clearance are required before this training session can start.',
     details: { reasons },
   });
 }
