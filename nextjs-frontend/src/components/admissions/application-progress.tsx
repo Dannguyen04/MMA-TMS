@@ -26,13 +26,15 @@ function NextStep({ application }: { application: OwnApplication }) {
     if (application.activation === "password_set") {
         return (
             <Callout tone="success" icon={CircleCheck} title="Your password is set" action={<ActivateAccountForm />}>
-                Activate your fighter account to start training with the academy.
+                Activate your fighter account. Next, the academy assigns your sports doctor, who records your baseline examination before you
+                train.
             </Callout>
         );
     }
     return (
         <Callout tone="success" icon={MailCheck} title="You're in! Check your email">
-            We&apos;ve sent you a link to set your password. Once it&apos;s set, sign in again and activate your fighter account here.
+            We&apos;ve sent you a link to set your password. Once it&apos;s set, sign in again and activate your fighter account here. No email?
+            Use &ldquo;Forgot password&rdquo; on the sign-in page with this address.
         </Callout>
     );
 }

@@ -1,4 +1,4 @@
-import { ClipboardCheck, Gavel, MailCheck, UserRound, UserSearch } from "lucide-react";
+import { ClipboardCheck, Gavel, MailCheck, UserRound, UserSearch, UsersRound } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
@@ -6,6 +6,7 @@ import { cache } from "react";
 import { DecisionForm, EvaluatorForm, ResendActivationForm } from "@/components/admissions/admission-admin-forms";
 import { ApplicantDetailsList, AssessmentView } from "@/components/admissions/application-views";
 import { ApplicationStatusBadge } from "@/components/domain/status-badges";
+import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { DescriptionList } from "@/components/ui/description-list";
 import { PageHeader } from "@/components/ui/page-header";
@@ -145,6 +146,12 @@ function ActivationCard({ application, activation }: { application: Application;
                     ]}
                 />
                 {application.status === "approved" && <ResendActivationForm applicationId={application.id} />}
+                {application.status === "activated" && (
+                    <ButtonLink href={routes.admin.user(application.applicantId)} variant="secondary" size="sm" className="self-start">
+                        <UsersRound aria-hidden />
+                        Assign a coach and a sports doctor
+                    </ButtonLink>
+                )}
             </CardContent>
         </Card>
     );

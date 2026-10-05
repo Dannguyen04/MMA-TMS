@@ -95,60 +95,79 @@ export async function signInAsDemo(role: SignInRole, next: string | null): Promi
     redirectAfterSignIn(signInRole(demo.account), parsed.data.next);
 }
 
-/** A new password typed twice, as both the registration and the reset forms ask for it. */
+/* ─── Applicants: email code ──────────────────────────────────────────────── */
+
+/** The service lowercases the email but doesn't trim it, so both happen here. */
+const applicantEmail = z.string().trim().toLowerCase().pipe(z.email("Enter a valid email address."));
+const ADMISSION_CODE_FORMAT = "Enter the code from the email: 6 to 10 digits.";
+
+/** Refusals of the email-code routes, on the field the person can fix. */
+function admissionCodeError(error: unknown, field: "email" | "token"): ActionState<never> {
+    if (!(error instanceof ApiError)) return actionError("Something went wrong. Please try again.");
+    if (error.status === 429) return actionError("Too many attempts in a short time. Wait a minute, then try again.");
+    const fieldMessages: Record<number, [string, string]> = {
+        401: ["token", "That code is wrong, has expired or was already used. Send a new code. Staff and fighters sign in with their password."],
+        409: ["email", "This email belongs to an account that signs in another way. Sign in with your password, or contact the academy."],
+        422: [field, field === "email" ? "Enter a valid email address." : ADMISSION_CODE_FORMAT],
+    };
+    const known = fieldMessages[error.status ?? 0];
+    if (known) return actionError(known[1], { [known[0]]: known[1] });
+    return actionError("The sign-in service isn't answering right now. Try again in a few minutes.");
+}
+
+/**
+ * Emails a sign-in code to someone applying to train, or coming back to their application. The reply is the same
+ * whether or not the email can apply, so the form never reveals which accounts exist.
+ */
+export async function requestAdmissionCodeAction(_prev: ActionState<{ email: string }>, formData: FormData): Promise<ActionState<{ email: string }>> {
+    const parsed = z.object({ email: applicantEmail }).safeParse({ email: formData.get("email") });
+    if (!parsed.success) return validationError(parsed.error);
+    const { email } = parsed.data;
+
+    if (isDemoAuthEnabled()) {
+        const { DEMO_ADMISSION_CODE } = await import("@/lib/auth/demo-session");
+        return actionSuccess(`Demo mode doesn't send email. Use the code ${DEMO_ADMISSION_CODE}.`, { email });
+    }
+    try {
+        await apiRequest("/auth/admission/email-code", z.object({ requested: z.literal(true) }), { method: "POST", body: JSON.stringify({ email }) });
+    } catch (error) {
+        return admissionCodeError(error, "email");
+    }
+    return actionSuccess("If this email can apply, a code is on its way. It can take a minute to arrive.", { email });
+}
+
+/** Signs the applicant in with the emailed code (a first one creates their applicant account) and opens their application. */
+export async function verifyAdmissionCodeAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+    const parsed = z
+        .object({ email: applicantEmail, token: z.string().trim().regex(/^\d{6,10}$/, ADMISSION_CODE_FORMAT) })
+        .safeParse({ email: formData.get("email"), token: formData.get("token") });
+    if (!parsed.success) return validationError(parsed.error);
+    const { email } = parsed.data;
+
+    if (isDemoAuthEnabled()) {
+        const demo = await (await import("@/lib/auth/demo-session")).signInDemoApplicantWithCode(email, parsed.data.token);
+        if (!demo.ok) return actionError(demo.message, { token: demo.message });
+        redirect(routes.apply);
+    }
+    let auth: z.output<typeof authResponseSchema>;
+    try {
+        auth = await apiRequest("/auth/admission/verify-email", authResponseSchema, { method: "POST", body: JSON.stringify({ email, token: parsed.data.token }) });
+    } catch (error) {
+        return admissionCodeError(error, "token");
+    }
+    await setSessionCookies(auth.session);
+    redirect(routes.apply);
+}
+
+/* ─── Passwords ───────────────────────────────────────────────────────────── */
+
+/** A new password typed twice, as the reset form asks for it. */
 const choosePassword = {
     newPassword: passwordText("Choose a password."),
     confirmPassword: z.string(),
 };
 const passwordsMatch = (data: { newPassword: string; confirmPassword: string }) => data.newPassword === data.confirmPassword;
 const PASSWORDS_DIFFER = { path: ["confirmPassword"], error: "The passwords don't match." };
-
-const registerSchema = z.object({ email: z.email("Enter a valid email address."), ...choosePassword }).refine(passwordsMatch, PASSWORDS_DIFFER);
-
-const registrationSchema = z.object({ session: sessionTokensSchema.extend({ tokenType: z.string() }).nullable(), confirmationRequired: z.boolean() });
-
-function registrationError(error: unknown): ActionState {
-    if (error instanceof ApiError && error.status === 409) {
-        const message = "We couldn't register this email. It may already have an account: sign in, or reset your password.";
-        return actionError(message, { email: message });
-    }
-    if (error instanceof ApiError && (error.status ?? 500) < 500) return actionError(error.message);
-    return actionError("Registration failed. Please try again.");
-}
-
-/**
- * Registers someone who wants to train at the academy. The account can only apply until an administrator approves
- * the application and the fighter account is activated. When the auth service asks for the email to be confirmed
- * first, the person signs in after confirming.
- */
-export async function registerAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
-    const parsed = registerSchema.safeParse({
-        email: formData.get("email"),
-        newPassword: formData.get("newPassword"),
-        confirmPassword: formData.get("confirmPassword"),
-    });
-    if (!parsed.success) return validationError(parsed.error);
-    const email = parsed.data.email.trim().toLowerCase();
-
-    if (isDemoAuthEnabled()) {
-        const demo = await (await import("@/lib/auth/demo-session")).registerDemoApplicant(email);
-        if (!demo.ok) return actionError(demo.message, { email: demo.message });
-        redirect(routes.apply);
-    }
-
-    let registered: z.output<typeof registrationSchema>;
-    try {
-        registered = await apiRequest("/auth/register", registrationSchema, {
-            method: "POST",
-            body: JSON.stringify({ email, password: parsed.data.newPassword }),
-        });
-    } catch (error) {
-        return registrationError(error);
-    }
-    if (!registered.session) redirect(`${routes.login}?notice=${"confirm-email" satisfies SignInNotice}`);
-    await setSessionCookies(registered.session);
-    redirect(routes.apply);
-}
 
 const forgotSchema = z.object({ email: z.email("Enter a valid email address.") });
 
@@ -168,8 +187,8 @@ const resetSchema = z
     })
     .refine(passwordsMatch, PASSWORDS_DIFFER);
 
-/** `?notice=` on the sign-in page: a new password was set, or a new account must confirm its email first. */
-export type SignInNotice = "password-updated" | "activation-ready" | "confirm-email";
+/** `?notice=` on the sign-in page: a new password was set, either after "forgot password" or for an approved applicant. */
+export type SignInNotice = "password-updated" | "activation-ready";
 
 /** Sets a new password from a recovery link, then sends the person to sign in. */
 export async function resetPasswordAction(_prev: ActionState, formData: FormData): Promise<ActionState> {

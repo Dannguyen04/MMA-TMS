@@ -115,14 +115,23 @@ export async function signInDemoWithPassword(email: string, password: string): P
 }
 
 /** Registers a demo applicant and signs them in. Demo accounts all sign in with the demo password afterwards. */
-export async function registerDemoApplicant(email: string): Promise<DemoSignInResult> {
+/** The code demo mode "emails": there is no email in the demo, so the sign-up form shows it. */
+export const DEMO_ADMISSION_CODE = "246810";
+
+/**
+ * Signs an applicant in with an email code, creating the applicant on first use, as the auth service does. Academy
+ * members can't use a code: they sign in with their password.
+ */
+export async function signInDemoApplicantWithCode(email: string, code: string): Promise<DemoSignInResult> {
     if (!isDemoAuthEnabled()) return { ok: false, message: "Demo sign-in is not available." };
+    if (code !== DEMO_ADMISSION_CODE) return { ok: false, message: `That code is wrong. In demo mode the code is ${DEMO_ADMISSION_CODE}.` };
     const store = await demoStore();
-    if (store.users.some((u) => u.email === email) || store.applicants.some((a) => a.email === email)) {
-        return { ok: false, message: "An account with this email already exists. Sign in instead." };
+    if (store.users.some((u) => u.email === email)) return { ok: false, message: "Staff and fighters sign in with their password." };
+    let applicant = store.applicants.find((a) => a.email === email);
+    if (!applicant) {
+        applicant = { id: (await import("@/lib/mocks/db")).newId("a"), email };
+        store.applicants.push(applicant);
     }
-    const applicant: Applicant = { id: (await import("@/lib/mocks/db")).newId("a"), email };
-    store.applicants.push(applicant);
     await startDemoSession(applicant, store);
     return { ok: true, account: { kind: "applicant", applicant } };
 }

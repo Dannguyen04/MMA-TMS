@@ -8,16 +8,22 @@ import { routes } from "@/lib/routes";
 import { param } from "@/lib/utils";
 import { ResetPasswordForm } from "./reset-password-form";
 
-export const metadata: Metadata = { title: "Choose a new password" };
+export const metadata: Metadata = { title: "Set your password" };
 
-/** Where the recovery email lands: `?token_hash=` proves the link came from the auth service. */
+/**
+ * Where the recovery email lands: `?token_hash=` proves the link came from the auth service. The same email sets an
+ * approved applicant's first password and resets a forgotten one, so the page speaks to both.
+ */
 export default async function ResetPasswordPage({ searchParams }: PageProps<"/auth/reset-password">) {
     const tokenHash = param((await searchParams).token_hash)?.trim() ?? "";
 
     return (
         <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-fg">Choose a new password</h1>
-            <p className="mt-1.5 text-[15px] text-fg-muted">Set the password you&apos;ll use to sign in to the academy.</p>
+            <h1 className="text-2xl font-semibold tracking-tight text-fg">Set your password</h1>
+            <p className="mt-1.5 text-[15px] text-fg-muted">
+                Approved to train? Choose the password for your fighter account, then sign in and activate it. Forgot your password? Choose a new one
+                here.
+            </p>
             {tokenHash ? (
                 <ResetPasswordForm tokenHash={tokenHash} />
             ) : (

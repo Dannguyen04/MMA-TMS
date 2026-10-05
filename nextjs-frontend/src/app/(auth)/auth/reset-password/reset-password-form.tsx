@@ -10,7 +10,7 @@ import { useActionForm } from "@/components/ui/use-action-form";
 import { resetPasswordAction } from "@/lib/actions/auth";
 import { routes } from "@/lib/routes";
 
-/** Chooses a new password for the account a recovery link was sent to. */
+/** Chooses the password for the account a recovery link was sent to: a first one for an approved applicant, or a new one. */
 export function ResetPasswordForm({ tokenHash }: { tokenHash: string }) {
     const form = useActionForm(resetPasswordAction, { id: "reset-password" });
 
@@ -20,7 +20,7 @@ export function ResetPasswordForm({ tokenHash }: { tokenHash: string }) {
             <FormMessage {...form.message} />
             <NewPasswordFields form={form} />
             <SubmitButton size="lg" className="w-full" pending={form.pending} pendingLabel="Saving password…">
-                Set new password
+                Save password
             </SubmitButton>
             <Link href={routes.login} className="flex items-center justify-center gap-1.5 text-sm font-medium text-fg-muted hover:text-fg">
                 <ArrowLeft aria-hidden className="size-4" />
