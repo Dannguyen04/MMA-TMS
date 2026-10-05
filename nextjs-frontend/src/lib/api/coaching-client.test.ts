@@ -60,9 +60,11 @@ describe("Task TL-11 — Real Web Integration for MVP Workflow", () => {
 
     // ─── 2. Coaching API Client ───────────────────────────────────────────────
 
+    const envelope = (data: unknown) => JSON.stringify({ success: true, message: "OK", data });
+
     it("2.1 createAssignment sends an authenticated Bearer request", async () => {
         const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-            new Response(JSON.stringify({ id: "asgn_1", title: "Jab Drills" }), {
+            new Response(envelope({ id: "asgn_1", title: "Jab Drills" }), {
                 status: 201,
                 headers: { "Content-Type": "application/json" },
             }),
@@ -73,8 +75,8 @@ describe("Task TL-11 — Real Web Integration for MVP Workflow", () => {
                 coachId: "coach_1",
                 fighterId: "ath_1",
                 title: "Jab Drills",
-                martialArt: "boxing",
-                targetReps: 50,
+                phase: "base",
+                sessionType: "PAD_WORK",
             },
             "valid-access-token",
         );
@@ -95,10 +97,10 @@ describe("Task TL-11 — Real Web Integration for MVP Workflow", () => {
     it("2.2 uploadVideo and createAnalysisJob invoke corresponding endpoints", async () => {
         vi.spyOn(globalThis, "fetch")
             .mockResolvedValueOnce(
-                new Response(JSON.stringify({ id: "vid_1", title: "Morning Sparring" }), { status: 201 }),
+                new Response(envelope({ id: "vid_1", title: "Morning Sparring" }), { status: 201 }),
             )
             .mockResolvedValueOnce(
-                new Response(JSON.stringify({ jobId: "job_1", analysisId: "ana_1", status: "QUEUED" }), { status: 201 }),
+                new Response(envelope({ jobId: "job_1", analysisId: "ana_1", status: "QUEUED" }), { status: 201 }),
             );
 
         const videoRes = await coachingApiClient.uploadVideo(
@@ -123,7 +125,7 @@ describe("Task TL-11 — Real Web Integration for MVP Workflow", () => {
 
     it("2.3 handles HTTP error responses throwing CoachingApiError", async () => {
         vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-            new Response(JSON.stringify({ message: "Assignment target fighter not found." }), {
+            new Response(JSON.stringify({ success: false, error: { statusCode: 404, code: "FIGHTER_NOT_FOUND", message: "Assignment target fighter not found." } }), {
                 status: 404,
                 statusText: "Not Found",
             }),
@@ -134,9 +136,9 @@ describe("Task TL-11 — Real Web Integration for MVP Workflow", () => {
                 coachId: "coach_1",
                 fighterId: "nonexistent_ath",
                 title: "Test",
-                martialArt: "boxing",
+                phase: "build",
             }, "valid-access-token"),
-        ).rejects.toThrow("Assignment target fighter not found.");
+        ).rejects.toMatchObject({ name: "CoachingApiError", message: "Assignment target fighter not found.", status: 404, code: "FIGHTER_NOT_FOUND" });
     });
 
     // ─── 3. Pipeline Mode & Mock Guarding ──────────────────────────────────────
