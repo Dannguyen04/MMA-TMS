@@ -26,8 +26,9 @@ import { unsupportedOperation } from "./api-helpers";
 /*
  * AI analysis review, pipeline jobs, model registry and movement observations. Demo mode delegates to the in-memory
  * records in `ai.demo.ts`, loaded lazily so API mode never touches mock state. API mode reads jobs and movement
- * observations from the NestJS jobs API (`ai.api.ts`); finding review, job retry and cancel, the model registry and
- * observation review have no API yet, so pages hide them (see the feature gates) and these functions refuse.
+ * observations from the NestJS API (`ai.api.ts`), where the coaching service keeps coaches' reviews of an analysis;
+ * job retry and cancel, the model registry and observation review have no API yet, so pages hide them (see the
+ * feature gates) and these functions refuse.
  */
 
 export type {
@@ -56,25 +57,26 @@ async function demoService(): Promise<typeof import("./ai.demo")> {
 
 /* ─── Analyses & human review ─────────────────────────────────────────────── */
 
-/** A single analysis, or null. API mode builds analyses from the worker result on the video page instead. */
+/** Pipeline analyses (`an-<job uuid>`): every analysis in API mode, and the live pipeline's ones in the demo. */
+const usesRealAnalysis = (id: string) => !isDemoAuthEnabled() || /^an-[0-9a-f-]{36}$/i.test(id);
+
+/** A single analysis, or null. */
 export async function getAnalysis(id: string): Promise<AIAnalysis | null> {
-    if (isDemoAuthEnabled()) return (await demoService()).getAnalysis(id);
-    return null;
+    return usesRealAnalysis(id) ? api.getAnalysis(id) : (await demoService()).getAnalysis(id);
 }
 
 export async function reviewFinding(analysisId: string, findingId: string, input: AIReviewInput, actor: User): Promise<ReviewFindingResult> {
-    if (isDemoAuthEnabled()) return (await demoService()).reviewFinding(analysisId, findingId, input, actor);
-    unsupportedOperation("Reviewing an AI finding", "coach review of AI findings");
+    return usesRealAnalysis(analysisId) ? api.reviewFinding(analysisId, findingId, input, actor) : (await demoService()).reviewFinding(analysisId, findingId, input, actor);
 }
 
 export async function reviewDetection(analysisId: string, detectionId: string, input: AIReviewInput, actor: User): Promise<ReviewDetectionResult> {
-    if (isDemoAuthEnabled()) return (await demoService()).reviewDetection(analysisId, detectionId, input, actor);
-    unsupportedOperation("Reviewing an AI detection", "coach review of AI findings");
+    return usesRealAnalysis(analysisId)
+        ? api.reviewDetection(analysisId, detectionId, input, actor)
+        : (await demoService()).reviewDetection(analysisId, detectionId, input, actor);
 }
 
 export async function submitCoachReview(analysisId: string, input: CoachReviewInput, actor: User): Promise<SubmitCoachReviewResult> {
-    if (isDemoAuthEnabled()) return (await demoService()).submitCoachReview(analysisId, input, actor);
-    unsupportedOperation("Submitting a coach review", "coach review of AI findings");
+    return usesRealAnalysis(analysisId) ? api.submitCoachReview(analysisId, input, actor) : (await demoService()).submitCoachReview(analysisId, input, actor);
 }
 
 /* ─── Pipeline jobs ───────────────────────────────────────────────────────── */

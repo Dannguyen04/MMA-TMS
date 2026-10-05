@@ -4,26 +4,82 @@ import { z } from "zod";
 
 import { authenticatedApiRequest } from "@/lib/api/client";
 import { jobStats, type AIJobStats } from "@/lib/domain/ai-job-stats";
+import { coachReviewFrom, reviewFeedback, type AIReviewInput, type CoachReviewInput } from "@/lib/domain/ai-review";
 import type { BodyJoint } from "@/lib/domain/medical-contract";
 import { JOINT_REGIONS } from "@/lib/domain/medical-mappings";
-import type { AbnormalMovementAlert, Fighter } from "@/lib/domain/types";
+import type { AbnormalMovementAlert, AIAnalysis, Fighter, User } from "@/lib/domain/types";
 import { matchesSearch } from "@/lib/query";
 import { round } from "@/lib/utils";
-import type { AIJobDetail, AIJobFilter, AIJobListItem, AlertDetail, AlertFilter } from "./ai.demo";
+import { persistCoachSummary, persistEvidenceReview, readReviewState } from "./ai-coaching.api";
+import type {
+    AIJobDetail,
+    AIJobFilter,
+    AIJobListItem,
+    AlertDetail,
+    AlertFilter,
+    ReviewDetectionResult,
+    ReviewFindingResult,
+    SubmitCoachReviewResult,
+} from "./ai.demo";
 import { nullIfNotFound } from "./api-helpers";
 import { getFighter } from "./people";
-import { getJobProgress, getVideo, listAnalysisJobs, listVideosAndJobs } from "./videos";
+import { getJobProgress, getVideo, getVideoDetail, listAnalysisJobs, listVideosAndJobs } from "./videos";
 
 /*
- * The AI pipeline as the NestJS jobs API offers it: one analysis job per video, no model registry, no confidence and
- * no analysis summary. The health alerts the worker attaches to a job are the doctor's movement observations; the
- * service has no review for them, so they stay new.
+ * The AI pipeline as the NestJS API offers it: one analysis job per video, no model registry and no analysis summary.
+ * The health alerts the worker attaches to a job are the doctor's movement observations; the service has no review for
+ * them, so they stay new. Coaches' reviews of an analysis are kept by the coaching service (`ai-coaching.api.ts`).
  */
 
 async function fightersById(ids: readonly string[]): Promise<Map<string, Fighter>> {
     const fighters = await Promise.all([...new Set(ids)].filter(Boolean).map(getFighter));
     return new Map(fighters.flatMap((fighter) => (fighter ? [[fighter.id, fighter] as const] : [])));
 }
+
+/* ─── Reviews of pipeline analyses ───────────────────────────────────────── */
+
+/** A pipeline analysis is `an-<job id>`, built from the worker result on the video page. */
+const jobIdOf = (analysisId: string) => analysisId.replace(/^an-/, "");
+
+/** A pipeline analysis with the reviews the coaching service has kept. */
+export async function getAnalysis(id: string): Promise<AIAnalysis | null> {
+    const state = await readReviewState(jobIdOf(id));
+    return (await getVideoDetail(state.videoId))?.analysis ?? null;
+}
+
+/** Records a coach's decision on a finding against the worker's persisted evidence. */
+export async function reviewFinding(analysisId: string, findingId: string, input: AIReviewInput, actor: User): Promise<ReviewFindingResult> {
+    const analysis = await getAnalysis(analysisId);
+    const finding = analysis?.findings.find((f) => f.id === findingId);
+    if (!analysis || !finding?.workerActionId || !finding.workerFindingId) return { ok: false, code: "not_found", message: "This finding has no persisted worker evidence." };
+    const feedback = reviewFeedback(input, actor, new Date().toISOString());
+    if ("ok" in feedback) return feedback;
+    await persistEvidenceReview(analysis.jobId, finding.workerActionId, finding.workerFindingId, feedback);
+    return { ok: true, finding: { ...finding, review: feedback } };
+}
+
+/** Records a coach's decision on a detection; the coaching service files it under the whole action. */
+export async function reviewDetection(analysisId: string, detectionId: string, input: AIReviewInput, actor: User): Promise<ReviewDetectionResult> {
+    const analysis = await getAnalysis(analysisId);
+    const detection = analysis?.detections.find((d) => d.id === detectionId);
+    if (!analysis || !detection?.workerActionId) return { ok: false, code: "not_found", message: "This detection has no persisted worker evidence." };
+    const feedback = reviewFeedback(input, actor, new Date().toISOString());
+    if ("ok" in feedback) return feedback;
+    await persistEvidenceReview(analysis.jobId, detection.workerActionId, "@action", feedback);
+    return { ok: true, detection: { ...detection, review: feedback } };
+}
+
+/** Completes the coach review of a pipeline analysis. */
+export async function submitCoachReview(analysisId: string, input: CoachReviewInput, actor: User): Promise<SubmitCoachReviewResult> {
+    const analysis = await getAnalysis(analysisId);
+    if (!analysis) return { ok: false, code: "not_found", message: "This analysis no longer exists." };
+    const review = coachReviewFrom(input, actor, new Date().toISOString());
+    if ("ok" in review) return review;
+    await persistCoachSummary(analysis.jobId, review);
+    return { ok: true, analysis: { ...analysis, coachReview: review } };
+}
+
+/* ─── Pipeline jobs ──────────────────────────────────────────────────────── */
 
 /** Pipeline jobs, newest queued first. */
 export async function listAIJobs(filter: AIJobFilter = {}): Promise<AIJobListItem[]> {

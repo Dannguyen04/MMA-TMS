@@ -29,6 +29,8 @@ export interface DetailsState {
     trainingType: VideoTrainingType | "";
     cameraAngle: CameraAngle | "";
     sessionId: string;
+    sessionExerciseId?: string;
+    evidenceProtocol?: 'whole_body_v1' | 'upper_body_v1' | 'lower_body_v1';
     title: string;
     titleEdited: boolean;
     notes: string;

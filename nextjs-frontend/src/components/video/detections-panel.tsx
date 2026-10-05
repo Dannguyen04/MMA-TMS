@@ -101,6 +101,7 @@ export function DetectionsPanel({ detections }: { detections: Detection[] }) {
                 <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
                     {shown.map((detection) => {
                         const needsReview = isNeedsReview(detection);
+                        const confidenceText = detection.confidenceAvailable === false ? "Confidence unavailable" : formatConfidence(detection.confidence);
                         return (
                             <li key={detection.id} className={cn("flex items-center gap-2 pr-2", detection.id === activeId ? "bg-primary-soft" : "bg-surface")}>
                                 <button
@@ -110,7 +111,7 @@ export function DetectionsPanel({ detections }: { detections: Detection[] }) {
                                         store.seek(detection.peakMs);
                                     }}
                                     className="flex min-w-0 flex-1 items-center gap-2.5 px-3 py-2 text-left hover:bg-surface-hover/60"
-                                    aria-label={`${strikeObservation(detection.type)} at ${formatTimestamp(detection.peakMs)}, ${LIMB_LABELS[detection.limb]}, ${formatConfidence(detection.confidence)} confidence`}
+                                    aria-label={`${strikeObservation(detection.type)} at ${formatTimestamp(detection.peakMs)}, ${LIMB_LABELS[detection.limb]}, ${confidenceText}`}
                                 >
                                     <span className="w-12 shrink-0 text-xs text-fg-muted tabular-nums">{formatTimestamp(detection.peakMs)}</span>
                                     <StrikeShape type={detection.type} hollow={needsReview} className="size-3.5 shrink-0" />
@@ -119,7 +120,7 @@ export function DetectionsPanel({ detections }: { detections: Detection[] }) {
                                             {reviewedStrikeLabel(detection)}
                                         </span>
                                         <span className="block truncate text-xs text-fg-muted">
-                                            {LIMB_LABELS[detection.limb]} · {formatConfidence(detection.confidence)}
+                                            {LIMB_LABELS[detection.limb]} · {confidenceText}
                                         </span>
                                     </span>
                                     <ReviewStateBadge review={detection.review} confidence={detection.confidence} size="sm" className="max-sm:hidden" />

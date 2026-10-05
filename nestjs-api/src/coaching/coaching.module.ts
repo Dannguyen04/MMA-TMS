@@ -3,11 +3,14 @@ import { CoachingController, CoachingWorkerController } from './coaching.control
 import { WorkerAuthGuard } from '../jobs/guards/worker-auth.guard.js';
 import { CoachingService } from './coaching.service.js';
 import { DatabaseModule } from '../database/database.module.js';
+import { VideosModule } from '../videos/videos.module.js';
+import { MovementReviewController } from './movement-review.controller.js';
+import { MovementReviewService } from './movement-review.service.js';
 
 @Module({
-  imports: [DatabaseModule],
-  controllers: [CoachingController, CoachingWorkerController],
-  providers: [CoachingService, WorkerAuthGuard],
+  imports: [DatabaseModule, VideosModule],
+  controllers: [CoachingController, CoachingWorkerController, MovementReviewController],
+  providers: [CoachingService, WorkerAuthGuard, MovementReviewService],
   exports: [CoachingService],
 })
 export class CoachingModule {}

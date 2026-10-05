@@ -15,6 +15,7 @@ import { DetectionsPanel } from "./detections-panel";
 import { FindingsPanel, matchesFindingFilter, type FindingFilter } from "./findings-panel";
 import { MetricsPanel } from "./metrics-panel";
 import { MomentPanel } from "./moment-panel";
+import { MovementEvidencePanel } from "./movement-evidence-panel";
 import { createPlaybackStore, PlaybackProvider } from "./playback-store";
 import { PosePlayer } from "./pose-player";
 import { ProvenanceCard } from "./provenance-card";
@@ -132,7 +133,9 @@ export function AnalysisWorkspace({ analysis, video, job, stance, viewer, canRev
                         aria-label="Analysis details"
                         className="scrollbar-thin flex min-w-0 flex-col gap-4 xl:sticky xl:top-20 xl:col-start-2 xl:row-span-3 xl:row-start-2 xl:max-h-[calc(100dvh-6rem)] xl:self-start xl:overflow-y-auto xl:pb-1"
                     >
-                        <MomentPanel analysis={current} findings={current.findings} onSelectFinding={selectFinding} />
+                        {current.movementEvidence
+                            ? <MovementEvidencePanel report={current.movementEvidence} jobId={job?.id} />
+                            : <MomentPanel analysis={current} findings={current.findings} onSelectFinding={selectFinding} />}
                         <Card className="min-w-0 px-4 pb-4">
                             <Tabs
                                 key={tabsVersion}
@@ -184,7 +187,7 @@ export function AnalysisWorkspace({ analysis, video, job, stance, viewer, canRev
                         <ProvenanceCard analysis={current} job={job} video={video} />
                     </aside>
                     <div className="min-w-0 xl:col-start-1 xl:row-start-4">
-                        <MetricsPanel analysis={current} />
+                        {!current.movementEvidence && <MetricsPanel analysis={current} />}
                     </div>
                 </div>
             </PlaybackProvider>

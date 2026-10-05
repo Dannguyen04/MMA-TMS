@@ -14,7 +14,10 @@ export async function GET(_request: NextRequest, context: RouteContext<"/api/ai-
     // Backend job ids are UUIDs; rejecting anything else keeps dot segments out of the upstream path.
     if (!jobIdSchema.safeParse(jobId).success) return Response.json({ message: "Analysis result not found." }, { status: 404, headers: noStore });
     try {
-        // The same token as the other pipeline routes, so the demo session bridge reads results too.
+        // Use the same pipeline authentication path as the server-rendered
+        // analysis page. In local demo mode there may be no backend access
+        // cookie because Server Components cannot persist the exchanged demo
+        // session, even though the pipeline token is valid and cached.
         const result = await pipelineApiRequest(`/jobs/${encodeURIComponent(jobId)}/result`, workerResultSchema);
         return Response.json(result, { headers: noStore });
     } catch (error) {

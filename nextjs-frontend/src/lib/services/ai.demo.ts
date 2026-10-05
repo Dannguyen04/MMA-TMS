@@ -1,6 +1,7 @@
 import "server-only";
 
 import { jobStats, type AIJobStats } from "@/lib/domain/ai-job-stats";
+import { coachReviewFrom, reviewFeedback, type AIReviewInput, type CoachReviewInput } from "@/lib/domain/ai-review";
 import { AI_MODEL_STATUS_LABELS, ALERT_STATUS_LABELS, REVIEW_DECISION_LABELS } from "@/lib/domain/labels";
 import type {
     AbnormalMovementAlert,
@@ -14,7 +15,6 @@ import type {
     AIModelTask,
     AlertStatus,
     BodyRegion,
-    CoachReview,
     Detection,
     DoctorDecision,
     Fighter,
@@ -68,30 +68,10 @@ export async function getAnalysis(id: string): Promise<AIAnalysis | null> {
     return db().aiAnalyses.find((a) => a.id === id) ?? null;
 }
 
-export interface AIReviewInput {
-    decision: ReviewDecision;
-    note: string | null;
-    /** Required when the decision is "corrected". */
-    correctedLabel: string | null;
-}
+export type { AIReviewInput, CoachReviewInput };
 
 export type ReviewFindingResult = { ok: true; finding: AIFinding } | Failure<"not_found" | "correction_label_required">;
 export type ReviewDetectionResult = { ok: true; detection: Detection } | Failure<"not_found" | "correction_label_required">;
-
-function feedbackFrom(input: AIReviewInput, actor: User): AIFeedback | Failure<"correction_label_required"> {
-    const correctedLabel = input.correctedLabel?.trim() || null;
-    if (input.decision === "corrected" && !correctedLabel) {
-        return { ok: false, code: "correction_label_required", message: "Enter the correct label for this AI output." };
-    }
-    return {
-        decision: input.decision,
-        reviewerId: actor.id,
-        reviewerName: actor.name,
-        reviewedAt: nowIso(),
-        note: input.note?.trim() || null,
-        correctedLabel: input.decision === "corrected" ? correctedLabel : null,
-    };
-}
 
 function reviewDetails(feedback: AIFeedback, aiLabel: string): string {
     const decision = REVIEW_DECISION_LABELS[feedback.decision];
@@ -105,7 +85,7 @@ export async function reviewFinding(analysisId: string, findingId: string, input
         ?.findings.find((f) => f.id === findingId);
     if (!finding) return { ok: false, code: "not_found", message: "This finding no longer exists." };
 
-    const feedback = feedbackFrom(input, actor);
+    const feedback = reviewFeedback(input, actor, nowIso());
     if ("ok" in feedback) return feedback;
     finding.review = feedback;
 
@@ -127,7 +107,7 @@ export async function reviewDetection(analysisId: string, detectionId: string, i
         ?.detections.find((d) => d.id === detectionId);
     if (!detection) return { ok: false, code: "not_found", message: "This detection no longer exists." };
 
-    const feedback = feedbackFrom(input, actor);
+    const feedback = reviewFeedback(input, actor, nowIso());
     if ("ok" in feedback) return feedback;
     detection.review = feedback;
 
@@ -142,12 +122,6 @@ export async function reviewDetection(analysisId: string, detectionId: string, i
     return { ok: true, detection };
 }
 
-export interface CoachReviewInput {
-    /** Overall rating of the footage, 1–5. */
-    rating: number;
-    summary: string;
-}
-
 export type SubmitCoachReviewResult = { ok: true; analysis: AIAnalysis } | Failure<"not_found" | "invalid_rating" | "summary_required">;
 
 /** Completes the coach review of an analysis and tells the fighter. */
@@ -155,13 +129,8 @@ export async function submitCoachReview(analysisId: string, input: CoachReviewIn
     const store = db();
     const analysis = store.aiAnalyses.find((a) => a.id === analysisId);
     if (!analysis) return { ok: false, code: "not_found", message: "This analysis no longer exists." };
-    if (!Number.isInteger(input.rating) || input.rating < 1 || input.rating > 5) {
-        return { ok: false, code: "invalid_rating", message: "Rate the footage from 1 to 5." };
-    }
-    const summary = input.summary.trim();
-    if (!summary) return { ok: false, code: "summary_required", message: "Add a short summary for the fighter." };
-
-    const review: CoachReview = { reviewerId: actor.id, reviewerName: actor.name, reviewedAt: nowIso(), rating: input.rating, summary };
+    const review = coachReviewFrom(input, actor, nowIso());
+    if ("ok" in review) return review;
     analysis.coachReview = review;
 
     const video = store.videos.find((v) => v.id === analysis.videoId);
@@ -228,7 +197,7 @@ export interface AIAnalysisSummary {
     processedAt: string;
     durationMs: number;
     fps: number;
-    overallConfidence: number;
+    overallConfidence: number | null;
     trackingQuality: number;
     detectionCount: number;
     lowConfidenceDetectionCount: number;
@@ -269,7 +238,7 @@ export async function getAIJobDetail(id: string): Promise<AIJobDetail | null> {
                   overallConfidence: analysis.overallConfidence,
                   trackingQuality: analysis.trackingQuality,
                   detectionCount: analysis.detections.length,
-                  lowConfidenceDetectionCount: analysis.detections.filter((d) => d.confidence < threshold).length,
+                  lowConfidenceDetectionCount: analysis.detections.filter((d) => d.confidence !== null && d.confidence < threshold).length,
                   combinationCount: analysis.combinations.length,
                   findingCount: analysis.findings.length,
               }
@@ -280,8 +249,12 @@ export async function getAIJobDetail(id: string): Promise<AIJobDetail | null> {
 
 export type JobActionResult = { ok: true; job: AIJob } | Failure<"not_found" | "invalid_state">;
 
+/** Jobs of the live pipeline carry backend UUIDs; demo jobs don't. */
+const PIPELINE_JOB_ID = /^[0-9a-f-]{36}$/i;
+
 /** Re-queues a failed job (attempts + 1). The mock pipeline then processes it like a new upload. */
 export async function retryJob(id: string, actor: User): Promise<JobActionResult> {
+    if (PIPELINE_JOB_ID.test(id)) return { ok: false, code: "invalid_state", message: "This API does not support retrying a terminal job. Upload a new video revision." };
     const store = db();
     const job = store.aiJobs.find((j) => j.id === id);
     if (!job) return { ok: false, code: "not_found", message: "This job no longer exists." };
@@ -321,6 +294,7 @@ export async function retryJob(id: string, actor: User): Promise<JobActionResult
 
 /** Cancels a queued or processing job; the uploader is told processing stopped. */
 export async function cancelJob(id: string, actor: User): Promise<JobActionResult> {
+    if (PIPELINE_JOB_ID.test(id)) return { ok: false, code: "invalid_state", message: "Cancelling a running worker is not supported by the API." };
     const store = db();
     syncRuntimeJobs();
     const job = store.aiJobs.find((j) => j.id === id);
@@ -377,7 +351,7 @@ const STATUS_ORDER: AIModelStatus[] = ["active", "staging", "deprecated"];
 /** Models grouped by pipeline task, active first. */
 export async function listAIModels(): Promise<AIModel[]> {
     await simulateLatency();
-    return [...db().aiModels].sort(
+    return [...db().aiModels].map((model) => ({ ...model, description: `DEMO ONLY: simulated model and evaluation metrics. ${model.description}` })).sort(
         (a, b) =>
             TASK_ORDER.indexOf(a.task) - TASK_ORDER.indexOf(b.task) ||
             STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status) ||
@@ -387,8 +361,7 @@ export async function listAIModels(): Promise<AIModel[]> {
 
 /** A single model, or null. */
 export async function getAIModel(id: string): Promise<AIModel | null> {
-    await simulateLatency();
-    return db().aiModels.find((m) => m.id === id) ?? null;
+    return (await listAIModels()).find((m) => m.id === id) ?? null;
 }
 
 export interface ModelThresholdsInput {

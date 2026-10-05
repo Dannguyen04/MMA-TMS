@@ -980,14 +980,14 @@ const VIDEO_PLANS: VideoPlan[] = [
                         impact: "improvement",
                         title: "Low lighting reduced detection confidence",
                         description: (ctx) => {
-                            const low = ctx.detections.filter((d) => d.confidence < LOW_CONFIDENCE_THRESHOLD).length;
+                            const low = ctx.detections.filter((d) => (d.confidence !== null && d.confidence < LOW_CONFIDENCE_THRESHOLD)).length;
                             return `Mean detection confidence was ${Math.round(meanOf(ctx.detections, "confidence", 2) * 100)}%, and ${low} of ${ctx.detections.length} strikes fell below the 60% review threshold.`;
                         },
                         confidence: 0.93,
                         evidence: { from: "detections", lowConfidence: true, limit: 5 },
                         metric: (ctx) => ({
                             label: "Strikes below 60% confidence",
-                            value: Math.round((ctx.detections.filter((d) => d.confidence < LOW_CONFIDENCE_THRESHOLD).length / ctx.detections.length) * 100),
+                            value: Math.round((ctx.detections.filter((d) => (d.confidence !== null && d.confidence < LOW_CONFIDENCE_THRESHOLD)).length / ctx.detections.length) * 100),
                             unit: "%",
                             reference: "Typical shadow boxing: under 5%",
                         }),
@@ -1588,7 +1588,7 @@ function buildSeed(): { videos: Video[]; jobs: AIJob[]; analyses: AIAnalysis[] }
                 finishedAt,
                 durationSec,
                 avgConfidence: analysis.overallConfidence,
-                lowConfidence: analysis.overallConfidence < LOW_CONFIDENCE_THRESHOLD,
+                lowConfidence: (analysis.overallConfidence !== null && analysis.overallConfidence < LOW_CONFIDENCE_THRESHOLD),
                 errorCode: null,
                 errorMessage: null,
             };
@@ -1940,7 +1940,7 @@ export const mockAIModels: AIModel[] = [
         framework: "Ultralytics 8.3 · TensorRT 10",
         status: "active",
         description:
-            "YOLOv8-medium pose model (17 keypoints) fine-tuned on 38k annotated combat-sports frames. Replaced yolov8n-pose for better wrist and ankle accuracy under motion blur.",
+            "Illustrative pose-model record for the demo interface. No fine-tuned checkpoint or measured accuracy is attached to this record.",
         deployedAt: daysAgo(58, 10, 30),
         confidenceThreshold: 0.35,
         lowConfidenceThreshold: 0.6,
@@ -1975,7 +1975,7 @@ export const mockAIModels: AIModel[] = [
         framework: "PyTorch 2.4 (ST-GCN)",
         status: "active",
         description:
-            "Spatio-temporal graph network over pose sequences that classifies jab, cross, hook and kick and groups strikes into combinations. Hook recall is the weakest class (0.74): hooks thrown at an angle to the camera are often read as crosses.",
+            "Illustrative technique-classifier record for the demo interface. The deployed worker uses motion heuristics; this record does not represent a trained graph network.",
         deployedAt: daysAgo(44, 11, 0),
         confidenceThreshold: 0.35,
         lowConfidenceThreshold: 0.6,

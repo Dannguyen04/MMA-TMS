@@ -21,6 +21,7 @@ import type {
 import { foldName } from "@/lib/query";
 import { nullIfNotFound } from "./api-helpers";
 import { getFighter } from "./people";
+import { applyPersistedReviews, readReviewState } from "./ai-coaching.api";
 
 const demoService = () => import("./videos.demo");
 const uuidSchema = z.string().uuid();
@@ -223,6 +224,7 @@ export async function getVideoDetail(id: string): Promise<VideoDetail | null> {
             resultUrl: `/api/ai-jobs/${job.id}/result`,
         });
         video.analysisId = analysis.id;
+        applyPersistedReviews(analysis, await readReviewState(job.id));
     }
     return { video, fighter, job, analysis, alerts: [], session: null, uploadedBy: null };
 }
@@ -262,7 +264,7 @@ export interface VideoAnalysisSummary {
     unreviewedFindings: number;
     /** Unreviewed detections below the low-confidence threshold. */
     lowConfidenceDetections: number;
-    overallConfidence: number;
+    overallConfidence: number | null;
     coachReviewed: boolean;
 }
 

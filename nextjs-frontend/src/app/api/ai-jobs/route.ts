@@ -3,7 +3,8 @@ import { z } from "zod";
 import { apiErrorResponse, apiRequest } from "@/lib/api/client";
 import { getPipelineAccessToken } from "@/lib/api/pipeline-auth";
 
-const requestSchema = z.object({ videoId: z.string().uuid() });
+const requestSchema = z.object({ videoId: z.string().uuid(), sessionExerciseId: z.string().uuid().optional(),
+    evidenceProtocol: z.enum(["whole_body_v1", "upper_body_v1", "lower_body_v1"]).optional() }).strict();
 const responseSchema = z.object({ jobId: z.string().uuid(), status: z.string() });
 const noStore = { "Cache-Control": "no-store" };
 

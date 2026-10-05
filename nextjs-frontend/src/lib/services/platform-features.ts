@@ -32,8 +32,6 @@ export type PlatformFeature =
     | "aiJobControl"
     /** The models a job ran, its analysis summary and earlier runs of the same footage. */
     | "aiJobInsights"
-    /** A coach confirming, correcting or rejecting AI findings on an analysed video. */
-    | "coachAiReview"
     /** A user editing their own name and phone number (`PATCH /users/me`). */
     | "selfProfileEdit"
     /** A fighter recording their own weight and body metrics. */
@@ -51,7 +49,6 @@ export const platformFeatureAvailable = demoOnlyFeatureGate<PlatformFeature>([
     "aiModels",
     "aiJobControl",
     "aiJobInsights",
-    "coachAiReview",
     "selfProfileEdit",
     "bodyMetrics",
 ]);

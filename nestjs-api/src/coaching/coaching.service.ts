@@ -8,7 +8,7 @@ import {
   BadRequestException,
   OnModuleInit,
 } from '@nestjs/common';
-import { sql, eq, and, desc, isNull } from 'drizzle-orm';
+import { sql, eq, and, desc, isNull, lte, gt, or } from 'drizzle-orm';
 import * as crypto from 'node:crypto';
 import { DRIZZLE, type DrizzleDB } from '../database/database.module.js';
 import {
@@ -25,6 +25,7 @@ import {
   fighterBaselines,
   auditLogs,
   actionAssessments,
+  algorithmConfigs,
   actionFindingReviews,
   techniqueReferences,
   progressSnapshots,
@@ -40,6 +41,8 @@ import {
   RevokeReferenceDto,
   CreateBaselineDto,
 } from './dto/coaching.dto.js';
+import { resultDigest } from './result-receipt.js';
+import { movementEvidenceSchema } from './movement-evidence.contract.js';
 
 @Injectable()
 export class CoachingService implements OnModuleInit {
@@ -93,7 +96,8 @@ export class CoachingService implements OnModuleInit {
         and(
           eq(coachFighters.coachId, coachId),
           eq(coachFighters.fighterId, fighterId),
-          isNull(coachFighters.endsAt),
+          lte(coachFighters.startsAt, new Date()),
+          or(isNull(coachFighters.endsAt), gt(coachFighters.endsAt, new Date())),
         ),
       )
       .limit(1);
@@ -436,13 +440,59 @@ export class CoachingService implements OnModuleInit {
 
   async persistWorkerResult(dto: PersistWorkerResultDto, actorId?: string) {
     return await this.db.transaction(async (tx: any) => {
+      // Serialize concurrent retries before inspecting/creating the receipt.
+      const [job] = await tx.select().from(analysisJobs)
+        .where(eq(analysisJobs.id, dto.jobId)).for('update');
+      if (!job) throw new NotFoundException('Analysis job not found.');
+      const rawEvidence = dto.provenance?.movementEvidence;
+      const parsedEvidence = rawEvidence == null ? null : movementEvidenceSchema.safeParse(rawEvidence);
+      if (parsedEvidence && !parsedEvidence.success) throw new BadRequestException('Invalid movement evidence report.');
+      const movementEvidence = parsedEvidence?.success ? parsedEvidence.data : null;
+      if (job.evidenceContext && (!movementEvidence ||
+          movementEvidence.context.exerciseId !== job.evidenceContext.exerciseId ||
+          movementEvidence.context.protocolId !== job.evidenceContext.protocolId ||
+          movementEvidence.context.purpose !== job.evidenceContext.purpose)) {
+        throw new BadRequestException('Worker evidence does not match the assigned job context.');
+      }
+      let [analysis] = await tx.select().from(aiAnalyses).where(eq(aiAnalyses.jobId, job.id));
+      if (dto.analysisId && analysis?.id !== dto.analysisId) {
+        throw new BadRequestException('The analysis does not belong to this job.');
+      }
+      const ids = dto.actions.map((a) => a.actionId);
+      if (new Set(ids).size !== ids.length) throw new BadRequestException('Duplicate action IDs.');
+      const hash = resultDigest({ actions: dto.actions, provenance: dto.provenance ?? {}, overallScore: dto.overallScore ?? null });
+      const receipt = analysis?.styleProfile?.workerReceipt;
+      if (receipt) {
+        if (receipt.resultHash !== hash) throw new ConflictException('A different result already exists for this job; create a new analysis revision.');
+        return { persisted: true, analysisId: analysis.id, actionCount: dto.actions.length, replayed: true };
+      }
+      if (job.status !== 'PROCESSING') throw new ConflictException('Results require a processing job.');
+      if (!analysis) {
+        const [video] = await tx.select().from(videos).where(eq(videos.id, job.videoId));
+        if (!video || (job.fighterId && job.fighterId !== video.subjectFighterId)) {
+          throw new BadRequestException('The job has no valid video/fighter context.');
+        }
+        // Match a registered pose configuration. Never invent a config UUID.
+        const model = String(dto.provenance?.model ?? '').replace(/\\/g, '/').split('/').pop()?.replace(/\.pt$/, '');
+        const configs = await tx.select().from(algorithmConfigs).where(eq(algorithmConfigs.isActive, true));
+        const matching = configs.filter((c: any) => c.yoloModelName.replace(/\.pt$/, '') === model);
+        if (matching.length !== 1) throw new ConflictException('Register exactly one active algorithm configuration for the worker pose model.');
+        [analysis] = await tx.insert(aiAnalyses).values({
+          jobId: job.id, videoId: video.id, fighterId: video.subjectFighterId,
+          sessionId: video.sessionId, algorithmConfigId: matching[0].id, status: 'PROCESSING',
+        }).returning();
+      }
+      const existing = await tx.select({ id: actionAssessments.id }).from(actionAssessments)
+        .where(eq(actionAssessments.analysisId, analysis.id)).limit(1);
+      if (existing.length) throw new ConflictException('Legacy assessments require an explicit new revision.');
+      const analysisId = analysis.id;
       // 1. Update analysis status
       const now = new Date();
       const startedAt = dto.provenance?.processingStartedAt
         ? new Date(dto.provenance.processingStartedAt)
         : now;
-      const confidenceScore = dto.actions.length > 0
-        ? dto.actions.reduce((acc, a) => acc + (a.confidence || 0), 0) / dto.actions.length
+      const confidenceScore = dto.actions.length > 0 && dto.actions.every((a) => a.confidence != null)
+        ? dto.actions.reduce((acc, a) => acc + a.confidence!, 0) / dto.actions.length
         : null;
 
       await tx
@@ -450,21 +500,16 @@ export class CoachingService implements OnModuleInit {
         .set({
           status: 'COMPLETED',
           confidenceScore,
+          requiresReview: true,
+          styleProfile: { ...(analysis.styleProfile ?? {}), workerReceipt: { resultHash: hash, analysisRevision: 1, jobId: job.id }, quality: dto.provenance?.analysisQuality ?? null, movementEvidence },
           processingStartedAt: startedAt,
           processingCompletedAt: now,
           updatedAt: now,
         })
-        .where(eq(aiAnalyses.id, dto.analysisId));
+        .where(eq(aiAnalyses.id, analysisId));
 
-      // 2. Update analysis job
-      await tx
-        .update(analysisJobs)
-        .set({
-          status: 'DONE',
-          score: dto.overallScore ?? null,
-          updatedAt: new Date(),
-        })
-        .where(eq(analysisJobs.id, dto.jobId));
+      // Job completion remains the /jobs status callback's responsibility,
+      // after storage upload and this transaction have both succeeded.
 
       // 3. Persist actions
       const insertedActions = [];
@@ -472,21 +517,21 @@ export class CoachingService implements OnModuleInit {
         const [persisted] = await tx
           .insert(actionAssessments)
           .values({
-            analysisId: dto.analysisId,
+            analysisId,
             actionId: action.actionId,
             technique: action.technique,
             limbSide: action.limbSide,
             assessmentStatus: action.assessmentStatus,
             overallScore: action.overallScore ?? null,
             grade: action.grade || null,
-            confidence: action.confidence,
+            confidence: action.confidence ?? null,
             rubricId: action.rubricId || null,
             evidence: action.evidence || {},
             phases: action.phases || {},
             kinematicFeatures: action.kinematicFeatures || {},
             criteriaScores: action.criteriaScores || {},
             findings: action.findings || [],
-            provenance: dto.provenance || action.provenance || {},
+            provenance: { ...(dto.provenance ?? {}), ...(action.provenance ?? {}) },
           })
           .returning();
         insertedActions.push(persisted);
@@ -495,7 +540,7 @@ export class CoachingService implements OnModuleInit {
       await this.logAudit(
         'PERSIST_WORKER_RESULT',
         'ai_analyses',
-        dto.analysisId,
+        analysisId,
         actorId || null,
         {
           actionCount: dto.actions.length,
@@ -506,7 +551,7 @@ export class CoachingService implements OnModuleInit {
 
       return {
         persisted: true,
-        analysisId: dto.analysisId,
+        analysisId,
         actionCount: insertedActions.length,
         actions: insertedActions,
       };
@@ -531,6 +576,14 @@ export class CoachingService implements OnModuleInit {
       // 2. Verify coach authorization
       await this.verifyCoachAuthorization(dto.coachId, analysis[0].fighterId, tx);
 
+      const [target] = await tx.select().from(actionAssessments).where(and(
+        eq(actionAssessments.analysisId, dto.analysisId), eq(actionAssessments.actionId, dto.actionId),
+      ));
+      if (!target || (dto.findingId !== '@action' && !target.findings.some((f: any) => (f.id ?? f.findingId) === dto.findingId))) {
+        throw new NotFoundException('Review target does not belong to this analysis.');
+      }
+      if (dto.status === 'corrected' && !dto.correctedLabel?.trim()) throw new BadRequestException('A correction label is required.');
+
       // 3. Persist finding review
       const [review] = await tx
         .insert(actionFindingReviews)
@@ -541,6 +594,7 @@ export class CoachingService implements OnModuleInit {
           coachId: dto.coachId,
           status: dto.status,
           notes: dto.notes || null,
+          correctedLabel: dto.status === 'corrected' ? dto.correctedLabel!.trim() : null,
         })
         .returning();
 
@@ -569,7 +623,7 @@ export class CoachingService implements OnModuleInit {
         .select()
         .from(aiAnalyses)
         .where(eq(aiAnalyses.id, dto.analysisId))
-        .limit(1);
+        .limit(1).for('update');
 
       if (analysis.length === 0) {
         throw new NotFoundException(`Analysis '${dto.analysisId}' not found.`);
@@ -580,7 +634,14 @@ export class CoachingService implements OnModuleInit {
       // Enforce append-only revision rules matching SQL constraints:
       // revision 1 <=> supersedesId is null
       // revision > 1 <=> supersedesId is not null
-      const revision = dto.revision || 1;
+      const [latest] = await tx.select().from(coachReviews).where(and(
+        eq(coachReviews.analysisId, dto.analysisId), eq(coachReviews.coachId, dto.coachId),
+      )).orderBy(desc(coachReviews.revision)).limit(1);
+      const revision = dto.revision ?? ((latest?.revision ?? 0) + 1);
+      if (dto.revision === undefined) dto.supersedesId = latest?.id;
+      if (revision !== (latest?.revision ?? 0) + 1 || (latest && dto.supersedesId !== latest.id)) {
+        throw new ConflictException('Correction must extend the current review revision.');
+      }
 
       if (revision === 1 && dto.supersedesId) {
         throw new BadRequestException('Revision 1 cannot have a supersedesId.');
@@ -596,7 +657,7 @@ export class CoachingService implements OnModuleInit {
           .where(eq(coachReviews.id, dto.supersedesId))
           .limit(1);
 
-        if (prev.length === 0) {
+        if (prev.length === 0 || prev[0].analysisId !== dto.analysisId || prev[0].coachId !== dto.coachId) {
           throw new NotFoundException(`Predecessor review '${dto.supersedesId}' not found.`);
         }
       }
@@ -634,9 +695,28 @@ export class CoachingService implements OnModuleInit {
 
   // ─── 7. Reference Selection & Revocation ───────────────────────────────────
 
+  async getJobReviewState(jobId: string) {
+    const [job] = await this.db.select().from(analysisJobs).where(eq(analysisJobs.id, jobId));
+    if (!job?.fighterId) throw new NotFoundException('Analysis job not found.');
+    const [analysis] = await this.db.select().from(aiAnalyses).where(eq(aiAnalyses.jobId, jobId));
+    const reviews = analysis ? await this.db.select().from(actionFindingReviews)
+      .where(eq(actionFindingReviews.analysisId, analysis.id)).orderBy(desc(actionFindingReviews.createdAt), desc(actionFindingReviews.id)) : [];
+    const corrections = analysis ? await this.db.select().from(coachReviews)
+      .where(eq(coachReviews.analysisId, analysis.id)).orderBy(desc(coachReviews.createdAt), desc(coachReviews.revision)) : [];
+    return { jobId, videoId: job.videoId, fighterId: job.fighterId, analysisId: analysis?.id ?? null, reviews, corrections };
+  }
+
   async selectReference(dto: SelectReferenceDto) {
     return await this.db.transaction(async (tx: any) => {
       await this.verifyCoachAuthorization(dto.coachId, dto.fighterId, tx);
+      const [assessment] = await tx.select({ id: actionAssessments.id, analysisId: aiAnalyses.id, status: actionAssessments.assessmentStatus })
+        .from(actionAssessments).innerJoin(aiAnalyses, eq(aiAnalyses.id, actionAssessments.analysisId))
+        .where(and(eq(aiAnalyses.videoId, dto.videoId), eq(aiAnalyses.fighterId, dto.fighterId), eq(actionAssessments.actionId, dto.actionId)));
+      if (!assessment || assessment.status !== 'EVALUATED') throw new BadRequestException('Reference requires evaluated evidence for this fighter and video.');
+      const [review] = await tx.select().from(actionFindingReviews).where(and(
+        eq(actionFindingReviews.analysisId, assessment.analysisId), eq(actionFindingReviews.actionId, dto.actionId), eq(actionFindingReviews.findingId, '@action'),
+      )).orderBy(desc(actionFindingReviews.createdAt), desc(actionFindingReviews.id)).limit(1);
+      if (!review || !['approved', 'corrected'].includes(review.status)) throw new BadRequestException('Reference requires an approved action review.');
 
       const [ref] = await tx
         .insert(techniqueReferences)

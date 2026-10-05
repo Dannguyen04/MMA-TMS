@@ -241,7 +241,8 @@ groups). Required fields set `required` on both the `Field` (visible star) and t
 - AI output is **assistive**. Label it with `AIGeneratedBadge` / `ReviewStateBadge`, show confidence
   (`ConfidenceBadge`), and phrase titles as observations: "Possible hook detected", "Guard appears to
   drop after the lead hook". Never "Hook", "Injury detected", "Diagnosis".
-- Low confidence (< `LOW_CONFIDENCE_THRESHOLD`, 60%) → "Needs review" styling and a prompt for human review.
+- Low confidence (< `LOW_CONFIDENCE_THRESHOLD`, 60%) → "Needs review" styling and a prompt for human review. No
+  confidence at all counts as low: it reads "Unavailable — requires review", never a made-up number.
 - Human decisions are visually distinct from AI output: `UserCheck` / `PenLine` icons, reviewer name and time.
 - Doctor-facing AI alerts are **"AI movement observations"** and always show the notice:
   _"AI observations are supporting information only. They are not a medical diagnosis and do not replace
@@ -287,7 +288,7 @@ groups). Required fields set `required` on both the `Field` (visible star) and t
 
 Each service area has a gate built on `demoOnlyFeatureGate` (`services/feature-gate.ts`): `platformFeatureAvailable()`
 (goals, performance, coach feedback, navigation badges, audit logs, broadcasts, system settings, AI models, AI job
-retry/cancel and insights, coach AI review, self profile edits, body metrics), `adminFeatureAvailable()` and
+retry/cancel and insights, self profile edits, body metrics), `adminFeatureAvailable()` and
 `medicalFeatureAvailable()`. In API mode a gated read comes back empty or as the static baseline, the page shows
 `FeatureUnavailable`, and the server action refuses with "not available yet"; the service function itself throws
 `unsupportedOperation()` (501) as a backstop. Remove a feature from its gate's list once the backend serves it.
@@ -301,10 +302,13 @@ in API mode, the richer demo forms in demo mode (`usesTrainingServiceForms`, `us
 - `lib/domain/training-contract.ts` maps session types and builds plan, plan exercise and session bodies. Every plan has
   a phase. Plans are created as drafts and then activated; a result is recorded on the session before it is completed.
   Starting a session can be refused by medical eligibility; `trainingEligibilityReasons()` lists why.
-- Jobs and videos come from `/videos` and `/jobs`. A job's `score` is not a confidence, so confidence shows as "Not
-  reported by the model" (`null`). Doctor-facing AI observations are the jobs' health alerts (`/jobs/impairments`);
-  reviewing them is demo-only. Pages that aren't about video (the fighter dashboard, the doctor's fighter page) still
-  load when the video service doesn't answer.
+- Jobs and videos come from `/videos` and `/jobs`. A job's `score` is not a confidence; without one the UI shows
+  "Unavailable — requires review" (`null`). Doctor-facing AI observations are the jobs' health alerts
+  (`/jobs/impairments`); reviewing them is demo-only. Pages that aren't about video (the fighter dashboard, the
+  doctor's fighter page) still load when the video service doesn't answer.
+- Coaches review a pipeline analysis (`an-<job id>`) through the coaching service (`services/ai-coaching.api.ts`): it
+  keeps the decisions on the worker's actions and findings and the overall summary, and `getVideoDetail` lays them over
+  the worker result. The rules for a decision and a summary are shared with the demo (`domain/ai-review.ts`).
 
 ### Notifications (API mode)
 

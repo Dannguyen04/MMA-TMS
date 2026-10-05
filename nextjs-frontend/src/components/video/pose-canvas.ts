@@ -32,7 +32,7 @@ export function readStagePalette(element: Element): StagePalette {
         joint: token("--nav-accent"),
         muted: token("--nav-fg"),
         warning: token("--warning-solid"),
-        strike: { jab: token("--chart-1"), cross: token("--chart-2"), hook: token("--chart-3"), kick: token("--chart-4") },
+        strike: { punch: token("--nav-fg"), jab: token("--chart-1"), cross: token("--chart-2"), hook: token("--chart-3"), kick: token("--chart-4") },
     };
 }
 

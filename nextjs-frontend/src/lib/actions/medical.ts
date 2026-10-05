@@ -11,7 +11,7 @@ import {
     CLEARANCE_LEVEL_LABELS,
     EXAMINATION_OUTCOME_LABELS,
     HEALTH_STATUS_LABELS,
-    TECHNIQUE_LABELS,
+    TECHNIQUES,
     TRAINING_TYPE_LABELS,
 } from "@/lib/domain/labels";
 import { academyWallClockToIso, daysBetween, isDateKey, isDateTimeInputValue } from "@/lib/format";
@@ -195,7 +195,7 @@ export async function createExaminationAction(_prev: ActionState, formData: Form
 const restrictionSchema = z.object({
     label: z.string().trim().min(1, "Give this restriction a label coaches will understand.").max(140, "Keep the label under 140 characters."),
     blockedTrainingTypes: z.array(z.enum(keysOf(TRAINING_TYPE_LABELS))).max(8),
-    blockedTechniques: z.array(z.enum(keysOf(TECHNIQUE_LABELS))).max(8),
+    blockedTechniques: z.array(z.enum(TECHNIQUES)).max(8),
     blockedRegions: z.array(z.enum(keysOf(BODY_REGION_LABELS))).max(21),
     maxRpe: z.number().int().min(1, "Max RPE must be between 1 and 10.").max(10, "Max RPE must be between 1 and 10.").nullable(),
 });

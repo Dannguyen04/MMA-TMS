@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "1.0.0",
+  "datasets": {
+    "ucf101": {
+      "displayName": "UCF101",
+      "homepage": "https://www.crcv.ucf.edu/research/data-sets/ucf101/",
+      "usage": "academic_research",
+      "licenseStatus": "verify_upstream_terms",
+      "adapter": "ucf101_folder",
+      "acceptedExtensions": [".avi", ".mp4", ".mov", ".mkv"],
+      "labels": {
+        "BoxingPunchingBag": {"canonical": "boxing", "granularity": "coarse_positive"},
+        "BoxingSpeedBag": {"canonical": "boxing", "granularity": "coarse_positive"},
+        "Punch": {"canonical": "punch", "granularity": "coarse_positive"}
+      }
+    },
+    "kth_boxing": {
+      "displayName": "KTH Human Actions - Boxing",
+      "homepage": "https://www.csc.kth.se/cvap/actions/",
+      "usage": "academic_research",
+      "licenseStatus": "verify_upstream_terms",
+      "adapter": "labelled_folder",
+      "acceptedExtensions": [".avi", ".mp4", ".mov"],
+      "labels": {
+        "boxing": {"canonical": "boxing", "granularity": "coarse_positive"},
+        "walking": {"canonical": "negative", "granularity": "negative"},
+        "jogging": {"canonical": "negative", "granularity": "negative"},
+        "running": {"canonical": "negative", "granularity": "negative"},
+        "handclapping": {"canonical": "negative", "granularity": "hard_negative"},
+        "handwaving": {"canonical": "negative", "granularity": "hard_negative"}
+      }
+    },
+    "boxing_dataset": {
+      "displayName": "Boxing Punch Classification Video Dataset",
+      "homepage": "https://huggingface.co/datasets/NealBeans/BoxingDataset",
+      "usage": "academic_non_commercial",
+      "licenseStatus": "non_commercial_research",
+      "adapter": "metadata_csv",
+      "acceptedExtensions": [".mp4", ".avi", ".mov", ".mkv"],
+      "labels": {
+        "head_left_hand": {"canonical": "punch", "granularity": "coarse_positive"},
+        "head_right_hand": {"canonical": "punch", "granularity": "coarse_positive"},
+        "body_left_hand": {"canonical": "punch", "granularity": "coarse_positive"},
+        "body_right_hand": {"canonical": "punch", "granularity": "coarse_positive"},
+        "miss_left_hand": {"canonical": "punch", "granularity": "coarse_positive"},
+        "miss_right_hand": {"canonical": "punch", "granularity": "coarse_positive"},
+        "block_left_hand": {"canonical": "block", "granularity": "hard_negative"},
+        "block_right_hand": {"canonical": "block", "granularity": "hard_negative"}
+      }
+    },
+    "mma_tms_technique": {
+      "displayName": "MMA-TMS Coach-labelled Technique Clips",
+      "homepage": "local://mma-tms",
+      "usage": "project_training",
+      "licenseStatus": "project_consent_required",
+      "adapter": "metadata_csv",
+      "acceptedExtensions": [".mp4", ".avi", ".mov", ".mkv"],
+      "labels": {
+        "jab": {"canonical": "jab", "granularity": "technique"},
+        "cross": {"canonical": "cross", "granularity": "technique"},
+        "hook": {"canonical": "hook", "granularity": "technique"},
+        "round_kick": {"canonical": "round_kick", "granularity": "technique"},
+        "block": {"canonical": "block", "granularity": "hard_negative"},
+        "parry": {"canonical": "parry", "granularity": "hard_negative"},
+        "feint": {"canonical": "feint", "granularity": "hard_negative"},
+        "clinch": {"canonical": "clinch", "granularity": "hard_negative"},
+        "grapple": {"canonical": "grapple", "granularity": "hard_negative"},
+        "negative": {"canonical": "negative", "granularity": "negative"}
+      }
+    }
+  }
+}

@@ -10,12 +10,14 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { DRIZZLE, type DrizzleDB } from '../database/database.module.js';
 import {
   analysisJobs,
+  sessionExercises,
+  trainingSessions,
   type HealthAlert,
   type JointStatesMap,
 } from '../database/schema.js';
@@ -69,6 +71,23 @@ export class JobsService {
       dto.videoId,
     );
 
+    let exercise: typeof sessionExercises.$inferSelect | undefined;
+    if (dto.sessionExerciseId) {
+      const [row] = await this.db.select({ exercise: sessionExercises }).from(sessionExercises)
+        .innerJoin(trainingSessions, eq(trainingSessions.id, sessionExercises.sessionId))
+        .where(and(eq(sessionExercises.id, dto.sessionExerciseId),
+          eq(trainingSessions.id, video.sessionId ?? '00000000-0000-0000-0000-000000000000'),
+          eq(trainingSessions.fighterId, video.subjectFighterId),
+          eq(trainingSessions.isActive, true), isNull(trainingSessions.deletedAt))).limit(1);
+      if (!row || !video.sessionId) throw new BadRequestException('The exercise must belong to this video session and fighter.');
+      exercise = row.exercise;
+    }
+    const evidenceContext = {
+      exerciseId: exercise?.exerciseId ?? null, sessionExerciseId: exercise?.id ?? null,
+      sessionId: video.sessionId, exerciseName: exercise?.exerciseNameSnapshot ?? null,
+      protocolId: dto.evidenceProtocol ?? 'whole_body_v1' as const,
+      purpose: 'training' as const, selectedBy: actor.id,
+    };
     let job: typeof analysisJobs.$inferSelect;
     try {
       [job] = await this.db
@@ -81,6 +100,7 @@ export class JobsService {
           sessionId: video.sessionId,
           videoId: video.id,
           createdById: actor.id,
+          evidenceContext,
         })
         .returning();
     } catch (error) {
@@ -96,7 +116,14 @@ export class JobsService {
     try {
       await this.queue.add(
         'analyze',
-        { jobId: job.id, videoId: video.id, videoUrl: url },
+        {
+          jobId: job.id,
+          videoId: video.id,
+          videoUrl: url,
+          trainingMode: video.trainingType,
+          cameraView: video.cameraAngle,
+          exerciseContext: { exerciseId: evidenceContext.exerciseId, protocolId: evidenceContext.protocolId, purpose: evidenceContext.purpose },
+        },
         {
           jobId: job.id,
           attempts: 3,
@@ -145,15 +172,13 @@ export class JobsService {
       .from(analysisJobs)
       .orderBy(desc(analysisJobs.createdAt))
       .limit(100);
-    const visible = [];
-    for (const job of rows) {
-      if (
-        job.fighterId &&
-        (await this.videoAccess.canAccessFighter(actor, job.fighterId))
-      )
-        visible.push(job);
-    }
-    return visible;
+    const accessibleIds = await this.videoAccess.accessibleFighterIds(
+      actor,
+      rows.flatMap((job) => (job.fighterId ? [job.fighterId] : [])),
+    );
+    return rows.filter(
+      (job) => job.fighterId && accessibleIds.has(job.fighterId),
+    );
   }
 
   async getResult(actor: AuthenticatedUser, id: string): Promise<unknown> {
@@ -220,19 +245,23 @@ export class JobsService {
       .where(eq(analysisJobs.hasImpairment, true))
       .orderBy(desc(analysisJobs.createdAt))
       .limit(50);
-    const visible = [];
-    for (const job of rows) {
-      if (
-        job.fighterId &&
-        (await this.videoAccess.canAccessFighter(actor, job.fighterId))
-      )
-        visible.push(job);
-    }
-    return visible;
+    const accessibleIds = await this.videoAccess.accessibleFighterIds(
+      actor,
+      rows.flatMap((job) => (job.fighterId ? [job.fighterId] : [])),
+    );
+    return rows.filter(
+      (job) => job.fighterId && accessibleIds.has(job.fighterId),
+    );
   }
 
   async updateJobStatus(id: string, dto: UpdateJobStatusDto) {
     const current = await this.getJob(id);
+    // A committed callback may lose its HTTP response. Accept only an identical
+    // completion receipt on retry; never let a terminal result be replaced.
+    if (current.status === 'DONE' && dto.status === 'DONE' &&
+        current.resultUrl === dto.resultUrl && (current.score ?? null) === (dto.score ?? null)) {
+      return current;
+    }
     if (current.status === 'DONE' || current.status === 'FAILED') {
       throw new ConflictException({
         code: 'JOB_TERMINAL',

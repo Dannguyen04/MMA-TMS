@@ -197,7 +197,6 @@ const DECISION_MESSAGES: Record<ReviewDecision, string> = {
 async function reviewTarget(formData: FormData, idField: string) {
     const auth = await authorizeAction("ai_findings:review");
     if (!auth.ok) return { ok: false, error: actionError(auth.message) } as const;
-    if (!platformFeatureAvailable("coachAiReview")) return { ok: false, error: actionError(PLATFORM_FEATURE_UNAVAILABLE_MESSAGE) } as const;
     const parsed = reviewSchema.safeParse({
         analysisId: text(formData.get("analysisId")),
         targetId: text(formData.get(idField)),
@@ -255,7 +254,6 @@ const coachReviewSchema = z.object({
 export async function submitCoachReviewAction(_prev: ActionState<CoachReview>, formData: FormData): Promise<ActionState<CoachReview>> {
     const auth = await authorizeAction("ai_findings:review");
     if (!auth.ok) return actionError(auth.message);
-    if (!platformFeatureAvailable("coachAiReview")) return actionError(PLATFORM_FEATURE_UNAVAILABLE_MESSAGE);
     const parsed = coachReviewSchema.safeParse({
         analysisId: text(formData.get("analysisId")),
         rating: text(formData.get("rating")) ?? "",
@@ -274,5 +272,5 @@ export async function submitCoachReviewAction(_prev: ActionState<CoachReview>, f
     }
     revalidateVideo(analysis.videoId, analysis.fighterId);
     if (!result.analysis.coachReview) return actionError("The review couldn't be saved. Try again.");
-    return actionSuccess("Coach review saved. The fighter has been notified.", result.analysis.coachReview);
+    return actionSuccess("Coach review saved.", result.analysis.coachReview);
 }

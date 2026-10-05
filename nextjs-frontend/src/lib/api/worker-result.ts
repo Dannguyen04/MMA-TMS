@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { movementEvidenceSchema, MOVEMENT_REVIEW_LABELS } from "@/lib/domain/movement-evidence";
 
 import { LOW_CONFIDENCE_THRESHOLD } from "@/lib/domain/rules";
 import { TECHNIQUE_LABELS } from "@/lib/domain/labels";
@@ -43,12 +44,15 @@ export const frameSchema = z.object({
     kickStateLabel: z.string().optional(),
     activeLeg: z.string().optional(),
     diagnosticOnly: z.boolean().optional(),
+    observationKind: z.enum(["fresh_detection", "cached_between_detection", "missing_detection"]).optional(),
+    isDiscontinuous: z.boolean().optional(),
     reasonCodes: z.array(z.string()).optional(),
     landmarks: z.array(landmarkSchema),
 });
 
 const findingSchema = z.object({
     id: z.string(),
+    actionId: z.string().optional(),
     category: z.string(),
     title: z.string(),
     description: z.string(),
@@ -65,9 +69,9 @@ const kickSchema = z.object({
     score: z.number().nullable(),
     grade: z.string(),
     details: z.array(z.string()),
-    minChamberAngle: z.number(),
-    maxExtensionAngle: z.number(),
-    peakSpeed: z.number(),
+    minChamberAngle: z.number().nullable(),
+    maxExtensionAngle: z.number().nullable(),
+    peakSpeed: z.number().nullable(),
     startTimeMs: z.number(),
     endTimeMs: z.number(),
 });
@@ -78,9 +82,9 @@ const punchSchema = z.object({
     score: z.number().nullable(),
     grade: z.string(),
     details: z.array(z.string()),
-    maxElbowAngle: z.number(),
-    peakSpeed: z.number(),
-    guardPreserved: z.boolean(),
+    maxElbowAngle: z.number().nullable(),
+    peakSpeed: z.number().nullable(),
+    guardPreserved: z.boolean().nullable(),
     startTimeMs: z.number(),
     impactTimeMs: z.number(),
     endTimeMs: z.number(),
@@ -596,10 +600,24 @@ export const workerResultSchema = z.object({
     findings: z.array(findingSchema).optional(),
     summary: z.record(z.string(), z.unknown()).optional(),
     analysisQuality: analysisQualitySchema.optional(),
+    movementEvidence: movementEvidenceSchema.optional(),
     sessionInsights: sessionInsightsSchema.optional(),
     coachingPlan: coachingPlanSchema.optional(),
     advancedAI: advancedAIExtensionSchema.optional(),
-}).passthrough();
+}).passthrough().superRefine((result, ctx) => {
+    const report = result.movementEvidence;
+    if (!report) return;
+    const byFrame = new Map(result.frames.map(f => [f.frameIdx, f]));
+    const invalidWindow = report.windows.some(w => {
+        const first = byFrame.get(w.startFrame);
+        const last = byFrame.get(w.endFrame);
+        return w.endMs > result.meta.durationMs || !first || !last ||
+            Math.abs(first.timeMs - w.startMs) >= 2 || Math.abs(last.timeMs - w.endMs) >= 2;
+    });
+    if (report.coverage.totalFrames !== result.frames.length || invalidWindow ||
+        (result.analysisQuality?.status.toLowerCase() === "blocked" && report.status !== "recapture"))
+        ctx.addIssue({ code: "custom", path: ["movementEvidence"], message: "Evidence does not match the source timeline or quality gate" });
+});
 
 export type WorkerLandmark = z.infer<typeof landmarkSchema>;
 export type WorkerFrame = z.infer<typeof frameSchema>;
@@ -751,7 +769,9 @@ export function parseWorkerResult(json: unknown): WorkerResult | null {
 export function posesFromWorkerFrames(frames: WorkerFrame[]): PoseFrame[] {
     return [...frames]
         .sort((a, b) => a.timeMs - b.timeMs)
-        .map((frame) => ({ timeMs: frame.timeMs, keypoints: frame.landmarks.length === KEYPOINT_COUNT ? frame.landmarks : [] }));
+        .map((frame) => ({ timeMs: frame.timeMs, keypoints: frame.landmarks.length === KEYPOINT_COUNT &&
+            !frame.isDiscontinuous && !frame.diagnosticOnly &&
+            (frame.observationKind === undefined || frame.observationKind === "fresh_detection") ? frame.landmarks : [] }));
 }
 
 /* ─── Mapping ─────────────────────────────────────────────────────────────── */
@@ -794,10 +814,10 @@ function cleanTitle(title: string): string {
     return title.replace(/\s*\([^)]*\)\s*$/, "").trim() || title;
 }
 
-function strikeTypeFrom(punchType: string, elbowDeg: number): StrikeType {
+function strikeTypeFrom(punchType: string): StrikeType {
     const type = punchType.toLowerCase();
     if (type === "jab" || type === "cross" || type === "hook") return type;
-    return elbowDeg < 125 ? "hook" : "cross";
+    return "punch"; // Unknown/unsupported labels must not be guessed from elbow angle.
 }
 
 export function mapWorkerResult(result: WorkerResult, context: WorkerResultContext): AIAnalysis {
@@ -820,12 +840,6 @@ export function mapWorkerResult(result: WorkerResult, context: WorkerResultConte
         }),
     );
     const metresPerUnit = span && span > 0.05 ? ((context.fighterHeightCm / 100) * 0.78) / span : (context.fighterHeightCm / 100) * 1.2;
-
-    const limbConfidence = (limb: Limb, windowFrames: WorkerFrame[]): number => {
-        const chain = LIMB_CHAIN[limb];
-        const values = windowFrames.flatMap((f) => [f.landmarks[chain.root].conf, f.landmarks[chain.joint].conf, f.landmarks[chain.end].conf]);
-        return values.length > 0 ? round(average(values), 2) : 0.5;
-    };
 
     const motion = (limb: Limb, windowFrames: WorkerFrame[]): { peakSpeed: number | null; accelerationProxy: number } => {
         const end = LIMB_CHAIN[limb].end;
@@ -870,19 +884,29 @@ export function mapWorkerResult(result: WorkerResult, context: WorkerResultConte
     }
 
     const drafts: Draft[] = [];
-    for (const punch of result.punches ?? []) {
+    const actionFor = (family: string, start: number, end: number, side?: string) => {
+        const matches = (result.actions ?? []).filter((a) => a.family === family &&
+            Math.abs(a.phases.startTimeMs - start) < 1 && Math.abs(a.phases.endTimeMs - end) < 1 &&
+            (!side || a.attackingSide === side));
+        return matches.length === 1 ? matches[0] : undefined;
+    };
+    const qualityBlocked = result.analysisQuality?.status?.toLowerCase() === "blocked";
+    for (const punch of qualityBlocked ? [] : result.punches ?? []) {
+        if (punch.maxElbowAngle === null || punch.peakSpeed === null || punch.guardPreserved === null) continue;
+        const action = actionFor("punch", punch.startTimeMs, punch.endTimeMs, punch.arm);
         const limb: Limb = punch.arm === "left" ? "left_arm" : "right_arm";
         const windowFrames = within(punch.startTimeMs, punch.endTimeMs);
         const { peakSpeed, accelerationProxy } = motion(limb, windowFrames);
         drafts.push({
             chamberDeg: null,
             detection: {
-                type: strikeTypeFrom(punch.punchType, punch.maxElbowAngle),
+                workerActionId: action?.id,
+                type: strikeTypeFrom(punch.punchType),
                 limb,
                 startMs: Math.round(punch.startTimeMs),
                 peakMs: Math.round(punch.impactTimeMs),
                 endMs: Math.round(punch.endTimeMs),
-                confidence: limbConfidence(limb, windowFrames),
+                confidence: action?.confidence.detection ?? null,
                 peakSpeed: round(clamp(peakSpeed ?? punch.peakSpeed * metresPerUnit, 0, 30), 1),
                 accelerationProxy,
                 jointAngleDeg: Math.round(punch.maxElbowAngle),
@@ -893,7 +917,9 @@ export function mapWorkerResult(result: WorkerResult, context: WorkerResultConte
             },
         });
     }
-    for (const kick of result.kicks) {
+    for (const kick of qualityBlocked ? [] : result.kicks) {
+        if (kick.minChamberAngle === null || kick.maxExtensionAngle === null || kick.peakSpeed === null) continue;
+        const action = actionFor("kick", kick.startTimeMs, kick.endTimeMs);
         const windowFrames = within(kick.startTimeMs, kick.endTimeMs);
         const allWindow = frames.filter((f) => f.timeMs >= kick.startTimeMs && f.timeMs <= kick.endTimeMs);
         const leftVotes = allWindow.filter((f) => f.activeLeg === "left").length;
@@ -906,12 +932,13 @@ export function mapWorkerResult(result: WorkerResult, context: WorkerResultConte
         drafts.push({
             chamberDeg: kick.minChamberAngle,
             detection: {
+                workerActionId: action?.id,
                 type: "kick",
                 limb,
                 startMs: Math.round(kick.startTimeMs),
                 peakMs,
                 endMs: Math.round(kick.endTimeMs),
-                confidence: limbConfidence(limb, windowFrames),
+                confidence: action?.confidence.detection ?? null,
                 peakSpeed: round(clamp(peakSpeed ?? kick.peakSpeed * metresPerUnit, 0, 30), 1),
                 accelerationProxy,
                 jointAngleDeg: Math.round(kick.maxExtensionAngle),
@@ -924,13 +951,17 @@ export function mapWorkerResult(result: WorkerResult, context: WorkerResultConte
     }
 
     drafts.sort((a, b) => a.detection.startMs - b.detection.startMs);
-    const detections: Detection[] = drafts.map((d, i) => ({ ...d.detection, id: `det-${key}-${pad(i + 1, 3)}` }));
+    const detections: Detection[] = drafts.map((d, i) => ({
+        ...d.detection,
+        id: `det-${key}-${pad(i + 1, 3)}`,
+        confidenceAvailable: d.detection.confidence !== null,
+    }));
 
     // Combinations: strikes that follow each other within 450 ms.
     const combinations: Combination[] = [];
     let group: Detection[] = [];
     const closeGroup = () => {
-        if (group.length >= 2) {
+        if (group.length >= 2 && !result.movementEvidence) {
             const id = `cmb-${key}-${pad(combinations.length + 1, 2)}`;
             group.forEach((d) => (d.combinationId = id));
             combinations.push({
@@ -939,7 +970,7 @@ export function mapWorkerResult(result: WorkerResult, context: WorkerResultConte
                 detectionIds: group.map((d) => d.id),
                 startMs: group[0].startMs,
                 endMs: group[group.length - 1].endMs,
-                confidence: round(average(group.map((d) => d.confidence)) * 0.97, 2),
+                confidence: null, // No calibrated combination model is available.
             });
         }
         group = [];
@@ -953,7 +984,7 @@ export function mapWorkerResult(result: WorkerResult, context: WorkerResultConte
 
     // Movement events the worker output supports: guard drops and tracking gaps.
     const drafted: Omit<MovementEvent, "id">[] = [];
-    for (const detection of detections) {
+    for (const detection of result.movementEvidence ? [] : detections) {
         if (detection.guardMaintained) continue;
         const after = tracked.filter((f) => f.timeMs > detection.endMs && f.timeMs <= detection.endMs + 1500);
         const recovered = after.find((f) => oppositeHandUp(detection.limb, f));
@@ -975,7 +1006,7 @@ export function mapWorkerResult(result: WorkerResult, context: WorkerResultConte
         if (gapStart !== null && (!lost || last)) {
             const endMs = frame.timeMs;
             if (endMs - gapStart >= 300) {
-                drafted.push({ type: "tracking_lost", startMs: Math.round(gapStart), endMs: Math.round(endMs), confidence: 0.95, detail: "Fighter not detected in frame" });
+                drafted.push({ type: "tracking_lost", startMs: Math.round(gapStart), endMs: Math.round(endMs), confidence: null, detail: "Fighter not detected in frame" });
             }
             gapStart = null;
         }
@@ -1010,7 +1041,7 @@ export function mapWorkerResult(result: WorkerResult, context: WorkerResultConte
         balanceScore: Math.round(clamp(100 - hipSpread * 600, 35, 98)),
     });
 
-    const workerFindings = result.findings ?? (result.punches ?? []).flatMap((p) => p.findings);
+    const workerFindings = result.movementEvidence ? [] : result.findings ?? (result.punches ?? []).flatMap((p) => p.findings);
     const findings: AIFinding[] = workerFindings.map((finding, index) => {
         const nearest = detections.reduce<Detection | null>(
             (best, d) => (Math.abs(d.peakMs - finding.timeMs) <= 800 && (!best || Math.abs(d.peakMs - finding.timeMs) < Math.abs(best.peakMs - finding.timeMs)) ? d : best),
@@ -1018,7 +1049,9 @@ export function mapWorkerResult(result: WorkerResult, context: WorkerResultConte
         );
         return {
             id: `fd-${key}-${index + 1}`,
-            category: finding.category === "guard" ? "guard" : (nearest?.type ?? "movement_quality"),
+            workerActionId: finding.actionId,
+            workerFindingId: finding.id,
+            category: finding.category === "guard" ? "guard" : (nearest?.type === "punch" ? "movement_quality" : nearest?.type ?? "movement_quality"),
             impact: IMPACT_BY_SEVERITY[finding.severity],
             title: cleanTitle(finding.title),
             description: finding.description,
@@ -1031,8 +1064,22 @@ export function mapWorkerResult(result: WorkerResult, context: WorkerResultConte
         };
     });
 
-    const overallConfidence = detections.length > 0 ? round(average(detections.map((d) => d.confidence)), 2) : 0;
-    const lowCount = detections.filter((d) => d.confidence < LOW_CONFIDENCE_THRESHOLD).length;
+    const measuredDetectionConfidences = detections
+        .map((detection) => detection.confidence)
+        .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+    const confidenceAvailable = detections.length > 0 && measuredDetectionConfidences.length === detections.length;
+    const overallConfidence = confidenceAvailable ? round(average(measuredDetectionConfidences), 2) : null;
+    const lowCount = detections.filter((d) => d.confidence !== null && d.confidence < LOW_CONFIDENCE_THRESHOLD).length;
+    const rawEvidenceQuality = result.analysisQuality?.status?.toLowerCase();
+    const evidenceQuality = rawEvidenceQuality === "blocked"
+        ? "blocked"
+        : rawEvidenceQuality === "degraded" || rawEvidenceQuality === "acceptable"
+          ? "degraded"
+          : rawEvidenceQuality === "pass" || rawEvidenceQuality === "excellent" || rawEvidenceQuality === "good"
+            ? "pass"
+            : "unknown";
+    const poseConfidence = result.analysisQuality?.metrics.meanKeypointConfidence ?? null;
+    const coachingEligible = !result.movementEvidence && evidenceQuality === "pass" && confidenceAvailable;
 
     return {
         id: context.analysisId,
@@ -1044,10 +1091,22 @@ export function mapWorkerResult(result: WorkerResult, context: WorkerResultConte
         fps: result.meta.fps,
         models: { ...context.models, pose: result.meta.model ?? context.models.pose },
         overallConfidence,
-        trackingQuality: frames.length > 0 ? round(tracked.length / frames.length, 2) : 0,
-        summary:
-            `The model detected ${detections.length} strikes (${metrics.strikesPerMin} per minute), including ${metrics.combinations} combinations, with an estimated guard uptime of ${metrics.guard.uptimePct}%. ` +
-            (lowCount > 0 ? `${lowCount} detections fell below 60% confidence and are marked for coach review.` : "Detections with confidence below 60% are marked for coach review."),
+        confidenceAvailable,
+        evidenceQuality,
+        poseConfidence,
+        coachingEligible,
+        qualityReasons: result.analysisQuality?.reasonCodes ?? [],
+        movementEvidence: result.movementEvidence,
+        trackingQuality: result.analysisQuality?.metrics.targetTrackRatio ?? (frames.length > 0 ? round(tracked.length / frames.length, 2) : 0),
+        summary: result.movementEvidence
+            ? `${MOVEMENT_REVIEW_LABELS[result.movementEvidence.status]}. ${result.movementEvidence.windows.length} footage windows; these are not repetitions or verified strikes. A professional must interpret the video. No technique score or clinical conclusion is generated.`
+            :
+            `The model detected ${detections.length} strike candidates (${metrics.strikesPerMin} per minute), including ${metrics.combinations} combinations. ` +
+            (!coachingEligible
+                ? "Evidence quality or calibrated detection confidence is insufficient; a coach must verify the events before using technique findings."
+                : lowCount > 0
+                  ? `${lowCount} detections fell below 60% confidence and are marked for coach review.`
+                  : "Detections with confidence below 60% are marked for coach review."),
         detections,
         combinations,
         movementEvents: events,

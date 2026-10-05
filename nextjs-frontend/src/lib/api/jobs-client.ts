@@ -17,7 +17,7 @@ export class JobsApiError extends Error {
 }
 
 /** Tạo công việc qua Route Handler cùng origin để access token không đi vào JavaScript trình duyệt. */
-export async function createJob(input: { videoId: string }): Promise<{ jobId: string }> {
+export async function createJob(input: { videoId: string; sessionExerciseId?: string; evidenceProtocol?: "whole_body_v1" | "upper_body_v1" | "lower_body_v1" }): Promise<{ jobId: string }> {
     let response: Response;
     try {
         response = await fetch("/api/ai-jobs", {

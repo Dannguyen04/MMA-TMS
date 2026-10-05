@@ -9,6 +9,10 @@ import {
   Min,
   Max,
   ValidateNested,
+  IsInt,
+  ArrayMaxSize,
+  ArrayUnique,
+  MaxLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { createZodDto } from 'nestjs-zod';
@@ -86,8 +90,11 @@ export class PersistActionAssessmentDto {
   @IsString()
   grade?: string;
 
+  @IsOptional()
   @IsNumber()
-  confidence: number;
+  @Min(0)
+  @Max(1)
+  confidence: number | null;
 
   @IsOptional()
   @IsString()
@@ -116,14 +123,17 @@ export class PersistWorkerResultDto {
   @IsUUID()
   jobId: string;
 
+  @IsOptional()
   @IsUUID()
-  analysisId: string;
+  analysisId?: string;
 
   @IsOptional()
   @IsNumber()
   overallScore?: number;
 
   @IsArray()
+  @ArrayMaxSize(10000)
+  @ArrayUnique((action: PersistActionAssessmentDto) => action.actionId)
   @ValidateNested({ each: true })
   @Type(() => PersistActionAssessmentDto)
   actions: PersistActionAssessmentDto[];
@@ -133,6 +143,7 @@ export class PersistWorkerResultDto {
 }
 
 export class ReviewFindingDto {
+  @IsOptional()
   @IsUUID()
   coachId: string;
 
@@ -151,9 +162,15 @@ export class ReviewFindingDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  correctedLabel?: string;
 }
 
 export class CoachCorrectionDto {
+  @IsOptional()
   @IsUUID()
   coachId: string;
 
@@ -177,7 +194,7 @@ export class CoachCorrectionDto {
   overridesAi?: boolean;
 
   @IsOptional()
-  @IsNumber()
+  @IsInt()
   @Min(1)
   revision?: number;
 

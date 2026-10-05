@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, ValidationPipe, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { INestApplication, ValidationPipe, ForbiddenException, BadRequestException, ConflictException } from '@nestjs/common';
 import * as crypto from 'node:crypto';
 import { AppModule } from '../src/app.module.js';
 import { DRIZZLE } from '../src/database/database.module.js';
@@ -186,6 +186,7 @@ describe('Task TL-09 — Persist the Complete Coaching Loop', () => {
     expect(jobInfo.analysisId).toBeDefined();
 
     // 4. Persist worker result
+    await db.update(analysisJobs).set({ status: 'PROCESSING' }).where(eq(analysisJobs.id, jobInfo.jobId));
     const workerResult = await coachingService.persistWorkerResult({
       jobId: jobInfo.jobId,
       analysisId: jobInfo.analysisId,
@@ -305,7 +306,7 @@ describe('Task TL-09 — Persist the Complete Coaching Loop', () => {
         reviewText: 'Revision 2 missing supersedes',
         revision: 2,
       }),
-    ).rejects.toThrow(BadRequestException);
+    ).rejects.toThrow(ConflictException);
 
     // Revision 2 with valid supersedesId succeeds
     const rev2 = await coachingService.submitCoachCorrection({
@@ -329,7 +330,17 @@ describe('Task TL-09 — Persist the Complete Coaching Loop', () => {
       storageKey: `videos/${fighterId}/ref_1.mp4`,
     });
 
-    // Select reference
+    const job = await coachingService.createAnalysisJob({ videoId: video.id, fighterId });
+    await db.update(analysisJobs).set({ status: 'PROCESSING' }).where(eq(analysisJobs.id, job.jobId));
+    await coachingService.persistWorkerResult({ jobId: job.jobId, analysisId: job.analysisId, actions: [{
+      actionId: 'action_jab_golden_01', technique: 'jab', limbSide: 'left',
+      assessmentStatus: 'EVALUATED', overallScore: 90, confidence: 0.95,
+    }] });
+    await expect(coachingService.selectReference({ coachId, fighterId, technique: 'jab',
+      actionId: 'action_jab_golden_01', videoId: video.id })).rejects.toThrow();
+    await coachingService.reviewFinding({ coachId, analysisId: job.analysisId,
+      actionId: 'action_jab_golden_01', findingId: '@action', status: 'approved' });
+    // Only a reviewed action can be selected as a reference.
     const ref = await coachingService.selectReference({
       coachId,
       fighterId,
@@ -367,6 +378,7 @@ describe('Task TL-09 — Persist the Complete Coaching Loop', () => {
     });
 
     // Persist first result
+    await db.update(analysisJobs).set({ status: 'PROCESSING' }).where(eq(analysisJobs.id, firstJob.jobId));
     await coachingService.persistWorkerResult({
       jobId: firstJob.jobId,
       analysisId: firstJob.analysisId,

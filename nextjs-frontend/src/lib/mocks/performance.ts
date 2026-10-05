@@ -31,7 +31,7 @@ const MIN_TRAINING_DAYS_IN_JOINING_WEEK = 5;
 const TODAY_INDEX = -mondayOffset();
 
 type ScoreTable = Record<Technique, number>;
-type DetectionKind = StrikeType | "combination";
+type DetectionKind = Exclude<StrikeType, "punch"> | "combination";
 /** A value right after an event starts, and the value it reaches by this week. */
 type Progression = readonly [atEvent: number, thisWeek: number];
 
@@ -339,7 +339,7 @@ function buildWeek(profile: FighterProfile, week: WeekContext, previousScores: S
         const count = profile.detections[kind] * volumeFactor * eventFactor(event?.detections?.[kind] ?? 1, week);
         return trained ? Math.max(0, Math.round(count * (1 + random.jitter(0.08)))) : 0;
     };
-    const strikeCounts: Record<StrikeType, number> = { jab: detect("jab"), cross: detect("cross"), hook: detect("hook"), kick: detect("kick") };
+    const strikeCounts: Record<StrikeType, number> = { punch: 0, jab: detect("jab"), cross: detect("cross"), hook: detect("hook"), kick: detect("kick") };
     const combinations = detect("combination");
 
     const punchSpeed =

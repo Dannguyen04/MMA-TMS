@@ -1,6 +1,18 @@
 # Python Worker — Martial Arts Tracker Phase 2
 
-AI Worker phân tích video võ thuật dùng **YOLOv8-Pose** (chính xác hơn MediaPipe Phase 1).
+AI Worker phân tích video võ thuật dùng **YOLOv8-Pose**. Chưa có benchmark độc lập để kết luận chính xác hơn pipeline khác.
+
+Hướng hiện tại: [Movement evidence v1](../docs/AI-MOVEMENT-EVIDENCE-v1.md) —
+chuẩn bị bằng chứng để HLV/bác sĩ review, không tự chấm kỹ thuật hay quyết định y tế.
+
+## AI upgrade — implementation status
+
+See [implementation report](../AI_UPGRADE_STATUS.md) for setup, checks and remaining release blockers.
+The active detector remains legacy FSM; `shadowEventDetection` is experimental,
+not calibrated and never used to replace active output based on candidate counts.
+Session scores and prescriptive coaching are withheld while coverage is unknown.
+Worker delivery now requires migration 015, a registered active pose configuration,
+and successful authenticated `POST /coaching/results` before marking a job DONE.
 
 ## Cấu trúc
 
@@ -130,3 +142,99 @@ python worker.py
 ```
 
 Worker sẽ tự động lắng nghe queue `video-analysis` từ Redis và xử lý jobs do NestJS gửi đến.
+
+## Dataset công khai cho học tập
+
+Worker có catalog và bộ nhập dữ liệu cho UCF101, KTH Boxing, BoxingDataset và dữ liệu
+MMA-TMS tự gắn nhãn. Video được lưu cục bộ trong `data/public/` và không commit vào Git.
+
+```bash
+# Xem catalog, nguồn và giới hạn sử dụng
+python prepare_public_dataset.py catalog
+
+# Sau khi tải/giải nén UCF101 vào data/public/ucf101
+python prepare_public_dataset.py prepare \
+  --dataset ucf101 \
+  --root data/public/ucf101 \
+  --output data/manifests/ucf101.json
+
+# BoxingDataset dùng metadata.csv và giữ các clip từ cùng trận trong cùng split
+python prepare_public_dataset.py prepare \
+  --dataset boxing_dataset \
+  --root data/public/boxing_dataset \
+  --metadata data/public/boxing_dataset/metadata.csv \
+  --output data/manifests/boxing_dataset.json
+```
+
+Manifest chia `train/val/test` bằng hash của `groupId`. Chỉ các mẫu có cùng groupId
+mới được giữ cùng split; phải kiểm tra độc lập quan hệ video/võ sĩ trước khi coi
+đây là chia dữ liệu chống rò rỉ hoàn chỉnh. Nhãn public `boxing`/`punch` chỉ được
+dùng cho detection; chỉ nhãn kỹ thuật đã được gắn rõ (`jab`, `cross`, `hook`,
+`round_kick`) mới có `eligibleForTechniqueTraining=true`.
+
+Chạy split test qua pipeline hiện tại và tạo báo cáo:
+
+```bash
+python evaluate_public_dataset.py \
+  --manifest data/manifests/ucf101.json \
+  --split test \
+  --limit 20 \
+  --max-frames 180 \
+  --output data/reports/ucf101-test.json
+```
+
+Báo cáo này đo sự hiện diện hành động ở mức clip, không phải precision/recall
+của từng đòn theo thời gian. Technique accuracy kiểm tra nhãn có xuất hiện trong
+clip, không thay thế confusion matrix một-một theo sự kiện; dataset nhãn thô trả về
+`not_evaluable_no_fine_grained_labels` thay vì tạo ra một con số gây hiểu nhầm.
+
+## Thử nghiệm BoxingVI và video ngoài hệ thống (2026-10-03)
+
+Trạng thái: **research-only, chưa đủ điều kiện production**. Video, skeleton và
+weights thử nghiệm nằm trong `test_results/` (Git-ignored); không tải dữ liệu người
+dùng lên dịch vụ bên ngoài. Nguồn được cố định tại commit
+`96f3a7d0716040682381fb63f80afac96f74cfa6` của
+[boxe.ml](https://github.com/leonardosm14/boxe.ml), có nguồn gốc skeleton từ
+[BoxingVI](https://github.com/Bikudebug/BoxingVI). Giấy phép mã nguồn MIT không tự
+xác lập quyền thương mại đối với video/dữ liệu upstream.
+
+```sh
+python train_boxing_research.py fetch
+python train_boxing_research.py train --output test_results/boxing_research/new_run
+python evaluate_external_boxing.py --fresh --inference test_results/external/new_inference.json --model test_results/boxing_research/new_run --output benchmark_results/new_external_report.json
+```
+
+`fetch` chỉ tải tệp công khai, không chạy code/notebook/checkpoint của bên thứ ba.
+Huấn luyện dùng PyTorch có sẵn, seed cố định, checkpoint NPZ số (`allow_pickle=False`).
+Không thay mô hình active trong worker. Mỗi run lưu hash dữ liệu/mã/weights, tập
+train, validation, calibration và test tách theo video. Không khẳng định đã tách
+được võ sĩ vì metadata danh tính không có. V6 bị cách ly do schema khác; hàng nhãn
+lỗi bị loại mà không dịch chuyển quan hệ hàng nhãn/skeleton.
+
+`evaluate_external_boxing.py` đo ghép sự kiện một-một theo temporal IoU 0.1/0.3/0.5,
+không chế ra nhãn thời điểm chạm đích từ giữa đoạn. Phân loại trên ranh giới nhãn
+chuẩn được báo riêng, không được gọi là độ chính xác end-to-end.
+
+Kết quả chi tiết: `benchmark_results/boxing_research_run01.json`,
+`benchmark_results/boxing_data_audit.json`, `benchmark_results/external_adam_report.json`.
+Giữ nguyên báo cáo lần đầu; từ lúc xem kết quả, V9/V10 và adam không còn là test
+chưa từng quan sát để tinh chỉnh các phiên bản sau.
+
+`pipeline/release_safety.py` hiện chặn điểm, grade khẳng định, hướng dẫn kỹ thuật,
+nhãn kỹ thuật authoritative và confidence chưa kiểm định ở đầu ra worker/callback.
+Giữ timeline, ID và kinematic evidence; nhãn heuristic chỉ nằm trong trường
+`experimentalTechnique`. UI dùng `Punch (unclassified)` thay vì đoán cross/hook.
+Không có cờ môi trường để bỏ qua chính sách này. Cần một thay đổi phát hành được
+review cùng bằng chứng độc lập trước khi mở lại tự đánh giá kỹ thuật.
+## Movement evidence — hướng triển khai hiện tại (2026-10-03)
+
+Worker xuất thêm `movementEvidence`: ngữ cảnh bài tập khai báo, quality/coverage,
+đoạn video liên tục để chuyên gia xem lại và hướng dẫn ghi hình. Không cần nhận dạng
+được đòn; không coi đoạn review là lần lặp, không score hay kết luận y tế.
+
+CLI bổ sung `--exercise-id`, `--evidence-protocol` (`whole_body_v1`, `upper_body_v1`,
+`lower_body_v1`) và `--analysis-purpose` (`training`, `longitudinal_monitoring`,
+`rehabilitation`). Worker nhận `exerciseContext` tùy chọn trong queue payload;
+backend producer hiện tại chưa nối context này từ kế hoạch tập.
+
+Chi tiết phạm vi, giới hạn và kiểm chứng: [movement evidence v1](../docs/AI-MOVEMENT-EVIDENCE-v1.md).

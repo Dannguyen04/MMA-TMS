@@ -1,4 +1,5 @@
 import type { BodyJoint, ClearanceType, ClinicalRestrictions, ExaminationScope, RecoveryMilestone } from "./medical-contract";
+import type { MovementEvidence } from "./movement-evidence";
 import type { Scat6Record } from "./scat6";
 
 /**
@@ -205,7 +206,7 @@ export type Technique =
     | "head_movement";
 
 /** Single strikes the action-recognition model classifies. */
-export type StrikeType = Extract<Technique, "jab" | "cross" | "hook" | "kick">;
+export type StrikeType = Extract<Technique, "jab" | "cross" | "hook" | "kick"> | "punch";
 
 export type ExerciseCategory = "striking" | "defense" | "footwork" | "grappling" | "conditioning" | "strength" | "mobility";
 
@@ -468,13 +469,16 @@ export interface AIFeedback {
 
 export interface Detection {
     id: string;
+    workerActionId?: string;
     type: StrikeType;
     limb: Limb;
     startMs: number;
     peakMs: number;
     endMs: number;
     /** Model confidence, 0–1. */
-    confidence: number;
+    confidence: number | null;
+    /** False when the worker has not emitted a calibrated detector probability. */
+    confidenceAvailable?: boolean;
     /** Estimated peak speed of the striking hand/foot in m/s. */
     peakSpeed: number;
     /** Relative acceleration proxy derived from keypoint velocity deltas, 0–10. */
@@ -494,7 +498,7 @@ export interface Combination {
     detectionIds: string[];
     startMs: number;
     endMs: number;
-    confidence: number;
+    confidence: number | null;
 }
 
 export type MovementEventType =
@@ -512,7 +516,7 @@ export interface MovementEvent {
     type: MovementEventType;
     startMs: number;
     endMs: number;
-    confidence: number;
+    confidence: number | null;
     detail: string;
 }
 
@@ -570,6 +574,8 @@ export interface FindingMetricRef {
 
 export interface AIFinding {
     id: string;
+    workerActionId?: string;
+    workerFindingId?: string;
     category: FindingCategory;
     impact: FindingImpact;
     title: string;
@@ -659,7 +665,18 @@ export interface AIAnalysis {
     durationMs: number;
     fps: number;
     models: ModelVersions;
-    overallConfidence: number;
+    overallConfidence: number | null;
+    /** Whether overallConfidence came from an action detector, rather than a pose-quality proxy. */
+    confidenceAvailable?: boolean;
+    /** Worker evidence gate. Mock analyses omit this field. */
+    evidenceQuality?: "pass" | "degraded" | "blocked" | "unknown";
+    /** Mean keypoint confidence reported by the worker, when available. */
+    poseConfidence?: number | null;
+    /** False when outputs require coach verification and must not be treated as prescriptive coaching. */
+    coachingEligible?: boolean;
+    qualityReasons?: string[];
+    /** Reviewable footage, independent of strike labels; never a medical assessment. */
+    movementEvidence?: MovementEvidence;
     /** Share of frames where the fighter was tracked, 0–1. */
     trackingQuality: number;
     summary: string;

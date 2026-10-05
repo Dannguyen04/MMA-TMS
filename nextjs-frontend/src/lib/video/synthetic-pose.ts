@@ -460,7 +460,7 @@ function samplePose(p: Prepared, timeMs: number): SyntheticPose {
         const screenY = turned.y - toward * PROJECTION.elevation;
         const striking = chain !== null && (index === chain.root || index === chain.joint || index === chain.end);
         const base = 0.9 + 0.06 * Math.sin(index * 1.7 + seconds * 0.8);
-        const conf = trackingLost ? 0.1 : striking && strike ? Math.min(base, strike.detection.confidence + 0.05) : base;
+        const conf = trackingLost ? 0.1 : striking && strike && strike.detection.confidence !== null ? Math.min(base, strike.detection.confidence + 0.05) : base;
         return {
             x: clamp(PROJECTION.centerX + screenX * PROJECTION.scale * (9 / 16), 0.01, 0.99),
             y: clamp(PROJECTION.ground - screenY * PROJECTION.scale, 0.01, 0.99),

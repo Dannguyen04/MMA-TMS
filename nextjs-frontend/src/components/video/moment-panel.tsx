@@ -12,7 +12,7 @@ import { Card } from "@/components/ui/card";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { FINDING_IMPACT_LABELS, LIMB_LABELS, MOVEMENT_EVENT_LABELS, REVIEW_DECISION_LABELS } from "@/lib/domain/labels";
 import type { AIAnalysis, AIFinding, Detection, MovementEvent } from "@/lib/domain/types";
-import { formatNumber, formatTimestamp } from "@/lib/format";
+import { formatConfidence, formatNumber, formatTimestamp } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { byStart, detectionAt, eventsAt, findingsCiting, nextDetection, previousDetection, strikeObservation } from "@/lib/video/analysis-nav";
 import { usePlayback, usePlaybackStore } from "./playback-store";
@@ -61,7 +61,7 @@ export function MomentPanel({ analysis, findings, onSelectFinding, className }: 
                 </div>
             </div>
             <p aria-live="polite" className="sr-only">
-                {playing ? "" : detection ? `${strikeObservation(detection.type)} at ${formatTimestamp(detection.peakMs)}, ${Math.round(detection.confidence * 100)}% confidence.` : "No strike at the playhead."}
+                {playing ? "" : detection ? `${strikeObservation(detection.type)} at ${formatTimestamp(detection.peakMs)}, confidence: ${formatConfidence(detection.confidence)}.` : "No strike at the playhead."}
             </p>
             <div className="px-4 pb-4">
                 {detection ? (

@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "1.0.0",
+  "modelId": "boxing-pose-tcn-research-v1",
+  "mode": "research_only",
+  "featureVersion": "body_relative_image_pose_v1",
+  "labels": [
+    "jab",
+    "cross",
+    "lead_hook",
+    "rear_hook",
+    "lead_uppercut",
+    "rear_uppercut"
+  ],
+  "seed": 20261003,
+  "temperature": 1.087648297355191,
+  "weightsSha256": "23898c2a5f646e3a0a1a2700cd97e413b0ae801debd8bf6647a66d391142fee1",
+  "dataAuditSha256": "b28208158fe958d0e77171b0f371aef5b7fb511dcd9cf40c3130c053830e6558",
+  "productionEligible": false,
+  "blockedReasons": [
+    "COMMERCIAL_DATA_RIGHTS_UNVERIFIED",
+    "FIGHTER_INDEPENDENCE_UNVERIFIED",
+    "NO_BACKGROUND_TRAINING",
+    "NO_COACH_QUALITY_LABELS",
+    "NO_INDEPENDENT_PRODUCTION_ACCEPTANCE",
+    "POSE_SOURCE_DOMAIN_SHIFT"
+  ],
+  "sourceHashes": {
+    "train_boxing_research.py": "f7ddfc8b6288e21adfa623c0b9eca0ea4219d10b73bad9053c385c01d6e24fb9",
+    "pipeline/boxing_research.py": "11a52401638b4f4fa64ce742c3e4ffc5b579d4fb20269f7b9b894ca975733a39"
+  }
+}

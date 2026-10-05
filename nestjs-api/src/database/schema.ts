@@ -28,6 +28,24 @@ import {
 
 export type AlertSeverity = 'medium' | 'high' | 'critical';
 
+export const movementEvidenceReviews = pgTable('movement_evidence_reviews', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  jobId: uuid('job_id').notNull().references(() => analysisJobs.id, { onDelete: 'restrict' }),
+  windowId: text('window_id').notNull(),
+  reviewerId: uuid('reviewer_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  reviewerRole: text('reviewer_role').notNull(),
+  revision: integer('revision').notNull(),
+  requestId: uuid('request_id').notNull(),
+  requestHash: text('request_hash').notNull(),
+  evidenceHash: text('evidence_hash').notNull(),
+  decision: text('decision').notNull(), notes: text('notes').notNull(),
+  startMs: doublePrecision('start_ms'), endMs: doublePrecision('end_ms'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  unique('uq_movement_review_request').on(t.reviewerId, t.requestId),
+  unique('uq_movement_review_revision').on(t.jobId, t.windowId, t.reviewerId, t.revision),
+]).enableRLS();
+
 /** Trạng thái khớp trong state machine */
 export type JointHealthState =
   'HEALTHY' | 'SUSPECTED' | 'SUSPECTED_AVOIDANCE' | 'CONFIRMED_IMPAIRMENT';
@@ -722,6 +740,11 @@ export const analysisJobs = pgTable(
     id: uuid('id').notNull().default(sql.raw('gen_random_uuid()')),
     userId: text('user_id').notNull().default(sql.raw("'anonymous'::text")),
     videoUrl: text('video_url').notNull(),
+    evidenceContext: jsonb('evidence_context').$type<{
+      exerciseId: string | null; sessionExerciseId: string | null; sessionId: string | null;
+      exerciseName: string | null; protocolId: 'whole_body_v1' | 'upper_body_v1' | 'lower_body_v1';
+      purpose: 'training'; selectedBy: string;
+    }>(),
     status: jobStatusEnum('status')
       .notNull()
       .default(sql.raw("'PENDING'::job_status")),
@@ -4240,7 +4263,7 @@ export const actionAssessments = pgTable('action_assessments', {
   assessmentStatus: text('assessment_status').notNull(),
   overallScore: integer('overall_score'),
   grade: text('grade'),
-  confidence: doublePrecision('confidence').notNull().default(0.0),
+  confidence: doublePrecision('confidence'),
   rubricId: text('rubric_id'),
   evidence: jsonb('evidence')
     .$type<Record<string, any>>()
@@ -4273,6 +4296,7 @@ export const actionFindingReviews = pgTable('action_finding_reviews', {
   coachId: uuid('coach_id').notNull(),
   status: text('status').notNull(), // 'approved' | 'rejected' | 'corrected'
   notes: text('notes'),
+  correctedLabel: text('corrected_label'),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
     .defaultNow(),

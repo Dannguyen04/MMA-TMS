@@ -139,7 +139,7 @@ const techniqueScoresSchema = z.object({
     guard: z.number(),
     head_movement: z.number(),
 });
-const strikeCountsSchema = z.object({ jab: z.number(), cross: z.number(), hook: z.number(), kick: z.number() });
+const strikeCountsSchema = z.object({ punch: z.number().default(0), jab: z.number(), cross: z.number(), hook: z.number(), kick: z.number() });
 const performanceMetricSchema = z.object({
     id: z.string(),
     fighterId: z.string(),
@@ -408,9 +408,9 @@ function mapTechniques(value: (technique: Technique) => number): Record<Techniqu
     };
 }
 
-const STRIKE_TECHNIQUES: readonly Technique[] = STRIKE_TYPES;
+const STRIKE_TECHNIQUES: readonly Technique[] = STRIKE_TYPES.filter((type) => type !== "punch");
 
-function isStrikeType(technique: Technique): technique is StrikeType {
+function isStrikeType(technique: Technique): technique is Exclude<StrikeType, "punch"> {
     return STRIKE_TECHNIQUES.includes(technique);
 }
 

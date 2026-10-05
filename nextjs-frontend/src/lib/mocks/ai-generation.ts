@@ -536,20 +536,20 @@ export function lowConfidenceHooksFinding(o: TemplateOptions = {}): FindingTempl
         title: "Some hooks may have been misread — review suggested",
         description: (ctx) => {
             const hooks = strikesIn(ctx, { type: "hook" });
-            const low = hooks.filter((h) => h.confidence < LOW_CONFIDENCE_THRESHOLD).length;
+            const low = hooks.filter((h) => (h.confidence !== null && h.confidence < LOW_CONFIDENCE_THRESHOLD)).length;
             return `${low} of ${hooks.length} hook detections fell below the 60% confidence threshold. Looping crosses and hooks thrown at an angle to the camera are the most common source of confusion.`;
         },
         confidence: o.confidence ?? 0.52,
         evidence: { from: "detections", type: "hook", lowConfidence: true, limit: 5 },
         metric: (ctx) => ({
             label: "Hook detections below 60% confidence",
-            value: strikesIn(ctx, { type: "hook" }).filter((h) => h.confidence < LOW_CONFIDENCE_THRESHOLD).length,
+            value: strikesIn(ctx, { type: "hook" }).filter((h) => (h.confidence !== null && h.confidence < LOW_CONFIDENCE_THRESHOLD)).length,
             unit: "detections",
             reference: null,
         }),
         recommendation: "Confirm or correct these detections; corrections update the metrics and help retrain the strike model.",
         review: o.review ?? null,
-        when: (ctx) => strikesIn(ctx, { type: "hook" }).filter((h) => h.confidence < LOW_CONFIDENCE_THRESHOLD).length >= 2,
+        when: (ctx) => strikesIn(ctx, { type: "hook" }).filter((h) => (h.confidence !== null && h.confidence < LOW_CONFIDENCE_THRESHOLD)).length >= 2,
     };
 }
 
@@ -866,7 +866,7 @@ function buildTimeline(script: AnalysisScript, rng: Random): Timeline {
                 detectionIds: comboDrafts.map((d) => d.detection.id),
                 startMs: comboDrafts[0].detection.startMs,
                 endMs: comboDrafts[comboDrafts.length - 1].detection.endMs,
-                confidence: round(average(comboDrafts.map((d) => d.detection.confidence)) * 0.97, 2),
+                confidence: round(average(comboDrafts.map((d) => d.detection.confidence).filter((value): value is number => value !== null)) * 0.97, 2),
             });
         }
         const comboStart = comboDrafts[0].detection.startMs;
@@ -963,13 +963,13 @@ function selectEvidence(selector: EvidenceSelector, ctx: FindingContext): { time
                 (!selector.type || d.type === selector.type) &&
                 (!selector.limb || d.limb === selector.limb) &&
                 (selector.guardMaintained === undefined || d.guardMaintained === selector.guardMaintained) &&
-                (selector.lowConfidence === undefined || d.confidence < LOW_CONFIDENCE_THRESHOLD === selector.lowConfidence) &&
+                (selector.lowConfidence === undefined || (d.confidence !== null && d.confidence < LOW_CONFIDENCE_THRESHOLD) === selector.lowConfidence) &&
                 inWindow(d.peakMs, ctx.durationMs, selector.window),
         );
         const rankBy = selector.rankBy;
         const chosen = rankBy
             ? [...matches]
-                  .sort((a, b) => (selector.rank === "lowest" ? a[rankBy] - b[rankBy] : b[rankBy] - a[rankBy]))
+                  .sort((a, b) => (selector.rank === "lowest" ? (a[rankBy] ?? Number.POSITIVE_INFINITY) - (b[rankBy] ?? Number.POSITIVE_INFINITY) : (b[rankBy] ?? Number.NEGATIVE_INFINITY) - (a[rankBy] ?? Number.NEGATIVE_INFINITY)))
                   .slice(0, selector.limit)
                   .sort((a, b) => a.peakMs - b.peakMs)
             : spreadPick(matches, selector.limit);
@@ -1036,7 +1036,7 @@ function reviewDetections(drafts: DraftDetection[], reviewer: Reviewer, rng: Ran
     let hookReviews = 0;
     let rejected = false;
     for (const { detection, side } of drafts) {
-        if (detection.confidence >= LOW_CONFIDENCE_THRESHOLD) continue;
+        if (detection.confidence !== null && detection.confidence >= LOW_CONFIDENCE_THRESHOLD) continue;
         if (detection.type === "hook") {
             hookReviews += 1;
             detection.review =
@@ -1055,7 +1055,7 @@ function reviewDetections(drafts: DraftDetection[], reviewer: Reviewer, rng: Ran
             detection.review = feedbackFrom({ decision: "confirmed", note: null, correctedLabel: null }, reviewer);
         }
     }
-    const confident = drafts.filter((d) => d.detection.review === null && d.detection.confidence >= 0.8);
+    const confident = drafts.filter((d) => d.detection.review === null && d.detection.confidence !== null && d.detection.confidence >= 0.8);
     for (let i = 0; i < 6 && confident.length > 0; i++) {
         const [picked] = confident.splice(rng.int(0, confident.length - 1), 1);
         picked.detection.review = feedbackFrom({ decision: "confirmed", note: null, correctedLabel: null }, reviewer);
@@ -1083,7 +1083,7 @@ export function generateAnalysis(script: AnalysisScript): AIAnalysis {
         durationMs,
         fps: script.fps,
         models: script.models,
-        overallConfidence: round(average(detections.map((d) => d.confidence)), 2),
+        overallConfidence: round(average(detections.map((d) => d.confidence).filter((value): value is number => value !== null)), 2),
         trackingQuality: round(Math.min(script.tuning.trackingQuality, 1 - lostMs / durationMs), 2),
         summary: `The model detected ${detections.length} strikes (${metrics.strikesPerMin} per minute), including ${metrics.combinations} combinations, with an estimated guard uptime of ${metrics.guard.uptimePct}%. ${script.summaryNote}`,
         detections,

@@ -1,10 +1,10 @@
 import { TECHNIQUE_COLOR } from "@/components/charts/colors";
 import { TECHNIQUE_LABELS } from "@/lib/domain/labels";
-import type { Technique } from "@/lib/domain/types";
+import type { StrikeType, Technique } from "@/lib/domain/types";
 import { cn } from "@/lib/utils";
 
 export interface TechniqueChipProps {
-    technique: Technique;
+    technique: Technique | StrikeType;
     size?: "sm" | "md";
     className?: string;
 }

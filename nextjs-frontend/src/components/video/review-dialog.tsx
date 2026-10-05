@@ -64,7 +64,7 @@ export function ReviewDialog({ open, onClose, target, initialDecision }: ReviewD
 
     const subject = isFinding
         ? target.finding.title
-        : `${strikeObservation(target.detection.type)} at ${formatTimestamp(target.detection.peakMs)} · ${formatConfidence(target.detection.confidence)} confidence`;
+        : `${strikeObservation(target.detection.type)} at ${formatTimestamp(target.detection.peakMs)} · ${target.detection.confidenceAvailable === false ? "confidence unavailable" : `${formatConfidence(target.detection.confidence)} confidence`}`;
 
     return (
         <ActionDialog

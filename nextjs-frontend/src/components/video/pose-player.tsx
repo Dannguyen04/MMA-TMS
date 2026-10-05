@@ -76,7 +76,8 @@ export function PosePlayer({ analysis, stance, cameraAngle, sourceUrl, title, cl
     const [poseData, setPoseData] = useState<PoseDataState>(() => (sourceUrl && analysis.resultUrl ? { status: "loading" } : { status: "none" }));
 
     const { detections: analysisDetections, movementEvents, durationMs } = analysis;
-    const detections = useMemo(() => byStart(analysisDetections), [analysisDetections]);
+    // Evidence mode does not decorate the footage with unvalidated strike/angle claims.
+    const detections = useMemo(() => byStart(analysis.movementEvidence ? [] : analysisDetections), [analysis.movementEvidence, analysisDetections]);
     const reconstruction = sourceUrl === null;
     // Only the reconstruction needs the synthetic fighter; review updates to findings keep the same sampler.
     const sampler = useMemo(
@@ -382,7 +383,7 @@ function StageChips({ analysis, detections, showLabel }: { analysis: AIAnalysis;
                     ) : (
                         <span className="size-2.5 rounded-[3px]" style={{ backgroundColor: TECHNIQUE_COLOR[detection.type] }} />
                     )}
-                    {strikeObservation(detection.type)} · {formatConfidence(detection.confidence)}
+                    {strikeObservation(detection.type)} · {detection.confidenceAvailable === false ? "confidence unavailable" : formatConfidence(detection.confidence)}
                     {low && <span className="font-medium">· needs review</span>}
                     {detection.review && detection.review.decision !== "rejected" && (
                         <span className="inline-flex items-center gap-1 font-medium text-nav-fg">

@@ -205,6 +205,7 @@ function WizardFlow({
     const updateDetails = (patch: Partial<DetailsState>) => {
         setDetails((current) => {
             const next = { ...current, ...patch };
+            if (patch.sessionId !== undefined || patch.fighterId !== undefined) next.sessionExerciseId = '';
             if (patch.trainingType !== undefined && !next.titleEdited) next.title = defaultTitle(next.trainingType, now);
             return next;
         });
@@ -278,7 +279,9 @@ function WizardFlow({
                 durationMs: Math.round(duration * 1000),
             });
             if (cancelledRef.current) return;
-            const { jobId } = await createJob({ videoId: stored.videoId });
+            const { jobId } = await createJob({ videoId: stored.videoId,
+                sessionExerciseId: details.sessionExerciseId || undefined,
+                evidenceProtocol: details.evidenceProtocol ?? 'whole_body_v1' });
             if (cancelledRef.current) return;
             formData.set("videoId", stored.videoId);
             formData.set("sourceUrl", stored.sourceUrl);
@@ -382,7 +385,7 @@ function WizardFlow({
                                 message={detailErrorCount === 1 ? "Fix the highlighted detail to continue." : `Fix the ${detailErrorCount} highlighted details to continue.`}
                             />
                         )}
-                        <DetailsStep role={role} details={details} fighters={fighters} sessions={sessions} errors={visibleDetailErrors} onChange={updateDetails} />
+                        <DetailsStep role={role} details={details} fighters={fighters} sessions={sessions} errors={visibleDetailErrors} onChange={updateDetails} evidenceEnabled={mode === 'api'} />
                     </div>
                 )}
                 {step === 3 && summaryReady && footage.file && details.trainingType && details.cameraAngle && duration !== null && (
