@@ -5,6 +5,7 @@ import { cache, type ReactNode } from "react";
 
 import { InlineNote } from "@/components/dashboard/inline-note";
 import { AINotice } from "@/components/domain/ai-notice";
+import { formatVideoResolution } from "@/components/domain/domain-format";
 import { FighterIdentity } from "@/components/domain/fighter-identity";
 import { AIGeneratedBadge, ConfidenceBadge, VideoStatusBadge } from "@/components/domain/status-badges";
 import { TrainingTypeIcon } from "@/components/domain/training-type-icon";
@@ -22,6 +23,7 @@ import type { AIAnalysis, User } from "@/lib/domain/types";
 import { formatClock, formatConfidence, formatDateTime, formatFileSize, formatNumber, formatPercent, formatRelative, pluralize } from "@/lib/format";
 import { type SearchParams } from "@/lib/query";
 import { routes } from "@/lib/routes";
+import { platformFeatureAvailable } from "@/lib/services/platform-features";
 import { getVideoDetail, type VideoDetail } from "@/lib/services/videos";
 import { clamp, cn, param } from "@/lib/utils";
 import { AnalysisFailed } from "./analysis-failed";
@@ -47,7 +49,10 @@ export async function VideoDetailView({ user, videoId, role, searchParams }: Vid
     const { video, fighter, job, analysis, session } = detail;
     const now = new Date().toISOString();
     const canReview = role === "coach" && hasPermission(user, "ai_findings:review");
-    const canRetry = hasPermission(user, "videos:upload") && (role === "coach" || video.uploadedById === user.id || video.fighterId === user.profileId);
+    const canRetry =
+        platformFeatureAvailable("aiJobControl") &&
+        hasPermission(user, "videos:upload") &&
+        (role === "coach" || video.uploadedById === user.id || video.fighterId === user.profileId);
     const requestedMs = Number(param(searchParams.t));
     const initialMs = analysis && Number.isFinite(requestedMs) ? clamp(requestedMs, 0, analysis.durationMs) : 0;
     const sessionHref = session ? (role === "fighter" ? routes.fighter.session(session.id) : routes.coach.session(session.id)) : null;
@@ -240,7 +245,7 @@ function FootageCard({ detail, now }: { detail: VideoDetail; now: string }) {
                         { label: "File", value: video.fileName },
                         { label: "Size", value: formatFileSize(video.fileSizeMb) },
                         { label: "Length", value: formatClock(video.durationSec) },
-                        { label: "Resolution", value: `${video.resolution} · ${video.fps} fps` },
+                        { label: "Resolution", value: formatVideoResolution(video) },
                         { label: "Camera angle", value: CAMERA_ANGLE_LABELS[video.cameraAngle] },
                         { label: "Uploaded", value: `${formatRelative(video.uploadedAt, now)} by ${uploadedBy?.name ?? "a team member"}` },
                         ...(job ? [{ label: "Job", value: `${job.id} · attempt ${job.attempts}` }] : []),

@@ -1,5 +1,7 @@
 import type { ZodError } from "zod";
 
+import type { WriteResult } from "@/lib/domain/write-result";
+
 /**
  * Result shape returned by every Server Action used with useActionState.
  * Expected failures (validation, permissions) are returned, never thrown.
@@ -23,6 +25,11 @@ export function actionError(message: string, fieldErrors?: Record<string, string
 
 export function actionSuccess<T = undefined>(message: string, data?: T): ActionState<T> {
     return { status: "success", message, data };
+}
+
+/** A service write's outcome as the form's state. */
+export function writeResultState(result: WriteResult, successMessage: string): ActionState {
+    return result.ok ? actionSuccess(successMessage) : actionError(result.message, result.fieldErrors);
 }
 
 export function validationError(error: ZodError): ActionState<never> {

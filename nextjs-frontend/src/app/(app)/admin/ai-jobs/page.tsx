@@ -20,6 +20,7 @@ import { formatConfidence, formatDateTime, formatRelative, pluralize } from "@/l
 import { hrefWith, paginate, parseEnum, parseSortDirection, sortItems } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { listAIJobs, type AIJobListItem } from "@/lib/services/ai";
+import { platformFeatureAvailable } from "@/lib/services/platform-features";
 import { cn, param } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "AI jobs" };
@@ -69,7 +70,9 @@ export default async function AdminAIJobsPage({ searchParams }: PageProps<"/admi
     const page = paginate(sortItems(filtered, accessors[sort], dir), param(params.page), PAGE_SIZE);
     const sortProps = { pathname, searchParams: params, activeSort: sort, direction: dir };
 
-    const segments: SegmentedLinkItem[] = SEGMENTS.map((value) => ({
+    // Jobs from the jobs API report no confidence, so there is no low-confidence group to offer.
+    const reportsConfidence = items.some(({ job }) => job.avgConfidence !== null);
+    const segments: SegmentedLinkItem[] = SEGMENTS.filter((value) => reportsConfidence || value !== "low_confidence").map((value) => ({
         href: hrefWith(pathname, params, { status: value === "all" ? null : value, page: null }),
         label: SEGMENT_META[value].label,
         icon: SEGMENT_META[value].icon,
@@ -81,7 +84,7 @@ export default async function AdminAIJobsPage({ searchParams }: PageProps<"/admi
         <>
             <PageHeader
                 title="AI jobs"
-                description="Every video analysis run through the pipeline — watch progress, investigate failures and retry."
+                description={`Every video analysis run through the pipeline — watch progress${platformFeatureAvailable("aiJobControl") ? ", investigate failures and retry." : " and investigate failures."}`}
                 actions={<RefreshControl renderedAt={now} autoRefreshMs={inFlight > 0 ? AUTO_REFRESH_MS : null} />}
             />
 

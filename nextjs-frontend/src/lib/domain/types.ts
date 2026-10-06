@@ -1,5 +1,6 @@
 import type { BodyJoint, ClearanceType, ClinicalRestrictions, ExaminationScope, RecoveryMilestone } from "./medical-contract";
 import type { MovementEvidence } from "./movement-evidence";
+import type { Scat6Record } from "./scat6";
 
 /**
  * Domain model for MMA-TMS.
@@ -73,6 +74,14 @@ export interface RoleDefinition {
     label: string;
     description: string;
     permissions: Permission[];
+}
+
+export interface PermissionCatalogEntry {
+    permission: Permission;
+    /** Plain-language description, e.g. "View full medical records". */
+    label: string;
+    /** Area the permission belongs to: Fighters, Training, Video & AI, Medical or Administration. */
+    group: string;
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -209,7 +218,8 @@ export interface Exercise {
     category: ExerciseCategory;
     description: string;
     techniques: Technique[];
-    intensity: Intensity;
+    /** Null when the exercise library doesn't say (the training service keeps no intensity yet). */
+    intensity: Intensity | null;
     equipment: string[];
     defaultRounds: number | null;
     defaultRoundSec: number | null;
@@ -223,6 +233,7 @@ export type TrainingPhase = "base" | "build" | "fight_camp" | "taper" | "rehab" 
 
 export type PlanStatus = "draft" | "active" | "completed" | "archived";
 
+/** A training plan. Null fields are ones the training service doesn't store yet; the interface leaves them out. */
 export interface TrainingPlan {
     id: string;
     title: string;
@@ -232,12 +243,27 @@ export interface TrainingPlan {
     phase: TrainingPhase;
     focusAreas: Technique[];
     startDate: ISODate;
-    endDate: ISODate;
-    weeklySessionTarget: number;
+    /** Null for an open-ended plan. */
+    endDate: ISODate | null;
+    weeklySessionTarget: number | null;
     status: PlanStatus;
     notes: string;
     createdAt: ISODate;
     updatedAt: ISODate;
+}
+
+/** An exercise prescribed across a training plan, in running order. Every prescription field is optional. */
+export interface PlanExercise {
+    id: string;
+    planId: string;
+    exerciseId: string;
+    orderIndex: number;
+    sets: number | null;
+    reps: number | null;
+    durationSec: number | null;
+    /** Planned intensity on the RPE scale, 1–10. */
+    targetRpe: number | null;
+    notes: string | null;
 }
 
 export type SessionStatus = "scheduled" | "in_progress" | "completed" | "missed" | "cancelled";
@@ -587,7 +613,8 @@ export interface AbnormalMovementAlert {
     bodyRegion: BodyRegion;
     pattern: string;
     description: string;
-    confidence: number;
+    /** Null when the movement model gives none; no confidence is shown in its place. */
+    confidence: number | null;
     metric: {
         label: string;
         observed: number;
@@ -783,6 +810,8 @@ export interface MedicalExamination {
     decisionRestrictions?: ClinicalRestrictions | null;
     /** Until when the decision stands (medical service only). */
     validUntil?: ISODate | null;
+    /** A baseline's SCAT6: the answers as recorded and the scores the service computed. */
+    scat6?: Scat6Record | null;
 }
 
 export type InjuryType =
@@ -951,6 +980,7 @@ export interface MedicalClearance {
  * ──────────────────────────────────────────────────────────────────────────── */
 
 export type NotificationCategory =
+    | "admission"
     | "training"
     | "ai_analysis"
     | "ai_alert"

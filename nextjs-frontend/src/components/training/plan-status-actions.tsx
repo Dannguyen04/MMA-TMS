@@ -66,22 +66,24 @@ const RESTORE: Transition = {
     confirmLabel: "Restore as draft",
 };
 
-const TRANSITIONS: Record<PlanStatus, Transition[]> = {
-    draft: [ACTIVATE, ARCHIVE],
-    active: [COMPLETE, ARCHIVE],
-    completed: [ARCHIVE],
-    archived: [RESTORE],
+/** How each status change reads, by the status it moves to. */
+const TRANSITION_TO: Record<PlanStatus, Transition> = {
+    draft: RESTORE,
+    active: ACTIVATE,
+    completed: COMPLETE,
+    archived: ARCHIVE,
 };
 
 export interface PlanStatusActionsProps {
     planId: string;
-    status: PlanStatus;
+    /** The statuses this plan can move to now (`planTransitions`). */
+    transitions: PlanStatus[];
     planTitle: string;
     fighterName: string;
 }
 
 /** Status changes for a plan, each confirmed with its consequence spelled out. */
-export function PlanStatusActions({ planId, status, planTitle, fighterName }: PlanStatusActionsProps) {
+export function PlanStatusActions({ planId, transitions, planTitle, fighterName }: PlanStatusActionsProps) {
     const toast = useToast();
     const [active, setActive] = useState<Transition | null>(null);
     const [error, setError] = useState<string | undefined>();
@@ -108,7 +110,8 @@ export function PlanStatusActions({ planId, status, planTitle, fighterName }: Pl
 
     return (
         <>
-            {TRANSITIONS[status].map((transition) => {
+            {transitions.map((next) => {
+                const transition = TRANSITION_TO[next];
                 const Icon = transition.icon;
                 return (
                     <Button

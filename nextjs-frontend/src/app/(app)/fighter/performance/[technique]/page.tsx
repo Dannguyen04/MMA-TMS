@@ -25,7 +25,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard, type StatCardProps } from "@/components/ui/stat-card";
-import { EmptyState } from "@/components/ui/states";
+import { EmptyState, FeatureUnavailable } from "@/components/ui/states";
 import { TabNav } from "@/components/ui/tabs";
 import { requireFighterAccess } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
@@ -45,6 +45,7 @@ import {
     type TechniqueDetail,
     type TechniqueFindingRef,
 } from "@/lib/services/performance";
+import { platformFeatureAvailable } from "@/lib/services/platform-features";
 import { listCoachFeedback } from "@/lib/services/training";
 
 const COACH_TIPS_LIMIT = 5;
@@ -73,6 +74,14 @@ export default async function TechniqueDetailPage({ params }: PageProps<"/fighte
     if (!technique || !user.profileId) notFound();
     const fighter = await requireFighterAccess(user, user.profileId);
     const label = TECHNIQUE_LABELS[technique];
+    if (!platformFeatureAvailable("performance")) {
+        return (
+            <>
+                <PageHeader back={{ href: routes.fighter.performance, label: "Performance" }} eyebrow="Technique" title={label} />
+                <FeatureUnavailable service="training" title="Performance scores aren't available yet" />
+            </>
+        );
+    }
     const now = new Date().toISOString();
 
     const [rawDetail, summary, goals, feedback, coaches] = await Promise.all([

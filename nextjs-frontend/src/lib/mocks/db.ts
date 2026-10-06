@@ -19,6 +19,7 @@ import type {
     Notification,
     NotificationBroadcast,
     PerformanceMetric,
+    PlanExercise,
     RecoveryPlan,
     RoleDefinition,
     SystemSettings,
@@ -28,7 +29,9 @@ import type {
     User,
     Video,
 } from "@/lib/domain/types";
+import type { Applicant, Application } from "@/lib/domain/admissions";
 import type { MedicalReviewRequest } from "@/lib/domain/medical-contract";
+import { mockApplicants, mockApplications } from "./admissions";
 import { mockAbnormalMovementAlerts, mockAIAnalyses, mockAIJobs, mockAIModels, mockVideos } from "./ai";
 import {
     mockInjuries,
@@ -61,6 +64,7 @@ export interface MockDatabase {
     exercises: Exercise[];
     trainingPlans: TrainingPlan[];
     trainingSessions: TrainingSession[];
+    planExercises: PlanExercise[];
     coachFeedback: CoachFeedback[];
     goals: Goal[];
     performanceMetrics: PerformanceMetric[];
@@ -79,6 +83,9 @@ export interface MockDatabase {
     notifications: Notification[];
     broadcasts: NotificationBroadcast[];
     auditLogs: AuditLog[];
+    /** Self-registered accounts that can apply but aren't fighters yet. */
+    applicants: Applicant[];
+    admissionApplications: Application[];
 }
 
 function seedData(): MockDatabase {
@@ -92,6 +99,7 @@ function seedData(): MockDatabase {
         exercises: mockExercises,
         trainingPlans: mockTrainingPlans,
         trainingSessions: mockTrainingSessions,
+        planExercises: [],
         coachFeedback: mockCoachFeedback,
         goals: mockGoals,
         performanceMetrics: mockPerformanceMetrics,
@@ -110,6 +118,8 @@ function seedData(): MockDatabase {
         notifications: mockNotifications,
         broadcasts: mockBroadcasts,
         auditLogs: mockAuditLogs,
+        applicants: mockApplicants,
+        admissionApplications: mockApplications,
     };
 }
 

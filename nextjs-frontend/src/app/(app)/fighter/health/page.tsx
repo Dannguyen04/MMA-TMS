@@ -119,7 +119,7 @@ export default async function FighterHealthPage({ searchParams }: PageProps<"/fi
             }
             side={
                 <>
-                    <HealthStatusCard status={fighter.healthStatus}>
+                    <HealthStatusCard status={health.fighter.healthStatus}>
                         {followUp ? (
                             <div className="rounded-lg border border-border px-3 py-2.5 text-[13px]">
                                 <p className="flex items-center gap-1.5 text-fg-muted">
@@ -137,9 +137,7 @@ export default async function FighterHealthPage({ searchParams }: PageProps<"/fi
                                 </p>
                             </div>
                         ) : (
-                            medicalFeatureAvailable("followUps") && (
-                                <InlineNote icon={CalendarClock}>No follow-up booked — your doctor arranges your next check.</InlineNote>
-                            )
+                            <InlineNote icon={CalendarClock}>No follow-up booked — your doctor arranges your next check.</InlineNote>
                         )}
                         {contactDoctor && (
                             <InlineNote icon={HeartHandshake}>

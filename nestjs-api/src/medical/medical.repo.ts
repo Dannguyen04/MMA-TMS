@@ -425,10 +425,12 @@ export class MedicalRepository {
     const [row] = await database
       .select({
         fighterId: fighters.id,
+        // Written out: Drizzle prints ${fighters.id} in a select list as a bare
+        // "id", which is ambiguous inside this subquery.
         hasEffectiveDoctor: sql<boolean>`EXISTS (
           SELECT 1 FROM public.doctor_fighters df
           JOIN public.sports_doctors d ON d.id = df.doctor_id
-          WHERE df.fighter_id = ${fighters.id}
+          WHERE df.fighter_id = "fighters"."id"
             AND d.is_active AND d.deleted_at IS NULL
             AND df.starts_at <= now()
             AND (df.ends_at IS NULL OR df.ends_at > now())

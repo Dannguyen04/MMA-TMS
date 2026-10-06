@@ -10,8 +10,10 @@ vi.mock("@/lib/api/client", async (loadOriginal) => ({
     authenticatedMutableApiRequest,
     drainAuthenticatedCursorPages,
 }));
+vi.mock("./platform-features", () => import("@/test/platform-features-mock"));
 
 import type { User } from "@/lib/domain/types";
+import { platformFeatureAvailable } from "@/test/platform-features-mock";
 import { createGoal, listGoals } from "./goals";
 
 const actor = {} as User;
@@ -36,6 +38,7 @@ const backendGoal = {
 
 describe("goals API adapter", () => {
     beforeEach(() => {
+        platformFeatureAvailable.mockReturnValue(true);
         vi.stubEnv("APP_DATA_MODE", "api");
         authenticatedApiRequest.mockReset();
         authenticatedMutableApiRequest.mockReset();
@@ -85,5 +88,14 @@ describe("goals API adapter", () => {
         drainAuthenticatedCursorPages.mockRejectedValue(new Error("backend unavailable"));
 
         await expect(listGoals()).rejects.toThrow("backend unavailable");
+    });
+
+    it("asks nothing while the goals service isn't available", async () => {
+        platformFeatureAvailable.mockReturnValue(false);
+
+        await expect(listGoals({ fighterIds: ["fighter-1"] })).resolves.toEqual([]);
+        await expect(createGoal({} as Parameters<typeof createGoal>[0], actor)).rejects.toMatchObject({ code: "API_OPERATION_UNSUPPORTED" });
+        expect(drainAuthenticatedCursorPages).not.toHaveBeenCalled();
+        expect(authenticatedMutableApiRequest).not.toHaveBeenCalled();
     });
 });

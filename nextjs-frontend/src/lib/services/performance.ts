@@ -8,6 +8,7 @@ import { STRIKE_TYPES, TECHNIQUES } from "@/lib/domain/labels";
 import type { AIFeedback, FindingImpact, ISODate, PerformanceMetric, StrikeType, Technique } from "@/lib/domain/types";
 import type { MockDatabase } from "@/lib/mocks/db";
 import { average, groupBy, round, sum } from "@/lib/utils";
+import { platformFeatureAvailable } from "./platform-features";
 
 /**
  * Weekly performance: history, summaries, technique drill-downs and team views.
@@ -231,6 +232,7 @@ async function demoStore(): Promise<PerformanceStore> {
 /** Weekly snapshots for a fighter, oldest first, limited to the most recent `weeks`. */
 export async function getPerformanceHistory(fighterId: string, weeks = 12): Promise<PerformanceMetric[]> {
     if (!isDemoAuthEnabled()) {
+        if (!platformFeatureAvailable("performance")) return [];
         return authenticatedApiRequest(
             `/performance/fighters/${encodeURIComponent(fighterId)}/history?weeks=${encodeURIComponent(weeks)}`,
             z.array(performanceMetricSchema),
@@ -248,6 +250,7 @@ export function overallScore(scores: Record<Technique, number>): number {
 /** Headline performance for a fighter, or null when no snapshots exist. */
 export async function getPerformanceSummary(fighterId: string): Promise<PerformanceSummary | null> {
     if (!isDemoAuthEnabled()) {
+        if (!platformFeatureAvailable("performance")) return null;
         return authenticatedApiRequest(
             `/performance/fighters/${encodeURIComponent(fighterId)}/summary`,
             performanceSummarySchema.nullable(),
@@ -260,6 +263,7 @@ export async function getPerformanceSummary(fighterId: string): Promise<Performa
 /** Weekly score, detections, speed and recent AI findings for one technique; null without history. */
 export async function getTechniqueDetail(fighterId: string, technique: Technique): Promise<TechniqueDetail | null> {
     if (!isDemoAuthEnabled()) {
+        if (!platformFeatureAvailable("performance")) return null;
         return authenticatedApiRequest(
             `/performance/fighters/${encodeURIComponent(fighterId)}/techniques/${encodeURIComponent(technique)}`,
             techniqueDetailSchema.nullable(),
@@ -287,7 +291,7 @@ export async function getTechniqueDetail(fighterId: string, technique: Technique
 /** One row per fighter with snapshots, best overall score first. */
 export async function getTeamPerformance(fighterIds: string[]): Promise<TeamPerformanceRow[]> {
     if (!isDemoAuthEnabled()) {
-        if (fighterIds.length === 0) return [];
+        if (!platformFeatureAvailable("performance") || fighterIds.length === 0) return [];
         const params = new URLSearchParams();
         fighterIds.forEach((fighterId) => params.append("fighterId", fighterId));
         return authenticatedApiRequest(`/performance/team?${params.toString()}`, z.array(teamPerformanceRowSchema));
@@ -313,7 +317,7 @@ export async function getTeamPerformance(fighterIds: string[]): Promise<TeamPerf
 /** Team totals per week for the most recent `weeks` weeks, oldest first. */
 export async function getWeeklyVolume(fighterIds: string[], weeks = 12): Promise<WeeklyVolumeTotals[]> {
     if (!isDemoAuthEnabled()) {
-        if (fighterIds.length === 0) return [];
+        if (!platformFeatureAvailable("performance") || fighterIds.length === 0) return [];
         const params = new URLSearchParams({ weeks: String(weeks) });
         fighterIds.forEach((fighterId) => params.append("fighterId", fighterId));
         return authenticatedApiRequest(`/performance/weekly-volume?${params.toString()}`, z.array(weeklyVolumeSchema));

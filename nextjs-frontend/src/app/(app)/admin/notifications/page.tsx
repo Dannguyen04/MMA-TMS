@@ -8,11 +8,12 @@ import { BroadcastTable } from "@/components/admin/broadcast-table";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
-import { EmptyState } from "@/components/ui/states";
+import { EmptyState, FeatureUnavailable } from "@/components/ui/states";
 import { requireRole } from "@/lib/auth/session";
 import type { NotificationBroadcast, Role } from "@/lib/domain/types";
 import { APP_TIMEZONE, dayKey, formatNumber, formatRelative, formatTime, pluralize } from "@/lib/format";
 import { listBroadcasts, listUsers } from "@/lib/services/admin";
+import { platformFeatureAvailable } from "@/lib/services/platform-features";
 import { sum } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Broadcasts" };
@@ -21,6 +22,14 @@ const DAY_MS = 86_400_000;
 
 export default async function AdminNotificationsPage() {
     await requireRole("admin");
+    if (!platformFeatureAvailable("broadcasts")) {
+        return (
+            <>
+                <PageHeader title="Broadcasts" />
+                <FeatureUnavailable service="notification" title="Broadcasts aren't available yet" />
+            </>
+        );
+    }
     const nowDate = new Date();
     const now = nowDate.toISOString();
 

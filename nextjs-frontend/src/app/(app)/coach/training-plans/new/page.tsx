@@ -9,6 +9,7 @@ import { createPlan } from "@/lib/actions/training";
 import { addDaysToKey, dayKey } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { listFighters } from "@/lib/services/people";
+import { usesTrainingServiceForms } from "@/lib/services/platform-features";
 import { param } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "New training plan" };
@@ -24,6 +25,7 @@ export default async function NewPlanPage({ searchParams }: PageProps<"/coach/tr
 
     const requested = param(params.fighter);
     const prefilled = fighters.find((f) => f.id === requested);
+    const serviceForm = usesTrainingServiceForms();
     const today = dayKey(now);
     const defaults: PlanFormValues = {
         fighterId: prefilled?.id ?? "",
@@ -42,7 +44,7 @@ export default async function NewPlanPage({ searchParams }: PageProps<"/coach/tr
         <>
             <PageHeader
                 title="New training plan"
-                description="Set the objective, phase and weekly target. Check the fighter's Medical Clearance so the plan fits their restrictions."
+                description={`Set the objective, phase and ${serviceForm ? "dates" : "weekly target"}. Check the fighter's Medical Clearance so the plan fits their restrictions.`}
                 back={prefilled ? { href: routes.coach.fighterTraining(prefilled.id), label: prefilled.name } : { href: routes.coach.plans, label: "Training plans" }}
             />
             <PlanForm
@@ -53,6 +55,7 @@ export default async function NewPlanPage({ searchParams }: PageProps<"/coach/tr
                 defaults={defaults}
                 now={now}
                 cancelHref={prefilled ? routes.coach.fighterTraining(prefilled.id) : routes.coach.plans}
+                serviceForm={serviceForm}
             />
         </>
     );

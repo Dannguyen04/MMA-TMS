@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
-import { EmptyState } from "@/components/ui/states";
+import { EmptyState, FeatureUnavailable } from "@/components/ui/states";
 import { Pagination } from "@/components/ui/table";
 import { accessibleFighterIds } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
@@ -20,6 +20,7 @@ import { hrefWith, paginate, parseEnum, parseSortDirection, sortItems } from "@/
 import { routes } from "@/lib/routes";
 import { listGoals } from "@/lib/services/goals";
 import { listFighters } from "@/lib/services/people";
+import { platformFeatureAvailable } from "@/lib/services/platform-features";
 import { param } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Goals" };
@@ -37,6 +38,14 @@ function isOpen(goal: Goal): boolean {
 
 export default async function CoachGoalsPage({ searchParams }: PageProps<"/coach/goals">) {
     const user = await requireRole("coach");
+    if (!platformFeatureAvailable("goals")) {
+        return (
+            <>
+                <PageHeader title="Goals" />
+                <FeatureUnavailable service="training" title="Goals aren't available yet" />
+            </>
+        );
+    }
     const params = await searchParams;
     const now = new Date().toISOString();
 

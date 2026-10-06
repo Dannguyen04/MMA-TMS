@@ -13,7 +13,7 @@ vi.mock("next/headers", () => ({
 }));
 
 import { db } from "@/lib/mocks/db";
-import { DEMO_ACCOUNTS, endDemoSession, readDemoUser, signInDemoAccount, signInDemoWithPassword } from "./demo-session";
+import { DEMO_ACCOUNTS, DEMO_ADMISSION_CODE, DEMO_APPLICANT, endDemoSession, readDemoAccount, readDemoUser, signInDemoAccount, signInDemoApplicantWithCode, signInDemoWithPassword } from "./demo-session";
 
 describe("demo session", () => {
     beforeEach(() => {
@@ -66,5 +66,25 @@ describe("demo session", () => {
 
         expect(cookieValues.has(DEMO_SESSION_COOKIE)).toBe(false);
         await expect(readDemoUser()).resolves.toBeNull();
+    });
+
+    it("signs applicants in as applicants and registers new ones", async () => {
+        await expect(signInDemoAccount("applicant")).resolves.toMatchObject({ ok: true, account: { kind: "applicant" } });
+        expect(cookieValues.get(DEMO_SESSION_COOKIE)).toBe(DEMO_APPLICANT);
+        await expect(readDemoUser()).resolves.toBeNull();
+
+        const email = "new.applicant@lotus-combat.test";
+        await expect(signInDemoApplicantWithCode(email, "000000")).resolves.toMatchObject({ ok: false });
+        await expect(signInDemoApplicantWithCode(email, DEMO_ADMISSION_CODE)).resolves.toMatchObject({ ok: true, account: { kind: "applicant", applicant: { email } } });
+        await expect(readDemoAccount()).resolves.toMatchObject({ kind: "applicant", applicant: { email } });
+        // Coming back with the same email signs the same applicant in; academy members use their password.
+        await expect(signInDemoApplicantWithCode(email, DEMO_ADMISSION_CODE)).resolves.toMatchObject({ ok: true, account: { kind: "applicant", applicant: { email } } });
+        expect(db().applicants.filter((applicant) => applicant.email === email)).toHaveLength(1);
+        const staffEmail = db().users.find((user) => user.id === DEMO_ACCOUNTS.coach)!.email;
+        await expect(signInDemoApplicantWithCode(staffEmail, DEMO_ADMISSION_CODE)).resolves.toMatchObject({ ok: false });
+
+        cookieValues.clear();
+        await expect(signInDemoWithPassword(email, DEMO_PASSWORD)).resolves.toMatchObject({ ok: true, account: { kind: "applicant" } });
+        db().applicants = db().applicants.filter((applicant) => applicant.email !== email);
     });
 });

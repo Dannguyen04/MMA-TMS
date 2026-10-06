@@ -10,15 +10,18 @@ import { Popover } from "@/components/ui/popover";
 import { TONE_SOFT } from "@/components/ui/tone";
 import { useToast } from "@/components/ui/toast";
 import { markAllRead, markRead } from "@/lib/actions/notifications";
-import type { Notification } from "@/lib/domain/types";
 import { formatRelative } from "@/lib/format";
-import { routes } from "@/lib/routes";
+import type { NotificationBellData } from "@/lib/services/notifications";
 import { cn } from "@/lib/utils";
+import { useNotificationUpdates } from "./use-notification-updates";
 
-export function NotificationBell({ unread, latest, now }: { unread: number; latest: Notification[]; now: string }) {
+/** The header bell: unread count, the latest notifications, kept current while the page is open. */
+export function NotificationBell({ bell, now }: { bell: NotificationBellData; now: string }) {
+    const { unread, latest, canMarkAllRead, live, allHref } = bell;
     const toast = useToast();
     const [pending, startTransition] = useTransition();
     const headingRef = useRef<HTMLHeadingElement>(null);
+    useNotificationUpdates({ unread, live });
 
     const markAll = () => {
         // The button is disabled while pending and once nothing is unread, so keep focus inside the panel.
@@ -55,16 +58,12 @@ export function NotificationBell({ unread, latest, now }: { unread: number; late
                         <h2 ref={headingRef} tabIndex={-1} className="text-sm font-semibold focus:outline-none">
                             Notifications
                         </h2>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            disabled={unread === 0}
-                            loading={pending}
-                            onClick={markAll}
-                        >
-                            {!pending && <CheckCheck aria-hidden />}
-                            Mark all read
-                        </Button>
+                        {canMarkAllRead && (
+                            <Button variant="ghost" size="sm" disabled={unread === 0} loading={pending} onClick={markAll}>
+                                {!pending && <CheckCheck aria-hidden />}
+                                Mark all read
+                            </Button>
+                        )}
                     </div>
                     {latest.length === 0 ? (
                         <p className="px-4 py-10 text-center text-sm text-fg-muted">No notifications yet.</p>
@@ -119,15 +118,17 @@ export function NotificationBell({ unread, latest, now }: { unread: number; late
                             })}
                         </ul>
                     )}
-                    <div className="border-t border-border p-2">
-                        <Link
-                            href={routes.notifications}
-                            onClick={close}
-                            className="flex h-9 items-center justify-center rounded-lg text-sm font-medium text-primary-soft-fg hover:bg-surface-muted"
-                        >
-                            View all notifications
-                        </Link>
-                    </div>
+                    {allHref && (
+                        <div className="border-t border-border p-2">
+                            <Link
+                                href={allHref}
+                                onClick={close}
+                                className="flex h-9 items-center justify-center rounded-lg text-sm font-medium text-primary-soft-fg hover:bg-surface-muted"
+                            >
+                                View all notifications
+                            </Link>
+                        </div>
+                    )}
                 </div>
             )}
         </Popover>

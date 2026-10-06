@@ -5,9 +5,11 @@ import { z } from "zod";
 
 import { BODY_METRIC_LIMITS, NAME_MAX_LENGTH, PHONE_MAX_LENGTH, type MeasurementLimit } from "@/components/account/account-limits";
 import { canAccessFighter } from "@/lib/auth/access";
+import { requestPasswordRecovery } from "@/lib/auth/password-recovery";
 import { getCurrentUser } from "@/lib/auth/session";
 import { formatNumber } from "@/lib/format";
 import { updateFighterProfile, updateOwnProfile } from "@/lib/services/people";
+import { PLATFORM_FEATURE_UNAVAILABLE_MESSAGE, platformFeatureAvailable } from "@/lib/services/platform-features";
 import { actionError, actionSuccess, validationError, type ActionState } from "./state";
 
 /**
@@ -68,6 +70,7 @@ export interface ProfileUpdateResult {
 export async function updateProfileAction(_prev: ActionState<ProfileUpdateResult>, formData: FormData): Promise<ActionState<ProfileUpdateResult>> {
     const user = await getCurrentUser();
     if (!user) return actionError(SESSION_EXPIRED);
+    if (!platformFeatureAvailable("selfProfileEdit")) return actionError(PLATFORM_FEATURE_UNAVAILABLE_MESSAGE);
 
     const parsed = profileSchema.safeParse({ name: text(formData, "name"), phone: text(formData, "phone") ?? "" });
     if (!parsed.success) return validationError(parsed.error);
@@ -88,6 +91,7 @@ export async function updateBodyMetricsAction(_prev: ActionState, formData: Form
     const user = await getCurrentUser();
     if (!user) return actionError(SESSION_EXPIRED);
     if (user.role !== "fighter") return actionError("Only fighters can log their own body metrics.");
+    if (!platformFeatureAvailable("bodyMetrics")) return actionError(PLATFORM_FEATURE_UNAVAILABLE_MESSAGE);
 
     const parsed = bodyMetricsSchema.safeParse({
         weightKg: text(formData, "weightKg"),
@@ -113,5 +117,7 @@ export async function updateBodyMetricsAction(_prev: ActionState, formData: Form
 export async function requestPasswordResetEmail(): Promise<ActionState> {
     const user = await getCurrentUser();
     if (!user) return actionError(SESSION_EXPIRED);
-    return actionSuccess(`We sent a reset link to ${user.email}. It expires in 30 minutes.`);
+    const result = await requestPasswordRecovery(user.email);
+    if (!result.ok) return actionError(result.message);
+    return actionSuccess(`We sent a reset link to ${user.email}. Follow it to choose a new password.`);
 }

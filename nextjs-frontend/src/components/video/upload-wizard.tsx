@@ -60,6 +60,7 @@ function WizardFlow({
     sessions,
     settings,
     mode,
+    canRetry,
     now,
     initialFighterId,
     initialSessionId,
@@ -391,6 +392,7 @@ function WizardFlow({
                     <RunStep
                         phase={phase}
                         now={now}
+                        canRetry={canRetry}
                         summary={{
                             fileName: footage.file.name,
                             sizeMb: fileSizeMb(footage.file),

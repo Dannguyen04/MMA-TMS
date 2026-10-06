@@ -19,6 +19,7 @@ export interface FighterIdentityProps {
     href?: string;
     /** Stretches the name link over the nearest `relative` ancestor (whole-card links). */
     stretchedLink?: boolean;
+    /** Shows the health status, except "not cleared": that is the Medical Clearance's to show. */
     showHealth?: boolean;
     /** Hide the "weight class · stance · level" line in dense rows. */
     showMeta?: boolean;
@@ -68,7 +69,7 @@ export function FighterIdentity({
                     )}
                 </p>
                 {showMeta && <p className={cn("truncate text-fg-muted", size === "sm" ? "text-xs" : "text-[13px]")}>{meta}</p>}
-                {showHealth && (
+                {showHealth && fighter.healthStatus !== "not_cleared" && (
                     <div className="mt-1.5">
                         <HealthStatusBadge status={fighter.healthStatus} size="sm" />
                     </div>

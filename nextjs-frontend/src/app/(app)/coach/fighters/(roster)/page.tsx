@@ -20,6 +20,7 @@ import { pluralize } from "@/lib/format";
 import { hrefWith, matchesSearch, paginate, parseEnum, parseSortDirection, sortItems, type SortDirection } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
+import { platformFeatureAvailable } from "@/lib/services/platform-features";
 import { param } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Fighters" };
@@ -49,9 +50,10 @@ export default async function CoachFightersPage({ searchParams }: PageProps<"/co
     const params = await searchParams;
     const now = new Date().toISOString();
     const pathname = routes.coach.fighters;
+    const showPerformance = platformFeatureAvailable("performance");
 
     const view = parseEnum(param(params.view), VIEWS) ?? "grid";
-    const trend = parseEnum(param(params.trend), PERFORMANCE_TRENDS);
+    const trend = showPerformance ? parseEnum(param(params.trend), PERFORMANCE_TRENDS) : undefined;
     const sort: SortKey = view === "table" ? (parseEnum(param(params.sort), SORT_KEYS) ?? "name") : "name";
     const direction: SortDirection = view === "table" ? parseSortDirection(param(params.dir), "asc") : "asc";
 
@@ -61,7 +63,7 @@ export default async function CoachFightersPage({ searchParams }: PageProps<"/co
     const level = parseEnum(param(params.level), LEVELS);
 
     // One unfiltered roster read; filters apply in memory so the counts and weight-class options share it.
-    const [roster, settings] = await Promise.all([loadRoster(user, now), getSettings()]);
+    const [roster, settings] = await Promise.all([loadRoster(user, now, { performance: showPerformance }), getSettings()]);
     const allFighters = roster.map((entry) => entry.fighter);
     const matching = roster.filter(({ fighter, hasComparison, performance }) => {
         if (weightClass && fighter.weightClass !== weightClass) return false;
@@ -92,15 +94,17 @@ export default async function CoachFightersPage({ searchParams }: PageProps<"/co
             options: HEALTH_STATUSES.map((status) => ({ value: status, label: HEALTH_STATUS_LABELS[status] })),
         },
         { type: "select", name: "level", label: "Level", allLabel: "All levels", options: LEVELS.map((level) => ({ value: level, label: TRAINING_LEVEL_LABELS[level] })) },
-        { type: "select", name: "trend", label: "Trend", allLabel: "All trends", options: PERFORMANCE_TRENDS.map((value) => ({ value, label: TREND_META[value].label })) },
     ];
+    if (showPerformance) {
+        filters.push({ type: "select", name: "trend", label: "Trend", allLabel: "All trends", options: PERFORMANCE_TRENDS.map((value) => ({ value, label: TREND_META[value].label })) });
+    }
     const clearFiltersHref = hrefWith(pathname, params, Object.fromEntries([...FILTER_KEYS, "page"].map((key) => [key, null])));
 
     return (
         <>
             <PageHeader
                 title="Fighters"
-                description={`Your roster of ${pluralize(allFighters.length, "fighter")} — health, Medical Clearance, performance and what's next.`}
+                description={`Your roster of ${pluralize(allFighters.length, "fighter")} — health, Medical Clearance, ${showPerformance ? "performance " : ""}and what's next.`}
                 actions={
                     <>
                         <ButtonLink href={routes.coach.clearance} variant="secondary">
@@ -167,12 +171,13 @@ export default async function CoachFightersPage({ searchParams }: PageProps<"/co
                                 searchParams={params}
                                 sort={sort}
                                 direction={direction}
+                                showPerformance={showPerformance}
                             />
                             <Pagination {...page} pathname={pathname} searchParams={params} itemLabel="fighters" />
                         </Card>
                     ) : (
                         <>
-                            <RosterGrid entries={page.items} now={now} warningDays={settings.clearanceExpiryWarningDays} />
+                            <RosterGrid entries={page.items} now={now} warningDays={settings.clearanceExpiryWarningDays} showPerformance={showPerformance} />
                             {page.pageCount > 1 && (
                                 <Card className="min-w-0 overflow-hidden [&>nav]:border-t-0">
                                     <Pagination {...page} pathname={pathname} searchParams={params} itemLabel="fighters" />

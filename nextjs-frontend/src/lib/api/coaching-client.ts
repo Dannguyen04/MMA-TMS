@@ -3,18 +3,22 @@
  * Connects Next.js web application directly to NestJS CoachingController.
  */
 
-import { z } from "zod";
+import type { SessionType } from "@/lib/domain/medical-contract";
+import type { TrainingPhase } from "@/lib/domain/types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
+/** `POST /coaching/assignments`: creates an active plan in `phase` with one session. The service rejects any other key. */
 export interface CreateAssignmentDto {
     coachId: string;
     fighterId: string;
+    /** The session's title. */
     title: string;
-    martialArt: string;
-    targetReps?: number;
-    dueDate?: string;
-    notes?: string;
+    planTitle?: string;
+    phase: TrainingPhase;
+    /** A UTC instant ending in `Z`; offsets are refused. */
+    scheduledAt?: string;
+    sessionType?: SessionType;
 }
 
 export interface UploadVideoDto {
@@ -42,12 +46,12 @@ export interface PersistActionAssessmentDto {
     grade?: string;
     confidence: number;
     rubricId?: string;
-    evidence?: Record<string, any>;
-    phases?: Record<string, any>;
-    kinematicFeatures?: Record<string, any>;
-    criteriaScores?: Record<string, any>;
-    findings?: any[];
-    provenance?: Record<string, any>;
+    evidence?: Record<string, unknown>;
+    phases?: Record<string, unknown>;
+    kinematicFeatures?: Record<string, unknown>;
+    criteriaScores?: Record<string, unknown>;
+    findings?: unknown[];
+    provenance?: Record<string, unknown>;
 }
 
 export interface PersistWorkerResultDto {
@@ -55,7 +59,7 @@ export interface PersistWorkerResultDto {
     analysisId: string;
     overallScore?: number;
     actions: PersistActionAssessmentDto[];
-    provenance?: Record<string, any>;
+    provenance?: Record<string, unknown>;
 }
 
 export interface ReviewFindingDto {
@@ -103,6 +107,13 @@ export class CoachingApiError extends Error {
     }
 }
 
+/** Every reply is wrapped: `{ success: true, message, data }`, or `{ success: false, error: { code, message } }`. */
+interface Envelope<T> {
+    success?: boolean;
+    data?: T;
+    error?: { code?: string; message?: string };
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const url = `${API_BASE_URL}${path}`;
     const headers = {
@@ -115,21 +126,13 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
         headers,
         cache: "no-store",
     });
+    const envelope = (await response.json().catch(() => null)) as Envelope<T> | null;
 
     if (!response.ok) {
-        let errorMsg = `API Error ${response.status}: ${response.statusText}`;
-        let errorCode: string | undefined;
-        try {
-            const errData = await response.json();
-            errorMsg = errData.message || errorMsg;
-            errorCode = errData.error || errData.code;
-        } catch {
-            // Keep default text
-        }
-        throw new CoachingApiError(errorMsg, response.status, errorCode);
+        throw new CoachingApiError(envelope?.error?.message ?? `API Error ${response.status}: ${response.statusText}`, response.status, envelope?.error?.code);
     }
-
-    return (await response.json()) as T;
+    if (envelope?.success !== true) throw new CoachingApiError("The coaching service sent an unexpected response.", response.status, "INVALID_API_RESPONSE");
+    return envelope.data as T;
 }
 
 function authenticated(accessToken: string): HeadersInit {
@@ -205,7 +208,7 @@ export const coachingApiClient = {
 
     async getCoachingLoopState(fighterId: string, accessToken: string, sessionId?: string) {
         const query = sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : "";
-        return request<any>(`/coaching/loop-state/${encodeURIComponent(fighterId)}${query}`, {
+        return request<unknown>(`/coaching/loop-state/${encodeURIComponent(fighterId)}${query}`, {
             headers: authenticated(accessToken),
         });
     },

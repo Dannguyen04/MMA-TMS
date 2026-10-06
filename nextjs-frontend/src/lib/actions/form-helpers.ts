@@ -3,7 +3,8 @@ import "server-only";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { isDateKey } from "@/lib/format";
+import { PASSWORD_LENGTH } from "@/lib/auth/password-rules";
+import { dayKey, isDateKey } from "@/lib/format";
 
 /*
  * Parsing and follow-up helpers shared by the Server Action modules. They live here because a "use server" module
@@ -36,12 +37,57 @@ export function keysOf<T extends string>(record: Record<T, string>): [T, ...T[]]
     return Object.keys(record) as [T, ...T[]];
 }
 
+/** A required id posted with a form; `message` explains it's missing. */
+export const idSchema = (message: string) => z.string(message).min(1, message);
+
+/** A new password within the auth service's length rule; `message` asks for one when it's missing. */
+export const passwordText = (message: string) =>
+    z
+        .string(message)
+        .min(PASSWORD_LENGTH.min, `Use at least ${PASSWORD_LENGTH.min} characters.`)
+        .max(PASSWORD_LENGTH.max, `Use at most ${PASSWORD_LENGTH.max} characters.`);
+
+/** Free text that must be filled in, trimmed and within `max` characters. */
+export const requiredText = (label: string, max: number) =>
+    z.string(`Enter the ${label}.`).trim().min(1, `Enter the ${label}.`).max(max, `Keep the ${label} under ${max} characters.`);
+
+/** Free text that may be left empty, trimmed and within `max` characters; empty or missing becomes null. */
+export const nullableText = (label: string, max: number) =>
+    z
+        .string()
+        .trim()
+        .max(max, `Keep the ${label} under ${max} characters.`)
+        .optional()
+        .transform((value) => value || null);
+
+/** A YYYY-MM-DD date that has already come, such as a date of birth. */
+export const pastDate = (label: string) =>
+    z
+        .string(`Enter the ${label}.`)
+        .refine(isDateKey, `Enter the ${label}.`)
+        .refine((value) => value <= dayKey(new Date()), `The ${label} can't be in the future.`);
+
 /** A YYYY-MM-DD date, or "" when the field was left empty. */
 export const optionalDate = (message: string) =>
     z
         .string()
         .trim()
         .refine((value) => value === "" || isDateKey(value), message);
+
+/** A JSON value posted from a client-side builder, read with `schema`; an empty field reads as `empty`. */
+export function jsonField<T extends z.ZodType>(schema: T, label: string, empty = "null") {
+    return z
+        .string()
+        .transform((value, ctx) => {
+            try {
+                return JSON.parse(value || empty) as unknown;
+            } catch {
+                ctx.addIssue({ code: "custom", message: `The ${label} couldn't be read. Reload the page and try again.` });
+                return z.NEVER;
+            }
+        })
+        .pipe(schema);
+}
 
 /** A JSON-encoded array posted from a client-side builder, with optional size bounds. */
 export function jsonArray<T extends z.ZodType>(
@@ -52,17 +98,7 @@ export function jsonArray<T extends z.ZodType>(
     let array = z.array(item);
     if (bounds.min !== undefined) array = array.min(bounds.min, bounds.minMessage);
     if (bounds.max !== undefined) array = array.max(bounds.max, bounds.maxMessage);
-    return z
-        .string()
-        .transform((value, ctx) => {
-            try {
-                return JSON.parse(value || "[]") as unknown;
-            } catch {
-                ctx.addIssue({ code: "custom", message: `The ${label} couldn't be read. Reload the page and try again.` });
-                return z.NEVER;
-            }
-        })
-        .pipe(array);
+    return jsonField(array, label, "[]");
 }
 
 /** Whether an ISO time lies in the future, allowing for clock skew between browser and server. */

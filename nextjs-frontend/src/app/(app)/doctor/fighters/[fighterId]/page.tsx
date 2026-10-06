@@ -38,6 +38,8 @@ import { ageFromBirthDate, daysBetween, formatDate, formatNumber, formatShortDat
 import { hrefWith, parseEnum } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
+import { listAlerts } from "@/lib/services/ai";
+import { nullIfServiceFails } from "@/lib/services/api-helpers";
 import { getClearanceHistory, getClearanceStatus, getFighterHealthSummary, getMedicalRecord, listExaminations, listInjuries, listReviewRequests } from "@/lib/services/medical";
 import { medicalFeatureAvailable } from "@/lib/services/medical-features";
 import { getFighter, listDoctors } from "@/lib/services/people";
@@ -62,7 +64,7 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
     const fighter = await requireFighterAccess(user, fighterId);
     const now = new Date().toISOString();
 
-    const [summary, record, examinations, injuries, clearances, doctors, settings, reviewRequests, { eligibility }] = await Promise.all([
+    const [summary, record, examinations, injuries, clearances, doctors, settings, reviewRequests, { eligibility }, observations] = await Promise.all([
         getFighterHealthSummary(fighter.id, now),
         medicalFeatureAvailable("medicalRecord") ? getMedicalRecord(fighter.id) : null,
         listExaminations({ fighterIds: [fighter.id] }),
@@ -72,7 +74,10 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
         getSettings(),
         listReviewRequests(fighter.id),
         getClearanceStatus(fighter.id, now),
+        // The AI pipeline is optional here: when it doesn't answer, the rest of the health profile still loads.
+        medicalFeatureAvailable("aiObservations") ? nullIfServiceFails(listAlerts({ fighterIds: [fighter.id] })) : [],
     ]);
+    const openAlerts = (observations ?? []).filter((alert) => alert.status === "new" || alert.status === "follow_up");
     if (!summary) notFound();
 
     const doctorNames = new Map(doctors.map((doctor) => [doctor.id, doctor.name]));
@@ -88,6 +93,7 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
     const revoked = clearance?.status === "revoked";
     const canRevoke = clearance?.status === "active" && clearanceState !== "expired" && clearance.level !== "not_cleared";
     const latestExam = summary.latestExamination;
+    const needsBaseline = eligibility?.reasons.includes("EXAMINATION_REQUIRED") ?? false;
     const mapHighlights = bodyMapHighlights(injuries, now);
 
     const overview = (
@@ -167,32 +173,16 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                     </Card>
                 )}
 
-                {medicalFeatureAvailable("vitals") ? (
+                {latestExam?.vitals ? (
                     <Card>
                         <CardHeader
                             title="Latest vitals"
-                            description={
-                                latestExam ? `${examinationTitle(latestExam)} on ${formatDate(latestExam.date)}` : "No examinations recorded yet"
-                            }
+                            description={`${examinationTitle(latestExam)} on ${formatDate(latestExam.date)}`}
                             icon={<Stethoscope />}
-                            action={latestExam && <CardLink href={routes.doctor.examination(latestExam.id)}>View examination</CardLink>}
+                            action={<CardLink href={routes.doctor.examination(latestExam.id)}>View examination</CardLink>}
                         />
                         <CardContent>
-                            {latestExam?.vitals ? (
-                                <VitalsGrid vitals={latestExam.vitals} weightLimitKg={fighter.targetWeightKg} />
-                            ) : (
-                                <EmptyState
-                                    compact
-                                    icon={<Stethoscope />}
-                                    title="No vitals yet"
-                                    description="A baseline physical records the reference vitals for this fighter."
-                                    action={
-                                        <ButtonLink href={`${newExamHref}&type=baseline`} variant="secondary" size="sm">
-                                            Start baseline exam
-                                        </ButtonLink>
-                                    }
-                                />
-                            )}
+                            <VitalsGrid vitals={latestExam.vitals} weightLimitKg={fighter.targetWeightKg} />
                         </CardContent>
                     </Card>
                 ) : (
@@ -202,9 +192,13 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                             description={latestExam ? `${examinationTitle(latestExam)} on ${formatDate(latestExam.date)}` : "No examinations recorded yet"}
                             icon={<Stethoscope />}
                             action={
-                                <ButtonLink href={newExamHref} variant="ghost" size="sm">
-                                    New examination
-                                </ButtonLink>
+                                latestExam ? (
+                                    <CardLink href={routes.doctor.examination(latestExam.id)}>View examination</CardLink>
+                                ) : (
+                                    <ButtonLink href={newExamHref} variant="ghost" size="sm">
+                                        New examination
+                                    </ButtonLink>
+                                )
                             }
                         />
                         <CardContent>
@@ -217,7 +211,21 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                                     )}
                                 </div>
                             ) : (
-                                <p className="text-sm text-fg-muted">Record an examination to decide whether {fighter.name} may train.</p>
+                                <EmptyState
+                                    compact
+                                    icon={<Stethoscope />}
+                                    title={needsBaseline ? "Baseline examination needed" : "No examinations yet"}
+                                    description={
+                                        needsBaseline
+                                            ? `A baseline records ${fighter.name}'s reference vitals and SCAT6, and is needed before training.`
+                                            : `Record an examination to decide whether ${fighter.name} may train.`
+                                    }
+                                    action={
+                                        <ButtonLink href={needsBaseline ? `${newExamHref}&scope=TRAINING&type=baseline` : newExamHref} variant="secondary" size="sm">
+                                            {needsBaseline ? "Start baseline exam" : "New examination"}
+                                        </ButtonLink>
+                                    }
+                                />
                             )}
                         </CardContent>
                     </Card>
@@ -241,11 +249,16 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                     <CardHeader title="Health status" icon={<HeartPulse />} />
                     <CardContent className="flex flex-col gap-4">
                         <div>
-                            <HealthStatusBadge status={fighter.healthStatus} />
-                            <p className="mt-1.5 text-sm text-fg-muted">{HEALTH_STATUS_DESCRIPTIONS[fighter.healthStatus]}</p>
+                            <HealthStatusBadge status={summary.fighter.healthStatus} />
+                            <p className="mt-1.5 text-sm text-fg-muted">{HEALTH_STATUS_DESCRIPTIONS[summary.fighter.healthStatus]}</p>
                         </div>
                         {medicalFeatureAvailable("healthStatusOverride") && (
-                            <HealthStatusControl key={fighter.healthStatus} fighterId={fighter.id} fighterName={fighter.name} current={fighter.healthStatus} />
+                            <HealthStatusControl
+                                key={summary.fighter.healthStatus}
+                                fighterId={fighter.id}
+                                fighterName={fighter.name}
+                                current={summary.fighter.healthStatus}
+                            />
                         )}
                     </CardContent>
                 </Card>
@@ -253,9 +266,7 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                 <Card>
                     <CardHeader title="Next follow-up" icon={<CalendarClock />} />
                     <CardContent>
-                        {!medicalFeatureAvailable("followUps") ? (
-                            <FeatureUnavailable title="Follow-ups aren't available yet" compact />
-                        ) : summary.nextFollowUp ? (
+                        {summary.nextFollowUp ? (
                             <div className="flex flex-col gap-3">
                                 <div className="flex items-center gap-3">
                                     <DateBlock date={summary.nextFollowUp.date} highlighted={summary.nextFollowUp.daysUntil === 0} />
@@ -296,18 +307,24 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                 <Card>
                     <CardHeader
                         title="AI observations"
-                        description={summary.openAlerts.length > 0 ? `${summary.openAlerts.length} open` : undefined}
+                        description={openAlerts.length > 0 ? `${openAlerts.length} open` : undefined}
                         icon={<Sparkles />}
                         action={<CardLink href={routes.doctor.aiAlerts}>All observations</CardLink>}
                     />
                     <CardContent className="flex flex-col gap-3">
-                        {medicalFeatureAvailable("aiObservations") ? (
+                        {!medicalFeatureAvailable("aiObservations") ? (
+                            <FeatureUnavailable title="AI observations aren't available yet" compact />
+                        ) : observations === null ? (
+                            <FeatureUnavailable
+                                title="AI observations can't be loaded right now"
+                                description="The video analysis service didn't answer. The rest of this profile is up to date."
+                                compact
+                            />
+                        ) : (
                             <>
                                 <AINotice audience="doctor" compact />
-                                <AIObservationList observations={summary.openAlerts.map((alert) => ({ alert }))} now={now} />
+                                <AIObservationList observations={openAlerts.map((alert) => ({ alert }))} now={now} />
                             </>
-                        ) : (
-                            <FeatureUnavailable title="AI observations aren't available yet" compact />
                         )}
                     </CardContent>
                 </Card>

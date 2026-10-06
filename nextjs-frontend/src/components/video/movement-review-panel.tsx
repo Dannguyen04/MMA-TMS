@@ -7,6 +7,12 @@ import type { MovementEvidence } from '@/lib/domain/movement-evidence';
 import { movementReviewInputSchema, movementReviewSavedSchema, movementReviewStateSchema, type MovementReviewState } from '@/lib/domain/movement-review';
 import { formatTimestamp } from '@/lib/format';
 
+async function loadReviewState(jobId: string, signal?: AbortSignal): Promise<MovementReviewState> {
+    const response = await fetch(`/api/ai-jobs/${jobId}/reviews`, { cache: 'no-store', signal });
+    if (!response.ok) throw new Error('Review history is unavailable. Check access or retry.');
+    return movementReviewStateSchema.parse(await response.json());
+}
+
 /** Shared footage observations only. Clinical findings belong in the medical dossier. */
 export function MovementReviewPanel({ jobId, report }: { jobId: string; report: MovementEvidence }) {
     const id = useId();
@@ -18,17 +24,16 @@ export function MovementReviewPanel({ jobId, report }: { jobId: string; report: 
     const [decision, setDecision] = useState<'confirmed' | 'corrected' | 'rejected'>('confirmed');
     // Keep the same request ID on transport retries; changed content gets a new ID.
     const pending = useRef<{ signature: string; requestId: string } | null>(null);
-    const refresh = useCallback(async (signal?: AbortSignal) => {
-        const response = await fetch(`/api/ai-jobs/${jobId}/reviews`, { cache: 'no-store', signal });
-        if (!response.ok) throw new Error('Review history is unavailable. Check access or retry.');
-        const loaded = movementReviewStateSchema.parse(await response.json());
-        if (!signal?.aborted) { setState(loaded); setError(''); }
-    }, [jobId]);
+    const show = useCallback((loaded: MovementReviewState) => { setState(loaded); setError(''); }, []);
+    const refresh = useCallback(async () => show(await loadReviewState(jobId)), [jobId, show]);
     useEffect(() => {
         const controller = new AbortController();
-        refresh(controller.signal).catch(e => { if (!controller.signal.aborted) setError(e.message); });
+        loadReviewState(jobId, controller.signal).then(
+            loaded => { if (!controller.signal.aborted) show(loaded); },
+            e => { if (!controller.signal.aborted) setError(e.message); },
+        );
         return () => controller.abort();
-    }, [refresh]);
+    }, [jobId, show]);
     const window = report.windows.find(w => w.id === windowId);
     const history = state?.reviews.filter(r => r.windowId === windowId) ?? [];
     const revision = Math.max(0, ...history.filter(r => r.reviewerId === state?.reviewerId).map(r => r.revision));

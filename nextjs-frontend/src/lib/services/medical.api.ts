@@ -24,6 +24,9 @@ import {
     type TreatmentInput,
 } from "@/lib/domain/medical-bodies";
 import {
+    API_ASSESSMENT_RESULTS,
+    API_EXAMINATION_TYPES,
+    API_HYDRATION_LEVELS,
     BODY_JOINTS,
     ELIGIBILITY_REASONS,
     SESSION_TYPES,
@@ -36,9 +39,10 @@ import {
     type MedicalReviewRequest,
 } from "@/lib/domain/medical-contract";
 import { JOINT_REGIONS, OUTCOME_FROM_DECISION, clearanceStateFromEligibility, isRestricted, latestRevisions, milestoneProgressPct, restrictionFromAllowLists, standardMilestones } from "@/lib/domain/medical-mappings";
-import { clearanceDaysRemaining, type ClearanceState } from "@/lib/domain/rules";
+import { clearanceDaysRemaining, currentHealthStatus, FOLLOW_UP_WINDOW_DAYS, type ClearanceState } from "@/lib/domain/rules";
+import { scat6RecordSchema } from "@/lib/domain/scat6";
 import type { Fighter, HealthStatus, Injury, MedicalClearance, MedicalExamination, RecoveryPlan, Treatment } from "@/lib/domain/types";
-import { dayKey } from "@/lib/format";
+import { academyWallClockToIso, dayKey, daysBetween } from "@/lib/format";
 import { matchesSearch } from "@/lib/query";
 import { getSettings } from "./admin";
 import { drainNumberedPages, nullIfUnreadable } from "./api-helpers";
@@ -49,6 +53,7 @@ import type {
     ExaminationFilter,
     FighterHealthSummary,
     FighterScope,
+    FollowUp,
     InjuryDetail,
     InjuryFilter,
     RecoveryPlanDetail,
@@ -117,6 +122,26 @@ const recoveryPlanSchema = z.object({
     milestones: z.array(z.unknown()),
 });
 
+const examinationDetailsSchema = z.object({
+    examinationType: z.enum(API_EXAMINATION_TYPES),
+    vitals: z
+        .object({
+            weightKg: z.number(),
+            restingHeartRate: z.number(),
+            bloodPressureSystolic: z.number(),
+            bloodPressureDiastolic: z.number(),
+            temperatureC: z.number(),
+            spo2Pct: z.number(),
+            hydration: z.enum(API_HYDRATION_LEVELS),
+        })
+        .nullable(),
+    assessments: z.array(z.object({ area: z.string(), result: z.enum(API_ASSESSMENT_RESULTS), note: z.string().nullable() })),
+    recommendations: z.string().nullable(),
+    /** Academy date, YYYY-MM-DD. */
+    followUpDate: z.string().nullable(),
+    scat6: scat6RecordSchema.nullable(),
+});
+
 const examinationSchema = z.object({
     id: z.string(),
     fighterId: z.string(),
@@ -127,6 +152,8 @@ const examinationSchema = z.object({
     reason: z.string(),
     restrictions: restrictionsSchema.nullable(),
     validUntil: timestamp.nullable(),
+    /** Null for an examination recorded without details, as every one before baselines was. */
+    details: examinationDetailsSchema.nullable().default(null),
 });
 
 const clearanceSchema = z.object({
@@ -282,22 +309,25 @@ function toRecoveryPlan(plan: ApiRecoveryPlan): RecoveryPlan {
     };
 }
 
+/** The examination with what the doctor recorded at the visit; one recorded without details has no type, vitals or assessments. */
 function toExamination(exam: ApiExamination): MedicalExamination {
+    const { details } = exam;
     return {
         id: exam.id,
         fighterId: exam.fighterId,
         doctorId: exam.doctorId,
         date: exam.examinedAt,
-        type: null,
-        vitals: null,
-        assessments: [],
+        type: details ? lower(details.examinationType) : null,
+        vitals: details?.vitals ? { ...details.vitals, hydration: lower(details.vitals.hydration) } : null,
+        assessments: details?.assessments.map((assessment) => ({ area: assessment.area, result: lower(assessment.result), note: assessment.note ?? "" })) ?? [],
         outcome: OUTCOME_FROM_DECISION[exam.decision],
         summary: exam.reason,
-        recommendations: exam.restrictions?.notes ?? "",
-        followUpDate: null,
+        recommendations: details?.recommendations ?? "",
+        followUpDate: details?.followUpDate ? academyWallClockToIso(details.followUpDate, "10:00") : null,
         scope: exam.scope,
         decisionRestrictions: exam.restrictions,
         validUntil: exam.validUntil,
+        scat6: details?.scat6 ?? null,
     };
 }
 
@@ -382,27 +412,47 @@ export async function clearanceStatus(fighterId: string): Promise<ClearanceStatu
 
 /* ─── Health summary ──────────────────────────────────────────────────────── */
 
-function summaryFrom(fighter: Fighter, dossier: Dossier): FighterHealthSummary {
+/** The fighter's current training and competition examinations, newest first. */
+function currentExaminations(dossier: Dossier): MedicalExamination[] {
+    return [dossier.currentExaminations.training, dossier.currentExaminations.competition]
+        .filter((exam): exam is ApiExamination => exam !== null)
+        .map(toExamination)
+        .sort(byNewest((exam) => exam.date));
+}
+
+/** The latest examination's follow-up stands until a newer examination replaces it, as in the demo. */
+function followUpOf(fighter: Fighter, latest: MedicalExamination | undefined, now: string | Date): FollowUp | null {
+    return latest?.followUpDate ? { fighter, examination: latest, date: latest.followUpDate, daysUntil: daysBetween(now, latest.followUpDate) } : null;
+}
+
+/** The fighter with the health status their dossier implies (see `currentHealthStatus`). */
+function withCurrentHealth(fighter: Fighter, dossier: Dossier): Fighter {
+    const healthStatus = currentHealthStatus(fighter.healthStatus, statusFromDossier(dossier).state, dossier.activeInjuries.length > 0);
+    return healthStatus === fighter.healthStatus ? fighter : { ...fighter, healthStatus };
+}
+
+function summaryFrom(stored: Fighter, dossier: Dossier, now: string | Date): FighterHealthSummary {
+    const fighter = withCurrentHealth(stored, dossier);
     const { state, clearance } = statusFromDossier(dossier);
     const plan = dossier.activeRecoveryPlans[0];
     const recoveryPlan = plan ? toRecoveryPlan(plan) : null;
-    const exams = [dossier.currentExaminations.training, dossier.currentExaminations.competition].filter((e): e is ApiExamination => e !== null);
+    const [latestExamination] = currentExaminations(dossier);
     return {
         fighter,
         clearance,
         clearanceState: state,
         activeInjuries: dossier.activeInjuries.map(toInjury).sort(byNewest((i) => i.occurredAt)),
         activeRecoveryPlan: recoveryPlan ? { plan: recoveryPlan, progressPct: milestoneProgressPct(recoveryPlan.milestones ?? []), currentPhase: null } : null,
-        latestExamination: exams.map(toExamination).sort(byNewest((e) => e.date))[0] ?? null,
-        openAlerts: [],
-        nextFollowUp: null,
+        latestExamination: latestExamination ?? null,
+        needsBaseline: dossier.eligibility.training.reasons.includes("EXAMINATION_REQUIRED"),
+        nextFollowUp: followUpOf(fighter, latestExamination, now),
         openReviewRequests: [...dossier.openReviewRequests].sort((a, b) => a.requestedAt.localeCompare(b.requestedAt)),
     };
 }
 
-export async function healthSummary(fighterId: string): Promise<FighterHealthSummary | null> {
+export async function healthSummary(fighterId: string, now: string | Date): Promise<FighterHealthSummary | null> {
     const [fighter, dossier] = await Promise.all([getFighter(fighterId), dossierFor(fighterId)]);
-    return fighter && dossier ? summaryFrom(fighter, dossier) : null;
+    return fighter && dossier ? summaryFrom(fighter, dossier, now) : null;
 }
 
 /** Open medical review requests and their history for one fighter, newest first. */
@@ -555,12 +605,13 @@ async function fightersWithDossiers(scope: FighterScope): Promise<{ fighter: Fig
     const dossiers = await Promise.all(fighters.map((fighter) => dossierFor(fighter.id)));
     return fighters.flatMap((fighter, index) => {
         const dossier = dossiers[index];
-        return dossier ? [{ fighter, dossier }] : [];
+        return dossier ? [{ fighter: withCurrentHealth(fighter, dossier), dossier }] : [];
     });
 }
 
 export async function doctorOverview(scope: FighterScope, now: string): Promise<DoctorOverview> {
     const [rows, settings] = await Promise.all([fightersWithDossiers(scope), getSettings()]);
+    const examined = rows.map(({ fighter, dossier }) => ({ fighter, examinations: currentExaminations(dossier) }));
     const warningDays = settings.clearanceExpiryWarningDays;
     const healthCounts: Record<HealthStatus, number> = { healthy: 0, monitoring: 0, injured: 0, recovery: 0, not_cleared: 0 };
     for (const { fighter } of rows) healthCounts[fighter.healthStatus] += 1;
@@ -580,17 +631,16 @@ export async function doctorOverview(scope: FighterScope, now: string): Promise<
         healthCounts,
         expiringClearances: expiringClearances.sort((a, b) => a.daysRemaining - b.daysRemaining),
         fightersWithoutClearance,
-        followUpsDue: [],
+        followUpsDue: examined
+            .flatMap(({ fighter, examinations }) => followUpOf(fighter, examinations[0], now) ?? [])
+            .filter((followUp) => followUp.daysUntil <= FOLLOW_UP_WINDOW_DAYS)
+            .sort((a, b) => a.date.localeCompare(b.date)),
         activeInjuries: rows
             .flatMap(({ fighter, dossier }) => dossier.activeInjuries.map((injury) => ({ injury: toInjury(injury), fighter })))
             .sort(byNewest((row) => row.injury.occurredAt)),
         newAlerts: [],
-        recentExaminations: rows
-            .flatMap(({ fighter, dossier }) =>
-                [dossier.currentExaminations.training, dossier.currentExaminations.competition]
-                    .filter((exam): exam is ApiExamination => exam !== null)
-                    .map((exam) => ({ examination: toExamination(exam), fighter })),
-            )
+        recentExaminations: examined
+            .flatMap(({ fighter, examinations }) => examinations.map((examination) => ({ examination, fighter })))
             .sort(byNewest((row) => row.examination.date))
             .slice(0, RECENT_EXAMINATIONS_LIMIT),
     };

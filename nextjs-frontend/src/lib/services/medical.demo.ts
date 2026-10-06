@@ -6,12 +6,16 @@ import "server-only";
  */
 
 import type { EligibilityReason, MedicalEligibility, MedicalReviewRequest } from "@/lib/domain/medical-contract";
+import { SCAT6, type Scat6Input, type Scat6Record } from "@/lib/domain/scat6";
+import { SCAT6_SCORING_VERSION, scoreScat6 } from "@/lib/domain/scat6-scoring";
 import { BODY_REGION_LABELS, CLEARANCE_LEVEL_LABELS, examinationTitle, HEALTH_STATUS_DESCRIPTIONS, HEALTH_STATUS_LABELS, INJURY_STATUS_LABELS, injuryTypeName, TREATMENT_STATUS_LABELS, treatmentTitle } from "@/lib/domain/labels";
 import {
     clearanceDaysRemaining,
     clearanceExpiresSoon,
     clearanceState,
     currentClearance,
+    FOLLOW_UP_WINDOW_DAYS,
+    healthStatusForClearance,
     recoveryProgressPct,
     type ClearanceState,
 } from "@/lib/domain/rules";
@@ -41,7 +45,7 @@ import type {
     TreatmentStatus,
     User,
 } from "@/lib/domain/types";
-import { dayKey, daysBetween, formatDate } from "@/lib/format";
+import { ageFromBirthDate, dayKey, daysBetween, formatDate } from "@/lib/format";
 import { db, newId, nowIso, simulateLatency } from "@/lib/mocks/db";
 import { matchesSearch } from "@/lib/query";
 import { routes } from "@/lib/routes";
@@ -124,14 +128,6 @@ function latestPhysicalDate(fighterId: string): string | null {
 }
 
 /* ─── Health status ───────────────────────────────────────────────────────── */
-
-/** Health status implied by a newly granted clearance level. */
-function healthStatusForClearance(level: ClearanceLevel, fighterId: string): HealthStatus {
-    if (level === "not_cleared") return "not_cleared";
-    const hasOpenInjury = db().injuries.some((i) => i.fighterId === fighterId && isOpenInjury(i));
-    if (hasOpenInjury) return "recovery";
-    return level === "full" ? "healthy" : "monitoring";
-}
 
 /** Health status recomputed from clearance and injuries after an injury changes. */
 function healthStatusFromRecords(fighter: Fighter): HealthStatus {
@@ -232,7 +228,14 @@ export async function getExamination(id: string): Promise<MedicalExamination | n
     return db().medicalExaminations.find((e) => e.id === id) ?? null;
 }
 
-export type CreateExaminationInput = Omit<MedicalExamination, "id" | "doctorId">;
+/** A baseline carries its SCAT6 as recorded; the demo scores it the way the medical service does. */
+export type CreateExaminationInput = Omit<MedicalExamination, "id" | "doctorId" | "scat6"> & { scat6: Scat6Input | null };
+
+function scat6Record(input: Scat6Input): Scat6Record {
+    return input.status === "ADMINISTERED"
+        ? { formVersion: input.formVersion, responses: input, scoringVersion: SCAT6_SCORING_VERSION, scores: scoreScat6(input) }
+        : { formVersion: input.formVersion, responses: input, scoringVersion: null, scores: null };
+}
 
 /**
  * Records an examination. Examinations never change Medical Clearance — grant or revoke a
@@ -244,8 +247,11 @@ export async function createExamination(input: CreateExaminationInput, actor: Us
     if (!fighter) return failure("Fighter not found.");
     const doctorId = actingDoctorId(actor);
     if (!doctorId) return failure(NOT_A_DOCTOR);
+    if (input.scat6?.status === "ADMINISTERED" && ageFromBirthDate(fighter.dateOfBirth, input.scat6.administeredAt) < SCAT6.MIN_AGE_YEARS) {
+        return failure(`${fighter.name} was under 13 when the SCAT6 was administered. Record it as not administered.`);
+    }
 
-    const examination: MedicalExamination = { ...input, id: newId("ex"), doctorId };
+    const examination: MedicalExamination = { ...input, id: newId("ex"), doctorId, scat6: input.scat6 ? scat6Record(input.scat6) : null };
     store.medicalExaminations.push(examination);
 
     // Like a training examination in the medical service, this answers the fighter's open review requests.
@@ -819,22 +825,27 @@ export function getCurrentClearanceFor(fighterId: string): MedicalClearance | nu
 }
 
 /**
- * The fighter's training clearance state with the reasons the medical service would give. An open review request
- * pauses training until the doctor examines the fighter, whatever the clearance says.
+ * The fighter's training clearance state with the reasons the medical service would give. Every fighter needs a
+ * baseline examination before training, and an open review request pauses training until the doctor examines the
+ * fighter, whatever the clearance says.
  */
 export function getClearanceStatusFor(
     fighterId: string,
     now: string | Date = new Date(),
 ): { state: ClearanceState; clearance: MedicalClearance | null; eligibility: MedicalEligibility } {
+    const store = db();
     const clearance = getCurrentClearanceFor(fighterId);
     const base = clearanceState(clearance, now);
-    const pending = db().medicalReviewRequests.some((request) => request.fighterId === fighterId && request.status === "OPEN");
+    const pending = store.medicalReviewRequests.some((request) => request.fighterId === fighterId && request.status === "OPEN");
+    const baselineOnFile = store.medicalExaminations.some((exam) => exam.fighterId === fighterId && exam.type === "baseline");
     const reasons: EligibilityReason[] = [];
+    if (!baselineOnFile) reasons.push("EXAMINATION_REQUIRED");
     if (pending) reasons.push("REVIEW_REQUEST_PENDING");
     if (base === "not_cleared") reasons.push(clearance?.status === "revoked" ? "CLEARANCE_REQUIRED" : "EXAMINATION_NOT_ELIGIBLE");
     if (base === "expired") reasons.push("CLEARANCE_EXPIRED");
+    // As in the service, a missing baseline blocks training once anything else is on file; with nothing yet it reads as none.
     return {
-        state: pending ? "not_cleared" : base,
+        state: pending || (!baselineOnFile && base !== "none") ? "not_cleared" : base,
         clearance,
         eligibility: { scope: "TRAINING", eligible: reasons.length === 0, reasons },
     };
@@ -941,7 +952,10 @@ export async function grantClearance(input: GrantClearanceInput, actor: User): P
     };
     store.medicalClearances.push(clearance);
 
-    fighter.healthStatus = healthStatusForClearance(clearance.level, fighter.id);
+    fighter.healthStatus = healthStatusForClearance(
+        clearance.level,
+        store.injuries.some((i) => i.fighterId === fighter.id && isOpenInjury(i)),
+    );
 
     // Audit text stays neutral (no level, restrictions or health status): the audit trail is read outside the clinical team.
     recordAudit({
@@ -1102,8 +1116,8 @@ export interface FighterHealthSummary {
     activeInjuries: Injury[];
     activeRecoveryPlan: RecoveryPlanProgress | null;
     latestExamination: MedicalExamination | null;
-    /** AI movement observations with status new or follow_up, newest first. */
-    openAlerts: AbnormalMovementAlert[];
+    /** No baseline examination on file yet, so the fighter can't train. */
+    needsBaseline: boolean;
     nextFollowUp: FollowUp | null;
     /** Medical review requests still waiting for an examination, oldest first. */
     openReviewRequests: MedicalReviewRequest[];
@@ -1118,19 +1132,18 @@ export async function getFighterHealthSummary(fighterId: string, now: string | D
 
     const clearance = currentClearance(store.medicalClearances, fighterId);
     const plan = store.recoveryPlans.filter((p) => p.fighterId === fighterId && p.status === "active").sort(byDateDesc((p) => p.startDate))[0];
+    const status = getClearanceStatusFor(fighterId, now);
 
     return {
         fighter,
         clearance,
-        clearanceState: getClearanceStatusFor(fighterId, now).state,
+        clearanceState: status.state,
+        needsBaseline: status.eligibility.reasons.includes("EXAMINATION_REQUIRED"),
         activeInjuries: store.injuries.filter((i) => i.fighterId === fighterId && isOpenInjury(i)).sort(byDateDesc((i) => i.occurredAt)),
         activeRecoveryPlan: plan
             ? { plan, progressPct: recoveryProgressPct(plan), currentPhase: plan.phases.find((p) => p.status === "current") ?? null }
             : null,
         latestExamination: store.medicalExaminations.filter((e) => e.fighterId === fighterId).sort(byDateDesc((e) => e.date))[0] ?? null,
-        openAlerts: store.abnormalMovementAlerts
-            .filter((a) => a.fighterId === fighterId && (a.status === "new" || a.status === "follow_up"))
-            .sort(byDateDesc((a) => a.detectedAt)),
         nextFollowUp: pendingFollowUps([fighter], now)[0] ?? null,
         openReviewRequests: store.medicalReviewRequests
             .filter((request) => request.fighterId === fighterId && request.status === "OPEN")
@@ -1160,7 +1173,6 @@ export interface DoctorOverview {
     recentExaminations: { examination: MedicalExamination; fighter: Fighter }[];
 }
 
-const FOLLOW_UP_WINDOW_DAYS = 7;
 const RECENT_EXAMINATIONS_LIMIT = 5;
 
 /** Dashboard aggregates for a doctor's assigned fighters. */

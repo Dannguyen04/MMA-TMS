@@ -241,7 +241,8 @@ groups). Required fields set `required` on both the `Field` (visible star) and t
 - AI output is **assistive**. Label it with `AIGeneratedBadge` / `ReviewStateBadge`, show confidence
   (`ConfidenceBadge`), and phrase titles as observations: "Possible hook detected", "Guard appears to
   drop after the lead hook". Never "Hook", "Injury detected", "Diagnosis".
-- Low confidence (< `LOW_CONFIDENCE_THRESHOLD`, 60%) → "Needs review" styling and a prompt for human review.
+- Low confidence (< `LOW_CONFIDENCE_THRESHOLD`, 60%) → "Needs review" styling and a prompt for human review. No
+  confidence at all counts as low: it reads "Unavailable — requires review", never a made-up number.
 - Human decisions are visually distinct from AI output: `UserCheck` / `PenLine` icons, reviewer name and time.
 - Doctor-facing AI alerts are **"AI movement observations"** and always show the notice:
   _"AI observations are supporting information only. They are not a medical diagnosis and do not replace
@@ -262,10 +263,18 @@ groups). Required fields set `required` on both the `Field` (visible star) and t
 - The clearance state comes from the service's `eligibility` verdict (`clearanceStateFromEligibility`). The frontend
   never picks a governing clearance itself. A pending review request pauses training even while the clearance stands;
   `ClearanceCard pausedForReview` says so.
+- Every fighter needs a `BASELINE` examination before training (`EXAMINATION_REQUIRED`): vitals, at least one assessed
+  area and a SCAT6. The doctor's fighter page, review requests and Triage offer it while it's missing
+  (`FighterHealthSummary.needsBaseline`).
+  - Examination details (type, vitals, assessments, recommendations, follow-up date) share their fields with the demo
+    form (`components/medical/examination-details-fields.tsx`) and their validation (`lib/actions/examination-fields.ts`).
+  - The SCAT6 is entered by item position, never the official wording (`components/medical/scat6-fields.tsx`); its
+    working state and the record it becomes are in `scat6-draft.ts`, the record's rules in `lib/domain/scat6.ts`
+    (mirrors the service). The service computes the scores; demo mode scores the same way (`scat6-scoring.ts`).
 - `usesMedicalServiceForms()` picks the doctor's forms: the service's forms in API mode, the richer demo forms in demo
-  mode. Features the service doesn't offer (medical record, vitals, follow-ups, AI observations, check-ins, treatment
-  status) are demo-only: `medicalFeatureAvailable()` hides them in API mode and shows `FeatureUnavailable`, never mock
-  data.
+  mode. Features the service doesn't offer (medical record, AI observation review, check-ins, treatment status, health
+  status overrides) are demo-only: `medicalFeatureAvailable()` hides them in API mode and shows `FeatureUnavailable`,
+  never mock data.
 - Writes are never retried: a create that timed out may already be saved. Map failures with `medicalWriteFailure()`
   (`services/medical-errors.ts`):
   - 422 lands on the form field.
@@ -274,6 +283,45 @@ groups). Required fields set `required` on both the `Field` (visible star) and t
   - 5xx and timeouts say "may not have been saved, reload first".
 - Review requests: fighters ask for themselves, coaches and doctors for assigned fighters. A coach never sees what a
   fighter wrote to the doctor, only that a review was requested.
+
+### Features the backend doesn't offer yet
+
+Each service area has a gate built on `demoOnlyFeatureGate` (`services/feature-gate.ts`): `platformFeatureAvailable()`
+(goals, performance, coach feedback, navigation badges, audit logs, broadcasts, system settings, AI models, AI job
+retry/cancel and insights, self profile edits, body metrics), `adminFeatureAvailable()` and
+`medicalFeatureAvailable()`. In API mode a gated read comes back empty or as the static baseline, the page shows
+`FeatureUnavailable`, and the server action refuses with "not available yet"; the service function itself throws
+`unsupportedOperation()` (501) as a backstop. Remove a feature from its gate's list once the backend serves it.
+
+Where the backend models something differently, a `uses…ServiceForms()` helper picks the form: the service's own terms
+in API mode, the richer demo forms in demo mode (`usesTrainingServiceForms`, `usesMedicalServiceForms`,
+`usesUserServiceForms`).
+
+### Training and video analysis (API mode)
+
+- `lib/domain/training-contract.ts` maps session types and builds plan, plan exercise and session bodies. Every plan has
+  a phase. Plans are created as drafts and then activated; a result is recorded on the session before it is completed.
+  Starting a session can be refused by medical eligibility; `trainingEligibilityReasons()` lists why.
+- Jobs and videos come from `/videos` and `/jobs`. A job's `score` is not a confidence; without one the UI shows
+  "Unavailable — requires review" (`null`). Doctor-facing AI observations are the jobs' health alerts
+  (`/jobs/impairments`); reviewing them is demo-only. Pages that aren't about video (the fighter dashboard, the
+  doctor's fighter page) still load when the video service doesn't answer.
+- Coaches review a pipeline analysis (`an-<job id>`) through the coaching service (`services/ai-coaching.api.ts`): it
+  keeps the decisions on the worker's actions and findings and the overall summary, and `getVideoDetail` lays them over
+  the worker result. The rules for a decision and a summary are shared with the demo (`domain/ai-review.ts`).
+
+### Notifications (API mode)
+
+- `services/notifications.ts` reads the inbox a page at a time (`page`, `limit`, `unreadOnly`) with the unread count,
+  maps each event's `type` to a category and severity, and links its target record into the reader's own area.
+  Applicants get a bell too (their assessment and decision). The service has no category filter or "mark all read",
+  so those stay demo-only (`canMarkAllNotificationsRead()`).
+- Live updates: `/api/notifications/stream` relays the service's event stream with the session's token (EventSource
+  can't send headers, and the token never reaches the browser). While the service is down it answers with a retry hint,
+  so EventSource tries again later instead of giving up.
+- `useNotificationUpdates` refreshes on events and after every reconnect (the stream doesn't replay what it missed).
+  While the stream is down, or in demo mode, it polls `/api/notifications/unread-count`, a Route Handler rather than a
+  Server Action so a poll never queues ahead of a form submit.
 
 ### User accounts (API mode)
 
@@ -285,9 +333,29 @@ groups). Required fields set `required` on both the `Field` (visible star) and t
   them null or empty (a job title falls back to the profile's specialisation) and the pages leave them out.
 - `GET /users/:id` reads active accounts only, so suspended rows aren't linked. A coach's or doctor's linked profile
   comes from the account itself (`getApiUserWithProfile`), with the fighters they hold from current assignments.
-- Inviting, editing, suspending, reactivating, resending an invitation, an account's activity and role permissions
-  are demo-only: `adminFeatureAvailable()` (`services/admin-features.ts`) hides them and the server actions refuse
-  with "not available yet".
+- Administrators create an account with its first password and full role profile (`POST /users`), edit a profile
+  (`PATCH /users/:id`, same role) and delete other accounts (`DELETE /users/:id`); `lib/domain/account-contract.ts`
+  builds the bodies and `accountWriteFailure()` puts refusals on the form fields. Inviting, name/title/role edits,
+  suspending and reactivating stay demo-only.
+- A fighter's care team (coaches through `/fighters/:id/coaches`, sports doctors through `/fighters/:id/doctors`) is
+  assigned and ended with a reason from the fighter's account page (`services/care-team.ts`).
+
+### Fighter admissions
+
+- A signed-in account is either an academy member or an applicant: `getSessionAccount()` returns
+  `{ kind: "user" }` or `{ kind: "applicant" }` (`GUEST` in the API). `getCurrentUser()` is null for applicants,
+  `requireUser()` sends them to `/apply` and `requireApplicant()` sends members to their dashboard.
+- Applicants sign up, and come back to their application, at `/register` with a code sent to their email
+  (`POST /auth/admission/email-code`, then `/verify-email`): no password until they're approved. They apply and follow
+  their application at `/apply`, set their first password from the activation email (`/auth/reset-password` explains
+  both that and "forgot password") and activate their fighter account. A new fighter then waits for a sports doctor and
+  a baseline examination before training.
+- Administrators assign the assessing coach and approve or reject passed applicants at `/admin/admissions`; coaches
+  record the entrance assessment under Roster › Applicants (`/coach/admissions`). `lib/domain/admissions.ts` holds
+  the types, labels and request bodies; `services/admissions.ts` reads and writes `/fighter-admissions/*`.
+- The demo seeds applications at every stage and an "Applicant" demo account. It has no email step: the sign-up form
+  shows the code, an approved application is ready to activate, and activating turns the applicant into a fighter with
+  a new profile. It sends the same admission notifications as the service.
 
 ## Accessibility checklist
 

@@ -3,9 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const authenticatedApiRequest = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/api/client", async (loadOriginal) => ({ ...(await loadOriginal<typeof import("@/lib/api/client")>()), authenticatedApiRequest }));
+vi.mock("./platform-features", () => import("@/test/platform-features-mock"));
 
-import { ApiError } from "@/lib/api/client";
 import type { User } from "@/lib/domain/types";
+import { platformFeatureAvailable } from "@/test/platform-features-mock";
 import { getNavBadgeCounts } from "./shell";
 
 const user: User = {
@@ -23,6 +24,7 @@ const user: User = {
 
 describe("navigation badge API adapter", () => {
     beforeEach(() => {
+        platformFeatureAvailable.mockReturnValue(true);
         vi.stubEnv("APP_DATA_MODE", "api");
         authenticatedApiRequest.mockReset();
     });
@@ -34,10 +36,11 @@ describe("navigation badge API adapter", () => {
         expect(authenticatedApiRequest).toHaveBeenCalledWith("/navigation/badges", expect.anything());
     });
 
-    it("không hiện bộ đếm khi backend chưa có endpoint", async () => {
-        authenticatedApiRequest.mockRejectedValue(new ApiError({ message: "Not Found", kind: "http", status: 404, code: "NOT_FOUND" }));
+    it("shows no counts and asks nothing while the badge service isn't available", async () => {
+        platformFeatureAvailable.mockReturnValue(false);
 
         await expect(getNavBadgeCounts(user)).resolves.toEqual({});
+        expect(authenticatedApiRequest).not.toHaveBeenCalled();
     });
 
     it("không quay lại kho dữ liệu demo khi API bị lỗi", async () => {

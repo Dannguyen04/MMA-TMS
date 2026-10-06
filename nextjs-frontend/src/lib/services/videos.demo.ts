@@ -15,7 +15,7 @@ import { db, newId, nowIso, simulateLatency } from "@/lib/mocks/db";
 import { createRandom } from "@/lib/mocks/random";
 import { matchesSearch } from "@/lib/query";
 import { routes } from "@/lib/routes";
-import { TASK_ORDER } from "./ai";
+import { TASK_ORDER } from "./ai.demo";
 import { recordAudit } from "./audit.demo";
 import { notifyUsers, staffUserIdsForFighter } from "./notifications.demo";
 import type { CreateVideoUploadInput, CreateVideoUploadResult, DeleteVideoResult, RegisterExternalUploadInput, RegisterExternalUploadResult, ReviewQueueItem, VideoDetail, VideoFilter, VideoLibraryItem } from "./videos";

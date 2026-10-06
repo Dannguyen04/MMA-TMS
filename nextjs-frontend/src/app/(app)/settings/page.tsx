@@ -13,7 +13,6 @@ import { PageHeader } from "@/components/ui/page-header";
 import { THEME_COOKIE, parseTheme } from "@/lib/auth/constants";
 import { requireUser } from "@/lib/auth/session";
 import { routes } from "@/lib/routes";
-import { listNotifications } from "@/lib/services/notifications";
 
 export const metadata: Metadata = { title: "Preferences" };
 
@@ -27,9 +26,9 @@ const SECTIONS = [
 export default async function SettingsPage() {
     const user = await requireUser();
     const now = new Date().toISOString();
-    const [store, notifications] = await Promise.all([cookies(), listNotifications(user.id)]);
+    const store = await cookies();
     const theme = parseTheme(store.get(THEME_COOKIE)?.value);
-    const categories = preferenceCategories(user.role, [...new Set(notifications.map((n) => n.category))]);
+    const categories = preferenceCategories(user.role);
 
     return (
         <>

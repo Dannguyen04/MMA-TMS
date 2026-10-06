@@ -8,6 +8,7 @@ import { getCoachNames, getExerciseLibrary } from "@/components/training/trainin
 import { requireFighterAccess } from "@/lib/auth/access";
 import { getCurrentUser, requireRole } from "@/lib/auth/session";
 import { routes } from "@/lib/routes";
+import { platformFeatureAvailable, usesTrainingServiceForms } from "@/lib/services/platform-features";
 import { getPlan, getSession, listCoachFeedback, loadSessionClearanceConflicts } from "@/lib/services/training";
 import { listVideos } from "@/lib/services/videos";
 import { plannedEndMs } from "@/components/training/training-utils";
@@ -33,7 +34,7 @@ export default async function FighterSessionPage({ params }: PageProps<"/fighter
     const now = new Date().toISOString();
     const [videos, feedback, plan] = await Promise.all([
         listVideos({ fighterIds: [session.fighterId] }),
-        listCoachFeedback({ sessionId: session.id }),
+        platformFeatureAvailable("coachFeedback") ? listCoachFeedback({ sessionId: session.id }) : null,
         session.planId ? getPlan(session.planId) : Promise.resolve(null),
     ]);
 
@@ -60,6 +61,7 @@ export default async function FighterSessionPage({ params }: PageProps<"/fighter
                 videos={videos.filter((video) => video.sessionId === session.id || session.videoIds.includes(video.id))}
                 feedback={feedback}
                 conflicts={conflicts}
+                serviceForm={usesTrainingServiceForms()}
             />
         </>
     );

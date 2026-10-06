@@ -2,77 +2,118 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const authenticatedApiRequest = vi.hoisted(() => vi.fn());
 const authenticatedMutableApiRequest = vi.hoisted(() => vi.fn());
-const drainAuthenticatedCursorPages = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/api/client", async (loadOriginal) => ({
     ...(await loadOriginal<typeof import("@/lib/api/client")>()),
     authenticatedApiRequest,
     authenticatedMutableApiRequest,
-    drainAuthenticatedCursorPages,
 }));
 
 import { ApiError } from "@/lib/api/client";
-import { getNotificationSummary, listNotifications, markAllNotificationsRead } from "./notifications";
+import { canMarkAllNotificationsRead, getNotificationBell, getNotificationPage, getUnreadNotificationCount, markNotificationRead } from "./notifications";
 
-const backendNotification = {
-    id: "notification-1",
-    userId: "user-1",
-    category: "AI_ANALYSIS",
-    severity: "WARNING",
-    title: "Analysis ready",
-    body: "Review the latest result.",
-    href: "/fighter/videos/video-1",
-    createdAt: "2026-09-20T00:00:00.000Z",
-    readAt: null,
-};
+const notification = (type: string, payload: object = {}, readAt: string | null = null) => ({
+    id: `n-${type}`,
+    type,
+    title: "Title",
+    message: "Message",
+    payload,
+    isRead: readAt !== null,
+    readAt,
+    createdAt: "2026-10-05T03:00:00.000Z",
+});
 
-describe("notifications API adapter", () => {
+const page = (data: object[], total = data.length) => ({ data, total, hasNextPage: false });
+
+/** Answers each route like the service: the inbox page, or the unread count. */
+function respond(inbox: object, unread: number) {
+    authenticatedApiRequest.mockImplementation(async (path: string, schema: { parse: (value: unknown) => unknown }) =>
+        schema.parse(path.startsWith("/notifications/unread-count") ? { count: unread } : inbox),
+    );
+}
+
+describe("notifications in API mode", () => {
     beforeEach(() => {
         vi.stubEnv("APP_DATA_MODE", "api");
         authenticatedApiRequest.mockReset();
         authenticatedMutableApiRequest.mockReset();
-        drainAuthenticatedCursorPages.mockReset();
     });
 
-    it("chuyen danh muc va muc do backend sang giao dien", async () => {
-        drainAuthenticatedCursorPages.mockResolvedValue([backendNotification]);
+    it("reads one page of the inbox, links each event into the reader's own area and counts unread separately", async () => {
+        respond(
+            page(
+                [
+                    notification("TRAINING_SESSION_CANCELLED", { v: 1, target: { type: "TRAINING_SESSION", id: "s-1" } }),
+                    notification("ADMISSION_DECISION_RECORDED", { v: 1, target: { type: "FIGHTER_APPLICATION", id: "app-1" }, data: { decision: "APPROVED" } }),
+                    notification("ANOMALY_HIGH", {}, "2026-10-05T04:00:00.000Z"),
+                ],
+                23,
+            ),
+            2,
+        );
 
-        await expect(listNotifications("user-1", { category: "ai_analysis", unreadOnly: true })).resolves.toEqual([
-            expect.objectContaining({ category: "ai_analysis", severity: "warning" }),
+        const result = await getNotificationPage({ id: "u-1", role: "fighter" }, { page: 2, pageSize: 20, unreadOnly: false });
+
+        expect(authenticatedApiRequest).toHaveBeenCalledWith("/notifications?page=2&limit=20", expect.anything());
+        expect(result).toMatchObject({ page: 2, pageCount: 2, total: 23, all: 23, unread: 2, categories: null });
+        expect(result.items).toEqual([
+            expect.objectContaining({ userId: "u-1", category: "training", severity: "warning", body: "Message", href: "/fighter/training/sessions/s-1" }),
+            expect.objectContaining({ category: "admission", severity: "success", href: null }),
+            expect.objectContaining({ category: "ai_alert", severity: "danger", href: null, readAt: "2026-10-05T04:00:00.000Z" }),
         ]);
-        expect(drainAuthenticatedCursorPages).toHaveBeenCalledWith(
-            "/notifications?category=AI_ANALYSIS&unreadOnly=true",
-            expect.anything(),
-        );
     });
 
-    it("doc tom tat bang ngu canh chi doc", async () => {
-        authenticatedApiRequest.mockResolvedValue({ unread: 1, latest: [backendNotification] });
+    it("asks the service for unread only, and leaves the overall total unknown", async () => {
+        respond(page([], 0), 0);
 
-        await expect(getNotificationSummary("user-1", 4)).resolves.toEqual({
-            unread: 1,
-            latest: [expect.objectContaining({ id: "notification-1", severity: "warning" })],
+        await expect(getNotificationPage({ id: "u-1", role: "coach" }, { page: 1, pageSize: 20, unreadOnly: true })).resolves.toMatchObject({ all: null, total: 0 });
+        expect(authenticatedApiRequest).toHaveBeenCalledWith("/notifications?page=1&limit=20&unreadOnly=true", expect.anything());
+    });
+
+    it("shows the last page when the requested one is past the end", async () => {
+        authenticatedApiRequest.mockImplementation(async (path: string, schema: { parse: (value: unknown) => unknown }) =>
+            schema.parse(path.startsWith("/notifications/unread-count") ? { count: 19 } : page(path.includes("page=1&") ? [notification("TRAINING_PLAN_ACTIVATED")] : [], 19)),
+        );
+
+        await expect(getNotificationPage({ id: "u-1", role: "coach" }, { page: 3, pageSize: 20, unreadOnly: true })).resolves.toMatchObject({ page: 1, pageCount: 1, total: 19, items: [{ category: "training" }] });
+        expect(authenticatedApiRequest).toHaveBeenCalledWith("/notifications?page=3&limit=20&unreadOnly=true", expect.anything());
+        expect(authenticatedApiRequest).toHaveBeenCalledWith("/notifications?page=1&limit=20&unreadOnly=true", expect.anything());
+    });
+
+    it("counts unread notifications for polling straight from the service", async () => {
+        respond(page([]), 4);
+        await expect(getUnreadNotificationCount()).resolves.toBe(4);
+        expect(authenticatedApiRequest).toHaveBeenCalledTimes(1);
+        expect(authenticatedApiRequest).toHaveBeenCalledWith("/notifications/unread-count", expect.anything());
+    });
+
+    it("sends an applicant to their application and an admin to the application they act on", async () => {
+        const decided = notification("ADMISSION_ASSESSMENT_RESULT", { v: 1, target: { type: "FIGHTER_APPLICATION", id: "app-1" }, data: { conclusion: "FAIL" } });
+        respond(page([decided]), 1);
+        await expect(getNotificationPage({ id: "g-1", role: "applicant" }, { page: 1, pageSize: 6, unreadOnly: false })).resolves.toMatchObject({
+            items: [{ href: "/apply", severity: "warning" }],
         });
-        expect(authenticatedApiRequest).toHaveBeenCalledWith("/notifications/summary?limit=4", expect.anything());
+        await expect(getNotificationPage({ id: "a-1", role: "admin" }, { page: 1, pageSize: 6, unreadOnly: false })).resolves.toMatchObject({
+            items: [{ href: "/admin/admissions/app-1" }],
+        });
     });
 
-    it("tra ve so thong bao da danh dau da doc", async () => {
-        authenticatedMutableApiRequest.mockResolvedValue({ count: 3 });
+    it("marks one notification read and treats a missing one as gone", async () => {
+        authenticatedMutableApiRequest.mockResolvedValueOnce(notification("TRAINING_PLAN_ACTIVATED", {}, "2026-10-05T05:00:00.000Z"));
+        await expect(markNotificationRead({ id: "u-1", role: "fighter" }, "n-1")).resolves.toBe(true);
+        expect(authenticatedMutableApiRequest).toHaveBeenCalledWith("/notifications/n-1/read", expect.anything(), { method: "PATCH" });
 
-        await expect(markAllNotificationsRead("user-1")).resolves.toBe(3);
-        expect(authenticatedMutableApiRequest).toHaveBeenCalledWith(
-            "/notifications/read-all",
-            expect.anything(),
-            { method: "POST" },
-        );
+        authenticatedMutableApiRequest.mockRejectedValueOnce(new ApiError({ message: "Not found", kind: "http", status: 404, code: "NOTIFICATION_NOT_FOUND" }));
+        await expect(markNotificationRead({ id: "u-1", role: "fighter" }, "n-2")).resolves.toBe(false);
     });
 
-    it("hien chuong rong khi backend chua co endpoint thong bao", async () => {
-        const notFound = new ApiError({ message: "Not Found", kind: "http", status: 404, code: "NOT_FOUND" });
-        authenticatedApiRequest.mockRejectedValue(notFound);
-        drainAuthenticatedCursorPages.mockRejectedValue(notFound);
+    it("streams in API mode, has no 'mark all read', and leaves the bell out when the service fails", async () => {
+        expect(canMarkAllNotificationsRead()).toBe(false);
+        respond(page([]), 0);
+        await expect(getNotificationBell({ id: "u-1", role: "doctor" })).resolves.toMatchObject({ live: true, canMarkAllRead: false, allHref: "/notifications" });
+        await expect(getNotificationBell({ id: "g-1", role: "applicant" })).resolves.toMatchObject({ allHref: null });
 
-        await expect(getNotificationSummary("user-1")).resolves.toEqual({ unread: 0, latest: [] });
-        await expect(listNotifications("user-1")).resolves.toEqual([]);
+        authenticatedApiRequest.mockRejectedValue(new ApiError({ message: "Down", kind: "http", status: 503, code: "SERVICE_UNAVAILABLE" }));
+        await expect(getNotificationBell({ id: "u-1", role: "doctor" })).resolves.toBeNull();
     });
 });

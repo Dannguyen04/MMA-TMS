@@ -56,13 +56,16 @@ export interface SessionDetailProps {
     /** Exercise library by id. */
     exercises: Record<string, Exercise>;
     videos: Video[];
-    feedback: CoachFeedback[];
+    /** Null while coach feedback isn't available, which leaves the card out. */
+    feedback: CoachFeedback[] | null;
     /** Clearance conflicts for an upcoming session (empty for past sessions). */
     conflicts: ClearanceConflict[];
     /** Coach: opens the feedback dialog. */
     feedbackAction?: ReactNode;
     /** Coach: upload footage for this session. */
     videoAction?: ReactNode;
+    /** What the training service keeps (`usesTrainingServiceForms`): no exercise list, target intensity or coach rating. */
+    serviceForm: boolean;
 }
 
 /** Everything about one training session. Shared by the fighter and coach views. */
@@ -81,6 +84,7 @@ export function SessionDetail({
     conflicts,
     feedbackAction,
     videoAction,
+    serviceForm,
 }: SessionDetailProps) {
     const started = session.scheduledAt <= now;
     const awaitingResult = started && !session.result && (session.status === "scheduled" || session.status === "in_progress");
@@ -103,7 +107,7 @@ export function SessionDetail({
                 {conflicts.length > 0 && <ClearanceNote conflicts={conflicts} audience={audience} />}
 
                 {session.result ? (
-                    <ResultCard session={session} result={session.result} />
+                    <ResultCard session={session} result={session.result} withRating={!serviceForm} />
                 ) : (
                     awaitingResult && (
                         <Card>
@@ -114,9 +118,15 @@ export function SessionDetail({
                                     icon={<ListChecks />}
                                     title="Result not recorded yet"
                                     description={
-                                        audience === "fighter"
-                                            ? "Your coach records duration, RPE and a rating after the session."
-                                            : "Use Record result to log the actual duration, the fighter's RPE and your rating so adherence and load stay accurate."
+                                        serviceForm
+                                            ? audience === "fighter"
+                                                ? "Your coach records your RPE and rounds after the session."
+                                                : session.status === "in_progress"
+                                                  ? "Record the fighter's RPE and rounds to complete the session."
+                                                  : "Start the session when it begins, then record the fighter's RPE and rounds to complete it."
+                                            : audience === "fighter"
+                                              ? "Your coach records duration, RPE and a rating after the session."
+                                              : "Use Record result to log the actual duration, the fighter's RPE and your rating so adherence and load stay accurate."
                                     }
                                 />
                             </CardContent>
@@ -124,47 +134,49 @@ export function SessionDetail({
                     )
                 )}
 
-                <ExercisesCard session={session} exercises={exercises} />
+                {!serviceForm && <ExercisesCard session={session} exercises={exercises} />}
 
-                <Card>
-                    <CardHeader
-                        title="Coach feedback"
-                        description="Notes on this session"
-                        icon={<MessageSquare />}
-                        action={feedbackAction}
-                    />
-                    <CardContent>
-                        {feedback.length === 0 ? (
-                            <EmptyState
-                                compact
-                                icon={<MessageSquare />}
-                                title="No feedback yet"
-                                description={
-                                    audience === "fighter"
-                                        ? "Feedback from your coach about this session will appear here."
-                                        : "Share praise, corrections or notes so the fighter knows what to work on."
-                                }
-                            />
-                        ) : (
-                            <ul className="flex flex-col divide-y divide-border">
-                                {feedback.map((item) => (
-                                    <li key={item.id} className="py-4 first:pt-0 last:pb-0">
-                                        <CoachFeedbackItem
-                                            feedback={item}
-                                            coachName={coachNames[item.coachId] ?? "Coach"}
-                                            now={now}
-                                            videoHref={item.videoId ? videoHref(audience, item.videoId) : undefined}
-                                        />
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </CardContent>
-                </Card>
+                {feedback && (
+                    <Card>
+                        <CardHeader
+                            title="Coach feedback"
+                            description="Notes on this session"
+                            icon={<MessageSquare />}
+                            action={feedbackAction}
+                        />
+                        <CardContent>
+                            {feedback.length === 0 ? (
+                                <EmptyState
+                                    compact
+                                    icon={<MessageSquare />}
+                                    title="No feedback yet"
+                                    description={
+                                        audience === "fighter"
+                                            ? "Feedback from your coach about this session will appear here."
+                                            : "Share praise, corrections or notes so the fighter knows what to work on."
+                                    }
+                                />
+                            ) : (
+                                <ul className="flex flex-col divide-y divide-border">
+                                    {feedback.map((item) => (
+                                        <li key={item.id} className="py-4 first:pt-0 last:pb-0">
+                                            <CoachFeedbackItem
+                                                feedback={item}
+                                                coachName={coachNames[item.coachId] ?? "Coach"}
+                                                now={now}
+                                                videoHref={item.videoId ? videoHref(audience, item.videoId) : undefined}
+                                            />
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </CardContent>
+                    </Card>
+                )}
             </div>
 
             <div className="flex min-w-0 flex-col gap-6">
-                <DetailsCard session={session} audience={audience} coachName={coachName} fighter={fighter} fighterHref={fighterHref} plan={plan} />
+                <DetailsCard session={session} audience={audience} coachName={coachName} fighter={fighter} fighterHref={fighterHref} plan={plan} withTarget={!serviceForm} />
 
                 <Card>
                     <CardHeader title="Linked videos" icon={<VideoIcon />} />
@@ -244,7 +256,7 @@ function ClearanceNote({ conflicts, audience }: { conflicts: ClearanceConflict[]
     );
 }
 
-function ResultCard({ session, result }: { session: TrainingSession; result: SessionResult }) {
+function ResultCard({ session, result, withRating }: { session: TrainingSession; result: SessionResult; withRating: boolean }) {
     const durationDelta = result.actualDurationMin !== null && session.durationMin !== null ? result.actualDurationMin - session.durationMin : null;
     return (
         <Card>
@@ -277,16 +289,18 @@ function ResultCard({ session, result }: { session: TrainingSession; result: Ses
                         hint={session.targetRpe === null ? undefined : `Target ${session.targetRpe}`}
                     />
                     <MetricTile label="Rounds completed" value={result.roundsCompleted} />
-                    <MetricTile
-                        label="Coach rating"
-                        value={
-                            result.coachRating === null ? (
-                                NOT_RECORDED
-                            ) : (
-                                <CoachRating rating={result.coachRating} className="flex-wrap gap-y-1 text-base font-normal" />
-                            )
-                        }
-                    />
+                    {withRating && (
+                        <MetricTile
+                            label="Coach rating"
+                            value={
+                                result.coachRating === null ? (
+                                    NOT_RECORDED
+                                ) : (
+                                    <CoachRating rating={result.coachRating} className="flex-wrap gap-y-1 text-base font-normal" />
+                                )
+                            }
+                        />
+                    )}
                 </div>
                 {result.summary && (
                     <div className="rounded-lg border border-border px-4 py-3">
@@ -372,6 +386,7 @@ function DetailsCard({
     fighter,
     fighterHref,
     plan,
+    withTarget,
 }: {
     session: TrainingSession;
     audience: TrainingAudience;
@@ -379,6 +394,8 @@ function DetailsCard({
     fighter?: FighterIdentityData;
     fighterHref?: string;
     plan: Pick<TrainingPlan, "id" | "title"> | null;
+    /** Show the planned intensity, which the training service doesn't keep. */
+    withTarget: boolean;
 }) {
     const end = session.durationMin === null ? null : new Date(plannedEndMs(session)).toISOString();
     const items: DescriptionItem[] = [];
@@ -402,8 +419,8 @@ function DetailsCard({
             ),
         },
         { label: "Planned duration", value: session.durationMin === null ? NOT_RECORDED : formatMinutes(session.durationMin) },
-        { label: "Target intensity", value: rpeText(session.targetRpe) ?? NOT_RECORDED },
-        { label: "Location", value: session.location, wide: true },
+        ...(withTarget ? [{ label: "Target intensity", value: rpeText(session.targetRpe) ?? NOT_RECORDED }] : []),
+        { label: "Location", value: session.location || NOT_RECORDED, wide: true },
         { label: "Coach", value: coachName, wide: true },
         {
             label: "Training plan",

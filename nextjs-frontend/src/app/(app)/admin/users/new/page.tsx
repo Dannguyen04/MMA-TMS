@@ -1,20 +1,45 @@
-import { KeyRound, MailCheck, ShieldAlert, UserRoundCheck } from "lucide-react";
+import { KeyRound, LockKeyhole, MailCheck, ShieldAlert, UserRoundCheck, UsersRound } from "lucide-react";
 import type { Metadata } from "next";
 
 import { CLINICAL_PERMISSIONS, ROLE_ORDER } from "@/components/admin/admin-format";
-import { InviteUserForm, type RoleOption } from "@/components/admin/invite-user-form";
+import { CreateAccountForm } from "@/components/admin/create-account-form";
+import { InviteUserForm } from "@/components/admin/invite-user-form";
+import type { RoleOption } from "@/components/admin/role-options";
 import { Callout } from "@/components/training/callout";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
-import { FeatureUnavailable } from "@/components/ui/states";
 import { requireRole } from "@/lib/auth/session";
+import { dayKey } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { listRoleDefinitions } from "@/lib/services/admin";
-import { adminFeatureAvailable } from "@/lib/services/admin-features";
+import { usesUserServiceForms } from "@/lib/services/admin-features";
 
-export const metadata: Metadata = { title: "Invite user" };
+export async function generateMetadata(): Promise<Metadata> {
+    return { title: usesUserServiceForms() ? "Add user" : "Invite user" };
+}
 
-const STEPS = [
+const ACCESS_STEP = {
+    icon: KeyRound,
+    title: "Access follows the role",
+    body: "Permissions come from the role, so changing a role's permissions updates everyone who has it.",
+};
+
+/** The user service creates accounts ready to sign in, with the profile filled in up front. */
+const ACCOUNT_STEPS = [
+    {
+        icon: LockKeyhole,
+        title: "They sign in with the password you set",
+        body: "Share it privately. They can choose their own at any time with “Forgot password” on the sign-in page.",
+    },
+    {
+        icon: UsersRound,
+        title: "Rosters come next",
+        body: "A new fighter starts without a coach or doctor. Assign them from the fighter's account page.",
+    },
+    ACCESS_STEP,
+];
+
+const INVITATION_STEPS = [
     {
         icon: MailCheck,
         title: "They receive an invitation email",
@@ -25,26 +50,13 @@ const STEPS = [
         title: "Their profile is linked on first sign-in",
         body: "Fighter, coach and doctor profiles are connected during onboarding, then rosters can be assigned.",
     },
-    {
-        icon: KeyRound,
-        title: "Access follows the role",
-        body: "Permissions come from the role, so changing a role's permissions updates everyone who has it.",
-    },
+    ACCESS_STEP,
 ];
 
-export default async function InviteUserPage() {
+/** API mode creates the account outright; the demo invites the person to set their own password. */
+export default async function NewUserPage() {
     await requireRole("admin");
-    if (!adminFeatureAvailable("inviteUsers")) {
-        return (
-            <>
-                <PageHeader back={{ href: routes.admin.users, label: "Users" }} title="Invite user" />
-                <FeatureUnavailable
-                    title="Invitations aren't available yet"
-                    description="The user service creates an account only with a password and the person's full profile, and doesn't send invitations yet. Inviting people will appear here once it does."
-                />
-            </>
-        );
-    }
+    const serviceForms = usesUserServiceForms();
     const definitions = await listRoleDefinitions();
 
     const roles: RoleOption[] = ROLE_ORDER.flatMap((role) => {
@@ -65,14 +77,18 @@ export default async function InviteUserPage() {
         <>
             <PageHeader
                 back={{ href: routes.admin.users, label: "Users" }}
-                title="Invite user"
-                description="Create an account and send the person an invitation to set their password."
+                title={serviceForms ? "Add user" : "Invite user"}
+                description={
+                    serviceForms
+                        ? "Create an account with a first password and the person's profile."
+                        : "Create an account and send the person an invitation to set their password."
+                }
             />
 
             <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                 <Card className="min-w-0 overflow-hidden lg:col-span-2">
                     <CardHeader title="Account details" description="Fields marked * are required." />
-                    <InviteUserForm roles={roles} defaultRole="fighter" />
+                    {serviceForms ? <CreateAccountForm roles={roles} defaultRole="fighter" today={dayKey(new Date())} /> : <InviteUserForm roles={roles} defaultRole="fighter" />}
                 </Card>
 
                 <div className="flex min-w-0 flex-col gap-6">
@@ -80,7 +96,7 @@ export default async function InviteUserPage() {
                         <CardHeader title="What happens next" />
                         <CardContent>
                             <ol className="flex flex-col gap-4">
-                                {STEPS.map((step, index) => {
+                                {(serviceForms ? ACCOUNT_STEPS : INVITATION_STEPS).map((step, index) => {
                                     const Icon = step.icon;
                                     return (
                                         <li key={step.title} className="flex gap-3">
@@ -99,7 +115,7 @@ export default async function InviteUserPage() {
                         </CardContent>
                     </Card>
                     <Callout tone="warning" icon={ShieldAlert} title="Clinical access">
-                        The sports doctor role opens medical records, injuries and Medical Clearance. Only invite licensed sports medicine staff to it.
+                        The sports doctor role opens medical records, injuries and Medical Clearance. Only give it to licensed sports medicine staff.
                     </Callout>
                 </div>
             </div>

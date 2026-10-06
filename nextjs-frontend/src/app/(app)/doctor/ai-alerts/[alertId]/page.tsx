@@ -266,21 +266,23 @@ export default async function AIAlertDetailPage({ params }: PageProps<"/doctor/a
                             </CardContent>
                         </Card>
 
-                        <Card>
-                            <CardHeader
-                                as="h3"
-                                title="Your decision"
-                                description={
-                                    alert.doctorReview
-                                        ? "Recorded by a doctor — separate from the AI output"
-                                        : "How should this observation be handled?"
-                                }
-                                icon={<Stethoscope />}
-                            />
-                            <CardContent>
-                                <AlertDecisionPanel alertId={alert.id} review={alert.doctorReview} />
-                            </CardContent>
-                        </Card>
+                        {medicalFeatureAvailable("aiObservationReview") && (
+                            <Card>
+                                <CardHeader
+                                    as="h3"
+                                    title="Your decision"
+                                    description={
+                                        alert.doctorReview
+                                            ? "Recorded by a doctor — separate from the AI output"
+                                            : "How should this observation be handled?"
+                                    }
+                                    icon={<Stethoscope />}
+                                />
+                                <CardContent>
+                                    <AlertDecisionPanel alertId={alert.id} review={alert.doctorReview} />
+                                </CardContent>
+                            </Card>
+                        )}
 
                         <Card>
                             <CardHeader as="h3" title="Next steps" icon={<ClipboardPlus />} />
@@ -364,7 +366,7 @@ function HistoryRow({ alert, sameRegion, now }: { alert: AbnormalMovementAlert; 
                 </p>
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-2">
-                <span className="text-[13px] text-fg-muted tabular-nums">{formatConfidence(alert.confidence)} confidence</span>
+                {alert.confidence !== null && <span className="text-[13px] text-fg-muted tabular-nums">{formatConfidence(alert.confidence)} confidence</span>}
                 <AlertStatusBadge status={alert.status} size="sm" />
                 <ArrowRight aria-hidden className="hidden size-4 text-fg-subtle sm:block" />
             </div>

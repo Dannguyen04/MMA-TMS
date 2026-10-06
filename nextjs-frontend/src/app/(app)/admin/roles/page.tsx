@@ -1,9 +1,10 @@
-import { Dumbbell, Lock, ShieldAlert, ShieldCheck, Stethoscope, UserRound, type LucideIcon } from "lucide-react";
+import { Clock3, Dumbbell, Lock, ShieldAlert, ShieldCheck, Stethoscope, UserRound, type LucideIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
 import { CLINICAL_PERMISSIONS, ROLE_ORDER } from "@/components/admin/admin-format";
 import { RoleMatrix, type MatrixRole } from "@/components/admin/role-matrix";
+import { Callout } from "@/components/training/callout";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { requireRole } from "@/lib/auth/session";
@@ -12,6 +13,7 @@ import { pluralize } from "@/lib/format";
 import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { listPermissionCatalog, listRoleDefinitions, listUsers } from "@/lib/services/admin";
+import { adminFeatureAvailable } from "@/lib/services/admin-features";
 
 export const metadata: Metadata = { title: "Roles & permissions" };
 
@@ -25,6 +27,7 @@ const ROLE_ICONS: Record<Role, LucideIcon> = {
 export default async function AdminRolesPage() {
     await requireRole("admin");
     const [definitions, catalog, users] = await Promise.all([listRoleDefinitions(), listPermissionCatalog(), listUsers()]);
+    const editable = adminFeatureAvailable("rolePermissions");
 
     const roles: MatrixRole[] = ROLE_ORDER.flatMap((role) => {
         const definition = definitions.find((d) => d.role === role);
@@ -37,10 +40,19 @@ export default async function AdminRolesPage() {
         <>
             <PageHeader
                 title="Roles & permissions"
-                description="Decide what each role can see and do. Saving a role applies the change to every account with that role straight away."
+                description={
+                    editable
+                        ? "Decide what each role can see and do. Saving a role applies the change to every account with that role straight away."
+                        : "What each role can see and do."
+                }
             />
 
             <div className="flex flex-col gap-6">
+                {!editable && (
+                    <Callout tone="info" icon={Clock3} title="Role permissions can't be changed here yet">
+                        The user service manages permissions itself and doesn&apos;t list them, so this page shows each role&apos;s defaults.
+                    </Callout>
+                )}
                 <section aria-label="Roles" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                     {ROLE_ORDER.map((role) => {
                         const definition = definitions.find((d) => d.role === role);
@@ -83,7 +95,7 @@ export default async function AdminRolesPage() {
                 </section>
 
                 <Card className="min-w-0 overflow-hidden">
-                    <RoleMatrix roles={roles} catalog={catalog} />
+                    <RoleMatrix roles={roles} catalog={catalog} readOnly={!editable} />
                 </Card>
             </div>
         </>

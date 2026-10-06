@@ -7,11 +7,9 @@ import { z } from "zod";
 import { accessibleFighterIds, canAccessFighterClinically } from "@/lib/auth/access";
 import { authorizeClinicalAction } from "@/lib/auth/session";
 import {
-    ASSESSMENT_RESULT_LABELS,
     BODY_REGION_LABELS,
     CLEARANCE_LEVEL_LABELS,
     EXAMINATION_OUTCOME_LABELS,
-    EXAMINATION_TYPE_LABELS,
     HEALTH_STATUS_LABELS,
     TECHNIQUES,
     TRAINING_TYPE_LABELS,
@@ -28,25 +26,13 @@ import {
 } from "@/lib/services/medical";
 import { medicalWriteFailure } from "@/lib/services/medical-errors";
 import { FEATURE_UNAVAILABLE_MESSAGE, medicalFeatureAvailable } from "@/lib/services/medical-features";
+import { assessmentSchema, checkBloodPressure, checkFollowUpDate, EXAMINATION_TYPES, issuesOf, readVitals, scat6Field, scat6Issues, toVitals, VITAL_FIELDS } from "./examination-fields";
 import { NOT_ASSIGNED, isInFuture, jsonArray, keysOf, text } from "./form-helpers";
 import { actionError, actionSuccess, FIX_FIELDS, validationError, type ActionState } from "./state";
 
 /* ─── Parsing helpers (not exported: a "use server" module may only export actions) ─── */
 
 const MAX_CLEARANCE_DAYS = 365;
-
-/** A required numeric measurement within a plausible clinical range. */
-function measurement(label: string, min: number, max: number, unit: string, integer = false) {
-    const range = `${label} must be between ${min} and ${max}${unit ? ` ${unit}` : ""}.`;
-    let schema = z.number({ error: `Enter the ${label.toLowerCase()} as a number.` }).min(min, range).max(max, range);
-    if (integer) schema = schema.int(`Enter the ${label.toLowerCase()} as a whole number.`);
-    return z
-        .string()
-        .trim()
-        .min(1, `Enter the ${label.toLowerCase()}.`)
-        .transform((value) => Number(value))
-        .pipe(schema);
-}
 
 function revalidateDoctorArea() {
     revalidatePath("/doctor", "layout");
@@ -136,30 +122,12 @@ export async function updateMedicalRecordAction(_prev: ActionState, formData: Fo
 
 /* ─── Examinations ────────────────────────────────────────────────────────── */
 
-const assessmentSchema = z
-    .object({
-        area: z.string().trim().min(1, "Name the area assessed.").max(120, "Keep the area under 120 characters."),
-        result: z.enum(keysOf(ASSESSMENT_RESULT_LABELS), { error: "Choose a result." }),
-        note: z.string().trim().max(500, "Keep the note under 500 characters."),
-    })
-    .superRefine((assessment, ctx) => {
-        if (assessment.result === "abnormal" && !assessment.note) {
-            ctx.addIssue({ code: "custom", path: ["note"], message: "Describe the abnormal finding." });
-        }
-    });
-
 const examinationSchema = z
     .object({
         fighterId: z.string().min(1, "Choose the fighter you examined."),
-        type: z.enum(keysOf(EXAMINATION_TYPE_LABELS), { error: "Choose the examination type." }),
+        type: z.enum(EXAMINATION_TYPES, { error: "Choose the examination type." }),
         date: z.string().refine(isDateTimeInputValue, "Enter the date and time of the examination."),
-        weightKg: measurement("Weight", 35, 180, "kg"),
-        restingHeartRate: measurement("Resting heart rate", 25, 150, "bpm", true),
-        bloodPressureSystolic: measurement("Systolic pressure", 70, 220, "mmHg", true),
-        bloodPressureDiastolic: measurement("Diastolic pressure", 40, 140, "mmHg", true),
-        temperatureC: measurement("Temperature", 33, 42, "°C"),
-        spo2Pct: measurement("SpO₂", 70, 100, "%", true),
-        hydration: z.enum(["good", "fair", "poor"], { error: "Choose the hydration status." }),
+        ...VITAL_FIELDS,
         assessments: jsonArray(assessmentSchema, "assessments", { min: 1, minMessage: "Add at least one assessment." }),
         outcome: z.enum(keysOf(EXAMINATION_OUTCOME_LABELS), { error: "Choose the examination outcome." }),
         summary: z.string().trim().min(10, "Summarise the findings in a sentence or two.").max(3000, "Keep the summary under 3,000 characters."),
@@ -171,12 +139,8 @@ const examinationSchema = z
         followUpDate: z.string().trim().refine((value) => value === "" || isDateKey(value), "Enter a valid follow-up date."),
     })
     .superRefine((exam, ctx) => {
-        if (exam.bloodPressureDiastolic >= exam.bloodPressureSystolic) {
-            ctx.addIssue({ code: "custom", path: ["bloodPressureDiastolic"], message: "Diastolic pressure must be lower than systolic." });
-        }
-        if (exam.followUpDate && exam.followUpDate <= exam.date.slice(0, 10)) {
-            ctx.addIssue({ code: "custom", path: ["followUpDate"], message: "Schedule the follow-up after the examination date." });
-        }
+        checkBloodPressure(exam, ctx);
+        checkFollowUpDate(exam.followUpDate, exam.date, ctx);
     });
 
 export async function createExaminationAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -187,20 +151,15 @@ export async function createExaminationAction(_prev: ActionState, formData: Form
         fighterId: text(formData, "fighterId"),
         type: text(formData, "type"),
         date: text(formData, "date"),
-        weightKg: text(formData, "weightKg"),
-        restingHeartRate: text(formData, "restingHeartRate"),
-        bloodPressureSystolic: text(formData, "bloodPressureSystolic"),
-        bloodPressureDiastolic: text(formData, "bloodPressureDiastolic"),
-        temperatureC: text(formData, "temperatureC"),
-        spo2Pct: text(formData, "spo2Pct"),
-        hydration: text(formData, "hydration"),
+        ...readVitals(formData),
         assessments: text(formData, "assessments"),
         outcome: text(formData, "outcome"),
         summary: text(formData, "summary"),
         recommendations: text(formData, "recommendations"),
         followUpDate: text(formData, "followUpDate"),
     });
-    if (!parsed.success) return validationError(parsed.error);
+    const scat6 = text(formData, "type") === "baseline" ? scat6Field.safeParse(text(formData, "scat6")) : undefined;
+    if (!parsed.success || scat6?.success === false) return validationError(new z.ZodError([...issuesOf(parsed), ...scat6Issues(scat6)]));
     const input = parsed.data;
     if (!canAccessFighterClinically(auth.user, input.fighterId)) return actionError(NOT_ASSIGNED, { fighterId: "Choose one of your assigned fighters." });
 
@@ -215,20 +174,13 @@ export async function createExaminationAction(_prev: ActionState, formData: Form
             fighterId: input.fighterId,
             date: examinedAt,
             type: input.type,
-            vitals: {
-                weightKg: Math.round(input.weightKg * 10) / 10,
-                restingHeartRate: input.restingHeartRate,
-                bloodPressureSystolic: input.bloodPressureSystolic,
-                bloodPressureDiastolic: input.bloodPressureDiastolic,
-                temperatureC: Math.round(input.temperatureC * 10) / 10,
-                spo2Pct: input.spo2Pct,
-                hydration: input.hydration,
-            },
+            vitals: toVitals(input),
             assessments: input.assessments,
             outcome: input.outcome,
             summary: input.summary,
             recommendations: input.recommendations,
             followUpDate: input.followUpDate ? academyWallClockToIso(input.followUpDate, "10:00") : null,
+            scat6: scat6?.success ? scat6.data : null,
         },
         auth.user,
     );

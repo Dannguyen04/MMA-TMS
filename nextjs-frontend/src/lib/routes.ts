@@ -22,6 +22,12 @@ export function roleForPath(pathname: string): Role | null {
 export const routes = {
     login: "/login",
     forgotPassword: "/forgot-password",
+    /** Where the auth service's recovery email lands (PASSWORD_RESET_REDIRECT_URL on the API). */
+    resetPassword: "/auth/reset-password",
+    /** Self-registration for people applying to train as fighters. */
+    register: "/register",
+    /** A signed-in applicant's application and, once approved, their activation. */
+    apply: "/apply",
     notifications: "/notifications",
     profile: "/profile",
     settings: "/settings",
@@ -67,6 +73,8 @@ export const routes = {
         performance: "/coach/performance",
         goals: "/coach/goals",
         clearance: "/coach/medical-clearance",
+        admissions: "/coach/admissions",
+        admission: (applicationId: string) => `/coach/admissions/${applicationId}`,
     },
 
     doctor: {
@@ -93,6 +101,8 @@ export const routes = {
         users: "/admin/users",
         newUser: "/admin/users/new",
         user: (userId: string) => `/admin/users/${userId}`,
+        admissions: "/admin/admissions",
+        admission: (applicationId: string) => `/admin/admissions/${applicationId}`,
         roles: "/admin/roles",
         videos: "/admin/videos",
         aiJobs: "/admin/ai-jobs",

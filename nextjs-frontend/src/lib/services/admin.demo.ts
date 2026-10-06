@@ -5,6 +5,7 @@ import "server-only";
 import { cache } from "react";
 
 import { isDoctorOnlyPermission } from "@/lib/auth/permissions";
+import { PERMISSION_CATALOG } from "@/lib/auth/role-catalog";
 import { getCurrentUser } from "@/lib/auth/session";
 import { BROADCAST_CHANNEL_LABELS, ROLE_LABELS, USER_STATUS_LABELS } from "@/lib/domain/labels";
 import type {
@@ -14,6 +15,7 @@ import type {
     Fighter,
     NotificationBroadcast,
     Permission,
+    PermissionCatalogEntry,
     Role,
     RoleDefinition,
     SystemSettings,
@@ -22,7 +24,6 @@ import type {
 } from "@/lib/domain/types";
 import { DAY_MS, formatConfidence, formatDateTime, pluralize } from "@/lib/format";
 import { db, newId, nowIso, simulateLatency } from "@/lib/mocks/db";
-import { ALL_PERMISSIONS } from "@/lib/mocks/roles";
 import { matchesSearch } from "@/lib/query";
 import { dashboardPath, routes } from "@/lib/routes";
 import { round, sum } from "@/lib/utils";
@@ -35,7 +36,6 @@ import type {
     CreateBroadcastResult,
     InviteUserInput,
     InviteUserResult,
-    PermissionCatalogEntry,
     ResendInviteResult,
     SetUserStatusResult,
     UpdateRolePermissionsResult,
@@ -107,6 +107,7 @@ export async function getUserDetail(id: string, viewer?: User | null): Promise<U
             .slice(0, RECENT_USER_AUDIT_LIMIT)
             .map((log) => toAuditView(log, reader)),
         permissions: store.roleDefinitions.find((r) => r.role === user.role)?.permissions ?? [],
+        account: null,
     };
 }
 
@@ -279,7 +280,7 @@ export async function listRoleDefinitions(): Promise<RoleDefinition[]> {
 /** Every permission the platform knows, in display order, with its label and group. Static reference data, read once per request. */
 export const listPermissionCatalog = cache(async (): Promise<PermissionCatalogEntry[]> => {
     await simulateLatency();
-    return ALL_PERMISSIONS.map((entry) => ({ ...entry }));
+    return PERMISSION_CATALOG.map((entry) => ({ ...entry }));
 });
 
 /**
@@ -472,6 +473,7 @@ export async function getAdminOverview(now: Date = new Date(), viewer?: User | n
         activeUsers7d: store.users.filter(
             (u) => u.status === "active" && u.lastActiveAt !== null && Date.parse(u.lastActiveAt) >= weekAgo,
         ).length,
+        activeAccounts: store.users.filter((u) => u.status === "active").length,
         invitedUsers: store.users.filter((u) => u.status === "invited").length,
         suspendedUsers: store.users.filter((u) => u.status === "suspended").length,
         videosTotal: store.videos.length,

@@ -1,7 +1,6 @@
 import { Check, Minus } from "lucide-react";
 
-import type { PermissionCatalogEntry } from "@/lib/services/admin";
-import type { Permission } from "@/lib/domain/types";
+import type { Permission, PermissionCatalogEntry } from "@/lib/domain/types";
 import { cn } from "@/lib/utils";
 import { CLINICAL_PERMISSIONS, PERMISSION_GROUP_ORDER } from "./admin-format";
 import { ClinicalDataBadge } from "./admin-badges";

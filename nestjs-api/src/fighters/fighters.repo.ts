@@ -101,6 +101,33 @@ export function mapFighterRow(row: typeof fighters.$inferSelect): PublicFighter 
   };
 }
 
+/** A `coach_fighters` row as the raw queries below return it, with camelCase column aliases. */
+type CoachAssignmentRow = {
+  id: string;
+  coachId: string;
+  fighterId: string;
+  assignedById: string;
+  startsAt: string | Date;
+  endsAt: string | Date | null;
+  endedById: string | null;
+  endReason: string | null;
+  createdAt: string | Date;
+};
+
+function toCoachAssignment(row: CoachAssignmentRow): CoachAssignment {
+  return {
+    id: row.id,
+    coachId: row.coachId,
+    fighterId: row.fighterId,
+    assignedById: row.assignedById,
+    startsAt: new Date(row.startsAt),
+    endsAt: row.endsAt ? new Date(row.endsAt) : null,
+    endedById: row.endedById,
+    endReason: row.endReason,
+    createdAt: new Date(row.createdAt),
+  };
+}
+
 @Injectable()
 export class FightersRepository {
   constructor(@Inject(DRIZZLE) private readonly db: DrizzleDB) {}
@@ -418,11 +445,16 @@ export class FightersRepository {
     database: DatabaseExecutor = this.db,
   ) {
     const [row] = await database
-      .select()
-      .from(sql`public.coach_fighters`)
+      .select({ id: coachFighters.id })
+      .from(coachFighters)
       .where(
-        sql`coach_id = ${coachId} AND fighter_id = ${fighterId} AND ends_at IS NULL`,
-      );
+        and(
+          eq(coachFighters.coachId, coachId),
+          eq(coachFighters.fighterId, fighterId),
+          isNull(coachFighters.endsAt),
+        ),
+      )
+      .limit(1);
     return row;
   }
 
@@ -432,29 +464,35 @@ export class FightersRepository {
     database: DatabaseExecutor = this.db,
   ) {
     const [row] = await database
-      .select()
-      .from(sql`public.coach_fighters`)
-      .where(sql`id = ${assignmentId} AND fighter_id = ${fighterId}`);
-    return row as
-      | {
-          id: string;
-          coach_id: string;
-          fighter_id: string;
-          assigned_by_id: string;
-          starts_at: Date;
-          ends_at: Date | null;
-          ended_by_id: string | null;
-          end_reason: string | null;
-          created_at: Date;
-        }
-      | undefined;
+      .select({
+        id: coachFighters.id,
+        coach_id: coachFighters.coachId,
+        fighter_id: coachFighters.fighterId,
+        assigned_by_id: coachFighters.assignedById,
+        starts_at: coachFighters.startsAt,
+        ends_at: coachFighters.endsAt,
+        ended_by_id: coachFighters.endedById,
+        end_reason: coachFighters.endReason,
+        created_at: coachFighters.createdAt,
+      })
+      .from(coachFighters)
+      .where(
+        and(
+          eq(coachFighters.id, assignmentId),
+          eq(coachFighters.fighterId, fighterId),
+        ),
+      )
+      .limit(1);
+    return row;
   }
 
   async findCoachAssignments(
     fighterId: string,
     database: DatabaseExecutor = this.db,
   ): Promise<CoachAssignment[]> {
-    const rows = (await database.execute(sql`
+    const { rows } = await database.execute<
+      CoachAssignmentRow & { coachName: string }
+    >(sql`
       SELECT 
         cf.id,
         cf.coach_id as "coachId",
@@ -465,38 +503,16 @@ export class FightersRepository {
         cf.ended_by_id as "endedById",
         cf.end_reason as "endReason",
         cf.created_at as "createdAt",
-        concat(c.first_name, ' ', c.last_name) as "coachName",
-        c.gym as "coachGym"
+        concat(c.first_name, ' ', c.last_name) as "coachName"
       FROM public.coach_fighters cf
       JOIN public.coaches c ON c.id = cf.coach_id
       WHERE cf.fighter_id = ${fighterId}
       ORDER BY cf.starts_at DESC, cf.created_at DESC
-    `)) as unknown as Array<{
-      id: string;
-      coachId: string;
-      fighterId: string;
-      assignedById: string;
-      startsAt: string | Date;
-      endsAt: string | Date | null;
-      endedById: string | null;
-      endReason: string | null;
-      createdAt: string | Date;
-      coachName?: string;
-      coachGym?: string | null;
-    }>;
+    `);
 
     return rows.map((r) => ({
-      id: r.id,
-      coachId: r.coachId,
-      fighterId: r.fighterId,
-      assignedById: r.assignedById,
-      startsAt: new Date(r.startsAt),
-      endsAt: r.endsAt ? new Date(r.endsAt) : null,
-      endedById: r.endedById,
-      endReason: r.endReason,
-      createdAt: new Date(r.createdAt),
+      ...toCoachAssignment(r),
       coachName: r.coachName,
-      coachGym: r.coachGym,
     }));
   }
 
@@ -507,7 +523,7 @@ export class FightersRepository {
     startsAt: Date,
     database: DatabaseExecutor = this.db,
   ): Promise<CoachAssignment> {
-    const result = (await database.execute(sql`
+    const { rows } = await database.execute<CoachAssignmentRow>(sql`
       INSERT INTO public.coach_fighters (coach_id, fighter_id, assigned_by_id, starts_at)
       VALUES (${coachId}, ${fighterId}, ${assignedById}, ${startsAt.toISOString()})
       RETURNING 
@@ -515,30 +531,8 @@ export class FightersRepository {
         assigned_by_id as "assignedById", starts_at as "startsAt",
         ends_at as "endsAt", ended_by_id as "endedById", 
         end_reason as "endReason", created_at as "createdAt"
-    `)) as unknown as Array<{
-      id: string;
-      coachId: string;
-      fighterId: string;
-      assignedById: string;
-      startsAt: string | Date;
-      endsAt: string | Date | null;
-      endedById: string | null;
-      endReason: string | null;
-      createdAt: string | Date;
-    }>;
-
-    const row = result[0]!;
-    return {
-      id: row.id,
-      coachId: row.coachId,
-      fighterId: row.fighterId,
-      assignedById: row.assignedById,
-      startsAt: new Date(row.startsAt),
-      endsAt: row.endsAt ? new Date(row.endsAt) : null,
-      endedById: row.endedById,
-      endReason: row.endReason,
-      createdAt: new Date(row.createdAt),
-    };
+    `);
+    return toCoachAssignment(rows[0]!);
   }
 
   async closeCoachAssignment(
@@ -548,7 +542,7 @@ export class FightersRepository {
     endsAt: Date,
     database: DatabaseExecutor = this.db,
   ): Promise<CoachAssignment> {
-    const result = (await database.execute(sql`
+    const { rows } = await database.execute<CoachAssignmentRow>(sql`
       UPDATE public.coach_fighters
       SET 
         ends_at = ${endsAt.toISOString()},
@@ -560,30 +554,8 @@ export class FightersRepository {
         assigned_by_id as "assignedById", starts_at as "startsAt",
         ends_at as "endsAt", ended_by_id as "endedById", 
         end_reason as "endReason", created_at as "createdAt"
-    `)) as unknown as Array<{
-      id: string;
-      coachId: string;
-      fighterId: string;
-      assignedById: string;
-      startsAt: string | Date;
-      endsAt: string | Date | null;
-      endedById: string | null;
-      endReason: string | null;
-      createdAt: string | Date;
-    }>;
-
-    const row = result[0]!;
-    return {
-      id: row.id,
-      coachId: row.coachId,
-      fighterId: row.fighterId,
-      assignedById: row.assignedById,
-      startsAt: new Date(row.startsAt),
-      endsAt: row.endsAt ? new Date(row.endsAt) : null,
-      endedById: row.endedById,
-      endReason: row.endReason,
-      createdAt: new Date(row.createdAt),
-    };
+    `);
+    return toCoachAssignment(rows[0]!);
   }
 
   /** Account user of a coach profile, whatever its state (notification recipient). */

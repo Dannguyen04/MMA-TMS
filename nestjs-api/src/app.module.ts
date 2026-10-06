@@ -39,6 +39,8 @@ import { VideosModule } from './videos/videos.module.js';
       }),
     }),
     DatabaseModule,
+    VideosModule,
+    JobsModule,
     UsersModule,
     AuthModule,
     FightersModule,

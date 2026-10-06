@@ -3,6 +3,7 @@
 import { Ban, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { InlineNote } from "@/components/dashboard/inline-note";
 import { ClearanceCard } from "@/components/domain/clearance-card";
 import { FighterIdentity } from "@/components/domain/fighter-identity";
 import { TRAINING_TYPE_ICONS } from "@/components/domain/training-type-icon";
@@ -17,6 +18,7 @@ import { useActionForm } from "@/components/ui/use-action-form";
 import type { ActionState } from "@/lib/actions/state";
 import { previewSessionConflicts, type SessionFormResult } from "@/lib/actions/training";
 import { PLAN_STATUS_LABELS, TRAINING_TYPE_LABELS } from "@/lib/domain/labels";
+import { SERVICE_TRAINING_TYPES } from "@/lib/domain/training-contract";
 import type { ClearanceConflict } from "@/lib/domain/rules";
 import type { Exercise, PlanStatus, TrainingType } from "@/lib/domain/types";
 import { ClearanceCheckPanel, type ClearanceCheckStatus } from "./clearance-check-panel";
@@ -63,6 +65,11 @@ export interface SessionFormProps {
     /** Earliest selectable date (YYYY-MM-DD). */
     minDate?: string;
     cancelHref: string;
+    /**
+     * Only what the training service stores (`usesTrainingServiceForms`): no target RPE or exercises, its own training
+     * types, and no live clearance check, because the service checks Medical Clearance when the session starts.
+     */
+    serviceForm: boolean;
 }
 
 /** Where each training type usually happens at the academy; used to prefill the location. */
@@ -77,7 +84,6 @@ const DEFAULT_LOCATION: Record<TrainingType, string> = {
     recovery_mobility: "Recovery room",
 };
 
-const TYPE_ENTRIES = Object.entries(TRAINING_TYPE_LABELS) as [TrainingType, string][];
 
 interface CheckResult {
     key: string;
@@ -86,7 +92,7 @@ interface CheckResult {
 }
 
 /** Schedule or edit a session with a live Medical Clearance check. */
-export function SessionForm({ mode, action, fighters, plans, library, clearances, locations, defaults, now, minDate, cancelHref }: SessionFormProps) {
+export function SessionForm({ mode, action, fighters, plans, library, clearances, locations, defaults, now, minDate, cancelHref, serviceForm }: SessionFormProps) {
     const form = useActionForm(action, { id: "session" });
     const [values, setValues] = useState(() => ({ ...defaults, location: defaults.location || DEFAULT_LOCATION[defaults.type] }));
     const [check, setCheck] = useState<CheckResult | null>(null);
@@ -107,7 +113,7 @@ export function SessionForm({ mode, action, fighters, plans, library, clearances
     const checkKey = [fighterId, type, targetRpe, date, time, exerciseKey].join("|");
 
     useEffect(() => {
-        if (!fighterId) return;
+        if (!fighterId || serviceForm) return;
         let cancelled = false;
         const timer = window.setTimeout(() => {
             previewSessionConflicts({ fighterId, type, targetRpe, date, time, exerciseIds: exerciseKey ? exerciseKey.split(",") : [] }).then(
@@ -124,11 +130,11 @@ export function SessionForm({ mode, action, fighters, plans, library, clearances
             cancelled = true;
             window.clearTimeout(timer);
         };
-    }, [fighterId, type, targetRpe, date, time, exerciseKey, checkKey]);
+    }, [fighterId, type, targetRpe, date, time, exerciseKey, checkKey, serviceForm]);
 
-    const hasResult = Boolean(fighterId) && check !== null;
+    const hasResult = Boolean(fighterId) && !serviceForm && check !== null;
     const checkStatus: ClearanceCheckStatus = hasResult && check ? check.status : "idle";
-    const pending = Boolean(fighterId) && check?.key !== checkKey;
+    const pending = Boolean(fighterId) && !serviceForm && check?.key !== checkKey;
     const conflicts = hasResult && check ? check.conflicts : [];
     const blocks = conflicts.filter((c) => c.severity === "block");
     const warnings = conflicts.filter((c) => c.severity === "warn");
@@ -155,9 +161,10 @@ export function SessionForm({ mode, action, fighters, plans, library, clearances
             return { ...current, fighterId: next, planId: planStillValid ? current.planId : "" };
         });
 
-    const typeOptions: ChoiceOption<TrainingType>[] = TYPE_ENTRIES.map(([value, label]) => ({
+    const types = serviceForm ? SERVICE_TRAINING_TYPES : (Object.keys(TRAINING_TYPE_LABELS) as TrainingType[]);
+    const typeOptions: ChoiceOption<TrainingType>[] = types.map((value) => ({
         value,
-        label,
+        label: TRAINING_TYPE_LABELS[value],
         icon: TRAINING_TYPE_ICONS[value],
         extra: restrictedTypes.includes(value) ? (
             <Badge tone="danger" size="sm" icon={Ban} className="mt-1.5">
@@ -169,6 +176,8 @@ export function SessionForm({ mode, action, fighters, plans, library, clearances
     const input = (name: keyof SessionFormValues, options?: { hint?: boolean; required?: boolean }) => form.control(name, options);
 
     const submitLabel = mode === "create" ? "Schedule session" : "Save changes";
+    // The training service doesn't move a session to another plan.
+    const planLocked = serviceForm && mode === "edit";
 
     return (
         <form {...form.formProps} className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
@@ -201,13 +210,19 @@ export function SessionForm({ mode, action, fighters, plans, library, clearances
                             htmlFor="session-planId"
                             optional
                             error={error("planId")}
-                            hint={values.fighterId ? "Active and draft plans for this fighter." : "Choose a fighter first."}
+                            hint={
+                                planLocked
+                                    ? "A session stays in the plan it was scheduled under."
+                                    : values.fighterId
+                                      ? "Active and draft plans for this fighter."
+                                      : "Choose a fighter first."
+                            }
                         >
                             <Select
                                 {...input("planId", { hint: true })}
                                 value={values.planId}
                                 onChange={(event) => set("planId", event.target.value)}
-                                disabled={!values.fighterId}
+                                disabled={!values.fighterId || planLocked}
                             >
                                 <option value="">Not part of a plan</option>
                                 {fighterPlans.map((plan) => (
@@ -280,31 +295,35 @@ export function SessionForm({ mode, action, fighters, plans, library, clearances
                         </Field>
                     </FormSection>
 
-                    <FormSection title="Intensity" description="Target session RPE — how hard it should feel overall.">
-                        <RpeSlider
-                            id="session-targetRpe"
-                            name="targetRpe"
-                            label="Target RPE"
-                            value={values.targetRpe}
-                            onChange={(next) => set("targetRpe", next)}
-                            hint="How hard the session should feel, from 1 to 10."
-                            required
-                            maxAllowed={clearanceMaxRpe(clearance)}
-                            error={error("targetRpe")}
-                        />
-                    </FormSection>
+                    {!serviceForm && (
+                        <>
+                            <FormSection title="Intensity" description="Target session RPE — how hard it should feel overall.">
+                                <RpeSlider
+                                    id="session-targetRpe"
+                                    name="targetRpe"
+                                    label="Target RPE"
+                                    value={values.targetRpe}
+                                    onChange={(next) => set("targetRpe", next)}
+                                    hint="How hard the session should feel, from 1 to 10."
+                                    required
+                                    maxAllowed={clearanceMaxRpe(clearance)}
+                                    error={error("targetRpe")}
+                                />
+                            </FormSection>
 
-                    <FormSection title="Exercises" description="Drills in running order with rounds or sets.">
-                        <ExerciseBuilder
-                            library={library}
-                            rows={values.exercises}
-                            onChange={(rows) => set("exercises", rows)}
-                            error={error}
-                            markEdited={form.markEdited}
-                            restrictedTechniques={restrictions.flatMap((r) => r.blockedTechniques)}
-                            restrictedRegions={restrictions.flatMap((r) => r.blockedRegions)}
-                        />
-                    </FormSection>
+                            <FormSection title="Exercises" description="Drills in running order with rounds or sets.">
+                                <ExerciseBuilder
+                                    library={library}
+                                    rows={values.exercises}
+                                    onChange={(rows) => set("exercises", rows)}
+                                    error={error}
+                                    markEdited={form.markEdited}
+                                    restrictedTechniques={restrictions.flatMap((r) => r.blockedTechniques)}
+                                    restrictedRegions={restrictions.flatMap((r) => r.blockedRegions)}
+                                />
+                            </FormSection>
+                        </>
+                    )}
 
                     <FormSection title="Notes" description="Anything the fighter should know or bring.">
                         <Field label="Session notes" htmlFor="session-notes" optional error={error("notes")}>
@@ -331,14 +350,18 @@ export function SessionForm({ mode, action, fighters, plans, library, clearances
                 )}
 
                 <div className="flex flex-col gap-4 lg:sticky lg:top-20">
-                    <ClearanceCheckPanel
-                        status={checkStatus}
-                        pending={pending}
-                        conflicts={conflicts}
-                        fighterName={fighter?.name}
-                        acknowledged={acknowledged}
-                        onAcknowledgedChange={(value) => setAcknowledgedFor(value ? warningsKey : null)}
-                    />
+                    {serviceForm ? (
+                        <InlineNote icon={ShieldCheck}>The training service checks the fighter&apos;s Medical Clearance when you start the session.</InlineNote>
+                    ) : (
+                        <ClearanceCheckPanel
+                            status={checkStatus}
+                            pending={pending}
+                            conflicts={conflicts}
+                            fighterName={fighter?.name}
+                            acknowledged={acknowledged}
+                            onAcknowledgedChange={(value) => setAcknowledgedFor(value ? warningsKey : null)}
+                        />
+                    )}
                     <Card className="flex flex-col gap-3 p-4">
                         <FormMessage {...form.message} />
                         <SubmitButton size="lg" className="w-full" disabled={blockedReason !== null} pending={form.pending} pendingLabel={mode === "create" ? "Scheduling…" : "Saving…"}>

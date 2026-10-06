@@ -4,6 +4,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 
+import { AccountActions } from "@/components/admin/account-actions";
+import { CareTeamCard } from "@/components/admin/care-team-card";
 import { PermissionList } from "@/components/admin/permission-list";
 import { AuditActivityList } from "@/components/admin/audit-activity-list";
 import { UserActions } from "@/components/admin/user-actions";
@@ -20,12 +22,12 @@ import { requireRole } from "@/lib/auth/session";
 import { NOT_RECORDED, labelOf } from "@/components/domain/domain-format";
 import { ROLE_LABELS, STANCE_LABELS, TRAINING_LEVEL_LABELS, WEIGHT_CLASS_LABELS } from "@/lib/domain/labels";
 import type { Coach, Doctor, Fighter, User } from "@/lib/domain/types";
-import { formatDate, formatDateTime, formatRelative, pluralize } from "@/lib/format";
+import { dayKey, formatDate, formatDateTime, formatRelative, pluralize } from "@/lib/format";
 import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { getUserDetail, listPermissionCatalog } from "@/lib/services/admin";
-import { adminFeatureAvailable } from "@/lib/services/admin-features";
-import { listCoaches } from "@/lib/services/people";
+import { adminFeatureAvailable, usesUserServiceForms } from "@/lib/services/admin-features";
+import { getCareTeam, listAssignableStaff } from "@/lib/services/care-team";
 import { param } from "@/lib/utils";
 
 /** One read per request, shared by the metadata and the page. */
@@ -47,10 +49,11 @@ export default async function AdminUserDetailPage({ params, searchParams }: Page
     const showPermissions = adminFeatureAvailable("rolePermissions");
     const showActivity = adminFeatureAvailable("auditTrail");
     const actions = { edit: adminFeatureAvailable("editUsers"), status: adminFeatureAvailable("accountStatus") };
-    const [detail, catalog, allCoaches] = await Promise.all([loadUserDetail(userId), showPermissions ? listPermissionCatalog() : [], listCoaches()]);
+    const [detail, catalog] = await Promise.all([loadUserDetail(userId), showPermissions ? listPermissionCatalog() : []]);
     if (!detail) notFound();
-    const { user, profile, recentAudit, permissions } = detail;
-    const coaches = user.role === "fighter" && profile ? allCoaches : [];
+    const { user, profile, recentAudit, permissions, account } = detail;
+    const fighterProfile = user.role === "fighter" ? profile : null;
+    const [careTeam, assignableStaff] = fighterProfile ? await Promise.all([getCareTeam(fighterProfile.id), listAssignableStaff()]) : [null, null];
 
     const isSelf = user.id === admin.id;
     const roleLockReason = isSelf
@@ -79,12 +82,34 @@ export default async function AdminUserDetailPage({ params, searchParams }: Page
         { label: "Account ID", value: <code className="font-mono text-[13px]">{user.id}</code>, wide: true },
     ];
 
+    const notices = {
+        invited: { title: "Invitation sent", description: `${user.email} will receive a link to set a password.` },
+        created: { title: "Account created", description: `${user.name} can sign in now with the password you set.` },
+    };
+    const notice = param(query.notice);
+
+    // API mode edits the profile and deletes the account; the demo edits name, title and role, and suspends.
+    const headerActions = usesUserServiceForms() ? (
+        <AccountActions
+            user={{ id: user.id, name: user.name, email: user.email }}
+            account={account?.role === "admin" ? null : account}
+            canDelete={!isSelf}
+            today={dayKey(now)}
+        />
+    ) : (
+        (actions.edit || actions.status) && (
+            <UserActions
+                user={{ id: user.id, name: user.name, email: user.email, title: user.title, role: user.role, status: user.status }}
+                roleLockReason={roleLockReason}
+                isSelf={isSelf}
+                available={actions}
+            />
+        )
+    );
+
     return (
         <>
-            <FlashToast
-                notice={param(query.notice) === "invited" ? { title: "Invitation sent", description: `${user.email} will receive a link to set a password.` } : null}
-                cleanHref={routes.admin.user(user.id)}
-            />
+            <FlashToast notice={notice === "invited" || notice === "created" ? notices[notice] : null} cleanHref={routes.admin.user(user.id)} />
             <PageHeader
                 back={{ href: routes.admin.users, label: "Users" }}
                 eyebrow="User account"
@@ -102,16 +127,7 @@ export default async function AdminUserDetailPage({ params, searchParams }: Page
                         {isSelf && <Badge tone="primary">Your account</Badge>}
                     </>
                 }
-                actions={
-                    (actions.edit || actions.status) && (
-                        <UserActions
-                            user={{ id: user.id, name: user.name, email: user.email, title: user.title, role: user.role, status: user.status }}
-                            roleLockReason={roleLockReason}
-                            isSelf={isSelf}
-                            available={actions}
-                        />
-                    )
-                }
+                actions={headerActions}
             />
 
             <div className="flex flex-col gap-6">
@@ -133,9 +149,13 @@ export default async function AdminUserDetailPage({ params, searchParams }: Page
                                 icon={<UserRound />}
                             />
                             <CardContent>
-                                <LinkedProfile user={user} profile={profile} coaches={coaches} showCredentials={adminFeatureAvailable("coachCredentials")} />
+                                <LinkedProfile user={user} profile={profile} showCredentials={adminFeatureAvailable("coachCredentials")} />
                             </CardContent>
                         </Card>
+
+                        {fighterProfile && careTeam && assignableStaff && (
+                            <CareTeamCard fighterId={fighterProfile.id} fighterName={user.name} team={careTeam} staff={assignableStaff} />
+                        )}
 
                         <Card className="overflow-hidden">
                             <CardHeader
@@ -210,12 +230,10 @@ function StatusCallout({ user, now }: { user: User; now: string }) {
 function LinkedProfile({
     user,
     profile,
-    coaches,
     showCredentials,
 }: {
     user: User;
     profile: Fighter | Coach | Doctor | null;
-    coaches: Coach[];
     /** False where the service keeps no certifications or experience: those rows are left out rather than shown as empty. */
     showCredentials: boolean;
 }) {
@@ -232,10 +250,6 @@ function LinkedProfile({
     }
 
     if (user.role === "fighter" && "weightClass" in profile) {
-        const assigned = profile.coachIds
-            .map((id) => coaches.find((coach) => coach.id === id))
-            .filter((coach): coach is Coach => coach !== undefined)
-            .sort((a, b) => Number(b.id === profile.primaryCoachId) - Number(a.id === profile.primaryCoachId));
         return (
             <DescriptionList
                 columns={3}
@@ -246,28 +260,6 @@ function LinkedProfile({
                     { label: "Stance", value: labelOf(STANCE_LABELS, profile.stance) ?? NOT_RECORDED },
                     { label: "Record (W–L–D)", value: profile.record ? `${profile.record.wins}–${profile.record.losses}–${profile.record.draws}` : NOT_RECORDED },
                     { label: "Joined", value: formatDate(profile.joinedAt) },
-                    {
-                        label: "Coaches",
-                        wide: true,
-                        value:
-                            assigned.length === 0 ? (
-                                <span className="font-normal text-fg-subtle">No coach assigned</span>
-                            ) : (
-                                <span className="flex flex-wrap gap-2">
-                                    {assigned.map((coach) => (
-                                        <Link
-                                            key={coach.id}
-                                            href={coach.userId ? routes.admin.user(coach.userId) : routes.admin.users}
-                                            className="inline-flex items-center gap-1.5 hover:underline"
-                                        >
-                                            <Avatar name={coach.name} size="xs" />
-                                            {coach.name}
-                                            {coach.id === profile.primaryCoachId && <span className="font-normal text-fg-subtle">(primary)</span>}
-                                        </Link>
-                                    ))}
-                                </span>
-                            ),
-                    },
                 ]}
             />
         );

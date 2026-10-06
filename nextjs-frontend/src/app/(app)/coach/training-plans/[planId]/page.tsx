@@ -4,8 +4,10 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 
 import { ClearanceCard } from "@/components/domain/clearance-card";
+import { FlashToast } from "@/components/medical/flash-toast";
 import { ButtonLink } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
+import { PlanExercisesCard } from "@/components/training/plan-exercises";
 import { PlanOverview } from "@/components/training/plan-overview";
 import { PlanSessionsCard, PlanStatsCard } from "@/components/training/plan-sessions";
 import { PlanStatusActions } from "@/components/training/plan-status-actions";
@@ -14,9 +16,12 @@ import { getClearanceSummaries, getCoachNames, toIdentity } from "@/components/t
 import { planAdherence, planAdherenceWeeks } from "@/components/training/training-utils";
 import { canAccessFighter, requireFighterAccess } from "@/lib/auth/access";
 import { getCurrentUser, requireRole } from "@/lib/auth/session";
+import { planTransitions } from "@/lib/domain/training-plan";
 import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
-import { getPlanWithSessions } from "@/lib/services/training";
+import { usesTrainingServiceForms } from "@/lib/services/platform-features";
+import { getPlanWithSessions, listExercises, listPlanExercises } from "@/lib/services/training";
+import { param } from "@/lib/utils";
 
 /** One plan read per request, shared by the metadata and the page. */
 const loadPlan = cache(getPlanWithSessions);
@@ -44,6 +49,7 @@ export default async function CoachPlanPage({ params, searchParams }: PageProps<
     ]);
     if (!data) notFound();
     const fighter = await requireFighterAccess(user, data.plan.fighterId);
+    const [planExercises, library] = await Promise.all([listPlanExercises(data.plan.id), listExercises()]);
 
     const { plan, sessions } = data;
     const clearance = clearances[fighter.id];
@@ -52,6 +58,14 @@ export default async function CoachPlanPage({ params, searchParams }: PageProps<
 
     return (
         <>
+            <FlashToast
+                notice={
+                    param(query.notice) === "not-activated"
+                        ? { title: "Plan saved as a draft", description: "It couldn't be activated. Activate it from this page.", tone: "warning" }
+                        : null
+                }
+                cleanHref={routes.coach.plan(plan.id)}
+            />
             <PageHeader
                 eyebrow="Training plan"
                 title={plan.title}
@@ -81,7 +95,14 @@ export default async function CoachPlanPage({ params, searchParams }: PageProps<
                     coachName={coachNames[plan.coachId]}
                     adherence={planAdherence(sessions, now)}
                     showNotes
-                    actions={<PlanStatusActions planId={plan.id} status={plan.status} planTitle={plan.title} fighterName={fighter.name} />}
+                    actions={
+                        <PlanStatusActions
+                            planId={plan.id}
+                            transitions={planTransitions(plan.status, { restoreArchived: !usesTrainingServiceForms() })}
+                            planTitle={plan.title}
+                            fighterName={fighter.name}
+                        />
+                    }
                 />
 
                 <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
@@ -95,6 +116,7 @@ export default async function CoachPlanPage({ params, searchParams }: PageProps<
                         <ClearanceCard clearance={clearance.clearance} state={clearance.state} doctorName={clearance.doctorName} now={now} variant="summary" />
                     </div>
                 </div>
+                <PlanExercisesCard planId={plan.id} items={planExercises} library={library} editable={canSchedule} />
                 <PlanSessionsCard
                     sessions={sessions}
                     audience="coach"

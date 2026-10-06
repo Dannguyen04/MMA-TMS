@@ -7,24 +7,34 @@ import { z } from "zod";
 import { canAccessFighter } from "@/lib/auth/access";
 import { DOCTOR_ONLY_PERMISSION_REASON, isDoctorOnlyPermission } from "@/lib/auth/permissions";
 import { authorizeAction } from "@/lib/auth/session";
-import { BROADCAST_CHANNEL_LABELS, ROLE_LABELS } from "@/lib/domain/labels";
-import { PERMISSIONS, type AIModelStatus, type BroadcastChannel, type Permission, type Role, type SystemSettings, type UserStatus } from "@/lib/domain/types";
+import { ACCOUNT_LIMITS } from "@/lib/domain/account-contract";
+import { CARE_ROLE_LABELS, CARE_ROLES, END_REASON_MAX } from "@/lib/domain/care-team";
+import { BROADCAST_CHANNEL_LABELS, ROLE_LABELS, WEIGHT_CLASS_ORDER } from "@/lib/domain/labels";
+import { PERMISSIONS, type AIModelStatus, type BroadcastChannel, type Permission, type Role, type Stance, type SystemSettings, type UserStatus } from "@/lib/domain/types";
+import type { WriteResult } from "@/lib/domain/write-result";
 import { academyWallClockToIso, formatDateTime, isDateKey, isTimeValue, pluralize } from "@/lib/format";
+import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
+import { accountWriteFailure } from "@/lib/services/account-errors";
 import {
+    createAccount,
     createBroadcast,
+    deleteAccount,
     inviteUser,
     resendInvite,
     setUserStatus,
+    updateAccount,
     updateRolePermissions,
     updateSettings,
     updateUser,
 } from "@/lib/services/admin";
-import { ADMIN_FEATURE_UNAVAILABLE_MESSAGE, adminFeatureAvailable } from "@/lib/services/admin-features";
+import { ADMIN_FEATURE_UNAVAILABLE_MESSAGE, adminFeatureAvailable, usesUserServiceForms } from "@/lib/services/admin-features";
+import { assignStaff, endAssignment } from "@/lib/services/care-team";
+import { PLATFORM_FEATURE_UNAVAILABLE_MESSAGE, platformFeatureAvailable } from "@/lib/services/platform-features";
 import { cancelJob, retryJob, setModelStatus, updateModelThresholds } from "@/lib/services/ai";
-import { isNotFound } from "@/lib/services/api-helpers";
 import { deleteVideo, getJobProgress, getVideo } from "@/lib/services/videos";
-import { actionError, actionSuccess, FIX_FIELDS, validationError, type ActionState } from "./state";
+import { idSchema, nullableText, passwordText, pastDate, requiredText } from "./form-helpers";
+import { actionError, actionSuccess, FIX_FIELDS, validationError, writeResultState, type ActionState } from "./state";
 
 /* ─── Shared ──────────────────────────────────────────────────────────────── */
 
@@ -36,7 +46,6 @@ const CHANNELS = ["in_app", "email", "in_app_email"] as const satisfies readonly
 const text = (value: FormDataEntryValue | null) => (typeof value === "string" ? value : undefined);
 const texts = (values: FormDataEntryValue[]) => values.filter((value): value is string => typeof value === "string");
 
-const idSchema = (message: string) => z.string(message).min(1, message);
 
 /** Whole number within a range; empty input reports the same message as an out-of-range value. */
 function wholeNumber(message: string, min: number, max: number) {
@@ -162,6 +171,162 @@ export async function resendInviteAction(_prev: ActionState, formData: FormData)
     return actionSuccess(`Invitation sent again to ${result.user.email}.`);
 }
 
+/* ─── Accounts in the user service's terms ───────────────────────────────── */
+
+const STANCES = ["orthodox", "southpaw", "switch"] as const satisfies readonly Stance[];
+/** Profile controls are named `profile.<field>`, so validation and service errors land on them by path. */
+const PROFILE_FIELDS = ["firstName", "lastName", "dateOfBirth", "weightClass", "dominantStance", "nationality", "specialization", "licenseNumber"] as const;
+
+const names = { firstName: requiredText("first name", ACCOUNT_LIMITS.name), lastName: requiredText("last name", ACCOUNT_LIMITS.name) };
+const specialization = nullableText("specialisation", ACCOUNT_LIMITS.specialization);
+
+const staffAccountSchemas = [
+    z.object({
+        role: z.literal("fighter"),
+        profile: z.object({
+            ...names,
+            dateOfBirth: pastDate("date of birth"),
+            weightClass: z.enum(WEIGHT_CLASS_ORDER, "Choose a weight class."),
+            dominantStance: z.preprocess((value) => value || null, z.enum(STANCES, "Choose a stance from the list.").nullable()),
+            nationality: nullableText("nationality", ACCOUNT_LIMITS.nationality),
+        }),
+    }),
+    z.object({ role: z.literal("coach"), profile: z.object({ ...names, specialization, isHeadCoach: z.boolean() }) }),
+    z.object({ role: z.literal("doctor"), profile: z.object({ ...names, licenseNumber: requiredText("license number", ACCOUNT_LIMITS.licenseNumber), specialization }) }),
+] as const;
+
+const ROLE_MESSAGE = "Choose the role for this account.";
+const staffAccountSchema = z.discriminatedUnion("role", staffAccountSchemas, ROLE_MESSAGE);
+const newAccountSchema = z.intersection(
+    z.object({
+        email: z.email("Enter a valid email address, e.g. name@lotuscombat.vn."),
+        password: passwordText("Set a first password."),
+    }),
+    z.discriminatedUnion("role", [...staffAccountSchemas, z.object({ role: z.literal("admin"), profile: z.null() })], ROLE_MESSAGE),
+);
+
+/** The role and its profile fields as the form sent them. Administrators have no profile. */
+function accountInput(formData: FormData) {
+    const role = text(formData.get("role"));
+    if (role === "admin") return { role, profile: null };
+    const fields = Object.fromEntries(PROFILE_FIELDS.map((field) => [field, text(formData.get(`profile.${field}`))]));
+    return { role, profile: { ...fields, isHeadCoach: formData.get("profile.isHeadCoach") === "on" } };
+}
+
+function accountFailure(error: unknown): ActionState<never> {
+    const failure = accountWriteFailure(error);
+    return actionError(failure.message, failure.fieldErrors);
+}
+
+/** Creates an account with its first password and full profile, then opens it. */
+export async function createAccountAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+    const auth = await authorizeAction("users:manage");
+    if (!auth.ok) return actionError(auth.message);
+    if (!usesUserServiceForms()) return actionError(ADMIN_FEATURE_UNAVAILABLE_MESSAGE);
+    const parsed = newAccountSchema.safeParse({ email: text(formData.get("email"))?.trim().toLowerCase(), password: text(formData.get("password")), ...accountInput(formData) });
+    if (!parsed.success) return validationError(parsed.error);
+
+    const { email, password } = parsed.data;
+    let userId: string;
+    try {
+        userId = (await createAccount({ email, password, account: parsed.data })).id;
+    } catch (error) {
+        return accountFailure(error);
+    }
+    revalidateUser(userId);
+    redirect(hrefWith(routes.admin.user(userId), {}, { notice: "created" }));
+}
+
+/** Saves the profile of a fighter, coach or doctor account. The role itself can't change. */
+export async function updateAccountAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+    const auth = await authorizeAction("users:manage");
+    if (!auth.ok) return actionError(auth.message);
+    if (!usesUserServiceForms()) return actionError(ADMIN_FEATURE_UNAVAILABLE_MESSAGE);
+    const userId = idSchema("The account is missing.").safeParse(text(formData.get("userId")));
+    if (!userId.success) return validationError(userId.error);
+    const parsed = staffAccountSchema.safeParse(accountInput(formData));
+    if (!parsed.success) return validationError(parsed.error);
+
+    let name: string;
+    try {
+        const updated = await updateAccount(userId.data, parsed.data);
+        if (!updated) return actionError("This account no longer exists. Reload the page.");
+        name = updated.name;
+    } catch (error) {
+        return accountFailure(error);
+    }
+    revalidateUser(userId.data);
+    return actionSuccess(`${name}'s profile was updated.`);
+}
+
+/** Deletes another account: its records stay, but it can no longer sign in or be opened here. */
+export async function deleteAccountAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+    const auth = await authorizeAction("users:manage");
+    if (!auth.ok) return actionError(auth.message);
+    if (!usesUserServiceForms()) return actionError(ADMIN_FEATURE_UNAVAILABLE_MESSAGE);
+    const userId = idSchema("The account is missing.").safeParse(text(formData.get("userId")));
+    if (!userId.success) return validationError(userId.error);
+    if (userId.data === auth.user.id) return actionError("You can't delete your own account. Ask another administrator.");
+
+    try {
+        // Already gone counts as done: the list no longer shows it either way.
+        await deleteAccount(userId.data);
+    } catch (error) {
+        return accountFailure(error);
+    }
+    revalidateUser(userId.data);
+    redirect(hrefWith(routes.admin.users, {}, { notice: "account-deleted" }));
+}
+
+/* ─── Care team ───────────────────────────────────────────────────────────── */
+
+const careTeamFields = { fighterId: idSchema("The fighter is missing."), role: z.enum(CARE_ROLES, "Choose a coach or a sports doctor.") };
+
+function careTeamResult(result: WriteResult, message: string): ActionState {
+    if (result.ok) {
+        revalidatePath("/admin/users/[userId]", "page");
+        revalidatePath(routes.admin.auditLogs);
+    }
+    return writeResultState(result, message);
+}
+
+/** Assigns a coach or sports doctor to a fighter from now. */
+export async function assignStaffAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+    const auth = await authorizeAction("users:manage");
+    if (!auth.ok) return actionError(auth.message);
+    const parsed = z.object({ ...careTeamFields, staffId: idSchema("Choose who to assign.") }).safeParse({
+        fighterId: text(formData.get("fighterId")),
+        role: text(formData.get("role")),
+        staffId: text(formData.get("staffId")),
+    });
+    if (!parsed.success) return validationError(parsed.error);
+
+    const { fighterId, role, staffId } = parsed.data;
+    return careTeamResult(await assignStaff(fighterId, role, staffId, auth.user), `The ${CARE_ROLE_LABELS[role]} was assigned.`);
+}
+
+/** Ends a coach's or sports doctor's assignment; it stays in the fighter's history with the reason. */
+export async function endAssignmentAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+    const auth = await authorizeAction("users:manage");
+    if (!auth.ok) return actionError(auth.message);
+    const parsed = z
+        .object({
+            ...careTeamFields,
+            assignmentId: idSchema("The assignment is missing."),
+            reason: requiredText("reason", END_REASON_MAX),
+        })
+        .safeParse({
+            fighterId: text(formData.get("fighterId")),
+            role: text(formData.get("role")),
+            assignmentId: text(formData.get("assignmentId")),
+            reason: text(formData.get("reason")),
+        });
+    if (!parsed.success) return validationError(parsed.error);
+
+    const { fighterId, role, assignmentId, reason } = parsed.data;
+    return careTeamResult(await endAssignment(fighterId, role, assignmentId, reason, auth.user), `The ${CARE_ROLE_LABELS[role]}'s assignment has ended.`);
+}
+
 /* ─── Roles ───────────────────────────────────────────────────────────────── */
 
 const rolePermissionsSchema = z
@@ -179,6 +344,7 @@ const rolePermissionsSchema = z
 export async function updateRolePermissionsAction(_prev: ActionState<Permission[]>, formData: FormData): Promise<ActionState<Permission[]>> {
     const auth = await authorizeAction("roles:manage");
     if (!auth.ok) return actionError(auth.message);
+    if (!adminFeatureAvailable("rolePermissions")) return actionError(ADMIN_FEATURE_UNAVAILABLE_MESSAGE);
     const parsed = rolePermissionsSchema.safeParse({ role: text(formData.get("role")), permissions: texts(formData.getAll("permissions")) });
     if (!parsed.success) {
         // The matrix shows the message only, so surface the permission rule itself rather than the generic prompt.
@@ -221,6 +387,7 @@ export async function deleteVideoAction(_prev: ActionState, formData: FormData):
 async function loadJob(formData: FormData) {
     const auth = await authorizeAction("ai_jobs:manage");
     if (!auth.ok) return { ok: false, error: actionError(auth.message) } as const;
+    if (!platformFeatureAvailable("aiJobControl")) return { ok: false, error: actionError(PLATFORM_FEATURE_UNAVAILABLE_MESSAGE) } as const;
     const parsed = z.object({ jobId: idSchema("The job is missing.") }).safeParse({ jobId: text(formData.get("jobId")) });
     if (!parsed.success) return { ok: false, error: validationError(parsed.error) } as const;
     const job = await getJobProgress(parsed.data.jobId);
@@ -286,6 +453,7 @@ const thresholdsSchema = z
 export async function updateModelThresholdsAction(_prev: ActionState<ThresholdsData>, formData: FormData): Promise<ActionState<ThresholdsData>> {
     const auth = await authorizeAction("ai_models:manage");
     if (!auth.ok) return actionError(auth.message);
+    if (!platformFeatureAvailable("aiModels")) return actionError(PLATFORM_FEATURE_UNAVAILABLE_MESSAGE);
     const parsed = thresholdsSchema.safeParse({
         modelId: text(formData.get("modelId")),
         confidencePct: text(formData.get("confidencePct")),
@@ -317,6 +485,7 @@ const modelStatusSchema = z.object({
 export async function setModelStatusAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
     const auth = await authorizeAction("ai_models:manage");
     if (!auth.ok) return actionError(auth.message);
+    if (!platformFeatureAvailable("aiModels")) return actionError(PLATFORM_FEATURE_UNAVAILABLE_MESSAGE);
     const parsed = modelStatusSchema.safeParse({ modelId: text(formData.get("modelId")), status: text(formData.get("status")) });
     if (!parsed.success) return validationError(parsed.error);
 
@@ -360,6 +529,7 @@ const broadcastSchema = z
 export async function createBroadcastAction(_prev: ActionState<BroadcastData>, formData: FormData): Promise<ActionState<BroadcastData>> {
     const auth = await authorizeAction("notifications:manage");
     if (!auth.ok) return actionError(auth.message);
+    if (!platformFeatureAvailable("broadcasts")) return actionError(PLATFORM_FEATURE_UNAVAILABLE_MESSAGE);
     const parsed = broadcastSchema.safeParse({
         title: text(formData.get("title")),
         body: text(formData.get("body")),
@@ -426,6 +596,7 @@ const settingsSchema = z
 export async function updateSettingsAction(_prev: ActionState<SystemSettings>, formData: FormData): Promise<ActionState<SystemSettings>> {
     const auth = await authorizeAction("settings:manage");
     if (!auth.ok) return actionError(auth.message);
+    if (!platformFeatureAvailable("systemSettings")) return actionError(PLATFORM_FEATURE_UNAVAILABLE_MESSAGE);
     const parsed = settingsSchema.safeParse({
         organizationName: text(formData.get("organizationName")),
         sessionTimeoutMin: text(formData.get("sessionTimeoutMin")),
@@ -449,12 +620,7 @@ export async function updateSettingsAction(_prev: ActionState<SystemSettings>, f
             aiLowConfidenceThreshold: values.aiLowConfidenceThreshold / 100,
         },
         auth.user,
-    ).catch((error: unknown) => {
-        // The backend has no settings endpoint yet; the form shows the defaults the app runs with.
-        if (isNotFound(error)) return null;
-        throw error;
-    });
-    if (!result) return actionError("Saving system settings isn't available yet. The backend doesn't store them.");
+    );
     if (!result.ok) return actionError(result.message, { [result.field]: result.message });
 
     revalidatePath("/", "layout");

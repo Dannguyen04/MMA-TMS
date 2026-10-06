@@ -1,4 +1,7 @@
 import type {
+    ApiAssessmentResult,
+    ApiExaminationType,
+    ApiHydration,
     ApiInjurySeverity,
     ApiInjuryStatus,
     BodyJoint,
@@ -9,6 +12,8 @@ import type {
     SessionType,
     TechniqueType,
 } from "./medical-contract";
+import type { Scat6Input } from "./scat6";
+import type { ExaminationAssessment, ExaminationType, Vitals } from "./types";
 
 /**
  * Request bodies for the medical service's writes, built from input a form has already validated. Pure, so each
@@ -47,6 +52,9 @@ const trimmed = (value: string | null | undefined): string | undefined => {
     return text ? text : undefined;
 };
 
+/** The service spells the same codes in capitals (`baseline` → `BASELINE`). */
+const upper = <T extends string>(value: T) => value.toUpperCase() as Uppercase<T>;
+
 /* ─── Review requests ─────────────────────────────────────────────────────── */
 
 export function reviewRequestBody(reason: string): { reason: string } {
@@ -54,6 +62,20 @@ export function reviewRequestBody(reason: string): { reason: string } {
 }
 
 /* ─── Examinations ────────────────────────────────────────────────────────── */
+
+/**
+ * What the doctor recorded at the visit. A baseline carries vitals, at least one assessed area and its SCAT6; any
+ * other type may leave them out.
+ */
+export interface ExaminationDetailsInput {
+    type: ExaminationType;
+    vitals: Vitals | null;
+    assessments: readonly ExaminationAssessment[];
+    recommendations: string | null;
+    /** Academy date, YYYY-MM-DD. */
+    followUpDate: string | null;
+    scat6: Scat6Input | null;
+}
 
 export interface ExaminationDecisionInput {
     scope: ExaminationScope;
@@ -67,9 +89,19 @@ export interface ExaminationDecisionInput {
     supersedesId: string | null;
     /** Open review requests this examination answers. Only a training examination can. */
     reviewRequestIds: readonly string[];
+    details: ExaminationDetailsInput | null;
 }
 
-export interface ExaminationBody {
+interface ExaminationDetailsBody {
+    examinationType?: ApiExaminationType;
+    vitals?: Omit<Vitals, "hydration"> & { hydration: ApiHydration };
+    assessments?: { area: string; result: ApiAssessmentResult; note: string | null }[];
+    recommendations?: string;
+    followUpDate?: string;
+    scat6?: Scat6Input;
+}
+
+export interface ExaminationBody extends ExaminationDetailsBody {
     scope: ExaminationScope;
     decision: ExaminationDecision;
     examinedAt: string;
@@ -78,6 +110,20 @@ export interface ExaminationBody {
     validUntil?: string;
     supersedesId?: string;
     reviewRequestIds?: string[];
+}
+
+/** Details always name their type; empty text is left out, an empty note is null, and only a baseline sends a SCAT6. */
+function detailsBody(details: ExaminationDetailsInput): ExaminationDetailsBody {
+    const body: ExaminationDetailsBody = { examinationType: upper(details.type) };
+    if (details.vitals) body.vitals = { ...details.vitals, hydration: upper(details.vitals.hydration) };
+    if (details.assessments.length > 0) {
+        body.assessments = details.assessments.map((assessment) => ({ area: assessment.area.trim(), result: upper(assessment.result), note: trimmed(assessment.note) ?? null }));
+    }
+    const recommendations = trimmed(details.recommendations);
+    if (recommendations) body.recommendations = recommendations;
+    if (details.followUpDate) body.followUpDate = details.followUpDate;
+    if (details.type === "baseline" && details.scat6) body.scat6 = details.scat6;
+    return body;
 }
 
 /**
@@ -95,7 +141,7 @@ export function examinationBody(input: ExaminationDecisionInput): ExaminationBod
     if (input.supersedesId) body.supersedesId = input.supersedesId;
     const reviewRequestIds = unique(input.reviewRequestIds);
     if (input.scope === "TRAINING" && reviewRequestIds.length > 0) body.reviewRequestIds = reviewRequestIds;
-    return body;
+    return input.details ? { ...body, ...detailsBody(input.details) } : body;
 }
 
 /* ─── Clearances ──────────────────────────────────────────────────────────── */

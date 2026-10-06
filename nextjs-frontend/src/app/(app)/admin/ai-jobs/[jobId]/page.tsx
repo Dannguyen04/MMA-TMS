@@ -13,6 +13,7 @@ import { RefreshControl } from "@/components/admin/refresh-control";
 import { InlineNote } from "@/components/dashboard/inline-note";
 import { AINotice } from "@/components/domain/ai-notice";
 import { ConfidenceMeter } from "@/components/domain/confidence-meter";
+import { formatVideoResolution } from "@/components/domain/domain-format";
 import { MetricTile } from "@/components/domain/metric-tile";
 import { AIGeneratedBadge, AIJobStatusBadge, LowConfidenceBadge, VideoStatusBadge } from "@/components/domain/status-badges";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +31,7 @@ import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
 import { getAIJobDetail } from "@/lib/services/ai";
 import { getUser } from "@/lib/services/people";
+import { platformFeatureAvailable } from "@/lib/services/platform-features";
 
 const AUTO_REFRESH_MS = 5_000;
 
@@ -62,7 +64,8 @@ export default async function AdminAIJobDetailPage({ params }: PageProps<"/admin
     const inFlight = job.status === "queued" || job.status === "processing";
     // A later run already processed this footage (or the footage is gone), so re-queuing this one would only overwrite it.
     const supersededBy = job.status === "failed" && video && video.jobId !== null && video.jobId !== job.id ? video.jobId : null;
-    const canAct = !(job.status === "failed" && (supersededBy !== null || video === null));
+    const insights = platformFeatureAvailable("aiJobInsights");
+    const canAct = platformFeatureAvailable("aiJobControl") && !(job.status === "failed" && (supersededBy !== null || video === null));
     const guidance = jobGuidance(job.errorCode);
     const videoTitle = video?.title ?? "Video removed";
 
@@ -189,7 +192,7 @@ export default async function AdminAIJobDetailPage({ params }: PageProps<"/admin
                         </CardContent>
                     </Card>
 
-                    {job.status === "completed" && (
+                    {insights && job.status === "completed" && (
                         <Card>
                             <CardHeader
                                 title="Analysis summary"
@@ -235,53 +238,55 @@ export default async function AdminAIJobDetailPage({ params }: PageProps<"/admin
                         </Card>
                     )}
 
-                    <Card className="overflow-hidden">
-                        <CardHeader
-                            title="Other runs of this video"
-                            description={otherRuns.length === 0 ? "This is the only run" : `${pluralize(otherRuns.length, "other run")}, newest first`}
-                            icon={<History />}
-                        />
-                        {otherRuns.length === 0 ? (
-                            <CardContent>
-                                <p className="text-sm text-fg-muted">No other jobs were created for this footage.</p>
-                            </CardContent>
-                        ) : (
-                            <div className="border-t border-border">
-                                <Table caption="Other jobs for the same video">
-                                    <THead>
-                                        <tr>
-                                            <TH>Job</TH>
-                                            <TH>Status</TH>
-                                            <TH className="text-right">Attempts</TH>
-                                            <TH>Queued</TH>
-                                            <TH>Duration</TH>
-                                            <TH>Error</TH>
-                                        </tr>
-                                    </THead>
-                                    <TBody>
-                                        {otherRuns.map((run) => (
-                                            <TR key={run.id}>
-                                                <TD className="whitespace-nowrap">
-                                                    <Link href={routes.admin.aiJob(run.id)} className="font-mono text-[13px] text-primary-soft-fg hover:underline">
-                                                        {run.id}
-                                                    </Link>
-                                                </TD>
-                                                <TD>
-                                                    <AIJobStatusBadge status={run.status} size="sm" />
-                                                </TD>
-                                                <TD className="text-right">{run.attempts}</TD>
-                                                <TD className="whitespace-nowrap text-fg-muted">{formatDateTime(run.queuedAt)}</TD>
-                                                <TD className="text-fg-muted">{run.durationSec !== null ? formatDurationSec(run.durationSec) : "—"}</TD>
-                                                <TD>
-                                                    {run.errorCode ? <code className="font-mono text-xs text-danger-fg">{run.errorCode}</code> : <span className="text-fg-subtle">—</span>}
-                                                </TD>
-                                            </TR>
-                                        ))}
-                                    </TBody>
-                                </Table>
-                            </div>
-                        )}
-                    </Card>
+                    {insights && (
+                        <Card className="overflow-hidden">
+                            <CardHeader
+                                title="Other runs of this video"
+                                description={otherRuns.length === 0 ? "This is the only run" : `${pluralize(otherRuns.length, "other run")}, newest first`}
+                                icon={<History />}
+                            />
+                            {otherRuns.length === 0 ? (
+                                <CardContent>
+                                    <p className="text-sm text-fg-muted">No other jobs were created for this footage.</p>
+                                </CardContent>
+                            ) : (
+                                <div className="border-t border-border">
+                                    <Table caption="Other jobs for the same video">
+                                        <THead>
+                                            <tr>
+                                                <TH>Job</TH>
+                                                <TH>Status</TH>
+                                                <TH className="text-right">Attempts</TH>
+                                                <TH>Queued</TH>
+                                                <TH>Duration</TH>
+                                                <TH>Error</TH>
+                                            </tr>
+                                        </THead>
+                                        <TBody>
+                                            {otherRuns.map((run) => (
+                                                <TR key={run.id}>
+                                                    <TD className="whitespace-nowrap">
+                                                        <Link href={routes.admin.aiJob(run.id)} className="font-mono text-[13px] text-primary-soft-fg hover:underline">
+                                                            {run.id}
+                                                        </Link>
+                                                    </TD>
+                                                    <TD>
+                                                        <AIJobStatusBadge status={run.status} size="sm" />
+                                                    </TD>
+                                                    <TD className="text-right">{run.attempts}</TD>
+                                                    <TD className="whitespace-nowrap text-fg-muted">{formatDateTime(run.queuedAt)}</TD>
+                                                    <TD className="text-fg-muted">{run.durationSec !== null ? formatDurationSec(run.durationSec) : "—"}</TD>
+                                                    <TD>
+                                                        {run.errorCode ? <code className="font-mono text-xs text-danger-fg">{run.errorCode}</code> : <span className="text-fg-subtle">—</span>}
+                                                    </TD>
+                                                </TR>
+                                            ))}
+                                        </TBody>
+                                    </Table>
+                                </div>
+                            )}
+                        </Card>
+                    )}
                 </div>
 
                 <div className="flex min-w-0 flex-col gap-6">
@@ -296,7 +301,7 @@ export default async function AdminAIJobDetailPage({ params }: PageProps<"/admin
                                         { label: "Training type", value: `${TRAINING_TYPE_LABELS[video.trainingType]} · ${CAMERA_ANGLE_LABELS[video.cameraAngle]} camera` },
                                         { label: "File", value: <code className="font-mono text-[13px] break-all">{video.fileName}</code> },
                                         { label: "Size & length", value: `${formatFileSize(video.fileSizeMb)} · ${formatClock(video.durationSec)}` },
-                                        { label: "Resolution", value: `${video.resolution.replace("x", "×")} at ${video.fps} fps` },
+                                        { label: "Resolution", value: formatVideoResolution(video) },
                                         { label: "Uploaded", value: `${formatDateTime(video.uploadedAt)}${uploader ? ` by ${uploader.name}` : ""}` },
                                     ]}
                                 />
@@ -314,31 +319,33 @@ export default async function AdminAIJobDetailPage({ params }: PageProps<"/admin
                         )}
                     </Card>
 
-                    <Card className="overflow-hidden">
-                        <CardHeader title="Models used" description={pluralize(models.length, "model")} icon={<BrainCircuit />} />
-                        {models.length === 0 ? (
-                            <CardContent>
-                                <p className="text-sm text-fg-muted">Models are assigned when the job starts.</p>
-                            </CardContent>
-                        ) : (
-                            <ul className="divide-y divide-border border-t border-border">
-                                {models.map((model) => (
-                                    <li key={model.id} className="px-5 py-3">
-                                        <p className="text-xs text-fg-subtle">{AI_MODEL_TASK_LABELS[model.task]}</p>
-                                        <div className="mt-0.5 flex flex-wrap items-center justify-between gap-2">
-                                            <Link href={routes.admin.aiModel(model.id)} className="min-w-0 truncate text-sm font-medium text-fg hover:underline">
-                                                {model.name} <span className="font-mono text-[13px] text-fg-muted">{model.version}</span>
-                                            </Link>
-                                            <ModelStatusBadge status={model.status} size="sm" />
-                                        </div>
-                                        <p className="mt-0.5 text-xs text-fg-muted">
-                                            {model.avgLatencyMs} ms avg latency · review below {formatConfidence(model.lowConfidenceThreshold)}
-                                        </p>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </Card>
+                    {insights && (
+                        <Card className="overflow-hidden">
+                            <CardHeader title="Models used" description={pluralize(models.length, "model")} icon={<BrainCircuit />} />
+                            {models.length === 0 ? (
+                                <CardContent>
+                                    <p className="text-sm text-fg-muted">Models are assigned when the job starts.</p>
+                                </CardContent>
+                            ) : (
+                                <ul className="divide-y divide-border border-t border-border">
+                                    {models.map((model) => (
+                                        <li key={model.id} className="px-5 py-3">
+                                            <p className="text-xs text-fg-subtle">{AI_MODEL_TASK_LABELS[model.task]}</p>
+                                            <div className="mt-0.5 flex flex-wrap items-center justify-between gap-2">
+                                                <Link href={routes.admin.aiModel(model.id)} className="min-w-0 truncate text-sm font-medium text-fg hover:underline">
+                                                    {model.name} <span className="font-mono text-[13px] text-fg-muted">{model.version}</span>
+                                                </Link>
+                                                <ModelStatusBadge status={model.status} size="sm" />
+                                            </div>
+                                            <p className="mt-0.5 text-xs text-fg-muted">
+                                                {model.avgLatencyMs} ms avg latency · review below {formatConfidence(model.lowConfidenceThreshold)}
+                                            </p>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </Card>
+                    )}
                 </div>
             </div>
         </>

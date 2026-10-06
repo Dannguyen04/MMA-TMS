@@ -4,11 +4,12 @@ import type { ReactNode } from "react";
 import { AIGeneratedBadge } from "@/components/domain/status-badges";
 import { Callout } from "@/components/training/callout";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { EmptyState } from "@/components/ui/states";
+import { EmptyState, FeatureUnavailable } from "@/components/ui/states";
 import { TECHNIQUES } from "@/lib/domain/labels";
 import type { Technique } from "@/lib/domain/types";
 import { formatDate, pluralize } from "@/lib/format";
 import { getPerformanceHistory, getPerformanceSummary } from "@/lib/services/performance";
+import { platformFeatureAvailable } from "@/lib/services/platform-features";
 import { PerformanceKpis } from "./performance-kpis";
 import { COMPARISON_WEEKS, throughWeek, weekLabel } from "./performance-format";
 import { ScoreInfo } from "./score-info";
@@ -38,6 +39,7 @@ export interface PerformanceOverviewProps {
  * volume, speed and training load. Shared by the fighter's own page and the coach's fighter tab.
  */
 export async function PerformanceOverview({ fighterId, fighterName, audience, headingLevel = 2, techniqueHref, emptyAction }: PerformanceOverviewProps) {
+    if (!platformFeatureAvailable("performance")) return <FeatureUnavailable service="training" title="Performance scores aren't available yet" />;
     const [history, summary] = await Promise.all([getPerformanceHistory(fighterId, CHART_WEEKS + 1), getPerformanceSummary(fighterId)]);
     const heading = headingLevel === 2 ? "h2" : "h3";
 

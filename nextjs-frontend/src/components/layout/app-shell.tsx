@@ -4,8 +4,9 @@ import type { ReactNode } from "react";
 import { LogoMark, Logo } from "@/components/brand/logo";
 import type { ThemePreference } from "@/lib/auth/constants";
 import { ROLE_LABELS } from "@/lib/domain/labels";
-import type { Notification, User } from "@/lib/domain/types";
+import type { User } from "@/lib/domain/types";
 import { dashboardPath } from "@/lib/routes";
+import type { NotificationBellData } from "@/lib/services/notifications";
 import { MobileBottomBar, MobileNavDrawer } from "./mobile-nav";
 import { HubTabs } from "./hub-tabs";
 import { NotificationBell } from "./notification-bell";
@@ -16,7 +17,8 @@ export interface AppShellProps {
     user: User;
     theme: ThemePreference;
     counts: NavCounts;
-    notifications: { unread: number; latest: Notification[] };
+    /** Null when the notification service doesn't answer, which leaves the bell out. */
+    notifications: NotificationBellData | null;
     now: string;
     children: ReactNode;
 }
@@ -52,8 +54,12 @@ export function AppShell({ user, theme, counts, notifications, now, children }: 
                         <span className="font-display text-[17px] font-extrabold tracking-[0.01em] italic max-sm:hidden">MMA-TMS</span>
                     </Link>
                     <div className="ml-auto flex items-center gap-1">
-                        <NotificationBell unread={notifications.unread} latest={notifications.latest} now={now} />
-                        <span aria-hidden className="mx-1 h-6 w-px bg-border" />
+                        {notifications && (
+                            <>
+                                <NotificationBell bell={notifications} now={now} />
+                                <span aria-hidden className="mx-1 h-6 w-px bg-border" />
+                            </>
+                        )}
                         <UserMenu user={shellUser} theme={theme} />
                     </div>
                 </header>

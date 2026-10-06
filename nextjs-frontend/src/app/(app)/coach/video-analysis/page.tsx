@@ -64,6 +64,7 @@ export default async function CoachVideoAnalysisPage({ searchParams }: PageProps
     );
 }
 
+/** The queue of analyses awaiting the coach's review, and footage that needs attention. */
 async function ReviewSections({ user, now }: { user: User; now: string }) {
     const scope = accessibleFighterIds(user);
     const [queue, roster] = await Promise.all([listReviewQueue(scope), listVideoLibrary({ fighterIds: scope })]);

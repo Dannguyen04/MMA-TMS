@@ -31,6 +31,8 @@ import { listGoals } from "@/lib/services/goals";
 import { getFighterHealthSummary } from "@/lib/services/medical";
 import { listCoaches, listDoctors } from "@/lib/services/people";
 import { getPlanWithSessions, getUpcomingSessions, listCoachFeedback, listPlans, listSessions } from "@/lib/services/training";
+import { platformFeatureAvailable } from "@/lib/services/platform-features";
+import { nullIfServiceFails } from "@/lib/services/api-helpers";
 import { listVideoLibrary, type VideoLibraryItem } from "@/lib/services/videos";
 
 export const metadata: Metadata = { title: "Today" };
@@ -66,7 +68,8 @@ export default async function FighterDashboardPage() {
             const active = list.find((plan) => plan.status === "active");
             return active ? getPlanWithSessions(active.id) : null;
         }),
-        listVideoLibrary({ fighterIds: ids }),
+        // Video analysis is a separate service: when it doesn't answer, the day's training still shows.
+        nullIfServiceFails(listVideoLibrary({ fighterIds: ids })).then((items) => items ?? []),
         listCoachFeedback({ fighterIds: ids }),
         listGoals({ fighterIds: ids }),
         listCoaches(),
@@ -122,13 +125,14 @@ export default async function FighterDashboardPage() {
     const weight = fighter.weightKg === null ? null : weightCheck(fighter.weightKg, weightClass, bout ? Math.max(0, daysBetween(now, bout.date)) : null);
     const weightLimit = `${WEIGHT_CLASS_LABELS[weightClass]} ${formatNumber(WEIGHT_CLASS_LIMIT_KG[weightClass], 1)} kg`;
 
+    const goalsAvailable = platformFeatureAvailable("goals");
     const openGoals = goals.filter((goal) => goal.status === "on_track" || goal.status === "at_risk");
     const atRisk = openGoals.filter((goal) => goal.status === "at_risk").length;
     const onTrack = openGoals.length - atRisk;
 
     const onboarding =
         daysBetween(fighter.joinedAt, now) <= NEW_FIGHTER_DAYS
-            ? onboardingSteps({ clearanceState, videos, plans, activePlan, goalCount: goals.length })
+            ? onboardingSteps({ clearanceState, videos, plans, activePlan, goalCount: goalsAvailable ? goals.length : null })
             : [];
 
     return (
@@ -169,11 +173,11 @@ export default async function FighterDashboardPage() {
                     />
                     <ReadinessCell
                         label="Health"
-                        value={<HealthStatusBadge status={fighter.healthStatus} />}
+                        value={<HealthStatusBadge status={health.fighter.healthStatus} />}
                         hint={
                             health.nextFollowUp
                                 ? `Follow-up ${formatShortDate(health.nextFollowUp.date)}${followUpDoctor ? ` · ${followUpDoctor}` : ""}`
-                                : HEALTH_STATUS_DESCRIPTIONS[fighter.healthStatus]
+                                : HEALTH_STATUS_DESCRIPTIONS[health.fighter.healthStatus]
                         }
                         href={routes.fighter.health}
                         className="sm:col-span-2 lg:col-span-1"
@@ -215,10 +219,18 @@ export default async function FighterDashboardPage() {
                             openGoals.length > 0 ? (
                                 <ReadinessNumber value={onTrack} unit={`of ${openGoals.length} on track`} />
                             ) : (
-                                <span className="text-sm font-medium text-fg-muted">No open goals</span>
+                                <span className="text-sm font-medium text-fg-muted">{goalsAvailable ? "No open goals" : "Not available yet"}</span>
                             )
                         }
-                        hint={openGoals.length === 0 ? "Agree one with your coach" : atRisk > 0 ? `${pluralize(atRisk, "goal")} at risk` : "Every open goal is on track"}
+                        hint={
+                            !goalsAvailable
+                                ? "Goals arrive in a later release"
+                                : openGoals.length === 0
+                                  ? "Agree one with your coach"
+                                  : atRisk > 0
+                                    ? `${pluralize(atRisk, "goal")} at risk`
+                                    : "Every open goal is on track"
+                        }
                         href={routes.fighter.goals}
                         className="sm:col-span-3 lg:col-span-1"
                     >
@@ -285,7 +297,7 @@ function weekHint({ planned, toGo, missed, paused }: { planned: number; toGo: nu
 function isCampFor(plan: TrainingPlan, bout: UpcomingBout | null): boolean {
     if (!bout || plan.phase !== "fight_camp") return false;
     const fightDay = dayKey(bout.date);
-    return dayKey(plan.startDate) <= fightDay && fightDay <= dayKey(plan.endDate);
+    return dayKey(plan.startDate) <= fightDay && (plan.endDate === null || fightDay <= dayKey(plan.endDate));
 }
 
 interface OnboardingInput {
@@ -293,7 +305,8 @@ interface OnboardingInput {
     videos: VideoLibraryItem[];
     plans: TrainingPlan[];
     activePlan: TrainingPlan | null;
-    goalCount: number;
+    /** Null while goals aren't available, which leaves their step out. */
+    goalCount: number | null;
 }
 
 /** Getting-started steps for a new fighter, each done or still to do. */
@@ -301,7 +314,7 @@ function onboardingSteps({ clearanceState, videos, plans, activePlan, goalCount 
     const analysed = videos.some((item) => item.video.status === "completed");
     const failedUpload = videos.some((item) => item.video.status === "failed");
     const draftPlan = plans.some((plan) => plan.status === "draft");
-    return [
+    const steps: OnboardingStep[] = [
         {
             id: "medical",
             title: "Baseline medical",
@@ -309,7 +322,7 @@ function onboardingSteps({ clearanceState, videos, plans, activePlan, goalCount 
             description:
                 clearanceState !== "none"
                     ? "Your Medical Clearance is on file."
-                    : "Your sports doctor issues your Medical Clearance after a baseline physical. Until then, sessions can't be checked against medical guidance.",
+                    : "An administrator assigns your sports doctor, who records your baseline examination and issues your Medical Clearance. Training starts after that.",
             href: routes.fighter.health,
             actionLabel: "View health",
         },
@@ -337,6 +350,10 @@ function onboardingSteps({ clearanceState, videos, plans, activePlan, goalCount 
             href: routes.fighter.schedule,
             actionLabel: "View schedule",
         },
+    ];
+    if (goalCount === null) return steps;
+    return [
+        ...steps,
         {
             id: "goals",
             title: "First goal",

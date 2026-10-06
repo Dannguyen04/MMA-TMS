@@ -15,9 +15,9 @@ import { academyDayStartIso, addDaysToKey, DAY_MS, dayKey, formatWeekdayDate, pl
 import { hrefWith, parseEnum } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
-import { nullIfNotFound } from "@/lib/services/api-helpers";
 import { listGoals } from "@/lib/services/goals";
 import { listFighters } from "@/lib/services/people";
+import { platformFeatureAvailable } from "@/lib/services/platform-features";
 import { getNavBadgeCounts } from "@/lib/services/shell";
 import { listSessions } from "@/lib/services/training";
 import { listReviewQueue } from "@/lib/services/videos";
@@ -51,8 +51,8 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
         listSessions({ fighterIds: scope, from: weekStart, to: weekEnd }),
         listReviewQueue(scope),
         listSessions({ fighterIds: scope, status: "missed", from: new Date(Date.parse(now) - MISSED_WINDOW_DAYS * DAY_MS).toISOString(), to: now, order: "desc" }),
-        // Goals have no backend endpoint yet: a 404 leaves the Goals group out rather than failing the page.
-        nullIfNotFound(listGoals({ fighterIds: scope, status: "at_risk" })),
+        // Without the goals service the Goals group is left out.
+        platformFeatureAvailable("goals") ? listGoals({ fighterIds: scope, status: "at_risk" }) : null,
         getSettings(),
     ]);
     // Without a per-analysis queue (API mode), the navigation's review count still says how many are waiting.

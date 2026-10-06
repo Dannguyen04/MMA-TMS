@@ -48,10 +48,12 @@ export interface RunStepProps {
     onSettled: (response: AIJobPollResponse) => void;
     onRetried: () => void;
     onReset: () => void;
+    /** Offers to run a failed analysis again. */
+    canRetry: boolean;
 }
 
 /** Step 3: upload progress, live AI pipeline progress and the outcome. */
-export function RunStep({ phase, summary, now, onStart, onCancelUpload, onEditStep, onSettled, onRetried, onReset }: RunStepProps) {
+export function RunStep({ phase, summary, now, onStart, onCancelUpload, onEditStep, onSettled, onRetried, onReset, canRetry }: RunStepProps) {
     const [confirmCancel, setConfirmCancel] = useState(false);
     const [retryError, setRetryError] = useState<string | null>(null);
 
@@ -107,20 +109,22 @@ export function RunStep({ phase, summary, now, onStart, onCancelUpload, onEditSt
                     <p className="text-sm text-fg-muted">{copy.explanation}</p>
                     <p className="text-sm text-fg">{copy.guidance}</p>
                     <div className="flex flex-wrap gap-2">
-                        <form
-                            action={async (formData) => {
-                                setRetryError(null);
-                                const result = await retryAnalysis({ status: "idle" }, formData);
-                                if (result.status === "success") onRetried();
-                                else setRetryError(result.message ?? "The analysis couldn't be restarted.");
-                            }}
-                        >
-                            <input type="hidden" name="videoId" value={phase.videoId} />
-                            <SubmitButton pendingLabel="Queuing…">
-                                <RotateCcw aria-hidden />
-                                Retry analysis
-                            </SubmitButton>
-                        </form>
+                        {canRetry && (
+                            <form
+                                action={async (formData) => {
+                                    setRetryError(null);
+                                    const result = await retryAnalysis({ status: "idle" }, formData);
+                                    if (result.status === "success") onRetried();
+                                    else setRetryError(result.message ?? "The analysis couldn't be restarted.");
+                                }}
+                            >
+                                <input type="hidden" name="videoId" value={phase.videoId} />
+                                <SubmitButton pendingLabel="Queuing…">
+                                    <RotateCcw aria-hidden />
+                                    Retry analysis
+                                </SubmitButton>
+                            </form>
+                        )}
                         <ButtonLink href={phase.href} variant="secondary">
                             View video
                         </ButtonLink>

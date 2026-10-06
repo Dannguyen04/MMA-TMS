@@ -21,6 +21,7 @@ import type { Fighter, User } from "@/lib/domain/types";
 import { routes } from "@/lib/routes";
 import { listPermissionCatalog, listRoleDefinitions } from "@/lib/services/admin";
 import { coachesForFighter, doctorsForFighter, getCoachByUserId, getDoctorByUserId, listFighters } from "@/lib/services/people";
+import { platformFeatureAvailable } from "@/lib/services/platform-features";
 
 export const metadata: Metadata = { title: "Profile" };
 
@@ -45,7 +46,7 @@ export default async function ProfilePage() {
                     {sections.main}
                 </div>
                 <div className="flex min-w-0 flex-col gap-6">
-                    <ProfileForm name={user.name} phone={user.phone} email={user.email} title={user.title} />
+                    {platformFeatureAvailable("selfProfileEdit") && <ProfileForm name={user.name} phone={user.phone} email={user.email} title={user.title} />}
                     <SecurityCard lastActiveAt={user.lastActiveAt} now={now} />
                 </div>
             </div>
@@ -64,7 +65,7 @@ async function roleSections(user: User, now: string): Promise<RoleSections> {
                 facts: presentFacts(fighter.primaryDiscipline, WEIGHT_CLASS_LABELS[fighter.weightClass], fighter.nationality),
                 main: (
                     <>
-                        <BodyMetricsCard fighter={fighter} />
+                        <BodyMetricsCard fighter={fighter} canLog={platformFeatureAvailable("bodyMetrics")} />
                         <FightProfileCard fighter={fighter} now={now} />
                         <CareTeamCard coaches={coaches} doctors={doctors} primaryCoachId={fighter.primaryCoachId} />
                     </>

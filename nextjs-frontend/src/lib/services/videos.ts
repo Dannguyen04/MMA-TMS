@@ -18,7 +18,8 @@ import type {
     VideoStatus,
     VideoTrainingType,
 } from "@/lib/domain/types";
-import { nullIfNotFound } from "./api-helpers";
+import { foldName } from "@/lib/query";
+import { nullIfNotFound, nullIfServiceFails } from "./api-helpers";
 import { getFighter } from "./people";
 import { applyPersistedReviews, readReviewState } from "./ai-coaching.api";
 
@@ -80,7 +81,8 @@ function mapJob(job: BackendJob): AIJob {
         startedAt: status === "queued" ? null : job.updatedAt,
         finishedAt: status === "completed" || status === "failed" ? job.updatedAt : null,
         durationSec: null,
-        avgConfidence: job.score === null ? null : job.score / 100,
+        // The job's score rates the session, not the model's certainty, so it is never shown as a confidence.
+        avgConfidence: null,
         lowConfidence: false,
         errorCode: job.errorCode ?? null,
         errorMessage: job.errorMessage ?? null,
@@ -101,7 +103,8 @@ function mapVideo(video: BackendVideo, job: AIJob | null): Video {
         fileName: video.originalFilename ?? "video",
         fileSizeMb: video.fileSizeBytes / (1024 * 1024),
         durationSec: Math.round((video.durationMs ?? 0) / 1000),
-        resolution: "Pending metadata",
+        // The service doesn't read the footage's metadata; empty values show as not recorded.
+        resolution: "",
         fps: 0,
         uploadedAt: video.createdAt,
         status,
@@ -112,7 +115,8 @@ function mapVideo(video: BackendVideo, job: AIJob | null): Video {
     };
 }
 
-export async function listApiJobs(): Promise<AIJob[]> {
+/** The pipeline's jobs: the service returns the newest 100 the caller may see. API mode only. */
+export async function listAnalysisJobs(): Promise<AIJob[]> {
     return (await pipelineApiRequest("/jobs", z.array(backendJobSchema))).map(mapJob);
 }
 
@@ -121,16 +125,6 @@ function apiVideo(id: string): Promise<BackendVideo | null> {
 }
 
 const backendFighterIdentitySchema = z.object({ id: z.string().uuid(), firstName: z.string(), lastName: z.string() });
-
-function foldName(value: string): string {
-    return value
-        .normalize("NFKD")
-        .replace(/\p{Diacritic}/gu, "")
-        .replace(/đ/giu, "d")
-        .replace(/\s+/g, " ")
-        .trim()
-        .toLocaleLowerCase("en");
-}
 
 async function demoFighterForBackendId(backendFighterId: string): Promise<Fighter | null> {
     const backend = await nullIfNotFound(pipelineApiRequest(`/fighters/${encodeURIComponent(backendFighterId)}`, backendFighterIdentitySchema));
@@ -149,8 +143,9 @@ export interface VideoFilter {
     uploadedById?: string;
 }
 
-async function listPipelineVideos(filter: VideoFilter = {}): Promise<Video[]> {
-    if (Array.isArray(filter.fighterIds) && filter.fighterIds.length === 0) return [];
+/** Videos with the jobs that analysed them, one read each. API mode only. */
+export async function listVideosAndJobs(filter: VideoFilter = {}, readJobs: () => Promise<AIJob[]> = listAnalysisJobs): Promise<{ videos: Video[]; jobs: AIJob[] }> {
+    if (Array.isArray(filter.fighterIds) && filter.fighterIds.length === 0) return { videos: [], jobs: [] };
     const query = new URLSearchParams({ limit: "100" });
     if (
         filter.fighterIds !== undefined &&
@@ -166,12 +161,17 @@ async function listPipelineVideos(filter: VideoFilter = {}): Promise<Video[]> {
         pageInfo: z.object({ hasNextPage: z.boolean(), endCursor: z.string().nullable() }),
         total: z.number().int().nonnegative(),
     });
-    const [page, jobs] = await Promise.all([pipelineApiRequest(`/videos?${query.toString()}`, videoPageSchema), listApiJobs()]);
-    const backendVideos = page.items;
+    const [page, jobs] = await Promise.all([pipelineApiRequest(`/videos?${query.toString()}`, videoPageSchema), readJobs()]);
     const byVideo = new Map(jobs.filter((job) => job.videoId).map((job) => [job.videoId, job]));
-    return backendVideos
+    const videos = page.items
         .map((video) => mapVideo(video, byVideo.get(video.id) ?? null))
         .filter((video) => (filter.fighterIds === undefined || filter.fighterIds === "all" || filter.fighterIds.includes(video.fighterId)) && (!filter.status || video.status === filter.status) && (!filter.uploadedById || video.uploadedById === filter.uploadedById));
+    return { videos, jobs };
+}
+
+/** A video's job only adds its analysis status, so the videos still list when the analysis service doesn't answer. */
+async function listPipelineVideos(filter: VideoFilter = {}): Promise<Video[]> {
+    return (await listVideosAndJobs(filter, async () => (await nullIfServiceFails(listAnalysisJobs())) ?? [])).videos;
 }
 
 export async function listVideos(filter: VideoFilter = {}): Promise<Video[]> {
@@ -181,7 +181,7 @@ export async function listVideos(filter: VideoFilter = {}): Promise<Video[]> {
 
 export async function getVideo(id: string): Promise<Video | null> {
     if (isDemoAuthEnabled() && (!uuidSchema.safeParse(id).success || isMockMode())) return (await demoService()).getVideo(id);
-    const [video, jobs] = await Promise.all([apiVideo(id), listApiJobs()]);
+    const [video, jobs] = await Promise.all([apiVideo(id), listAnalysisJobs()]);
     if (!video) return null;
     return mapVideo(video, jobs.find((job) => job.videoId === id) ?? null);
 }

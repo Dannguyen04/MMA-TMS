@@ -10,6 +10,7 @@ import { canAccessFighter, requireFighterAccess } from "@/lib/auth/access";
 import { getCurrentUser, requireRole } from "@/lib/auth/session";
 import { dayKey } from "@/lib/format";
 import { routes } from "@/lib/routes";
+import { usesTrainingServiceForms } from "@/lib/services/platform-features";
 import { getPlan } from "@/lib/services/training";
 
 /** One plan read per request, shared by the metadata and the page. */
@@ -41,8 +42,8 @@ export default async function EditPlanPage({ params }: PageProps<"/coach/trainin
         phase: plan.phase,
         focusAreas: plan.focusAreas,
         startDate: dayKey(plan.startDate),
-        endDate: dayKey(plan.endDate),
-        weeklySessionTarget: String(plan.weeklySessionTarget),
+        endDate: plan.endDate === null ? "" : dayKey(plan.endDate),
+        weeklySessionTarget: plan.weeklySessionTarget === null ? "" : String(plan.weeklySessionTarget),
         status: plan.status === "active" ? "active" : "draft",
         notes: plan.notes,
     };
@@ -52,7 +53,7 @@ export default async function EditPlanPage({ params }: PageProps<"/coach/trainin
             <PageHeader
                 eyebrow="Edit training plan"
                 title={plan.title}
-                description={plan.status === "active" ? `${fighter.name} is notified when you save changes to an active plan.` : undefined}
+                description={plan.status === "active" ? `${fighter.name} sees your changes on the active plan straight away.` : undefined}
                 back={{ href: routes.coach.plan(plan.id), label: "Back to plan" }}
             />
             <PlanForm
@@ -63,6 +64,7 @@ export default async function EditPlanPage({ params }: PageProps<"/coach/trainin
                 defaults={defaults}
                 now={now}
                 cancelHref={routes.coach.plan(plan.id)}
+                serviceForm={usesTrainingServiceForms()}
             />
         </>
     );

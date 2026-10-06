@@ -23,6 +23,11 @@ export function describeDaysUntil(days: number): string {
 /** Shown in place of a profile value the API hasn't provided yet. */
 export const NOT_RECORDED = "Not recorded";
 
+/** "1920×1080 · 30 fps", or the not-recorded label before the footage's metadata has been read. */
+export function formatVideoResolution(video: { resolution: string; fps: number }): string {
+    return video.fps > 0 && video.resolution ? `${video.resolution.replace("x", "×")} · ${video.fps} fps` : NOT_RECORDED;
+}
+
 /** The label for a value that may not be recorded yet; null when it isn't. */
 export function labelOf<K extends string>(labels: Record<K, string>, value: K | null): string | null {
     return value === null ? null : labels[value];

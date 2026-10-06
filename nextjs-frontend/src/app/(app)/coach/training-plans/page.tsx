@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { FighterIdentity } from "@/components/domain/fighter-identity";
 import { PlanCard } from "@/components/domain/plan-card";
+import { PlanDates } from "@/components/domain/plan-schedule";
 import { PlanStatusBadge } from "@/components/domain/status-badges";
 import { ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -19,7 +20,7 @@ import { accessibleFighterIds } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { PLAN_STATUS_LABELS, TRAINING_PHASE_LABELS } from "@/lib/domain/labels";
 import type { PlanStatus, TrainingPhase, TrainingPlan } from "@/lib/domain/types";
-import { formatDate, formatPercent, formatShortDate, pluralize } from "@/lib/format";
+import { formatPercent, pluralize } from "@/lib/format";
 import { paginate, parseEnum, parseSortDirection, sortItems } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { listFighters } from "@/lib/services/people";
@@ -130,7 +131,7 @@ export default async function CoachPlansPage({ searchParams }: PageProps<"/coach
                         <EmptyState
                             icon={<ClipboardList />}
                             title="No plans match these filters"
-                            description="Try another fighter, status or phase, or clear the search."
+                            description="Try different filters, or clear the search."
                             action={
                                 <ButtonLink href={view === "grid" ? pathname : `${pathname}?view=table`} variant="secondary">
                                     Clear filters
@@ -141,7 +142,7 @@ export default async function CoachPlansPage({ searchParams }: PageProps<"/coach
                         <EmptyState
                             icon={<ClipboardList />}
                             title="No training plans yet"
-                            description="Create a plan to set the objective, phase and weekly target for a fighter, then schedule sessions against it."
+                            description="Create a plan to set a fighter's objective and dates, then schedule sessions against it."
                             action={newPlanButton}
                         />
                     )
@@ -215,7 +216,8 @@ export default async function CoachPlansPage({ searchParams }: PageProps<"/coach
                                                     {plan.title}
                                                 </Link>
                                                 <p className="text-xs text-fg-muted">
-                                                    {pluralize(plan.weeklySessionTarget, "session")} a week · Coach {coachNames[plan.coachId] ?? "—"}
+                                                    {plan.weeklySessionTarget !== null && `${pluralize(plan.weeklySessionTarget, "session")} a week · `}Coach{" "}
+                                                    {coachNames[plan.coachId] ?? "—"}
                                                 </p>
                                             </TD>
                                             <TD className="min-w-44">{fighter && <FighterIdentity fighter={fighter} size="sm" showMeta={false} />}</TD>
@@ -224,8 +226,7 @@ export default async function CoachPlansPage({ searchParams }: PageProps<"/coach
                                             </TD>
                                             <TD className="whitespace-nowrap text-fg-muted">{TRAINING_PHASE_LABELS[plan.phase]}</TD>
                                             <TD className="whitespace-nowrap">
-                                                <time dateTime={plan.startDate}>{formatShortDate(plan.startDate)}</time> –{" "}
-                                                <time dateTime={plan.endDate}>{formatDate(plan.endDate)}</time>
+                                                <PlanDates plan={plan} short />
                                             </TD>
                                             <TD className="min-w-36">
                                                 {pct === undefined ? (

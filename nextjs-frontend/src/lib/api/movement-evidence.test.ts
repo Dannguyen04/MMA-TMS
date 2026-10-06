@@ -1,4 +1,4 @@
-import { createElement } from "react";
+import { createElement, type ComponentProps, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { MovementEvidencePanel } from "@/components/video/movement-evidence-panel";
@@ -39,6 +39,10 @@ const context: WorkerResultContext = {
     models: { pose: "pose", action: "legacy", detection: "legacy", anomaly: "legacy" },
 };
 
+/** A panel inside a playback provider, as the analysis page renders it. */
+const inPlayback = (child: ReactElement) =>
+    createElement(PlaybackProvider, { store: createPlaybackStore(400) } as ComponentProps<typeof PlaybackProvider>, child);
+
 describe("movement evidence contract", () => {
     it("works without a single detected strike and never enables autonomous assessment", () => {
         const parsed = parseWorkerResult(payload());
@@ -78,14 +82,13 @@ describe("movement evidence contract", () => {
         expect(parseWorkerResult(data)).toBeNull();
     });
     it("keeps older results compatible without inventing a report", () => {
-        const { movementEvidence: _, ...legacy } = payload();
+        const legacy: Record<string, unknown> = { ...payload() };
+        delete legacy.movementEvidence;
         expect(parseWorkerResult(legacy)?.movementEvidence).toBeUndefined();
     });
     it("renders declared context, review windows and explicit limitations", () => {
         const report = movementEvidenceSchema.parse(evidence());
-        const html = renderToStaticMarkup(createElement(PlaybackProvider, {
-            store: createPlaybackStore(400), children: createElement(MovementEvidencePanel, { report }),
-        }));
+        const html = renderToStaticMarkup(inPlayback(createElement(MovementEvidencePanel, { report })));
         expect(html).toContain("Movement evidence");
         expect(html).toContain("assigned-drill");
         expect(html).toContain("not AI accuracy");
@@ -100,9 +103,7 @@ describe("movement evidence contract", () => {
         data.coverage.usableRatio = 0;
         data.recordingGuidance = [];
         const report = movementEvidenceSchema.parse(data);
-        const html = renderToStaticMarkup(createElement(PlaybackProvider, {
-            store: createPlaybackStore(400), children: createElement(MovementEvidencePanel, { report }),
-        }));
+        const html = renderToStaticMarkup(inPlayback(createElement(MovementEvidencePanel, { report })));
         expect(html).toContain("New recording or reprocessing required");
         expect(html).not.toContain("aria-label=\"Review footage");
     });

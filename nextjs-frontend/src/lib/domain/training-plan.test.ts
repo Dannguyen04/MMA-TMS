@@ -48,6 +48,10 @@ describe("planTimeline", () => {
         });
         expect(planTimeline({ startDate: academyDay("2026-09-01"), endDate: academyDay("2026-10-26"), status: "completed" }, NOW).text).toBe("Finished");
     });
+
+    it("counts weeks without a share for a plan with no end date", () => {
+        expect(planTimeline({ startDate: academyDay("2026-09-01"), endDate: null, status: "active" }, NOW)).toEqual({ elapsedPct: null, text: "Week 2" });
+    });
 });
 
 describe("isDueSession", () => {

@@ -6,7 +6,7 @@ import { ACCESS_EXPIRES_COOKIE, ACCESS_TOKEN_COOKIE, DEMO_SESSION_COOKIE, REFRES
 import { ACCESS_TOKEN_REFRESH_MARGIN_SECONDS, refreshedSessionSchema, sessionCookies } from "@/lib/auth/session-tokens";
 import { routes } from "@/lib/routes";
 
-const PUBLIC_PATHS = ["/", routes.login, routes.forgotPassword];
+const PUBLIC_PATHS = ["/", routes.login, routes.forgotPassword, routes.resetPassword, routes.register];
 
 /** Sent on every response the proxy returns: no framing (clickjacking), no cross-site referrers, no MIME sniffing. */
 const SECURITY_HEADERS: Record<string, string> = {

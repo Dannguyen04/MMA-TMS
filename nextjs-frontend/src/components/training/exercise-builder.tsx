@@ -207,7 +207,8 @@ export function ExerciseBuilder({ library, rows, onChange, error: errorFor, mark
                                         <div className="mt-1 flex flex-wrap items-center gap-1.5">
                                             {exercise && (
                                                 <span className="text-xs text-fg-muted">
-                                                    {EXERCISE_CATEGORY_LABELS[exercise.category]} · {INTENSITY_LABELS[exercise.intensity]} intensity
+                                                    {EXERCISE_CATEGORY_LABELS[exercise.category]}
+                                                    {exercise.intensity && ` · ${INTENSITY_LABELS[exercise.intensity]} intensity`}
                                                 </span>
                                             )}
                                             {touchesRestriction && (

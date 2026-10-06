@@ -18,7 +18,7 @@ vi.mock("@/lib/auth/session", () => ({ getCurrentUser: vi.fn().mockResolvedValue
 
 import { ApiError } from "@/lib/api/client";
 import type { Fighter } from "@/lib/domain/types";
-import { getClearanceStatus, getFighterHealthSummary, getInjuryDetail, listClearances, listInjuries } from "./medical";
+import { getClearanceStatus, getDoctorOverview, getFighterHealthSummary, getInjuryDetail, listClearances, listInjuries } from "./medical";
 
 const FIGHTER = "f-1";
 const fighter = { id: FIGHTER, name: "Minh Tran", healthStatus: "healthy" } as Fighter;
@@ -109,6 +109,28 @@ const dossier = {
 
 const page = <T>(data: T[]) => ({ data, total: data.length, hasNextPage: false });
 
+const nullScores = Object.fromEntries(
+    [
+        "maddocks",
+        "glasgowComaScale",
+        "symptomCount",
+        "symptomSeverity",
+        "orientation",
+        "immediateMemoryTrials",
+        "immediateMemory",
+        "digitsBackward",
+        "monthsReverse",
+        "concentration",
+        "delayedRecall",
+        "cognitiveTotal",
+        "mbessFirmTotal",
+        "mbessFoamTotal",
+        "tandemGaitFastestSeconds",
+        "tandemGaitAverageSeconds",
+        "dualTaskGaitFastestSeconds",
+    ].map((key) => [key, null]),
+);
+
 function history(recordType: string, entries: { recordId: string; revision: number; recordedAt: string; snapshot: Record<string, unknown> }[]) {
     return page(entries.map((entry) => ({ recordType, source: "APPLICATION", recordedByUserId: "u-doc", ...entry })));
 }
@@ -155,10 +177,106 @@ describe("medical service reads in API mode", () => {
             activeInjuries: [{ id: "inj-1", type: null, typeLabel: "MCL sprain", bodyRegion: "left_knee", joint: "LEFT_KNEE", severity: "moderate", status: "recovering" }],
             activeRecoveryPlan: { progressPct: 50, currentPhase: null, plan: { targetReturnDate: "2026-10-15", phases: [] } },
             latestExamination: { id: "exam-1", scope: "TRAINING", outcome: "fit_with_restrictions", vitals: null, type: null },
-            openAlerts: [],
             nextFollowUp: null,
         });
         expect(authenticatedApiRequest).toHaveBeenCalledWith(`/fighters/${FIGHTER}/medical`, expect.anything());
+    });
+
+    it("reads a fighter the service still stores as not cleared by the clearance in effect", async () => {
+        const stored = { ...fighter, healthStatus: "not_cleared" } as Fighter;
+        people.getFighter.mockResolvedValue(stored);
+        people.listFighters.mockResolvedValue([stored]);
+        const fullTraining = {
+            ...dossier,
+            activeInjuries: [],
+            activeRecoveryPlans: [],
+            currentExaminations: { training: { ...examination, decision: "ELIGIBLE", restrictions: null }, competition: null },
+            activeClearances: [{ ...clearance, restrictions: { allowedSessionTypes: null, allowedTechniqueTypes: null, excludedJoints: null, notes: null } }],
+        };
+        respond({ [`/fighters/${FIGHTER}/medical`]: fullTraining });
+        await expect(getFighterHealthSummary(FIGHTER)).resolves.toMatchObject({ clearanceState: "full", fighter: { healthStatus: "healthy" } });
+
+        // Restricted with a recovering injury, as the shared dossier has it.
+        respond({ [`/fighters/${FIGHTER}/medical`]: dossier });
+        await expect(getFighterHealthSummary(FIGHTER)).resolves.toMatchObject({ clearanceState: "restricted", fighter: { healthStatus: "recovery" } });
+        expect((await getDoctorOverview([FIGHTER])).healthCounts).toMatchObject({ recovery: 1, not_cleared: 0 });
+
+        respond({
+            [`/fighters/${FIGHTER}/medical`]: {
+                ...fullTraining,
+                activeClearances: [],
+                currentExaminations: { training: null, competition: null },
+                eligibility: { training: { scope: "TRAINING", eligible: false, reasons: ["CLEARANCE_REQUIRED"] }, competition: eligible },
+            },
+        });
+        await expect(getFighterHealthSummary(FIGHTER)).resolves.toMatchObject({ clearanceState: "none", fighter: { healthStatus: "not_cleared" } });
+    });
+
+    it("reads what the doctor recorded at a baseline, with its follow-up and SCAT6 scores", async () => {
+        const scores = { symptomCount: 2, symptomSeverity: 3, cognitiveTotal: 38, complete: true };
+        const baseline = {
+            ...examination,
+            decision: "ELIGIBLE",
+            restrictions: null,
+            details: {
+                examinationType: "BASELINE",
+                vitals: { weightKg: 77.3, restingHeartRate: 52, bloodPressureSystolic: 118, bloodPressureDiastolic: 76, temperatureC: 36.6, spo2Pct: 98, hydration: "GOOD" },
+                assessments: [{ area: "Cervical spine", result: "NORMAL", note: null }],
+                recommendations: "Build aerobic base before sparring.",
+                followUpDate: "2026-09-10",
+                scat6: { formVersion: "SCAT6-2023-EN", responses: { status: "ADMINISTERED", formVersion: "SCAT6-2023-EN" }, scoringVersion: 2, scores: { ...nullScores, ...scores } },
+            },
+        };
+        respond({ [`/fighters/${FIGHTER}/medical`]: { ...dossier, currentExaminations: { training: baseline, competition: null } } });
+
+        const summary = await getFighterHealthSummary(FIGHTER, "2026-09-05T03:00:00.000Z");
+
+        expect(summary?.latestExamination).toMatchObject({
+            type: "baseline",
+            vitals: { weightKg: 77.3, hydration: "good" },
+            assessments: [{ area: "Cervical spine", result: "normal", note: "" }],
+            recommendations: "Build aerobic base before sparring.",
+            followUpDate: "2026-09-10T03:00:00.000Z",
+            scat6: { scoringVersion: 2, scores },
+        });
+        expect(summary?.nextFollowUp).toMatchObject({ date: "2026-09-10T03:00:00.000Z", daysUntil: 5 });
+    });
+
+    it("keeps a fighter waiting for a baseline examination on 'no clearance' with the reason", async () => {
+        respond({
+            [`/fighters/${FIGHTER}/medical`]: {
+                ...dossier,
+                activeClearances: [],
+                currentExaminations: { training: null, competition: null },
+                eligibility: { training: { scope: "TRAINING", eligible: false, reasons: ["EXAMINATION_REQUIRED"] }, competition: eligible },
+            },
+        });
+        await expect(getClearanceStatus(FIGHTER)).resolves.toMatchObject({ state: "none", eligibility: { eligible: false, reasons: ["EXAMINATION_REQUIRED"] } });
+    });
+
+    it("lists follow-ups due within the week or overdue, and flags a fighter whose baseline is missing", async () => {
+        const other = { ...fighter, id: "f-2", name: "Lucas Ferreira" } as Fighter;
+        people.listFighters.mockResolvedValue([fighter, other]);
+        const routine = (fighterId: string, followUpDate: string) => ({
+            ...examination,
+            id: `exam-${fighterId}`,
+            fighterId,
+            details: { examinationType: "ROUTINE", vitals: null, assessments: [], recommendations: null, followUpDate, scat6: null },
+        });
+        const withExam = (exam: object, reasons: string[]) => ({
+            ...dossier,
+            currentExaminations: { training: exam, competition: null },
+            eligibility: { training: { scope: "TRAINING", eligible: reasons.length === 0, reasons }, competition: eligible },
+        });
+        respond({
+            [`/fighters/${FIGHTER}/medical`]: withExam(routine(FIGHTER, "2026-09-08"), ["EXAMINATION_REQUIRED"]),
+            "/fighters/f-2/medical": withExam(routine("f-2", "2026-09-25"), []),
+        });
+
+        const overview = await getDoctorOverview([FIGHTER, "f-2"], "2026-09-05T03:00:00.000Z");
+        expect(overview.followUpsDue).toMatchObject([{ fighter: { id: FIGHTER }, examination: { id: `exam-${FIGHTER}` }, daysUntil: 3 }]);
+        await expect(getFighterHealthSummary(FIGHTER)).resolves.toMatchObject({ needsBaseline: true, clearanceState: "not_cleared" });
+        await expect(getFighterHealthSummary("f-2")).resolves.toMatchObject({ needsBaseline: false });
     });
 
     it("takes the clearance state from the eligibility verdict, not from picking a clearance", async () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { ApiError } from "@/lib/api/client";
-import { MAYBE_NOT_SAVED, medicalWriteFailure, trainingEligibilityReasons } from "./medical-errors";
+import { MAYBE_NOT_SAVED, medicalWriteFailure } from "./medical-errors";
 
 const http = (status: number, code: string, details?: unknown, message = "Request failed") => new ApiError({ message, kind: "http", status, code, details });
 
@@ -37,17 +37,5 @@ describe("medicalWriteFailure", () => {
 
     it("rethrows anything that isn't an API error", () => {
         expect(() => medicalWriteFailure(new TypeError("bug"))).toThrow("bug");
-    });
-});
-
-describe("trainingEligibilityReasons", () => {
-    it("reads the reasons from a refused training start", () => {
-        const error = http(409, "TRAINING_MEDICAL_ELIGIBILITY_REQUIRED", { reasons: ["REVIEW_REQUEST_PENDING", "SOMETHING_NEW", "CLEARANCE_EXPIRED"] });
-        expect(trainingEligibilityReasons(error)).toEqual(["REVIEW_REQUEST_PENDING", "CLEARANCE_EXPIRED"]);
-    });
-
-    it("ignores other errors", () => {
-        expect(trainingEligibilityReasons(http(409, "MEDICAL_RECORD_CONFLICT"))).toBeNull();
-        expect(trainingEligibilityReasons(new Error("x"))).toBeNull();
     });
 });

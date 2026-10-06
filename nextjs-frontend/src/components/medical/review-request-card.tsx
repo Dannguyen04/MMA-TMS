@@ -81,6 +81,12 @@ export function ReviewRequestCard({ fighterId, fighterName, audience, requests, 
                     <section aria-label="Why training is paused" className="flex flex-col gap-2">
                         <h3 className="text-[13px] font-semibold text-fg">Training is paused</h3>
                         <EligibilityReasons reasons={reasons} />
+                        {audience === "doctor" && examineHref && reasons.includes("EXAMINATION_REQUIRED") && (
+                            <ButtonLink href={`${examineHref}&type=baseline`} size="sm" className="self-start">
+                                <ClipboardPlus aria-hidden />
+                                Record baseline examination
+                            </ButtonLink>
+                        )}
                     </section>
                 )}
 

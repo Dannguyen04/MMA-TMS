@@ -3,14 +3,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { PlanTimelineBar } from "@/components/domain/plan-schedule";
 import { WeekAgenda } from "@/components/domain/week-agenda";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
-import { ProgressBar } from "@/components/ui/progress";
 import { EmptyState } from "@/components/ui/states";
 import { ClearanceBanner } from "@/components/training/clearance-banner";
 import { getClearanceSummary, getCoachNames } from "@/components/training/training-data";
-import { describeWeekOffset, parseWeekOffset, planTimeline, plannedEndMs, weekStartKey } from "@/components/training/training-utils";
+import { describeWeekOffset, parseWeekOffset, plannedEndMs, weekStartKey } from "@/components/training/training-utils";
 import { UpcomingByDay } from "@/components/training/upcoming-by-day";
 import { WeekNav, weekRangeLabel } from "@/components/training/week-nav";
 import { WeekSummary } from "@/components/training/week-summary";
@@ -60,7 +60,6 @@ export default async function FighterSchedulePage({ searchParams }: PageProps<"/
     const weekSessions = agenda.flatMap((day) => day.sessions);
     const upcoming = later.filter((s) => plannedEndMs(s) >= nowMs);
     const activePlan = activePlans[0];
-    const planProgress = activePlan ? planTimeline(activePlan, now) : null;
     const scheduledCount = weekSessions.filter((s) => s.status !== "cancelled").length;
     const upcomingDescription = offset === 0 ? "Next week and beyond" : offset > 0 ? `After ${weekRangeLabel(startKey)}` : `Next ${UPCOMING_DAYS} days`;
 
@@ -108,22 +107,21 @@ export default async function FighterSchedulePage({ searchParams }: PageProps<"/
 
                     <div className="order-first flex min-w-0 flex-col gap-6 lg:order-last">
                         <WeekSummary sessions={weekSessions} description={weekRangeLabel(startKey)} />
-                        {activePlan && planProgress && (
+                        {activePlan && (
                             <Card>
                                 <CardHeader title="Current plan" icon={<ClipboardList />} />
                                 <CardContent className="flex flex-col gap-3">
                                     <Link href={routes.fighter.plan(activePlan.id)} className="text-sm font-semibold text-fg hover:underline">
                                         {activePlan.title}
                                     </Link>
-                                    <ProgressBar
-                                        value={planProgress.elapsedPct}
-                                        label={`Time elapsed in ${activePlan.title}`}
-                                        valueText={planProgress.text}
-                                        size="sm"
-                                    />
+                                    <PlanTimelineBar plan={activePlan} now={now} size="sm" />
                                     <p className="text-[13px] text-fg-muted">
-                                        Target {pluralize(activePlan.weeklySessionTarget, "session")} a week
-                                        {coachNames[activePlan.coachId] ? ` · Coach ${coachNames[activePlan.coachId]}` : ""}
+                                        {[
+                                            activePlan.weeklySessionTarget === null ? null : `Target ${pluralize(activePlan.weeklySessionTarget, "session")} a week`,
+                                            coachNames[activePlan.coachId] ? `Coach ${coachNames[activePlan.coachId]}` : null,
+                                        ]
+                                            .filter(Boolean)
+                                            .join(" · ")}
                                     </p>
                                 </CardContent>
                             </Card>
