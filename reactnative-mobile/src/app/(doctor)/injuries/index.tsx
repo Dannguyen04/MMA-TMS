@@ -1,16 +1,18 @@
-import { blocked } from "@/i18n/blocked";
-import { DoctorBlockedCard, DoctorBlockedPage, DoctorNavLink } from "@/screens/doctor/blocked-page";
-import { Text } from "react-native";
+import { Pressable, Text } from "react-native";
+import { useRouter, type Href } from "expo-router";
+
+import { medical } from "@/i18n/medical";
+import { DoctorChrome } from "@/screens/doctor/doctor-chrome";
 import { type, useThemePreference } from "@/theme";
 
 export default function DoctorInjuriesRoute() {
   const { colors } = useThemePreference();
+  const router = useRouter();
   return (
-    <DoctorBlockedPage title={blocked.injury} extra={blocked.clinicalWrite}>
-      <DoctorNavLink href="/injuries/new" label={blocked.newInjury} />
-      <DoctorBlockedCard>
-        <Text style={[type.body, { color: colors.inkMuted }]}>{blocked.empty}</Text>
-      </DoctorBlockedCard>
-    </DoctorBlockedPage>
+    <DoctorChrome title={medical.injuries}>
+      <Pressable onPress={() => router.push("/injuries/new" as Href)}>
+        <Text style={[type.link, { color: colors.lotus }]}>Ghi chấn thương</Text>
+      </Pressable>
+    </DoctorChrome>
   );
 }

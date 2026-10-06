@@ -76,6 +76,13 @@ function scrollToFocusedInput(
   extraHeight: number,
   contentOffsetY: number,
 ) {
+  if (Platform.OS === "web") {
+    if (typeof document === "undefined") return;
+    const active = document.activeElement;
+    if (!(active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement)) return;
+    active.scrollIntoView({ block: "center", behavior: "smooth" });
+    return;
+  }
   const input = TextInput.State.currentlyFocusedInput();
   if (!input || !scroll) return;
   const handle = findNodeHandle(input);

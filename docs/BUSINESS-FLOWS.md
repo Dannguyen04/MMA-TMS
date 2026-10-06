@@ -46,23 +46,23 @@ Onboarding → Training Plan → Session → Video AI → Coach Review
 2. **Bác sĩ khám baseline**: Examination type `baseline` — tim mạch, thần kinh, cơ-xương, SCAT6
 3. **BS cấp Medical Clearance**: `full` / `restricted` / `not_cleared`
 4. **HLV được assign**: Giao coach phụ trách
-5. **HLV tạo Training Plan**: Kế hoạch huấn luyện đầu tiên
-6. **Võ sĩ upload video đầu tiên**: AI phân tích baseline kỹ thuật
-7. **HLV đặt Goal đầu tiên**: Mục tiêu cụ thể (guard uptime, kick speed...)
+5. **Võ sĩ upload video đầu tiên**: AI phân tích baseline kỹ thuật
+
+Tạo Training Plan thuộc **Luồng 2**, không phải bước bắt buộc của demo Luồng 1. Đặt Goal đầu tiên (guard uptime, kick speed, …) cũng không bắt buộc trong Luồng 1. Màn giáo án và màn mục tiêu của HLV vẫn là tính năng riêng, không nằm trong checklist onboarding.
 
 ### Trạng thái Fighter Dashboard
 
 Võ sĩ mới thấy **Onboarding Checklist** (hiện ≤30 ngày, đến khi hoàn thành):
 - ☐ Khám baseline (chờ BS)
+- ☐ Giấy phép y tế (`full` / `restricted` / `not_cleared`)
+- ☐ HLV được phân công
 - ☐ Video phân tích đầu tiên (upload bất kỳ video tập)
-- ☐ Kế hoạch tập (chờ HLV)
-- ☐ Mục tiêu đầu tiên (chờ HLV)
 
 ---
 
 ## Luồng 2: Lập Kế Hoạch Huấn Luyện (Training Plan)
 
-> Phạm vi: mô tả backend hiện tại trong `nestjs-api/`, đối chiếu source ngày 2026-10-04, và yêu cầu bổ sung phase cho Training Plan. Phần phase bên dưới là yêu cầu cần triển khai, chưa phải hành vi backend hiện tại. Không xác nhận trạng thái triển khai hoặc migration trên database đích.
+> Phạm vi: mô tả contract Training Plan trong `nestjs-api/`. `phase` đã có trên plan (`base`, `build`, `fight_camp`, `taper`, `rehab`, `maintenance`) và đủ để phân loại giai đoạn. `weeklySessionTarget` và `focusAreas` không có trong contract.
 
 ### Cấu trúc kế hoạch
 
@@ -85,13 +85,13 @@ Training Plan
     └── status, checkedInAt, completedAt, actualDurationSec và các mốc kết thúc
 ```
 
-Backend chưa có `phase`, `weeklySessionTarget`, `focusAreas` trong contract và schema Training Plan. Bài tập ở cấp plan có API quản lý riêng; bảng `session_exercises` đã có trong database nhưng chưa có API/service đọc và ghi drills cho từng session. Backend chưa có `targetRpe` ở cấp session.
+`phase` đã có trong schema và contract tạo/sửa/đọc plan. `weeklySessionTarget` và `focusAreas` không tồn tại — client không gửi và không hiển thị hai trường này. Bài tập ở cấp plan có API quản lý riêng (`/training-plans/:id/exercises`). Bảng `session_exercises` đã có trong database nhưng chưa có API/service đọc và ghi bài tập cho từng session. Backend chưa có `targetRpe` ở cấp session.
 
-### Phase của kế hoạch — yêu cầu bổ sung
+### Phase của kế hoạch
 
-Yêu cầu ngày 2026-10-04: bổ sung trường `phase` cho Training Plan trong backend. Phase mô tả giai đoạn huấn luyện của kế hoạch, tách biệt với `status` mô tả vòng đời kế hoạch. Việc lưu phase cần migration mới, cập nhật schema và contract API; hiện chưa triển khai.
+`phase` đã có trong contract và migration `018_training_plan_phase.sql`. Phase mô tả giai đoạn huấn luyện của kế hoạch, tách biệt với `status` mô tả vòng đời kế hoạch. `weeklySessionTarget` và `focusAreas` không được thêm thay cho phase.
 
-Bộ phase được chủ dự án xác nhận ngày 2026-10-04, dùng cùng giá trị lowercase trong API và database:
+Bộ phase dùng giá trị lowercase trong API và database:
 
 | Phase | Ý nghĩa |
 |---|---|
@@ -107,12 +107,12 @@ Contract triển khai đã chốt:
 - Mỗi plan có một `phase`; khi tạo plan qua `POST /training-plans`, client bắt buộc gửi một trong sáu giá trị trên. Thiếu, `null` hoặc giá trị ngoài enum bị từ chối với `422 VALIDATION_ERROR` theo convention backend.
 - `PATCH /training-plans/:id` cho phép sửa `phase` qua quyền sửa plan hiện hữu; không gửi `phase` thì giữ nguyên. Phase luôn phải hợp lệ và không được đặt `null`.
 - Các API trả Training Plan phải trả `phase`, bao gồm tạo, danh sách, chi tiết, sửa thông tin và chuyển trạng thái.
-- Chủ dự án xác nhận chưa có plan cũ. Migration mới thêm cột `phase` bắt buộc (`NOT NULL`), không gán mặc định và không backfill. Nếu database đích có plan trước khi nâng cấp, migration phải dừng thay vì tự suy ra phase.
+- Migration `018_training_plan_phase.sql` thêm enum và cột `phase`. Cột được backfill `base` cho hàng đang có rồi đặt `NOT NULL`. Plan mới phải gửi `phase`; cột không có default.
 - Phase là phân loại của plan, độc lập với `status`; không tự chuyển phase hoặc tự điều chỉnh bài tập, cường độ, clearance hay progress.
 
-Sau khi triển khai, HLV chọn phase khi tạo plan và có thể sửa phase cùng thông tin kế hoạch qua API hiện hữu. Trước khi triển khai, quy trình hiện tại bên dưới vẫn chưa có trường này.
+HLV chọn phase khi tạo plan và có thể sửa phase cùng thông tin kế hoạch qua API hiện hữu.
 
-Phạm vi bổ sung hiện tại chỉ là phase của plan; các khoảng cách về weekly target, focus areas, session drills, adherence và medical warnings vẫn giữ trạng thái chưa triển khai như mô tả trong luồng này.
+Phase là phân loại của plan. `weeklySessionTarget`, `focusAreas`, session drills, adherence và medical warnings vẫn chưa có API.
 
 ### Quy trình hiện tại
 

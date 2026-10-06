@@ -67,6 +67,15 @@ export type PublicUser = {
   profile: FighterPublicProfile | NamedPublicProfile | null;
 };
 
+export type AdmissionEmailCodeResponse = {
+  requested: true;
+};
+
+export type AdmissionEmailVerifyBody = {
+  email: string;
+  token: string;
+};
+
 export type RegisterResponse = {
   user: PublicUser;
   session: AuthSession | null;
@@ -155,6 +164,17 @@ export const TRAINING_PLAN_STATUSES = [
   "CANCELLED",
 ] as const;
 export type TrainingPlanStatus = (typeof TRAINING_PLAN_STATUSES)[number];
+
+/** Lowercase values required by `POST /training-plans`. Uppercase is rejected. */
+export const TRAINING_PLAN_PHASES = [
+  "base",
+  "build",
+  "fight_camp",
+  "taper",
+  "rehab",
+  "maintenance",
+] as const;
+export type TrainingPlanPhase = (typeof TRAINING_PLAN_PHASES)[number];
 
 export const EXERCISE_CATEGORIES = [
   "STRIKING",
@@ -363,6 +383,7 @@ export type TrainingPlan = {
   startDate: string;
   endDate: string | null;
   status: TrainingPlanStatus;
+  phase: TrainingPlanPhase;
   goals: string | null;
   milestones: PlanMilestone[];
   isActive: boolean;
@@ -384,6 +405,7 @@ export type CreateTrainingPlanBody = {
   coachId: string;
   title: string;
   startDate: string;
+  phase: TrainingPlanPhase;
   description?: string | null;
   endDate?: string | null;
   goals?: string | null;
@@ -395,6 +417,7 @@ export type UpdateTrainingPlanBody = {
   description?: string | null;
   startDate?: string;
   endDate?: string | null;
+  phase?: TrainingPlanPhase;
   goals?: string | null;
   milestones?: PlanMilestone[];
   isActive?: boolean;
@@ -720,6 +743,55 @@ export type RecoveryPlan = {
   updatedAt: string;
 };
 
+export const EXAMINATION_TYPES = [
+  "BASELINE",
+  "ROUTINE",
+  "PRE_FIGHT",
+  "POST_INJURY",
+  "CONCUSSION_SCREEN",
+  "RETURN_TO_PLAY",
+] as const;
+export type ExaminationType = (typeof EXAMINATION_TYPES)[number];
+
+export const ASSESSMENT_RESULTS = ["NORMAL", "ABNORMAL", "INCONCLUSIVE"] as const;
+export type AssessmentResult = (typeof ASSESSMENT_RESULTS)[number];
+
+export const HYDRATION_LEVELS = ["GOOD", "FAIR", "POOR"] as const;
+export type HydrationLevel = (typeof HYDRATION_LEVELS)[number];
+
+export type ExaminationVitals = {
+  weightKg: number;
+  restingHeartRate: number;
+  bloodPressureSystolic: number;
+  bloodPressureDiastolic: number;
+  temperatureC: number;
+  spo2Pct: number;
+  hydration: HydrationLevel;
+};
+
+export type ExaminationAssessment = {
+  area: string;
+  result: AssessmentResult;
+  note: string | null;
+};
+
+/** Server scores only. Clients must not send or edit totals. */
+export type Scat6Record = {
+  formVersion: string;
+  responses: { status: string; formVersion: string };
+  scoringVersion: number | null;
+  scores: Record<string, number | number[] | boolean | null> | null;
+};
+
+export type ExaminationDetails = {
+  examinationType: ExaminationType;
+  vitals: ExaminationVitals | null;
+  assessments: ExaminationAssessment[];
+  recommendations: string | null;
+  followUpDate: string | null;
+  scat6: Scat6Record | null;
+};
+
 export type MedicalExamination = {
   id: string;
   sequenceNo: number;
@@ -734,6 +806,8 @@ export type MedicalExamination = {
   validUntil: string | null;
   supersedesId: string | null;
   createdAt: string;
+  /** Null on examinations stored before details existed. Not the same as "not examined". */
+  details: ExaminationDetails | null;
 };
 
 export type MedicalClearance = {
@@ -804,6 +878,75 @@ export type ListDoctorAssignmentsQuery = PageQuery;
 
 export type CreateReviewRequestBody = {
   reason: string;
+};
+
+export type CreateExaminationBody = {
+  scope: ExaminationScope;
+  decision: ExaminationDecision;
+  examinedAt: string;
+  reason: string;
+  restrictions?: {
+    allowedSessionTypes?: SessionType[];
+    allowedTechniqueTypes?: TechniqueType[];
+    excludedJoints?: BodyJoint[];
+    notes?: string;
+  };
+  validUntil?: string;
+  examinationType: "BASELINE";
+  vitals: ExaminationVitals;
+  assessments: ExaminationAssessment[];
+  recommendations?: string;
+  followUpDate?: string;
+  scat6: {
+    status: "NOT_ADMINISTERED";
+    formVersion: "SCAT6-2023-EN";
+    reason: string;
+  };
+};
+
+export type CreateClearanceBody = {
+  examinationId: string;
+  clearanceType: ClearanceType;
+  notes?: string;
+};
+
+export type CreateInjuryBody = {
+  affectedJoint: BodyJoint;
+  injuryType: string;
+  severity: InjurySeverity;
+  occurredAt: string;
+  description?: string;
+};
+
+export type CreateRecoveryPlanBody = {
+  injuryId: string;
+  title: string;
+  description?: string;
+  startDate: string;
+  estimatedEndDate?: string;
+  milestones: {
+    title: string;
+    criteria: string;
+    targetDate?: string | null;
+  }[];
+};
+
+export type AppNotification = {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  payload: Record<string, unknown>;
+  isRead: boolean;
+  readAt: string | null;
+  createdAt: string;
+};
+
+export type UserListPage = {
+  items: PublicUser[];
+  total: number;
+  page: number;
+  limit: number;
 };
 
 export function isFighterProfile(

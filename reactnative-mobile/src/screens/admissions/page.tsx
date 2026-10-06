@@ -27,7 +27,14 @@ export function AdmissionPage({
             <Text style={[type.link, { color: colors.lotus }]}>Quay lại</Text>
           </Pressable>
         ) : (
-          <Text style={[type.wordmark, { color: colors.ink }]}>{vi.brand.wordmark}</Text>
+          <Text
+            style={[type.wordmark, { color: colors.ink }]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.6}
+          >
+            {vi.brand.wordmark}
+          </Text>
         )}
       </View>
       <Text style={[type.title, { color: colors.ink }]}>{title}</Text>

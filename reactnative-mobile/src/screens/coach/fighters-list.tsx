@@ -2,6 +2,8 @@ import { useCallback, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 
+import { useToastMessage } from "@/components/toast/app-toast";
+
 import {
   MEDICAL_STATUSES,
   listFighters,
@@ -42,6 +44,7 @@ export function CoachFightersScreen() {
   const [rows, setRows] = useState<PublicFighter[]>([]);
   const [today, setToday] = useState<TrainingSession[]>([]);
   const [error, setError] = useState("");
+  useToastMessage(error, "error");
   const [loading, setLoading] = useState(true);
   const searchRef = useRef(search);
   searchRef.current = search;
@@ -136,7 +139,6 @@ export function CoachFightersScreen() {
           />
         ))}
       </View>
-      {error ? <CoachBanner message={error} tone="danger" /> : null}
       {loading && rows.length === 0 ? <CoachBanner message={coach.loading} /> : null}
       {rows.length === 0 && !loading && !error ? <CoachBanner message={coach.emptyFighters} /> : null}
       <View style={{ gap: spacing.md }}>

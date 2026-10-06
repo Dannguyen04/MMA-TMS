@@ -43,6 +43,21 @@ jest.mock("@expo/vector-icons", () => {
   );
 });
 
+jest.mock("react-native-toast-message", () => {
+  const React = require("react");
+  const { View } = require("react-native");
+  function Toast(props: object) {
+    return React.createElement(View, props);
+  }
+  Toast.show = jest.fn();
+  Toast.hide = jest.fn();
+  return {
+    __esModule: true,
+    default: Toast,
+    BaseToast: (props: object) => React.createElement(View, props),
+  };
+});
+
 jest.mock("react-native-worklets", () => ({
   createSerializable: (value: unknown) => value,
 }));
@@ -100,6 +115,47 @@ jest.mock("@/theme", () => {
       resolvedScheme: "light",
       colors: actual.palettes.light,
     }),
+    useColors: () => ({
+      scheme: "light" as const,
+      variant: "light" as const,
+      colors: actual.palettes.light,
+      semantic: {
+        background: actual.palettes.light.bg,
+        surface: actual.palettes.light.surface,
+        surfaceMuted: actual.palettes.light.surfaceMuted,
+        textPrimary: actual.palettes.light.ink,
+        textSecondary: actual.palettes.light.inkMuted,
+        textTertiary: actual.palettes.light.inkSubtle,
+        accent: actual.palettes.light.cta,
+        onAccent: actual.palettes.light.onCta,
+        link: actual.palettes.light.lotus,
+        border: actual.palettes.light.line,
+        controlBorder: actual.palettes.light.controlBorder,
+        focusRing: actual.palettes.light.ring,
+        danger: actual.palettes.light.danger,
+        dangerSurface: actual.palettes.light.dangerSoft,
+        success: actual.palettes.light.success,
+        successSurface: actual.palettes.light.successSoft,
+        disabledSurface: actual.palettes.light.disabledFill,
+        disabledText: actual.palettes.light.disabledInk,
+        brandCage: actual.palettes.light.cage,
+      },
+    }),
+    useTypography: () => ({
+      family: "ibmPlexSans",
+      fontScale: 1,
+      osFontScale: 1,
+      faces: {
+        regular: "System",
+        medium: "System",
+        semibold: "System",
+        bold: "System",
+      },
+      sizeFactor: 1,
+      lineHeight: 1.35,
+      letterSpacingEm: 0,
+      bold: false,
+    }),
   };
 });
 
@@ -111,5 +167,8 @@ jest.mock("expo-router", () => {
       React.createElement(Text, { ...props, accessibilityRole: "link" }, children),
     useRouter: () => globalThis.__authRouter ?? { replace: jest.fn(), back: jest.fn() },
     useLocalSearchParams: () => globalThis.__authParams ?? {},
+    useFocusEffect: (effect: () => void | (() => void)) => {
+      React.useEffect(() => effect(), [effect]);
+    },
   };
 });
