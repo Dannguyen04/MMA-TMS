@@ -3,12 +3,12 @@ import "server-only";
 import type { FighterIdentityData } from "@/components/domain/fighter-identity";
 import { VIDEO_TRAINING_TYPES } from "@/lib/domain/labels";
 import type { ClearanceState } from "@/lib/domain/rules";
-import type { TrainingType, User, VideoTrainingType } from "@/lib/domain/types";
+import type { Fighter, TrainingType, User, VideoTrainingType } from "@/lib/domain/types";
 import { VIDEO_PIPELINE_MODE, type VideoPipelineMode } from "@/lib/api/pipeline-mode";
 import { accessibleFighterIds } from "@/lib/auth/access";
 import { getSettings } from "@/lib/services/admin";
 import { getClearanceStatus } from "@/lib/services/medical";
-import { listFighters } from "@/lib/services/people";
+import { getFighter, listFighters } from "@/lib/services/people";
 import { platformFeatureAvailable } from "@/lib/services/platform-features";
 import { listSessions } from "@/lib/services/training";
 
@@ -39,12 +39,22 @@ export interface UploadWizardData {
 
 const DAY_MS = 86_400_000;
 
+/**
+ * The fighters the wizard offers. A fighter films only themselves, and the service gives fighters no fighter
+ * directory (`GET /fighters` answers 403), so they get their own profile, read as their dashboard reads it.
+ */
+async function uploadableFighters(user: User): Promise<Fighter[]> {
+    if (user.role !== "fighter") return listFighters(user);
+    const self = user.profileId ? await getFighter(user.profileId) : null;
+    return self ? [self] : [];
+}
+
 /** Roster, recent sessions, upload limits and clearance summaries for the upload wizard. */
 export async function loadUploadWizardData(user: User): Promise<UploadWizardData> {
     const now = new Date();
     const scope = accessibleFighterIds(user);
     const [fighters, sessions, settings] = await Promise.all([
-        listFighters(user),
+        uploadableFighters(user),
         listSessions({ fighterIds: scope, from: new Date(now.getTime() - 21 * DAY_MS).toISOString(), to: new Date(now.getTime() + DAY_MS).toISOString(), order: "desc" }),
         getSettings(),
     ]);
