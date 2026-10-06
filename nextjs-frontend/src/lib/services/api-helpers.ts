@@ -79,8 +79,9 @@ export function queryPath(path: string, values: Record<string, QueryValue>): str
 }
 
 const PAGE_SIZE = 100;
-const MAX_PAGES = 5;
-const MAX_ITEMS = 500;
+/** Room for the whole user list, the largest set a screen drains (over 550 accounts on the team's database). */
+const MAX_PAGES = 50;
+const MAX_ITEMS = 5000;
 
 /**
  * The two shapes the service's `?page=&limit=` lists answer with: `{ data, total, hasNextPage }` (fighters,
@@ -96,36 +97,33 @@ function numberedPageSchema<T extends z.ZodType>(itemSchema: T) {
 
 type NumberedPage<T> = { data: T[]; total: number; hasNextPage: boolean } | { items: T[]; total: number; page: number; limit: number };
 
-function pageContents<T>(page: NumberedPage<T>): { items: T[]; hasNextPage: boolean } {
-    return "data" in page ? { items: page.data, hasNextPage: page.hasNextPage } : { items: page.items, hasNextPage: page.page * page.limit < page.total };
+function pageContents<T>(page: NumberedPage<T>): { items: T[]; total: number; hasNextPage: boolean } {
+    return "data" in page
+        ? { items: page.data, total: page.total, hasNextPage: page.hasNextPage }
+        : { items: page.items, total: page.total, hasNextPage: page.page * page.limit < page.total };
 }
 
+const paginationLimit = (limit: string) => new ApiError({ message: `The service ${limit}.`, kind: "invalid_response", code: "PAGINATION_LIMIT_EXCEEDED" });
+
 /**
- * Reads every page of a `?page=&limit=` list endpoint, bounded so a screen that needs the whole
- * (small) set fails loudly instead of silently truncating it.
+ * Reads every page of a `?page=&limit=` list endpoint: the first page gives the total, the rest are read together.
+ * Bounded so a screen that needs the whole set fails loudly instead of silently truncating it.
  */
 export async function drainNumberedPages<T extends z.ZodType>(
     path: string,
     itemSchema: T,
     values: Record<string, QueryValue> = {},
 ): Promise<z.output<T>[]> {
-    const items: z.output<T>[] = [];
-    for (let page = 1; page <= MAX_PAGES; page += 1) {
+    const read = async (page: number) => {
         const response: NumberedPage<z.output<T>> = await authenticatedApiRequest(queryPath(path, { page, limit: PAGE_SIZE, ...values }), numberedPageSchema(itemSchema));
-        const contents = pageContents(response);
-        items.push(...contents.items);
-        if (items.length > MAX_ITEMS || response.total > MAX_ITEMS) {
-            throw new ApiError({
-                message: `The service returned more than the configured ${MAX_ITEMS} item limit.`,
-                kind: "invalid_response",
-                code: "PAGINATION_LIMIT_EXCEEDED",
-            });
-        }
-        if (!contents.hasNextPage) return items;
-    }
-    throw new ApiError({
-        message: `The service exceeded the configured ${MAX_PAGES} page limit.`,
-        kind: "invalid_response",
-        code: "PAGINATION_LIMIT_EXCEEDED",
-    });
+        if (response.total > MAX_ITEMS) throw paginationLimit(`returned more than the configured ${MAX_ITEMS} item limit`);
+        return pageContents(response);
+    };
+    const first = await read(1);
+    if (!first.hasNextPage) return first.items;
+    // The service may cap the page size below the one asked for; the first page shows the size it uses.
+    const pageCount = Math.ceil(first.total / Math.max(first.items.length, 1));
+    if (pageCount > MAX_PAGES) throw paginationLimit(`exceeded the configured ${MAX_PAGES} page limit`);
+    const rest = await Promise.all(Array.from({ length: pageCount - 1 }, (_, index) => read(index + 2)));
+    return [first, ...rest].flatMap((page) => page.items);
 }

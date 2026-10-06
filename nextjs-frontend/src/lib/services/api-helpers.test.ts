@@ -53,14 +53,42 @@ describe("service API helpers", () => {
         expect(authenticatedApiRequest).toHaveBeenNthCalledWith(2, "/users?page=2&limit=100", expect.anything());
     });
 
+    it("reads a user list longer than five pages", async () => {
+        const total = 553;
+        authenticatedApiRequest.mockImplementation(async (path: string) => {
+            const page = Number(new URLSearchParams(path.split("?")[1]).get("page"));
+            const count = Math.min(100, total - (page - 1) * 100);
+            return { items: Array.from({ length: count }, (_, index) => `u-${(page - 1) * 100 + index}`), total, page, limit: 100 };
+        });
+
+        await expect(drainNumberedPages("/users", z.string())).resolves.toHaveLength(total);
+        expect(authenticatedApiRequest).toHaveBeenCalledTimes(6);
+    });
+
+    it("reads the pages after the first together, in order", async () => {
+        let inFlight = 0;
+        let mostInFlight = 0;
+        authenticatedApiRequest.mockImplementation(async (path: string) => {
+            const page = Number(new URLSearchParams(path.split("?")[1]).get("page"));
+            inFlight += 1;
+            mostInFlight = Math.max(mostInFlight, inFlight);
+            await new Promise((resolve) => setTimeout(resolve, 6 - page));
+            inFlight -= 1;
+            return { data: [`p${page}`], total: 4, hasNextPage: page < 4 };
+        });
+
+        await expect(drainNumberedPages("/items", z.string())).resolves.toEqual(["p1", "p2", "p3", "p4"]);
+        expect(mostInFlight).toBe(3);
+    });
+
     it("fails instead of truncating an oversized `items` list", async () => {
-        authenticatedApiRequest.mockResolvedValue({ items: [], total: 501, page: 1, limit: 100 });
+        authenticatedApiRequest.mockResolvedValue({ items: [], total: 5001, page: 1, limit: 100 });
 
         await expect(drainNumberedPages("/users", z.string())).rejects.toMatchObject({ code: "PAGINATION_LIMIT_EXCEEDED" });
     });
 
     it("fails instead of truncating an oversized list", async () => {
-        authenticatedApiRequest.mockResolvedValue({ data: [], total: 501, hasNextPage: true });
+        authenticatedApiRequest.mockResolvedValue({ data: [], total: 5001, hasNextPage: true });
 
         await expect(drainNumberedPages("/items", z.string())).rejects.toMatchObject({ code: "PAGINATION_LIMIT_EXCEEDED" });
     });
