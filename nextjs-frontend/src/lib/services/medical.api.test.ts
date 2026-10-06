@@ -182,6 +182,36 @@ describe("medical service reads in API mode", () => {
         expect(authenticatedApiRequest).toHaveBeenCalledWith(`/fighters/${FIGHTER}/medical`, expect.anything());
     });
 
+    it("reads a fighter the service still stores as not cleared by the clearance in effect", async () => {
+        const stored = { ...fighter, healthStatus: "not_cleared" } as Fighter;
+        people.getFighter.mockResolvedValue(stored);
+        people.listFighters.mockResolvedValue([stored]);
+        const fullTraining = {
+            ...dossier,
+            activeInjuries: [],
+            activeRecoveryPlans: [],
+            currentExaminations: { training: { ...examination, decision: "ELIGIBLE", restrictions: null }, competition: null },
+            activeClearances: [{ ...clearance, restrictions: { allowedSessionTypes: null, allowedTechniqueTypes: null, excludedJoints: null, notes: null } }],
+        };
+        respond({ [`/fighters/${FIGHTER}/medical`]: fullTraining });
+        await expect(getFighterHealthSummary(FIGHTER)).resolves.toMatchObject({ clearanceState: "full", fighter: { healthStatus: "healthy" } });
+
+        // Restricted with a recovering injury, as the shared dossier has it.
+        respond({ [`/fighters/${FIGHTER}/medical`]: dossier });
+        await expect(getFighterHealthSummary(FIGHTER)).resolves.toMatchObject({ clearanceState: "restricted", fighter: { healthStatus: "recovery" } });
+        expect((await getDoctorOverview([FIGHTER])).healthCounts).toMatchObject({ recovery: 1, not_cleared: 0 });
+
+        respond({
+            [`/fighters/${FIGHTER}/medical`]: {
+                ...fullTraining,
+                activeClearances: [],
+                currentExaminations: { training: null, competition: null },
+                eligibility: { training: { scope: "TRAINING", eligible: false, reasons: ["CLEARANCE_REQUIRED"] }, competition: eligible },
+            },
+        });
+        await expect(getFighterHealthSummary(FIGHTER)).resolves.toMatchObject({ clearanceState: "none", fighter: { healthStatus: "not_cleared" } });
+    });
+
     it("reads what the doctor recorded at a baseline, with its follow-up and SCAT6 scores", async () => {
         const scores = { symptomCount: 2, symptomSeverity: 3, cognitiveTotal: 38, complete: true };
         const baseline = {

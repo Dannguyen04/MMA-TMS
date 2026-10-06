@@ -5,7 +5,9 @@ import {
     clearanceState,
     confidenceBand,
     currentClearance,
+    currentHealthStatus,
     goalProgressPct,
+    healthStatusForClearance,
     isLowConfidence,
     type PlannedTraining,
 } from "./rules";
@@ -115,6 +117,21 @@ describe("clearanceState", () => {
 
     it("treats a revoked clearance as not cleared", () => {
         expect(clearanceState(clearance({ status: "revoked", revokedAt: "2026-09-12T04:00:00.000Z" }), NOW)).toBe("not_cleared");
+    });
+});
+
+describe("currentHealthStatus", () => {
+    it("reads a stored 'not cleared' by the clearance in effect", () => {
+        expect(currentHealthStatus("not_cleared", "full", false)).toBe("healthy");
+        expect(currentHealthStatus("not_cleared", "restricted", false)).toBe("monitoring");
+        expect(currentHealthStatus("not_cleared", "full", true)).toBe("recovery");
+    });
+
+    it("keeps 'not cleared' without a clearance in effect, and every other stored status", () => {
+        for (const state of ["none", "not_cleared", "expired"] as const) expect(currentHealthStatus("not_cleared", state, false)).toBe("not_cleared");
+        expect(currentHealthStatus("injured", "full", true)).toBe("injured");
+        expect(currentHealthStatus("healthy", "none", false)).toBe("healthy");
+        expect(healthStatusForClearance("not_cleared", true)).toBe("not_cleared");
     });
 });
 

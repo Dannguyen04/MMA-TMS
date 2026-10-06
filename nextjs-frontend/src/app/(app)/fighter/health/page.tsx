@@ -119,7 +119,7 @@ export default async function FighterHealthPage({ searchParams }: PageProps<"/fi
             }
             side={
                 <>
-                    <HealthStatusCard status={fighter.healthStatus}>
+                    <HealthStatusCard status={health.fighter.healthStatus}>
                         {followUp ? (
                             <div className="rounded-lg border border-border px-3 py-2.5 text-[13px]">
                                 <p className="flex items-center gap-1.5 text-fg-muted">

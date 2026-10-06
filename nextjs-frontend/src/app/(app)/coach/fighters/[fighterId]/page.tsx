@@ -92,7 +92,7 @@ export default async function CoachFighterOverviewPage({ params }: PageProps<"/c
                     now={now}
                 />
 
-                <HealthStatusCard status={fighter.healthStatus}>
+                <HealthStatusCard status={health?.fighter.healthStatus ?? fighter.healthStatus}>
                     {followUp && (
                         <p className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2 text-[13px]">
                             <span className="inline-flex items-center gap-1.5 text-fg-muted">

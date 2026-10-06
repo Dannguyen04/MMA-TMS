@@ -173,11 +173,11 @@ export default async function FighterDashboardPage() {
                     />
                     <ReadinessCell
                         label="Health"
-                        value={<HealthStatusBadge status={fighter.healthStatus} />}
+                        value={<HealthStatusBadge status={health.fighter.healthStatus} />}
                         hint={
                             health.nextFollowUp
                                 ? `Follow-up ${formatShortDate(health.nextFollowUp.date)}${followUpDoctor ? ` · ${followUpDoctor}` : ""}`
-                                : HEALTH_STATUS_DESCRIPTIONS[fighter.healthStatus]
+                                : HEALTH_STATUS_DESCRIPTIONS[health.fighter.healthStatus]
                         }
                         href={routes.fighter.health}
                         className="sm:col-span-2 lg:col-span-1"

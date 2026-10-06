@@ -249,11 +249,16 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                     <CardHeader title="Health status" icon={<HeartPulse />} />
                     <CardContent className="flex flex-col gap-4">
                         <div>
-                            <HealthStatusBadge status={fighter.healthStatus} />
-                            <p className="mt-1.5 text-sm text-fg-muted">{HEALTH_STATUS_DESCRIPTIONS[fighter.healthStatus]}</p>
+                            <HealthStatusBadge status={summary.fighter.healthStatus} />
+                            <p className="mt-1.5 text-sm text-fg-muted">{HEALTH_STATUS_DESCRIPTIONS[summary.fighter.healthStatus]}</p>
                         </div>
                         {medicalFeatureAvailable("healthStatusOverride") && (
-                            <HealthStatusControl key={fighter.healthStatus} fighterId={fighter.id} fighterName={fighter.name} current={fighter.healthStatus} />
+                            <HealthStatusControl
+                                key={summary.fighter.healthStatus}
+                                fighterId={fighter.id}
+                                fighterName={fighter.name}
+                                current={summary.fighter.healthStatus}
+                            />
                         )}
                     </CardContent>
                 </Card>

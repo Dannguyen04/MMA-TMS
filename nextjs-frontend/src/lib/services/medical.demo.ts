@@ -15,6 +15,7 @@ import {
     clearanceState,
     currentClearance,
     FOLLOW_UP_WINDOW_DAYS,
+    healthStatusForClearance,
     recoveryProgressPct,
     type ClearanceState,
 } from "@/lib/domain/rules";
@@ -127,14 +128,6 @@ function latestPhysicalDate(fighterId: string): string | null {
 }
 
 /* ─── Health status ───────────────────────────────────────────────────────── */
-
-/** Health status implied by a newly granted clearance level. */
-function healthStatusForClearance(level: ClearanceLevel, fighterId: string): HealthStatus {
-    if (level === "not_cleared") return "not_cleared";
-    const hasOpenInjury = db().injuries.some((i) => i.fighterId === fighterId && isOpenInjury(i));
-    if (hasOpenInjury) return "recovery";
-    return level === "full" ? "healthy" : "monitoring";
-}
 
 /** Health status recomputed from clearance and injuries after an injury changes. */
 function healthStatusFromRecords(fighter: Fighter): HealthStatus {
@@ -959,7 +952,10 @@ export async function grantClearance(input: GrantClearanceInput, actor: User): P
     };
     store.medicalClearances.push(clearance);
 
-    fighter.healthStatus = healthStatusForClearance(clearance.level, fighter.id);
+    fighter.healthStatus = healthStatusForClearance(
+        clearance.level,
+        store.injuries.some((i) => i.fighterId === fighter.id && isOpenInjury(i)),
+    );
 
     // Audit text stays neutral (no level, restrictions or health status): the audit trail is read outside the clinical team.
     recordAudit({

@@ -39,7 +39,7 @@ import {
     type MedicalReviewRequest,
 } from "@/lib/domain/medical-contract";
 import { JOINT_REGIONS, OUTCOME_FROM_DECISION, clearanceStateFromEligibility, isRestricted, latestRevisions, milestoneProgressPct, restrictionFromAllowLists, standardMilestones } from "@/lib/domain/medical-mappings";
-import { clearanceDaysRemaining, FOLLOW_UP_WINDOW_DAYS, type ClearanceState } from "@/lib/domain/rules";
+import { clearanceDaysRemaining, currentHealthStatus, FOLLOW_UP_WINDOW_DAYS, type ClearanceState } from "@/lib/domain/rules";
 import { scat6RecordSchema } from "@/lib/domain/scat6";
 import type { Fighter, HealthStatus, Injury, MedicalClearance, MedicalExamination, RecoveryPlan, Treatment } from "@/lib/domain/types";
 import { academyWallClockToIso, dayKey, daysBetween } from "@/lib/format";
@@ -425,7 +425,14 @@ function followUpOf(fighter: Fighter, latest: MedicalExamination | undefined, no
     return latest?.followUpDate ? { fighter, examination: latest, date: latest.followUpDate, daysUntil: daysBetween(now, latest.followUpDate) } : null;
 }
 
-function summaryFrom(fighter: Fighter, dossier: Dossier, now: string | Date): FighterHealthSummary {
+/** The fighter with the health status their dossier implies (see `currentHealthStatus`). */
+function withCurrentHealth(fighter: Fighter, dossier: Dossier): Fighter {
+    const healthStatus = currentHealthStatus(fighter.healthStatus, statusFromDossier(dossier).state, dossier.activeInjuries.length > 0);
+    return healthStatus === fighter.healthStatus ? fighter : { ...fighter, healthStatus };
+}
+
+function summaryFrom(stored: Fighter, dossier: Dossier, now: string | Date): FighterHealthSummary {
+    const fighter = withCurrentHealth(stored, dossier);
     const { state, clearance } = statusFromDossier(dossier);
     const plan = dossier.activeRecoveryPlans[0];
     const recoveryPlan = plan ? toRecoveryPlan(plan) : null;
@@ -598,7 +605,7 @@ async function fightersWithDossiers(scope: FighterScope): Promise<{ fighter: Fig
     const dossiers = await Promise.all(fighters.map((fighter) => dossierFor(fighter.id)));
     return fighters.flatMap((fighter, index) => {
         const dossier = dossiers[index];
-        return dossier ? [{ fighter, dossier }] : [];
+        return dossier ? [{ fighter: withCurrentHealth(fighter, dossier), dossier }] : [];
     });
 }
 

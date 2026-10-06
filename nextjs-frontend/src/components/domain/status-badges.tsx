@@ -128,8 +128,8 @@ export function ClearanceBadge({ state, size, className }: { state: ClearanceSta
 }
 
 /**
- * A fighter's Medical Clearance, then their health status. When both already say the fighter must
- * not train (health Not Cleared with a Not Cleared or expired clearance) only the clearance is shown.
+ * A fighter's Medical Clearance, then their health status. A "not cleared" health status only restates the
+ * clearance (and the medical service keeps it after a doctor clears the fighter), so the clearance stands alone.
  */
 export function FighterStatusBadges({
     healthStatus,
@@ -142,11 +142,10 @@ export function FighterStatusBadges({
     size?: BadgeSize;
     className?: string;
 }) {
-    const repeatsClearance = healthStatus === "not_cleared" && (clearanceState === "not_cleared" || clearanceState === "expired");
     return (
         <span className={cn("inline-flex flex-wrap items-center gap-1.5", className)}>
             <ClearanceBadge state={clearanceState} size={size} />
-            {!repeatsClearance && <HealthStatusBadge status={healthStatus} size={size} />}
+            {healthStatus !== "not_cleared" && <HealthStatusBadge status={healthStatus} size={size} />}
         </span>
     );
 }

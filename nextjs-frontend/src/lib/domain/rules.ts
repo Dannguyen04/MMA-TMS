@@ -5,6 +5,7 @@ import type {
     BodyRegion,
     ClearanceLevel,
     Goal,
+    HealthStatus,
     MedicalClearance,
     RecoveryPlan,
     Technique,
@@ -82,6 +83,21 @@ export function clearanceState(clearance: MedicalClearance | null, now: string |
     if (clearance.status === "expired") return "expired";
     if (clearance.validUntil && daysBetween(now, clearance.validUntil) < 0) return "expired";
     return clearance.level;
+}
+
+/** The health status a clearance gives the fighter: recovery while an injury is open, else healthy or monitoring. */
+export function healthStatusForClearance(level: ClearanceLevel, hasOpenInjury: boolean): HealthStatus {
+    if (level === "not_cleared") return "not_cleared";
+    if (hasOpenInjury) return "recovery";
+    return level === "full" ? "healthy" : "monitoring";
+}
+
+/**
+ * The medical service keeps the "not cleared" status every fighter starts with, even after a doctor clears them. While
+ * a clearance is in effect, read that stored status the way granting the clearance sets it.
+ */
+export function currentHealthStatus(stored: HealthStatus, state: ClearanceState, hasOpenInjury: boolean): HealthStatus {
+    return stored === "not_cleared" && (state === "full" || state === "restricted") ? healthStatusForClearance(state, hasOpenInjury) : stored;
 }
 
 /** Follow-ups due within this many days, and every overdue one, wait for the doctor. */
