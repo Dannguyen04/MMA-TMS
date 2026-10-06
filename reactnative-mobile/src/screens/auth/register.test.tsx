@@ -1,468 +1,141 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
-
+import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import Toast from "react-native-toast-message";
 
-
-
-import { register } from "@/api/auth";
-
-import { toFighterRegisterBody } from "@/auth/fighter-register-body";
-
+import { getMe, requestAdmissionEmailCode, verifyAdmissionEmail } from "@/api/auth";
+import { ApiError } from "@/api/errors";
+import { clearSession, persistSession } from "@/api/tokens";
 import { RegisterScreen } from "@/screens/auth/register";
-
 import { useSession } from "@/session/session-context";
-
 import { ThemePreferenceProvider } from "@/theme";
-
 import { vi } from "@/i18n/vi";
 
-
-
 jest.mock("@/api/auth", () => ({
-
-  register: jest.fn(),
-
+  getMe: jest.fn(),
+  requestAdmissionEmailCode: jest.fn(),
+  verifyAdmissionEmail: jest.fn(),
 }));
-
-
 
 jest.mock("@/api/tokens", () => ({
-
   persistSession: jest.fn(),
-
+  clearSession: jest.fn(),
 }));
-
-
 
 jest.mock("@/session/session-context", () => ({
-
   useSession: jest.fn(),
-
-  homeHrefForGate: () => "/",
-
+  homeHrefForGate: () => "/ho-so",
 }));
 
-
-
-jest.mock("@/components/auth/auth-date-field", () => {
-
-  const React = require("react");
-
-  const { TextInput } = require("react-native");
-
-  return {
-
-    AuthDateField: ({
-
-      label,
-
-      value,
-
-      onChangeText,
-
-    }: {
-
-      label: string;
-
-      value: string;
-
-      onChangeText: (next: string) => void;
-
-    }) =>
-
-      React.createElement(TextInput, {
-
-        accessibilityLabel: label,
-
-        value,
-
-        onChangeText,
-
-      }),
-
-  };
-
-});
-
-
-
-jest.mock("@/components/auth/auth-select-field", () => {
-
-  const React = require("react");
-
-  const { Pressable, Text } = require("react-native");
-
-  return {
-
-    AuthSelectField: ({
-
-      label,
-
-      value,
-
-      placeholder,
-
-      helper,
-
-      onChange,
-
-    }: {
-
-      label: string;
-
-      value: string;
-
-      placeholder: string;
-
-      helper?: string;
-
-      onChange: (next: string) => void;
-
-    }) =>
-
-      React.createElement(
-
-        Pressable,
-
-        {
-
-          accessibilityLabel: value ? `${label}. ${value}` : `${label}. ${placeholder}`,
-
-          onPress: () => onChange("LIGHTWEIGHT"),
-
-        },
-
-        helper ? React.createElement(Text, null, helper) : null,
-
-        React.createElement(Text, null, value || placeholder),
-
-      ),
-
-  };
-
-});
-
-
-
 const insets = {
-
   frame: { x: 0, y: 0, width: 390, height: 844 },
-
-  insets: { top: 47, left: 0, right: 0, bottom: 34 },
-
+  insets: { top: 0, left: 0, right: 0, bottom: 0 },
 };
 
-
-
-function renderRegister() {
-
+function renderScreen() {
   return render(
-
     <SafeAreaProvider initialMetrics={insets}>
-
       <ThemePreferenceProvider>
-
         <RegisterScreen />
-
       </ThemePreferenceProvider>
-
     </SafeAreaProvider>,
-
   );
-
 }
-
-
-
-async function completeStep1() {
-
-  await fireEvent.changeText(screen.getByLabelText(vi.register.lastName), "Nguyen");
-
-  await fireEvent.changeText(screen.getByLabelText(vi.register.firstName), "An");
-
-  await fireEvent.changeText(screen.getByLabelText(vi.register.dateOfBirth), "2000-01-01");
-
-  await fireEvent.press(
-
-    screen.getByLabelText(`${vi.register.weightClass}. ${vi.register.weightClassPlaceholder}`),
-
-  );
-
-  await fireEvent.press(screen.getByTestId("register-continue"));
-
-  await screen.findByLabelText(vi.register.email);
-
-}
-
-
 
 describe("RegisterScreen", () => {
-
-  const applyRegisteredSession = jest.fn(() => "fighter");
-
-
+  jest.setTimeout(20000);
+  const applyRegisteredSession = jest.fn(() => "guest");
 
   beforeEach(() => {
-
     jest.clearAllMocks();
-
-    (useSession as jest.Mock).mockReturnValue({
-
-      applyRegisteredSession,
-
-      signIn: jest.fn(),
-
-      enterDemo: jest.fn(),
-
+    (useSession as jest.Mock).mockReturnValue({ applyRegisteredSession });
+    (requestAdmissionEmailCode as jest.Mock).mockResolvedValue({ requested: true });
+    (verifyAdmissionEmail as jest.Mock).mockResolvedValue({
+      user: { id: "u1", role: "GUEST" },
+      session: { accessToken: "a", refreshToken: "r", expiresAt: null, expiresIn: 60, tokenType: "bearer" },
     });
+    (getMe as jest.Mock).mockResolvedValue({ id: "u1", role: "GUEST", email: "fighter@example.com" });
+    (persistSession as jest.Mock).mockResolvedValue(undefined);
+    (clearSession as jest.Mock).mockResolvedValue(undefined);
+    globalThis.__authRouter = { replace: jest.fn(), back: jest.fn() };
+  });
 
-    (register as jest.Mock).mockResolvedValue({
-
-      confirmationRequired: true,
-
-      session: null,
-
-      user: { id: "u1", email: "fighter@example.com", role: "FIGHTER" },
-
+  it("sends an email code and does not collect a password or profile", async () => {
+    const view = await renderScreen();
+    expect(view.queryByLabelText(vi.register.password)).toBeNull();
+    expect(view.queryByLabelText(vi.register.firstName)).toBeNull();
+    expect(view.queryByLabelText(vi.register.weightClass)).toBeNull();
+    expect(view.queryByText(vi.register.codeSent)).toBeNull();
+    expect(view.queryByText(vi.register.intro)).toBeNull();
+    expect(view.queryByText(vi.theme.light)).toBeNull();
+    expect(requestAdmissionEmailCode).not.toHaveBeenCalled();
+    await fireEvent.changeText(view.getByLabelText(vi.register.emailField), "Fighter@Example.com");
+    await fireEvent.press(view.getByTestId("register-send-code"));
+    await waitFor(() => {
+      expect(requestAdmissionEmailCode).toHaveBeenCalledWith("Fighter@Example.com");
     });
-
+    await waitFor(() => {
+      expect(Toast.show).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "success", text1: vi.register.codeSent }),
+      );
+    });
+    expect(view.queryByText(vi.register.codeSent)).toBeNull();
+    expect(verifyAdmissionEmail).not.toHaveBeenCalled();
   });
 
-
-
-  it("walks 1→2, preserves values on back, and submits required fields only", async () => {
-
-    await renderRegister();
-
-    expect(screen.getByText(vi.register.title)).toBeTruthy();
-
-    expect(screen.queryByText("Hồ sơ võ sĩ — điền từng bước.")).toBeNull();
-
-    expect(screen.queryByText("Bắt buộc")).toBeNull();
-
-    expect(screen.queryByText(vi.register.skipAndCreate)).toBeNull();
-
-    expect(screen.queryByLabelText(vi.register.gym)).toBeNull();
-
-    expect(screen.queryByLabelText(vi.register.nationality)).toBeNull();
-
-
-
-    await completeStep1();
-
-    expect(screen.getByLabelText("2. Tài khoản").props.accessibilityState).toEqual(
-
-      expect.objectContaining({ selected: true }),
-
+  it("verifies the code and keeps the draft when verification fails", async () => {
+    (verifyAdmissionEmail as jest.Mock).mockRejectedValueOnce(
+      new ApiError(401, "INVALID_CREDENTIALS", "Email, password, or session is invalid"),
     );
-
-
-
-    await fireEvent.changeText(screen.getByLabelText(vi.register.email), "fighter@example.com");
-
-    await fireEvent.changeText(screen.getByLabelText(vi.register.password), "strong-password");
-
-    await fireEvent.changeText(screen.getByLabelText(vi.register.confirm), "strong-password");
-
-
-
-    await fireEvent.press(screen.getByLabelText(vi.register.backStep));
-
-    expect(screen.getByDisplayValue("Nguyen")).toBeTruthy();
-
-    expect(screen.queryByText("Bắt buộc")).toBeNull();
-
-
-
-    await fireEvent.press(screen.getByTestId("register-continue"));
-
-    expect(screen.getByDisplayValue("fighter@example.com")).toBeTruthy();
-
-
-
-    await fireEvent.press(screen.getByTestId("register-submit"));
-
-
-
-    await waitFor(() => expect(register).toHaveBeenCalledTimes(1));
-
-    expect(register).toHaveBeenCalledWith(
-
-      toFighterRegisterBody({
-
-        email: "fighter@example.com",
-
-        password: "strong-password",
-
-        firstName: "An",
-
-        lastName: "Nguyen",
-
-        dateOfBirth: "2000-01-01",
-
-        weightClass: "LIGHTWEIGHT",
-
-      }),
-
-    );
-
-    const body = (register as jest.Mock).mock.calls[0][0];
-
-    expect(body.profile).not.toHaveProperty("gym");
-
-    expect(body.profile).not.toHaveProperty("nationality");
-
-    expect(body.profile).not.toHaveProperty("heightCm");
-
+    const view = await renderScreen();
+    await fireEvent.changeText(view.getByLabelText(vi.register.emailField), "fighter@example.com");
+    await fireEvent.press(view.getByTestId("register-send-code"));
+    await view.findByLabelText(vi.register.codeLabel);
+    await fireEvent.changeText(view.getByLabelText(vi.register.codeLabel), "123456");
+    expect(verifyAdmissionEmail).not.toHaveBeenCalled();
+    await fireEvent.press(view.getByTestId("register-verify"));
+    await waitFor(() => expect(verifyAdmissionEmail).toHaveBeenCalled());
+    expect(verifyAdmissionEmail).toHaveBeenCalledWith({
+      email: "fighter@example.com",
+      token: "123456",
+    });
+    await waitFor(() => {
+      expect(Toast.show).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "error", text1: vi.register.codeRejected }),
+      );
+    });
+    expect(view.queryByText(vi.register.codeRejected)).toBeNull();
+    expect(view.queryByText(vi.api.invalidCredentials)).toBeNull();
+    expect(view.getByLabelText(vi.register.codeLabel).props.value).toBe("123456");
+    expect(persistSession).not.toHaveBeenCalled();
   });
 
-
-
-  it("requires weight class before continue", async () => {
-
-    await renderRegister();
-
-    await fireEvent.changeText(screen.getByLabelText(vi.register.lastName), "Nguyen");
-
-    await fireEvent.changeText(screen.getByLabelText(vi.register.firstName), "An");
-
-    await fireEvent.changeText(screen.getByLabelText(vi.register.dateOfBirth), "2000-01-01");
-
-    await fireEvent.press(screen.getByTestId("register-continue"));
-
-    expect(screen.queryByLabelText(vi.register.email)).toBeNull();
-
-    expect(register).not.toHaveBeenCalled();
-
-
-
-    await fireEvent.press(
-
-      screen.getByLabelText(`${vi.register.weightClass}. ${vi.register.weightClassPlaceholder}`),
-
-    );
-
-    await fireEvent.press(screen.getByTestId("register-continue"));
-
-    await screen.findByLabelText(vi.register.email);
-
+  it("opens the guest home after the code is accepted", async () => {
+    const view = await renderScreen();
+    await fireEvent.changeText(view.getByLabelText(vi.register.emailField), "fighter@example.com");
+    await fireEvent.press(view.getByTestId("register-send-code"));
+    await view.findByLabelText(vi.register.codeLabel);
+    await fireEvent.changeText(view.getByLabelText(vi.register.codeLabel), "123456");
+    await fireEvent.press(view.getByTestId("register-verify"));
+    await waitFor(() => {
+      expect(globalThis.__authRouter?.replace).toHaveBeenCalledWith("/ho-so");
+    });
+    expect(persistSession).toHaveBeenCalled();
+    expect(applyRegisteredSession).toHaveBeenCalledWith({
+      id: "u1",
+      role: "GUEST",
+      email: "fighter@example.com",
+    });
   });
 
-
-
-  it("shows a spinner on the create action", async () => {
-
-    let finish = () => undefined;
-
-    (register as jest.Mock).mockImplementation(
-
-      () =>
-
-        new Promise((resolve) => {
-
-          finish = () =>
-
-            resolve({
-
-              confirmationRequired: true,
-
-              session: null,
-
-              user: { id: "u1", email: "fighter@example.com", role: "FIGHTER" },
-
-            });
-
-        }),
-
-    );
-
-    await renderRegister();
-
-    await completeStep1();
-
-    await fireEvent.changeText(screen.getByLabelText(vi.register.email), "fighter@example.com");
-
-    await fireEvent.changeText(screen.getByLabelText(vi.register.password), "strong-password");
-
-    await fireEvent.changeText(screen.getByLabelText(vi.register.confirm), "strong-password");
-
-    await fireEvent.press(screen.getByTestId("register-submit"));
-
-    expect(screen.getByTestId("register-submit").props.accessibilityState).toEqual(
-
-      expect.objectContaining({ busy: true, disabled: true }),
-
-    );
-
-    finish();
-
-    await waitFor(() => expect(register).toHaveBeenCalled());
-
+  it("returns to the email step with the draft when changing email", async () => {
+    const view = await renderScreen();
+    await fireEvent.changeText(view.getByLabelText(vi.register.emailField), "fighter@example.com");
+    await fireEvent.press(view.getByTestId("register-send-code"));
+    await view.findByLabelText(vi.register.codeLabel);
+    await fireEvent.changeText(view.getByLabelText(vi.register.codeLabel), "123456");
+    await fireEvent.press(view.getByText(vi.register.changeEmail));
+    expect(view.getByLabelText(vi.register.emailField).props.value).toBe("fighter@example.com");
+    expect(view.queryByLabelText(vi.register.codeLabel)).toBeNull();
+    expect(requestAdmissionEmailCode).toHaveBeenCalledTimes(1);
   });
-
-
-
-  it("disables Quay lại while register submit is pending, then re-enables on error", async () => {
-
-    let rejectRegister!: (error: Error) => void;
-
-    (register as jest.Mock).mockImplementation(
-
-      () =>
-
-        new Promise((_resolve, reject) => {
-
-          rejectRegister = reject;
-
-        }),
-
-    );
-
-    await renderRegister();
-
-    await completeStep1();
-
-    await fireEvent.changeText(screen.getByLabelText(vi.register.email), "fighter@example.com");
-
-    await fireEvent.changeText(screen.getByLabelText(vi.register.password), "strong-password");
-
-    await fireEvent.changeText(screen.getByLabelText(vi.register.confirm), "strong-password");
-
-
-
-    expect(screen.getByLabelText(vi.register.backStep).props.accessibilityState).not.toEqual(
-
-      expect.objectContaining({ disabled: true }),
-
-    );
-
-
-
-    await fireEvent.press(screen.getByTestId("register-submit"));
-
-
-
-    expect(screen.getByLabelText(vi.register.backStep).props.accessibilityState).toEqual(
-
-      expect.objectContaining({ disabled: true }),
-
-    );
-
-
-
-    rejectRegister(new Error("Email đã được sử dụng"));
-
-    await waitFor(() =>
-
-      expect(screen.getByLabelText(vi.register.backStep).props.accessibilityState).not.toEqual(
-
-        expect.objectContaining({ disabled: true }),
-
-      ),
-
-    );
-
-  });
-
 });
-

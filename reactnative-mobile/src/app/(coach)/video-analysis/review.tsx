@@ -1,11 +1,14 @@
-import { blocked } from "@/i18n/blocked";
-import { CoachBlockedPage } from "@/screens/coach/blocked-page";
-import { EvidenceReviewSketch } from "@/screens/parity/blocked-workspace";
+import { Text } from "react-native";
+
+import { media } from "@/i18n/media";
+import { CoachScaffold } from "@/screens/coach/coach-ui";
+import { useThemePreference } from "@/theme";
 
 export default function CoachVideoReviewRoute() {
+  const { colors } = useThemePreference();
   return (
-    <CoachBlockedPage title={blocked.review} extra={blocked.relatedJobs}>
-      <EvidenceReviewSketch />
-    </CoachBlockedPage>
+    <CoachScaffold title="Duyệt bằng chứng" inStack>
+      <Text style={{ color: colors.ink }}>{media.reviewOwner}</Text>
+    </CoachScaffold>
   );
 }

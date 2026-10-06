@@ -43,6 +43,18 @@ describe("resolveDevApiBaseUrl", () => {
     ).toBe("http://10.0.2.2:3001");
   });
 
+  it("keeps loopback on a USB-connected physical Android device for adb reverse", () => {
+    expect(
+      resolveDevApiBaseUrl({
+        configuredUrl: "http://localhost:3001",
+        isDev: true,
+        platform: "android",
+        isPhysicalDevice: true,
+        bundlerHosts: ["localhost:8081"],
+      }),
+    ).toBe("http://localhost:3001");
+  });
+
   it("prefers the Metro LAN IP over 10.0.2.2 when Android is on Wi-Fi", () => {
     expect(
       resolveDevApiBaseUrl({

@@ -15,6 +15,7 @@ import {
   type TrainingPlan,
   type TrainingSession,
 } from "@/api";
+import { useToastMessage } from "@/components/toast/app-toast";
 import { coach } from "@/i18n/coach";
 import { coachErrorMessage, coachHref, formatWhen } from "@/screens/coach/coach-error";
 import {
@@ -50,6 +51,8 @@ export function CoachSessionDetailScreen() {
   const [plan, setPlan] = useState<TrainingPlan | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  useToastMessage(error, "error");
+  useToastMessage(notice, "success");
   const [gate, setGate] = useState<string[] | null>(null);
   const [notes, setNotes] = useState("");
   const [rpe, setRpe] = useState("");
@@ -183,8 +186,6 @@ export function CoachSessionDetailScreen() {
 
   return (
     <CoachScaffold title={row?.title ?? coach.sessionDetail} keyboard inStack>
-      {error ? <CoachBanner message={error} tone="danger" /> : null}
-      {notice ? <CoachBanner message={notice} tone="ok" /> : null}
       {gate && row ? (
         <CoachCard>
           <Text style={[type.label, { color: colors.danger, lineHeight: 18 }]}>{coach.medicalGate.title}</Text>

@@ -2,6 +2,8 @@ import { useCallback, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 
+import { useToastMessage } from "@/components/toast/app-toast";
+
 import {
   SESSION_STATUSES,
   listFighters,
@@ -23,6 +25,7 @@ export function CoachScheduleScreen() {
   const [sessions, setSessions] = useState<TrainingSession[]>([]);
   const [fighters, setFighters] = useState<Record<string, PublicFighter>>({});
   const [error, setError] = useState("");
+  useToastMessage(error, "error");
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<SessionStatus | "">("");
 
@@ -66,7 +69,6 @@ export function CoachScheduleScreen() {
       title={coach.tabs.schedule}
       action={<CoachPrimaryButton title={coach.newSession} onPress={() => router.push(coachHref("/(coach)/schedule/new"))} />}
     >
-      {error ? <CoachBanner message={error} tone="danger" /> : null}
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm }}>
         <CoachChip
           value=""

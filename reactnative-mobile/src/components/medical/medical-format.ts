@@ -6,6 +6,7 @@ import type {
 } from "@/api/types";
 import { fighter } from "@/i18n/fighter";
 import { medical } from "@/i18n/medical";
+import { vi } from "@/i18n/vi";
 
 type Dict = Record<string, string>;
 
@@ -27,6 +28,8 @@ export const recordTypeLabel = (value: unknown) => lookup(medical.recordType, va
 export const reviewStatusLabel = (value: unknown) => lookup(medical.status, value);
 export const requesterRoleLabel = (value: unknown) => lookup(medical.requesterRole, value);
 export const sessionTypeName = (value: unknown) => lookup(fighter.sessionType, value);
+export const jointStateLabel = (value: unknown) => lookup(vi.jointState, value);
+export const measurementContextLabel = (value: unknown) => lookup(vi.measurementContext, value);
 
 export function eligibilityReasonLabel(code: string): string {
   return (medical.reason as Dict)[code] ?? medical.unknownReason;
@@ -152,7 +155,13 @@ export function describeSnapshot(entry: MedicalHistoryEntry): {
       return { title: medical.recordType.RECOVERY_PLAN, lines };
     }
     case "MEDICAL_EXAMINATION":
+      if (entry.source === "MIGRATION_BASELINE") push(medical.baseline, "✓");
       push(scopeLabel(s.scope), decisionLabel(s.decision));
+      if (s.details == null) push(medical.currentExams, medical.legacyDetails);
+      else if (typeof s.details === "object" && s.details && "examinationType" in s.details) {
+        const details = s.details as { examinationType?: unknown };
+        push(medical.currentExams, typeof details.examinationType === "string" ? details.examinationType : null);
+      }
       push(medical.occurredAt, s.examined_at ? formatMedicalWhen(s.examined_at) : null);
       push(medical.snapshot.reason, str(s.reason));
       push(medical.allowedSessionTypes, strList(s.allowed_session_types, sessionTypeName));

@@ -73,8 +73,9 @@ function origin(protocol: string, hostname: string, port: string): string {
  * 2. Configured non-loopback host (LAN IP, 10.0.2.2, production hostname): use it.
  * 3. `__DEV__` Android + loopback config + Expo LAN bundler host → that host + Nest port.
  *    Physical phones (and misdetected “emulators”) share Metro over Wi‑Fi; never 10.0.2.2 then.
- * 4. `__DEV__` Android with no LAN bundler (classic emulator / adb reverse) → `10.0.2.2`.
- * 5. iOS (simulator) may keep localhost.
+ * 4. `__DEV__` physical Android with no LAN bundler (USB Metro) → keep loopback; needs `adb reverse tcp:3001 tcp:3001`.
+ * 5. `__DEV__` Android emulator with no LAN bundler → `10.0.2.2`.
+ * 6. iOS (simulator) may keep localhost.
  */
 export function resolveDevApiBaseUrl(input: ResolveDevApiBaseUrlInput): string {
   const configured = (input.configuredUrl ?? "").trim().replace(/\/$/, "");
@@ -94,7 +95,9 @@ export function resolveDevApiBaseUrl(input: ResolveDevApiBaseUrlInput): string {
     if (lan) {
       return origin(parsed.protocol, lan, parsed.port);
     }
-    // No LAN hostUri: emulator alias, or phone without Metro host (set EXPO_PUBLIC_API_URL / adb reverse).
+    if (input.isPhysicalDevice) {
+      return origin(parsed.protocol, parsed.hostname, parsed.port);
+    }
     return origin(parsed.protocol, ANDROID_EMU_HOST, parsed.port);
   }
 

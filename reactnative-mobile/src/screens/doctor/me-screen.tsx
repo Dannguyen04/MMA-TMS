@@ -1,6 +1,7 @@
 import { Pressable, Text } from "react-native";
 import { useRouter } from "expo-router";
 
+import { AppearanceLink } from "@/components/appearance/appearance-link";
 import { doctor } from "@/i18n/doctor";
 import { useSession } from "@/session/session-context";
 import { type, useThemePreference } from "@/theme";
@@ -34,6 +35,7 @@ export function DoctorMeScreen() {
         <Pressable accessibilityRole="button" onPress={() => router.push("/thong-bao")} style={doctorStyles.link}>
           <Text style={[type.link, { color: colors.lotus }]}>Thông báo</Text>
         </Pressable>
+        <AppearanceLink />
         <Pressable accessibilityRole="button" onPress={onLogout} style={doctorStyles.link}>
           <Text style={[type.link, { color: colors.lotus }]}>{doctor.me.logout}</Text>
         </Pressable>

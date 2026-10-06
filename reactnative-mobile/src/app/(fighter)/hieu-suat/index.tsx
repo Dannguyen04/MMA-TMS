@@ -1,15 +1,17 @@
-import { blocked } from "@/i18n/blocked";
-import {
-  BlockedFighterPage,
-  BlockedLink,
-  EmptyBlockedList,
-} from "@/screens/parity/blocked-workspace";
+import { Text, View } from "react-native";
+
+import { media } from "@/i18n/media";
+import { useFighterPalette } from "@/screens/fighter/redesign/palette";
+import { FighterHub } from "@/screens/fighter/redesign/shell";
 
 export default function FighterPerformanceRoute() {
+  const colors = useFighterPalette();
   return (
-    <BlockedFighterPage title={blocked.performanceNav} extra={blocked.performance}>
-      <BlockedLink href={"/hieu-suat/ky-thuat"} label="Kỹ thuật (giữ chỗ)" />
-      <EmptyBlockedList />
-    </BlockedFighterPage>
+    <FighterHub>
+      <View style={{ paddingHorizontal: 20, gap: 8 }}>
+        <Text style={{ color: colors.ink, fontSize: 26, fontWeight: "700" }}>Hiệu suất</Text>
+        <Text style={{ color: colors.muted }}>{media.performanceMissing}</Text>
+      </View>
+    </FighterHub>
   );
 }

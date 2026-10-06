@@ -83,7 +83,7 @@ export function EvidenceReviewSketch() {
       <GlassCard>
         <Text style={[type.caption, { color: colors.inkMuted }]}>{blocked.stageHint}</Text>
         <View style={styles.rail}>
-          {["queued", "pose", "metrics", "findings"].map((stage) => (
+          {blocked.stages.map((stage) => (
             <View
               key={stage}
               style={[styles.dot, { borderColor: colors.line, backgroundColor: colors.surfaceMuted }]}

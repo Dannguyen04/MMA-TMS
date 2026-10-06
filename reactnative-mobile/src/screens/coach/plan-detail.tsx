@@ -18,8 +18,10 @@ import {
   type PlanMilestone,
   type TrainingPlan,
   type TrainingPlanExercise,
+  type TrainingPlanPhase,
   type TrainingPlanStatus,
 } from "@/api";
+import { useToastMessage } from "@/components/toast/app-toast";
 import { coach } from "@/i18n/coach";
 import { coachErrorMessage, coachHref, formatWhen } from "@/screens/coach/coach-error";
 import {
@@ -27,9 +29,11 @@ import {
   CoachCard,
   CoachChip,
   CoachField,
+  CoachPicker,
   CoachPrimaryButton,
   CoachScaffold,
 } from "@/screens/coach/coach-ui";
+import { isTrainingPlanPhase, planPhaseLabel, planPhaseOptions } from "@/training/plan-phase";
 import { isValidDateOnly } from "@/utils/is-valid-date-only";
 import { spacing, type, useThemePreference } from "@/theme";
 
@@ -81,9 +85,12 @@ export function CoachPlanDetailScreen() {
   const [endDate, setEndDate] = useState("");
   const [description, setDescription] = useState("");
   const [goals, setGoals] = useState("");
+  const [phase, setPhase] = useState<TrainingPlanPhase | "">("");
   const [milestones, setMilestones] = useState<MilestoneDraft[]>([]);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  useToastMessage(error, "error");
+  useToastMessage(notice, "success");
   const [saving, setSaving] = useState(false);
   const [savingMilestones, setSavingMilestones] = useState(false);
   const seqRef = useRef(0);
@@ -95,6 +102,7 @@ export function CoachPlanDetailScreen() {
     setEndDate(next.endDate ?? "");
     setDescription(next.description ?? "");
     setGoals(next.goals ?? "");
+    setPhase(isTrainingPlanPhase(next.phase) ? next.phase : "");
     setMilestones(toDrafts(next.milestones ?? []));
   }, []);
 
@@ -153,6 +161,7 @@ export function CoachPlanDetailScreen() {
   }, [catalog, items, names]);
 
   const onSave = () => {
+    if (saving) return;
     if (!planId || !title.trim()) {
       setError(coach.required);
       return;
@@ -165,6 +174,10 @@ export function CoachPlanDetailScreen() {
       setError(coach.dateInvalid);
       return;
     }
+    if (!isTrainingPlanPhase(phase)) {
+      setError(coach.phaseRequired);
+      return;
+    }
     setSaving(true);
     setError("");
     setNotice("");
@@ -174,6 +187,7 @@ export function CoachPlanDetailScreen() {
       endDate: endDate.trim() ? endDate.trim() : null,
       description: description.trim() ? description.trim() : null,
       goals: goals.trim() ? goals.trim() : null,
+      phase,
     })
       .then((next) => {
         applyPlan(next);
@@ -269,8 +283,6 @@ export function CoachPlanDetailScreen() {
 
   return (
     <CoachScaffold title={plan?.title ?? coach.planDetail} keyboard inStack>
-      {error ? <CoachBanner message={error} tone="danger" /> : null}
-      {notice ? <CoachBanner message={notice} tone="ok" /> : null}
       {!plan && !error ? <CoachBanner message={coach.loading} /> : null}
       {plan?.progress ? (
         <CoachCard>
@@ -290,6 +302,16 @@ export function CoachPlanDetailScreen() {
           <Text style={[type.link, { color: colors.lotus }]}>{coach.createSessionForPlan}</Text>
         </CoachCard>
       ) : null}
+      {plan ? (
+        <Text style={[type.caption, { color: colors.inkMuted }]}>{planPhaseLabel(plan.phase)}</Text>
+      ) : null}
+      <CoachPicker
+        label={coach.phase}
+        placeholder={coach.pickPhase}
+        valueLabel={phase ? planPhaseLabel(phase) : ""}
+        options={planPhaseOptions()}
+        onSelect={setPhase}
+      />
       <CoachField label={coach.title} value={title} onChangeText={setTitle} />
       <CoachField
         label={coach.startDate}
