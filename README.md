@@ -144,11 +144,11 @@ Trang phân tích: khung xương, dòng thời gian, phát hiện AI, duyệt c�
 
 1. **Khởi tạo Database & Storage Buckets**:
     - Vào **Supabase Dashboard** > **SQL Editor**.
-    - Mở file `supabase-setup.sql` trong dự án, copy toàn bộ nội dung và bấm **Run**.
+    - Mở file `scripts/supabase-setup.sql` trong dự án, copy toàn bộ nội dung và bấm **Run**.
     - Script sẽ tự động:
         - Tạo kiểu enum `job_status` và bảng `analysis_jobs` (với triggers & indexes).
         - Tạo 2 storage buckets riêng tư: `videos` và `analysis-results`. Browser chỉ truy cập qua route có xác thực; worker/backend dùng service role.
-        - Thiết lập RLS policies cho phép upload & xem video / kết quả.
+        - Gỡ các policy công khai của bản setup cũ; không tạo policy cho `anon`.
 
 2. **Lấy API Keys**:
     - Vào **Settings** > **API**:
