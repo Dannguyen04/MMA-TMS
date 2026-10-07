@@ -80,7 +80,7 @@ def download_video_if_url(path_or_url: str) -> str:
         tmp_dir = Path(tempfile.gettempdir()) / "martial-arts-worker"
         tmp_dir.mkdir(parents=True, exist_ok=True)
         tmp_path = str(tmp_dir / f"input_{uuid.uuid4().hex[:8]}.mp4")
-        print(f"⬇️  Đang tải video từ URL: {path_or_url} -> {tmp_path}")
+        print("⬇️  Đang tải video từ private storage...")
         urllib.request.urlretrieve(path_or_url, tmp_path)
         return tmp_path
     return path_or_url
@@ -103,6 +103,8 @@ def process_video(
     training_mode: Optional[str] = None,
     camera_view: Optional[str] = None,
     exercise_context: Optional[Mapping[str, Any]] = None,
+    pose_model: Any = None,
+    compact_output: bool = False,
 ) -> dict:
     """
     Pipeline chính: xử lý video và trả về dict kết quả JSON.
@@ -184,13 +186,17 @@ def process_video(
                 "No discipline-specific evaluator is integrated in Task 4 (only generic legacy evaluators available)."
             )
 
+    pipeline_started = time.perf_counter()
+    # The queue worker supplies its cached model; direct/CLI calls remain isolated.
     # ── 1. Tải model ──
     if verbose:
         print(f"🤖 Đang tải model {model_name}...")
-    model = YOLO(model_name)
+    model = pose_model if pose_model is not None else YOLO(model_name)
+    model_ready = time.perf_counter()
 
     # ── 2. Mở video ──
     local_path = download_video_if_url(input_path)
+    download_ready = time.perf_counter()
     cap = cv2.VideoCapture(local_path)
 
     if not cap.isOpened():
@@ -288,6 +294,7 @@ def process_video(
         frame_records.append(record)
 
     cap.release()
+    frames_ready = time.perf_counter()
 
     # Dọn dẹp video tạm tải từ URL để giải phóng ổ đĩa
     if local_path != input_path and os.path.exists(local_path):
@@ -659,12 +666,21 @@ def process_video(
         camera_view=camera_view, model_version=model_name,
     )
 
+    output["meta"]["timingsSeconds"] = {
+        "modelLoad": round(model_ready - pipeline_started, 3),
+        "download": round(download_ready - model_ready, 3),
+        "frames": round(frames_ready - download_ready, 3),
+        "postprocess": round(time.perf_counter() - frames_ready, 3),
+    }
+
     # ── 10. Xuất file JSON ──
     if output_path:
         out_file = Path(output_path)
         out_file.parent.mkdir(parents=True, exist_ok=True)
         with open(out_file, "w", encoding="utf-8") as f:
-            json.dump(output, f, ensure_ascii=False, indent=2)
+            json.dump(output, f, ensure_ascii=False,
+                      indent=None if compact_output else 2,
+                      separators=(",", ":") if compact_output else None)
         if verbose:
             print(f"\n✅ Đã lưu kết quả: {out_file}")
 
