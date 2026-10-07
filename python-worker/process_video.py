@@ -215,7 +215,7 @@ def process_video(
         print(f"📹 Video: {img_w}x{img_h} @ {fps:.1f}fps — {total_frames} frames")
 
     # ── 3. Khởi tạo state ──
-    person_tracker = PersonTracker(max_missing_frames=15, max_landmark_jump=0.14)
+    person_tracker = PersonTracker(max_missing_frames=15, max_landmark_jump=0.14, fps=fps)
     action_pipeline = ActionPipeline()
 
     frame_records  = []
