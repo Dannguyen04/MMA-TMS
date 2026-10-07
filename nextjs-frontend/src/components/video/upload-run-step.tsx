@@ -145,7 +145,7 @@ export function RunStep({ phase, summary, now, onStart, onCancelUpload, onEditSt
 
             {phase.kind === "ready" && (
                 <div className="flex flex-col items-start gap-3 rounded-xl border border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-sm text-fg-muted">The upload takes a few seconds; analysis usually finishes in under a minute.</p>
+                    <p className="text-sm text-fg-muted">Upload time depends on your connection. Analysis time depends on the clip length and the server workload.</p>
                     <Button size="lg" onClick={onStart}>
                         <CloudUpload aria-hidden />
                         Upload and analyse
@@ -156,7 +156,7 @@ export function RunStep({ phase, summary, now, onStart, onCancelUpload, onEditSt
             {phase.kind === "uploading" && (
                 <div className="flex flex-col gap-3 rounded-xl border border-border px-4 py-4" aria-live="polite">
                     <div className="flex items-center justify-between gap-3">
-                        <p className="text-sm font-semibold text-fg">Uploading footage</p>
+                        <p className="text-sm font-semibold text-fg">{phase.pct === 100 ? "Saving video — waiting for confirmation" : "Uploading footage"}</p>
                         <Button variant="ghost" size="sm" onClick={() => setConfirmCancel(true)}>
                             <X aria-hidden />
                             Cancel upload
@@ -224,7 +224,7 @@ export function RunStep({ phase, summary, now, onStart, onCancelUpload, onEditSt
                     onCancelUpload();
                 }}
                 title="Cancel this upload?"
-                description="The upload stops and nothing is saved or analysed. Your file and details stay filled in so you can start again."
+                description="Stop sending this file. Your details stay filled in. If the server has already received the video, it may remain in your video list."
                 confirmLabel="Cancel upload"
             />
         </div>
