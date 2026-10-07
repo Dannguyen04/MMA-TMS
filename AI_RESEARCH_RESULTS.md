@@ -1,5 +1,10 @@
 # Kiểm định AI bằng dữ liệu ngoài hệ thống — 2026-10-03
 
+Tiếp nối ngày 2026-10-05: đã triển khai nền tảng temporal và chạy so sánh ba kiến
+trúc × ba seed. Xem [báo cáo mới](python-worker/TEMPORAL_AI_RESEARCH_REPORT.md).
+Các số liệu ngày 2026-10-03 bên dưới được giữ nguyên làm lịch sử; V9/V10 và Adam
+vẫn là dữ liệu đã quan sát, không trở thành test mù mới ở vòng tiếp theo.
+
 ## Kết luận
 
 **Chưa đạt production về độ chính xác AI.** Đã thực sự tải dữ liệu, huấn luyện và

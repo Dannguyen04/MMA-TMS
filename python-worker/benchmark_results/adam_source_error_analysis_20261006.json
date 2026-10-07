@@ -1,0 +1,2724 @@
+{
+  "mode": "frozen_checkpoint_diagnostics",
+  "productionEligible": false,
+  "manifestSha256": "68ae10fa47b820f9352ecf3318c703cec76deef0b74d808e6205825038f681f9",
+  "weightsSha256": "97f64c94d7c977387ee92ad7dbb2497bdfbbec77065983042b5877cf44aafc66",
+  "analysisSourceSha256": "694abc23915743c5a16e7da30f24bfcbbc134fd195c73662574f3fbe640000ed",
+  "bySource": {
+    "V1": {
+      "split": "train",
+      "classCounts": {
+        "jab": 451,
+        "cross": 679,
+        "lead_uppercut": 124,
+        "lead_hook": 365,
+        "rear_uppercut": 116,
+        "rear_hook": 128
+      },
+      "sampleWeightSum": 1863.0,
+      "globalEffectiveTrainingWeightShare": 0.47929157523439014,
+      "count": 1863,
+      "accuracy": 0.9742351046698873,
+      "macroF1": 0.9679016782954598,
+      "perClass": {
+        "jab": {
+          "support": 451,
+          "precision": 0.9799107142857143,
+          "recall": 0.9733924611973392,
+          "f1": 0.9766407119021135
+        },
+        "cross": {
+          "support": 679,
+          "precision": 0.9925149700598802,
+          "recall": 0.9764359351988218,
+          "f1": 0.9844097995545658
+        },
+        "lead_hook": {
+          "support": 365,
+          "precision": 0.9595687331536388,
+          "recall": 0.9753424657534246,
+          "f1": 0.9673913043478262
+        },
+        "rear_hook": {
+          "support": 128,
+          "precision": 0.9596774193548387,
+          "recall": 0.9296875,
+          "f1": 0.9444444444444444
+        },
+        "lead_uppercut": {
+          "support": 124,
+          "precision": 0.9609375,
+          "recall": 0.9919354838709677,
+          "f1": 0.9761904761904763
+        },
+        "rear_uppercut": {
+          "support": 116,
+          "precision": 0.9274193548387096,
+          "recall": 0.9913793103448276,
+          "f1": 0.9583333333333333
+        }
+      },
+      "confusionRows": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut"
+      ],
+      "confusionColumns": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut",
+        "unknown"
+      ],
+      "confusionMatrix": [
+        [
+          439,
+          0,
+          11,
+          0,
+          1,
+          0,
+          0
+        ],
+        [
+          4,
+          663,
+          2,
+          4,
+          0,
+          6,
+          0
+        ],
+        [
+          5,
+          0,
+          356,
+          0,
+          4,
+          0,
+          0
+        ],
+        [
+          0,
+          5,
+          1,
+          119,
+          0,
+          3,
+          0
+        ],
+        [
+          0,
+          0,
+          1,
+          0,
+          123,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          1,
+          0,
+          115,
+          0
+        ]
+      ],
+      "abstained": 0,
+      "accepted": 1774,
+      "acceptedCorrect": 1755,
+      "familyAccuracy": 0.9769189479334407,
+      "leadRearAccuracy": 0.9962426194310252,
+      "wrongFamily": 43,
+      "sameFamilyWrongSide": 5,
+      "meanStoredMask": 1.0,
+      "meanStoredLeftWristMask": 1.0,
+      "meanStoredRightWristMask": 1.0,
+      "confusions": [
+        {
+          "truth": "jab",
+          "prediction": "lead_hook",
+          "count": 11
+        },
+        {
+          "truth": "cross",
+          "prediction": "rear_uppercut",
+          "count": 6
+        },
+        {
+          "truth": "lead_hook",
+          "prediction": "jab",
+          "count": 5
+        },
+        {
+          "truth": "rear_hook",
+          "prediction": "cross",
+          "count": 5
+        },
+        {
+          "truth": "cross",
+          "prediction": "jab",
+          "count": 4
+        },
+        {
+          "truth": "lead_hook",
+          "prediction": "lead_uppercut",
+          "count": 4
+        },
+        {
+          "truth": "cross",
+          "prediction": "rear_hook",
+          "count": 4
+        },
+        {
+          "truth": "rear_hook",
+          "prediction": "rear_uppercut",
+          "count": 3
+        },
+        {
+          "truth": "cross",
+          "prediction": "lead_hook",
+          "count": 2
+        },
+        {
+          "truth": "jab",
+          "prediction": "lead_uppercut",
+          "count": 1
+        },
+        {
+          "truth": "rear_uppercut",
+          "prediction": "rear_hook",
+          "count": 1
+        },
+        {
+          "truth": "rear_hook",
+          "prediction": "lead_hook",
+          "count": 1
+        },
+        {
+          "truth": "lead_uppercut",
+          "prediction": "lead_hook",
+          "count": 1
+        }
+      ]
+    },
+    "V10": {
+      "split": "test",
+      "classCounts": {
+        "cross": 36,
+        "lead_hook": 25,
+        "jab": 49,
+        "rear_hook": 6,
+        "lead_uppercut": 10,
+        "rear_uppercut": 25
+      },
+      "sampleWeightSum": 151.0,
+      "globalEffectiveTrainingWeightShare": null,
+      "count": 151,
+      "accuracy": 0.31125827814569534,
+      "macroF1": 0.3027632112276435,
+      "perClass": {
+        "jab": {
+          "support": 49,
+          "precision": 0.41935483870967744,
+          "recall": 0.2653061224489796,
+          "f1": 0.325
+        },
+        "cross": {
+          "support": 36,
+          "precision": 0.42857142857142855,
+          "recall": 0.08333333333333333,
+          "f1": 0.13953488372093023
+        },
+        "lead_hook": {
+          "support": 25,
+          "precision": 0.4,
+          "recall": 0.4,
+          "f1": 0.4000000000000001
+        },
+        "rear_hook": {
+          "support": 6,
+          "precision": 0.16666666666666666,
+          "recall": 0.3333333333333333,
+          "f1": 0.2222222222222222
+        },
+        "lead_uppercut": {
+          "support": 10,
+          "precision": 0.30303030303030304,
+          "recall": 1.0,
+          "f1": 0.4651162790697675
+        },
+        "rear_uppercut": {
+          "support": 25,
+          "precision": 0.20930232558139536,
+          "recall": 0.36,
+          "f1": 0.2647058823529412
+        }
+      },
+      "confusionRows": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut"
+      ],
+      "confusionColumns": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut",
+        "unknown"
+      ],
+      "confusionMatrix": [
+        [
+          13,
+          4,
+          10,
+          0,
+          6,
+          16,
+          0
+        ],
+        [
+          14,
+          3,
+          3,
+          0,
+          3,
+          13,
+          0
+        ],
+        [
+          4,
+          0,
+          10,
+          10,
+          0,
+          1,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          2,
+          0,
+          4,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          10,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          2,
+          0,
+          14,
+          9,
+          0
+        ]
+      ],
+      "abstained": 0,
+      "accepted": 64,
+      "acceptedCorrect": 23,
+      "familyAccuracy": 0.5894039735099338,
+      "leadRearAccuracy": 0.5562913907284768,
+      "wrongFamily": 62,
+      "sameFamilyWrongSide": 42,
+      "meanStoredMask": 1.0,
+      "meanStoredLeftWristMask": 1.0,
+      "meanStoredRightWristMask": 1.0,
+      "confusions": [
+        {
+          "truth": "jab",
+          "prediction": "rear_uppercut",
+          "count": 16
+        },
+        {
+          "truth": "cross",
+          "prediction": "jab",
+          "count": 14
+        },
+        {
+          "truth": "rear_uppercut",
+          "prediction": "lead_uppercut",
+          "count": 14
+        },
+        {
+          "truth": "cross",
+          "prediction": "rear_uppercut",
+          "count": 13
+        },
+        {
+          "truth": "lead_hook",
+          "prediction": "rear_hook",
+          "count": 10
+        },
+        {
+          "truth": "jab",
+          "prediction": "lead_hook",
+          "count": 10
+        },
+        {
+          "truth": "jab",
+          "prediction": "lead_uppercut",
+          "count": 6
+        },
+        {
+          "truth": "lead_hook",
+          "prediction": "jab",
+          "count": 4
+        },
+        {
+          "truth": "jab",
+          "prediction": "cross",
+          "count": 4
+        },
+        {
+          "truth": "rear_hook",
+          "prediction": "rear_uppercut",
+          "count": 4
+        },
+        {
+          "truth": "cross",
+          "prediction": "lead_uppercut",
+          "count": 3
+        },
+        {
+          "truth": "cross",
+          "prediction": "lead_hook",
+          "count": 3
+        },
+        {
+          "truth": "rear_uppercut",
+          "prediction": "lead_hook",
+          "count": 2
+        },
+        {
+          "truth": "lead_hook",
+          "prediction": "rear_uppercut",
+          "count": 1
+        }
+      ]
+    },
+    "V2": {
+      "split": "train",
+      "classCounts": {
+        "jab": 30,
+        "cross": 33,
+        "lead_hook": 53,
+        "lead_uppercut": 58,
+        "rear_uppercut": 58
+      },
+      "sampleWeightSum": 232.0,
+      "globalEffectiveTrainingWeightShare": 0.08323704507260932,
+      "count": 232,
+      "accuracy": 0.9827586206896551,
+      "macroF1": 0.8184720399633889,
+      "perClass": {
+        "jab": {
+          "support": 30,
+          "precision": 1.0,
+          "recall": 0.9333333333333333,
+          "f1": 0.9655172413793104
+        },
+        "cross": {
+          "support": 33,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0
+        },
+        "lead_hook": {
+          "support": 53,
+          "precision": 0.9622641509433962,
+          "recall": 0.9622641509433962,
+          "f1": 0.9622641509433962
+        },
+        "rear_hook": {
+          "support": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "lead_uppercut": {
+          "support": 58,
+          "precision": 0.9666666666666667,
+          "recall": 1.0,
+          "f1": 0.983050847457627
+        },
+        "rear_uppercut": {
+          "support": 58,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0
+        }
+      },
+      "confusionRows": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut"
+      ],
+      "confusionColumns": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut",
+        "unknown"
+      ],
+      "confusionMatrix": [
+        [
+          28,
+          0,
+          2,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          33,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          51,
+          0,
+          2,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          58,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          58,
+          0
+        ]
+      ],
+      "abstained": 0,
+      "accepted": 225,
+      "acceptedCorrect": 223,
+      "familyAccuracy": 0.9827586206896551,
+      "leadRearAccuracy": 1.0,
+      "wrongFamily": 4,
+      "sameFamilyWrongSide": 0,
+      "meanStoredMask": 1.0,
+      "meanStoredLeftWristMask": 1.0,
+      "meanStoredRightWristMask": 1.0,
+      "confusions": [
+        {
+          "truth": "lead_hook",
+          "prediction": "lead_uppercut",
+          "count": 2
+        },
+        {
+          "truth": "jab",
+          "prediction": "lead_hook",
+          "count": 2
+        }
+      ]
+    },
+    "V3": {
+      "split": "train",
+      "classCounts": {
+        "jab": 312,
+        "cross": 354,
+        "lead_uppercut": 17,
+        "rear_hook": 32,
+        "lead_hook": 83,
+        "rear_uppercut": 13
+      },
+      "sampleWeightSum": 811.0,
+      "globalEffectiveTrainingWeightShare": 0.16438949758331756,
+      "count": 811,
+      "accuracy": 0.9593094944512947,
+      "macroF1": 0.9061742299616397,
+      "perClass": {
+        "jab": {
+          "support": 312,
+          "precision": 0.9866220735785953,
+          "recall": 0.9455128205128205,
+          "f1": 0.9656301145662848
+        },
+        "cross": {
+          "support": 354,
+          "precision": 0.9915492957746479,
+          "recall": 0.9943502824858758,
+          "f1": 0.9929478138222848
+        },
+        "lead_hook": {
+          "support": 83,
+          "precision": 0.8390804597701149,
+          "recall": 0.8795180722891566,
+          "f1": 0.8588235294117647
+        },
+        "rear_hook": {
+          "support": 32,
+          "precision": 0.967741935483871,
+          "recall": 0.9375,
+          "f1": 0.9523809523809523
+        },
+        "lead_uppercut": {
+          "support": 17,
+          "precision": 0.6153846153846154,
+          "recall": 0.9411764705882353,
+          "f1": 0.744186046511628
+        },
+        "rear_uppercut": {
+          "support": 13,
+          "precision": 0.9230769230769231,
+          "recall": 0.9230769230769231,
+          "f1": 0.9230769230769231
+        }
+      },
+      "confusionRows": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut"
+      ],
+      "confusionColumns": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut",
+        "unknown"
+      ],
+      "confusionMatrix": [
+        [
+          295,
+          2,
+          13,
+          0,
+          2,
+          0,
+          0
+        ],
+        [
+          1,
+          352,
+          0,
+          0,
+          1,
+          0,
+          0
+        ],
+        [
+          3,
+          0,
+          73,
+          0,
+          7,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          0,
+          30,
+          0,
+          1,
+          0
+        ],
+        [
+          0,
+          0,
+          1,
+          0,
+          16,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          1,
+          0,
+          12,
+          0
+        ]
+      ],
+      "abstained": 0,
+      "accepted": 750,
+      "acceptedCorrect": 733,
+      "familyAccuracy": 0.9630086313193588,
+      "leadRearAccuracy": 0.9950678175092479,
+      "wrongFamily": 30,
+      "sameFamilyWrongSide": 3,
+      "meanStoredMask": 1.0,
+      "meanStoredLeftWristMask": 1.0,
+      "meanStoredRightWristMask": 1.0,
+      "confusions": [
+        {
+          "truth": "jab",
+          "prediction": "lead_hook",
+          "count": 13
+        },
+        {
+          "truth": "lead_hook",
+          "prediction": "lead_uppercut",
+          "count": 7
+        },
+        {
+          "truth": "lead_hook",
+          "prediction": "jab",
+          "count": 3
+        },
+        {
+          "truth": "jab",
+          "prediction": "cross",
+          "count": 2
+        },
+        {
+          "truth": "jab",
+          "prediction": "lead_uppercut",
+          "count": 2
+        },
+        {
+          "truth": "rear_uppercut",
+          "prediction": "rear_hook",
+          "count": 1
+        },
+        {
+          "truth": "rear_hook",
+          "prediction": "rear_uppercut",
+          "count": 1
+        },
+        {
+          "truth": "lead_uppercut",
+          "prediction": "lead_hook",
+          "count": 1
+        },
+        {
+          "truth": "cross",
+          "prediction": "jab",
+          "count": 1
+        },
+        {
+          "truth": "cross",
+          "prediction": "lead_uppercut",
+          "count": 1
+        },
+        {
+          "truth": "rear_hook",
+          "prediction": "cross",
+          "count": 1
+        }
+      ]
+    },
+    "V4": {
+      "split": "train",
+      "classCounts": {
+        "jab": 120,
+        "rear_hook": 75,
+        "lead_hook": 144,
+        "cross": 39,
+        "rear_uppercut": 105,
+        "lead_uppercut": 76
+      },
+      "sampleWeightSum": 559.0,
+      "globalEffectiveTrainingWeightShare": 0.207674329924365,
+      "count": 559,
+      "accuracy": 0.9534883720930233,
+      "macroF1": 0.9536271065834896,
+      "perClass": {
+        "jab": {
+          "support": 120,
+          "precision": 0.9512195121951219,
+          "recall": 0.975,
+          "f1": 0.9629629629629629
+        },
+        "cross": {
+          "support": 39,
+          "precision": 0.95,
+          "recall": 0.9743589743589743,
+          "f1": 0.9620253164556962
+        },
+        "lead_hook": {
+          "support": 144,
+          "precision": 0.9319727891156463,
+          "recall": 0.9513888888888888,
+          "f1": 0.9415807560137457
+        },
+        "rear_hook": {
+          "support": 75,
+          "precision": 0.9857142857142858,
+          "recall": 0.92,
+          "f1": 0.9517241379310346
+        },
+        "lead_uppercut": {
+          "support": 76,
+          "precision": 0.9714285714285714,
+          "recall": 0.8947368421052632,
+          "f1": 0.9315068493150684
+        },
+        "rear_uppercut": {
+          "support": 105,
+          "precision": 0.9541284403669725,
+          "recall": 0.9904761904761905,
+          "f1": 0.9719626168224299
+        }
+      },
+      "confusionRows": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut"
+      ],
+      "confusionColumns": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut",
+        "unknown"
+      ],
+      "confusionMatrix": [
+        [
+          117,
+          0,
+          2,
+          0,
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          38,
+          0,
+          0,
+          0,
+          1,
+          0
+        ],
+        [
+          6,
+          0,
+          137,
+          0,
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          2,
+          0,
+          69,
+          0,
+          4,
+          0
+        ],
+        [
+          0,
+          0,
+          8,
+          0,
+          68,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          1,
+          0,
+          104,
+          0
+        ]
+      ],
+      "abstained": 0,
+      "accepted": 501,
+      "acceptedCorrect": 494,
+      "familyAccuracy": 0.9534883720930233,
+      "leadRearAccuracy": 1.0,
+      "wrongFamily": 26,
+      "sameFamilyWrongSide": 0,
+      "meanStoredMask": 1.0,
+      "meanStoredLeftWristMask": 1.0,
+      "meanStoredRightWristMask": 1.0,
+      "confusions": [
+        {
+          "truth": "lead_uppercut",
+          "prediction": "lead_hook",
+          "count": 8
+        },
+        {
+          "truth": "lead_hook",
+          "prediction": "jab",
+          "count": 6
+        },
+        {
+          "truth": "rear_hook",
+          "prediction": "rear_uppercut",
+          "count": 4
+        },
+        {
+          "truth": "jab",
+          "prediction": "lead_hook",
+          "count": 2
+        },
+        {
+          "truth": "rear_hook",
+          "prediction": "cross",
+          "count": 2
+        },
+        {
+          "truth": "jab",
+          "prediction": "lead_uppercut",
+          "count": 1
+        },
+        {
+          "truth": "cross",
+          "prediction": "rear_uppercut",
+          "count": 1
+        },
+        {
+          "truth": "lead_hook",
+          "prediction": "lead_uppercut",
+          "count": 1
+        },
+        {
+          "truth": "rear_uppercut",
+          "prediction": "rear_hook",
+          "count": 1
+        }
+      ]
+    },
+    "V5": {
+      "split": "calibration",
+      "classCounts": {
+        "jab": 234,
+        "cross": 140,
+        "rear_uppercut": 74,
+        "lead_uppercut": 39,
+        "rear_hook": 39,
+        "lead_hook": 69
+      },
+      "sampleWeightSum": 595.0,
+      "globalEffectiveTrainingWeightShare": null,
+      "count": 595,
+      "accuracy": 0.8873949579831932,
+      "macroF1": 0.77654478223101,
+      "perClass": {
+        "jab": {
+          "support": 234,
+          "precision": 0.9817351598173516,
+          "recall": 0.9188034188034188,
+          "f1": 0.9492273730684325
+        },
+        "cross": {
+          "support": 140,
+          "precision": 0.85625,
+          "recall": 0.9785714285714285,
+          "f1": 0.9133333333333333
+        },
+        "lead_hook": {
+          "support": 69,
+          "precision": 0.8888888888888888,
+          "recall": 0.927536231884058,
+          "f1": 0.9078014184397163
+        },
+        "rear_hook": {
+          "support": 39,
+          "precision": 1.0,
+          "recall": 0.07692307692307693,
+          "f1": 0.14285714285714288
+        },
+        "lead_uppercut": {
+          "support": 39,
+          "precision": 0.8478260869565217,
+          "recall": 1.0,
+          "f1": 0.9176470588235294
+        },
+        "rear_uppercut": {
+          "support": 74,
+          "precision": 0.7368421052631579,
+          "recall": 0.9459459459459459,
+          "f1": 0.8284023668639052
+        }
+      },
+      "confusionRows": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut"
+      ],
+      "confusionColumns": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut",
+        "unknown"
+      ],
+      "confusionMatrix": [
+        [
+          215,
+          11,
+          8,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          137,
+          0,
+          0,
+          2,
+          1,
+          0
+        ],
+        [
+          4,
+          0,
+          64,
+          0,
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          8,
+          0,
+          3,
+          4,
+          24,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          39,
+          0,
+          0
+        ],
+        [
+          0,
+          4,
+          0,
+          0,
+          0,
+          70,
+          0
+        ]
+      ],
+      "abstained": 0,
+      "accepted": 529,
+      "acceptedCorrect": 491,
+      "familyAccuracy": 0.9058823529411765,
+      "leadRearAccuracy": 0.9714285714285714,
+      "wrongFamily": 56,
+      "sameFamilyWrongSide": 11,
+      "meanStoredMask": 1.0,
+      "meanStoredLeftWristMask": 1.0,
+      "meanStoredRightWristMask": 1.0,
+      "confusions": [
+        {
+          "truth": "rear_hook",
+          "prediction": "rear_uppercut",
+          "count": 24
+        },
+        {
+          "truth": "jab",
+          "prediction": "cross",
+          "count": 11
+        },
+        {
+          "truth": "jab",
+          "prediction": "lead_hook",
+          "count": 8
+        },
+        {
+          "truth": "rear_hook",
+          "prediction": "cross",
+          "count": 8
+        },
+        {
+          "truth": "rear_uppercut",
+          "prediction": "cross",
+          "count": 4
+        },
+        {
+          "truth": "lead_hook",
+          "prediction": "jab",
+          "count": 4
+        },
+        {
+          "truth": "rear_hook",
+          "prediction": "lead_uppercut",
+          "count": 4
+        },
+        {
+          "truth": "cross",
+          "prediction": "lead_uppercut",
+          "count": 2
+        },
+        {
+          "truth": "cross",
+          "prediction": "rear_uppercut",
+          "count": 1
+        },
+        {
+          "truth": "lead_hook",
+          "prediction": "lead_uppercut",
+          "count": 1
+        }
+      ]
+    },
+    "V7": {
+      "split": "train",
+      "classCounts": {
+        "jab": 30,
+        "lead_hook": 60,
+        "rear_uppercut": 20,
+        "cross": 30,
+        "lead_uppercut": 50,
+        "rear_hook": 5
+      },
+      "sampleWeightSum": 195.0,
+      "globalEffectiveTrainingWeightShare": 0.0635679093922538,
+      "count": 195,
+      "accuracy": 0.9794871794871794,
+      "macroF1": 0.9656235627603064,
+      "perClass": {
+        "jab": {
+          "support": 30,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0
+        },
+        "cross": {
+          "support": 30,
+          "precision": 1.0,
+          "recall": 0.9333333333333333,
+          "f1": 0.9655172413793104
+        },
+        "lead_hook": {
+          "support": 60,
+          "precision": 0.9833333333333333,
+          "recall": 0.9833333333333333,
+          "f1": 0.9833333333333333
+        },
+        "rear_hook": {
+          "support": 5,
+          "precision": 1.0,
+          "recall": 0.8,
+          "f1": 0.888888888888889
+        },
+        "lead_uppercut": {
+          "support": 50,
+          "precision": 0.9615384615384616,
+          "recall": 1.0,
+          "f1": 0.9803921568627451
+        },
+        "rear_uppercut": {
+          "support": 20,
+          "precision": 0.9523809523809523,
+          "recall": 1.0,
+          "f1": 0.975609756097561
+        }
+      },
+      "confusionRows": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut"
+      ],
+      "confusionColumns": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut",
+        "unknown"
+      ],
+      "confusionMatrix": [
+        [
+          30,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          28,
+          1,
+          0,
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          59,
+          0,
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          4,
+          0,
+          1,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          50,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          20,
+          0
+        ]
+      ],
+      "abstained": 0,
+      "accepted": 189,
+      "acceptedCorrect": 187,
+      "familyAccuracy": 0.9794871794871794,
+      "leadRearAccuracy": 0.9897435897435898,
+      "wrongFamily": 4,
+      "sameFamilyWrongSide": 0,
+      "meanStoredMask": 1.0,
+      "meanStoredLeftWristMask": 1.0,
+      "meanStoredRightWristMask": 1.0,
+      "confusions": [
+        {
+          "truth": "cross",
+          "prediction": "lead_uppercut",
+          "count": 1
+        },
+        {
+          "truth": "cross",
+          "prediction": "lead_hook",
+          "count": 1
+        },
+        {
+          "truth": "lead_hook",
+          "prediction": "lead_uppercut",
+          "count": 1
+        },
+        {
+          "truth": "rear_hook",
+          "prediction": "rear_uppercut",
+          "count": 1
+        }
+      ]
+    },
+    "V8": {
+      "split": "validation",
+      "classCounts": {
+        "jab": 25,
+        "cross": 32,
+        "lead_uppercut": 29,
+        "rear_uppercut": 25,
+        "lead_hook": 88
+      },
+      "sampleWeightSum": 199.0,
+      "globalEffectiveTrainingWeightShare": null,
+      "count": 199,
+      "accuracy": 0.9296482412060302,
+      "macroF1": 0.7742734374490285,
+      "perClass": {
+        "jab": {
+          "support": 25,
+          "precision": 0.78125,
+          "recall": 1.0,
+          "f1": 0.8771929824561403
+        },
+        "cross": {
+          "support": 32,
+          "precision": 0.8857142857142857,
+          "recall": 0.96875,
+          "f1": 0.9253731343283582
+        },
+        "lead_hook": {
+          "support": 88,
+          "precision": 0.9753086419753086,
+          "recall": 0.8977272727272727,
+          "f1": 0.9349112426035502
+        },
+        "rear_hook": {
+          "support": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "lead_uppercut": {
+          "support": 29,
+          "precision": 0.9629629629629629,
+          "recall": 0.896551724137931,
+          "f1": 0.9285714285714286
+        },
+        "rear_uppercut": {
+          "support": 25,
+          "precision": 1.0,
+          "recall": 0.96,
+          "f1": 0.9795918367346939
+        }
+      },
+      "confusionRows": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut"
+      ],
+      "confusionColumns": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut",
+        "unknown"
+      ],
+      "confusionMatrix": [
+        [
+          25,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          31,
+          0,
+          0,
+          1,
+          0,
+          0
+        ],
+        [
+          7,
+          2,
+          79,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          2,
+          0,
+          26,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          0,
+          0,
+          0,
+          24,
+          0
+        ]
+      ],
+      "abstained": 0,
+      "accepted": 171,
+      "acceptedCorrect": 166,
+      "familyAccuracy": 0.9296482412060302,
+      "leadRearAccuracy": 0.9798994974874372,
+      "wrongFamily": 14,
+      "sameFamilyWrongSide": 0,
+      "meanStoredMask": 1.0,
+      "meanStoredLeftWristMask": 1.0,
+      "meanStoredRightWristMask": 1.0,
+      "confusions": [
+        {
+          "truth": "lead_hook",
+          "prediction": "jab",
+          "count": 7
+        },
+        {
+          "truth": "lead_hook",
+          "prediction": "cross",
+          "count": 2
+        },
+        {
+          "truth": "lead_uppercut",
+          "prediction": "lead_hook",
+          "count": 2
+        },
+        {
+          "truth": "cross",
+          "prediction": "lead_uppercut",
+          "count": 1
+        },
+        {
+          "truth": "rear_uppercut",
+          "prediction": "cross",
+          "count": 1
+        },
+        {
+          "truth": "lead_uppercut",
+          "prediction": "cross",
+          "count": 1
+        }
+      ]
+    },
+    "V9": {
+      "split": "test",
+      "classCounts": {
+        "jab": 31,
+        "cross": 27,
+        "lead_uppercut": 25,
+        "rear_uppercut": 35,
+        "lead_hook": 20,
+        "rear_hook": 11
+      },
+      "sampleWeightSum": 149.0,
+      "globalEffectiveTrainingWeightShare": null,
+      "count": 149,
+      "accuracy": 0.8389261744966443,
+      "macroF1": 0.7086189575142292,
+      "perClass": {
+        "jab": {
+          "support": 31,
+          "precision": 0.7380952380952381,
+          "recall": 1.0,
+          "f1": 0.8493150684931507
+        },
+        "cross": {
+          "support": 27,
+          "precision": 1.0,
+          "recall": 0.9259259259259259,
+          "f1": 0.9615384615384615
+        },
+        "lead_hook": {
+          "support": 20,
+          "precision": 1.0,
+          "recall": 0.5,
+          "f1": 0.6666666666666666
+        },
+        "rear_hook": {
+          "support": 11,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "lead_uppercut": {
+          "support": 25,
+          "precision": 0.6486486486486487,
+          "recall": 0.96,
+          "f1": 0.7741935483870968
+        },
+        "rear_uppercut": {
+          "support": 35,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0
+        }
+      },
+      "confusionRows": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut"
+      ],
+      "confusionColumns": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut",
+        "unknown"
+      ],
+      "confusionMatrix": [
+        [
+          31,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          25,
+          0,
+          0,
+          2,
+          0,
+          0
+        ],
+        [
+          10,
+          0,
+          10,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          11,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0,
+          0,
+          24,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          35,
+          0
+        ]
+      ],
+      "abstained": 0,
+      "accepted": 119,
+      "acceptedCorrect": 113,
+      "familyAccuracy": 0.8389261744966443,
+      "leadRearAccuracy": 0.912751677852349,
+      "wrongFamily": 24,
+      "sameFamilyWrongSide": 0,
+      "meanStoredMask": 1.0,
+      "meanStoredLeftWristMask": 1.0,
+      "meanStoredRightWristMask": 1.0,
+      "confusions": [
+        {
+          "truth": "rear_hook",
+          "prediction": "lead_uppercut",
+          "count": 11
+        },
+        {
+          "truth": "lead_hook",
+          "prediction": "jab",
+          "count": 10
+        },
+        {
+          "truth": "cross",
+          "prediction": "lead_uppercut",
+          "count": 2
+        },
+        {
+          "truth": "lead_uppercut",
+          "prediction": "jab",
+          "count": 1
+        }
+      ]
+    },
+    "adam": {
+      "split": "train",
+      "classCounts": {
+        "jab": 3,
+        "cross": 3,
+        "lead_hook": 3,
+        "rear_hook": 3,
+        "lead_uppercut": 3,
+        "rear_uppercut": 3
+      },
+      "sampleWeightSum": 4.5,
+      "globalEffectiveTrainingWeightShare": 0.0017221637075851355,
+      "count": 18,
+      "accuracy": 0.6111111111111112,
+      "macroF1": 0.6055555555555556,
+      "perClass": {
+        "jab": {
+          "support": 3,
+          "precision": 1.0,
+          "recall": 0.3333333333333333,
+          "f1": 0.5
+        },
+        "cross": {
+          "support": 3,
+          "precision": 1.0,
+          "recall": 0.6666666666666666,
+          "f1": 0.8
+        },
+        "lead_hook": {
+          "support": 3,
+          "precision": 0.75,
+          "recall": 1.0,
+          "f1": 0.8571428571428571
+        },
+        "rear_hook": {
+          "support": 3,
+          "precision": 0.3333333333333333,
+          "recall": 0.3333333333333333,
+          "f1": 0.3333333333333333
+        },
+        "lead_uppercut": {
+          "support": 3,
+          "precision": 0.5,
+          "recall": 0.6666666666666666,
+          "f1": 0.5714285714285715
+        },
+        "rear_uppercut": {
+          "support": 3,
+          "precision": 0.5,
+          "recall": 0.6666666666666666,
+          "f1": 0.5714285714285715
+        }
+      },
+      "confusionRows": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut"
+      ],
+      "confusionColumns": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut",
+        "unknown"
+      ],
+      "confusionMatrix": [
+        [
+          1,
+          0,
+          0,
+          0,
+          1,
+          1,
+          0
+        ],
+        [
+          0,
+          2,
+          0,
+          1,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          3,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          1,
+          1,
+          1,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          1,
+          2,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1,
+          0,
+          0,
+          2,
+          0
+        ]
+      ],
+      "abstained": 0,
+      "accepted": 4,
+      "acceptedCorrect": 3,
+      "familyAccuracy": 0.6111111111111112,
+      "leadRearAccuracy": 0.7777777777777778,
+      "wrongFamily": 7,
+      "sameFamilyWrongSide": 0,
+      "meanStoredMask": 0.9084967374801636,
+      "meanStoredLeftWristMask": 1.0,
+      "meanStoredRightWristMask": 0.9599999785423279,
+      "confusions": [
+        {
+          "truth": "jab",
+          "prediction": "rear_uppercut",
+          "count": 1
+        },
+        {
+          "truth": "cross",
+          "prediction": "rear_hook",
+          "count": 1
+        },
+        {
+          "truth": "rear_hook",
+          "prediction": "lead_uppercut",
+          "count": 1
+        },
+        {
+          "truth": "lead_uppercut",
+          "prediction": "rear_hook",
+          "count": 1
+        },
+        {
+          "truth": "rear_uppercut",
+          "prediction": "lead_hook",
+          "count": 1
+        },
+        {
+          "truth": "jab",
+          "prediction": "lead_uppercut",
+          "count": 1
+        },
+        {
+          "truth": "rear_hook",
+          "prediction": "rear_uppercut",
+          "count": 1
+        }
+      ]
+    },
+    "vid_01_cross_heavybag": {
+      "split": "train",
+      "classCounts": {
+        "cross": 2,
+        "jab": 1
+      },
+      "sampleWeightSum": 0.75,
+      "globalEffectiveTrainingWeightShare": 0.0001174790854791694,
+      "count": 3,
+      "accuracy": 0.3333333333333333,
+      "macroF1": 0.1111111111111111,
+      "perClass": {
+        "jab": {
+          "support": 1,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "cross": {
+          "support": 2,
+          "precision": 1.0,
+          "recall": 0.5,
+          "f1": 0.6666666666666666
+        },
+        "lead_hook": {
+          "support": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "rear_hook": {
+          "support": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "lead_uppercut": {
+          "support": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "rear_uppercut": {
+          "support": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        }
+      },
+      "confusionRows": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut"
+      ],
+      "confusionColumns": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut",
+        "unknown"
+      ],
+      "confusionMatrix": [
+        [
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "abstained": 0,
+      "accepted": 1,
+      "acceptedCorrect": 0,
+      "familyAccuracy": 0.3333333333333333,
+      "leadRearAccuracy": 0.6666666666666666,
+      "wrongFamily": 2,
+      "sameFamilyWrongSide": 0,
+      "meanStoredMask": 0.9403921365737915,
+      "meanStoredLeftWristMask": 1.0,
+      "meanStoredRightWristMask": 1.0,
+      "confusions": [
+        {
+          "truth": "cross",
+          "prediction": "lead_uppercut",
+          "count": 1
+        },
+        {
+          "truth": "jab",
+          "prediction": "lead_hook",
+          "count": 1
+        }
+      ]
+    }
+  },
+  "bySplit": {
+    "train": {
+      "count": 3681,
+      "accuracy": 0.9663135017658245,
+      "macroF1": 0.9595080467196869,
+      "perClass": {
+        "jab": {
+          "support": 947,
+          "precision": 0.9795479009687836,
+          "recall": 0.9609292502639916,
+          "f1": 0.9701492537313433
+        },
+        "cross": {
+          "support": 1140,
+          "precision": 0.9911268855368234,
+          "recall": 0.9798245614035088,
+          "f1": 0.9854433171592413
+        },
+        "lead_hook": {
+          "support": 708,
+          "precision": 0.9391424619640387,
+          "recall": 0.9590395480225988,
+          "f1": 0.9489867225716282
+        },
+        "rear_hook": {
+          "support": 243,
+          "precision": 0.9612068965517241,
+          "recall": 0.9176954732510288,
+          "f1": 0.9389473684210525
+        },
+        "lead_uppercut": {
+          "support": 328,
+          "precision": 0.9296187683284457,
+          "recall": 0.9664634146341463,
+          "f1": 0.9476831091180866
+        },
+        "rear_uppercut": {
+          "support": 315,
+          "precision": 0.9452887537993921,
+          "recall": 0.9873015873015873,
+          "f1": 0.9658385093167703
+        }
+      },
+      "confusionRows": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut"
+      ],
+      "confusionColumns": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut",
+        "unknown"
+      ],
+      "confusionMatrix": [
+        [
+          910,
+          2,
+          29,
+          0,
+          5,
+          1,
+          0
+        ],
+        [
+          5,
+          1117,
+          3,
+          5,
+          3,
+          7,
+          0
+        ],
+        [
+          14,
+          0,
+          679,
+          0,
+          15,
+          0,
+          0
+        ],
+        [
+          0,
+          8,
+          1,
+          223,
+          1,
+          10,
+          0
+        ],
+        [
+          0,
+          0,
+          10,
+          1,
+          317,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1,
+          3,
+          0,
+          311,
+          0
+        ]
+      ],
+      "abstained": 0,
+      "accepted": 3444,
+      "acceptedCorrect": 3395,
+      "familyAccuracy": 0.9684868242325455,
+      "leadRearAccuracy": 0.9951100244498777,
+      "wrongFamily": 116,
+      "sameFamilyWrongSide": 8,
+      "meanStoredMask": 0.9995039701461792,
+      "meanStoredLeftWristMask": 1.0,
+      "meanStoredRightWristMask": 0.9998043775558472,
+      "confusions": [
+        {
+          "truth": "jab",
+          "prediction": "lead_hook",
+          "count": 29
+        },
+        {
+          "truth": "lead_hook",
+          "prediction": "lead_uppercut",
+          "count": 15
+        },
+        {
+          "truth": "lead_hook",
+          "prediction": "jab",
+          "count": 14
+        },
+        {
+          "truth": "rear_hook",
+          "prediction": "rear_uppercut",
+          "count": 10
+        },
+        {
+          "truth": "lead_uppercut",
+          "prediction": "lead_hook",
+          "count": 10
+        },
+        {
+          "truth": "rear_hook",
+          "prediction": "cross",
+          "count": 8
+        },
+        {
+          "truth": "cross",
+          "prediction": "rear_uppercut",
+          "count": 7
+        },
+        {
+          "truth": "cross",
+          "prediction": "jab",
+          "count": 5
+        },
+        {
+          "truth": "jab",
+          "prediction": "lead_uppercut",
+          "count": 5
+        },
+        {
+          "truth": "cross",
+          "prediction": "rear_hook",
+          "count": 5
+        },
+        {
+          "truth": "cross",
+          "prediction": "lead_hook",
+          "count": 3
+        },
+        {
+          "truth": "rear_uppercut",
+          "prediction": "rear_hook",
+          "count": 3
+        },
+        {
+          "truth": "cross",
+          "prediction": "lead_uppercut",
+          "count": 3
+        },
+        {
+          "truth": "jab",
+          "prediction": "cross",
+          "count": 2
+        },
+        {
+          "truth": "rear_hook",
+          "prediction": "lead_hook",
+          "count": 1
+        },
+        {
+          "truth": "jab",
+          "prediction": "rear_uppercut",
+          "count": 1
+        },
+        {
+          "truth": "rear_hook",
+          "prediction": "lead_uppercut",
+          "count": 1
+        },
+        {
+          "truth": "lead_uppercut",
+          "prediction": "rear_hook",
+          "count": 1
+        },
+        {
+          "truth": "rear_uppercut",
+          "prediction": "lead_hook",
+          "count": 1
+        }
+      ]
+    },
+    "validation": {
+      "count": 199,
+      "accuracy": 0.9296482412060302,
+      "macroF1": 0.7742734374490285,
+      "perClass": {
+        "jab": {
+          "support": 25,
+          "precision": 0.78125,
+          "recall": 1.0,
+          "f1": 0.8771929824561403
+        },
+        "cross": {
+          "support": 32,
+          "precision": 0.8857142857142857,
+          "recall": 0.96875,
+          "f1": 0.9253731343283582
+        },
+        "lead_hook": {
+          "support": 88,
+          "precision": 0.9753086419753086,
+          "recall": 0.8977272727272727,
+          "f1": 0.9349112426035502
+        },
+        "rear_hook": {
+          "support": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "lead_uppercut": {
+          "support": 29,
+          "precision": 0.9629629629629629,
+          "recall": 0.896551724137931,
+          "f1": 0.9285714285714286
+        },
+        "rear_uppercut": {
+          "support": 25,
+          "precision": 1.0,
+          "recall": 0.96,
+          "f1": 0.9795918367346939
+        }
+      },
+      "confusionRows": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut"
+      ],
+      "confusionColumns": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut",
+        "unknown"
+      ],
+      "confusionMatrix": [
+        [
+          25,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          31,
+          0,
+          0,
+          1,
+          0,
+          0
+        ],
+        [
+          7,
+          2,
+          79,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          2,
+          0,
+          26,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          0,
+          0,
+          0,
+          24,
+          0
+        ]
+      ],
+      "abstained": 0,
+      "accepted": 171,
+      "acceptedCorrect": 166,
+      "familyAccuracy": 0.9296482412060302,
+      "leadRearAccuracy": 0.9798994974874372,
+      "wrongFamily": 14,
+      "sameFamilyWrongSide": 0,
+      "meanStoredMask": 1.0,
+      "meanStoredLeftWristMask": 1.0,
+      "meanStoredRightWristMask": 1.0,
+      "confusions": [
+        {
+          "truth": "lead_hook",
+          "prediction": "jab",
+          "count": 7
+        },
+        {
+          "truth": "lead_hook",
+          "prediction": "cross",
+          "count": 2
+        },
+        {
+          "truth": "lead_uppercut",
+          "prediction": "lead_hook",
+          "count": 2
+        },
+        {
+          "truth": "cross",
+          "prediction": "lead_uppercut",
+          "count": 1
+        },
+        {
+          "truth": "rear_uppercut",
+          "prediction": "cross",
+          "count": 1
+        },
+        {
+          "truth": "lead_uppercut",
+          "prediction": "cross",
+          "count": 1
+        }
+      ]
+    },
+    "calibration": {
+      "count": 595,
+      "accuracy": 0.8873949579831932,
+      "macroF1": 0.77654478223101,
+      "perClass": {
+        "jab": {
+          "support": 234,
+          "precision": 0.9817351598173516,
+          "recall": 0.9188034188034188,
+          "f1": 0.9492273730684325
+        },
+        "cross": {
+          "support": 140,
+          "precision": 0.85625,
+          "recall": 0.9785714285714285,
+          "f1": 0.9133333333333333
+        },
+        "lead_hook": {
+          "support": 69,
+          "precision": 0.8888888888888888,
+          "recall": 0.927536231884058,
+          "f1": 0.9078014184397163
+        },
+        "rear_hook": {
+          "support": 39,
+          "precision": 1.0,
+          "recall": 0.07692307692307693,
+          "f1": 0.14285714285714288
+        },
+        "lead_uppercut": {
+          "support": 39,
+          "precision": 0.8478260869565217,
+          "recall": 1.0,
+          "f1": 0.9176470588235294
+        },
+        "rear_uppercut": {
+          "support": 74,
+          "precision": 0.7368421052631579,
+          "recall": 0.9459459459459459,
+          "f1": 0.8284023668639052
+        }
+      },
+      "confusionRows": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut"
+      ],
+      "confusionColumns": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut",
+        "unknown"
+      ],
+      "confusionMatrix": [
+        [
+          215,
+          11,
+          8,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          137,
+          0,
+          0,
+          2,
+          1,
+          0
+        ],
+        [
+          4,
+          0,
+          64,
+          0,
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          8,
+          0,
+          3,
+          4,
+          24,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          39,
+          0,
+          0
+        ],
+        [
+          0,
+          4,
+          0,
+          0,
+          0,
+          70,
+          0
+        ]
+      ],
+      "abstained": 0,
+      "accepted": 529,
+      "acceptedCorrect": 491,
+      "familyAccuracy": 0.9058823529411765,
+      "leadRearAccuracy": 0.9714285714285714,
+      "wrongFamily": 56,
+      "sameFamilyWrongSide": 11,
+      "meanStoredMask": 1.0,
+      "meanStoredLeftWristMask": 1.0,
+      "meanStoredRightWristMask": 1.0,
+      "confusions": [
+        {
+          "truth": "rear_hook",
+          "prediction": "rear_uppercut",
+          "count": 24
+        },
+        {
+          "truth": "jab",
+          "prediction": "cross",
+          "count": 11
+        },
+        {
+          "truth": "jab",
+          "prediction": "lead_hook",
+          "count": 8
+        },
+        {
+          "truth": "rear_hook",
+          "prediction": "cross",
+          "count": 8
+        },
+        {
+          "truth": "rear_uppercut",
+          "prediction": "cross",
+          "count": 4
+        },
+        {
+          "truth": "lead_hook",
+          "prediction": "jab",
+          "count": 4
+        },
+        {
+          "truth": "rear_hook",
+          "prediction": "lead_uppercut",
+          "count": 4
+        },
+        {
+          "truth": "cross",
+          "prediction": "lead_uppercut",
+          "count": 2
+        },
+        {
+          "truth": "cross",
+          "prediction": "rear_uppercut",
+          "count": 1
+        },
+        {
+          "truth": "lead_hook",
+          "prediction": "lead_uppercut",
+          "count": 1
+        }
+      ]
+    },
+    "test": {
+      "count": 300,
+      "accuracy": 0.5733333333333334,
+      "macroF1": 0.5146447207375722,
+      "perClass": {
+        "jab": {
+          "support": 80,
+          "precision": 0.6027397260273972,
+          "recall": 0.55,
+          "f1": 0.5751633986928105
+        },
+        "cross": {
+          "support": 63,
+          "precision": 0.875,
+          "recall": 0.4444444444444444,
+          "f1": 0.5894736842105263
+        },
+        "lead_hook": {
+          "support": 45,
+          "precision": 0.5714285714285714,
+          "recall": 0.4444444444444444,
+          "f1": 0.5
+        },
+        "rear_hook": {
+          "support": 17,
+          "precision": 0.16666666666666666,
+          "recall": 0.11764705882352941,
+          "f1": 0.13793103448275862
+        },
+        "lead_uppercut": {
+          "support": 35,
+          "precision": 0.4857142857142857,
+          "recall": 0.9714285714285714,
+          "f1": 0.6476190476190476
+        },
+        "rear_uppercut": {
+          "support": 60,
+          "precision": 0.5641025641025641,
+          "recall": 0.7333333333333333,
+          "f1": 0.6376811594202899
+        }
+      },
+      "confusionRows": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut"
+      ],
+      "confusionColumns": [
+        "jab",
+        "cross",
+        "lead_hook",
+        "rear_hook",
+        "lead_uppercut",
+        "rear_uppercut",
+        "unknown"
+      ],
+      "confusionMatrix": [
+        [
+          44,
+          4,
+          10,
+          0,
+          6,
+          16,
+          0
+        ],
+        [
+          14,
+          28,
+          3,
+          0,
+          5,
+          13,
+          0
+        ],
+        [
+          14,
+          0,
+          20,
+          10,
+          0,
+          1,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          2,
+          11,
+          4,
+          0
+        ],
+        [
+          1,
+          0,
+          0,
+          0,
+          34,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          2,
+          0,
+          14,
+          44,
+          0
+        ]
+      ],
+      "abstained": 0,
+      "accepted": 183,
+      "acceptedCorrect": 136,
+      "familyAccuracy": 0.7133333333333334,
+      "leadRearAccuracy": 0.7333333333333333,
+      "wrongFamily": 86,
+      "sameFamilyWrongSide": 42,
+      "meanStoredMask": 1.0,
+      "meanStoredLeftWristMask": 1.0,
+      "meanStoredRightWristMask": 1.0,
+      "confusions": [
+        {
+          "truth": "jab",
+          "prediction": "rear_uppercut",
+          "count": 16
+        },
+        {
+          "truth": "lead_hook",
+          "prediction": "jab",
+          "count": 14
+        },
+        {
+          "truth": "cross",
+          "prediction": "jab",
+          "count": 14
+        },
+        {
+          "truth": "rear_uppercut",
+          "prediction": "lead_uppercut",
+          "count": 14
+        },
+        {
+          "truth": "cross",
+          "prediction": "rear_uppercut",
+          "count": 13
+        },
+        {
+          "truth": "rear_hook",
+          "prediction": "lead_uppercut",
+          "count": 11
+        },
+        {
+          "truth": "lead_hook",
+          "prediction": "rear_hook",
+          "count": 10
+        },
+        {
+          "truth": "jab",
+          "prediction": "lead_hook",
+          "count": 10
+        },
+        {
+          "truth": "jab",
+          "prediction": "lead_uppercut",
+          "count": 6
+        },
+        {
+          "truth": "cross",
+          "prediction": "lead_uppercut",
+          "count": 5
+        },
+        {
+          "truth": "jab",
+          "prediction": "cross",
+          "count": 4
+        },
+        {
+          "truth": "rear_hook",
+          "prediction": "rear_uppercut",
+          "count": 4
+        },
+        {
+          "truth": "cross",
+          "prediction": "lead_hook",
+          "count": 3
+        },
+        {
+          "truth": "rear_uppercut",
+          "prediction": "lead_hook",
+          "count": 2
+        },
+        {
+          "truth": "lead_uppercut",
+          "prediction": "jab",
+          "count": 1
+        },
+        {
+          "truth": "lead_hook",
+          "prediction": "rear_uppercut",
+          "count": 1
+        }
+      ]
+    }
+  },
+  "exactDuplicateFeatureGroups": 0,
+  "exactDuplicateFeatureSamples": 0,
+  "conflictingLabelDuplicateGroups": 0,
+  "crossSplitDuplicateGroups": 0,
+  "duplicateGroupSampleIds": [],
+  "limitations": [
+    "Training-source agreement measures fit, not generalization.",
+    "All truth labels are source/provisional labels, not independently coach-confirmed.",
+    "Stored masks in mirror and YOLO have different provenance; mask=1 does not prove keypoint correctness.",
+    "Weight shares normalize the global objective; random per-batch normalization and model gradients can differ.",
+    "Exact feature duplicate check does not rule out near duplicates or shared fighters.",
+    "Family/side analysis maps existing labels, it does not verify stance or train a hierarchical classifier."
+  ]
+}

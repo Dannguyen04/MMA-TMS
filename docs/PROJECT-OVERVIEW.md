@@ -18,6 +18,10 @@
 
 Spec kỹ thuật chính: [MMA-TMS Master Specification v3](./MMA-TMS-MASTER-SPECIFICATION-v3.md) và [Martial Arts AI Coaching Spec v1](./MARTIAL-ARTS-AI-COACHING-SPEC-v1.md).
 
+Triển khai temporal AI sau YOLO-Pose (2026-10-05):
+[thiết kế, contract và lệnh chạy](./AI-TEMPORAL-IMPLEMENTATION.md),
+[thu thập/gán nhãn dữ liệu cho HLV](./AI-DATA-COLLECTION-PROTOCOL.md).
+
 ---
 
 ## 1. Giới Thiệu

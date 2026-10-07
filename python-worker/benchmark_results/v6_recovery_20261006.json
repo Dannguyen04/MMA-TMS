@@ -1,0 +1,50 @@
+{
+  "status": "V6_RECOVERY_VERIFIED",
+  "manifestSha256": "bcbb417c1eafa1a0c1d40db26021cd3c17a631af4adb2cc41ab669d34b91769b",
+  "parentManifestSha256": "68ae10fa47b820f9352ecf3318c703cec76deef0b74d808e6205825038f681f9",
+  "sampleCount": 5460,
+  "splitCounts": {
+    "train": 4366,
+    "validation": 199,
+    "calibration": 595,
+    "test": 300
+  },
+  "audit": {
+    "status": "EXPLICIT_FRAME_ID_RECOVERY",
+    "sourceShape": [
+      46497,
+      1,
+      17,
+      3
+    ],
+    "originalSha256": "70232bd51736ed59e869921c14fefb59972d1cb8814d76988ce724888d21bafd",
+    "mirrorSha256": "70232bd51736ed59e869921c14fefb59972d1cb8814d76988ce724888d21bafd",
+    "annotationSha256": "cfd7be5d48c0c9def9c21955bf7607f31fef656cfd1816788484bfe944ef4c8e",
+    "columnMeaning": [
+      "source_frame_id",
+      "x",
+      "y"
+    ],
+    "frameIdRange": [
+      157,
+      46704
+    ],
+    "accepted": 685,
+    "rejected": [],
+    "classes": {
+      "jab": 0,
+      "cross": 0,
+      "lead_hook": 125,
+      "rear_hook": 95,
+      "lead_uppercut": 259,
+      "rear_uppercut": 206
+    },
+    "longerThan25Frames": 8,
+    "resampling": "Use complete source interval; v1 uniformly resamples to 25 steps, no truncation.",
+    "frameConvention": "Match source IDs verbatim; no conversion to decoded RGB indices asserted.",
+    "coachConfirmed": false,
+    "productionEligible": false
+  },
+  "existingFeaturesUnchanged": true,
+  "adamOriginalLabelsPreserved": true
+}

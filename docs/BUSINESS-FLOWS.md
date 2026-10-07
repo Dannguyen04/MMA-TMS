@@ -225,7 +225,7 @@ Ví dụ: 85 min × RPE 7 = 595
 10. Ghost alignment (so sánh với reference video)
 ```
 
-### 6 Kỹ thuật MVP (Production-Ready)
+### 6 Kỹ thuật trong phạm vi MVP (chưa nghiệm thu, đầu ra bị chặn)
 
 | # | Technique | FSM |
 |---|---|---|
@@ -236,7 +236,13 @@ Ví dụ: 85 min × RPE 7 = 595
 | 5 | Round Kick | Kick FSM |
 | 6 | Switch Kick | Kick FSM |
 
+> **Trạng thái hiện tại (2026-10-06):** bảng trên là phạm vi các FSM của detector cũ, không phải kết quả nghiệm thu. Chưa có kỹ thuật nào đạt release gate ([AI_COACHING_RELIABILITY_PLAN](AI_COACHING_RELIABILITY_PLAN.md)). Detector đấm/đá đo trên 9 video / 48 đòn có nhãn: precision 57,7%, recall 31,3%, F1 40,5% ([STRIKE_BENCHMARK_REPORT](../python-worker/STRIKE_BENCHMARK_REPORT.md)). Bộ nhận diện 6 đòn (jab, cross, lead/rear hook, lead/rear uppercut) mới ở mức nghiên cứu, chưa đạt nghiệm thu ([AI-SIX-PUNCH-VIDEO](AI-SIX-PUNCH-VIDEO-20261006.md)).
+>
+> Vì vậy `python-worker/pipeline/release_safety.py` chặn đầu ra công bố: nhãn kỹ thuật thành `unknown`, điểm và confidence để `null`, danh sách findings và khuyến nghị huấn luyện để trống, chế độ `coach_review_only`. Các giai đoạn 7, 8 và 10 ở sơ đồ trên (phân loại và chấm điểm, finding, so sánh ghost) không cho ra kết quả được công bố. HLV vẫn nhận video, dòng thời gian và khoảng bằng chứng chuyển động để tự xem xét ([AI-MOVEMENT-EVIDENCE-v1](AI-MOVEMENT-EVIDENCE-v1.md)). Kế hoạch thu dữ liệu để đo lại: [AI-CLUB-DATA-PLAN-20261006](AI-CLUB-DATA-PLAN-20261006.md).
+
 ### Biomechanical Metrics
+
+> Bảng dưới là thiết kế chỉ số, chưa được kiểm định. Báo cáo mới không hiển thị tốc độ, lực proxy và góc xoay legacy ([AI-MOVEMENT-EVIDENCE-v1](AI-MOVEMENT-EVIDENCE-v1.md)).
 
 | Metric | Cách tính | Baseline (nam pro) |
 |---|---|---|
@@ -255,6 +261,8 @@ Ví dụ: 85 min × RPE 7 = 595
 4. Chấm overall rating (1-5 ⭐) + text feedback
 5. Giao corrective drill → Gắn vào buổi tập tiếp theo
 6. Submit → Thông báo đến võ sĩ
+
+> Khi đầu ra AI đang bị chặn (xem trên), danh sách AI findings để trống; HLV xem và nhận xét các khoảng bằng chứng chuyển động thay cho Confirm/Correct/Reject từng finding.
 
 ### AI Safety Rules (Quy tắc an toàn)
 
