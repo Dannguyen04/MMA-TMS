@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gán nhãn toàn timeline — video CLB</title>
+<style>
+:root{color-scheme:light;font-family:system-ui,-apple-system,sans-serif;color:#142537;background:#edf2f6;
+--strike:#116b65;--bg:#8497a8;--unclear:#c27c0e;--bad:#b3261e;--line:#a9bbc9}
+*{box-sizing:border-box}body{margin:0}header{padding:18px 26px;background:#132638;color:white}
+h1{font-size:22px;margin:4px 0 8px}h2{font-size:16px;margin:0 0 10px}p{line-height:1.5;margin:6px 0}
+.eyebrow{font-size:12px;letter-spacing:2px;color:#8adecf}.muted{color:#597084;font-size:13px}.intro{max-width:980px;color:#d1dfe9;font-size:14px}
+.meta{display:flex;flex-wrap:wrap;gap:18px;margin-top:12px;font-size:12px;color:#bbccd8}.meta strong{display:block;font-size:15px;color:white}
+.layout{max-width:1500px;margin:18px auto;padding:0 18px;display:grid;grid-template-columns:minmax(380px,1fr) 380px;gap:16px}
+.panel{background:white;border:1px solid #dbe4eb;border-radius:12px;padding:14px;align-self:start}
+label{font-size:13px;font-weight:600;display:block;margin:10px 0 4px}
+select,input,textarea,button{font:inherit}
+select,input[type=text],input[type=number],textarea{width:100%;padding:7px;border:1px solid var(--line);border-radius:6px;background:white;color:#142537}
+textarea{resize:vertical;min-height:54px}
+button{border:1px solid var(--line);border-radius:7px;background:white;padding:7px 10px;cursor:pointer;color:#173c51}
+button:hover{background:#e9f5f4}button:disabled{opacity:.5;cursor:not-allowed}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid #199b9a;outline-offset:2px}
+.primary{background:#116b65;color:white;border-color:#116b65}.primary:hover{background:#0d5550}
+.controls{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0}
+.controls select{width:auto}.time{font-variant-numeric:tabular-nums;font-size:13px;color:#173c51}
+video{width:100%;max-height:52vh;background:#0b1620;border-radius:8px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.row button{width:100%;margin-top:4px;font-size:12px}
+.checks{display:flex;flex-wrap:wrap;gap:4px 12px}.checks label{font-weight:400;margin:2px 0;display:flex;gap:5px;align-items:center}
+.checks input,label.check input{width:auto}label.check{font-weight:400;display:flex;gap:6px;align-items:center}
+#timeline{position:relative;height:44px;border:1px solid var(--line);border-radius:6px;margin:8px 0;cursor:crosshair;
+background:repeating-linear-gradient(45deg,#fff,#fff 5px,#e3ebf1 5px,#e3ebf1 10px)}
+#timeline .seg{position:absolute;top:3px;bottom:3px;min-width:3px;padding:0;border:1px solid rgba(0,0,0,.35);border-radius:3px;opacity:.9}
+#timeline .seg.strike{background:var(--strike)}#timeline .seg.background{background:var(--bg)}#timeline .seg.unclear{background:var(--unclear)}
+#timeline .seg.bad{outline:3px solid var(--bad);z-index:3}#timeline .seg.sel{border:3px solid #142537;z-index:4}
+#timeline .head{position:absolute;top:0;bottom:0;width:2px;background:#d6336c;z-index:5;pointer-events:none}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:#597084}.legend i{display:inline-block;width:12px;height:12px;border-radius:2px;margin-right:4px;vertical-align:-2px;border:1px solid rgba(0,0,0,.3)}
+.banner{border-radius:8px;padding:9px 11px;font-size:13px;margin:8px 0}.banner.err{background:#fde7e4;border:1px solid var(--bad);color:#7a1610}
+.banner.ok{background:#e6f4f1;border:1px solid #116b65;color:#0d4f4a}.banner.warn{background:#fff2d6;border:1px solid #c27c0e;color:#6b4500}
+.list{max-height:34vh;overflow:auto;display:flex;flex-direction:column;gap:4px;margin-top:6px}
+.item{text-align:left;font-size:12px;line-height:1.4;display:flex;gap:8px;justify-content:space-between}.item.active{border:2px solid #116b65;background:#e6f4f1}
+.item.bad{border-color:var(--bad)}.tag{font-size:11px;color:var(--bad);font-weight:700}
+ul.issues{margin:4px 0;padding-left:18px;font-size:12px}ul.issues button{padding:2px 6px;font-size:12px;margin-left:4px}
+.message{min-height:20px;font-size:13px;margin-top:8px}kbd{background:#eef2f5;border:1px solid var(--line);border-radius:4px;padding:0 5px;font-size:12px}
+table.keys{font-size:12px;border-collapse:collapse}table.keys td{padding:2px 8px 2px 0;vertical-align:top}
+.warnlist{color:#ffd58a}[hidden]{display:none!important}
+@media(max-width:900px){.layout{display:flex;flex-direction:column;padding:0 10px}.panel{width:100%}}
+</style>
+</head>
+<body>
+<header><div class="eyebrow">MMA-TMS · DATA ANNOTATION</div><h1>Gán nhãn toàn timeline video CLB</h1>
+<p class="intro">Phủ video bằng các khoảng nửa mở [bắt đầu, kết thúc): đòn, background hoặc không rõ (kèm lý do). Khoảng chưa gán là chưa biết, không tự thành background. Không có gợi ý mô hình. File xuất là khai báo chưa xác thực của người gán, không phải xác nhận HLV.</p>
+<div class="meta" id="meta"></div><div class="meta warnlist" id="packWarnings"></div></header>
+<main class="layout">
+<section class="panel" aria-label="Video và timeline">
+<video id="video" controls preload="metadata"></video>
+<p id="videoError" class="banner err" role="alert" hidden></p>
+<div class="controls"><button id="playPause" title="Space">Phát / dừng</button>
+<button id="back10" title="Shift+,">−10 frame</button><button id="back1" title=",">−1 frame</button><button id="fwd1" title=".">+1 frame</button><button id="fwd10" title="Shift+.">+10 frame</button>
+<select id="speed" aria-label="Tốc độ phát"><option value="0.25">0,25×</option><option value="0.5">0,5×</option><option value="1" selected>1×</option></select>
+<button id="playInterval">Phát khoảng đang chọn</button><span class="time" id="playhead"></span></div>
+<div id="timeline" role="group" aria-label="Timeline: vùng sọc là khoảng chưa gán"></div>
+<div class="legend"><span><i style="background:var(--strike)"></i>đòn</span><span><i style="background:var(--bg)"></i>background</span><span><i style="background:var(--unclear)"></i>không rõ</span><span><i style="background:repeating-linear-gradient(45deg,#fff,#fff 3px,#e3ebf1 3px,#e3ebf1 6px)"></i>chưa gán</span><span><i style="background:white;outline:2px solid var(--bad)"></i>lỗi/chồng</span></div>
+<div id="status" role="status" aria-live="polite"></div>
+<h2 style="margin-top:14px">Các khoảng đã gán</h2><div class="list" id="intervalList" aria-label="Danh sách khoảng"></div>
+<h2 style="margin-top:14px">Khoảng hở chưa gán</h2><div id="gapList" class="muted"></div>
+<details style="margin-top:12px"><summary>Phím tắt (không dùng khi đang gõ trong ô nhập)</summary>
+<table class="keys"><tr><td><kbd>Space</kbd></td><td>phát/dừng</td><td><kbd>,</kbd> <kbd>.</kbd> / <kbd>←</kbd> <kbd>→</kbd></td><td>lùi/tiến 1 frame (Shift: 10)</td></tr>
+<tr><td><kbd>[</kbd> <kbd>]</kbd></td><td>lấy mốc bắt đầu / kết thúc</td><td><kbd>p</kbd></td><td>lấy mốc peak</td></tr>
+<tr><td><kbd>1</kbd>–<kbd>6</kbd></td><td>jab, cross, lead hook, rear hook, lead uppercut, rear uppercut</td><td><kbd>0</kbd> <kbd>u</kbd></td><td>background / không rõ</td></tr>
+<tr><td><kbd>f</kbd> <kbd>b</kbd></td><td>tay trước (lead) / tay sau (rear)</td><td><kbd>o</kbd> <kbd>s</kbd></td><td>orthodox / southpaw</td></tr>
+<tr><td><kbd>Enter</kbd></td><td>lưu khoảng</td><td><kbd>n</kbd></td><td>khoảng mới, bắt đầu từ cuối khoảng trước</td></tr>
+<tr><td><kbd>x</kbd></td><td>tách khoảng đang chọn tại playhead</td><td><kbd>Delete</kbd></td><td>xóa khoảng đang chọn</td></tr>
+<tr><td><kbd>↑</kbd> <kbd>↓</kbd></td><td>chọn khoảng trước/sau</td><td><kbd>Ctrl+Z</kbd></td><td>hoàn tác</td></tr></table>
+<p class="muted">Mốc kết thúc là frame đầu tiên SAU khoảng (nửa mở), nên khoảng liền nhau dùng chung một mốc. Mốc lấy từ playhead được làm tròn xuống đầu frame theo FPS khai báo; trình duyệt không bảo đảm tua đúng từng frame, nhất là video có FPS thay đổi.</p></details>
+</section>
+<aside class="panel" aria-label="Biểu mẫu khoảng">
+<h2>Khoảng đang gán <span id="editingId" class="muted"></span></h2>
+<label for="annotator">Mã người gán (tự khai, không xác thực)</label>
+<input type="text" id="annotator" autocomplete="off" placeholder="ví dụ ANN-A" aria-describedby="annotatorHelp">
+<p class="muted" id="annotatorHelp">Chỉ chữ không dấu, số, . _ - (tối đa 64). Không dùng tên thật. Hai người gán độc lập cần hai mã và hai browser profile khác nhau.</p>
+<label for="guideVersion">Phiên bản hướng dẫn nhãn</label><input type="text" id="guideVersion" autocomplete="off" placeholder="ví dụ v1">
+<label for="technique">Loại khoảng</label><select id="technique"><option value="">Chưa chọn</option></select>
+<div class="row"><div><label for="startMs">Bắt đầu (ms)</label><input type="number" id="startMs" min="0" step="any"><button id="setStart" title="[">Lấy từ playhead</button></div>
+<div><label for="endMs">Kết thúc (ms)</label><input type="number" id="endMs" min="0" step="any"><button id="setEnd" title="]">Lấy từ playhead</button></div></div>
+<div id="strikeFields" hidden>
+<div class="row"><div><label for="peakMs">Peak (ms, tùy chọn)</label><input type="number" id="peakMs" min="0" step="any"><button id="setPeak" title="p">Lấy từ playhead</button></div>
+<div><label for="leadRear">Tay</label><select id="leadRear"><option value="">Chưa chọn</option><option value="lead">Lead (tay trước)</option><option value="rear">Rear (tay sau)</option></select></div></div></div>
+<label for="stance">Thế thủ <span id="stanceHint" class="muted"></span></label><select id="stance"><option value="">Chưa ghi</option><option value="orthodox">Orthodox</option><option value="southpaw">Southpaw</option></select>
+<label class="check"><input type="checkbox" id="stickyStance">Nhớ thế thủ của đòn trước cho đòn kế tiếp (không áp cho background)</label>
+<div id="backgroundFields" hidden><label for="backgroundType">Loại background</label><select id="backgroundType"><option value="">Chưa ghi loại</option></select></div>
+<div id="unclearFields" hidden><label for="unclearReason">Lý do không rõ (bắt buộc)</label><select id="unclearReason"><option value="">Chưa chọn</option></select></div>
+<label>Cờ chất lượng</label><div class="checks" id="qualityFlags"></div>
+<label for="certainty">Mức chắc chắn</label><select id="certainty"><option value="certain">Chắc</option><option value="uncertain">Chưa chắc (chuyển phân xử)</option></select>
+<label for="note">Ghi chú</label><textarea id="note"></textarea>
+<div class="controls"><button id="commit" class="primary">Lưu khoảng (Enter)</button><button id="newInterval">Khoảng mới (n)</button><button id="splitBtn">Tách tại playhead (x)</button><button id="deleteBtn">Xóa (Del)</button><button id="undoBtn">Hoàn tác</button></div>
+<div id="message" class="message" role="status" aria-live="polite"></div>
+<h2 style="margin-top:12px">Kiểm tra timeline</h2><div id="validation"></div>
+<label class="check" style="margin-top:10px"><input type="checkbox" id="declaredComplete" disabled>Tôi đã kiểm tra toàn bộ video: timeline phủ kín và không còn lỗi.</label>
+<button id="export" class="full" style="width:100%;margin-top:8px">Xuất nhãn JSON</button>
+<p class="muted">Bản nháp lưu trong trình duyệt theo gói + mã người gán; file xuất mới là bản bàn giao. File xuất luôn <code>LOCAL_REVIEW_UNVERIFIED</code>, <code>coachConfirmed: false</code>, <code>goldEligible: false</code>.</p>
+</aside>
+</main>
+<script type="application/json" id="reviewData">__REVIEW_DATA_JSON__</script>
+<script>/*__TIMELINE_CORE_JS__*/</script>
+<script>
+'use strict';
+const TC=window.TimelineCore, pack=JSON.parse(document.getElementById('reviewData').textContent), info=pack.video;
+const $=id=>document.getElementById(id), video=$('video'), fps=info.fps, durationMs=info.durationMs;
+const names={jab:'Jab',cross:'Cross',lead_hook:'Lead hook',rear_hook:'Rear hook',lead_uppercut:'Lead uppercut',rear_uppercut:'Rear uppercut',background:'Background (không ra đòn)',unclear:'Không rõ'};
+const bgNames={standing_still:'Đứng yên',footwork:'Đi lại / footwork',guard_change:'Nâng-hạ guard',glove_adjust:'Chỉnh găng',block:'Block',parry:'Parry',feint:'Feint',slip_bob:'Slip / bob',stance_switch:'Đổi thế thủ',other:'Khác (ghi chú)'};
+const flagNames={occluded:'Che khuất',out_of_frame:'Ra ngoài khung',multiple_people:'Nhiều người',motion_blur:'Mờ chuyển động',low_light:'Thiếu sáng',camera_shift:'Camera dịch',track_lost:'Track đứt',poor_pose:'Pose kém',other:'Khác (ghi chú)'};
+const issueText={OVERLAPPING_INTERVALS:'Chồng nhau',START_NOT_BEFORE_END:'Kết thúc không sau bắt đầu',OUT_OF_VIDEO_RANGE:'Ngoài thời lượng video',TIME_NOT_FINITE:'Mốc thời gian không phải số',STRIKE_STANCE_REQUIRED:'Đòn thiếu thế thủ',STRIKE_LEAD_REAR_REQUIRED:'Đòn thiếu lead/rear',PEAK_OUTSIDE_INTERVAL:'Peak ngoài khoảng',UNCLEAR_REASON_REQUIRED:'Không rõ thiếu lý do',UNCLEAR_REASON_NOTE_REQUIRED:'Lý do "khác" cần ghi chú',LEAD_REAR_CLASS_MISMATCH:'Lead/rear không khớp tên lớp đòn',BACKGROUND_TYPE_MISSING:'Background chưa ghi loại',DECLARED_COMPLETE_WITH_GAPS:'Khai hoàn chỉnh nhưng còn khoảng hở',DECLARED_COMPLETE_WITH_ERRORS:'Khai hoàn chỉnh nhưng còn lỗi',FIELD_NOT_APPLICABLE:'Trường không áp dụng cho loại này',DUPLICATE_INTERVAL_ID:'Mã khoảng trùng'};
+const fmt=ms=>(ms/1000).toFixed(3)+' s';
+for(const t of TC.TECHNIQUES){const o=document.createElement('option');o.value=t;const k={jab:'1',cross:'2',lead_hook:'3',rear_hook:'4',lead_uppercut:'5',rear_uppercut:'6',background:'0',unclear:'u'}[t];o.textContent='['+k+'] '+names[t];$('technique').append(o);}
+for(const t of TC.BACKGROUND_TYPES){const o=document.createElement('option');o.value=t;o.textContent=bgNames[t];$('backgroundType').append(o);}
+for(const t of TC.UNCLEAR_REASONS){const o=document.createElement('option');o.value=t;o.textContent=flagNames[t];$('unclearReason').append(o);}
+for(const t of TC.QUALITY_FLAGS){const l=document.createElement('label'),c=document.createElement('input');c.type='checkbox';c.value=t;c.name='qflag';l.append(c,flagNames[t]);$('qualityFlags').append(l);}
+$('meta').innerHTML='';
+for(const [label,value] of [['Video',info.sourceVideoId],['Võ sĩ / buổi',info.fighterId+' / '+info.sessionId],['FPS khai báo',fps.toFixed(3)],['Frame giải mã',info.decodedFrames],['Thời lượng',fmt(durationMs)],['SHA-256',info.sha256.slice(0,12)+'…'],['Tham chiếu đồng ý',info.consentReference||'chưa có'],['Góc máy / thế thủ khai báo',(info.cameraView||'-')+' / '+(info.declaredStance||'-')]]){const d=document.createElement('div'),s=document.createElement('strong');s.textContent=String(value);d.append(s,label);$('meta').append(d);}
+$('packWarnings').textContent=info.warnings&&info.warnings.length?'Cảnh báo nhập video: '+info.warnings.join(', '):'';
+$('guideVersion').value=pack.guideVersion||'';
+
+let intervals=[], selectedId=null, undoStack=[], revision=0, stopAt=null, lastStrikeStance=null, draftStartHint=null;
+const store=()=> 'mma-club-timeline-'+pack.packId+'-'+$('annotator').value.trim();
+const annotatorOk=()=>TC.isId($('annotator').value.trim());
+const say=t=>{$('message').textContent=t;};
+const markMs=t=>Math.floor(t*fps+1e-6)/fps*1000;
+const isStrike=t=>TC.STRIKES.includes(t);
+
+function persist(){
+  if(!annotatorOk()) return;
+  revision+=1;
+  try{localStorage.setItem(store(),JSON.stringify({revision:revision,intervals:intervals,guideVersion:$('guideVersion').value,declaredComplete:$('declaredComplete').checked}));}
+  catch(_){say('Không lưu được trong trình duyệt. Hãy xuất JSON ngay để giữ nhãn.');}
+}
+function loadDraft(){
+  intervals=[];revision=0;selectedId=null;undoStack=[];
+  try{const s=JSON.parse(localStorage.getItem(store())||'null');if(s&&Array.isArray(s.intervals)){intervals=TC.sortIntervals(s.intervals.map(i=>TC.normalizeInterval(i)));revision=s.revision||0;if(s.guideVersion)$('guideVersion').value=s.guideVersion;}}catch(_){}
+}
+function snapshot(){undoStack.push(JSON.stringify(intervals));if(undoStack.length>200)undoStack.shift();}
+function undo(){if(!undoStack.length){say('Không còn gì để hoàn tác.');return;}intervals=JSON.parse(undoStack.pop());if(!intervals.some(i=>i.intervalId===selectedId))selectedId=null;persist();fillForm();refresh();say('Đã hoàn tác.');}
+
+function readForm(){
+  const num=id=>$(id).value===''?null:Number($(id).value);
+  return {technique:$('technique').value,startTimeMs:num('startMs'),endTimeMs:num('endMs'),peakTimeMs:num('peakMs'),leadRear:$('leadRear').value,stance:$('stance').value,
+    backgroundType:$('backgroundType').value,unclearReason:$('unclearReason').value,qualityFlags:[...document.querySelectorAll('input[name=qflag]:checked')].map(c=>c.value),
+    certainty:$('certainty').value,note:$('note').value};
+}
+function fillForm(){
+  const iv=intervals.find(i=>i.intervalId===selectedId);
+  $('editingId').textContent=iv?'· '+iv.intervalId:'· khoảng mới';
+  const v=iv||{technique:'',startTimeMs:draftStartHint,endTimeMs:null,peakTimeMs:null,leadRear:'',stance:'',backgroundType:'',unclearReason:'',qualityFlags:[],certainty:'certain',note:''};
+  $('technique').value=v.technique||'';$('startMs').value=v.startTimeMs??'';$('endMs').value=v.endTimeMs??'';$('peakMs').value=v.peakTimeMs??'';
+  $('leadRear').value=v.leadRear||'';$('stance').value=v.stance||'';$('backgroundType').value=v.backgroundType||'';$('unclearReason').value=v.unclearReason||'';
+  for(const c of document.querySelectorAll('input[name=qflag]'))c.checked=(v.qualityFlags||[]).includes(c.value);
+  $('certainty').value=v.certainty||'certain';$('note').value=v.note||'';showFields();
+}
+function showFields(){
+  const t=$('technique').value;
+  $('strikeFields').hidden=!isStrike(t);$('backgroundFields').hidden=t!=='background';$('unclearFields').hidden=t!=='unclear';
+  $('stanceHint').textContent=isStrike(t)?'(bắt buộc cho đòn)':'(tùy chọn; để trống nếu chưa quyết)';
+}
+function newDraft(startMs){selectedId=null;draftStartHint=startMs??null;fillForm();refresh();}
+
+function commit(){
+  if(!annotatorOk()){say('Nhập mã người gán hợp lệ trước khi lưu khoảng.');$('annotator').focus();return;}
+  const raw=readForm(),iv=TC.normalizeInterval(Object.assign({intervalId:selectedId||'tmp'},raw));
+  const fieldErrors=TC.validateInterval(iv,durationMs).filter(i=>i.severity==='error');
+  if(fieldErrors.length){say('Chưa lưu: '+fieldErrors.map(e=>issueText[e.code]||e.message).join('; ')+'.');return;}
+  snapshot();
+  const result=selectedId?TC.updateInterval(intervals,selectedId,raw):TC.addInterval(intervals,raw);
+  intervals=result.list;const saved=result.interval;
+  if(isStrike(saved.technique))lastStrikeStance=saved.stance;
+  persist();
+  const overlaps=TC.validateTimeline(intervals,{durationMs:durationMs}).errors.filter(e=>e.code==='OVERLAPPING_INTERVALS'&&e.intervalIds.includes(saved.intervalId));
+  newDraft(saved.endTimeMs);
+  say(overlaps.length?'Đã lưu '+saved.intervalId+' NHƯNG chồng '+overlaps.map(o=>o.intervalIds.filter(x=>x!==saved.intervalId)[0]+' ('+o.overlapMs+' ms)').join(', ')+'. Sửa mốc trước khi xuất.':'Đã lưu '+saved.intervalId+'.');
+}
+function removeSelected(){
+  if(!selectedId){say('Chưa chọn khoảng để xóa.');return;}
+  snapshot();const id=selectedId;intervals=TC.removeInterval(intervals,id);persist();newDraft(null);say('Đã xóa '+id+'. Vùng đó giờ là khoảng chưa gán.');
+}
+function splitSelected(){
+  if(!selectedId){say('Chọn khoảng cần tách.');return;}
+  try{snapshot();const r=TC.splitInterval(intervals,selectedId,markMs(video.currentTime));intervals=r.list;selectedId=r.ids[1];persist();fillForm();refresh();say('Đã tách thành '+r.ids.join(' và ')+'. Kiểm tra nhãn từng nửa.');}
+  catch(e){undoStack.pop();say(e.message);}
+}
+function select(id,seekTo){selectedId=id;fillForm();refresh();if(seekTo!==false){const iv=intervals.find(i=>i.intervalId===id);if(iv)seek(iv.startTimeMs/1000);}}
+
+function seek(t){video.currentTime=Math.max(0,Math.min(t,video.duration||durationMs/1000));}
+function step(frames){video.pause();stopAt=null;const n=Math.round(video.currentTime*fps)+frames;seek((Math.max(0,n)+0.5)/fps);}
+video.addEventListener('timeupdate',()=>{updateHead();if(stopAt!==null&&video.currentTime>=stopAt){video.pause();stopAt=null;}});
+video.addEventListener('error',()=>{$('videoError').hidden=false;$('videoError').textContent='Không mở được video. Dùng serve_coach_review_dataset.py và mở qua http://127.0.0.1.';});
+function updateHead(){
+  const t=video.currentTime;$('playhead').textContent=t.toFixed(3)+' s · frame '+Math.floor(t*fps+1e-6);
+  const h=$('timeline').querySelector('.head');if(h)h.style.left=Math.min(100,t*1000/durationMs*100)+'%';
+}
+
+function refresh(){
+  const result=TC.validateTimeline(intervals,{durationMs:durationMs,declaredComplete:$('declaredComplete').checked});
+  const badIds=new Set();for(const e of result.errors)for(const id of e.intervalIds)badIds.add(id);
+  // timeline
+  const tl=$('timeline');tl.replaceChildren();
+  for(const iv of intervals){if(!(iv.endTimeMs>iv.startTimeMs))continue;
+    const b=document.createElement('button');b.type='button';
+    const kind=isStrike(iv.technique)?'strike':iv.technique;
+    b.className='seg '+kind+(badIds.has(iv.intervalId)?' bad':'')+(iv.intervalId===selectedId?' sel':'');
+    b.style.left=(iv.startTimeMs/durationMs*100)+'%';b.style.width=((iv.endTimeMs-iv.startTimeMs)/durationMs*100)+'%';
+    b.title=iv.intervalId+' · '+names[iv.technique]+' · '+fmt(iv.startTimeMs)+'–'+fmt(iv.endTimeMs);b.setAttribute('aria-label',b.title);
+    b.onclick=ev=>{ev.stopPropagation();select(iv.intervalId);};tl.append(b);}
+  const head=document.createElement('div');head.className='head';tl.append(head);updateHead();
+  // list
+  const list=$('intervalList');list.replaceChildren();
+  for(const iv of intervals){const b=document.createElement('button');b.type='button';b.className='item'+(iv.intervalId===selectedId?' active':'')+(badIds.has(iv.intervalId)?' bad':'');
+    const left=document.createElement('span');left.textContent=iv.intervalId+' · '+names[iv.technique]+(iv.backgroundType?' ('+bgNames[iv.backgroundType]+')':'')+(iv.unclearReason?' ('+flagNames[iv.unclearReason]+')':'')+' · '+fmt(iv.startTimeMs)+'–'+fmt(iv.endTimeMs)+(iv.leadRear?' · '+iv.leadRear:'')+(iv.stance?' · '+iv.stance:'')+(iv.certainty==='uncertain'?' · chưa chắc':'');
+    const right=document.createElement('span');right.className='tag';right.textContent=badIds.has(iv.intervalId)?'LỖI':'';b.append(left,right);b.onclick=()=>select(iv.intervalId);list.append(b);}
+  if(!intervals.length){const p=document.createElement('p');p.className='muted';p.textContent='Chưa có khoảng nào. Timeline trống là chưa biết, không phải background.';list.append(p);}
+  // gaps
+  const gl=$('gapList');gl.replaceChildren();
+  if(!result.coverage.gaps.length&&intervals.length){gl.textContent='Không còn khoảng hở.';}
+  for(const g of result.coverage.gaps.slice(0,60)){const b=document.createElement('button');b.type='button';b.textContent=fmt(g.startTimeMs)+'–'+fmt(g.endTimeMs);b.onclick=()=>{newDraft(g.startTimeMs);seek(g.startTimeMs/1000);};gl.append(b,' ');}
+  if(result.coverage.gaps.length>60)gl.append('… và '+(result.coverage.gaps.length-60)+' khoảng hở khác');
+  if(!intervals.length)gl.textContent='Toàn bộ video ('+fmt(durationMs)+') chưa gán.';
+  // validation
+  const v=$('validation');v.replaceChildren();
+  const banner=document.createElement('div');
+  const c=result.coverage,pct=(100*c.coveredMs/durationMs).toFixed(1);
+  banner.className='banner '+(result.errors.length?'err':(c.fullyCovered?'ok':'warn'));
+  banner.textContent=(result.errors.length?result.errors.length+' lỗi cần sửa. ':'Không có lỗi. ')+'Phủ '+pct+'% ('+c.gapCount+' khoảng hở). '+result.warnings.length+' cảnh báo. Không rõ: '+fmt(c.unclearMs)+'.';
+  v.append(banner);
+  for(const [title,arr] of [['Lỗi',result.errors],['Cảnh báo',result.warnings]]){if(!arr.length)continue;
+    const ul=document.createElement('ul');ul.className='issues';
+    for(const e of arr.slice(0,40)){const li=document.createElement('li');li.append(title+': '+(issueText[e.code]||e.code)+(e.overlapMs?' '+e.overlapMs+' ms':'')+' ');
+      if(e.intervalIds&&e.intervalIds[0]){const b=document.createElement('button');b.type='button';b.textContent=e.intervalIds.join(' / ');b.onclick=()=>select(e.intervalIds[0]);li.append(b);}ul.append(li);}
+    v.append(ul);}
+  const ok=result.errors.length===0&&c.fullyCovered;
+  if(!ok&&$('declaredComplete').checked){$('declaredComplete').checked=false;}
+  $('declaredComplete').disabled=!ok;
+}
+
+function doExport(){
+  if(!annotatorOk()){say('Nhập mã người gán hợp lệ (chữ không dấu, số, . _ -) trước khi xuất.');$('annotator').focus();return;}
+  const doc=TC.buildExport({pack:pack,annotatorId:$('annotator').value.trim(),guideVersion:$('guideVersion').value,intervals:intervals,declaredComplete:$('declaredComplete').checked,revision:revision,exportedAt:new Date().toISOString()});
+  if(doc.validation.errors.length&&!confirm('Còn '+doc.validation.errors.length+' lỗi timeline (ví dụ chồng khoảng). Bản xuất sẽ bị công cụ so sánh từ chối cho tới khi sửa. Vẫn xuất bản nháp?'))return;
+  const url=URL.createObjectURL(new Blob([JSON.stringify(doc,null,2)],{type:'application/json'}));
+  const a=document.createElement('a');a.href=url;a.download='annotation-'+doc.sourceVideoId+'-'+doc.annotatorId+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  say('Đã xuất '+doc.intervals.length+' khoảng, '+doc.validation.errors.length+' lỗi. File chưa phải xác nhận HLV.');
+}
+
+function perform(action){
+  switch(action.type){
+    case 'toggle_play':if(video.paused){stopAt=null;video.play().catch(()=>say('Trình duyệt chưa phát được video.'));}else video.pause();break;
+    case 'step':step(action.value);break;
+    case 'set_start':$('startMs').value=markMs(video.currentTime).toFixed(3);break;
+    case 'set_end':$('endMs').value=markMs(video.currentTime).toFixed(3);break;
+    case 'set_peak':if(isStrike($('technique').value))$('peakMs').value=markMs(video.currentTime).toFixed(3);else say('Peak chỉ áp dụng cho đòn.');break;
+    case 'technique':$('technique').value=action.value;onTechniqueChange();break;
+    case 'lead_rear':if(isStrike($('technique').value))$('leadRear').value=action.value;break;
+    case 'stance':$('stance').value=action.value;break;
+    case 'commit':commit();break;
+    case 'new_interval':{const last=intervals.length?Math.max(...intervals.map(i=>i.endTimeMs)):0;newDraft(last);break;}
+    case 'split':splitSelected();break;
+    case 'delete':removeSelected();break;
+    case 'undo':undo();break;
+    case 'select_next':case 'select_prev':{if(!intervals.length)break;const idx=intervals.findIndex(i=>i.intervalId===selectedId);const next=action.type==='select_next'?Math.min(intervals.length-1,idx+1):Math.max(0,idx<0?0:idx-1);select(intervals[next].intervalId);break;}
+    case 'help':document.querySelector('details').open=true;break;
+  }
+}
+function onTechniqueChange(){
+  showFields();
+  if(isStrike($('technique').value)&&$('stickyStance').checked&&!$('stance').value&&lastStrikeStance)$('stance').value=lastStrikeStance;
+}
+document.addEventListener('keydown',ev=>{
+  const tag=ev.target.tagName,typing=['INPUT','TEXTAREA','SELECT'].includes(tag)||ev.target.isContentEditable;
+  const action=TC.keyAction({key:ev.key,shiftKey:ev.shiftKey,ctrlKey:ev.ctrlKey,metaKey:ev.metaKey,altKey:ev.altKey,typing:typing});
+  if(!action)return;
+  if(tag==='BUTTON'&&(ev.key===' '||ev.key==='Enter'))return;
+  // Trên thẻ video, Space và mũi tên được thay bằng phát/dừng và bước frame (preventDefault bên dưới).
+  ev.preventDefault();perform(action);
+});
+$('technique').onchange=()=>{onTechniqueChange();$('technique').blur();};
+for(const id of ['leadRear','stance','certainty','backgroundType','unclearReason'])$(id).addEventListener('change',()=>$(id).blur());
+$('annotator').onchange=()=>{
+  if($('annotator').value.trim()&&!annotatorOk()){say('Mã người gán không hợp lệ: chỉ chữ không dấu, số, . _ - (tối đa 64).');return;}
+  if(annotatorOk()){loadDraft();fillForm();refresh();say(intervals.length?'Đã tải bản nháp '+intervals.length+' khoảng của '+$('annotator').value.trim()+'.':'');}
+};
+$('guideVersion').onchange=persist;
+$('declaredComplete').onchange=()=>{refresh();persist();};
+$('playPause').onclick=()=>perform({type:'toggle_play'});
+$('back10').onclick=()=>step(-10);$('back1').onclick=()=>step(-1);$('fwd1').onclick=()=>step(1);$('fwd10').onclick=()=>step(10);
+$('speed').onchange=()=>video.playbackRate=Number($('speed').value);
+$('setStart').onclick=()=>perform({type:'set_start'});$('setEnd').onclick=()=>perform({type:'set_end'});$('setPeak').onclick=()=>perform({type:'set_peak'});
+$('commit').onclick=commit;$('newInterval').onclick=()=>perform({type:'new_interval'});$('splitBtn').onclick=splitSelected;$('deleteBtn').onclick=removeSelected;$('undoBtn').onclick=undo;
+$('export').onclick=doExport;
+$('playInterval').onclick=()=>{const iv=intervals.find(i=>i.intervalId===selectedId);if(!iv){say('Chọn một khoảng để phát.');return;}stopAt=iv.endTimeMs/1000;seek(iv.startTimeMs/1000);video.play().catch(()=>say('Dùng nút Play trên video.'));};
+$('timeline').addEventListener('click',ev=>{const r=$('timeline').getBoundingClientRect();seek((ev.clientX-r.left)/r.width*durationMs/1000);});
+video.src=info.path;
+window.clubTimelineDebug={getState:()=>({intervals:intervals,selectedId:selectedId,revision:revision}),perform:perform};
+fillForm();refresh();
+</script>
+</body></html>
