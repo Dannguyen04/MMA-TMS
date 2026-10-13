@@ -12,6 +12,11 @@ import type { WriteResult } from "@/lib/domain/write-result";
 export interface WriteFailure {
     message: string;
     fieldErrors?: Record<string, string>;
+    /**
+     * True when the service may have saved the change anyway (no answer, a timeout, a 5xx or an unreadable reply).
+     * A caller that can check the record first should do so before saying anything or sending it again.
+     */
+    unconfirmed?: true;
 }
 
 export interface WriteErrorOptions {
@@ -84,6 +89,16 @@ function fromCode(message: string, code: string, conflictFields: Record<string, 
     return field ? { message, fieldErrors: { [field]: message } } : { message };
 }
 
+/**
+ * Whether a failed write may still have been saved: the service didn't answer, timed out, failed with a 5xx or sent a
+ * reply that couldn't be read. Refusals (4xx) and expired sessions are not.
+ */
+export function isUnconfirmedWrite(error: unknown): boolean {
+    if (!(error instanceof ApiError)) return false;
+    if (error.kind === "network" || error.kind === "timeout" || error.kind === "invalid_response") return true;
+    return error.kind === "http" && (error.status ?? 0) >= 500;
+}
+
 /** What to show for a failed write. Anything that isn't an API error is a bug and is rethrown. */
 export function apiWriteFailure(error: unknown, messages: ServiceErrorMessages, options: WriteErrorOptions = {}): WriteFailure {
     if (!(error instanceof ApiError)) throw error;
@@ -93,9 +108,9 @@ export function apiWriteFailure(error: unknown, messages: ServiceErrorMessages, 
             return { message: "Your session has expired. Sign in again, then check whether the change was saved." };
         case "network":
         case "timeout":
-            return { message: maybeNotSavedMessage(service) };
+            return { message: maybeNotSavedMessage(service), unconfirmed: true };
         case "invalid_response":
-            return { message: `The change was probably saved, but the ${service}'s reply couldn't be read. Reload the page to check before trying again.` };
+            return { message: `The change was probably saved, but the ${service}'s reply couldn't be read. Reload the page to check before trying again.`, unconfirmed: true };
         case "http":
             break;
     }
@@ -107,7 +122,7 @@ export function apiWriteFailure(error: unknown, messages: ServiceErrorMessages, 
     if (status === 404) return known ? fromCode(known, error.code, options.conflictFields) : { message: messages.notFound };
     if (status === 409) return fromCode(known ?? sentence(error.message), error.code, options.conflictFields);
     if (status === 429) return { message: "Too many changes in a short time. Wait a moment, then reload the page and try again." };
-    if (status >= 500) return { message: maybeNotSavedMessage(service) };
+    if (status >= 500) return { message: maybeNotSavedMessage(service), unconfirmed: true };
     return { message: sentence(error.message) };
 }
 
@@ -117,6 +132,7 @@ export async function settleWrite(request: Promise<unknown>, messages: ServiceEr
         await request;
         return { ok: true };
     } catch (error) {
-        return { ok: false, ...apiWriteFailure(error, messages, options) };
+        const { message, fieldErrors } = apiWriteFailure(error, messages, options);
+        return fieldErrors ? { ok: false, message, fieldErrors } : { ok: false, message };
     }
 }

@@ -19,8 +19,11 @@ import {
 } from "@/lib/domain/medical-contract";
 import { cn } from "@/lib/utils";
 
+/** What the pickers need from the form: its errors, and a way to hide them once a list changes. */
+type RestrictionForm = Pick<ActionForm<unknown>, "error" | "markEdited">;
+
 export interface RestrictionFieldsProps {
-    form: ActionForm<undefined>;
+    form: RestrictionForm;
     /** Prefix for control ids. */
     idPrefix: string;
     /** Starting lists, e.g. the examination's when issuing a clearance from it. */
@@ -115,7 +118,7 @@ function ListPicker<T extends string>({
     selected,
     onSelect,
 }: {
-    form: ActionForm<undefined>;
+    form: RestrictionForm;
     id: string;
     name: string;
     switchName: string;
@@ -160,7 +163,7 @@ function CheckboxChips<T extends string>({
     selected,
     onSelect,
 }: {
-    form: ActionForm<undefined>;
+    form: RestrictionForm;
     id: string;
     name: string;
     legend: string;

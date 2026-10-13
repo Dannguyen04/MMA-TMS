@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { ApiError } from "@/lib/api/client";
-import { MAYBE_NOT_SAVED, medicalWriteFailure } from "./medical-errors";
+import { isUnconfirmedWrite, MAYBE_NOT_SAVED, medicalWriteFailure } from "./medical-errors";
 
 const http = (status: number, code: string, details?: unknown, message = "Request failed") => new ApiError({ message, kind: "http", status, code, details });
 
@@ -33,6 +33,23 @@ describe("medicalWriteFailure", () => {
         expect(medicalWriteFailure(http(500, "MEDICAL_OPERATION_FAILED")).message).toBe(MAYBE_NOT_SAVED);
         expect(medicalWriteFailure(new ApiError({ message: "slow", kind: "timeout", code: "API_TIMEOUT" })).message).toBe(MAYBE_NOT_SAVED);
         expect(medicalWriteFailure(new ApiError({ message: "odd", kind: "invalid_response", status: 201, code: "INVALID_API_RESPONSE" })).message).toContain("probably saved");
+    });
+
+    it("marks only the failures that may have been saved as unconfirmed, so the form checks the record first", () => {
+        const unconfirmed = [
+            http(503, "SERVICE_UNAVAILABLE"),
+            new ApiError({ message: "slow", kind: "timeout", code: "API_TIMEOUT" }),
+            new ApiError({ message: "down", kind: "network", code: "API_UNREACHABLE" }),
+            new ApiError({ message: "odd", kind: "invalid_response", status: 201, code: "INVALID_API_RESPONSE" }),
+        ];
+        for (const error of unconfirmed) {
+            expect(isUnconfirmedWrite(error)).toBe(true);
+            expect(medicalWriteFailure(error).unconfirmed).toBe(true);
+        }
+        for (const error of [http(422, "VALIDATION_ERROR"), http(409, "MEDICAL_RECORD_CONFLICT"), new ApiError({ message: "expired", kind: "unauthorized", status: 401 }), new TypeError("bug")]) {
+            expect(isUnconfirmedWrite(error)).toBe(false);
+        }
+        expect(medicalWriteFailure(http(409, "MEDICAL_RECORD_CONFLICT")).unconfirmed).toBeUndefined();
     });
 
     it("rethrows anything that isn't an API error", () => {

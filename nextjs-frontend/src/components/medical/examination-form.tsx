@@ -20,7 +20,7 @@ import { formatDate, formatNumber } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { CLEARANCE_LEVEL_FOR_OUTCOME, EXAMINATION_OUTCOME_DESCRIPTIONS, EXAMINATION_OUTCOME_META, ExaminationOutcomeBadge } from "./clinical-badges";
 import { AssessmentsField, EMPTY_VITALS, ExaminationTypeField, FollowUpField, useAssessmentRows, VitalsFields } from "./examination-details-fields";
-import { Scat6Fields } from "./scat6-fields";
+import { Scat6BalanceFields, Scat6HistoryFields, Scat6MemoryFields, Scat6RecordInput, useScat6Draft } from "./scat6-fields";
 
 export interface ExamFighterOption extends FighterIdentityData {
     id: string;
@@ -48,12 +48,20 @@ const OUTCOME_OPTIONS: ChoiceOption<ExaminationOutcome>[] = (Object.keys(EXAMINA
 }));
 /** Records a medical examination: patient and visit, vitals with live reference ranges, assessments and outcome. */
 export function ExaminationForm({ fighters, defaultFighterId, defaultType, defaultDateTime }: ExaminationFormProps) {
-    const form = useActionForm(createExaminationAction, { id: "exam", hiddenFields: ["scat6"] });
+    const [type, setType] = useState<ExaminationType | "">(defaultType);
+    const form = useActionForm(createExaminationAction, {
+        id: "exam",
+        hiddenFields: ["scat6"],
+        // A SCAT6 answer left blank (or a tick row nobody marked) is marked in place instead of being sent as "none".
+        prepare: () => {
+            const problems = type === "baseline" ? scat6.validateAll() : null;
+            if (problems) return { status: "error", message: "Some SCAT6 answers still need attention. They're marked below.", fieldErrors: problems };
+        },
+    });
     const id = (name: string) => `exam-${name}`;
     const { error } = form;
 
     const [fighterId, setFighterId] = useState(defaultFighterId);
-    const [type, setType] = useState<ExaminationType | "">(defaultType);
     const [date, setDate] = useState(defaultDateTime);
     const [vitals, setVitals] = useState(EMPTY_VITALS);
     const rows = useAssessmentRows(form, defaultType);
@@ -63,6 +71,7 @@ export function ExaminationForm({ fighters, defaultFighterId, defaultType, defau
     const [followUpDate, setFollowUpDate] = useState("");
 
     const fighter = fighters.find((candidate) => candidate.id === fighterId) ?? null;
+    const scat6 = useScat6Draft({ form, nowInput: defaultDateTime, dateOfBirth: fighter?.dateOfBirth ?? null });
     const examDay = date.slice(0, 10);
 
     const changeType = (next: ExaminationType | "") => {
@@ -116,7 +125,18 @@ export function ExaminationForm({ fighters, defaultFighterId, defaultType, defau
                     <AssessmentsField form={form} type={type} rows={rows} />
                 </FormSection>
 
-                <Scat6Fields form={form} nowInput={defaultDateTime} active={type === "baseline"} dateOfBirth={fighter?.dateOfBirth ?? null} />
+                {type === "baseline" && (
+                    <>
+                        <Scat6RecordInput scat6={scat6} />
+                        <Scat6HistoryFields scat6={scat6} />
+                        {scat6.draft.status === "ADMINISTERED" && (
+                            <>
+                                <Scat6MemoryFields scat6={scat6} />
+                                <Scat6BalanceFields scat6={scat6} />
+                            </>
+                        )}
+                    </>
+                )}
 
                 <FormSection title="Outcome & plan" description="Your conclusion, what the fighter and staff should do next, and when to review.">
                     <div>

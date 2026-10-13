@@ -28,11 +28,10 @@ import {
     API_EXAMINATION_TYPES,
     API_HYDRATION_LEVELS,
     BODY_JOINTS,
-    ELIGIBILITY_REASONS,
+    eligibilityReasonsFrom,
     SESSION_TYPES,
     TECHNIQUE_TYPES,
     type ClinicalRestrictions,
-    type EligibilityReason,
     type ExaminationDecision,
     type ExaminationScope,
     type MedicalEligibility,
@@ -187,12 +186,11 @@ const reviewRequestSchema = z.object({
     resolvedAt: timestamp.nullable(),
 });
 
-const knownReasons = new Set<string>(ELIGIBILITY_REASONS);
 const eligibilitySchema = z.object({
     scope: z.enum(["TRAINING", "COMPETITION"]),
     eligible: z.boolean(),
-    // A reason the interface doesn't know yet is dropped rather than failing the whole dossier.
-    reasons: z.array(z.string()).transform((reasons) => reasons.filter((reason): reason is EligibilityReason => knownReasons.has(reason))),
+    // A reason the interface doesn't know yet is kept as "other medical reason": never dropped, never failing the dossier.
+    reasons: z.array(z.string()).transform(eligibilityReasonsFrom),
 });
 
 const dossierSchema = z.object({
@@ -225,7 +223,9 @@ type HistoryRecordType = "INJURY" | "TREATMENT" | "RECOVERY_PLAN" | "MEDICAL_CLE
 
 const path = (fighterId: string, rest: string) => `/fighters/${encodeURIComponent(fighterId)}${rest}`;
 
-const dossierFor = cache((fighterId: string) => nullIfUnreadable(authenticatedApiRequest(path(fighterId, "/medical"), dossierSchema)));
+const readDossier = (fighterId: string) => nullIfUnreadable(authenticatedApiRequest(path(fighterId, "/medical"), dossierSchema));
+
+const dossierFor = cache(readDossier);
 
 const examinationsFor = cache(async (fighterId: string) => (await nullIfUnreadable(drainNumberedPages(path(fighterId, "/medical-examinations"), examinationSchema))) ?? []);
 
@@ -669,6 +669,9 @@ export async function clearanceOverview(scope: FighterScope, now: string): Promi
 
 /* ─── Dossier for clinical forms ──────────────────────────────────────────── */
 
+/** What the doctor recorded at the visit, as the examination pages show it. Null for an examination recorded without details. */
+export type CurrentExaminationDetails = Pick<MedicalExamination, "type" | "vitals" | "assessments" | "recommendations" | "followUpDate" | "scat6">;
+
 /** An examination that currently decides a scope, in the service's own terms. */
 export interface CurrentExamination {
     id: string;
@@ -678,6 +681,8 @@ export interface CurrentExamination {
     reason: string;
     restrictions: ClinicalRestrictions | null;
     validUntil: string | null;
+    /** Kept so the clearance step can read the examination back; null when it was recorded without details. */
+    details: CurrentExaminationDetails | null;
 }
 
 /** What the doctor's forms need to know about one fighter, from a single audited dossier read. */
@@ -691,11 +696,43 @@ export interface ClinicalDossier {
     activeRecoveryPlans: RecoveryPlan[];
 }
 
-const currentExamination = (exam: ApiExamination | null): CurrentExamination | null =>
-    exam && { id: exam.id, scope: exam.scope, decision: exam.decision, examinedAt: exam.examinedAt, reason: exam.reason, restrictions: exam.restrictions, validUntil: exam.validUntil };
+function currentExamination(exam: ApiExamination | null): CurrentExamination | null {
+    if (!exam) return null;
+    const mapped = toExamination(exam);
+    return {
+        id: exam.id,
+        scope: exam.scope,
+        decision: exam.decision,
+        examinedAt: exam.examinedAt,
+        reason: exam.reason,
+        restrictions: exam.restrictions,
+        validUntil: exam.validUntil,
+        details: exam.details
+            ? {
+                  type: mapped.type,
+                  vitals: mapped.vitals,
+                  assessments: mapped.assessments,
+                  recommendations: mapped.recommendations,
+                  followUpDate: mapped.followUpDate,
+                  scat6: mapped.scat6 ?? null,
+              }
+            : null,
+    };
+}
 
 export async function clinicalDossier(fighterId: string): Promise<ClinicalDossier | null> {
-    const dossier = await dossierFor(fighterId);
+    return toClinicalDossier(await dossierFor(fighterId));
+}
+
+/**
+ * The dossier read again, never from this request's earlier read: after a write the service didn't confirm, this tells
+ * whether it was saved before anything is sent again.
+ */
+export async function rereadClinicalDossier(fighterId: string): Promise<ClinicalDossier | null> {
+    return toClinicalDossier(await readDossier(fighterId));
+}
+
+function toClinicalDossier(dossier: Dossier | null): ClinicalDossier | null {
     if (!dossier) return null;
     return {
         fighterId: dossier.fighterId,

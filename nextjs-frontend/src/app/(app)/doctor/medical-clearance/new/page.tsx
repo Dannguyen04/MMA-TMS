@@ -1,6 +1,7 @@
 import { CircleCheck, ClipboardPlus, ShieldQuestion } from "lucide-react";
 import type { Metadata } from "next";
 
+import { ExamClearanceSteps } from "@/components/medical/exam-clearance-steps";
 import { FighterChooser } from "@/components/medical/fighter-chooser";
 import { loadFormFighter } from "@/components/medical/form-fighter";
 import { GrantClearanceForm, type ClearanceFighterContext } from "@/components/medical/grant-clearance-form";
@@ -110,6 +111,7 @@ async function IssueClearancePage({ searchParams }: PageProps<"/doctor/medical-c
         ? Object.values(dossier.currentExaminations).filter((exam): exam is CurrentExamination => exam !== null && exam.decision !== "NOT_ELIGIBLE")
         : [];
     const justExamined = param(params.notice) === "examination-recorded";
+    const fromExamination = Boolean(param(params.exam)) && positive.some((exam) => exam.id === param(params.exam));
 
     return (
         <>
@@ -117,12 +119,13 @@ async function IssueClearancePage({ searchParams }: PageProps<"/doctor/medical-c
                 back={fighter ? { href: routes.doctor.fighter(fighter.id), label: fighter.name } : { href: routes.doctor.clearance, label: "Medical Clearance" }}
                 eyebrow="Medical Clearance"
                 title={fighter ? `Issue clearance for ${fighter.name}` : "Issue Medical Clearance"}
-                description="Coaches plan training against the clearance, and the fighter and their coaches are notified."
+                description="Check the examination, then issue the clearance from it. Coaches plan training against it, and the fighter and their coaches are notified."
+                meta={fromExamination ? <ExamClearanceSteps current={2} /> : undefined}
             />
             <div className="flex flex-col gap-6">
                 {fighter && justExamined && (
                     <Callout tone="success" icon={CircleCheck} role="status" title="Examination recorded">
-                        Issue the clearance now so {fighter.name} can train within your decision.
+                        It&apos;s saved. Check it below, then issue the clearance so {fighter.name} can train within your decision.
                     </Callout>
                 )}
                 {!fighter || !dossier ? (
@@ -149,9 +152,12 @@ async function IssueClearancePage({ searchParams }: PageProps<"/doctor/medical-c
                         fighter={{ id: fighter.id, name: fighter.name }}
                         examinations={positive}
                         activeClearances={dossier.activeClearances}
+                        activeInjuries={dossier.activeInjuries.length}
                         defaultExaminationId={param(params.exam) ?? ""}
+                        weightLimitKg={fighter.targetWeightKg}
                         today={dayKey(now)}
                         cancelHref={routes.doctor.fighter(fighter.id)}
+                        clearancesHref={hrefWith(routes.doctor.fighter(fighter.id), {}, { tab: "clearance" })}
                     />
                 )}
             </div>

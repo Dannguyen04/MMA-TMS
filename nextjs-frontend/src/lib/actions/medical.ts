@@ -14,6 +14,7 @@ import {
     TECHNIQUES,
     TRAINING_TYPE_LABELS,
 } from "@/lib/domain/labels";
+import { friendlyScat6Issues } from "@/lib/domain/medical-scat6";
 import { academyWallClockToIso, daysBetween, isDateKey, isDateTimeInputValue } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import {
@@ -159,7 +160,7 @@ export async function createExaminationAction(_prev: ActionState, formData: Form
         followUpDate: text(formData, "followUpDate"),
     });
     const scat6 = text(formData, "type") === "baseline" ? scat6Field.safeParse(text(formData, "scat6")) : undefined;
-    if (!parsed.success || scat6?.success === false) return validationError(new z.ZodError([...issuesOf(parsed), ...scat6Issues(scat6)]));
+    if (!parsed.success || scat6?.success === false) return validationError(new z.ZodError([...issuesOf(parsed), ...friendlyScat6Issues(scat6Issues(scat6))]));
     const input = parsed.data;
     if (!canAccessFighterClinically(auth.user, input.fighterId)) return actionError(NOT_ASSIGNED, { fighterId: "Choose one of your assigned fighters." });
 
