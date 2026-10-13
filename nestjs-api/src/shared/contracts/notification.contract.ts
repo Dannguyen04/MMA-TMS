@@ -1,6 +1,6 @@
 export const NOTIFICATION_PUBLISHER = Symbol('NOTIFICATION_PUBLISHER');
 
-// Approved trigger types (migrations 015, 017). Legacy enum values stay readable in
+// Approved trigger types (migrations 015, 017, 022). Legacy enum values stay readable in
 // the inbox but cannot be published.
 export const NOTIFICATION_TYPE = {
   /** A1 — Admin: a Guest submitted an application to triage. */
@@ -34,6 +34,10 @@ export const NOTIFICATION_TYPE = {
    * no effective Doctor assignment, needed for the baseline examination.
    */
   FIGHTER_DOCTOR_ASSIGNMENT_REQUIRED: 'FIGHTER_DOCTOR_ASSIGNMENT_REQUIRED',
+  /** G1 — Fighter: a Coach set a new goal (migration 022). */
+  GOAL_SET: 'GOAL_SET',
+  /** G2 — Fighter and goal Coach: a measurement reached the target (migration 022). */
+  GOAL_ACHIEVED: 'GOAL_ACHIEVED',
 } as const;
 
 export type NotificationType =
@@ -50,6 +54,7 @@ export const NOTIFICATION_TARGET = {
   COACH_ASSIGNMENT: 'COACH_ASSIGNMENT',
   TRAINING_PLAN: 'TRAINING_PLAN',
   TRAINING_SESSION: 'TRAINING_SESSION',
+  GOAL: 'GOAL',
 } as const;
 
 export type NotificationTargetType =

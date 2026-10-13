@@ -80,6 +80,8 @@ const target017 = '017_doctor_assignment_notification.sql';
 const target018 = '018_training_plan_phase.sql';
 const target019 = '019_ai_delivery_receipts.sql';
 const target020 = '020_movement_evidence_reviews.sql';
+const target021 = '021_goals_persistence.sql';
+const target022 = '022_goal_tracking.sql';
 const trainingPermissionCodes = [
   'training.plan:get_all',
   'training.plan:read',
@@ -359,21 +361,18 @@ try {
     for (const name of [target003, target004, target005])
       migration(database, name);
     psql(database, planFixture(deletedAt));
+    // Approved 2026-10-04: existing plans, soft-deleted ones included, are backfilled to `base`.
     check(
-      `018 aborts without changes when a ${deletedAt ? 'soft-deleted' : 'live'} plan exists`,
+      `018 backfills a ${deletedAt ? 'soft-deleted' : 'live'} plan to base and keeps it`,
       () => {
-        rejects(
-          database,
-          readFileSync(join(api, 'migrations', target018), 'utf8'),
-          /018 requires an empty training_plans table/,
-        );
+        migration(database, target018);
         assert.equal(
           psql(
             database,
-            `SELECT to_regtype('public.training_plan_phase') IS NULL
-               AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'training_plans' AND column_name = 'phase')
-               AND NOT EXISTS (SELECT 1 FROM mma_private.migration_history WHERE version = 18)
-               AND (SELECT count(*) FROM training_plans) = 1;`,
+            `SELECT (SELECT count(*) FROM training_plans) = 1
+               AND (SELECT phase::text FROM training_plans) = 'base'
+               AND (SELECT is_nullable FROM information_schema.columns WHERE table_name = 'training_plans' AND column_name = 'phase') = 'NO'
+               AND EXISTS (SELECT 1 FROM mma_private.migration_history WHERE version = 18);`,
           ),
           't',
         );
@@ -621,6 +620,51 @@ try {
     rejects('mma_013', `SET ROLE authenticated; SELECT * FROM public.movement_evidence_reviews;`, /permission denied/);
     rejects('mma_013', readFileSync(join(api, 'migrations', target020), 'utf8'), /already applied/);
   });
+  check('021 recreates the deployed goals table, enums and grants', () => {
+    migration('mma_013', target021);
+    assert.equal(psql('mma_013', `SELECT relrowsecurity FROM pg_class WHERE oid='public.goals'::regclass;`), 't');
+    assert.equal(psql('mma_013', `SELECT string_agg(column_name || ':' || udt_name, ',' ORDER BY ordinal_position) FROM information_schema.columns WHERE table_schema='public' AND table_name='goals';`),
+      'id:uuid,fighter_id:uuid,coach_id:uuid,title:text,technique:goal_technique,metric_label:text,unit:text,lower_is_better:bool,baseline:float8,target:float8,current:float8,start_date:date,due_date:date,status:goal_status,history:jsonb,created_at:timestamptz,updated_at:timestamptz,deleted_at:timestamptz');
+    assert.equal(psql('mma_013', `SELECT string_agg(enumlabel, ',' ORDER BY enumsortorder) FROM pg_enum WHERE enumtypid='public.goal_status'::regtype;`), 'ON_TRACK,AT_RISK,ACHIEVED,MISSED');
+    assert.equal(psql('mma_013', `SELECT string_agg(role::text, ',' ORDER BY role::text) FROM role_permissions rp JOIN permissions p ON p.id=rp.permission_id WHERE p.code='goal:read';`), 'ADMIN,COACH,FIGHTER');
+    assert.equal(psql('mma_013', `SELECT string_agg(role::text, ',' ORDER BY role::text) FROM role_permissions rp JOIN permissions p ON p.id=rp.permission_id WHERE p.code='goal:update';`), 'ADMIN,COACH');
+    assert.equal(psql('mma_013', `SELECT count(*) FROM permissions WHERE code LIKE 'goal:%';`), '5');
+    rejects('mma_013', `SET ROLE authenticated; SELECT * FROM public.goals;`, /permission denied/);
+    rejects('mma_013', readFileSync(join(api, 'migrations', target021), 'utf8'), /already applied/);
+  });
+  check('022 adds goal notifications, triggers and the direction check', () => {
+    migration('mma_013', target022);
+    assert.equal(psql('mma_013', `SELECT count(*) FROM pg_enum WHERE enumtypid='public.notification_type'::regtype AND enumlabel IN ('GOAL_SET', 'GOAL_ACHIEVED');`), '2');
+    assert.equal(psql('mma_013', `SELECT string_agg(tgname, ',' ORDER BY tgname) FROM pg_trigger WHERE tgrelid='public.goals'::regclass AND NOT tgisinternal;`), 'trg_goals_audit,trg_goals_context_immutable,trg_goals_updated_at');
+    psql('mma_013', `
+      INSERT INTO auth.users(id) VALUES ('21000000-0000-4000-8000-000000000001'), ('21000000-0000-4000-8000-000000000002');
+      INSERT INTO public.users(id, auth_user_id, email, role) VALUES
+        ('21000000-0000-4000-8000-000000000011', '21000000-0000-4000-8000-000000000001', 'goal-fighter@example.invalid', 'FIGHTER'),
+        ('21000000-0000-4000-8000-000000000012', '21000000-0000-4000-8000-000000000002', 'goal-coach@example.invalid', 'COACH');
+      INSERT INTO public.fighters(id, user_id, first_name, last_name, date_of_birth, weight_class)
+        VALUES ('21000000-0000-4000-8000-000000000021', '21000000-0000-4000-8000-000000000011', 'Goal', 'Fighter', '2000-01-01', 'LIGHTWEIGHT');
+      INSERT INTO public.coaches(id, user_id, first_name, last_name)
+        VALUES ('21000000-0000-4000-8000-000000000022', '21000000-0000-4000-8000-000000000012', 'Goal', 'Coach');
+    `);
+    const goal = (id, extra = {}) => {
+      const v = { lower_is_better: 'false', baseline: '60', target: '80', start_date: `'2026-09-01'`, due_date: `'2026-10-01'`, ...extra };
+      v.current ??= v.baseline;
+      return `INSERT INTO public.goals(id, fighter_id, coach_id, title, metric_label, unit, lower_is_better, baseline, target, current, start_date, due_date)
+        VALUES ('${id}', '21000000-0000-4000-8000-000000000021', '21000000-0000-4000-8000-000000000022', 'Guard uptime', 'Guard uptime', '%',
+          ${v.lower_is_better}, ${v.baseline}, ${v.target}, ${v.current}, ${v.start_date}, ${v.due_date});`;
+    };
+    const goalId = '21000000-0000-4000-8000-000000000031';
+    psql('mma_013', goal(goalId));
+    rejects('mma_013', goal('21000000-0000-4000-8000-000000000032', { target: '50' }), /ck_goals_direction/);
+    rejects('mma_013', goal('21000000-0000-4000-8000-000000000033', { lower_is_better: 'true' }), /ck_goals_direction/);
+    rejects('mma_013', goal('21000000-0000-4000-8000-000000000034', { due_date: `'2026-08-01'` }), /ck_goals_date_range/);
+    rejects('mma_013', goal('21000000-0000-4000-8000-000000000035', { current: `'NaN'` }), /goals_current_check/);
+    rejects('mma_013', goal('21000000-0000-4000-8000-000000000036', { current: '-1' }), /goals_current_check/);
+    rejects('mma_013', `UPDATE public.goals SET fighter_id='21000000-0000-4000-8000-000000000099' WHERE id='${goalId}';`, /immutable/);
+    psql('mma_013', `UPDATE public.goals SET current=70, history='[{"date":"2026-09-06T00:00:00.000Z","value":70}]' WHERE id='${goalId}';`);
+    assert.equal(psql('mma_013', `SELECT updated_at > created_at FROM public.goals WHERE id='${goalId}';`), 't');
+    assert.equal(psql('mma_013', `SELECT string_agg(action, ',' ORDER BY created_at, action) FROM audit_logs WHERE resource_type='goals' AND resource_id='${goalId}';`), 'INSERT,UPDATE');
+    rejects('mma_013', readFileSync(join(api, 'migrations', target022), 'utf8'), /already applied/);
   });
   if (process.argv.includes('--export-catalog')) {
     mkdirSync(resolve(api, '../tmp'), { recursive: true });

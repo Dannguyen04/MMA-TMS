@@ -46,6 +46,56 @@ export const movementEvidenceReviews = pgTable('movement_evidence_reviews', {
   unique('uq_movement_review_revision').on(t.jobId, t.windowId, t.reviewerId, t.revision),
 ]).enableRLS();
 
+// 021/022: coach-set measurable goals. `status` is the snapshot written with
+// the last change; the API derives the current status on every read.
+export const goalTechniqueEnum = pgEnum('goal_technique', [
+  'JAB',
+  'CROSS',
+  'HOOK',
+  'KICK',
+  'COMBINATION',
+  'FOOTWORK',
+  'GUARD',
+  'HEAD_MOVEMENT',
+]);
+
+export const goalStatusEnum = pgEnum('goal_status', [
+  'ON_TRACK',
+  'AT_RISK',
+  'ACHIEVED',
+  'MISSED',
+]);
+
+/** One measurement per academy day, oldest first. */
+export interface GoalCheckpoint {
+  date: string;
+  value: number;
+}
+
+export const goals = pgTable('goals', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  fighterId: uuid('fighter_id').notNull().references(() => fighters.id, { onDelete: 'restrict' }),
+  coachId: uuid('coach_id').notNull().references(() => coaches.id, { onDelete: 'restrict' }),
+  title: text('title').notNull(),
+  technique: goalTechniqueEnum('technique'),
+  metricLabel: text('metric_label').notNull(),
+  unit: text('unit').notNull(),
+  lowerIsBetter: boolean('lower_is_better').notNull().default(false),
+  baseline: doublePrecision('baseline').notNull(),
+  target: doublePrecision('target').notNull(),
+  current: doublePrecision('current').notNull(),
+  startDate: date('start_date').notNull(),
+  dueDate: date('due_date').notNull(),
+  status: goalStatusEnum('status').notNull().default('ON_TRACK'),
+  history: jsonb('history').$type<GoalCheckpoint[]>().notNull().default([]),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+}, (t) => [
+  index('idx_goals_fighter_id').on(t.fighterId).where(sql`${t.deletedAt} IS NULL`),
+  index('idx_goals_coach_id').on(t.coachId).where(sql`${t.deletedAt} IS NULL`),
+]).enableRLS();
+
 /** Trạng thái khớp trong state machine */
 export type JointHealthState =
   'HEALTHY' | 'SUSPECTED' | 'SUSPECTED_AVOIDANCE' | 'CONFIRMED_IMPAIRMENT';
@@ -328,6 +378,9 @@ export const notificationTypeEnum = pgEnum('notification_type', [
   'TRAINING_SESSION_CANCELLED',
   // 017: Admin task to assign a Doctor to a new Fighter.
   'FIGHTER_DOCTOR_ASSIGNMENT_REQUIRED',
+  // 022: a goal was set for the Fighter, and a goal reached its target.
+  'GOAL_SET',
+  'GOAL_ACHIEVED',
 ]);
 
 // ─── Task 14 Enums ────────────────────────────────────────────────────────────

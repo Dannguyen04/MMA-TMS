@@ -3,15 +3,15 @@ import "server-only";
 /** Trien khai du lieu demo, chi duoc nap khi che do demo duoc bat ro rang. */
 
 import type { Goal, GoalStatus, User } from "@/lib/domain/types";
-import { dayKey, daysBetween, formatDate } from "@/lib/format";
+import { dayKey, formatDate } from "@/lib/format";
 import { db, newId, nowIso, simulateLatency } from "@/lib/mocks/db";
 import { routes } from "@/lib/routes";
 import { recordAudit } from "./audit.demo";
 import { notifyUsers, staffUserIdsForFighter } from "./notifications.demo";
 import type { GoalFilter, GoalInput, GoalUpdateInput } from "./goals";
 
-/** Below this many days of data a trend is not meaningful, so goals stay "on track". */
-const MIN_TREND_DAYS = 7;
+/** Business Flows, Flow 7: on track at or above this share of the expected progress (same as the API). */
+const ON_TRACK_RATIO = 0.9;
 
 const STATUS_ORDER: GoalStatus[] = ["at_risk", "on_track", "achieved", "missed"];
 
@@ -38,20 +38,23 @@ function hasReachedTarget(goal: Pick<Goal, "current" | "target" | "lowerIsBetter
 }
 
 /**
- * Achieved when the target is reached; missed when the due date has passed without it; otherwise the
- * average daily rate since the start is projected to the due date — at risk when it falls short.
+ * Achieved when the target is reached; missed when the due date has passed without it; otherwise progress
+ * is compared with a straight line from the baseline at the start to the target at the due date — on track
+ * at or above 90% of the expected progress, at risk below it. Mirrors the API's rule.
  */
 function projectStatus(
     goal: Pick<Goal, "baseline" | "target" | "current" | "lowerIsBetter" | "startDate" | "dueDate">,
     now: string,
 ): GoalStatus {
     if (hasReachedTarget(goal)) return "achieved";
-    const daysLeft = daysBetween(now, goal.dueDate);
-    if (daysLeft < 0) return "missed";
-    const elapsed = daysBetween(goal.startDate, now);
-    if (elapsed < MIN_TREND_DAYS) return "on_track";
-    const projected = goal.current + ((goal.current - goal.baseline) / elapsed) * daysLeft;
-    return hasReachedTarget({ ...goal, current: projected }) ? "on_track" : "at_risk";
+    const nowMs = Date.parse(now);
+    const startMs = Date.parse(goal.startDate);
+    const dueMs = Date.parse(goal.dueDate);
+    if (nowMs > dueMs) return "missed";
+    const elapsed = dueMs > startMs ? Math.min(Math.max((nowMs - startMs) / (dueMs - startMs), 0), 1) : 1;
+    const span = goal.target - goal.baseline;
+    const progress = span === 0 ? 1 : (goal.current - goal.baseline) / span;
+    return progress >= ON_TRACK_RATIO * elapsed ? "on_track" : "at_risk";
 }
 
 /* ─── Reads ───────────────────────────────────────────────────────────────── */

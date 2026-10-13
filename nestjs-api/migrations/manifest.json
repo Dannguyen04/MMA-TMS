@@ -19,6 +19,8 @@
     "017_doctor_assignment_notification.sql": "c25d6db96e9bf4a08a972499a9249d148219a273ff6ef073460e5146a4e57799",
     "018_training_plan_phase.sql": "e5c0aaa4133a21f28ebda45b718a87da10b4ec226ad588755404dc3f788ffeac",
     "019_ai_delivery_receipts.sql": "d748ff1bf52009ded63034d5a23bad0575dc6db3dee27089cf9c76f27b9de637",
-    "020_movement_evidence_reviews.sql": "2db1ad85b4640063ac7c6f3d680deadaa0e7d6333e81fad76f6d958fd27c0ac1"
+    "020_movement_evidence_reviews.sql": "2db1ad85b4640063ac7c6f3d680deadaa0e7d6333e81fad76f6d958fd27c0ac1",
+    "021_goals_persistence.sql": "9b91698abbfbba11de91d1be6b4bf8a7147c6f0e8d358f9a144ca6821192382b",
+    "022_goal_tracking.sql": "faa052965d9623de3d61722f99e431a5000d1e63412da5c13389adde409296ad"
   }
 }

@@ -1,4 +1,37 @@
-# Migrations 003–018 — Backend, Database & API Permissions
+# Migrations 003–021 — Backend, Database & API Permissions
+
+## Áp dụng migration 021 (Goals)
+
+021 yêu cầu ledger đã có version 20 và ghi ledger version 21. Nội dung:
+
+- Enum `public.goal_technique` và bảng `public.goals`: mục tiêu đo được do HLV
+  đặt cho võ sĩ (`fighter_id`, `coach_id`, `created_by_id`, tiêu đề, kỹ thuật
+  tùy chọn, chỉ số, đơn vị, `lower_is_better`, baseline/target/current,
+  `start_at`, `due_at`). Check: giá trị hữu hạn, target khác baseline đúng
+  chiều `lower_is_better`, `due_at > start_at`. Trạng thái (ON_TRACK, AT_RISK,
+  ACHIEVED, MISSED) được tính khi đọc theo công thức Business Flows luồng 7,
+  không lưu trong DB.
+- Bảng `public.goal_checkpoints`: một số đo mỗi ngày theo lịch học viện
+  (`Asia/Ho_Chi_Minh`), unique `(goal_id, recorded_on)`; xóa goal thì xóa
+  checkpoint (CASCADE).
+- RLS bật, revoke `anon`/`authenticated` trên cả hai bảng. `goals` có trigger
+  `updated_at`, `fighter_id`/`created_by_id` bất biến, và audit
+  `mma_private.audit_domain_mutation()`.
+- Quyền `goal:get_all`, `goal:read` cho FIGHTER, COACH, ADMIN;
+  `goal:create`, `goal:update`, `goal:progress`, `goal:delete` cho COACH,
+  ADMIN. DOCTOR không được cấp mặc định.
+- Thêm giá trị `notification_type` `GOAL_SET`, `GOAL_ACHIEVED` (không dùng
+  làm literal trong cùng transaction).
+
+Backend có `GoalsModule` (`/goals`) chỉ được deploy sau khi 021 đã áp dụng.
+
+```sh
+pnpm db:check
+pnpm db:migrate:021
+```
+
+Chưa chạy `pnpm db:check`/`pnpm test:db`/catalog comparison cho 021; chưa áp
+dụng lên database nào.
 
 ## Áp dụng migration 018 (phase bắt buộc của Training Plan)
 

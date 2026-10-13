@@ -56,6 +56,8 @@ const TYPE_CATEGORY: Record<string, NotificationCategory> = {
     TRAINING_SESSION_CANCELLED: "training",
     SESSION_REMINDER: "training",
     FIGHTER_DOCTOR_ASSIGNMENT_REQUIRED: "medical",
+    GOAL_SET: "goal",
+    GOAL_ACHIEVED: "goal",
     MEDICAL_CLEARANCE_EXPIRY: "clearance",
     VIDEO_PROCESSED: "ai_analysis",
     ANOMALY_HIGH: "ai_alert",
@@ -69,7 +71,7 @@ function severityOf({ type, payload }: ApiNotification): NotificationSeverity {
     if (type === "ADMISSION_ASSESSMENT_RESULT" || type === "ADMISSION_DECISION_RECORDED") {
         return outcome === "PASS" || outcome === "APPROVED" ? "success" : outcome === "FAIL" || outcome === "REJECTED" ? "warning" : "info";
     }
-    if (type === "ADMISSION_ACTIVATION_COMPLETED") return "success";
+    if (type === "ADMISSION_ACTIVATION_COMPLETED" || type === "GOAL_ACHIEVED") return "success";
     if (type === "ANOMALY_HIGH" || type === "JOINT_IMPAIRMENT_CONFIRMED") return "danger";
     if (["FIGHTER_DOCTOR_ASSIGNMENT_REQUIRED", "TRAINING_SESSION_CANCELLED", "ANOMALY_MEDIUM", "MEDICAL_CLEARANCE_EXPIRY"].includes(type)) return "warning";
     return "info";
@@ -91,6 +93,9 @@ function hrefFor(target: { type: string; id: string } | undefined, role: Notific
             return role === "coach" ? routes.coach.fighter(id) : role === "doctor" ? routes.doctor.fighter(id) : role === "admin" ? routes.admin.users : null;
         case "COACH_ASSIGNMENT":
             return role === "coach" ? routes.coach.fighters : role === "fighter" ? routes.fighter.health : null;
+        // Goals have no page of their own; the goals list shows them in context.
+        case "GOAL":
+            return role === "coach" ? routes.coach.goals : role === "fighter" ? routes.fighter.goals : null;
         default:
             return null;
     }
