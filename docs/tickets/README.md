@@ -16,9 +16,9 @@ Trạng thái: **DRAFT** (Claude đang viết) → **READY** (Gemini được nh
 | --- | --- | --- | --- | --- |
 | [T-001](./T-001-hide-frozen-navigation.md) | Ẩn các khu vực đóng băng khỏi menu | Frontend | — | DONE (13/10, [review](./T-001-REVIEW.md)) |
 | [T-002](./T-002-no-doctor-mode.md) | Chế độ không có bác sĩ (migration 023) | Backend | — | IN PROGRESS |
-| T-003 | Bộ luật giải, trận, checklist hồ sơ, Cổng 1, theo dõi cân (migration 024) | Backend | T-002 | DRAFT, READY dự kiến 15/10 |
-| T-004 | Màn trận cho HLV: danh sách, tạo, chi tiết, checklist | Frontend | T-003 | DRAFT |
-| T-005 | Màn ghi cân cho võ sĩ, biểu đồ, cảnh báo | Frontend | T-003 | DRAFT |
+| [T-003](./T-003-bouts-core.md) | Bộ luật giải, trận, checklist hồ sơ, Cổng 1, theo dõi cân (migration 024) | Backend | T-002 | Chờ T-002 merge |
+| [T-004](./T-004-coach-bouts-ui.md) | Màn trận cho HLV: danh sách, tạo, chi tiết, checklist (demo trước) | Frontend | Contract của T-003 | IN PROGRESS |
+| T-005 | Màn ghi cân cho võ sĩ, biểu đồ, cảnh báo | Frontend | T-004 (dùng chung kiểu và mocks) | DRAFT |
 
 T-001 và T-002 làm song song được.
 
