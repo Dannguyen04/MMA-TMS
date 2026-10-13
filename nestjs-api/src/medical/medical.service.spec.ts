@@ -249,6 +249,7 @@ describe('MedicalService', () => {
       scope: 'TRAINING' as const, now, openReviewRequests: 0,
       baselineOnFile: true,
       currentExamination: { decision: 'ELIGIBLE' as const },
+      supervision: 'DOCTOR' as const,
     };
 
     it.each([
@@ -332,12 +333,14 @@ describe('MedicalService', () => {
       });
     });
 
-    describe('No-Doctor Mode (supervision: NONE)', () => {
-      it('TRAINING scope is always eligible with empty reasons even without baseline on file', () => {
+    describe('No-Doctor Mode (supervision: NONE) - Criteria 1 to 5', () => {
+      it('1. NONE, TRAINING, không baseline, không kết luận, không yêu cầu khám -> eligible: true, reasons: [], supervision: NONE', () => {
         const result = evaluateEligibility({
           ...state,
           supervision: 'NONE',
+          scope: 'TRAINING',
           baselineOnFile: false,
+          openReviewRequests: 0,
           currentExamination: undefined,
           clearances: [],
         });
@@ -349,12 +352,13 @@ describe('MedicalService', () => {
         });
       });
 
-      it('TRAINING scope is eligible even with open review requests and NOT_ELIGIBLE exam', () => {
+      it('2. NONE, TRAINING, có yêu cầu khám đang mở, không kết luận -> eligible: true', () => {
         const result = evaluateEligibility({
           ...state,
           supervision: 'NONE',
-          openReviewRequests: 3,
-          currentExamination: { decision: 'NOT_ELIGIBLE' },
+          scope: 'TRAINING',
+          openReviewRequests: 1,
+          currentExamination: undefined,
           clearances: [],
         });
         expect(result).toEqual({
@@ -365,7 +369,44 @@ describe('MedicalService', () => {
         });
       });
 
-      it('COMPETITION scope retains standard medical requirements under NONE supervision', () => {
+      it('3. NONE, TRAINING, kết luận NOT_ELIGIBLE -> eligible: false, reasons chứa EXAMINATION_NOT_ELIGIBLE', () => {
+        const result = evaluateEligibility({
+          ...state,
+          supervision: 'NONE',
+          scope: 'TRAINING',
+          currentExamination: { decision: 'NOT_ELIGIBLE' },
+          clearances: [],
+        });
+        expect(result).toEqual({
+          scope: 'TRAINING',
+          eligible: false,
+          reasons: ['EXAMINATION_NOT_ELIGIBLE'],
+          supervision: 'NONE',
+        });
+      });
+
+      it('4. NONE, TRAINING, kết luận ELIGIBLE kèm clearance có allowedSessionTypes = [PAD_WORK], sessionType = SPARRING -> SESSION_TYPE_RESTRICTED', () => {
+        const clearance = {
+          ...older,
+          allowedSessionTypes: ['PAD_WORK' as const],
+        };
+        const result = evaluateEligibility({
+          ...state,
+          supervision: 'NONE',
+          scope: 'TRAINING',
+          currentExamination: { decision: 'ELIGIBLE' },
+          clearances: [clearance],
+          sessionType: 'SPARRING',
+        });
+        expect(result).toEqual({
+          scope: 'TRAINING',
+          eligible: false,
+          reasons: ['SESSION_TYPE_RESTRICTED'],
+          supervision: 'NONE',
+        });
+      });
+
+      it('5. NONE, COMPETITION, không kết luận -> giống hệt kết quả hiện tại (CLEARANCE_REQUIRED)', () => {
         const result = evaluateEligibility({
           ...state,
           supervision: 'NONE',
@@ -1330,8 +1371,11 @@ describe('MedicalService', () => {
       expect(result).toEqual({ scope: 'TRAINING', eligible: true, reasons: [], supervision: 'DOCTOR' });
     });
 
-    it('allows training immediately without locking when supervision is NONE', async () => {
+    it('allows training when supervision is NONE and no examination is on file', async () => {
       academySettingsRepo.getMedicalSupervision.mockResolvedValueOnce('NONE');
+      repo.countOpenReviewRequests.mockResolvedValueOnce(0);
+      repo.findCurrentExamination.mockResolvedValueOnce(undefined);
+      repo.hasBaselineOnFile.mockResolvedValueOnce(false);
 
       const result = await service.evaluateTrainingEligibility(
         fighterId,
@@ -1345,8 +1389,32 @@ describe('MedicalService', () => {
         reasons: [],
         supervision: 'NONE',
       });
-      expect(repo.lockFighterMedicalState).not.toHaveBeenCalled();
-      expect(repo.findCurrentExamination).not.toHaveBeenCalled();
+      expect(repo.lockFighterMedicalState).toHaveBeenCalledWith(fighterId, dummyTx);
+      expect(repo.findCurrentExamination).toHaveBeenCalledWith(fighterId, 'TRAINING', dummyTx);
+    });
+
+    it('blocks training when supervision is NONE but doctor recorded NOT_ELIGIBLE exam', async () => {
+      academySettingsRepo.getMedicalSupervision.mockResolvedValueOnce('NONE');
+      repo.countOpenReviewRequests.mockResolvedValueOnce(0);
+      repo.findCurrentExamination.mockResolvedValueOnce({
+        id: 'exam-1',
+        decision: 'NOT_ELIGIBLE',
+      } as unknown as Examination);
+      repo.hasBaselineOnFile.mockResolvedValueOnce(false);
+
+      const result = await service.evaluateTrainingEligibility(
+        fighterId,
+        'SPARRING',
+        dummyTx,
+      );
+
+      expect(result).toEqual({
+        scope: 'TRAINING',
+        eligible: false,
+        reasons: ['EXAMINATION_NOT_ELIGIBLE'],
+        supervision: 'NONE',
+      });
+      expect(repo.lockFighterMedicalState).toHaveBeenCalledWith(fighterId, dummyTx);
     });
   });
 

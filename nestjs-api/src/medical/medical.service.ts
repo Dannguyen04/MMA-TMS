@@ -91,7 +91,7 @@ import { scoreScat6 } from './scat6.scoring.js';
 
 interface EligibilityState {
   scope: ExaminationScope;
-  supervision?: 'DOCTOR' | 'NONE';
+  supervision: 'DOCTOR' | 'NONE';
   openReviewRequests: number;
   /** TRAINING only: a BASELINE examination (or the 016 legacy exemption) is on file. */
   baselineOnFile: boolean;
@@ -134,24 +134,25 @@ function isRestricted(clearance: ClearanceEligibilityRow): boolean {
  * `state.clearances` must be ordered newest issuance first.
  */
 export function evaluateEligibility(state: EligibilityState): MedicalEligibility {
-  const supervision = state.supervision ?? 'DOCTOR';
-  const { scope, currentExamination: exam, now } = state;
+  const { scope, supervision, currentExamination: exam, now } = state;
 
-  if (supervision === 'NONE' && scope === 'TRAINING') {
+  const isNoDoctorTraining = supervision === 'NONE' && scope === 'TRAINING';
+
+  if (isNoDoctorTraining && !exam) {
     return {
       scope,
       eligible: true,
       reasons: [],
-      supervision: 'NONE',
+      supervision,
     };
   }
 
   const reasons: MedicalEligibilityReason[] = [];
 
-  if (scope === 'TRAINING' && !state.baselineOnFile) {
+  if (scope === 'TRAINING' && !isNoDoctorTraining && !state.baselineOnFile) {
     reasons.push(MEDICAL_ELIGIBILITY_REASON.EXAMINATION_REQUIRED);
   }
-  if (scope === 'TRAINING' && state.openReviewRequests > 0) {
+  if (scope === 'TRAINING' && !isNoDoctorTraining && state.openReviewRequests > 0) {
     reasons.push(MEDICAL_ELIGIBILITY_REASON.REVIEW_REQUEST_PENDING);
   }
 
@@ -563,18 +564,10 @@ export class MedicalService {
     openReviewRequests: number,
     baselineOnFile: boolean,
     now: Date,
-    database?: DatabaseExecutor,
-    sessionType?: SessionTypeValue,
-    supervision: 'DOCTOR' | 'NONE' = 'DOCTOR',
+    database: DatabaseExecutor | undefined,
+    sessionType: SessionTypeValue | undefined,
+    supervision: 'DOCTOR' | 'NONE',
   ): Promise<MedicalEligibility> {
-    if (supervision === 'NONE' && scope === 'TRAINING') {
-      return {
-        scope,
-        eligible: true,
-        reasons: [],
-        supervision: 'NONE',
-      };
-    }
     const clearances =
       exam && exam.decision !== 'NOT_ELIGIBLE'
         ? await this.repo.listClearancesForExamination(
@@ -607,14 +600,6 @@ export class MedicalService {
   ): Promise<MedicalEligibility> {
     const supervision =
       await this.academySettingsRepo.getMedicalSupervision(transaction);
-    if (supervision === 'NONE') {
-      return {
-        scope: 'TRAINING',
-        eligible: true,
-        reasons: [],
-        supervision: 'NONE',
-      };
-    }
     await this.repo.lockFighterMedicalState(fighterId, transaction);
     const openReviewRequests = await this.repo.countOpenReviewRequests(
       fighterId,
