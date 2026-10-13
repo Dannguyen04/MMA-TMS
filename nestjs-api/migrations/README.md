@@ -1,4 +1,19 @@
-# Migrations 003–018 — Backend, Database & API Permissions
+# Migrations 003–023 — Backend, Database & API Permissions
+
+## Áp dụng migration 023 (Chế độ giám sát y tế - academy_settings)
+
+023 yêu cầu ledger đã có version 20 (020 movement evidence reviews) và ghi ledger version 23.
+Nội dung:
+- Enum `public.medical_supervision` (`DOCTOR`, `NONE`).
+- Bảng một dòng `public.academy_settings` (`id boolean PRIMARY KEY DEFAULT true CHECK (id)`, `medical_supervision public.medical_supervision NOT NULL DEFAULT 'DOCTOR'`, `change_reason text`, `updated_by_id uuid REFERENCES public.users(id)`, `updated_at timestamptz NOT NULL DEFAULT now()`). Insert sẵn một dòng mặc định.
+- Triggers: `public.update_updated_at()` và `mma_private.audit_domain_mutation()`.
+- RLS bật, REVOKE ALL từ `anon, authenticated`.
+- Quyền: `academy_settings:read` cho FIGHTER, COACH, DOCTOR, ADMIN; `academy_settings:manage` cho ADMIN.
+
+```sh
+pnpm db:check
+pnpm db:migrate:023
+```
 
 ## Áp dụng migration 018 (phase bắt buộc của Training Plan)
 

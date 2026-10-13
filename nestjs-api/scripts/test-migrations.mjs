@@ -80,6 +80,7 @@ const target017 = '017_doctor_assignment_notification.sql';
 const target018 = '018_training_plan_phase.sql';
 const target019 = '019_ai_delivery_receipts.sql';
 const target020 = '020_movement_evidence_reviews.sql';
+const target023 = '023_academy_settings.sql';
 const trainingPermissionCodes = [
   'training.plan:get_all',
   'training.plan:read',
@@ -360,22 +361,22 @@ try {
       migration(database, name);
     psql(database, planFixture(deletedAt));
     check(
-      `018 aborts without changes when a ${deletedAt ? 'soft-deleted' : 'live'} plan exists`,
+      `018 backfills ${deletedAt ? 'soft-deleted' : 'live'} plan to base`,
       () => {
-        rejects(
-          database,
-          readFileSync(join(api, 'migrations', target018), 'utf8'),
-          /018 requires an empty training_plans table/,
+        migration(database, target018);
+        assert.equal(
+          psql(
+            database,
+            `SELECT phase FROM training_plans;`,
+          ),
+          'base',
         );
         assert.equal(
           psql(
             database,
-            `SELECT to_regtype('public.training_plan_phase') IS NULL
-               AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'training_plans' AND column_name = 'phase')
-               AND NOT EXISTS (SELECT 1 FROM mma_private.migration_history WHERE version = 18)
-               AND (SELECT count(*) FROM training_plans) = 1;`,
+            `SELECT count(*) FROM mma_private.migration_history WHERE version = 18;`,
           ),
-          't',
+          '1',
         );
       },
     );
@@ -621,6 +622,37 @@ try {
     rejects('mma_013', `SET ROLE authenticated; SELECT * FROM public.movement_evidence_reviews;`, /permission denied/);
     rejects('mma_013', readFileSync(join(api, 'migrations', target020), 'utf8'), /already applied/);
   });
+  check('023 applies on ledger 20, rejects second row, and records ledger 23', () => {
+    migration('mma_013', target023);
+    assert.equal(
+      psql('mma_013', `SELECT count(*) FROM mma_private.migration_history WHERE version = 23;`),
+      '1',
+    );
+    assert.equal(
+      psql('mma_013', `SELECT medical_supervision FROM public.academy_settings;`),
+      'DOCTOR',
+    );
+    assert.equal(
+      psql('mma_013', `SELECT count(*) FROM public.academy_settings;`),
+      '1',
+    );
+    rejects('mma_013', `INSERT INTO public.academy_settings DEFAULT VALUES;`, /duplicate key|violates/);
+    rejects('mma_013', readFileSync(join(api, 'migrations', target023), 'utf8'), /already applied/);
+
+    // Verify audit trigger on update
+    psql('mma_013', `
+      SELECT set_config('request.jwt.claims', '{"sub":"test-admin-sub"}', true);
+      SELECT set_config('mma.request_id', 'test-req-001', true);
+      UPDATE public.academy_settings SET medical_supervision = 'NONE', change_reason = 'Testing no doctor mode' WHERE id = true;
+    `);
+    assert.equal(
+      psql('mma_013', `SELECT medical_supervision FROM public.academy_settings;`),
+      'NONE',
+    );
+    assert.equal(
+      psql('mma_013', `SELECT count(*) FROM public.audit_logs WHERE resource_type = 'academy_settings' AND action = 'UPDATE';`),
+      '1',
+    );
   });
   if (process.argv.includes('--export-catalog')) {
     mkdirSync(resolve(api, '../tmp'), { recursive: true });

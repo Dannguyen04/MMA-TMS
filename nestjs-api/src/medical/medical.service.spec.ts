@@ -3,6 +3,7 @@ import type { Mocked } from 'vitest';
 import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import { USER } from '../shared/types/user.role.js';
 import type { Transaction } from '../shared/utils/audit-context.util.js';
+import { AcademySettingsRepository } from '../academy-settings/academy-settings.repo.js';
 import { MedicalAccessService } from './medical-access.service.js';
 import { MEDICAL_ELIGIBILITY_REASON } from './medical.constants.js';
 import type {
@@ -57,6 +58,10 @@ function repositoryMock(): Mocked<MedicalRepository> {
     closeDoctorAssignment: vi.fn(),
     listDoctorAssignments: vi.fn().mockResolvedValue({ data: [], total: 0 }),
     listFightersForDoctor: vi.fn().mockResolvedValue({ data: [], total: 0 }),
+    listActiveInjuries: vi.fn().mockResolvedValue([]),
+    listActiveRecoveryPlans: vi.fn().mockResolvedValue([]),
+    listActiveClearances: vi.fn().mockResolvedValue([]),
+    listOpenReviewRequests: vi.fn().mockResolvedValue([]),
     insertInjury: vi.fn(),
     findInjury: vi.fn(),
     updateInjury: vi.fn(),
@@ -113,15 +118,30 @@ function accessMock(): Mocked<MedicalAccessService> {
   } as unknown as Mocked<MedicalAccessService>;
 }
 
+function academySettingsRepositoryMock(): Mocked<AcademySettingsRepository> {
+  return {
+    getSettings: vi.fn().mockResolvedValue({
+      medicalSupervision: 'DOCTOR',
+      changeReason: 'Initial academy configuration',
+      updatedAt: '2026-09-27T10:00:00.000Z',
+    }),
+    getMedicalSupervision: vi.fn().mockResolvedValue('DOCTOR'),
+    updateSettings: vi.fn(),
+    transaction: vi.fn(async (work) => work(dummyTx)),
+  } as unknown as Mocked<AcademySettingsRepository>;
+}
+
 describe('MedicalService', () => {
   let service: MedicalService;
   let repo: Mocked<MedicalRepository>;
   let access: Mocked<MedicalAccessService>;
+  let academySettingsRepo: Mocked<AcademySettingsRepository>;
 
   beforeEach(() => {
     repo = repositoryMock();
     access = accessMock();
-    service = new MedicalService(repo, access);
+    academySettingsRepo = academySettingsRepositoryMock();
+    service = new MedicalService(repo, access, academySettingsRepo);
 
     repo.lockInjury.mockImplementation(async (id) => repo.findInjury(id));
     repo.lockRecoveryPlan.mockImplementation(async (id) => repo.findRecoveryPlan(id));
@@ -236,7 +256,7 @@ describe('MedicalService', () => {
       { ...older, validFrom: new Date('2026-10-01') },
     ])('never falls back to older ACTIVE clearance: %j', (newest) => {
       expect(evaluateEligibility({ ...state, clearances: [newest, older] })).toEqual({
-        scope: 'TRAINING', eligible: false, reasons: ['CLEARANCE_REQUIRED'],
+        scope: 'TRAINING', eligible: false, reasons: ['CLEARANCE_REQUIRED'], supervision: 'DOCTOR',
       });
     });
 
@@ -261,6 +281,7 @@ describe('MedicalService', () => {
           scope: 'TRAINING',
           eligible: false,
           reasons: ['EXAMINATION_REQUIRED'],
+          supervision: 'DOCTOR',
         });
       });
 
@@ -275,6 +296,7 @@ describe('MedicalService', () => {
           scope: 'TRAINING',
           eligible: false,
           reasons: ['EXAMINATION_REQUIRED'],
+          supervision: 'DOCTOR',
         });
       });
 
@@ -290,6 +312,7 @@ describe('MedicalService', () => {
           scope: 'TRAINING',
           eligible: false,
           reasons: ['EXAMINATION_REQUIRED', 'REVIEW_REQUEST_PENDING'],
+          supervision: 'DOCTOR',
         });
       });
 
@@ -304,6 +327,57 @@ describe('MedicalService', () => {
           scope: 'COMPETITION',
           eligible: false,
           reasons: ['CLEARANCE_REQUIRED'],
+          supervision: 'DOCTOR',
+        });
+      });
+    });
+
+    describe('No-Doctor Mode (supervision: NONE)', () => {
+      it('TRAINING scope is always eligible with empty reasons even without baseline on file', () => {
+        const result = evaluateEligibility({
+          ...state,
+          supervision: 'NONE',
+          baselineOnFile: false,
+          currentExamination: undefined,
+          clearances: [],
+        });
+        expect(result).toEqual({
+          scope: 'TRAINING',
+          eligible: true,
+          reasons: [],
+          supervision: 'NONE',
+        });
+      });
+
+      it('TRAINING scope is eligible even with open review requests and NOT_ELIGIBLE exam', () => {
+        const result = evaluateEligibility({
+          ...state,
+          supervision: 'NONE',
+          openReviewRequests: 3,
+          currentExamination: { decision: 'NOT_ELIGIBLE' },
+          clearances: [],
+        });
+        expect(result).toEqual({
+          scope: 'TRAINING',
+          eligible: true,
+          reasons: [],
+          supervision: 'NONE',
+        });
+      });
+
+      it('COMPETITION scope retains standard medical requirements under NONE supervision', () => {
+        const result = evaluateEligibility({
+          ...state,
+          supervision: 'NONE',
+          scope: 'COMPETITION',
+          currentExamination: undefined,
+          clearances: [],
+        });
+        expect(result).toEqual({
+          scope: 'COMPETITION',
+          eligible: false,
+          reasons: ['CLEARANCE_REQUIRED'],
+          supervision: 'NONE',
         });
       });
     });
@@ -1253,7 +1327,125 @@ describe('MedicalService', () => {
         dummyTx,
       );
 
-      expect(result).toEqual({ scope: 'TRAINING', eligible: true, reasons: [] });
+      expect(result).toEqual({ scope: 'TRAINING', eligible: true, reasons: [], supervision: 'DOCTOR' });
+    });
+
+    it('allows training immediately without locking when supervision is NONE', async () => {
+      academySettingsRepo.getMedicalSupervision.mockResolvedValueOnce('NONE');
+
+      const result = await service.evaluateTrainingEligibility(
+        fighterId,
+        'SPARRING',
+        dummyTx,
+      );
+
+      expect(result).toEqual({
+        scope: 'TRAINING',
+        eligible: true,
+        reasons: [],
+        supervision: 'NONE',
+      });
+      expect(repo.lockFighterMedicalState).not.toHaveBeenCalled();
+      expect(repo.findCurrentExamination).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Review Requests (T-002)', () => {
+    const fighterUser: AuthenticatedUser = {
+      id: 'usr-fighter-1',
+      authSubject: 'sub-fighter',
+      email: 'fighter@example.com',
+      role: USER.FIGHTER,
+    };
+
+    it('rejects review request with 409 MEDICAL_SUPERVISION_DISABLED when supervision is NONE', async () => {
+      academySettingsRepo.getMedicalSupervision.mockResolvedValueOnce('NONE');
+
+      await expect(
+        service.createReviewRequest(
+          fighterUser,
+          fighterId,
+          { reason: 'Requesting review of examination' },
+          requestId,
+        ),
+      ).rejects.toMatchObject({
+        status: HttpStatus.CONFLICT,
+        response: expect.objectContaining({
+          code: 'MEDICAL_SUPERVISION_DISABLED',
+        }),
+      });
+      expect(repo.insertReviewRequest).not.toHaveBeenCalled();
+    });
+
+    it('allows review request when supervision is DOCTOR', async () => {
+      academySettingsRepo.getMedicalSupervision.mockResolvedValueOnce('DOCTOR');
+      const expectedReview = {
+        id: 'rev-1',
+        fighterId,
+        requestedById: fighterUser.id,
+        reason: 'Valid review request',
+        status: 'OPEN',
+      };
+      repo.insertReviewRequest.mockResolvedValueOnce(expectedReview as any);
+
+      const result = await service.createReviewRequest(
+        fighterUser,
+        fighterId,
+        { reason: 'Valid review request' },
+        requestId,
+      );
+
+      expect(result).toEqual(expectedReview);
+      expect(repo.insertReviewRequest).toHaveBeenCalled();
+    });
+  });
+
+  describe('Medical Dossier (T-002)', () => {
+    it('returns dossier with training eligible and supervision NONE when mode is NONE', async () => {
+      academySettingsRepo.getMedicalSupervision.mockResolvedValueOnce('NONE');
+      repo.listActiveInjuries.mockResolvedValueOnce([]);
+      repo.listActiveRecoveryPlans.mockResolvedValueOnce([]);
+      repo.listActiveClearances.mockResolvedValueOnce([]);
+      repo.listOpenReviewRequests.mockResolvedValueOnce([]);
+      repo.findCurrentExamination.mockResolvedValue(undefined);
+      repo.hasBaselineOnFile.mockResolvedValueOnce(false);
+      repo.findExaminationDetails.mockResolvedValueOnce(new Map());
+
+      const dossier = await service.getDossier(
+        adminActor,
+        fighterId,
+        requestId,
+      );
+
+      expect(dossier.eligibility.training).toEqual({
+        scope: 'TRAINING',
+        eligible: true,
+        reasons: [],
+        supervision: 'NONE',
+      });
+      expect(dossier.eligibility.competition.supervision).toBe('NONE');
+      expect(dossier.eligibility.competition.eligible).toBe(false);
+    });
+
+    it('returns dossier with supervision DOCTOR when mode is DOCTOR', async () => {
+      academySettingsRepo.getMedicalSupervision.mockResolvedValueOnce('DOCTOR');
+      repo.listActiveInjuries.mockResolvedValueOnce([]);
+      repo.listActiveRecoveryPlans.mockResolvedValueOnce([]);
+      repo.listActiveClearances.mockResolvedValueOnce([]);
+      repo.listOpenReviewRequests.mockResolvedValueOnce([]);
+      repo.findCurrentExamination.mockResolvedValue(undefined);
+      repo.hasBaselineOnFile.mockResolvedValueOnce(false);
+      repo.findExaminationDetails.mockResolvedValueOnce(new Map());
+
+      const dossier = await service.getDossier(
+        adminActor,
+        fighterId,
+        requestId,
+      );
+
+      expect(dossier.eligibility.training.supervision).toBe('DOCTOR');
+      expect(dossier.eligibility.training.eligible).toBe(false);
+      expect(dossier.eligibility.competition.supervision).toBe('DOCTOR');
     });
   });
 });
