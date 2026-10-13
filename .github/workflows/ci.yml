@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # next.config.ts refuses production builds in demo or mock mode.
+      APP_DATA_MODE: api
+      NEXT_PUBLIC_VIDEO_PIPELINE: api
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter nextjs-frontend
+      - name: Lint
+        run: pnpm --filter nextjs-frontend run lint
+      - name: Typecheck
+        run: pnpm --filter nextjs-frontend run typecheck
+      - name: Unit tests
+        run: pnpm --filter nextjs-frontend run test
+      - name: Build
+        run: pnpm --filter nextjs-frontend run build
+
+  backend:
+    # The API unit tests stay out until its empty spec files and the database-backed coaching-loop test are fixed.
+    name: Backend (lint and build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter nestjs-api
+      - name: Lint
+        run: pnpm --filter nestjs-api run lint
+      - name: Build
+        run: pnpm --filter nestjs-api run build
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: node scripts/check-secrets.mjs
