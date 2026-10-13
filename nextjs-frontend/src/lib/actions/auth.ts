@@ -39,10 +39,13 @@ type SignInRole = Role | "applicant";
 
 const signInRole = (account: SessionAccount): SignInRole => (account.kind === "user" ? account.user.role : "applicant");
 
+const TOO_MANY_ATTEMPTS = "Too many attempts in a short time. Wait a minute, then try again.";
+
 function loginError(error: unknown): ActionState {
     if (error instanceof ApiError && (error.status === 400 || error.status === 401)) {
         return actionError("That email and password combination is incorrect.");
     }
+    if (error instanceof ApiError && error.status === 429) return actionError(TOO_MANY_ATTEMPTS);
     if (error instanceof ApiError) return actionError(error.message);
     return actionError("Sign-in failed. Please try again.");
 }
@@ -107,7 +110,7 @@ const ADMISSION_CODE_FORMAT = "Enter the code from the email: 6 to 10 digits.";
 /** Refusals of the email-code routes, on the field the person can fix. */
 function admissionCodeError(error: unknown, field: "email" | "token"): ActionState<never> {
     if (!(error instanceof ApiError)) return actionError("Something went wrong. Please try again.");
-    if (error.status === 429) return actionError("Too many attempts in a short time. Wait a minute, then try again.");
+    if (error.status === 429) return actionError(TOO_MANY_ATTEMPTS);
     const fieldMessages: Record<number, [string, string]> = {
         401: ["token", "That code is wrong, has expired or was already used. Send a new code. Staff and fighters sign in with their password."],
         409: ["email", "This email belongs to an account that signs in another way. Sign in with your password, or contact the academy."],

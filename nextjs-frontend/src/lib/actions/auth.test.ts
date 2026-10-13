@@ -62,6 +62,15 @@ describe("applicant email codes and sign-in in API mode", () => {
         expect(setSessionCookies).not.toHaveBeenCalled();
     });
 
+    it("asks a rate-limited sign-in to wait instead of showing the service's error", async () => {
+        apiRequest.mockRejectedValue(new ApiError({ message: "ThrottlerException: Too Many Requests", kind: "http", status: 429, code: "HTTP_429" }));
+
+        await expect(signIn(IDLE, form({ email: "rafael.costa@example.test", password: "a long password" }))).resolves.toMatchObject({
+            status: "error",
+            message: "Too many attempts in a short time. Wait a minute, then try again.",
+        });
+    });
+
     it("sends a signed-in applicant to their application, whatever ?next= says", async () => {
         apiRequest.mockResolvedValue({ user: guest, session });
 
