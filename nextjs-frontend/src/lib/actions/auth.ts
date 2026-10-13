@@ -1,17 +1,20 @@
 "use server";
 
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 import { z } from "zod";
 
 import { ApiError, apiRequest } from "@/lib/api/client";
 import { ACCESS_TOKEN_COOKIE, THEME_COOKIE, isDemoAuthEnabled, parseTheme } from "@/lib/auth/constants";
 import { clearSessionCookies, setSessionCookies } from "@/lib/auth/session-cookies";
 import { requestPasswordRecovery, resetPassword } from "@/lib/auth/password-recovery";
-import type { SessionAccount } from "@/lib/auth/session";
+import { getSessionAccount, type SessionAccount } from "@/lib/auth/session";
 import { sessionTokensSchema } from "@/lib/auth/session-tokens";
+import { PASSWORD_SET_NOTICE, openApplication } from "@/lib/domain/admissions";
 import type { Role } from "@/lib/domain/types";
+import { hrefWith } from "@/lib/query";
 import { dashboardPath, roleForPath, routes, safeRedirectPath } from "@/lib/routes";
+import { listOwnApplications } from "@/lib/services/admissions";
 import { passwordText } from "./form-helpers";
 import { actionError, actionSuccess, FIX_FIELDS, validationError, type ActionState } from "./state";
 
@@ -190,7 +193,26 @@ const resetSchema = z
 /** `?notice=` on the sign-in page: a new password was set, either after "forgot password" or for an approved applicant. */
 export type SignInNotice = "password-updated" | "activation-ready";
 
-/** Sets a new password from a recovery link, then sends the person to sign in. */
+/**
+ * Whether this browser is still signed in as the applicant whose activation now only waits for them, so they can
+ * activate right away instead of signing in again. Anything unexpected sends them to sign in, which always works.
+ */
+async function applicantReadyToActivate(): Promise<boolean> {
+    try {
+        const account = await getSessionAccount();
+        if (account?.kind !== "applicant") return false;
+        return openApplication(await listOwnApplications(account.applicant))?.activation === "password_set";
+    } catch (error) {
+        unstable_rethrow(error);
+        return false;
+    }
+}
+
+/**
+ * Sets a password from a recovery link: an approved applicant's first one (the service reports that their activation
+ * is ready), or a new one for an existing account. Then the person signs in, or goes straight to activation when this
+ * browser is still signed in as that applicant.
+ */
 export async function resetPasswordAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
     const parsed = resetSchema.safeParse({
         tokenHash: formData.get("tokenHash"),
@@ -200,8 +222,9 @@ export async function resetPasswordAction(_prev: ActionState, formData: FormData
     if (!parsed.success) return validationError(parsed.error);
     const result = await resetPassword(parsed.data.tokenHash, parsed.data.newPassword);
     if (!result.ok) return result.field ? actionError(FIX_FIELDS, { [result.field]: result.message }) : actionError(result.message);
-    const notice: SignInNotice = result.admissionActivationReady ? "activation-ready" : "password-updated";
-    redirect(`${routes.login}?notice=${notice}`);
+    if (!result.admissionActivationReady) redirect(`${routes.login}?notice=${"password-updated" satisfies SignInNotice}`);
+    if (await applicantReadyToActivate()) redirect(hrefWith(routes.apply, {}, { notice: PASSWORD_SET_NOTICE }));
+    redirect(`${routes.login}?notice=${"activation-ready" satisfies SignInNotice}`);
 }
 
 export async function signOut(): Promise<void> {
