@@ -30,15 +30,12 @@ const SIDEBAR: Record<Role, NavTarget[]> = {
         { link: "Triage", href: DASHBOARDS.doctor, h1: "Triage" },
     ],
     admin: [
-        { link: "Users", href: "/admin/users", h1: "Users" },
-        { link: "Roles & permissions", href: "/admin/roles", h1: "Roles & permissions" },
-        { link: "Videos", href: "/admin/videos", h1: "Videos" },
-        { link: "AI jobs", href: "/admin/ai-jobs", h1: "AI jobs" },
-        { link: "AI models", href: "/admin/ai-models", h1: "AI models" },
-        { link: "Audit logs", href: "/admin/audit-logs", h1: "Audit logs" },
-        { link: "Broadcasts", href: "/admin/notifications", h1: "Broadcasts" },
-        { link: "System settings", href: "/admin/settings", h1: "System settings" },
-        { link: "Dashboard", href: DASHBOARDS.admin, h1: "Platform overview" },
+        { link: "People", href: "/admin/users", h1: "Users" },
+        { link: "Admissions", href: "/admin/admissions", h1: "Admissions" },
+        { link: "Training", href: "/admin/exercises", h1: "Exercise library" },
+        { link: "AI platform", href: "/admin/ai-jobs", h1: "AI jobs" },
+        { link: "System", href: "/admin/audit-logs", h1: "Audit logs" },
+        { link: "Today", href: DASHBOARDS.admin, h1: /^Good (morning|afternoon|evening)$/ },
     ],
 };
 
@@ -93,6 +90,31 @@ const HUB_TABS: Partial<Record<Role, { hub: string; tabs: NavTarget[] }[]>> = {
                 { link: "Recovery", href: "/doctor/recovery", h1: "Recovery" },
                 { link: "Clearance", href: "/doctor/medical-clearance", h1: "Medical Clearance" },
                 { link: "Examinations", href: "/doctor/examinations", h1: "Examinations" },
+            ],
+        },
+    ],
+    admin: [
+        {
+            hub: "People",
+            tabs: [
+                { link: "Roles & permissions", href: "/admin/roles", h1: "Roles & permissions" },
+                { link: "Users", href: "/admin/users", h1: "Users" },
+            ],
+        },
+        {
+            hub: "AI platform",
+            tabs: [
+                { link: "Videos", href: "/admin/videos", h1: "Videos" },
+                { link: "AI models", href: "/admin/ai-models", h1: "AI models" },
+                { link: "AI jobs", href: "/admin/ai-jobs", h1: "AI jobs" },
+            ],
+        },
+        {
+            hub: "System",
+            tabs: [
+                { link: "Broadcasts", href: "/admin/notifications", h1: "Broadcasts" },
+                { link: "Settings", href: "/admin/settings", h1: "System settings" },
+                { link: "Audit logs", href: "/admin/audit-logs", h1: "Audit logs" },
             ],
         },
     ],

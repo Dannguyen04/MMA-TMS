@@ -1,7 +1,7 @@
 import { capitalize, describeDaysUntil } from "@/components/domain/domain-format";
 import { WEIGHT_CLASS_LIMIT_KG } from "@/lib/domain/labels";
 import type { ClearanceState } from "@/lib/domain/rules";
-import type { Fighter, HealthStatus, PerformanceMetric, WeightClass } from "@/lib/domain/types";
+import type { Fighter, HealthStatus, PerformanceMetric, User, WeightClass } from "@/lib/domain/types";
 import { APP_TIMEZONE, daysBetween, formatNumber } from "@/lib/format";
 import { round } from "@/lib/utils";
 
@@ -20,6 +20,15 @@ export function greetingFor(now: string): string {
 /** First given name for greetings, e.g. "Minh Trần" → "Minh". */
 export function firstName(name: string): string {
     return name.trim().split(/\s+/)[0] ?? name;
+}
+
+/**
+ * "Good evening, Nora" for a Today page. Admins have no profile, so the API gives them their email as a name;
+ * they get the greeting alone rather than "Good evening, nora@…".
+ */
+export function greetingTitle(now: string, user: Pick<User, "name" | "email">): string {
+    const name = user.name.trim();
+    return name && name !== user.email ? `${greetingFor(now)}, ${firstName(name)}` : greetingFor(now);
 }
 
 /** "Today", "Tomorrow", "In 3 days", "Yesterday" for a timestamp relative to `now` (academy calendar days). */

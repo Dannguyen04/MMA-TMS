@@ -19,6 +19,9 @@ export function roleForPath(pathname: string): Role | null {
     return (Object.keys(ROLE_BASE_PATH) as Role[]).find((role) => ROLE_BASE_PATH[role] === `/${segment}`) ?? null;
 }
 
+/** Element id of the care team card on an admin's user page, for links that jump straight to it. */
+export const CARE_TEAM_ANCHOR = "care-team";
+
 export const routes = {
     login: "/login",
     forgotPassword: "/forgot-password",
@@ -103,6 +106,10 @@ export const routes = {
         /** The new-account form with the role already chosen, e.g. an "Add fighter" entry. */
         newUserAs: (role: "fighter" | "coach" | "doctor" | "admin") => `/admin/users/new?role=${role}`,
         user: (userId: string) => `/admin/users/${userId}`,
+        /** A fighter's account page, scrolled to their care team. */
+        userCareTeam: (userId: string) => `/admin/users/${userId}#${CARE_TEAM_ANCHOR}`,
+        /** Opens a fighter's account from their fighter profile id (notifications name the profile, not the account). */
+        fighter: (fighterId: string) => `/admin/fighters/${fighterId}`,
         admissions: "/admin/admissions",
         admission: (applicationId: string) => `/admin/admissions/${applicationId}`,
         roles: "/admin/roles",
