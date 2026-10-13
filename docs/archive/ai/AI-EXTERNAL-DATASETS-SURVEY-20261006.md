@@ -3,8 +3,8 @@
 Ngày 2026-10-06. Mục tiêu: tìm RGB video có nhãn đòn theo thời gian (start/end),
 tốt nhất có đoạn không ra đòn, thông tin lead/rear hoặc thế thủ, và giấy phép dùng
 được khi bán cho CLB. Bối cảnh và lý do cần dữ liệu mới nằm ở
-[AI-SIX-PUNCH-VIDEO-20261006.md](AI-SIX-PUNCH-VIDEO-20261006.md) và
-[AI-IMPROVEMENT-PLAN-20261006.md](AI-IMPROVEMENT-PLAN-20261006.md).
+[AI-SIX-PUNCH-VIDEO-20261006.md](./AI-SIX-PUNCH-VIDEO-20261006.md) và
+[AI-IMPROVEMENT-PLAN-20261006.md](./AI-IMPROVEMENT-PLAN-20261006.md).
 
 Không tải dataset hay video nào. Chỉ đọc trang web, README, paper, metadata API.
 
@@ -46,7 +46,7 @@ Không tải dataset hay video nào. Chỉ đọc trang web, README, paper, meta
    theo mô tả, nhưng **chưa xác minh được** taxonomy, giấy phép, cách truy cập. Đây là
    việc cần người mở trang OpenReview kiểm tra đầu tiên.
 6. **Bộ nghiệm thu độc lập vẫn phải tự thu** như kế hoạch
-   [AI-DATA-COLLECTION-PROTOCOL.md](AI-DATA-COLLECTION-PROTOCOL.md). Dữ liệu ngoài
+   [AI-DATA-COLLECTION-PROTOCOL.md](./AI-DATA-COLLECTION-PROTOCOL.md). Dữ liệu ngoài
    chỉ bổ sung một phần (xem mục 5).
 7. **Cờ giấy phép riêng cho pipeline hiện tại:** repo Ultralytics (YOLOv8-Pose) khai
    AGPL-3.0 theo GitHub API. Nếu bán sản phẩm cho CLB, cần xem lại giấy phép
@@ -342,7 +342,7 @@ Nhận xét:
   (video/võ sĩ/góc quay độc lập, tính cả `unknown`, đòn bỏ sót và dự đoán dư) đòi hỏi
   nhãn sáu lớp và ranh giới sự kiện; chỉ BoxingVI (và có thể ShadowPunch) có nhãn như vậy.
 - **Hạng 1: bộ do nhóm tự thu** theo
-  [AI-DATA-COLLECTION-PROTOCOL.md](AI-DATA-COLLECTION-PROTOCOL.md): điện thoại, một người,
+  [AI-DATA-COLLECTION-PROTOCOL.md](./AI-DATA-COLLECTION-PROTOCOL.md): điện thoại, một người,
   có đoạn nền do người duyệt, giữ riêng khỏi huấn luyện.
 - **Hạng 2: BoxingVI bị giữ riêng** (ví dụ video của S16-S20 theo split tác giả) sau khi
   huấn luyện lại không dùng chúng. Nhãn chưa có nền; nghiệm thu chỉ phân loại có ranh giới

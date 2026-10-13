@@ -2,7 +2,7 @@
 
 **Cập nhật sau khi triển khai:** A0–A3 đã được chạy đủ 36 lượt CV và refit theo
 quy tắc chọn trước. A3 đứng đầu CV nhưng chưa cải thiện diagnostic; xem
-[kết quả thực nghiệm](AI-GROUP-CV-RESULTS-20261006.md). Phần dưới giữ lại căn cứ
+[kết quả thực nghiệm](./AI-GROUP-CV-RESULTS-20261006.md). Phần dưới giữ lại căn cứ
 và kế hoạch đã lập trước thí nghiệm, không phải mô tả mọi bước vẫn chưa chạy.
 
 Ngày 2026-10-06. Phân tích checkpoint seed 20261007, epoch 37 đã đóng băng.
@@ -53,8 +53,8 @@ Các phát hiện bổ sung:
   chứng pose hoàn hảo. Mirror chỉ giữ tọa độ; quality/confidence không tương
   đương output YOLO. Không so trực tiếp coverage này với coverage video đầy đủ.
 
-[Bằng chứng máy đọc](../python-worker/benchmark_results/adam_source_error_analysis_20261006.json)
-và [kết quả huấn luyện](AI-TRAINING-RESULTS-20261006.md). Mọi accuracy ở đây đo
+[Bằng chứng máy đọc](../../../python-worker/benchmark_results/adam_source_error_analysis_20261006.json)
+và [kết quả huấn luyện](./AI-TRAINING-RESULTS-20261006.md). Mọi accuracy ở đây đo
 khớp nhãn nguồn chưa xác nhận, trên clip có ranh giới cho sẵn; Adam chỉ đo fit.
 
 ## 2. Nguyên nhân: điều đã biết và giả thuyết cần kiểm tra
@@ -87,7 +87,7 @@ chỉ dùng các nguồn train mirror hiện tại để cross-validation theo v
 | 2 | V2 + V3 | 1.043 | 32 |
 | 3 | V4 + V7 | 754 | 80 |
 
-[Cấu hình fold đề xuất, đã kiểm tra đủ lớp và tách nguồn](../python-worker/benchmark_results/proposed_development_folds_20261006.json).
+[Cấu hình fold đề xuất, đã kiểm tra đủ lớp và tách nguồn](../../../python-worker/benchmark_results/proposed_development_folds_20261006.json).
 Trạng thái `PROPOSED_NOT_TRAINED`; chưa có kết quả cross-validation mới.
 
 Nguồn mirror còn lại vào train ở từng fold; Adam và bao cát giữ train theo chính
@@ -146,7 +146,7 @@ contract riêng; không trộn tensor v1/v2 như thể tương đương. Cần n
 được kiểm thử nếu thử chuyển weights; phương án đơn giản đầu tiên là train v2
 trên dữ liệu thật tương thích và so sánh trên cùng nhóm đánh giá.
 
-Quy trình nhãn và bàn giao đã có tại [protocol thu thập](AI-DATA-COLLECTION-PROTOCOL.md).
+Quy trình nhãn và bàn giao đã có tại [protocol thu thập](./AI-DATA-COLLECTION-PROTOCOL.md).
 AI có thể đề xuất và xếp hàng clip cần review, nhưng không ghi `coachConfirmed`
 cho nhãn chưa có người xác nhận. Dùng uncertainty cùng độ đa dạng nguồn để chọn
 mẫu review; vẫn lấy mẫu ngẫu nhiên các dự đoán tự tin để bắt lỗi như V10.
@@ -199,7 +199,7 @@ thực hiện A0–A3, và không gọi Gemini trong nghiên cứu này.
    một tỷ lệ accuracy tương lai khi chưa có phép đo.
 2. Dữ liệu pilot và feature v2 là điều kiện để đo khả năng dùng trên video CLB.
    Nếu chưa có RGB V10, ghi rõ không thể xác minh góc/quy ước nhãn của nguồn đó.
-3. Giữ release gates trong [Reliability Plan](AI_COACHING_RELIABILITY_PLAN.md),
+3. Giữ release gates trong [Reliability Plan](./AI_COACHING_RELIABILITY_PLAN.md),
    bao gồm classification, side, ECE, detection và regression theo nhóm. Tài liệu
    gate hiện viết “macro F1 ... for each technique”; cần ghi rõ trong evaluator
    macro-F1 toàn taxonomy và F1 từng lớp, không dùng một số trung bình để che lớp yếu.

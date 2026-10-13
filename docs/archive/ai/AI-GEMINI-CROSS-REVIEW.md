@@ -1,6 +1,6 @@
 # Duyệt chéo dữ liệu bằng Gemini
 
-**Quyết định mới nhất:** chủ dự án đã [chốt nhãn Adam gốc](AI-ADAM-LABEL-DECISION.md).
+**Quyết định mới nhất:** chủ dự án đã [chốt nhãn Adam gốc](./AI-ADAM-LABEL-DECISION.md).
 Kết quả Gemini bên dưới là đối chiếu lịch sử; không ghi đè nhãn Adam và không
 còn yêu cầu loại bốn mẫu bất đồng khỏi train chỉ vì hai AI khác nhau.
 
@@ -98,7 +98,7 @@ không xác nhận mốc bắt đầu/kết thúc hoặc chất lượng kỹ th
 mẫu tranh chấp khỏi lượt train tiếp theo cho đến khi giải quyết, thay vì tự đổi
 nhãn sang Gemini. Dataset tạm đã đóng băng vẫn được giữ nguyên để truy nguyên.
 
-[Báo cáo đối chiếu đầy đủ](../python-worker/benchmark_results/gemini_cross_review_20261006.json)
+[Báo cáo đối chiếu đầy đủ](../../../python-worker/benchmark_results/gemini_cross_review_20261006.json)
 lưu cả nhãn, bằng chứng Gemini trả về, usage và hash nguồn. Báo cáo này phân biệt
 đồng thuận tên đòn với đồng thuận nhiều động tác; phản hồi API gốc không bị sửa.
 

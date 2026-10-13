@@ -85,7 +85,7 @@ ensemble ngoài fold của A3 và nhãn nguồn. Mỗi nguồn ưu tiên một l
 nếu có, sau đó chọn đa dạng cặp nhãn nhầm. Đây là hàng đợi cần xác minh, không
 phải 30 nhãn sửa tự động hoặc nhãn HLV đã xác nhận. Adam không nằm trong queue.
 
-[Hàng đợi review và frame nguồn](../python-worker/benchmark_results/group_cv_review_queue_20261006.json).
+[Hàng đợi review và frame nguồn](../../../python-worker/benchmark_results/group_cv_review_queue_20261006.json).
 Cần video RGB gốc để xác minh kỹ thuật/stance/ánh xạ annotation; skeleton và
 model disagreement chưa đủ kết luận nhãn nguồn sai. Ưu tiên kiểm tra V4 và bổ
 sung dữ liệu các điều kiện đang thiếu, thay vì tiếp tục chọn hyperparameter
@@ -93,7 +93,7 @@ theo kết quả V9/V10.
 
 ## Artifact và tái lập
 
-[Báo cáo máy đọc đầy đủ](../python-worker/benchmark_results/temporal_group_cv_20261006.json).
+[Báo cáo máy đọc đầy đủ](../../../python-worker/benchmark_results/temporal_group_cv_20261006.json).
 
 Thư mục experiment:
 `python-worker/test_results/temporal_ablations/20261006_group_cv_v1/`.
@@ -108,7 +108,7 @@ Giữ nguyên manifest, fold plan và các báo cáo lịch sử. Trạng thái
 `PROPOSED_NOT_TRAINED` trong file fold plan là snapshot lúc thiết kế; báo cáo
 experiment hiện tại ghi `CV_AND_REFIT_COMPLETED` cùng hash tham chiếu plan đó.
 
-[Cấu hình chi tiết và lệnh chạy](AI-GROUP-CV-IMPLEMENTATION-20261006.md).
+[Cấu hình chi tiết và lệnh chạy](./AI-GROUP-CV-IMPLEMENTATION-20261006.md).
 
 Phần thử nghiệm A0–A3 đã hoàn tất. Thu thập video CLB mới, train feature v2 bằng
 timestamp thật, train detector có background và đánh giá chất lượng kỹ thuật

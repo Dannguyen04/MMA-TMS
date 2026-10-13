@@ -4,7 +4,7 @@
 hiện tại là `PENDING_COACH_REVIEW`: **0 mẫu có xác nhận HLV đã được kiểm chứng**.
 AI chuẩn bị dữ liệu, nguồn nhãn, bằng chứng và công cụ; không tự nhận vai trò HLV.
 
-Ngày 2026-10-06 đã có [lượt rà soát bằng frame của AI](AI-DATASET-REVIEW-20261006.md)
+Ngày 2026-10-06 đã có [lượt rà soát bằng frame của AI](./AI-DATASET-REVIEW-20261006.md)
 cho 67 task RGB. Có dấu hiệu nhãn Adam lệch động tác; nhãn AI vẫn là đề xuất,
 chưa nâng bất kỳ mẫu nào thành dữ liệu HLV xác nhận.
 
@@ -13,7 +13,7 @@ chưa nâng bất kỳ mẫu nào thành dữ liệu HLV xác nhận.
 Thư mục bàn giao: `python-worker/test_results/coach_review_dataset/20261005_v2/`.
 Các bản v1 là bản phát triển; dùng v2 và máy chủ hỗ trợ HTTP Range bên dưới.
 Video và dữ liệu lớn chỉ lưu cục bộ, được Git bỏ qua. Thống kê và SHA-256 được
-lưu tại [báo cáo JSON](../python-worker/benchmark_results/coach_review_dataset_20261005.json).
+lưu tại [báo cáo JSON](../../../python-worker/benchmark_results/coach_review_dataset_20261005.json).
 
 | Thành phần | Số lượng / trạng thái |
 | --- | --- |
@@ -99,7 +99,7 @@ những khác biệt này là bằng chứng nhãn chính xác.
   này đã được quan sát trong nghiên cứu; duyệt lại không tạo test độc lập mới.
 - Bộ này hỗ trợ nhận dạng loại đòn/thời gian. Chưa có rubric và nhãn đủ để học
   chấm chất lượng kỹ thuật. Thu dữ liệu CLB mới vẫn theo
-  [quy trình thu thập và gán nhãn](AI-DATA-COLLECTION-PROTOCOL.md).
+  [quy trình thu thập và gán nhãn](./AI-DATA-COLLECTION-PROTOCOL.md).
 
 ## Kiểm chứng đã chạy
 
@@ -113,7 +113,7 @@ giả danh HLV để kiểm thử. Kiểm thử này xác nhận công cụ, kh�
 ## Gán nhãn toàn timeline cho video CLB mới (2026-10-06)
 
 Gói 67 task ở trên giữ nguyên (một khoảng/nhãn cho mỗi task, dùng để HLV làm quen). Video CLB
-mới dùng bộ công cụ riêng, bám [kế hoạch dữ liệu CLB](AI-CLUB-DATA-PLAN-20261006.md). Bộ này chưa
+mới dùng bộ công cụ riêng, bám [kế hoạch dữ liệu CLB](./AI-CLUB-DATA-PLAN-20261006.md). Bộ này chưa
 được dùng với dữ liệu CLB thật: chưa có buổi quay nào, và đã được thử trên clip nghiên cứu cũ với ID
 giả (`test_results/review_tool_demo_20261006/`, nhãn tùy ý, không phải nhãn thật).
 
@@ -161,7 +161,7 @@ frame nên việc không thấy dao động không chứng minh FPS cố định
   timeline, ở bảng kiểm tra và trong file xuất (`validation.errors`); không tick được "timeline đã
   hoàn chỉnh" khi còn lỗi hoặc khoảng hở. Lead/rear lệch tên lớp (ví dụ jab ghi rear) là cảnh báo.
 - Thế thủ của `background`/`unclear` để trống nếu người gán không điền; **không có giá trị mặc định**
-  (chưa có quyết định chung, xem [kế hoạch](AI-CLUB-DATA-PLAN-20261006.md#trạng-thái-công-cụ)). Ô
+  (chưa có quyết định chung, xem [kế hoạch](./AI-CLUB-DATA-PLAN-20261006.md#trạng-thái-công-cụ)). Ô
   "nhớ thế thủ" mặc định tắt và chỉ áp cho đòn.
 - Phím tắt (bỏ qua khi đang gõ trong ô nhập): Space phát/dừng; `,` `.` hoặc ← → bước 1 frame
   (Shift: 10); `[` `]` `p` lấy start/end/peak từ playhead (làm tròn xuống đầu frame theo FPS khai

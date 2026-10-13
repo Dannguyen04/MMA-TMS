@@ -7,20 +7,20 @@ như nhãn nghiên cứu chưa xác minh; không chuyển thành nhãn HLV xác 
 
 **Quyết định hiện hành:** chủ dự án chốt toàn bộ 18 nhãn Adam gốc. Không dùng
 nhãn AI/Gemini thay thế hoặc loại mẫu Adam vì bất đồng. Đã tạo dataset mới với
-4.775 mẫu (3.681 train); xem [quyết định và kiểm chứng](AI-ADAM-LABEL-DECISION.md).
+4.775 mẫu (3.681 train); xem [quyết định và kiểm chứng](./AI-ADAM-LABEL-DECISION.md).
 Checkpoint mới đã huấn luyện theo nhãn vừa chốt, chọn seed 20261007, epoch 37.
-Xem [kết quả, hiệu chuẩn và giới hạn](AI-TRAINING-RESULTS-20261006.md).
+Xem [kết quả, hiệu chuẩn và giới hạn](./AI-TRAINING-RESULTS-20261006.md).
 
 ## Phiên bản đang dùng cho thử nghiệm
 
 Manifest: `python-worker/test_results/provisional_dataset/20261006_adam_source_v1/manifest.json`.
 Feature: `features.npz` cùng thư mục, numeric NPZ không pickle.
-Kết quả và hash hiện hành: [adam_source_selection_20261006.json](../python-worker/benchmark_results/adam_source_selection_20261006.json).
+Kết quả và hash hiện hành: [adam_source_selection_20261006.json](../../../python-worker/benchmark_results/adam_source_selection_20261006.json).
 
 ## Lịch sử dataset v2 và lượt train trước khi chốt nhãn Adam
 
 Các số liệu bên dưới thuộc `20261006_v2`, không phải dataset hiện hành.
-Kết quả lịch sử: [provisional_training_20261006.json](../python-worker/benchmark_results/provisional_training_20261006.json).
+Kết quả lịch sử: [provisional_training_20261006.json](../../../python-worker/benchmark_results/provisional_training_20261006.json).
 
 | Phần dữ liệu | Số mẫu | Cách dùng |
 | --- | ---: | --- |
@@ -89,6 +89,6 @@ PersonTracker trực tiếp, không gọi postprocessing chấm pha. Lỗi phase
 pipeline đầy đủ chưa được sửa trong công việc này. Thư mục dataset v1 là lần
 chạy dở, không có manifest hoàn chỉnh; sử dụng v2 nêu trên.
 
-[Bản rà soát từng task](AI-DATASET-REVIEW-20261006.md) vẫn là nguồn nhận xét;
+[Bản rà soát từng task](./AI-DATASET-REVIEW-20261006.md) vẫn là nguồn nhận xét;
 gói review gốc và nhãn nguồn không bị ghi đè. Khi có HLV thật duyệt, tạo phiên
 bản nhãn mới và đo lại trước khi thay thế cấu hình nghiên cứu này.

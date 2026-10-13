@@ -860,11 +860,11 @@ Trước khi thay đổi logic phân tích:
 
 ## 25. Tài liệu liên quan trong repository
 
-- `docs/MMA-TMS-MASTER-SPECIFICATION-v2.md`
-- `python-worker/SPRINT2_TRACKING_POSTURE_REPORT.md`
-- `python-worker/SPRINT3_SCOPE_AND_MOTION_FORENSICS_REPORT.md`
-- `python-worker/PUNCH_DETECTOR_VALIDATION_REPORT.md`
-- `python-worker/STRIKE_BENCHMARK_REPORT.md`
+- `docs/archive/specs/MMA-TMS-MASTER-SPECIFICATION-v2.md`
+- `docs/archive/ai/worker-reports/SPRINT2_TRACKING_POSTURE_REPORT.md`
+- `docs/archive/ai/worker-reports/SPRINT3_SCOPE_AND_MOTION_FORENSICS_REPORT.md`
+- `docs/archive/ai/worker-reports/PUNCH_DETECTOR_VALIDATION_REPORT.md`
+- `docs/archive/ai/worker-reports/STRIKE_BENCHMARK_REPORT.md`
 - `python-worker/technique_rubric.py`
 - `python-worker/punch_analyzer.py`
 - `python-worker/kick_analyzer.py`

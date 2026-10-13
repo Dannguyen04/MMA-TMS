@@ -5,7 +5,7 @@ phần kỹ thuật. Tài liệu này là **kế hoạch**, chưa có dữ liệ
 Mọi con số về quy mô, giờ công và tỉ lệ hao hụt là **ước lượng lập kế hoạch**, chưa
 được chứng minh là đủ; chỗ nào cần đo lại ở pilot đều ghi rõ.
 
-Tài liệu bám theo [quy trình thu thập và gán nhãn](AI-DATA-COLLECTION-PROTOCOL.md)
+Tài liệu bám theo [quy trình thu thập và gán nhãn](./AI-DATA-COLLECTION-PROTOCOL.md)
 (sau đây gọi là "protocol"). Điều protocol đã quyết thì làm theo; chỗ khác hoặc
 chưa rõ nằm ở mục [Khác biệt cần chủ dự án quyết](#khác-biệt-với-tài-liệu-hiện-có).
 
@@ -15,12 +15,12 @@ chưa rõ nằm ở mục [Khác biệt cần chủ dự án quyết](#khác-bi�
 
 | Điều đã đo | Số liệu | Nguồn |
 | --- | --- | --- |
-| Macro-F1 CV theo nguồn (B0, trung bình bốn fold) | 0,5092 | [AI-SIX-PUNCH-VIDEO](AI-SIX-PUNCH-VIDEO-20261006.md) |
-| F1 diagnostic V9 so với V10 | 0,7086 so với 0,3028 | [AI-IMPROVEMENT-PLAN](AI-IMPROVEMENT-PLAN-20261006.md) |
-| Detector đòn đang chạy, 9 video / 48 đòn | P 57,7%, R 31,3%, F1 40,5% | [STRIKE_BENCHMARK_REPORT](../python-worker/STRIKE_BENCHMARK_REPORT.md) |
-| Rear hook so với cross trong skeleton nguồn | 296 so với 1.370 | [AI-COACH-REVIEW-DATASET](AI-COACH-REVIEW-DATASET.md) |
-| Phần V1 trong trọng số loss của tập train | 47,93% | [AI-IMPROVEMENT-PLAN](AI-IMPROVEMENT-PLAN-20261006.md) |
-| Nhãn do HLV xác nhận | 0 | [AI-COACH-REVIEW-DATASET](AI-COACH-REVIEW-DATASET.md) |
+| Macro-F1 CV theo nguồn (B0, trung bình bốn fold) | 0,5092 | [AI-SIX-PUNCH-VIDEO](./AI-SIX-PUNCH-VIDEO-20261006.md) |
+| F1 diagnostic V9 so với V10 | 0,7086 so với 0,3028 | [AI-IMPROVEMENT-PLAN](./AI-IMPROVEMENT-PLAN-20261006.md) |
+| Detector đòn đang chạy, 9 video / 48 đòn | P 57,7%, R 31,3%, F1 40,5% | [STRIKE_BENCHMARK_REPORT](./worker-reports/STRIKE_BENCHMARK_REPORT.md) |
+| Rear hook so với cross trong skeleton nguồn | 296 so với 1.370 | [AI-COACH-REVIEW-DATASET](./AI-COACH-REVIEW-DATASET.md) |
+| Phần V1 trong trọng số loss của tập train | 47,93% | [AI-IMPROVEMENT-PLAN](./AI-IMPROVEMENT-PLAN-20261006.md) |
+| Nhãn do HLV xác nhận | 0 | [AI-COACH-REVIEW-DATASET](./AI-COACH-REVIEW-DATASET.md) |
 
 Tài liệu hiện có chỉ ra ba thiếu sót mà tăng epoch hay đổi kiến trúc không sửa được:
 skeleton huấn luyện đến từ bộ ước lượng pose khác YOLO đang triển khai; không có
@@ -41,7 +41,7 @@ Kế hoạch này nhắm vào ba thiếu sót đó.
 Mức 1 **không** có nghĩa AI đạt chuẩn. Nó chỉ có nghĩa đã có dữ liệu để đo.
 
 **Mức 2 — đo được các release gate (Giai đoạn 2, tùy chọn).** Release gate nằm ở
-[AI_COACHING_RELIABILITY_PLAN](AI_COACHING_RELIABILITY_PLAN.md). Bảng dưới cho thấy
+[AI_COACHING_RELIABILITY_PLAN](./AI_COACHING_RELIABILITY_PLAN.md). Bảng dưới cho thấy
 kế hoạch này phục vụ gate nào:
 
 | Gate | Nội dung | Kế hoạch này |
@@ -62,16 +62,16 @@ Gate 2, 6, 7 cần việc khác, nằm ngoài kế hoạch này.
 ### Thiết bị và cài đặt
 
 Dùng điện thoại, vì HLV Việt Nam gần như chỉ có điện thoại
-([VIETNAM-MARKET-ANALYSIS](VIETNAM-MARKET-ANALYSIS.md), §2.2: iPhone slow-mo ~90%).
+([VIETNAM-MARKET-ANALYSIS](../../VIETNAM-MARKET-ANALYSIS.md), §2.2: iPhone slow-mo ~90%).
 Cần chân máy hoặc chỗ kê cố định; camera không di chuyển trong clip.
 
 | Mục | Quy định | Căn cứ |
 | --- | --- | --- |
-| FPS | **Quay 30 fps, tốc độ không đổi**. Dưới 20 fps bị worker chặn | `LOW_FPS` trong [movement_evidence.py](../python-worker/pipeline/movement_evidence.py); normalizer lấy mẫu mặc định 30 fps ([AI-TEMPORAL-IMPLEMENTATION](AI-TEMPORAL-IMPLEMENTATION.md)) |
+| FPS | **Quay 30 fps, tốc độ không đổi**. Dưới 20 fps bị worker chặn | `LOW_FPS` trong [movement_evidence.py](../../../python-worker/pipeline/movement_evidence.py); normalizer lấy mẫu mặc định 30 fps ([AI-TEMPORAL-IMPLEMENTATION](./AI-TEMPORAL-IMPLEMENTATION.md)) |
 | Độ phân giải | 1080p, ngang | Đề xuất; kiểm tra ở pilot |
 | Chế độ | **Tắt slow-motion**, tắt ổn định hình ảnh, tắt zoom số, tắt bộ lọc làm đẹp, khóa lấy nét và phơi sáng | Protocol: không đổi tốc độ, không cắt trước khi trích pose. Ổn định hình ảnh cắt và méo khung (đề xuất) |
 | File | Giữ **file gốc** từ máy. Chuyển bằng cáp hoặc ổ đĩa, không gửi qua ứng dụng chat vì nhiều ứng dụng nén lại video | Protocol: giữ video gốc |
-| Kiểm tra sau quay | Số frame giải mã, FPS thực, thời lượng. Không chỉ tin FPS ghi trong container | Protocol; ví dụ Adam: 597 frame giải mã so với 600 khai báo ([AI-COACH-REVIEW-DATASET](AI-COACH-REVIEW-DATASET.md)) |
+| Kiểm tra sau quay | Số frame giải mã, FPS thực, thời lượng. Không chỉ tin FPS ghi trong container | Protocol; ví dụ Adam: 597 frame giải mã so với 600 khai báo ([AI-COACH-REVIEW-DATASET](./AI-COACH-REVIEW-DATASET.md)) |
 
 Thẻ ID: đầu mỗi video, võ sĩ giơ một tờ giấy ghi mã ẩn danh và mã buổi
 (ví dụ `F007 S1`) trong 3 giây. **Không ghi tên thật** trên giấy, trong tên file hay
@@ -119,7 +119,7 @@ Ghi chú:
   Chỉ khối B được tính vào mục tiêu 10 đòn/lớp/buổi. Protocol yêu cầu không chỉ quay
   mẫu hoàn hảo hay xóa mọi đoạn không ra đòn.
 - Rear hook đang thiếu và dễ bị nhầm (V9: 11/11 rear hook bị đoán là lead uppercut,
-  [AI-IMPROVEMENT-PLAN](AI-IMPROVEMENT-PLAN-20261006.md)). Nếu võ sĩ còn sức, thêm 5
+  [AI-IMPROVEMENT-PLAN](./AI-IMPROVEMENT-PLAN-20261006.md)). Nếu võ sĩ còn sức, thêm 5
   rear hook ở khối B. Phần thêm này nằm ngoài tổng kế hoạch bên dưới.
 - Đòn đã gọi ở thế thủ nào thì ghi thế thủ đó. Tay trước/sau đổi theo thế thủ: jab là
   tay trước, cross là tay sau. Không dùng "tay trái" thay cho jab (protocol).
@@ -137,7 +137,7 @@ Ghi chú:
   về southpaw (mục 8). Khối F cho thêm đòn ở thế đối diện nhưng đó là thế thủ chuyển,
   không thay thế southpaw tự nhiên.
 - **Trình độ và hình thể**: spec yêu cầu nhiều trình độ và hình thể
-  ([Coaching Spec §15.3](MARTIAL-ARTS-AI-COACHING-SPEC-v1.md)). Mục tiêu lập kế hoạch:
+  ([Coaching Spec §15.3](./MARTIAL-ARTS-AI-COACHING-SPEC-v1.md)). Mục tiêu lập kế hoạch:
   có ít nhất ba nhóm trình độ (mới tập, trung cấp, nhiều kinh nghiệm), mỗi nhóm ít nhất
   4 người, và không nhóm nào quá nửa. Ghi chiều cao/cân nặng theo khoảng, không ghi
   số chính xác.
@@ -147,7 +147,7 @@ Ghi chú:
 
 ### Giai đoạn 1 (kế hoạch chính)
 
-Lấy từ pilot đề xuất ở [AI-IMPROVEMENT-PLAN](AI-IMPROVEMENT-PLAN-20261006.md) (Ưu tiên 3):
+Lấy từ pilot đề xuất ở [AI-IMPROVEMENT-PLAN](./AI-IMPROVEMENT-PLAN-20261006.md) (Ưu tiên 3):
 16 võ sĩ × 2 buổi × 6 lớp × 10 lần = 1.920 đòn **được thực hiện**, chia 8 train /
 2 validation / 2 calibration / 4 test.
 
@@ -174,7 +174,7 @@ sai nhiều khi gặp nguồn mới. Vì vậy mọi buổi của một võ sĩ 
 (protocol), và số võ sĩ ở mỗi split quyết định độ tin cậy của phép đo. Validation và
 calibration chỉ có 2 võ sĩ ở Giai đoạn 1: đủ để protocol/auditor không báo thiếu
 (auditor mặc định cần ít nhất 30 mẫu/lớp/split, đây là kiểm tra kỹ thuật, không phải
-mục tiêu thống kê; [AI-TEMPORAL-IMPLEMENTATION](AI-TEMPORAL-IMPLEMENTATION.md)), nhưng độ
+mục tiêu thống kê; [AI-TEMPORAL-IMPLEMENTATION](./AI-TEMPORAL-IMPLEMENTATION.md)), nhưng độ
 bất định giữa người còn lớn. AI-IMPROVEMENT-PLAN cũng nói quy mô này "chỉ là pilot".
 
 ### Cỡ test cần để đo release gate
@@ -243,9 +243,9 @@ Các mốc:
 
 - **start**: frame đầu tiên của chuyển động có chủ đích của tay ra đòn, sau tư thế guard.
 - **peak**: lúc duỗi tay tối đa. Shadow không có tiếp xúc nên **không** gọi peak là
-  impact (protocol; [Coaching Spec §6.3](MARTIAL-ARTS-AI-COACHING-SPEC-v1.md)).
+  impact (protocol; [Coaching Spec §6.3](./MARTIAL-ARTS-AI-COACHING-SPEC-v1.md)).
 - **end**: lúc tay về guard, hoàn tất chu kỳ.
-- Spec nêu chuỗi chuẩn bị – phát lực – peak – thu đòn ([Coaching Spec §2.2](MARTIAL-ARTS-AI-COACHING-SPEC-v1.md)).
+- Spec nêu chuỗi chuẩn bị – phát lực – peak – thu đòn ([Coaching Spec §2.2](./MARTIAL-ARTS-AI-COACHING-SPEC-v1.md)).
   Định nghĩa trên là **đề xuất**; protocol yêu cầu HLV chốt và khóa phiên bản hướng dẫn
   trước pilot (xem tuần 1–2).
 - Combo: hai đòn liền nhau chia ở điểm tốc độ tay xuống thấp nhất giữa hai đòn; đòn sau
@@ -306,7 +306,7 @@ phân xử.
 Tính trên bản gán độc lập **trước** phân xử, riêng từng split, không chỉnh lại sau:
 
 1. **Khớp sự kiện** giữa A và B, ghép một-một theo IoU thời gian 0,1 / 0,3 / 0,5 (giống
-   các ngưỡng evaluator, [AI-SIX-PUNCH-VIDEO](AI-SIX-PUNCH-VIDEO-20261006.md)): F1 giữa hai
+   các ngưỡng evaluator, [AI-SIX-PUNCH-VIDEO](./AI-SIX-PUNCH-VIDEO-20261006.md)): F1 giữa hai
    người, số đòn chỉ một người thấy.
 2. **Cohen's kappa** cho lớp trên các sự kiện đã ghép, kèm ma trận nhầm và phần trăm
    đồng ý từng lớp. Kappa chịu ảnh hưởng của tần suất lớp nên không báo kappa đơn lẻ.
@@ -322,9 +322,9 @@ nên đòi mô hình khớp "nhãn vàng" tốt hơn mức hai HLV khớp nhau.
 
 ### Công cụ duyệt hiện có và khoảng trống
 
-[`coach_review.html`](../python-worker/review_tools/coach_review.html) và
-[`serve_coach_review_dataset.py`](../python-worker/serve_coach_review_dataset.py) (cách
-chạy ở [AI-COACH-REVIEW-DATASET](AI-COACH-REVIEW-DATASET.md)):
+[`coach_review.html`](../../../python-worker/review_tools/coach_review.html) và
+[`serve_coach_review_dataset.py`](../../../python-worker/serve_coach_review_dataset.py) (cách
+chạy ở [AI-COACH-REVIEW-DATASET](./AI-COACH-REVIEW-DATASET.md)):
 
 **Đã có:** phát 0,25×/0,5×/1×; nút lùi/tiến một bước theo FPS; lấy mốc start/end từ vị
 trí phát; chọn nhãn gồm `background`; chọn thế thủ; ghi chú; ẩn nhãn nguồn mặc định;
@@ -386,12 +386,12 @@ sát trong nghiên cứu, **không** được dùng làm test nghiệm thu.
 ### Trích pose đúng pipeline triển khai
 
 - Dùng **cùng trọng số YOLO, tracker và normalizer** như worker đang chạy
-  (`YOLO_MODEL=yolov8n-pose` trong [.env.example](../python-worker/.env.example); normalizer
+  (`YOLO_MODEL=yolov8n-pose` trong [.env.example](../../../python-worker/.env.example); normalizer
   `coco17_timestamp_torso_v1`). Ghi trọng số, hash, commit mã worker và phiên bản
   normalizer vào manifest.
 - Chạy cùng cấu hình cho cả bốn split. Không chỉnh ngưỡng pose theo split.
 - Chạy `process_video.py` rồi `prepare_temporal_pose.py --fps 30`
-  ([AI-TEMPORAL-IMPLEMENTATION](AI-TEMPORAL-IMPLEMENTATION.md)). Giữ mask, độ phủ và lý do
+  ([AI-TEMPORAL-IMPLEMENTATION](./AI-TEMPORAL-IMPLEMENTATION.md)). Giữ mask, độ phủ và lý do
   loại trừ; không loại các clip khó để làm đẹp (AI-IMPROVEMENT-PLAN).
 - Kiểm tra pilot: độ phủ khớp tay và thân tối thiểu 80% frame ở ngưỡng pose 0,3 là quy
   tắc bằng chứng kỹ thuật của bộ nhận diện thử nghiệm (AI-SIX-PUNCH-VIDEO), không phải độ tin
@@ -437,7 +437,7 @@ phút × 2 người) + có mặt lúc quay 16 giờ + chuẩn bị, họp và xe
 
 Với hai HLV, đỉnh khoảng 12,5 giờ/tuần chung, tức khoảng 6 giờ mỗi người. Đối chiếu
 thực tế: HLV dạy 6–9 giờ PT mỗi ngày, thời gian rảnh rất ít
-([VIETNAM-MARKET-ANALYSIS](VIETNAM-MARKET-ANALYSIS.md), §2.3). Nếu không dành được, kéo dài
+([VIETNAM-MARKET-ANALYSIS](../../VIETNAM-MARKET-ANALYSIS.md), §2.3). Nếu không dành được, kéo dài
 tiến độ (khoảng 16 tuần) chứ không bỏ gán kép ở validation, calibration, test.
 
 Giờ không phải của HLV (ước lượng, cùng giả định): người quay khoảng 27 giờ (32 buổi ×
@@ -457,7 +457,7 @@ trữ. AI engineer không tính ở đây.
 ## 7. Đồng ý, quyền riêng tư, lưu trữ
 
 Spec coi video và dữ liệu pose là dữ liệu nhạy cảm
-([Master Spec v3 §16.2](MMA-TMS-MASTER-SPECIFICATION-v3.md)). Protocol: "Auditor không tự
+([Master Spec v3 §16.2](../../MMA-TMS-MASTER-SPECIFICATION-v3.md)). Protocol: "Auditor không tự
 xác nhận các điều kiện này từ một cờ JSON". Kế hoạch này không phải tư vấn pháp lý. Chủ CLB
 cần hỏi người có chuyên môn về Nghị định 13/2023/NĐ-CP về bảo vệ dữ liệu cá nhân (repo
 chưa có tài liệu nào đối chiếu văn bản này).
@@ -468,7 +468,7 @@ chưa có tài liệu nào đối chiếu văn bản này).
   luyện và đánh giá AI nhận diện đòn), ai được xem video (HLV gán nhãn, AI engineer, chủ
   CLB), nơi và thời gian lưu, quyền rút lại, không dùng để đánh giá hay xếp hạng cá nhân.
 - **Mục riêng, mặc định "không"**: cho phép gửi video đến dịch vụ AI bên ngoài (ví dụ
-  Gemini). Tài liệu [AI-GEMINI-CROSS-REVIEW](AI-GEMINI-CROSS-REVIEW.md) ghi lượt online
+  Gemini). Tài liệu [AI-GEMINI-CROSS-REVIEW](./AI-GEMINI-CROSS-REVIEW.md) ghi lượt online
   chỉ chạy sau khi chủ dự án đồng ý gửi video tới Google.
 - Chỉ đặt `dataUseApproved: true` trong manifest sau khi chủ CLB đã đối chiếu từng bản đồng
   ý. Không để AI engineer tự đặt.
@@ -529,7 +529,7 @@ chưa có tài liệu nào đối chiếu văn bản này).
 
 - Không kết luận AI "đạt chuẩn", "Reliable AI Coaching" hay sẵn sàng chạy production. Chỉ
   khi đủ mọi gate trên tập độc lập mới được dùng nhãn đó
-  ([AI_COACHING_RELIABILITY_PLAN](AI_COACHING_RELIABILITY_PLAN.md)).
+  ([AI_COACHING_RELIABILITY_PLAN](./AI_COACHING_RELIABILITY_PLAN.md)).
 - Không kết luận đòn đúng hay sai kỹ thuật. Nhãn ở đây chỉ là loại đòn và thời gian;
   chất lượng cần bộ criterion riêng (protocol).
 - Không kết luận về thời điểm chạm đích (impact) từ video shadow.
@@ -605,7 +605,7 @@ các release gate (protocol).
 
 Cập nhật 2026-10-06 (cùng ngày với kế hoạch). Công cụ mới chạy được trên video CLB, nhưng **chưa dùng
 với dữ liệu CLB thật** và chưa thử với HLV; mô tả và lệnh ở
-[AI-COACH-REVIEW-DATASET](AI-COACH-REVIEW-DATASET.md#gán-nhãn-toàn-timeline-cho-video-clb-mới-2026-10-06).
+[AI-COACH-REVIEW-DATASET](./AI-COACH-REVIEW-DATASET.md#gán-nhãn-toàn-timeline-cho-video-clb-mới-2026-10-06).
 Bảng quyết định ở mục "Khác biệt với tài liệu hiện có" **không đổi**; bảng dưới chỉ đối chiếu 11
 khoảng trống ở mục 4 ("Công cụ duyệt hiện có và khoảng trống").
 

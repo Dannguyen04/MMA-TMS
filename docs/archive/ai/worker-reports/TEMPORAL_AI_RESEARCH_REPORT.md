@@ -7,12 +7,12 @@ nhãn Adam và động tác nhìn thấy (7 nhãn AI đề xuất khác nguồn)
 khoảng cuối chưa có annotation. Các số đo Adam phía dưới giữ để truy nguyên,
 chỉ mô tả độ khớp với CSV chưa xác thực; không dùng làm bằng chứng độ chính xác
 nhận dạng trước khi căn chỉnh lại. Lượt rà soát AI dùng frame mẫu, chưa phải
-gold label hoặc xác nhận HLV. Xem [bằng chứng từng task](../docs/AI-DATASET-REVIEW-20261006.md).
+gold label hoặc xác nhận HLV. Xem [bằng chứng từng task](../AI-DATASET-REVIEW-20261006.md).
 
 ## Những gì đã thực hiện
 
 - Đọc Master Specification v3 và Coaching Spec; cập nhật thiết kế và lộ trình
-  trong `docs/AI-TEMPORAL-IMPLEMENTATION.md`.
+  trong `docs/archive/ai/AI-TEMPORAL-IMPLEMENTATION.md`.
 - Thêm normalizer offline theo timestamp, scale trong hệ pixel, mask/confidence,
   velocity theo giây, nguồn frame và chuyển động root riêng.
 - Thêm exporter numeric NPZ/manifest có hash và auditor bốn split, bao gồm
@@ -101,7 +101,7 @@ không được dùng làm thành tích của classifier. Nguồn không có nh�
 ## Artifact và kiểm chứng
 
 - Báo cáo tổng hợp có thể version-control:
-  [`benchmark_results/temporal_architecture_20261005.json`](benchmark_results/temporal_architecture_20261005.json).
+  [`benchmark_results/temporal_architecture_20261005.json`](../../../../python-worker/benchmark_results/temporal_architecture_20261005.json).
   Có từng seed, confusion matrix, calibration, hash, nguồn dữ liệu và hạn chế;
   không chứa video hoặc checkpoint nhị phân.
 - Run và checkpoint local/ignored: `test_results/temporal_benchmark/20261005_v1/`.

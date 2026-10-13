@@ -34,8 +34,8 @@ Nguồn tác giả: [BoxingVI](https://github.com/Bikudebug/BoxingVI),
 Các file đã tải nằm trong `python-worker/test_results/external/boxingvi_original_20261006`.
 Metadata RGB là bảng liên kết YouTube, không phải các MP4 do tác giả đóng gói.
 
-Bằng chứng: [đối chiếu annotation](../python-worker/benchmark_results/boxingvi_original_annotation_audit_20261006.json),
-[khôi phục V6](../python-worker/benchmark_results/v6_recovery_20261006.json).
+Bằng chứng: [đối chiếu annotation](../../../python-worker/benchmark_results/boxingvi_original_annotation_audit_20261006.json),
+[khôi phục V6](../../../python-worker/benchmark_results/v6_recovery_20261006.json).
 
 ## Thí nghiệm đã đóng băng trước khi chạy
 
@@ -87,8 +87,8 @@ F1 B0 cao hơn baseline lịch sử 0,5146, nhưng accuracy/calibration và nhi�
 không đồng thời tốt hơn; dữ liệu, seed và số epoch khác nhau nên không kết luận
 đây là hiệu quả nhân quả riêng của V6.
 
-[24 lượt CV và refit chính](../python-worker/benchmark_results/v6_reflection_training_20261006.json),
-[refit phụ](../python-worker/benchmark_results/v6_robustness_refit_20261006.json).
+[24 lượt CV và refit chính](../../../python-worker/benchmark_results/v6_reflection_training_20261006.json),
+[refit phụ](../../../python-worker/benchmark_results/v6_robustness_refit_20261006.json).
 Checkpoint nằm ở `python-worker/test_results/temporal_ablations/`:
 
 - `20261006_v6_reflection_v1/selected/model.npz` (B0), SHA256
@@ -117,14 +117,14 @@ Sai khác nhỏ về khớp vẫn đi kèm thay đổi dự đoán. Các khác b
 resolution/codec và có thể cả căn frame; không quy toàn bộ nguyên nhân cho YOLO.
 V4 thuộc train cũ, V10 đã quan sát, nên không suy ra accuracy tổng quát từ bảng.
 
-[Báo cáo ghép cặp baseline](../python-worker/benchmark_results/rgb_pose_bridge_baseline_20261006.json).
+[Báo cáo ghép cặp baseline](../../../python-worker/benchmark_results/rgb_pose_bridge_baseline_20261006.json).
 
 Sau huấn luyện, tại offset 0, B0 trên YOLO khớp 14/18 V4, 11/12 V6 và 8/18 V10.
 Khi thêm ngưỡng và điều kiện phản chiếu, B0 vẫn nhận sai cả hai mẫu V10 được giữ.
 B1 nhận 10 mẫu V10 nhưng chỉ đúng ba. Do đó ngay cả đồng thuận phản chiếu cũng
 không đủ làm cơ chế phát hiện đầu vào khác phân phối.
-[B0 RGB](../python-worker/benchmark_results/rgb_pose_bridge_v6_reflection_20261006.json),
-[B1 RGB](../python-worker/benchmark_results/rgb_pose_bridge_v6_secondary_20261006.json).
+[B0 RGB](../../../python-worker/benchmark_results/rgb_pose_bridge_v6_reflection_20261006.json),
+[B1 RGB](../../../python-worker/benchmark_results/rgb_pose_bridge_v6_secondary_20261006.json).
 
 ## Luồng chạy thử và từ chối
 
@@ -149,14 +149,14 @@ không thay ngưỡng để làm điểm đẹp hơn. Adam là video train nên 
 Baseline Adam: 19 ứng viên; 11/18 khớp ở IoU 0,1, 5/18 ở IoU 0,5. Chính sách
 từ chối mới giữ hai dự đoán cross nhưng không khớp sự kiện cross nguồn ở các
 ngưỡng đã đo. Điều này cho thấy phải sửa cả event localization và classifier.
-[Regression baseline](../python-worker/benchmark_results/adam_video_recognition_baseline_20261006.json).
+[Regression baseline](../../../python-worker/benchmark_results/adam_video_recognition_baseline_20261006.json).
 
 B0 mới từ chối cả 19 ứng viên Adam. B1 nhận năm ứng viên nhưng không có nhận
 diện đúng theo lớp và khoảng frame ở cả IoU 0,1/0,3/0,5. Đã đối chiếu trực tiếp
 frame của năm dự đoán với CSV nguồn, không chỉ dựa vào một số tổng hợp.
 Đây là thất bại ở video đã thuộc train, nên chắc chắn chưa đủ chứng minh ứng dụng.
-[B0 video](../python-worker/benchmark_results/adam_video_recognition_v6_primary_20261006.json),
-[B1 video](../python-worker/benchmark_results/adam_video_recognition_v6_secondary_20261006.json).
+[B0 video](../../../python-worker/benchmark_results/adam_video_recognition_v6_primary_20261006.json),
+[B1 video](../../../python-worker/benchmark_results/adam_video_recognition_v6_secondary_20261006.json).
 
 Kiểm chứng: 22 test pass (V6, phản chiếu, từ chối, metric tính FP/FN, checkpoint),
 24 checkpoint CV qua roundtrip, hai checkpoint refit nạp lại có logits tương
@@ -179,7 +179,7 @@ có hash. Pipeline v1 lịch sử được giữ nguyên để checkpoint cũ v�
 
 ## Những gì cần đạt để nghiệm thu phạm vi này
 
-Giữ các mục phù hợp trong [reliability plan](AI_COACHING_RELIABILITY_PLAN.md):
+Giữ các mục phù hợp trong [reliability plan](./AI_COACHING_RELIABILITY_PLAN.md):
 event precision/recall/F1 ≥ 0,90; macro-F1 sáu lớp ≥ 0,85, báo cáo rõ từng lớp;
 ECE ≤ 0,05 nếu hiển thị xác suất; đánh giá video/nhóm góc quay độc lập. Phải
 tính cả `unknown`, sự kiện bỏ sót và dự đoán dư, không chỉ accuracy trên số

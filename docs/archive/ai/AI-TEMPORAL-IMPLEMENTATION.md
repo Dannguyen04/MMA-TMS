@@ -14,7 +14,7 @@ clinical, nghiệp vụ huấn luyện hay chính sách phát hành AI hiện t�
   bằng dữ liệu độc lập, không được tự sửa để hợp thức hóa kết quả thử nghiệm.
 - Quyết định trong trao đổi 2026-10-05: rà soát dữ liệu và lỗi trước; so sánh TCN
   với ST-GCN; calibration riêng; đánh giá kỹ thuật cần nhãn HLV riêng.
-- `AI_RESEARCH_RESULTS.md`: V9/V10 và Adam đã được quan sát. Các lần chạy tiếp
+- `docs/archive/ai/AI_RESEARCH_RESULTS.md`: V9/V10 và Adam đã được quan sát. Các lần chạy tiếp
   theo trên chúng là diagnostic, không phải tập test mù mới.
 
 Các ví dụ score và bảng so sánh accuracy trong tài liệu lịch sử mô tả ý định hoặc
@@ -87,7 +87,7 @@ thấy cho mọi kỹ thuật hoặc chất lượng động tác.
 ngẫu nhiên. Leakage được kiểm tra theo fighter, session, source video ID/hash,
 source inference hash và pose asset hash, kể cả calibration.
 
-Template rỗng: `docs/examples/temporal-dataset.manifest.json`. Template cố ý chưa
+Template rỗng: `docs/archive/ai/examples/temporal-dataset.manifest.json`. Template cố ý chưa
 đủ điều kiện huấn luyện; không có người/nhãn/consent giả. Mỗi sample cần các trường:
 
 ```json
@@ -185,7 +185,7 @@ Confidence public vẫn null; softmax được lưu rõ là research probability
 
 Trạng thái đợt 2026-10-05: code normalizer/export/audit và benchmark nghiên cứu đã
 được triển khai, đã chạy 9 lần huấn luyện và một lượt YOLO đầy đủ mới. Kết quả,
-tests và các hạn chế trong [báo cáo thực nghiệm](../python-worker/TEMPORAL_AI_RESEARCH_REPORT.md).
+tests và các hạn chế trong [báo cáo thực nghiệm](./worker-reports/TEMPORAL_AI_RESEARCH_REPORT.md).
 Đây là hoàn tất đợt nền tảng/nghiên cứu, chưa hoàn tất toàn bộ lộ trình AI.
 
 | Pha | Đầu ra | Điều kiện hoàn tất |

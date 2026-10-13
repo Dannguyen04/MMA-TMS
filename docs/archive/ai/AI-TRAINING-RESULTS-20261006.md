@@ -88,7 +88,7 @@ Nạp bằng `pipeline.temporal_checkpoint.load_temporal_checkpoint`.
 đương khi nạp checkpoint bằng loader thực. **16 kiểm thử đạt**, gồm trọng số loss
 và gradient, khôi phục epoch tốt nhất, dừng sớm, nguồn nhãn Adam, leakage và loader.
 
-[Báo cáo máy đọc đầy đủ](../python-worker/benchmark_results/adam_source_training_20261006.json).
+[Báo cáo máy đọc đầy đủ](../../../python-worker/benchmark_results/adam_source_training_20261006.json).
 
 Chạy tại `python-worker`, dùng output mới:
 

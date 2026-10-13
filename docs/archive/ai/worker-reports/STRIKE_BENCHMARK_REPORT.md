@@ -60,7 +60,7 @@ python run_strike_suite.py --resume --output test_results/strike_final
 python evaluate_strike_suite.py test_results/strike_final --output test_results/strike_final/benchmark.json
 ```
 
-Số liệu chi tiết và hash bằng chứng: [benchmark_results/strike_benchmark_2026-09-15.json](benchmark_results/strike_benchmark_2026-09-15.json). Kết quả chính ở đây dùng inference mới; replay pose đã làm tròn chỉ dùng chẩn đoán, không thay thế số liệu chính.
+Số liệu chi tiết và hash bằng chứng: [benchmark_results/strike_benchmark_2026-09-15.json](../../../../python-worker/benchmark_results/strike_benchmark_2026-09-15.json). Kết quả chính ở đây dùng inference mới; replay pose đã làm tròn chỉ dùng chẩn đoán, không thay thế số liệu chính.
 
 ## Toàn bộ video gốc — đã xử lý xong
 

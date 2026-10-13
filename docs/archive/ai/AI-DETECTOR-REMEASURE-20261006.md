@@ -296,6 +296,6 @@ cd $W
 
 ## Tệp tạo mới
 
-- `docs/AI-DETECTOR-REMEASURE-20261006.md` (tài liệu này)
+- `docs/archive/ai/AI-DETECTOR-REMEASURE-20261006.md` (tài liệu này)
 - `python-worker/benchmark_results/detector_remeasure_20261006.json`
 - `python-worker/benchmark_results/detector_remeasure_20261006_tools/*.py` (12 script phụ trợ)

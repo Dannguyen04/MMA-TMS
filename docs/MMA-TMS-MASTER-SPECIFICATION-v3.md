@@ -1336,11 +1336,11 @@ Metrics + Findings
 ## 09.1 AI Architecture
 
 **Cập nhật triển khai 2026-10-05:** nghiên cứu temporal AI sau YOLO-Pose theo
-[thiết kế và contract triển khai](./AI-TEMPORAL-IMPLEMENTATION.md). Đã có nhánh
+[thiết kế và contract triển khai](./archive/ai/AI-TEMPORAL-IMPLEMENTATION.md). Đã có nhánh
 offline chuẩn hóa có timestamp/mask, audit dữ liệu và benchmark TCN/graph; đây
 chưa phải thay thế runtime active hoặc bằng chứng đạt release gate. Bộ dữ liệu
 HLV xác nhận chưa có; quy trình chuẩn bị ở
-[AI Data Collection Protocol](./AI-DATA-COLLECTION-PROTOCOL.md). Detection,
+[AI Data Collection Protocol](./archive/ai/AI-DATA-COLLECTION-PROTOCOL.md). Detection,
 classification và assessment tiếp tục được đánh giá riêng; không dùng kết quả
 thử nghiệm để tự mở lại scoring hoặc thay đổi quyền clinical.
 

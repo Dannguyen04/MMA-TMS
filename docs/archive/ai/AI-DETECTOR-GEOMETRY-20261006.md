@@ -1,6 +1,6 @@
 # Chuẩn hóa hình học cho FSM đấm (legacy) — thiết kế và đánh giá, 2026-10-06
 
-Tiếp nối `docs/AI-DETECTOR-REMEASURE-20261006.md`. Nhóm FN lớn nhất của FSM đấm là chu trình bị hủy vì ngưỡng
+Tiếp nối `docs/archive/ai/AI-DETECTOR-REMEASURE-20261006.md`. Nhóm FN lớn nhất của FSM đấm là chu trình bị hủy vì ngưỡng
 vươn tay/khuỷu/tốc độ tính trên toạ độ chuẩn hóa không đẳng hướng (`POSE-GEOMETRY-001`). Tài liệu này thiết kế
 chuẩn hóa theo cỡ thân người kèm hiệu chỉnh tỉ lệ khung, thêm một thay đổi FSM nhỏ cho đòn liên tiếp, và đánh
 giá riêng từng phần (ablation) cùng kiểm chứng mức tình cờ.

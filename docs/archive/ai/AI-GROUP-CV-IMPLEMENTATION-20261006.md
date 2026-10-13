@@ -1,7 +1,7 @@
 # Thực thi thí nghiệm temporal AI theo nhóm nguồn
 
 Đã hoàn tất 36 lượt CV và một lượt refit; xem
-[kết quả thực đo và quyết định](AI-GROUP-CV-RESULTS-20261006.md).
+[kết quả thực đo và quyết định](./AI-GROUP-CV-RESULTS-20261006.md).
 
 ## Phạm vi triển khai
 

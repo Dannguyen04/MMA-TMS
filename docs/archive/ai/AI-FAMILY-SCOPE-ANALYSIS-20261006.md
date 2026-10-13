@@ -39,7 +39,7 @@ vì mô hình sai V10 với độ tin cậy cao.
 ## 1. Macro-F1 sáu lớp so với ba họ
 
 Gate phát hành: macro-F1 ≥ 0,85. Số liệu từ
-[family_scope_analysis_20261006.json](../python-worker/benchmark_results/family_scope_analysis_20261006.json).
+[family_scope_analysis_20261006.json](../../../python-worker/benchmark_results/family_scope_analysis_20261006.json).
 
 ### B0 (checkpoint chính)
 

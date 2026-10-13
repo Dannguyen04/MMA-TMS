@@ -39,9 +39,9 @@ khóa hash và từ chối nhãn, ranh giới hoặc provenance sai. Đã dùng 
 sau khi kiểm tra hash video/output, không gọi Gemini hoặc trích YOLO lại.
 6 kiểm thử đạt; nạp thực tế và đối chiếu đủ 18 target/interval với nguồn.
 
-[Bằng chứng và 18 bản ghi](../python-worker/benchmark_results/adam_source_selection_20261006.json).
+[Bằng chứng và 18 bản ghi](../../../python-worker/benchmark_results/adam_source_selection_20261006.json).
 Sau lượt chốt nhãn, đã huấn luyện đầy đủ 3 seed × 40 epoch theo yêu cầu tiếp theo.
 Checkpoint mới chọn seed 20261007, epoch 37; xem
-[kết quả huấn luyện](AI-TRAINING-RESULTS-20261006.md). Checkpoint 3 epoch trước
+[kết quả huấn luyện](./AI-TRAINING-RESULTS-20261006.md). Checkpoint 3 epoch trước
 thuộc phiên bản nhãn cũ. Dataset và kết quả cũ được giữ để truy nguyên;
 `modelRetrained=false` trong báo cáo chốt nguồn là trạng thái lịch sử lúc tạo nó.

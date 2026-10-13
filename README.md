@@ -1,186 +1,74 @@
-# Martial Arts Tracker — Full Stack System
+# MMA-TMS — Quản lý huấn luyện võ sĩ
 
-Hệ thống phân tích kỹ thuật võ thuật 3-tier với AI realtime.
+Nền tảng giúp CLB võ thuật quản lý huấn luyện và chuẩn bị thi đấu cho võ sĩ, có module phân tích video bằng AI.
 
-## Kiến trúc
+> **Phạm vi hiện tại (từ 2026-10-11):** dự án tạm thu hẹp về **Fight Camp**, tức quản lý võ sĩ trước, trong và sau một trận. Đọc [docs/SCOPE-FIGHT-CAMP.md](docs/SCOPE-FIGHT-CAMP.md) trước khi nhận task. Nghiên cứu AI, tuyển võ sĩ, cổng Doctor đầy đủ và app mobile đang đóng băng.
 
-```
-┌─────────────────────────────────────────────────────┐
-│                    BROWSER / CLIENT                 │
-│  Next.js App (port 3000) — theo vai trò             │
-│  ├── /fighter  → Lịch tập, video AI, hiệu suất, SK  │
-│  ├── /coach    → Võ sĩ, giáo án, duyệt phân tích AI │
-│  ├── /doctor   → Hồ sơ y tế, chấn thương, Clearance │
-│  └── /admin    → Người dùng, AI jobs, audit logs    │
-└────────────────────┬────────────────────────────────┘
-                     │ HTTP/REST
-┌────────────────────▼────────────────────────────────┐
-│               NestJS API (port 3001)                │
-│  POST /jobs     → Tạo job + đẩy vào BullMQ         │
-│  GET  /jobs/:id → Lấy status + result URL           │
-│  PATCH /jobs/:id/status → Worker callback           │
-└────────┬──────────────────────────┬─────────────────┘
-         │ Prisma ORM               │ BullMQ (Redis)
-┌────────▼────────┐      ┌──────────▼─────────────────┐
-│  PostgreSQL     │      │   Redis (port 6379)         │
-│  (Supabase DB)  │      │   Queue: video-analysis     │
-└─────────────────┘      └──────────┬─────────────────┘
-                                    │ poll jobs
-                         ┌──────────▼─────────────────┐
-                         │   Python Worker             │
-                         │   ├── YOLO-Pose detection  │
-                         │   ├── KickAnalyzer          │
-                         │   └── Upload JSON → Supabase│
-                         └─────────────────────────────┘
+## Thành phần
+
+| Thư mục | Vai trò | Công nghệ | Cổng |
+| --- | --- | --- | --- |
+| [nextjs-frontend/](nextjs-frontend/) | Web app theo vai trò: fighter, coach, doctor, admin | Next.js 16, React 19, Tailwind 4 | 3000 |
+| [nestjs-api/](nestjs-api/) | REST API, phân quyền, hàng đợi job | NestJS 12, Drizzle ORM, BullMQ, Zod | 3001 (Swagger ở `/api-docs`) |
+| [python-worker/](python-worker/) | Phân tích video: YOLOv8-Pose và các bộ nhận diện đòn | Python 3.11, Ultralytics, OpenCV | — |
+| [reactnative-mobile/](reactnative-mobile/) | App mobile (đã dựng khung, đang tạm dừng) | Expo SDK 57, React Native 0.86 | — |
+| PostgreSQL (Supabase) | Dữ liệu và storage | PostgreSQL 16 | — |
+| Redis | Hàng đợi BullMQ cho job video | Redis 7 | 6379 |
+
+Monorepo dùng **pnpm** (`pnpm-workspace.yaml`).
+
+## Chạy nhanh trên Windows
+
+```bat
+start_all.bat          :: kiểm tra điều kiện rồi mở API, worker, frontend
+start_all.bat --check  :: chỉ kiểm tra điều kiện
+stop_all.bat
 ```
 
-## Cấu trúc thư mục
-
-```
-d:/test/ai/
-├── martial-arts-tracker/   ← Phase 1: Vite+React MVP (standalone)
-├── python-worker/          ← Phase 2: YOLO-Pose worker
-├── nestjs-api/             ← Phase 3: Backend API + BullMQ
-├── nextjs-frontend/        ← Phase 3: Full-stack frontend
-└── docker-compose.yml      ← Chạy toàn bộ hệ thống
-```
-
-## Khởi động nhanh (Development)
-
-### Yêu cầu
-
-- Node.js 18+
-- Python 3.11+ (hoặc uv)
-- Redis (local hoặc Docker)
-- PostgreSQL (hoặc Supabase)
-
-### 1. Redis (cần thiết cho NestJS + Worker)
+Chạy từng phần:
 
 ```bash
-# Dùng Docker
-docker run -d -p 6379:6379 redis:7-alpine
-
-# Hoặc trên Windows với winget
-winget install Redis.Redis
+cd nestjs-api && pnpm start:dev        # cần nestjs-api/.env (xem .env.example)
+cd nextjs-frontend && pnpm dev         # mặc định dùng dữ liệu demo, không cần API
+cd python-worker && .venv\Scripts\python worker.py
 ```
 
-### 2. NestJS API
+Docker Compose (redis, postgres, nestjs-api, python-worker, nextjs-frontend): `docker compose up --build`, sau khi tạo `.env` từ `.env.example`.
+
+Chi tiết cổng, biến môi trường và cách xử lý lỗi khi khởi động: [RUN_GUIDE.md](RUN_GUIDE.md). Triển khai production: [DEPLOY_GUIDE.md](DEPLOY_GUIDE.md).
+
+## Dữ liệu demo và dữ liệu thật
+
+- Frontend mặc định chạy **demo mode** với dữ liệu giả lập.
+- Muốn dùng API thật, sao chép `nextjs-frontend/.env.local.example` thành `.env.local`, rồi đặt `APP_DATA_MODE=api`, `NEXT_PUBLIC_VIDEO_PIPELINE=api` và `API_URL=http://localhost:3001`.
+- Khóa Supabase chỉ cấu hình ở NestJS và Python worker, không đưa vào frontend.
+
+## Database
+
+Schema do **SQL migration đánh số** quản lý (`nestjs-api/migrations/001…022`), gồm cả RLS, trigger và quyền. `drizzle-kit push/generate` đã bị tắt.
 
 ```bash
 cd nestjs-api
-cp .env.example .env   # Điền DATABASE_URL và REDIS_*
-npm run start:dev
+pnpm db:check          # kiểm tra ledger và checksum
+pnpm db:migrate:022    # áp dụng một migration cụ thể
+pnpm test:db           # kiểm thử migration
 ```
 
-### 3. Python Worker
+Quy ước viết migration và trạng thái từng migration: [nestjs-api/migrations/README.md](nestjs-api/migrations/README.md). Lần đầu dựng Supabase (bucket `videos`, `analysis-results`): [scripts/supabase-setup.sql](scripts/supabase-setup.sql).
 
-```bash
-cd python-worker
-.venv\Scripts\activate      # Windows
-cp .env.example .env        # Điền REDIS_URL, SUPABASE_*
-python worker.py
+## Luồng phân tích video
+
+Module AI đang đóng băng nhưng vẫn chạy được:
+
+```text
+Upload (fighter/coach) → Next.js route → NestJS → Supabase Storage (bucket videos, private)
+→ POST /jobs → PostgreSQL (PENDING) + BullMQ (Redis)
+→ Python worker: YOLOv8-Pose + bộ nhận diện → result.json (bucket analysis-results)
+→ PATCH /jobs/:id/status → Next.js poll /api/ai-jobs/[jobId] → trang phân tích + HLV duyệt
 ```
 
-### 4. Next.js Frontend
+Trạng thái AI khi đóng băng: [docs/archive/ai/](docs/archive/ai/).
 
-```bash
-cd nextjs-frontend
-npm run dev   # Mặc định dùng dữ liệu giả lập, không cần API/Worker
-```
+## Tài liệu
 
-Để kết nối pipeline video thật, sao chép `.env.local.example` thành `.env.local`. Đặt `APP_DATA_MODE=api`, `NEXT_PUBLIC_VIDEO_PIPELINE=api` và `API_URL=http://localhost:3001`. Khóa Supabase chỉ cấu hình ở NestJS/Python worker, không đưa vào frontend.
-
-### 5. Mở trình duyệt
-
-- `http://localhost:3000` → Đăng nhập bằng tài khoản demo (Võ sĩ, HLV, Bác sĩ thể thao, Quản trị viên)
-- `http://localhost:3000/fighter/videos/upload` → Tải video lên để phân tích (đường dẫn cũ `/analysis` tự chuyển hướng)
-- `http://localhost:3000/fighter/videos/live` → Kiểm tra động tác trực tiếp bằng webcam (MediaPipe)
-
----
-
-## Chạy toàn bộ bằng Docker Compose
-
-```bash
-# Tạo file .env tại thư mục gốc
-cp .env.example .env   # Điền SUPABASE_URL, SUPABASE_SERVICE_KEY, SUPABASE_ANON_KEY
-
-docker-compose up --build
-```
-
----
-
-## Luồng xử lý Upload Video
-
-Chế độ `NEXT_PUBLIC_VIDEO_PIPELINE=api` (mặc định `mock` mô phỏng toàn bộ luồng dưới đây trong bộ nhớ):
-
-```
-Võ sĩ / HLV mở Upload wizard (/fighter/videos/upload, /coach/video-analysis/upload)
-    ↓
-uploadVideoToStorage(file) → Next.js same-origin route → NestJS → private Supabase Storage (bucket: videos)
-    ↓
-createJob(videoId) → POST /jobs (NestJS) → registerExternalUpload (Server Action)
-    ↓ NestJS
-drizzle insert → PostgreSQL (status: PENDING)
-queue.add() → Redis BullMQ
-    ↓ Python Worker (poll Redis)
-YOLO-Pose analyze frames
-PunchAnalyzer / KickAnalyzer
-    ↓
-Upload result.json → Supabase Storage (bucket: analysis-results)
-PATCH /jobs/:id/status (status: DONE, resultUrl, score)
-    ↓ Next.js
-GET /api/ai-jobs/[jobId] (poll) → đồng bộ trạng thái job NestJS
-    ↓ status === DONE
-GET /api/ai-jobs/[jobId]/result → NestJS validates private result.json
-    ↓
-mapWorkerResult(result.json) → AI Analysis
-    ↓
-Trang phân tích: khung xương, dòng thời gian, phát hiện AI, duyệt của HLV
-```
-
----
-
-## Cấu hình Supabase (Project `wskisxkpbhisnqfpjqrm`)
-
-1. **Khởi tạo Database & Storage Buckets**:
-    - Vào **Supabase Dashboard** > **SQL Editor**.
-    - Mở file `scripts/supabase-setup.sql` trong dự án, copy toàn bộ nội dung và bấm **Run**.
-    - Script sẽ tự động:
-        - Tạo kiểu enum `job_status` và bảng `analysis_jobs` (với triggers & indexes).
-        - Tạo 2 storage buckets riêng tư: `videos` và `analysis-results`. Browser chỉ truy cập qua route có xác thực; worker/backend dùng service role.
-        - Gỡ các policy công khai của bản setup cũ; không tạo policy cho `anon`.
-
-2. **Lấy API Keys**:
-    - Vào **Settings** > **API**:
-        - Copy `anon` (public key) → điền vào `SUPABASE_ANON_KEY` trong `.env` và `nextjs-frontend/.env.local`.
-        - Copy `service_role` (secret key) → điền vào `SUPABASE_SERVICE_KEY` trong `.env` và `python-worker/.env`.
-
-3. **Database Password**:
-    - Thay `[YOUR-PASSWORD]` trong `DATABASE_URL` tại các file `.env` bằng mật khẩu database Supabase của bạn.
-
-4. **Sync Schema qua Drizzle Kit (tùy chọn thay cho SQL Editor)**:
-    ```bash
-    cd nestjs-api
-    npm run db:push
-    ```
-
----
-
-## API Reference
-
-| Method  | Path               | Body                             | Response            |
-| ------- | ------------------ | -------------------------------- | ------------------- |
-| `POST`  | `/jobs`            | `{ videoUrl, userId? }`          | `{ jobId, status }` |
-| `GET`   | `/jobs`            | —                                | `AnalysisJob[]`     |
-| `GET`   | `/jobs/:id`        | —                                | `AnalysisJob`       |
-| `PATCH` | `/jobs/:id/status` | `{ status, resultUrl?, score? }` | `AnalysisJob`       |
-
----
-
-## Phase Roadmap
-
-| Phase       | Status  | Mô tả                                |
-| ----------- | ------- | ------------------------------------ |
-| **Phase 1** | ✅ Done | Vite+React + MediaPipe realtime      |
-| **Phase 2** | ✅ Done | Python + YOLOv8-Pose video analysis  |
-| **Phase 3** | ✅ Done | NestJS + BullMQ + Next.js full-stack |
+Bắt đầu ở [docs/PROJECT-OVERVIEW.md](docs/PROJECT-OVERVIEW.md). Hướng dẫn cho agent khi sửa backend: [nestjs-api/CLAUDE.md](nestjs-api/CLAUDE.md), [nestjs-api/AGENTS.md](nestjs-api/AGENTS.md). Kiến trúc frontend: [nextjs-frontend/docs/frontend-architecture.md](nextjs-frontend/docs/frontend-architecture.md).

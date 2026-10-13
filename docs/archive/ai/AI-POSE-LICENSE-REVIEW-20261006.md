@@ -412,5 +412,5 @@ trang HF và có vẻ khác bảng của repo ViTPose; không dùng).
 
 Từ repo: `python-worker/{requirements.txt,Dockerfile,process_video.py,person_tracker.py,pose_math.py,worker.py}`,
 `python-worker/.venv/Lib/site-packages/*.dist-info/METADATA`, `nextjs-frontend/src/components/video/live-form-check.tsx`,
-`docs/AI-SIX-PUNCH-VIDEO-20261006.md`, `docs/AI-EXTERNAL-DATASETS-SURVEY-20261006.md`,
-`docs/AI-IMPROVEMENT-PLAN-20261006.md`, `python-worker/PUNCH_DETECTOR_VALIDATION_REPORT.md`.
+`docs/archive/ai/AI-SIX-PUNCH-VIDEO-20261006.md`, `docs/archive/ai/AI-EXTERNAL-DATASETS-SURVEY-20261006.md`,
+`docs/archive/ai/AI-IMPROVEMENT-PLAN-20261006.md`, `docs/archive/ai/worker-reports/PUNCH_DETECTOR_VALIDATION_REPORT.md`.
