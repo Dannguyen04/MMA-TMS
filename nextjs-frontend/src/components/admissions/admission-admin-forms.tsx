@@ -6,6 +6,7 @@ import { useState } from "react";
 import { ChoiceGroup, type ChoiceOption } from "@/components/ui/choice-group";
 import { Field, FormMessage, Select, Textarea } from "@/components/ui/form";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { SuggestionChips, appendSuggestion, type Suggestion } from "@/components/ui/suggestion-chips";
 import { useToast } from "@/components/ui/toast";
 import { useActionForm, type FormAction } from "@/components/ui/use-action-form";
 import { assignEvaluatorAction, decideApplicationAction, resendActivationEmailAction } from "@/lib/actions/admissions";
@@ -60,19 +61,58 @@ const DECISIONS: ChoiceOption<AdmissionDecision>[] = [
     { value: "rejected", label: "Reject", description: "The application closes. They can apply again later.", icon: UserX, tone: "danger" },
 ];
 
+/** Reasons administrators often give, per decision. Picking one adds it to the reason for them to check and edit. */
+const DECISION_REASONS: Record<AdmissionDecision, Suggestion[]> = {
+    approved: [
+        { label: "Passed the assessment", value: "Passed the entrance assessment." },
+        { label: "Coach recommends", value: "The assessing coach recommends admission." },
+        { label: "Place in this intake", value: "There is a place in the current intake." },
+        { label: "Meets eligibility", value: "Meets the academy's eligibility rules." },
+    ],
+    rejected: [
+        { label: "Intake is full", value: "There is no place in the current intake." },
+        { label: "Eligibility not met", value: "Doesn't meet the academy's eligibility rules." },
+        { label: "Details not confirmed", value: "The application details couldn't be confirmed." },
+        { label: "Reapply later", value: "Welcome to apply again for a later intake." },
+    ],
+};
+
 /** The final decision on an applicant who passed the assessment. */
 export function DecisionForm({ applicationId }: { applicationId: string }) {
     const form = useApplicationForm(decideApplicationAction, "decision");
     const { control, error } = form;
     const [decision, setDecision] = useState<AdmissionDecision | "">("");
+    const [reason, setReason] = useState("");
+    const writeReason = (value: string) => {
+        setReason(value);
+        form.markEdited("reason");
+    };
 
     return (
         <form {...form.formProps} className="flex flex-col gap-4">
             <input type="hidden" name="applicationId" value={applicationId} />
             <ChoiceGroup id={control("decision").id} name="decision" legend="Decision" required columns={2} options={DECISIONS} value={decision} onChange={setDecision} error={error("decision")} />
-            <Field label="Reason" htmlFor={control("reason").id} required hint="Kept with the application. The applicant sees only the outcome." error={error("reason")}>
-                <Textarea {...control("reason", { required: true, hint: true })} rows={3} maxLength={ADMISSION_LIMITS.decisionReason} />
-            </Field>
+            <div className="flex flex-col gap-2">
+                <Field label="Reason" htmlFor={control("reason").id} required hint="Kept with the application. The applicant sees only the outcome." error={error("reason")}>
+                    <Textarea
+                        {...control("reason", { required: true, hint: true })}
+                        rows={3}
+                        value={reason}
+                        onChange={(event) => writeReason(event.target.value)}
+                        maxLength={ADMISSION_LIMITS.decisionReason}
+                    />
+                </Field>
+                {decision && (
+                    <SuggestionChips
+                        label="Common reasons"
+                        suggestions={DECISION_REASONS[decision]}
+                        onPick={(value) => {
+                            const next = appendSuggestion(reason, value);
+                            if (next.length <= ADMISSION_LIMITS.decisionReason) writeReason(next);
+                        }}
+                    />
+                )}
+            </div>
             <FormMessage {...form.message} />
             <div>
                 <SubmitButton pending={form.pending} pendingLabel="Saving…" variant={decision === "rejected" ? "danger" : "primary"}>

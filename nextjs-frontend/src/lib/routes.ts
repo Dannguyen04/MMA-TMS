@@ -100,6 +100,8 @@ export const routes = {
         dashboard: "/admin/dashboard",
         users: "/admin/users",
         newUser: "/admin/users/new",
+        /** The new-account form with the role already chosen, e.g. an "Add fighter" entry. */
+        newUserAs: (role: "fighter" | "coach" | "doctor" | "admin") => `/admin/users/new?role=${role}`,
         user: (userId: string) => `/admin/users/${userId}`,
         admissions: "/admin/admissions",
         admission: (applicationId: string) => `/admin/admissions/${applicationId}`,
