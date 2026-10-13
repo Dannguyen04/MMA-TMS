@@ -6,7 +6,7 @@ Trạng thái: **DRAFT** (Claude đang viết) → **READY** (Gemini được nh
 
 ## Trước khi bắt đầu (chủ dự án làm một lần)
 
-1. Đưa phần code goals đang dở trên nhánh `chore/ai-review-tracker-storage` (các file `nestjs-api/src/goals/`, migration 021–022 và các file đang sửa) vào một commit trên nhánh riêng, ví dụ `wip/goals`. Mục đích là để working tree sạch, tránh Gemini commit nhầm. Module goals không thuộc đợt này (quyết định 4).
+1. Không còn bắt buộc: Claude giao việc cho Gemini trong git worktree riêng (mục "Cách giao việc" trong [TEAM-WORKFLOW.md](../TEAM-WORKFLOW.md)), nên phần code goals đang dở trong thư mục chính không bị ảnh hưởng.
 2. Nhánh tích hợp `fight-camp` đã được tạo sẵn (từ `docs/fight-camp-scope`). Gemini tạo nhánh ticket từ đây.
 3. Kiểm tra máy có PostgreSQL 18 tại `C:/Program Files/PostgreSQL/18/bin` để chạy `test:db` (đường dẫn mặc định trong `nestjs-api/scripts/test-migrations.mjs`).
 
@@ -14,8 +14,8 @@ Trạng thái: **DRAFT** (Claude đang viết) → **READY** (Gemini được nh
 
 | Ticket | Nội dung | Phần | Phụ thuộc | Trạng thái |
 | --- | --- | --- | --- | --- |
-| [T-001](./T-001-hide-frozen-navigation.md) | Ẩn các khu vực đóng băng khỏi menu | Frontend | — | READY |
-| [T-002](./T-002-no-doctor-mode.md) | Chế độ không có bác sĩ (migration 023) | Backend | — | READY |
+| [T-001](./T-001-hide-frozen-navigation.md) | Ẩn các khu vực đóng băng khỏi menu | Frontend | — | DONE (13/10, [review](./T-001-REVIEW.md)) |
+| [T-002](./T-002-no-doctor-mode.md) | Chế độ không có bác sĩ (migration 023) | Backend | — | IN PROGRESS |
 | T-003 | Bộ luật giải, trận, checklist hồ sơ, Cổng 1, theo dõi cân (migration 024) | Backend | T-002 | DRAFT, READY dự kiến 15/10 |
 | T-004 | Màn trận cho HLV: danh sách, tạo, chi tiết, checklist | Frontend | T-003 | DRAFT |
 | T-005 | Màn ghi cân cho võ sĩ, biểu đồ, cảnh báo | Frontend | T-003 | DRAFT |

@@ -34,6 +34,16 @@ Claude viết ticket (READY)
 - **Không được:** push lên `main`, force push, rebase hay amend commit đã push, sửa lịch sử của nhánh khác, commit file `.env` hoặc secret.
 - Working tree phải sạch trước khi tạo nhánh. Gặp thay đổi không thuộc ticket thì dừng và báo, không tự commit, stash hay xoá.
 
+## 3a. Cách giao việc
+
+Claude giao ticket cho Gemini qua CLI `agy` của Antigravity (`~/.gemini/bin/agy.exe`), không cần chủ dự án chuyển lời:
+
+1. Claude tạo một **git worktree riêng** cho mỗi ticket tại `D:/test/ai-worktrees/T-xxx`, trên nhánh `feat/T-xxx-…` tạo từ `fight-camp`, và cài dependency. Worktree không có file `.env`, nên không kết nối được database thật. Thư mục làm việc chính của chủ dự án không bị đụng tới.
+2. Claude chạy Gemini ở chế độ không tương tác, tự duyệt thao tác (theo quyết định của chủ dự án ngày 13/10): `agy -p "<prompt>" --dangerously-skip-permissions --model gemini-3.8-flash-high --output-format json`. Prompt và log của mỗi lượt lưu ở `D:/test/ai-worktrees/logs/`.
+3. Khi review cần sửa, Claude gửi tiếp vào **cùng phiên** bằng `agy --conversation <conversation_id> -p "<phản hồi>"`.
+4. Sau mỗi lượt chạy, Claude kiểm tra remote không có nhánh mới hay commit bị push.
+5. Ticket APPROVED được merge `--no-ff` vào `fight-camp` khi chủ dự án đồng ý.
+
 ## 4. Quy tắc cho người thực hiện (Gemini)
 
 1. **Đọc trước khi code:** ticket, các mục tài liệu ticket dẫn chiếu, code hiện có ở mọi file ticket nêu, và một module mẫu cùng loại (backend: `nestjs-api/src/fighters/`, hoặc `src/goals/` trên nhánh `wip/goals`).
@@ -54,7 +64,7 @@ Chạy đủ các lệnh ticket yêu cầu, tối thiểu:
 | Migration | `pnpm --filter nestjs-api test:db`, `pnpm --filter nestjs-api db:check` |
 | Frontend | `pnpm --filter nextjs-frontend lint`, `pnpm --filter nextjs-frontend typecheck`, `pnpm --filter nextjs-frontend test` |
 
-Mọi lệnh phải qua. Lệnh nào lỗi vì lý do có từ trước ticket thì ghi rõ bằng chứng (lỗi đó cũng xuất hiện trên `fight-camp` chưa sửa).
+Không lệnh nào được **thêm lỗi** so với [baseline](tickets/BASELINE.md). Lỗi có sẵn trong baseline không chặn ticket, trừ khi ticket yêu cầu sửa. Handover ghi rõ số test qua/lỗi và so sánh với baseline.
 
 ## 6. Handover (bắt buộc, `docs/tickets/T-xxx-HANDOVER.md`)
 
