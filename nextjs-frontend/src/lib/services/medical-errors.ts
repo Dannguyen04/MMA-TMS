@@ -2,12 +2,24 @@ import "server-only";
 
 import { apiWriteFailure, maybeNotSavedMessage, type ServiceErrorMessages, type WriteErrorOptions, type WriteFailure } from "./api-write-errors";
 
+export { isUnconfirmedWrite } from "./api-write-errors";
+
 /** How the medical service's refusals read on the doctor's forms; the status rules are shared (`api-write-errors.ts`). */
 
 export type MedicalWriteFailure = WriteFailure;
 export type MedicalWriteErrorOptions = WriteErrorOptions;
 
 export const MAYBE_NOT_SAVED = maybeNotSavedMessage("medical service");
+
+/**
+ * After a write the service didn't confirm, the doctor's forms read the record again before saying anything. These
+ * are what they say when that read doesn't find the record, or can't be made. Neither asks for a reload: the form
+ * keeps every answer, and trying again checks the record first.
+ */
+export const unconfirmedWriteMessages = (record: string) => ({
+    notFound: `The medical service didn't confirm the ${record}, and it isn't on the fighter's record. Your answers are still here: try again.`,
+    unchecked: `The medical service didn't answer, so we couldn't check whether the ${record} was saved. Your answers are still here. Try again: the record is checked before anything is sent again.`,
+});
 
 const NOT_FOUND_MESSAGES: Record<string, string> = {
     FIGHTER_NOT_FOUND: "This fighter's profile no longer exists.",

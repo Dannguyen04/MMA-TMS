@@ -1,18 +1,14 @@
 import {
     Activity,
-    BrainCircuit,
     ClipboardList,
     CalendarDays,
     ChartLine,
     Cpu,
-    Film,
+    Dumbbell,
     HeartPulse,
-    KeyRound,
     LayoutDashboard,
-    Megaphone,
     Radar,
     ScanLine,
-    ScrollText,
     Settings,
     ShieldCheck,
     Stethoscope,
@@ -60,8 +56,8 @@ export interface NavSection {
 }
 
 /**
- * Role-based information architecture. Fighters, coaches and doctors get a handful of hubs, each
- * answering one kind of question; related pages sit behind the hub's tabs. Admin keeps its sections.
+ * Role-based information architecture. Every role gets a handful of hubs, each answering one kind of question;
+ * related pages sit behind the hub's tabs.
  */
 export const NAVIGATION: Record<Role, NavSection[]> = {
     fighter: [
@@ -150,43 +146,55 @@ export const NAVIGATION: Record<Role, NavSection[]> = {
         },
     ],
     admin: [
-        { items: [{ label: "Dashboard", href: routes.admin.dashboard, icon: LayoutDashboard }] },
         {
-            label: "Access",
             items: [
-                { label: "Users", href: routes.admin.users, icon: Users },
+                { label: "Today", href: routes.admin.dashboard, icon: LayoutDashboard },
+                {
+                    label: "People",
+                    href: routes.admin.users,
+                    icon: Users,
+                    tabs: [
+                        { label: "Users", href: routes.admin.users },
+                        { label: "Roles & permissions", href: routes.admin.roles },
+                    ],
+                },
                 { label: "Admissions", href: routes.admin.admissions, icon: ClipboardList },
-                { label: "Roles & permissions", shortLabel: "Roles", href: routes.admin.roles, icon: KeyRound },
-            ],
-        },
-        {
-            label: "AI platform",
-            items: [
-                { label: "Videos", href: routes.admin.videos, icon: Film },
-                { label: "AI jobs", href: routes.admin.aiJobs, icon: Cpu, badge: "failedJobs" },
-                { label: "AI models", shortLabel: "Models", href: routes.admin.aiModels, icon: BrainCircuit },
-            ],
-        },
-        {
-            label: "Operations",
-            items: [
-                { label: "Audit logs", shortLabel: "Audit", href: routes.admin.auditLogs, icon: ScrollText },
-                { label: "Broadcasts", href: routes.admin.notifications, icon: Megaphone },
-                { label: "System settings", shortLabel: "Settings", href: routes.admin.settings, icon: Settings },
+                { label: "Training", href: routes.admin.exercises, icon: Dumbbell },
+                {
+                    label: "AI platform",
+                    shortLabel: "AI",
+                    // Jobs lead: failures are what an administrator comes here for, and the hub carries their count.
+                    href: routes.admin.aiJobs,
+                    icon: Cpu,
+                    badge: "failedJobs",
+                    tabs: [
+                        { label: "AI jobs", href: routes.admin.aiJobs },
+                        { label: "Videos", href: routes.admin.videos },
+                        { label: "AI models", href: routes.admin.aiModels },
+                    ],
+                },
+                {
+                    label: "System",
+                    href: routes.admin.auditLogs,
+                    icon: Settings,
+                    tabs: [
+                        { label: "Audit logs", href: routes.admin.auditLogs },
+                        { label: "Broadcasts", href: routes.admin.notifications },
+                        { label: "Settings", href: routes.admin.settings },
+                    ],
+                },
             ],
         },
     ],
 };
 
-/**
- * Destinations for the mobile bottom bar. Roles built on hubs show every hub; admin picks its four
- * most-used pages.
- */
+/** The admin hubs the mobile bottom bar has room for; Training stays in the menu. */
+const ADMIN_MOBILE_HUBS: readonly string[] = [routes.admin.dashboard, routes.admin.users, routes.admin.admissions, routes.admin.aiJobs, routes.admin.auditLogs];
+
+/** Destinations for the mobile bottom bar: every hub, or for admin the five it has room for. */
 export function mobilePrimaryItems(role: Role): NavItem[] {
     const items = NAVIGATION[role].flatMap((section) => section.items);
-    if (role !== "admin") return items;
-    const admin = [routes.admin.dashboard, routes.admin.users, routes.admin.aiJobs, routes.admin.auditLogs];
-    return admin.map((href) => items.find((item) => item.href === href)).filter((item): item is NavItem => Boolean(item));
+    return role === "admin" ? items.filter((item) => ADMIN_MOBILE_HUBS.includes(item.href)) : items;
 }
 
 function matchesPath(href: string, pathname: string): boolean {

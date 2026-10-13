@@ -1,4 +1,4 @@
-import { CalendarClock, ClipboardList, ClipboardPlus, Lock, MessageSquareText } from "lucide-react";
+import { CalendarClock, ClipboardList, ClipboardPlus, Lock, MessageSquareText, Upload } from "lucide-react";
 import type { Metadata } from "next";
 
 import { AnalysisSummaryCard } from "@/components/dashboard/analysis-summary-card";
@@ -9,9 +9,11 @@ import { HealthStatusCard } from "@/components/dashboard/health-status-card";
 import { BodyProfileCard, GoalsSnapshotCard, UpcomingSessionsCard } from "@/components/dashboard/profile-overview-cards";
 import { loadRosterEntry } from "@/components/dashboard/roster-data";
 import { ClearanceCard } from "@/components/domain/clearance-card";
+import { FighterJourney } from "@/components/domain/fighter-journey";
 import { ReviewRequestCard } from "@/components/medical/review-request-card";
 import { CoachFeedbackItem } from "@/components/domain/coach-feedback-item";
 import { PlanCard } from "@/components/domain/plan-card";
+import type { JourneyCode } from "@/lib/domain/journey";
 import { planAdherencePct } from "@/lib/domain/training-plan";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -21,14 +23,16 @@ import { hasPermission, requireRole } from "@/lib/auth/session";
 import { formatWeekdayDate } from "@/lib/format";
 import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
-import { getAnalysis } from "@/lib/services/ai";
 import { getSettings } from "@/lib/services/admin";
+import { nullIfServiceFails } from "@/lib/services/api-helpers";
+import { getFighterJourney } from "@/lib/services/fighter-journey";
 import { listGoals } from "@/lib/services/goals";
 import { getClearanceStatus, getFighterHealthSummary, listReviewRequests } from "@/lib/services/medical";
 import { listCoaches, listDoctors } from "@/lib/services/people";
 import { platformFeatureAvailable } from "@/lib/services/platform-features";
 import { getPlanWithSessions, listCoachFeedback, listPlans } from "@/lib/services/training";
-import { listVideoLibrary } from "@/lib/services/videos";
+import { getVideoDetail, listVideoLibrary } from "@/lib/services/videos";
+import { cn } from "@/lib/utils";
 
 const UPCOMING_LIMIT = 3;
 const FEEDBACK_LIMIT = 3;
@@ -45,14 +49,23 @@ export default async function CoachFighterOverviewPage({ params }: PageProps<"/c
     const now = new Date().toISOString();
     const ids = [fighter.id];
 
-    // Reads that depend on another result chain onto it, so nothing waits for the whole first batch.
-    const [entry, planDetail, { latest, analysis }, feedback, goals, coaches, doctors, health, settings, reviewRequests, { eligibility }] = await Promise.all([
+    // Reads that depend on another result chain onto it, so nothing waits for the whole first batch. The plans and the
+    // video library are read once, for the cards and for the fighter's journey.
+    const plansRead = listPlans({ fighterIds: ids });
+    const libraryRead = listVideoLibrary({ fighterIds: ids });
+    const [entry, planDetail, { latest, analysis }, journey, feedback, goals, coaches, doctors, health, settings, reviewRequests, { eligibility }] = await Promise.all([
         loadRosterEntry(user, fighter.id),
-        listPlans({ fighterIds: ids, status: "active" }).then((plans) => (plans[0] ? getPlanWithSessions(plans[0].id) : null)),
-        listVideoLibrary({ fighterIds: ids, status: "completed" }).then(async (library) => {
-            const item = library.find((candidate) => candidate.analysis !== null) ?? null;
-            return { latest: item, analysis: item?.analysis ? await getAnalysis(item.analysis.analysisId) : null };
+        plansRead.then((plans) => {
+            const active = plans.find((plan) => plan.status === "active");
+            return active ? getPlanWithSessions(active.id) : null;
         }),
+        libraryRead.then(async (library) => {
+            // The library carries no analysis in API mode, so the newest finished video's analysis is read on its own.
+            const item = [...library].sort((a, b) => Date.parse(b.video.uploadedAt) - Date.parse(a.video.uploadedAt)).find((candidate) => candidate.video.status === "completed") ?? null;
+            const detail = item ? await nullIfServiceFails(getVideoDetail(item.video.id)) : null;
+            return { latest: item, analysis: detail?.analysis ?? null };
+        }),
+        getFighterJourney(fighter.id, { viewer: "coach", plans: plansRead, videos: libraryRead.then((library) => library.map((item) => item.video)) }),
         listCoachFeedback({ fighterIds: ids }),
         listGoals({ fighterIds: ids }),
         listCoaches(),
@@ -67,10 +80,20 @@ export default async function CoachFighterOverviewPage({ params }: PageProps<"/c
     const coachNames = new Map(coaches.map((coach) => [coach.id, coach.name]));
     const doctorName = entry.clearance ? doctors.find((doctor) => doctor.id === entry.clearance?.doctorId)?.name : undefined;
     const followUp = health?.nextFollowUp ?? null;
+    const firstName = fighter.name.split(" ")[0];
 
     return (
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
-            <div className="flex min-w-0 flex-col gap-6 lg:col-start-3 lg:row-start-1">
+            {!journey.complete && (
+                <FighterJourney
+                    journey={journey}
+                    variant="compact"
+                    action={journeyAction(journey.active?.code, fighter.id)}
+                    className="lg:col-span-3"
+                />
+            )}
+
+            <div className={cn("flex min-w-0 flex-col gap-6 lg:col-start-3", journey.complete ? "lg:row-start-1" : "lg:row-start-2")}>
                 <ClearanceCard
                     clearance={entry.clearance}
                     state={entry.clearanceState}
@@ -127,7 +150,7 @@ export default async function CoachFighterOverviewPage({ params }: PageProps<"/c
                             <EmptyState
                                 compact
                                 title="No active plan"
-                                description={`Build a plan so ${fighter.name.split(" ")[0]}'s sessions work toward one objective.`}
+                                description={`Build a plan so ${firstName}'s sessions work toward one objective.`}
                                 action={
                                     <ButtonLink href={hrefWith(routes.coach.newPlan, {}, { fighter: fighter.id })} variant="secondary" size="sm">
                                         <ClipboardPlus aria-hidden />
@@ -143,7 +166,7 @@ export default async function CoachFighterOverviewPage({ params }: PageProps<"/c
                 {platformFeatureAvailable("goals") && <GoalsSnapshotCard goals={goals} href={routes.coach.fighterGoals(fighter.id)} />}
             </div>
 
-            <div className="flex min-w-0 flex-col gap-6 lg:col-span-2 lg:col-start-1 lg:row-start-1">
+            <div className={cn("flex min-w-0 flex-col gap-6 lg:col-span-2 lg:col-start-1", journey.complete ? "lg:row-start-1" : "lg:row-start-2")}>
                 <BodyProfileCard fighter={fighter} now={now} />
 
                 <UpcomingSessionsCard
@@ -200,4 +223,25 @@ export default async function CoachFighterOverviewPage({ params }: PageProps<"/c
             </div>
         </div>
     );
+}
+
+/** The coach's own move on the journey, when the step in progress is theirs to take. */
+function journeyAction(code: JourneyCode | undefined, fighterId: string) {
+    if (code === "plan_missing" || code === "plan_draft") {
+        return (
+            <ButtonLink href={code === "plan_missing" ? hrefWith(routes.coach.newPlan, {}, { fighter: fighterId }) : routes.coach.fighterTraining(fighterId)} variant="secondary" size="sm">
+                <ClipboardPlus aria-hidden />
+                {code === "plan_missing" ? "New training plan" : "Open training"}
+            </ButtonLink>
+        );
+    }
+    if (code === "analysis_missing" || code === "analysis_failed") {
+        return (
+            <ButtonLink href={hrefWith(routes.coach.uploadVideo, {}, { fighter: fighterId })} variant="secondary" size="sm">
+                <Upload aria-hidden />
+                Upload video
+            </ButtonLink>
+        );
+    }
+    return undefined;
 }

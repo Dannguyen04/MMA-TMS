@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { ExamClearanceSteps } from "@/components/medical/exam-clearance-steps";
 import { ExaminationDecisionForm } from "@/components/medical/examination-decision-form";
 import { ExaminationForm, type ExamFighterOption } from "@/components/medical/examination-form";
 import { FighterChooser } from "@/components/medical/fighter-chooser";
@@ -94,6 +95,9 @@ async function NewExaminationDecisionPage({ searchParams }: PageProps<"/doctor/e
     const now = new Date().toISOString();
     const defaultScope = parseEnum(param(params.scope), EXAMINATION_SCOPES) ?? "TRAINING";
     const { fighters, fighter, dossier } = await loadFormFighter(user, param(params.fighter));
+    // A fighter still waiting for a baseline gets one; otherwise the link's type, or the doctor chooses.
+    const needsBaseline = dossier?.eligibility.TRAINING.reasons.includes("EXAMINATION_REQUIRED") ?? false;
+    const defaultType = parseEnum(param(params.type), TYPES) ?? (needsBaseline && defaultScope === "TRAINING" ? "baseline" : "");
 
     return (
         <>
@@ -102,6 +106,7 @@ async function NewExaminationDecisionPage({ searchParams }: PageProps<"/doctor/e
                 eyebrow="Examination"
                 title={fighter ? `Examination for ${fighter.name}` : "New examination"}
                 description="Record what you found and whether the fighter may train or compete. Clearance is issued next, from this examination."
+                meta={fighter && dossier ? <ExamClearanceSteps current={1} /> : undefined}
             />
             {fighter && dossier ? (
                 <ExaminationDecisionForm
@@ -109,7 +114,7 @@ async function NewExaminationDecisionPage({ searchParams }: PageProps<"/doctor/e
                     currentExaminations={dossier.currentExaminations}
                     openReviewRequests={dossier.openReviewRequests}
                     defaultScope={defaultScope}
-                    defaultType={parseEnum(param(params.type), TYPES) ?? ""}
+                    defaultType={defaultType}
                     weightLimitKg={fighter.targetWeightKg}
                     nowInput={toDateTimeInputValue(now)}
                     now={now}

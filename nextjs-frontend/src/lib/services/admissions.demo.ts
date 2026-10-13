@@ -121,7 +121,7 @@ export async function activateFighterAccount(applicant: Applicant): Promise<Writ
     application.status = "activated";
     application.activation = { ...application.activation, status: "completed", completedAt: now };
     audit(user, "admission.activate", application);
-    notifyAdmins("New Fighter activated", `${name} activated their fighter account. Assign a coach and a sports doctor.`, routes.admin.user(user.id));
+    notifyAdmins("New Fighter activated", `${name} activated their fighter account. Assign a coach and a sports doctor.`, routes.admin.userCareTeam(user.id));
     return { ok: true };
 }
 

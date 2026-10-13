@@ -88,6 +88,7 @@ export const MEDICAL_TEXT_LIMITS = {
 /** Most milestones one recovery plan request may carry. */
 export const RECOVERY_MILESTONES_MAX = 50;
 
+/** The reasons the medical service sends today. */
 export const ELIGIBILITY_REASONS = [
     "EXAMINATION_REQUIRED",
     "REVIEW_REQUEST_PENDING",
@@ -96,7 +97,17 @@ export const ELIGIBILITY_REASONS = [
     "CLEARANCE_EXPIRED",
     "SESSION_TYPE_RESTRICTED",
 ] as const;
-export type EligibilityReason = (typeof ELIGIBILITY_REASONS)[number];
+/** A reason the service sent that this interface doesn't know yet. It is kept and shown, never dropped. */
+export const OTHER_ELIGIBILITY_REASON = "OTHER_MEDICAL_REASON";
+export type EligibilityReason = (typeof ELIGIBILITY_REASONS)[number] | typeof OTHER_ELIGIBILITY_REASON;
+
+const KNOWN_REASONS: ReadonlySet<string> = new Set(ELIGIBILITY_REASONS);
+
+/** The service's reason codes in the interface's terms: unknown codes become one "other medical reason", in order, without repeats. */
+export function eligibilityReasonsFrom(codes: readonly string[]): EligibilityReason[] {
+    const reasons = codes.map((code): EligibilityReason => (KNOWN_REASONS.has(code) ? (code as EligibilityReason) : OTHER_ELIGIBILITY_REASON));
+    return [...new Set(reasons)];
+}
 
 /* ─── Examination details ─────────────────────────────────────────────────── */
 
@@ -162,6 +173,7 @@ export const ELIGIBILITY_REASON_LABELS: Record<EligibilityReason, string> = {
     CLEARANCE_REQUIRED: "Clearance required",
     CLEARANCE_EXPIRED: "Clearance expired",
     SESSION_TYPE_RESTRICTED: "Session type restricted",
+    OTHER_MEDICAL_REASON: "Other medical reason",
 };
 
 /** What each reason means for the fighter and what happens next, in plain words. */
@@ -172,6 +184,7 @@ export const ELIGIBILITY_REASON_DESCRIPTIONS: Record<EligibilityReason, string> 
     CLEARANCE_REQUIRED: "There is no valid Medical Clearance on file. A sports doctor needs to issue one.",
     CLEARANCE_EXPIRED: "The Medical Clearance has expired. A sports doctor needs to renew it.",
     SESSION_TYPE_RESTRICTED: "This type of session isn't allowed under the current medical restrictions.",
+    OTHER_MEDICAL_REASON: "The medical service gave another reason that this app can't show yet. Ask the sports doctor before training.",
 };
 
 export const BODY_JOINT_LABELS: Record<BodyJoint, string> = {

@@ -148,7 +148,7 @@ export function CareTeamCard({ coaches, doctors, primaryCoachId }: { coaches: Co
                 <TeamSection
                     id="care-team-doctors"
                     heading="Sports doctors"
-                    emptyText="No sports doctor assigned yet. Ask the academy to arrange a baseline physical."
+                    emptyText="No sports doctor yet. The academy assigns one for your baseline exam, and they show up here and on your Today page."
                     people={doctors.map((doctor) => ({ id: doctor.id, name: doctor.name, detail: doctor.specialty, badge: null }))}
                 />
             </CardContent>

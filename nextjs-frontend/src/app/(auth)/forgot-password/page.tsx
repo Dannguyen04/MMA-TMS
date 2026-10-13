@@ -12,6 +12,9 @@ export default function ForgotPasswordPage() {
                 Enter the email you use for the academy. We&apos;ll send a link to choose a new password.
             </p>
             <ForgotPasswordForm />
+            <p className="mt-6 text-center text-sm text-fg-muted">
+                Approved to train and setting up your fighter account? Use the set-up email from the academy, or ask them to resend it.
+            </p>
         </div>
     );
 }

@@ -46,9 +46,10 @@ export async function resetPassword(tokenHash: string, newPassword: string): Pro
         return { ok: true, admissionActivationReady: result.admissionActivationReady };
     } catch (error) {
         if (!(error instanceof ApiError)) throw error;
-        // A link the service can't verify (expired, used, or a malformed token) is refused the same way.
+        // A link the service can't verify (expired, used, or a malformed token) is refused the same way. Where to get
+        // a new one depends on who opened it (an approved applicant asks the academy), so the page says that part.
         if (error.status === 401 || error.status === 400 || error.code === "VALIDATION_ERROR") {
-            return { ok: false, message: "This link has expired or was already used. Request a new one." };
+            return { ok: false, message: "This link has expired or was already used." };
         }
         if (error.status === 429) return { ok: false, message: "Too many attempts. Wait a minute, then try again." };
         return RESET_FAILURES[error.code] ?? { ok: false, message: "Your password couldn't be changed right now. Please try again later." };

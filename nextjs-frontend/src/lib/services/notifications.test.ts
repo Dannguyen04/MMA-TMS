@@ -98,6 +98,25 @@ describe("notifications in API mode", () => {
         });
     });
 
+    it("sends an admin from a fighter's doctor or coach reminder to that fighter's care team, never the account list", async () => {
+        const reminders = [
+            notification("FIGHTER_DOCTOR_ASSIGNMENT_REQUIRED", { v: 1, target: { type: "FIGHTER", id: "f-1" } }),
+            { ...notification("ADMISSION_ACTIVATION_COMPLETED", { v: 1, target: { type: "FIGHTER", id: "f-2" }, data: { applicationId: "app-1" } }), id: "n-activated" },
+        ];
+        respond(page(reminders), 2);
+
+        const admin = await getNotificationPage({ id: "a-1", role: "admin" }, { page: 1, pageSize: 6, unreadOnly: false });
+        expect(admin.items).toEqual([
+            expect.objectContaining({ category: "medical", severity: "warning", href: "/admin/fighters/f-1", body: "Message" }),
+            expect.objectContaining({ category: "admission", severity: "success", href: "/admin/fighters/f-2" }),
+        ]);
+
+        const doctor = await getNotificationPage({ id: "d-1", role: "doctor" }, { page: 1, pageSize: 6, unreadOnly: false });
+        expect(doctor.items[0]).toMatchObject({ href: "/doctor/fighters/f-1" });
+        const fighter = await getNotificationPage({ id: "u-1", role: "fighter" }, { page: 1, pageSize: 6, unreadOnly: false });
+        expect(fighter.items[0]).toMatchObject({ href: null });
+    });
+
     it("marks one notification read and treats a missing one as gone", async () => {
         authenticatedMutableApiRequest.mockResolvedValueOnce(notification("TRAINING_PLAN_ACTIVATED", {}, "2026-10-05T05:00:00.000Z"));
         await expect(markNotificationRead({ id: "u-1", role: "fighter" }, "n-1")).resolves.toBe(true);

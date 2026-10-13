@@ -1,6 +1,6 @@
 import { dayKey } from "@/lib/format";
 import type { SessionType } from "./medical-contract";
-import type { TrainingPhase, TrainingType } from "./types";
+import type { ExerciseCategory, TrainingPhase, TrainingType } from "./types";
 
 /**
  * The training service's vocabulary and request bodies, built from input a form has already validated. Pure, so the
@@ -103,6 +103,79 @@ export interface PlanExerciseBody {
 
 export function planExerciseBody(input: PlanExerciseFields): PlanExerciseBody {
     return { sets: input.sets, reps: input.reps, durationSeconds: input.durationSec, targetRpe: input.targetRpe, coachNotes: textOrNull(input.notes) };
+}
+
+/* ─── Exercise library ────────────────────────────────────────────────────── */
+
+/** The training service's exercise categories (its catalog has no defense, footwork or strength of its own). */
+export const SERVICE_EXERCISE_CATEGORIES = ["STRIKING", "GRAPPLING", "STRENGTH_CONDITIONING", "RECOVERY"] as const;
+export type ServiceExerciseCategory = (typeof SERVICE_EXERCISE_CATEGORIES)[number];
+
+/** The interface category each service category reads as; its label comes from `EXERCISE_CATEGORY_LABELS`. */
+export const EXERCISE_CATEGORY_FOR: Record<ServiceExerciseCategory, ExerciseCategory> = {
+    STRIKING: "striking",
+    GRAPPLING: "grappling",
+    STRENGTH_CONDITIONING: "conditioning",
+    RECOVERY: "mobility",
+};
+
+const SERVICE_CATEGORY_FOR: Record<ExerciseCategory, ServiceExerciseCategory> = {
+    striking: "STRIKING",
+    defense: "STRIKING",
+    footwork: "STRIKING",
+    grappling: "GRAPPLING",
+    conditioning: "STRENGTH_CONDITIONING",
+    strength: "STRENGTH_CONDITIONING",
+    mobility: "RECOVERY",
+};
+
+/** The service category an interface category is stored under. */
+export function serviceExerciseCategoryFor(category: ExerciseCategory): ServiceExerciseCategory {
+    return SERVICE_CATEGORY_FOR[category];
+}
+
+/** The service's limits for a new library exercise (`createExerciseSchema`). */
+export const EXERCISE_LIMITS = { name: 255, description: 1000, url: 1000 } as const;
+
+/** A library exercise as an administrator enters it. */
+export interface ExerciseFields {
+    name: string;
+    category: ServiceExerciseCategory;
+    description: string | null;
+    targetMuscleGroups: string[];
+    videoUrl: string | null;
+}
+
+export interface ExerciseBody {
+    name: string;
+    category: ServiceExerciseCategory;
+    description: string | null;
+    targetMuscleGroups: string[];
+    videoUrl: string | null;
+}
+
+export function exerciseCreateBody(input: ExerciseFields): ExerciseBody {
+    const muscles = [...new Set(input.targetMuscleGroups.map((group) => group.trim()).filter(Boolean))];
+    return {
+        name: input.name.trim(),
+        category: input.category,
+        description: textOrNull(input.description),
+        targetMuscleGroups: muscles,
+        videoUrl: textOrNull(input.videoUrl),
+    };
+}
+
+/**
+ * A name folded for matching a template's exercises to the library: case, spacing and the kind of dash don't matter,
+ * so "Jab-cross-hook pad drill" finds "Jab–cross–hook pad drill".
+ */
+export function exerciseNameKey(name: string): string {
+    return name
+        .normalize("NFKC")
+        .replace(/[‐-―−]/g, "-")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLocaleLowerCase("en");
 }
 
 /* ─── Sessions ────────────────────────────────────────────────────────────── */
