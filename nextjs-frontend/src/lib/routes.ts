@@ -104,6 +104,7 @@ export const routes = {
         admissions: "/admin/admissions",
         admission: (applicationId: string) => `/admin/admissions/${applicationId}`,
         roles: "/admin/roles",
+        exercises: "/admin/exercises",
         videos: "/admin/videos",
         aiJobs: "/admin/ai-jobs",
         aiJob: (jobId: string) => `/admin/ai-jobs/${jobId}`,

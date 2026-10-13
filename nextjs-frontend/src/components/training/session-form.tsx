@@ -1,6 +1,6 @@
 "use client";
 
-import { Ban, ShieldCheck } from "lucide-react";
+import { Ban, Repeat, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { InlineNote } from "@/components/dashboard/inline-note";
@@ -11,16 +11,19 @@ import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChoiceGroup, type ChoiceOption } from "@/components/ui/choice-group";
-import { Field, FormMessage, FormSection, Input, Select, Textarea } from "@/components/ui/form";
+import { Checkbox, Field, FormMessage, FormSection, Input, Select, Textarea } from "@/components/ui/form";
 import { EmptyState } from "@/components/ui/states";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { appendSuggestion, SuggestionChips } from "@/components/ui/suggestion-chips";
 import { useActionForm } from "@/components/ui/use-action-form";
 import type { ActionState } from "@/lib/actions/state";
 import { previewSessionConflicts, type SessionFormResult } from "@/lib/actions/training";
 import { PLAN_STATUS_LABELS, TRAINING_TYPE_LABELS } from "@/lib/domain/labels";
 import { SERVICE_TRAINING_TYPES } from "@/lib/domain/training-contract";
 import type { ClearanceConflict } from "@/lib/domain/rules";
+import { MAX_WEEKLY_REPEATS, presetDuration, SESSION_PRESETS, suggestedSessionTitle, weeklyDates } from "@/lib/domain/training-templates";
 import type { Exercise, PlanStatus, TrainingType } from "@/lib/domain/types";
+import { academyDayStartIso, formatShortDate, isDateKey, pluralize } from "@/lib/format";
 import { ClearanceCheckPanel, type ClearanceCheckStatus } from "./clearance-check-panel";
 import { ExerciseBuilder } from "./exercise-builder";
 import { serializeExerciseRows, type ExerciseRow } from "./exercise-rows";
@@ -47,6 +50,14 @@ export interface SessionFormPlan {
     title: string;
     fighterId: string;
     status: PlanStatus;
+    /** The plan's last academy day (YYYY-MM-DD), or null for an open-ended plan. Weekly repeats stop there. */
+    endDate: string | null;
+}
+
+/** The fighter's plan to preselect: their only active plan, when they have exactly one. */
+function onlyActivePlan(plans: SessionFormPlan[], fighterId: string): string {
+    const active = plans.filter((plan) => plan.fighterId === fighterId && plan.status === "active");
+    return active.length === 1 ? active[0].id : "";
 }
 
 export interface SessionFormProps {
@@ -94,7 +105,16 @@ interface CheckResult {
 /** Schedule or edit a session with a live Medical Clearance check. */
 export function SessionForm({ mode, action, fighters, plans, library, clearances, locations, defaults, now, minDate, cancelHref, serviceForm }: SessionFormProps) {
     const form = useActionForm(action, { id: "session" });
-    const [values, setValues] = useState(() => ({ ...defaults, location: defaults.location || DEFAULT_LOCATION[defaults.type] }));
+    const planTitleFor = (planId: string) => plans.find((plan) => plan.id === planId)?.title ?? null;
+    const [values, setValues] = useState(() => ({
+        ...defaults,
+        location: defaults.location || DEFAULT_LOCATION[defaults.type],
+        // A new session's title follows its type and plan until the coach types one.
+        title: defaults.title || (mode === "create" ? suggestedSessionTitle(defaults.type, planTitleFor(defaults.planId)) : ""),
+    }));
+    const [titleTouched, setTitleTouched] = useState(defaults.title !== "");
+    const [repeat, setRepeat] = useState(false);
+    const [repeatCount, setRepeatCount] = useState("4");
     const [check, setCheck] = useState<CheckResult | null>(null);
     const [acknowledgedFor, setAcknowledgedFor] = useState<string | null>(null);
     const { error } = form;
@@ -148,18 +168,33 @@ export function SessionForm({ mode, action, fighters, plans, library, clearances
               ? "Confirm you've reviewed the clearance warnings to continue."
               : null;
 
-    const changeType = (next: TrainingType) =>
-        setValues((current) => ({
-            ...current,
-            type: next,
-            location: !current.location.trim() || current.location === DEFAULT_LOCATION[current.type] ? DEFAULT_LOCATION[next] : current.location,
-        }));
+    /** Title, location and duration follow the type and plan while they still hold the defaults. */
+    const withDefaults = (current: SessionFormValues, type: TrainingType, planId: string): SessionFormValues => ({
+        ...current,
+        type,
+        planId,
+        title: titleTouched ? current.title : suggestedSessionTitle(type, planTitleFor(planId)),
+        location: !current.location.trim() || current.location === DEFAULT_LOCATION[current.type] ? DEFAULT_LOCATION[type] : current.location,
+        durationMin: !current.durationMin.trim() || current.durationMin === String(presetDuration(current.type)) ? String(presetDuration(type)) : current.durationMin,
+    });
 
+    const changeType = (next: TrainingType) => setValues((current) => withDefaults(current, next, current.planId));
+
+    const changePlan = (next: string) => setValues((current) => withDefaults(current, current.type, next));
+
+    // A plan that belongs to someone else gives way to the new fighter's only active plan, if they have exactly one.
     const changeFighter = (next: string) =>
         setValues((current) => {
             const planStillValid = plans.some((plan) => plan.id === current.planId && plan.fighterId === next);
-            return { ...current, fighterId: next, planId: planStillValid ? current.planId : "" };
+            return withDefaults({ ...current, fighterId: next }, current.type, planStillValid ? current.planId : onlyActivePlan(plans, next));
         });
+
+    const suggestedTitle = suggestedSessionTitle(values.type, planTitleFor(values.planId));
+    const preset = SESSION_PRESETS[values.type];
+    const selectedPlan = plans.find((plan) => plan.id === values.planId);
+    const repeats = Number(repeatCount);
+    const repeatValid = Number.isInteger(repeats) && repeats >= 2 && repeats <= MAX_WEEKLY_REPEATS;
+    const repeatPlan = repeat && repeatValid && isDateKey(values.date) ? weeklyDates(values.date, repeats, selectedPlan?.endDate ?? null) : null;
 
     const types = serviceForm ? SERVICE_TRAINING_TYPES : (Object.keys(TRAINING_TYPE_LABELS) as TrainingType[]);
     const typeOptions: ChoiceOption<TrainingType>[] = types.map((value) => ({
@@ -175,7 +210,7 @@ export function SessionForm({ mode, action, fighters, plans, library, clearances
 
     const input = (name: keyof SessionFormValues, options?: { hint?: boolean; required?: boolean }) => form.control(name, options);
 
-    const submitLabel = mode === "create" ? "Schedule session" : "Save changes";
+    const submitLabel = mode === "edit" ? "Save changes" : repeatPlan && repeatPlan.dates.length > 1 ? `Schedule ${repeatPlan.dates.length} sessions` : "Schedule session";
     // The training service doesn't move a session to another plan.
     const planLocked = serviceForm && mode === "edit";
 
@@ -221,7 +256,7 @@ export function SessionForm({ mode, action, fighters, plans, library, clearances
                             <Select
                                 {...input("planId", { hint: true })}
                                 value={values.planId}
-                                onChange={(event) => set("planId", event.target.value)}
+                                onChange={(event) => changePlan(event.target.value)}
                                 disabled={!values.fighterId || planLocked}
                             >
                                 <option value="">Not part of a plan</option>
@@ -233,15 +268,31 @@ export function SessionForm({ mode, action, fighters, plans, library, clearances
                                 ))}
                             </Select>
                         </Field>
-                        <Field label="Session title" htmlFor="session-title" required error={error("title")}>
-                            <Input
-                                {...input("title", { required: true })}
-                                value={values.title}
-                                onChange={(event) => set("title", event.target.value)}
-                                placeholder={`e.g. ${TRAINING_TYPE_LABELS[values.type]} — lead hook counters`}
-                                maxLength={120}
-                            />
-                        </Field>
+                        <div className="flex flex-col gap-2">
+                            <Field label="Session title" htmlFor="session-title" required error={error("title")}>
+                                <Input
+                                    {...input("title", { required: true })}
+                                    value={values.title}
+                                    onChange={(event) => {
+                                        setTitleTouched(true);
+                                        set("title", event.target.value);
+                                    }}
+                                    placeholder={`e.g. ${TRAINING_TYPE_LABELS[values.type]} — lead hook counters`}
+                                    maxLength={120}
+                                />
+                            </Field>
+                            {mode === "create" && values.title.trim() !== suggestedTitle && (
+                                <SuggestionChips
+                                    label="Suggested"
+                                    suggestions={[{ label: suggestedTitle }]}
+                                    onPick={(value) => {
+                                        setTitleTouched(false);
+                                        set("title", value);
+                                        form.markEdited("title");
+                                    }}
+                                />
+                            )}
+                        </div>
                     </FormSection>
 
                     <FormSection title="Training type" description="Some types may be restricted by the fighter's Medical Clearance.">
@@ -293,6 +344,44 @@ export function SessionForm({ mode, action, fighters, plans, library, clearances
                                 ))}
                             </datalist>
                         </Field>
+                        {mode === "create" && (
+                            <div className="flex flex-col gap-3 rounded-lg bg-surface-muted p-3">
+                                <Checkbox
+                                    id="session-repeat"
+                                    name="repeat"
+                                    checked={repeat}
+                                    onChange={(event) => setRepeat(event.target.checked)}
+                                    label="Repeat weekly"
+                                    description={`Same day and time each week, up to ${MAX_WEEKLY_REPEATS} sessions.${selectedPlan?.endDate ? " Stops when the plan ends." : ""}`}
+                                />
+                                {repeat && (
+                                    <div className="flex flex-col gap-2 pl-7">
+                                        <Field label="Number of sessions" htmlFor="session-repeatCount" required error={error("repeatCount")} hint="Includes this one." className="max-w-40">
+                                            <Input
+                                                {...form.control("repeatCount", { required: true, hint: true })}
+                                                type="number"
+                                                inputMode="numeric"
+                                                min={2}
+                                                max={MAX_WEEKLY_REPEATS}
+                                                step={1}
+                                                value={repeatCount}
+                                                onChange={(event) => setRepeatCount(event.target.value)}
+                                            />
+                                        </Field>
+                                        {repeatPlan && (
+                                            <p className="flex items-start gap-2 text-[13px] text-fg-muted" aria-live="polite">
+                                                <Repeat aria-hidden className="mt-0.5 size-3.5 shrink-0" />
+                                                <span>
+                                                    {pluralize(repeatPlan.dates.length, "session")}: {repeatPlan.dates.map((date) => formatShortDate(academyDayStartIso(date))).join(", ")}.
+                                                    {repeatPlan.skipped > 0 &&
+                                                        ` ${pluralize(repeatPlan.skipped, "week")} after the plan ends ${repeatPlan.skipped === 1 ? "is" : "are"} left out.`}
+                                                </span>
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </FormSection>
 
                     {!serviceForm && (
@@ -326,9 +415,21 @@ export function SessionForm({ mode, action, fighters, plans, library, clearances
                     )}
 
                     <FormSection title="Notes" description="Anything the fighter should know or bring.">
-                        <Field label="Session notes" htmlFor="session-notes" optional error={error("notes")}>
-                            <Textarea {...input("notes")} value={values.notes} onChange={(event) => set("notes", event.target.value)} rows={3} maxLength={1000} />
-                        </Field>
+                        <div className="flex flex-col gap-2">
+                            <Field label="Session notes" htmlFor="session-notes" optional error={error("notes")}>
+                                <Textarea {...input("notes")} value={values.notes} onChange={(event) => set("notes", event.target.value)} rows={3} maxLength={1000} />
+                            </Field>
+                            {preset && (
+                                <SuggestionChips
+                                    label="Add"
+                                    suggestions={[{ label: preset.notes }]}
+                                    onPick={(value) => {
+                                        set("notes", appendSuggestion(values.notes, value));
+                                        form.markEdited("notes");
+                                    }}
+                                />
+                            )}
+                        </div>
                     </FormSection>
                 </CardContent>
             </Card>

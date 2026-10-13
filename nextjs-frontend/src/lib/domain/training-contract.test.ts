@@ -1,9 +1,40 @@
 import { describe, expect, it } from "vitest";
 
 import { SESSION_TYPES } from "./medical-contract";
-import { planBody, SERVICE_TRAINING_TYPES, sessionBody, sessionStatusBody, sessionTypeFor, TRAINING_TYPE_FOR } from "./training-contract";
+import {
+    EXERCISE_CATEGORY_FOR,
+    exerciseCreateBody,
+    exerciseNameKey,
+    planBody,
+    SERVICE_EXERCISE_CATEGORIES,
+    SERVICE_TRAINING_TYPES,
+    serviceExerciseCategoryFor,
+    sessionBody,
+    sessionStatusBody,
+    sessionTypeFor,
+    TRAINING_TYPE_FOR,
+} from "./training-contract";
 
 describe("training contract", () => {
+    it("stores every interface exercise category under one of the service's four, and reads each back", () => {
+        expect(serviceExerciseCategoryFor("defense")).toBe("STRIKING");
+        expect(serviceExerciseCategoryFor("footwork")).toBe("STRIKING");
+        expect(serviceExerciseCategoryFor("strength")).toBe("STRENGTH_CONDITIONING");
+        expect(serviceExerciseCategoryFor("mobility")).toBe("RECOVERY");
+        for (const category of SERVICE_EXERCISE_CATEGORIES) expect(serviceExerciseCategoryFor(EXERCISE_CATEGORY_FOR[category])).toBe(category);
+    });
+
+    it("sends a new library exercise with trimmed text, unique muscle groups and empty text as null", () => {
+        expect(
+            exerciseCreateBody({ name: "  Kettlebell swings ", category: "STRENGTH_CONDITIONING", description: " ", targetMuscleGroups: [" glutes", "glutes", "", "back"], videoUrl: null }),
+        ).toEqual({ name: "Kettlebell swings", category: "STRENGTH_CONDITIONING", description: null, targetMuscleGroups: ["glutes", "back"], videoUrl: null });
+    });
+
+    it("matches exercise names regardless of case, spacing and dash style", () => {
+        expect(exerciseNameKey(" Jab–cross—hook   PAD drill ")).toBe(exerciseNameKey("jab-cross-hook pad drill"));
+        expect(exerciseNameKey("Hip 90/90 mobility flow")).not.toBe(exerciseNameKey("Hip mobility flow"));
+    });
+
     it("maps every service session type to an interface type, and back for the types the service has", () => {
         for (const type of SESSION_TYPES) expect(TRAINING_TYPE_FOR[type]).toBeDefined();
         for (const type of SERVICE_TRAINING_TYPES) expect(TRAINING_TYPE_FOR[sessionTypeFor(type) ?? "RECOVERY"]).toBe(type);
