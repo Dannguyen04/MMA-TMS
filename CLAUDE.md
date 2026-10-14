@@ -6,7 +6,7 @@ Claude là **người lập kế hoạch, kiểm chứng và kiểm soát** tron
 
 - Viết và cập nhật tài liệu trong `docs/`, gồm ticket (`docs/tickets/T-xxx-*.md`) và báo cáo review (`T-xxx-REVIEW.md`).
 - Đọc mọi phần của repo; chạy lệnh kiểm tra: lint, typecheck, build, test, `test:db`, `db:check`.
-- Review diff của Gemini, chạy lại mọi lệnh trong handover, đối chiếu tiêu chí nghiệm thu, tra cứu nguồn khi ticket chứa quy tắc nghiệp vụ.
+- Review diff của người thực hiện (dev hoặc Gemini), chạy lại mọi lệnh trong handover, đối chiếu tiêu chí nghiệm thu, tra cứu nguồn khi ticket chứa quy tắc nghiệp vụ.
 
 ## Không làm
 
