@@ -65,6 +65,14 @@ describe("proxy auth gate", () => {
         expect(protectedResponse.headers.get("location")).toBe("http://localhost:3000/login?next=%2Fcoach%2Fdashboard");
     });
 
+    it("opens only the static fight camp concept without exposing other concept routes", async () => {
+        vi.stubEnv("APP_DATA_MODE", "api");
+
+        expect((await proxy(new NextRequest("http://localhost:3000/concept/fight-camp"))).status).toBe(200);
+        expect((await proxy(new NextRequest("http://localhost:3000/concept/fight-camp/private"))).status).toBe(307);
+        expect((await proxy(new NextRequest("http://localhost:3000/doctor/dashboard"))).status).toBe(307);
+    });
+
     it("lets a signed-out visitor open a password recovery link or register to apply", async () => {
         vi.stubEnv("APP_DATA_MODE", "api");
 

@@ -56,7 +56,9 @@ async function refreshIfNeeded(request: NextRequest, response: NextResponse): Pr
  */
 export async function proxy(request: NextRequest) {
     const { pathname, search } = request.nextUrl;
-    const isPublic = PUBLIC_PATHS.some((path) => pathname === path || (path !== "/" && pathname.startsWith(`${path}/`)));
+    // A single, static-data concept screen; it has no API or account access.
+    const isConcept = pathname === "/concept/fight-camp";
+    const isPublic = isConcept || PUBLIC_PATHS.some((path) => pathname === path || (path !== "/" && pathname.startsWith(`${path}/`)));
     // API route handlers authenticate themselves and answer with JSON (401), never a login redirect.
     const isApi = pathname === "/api" || pathname.startsWith("/api/");
 

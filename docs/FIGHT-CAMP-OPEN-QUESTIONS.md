@@ -17,14 +17,14 @@
 | Q01 | CLB pilot và trận tháng 12 | Pilot | — | | **Không cần (đồ án)**: thay bằng Q25 |
 | Q02 | Ai ghi cân hằng ngày | Pilot | — | | **Xong**: võ sĩ tự ghi (Phạm vi, quyết định 3) |
 | Q03 | CLB pilot có bác sĩ / physio không | Pilot | — | | **Không cần (đồ án)**: kiểm thử chạy chế độ không có bác sĩ |
-| Q04 | Võ sĩ dưới 18 tuổi | Pilot | Khi tuyển người kiểm thử | | Chỉ nhận người kiểm thử từ 18 tuổi |
-| Q05 | Ngưỡng cảnh báo cân | Kiểm thử | Sau buổi kiểm thử | | Tạm dùng 1,0 kg |
-| Q06 | Người dùng chính | Nội bộ | 16/10 | | Chưa |
+| Q04 | Võ sĩ dưới 18 tuổi | Pilot | — | | **Không cần**: không có kiểm thử người dùng; dữ liệu demo là người giả từ 18 tuổi |
+| Q05 | Ngưỡng cảnh báo cân | Kiểm thử | — | | **Xong (14/10)**: dùng 1,0 kg; không có buổi kiểm thử để chỉnh |
+| Q06 | Người dùng chính | Nội bộ | — | | **Xong (14/10)**: HLV; ban tổ chức ngoài phạm vi (Phạm vi đã chốt, quyết định 10) |
 | Q07 | Module goals 021/022 | Nội bộ | — | | **Xong (13/10)**: chưa merge; `goals.bout_id` để sau đợt đồ án |
-| Q08 | Nhánh chính và cách commit tài liệu | Nội bộ | — | | **Xong (13/10)**: nhánh chính `main`; tài liệu commit riêng trên nhánh `docs/fight-camp-scope` |
-| Q09 | Nhân lực team | Nội bộ | 16/10 | | Chưa: cần tên người, vai trò, giờ mỗi tuần đến 31/10 |
+| Q08 | Nhánh chính và cách commit tài liệu | Nội bộ | — | | **Xong (sửa 14/10)**: nhánh chính `main`; tài liệu commit trên `fight-camp` rồi đưa lên `main` để cả team thấy (Phạm vi, quyết định 15). Nhánh `docs/fight-camp-scope` thôi dùng |
+| Q09 | Nhân lực team | Nội bộ | — | | **Xong (14/10)**: 4 dev (2 backend, 1 frontend, 1 mobile chuyển sang web cho điện thoại) cùng Gemini (Phạm vi, quyết định 18). Chưa có tên người và số giờ |
 | Q10 | Dữ liệu và người dùng thật đang có | Nội bộ | 16/10 | | Chưa |
-| Q11 | Loại trận và bộ môn đầu tiên | Nội bộ | 16/10 | | Đề xuất: trận đơn, MMA (Phạm vi, quyết định 1–2); chờ xác nhận |
+| Q11 | Loại trận và bộ môn đầu tiên | Nội bộ | — | | **Xong (14/10)**: trận đơn, MMA theo Luật VMMAF 2021; Boxing nghiệp dư AIBA là preset thứ hai (Phạm vi, quyết định 1–2) |
 | Q12 | Ba quyền còn chờ chốt | Nội bộ | — | | **Xong**: chỉ Admin sửa preset, HLV nhập quy định riêng trên trận; võ sĩ không cập nhật hồ sơ; HLV kết thúc đình chỉ |
 | Q13 | Thông tin giải mà CLB pilot tham gia | Quy định | — | | **Không cần (đồ án)**: HLV tự nhập; preset MMA lấy từ Luật VMMAF 2021 |
 | Q14 | Hồ sơ y tế ban tổ chức yêu cầu | Quy định | — | | **Không cần (đồ án)**: HLV tự nhập checklist |
@@ -36,9 +36,9 @@
 | Q20 | Lưu giấy xét nghiệm và dữ liệu sức khỏe | Dữ liệu | — | | **Xong**: không lưu giấy tờ y tế thật; dữ liệu giả hoặc có đồng ý (Phạm vi, quyết định 9) |
 | Q21 | Đồng ý của phụ huynh | Dữ liệu | — | | **Không cần**: chỉ nhận người kiểm thử từ 18 tuổi |
 | Q22 | Hồ sơ đánh giá tác động và nơi lưu dữ liệu | Dữ liệu | — | | **Hoãn**: chỉ cần nếu đưa ra sử dụng thật sau đồ án; nên trình bày trong báo cáo |
-| Q23 | Hạn nộp và bảo vệ đồ án | Đồ án | 16/10 | | **Một phần**: kết thúc 31/10, 2 buổi review; còn thiếu ngày của 2 buổi review |
-| Q24 | Yêu cầu của trường và giảng viên hướng dẫn | Đồ án | 16/10 | | Chưa |
-| Q25 | Nguồn người kiểm thử | Đồ án | 20/10 | | Chưa: buổi kiểm thử 27–29/10 |
+| Q23 | Hạn nộp và bảo vệ đồ án | Đồ án | — | | **Xong (14/10)**: review 1 đã diễn ra (buổi duyệt phạm vi); review 2 ngày 20/10; demo cuối ngày 31/10 (Phạm vi, quyết định 17) |
+| Q24 | Yêu cầu của trường và giảng viên hướng dẫn | Đồ án | — | | **Xong (14/10)**: chỉ đánh giá bằng demo, không báo cáo, không kiểm thử người dùng; phần AI đã làm được tính (Phạm vi, quyết định 16, 17) |
+| Q25 | Nguồn người kiểm thử | Đồ án | — | | **Không cần (14/10)**: bỏ kiểm thử người dùng (Phạm vi, quyết định 17) |
 
 Hạn "23/10" để kịp seed bộ luật giải trong migration 024. "PR 4", "PR 6" theo [Tech spec §11](./FIGHT-CAMP-TECH-SPEC.md#11-thứ-tự-pr).
 
@@ -123,9 +123,9 @@ Hạn "23/10" để kịp seed bộ luật giải trong migration 024. "PR 4", "
 - **Người quyết định:** chủ dự án.
 - **Ảnh hưởng tới:** [SCOPE – Phạm vi mới](./SCOPE-FIGHT-CAMP.md#phạm-vi-mới).
 
-> **Trả lời:**
+> **Trả lời:** HLV. Ban tổ chức giải nằm ngoài phạm vi, theo phạm vi đã được giảng viên duyệt.
 >
-> **Người quyết định / ngày:**
+> **Người quyết định / ngày:** chủ dự án, sau buổi review với giảng viên; ghi nhận ngày 14/10/2026 ([Phạm vi, quyết định 10](./SCOPE-FIGHT-CAMP.md#quyết-định-và-câu-hỏi)).
 
 ### Q07 · Module goals (migration 021/022)
 
@@ -183,11 +183,11 @@ Hạn "23/10" để kịp seed bộ luật giải trong migration 024. "PR 4", "
 - **Người quyết định:** chủ dự án, sau khi có Q01 và Q13.
 - **Ảnh hưởng tới:** SCOPE câu 1 và 2, [Luồng nghiệp vụ F2](./FIGHT-CAMP-BUSINESS-FLOWS.md#f2-lập-camp).
 
-> **Trả lời (a):**
+> **Trả lời (a):** trận đơn.
 >
-> **Trả lời (b):**
+> **Trả lời (b):** MMA, theo Luật VMMAF 2021 (bộ quy định Việt Nam duy nhất đã xác minh). Boxing nghiệp dư theo AIBA giữ làm preset thứ hai.
 >
-> **Người quyết định / ngày:**
+> **Người quyết định / ngày:** chủ dự án, 14/10/2026 (theo đề xuất ở Phạm vi, quyết định 1–2).
 
 ### Q12 · Ba quyền còn chờ chốt
 
@@ -348,9 +348,9 @@ Nhóm câu hỏi này thêm ngày 13/10, sau khi xác định MMA-TMS là đồ 
 
 | Mốc | Ngày |
 | --- | --- |
-| Kết thúc đồ án | 31/10/2026 |
-| Review 1 với giảng viên | |
-| Review 2 với giảng viên | |
+| Kết thúc đồ án, demo cuối | 31/10/2026 |
+| Review 1 với giảng viên | Đã diễn ra trước 14/10/2026 (buổi duyệt phạm vi) |
+| Review 2 với giảng viên | 20/10/2026 |
 | Mốc khác | |
 
 ### Q24 · Yêu cầu của trường và giảng viên hướng dẫn
@@ -359,9 +359,9 @@ Nhóm câu hỏi này thêm ngày 13/10, sau khi xác định MMA-TMS là đồ 
 - **Vì sao quan trọng:** quyết định mức đầu tư cho kiểm thử người dùng và cách trình bày phần AI đang đóng băng.
 - **Hỏi ai:** giảng viên hướng dẫn; mẫu báo cáo của khoa.
 
-> **Trả lời:**
+> **Trả lời:** (một phần) Giảng viên đã duyệt phạm vi "Quản lý võ sĩ trước – trong – sau trận", giữ nguyên nội dung bản 13/10. Phần AI đã làm **được tính** vào đồ án (Phạm vi, quyết định 16). Đồ án chỉ đánh giá bằng demo: không có báo cáo, không có kiểm thử người dùng.
 >
-> **Nguồn / ngày:**
+> **Nguồn / ngày:** buổi review với giảng viên; chủ dự án báo lại ngày 14/10/2026.
 
 ### Q25 · Nguồn người kiểm thử
 

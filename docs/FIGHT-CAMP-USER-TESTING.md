@@ -1,6 +1,9 @@
 # Fight Camp — Hướng dẫn kiểm thử người dùng
 
-**Cập nhật**: 2026-10-13
+**Cập nhật**: 2026-10-14
+
+> **Không dùng trong đợt đồ án.** Ngày 14/10, chủ dự án bỏ kiểm thử người dùng; đồ án chỉ đánh giá bằng demo ([Phạm vi, quyết định 17](./SCOPE-FIGHT-CAMP.md#quyết-định-và-câu-hỏi)). Tài liệu giữ lại để dùng nếu sản phẩm được phát triển tiếp.
+
 **Thuộc bộ tài liệu**: [Phạm vi](./SCOPE-FIGHT-CAMP.md) · [Nghiên cứu](./FIGHT-CAMP-DOMAIN-RESEARCH.md) · [Luồng nghiệp vụ](./FIGHT-CAMP-BUSINESS-FLOWS.md) · [Tech spec](./FIGHT-CAMP-TECH-SPEC.md) · **Kiểm thử người dùng** · [Câu hỏi mở](./FIGHT-CAMP-OPEN-QUESTIONS.md)
 
 Mục tiêu: có bằng chứng cho báo cáo đồ án rằng HLV và võ sĩ dùng được hệ thống. Cụ thể: hoàn thành tác vụ chính, ghi cân nhanh, hiểu cảnh báo, và điểm SUS. Đồ án kết thúc 31/10, nên kiểm thử chỉ gồm một buổi 30 phút có quan sát với mỗi người, trong khoảng 27/10 – 29/10, dùng trận và dữ liệu giả định do team chuẩn bị sẵn.
