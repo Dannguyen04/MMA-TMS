@@ -1,3 +1,44 @@
+# T-002 Review (lượt 2)
+
+- Người review: Claude · Ngày: 2026-10-14
+- Nhánh: `feat/T-002-no-doctor-mode` · Commit được review: `f31e0ba` (code), `f9695c7` (handover)
+- **Kết luận: APPROVED**
+
+## Lệnh đã chạy lại (trên `f31e0ba`)
+
+| Lệnh | Kết quả | So với [baseline](./BASELINE.md) |
+| --- | --- | --- |
+| `pnpm --filter nestjs-api lint` | Qua (chỉ cảnh báo có sẵn) | Như baseline |
+| `pnpm --filter nestjs-api build` | Qua | Như baseline |
+| `pnpm --filter nestjs-api test` | 641 qua, 26 lỗi (667); 6 file lỗi | Cùng 26 test lỗi của B1 (cần Redis, Supabase) và 4 file spec rỗng của B2. **Không có lỗi mới**; `medical.service.spec.ts` 55/55 qua |
+| `pnpm --filter nestjs-api test:db` | Qua, 39 ca | Baseline không chạy được (B3); nay đã sửa |
+| `pnpm --filter nestjs-api db:check` | Qua, checksum 001–023 | Như baseline |
+
+Output đầy đủ: `D:/test/ai-worktrees/logs/T-002-review2-checks.txt`. Kết quả khớp với output dán trong handover. Không có push lên remote.
+
+## Vấn đề của lượt 1
+
+- **C1 · Đã sửa.** `evaluateEligibility`, `eligibilityFrom`, `evaluateTrainingEligibility` không còn nhánh trả về sớm; `supervision` là trường bắt buộc; ở `NONE` + `TRAINING` chỉ bỏ `EXAMINATION_REQUIRED` và `REVIEW_REQUEST_PENDING`, chưa có kết luận thì đủ điều kiện, đã có kết luận thì chạy quy tắc cũ. `evaluateTrainingEligibility` vẫn lấy `lockFighterMedicalState`. Test tiêu chí 1–5 ở `medical.service.spec.ts:337–423`, ca cổng training `NONE` + `NOT_ELIGIBLE` bị chặn ở dòng 1396.
+- **C2 · Đã sửa.** Bảng đối chiếu dùng đúng 11 tiêu chí của ticket; câu chữ khớp nguyên văn (đã so tự động). Mục "Lệch so với ticket" khai hàm audit riêng và việc sửa ca test 018, không trích câu ticket không có.
+
+## Đối chiếu tiêu chí nghiệm thu
+
+| Tiêu chí | Kết quả |
+| --- | --- |
+| 1–6 (`evaluateEligibility`) | Đạt: test tương ứng qua |
+| 7 (`createReviewRequest` khi `NONE`) | Đạt |
+| 8 (`remind` khi `NONE`) | Đạt |
+| 9 (`PATCH /academy-settings`) | Đạt ở mức unit test (G1 của lượt 1, không bắt buộc) |
+| 10 (`test:db` cho 023) | Đạt |
+| 11 (`db:check`) | Đạt |
+
+## Việc sau khi merge
+
+- Chủ dự án áp migration 023 lên Supabase (`db:migrate:023`), rồi T-008a chuyển chế độ `NONE` bằng `PATCH /academy-settings`.
+- T-003 merge sau T-002 (migration 024 cần ledger đã có 023).
+
+---
+
 # T-002 Review (lượt 1)
 
 - Người review: Claude · Ngày: 2026-10-13
