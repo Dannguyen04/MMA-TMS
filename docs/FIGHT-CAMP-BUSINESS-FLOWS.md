@@ -1,15 +1,95 @@
 # Fight Camp — Luồng nghiệp vụ
 
-**Cập nhật**: 2026-10-11
+**Cập nhật**: 2026-10-14 (thêm mục [Nghiệp vụ theo giai đoạn](#nghiệp-vụ-theo-giai-đoạn))
 **Thuộc bộ tài liệu**: [Phạm vi](./SCOPE-FIGHT-CAMP.md) · [Nghiên cứu](./FIGHT-CAMP-DOMAIN-RESEARCH.md) · **Luồng nghiệp vụ** · [Tech spec](./FIGHT-CAMP-TECH-SPEC.md) · [Kiểm thử người dùng](./FIGHT-CAMP-USER-TESTING.md) · [Câu hỏi mở](./FIGHT-CAMP-OPEN-QUESTIONS.md)
 
-Tài liệu này mô tả **ai làm gì, khi nào, app kiểm tra gì** trong vòng đời một trận. Dev dùng nó để viết rule và test, QA dùng phần tiêu chí nghiệm thu. Chỗ nào chưa chốt thì ghi **[Chờ chốt]** và trỏ tới câu hỏi ở [SCOPE-FIGHT-CAMP.md](./SCOPE-FIGHT-CAMP.md#quyết-định-và-câu-hỏi).
+Tài liệu này mô tả **ai làm gì, khi nào, app kiểm tra gì** trong vòng đời một trận, tức là phạm vi đã chốt: quản lý võ sĩ trước, trong và sau trận đấu. Dev dùng nó để viết rule và test, QA dùng phần tiêu chí nghiệm thu. Chỗ nào chưa chốt thì ghi **[Chờ chốt]** và trỏ tới câu hỏi ở [SCOPE-FIGHT-CAMP.md](./SCOPE-FIGHT-CAMP.md#quyết-định-và-câu-hỏi).
 
 **Phạm vi trước 31/10:** một số phần dưới đây (thông báo, camp tự sinh từ template, ghi buổi tập nhanh, màn Admin bật/tắt chế độ không có bác sĩ) đã được cắt khỏi đợt đồ án; xem [Phạm vi – Cắt khỏi đợt đồ án](./SCOPE-FIGHT-CAMP.md#cắt-khỏi-đợt-đồ-án). Thiết kế vẫn giữ để làm sau.
 
 Tài liệu này thay [BUSINESS-FLOWS.md](./BUSINESS-FLOWS.md) cho phần fight camp. Các luồng cũ (tuyển võ sĩ, cổng Doctor đầy đủ, AI review) vẫn giữ nguyên nhưng đang đóng băng.
 
 ---
+
+## Nghiệp vụ theo giai đoạn
+
+Phạm vi đã chốt ngày 14/10 ([Phạm vi, quyết định 10](./SCOPE-FIGHT-CAMP.md#quyết-định-và-câu-hỏi)) là quản lý võ sĩ **trước, trong và sau trận**. Mục này gom các luồng F1–F8 theo ba giai đoạn, cho biết mỗi giai đoạn bắt đầu và kết thúc khi nào, HLV cần biết điều gì, ai làm việc gì và app kiểm tra gì. Quy tắc chi tiết nằm ở luồng được dẫn chiếu. Quy tắc mới duy nhất là 7 điểm trong bảng [Các điểm đã làm rõ](#các-điểm-đã-làm-rõ-h1h7).
+
+| Giai đoạn | Bắt đầu | Kết thúc | Trạng thái trận | HLV cần trả lời | Luồng |
+| --- | --- | --- | --- | --- | --- |
+| **Trước trận** | HLV tạo trận | Trận vào tuần thi đấu (qua Cổng 1) | `SCHEDULED`, `CAMP` | Võ sĩ có kịp cân không? Hồ sơ đủ chưa? | F1, F2, F3, F4, F8 |
+| **Trong trận** | Vào tuần thi đấu, sớm nhất là ngày cân − `fightWeekDays` (mặc định 7 ngày) | Kết quả trận được ghi | `FIGHT_WEEK`, `WEIGHED_IN` | Võ sĩ có đạt cân không? Trận kết thúc thế nào? | F5, F6, F8 |
+| **Sau trận** | Trận `COMPLETED` | Võ sĩ không còn đình chỉ nào có hiệu lực | `COMPLETED` | Võ sĩ đã được tập lại chưa? | F7 |
+
+Trận có thể bị huỷ ở bất kỳ giai đoạn nào trước khi có kết quả ([Huỷ trận theo giai đoạn](#huỷ-trận-theo-giai-đoạn)).
+
+### Trước trận
+
+Mục tiêu: đưa võ sĩ vào tuần thi đấu đúng hạng cân và đủ hồ sơ.
+
+| Việc | Ai làm | App ghi lại và kiểm tra | Luồng | Đợt đồ án |
+| --- | --- | --- | --- | --- |
+| Tạo trận: giải, ruleset, hạng cân (kg), giờ cân, giờ thi, đối thủ | HLV | Giờ cân trước giờ thi; võ sĩ thuộc phạm vi HLV; sinh checklist hồ sơ từ ruleset; cảnh báo nếu đình chỉ của võ sĩ kéo dài quá ngày thi | F1 | Làm |
+| Gắn camp, bắt đầu camp | HLV | Plan của cùng võ sĩ, phase `fight_camp`; mỗi võ sĩ tối đa một trận đang chạy | F2 | Làm: gắn plan có sẵn. Tự sinh camp từ template: cắt |
+| Ghi cân mỗi sáng | Võ sĩ, hoặc HLV ghi hộ | Mỗi ngày học viện chỉ giữ một số; trạng thái xanh / vàng / đỏ / xám | F3 | Làm: cảnh báo hiện trên dashboard, không gửi thông báo |
+| Cập nhật checklist hồ sơ | HLV; bác sĩ xác nhận nếu có | Trạng thái, ngày cấp, hạn hiệu lực; mục HLV thêm mang nhãn "HLV nhập, chưa xác minh" | F4 | Làm: chưa có quyền xác nhận của bác sĩ |
+| Đổi ngày, đổi hạng cân | HLV | Tính lại hạn nộp hồ sơ, ngưỡng cảnh báo cân, hiệu lực hồ sơ đến ngày thi mới | F8 | Làm |
+| Vào tuần thi đấu | HLV | **Cổng 1**: hôm nay ≥ ngày cân − `fightWeekDays`, và mọi mục bắt buộc ở `PROVIDED` / `CONFIRMED`, còn hiệu lực đến ngày thi | F4, F5 | Làm |
+
+Kết thúc khi trận sang `FIGHT_WEEK`. Nếu Cổng 1 không đạt, trận đứng ở `CAMP` và app liệt kê các mục thiếu hoặc hết hạn. HLV bổ sung hồ sơ, đổi ngày hoặc huỷ trận.
+
+### Trong trận
+
+Mục tiêu: võ sĩ qua cân chính thức và kết quả trận được ghi lại. Giai đoạn này gồm tuần thi đấu, buổi cân và ngày thi.
+
+| Việc | Ai làm | App ghi lại và kiểm tra | Luồng | Đợt đồ án |
+| --- | --- | --- | --- | --- |
+| Tuần thi đấu | HLV, võ sĩ | Hồ sơ bị khoá, muốn sửa phải mở khoá và ghi lý do; cảnh báo cân dùng ngưỡng tuần cuối, nhắc ghi cân mỗi ngày | F5 | Làm |
+| Cân chính thức | HLV | Số cân chính thức, lưu thêm vào `fighter_measurements` với bối cảnh `WEIGH_IN`; app gợi ý đạt / không đạt so với giới hạn, HLV xác nhận; kiểm tra nước là trường tùy chọn | F5 | Làm |
+| Xử lý trượt cân | HLV | Chọn catchweight (ghi giới hạn mới và ghi chú) để sang `WEIGHED_IN`, hoặc huỷ trận với lý do "Không đạt cân" | F5 | Làm |
+| Thi đấu | — | App không làm gì trong lúc thi đấu: không chấm điểm, không theo dõi trực tiếp, không kê chế độ bù nước sau cân ([Nghiên cứu §4](./FIGHT-CAMP-DOMAIN-RESEARCH.md#4-giảm-cân-cấp-tốc-giới-hạn-khuyến-nghị)) | — | — |
+| Ghi kết quả | HLV | Kết quả, cách kết thúc, hiệp, có bị đánh ngã không, ghi chú chấn thương; thua KO/TKO thì hỏi thêm về mất ý thức; thua TKO thì hỏi trận có dừng vì đòn vào đầu không; chỉ ghi được từ ngày thi | F6 | Làm |
+
+Kết thúc khi kết quả được lưu và trận sang `COMPLETED`.
+
+### Sau trận
+
+Mục tiêu: võ sĩ không tập các loại buổi bị cấm khi chưa hồi phục, và khi được tập lại thì có căn cứ rõ ràng.
+
+| Việc | Ai làm | App ghi lại và kiểm tra | Luồng | Đợt đồ án |
+| --- | --- | --- | --- | --- |
+| Đình chỉ từ kết quả trận | App gợi ý; HLV hoặc bác sĩ xác nhận | Thua KO, hoặc TKO do đòn vào đầu: số ngày theo `suspensionRules`, có tính các lần KO trước. Bị truất quyền: theo ruleset. Mọi trận: nghỉ bắt buộc `restDaysAfterBout`. Sửa số ngày gợi ý phải ghi lý do; ruleset không có quy tắc thì HLV tự nhập | F7 | Làm |
+| Đình chỉ thủ công | HLV, bác sĩ | Đình chỉ không gắn trận, ví dụ KO trong buổi sparring; vẫn được tính vào lịch sử KO | F7 | Làm |
+| Cổng 2 | App | Còn đình chỉ có hiệu lực thì không xếp lịch và không bắt đầu được loại buổi bị chặn (409 `TRAINING_SUSPENSION_ACTIVE`); buổi đã xếp từ trước hiện cảnh báo trên lịch | F7 | Làm |
+| Xác nhận được tập lại | HLV hoặc bác sĩ | Chỉ sau ngày kết thúc đình chỉ; bắt buộc ghi căn cứ; không có giấy thì ghi "không có xác nhận y tế" | F7 | Làm |
+| Ghi chấn thương sau trận | HLV | Ô chữ tùy chọn "Chấn thương sau trận" trong form kết quả (H2). Không ghi vào `injury_records` | F6 | Làm |
+| Xem lại video trận | HLV | — | — | Cắt khỏi đợt đồ án |
+
+Kết thúc khi võ sĩ không còn đình chỉ nào có hiệu lực. Võ sĩ thắng mà ruleset không có ngày nghỉ bắt buộc thì kết thúc ngay khi ghi kết quả.
+
+Võ sĩ **sẵn sàng nhận trận mới** khi không có trận nào ở `CAMP`, `FIGHT_WEEK` hoặc `WEIGHED_IN` và không có đình chỉ nào có hiệu lực. Đây là giá trị tính khi đọc, không lưu. App không chặn tạo trận mới khi võ sĩ chưa sẵn sàng; F1 chỉ cảnh báo. Trạng thái này hiện ở tab Đình chỉ của hub "Trận" và trên trang chi tiết trận (H7).
+
+### Huỷ trận theo giai đoạn
+
+| Thời điểm huỷ | Quy tắc |
+| --- | --- |
+| Trước trận, tuần thi đấu | Bắt buộc chọn lý do. Camp được giữ, HLV quyết định giữ hay huỷ các buổi `SCHEDULED` còn lại (F8) |
+| Sau cân chính thức (`WEIGHED_IN`), ví dụ đối thủ rút hoặc võ sĩ không qua khám của ban tổ chức | Bắt buộc chọn lý do. Không tạo đình chỉ hay ngày nghỉ bắt buộc (H4). Không qua khám của ban tổ chức thì chọn "Khác" và ghi chú (H5) |
+| Sau khi có kết quả | Không huỷ được, vì `COMPLETED` là trạng thái cuối |
+
+### Các điểm đã làm rõ (H1–H7)
+
+Ngày 14/10, Claude đối chiếu sơ đồ trong [Phạm vi](./SCOPE-FIGHT-CAMP.md#vòng-đời-một-trận), các luồng F1–F8, [Tech spec](./FIGHT-CAMP-TECH-SPEC.md) và code, và tìm ra 7 điểm chưa được định nghĩa. **Chủ dự án duyệt cả 7 quyết định dưới đây ngày 14/10** (Phạm vi, quyết định 11). Các luồng F5–F8 và tiêu chí nghiệm thu §6 đã được cập nhật theo.
+
+| # | Điểm | Hiện trạng trước 14/10 | Quyết định | Ảnh hưởng |
+| --- | --- | --- | --- | --- |
+| H1 | "Checklist ngày thi" | Có trong sơ đồ Phạm vi (bước Thi đấu) nhưng không có luồng, dữ liệu hay API | Cắt khỏi đợt đồ án; sơ đồ đổi thành "ghi kết quả" | Sơ đồ Phạm vi |
+| H2 | HLV ghi chấn thương sau trận | Phạm vi (bảng Giữ, gộp, đóng băng) ghi "Cho phép HLV ghi chấn thương sau trận". Trong code, `POST /fighters/:id/injuries` cần quyền `fighter.medical:write`, và quyền này chỉ cấp cho DOCTOR ([migration 011](../nestjs-api/migrations/011_medical_clinical_records.sql)). Ở chế độ không có bác sĩ thì không ai ghi được. Chưa ticket nào nhận việc này | Trong đợt đồ án: thêm trường tùy chọn "Chấn thương sau trận" (chữ) vào form kết quả F6, không sửa module medical. Việc cấp quyền ghi `injury_records` cho HLV để sau | T-006 |
+| H3 | TKO "do đòn vào đầu" | F7 chỉ tạo đình chỉ khi TKO do đòn vào đầu, nhưng `bout_method` chỉ có `TKO` và `suspension_rules` của preset AIBA khớp mọi TKO | Khi thua TKO, app hỏi thêm "Trận dừng vì đòn vào đầu?". Có: gợi ý như KO. Không: chỉ áp ngày nghỉ bắt buộc. Câu trả lời quyết định có tạo đình chỉ lý do `TKO` hay không, không cần cột mới | T-006, T-007 |
+| H4 | Huỷ sau khi đã cân | Bảng trạng thái cho phép `WEIGHED_IN → CANCELLED` nhưng không nói gì về đình chỉ hay ngày nghỉ | Không tạo đình chỉ hay ngày nghỉ bắt buộc | T-006 |
+| H5 | Khám y tế trước và sau trận của ban tổ chức | Luật VMMAF Điều 8 có quy định này ([Nghiên cứu §1](./FIGHT-CAMP-DOMAIN-RESEARCH.md#1-quy-định-tại-việt-nam-tìm-được-gì-chưa-tìm-được-gì)); luồng chưa nói app ghi gì | Không làm màn riêng. Võ sĩ không qua khám trước trận: huỷ với lý do "Khác" kèm ghi chú. Ban tổ chức ra đình chỉ sau trận: HLV tạo đình chỉ thủ công, lý do `MEDICAL` | Không cần ticket mới |
+| H6 | Bị đánh ngã nhưng thắng | F6 có trường "bị đánh ngã" nhưng F7 không dùng | Chỉ lưu để tham khảo, không tự tạo đình chỉ; HLV tạo thủ công nếu cần | T-006 |
+| H7 | Nơi hiển thị trạng thái "sẵn sàng nhận trận mới" | Sơ đồ Phạm vi có bước này nhưng chưa có màn nào | Không thêm màn mới. Hiện ở tab Đình chỉ của hub "Trận" ([Tech spec §9](./FIGHT-CAMP-TECH-SPEC.md#9-frontend)) và trang chi tiết trận | T-007 |
 
 ## 1. Khái niệm
 
@@ -180,8 +260,11 @@ Liên quan đến medical clearance hiện có: clearance `COMPETITION` trong `m
 | Kết quả | Thắng, Thua, Hoà, Không kết quả |
 | Cách kết thúc | KO, TKO, Tính điểm, Khóa siết (MMA), Truất quyền, Khác |
 | Hiệp kết thúc | Số (bỏ trống nếu tính điểm) |
-| Bị đánh ngã trong trận | Có / Không (kể cả khi thắng) |
-| Ghi chú, video | Tùy chọn; video gắn vào trận |
+| Bị đánh ngã trong trận | Có / Không (kể cả khi thắng). Chỉ lưu để tham khảo, không tự tạo đình chỉ (H6) |
+| Mất ý thức | Chỉ hỏi khi thua KO/TKO: Không / Dưới 1 phút / Trên 1 phút / Không rõ (F7) |
+| Trận dừng vì đòn vào đầu | Chỉ hỏi khi thua TKO: Có / Không. Quyết định có gợi ý đình chỉ như KO hay không (H3) |
+| Chấn thương sau trận | Chữ, tùy chọn. HLV ghi chấn thương quan sát được; không tạo bản ghi `injury_records` (H2) |
+| Ghi chú | Tùy chọn. Gắn video vào trận đã cắt khỏi đợt đồ án |
 
 Sau khi lưu, trận sang `COMPLETED`, và app chạy F7.
 
@@ -191,7 +274,8 @@ Sau khi lưu, trận sang `COMPLETED`, và app chạy F7.
 
 | Trường hợp | Đình chỉ gợi ý | Cần xác nhận để kết thúc |
 | --- | --- | --- |
-| Thua KO, hoặc TKO do đòn vào đầu | Quy tắc nặng nhất khớp trong `suspensionRules` của ruleset, tính theo số lần KO trước đó và mức mất ý thức | Có |
+| Thua KO, hoặc thua TKO mà HLV trả lời "trận dừng vì đòn vào đầu" (H3) | Quy tắc nặng nhất khớp trong `suspensionRules` của ruleset, tính theo số lần KO trước đó và mức mất ý thức | Có |
+| Thua TKO không do đòn vào đầu (ví dụ rách cung mày, chấn thương tay) | Không gợi ý đình chỉ lý do `TKO`; chỉ áp nghỉ bắt buộc ở dòng "Mọi trận" | — |
 | Bị truất quyền | Theo `suspensionRules` nếu ruleset có | Không |
 | Mọi trận | `restDaysAfterBout` (nghỉ bắt buộc) | Không |
 
@@ -200,7 +284,7 @@ Ví dụ với preset AIBA: KO lần đầu gợi ý 30 ngày. KO lần hai tron
 - Khi ghi kết quả thua KO/TKO, app hỏi thêm "Có mất ý thức không?" (Không / Dưới 1 phút / Trên 1 phút / Không rõ).
 - App hiện số ngày gợi ý và quy tắc đã áp dụng. HLV (hoặc bác sĩ) xác nhận hoặc sửa; sửa thì phải ghi lý do. Ruleset không có quy tắc thì HLV tự nhập số ngày.
 - Nhiều đình chỉ chồng nhau thì mỗi cái vẫn giữ riêng. Võ sĩ bị chặn khi có ít nhất một đình chỉ còn hiệu lực.
-- **Tạo đình chỉ thủ công:** HLV hoặc bác sĩ tạo đình chỉ không gắn trận, ví dụ võ sĩ bị KO trong buổi sparring. Đình chỉ lý do KO tạo thủ công vẫn được tính vào số lần KO khi gợi ý cho lần sau, như luật AIBA yêu cầu.
+- **Tạo đình chỉ thủ công:** HLV hoặc bác sĩ tạo đình chỉ không gắn trận, ví dụ võ sĩ bị KO trong buổi sparring. Đình chỉ lý do KO tạo thủ công vẫn được tính vào số lần KO khi gợi ý cho lần sau, như luật AIBA yêu cầu. Ban tổ chức ra đình chỉ sau khi khám sau trận thì HLV cũng tạo thủ công, lý do `MEDICAL` (H5). Võ sĩ bị đánh ngã nhưng thắng, nếu HLV thấy cần nghỉ, cũng tạo theo cách này (H6).
 
 **Đình chỉ còn hiệu lực** khi hôm nay nằm trong khoảng [ngày bắt đầu, ngày kết thúc], hoặc khi đã qua ngày kết thúc nhưng đình chỉ cần xác nhận mà chưa ai xác nhận.
 
@@ -219,7 +303,7 @@ Cổng 2 chạy **cùng lúc** với medical gate hiện có (D9). Buổi tập 
 
 - **Đổi ngày cân hoặc thi đấu:** được phép khi trận chưa `WEIGHED_IN`. App tính lại hạn nộp hồ sơ, cảnh báo cân và kiểm tra hồ sơ còn hiệu lực đến ngày mới, rồi hỏi có dịch lịch camp không.
 - **Đổi hạng cân trước ngày cân:** được phép đến hết `FIGHT_WEEK`, ghi lý do. Đổi hạng không cần tạo trận mới.
-- **Huỷ:** bắt buộc chọn lý do (Đối thủ rút, Chấn thương, Không đạt cân, Hồ sơ, BTC huỷ, Khác). Camp giữ lại, các buổi `SCHEDULED` còn lại do HLV quyết định giữ hay huỷ.
+- **Huỷ:** bắt buộc chọn lý do (Đối thủ rút, Chấn thương, Không đạt cân, Hồ sơ, BTC huỷ, Khác). Camp giữ lại, các buổi `SCHEDULED` còn lại do HLV quyết định giữ hay huỷ. Huỷ ở bất kỳ trạng thái nào, kể cả `WEIGHED_IN`, đều không tạo đình chỉ hay ngày nghỉ bắt buộc (H4). Võ sĩ không qua khám trước trận của ban tổ chức: chọn "Khác" và ghi chú (H5).
 
 ## 5. Thông báo
 
@@ -258,6 +342,13 @@ Toàn bộ thông báo đã cắt khỏi đợt đồ án; trong demo, cảnh b�
 - Võ sĩ thua KO, đình chỉ 45 ngày đã xác nhận: xếp buổi `SPARRING` vào ngày thứ 10 bị từ chối 409, xếp buổi `PAD_WORK` thì được.
 - Qua ngày kết thúc mà chưa xác nhận được tập lại thì vẫn không xếp được `SPARRING`.
 - Sau khi xác nhận được tập lại thì xếp được `SPARRING`.
+
+### Kết quả trận và huỷ (H3, H4, H6)
+
+- Với preset AIBA, thua TKO và trả lời "trận dừng vì đòn vào đầu: Không": không có đình chỉ lý do `TKO`; xếp `SPARRING` ngày hôm sau được (trừ khi ruleset có `restDaysAfterBout`).
+- Với preset AIBA, thua TKO và trả lời "Có": gợi ý 30 ngày như KO lần đầu.
+- Thắng nhưng có "bị đánh ngã: Có": không có đình chỉ nào được tạo tự động.
+- Huỷ trận đang ở `WEIGHED_IN`: không có đình chỉ hay ngày nghỉ bắt buộc nào được tạo.
 
 ### Luồng hoàn chỉnh
 
@@ -307,3 +398,79 @@ Ngoài ra, một yêu cầu khám đang mở cũng chặn tập. CLB không có 
 - Ở chế độ không có bác sĩ, võ sĩ có kết luận `NOT_ELIGIBLE` do bác sĩ ghi trước đó: vẫn bị chặn.
 - Ở chế độ không có bác sĩ, võ sĩ đang bị đình chỉ chặn `SPARRING`: vẫn không xếp được buổi `SPARRING`.
 - Tắt chế độ: võ sĩ chưa có BASELINE bị chặn ở buổi tiếp theo, với lý do `EXAMINATION_REQUIRED` như hiện tại.
+
+## 8. Đề xuất mở rộng (chưa thuộc phạm vi đã chốt)
+
+Chủ dự án nêu hai ý này ngày 14/10. Cả hai nằm ngoài phạm vi đã chốt (quyết định 10), nên mục này chỉ mô tả thiết kế. Làm trong đợt đồ án hay đưa vào phần "hướng phát triển" của báo cáo được ghi ở quyết định 12 và 13 trong [Phạm vi](./SCOPE-FIGHT-CAMP.md#quyết-định-và-câu-hỏi). Tên bảng và cột dưới đây chỉ là phác thảo; nếu đề xuất được duyệt thì chốt ở Tech spec.
+
+### E1. Ăn uống đi cùng kiểm soát cân
+
+**Giới hạn an toàn giữ nguyên:** app không tự đề xuất chế độ ăn, lượng calo, việc hạn chế nước hay xông hơi ([Nghiên cứu §4](./FIGHT-CAMP-DOMAIN-RESEARCH.md#4-giảm-cân-cấp-tốc-giới-hạn-khuyến-nghị)). Team không có chuyên môn dinh dưỡng, và giảm cân cấp tốc sai cách có thể gây hậu quả nghiêm trọng. App chỉ làm hai việc: **hiển thị kế hoạch ăn** do HLV hoặc chuyên gia nhập, và **ghi lại việc võ sĩ có làm theo hay không**.
+
+**Vì sao không làm nhật ký calo hay chụp ảnh từng bữa:** mỗi bữa đều phải thao tác, khó duy trì suốt camp 6–8 tuần, và HLV không có thời gian đọc. Cách đó cũng phá mục tiêu ghi cân trong 30 giây trở xuống.
+
+Thiết kế:
+
+1. **Kế hoạch ăn theo giai đoạn của trận.** HLV nhập hoặc dán từ chuyên gia vào ba ô chữ: *Trong camp*, *Tuần thi đấu*, *Từ lúc cân đến giờ thi*. Mỗi ô ghi người soạn (HLV hoặc tên chuyên gia) và ngày sửa. Trang trận của võ sĩ tự hiện ô đúng với giai đoạn hiện tại, nên võ sĩ không phải tìm.
+2. **Một chạm trên màn ghi cân.** Sau khi nhập số cân, màn hình hỏi thêm một câu tùy chọn: "Hôm qua ăn theo kế hoạch không?", với ba lựa chọn *Đúng*, *Lệch ít*, *Lệch nhiều*, cộng ghi chú ngắn nếu muốn. Võ sĩ bỏ qua được, và việc lưu số cân không phụ thuộc câu này. Mỗi ngày học viện chỉ giữ một câu trả lời; trả lời lại thì bản mới thay bản cũ, giống cân.
+3. **Cân và ăn uống trên cùng một biểu đồ.** Mỗi điểm cân có chấm màu theo câu trả lời. Khi cảnh báo cân chuyển vàng hoặc đỏ, thẻ cảnh báo kèm tóm tắt, ví dụ "3 ngày gần nhất: 2 ngày lệch nhiều". Nhờ đó HLV biết nên nhắc võ sĩ, đổi kế hoạch, hay cân nhắc đổi hạng.
+4. **Cảnh báo đỏ** giữ nguyên câu khuyến nghị hiện có: trao đổi với bác sĩ hoặc chuyên gia dinh dưỡng, cân nhắc đổi hạng cân.
+5. **Không có ô theo dõi lượng nước uống** trong tuần thi đấu, để app không trở thành công cụ hỗ trợ ép nước.
+
+Dữ liệu (phác thảo): ba cột chữ cho kế hoạch trên `bouts`, kèm người soạn và ngày sửa; một bảng mới lưu câu trả lời, mỗi võ sĩ mỗi ngày học viện một dòng. Đây là dữ liệu sức khỏe, nên áp dụng quyết định 9 (chỉ dùng dữ liệu giả hoặc dữ liệu có đồng ý).
+
+Tiêu chí nghiệm thu (nếu làm):
+
+- Bỏ qua câu hỏi ăn uống thì vẫn lưu được số cân.
+- Trả lời hai lần trong cùng một ngày học viện thì chỉ còn câu trả lời mới nhất.
+- Trận ở `FIGHT_WEEK` thì trang của võ sĩ hiện kế hoạch "Tuần thi đấu".
+- Không màn hình nào hiện số calo, lượng nước hay thời gian xông hơi do app tự tính.
+- Khi kiểm thử, trung vị thời gian ghi cân kèm trả lời câu hỏi vẫn ≤ 30 giây.
+
+Ước lượng thô: 1–1,5 ngày (migration và API, cộng phần thêm vào màn ghi cân T-005 và trang trận T-004).
+
+### E2. Giáo án phân tích đối thủ
+
+**Hiện trạng:** trận chỉ có `opponent_name`. Training plan chỉ có các ô chữ tự do (`description`, `goals`), nên phân tích đối thủ, nếu có, nằm lẫn trong ghi chú (ví dụ dữ liệu mẫu ở `nextjs-frontend/src/lib/mocks/training.ts`). Không có chỗ nào nối điều thấy ở đối thủ với bài tập, và với việc trận đấu diễn ra có đúng như dự tính hay không.
+
+**Nguyên tắc để giáo án rõ ràng:** dùng một chuỗi bốn bước, trong đó mỗi bước phải trỏ về bước trước:
+
+```text
+Quan sát (có bằng chứng) → Chiến thuật (dựa trên quan sát) → Buổi tập (luyện chiến thuật) → Đánh giá sau trận
+```
+
+Phân tích gắn vào **trận**, không phải một loại training plan riêng, vì nó chỉ đúng với một đối thủ cụ thể. Đổi đối thủ thì làm phân tích mới.
+
+Thiết kế: trang chi tiết trận có thêm tab "Đối thủ" gồm năm phần cố định.
+
+| Phần | Nội dung | Quy tắc |
+| --- | --- | --- |
+| 1. Hồ sơ đối thủ | Tên; thành tích thắng – thua – hoà; tư thế (thuận, nghịch, đổi tư thế); phong cách chính (đứng đòn, vật, địa, toàn diện); chiều cao và sải tay nếu biết; nguồn thông tin | Chỉ tên là bắt buộc |
+| 2. Quan sát | Mỗi dòng gồm: loại (*Điểm mạnh*, *Sơ hở*, *Thói quen*); một câu mô tả cụ thể, ví dụ "Sau cú jab, hạ tay phải"; bằng chứng (link video kèm mốc thời gian, hoặc "xem trực tiếp ngày …"); mức chắc chắn (*thấy 1 lần*, *lặp lại nhiều lần*) | Tối đa 6 dòng, để HLV chọn điều quan trọng nhất |
+| 3. Kế hoạch thi đấu | 3–5 chiến thuật viết dạng "Khi … thì …", ví dụ "Khi đối thủ jab, lách trái và phản đòn móc phải"; có thể ghi theo hiệp | Mỗi chiến thuật phải chọn ít nhất một quan sát làm căn cứ |
+| 4. Luyện tập | Mỗi chiến thuật gắn với một hoặc nhiều buổi tập trong camp (`training_sessions`), kèm yêu cầu cho bạn tập, ví dụ "bạn tập đánh tay trái, ép sát" | App đánh dấu chiến thuật nào chưa có buổi tập nào |
+| 5. Đánh giá sau trận | Với mỗi chiến thuật, HLV chọn *Hiệu quả*, *Không hiệu quả* hoặc *Không dùng tới*, kèm một câu nhận xét | Chỉ nhập được khi trận đã `COMPLETED` |
+
+- **Võ sĩ xem** phần 3 và phần 4: kế hoạch thi đấu và các buổi tập liên quan. Phần quan sát chi tiết dành cho HLV.
+- **Video đối thủ** dùng link ngoài (YouTube, Facebook) kèm mốc thời gian. Gắn video vào trận đã bị cắt, và video của đối thủ thường không thuộc CLB nên không tải lên app.
+- **Giới hạn số dòng** buộc HLV chọn điều quan trọng, và võ sĩ chỉ cần nhớ 3–5 chiến thuật khi vào trận.
+
+Các giáo án khác trong camp dùng được cùng khung *Căn cứ → Mục tiêu → Buổi tập → Đánh giá*. Ví dụ với giáo án sức bền, căn cứ là số hiệp và thời lượng mỗi hiệp của trận, còn đánh giá là võ sĩ có giữ được nhịp đến hiệp cuối hay không. Đợt này không thiết kế riêng cho từng loại giáo án.
+
+Dữ liệu (phác thảo): một cột `opponent_analysis jsonb` trên `bouts` chứa hồ sơ, quan sát, chiến thuật (kèm danh sách id buổi tập) và đánh giá.
+
+Tiêu chí nghiệm thu (nếu làm):
+
+- Chiến thuật không có quan sát làm căn cứ thì không lưu được.
+- Thêm quan sát thứ 7 thì bị từ chối.
+- Chiến thuật chưa gắn buổi tập nào thì hiện nhãn "Chưa có buổi tập".
+- Võ sĩ chỉ thấy kế hoạch thi đấu và các buổi tập liên quan.
+- Trận chưa `COMPLETED` thì chưa nhập được đánh giá.
+
+Ước lượng thô: 2–3 ngày (migration, API, tab mới, chọn buổi tập).
+
+### Khuyến nghị về thời điểm
+
+- Lịch đã kín. Sprint 1 còn T-002, T-003, T-004, T-005; Sprint 2 có T-006, T-007, T-008 và buổi kiểm thử. Phạm vi cũng vừa được giảng viên duyệt.
+- **E1** qua được thước đo của phạm vi, vì nó giúp trả lời câu "võ sĩ có kịp cân không". **Đề xuất:** làm bản tối thiểu (bước 1 và 2, cộng chấm màu trên biểu đồ) như việc dự phòng của Sprint 2. Chỉ bắt đầu khi T-007 đã IN REVIEW; nếu trễ thì đây là việc bị cắt đầu tiên. Nên báo giảng viên ở buổi review tiếp theo, vì đây là phần thêm vào phạm vi đã duyệt.
+- **E2** không giúp trả lời câu nào trong ba câu của phạm vi. **Đề xuất:** không làm trước 31/10; trình bày thiết kế này trong báo cáo, ở phần hướng phát triển.

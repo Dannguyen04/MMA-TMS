@@ -1,12 +1,13 @@
-# Thu hẹp phạm vi: Fight Camp trước – trong – sau trận
+# Thu hẹp phạm vi: Quản lý võ sĩ trước – trong – sau trận
 
-**Cập nhật**: 2026-10-13 · **Tác giả**: Khoi Le
+**Cập nhật**: 2026-10-14 · **Tác giả**: Khoi Le
+**Trạng thái**: **Đã chốt** sau buổi review với giảng viên (ghi nhận ngày 14/10/2026, quyết định 10). Muốn đổi phạm vi thì chủ dự án quyết định và ghi vào bảng [Quyết định và câu hỏi](#quyết-định-và-câu-hỏi).
 **Bản đầu (11/10, đã cũ)**: [Claude Docs](https://claude.ai/code/artifact/7eadc14d-f9ae-4c40-9a1c-a25ea5ed090f)
 **Thuộc bộ tài liệu**: **Phạm vi** · [Nghiên cứu](./FIGHT-CAMP-DOMAIN-RESEARCH.md) · [Luồng nghiệp vụ](./FIGHT-CAMP-BUSINESS-FLOWS.md) · [Tech spec](./FIGHT-CAMP-TECH-SPEC.md) · [Kiểm thử người dùng](./FIGHT-CAMP-USER-TESTING.md) · [Câu hỏi mở](./FIGHT-CAMP-OPEN-QUESTIONS.md)
 
 ## TL;DR
 
-MMA-TMS là **đồ án**. Từ tuần 13/10, sản phẩm chỉ giải một bài toán: giúp HLV đưa một võ sĩ từ lúc nhận trận đến lúc được tập lại sau trận, đúng hạng cân, đủ hồ sơ y tế và không tập khi đang bị đình chỉ.
+MMA-TMS là **đồ án**. Từ tuần 13/10, sản phẩm chỉ giải một bài toán: **quản lý võ sĩ trước, trong và sau trận đấu**. Cụ thể là giúp HLV đưa một võ sĩ từ lúc nhận trận đến lúc được tập lại sau trận, đúng hạng cân, đủ hồ sơ y tế và không tập khi đang bị đình chỉ. Giảng viên đã duyệt phạm vi này. Tên "Fight Camp" vẫn dùng cho bộ tài liệu và nhánh `fight-camp`. Nghiệp vụ của từng giai đoạn: [Luồng nghiệp vụ – Nghiệp vụ theo giai đoạn](./FIGHT-CAMP-BUSINESS-FLOWS.md#nghiệp-vụ-theo-giai-đoạn).
 
 - **Người dùng chính:** HLV. Võ sĩ là người dùng phụ (ghi cân, xem lịch). Bác sĩ không bắt buộc.
 - **Đối tượng trung tâm:** *Trận* (bout). Kế hoạch tập, cân nặng, hồ sơ, video và đình chỉ đều gắn vào một trận.
@@ -16,7 +17,7 @@ MMA-TMS là **đồ án**. Từ tuần 13/10, sản phẩm chỉ giải một b�
 - **Không phụ thuộc quan hệ:** không cần CLB pilot hay điều lệ từ ban tổ chức. Quy định có sẵn lấy từ văn bản công khai đã xác minh; quy định riêng của từng giải do HLV tự nhập.
 - **Dữ liệu:** chỉ dùng dữ liệu giả, hoặc dữ liệu của người kiểm thử đã đồng ý; không nhập giấy tờ y tế thật ([Nghiên cứu §8](./FIGHT-CAMP-DOMAIN-RESEARCH.md#8-bảo-vệ-dữ-liệu-cá-nhân)).
 
-Việc làm ngay: bắt đầu Sprint 1 từ 14/10; hỏi ngày của 2 buổi review (Q23) và yêu cầu của giảng viên (Q24); tìm người kiểm thử (Q25) trước 20/10. Xem [phiếu câu hỏi](./FIGHT-CAMP-OPEN-QUESTIONS.md).
+Việc làm ngay: bắt đầu Sprint 1 từ 14/10; hỏi ngày của 2 buổi review (Q23) và các yêu cầu còn lại của giảng viên (Q24); tìm người kiểm thử (Q25) trước 20/10. Xem [phiếu câu hỏi](./FIGHT-CAMP-OPEN-QUESTIONS.md).
 
 ## Vì sao thu hẹp
 
@@ -64,11 +65,11 @@ flowchart LR
     end
     subgraph trong["Trong trận · tuần thi đấu"]
         direction LR
-        D["Tuần thi đấu<br/>giảm tải, cân sát<br/>hồ sơ đã khoá"] --> E["Cân chính thức<br/>ghi số cân thực tế<br/>không đạt: đổi hạng, huỷ"] --> F["Thi đấu<br/>checklist ngày thi<br/>kết quả, cách thắng, hiệp"]
+        D["Tuần thi đấu<br/>giảm tải, cân sát<br/>hồ sơ đã khoá"] --> E["Cân chính thức<br/>ghi số cân thực tế<br/>không đạt: đổi hạng, huỷ"] --> F["Thi đấu<br/>HLV ghi kết quả<br/>cách thắng, hiệp, chấn thương"]
     end
     subgraph sau["Sau trận"]
         direction LR
-        G["Đình chỉ<br/>tự tạo khi thua KO/TKO<br/>chặn bài tập đối kháng"] --> H["Chấn thương, video<br/>HLV ghi chấn thương<br/>xem lại video trận"] ==>|"Cổng 2"| I["Được tập lại<br/>hết đình chỉ, có xác nhận<br/>sẵn sàng nhận trận mới"]
+        G["Đình chỉ<br/>tự tạo khi thua KO/TKO<br/>chặn bài tập đối kháng"] --> H["Theo dõi đình chỉ<br/>Cổng 2 chặn buổi tập bị cấm<br/>hết hạn: chờ xác nhận"] ==>|"Cổng 2"| I["Được tập lại<br/>hết đình chỉ, có xác nhận<br/>sẵn sàng nhận trận mới"]
     end
     C ==>|"Cổng 1: hồ sơ đủ"| D
     F --> G
@@ -99,7 +100,7 @@ Phần lớn nền tảng đã có sẵn. Việc mới thực sự chỉ là b�
 | Mục tiêu | Module `goals` mới (migration 021, 022, chưa merge); trang `coach/goals`, `fighter/goals` | **Gộp vào camp** | Goal trở thành mục tiêu của một camp; xem lại schema trước khi merge |
 | Cân nặng | `fighter_measurements` (đã có context `WEIGH_IN`) | **Giữ, mở rộng** | Đường cân tham chiếu, cảnh báo, nhập 1 chạm trên điện thoại |
 | Hồ sơ y tế | `medical_clearances` (loại `COMPETITION`, có `valid_until`); trang clearance ở coach và doctor | **Gộp** | Checklist hồ sơ của trận do HLV quản lý, có hạn hiệu lực; bác sĩ chỉ xác nhận |
-| Chấn thương | `injury_records`; trang `doctor/injuries`, `fighter/health/injuries` | **Giữ** | Cho phép HLV ghi chấn thương sau trận |
+| Chấn thương | `injury_records`; trang `doctor/injuries`, `fighter/health/injuries` | **Giữ** | Trong đợt đồ án, HLV ghi chấn thương sau trận bằng ô chữ trong form kết quả trận. Quyền ghi `injury_records` hiện chỉ cấp cho DOCTOR; mở cho HLV để sau (quyết định 11, H2) |
 | Đình chỉ | Chưa có | **Mới** | Tự tạo từ kết quả trận; chặn xếp buổi tập đối kháng khi còn hiệu lực |
 | Video | `videos`, upload, xem; `coach/video-analysis`, `fighter/videos` | **Giữ, rút gọn** | Gắn video vào trận hoặc buổi sparring, HLV ghi chú; ẩn kết quả AI |
 | AI | `python-worker`, `coaching`, `jobs`, `admin/ai-jobs`, `admin/ai-models` | **Đóng băng** | Giữ worker chạy được; trình bày trong báo cáo như phần đã nghiên cứu |
@@ -171,6 +172,8 @@ Những phần dưới đây vẫn nằm trong thiết kế nhưng **không làm
 | Màn Admin bật/tắt chế độ không có bác sĩ | Demo chỉ cần một chế độ | Bật bằng migration cho môi trường demo |
 | Bảng lưu sự đồng ý (`data_consents`) | Kiểm thử chỉ là buổi 30 phút với dữ liệu giả | Phiếu đồng ý giấy cho người kiểm thử |
 | Migration 026 `goals.bout_id` | Module goals giữ chưa merge (quyết định 4) | Không |
+| Checklist ngày thi | Không có luồng hay dữ liệu, không thuộc hai cổng (quyết định 11, H1) | Không |
+| HLV ghi `injury_records` | Cần đổi quyền của module medical (quyết định 11, H2) | Ô chữ "Chấn thương sau trận" trong form kết quả |
 | Kiểm thử dùng thật 2 tuần | Không đủ thời gian | Chỉ buổi kiểm thử có quan sát |
 
 ## Thước đo
@@ -200,3 +203,7 @@ Câu trả lời ghi vào [phiếu câu hỏi mở](./FIGHT-CAMP-OPEN-QUESTIONS.
 | 7 | Quy định riêng của giải | **Đã quyết (13/10):** HLV tự nhập trên trận của mình (hồ sơ, hạn nộp, giờ cân, hạng cân); app đánh dấu "HLV nhập, chưa xác minh" | Team không có quan hệ với ban tổ chức để lấy điều lệ |
 | 8 | CLB không có bác sĩ | **Đã quyết (11/10):** tắt các yêu cầu cần bác sĩ khi Admin bật chế độ "không có bác sĩ"; kết luận bác sĩ ghi từ trước vẫn áp dụng | Hiện code chặn mọi buổi tập nếu chưa có bác sĩ ([Luồng nghiệp vụ §7](./FIGHT-CAMP-BUSINESS-FLOWS.md#7-chế-độ-không-có-bác-sĩ)) |
 | 9 | Dữ liệu dùng khi kiểm thử | **Đã quyết (13/10):** dữ liệu giả hoặc của người kiểm thử đã đồng ý; không nhập giấy tờ y tế thật | Dữ liệu sức khỏe là dữ liệu nhạy cảm; database đặt ở nước ngoài ([Nghiên cứu §8](./FIGHT-CAMP-DOMAIN-RESEARCH.md#8-bảo-vệ-dữ-liệu-cá-nhân)) |
+| 10 | Phạm vi đồ án | **Đã quyết (14/10, sau review với giảng viên):** chốt phạm vi "Quản lý võ sĩ trước – trong – sau trận" đúng như tài liệu này; không thêm, không bớt tính năng so với bản 13/10. Nghiệp vụ từng giai đoạn được làm rõ ở [Luồng nghiệp vụ](./FIGHT-CAMP-BUSINESS-FLOWS.md#nghiệp-vụ-theo-giai-đoạn) | Kế hoạch sprint và ticket bám theo phạm vi đã chốt; đề xuất mở rộng nào cũng chuyển sang phần "hướng phát triển" của báo cáo |
+| 11 | Bảy điểm nghiệp vụ chưa định nghĩa (H1–H7) | **Đã quyết (14/10):** theo đề xuất trong [Luồng nghiệp vụ – Các điểm đã làm rõ](./FIGHT-CAMP-BUSINESS-FLOWS.md#các-điểm-đã-làm-rõ-h1h7): cắt checklist ngày thi; HLV ghi chấn thương bằng ô chữ trong kết quả; thua TKO thì hỏi trận dừng vì đòn vào đầu không; huỷ trận không tạo đình chỉ; khám của BTC dùng lý do huỷ "Khác" hoặc đình chỉ thủ công `MEDICAL`; bị đánh ngã chỉ để lưu; trạng thái "sẵn sàng" hiện ở hub Trận | Là đầu vào cho T-006, T-007 |
+| 12 | Ăn uống đi cùng kiểm soát cân ([Luồng nghiệp vụ E1](./FIGHT-CAMP-BUSINESS-FLOWS.md#e1-ăn-uống-đi-cùng-kiểm-soát-cân)) | **Chờ chủ dự án.** Đề xuất: làm bản tối thiểu (kế hoạch ăn theo giai đoạn do HLV hoặc chuyên gia nhập, một chạm "ăn theo kế hoạch?" trên màn ghi cân) như việc dự phòng của Sprint 2, chỉ bắt đầu khi T-007 đã IN REVIEW. App vẫn không tự đề xuất chế độ ăn hay ép nước | Mở rộng phạm vi đã duyệt; nên báo giảng viên |
+| 13 | Giáo án phân tích đối thủ ([Luồng nghiệp vụ E2](./FIGHT-CAMP-BUSINESS-FLOWS.md#e2-giáo-án-phân-tích-đối-thủ)) | **Chờ chủ dự án.** Đề xuất: không làm trước 31/10; trình bày thiết kế trong báo cáo ở phần hướng phát triển | Không giúp trả lời câu nào trong ba câu của phạm vi; ước lượng 2–3 ngày |
