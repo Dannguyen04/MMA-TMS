@@ -449,8 +449,8 @@ Theo quy ước trong [migrations/README.md](../nestjs-api/migrations/README.md)
 | 023 | Enum `medical_supervision`, bảng `academy_settings` (một dòng, mặc định `DOCTOR`; quyền `academy_settings:manage`, trigger audit | Ledger đã có 020, chưa có 023; không yêu cầu 021, 022 vì module goals chưa merge (quyết định 4). Môi trường demo đổi sang `NONE` bằng `PATCH /academy-settings` |
 | 024 | Enum mới, `competition_rulesets` (+ ba preset: MMA – VMMAF 2021, Boxing nghiệp dư – AIBA, Tự nhập), `bouts`, `bout_requirements`, quyền `ruleset:*` và `bout:*`, RLS và revoke như `goals` | 023 |
 | 025 | `suspensions`, quyền `suspension:*`, giá trị `notification_type` mới | 024 |
-| 026 | `bouts.nutrition_plan`, enum `nutrition_adherence`, bảng `bout_nutrition_checkins`, quyền `bout:nutrition_checkin` (§2.7) | 025 |
-| 027 | `bouts.opponent_analysis` (§2.8) | 026 |
+| 026 | `bouts.nutrition_plan`, enum `nutrition_adherence`, bảng `bout_nutrition_checkins`, quyền `bout:nutrition_checkin` (§2.7) | 024. Preflight yêu cầu ledger đã có 024, chưa có 026; không yêu cầu 025, để T-009 không phải chờ T-007 |
+| 027 | `bouts.opponent_analysis` (§2.8) | 024. Preflight yêu cầu ledger đã có 024, chưa có 027; không yêu cầu 025, 026 |
 | — | `goals.bout_id`, sau đợt đồ án | 021, 022, 024 |
 
 ## 9. Frontend
