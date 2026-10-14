@@ -23,6 +23,7 @@ Theo [Tech spec §2.1–2.4](../FIGHT-CAMP-TECH-SPEC.md#2-mô-hình-dữ-liệu)
 - **`bouts`:** đúng §2.3, gồm `requirements_due_days` (snapshot, HLV sửa được) và các cột kết quả (để NULL). Ràng buộc: `weigh_in_at < bout_at`; `cancel_reason` khác NULL khi và chỉ khi `CANCELLED`; `result`, `method` khác NULL khi và chỉ khi `COMPLETED`; unique index một trận đang chạy mỗi võ sĩ (`CAMP`, `FIGHT_WEEK`, `WEIGHED_IN`). Trigger `update_updated_at`, audit, và `fighter_id` bất biến (`mma_private.reject_context_change('fighter_id')`, có từ migration 011).
 - **`bout_requirements`:** đúng §2.4 (cột `source` thay cho file đính kèm). Trigger audit.
 - **Quyền:** `ruleset:read` (COACH, DOCTOR, ADMIN); `bout:get_all`, `bout:read` (FIGHTER, COACH, DOCTOR, ADMIN); `bout:create`, `bout:update`, `bout:result`, `bout:requirement` (COACH, ADMIN). Quyền `ruleset:manage` và `bout:requirement_confirm` **không làm** trong đợt này.
+- **Quyền ghi cân cho võ sĩ (bổ sung 14/10):** cấp `fighter.measurement:write` cho role FIGHTER trong `public.role_permissions`, theo cách 008 cấp quyền cho FIGHTER (preflight kiểm tra quyền đã có trong catalogue của 004). Hiện chỉ ADMIN có quyền này (007), nên võ sĩ không ghi cân được qua `POST /fighters/:id/measurements`. Service đã giới hạn FIGHTER chỉ ghi cho chính mình với `measurementContext = SELF_REPORTED` (`createMeasurement` trong `src/fighters/fighters.service.ts`), nên không cần sửa module fighters. **Không** cấp cho COACH: `createMeasurement` chưa kiểm tra phân công HLV, cấp quyền sẽ cho mọi HLV ghi cân của mọi võ sĩ.
 - RLS, revoke, preflight (ledger đã có 23, chưa có 24), advisory lock, ledger version 24; đủ các file đi kèm như T-002 (migration-files, manifest, run_sql, package.json, test-migrations, README migrations). Drizzle schema khớp migration.
 
 ### 2. Module `bouts` (`src/bouts/`)
@@ -54,8 +55,8 @@ Quy tắc:
 
 ### 3. Theo dõi cân
 
-- **Nguồn dữ liệu:** `fighter_measurements` của võ sĩ, từ ngày bắt đầu camp (thời điểm chuyển sang `CAMP`; trận còn `SCHEDULED` thì từ ngày tạo trận) đến hiện tại. Bỏ các bản đã bị supersede. Nhiều bản trong một ngày học viện thì lấy bản mới nhất. **Không** thêm endpoint ghi cân: võ sĩ dùng `POST /fighters/:id/measurements` có sẵn (context `SELF_REPORTED`).
-- **Thuật toán:** đúng [Tech spec §5](../FIGHT-CAMP-TECH-SPEC.md#5-cảnh-báo-cân-nặng), hàm thuần trong `bouts.model.ts`, `tolKg = 1.0`, `A = acute_window_days` của ruleset. Trả `{ latestKg, latestOn, remainingPct, status: 'GREEN' | 'YELLOW' | 'RED' | 'GREY', referencePath: [{ date, kg }] }`. Chưa có số cân nào: `status = 'GREY'`, các trường số là `null`.
+- **Nguồn dữ liệu:** `fighter_measurements` của võ sĩ, từ ngày bắt đầu camp đến hiện tại. **Ngày bắt đầu camp** (sửa 14/10) = `start_date` của training plan đã gắn (`bouts.training_plan_id`); trận chưa gắn plan thì từ ngày tạo trận. Lý do: camp thật bắt đầu từ ngày plan bắt đầu, và dữ liệu demo (T-008a) cần hiện số cân từ trước ngày trận chuyển sang `CAMP`. Bỏ các bản đã bị supersede. Nhiều bản trong một ngày học viện thì lấy bản mới nhất. **Không** thêm endpoint ghi cân: võ sĩ dùng `POST /fighters/:id/measurements` có sẵn (context `SELF_REPORTED`).
+- **Thuật toán:** đúng [Tech spec §5](../FIGHT-CAMP-TECH-SPEC.md#5-cảnh-báo-cân-nặng), hàm thuần trong `bouts.model.ts`, `tolKg = 1.0`, `A = acute_window_days` của ruleset. Trả `{ limitKg, points: [{ date, kg }], latestKg, latestOn, remainingPct, status: 'GREEN' | 'YELLOW' | 'RED' | 'GREY', referencePath: [{ date, kg }] }`. `limitKg` = `catchweight_kg ?? weight_limit_kg`. `points` là số cân thực tế dùng để vẽ biểu đồ (T-005): mỗi ngày học viện một điểm (bản mới nhất trong ngày), sắp theo ngày tăng dần. `date` là ngày học viện dạng `YYYY-MM-DD`. Chưa có số cân nào: `status = 'GREY'`, các trường số là `null`.
 - Thông báo khi chuyển đỏ **không làm** (đã cắt).
 
 ## Ngoài phạm vi
@@ -81,10 +82,12 @@ Service và API (`bouts.service.spec.ts`):
 10. `fight-week` khi còn mục thiếu → 409 `BOUT_REQUIREMENTS_INCOMPLETE`, trạng thái không đổi.
 11. Gắn plan của võ sĩ khác, hoặc plan phase khác `fight_camp` → 422.
 12. FIGHTER đọc trận của võ sĩ khác → 403.
+12a. Trận gắn plan có `start_date` 14 ngày trước, võ sĩ có số cân từ 10 ngày trước → `points` gồm cả các số đó, dù trận mới chuyển `CAMP` hôm nay.
+12b. `weight-track` khi võ sĩ ghi 66,0 rồi 65,4 trong cùng ngày học viện, và 64,8 ngày hôm sau → `points` có đúng 2 điểm: 65,4 và 64,8.
 
 Migration:
 
-13. `test:db`: 024 áp được sau 023; có đúng 3 preset; vi phạm `weigh_in_at < bout_at` bị từ chối; trận thứ hai đang chạy của cùng võ sĩ bị từ chối; áp lại 024 bị từ chối.
+13. `test:db`: 024 áp được sau 023; có đúng 3 preset; vi phạm `weigh_in_at < bout_at` bị từ chối; trận thứ hai đang chạy của cùng võ sĩ bị từ chối; áp lại 024 bị từ chối. FIGHTER có `fighter.measurement:write`, COACH không có.
 
 ## Lệnh kiểm tra bắt buộc
 

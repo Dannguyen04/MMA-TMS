@@ -143,7 +143,7 @@ gantt
 - [ ] Màn ghi cân cho võ sĩ trên điện thoại (dùng `fighter_measurements`), biểu đồ cân, cảnh báo xanh / vàng / đỏ / xám (T-005)
 - [ ] Chủ dự án áp migration 023, 024 lên Supabase sau khi T-002, T-003 merge; dựng dữ liệu demo kịch bản 1, 2 qua API; chuyển chế độ `NONE` bằng `PATCH /academy-settings`; T-004, T-005 chạy ở API mode (T-008a)
 
-**Mốc chốt:** T-003 merge trước hết ngày **18/10**. Nếu trễ, phương án dự phòng là demo phần trước trận ở demo mode của frontend tại review 2, kèm giải thích backend đang tích hợp. Phương án này cần chủ dự án đồng ý khi xảy ra; demo cuối vẫn chạy với backend thật (quyết định 14).
+**Mốc chốt:** T-003 merge trước hết ngày **17/10**. Nếu trễ, phương án dự phòng là demo phần trước trận ở demo mode của frontend tại review 2, kèm giải thích backend đang tích hợp. Phương án này cần chủ dự án đồng ý khi xảy ra; demo cuối vẫn chạy với backend thật (quyết định 14).
 
 Demo review 2: tạo trận → võ sĩ ghi cân → cân chuyển đỏ → thêm mục hồ sơ → Cổng 1 chặn vì thiếu hồ sơ → đủ hồ sơ thì vào tuần thi đấu.
 

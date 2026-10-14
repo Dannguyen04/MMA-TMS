@@ -22,10 +22,10 @@ Dev cần nhánh `fight-camp` trên remote để tạo nhánh ticket (xem [TEAM-
 | --- | --- | --- | --- | --- | --- |
 | [T-001](./T-001-hide-frozen-navigation.md) | Ẩn các khu vực đóng băng khỏi menu | Frontend | Gemini | — | DONE (13/10, [review](./T-001-REVIEW.md)) |
 | [T-002](./T-002-no-doctor-mode.md) | Chế độ không có bác sĩ (migration 023) | Backend | Gemini | — | CHANGES REQUESTED (lượt 1) |
-| [T-003](./T-003-bouts-core.md) | Bộ luật giải, trận, checklist hồ sơ, Cổng 1, theo dõi cân (migration 024) | Backend | BE1 | Code được ngay; merge sau T-002 | READY. **Phải merge trước hết ngày 18/10** |
+| [T-003](./T-003-bouts-core.md) | Bộ luật giải, trận, checklist hồ sơ, Cổng 1, theo dõi cân; cấp quyền ghi cân cho võ sĩ (migration 024) | Backend | BE1 | Code được ngay; merge sau T-002 | READY (bổ sung 14/10: quyền ghi cân, `points` và `limitKg` trong `weight-track`, ngày bắt đầu camp). **Phải merge trước hết ngày 17/10** |
 | [T-004](./T-004-coach-bouts-ui.md) | Màn trận cho HLV: danh sách, tạo, chi tiết, checklist | Frontend | Gemini (đang làm) | Contract của T-003 | IN PROGRESS |
-| T-005 | Màn ghi cân và trang trận của võ sĩ trên điện thoại (MW); biểu đồ cân, cảnh báo trên chi tiết trận và dashboard HLV (FE) | Frontend | MW, FE | T-004 (dùng chung kiểu và mocks) | DRAFT, viết xong 15/10 |
-| T-008a | Dữ liệu demo cho review 2 (kịch bản 1, 2) qua API trên Supabase; chuyển chế độ `NONE` bằng `PATCH /academy-settings`; T-004, T-005 chạy ở API mode | Backend + Frontend | BE2, FE | T-002, T-003 merge; chủ dự án áp migration 023, 024 | DRAFT, viết xong 15/10 |
+| [T-005](./T-005-weigh-in-and-weight-chart.md) | Màn ghi cân và trang trận của võ sĩ trên điện thoại (phần A); biểu đồ cân, cảnh báo trên chi tiết trận và dashboard HLV (phần B) | Frontend | A: MW. B: FE | Bắt đầu ngay; tích hợp sau khi T-004 merge | READY. Merge trước hết ngày 18/10 |
+| [T-008a](./T-008a-review2-demo-data.md) | Script dữ liệu demo cho review 2 qua API (phần A); chạy T-004, T-005 ở API mode với backend thật (phần B) | Backend + Frontend | A: BE2. B: FE | Viết ngay; chạy thật sau khi T-002, T-003 merge và chủ dự án áp migration 023, 024 | READY. Chạy xong trước tối 19/10 |
 
 Demo ở review 2 chạy với **backend thật** trên Supabase hiện có ([quyết định 14](../SCOPE-FIGHT-CAMP.md#quyết-định-và-câu-hỏi)). Nếu T-003 chưa merge trước hết ngày 18/10, chủ dự án quyết định có dùng phương án dự phòng (demo mode) hay không.
 
