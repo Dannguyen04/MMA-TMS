@@ -34,15 +34,15 @@ Các vấn đề lớn của võ sĩ thi đấu đều xoay quanh một trận: 
 
 ## Phạm vi mới
 
-Một tính năng chỉ được làm nếu nó gắn với một trận cụ thể và giúp HLV trả lời một trong ba câu: *võ sĩ có kịp cân không*, *hồ sơ đủ chưa*, *đã được tập lại chưa*. Khi tranh luận về một task, team dùng câu này làm thước.
+Một tính năng chỉ được làm nếu nó gắn với một trận cụ thể và giúp HLV trả lời một trong ba câu: *võ sĩ có kịp cân không*, *hồ sơ đủ chưa*, *đã được tập lại chưa*. Khi tranh luận về một task, team dùng câu này làm thước. Có một ngoại lệ do chủ dự án quyết ngày 14/10: phân tích đối thủ (quyết định 13).
 
 | | Trong phạm vi | Ngoài phạm vi |
 | --- | --- | --- |
 | Người dùng | HLV, võ sĩ có trận (thật hoặc giả định) | Hội viên phong trào, chủ gym, ban tổ chức giải |
 | Loại trận | Một trận đơn, có ngày cân và ngày thi xác định | Giải nhiều vòng nhiều ngày (mô hình dữ liệu vẫn chừa chỗ) |
 | Quy định giải | Preset từ văn bản công khai (VMMAF 2021, AIBA); HLV tự nhập phần riêng của giải | Thu thập điều lệ từ ban tổ chức |
-| Huấn luyện | Camp đếm ngược từ template, ghi buổi tập nhanh | Periodization cả năm, performance trend 12 tuần |
-| Cân nặng | Cân hằng ngày, đường cân tham chiếu, cảnh báo | Dinh dưỡng chi tiết, thực đơn |
+| Huấn luyện | Camp đếm ngược từ template, ghi buổi tập nhanh; phân tích đối thủ gắn với trận, nối chiến thuật với buổi tập | Periodization cả năm, performance trend 12 tuần |
+| Cân nặng | Cân hằng ngày, đường cân tham chiếu, cảnh báo; kế hoạch ăn theo giai đoạn do HLV hoặc chuyên gia nhập, một chạm "ăn theo kế hoạch?" khi ghi cân | Dinh dưỡng chi tiết, thực đơn, đếm calo; app tự đề xuất chế độ ăn hay ép nước |
 | Y tế | Checklist hồ sơ (trạng thái, ngày hết hạn), đình chỉ sau trận, chặn tập | Lưu ảnh giấy tờ y tế; bác sĩ khám và kê điều trị trong app |
 | Video / AI | Upload video trận và sparring, HLV ghi chú | Nghiên cứu model mới, dataset export, chấm điểm tự động |
 | Kênh | Web responsive trên điện thoại, thông báo trong app | App React Native, tích hợp Zalo |
@@ -95,7 +95,7 @@ Phần lớn nền tảng đã có sẵn. Việc mới thực sự chỉ là b�
 
 | Khu vực | Hiện có | Quyết định | Việc cần làm |
 | --- | --- | --- | --- |
-| Trận đấu | Chưa có | **Mới** | Bảng `bouts`: võ sĩ, giải, ngày cân, ngày thi, hạng cân (kg), đối thủ, trạng thái, kết quả |
+| Trận đấu | Chưa có | **Mới** | Bảng `bouts`: võ sĩ, giải, ngày cân, ngày thi, hạng cân (kg), đối thủ, trạng thái, kết quả; kế hoạch ăn (quyết định 12) và phân tích đối thủ (quyết định 13) |
 | Kế hoạch tập | `training_plans` (có phase `fight_camp`, `taper`), `training_sessions`; trang `coach/training-plans`, `coach/sessions` | **Gộp vào camp** | Trận trỏ tới plan; tạo plan từ template, đếm ngược từ ngày thi; ghi buổi tập nhanh |
 | Mục tiêu | Module `goals` mới (migration 021, 022, chưa merge); trang `coach/goals`, `fighter/goals` | **Gộp vào camp** | Goal trở thành mục tiêu của một camp; xem lại schema trước khi merge |
 | Cân nặng | `fighter_measurements` (đã có context `WEIGH_IN`) | **Giữ, mở rộng** | Đường cân tham chiếu, cảnh báo, nhập 1 chạm trên điện thoại |
@@ -126,6 +126,7 @@ gantt
     Review 1 (giả định)                    :milestone, crit, r1, 2026-10-23, 0d
     section Sprint 2
     Trong và sau trận, đình chỉ, Cổng 2    :s2, 2026-10-24, 2026-10-28
+    Ăn uống, phân tích đối thủ             :s3, 2026-10-23, 2026-10-28
     Kiểm thử người dùng (30 phút/người)    :t1, 2026-10-27, 2026-10-29
     Review 2 (giả định)                    :milestone, crit, r2, 2026-10-30, 0d
     section Kết thúc
@@ -135,20 +136,25 @@ gantt
 ### Sprint 1 · Trước trận (14/10 – 22/10), demo ở review 1
 
 - [ ] Ẩn các khu vực đóng băng khỏi menu
-- [ ] Migration 023: chế độ không có bác sĩ, **bật sẵn** cho môi trường demo; chưa làm màn cài đặt cho Admin
+- [ ] Migration 023: chế độ không có bác sĩ (mặc định `DOCTOR`); môi trường demo chuyển sang `NONE` bằng `PATCH /academy-settings` khi dựng dữ liệu demo; chưa làm màn cài đặt cho Admin
 - [ ] Migration 024 + `BoutsModule`: preset MMA (VMMAF 2021), Boxing nghiệp dư (AIBA), "Tự nhập"; tạo trận; checklist hồ sơ HLV thêm, sửa, bỏ; Cổng 1
 - [ ] Màn tạo trận, danh sách trận, chi tiết trận cho HLV
 - [ ] Màn ghi cân cho võ sĩ trên điện thoại (dùng `fighter_measurements`), biểu đồ cân, cảnh báo xanh/vàng/đỏ/xám
 - [ ] Gắn một training plan có sẵn vào trận (không tự sinh camp từ template)
 - [ ] Liên hệ 3–5 người kiểm thử (Q25), hẹn lịch 27–29/10
 
-Demo review 1: tạo trận → võ sĩ ghi cân → cân chuyển đỏ → thêm mục hồ sơ → Cổng 1 chặn vì thiếu hồ sơ → đủ hồ sơ thì vào tuần thi đấu.
+- [ ] Dữ liệu demo cho review 1 (tài khoản HLV và võ sĩ, trận cho kịch bản 1 và 2), dựng qua API của backend
+- [ ] Đối chiếu adapter API của T-004, T-005 với backend thật của T-003
+
+Demo review 1: tạo trận → võ sĩ ghi cân → cân chuyển đỏ → thêm mục hồ sơ → Cổng 1 chặn vì thiếu hồ sơ → đủ hồ sơ thì vào tuần thi đấu. **Demo chạy với backend thật**, không dùng demo mode của frontend (quyết định 14).
 
 ### Sprint 2 · Trong và sau trận (24/10 – 29/10), demo ở review 2
 
 - [ ] Cân chính thức, xử lý không đạt cân, ghi kết quả trận
 - [ ] Migration 025 + `suspensions`: tạo khi thua KO/TKO (gợi ý theo preset hoặc HLV nhập); Cổng 2 trong training service
 - [ ] Xác nhận được tập lại
+- [ ] Kế hoạch ăn theo giai đoạn và một chạm "ăn theo kế hoạch?" trên màn ghi cân (migration 026, quyết định 12)
+- [ ] Phân tích đối thủ: tab "Đối thủ" trong trận, nối chiến thuật với buổi tập, đánh giá sau trận (migration 027, quyết định 13)
 - [ ] Dữ liệu demo cho 4 kịch bản (mục Thước đo)
 - [ ] Buổi kiểm thử với 3–5 người theo [hướng dẫn kiểm thử](./FIGHT-CAMP-USER-TESTING.md); sửa lỗi mức "chặn"
 
@@ -169,9 +175,9 @@ Những phần dưới đây vẫn nằm trong thiết kế nhưng **không làm
 | Ghi buổi tập nhanh, ghi cho cả nhóm | Không bắt buộc cho luồng trận | Dùng màn buổi tập hiện có |
 | Thông báo trong app và job chạy hằng ngày | Cần scheduler mới | Cảnh báo hiển thị ngay trên dashboard |
 | Gắn video vào trận | Không thuộc hai cổng | Không |
-| Màn Admin bật/tắt chế độ không có bác sĩ | Demo chỉ cần một chế độ | Bật bằng migration cho môi trường demo |
+| Màn Admin bật/tắt chế độ không có bác sĩ | Demo chỉ cần một chế độ | Gọi `PATCH /academy-settings` khi dựng dữ liệu demo |
 | Bảng lưu sự đồng ý (`data_consents`) | Kiểm thử chỉ là buổi 30 phút với dữ liệu giả | Phiếu đồng ý giấy cho người kiểm thử |
-| Migration 026 `goals.bout_id` | Module goals giữ chưa merge (quyết định 4) | Không |
+| `goals.bout_id` (số migration chốt khi merge module goals; 026 và 027 đã dùng cho quyết định 12, 13) | Module goals giữ chưa merge (quyết định 4) | Không |
 | Checklist ngày thi | Không có luồng hay dữ liệu, không thuộc hai cổng (quyết định 11, H1) | Không |
 | HLV ghi `injury_records` | Cần đổi quyền của module medical (quyết định 11, H2) | Ô chữ "Chấn thương sau trận" trong form kết quả |
 | Kiểm thử dùng thật 2 tuần | Không đủ thời gian | Chỉ buổi kiểm thử có quan sát |
@@ -205,5 +211,7 @@ Câu trả lời ghi vào [phiếu câu hỏi mở](./FIGHT-CAMP-OPEN-QUESTIONS.
 | 9 | Dữ liệu dùng khi kiểm thử | **Đã quyết (13/10):** dữ liệu giả hoặc của người kiểm thử đã đồng ý; không nhập giấy tờ y tế thật | Dữ liệu sức khỏe là dữ liệu nhạy cảm; database đặt ở nước ngoài ([Nghiên cứu §8](./FIGHT-CAMP-DOMAIN-RESEARCH.md#8-bảo-vệ-dữ-liệu-cá-nhân)) |
 | 10 | Phạm vi đồ án | **Đã quyết (14/10, sau review với giảng viên):** chốt phạm vi "Quản lý võ sĩ trước – trong – sau trận" đúng như tài liệu này; không thêm, không bớt tính năng so với bản 13/10. Nghiệp vụ từng giai đoạn được làm rõ ở [Luồng nghiệp vụ](./FIGHT-CAMP-BUSINESS-FLOWS.md#nghiệp-vụ-theo-giai-đoạn) | Kế hoạch sprint và ticket bám theo phạm vi đã chốt; đề xuất mở rộng nào cũng chuyển sang phần "hướng phát triển" của báo cáo |
 | 11 | Bảy điểm nghiệp vụ chưa định nghĩa (H1–H7) | **Đã quyết (14/10):** theo đề xuất trong [Luồng nghiệp vụ – Các điểm đã làm rõ](./FIGHT-CAMP-BUSINESS-FLOWS.md#các-điểm-đã-làm-rõ-h1h7): cắt checklist ngày thi; HLV ghi chấn thương bằng ô chữ trong kết quả; thua TKO thì hỏi trận dừng vì đòn vào đầu không; huỷ trận không tạo đình chỉ; khám của BTC dùng lý do huỷ "Khác" hoặc đình chỉ thủ công `MEDICAL`; bị đánh ngã chỉ để lưu; trạng thái "sẵn sàng" hiện ở hub Trận | Là đầu vào cho T-006, T-007 |
-| 12 | Ăn uống đi cùng kiểm soát cân ([Luồng nghiệp vụ E1](./FIGHT-CAMP-BUSINESS-FLOWS.md#e1-ăn-uống-đi-cùng-kiểm-soát-cân)) | **Chờ chủ dự án.** Đề xuất: làm bản tối thiểu (kế hoạch ăn theo giai đoạn do HLV hoặc chuyên gia nhập, một chạm "ăn theo kế hoạch?" trên màn ghi cân) như việc dự phòng của Sprint 2, chỉ bắt đầu khi T-007 đã IN REVIEW. App vẫn không tự đề xuất chế độ ăn hay ép nước | Mở rộng phạm vi đã duyệt; nên báo giảng viên |
-| 13 | Giáo án phân tích đối thủ ([Luồng nghiệp vụ E2](./FIGHT-CAMP-BUSINESS-FLOWS.md#e2-giáo-án-phân-tích-đối-thủ)) | **Chờ chủ dự án.** Đề xuất: không làm trước 31/10; trình bày thiết kế trong báo cáo ở phần hướng phát triển | Không giúp trả lời câu nào trong ba câu của phạm vi; ước lượng 2–3 ngày |
+| 12 | Ăn uống đi cùng kiểm soát cân ([Luồng nghiệp vụ E1](./FIGHT-CAMP-BUSINESS-FLOWS.md#e1-ăn-uống-đi-cùng-kiểm-soát-cân)) | **Đã quyết (14/10): làm trong đợt đồ án**, ticket T-009, migration 026. Kế hoạch ăn theo giai đoạn do HLV hoặc chuyên gia nhập; một chạm "ăn theo kế hoạch?" trên màn ghi cân; chấm màu trên biểu đồ cân. App vẫn không tự đề xuất chế độ ăn hay ép nước | Mở rộng phạm vi giảng viên đã duyệt (sửa quyết định 10); cần báo giảng viên ở buổi review tiếp theo |
+| 13 | Giáo án phân tích đối thủ ([Luồng nghiệp vụ E2](./FIGHT-CAMP-BUSINESS-FLOWS.md#e2-giáo-án-phân-tích-đối-thủ)) | **Đã quyết (14/10): làm trong đợt đồ án**, ticket T-010, migration 027 | Không giúp trả lời câu nào trong ba câu của phạm vi, nên là ngoại lệ của thước đo phạm vi; ước lượng 2–3 ngày, làm Sprint 2 dày thêm; cần báo giảng viên |
+| 14 | Môi trường demo | **Đã quyết (14/10):** demo ở cả hai buổi review chạy với **backend thật**, không dùng demo mode của frontend. Database dùng cho demo: chờ chủ dự án trả lời | Review 1 cần T-003 đã merge và adapter API của T-004, T-005 đã đối chiếu với backend trước khoảng 22/10; dữ liệu demo cho kịch bản 1, 2 chuyển lên Sprint 1. Nếu dùng Supabase thì chủ dự án phải duyệt từng lần áp migration 023–027 |
+| 15 | Nơi để tài liệu và prototype | **Đã quyết (14/10):** tài liệu và prototype `concept/fight-camp` đưa lên `main` để cả team cùng thấy. Từ nay tài liệu commit trên `fight-camp` rồi đưa lên `main` (thay Q08) | Nhánh `docs/fight-camp-scope` thôi dùng sau khi đã merge vào `fight-camp` |

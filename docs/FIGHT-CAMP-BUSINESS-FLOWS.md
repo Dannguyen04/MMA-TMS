@@ -34,6 +34,8 @@ Mục tiêu: đưa võ sĩ vào tuần thi đấu đúng hạng cân và đủ h
 | Ghi cân mỗi sáng | Võ sĩ, hoặc HLV ghi hộ | Mỗi ngày học viện chỉ giữ một số; trạng thái xanh / vàng / đỏ / xám | F3 | Làm: cảnh báo hiện trên dashboard, không gửi thông báo |
 | Cập nhật checklist hồ sơ | HLV; bác sĩ xác nhận nếu có | Trạng thái, ngày cấp, hạn hiệu lực; mục HLV thêm mang nhãn "HLV nhập, chưa xác minh" | F4 | Làm: chưa có quyền xác nhận của bác sĩ |
 | Đổi ngày, đổi hạng cân | HLV | Tính lại hạn nộp hồ sơ, ngưỡng cảnh báo cân, hiệu lực hồ sơ đến ngày thi mới | F8 | Làm |
+| Kế hoạch ăn, một chạm "ăn theo kế hoạch?" khi ghi cân | HLV hoặc chuyên gia nhập kế hoạch; võ sĩ trả lời | Kế hoạch theo giai đoạn của trận; mỗi ngày học viện một câu trả lời; chấm màu trên biểu đồ cân. App không tự đề xuất chế độ ăn | E1 | Làm (T-009) |
+| Phân tích đối thủ: hồ sơ, quan sát, kế hoạch thi đấu, gắn chiến thuật với buổi tập | HLV | Tối đa 6 quan sát; mỗi chiến thuật có quan sát làm căn cứ; báo chiến thuật chưa có buổi tập | E2 | Làm (T-010) |
 | Vào tuần thi đấu | HLV | **Cổng 1**: hôm nay ≥ ngày cân − `fightWeekDays`, và mọi mục bắt buộc ở `PROVIDED` / `CONFIRMED`, còn hiệu lực đến ngày thi | F4, F5 | Làm |
 
 Kết thúc khi trận sang `FIGHT_WEEK`. Nếu Cổng 1 không đạt, trận đứng ở `CAMP` và app liệt kê các mục thiếu hoặc hết hạn. HLV bổ sung hồ sơ, đổi ngày hoặc huỷ trận.
@@ -63,6 +65,7 @@ Mục tiêu: võ sĩ không tập các loại buổi bị cấm khi chưa hồi 
 | Cổng 2 | App | Còn đình chỉ có hiệu lực thì không xếp lịch và không bắt đầu được loại buổi bị chặn (409 `TRAINING_SUSPENSION_ACTIVE`); buổi đã xếp từ trước hiện cảnh báo trên lịch | F7 | Làm |
 | Xác nhận được tập lại | HLV hoặc bác sĩ | Chỉ sau ngày kết thúc đình chỉ; bắt buộc ghi căn cứ; không có giấy thì ghi "không có xác nhận y tế" | F7 | Làm |
 | Ghi chấn thương sau trận | HLV | Ô chữ tùy chọn "Chấn thương sau trận" trong form kết quả (H2). Không ghi vào `injury_records` | F6 | Làm |
+| Đánh giá chiến thuật | HLV | Mỗi chiến thuật: hiệu quả, không hiệu quả, không dùng tới; chỉ nhập khi trận đã `COMPLETED` | E2 | Làm (T-010) |
 | Xem lại video trận | HLV | — | — | Cắt khỏi đợt đồ án |
 
 Kết thúc khi võ sĩ không còn đình chỉ nào có hiệu lực. Võ sĩ thắng mà ruleset không có ngày nghỉ bắt buộc thì kết thúc ngay khi ghi kết quả.
@@ -399,9 +402,9 @@ Ngoài ra, một yêu cầu khám đang mở cũng chặn tập. CLB không có 
 - Ở chế độ không có bác sĩ, võ sĩ đang bị đình chỉ chặn `SPARRING`: vẫn không xếp được buổi `SPARRING`.
 - Tắt chế độ: võ sĩ chưa có BASELINE bị chặn ở buổi tiếp theo, với lý do `EXAMINATION_REQUIRED` như hiện tại.
 
-## 8. Đề xuất mở rộng (chưa thuộc phạm vi đã chốt)
+## 8. Ăn uống và phân tích đối thủ
 
-Chủ dự án nêu hai ý này ngày 14/10. Cả hai nằm ngoài phạm vi đã chốt (quyết định 10), nên mục này chỉ mô tả thiết kế. Làm trong đợt đồ án hay đưa vào phần "hướng phát triển" của báo cáo được ghi ở quyết định 12 và 13 trong [Phạm vi](./SCOPE-FIGHT-CAMP.md#quyết-định-và-câu-hỏi). Tên bảng và cột dưới đây chỉ là phác thảo; nếu đề xuất được duyệt thì chốt ở Tech spec.
+Chủ dự án nêu hai ý này và duyệt làm trong đợt đồ án ngày 14/10 ([Phạm vi, quyết định 12 và 13](./SCOPE-FIGHT-CAMP.md#quyết-định-và-câu-hỏi)). E1 làm ở ticket T-009, E2 ở ticket T-010, cả hai trong Sprint 2. Mô hình dữ liệu và API ở [Tech spec §2.7, §2.8](./FIGHT-CAMP-TECH-SPEC.md#27-kế-hoạch-ăn-và-câu-trả-lời-ăn-uống-migration-026).
 
 ### E1. Ăn uống đi cùng kiểm soát cân
 
@@ -417,9 +420,9 @@ Thiết kế:
 4. **Cảnh báo đỏ** giữ nguyên câu khuyến nghị hiện có: trao đổi với bác sĩ hoặc chuyên gia dinh dưỡng, cân nhắc đổi hạng cân.
 5. **Không có ô theo dõi lượng nước uống** trong tuần thi đấu, để app không trở thành công cụ hỗ trợ ép nước.
 
-Dữ liệu (phác thảo): ba cột chữ cho kế hoạch trên `bouts`, kèm người soạn và ngày sửa; một bảng mới lưu câu trả lời, mỗi võ sĩ mỗi ngày học viện một dòng. Đây là dữ liệu sức khỏe, nên áp dụng quyết định 9 (chỉ dùng dữ liệu giả hoặc dữ liệu có đồng ý).
+Dữ liệu: xem [Tech spec §2.7](./FIGHT-CAMP-TECH-SPEC.md#27-kế-hoạch-ăn-và-câu-trả-lời-ăn-uống-migration-026). Đây là dữ liệu sức khỏe, nên áp dụng quyết định 9 (chỉ dùng dữ liệu giả hoặc dữ liệu có đồng ý).
 
-Tiêu chí nghiệm thu (nếu làm):
+Tiêu chí nghiệm thu:
 
 - Bỏ qua câu hỏi ăn uống thì vẫn lưu được số cân.
 - Trả lời hai lần trong cùng một ngày học viện thì chỉ còn câu trả lời mới nhất.
@@ -457,9 +460,9 @@ Thiết kế: trang chi tiết trận có thêm tab "Đối thủ" gồm năm ph
 
 Các giáo án khác trong camp dùng được cùng khung *Căn cứ → Mục tiêu → Buổi tập → Đánh giá*. Ví dụ với giáo án sức bền, căn cứ là số hiệp và thời lượng mỗi hiệp của trận, còn đánh giá là võ sĩ có giữ được nhịp đến hiệp cuối hay không. Đợt này không thiết kế riêng cho từng loại giáo án.
 
-Dữ liệu (phác thảo): một cột `opponent_analysis jsonb` trên `bouts` chứa hồ sơ, quan sát, chiến thuật (kèm danh sách id buổi tập) và đánh giá.
+Dữ liệu: xem [Tech spec §2.8](./FIGHT-CAMP-TECH-SPEC.md#28-phân-tích-đối-thủ-migration-027).
 
-Tiêu chí nghiệm thu (nếu làm):
+Tiêu chí nghiệm thu:
 
 - Chiến thuật không có quan sát làm căn cứ thì không lưu được.
 - Thêm quan sát thứ 7 thì bị từ chối.
@@ -469,8 +472,11 @@ Tiêu chí nghiệm thu (nếu làm):
 
 Ước lượng thô: 2–3 ngày (migration, API, tab mới, chọn buổi tập).
 
-### Khuyến nghị về thời điểm
+### Lịch làm và thứ tự cắt khi trễ
 
-- Lịch đã kín. Sprint 1 còn T-002, T-003, T-004, T-005; Sprint 2 có T-006, T-007, T-008 và buổi kiểm thử. Phạm vi cũng vừa được giảng viên duyệt.
-- **E1** qua được thước đo của phạm vi, vì nó giúp trả lời câu "võ sĩ có kịp cân không". **Đề xuất:** làm bản tối thiểu (bước 1 và 2, cộng chấm màu trên biểu đồ) như việc dự phòng của Sprint 2. Chỉ bắt đầu khi T-007 đã IN REVIEW; nếu trễ thì đây là việc bị cắt đầu tiên. Nên báo giảng viên ở buổi review tiếp theo, vì đây là phần thêm vào phạm vi đã duyệt.
-- **E2** không giúp trả lời câu nào trong ba câu của phạm vi. **Đề xuất:** không làm trước 31/10; trình bày thiết kế này trong báo cáo, ở phần hướng phát triển.
+- Cả hai làm trong Sprint 2, song song với T-006 và T-007 (mỗi ticket một nhánh, một worktree). Phần backend bắt đầu được ngay khi T-003 đã merge; phần frontend cần T-004 (trang chi tiết trận) và T-005 (màn ghi cân).
+- Sprint 2 dày thêm khoảng 3–4,5 ngày công. Nếu đến 27/10 chưa xong, cắt theo thứ tự sau để giữ phần lõi (hai cổng) và buổi kiểm thử:
+  1. E2 phần 5 (đánh giá sau trận).
+  2. E1 bước 3 (chấm màu trên biểu đồ và tóm tắt trong thẻ cảnh báo).
+  3. E2 phần 4 (gắn chiến thuật với buổi tập); chiến thuật vẫn lưu được, chỉ chưa nối với lịch.
+- Phạm vi giảng viên đã duyệt không có hai phần này, nên cần báo giảng viên ở buổi review tiếp theo.

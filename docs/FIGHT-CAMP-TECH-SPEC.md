@@ -1,6 +1,6 @@
 # Fight Camp — Tech spec
 
-**Cập nhật**: 2026-10-11
+**Cập nhật**: 2026-10-14 (thêm §2.7, §2.8; sửa migration, PR theo quyết định 12–15 trong Phạm vi)
 **Thuộc bộ tài liệu**: [Phạm vi](./SCOPE-FIGHT-CAMP.md) · [Nghiên cứu](./FIGHT-CAMP-DOMAIN-RESEARCH.md) · [Luồng nghiệp vụ](./FIGHT-CAMP-BUSINESS-FLOWS.md) · **Tech spec** · [Kiểm thử người dùng](./FIGHT-CAMP-USER-TESTING.md) · [Câu hỏi mở](./FIGHT-CAMP-OPEN-QUESTIONS.md)
 
 Spec này mô tả cách hiện thực [Luồng nghiệp vụ](./FIGHT-CAMP-BUSINESS-FLOWS.md) trên codebase hiện tại: chế độ không có bác sĩ trong module medical, một module NestJS mới `bouts`, bốn migration 023–026, một điểm chặn mới trong training (Cổng 2) và các trang mới ở frontend. Phần lớn code mới nên theo đúng khuôn của module `goals` (`nestjs-api/src/goals/`), vì đó là module gần nhất và mới nhất.
@@ -192,12 +192,81 @@ CREATE INDEX idx_suspensions_fighter_active ON public.suspensions (fighter_id, e
 Đình chỉ **còn hiệu lực** vào ngày học viện `d` khi:
 `starts_on <= d AND (d <= ends_on OR (requires_clearance AND cleared_at IS NULL))`.
 
+### 2.7 Kế hoạch ăn và câu trả lời ăn uống (migration 026)
+
+Nghiệp vụ: [Luồng nghiệp vụ E1](./FIGHT-CAMP-BUSINESS-FLOWS.md#e1-ăn-uống-đi-cùng-kiểm-soát-cân). App chỉ lưu và hiển thị chữ do người dùng nhập, không tính hay sinh ra chế độ ăn.
+
+```sql
+ALTER TABLE public.bouts ADD COLUMN nutrition_plan jsonb NOT NULL DEFAULT '{}';
+-- { "camp":        { "text": "...", "author": "HLV" | "<tên chuyên gia>", "updatedAt": "<iso>", "updatedById": "<uuid>" },
+--   "fightWeek":   { ... },
+--   "postWeighIn": { ... } }       -- mỗi khoá có thể vắng
+
+CREATE TYPE public.nutrition_adherence AS ENUM ('ON_PLAN', 'SLIGHTLY_OFF', 'WAY_OFF');
+
+CREATE TABLE public.bout_nutrition_checkins (
+  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  bout_id        uuid NOT NULL REFERENCES public.bouts(id) ON DELETE CASCADE,
+  fighter_id     uuid NOT NULL REFERENCES public.fighters(id),
+  academy_date   date NOT NULL,                 -- ngày được hỏi ("hôm qua" so với lúc trả lời)
+  adherence      public.nutrition_adherence NOT NULL,
+  note           text CHECK (note IS NULL OR char_length(note) <= 200),
+  recorded_by_id uuid NOT NULL REFERENCES public.users(id),
+  created_at, updated_at,
+  UNIQUE (bout_id, academy_date)                -- trả lời lại thì cập nhật dòng cũ
+);
+```
+
+- `fighter_id` phải bằng `bouts.fighter_id` (kiểm tra trong service, và bằng trigger nếu dễ làm theo khuôn của 024).
+- Mỗi ô kế hoạch: `text` 1–2000 ký tự, `author` 1–100 ký tự.
+- Giá trị tính khi đọc `currentNutritionPhase`: `SCHEDULED`, `CAMP` → `camp`; `FIGHT_WEEK` → `fightWeek`; `WEIGHED_IN` → `postWeighIn`; `COMPLETED`, `CANCELLED` → `null`.
+- Kiểu jsonb cho kế hoạch: ba ô luôn đọc cùng trận, sửa theo cả khối, không truy vấn chéo trận.
+
+### 2.8 Phân tích đối thủ (migration 027)
+
+Nghiệp vụ: [Luồng nghiệp vụ E2](./FIGHT-CAMP-BUSINESS-FLOWS.md#e2-giáo-án-phân-tích-đối-thủ). Tên đối thủ vẫn ở `bouts.opponent_name`.
+
+```sql
+ALTER TABLE public.bouts ADD COLUMN opponent_analysis jsonb NOT NULL DEFAULT '{}';
+```
+
+```json
+{
+  "profile": { "wins": 5, "losses": 1, "draws": 0, "stance": "SOUTHPAW", "style": "STRIKER",
+               "heightCm": 175, "reachCm": 180, "source": "Hồ sơ LION Championship" },
+  "observations": [
+    { "id": "o1", "kind": "OPENING", "text": "Sau cú jab, hạ tay phải",
+      "evidenceUrl": "https://...", "evidenceTime": "02:15", "evidenceNote": null, "confidence": "REPEATED" }
+  ],
+  "tactics": [
+    { "id": "t1", "text": "Khi đối thủ jab, lách trái và phản đòn móc phải", "round": null,
+      "observationIds": ["o1"], "sessionIds": ["<training_sessions.id>"], "partnerBrief": "Bạn tập đánh tay trái, ép sát",
+      "review": { "outcome": "EFFECTIVE", "note": "Trúng 3 lần ở hiệp 2" } }
+  ],
+  "updatedAt": "<iso>", "updatedById": "<uuid>"
+}
+```
+
+Kiểm tra khi ghi (Zod và service):
+
+| Quy tắc | Lỗi |
+| --- | --- |
+| `stance` ∈ `ORTHODOX`, `SOUTHPAW`, `SWITCH`; `style` ∈ `STRIKER`, `WRESTLER`, `GRAPPLER`, `ALL_ROUND`; mọi trường của `profile` là tùy chọn | 422 |
+| Tối đa 6 quan sát; `kind` ∈ `STRENGTH`, `OPENING`, `HABIT`; `text` 1–300 ký tự; có `evidenceUrl` (http/https) hoặc `evidenceNote`; `confidence` ∈ `ONCE`, `REPEATED` | 422 |
+| Tối đa 5 chiến thuật; mỗi chiến thuật có ít nhất một `observationIds` trỏ tới quan sát có trong cùng tài liệu | 422 `OPPONENT_TACTIC_EVIDENCE_REQUIRED` |
+| Mỗi `sessionIds` là `training_sessions` của cùng `fighter_id`, `deleted_at IS NULL` | 422 |
+| `review` chỉ ghi được khi trận `COMPLETED`; ngoài `review`, tài liệu chỉ sửa được khi trận chưa `COMPLETED` hay `CANCELLED` | 409 `BOUT_INVALID_TRANSITION` |
+
+- Giá trị tính khi đọc: `tacticsWithoutSessions` (danh sách id chiến thuật chưa gắn buổi tập).
+- Kiểu jsonb: tài liệu luôn đọc và sửa cùng trận, do một HLV soạn, không truy vấn chéo trận trong đợt đồ án. Đổi lại, `sessionIds` không có khoá ngoại; buổi tập bị xoá sau đó thì frontend hiện "buổi tập đã xoá".
+- **Võ sĩ** chỉ nhận `tactics` (bỏ `review`) và các buổi tập liên quan; không nhận `profile`, `observations`.
+
 ### 2.6 Thay đổi bảng có sẵn
 
 | Bảng | Thay đổi | Migration |
 | --- | --- | --- |
 | `training_plans` | Không thêm cột; trận trỏ tới plan qua `bouts.training_plan_id` | — |
-| `goals` | Thêm `bout_id uuid NULL REFERENCES bouts(id)` | 026, chỉ sau khi 021/022 đã áp dụng |
+| `goals` | Thêm `bout_id uuid NULL REFERENCES bouts(id)` | Sau đợt đồ án; đánh số khi merge module goals (026, 027 đã dùng) |
 | `fighter_measurements` | Không đổi | — |
 | `notification_type` | Thêm giá trị mới (§7) | 025 |
 | `academy_settings` (mới, một dòng) | Chế độ giám sát y tế (§6a) | 023 |
@@ -237,6 +306,10 @@ Mọi endpoint theo khuôn có sẵn: `AccessTokenGuard` + `AuthorizationGuard`,
 | PATCH | `/bouts/:id/requirements/:code` | `bout:requirement` | Cập nhật trạng thái, ngày cấp, hạn; sửa tên, bắt buộc hay không |
 | DELETE | `/bouts/:id/requirements/:code` | `bout:requirement` | Bỏ một mục hồ sơ (ghi lịch sử) |
 | POST | `/bouts/:id/requirements/:code/confirm` | `bout:requirement_confirm` | Bác sĩ xác nhận hoặc từ chối |
+| PUT | `/bouts/:id/nutrition-plan` | `bout:update` | Ghi kế hoạch ăn theo giai đoạn (§2.7); trận chưa `COMPLETED`, `CANCELLED` |
+| PUT | `/bouts/:id/nutrition-checkins/:date` | `bout:nutrition_checkin` | Trả lời "ăn theo kế hoạch?" cho ngày `date` (≤ hôm nay theo ngày học viện); ghi lại thì cập nhật. `GET /bouts/:id/weight-track` trả thêm `nutrition: [{ date, adherence }]` |
+| PUT | `/bouts/:id/opponent-analysis` | `bout:update` | Ghi cả tài liệu phân tích đối thủ, trừ `review` (§2.8) |
+| PUT | `/bouts/:id/opponent-analysis/review` | `bout:result` | Ghi đánh giá từng chiến thuật; chỉ khi `COMPLETED` |
 | GET | `/suspensions` | `suspension:read` | Lọc theo `fighterId`, `active` |
 | POST | `/suspensions` | `suspension:create` | Tạo thủ công, hoặc xác nhận đình chỉ gợi ý sau trận |
 | POST | `/suspensions/:id/clear` | `suspension:clear` | Xác nhận được tập lại, bắt buộc `clearanceNote` |
@@ -318,7 +391,7 @@ Vì sao lưu trong DB mà không dùng biến môi trường: Admin cần bật/
 | `medical.service.ts`, chỗ tạo yêu cầu khám | Khi `NONE`: trả 409 `MEDICAL_SUPERVISION_DISABLED` |
 | [doctor-assignment-reminder.service.ts](../nestjs-api/src/medical/doctor-assignment-reminder.service.ts) | Khi `NONE`: không gửi nhắc |
 | Module nhỏ mới `academy-settings` | `GET /academy-settings` (mọi vai trò đã đăng nhập, để hiện dòng thông báo); `PATCH /academy-settings` (Admin, bắt buộc `changeReason`); `GET /academy-settings/impact` trả số võ sĩ chưa có BASELINE và số buổi tập sắp tới sẽ bị chặn nếu chuyển về `DOCTOR` |
-| Frontend | Công tắc ở `admin/settings`; dòng thông báo cố định trên dashboard HLV và trang sức khỏe võ sĩ khi đang `NONE` |
+| Frontend | Công tắc ở `admin/settings` (cắt khỏi đợt đồ án); dòng thông báo cố định trên dashboard HLV và trang sức khỏe võ sĩ khi đang `NONE` |
 
 `evaluateEligibility` là hàm thuần, nên `supervision` được truyền vào qua state, không đọc DB bên trong hàm. Service đọc `academy_settings` một lần cho mỗi lần kiểm tra, trong cùng transaction với các bản ghi y tế.
 
@@ -354,6 +427,7 @@ Quyền mới, seed trong migration theo đúng mẫu của 021:
 | `bout:get_all`, `bout:read` | ✓ (của mình) | ✓ | ✓ | ✓ |
 | `bout:create`, `bout:update`, `bout:result` | | ✓ | | ✓ |
 | `bout:requirement` | | ✓ | ✓ | ✓ |
+| `bout:nutrition_checkin` | ✓ (trận của mình) | ✓ | | ✓ |
 | `bout:requirement_confirm` | | | ✓ | |
 | `suspension:read` | ✓ (của mình) | ✓ | ✓ | ✓ |
 | `suspension:create` | | ✓ | ✓ | ✓ |
@@ -372,10 +446,12 @@ Theo quy ước trong [migrations/README.md](../nestjs-api/migrations/README.md)
 
 | Số | Nội dung | Phụ thuộc |
 | --- | --- | --- |
-| 023 | Enum `medical_supervision`, bảng `academy_settings` (một dòng, mặc định `DOCTOR`; môi trường demo đặt `NONE`), quyền `academy_settings:manage`, trigger audit | 022 đã có trong ledger (quyết định 4 trong Phạm vi); nếu 021/022 chưa merge thì phụ thuộc 020 và đổi số |
-| 024 | Enum mới, `competition_rulesets` (+ hai preset chưa xác minh), `bouts`, `bout_requirements`, quyền `ruleset:*` và `bout:*`, RLS và revoke như `goals` | 023 |
+| 023 | Enum `medical_supervision`, bảng `academy_settings` (một dòng, mặc định `DOCTOR`; quyền `academy_settings:manage`, trigger audit | Ledger đã có 020, chưa có 023; không yêu cầu 021, 022 vì module goals chưa merge (quyết định 4). Môi trường demo đổi sang `NONE` bằng `PATCH /academy-settings` |
+| 024 | Enum mới, `competition_rulesets` (+ ba preset: MMA – VMMAF 2021, Boxing nghiệp dư – AIBA, Tự nhập), `bouts`, `bout_requirements`, quyền `ruleset:*` và `bout:*`, RLS và revoke như `goals` | 023 |
 | 025 | `suspensions`, quyền `suspension:*`, giá trị `notification_type` mới | 024 |
-| 026 | `goals.bout_id` (để sau đợt đồ án) | 021, 024 |
+| 026 | `bouts.nutrition_plan`, enum `nutrition_adherence`, bảng `bout_nutrition_checkins`, quyền `bout:nutrition_checkin` (§2.7) | 025 |
+| 027 | `bouts.opponent_analysis` (§2.8) | 026 |
+| — | `goals.bout_id`, sau đợt đồ án | 021, 022, 024 |
 
 ## 9. Frontend
 
@@ -404,11 +480,13 @@ Theo quy ước trong [migrations/README.md](../nestjs-api/migrations/README.md)
 | PR | Nội dung | Sprint |
 | --- | --- | --- |
 | 1 | Ẩn mục đóng băng khỏi `NAVIGATION` | 1 |
-| 2 | Migration 023 + chế độ không có bác sĩ (§6a): `academy_settings` bật sẵn `NONE` cho môi trường demo, sửa `evaluateEligibility`, dòng thông báo | 1, **làm đầu tiên** |
+| 2 | Migration 023 + chế độ không có bác sĩ (§6a): `academy_settings` (mặc định `DOCTOR`), sửa `evaluateEligibility`, dòng thông báo | 1, **làm đầu tiên** |
 | 3 | Migration 024 + `BoutsModule`: ba preset, bouts, requirements (thêm/sửa/bỏ), `weight-track`, Cổng 1; chưa có UI | 1 |
 | 4 | Trang tạo trận, danh sách trận, chi tiết trận, checklist hồ sơ; gắn training plan có sẵn | 1 |
 | 5 | Màn ghi cân trên điện thoại, biểu đồ, cảnh báo | 1 |
 | 6 | Tuần thi đấu, cân chính thức, kết quả | 2 |
 | 7 | Migration 025 + suspensions + Cổng 2 trong training + xác nhận được tập lại | 2 |
-| 8 | Dữ liệu demo cho 4 kịch bản; gỡ route concept | 2 |
-| — | Màn Admin bật/tắt chế độ; `data_consents` (§6b); camp từ template; ghi buổi tập nhanh; thông báo và job hằng ngày; migration 026 | Cắt |
+| 8 | Dữ liệu demo cho 4 kịch bản qua API của backend (kịch bản 1, 2 có từ Sprint 1 cho review 1); gỡ route concept | 1, 2 |
+| 9 | Migration 026 + kế hoạch ăn, câu trả lời ăn uống, chấm màu trên biểu đồ cân (§2.7) | 2 |
+| 10 | Migration 027 + phân tích đối thủ, tab "Đối thủ" (§2.8) | 2 |
+| — | Màn Admin bật/tắt chế độ; `data_consents` (§6b); camp từ template; ghi buổi tập nhanh; thông báo và job hằng ngày; `goals.bout_id` | Cắt |

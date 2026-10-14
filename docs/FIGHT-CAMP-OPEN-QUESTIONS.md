@@ -21,10 +21,10 @@
 | Q05 | Ngưỡng cảnh báo cân | Kiểm thử | Sau buổi kiểm thử | | Tạm dùng 1,0 kg |
 | Q06 | Người dùng chính | Nội bộ | — | | **Xong (14/10)**: HLV; ban tổ chức ngoài phạm vi (Phạm vi đã chốt, quyết định 10) |
 | Q07 | Module goals 021/022 | Nội bộ | — | | **Xong (13/10)**: chưa merge; `goals.bout_id` để sau đợt đồ án |
-| Q08 | Nhánh chính và cách commit tài liệu | Nội bộ | — | | **Xong (13/10)**: nhánh chính `main`; tài liệu commit riêng trên nhánh `docs/fight-camp-scope` |
+| Q08 | Nhánh chính và cách commit tài liệu | Nội bộ | — | | **Xong (sửa 14/10)**: nhánh chính `main`; tài liệu commit trên `fight-camp` rồi đưa lên `main` để cả team thấy (Phạm vi, quyết định 15). Nhánh `docs/fight-camp-scope` thôi dùng |
 | Q09 | Nhân lực team | Nội bộ | 16/10 | | Chưa: cần tên người, vai trò, giờ mỗi tuần đến 31/10 |
 | Q10 | Dữ liệu và người dùng thật đang có | Nội bộ | 16/10 | | Chưa |
-| Q11 | Loại trận và bộ môn đầu tiên | Nội bộ | 16/10 | | Đề xuất: trận đơn, MMA (Phạm vi, quyết định 1–2); chờ xác nhận |
+| Q11 | Loại trận và bộ môn đầu tiên | Nội bộ | — | | **Xong (14/10)**: trận đơn, MMA theo Luật VMMAF 2021; Boxing nghiệp dư AIBA là preset thứ hai (Phạm vi, quyết định 1–2) |
 | Q12 | Ba quyền còn chờ chốt | Nội bộ | — | | **Xong**: chỉ Admin sửa preset, HLV nhập quy định riêng trên trận; võ sĩ không cập nhật hồ sơ; HLV kết thúc đình chỉ |
 | Q13 | Thông tin giải mà CLB pilot tham gia | Quy định | — | | **Không cần (đồ án)**: HLV tự nhập; preset MMA lấy từ Luật VMMAF 2021 |
 | Q14 | Hồ sơ y tế ban tổ chức yêu cầu | Quy định | — | | **Không cần (đồ án)**: HLV tự nhập checklist |
@@ -183,11 +183,11 @@ Hạn "23/10" để kịp seed bộ luật giải trong migration 024. "PR 4", "
 - **Người quyết định:** chủ dự án, sau khi có Q01 và Q13.
 - **Ảnh hưởng tới:** SCOPE câu 1 và 2, [Luồng nghiệp vụ F2](./FIGHT-CAMP-BUSINESS-FLOWS.md#f2-lập-camp).
 
-> **Trả lời (a):**
+> **Trả lời (a):** trận đơn.
 >
-> **Trả lời (b):**
+> **Trả lời (b):** MMA, theo Luật VMMAF 2021 (bộ quy định Việt Nam duy nhất đã xác minh). Boxing nghiệp dư theo AIBA giữ làm preset thứ hai.
 >
-> **Người quyết định / ngày:**
+> **Người quyết định / ngày:** chủ dự án, 14/10/2026 (theo đề xuất ở Phạm vi, quyết định 1–2).
 
 ### Q12 · Ba quyền còn chờ chốt
 
