@@ -19,7 +19,7 @@ Trạng thái: **DRAFT** (Claude đang viết) → **READY** (Gemini được nh
 | [T-003](./T-003-bouts-core.md) | Bộ luật giải, trận, checklist hồ sơ, Cổng 1, theo dõi cân (migration 024) | Backend | T-002 | Chờ T-002 merge |
 | [T-004](./T-004-coach-bouts-ui.md) | Màn trận cho HLV: danh sách, tạo, chi tiết, checklist (demo trước) | Frontend | Contract của T-003 | IN PROGRESS |
 | T-005 | Màn ghi cân cho võ sĩ, biểu đồ, cảnh báo | Frontend | T-004 (dùng chung kiểu và mocks) | DRAFT |
-| T-008a | Dữ liệu demo cho review 1 (kịch bản 1, 2) dựng qua API; chuyển chế độ `NONE` bằng `PATCH /academy-settings`; đối chiếu adapter API của T-004, T-005 với backend | Backend + Frontend | T-002, T-003, T-004, T-005 | DRAFT |
+| T-008a | Dữ liệu demo cho review 1 (kịch bản 1, 2) dựng qua API trên Supabase hiện có (chủ dự án áp migration 023, 024 trước); chuyển chế độ `NONE` bằng `PATCH /academy-settings`; đối chiếu adapter API của T-004, T-005 với backend | Backend + Frontend | T-002, T-003, T-004, T-005 | DRAFT |
 
 T-001 và T-002 làm song song được. Demo ở cả hai buổi review chạy với **backend thật**, không dùng demo mode ([Phạm vi, quyết định 14](../SCOPE-FIGHT-CAMP.md#quyết-định-và-câu-hỏi)), nên T-003 phải merge và T-004, T-005 phải chạy được ở API mode trước khoảng 22/10.
 
