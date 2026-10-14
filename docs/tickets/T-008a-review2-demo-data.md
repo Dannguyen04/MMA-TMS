@@ -19,7 +19,7 @@ Ràng buộc:
 - **Chỉ dữ liệu giả** (quyết định 9): tên giả, email `@example.com`, không có giấy tờ y tế thật.
 - **Không ghi thẳng vào database.** Mọi dữ liệu đi qua API của backend, nên đi qua đúng quyền, kiểm tra và audit.
 - **Không ai ngoài chủ dự án áp migration** lên Supabase. Script này không chạy migration.
-- Script ghi vào Supabase thật. **Chủ dự án chạy**, hoặc giao cho một người có `.env` của team. Người viết script kiểm tra bằng chế độ `--dry-run`.
+- Script ghi vào Supabase thật. Người viết script (BE2) được chạy nó bằng `.env` của team sau khi chủ dự án đã áp migration 023, 024 ([quyết định 19](../SCOPE-FIGHT-CAMP.md#quyết-định-và-câu-hỏi)); trước đó chỉ kiểm tra bằng `--dry-run`.
 
 ## Phần A · Script dữ liệu demo (BE2)
 
@@ -73,7 +73,7 @@ Phần A:
 
 1. `node --test scripts/seed-demo.test.mjs` qua, gồm các ca: với D = 2026-10-20, F2 có số cuối 66,4 kg ngày 19/10, giờ cân của F2 là `2026-10-22T03:00:00.000Z`; số cân cuối của F1 là ngày 16/10; ba mục hồ sơ của F3 đúng trạng thái và hạn.
 2. `node scripts/seed-demo.mjs --dry-run` in đủ các bước 1–8, không gọi mạng, không cần biến môi trường mật khẩu.
-3. Chạy thật lần một trên Supabase (chủ dự án chạy): bảng kết quả có F2 `RED`, F3 `GREEN` và Cổng 1 thiếu "Brain CT", F1 không có trận; `GET /academy-settings` trả `NONE`.
+3. Chạy thật lần một trên Supabase: bảng kết quả có F2 `RED`, F3 `GREEN` và Cổng 1 thiếu "Brain CT", F1 không có trận; `GET /academy-settings` trả `NONE`.
 4. Chạy lần hai: không có tài khoản, phân công, trận hay số cân mới; bảng kết quả giống lần một.
 
 Phần B:
