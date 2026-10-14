@@ -36,7 +36,7 @@ Claude viết ticket (READY)
 
 ## 3a. Cách giao việc
 
-**Ticket giao cho dev** (từ 14/10, quyết định 18): người nhận ghi ở cột "Người nhận" trong [danh sách ticket](tickets/README.md). Dev lấy `fight-camp` mới nhất từ remote, tạo nhánh `feat/T-xxx-…`, làm theo §4–§6, push nhánh của ticket lên remote và báo Claude review. Dev không merge vào `fight-camp` hay `main`; không chạy `db:migrate:*` hay lệnh nào kết nối Supabase (chủ dự án tự áp migration).
+**Ticket giao cho dev** (từ 14/10, quyết định 18): người nhận ghi ở cột "Người nhận" trong [danh sách ticket](tickets/README.md). Dev lấy `fight-camp` mới nhất từ remote, tạo nhánh `feat/T-xxx-…`, làm theo §4–§6, push nhánh của ticket lên remote và báo Claude review. Dev không merge vào `fight-camp` hay `main`. Dev **được** chạy backend và frontend bằng `.env` của team, nối với Supabase hiện có, để thử ở API mode (quyết định 19); chỉ đọc, ghi qua app và API, chỉ dùng dữ liệu giả. Dev **không** chạy `db:migrate:*`, không chạy SQL trực tiếp lên Supabase, không commit `.env` (chủ dự án tự áp migration).
 
 **Ticket giao cho Gemini:** Claude giao qua CLI `agy` của Antigravity (`~/.gemini/bin/agy.exe`), không cần chủ dự án chuyển lời:
 
@@ -52,7 +52,7 @@ Claude viết ticket (READY)
 2. **Không bịa.** Thiếu thông tin, tài liệu mâu thuẫn, hoặc code thực tế khác ticket thì ghi vào mục "Câu hỏi" của handover và dừng phần phụ thuộc. Không đoán tên bảng, quyền, số liệu nghiệp vụ hay kết quả lệnh.
 3. **Đúng phạm vi.** Chỉ sửa những gì ticket yêu cầu. Thấy lỗi ngoài phạm vi thì ghi vào handover, không sửa. Không đụng các khu vực đóng băng trong [Phạm vi](SCOPE-FIGHT-CAMP.md#giữ-gộp-đóng-băng).
 4. **Theo quy ước có sẵn:** cấu trúc module, Zod DTO, `@RequirePermissions`, audit context, mã lỗi, envelope response như module `goals`; migration theo [nestjs-api/migrations/README.md](../nestjs-api/migrations/README.md) (preflight ledger, advisory lock, ghi `migration_history`, checksum trong `manifest.json`, tên trong `scripts/migration-files.mjs`, script `db:migrate:0xx`, mục mô tả trong README của migrations).
-5. **Database:** chỉ chạy migration bằng `pnpm --filter nestjs-api test:db` (PostgreSQL tạm, không đọc `.env`). **Không** chạy `db:migrate:*` hay bất kỳ lệnh nào kết nối Supabase.
+5. **Database:** chỉ chạy migration bằng `pnpm --filter nestjs-api test:db` (PostgreSQL tạm, không đọc `.env`). **Không** chạy `db:migrate:*` hay bất kỳ lệnh nào kết nối Supabase. Ngoại lệ cho dev (không áp dụng cho Gemini): được chạy app bằng `.env` của team như ở §3a.
 6. **Test là một phần của ticket:** mọi quy tắc nghiệp vụ mới có unit test; mọi migration mới có ca trong `scripts/test-migrations.mjs`.
 7. **Không cài thêm thư viện** nếu ticket không cho phép.
 
