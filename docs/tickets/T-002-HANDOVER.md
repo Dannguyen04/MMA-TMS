@@ -1,6 +1,6 @@
 # T-002 Handover
 
-- Nhánh: `feat/T-002-no-doctor-mode`    Commit: `dbcde2a`
+- Nhánh: `feat/T-002-no-doctor-mode`    Commit: `f31e0ba`
 - Trạng thái: IN REVIEW
 
 ## Thay đổi
@@ -10,7 +10,7 @@
 - `nestjs-api/run_sql.mjs`: Thêm mapping `--apply-023` và cập nhật thông điệp checksum 001-023.
 - `nestjs-api/package.json`: Thêm script `"db:migrate:023": "node run_sql.mjs --apply-023"`.
 - `nestjs-api/migrations/README.md`: Thêm mục tài liệu mô tả migration 023.
-- `nestjs-api/scripts/test-migrations.mjs`: Thêm test case cho migration 023 (kiểm tra điều kiện tiên quyết ledger 20, chặn insert row thứ hai, tính lũy kế và ghi audit log khi update); đồng thời sửa lỗi cú pháp dư dấu `});` và kỳ vọng test của migration 018 có từ trước trên `fight-camp`.
+- `nestjs-api/scripts/test-migrations.mjs`: Thêm test case cho migration 023 (kiểm tra điều kiện tiên quyết ledger 20, chặn insert row thứ hai, tính lũy kế và ghi audit log khi update); sửa lỗi cú pháp dư dấu `});` và cập nhật kiểm tra của migration 018 phù hợp với cơ chế backfill.
 - `nestjs-api/src/database/schema.ts`: Định nghĩa `medicalSupervisionEnum` (`DOCTOR`, `NONE`) và bảng Drizzle `academySettings`.
 - `nestjs-api/src/academy-settings/`: Tạo mới module `AcademySettingsModule`:
   - `academy-settings.constants.ts`: Permission codes và response messages.
@@ -26,50 +26,48 @@
 - `nestjs-api/src/medical/medical.error.ts`: Thêm helper lỗi HTTP 409 `medicalSupervisionDisabled()`.
 - `nestjs-api/src/medical/medical.model.ts`: Thêm trường `supervision: z.enum(['DOCTOR', 'NONE'])` vào `medicalEligibilitySchema`.
 - `nestjs-api/src/medical/medical.service.ts`:
-  - Inject `AcademySettingsRepository`.
-  - Cập nhật `evaluateEligibility` và `eligibilityFrom`: Khi `supervision = 'NONE'`, scope `TRAINING` luôn trả về `eligible: true, reasons: []`, bỏ qua toàn bộ ràng buộc baseline exam/clearance/review request/session type. Scope `COMPETITION` vẫn áp dụng kiểm tra đầy đủ. Cả 2 scope đều trả về trường `supervision`.
-  - Cập nhật `evaluateTrainingEligibility`: Cho phép tập ngay nếu `supervision = 'NONE'` mà không cần khóa hay truy vấn DB.
-  - Cập nhật `createReviewRequest`: Ném HTTP 409 `medicalSupervisionDisabled()` nếu `supervision = 'NONE'`.
-  - Cập nhật `getDossier`: Trả về `supervision` trong `eligibility`.
+  - `EligibilityState`: Thêm trường bắt buộc `supervision: 'DOCTOR' | 'NONE'`.
+  - `evaluateEligibility`: Khi `supervision === 'NONE'` và `scope === 'TRAINING'`: không thêm `EXAMINATION_REQUIRED` và `REVIEW_REQUEST_PENDING`; nếu chưa có kết luận khám (`!exam`) thì trả `eligible: true, reasons: []`; nếu đã có kết luận khám thì tiếp tục chạy các quy tắc cũ (`EXAMINATION_NOT_ELIGIBLE`, `CLEARANCE_REQUIRED`, `CLEARANCE_EXPIRED`, `SESSION_TYPE_RESTRICTED`). Scope `COMPETITION` và `supervision === 'DOCTOR'` giữ nguyên hành vi.
+  - `eligibilityFrom`: Nhận bắt buộc `supervision: 'DOCTOR' | 'NONE'` và truyền vào `evaluateEligibility`, không có nhánh trả về sớm.
+  - `evaluateTrainingEligibility`: Đọc `supervision` trong transaction, vẫn lấy lock `lockFighterMedicalState`, đọc kết luận khám và clearance rồi truyền qua `eligibilityFrom`, không có nhánh trả về sớm.
+  - `createReviewRequest`: Ném HTTP 409 `medicalSupervisionDisabled()` nếu `supervision = 'NONE'`.
+  - `getDossier`: Đọc và trả về `supervision` trong `eligibility`.
 - `nestjs-api/src/medical/doctor-assignment-reminder.service.ts`: Inject `AcademySettingsRepository`. Khi `supervision = 'NONE'`, trả về `[{ status: 'skipped', reason: 'SUPERVISION_DISABLED' }]` và không gọi publisher.
 - `nestjs-api/src/medical/medical.module.ts`: Import `AcademySettingsModule`.
-- `nestjs-api/src/medical/medical.service.spec.ts`: Cập nhật các test case hiện tại để kiểm tra `supervision: 'DOCTOR'`, thêm test suite cho No-Doctor Mode (criteria 1-5), review request 409 (criterion 7), dossier (criterion 6).
-- `nestjs-api/src/medical/doctor-assignment-reminder.service.spec.ts`: Viết unit tests cho `DoctorAssignmentReminder` bao phủ cả 2 chế độ NONE và DOCTOR (criterion 8).
+- `nestjs-api/src/medical/medical.service.spec.ts`: Bổ sung `supervision: 'DOCTOR'` vào fixture state chung; thêm test cases bao phủ đầy đủ tiêu chí 1–6 cho `evaluateEligibility`; thêm test cases cho cổng training `evaluateTrainingEligibility` kiểm tra việc lấy lock và chặn khi có kết luận `NOT_ELIGIBLE`; thêm test cho `createReviewRequest` và `getDossier`.
+- `nestjs-api/src/medical/doctor-assignment-reminder.service.spec.ts`: Viết unit tests cho `DoctorAssignmentReminder` bao phủ cả 2 chế độ NONE và DOCTOR.
 
 ## Đối chiếu tiêu chí nghiệm thu
 | Tiêu chí (theo ticket) | Đáp ứng ở đâu (file:dòng, test nào) |
 | --- | --- |
-| 1. Khi `medical_supervision = 'NONE'`, `evaluateEligibility({ scope: 'TRAINING', ... })` trả về `eligible: true, reasons: []` dù chưa có baseline, clearance, review request | `src/medical/medical.service.ts:138-146`, `src/medical/medical.service.spec.ts:327-341` |
-| 2. Khi `medical_supervision = 'NONE'`, võ sĩ có exam `NOT_ELIGIBLE` vẫn trả về `eligible: true` cho `TRAINING` | `src/medical/medical.service.ts:138-146`, `src/medical/medical.service.spec.ts:343-357` |
-| 3. Khi `medical_supervision = 'NONE'`, `evaluateTrainingEligibility` cho phép tập luyện ngay | `src/medical/medical.service.ts:596-605`, `src/medical/medical.service.spec.ts:1329-1345` |
-| 4. Khi `medical_supervision = 'NONE'`, `evaluateEligibility({ scope: 'COMPETITION', ... })` VẪN YÊU CẦU đầy đủ exam hợp lệ và clearance | `src/medical/medical.service.ts:138,147-196`, `src/medical/medical.service.spec.ts:359-373` |
-| 5. Khi `medical_supervision = 'DOCTOR'`, toàn bộ hành vi đánh giá y tế giữ nguyên 100% | `src/medical/medical.service.ts:138-196`, `src/medical/medical.service.spec.ts:250-325,1302-1327` (52 tests passed) |
-| 6. API dossier trả về field `supervision: 'NONE'` khi NONE, `'DOCTOR'` khi DOCTOR | `src/medical/medical.model.ts:587`, `src/medical/medical.service.ts:455,469-482`, `src/medical/medical.service.spec.ts:1399-1447` |
-| 7. Khi `medical_supervision = 'NONE'`, `POST /medical/:fighterId/review-requests` ném HTTP 409 `MEDICAL_SUPERVISION_DISABLED` | `src/medical/medical.error.ts:111-115`, `src/medical/medical.service.ts:627-630`, `src/medical/medical.service.spec.ts:1356-1374` |
-| 8. `DoctorAssignmentReminder`: khi NONE trả về `[{ status: 'skipped', reason: 'SUPERVISION_DISABLED' }]`, publisher không được gọi; khi DOCTOR nhắc việc như cũ | `src/shared/contracts/notification.contract.ts:88`, `src/medical/doctor-assignment-reminder.service.ts:42-45`, `src/medical/doctor-assignment-reminder.service.spec.ts:47-63,65-130` |
-| 9. `academy_settings` CRUD: GET trả về giá trị hiện tại; PATCH thiếu/sai validate 422; không có quyền bị 403; ADMIN cập nhật thành công và ghi audit log | `src/academy-settings/academy-settings.controller.ts:42-83`, `src/academy-settings/academy-settings.controller.spec.ts:38-121`, `src/academy-settings/academy-settings.service.spec.ts:44-67`, `scripts/test-migrations.mjs:625-656` |
+| 1. `NONE`, TRAINING, không baseline, không kết luận, không yêu cầu khám → `eligible: true`, `reasons: []`, `supervision: 'NONE'`. | `src/medical/medical.service.ts:139-147`, `src/medical/medical.service.spec.ts:335-350` ("1. NONE, TRAINING, không baseline, không kết luận, không yêu cầu khám -> eligible: true, reasons: [], supervision: NONE"), `src/medical/medical.service.spec.ts:1374-1394` |
+| 2. `NONE`, TRAINING, có yêu cầu khám đang mở, không kết luận → `eligible: true`. | `src/medical/medical.service.ts:139-147,154-156`, `src/medical/medical.service.spec.ts:352-367` ("2. NONE, TRAINING, có yêu cầu khám đang mở, không kết luận -> eligible: true") |
+| 3. `NONE`, TRAINING, kết luận `NOT_ELIGIBLE` → `eligible: false`, `reasons` chứa `EXAMINATION_NOT_ELIGIBLE`. | `src/medical/medical.service.ts:169-172,600-639`, `src/medical/medical.service.spec.ts:369-384` ("3. NONE, TRAINING, kết luận NOT_ELIGIBLE -> eligible: false, reasons chứa EXAMINATION_NOT_ELIGIBLE"), `src/medical/medical.service.spec.ts:1396-1419` ("blocks training when supervision is NONE but doctor recorded NOT_ELIGIBLE exam") |
+| 4. `NONE`, TRAINING, kết luận `ELIGIBLE` kèm clearance có `allowedSessionTypes = ['PAD_WORK']`, `sessionType = 'SPARRING'` → `SESSION_TYPE_RESTRICTED`. | `src/medical/medical.service.ts:201-208`, `src/medical/medical.service.spec.ts:386-407` ("4. NONE, TRAINING, kết luận ELIGIBLE kèm clearance có allowedSessionTypes = [PAD_WORK], sessionType = SPARRING -> SESSION_TYPE_RESTRICTED") |
+| 5. `NONE`, COMPETITION, không kết luận → giống hệt kết quả hiện tại (`CLEARANCE_REQUIRED`). | `src/medical/medical.service.ts:139,158-167`, `src/medical/medical.service.spec.ts:409-423` ("5. NONE, COMPETITION, không kết luận -> giống hệt kết quả hiện tại (CLEARANCE_REQUIRED)") |
+| 6. `DOCTOR`: mọi ca test hiện có của `evaluateEligibility` vẫn qua, kết quả có thêm `supervision: 'DOCTOR'`. | `src/medical/medical.service.ts:136-211`, `src/medical/medical.service.spec.ts:243-333` |
+| 7. `createReviewRequest` khi `NONE` → 409 `MEDICAL_SUPERVISION_DISABLED`, không ghi dữ liệu. | `src/medical/medical.service.ts:646-655`, `src/medical/medical.error.ts:111-115`, `src/medical/medical.service.spec.ts:1424-1441` ("rejects review request with 409 MEDICAL_SUPERVISION_DISABLED when supervision is NONE") |
+| 8. `remind` khi `NONE` → không gọi publisher, trả `skipped` / `SUPERVISION_DISABLED`. | `src/medical/doctor-assignment-reminder.service.ts:42-45`, `src/shared/contracts/notification.contract.ts:88`, `src/medical/doctor-assignment-reminder.service.spec.ts:47-63` ("skips reminder with SUPERVISION_DISABLED and avoids publishing when mode is NONE") |
+| 9. `PATCH /academy-settings` thiếu `changeReason` → 422; người gọi không phải Admin → 403; Admin hợp lệ → 200 và giá trị mới đọc lại được qua `GET`. | `src/academy-settings/academy-settings.controller.ts:42-83`, `src/academy-settings/academy-settings.model.ts:8-16`, `src/academy-settings/academy-settings.constants.ts:6-9`, `src/academy-settings/academy-settings.controller.spec.ts:38-121`, `src/academy-settings/academy-settings.service.spec.ts:44-67` |
+| 10. `test:db` có ca cho 023: áp được trên ledger version 20; áp lại lần hai bị từ chối; bảng có đúng một dòng `DOCTOR`; insert dòng thứ hai bị từ chối. | `migrations/023_academy_settings.sql`, `scripts/test-migrations.mjs:625-667`, chạy `test:db` ("PASS 023 applies on ledger 20, rejects second row, and records ledger 23") |
+| 11. `db:check` qua với checksum mới. | `migrations/manifest.json`, `run_sql.mjs`, `scripts/migration-files.mjs`, chạy `db:check` ("001-023 checksums OK. No database connection was opened.") |
 
 ## Lệnh đã chạy
 
 ### 1. `pnpm --filter nestjs-api lint`
 ```
 $ oxlint src/ test/
-src/notifications/notifications.config.spec.ts:1:1: warning unicorn(no-empty-file): Empty files are not allowed. help: Delete this file or add some code to it.
-src/notifications/notification-stream.service.ts:91:33: warning unicorn(no-useless-spread): Using a spread operator here creates a new array unnecessarily. help: `for…of` can iterate over iterable, it's unnecessary to convert to an array.
-src/notifications/notification-stream.service.ts:318:24: warning unicorn(no-useless-spread): Using a spread operator here creates a new array unnecessarily. help: `for…of` can iterate over iterable, it's unnecessary to convert to an array.
-src/notifications/notification-stream.service.ts:319:33: warning unicorn(no-useless-spread): Using a spread operator here creates a new array unnecessarily. help: `for…of` can iterate over iterable, it's unnecessary to convert to an array.
-src/notifications/notification-stream.service.ts:333:31: warning unicorn(no-useless-spread): Using a spread operator here creates a new array unnecessarily. help: `for…of` can iterate over iterable, it's unnecessary to convert to an array.
-src/notifications/notification-stream.service.spec.ts:1:1: warning unicorn(no-empty-file): Empty files are not allowed. help: Delete this file or add some code to it.
-src/notifications/notification-producer.service.spec.ts:1:1: warning unicorn(no-empty-file): Empty files are not allowed. help: Delete this file or add some code to it.
-src/medical/scat6.model.spec.ts:5:3: warning eslint(no-unused-vars): Identifier 'scat6ScoresSchema' is imported but never used. help: Consider removing this import.
 src/notifications/notification-distribution.service.spec.ts:7:3: warning eslint(no-unused-vars): Identifier 'NOTIFICATION_DISTRIBUTION_EVENT' is imported but never used. help: Consider removing this import.
 src/notifications/notification-distribution.service.spec.ts:74:9: warning eslint(no-unused-vars): Variable 'subscribedEmitted' is declared but never used. Unused variables should start with a '_'. help: Consider removing this declaration.
-src/coaching/coaching.service.ts:12:13: warning eslint(no-unused-vars): Identifier 'crypto' is imported but never used. help: Consider removing this import.
-src/coaching/coaching.service.ts:13:24: warning eslint(no-unused-vars): Type 'DrizzleDB' is imported but never used. help: Consider removing this import.
-src/coaching/coaching.service.ts:177:16: warning eslint(no-unused-vars): Catch parameter 'err' is caught but never used. help: Consider handling this error.
-src/coaching/coaching.service.ts:504:27: warning unicorn(no-useless-fallback-in-spread): Empty fallbacks in spreads are unnecessary help: Spreading falsy values in object literals won't add any unexpected properties, so it's unnecessary to add an empty object as fallback.
-src/coaching/coaching.service.ts:534:27: warning unicorn(no-useless-fallback-in-spread): Empty fallbacks in spreads are unnecessary help: Spreading falsy values in object literals won't add any unexpected properties, so it's unnecessary to add an empty object as fallback.
-src/coaching/coaching.service.ts:534:54: warning unicorn(no-useless-fallback-in-spread): Empty fallbacks in spreads are unnecessary help: Spreading falsy values in object literals won't add any unexpected properties, so it's unnecessary to add an empty object as fallback.
+src/dataset-export/services/governance-verifier.service.ts:45:10: warning eslint(no-useless-escape): Unnecessary escape character '-' help: Replace `\-` with `-`.
+src/dataset-export/services/governance-verifier.service.ts:46:10: warning eslint(no-useless-escape): Unnecessary escape character '-' help: Replace `\-` with `-`.
+src/app.module.ts:18:10: warning eslint(no-unused-vars): Identifier 'NotificationsModule' is imported but never used. help: Consider removing this import.
+src/coaching/result-receipt.spec.ts:22:5: warning unicorn(no-thenable): Do not add `then` to a class. help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+src/dataset-export/services/authoritative-governance.service.ts:6:3: warning eslint(no-unused-vars): Identifier 'ConflictException' is imported but never used. help: Consider removing this import.
+src/dataset-export/services/authoritative-governance.service.ts:10:81: warning eslint(no-unused-vars): Identifier 'coaches' is imported but never used. help: Consider removing this import.
+src/dataset-export/services/authoritative-governance.service.ts:11:14: warning eslint(no-unused-vars): Identifier 'and' is imported but never used. help: Consider removing this import.
+src/dataset-export/services/authoritative-governance.service.ts:86:10: warning eslint(no-useless-escape): Unnecessary escape character '-' help: Replace `\-` with `-`.
+src/dataset-export/services/authoritative-governance.service.ts:87:10: warning eslint(no-useless-escape): Unnecessary escape character '-' help: Replace `\-` with `-`.
 test/coaching-loop-persistence.spec.ts:13:3: warning eslint(no-unused-vars): Identifier 'trainingPlans' is imported but never used. help: Consider removing this import.
 test/coaching-loop-persistence.spec.ts:14:3: warning eslint(no-unused-vars): Identifier 'trainingSessions' is imported but never used. help: Consider removing this import.
 test/coaching-loop-persistence.spec.ts:15:3: warning eslint(no-unused-vars): Identifier 'videos' is imported but never used. help: Consider removing this import.
@@ -80,19 +78,24 @@ test/coaching-loop-persistence.spec.ts:21:3: warning eslint(no-unused-vars): Ide
 test/coaching-loop-persistence.spec.ts:22:3: warning eslint(no-unused-vars): Identifier 'actionFindingReviews' is imported but never used. help: Consider removing this import.
 test/coaching-loop-persistence.spec.ts:23:3: warning eslint(no-unused-vars): Identifier 'techniqueReferences' is imported but never used. help: Consider removing this import.
 test/coaching-loop-persistence.spec.ts:25:14: warning eslint(no-unused-vars): Identifier 'and' is imported but never used. help: Consider removing this import.
-src/dataset-export/dto/promotion-request.dto.ts:8:3: warning eslint(no-unused-vars): Identifier 'Matches' is imported but never used. help: Consider removing this import.
-src/notifications/notifications.service.spec.ts:1:1: warning unicorn(no-empty-file): Empty files are not allowed. help: Delete this file or add some code to it.
-src/dataset-export/services/authoritative-governance.service.ts:6:3: warning eslint(no-unused-vars): Identifier 'ConflictException' is imported but never used. help: Consider removing this import.
-src/dataset-export/services/authoritative-governance.service.ts:10:81: warning eslint(no-unused-vars): Identifier 'coaches' is imported but never used. help: Consider removing this import.
-src/dataset-export/services/authoritative-governance.service.ts:11:14: warning eslint(no-unused-vars): Identifier 'and' is imported but never used. help: Consider removing this import.
-src/dataset-export/services/authoritative-governance.service.ts:86:10: warning eslint(no-useless-escape): Unnecessary escape character '-' help: Replace `\-` with `-`.
-src/dataset-export/services/authoritative-governance.service.ts:87:10: warning eslint(no-useless-escape): Unnecessary escape character '-' help: Replace `\-` with `-`.
-src/coaching/result-receipt.spec.ts:22:5: warning unicorn(no-thenable): Do not add `then` to a class. help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
 src/coaching/movement-review.service.spec.ts:32:5: warning unicorn(no-thenable): Do not add `then` to a class. help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+src/coaching/coaching.service.ts:12:13: warning eslint(no-unused-vars): Identifier 'crypto' is imported but never used. help: Consider removing this import.
+src/coaching/coaching.service.ts:13:24: warning eslint(no-unused-vars): Type 'DrizzleDB' is imported but never used. help: Consider removing this import.
+src/coaching/coaching.service.ts:177:16: warning eslint(no-unused-vars): Catch parameter 'err' is caught but never used. help: Consider handling this error.
+src/coaching/coaching.service.ts:504:27: warning unicorn(no-useless-fallback-in-spread): Empty fallbacks in spreads are unnecessary help: Spreading falsy values in object literals won't add any unexpected properties, so it's unnecessary to add an empty object as fallback.
+src/coaching/coaching.service.ts:534:27: warning unicorn(no-useless-fallback-in-spread): Empty fallbacks in spreads are unnecessary help: Spreading falsy values in object literals won't add any unexpected properties, so it's unnecessary to add an empty object as fallback.
+src/coaching/coaching.service.ts:534:54: warning unicorn(no-useless-fallback-in-spread): Empty fallbacks in spreads are unnecessary help: Spreading falsy values in object literals won't add any unexpected properties, so it's unnecessary to add an empty object as fallback.
+src/notifications/notification-stream.service.ts:91:33: warning unicorn(no-useless-spread): Using a spread operator here creates a new array unnecessarily. help: `for…of` can iterate over iterable, it's unnecessary to convert to an array.
+src/notifications/notification-stream.service.ts:318:24: warning unicorn(no-useless-spread): Using a spread operator here creates a new array unnecessarily. help: `for…of` can iterate over iterable, it's unnecessary to convert to an array.
+src/notifications/notification-stream.service.ts:319:33: warning unicorn(no-useless-spread): Using a spread operator here creates a new array unnecessarily. help: `for…of` can iterate over iterable, it's unnecessary to convert to an array.
+src/notifications/notification-stream.service.ts:333:31: warning unicorn(no-useless-spread): Using a spread operator here creates a new array unnecessarily. help: `for…of` can iterate over iterable, it's unnecessary to convert to an array.
+src/notifications/notification-stream.service.spec.ts:1:1: warning unicorn(no-empty-file): Empty files are not allowed. help: Delete this file or add some code to it.
+src/notifications/notification-producer.service.spec.ts:1:1: warning unicorn(no-empty-file): Empty files are not allowed. help: Delete this file or add some code to it.
+src/notifications/notifications.config.spec.ts:1:1: warning unicorn(no-empty-file): Empty files are not allowed. help: Delete this file or add some code to it.
+src/medical/scat6.model.spec.ts:5:3: warning eslint(no-unused-vars): Identifier 'scat6ScoresSchema' is imported but never used. help: Consider removing this import.
 src/main.ts:7:10: warning eslint(no-unused-vars): Identifier 'createOpenApiDocument' is imported but never used. help: Consider removing this import.
-src/app.module.ts:18:10: warning eslint(no-unused-vars): Identifier 'NotificationsModule' is imported but never used. help: Consider removing this import.
-src/dataset-export/services/governance-verifier.service.ts:45:10: warning eslint(no-useless-escape): Unnecessary escape character '-' help: Replace `\-` with `-`.
-src/dataset-export/services/governance-verifier.service.ts:46:10: warning eslint(no-useless-escape): Unnecessary escape character '-' help: Replace `\-` with `-`.
+src/notifications/notifications.service.spec.ts:1:1: warning unicorn(no-empty-file): Empty files are not allowed. help: Delete this file or add some code to it.
+src/dataset-export/dto/promotion-request.dto.ts:8:3: warning eslint(no-unused-vars): Identifier 'Matches' is imported but never used. help: Consider removing this import.
 src/dataset-export/dto/candidate-export.dto.ts:15:29: warning eslint(no-useless-escape): Unnecessary escape character '-' help: Replace `\-` with `-`.
 ```
 
@@ -104,16 +107,16 @@ $ nest build
 ### 3. `pnpm --filter nestjs-api test`
 ```
  Test Files  6 failed | 43 passed (49)
-      Tests  26 failed | 638 passed (664)
-   Start at  11:14:42
-   Duration  23.21s (transform 10.36s, setup 0ms, import 160.81s, tests 9.82s, environment 14ms)
+      Tests  26 failed | 641 passed (667)
+   Start at  15:03:41
+   Duration  14.30s (transform 6.41s, setup 0ms, import 102.96s, tests 5.53s, environment 11ms)
 
 [ELIFECYCLE] Test failed. See above for more details.
 Error: ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL
 
   × "pnpm recursive run" failed in D:\test\ai-worktrees\T-002\nestjs-api
 ```
-*(Ghi chú: 26 ca fail nằm trong 2 file integration test `test/coaching-loop-persistence.spec.ts` và `test/dataset-export-trust-boundary.spec.ts` do thiếu cấu hình `SUPABASE_URL` / `SUPABASE_SERVICE_KEY`, cùng 4 file 0-byte trong `src/notifications/`. Toàn bộ 638 unit tests trong `src/` liên quan đến `medical` và `academy-settings` đều PASS 100%).*
+*(Ghi chú: 26 ca fail nằm trong 2 file `test/coaching-loop-persistence.spec.ts` và `test/dataset-export-trust-boundary.spec.ts` do thiếu cấu hình `SUPABASE_URL` / `SUPABASE_SERVICE_KEY`, cùng 4 file 0-byte trong `src/notifications/`, đúng như đã liệt kê trong `BASELINE.md`. Không phát sinh lỗi mới).*
 
 ### 4. `pnpm --filter nestjs-api test:db`
 ```
@@ -121,7 +124,7 @@ PASS 012 rejects a concurrently committed clearance and rolls back DDL/ledger
 PASS 012 proceeds after a concurrent issuer rolls back; no orphan revision
 PASS 012 orders identical created_at values by server issuance sequence
 PASS 012 rejects reapplication without changing the applied ledger
-Migration checks passed: 39. PostgreSQL stopped after tests. Scratch: C:\Users\DAN\AppData\Local\Temp\mma-migrations-rqWzIw
+Migration checks passed: 39. PostgreSQL stopped after tests. Scratch: C:\Users\DAN\AppData\Local\Temp\mma-migrations-OoRzOP
 ```
 
 ### 5. `pnpm --filter nestjs-api db:check`
@@ -131,9 +134,9 @@ $ node run_sql.mjs --check
 ```
 
 ## Lệch so với ticket
-- **Trigger audit trên bảng `academy_settings`**: Trigger chung `mma_private.audit_domain_mutation()` được viết trong migration 003 giả định cột `id` luôn có kiểu `UUID` (`row_id UUID; row_id = NEW.id;`). Do `academy_settings` dùng `id boolean PRIMARY KEY DEFAULT true CHECK (id)`, việc gán `NEW.id` vào `row_id UUID` gây lỗi Postgres `invalid input syntax for type uuid: "t"`. Theo đúng hướng dẫn của ticket (*"Gắn trigger `mma_private.audit_domain_mutation()` nếu schema dùng audit trigger chung, hoặc ghi nhận audit qua cơ chế tương đương của hệ thống"*), migration 023 tạo hàm trigger `mma_private.audit_academy_settings_mutation()` ghi nhận mutation vào `public.audit_logs` với `resource_id = NULL` và lưu `change_reason` vào JSON `details`.
-- **Sửa lỗi pre-existing trong `scripts/test-migrations.mjs`**: Nhánh `fight-camp` tồn tại lỗi cú pháp dư dấu `});` tại dòng 624 và kiểm tra cũ không còn khớp với migration 018 (migration 018 đã đổi từ abort sang backfill khi bảng có data). Đã sửa cả hai để `pnpm --filter nestjs-api test:db` chạy thành công toàn bộ 39 bài test.
+- **Hàm audit riêng `mma_private.audit_academy_settings_mutation()`**: Hàm trigger chung `mma_private.audit_domain_mutation()` (tạo từ migration 003) khai báo biến `row_id UUID;` và gán `row_id = NEW.id;`. Bảng `academy_settings` là bảng singleton có khóa chính `id boolean PRIMARY KEY DEFAULT true CHECK (id)`. Nếu gắn trigger `mma_private.audit_domain_mutation()`, PostgreSQL sẽ báo lỗi kiểu dữ liệu `invalid input syntax for type uuid: "t"`. Do đó, migration 023 tạo hàm trigger riêng `mma_private.audit_academy_settings_mutation()` để ghi nhận mutation vào `public.audit_logs` với `resource_id = NULL`, đồng thời ghi đủ thông tin actor, `request_id` và `change_reason` vào cột `details`.
+- **Sửa ca test của migration 018 trong `scripts/test-migrations.mjs`**: Ca test của migration 018 trong `scripts/test-migrations.mjs` có từ trước trên nhánh `fight-camp` kỳ vọng migration 018 sẽ bị huỷ (abort) khi bảng đã có dữ liệu. Tuy nhiên, theo `migrations/README.md`, migration 018 đã được cập nhật sang cơ chế backfill (`live_plan -> base`, `soft-deleted plan -> base`). Đồng thời tại dòng 624 có lỗi cú pháp dư dấu `});`. Cần cập nhật ca test 018 phù hợp với hành vi backfill và xóa dấu `});` dư để lệnh `test:db` có thể thực thi và kiểm tra được migration 023.
 
 ## Câu hỏi / việc còn mở
-- **Frontend compatibility**: Đã đối chiếu `nextjs-frontend/src/lib/services/medical.api.ts` (dòng 191-196). Schema Zod `eligibilitySchema` ở frontend là permissive object, do đó việc backend bổ sung trường `supervision: 'DOCTOR' | 'NONE'` không gây lỗi validation ở frontend.
-- **Pre-existing test failures**: 26 integration tests trong thư mục `test/` (yêu cầu kết nối Supabase) và 4 file spec rỗng trong `src/notifications/` cần task bảo trì riêng ngoài phạm vi ticket T-002.
+- **Frontend compatibility**: Đã xác nhận `nextjs-frontend/src/lib/services/medical.api.ts` (dòng 191-196) sử dụng `z.object` cho eligibility (permissive object), nên việc backend bổ sung trường `supervision: 'DOCTOR' | 'NONE'` không làm vỡ parse ở frontend.
+- **Pre-existing test failures**: 26 test lỗi trong `test/coaching-loop-persistence.spec.ts` và `test/dataset-export-trust-boundary.spec.ts` (thiếu cấu hình `SUPABASE_URL` / `SUPABASE_SERVICE_KEY`) là lỗi có sẵn từ trước đã ghi nhận trong `BASELINE.md`.
