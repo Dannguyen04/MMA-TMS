@@ -166,7 +166,7 @@ deployed.
 - **Endpoints:** `GET /notifications`, `GET /notifications/unread-count`,
   `PATCH /notifications/:id/read`, `GET /notifications/stream` (SSE, Bearer
   header, no JSON envelope). All are self-scoped; there is no send endpoint.
-  Frontend contract: `docs/FE-FIGHTER-COACH-FLOWS.md` §12.
+  Frontend contract: `docs/archive/FE-FIGHTER-COACH-FLOWS.md` §12.
 - **Adding a trigger:** import `NotificationsModule`, inject
   `NOTIFICATION_PUBLISHER`, call it after the transaction commits with a stable
   `dedupeKey` taken from the mutation (row ID or written revision), and put the

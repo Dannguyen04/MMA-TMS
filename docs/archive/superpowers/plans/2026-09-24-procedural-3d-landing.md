@@ -8,7 +8,7 @@
 
 **Tech Stack:** Next.js 16 App Router, React 19, TypeScript, Tailwind CSS 4, Three.js, React Three Fiber, Drei, Vitest, Playwright
 
-**Spec:** `docs/superpowers/specs/2026-09-24-procedural-3d-landing-design.md`
+**Spec:** `docs/archive/superpowers/specs/2026-09-24-procedural-3d-landing-design.md`
 
 ## Global Constraints
 

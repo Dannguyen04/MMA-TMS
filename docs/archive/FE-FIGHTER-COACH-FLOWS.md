@@ -28,7 +28,7 @@
 
 Hai cấp `data` ở collection là kết quả hiện tại của service pagination cộng global envelope; FE cần adapter theo endpoint. Pagination thông thường: `page=1`, `limit=20`, tối đa `100`. Query/body strict sẽ từ chối field ngoài schema; gửi PATCH chỉ với các field cần sửa, không gửi nguyên response object.
 
-Nguồn: [bootstrap](../nestjs-api/src/main.ts), [Auth contracts](../nestjs-api/src/auth/auth.model.ts), [Users controller](../nestjs-api/src/users/users.controller.ts), [profile projection](../nestjs-api/src/users/users.repo.ts), [envelope](../nestjs-api/src/shared/interceptors/api-response.interceptor.ts), [guard](../nestjs-api/src/shared/guards/auth.guard.ts), [008](../nestjs-api/migrations/008_grant_training_read_permissions_to_fighter.sql), [010](../nestjs-api/migrations/010_grant_coach_permissions.sql), [011](../nestjs-api/migrations/011_medical_clinical_records.sql).
+Nguồn: [bootstrap](../../nestjs-api/src/main.ts), [Auth contracts](../../nestjs-api/src/auth/auth.model.ts), [Users controller](../../nestjs-api/src/users/users.controller.ts), [profile projection](../../nestjs-api/src/users/users.repo.ts), [envelope](../../nestjs-api/src/shared/interceptors/api-response.interceptor.ts), [guard](../../nestjs-api/src/shared/guards/auth.guard.ts), [008](../../nestjs-api/migrations/008_grant_training_read_permissions_to_fighter.sql), [010](../../nestjs-api/migrations/010_grant_coach_permissions.sql), [011](../../nestjs-api/migrations/011_medical_clinical_records.sql).
 
 ## 2. Bản đồ các flow
 
@@ -61,7 +61,7 @@ Luồng Medical bổ sung ở §11: Fighter mở hồ sơ sức khỏe của mì
 5. Quên mật khẩu: `POST /auth/forgot-password` với `{ email }`. Luôn hiện thông báo chung theo response, không kết luận tài khoản tồn tại hoặc email đã giao thành công.
 6. Từ recovery link, đọc `token_hash`, gửi `POST /auth/reset-password` với `{ tokenHash, newPassword }`. Response là `{ passwordUpdated, admissionActivationReady }`, **không có session token mới**. Nếu cần activation thì bảo đảm có bearer hợp lệ; có thể đăng nhập lại bằng mật khẩu mới.
 
-Nguồn: [Auth controller](../nestjs-api/src/auth/auth.controller.ts), [Auth service](../nestjs-api/src/auth/auth.service.ts).
+Nguồn: [Auth controller](../../nestjs-api/src/auth/auth.controller.ts), [Auth service](../../nestjs-api/src/auth/auth.service.ts).
 
 ## 4. Flow trở thành Fighter và xem lịch sử gia nhập
 
@@ -79,7 +79,7 @@ Một tài khoản chỉ có một application đang mở; `FAILED`/`REJECTED` c
 
 Activation tạo Fighter profile nhưng source của `activate()` không tự tạo `coach_fighters`; không coi Coach đánh giá đầu vào là Coach phụ trách luyện tập sau activation.
 
-Nguồn: [admission controller](../nestjs-api/src/fighter-admissions/fighter-admissions.controller.ts), [service](../nestjs-api/src/fighter-admissions/fighter-admissions.service.ts), [schema](../nestjs-api/src/fighter-admissions/fighter-admissions.model.ts), [statuses](../nestjs-api/src/fighter-admissions/fighter-admissions.constants.ts).
+Nguồn: [admission controller](../../nestjs-api/src/fighter-admissions/fighter-admissions.controller.ts), [service](../../nestjs-api/src/fighter-admissions/fighter-admissions.service.ts), [schema](../../nestjs-api/src/fighter-admissions/fighter-admissions.model.ts), [statuses](../../nestjs-api/src/fighter-admissions/fighter-admissions.constants.ts).
 
 ## 5. Fighter — xem hồ sơ và lịch luyện tập
 
@@ -100,7 +100,7 @@ Luồng cơ bản: `/users/me` → lịch tập → chi tiết session → kế 
 
 `GET /fighters/:id`, `/fighters/:id/coaches`, `/fighters/:id/sessions` và `PATCH /fighters/:id` cần permission `fighter:*` tương ứng. Migrations đang đọc không cấp baseline những quyền này cho FIGHTER; FE không nên phụ thuộc chúng để mở màn hình cá nhân mặc định. Việc self-scope trong service không tự cấp quyền qua guard.
 
-Nguồn: [Training access](../nestjs-api/src/training/training-access.service.ts), [plan service](../nestjs-api/src/training/plans/training-plan.service.ts), [session service](../nestjs-api/src/training/sessions/training-session.service.ts), [Training contracts](../nestjs-api/src/training/training.model.ts), [Fighters controller](../nestjs-api/src/fighters/fighters.controller.ts).
+Nguồn: [Training access](../../nestjs-api/src/training/training-access.service.ts), [plan service](../../nestjs-api/src/training/plans/training-plan.service.ts), [session service](../../nestjs-api/src/training/sessions/training-session.service.ts), [Training contracts](../../nestjs-api/src/training/training.model.ts), [Fighters controller](../../nestjs-api/src/fighters/fighters.controller.ts).
 
 ## 6. Coach — roster và Fighter đang phụ trách
 
@@ -118,7 +118,7 @@ Scope được kiểm tra bằng assignment hiệu lực: `startsAt <= now` và 
 
 **Điểm dễ bỏ sót:** `GET /training-plans?fighterId=...` và `GET /training-sessions?fighterId=...` khi gọi bởi Coach còn tự lọc `coachId` về Coach hiện tại. Vì vậy list chỉ chứa record mang Coach ID đó, không phải toàn bộ record do các Coach khác tạo cho cùng Fighter. Muốn xem lịch sử buổi tập tổng quát của Fighter được assign, dùng `/fighters/:id/sessions`. Session tạo thiếu `coachId` sẽ lưu null và không xuất hiện trong danh sách session của Coach này.
 
-Nguồn: [Coaches service](../nestjs-api/src/coaches/coaches.service.ts), [roster schema](../nestjs-api/src/coaches/coaches.model.ts), [Fighters service](../nestjs-api/src/fighters/fighters.service.ts), [projection](../nestjs-api/src/fighters/fighters.model.ts), [Training list queries](../nestjs-api/src/training/training.repo.ts).
+Nguồn: [Coaches service](../../nestjs-api/src/coaches/coaches.service.ts), [roster schema](../../nestjs-api/src/coaches/coaches.model.ts), [Fighters service](../../nestjs-api/src/fighters/fighters.service.ts), [projection](../../nestjs-api/src/fighters/fighters.model.ts), [Training list queries](../../nestjs-api/src/training/training.repo.ts).
 
 ## 7. Coach — lập kế hoạch và cấu hình bài tập
 
@@ -136,7 +136,7 @@ Plan mới mặc định `DRAFT`. Code hiện chỉ cấm `COMPLETED → DRAFT` 
 
 Tạo plan và gắn bài **không tự tạo session**. Tạo session trong flow tiếp theo. Tiến độ plan tính từ số session `COMPLETED` / tổng session gắn plan, làm tròn phần trăm; không có session thì bằng 0. Sửa milestones không tự hoàn tất plan.
 
-Nguồn: [plan controller](../nestjs-api/src/training/plans/training-plan.controller.ts), [plan service](../nestjs-api/src/training/plans/training-plan.service.ts), [Training schemas](../nestjs-api/src/training/training.model.ts), [repository](../nestjs-api/src/training/training.repo.ts), [transition rules](../nestjs-api/src/training/training.constants.ts).
+Nguồn: [plan controller](../../nestjs-api/src/training/plans/training-plan.controller.ts), [plan service](../../nestjs-api/src/training/plans/training-plan.service.ts), [Training schemas](../../nestjs-api/src/training/training.model.ts), [repository](../../nestjs-api/src/training/training.repo.ts), [transition rules](../../nestjs-api/src/training/training.constants.ts).
 
 ## 8. Coach — tạo và điều hành buổi tập
 
@@ -163,7 +163,7 @@ flowchart LR
 
 Các `sessionType` được chấp nhận: `SHADOW_BOXING`, `PAD_WORK`, `HEAVY_BAG`, `SPARRING`, `GRAPPLING`, `STRENGTH_CONDITIONING`, `RECOVERY`, `PHYSICAL_THERAPY`. Giới hạn trong clearance có thể chỉ cho phép một phần danh sách này.
 
-Nguồn: [session controller](../nestjs-api/src/training/sessions/training-session.controller.ts), [session service](../nestjs-api/src/training/sessions/training-session.service.ts), [status map](../nestjs-api/src/training/training.constants.ts), [request schemas](../nestjs-api/src/training/training.model.ts).
+Nguồn: [session controller](../../nestjs-api/src/training/sessions/training-session.controller.ts), [session service](../../nestjs-api/src/training/sessions/training-session.service.ts), [status map](../../nestjs-api/src/training/training.constants.ts), [request schemas](../../nestjs-api/src/training/training.model.ts).
 
 ## 9. Coach — đánh giá đầu vào thủ công
 
@@ -180,7 +180,7 @@ List/detail chỉ dành cho hồ sơ có **assignment đánh giá đang mở** c
 
 Payload assessment: `{ conclusion: "PASS" | "FAIL", summary, criteria }`, với 1–30 criteria. Mỗi criterion cần `criterionName`, `method`, `observation`; `value`, `unit`, `note` là tuỳ chọn. API trả 201 với staff view mới. Gửi đánh giá chỉ hợp lệ khi application còn `SUBMITTED` và Coach vẫn được giao; assessment đã nộp không có API sửa/xoá. PASS không tự kích hoạt Fighter.
 
-Nguồn: [admission controller](../nestjs-api/src/fighter-admissions/fighter-admissions.controller.ts), [submitAssessment](../nestjs-api/src/fighter-admissions/fighter-admissions.service.ts), [assessment schema](../nestjs-api/src/fighter-admissions/fighter-admissions.model.ts).
+Nguồn: [admission controller](../../nestjs-api/src/fighter-admissions/fighter-admissions.controller.ts), [submitAssessment](../../nestjs-api/src/fighter-admissions/fighter-admissions.service.ts), [assessment schema](../../nestjs-api/src/fighter-admissions/fighter-admissions.model.ts).
 
 ## 10. Quyền, lỗi và các giới hạn FE cần xử lý
 
@@ -216,7 +216,7 @@ Baseline không phải danh sách quyền của mọi tài khoản thật. Overr
 
 Các flow trên có code backend và module registration; không đồng nghĩa mọi màn hình, seed dữ liệu hay quyền trên server đã sẵn sàng. Source chưa cung cấp flow thông báo realtime cho các thao tác này; hướng tích hợp đơn giản là refetch sau mutation và khi quay lại view. Những đề xuất xử lý state/refetch trong tài liệu là hướng dẫn FE, không phải hành vi tự động của backend.
 
-Phần Medical dành cho Fighter/Coach được mô tả ở §11; AI và các màn hình vận hành Admin/Doctor nằm ngoài phạm vi. Các source chính để đối chiếu khi backend thay đổi: [AppModule](../nestjs-api/src/app.module.ts), [Auth](../nestjs-api/src/auth/auth.controller.ts), [Fighters](../nestjs-api/src/fighters/fighters.controller.ts), [Coaches](../nestjs-api/src/coaches/coaches.controller.ts), [Training model](../nestjs-api/src/training/training.model.ts), [Admissions](../nestjs-api/src/fighter-admissions/fighter-admissions.controller.ts).
+Phần Medical dành cho Fighter/Coach được mô tả ở §11; AI và các màn hình vận hành Admin/Doctor nằm ngoài phạm vi. Các source chính để đối chiếu khi backend thay đổi: [AppModule](../../nestjs-api/src/app.module.ts), [Auth](../../nestjs-api/src/auth/auth.controller.ts), [Fighters](../../nestjs-api/src/fighters/fighters.controller.ts), [Coaches](../../nestjs-api/src/coaches/coaches.controller.ts), [Training model](../../nestjs-api/src/training/training.model.ts), [Admissions](../../nestjs-api/src/fighter-admissions/fighter-admissions.controller.ts).
 
 ## 11. Medical — xem hồ sơ, yêu cầu khám và điều kiện được tập
 
@@ -331,7 +331,7 @@ Khi lỗi 409 có `error.code = TRAINING_MEDICAL_ELIGIBILITY_REQUIRED`, đọc `
 
 Giữ trạng thái session theo server khi mutation bị từ chối, không optimistic chuyển sang `IN_PROGRESS`; refetch session, dossier và yêu cầu khám để hiện thông tin mới. Tạo yêu cầu khám hay thu hồi giấy không tự đổi một session đang chạy thành `ABANDONED`: code hiện chặn tại các thao tác nêu trên, không tự dừng session hoặc phát sự kiện realtime. `allowedTechniqueTypes`, `excludedJoints` và ghi chú cần được Coach đọc khi chọn bài; gate Training hiện kiểm tra `sessionType`, không tự kiểm từng bài tập/kỹ thuật/khớp.
 
-Nguồn đối chiếu: [Medical routes](../nestjs-api/src/medical/medical.controller.ts), [assignment routes](../nestjs-api/src/medical/medical-assignment.controller.ts), [input/output schemas](../nestjs-api/src/medical/medical.model.ts), [scope và audit](../nestjs-api/src/medical/medical-access.service.ts), [business logic và eligibility](../nestjs-api/src/medical/medical.service.ts), [history và clearance queries](../nestjs-api/src/medical/medical.repo.ts), [reason codes](../nestjs-api/src/medical/medical.constants.ts), [Training gate](../nestjs-api/src/training/sessions/training-session.service.ts), [migration 011](../nestjs-api/migrations/011_medical_clinical_records.sql), [migration 012](../nestjs-api/migrations/012_medical_clearance_issue_order.sql).
+Nguồn đối chiếu: [Medical routes](../../nestjs-api/src/medical/medical.controller.ts), [assignment routes](../../nestjs-api/src/medical/medical-assignment.controller.ts), [input/output schemas](../../nestjs-api/src/medical/medical.model.ts), [scope và audit](../../nestjs-api/src/medical/medical-access.service.ts), [business logic và eligibility](../../nestjs-api/src/medical/medical.service.ts), [history và clearance queries](../../nestjs-api/src/medical/medical.repo.ts), [reason codes](../../nestjs-api/src/medical/medical.constants.ts), [Training gate](../../nestjs-api/src/training/sessions/training-session.service.ts), [migration 011](../../nestjs-api/migrations/011_medical_clinical_records.sql), [migration 012](../../nestjs-api/migrations/012_medical_clearance_issue_order.sql).
 
 ## 12. Thông báo — hộp thông báo và realtime (SSE)
 
@@ -376,4 +376,4 @@ Quy tắc đồng bộ:
 4. `TOKEN_EXPIRED`/401: refresh token bằng luồng auth hiện có rồi mở lại; `AUTH_REVOKED` lặp lại hoặc 401 sau refresh thì dừng retry và về đăng nhập. Logout phải abort stream. Không retry vô hạn lỗi auth.
 5. Proxy/CDN phải không buffer và không cắt kết nối idle ngắn hơn chu kỳ heartbeat (mặc định 25 giây); server gửi `X-Accel-Buffering: no` và `Cache-Control: no-cache, no-transform`.
 
-Nguồn: [controller](../nestjs-api/src/notifications/notifications.controller.ts), [stream](../nestjs-api/src/notifications/notification-stream.service.ts), [constants](../nestjs-api/src/notifications/notifications.constant.ts), [errors](../nestjs-api/src/notifications/notifications.error.ts), [contract](../nestjs-api/src/shared/contracts/notification.contract.ts), [migration 014](../nestjs-api/migrations/014_notifications_delivery.sql).
+Nguồn: [controller](../../nestjs-api/src/notifications/notifications.controller.ts), [stream](../../nestjs-api/src/notifications/notification-stream.service.ts), [constants](../../nestjs-api/src/notifications/notifications.constant.ts), [errors](../../nestjs-api/src/notifications/notifications.error.ts), [contract](../../nestjs-api/src/shared/contracts/notification.contract.ts), [migration 014](../nestjs-api/migrations/014_notifications_delivery.sql).
