@@ -36,8 +36,8 @@
 | Q20 | Lưu giấy xét nghiệm và dữ liệu sức khỏe | Dữ liệu | — | | **Xong**: không lưu giấy tờ y tế thật; dữ liệu giả hoặc có đồng ý (Phạm vi, quyết định 9) |
 | Q21 | Đồng ý của phụ huynh | Dữ liệu | — | | **Không cần**: chỉ nhận người kiểm thử từ 18 tuổi |
 | Q22 | Hồ sơ đánh giá tác động và nơi lưu dữ liệu | Dữ liệu | — | | **Hoãn**: chỉ cần nếu đưa ra sử dụng thật sau đồ án; nên trình bày trong báo cáo |
-| Q23 | Hạn nộp và bảo vệ đồ án | Đồ án | 16/10 | | **Một phần**: kết thúc 31/10, 2 buổi review; còn thiếu ngày của 2 buổi review |
-| Q24 | Yêu cầu của trường và giảng viên hướng dẫn | Đồ án | 16/10 | | **Một phần (14/10)**: giảng viên duyệt phạm vi "Quản lý võ sĩ trước – trong – sau trận"; còn thiếu yêu cầu về báo cáo, kiểm thử, test, phần AI |
+| Q23 | Hạn nộp và bảo vệ đồ án | Đồ án | 16/10 | | **Một phần (14/10)**: kết thúc 31/10, 2 buổi review vẫn ở phía trước (buổi gặp giảng viên trước 14/10 là buổi duyệt phạm vi, không phải review 1); còn thiếu ngày của 2 buổi review |
+| Q24 | Yêu cầu của trường và giảng viên hướng dẫn | Đồ án | 16/10 | | **Một phần (14/10)**: giảng viên duyệt phạm vi "Quản lý võ sĩ trước – trong – sau trận"; phần AI đã làm được tính vào đồ án; còn thiếu yêu cầu về chương báo cáo, kiểm thử người dùng, độ phủ test |
 | Q25 | Nguồn người kiểm thử | Đồ án | 20/10 | | Chưa: buổi kiểm thử 27–29/10 |
 
 Hạn "23/10" để kịp seed bộ luật giải trong migration 024. "PR 4", "PR 6" theo [Tech spec §11](./FIGHT-CAMP-TECH-SPEC.md#11-thứ-tự-pr).
@@ -351,6 +351,7 @@ Nhóm câu hỏi này thêm ngày 13/10, sau khi xác định MMA-TMS là đồ 
 | Kết thúc đồ án | 31/10/2026 |
 | Review 1 với giảng viên | |
 | Review 2 với giảng viên | |
+| Buổi duyệt phạm vi với giảng viên | Trước 14/10/2026 (không phải review 1) |
 | Mốc khác | |
 
 ### Q24 · Yêu cầu của trường và giảng viên hướng dẫn
@@ -359,7 +360,7 @@ Nhóm câu hỏi này thêm ngày 13/10, sau khi xác định MMA-TMS là đồ 
 - **Vì sao quan trọng:** quyết định mức đầu tư cho kiểm thử người dùng và cách trình bày phần AI đang đóng băng.
 - **Hỏi ai:** giảng viên hướng dẫn; mẫu báo cáo của khoa.
 
-> **Trả lời:** (một phần) Giảng viên đã duyệt phạm vi "Quản lý võ sĩ trước – trong – sau trận", giữ nguyên nội dung bản 13/10. Các ý còn lại (chương báo cáo, số người kiểm thử, độ phủ test, phần AI) chưa có câu trả lời.
+> **Trả lời:** (một phần) Giảng viên đã duyệt phạm vi "Quản lý võ sĩ trước – trong – sau trận", giữ nguyên nội dung bản 13/10. Phần AI đã làm **được tính** vào đồ án (Phạm vi, quyết định 16). Các ý còn lại (chương báo cáo, số người kiểm thử, độ phủ test) chưa có câu trả lời.
 >
 > **Nguồn / ngày:** buổi review với giảng viên; chủ dự án báo lại ngày 14/10/2026.
 
