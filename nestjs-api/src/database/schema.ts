@@ -4346,3 +4346,22 @@ export type InsertTechniqueReference = typeof techniqueReferences.$inferInsert;
 
 export type ProgressSnapshot = typeof progressSnapshots.$inferSelect;
 export type InsertProgressSnapshot = typeof progressSnapshots.$inferInsert;
+
+export const medicalSupervisionEnum = pgEnum('medical_supervision', [
+  'DOCTOR',
+  'NONE',
+]);
+export type MedicalSupervision = 'DOCTOR' | 'NONE';
+
+export const academySettings = pgTable('academy_settings', {
+  id: boolean('id').primaryKey().default(true),
+  medicalSupervision: medicalSupervisionEnum('medical_supervision').notNull().default('DOCTOR'),
+  changeReason: text('change_reason'),
+  updatedById: uuid('updated_by_id').references(() => users.id),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (_t) => [
+  check('academy_settings_id_check', sql.raw('id')),
+]).enableRLS();
+
+export type AcademySettings = typeof academySettings.$inferSelect;
+export type InsertAcademySettings = typeof academySettings.$inferInsert;

@@ -28,6 +28,7 @@ export const migrationNames = [
   '018_training_plan_phase.sql',
   '019_ai_delivery_receipts.sql',
   '020_movement_evidence_reviews.sql',
+  '023_academy_settings.sql',
 ];
 export function readVerifiedMigrations() {
   const manifest = JSON.parse(

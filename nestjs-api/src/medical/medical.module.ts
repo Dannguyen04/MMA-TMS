@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AuthorizationModule } from '../authorization/authorization.module.js';
 import { DatabaseModule } from '../database/database.module.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
+import { AcademySettingsModule } from '../academy-settings/academy-settings.module.js';
 import { DoctorAssignmentReminder } from './doctor-assignment-reminder.service.js';
 import { MedicalAccessService } from './medical-access.service.js';
 import { MedicalAssignmentController } from './medical-assignment.controller.js';
@@ -14,7 +15,12 @@ import { MedicalService } from './medical.service.js';
 // Authorization import only infrastructure, so the Doctor-assignment reminder
 // adds no cycle; Admissions and Users use it after creating a Fighter.
 @Module({
-  imports: [DatabaseModule, NotificationsModule, AuthorizationModule],
+  imports: [
+    DatabaseModule,
+    NotificationsModule,
+    AuthorizationModule,
+    AcademySettingsModule,
+  ],
   controllers: [MedicalController, MedicalAssignmentController],
   providers: [
     MedicalRepository,
