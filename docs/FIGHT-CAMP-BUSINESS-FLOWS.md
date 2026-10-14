@@ -428,7 +428,7 @@ Tiêu chí nghiệm thu:
 - Trả lời hai lần trong cùng một ngày học viện thì chỉ còn câu trả lời mới nhất.
 - Trận ở `FIGHT_WEEK` thì trang của võ sĩ hiện kế hoạch "Tuần thi đấu".
 - Không màn hình nào hiện số calo, lượng nước hay thời gian xông hơi do app tự tính.
-- Khi kiểm thử, trung vị thời gian ghi cân kèm trả lời câu hỏi vẫn ≤ 30 giây.
+- Ghi cân kèm trả lời câu hỏi vẫn xong trong khoảng 30 giây trên điện thoại (team tự bấm giờ khi tổng duyệt demo).
 
 Ước lượng thô: 1–1,5 ngày (migration và API, cộng phần thêm vào màn ghi cân T-005 và trang trận T-004).
 
@@ -475,8 +475,8 @@ Tiêu chí nghiệm thu:
 ### Lịch làm và thứ tự cắt khi trễ
 
 - Cả hai làm trong Sprint 2, song song với T-006 và T-007 (mỗi ticket một nhánh, một worktree). Phần backend bắt đầu được ngay khi T-003 đã merge; phần frontend cần T-004 (trang chi tiết trận) và T-005 (màn ghi cân).
-- Sprint 2 dày thêm khoảng 3–4,5 ngày công. Nếu đến 27/10 chưa xong, cắt theo thứ tự sau để giữ phần lõi (hai cổng) và buổi kiểm thử:
+- Sprint 2 dày thêm khoảng 3–4,5 ngày công. Nếu đến 27/10 chưa xong, cắt theo thứ tự sau để giữ phần lõi (hai cổng) cho demo cuối ngày 31/10:
   1. E2 phần 5 (đánh giá sau trận).
   2. E1 bước 3 (chấm màu trên biểu đồ và tóm tắt trong thẻ cảnh báo).
   3. E2 phần 4 (gắn chiến thuật với buổi tập); chiến thuật vẫn lưu được, chỉ chưa nối với lịch.
-- Phạm vi giảng viên đã duyệt không có hai phần này, nên cần báo giảng viên ở buổi review tiếp theo.
+- Phạm vi giảng viên đã duyệt không có hai phần này, nên cần báo giảng viên ở review 2 ngày 20/10.
