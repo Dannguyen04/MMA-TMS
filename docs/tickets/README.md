@@ -27,7 +27,7 @@ Dev cần nhánh `fight-camp` trên remote để tạo nhánh ticket (xem [TEAM-
 | [T-005](./T-005-weigh-in-and-weight-chart.md) | Màn ghi cân và trang trận của võ sĩ trên điện thoại (phần A); biểu đồ cân, cảnh báo trên chi tiết trận và dashboard HLV (phần B) | Frontend | A: MW. B: FE | Bắt đầu ngay; tích hợp sau khi T-004 merge | READY. Merge trước hết ngày 18/10 |
 | [T-008a](./T-008a-review2-demo-data.md) | Script dữ liệu demo cho review 2 qua API (phần A); chạy T-004, T-005 ở API mode với backend thật (phần B) | Backend + Frontend | A: BE2. B: FE | Viết ngay; chạy thật sau khi T-002, T-003 merge và chủ dự án áp migration 023, 024 | READY. Chạy xong trước tối 19/10 |
 
-Demo ở review 2 chạy với **backend thật** trên Supabase hiện có ([quyết định 14](../SCOPE-FIGHT-CAMP.md#quyết-định-và-câu-hỏi)). Nếu T-003 chưa merge trước hết ngày 18/10, chủ dự án quyết định có dùng phương án dự phòng (demo mode) hay không.
+Demo ở review 2 chạy với **backend thật** trên Supabase hiện có ([quyết định 14](../SCOPE-FIGHT-CAMP.md#quyết-định-và-câu-hỏi)). Nếu T-003 chưa merge trước hết ngày 17/10, chủ dự án quyết định có dùng phương án dự phòng (demo mode) hay không.
 
 ## Sprint 2 (21/10 – 30/10), demo cuối ngày 31/10
 
