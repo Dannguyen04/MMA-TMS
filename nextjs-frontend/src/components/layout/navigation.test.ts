@@ -90,7 +90,7 @@ describe("isNavItemActive", () => {
 describe("mobilePrimaryItems", () => {
     it("lists every hub for roles built on hubs", () => {
         expect(labels("fighter")).toEqual(["Today", "Training", "Film", "Health"]);
-        expect(labels("coach")).toEqual(["Today", "Roster", "Training", "Film room", "Clearance"]);
+        expect(labels("coach")).toEqual(["Today", "Bouts", "Roster", "Training", "Film room", "Clearance"]);
         expect(labels("doctor")).toEqual(["Triage", "Patients", "Clinical"]);
     });
 
@@ -144,6 +144,7 @@ describe("acceptance criteria: frozen navigation removal", () => {
 
         expect(NAVIGATION.coach.flatMap((s) => s.items).map((i) => i.label)).toEqual([
             "Today",
+            "Bouts",
             "Roster",
             "Training",
             "Film room",

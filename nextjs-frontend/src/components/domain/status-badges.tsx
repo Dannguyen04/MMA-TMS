@@ -16,11 +16,13 @@ import {
     LoaderCircle,
     PenLine,
     RefreshCw,
+    Scale,
     ShieldAlert,
     ShieldCheck,
     ShieldQuestion,
     ShieldX,
     Sparkles,
+    Swords,
     Target,
     TrendingUp,
     TriangleAlert,
@@ -45,12 +47,18 @@ import {
     SESSION_STATUS_LABELS,
     USER_STATUS_LABELS,
     VIDEO_STATUS_LABELS,
+    BOUT_STATUS_LABELS,
+    BOUT_REQUIREMENT_STATUS_LABELS,
+    WEIGHT_WARNING_LABELS,
 } from "@/lib/domain/labels";
 import { confidenceBand, type ClearanceState } from "@/lib/domain/rules";
 import type {
     AIFeedback,
     AIJobStatus,
     AlertStatus,
+    BoutRequirementStatus,
+    BoutStatus,
+    Gate1Result,
     GoalStatus,
     HealthStatus,
     InjurySeverity,
@@ -60,6 +68,7 @@ import type {
     SessionStatus,
     UserStatus,
     VideoStatus,
+    WeightWarningStatus,
 } from "@/lib/domain/types";
 import { formatConfidence } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -364,4 +373,89 @@ export const CONCLUSION_META: Record<AssessmentConclusion, StatusMeta> = {
 
 export function ConclusionBadge({ conclusion, size, className }: { conclusion: AssessmentConclusion; size?: BadgeSize; className?: string }) {
     return <StatusBadge meta={CONCLUSION_META[conclusion]} size={size} className={className} />;
+}
+
+/* ─── Bouts & Gate 1 ──────────────────────────────────────────────────────── */
+
+export const BOUT_STATUS_META: Record<BoutStatus, StatusMeta> = {
+    SCHEDULED: { label: BOUT_STATUS_LABELS.SCHEDULED, tone: "neutral", icon: CalendarClock },
+    CAMP: { label: BOUT_STATUS_LABELS.CAMP, tone: "primary", icon: Activity },
+    FIGHT_WEEK: { label: BOUT_STATUS_LABELS.FIGHT_WEEK, tone: "warning", icon: Swords },
+    WEIGHED_IN: { label: BOUT_STATUS_LABELS.WEIGHED_IN, tone: "info", icon: Scale },
+    COMPLETED: { label: BOUT_STATUS_LABELS.COMPLETED, tone: "success", icon: CircleCheck },
+    CANCELLED: { label: BOUT_STATUS_LABELS.CANCELLED, tone: "neutral", icon: CircleX },
+};
+
+export function BoutStatusBadge({ status, size, className }: { status: BoutStatus; size?: BadgeSize; className?: string }) {
+    return <StatusBadge meta={BOUT_STATUS_META[status]} size={size} className={className} />;
+}
+
+export const BOUT_REQUIREMENT_STATUS_META: Record<BoutRequirementStatus, StatusMeta> = {
+    MISSING: { label: BOUT_REQUIREMENT_STATUS_LABELS.MISSING, tone: "danger", icon: CircleX },
+    PROVIDED: { label: BOUT_REQUIREMENT_STATUS_LABELS.PROVIDED, tone: "info", icon: Clock },
+    CONFIRMED: { label: BOUT_REQUIREMENT_STATUS_LABELS.CONFIRMED, tone: "success", icon: CircleCheck },
+    REJECTED: { label: BOUT_REQUIREMENT_STATUS_LABELS.REJECTED, tone: "danger", icon: Ban },
+};
+
+export function BoutRequirementStatusBadge({
+    status,
+    size,
+    className,
+}: {
+    status: BoutRequirementStatus;
+    size?: BadgeSize;
+    className?: string;
+}) {
+    return <StatusBadge meta={BOUT_REQUIREMENT_STATUS_META[status]} size={size} className={className} />;
+}
+
+export const WEIGHT_WARNING_META: Record<WeightWarningStatus, StatusMeta> = {
+    GREEN: { label: WEIGHT_WARNING_LABELS.GREEN, tone: "success", icon: CircleCheck },
+    YELLOW: { label: WEIGHT_WARNING_LABELS.YELLOW, tone: "warning", icon: TriangleAlert },
+    RED: { label: WEIGHT_WARNING_LABELS.RED, tone: "danger", icon: TriangleAlert, solid: true },
+    GREY: { label: WEIGHT_WARNING_LABELS.GREY, tone: "neutral", icon: Clock },
+};
+
+export function WeightWarningBadge({
+    status,
+    size,
+    className,
+}: {
+    status: WeightWarningStatus;
+    size?: BadgeSize;
+    className?: string;
+}) {
+    return <StatusBadge meta={WEIGHT_WARNING_META[status]} size={size} className={className} />;
+}
+
+export function Gate1Badge({
+    gate1,
+    size,
+    className,
+}: {
+    gate1?: Gate1Result | null;
+    size?: BadgeSize;
+    className?: string;
+}) {
+    if (!gate1) return null;
+    if (gate1.passed) {
+        return (
+            <Badge tone="success" icon={ShieldCheck} size={size} className={className}>
+                Gate 1: Passed
+            </Badge>
+        );
+    }
+    const totalMissing = gate1.missing.length + gate1.expiring.length;
+    return (
+        <Badge
+            tone="danger"
+            variant="solid"
+            icon={ShieldAlert}
+            size={size}
+            className={className}
+            title={[...gate1.missing, ...gate1.expiring].join(", ")}
+        >
+            Gate 1: Missing {totalMissing}
+        </Badge>
+    );
 }
