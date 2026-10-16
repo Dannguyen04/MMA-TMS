@@ -6,6 +6,8 @@
 **Cập nhật**: 2026-09-29
 **Trạng thái**: Draft — chờ team review
 
+> **Đã được thay thế ngày 2026-10-11.** Lộ trình đang áp dụng nằm ở [SCOPE-FIGHT-CAMP.md](./SCOPE-FIGHT-CAMP.md#kế-hoạch-triển-khai). Các hạng mục dưới đây chỉ còn giá trị tham khảo; một số (Quick Session Log, hạng cân theo kg, Fight Camp Templates, Weight Management) đã được đưa vào phạm vi mới.
+
 ---
 
 ## Điều Hướng Tài Liệu
