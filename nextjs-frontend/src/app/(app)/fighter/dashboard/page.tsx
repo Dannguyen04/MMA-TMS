@@ -1,4 +1,4 @@
-import { CalendarDays, ShieldAlert, ShieldQuestion, Upload } from "lucide-react";
+import { CalendarDays, CheckCircle2, ShieldAlert, ShieldQuestion, Upload } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -10,10 +10,12 @@ import { FightHero, type NextUp } from "@/components/dashboard/fight-hero";
 import { InlineNote } from "@/components/dashboard/inline-note";
 import { OnboardingStrip, type OnboardingStep } from "@/components/dashboard/onboarding-strip";
 import { ReadinessCell, ReadinessNumber, ReadinessStrip } from "@/components/dashboard/readiness-strip";
+import { FighterWeightCard } from "@/components/domain/fighter-weight-card";
 import { ClearanceBadge, HealthStatusBadge } from "@/components/domain/status-badges";
 import { WeekAgenda } from "@/components/domain/week-agenda";
 import { weekStartKey } from "@/components/training/training-utils";
 import { BeltProgress } from "@/components/ui/belt-progress";
+import { Callout } from "@/components/training/callout";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
@@ -21,12 +23,14 @@ import { ProgressBar } from "@/components/ui/progress";
 import { requireFighterAccess } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { NOT_RECORDED } from "@/components/domain/domain-format";
+import { savedWeightMessage } from "@/lib/domain/nutrition";
 import { HEALTH_STATUS_DESCRIPTIONS, WEIGHT_CLASS_LABELS, WEIGHT_CLASS_LIMIT_KG } from "@/lib/domain/labels";
 import type { ClearanceState } from "@/lib/domain/rules";
 import { planAdherence } from "@/lib/domain/training-plan";
 import type { MedicalClearance, TrainingPlan, UpcomingBout } from "@/lib/domain/types";
 import { academyDayStartIso, addDaysToKey, dayKey, daysBetween, formatNumber, formatShortDate, formatWeekdayDate, pluralize } from "@/lib/format";
 import { routes } from "@/lib/routes";
+import { getCurrentBout, getWeightTrack } from "@/lib/services/bouts";
 import { listGoals } from "@/lib/services/goals";
 import { getFighterHealthSummary } from "@/lib/services/medical";
 import { listCoaches, listDoctors } from "@/lib/services/people";
@@ -46,9 +50,10 @@ const GOAL_STRIPES = 4;
  * The fighter's Today page answers one question: what do I do now? The fight camp and next session lead,
  * one strip carries readiness, then this week and the latest from the corner. Everything else lives in its hub.
  */
-export default async function FighterDashboardPage() {
+export default async function FighterDashboardPage({ searchParams }: { searchParams: Promise<{ saved?: string; status?: string }> }) {
     const user = await requireRole("fighter");
     if (!user.profileId) notFound();
+    const query = await searchParams;
     const fighter = await requireFighterAccess(user, user.profileId);
     const ids = [fighter.id];
 
@@ -59,7 +64,7 @@ export default async function FighterDashboardPage() {
 
     // The active plan's sessions chain onto the plan list, so they don't wait for the rest of the batch.
     const plansRead = listPlans({ fighterIds: ids });
-    const [health, upcoming, weekSessions, plans, planDetail, videos, feedback, goals, coaches, doctors] = await Promise.all([
+    const [health, upcoming, weekSessions, plans, planDetail, videos, feedback, goals, coaches, doctors, camp] = await Promise.all([
         getFighterHealthSummary(fighter.id, now),
         getUpcomingSessions(ids, 1),
         listSessions({ fighterIds: ids, from: weekStart, to: new Date(Date.parse(nextWeekStart) - 1).toISOString() }),
@@ -74,8 +79,13 @@ export default async function FighterDashboardPage() {
         listGoals({ fighterIds: ids }),
         listCoaches(),
         listDoctors(),
+        getCurrentBout(fighter.id).then(async (current) => ({
+            bout: current,
+            track: current ? await getWeightTrack(current.id) : null,
+        })),
     ]);
     if (!health) notFound();
+    const savedWeight = savedWeightMessage(query.saved, query.status);
 
     const activePlan = planDetail?.plan ?? null;
     const adherence = planDetail ? planAdherence(planDetail.sessions, now) : null;
@@ -148,7 +158,14 @@ export default async function FighterDashboardPage() {
                 }
             />
 
+            {savedWeight && (
+                <div className="mb-6">
+                    <Callout tone="success" icon={CheckCircle2} role="status" title={savedWeight} />
+                </div>
+            )}
+
             <div className="flex flex-col gap-6">
+                <FighterWeightCard event={camp.bout?.event ?? null} track={camp.track} />
                 <FightHero
                     bout={bout}
                     campStart={activePlan && isCampFor(activePlan, bout) ? activePlan.startDate : null}

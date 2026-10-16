@@ -7,6 +7,7 @@ import {
     KeyRound,
     LayoutDashboard,
     Megaphone,
+    Scale,
     ScanLine,
     ScrollText,
     Settings,
@@ -64,6 +65,7 @@ export const NAVIGATION: Record<Role, NavSection[]> = {
         {
             items: [
                 { label: "Today", href: routes.fighter.dashboard, icon: LayoutDashboard },
+                { label: "Bout", href: routes.fighter.bout, icon: Scale },
                 {
                     label: "Training",
                     href: routes.fighter.schedule,

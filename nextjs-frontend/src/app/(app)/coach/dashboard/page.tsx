@@ -1,5 +1,6 @@
 import { CalendarPlus, ClipboardPlus } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { buildCoachAttention, COACH_QUEUE_META, COACH_QUEUES, type CoachQueue } from "@/components/dashboard/coach-attention";
 import { firstName, greetingFor } from "@/components/dashboard/dashboard-utils";
@@ -7,14 +8,18 @@ import { QueueCard } from "@/components/dashboard/queue-card";
 import { loadRoster } from "@/components/dashboard/roster-data";
 import { TodaySchedule } from "@/components/dashboard/today-schedule";
 import { weekStartKey } from "@/components/training/training-utils";
+import { WeightStatusBadge } from "@/components/domain/weight-status-badge";
 import { ButtonLink } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { accessibleFighterIds } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { academyDayStartIso, addDaysToKey, DAY_MS, dayKey, formatWeekdayDate, pluralize } from "@/lib/format";
 import { hrefWith, parseEnum } from "@/lib/query";
 import { routes } from "@/lib/routes";
+import { adherenceAlertLine } from "@/lib/domain/nutrition";
 import { getSettings } from "@/lib/services/admin";
+import { listWeightAlerts } from "@/lib/services/bouts";
 import { listGoals } from "@/lib/services/goals";
 import { listFighters } from "@/lib/services/people";
 import { platformFeatureAvailable } from "@/lib/services/platform-features";
@@ -45,7 +50,7 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
     const weekEnd = new Date(Date.parse(academyDayStartIso(addDaysToKey(weekKey, 7))) - 1).toISOString();
 
     const fighterList = listFighters(user);
-    const [fighters, roster, weekSessions, reviewQueue, missed, goalsAtRisk, settings] = await Promise.all([
+    const [fighters, roster, weekSessions, reviewQueue, missed, goalsAtRisk, settings, weightAlerts] = await Promise.all([
         fighterList,
         loadRoster(user, now, { fighters: fighterList, performance: false }),
         listSessions({ fighterIds: scope, from: weekStart, to: weekEnd }),
@@ -54,6 +59,7 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
         // Without the goals service the Goals group is left out.
         platformFeatureAvailable("goals") ? listGoals({ fighterIds: scope, status: "at_risk" }) : null,
         getSettings(),
+        listWeightAlerts(scope, new Date(now)),
     ]);
     // Without a per-analysis queue (API mode), the navigation's review count still says how many are waiting.
     const reviewCount = reviewQueue.length === 0 ? ((await getNavBadgeCounts(user)).reviewQueue ?? 0) : 0;
@@ -94,6 +100,30 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
                     </>
                 }
             />
+
+            {weightAlerts.length > 0 && (
+                <Card className="mb-6">
+                    <CardHeader title="Weight alerts" description="Running bouts that need a look, red first." />
+                    <CardContent>
+                        <ul className="divide-y divide-border">
+                            {weightAlerts.map((alert) => (
+                                <li key={alert.bout.id}>
+                                    <Link href={routes.coach.bout(alert.bout.id)} className="flex min-h-11 items-center justify-between gap-3 py-3">
+                                        <span className="min-w-0">
+                                            <span className="block font-medium text-fg">{alert.fighterName}</span>
+                                            <span className="block truncate text-sm text-fg-muted">{alert.bout.event}</span>
+                                            {alert.wayOff > 0 && (alert.track.status === "RED" || alert.track.status === "YELLOW") && (
+                                                <span className="block text-sm text-fg-muted">{adherenceAlertLine(alert.wayOff)}</span>
+                                            )}
+                                        </span>
+                                        <WeightStatusBadge status={alert.track.status} />
+                                    </Link>
+                                </li>
+                            ))}
+                        </ul>
+                    </CardContent>
+                </Card>
+            )}
 
             <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                 <QueueCard

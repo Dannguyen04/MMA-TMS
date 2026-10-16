@@ -681,6 +681,26 @@ export async function updateFighterProfile(fighterId: string, patch: FighterProf
     return { ok: true, fighter };
 }
 
+/**
+ * Morning weigh-in. Posts `{ weightKg, measurementContext: "SELF_REPORTED" }`.
+ * In demo mode the same store the weight chart reads is updated, one row per academy day.
+ */
+export async function recordSelfWeight(fighterId: string, weightKg: number, now = new Date()): Promise<void> {
+    if (!isDemoAuthEnabled()) {
+        await authenticatedMutableApiRequest(`/fighters/${encodeURIComponent(fighterId)}/measurements`, z.unknown(), {
+            method: "POST",
+            body: JSON.stringify({ weightKg, measurementContext: "SELF_REPORTED" }),
+        });
+        return;
+    }
+
+    const { recordDemoSelfWeight } = await import("./bouts.demo");
+    recordDemoSelfWeight(fighterId, weightKg, now);
+    const { db } = await import("@/lib/mocks/db");
+    const fighter = db().fighters.find((item) => item.id === fighterId);
+    if (fighter) fighter.weightKg = weightKg;
+}
+
 /** Đồng bộ tên chỉ tồn tại trong kho demo; chế độ API để backend sở hữu giao dịch này. */
 export async function syncProfileName(user: User): Promise<void> {
     if (!isDemoAuthEnabled()) unsupported("Profile-name synchronization must be performed by the backend API.");
