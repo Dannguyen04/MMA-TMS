@@ -17,6 +17,11 @@ export interface LineSeries {
     color: string;
     /** One value per label; `null` draws a gap. */
     values: (number | null)[];
+    /**
+     * Optional colour for each value. When set, every logged point is drawn, using the
+     * series colour where an entry is `null`. Omit it to keep dots on the line ends only.
+     */
+    pointColors?: (string | null)[];
 }
 
 export interface LineChartProps {
@@ -261,31 +266,42 @@ function LinePlot({
                         <path key={`area-${i}`} d={areaPath(run, plotBottom)} fill={lines[0].series.color} fillOpacity={0.1} />
                     ))}
 
-                {lines.map((line) => (
-                    <g key={line.series.id}>
-                        {line.runs.map((run, i) =>
-                            run.length > 1 ? (
-                                <path
-                                    key={i}
-                                    d={linePath(run)}
-                                    fill="none"
-                                    stroke={line.series.color}
-                                    strokeWidth={2}
-                                    strokeLinejoin="round"
-                                    strokeLinecap="round"
-                                />
-                            ) : (
-                                <Dot key={i} point={run[0]} color={line.series.color} />
-                            ),
-                        )}
-                        {line.lastPoint && <Dot point={line.lastPoint} color={line.series.color} />}
-                    </g>
-                ))}
+                {lines.map((line) => {
+                    const markEveryPoint = line.series.pointColors !== undefined;
+                    return (
+                        <g key={line.series.id}>
+                            {line.runs.map((run, i) =>
+                                run.length > 1 ? (
+                                    <path
+                                        key={i}
+                                        d={linePath(run)}
+                                        fill="none"
+                                        stroke={line.series.color}
+                                        strokeWidth={2}
+                                        strokeLinejoin="round"
+                                        strokeLinecap="round"
+                                    />
+                                ) : markEveryPoint ? null : (
+                                    <Dot key={i} point={run[0]} color={line.series.color} />
+                                ),
+                            )}
+                            {markEveryPoint
+                                ? line.points.map((point, i) =>
+                                      point ? (
+                                          <Dot key={`pt-${i}`} point={point} color={line.series.pointColors?.[i] ?? line.series.color} />
+                                      ) : null,
+                                  )
+                                : line.lastPoint && <Dot point={line.lastPoint} color={line.series.color} />}
+                        </g>
+                    );
+                })}
 
                 {activeIndex !== null &&
                     lines.map((line) => {
                         const point = line.points[activeIndex];
-                        return point ? <Dot key={`active-${line.series.id}`} point={point} color={line.series.color} /> : null;
+                        return point ? (
+                            <Dot key={`active-${line.series.id}`} point={point} color={line.series.pointColors?.[activeIndex] ?? line.series.color} />
+                        ) : null;
                     })}
 
                 {endLabels.map((label) => (
@@ -307,7 +323,7 @@ function LinePlot({
                     rows={series.map((s) => ({
                         id: s.id,
                         label: s.label,
-                        color: s.color,
+                        color: s.pointColors?.[activeIndex] ?? s.color,
                         value: formatMaybe(valueAt(s.values, activeIndex), format),
                     }))}
                     placement={besidePlacement(xs[activeIndex], width, plotTop)}
