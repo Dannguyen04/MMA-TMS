@@ -1,7 +1,7 @@
 # T-004 Handover
 
 - Nhánh: `feat/T-004-bout-lifecycle-ui` (từ `feat/T-005a-fighter-weigh-in`, không push)
-- Commit: `0715f04` (màn HLV, demo store, T-006/T-007 ở demo mode), `d8793fa` (sửa sau khi chạy trình duyệt), `bc41283` (sửa theo code review), `d92a246` (adapter API mode)
+- Commit: `0715f04` (màn HLV, demo store, T-006/T-007 ở demo mode), `d8793fa` (sửa sau khi chạy trình duyệt), `bc41283` (sửa theo code review), `d92a246` (adapter API mode), `3ce182a` (thanh điều hướng và khối thông tin trên điện thoại)
 - Trạng thái: IN REVIEW
 - Người viết: Claude (Opus 5.5). Chủ dự án cho phép sửa code frontend trong phiên 19/10 và chọn: phạm vi gồm cả "Trong trận" (T-006) và "Sau trận" (T-007) ở demo mode; một nhánh mới cho mọi việc; seed phương án (a); adapter API làm ở P2.
 
@@ -54,12 +54,12 @@ Ngày D là ngày server khởi động. Roster của Rafael.
 | Tiêu chí (T-004) | Đáp ứng ở đâu |
 | --- | --- |
 | 1. Demo mode, HLV thấy "Bouts", danh sách đủ trận seed với đúng badge cân và Cổng 1 | `navigation.ts`, `coach/bouts/page.tsx`; test "seeds a red, a yellow and a grey bout…", "covers T-004 criterion 1…"; trình duyệt 1440 px (ảnh `02-bouts-list-1440.jpg`): Linh Green/Ready, Kenji Red/Ready, Emma Grey/"1 missing · overdue", Aigerim Yellow/Ready |
-| 2. Preset "MMA – VMMAF 2021" 60 kg → trận vào danh sách; "Tự nhập" 63,5 → lưu 63,5 | Trình duyệt: tạo "Lotus Fight Night 18" cho Minh, 60 kg (ảnh `03b`); 63,5: test `bout-rules.test.ts` "stores a custom limit of 63,5 kg as 63.5" và `actions/bouts.test.ts` "creates a scheduled bout and opens it" (`limitKg: 63.5`, nhãn "63.5 kg"). Chưa bấm 63,5 trên trình duyệt |
+| 2. Preset "MMA – VMMAF 2021" 60 kg → trận vào danh sách; "Tự nhập" 63,5 → lưu 63,5 | Trình duyệt: tạo "Lotus Fight Night 18" cho Minh, 60 kg (ảnh `03b`); 63,5: test `bout-rules.test.ts` "stores a custom limit of 63,5 kg as 63.5" và `actions/bouts.test.ts` "creates a scheduled bout and opens it" (`limitKg: 63.5`, nhãn "63.5 kg"); trình duyệt 20/10 ở 390 px: Tariq, "Tự nhập", gõ `63,5` → trang chi tiết "63.5 kg" (ảnh `03-new-bout-custom-preview-390.jpg`) |
 | 3. Cân sau thi → lỗi tại trường, không gửi | `prepare` trong `new/bout-form.tsx` chạy `validateBoutSchedule` ở trình duyệt; trình duyệt: "The bout must start after the weigh-in." dưới ô Bout (ảnh `03a`); test action "refuses a bout that starts before its weigh-in…" |
 | 4. Thiếu hồ sơ → "Enter fight week" liệt kê mục thiếu, trạng thái không đổi; đủ `PROVIDED` có hạn sau ngày thi → vào tuần thi đấu | Trình duyệt trên trận Minh: "Gate 1 is not met. The bout stays in camp. · Brain CT: missing" (ảnh `07b`); hạn trước ngày thi → "Brain CT: expires before the bout"; hạn hợp lệ → `FIGHT_WEEK`, history có dòng "Camp → Fight week" (ảnh `08`). Test demo store và test action |
 | 5. Trận của võ sĩ ngoài roster → 404 | `coach/bouts/[boutId]/page.tsx` gọi `notFound()` khi `!canAccessFighter`; test action "answers a bout outside the roster as not found"; trình duyệt: id giả trả trang 404 "We couldn't find that" (đọc qua HTML, xem "Kiểm tra trình duyệt") |
 | 6. `bout-rules.test.ts` có ví dụ T-003 tiêu chí 1, 2, 4 | `bout-rules.test.ts` mục "weight warning (T-003 criterion 1…)", "acute-loss limit snapshot (T-003 criterion 2)", "Gate 1 (T-003 criterion 4…)", cộng tiêu chí 3 và 5 |
-| 7. 390 px không cuộn ngang | Trang võ sĩ đã xem ở 390 px. **Các trang HLV chưa xem ở 390 px**: khung trình duyệt của phiên bị ẩn từ lúc chạy kịch bản B, trang stream không vẽ xong. Danh sách có bản thẻ xếp chồng `md:hidden`, các lưới đều có cột gốc `grid-cols-1` và `min-w-0` |
+| 7. 390 px không cuộn ngang | Trình duyệt 20/10 ở 390 px: Today HLV, `/coach/bouts`, New bout, chi tiết trận (Emma, Tariq), dialog sửa hồ sơ, Suspensions; `scrollWidth` = 390 và không phần tử nào trong `main` vượt mép (trừ dải lọc hàng đợi trên Today, vốn cuộn ngang trong khung riêng). Sửa trong lần này: thanh điều hướng dưới có sáu mục bị gãy hai hàng, nay một hàng (`mobile-nav.tsx`); khối thông tin trận hai cột. Ảnh `*-390.jpg` |
 | 8. Handover liệt kê trường adapter và nguồn | Bảng "Adapter API" dưới đây |
 
 ### T-006, T-007 ở demo mode (ngoài T-004, theo chủ dự án ngày 19/10)
@@ -115,9 +115,9 @@ Kịch bản A, 1440 px cho HLV và 390 px cho võ sĩ, theo đúng thứ tự d
 
 Thêm T-006/T-007 trên Linh như bảng ở trên. Kịch bản B: id giả trả trang 404; `?fighter=` của võ sĩ ngoài roster bị bỏ qua trong form; võ sĩ mở `/coach/bouts` bị chuyển về dashboard võ sĩ; Lucas không trận thấy "No upcoming bout"; `?saved=70.0` trên Today của Lucas ra "Saved 70.0 kg." không kèm màu; `?saved=nope` và `?notice=bogus` không hiện gì.
 
-Console: một cảnh báo React về `key` trong `WeightClassField`; đã viết lại danh sách lựa chọn thành một mảng có key (`d8793fa`) nhưng chưa mở lại form trên trình duyệt để xác nhận cảnh báo hết. Server log không có lỗi.
+Console: một cảnh báo React về `key` trong `WeightClassField`, đã sửa (`d8793fa`); ngày 20/10 mở lại form, đổi ruleset, tạo trận: console không còn lỗi. Server log không có lỗi.
 
-Không kiểm được: từ kịch bản B trở đi khung trình duyệt của phiên bị ẩn nên trang stream đứng ở "Loading page"; các kiểm còn lại làm bằng cách đọc HTML trả về. Các trang HLV ở 390 px chưa xem.
+Ghi chú kỹ thuật: khi khung trình duyệt của phiên bị ẩn, React chờ `requestAnimationFrame` để hiện nội dung stream nên trang đứng ở "Loading page". Kịch bản B được kiểm bằng cách đọc HTML trả về; phần 390 px ngày 20/10 được kiểm bằng cách gọi tay hàm hiện ranh giới Suspense trong console (chỉ để kiểm tra, không đổi code). Không ảnh hưởng người dùng thật.
 
 ## Lệnh đã chạy
 
@@ -160,7 +160,6 @@ Trước phiên: 75 file, 626 passed, 1 skipped. Không có test skip mới. Tes
 
 - Trận Minh tạo trên sân khấu cân sau hai ngày nên hạn nộp hồ sơ (cân − 7 ngày) đã qua: khi còn thiếu "Brain CT", trang hiện "Documents late" màu đỏ. Đúng nghiệp vụ; nếu không muốn thấy trong demo, sửa "Documents due, days before weigh-in" về 0 trong Edit trước khi thêm hồ sơ.
 - Checklist rỗng thì Cổng 1 coi như đạt (T-003 tiêu chí 8). Trong demo, thêm hồ sơ **trước** khi bấm "Enter fight week".
-- Chưa xem các trang HLV ở 390 px và chưa bấm thử "Tự nhập 63,5" trên trình duyệt (đã có test).
-- Bottom bar điện thoại của HLV giờ có sáu mục; chưa xem có chật không.
+- Thanh điều hướng dưới của HLV có sáu mục, mỗi mục khoảng 65 px ở 390 px; nhãn "Clearance" vừa khít. Nếu thêm hub nữa nên gộp.
 - Adapter API chưa đối chiếu backend (T-008a phần B).
 - Ruleset từ API chưa mang `suspensionRules` vào gợi ý (đợi T-007 backend); gợi ý chỉ chạy ở demo.
