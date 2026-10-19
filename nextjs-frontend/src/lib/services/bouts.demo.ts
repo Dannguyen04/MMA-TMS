@@ -1,6 +1,13 @@
 import "server-only";
 
-import { computeBoutComputedFields, evaluateGate1, canEnterFightWeek, calculateSnapshotAcuteLimit, calculateWeightWarning } from "@/lib/domain/bout-rules";
+import {
+    calculateSnapshotAcuteLimit,
+    calculateWeightWarning,
+    canEnterFightWeek,
+    computeBoutComputedFields,
+    computeWeightPoints,
+    evaluateGate1,
+} from "@/lib/domain/bout-rules";
 import type {
     Bout,
     BoutRequirement,
@@ -8,6 +15,7 @@ import type {
     User,
     WeightTrack,
 } from "@/lib/domain/types";
+import { dayKey } from "@/lib/format";
 import { db, newId, nowIso, simulateLatency } from "@/lib/mocks/db";
 import type {
     AddRequirementInput,
@@ -18,19 +26,26 @@ import type {
     UpdateRequirementInput,
 } from "./bouts";
 
+function getCampStartDate(bout: Bout): string {
+    if (bout.trainingPlanId) {
+        const plan = db().trainingPlans.find((p) => p.id === bout.trainingPlanId);
+        if (plan?.startDate) return plan.startDate;
+    }
+    return bout.createdAt;
+}
+
 function measurementsForFighter(fighterId: string, sinceDate: string) {
+    const sinceKey = dayKey(sinceDate);
     return db()
-        .boutMeasurements.filter((m) => m.fighterId === fighterId && !m.superseded && m.measuredAt >= sinceDate)
+        .boutMeasurements.filter((m) => m.fighterId === fighterId && !m.superseded && dayKey(m.measuredAt) >= sinceKey)
         .map((m) => ({ date: m.measuredAt, kg: m.weightKg }));
 }
 
 function enrichBout(bout: Bout): Bout {
     const ruleset = db().rulesets.find((r) => r.id === bout.rulesetId) ?? null;
-    const campStart = bout.status === "CAMP" || bout.status === "FIGHT_WEEK" || bout.status === "WEIGHED_IN"
-        ? (bout.history.find((h) => h.to === "CAMP")?.at ?? bout.createdAt)
-        : bout.createdAt;
+    const campStart = getCampStartDate(bout);
     const measurements = measurementsForFighter(bout.fighterId, campStart);
-    const computed = computeBoutComputedFields(bout, ruleset, measurements);
+    const computed = computeBoutComputedFields(bout, ruleset, measurements, new Date(), campStart);
     return {
         ...bout,
         ...computed,
@@ -148,6 +163,7 @@ export async function updateBout(id: string, input: UpdateBoutInput, actor: User
     }
 
     bout.updatedAt = nowIso();
+    bout.history.push({ at: nowIso(), by: actor.id, from: bout.status, to: bout.status, reason: "Bout updated" });
     return enrichBout(bout);
 }
 
@@ -270,6 +286,13 @@ export async function removeRequirement(id: string, code: string, actor: User): 
 
     bout.requirements.splice(idx, 1);
     bout.updatedAt = nowIso();
+    bout.history.push({
+        at: nowIso(),
+        by: actor.id,
+        from: bout.status,
+        to: bout.status,
+        reason: `Removed requirement ${code}`,
+    });
     return true;
 }
 
@@ -279,13 +302,14 @@ export async function getWeightTrack(id: string): Promise<WeightTrack | null> {
     if (!bout) return null;
 
     const ruleset = db().rulesets.find((r) => r.id === bout.rulesetId) ?? null;
-    const campStart = bout.status === "CAMP" || bout.status === "FIGHT_WEEK" || bout.status === "WEIGHED_IN"
-        ? (bout.history.find((h) => h.to === "CAMP")?.at ?? bout.createdAt)
-        : bout.createdAt;
-
+    const campStart = getCampStartDate(bout);
     const measurements = measurementsForFighter(bout.fighterId, campStart);
+
+    const points = computeWeightPoints(measurements);
+
+    const limitKg = bout.catchweightKg ?? bout.weightLimitKg;
     const summary = calculateWeightWarning({
-        limitKg: bout.catchweightKg ?? bout.weightLimitKg,
+        limitKg,
         acuteLossLimitPct: bout.acuteLossLimitPct,
         acuteWindowDays: ruleset?.acuteWindowDays ?? 7,
         weighInAt: bout.weighInAt,
@@ -294,10 +318,12 @@ export async function getWeightTrack(id: string): Promise<WeightTrack | null> {
     });
 
     return {
-        ...summary,
-        measurements: measurements.map((m) => ({
-            date: typeof m.date === "string" ? m.date : m.date.toISOString(),
-            kg: m.kg,
-        })),
+        limitKg,
+        points,
+        latestKg: summary.latestKg,
+        latestOn: summary.latestOn,
+        remainingPct: summary.remainingPct,
+        status: summary.status,
+        referencePath: summary.referencePath,
     };
 }

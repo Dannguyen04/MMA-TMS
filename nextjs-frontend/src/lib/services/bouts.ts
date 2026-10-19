@@ -10,16 +10,12 @@ import {
 import { isDemoAuthEnabled } from "@/lib/auth/constants";
 import type {
     Bout,
-    BoutMethod,
     BoutRequirement,
     BoutRequirementStatus,
-    BoutResult,
-    BoutSport,
     BoutStatus,
     CompetitionRuleset,
     User,
     WeightTrack,
-    WeightWarningStatus,
 } from "@/lib/domain/types";
 import { isNotFound, nullIfNotFound, unsupportedOperation } from "./api-helpers";
 import { platformFeatureAvailable } from "./platform-features";
@@ -154,12 +150,13 @@ export const backendBoutSchema = z.object({
 });
 
 export const backendWeightTrackSchema = z.object({
+    limitKg: z.number(),
+    points: z.array(referencePathPointSchema),
     latestKg: z.number().nullable(),
     latestOn: z.string().nullable(),
     remainingPct: z.number().nullable(),
     status: weightWarningStatusSchema,
     referencePath: z.array(referencePathPointSchema),
-    measurements: z.array(referencePathPointSchema).optional(),
 });
 
 export type BackendBout = z.infer<typeof backendBoutSchema>;
@@ -333,9 +330,10 @@ export async function enterFightWeek(id: string, actor: User): Promise<EnterFigh
             method: "POST",
         });
         return { ok: true, bout: toBout(bout) };
-    } catch (error: any) {
-        if (error?.status === 409) {
-            const body = error?.responseBody ?? {};
+    } catch (error: unknown) {
+        const err = error as { status?: number; responseBody?: { code?: string; missing?: string[]; expiring?: string[] } };
+        if (err?.status === 409) {
+            const body = err?.responseBody ?? {};
             return {
                 ok: false,
                 error: body.code ?? "BOUT_REQUIREMENTS_INCOMPLETE",

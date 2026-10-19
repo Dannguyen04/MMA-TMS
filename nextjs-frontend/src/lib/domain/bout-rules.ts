@@ -5,7 +5,6 @@ import type {
     CompetitionRuleset,
     Gate1Result,
     WeightStatusSummary,
-    WeightTrack,
     WeightWarningStatus,
 } from "./types";
 
@@ -221,6 +220,7 @@ export function computeBoutComputedFields(
     ruleset?: CompetitionRuleset | null,
     measurements: WeightMeasurementPoint[] = [],
     now: string | Date = new Date(),
+    campStartDate?: string | Date,
 ): {
     daysToWeighIn: number;
     requirementsDueOn: string;
@@ -237,16 +237,14 @@ export function computeBoutComputedFields(
     const fightWeekDays = ruleset?.fightWeekDays ?? 7;
     const canEnter = canEnterFightWeek(bout, gate1, fightWeekDays, now);
 
-    const campStartDate = bout.status === "CAMP" || bout.status === "FIGHT_WEEK" || bout.status === "WEIGHED_IN"
-        ? (bout.history.find((h) => h.to === "CAMP")?.at ?? bout.createdAt)
-        : bout.createdAt;
+    const effectiveCampStart = campStartDate ?? bout.createdAt;
 
     const weight = calculateWeightWarning({
         limitKg: bout.catchweightKg ?? bout.weightLimitKg,
         acuteLossLimitPct: bout.acuteLossLimitPct,
         acuteWindowDays: ruleset?.acuteWindowDays ?? 7,
         weighInAt: bout.weighInAt,
-        campStartDate,
+        campStartDate: effectiveCampStart,
         measurements,
         now,
     });
@@ -259,3 +257,24 @@ export function computeBoutComputedFields(
         weight,
     };
 }
+
+/**
+ * Deduplicates weight measurements by academy calendar day, taking the latest
+ * measurement on each day and returning points sorted chronologically.
+ * Reference: T-003 §3, criterion 12b.
+ */
+export function computeWeightPoints(
+    measurements: Array<{ date: string | Date; kg: number }>,
+): Array<{ date: string; kg: number }> {
+    const sorted = [...measurements].sort(
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+    );
+    const byDay = new Map<string, number>();
+    for (const m of sorted) {
+        byDay.set(dayKey(m.date), m.kg);
+    }
+    return Array.from(byDay.entries())
+        .map(([date, kg]) => ({ date, kg: Number(kg.toFixed(1)) }))
+        .sort((a, b) => a.date.localeCompare(b.date));
+}
+

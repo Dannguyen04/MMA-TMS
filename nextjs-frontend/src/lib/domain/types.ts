@@ -1207,10 +1207,12 @@ export interface Bout {
 }
 
 export interface WeightTrack {
+    limitKg: number;
+    points: Array<{ date: string; kg: number }>;
     latestKg: number | null;
     latestOn: string | null;
     remainingPct: number | null;
     status: WeightWarningStatus;
     referencePath: Array<{ date: string; kg: number }>;
-    measurements?: Array<{ date: string; kg: number }>;
 }
+

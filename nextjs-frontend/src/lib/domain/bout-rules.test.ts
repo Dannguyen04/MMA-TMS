@@ -5,6 +5,7 @@ import {
     calculateSnapshotAcuteLimit,
     calculateWeightWarning,
     canEnterFightWeek,
+    computeWeightPoints,
     evaluateGate1,
 } from "./bout-rules";
 import type { BoutRequirement } from "./types";
@@ -273,4 +274,27 @@ describe("bout-rules", () => {
             expect(canEnterFightWeek({ status: "SCHEDULED", weighInAt }, gate1, 7, now)).toBe(false);
         });
     });
+
+    describe("Criteria 3: Academy date timezone", () => {
+        it("evaluates 2026-10-20T17:30:00Z as 2026-10-21 in Vietnam (UTC+7)", () => {
+            expect(dayKey("2026-10-20T17:30:00Z")).toBe("2026-10-21");
+        });
+    });
+
+    describe("Criteria 12b: Weight points deduplication", () => {
+        it("takes the latest measurement in the same academy day and sorts chronologically", () => {
+            const measurements = [
+                { date: "2026-10-10T07:00:00+07:00", kg: 66.0 },
+                { date: "2026-10-10T18:00:00+07:00", kg: 65.4 },
+                { date: "2026-10-11T07:30:00+07:00", kg: 64.8 },
+            ];
+
+            const points = computeWeightPoints(measurements);
+            expect(points).toEqual([
+                { date: "2026-10-10", kg: 65.4 },
+                { date: "2026-10-11", kg: 64.8 },
+            ]);
+        });
+    });
 });
+

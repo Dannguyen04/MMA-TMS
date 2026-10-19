@@ -53,6 +53,10 @@ export function BoutForm({
     const form = useActionForm(action, {
         id: formId,
         prepare: (fd) => {
+            const rawWeight = fd.get("weightLimitKg");
+            if (typeof rawWeight === "string") {
+                fd.set("weightLimitKg", rawWeight.replace(",", "."));
+            }
             const wIn = fd.get("weighInAt") as string;
             const bAt = fd.get("boutAt") as string;
             if (wIn && bAt) {
@@ -67,7 +71,7 @@ export function BoutForm({
                 }
             }
         },
-        onSuccess: (_state) => {
+        onSuccess: () => {
             router.push(routes.coach.bouts);
             router.refresh();
         },
@@ -188,10 +192,8 @@ export function BoutForm({
                                     <Input
                                         id={`${formId}-weightLimitKg`}
                                         name="weightLimitKg"
-                                        type="number"
-                                        step="0.1"
-                                        min="30"
-                                        max="200"
+                                        type="text"
+                                        inputMode="decimal"
                                         required
                                         value={weightLimitKg}
                                         onChange={(e) => setWeightLimitKg(e.target.value)}

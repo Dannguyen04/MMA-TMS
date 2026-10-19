@@ -49,7 +49,10 @@ const createBoutSchema = z
         venue: z.string().trim().optional(),
         opponentName: z.string().trim().optional(),
         weightClassCode: z.string({ error: "Select or enter a weight class." }).min(1, "Select or enter a weight class."),
-        weightLimitKg: z.coerce.number({ error: "Enter a valid weight limit." }).min(30, "Weight limit must be at least 30 kg.").max(200, "Weight limit must be at most 200 kg."),
+        weightLimitKg: z.preprocess(
+            (val) => (typeof val === "string" ? val.replace(",", ".").trim() : val),
+            z.coerce.number({ error: "Enter a valid weight limit." }).min(30, "Weight limit must be at least 30 kg.").max(200, "Weight limit must be at most 200 kg."),
+        ),
         weighInAt: z.string({ error: "Choose weigh-in date and time." }).min(1, "Choose weigh-in date and time."),
         boutAt: z.string({ error: "Choose bout date and time." }).min(1, "Choose bout date and time."),
         requirementsDueDays: z.coerce.number().int().min(0).max(60).optional(),
@@ -94,8 +97,8 @@ export async function createBoutAction(_prev: ActionState<{ id: string }>, formD
 
         revalidateBoutPaths(bout.id, bout.fighterId);
         return actionSuccess("Bout created successfully.", { id: bout.id });
-    } catch (error: any) {
-        return actionError(error?.message ?? "Failed to create bout.");
+    } catch (error: unknown) {
+        return actionError(error instanceof Error ? error.message : "Failed to create bout.");
     }
 }
 
@@ -107,8 +110,9 @@ const updateBoutSchema = z
         eventName: z.string().trim().min(2, "Event name must be at least 2 characters.").optional(),
         venue: z.string().trim().optional(),
         opponentName: z.string().trim().optional(),
-        weightClassCode: z.string().optional(),
-        weightLimitKg: z.coerce.number().min(30).max(200).optional(),
+        weightLimitKg: z
+            .preprocess((val) => (typeof val === "string" ? val.replace(",", ".").trim() : val), z.coerce.number().min(30).max(200))
+            .optional(),
         requirementsDueDays: z.coerce.number().int().min(0).max(60).optional(),
         weighInAt: z.string().optional(),
         boutAt: z.string().optional(),
@@ -155,8 +159,8 @@ export async function updateBoutAction(_prev: ActionState, formData: FormData): 
 
         revalidateBoutPaths(boutId, existing.fighterId);
         return actionSuccess("Bout details updated.");
-    } catch (error: any) {
-        return actionError(error?.message ?? "Failed to update bout.");
+    } catch (error: unknown) {
+        return actionError(error instanceof Error ? error.message : "Failed to update bout.");
     }
 }
 
@@ -182,8 +186,8 @@ export async function linkCampAction(_prev: ActionState, formData: FormData): Pr
         await linkCampService(boutId, trainingPlanId, auth.user);
         revalidateBoutPaths(boutId, existing.fighterId);
         return actionSuccess("Fight camp linked successfully.");
-    } catch (error: any) {
-        return actionError(error?.message ?? "Failed to link fight camp.");
+    } catch (error: unknown) {
+        return actionError(error instanceof Error ? error.message : "Failed to link fight camp.");
     }
 }
 
@@ -217,8 +221,8 @@ export async function enterFightWeekAction(_prev: ActionState, formData: FormDat
 
         revalidateBoutPaths(boutId, existing.fighterId);
         return actionSuccess("Fighter entered fight week.");
-    } catch (error: any) {
-        return actionError(error?.message ?? "Failed to enter fight week.");
+    } catch (error: unknown) {
+        return actionError(error instanceof Error ? error.message : "Failed to enter fight week.");
     }
 }
 
@@ -244,8 +248,8 @@ export async function cancelBoutAction(_prev: ActionState, formData: FormData): 
         await cancelBoutService(boutId, reason.trim(), auth.user);
         revalidateBoutPaths(boutId, existing.fighterId);
         return actionSuccess("Bout has been cancelled.");
-    } catch (error: any) {
-        return actionError(error?.message ?? "Failed to cancel bout.");
+    } catch (error: unknown) {
+        return actionError(error instanceof Error ? error.message : "Failed to cancel bout.");
     }
 }
 
@@ -282,8 +286,8 @@ export async function addRequirementAction(_prev: ActionState, formData: FormDat
 
         revalidateBoutPaths(boutId, existing.fighterId);
         return actionSuccess("Requirement added to checklist.");
-    } catch (error: any) {
-        return actionError(error?.message ?? "Failed to add requirement.");
+    } catch (error: unknown) {
+        return actionError(error instanceof Error ? error.message : "Failed to add requirement.");
     }
 }
 
@@ -346,8 +350,8 @@ export async function updateRequirementAction(_prev: ActionState, formData: Form
 
         revalidateBoutPaths(boutId, existing.fighterId);
         return actionSuccess("Requirement updated.");
-    } catch (error: any) {
-        return actionError(error?.message ?? "Failed to update requirement.");
+    } catch (error: unknown) {
+        return actionError(error instanceof Error ? error.message : "Failed to update requirement.");
     }
 }
 
@@ -369,7 +373,7 @@ export async function removeRequirementAction(_prev: ActionState, formData: Form
         await removeRequirementService(boutId, code, auth.user);
         revalidateBoutPaths(boutId, existing.fighterId);
         return actionSuccess("Requirement removed.");
-    } catch (error: any) {
-        return actionError(error?.message ?? "Failed to remove requirement.");
+    } catch (error: unknown) {
+        return actionError(error instanceof Error ? error.message : "Failed to remove requirement.");
     }
 }

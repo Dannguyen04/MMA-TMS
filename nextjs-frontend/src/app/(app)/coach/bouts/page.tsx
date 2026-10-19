@@ -49,7 +49,7 @@ export default async function CoachBoutsPage() {
 
             {activeBouts.length === 0 ? (
                 <EmptyState
-                    icon={Swords}
+                    icon={<Swords className="size-6" />}
                     title="No upcoming bouts"
                     description="Create a bout for a fighter on your roster to start tracking fight camp and weight cuts."
                     action={newBoutButton}
