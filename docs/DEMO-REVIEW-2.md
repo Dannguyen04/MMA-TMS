@@ -57,10 +57,10 @@ Theo đúng luồng review 2 trong Phạm vi: tạo trận → võ sĩ ghi cân 
 Dùng trận có sẵn **National Boxing Cup 2026** (võ sĩ Aigerim Sadykova). Trận này đang ở trạng thái "Đang tập camp" và còn thiếu giấy khám sức khỏe.
 
 1. Menu **Trận đấu** → National Boxing Cup 2026. Thẻ **Hồ sơ y tế** có badge "Cổng 1: Thiếu 1".
-2. (Thêm mục hồ sơ.) Bấm **Thêm mục**, ví dụ "Chụp MRI não", bắt buộc. Mục mới mang nhãn "HLV tự nhập, chưa xác minh". Nói: app chỉ ghi nhận trạng thái hồ sơ, không lưu file, và mục do HLV nhập luôn được đánh dấu là chưa xác minh.
-3. Bấm **Vào tuần thi đấu**. Hộp thoại liệt kê các mục còn thiếu, trạng thái trận không đổi.
-4. Sửa từng mục thiếu: trạng thái "Đã nộp", ngày cấp hôm nay, hiệu lực đến **sau ngày thi đấu** (ví dụ 3 tháng sau).
-5. Bấm **Vào tuần thi đấu** lần nữa → trận chuyển "Tuần thi đấu".
+2. (Thêm mục hồ sơ.) Bấm **Thêm mục**, nhập mã `BRAIN_MRI`, tên "Chụp MRI não", giữ ô "Bắt buộc để qua Cổng 1", để trống thời hạn hiệu lực, rồi bấm **Thêm mục**. Mục mới mang nhãn "HLV nhập, chưa xác thực". Nói: app chỉ ghi nhận trạng thái hồ sơ, không lưu file, và mục do HLV nhập luôn được đánh dấu là chưa xác minh.
+3. Bấm **Vào tuần thi đấu**. Hộp thoại liệt kê các mục còn thiếu ("Hồ sơ Cổng 1 còn thiếu các mục sau"); bấm **Xác nhận vào tuần thi đấu** thì bị chặn, trạng thái trận vẫn là "Đang tập camp".
+4. Sửa từng mục thiếu (nút bút chì **Sửa**): trạng thái "Đã nộp", ngày cấp hôm nay, hiệu lực đến **sau ngày thi đấu** (ví dụ 3 tháng sau). Badge chuyển "Cổng 1: Đạt".
+5. Bấm **Vào tuần thi đấu** → **Xác nhận vào tuần thi đấu** → trận chuyển "Tuần thi đấu".
 
 ### 4. Kết (1 phút)
 
