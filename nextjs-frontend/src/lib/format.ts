@@ -166,6 +166,12 @@ const JUST_NOW: Record<Locale, string> = { en: "just now", vi: "vừa xong" };
 
 /** "in 3 days", "yesterday", "5 min ago". `now` must come from the server when rendered on the client. */
 export function formatRelative(value: string | Date, now: string | Date = new Date(), locale: Locale = "en"): string {
+    const text = relativeText(value, now, locale);
+    // Vietnamese Intl capitalises "Hôm kia"; the phrase always sits mid-sentence here.
+    return locale === "vi" ? text.charAt(0).toLocaleLowerCase("vi") + text.slice(1) : text;
+}
+
+function relativeText(value: string | Date, now: string | Date, locale: Locale): string {
     const relativeFmt = relativeFmts[locale];
     const target = toDate(value).getTime();
     const base = toDate(now).getTime();
