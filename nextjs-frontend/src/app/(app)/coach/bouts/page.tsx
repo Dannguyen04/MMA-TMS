@@ -8,7 +8,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/states";
-import { TBody, TD, THead, TR, Table } from "@/components/ui/table";
+import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/table";
 import { identitiesById } from "@/components/training/training-data";
 import { accessibleFighterIds } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
@@ -59,27 +59,12 @@ export default async function CoachBoutsPage() {
                     <Table>
                         <THead>
                             <TR>
-                                <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-fg-muted">
-                                    Fighter
-                                </th>
-                                <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-fg-muted">
-                                    Event & weight
-                                </th>
-                                <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-fg-muted">
-                                    Weigh-in
-                                </th>
-                                <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-fg-muted">
-                                    Status
-                                </th>
-                                <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-fg-muted">
-                                    Weight
-                                </th>
-                                <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-fg-muted">
-                                    Gate 1
-                                </th>
-                                <th scope="col" className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-fg-muted">
-                                    Action
-                                </th>
+                                <TH className="text-left">Fighter</TH>
+                                <TH className="text-left">Event & weight</TH>
+                                <TH className="text-left">Weigh-in</TH>
+                                <TH className="text-left">Status</TH>
+                                <TH className="text-left">Weight</TH>
+                                <TH className="text-left">Gate 1</TH>
                             </TR>
                         </THead>
                         <TBody>
@@ -99,25 +84,40 @@ export default async function CoachBoutsPage() {
 
                                 return (
                                     <TR key={bout.id} className="hover:bg-surface-muted/50">
-                                        <TD className="px-4 py-3">
+                                        <TD>
                                             {fighter ? (
                                                 <div className="flex min-w-0 items-center gap-3">
                                                     <Avatar name={fighter.name} shape="octagon" size="md" />
-                                                    <span className="truncate font-semibold text-fg text-[15px]">{fighter.name}</span>
+                                                    <Link
+                                                        href={routes.coach.bout(bout.id)}
+                                                        className="truncate font-semibold text-fg text-[15px] hover:text-primary hover:underline"
+                                                    >
+                                                        {fighter.name}
+                                                    </Link>
                                                 </div>
                                             ) : (
-                                                <span className="text-fg-muted">Unknown fighter</span>
+                                                <Link
+                                                    href={routes.coach.bout(bout.id)}
+                                                    className="font-medium text-fg-muted hover:underline"
+                                                >
+                                                    Unknown fighter
+                                                </Link>
                                             )}
                                         </TD>
-                                        <TD className="px-4 py-3">
+                                        <TD>
                                             <div className="flex min-w-0 flex-col">
-                                                <span className="truncate font-medium text-fg">{bout.eventName}</span>
+                                                <Link
+                                                    href={routes.coach.bout(bout.id)}
+                                                    className="truncate font-medium text-fg hover:text-primary hover:underline"
+                                                >
+                                                    {bout.eventName}
+                                                </Link>
                                                 <span className="truncate text-xs text-fg-muted">
                                                     {bout.weightLimitKg} kg{bout.opponentName ? ` · vs ${bout.opponentName}` : ""}
                                                 </span>
                                             </div>
                                         </TD>
-                                        <TD className="px-4 py-3">
+                                        <TD>
                                             <div className="flex flex-col">
                                                 <span className="text-sm text-fg">{formatShortDate(bout.weighInAt)}</span>
                                                 {daysDisplay && (
@@ -127,10 +127,10 @@ export default async function CoachBoutsPage() {
                                                 )}
                                             </div>
                                         </TD>
-                                        <TD className="px-4 py-3">
+                                        <TD>
                                             <BoutStatusBadge status={bout.status} size="sm" />
                                         </TD>
-                                        <TD className="px-4 py-3">
+                                        <TD>
                                             {bout.weight ? (
                                                 <div className="flex flex-col items-start gap-0.5">
                                                     <WeightWarningBadge status={bout.weight.status} size="sm" />
@@ -144,16 +144,8 @@ export default async function CoachBoutsPage() {
                                                 <span className="text-xs text-fg-muted">—</span>
                                             )}
                                         </TD>
-                                        <TD className="px-4 py-3">
-                                            <Gate1Badge gate1={bout.gate1} size="sm" />
-                                        </TD>
-                                        <TD className="px-4 py-3 text-right">
-                                            <Link
-                                                href={routes.coach.bout(bout.id)}
-                                                className="text-xs font-semibold text-primary hover:underline"
-                                            >
-                                                View details
-                                            </Link>
+                                        <TD>
+                                            <Gate1Badge gate1={bout.gate1} size="sm" compact />
                                         </TD>
                                     </TR>
                                 );
