@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { FlashToast } from "@/components/medical/flash-toast";
@@ -36,12 +35,6 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
             <h1 className="text-2xl font-semibold tracking-tight text-fg">Sign in</h1>
             <p className="mt-1.5 text-[15px] text-fg-muted">Welcome back. Use your academy account to continue.</p>
             <LoginForm next={next} />
-            <p className="mt-6 text-center text-sm text-fg-muted">
-                Applying to train, or waiting for a decision?{" "}
-                <Link href={routes.register} className="font-medium text-primary-soft-fg hover:underline">
-                    Continue with an email code
-                </Link>
-            </p>
             {isDemoAuthEnabled() && <DemoAccounts next={next} />}
         </div>
     );
