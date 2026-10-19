@@ -4,6 +4,7 @@ import { TriangleAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 
+import { useT } from "@/components/i18n/locale-provider";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Field, FormMessage, FormSection, Input, Select, Textarea } from "@/components/ui/form";
@@ -35,6 +36,7 @@ export function BoutForm({
     defaultWeighInAt = "",
     defaultBoutAt = "",
 }: BoutFormProps) {
+    const t = useT();
     const router = useRouter();
     const formId = useId();
 
@@ -65,8 +67,8 @@ export function BoutForm({
                 if (wMs >= bMs) {
                     return {
                         status: "error",
-                        message: "Weigh-in must be before the bout.",
-                        fieldErrors: { weighInAt: "Weigh-in must be before the bout." },
+                        message: t("coachBouts.form.error.weighInBeforeBout"),
+                        fieldErrors: { weighInAt: t("coachBouts.form.error.weighInBeforeBout") },
                     };
                 }
             }
@@ -104,10 +106,10 @@ export function BoutForm({
                     <FormMessage {...form.message} className="mb-6" />
 
                     <FormSection
-                        title="Fighter & ruleset"
+                        title={t("coachBouts.form.section.fighterRuleset")}
                     >
                         <Field
-                            label="Fighter"
+                            label={t("coachBouts.form.fighter")}
                             htmlFor={`${formId}-fighterId`}
                             required
                             error={form.error("fighterId")}
@@ -117,7 +119,7 @@ export function BoutForm({
                                 value={fighterId}
                                 onChange={(e) => setFighterId(e.target.value)}
                             >
-                                <option value="">Choose a fighter…</option>
+                                <option value="">{t("coachBouts.form.chooseFighter")}</option>
                                 {fighters.map((f) => (
                                     <option key={f.id} value={f.id}>
                                         {f.name}
@@ -127,7 +129,7 @@ export function BoutForm({
                         </Field>
 
                         <Field
-                            label="Competition ruleset"
+                            label={t("coachBouts.form.ruleset")}
                             htmlFor={`${formId}-rulesetId`}
                             required
                             error={form.error("rulesetId")}
@@ -148,14 +150,14 @@ export function BoutForm({
                         {selectedRuleset && !selectedRuleset.verified && (
                             <div className="flex items-center gap-2 rounded-lg border border-warning-border bg-warning-soft px-3.5 py-2.5 text-xs text-warning-fg">
                                 <TriangleAlert aria-hidden className="size-4 shrink-0" />
-                                <span>Reference only, not verified with the organiser.</span>
+                                <span>{t("coachBouts.form.rulesetUnverifiedNotice")}</span>
                             </div>
                         )}
 
                         {hasWeightClasses ? (
                             <>
                                 <Field
-                                    label="Weight class"
+                                    label={t("coachBouts.form.weightClass")}
                                     htmlFor={`${formId}-weightClassCode`}
                                     required
                                     error={form.error("weightClassCode")}
@@ -180,11 +182,11 @@ export function BoutForm({
                             <>
                                 <input type="hidden" name="weightClassCode" value="custom" />
                                 <Field
-                                    label="Weight limit (kg)"
+                                    label={t("coachBouts.form.weightLimit")}
                                     htmlFor={`${formId}-weightLimitKg`}
                                     required
                                     error={form.error("weightLimitKg")}
-                                    hint="Enter the exact weight class limit in kg."
+                                    hint={t("coachBouts.form.weightLimitHint")}
                                 >
                                     <Input
                                         id={`${formId}-weightLimitKg`}
@@ -194,7 +196,7 @@ export function BoutForm({
                                         required
                                         value={weightLimitKg}
                                         onChange={(e) => setWeightLimitKg(e.target.value)}
-                                        placeholder="e.g. 63.5"
+                                        placeholder={t("coachBouts.form.weightLimitPlaceholder")}
                                     />
                                 </Field>
                             </>
@@ -202,43 +204,43 @@ export function BoutForm({
                     </FormSection>
 
                     <FormSection
-                        title="Event"
+                        title={t("coachBouts.form.section.event")}
                     >
                         <Field
-                            label="Event name"
+                            label={t("coachBouts.form.eventName")}
                             htmlFor={`${formId}-eventName`}
                             required
                             error={form.error("eventName")}
                         >
                             <Input
                                 {...form.control("eventName", { id: `${formId}-eventName`, required: true })}
-                                placeholder="e.g. Lotus Fight Night 18"
+                                placeholder={t("coachBouts.form.eventNamePlaceholder")}
                                 maxLength={120}
                             />
                         </Field>
 
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <Field
-                                label="Venue"
+                                label={t("bout.venue")}
                                 htmlFor={`${formId}-venue`}
                                 error={form.error("venue")}
                             >
                                 <Input
                                     {...form.control("venue", { id: `${formId}-venue` })}
-                                    placeholder="e.g. Lotus Combat Arena, HCMC"
+                                    placeholder={t("coachBouts.form.venuePlaceholder")}
                                     maxLength={120}
                                 />
                             </Field>
 
                             <Field
-                                label="Opponent"
+                                label={t("coachBouts.form.opponent")}
                                 htmlFor={`${formId}-opponentName`}
                                 error={form.error("opponentName")}
-                                hint="Optional. Leave blank if not announced."
+                                hint={t("coachBouts.form.opponentHint")}
                             >
                                 <Input
                                     {...form.control("opponentName", { id: `${formId}-opponentName` })}
-                                    placeholder="e.g. Nguyễn Văn Hùng"
+                                    placeholder={t("coachBouts.form.opponentPlaceholder")}
                                     maxLength={100}
                                 />
                             </Field>
@@ -246,11 +248,11 @@ export function BoutForm({
                     </FormSection>
 
                     <FormSection
-                        title="Schedule"
+                        title={t("coachBouts.form.section.schedule")}
                     >
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <Field
-                                label="Weigh-in date & time"
+                                label={t("coachBouts.form.weighInAt")}
                                 htmlFor={`${formId}-weighInAt`}
                                 required
                                 error={form.error("weighInAt")}
@@ -267,7 +269,7 @@ export function BoutForm({
                             </Field>
 
                             <Field
-                                label="Bout date & time"
+                                label={t("coachBouts.form.boutAt")}
                                 htmlFor={`${formId}-boutAt`}
                                 required
                                 error={form.error("boutAt")}
@@ -285,14 +287,14 @@ export function BoutForm({
                         </div>
 
                         <Field
-                            label="Notes"
+                            label={t("coachBouts.form.notes")}
                             htmlFor={`${formId}-notes`}
                             error={form.error("notes")}
                         >
                             <Textarea
                                 {...form.control("notes", { id: `${formId}-notes` })}
                                 rows={3}
-                                placeholder="Any special rules, contract agreements, or catchweight notes…"
+                                placeholder={t("coachBouts.form.notesPlaceholder")}
                                 maxLength={500}
                             />
                         </Field>
@@ -301,9 +303,9 @@ export function BoutForm({
 
                 <CardFooter className="flex items-center justify-between border-t border-border px-6 py-4">
                     <ButtonLink href={routes.coach.bouts} variant="secondary">
-                        Cancel
+                        {t("coachBouts.form.cancel")}
                     </ButtonLink>
-                    <SubmitButton pending={form.pending}>Create bout</SubmitButton>
+                    <SubmitButton pending={form.pending}>{t("coachBouts.form.submitCreate")}</SubmitButton>
                 </CardFooter>
             </Card>
         </form>

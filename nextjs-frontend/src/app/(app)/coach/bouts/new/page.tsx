@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { createBoutAction } from "@/lib/actions/bouts";
 import { requireRole } from "@/lib/auth/session";
 import { toDateTimeInputValue } from "@/lib/format";
+import { getTranslator } from "@/lib/i18n/server";
 import { fromToday } from "@/lib/mocks/time";
 import { routes } from "@/lib/routes";
 import { listRulesets } from "@/lib/services/bouts";
@@ -11,11 +12,14 @@ import { listFighters } from "@/lib/services/people";
 import { param } from "@/lib/utils";
 import { BoutForm } from "./bout-form";
 
-export const metadata: Metadata = { title: "New bout" };
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return { title: t("coachBouts.newBout") };
+}
 
 export default async function NewBoutPage({ searchParams }: PageProps<"/coach/bouts/new">) {
     const user = await requireRole("coach");
-    const params = await searchParams;
+    const [params, { t }] = await Promise.all([searchParams, getTranslator()]);
 
     const [fighters, rulesets] = await Promise.all([listFighters(user), listRulesets()]);
 
@@ -29,8 +33,8 @@ export default async function NewBoutPage({ searchParams }: PageProps<"/coach/bo
     return (
         <div className="flex flex-col gap-6">
             <PageHeader
-                title="New bout"
-                back={{ href: routes.coach.bouts, label: "Bouts" }}
+                title={t("coachBouts.newBout")}
+                back={{ href: routes.coach.bouts, label: t("nav.Bouts") }}
             />
             <BoutForm
                 fighters={fighters.map((f) => ({ id: f.id, name: f.name }))}
