@@ -432,16 +432,18 @@ export function Gate1Badge({
     gate1,
     size,
     className,
+    compact,
 }: {
     gate1?: Gate1Result | null;
     size?: BadgeSize;
     className?: string;
+    compact?: boolean;
 }) {
     if (!gate1) return null;
     if (gate1.passed) {
         return (
             <Badge tone="success" icon={ShieldCheck} size={size} className={className}>
-                Gate 1: Passed
+                {compact ? "Passed" : "Gate 1: Passed"}
             </Badge>
         );
     }
@@ -455,7 +457,7 @@ export function Gate1Badge({
             className={className}
             title={[...gate1.missing, ...gate1.expiring].join(", ")}
         >
-            Gate 1: Missing {totalMissing}
+            {compact ? `Missing ${totalMissing}` : `Gate 1: Missing ${totalMissing}`}
         </Badge>
     );
 }
