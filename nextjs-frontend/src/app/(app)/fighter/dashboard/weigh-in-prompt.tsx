@@ -29,8 +29,8 @@ export function WeighInPrompt({ bout, now }: { bout: Bout; now: string }) {
                             <WeightWarningBadge status={weight?.status ?? "GREY"} size="sm" />
                         </p>
                         <p className="mt-0.5 text-sm text-fg-muted">
-                            {weight?.latestKg != null ? `Latest ${formatNumber(weight.latestKg, 1)} kg` : "No weigh-in yet"} · limit {formatNumber(limitKg, 1)} kg
-                            {loggedToday ? " · logged today" : ""}
+                            {weight?.latestKg != null ? `${formatNumber(weight.latestKg, 1)} kg` : "No weigh-in yet"} · limit {formatNumber(limitKg, 1)} kg
+                            {loggedToday ? " · done today" : ""}
                         </p>
                     </div>
                 </div>

@@ -1,11 +1,11 @@
-import { CalendarClock, FileCheck2, Scale, Swords, TriangleAlert } from "lucide-react";
+import { CalendarClock, FileCheck2, Scale, Swords } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { FlashToast } from "@/components/medical/flash-toast";
 import { BoutRequirementStatusBadge, BoutStatusBadge, WeightWarningBadge } from "@/components/domain/status-badges";
 import { WeightChart } from "@/components/domain/weight-chart";
-import { Callout } from "@/components/training/callout";
+import { WeightFigures, WeightStatusNote } from "@/components/domain/weight-summary";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -80,7 +80,7 @@ export default async function FighterBoutPage({ searchParams }: PageProps<"/figh
             <PageHeader
                 eyebrow="Bout"
                 title={bout.eventName}
-                description={`vs ${bout.opponentName ?? "Opponent TBA"} · ${formatNumber(limitKg, 1)} kg`}
+                description={`vs ${bout.opponentName ?? "opponent TBA"}`}
                 meta={
                     <>
                         <BoutStatusBadge status={bout.status} />
@@ -104,8 +104,6 @@ export default async function FighterBoutPage({ searchParams }: PageProps<"/figh
                             <DescriptionList
                                 columns={1}
                                 items={[
-                                    { label: "Opponent", value: bout.opponentName ?? "Opponent TBA" },
-                                    { label: "Weight limit", value: `${formatNumber(limitKg, 1)} kg${bout.catchweightKg ? " (catchweight)" : ""}` },
                                     { label: "Weigh-in", value: formatDateTime(bout.weighInAt) },
                                     { label: "Bout", value: formatDateTime(bout.boutAt) },
                                     ...(bout.venue ? [{ label: "Venue", value: bout.venue }] : []),
@@ -129,42 +127,19 @@ function countdown(days: number): string {
 function FighterWeightCard({ bout, track, limitKg }: { bout: Bout; track: WeightTrack | null; limitKg: number }) {
     const weight = track ?? bout.weight ?? null;
     const status = weight?.status ?? "GREY";
-    const latestKg = weight?.latestKg ?? null;
-    const remainingPct = weight?.remainingPct ?? null;
 
     return (
         <Card className="min-w-0">
-            <CardHeader
-                title="Weight"
-                description={`Limit ${formatNumber(limitKg, 1)} kg · weigh-in ${formatDate(bout.weighInAt)}`}
-                icon={<Scale aria-hidden />}
-                action={<WeightWarningBadge status={status} />}
-            />
-            <CardContent className="flex flex-col gap-5">
-                <div className="grid grid-cols-2 gap-3">
-                    <div className="flex min-w-0 flex-col rounded-lg border border-border bg-surface-muted p-3">
-                        <span className="text-xs text-fg-muted">Latest weight</span>
-                        <span className="font-display text-2xl font-bold text-fg">{latestKg !== null ? `${formatNumber(latestKg, 1)} kg` : "—"}</span>
-                        <span className="text-xs text-fg-subtle">
-                            {weight?.latestOn ? formatDate(`${weight.latestOn}T12:00:00+07:00`) : "No weigh-ins yet"}
-                        </span>
-                    </div>
-                    <div className="flex min-w-0 flex-col rounded-lg border border-border bg-surface-muted p-3">
-                        <span className="text-xs text-fg-muted">Still to cut</span>
-                        <span className="font-display text-2xl font-bold text-fg">{remainingPct !== null ? `${formatNumber(remainingPct, 1)}%` : "—"}</span>
-                        <span className="text-xs text-fg-subtle">
-                            {latestKg !== null ? `${formatNumber(Math.max(0, latestKg - limitKg), 1)} kg above the limit` : "Log a weight to see it"}
-                        </span>
-                    </div>
-                </div>
-
-                {status === "RED" && (
-                    <Callout tone="danger" icon={TriangleAlert} title="Your cut is too steep for the days left">
-                        What&apos;s left to lose is more than is safe to cut before the weigh-in. Talk to your coach and medical staff today about
-                        the plan, including moving up a weight class.
-                    </Callout>
-                )}
-
+            <CardHeader title="Weight" icon={<Scale aria-hidden />} action={<WeightWarningBadge status={status} />} />
+            <CardContent className="flex flex-col gap-4">
+                <WeightFigures
+                    latestKg={weight?.latestKg ?? null}
+                    latestOn={weight?.latestOn ?? null}
+                    limitKg={limitKg}
+                    remainingPct={weight?.remainingPct ?? null}
+                    catchweight={bout.catchweightKg !== null}
+                />
+                <WeightStatusNote status={status} audience="fighter" />
                 {track && <WeightChart track={track} weighInAt={bout.weighInAt} height={220} />}
 
                 <ButtonLink href={routes.fighter.weighIn} size="lg" className="w-full sm:w-auto sm:self-start">

@@ -16,7 +16,6 @@ export function WeightAlertsCard({ alerts, fighterNames }: { alerts: Bout[]; fig
         <Card className="min-w-0">
             <CardHeader
                 title="Weight alerts"
-                description={pluralize(alerts.length, "bout") + " to check"}
                 icon={<Scale aria-hidden />}
                 action={<CardLink href={routes.coach.bouts}>All bouts</CardLink>}
             />

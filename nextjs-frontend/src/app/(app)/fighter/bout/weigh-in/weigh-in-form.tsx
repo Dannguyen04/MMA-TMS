@@ -5,7 +5,7 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { useActionForm } from "@/components/ui/use-action-form";
 import { recordSelfWeightAction } from "@/lib/actions/weigh-in";
 import { FIX_FIELDS } from "@/lib/actions/state";
-import { parseWeightKg, WEIGHT_MAX_KG, WEIGHT_MIN_KG } from "@/lib/domain/weigh-in";
+import { parseWeightKg } from "@/lib/domain/weigh-in";
 
 /** One number and Save: today's weight, checked here first so a typo never reaches the server. */
 export function WeighInForm() {
@@ -24,7 +24,7 @@ export function WeighInForm() {
             <Field
                 label="Weight (kg)"
                 htmlFor={weight.id}
-                hint={`Morning weight, before eating. Between ${WEIGHT_MIN_KG} and ${WEIGHT_MAX_KG} kg; 66,5 and 66.5 both work.`}
+                hint="Before breakfast. 66,5 and 66.5 both work."
                 error={form.error("weightKg")}
                 required
             >
