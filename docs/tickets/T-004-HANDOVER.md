@@ -186,3 +186,42 @@ Không có.
 
 ## Câu hỏi / việc còn mở
 Không có.
+
+## Vòng 2 (Sau review của Claude ngày 19/10)
+
+- Commit: `253dc17` (`fix(bouts): mobile nav, checklist header and camp copy (T-004)`)
+
+### Thay đổi
+1. `src/components/layout/mobile-nav.tsx`: Bổ sung `6: "grid-cols-6"` vào `GRID_COLS` để thanh điều hướng mobile hiển thị đủ 6 mục của HLV trên 1 hàng ở bề rộng 390 px.
+2. `src/app/(app)/coach/bouts/[boutId]/bout-checklist-card.tsx`: Đổi layout `CardHeader` thành `flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3`, đưa Gate 1 badge và nút "Add item" xuống dòng riêng trên màn hẹp dưới 640 px để phần mô tả đọc thoải mái không bị ép chữ.
+3. `src/app/(app)/coach/bouts/[boutId]/page.tsx`: Dùng `TRAINING_PHASE_LABELS` hiển thị nhãn thân thiện thay vì mã kỹ thuật `fight_camp`, và sửa câu mô tả khi chưa gắn plan cho trận: nếu trận ở `SCHEDULED` thì hiện "Link a fight camp plan to transition this bout to Camp status.", còn các trạng thái khác (như `CAMP`) thì hiện "No fight camp plan is currently linked to this bout."
+
+### Lệnh đã chạy
+
+#### 1. `pnpm --filter nextjs-frontend lint`
+```
+$ eslint
+```
+(Exit code: 0)
+
+#### 2. `pnpm --filter nextjs-frontend typecheck`
+```
+$ next typegen && tsc --noEmit
+Generating route types...
+✓ Types generated successfully
+```
+(Exit code: 0)
+
+#### 3. `pnpm --filter nextjs-frontend test`
+```
+$ vitest run
+
+ RUN  v5.0.2 D:/test/ai-worktrees/T-004/nextjs-frontend
+
+
+ Test Files  71 passed | 1 skipped (72)
+      Tests  612 passed | 1 skipped (613)
+   Start at  17:20:04
+   Duration  8.16s (import 46%, transform 36%, tests 16%, worker 1%)
+```
+(Exit code: 0)
