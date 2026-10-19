@@ -12,20 +12,34 @@ import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/table";
 import { identitiesById } from "@/components/training/training-data";
 import { accessibleFighterIds } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
-import { formatShortDate, pluralize } from "@/lib/format";
+import { formatShortDate } from "@/lib/format";
+import { getTranslator } from "@/lib/i18n/server";
+import { plural, type Translator } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import { listBouts } from "@/lib/services/bouts";
 import { listFighters } from "@/lib/services/people";
 
-export const metadata: Metadata = { title: "Bouts" };
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return { title: t("nav.Bouts") };
+}
+
+function formatDaysDisplay(t: Translator, daysLeft?: number): string | null {
+    if (daysLeft === undefined) return null;
+    if (daysLeft > 1) return t("coachBouts.daysLeft.inDays", { n: daysLeft });
+    if (daysLeft === 1) return t("coachBouts.daysLeft.tomorrow");
+    if (daysLeft === 0) return t("coachBouts.daysLeft.today");
+    return plural(t, "coachBouts.daysLeft.daysAgo", Math.abs(daysLeft));
+}
 
 export default async function CoachBoutsPage() {
     const user = await requireRole("coach");
     const scope = accessibleFighterIds(user);
 
-    const [bouts, fighters] = await Promise.all([
+    const [bouts, fighters, { t, locale }] = await Promise.all([
         listBouts({ fighterIds: scope }),
         listFighters(user),
+        getTranslator(),
     ]);
 
     const fightersById = identitiesById(fighters);
@@ -35,23 +49,23 @@ export default async function CoachBoutsPage() {
     const newBoutButton = (
         <ButtonLink href={routes.coach.newBout}>
             <Plus aria-hidden />
-            New bout
+            {t("coachBouts.newBout")}
         </ButtonLink>
     );
 
     return (
         <div className="flex flex-col gap-6">
             <PageHeader
-                title="Bouts"
-                description={pluralize(activeBouts.length, "active bout")}
+                title={t("nav.Bouts")}
+                description={plural(t, "coachBouts.activeBouts", activeBouts.length)}
                 actions={newBoutButton}
             />
 
             {activeBouts.length === 0 ? (
                 <EmptyState
                     icon={<Swords className="size-6" />}
-                    title="No upcoming bouts"
-                    description="Create a bout for a fighter on your roster to start tracking fight camp and weight cuts."
+                    title={t("coachBouts.emptyTitle")}
+                    description={t("coachBouts.emptyDescription")}
                     action={newBoutButton}
                 />
             ) : (
@@ -59,28 +73,19 @@ export default async function CoachBoutsPage() {
                     <Table>
                         <THead>
                             <TR>
-                                <TH className="text-left">Fighter</TH>
-                                <TH className="text-left">Event & weight</TH>
-                                <TH className="text-left">Weigh-in</TH>
-                                <TH className="text-left">Status</TH>
-                                <TH className="text-left">Weight</TH>
-                                <TH className="text-left">Gate 1</TH>
+                                <TH className="text-left">{t("coachBouts.table.fighter")}</TH>
+                                <TH className="text-left">{t("coachBouts.table.eventAndWeight")}</TH>
+                                <TH className="text-left">{t("coachBouts.table.weighIn")}</TH>
+                                <TH className="text-left">{t("coachBouts.table.status")}</TH>
+                                <TH className="text-left">{t("weight.title")}</TH>
+                                <TH className="text-left">{t("coachBouts.table.gate1")}</TH>
                             </TR>
                         </THead>
                         <TBody>
                             {activeBouts.map((bout) => {
                                 const fighter = fightersById[bout.fighterId];
                                 const daysLeft = bout.daysToWeighIn;
-                                const daysDisplay =
-                                    daysLeft !== undefined
-                                        ? daysLeft > 1
-                                            ? `in ${daysLeft} days`
-                                            : daysLeft === 1
-                                              ? "tomorrow"
-                                              : daysLeft === 0
-                                                ? "today"
-                                                : `${Math.abs(daysLeft)} days ago`
-                                        : null;
+                                const daysDisplay = formatDaysDisplay(t, daysLeft);
 
                                 return (
                                     <TR key={bout.id} className="hover:bg-surface-muted/50">
@@ -100,7 +105,7 @@ export default async function CoachBoutsPage() {
                                                     href={routes.coach.bout(bout.id)}
                                                     className="font-medium text-fg-muted hover:underline"
                                                 >
-                                                    Unknown fighter
+                                                    {t("coachBouts.unknownFighter")}
                                                 </Link>
                                             )}
                                         </TD>
@@ -113,13 +118,13 @@ export default async function CoachBoutsPage() {
                                                     {bout.eventName}
                                                 </Link>
                                                 <span className="truncate text-xs text-fg-muted">
-                                                    {bout.weightLimitKg} kg{bout.opponentName ? ` · vs ${bout.opponentName}` : ""}
+                                                    {bout.weightLimitKg} kg{bout.opponentName ? ` · ${t("bout.versus", { opponent: bout.opponentName })}` : ""}
                                                 </span>
                                             </div>
                                         </TD>
                                         <TD>
                                             <div className="flex flex-col">
-                                                <span className="text-sm text-fg">{formatShortDate(bout.weighInAt)}</span>
+                                                <span className="text-sm text-fg">{formatShortDate(bout.weighInAt, locale)}</span>
                                                 {daysDisplay && (
                                                     <span className="text-xs text-fg-muted">
                                                         {daysDisplay}
@@ -128,12 +133,12 @@ export default async function CoachBoutsPage() {
                                             </div>
                                         </TD>
                                         <TD>
-                                            <BoutStatusBadge status={bout.status} size="sm" />
+                                            <BoutStatusBadge status={bout.status} size="sm" locale={locale} />
                                         </TD>
                                         <TD>
                                             {bout.weight ? (
                                                 <div className="flex flex-col items-start gap-0.5">
-                                                    <WeightWarningBadge status={bout.weight.status} size="sm" />
+                                                    <WeightWarningBadge status={bout.weight.status} size="sm" locale={locale} />
                                                     {bout.weight.latestKg !== null && (
                                                         <span className="text-xs text-fg-muted tabular-nums">
                                                             {bout.weight.latestKg} kg
@@ -145,7 +150,7 @@ export default async function CoachBoutsPage() {
                                             )}
                                         </TD>
                                         <TD>
-                                            <Gate1Badge gate1={bout.gate1} size="sm" compact />
+                                            <Gate1Badge gate1={bout.gate1} size="sm" compact locale={locale} />
                                         </TD>
                                     </TR>
                                 );

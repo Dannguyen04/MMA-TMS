@@ -1,9 +1,11 @@
 import { Card } from "@/components/ui/card";
 import { LoadingRegion, PageHeaderSkeleton, Skeleton } from "@/components/ui/skeleton";
+import { getTranslator } from "@/lib/i18n/server";
 
-export default function Loading() {
+export default async function Loading() {
+    const { t } = await getTranslator();
     return (
-        <LoadingRegion label="Loading new bout form">
+        <LoadingRegion label={t("coachBouts.loading.newBout")}>
             <PageHeaderSkeleton back />
             <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                 <Card className="p-6 lg:col-span-2">
