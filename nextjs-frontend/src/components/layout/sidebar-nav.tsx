@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import type { Role } from "@/lib/domain/types";
+import { useT } from "@/components/i18n/locale-provider";
+import { navLabel } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 import { BADGE_LABELS, NAVIGATION, isNavItemActive, type NavBadgeKey, type NavItem, type NavSection } from "./navigation";
 
@@ -14,6 +16,7 @@ function NavLink({ item, counts, onNavigate }: { item: NavItem; counts: NavCount
     const active = isNavItemActive(item, pathname);
     const count = item.badge ? (counts[item.badge] ?? 0) : 0;
     const Icon = item.icon;
+    const t = useT();
 
     return (
         <Link
@@ -27,7 +30,7 @@ function NavLink({ item, counts, onNavigate }: { item: NavItem; counts: NavCount
         >
             {active && <span aria-hidden className="absolute top-2.5 bottom-2.5 left-1 w-1 -skew-x-[14deg] bg-rail-accent" />}
             <Icon aria-hidden className={cn("size-[18px] shrink-0", active ? "text-rail-fg-strong" : "text-rail-muted group-hover:text-rail-fg-strong")} />
-            <span className="min-w-0 text-pretty">{item.label}</span>
+            <span className="min-w-0 text-pretty">{navLabel(t, item.label)}</span>
             {count > 0 && (
                 <span
                     className={cn(
@@ -49,12 +52,13 @@ function NavLink({ item, counts, onNavigate }: { item: NavItem; counts: NavCount
  */
 export function SidebarNav({ role, counts, onNavigate }: { role: Role; counts: NavCounts; onNavigate?: () => void }) {
     const sections: NavSection[] = NAVIGATION[role];
+    const t = useT();
     return (
-        <nav aria-label="Main" className="flex flex-1 flex-col gap-5">
+        <nav aria-label={t("shell.mainNav")} className="flex flex-1 flex-col gap-5">
             {sections.map((section, index) => (
                 <div key={section.label ?? index}>
                     {section.label && (
-                        <p className="mb-1.5 px-3 font-display text-[12px] font-bold tracking-[0.12em] text-rail-muted uppercase">{section.label}</p>
+                        <p className="mb-1.5 px-3 font-display text-[12px] font-bold tracking-[0.12em] text-rail-muted uppercase">{navLabel(t, section.label)}</p>
                     )}
                     <ul className="flex flex-col gap-0.5">
                         {section.items.map((item) => (

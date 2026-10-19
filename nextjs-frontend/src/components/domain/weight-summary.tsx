@@ -3,6 +3,8 @@ import { Clock, TriangleAlert } from "lucide-react";
 import { Callout } from "@/components/training/callout";
 import type { WeightWarningStatus } from "@/lib/domain/types";
 import { formatNumber, formatShortDate } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
+import type { MessageKey, Translator } from "@/lib/i18n/translate";
 
 export interface WeightFiguresProps {
     latestKg: number | null;
@@ -11,16 +13,26 @@ export interface WeightFiguresProps {
     limitKg: number;
     remainingPct: number | null;
     catchweight?: boolean;
+    t: Translator;
+    locale: Locale;
 }
 
 /** Latest weight, the limit and what is left to cut: three numbers, one short caption each. */
-export function WeightFigures({ latestKg, latestOn, limitKg, remainingPct, catchweight = false }: WeightFiguresProps) {
+export function WeightFigures({ latestKg, latestOn, limitKg, remainingPct, catchweight = false, t, locale }: WeightFiguresProps) {
     const overKg = latestKg === null ? null : Math.max(0, latestKg - limitKg);
     return (
         <dl className="grid grid-cols-3 gap-3">
-            <Figure label="Latest" value={latestKg === null ? "—" : `${formatNumber(latestKg, 1)} kg`} caption={latestOn ? formatShortDate(`${latestOn}T12:00:00+07:00`) : "None yet"} />
-            <Figure label="Limit" value={`${formatNumber(limitKg, 1)} kg`} caption={catchweight ? "Catchweight" : undefined} />
-            <Figure label="To cut" value={remainingPct === null ? "—" : `${formatNumber(remainingPct, 1)}%`} caption={overKg === null ? undefined : `${formatNumber(overKg, 1)} kg`} />
+            <Figure
+                label={t("weight.latest")}
+                value={latestKg === null ? "—" : `${formatNumber(latestKg, 1)} kg`}
+                caption={latestOn ? formatShortDate(`${latestOn}T12:00:00+07:00`, locale) : t("weight.noneYet")}
+            />
+            <Figure label={t("weight.limit")} value={`${formatNumber(limitKg, 1)} kg`} caption={catchweight ? t("weight.catchweight") : undefined} />
+            <Figure
+                label={t("weight.toCut")}
+                value={remainingPct === null ? "—" : `${formatNumber(remainingPct, 1)}%`}
+                caption={overKg === null ? undefined : `${formatNumber(overKg, 1)} kg`}
+            />
         </dl>
     );
 }
@@ -35,27 +47,27 @@ function Figure({ label, value, caption }: { label: string; value: string; capti
     );
 }
 
-const NOTES: Record<"coach" | "fighter", Partial<Record<WeightWarningStatus, { title: string; text?: string }>>> = {
+const NOTES: Record<"coach" | "fighter", Partial<Record<WeightWarningStatus, { title: MessageKey; text?: MessageKey }>>> = {
     coach: {
-        RED: { title: "Cut too steep for the time left", text: "Talk to medical staff today. Consider a catchweight or moving up a class." },
-        YELLOW: { title: "Above the reference path", text: "Check training load and hydration." },
-        GREY: { title: "No weigh-in for 3 days", text: "Remind the fighter to log each morning." },
+        RED: { title: "weightNote.coach.RED.title", text: "weightNote.coach.RED.text" },
+        YELLOW: { title: "weightNote.coach.YELLOW.title", text: "weightNote.coach.YELLOW.text" },
+        GREY: { title: "weightNote.coach.GREY.title", text: "weightNote.coach.GREY.text" },
     },
     fighter: {
-        RED: { title: "Your cut is too steep for the time left", text: "Talk to your coach and medical staff today." },
-        YELLOW: { title: "Above your planned path" },
-        GREY: { title: "No weigh-in for 3 days", text: "Log your weight each morning." },
+        RED: { title: "weightNote.fighter.RED.title", text: "weightNote.fighter.RED.text" },
+        YELLOW: { title: "weightNote.fighter.YELLOW.title" },
+        GREY: { title: "weightNote.fighter.GREY.title", text: "weightNote.fighter.GREY.text" },
     },
 };
 
 /** One short note for a status that needs action; nothing when the cut is on track. */
-export function WeightStatusNote({ status, audience }: { status: WeightWarningStatus; audience: "coach" | "fighter" }) {
+export function WeightStatusNote({ status, audience, t }: { status: WeightWarningStatus; audience: "coach" | "fighter"; t: Translator }) {
     const note = NOTES[audience][status];
     if (!note) return null;
     const tone = status === "RED" ? "danger" : status === "YELLOW" ? "warning" : "neutral";
     return (
-        <Callout tone={tone} icon={status === "GREY" ? Clock : TriangleAlert} title={note.title}>
-            {note.text}
+        <Callout tone={tone} icon={status === "GREY" ? Clock : TriangleAlert} title={t(note.title)}>
+            {note.text && t(note.text)}
         </Callout>
     );
 }

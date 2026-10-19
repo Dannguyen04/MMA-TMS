@@ -70,6 +70,8 @@ import type {
     VideoStatus,
     WeightWarningStatus,
 } from "@/lib/domain/types";
+import type { Locale } from "@/lib/i18n/config";
+import { createTranslator } from "@/lib/i18n/translate";
 import { formatConfidence } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -386,8 +388,10 @@ export const BOUT_STATUS_META: Record<BoutStatus, StatusMeta> = {
     CANCELLED: { label: BOUT_STATUS_LABELS.CANCELLED, tone: "neutral", icon: CircleX },
 };
 
-export function BoutStatusBadge({ status, size, className }: { status: BoutStatus; size?: BadgeSize; className?: string }) {
-    return <StatusBadge meta={BOUT_STATUS_META[status]} size={size} className={className} />;
+/** Pass `locale` on translated screens; without it the badge keeps the English label. */
+export function BoutStatusBadge({ status, size, className, locale }: { status: BoutStatus; size?: BadgeSize; className?: string; locale?: Locale }) {
+    const meta = BOUT_STATUS_META[status];
+    return <StatusBadge meta={locale ? { ...meta, label: createTranslator(locale)(`boutStatus.${status}`) } : meta} size={size} className={className} />;
 }
 
 export const BOUT_REQUIREMENT_STATUS_META: Record<BoutRequirementStatus, StatusMeta> = {
@@ -401,12 +405,15 @@ export function BoutRequirementStatusBadge({
     status,
     size,
     className,
+    locale,
 }: {
     status: BoutRequirementStatus;
     size?: BadgeSize;
     className?: string;
+    locale?: Locale;
 }) {
-    return <StatusBadge meta={BOUT_REQUIREMENT_STATUS_META[status]} size={size} className={className} />;
+    const meta = BOUT_REQUIREMENT_STATUS_META[status];
+    return <StatusBadge meta={locale ? { ...meta, label: createTranslator(locale)(`requirementStatus.${status}`) } : meta} size={size} className={className} />;
 }
 
 export const WEIGHT_WARNING_META: Record<WeightWarningStatus, StatusMeta> = {
@@ -420,12 +427,15 @@ export function WeightWarningBadge({
     status,
     size,
     className,
+    locale,
 }: {
     status: WeightWarningStatus;
     size?: BadgeSize;
     className?: string;
+    locale?: Locale;
 }) {
-    return <StatusBadge meta={WEIGHT_WARNING_META[status]} size={size} className={className} />;
+    const meta = WEIGHT_WARNING_META[status];
+    return <StatusBadge meta={locale ? { ...meta, label: createTranslator(locale)(`weightStatus.${status}`) } : meta} size={size} className={className} />;
 }
 
 export function Gate1Badge({
@@ -433,17 +443,20 @@ export function Gate1Badge({
     size,
     className,
     compact,
+    locale = "en",
 }: {
     gate1?: Gate1Result | null;
     size?: BadgeSize;
     className?: string;
     compact?: boolean;
+    locale?: Locale;
 }) {
     if (!gate1) return null;
+    const t = createTranslator(locale);
     if (gate1.passed) {
         return (
             <Badge tone="success" icon={ShieldCheck} size={size} className={className}>
-                {compact ? "Passed" : "Gate 1: Passed"}
+                {t(compact ? "gate1.passedShort" : "gate1.passed")}
             </Badge>
         );
     }
@@ -457,7 +470,7 @@ export function Gate1Badge({
             className={className}
             title={[...gate1.missing, ...gate1.expiring].join(", ")}
         >
-            {compact ? `Missing ${totalMissing}` : `Gate 1: Missing ${totalMissing}`}
+            {t(compact ? "gate1.missingShort" : "gate1.missing", { n: totalMissing })}
         </Badge>
     );
 }

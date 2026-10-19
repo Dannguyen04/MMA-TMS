@@ -28,6 +28,7 @@ import { planAdherence } from "@/lib/domain/training-plan";
 import type { MedicalClearance, TrainingPlan } from "@/lib/domain/types";
 import { activeBout, WEIGHT_SAVED_NOTICE } from "@/lib/domain/weigh-in";
 import { academyDayStartIso, addDaysToKey, dayKey, daysBetween, formatNumber, formatShortDate, formatWeekdayDate, pluralize } from "@/lib/format";
+import { getTranslator } from "@/lib/i18n/server";
 import { routes } from "@/lib/routes";
 import { listBouts } from "@/lib/services/bouts";
 import { listGoals } from "@/lib/services/goals";
@@ -56,7 +57,7 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
     if (!user.profileId) notFound();
     const fighter = await requireFighterAccess(user, user.profileId);
     const ids = [fighter.id];
-    const query = await searchParams;
+    const [query, { t, locale }] = await Promise.all([searchParams, getTranslator()]);
     // The bouts service is separate from training: without it Today still shows, minus the weigh-in card.
     const boutsRead = nullIfServiceFails(listBouts({ fighterIds: ids }));
 
@@ -161,7 +162,7 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
     return (
         <>
             <FlashToast
-                notice={param(query.notice) === WEIGHT_SAVED_NOTICE ? { title: "Weight saved" } : null}
+                notice={param(query.notice) === WEIGHT_SAVED_NOTICE ? { title: t("weight.saved") } : null}
                 cleanHref={routes.fighter.dashboard}
             />
             <PageHeader
@@ -210,7 +211,7 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
                         className="sm:col-span-2 lg:col-span-1"
                     />
                     {runningBout ? (
-                        <BoutWeightCell bout={runningBout} className="sm:col-span-2 lg:col-span-1" />
+                        <BoutWeightCell bout={runningBout} t={t} locale={locale} className="sm:col-span-2 lg:col-span-1" />
                     ) : (
                         <ReadinessCell
                             label="Weight"

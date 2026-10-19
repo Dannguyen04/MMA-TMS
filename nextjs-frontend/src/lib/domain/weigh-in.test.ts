@@ -33,6 +33,9 @@ describe("parseWeightKg", () => {
         expect(parseWeightKg("250").ok).toBe(false);
         expect(parseWeightKg("29.9").ok).toBe(false);
         expect(parseWeightKg("200").ok).toBe(true);
+        expect(parseWeightKg("abc")).toEqual({ ok: false, error: "notNumber" });
+        expect(parseWeightKg("250")).toEqual({ ok: false, error: "range" });
+        expect(parseWeightKg(" ")).toEqual({ ok: false, error: "empty" });
     });
 });
 

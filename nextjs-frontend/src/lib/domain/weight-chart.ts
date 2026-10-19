@@ -1,4 +1,5 @@
 import { addDaysToKey, daysBetweenKeys, formatShortDate } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
 import type { WeightTrack } from "./types";
 
 export interface WeightChartData {
@@ -25,7 +26,7 @@ export function weightChartRange(track: WeightTrack, weighInDay: string): { from
 }
 
 /** Values for `LineChart`: a weight series, a reference series and the limit line. */
-export function weightChartData(track: WeightTrack, from: string, to: string): WeightChartData {
+export function weightChartData(track: WeightTrack, from: string, to: string, locale: Locale = "en"): WeightChartData {
     const count = Math.max(0, daysBetweenKeys(from, to)) + 1;
     const days = Array.from({ length: count }, (_, index) => addDaysToKey(from, index));
     const byDay = new Map(track.points.map((point) => [point.date, point.kg]));
@@ -33,7 +34,7 @@ export function weightChartData(track: WeightTrack, from: string, to: string): W
 
     return {
         days,
-        labels: days.map((day) => formatShortDate(`${day}T12:00:00+07:00`)),
+        labels: days.map((day) => formatShortDate(`${day}T12:00:00+07:00`, locale)),
         weight: days.map((day) => byDay.get(day) ?? null),
         reference: days.map((day) => referenceAt(anchors, day)),
         target: { value: track.limitKg, label: "Limit" },

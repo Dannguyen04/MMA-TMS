@@ -14,6 +14,7 @@ import { requireRole } from "@/lib/auth/session";
 import { weightAlerts } from "@/lib/domain/weigh-in";
 import { academyDayStartIso, addDaysToKey, DAY_MS, dayKey, formatWeekdayDate, pluralize } from "@/lib/format";
 import { hrefWith, parseEnum } from "@/lib/query";
+import { getTranslator } from "@/lib/i18n/server";
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
 import { nullIfServiceFails } from "@/lib/services/api-helpers";
@@ -37,7 +38,7 @@ const MISSED_WINDOW_DAYS = 7;
  */
 export default async function CoachDashboardPage({ searchParams }: PageProps<"/coach/dashboard">) {
     const user = await requireRole("coach");
-    const query = await searchParams;
+    const [query, { t, locale }] = await Promise.all([searchParams, getTranslator()]);
     const now = new Date().toISOString();
     const scope = accessibleFighterIds(user);
 
@@ -115,7 +116,7 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
                 />
 
                 <div className="flex min-w-0 flex-col gap-6">
-                    <WeightAlertsCard alerts={weightAlerts(bouts ?? [])} fighterNames={new Map(fighters.map((fighter) => [fighter.id, fighter.name]))} />
+                    <WeightAlertsCard alerts={weightAlerts(bouts ?? [])} fighterNames={new Map(fighters.map((fighter) => [fighter.id, fighter.name]))} t={t} locale={locale} />
                     <TodaySchedule sessions={todaySessions} fighters={scheduleFighters} />
                 </div>
             </div>
