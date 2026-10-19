@@ -126,6 +126,7 @@ export default async function CoachBoutPage({ params, searchParams }: PageProps<
                 <CardContent className="pt-5">
                     <DescriptionList
                         columns={3}
+                        className="grid-cols-2"
                         items={[
                             {
                                 label: bout.catchweightKg === null ? "Weight class" : "Catchweight",
