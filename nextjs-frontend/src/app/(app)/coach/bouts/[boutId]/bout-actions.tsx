@@ -3,6 +3,7 @@
 import { Edit3, Link2, Swords, TriangleAlert, XCircle } from "lucide-react";
 import { useState } from "react";
 
+import { useT } from "@/components/i18n/locale-provider";
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/form";
@@ -29,6 +30,7 @@ function toLocalDatetimeInput(isoDate: string): string {
 }
 
 export function BoutHeaderActions({ bout, plans }: BoutHeaderActionsProps) {
+    const t = useT();
     const toast = useToast();
 
     const [linkOpen, setLinkOpen] = useState(false);
@@ -46,28 +48,28 @@ export function BoutHeaderActions({ bout, plans }: BoutHeaderActionsProps) {
             {isScheduled && (
                 <Button variant="primary" size="sm" onClick={() => setLinkOpen(true)}>
                     <Link2 aria-hidden className="size-4" />
-                    Link camp plan
+                    {t("coachBouts.actions.linkCamp")}
                 </Button>
             )}
 
             {isCamp && (
                 <Button variant="primary" size="sm" onClick={() => setEnterWeekOpen(true)}>
                     <Swords aria-hidden className="size-4" />
-                    Enter fight week
+                    {t("coachBouts.actions.enterFightWeek")}
                 </Button>
             )}
 
             {canEdit && (
                 <Button variant="secondary" size="sm" onClick={() => setEditOpen(true)}>
                     <Edit3 aria-hidden className="size-4" />
-                    Edit
+                    {t("coachBouts.actions.edit")}
                 </Button>
             )}
 
             {canCancel && (
                 <Button variant="ghost" size="sm" onClick={() => setCancelOpen(true)} className="text-danger-fg hover:bg-danger-soft">
                     <XCircle aria-hidden className="size-4" />
-                    Cancel bout
+                    {t("coachBouts.actions.cancelBout")}
                 </Button>
             )}
 
@@ -75,13 +77,13 @@ export function BoutHeaderActions({ bout, plans }: BoutHeaderActionsProps) {
             <ActionDialog
                 open={linkOpen}
                 onClose={() => setLinkOpen(false)}
-                title="Link fight camp plan"
-                description="Attach an active training plan in fight_camp phase to this bout. This will transition the bout to CAMP status."
+                title={t("coachBouts.dialog.linkCamp.title")}
+                description={t("coachBouts.dialog.linkCamp.description")}
                 action={linkCampAction}
-                submitLabel="Link camp"
-                pendingLabel="Linking…"
+                submitLabel={t("coachBouts.dialog.linkCamp.submit")}
+                pendingLabel={t("coachBouts.dialog.linkCamp.pending")}
                 onSuccess={(state) => {
-                    toast({ title: "Camp linked", description: state.message });
+                    toast({ title: t("coachBouts.toast.campLinked"), description: state.message });
                     setLinkOpen(false);
                 }}
             >
@@ -90,23 +92,23 @@ export function BoutHeaderActions({ bout, plans }: BoutHeaderActionsProps) {
                         <input type="hidden" name="boutId" value={bout.id} />
                         {plans.length === 0 ? (
                             <div className="rounded-lg border border-warning-border bg-warning-soft p-3.5 text-xs text-warning-fg">
-                                <span className="font-semibold">No fight camp plans found.</span>
+                                <span className="font-semibold">{t("coachBouts.dialog.linkCamp.noPlansTitle")}</span>
                                 <p className="mt-1">
-                                    This fighter has no active plans in the &quot;fight_camp&quot; phase. Please create or update a training plan first.
+                                    {t("coachBouts.dialog.linkCamp.noPlansText")}
                                 </p>
                             </div>
                         ) : (
                             <Field
-                                label="Training plan"
+                                label={t("coachBouts.dialog.linkCamp.planLabel")}
                                 htmlFor="link-plan-id"
                                 required
                                 error={form.error("trainingPlanId")}
-                                hint="Only fight_camp plans belonging to this fighter are listed."
+                                hint={t("coachBouts.dialog.linkCamp.planHint")}
                             >
                                 <Select id="link-plan-id" name="trainingPlanId" required defaultValue={plans[0]?.id}>
                                     {plans.map((p) => (
                                         <option key={p.id} value={p.id}>
-                                            {p.title} (Phase: {p.phase})
+                                            {p.title} ({t("coachBouts.dialog.linkCamp.phaseOption", { phase: t(`coachBouts.phase.${p.phase}`) })})
                                         </option>
                                     ))}
                                 </Select>
@@ -120,13 +122,13 @@ export function BoutHeaderActions({ bout, plans }: BoutHeaderActionsProps) {
             <ActionDialog
                 open={enterWeekOpen}
                 onClose={() => setEnterWeekOpen(false)}
-                title="Enter fight week"
-                description="Transition this bout from CAMP to FIGHT_WEEK. All required checklist items must be satisfied (Gate 1)."
+                title={t("coachBouts.dialog.enterFightWeek.title")}
+                description={t("coachBouts.dialog.enterFightWeek.description")}
                 action={enterFightWeekAction}
-                submitLabel="Confirm fight week"
-                pendingLabel="Checking requirements…"
+                submitLabel={t("coachBouts.dialog.enterFightWeek.submit")}
+                pendingLabel={t("coachBouts.dialog.enterFightWeek.pending")}
                 onSuccess={(state) => {
-                    toast({ title: "Entered fight week", description: state.message });
+                    toast({ title: t("coachBouts.toast.enteredFightWeek"), description: state.message });
                     setEnterWeekOpen(false);
                 }}
             >
@@ -134,13 +136,13 @@ export function BoutHeaderActions({ bout, plans }: BoutHeaderActionsProps) {
                     <div className="flex flex-col gap-3">
                         <input type="hidden" name="boutId" value={bout.id} />
                         <p className="text-sm text-fg">
-                            Entering fight week locks medical requirements and activates the final weight cut monitoring protocols.
+                            {t("coachBouts.dialog.enterFightWeek.notice")}
                         </p>
                         {bout.gate1 && !bout.gate1.passed && (
                             <div className="flex items-start gap-2 rounded-lg border border-danger-border bg-danger-soft p-3 text-xs text-danger-fg">
                                 <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
                                 <div>
-                                    <span className="font-semibold">Gate 1 checklist has missing items:</span>
+                                    <span className="font-semibold">{t("coachBouts.dialog.enterFightWeek.gate1MissingTitle")}</span>
                                     <ul className="mt-1 list-inside list-disc">
                                         {[...bout.gate1.missing, ...bout.gate1.expiring].map((item) => (
                                             <li key={item}>{item}</li>
@@ -157,14 +159,14 @@ export function BoutHeaderActions({ bout, plans }: BoutHeaderActionsProps) {
             <ActionDialog
                 open={cancelOpen}
                 onClose={() => setCancelOpen(false)}
-                title="Cancel bout"
-                description="Cancelling a bout is permanent. Please state the reason for cancellation."
+                title={t("coachBouts.dialog.cancel.title")}
+                description={t("coachBouts.dialog.cancel.description")}
                 action={cancelBoutAction}
-                submitLabel="Cancel bout"
+                submitLabel={t("coachBouts.dialog.cancel.submit")}
                 submitVariant="danger"
-                pendingLabel="Cancelling…"
+                pendingLabel={t("coachBouts.dialog.cancel.pending")}
                 onSuccess={(state) => {
-                    toast({ title: "Bout cancelled", description: state.message });
+                    toast({ title: t("coachBouts.toast.boutCancelled"), description: state.message });
                     setCancelOpen(false);
                 }}
             >
@@ -172,16 +174,16 @@ export function BoutHeaderActions({ bout, plans }: BoutHeaderActionsProps) {
                     <div className="flex flex-col gap-4">
                         <input type="hidden" name="boutId" value={bout.id} />
                         <Field
-                            label="Cancellation reason"
+                            label={t("coachBouts.dialog.cancel.reasonLabel")}
                             htmlFor="cancel-reason"
                             required
                             error={form.error("reason")}
-                            hint="e.g. Fighter injury, opponent withdrawal, failed medical clearance, or contract dispute."
+                            hint={t("coachBouts.dialog.cancel.reasonHint")}
                         >
                             <Textarea
                                 {...form.control("reason", { id: "cancel-reason", required: true })}
                                 rows={3}
-                                placeholder="Explain why the bout is being cancelled…"
+                                placeholder={t("coachBouts.dialog.cancel.reasonPlaceholder")}
                                 maxLength={300}
                             />
                         </Field>
@@ -194,11 +196,11 @@ export function BoutHeaderActions({ bout, plans }: BoutHeaderActionsProps) {
                 open={editOpen}
                 onClose={() => setEditOpen(false)}
                 size="lg"
-                title="Edit bout details"
-                description="Update tournament information, venue, opponent, weight limit and schedule."
+                title={t("coachBouts.dialog.edit.title")}
+                description={t("coachBouts.dialog.edit.description")}
                 action={updateBoutAction}
-                submitLabel="Save changes"
-                pendingLabel="Saving…"
+                submitLabel={t("coachBouts.dialog.edit.submit")}
+                pendingLabel={t("coachBouts.dialog.edit.pending")}
                 prepare={(fd) => {
                     const rawWeight = fd.get("weightLimitKg");
                     if (typeof rawWeight === "string") {
@@ -212,14 +214,14 @@ export function BoutHeaderActions({ bout, plans }: BoutHeaderActionsProps) {
                         if (wMs >= bMs) {
                             return {
                                 status: "error",
-                                message: "Weigh-in must be scheduled before the bout.",
-                                fieldErrors: { weighInAt: "Weigh-in must be before the bout." },
+                                message: t("coachBouts.form.error.weighInBeforeBout"),
+                                fieldErrors: { weighInAt: t("coachBouts.form.error.weighInBeforeBout") },
                             };
                         }
                     }
                 }}
                 onSuccess={(state) => {
-                    toast({ title: "Bout updated", description: state.message });
+                    toast({ title: t("coachBouts.toast.boutUpdated"), description: state.message });
                     setEditOpen(false);
                 }}
             >
@@ -229,7 +231,7 @@ export function BoutHeaderActions({ bout, plans }: BoutHeaderActionsProps) {
 
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <Field
-                                label="Event name"
+                                label={t("coachBouts.form.eventName")}
                                 htmlFor="edit-event-name"
                                 required
                                 error={form.error("eventName")}
@@ -244,7 +246,7 @@ export function BoutHeaderActions({ bout, plans }: BoutHeaderActionsProps) {
                             </Field>
 
                             <Field
-                                label="Venue"
+                                label={t("bout.venue")}
                                 htmlFor="edit-venue"
                                 error={form.error("venue")}
                             >
@@ -259,7 +261,7 @@ export function BoutHeaderActions({ bout, plans }: BoutHeaderActionsProps) {
 
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <Field
-                                label="Opponent"
+                                label={t("coachBouts.form.opponent")}
                                 htmlFor="edit-opponent-name"
                                 error={form.error("opponentName")}
                             >
@@ -272,7 +274,7 @@ export function BoutHeaderActions({ bout, plans }: BoutHeaderActionsProps) {
                             </Field>
 
                             <Field
-                                label="Weight limit (kg)"
+                                label={t("coachBouts.form.weightLimit")}
                                 htmlFor="edit-weight-limit"
                                 required
                                 error={form.error("weightLimitKg")}
@@ -290,7 +292,7 @@ export function BoutHeaderActions({ bout, plans }: BoutHeaderActionsProps) {
 
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <Field
-                                label="Weigh-in date & time"
+                                label={t("coachBouts.form.weighInAt")}
                                 htmlFor="edit-weigh-in-at"
                                 required
                                 error={form.error("weighInAt")}
@@ -305,7 +307,7 @@ export function BoutHeaderActions({ bout, plans }: BoutHeaderActionsProps) {
                             </Field>
 
                             <Field
-                                label="Bout date & time"
+                                label={t("coachBouts.form.boutAt")}
                                 htmlFor="edit-bout-at"
                                 required
                                 error={form.error("boutAt")}
@@ -321,10 +323,10 @@ export function BoutHeaderActions({ bout, plans }: BoutHeaderActionsProps) {
                         </div>
 
                         <Field
-                            label="Checklist due days before weigh-in"
+                            label={t("coachBouts.dialog.edit.dueDaysLabel")}
                             htmlFor="edit-due-days"
                             error={form.error("requirementsDueDays")}
-                            hint="Days before weigh-in when all documents must be submitted (default: 7)."
+                            hint={t("coachBouts.dialog.edit.dueDaysHint")}
                         >
                             <Input
                                 id="edit-due-days"
@@ -337,7 +339,7 @@ export function BoutHeaderActions({ bout, plans }: BoutHeaderActionsProps) {
                         </Field>
 
                         <Field
-                            label="Notes"
+                            label={t("coachBouts.form.notes")}
                             htmlFor="edit-notes"
                             error={form.error("notes")}
                         >

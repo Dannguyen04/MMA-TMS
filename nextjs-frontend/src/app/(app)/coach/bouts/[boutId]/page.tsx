@@ -16,8 +16,9 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { canAccessFighter } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
-import { BOUT_STATUS_LABELS, TRAINING_PHASE_LABELS } from "@/lib/domain/labels";
 import { formatDateTime, formatDate } from "@/lib/format";
+import { getTranslator } from "@/lib/i18n/server";
+import { plural } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import { getBout, listRulesets } from "@/lib/services/bouts";
 import { getFighter } from "@/lib/services/people";
@@ -31,16 +32,16 @@ interface PageProps {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-    const { boutId } = await params;
+    const [{ boutId }, { t }] = await Promise.all([params, getTranslator()]);
     const bout = await getBout(boutId);
     return {
-        title: bout ? `${bout.eventName} · Bout` : "Bout details",
+        title: bout ? t("coachBouts.detail.metaTitle", { eventName: bout.eventName }) : t("coachBouts.detail.metaTitleDefault"),
     };
 }
 
 export default async function CoachBoutDetailPage({ params }: PageProps) {
     const user = await requireRole("coach");
-    const { boutId } = await params;
+    const [{ boutId }, { t, locale }] = await Promise.all([params, getTranslator()]);
 
     const bout = await getBout(boutId);
 
@@ -66,19 +67,23 @@ export default async function CoachBoutDetailPage({ params }: PageProps) {
     const countdownText =
         daysLeft !== undefined
             ? daysLeft > 0
-                ? `${daysLeft} days to weigh-in`
+                ? plural(t, "bout.daysToWeighIn", daysLeft)
                 : daysLeft === 0
-                  ? "Weigh-in is today"
-                  : `Weighed in ${Math.abs(daysLeft)} days ago`
+                  ? t("bout.weighInToday")
+                  : plural(t, "coachBouts.detail.weighedInDaysAgo", Math.abs(daysLeft))
             : "";
 
     return (
         <div className="flex flex-col gap-6">
             <PageHeader
-                eyebrow="Bout"
-                back={{ href: routes.coach.bouts, label: "Bouts" }}
+                eyebrow={t("bout.eyebrow")}
+                back={{ href: routes.coach.bouts, label: t("nav.Bouts") }}
                 title={bout.eventName}
-                description={`${fighter.name} vs ${bout.opponentName ?? "Opponent TBA"} · ${bout.weightLimitKg} kg`}
+                description={t("coachBouts.detail.headerDescription", {
+                    fighter: fighter.name,
+                    opponent: bout.opponentName ?? t("bout.opponentTba"),
+                    weight: bout.weightLimitKg,
+                })}
                 actions={<BoutHeaderActions bout={bout} plans={fightCampPlans} />}
             />
 
@@ -88,7 +93,7 @@ export default async function CoachBoutDetailPage({ params }: PageProps) {
                     <FighterIdentity fighter={fighter} size="lg" />
 
                     <div className="flex flex-wrap items-center gap-2.5">
-                        <BoutStatusBadge status={bout.status} />
+                        <BoutStatusBadge status={bout.status} locale={locale} />
                         {countdownText && (
                             <Badge tone="neutral" variant="outline" icon={CalendarClock}>
                                 {countdownText}
@@ -103,7 +108,7 @@ export default async function CoachBoutDetailPage({ params }: PageProps) {
                 <div className="flex items-center gap-2.5 rounded-lg border border-warning-border bg-warning-soft px-4 py-3 text-xs text-warning-fg">
                     <TriangleAlert aria-hidden className="size-4 shrink-0" />
                     <span>
-                        <strong>Ruleset notice:</strong> This bout uses &quot;{ruleset.name}&quot; which is for reference only and has not been verified with the tournament organiser.
+                        <strong>{t("coachBouts.detail.rulesetNoticePrefix")}</strong> {t("coachBouts.detail.rulesetNoticeText", { ruleset: ruleset.name })}
                     </span>
                 </div>
             )}
@@ -121,41 +126,41 @@ export default async function CoachBoutDetailPage({ params }: PageProps) {
                     {/* Ruleset & Competition Specs */}
                     <Card className="min-w-0">
                         <CardHeader
-                            title="Competition rules"
+                            title={t("coachBouts.detail.rulesTitle")}
                             icon={<Shield aria-hidden />}
                         />
                         <CardContent className="flex flex-col gap-3 text-xs">
                             <div className="flex justify-between border-b border-border pb-2">
-                                <span className="text-fg-muted">Ruleset</span>
-                                <span className="font-medium text-fg">{ruleset?.name ?? "Custom rules"}</span>
+                                <span className="text-fg-muted">{t("coachBouts.detail.rulesetLabel")}</span>
+                                <span className="font-medium text-fg">{ruleset?.name ?? t("coachBouts.detail.customRules")}</span>
                             </div>
                             <div className="flex justify-between border-b border-border pb-2">
-                                <span className="text-fg-muted">Sport</span>
+                                <span className="text-fg-muted">{t("coachBouts.detail.sportLabel")}</span>
                                 <span className="font-medium text-fg">{ruleset?.sport ?? "MMA"}</span>
                             </div>
                             {bout.venue && (
                                 <div className="flex justify-between border-b border-border pb-2">
-                                    <span className="text-fg-muted">Venue</span>
+                                    <span className="text-fg-muted">{t("bout.venue")}</span>
                                     <span className="font-medium text-fg">{bout.venue}</span>
                                 </div>
                             )}
                             <div className="flex justify-between border-b border-border pb-2">
-                                <span className="text-fg-muted">Acute cut limit (snapshot)</span>
+                                <span className="text-fg-muted">{t("coachBouts.detail.acuteCutLimitLabel")}</span>
                                 <span className="font-semibold tabular-nums text-fg">
                                     {bout.acuteLossLimitPct}%
                                 </span>
                             </div>
                             <div className="flex justify-between border-b border-border pb-2">
-                                <span className="text-fg-muted">Acute window</span>
-                                <span className="font-medium text-fg">{ruleset?.acuteWindowDays ?? 7} days</span>
+                                <span className="text-fg-muted">{t("coachBouts.detail.acuteWindowLabel")}</span>
+                                <span className="font-medium text-fg">{plural(t, "coachBouts.detail.days", ruleset?.acuteWindowDays ?? 7)}</span>
                             </div>
                             <div className="flex justify-between border-b border-border pb-2">
-                                <span className="text-fg-muted">Weigh-in</span>
-                                <span className="font-medium text-fg">{formatDateTime(bout.weighInAt)}</span>
+                                <span className="text-fg-muted">{t("bout.weighIn")}</span>
+                                <span className="font-medium text-fg">{formatDateTime(bout.weighInAt, locale)}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="text-fg-muted">Bout start</span>
-                                <span className="font-medium text-fg">{formatDateTime(bout.boutAt)}</span>
+                                <span className="text-fg-muted">{t("coachBouts.detail.boutStartLabel")}</span>
+                                <span className="font-medium text-fg">{formatDateTime(bout.boutAt, locale)}</span>
                             </div>
                         </CardContent>
                     </Card>
@@ -163,7 +168,7 @@ export default async function CoachBoutDetailPage({ params }: PageProps) {
                     {/* Fight Camp Card */}
                     <Card className="min-w-0">
                         <CardHeader
-                            title="Fight camp"
+                            title={t("coachBouts.detail.campTitle")}
                             icon={<Activity aria-hidden />}
                         />
                         <CardContent className="flex flex-col gap-3 text-xs">
@@ -171,10 +176,15 @@ export default async function CoachBoutDetailPage({ params }: PageProps) {
                                 <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface-muted p-3">
                                     <span className="font-semibold text-fg">{linkedPlan.title}</span>
                                     <span className="text-fg-muted">
-                                        Phase: <strong className="text-fg">{TRAINING_PHASE_LABELS[linkedPlan.phase]}</strong> · Target: {linkedPlan.weeklySessionTarget ?? 0} sessions/wk
+                                        {t("coachBouts.detail.campPhase", {
+                                            phase: t(`coachBouts.phase.${linkedPlan.phase}`),
+                                            target: linkedPlan.weeklySessionTarget ?? 0,
+                                        })}
                                     </span>
                                     <span className="text-fg-muted">
-                                        Camp started: {formatDate(linkedPlan.startDate)}
+                                        {t("coachBouts.detail.campStarted", {
+                                            date: formatDate(linkedPlan.startDate, locale),
+                                        })}
                                     </span>
                                     {linkedPlan.objective && (
                                         <p className="mt-1 text-fg-subtle italic">
@@ -183,7 +193,7 @@ export default async function CoachBoutDetailPage({ params }: PageProps) {
                                     )}
                                 </div>
                             ) : (
-                                <p className="text-xs text-fg-muted">No camp plan linked.</p>
+                                <p className="text-xs text-fg-muted">{t("coachBouts.detail.noCampPlan")}</p>
                             )}
                         </CardContent>
                     </Card>
@@ -191,7 +201,7 @@ export default async function CoachBoutDetailPage({ params }: PageProps) {
                     {/* Bout Notes */}
                     {bout.notes && (
                         <Card className="min-w-0">
-                            <CardHeader title="Coach notes" icon={<Calendar aria-hidden />} />
+                            <CardHeader title={t("coachBouts.detail.notesTitle")} icon={<Calendar aria-hidden />} />
                             <CardContent>
                                 <p className="text-xs text-fg leading-relaxed whitespace-pre-wrap">{bout.notes}</p>
                             </CardContent>
@@ -201,12 +211,12 @@ export default async function CoachBoutDetailPage({ params }: PageProps) {
                     {/* History Card */}
                     <Card className="min-w-0">
                         <CardHeader
-                            title="Status history"
+                            title={t("coachBouts.detail.historyTitle")}
                             icon={<History aria-hidden />}
                         />
                         <CardContent className="flex flex-col gap-3">
                             {bout.history.length === 0 ? (
-                                <span className="text-xs text-fg-muted">No history recorded yet.</span>
+                                <span className="text-xs text-fg-muted">{t("coachBouts.detail.noHistory")}</span>
                             ) : (
                                 <div className="divide-y divide-border text-xs">
                                     {bout.history.map((entry, idx) => (
@@ -214,11 +224,11 @@ export default async function CoachBoutDetailPage({ params }: PageProps) {
                                             <div className="flex items-center justify-between">
                                                 <span className="font-medium text-fg">
                                                     {entry.from === entry.to
-                                                        ? BOUT_STATUS_LABELS[entry.to]
-                                                        : `${BOUT_STATUS_LABELS[entry.from]} → ${BOUT_STATUS_LABELS[entry.to]}`}
+                                                        ? t(`boutStatus.${entry.to}`)
+                                                        : `${t(`boutStatus.${entry.from}`)} → ${t(`boutStatus.${entry.to}`)}`}
                                                 </span>
                                                 <span className="text-[11px] text-fg-muted">
-                                                    {formatDate(entry.at)}
+                                                    {formatDate(entry.at, locale)}
                                                 </span>
                                             </div>
                                             {entry.reason && (

@@ -16,6 +16,7 @@ import {
     BoutRequirementStatusBadge,
     Gate1Badge,
 } from "@/components/domain/status-badges";
+import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,8 @@ import type { Bout, BoutRequirement } from "@/lib/domain/types";
 import { dayKey, formatDate, formatShortDate } from "@/lib/format";
 
 export function BoutChecklistCard({ bout }: { bout: Bout }) {
+    const t = useT();
+    const locale = useLocale();
     const toast = useToast();
     const [addOpen, setAddOpen] = useState(false);
     const [editItem, setEditItem] = useState<BoutRequirement | null>(null);
@@ -48,15 +51,15 @@ export function BoutChecklistCard({ bout }: { bout: Bout }) {
     return (
         <Card className="min-w-0">
             <CardHeader
-                title="Medical checklist"
+                title={t("coachBouts.checklist.title")}
                 icon={<ClipboardCheck aria-hidden />}
                 className="flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3"
                 action={
                     <div className="flex flex-wrap items-center gap-2">
-                        <Gate1Badge gate1={bout.gate1} />
+                        <Gate1Badge gate1={bout.gate1} locale={locale} />
                         <Button variant="secondary" size="sm" onClick={() => setAddOpen(true)}>
                             <Plus aria-hidden className="size-4" />
-                            Add item
+                            {t("coachBouts.checklist.addItem")}
                         </Button>
                     </div>
                 }
@@ -69,16 +72,15 @@ export function BoutChecklistCard({ bout }: { bout: Bout }) {
                         <div className="flex items-center gap-2 text-fg">
                             <Calendar aria-hidden className="size-4 text-fg-muted" />
                             <span>
-                                Documents due{" "}
-                                <strong className="font-semibold text-fg">
-                                    {formatShortDate(bout.requirementsDueOn)}
-                                </strong>{" "}
-                                ({bout.requirementsDueDays} days before weigh-in)
+                                {t("coachBouts.checklist.dueNotice", {
+                                    date: formatShortDate(bout.requirementsDueOn, locale),
+                                    days: bout.requirementsDueDays,
+                                })}
                             </span>
                         </div>
                         {isOverdue && (
                             <Badge tone="danger" variant="solid" size="sm" icon={CalendarX}>
-                                Overdue
+                                {t("coachBouts.checklist.overdue")}
                             </Badge>
                         )}
                     </div>
@@ -89,9 +91,9 @@ export function BoutChecklistCard({ bout }: { bout: Bout }) {
                     <div className="flex items-start gap-2.5 rounded-lg border border-danger-border bg-danger-soft p-3 text-xs text-danger-fg">
                         <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
                         <div>
-                            <span className="font-semibold">Checklist is past the required due date.</span>
+                            <span className="font-semibold">{t("coachBouts.checklist.overdueWarningTitle")}</span>
                             <p className="mt-0.5">
-                                All required documents must be marked Provided or Confirmed with validity through the bout date ({formatDate(bout.boutAt)}) before this bout can enter fight week.
+                                {t("coachBouts.checklist.overdueWarningText", { date: formatDate(bout.boutAt, locale) })}
                             </p>
                         </div>
                     </div>
@@ -101,8 +103,8 @@ export function BoutChecklistCard({ bout }: { bout: Bout }) {
                 {requirements.length === 0 ? (
                     <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-8 text-center text-xs text-fg-muted">
                         <FileText aria-hidden className="mb-2 size-8 text-fg-subtle" />
-                        <p className="font-medium text-fg">No requirements in this checklist</p>
-                        <p className="mt-1">Add items requested by the tournament organiser or governing body.</p>
+                        <p className="font-medium text-fg">{t("coachBouts.checklist.emptyTitle")}</p>
+                        <p className="mt-1">{t("coachBouts.checklist.emptyText")}</p>
                     </div>
                 ) : (
                     <div className="divide-y divide-border rounded-lg border border-border">
@@ -122,30 +124,30 @@ export function BoutChecklistCard({ bout }: { bout: Bout }) {
                                             <span className="font-medium text-fg">{req.label}</span>
                                             {!req.required && (
                                                 <Badge tone="neutral" variant="outline" size="sm">
-                                                    Optional
+                                                    {t("coachBouts.checklist.optional")}
                                                 </Badge>
                                             )}
-                                            <BoutRequirementStatusBadge status={req.status} size="sm" />
+                                            <BoutRequirementStatusBadge status={req.status} size="sm" locale={locale} />
                                             {req.source === "COACH" && (
                                                 <span className="rounded border border-warning-border bg-warning-soft px-2 py-0.5 text-[11px] font-medium text-warning-fg">
-                                                    Coach-entered, not verified
+                                                    {t("coachBouts.checklist.coachEntered")}
                                                 </span>
                                             )}
                                         </div>
 
                                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-fg-muted">
                                             {req.issuedOn && (
-                                                <span>Issued: {formatDate(req.issuedOn)}</span>
+                                                <span>{t("coachBouts.checklist.issuedDate", { date: formatDate(req.issuedOn, locale) })}</span>
                                             )}
                                             {req.validUntil && (
                                                 <span className={isExpiringBeforeBout ? "font-medium text-danger-fg" : ""}>
-                                                    Valid until: {formatDate(req.validUntil)}
-                                                    {isExpiringBeforeBout && " (expires before bout!)"}
+                                                    {t("coachBouts.checklist.validUntil", { date: formatDate(req.validUntil, locale) })}
+                                                    {isExpiringBeforeBout && t("coachBouts.checklist.expiresBeforeBout")}
                                                 </span>
                                             )}
                                             {req.status === "REJECTED" && req.statusReason && (
                                                 <span className="text-danger-fg">
-                                                    Reason: {req.statusReason}
+                                                    {t("coachBouts.checklist.rejectedReason", { reason: req.statusReason })}
                                                 </span>
                                             )}
                                         </div>
@@ -156,17 +158,17 @@ export function BoutChecklistCard({ bout }: { bout: Bout }) {
                                             variant="ghost"
                                             size="sm"
                                             onClick={() => setEditItem(req)}
-                                            aria-label={`Edit ${req.label}`}
+                                            aria-label={t("coachBouts.checklist.editItemAria", { label: req.label })}
                                         >
                                             <Edit2 aria-hidden className="size-3.5" />
-                                            Edit
+                                            {t("coachBouts.checklist.edit")}
                                         </Button>
                                         <Button
                                             variant="ghost"
                                             size="sm"
                                             onClick={() => setDeleteItem(req)}
                                             className="text-danger-fg hover:bg-danger-soft"
-                                            aria-label={`Delete ${req.label}`}
+                                            aria-label={t("coachBouts.checklist.deleteItemAria", { label: req.label })}
                                         >
                                             <Trash2 aria-hidden className="size-3.5" />
                                         </Button>
@@ -182,13 +184,13 @@ export function BoutChecklistCard({ bout }: { bout: Bout }) {
             <ActionDialog
                 open={addOpen}
                 onClose={() => setAddOpen(false)}
-                title="Add checklist requirement"
-                description="Add a medical or regulatory document required by the tournament."
+                title={t("coachBouts.checklist.addDialog.title")}
+                description={t("coachBouts.checklist.addDialog.description")}
                 action={addRequirementAction}
-                submitLabel="Add requirement"
-                pendingLabel="Adding…"
+                submitLabel={t("coachBouts.checklist.addDialog.submit")}
+                pendingLabel={t("coachBouts.checklist.addDialog.pending")}
                 onSuccess={(state) => {
-                    toast({ title: "Requirement added", description: state.message });
+                    toast({ title: t("coachBouts.toast.requirementAdded"), description: state.message });
                     setAddOpen(false);
                 }}
             >
@@ -197,33 +199,33 @@ export function BoutChecklistCard({ bout }: { bout: Bout }) {
                         <input type="hidden" name="boutId" value={bout.id} />
 
                         <Field
-                            label="Requirement code"
+                            label={t("coachBouts.checklist.field.code")}
                             htmlFor="add-req-code"
                             required
                             error={form.error("code")}
-                            hint="Short identifier, e.g. BLOOD_TEST, HEALTH_CERT, BRAIN_MRI."
+                            hint={t("coachBouts.checklist.field.codeHint")}
                         >
                             <Input
                                 id="add-req-code"
                                 name="code"
                                 required
-                                placeholder="e.g. BRAIN_MRI"
+                                placeholder={t("coachBouts.checklist.field.codePlaceholder")}
                                 maxLength={40}
                             />
                         </Field>
 
                         <Field
-                            label="Document name / label"
+                            label={t("coachBouts.checklist.field.label")}
                             htmlFor="add-req-label"
                             required
                             error={form.error("label")}
-                            hint="Descriptive name shown on the checklist."
+                            hint={t("coachBouts.checklist.field.labelHint")}
                         >
                             <Input
                                 id="add-req-label"
                                 name="label"
                                 required
-                                placeholder="e.g. Brain MRI / Neurological Evaluation"
+                                placeholder={t("coachBouts.checklist.field.labelPlaceholder")}
                                 maxLength={120}
                             />
                         </Field>
@@ -232,14 +234,14 @@ export function BoutChecklistCard({ bout }: { bout: Bout }) {
                             id="add-req-required"
                             name="required"
                             defaultChecked
-                            label="Required for Gate 1 clearance"
+                            label={t("coachBouts.checklist.field.requiredLabel")}
                         />
 
                         <Field
-                            label="Validity period (days)"
+                            label={t("coachBouts.checklist.field.validityDays")}
                             htmlFor="add-req-validity"
                             error={form.error("validityDays")}
-                            hint="Optional standard validity duration, e.g. 180 days."
+                            hint={t("coachBouts.checklist.field.validityDaysHint")}
                         >
                             <Input
                                 id="add-req-validity"
@@ -247,7 +249,7 @@ export function BoutChecklistCard({ bout }: { bout: Bout }) {
                                 type="number"
                                 min={1}
                                 max={730}
-                                placeholder="e.g. 180"
+                                placeholder={t("coachBouts.checklist.field.validityDaysPlaceholder")}
                             />
                         </Field>
                     </div>
@@ -259,13 +261,13 @@ export function BoutChecklistCard({ bout }: { bout: Bout }) {
                 <ActionDialog
                     open={Boolean(editItem)}
                     onClose={() => setEditItem(null)}
-                    title={`Edit ${editItem.label}`}
-                    description="Update verification status, validity dates or document requirements."
+                    title={t("coachBouts.checklist.editDialog.title", { label: editItem.label })}
+                    description={t("coachBouts.checklist.editDialog.description")}
                     action={updateRequirementAction}
-                    submitLabel="Save changes"
-                    pendingLabel="Saving…"
+                    submitLabel={t("coachBouts.dialog.edit.submit")}
+                    pendingLabel={t("coachBouts.dialog.edit.pending")}
                     onSuccess={(state) => {
-                        toast({ title: "Requirement updated", description: state.message });
+                        toast({ title: t("coachBouts.toast.requirementUpdated"), description: state.message });
                         setEditItem(null);
                     }}
                 >
@@ -275,7 +277,7 @@ export function BoutChecklistCard({ bout }: { bout: Bout }) {
                             <input type="hidden" name="code" value={editItem.code} />
 
                             <Field
-                                label="Status"
+                                label={t("coachBouts.table.status")}
                                 htmlFor="edit-req-status"
                                 required
                                 error={form.error("status")}
@@ -285,16 +287,16 @@ export function BoutChecklistCard({ bout }: { bout: Bout }) {
                                     name="status"
                                     defaultValue={editItem.status}
                                 >
-                                    <option value="MISSING">Missing (Not provided)</option>
-                                    <option value="PROVIDED">Provided (Under coach verification)</option>
-                                    <option value="CONFIRMED">Confirmed (Verified by medical staff)</option>
-                                    <option value="REJECTED">Rejected (Document rejected)</option>
+                                    <option value="MISSING">{t("coachBouts.checklist.statusOption.MISSING")}</option>
+                                    <option value="PROVIDED">{t("coachBouts.checklist.statusOption.PROVIDED")}</option>
+                                    <option value="CONFIRMED">{t("coachBouts.checklist.statusOption.CONFIRMED")}</option>
+                                    <option value="REJECTED">{t("coachBouts.checklist.statusOption.REJECTED")}</option>
                                 </Select>
                             </Field>
 
                             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <Field
-                                    label="Issued date"
+                                    label={t("coachBouts.checklist.field.issuedDate")}
                                     htmlFor="edit-req-issued"
                                     error={form.error("issuedOn")}
                                 >
@@ -307,10 +309,10 @@ export function BoutChecklistCard({ bout }: { bout: Bout }) {
                                 </Field>
 
                                 <Field
-                                    label="Valid until"
+                                    label={t("coachBouts.checklist.field.validUntil")}
                                     htmlFor="edit-req-valid"
                                     error={form.error("validUntil")}
-                                    hint="Required if Provided. Must be on or after bout date."
+                                    hint={t("coachBouts.checklist.field.validUntilHint")}
                                 >
                                     <Input
                                         id="edit-req-valid"
@@ -322,7 +324,7 @@ export function BoutChecklistCard({ bout }: { bout: Bout }) {
                             </div>
 
                             <Field
-                                label="Document label"
+                                label={t("coachBouts.checklist.field.label")}
                                 htmlFor="edit-req-label"
                                 error={form.error("label")}
                             >
@@ -338,21 +340,21 @@ export function BoutChecklistCard({ bout }: { bout: Bout }) {
                                 id="edit-req-required"
                                 name="required"
                                 defaultChecked={editItem.required}
-                                label="Required for Gate 1 clearance"
+                                label={t("coachBouts.checklist.field.requiredLabel")}
                             />
 
                             <Field
-                                label="Status note / rejection reason"
+                                label={t("coachBouts.checklist.field.reason")}
                                 htmlFor="edit-req-reason"
                                 error={form.error("statusReason")}
-                                hint="Required if status is Rejected."
+                                hint={t("coachBouts.checklist.field.reasonHint")}
                             >
                                 <Textarea
                                     id="edit-req-reason"
                                     name="statusReason"
                                     rows={2}
                                     defaultValue={editItem.statusReason ?? ""}
-                                    placeholder="Explain status changes or rejection reasons…"
+                                    placeholder={t("coachBouts.checklist.field.reasonPlaceholder")}
                                     maxLength={300}
                                 />
                             </Field>
@@ -366,14 +368,14 @@ export function BoutChecklistCard({ bout }: { bout: Bout }) {
                 <ActionDialog
                     open={Boolean(deleteItem)}
                     onClose={() => setDeleteItem(null)}
-                    title={`Delete requirement`}
-                    description={`Are you sure you want to remove "${deleteItem.label}" (${deleteItem.code}) from this bout's checklist?`}
+                    title={t("coachBouts.checklist.deleteDialog.title")}
+                    description={t("coachBouts.checklist.deleteDialog.description", { label: deleteItem.label, code: deleteItem.code })}
                     action={removeRequirementAction}
-                    submitLabel="Delete requirement"
+                    submitLabel={t("coachBouts.checklist.deleteDialog.submit")}
                     submitVariant="danger"
-                    pendingLabel="Removing…"
+                    pendingLabel={t("coachBouts.checklist.deleteDialog.pending")}
                     onSuccess={(state) => {
-                        toast({ title: "Requirement removed", description: state.message });
+                        toast({ title: t("coachBouts.toast.requirementRemoved"), description: state.message });
                         setDeleteItem(null);
                     }}
                 >
@@ -382,7 +384,7 @@ export function BoutChecklistCard({ bout }: { bout: Bout }) {
                             <input type="hidden" name="boutId" value={bout.id} />
                             <input type="hidden" name="code" value={deleteItem.code} />
                             <p className="text-sm text-fg">
-                                This item will be permanently removed from the bout checklist.
+                                {t("coachBouts.checklist.deleteDialog.warning")}
                             </p>
                         </div>
                     )}
