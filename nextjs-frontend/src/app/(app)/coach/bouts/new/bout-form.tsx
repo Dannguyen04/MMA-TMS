@@ -104,15 +104,13 @@ export function BoutForm({
                     <FormMessage {...form.message} className="mb-6" />
 
                     <FormSection
-                        title="Fighter & Ruleset"
-                        description="Select the fighter on your roster and the competition ruleset governing the bout."
+                        title="Fighter & ruleset"
                     >
                         <Field
                             label="Fighter"
                             htmlFor={`${formId}-fighterId`}
                             required
                             error={form.error("fighterId")}
-                            hint="Only fighters on your roster are eligible."
                         >
                             <Select
                                 {...form.control("fighterId", { id: `${formId}-fighterId`, required: true })}
@@ -141,7 +139,7 @@ export function BoutForm({
                             >
                                 {rulesets.map((r) => (
                                     <option key={r.id} value={r.id}>
-                                        {r.name} ({r.sport})
+                                        {r.name}
                                     </option>
                                 ))}
                             </Select>
@@ -161,7 +159,6 @@ export function BoutForm({
                                     htmlFor={`${formId}-weightClassCode`}
                                     required
                                     error={form.error("weightClassCode")}
-                                    hint="Select from weight categories specified by this ruleset."
                                 >
                                     <Select
                                         id={`${formId}-weightClassCode`}
@@ -172,7 +169,7 @@ export function BoutForm({
                                     >
                                         {selectedRuleset?.weightClasses.map((wc) => (
                                             <option key={wc.code} value={wc.code}>
-                                                {wc.label} (Limit: {wc.limitKg} kg)
+                                                {wc.label}
                                             </option>
                                         ))}
                                     </Select>
@@ -205,8 +202,7 @@ export function BoutForm({
                     </FormSection>
 
                     <FormSection
-                        title="Event Details"
-                        description="Tournament name, venue and opponent."
+                        title="Event"
                     >
                         <Field
                             label="Event name"
@@ -251,7 +247,6 @@ export function BoutForm({
 
                     <FormSection
                         title="Schedule"
-                        description="Weigh-in date & time must be strictly before the bout date & time."
                     >
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <Field

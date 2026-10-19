@@ -30,7 +30,6 @@ export default async function NewBoutPage({ searchParams }: PageProps<"/coach/bo
         <div className="flex flex-col gap-6">
             <PageHeader
                 title="New bout"
-                description="Schedule an upcoming fight for a fighter on your roster and initiate fight camp tracking."
                 back={{ href: routes.coach.bouts, label: "Bouts" }}
             />
             <BoutForm

@@ -47,3 +47,15 @@ Kiểm tra tay ở demo mode bằng Playwright, chạy trên Edge, với tài kh
 | 3 | Gợi ý | `src/app/(app)/coach/bouts/[boutId]/page.tsx`, thẻ "Fight camp" | Trận đã ở `CAMP` mà chưa gắn plan (cả 3 trận seed) vẫn hiện "Link a fight_camp training plan to transition this bout to CAMP status". Câu này sai với trạng thái hiện tại, và `fight_camp` là mã kỹ thuật | Mở `/coach/bouts/bout-red-weight` |
 
 Ghi chú, không phải lỗi của ticket: theo dữ liệu seed, ba trận đều đang ở `CAMP` mà `trainingPlanId = null`. Vì vậy ngày bắt đầu camp lấy theo ngày tạo trận, đúng như T-003 §3.
+
+## Vòng 2 (19/10)
+
+Gemini sửa cả 3 vấn đề ở `253dc17` (handover cập nhật ở `34bb30b`). Claude đã đọc diff và kiểm tra ở 390 px trên nhánh T-005, nhánh này đã merge `34bb30b`:
+
+1. `mobile-nav.tsx`: thêm `6: "grid-cols-6"`. Thanh menu dưới của HLV nằm trên một hàng, cao 57 px. **Đã sửa.**
+2. `bout-checklist-card.tsx`: header xếp dọc trên màn hẹp, badge và nút xuống dòng riêng. **Đã sửa.**
+3. `page.tsx`, thẻ "Fight camp": câu hiển thị theo trạng thái, không còn mã `fight_camp`; phase hiển thị bằng `TRAINING_PHASE_LABELS`. **Đã sửa.**
+
+Lint, typecheck và test chạy lại trên nhánh T-005 sau khi merge đều qua (73 file test, 629 test).
+
+**Kết luận: APPROVED.** Thứ tự merge vào `fight-camp`: T-004 trước, rồi T-005.

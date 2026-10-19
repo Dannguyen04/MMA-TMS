@@ -225,3 +225,66 @@ $ vitest run
    Duration  8.16s (import 46%, transform 36%, tests 16%, worker 1%)
 ```
 (Exit code: 0)
+
+## Vòng 3 (Làm gọn giao diện theo góp ý ngày 19/10)
+
+- Commit: `170840d` (`refactor(bouts): trim redundant copy and badges on coach bout pages (T-004)`)
+
+### Thay đổi
+
+1. `src/app/(app)/coach/bouts/page.tsx` (danh sách):
+   - Rút gọn mô tả trang chỉ còn số trận đang hoạt động (ví dụ: "5 active bouts").
+   - Cột Fighter: chỉ hiển thị avatar và tên võ sĩ (loại bỏ nickname, enum hạng cân, stance, level).
+   - Gộp cột "Event & weight": dòng 1 là tên sự kiện (cắt bằng `truncate`), dòng 2 là `60 kg · vs [Opponent]`.
+   - Gộp "Weigh-in" và "Days left" thành một cột: dòng 1 là ngày format ngắn (`21 Oct`), dòng phụ là `in 2 days` / `today`.
+   - Cột Weight: hiển thị badge trạng thái cân ở dòng 1, dòng phụ là `66.1 kg` (không ngoặc).
+   - Loại bỏ container cuộn ngang dư thừa để bảng hiển thị vừa vặn trên màn hình 1280 px không bị cắt hay xuất hiện thanh cuộn ngang bên trong.
+
+2. `src/app/(app)/coach/bouts/[boutId]/page.tsx` (chi tiết):
+   - Mô tả `PageHeader`: rút gọn còn `[Fighter] vs [Opponent] · [Weight] kg`, loại bỏ ngày cân và ngày đấu trùng lặp.
+   - Thẻ tổng quan: bỏ khối Opponent và địa điểm (đã có ở header và quy định thi đấu); bỏ `WeightWarningBadge` và `Gate1Badge` để tránh lặp với thẻ Weight và thẻ Medical checklist; chỉ giữ badge trạng thái trận và đếm ngược.
+   - Thẻ Competition rules: bỏ mô tả thẻ; bỏ các dòng trùng lặp "Weight category" và "Target weight limit"; chuyển thông tin "Venue" vào thẻ này.
+   - Thẻ Fight camp: bỏ mô tả thẻ; khi chưa gắn plan chỉ hiển thị một dòng ngắn gọn: "No camp plan linked."
+   - Thẻ Status history: bỏ mô tả thẻ; chuyển sang dùng nhãn thân thiện theo enum (`Scheduled → Camp`).
+
+3. `src/app/(app)/coach/bouts/[boutId]/bout-checklist-card.tsx`:
+   - Bỏ mô tả dưới tiêu đề thẻ. Giữ `Gate1Badge` tại header thẻ (vị trí duy nhất trên trang hiển thị badge này).
+   - Trong từng mục: bỏ chip mã enum (`req.code`); bỏ chip "Required", chỉ hiển thị chip "Optional" nếu mục không bắt buộc; giữ badge "Coach-entered, not verified".
+   - Dòng deadline nộp giấy tờ: rút gọn còn `Documents due 14 Oct (7 days before weigh-in)` với ngày format ngắn.
+
+4. `src/app/(app)/coach/bouts/new/`:
+   - `page.tsx`: bỏ `description` dưới `PageHeader`.
+   - `bout-form.tsx`: đổi tiêu đề 3 FormSection thành sentence case và bỏ mô tả ("Fighter & ruleset", "Event", "Schedule").
+   - `bout-form.tsx`: bỏ hint ở ô Fighter và ô Weight class.
+   - `bout-form.tsx`: rút gọn nhãn dropdown Ruleset (chỉ còn tên ruleset) và Weight class (chỉ còn `60 kg`, bỏ `(Limit: 60 kg)`).
+
+### Lệnh đã chạy
+
+#### 1. `pnpm --filter nextjs-frontend lint`
+```
+$ eslint
+```
+(Exit code: 0)
+
+#### 2. `pnpm --filter nextjs-frontend typecheck`
+```
+$ next typegen && tsc --noEmit
+Generating route types...
+✓ Types generated successfully
+```
+(Exit code: 0)
+
+#### 3. `pnpm --filter nextjs-frontend test`
+```
+$ vitest run
+
+ RUN  v5.0.2 D:/test/ai-worktrees/T-004/nextjs-frontend
+
+
+ Test Files  71 passed | 1 skipped (72)
+      Tests  612 passed | 1 skipped (613)
+   Start at  17:50:08
+   Duration  7.31s (import 52%, transform 31%, tests 15%, worker 2%)
+```
+(Exit code: 0)
+
