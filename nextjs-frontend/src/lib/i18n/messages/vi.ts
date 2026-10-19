@@ -165,4 +165,7 @@ export const vi = {
     "weighIn.error.noProfile": "Không tìm thấy hồ sơ võ sĩ của bạn.",
 
     "form.fixFields": "Vui lòng sửa các ô được đánh dấu.",
+    "common.cancel": "Huỷ",
+    "common.closeDialog": "Đóng hộp thoại",
+    "common.dismissNotification": "Ẩn thông báo",
 } satisfies Record<keyof typeof en, string>;

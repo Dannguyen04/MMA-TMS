@@ -172,4 +172,7 @@ export const en = {
     "weighIn.error.noProfile": "Your fighter profile wasn't found.",
 
     "form.fixFields": "Please fix the highlighted fields.",
+    "common.cancel": "Cancel",
+    "common.closeDialog": "Close dialog",
+    "common.dismissNotification": "Dismiss notification",
 } as const;
