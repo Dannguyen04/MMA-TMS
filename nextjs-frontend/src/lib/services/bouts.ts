@@ -6,7 +6,7 @@ import { ApiError, authenticatedApiRequest, authenticatedMutableApiRequest } fro
 import { isDemoAuthEnabled } from "@/lib/auth/constants";
 import type { BoutOutcome, CampBout, CancelReason, CompetitionRuleset, NutritionPhaseKey, Suspension } from "@/lib/domain/bout";
 import { boutLimitKg, isRunningPhase } from "@/lib/domain/bout";
-import type { RequirementUpdate } from "@/lib/domain/bout-rules";
+import { requirementCode, type RequirementUpdate } from "@/lib/domain/bout-rules";
 import { wayOffCount } from "@/lib/domain/nutrition";
 import type { SuspensionDraft } from "@/lib/domain/suspension-rules";
 import type { TrainingType, User } from "@/lib/domain/types";
@@ -23,8 +23,9 @@ export type { BoutEdit, CreateResult, FightWeekResult, NewBout, WeighInEntry } f
 
 /**
  * Bouts, their camp weight and checklist, and suspensions (T-003, T-004, T-006, T-007). Demo mode runs on
- * `bouts.demo.ts`. API mode reads the weight track and writes the meal plan; the rest of the bouts contract is
- * not served by the backend on this branch, so reads come back empty and writes say so instead of failing.
+ * `bouts.demo.ts`. API mode calls the T-003 contract through `bouts.api.ts`; until the backend serves it, reads
+ * come back empty and writes say so instead of failing. The official weigh-in, result and suspensions (T-006,
+ * T-007) have no contract yet and stay demo-only.
  */
 
 export interface WeightAlert {
@@ -46,6 +47,7 @@ function actorOf(user: Pick<User, "name">) {
 }
 
 const demo = () => import("./bouts.demo");
+const api = () => import("./bouts.api");
 
 const apiTrackSchema = z.object({
     limitKg: z.number().nullable(),
@@ -61,23 +63,23 @@ const apiTrackSchema = z.object({
 
 export async function listRulesets(): Promise<CompetitionRuleset[]> {
     if (isDemoAuthEnabled()) return (await demo()).listDemoRulesets();
-    return [];
+    return (await api()).listApiRulesets();
 }
 
 export async function getRuleset(id: string): Promise<CompetitionRuleset | null> {
     if (isDemoAuthEnabled()) return (await demo()).getDemoRuleset(id);
-    return null;
+    return (await listRulesets()).find((item) => item.id === id) ?? null;
 }
 
 /** Bouts of the fighters in scope, in any phase. */
 export async function listCampBouts(fighterIds: string[] | "all" = "all"): Promise<CampBout[]> {
     if (isDemoAuthEnabled()) return (await demo()).listDemoBouts(fighterIds);
-    return [];
+    return (await api()).listApiBouts(fighterIds);
 }
 
 export async function getCampBout(boutId: string): Promise<CampBout | null> {
     if (isDemoAuthEnabled()) return (await demo()).getDemoBout(boutId);
-    return null;
+    return (await api()).getApiBout(boutId);
 }
 
 /** The fighter's running bout with the earliest weigh-in. */
@@ -186,12 +188,13 @@ export async function saveNutritionPlan(boutId: string, texts: Record<NutritionP
 
 export async function createBout(input: NewBout, actor: User, now = new Date()): Promise<CreateResult> {
     if (isDemoAuthEnabled()) return (await demo()).createDemoBout(input, actorOf(actor), now);
-    return { ok: false, message: BOUTS_UNAVAILABLE };
+    return (await api()).createApiBout(input, await usesCustomLimit(input.rulesetId));
 }
 
 export async function updateBout(boutId: string, edit: BoutEdit, actor: User, now = new Date()): Promise<WriteResult> {
     if (isDemoAuthEnabled()) return (await demo()).updateDemoBout(boutId, edit, actorOf(actor), now);
-    return unavailable();
+    const bout = await getCampBout(boutId);
+    return (await api()).updateApiBout(boutId, edit, bout ? await usesCustomLimit(bout.rulesetId) : false);
 }
 
 /** F2: the plan is read here so the store checks its fighter, phase and status. */
@@ -200,32 +203,34 @@ export async function linkCamp(boutId: string, trainingPlanId: string, actor: Us
         const plan = trainingPlanId ? await getPlan(trainingPlanId) : null;
         return (await demo()).linkDemoCamp(boutId, plan, actorOf(actor), now);
     }
-    return unavailable();
+    return (await api()).linkApiCamp(boutId, trainingPlanId);
 }
 
 export async function enterFightWeek(boutId: string, actor: User, now = new Date()): Promise<FightWeekResult> {
     if (isDemoAuthEnabled()) return (await demo()).enterDemoFightWeek(boutId, actorOf(actor), now);
-    return { ok: false, message: BOUTS_UNAVAILABLE, lines: [] };
+    return (await api()).enterApiFightWeek(boutId);
 }
 
 export async function cancelBout(boutId: string, reason: CancelReason, note: string | null, actor: User, now = new Date()): Promise<WriteResult> {
     if (isDemoAuthEnabled()) return (await demo()).cancelDemoBout(boutId, reason, note, actorOf(actor), now);
-    return unavailable();
+    return (await api()).cancelApiBout(boutId, note ? `${reason}: ${note}` : reason);
 }
 
 export async function addRequirement(boutId: string, item: { label: string; required: boolean; validityDays: number | null }): Promise<WriteResult> {
     if (isDemoAuthEnabled()) return (await demo()).addDemoRequirement(boutId, item);
-    return unavailable();
+    const bout = await getCampBout(boutId);
+    const code = requirementCode(item.label, bout?.requirements.map((requirement) => requirement.code) ?? []);
+    return (await api()).addApiRequirement(boutId, { code, ...item });
 }
 
 export async function updateRequirement(boutId: string, code: string, update: RequirementUpdate): Promise<WriteResult> {
     if (isDemoAuthEnabled()) return (await demo()).updateDemoRequirement(boutId, code, update);
-    return unavailable();
+    return (await api()).updateApiRequirement(boutId, code, update);
 }
 
 export async function removeRequirement(boutId: string, code: string): Promise<WriteResult> {
     if (isDemoAuthEnabled()) return (await demo()).removeDemoRequirement(boutId, code);
-    return unavailable();
+    return (await api()).removeApiRequirement(boutId, code);
 }
 
 export async function unlockChecklist(boutId: string, reason: string, actor: User, now = new Date()): Promise<WriteResult> {
@@ -253,6 +258,12 @@ export async function createSuspension(fighterId: string, boutId: string | null,
 export async function clearSuspension(id: string, note: string, actor: User, now = new Date()): Promise<WriteResult> {
     if (isDemoAuthEnabled()) return (await demo()).clearDemoSuspension(id, note, actorOf(actor), now);
     return unavailable("Suspensions are not available from the server yet.");
+}
+
+/** A ruleset without classes ("Tự nhập") takes the coach's own limit in kg instead of a class code. */
+async function usesCustomLimit(rulesetId: string): Promise<boolean> {
+    const ruleset = await getRuleset(rulesetId);
+    return !ruleset || ruleset.weightClasses.length === 0;
 }
 
 function isUnavailable(error: unknown): boolean {
