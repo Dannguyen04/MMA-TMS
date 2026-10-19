@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
 
 import { canAccessFighter } from "@/lib/auth/access";
 import { authorizeAction } from "@/lib/auth/session";
@@ -20,6 +19,12 @@ import {
     updateBout as updateBoutService,
     updateRequirement as updateRequirementService,
 } from "@/lib/services/bouts";
+import {
+    buildAddRequirementSchema,
+    buildCreateBoutSchema,
+    buildUpdateBoutSchema,
+    buildUpdateRequirementSchema,
+} from "./bout-schemas";
 import { actionError, actionSuccess, validationError, type ActionState } from "./state";
 
 async function authorizeCoach(t: Translator): Promise<{ ok: true; user: User; coachId: string } | { ok: false; state: ActionState<never> }> {
@@ -40,41 +45,6 @@ function revalidateBoutPaths(boutId: string, fighterId?: string) {
 
 /* ─── Create Bout ─────────────────────────────────────────────────────────── */
 
-function buildCreateBoutSchema(t: Translator) {
-    return z
-        .object({
-            fighterId: z.string({ error: t("coachBouts.action.chooseFighter") }).min(1, t("coachBouts.action.chooseFighter")),
-            rulesetId: z.string({ error: t("coachBouts.action.chooseRuleset") }).min(1, t("coachBouts.action.chooseRuleset")),
-            eventName: z.string({ error: t("coachBouts.action.enterEventName") }).trim().min(2, t("coachBouts.action.eventNameMin")),
-            venue: z.string().trim().optional(),
-            opponentName: z.string().trim().optional(),
-            weightClassCode: z.string({ error: t("coachBouts.action.selectWeightClass") }).min(1, t("coachBouts.action.selectWeightClass")),
-            weightLimitKg: z.preprocess(
-                (val) => (typeof val === "string" ? val.replace(",", ".").trim() : val),
-                z.coerce
-                    .number({ error: t("coachBouts.action.enterValidWeightLimit") })
-                    .min(30, t("coachBouts.action.weightLimitMin"))
-                    .max(200, t("coachBouts.action.weightLimitMax")),
-            ),
-            weighInAt: z.string({ error: t("coachBouts.action.chooseWeighInAt") }).min(1, t("coachBouts.action.chooseWeighInAt")),
-            boutAt: z.string({ error: t("coachBouts.action.chooseBoutAt") }).min(1, t("coachBouts.action.chooseBoutAt")),
-            requirementsDueDays: z.coerce.number().int().min(0).max(60).optional(),
-            notes: z.string().trim().optional(),
-        })
-        .superRefine((data, ctx) => {
-            const weighInMs = new Date(data.weighInAt).getTime();
-            const boutMs = new Date(data.boutAt).getTime();
-            if (Number.isNaN(weighInMs) || Number.isNaN(boutMs)) return;
-            if (weighInMs >= boutMs) {
-                ctx.addIssue({
-                    code: "custom",
-                    path: ["weighInAt"],
-                    message: t("coachBouts.form.error.weighInBeforeBout"),
-                });
-            }
-        });
-}
-
 export async function createBoutAction(_prev: ActionState<{ id: string }>, formData: FormData): Promise<ActionState<{ id: string }>> {
     const { t } = await getTranslator();
     const auth = await authorizeCoach(t);
@@ -82,7 +52,7 @@ export async function createBoutAction(_prev: ActionState<{ id: string }>, formD
 
     const raw = Object.fromEntries(formData.entries());
     const parsed = buildCreateBoutSchema(t).safeParse(raw);
-    if (!parsed.success) return validationError(parsed.error);
+    if (!parsed.success) return validationError(parsed.error, t("form.fixFields"));
 
     const input = parsed.data;
     if (!canAccessFighter(auth.user, input.fighterId)) {
@@ -109,36 +79,6 @@ export async function createBoutAction(_prev: ActionState<{ id: string }>, formD
 
 /* ─── Update Bout ─────────────────────────────────────────────────────────── */
 
-function buildUpdateBoutSchema(t: Translator) {
-    return z
-        .object({
-            boutId: z.string().min(1, t("coachBouts.action.boutIdRequired")),
-            eventName: z.string().trim().min(2, t("coachBouts.action.eventNameMin")).optional(),
-            venue: z.string().trim().optional(),
-            opponentName: z.string().trim().optional(),
-            weightLimitKg: z
-                .preprocess((val) => (typeof val === "string" ? val.replace(",", ".").trim() : val), z.coerce.number().min(30).max(200))
-                .optional(),
-            requirementsDueDays: z.coerce.number().int().min(0).max(60).optional(),
-            weighInAt: z.string().optional(),
-            boutAt: z.string().optional(),
-            notes: z.string().trim().optional(),
-        })
-        .superRefine((data, ctx) => {
-            if (data.weighInAt && data.boutAt) {
-                const weighInMs = new Date(data.weighInAt).getTime();
-                const boutMs = new Date(data.boutAt).getTime();
-                if (weighInMs >= boutMs) {
-                    ctx.addIssue({
-                        code: "custom",
-                        path: ["weighInAt"],
-                        message: t("coachBouts.form.error.weighInBeforeBout"),
-                    });
-                }
-            }
-        });
-}
-
 export async function updateBoutAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
     const { t } = await getTranslator();
     const auth = await authorizeCoach(t);
@@ -146,7 +86,7 @@ export async function updateBoutAction(_prev: ActionState, formData: FormData): 
 
     const raw = Object.fromEntries(formData.entries());
     const parsed = buildUpdateBoutSchema(t).safeParse(raw);
-    if (!parsed.success) return validationError(parsed.error);
+    if (!parsed.success) return validationError(parsed.error, t("form.fixFields"));
 
     const { boutId, ...input } = parsed.data;
     const existing = await getBout(boutId);
@@ -265,16 +205,6 @@ export async function cancelBoutAction(_prev: ActionState, formData: FormData): 
 
 /* ─── Requirement Actions ─────────────────────────────────────────────────── */
 
-function buildAddRequirementSchema(t: Translator) {
-    return z.object({
-        boutId: z.string().min(1),
-        code: z.string().trim().min(2, t("coachBouts.action.enterShortCode")).max(40),
-        label: z.string().trim().min(2, t("coachBouts.action.enterRequirementLabel")).max(120),
-        required: z.coerce.boolean(),
-        validityDays: z.coerce.number().int().min(1).optional(),
-    });
-}
-
 export async function addRequirementAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
     const { t } = await getTranslator();
     const auth = await authorizeCoach(t);
@@ -285,7 +215,7 @@ export async function addRequirementAction(_prev: ActionState, formData: FormDat
         ...raw,
         required: raw.required === "on" || raw.required === "true",
     });
-    if (!parsed.success) return validationError(parsed.error);
+    if (!parsed.success) return validationError(parsed.error, t("form.fixFields"));
 
     const { boutId, ...input } = parsed.data;
     const existing = await getBout(boutId);
@@ -304,36 +234,6 @@ export async function addRequirementAction(_prev: ActionState, formData: FormDat
     }
 }
 
-function buildUpdateRequirementSchema(t: Translator) {
-    return z
-        .object({
-            boutId: z.string().min(1),
-            code: z.string().min(1),
-            status: z.enum(["MISSING", "PROVIDED", "CONFIRMED", "REJECTED"]).optional(),
-            issuedOn: z.string().optional(),
-            validUntil: z.string().optional(),
-            label: z.string().trim().min(2).optional(),
-            required: z.coerce.boolean().optional(),
-            statusReason: z.string().trim().optional(),
-        })
-        .superRefine((data, ctx) => {
-            if (data.status === "PROVIDED" && !data.validUntil) {
-                ctx.addIssue({
-                    code: "custom",
-                    path: ["validUntil"],
-                    message: t("coachBouts.action.validUntilRequiredWhenProvided"),
-                });
-            }
-            if (data.status === "REJECTED" && !data.statusReason) {
-                ctx.addIssue({
-                    code: "custom",
-                    path: ["statusReason"],
-                    message: t("coachBouts.action.statusReasonRequiredWhenRejected"),
-                });
-            }
-        });
-}
-
 export async function updateRequirementAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
     const { t } = await getTranslator();
     const auth = await authorizeCoach(t);
@@ -344,7 +244,7 @@ export async function updateRequirementAction(_prev: ActionState, formData: Form
         ...raw,
         required: raw.required !== undefined ? raw.required === "on" || raw.required === "true" : undefined,
     });
-    if (!parsed.success) return validationError(parsed.error);
+    if (!parsed.success) return validationError(parsed.error, t("form.fixFields"));
 
     const { boutId, code, ...input } = parsed.data;
     const existing = await getBout(boutId);
