@@ -28,13 +28,11 @@ export function WeightAlertsCard({ alerts, fighterNames }: { alerts: Bout[]; fig
                                 href={routes.coach.bout(bout.id)}
                                 className="flex items-center gap-3 px-5 py-2.5 hover:bg-surface-hover focus-visible:bg-surface-hover"
                             >
-                                <div className="min-w-0 flex-1">
-                                    <p className="truncate text-sm font-medium text-fg">{fighterNames.get(bout.fighterId) ?? "Fighter"}</p>
-                                    <p className="truncate text-xs text-fg-muted">
-                                        {summary(bout)}
-                                    </p>
+                                <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
+                                    <p className="max-w-full truncate text-sm font-medium text-fg">{fighterNames.get(bout.fighterId) ?? "Fighter"}</p>
+                                    <WeightWarningBadge status={bout.weight?.status ?? "GREY"} size="sm" />
+                                    <p className="text-xs text-fg-muted">{summary(bout)}</p>
                                 </div>
-                                <WeightWarningBadge status={bout.weight?.status ?? "GREY"} size="sm" />
                                 <ChevronRight aria-hidden className="size-4 shrink-0 text-fg-subtle" />
                             </Link>
                         </li>
