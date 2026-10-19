@@ -1,3 +1,4 @@
+import { viAuth } from "./auth.vi";
 import { viCoachBouts } from "./coach-bouts.vi";
 import { viCoachToday } from "./coach-today.vi";
 import { viFighterToday } from "./fighter-today.vi";
@@ -5,6 +6,7 @@ import type { en } from "./en";
 
 /** Vietnamese interface text. Must define every key of `en` (enforced by the type below). */
 export const vi = {
+    ...viAuth,
     ...viCoachBouts,
     ...viCoachToday,
     ...viFighterToday,
