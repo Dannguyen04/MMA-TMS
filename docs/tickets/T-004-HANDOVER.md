@@ -113,6 +113,8 @@ Kịch bản A, 1440 px cho HLV và 390 px cho võ sĩ, theo đúng thứ tự d
 8. Brain CT hạn hợp lệ → `FIGHT_WEEK`, history thêm dòng, toast "Fight week started".
 9. Huỷ trận Aigerim "Opponent withdrew" → `CANCELLED`.
 
+Ngày 20/10, sau các sửa theo review và sửa cho điện thoại, chạy lại bước 1–9 trên web desktop (1440 px) với seed sạch: đúng như trên. Hạn gợi ý của "Health certificate" đi theo ngày cấp khi đổi (3/4 → 8/4/2027). Server log không có lỗi.
+
 Thêm T-006/T-007 trên Linh như bảng ở trên. Kịch bản B: id giả trả trang 404; `?fighter=` của võ sĩ ngoài roster bị bỏ qua trong form; võ sĩ mở `/coach/bouts` bị chuyển về dashboard võ sĩ; Lucas không trận thấy "No upcoming bout"; `?saved=70.0` trên Today của Lucas ra "Saved 70.0 kg." không kèm màu; `?saved=nope` và `?notice=bogus` không hiện gì.
 
 Console: một cảnh báo React về `key` trong `WeightClassField`, đã sửa (`d8793fa`); ngày 20/10 mở lại form, đổi ruleset, tạo trận: console không còn lỗi. Server log không có lỗi.
