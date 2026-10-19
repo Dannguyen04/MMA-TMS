@@ -1,9 +1,11 @@
 import { viCoachBouts } from "./coach-bouts.vi";
+import { viCoachToday } from "./coach-today.vi";
 import type { en } from "./en";
 
 /** Vietnamese interface text. Must define every key of `en` (enforced by the type below). */
 export const vi = {
     ...viCoachBouts,
+    ...viCoachToday,
     "nav.Today": "Hôm nay",
     "nav.Bout": "Trận đấu",
     "nav.Bouts": "Trận đấu",

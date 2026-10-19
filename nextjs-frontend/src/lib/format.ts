@@ -158,16 +158,21 @@ export function isDateTimeInputValue(value: string | undefined): value is string
     return rest.length === 0 && isDateKey(day) && isTimeValue(time);
 }
 
-const relativeFmt = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+const relativeFmts: Record<Locale, Intl.RelativeTimeFormat> = {
+    en: new Intl.RelativeTimeFormat("en", { numeric: "auto" }),
+    vi: new Intl.RelativeTimeFormat("vi", { numeric: "auto" }),
+};
+const JUST_NOW: Record<Locale, string> = { en: "just now", vi: "vừa xong" };
 
 /** "in 3 days", "yesterday", "5 min ago". `now` must come from the server when rendered on the client. */
-export function formatRelative(value: string | Date, now: string | Date = new Date()): string {
+export function formatRelative(value: string | Date, now: string | Date = new Date(), locale: Locale = "en"): string {
+    const relativeFmt = relativeFmts[locale];
     const target = toDate(value).getTime();
     const base = toDate(now).getTime();
     const diffMs = target - base;
     const abs = Math.abs(diffMs);
 
-    if (abs < 60_000) return "just now";
+    if (abs < 60_000) return JUST_NOW[locale];
     if (abs < 3_600_000) return relativeFmt.format(Math.round(diffMs / 60_000), "minute");
     if (abs < DAY_MS) return relativeFmt.format(Math.round(diffMs / 3_600_000), "hour");
     const days = daysBetween(new Date(base), new Date(target));

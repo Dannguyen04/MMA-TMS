@@ -1,8 +1,8 @@
 import { CalendarPlus, ClipboardPlus } from "lucide-react";
 import type { Metadata } from "next";
 
-import { buildCoachAttention, COACH_QUEUE_META, COACH_QUEUES, type CoachQueue } from "@/components/dashboard/coach-attention";
-import { firstName, greetingFor } from "@/components/dashboard/dashboard-utils";
+import { buildCoachAttention, coachQueueMeta, COACH_QUEUES, type CoachQueue } from "@/components/dashboard/coach-attention";
+import { firstName, greetingKey } from "@/components/dashboard/dashboard-utils";
 import { QueueCard } from "@/components/dashboard/queue-card";
 import { loadRoster } from "@/components/dashboard/roster-data";
 import { TodaySchedule } from "@/components/dashboard/today-schedule";
@@ -12,9 +12,10 @@ import { PageHeader } from "@/components/ui/page-header";
 import { accessibleFighterIds } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { weightAlerts } from "@/lib/domain/weigh-in";
-import { academyDayStartIso, addDaysToKey, DAY_MS, dayKey, formatWeekdayDate, pluralize } from "@/lib/format";
+import { academyDayStartIso, addDaysToKey, DAY_MS, dayKey, formatWeekdayDate } from "@/lib/format";
 import { hrefWith, parseEnum } from "@/lib/query";
 import { getTranslator } from "@/lib/i18n/server";
+import { plural } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
 import { nullIfServiceFails } from "@/lib/services/api-helpers";
@@ -28,7 +29,10 @@ import { listReviewQueue } from "@/lib/services/videos";
 import { param } from "@/lib/utils";
 import { WeightAlertsCard } from "./weight-alerts-card";
 
-export const metadata: Metadata = { title: "Today" };
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return { title: t("nav.Today") };
+}
 
 const MISSED_WINDOW_DAYS = 7;
 
@@ -74,6 +78,8 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
         goalsAtRisk: goalsAtRisk ?? [],
         warningDays: settings.clearanceExpiryWarningDays,
         now,
+        t,
+        locale,
     });
     const queues = COACH_QUEUES.filter((queue) => queue !== "goals" || goalsAtRisk !== null);
     const queue = parseEnum(param(query.queue), queues);
@@ -85,18 +91,21 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
     return (
         <>
             <PageHeader
-                eyebrow={formatWeekdayDate(now)}
-                title={`${greetingFor(now)}, ${firstName(user.name)}`}
-                description={`${pluralize(fighters.length, "fighter")} in your corner · ${pluralize(todayActive.length, "session")} today`}
+                eyebrow={formatWeekdayDate(now, locale)}
+                title={t("greeting.named", { greeting: t(greetingKey(now)), name: firstName(user.name) })}
+                description={t("coachToday.description", {
+                    fighters: plural(t, "coachToday.fighters", fighters.length),
+                    sessions: plural(t, "coachToday.sessions", todayActive.length),
+                })}
                 actions={
                     <>
                         <ButtonLink href={routes.coach.newPlan} variant="secondary">
                             <ClipboardPlus aria-hidden />
-                            New training plan
+                            {t("coachToday.newPlan")}
                         </ButtonLink>
                         <ButtonLink href={routes.coach.newSession}>
                             <CalendarPlus aria-hidden />
-                            Schedule session
+                            {t("coachToday.scheduleSession")}
                         </ButtonLink>
                     </>
                 }
@@ -104,20 +113,21 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
 
             <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                 <QueueCard
-                    title="Corner queue"
-                    filterLabel="Filter the corner queue"
+                    title={t("coachToday.queueTitle")}
+                    filterLabel={t("coachToday.queueFilter")}
                     items={attention}
                     queues={queues}
-                    meta={COACH_QUEUE_META}
+                    meta={coachQueueMeta(t)}
                     active={queue}
                     hrefFor={(next: CoachQueue | null) => hrefWith(routes.coach.dashboard, query, { queue: next })}
-                    emptyAll={{ title: "Nothing needs your attention", description: "No clearance problems, session clashes, analyses to review or goals at risk." }}
+                    emptyAll={{ title: t("coachToday.emptyTitle"), description: t("coachToday.emptyText") }}
+                    t={t}
                     className="lg:col-span-2"
                 />
 
                 <div className="flex min-w-0 flex-col gap-6">
                     <WeightAlertsCard alerts={weightAlerts(bouts ?? [])} fighterNames={new Map(fighters.map((fighter) => [fighter.id, fighter.name]))} t={t} locale={locale} />
-                    <TodaySchedule sessions={todaySessions} fighters={scheduleFighters} />
+                    <TodaySchedule sessions={todaySessions} fighters={scheduleFighters} t={t} locale={locale} />
                 </div>
             </div>
         </>

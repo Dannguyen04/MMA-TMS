@@ -10,6 +10,14 @@ import { round } from "@/lib/utils";
 const hourFmt = new Intl.DateTimeFormat("en-GB", { timeZone: APP_TIMEZONE, hour: "numeric", hourCycle: "h23" });
 
 /** "Good morning" / "Good afternoon" / "Good evening" by the academy's wall clock. */
+/** The greeting's dictionary key for the academy hour, for translated pages. */
+export function greetingKey(now: string): "greeting.morning" | "greeting.afternoon" | "greeting.evening" {
+    const hour = Number(hourFmt.format(new Date(now)));
+    if (hour >= 5 && hour < 12) return "greeting.morning";
+    if (hour >= 12 && hour < 18) return "greeting.afternoon";
+    return "greeting.evening";
+}
+
 export function greetingFor(now: string): string {
     const hour = Number(hourFmt.format(new Date(now)));
     if (hour >= 5 && hour < 12) return "Good morning";
