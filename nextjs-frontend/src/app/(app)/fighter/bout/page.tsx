@@ -6,24 +6,26 @@ import { CampWeightCard } from "@/components/domain/camp-weight-card";
 import { Callout } from "@/components/training/callout";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { DescriptionList } from "@/components/ui/description-list";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/states";
 import { requireRole } from "@/lib/auth/session";
 import { requirementsReady } from "@/lib/domain/bout";
-import { WEIGHT_CLASS_LABELS } from "@/lib/domain/labels";
-import { NUTRITION_PHASE_LABEL, nutritionPhaseFor, savedWeightMessage, weighInCountdown } from "@/lib/domain/nutrition";
+import { NUTRITION_PHASE_LABELS, WEIGHT_CLASS_LABELS } from "@/lib/domain/labels";
+import { nutritionPhaseFor, savedWeightMessage, weighInCountdown } from "@/lib/domain/nutrition";
 import { dayKey, formatDateTime, formatNumber } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { getCurrentBout, getWeightTrack, wayOffForBout } from "@/lib/services/bouts";
+import { param } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Bout" };
 
-export default async function FighterBoutPage({ searchParams }: { searchParams: Promise<{ saved?: string; status?: string }> }) {
+export default async function FighterBoutPage({ searchParams }: PageProps<"/fighter/bout">) {
     const user = await requireRole("fighter");
     if (!user.profileId) notFound();
     const query = await searchParams;
     const bout = await getCurrentBout(user.profileId);
-    const saved = savedWeightMessage(query.saved, query.status);
+    const saved = savedWeightMessage(param(query.saved), param(query.status));
 
     if (!bout) {
         return (
@@ -59,19 +61,23 @@ export default async function FighterBoutPage({ searchParams }: { searchParams: 
             />
             {saved && <SavedNote message={saved} />}
 
-            <dl className="mb-6 grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-4">
-                <Fact label={bout.catchweightKg === null ? "Limit" : "Catchweight"} value={`${formatNumber(bout.catchweightKg ?? bout.limitKg, 1)} kg`} />
-                <Fact label="Weigh-in" value={formatDateTime(bout.weighInAt)} />
-                <Fact label="Bout" value={formatDateTime(bout.boutAt)} />
-                <Fact label="Countdown" value={track ? weighInCountdown(track.daysToWeighIn) : "—"} />
-            </dl>
+            <DescriptionList
+                columns={2}
+                className="mb-6 lg:grid-cols-4"
+                items={[
+                    { label: bout.catchweightKg === null ? "Limit" : "Catchweight", value: `${formatNumber(bout.catchweightKg ?? bout.limitKg, 1)} kg` },
+                    { label: "Weigh-in", value: formatDateTime(bout.weighInAt) },
+                    { label: "Bout", value: formatDateTime(bout.boutAt) },
+                    { label: "Countdown", value: track ? weighInCountdown(track.daysToWeighIn) : "—" },
+                ]}
+            />
 
             <div className="flex flex-col gap-6">
                 {track && <CampWeightCard track={track} wayOff={wayOff} logHref={routes.fighter.weighIn} />}
 
                 {phaseKey && (
                     <Card>
-                        <CardHeader title={NUTRITION_PHASE_LABEL[phaseKey]} />
+                        <CardHeader title={NUTRITION_PHASE_LABELS[phaseKey]} />
                         <CardContent>
                             {note ? (
                                 <>
@@ -105,15 +111,6 @@ export default async function FighterBoutPage({ searchParams }: { searchParams: 
                 </Card>
             </div>
         </>
-    );
-}
-
-function Fact({ label, value }: { label: string; value: string }) {
-    return (
-        <div className="min-w-0">
-            <dt className="text-sm text-fg-muted">{label}</dt>
-            <dd className="mt-0.5 text-sm font-medium text-pretty text-fg tabular-nums">{value}</dd>
-        </div>
     );
 }
 

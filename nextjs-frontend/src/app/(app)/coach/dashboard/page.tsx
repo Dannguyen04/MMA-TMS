@@ -8,7 +8,7 @@ import { QueueCard } from "@/components/dashboard/queue-card";
 import { loadRoster } from "@/components/dashboard/roster-data";
 import { TodaySchedule } from "@/components/dashboard/today-schedule";
 import { weekStartKey } from "@/components/training/training-utils";
-import { WeightStatusBadge } from "@/components/domain/weight-status-badge";
+import { WeightStatusBadge } from "@/components/domain/status-badges";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";

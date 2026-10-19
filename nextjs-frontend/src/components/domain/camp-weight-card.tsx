@@ -1,7 +1,7 @@
 import { CircleAlert } from "lucide-react";
 
 import { WeightChart } from "@/components/domain/weight-chart";
-import { WeightStatusBadge } from "@/components/domain/weight-status-badge";
+import { WeightStatusBadge } from "@/components/domain/status-badges";
 import { Callout } from "@/components/training/callout";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";

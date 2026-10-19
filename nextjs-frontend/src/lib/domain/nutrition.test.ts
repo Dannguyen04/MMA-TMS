@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { NutritionPlan } from "./bout";
-import { adherenceAlertLine, nutritionPhaseFor, planForPhase, readPlanAnswer, RED_WEIGHT_RECOMMENDATION, wayOffCount, weighInCountdown } from "./nutrition";
+import { adherenceAlertLine, nutritionPhaseFor, planForPhase, readPlanAnswer, RED_WEIGHT_RECOMMENDATION, savedWeightMessage, wayOffCount, weighInCountdown } from "./nutrition";
 
 const plan: NutritionPlan = {
     camp: { text: "Camp meals", authorName: "Rafael Costa", updatedAt: "2026-10-01T01:00:00.000Z" },
@@ -61,5 +61,19 @@ describe("copy", () => {
     it("describes the days until weigh-in", () => {
         expect(weighInCountdown(2)).toBe("2 days to weigh-in");
         expect(weighInCountdown(0)).toBe("Weigh-in is today");
+    });
+});
+
+describe("saved weight notice", () => {
+    it("repeats the kilograms the action sent with one decimal, and the status in words", () => {
+        expect(savedWeightMessage((66.5).toFixed(1), "RED")).toBe("Saved 66.5 kg. Status: Red");
+        expect(savedWeightMessage((70).toFixed(1), undefined)).toBe("Saved 70.0 kg.");
+    });
+
+    it("does not invent a notice from a hand-edited query", () => {
+        expect(savedWeightMessage("nope", "RED")).toBeNull();
+        expect(savedWeightMessage("999", "RED")).toBeNull();
+        expect(savedWeightMessage("66.55", "RED")).toBeNull();
+        expect(savedWeightMessage("66.5", "BLUE")).toBe("Saved 66.5 kg.");
     });
 });

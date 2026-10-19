@@ -1,5 +1,7 @@
 import { addDaysToKey, daysBetweenKeys, formatNumber, isDateKey } from "@/lib/format";
 
+import { WEIGHT_STATUS_LABELS } from "./labels";
+
 /** Camp weight status. The service that owns the bout computes this; the chart only displays it. */
 export type WeightStatus = "GREEN" | "YELLOW" | "RED" | "GREY";
 
@@ -33,17 +35,6 @@ export interface WeightChartData {
     reference: (number | null)[];
     /** Plan answer aligned with `labels`. A day with no answer is `null`. */
     adherence: (PlanAdherence | null)[];
-}
-
-const STATUS_LABEL: Record<WeightStatus, string> = {
-    GREEN: "Green",
-    YELLOW: "Yellow",
-    RED: "Red",
-    GREY: "Grey",
-};
-
-export function weightStatusLabel(status: WeightStatus): string {
-    return STATUS_LABEL[status];
 }
 
 /**
@@ -93,7 +84,7 @@ export function weightChartWindow(track: Pick<WeightChartTrack, "points" | "refe
 export function weightChartAriaLabel(track: Pick<WeightChartTrack, "limitKg" | "latestKg" | "status">): string {
     const limit = track.limitKg === null ? "no limit set" : `a ${formatNumber(track.limitKg, 1)} kg limit`;
     const latest = track.latestKg === null ? "No weight logged" : `Latest ${formatNumber(track.latestKg, 1)} kg`;
-    return `Weight against ${limit}. ${latest}, status ${weightStatusLabel(track.status)}.`;
+    return `Weight against ${limit}. ${latest}, status ${WEIGHT_STATUS_LABELS[track.status]}.`;
 }
 
 function isAcademyDate(value: string | null | undefined): value is string {

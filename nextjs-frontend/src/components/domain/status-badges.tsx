@@ -45,6 +45,7 @@ import {
     SESSION_STATUS_LABELS,
     USER_STATUS_LABELS,
     VIDEO_STATUS_LABELS,
+    WEIGHT_STATUS_LABELS,
 } from "@/lib/domain/labels";
 import { confidenceBand, type ClearanceState } from "@/lib/domain/rules";
 import type {
@@ -61,6 +62,7 @@ import type {
     UserStatus,
     VideoStatus,
 } from "@/lib/domain/types";
+import type { WeightStatus } from "@/lib/domain/weight-chart";
 import { formatConfidence } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -364,4 +366,18 @@ export const CONCLUSION_META: Record<AssessmentConclusion, StatusMeta> = {
 
 export function ConclusionBadge({ conclusion, size, className }: { conclusion: AssessmentConclusion; size?: BadgeSize; className?: string }) {
     return <StatusBadge meta={CONCLUSION_META[conclusion]} size={size} className={className} />;
+}
+
+/* ─── Fight camp ──────────────────────────────────────────────────────────── */
+
+export const WEIGHT_STATUS_META: Record<WeightStatus, StatusMeta> = {
+    GREEN: { label: WEIGHT_STATUS_LABELS.GREEN, tone: "success", icon: CircleCheck },
+    YELLOW: { label: WEIGHT_STATUS_LABELS.YELLOW, tone: "warning", icon: TrendingUp },
+    RED: { label: WEIGHT_STATUS_LABELS.RED, tone: "danger", icon: TriangleAlert, solid: true },
+    GREY: { label: WEIGHT_STATUS_LABELS.GREY, tone: "neutral", icon: CircleDashed },
+};
+
+/** Camp weight against the bout limit. Grey means no weigh-in for three days, not "fine". */
+export function WeightStatusBadge({ status, size, className }: { status: WeightStatus; size?: BadgeSize; className?: string }) {
+    return <StatusBadge meta={WEIGHT_STATUS_META[status]} size={size} className={className} />;
 }

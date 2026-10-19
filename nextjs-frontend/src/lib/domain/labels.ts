@@ -1,4 +1,6 @@
+import type { NutritionPhaseKey } from "./bout";
 import { EXAMINATION_SCOPE_LABELS } from "./medical-contract";
+import type { PlanAdherence, WeightStatus } from "./weight-chart";
 import type {
     AIJobStatus,
     Injury,
@@ -558,6 +560,27 @@ export const BROADCAST_CHANNEL_LABELS: Record<BroadcastChannel, string> = {
     in_app: "In-app",
     email: "Email",
     in_app_email: "In-app + email",
+};
+
+/* ─── Fight camp ──────────────────────────────────────────────────────────── */
+
+export const WEIGHT_STATUS_LABELS: Record<WeightStatus, string> = {
+    GREEN: "Green",
+    YELLOW: "Yellow",
+    RED: "Red",
+    GREY: "Grey",
+};
+
+export const PLAN_ADHERENCE_LABELS: Record<PlanAdherence, string> = {
+    ON_PLAN: "On plan",
+    SLIGHTLY_OFF: "Slightly off",
+    WAY_OFF: "Way off",
+};
+
+export const NUTRITION_PHASE_LABELS: Record<NutritionPhaseKey, string> = {
+    camp: "Camp",
+    fightWeek: "Fight week",
+    postWeighIn: "After the official weigh-in",
 };
 
 /* ─── Display titles for records the medical service describes in free text ── */

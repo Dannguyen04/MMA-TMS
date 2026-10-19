@@ -1,63 +1,65 @@
 "use client";
 
-import { useActionState } from "react";
+import { useState } from "react";
 
-import { recordWeightAction } from "@/lib/actions/bouts";
-import { IDLE } from "@/lib/actions/state";
-import { ADHERENCE_LABEL, ADHERENCE_VALUES } from "@/lib/domain/nutrition";
-import { Field, Input, Textarea } from "@/components/ui/form";
+import { ChoiceGroup } from "@/components/ui/choice-group";
+import { Field, FormMessage, Input, Textarea } from "@/components/ui/form";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { useActionForm } from "@/components/ui/use-action-form";
+import { recordWeightAction } from "@/lib/actions/bouts";
+import { PLAN_ADHERENCE_LABELS } from "@/lib/domain/labels";
+import { ADHERENCE_VALUES } from "@/lib/domain/nutrition";
+import type { PlanAdherence } from "@/lib/domain/weight-chart";
 
+const ADHERENCE_OPTIONS = ADHERENCE_VALUES.map((value) => ({ value, label: PLAN_ADHERENCE_LABELS[value] }));
+
+/** Today's kilograms first, then the optional plan question. Built to finish in under 30 seconds on a phone. */
 export function WeighInForm() {
-    const [state, action] = useActionState(recordWeightAction, IDLE);
-    const fieldErrors = state.status === "error" ? state.fieldErrors : undefined;
+    const form = useActionForm(recordWeightAction);
+    const [adherence, setAdherence] = useState<PlanAdherence | "">("");
+    const weight = form.control("weightKg", { required: true, hint: true });
+    const note = form.control("note", { hint: true });
+    // The page has one job, typing the number, so the weight field takes focus and the keypad opens at once.
 
     return (
-        <form action={action} className="flex max-w-lg flex-col gap-6" noValidate>
-            <Field label="Weight" htmlFor="weightKg" required error={fieldErrors?.weightKg} hint="Kilograms, such as 66.5. Today's entry replaces an earlier one.">
+        <form {...form.formProps} className="flex max-w-lg flex-col gap-6">
+            <FormMessage {...form.message} />
+            <Field label="Weight" htmlFor={weight.id} required error={form.error("weightKg")} hint="Kilograms, such as 66.5. Today's entry replaces an earlier one.">
                 <Input
-                    id="weightKg"
-                    name="weightKg"
+                    {...weight}
+                    autoFocus
                     inputMode="decimal"
                     autoComplete="off"
                     enterKeyHint="done"
-                    required
                     placeholder="66.5"
-                    className="text-lg tabular-nums"
+                    suffix="kg"
+                    className="h-11 text-lg tabular-nums"
                 />
             </Field>
 
-            <fieldset className="flex flex-col gap-2">
-                <legend className="text-sm font-medium text-fg">
-                    Did yesterday follow the plan? <span className="font-normal text-fg-muted">Optional</span>
-                </legend>
-                <p className="text-sm text-fg-muted">Skip this and today&apos;s weight still saves.</p>
-                <div className="mt-1 flex flex-col gap-1">
-                    {ADHERENCE_VALUES.map((value) => (
-                        <label key={value} className="flex min-h-11 items-center gap-3 rounded-lg px-1 text-sm">
-                            <input type="radio" name="adherence" value={value} className="size-4 accent-primary" />
-                            {ADHERENCE_LABEL[value]}
-                        </label>
-                    ))}
-                </div>
-                {fieldErrors?.adherence && (
-                    <p id="adherence-error" role="alert" className="text-sm text-danger-fg">
-                        {fieldErrors.adherence}
-                    </p>
-                )}
-            </fieldset>
+            <ChoiceGroup
+                id={`${form.formProps.id}-adherence`}
+                name="adherence"
+                legend={
+                    <>
+                        Did yesterday follow the plan? <span className="ml-1.5 text-xs font-normal text-fg-subtle">(optional)</span>
+                    </>
+                }
+                hint="Skip this and today's weight still saves."
+                options={ADHERENCE_OPTIONS}
+                value={adherence}
+                onChange={setAdherence}
+                error={form.error("adherence")}
+                variant="compact"
+                columns={3}
+                className="[&_label]:min-h-11 [&_label]:items-center"
+            />
 
-            <Field label="Note" htmlFor="note" optional error={fieldErrors?.note} hint="200 characters at most.">
-                <Textarea id="note" name="note" rows={3} maxLength={200} />
+            <Field label="Note" htmlFor={note.id} optional error={form.error("note")} hint="200 characters at most.">
+                <Textarea {...note} rows={3} maxLength={200} />
             </Field>
 
-            {state.status === "error" && state.message && (
-                <p role="alert" className="text-sm text-danger-fg">
-                    {state.message}
-                </p>
-            )}
-
-            <SubmitButton size="lg" pendingLabel="Saving" className="min-h-11 w-full sm:w-auto">
+            <SubmitButton pending={form.pending} size="lg" pendingLabel="Saving" className="min-h-11 w-full sm:w-auto">
                 Save
             </SubmitButton>
         </form>

@@ -1,21 +1,10 @@
 import { daysBetweenKeys } from "@/lib/format";
 
 import type { BoutPhase, NutritionNote, NutritionPhaseKey, NutritionPlan } from "./bout";
-import { weightStatusLabel, type PlanAdherence, type WeightStatus } from "./weight-chart";
+import { WEIGHT_STATUS_LABELS } from "./labels";
+import type { PlanAdherence, WeightStatus } from "./weight-chart";
 
-export const ADHERENCE_VALUES = ["ON_PLAN", "SLIGHTLY_OFF", "WAY_OFF"] as const;
-
-export const ADHERENCE_LABEL: Record<PlanAdherence, string> = {
-    ON_PLAN: "On plan",
-    SLIGHTLY_OFF: "Slightly off",
-    WAY_OFF: "Way off",
-};
-
-export const NUTRITION_PHASE_LABEL: Record<NutritionPhaseKey, string> = {
-    camp: "Camp",
-    fightWeek: "Fight week",
-    postWeighIn: "After the official weigh-in",
-};
+export const ADHERENCE_VALUES = ["ON_PLAN", "SLIGHTLY_OFF", "WAY_OFF"] as const satisfies readonly PlanAdherence[];
 
 /** The only medical sentence on a red camp. It is not a diet. */
 export const RED_WEIGHT_RECOMMENDATION =
@@ -86,7 +75,7 @@ export function savedWeightMessage(saved: string | undefined, status: string | u
     const kg = Number(saved);
     if (kg < 30 || kg > 200) return null;
     if (!isWeightStatus(status)) return `Saved ${saved} kg.`;
-    return `Saved ${saved} kg. Status: ${weightStatusLabel(status)}`;
+    return `Saved ${saved} kg. Status: ${WEIGHT_STATUS_LABELS[status]}`;
 }
 
 function isWeightStatus(value: string | undefined): value is WeightStatus {

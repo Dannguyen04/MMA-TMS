@@ -1,4 +1,4 @@
-import { WeightStatusBadge } from "@/components/domain/weight-status-badge";
+import { WeightStatusBadge } from "@/components/domain/status-badges";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import type { WeightTrack } from "@/lib/domain/weight-track";
