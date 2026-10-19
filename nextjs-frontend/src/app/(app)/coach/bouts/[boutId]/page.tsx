@@ -21,6 +21,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { canAccessFighter } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
+import { TRAINING_PHASE_LABELS } from "@/lib/domain/labels";
 import { formatDateTime, formatDate } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { getBout, listRulesets } from "@/lib/services/bouts";
@@ -199,7 +200,7 @@ export default async function CoachBoutDetailPage({ params }: PageProps) {
                                 <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface-muted p-3">
                                     <span className="font-semibold text-fg">{linkedPlan.title}</span>
                                     <span className="text-fg-muted">
-                                        Phase: <strong className="text-fg">{linkedPlan.phase}</strong> · Target: {linkedPlan.weeklySessionTarget ?? 0} sessions/wk
+                                        Phase: <strong className="text-fg">{TRAINING_PHASE_LABELS[linkedPlan.phase]}</strong> · Target: {linkedPlan.weeklySessionTarget ?? 0} sessions/wk
                                     </span>
                                     <span className="text-fg-muted">
                                         Camp started: {formatDate(linkedPlan.startDate)}
@@ -214,7 +215,9 @@ export default async function CoachBoutDetailPage({ params }: PageProps) {
                                 <div className="rounded-lg border border-dashed border-border p-4 text-center text-fg-muted">
                                     <p className="font-medium text-fg">No training camp linked</p>
                                     <p className="mt-1 text-[11px]">
-                                        Link a fight_camp training plan to transition this bout to CAMP status.
+                                        {bout.status === "SCHEDULED"
+                                            ? "Link a fight camp plan to transition this bout to Camp status."
+                                            : "No fight camp plan is currently linked to this bout."}
                                     </p>
                                 </div>
                             )}

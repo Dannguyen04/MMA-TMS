@@ -78,7 +78,7 @@ export function MobileNavDrawer({ role, counts }: { role: Role; counts: NavCount
     );
 }
 
-const GRID_COLS: Record<number, string> = { 4: "grid-cols-4", 5: "grid-cols-5" };
+const GRID_COLS: Record<number, string> = { 4: "grid-cols-4", 5: "grid-cols-5", 6: "grid-cols-6" };
 
 /** Thumb-reachable bar with the role's hubs (admin: its four most-used pages). */
 export function MobileBottomBar({ role, counts }: { role: Role; counts: NavCounts }) {

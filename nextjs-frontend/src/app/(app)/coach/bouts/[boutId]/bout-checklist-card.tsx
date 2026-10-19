@@ -51,8 +51,9 @@ export function BoutChecklistCard({ bout }: { bout: Bout }) {
                 title="Medical checklist"
                 description="Gate 1 eligibility documents and competition clearances."
                 icon={<ClipboardCheck aria-hidden />}
+                className="flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3"
                 action={
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                         <Gate1Badge gate1={bout.gate1} />
                         <Button variant="secondary" size="sm" onClick={() => setAddOpen(true)}>
                             <Plus aria-hidden className="size-4" />
