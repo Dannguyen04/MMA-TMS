@@ -1,5 +1,7 @@
 import type { UpcomingBout } from "@/lib/domain/types";
 import { daysBetween } from "@/lib/format";
+import type { Translator } from "@/lib/i18n/translate";
+import { plural } from "@/lib/i18n/translate";
 import { clamp } from "@/lib/utils";
 
 /** Pure fight-camp arithmetic for the fighter's Today hero. Safe for Server and Client Components. */
@@ -44,6 +46,12 @@ export function campTimeline(bout: Pick<UpcomingBout, "date">, campStart: string
         progressPct: Math.round((campDay / campDays) * 100),
         fightWeekPct: Math.round((clamp(daysBetween(start, fightWeek), 0, campDays) / campDays) * 100),
     };
+}
+
+/** The camp label in the viewer's language (see `campDayLabel`). */
+export function campDayText(t: Translator, timeline: CampTimeline): string {
+    if (timeline.campDay === 0) return plural(t, "hero.campStartsIn", timeline.daysToStart);
+    return t(timeline.estimatedStart ? "hero.campDayEstimated" : "hero.campDay", { day: timeline.campDay, total: timeline.campDays });
 }
 
 /** "Fight camp · Day 29 of 69", "Est. camp day 12 of 56" or "Camp starts in 5 days". */

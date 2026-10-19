@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { CardLink } from "@/components/dashboard/card-link";
 import { CornerFeed } from "@/components/dashboard/corner-feed";
 import { cornerFeedItems } from "@/components/dashboard/corner-feed-items";
-import { firstName, greetingFor, weightCheck, weightGapText } from "@/components/dashboard/dashboard-utils";
+import { firstName, greetingKey, weightCheck, weightGapText } from "@/components/dashboard/dashboard-utils";
 import { FightHero, type HeroBout, type NextUp } from "@/components/dashboard/fight-hero";
 import { InlineNote } from "@/components/dashboard/inline-note";
 import { OnboardingStrip, type OnboardingStep } from "@/components/dashboard/onboarding-strip";
@@ -22,13 +22,15 @@ import { ProgressBar } from "@/components/ui/progress";
 import { requireFighterAccess } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { NOT_RECORDED } from "@/components/domain/domain-format";
-import { HEALTH_STATUS_DESCRIPTIONS, WEIGHT_CLASS_LABELS, WEIGHT_CLASS_LIMIT_KG } from "@/lib/domain/labels";
+import { WEIGHT_CLASS_LABELS, WEIGHT_CLASS_LIMIT_KG } from "@/lib/domain/labels";
 import type { ClearanceState } from "@/lib/domain/rules";
 import { planAdherence } from "@/lib/domain/training-plan";
 import type { MedicalClearance, TrainingPlan } from "@/lib/domain/types";
 import { activeBout, WEIGHT_SAVED_NOTICE } from "@/lib/domain/weigh-in";
 import { academyDayStartIso, addDaysToKey, dayKey, daysBetween, formatNumber, formatShortDate, formatWeekdayDate, pluralize } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
 import { getTranslator } from "@/lib/i18n/server";
+import { plural, type Translator } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import { listBouts } from "@/lib/services/bouts";
 import { listGoals } from "@/lib/services/goals";
@@ -41,7 +43,10 @@ import { listVideoLibrary, type VideoLibraryItem } from "@/lib/services/videos";
 import { param } from "@/lib/utils";
 import { BoutWeightCell } from "./bout-weight-cell";
 
-export const metadata: Metadata = { title: "Today" };
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return { title: t("nav.Today") };
+}
 
 /** Fighters who joined this recently see the getting-started checklist until every step is done. */
 const NEW_FIGHTER_DAYS = 30;
@@ -129,11 +134,11 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
                 note:
                     clearanceState === "none" ? (
                         <InlineNote icon={ShieldQuestion} tone="warning">
-                            No Medical Clearance on file yet. Your sports doctor issues it after your baseline physical.
+                            {t("fighterToday.noClearanceNote")}
                         </InlineNote>
                     ) : clearanceState === "restricted" ? (
                         <InlineNote icon={ShieldAlert} tone="info">
-                            You&apos;re cleared with restrictions — your coach plans every session within them.
+                            {t("fighterToday.restrictedNote")}
                         </InlineNote>
                     ) : undefined,
             }
@@ -166,12 +171,12 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
                 cleanHref={routes.fighter.dashboard}
             />
             <PageHeader
-                eyebrow={formatWeekdayDate(now)}
-                title={`${greetingFor(now)}, ${firstName(fighter.name)}`}
+                eyebrow={formatWeekdayDate(now, locale)}
+                title={t("greeting.named", { greeting: t(greetingKey(now)), name: firstName(fighter.name) })}
                 actions={
                     <ButtonLink href={routes.fighter.uploadVideo} variant="secondary">
                         <Upload aria-hidden />
-                        Upload video
+                        {t("fighterToday.uploadVideo")}
                     </ButtonLink>
                 }
             />
@@ -187,25 +192,27 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
                     }
                     next={next}
                     now={now}
+                    t={t}
+                    locale={locale}
                 />
 
                 {onboarding.some((step) => !step.done) && <OnboardingStrip steps={onboarding} />}
 
-                <ReadinessStrip label="Readiness">
+                <ReadinessStrip label={t("fighterToday.readiness")}>
                     <ReadinessCell
-                        label="Medical Clearance"
-                        value={<ClearanceBadge state={clearanceState} />}
-                        hint={clearanceHint(clearanceState, clearance)}
+                        label={t("fighterToday.medicalClearance")}
+                        value={<ClearanceBadge state={clearanceState} locale={locale} />}
+                        hint={clearanceHint(t, locale, clearanceState, clearance)}
                         href={routes.fighter.health}
                         className="col-span-2 sm:col-span-2 lg:col-span-1"
                     />
                     <ReadinessCell
-                        label="Health"
-                        value={<HealthStatusBadge status={health.fighter.healthStatus} />}
+                        label={t("fighterToday.health")}
+                        value={<HealthStatusBadge status={health.fighter.healthStatus} locale={locale} />}
                         hint={
                             health.nextFollowUp
-                                ? `Follow-up ${formatShortDate(health.nextFollowUp.date)}${followUpDoctor ? ` · ${followUpDoctor}` : ""}`
-                                : HEALTH_STATUS_DESCRIPTIONS[health.fighter.healthStatus]
+                                ? `${t("fighterToday.followUp", { date: formatShortDate(health.nextFollowUp.date, locale) })}${followUpDoctor ? ` · ${followUpDoctor}` : ""}`
+                                : t(`healthDescription.${health.fighter.healthStatus}`)
                         }
                         href={routes.fighter.health}
                         className="sm:col-span-2 lg:col-span-1"
@@ -228,9 +235,9 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
                         />
                     )}
                     <ReadinessCell
-                        label="This week"
-                        value={<ReadinessNumber value={weekCompleted} unit={`of ${weekPlanned.length} done`} />}
-                        hint={weekHint({ planned: weekPlanned.length, toGo: weekToGo, missed: weekMissed, paused })}
+                        label={t("fighterToday.thisWeek")}
+                        value={<ReadinessNumber value={weekCompleted} unit={t("fighterToday.sessionsDone", { total: weekPlanned.length })} />}
+                        hint={weekHint(t, { planned: weekPlanned.length, toGo: weekToGo, missed: weekMissed, paused })}
                         href={routes.fighter.schedule}
                         className="sm:col-span-3 lg:col-span-1"
                     >
@@ -240,28 +247,28 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
                                 max={weekPlanned.length}
                                 size="sm"
                                 hideValue
-                                label="Sessions completed this week"
-                                valueText={`${weekCompleted} of ${weekPlanned.length}`}
+                                label={t("fighterToday.sessionsDoneLabel")}
+                                valueText={t("fighterToday.sessionsDoneValue", { done: weekCompleted, total: weekPlanned.length })}
                             />
                         )}
                     </ReadinessCell>
                     <ReadinessCell
-                        label="Goals"
+                        label={t("fighterToday.goals")}
                         value={
                             openGoals.length > 0 ? (
-                                <ReadinessNumber value={onTrack} unit={`of ${openGoals.length} on track`} />
+                                <ReadinessNumber value={onTrack} unit={t("fighterToday.goalsOnTrack", { total: openGoals.length })} />
                             ) : (
-                                <span className="text-sm font-medium text-fg-muted">{goalsAvailable ? "No open goals" : "Not available yet"}</span>
+                                <span className="text-sm font-medium text-fg-muted">{t(goalsAvailable ? "fighterToday.noOpenGoals" : "fighterToday.goalsUnavailable")}</span>
                             )
                         }
                         hint={
                             !goalsAvailable
-                                ? "Goals arrive in a later release"
+                                ? t("fighterToday.goalsLater")
                                 : openGoals.length === 0
-                                  ? "Agree one with your coach"
+                                  ? t("fighterToday.agreeGoal")
                                   : atRisk > 0
-                                    ? `${pluralize(atRisk, "goal")} at risk`
-                                    : "Every open goal is on track"
+                                    ? plural(t, "fighterToday.goalsAtRisk", atRisk)
+                                    : t("fighterToday.allGoalsOnTrack")
                         }
                         href={routes.fighter.goals}
                         className="sm:col-span-3 lg:col-span-1"
@@ -270,7 +277,7 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
                             <BeltProgress
                                 stripes={(onTrack / openGoals.length) * GOAL_STRIPES}
                                 max={GOAL_STRIPES}
-                                label={`${onTrack} of ${openGoals.length} open goals on track`}
+                                label={t("fighterToday.goalsBelt", { onTrack, total: openGoals.length })}
                             />
                         )}
                     </ReadinessCell>
@@ -278,15 +285,17 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
 
                 <Card className="min-w-0">
                     <CardHeader
-                        title="This week"
-                        description={`${formatShortDate(weekStart)} – ${formatShortDate(addDaysToKey(weekKey, 6))} · ${
-                            paused && weekPlanned.length === 0 ? "training paused" : pluralize(weekPlanned.length, "session")
-                        }`}
+                        title={t("fighterToday.weekTitle")}
+                        description={t("fighterToday.weekDescription", {
+                            start: formatShortDate(weekStart, locale),
+                            end: formatShortDate(addDaysToKey(weekKey, 6), locale),
+                            sessions: paused && weekPlanned.length === 0 ? t("fighterToday.trainingPaused") : plural(t, "fighterToday.weekSessions", weekPlanned.length),
+                        })}
                         icon={<CalendarDays />}
-                        action={<CardLink href={routes.fighter.schedule}>Full schedule</CardLink>}
+                        action={<CardLink href={routes.fighter.schedule}>{t("fighterToday.fullSchedule")}</CardLink>}
                     />
                     <CardContent>
-                        <WeekAgenda sessions={weekSessions} startDate={weekStart} now={now} getHref={(session) => routes.fighter.session(session.id)} />
+                        <WeekAgenda sessions={weekSessions} startDate={weekStart} now={now} getHref={(session) => routes.fighter.session(session.id)} locale={locale} />
                     </CardContent>
                 </Card>
 
@@ -298,31 +307,32 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
                     filmHref={routes.fighter.videos}
                     uploadHref={routes.fighter.uploadVideo}
                     now={now}
+                    locale={locale}
                 />
             </div>
         </>
     );
 }
 
-function clearanceHint(state: ClearanceState, clearance: MedicalClearance | null): string {
+function clearanceHint(t: Translator, locale: Locale, state: ClearanceState, clearance: MedicalClearance | null): string {
     switch (state) {
         case "full":
-            return clearance?.validUntil ? `Valid until ${formatShortDate(clearance.validUntil)}` : "Cleared for full training";
+            return clearance?.validUntil ? t("clearanceHint.full", { date: formatShortDate(clearance.validUntil, locale) }) : t("clearanceHint.fullOpen");
         case "restricted":
-            return `${pluralize(clearance?.restrictions.length ?? 0, "restriction")} · your coach plans around them`;
+            return plural(t, "clearanceHint.restricted", clearance?.restrictions.length ?? 0);
         case "none":
-            return "Issued after your baseline physical";
+            return t("clearanceHint.none");
         case "expired":
-            return "Needs renewing before you train";
+            return t("clearanceHint.expired");
         case "not_cleared":
-            return "Training paused by your doctor";
+            return t("clearanceHint.not_cleared");
     }
 }
 
-function weekHint({ planned, toGo, missed, paused }: { planned: number; toGo: number; missed: number; paused: boolean }): string {
-    if (planned === 0) return paused ? "Training paused" : "Nothing planned yet";
-    const parts = [toGo > 0 ? `${toGo} still to go` : null, missed > 0 ? `${missed} missed` : null].filter(Boolean);
-    return parts.length > 0 ? parts.join(" · ") : "All done — great week";
+function weekHint(t: Translator, { planned, toGo, missed, paused }: { planned: number; toGo: number; missed: number; paused: boolean }): string {
+    if (planned === 0) return t(paused ? "weekHint.paused" : "weekHint.nothing");
+    const parts = [toGo > 0 ? t("weekHint.toGo", { n: toGo }) : null, missed > 0 ? t("weekHint.missed", { n: missed }) : null].filter(Boolean);
+    return parts.length > 0 ? parts.join(" · ") : t("weekHint.allDone");
 }
 
 /** Whether a plan is the fight camp for the booked bout: a fight-camp plan whose window includes fight night. */

@@ -120,8 +120,9 @@ export const HEALTH_STATUS_META: Record<HealthStatus, StatusMeta> = {
     not_cleared: { label: HEALTH_STATUS_LABELS.not_cleared, tone: "danger", icon: Ban, solid: true },
 };
 
-export function HealthStatusBadge({ status, size, className }: { status: HealthStatus; size?: BadgeSize; className?: string }) {
-    return <StatusBadge meta={HEALTH_STATUS_META[status]} size={size} className={className} />;
+export function HealthStatusBadge({ status, size, className, locale }: { status: HealthStatus; size?: BadgeSize; className?: string; locale?: Locale }) {
+    const meta = HEALTH_STATUS_META[status];
+    return <StatusBadge meta={locale ? { ...meta, label: createTranslator(locale)(`healthStatus.${status}`) } : meta} size={size} className={className} />;
 }
 
 /* ─── Medical Clearance ───────────────────────────────────────────────────── */
@@ -172,8 +173,9 @@ export const VIDEO_STATUS_META: Record<VideoStatus, StatusMeta> = {
     failed: { label: VIDEO_STATUS_LABELS.failed, tone: "danger", icon: CircleX },
 };
 
-export function VideoStatusBadge({ status, size, className }: { status: VideoStatus; size?: BadgeSize; className?: string }) {
-    return <StatusBadge meta={VIDEO_STATUS_META[status]} size={size} className={className} />;
+export function VideoStatusBadge({ status, size, className, locale }: { status: VideoStatus; size?: BadgeSize; className?: string; locale?: Locale }) {
+    const meta = VIDEO_STATUS_META[status];
+    return <StatusBadge meta={locale ? { ...meta, label: createTranslator(locale)(`videoStatus.${status}`) } : meta} size={size} className={className} />;
 }
 
 export const AI_JOB_STATUS_META: Record<AIJobStatus, StatusMeta> = {
@@ -196,7 +198,7 @@ export function LowConfidenceBadge({ size, className }: { size?: BadgeSize; clas
 }
 
 /** Marks content produced by AI so it is never mistaken for a human judgement. */
-export function AIGeneratedBadge({ size, className, label = "AI-generated" }: { size?: BadgeSize; className?: string; label?: string }) {
+export function AIGeneratedBadge({ size, className, locale, label = createTranslator(locale ?? "en")("aiGenerated") }: { size?: BadgeSize; className?: string; locale?: Locale; label?: string }) {
     return (
         <Badge tone="ai" icon={Sparkles} size={size} className={className}>
             {label}

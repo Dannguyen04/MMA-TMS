@@ -3,6 +3,8 @@ import Link from "next/link";
 
 import { Avatar } from "@/components/ui/avatar";
 import { TRAINING_TYPE_LABELS } from "@/lib/domain/labels";
+import { INTL_LOCALE, type Locale } from "@/lib/i18n/config";
+import { createTranslator } from "@/lib/i18n/translate";
 import type { TrainingSession } from "@/lib/domain/types";
 import { APP_TIMEZONE, dayKey, formatDate, formatMinutes, formatTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -10,18 +12,23 @@ import { FighterIdentity, type FighterIdentityData } from "./fighter-identity";
 import { SessionStatusBadge } from "./status-badges";
 import { TrainingTypeIcon } from "./training-type-icon";
 
-const weekdayFmt = new Intl.DateTimeFormat("en-GB", { timeZone: APP_TIMEZONE, weekday: "short" });
+const weekdayFmts: Record<Locale, Intl.DateTimeFormat> = {
+    en: new Intl.DateTimeFormat(INTL_LOCALE.en, { timeZone: APP_TIMEZONE, weekday: "short" }),
+    vi: new Intl.DateTimeFormat(INTL_LOCALE.vi, { timeZone: APP_TIMEZONE, weekday: "short" }),
+};
 
 export interface DateBlockProps {
     /** Any ISO timestamp on the day to show. */
     date: string;
     /** Emphasise the block, e.g. for today. */
     highlighted?: boolean;
+    /** The viewer's language; English when omitted. */
+    locale?: Locale;
     className?: string;
 }
 
 /** Calendar tile: short weekday over the day number, in the academy timezone. */
-export function DateBlock({ date, highlighted = false, className }: DateBlockProps) {
+export function DateBlock({ date, highlighted = false, locale = "en", className }: DateBlockProps) {
     const dayNumber = Number(dayKey(date).slice(8));
     return (
         <span
@@ -32,12 +39,12 @@ export function DateBlock({ date, highlighted = false, className }: DateBlockPro
             )}
         >
             <span aria-hidden className={cn("text-[11px] font-semibold uppercase", highlighted ? "text-primary-fg" : "text-fg-muted")}>
-                {weekdayFmt.format(new Date(date))}
+                {weekdayFmts[locale].format(new Date(date))}
             </span>
             <span aria-hidden className="mt-1 text-lg font-semibold">
                 {dayNumber}
             </span>
-            <span className="sr-only">{formatDate(date)}</span>
+            <span className="sr-only">{formatDate(date, locale)}</span>
         </span>
     );
 }
@@ -61,11 +68,14 @@ export interface SessionListItemProps {
     compact?: boolean;
     /** Show the calendar tile. Turn off when a surrounding heading already names the day. */
     showDate?: boolean;
+    /** The viewer's language; English when omitted. */
+    locale?: Locale;
     className?: string;
 }
 
 /** A training session row: date, time, type, duration, coach, target RPE and status. */
-export function SessionListItem({ session, coachName, fighter, href, compact = false, showDate = true, className }: SessionListItemProps) {
+export function SessionListItem({ session, coachName, fighter, href, compact = false, showDate = true, locale, className }: SessionListItemProps) {
+    const t = createTranslator(locale ?? "en");
     const inactive = session.status === "cancelled" || session.status === "missed";
     const title = href ? (
         <Link href={href} className="rounded-sm after:absolute after:inset-0 after:rounded-[inherit] after:content-[''] hover:underline">
@@ -104,7 +114,7 @@ export function SessionListItem({ session, coachName, fighter, href, compact = f
                         <span className="truncate">{fighter.name}</span>
                     </p>
                 )}
-                {session.status !== "scheduled" && <SessionStatusBadge status={session.status} size="sm" className="self-start" />}
+                {session.status !== "scheduled" && <SessionStatusBadge status={session.status} size="sm" locale={locale} className="self-start" />}
             </div>
         );
     }
@@ -117,17 +127,17 @@ export function SessionListItem({ session, coachName, fighter, href, compact = f
                 className,
             )}
         >
-            {showDate && <DateBlock date={session.scheduledAt} />}
+            {showDate && <DateBlock date={session.scheduledAt} locale={locale} />}
             <div className="flex min-w-0 flex-1 flex-col gap-1">
                 {fighter && <FighterIdentity fighter={fighter} size="sm" showMeta={false} className="mb-0.5" />}
                 <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
                     <p className={cn("min-w-0 text-sm font-semibold", inactive ? "text-fg-muted" : "text-fg")}>{title}</p>
-                    <SessionStatusBadge status={session.status} size="sm" />
+                    <SessionStatusBadge status={session.status} size="sm" locale={locale} />
                 </div>
                 <ul className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-fg-muted">
                     <li className="inline-flex items-center gap-1.5">
                         <TrainingTypeIcon type={session.type} className="size-3.5 text-fg-subtle" />
-                        {TRAINING_TYPE_LABELS[session.type]}
+                        {locale ? t(`trainingType.${session.type}`) : TRAINING_TYPE_LABELS[session.type]}
                     </li>
                     <li className="inline-flex items-center gap-1.5">
                         <Clock aria-hidden className="size-3.5 text-fg-subtle" />

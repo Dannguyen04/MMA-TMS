@@ -5,10 +5,12 @@
  */
 import { enCoachBouts } from "./coach-bouts.en";
 import { enCoachToday } from "./coach-today.en";
+import { enFighterToday } from "./fighter-today.en";
 
 export const en = {
     ...enCoachBouts,
     ...enCoachToday,
+    ...enFighterToday,
     /* Navigation: keyed by the English label in `navigation.ts`. */
     "nav.Today": "Today",
     "nav.Bout": "Bout",

@@ -3,6 +3,7 @@ import { WEIGHT_CLASS_LIMIT_KG } from "@/lib/domain/labels";
 import type { ClearanceState } from "@/lib/domain/rules";
 import type { Fighter, HealthStatus, PerformanceMetric, WeightClass } from "@/lib/domain/types";
 import { APP_TIMEZONE, daysBetween, formatNumber } from "@/lib/format";
+import type { Translator } from "@/lib/i18n/translate";
 import { round } from "@/lib/utils";
 
 /** Pure helpers shared by the dashboards, roster, profile and health screens. Safe for Server and Client Components. */
@@ -28,6 +29,15 @@ export function greetingFor(now: string): string {
 /** First given name for greetings, e.g. "Minh Trần" → "Minh". */
 export function firstName(name: string): string {
     return name.trim().split(/\s+/)[0] ?? name;
+}
+
+/** `relativeDay` in the viewer's language. */
+export function relativeDayText(t: Translator, value: string, now: string): string {
+    const days = daysBetween(now, value);
+    if (days === 0) return t("day.today");
+    if (days === 1) return t("day.tomorrow");
+    if (days === -1) return t("day.yesterday");
+    return days > 0 ? t("day.inDays", { n: days }) : t("day.daysAgo", { n: -days });
 }
 
 /** "Today", "Tomorrow", "In 3 days", "Yesterday" for a timestamp relative to `now` (academy calendar days). */
