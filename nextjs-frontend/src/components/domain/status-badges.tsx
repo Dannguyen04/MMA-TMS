@@ -44,6 +44,9 @@ import {
     ROLE_LABELS,
     SESSION_STATUS_LABELS,
     USER_STATUS_LABELS,
+    BOUT_PHASE_LABELS,
+    REQUIREMENT_STATE_LABELS,
+    SUSPENSION_STATE_LABELS,
     VIDEO_STATUS_LABELS,
     WEIGHT_STATUS_LABELS,
 } from "@/lib/domain/labels";
@@ -62,6 +65,8 @@ import type {
     UserStatus,
     VideoStatus,
 } from "@/lib/domain/types";
+import type { BoutPhase, RequirementState } from "@/lib/domain/bout";
+import type { SuspensionState } from "@/lib/domain/suspension-rules";
 import type { WeightStatus } from "@/lib/domain/weight-chart";
 import { formatConfidence } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -380,4 +385,51 @@ export const WEIGHT_STATUS_META: Record<WeightStatus, StatusMeta> = {
 /** Camp weight against the bout limit. Grey means no weigh-in for three days, not "fine". */
 export function WeightStatusBadge({ status, size, className }: { status: WeightStatus; size?: BadgeSize; className?: string }) {
     return <StatusBadge meta={WEIGHT_STATUS_META[status]} size={size} className={className} />;
+}
+
+export const BOUT_PHASE_META: Record<BoutPhase, StatusMeta> = {
+    SCHEDULED: { label: BOUT_PHASE_LABELS.SCHEDULED, tone: "neutral", icon: CalendarClock },
+    CAMP: { label: BOUT_PHASE_LABELS.CAMP, tone: "info", icon: Activity },
+    FIGHT_WEEK: { label: BOUT_PHASE_LABELS.FIGHT_WEEK, tone: "primary", icon: Flag },
+    WEIGHED_IN: { label: BOUT_PHASE_LABELS.WEIGHED_IN, tone: "primary", icon: CalendarCheck2 },
+    COMPLETED: { label: BOUT_PHASE_LABELS.COMPLETED, tone: "success", icon: CircleCheck },
+    CANCELLED: { label: BOUT_PHASE_LABELS.CANCELLED, tone: "neutral", icon: CalendarX2 },
+};
+
+export function BoutPhaseBadge({ phase, size, className }: { phase: BoutPhase; size?: BadgeSize; className?: string }) {
+    return <StatusBadge meta={BOUT_PHASE_META[phase]} size={size} className={className} />;
+}
+
+export const REQUIREMENT_STATE_META: Record<RequirementState, StatusMeta> = {
+    MISSING: { label: REQUIREMENT_STATE_LABELS.MISSING, tone: "warning", icon: CircleDashed },
+    PROVIDED: { label: REQUIREMENT_STATE_LABELS.PROVIDED, tone: "success", icon: CircleCheck },
+    CONFIRMED: { label: REQUIREMENT_STATE_LABELS.CONFIRMED, tone: "success", icon: UserCheck },
+    REJECTED: { label: REQUIREMENT_STATE_LABELS.REJECTED, tone: "danger", icon: CircleX },
+};
+
+export function RequirementStateBadge({ state, size, className }: { state: RequirementState; size?: BadgeSize; className?: string }) {
+    return <StatusBadge meta={REQUIREMENT_STATE_META[state]} size={size} className={className} />;
+}
+
+/** Gate 1 in a word: ready, how many items stop it, and "overdue" once the documents deadline has passed. */
+export function Gate1Badge({ missing, overdue, size, className }: { missing: number; overdue?: boolean; size?: BadgeSize; className?: string }) {
+    const meta: StatusMeta =
+        missing === 0
+            ? { label: "Ready", tone: "success", icon: ShieldCheck }
+            : overdue
+              ? { label: `${missing} missing · overdue`, tone: "danger", icon: ShieldX, solid: true }
+              : { label: `${missing} missing`, tone: "warning", icon: ShieldAlert };
+    return <StatusBadge meta={meta} size={size} className={className} />;
+}
+
+export const SUSPENSION_STATE_META: Record<SuspensionState, StatusMeta> = {
+    UPCOMING: { label: SUSPENSION_STATE_LABELS.UPCOMING, tone: "neutral", icon: CalendarClock },
+    ACTIVE: { label: SUSPENSION_STATE_LABELS.ACTIVE, tone: "danger", icon: Ban, solid: true },
+    AWAITING_CLEARANCE: { label: SUSPENSION_STATE_LABELS.AWAITING_CLEARANCE, tone: "warning", icon: ShieldQuestion },
+    ENDED: { label: SUSPENSION_STATE_LABELS.ENDED, tone: "neutral", icon: CircleCheck },
+    CLEARED: { label: SUSPENSION_STATE_LABELS.CLEARED, tone: "success", icon: ShieldCheck },
+};
+
+export function SuspensionStateBadge({ state, size, className }: { state: SuspensionState; size?: BadgeSize; className?: string }) {
+    return <StatusBadge meta={SUSPENSION_STATE_META[state]} size={size} className={className} />;
 }

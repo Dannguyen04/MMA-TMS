@@ -55,7 +55,10 @@ export const routes = {
 
     coach: {
         dashboard: "/coach/dashboard",
+        bouts: "/coach/bouts",
+        newBout: "/coach/bouts/new",
         bout: (boutId: string) => `/coach/bouts/${boutId}`,
+        suspensions: "/coach/bouts/suspensions",
         fighters: "/coach/fighters",
         fighter: (fighterId: string) => `/coach/fighters/${fighterId}`,
         fighterPerformance: (fighterId: string) => `/coach/fighters/${fighterId}/performance`,

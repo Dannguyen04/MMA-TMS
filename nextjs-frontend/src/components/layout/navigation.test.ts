@@ -20,6 +20,8 @@ describe("hubForPath", () => {
         expect(hubForPath("fighter", routes.fighter.plan("p-1"))?.label).toBe("Training");
         expect(hubForPath("fighter", routes.fighter.session("s-1"))?.label).toBe("Training");
         expect(hubForPath("coach", routes.coach.plan("p-1"))?.label).toBe("Training");
+        expect(hubForPath("coach", routes.coach.bout("b-1"))?.label).toBe("Bouts");
+        expect(hubForPath("coach", routes.coach.newBout)?.label).toBe("Bouts");
         expect(hubForPath("coach", routes.coach.session("s-1"))?.label).toBe("Training");
         expect(hubForPath("doctor", routes.doctor.injury("inj-1"))?.label).toBe("Clinical");
         expect(hubForPath("doctor", routes.doctor.grantClearance)?.label).toBe("Clinical");
@@ -52,6 +54,13 @@ describe("hubTabsFor", () => {
                 { label: "Plans", href: routes.coach.plans },
             ],
         });
+        expect(hubTabsFor("coach", routes.coach.suspensions)).toEqual({
+            label: "Bouts",
+            tabs: [
+                { label: "Upcoming", href: routes.coach.bouts },
+                { label: "Suspensions", href: routes.coach.suspensions },
+            ],
+        });
         expect(hubTabsFor("doctor", routes.doctor.injuries)).toEqual({
             label: "Clinical",
             tabs: [
@@ -64,6 +73,7 @@ describe("hubTabsFor", () => {
     it("hides them on detail pages, which keep their back link and own tabs", () => {
         expect(hubTabsFor("fighter", routes.fighter.plan("p-1"))).toBeNull();
         expect(hubTabsFor("coach", routes.coach.plan("p-1"))).toBeNull();
+        expect(hubTabsFor("coach", routes.coach.bout("b-1"))).toBeNull();
         expect(hubTabsFor("doctor", routes.doctor.injury("inj-1"))).toBeNull();
         expect(hubTabsFor("doctor", routes.doctor.grantClearance)).toBeNull();
     });
@@ -90,7 +100,7 @@ describe("isNavItemActive", () => {
 describe("mobilePrimaryItems", () => {
     it("lists every hub for roles built on hubs", () => {
         expect(labels("fighter")).toEqual(["Today", "Bout", "Training", "Film", "Health"]);
-        expect(labels("coach")).toEqual(["Today", "Roster", "Training", "Film room", "Clearance"]);
+        expect(labels("coach")).toEqual(["Today", "Bouts", "Roster", "Training", "Film room", "Clearance"]);
         expect(labels("doctor")).toEqual(["Triage", "Patients", "Clinical"]);
     });
 
@@ -145,6 +155,7 @@ describe("acceptance criteria: frozen navigation removal", () => {
 
         expect(NAVIGATION.coach.flatMap((s) => s.items).map((i) => i.label)).toEqual([
             "Today",
+            "Bouts",
             "Roster",
             "Training",
             "Film room",

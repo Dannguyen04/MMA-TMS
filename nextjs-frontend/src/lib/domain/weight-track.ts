@@ -15,7 +15,8 @@ export interface WeightTrackPoint extends DatedKg {
 }
 
 export interface WeightTrackInput {
-    limitKg: number;
+    /** Null for an open class: there is nothing to cut to, so the status only says whether the fighter logs. */
+    limitKg: number | null;
     /** Acute-loss limit, 8 or 5. Compared with remaining percent. */
     acuteLossLimitPct: number;
     /** Days before weigh-in in which remaining percent can turn the camp red. */
@@ -31,7 +32,7 @@ export interface WeightTrackInput {
 }
 
 export interface WeightTrack {
-    limitKg: number;
+    limitKg: number | null;
     points: WeightTrackPoint[];
     latestKg: number | null;
     latestOn: string | null;
@@ -55,11 +56,12 @@ export function buildWeightTrack(input: WeightTrackInput): WeightTrack {
     const points = pointsInCamp(input.points, input.campStartedOn, input.todayOn);
     const latest = points[points.length - 1] ?? null;
     const daysToWeighIn = isDateKey(input.weighInOn) && isDateKey(input.todayOn) ? daysBetweenKeys(input.todayOn, input.weighInOn) : 0;
-    const referencePath = referenceSeries(input, points[0] ?? null);
+    const limitKg = input.limitKg;
+    const referencePath = limitKg === null ? [] : referenceSeries({ ...input, limitKg }, points[0] ?? null);
     const latestKg = latest?.kg ?? null;
-    const remainingPct = latestKg === null || latestKg <= 0 ? null : round(Math.max(0, ((latestKg - input.limitKg) / latestKg) * 100), 1);
+    const remainingPct = latestKg === null || latestKg <= 0 || limitKg === null ? null : round(Math.max(0, ((latestKg - limitKg) / latestKg) * 100), 1);
     const stale = latest === null || !isDateKey(input.todayOn) || daysBetweenKeys(latest.date, input.todayOn) >= WEIGHT_STALE_DAYS;
-    const referenceKg = latest ? referenceKgOn(input, points[0] ?? null, latest.date) : null;
+    const referenceKg = latest && limitKg !== null ? referenceKgOn({ ...input, limitKg }, points[0] ?? null, latest.date) : null;
 
     let status: WeightStatus = "GREEN";
     if (stale) status = "GREY";
@@ -92,7 +94,9 @@ function pointsInCamp(points: WeightTrackPoint[], campStartedOn: string, todayOn
     return [...byDay.values()].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 }
 
-function referenceSeries(input: WeightTrackInput, first: WeightTrackPoint | null): DatedKg[] {
+type LimitedInput = WeightTrackInput & { limitKg: number };
+
+function referenceSeries(input: LimitedInput, first: WeightTrackPoint | null): DatedKg[] {
     if (!first || !isDateKey(first.date) || !isDateKey(input.weighInOn)) return [];
     const end = daysBetweenKeys(first.date, input.weighInOn) >= 0 ? input.weighInOn : first.date;
     const series: DatedKg[] = [];
@@ -107,7 +111,7 @@ function referenceSeries(input: WeightTrackInput, first: WeightTrackPoint | null
  * Linear from the first camp weight to `limit / (1 - L/100)` on the day the acute
  * window opens, then linear from there to the limit on weigh-in day.
  */
-function referenceKgOn(input: WeightTrackInput, first: WeightTrackPoint | null, date: string): number | null {
+function referenceKgOn(input: LimitedInput, first: WeightTrackPoint | null, date: string): number | null {
     if (!first || !isDateKey(date) || !isDateKey(input.weighInOn) || !isDateKey(first.date)) return null;
     const loss = input.acuteLossLimitPct / 100;
     if (loss <= 0 || loss >= 1) return input.limitKg;

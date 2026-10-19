@@ -1,154 +1,396 @@
 import "server-only";
 
-import type { CampBout, NutritionCheckin, NutritionPhaseKey, NutritionPlan } from "@/lib/domain/bout";
-import { isRunningPhase } from "@/lib/domain/bout";
+import {
+    boutLimitKg,
+    isActivePhase,
+    isRunningPhase,
+    type BoutHistoryEntry,
+    type BoutOutcome,
+    type BoutPhase,
+    type BoutRequirement,
+    type CampBout,
+    type CancelReason,
+    type CompetitionRuleset,
+    type HydrationCheck,
+    type NutritionCheckin,
+    type NutritionPhaseKey,
+    type NutritionPlan,
+    type Suspension,
+    type WeightClassOption,
+} from "@/lib/domain/bout";
+import {
+    acuteLossLimitPct,
+    boutOn,
+    canCancel,
+    canEditSchedule,
+    canEnterFightWeek,
+    canRecordResult,
+    canTransition,
+    checklistLocked,
+    madeWeight,
+    requirementCode,
+    requirementsFromTemplates,
+    type Gate1Gap,
+    type RequirementUpdate,
+} from "@/lib/domain/bout-rules";
+import { BOUT_PHASE_LABELS, CANCEL_REASON_LABELS, GATE1_REASON_LABELS } from "@/lib/domain/labels";
+import { isSuspensionActive, suspensionEndsOn, type SuspensionDraft } from "@/lib/domain/suspension-rules";
+import type { TrainingPlan, TrainingType } from "@/lib/domain/types";
 import type { PlanAdherence } from "@/lib/domain/weight-chart";
 import { buildWeightTrack, type WeightTrack } from "@/lib/domain/weight-track";
-import { academyWallClockToIso, addDaysToKey, dayKey } from "@/lib/format";
 import type { WriteResult } from "@/lib/domain/write-result";
+import { academyWallClockToIso, addDaysToKey, dayKey, daysBetweenKeys, formatDate } from "@/lib/format";
+import { AIBA_REFERENCE_ID, CUSTOM_RULESET_ID, mockRulesets, VMMAF_2021_ID } from "@/lib/mocks/rulesets";
+import { TODAY_KEY } from "@/lib/mocks/time";
+import { round } from "@/lib/utils";
+
+/**
+ * The demo's bouts, camp weights, plan answers and suspensions. One in-memory store per server process, seeded
+ * relative to the academy day it is first read on; restart the dev server to reset it. Every rule comes from
+ * `lib/domain/bout-rules.ts` and `suspension-rules.ts`, the same functions the pages use.
+ *
+ * Seed (review 2, option a): Minh has no bout, so the coach creates one live. Kenji is red with a complete
+ * checklist and can enter fight week; Aigerim is yellow; Emma is grey, and Gate 1 stops her fight week on a missing
+ * "Brain CT" past the documents deadline (T-008a F3).
+ * Linh is in fight week with weigh-in and bout today, for the official weigh-in and result. Diego has a
+ * hand-entered suspension after a knockout in sparring.
+ */
+
+type MeasurementContext = "SELF_REPORTED" | "WEIGH_IN";
 
 interface DemoMeasurement {
     fighterId: string;
     academyDate: string;
     kg: number;
     recordedAt: string;
+    context: MeasurementContext;
 }
 
 interface CampStore {
+    rulesets: CompetitionRuleset[];
     bouts: CampBout[];
     measurements: DemoMeasurement[];
     checkins: NutritionCheckin[];
+    suspensions: Suspension[];
+    sequence: number;
 }
+
+export interface Actor {
+    name: string;
+}
+
+export type CreateResult = { ok: true; boutId: string; warning: string | null } | { ok: false; message: string; fieldErrors?: Record<string, string> };
+
+export type FightWeekResult = { ok: true } | { ok: false; message: string; lines: string[] };
 
 const STATUS_ORDER = { RED: 0, YELLOW: 1, GREY: 2, GREEN: 3 } as const;
 
-let store: CampStore | null = null;
+const RAFAEL_ID = "c-rafael-costa";
+const RAFAEL = "Rafael Costa";
 
-/** The in-memory camp. Created on first read so tests can seed a fixed academy day. */
+const STORE_KEY = Symbol.for("mma-tms.demo-camp-store");
+const holder = globalThis as typeof globalThis & { [STORE_KEY]?: CampStore };
+
+/** The in-memory camp, seeded on the same anchor day as the other mocks (the linked training plans). */
 export function demoCampStore(): CampStore {
-    store ??= createCampStore(dayKey(new Date()));
-    return store;
+    holder[STORE_KEY] ??= createCampStore(TODAY_KEY);
+    return holder[STORE_KEY];
 }
 
 export function resetDemoCampStore(todayOn = dayKey(new Date())): CampStore {
-    store = createCampStore(todayOn);
-    return store;
+    holder[STORE_KEY] = createCampStore(todayOn);
+    return holder[STORE_KEY];
+}
+
+/* ─── Seed ────────────────────────────────────────────────────────────────── */
+
+const EMPTY_PLAN: NutritionPlan = { camp: null, fightWeek: null, postWeighIn: null };
+
+function ruleset(id: string): CompetitionRuleset {
+    const found = mockRulesets.find((item) => item.id === id);
+    if (!found) throw new Error(`Unknown ruleset ${id}`);
+    return found;
+}
+
+function weightClassOf(rulesetId: string, code: string): WeightClassOption {
+    const found = ruleset(rulesetId).weightClasses.find((item) => item.code === code);
+    if (!found) throw new Error(`Unknown weight class ${code} in ${rulesetId}`);
+    return found;
+}
+
+function provided(label: string, issuedOn: string, validityDays: number): BoutRequirement {
+    const code = requirementCode(label, []);
+    return {
+        id: code,
+        code,
+        label,
+        required: true,
+        state: "PROVIDED",
+        source: "COACH",
+        issuedOn,
+        validUntil: addDaysToKey(issuedOn, validityDays),
+        statusReason: null,
+        validityDays,
+    };
+}
+
+function missing(label: string, validityDays: number | null, required = true): BoutRequirement {
+    const code = requirementCode(label, []);
+    return { id: code, code, label, required, state: "MISSING", source: "COACH", issuedOn: null, validUntil: null, statusReason: null, validityDays };
+}
+
+/** Daily weights from `fromOn` to `toOn`, evenly from `fromKg` to `toKg`, logged at 07:00 (T-008a). */
+export function weightSeries(fighterId: string, fromOn: string, toOn: string, fromKg: number, toKg: number): DemoMeasurement[] {
+    const days = daysBetweenKeys(fromOn, toOn);
+    return Array.from({ length: days + 1 }, (_, index) => {
+        const academyDate = addDaysToKey(fromOn, index);
+        const kg = round(days === 0 ? toKg : fromKg + ((toKg - fromKg) * index) / days, 1);
+        return { fighterId, academyDate, kg, recordedAt: academyWallClockToIso(academyDate, "07:00"), context: "SELF_REPORTED" as const };
+    });
+}
+
+interface SeedBout {
+    id: string;
+    fighterId: string;
+    rulesetId: string;
+    weightClass: WeightClassOption;
+    event: string;
+    venue: string | null;
+    opponent: string | null;
+    weighIn: [number, string];
+    bout: [number, string];
+    phase: BoutPhase;
+    trainingPlanId: string;
+    campStartDay: number;
+    createdDay: number;
+    requirements: BoutRequirement[];
+    nutritionPlan?: NutritionPlan;
+    /** Day offsets of each move after creation, in order. */
+    moves: [BoutPhase, number][];
+}
+
+function seedBout(spec: SeedBout, todayOn: string): CampBout {
+    const rules = ruleset(spec.rulesetId);
+    const weighInAt = academyWallClockToIso(addDaysToKey(todayOn, spec.weighIn[0]), spec.weighIn[1]);
+    const boutAt = academyWallClockToIso(addDaysToKey(todayOn, spec.bout[0]), spec.bout[1]);
+    const createdOn = addDaysToKey(todayOn, spec.createdDay);
+    let from: BoutPhase = "SCHEDULED";
+    const history: BoutHistoryEntry[] = [{ at: academyWallClockToIso(createdOn, "16:00"), by: RAFAEL, from: null, to: "SCHEDULED" }];
+    for (const [to, day] of spec.moves) {
+        history.push({ at: academyWallClockToIso(addDaysToKey(todayOn, day), "16:30"), by: RAFAEL, from, to });
+        from = to;
+    }
+    return {
+        id: spec.id,
+        fighterId: spec.fighterId,
+        coachId: RAFAEL_ID,
+        rulesetId: rules.id,
+        rulesetName: rules.name,
+        rulesetVerified: rules.verified,
+        sport: rules.sport,
+        event: spec.event,
+        venue: spec.venue,
+        opponent: spec.opponent,
+        weightClassCode: spec.weightClass.code,
+        weightClassLabel: spec.weightClass.label,
+        limitKg: spec.weightClass.limitKg,
+        catchweightKg: null,
+        acuteLossLimitPct: acuteLossLimitPct(weighInAt, boutAt, rules),
+        acuteWindowDays: rules.acuteWindowDays,
+        requirementsDueDays: rules.requirementsDueDays,
+        fightWeekDays: rules.fightWeekDays,
+        weighInAt,
+        boutAt,
+        phase: spec.phase,
+        trainingPlanId: spec.trainingPlanId,
+        campStartedOn: addDaysToKey(todayOn, spec.campStartDay),
+        createdOn,
+        notes: null,
+        cancelReason: null,
+        cancelNote: null,
+        requirements: spec.requirements,
+        nutritionPlan: spec.nutritionPlan ?? EMPTY_PLAN,
+        history,
+        weighIn: null,
+        outcome: null,
+        checklistUnlock: null,
+    };
 }
 
 export function createCampStore(todayOn: string): CampStore {
-    const campStart = addDaysToKey(todayOn, -20);
-    const noteAt = academyWallClockToIso(campStart, "08:00");
-    const minhPlan: NutritionPlan = {
-        camp: {
-            text: "Rice, grilled chicken, vegetables, and fruit. No fried food.",
-            authorName: "Rafael Costa",
-            updatedAt: noteAt,
-        },
-        fightWeek: {
-            text: "Same meals, smaller portions the day before weigh-in.",
-            authorName: "Rafael Costa",
-            updatedAt: noteAt,
-        },
-        postWeighIn: {
-            text: "A normal meal after the scale.",
-            authorName: "Rafael Costa",
-            updatedAt: noteAt,
-        },
-    };
+    const day = (offset: number) => addDaysToKey(todayOn, offset);
+    const noteAt = academyWallClockToIso(day(-20), "08:00");
 
     const bouts: CampBout[] = [
-        {
-            id: "b-minh-lotus",
-            fighterId: "f-minh-tran",
-            event: "Lotus Fight Night 18",
-            opponent: "Arman Petrosyan",
-            weightClass: "featherweight",
-            limitKg: 60,
-            catchweightKg: 60,
-            acuteLossLimitPct: 8,
-            acuteWindowDays: 7,
-            weighInAt: academyWallClockToIso(addDaysToKey(todayOn, 2), "08:00"),
-            boutAt: academyWallClockToIso(addDaysToKey(todayOn, 3), "19:00"),
-            phase: "CAMP",
-            campStartedOn: campStart,
-            requirements: [
-                { id: "blood", label: "Blood panel", state: "CONFIRMED" },
-                { id: "ecg", label: "ECG", state: "PROVIDED" },
-                { id: "mri", label: "Brain MRI", state: "MISSING" },
-            ],
-            nutritionPlan: minhPlan,
-        },
-        {
-            id: "b-kenji-pacific",
-            fighterId: "f-kenji-morita",
-            event: "Pacific Invitational 4",
-            opponent: "Ryo Tanaka",
-            weightClass: "bantamweight",
-            limitKg: 61.2,
-            catchweightKg: null,
-            acuteLossLimitPct: 8,
-            acuteWindowDays: 7,
-            weighInAt: academyWallClockToIso(addDaysToKey(todayOn, 21), "09:00"),
-            boutAt: academyWallClockToIso(addDaysToKey(todayOn, 22), "19:00"),
-            phase: "CAMP",
-            campStartedOn: campStart,
-            requirements: [
-                { id: "blood", label: "Blood panel", state: "CONFIRMED" },
-                { id: "eye", label: "Eye exam", state: "MISSING" },
-            ],
-            nutritionPlan: {
-                camp: { text: "Fish, rice, and vegetables at the usual times.", authorName: "Rafael Costa", updatedAt: noteAt },
-                fightWeek: null,
-                postWeighIn: null,
+        seedBout(
+            {
+                id: "b-kenji-pacific",
+                fighterId: "f-kenji-morita",
+                rulesetId: VMMAF_2021_ID,
+                weightClass: weightClassOf(VMMAF_2021_ID, "56"),
+                event: "Pacific Invitational 4",
+                venue: "Phú Thọ Indoor Stadium, Ho Chi Minh City",
+                opponent: "Ryo Tanaka",
+                weighIn: [3, "10:00"],
+                bout: [4, "19:00"],
+                phase: "CAMP",
+                trainingPlanId: "tp-kenji-fight-camp",
+                campStartDay: -35,
+                createdDay: -40,
+                moves: [["CAMP", -35]],
+                requirements: [provided("Health certificate", day(-20), 180), provided("Blood test", day(-10), 90), provided("Brain CT", day(-15), 365)],
+                nutritionPlan: {
+                    camp: { text: "Fish, rice and vegetables at the usual times. No sugary drinks.", authorName: RAFAEL, updatedAt: noteAt },
+                    fightWeek: null,
+                    postWeighIn: null,
+                },
             },
-        },
-        {
-            id: "b-emma-nordic",
-            fighterId: "f-emma-lindqvist",
-            event: "Nordic Open 12",
-            opponent: null,
-            weightClass: "flyweight",
-            limitKg: 56.7,
-            catchweightKg: null,
-            acuteLossLimitPct: 8,
-            acuteWindowDays: 7,
-            weighInAt: academyWallClockToIso(addDaysToKey(todayOn, 10), "08:00"),
-            boutAt: academyWallClockToIso(addDaysToKey(todayOn, 11), "18:00"),
-            phase: "CAMP",
-            campStartedOn: campStart,
-            requirements: [{ id: "blood", label: "Blood panel", state: "MISSING" }],
-            nutritionPlan: { camp: null, fightWeek: null, postWeighIn: null },
-        },
+            todayOn,
+        ),
+        seedBout(
+            {
+                id: "b-aigerim-asian",
+                fighterId: "f-aigerim-sadykova",
+                rulesetId: AIBA_REFERENCE_ID,
+                weightClass: weightClassOf(AIBA_REFERENCE_ID, "51"),
+                event: "Asian Combat Series 9",
+                venue: "Almaty Arena",
+                opponent: "Mai Hoshino",
+                weighIn: [27, "08:00"],
+                bout: [27, "18:00"],
+                phase: "CAMP",
+                trainingPlanId: "tp-aigerim-camp",
+                campStartDay: -43,
+                createdDay: -45,
+                moves: [["CAMP", -43]],
+                requirements: [provided("Health certificate", day(-12), 180), missing("Blood test", 90, false)],
+            },
+            todayOn,
+        ),
+        seedBout(
+            {
+                id: "b-emma-nordic",
+                fighterId: "f-emma-lindqvist",
+                rulesetId: CUSTOM_RULESET_ID,
+                weightClass: { code: "57", label: "57 kg", limitKg: 57 },
+                event: "Nordic Open 12",
+                venue: "Stockholm",
+                opponent: null,
+                weighIn: [5, "09:00"],
+                bout: [6, "19:00"],
+                phase: "CAMP",
+                trainingPlanId: "tp-emma-nordic-camp",
+                campStartDay: -30,
+                createdDay: -32,
+                moves: [["CAMP", -30]],
+                requirements: [provided("Health certificate", day(-25), 180), provided("Blood test", day(-6), 90), missing("Brain CT", 365)],
+            },
+            todayOn,
+        ),
+        seedBout(
+            {
+                id: "b-linh-saigon",
+                fighterId: "f-linh-pham",
+                rulesetId: AIBA_REFERENCE_ID,
+                weightClass: weightClassOf(AIBA_REFERENCE_ID, "60"),
+                event: "Saigon Amateur Night 5",
+                venue: "District 1 Sports Centre, Ho Chi Minh City",
+                opponent: "Vũ Mai Anh",
+                weighIn: [0, "07:00"],
+                bout: [0, "18:00"],
+                phase: "FIGHT_WEEK",
+                trainingPlanId: "tp-linh-fight-camp",
+                campStartDay: -28,
+                createdDay: -30,
+                moves: [
+                    ["CAMP", -28],
+                    ["FIGHT_WEEK", -5],
+                ],
+                requirements: [provided("Health certificate", day(-40), 180), provided("Blood test", day(-9), 90)],
+                nutritionPlan: {
+                    camp: { text: "Three normal meals and a fruit snack after training.", authorName: RAFAEL, updatedAt: noteAt },
+                    fightWeek: { text: "Same meals as camp. Keep portions steady; nothing new this week.", authorName: RAFAEL, updatedAt: noteAt },
+                    postWeighIn: { text: "A normal breakfast after the scale, then a light lunch.", authorName: RAFAEL, updatedAt: noteAt },
+                },
+            },
+            todayOn,
+        ),
     ];
 
     const measurements: DemoMeasurement[] = [
-        measure("f-minh-tran", campStart, 70, noteAt),
-        measure("f-minh-tran", addDaysToKey(todayOn, -2), 67, academyWallClockToIso(addDaysToKey(todayOn, -2), "07:30")),
-        measure("f-minh-tran", addDaysToKey(todayOn, -1), 66.4, academyWallClockToIso(addDaysToKey(todayOn, -1), "07:30")),
-        measure("f-minh-tran", todayOn, 66, academyWallClockToIso(todayOn, "07:30")),
-        measure("f-kenji-morita", campStart, 70, noteAt),
-        measure("f-kenji-morita", todayOn, 69, academyWallClockToIso(todayOn, "07:45")),
-        measure("f-emma-lindqvist", addDaysToKey(todayOn, -4), 58, academyWallClockToIso(addDaysToKey(todayOn, -4), "07:30")),
+        // Minh logs from the start of his camp plan until four days ago, so he is grey until he logs on stage.
+        ...weightSeries("f-minh-tran", day(-28), day(-4), 70, 67.2),
+        ...weightSeries("f-kenji-morita", day(-14), day(-1), 64.4, 62.8),
+        ...weightSeries("f-aigerim-sadykova", day(-14), day(-1), 55, 55.6),
+        ...weightSeries("f-emma-lindqvist", day(-20), day(-4), 59.5, 57.6),
+        ...weightSeries("f-linh-pham", day(-14), day(-1), 59.6, 58.4),
     ];
 
     const checkins: NutritionCheckin[] = [
-        checkin("b-minh-lotus", addDaysToKey(todayOn, -2), "WAY_OFF", null),
-        checkin("b-minh-lotus", addDaysToKey(todayOn, -1), "WAY_OFF", null),
-        checkin("b-minh-lotus", todayOn, "ON_PLAN", null),
+        checkin("b-kenji-pacific", day(-2), "WAY_OFF", "Ate out after sparring."),
+        checkin("b-kenji-pacific", day(-1), "WAY_OFF", null),
+        checkin("b-kenji-pacific", todayOn, "SLIGHTLY_OFF", null),
     ];
 
-    return { bouts, measurements, checkins };
+    const suspensions: Suspension[] = [
+        {
+            id: "sus-diego-sparring",
+            fighterId: "f-diego-alvarez",
+            boutId: null,
+            reason: "KO",
+            startsOn: day(-6),
+            endsOn: suspensionEndsOn(day(-6), 30),
+            lossOfConsciousness: "UNDER_1_MIN",
+            suggestedDays: null,
+            overrideReason: null,
+            blockedSessionTypes: ["sparring", "grappling"],
+            requiresClearance: true,
+            clearedAt: null,
+            clearedBy: null,
+            clearanceNote: null,
+            createdBy: RAFAEL,
+            createdAt: academyWallClockToIso(day(-6), "19:10"),
+            note: "Knocked out in sparring. Graded return to play with the sports doctor.",
+        },
+    ];
+
+    return { rulesets: mockRulesets.map(cloneRuleset), bouts, measurements, checkins, suspensions, sequence: 1 };
 }
 
-export function listDemoBouts(): CampBout[] {
-    return demoCampStore().bouts.map(cloneBout);
+function checkin(boutId: string, loggedOn: string, adherence: PlanAdherence, note: string | null): NutritionCheckin {
+    return {
+        boutId,
+        loggedOn,
+        academyDate: addDaysToKey(loggedOn, -1),
+        adherence,
+        note,
+        recordedAt: academyWallClockToIso(loggedOn, "07:40"),
+    };
+}
+
+/* ─── Reads ───────────────────────────────────────────────────────────────── */
+
+export function listDemoRulesets(): CompetitionRuleset[] {
+    return demoCampStore().rulesets.map(cloneRuleset);
+}
+
+export function getDemoRuleset(id: string): CompetitionRuleset | null {
+    const found = demoCampStore().rulesets.find((item) => item.id === id);
+    return found ? cloneRuleset(found) : null;
+}
+
+export function listDemoBouts(fighterIds: string[] | "all" = "all"): CampBout[] {
+    return demoCampStore()
+        .bouts.filter((bout) => fighterIds === "all" || fighterIds.includes(bout.fighterId))
+        .map(cloneBout);
 }
 
 export function getDemoBout(boutId: string): CampBout | null {
-    const bout = demoCampStore().bouts.find((item) => item.id === boutId);
+    const bout = findBout(boutId);
     return bout ? cloneBout(bout) : null;
 }
 
+/** The fighter's running bout with the earliest weigh-in. */
 export function getDemoCurrentBout(fighterId: string): CampBout | null {
     const running = demoCampStore()
         .bouts.filter((bout) => bout.fighterId === fighterId && isRunningPhase(bout.phase))
@@ -163,7 +405,7 @@ export function demoWeightTrack(boutId: string, now = new Date()): WeightTrack |
     const todayOn = dayKey(now);
     const adherenceByDay = new Map(camp.checkins.filter((item) => item.boutId === bout.id).map((item) => [item.loggedOn, item.adherence]));
     return buildWeightTrack({
-        limitKg: bout.catchweightKg ?? bout.limitKg,
+        limitKg: boutLimitKg(bout),
         acuteLossLimitPct: bout.acuteLossLimitPct,
         acuteWindowDays: bout.acuteWindowDays,
         campStartedOn: bout.campStartedOn,
@@ -183,14 +425,13 @@ export interface DemoWeightAlert {
 
 export function listDemoWeightAlerts(fighterIds: string[] | "all", now = new Date()): DemoWeightAlert[] {
     const todayOn = dayKey(now);
-    return listDemoBouts()
+    return listDemoBouts(fighterIds)
         .filter((bout) => isRunningPhase(bout.phase))
-        .filter((bout) => fighterIds === "all" || fighterIds.includes(bout.fighterId))
         .flatMap((bout) => {
             const track = demoWeightTrack(bout.id, now);
             if (!track || track.status === "GREEN") return [];
             const wayOff = campCheckins(bout.id).filter((item) => {
-                const age = daysFrom(item.loggedOn, todayOn);
+                const age = daysBetweenKeys(item.loggedOn, todayOn);
                 return age >= 0 && age < 3 && item.adherence === "WAY_OFF";
             }).length;
             return [{ bout, track, wayOff }];
@@ -198,17 +439,41 @@ export function listDemoWeightAlerts(fighterIds: string[] | "all", now = new Dat
         .sort((a, b) => STATUS_ORDER[a.track.status] - STATUS_ORDER[b.track.status] || (a.bout.weighInAt < b.bout.weighInAt ? -1 : 1));
 }
 
-/** One self-reported weight per fighter per academy day. A second save replaces the first. */
+export function demoCheckinsFor(boutId: string): NutritionCheckin[] {
+    return campCheckins(boutId).map((item) => ({ ...item }));
+}
+
+export function listDemoSuspensions(fighterIds: string[] | "all" = "all"): Suspension[] {
+    return demoCampStore()
+        .suspensions.filter((item) => fighterIds === "all" || fighterIds.includes(item.fighterId))
+        .map(cloneSuspension);
+}
+
+/** Gate 2: the suspensions that stop this fighter doing this kind of session on `day`. */
+export function demoBlockingSuspensions(fighterId: string, type: TrainingType, day: string): Suspension[] {
+    return demoCampStore()
+        .suspensions.filter((item) => item.fighterId === fighterId && item.blockedSessionTypes.includes(type) && isSuspensionActive(item, day))
+        .map(cloneSuspension);
+}
+
+/* ─── Weigh-ins and plan answers ──────────────────────────────────────────── */
+
+/** One weight per fighter per academy day. A second save replaces the first. */
 export function recordDemoSelfWeight(fighterId: string, kg: number, now = new Date()): void {
+    recordMeasurement(fighterId, kg, now, "SELF_REPORTED");
+}
+
+function recordMeasurement(fighterId: string, kg: number, now: Date, context: MeasurementContext): void {
     const camp = demoCampStore();
     const academyDate = dayKey(now);
     const existing = camp.measurements.find((item) => item.fighterId === fighterId && item.academyDate === academyDate);
     if (existing) {
         existing.kg = kg;
         existing.recordedAt = now.toISOString();
+        existing.context = context;
         return;
     }
-    camp.measurements.push({ fighterId, academyDate, kg, recordedAt: now.toISOString() });
+    camp.measurements.push({ fighterId, academyDate, kg, recordedAt: now.toISOString(), context });
 }
 
 /**
@@ -233,14 +498,10 @@ export function recordDemoCheckin(fighterId: string, adherence: PlanAdherence, n
     return { ok: true };
 }
 
-export function saveDemoNutritionPlan(
-    boutId: string,
-    texts: Record<NutritionPhaseKey, string>,
-    authorName: string,
-    now = new Date(),
-): WriteResult {
-    const bout = demoCampStore().bouts.find((item) => item.id === boutId);
-    if (!bout) return { ok: false, message: "That bout no longer exists." };
+export function saveDemoNutritionPlan(boutId: string, texts: Record<NutritionPhaseKey, string>, authorName: string, now = new Date()): WriteResult {
+    const bout = findBout(boutId);
+    if (!bout) return { ok: false, message: BOUT_GONE };
+    if (!isRunningPhase(bout.phase)) return { ok: false, message: "This bout is over, so its meal plan can no longer change." };
     const updatedAt = now.toISOString();
     (Object.keys(texts) as NutritionPhaseKey[]).forEach((key) => {
         const text = texts[key];
@@ -255,31 +516,387 @@ export function saveDemoNutritionPlan(
     return { ok: true };
 }
 
-export function demoCheckinsFor(boutId: string): NutritionCheckin[] {
-    return campCheckins(boutId).map((item) => ({ ...item }));
+/* ─── Creating and changing a bout ────────────────────────────────────────── */
+
+const BOUT_GONE = "That bout no longer exists.";
+
+export interface NewBout {
+    fighterId: string;
+    fighterName: string;
+    rulesetId: string;
+    event: string;
+    venue: string | null;
+    opponent: string | null;
+    weightClass: WeightClassOption;
+    weighInAt: string;
+    boutAt: string;
+    coachId: string;
+}
+
+/** F1: a new bout starts scheduled, with the ruleset's checklist and its thresholds copied onto it. */
+export function createDemoBout(input: NewBout, actor: Actor, now = new Date()): CreateResult {
+    const camp = demoCampStore();
+    const rules = camp.rulesets.find((item) => item.id === input.rulesetId);
+    if (!rules) return { ok: false, message: "Choose a ruleset.", fieldErrors: { rulesetId: "Choose a ruleset from the list." } };
+    const todayOn = dayKey(now);
+    const id = `b-${input.fighterId.replace(/^f-/, "")}-${camp.sequence++}`;
+    const bout: CampBout = {
+        id,
+        fighterId: input.fighterId,
+        coachId: input.coachId,
+        rulesetId: rules.id,
+        rulesetName: rules.name,
+        rulesetVerified: rules.verified,
+        sport: rules.sport,
+        event: input.event,
+        venue: input.venue,
+        opponent: input.opponent,
+        weightClassCode: input.weightClass.code,
+        weightClassLabel: input.weightClass.label,
+        limitKg: input.weightClass.limitKg,
+        catchweightKg: null,
+        acuteLossLimitPct: acuteLossLimitPct(input.weighInAt, input.boutAt, rules),
+        acuteWindowDays: rules.acuteWindowDays,
+        requirementsDueDays: rules.requirementsDueDays,
+        fightWeekDays: rules.fightWeekDays,
+        weighInAt: input.weighInAt,
+        boutAt: input.boutAt,
+        phase: "SCHEDULED",
+        trainingPlanId: null,
+        campStartedOn: todayOn,
+        createdOn: todayOn,
+        notes: null,
+        cancelReason: null,
+        cancelNote: null,
+        requirements: requirementsFromTemplates(rules),
+        nutritionPlan: { ...EMPTY_PLAN },
+        history: [{ at: now.toISOString(), by: actor.name, from: null, to: "SCHEDULED" }],
+        weighIn: null,
+        outcome: null,
+        checklistUnlock: null,
+    };
+    camp.bouts.push(bout);
+
+    // F1: warn, but still create, when a suspension runs past the bout day.
+    const bOn = boutOn(bout);
+    const blocking = camp.suspensions.find((item) => item.fighterId === input.fighterId && isSuspensionActive(item, bOn));
+    const warning = blocking ? `${input.fighterName} is suspended until ${formatDate(blocking.endsOn)}, after the bout day.` : null;
+    return { ok: true, boutId: id, warning };
+}
+
+export interface BoutEdit {
+    event: string;
+    venue: string | null;
+    opponent: string | null;
+    notes: string | null;
+    weightClass: WeightClassOption;
+    weighInAt: string;
+    boutAt: string;
+    requirementsDueDays: number;
+    changeReason: string | null;
+}
+
+/** F8: details change any time before a result; dates, class and the deadline only until the official weigh-in. */
+export function updateDemoBout(boutId: string, edit: BoutEdit, actor: Actor, now = new Date()): WriteResult {
+    const bout = findBout(boutId);
+    if (!bout) return { ok: false, message: BOUT_GONE };
+    if (!canEditSchedule(bout.phase)) return { ok: false, message: `A ${BOUT_PHASE_LABELS[bout.phase].toLowerCase()} bout can't be edited.` };
+    const classChanged = edit.weightClass.code !== bout.weightClassCode;
+    if (classChanged && !edit.changeReason) {
+        return { ok: false, message: "Say why the weight class changed.", fieldErrors: { changeReason: "Say why the weight class changed." } };
+    }
+    const rules = demoCampStore().rulesets.find((item) => item.id === bout.rulesetId);
+    const datesChanged = edit.weighInAt !== bout.weighInAt || edit.boutAt !== bout.boutAt;
+    if (classChanged) {
+        bout.history.push({
+            at: now.toISOString(),
+            by: actor.name,
+            from: bout.phase,
+            to: bout.phase,
+            reason: `Weight class ${bout.weightClassLabel} → ${edit.weightClass.label}: ${edit.changeReason}`,
+        });
+    }
+    if (datesChanged) {
+        bout.history.push({ at: now.toISOString(), by: actor.name, from: bout.phase, to: bout.phase, reason: "Weigh-in or bout date changed" });
+    }
+    Object.assign(bout, {
+        event: edit.event,
+        venue: edit.venue,
+        opponent: edit.opponent,
+        notes: edit.notes,
+        weightClassCode: edit.weightClass.code,
+        weightClassLabel: edit.weightClass.label,
+        limitKg: edit.weightClass.limitKg,
+        weighInAt: edit.weighInAt,
+        boutAt: edit.boutAt,
+        requirementsDueDays: edit.requirementsDueDays,
+        acuteLossLimitPct: rules ? acuteLossLimitPct(edit.weighInAt, edit.boutAt, rules) : bout.acuteLossLimitPct,
+    });
+    return { ok: true };
+}
+
+/** F2: link an existing fight-camp plan of the same fighter and start the camp. One active bout per fighter. */
+export function linkDemoCamp(boutId: string, plan: TrainingPlan | null, actor: Actor, now = new Date()): WriteResult {
+    const camp = demoCampStore();
+    const bout = findBout(boutId);
+    if (!bout) return { ok: false, message: BOUT_GONE };
+    if (!canTransition(bout.phase, "CAMP")) return { ok: false, message: "Only a scheduled bout can start its camp." };
+    const field = (message: string): WriteResult => ({ ok: false, message, fieldErrors: { trainingPlanId: message } });
+    if (!plan) return field("Choose a camp plan.");
+    if (plan.fighterId !== bout.fighterId) return field("That plan belongs to another fighter.");
+    if (plan.phase !== "fight_camp") return field("Choose a plan in the fight-camp phase.");
+    if (plan.status === "archived") return field("That plan is archived. Choose a current one.");
+    const active = camp.bouts.find((item) => item.id !== bout.id && item.fighterId === bout.fighterId && isActivePhase(item.phase));
+    if (active) return { ok: false, message: `This fighter already has a bout in ${BOUT_PHASE_LABELS[active.phase].toLowerCase()}: ${active.event}. Finish or cancel it first.` };
+    bout.trainingPlanId = plan.id;
+    bout.campStartedOn = dayKey(plan.startDate);
+    move(bout, "CAMP", actor, now);
+    return { ok: true };
+}
+
+/** Gate 1 with the reason in words, one line per item. */
+export function gateLines(missing: Gate1Gap[]): string[] {
+    return missing.map((gap) => `${gap.requirement.label}: ${GATE1_REASON_LABELS[gap.reason]}`);
+}
+
+/** CAMP → FIGHT_WEEK when fight week has opened and Gate 1 passes. A refusal leaves the bout as it was. */
+export function enterDemoFightWeek(boutId: string, actor: Actor, now = new Date()): FightWeekResult {
+    const bout = findBout(boutId);
+    if (!bout) return { ok: false, message: BOUT_GONE, lines: [] };
+    const check = canEnterFightWeek(bout, dayKey(now));
+    if (!check.ok) {
+        if (check.reason === "NOT_IN_CAMP") return { ok: false, message: "Only a bout in camp can enter fight week.", lines: [] };
+        if (check.reason === "TOO_EARLY") {
+            return { ok: false, message: `Fight week opens on ${formatDate(check.opensOn)}.`, lines: gateLines(check.missing) };
+        }
+        return { ok: false, message: "Gate 1 is not met. The bout stays in camp.", lines: gateLines(check.missing) };
+    }
+    move(bout, "FIGHT_WEEK", actor, now);
+    return { ok: true };
+}
+
+export function cancelDemoBout(boutId: string, reason: CancelReason, note: string | null, actor: Actor, now = new Date()): WriteResult {
+    const bout = findBout(boutId);
+    if (!bout) return { ok: false, message: BOUT_GONE };
+    if (!canCancel(bout.phase)) return { ok: false, message: `A ${BOUT_PHASE_LABELS[bout.phase].toLowerCase()} bout can't be cancelled.` };
+    bout.cancelReason = reason;
+    bout.cancelNote = note;
+    move(bout, "CANCELLED", actor, now, note ? `${CANCEL_REASON_LABELS[reason]}: ${note}` : CANCEL_REASON_LABELS[reason]);
+    return { ok: true };
+}
+
+/* ─── Medical checklist ───────────────────────────────────────────────────── */
+
+const LOCKED = "The checklist is locked for fight week. Unlock it with a reason first.";
+
+export function addDemoRequirement(boutId: string, item: { label: string; required: boolean; validityDays: number | null }): WriteResult {
+    const bout = findBout(boutId);
+    if (!bout) return { ok: false, message: BOUT_GONE };
+    if (checklistLocked(bout)) return { ok: false, message: LOCKED };
+    const code = requirementCode(item.label, bout.requirements.map((requirement) => requirement.code));
+    bout.requirements.push({
+        id: code,
+        code,
+        label: item.label,
+        required: item.required,
+        state: "MISSING",
+        source: "COACH",
+        issuedOn: null,
+        validUntil: null,
+        statusReason: null,
+        validityDays: item.validityDays,
+    });
+    return { ok: true };
+}
+
+export function updateDemoRequirement(boutId: string, code: string, update: RequirementUpdate & { required?: boolean }): WriteResult {
+    const bout = findBout(boutId);
+    if (!bout) return { ok: false, message: BOUT_GONE };
+    if (checklistLocked(bout)) return { ok: false, message: LOCKED };
+    const item = bout.requirements.find((requirement) => requirement.code === code);
+    if (!item) return { ok: false, message: "That document is no longer on the checklist." };
+    if (item.state === "CONFIRMED") return { ok: false, message: "A doctor confirmed this document, so it can't be changed here." };
+    Object.assign(item, update);
+    return { ok: true };
+}
+
+export function removeDemoRequirement(boutId: string, code: string): WriteResult {
+    const bout = findBout(boutId);
+    if (!bout) return { ok: false, message: BOUT_GONE };
+    if (checklistLocked(bout)) return { ok: false, message: LOCKED };
+    const item = bout.requirements.find((requirement) => requirement.code === code);
+    if (!item) return { ok: true };
+    if (item.state === "CONFIRMED") return { ok: false, message: "A doctor confirmed this document, so it can't be removed here." };
+    bout.requirements = bout.requirements.filter((requirement) => requirement.code !== code);
+    return { ok: true };
+}
+
+/** F5: reopening the checklist in fight week needs a reason, kept on the bout. */
+export function unlockDemoChecklist(boutId: string, reason: string, actor: Actor, now = new Date()): WriteResult {
+    const bout = findBout(boutId);
+    if (!bout) return { ok: false, message: BOUT_GONE };
+    if (bout.phase !== "FIGHT_WEEK" && bout.phase !== "WEIGHED_IN") return { ok: false, message: "Only a fight-week checklist is locked." };
+    bout.checklistUnlock = { at: now.toISOString(), by: actor.name, reason };
+    return { ok: true };
+}
+
+/* ─── Official weigh-in and result (T-006) ────────────────────────────────── */
+
+export interface WeighInEntry {
+    weightKg: number;
+    hydrationCheck: HydrationCheck | null;
+    /** After a miss: go on at a catchweight, or cancel. Ignored when the fighter made weight. */
+    decision: "CATCHWEIGHT" | "CANCEL" | null;
+    catchweightKg: number | null;
+    note: string | null;
+}
+
+/** F5: the official weight is also a measurement of the day (context WEIGH_IN). */
+export function recordDemoWeighIn(boutId: string, entry: WeighInEntry, actor: Actor, now = new Date()): WriteResult {
+    const bout = findBout(boutId);
+    if (!bout) return { ok: false, message: BOUT_GONE };
+    if (bout.phase !== "FIGHT_WEEK") return { ok: false, message: "The official weigh-in is recorded in fight week." };
+    const made = madeWeight(entry.weightKg, boutLimitKg(bout));
+    if (!made && !entry.decision) return { ok: false, message: "Choose what happens after the miss.", fieldErrors: { decision: "Choose catchweight or cancel." } };
+
+    recordMeasurement(bout.fighterId, entry.weightKg, now, "WEIGH_IN");
+    if (!made && entry.decision === "CANCEL") {
+        bout.weighIn = { weightKg: entry.weightKg, madeWeight: false, hydrationCheck: entry.hydrationCheck, recordedAt: now.toISOString(), catchweightNote: null };
+        bout.cancelReason = "MISSED_WEIGHT";
+        bout.cancelNote = entry.note;
+        move(bout, "CANCELLED", actor, now, CANCEL_REASON_LABELS.MISSED_WEIGHT);
+        return { ok: true };
+    }
+    if (!made) bout.catchweightKg = entry.catchweightKg;
+    bout.weighIn = {
+        weightKg: entry.weightKg,
+        madeWeight: made,
+        hydrationCheck: entry.hydrationCheck,
+        recordedAt: now.toISOString(),
+        catchweightNote: made ? null : entry.note,
+    };
+    move(bout, "WEIGHED_IN", actor, now, made ? null : `Catchweight ${entry.catchweightKg} kg`);
+    return { ok: true };
+}
+
+/** F6: WEIGHED_IN → COMPLETED from the bout day; a mandatory rest from the ruleset follows every bout. */
+export function recordDemoResult(boutId: string, outcome: BoutOutcome, actor: Actor, now = new Date()): WriteResult {
+    const camp = demoCampStore();
+    const bout = findBout(boutId);
+    if (!bout) return { ok: false, message: BOUT_GONE };
+    const check = canRecordResult(bout, dayKey(now));
+    if (!check.ok) {
+        return {
+            ok: false,
+            message: check.reason === "BOUT_NOT_STARTED" ? `The result can be recorded from ${formatDate(bout.boutAt)}.` : "Record the official weigh-in first.",
+        };
+    }
+    bout.outcome = outcome;
+    move(bout, "COMPLETED", actor, now);
+    const rules = camp.rulesets.find((item) => item.id === bout.rulesetId);
+    if (rules && rules.restDaysAfterBout > 0) {
+        const startsOn = boutOn(bout);
+        camp.suspensions.push({
+            id: `sus-${camp.sequence++}`,
+            fighterId: bout.fighterId,
+            boutId: bout.id,
+            reason: "MANDATORY_REST",
+            startsOn,
+            endsOn: suspensionEndsOn(startsOn, rules.restDaysAfterBout),
+            lossOfConsciousness: null,
+            suggestedDays: rules.restDaysAfterBout,
+            overrideReason: null,
+            blockedSessionTypes: [...rules.defaultBlockedSessionTypes],
+            requiresClearance: false,
+            clearedAt: null,
+            clearedBy: null,
+            clearanceNote: null,
+            createdBy: actor.name,
+            createdAt: now.toISOString(),
+            note: null,
+        });
+    }
+    return { ok: true };
+}
+
+/* ─── Suspensions (T-007) ─────────────────────────────────────────────────── */
+
+export function createDemoSuspension(fighterId: string, boutId: string | null, draft: SuspensionDraft, actor: Actor, now = new Date()): WriteResult {
+    const camp = demoCampStore();
+    if (boutId) {
+        const bout = findBout(boutId);
+        if (!bout || bout.fighterId !== fighterId) return { ok: false, message: BOUT_GONE };
+        if (camp.suspensions.some((item) => item.boutId === boutId && item.reason !== "MANDATORY_REST")) {
+            return { ok: false, message: "This bout already has a suspension." };
+        }
+    }
+    camp.suspensions.push({
+        id: `sus-${camp.sequence++}`,
+        fighterId,
+        boutId,
+        reason: draft.reason,
+        startsOn: draft.startsOn,
+        endsOn: draft.endsOn,
+        lossOfConsciousness: boutId ? (findBout(boutId)?.outcome?.lossOfConsciousness ?? null) : null,
+        suggestedDays: draft.suggestedDays,
+        overrideReason: draft.overrideReason,
+        blockedSessionTypes: draft.blockedSessionTypes,
+        requiresClearance: draft.requiresClearance,
+        clearedAt: null,
+        clearedBy: null,
+        clearanceNote: null,
+        createdBy: actor.name,
+        createdAt: now.toISOString(),
+        note: draft.note,
+    });
+    return { ok: true };
+}
+
+export function clearDemoSuspension(id: string, note: string, actor: Actor, now = new Date()): WriteResult {
+    const suspension = demoCampStore().suspensions.find((item) => item.id === id);
+    if (!suspension) return { ok: false, message: "That suspension no longer exists." };
+    if (!suspension.requiresClearance || suspension.clearedAt) return { ok: false, message: "This suspension needs no clearance." };
+    if (daysBetweenKeys(suspension.endsOn, dayKey(now)) <= 0) return { ok: false, message: `Clearance opens after ${formatDate(suspension.endsOn)}.` };
+    suspension.clearedAt = now.toISOString();
+    suspension.clearedBy = actor.name;
+    suspension.clearanceNote = note;
+    return { ok: true };
+}
+
+/** Start days of the fighter's earlier KO/TKO suspensions, for the next suggestion. */
+export function demoKnockoutHistory(fighterId: string): string[] {
+    return demoCampStore()
+        .suspensions.filter((item) => item.fighterId === fighterId && (item.reason === "KO" || item.reason === "TKO"))
+        .map((item) => item.startsOn);
+}
+
+/* ─── Helpers ─────────────────────────────────────────────────────────────── */
+
+function findBout(boutId: string): CampBout | undefined {
+    return demoCampStore().bouts.find((item) => item.id === boutId);
+}
+
+function move(bout: CampBout, to: BoutPhase, actor: Actor, now: Date, reason: string | null = null): void {
+    bout.history.push({ at: now.toISOString(), by: actor.name, from: bout.phase, to, ...(reason ? { reason } : {}) });
+    bout.phase = to;
 }
 
 function campCheckins(boutId: string): NutritionCheckin[] {
     return demoCampStore().checkins.filter((item) => item.boutId === boutId);
 }
 
-function measure(fighterId: string, academyDate: string, kg: number, recordedAt: string): DemoMeasurement {
-    return { fighterId, academyDate, kg, recordedAt };
-}
-
-function checkin(boutId: string, loggedOn: string, adherence: PlanAdherence, note: string | null): NutritionCheckin {
+function cloneRuleset(item: CompetitionRuleset): CompetitionRuleset {
     return {
-        boutId,
-        loggedOn,
-        academyDate: addDaysToKey(loggedOn, -1),
-        adherence,
-        note,
-        recordedAt: academyWallClockToIso(loggedOn, "07:40"),
+        ...item,
+        weightClasses: item.weightClasses.map((option) => ({ ...option })),
+        requirementTemplates: item.requirementTemplates.map((template) => ({ ...template })),
+        suspensionRules: item.suspensionRules.map((rule) => ({ ...rule })),
+        defaultBlockedSessionTypes: [...item.defaultBlockedSessionTypes],
     };
 }
 
-function daysFrom(from: string, to: string): number {
-    return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
+function cloneSuspension(item: Suspension): Suspension {
+    return { ...item, blockedSessionTypes: [...item.blockedSessionTypes] };
 }
 
 function cloneBout(bout: CampBout): CampBout {
@@ -291,5 +908,9 @@ function cloneBout(bout: CampBout): CampBout {
             fightWeek: bout.nutritionPlan.fightWeek ? { ...bout.nutritionPlan.fightWeek } : null,
             postWeighIn: bout.nutritionPlan.postWeighIn ? { ...bout.nutritionPlan.postWeighIn } : null,
         },
+        history: bout.history.map((entry) => ({ ...entry })),
+        weighIn: bout.weighIn ? { ...bout.weighIn } : null,
+        outcome: bout.outcome ? { ...bout.outcome } : null,
+        checklistUnlock: bout.checklistUnlock ? { ...bout.checklistUnlock } : null,
     };
 }

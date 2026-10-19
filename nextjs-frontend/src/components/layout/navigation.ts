@@ -13,6 +13,7 @@ import {
     Settings,
     ShieldCheck,
     Stethoscope,
+    Swords,
     Users,
     Video,
     type LucideIcon,
@@ -85,6 +86,15 @@ export const NAVIGATION: Record<Role, NavSection[]> = {
         {
             items: [
                 { label: "Today", href: routes.coach.dashboard, icon: LayoutDashboard },
+                {
+                    label: "Bouts",
+                    href: routes.coach.bouts,
+                    icon: Swords,
+                    tabs: [
+                        { label: "Upcoming", href: routes.coach.bouts },
+                        { label: "Suspensions", href: routes.coach.suspensions },
+                    ],
+                },
                 { label: "Roster", href: routes.coach.fighters, icon: Users },
                 {
                     label: "Training",

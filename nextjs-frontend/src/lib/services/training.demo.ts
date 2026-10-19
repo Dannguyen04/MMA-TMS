@@ -18,7 +18,7 @@ import type {
     TrainingSession,
     User,
 } from "@/lib/domain/types";
-import { academyDayStartIso, DAY_MS, dayKey, formatDateTime } from "@/lib/format";
+import { academyDayStartIso, DAY_MS, dayKey, formatDate, formatDateTime } from "@/lib/format";
 import { db, newId, nowIso, simulateLatency } from "@/lib/mocks/db";
 import { weekStart } from "@/lib/mocks/time";
 import { matchesSearch } from "@/lib/query";
@@ -401,6 +401,8 @@ export async function createSession(input: SessionInput, actor: User): Promise<S
     if (invalid) return { ok: false, reason: "invalid", message: invalid, conflicts: [] };
 
     const conflicts = getSessionClearanceConflicts(input);
+    const suspended = await suspensionGate(input.fighterId, input.type, input.scheduledAt, conflicts);
+    if (suspended) return suspended;
     const refused = clearanceGate(conflicts, input.acknowledgeWarnings === true);
     if (refused) {
         if (refused.reason === "blocked") {
@@ -473,6 +475,8 @@ export async function updateSession(id: string, input: SessionUpdateInput, actor
     if (invalid) return { ok: false, reason: "invalid", message: invalid, conflicts: [] };
 
     const conflicts = getSessionClearanceConflicts({ ...input, fighterId: session.fighterId });
+    const suspended = await suspensionGate(session.fighterId, input.type, input.scheduledAt, conflicts);
+    if (suspended) return suspended;
     const refused = clearanceGate(conflicts, input.acknowledgeWarnings === true);
     if (refused) {
         if (refused.reason === "blocked") {
@@ -594,12 +598,33 @@ export async function recordSessionResult(
     return { ok: true, session, conflicts: [] };
 }
 
+/**
+ * Gate 2 (T-007, Tech spec §6): an active suspension refuses scheduling and starting the session types it blocks,
+ * like the service's 409 TRAINING_SUSPENSION_ACTIVE. It runs beside the clearance check; both reasons are reported.
+ */
+async function suspensionGate(fighterId: string, type: TrainingSession["type"], at: string, conflicts: ClearanceConflict[]): Promise<SessionMutationResult | null> {
+    const { demoBlockingSuspensions } = await import("./bouts.demo");
+    const day = dayKey(at);
+    const [blocking] = demoBlockingSuspensions(fighterId, type, day);
+    if (!blocking) return null;
+    const until = blocking.endsOn >= day ? `through ${formatDate(blocking.endsOn)}` : "until a coach clears the fighter to train";
+    const clearance = conflicts.filter((c) => c.severity === "block").map((c) => c.message);
+    return {
+        ok: false,
+        reason: "blocked",
+        message: [`${fighterName(fighterId)} is suspended: ${TRAINING_TYPE_LABELS[type].toLowerCase()} is blocked ${until}.`, ...clearance].join(" "),
+        conflicts,
+    };
+}
+
 /** Checks the fighter in, unless their Medical Clearance blocks this training now (as the training service does). */
 export async function startSession(id: string, actor: User): Promise<SessionMutationResult> {
     const session = db().trainingSessions.find((s) => s.id === id);
     if (!session) return { ok: false, reason: "not_found", message: "That session no longer exists.", conflicts: [] };
     if (session.status !== "scheduled") return { ok: false, reason: "invalid_state", message: "Only a scheduled session can be started.", conflicts: [] };
     const conflicts = getSessionClearanceConflicts({ ...session, scheduledAt: nowIso() });
+    const suspended = await suspensionGate(session.fighterId, session.type, nowIso(), conflicts);
+    if (suspended) return suspended;
     if (conflicts.some((c) => c.severity === "block")) {
         return { ok: false, reason: "blocked", message: "The fighter's Medical Clearance doesn't allow this training right now.", conflicts };
     }
