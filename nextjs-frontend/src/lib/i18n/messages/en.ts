@@ -3,7 +3,10 @@
  * the Vietnamese dictionary must then define it too, or typecheck fails.
  * `{name}` is filled from the params; a `.one` variant is used by `plural()` when the count is 1.
  */
+import { enCoachBouts } from "./coach-bouts.en";
+
 export const en = {
+    ...enCoachBouts,
     /* Navigation: keyed by the English label in `navigation.ts`. */
     "nav.Today": "Today",
     "nav.Bout": "Bout",
