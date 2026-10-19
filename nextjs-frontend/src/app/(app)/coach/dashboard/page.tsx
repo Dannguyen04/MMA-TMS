@@ -11,10 +11,13 @@ import { ButtonLink } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { accessibleFighterIds } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
+import { weightAlerts } from "@/lib/domain/weigh-in";
 import { academyDayStartIso, addDaysToKey, DAY_MS, dayKey, formatWeekdayDate, pluralize } from "@/lib/format";
 import { hrefWith, parseEnum } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
+import { nullIfServiceFails } from "@/lib/services/api-helpers";
+import { listBouts } from "@/lib/services/bouts";
 import { listGoals } from "@/lib/services/goals";
 import { listFighters } from "@/lib/services/people";
 import { platformFeatureAvailable } from "@/lib/services/platform-features";
@@ -22,6 +25,7 @@ import { getNavBadgeCounts } from "@/lib/services/shell";
 import { listSessions } from "@/lib/services/training";
 import { listReviewQueue } from "@/lib/services/videos";
 import { param } from "@/lib/utils";
+import { WeightAlertsCard } from "./weight-alerts-card";
 
 export const metadata: Metadata = { title: "Today" };
 
@@ -45,7 +49,7 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
     const weekEnd = new Date(Date.parse(academyDayStartIso(addDaysToKey(weekKey, 7))) - 1).toISOString();
 
     const fighterList = listFighters(user);
-    const [fighters, roster, weekSessions, reviewQueue, missed, goalsAtRisk, settings] = await Promise.all([
+    const [fighters, roster, weekSessions, reviewQueue, missed, goalsAtRisk, settings, bouts] = await Promise.all([
         fighterList,
         loadRoster(user, now, { fighters: fighterList, performance: false }),
         listSessions({ fighterIds: scope, from: weekStart, to: weekEnd }),
@@ -54,6 +58,8 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
         // Without the goals service the Goals group is left out.
         platformFeatureAvailable("goals") ? listGoals({ fighterIds: scope, status: "at_risk" }) : null,
         getSettings(),
+        // Same source as the badges on /coach/bouts. Without the bouts service the weight alerts are left out.
+        nullIfServiceFails(listBouts({ fighterIds: scope })),
     ]);
     // Without a per-analysis queue (API mode), the navigation's review count still says how many are waiting.
     const reviewCount = reviewQueue.length === 0 ? ((await getNavBadgeCounts(user)).reviewQueue ?? 0) : 0;
@@ -108,7 +114,10 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
                     className="lg:col-span-2"
                 />
 
-                <TodaySchedule sessions={todaySessions} fighters={scheduleFighters} />
+                <div className="flex min-w-0 flex-col gap-6">
+                    <WeightAlertsCard alerts={weightAlerts(bouts ?? [])} fighterNames={new Map(fighters.map((fighter) => [fighter.id, fighter.name]))} />
+                    <TodaySchedule sessions={todaySessions} fighters={scheduleFighters} />
+                </div>
             </div>
         </>
     );

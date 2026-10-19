@@ -34,6 +34,8 @@ export const routes = {
 
     fighter: {
         dashboard: "/fighter/dashboard",
+        bout: "/fighter/bout",
+        weighIn: "/fighter/bout/weigh-in",
         schedule: "/fighter/schedule",
         training: "/fighter/training",
         plan: (planId: string) => `/fighter/training/plans/${planId}`,

@@ -1,12 +1,17 @@
 import { Scale, TriangleAlert, CircleCheck, Clock } from "lucide-react";
 
 import { WeightWarningBadge } from "@/components/domain/status-badges";
+import { WeightChart } from "@/components/domain/weight-chart";
 import { Callout } from "@/components/training/callout";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import type { Bout } from "@/lib/domain/types";
 import { formatDate } from "@/lib/format";
+import { nullIfServiceFails } from "@/lib/services/api-helpers";
+import { getWeightTrack } from "@/lib/services/bouts";
 
-export function BoutWeightCard({ bout }: { bout: Bout }) {
+export async function BoutWeightCard({ bout }: { bout: Bout }) {
+    // The chart is extra: when the weight track can't be read, the figures above it still show.
+    const track = await nullIfServiceFails(getWeightTrack(bout.id));
     const weight = bout.weight;
     const latestKg = weight?.latestKg ?? null;
     const limitKg = bout.catchweightKg ?? bout.weightLimitKg;
@@ -64,6 +69,8 @@ export function BoutWeightCard({ bout }: { bout: Bout }) {
                         </span>
                     </div>
                 </div>
+
+                {track && <WeightChart track={track} weighInAt={bout.weighInAt} />}
 
                 {status === "RED" && (
                     <Callout

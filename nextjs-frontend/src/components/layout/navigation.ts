@@ -65,6 +65,7 @@ export const NAVIGATION: Record<Role, NavSection[]> = {
         {
             items: [
                 { label: "Today", href: routes.fighter.dashboard, icon: LayoutDashboard },
+                { label: "Bout", href: routes.fighter.bout, icon: Swords },
                 {
                     label: "Training",
                     href: routes.fighter.schedule,

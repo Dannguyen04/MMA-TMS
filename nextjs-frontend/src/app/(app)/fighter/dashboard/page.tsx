@@ -9,6 +9,7 @@ import { firstName, greetingFor, weightCheck, weightGapText } from "@/components
 import { FightHero, type NextUp } from "@/components/dashboard/fight-hero";
 import { InlineNote } from "@/components/dashboard/inline-note";
 import { OnboardingStrip, type OnboardingStep } from "@/components/dashboard/onboarding-strip";
+import { FlashToast } from "@/components/medical/flash-toast";
 import { ReadinessCell, ReadinessNumber, ReadinessStrip } from "@/components/dashboard/readiness-strip";
 import { ClearanceBadge, HealthStatusBadge } from "@/components/domain/status-badges";
 import { WeekAgenda } from "@/components/domain/week-agenda";
@@ -25,8 +26,10 @@ import { HEALTH_STATUS_DESCRIPTIONS, WEIGHT_CLASS_LABELS, WEIGHT_CLASS_LIMIT_KG 
 import type { ClearanceState } from "@/lib/domain/rules";
 import { planAdherence } from "@/lib/domain/training-plan";
 import type { MedicalClearance, TrainingPlan, UpcomingBout } from "@/lib/domain/types";
+import { activeBout, WEIGHT_SAVED_NOTICE } from "@/lib/domain/weigh-in";
 import { academyDayStartIso, addDaysToKey, dayKey, daysBetween, formatNumber, formatShortDate, formatWeekdayDate, pluralize } from "@/lib/format";
 import { routes } from "@/lib/routes";
+import { listBouts } from "@/lib/services/bouts";
 import { listGoals } from "@/lib/services/goals";
 import { getFighterHealthSummary } from "@/lib/services/medical";
 import { listCoaches, listDoctors } from "@/lib/services/people";
@@ -34,6 +37,8 @@ import { getPlanWithSessions, getUpcomingSessions, listCoachFeedback, listPlans,
 import { platformFeatureAvailable } from "@/lib/services/platform-features";
 import { nullIfServiceFails } from "@/lib/services/api-helpers";
 import { listVideoLibrary, type VideoLibraryItem } from "@/lib/services/videos";
+import { param } from "@/lib/utils";
+import { WeighInPrompt } from "./weigh-in-prompt";
 
 export const metadata: Metadata = { title: "Today" };
 
@@ -46,11 +51,14 @@ const GOAL_STRIPES = 4;
  * The fighter's Today page answers one question: what do I do now? The fight camp and next session lead,
  * one strip carries readiness, then this week and the latest from the corner. Everything else lives in its hub.
  */
-export default async function FighterDashboardPage() {
+export default async function FighterDashboardPage({ searchParams }: PageProps<"/fighter/dashboard">) {
     const user = await requireRole("fighter");
     if (!user.profileId) notFound();
     const fighter = await requireFighterAccess(user, user.profileId);
     const ids = [fighter.id];
+    const query = await searchParams;
+    // The bouts service is separate from training: without it Today still shows, minus the weigh-in card.
+    const boutsRead = nullIfServiceFails(listBouts({ fighterIds: ids }));
 
     const now = new Date().toISOString();
     const weekKey = weekStartKey(now);
@@ -76,6 +84,8 @@ export default async function FighterDashboardPage() {
         listDoctors(),
     ]);
     if (!health) notFound();
+    const bouts = await boutsRead;
+    const runningBout = bouts ? activeBout(bouts) : null;
 
     const activePlan = planDetail?.plan ?? null;
     const adherence = planDetail ? planAdherence(planDetail.sessions, now) : null;
@@ -137,6 +147,10 @@ export default async function FighterDashboardPage() {
 
     return (
         <>
+            <FlashToast
+                notice={param(query.notice) === WEIGHT_SAVED_NOTICE ? { title: "Weight saved" } : null}
+                cleanHref={routes.fighter.dashboard}
+            />
             <PageHeader
                 eyebrow={formatWeekdayDate(now)}
                 title={`${greetingFor(now)}, ${firstName(fighter.name)}`}
@@ -149,6 +163,8 @@ export default async function FighterDashboardPage() {
             />
 
             <div className="flex flex-col gap-6">
+                {runningBout && <WeighInPrompt bout={runningBout} now={now} />}
+
                 <FightHero
                     bout={bout}
                     campStart={activePlan && isCampFor(activePlan, bout) ? activePlan.startDate : null}
