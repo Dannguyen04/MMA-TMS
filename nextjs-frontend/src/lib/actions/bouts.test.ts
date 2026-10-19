@@ -5,7 +5,7 @@ import {
     createBoutSchema,
     emptyToUndefined,
     updateBoutSchema,
-} from "./bouts";
+} from "./bout-schemas";
 
 describe("bouts schema numeric preprocessing and validation", () => {
     describe("emptyToUndefined helper", () => {
