@@ -17,7 +17,7 @@ import { requireRole } from "@/lib/auth/session";
 import { WEIGHT_WARNING_LABELS } from "@/lib/domain/labels";
 import type { Bout, BoutRequirement, WeightTrack } from "@/lib/domain/types";
 import { activeBout, WEIGHT_SAVED_NOTICE } from "@/lib/domain/weigh-in";
-import { formatDate, formatDateTime, formatNumber, pluralize } from "@/lib/format";
+import { dayKey, formatDate, formatDateTime, formatNumber, pluralize } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { nullIfServiceFails } from "@/lib/services/api-helpers";
 import { getWeightTrack, listBouts } from "@/lib/services/bouts";
@@ -25,8 +25,10 @@ import { param } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Bout" };
 
-/** Medical documents count as ready once provided or confirmed. */
-const READY = new Set<BoutRequirement["status"]>(["PROVIDED", "CONFIRMED"]);
+/** Ready, as Gate 1 counts it (`evaluateGate1`): provided or confirmed, and still valid on fight day. */
+function isReady(item: BoutRequirement, boutDay: string): boolean {
+    return (item.status === "PROVIDED" || item.status === "CONFIRMED") && item.validUntil !== null && dayKey(item.validUntil) >= boutDay;
+}
 
 /**
  * The fighter's running bout on a phone: the fight, today's weight against the limit, and which
@@ -111,7 +113,7 @@ export default async function FighterBoutPage({ searchParams }: PageProps<"/figh
                             />
                         </CardContent>
                     </Card>
-                    <MedicalDocumentsCard requirements={bout.requirements} />
+                    <MedicalDocumentsCard requirements={bout.requirements} boutAt={bout.boutAt} />
                 </div>
             </div>
         </>
@@ -174,8 +176,9 @@ function FighterWeightCard({ bout, track, limitKg }: { bout: Bout; track: Weight
     );
 }
 
-function MedicalDocumentsCard({ requirements }: { requirements: BoutRequirement[] }) {
-    const ready = requirements.filter((item) => READY.has(item.status)).length;
+function MedicalDocumentsCard({ requirements, boutAt }: { requirements: BoutRequirement[]; boutAt: string }) {
+    const boutDay = dayKey(boutAt);
+    const ready = requirements.filter((item) => isReady(item, boutDay)).length;
 
     return (
         <Card className="min-w-0">
@@ -192,6 +195,9 @@ function MedicalDocumentsCard({ requirements }: { requirements: BoutRequirement[
                                 <span className="min-w-0 text-sm text-fg">
                                     {item.label}
                                     {item.validUntil && <span className="block text-xs text-fg-subtle">Valid until {formatDate(`${item.validUntil}T12:00:00+07:00`)}</span>}
+                                    {(item.status === "PROVIDED" || item.status === "CONFIRMED") && !isReady(item, boutDay) && (
+                                        <span className="block text-xs text-warning-fg">Expires before the bout. Your coach needs a new one.</span>
+                                    )}
                                 </span>
                                 <BoutRequirementStatusBadge status={item.status} size="sm" />
                             </li>

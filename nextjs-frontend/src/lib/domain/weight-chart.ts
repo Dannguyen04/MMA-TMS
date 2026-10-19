@@ -29,19 +29,19 @@ export function weightChartData(track: WeightTrack, from: string, to: string): W
     const count = Math.max(0, daysBetweenKeys(from, to)) + 1;
     const days = Array.from({ length: count }, (_, index) => addDaysToKey(from, index));
     const byDay = new Map(track.points.map((point) => [point.date, point.kg]));
+    const anchors = [...track.referencePath].sort((a, b) => a.date.localeCompare(b.date));
 
     return {
         days,
         labels: days.map((day) => formatShortDate(`${day}T12:00:00+07:00`)),
         weight: days.map((day) => byDay.get(day) ?? null),
-        reference: days.map((day) => referenceAt(track.referencePath, day)),
+        reference: days.map((day) => referenceAt(anchors, day)),
         target: { value: track.limitKg, label: "Limit" },
     };
 }
 
-/** The reference path is a polyline through its anchors; between two anchors the value is linear. */
-function referenceAt(path: WeightTrack["referencePath"], day: string): number | null {
-    const anchors = [...path].sort((a, b) => a.date.localeCompare(b.date));
+/** The reference path is a polyline through its anchors (sorted by date); between two anchors the value is linear. */
+function referenceAt(anchors: WeightTrack["referencePath"], day: string): number | null {
     for (let index = 0; index < anchors.length; index++) {
         const anchor = anchors[index];
         if (anchor.date === day) return anchor.kg;
