@@ -30,7 +30,11 @@ export function CampWeightCard({ track, wayOff, logHref }: { track: WeightTrack;
                     </Callout>
                 )}
                 {track.status === "YELLOW" && showAdherence && <p className="text-sm text-fg-muted">{adherenceAlertLine(wayOff)}</p>}
-                {window ? <WeightChart track={track} from={window.from} to={window.to} /> : <p className="text-sm text-fg-muted">No camp days to chart yet.</p>}
+                {window && track.points.length > 0 ? (
+                    <WeightChart track={track} from={window.from} to={window.to} />
+                ) : (
+                    <p className="text-sm text-fg-muted">No weights logged in this camp yet.</p>
+                )}
                 {logHref && (
                     <ButtonLink href={logHref} size="lg" className="w-full sm:w-auto">
                         Log weight

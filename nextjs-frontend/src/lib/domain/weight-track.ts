@@ -110,8 +110,17 @@ function referenceSeries(input: LimitedInput, first: WeightTrackPoint | null): D
 /**
  * Linear from the first camp weight to `limit / (1 - L/100)` on the day the acute
  * window opens, then linear from there to the limit on weigh-in day.
+ *
+ * The line never rises above the first camp weight: a fighter who starts below the
+ * window's mark (or under the limit) would otherwise be shown a line that climbs,
+ * which reads as "gain weight". Tech spec §5 leaves that case open; see the T-004 handover.
  */
 function referenceKgOn(input: LimitedInput, first: WeightTrackPoint | null, date: string): number | null {
+    const kg = straightReferenceKgOn(input, first, date);
+    return kg === null || !first ? kg : Math.min(kg, first.kg);
+}
+
+function straightReferenceKgOn(input: LimitedInput, first: WeightTrackPoint | null, date: string): number | null {
     if (!first || !isDateKey(date) || !isDateKey(input.weighInOn) || !isDateKey(first.date)) return null;
     const loss = input.acuteLossLimitPct / 100;
     if (loss <= 0 || loss >= 1) return input.limitKg;

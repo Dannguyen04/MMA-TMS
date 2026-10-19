@@ -17,7 +17,7 @@ import { useConfirmAction } from "@/components/ui/use-confirm-action";
 import { addRequirementAction, removeRequirementAction, unlockChecklistAction, updateRequirementAction } from "@/lib/actions/bouts";
 import type { ActionState } from "@/lib/actions/state";
 import type { BoutRequirement, RequirementState } from "@/lib/domain/bout";
-import { COACH_REQUIREMENT_STATES, expiresBeforeBout, suggestedValidUntil } from "@/lib/domain/bout-rules";
+import { COACH_REQUIREMENT_STATES, expiresBeforeBout, readyForBout, suggestedValidUntil } from "@/lib/domain/bout-rules";
 import { REQUIREMENT_STATE_LABELS } from "@/lib/domain/labels";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -51,14 +51,14 @@ export function MedicalChecklist({ boutId, requirements, boutDay, dueOn, overdue
     const [editing, setEditing] = useState<BoutRequirement | null>(null);
     const [unlocking, setUnlocking] = useState(false);
     const remove = useConfirmAction((item: BoutRequirement) => removeRequirementAction({ boutId, code: item.code }), { onSuccess: notify });
-    const ready = requirements.filter((item) => item.state === "PROVIDED" || item.state === "CONFIRMED").length;
+    const ready = requirements.filter((item) => readyForBout(item, boutDay)).length;
     const canEdit = editable && !locked;
 
     return (
         <Card>
             <CardHeader
                 title="Medical checklist"
-                description={`Due ${formatDate(dueOn)} · ${ready} of ${requirements.length} ready`}
+                description={`Due ${formatDate(dueOn)} · ${ready} of ${requirements.length} ready for the bout`}
                 action={
                     canEdit ? (
                         <Button size="sm" variant="secondary" onClick={() => setAdding(true)}>

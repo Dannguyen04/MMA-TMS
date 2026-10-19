@@ -143,6 +143,7 @@ describe("Gate 1 (T-003 criterion 4, Business flows F4)", () => {
     it("summarises the checklist in one line", () => {
         const list = [item({ code: "HEALTH", label: "Health certificate" }), item({ code: "BLOOD", label: "Blood test" }), item({ state: "MISSING", validUntil: null })];
         expect(gateSummary(list, boutDay)).toBe("2 of 3 ready · Brain CT missing");
+        expect(gateSummary([item({ validUntil: "2026-10-22" })], boutDay)).toBe("0 of 1 ready · Brain CT expires before the bout");
         expect(gateSummary([], boutDay)).toBe("No documents listed");
     });
 });

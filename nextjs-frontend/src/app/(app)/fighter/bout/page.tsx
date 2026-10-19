@@ -68,7 +68,7 @@ export default async function FighterBoutPage({ searchParams }: PageProps<"/figh
 
             <DescriptionList
                 columns={2}
-                className="mb-6 lg:grid-cols-4"
+                className="mb-6 grid-cols-2 lg:grid-cols-4"
                 items={[
                     { label: bout.catchweightKg === null ? "Limit" : "Catchweight", value: limit === null ? "No upper limit" : kgLabel(limit) },
                     { label: "Weigh-in", value: formatDateTime(bout.weighInAt) },
@@ -99,7 +99,7 @@ export default async function FighterBoutPage({ searchParams }: PageProps<"/figh
                 )}
 
                 <Card>
-                    <CardHeader title="Medical file" description={gateSummary(bout.requirements, boutDay)} />
+                    <CardHeader title="Medical file" description={bout.requirements.length > 0 ? gateSummary(bout.requirements, boutDay) : undefined} />
                     <CardContent>
                         {bout.requirements.length === 0 ? (
                             <p className="text-sm text-fg-muted">Your coach hasn&apos;t listed any documents for this bout yet.</p>

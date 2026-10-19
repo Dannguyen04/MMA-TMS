@@ -144,9 +144,14 @@ export function boutGate1(bout: Pick<CampBout, "requirements" | "boutAt">): Gate
     return gate1(bout.requirements, boutOn(bout));
 }
 
+/** Provided or confirmed, and valid through the bout day: what "ready" means on every screen. */
+export function readyForBout(requirement: Pick<BoutRequirement, "state" | "validUntil">, boutDay: string): boolean {
+    return isReadyState(requirement.state) && requirement.validUntil !== null && requirement.validUntil >= boutDay;
+}
+
 /** "2 of 3 ready · Brain CT missing": the checklist in one line, for the fighter's page and the coach's list. */
 export function gateSummary(requirements: BoutRequirement[], boutDay: string): string {
-    const ready = requirements.filter((item) => isReadyState(item.state)).length;
+    const ready = requirements.filter((item) => readyForBout(item, boutDay)).length;
     const { missing } = gate1(requirements, boutDay);
     const head = requirements.length === 0 ? "No documents listed" : `${ready} of ${requirements.length} ready`;
     if (missing.length === 0) return head;

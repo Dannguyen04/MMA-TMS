@@ -1,4 +1,4 @@
-import { CalendarClock, CheckCircle2, CircleSlash, ShieldAlert, ShieldCheck } from "lucide-react";
+import { CalendarClock, CheckCircle2, CircleSlash, Info, ShieldAlert, ShieldCheck } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -283,6 +283,13 @@ function GateCard({ bout, todayOn }: { bout: CampBout; todayOn: string }) {
     const gate = boutGate1(bout);
     const relevant = bout.phase === "SCHEDULED" || bout.phase === "CAMP";
     if (!relevant) return null;
+    if (bout.requirements.length === 0) {
+        return (
+            <Callout tone="info" icon={Info} title="No documents listed">
+                Gate 1 has nothing to check yet. Add the documents the event&apos;s notice asks for.
+            </Callout>
+        );
+    }
     return gate.passed ? (
         <Callout tone="success" icon={ShieldCheck} title="Gate 1 met">
             Every required document is in and valid through {formatDate(bout.boutAt)}.

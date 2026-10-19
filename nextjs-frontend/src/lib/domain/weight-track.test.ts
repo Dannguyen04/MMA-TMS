@@ -87,3 +87,22 @@ describe("buildWeightTrack", () => {
         expect(track.points).toEqual([{ date: "2026-10-16", kg: 66.1 }]);
     });
 });
+
+describe("reference line for a fighter who starts light", () => {
+    it("never climbs above the first camp weight", () => {
+        const track = buildWeightTrack({
+            limitKg: 60,
+            acuteLossLimitPct: 5,
+            acuteWindowDays: 7,
+            campStartedOn: "2026-10-01",
+            weighInOn: "2026-10-20",
+            todayOn: "2026-10-15",
+            points: [
+                { date: "2026-10-01", kg: 59.6 },
+                { date: "2026-10-15", kg: 58.9 },
+            ],
+        });
+        expect(Math.max(...track.referencePath.map((point) => point.kg))).toBe(59.6);
+        expect(track.status).toBe("GREEN");
+    });
+});

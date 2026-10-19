@@ -244,13 +244,6 @@ export function isReadyState(state: RequirementState): boolean {
     return state === "PROVIDED" || state === "CONFIRMED";
 }
 
-export function requirementsReady(items: BoutRequirement[]): { ready: number; total: number } {
-    return {
-        ready: items.filter((item) => isReadyState(item.state)).length,
-        total: items.length,
-    };
-}
-
 /** The limit the scale is judged against: the catchweight once agreed, otherwise the class limit. */
 export function boutLimitKg(bout: Pick<CampBout, "catchweightKg" | "limitKg">): number | null {
     return bout.catchweightKg ?? bout.limitKg;

@@ -32,12 +32,12 @@ export function WeightClassField<T>({ form, ruleset, defaults }: { form: ActionF
         );
     }
     const code = form.control("weightClassCode", { required: true });
+    const options = [{ code: "", label: ruleset ? "Choose a class" : "Choose a ruleset first" }, ...(ruleset?.weightClasses ?? [])];
     return (
         <Field label="Weight class" htmlFor={code.id} required error={form.error("weightClassCode")}>
             <Select {...code} key={ruleset?.id ?? "none"} defaultValue={defaults.weightClassCode} disabled={!ruleset}>
-                <option value="">{ruleset ? "Choose a class" : "Choose a ruleset first"}</option>
-                {ruleset?.weightClasses.map((option) => (
-                    <option key={option.code} value={option.code}>
+                {options.map((option) => (
+                    <option key={option.code || "none"} value={option.code}>
                         {option.label}
                     </option>
                 ))}
@@ -74,7 +74,7 @@ export function EventFields<T>({ form, defaults }: { form: ActionForm<T>; defaul
     return (
         <>
             <Field label="Event" htmlFor={event.id} required error={form.error("event")}>
-                <Input {...event} maxLength={120} autoComplete="off" placeholder="Lotus Fight Night 18" defaultValue={defaults.event} />
+                <Input {...event} maxLength={120} autoComplete="off" defaultValue={defaults.event} />
             </Field>
             <Field label="Venue" htmlFor={venue.id} optional error={form.error("venue")}>
                 <Input {...venue} maxLength={120} autoComplete="off" defaultValue={defaults.venue} />
