@@ -104,3 +104,26 @@ $ pnpm --filter nextjs-frontend test
 
 - Tiêu chí 6: chưa bấm giờ bằng tay trên điện thoại thật.
 - Tiêu chí 11: chờ T-003.
+
+## Vòng 2 (19/10, sau khi Gemini đọc chéo)
+
+- Commit: `1910c7e` (merge T-004 đến `34bb30b`, gồm 3 sửa đổi của T-004 vòng 2) và `0233277`.
+- Gemini đọc diff `600101a..8b03e4f`, gửi 3 nhận xét, cả 3 ở mức "gợi ý", không có mục "chặn". Log: `D:/test/ai-worktrees/logs/T-004-run-4.json`.
+  1. `fighter/bout/page.tsx`: "n of m ready" đếm cả mục đã nộp nhưng hết hạn trước ngày thi. **Đã sửa** để đếm đúng như `evaluateGate1`: PROVIDED/CONFIRMED và `validUntil` ≥ ngày thi. Mục hết hạn trước ngày thi có thêm dòng cảnh báo.
+  2. `weight-chart.ts`: biểu đồ bắt đầu từ lần ghi cân đầu tiên, nên đoạn tham chiếu trước đó bị ẩn. **Chưa sửa**, vì ticket quy định `from` là ngày của điểm đầu tiên. Chủ dự án quyết định có đổi hay không.
+  3. `weight-chart.ts`: `referenceAt` sắp xếp lại mốc ở mỗi ngày. **Đã sửa**: chỉ sắp một lần.
+- Lệnh chạy lại trên `0233277`:
+
+```text
+$ pnpm --filter nextjs-frontend lint
+$ eslint
+lint exit 0
+$ pnpm --filter nextjs-frontend typecheck
+Generating route types...
+✓ Types generated successfully
+$ pnpm --filter nextjs-frontend test
+ Test Files  73 passed | 1 skipped (74)
+      Tests  629 passed | 1 skipped (630)
+```
+
+- Kiểm tra lại ở 390 px: `/coach/bouts/bout-red-weight` và `/fighter/bout` không cuộn ngang; thanh menu dưới của HLV (6 mục) nằm trên một hàng, cao 57 px.
