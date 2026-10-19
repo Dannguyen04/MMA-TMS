@@ -6,8 +6,8 @@ import { TrainingTypeIcon } from "@/components/domain/training-type-icon";
 import { plannedEndMs, rpeText } from "@/components/training/training-utils";
 import { ButtonLink } from "@/components/ui/button";
 import { CornerTag } from "@/components/ui/corner-tag";
-import { TRAINING_PHASE_LABELS, TRAINING_TYPE_LABELS, WEIGHT_CLASS_LABELS } from "@/lib/domain/labels";
-import type { TrainingPhase, TrainingSession, UpcomingBout } from "@/lib/domain/types";
+import { TRAINING_PHASE_LABELS, TRAINING_TYPE_LABELS } from "@/lib/domain/labels";
+import type { TrainingPhase, TrainingSession } from "@/lib/domain/types";
 import { formatPercent, formatShortDate, formatTime, formatWeekdayDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { relativeDay } from "./dashboard-utils";
@@ -27,8 +27,17 @@ export interface HeroPlan {
     adherencePct: number | null;
 }
 
+/** The booked bout as the hero shows it; `detail` is the weight line, e.g. "60 kg" or "Lightweight". */
+export interface HeroBout {
+    event: string;
+    opponent: string;
+    /** Fight night (ISO). */
+    date: string;
+    detail: string;
+}
+
 export interface FightHeroProps {
-    bout: UpcomingBout | null;
+    bout: HeroBout | null;
     /** Start of the fight-camp plan preparing this bout, if there is one. */
     campStart: string | null;
     plan: HeroPlan | null;
@@ -58,7 +67,7 @@ export function FightHero({ bout, campStart, plan, next, now, className }: Fight
     );
 }
 
-function Camp({ bout, campStart, now }: { bout: UpcomingBout; campStart: string | null; now: string }) {
+function Camp({ bout, campStart, now }: { bout: HeroBout; campStart: string | null; now: string }) {
     const timeline = campTimeline(bout, campStart, now);
     const label = campDayLabel(timeline);
 
@@ -68,7 +77,7 @@ function Camp({ bout, campStart, now }: { bout: UpcomingBout; campStart: string 
             <div>
                 <h2 className="font-display text-[30px] leading-[1.05] font-extrabold text-balance italic sm:text-[34px]">{bout.event}</h2>
                 <p className="mt-1 text-[15px] text-white/85">
-                    vs {bout.opponent} · <time dateTime={bout.date}>{formatWeekdayDate(bout.date)}</time> · {WEIGHT_CLASS_LABELS[bout.weightClass]}
+                    vs {bout.opponent} · <time dateTime={bout.date}>{formatWeekdayDate(bout.date)}</time> · {bout.detail}
                 </p>
             </div>
             <p className="flex items-end gap-3">

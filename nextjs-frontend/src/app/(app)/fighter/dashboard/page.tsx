@@ -6,7 +6,7 @@ import { CardLink } from "@/components/dashboard/card-link";
 import { CornerFeed } from "@/components/dashboard/corner-feed";
 import { cornerFeedItems } from "@/components/dashboard/corner-feed-items";
 import { firstName, greetingFor, weightCheck, weightGapText } from "@/components/dashboard/dashboard-utils";
-import { FightHero, type NextUp } from "@/components/dashboard/fight-hero";
+import { FightHero, type HeroBout, type NextUp } from "@/components/dashboard/fight-hero";
 import { InlineNote } from "@/components/dashboard/inline-note";
 import { OnboardingStrip, type OnboardingStep } from "@/components/dashboard/onboarding-strip";
 import { FlashToast } from "@/components/medical/flash-toast";
@@ -25,7 +25,7 @@ import { NOT_RECORDED } from "@/components/domain/domain-format";
 import { HEALTH_STATUS_DESCRIPTIONS, WEIGHT_CLASS_LABELS, WEIGHT_CLASS_LIMIT_KG } from "@/lib/domain/labels";
 import type { ClearanceState } from "@/lib/domain/rules";
 import { planAdherence } from "@/lib/domain/training-plan";
-import type { MedicalClearance, TrainingPlan, UpcomingBout } from "@/lib/domain/types";
+import type { MedicalClearance, TrainingPlan } from "@/lib/domain/types";
 import { activeBout, WEIGHT_SAVED_NOTICE } from "@/lib/domain/weigh-in";
 import { academyDayStartIso, addDaysToKey, dayKey, daysBetween, formatNumber, formatShortDate, formatWeekdayDate, pluralize } from "@/lib/format";
 import { routes } from "@/lib/routes";
@@ -38,7 +38,7 @@ import { platformFeatureAvailable } from "@/lib/services/platform-features";
 import { nullIfServiceFails } from "@/lib/services/api-helpers";
 import { listVideoLibrary, type VideoLibraryItem } from "@/lib/services/videos";
 import { param } from "@/lib/utils";
-import { WeighInPrompt } from "./weigh-in-prompt";
+import { BoutWeightCell } from "./bout-weight-cell";
 
 export const metadata: Metadata = { title: "Today" };
 
@@ -94,7 +94,20 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
     const { clearance, clearanceState } = health;
     const paused = clearanceState === "not_cleared" || clearanceState === "expired";
     const nextSession = upcoming[0] ?? null;
+    // A bout from the bouts service wins over the older `upcomingBout` on the profile, so Today never shows two fights.
     const bout = fighter.upcomingBout;
+    const heroBout: HeroBout | null = runningBout
+        ? {
+              event: runningBout.eventName,
+              opponent: runningBout.opponentName ?? "opponent TBA",
+              date: runningBout.boutAt,
+              detail: `${formatNumber(runningBout.catchweightKg ?? runningBout.weightLimitKg, 1)} kg`,
+          }
+        : bout
+          ? { event: bout.event, opponent: bout.opponent, date: bout.date, detail: WEIGHT_CLASS_LABELS[bout.weightClass] }
+          : null;
+    const linkedCamp = runningBout?.trainingPlanId ? plans.find((plan) => plan.id === runningBout.trainingPlanId) : undefined;
+    const campStart = linkedCamp?.startDate ?? (activePlan && isCampFor(activePlan, heroBout) ? activePlan.startDate : null);
     const followUpDoctor = health.nextFollowUp ? doctorNames.get(health.nextFollowUp.examination.doctorId) : undefined;
     const clearanceDoctor = clearance ? doctorNames.get(clearance.doctorId) : undefined;
 
@@ -163,11 +176,9 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
             />
 
             <div className="flex flex-col gap-6">
-                {runningBout && <WeighInPrompt bout={runningBout} now={now} />}
-
                 <FightHero
-                    bout={bout}
-                    campStart={activePlan && isCampFor(activePlan, bout) ? activePlan.startDate : null}
+                    bout={heroBout}
+                    campStart={campStart}
                     plan={
                         activePlan
                             ? { title: activePlan.title, href: routes.fighter.plan(activePlan.id), phase: activePlan.phase, adherencePct: adherence?.pct ?? null }
@@ -198,19 +209,23 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
                         href={routes.fighter.health}
                         className="sm:col-span-2 lg:col-span-1"
                     />
-                    <ReadinessCell
-                        label="Weight"
-                        value={
-                            weight ? (
-                                <ReadinessNumber value={formatNumber(weight.currentKg, 1)} unit="kg" />
-                            ) : (
-                                <span className="text-sm font-medium text-fg-muted">{NOT_RECORDED}</span>
-                            )
-                        }
-                        hint={weight ? `${weightGapText(weight)} · ${weightLimit}` : `${weightLimit} limit`}
-                        href={routes.profile}
-                        className="sm:col-span-2 lg:col-span-1"
-                    />
+                    {runningBout ? (
+                        <BoutWeightCell bout={runningBout} className="sm:col-span-2 lg:col-span-1" />
+                    ) : (
+                        <ReadinessCell
+                            label="Weight"
+                            value={
+                                weight ? (
+                                    <ReadinessNumber value={formatNumber(weight.currentKg, 1)} unit="kg" />
+                                ) : (
+                                    <span className="text-sm font-medium text-fg-muted">{NOT_RECORDED}</span>
+                                )
+                            }
+                            hint={weight ? `${weightGapText(weight)} · ${weightLimit}` : `${weightLimit} limit`}
+                            href={routes.profile}
+                            className="sm:col-span-2 lg:col-span-1"
+                        />
+                    )}
                     <ReadinessCell
                         label="This week"
                         value={<ReadinessNumber value={weekCompleted} unit={`of ${weekPlanned.length} done`} />}
@@ -310,7 +325,7 @@ function weekHint({ planned, toGo, missed, paused }: { planned: number; toGo: nu
 }
 
 /** Whether a plan is the fight camp for the booked bout: a fight-camp plan whose window includes fight night. */
-function isCampFor(plan: TrainingPlan, bout: UpcomingBout | null): boolean {
+function isCampFor(plan: TrainingPlan, bout: Pick<HeroBout, "date"> | null): boolean {
     if (!bout || plan.phase !== "fight_camp") return false;
     const fightDay = dayKey(bout.date);
     return dayKey(plan.startDate) <= fightDay && (plan.endDate === null || fightDay <= dayKey(plan.endDate));

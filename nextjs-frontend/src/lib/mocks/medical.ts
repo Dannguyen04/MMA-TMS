@@ -276,7 +276,7 @@ export const mockMedicalExaminations: MedicalExamination[] = [
     routineExam("f-minh-tran", 20, {
         hour: 15,
         summary:
-            "Pre-camp physical and Medical Clearance renewal ahead of Lotus Fight Night 18. Previous shin contusion fully resolved; weight-cut plan reviewed and on track for a gradual cut.",
+            "Pre-camp physical and Medical Clearance renewal ahead of Saigon Warriors MMA 04. Previous shin contusion fully resolved; weight-cut plan reviewed and on track for a gradual cut.",
         recommendations:
             "Clearance renewed without restrictions. Aim for about 0.5 kg per week through diet; no dehydration-based cutting before fight week. Pre-fight medical in fight week.",
     }),
@@ -2199,7 +2199,7 @@ export const mockMedicalRecords: MedicalRecord[] = [
         medications: [],
         surgicalHistory: [],
         emergencyContact: { name: "Trần Thị Hoa", relation: "Mother", phone: "+84 903 418 227" },
-        notes: "Professional Muay Thai athlete in fight camp for Lotus Fight Night 18. Previous post-bout right shin contusion fully resolved. No ongoing health concerns.",
+        notes: "Professional Muay Thai athlete in fight camp for Saigon Warriors MMA 04. Previous post-bout right shin contusion fully resolved. No ongoing health concerns.",
         documents: [
             scatBaselineDocument("f-minh-tran", 318, THU_LE_NAME),
             {
