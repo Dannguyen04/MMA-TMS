@@ -12,7 +12,6 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ChoiceGroup } from "@/components/ui/choice-group";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { Checkbox, Field, Input, Textarea } from "@/components/ui/form";
-import { useToast } from "@/components/ui/toast";
 import { useConfirmAction } from "@/components/ui/use-confirm-action";
 import { addRequirementAction, removeRequirementAction, unlockChecklistAction, updateRequirementAction } from "@/lib/actions/bouts";
 import type { ActionState } from "@/lib/actions/state";
@@ -21,6 +20,7 @@ import { COACH_REQUIREMENT_STATES, expiresBeforeBout, readyForBout, suggestedVal
 import { REQUIREMENT_STATE_LABELS } from "@/lib/domain/labels";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { useNotify } from "../use-notify";
 
 export interface MedicalChecklistProps {
     boutId: string;
@@ -39,10 +39,6 @@ export interface MedicalChecklistProps {
 
 const STATE_OPTIONS = COACH_REQUIREMENT_STATES.map((value) => ({ value, label: REQUIREMENT_STATE_LABELS[value] }));
 
-function useNotify() {
-    const toast = useToast();
-    return (state: ActionState<unknown>) => toast({ title: state.message ?? "Saved", tone: "success" });
-}
 
 /** F4: what the event asks for, each document's state and validity, and the deadline. No file uploads. */
 export function MedicalChecklist({ boutId, requirements, boutDay, dueOn, overdue, locked, canUnlock, unlock, editable }: MedicalChecklistProps) {
@@ -264,9 +260,11 @@ function EditRequirementDialog({
                                         value={issuedOn}
                                         onChange={(event) => {
                                             const next = event.target.value;
+                                            const previous = suggestedValidUntil(issuedOn, item.validityDays);
                                             setIssuedOn(next);
                                             const suggestion = suggestedValidUntil(next, item.validityDays);
-                                            if (suggestion && !validUntil) setValidUntil(suggestion);
+                                            // Follow the issue date unless the coach typed their own date.
+                                            if (suggestion && (!validUntil || validUntil === previous)) setValidUntil(suggestion);
                                         }}
                                     />
                                 </Field>

@@ -34,7 +34,8 @@ import {
     type RequirementUpdate,
 } from "@/lib/domain/bout-rules";
 import { BOUT_PHASE_LABELS, CANCEL_REASON_LABELS, GATE1_REASON_LABELS } from "@/lib/domain/labels";
-import { isSuspensionActive, suspensionEndsOn, type SuspensionDraft } from "@/lib/domain/suspension-rules";
+import { blockingSuspensions, isSuspensionActive, suspensionEndsOn, type SuspensionDraft } from "@/lib/domain/suspension-rules";
+import { wayOffCount } from "@/lib/domain/nutrition";
 import type { TrainingPlan, TrainingType } from "@/lib/domain/types";
 import type { PlanAdherence } from "@/lib/domain/weight-chart";
 import { buildWeightTrack, type WeightTrack } from "@/lib/domain/weight-track";
@@ -209,7 +210,7 @@ function seedBout(spec: SeedBout, todayOn: string): CampBout {
         cancelReason: null,
         cancelNote: null,
         requirements: spec.requirements,
-        nutritionPlan: spec.nutritionPlan ?? EMPTY_PLAN,
+        nutritionPlan: spec.nutritionPlan ?? { ...EMPTY_PLAN },
         history,
         weighIn: null,
         outcome: null,
@@ -430,11 +431,7 @@ export function listDemoWeightAlerts(fighterIds: string[] | "all", now = new Dat
         .flatMap((bout) => {
             const track = demoWeightTrack(bout.id, now);
             if (!track || track.status === "GREEN") return [];
-            const wayOff = campCheckins(bout.id).filter((item) => {
-                const age = daysBetweenKeys(item.loggedOn, todayOn);
-                return age >= 0 && age < 3 && item.adherence === "WAY_OFF";
-            }).length;
-            return [{ bout, track, wayOff }];
+            return [{ bout, track, wayOff: wayOffCount(campCheckins(bout.id), todayOn) }];
         })
         .sort((a, b) => STATUS_ORDER[a.track.status] - STATUS_ORDER[b.track.status] || (a.bout.weighInAt < b.bout.weighInAt ? -1 : 1));
 }
@@ -451,9 +448,7 @@ export function listDemoSuspensions(fighterIds: string[] | "all" = "all"): Suspe
 
 /** Gate 2: the suspensions that stop this fighter doing this kind of session on `day`. */
 export function demoBlockingSuspensions(fighterId: string, type: TrainingType, day: string): Suspension[] {
-    return demoCampStore()
-        .suspensions.filter((item) => item.fighterId === fighterId && item.blockedSessionTypes.includes(type) && isSuspensionActive(item, day))
-        .map(cloneSuspension);
+    return blockingSuspensions(demoCampStore().suspensions, fighterId, type, day).map(cloneSuspension);
 }
 
 /* ─── Weigh-ins and plan answers ──────────────────────────────────────────── */

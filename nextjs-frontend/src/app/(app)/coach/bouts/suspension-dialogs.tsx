@@ -6,21 +6,16 @@ import { useState } from "react";
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox, Field, Input, Select, Textarea } from "@/components/ui/form";
-import { useToast } from "@/components/ui/toast";
 import { clearSuspensionAction, createSuspensionAction } from "@/lib/actions/bouts";
-import type { ActionState } from "@/lib/actions/state";
 import type { SuspensionReason } from "@/lib/domain/bout";
 import { SUSPENSION_REASON_LABELS, TRAINING_TYPE_LABELS } from "@/lib/domain/labels";
 import { MANUAL_SUSPENSION_REASONS, suspensionEndsOn } from "@/lib/domain/suspension-rules";
 import type { TrainingType } from "@/lib/domain/types";
 import { formatDate, isDateKey } from "@/lib/format";
+import { useNotify } from "./use-notify";
 
 const TRAINING_TYPES = Object.keys(TRAINING_TYPE_LABELS) as TrainingType[];
 
-function useNotify() {
-    const toast = useToast();
-    return (state: ActionState<unknown>) => toast({ title: state.message ?? "Saved", tone: "success" });
-}
 
 export interface SuspensionDialogProps {
     /** After a result: the bout, its fighter and the reason the result calls for. Without it, a hand-entered suspension. */

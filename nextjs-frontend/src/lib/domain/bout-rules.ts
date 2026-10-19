@@ -257,6 +257,8 @@ export function validateBoutSchedule(
     input: BoutScheduleInput,
     ruleset: Pick<CompetitionRuleset, "weightClasses">,
     now: Date,
+    /** Editing a bout whose time has passed keeps it; a new or moved bout must still be in the future. */
+    { allowPastBoutAt }: { allowPastBoutAt?: string } = {},
 ): Checked<BoutSchedule> {
     const fieldErrors: FieldErrors = {};
 
@@ -278,7 +280,7 @@ export function validateBoutSchedule(
     if (!boutAt) fieldErrors.boutAt = "Enter the bout date and time.";
     if (weighInAt && boutAt) {
         if (Date.parse(weighInAt) >= Date.parse(boutAt)) fieldErrors.boutAt = "The bout must start after the weigh-in.";
-        else if (Date.parse(boutAt) <= now.getTime()) fieldErrors.boutAt = "The bout must be in the future.";
+        else if (Date.parse(boutAt) <= now.getTime() && boutAt !== allowPastBoutAt) fieldErrors.boutAt = "The bout must be in the future.";
     }
 
     if (Object.keys(fieldErrors).length > 0 || !weightClass.ok || !weighInAt || !boutAt || !venue.ok || !opponent.ok) {

@@ -22,9 +22,9 @@ export default async function NewBoutPage({ searchParams }: PageProps<"/coach/bo
     return (
         <>
             <PageHeader
-                eyebrow="New bout"
+                eyebrow="Bout"
                 back={{ href: routes.coach.bouts, label: "Bouts" }}
-                title="Create a bout"
+                title="New bout"
                 description="When the club accepts a bout. The fighter sees it on their Bout page, and the camp, weight and checklist start from here."
             />
             <BoutForm

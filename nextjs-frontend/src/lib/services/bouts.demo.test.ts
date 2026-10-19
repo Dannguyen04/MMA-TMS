@@ -28,6 +28,7 @@ import {
     recordDemoSelfWeight,
     recordDemoWeighIn,
     resetDemoCampStore,
+    saveDemoNutritionPlan,
     updateDemoRequirement,
     type NewBout,
 } from "./bouts.demo";
@@ -121,6 +122,14 @@ describe("demo camp seed", () => {
 });
 
 describe("daily weight and plan answers", () => {
+    it("keeps each seeded bout's meal plan to itself", () => {
+        resetDemoCampStore(TODAY);
+        expect(saveDemoNutritionPlan("b-emma-nordic", { camp: "Fish and rice", fightWeek: "", postWeighIn: "" }, "Rafael Costa", NOW)).toEqual({ ok: true });
+        expect(getDemoBout("b-aigerim-asian")?.nutritionPlan.camp).toBeNull();
+        resetDemoCampStore(TODAY);
+        expect(getDemoBout("b-emma-nordic")?.nutritionPlan.camp).toBeNull();
+    });
+
     it("keeps one weight per academy day and lets a later save replace it", () => {
         resetDemoCampStore(TODAY);
         recordDemoSelfWeight("f-kenji-morita", 63, NOW);

@@ -9,7 +9,6 @@ import { Button, ButtonLink } from "@/components/ui/button";
 import { ChoiceGroup } from "@/components/ui/choice-group";
 import { Checkbox, Field, Input, Select, Textarea } from "@/components/ui/form";
 import { SubmitButton } from "@/components/ui/submit-button";
-import { useToast } from "@/components/ui/toast";
 import { useActionForm } from "@/components/ui/use-action-form";
 import {
     cancelBoutAction,
@@ -19,7 +18,6 @@ import {
     recordWeighInAction,
     updateBoutAction,
 } from "@/lib/actions/bouts";
-import type { ActionState } from "@/lib/actions/state";
 import { CANCEL_REASONS, type CampBout, type CompetitionRuleset } from "@/lib/domain/bout";
 import { asksHeadStrikes, asksLossOfConsciousness, BOUT_RESULTS, HYDRATION_CHECKS, LOSS_OF_CONSCIOUSNESS, madeWeight, methodsFor } from "@/lib/domain/bout-rules";
 import {
@@ -32,11 +30,8 @@ import {
 import { formatNumber, toDateTimeInputValue } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { EventFields, RulesetNote, ScheduleFields, WeightClassField } from "../bout-schedule-fields";
+import { useNotify } from "../use-notify";
 
-function useNotify() {
-    const toast = useToast();
-    return (state: ActionState<unknown>) => toast({ title: state.message ?? "Saved", tone: "success" });
-}
 
 /* ─── Header: edit and cancel ─────────────────────────────────────────────── */
 

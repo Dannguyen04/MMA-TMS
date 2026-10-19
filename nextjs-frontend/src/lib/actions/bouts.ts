@@ -11,6 +11,7 @@ import { CANCEL_REASONS, type CampBout, type CancelReason, type HydrationCheck, 
 import {
     HYDRATION_CHECKS,
     madeWeight,
+    NOTES_MAX,
     readCatchweight,
     readDueDays,
     readOfficialWeight,
@@ -210,12 +211,12 @@ export async function updateBoutAction(_prev: ActionState, formData: FormData): 
     if (!ruleset) return actionError("This bout's ruleset is no longer available.");
 
     const fieldErrors: Record<string, string> = {};
-    const schedule = validateBoutSchedule(scheduleInput(formData), ruleset, new Date());
+    const schedule = validateBoutSchedule(scheduleInput(formData), ruleset, new Date(), { allowPastBoutAt: bout.boutAt });
     if (!schedule.ok) Object.assign(fieldErrors, schedule.fieldErrors);
     const dueDays = readDueDays(text(formData, "requirementsDueDays"));
     if (!dueDays.ok) fieldErrors.requirementsDueDays = dueDays.message;
     const notes = text(formData, "notes").trim();
-    if (notes.length > 500) fieldErrors.notes = "Keep the notes under 500 characters.";
+    if (notes.length > NOTES_MAX) fieldErrors.notes = `Keep the notes under ${NOTES_MAX} characters.`;
     const changeReason = text(formData, "changeReason").trim();
     if (changeReason.length > REASON_MAX) fieldErrors.changeReason = `Keep the reason under ${REASON_MAX} characters.`;
     if (Object.keys(fieldErrors).length > 0 || !schedule.ok || !dueDays.ok) return actionError(FIX_FIELDS, fieldErrors);
