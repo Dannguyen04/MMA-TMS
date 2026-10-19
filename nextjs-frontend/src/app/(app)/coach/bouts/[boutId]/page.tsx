@@ -3,7 +3,6 @@ import {
     Calendar,
     CalendarClock,
     History,
-    MapPin,
     Shield,
     TriangleAlert,
 } from "lucide-react";
@@ -11,17 +10,13 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { FighterIdentity } from "@/components/domain/fighter-identity";
-import {
-    BoutStatusBadge,
-    Gate1Badge,
-    WeightWarningBadge,
-} from "@/components/domain/status-badges";
+import { BoutStatusBadge } from "@/components/domain/status-badges";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { canAccessFighter } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
-import { TRAINING_PHASE_LABELS } from "@/lib/domain/labels";
+import { BOUT_STATUS_LABELS, TRAINING_PHASE_LABELS } from "@/lib/domain/labels";
 import { formatDateTime, formatDate } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { getBout, listRulesets } from "@/lib/services/bouts";
@@ -39,7 +34,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     const { boutId } = await params;
     const bout = await getBout(boutId);
     return {
-        title: bout ? `${bout.eventName} · Bout` : "Bout",
+        title: bout ? `${bout.eventName} · Bout` : "Bout details",
     };
 }
 
@@ -48,6 +43,7 @@ export default async function CoachBoutDetailPage({ params }: PageProps) {
     const { boutId } = await params;
 
     const bout = await getBout(boutId);
+
     if (!bout || !canAccessFighter(user, bout.fighterId)) {
         notFound();
     }
@@ -82,33 +78,17 @@ export default async function CoachBoutDetailPage({ params }: PageProps) {
                 eyebrow="Bout"
                 back={{ href: routes.coach.bouts, label: "Bouts" }}
                 title={bout.eventName}
-                description={`${fighter.name} vs. ${bout.opponentName ?? "TBA"} · ${bout.weightLimitKg} kg limit · Weigh-in ${formatDate(bout.weighInAt)} · Bout ${formatDate(bout.boutAt)}.`}
+                description={`${fighter.name} vs ${bout.opponentName ?? "Opponent TBA"} · ${bout.weightLimitKg} kg`}
                 actions={<BoutHeaderActions bout={bout} plans={fightCampPlans} />}
             />
 
             {/* Overview Banner Card */}
             <Card className="min-w-0">
                 <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex flex-wrap items-center gap-4">
-                        <FighterIdentity fighter={fighter} size="lg" />
-                        <div className="flex flex-col">
-                            <span className="text-xs uppercase tracking-wider text-fg-muted">Opponent</span>
-                            <span className="font-semibold text-fg">
-                                {bout.opponentName ? `vs. ${bout.opponentName}` : "Opponent TBA"}
-                            </span>
-                            {bout.venue && (
-                                <span className="flex items-center gap-1 text-xs text-fg-muted">
-                                    <MapPin aria-hidden className="size-3" />
-                                    {bout.venue}
-                                </span>
-                            )}
-                        </div>
-                    </div>
+                    <FighterIdentity fighter={fighter} size="lg" />
 
                     <div className="flex flex-wrap items-center gap-2.5">
                         <BoutStatusBadge status={bout.status} />
-                        <Gate1Badge gate1={bout.gate1} />
-                        {bout.weight && <WeightWarningBadge status={bout.weight.status} />}
                         {countdownText && (
                             <Badge tone="neutral" variant="outline" icon={CalendarClock}>
                                 {countdownText}
@@ -142,7 +122,6 @@ export default async function CoachBoutDetailPage({ params }: PageProps) {
                     <Card className="min-w-0">
                         <CardHeader
                             title="Competition rules"
-                            description="Governing ruleset and safety limits."
                             icon={<Shield aria-hidden />}
                         />
                         <CardContent className="flex flex-col gap-3 text-xs">
@@ -154,19 +133,12 @@ export default async function CoachBoutDetailPage({ params }: PageProps) {
                                 <span className="text-fg-muted">Sport</span>
                                 <span className="font-medium text-fg">{ruleset?.sport ?? "MMA"}</span>
                             </div>
-                            <div className="flex justify-between border-b border-border pb-2">
-                                <span className="text-fg-muted">Weight category</span>
-                                <span className="font-medium text-fg">
-                                    {bout.weightClassCode === "custom" ? "Custom limit" : `${bout.weightClassCode} kg`}
-                                </span>
-                            </div>
-                            <div className="flex justify-between border-b border-border pb-2">
-                                <span className="text-fg-muted">Target weight limit</span>
-                                <span className="font-semibold tabular-nums text-fg">
-                                    {bout.catchweightKg ?? bout.weightLimitKg} kg
-                                    {bout.catchweightKg ? " (Catchweight)" : ""}
-                                </span>
-                            </div>
+                            {bout.venue && (
+                                <div className="flex justify-between border-b border-border pb-2">
+                                    <span className="text-fg-muted">Venue</span>
+                                    <span className="font-medium text-fg">{bout.venue}</span>
+                                </div>
+                            )}
                             <div className="flex justify-between border-b border-border pb-2">
                                 <span className="text-fg-muted">Acute cut limit (snapshot)</span>
                                 <span className="font-semibold tabular-nums text-fg">
@@ -192,7 +164,6 @@ export default async function CoachBoutDetailPage({ params }: PageProps) {
                     <Card className="min-w-0">
                         <CardHeader
                             title="Fight camp"
-                            description="Training plan linked to this bout."
                             icon={<Activity aria-hidden />}
                         />
                         <CardContent className="flex flex-col gap-3 text-xs">
@@ -212,14 +183,7 @@ export default async function CoachBoutDetailPage({ params }: PageProps) {
                                     )}
                                 </div>
                             ) : (
-                                <div className="rounded-lg border border-dashed border-border p-4 text-center text-fg-muted">
-                                    <p className="font-medium text-fg">No training camp linked</p>
-                                    <p className="mt-1 text-[11px]">
-                                        {bout.status === "SCHEDULED"
-                                            ? "Link a fight camp plan to transition this bout to Camp status."
-                                            : "No fight camp plan is currently linked to this bout."}
-                                    </p>
-                                </div>
+                                <p className="text-xs text-fg-muted">No camp plan linked.</p>
                             )}
                         </CardContent>
                     </Card>
@@ -238,7 +202,6 @@ export default async function CoachBoutDetailPage({ params }: PageProps) {
                     <Card className="min-w-0">
                         <CardHeader
                             title="Status history"
-                            description="Audit trail of bout transitions."
                             icon={<History aria-hidden />}
                         />
                         <CardContent className="flex flex-col gap-3">
@@ -250,7 +213,9 @@ export default async function CoachBoutDetailPage({ params }: PageProps) {
                                         <div key={idx} className="flex flex-col gap-1 py-2 first:pt-0 last:pb-0">
                                             <div className="flex items-center justify-between">
                                                 <span className="font-medium text-fg">
-                                                    {entry.from === entry.to ? entry.to : `${entry.from} → ${entry.to}`}
+                                                    {entry.from === entry.to
+                                                        ? BOUT_STATUS_LABELS[entry.to]
+                                                        : `${BOUT_STATUS_LABELS[entry.from]} → ${BOUT_STATUS_LABELS[entry.to]}`}
                                                 </span>
                                                 <span className="text-[11px] text-fg-muted">
                                                     {formatDate(entry.at)}

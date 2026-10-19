@@ -28,7 +28,7 @@ import {
     updateRequirementAction,
 } from "@/lib/actions/bouts";
 import type { Bout, BoutRequirement } from "@/lib/domain/types";
-import { dayKey, formatDate } from "@/lib/format";
+import { dayKey, formatDate, formatShortDate } from "@/lib/format";
 
 export function BoutChecklistCard({ bout }: { bout: Bout }) {
     const toast = useToast();
@@ -49,7 +49,6 @@ export function BoutChecklistCard({ bout }: { bout: Bout }) {
         <Card className="min-w-0">
             <CardHeader
                 title="Medical checklist"
-                description="Gate 1 eligibility documents and competition clearances."
                 icon={<ClipboardCheck aria-hidden />}
                 className="flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3"
                 action={
@@ -70,9 +69,9 @@ export function BoutChecklistCard({ bout }: { bout: Bout }) {
                         <div className="flex items-center gap-2 text-fg">
                             <Calendar aria-hidden className="size-4 text-fg-muted" />
                             <span>
-                                Submission deadline:{" "}
+                                Documents due{" "}
                                 <strong className="font-semibold text-fg">
-                                    {formatDate(bout.requirementsDueOn)}
+                                    {formatShortDate(bout.requirementsDueOn)}
                                 </strong>{" "}
                                 ({bout.requirementsDueDays} days before weigh-in)
                             </span>
@@ -121,14 +120,7 @@ export function BoutChecklistCard({ bout }: { bout: Bout }) {
                                     <div className="flex min-w-0 flex-1 flex-col gap-1">
                                         <div className="flex flex-wrap items-center gap-2">
                                             <span className="font-medium text-fg">{req.label}</span>
-                                            <span className="rounded bg-surface-muted px-1.5 py-0.5 font-mono text-[11px] text-fg-muted">
-                                                {req.code}
-                                            </span>
-                                            {req.required ? (
-                                                <Badge tone="neutral" variant="outline" size="sm">
-                                                    Required
-                                                </Badge>
-                                            ) : (
+                                            {!req.required && (
                                                 <Badge tone="neutral" variant="outline" size="sm">
                                                     Optional
                                                 </Badge>
