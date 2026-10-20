@@ -29,6 +29,7 @@ export const migrationNames = [
   '019_ai_delivery_receipts.sql',
   '020_movement_evidence_reviews.sql',
   '023_academy_settings.sql',
+  '024_bouts.sql',
 ];
 export function readVerifiedMigrations() {
   const manifest = JSON.parse(

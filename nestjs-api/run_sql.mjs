@@ -23,13 +23,14 @@ const migrationByMode = new Map([
   ['--apply-019', '019_ai_delivery_receipts.sql'],
   ['--apply-020', '020_movement_evidence_reviews.sql'],
   ['--apply-023', '023_academy_settings.sql'],
+  ['--apply-024', '024_bouts.sql'],
 ]);
 if (
   !['--check', ...migrationByMode.keys()].includes(mode) ||
   process.argv.length > 3
 ) {
   console.error(
-    'Usage: node run_sql.mjs [--check | --apply-003 | --apply-004 | --apply-005 | --apply-006 | --apply-007 | --apply-008 | --apply-009 | --apply-010 | --apply-011 | --apply-012 | --apply-013 | --apply-014 | --apply-015 | --apply-016 | --apply-017 | --apply-018 | --apply-019 | --apply-020 | --apply-023]',
+    'Usage: node run_sql.mjs [--check | --apply-003 | --apply-004 | --apply-005 | --apply-006 | --apply-007 | --apply-008 | --apply-009 | --apply-010 | --apply-011 | --apply-012 | --apply-013 | --apply-014 | --apply-015 | --apply-016 | --apply-017 | --apply-018 | --apply-019 | --apply-020 | --apply-023 | --apply-024]',
   );
   process.exitCode = 1;
 } else {
@@ -37,7 +38,7 @@ if (
   try {
     const migrations = readVerifiedMigrations();
     if (mode === '--check') {
-      console.log('001-023 checksums OK. No database connection was opened.');
+      console.log('001-024 checksums OK. No database connection was opened.');
     } else {
       const migrationName = migrationByMode.get(mode);
       const migrationVersion = migrationName.slice(0, 3);
