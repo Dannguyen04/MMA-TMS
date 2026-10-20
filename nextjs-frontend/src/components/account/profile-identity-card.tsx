@@ -6,6 +6,8 @@ import { Card } from "@/components/ui/card";
 import { DescriptionList } from "@/components/ui/description-list";
 import type { User } from "@/lib/domain/types";
 import { formatDate, formatDateTime, formatRelative } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
+import { createTranslator } from "@/lib/i18n/translate";
 
 export interface ProfileIdentityCardProps {
     user: Pick<User, "name" | "email" | "phone" | "role" | "title" | "status" | "createdAt" | "lastActiveAt">;
@@ -14,12 +16,14 @@ export interface ProfileIdentityCardProps {
     /** One line of key facts under the title, e.g. discipline and weight class. */
     facts?: string[];
     now: string;
+    locale?: Locale;
 }
 
 /** Who you are on the platform: avatar, name, role and contact details. */
-export function ProfileIdentityCard({ user, nickname, facts, now }: ProfileIdentityCardProps) {
+export function ProfileIdentityCard({ user, nickname, facts, now, locale = "en" }: ProfileIdentityCardProps) {
     const isFighter = user.role === "fighter";
     const factLine = (facts ?? []).filter((fact) => fact && fact !== user.title);
+    const t = createTranslator(locale);
 
     return (
         <Card className="min-w-0">
@@ -33,8 +37,8 @@ export function ProfileIdentityCard({ user, nickname, facts, now }: ProfileIdent
                     <p className="mt-1 text-sm text-fg-muted">{user.title}</p>
                     {factLine.length > 0 && <p className="mt-0.5 text-[13px] text-fg-subtle">{factLine.join(" · ")}</p>}
                     <div className="mt-3 flex flex-wrap items-center gap-2">
-                        <RoleBadge role={user.role} />
-                        <UserStatusBadge status={user.status} />
+                        <RoleBadge role={user.role} locale={locale} />
+                        <UserStatusBadge status={user.status} locale={locale} />
                     </div>
                 </div>
             </div>
@@ -42,7 +46,7 @@ export function ProfileIdentityCard({ user, nickname, facts, now }: ProfileIdent
                 <DescriptionList
                     items={[
                         {
-                            label: "Email",
+                            label: t("account.profile.email"),
                             value: (
                                 <span className="flex min-w-0 items-center gap-1.5">
                                     <Mail aria-hidden className="size-3.5 shrink-0 text-fg-subtle" />
@@ -51,33 +55,33 @@ export function ProfileIdentityCard({ user, nickname, facts, now }: ProfileIdent
                             ),
                         },
                         {
-                            label: "Phone",
+                            label: t("account.profile.phone"),
                             value: user.phone ? (
                                 <span className="flex items-center gap-1.5">
                                     <Phone aria-hidden className="size-3.5 shrink-0 text-fg-subtle" />
                                     {user.phone}
                                 </span>
                             ) : (
-                                <span className="font-normal text-fg-subtle">Not added</span>
+                                <span className="font-normal text-fg-subtle">{t("account.profile.notAdded")}</span>
                             ),
                         },
                         {
-                            label: "Member since",
+                            label: t("account.profile.memberSince"),
                             value: (
                                 <span>
-                                    <time dateTime={user.createdAt}>{formatDate(user.createdAt)}</time>
-                                    <span className="font-normal text-fg-muted"> · {formatRelative(user.createdAt, now)}</span>
+                                    <time dateTime={user.createdAt}>{formatDate(user.createdAt, locale)}</time>
+                                    <span className="font-normal text-fg-muted"> · {formatRelative(user.createdAt, now, locale)}</span>
                                 </span>
                             ),
                         },
                         {
-                            label: "Last active",
+                            label: t("account.profile.lastActive"),
                             value: user.lastActiveAt ? (
-                                <time dateTime={user.lastActiveAt} title={formatDateTime(user.lastActiveAt)}>
-                                    {formatRelative(user.lastActiveAt, now)}
+                                <time dateTime={user.lastActiveAt} title={formatDateTime(user.lastActiveAt, locale)}>
+                                    {formatRelative(user.lastActiveAt, now, locale)}
                                 </time>
                             ) : (
-                                <span className="font-normal text-fg-subtle">Not signed in yet</span>
+                                <span className="font-normal text-fg-subtle">{t("account.profile.notSignedInYet")}</span>
                             ),
                         },
                     ]}

@@ -3,12 +3,14 @@
  * the Vietnamese dictionary must then define it too, or typecheck fails.
  * `{name}` is filled from the params; a `.one` variant is used by `plural()` when the count is 1.
  */
+import { enAccount } from "./account.en";
 import { enAuth } from "./auth.en";
 import { enCoachBouts } from "./coach-bouts.en";
 import { enCoachToday } from "./coach-today.en";
 import { enFighterToday } from "./fighter-today.en";
 
 export const en = {
+    ...enAccount,
     ...enAuth,
     ...enCoachBouts,
     ...enCoachToday,

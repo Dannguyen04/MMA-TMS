@@ -345,14 +345,15 @@ export const USER_STATUS_META: Record<UserStatus, StatusMeta> = {
     suspended: { label: USER_STATUS_LABELS.suspended, tone: "danger", icon: Ban },
 };
 
-export function UserStatusBadge({ status, size, className }: { status: UserStatus; size?: BadgeSize; className?: string }) {
-    return <StatusBadge meta={USER_STATUS_META[status]} size={size} className={className} />;
+export function UserStatusBadge({ status, size, className, locale }: { status: UserStatus; size?: BadgeSize; className?: string; locale?: Locale }) {
+    const meta = USER_STATUS_META[status];
+    return <StatusBadge meta={locale ? { ...meta, label: createTranslator(locale)(`userStatus.${status}`) } : meta} size={size} className={className} />;
 }
 
-export function RoleBadge({ role, size, className }: { role: Role; size?: BadgeSize; className?: string }) {
+export function RoleBadge({ role, size, className, locale }: { role: Role; size?: BadgeSize; className?: string; locale?: Locale }) {
     return (
         <Badge tone="neutral" variant="outline" size={size} className={className}>
-            {ROLE_LABELS[role]}
+            {locale ? createTranslator(locale)(`role.${role}`) : ROLE_LABELS[role]}
         </Badge>
     );
 }
