@@ -51,13 +51,13 @@ Quyết định của chủ dự án 19/10: dịch toàn bộ app, làm dần, m
 
 | Ticket | Nội dung | Phụ thuộc | Trạng thái |
 | --- | --- | --- | --- |
-| [T-014](./T-014-i18n-auth-account.md) | Đăng nhập, đăng ký, applicant, tài khoản, thông báo; rà soát Today của võ sĩ | — | READY |
+| [T-014](./T-014-i18n-auth-account.md) | Đăng nhập, đăng ký, applicant, tài khoản, thông báo; rà soát Today của võ sĩ | — | DONE (merge 20/10) |
 | [T-015](./T-015-i18n-training.md) | Training của võ sĩ và HLV; đổi `clearance-rules.ts` sang trả mã | — | READY |
 | [T-016](./T-016-i18n-health-clearance.md) | Health và Medical Clearance của võ sĩ, HLV | Dùng chung `clearance-rules.ts` với T-015 | READY |
 | [T-017](./T-017-i18n-doctor.md) | Khu vực bác sĩ | T-016 | READY |
 | [T-018](./T-018-i18n-film-video.md) | Film và phân tích video AI | — | READY |
 | [T-019](./T-019-i18n-admin.md) | Admin (các mục còn trong menu) | — | READY, ưu tiên thấp nhất |
-| [T-020](./T-020-i18n-landing.md) | Landing page (`/`). `src/app/concept/` đã là tiếng Việt, không cần dịch | — | READY |
+| [T-020](./T-020-i18n-landing.md) | Landing page (`/`). `src/app/concept/` đã là tiếng Việt, không cần dịch | — | DONE (merge 20/10; slogan chờ chủ dự án duyệt) |
 | [T-021](./T-021-i18n-e2e.md) | E2E: đặt cookie `mma_locale=en` cho spec hiện có, thêm spec đổi ngôn ngữ | Nên làm trước hoặc cùng T-014 | READY |
 | [T-022](./T-022-i18n-performance-goals.md) | Performance và Goals (đóng băng, dịch theo quyết định "toàn bộ" 20/10) | — | READY, ưu tiên thấp |
 | [T-023](./T-023-i18n-frozen-clinical.md) | Hồ sơ y tế, khám, hồi phục, cảnh báo AI của bác sĩ (đóng băng) | T-017 | READY, ưu tiên thấp |
