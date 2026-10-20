@@ -32,11 +32,11 @@ export function writeResultState(result: WriteResult, successMessage: string): A
     return result.ok ? actionSuccess(successMessage) : actionError(result.message, result.fieldErrors);
 }
 
-export function validationError(error: ZodError): ActionState<never> {
+export function validationError(error: ZodError, message: string = FIX_FIELDS): ActionState<never> {
     const fieldErrors: Record<string, string> = {};
     for (const issue of error.issues) {
         const key = issue.path.join(".");
         if (key && !fieldErrors[key]) fieldErrors[key] = issue.message;
     }
-    return { status: "error", message: FIX_FIELDS, fieldErrors };
+    return { status: "error", message, fieldErrors };
 }

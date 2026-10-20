@@ -116,3 +116,71 @@ Không có.
 ## Câu hỏi / việc còn mở
 
 Không có.
+
+## Vòng 2: Sửa lỗi số không bắt buộc và tách schema
+
+- Commit: `021572b`
+
+### Tóm tắt thay đổi
+1. **Tách file schema không có `"use server"`**:
+   - Chuyển `emptyToUndefined`, `optionalCoercedNumber` và các builder schema (`buildCreateBoutSchema`, `buildUpdateBoutSchema`, `buildAddRequirementSchema`, `buildUpdateRequirementSchema`) vào `src/lib/actions/bout-schemas.ts`. File này không có chỉ thị `"use server"` để tuân thủ quy tắc Next.js (chỉ export async function từ file `"use server"`).
+   - `bout-schemas.ts` cũng export các schema mặc định (`createBoutSchema`, `updateBoutSchema`, `addRequirementSchema`, `updateRequirementSchema`) dùng `(key) => key` làm fallback để các test có thể import trực tiếp.
+2. **Dịch các ràng buộc số mới thêm**:
+   - Thêm các key dịch song ngữ cho số ngày nộp checklist và thời hạn hiệu lực trong `coach-bouts.en.ts` và `coach-bouts.vi.ts`:
+     - `coachBouts.action.dueDaysValid`, `coachBouts.action.dueDaysInt`, `coachBouts.action.dueDaysMin`, `coachBouts.action.dueDaysMax`
+     - `coachBouts.action.validityDaysValid`, `coachBouts.action.validityDaysInt`, `coachBouts.action.validityDaysMin`
+   - Áp dụng các key trên vào builder schema với Zod coercion và preprocessing.
+3. **Thông báo chung `form.fixFields`**:
+   - Cập nhật chữ ký `validationError(error: ZodError, message: string = FIX_FIELDS)` trong `src/lib/actions/state.ts`.
+   - Trong `src/lib/actions/bouts.ts`, các Server Action truyền thông báo đã dịch `validationError(parsed.error, t("form.fixFields"))`.
+   - `bouts.ts` chỉ còn export duy nhất các hàm async (`createBoutAction`, `updateBoutAction`, `linkCampAction`, `enterFightWeekAction`, `cancelBoutAction`, `addRequirementAction`, `updateRequirementAction`, `removeRequirementAction`).
+4. **Bổ sung kiểm thử**:
+   - `bouts.test.ts` kiểm tra đầy đủ việc chuỗi rỗng biến thành `undefined`, các trường hợp số không hợp lệ (số âm, số thực khi yêu cầu số nguyên, vượt ngưỡng tối đa, chuỗi chữ), thông báo lỗi dịch sang tiếng Anh và tiếng Việt, và custom message trong `validationError`. Tất cả 17 test pass.
+
+### Cách giải quyết xung đột khi merge T-004
+- Hủy merge dang dở bằng `git merge --abort`.
+- Chạy `git merge feat/T-004-coach-bouts-ui`. Xung đột xảy ra tại `nextjs-frontend/src/lib/actions/bouts.ts` giữa nhánh T-004 (vừa chuyển schema sang `bout-schemas.ts`) và nhánh T-013b (có các builder schema nhận `t`).
+- Giải quyết xung đột:
+  - Giữ toàn bộ định nghĩa builder schema nhận `t` và các schema mặc định trong `bout-schemas.ts`.
+  - Trong `bouts.ts`: chỉ import các builder schema từ `bout-schemas.ts`, giữ nguyên các action async dùng `getTranslator()` và gọi `validationError(parsed.error, t("form.fixFields"))`. Không để bất kỳ schema hoặc hàm đồng bộ nào được export từ `bouts.ts`.
+
+### Trích nguyên văn output của 3 lệnh
+
+#### 1. `pnpm --filter nextjs-frontend lint`
+
+```text
+$ eslint
+```
+
+(Exit code: 0)
+
+#### 2. `pnpm --filter nextjs-frontend typecheck`
+
+```text
+$ next typegen && tsc --noEmit
+Generating route types...
+✓ Types generated successfully
+```
+
+(Exit code: 0)
+
+#### 3. `pnpm --filter nextjs-frontend test`
+
+```text
+$ vitest run
+
+ RUN  v5.0.2 D:/test/ai-worktrees/T-013b/nextjs-frontend
+
+
+ Test Files  75 passed | 1 skipped (76)
+      Tests  653 passed | 1 skipped (654)
+   Start at  18:53:51
+   Duration  7.13s (import 50%, transform 31%, tests 16%, worker 2%)
+
+  Transform  transforming modules took 14.07s · 31% of tracked time, re-done on every run
+             persist transforms across runs with fsModuleCache: true
+             learn more: https://vitest.dev/guide/improving-performance#caching-between-reruns
+```
+
+(Exit code: 0, 75 test files passed, 653 tests passed)
+
