@@ -152,13 +152,13 @@ export function SessionListItem({ session, coachName, fighter, href, compact = f
                     {coachName && (
                         <li className="inline-flex items-center gap-1.5">
                             <UserRound aria-hidden className="size-3.5 text-fg-subtle" />
-                            <span className="sr-only">Coach </span>
+                            <span className="sr-only">{locale ? t("session.coachPrefix") : "Coach "}</span>
                             {coachName}
                         </li>
                     )}
                     <li className="inline-flex items-center gap-1.5">
                         <Gauge aria-hidden className="size-3.5 text-fg-subtle" />
-                        Target RPE {session.targetRpe}
+                        {locale ? t("session.targetRpe", { rpe: session.targetRpe ?? "" }) : `Target RPE ${session.targetRpe}`}
                     </li>
                 </ul>
             </div>

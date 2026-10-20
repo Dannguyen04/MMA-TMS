@@ -85,7 +85,12 @@ export function weightCheck(currentKg: number, weightClass: WeightClass, daysLef
 }
 
 /** "3.1 kg to cut" or "0.4 kg under the limit". */
-export function weightGapText(check: WeightCheck): string {
+export function weightGapText(check: WeightCheck, t?: Translator): string {
+    if (t) {
+        return check.onWeight
+            ? t("weightGap.underLimit", { kg: formatNumber(Math.abs(check.toCutKg), 1) })
+            : t("weightGap.toCut", { kg: formatNumber(check.toCutKg, 1) });
+    }
     return check.onWeight ? `${formatNumber(Math.abs(check.toCutKg), 1)} kg under the limit` : `${formatNumber(check.toCutKg, 1)} kg to cut`;
 }
 

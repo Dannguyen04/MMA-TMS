@@ -32,4 +32,9 @@ export const viAuth = {
     "auth.highlight.medicine.title": "Y học thể thao trong cùng hệ thống",
     "auth.highlight.medicine.text": "Chấn thương, kế hoạch hồi phục và cấp phép y tế nằm cùng chỗ với lịch tập.",
     "auth.privacy": "Dữ liệu y tế chỉ bác sĩ thể thao được phân công mới xem được.",
+    "auth.hidePassword": "Ẩn mật khẩu",
+    "auth.showPassword": "Hiện mật khẩu",
+    "auth.newPassword": "Mật khẩu mới",
+    "auth.confirmNewPassword": "Xác nhận mật khẩu mới",
+    "auth.newPasswordHint": "Từ {min} đến {max} ký tự. Ghép vài từ không liên quan để tạo mật khẩu mạnh.",
 } satisfies Record<keyof typeof enAuth, string>;

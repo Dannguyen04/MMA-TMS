@@ -1,6 +1,8 @@
 import { ArrowRight, Circle, CircleCheck } from "lucide-react";
 import Link from "next/link";
 
+import type { Locale } from "@/lib/i18n/config";
+import { createTranslator } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 
 export interface OnboardingStep {
@@ -13,7 +15,8 @@ export interface OnboardingStep {
 }
 
 /** One-line getting-started checklist for fighters who joined recently: every step at a glance, and the next one to do. */
-export function OnboardingStrip({ steps, className }: { steps: OnboardingStep[]; className?: string }) {
+export function OnboardingStrip({ steps, locale, className }: { steps: OnboardingStep[]; locale?: Locale; className?: string }) {
+    const t = createTranslator(locale ?? "en");
     const done = steps.filter((step) => step.done).length;
     const next = steps.find((step) => !step.done);
 
@@ -23,7 +26,7 @@ export function OnboardingStrip({ steps, className }: { steps: OnboardingStep[];
             className={cn("flex flex-col gap-3 rounded-xl border border-dashed border-border-strong bg-surface px-5 py-4 lg:flex-row lg:items-center lg:gap-6", className)}
         >
             <h2 id="getting-started-heading" className="shrink-0 font-display text-[16px] font-bold tracking-[0.06em] text-fg uppercase">
-                Getting started{" "}
+                {t("onboarding.title")}{" "}
                 <span className="text-fg-muted">
                     {done}/{steps.length}
                 </span>
@@ -36,7 +39,7 @@ export function OnboardingStrip({ steps, className }: { steps: OnboardingStep[];
                         ) : (
                             <Circle aria-hidden className="size-4 shrink-0 text-fg-subtle" />
                         )}
-                        <span className="sr-only">{step.done ? "Done: " : `Step ${index + 1}, to do: `}</span>
+                        <span className="sr-only">{step.done ? t("onboarding.donePrefix") : t("onboarding.stepPrefix", { step: index + 1 })}</span>
                         <span className={step.done ? "text-fg-muted" : "font-medium text-fg"}>{step.title}</span>
                     </li>
                 ))}

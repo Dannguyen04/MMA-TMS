@@ -41,7 +41,8 @@ export interface AINoticeProps {
 
 /** Standing reminder that AI output is assistive, worded for each audience. */
 export function AINotice({ audience, compact = false, locale, className }: AINoticeProps) {
-    const notice = locale && audience === "fighter" ? { ...NOTICES.fighter, body: createTranslator(locale)("aiNotice.fighter") } : NOTICES[audience];
+    const t = locale ? createTranslator(locale) : null;
+    const notice = t && audience === "fighter" ? { ...NOTICES.fighter, title: t("aiNotice.fighterTitle"), body: t("aiNotice.fighter") } : NOTICES[audience];
 
     if (compact) {
         return (

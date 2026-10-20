@@ -30,4 +30,9 @@ export const enAuth = {
     "auth.highlight.medicine.title": "Sports medicine built in",
     "auth.highlight.medicine.text": "Injuries, recovery plans and Medical Clearance in the same place as training.",
     "auth.privacy": "Medical data is only visible to assigned sports doctors.",
+    "auth.hidePassword": "Hide password",
+    "auth.showPassword": "Show password",
+    "auth.newPassword": "New password",
+    "auth.confirmNewPassword": "Confirm new password",
+    "auth.newPasswordHint": "{min} to {max} characters. A few unrelated words make a strong password.",
 } as const;
