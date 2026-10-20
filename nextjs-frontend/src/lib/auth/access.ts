@@ -33,6 +33,15 @@ export function canAccessFighterClinically(user: User, fighterId: string): boole
     return user.assignmentScope?.fighterIds.includes(fighterId) ?? false;
 }
 
+/**
+ * Kiểm tra phạm vi mà không đọc hồ sơ: dùng cho trang chỉ cần id võ sĩ, để trang không phải chờ 4 lệnh gọi của
+ * `getFighter` trước khi lấy dữ liệu của chính nó.
+ */
+export function requireFighterId(user: User, fighterId: string): string {
+    if (!canAccessFighter(user, fighterId)) notFound();
+    return fighterId;
+}
+
 /** Tải võ sĩ sau khi kiểm tra phạm vi; không tự suy diễn quyền từ dữ liệu demo. */
 export async function requireFighterAccess(user: User, fighterId: string): Promise<Fighter> {
     if (!canAccessFighter(user, fighterId)) notFound();
