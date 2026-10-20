@@ -32,7 +32,7 @@ export function Panel({ children, className, ...props }: { children: ReactNode; 
 }
 
 /** A small caption that marks illustrative numbers as sample data. */
-export function SampleTag({ children = "Sample analysis" }: { children?: ReactNode }) {
+export function SampleTag({ children }: { children?: ReactNode }) {
     return <span className="rounded-full border border-white/15 px-2 py-0.5 font-mono text-[10px] tracking-[0.14em] text-nav-fg/70 uppercase">{children}</span>;
 }
 
