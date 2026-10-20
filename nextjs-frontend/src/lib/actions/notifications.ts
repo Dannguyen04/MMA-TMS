@@ -3,10 +3,9 @@
 import { revalidatePath } from "next/cache";
 
 import { getSessionAccount } from "@/lib/auth/session";
+import { getTranslator } from "@/lib/i18n/server";
 import { canMarkAllNotificationsRead, markAllNotificationsRead, markNotificationRead, readerOf, type NotificationReader } from "@/lib/services/notifications";
 import { actionError, actionSuccess, type ActionState } from "./state";
-
-const SIGNED_OUT = "Your session has expired. Sign in again.";
 
 async function signedInReader(): Promise<NotificationReader | null> {
     const account = await getSessionAccount();
@@ -14,18 +13,22 @@ async function signedInReader(): Promise<NotificationReader | null> {
 }
 
 export async function markAllRead(): Promise<ActionState> {
-    const reader = await signedInReader();
-    if (!reader) return actionError(SIGNED_OUT);
-    if (!canMarkAllNotificationsRead()) return actionError("Notifications can only be marked read one at a time for now.");
+    const [reader, { t }] = await Promise.all([signedInReader(), getTranslator()]);
+    if (!reader) return actionError(t("notifications.error.sessionExpired"));
+    if (!canMarkAllNotificationsRead()) return actionError(t("notifications.error.oneAtATime"));
     const count = await markAllNotificationsRead(reader);
     revalidatePath("/", "layout");
-    return actionSuccess(count === 0 ? "You're all caught up." : `Marked ${count} notification${count === 1 ? "" : "s"} as read.`);
+    return actionSuccess(
+        count === 0
+            ? t("notifications.allCaughtUp")
+            : t(count === 1 ? "notifications.markedMultipleRead" : "notifications.markedMultipleRead.plural", { count }),
+    );
 }
 
 export async function markRead(notificationId: string): Promise<ActionState> {
-    const reader = await signedInReader();
-    if (!reader) return actionError(SIGNED_OUT);
-    if (!(await markNotificationRead(reader, notificationId))) return actionError("That notification no longer exists.");
+    const [reader, { t }] = await Promise.all([signedInReader(), getTranslator()]);
+    if (!reader) return actionError(t("notifications.error.sessionExpired"));
+    if (!(await markNotificationRead(reader, notificationId))) return actionError(t("notifications.error.notFound"));
     revalidatePath("/", "layout");
-    return actionSuccess("Marked as read.");
+    return actionSuccess(t("notifications.markedRead"));
 }

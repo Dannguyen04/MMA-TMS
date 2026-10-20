@@ -12,18 +12,23 @@ import {
     MissingProfileCard,
     type RosterEntry,
 } from "@/components/account/staff-profile-cards";
+import { presentFacts } from "@/components/domain/domain-format";
 import { PageHeader } from "@/components/ui/page-header";
 import { requireFighterAccess } from "@/lib/auth/access";
 import { requireUser } from "@/lib/auth/session";
-import { presentFacts } from "@/components/domain/domain-format";
 import { WEIGHT_CLASS_LABELS } from "@/lib/domain/labels";
 import type { Fighter, User } from "@/lib/domain/types";
+import type { Locale } from "@/lib/i18n/config";
+import { getTranslator } from "@/lib/i18n/server";
 import { routes } from "@/lib/routes";
 import { listPermissionCatalog, listRoleDefinitions } from "@/lib/services/admin";
 import { coachesForFighter, doctorsForFighter, getCoachByUserId, getDoctorByUserId, listFighters } from "@/lib/services/people";
 import { platformFeatureAvailable } from "@/lib/services/platform-features";
 
-export const metadata: Metadata = { title: "Profile" };
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return { title: t("account.profile.title") };
+}
 
 interface RoleSections {
     facts?: string[];
@@ -33,16 +38,16 @@ interface RoleSections {
 }
 
 export default async function ProfilePage() {
-    const user = await requireUser();
+    const [user, { t, locale }] = await Promise.all([requireUser(), getTranslator()]);
     const now = new Date().toISOString();
-    const sections = await roleSections(user, now);
+    const sections = await roleSections(user, now, locale);
 
     return (
         <>
-            <PageHeader title="Profile" description="Your account details and how you appear to the rest of the academy." />
+            <PageHeader title={t("account.profile.title")} description={t("account.profile.description")} />
             <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                 <div className="flex min-w-0 flex-col gap-6 lg:col-span-2">
-                    <ProfileIdentityCard user={user} nickname={sections.nickname} facts={sections.facts} now={now} />
+                    <ProfileIdentityCard user={user} nickname={sections.nickname} facts={sections.facts} now={now} locale={locale} />
                     {sections.main}
                 </div>
                 <div className="flex min-w-0 flex-col gap-6">
@@ -54,10 +59,10 @@ export default async function ProfilePage() {
     );
 }
 
-async function roleSections(user: User, now: string): Promise<RoleSections> {
+async function roleSections(user: User, now: string, locale: Locale): Promise<RoleSections> {
     switch (user.role) {
         case "fighter": {
-            if (!user.profileId) return { main: <MissingProfileCard kind="fighter" /> };
+            if (!user.profileId) return { main: <MissingProfileCard kind="fighter" locale={locale} /> };
             const fighter = await requireFighterAccess(user, user.profileId);
             const [coaches, doctors] = await Promise.all([coachesForFighter(fighter.id), doctorsForFighter(fighter.id)]);
             return {
@@ -65,34 +70,34 @@ async function roleSections(user: User, now: string): Promise<RoleSections> {
                 facts: presentFacts(fighter.primaryDiscipline, WEIGHT_CLASS_LABELS[fighter.weightClass], fighter.nationality),
                 main: (
                     <>
-                        <BodyMetricsCard fighter={fighter} canLog={platformFeatureAvailable("bodyMetrics")} />
-                        <FightProfileCard fighter={fighter} now={now} />
-                        <CareTeamCard coaches={coaches} doctors={doctors} primaryCoachId={fighter.primaryCoachId} />
+                        <BodyMetricsCard fighter={fighter} canLog={platformFeatureAvailable("bodyMetrics")} locale={locale} />
+                        <FightProfileCard fighter={fighter} now={now} locale={locale} />
+                        <CareTeamCard coaches={coaches} doctors={doctors} primaryCoachId={fighter.primaryCoachId} locale={locale} />
                     </>
                 ),
             };
         }
         case "coach": {
             const [coach, fighters] = await Promise.all([getCoachByUserId(user.id), listFighters(user)]);
-            if (!coach) return { main: <MissingProfileCard kind="coaching" /> };
+            if (!coach) return { main: <MissingProfileCard kind="coaching" locale={locale} /> };
             return {
                 facts: presentFacts(coach.specialty),
-                main: <CoachProfileCard coach={coach} rosterHref={routes.coach.fighters} roster={toRoster(fighters, routes.coach.fighter)} />,
+                main: <CoachProfileCard coach={coach} rosterHref={routes.coach.fighters} roster={toRoster(fighters, routes.coach.fighter)} locale={locale} />,
             };
         }
         case "doctor": {
             const [doctor, fighters] = await Promise.all([getDoctorByUserId(user.id), listFighters(user)]);
-            if (!doctor) return { main: <MissingProfileCard kind="clinical" /> };
+            if (!doctor) return { main: <MissingProfileCard kind="clinical" locale={locale} /> };
             return {
                 facts: presentFacts(doctor.specialty),
-                main: <DoctorProfileCard doctor={doctor} patientsHref={routes.doctor.fighters} roster={toRoster(fighters, routes.doctor.fighter)} />,
+                main: <DoctorProfileCard doctor={doctor} patientsHref={routes.doctor.fighters} roster={toRoster(fighters, routes.doctor.fighter)} locale={locale} />,
             };
         }
         case "admin": {
             const [roles, catalog] = await Promise.all([listRoleDefinitions(), listPermissionCatalog()]);
             const role = roles.find((definition) => definition.role === user.role);
             return {
-                main: role ? <AccessSummaryCard role={role} catalog={catalog} rolesHref={routes.admin.roles} /> : null,
+                main: role ? <AccessSummaryCard role={role} catalog={catalog} rolesHref={routes.admin.roles} locale={locale} /> : null,
             };
         }
     }
