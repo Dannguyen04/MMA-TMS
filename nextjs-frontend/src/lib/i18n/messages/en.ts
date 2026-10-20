@@ -104,6 +104,7 @@ export const en = {
     "bout.weighInDone": "Weigh-in done",
     "bout.detailsTitle": "Fight details",
     "bout.weighIn": "Weigh-in",
+    "bout.loading": "Loading your bout",
     "bout.boutTime": "Bout",
     "bout.venue": "Venue",
     "bout.noneTitle": "No upcoming bout",
@@ -172,9 +173,14 @@ export const en = {
     "weighIn.error.notFighter": "Only fighters can log their own weight.",
     "weighIn.error.forbidden": "Your account can't log weigh-ins yet. Ask your coach to log it for now.",
     "weighIn.error.noProfile": "Your fighter profile wasn't found.",
+    "weighIn.loading": "Loading weigh-in",
 
     "form.fixFields": "Please fix the highlighted fields.",
+    "validation.maxChars": "Keep the {label} under {max} characters.",
     "common.cancel": "Cancel",
     "common.closeDialog": "Close dialog",
     "common.dismissNotification": "Dismiss notification",
+    "error.global.title": "MMA-TMS is temporarily unavailable",
+    "error.global.description": "An unexpected error stopped the app from loading. Please try again.",
+    "error.global.retry": "Try again",
 } as const;
