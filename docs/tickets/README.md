@@ -41,8 +41,7 @@ Demo ở review 2 chạy với **backend thật** trên Supabase hiện có ([qu
 | T-012 | Demo AI ngắn: chạy worker hiện có trên một video có sẵn, kịch bản trình bày ([quyết định 16](../SCOPE-FIGHT-CAMP.md#quyết-định-và-câu-hỏi)) | Worker | BE1 | Sau T-006 | DRAFT. Làm 27–29/10 |
 | T-008 | Dữ liệu demo cho kịch bản 3, 4 (bổ sung T-008a); chủ dự án áp migration 025–027 | Backend | BE2 | T-007, T-009, T-010 | DRAFT |
 | [T-022](./T-022-punch-detector-recall.md) | Tăng recall của detector đấm trong worker; đo trên dữ liệu công khai BoxingVI, giữ riêng tập test ([quyết định 20](../SCOPE-FIGHT-CAMP.md#quyết-định-và-câu-hỏi)) | Worker | Gemini | — (nên xong trước 26/10 để T-012 biết dùng detector nào) | READY (20/10) |
-| [T-023](./T-023-plan-templates-backend.md) | Template plan: danh sách template và tạo plan kèm buổi tập trong một giao dịch, MMA 6 tuần và Boxing 6 tuần ([quyết định 21](../SCOPE-FIGHT-CAMP.md#quyết-định-và-câu-hỏi)); không migration | Backend | BE2 | — | READY (20/10) |
-| [T-024](./T-024-plan-templates-ui.md) | Màn tạo plan cho HLV: chọn template, xem trước lịch, tạo | Frontend | FE | Contract của T-023 (làm demo mode trước được) | READY (20/10) |
+| [T-026](./T-026-session-templates.md) | Mẫu giáo án (buổi tập) trong form tạo buổi tập `/coach/sessions/new`, theo bản demo `concept/fight-camp` ([quyết định 21](../SCOPE-FIGHT-CAMP.md#quyết-định-và-câu-hỏi)); chỉ frontend, không migration | Frontend | FE | Phối hợp với T-015 (cùng sửa `session-form.tsx`) | READY (20/10) |
 
 Số migration 025, 026, 027 cố định; mỗi migration chỉ yêu cầu ledger đã có 024 ([Tech spec §8](../FIGHT-CAMP-TECH-SPEC.md#8-migration)), nên ticket nào xong trước cũng merge được mà giữ đúng số của mình. Nếu đến 27/10 chưa xong thì cắt theo thứ tự ở [Luồng nghiệp vụ §8](../FIGHT-CAMP-BUSINESS-FLOWS.md#lịch-làm-và-thứ-tự-cắt-khi-trễ). Tổng duyệt demo ngày 30/10.
 

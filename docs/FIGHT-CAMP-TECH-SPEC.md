@@ -489,4 +489,4 @@ Theo quy ước trong [migrations/README.md](../nestjs-api/migrations/README.md)
 | 8 | Dữ liệu demo cho 4 kịch bản qua API của backend (kịch bản 1, 2 có từ Sprint 1 cho review 1); gỡ route concept | 1, 2 |
 | 9 | Migration 026 + kế hoạch ăn, câu trả lời ăn uống, chấm màu trên biểu đồ cân (§2.7) | 2 |
 | 10 | Migration 027 + phân tích đối thủ, tab "Đối thủ" (§2.8) | 2 |
-| — | Màn Admin bật/tắt chế độ; `data_consents` (§6b); ghi buổi tập nhanh; thông báo và job hằng ngày; `goals.bout_id` | Cắt |
+| — | Màn Admin bật/tắt chế độ; `data_consents` (§6b); camp từ template; ghi buổi tập nhanh; thông báo và job hằng ngày; `goals.bout_id` | Cắt |
