@@ -3,7 +3,7 @@ import { ListTodo, type LucideIcon } from "lucide-react";
 import { AttentionList, type AttentionItem } from "@/components/medical/attention-list";
 import { Card, CardFooter, CardHeader } from "@/components/ui/card";
 import { SegmentedLinks } from "@/components/ui/segmented-links";
-import { pluralize } from "@/lib/format";
+import { createTranslator, plural, type Translator } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 
 /** The unfiltered queue shows this many; picking a group shows all of it. */
@@ -31,6 +31,8 @@ export interface QueueCardProps<Q extends string> {
     hrefFor: (queue: Q | null) => string;
     /** What the whole queue says when nothing is waiting. */
     emptyAll: { title: string; description: string };
+    /** The viewer's language; English when omitted. */
+    t?: Translator;
     className?: string;
 }
 
@@ -38,7 +40,18 @@ export interface QueueCardProps<Q extends string> {
  * A role's Today queue (coach corner queue, doctor triage): one list, most urgent first, filtered by group through the
  * URL. Empty groups stay out of the filter unless they're the one selected.
  */
-export function QueueCard<Q extends string>({ title, filterLabel, items, queues, meta, active, hrefFor, emptyAll, className }: QueueCardProps<Q>) {
+export function QueueCard<Q extends string>({
+    title,
+    filterLabel,
+    items,
+    queues,
+    meta,
+    active,
+    hrefFor,
+    emptyAll,
+    t = createTranslator("en"),
+    className,
+}: QueueCardProps<Q>) {
     const inQueue = active ? items.filter((item) => item.group === active) : items;
     const shown = active ? inQueue : inQueue.slice(0, QUEUE_PREVIEW);
 
@@ -47,14 +60,14 @@ export function QueueCard<Q extends string>({ title, filterLabel, items, queues,
             <CardHeader
                 title={title}
                 icon={<ListTodo />}
-                description={items.length > 0 ? `${pluralize(items.length, "item")}, most urgent first` : "All clear — nothing needs you right now"}
+                description={items.length > 0 ? plural(t, "queue.items", items.length) : t("queue.allClear")}
             />
             {items.length > 0 && (
                 <div className="border-t border-border px-5 py-3">
                     <SegmentedLinks
                         label={filterLabel}
                         items={[
-                            { href: hrefFor(null), label: "All", count: items.length, active: !active },
+                            { href: hrefFor(null), label: t("queue.all"), count: items.length, active: !active },
                             ...queues
                                 .map((queue) => ({
                                     href: hrefFor(queue),
@@ -71,7 +84,7 @@ export function QueueCard<Q extends string>({ title, filterLabel, items, queues,
             <AttentionList items={shown} empty={active ? meta[active].empty : emptyAll} className="border-t border-border" />
             {!active && inQueue.length > shown.length && (
                 <CardFooter className="text-fg-muted">
-                    Showing the {shown.length} most urgent of {inQueue.length}. Pick a group above to see the rest.
+                    {t("queue.showing", { shown: shown.length, total: inQueue.length })}
                 </CardFooter>
             )}
         </Card>

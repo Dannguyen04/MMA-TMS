@@ -3,6 +3,7 @@
 import { CircleAlert, CircleCheck, Info, TriangleAlert, X } from "lucide-react";
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
 
+import { useT } from "@/components/i18n/locale-provider";
 import { cn } from "@/lib/utils";
 
 type ToastTone = "success" | "error" | "warning" | "info";
@@ -34,6 +35,7 @@ const ICON_CLASS: Record<ToastTone, string> = {
  * ConfirmDialog `error`) and fire success toasts only after the dialog has closed.
  */
 export function ToastProvider({ children }: { children: ReactNode }) {
+    const t = useT();
     const [toasts, setToasts] = useState<ToastItem[]>([]);
     const counter = useRef(0);
 
@@ -78,7 +80,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                                 type="button"
                                 onClick={() => dismiss(toast.id)}
                                 className="-m-1 rounded-md p-1 text-fg-subtle hover:bg-surface-hover hover:text-fg"
-                                aria-label="Dismiss notification"
+                                aria-label={t("common.dismissNotification")}
                             >
                                 <X aria-hidden className="size-4" />
                             </button>

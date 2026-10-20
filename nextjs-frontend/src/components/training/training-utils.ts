@@ -3,6 +3,7 @@ import { isDueSession } from "@/lib/domain/training-plan";
 import type { Exercise, MedicalClearance, SessionExercise, TrainingPlan, TrainingProgress, TrainingSession } from "@/lib/domain/types";
 import { addDaysToKey, dayKey, formatClock, isDateKey, pluralize } from "@/lib/format";
 import { sortItems, type SortDirection } from "@/lib/query";
+import type { MessageKey, Translator } from "@/lib/i18n/translate";
 import { clamp } from "@/lib/utils";
 
 /**
@@ -25,6 +26,13 @@ export function sessionMinutes(session: Pick<TrainingSession, "durationMin" | "r
 }
 
 /** "RPE 7 · Hard", or null when no intensity was set. */
+/** `rpeText` in the viewer's language. */
+export function rpeTextFor(t: Translator, rpe: number | null): string | null {
+    if (rpe === null) return null;
+    const step = clamp(Math.round(rpe), 1, 10);
+    return t("rpe.text", { n: rpe, label: t(`rpe.${step}` as MessageKey) });
+}
+
 export function rpeText(rpe: number | null): string | null {
     return rpe === null ? null : `RPE ${rpe} · ${rpeLabel(rpe)}`;
 }

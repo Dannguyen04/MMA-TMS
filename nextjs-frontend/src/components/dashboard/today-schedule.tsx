@@ -7,10 +7,11 @@ import { Avatar } from "@/components/ui/avatar";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/states";
-import { TRAINING_TYPE_LABELS } from "@/lib/domain/labels";
 import type { ClearanceState } from "@/lib/domain/rules";
 import type { TrainingSession } from "@/lib/domain/types";
 import { formatMinutes, formatTime } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
+import { createTranslator, type Translator } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { CardLink } from "./card-link";
@@ -19,31 +20,38 @@ export interface TodayScheduleProps {
     /** Today's roster sessions, earliest first. */
     sessions: TrainingSession[];
     fighters: Record<string, { name: string; clearanceState: ClearanceState }>;
+    /** The viewer's language; English when omitted. */
+    t?: Translator;
+    locale?: Locale;
     className?: string;
 }
 
 /** Every session on today's roster calendar: time, who, what, status and the fighter's clearance. */
-export function TodaySchedule({ sessions, fighters, className }: TodayScheduleProps) {
+export function TodaySchedule({ sessions, fighters, t = createTranslator("en"), locale, className }: TodayScheduleProps) {
     const active = sessions.filter((session) => session.status !== "cancelled").length;
 
     return (
         <Card className={cn("flex min-w-0 flex-col", className)}>
             <CardHeader
-                title="Today's schedule"
-                description={sessions.length === 0 ? "Nothing on the calendar" : `${active} planned${active === sessions.length ? "" : ` · ${sessions.length - active} cancelled`}`}
+                title={t("schedule.title")}
+                description={
+                    sessions.length === 0
+                        ? t("schedule.nothing")
+                        : [t("schedule.planned", { n: active }), active === sessions.length ? null : t("schedule.cancelled", { n: sessions.length - active })].filter(Boolean).join(" · ")
+                }
                 icon={<CalendarRange />}
-                action={<CardLink href={routes.coach.sessions}>Week</CardLink>}
+                action={<CardLink href={routes.coach.sessions}>{t("schedule.week")}</CardLink>}
             />
             {sessions.length === 0 ? (
                 <EmptyState
                     compact
                     icon={<CalendarRange />}
-                    title="No sessions today"
-                    description="A quiet day on the roster. Schedule a session or plan ahead for the week."
+                    title={t("schedule.emptyTitle")}
+                    description={t("schedule.emptyText")}
                     action={
                         <ButtonLink href={routes.coach.newSession} variant="secondary" size="sm">
                             <CalendarPlus aria-hidden />
-                            Schedule session
+                            {t("coachToday.scheduleSession")}
                         </ButtonLink>
                     }
                     className="flex-1 pt-2"
@@ -79,11 +87,11 @@ export function TodaySchedule({ sessions, fighters, className }: TodaySchedulePr
                                             </>
                                         )}
                                         <TrainingTypeIcon type={session.type} className="size-3.5 text-fg-subtle" />
-                                        <span className="truncate">{TRAINING_TYPE_LABELS[session.type]}</span>
+                                        <span className="truncate">{t(`trainingType.${session.type}`)}</span>
                                     </p>
                                     <div className="mt-1.5 flex flex-wrap gap-1.5">
-                                        <SessionStatusBadge status={session.status} size="sm" />
-                                        {fighter && <ClearanceBadge state={fighter.clearanceState} size="sm" />}
+                                        <SessionStatusBadge status={session.status} size="sm" locale={locale} />
+                                        {fighter && <ClearanceBadge state={fighter.clearanceState} size="sm" locale={locale} />}
                                     </div>
                                 </div>
                             </li>

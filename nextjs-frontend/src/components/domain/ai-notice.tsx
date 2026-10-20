@@ -2,6 +2,8 @@ import { Info, Sparkles, type LucideIcon } from "lucide-react";
 
 import { InlineNote } from "@/components/dashboard/inline-note";
 import { Callout } from "@/components/training/callout";
+import type { Locale } from "@/lib/i18n/config";
+import { createTranslator } from "@/lib/i18n/translate";
 
 export type AINoticeAudience = "coach" | "fighter" | "doctor" | "admin";
 
@@ -30,14 +32,16 @@ const NOTICES: Record<AINoticeAudience, { title: string; body: string; icon: Luc
 
 export interface AINoticeProps {
     audience: AINoticeAudience;
+    /** The viewer's language; only the fighter notice is translated so far. */
+    locale?: Locale;
     /** Single-line variant without the title, for tight panels. */
     compact?: boolean;
     className?: string;
 }
 
 /** Standing reminder that AI output is assistive, worded for each audience. */
-export function AINotice({ audience, compact = false, className }: AINoticeProps) {
-    const notice = NOTICES[audience];
+export function AINotice({ audience, compact = false, locale, className }: AINoticeProps) {
+    const notice = locale && audience === "fighter" ? { ...NOTICES.fighter, body: createTranslator(locale)("aiNotice.fighter") } : NOTICES[audience];
 
     if (compact) {
         return (

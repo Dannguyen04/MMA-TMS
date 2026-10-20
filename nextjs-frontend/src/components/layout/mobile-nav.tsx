@@ -6,7 +6,8 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { Logo } from "@/components/brand/logo";
-import { ROLE_LABELS } from "@/lib/domain/labels";
+import { useT } from "@/components/i18n/locale-provider";
+import { navLabel } from "@/lib/i18n/translate";
 import type { Role } from "@/lib/domain/types";
 import { cn } from "@/lib/utils";
 import { BADGE_LABELS, isNavItemActive, mobilePrimaryItems } from "./navigation";
@@ -15,6 +16,7 @@ import { SidebarNav, type NavCounts } from "./sidebar-nav";
 /** Hamburger + slide-in navigation drawer for small and medium screens. */
 export function MobileNavDrawer({ role, counts }: { role: Role; counts: NavCounts }) {
     const [open, setOpen] = useState(false);
+    const t = useT();
     const dialogRef = useRef<HTMLDialogElement>(null);
     const pathname = usePathname();
     const [lastPath, setLastPath] = useState(pathname);
@@ -37,14 +39,14 @@ export function MobileNavDrawer({ role, counts }: { role: Role; counts: NavCount
                 type="button"
                 onClick={() => setOpen(true)}
                 className="inline-flex size-9 items-center justify-center rounded-lg text-fg-muted hover:bg-surface-hover hover:text-fg lg:hidden"
-                aria-label="Open navigation"
+                aria-label={t("shell.openNav")}
                 aria-expanded={open}
             >
                 <Menu aria-hidden className="size-5" />
             </button>
             <dialog
                 ref={dialogRef}
-                aria-label="Navigation"
+                aria-label={t("shell.navigation")}
                 onCancel={(event) => {
                     event.preventDefault();
                     setOpen(false);
@@ -62,12 +64,12 @@ export function MobileNavDrawer({ role, counts }: { role: Role; counts: NavCount
                                 type="button"
                                 onClick={() => setOpen(false)}
                                 className="inline-flex size-9 items-center justify-center rounded-lg text-rail-fg hover:bg-rail-active-bg hover:text-rail-fg-strong"
-                                aria-label="Close navigation"
+                                aria-label={t("shell.closeNav")}
                             >
                                 <X aria-hidden className="size-5" />
                             </button>
                         </div>
-                        <p className="mb-4 px-3 font-display text-[13px] font-bold tracking-[0.1em] text-rail-muted uppercase">{ROLE_LABELS[role]} workspace</p>
+                        <p className="mb-4 px-3 font-display text-[13px] font-bold tracking-[0.1em] text-rail-muted uppercase">{t("shell.workspace", { role: t(`role.${role}`) })}</p>
                         <div className="scrollbar-thin flex min-h-0 flex-1 flex-col overflow-y-auto py-1 pr-1 pl-3">
                             <SidebarNav role={role} counts={counts} onNavigate={() => setOpen(false)} />
                         </div>
@@ -78,16 +80,17 @@ export function MobileNavDrawer({ role, counts }: { role: Role; counts: NavCount
     );
 }
 
-const GRID_COLS: Record<number, string> = { 4: "grid-cols-4", 5: "grid-cols-5" };
+const GRID_COLS: Record<number, string> = { 4: "grid-cols-4", 5: "grid-cols-5", 6: "grid-cols-6" };
 
 /** Thumb-reachable bar with the role's hubs (admin: its four most-used pages). */
 export function MobileBottomBar({ role, counts }: { role: Role; counts: NavCounts }) {
     const pathname = usePathname();
     const items = mobilePrimaryItems(role);
+    const t = useT();
 
     return (
         <nav
-            aria-label="Primary"
+            aria-label={t("shell.primaryNav")}
             className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
         >
             <ul className={cn("grid", GRID_COLS[items.length] ?? "grid-cols-4")}>
@@ -109,7 +112,7 @@ export function MobileBottomBar({ role, counts }: { role: Role; counts: NavCount
                                 <span className="relative">
                                     <Icon aria-hidden className="size-5" />
                                 </span>
-                                <span className="max-w-full truncate px-1">{item.shortLabel ?? item.label}</span>
+                                <span className="max-w-full truncate px-1">{navLabel(t, item.shortLabel ?? item.label)}</span>
                                 {count > 0 && item.badge && (
                                     <span className="absolute top-1.5 left-1/2 ml-1.5 min-w-4 rounded-full bg-danger-solid px-1 text-center text-[10px] leading-4 text-white">
                                         <span className="sr-only"> </span>

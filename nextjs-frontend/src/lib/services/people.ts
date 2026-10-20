@@ -401,6 +401,38 @@ async function latestMeasurement(fighterId: string): Promise<z.output<typeof mea
     return measurements.reduce<z.output<typeof measurementSchema> | null>((latest, m) => (!latest || m.measuredAt > latest.measuredAt ? m : latest), null);
 }
 
+export type RecordSelfWeightResult = { ok: true; weightKg: number; measuredAt: string } | { ok: false; code: "forbidden" | "not_found"; message: string };
+
+/**
+ * A fighter's own morning weigh-in (`POST /fighters/:id/measurements`, `SELF_REPORTED`). Two weigh-ins on the
+ * same academy day both stay on record; the weight track keeps the latest one per day.
+ */
+export async function recordSelfWeight(fighterId: string, weightKg: number): Promise<RecordSelfWeightResult> {
+    if (!isDemoAuthEnabled()) {
+        try {
+            const saved = await authenticatedMutableApiRequest(`/fighters/${encodeURIComponent(fighterId)}/measurements`, measurementSchema, {
+                method: "POST",
+                body: JSON.stringify({ weightKg, measurementContext: "SELF_REPORTED" }),
+            });
+            return { ok: true, weightKg: saved.weightKg, measuredAt: saved.measuredAt };
+        } catch (error) {
+            if (error instanceof ApiError && error.status === 403) return { ok: false, code: "forbidden", message: "Your account can't log weigh-ins yet. Ask your coach to log it for now." };
+            if (isNotFound(error)) return { ok: false, code: "not_found", message: "Your fighter profile wasn't found." };
+            throw error;
+        }
+    }
+    const { db, newId, nowIso, simulateLatency } = await import("@/lib/mocks/db");
+    await simulateLatency(0.5);
+    const store = db();
+    const fighter = store.fighters.find((item) => item.id === fighterId);
+    if (!fighter) return { ok: false, code: "not_found", message: "Your fighter profile wasn't found." };
+    const measuredAt = nowIso();
+    // The bouts demo reads this store for every weight track, so the new weigh-in shows on the badge and chart at once.
+    store.boutMeasurements.push({ id: newId("m"), fighterId, measuredAt, weightKg });
+    fighter.weightKg = weightKg;
+    return { ok: true, weightKg, measuredAt };
+}
+
 /*
  * The API has no coach or doctor directory. In API mode staff come from the assignment periods of the fighters the
  * caller can see: that gives each person's profile id, name and current fighters, and nothing more. Fields the

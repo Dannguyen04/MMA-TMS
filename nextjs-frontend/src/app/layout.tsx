@@ -2,8 +2,10 @@ import type { Metadata, Viewport } from "next";
 import { Barlow_Condensed, Be_Vietnam_Pro, Geist_Mono } from "next/font/google";
 import { cookies } from "next/headers";
 
+import { LocaleProvider } from "@/components/i18n/locale-provider";
 import { ToastProvider } from "@/components/ui/toast";
 import { THEME_COOKIE, parseTheme } from "@/lib/auth/constants";
+import { LOCALE_COOKIE, parseLocale } from "@/lib/i18n/config";
 import "./globals.css";
 
 // Only Latin is preloaded; the Vietnamese subset is still self-hosted and loads when a page needs it.
@@ -42,12 +44,16 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-    const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
+    const store = await cookies();
+    const theme = parseTheme(store.get(THEME_COOKIE)?.value);
+    const locale = parseLocale(store.get(LOCALE_COOKIE)?.value);
 
     return (
-        <html lang="en" data-theme={theme} className={`${beVietnam.variable} ${barlow.variable} ${geistMono.variable} h-full antialiased`}>
+        <html lang={locale} data-theme={theme} className={`${beVietnam.variable} ${barlow.variable} ${geistMono.variable} h-full antialiased`}>
             <body className="min-h-full bg-bg text-fg">
-                <ToastProvider>{children}</ToastProvider>
+                <LocaleProvider locale={locale}>
+                    <ToastProvider>{children}</ToastProvider>
+                </LocaleProvider>
             </body>
         </html>
     );
