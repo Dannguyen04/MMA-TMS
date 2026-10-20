@@ -5,7 +5,7 @@
 
 Tài liệu này mô tả **ai làm gì, khi nào, app kiểm tra gì** trong vòng đời một trận, tức là phạm vi đã chốt: quản lý võ sĩ trước, trong và sau trận đấu. Dev dùng nó để viết rule và test, QA dùng phần tiêu chí nghiệm thu. Chỗ nào chưa chốt thì ghi **[Chờ chốt]** và trỏ tới câu hỏi ở [SCOPE-FIGHT-CAMP.md](./SCOPE-FIGHT-CAMP.md#quyết-định-và-câu-hỏi).
 
-**Phạm vi trước 31/10:** một số phần dưới đây (thông báo, camp tự sinh từ template, ghi buổi tập nhanh, màn Admin bật/tắt chế độ không có bác sĩ) đã được cắt khỏi đợt đồ án; xem [Phạm vi – Cắt khỏi đợt đồ án](./SCOPE-FIGHT-CAMP.md#cắt-khỏi-đợt-đồ-án). Thiết kế vẫn giữ để làm sau.
+**Phạm vi trước 31/10:** một số phần dưới đây (thông báo, ghi buổi tập nhanh, màn Admin bật/tắt chế độ không có bác sĩ) đã được cắt khỏi đợt đồ án (tạo plan từ template đã mở lại ngày 20/10, quyết định 21); xem [Phạm vi – Cắt khỏi đợt đồ án](./SCOPE-FIGHT-CAMP.md#cắt-khỏi-đợt-đồ-án). Thiết kế vẫn giữ để làm sau.
 
 Tài liệu này thay [BUSINESS-FLOWS.md](./BUSINESS-FLOWS.md) cho phần fight camp. Các luồng cũ (tuyển võ sĩ, cổng Doctor đầy đủ, AI review) vẫn giữ nguyên nhưng đang đóng băng.
 
@@ -30,7 +30,7 @@ Mục tiêu: đưa võ sĩ vào tuần thi đấu đúng hạng cân và đủ h
 | Việc | Ai làm | App ghi lại và kiểm tra | Luồng | Đợt đồ án |
 | --- | --- | --- | --- | --- |
 | Tạo trận: giải, ruleset, hạng cân (kg), giờ cân, giờ thi, đối thủ | HLV | Giờ cân trước giờ thi; võ sĩ thuộc phạm vi HLV; sinh checklist hồ sơ từ ruleset; cảnh báo nếu đình chỉ của võ sĩ kéo dài quá ngày thi | F1 | Làm |
-| Gắn camp, bắt đầu camp | HLV | Plan của cùng võ sĩ, phase `fight_camp`; mỗi võ sĩ tối đa một trận đang chạy | F2 | Làm: gắn plan có sẵn. Tự sinh camp từ template: cắt |
+| Gắn camp, bắt đầu camp | HLV | Plan của cùng võ sĩ, phase `fight_camp`; mỗi võ sĩ tối đa một trận đang chạy | F2 | Làm: gắn plan có sẵn; tạo plan từ template ở màn tạo plan (T-023, T-024), nối vào trận sau |
 | Ghi cân mỗi sáng | Võ sĩ, hoặc HLV ghi hộ | Mỗi ngày học viện chỉ giữ một số; trạng thái xanh / vàng / đỏ / xám | F3 | Làm: cảnh báo hiện trên dashboard, không gửi thông báo |
 | Cập nhật checklist hồ sơ | HLV; bác sĩ xác nhận nếu có | Trạng thái, ngày cấp, hạn hiệu lực; mục HLV thêm mang nhãn "HLV nhập, chưa xác minh" | F4 | Làm: chưa có quyền xác nhận của bác sĩ |
 | Đổi ngày, đổi hạng cân | HLV | Tính lại hạn nộp hồ sơ, ngưỡng cảnh báo cân, hiệu lực hồ sơ đến ngày thi mới | F8 | Làm |
