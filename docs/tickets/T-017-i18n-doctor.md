@@ -2,7 +2,7 @@
 
 | | |
 | --- | --- |
-| **Trạng thái** | DRAFT (Claude viết 20/10). Làm sau T-016 |
+| **Trạng thái** | READY (chủ dự án duyệt 20/10). Làm sau T-016 |
 | **Phần** | Frontend (`nextjs-frontend`) |
 | **Nhánh** | `feat/T-017-i18n-doctor` từ `fight-camp` mới nhất (sau khi T-016 đã merge) |
 | **Thuộc** | Phần 3 của [T-013](./T-013-i18n-vi.md). Mục "Thiết kế" và "Quy ước khi dịch" của T-013 áp dụng nguyên văn |

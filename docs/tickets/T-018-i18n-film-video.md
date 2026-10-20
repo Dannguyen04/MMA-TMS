@@ -2,7 +2,7 @@
 
 | | |
 | --- | --- |
-| **Trạng thái** | DRAFT (Claude viết 20/10) |
+| **Trạng thái** | READY (chủ dự án duyệt 20/10) |
 | **Phần** | Frontend (`nextjs-frontend`) |
 | **Nhánh** | `feat/T-018-i18n-film-video` từ `fight-camp` mới nhất |
 | **Thuộc** | Phần 3 của [T-013](./T-013-i18n-vi.md). Mục "Thiết kế" và "Quy ước khi dịch" của T-013 áp dụng nguyên văn |
