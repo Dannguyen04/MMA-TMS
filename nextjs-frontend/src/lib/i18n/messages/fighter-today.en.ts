@@ -1,6 +1,7 @@
 /** English text for the fighter's Today page and the shared pieces it uses (agenda, feedback, video badges). */
 export const enFighterToday = {
     "fighterToday.uploadVideo": "Upload video",
+    "fighterToday.loading": "Loading your day",
     "fighterToday.readiness": "Readiness",
     "fighterToday.medicalClearance": "Medical Clearance",
     "fighterToday.health": "Health",

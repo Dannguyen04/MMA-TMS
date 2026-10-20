@@ -40,6 +40,7 @@ export const viCoachToday = {
     "queue.all": "Tất cả",
     "queue.showing": "Đang hiện {shown}/{total} việc gấp nhất. Chọn một nhóm ở trên để xem hết.",
 
+    "coachToday.loading": "Đang tải hôm nay",
     "coachToday.description": "{fighters} · {sessions} hôm nay",
     "coachToday.fighters": "{n} võ sĩ",
     "coachToday.fighters.one": "1 võ sĩ",

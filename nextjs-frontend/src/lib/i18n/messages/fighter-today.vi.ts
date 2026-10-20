@@ -3,6 +3,7 @@ import type { enFighterToday } from "./fighter-today.en";
 /** Vietnamese text for the fighter's Today page; must define every key of `enFighterToday`. */
 export const viFighterToday = {
     "fighterToday.uploadVideo": "Tải video lên",
+    "fighterToday.loading": "Đang tải ngày tập của bạn",
     "fighterToday.readiness": "Sẵn sàng",
     "fighterToday.medicalClearance": "Cấp phép y tế",
     "fighterToday.health": "Sức khỏe",
