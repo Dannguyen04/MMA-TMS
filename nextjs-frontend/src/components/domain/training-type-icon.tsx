@@ -6,6 +6,7 @@ import {
     HandFist,
     HandGrab,
     PersonStanding,
+    Presentation,
     Swords,
     type LucideIcon,
 } from "lucide-react";
@@ -24,6 +25,7 @@ export const TRAINING_TYPE_ICONS: Record<TrainingType, LucideIcon> = {
     grappling: HandGrab,
     strength_conditioning: Dumbbell,
     recovery_mobility: BatteryCharging,
+    tactical_analysis: Presentation,
 };
 
 export interface TrainingTypeIconProps {

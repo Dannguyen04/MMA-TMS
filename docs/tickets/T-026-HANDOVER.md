@@ -1,4 +1,4 @@
-# T-026 Handover (phần backend)
+# T-026 Handover (backend và frontend)
 
 - Nhánh: feat/T-026-session-templates-backend    Commit: đầu nhánh (`git log -1`)
 - Trạng thái: IN REVIEW
@@ -66,4 +66,63 @@ So với BASELINE: 26 lỗi trước, 26 lỗi sau, cùng nguyên nhân; `test:d
 - Thời lượng và RPE của 4 mẫu (45′/5, 45′/7, 60′/6, 40′/2) là đề xuất, chưa HLV duyệt.
 - Chưa áp migration lên Supabase (chủ dự án áp 028 rồi 029 sau khi APPROVED).
 - Chưa chạy backend thật hay gọi endpoint bằng HTTP: kiểm tra bằng unit test và test migration. `main.ts` và guard không đổi.
-- Frontend chưa làm: phần còn lại của ticket T-026.
+- Frontend: xem phần dưới.
+
+---
+
+# Phần frontend
+
+- Nhánh: feat/T-026-session-templates-ui (tạo từ nhánh backend; merge backend trước)    Commit: đầu nhánh (`git log -1`)
+- **Người viết: Claude**, theo chỉ dẫn trực tiếp của chủ dự án ngày 20/10.
+
+## Thay đổi
+- `src/lib/domain/session-templates.ts` (mới) + test: kiểu `SessionTemplate`, `sessionTemplateNotes`, `applySessionTemplate` (điền tiêu đề, loại, thời lượng, RPE, ghi chú; địa điểm theo loại trừ khi HLV đã sửa tay; không đụng võ sĩ, plan, ngày, giờ, bài tập).
+- `src/components/training/session-template-picker.tsx` (mới): thẻ chọn mẫu, khối lý do, các bước, nhãn "Có hạn chế", nút "Bỏ mẫu".
+- `src/components/training/session-form.tsx`: prop `templates`, picker ở đầu form (chỉ `mode="create"`), `applyTemplate`, địa điểm mặc định `tactical_analysis`.
+- `src/app/(app)/coach/sessions/new/page.tsx`: tải mẫu theo locale; lỗi (ví dụ chưa áp migration 029) chỉ ẩn picker.
+- `src/lib/services/training.ts`, `training.demo.ts`, `src/lib/mocks/session-templates.ts` (mới): `listSessionTemplates(locale)`; API mode gọi `GET /training-session-templates?locale=…`; demo mode dùng bản sao 4 mẫu.
+- Loại buổi `tactical_analysis`: `types.ts`, `medical-contract.ts`, `medical-mappings.ts`, `training-contract.ts`, `labels.ts`, `training-type-icon.tsx`, `mocks/training.ts`, `coach-today.{en,vi}.ts`.
+- `medical-mappings.ts`: `restrictionFromAllowLists` không bao giờ chặn `tactical_analysis` (khớp quy tắc backend).
+- `src/lib/i18n/messages/session-templates.{en,vi}.ts` (mới), đăng ký ở `en.ts`, `vi.ts`.
+
+## Đối chiếu tiêu chí nghiệm thu (frontend, theo T-026)
+| Tiêu chí | Đáp ứng ở đâu |
+| --- | --- |
+| 1. Đủ 4 thẻ ở demo và API mode | `listSessionTemplates` (`training.test.ts`: API mode và demo mode); kiểm tra tay demo mode: 4 nút |
+| 2. Chọn mẫu điền đúng, không đụng trường khác | `session-templates.test.ts` (5 ca `applySessionTemplate`); kiểm tra tay: chọn thẻ thứ hai → tiêu đề, thời lượng 45, địa điểm Cage, ghi chú 3 dòng |
+| 3. Ghi chú ≤ 1000 ký tự | `session-templates.test.ts` ("never exceeds"); migration 029 test độ dài của dữ liệu thật |
+| 4. Địa điểm giữ hoặc đổi theo loại | `session-templates.test.ts` (2 ca) |
+| 5. "Đọc trận" gửi `TACTICAL_ANALYSIS` | `training-contract.test.ts` (`sessionBody`); kiểm tra tay: chọn thẻ thứ tư → loại Tactical analysis, địa điểm Film room |
+| 6. Nhãn "Có hạn chế" | **Chưa kiểm tra tay với võ sĩ có hạn chế** (xem "Câu hỏi"); logic dùng `restrictedTypes` có sẵn; `medical-mappings.test.ts` kiểm tra `tactical_analysis` không bị chặn |
+| 7. "Bỏ mẫu" | **Chưa kiểm tra tay**; `onClear` chỉ đặt lại mã mẫu đang chọn |
+| 8. Tiếng Việt/Anh, không chữ cứng | kiểm tra tay `mma_locale=en` và `vi`: chữ mẫu đổi theo; `translate.test.ts` qua (đủ key hai phía) |
+| 9. Kiểm tra tay API mode với backend đã áp 028, 029 | **Chưa làm**: backend chưa áp migration lên Supabase |
+| 10. Trang edit và luồng khác không đổi; không cuộn ngang 390 px | picker chỉ hiện khi `mode="create"`; kiểm tra tay 390 px: `scrollWidth` 390 = `clientWidth` 390 |
+| 11. lint, typecheck, test không thêm lỗi | bên dưới |
+
+## Lệnh đã chạy
+```
+pnpm --filter nextjs-frontend lint
+$ eslint   (không có cảnh báo hay lỗi)
+
+pnpm --filter nextjs-frontend typecheck
+$ next typegen && tsc --noEmit
+✓ Types generated successfully   (không lỗi)
+
+pnpm --filter nextjs-frontend test
+ Test Files  77 passed | 1 skipped (78)
+      Tests  666 passed | 2 skipped (668)
+```
+BASELINE ghi 578 test, 1 bị skip; số test tăng do các ticket đã merge sau BASELINE và 14 test mới của ticket này; không test nào lỗi.
+
+Kiểm tra tay bằng trình duyệt headless (Chromium) với demo mode, tài khoản HLV demo, `/coach/sessions/new`: desktop (vi, en) và 390 px (vi); không lỗi trang (`pageerror` rỗng).
+
+## Lệch so với ticket
+- Hai biến thể của `restrictionFromAllowLists` và `medical-mappings.ts` được sửa thêm so với danh sách file trong ticket, để khớp quy tắc backend "TACTICAL_ANALYSIS không bị danh sách loại buổi chặn".
+- Bản sao dữ liệu demo (`mocks/session-templates.ts`) ghi chú đồng bộ thủ công với migration 029.
+
+## Câu hỏi / việc còn mở
+- Chưa kiểm tra tay nhãn "Có hạn chế" và "Bỏ mẫu" trong trình duyệt; cần thử với võ sĩ có hạn chế (demo mode có sẵn) trước khi APPROVED.
+- Chưa kiểm tra API mode (cần backend đã áp 028, 029).
+- Phần còn lại của `session-form.tsx` vẫn tiếng Anh vì T-015 chưa merge; picker đã song ngữ. Xung đột khi merge với T-015: chỉ ở `session-form.tsx` (hai import, một prop, một hàm, một khối JSX).
+- `en.ts` và `vi.ts`: mỗi ticket dịch thêm một dòng đăng ký; xung đột chỉ là dòng liền kề, giữ cả hai.

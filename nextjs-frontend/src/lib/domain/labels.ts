@@ -146,6 +146,7 @@ export const TRAINING_TYPE_LABELS: Record<TrainingType, string> = {
     grappling: "Grappling",
     strength_conditioning: "Strength & conditioning",
     recovery_mobility: "Recovery & mobility",
+    tactical_analysis: "Tactical analysis",
 };
 
 export const VIDEO_TRAINING_TYPES: VideoTrainingType[] = ["shadow_boxing", "pad_work", "heavy_bag", "sparring"];

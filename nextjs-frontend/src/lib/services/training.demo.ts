@@ -21,6 +21,9 @@ import type {
 import { academyDayStartIso, DAY_MS, dayKey, formatDateTime } from "@/lib/format";
 import { db, newId, nowIso, simulateLatency } from "@/lib/mocks/db";
 import { weekStart } from "@/lib/mocks/time";
+import type { SessionTemplate } from "@/lib/domain/session-templates";
+import type { Locale } from "@/lib/i18n/config";
+import { demoSessionTemplates } from "@/lib/mocks/session-templates";
 import { matchesSearch } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { recordAudit } from "./audit.demo";
@@ -71,6 +74,12 @@ const unique = <T>(items: T[]): T[] => [...new Set(items)];
 /* ─── Exercises ───────────────────────────────────────────────────────────── */
 
 const CATEGORY_ORDER: ExerciseCategory[] = ["striking", "defense", "footwork", "grappling", "conditioning", "strength", "mobility"];
+
+/** The lesson-plan templates, as migration 029 seeds them. */
+export async function listSessionTemplates(locale: Locale): Promise<SessionTemplate[]> {
+    await simulateLatency();
+    return demoSessionTemplates(locale);
+}
 
 /** Exercise library, ordered by category then name. */
 export async function listExercises(filter: ExerciseFilter = {}): Promise<Exercise[]> {

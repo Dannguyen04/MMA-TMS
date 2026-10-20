@@ -31,6 +31,7 @@ export const enCoachToday = {
     "trainingType.grappling": "Grappling",
     "trainingType.strength_conditioning": "Strength & conditioning",
     "trainingType.recovery_mobility": "Recovery & mobility",
+    "trainingType.tactical_analysis": "Tactical analysis",
 
     "queue.items": "{n} items, most urgent first",
     "queue.items.one": "1 item, most urgent first",

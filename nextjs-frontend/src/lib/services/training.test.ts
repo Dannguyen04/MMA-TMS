@@ -25,6 +25,7 @@ import {
     listExercises,
     listPlanExercises,
     listSessions,
+    listSessionTemplates,
     loadSessionClearanceConflicts,
     markSessionMissed,
     recordSessionResult,
@@ -364,6 +365,51 @@ describe("training API adapter", () => {
 
         await expect(listSessions({ fighterIds: ["fighter-1"], type: "recovery_mobility" })).resolves.toHaveLength(1);
         expect(authenticatedApiRequest).toHaveBeenCalledWith(expect.not.stringContaining("sessionType"), expect.anything());
+    });
+
+    it("reads the lesson-plan templates in the viewer's language and maps them to interface types", async () => {
+        authenticatedApiRequest.mockResolvedValue([
+            {
+                id: "tpl-1",
+                code: "tactics",
+                category: "TACTICS",
+                sessionType: "TACTICAL_ANALYSIS",
+                plannedDurationMin: 40,
+                targetRpe: 2,
+                name: "Fight reading",
+                purpose: "Recognise situations.",
+                rationale: "No physical exercise.",
+                steps: [{ name: "Watch", detail: "Pick clips." }],
+            },
+        ]);
+
+        await expect(listSessionTemplates("en")).resolves.toEqual([
+            {
+                id: "tpl-1",
+                code: "tactics",
+                category: "TACTICS",
+                type: "tactical_analysis",
+                durationMin: 40,
+                targetRpe: 2,
+                name: "Fight reading",
+                purpose: "Recognise situations.",
+                rationale: "No physical exercise.",
+                steps: [{ name: "Watch", detail: "Pick clips." }],
+            },
+        ]);
+        expect(authenticatedApiRequest).toHaveBeenCalledWith("/training-session-templates?locale=en", expect.anything());
+    });
+
+    it("serves the four demo templates in Vietnamese or English in demo mode only", async () => {
+        vi.stubEnv("APP_DATA_MODE", "demo");
+
+        const viTemplates = await listSessionTemplates("vi");
+        const en = await listSessionTemplates("en");
+
+        expect(viTemplates.map((template) => template.code)).toEqual(["distance", "counter", "strength", "tactics"]);
+        expect(viTemplates[0].name).toBe("Jab – cross – thoát góc");
+        expect(en[0].name).toBe("Jab – cross – angle exit");
+        expect(authenticatedApiRequest).not.toHaveBeenCalled();
     });
 
     it("asks nothing about coach feedback while the feedback service isn't available", async () => {

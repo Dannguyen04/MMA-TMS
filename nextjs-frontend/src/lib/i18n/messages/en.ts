@@ -9,6 +9,7 @@ import { enCoachBouts } from "./coach-bouts.en";
 import { enCoachToday } from "./coach-today.en";
 import { enFighterToday } from "./fighter-today.en";
 import { enLanding } from "./landing.en";
+import { enSessionTemplates } from "./session-templates.en";
 
 export const en = {
     ...enAccount,
@@ -17,6 +18,7 @@ export const en = {
     ...enCoachToday,
     ...enFighterToday,
     ...enLanding,
+    ...enSessionTemplates,
     /* Navigation: keyed by the English label in `navigation.ts`. */
     "nav.Today": "Today",
     "nav.Bout": "Bout",

@@ -2017,6 +2017,7 @@ const SESSION_ID_TYPE: Record<TrainingType, string> = {
     grappling: "grappling",
     strength_conditioning: "sc",
     recovery_mobility: "recovery",
+    tactical_analysis: "tactics",
 };
 
 function weekdayOf(day: number): Weekday {

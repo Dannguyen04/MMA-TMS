@@ -54,6 +54,7 @@ const SESSION_TRAINING_TYPES: Record<SessionType, TrainingType> = {
     STRENGTH_CONDITIONING: "strength_conditioning",
     RECOVERY: "recovery_mobility",
     PHYSICAL_THERAPY: "recovery_mobility",
+    TACTICAL_ANALYSIS: "tactical_analysis",
 };
 
 /** Service session types that count as a frontend training type. Technical drilling has none. */
@@ -70,6 +71,7 @@ const TRAINING_TYPES: TrainingType[] = [
     "grappling",
     "strength_conditioning",
     "recovery_mobility",
+    "tactical_analysis",
 ];
 
 /** The frontend strike family of each service technique; null for strikes the frontend doesn't track. */
@@ -107,13 +109,18 @@ export function isRestricted(restrictions: Pick<ClinicalRestrictions, "allowedSe
  * technical drilling has no session type, so any session allow-list blocks it. A strike family is blocked when none
  * of its techniques is allowed; the service doesn't track combinations, footwork, guard or head movement.
  */
+/** Training types with no physical load: the doctor's list of allowed session types never blocks them (as the service does). */
+const NON_PHYSICAL_TRAINING_TYPES: readonly TrainingType[] = ["tactical_analysis"];
+
 export function restrictionFromAllowLists(restrictions: ClinicalRestrictions, id: string): TrainingRestriction {
     const allowedSessions = restrictions.allowedSessionTypes;
     const allowedTechniques = restrictions.allowedTechniqueTypes;
     return {
         id,
         label: restrictions.notes?.trim() || "Medical restrictions",
-        blockedTrainingTypes: allowedSessions === null ? [] : TRAINING_TYPES.filter((type) => !sessionTypesFor(type).some((code) => allowedSessions.includes(code))),
+        blockedTrainingTypes: allowedSessions === null
+                ? []
+                : TRAINING_TYPES.filter((type) => !NON_PHYSICAL_TRAINING_TYPES.includes(type) && !sessionTypesFor(type).some((code) => allowedSessions.includes(code))),
         blockedTechniques:
             allowedTechniques === null
                 ? []

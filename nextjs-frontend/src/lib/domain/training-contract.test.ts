@@ -8,6 +8,8 @@ describe("training contract", () => {
         for (const type of SESSION_TYPES) expect(TRAINING_TYPE_FOR[type]).toBeDefined();
         for (const type of SERVICE_TRAINING_TYPES) expect(TRAINING_TYPE_FOR[sessionTypeFor(type) ?? "RECOVERY"]).toBe(type);
         expect(sessionTypeFor("technical_drilling")).toBeNull();
+        expect(sessionTypeFor("tactical_analysis")).toBe("TACTICAL_ANALYSIS");
+        expect(TRAINING_TYPE_FOR.TACTICAL_ANALYSIS).toBe("tactical_analysis");
     });
 
     it("sends plan dates as academy days, the phase, and empty text as null", () => {
@@ -27,6 +29,7 @@ describe("training contract", () => {
         const fields = { title: "Drills", scheduledAt: "2026-09-10T10:00:00.000Z", durationMin: 45, location: "", notes: null };
         expect(sessionBody({ ...fields, type: "technical_drilling" })).toBeNull();
         expect(sessionBody({ ...fields, type: "recovery_mobility" })).toMatchObject({ sessionType: "RECOVERY", plannedDurationSec: 2700, location: null });
+        expect(sessionBody({ ...fields, type: "tactical_analysis" })).toMatchObject({ sessionType: "TACTICAL_ANALYSIS", plannedDurationSec: 2700 });
     });
 
     it("sends a cancellation reason only with a cancellation", () => {

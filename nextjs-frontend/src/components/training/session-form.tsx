@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { InlineNote } from "@/components/dashboard/inline-note";
 import { ClearanceCard } from "@/components/domain/clearance-card";
 import { FighterIdentity } from "@/components/domain/fighter-identity";
+import { useT } from "@/components/i18n/locale-provider";
 import { TRAINING_TYPE_ICONS } from "@/components/domain/training-type-icon";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
@@ -20,12 +21,14 @@ import { previewSessionConflicts, type SessionFormResult } from "@/lib/actions/t
 import { PLAN_STATUS_LABELS, TRAINING_TYPE_LABELS } from "@/lib/domain/labels";
 import { SERVICE_TRAINING_TYPES } from "@/lib/domain/training-contract";
 import type { ClearanceConflict } from "@/lib/domain/rules";
+import { applySessionTemplate, type SessionTemplate } from "@/lib/domain/session-templates";
 import type { Exercise, PlanStatus, TrainingType } from "@/lib/domain/types";
 import { ClearanceCheckPanel, type ClearanceCheckStatus } from "./clearance-check-panel";
 import { ExerciseBuilder } from "./exercise-builder";
 import { serializeExerciseRows, type ExerciseRow } from "./exercise-rows";
 import type { PlanFormFighter } from "./plan-form";
 import { RpeSlider } from "./rpe-slider";
+import { SessionTemplatePicker } from "./session-template-picker";
 import { clearanceMaxRpe, type ClearanceSummary } from "./training-utils";
 
 export interface SessionFormValues {
@@ -55,6 +58,8 @@ export interface SessionFormProps {
     /** Roster fighters (create) or the session's fighter (edit). */
     fighters: PlanFormFighter[];
     plans: SessionFormPlan[];
+    /** Lesson-plan templates to start a new session from; none hides the picker. */
+    templates?: SessionTemplate[];
     library: Exercise[];
     clearances: Record<string, ClearanceSummary>;
     /** Known training locations for suggestions. */
@@ -82,6 +87,7 @@ const DEFAULT_LOCATION: Record<TrainingType, string> = {
     grappling: "Main mat",
     strength_conditioning: "S&C floor",
     recovery_mobility: "Recovery room",
+    tactical_analysis: "Film room",
 };
 
 
@@ -92,8 +98,10 @@ interface CheckResult {
 }
 
 /** Schedule or edit a session with a live Medical Clearance check. */
-export function SessionForm({ mode, action, fighters, plans, library, clearances, locations, defaults, now, minDate, cancelHref, serviceForm }: SessionFormProps) {
+export function SessionForm({ mode, action, fighters, plans, templates = [], library, clearances, locations, defaults, now, minDate, cancelHref, serviceForm }: SessionFormProps) {
+    const t = useT();
     const form = useActionForm(action, { id: "session" });
+    const [templateCode, setTemplateCode] = useState<string | null>(null);
     const [values, setValues] = useState(() => ({ ...defaults, location: defaults.location || DEFAULT_LOCATION[defaults.type] }));
     const [check, setCheck] = useState<CheckResult | null>(null);
     const [acknowledgedFor, setAcknowledgedFor] = useState<string | null>(null);
@@ -155,6 +163,11 @@ export function SessionForm({ mode, action, fighters, plans, library, clearances
             location: !current.location.trim() || current.location === DEFAULT_LOCATION[current.type] ? DEFAULT_LOCATION[next] : current.location,
         }));
 
+    const applyTemplate = (template: SessionTemplate) => {
+        setValues((current) => applySessionTemplate(current, template, (type) => DEFAULT_LOCATION[type]));
+        setTemplateCode(template.code);
+    };
+
     const changeFighter = (next: string) =>
         setValues((current) => {
             const planStillValid = plans.some((plan) => plan.id === current.planId && plan.fighterId === next);
@@ -185,6 +198,17 @@ export function SessionForm({ mode, action, fighters, plans, library, clearances
 
             <Card className="min-w-0 lg:col-span-2">
                 <CardContent className="pt-6">
+                    {mode === "create" && templates.length > 0 && (
+                        <FormSection title={t("sessionTemplates.title")} description={t("sessionTemplates.description")}>
+                            <SessionTemplatePicker
+                                templates={templates}
+                                selectedCode={templateCode}
+                                onSelect={applyTemplate}
+                                onClear={() => setTemplateCode(null)}
+                                restrictedTypes={restrictedTypes}
+                            />
+                        </FormSection>
+                    )}
                     <FormSection title="Fighter & plan" description="Who trains, and which plan the session counts towards.">
                         {mode === "create" ? (
                             <Field label="Fighter" htmlFor="session-fighterId" required error={error("fighterId")}>

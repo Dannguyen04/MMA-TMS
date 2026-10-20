@@ -33,6 +33,7 @@ export const viCoachToday = {
     "trainingType.grappling": "Vật",
     "trainingType.strength_conditioning": "Thể lực",
     "trainingType.recovery_mobility": "Hồi phục và giãn cơ",
+    "trainingType.tactical_analysis": "Phân tích chiến thuật",
 
     "queue.items": "{n} việc, gấp nhất trước",
     "queue.items.one": "1 việc",

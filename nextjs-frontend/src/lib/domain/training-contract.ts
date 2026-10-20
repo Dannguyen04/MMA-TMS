@@ -17,6 +17,7 @@ const SESSION_TYPE_FOR: Partial<Record<TrainingType, SessionType>> = {
     grappling: "GRAPPLING",
     strength_conditioning: "STRENGTH_CONDITIONING",
     recovery_mobility: "RECOVERY",
+    tactical_analysis: "TACTICAL_ANALYSIS",
 };
 
 /** The interface training type for each of the service's session types. Physical therapy reads as recovery. */
@@ -29,6 +30,7 @@ export const TRAINING_TYPE_FOR: Record<SessionType, TrainingType> = {
     STRENGTH_CONDITIONING: "strength_conditioning",
     RECOVERY: "recovery_mobility",
     PHYSICAL_THERAPY: "recovery_mobility",
+    TACTICAL_ANALYSIS: "tactical_analysis",
 };
 
 /** Training types a session can be scheduled with through the training service. */

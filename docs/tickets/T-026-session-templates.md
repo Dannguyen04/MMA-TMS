@@ -2,10 +2,10 @@
 
 | | |
 | --- | --- |
-| **Trạng thái** | Backend: IN REVIEW (nhánh `feat/T-026-session-templates-backend`, [handover](./T-026-HANDOVER.md)). Frontend: READY sau khi backend merge |
+| **Trạng thái** | IN REVIEW. Backend: nhánh `feat/T-026-session-templates-backend`; frontend: nhánh `feat/T-026-session-templates-ui` (tạo từ nhánh backend). [Handover](./T-026-HANDOVER.md) |
 | **Phần** | Backend (đã làm) + Frontend (`nextjs-frontend`, còn lại) |
-| **Nhánh frontend** | `feat/T-026-session-templates-ui` từ `fight-camp` mới nhất (sau khi nhánh backend merge) |
-| **Người nhận frontend** | FE (đề xuất) |
+| **Nhánh frontend** | `feat/T-026-session-templates-ui`, tạo từ nhánh backend; merge backend trước |
+| **Người viết frontend** | Claude, theo chỉ dẫn trực tiếp của chủ dự án (20/10) |
 | **Mục tiêu hoàn thành** | Backend merge trước 24/10, frontend trước 27/10 |
 | **Quyết định** | Chủ dự án 20/10: [quyết định 21](../SCOPE-FIGHT-CAMP.md#quyết-định-và-câu-hỏi). Chủ dự án chọn "cả hai": thêm loại buổi mới và lưu mẫu ở backend. Phần backend do Claude viết theo chỉ dẫn trực tiếp của chủ dự án |
 

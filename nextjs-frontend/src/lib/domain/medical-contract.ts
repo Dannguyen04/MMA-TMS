@@ -48,6 +48,7 @@ export const SESSION_TYPES = [
     "STRENGTH_CONDITIONING",
     "RECOVERY",
     "PHYSICAL_THERAPY",
+    "TACTICAL_ANALYSIS",
 ] as const;
 export type SessionType = (typeof SESSION_TYPES)[number];
 
@@ -199,6 +200,7 @@ export const SESSION_TYPE_LABELS: Record<SessionType, string> = {
     STRENGTH_CONDITIONING: "Strength & conditioning",
     RECOVERY: "Recovery",
     PHYSICAL_THERAPY: "Physical therapy",
+    TACTICAL_ANALYSIS: "Tactical analysis",
 };
 
 export const TECHNIQUE_TYPE_LABELS: Record<TechniqueType, string> = {

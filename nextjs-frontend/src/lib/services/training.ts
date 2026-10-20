@@ -23,6 +23,8 @@ import type {
     User,
 } from "@/lib/domain/types";
 import { SESSION_TYPES } from "@/lib/domain/medical-contract";
+import { SESSION_TEMPLATE_CATEGORIES, type SessionTemplate } from "@/lib/domain/session-templates";
+import type { Locale } from "@/lib/i18n/config";
 import {
     planBody,
     planCreateBody,
@@ -318,6 +320,26 @@ function toFeedback(feedback: BackendFeedback): CoachFeedback {
         ...feedback,
         kind: feedback.kind.toLowerCase() as FeedbackKind,
     };
+}
+
+const backendSessionTemplateSchema = z.object({
+    id: z.string(),
+    code: z.string(),
+    category: z.enum(SESSION_TEMPLATE_CATEGORIES),
+    sessionType: z.enum(SESSION_TYPES),
+    plannedDurationMin: z.number().int().positive(),
+    targetRpe: z.number().int().min(1).max(10),
+    name: z.string(),
+    purpose: z.string(),
+    rationale: z.string(),
+    steps: z.array(z.object({ name: z.string(), detail: z.string() })),
+});
+
+/** The lesson-plan templates a coach can start a session from, with their text in `locale`. */
+export async function listSessionTemplates(locale: Locale): Promise<SessionTemplate[]> {
+    if (isDemoAuthEnabled()) return (await demoService()).listSessionTemplates(locale);
+    const templates = await authenticatedApiRequest(`/training-session-templates?locale=${locale}`, z.array(backendSessionTemplateSchema));
+    return templates.map(({ sessionType, plannedDurationMin, ...rest }) => ({ ...rest, type: TRAINING_TYPE_FOR[sessionType], durationMin: plannedDurationMin }));
 }
 
 export interface ExerciseFilter {

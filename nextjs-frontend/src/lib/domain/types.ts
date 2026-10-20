@@ -189,7 +189,8 @@ export type TrainingType =
     | "technical_drilling"
     | "grappling"
     | "strength_conditioning"
-    | "recovery_mobility";
+    | "recovery_mobility"
+    | "tactical_analysis";
 
 /** Training types that can be uploaded for AI video analysis. */
 export type VideoTrainingType = Extract<TrainingType, "shadow_boxing" | "pad_work" | "heavy_bag" | "sparring">;

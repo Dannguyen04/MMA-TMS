@@ -12,10 +12,11 @@ import { SERVICE_TRAINING_TYPES } from "@/lib/domain/training-contract";
 import type { TrainingType } from "@/lib/domain/types";
 import { addDaysToKey, dayKey } from "@/lib/format";
 import { parseEnum } from "@/lib/query";
+import { getLocale } from "@/lib/i18n/server";
 import { routes } from "@/lib/routes";
 import { listFighters } from "@/lib/services/people";
 import { usesTrainingServiceForms } from "@/lib/services/platform-features";
-import { listExercises, listPlans, listSessions } from "@/lib/services/training";
+import { listExercises, listPlans, listSessions, listSessionTemplates } from "@/lib/services/training";
 import { param } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Schedule session" };
@@ -30,13 +31,15 @@ export default async function NewSessionPage({ searchParams }: PageProps<"/coach
     const serviceForm = usesTrainingServiceForms();
 
     const fighterList = listFighters(user);
-    const [fighters, plans, library, sessions, clearances] = await Promise.all([
+    const [fighters, plans, library, sessions, clearances, templates] = await Promise.all([
         fighterList,
         listPlans({ fighterIds: scope }),
         // Exercises are part of the demo's session form only.
         serviceForm ? [] : listExercises(),
         listSessions({ fighterIds: scope }),
         getClearanceSummaries(scopedFighterIds(user, fighterList), now),
+        // A service without the templates (migration 029 not applied yet) only hides the picker.
+        getLocale().then((locale) => listSessionTemplates(locale)).catch(() => []),
     ]);
 
     // Prefill from ?plan=, ?fighter= and ?type= — only with records on this coach's roster.
@@ -80,6 +83,7 @@ export default async function NewSessionPage({ searchParams }: PageProps<"/coach
                 action={createSession}
                 fighters={fighters.map(toFighterOption)}
                 plans={plans.map((p) => ({ id: p.id, title: p.title, fighterId: p.fighterId, status: p.status }))}
+                templates={templates}
                 library={library}
                 clearances={clearances}
                 locations={locations}

@@ -31,6 +31,7 @@ describe("body and training vocabularies", () => {
     it("groups session types under frontend training types", () => {
         expect(sessionTypesFor("recovery_mobility")).toEqual(["RECOVERY", "PHYSICAL_THERAPY"]);
         expect(sessionTypesFor("technical_drilling")).toEqual([]);
+        expect(sessionTypesFor("tactical_analysis")).toEqual(["TACTICAL_ANALYSIS"]);
     });
 });
 
@@ -48,6 +49,12 @@ describe("restrictionFromAllowLists", () => {
             blockedRegions: ["left_knee", "right_hand"],
             maxRpe: null,
         });
+    });
+
+    it("never blocks tactical analysis: it has no physical load", () => {
+        const restriction = restrictionFromAllowLists(lists({ allowedSessionTypes: ["RECOVERY"] }), "r-3");
+        expect(restriction.blockedTrainingTypes).toContain("sparring");
+        expect(restriction.blockedTrainingTypes).not.toContain("tactical_analysis");
     });
 
     it("blocks nothing for open lists", () => {
