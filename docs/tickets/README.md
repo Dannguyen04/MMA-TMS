@@ -42,3 +42,18 @@ Demo ở review 2 chạy với **backend thật** trên Supabase hiện có ([qu
 | T-008 | Dữ liệu demo cho kịch bản 3, 4 (bổ sung T-008a); chủ dự án áp migration 025–027 | Backend | BE2 | T-007, T-009, T-010 | DRAFT |
 
 Số migration 025, 026, 027 cố định; mỗi migration chỉ yêu cầu ledger đã có 024 ([Tech spec §8](../FIGHT-CAMP-TECH-SPEC.md#8-migration)), nên ticket nào xong trước cũng merge được mà giữ đúng số của mình. Nếu đến 27/10 chưa xong thì cắt theo thứ tự ở [Luồng nghiệp vụ §8](../FIGHT-CAMP-BUSINESS-FLOWS.md#lịch-làm-và-thứ-tự-cắt-khi-trễ). Tổng duyệt demo ngày 30/10.
+
+## Giao diện tiếng Việt ([T-013](./T-013-i18n-vi.md))
+
+Quyết định của chủ dự án 19/10: dịch toàn bộ app, làm dần, mặc định tiếng Việt. T-013 phần 1 và 2 đã merge vào `fight-camp` (20/10). Phần 3 chia thành các ticket dưới đây; chạy song song được vì mỗi ticket có cặp file từ điển riêng. Route đóng băng không dịch. Landing page và `src/app/concept/` chưa có ticket, chờ chủ dự án quyết định.
+
+| Ticket | Nội dung | Phụ thuộc | Trạng thái |
+| --- | --- | --- | --- |
+| [T-014](./T-014-i18n-auth-account.md) | Đăng nhập, đăng ký, applicant, tài khoản, thông báo; rà soát Today của võ sĩ | — | DRAFT |
+| [T-015](./T-015-i18n-training.md) | Training của võ sĩ và HLV; đổi `clearance-rules.ts` sang trả mã | — | DRAFT |
+| [T-016](./T-016-i18n-health-clearance.md) | Health và Medical Clearance của võ sĩ, HLV | Dùng chung `clearance-rules.ts` với T-015 | DRAFT |
+| [T-017](./T-017-i18n-doctor.md) | Khu vực bác sĩ | T-016 | DRAFT |
+| [T-018](./T-018-i18n-film-video.md) | Film và phân tích video AI | — | DRAFT |
+| [T-019](./T-019-i18n-admin.md) | Admin (các mục còn trong menu) | — | DRAFT, ưu tiên thấp nhất |
+
+Thứ tự ưu tiên theo demo: T-014, T-015, T-016, T-018, T-017, T-019.
