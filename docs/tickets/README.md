@@ -40,6 +40,7 @@ Demo ở review 2 chạy với **backend thật** trên Supabase hiện có ([qu
 | T-010 | Phân tích đối thủ: tab "Đối thủ", nối chiến thuật với buổi tập, đánh giá sau trận (migration 027; [E2](../FIGHT-CAMP-BUSINESS-FLOWS.md#e2-giáo-án-phân-tích-đối-thủ), [Tech spec §2.8](../FIGHT-CAMP-TECH-SPEC.md#28-phân-tích-đối-thủ-migration-027)) | Backend + Frontend | Gemini | T-003, T-004 | DRAFT |
 | T-012 | Demo AI ngắn: chạy worker hiện có trên một video có sẵn, kịch bản trình bày ([quyết định 16](../SCOPE-FIGHT-CAMP.md#quyết-định-và-câu-hỏi)) | Worker | BE1 | Sau T-006 | DRAFT. Làm 27–29/10 |
 | T-008 | Dữ liệu demo cho kịch bản 3, 4 (bổ sung T-008a); chủ dự án áp migration 025–027 | Backend | BE2 | T-007, T-009, T-010 | DRAFT |
+| [T-022](./T-022-punch-detector-recall.md) | Tăng recall của detector đấm trong worker; đo trên dữ liệu công khai BoxingVI, giữ riêng tập test ([quyết định 20](../SCOPE-FIGHT-CAMP.md#quyết-định-và-câu-hỏi)) | Worker | Gemini | — (nên xong trước 26/10 để T-012 biết dùng detector nào) | READY (20/10) |
 
 Số migration 025, 026, 027 cố định; mỗi migration chỉ yêu cầu ledger đã có 024 ([Tech spec §8](../FIGHT-CAMP-TECH-SPEC.md#8-migration)), nên ticket nào xong trước cũng merge được mà giữ đúng số của mình. Nếu đến 27/10 chưa xong thì cắt theo thứ tự ở [Luồng nghiệp vụ §8](../FIGHT-CAMP-BUSINESS-FLOWS.md#lịch-làm-và-thứ-tự-cắt-khi-trễ). Tổng duyệt demo ngày 30/10.
 
