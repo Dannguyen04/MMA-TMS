@@ -93,8 +93,8 @@ So với BASELINE: 26 lỗi trước, 26 lỗi sau, cùng nguyên nhân; `test:d
 | 3. Ghi chú ≤ 1000 ký tự | `session-templates.test.ts` ("never exceeds"); migration 029 test độ dài của dữ liệu thật |
 | 4. Địa điểm giữ hoặc đổi theo loại | `session-templates.test.ts` (2 ca) |
 | 5. "Đọc trận" gửi `TACTICAL_ANALYSIS` | `training-contract.test.ts` (`sessionBody`); kiểm tra tay: chọn thẻ thứ tư → loại Tactical analysis, địa điểm Film room |
-| 6. Nhãn "Có hạn chế" | **Chưa kiểm tra tay với võ sĩ có hạn chế** (xem "Câu hỏi"); logic dùng `restrictedTypes` có sẵn; `medical-mappings.test.ts` kiểm tra `tactical_analysis` không bị chặn |
-| 7. "Bỏ mẫu" | **Chưa kiểm tra tay**; `onClear` chỉ đặt lại mã mẫu đang chọn |
+| 6. Nhãn "Có hạn chế" | Đã kiểm tra tay (demo mode, 8 võ sĩ): Marcus Hale (clearance chặn heavy bag, pad work, sparring) thấy nhãn ở "Jab – cross – thoát góc" (pad work) và "Phòng thủ → phản đòn" (sparring); Tariq Haddad chỉ ở "Phòng thủ → phản đòn"; 6 võ sĩ còn lại không có nhãn; "Đọc trận" và "Sức mạnh thân trên" không bao giờ có nhãn ở hai võ sĩ trên. `medical-mappings.test.ts` kiểm tra `tactical_analysis` không bị chặn |
+| 7. "Bỏ mẫu" | Đã kiểm tra tay: sau khi bấm, thẻ hết đánh dấu, khối "Vì sao cân nhắc bài này?" biến mất, tiêu đề và thời lượng (45) giữ nguyên |
 | 8. Tiếng Việt/Anh, không chữ cứng | kiểm tra tay `mma_locale=en` và `vi`: chữ mẫu đổi theo; `translate.test.ts` qua (đủ key hai phía) |
 | 9. Kiểm tra tay API mode với backend đã áp 028, 029 | **Chưa làm**: backend chưa áp migration lên Supabase |
 | 10. Trang edit và luồng khác không đổi; không cuộn ngang 390 px | picker chỉ hiện khi `mode="create"`; kiểm tra tay 390 px: `scrollWidth` 390 = `clientWidth` 390 |
@@ -122,7 +122,6 @@ Kiểm tra tay bằng trình duyệt headless (Chromium) với demo mode, tài k
 - Bản sao dữ liệu demo (`mocks/session-templates.ts`) ghi chú đồng bộ thủ công với migration 029.
 
 ## Câu hỏi / việc còn mở
-- Chưa kiểm tra tay nhãn "Có hạn chế" và "Bỏ mẫu" trong trình duyệt; cần thử với võ sĩ có hạn chế (demo mode có sẵn) trước khi APPROVED.
 - Chưa kiểm tra API mode (cần backend đã áp 028, 029).
 - Phần còn lại của `session-form.tsx` vẫn tiếng Anh vì T-015 chưa merge; picker đã song ngữ. Xung đột khi merge với T-015: chỉ ở `session-form.tsx` (hai import, một prop, một hàm, một khối JSX).
 - `en.ts` và `vi.ts`: mỗi ticket dịch thêm một dòng đăng ký; xung đột chỉ là dòng liền kề, giữ cả hai.
