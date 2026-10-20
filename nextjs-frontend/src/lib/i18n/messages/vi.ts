@@ -3,6 +3,7 @@ import { viAuth } from "./auth.vi";
 import { viCoachBouts } from "./coach-bouts.vi";
 import { viCoachToday } from "./coach-today.vi";
 import { viFighterToday } from "./fighter-today.vi";
+import { viLanding } from "./landing.vi";
 import type { en } from "./en";
 
 /** Vietnamese interface text. Must define every key of `en` (enforced by the type below). */
@@ -12,6 +13,7 @@ export const vi = {
     ...viCoachBouts,
     ...viCoachToday,
     ...viFighterToday,
+    ...viLanding,
     "nav.Today": "Hôm nay",
     "nav.Bout": "Trận đấu",
     "nav.Bouts": "Trận đấu",

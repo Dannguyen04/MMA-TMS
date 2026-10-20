@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import { Component, useState, useSyncExternalStore, type ReactNode, type RefObject } from "react";
 
+import { useT } from "@/components/i18n/locale-provider";
 import { cn } from "@/lib/utils";
 import { ARENA_PLATE } from "./arena-plate";
 import { SAMPLE_SCORES } from "./landing-data";
@@ -28,6 +29,7 @@ interface FighterStageProps {
  * same files as the scene, so neither is downloaded twice. Decorative: hidden from assistive tech.
  */
 export function FighterStage({ story, labels, compact, animate, ready, onReady }: FighterStageProps) {
+    const t = useT();
     const webgl = useSyncExternalStore(subscribeNever, supportsWebGL, () => null);
     const [failed, setFailed] = useState(false);
     const live = webgl === true && !failed;
@@ -67,14 +69,14 @@ export function FighterStage({ story, labels, compact, animate, ready, onReady }
                 // On narrow screens the copy covers the stage, and the panels already say what the labels would.
                 <div className="absolute inset-0 max-lg:hidden">
                     <span ref={register("knee")} className="landing-label landing-label-ai">
-                        Left knee <b>{LEFT_KNEE_ANGLE}°</b>
+                        {t("landing.stage.leftKnee")} <b>{LEFT_KNEE_ANGLE}°</b>
                     </span>
                     <span ref={register("focus")} className="landing-label landing-label-alert">
-                        AI observation · <b>Left knee</b>
+                        {t("landing.stage.aiObservation")} · <b>{t("landing.stage.leftKnee")}</b>
                     </span>
-                    {SAMPLE_SCORES.map(({ technique, score }, index) => (
-                        <span key={technique} ref={register(`bar-${index}`)} className="landing-label landing-label-bar">
-                            {technique} <b>{score}</b>
+                    {SAMPLE_SCORES.map(({ id, techniqueKey, score }, index) => (
+                        <span key={id} ref={register(`bar-${index}`)} className="landing-label landing-label-bar">
+                            {t(techniqueKey)} <b>{score}</b>
                         </span>
                     ))}
                 </div>
@@ -99,12 +101,11 @@ function supportsWebGL(): boolean {
     return webglSupport;
 }
 
-function subscribeNever() {
+function subscribeNever(): () => void {
     return () => {};
 }
 
-/** Keeps the poster up if WebGL fails after detection (lost context, driver errors). */
-class SceneBoundary extends Component<{ onError: () => void; children: ReactNode }, { failed: boolean }> {
+class SceneBoundary extends Component<{ children: ReactNode; onError: () => void }, { failed: boolean }> {
     state = { failed: false };
 
     static getDerivedStateFromError() {
