@@ -119,7 +119,7 @@ export class UsersController {
   @ApiNotFoundEnvelope('USER_NOT_FOUND', 'User not found')
   async findMe(@CurrentUser() actor: AuthenticatedUser | undefined) {
     const currentActor = this.actor(actor);
-    return this.usersService.findOne(currentActor.id);
+    return this.usersService.findOne(currentActor.id, currentActor.role);
   }
 
   @Get(':id')
