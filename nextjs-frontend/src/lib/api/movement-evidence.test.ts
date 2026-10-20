@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { MovementEvidencePanel } from "@/components/video/movement-evidence-panel";
 import { createPlaybackStore, PlaybackProvider } from "@/components/video/playback-store";
 import { movementEvidenceSchema } from "@/lib/domain/movement-evidence";
-import { mapWorkerResult, parseWorkerResult, type WorkerResultContext } from "./worker-result";
+import { AI_RESULTS_HIDDEN, mapWorkerResult, parseWorkerResult, type WorkerResultContext } from "./worker-result";
 
 // This panel has no navigation links; isolate Next's router in the unit renderer.
 vi.mock("next/link", () => ({ default: "a" }));
@@ -44,7 +44,7 @@ const inPlayback = (child: ReactElement) =>
     createElement(PlaybackProvider, { store: createPlaybackStore(400) } as ComponentProps<typeof PlaybackProvider>, child);
 
 describe("movement evidence contract", () => {
-    it("works without a single detected strike and never enables autonomous assessment", () => {
+    it.skipIf(!AI_RESULTS_HIDDEN)("works without a single detected strike and never enables autonomous assessment", () => {
         const parsed = parseWorkerResult(payload());
         expect(parsed).not.toBeNull();
         const analysis = mapWorkerResult(parsed!, context);
@@ -54,6 +54,12 @@ describe("movement evidence contract", () => {
         expect(analysis.coachingEligible).toBe(false);
         expect(analysis.summary).toContain("not repetitions or verified strikes");
         expect(analysis.overallConfidence).toBeNull();
+    });
+    it.skipIf(AI_RESULTS_HIDDEN)("shows the model output instead of the evidence-only view while AI results are unhidden", () => {
+        const analysis = mapWorkerResult(parseWorkerResult(payload())!, context);
+        expect(analysis.movementEvidence).toBeUndefined();
+        expect(analysis.coachingEligible).toBe(false);
+        expect(analysis.summary).toContain("strike candidates");
     });
     it.each(["assessmentEnabled", "clinicalUseEnabled", "automaticComparisonEnabled"])("rejects %s promotion", key => {
         const data = evidence();
