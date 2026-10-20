@@ -96,7 +96,7 @@ So với BASELINE: 26 lỗi trước, 26 lỗi sau, cùng nguyên nhân; `test:d
 | 6. Nhãn "Có hạn chế" | Đã kiểm tra tay (demo mode, 8 võ sĩ): Marcus Hale (clearance chặn heavy bag, pad work, sparring) thấy nhãn ở "Jab – cross – thoát góc" (pad work) và "Phòng thủ → phản đòn" (sparring); Tariq Haddad chỉ ở "Phòng thủ → phản đòn"; 6 võ sĩ còn lại không có nhãn; "Đọc trận" và "Sức mạnh thân trên" không bao giờ có nhãn ở hai võ sĩ trên. `medical-mappings.test.ts` kiểm tra `tactical_analysis` không bị chặn |
 | 7. "Bỏ mẫu" | Đã kiểm tra tay: sau khi bấm, thẻ hết đánh dấu, khối "Vì sao cân nhắc bài này?" biến mất, tiêu đề và thời lượng (45) giữ nguyên |
 | 8. Tiếng Việt/Anh, không chữ cứng | kiểm tra tay `mma_locale=en` và `vi`: chữ mẫu đổi theo; `translate.test.ts` qua (đủ key hai phía) |
-| 9. Kiểm tra tay API mode với backend đã áp 028, 029 | **Chưa làm**: backend chưa áp migration lên Supabase |
+| 9. Kiểm tra tay API mode với backend đã áp 028, 029 | Đã làm 20/10, xem "Kiểm tra API mode" bên dưới (không tạo buổi tập thật) |
 | 10. Trang edit và luồng khác không đổi; không cuộn ngang 390 px | picker chỉ hiện khi `mode="create"`; kiểm tra tay 390 px: `scrollWidth` 390 = `clientWidth` 390 |
 | 11. lint, typecheck, test không thêm lỗi | bên dưới |
 
@@ -122,6 +122,25 @@ Kiểm tra tay bằng trình duyệt headless (Chromium) với demo mode, tài k
 - Bản sao dữ liệu demo (`mocks/session-templates.ts`) ghi chú đồng bộ thủ công với migration 029.
 
 ## Câu hỏi / việc còn mở
-- Chưa kiểm tra API mode (cần backend đã áp 028, 029).
+- Chưa tạo thử một buổi tập thật từ mẫu bằng `POST /training-sessions` (sẽ ghi vào database dùng chung). Giá trị `TACTICAL_ANALYSIS` đã được database chấp nhận (4 dòng seed dùng cùng enum).
 - Phần còn lại của `session-form.tsx` vẫn tiếng Anh vì T-015 chưa merge; picker đã song ngữ. Xung đột khi merge với T-015: chỉ ở `session-form.tsx` (hai import, một prop, một hàm, một khối JSX).
 - `en.ts` và `vi.ts`: mỗi ticket dịch thêm một dòng đăng ký; xung đột chỉ là dòng liền kề, giữ cả hai.
+
+## Kiểm tra API mode (20/10, sau khi chủ dự án yêu cầu áp migration)
+
+Chủ dự án yêu cầu trực tiếp áp migration; Claude áp 028 rồi 029 lên Supabase bằng `run_sql.mjs --apply-028` và `--apply-029` (xem output ở thông báo cho chủ dự án): ledger có dòng 28 và 29, `session_type` có `TACTICAL_ANALYSIS`, `session_templates` có 4 dòng, RLS bật, quyền thuộc ADMIN và COACH.
+
+Sau đó chạy backend từ nhánh `feat/T-026-session-templates-backend` (`dist/main.js`, cổng 3201, `.env` của team) và frontend từ nhánh này (cổng 3102, `APP_DATA_MODE=api`, `API_URL` trỏ cổng 3201); đăng nhập bằng phiên dev `/auth/demo-session` (chỉ ngoài production, theo quyết định 19). Backend ở cổng 3001 và frontend ở cổng 3000 của chủ dự án không bị đụng.
+
+HTTP trực tiếp vào `/training-session-templates`:
+| Tài khoản / yêu cầu | Kết quả |
+| --- | --- |
+| không token | 401 |
+| COACH, `locale=vi`, `locale=en`, không có `locale` | 200, 4 mẫu `distance`, `counter`, `strength`, `tactics`, đúng loại buổi (PAD_WORK, SPARRING, STRENGTH_CONDITIONING, TACTICAL_ANALYSIS) và thời lượng 45, 45, 60, 40; chữ tiếng Việt cho `vi` và mặc định, tiếng Anh cho `en` |
+| COACH, `locale=fr` | 422 `VALIDATION_ERROR` ở `locale` |
+| ADMIN | 200, 4 mẫu |
+| FIGHTER, DOCTOR | 403 |
+
+Trình duyệt headless, `/coach/sessions/new` với HLV thật, desktop: tiếng Việt và tiếng Anh đều hiện đủ 4 thẻ lấy từ API; chọn "Đọc trận & phân tích đối thủ" thì điền tiêu đề, loại `tactical_analysis`, thời lượng 40, địa điểm Film room, ghi chú 3 dòng; không lỗi trang.
+
+Chưa làm: gửi form tạo buổi tập thật (sẽ ghi dữ liệu vào database dùng chung).
