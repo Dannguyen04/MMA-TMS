@@ -451,6 +451,8 @@ Theo quy ước trong [migrations/README.md](../nestjs-api/migrations/README.md)
 | 025 | `suspensions`, quyền `suspension:*`, giá trị `notification_type` mới | 024 |
 | 026 | `bouts.nutrition_plan`, enum `nutrition_adherence`, bảng `bout_nutrition_checkins`, quyền `bout:nutrition_checkin` (§2.7) | 024. Preflight yêu cầu ledger đã có 024, chưa có 026; không yêu cầu 025, để T-009 không phải chờ T-007 |
 | 027 | `bouts.opponent_analysis` (§2.8) | 024. Preflight yêu cầu ledger đã có 024, chưa có 027; không yêu cầu 025, 026 |
+| 028 | Giá trị enum `session_type` `TACTICAL_ANALYSIS` (T-026) | Ledger đã có 023 |
+| 029 | Bảng `session_templates` và 4 mẫu giáo án, quyền `training.session_template:read` (T-026) | 028 |
 | — | `goals.bout_id`, sau đợt đồ án | 021, 022, 024 |
 
 ## 9. Frontend

@@ -22,6 +22,8 @@ import {
   exerciseBaseSchema,
   trainingPlanExerciseBaseSchema,
   removedPlanExerciseSchema,
+  listSessionTemplatesQuerySchema,
+  sessionTemplateResponseSchema,
 } from './training.model.js';
 
 export class ListPlansQueryDto extends createZodDto(listPlansQuerySchema) {}
@@ -74,4 +76,11 @@ export class TrainingPlanExerciseResponseDto extends createZodDto(
 ) {}
 export class RemovedPlanExerciseDto extends createZodDto(
   removedPlanExerciseSchema,
+) {}
+
+export class ListSessionTemplatesQueryDto extends createZodDto(
+  listSessionTemplatesQuerySchema,
+) {}
+export class SessionTemplateResponseDto extends createZodDto(
+  sessionTemplateResponseSchema,
 ) {}

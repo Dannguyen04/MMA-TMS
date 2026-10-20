@@ -81,6 +81,8 @@ const target018 = '018_training_plan_phase.sql';
 const target019 = '019_ai_delivery_receipts.sql';
 const target020 = '020_movement_evidence_reviews.sql';
 const target023 = '023_academy_settings.sql';
+const target028 = '028_session_type_tactical_analysis.sql';
+const target029 = '029_session_templates.sql';
 const trainingPermissionCodes = [
   'training.plan:get_all',
   'training.plan:read',
@@ -652,6 +654,64 @@ try {
     assert.equal(
       psql('mma_013', `SELECT count(*) FROM public.audit_logs WHERE resource_type = 'academy_settings' AND action = 'UPDATE';`),
       '1',
+    );
+  });
+  check('028 adds the TACTICAL_ANALYSIS session type and records ledger 28', () => {
+    migration('mma_013', target028);
+    assert.equal(
+      psql('mma_013', `SELECT count(*) FROM mma_private.migration_history WHERE version = 28;`),
+      '1',
+    );
+    assert.equal(
+      psql(
+        'mma_013',
+        `SELECT enumlabel FROM pg_enum e JOIN pg_type t ON t.oid=e.enumtypid WHERE t.typname='session_type' AND enumlabel='TACTICAL_ANALYSIS';`,
+      ),
+      'TACTICAL_ANALYSIS',
+    );
+    rejects('mma_013', readFileSync(join(api, 'migrations', target028), 'utf8'), /028 has already been applied/);
+  });
+  check('029 seeds four read-only session templates, grants read to COACH and ADMIN, records ledger 29', () => {
+    migration('mma_013', target029);
+    assert.equal(
+      psql('mma_013', `SELECT count(*) FROM mma_private.migration_history WHERE version = 29;`),
+      '1',
+    );
+    assert.equal(
+      psql('mma_013', `SELECT string_agg(code || ':' || session_type::text, ',' ORDER BY display_order) FROM public.session_templates;`),
+      'distance:PAD_WORK,counter:SPARRING,strength:STRENGTH_CONDITIONING,tactics:TACTICAL_ANALYSIS',
+    );
+    assert.equal(
+      psql('mma_013', `SELECT count(*) FROM public.session_templates WHERE jsonb_array_length(translations->'vi'->'steps') = 3 AND jsonb_array_length(translations->'en'->'steps') = 3 AND is_active;`),
+      '4',
+    );
+    // A composed notes text must fit the 1000 character session notes column.
+    assert.equal(
+      psql('mma_013', `SELECT count(*) FROM public.session_templates t, jsonb_each(t.translations) l WHERE (SELECT sum(length(s->>'name') + length(s->>'detail') + 6) FROM jsonb_array_elements(l.value->'steps') s) > 1000;`),
+      '0',
+    );
+    assert.equal(psql('mma_013', `SELECT relrowsecurity FROM pg_class WHERE oid='public.session_templates'::regclass;`), 't');
+    assert.equal(
+      psql('mma_013', `SELECT string_agg(rp.role::text, ',' ORDER BY rp.role::text) FROM role_permissions rp JOIN permissions p ON p.id=rp.permission_id WHERE p.code='training.session_template:read';`),
+      'ADMIN,COACH',
+    );
+    rejects('mma_013', `SET ROLE authenticated; SELECT * FROM public.session_templates;`, /permission denied/);
+    rejects('mma_013', `INSERT INTO public.session_templates(code, category, session_type, planned_duration_min, target_rpe, translations) VALUES ('Bad Code', 'TECHNIQUE', 'PAD_WORK', 30, 5, '{"vi":{"steps":[{}]},"en":{"steps":[{}]}}');`, /ck_session_templates_code/);
+    rejects('mma_013', `INSERT INTO public.session_templates(code, category, session_type, planned_duration_min, target_rpe, translations) VALUES ('short', 'TECHNIQUE', 'PAD_WORK', 5, 5, '{"vi":{"steps":[{}]},"en":{"steps":[{}]}}');`, /ck_session_templates_duration/);
+    rejects('mma_013', `INSERT INTO public.session_templates(code, category, session_type, planned_duration_min, target_rpe, translations) VALUES ('no-en', 'TECHNIQUE', 'PAD_WORK', 30, 5, '{"vi":{"steps":[{}]}}');`, /ck_session_templates_translations/);
+    rejects('mma_013', `INSERT INTO public.session_templates(code, category, session_type, planned_duration_min, target_rpe, translations) VALUES ('steps-differ', 'TECHNIQUE', 'PAD_WORK', 30, 5, '{"vi":{"steps":[{},{}]},"en":{"steps":[{}]}}');`, /ck_session_templates_translations/);
+    rejects('mma_013', `INSERT INTO public.session_templates(code, category, session_type, planned_duration_min, target_rpe, translations) VALUES ('distance', 'TECHNIQUE', 'PAD_WORK', 30, 5, '{"vi":{"steps":[{}]},"en":{"steps":[{}]}}');`, /uq_session_templates_code/);
+    rejects('mma_013', readFileSync(join(api, 'migrations', target029), 'utf8'), /029 has already been applied/);
+  });
+  prepare('mma_028_missing_023');
+  migration('mma_028_missing_023', target003);
+  migration('mma_028_missing_023', target004);
+  check('028 and 029 reject a database without their ledger prerequisites', () => {
+    rejects('mma_028_missing_023', readFileSync(join(api, 'migrations', target028), 'utf8'), /028 requires migration 023 history/);
+    rejects('mma_028_missing_023', readFileSync(join(api, 'migrations', target029), 'utf8'), /029 requires migration 028 history/);
+    assert.equal(
+      psql('mma_028_missing_023', `SELECT count(*) FROM mma_private.migration_history WHERE version IN (28, 29);`),
+      '0',
     );
   });
   if (process.argv.includes('--export-catalog')) {

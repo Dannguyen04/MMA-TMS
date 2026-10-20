@@ -10,6 +10,9 @@ import { TrainingSessionController } from './sessions/training-session.controlle
 import { TrainingSessionService } from './sessions/training-session.service.js';
 import { ExerciseController } from './exercises/exercise.controller.js';
 import { ExerciseService } from './exercises/exercise.service.js';
+import { SessionTemplateController } from './templates/session-template.controller.js';
+import { SessionTemplateRepository } from './templates/session-template.repo.js';
+import { SessionTemplateService } from './templates/session-template.service.js';
 
 @Module({
   imports: [DatabaseModule, MedicalModule, NotificationsModule],
@@ -17,6 +20,7 @@ import { ExerciseService } from './exercises/exercise.service.js';
     TrainingPlanController,
     TrainingSessionController,
     ExerciseController,
+    SessionTemplateController,
   ],
   providers: [
     TrainingRepository,
@@ -24,6 +28,8 @@ import { ExerciseService } from './exercises/exercise.service.js';
     TrainingPlanService,
     TrainingSessionService,
     ExerciseService,
+    SessionTemplateRepository,
+    SessionTemplateService,
   ],
   exports: [TrainingPlanService, TrainingSessionService, ExerciseService],
 })

@@ -158,6 +158,13 @@ export const sessionTypeEnum = pgEnum('session_type', [
   'STRENGTH_CONDITIONING',
   'RECOVERY',
   'PHYSICAL_THERAPY',
+  'TACTICAL_ANALYSIS',
+]);
+export const sessionTemplateCategoryEnum = pgEnum('session_template_category', [
+  'TECHNIQUE',
+  'SPARRING',
+  'CONDITIONING',
+  'TACTICS',
 ]);
 export const exerciseCategoryEnum = pgEnum('exercise_category', [
   'STRIKING',
@@ -3820,6 +3827,46 @@ export const trainingPlans = pgTable(
       .onDelete('restrict')
       .onUpdate('no action'),
     index('idx_plan_fighter').using('btree', t.fighterId, t.startDate),
+  ],
+).enableRLS();
+
+export const sessionTemplates = pgTable(
+  'session_templates',
+  {
+    id: uuid('id').notNull().default(sql.raw('gen_random_uuid()')),
+    code: text('code').notNull(),
+    category: sessionTemplateCategoryEnum('category').notNull(),
+    sessionType: sessionTypeEnum('session_type').notNull(),
+    plannedDurationMin: smallint('planned_duration_min').notNull(),
+    targetRpe: smallint('target_rpe').notNull(),
+    translations: jsonb('translations').notNull(),
+    displayOrder: smallint('display_order').notNull().default(sql.raw('0')),
+    isActive: boolean('is_active').notNull().default(sql.raw('true')),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .default(sql.raw('now()')),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .default(sql.raw('now()')),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    check(
+      'ck_session_templates_code',
+      sql.raw("(code ~ '^[a-z][a-z0-9_-]{0,39}$'::text)"),
+    ),
+    check(
+      'ck_session_templates_duration',
+      sql.raw('((planned_duration_min >= 10) AND (planned_duration_min <= 300))'),
+    ),
+    check(
+      'ck_session_templates_rpe',
+      sql.raw('((target_rpe >= 1) AND (target_rpe <= 10))'),
+    ),
+    primaryKey({ name: 'session_templates_pkey', columns: [t.id] }),
+    unique('uq_session_templates_code').on(t.code),
+    index('idx_session_templates_active_order')
+      .using('btree', t.displayOrder, t.code)
+      .where(sql.raw('is_active')),
   ],
 ).enableRLS();
 

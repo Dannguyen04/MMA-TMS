@@ -270,6 +270,24 @@ describe('MedicalService', () => {
         .toBe(true);
     });
 
+    it('allowed session types never block a session type without physical load', () => {
+      const clearances = [{ ...older, allowedSessionTypes: ['SHADOW_BOXING' as const] }];
+      expect(evaluateEligibility({ ...state, clearances, sessionType: 'TACTICAL_ANALYSIS' }))
+        .toEqual({ scope: 'TRAINING', eligible: true, reasons: [], supervision: 'DOCTOR' });
+      expect(evaluateEligibility({ ...state, clearances, sessionType: 'PAD_WORK' }).reasons)
+        .toEqual(['SESSION_TYPE_RESTRICTED']);
+    });
+
+    it('TACTICAL_ANALYSIS still needs a current clearance and an eligible examination', () => {
+      expect(evaluateEligibility({ ...state, clearances: [], sessionType: 'TACTICAL_ANALYSIS' }).eligible)
+        .toBe(false);
+      expect(evaluateEligibility({
+        ...state,
+        currentExamination: { decision: 'NOT_ELIGIBLE' },
+        sessionType: 'TACTICAL_ANALYSIS',
+      }).reasons).toEqual(['EXAMINATION_NOT_ELIGIBLE']);
+    });
+
     describe('Expectation A - Eligibility without current examination', () => {
       it('returns EXAMINATION_REQUIRED without current TRAINING examination even when baselineOnFile is true', () => {
         const result = evaluateEligibility({

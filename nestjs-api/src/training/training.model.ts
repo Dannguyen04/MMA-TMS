@@ -34,6 +34,7 @@ export const SessionType = z.enum([
   'STRENGTH_CONDITIONING',
   'RECOVERY',
   'PHYSICAL_THERAPY',
+  'TACTICAL_ANALYSIS',
 ]);
 
 export const SessionStatus = z.enum([
@@ -382,6 +383,7 @@ export const TRAINING_PERMISSIONS = {
   EXERCISE_READ: 'training.exercise:read',
   EXERCISE_CREATE: 'training.exercise:create',
   EXERCISE_UPDATE: 'training.exercise:update',
+  SESSION_TEMPLATE_READ: 'training.session_template:read',
 } as const;
 
 export const updatePlanStatusSchema = z.strictObject({
@@ -417,3 +419,69 @@ export const updateSessionStatusSchema = z
     }
   });
 export type UpdateSessionStatusInput = z.infer<typeof updateSessionStatusSchema>;
+
+// --- Session templates ---
+
+export const SessionTemplateCategory = z.enum([
+  'TECHNIQUE',
+  'SPARRING',
+  'CONDITIONING',
+  'TACTICS',
+]);
+export type SessionTemplateCategoryType = z.infer<typeof SessionTemplateCategory>;
+
+/** Languages the template text is stored in; every template has both. */
+export const SessionTemplateLocale = z.enum(['vi', 'en']);
+export type SessionTemplateLocaleType = z.infer<typeof SessionTemplateLocale>;
+
+export const sessionTemplateStepSchema = z.object({
+  name: z.string().min(1),
+  detail: z.string().min(1),
+});
+
+const sessionTemplateTextSchema = z.object({
+  name: z.string().min(1),
+  purpose: z.string().min(1),
+  rationale: z.string().min(1),
+  steps: z.array(sessionTemplateStepSchema).min(1).max(10),
+});
+export type SessionTemplateText = z.infer<typeof sessionTemplateTextSchema>;
+
+/** A stored template row: the text in every language. */
+export const sessionTemplateBaseSchema = z.object({
+  id: z.string().uuid(),
+  code: z.string().min(1).max(40),
+  category: SessionTemplateCategory,
+  sessionType: SessionType,
+  plannedDurationMin: z.number().int().min(10).max(300),
+  targetRpe: z.number().int().min(1).max(10),
+  translations: z.object({
+    vi: sessionTemplateTextSchema,
+    en: sessionTemplateTextSchema,
+  }),
+  displayOrder: z.number().int(),
+  isActive: z.boolean(),
+  createdAt: isoDateTimeSchema,
+  updatedAt: isoDateTimeSchema,
+});
+export type SessionTemplateEntity = z.infer<typeof sessionTemplateBaseSchema>;
+
+export const listSessionTemplatesQuerySchema = z.strictObject({
+  locale: SessionTemplateLocale.default('vi'),
+});
+export type ListSessionTemplatesQuery = z.infer<typeof listSessionTemplatesQuerySchema>;
+
+/** A template with its text resolved to one language. */
+export const sessionTemplateResponseSchema = z.object({
+  id: z.string().uuid(),
+  code: z.string(),
+  category: SessionTemplateCategory,
+  sessionType: SessionType,
+  plannedDurationMin: z.number().int(),
+  targetRpe: z.number().int(),
+  name: z.string(),
+  purpose: z.string(),
+  rationale: z.string(),
+  steps: z.array(sessionTemplateStepSchema),
+});
+export type SessionTemplateResponse = z.infer<typeof sessionTemplateResponseSchema>;

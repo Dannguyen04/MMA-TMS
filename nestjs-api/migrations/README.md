@@ -1,4 +1,28 @@
-# Migrations 003–023 — Backend, Database & API Permissions
+# Migrations 003–029 — Backend, Database & API Permissions
+
+## Áp dụng migration 029 (mẫu giáo án — session_templates)
+
+029 yêu cầu ledger đã có version 28 và ghi ledger version 29. Nội dung:
+- Enum `public.session_template_category` (`TECHNIQUE`, `SPARRING`, `CONDITIONING`, `TACTICS`).
+- Bảng `public.session_templates` (`code` duy nhất, `category`, `session_type`, `planned_duration_min` 10–300, `target_rpe` 1–10, `translations` jsonb có đủ `vi` và `en` với cùng số bước, `display_order`, `is_active`). RLS bật, REVOKE ALL từ `anon, authenticated`; trigger `update_updated_at`. Chưa có endpoint ghi nên không có audit trigger.
+- Seed bốn mẫu hệ thống: `distance` (PAD_WORK), `counter` (SPARRING), `strength` (STRENGTH_CONDITIONING), `tactics` (TACTICAL_ANALYSIS). Thời lượng và RPE là **đề xuất**, HLV chuyên môn cần duyệt trước demo 31/10.
+- Quyền `training.session_template:read` cho COACH và ADMIN.
+
+```sh
+pnpm db:check
+pnpm db:migrate:029
+```
+
+029 chỉ chạy được sau 028 đã commit, vì seed dùng giá trị enum mới.
+
+## Áp dụng migration 028 (loại buổi TACTICAL_ANALYSIS)
+
+028 yêu cầu ledger đã có version 23 và ghi ledger version 28 (024–027 dành cho các ticket Fight Camp khác, không phụ thuộc lẫn nhau). Chỉ thêm giá trị `session_type` `TACTICAL_ANALYSIS` (phân tích chiến thuật, xem video, không có tải thể chất); không đổi bảng, RLS hay grant. Giá trị mới không được dùng làm literal trong cùng transaction nên seed nằm ở 029. Từ 028, danh sách `allowed_session_types` của clearance **không** chặn `TACTICAL_ANALYSIS` (quy tắc trong `medical.service.ts`, `NON_PHYSICAL_SESSION_TYPES`); mọi quy tắc khác của điều kiện y tế vẫn áp dụng.
+
+```sh
+pnpm db:check
+pnpm db:migrate:028
+```
 
 ## Áp dụng migration 023 (Chế độ giám sát y tế - academy_settings)
 

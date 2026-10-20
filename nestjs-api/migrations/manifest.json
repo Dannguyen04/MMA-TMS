@@ -20,6 +20,8 @@
     "018_training_plan_phase.sql": "e5c0aaa4133a21f28ebda45b718a87da10b4ec226ad588755404dc3f788ffeac",
     "019_ai_delivery_receipts.sql": "d748ff1bf52009ded63034d5a23bad0575dc6db3dee27089cf9c76f27b9de637",
     "020_movement_evidence_reviews.sql": "2db1ad85b4640063ac7c6f3d680deadaa0e7d6333e81fad76f6d958fd27c0ac1",
-    "023_academy_settings.sql": "383defd87f4d7dd70a33a6394b3e114e53f74f6923bf93fb86a9e28f0b2665cc"
+    "023_academy_settings.sql": "383defd87f4d7dd70a33a6394b3e114e53f74f6923bf93fb86a9e28f0b2665cc",
+    "028_session_type_tactical_analysis.sql": "dff91428e2a8833be562252a104e1afe8081e39b24f377e6386d82d79d24a3eb",
+    "029_session_templates.sql": "cb85be2ded9db113958a44e470cc51702a950e6aa9a322601dc57ad1cf5414c1"
   }
 }

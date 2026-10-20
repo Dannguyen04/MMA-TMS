@@ -103,6 +103,15 @@ interface EligibilityState {
   sessionType?: SessionTypeValue;
 }
 
+/**
+ * Session types with no physical load (video study). A doctor's list of
+ * allowed session types limits physical work only, so these types never trip
+ * SESSION_TYPE_RESTRICTED. Every other eligibility rule still applies.
+ */
+const NON_PHYSICAL_SESSION_TYPES: readonly SessionTypeValue[] = [
+  'TACTICAL_ANALYSIS',
+];
+
 function isRestricted(clearance: ClearanceEligibilityRow): boolean {
   return (
     clearance.allowedSessionTypes !== null ||
@@ -202,6 +211,7 @@ export function evaluateEligibility(state: EligibilityState): MedicalEligibility
   if (
     current &&
     state.sessionType &&
+    !NON_PHYSICAL_SESSION_TYPES.includes(state.sessionType) &&
     current.allowedSessionTypes &&
     !current.allowedSessionTypes.includes(state.sessionType)
   ) {

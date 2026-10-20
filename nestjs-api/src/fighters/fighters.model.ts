@@ -43,6 +43,7 @@ export const sessionTypes = [
   'STRENGTH_CONDITIONING',
   'RECOVERY',
   'PHYSICAL_THERAPY',
+  'TACTICAL_ANALYSIS',
 ] as const;
 
 export const FIGHTER_PERMISSIONS = {
