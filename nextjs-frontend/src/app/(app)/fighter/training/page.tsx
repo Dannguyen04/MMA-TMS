@@ -13,7 +13,7 @@ import { PlanOverview } from "@/components/training/plan-overview";
 import { AdherenceChart } from "@/components/training/training-charts";
 import { getCoachNames } from "@/components/training/training-data";
 import { planAdherence, planAdherenceWeeks, planAdherencePct, recentAdherenceWeeks } from "@/components/training/training-utils";
-import { requireFighterAccess } from "@/lib/auth/access";
+import { requireFighterId } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { routes } from "@/lib/routes";
 import { listPlans, listSessions } from "@/lib/services/training";
@@ -26,10 +26,10 @@ const ADHERENCE_WEEKS = 8;
 export default async function FighterTrainingPage() {
     const user = await requireRole("fighter");
     if (!user.profileId) notFound();
-    const fighter = await requireFighterAccess(user, user.profileId);
+    const fighterId = requireFighterId(user, user.profileId);
     const now = new Date().toISOString();
 
-    const [plans, sessions, coachNames] = await Promise.all([listPlans({ fighterIds: [fighter.id] }), listSessions({ fighterIds: [fighter.id] }), getCoachNames()]);
+    const [plans, sessions, coachNames] = await Promise.all([listPlans({ fighterIds: [fighterId] }), listSessions({ fighterIds: [fighterId] }), getCoachNames()]);
 
     // Drafts are still being prepared by the coach, so fighters don't see them.
     const visiblePlans = plans.filter((plan) => plan.status !== "draft");

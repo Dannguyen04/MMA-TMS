@@ -14,7 +14,7 @@ import { describeWeekOffset, parseWeekOffset, plannedEndMs, weekStartKey } from 
 import { UpcomingByDay } from "@/components/training/upcoming-by-day";
 import { WeekNav, weekRangeLabel } from "@/components/training/week-nav";
 import { WeekSummary } from "@/components/training/week-summary";
-import { requireFighterAccess } from "@/lib/auth/access";
+import { requireFighterId } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { academyDayStartIso, addDaysToKey, pluralize } from "@/lib/format";
 import { routes } from "@/lib/routes";
@@ -29,7 +29,7 @@ const UPCOMING_DAYS = 14;
 export default async function FighterSchedulePage({ searchParams }: PageProps<"/fighter/schedule">) {
     const user = await requireRole("fighter");
     if (!user.profileId) notFound();
-    const fighter = await requireFighterAccess(user, user.profileId);
+    const fighterId = requireFighterId(user, user.profileId);
     const params = await searchParams;
 
     const current = new Date();
@@ -44,17 +44,17 @@ export default async function FighterSchedulePage({ searchParams }: PageProps<"/
     const upcomingStartMs = showsPastWeek ? nowMs : Date.parse(afterWeekIso);
 
     const [agenda, later, coachNames, clearance, activePlans] = await Promise.all([
-        getWeekAgenda([fighter.id], weekStartIso, 7),
+        getWeekAgenda([fighterId], weekStartIso, 7),
         listSessions({
-            fighterIds: [fighter.id],
+            fighterIds: [fighterId],
             status: ["scheduled", "in_progress", "cancelled"],
             // A day back from now catches sessions that are still running.
             from: showsPastWeek ? new Date(nowMs - DAY_MS).toISOString() : afterWeekIso,
             to: new Date(upcomingStartMs + UPCOMING_DAYS * DAY_MS).toISOString(),
         }),
         getCoachNames(),
-        getClearanceSummary(fighter.id, now),
-        listPlans({ fighterIds: [fighter.id], status: "active" }),
+        getClearanceSummary(fighterId, now),
+        listPlans({ fighterIds: [fighterId], status: "active" }),
     ]);
 
     const weekSessions = agenda.flatMap((day) => day.sessions);

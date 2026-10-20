@@ -19,7 +19,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { ProgressBar } from "@/components/ui/progress";
-import { requireFighterAccess } from "@/lib/auth/access";
+import { requireFighterAccess, requireFighterId } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { NOT_RECORDED } from "@/components/domain/domain-format";
 import { WEIGHT_CLASS_LABELS, WEIGHT_CLASS_LIMIT_KG } from "@/lib/domain/labels";
@@ -60,8 +60,10 @@ const GOAL_STRIPES = 4;
 export default async function FighterDashboardPage({ searchParams }: PageProps<"/fighter/dashboard">) {
     const user = await requireRole("fighter");
     if (!user.profileId) notFound();
-    const fighter = await requireFighterAccess(user, user.profileId);
-    const ids = [fighter.id];
+    const fighterId = requireFighterId(user, user.profileId);
+    // The profile read runs beside the page's own reads instead of ahead of them.
+    const fighterRead = requireFighterAccess(user, fighterId);
+    const ids = [fighterId];
     const [query, { t, locale }] = await Promise.all([searchParams, getTranslator()]);
     // The bouts service is separate from training: without it Today still shows, minus the weigh-in card.
     const boutsRead = nullIfServiceFails(listBouts({ fighterIds: ids }));
@@ -73,8 +75,10 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
 
     // The active plan's sessions chain onto the plan list, so they don't wait for the rest of the batch.
     const plansRead = listPlans({ fighterIds: ids });
-    const [health, upcoming, weekSessions, plans, planDetail, videos, feedback, goals, coaches, doctors] = await Promise.all([
-        getFighterHealthSummary(fighter.id, now),
+    const [fighter, bouts, health, upcoming, weekSessions, plans, planDetail, videos, feedback, goals, coaches, doctors] = await Promise.all([
+        fighterRead,
+        boutsRead,
+        getFighterHealthSummary(fighterId, now),
         getUpcomingSessions(ids, 1),
         listSessions({ fighterIds: ids, from: weekStart, to: new Date(Date.parse(nextWeekStart) - 1).toISOString() }),
         plansRead,
@@ -90,7 +94,6 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
         listDoctors(),
     ]);
     if (!health) notFound();
-    const bouts = await boutsRead;
     const runningBout = bouts ? activeBout(bouts) : null;
 
     const activePlan = planDetail?.plan ?? null;

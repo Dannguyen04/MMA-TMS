@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { DescriptionList } from "@/components/ui/description-list";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/states";
-import { requireFighterAccess } from "@/lib/auth/access";
+import { requireFighterId } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import type { Bout, BoutRequirement, WeightTrack } from "@/lib/domain/types";
 import { activeBout, WEIGHT_SAVED_NOTICE } from "@/lib/domain/weigh-in";
@@ -45,10 +45,10 @@ const atNoon = (key: string) => `${key}T12:00:00+07:00`;
 export default async function FighterBoutPage({ searchParams }: PageProps<"/fighter/bout">) {
     const user = await requireRole("fighter");
     if (!user.profileId) notFound();
-    const fighter = await requireFighterAccess(user, user.profileId);
+    const fighterId = requireFighterId(user, user.profileId);
     const [query, { t, locale }] = await Promise.all([searchParams, getTranslator()]);
 
-    const bouts = await nullIfServiceFails(listBouts({ fighterIds: [fighter.id] }));
+    const bouts = await nullIfServiceFails(listBouts({ fighterIds: [fighterId] }));
     const bout = bouts ? activeBout(bouts) : null;
     const track = bout ? await nullIfServiceFails(getWeightTrack(bout.id)) : null;
 
