@@ -1,3 +1,5 @@
+import { createDemoCopy } from "@/lib/i18n/demo-copy";
+import type { Locale } from "@/lib/i18n/config";
 import { daysBetween, pluralize } from "@/lib/format";
 import { clamp } from "@/lib/utils";
 import type { PlanStatus, TrainingPlan, TrainingSession } from "./types";
@@ -29,21 +31,22 @@ export interface PlanTimeline {
 }
 
 /** Elapsed share of the plan window and a short phrase such as "Week 3 of 8 · 40 days left". */
-export function planTimeline(plan: Pick<TrainingPlan, "startDate" | "endDate" | "status">, now: string): PlanTimeline {
+export function planTimeline(plan: Pick<TrainingPlan, "startDate" | "endDate" | "status">, now: string, locale: Locale = "en"): PlanTimeline {
+    const copy = createDemoCopy(locale);
     const elapsedDays = daysBetween(plan.startDate, now);
     if (elapsedDays < 0) {
         const days = -elapsedDays;
-        return { elapsedPct: 0, text: days === 1 ? "Starts tomorrow" : `Starts in ${pluralize(days, "day")}` };
+        return { elapsedPct: 0, text: days === 1 ? copy("Starts tomorrow") : locale === "en" ? `Starts in ${pluralize(days, "day")}` : copy("Starts in {n} days", { n: days }) };
     }
-    if (plan.status === "completed") return { elapsedPct: 100, text: "Finished" };
-    if (plan.endDate === null) return { elapsedPct: null, text: `Week ${Math.floor(elapsedDays / 7) + 1}` };
+    if (plan.status === "completed") return { elapsedPct: 100, text: copy("Finished") };
+    if (plan.endDate === null) return { elapsedPct: null, text: copy("Week {n}", { n: Math.floor(elapsedDays / 7) + 1 }) };
     const totalDays = Math.max(1, daysBetween(plan.startDate, plan.endDate));
-    if (elapsedDays > totalDays) return { elapsedPct: 100, text: "Finished" };
+    if (elapsedDays > totalDays) return { elapsedPct: 100, text: copy("Finished") };
     const weeks = Math.max(1, Math.ceil(totalDays / 7));
     const week = clamp(Math.floor(elapsedDays / 7) + 1, 1, weeks);
     return {
         elapsedPct: Math.round((elapsedDays / totalDays) * 100),
-        text: `Week ${week} of ${weeks} · ${pluralize(totalDays - elapsedDays, "day")} left`,
+        text: locale === "en" ? `Week ${week} of ${weeks} · ${pluralize(totalDays - elapsedDays, "day")} left` : copy("Week {week} of {weeks} · {days} days left", { week, weeks, days: totalDays - elapsedDays }),
     };
 }
 

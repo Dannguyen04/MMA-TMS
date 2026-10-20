@@ -1,3 +1,4 @@
+import { getDemoCopy } from "@/lib/i18n/server";
 import type { Metadata } from "next";
 
 import { scopedFighterIds } from "@/components/dashboard/roster-data";
@@ -12,11 +13,12 @@ import { listFighters } from "@/lib/services/people";
 import { usesTrainingServiceForms } from "@/lib/services/platform-features";
 import { param } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "New training plan" };
+export async function generateMetadata(): Promise<Metadata> { const copy = await getDemoCopy(); return { title: copy("New training plan") }; }
 
 const DEFAULT_PLAN_WEEKS = 8;
 
 export default async function NewPlanPage({ searchParams }: PageProps<"/coach/training-plans/new">) {
+    const copy = await getDemoCopy();
     const user = await requireRole("coach");
     const params = await searchParams;
     const now = new Date().toISOString();
@@ -43,9 +45,9 @@ export default async function NewPlanPage({ searchParams }: PageProps<"/coach/tr
     return (
         <>
             <PageHeader
-                title="New training plan"
-                description={`Set the objective, phase and ${serviceForm ? "dates" : "weekly target"}. Check the fighter's Medical Clearance so the plan fits their restrictions.`}
-                back={prefilled ? { href: routes.coach.fighterTraining(prefilled.id), label: prefilled.name } : { href: routes.coach.plans, label: "Training plans" }}
+                title={copy("New training plan")}
+                description={copy(serviceForm ? "Set the objective, phase and dates. Check the fighter’s Medical Clearance before planning." : "Set the objective, phase and weekly target. Check the fighter’s Medical Clearance before planning.")}
+                back={prefilled ? { href: routes.coach.fighterTraining(prefilled.id), label: prefilled.name } : { href: routes.coach.plans, label: copy("Training plans") }}
             />
             <PlanForm
                 mode="create"

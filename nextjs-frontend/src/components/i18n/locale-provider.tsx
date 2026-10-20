@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 
+import { createDemoCopy } from "@/lib/i18n/demo-copy";
 import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/config";
 import { createTranslator, type Translator } from "@/lib/i18n/translate";
 
@@ -20,4 +21,9 @@ export function useLocale(): Locale {
 export function useT(): Translator {
     const locale = useLocale();
     return useMemo(() => createTranslator(locale), [locale]);
+}
+
+export function useDemoCopy() {
+    const locale = useLocale();
+    return useMemo(() => createDemoCopy(locale), [locale]);
 }

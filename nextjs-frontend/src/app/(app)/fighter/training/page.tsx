@@ -1,3 +1,4 @@
+import { getDemoCopy, getLocale } from "@/lib/i18n/server";
 import { CalendarClock, ClipboardList } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -18,12 +19,14 @@ import { requireRole } from "@/lib/auth/session";
 import { routes } from "@/lib/routes";
 import { listPlans, listSessions } from "@/lib/services/training";
 
-export const metadata: Metadata = { title: "Training plans" };
+export async function generateMetadata(): Promise<Metadata> { const copy = await getDemoCopy(); return { title: copy("Training plans") }; }
 
 const NEXT_SESSIONS = 4;
 const ADHERENCE_WEEKS = 8;
 
 export default async function FighterTrainingPage() {
+    const copy = await getDemoCopy();
+    const locale = await getLocale();
     const user = await requireRole("fighter");
     if (!user.profileId) notFound();
     const fighterId = requireFighterId(user, user.profileId);
@@ -47,8 +50,8 @@ export default async function FighterTrainingPage() {
     return (
         <>
             <PageHeader
-                title="Training plans"
-                description="The plan your coach built for this phase, how consistently you're following it, and your past plans."
+                title={copy("Training plans")}
+                description={copy("The plan your coach built for this phase, how consistently you're following it, and your past plans.")}
             />
 
             <div className="flex flex-col gap-6">
@@ -62,19 +65,17 @@ export default async function FighterTrainingPage() {
                         actions={
                             <ButtonLink href={routes.fighter.plan(activePlan.id)} variant="secondary" className="w-full sm:w-auto">
                                 <ClipboardList aria-hidden />
-                                View full plan
-                            </ButtonLink>
+                                {copy("View full plan")} </ButtonLink>
                         }
                     />
                 ) : (
                     <EmptyState
                         icon={<ClipboardList />}
-                        title="No active training plan"
-                        description="Your coach hasn't published a plan for this phase yet. Sessions they schedule still appear on your schedule."
+                        title={copy("No active training plan")}
+                        description={copy("Your coach hasn't published a plan for this phase yet. Sessions they schedule still appear on your schedule.")}
                         action={
                             <ButtonLink href={routes.fighter.schedule} variant="secondary">
-                                View schedule
-                            </ButtonLink>
+                                {copy("View schedule")} </ButtonLink>
                         }
                     />
                 )}
@@ -82,18 +83,17 @@ export default async function FighterTrainingPage() {
                 <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-2">
                     <AdherenceChart
                         weeks={adherenceWeeks}
-                        description={activePlan ? "Completed out of due sessions per week in your current plan" : `Completed out of due sessions per week, last ${ADHERENCE_WEEKS} weeks`}
+                        description={activePlan ? copy("Completed out of due sessions per week in your current plan") : copy("Completed out of due sessions per week, last {n} weeks", { n: ADHERENCE_WEEKS })}
                         className="min-w-0"
                     />
                     <Card className="min-w-0 overflow-hidden">
                         <CardHeader
-                            title="Next in this plan"
+                            title={copy("Next in this plan")}
                             icon={<CalendarClock />}
                             action={
                                 nextSessions.length > 0 ? (
-                                    <CardLink href={routes.fighter.schedule} srContext="upcoming sessions on your schedule">
-                                        All
-                                    </CardLink>
+                                    <CardLink href={routes.fighter.schedule} srContext={copy("upcoming sessions on your schedule")}>
+                                        {copy("All")} </CardLink>
                                 ) : undefined
                             }
                         />
@@ -102,15 +102,15 @@ export default async function FighterTrainingPage() {
                                 <EmptyState
                                     compact
                                     icon={<CalendarClock />}
-                                    title="No upcoming sessions"
-                                    description={activePlan ? "Nothing is scheduled ahead in this plan yet." : "Sessions appear here once a plan is active."}
+                                    title={copy("No upcoming sessions")}
+                                    description={activePlan ? copy("Nothing is scheduled ahead in this plan yet.") : copy("Sessions appear here once a plan is active.")}
                                 />
                             </CardContent>
                         ) : (
                             <ul className="divide-y divide-border border-t border-border">
                                 {nextSessions.map((session) => (
                                     <li key={session.id}>
-                                        <SessionListItem session={session} href={routes.fighter.session(session.id)} coachName={session.coachId ? coachNames[session.coachId] : undefined} />
+                                        <SessionListItem locale={locale} session={session} href={routes.fighter.session(session.id)} coachName={session.coachId ? coachNames[session.coachId] : undefined} />
                                     </li>
                                 ))}
                             </ul>
@@ -121,12 +121,11 @@ export default async function FighterTrainingPage() {
                 <section aria-labelledby="plan-history-heading" className="flex flex-col gap-4">
                     <div>
                         <h2 id="plan-history-heading" className="text-lg font-semibold text-fg">
-                            Plan history
-                        </h2>
-                        <p className="text-sm text-fg-muted">Completed and archived plans from earlier phases.</p>
+                            {copy("Plan history")} </h2>
+                        <p className="text-sm text-fg-muted">{copy("Completed and archived plans from earlier phases.")} </p>
                     </div>
                     {otherPlans.length === 0 ? (
-                        <EmptyState compact icon={<ClipboardList />} title="No earlier plans" description="Plans you finish with your coach are kept here." className="rounded-xl border border-dashed border-border-strong" />
+                        <EmptyState compact icon={<ClipboardList />} title={copy("No earlier plans")} description={copy("Plans you finish with your coach are kept here.")} className="rounded-xl border border-dashed border-border-strong" />
                     ) : (
                         <ul className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 xl:grid-cols-3">
                             {otherPlans.map((plan) => (

@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { canAccessFighter } from "@/lib/auth/access";
 import { authorizeAction } from "@/lib/auth/session";
 import type { User } from "@/lib/domain/types";
-import { getTranslator } from "@/lib/i18n/server";
+import { getDemoCopy, getTranslator } from "@/lib/i18n/server";
 import type { Translator } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import {
@@ -159,7 +159,8 @@ export async function enterFightWeekAction(_prev: ActionState, formData: FormDat
         const result = await enterFightWeekService(boutId, auth.user);
         if (!result.ok) {
             if (result.error === "BOUT_REQUIREMENTS_INCOMPLETE") {
-                const missingList = [...(result.missing ?? []), ...(result.expiring ?? [])];
+                const copy = await getDemoCopy();
+                const missingList = [...(result.missing ?? []), ...(result.expiring ?? [])].map((item) => copy(item));
                 return actionError(t("coachBouts.action.requirementsIncomplete", { items: missingList.join(", ") }));
             }
             if (result.error === "BOUT_FIGHT_WEEK_TOO_EARLY") {

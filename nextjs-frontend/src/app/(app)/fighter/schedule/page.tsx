@@ -1,3 +1,4 @@
+import { getDemoCopy, getLocale } from "@/lib/i18n/server";
 import { CalendarClock, CalendarDays, ClipboardList } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -16,17 +17,19 @@ import { WeekNav, weekRangeLabel } from "@/components/training/week-nav";
 import { WeekSummary } from "@/components/training/week-summary";
 import { requireFighterId } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
-import { academyDayStartIso, addDaysToKey, pluralize } from "@/lib/format";
+import { academyDayStartIso, addDaysToKey } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { getWeekAgenda, listPlans, listSessions } from "@/lib/services/training";
 import { param } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Schedule" };
+export async function generateMetadata(): Promise<Metadata> { const copy = await getDemoCopy(); return { title: copy("Schedule") }; }
 
 const DAY_MS = 86_400_000;
 const UPCOMING_DAYS = 14;
 
 export default async function FighterSchedulePage({ searchParams }: PageProps<"/fighter/schedule">) {
+    const copy = await getDemoCopy();
+    const locale = await getLocale();
     const user = await requireRole("fighter");
     if (!user.profileId) notFound();
     const fighterId = requireFighterId(user, user.profileId);
@@ -61,55 +64,55 @@ export default async function FighterSchedulePage({ searchParams }: PageProps<"/
     const upcoming = later.filter((s) => plannedEndMs(s) >= nowMs);
     const activePlan = activePlans[0];
     const scheduledCount = weekSessions.filter((s) => s.status !== "cancelled").length;
-    const upcomingDescription = offset === 0 ? "Next week and beyond" : offset > 0 ? `After ${weekRangeLabel(startKey)}` : `Next ${UPCOMING_DAYS} days`;
+    const upcomingDescription = offset === 0 ? copy("Next week and beyond") : offset > 0 ? copy("After {date}", { date: weekRangeLabel(startKey, locale) }) : copy("Next {n} days", { n: UPCOMING_DAYS });
 
     return (
         <>
             <PageHeader
-                title="Schedule"
-                description="Your training week and what's coming up. Open a session for drills, targets and coach notes."
+                title={copy("Schedule")}
+                description={copy("Your training week and what's coming up. Open a session for drills, targets and coach notes.")}
             />
 
             <div className="flex flex-col gap-6">
-                <ClearanceBanner summary={clearance} href={routes.fighter.health} />
+                <ClearanceBanner locale={locale} summary={clearance} href={routes.fighter.health} />
 
                 <Card>
                     <CardHeader
-                        title={weekRangeLabel(startKey)}
-                        description={`${describeWeekOffset(offset)} · ${pluralize(scheduledCount, "session")}`}
+                        title={weekRangeLabel(startKey, locale)}
+                        description={`${describeWeekOffset(offset, locale)} · ${copy("{n} sessions", { n: scheduledCount })}`}
                         icon={<CalendarDays />}
-                        action={<WeekNav pathname={routes.fighter.schedule} searchParams={params} offset={offset} startKey={startKey} />}
+                        action={<WeekNav locale={locale} pathname={routes.fighter.schedule} searchParams={params} offset={offset} startKey={startKey} />}
                         className="flex-wrap"
                     />
                     <CardContent>
-                        <WeekAgenda sessions={weekSessions} startDate={weekStartIso} now={now} getHref={(session) => routes.fighter.session(session.id)} />
+                        <WeekAgenda locale={locale} sessions={weekSessions} startDate={weekStartIso} now={now} getHref={(session) => routes.fighter.session(session.id)} />
                     </CardContent>
                 </Card>
 
                 <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                     <Card className="min-w-0 overflow-hidden lg:col-span-2">
-                        <CardHeader title="Upcoming" description={upcomingDescription} icon={<CalendarClock />} />
+                        <CardHeader title={copy("Upcoming")} description={upcomingDescription} icon={<CalendarClock />} />
                         {upcoming.length === 0 ? (
                             <CardContent>
                                 <EmptyState
                                     compact
                                     icon={<CalendarClock />}
-                                    title={showsPastWeek ? "Nothing scheduled in the next two weeks" : `Nothing scheduled after ${offset === 0 ? "this" : "that"} week yet`}
-                                    description="When your coach schedules sessions they appear here, and you'll get a notification."
+                                    title={showsPastWeek ? copy("Nothing scheduled in the next two weeks") : copy(offset === 0 ? "Nothing scheduled after this week yet" : "Nothing scheduled after that week yet")}
+                                    description={copy("When your coach schedules sessions they appear here, and you'll get a notification.")}
                                 />
                             </CardContent>
                         ) : (
                             <div className="border-t border-border">
-                                <UpcomingByDay sessions={upcoming} now={now} audience="fighter" coachNames={coachNames} />
+                                <UpcomingByDay locale={locale} sessions={upcoming} now={now} audience="fighter" coachNames={coachNames} />
                             </div>
                         )}
                     </Card>
 
                     <div className="order-first flex min-w-0 flex-col gap-6 lg:order-last">
-                        <WeekSummary sessions={weekSessions} description={weekRangeLabel(startKey)} />
+                        <WeekSummary locale={locale} sessions={weekSessions} description={weekRangeLabel(startKey, locale)} />
                         {activePlan && (
                             <Card>
-                                <CardHeader title="Current plan" icon={<ClipboardList />} />
+                                <CardHeader title={copy("Current plan")} icon={<ClipboardList />} />
                                 <CardContent className="flex flex-col gap-3">
                                     <Link href={routes.fighter.plan(activePlan.id)} className="text-sm font-semibold text-fg hover:underline">
                                         {activePlan.title}
@@ -117,8 +120,8 @@ export default async function FighterSchedulePage({ searchParams }: PageProps<"/
                                     <PlanTimelineBar plan={activePlan} now={now} size="sm" />
                                     <p className="text-[13px] text-fg-muted">
                                         {[
-                                            activePlan.weeklySessionTarget === null ? null : `Target ${pluralize(activePlan.weeklySessionTarget, "session")} a week`,
-                                            coachNames[activePlan.coachId] ? `Coach ${coachNames[activePlan.coachId]}` : null,
+                                            activePlan.weeklySessionTarget === null ? null : copy("Target {n} sessions a week", { n: activePlan.weeklySessionTarget }),
+                                            coachNames[activePlan.coachId] ? copy("Coach {name}", { name: coachNames[activePlan.coachId] }) : null,
                                         ]
                                             .filter(Boolean)
                                             .join(" · ")}

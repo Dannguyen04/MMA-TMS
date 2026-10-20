@@ -70,6 +70,7 @@ import type {
     VideoStatus,
     WeightWarningStatus,
 } from "@/lib/domain/types";
+import { createDemoCopy } from "@/lib/i18n/demo-copy";
 import type { Locale } from "@/lib/i18n/config";
 import { createTranslator } from "@/lib/i18n/translate";
 import { formatConfidence } from "@/lib/format";
@@ -299,8 +300,9 @@ export const PLAN_STATUS_META: Record<PlanStatus, StatusMeta> = {
     archived: { label: PLAN_STATUS_LABELS.archived, tone: "neutral", icon: Clock },
 };
 
-export function PlanStatusBadge({ status, size, className }: { status: PlanStatus; size?: BadgeSize; className?: string }) {
-    return <StatusBadge meta={PLAN_STATUS_META[status]} size={size} className={className} />;
+export function PlanStatusBadge({ status, size, className, locale }: { status: PlanStatus; size?: BadgeSize; className?: string; locale?: Locale }) {
+    const meta = PLAN_STATUS_META[status];
+    return <StatusBadge meta={locale ? { ...meta, label: createDemoCopy(locale)(meta.label) } : meta} size={size} className={className} />;
 }
 
 export const GOAL_STATUS_META: Record<GoalStatus, StatusMeta> = {

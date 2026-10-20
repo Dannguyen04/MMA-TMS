@@ -1,3 +1,4 @@
+import { createDemoCopy } from "@/lib/i18n/demo-copy";
 import { CalendarClock, FileCheck2, Scale, Swords } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -167,6 +168,7 @@ function FighterWeightCard({ bout, track, limitKg, t, locale }: { bout: Bout; tr
 }
 
 function MedicalDocumentsCard({ requirements, boutAt, t, locale }: { requirements: BoutRequirement[]; boutAt: string } & WithLanguage) {
+    const copy = createDemoCopy(locale);
     const boutDay = dayKey(boutAt);
     const ready = requirements.filter((item) => isReady(item, boutDay)).length;
 
@@ -183,7 +185,7 @@ function MedicalDocumentsCard({ requirements, boutAt, t, locale }: { requirement
                         {requirements.map((item) => (
                             <li key={item.id} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
                                 <span className="min-w-0 text-sm text-fg">
-                                    {item.label}
+                                    {item.source === "PRESET" ? copy(item.label) : item.label}
                                     {item.validUntil && (
                                         <span className="block text-xs text-fg-subtle">{t("bout.validUntil", { date: formatDate(atNoon(item.validUntil), locale) })}</span>
                                     )}
