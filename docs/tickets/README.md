@@ -48,7 +48,7 @@ Số migration 025, 026, 027 cố định; mỗi migration chỉ yêu cầu ledg
 
 ## Giao diện tiếng Việt ([T-013](./T-013-i18n-vi.md))
 
-Quyết định của chủ dự án 19/10: dịch toàn bộ app, làm dần, mặc định tiếng Việt. T-013 phần 1 và 2 đã merge vào `fight-camp` (20/10). Phần 3 chia thành các ticket dưới đây; chạy song song được vì mỗi ticket có cặp file từ điển riêng. Route đóng băng không dịch. Landing page dịch ở T-020 (chủ dự án chốt 20/10); `src/app/concept/` đã là tiếng Việt.
+Quyết định của chủ dự án 19/10: dịch toàn bộ app, làm dần, mặc định tiếng Việt. T-013 phần 1 và 2 đã merge vào `fight-camp` (20/10). Phần 3 chia thành các ticket dưới đây; chạy song song được vì mỗi ticket có cặp file từ điển riêng. Route đóng băng không dịch. Chủ dự án chốt 20/10: dịch toàn bộ, kể cả route đóng băng (T-022 đến T-024). Landing page ở T-020; `src/app/concept/` đã là tiếng Việt.
 
 | Ticket | Nội dung | Phụ thuộc | Trạng thái |
 | --- | --- | --- | --- |
@@ -60,5 +60,9 @@ Quyết định của chủ dự án 19/10: dịch toàn bộ app, làm dần, m
 | [T-019](./T-019-i18n-admin.md) | Admin (các mục còn trong menu) | — | READY, ưu tiên thấp nhất |
 | [T-020](./T-020-i18n-landing.md) | Landing page (`/`). `src/app/concept/` đã là tiếng Việt, không cần dịch | — | READY |
 | [T-021](./T-021-i18n-e2e.md) | E2E: đặt cookie `mma_locale=en` cho spec hiện có, thêm spec đổi ngôn ngữ | Nên làm trước hoặc cùng T-014 | READY |
+| [T-022](./T-022-i18n-performance-goals.md) | Performance và Goals (đóng băng, dịch theo quyết định "toàn bộ" 20/10) | — | READY, ưu tiên thấp |
+| [T-023](./T-023-i18n-frozen-clinical.md) | Hồ sơ y tế, khám, hồi phục, cảnh báo AI của bác sĩ (đóng băng) | T-017 | READY, ưu tiên thấp |
+| [T-024](./T-024-i18n-frozen-admissions-models.md) | Admissions (HLV, admin) và AI models (đóng băng) | T-014, T-019 | READY, ưu tiên thấp |
+| [T-025](./T-025-i18n-final-sweep.md) | Rà soát cuối, bắt buộc `locale`, test chống chữ Anh quay lại, cập nhật tài liệu quy ước | Mọi ticket T-014 đến T-024 | READY, làm cuối |
 
-Thứ tự ưu tiên theo demo: T-021 và T-014, T-015, T-016, T-020, T-018, T-017, T-019.
+Thứ tự ưu tiên: T-021 và T-014, T-015, T-016, T-020, T-018, T-017, T-019, rồi T-022 đến T-024, T-025 cuối cùng.
