@@ -21,6 +21,12 @@ Tiền tố key: `auth.`, `account.`, `notifications.`. Cặp file mới: `messa
 4. **Tài khoản**: `src/app/(app)/{profile,settings,notifications}/**`, `src/components/account/**` (không đụng `LanguageSwitcher`), `src/lib/actions/{auth,account,notifications}.ts`, `src/lib/services/account-errors.ts`, `src/components/domain/notification-meta.ts`.
 5. `src/components/account/regional-settings.tsx` đang tạo `Intl.DateTimeFormat("en-US")`; chọn theo locale hiện hành (`INTL_LOCALE` trong `src/lib/i18n/config.ts`).
 6. `src/lib/actions/medical-contract.ts` (dòng ~56) có câu `Keep the … under … characters` dùng chung nhiều form. Dịch ở ticket này bằng cách nhận `t` từ nơi gọi; không đọc cookie trong hàm thuần.
+7. **Chữ Anh còn sót từ review T-005 và T-013** ([T-005-REVIEW](./T-005-REVIEW.md), [T-013-REVIEW](./T-013-REVIEW.md)):
+    - Nhãn `loading.tsx` của `fighter/bout`, `fighter/bout/weigh-in`, `fighter/dashboard`, `coach/dashboard`.
+    - `src/components/layout/notification-bell.tsx`: `label="Notifications"` và toast `"Done"`.
+    - `src/app/(app)/fighter/dashboard/page.tsx`: nhãn `Weight` và các thẻ onboarding.
+    - `src/lib/services/people.ts` (`recordSelfWeight`): ba câu `message` tiếng Anh; bỏ trường `message` nếu không ai dùng, hoặc dịch ở nơi gọi.
+    - `src/app/global-error.tsx`: `lang="en"` và chữ Anh cố định. Không đọc được `cookies()` ở đây; chọn ngôn ngữ phía client từ cookie `mma_locale` (tên lấy từ `LOCALE_COOKIE`), mặc định tiếng Việt.
 
 ## Ngoài phạm vi
 
