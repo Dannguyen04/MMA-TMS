@@ -368,7 +368,11 @@ export const APPLICATION_STATUS_META: Record<ApplicationStatus, StatusMeta> = {
     rejected: { label: APPLICATION_STATUS_LABELS.rejected, tone: "danger", icon: UserX },
 };
 
-export function ApplicationStatusBadge({ status, size, className }: { status: ApplicationStatus; size?: BadgeSize; className?: string }) {
+export function ApplicationStatusBadge({ status, size, className, locale }: { status: ApplicationStatus; size?: BadgeSize; className?: string; locale?: Locale }) {
+    if (locale) {
+        const t = createTranslator(locale);
+        return <StatusBadge meta={{ ...APPLICATION_STATUS_META[status], label: t(`applicant.status.${status}`) }} size={size} className={className} />;
+    }
     return <StatusBadge meta={APPLICATION_STATUS_META[status]} size={size} className={className} />;
 }
 
