@@ -13,6 +13,7 @@ export const tacticOutcomeSchema = z.enum([
   'NOT_USED',
 ]);
 const text = z.string().trim().min(1).max(300);
+const evidenceText = z.string().trim().min(1);
 export const opponentProfileSchema = z.strictObject({
   wins: z.number().int().nonnegative().optional(),
   losses: z.number().int().nonnegative().optional(),
@@ -21,7 +22,7 @@ export const opponentProfileSchema = z.strictObject({
   style: z.enum(['STRIKER', 'WRESTLER', 'GRAPPLER', 'ALL_ROUND']).optional(),
   heightCm: z.number().positive().optional(),
   reachCm: z.number().positive().optional(),
-  source: text.optional(),
+  source: z.string().optional(),
 });
 export const observationSchema = z
   .strictObject({
@@ -32,8 +33,8 @@ export const observationSchema = z
       .url({ protocol: /^https?$/ })
       .nullable()
       .optional(),
-    evidenceTime: text.nullable().optional(),
-    evidenceNote: text.nullable().optional(),
+    evidenceTime: z.string().nullable().optional(),
+    evidenceNote: evidenceText.nullable().optional(),
     confidence: z.enum(['ONCE', 'REPEATED']),
   })
   .refine((o) => Boolean(o.evidenceUrl || o.evidenceNote), {
@@ -41,15 +42,15 @@ export const observationSchema = z
   });
 export const tacticSchema = z.strictObject({
   id: analysisIdSchema,
-  text,
+  text: z.string().trim().min(1),
   round: z.number().int().min(1).max(12).nullable(),
   observationIds: z.array(analysisIdSchema).default([]),
   sessionIds: z.array(z.uuid()),
-  partnerBrief: text.nullable().optional(),
+  partnerBrief: z.string().nullable().optional(),
 });
 export const tacticReviewSchema = z.strictObject({
   outcome: tacticOutcomeSchema,
-  note: text.nullable().optional(),
+  note: z.string().max(300).nullable().optional(),
   auto: z.boolean().optional(),
 });
 export const opponentAnalysisInputSchema = z
@@ -83,7 +84,7 @@ export const opponentReviewInputSchema = z
         z.strictObject({
           tacticId: analysisIdSchema,
           outcome: tacticOutcomeSchema,
-          note: text.optional(),
+          note: z.string().max(300).optional(),
         }),
       )
       .max(5),
