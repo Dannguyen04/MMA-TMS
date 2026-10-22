@@ -506,6 +506,7 @@ export const listBoutsQuerySchema = z.strictObject({
 export type ListBoutsQuery = z.infer<typeof listBoutsQuerySchema>;
 
 export const createBoutSchema = z.strictObject({
+  scheduledRounds: z.number().int().min(1).max(12).nullable().optional(),
   fighterId: z.uuid(),
   rulesetId: z.uuid(),
   coachId: z.uuid().optional(),
@@ -528,6 +529,7 @@ export type CreateBoutInput = z.infer<typeof createBoutSchema>;
 
 export const updateBoutSchema = z
   .strictObject({
+    scheduledRounds: z.number().int().min(1).max(12).nullable().optional(),
     eventName: trimmedTextSchema(200).optional(),
     venue: trimmedTextSchema(200).nullable().optional(),
     opponentName: trimmedTextSchema(200).nullable().optional(),
@@ -622,6 +624,7 @@ export const boutHistoryEntrySchema = z.object({
 });
 
 export const boutSummarySchema = z.object({
+  scheduledRounds: z.number().int().min(1).max(12).nullable(),
   id: z.uuid(),
   fighterId: z.uuid(),
   coachId: z.uuid(),
@@ -700,6 +703,9 @@ export const weightTrackResponseSchema = z.object({
 });
 
 export const boutDetailResponseSchema = boutSummarySchema.extend({
+  opponentAnalysis: z.union([opponentAnalysisSchema, fighterAnalysisSchema]),
+  tacticsWithoutSessions: z.array(z.string()),
+  sessions: analysisSessionsSchema.optional(),
   ruleset: z.object({
     id: z.uuid(),
     name: z.string(),
