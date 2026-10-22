@@ -94,14 +94,14 @@ export function acuteLossLimitPctFor(
 }
 
 // ---------------------------------------------------------------------------
-// State machine (only the steps of T-003; weigh-in and result belong to T-006)
+// State machine (weigh-in and result opened in T-006)
 // ---------------------------------------------------------------------------
 
 export const BOUT_TRANSITIONS: Readonly<Record<BoutStatus, readonly BoutStatus[]>> = {
   SCHEDULED: ['CAMP', 'CANCELLED'],
   CAMP: ['FIGHT_WEEK', 'CANCELLED'],
-  FIGHT_WEEK: ['CANCELLED'],
-  WEIGHED_IN: ['CANCELLED'],
+  FIGHT_WEEK: ['WEIGHED_IN', 'CANCELLED'],
+  WEIGHED_IN: ['COMPLETED', 'CANCELLED'],
   COMPLETED: [],
   CANCELLED: [],
 };
@@ -254,6 +254,14 @@ export function resolveWeightClass(
     return { ok: false, reason: 'LIMIT_REQUIRED' };
   if (!limitInRange(input.weightLimitKg))
     return { ok: false, reason: 'LIMIT_OUT_OF_RANGE' };
+
+  const otherLimits = classes
+    .filter((c) => c.code !== match.code && c.limitKg !== null)
+    .map((c) => c.limitKg as number);
+  if (otherLimits.length > 0 && input.weightLimitKg <= Math.max(...otherLimits)) {
+    return { ok: false, reason: 'LIMIT_OUT_OF_RANGE' };
+  }
+
   return { ok: true, code: match.code, limitKg: input.weightLimitKg };
 }
 
@@ -431,6 +439,75 @@ export function computeWeightTrack(input: {
 function round2(value: number): number {
   return Math.round(value * 100) / 100;
 }
+// ---------------------------------------------------------------------------
+// Acute weight loss calculation (Tech spec 2.3, R19)
+// ---------------------------------------------------------------------------
+
+export interface AcuteLossMeasurementInput {
+  measuredAt: Date;
+  createdAt?: Date;
+  weightKg: number;
+  measurementContext?: string;
+}
+
+export interface AcuteLossResult {
+  status: 'EXCEEDED' | 'WITHIN' | 'NO_DATA';
+  startKg: number | null;
+  startOn: string | null;
+  lossPct: number | null;
+  limitPct: number;
+}
+
+export function computeAcuteLoss(input: {
+  officialWeightKg: number;
+  limitPct: number;
+  acuteWindowDays: number;
+  weighInDate: string;
+  measurements: readonly AcuteLossMeasurementInput[];
+}): AcuteLossResult {
+  const windowStart = addDaysToDate(input.weighInDate, -input.acuteWindowDays);
+  const windowEnd = input.weighInDate;
+
+  const validMeasurements = input.measurements
+    .filter((m) => {
+      if (m.measurementContext === 'WEIGH_IN') return false;
+      const date = academyDateOf(m.measuredAt);
+      return date >= windowStart && date <= windowEnd;
+    })
+    .sort((a, b) => {
+      const timeDiff = a.measuredAt.getTime() - b.measuredAt.getTime();
+      if (timeDiff !== 0) return timeDiff;
+      const aCreated = a.createdAt?.getTime() ?? a.measuredAt.getTime();
+      const bCreated = b.createdAt?.getTime() ?? b.measuredAt.getTime();
+      return aCreated - bCreated;
+    });
+
+  const first = validMeasurements[0];
+  if (!first) {
+    return {
+      status: 'NO_DATA',
+      startKg: null,
+      startOn: null,
+      lossPct: null,
+      limitPct: input.limitPct,
+    };
+  }
+
+  const startKg = round2(first.weightKg);
+  const startOn = academyDateOf(first.measuredAt);
+  const rawLossPct = ((startKg - input.officialWeightKg) / startKg) * 100;
+  const lossPct = Math.round(rawLossPct * 10) / 10;
+  const status = lossPct > input.limitPct ? 'EXCEEDED' : 'WITHIN';
+
+  return {
+    status,
+    startKg,
+    startOn,
+    lossPct,
+    limitPct: input.limitPct,
+  };
+}
+
 
 // ---------------------------------------------------------------------------
 // Cursor pagination for GET /bouts (ordered by weigh_in_at asc, id asc)
@@ -541,6 +618,7 @@ export const updateBoutSchema = z
       .max(WEIGHT_LIMIT_MAX_KG)
       .optional(),
     requirementsDueDays: z.number().int().min(0).max(120).optional(),
+    reason: trimmedTextSchema(500, 3).optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: 'At least one field is required',
@@ -558,6 +636,7 @@ export const createRequirementSchema = z.strictObject({
   label: trimmedTextSchema(200),
   required: z.boolean(),
   validityDays: z.number().int().min(1).max(3650).optional(),
+  unlockReason: trimmedTextSchema(500, 3).optional(),
 });
 export type CreateRequirementInput = z.infer<typeof createRequirementSchema>;
 
@@ -569,11 +648,73 @@ export const updateRequirementSchema = z
     label: trimmedTextSchema(200).optional(),
     required: z.boolean().optional(),
     statusReason: trimmedTextSchema(500).nullable().optional(),
+    unlockReason: trimmedTextSchema(500, 3).optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: 'At least one field is required',
   });
 export type UpdateRequirementInput = z.infer<typeof updateRequirementSchema>;
+
+export const removeRequirementQuerySchema = z.strictObject({
+  unlockReason: trimmedTextSchema(500, 3).optional(),
+});
+export type RemoveRequirementQuery = z.infer<typeof removeRequirementQuerySchema>;
+
+export const weighInSchema = z.strictObject({
+  weightKg: z
+    .number()
+    .finite()
+    .min(WEIGHT_LIMIT_MIN_KG)
+    .max(WEIGHT_LIMIT_MAX_KG),
+  hydrationCheck: z.enum(['NOT_APPLICABLE', 'PASSED', 'FAILED']).optional(),
+  notes: trimmedTextSchema(500).optional(),
+});
+export type WeighInInput = z.infer<typeof weighInSchema>;
+
+export const catchweightSchema = z.strictObject({
+  catchweightKg: z
+    .number()
+    .finite()
+    .min(WEIGHT_LIMIT_MIN_KG)
+    .max(WEIGHT_LIMIT_MAX_KG)
+    .optional(),
+  note: trimmedTextSchema(500).optional(),
+});
+export type CatchweightInput = z.infer<typeof catchweightSchema>;
+
+export const BOUT_RESULTS = ['WIN', 'LOSS', 'DRAW', 'NO_CONTEST'] as const;
+export type BoutResult = (typeof BOUT_RESULTS)[number];
+
+export const BOUT_METHODS = [
+  'KO',
+  'TKO',
+  'DECISION',
+  'SUBMISSION',
+  'DQ',
+  'OTHER',
+] as const;
+export type BoutMethod = (typeof BOUT_METHODS)[number];
+
+export const LOSS_OF_CONSCIOUSNESS_VALUES = [
+  'NONE',
+  'UNDER_1_MIN',
+  'OVER_1_MIN',
+  'UNKNOWN',
+] as const;
+export type LossOfConsciousness = (typeof LOSS_OF_CONSCIOUSNESS_VALUES)[number];
+
+export const recordResultSchema = z.strictObject({
+  result: z.enum(BOUT_RESULTS),
+  method: z.enum(BOUT_METHODS),
+  resultRound: z.number().int().min(1).max(12).optional(),
+  knockedDown: z.boolean().default(false).optional(),
+  lossOfConsciousness: z.enum(LOSS_OF_CONSCIOUSNESS_VALUES).optional(),
+  stoppedByHeadStrike: z.boolean().optional(),
+  injuryNote: trimmedTextSchema(1000).optional(),
+  notes: trimmedTextSchema(2000).optional(),
+});
+export type RecordResultInput = z.infer<typeof recordResultSchema>;
+
 
 // ---------------------------------------------------------------------------
 // Response schemas (Swagger documentation; the service builds the plain objects)
@@ -618,7 +759,18 @@ export const boutHistoryEntrySchema = z.object({
   from: z.string(),
   to: z.string(),
   reason: z.string().optional(),
+  action: z.string().optional(),
+  requirementCode: z.string().optional(),
+  fromClass: z.string().optional(),
+  toClass: z.string().optional(),
+  fromLimitKg: z.number().optional(),
+  toLimitKg: z.number().optional(),
+  catchweightKg: z.number().optional(),
+  lossOfConsciousness: z.string().optional(),
+  stoppedByHeadStrike: z.boolean().optional(),
+  injuryNote: z.string().optional(),
 });
+export type BoutHistoryEntry = z.infer<typeof boutHistoryEntrySchema>;
 
 export const boutSummarySchema = z.object({
   id: z.uuid(),
@@ -698,6 +850,16 @@ export const weightTrackResponseSchema = z.object({
   referencePath: z.array(weightPointSchema),
 });
 
+
+export const acuteLossResponseSchema = z.object({
+  status: z.enum(['EXCEEDED', 'WITHIN', 'NO_DATA']),
+  startKg: z.number().nullable(),
+  startOn: z.string().nullable(),
+  lossPct: z.number().nullable(),
+  limitPct: z.number(),
+});
+export type AcuteLossResponse = z.infer<typeof acuteLossResponseSchema>;
+
 export const boutDetailResponseSchema = boutSummarySchema.extend({
   ruleset: z.object({
     id: z.uuid(),
@@ -721,6 +883,7 @@ export const boutDetailResponseSchema = boutSummarySchema.extend({
     status: true,
     referencePath: true,
   }),
+  acuteLoss: acuteLossResponseSchema.nullable(),
 });
 export type BoutDetailResponse = z.infer<typeof boutDetailResponseSchema>;
 
@@ -733,3 +896,17 @@ export const requirementRemovalResponseSchema = z.object({
   code: z.string(),
   gate1: gate1ResponseSchema,
 });
+
+export const weighInBlockSchema = z.object({
+  outcome: z.enum(['PASSED', 'FAILED']),
+  reason: z.enum(['OVER_LIMIT', 'HYDRATION_FAILED']).nullable(),
+  overByKg: z.number().nullable(),
+  overByPct: z.number().nullable(),
+  options: z.array(z.enum(['CATCHWEIGHT', 'CANCEL'])),
+});
+export type WeighInBlock = z.infer<typeof weighInBlockSchema>;
+
+export const weighInResponseSchema = boutDetailResponseSchema.extend({
+  weighIn: weighInBlockSchema,
+});
+export type WeighInResponse = z.infer<typeof weighInResponseSchema>;

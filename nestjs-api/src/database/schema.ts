@@ -4462,6 +4462,16 @@ export interface BoutHistoryEntry {
   from: string;
   to: string;
   reason?: string;
+  action?: string;
+  requirementCode?: string;
+  fromClass?: string;
+  toClass?: string;
+  fromLimitKg?: number;
+  toLimitKg?: number;
+  catchweightKg?: number;
+  lossOfConsciousness?: string;
+  stoppedByHeadStrike?: boolean;
+  injuryNote?: string;
 }
 
 export const bouts = pgTable('bouts', {

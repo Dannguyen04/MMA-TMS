@@ -10,6 +10,7 @@ import {
   buildReferencePath,
   canEnterFightWeek,
   canTransition,
+  computeAcuteLoss,
   computeWeightTrack,
   createBoutSchema,
   daysBetweenDates,
@@ -358,6 +359,8 @@ describe('state transitions (criterion 5)', () => {
   const valid: [BoutStatus, BoutStatus][] = [
     ['SCHEDULED', 'CAMP'],
     ['CAMP', 'FIGHT_WEEK'],
+    ['FIGHT_WEEK', 'WEIGHED_IN'],
+    ['WEIGHED_IN', 'COMPLETED'],
     ['SCHEDULED', 'CANCELLED'],
     ['CAMP', 'CANCELLED'],
     ['FIGHT_WEEK', 'CANCELLED'],
@@ -385,6 +388,17 @@ describe('state transitions (criterion 5)', () => {
   it('has no outgoing transition from final statuses', () => {
     expect(BOUT_TRANSITIONS.COMPLETED).toEqual([]);
     expect(BOUT_TRANSITIONS.CANCELLED).toEqual([]);
+  });
+
+  it('criterion 1: allows FIGHT_WEEK -> WEIGHED_IN and WEIGHED_IN -> COMPLETED', () => {
+    expect(canTransition('FIGHT_WEEK', 'WEIGHED_IN')).toBe(true);
+    expect(canTransition('WEIGHED_IN', 'COMPLETED')).toBe(true);
+  });
+
+  it('criterion 1: rejects COMPLETED -> CANCELLED, WEIGHED_IN -> CAMP, FIGHT_WEEK -> COMPLETED', () => {
+    expect(canTransition('COMPLETED', 'CANCELLED')).toBe(false);
+    expect(canTransition('WEIGHED_IN', 'CAMP')).toBe(false);
+    expect(canTransition('FIGHT_WEEK', 'COMPLETED')).toBe(false);
   });
 });
 
@@ -466,6 +480,34 @@ describe('weight class resolution', () => {
       limitKg: 72.5,
     });
   });
+
+  it('criterion 2: VMMAF 120+ with 100 -> LIMIT_OUT_OF_RANGE, with 121 -> ok', () => {
+    const vmmaf = [
+      { code: '56', label: '56 kg', limitKg: 56 },
+      { code: '120', label: '120 kg', limitKg: 120 },
+      { code: '120+', label: 'Trên 120 kg', limitKg: null },
+    ];
+    expect(
+      resolveWeightClass(vmmaf, { weightClassCode: '120+', weightLimitKg: 100 }),
+    ).toEqual({ ok: false, reason: 'LIMIT_OUT_OF_RANGE' });
+    expect(
+      resolveWeightClass(vmmaf, { weightClassCode: '120+', weightLimitKg: 121 }),
+    ).toEqual({ ok: true, code: '120+', limitKg: 121 });
+  });
+
+  it('criterion 2: AIBA 91+ with 90 -> LIMIT_OUT_OF_RANGE, 92 -> ok', () => {
+    const aiba = [
+      { code: '52', label: '52 kg', limitKg: 52 },
+      { code: '91', label: '91 kg', limitKg: 91 },
+      { code: '91+', label: 'Trên 91 kg', limitKg: null },
+    ];
+    expect(
+      resolveWeightClass(aiba, { weightClassCode: '91+', weightLimitKg: 90 }),
+    ).toEqual({ ok: false, reason: 'LIMIT_OUT_OF_RANGE' });
+    expect(
+      resolveWeightClass(aiba, { weightClassCode: '91+', weightLimitKg: 92 }),
+    ).toEqual({ ok: true, code: '91+', limitKg: 92 });
+  });
 });
 
 describe('cursor and request schemas', () => {
@@ -516,5 +558,129 @@ describe('cursor and request schemas', () => {
       updateRequirementSchema.safeParse({ status: 'PROVIDED', validUntil: '2027-01-01' })
         .success,
     ).toBe(true);
+  });
+});
+
+describe('computeAcuteLoss (criterion 3)', () => {
+  const weighInDate = '2026-10-20';
+  const acuteWindowDays = 7;
+
+  it('calculates 7.9% WITHIN for startKg=66.0, official=60.8, limitPct=8', () => {
+    const measurements = [
+      {
+        measuredAt: new Date('2026-10-14T02:00:00Z'),
+        weightKg: 66.0,
+      },
+    ];
+    const result = computeAcuteLoss({
+      officialWeightKg: 60.8,
+      limitPct: 8,
+      acuteWindowDays,
+      weighInDate,
+      measurements,
+    });
+    expect(result).toEqual({
+      status: 'WITHIN',
+      startKg: 66,
+      startOn: '2026-10-14',
+      lossPct: 7.9,
+      limitPct: 8,
+    });
+  });
+
+  it('calculates 9.1% EXCEEDED for startKg=66.0, official=60.0, limitPct=8', () => {
+    const measurements = [
+      {
+        measuredAt: new Date('2026-10-14T02:00:00Z'),
+        weightKg: 66.0,
+      },
+    ];
+    const result = computeAcuteLoss({
+      officialWeightKg: 60.0,
+      limitPct: 8,
+      acuteWindowDays,
+      weighInDate,
+      measurements,
+    });
+    expect(result).toEqual({
+      status: 'EXCEEDED',
+      startKg: 66,
+      startOn: '2026-10-14',
+      lossPct: 9.1,
+      limitPct: 8,
+    });
+  });
+
+  it('returns NO_DATA when no weight measurements exist in the window', () => {
+    const measurements = [
+      {
+        measuredAt: new Date('2026-10-10T02:00:00Z'),
+        weightKg: 66.0,
+      },
+    ];
+    const result = computeAcuteLoss({
+      officialWeightKg: 60.8,
+      limitPct: 8,
+      acuteWindowDays,
+      weighInDate,
+      measurements,
+    });
+    expect(result).toEqual({
+      status: 'NO_DATA',
+      startKg: null,
+      startOn: null,
+      lossPct: null,
+      limitPct: 8,
+    });
+  });
+
+  it('ignores WEIGH_IN measurements when selecting startKg', () => {
+    const measurements = [
+      {
+        measuredAt: new Date('2026-10-14T01:00:00Z'),
+        weightKg: 70.0,
+        measurementContext: 'WEIGH_IN',
+      },
+      {
+        measuredAt: new Date('2026-10-14T02:00:00Z'),
+        weightKg: 66.0,
+        measurementContext: 'TRAINING',
+      },
+    ];
+    const result = computeAcuteLoss({
+      officialWeightKg: 60.8,
+      limitPct: 8,
+      acuteWindowDays,
+      weighInDate,
+      measurements,
+    });
+    expect(result.startKg).toBe(66);
+    expect(result.lossPct).toBe(7.9);
+  });
+
+  it('picks the earliest measurement in the window when multiple exist', () => {
+    const measurements = [
+      {
+        measuredAt: new Date('2026-10-16T02:00:00Z'),
+        weightKg: 64.0,
+      },
+      {
+        measuredAt: new Date('2026-10-14T02:00:00Z'),
+        weightKg: 66.0,
+      },
+      {
+        measuredAt: new Date('2026-10-18T02:00:00Z'),
+        weightKg: 62.0,
+      },
+    ];
+    const result = computeAcuteLoss({
+      officialWeightKg: 60.8,
+      limitPct: 8,
+      acuteWindowDays,
+      weighInDate,
+      measurements,
+    });
+    expect(result.startKg).toBe(66);
+    expect(result.startOn).toBe('2026-10-14');
   });
 });
