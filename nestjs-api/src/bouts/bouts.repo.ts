@@ -15,6 +15,8 @@ import {
 } from 'drizzle-orm';
 import { DRIZZLE, type DrizzleDB } from '../database/database.module.js';
 import {
+  boutRounds,
+  trainingSessions,
   boutRequirements,
   bouts,
   coachFighters,
@@ -386,6 +388,39 @@ export class BoutsRepository {
         ),
       )
       .returning();
+    return row;
+  }
+
+
+  /** Serialize all analysis/round writes and scheduled-round edits on the parent. */
+  async lockBoutById(id: string, database: DatabaseExecutor): Promise<BoutRow | undefined> {
+    const [row] = await database.select().from(bouts)
+      .where(and(eq(bouts.id, id), isNull(bouts.deletedAt))).for('update');
+    return row;
+  }
+
+  async findAnalysisSessions(ids: string[], fighterId: string, database: DatabaseExecutor = this.db) {
+    if (!ids.length) return [];
+    return database.select({ id: trainingSessions.id, title: trainingSessions.title,
+      scheduledAt: trainingSessions.scheduledAt }).from(trainingSessions)
+      .where(and(inArray(trainingSessions.id, ids), eq(trainingSessions.fighterId, fighterId), isNull(trainingSessions.deletedAt)))
+      .orderBy(asc(trainingSessions.scheduledAt), asc(trainingSessions.id));
+  }
+
+  async listRounds(boutId: string, database: DatabaseExecutor = this.db) {
+    return database.select().from(boutRounds).where(eq(boutRounds.boutId, boutId)).orderBy(asc(boutRounds.roundNo));
+  }
+
+  async upsertRound(
+    values: typeof boutRounds.$inferInsert, database: DatabaseExecutor = this.db,
+  ) {
+    const { boutId: _boutId, roundNo: _roundNo, ...changes } = values;
+    const [row] = await database.insert(boutRounds).values(values).onConflictDoUpdate({
+      target: [boutRounds.boutId, boutRounds.roundNo],
+      // Only supplied fields are updated; absent fields retain their old values.
+      set: { ...changes, updatedAt: new Date() },
+    }).returning();
+    if (!row) throw new Error('Round upsert returned no row');
     return row;
   }
 
