@@ -6,6 +6,10 @@ import { enDemoFlow } from "./demo-flow.en";
  */
 import { enAccount } from "./account.en";
 import { enAuth } from "./auth.en";
+import { enBoutLabels } from "./bout-labels.en";
+import { enBoutDetail } from "./bout-detail.en";
+import { enBoutFighter } from "./bout-fighter.en";
+import { enBoutMessages } from "./bout-messages.en";
 import { enCoachBouts } from "./coach-bouts.en";
 import { enCoachToday } from "./coach-today.en";
 import { enFighterToday } from "./fighter-today.en";
@@ -15,6 +19,10 @@ export const en = {
     ...enDemoFlow,
     ...enAccount,
     ...enAuth,
+    ...enBoutLabels,
+    ...enBoutDetail,
+    ...enBoutFighter,
+    ...enBoutMessages,
     ...enCoachBouts,
     ...enCoachToday,
     ...enFighterToday,
@@ -157,6 +165,10 @@ export const en = {
     "weightNote.fighter.GREY.title": "No weigh-in for 3 days",
     "weightNote.fighter.GREY.text": "Log your weight each morning.",
 
+    "chart.showTable": "Show data table",
+    "chart.hideTable": "Hide data table",
+    "chart.noData": "No data",
+    "chart.keyboardHintPeriods": "Use the left and right arrow keys to read the values for each period.",
     "chart.weight": "Weight",
     "chart.reference": "Reference",
     "chart.limit": "Limit",

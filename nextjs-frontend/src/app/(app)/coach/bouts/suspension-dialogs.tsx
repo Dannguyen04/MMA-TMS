@@ -3,12 +3,13 @@
 import { ShieldCheck, ShieldPlus } from "lucide-react";
 import { useState } from "react";
 
+import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox, Field, Input, Select, Textarea } from "@/components/ui/form";
 import { clearSuspensionAction, createSuspensionAction } from "@/lib/actions/bouts";
 import type { SuspensionReason } from "@/lib/domain/bout";
-import { SUSPENSION_REASON_LABELS, TRAINING_TYPE_LABELS } from "@/lib/domain/labels";
+import { TRAINING_TYPE_LABELS } from "@/lib/domain/labels";
 import { MANUAL_SUSPENSION_REASONS, suspensionEndsOn } from "@/lib/domain/suspension-rules";
 import type { TrainingType } from "@/lib/domain/types";
 import { formatDate, isDateKey } from "@/lib/format";
@@ -32,6 +33,8 @@ export interface SuspensionDialogProps {
  * start from the ruleset and the coach can add more.
  */
 export function SuspensionDialogButton({ bout, fighters, defaultBlocked, startsOn, label, variant = "primary" }: SuspensionDialogProps) {
+    const t = useT();
+    const locale = useLocale();
     const [open, setOpen] = useState(false);
     const [days, setDays] = useState(bout?.suggestedDays ? String(bout.suggestedDays) : "");
     const [start, setStart] = useState(startsOn);
@@ -53,18 +56,18 @@ export function SuspensionDialogButton({ bout, fighters, defaultBlocked, startsO
                     setDays(bout?.suggestedDays ? String(bout.suggestedDays) : "");
                     setStart(startsOn);
                 }}
-                title={bout ? "Confirm the suspension" : "New suspension"}
+                title={bout ? t("coachBouts.suspensionDialog.confirmTitle") : t("coachBouts.suspensionDialog.newTitle")}
                 description={
                     bout
                         ? bout.suggestedDays
-                            ? `The ruleset suggests ${bout.suggestedDays} days (${bout.rule}). Confirm it, or change it with a reason.`
-                            : "The ruleset has no rule for this. Enter the days yourself."
-                        : "For a suspension outside a bout, such as a knockout in sparring or an organiser's medical ban. Earlier knockouts count towards the next suggestion."
+                            ? t("coachBouts.suspensionDialog.suggested", { days: bout.suggestedDays, rule: String(bout.rule) })
+                            : t("coachBouts.suspensionDialog.noRule")
+                        : t("coachBouts.suspensionDialog.manual")
                 }
                 size="lg"
                 action={createSuspensionAction}
-                submitLabel="Save suspension"
-                pendingLabel="Saving"
+                submitLabel={t("coachBouts.suspensionDialog.save")}
+                pendingLabel={t("coachBouts.common.saving")}
                 onSuccess={notify}
             >
                 {(form) => {
@@ -81,14 +84,14 @@ export function SuspensionDialogButton({ bout, fighters, defaultBlocked, startsO
                                     <input type="hidden" name="boutId" value={bout.id} />
                                     <input type="hidden" name="reason" value={bout.reason} />
                                     <p className="text-sm text-fg">
-                                        Reason: <span className="font-medium">{SUSPENSION_REASON_LABELS[bout.reason]}</span>
+                                        {t("coachBouts.suspensionDialog.reasonPrefix")} <span className="font-medium">{t(`boutLabel.suspensionReason.${bout.reason}`)}</span>
                                     </p>
                                 </>
                             ) : (
                                 <div className="grid min-w-0 grid-cols-1 gap-5 sm:grid-cols-2">
-                                    <Field label="Fighter" htmlFor={fighter.id} required error={form.error("fighterId")}>
+                                    <Field label={t("coachBouts.suspensionDialog.fighter")} htmlFor={fighter.id} required error={form.error("fighterId")}>
                                         <Select {...fighter} defaultValue="">
-                                            <option value="">Choose a fighter</option>
+                                            <option value="">{t("coachBouts.suspensionDialog.chooseFighter")}</option>
                                             {fighters?.map((item) => (
                                                 <option key={item.id} value={item.id}>
                                                     {item.name}
@@ -96,12 +99,12 @@ export function SuspensionDialogButton({ bout, fighters, defaultBlocked, startsO
                                             ))}
                                         </Select>
                                     </Field>
-                                    <Field label="Reason" htmlFor={reason.id} required error={form.error("reason")}>
+                                    <Field label={t("coachBouts.suspensionDialog.reason")} htmlFor={reason.id} required error={form.error("reason")}>
                                         <Select {...reason} defaultValue="">
-                                            <option value="">Choose a reason</option>
+                                            <option value="">{t("coachBouts.suspensionDialog.chooseReason")}</option>
                                             {MANUAL_SUSPENSION_REASONS.map((value) => (
                                                 <option key={value} value={value}>
-                                                    {SUSPENSION_REASON_LABELS[value]}
+                                                    {t(`boutLabel.suspensionReason.${value}`)}
                                                 </option>
                                             ))}
                                         </Select>
@@ -109,26 +112,26 @@ export function SuspensionDialogButton({ bout, fighters, defaultBlocked, startsO
                                 </div>
                             )}
                             <div className="grid min-w-0 grid-cols-1 gap-5 sm:grid-cols-2">
-                                <Field label="First day" htmlFor={startControl.id} required error={form.error("startsOn")}>
+                                <Field label={t("coachBouts.suspensionDialog.firstDay")} htmlFor={startControl.id} required error={form.error("startsOn")}>
                                     <Input {...startControl} type="date" value={start} onChange={(event) => setStart(event.target.value)} />
                                 </Field>
                                 <Field
-                                    label="Days"
+                                    label={t("coachBouts.suspensionDialog.days")}
                                     htmlFor={daysControl.id}
                                     required
                                     error={form.error("days")}
-                                    hint={endsOn ? `Through ${formatDate(endsOn)}.` : "Whole days, such as 30."}
+                                    hint={endsOn ? t("coachBouts.suspensionDialog.through", { date: formatDate(endsOn, locale) }) : t("coachBouts.suspensionDialog.daysHint")}
                                 >
                                     <Input {...daysControl} inputMode="numeric" className="w-32" value={days} onChange={(event) => setDays(event.target.value)} />
                                 </Field>
                             </div>
                             {overridden && (
-                                <Field label="Why the days differ from the suggestion" htmlFor={override.id} required error={form.error("overrideReason")}>
+                                <Field label={t("coachBouts.suspensionDialog.overrideReason")} htmlFor={override.id} required error={form.error("overrideReason")}>
                                     <Textarea {...override} rows={2} maxLength={300} />
                                 </Field>
                             )}
                             <fieldset className="flex min-w-0 flex-col gap-2" data-invalid={form.error("blockedSessionTypes") ? "true" : undefined}>
-                                <legend className="mb-1.5 text-sm font-medium text-fg">Blocked sessions</legend>
+                                <legend className="mb-1.5 text-sm font-medium text-fg">{t("coachBouts.suspensionDialog.blocked")}</legend>
                                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                                     {TRAINING_TYPES.map((type) => (
                                         <Checkbox
@@ -137,7 +140,7 @@ export function SuspensionDialogButton({ bout, fighters, defaultBlocked, startsO
                                             name="blockedSessionTypes"
                                             value={type}
                                             defaultChecked={defaultBlocked.includes(type)}
-                                            label={TRAINING_TYPE_LABELS[type]}
+                                            label={t(`trainingType.${type}`)}
                                         />
                                     ))}
                                 </div>
@@ -147,10 +150,10 @@ export function SuspensionDialogButton({ bout, fighters, defaultBlocked, startsO
                                 id={`${form.formProps.id}-clearance`}
                                 name="requiresClearance"
                                 defaultChecked={!bout || bout.reason === "KO" || bout.reason === "TKO"}
-                                label="Needs clearance to train again"
-                                description="After the last day the fighter stays blocked until a coach records what the return is based on."
+                                label={t("coachBouts.suspensionDialog.requiresClearance")}
+                                description={t("coachBouts.suspensionDialog.requiresClearanceHint")}
                             />
-                            <Field label="Note" htmlFor={note.id} optional error={form.error("note")}>
+                            <Field label={t("coachBouts.suspensionDialog.note")} htmlFor={note.id} optional error={form.error("note")}>
                                 <Textarea {...note} rows={2} maxLength={300} />
                             </Field>
                         </>
@@ -163,22 +166,23 @@ export function SuspensionDialogButton({ bout, fighters, defaultBlocked, startsO
 
 /** F7: after the last day, a coach confirms the return to training and writes what it is based on. */
 export function ClearSuspensionButton({ suspensionId, fighterName }: { suspensionId: string; fighterName: string }) {
+    const t = useT();
     const [open, setOpen] = useState(false);
     const notify = useNotify();
     return (
         <>
             <Button size="sm" onClick={() => setOpen(true)}>
                 <ShieldCheck aria-hidden />
-                Clear to train
+                {t("coachBouts.clearDialog.button")}
             </Button>
             <ActionDialog
                 open={open}
                 onClose={() => setOpen(false)}
-                title={`Clear ${fighterName} to train`}
-                description="Write what the return is based on. Without a doctor's letter, say so: the app records “no medical clearance”."
+                title={t("coachBouts.clearDialog.title", { name: fighterName })}
+                description={t("coachBouts.clearDialog.description")}
                 action={clearSuspensionAction}
-                submitLabel="Clear to train"
-                pendingLabel="Saving"
+                submitLabel={t("coachBouts.clearDialog.button")}
+                pendingLabel={t("coachBouts.common.saving")}
                 onSuccess={notify}
             >
                 {(form) => {
@@ -186,7 +190,7 @@ export function ClearSuspensionButton({ suspensionId, fighterName }: { suspensio
                     return (
                         <>
                             <input type="hidden" name="suspensionId" value={suspensionId} />
-                            <Field label="Based on" htmlFor={note.id} required error={form.error("clearanceNote")} hint="Such as “Neurologist cleared, CT normal” or “Coach confirmed, no medical clearance”.">
+                            <Field label={t("coachBouts.clearDialog.basedOn")} htmlFor={note.id} required error={form.error("clearanceNote")} hint={t("coachBouts.clearDialog.basedOnHint")}>
                                 <Textarea {...note} rows={3} maxLength={300} />
                             </Field>
                         </>

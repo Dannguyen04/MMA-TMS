@@ -4,6 +4,48 @@
 - Commit: `0715f04` (màn HLV, demo store, T-006/T-007 ở demo mode), `d8793fa` (sửa sau khi chạy trình duyệt), `bc41283` (sửa theo code review), `d92a246` (adapter API mode), `3ce182a` (thanh điều hướng và khối thông tin trên điện thoại)
 - Trạng thái: IN REVIEW
 - Người viết: Claude (Opus 5.5). Chủ dự án cho phép sửa code frontend trong phiên 19/10 và chọn: phạm vi gồm cả "Trong trận" (T-006) và "Sau trận" (T-007) ở demo mode; một nhánh mới cho mọi việc; seed phương án (a); adapter API làm ở P2.
+- Cập nhật 22/10: merge `origin/main` (`d40165f`), merge `origin/fight-camp` (`2aeb90b`), dịch màn Trận sang tiếng Việt (commit ngay sau `2aeb90b`). Xem mục [Cập nhật 22/10](#cập-nhật-2210-merge-và-dịch-màn-trận).
+
+## Cập nhật 22/10: merge và dịch màn Trận
+
+File này trước tên là `T-004-HANDOVER.md`. Khi merge `fight-camp`, tên đó thuộc về handover T-004 của Gemini (đã APPROVED và merge), nên handover của nhánh này đổi sang `T-004-LIFECYCLE-HANDOVER.md`.
+
+**Merge `origin/fight-camp` (`2aeb90b`, theo chủ dự án 22/10: "Phần Trận giữ bản của nhánh này, phần còn lại lấy fight-camp, giữ quy tắc T-001").** Có 47 file conflict.
+
+- **Phần Trận giữ bản của nhánh này:**
+  - Giữ: màn HLV, trang Trận và màn ghi cân của võ sĩ, domain, store demo, action, biểu đồ cân, badge Trận.
+  - Bỏ 11 file chỉ phục vụ bản T-004/T-005 song song trên `fight-camp`: `bout-checklist-card`, `bout-weight-card`, `weight-alerts-card`, `fighter/bout/weigh-in/weigh-in-form`, `bout-weight-cell`, `weight-summary`, `actions/bout-schemas`, `actions/weigh-in`, `domain/weigh-in` (cả test), `mocks/bouts`.
+  - Bỏ phần Trận mà `fight-camp` thêm vào `labels.ts`, `types.ts`, `people.ts` (cả test) và `mocks/db.ts`.
+  - Mock của Minh giữ "Lotus Fight Night 18", vì seed và test của nhánh dựa vào đó.
+- **Phần còn lại lấy bản dịch của `fight-camp`, giữ thay đổi đã merge từ `main`:**
+  - Các màn: đăng nhập, đăng ký, đặt lại mật khẩu, form mã email, `Field`, form giáo án, danh sách bài tập của giáo án, trang giáo án, hàng đợi HLV, Today của HLV và võ sĩ, FightHero, action y tế.
+  - Các chuỗi `main` mới thêm (journey, phân tích AI trên FightHero, nhóm "Needs a plan", ngữ cảnh đặt mật khẩu) có key mới ở cả hai ngôn ngữ.
+- **T-001:**
+  - Trang đăng nhập không có link ứng viên, không có tài khoản demo ứng viên; `/register` báo võ sĩ do học viện thêm vào.
+  - Hàng đợi HLV không có nhóm ứng viên.
+  - Menu admin giữ các hub của T-001; hub "Bouts" giữ tab "Upcoming" và "Suspensions".
+- **Màn ứng viên** (`apply/page.tsx`, `application-form`, `application-progress`) giữ bản tiếng Anh của `main`: tuyển võ sĩ đang đóng và `main` đã viết lại luồng này. Dịch để cho T-024.
+- **Tài liệu:**
+  - `SCOPE-FIGHT-CAMP.md` giữ quyết định 20, 21 của `fight-camp`; dòng góp ý review 2 thành quyết định **22**.
+  - `T-004-HANDOVER.md` là bản của `fight-camp`.
+
+**Dịch màn Trận.** Mặc định tiếng Việt, tiếng Anh vẫn chọn được. Giá trị tiếng Anh giữ đúng chữ cũ, nên giao diện tiếng Anh không đổi.
+
+- **Từ điển mới** (`lib/i18n/messages/`):
+  - `bout-labels.*`: nhãn enum của phần Trận, `boutLabel.*`.
+  - `bout-messages.*`: thông báo của domain và action, 104 key `boutMsg.*`.
+  - `bout-detail.*`: trang chi tiết trận, 174 key.
+  - `bout-fighter.*`: trang võ sĩ và các thẻ cân, 62 key.
+  - `coach-bouts.*`: viết lại, 109 key. Bản cũ là của T-004 Gemini, không còn file nào dùng.
+- **Domain:** các hàm trả chữ (`gateSummary`, `describeRule`, `weighInCountdown`, `savedWeightMessage`, `adherenceAlertLine`, `validateBoutSchedule`, `validateNewRequirement`, `validateRequirementUpdate`, `validateOutcome`, `validateSuspension`, `readClearanceNote`, `readPlanAnswer`, `readPlanText`, `readPlanAuthor`, `readDueDays`, `parseKg`, …) nhận thêm tham số cuối `t`, mặc định tiếng Anh. Store demo, adapter và test cũ không phải sửa.
+- **Action:** mỗi action trong `lib/actions/bouts.ts` lấy `getTranslator()`; `actions/bouts.test.ts` mock translator như `medical-contract.test.ts`.
+- **Badge:** badge Trận (`WeightStatusBadge`, `BoutPhaseBadge`, `RequirementStateBadge`, `Gate1Badge`, `SuspensionStateBadge`) nhận `locale` như các badge khác.
+- **Component dùng chung:** `ChartFigure` (nút bảng số liệu, "No data") và `LineChart` (hướng dẫn phím, tooltip) dịch bằng `useT()`. `FormFooter` thêm prop tuỳ chọn `cancelLabel`.
+
+**Còn tiếng Anh:**
+- Thông báo lỗi của store demo (`bouts.demo.ts`) và của `services/bouts.ts` không có mã ổn định, ví dụ "This fighter already has a bout in …" hay "Clearance opens after …". Chỉ hiện ở các ca lỗi.
+- Chữ hiển thị nhưng nằm ngoài màn Trận: thẻ journey "Getting fight-ready" (`FighterJourney`, từ `main`), nhãn màn chờ chung "Loading page", `bar-chart` và `radar-chart`, nhãn hạng cân (`WEIGHT_CLASS_LABELS`, ví dụ "Featherweight").
+- Dữ liệu do người nhập: tên giải, đối thủ, địa điểm, tên hồ sơ, ghi chú.
 
 ## Thay đổi
 
@@ -146,6 +188,20 @@ Generating route types...
       Tests  724 passed | 1 skipped (725)
 ```
 
+Chạy lại ngày 22/10 sau khi merge `fight-camp` và dịch màn Trận (chưa commit phần dịch lúc chạy): lint không lỗi; `APP_DATA_MODE=api` typecheck "✓ Types generated successfully", `tsc` không lỗi; test:
+
+```text
+ Test Files  100 passed | 1 skipped (101)
+      Tests  892 passed | 2 skipped (894)
+```
+
+Kiểm tra trình duyệt ngày 22/10 (demo mode, desktop, tiếng Việt):
+- Màn HLV mở đủ: danh sách trận, tạo trận, chi tiết trận của Kenji và Linh, tab đình chỉ, các thẻ Trận trên Today.
+- Đã chạy một lượt trận của Linh: cân chính thức (gửi số sai thì báo lỗi tiếng Việt, gửi 59,6 kg thì hiện "Đạt cân" và chuyển sang "Đã cân"), ghi kết quả Thua · KO, thấy đề xuất đình chỉ 90 ngày.
+- Võ sĩ Minh: ghi cân 68,4 kg, Today hiện "Đã lưu 68.4 kg."
+- Chuyển cookie `mma_locale=en`: màn ghi cân và chi tiết trận hiện đúng chữ tiếng Anh như trước.
+- Console không có lỗi.
+
 Trước phiên: 75 file, 626 passed, 1 skipped. Không có test skip mới. Test mới: `bout-rules.test.ts`, `suspension-rules.test.ts`, `bouts-contract.test.ts`, `actions/bouts.test.ts`, `services/bouts.api.test.ts`; `bouts.demo.test.ts` viết lại theo seed mới; thêm ca ở `navigation.test.ts`, `weight-track.test.ts`, `nutrition.test.ts`.
 
 ## Lệch so với ticket
@@ -165,3 +221,6 @@ Trước phiên: 75 file, 626 passed, 1 skipped. Không có test skip mới. Tes
 - Thanh điều hướng dưới của HLV có sáu mục, mỗi mục khoảng 65 px ở 390 px; nhãn "Clearance" vừa khít. Nếu thêm hub nữa nên gộp.
 - Adapter API chưa đối chiếu backend (T-008a phần B).
 - Ruleset từ API chưa mang `suspensionRules` vào gợi ý (đợi T-007 backend); gợi ý chỉ chạy ở demo.
+- Nhánh này và T-004 của Gemini trên `fight-camp` là hai bản khác nhau của cùng màn. Sau merge `2aeb90b`, bản của nhánh này thay bản của Gemini và trang Trận của võ sĩ do Fon làm (T-005A). Chủ dự án (Dan) cần biết điều này trước khi merge nhánh vào `fight-camp`.
+- `docs/DEMO-REVIEW2-SCRIPT.md` ghi nhãn nút tiếng Anh. Giao diện giờ mặc định tiếng Việt: hoặc đổi kịch bản, hoặc chọn English trong menu tài khoản trước khi demo.
+- Adapter API (`bouts.api.ts`) chưa nối các endpoint T-006A (cân chính thức, kết quả, khoá checklist) mà backend đã merge ngày 22/10; các phần đó vẫn chỉ chạy ở demo.

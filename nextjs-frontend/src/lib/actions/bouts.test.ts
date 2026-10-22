@@ -19,6 +19,11 @@ vi.mock("@/lib/auth/session", async (loadOriginal) => ({
     ...(await loadOriginal<typeof import("@/lib/auth/session")>()),
     requireRole: vi.fn(async () => coach.current),
 }));
+// The actions read the viewer's language from a cookie; outside a request the tests use English.
+vi.mock("@/lib/i18n/server", async () => {
+    const { createTranslator } = await import("@/lib/i18n/translate");
+    return { getTranslator: async () => ({ locale: "en", t: createTranslator("en") }) };
+});
 
 import { addDaysToKey, dayKey } from "@/lib/format";
 import { getDemoBout, listDemoBouts, recordDemoResult, recordDemoWeighIn, resetDemoCampStore } from "@/lib/services/bouts.demo";

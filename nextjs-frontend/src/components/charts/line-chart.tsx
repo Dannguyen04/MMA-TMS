@@ -2,6 +2,7 @@
 
 import type { PointerEvent } from "react";
 
+import { useT } from "@/components/i18n/locale-provider";
 import { cn } from "@/lib/utils";
 import { ChartLegend } from "./chart-legend";
 import { ChartSurface } from "./chart-surface";
@@ -75,6 +76,7 @@ export function LineChart({
     highlightLast = false,
     className,
 }: LineChartProps) {
+    const t = useT();
     const { active, pointAt, handlers } = useActiveIndex(labels.length);
     const format = formatValue ?? ((value: number) => formatChartValue(value, { decimals, suffix: valueSuffix }));
     const showArea = area && series.length === 1;
@@ -82,7 +84,7 @@ export function LineChart({
 
     const announcement =
         active?.source === "keyboard"
-            ? `${labels[active.index]}: ${series.map((s) => `${s.label} ${formatMaybe(valueAt(s.values, active.index), format)}`).join(", ")}`
+            ? `${labels[active.index]}: ${series.map((s) => `${s.label} ${formatMaybe(valueAt(s.values, active.index), format, t("chart.noData"))}`).join(", ")}`
             : "";
 
     return (
@@ -91,7 +93,7 @@ export function LineChart({
             <ChartSurface
                 ariaLabel={ariaLabel}
                 height={height}
-                keyboardHint="Use the left and right arrow keys to read the values for each period."
+                keyboardHint={t("chart.keyboardHintPeriods")}
                 announcement={announcement}
                 handlers={handlers}
             >
@@ -145,6 +147,7 @@ function LinePlot({
     activeIndex,
     onPointAt,
 }: LinePlotProps) {
+    const t = useT();
     const plotTop = MARGIN_TOP;
     const plotBottom = height - X_AXIS_BAND;
     const y = linearScale([scale.min, scale.max], [plotBottom, plotTop]);
@@ -324,7 +327,7 @@ function LinePlot({
                         id: s.id,
                         label: s.label,
                         color: s.pointColors?.[activeIndex] ?? s.color,
-                        value: formatMaybe(valueAt(s.values, activeIndex), format),
+                        value: formatMaybe(valueAt(s.values, activeIndex), format, t("chart.noData")),
                     }))}
                     placement={besidePlacement(xs[activeIndex], width, plotTop)}
                 />
@@ -338,8 +341,8 @@ function Dot({ point, color }: { point: Point; color: string }) {
     return <circle cx={point.x} cy={point.y} r={DOT_RADIUS} fill={color} stroke="var(--chart-surface)" strokeWidth={2} />;
 }
 
-function formatMaybe(value: number | null, format: (value: number) => string): string {
-    return value === null ? "No data" : format(value);
+function formatMaybe(value: number | null, format: (value: number) => string, noData: string): string {
+    return value === null ? noData : format(value);
 }
 
 function resolveScale(

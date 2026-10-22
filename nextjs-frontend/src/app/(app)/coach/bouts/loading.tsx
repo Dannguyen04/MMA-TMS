@@ -1,8 +1,10 @@
 import { LoadingRegion, PageHeaderSkeleton, TableCardSkeleton } from "@/components/ui/skeleton";
+import { getTranslator } from "@/lib/i18n/server";
 
-export default function CoachBoutsLoading() {
+export default async function CoachBoutsLoading() {
+    const { t } = await getTranslator();
     return (
-        <LoadingRegion label="Loading bouts">
+        <LoadingRegion label={t("coachBouts.list.loading")}>
             <PageHeaderSkeleton actions={1} />
             <TableCardSkeleton rows={4} />
         </LoadingRegion>

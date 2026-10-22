@@ -29,21 +29,13 @@ import {
     requirementsOverdue,
     weighInOn,
 } from "@/lib/domain/bout-rules";
-import {
-    BOUT_METHOD_LABELS,
-    BOUT_PHASE_LABELS,
-    BOUT_RESULT_LABELS,
-    CANCEL_REASON_LABELS,
-    GATE1_REASON_LABELS,
-    HYDRATION_CHECK_LABELS,
-    LOSS_OF_CONSCIOUSNESS_LABELS,
-    SUSPENSION_REASON_LABELS,
-    TRAINING_TYPE_LABELS,
-} from "@/lib/domain/labels";
 import { weighInCountdown } from "@/lib/domain/nutrition";
 import { describeRule, suggestSuspension, suspensionReasonFor, suspensionState } from "@/lib/domain/suspension-rules";
 import { kgLabel } from "@/lib/domain/weight-input";
 import { dayKey, daysBetweenKeys, formatDate, formatDateTime, formatNumber } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
+import { getTranslator } from "@/lib/i18n/server";
+import type { MessageKey, Translator } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import { getCampBout, getRuleset, getWeightTrack, knockoutHistory, listSuspensions, wayOffForBout } from "@/lib/services/bouts";
 import { getFighter } from "@/lib/services/people";
@@ -55,16 +47,23 @@ import { SuspensionDialogButton } from "../suspension-dialogs";
 
 const loadBout = cache(getCampBout);
 
-const NOTICES = {
-    created: { title: "Bout created", description: "Link a camp plan to start the camp." },
-    "created-suspended": { title: "Bout created", description: "The fighter is suspended past the bout day. Check their suspension." },
-    "fight-week": { title: "Fight week started", description: "The checklist is locked and the fighter now sees the fight-week meal plan." },
-    plan: { title: "Meal plan saved" },
-} as const;
+const NOTICES: Record<"created" | "created-suspended" | "fight-week" | "plan", { title: MessageKey; description?: MessageKey }> = {
+    created: { title: "boutDetail.notice.created", description: "boutDetail.notice.createdDescription" },
+    "created-suspended": { title: "boutDetail.notice.created", description: "boutDetail.notice.createdSuspended" },
+    "fight-week": { title: "boutDetail.notice.fightWeek", description: "boutDetail.notice.fightWeekDescription" },
+    plan: { title: "boutDetail.notice.planSaved" },
+};
+
+/** The viewer's translator and language, passed to the cards below. */
+interface Lang {
+    t: Translator;
+    locale: Locale;
+}
 
 export async function generateMetadata({ params }: PageProps<"/coach/bouts/[boutId]">): Promise<Metadata> {
-    const bout = await loadBout((await params).boutId);
-    return { title: bout ? bout.event : "Bout" };
+    const [{ boutId }, { t }] = await Promise.all([params, getTranslator()]);
+    const bout = await loadBout(boutId);
+    return { title: bout ? bout.event : t("boutDetail.metaTitle") };
 }
 
 export default async function CoachBoutPage({ params, searchParams }: PageProps<"/coach/bouts/[boutId]">) {
@@ -74,6 +73,7 @@ export default async function CoachBoutPage({ params, searchParams }: PageProps<
     const bout = await loadBout(boutId);
     if (!bout || !canAccessFighter(user, bout.fighterId)) notFound();
 
+    const { t, locale } = await getTranslator();
     const now = new Date();
     const todayOn = dayKey(now);
     const [track, fighter, wayOff, ruleset, plans, linkedPlan, suspensions, priorKnockouts] = await Promise.all([
@@ -86,30 +86,36 @@ export default async function CoachBoutPage({ params, searchParams }: PageProps<
         listSuspensions([bout.fighterId]),
         knockoutHistory(bout.fighterId),
     ]);
-    const fighterName = fighter?.name ?? "Fighter";
+    const fighterName = fighter?.name ?? t("boutDetail.fighterFallback");
     const gate = boutGate1(bout);
     const dueOn = requirementsDueOn(bout);
     const overdue = requirementsOverdue(bout, todayOn);
     const limit = boutLimitKg(bout);
     const notice = param(query.notice);
-    const flash = notice && notice in NOTICES ? NOTICES[notice as keyof typeof NOTICES] : null;
+    const flashKeys = notice && notice in NOTICES ? NOTICES[notice as keyof typeof NOTICES] : null;
+    const flash = flashKeys ? { title: t(flashKeys.title), description: flashKeys.description ? t(flashKeys.description) : undefined } : null;
     const campPlans = plans
         .filter((plan) => plan.phase === "fight_camp" && plan.status !== "archived")
-        .map((plan) => ({ id: plan.id, title: plan.title, period: `${formatDate(plan.startDate)} – ${plan.endDate ? formatDate(plan.endDate) : "open"}` }));
+        .map((plan) => ({
+            id: plan.id,
+            title: plan.title,
+            period: `${formatDate(plan.startDate, locale)} – ${plan.endDate ? formatDate(plan.endDate, locale) : t("boutDetail.planOpenEnded")}`,
+        }));
     const boutSuspensions = suspensions.filter((item) => item.boutId === bout.id);
+    const lang: Lang = { t, locale };
 
     return (
         <>
             <FlashToast notice={flash ? { ...flash, tone: "success" } : null} cleanHref={routes.coach.bout(bout.id)} />
             <PageHeader
-                eyebrow="Bout"
-                back={{ href: routes.coach.bouts, label: "Bouts" }}
+                eyebrow={t("boutDetail.header.eyebrow")}
+                back={{ href: routes.coach.bouts, label: t("boutDetail.header.back") }}
                 title={bout.event}
-                description={`${fighterName} · ${bout.opponent ?? "Opponent TBA"}`}
+                description={`${fighterName} · ${bout.opponent ?? t("boutDetail.header.opponentTba")}`}
                 meta={
                     <>
-                        <BoutPhaseBadge phase={bout.phase} />
-                        {track && isRunningPhase(bout.phase) && <WeightStatusBadge status={track.status} />}
+                        <BoutPhaseBadge phase={bout.phase} locale={locale} />
+                        {track && isRunningPhase(bout.phase) && <WeightStatusBadge status={track.status} locale={locale} />}
                     </>
                 }
                 actions={
@@ -129,35 +135,53 @@ export default async function CoachBoutPage({ params, searchParams }: PageProps<
                         className="grid-cols-2"
                         items={[
                             {
-                                label: bout.catchweightKg === null ? "Weight class" : "Catchweight",
-                                value: bout.catchweightKg === null ? `${bout.weightClassLabel}${limit === null ? " (no upper limit)" : ""}` : `${kgLabel(bout.catchweightKg)} (class ${bout.weightClassLabel})`,
+                                label: bout.catchweightKg === null ? t("boutDetail.summary.weightClass") : t("boutDetail.common.catchweight"),
+                                value:
+                                    bout.catchweightKg === null
+                                        ? `${bout.weightClassLabel}${limit === null ? ` ${t("boutDetail.summary.noUpperLimit")}` : ""}`
+                                        : t("boutDetail.summary.catchweightValue", { kg: kgLabel(bout.catchweightKg), weightClass: bout.weightClassLabel }),
                             },
-                            { label: "Weigh-in", value: formatDateTime(bout.weighInAt) },
-                            { label: "Bout", value: formatDateTime(bout.boutAt) },
-                            { label: "Countdown", value: isRunningPhase(bout.phase) ? weighInCountdown(daysBetweenKeys(todayOn, weighInOn(bout))) : "—" },
-                            { label: "Documents due", value: <>{formatDate(dueOn)}{overdue && <span className="text-danger-fg"> · late</span>}</> },
-                            { label: "Acute-loss limit", value: `${formatNumber(bout.acuteLossLimitPct)}% in the last ${bout.acuteWindowDays} days` },
+                            { label: t("boutDetail.summary.weighIn"), value: formatDateTime(bout.weighInAt, locale) },
+                            { label: t("boutDetail.summary.bout"), value: formatDateTime(bout.boutAt, locale) },
+                            { label: t("boutDetail.summary.countdown"), value: isRunningPhase(bout.phase) ? weighInCountdown(daysBetweenKeys(todayOn, weighInOn(bout)), t) : "—" },
                             {
-                                label: "Ruleset",
+                                label: t("boutDetail.summary.documentsDue"),
                                 value: (
                                     <>
-                                        {bout.rulesetName}
-                                        {!bout.rulesetVerified && <span className="block text-[13px] font-normal text-fg-muted">{ruleset?.weightClasses.length ? "Reference only, not verified with the organiser" : "Coach-entered, not verified"}</span>}
+                                        {formatDate(dueOn, locale)}
+                                        {overdue && <span className="text-danger-fg"> · {t("boutDetail.summary.late")}</span>}
                                     </>
                                 ),
                             },
-                            { label: "Venue", value: bout.venue ?? "—" },
                             {
-                                label: "Camp plan",
+                                label: t("boutDetail.summary.acuteLossLimit"),
+                                value: t("boutDetail.summary.acuteLossValue", { pct: formatNumber(bout.acuteLossLimitPct), days: bout.acuteWindowDays }),
+                            },
+                            {
+                                label: t("boutDetail.summary.ruleset"),
+                                value: (
+                                    <>
+                                        {bout.rulesetName}
+                                        {!bout.rulesetVerified && (
+                                            <span className="block text-[13px] font-normal text-fg-muted">
+                                                {ruleset?.weightClasses.length ? t("boutDetail.summary.referenceOnly") : t("boutDetail.coachEntered")}
+                                            </span>
+                                        )}
+                                    </>
+                                ),
+                            },
+                            { label: t("boutDetail.summary.venue"), value: bout.venue ?? "—" },
+                            {
+                                label: t("boutDetail.summary.campPlan"),
                                 value: linkedPlan ? (
                                     <Link href={routes.coach.plan(linkedPlan.id)} className="text-primary-soft-fg hover:underline">
                                         {linkedPlan.title}
                                     </Link>
                                 ) : (
-                                    "Not linked"
+                                    t("boutDetail.summary.notLinked")
                                 ),
                             },
-                            ...(bout.notes ? [{ label: "Notes", value: bout.notes, wide: true }] : []),
+                            ...(bout.notes ? [{ label: t("boutDetail.common.notes"), value: bout.notes, wide: true }] : []),
                         ]}
                     />
                 </CardContent>
@@ -165,8 +189,8 @@ export default async function CoachBoutPage({ params, searchParams }: PageProps<
 
             <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                 <div className="flex min-w-0 flex-col gap-6 lg:col-span-2">
-                    <NextStepCard bout={bout} todayOn={todayOn} gateMissing={gate.missing.length} campPlans={campPlans} fighterName={fighterName} />
-                    {track && isRunningPhase(bout.phase) && <CampWeightCard track={track} wayOff={wayOff} />}
+                    <NextStepCard bout={bout} todayOn={todayOn} gateMissing={gate.missing.length} campPlans={campPlans} fighterName={fighterName} lang={lang} />
+                    {track && isRunningPhase(bout.phase) && <CampWeightCard track={track} wayOff={wayOff} locale={locale} />}
                     <MedicalChecklist
                         boutId={bout.id}
                         requirements={bout.requirements}
@@ -180,7 +204,7 @@ export default async function CoachBoutPage({ params, searchParams }: PageProps<
                     />
                     {isRunningPhase(bout.phase) && (
                         <Card>
-                            <CardHeader title="Meal plan" description="Camp, fight week, and after the official weigh-in. The fighter sees the current phase." />
+                            <CardHeader title={t("boutDetail.mealPlan.title")} description={t("boutDetail.mealPlan.description")} />
                             <CardContent>
                                 <NutritionPlanForm boutId={bout.id} plan={bout.nutritionPlan} authorName={user.name} />
                             </CardContent>
@@ -189,12 +213,12 @@ export default async function CoachBoutPage({ params, searchParams }: PageProps<
                 </div>
 
                 <div className="flex min-w-0 flex-col gap-6">
-                    <GateCard bout={bout} todayOn={todayOn} />
-                    {(bout.weighIn || bout.outcome) && <ResultCard bout={bout} />}
+                    <GateCard bout={bout} todayOn={todayOn} lang={lang} />
+                    {(bout.weighIn || bout.outcome) && <ResultCard bout={bout} lang={lang} />}
                     {bout.phase === "COMPLETED" && (
-                        <SuspensionCard bout={bout} suspensions={boutSuspensions} todayOn={todayOn} ruleset={ruleset} priorKnockouts={priorKnockouts} />
+                        <SuspensionCard bout={bout} suspensions={boutSuspensions} todayOn={todayOn} ruleset={ruleset} priorKnockouts={priorKnockouts} lang={lang} />
                     )}
-                    <HistoryCard bout={bout} />
+                    <HistoryCard bout={bout} lang={lang} />
                 </div>
             </div>
         </>
@@ -209,17 +233,19 @@ function NextStepCard({
     gateMissing,
     campPlans,
     fighterName,
+    lang: { t, locale },
 }: {
     bout: CampBout;
     todayOn: string;
     gateMissing: number;
     campPlans: { id: string; title: string; period: string }[];
     fighterName: string;
+    lang: Lang;
 }) {
     if (bout.phase === "SCHEDULED") {
         return (
             <Card>
-                <CardHeader title="Start the camp" description="Link the fighter's fight-camp plan. The camp's weights count from the plan's first day." />
+                <CardHeader title={t("boutDetail.next.startCamp.title")} description={t("boutDetail.next.startCamp.description")} />
                 <CardContent>
                     <LinkCampButton bout={bout} plans={campPlans} fighterName={fighterName} />
                 </CardContent>
@@ -233,9 +259,13 @@ function NextStepCard({
         return (
             <Card>
                 <CardHeader
-                    title="Fight week"
-                    description={early ? `Opens on ${formatDate(opensOn)}, ${bout.fightWeekDays} days before weigh-in.` : `Open since ${formatDate(opensOn)}. Gate 1 checks the documents first.`}
-                    action={<Gate1Badge missing={gateMissing} overdue={requirementsOverdue(bout, todayOn)} />}
+                    title={t("boutDetail.next.fightWeek.title")}
+                    description={
+                        early
+                            ? t("boutDetail.next.fightWeek.opensOn", { date: formatDate(opensOn, locale), days: bout.fightWeekDays })
+                            : t("boutDetail.next.fightWeek.openSince", { date: formatDate(opensOn, locale) })
+                    }
+                    action={<Gate1Badge missing={gateMissing} overdue={requirementsOverdue(bout, todayOn)} locale={locale} />}
                 />
                 <CardContent>
                     <EnterFightWeekForm boutId={bout.id} />
@@ -246,7 +276,7 @@ function NextStepCard({
     if (bout.phase === "FIGHT_WEEK") {
         return (
             <Card>
-                <CardHeader title="Official weigh-in" description={`${formatDateTime(bout.weighInAt)}. Record the scale weight; a miss asks for a catchweight or a cancellation.`} />
+                <CardHeader title={t("boutDetail.weighIn.title")} description={t("boutDetail.next.weighIn.description", { date: formatDateTime(bout.weighInAt, locale) })} />
                 <CardContent>
                     <WeighInButton bout={bout} />
                 </CardContent>
@@ -257,12 +287,12 @@ function NextStepCard({
         const check = canRecordResult(bout, todayOn);
         return (
             <Card>
-                <CardHeader title="Result" description={`Bout ${formatDateTime(bout.boutAt)}. The app does nothing during the bout itself.`} />
+                <CardHeader title={t("boutDetail.common.result")} description={t("boutDetail.next.result.description", { date: formatDateTime(bout.boutAt, locale) })} />
                 <CardContent>
                     {check.ok ? (
                         <ResultButton bout={bout} />
                     ) : (
-                        <InlineNote icon={CalendarClock}>The result can be recorded from {formatDate(bout.boutAt)}.</InlineNote>
+                        <InlineNote icon={CalendarClock}>{t("boutDetail.next.result.notYet", { date: formatDate(bout.boutAt, locale) })}</InlineNote>
                     )}
                 </CardContent>
             </Card>
@@ -270,8 +300,12 @@ function NextStepCard({
     }
     if (bout.phase === "CANCELLED") {
         return (
-            <Callout tone="neutral" icon={CircleSlash} title={`Cancelled${bout.cancelReason ? `: ${CANCEL_REASON_LABELS[bout.cancelReason]}` : ""}`}>
-                {bout.cancelNote ?? "The camp plan and its sessions were kept."}
+            <Callout
+                tone="neutral"
+                icon={CircleSlash}
+                title={bout.cancelReason ? t("boutDetail.next.cancelledWithReason", { reason: t(`boutLabel.cancelReason.${bout.cancelReason}`) }) : t("boutDetail.next.cancelled")}
+            >
+                {bout.cancelNote ?? t("boutDetail.next.cancelledKept")}
             </Callout>
         );
     }
@@ -280,27 +314,27 @@ function NextStepCard({
 
 /* ─── Side column ─────────────────────────────────────────────────────────── */
 
-function GateCard({ bout, todayOn }: { bout: CampBout; todayOn: string }) {
+function GateCard({ bout, todayOn, lang: { t, locale } }: { bout: CampBout; todayOn: string; lang: Lang }) {
     const gate = boutGate1(bout);
     const relevant = bout.phase === "SCHEDULED" || bout.phase === "CAMP";
     if (!relevant) return null;
     if (bout.requirements.length === 0) {
         return (
-            <Callout tone="info" icon={Info} title="No documents listed">
-                Gate 1 has nothing to check yet. Add the documents the event&apos;s notice asks for.
+            <Callout tone="info" icon={Info} title={t("boutDetail.gate.noDocuments.title")}>
+                {t("boutDetail.gate.noDocuments.text")}
             </Callout>
         );
     }
     return gate.passed ? (
-        <Callout tone="success" icon={ShieldCheck} title="Gate 1 met">
-            Every required document is in and valid through {formatDate(bout.boutAt)}.
+        <Callout tone="success" icon={ShieldCheck} title={t("boutDetail.gate.met.title")}>
+            {t("boutDetail.gate.met.text", { date: formatDate(bout.boutAt, locale) })}
         </Callout>
     ) : (
-        <Callout tone={requirementsOverdue(bout, todayOn) ? "danger" : "warning"} icon={ShieldAlert} title="Gate 1 not met">
+        <Callout tone={requirementsOverdue(bout, todayOn) ? "danger" : "warning"} icon={ShieldAlert} title={t("boutDetail.gate.notMet.title")}>
             <ul className="mt-1 list-disc pl-5">
                 {gate.missing.map((gap) => (
                     <li key={gap.requirement.code}>
-                        {gap.requirement.label}: {GATE1_REASON_LABELS[gap.reason]}
+                        {gap.requirement.label}: {t(`boutLabel.gate1Reason.${gap.reason}`)}
                     </li>
                 ))}
             </ul>
@@ -308,25 +342,32 @@ function GateCard({ bout, todayOn }: { bout: CampBout; todayOn: string }) {
     );
 }
 
-function ResultCard({ bout }: { bout: CampBout }) {
+function ResultCard({ bout, lang: { t } }: { bout: CampBout; lang: Lang }) {
     const items = [];
     if (bout.weighIn) {
-        items.push({ label: "Official weight", value: `${formatNumber(bout.weighIn.weightKg, 1)} kg · ${bout.weighIn.madeWeight ? "made weight" : "missed"}` });
-        if (bout.weighIn.hydrationCheck) items.push({ label: "Hydration check", value: HYDRATION_CHECK_LABELS[bout.weighIn.hydrationCheck] });
-        if (bout.weighIn.catchweightNote) items.push({ label: "Catchweight note", value: bout.weighIn.catchweightNote });
+        items.push({
+            label: t("boutDetail.common.officialWeight"),
+            value: `${formatNumber(bout.weighIn.weightKg, 1)} kg · ${bout.weighIn.madeWeight ? t("boutDetail.resultCard.madeWeight") : t("boutDetail.resultCard.missed")}`,
+        });
+        if (bout.weighIn.hydrationCheck) items.push({ label: t("boutDetail.common.hydrationCheck"), value: t(`boutLabel.hydration.${bout.weighIn.hydrationCheck}`) });
+        if (bout.weighIn.catchweightNote) items.push({ label: t("boutDetail.resultCard.catchweightNote"), value: bout.weighIn.catchweightNote });
     }
     if (bout.outcome) {
         const outcome = bout.outcome;
-        items.push({ label: "Result", value: `${BOUT_RESULT_LABELS[outcome.result]} · ${BOUT_METHOD_LABELS[outcome.method]}${outcome.round ? `, round ${outcome.round}` : ""}` });
-        if (outcome.lossOfConsciousness) items.push({ label: "Lost consciousness", value: LOSS_OF_CONSCIOUSNESS_LABELS[outcome.lossOfConsciousness] });
-        if (outcome.stoppedByHeadStrikes !== null) items.push({ label: "Stopped for head strikes", value: outcome.stoppedByHeadStrikes ? "Yes" : "No" });
-        items.push({ label: "Knocked down", value: outcome.knockedDown ? "Yes" : "No" });
-        if (outcome.injuryNote) items.push({ label: "Injuries seen", value: outcome.injuryNote });
-        if (outcome.notes) items.push({ label: "Notes", value: outcome.notes });
+        items.push({
+            label: t("boutDetail.common.result"),
+            value: `${t(`boutLabel.result.${outcome.result}`)} · ${t(`boutLabel.method.${outcome.method}`)}${outcome.round ? `, ${t("boutDetail.resultCard.round", { n: outcome.round })}` : ""}`,
+        });
+        if (outcome.lossOfConsciousness) items.push({ label: t("boutDetail.resultCard.lostConsciousness"), value: t(`boutLabel.loc.${outcome.lossOfConsciousness}`) });
+        if (outcome.stoppedByHeadStrikes !== null)
+            items.push({ label: t("boutDetail.resultCard.stoppedByHeadStrikes"), value: outcome.stoppedByHeadStrikes ? t("boutDetail.common.yes") : t("boutDetail.common.no") });
+        items.push({ label: t("boutDetail.resultCard.knockedDown"), value: outcome.knockedDown ? t("boutDetail.common.yes") : t("boutDetail.common.no") });
+        if (outcome.injuryNote) items.push({ label: t("boutDetail.resultCard.injuries"), value: outcome.injuryNote });
+        if (outcome.notes) items.push({ label: t("boutDetail.common.notes"), value: outcome.notes });
     }
     return (
         <Card>
-            <CardHeader title={bout.outcome ? "Result" : "Weigh-in"} />
+            <CardHeader title={bout.outcome ? t("boutDetail.common.result") : t("boutDetail.resultCard.weighInTitle")} />
             <CardContent>
                 <DescriptionList columns={1} items={items} />
             </CardContent>
@@ -340,18 +381,20 @@ function SuspensionCard({
     todayOn,
     ruleset,
     priorKnockouts,
+    lang: { t, locale },
 }: {
     bout: CampBout;
     suspensions: Suspension[];
     todayOn: string;
     ruleset: Awaited<ReturnType<typeof getRuleset>>;
     priorKnockouts: string[];
+    lang: Lang;
 }) {
     const reason = bout.outcome ? suspensionReasonFor(bout.outcome) : null;
     if (!reason && suspensions.length === 0) {
         return (
-            <Callout tone="success" icon={CheckCircle2} title="No suspension suggested">
-                The ruleset suggests none for this result. Add one by hand under Suspensions if the fighter needs rest.
+            <Callout tone="success" icon={CheckCircle2} title={t("boutDetail.suspension.none.title")}>
+                {t("boutDetail.suspension.none.text")}
             </Callout>
         );
     }
@@ -369,12 +412,12 @@ function SuspensionCard({
     return (
         <Card>
             <CardHeader
-                title="Suspension"
+                title={t("boutDetail.suspension.title")}
                 description={
                     needsConfirmation
                         ? suggestion
-                            ? `Suggested: ${suggestion.days} days (${describeRule(suggestion.rule)}).`
-                            : "The ruleset has no rule for this result. Enter the days."
+                            ? t("boutDetail.suspension.suggested", { days: suggestion.days, rule: describeRule(suggestion.rule, t) })
+                            : t("boutDetail.suspension.noRule")
                         : undefined
                 }
             />
@@ -382,27 +425,25 @@ function SuspensionCard({
                 {suspensions.map((item) => (
                     <div key={item.id} className="flex flex-col gap-1 text-sm">
                         <p className="flex flex-wrap items-center gap-2 font-medium text-fg">
-                            {SUSPENSION_REASON_LABELS[item.reason]}: {formatDate(item.startsOn)} – {formatDate(item.endsOn)}
-                            <SuspensionStateBadge state={suspensionState(item, todayOn)} size="sm" />
+                            {t(`boutLabel.suspensionReason.${item.reason}`)}: {formatDate(item.startsOn, locale)} – {formatDate(item.endsOn, locale)}
+                            <SuspensionStateBadge state={suspensionState(item, todayOn)} size="sm" locale={locale} />
                         </p>
-                        <p className="text-fg-muted">Blocks {item.blockedSessionTypes.map((type) => TRAINING_TYPE_LABELS[type].toLowerCase()).join(", ")}.</p>
-                        {item.overrideReason && (
-                            <p className="text-fg-muted">
-                                Changed from {item.suggestedDays} days: {item.overrideReason}
-                            </p>
-                        )}
+                        <p className="text-fg-muted">
+                            {t("boutDetail.suspension.blocks", { types: item.blockedSessionTypes.map((type) => t(`trainingType.${type}`).toLowerCase()).join(", ") })}
+                        </p>
+                        {item.overrideReason && <p className="text-fg-muted">{t("boutDetail.suspension.changedFrom", { days: item.suggestedDays ?? "", reason: item.overrideReason })}</p>}
                     </div>
                 ))}
                 {needsConfirmation && reason ? (
                     <SuspensionDialogButton
-                        bout={{ id: bout.id, reason, suggestedDays: suggestion?.days ?? null, rule: suggestion ? describeRule(suggestion.rule) : null }}
+                        bout={{ id: bout.id, reason, suggestedDays: suggestion?.days ?? null, rule: suggestion ? describeRule(suggestion.rule, t) : null }}
                         defaultBlocked={ruleset?.defaultBlockedSessionTypes ?? ["sparring"]}
                         startsOn={boutOn(bout)}
-                        label="Confirm suspension"
+                        label={t("boutDetail.suspension.confirm")}
                     />
                 ) : (
                     <Link href={routes.coach.suspensions} className="text-sm font-medium text-primary-soft-fg hover:underline">
-                        All suspensions
+                        {t("boutDetail.suspension.all")}
                     </Link>
                 )}
             </CardContent>
@@ -410,20 +451,24 @@ function SuspensionCard({
     );
 }
 
-function HistoryCard({ bout }: { bout: CampBout }) {
+function HistoryCard({ bout, lang: { t, locale } }: { bout: CampBout; lang: Lang }) {
     const entries = [...bout.history].reverse();
     return (
         <Card>
-            <CardHeader title="History" />
+            <CardHeader title={t("boutDetail.history.title")} />
             <CardContent>
                 <ol className="flex flex-col gap-3 text-sm">
                     {entries.map((entry, index) => (
                         <li key={`${entry.at}-${index}`} className="min-w-0">
                             <p className="font-medium text-fg">
-                                {entry.from === entry.to ? `Changed in ${BOUT_PHASE_LABELS[entry.to].toLowerCase()}` : entry.from ? `${BOUT_PHASE_LABELS[entry.from]} → ${BOUT_PHASE_LABELS[entry.to]}` : "Created"}
+                                {entry.from === entry.to
+                                    ? t("boutDetail.history.changedIn", { phase: t(`boutLabel.phase.${entry.to}`).toLowerCase() })
+                                    : entry.from
+                                      ? `${t(`boutLabel.phase.${entry.from}`)} → ${t(`boutLabel.phase.${entry.to}`)}`
+                                      : t("boutDetail.history.created")}
                             </p>
                             <p className="text-[13px] text-fg-muted">
-                                {entry.by} · {formatDateTime(entry.at)}
+                                {entry.by} · {formatDateTime(entry.at, locale)}
                             </p>
                             {entry.reason && <p className="text-[13px] break-words text-fg-muted">{entry.reason}</p>}
                         </li>

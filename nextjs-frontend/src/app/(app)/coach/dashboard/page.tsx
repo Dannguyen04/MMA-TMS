@@ -129,7 +129,11 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
                 <div className="mb-6 grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
                     {weightAlerts.length > 0 && (
                         <Card className="min-w-0">
-                            <CardHeader title="Weight alerts" description="Running bouts that need a look, red first." action={<CardLink href={routes.coach.bouts}>All bouts</CardLink>} />
+                            <CardHeader
+                                title={t("coachBouts.dashboard.weightAlerts")}
+                                description={t("coachBouts.dashboard.weightAlertsHint")}
+                                action={<CardLink href={routes.coach.bouts}>{t("coachBouts.dashboard.allBouts")}</CardLink>}
+                            />
                             <CardContent>
                                 <ul className="divide-y divide-border">
                                     {weightAlerts.map((alert) => (
@@ -139,10 +143,10 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
                                                     <span className="block font-medium text-fg">{alert.fighterName}</span>
                                                     <span className="block truncate text-sm text-fg-muted">{alert.bout.event}</span>
                                                     {alert.wayOff > 0 && (alert.track.status === "RED" || alert.track.status === "YELLOW") && (
-                                                        <span className="block text-sm text-fg-muted">{adherenceAlertLine(alert.wayOff)}</span>
+                                                        <span className="block text-sm text-fg-muted">{adherenceAlertLine(alert.wayOff, t)}</span>
                                                     )}
                                                 </span>
-                                                <WeightStatusBadge status={alert.track.status} />
+                                                <WeightStatusBadge status={alert.track.status} locale={locale} />
                                             </Link>
                                         </li>
                                     ))}
@@ -153,9 +157,9 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
                     {documentsDue.length > 0 && (
                         <Card className="min-w-0">
                             <CardHeader
-                                title="Documents due"
-                                description="Required documents still missing within 14 days of the deadline."
-                                action={weightAlerts.length === 0 ? <CardLink href={routes.coach.bouts}>All bouts</CardLink> : undefined}
+                                title={t("coachBouts.dashboard.documentsDue")}
+                                description={t("coachBouts.dashboard.documentsDueHint")}
+                                action={weightAlerts.length === 0 ? <CardLink href={routes.coach.bouts}>{t("coachBouts.dashboard.allBouts")}</CardLink> : undefined}
                             />
                             <CardContent>
                                 <ul className="divide-y divide-border">
@@ -163,13 +167,13 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
                                         <li key={bout.id}>
                                             <Link href={routes.coach.bout(bout.id)} className="flex min-h-11 items-center justify-between gap-3 py-3">
                                                 <span className="min-w-0">
-                                                    <span className="block font-medium text-fg">{fighterNames.get(bout.fighterId) ?? "Fighter"}</span>
+                                                    <span className="block font-medium text-fg">{fighterNames.get(bout.fighterId) ?? t("coachBouts.common.fighterFallback")}</span>
                                                     <span className="block truncate text-sm text-fg-muted">
-                                                        {bout.event} · due {formatShortDate(academyDayStartIso(requirementsDueOn(bout)))}
+                                                        {bout.event} · {t("coachBouts.dashboard.due", { date: formatShortDate(academyDayStartIso(requirementsDueOn(bout)), locale) })}
                                                     </span>
                                                     <span className="block text-sm text-fg-muted">{missing.map((gap) => gap.requirement.label).join(", ")}</span>
                                                 </span>
-                                                <Gate1Badge missing={missing.length} overdue={requirementsOverdue(bout, today)} />
+                                                <Gate1Badge missing={missing.length} overdue={requirementsOverdue(bout, today)} locale={locale} />
                                             </Link>
                                         </li>
                                     ))}

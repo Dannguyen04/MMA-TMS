@@ -1,4 +1,5 @@
 import { academyWallClockToIso, addDaysToKey, dayKey, daysBetweenKeys, isDateKey, isDateTimeInputValue } from "@/lib/format";
+import { createTranslator, type Translator } from "@/lib/i18n/translate";
 
 import {
     isActivePhase,
@@ -16,7 +17,6 @@ import {
     type RequirementState,
     type WeightClassOption,
 } from "./bout";
-import { GATE1_REASON_LABELS } from "./labels";
 import { kgLabel, parseKg, parseWeightLimit } from "./weight-input";
 
 /**
@@ -26,6 +26,9 @@ import { kgLabel, parseKg, parseWeightLimit } from "./weight-input";
  */
 
 type FieldErrors = Record<string, string>;
+
+/** Messages default to English, so the demo store, the tests and the API adapter need no translator. */
+const english = createTranslator("en");
 export type Checked<T> = { ok: true; value: T } | { ok: false; fieldErrors: FieldErrors };
 
 const HOUR_MS = 3_600_000;
@@ -150,12 +153,13 @@ export function readyForBout(requirement: Pick<BoutRequirement, "state" | "valid
 }
 
 /** "2 of 3 ready · Brain CT missing": the checklist in one line, for the fighter's page and the coach's list. */
-export function gateSummary(requirements: BoutRequirement[], boutDay: string): string {
+export function gateSummary(requirements: BoutRequirement[], boutDay: string, t: Translator = english): string {
     const ready = requirements.filter((item) => readyForBout(item, boutDay)).length;
     const { missing } = gate1(requirements, boutDay);
-    const head = requirements.length === 0 ? "No documents listed" : `${ready} of ${requirements.length} ready`;
+    const head = requirements.length === 0 ? t("boutMsg.gate.noDocuments") : t("boutMsg.gate.ready", { ready, total: requirements.length });
     if (missing.length === 0) return head;
-    return `${head} · ${missing.map((gap) => `${gap.requirement.label} ${GATE1_REASON_LABELS[gap.reason]}`).join(", ")}`;
+    const gaps = missing.map((gap) => t("boutMsg.gate.gap", { label: gap.requirement.label, reason: t(`boutLabel.gate1Reason.${gap.reason}`) }));
+    return `${head} · ${gaps.join(", ")}`;
 }
 
 /** A ready document that runs out before the bout, shown in red even when it is optional. */
@@ -233,12 +237,17 @@ export interface BoutSchedule {
 }
 
 /** A class from the preset's list, or the coach's own limit when the ruleset has none ("Custom"). */
-export function readWeightClass(ruleset: Pick<CompetitionRuleset, "weightClasses">, code: string, limitRaw: string): { ok: true; value: WeightClassOption } | { ok: false; field: string; message: string } {
+export function readWeightClass(
+    ruleset: Pick<CompetitionRuleset, "weightClasses">,
+    code: string,
+    limitRaw: string,
+    t: Translator = english,
+): { ok: true; value: WeightClassOption } | { ok: false; field: string; message: string } {
     if (ruleset.weightClasses.length > 0) {
         const option = ruleset.weightClasses.find((item) => item.code === code.trim());
-        return option ? { ok: true, value: option } : { ok: false, field: "weightClassCode", message: "Choose a weight class from the list." };
+        return option ? { ok: true, value: option } : { ok: false, field: "weightClassCode", message: t("boutMsg.schedule.weightClass") };
     }
-    const parsed = parseWeightLimit(limitRaw);
+    const parsed = parseWeightLimit(limitRaw, t);
     if (!parsed.ok) return { ok: false, field: "weightLimitKg", message: parsed.message };
     return { ok: true, value: { code: String(parsed.kg), label: kgLabel(parsed.kg), limitKg: parsed.kg } };
 }
@@ -259,28 +268,29 @@ export function validateBoutSchedule(
     now: Date,
     /** Editing a bout whose time has passed keeps it; a new or moved bout must still be in the future. */
     { allowPastBoutAt }: { allowPastBoutAt?: string } = {},
+    t: Translator = english,
 ): Checked<BoutSchedule> {
     const fieldErrors: FieldErrors = {};
 
     const event = input.event.trim();
-    if (!event) fieldErrors.event = "Enter the event name.";
-    else if (event.length > EVENT_MAX) fieldErrors.event = `Keep the event name under ${EVENT_MAX} characters.`;
+    if (!event) fieldErrors.event = t("boutMsg.schedule.eventRequired");
+    else if (event.length > EVENT_MAX) fieldErrors.event = t("boutMsg.schedule.eventTooLong", { max: EVENT_MAX });
 
-    const venue = readText(input.venue, VENUE_MAX, `Keep the venue under ${VENUE_MAX} characters.`);
+    const venue = readText(input.venue, VENUE_MAX, t("boutMsg.schedule.venueTooLong", { max: VENUE_MAX }));
     if (!venue.ok) fieldErrors.venue = venue.message;
-    const opponent = readText(input.opponent, OPPONENT_MAX, `Keep the opponent's name under ${OPPONENT_MAX} characters.`);
+    const opponent = readText(input.opponent, OPPONENT_MAX, t("boutMsg.schedule.opponentTooLong", { max: OPPONENT_MAX }));
     if (!opponent.ok) fieldErrors.opponent = opponent.message;
 
-    const weightClass = readWeightClass(ruleset, input.weightClassCode, input.weightLimitKg);
+    const weightClass = readWeightClass(ruleset, input.weightClassCode, input.weightLimitKg, t);
     if (!weightClass.ok) fieldErrors[weightClass.field] = weightClass.message;
 
     const weighInAt = isDateTimeInputValue(input.weighInAt) ? wallClockIso(input.weighInAt) : null;
     const boutAt = isDateTimeInputValue(input.boutAt) ? wallClockIso(input.boutAt) : null;
-    if (!weighInAt) fieldErrors.weighInAt = "Enter the weigh-in date and time.";
-    if (!boutAt) fieldErrors.boutAt = "Enter the bout date and time.";
+    if (!weighInAt) fieldErrors.weighInAt = t("boutMsg.schedule.weighInRequired");
+    if (!boutAt) fieldErrors.boutAt = t("boutMsg.schedule.boutRequired");
     if (weighInAt && boutAt) {
-        if (Date.parse(weighInAt) >= Date.parse(boutAt)) fieldErrors.boutAt = "The bout must start after the weigh-in.";
-        else if (Date.parse(boutAt) <= now.getTime() && boutAt !== allowPastBoutAt) fieldErrors.boutAt = "The bout must be in the future.";
+        if (Date.parse(weighInAt) >= Date.parse(boutAt)) fieldErrors.boutAt = t("boutMsg.schedule.boutAfterWeighIn");
+        else if (Date.parse(boutAt) <= now.getTime() && boutAt !== allowPastBoutAt) fieldErrors.boutAt = t("boutMsg.schedule.boutInFuture");
     }
 
     if (Object.keys(fieldErrors).length > 0 || !weightClass.ok || !weighInAt || !boutAt || !venue.ok || !opponent.ok) {
@@ -296,10 +306,10 @@ export function wallClockIso(value: string): string {
 }
 
 /** The documents deadline in days before weigh-in, a whole number from 0 to 60. */
-export function readDueDays(raw: string): { ok: true; value: number } | { ok: false; message: string } {
+export function readDueDays(raw: string, t: Translator = english): { ok: true; value: number } | { ok: false; message: string } {
     const value = raw.trim();
     if (!/^\d{1,2}$/.test(value) || Number(value) > DUE_DAYS_MAX) {
-        return { ok: false, message: `Enter a whole number of days from 0 to ${DUE_DAYS_MAX}.` };
+        return { ok: false, message: t("boutMsg.schedule.dueDays", { max: DUE_DAYS_MAX }) };
     }
     return { ok: true, value: Number(value) };
 }
@@ -338,18 +348,22 @@ export interface NewRequirementInput {
     validityDays: string;
 }
 
-export function validateNewRequirement(input: NewRequirementInput, existingLabels: string[]): Checked<{ label: string; required: boolean; validityDays: number | null }> {
+export function validateNewRequirement(
+    input: NewRequirementInput,
+    existingLabels: string[],
+    t: Translator = english,
+): Checked<{ label: string; required: boolean; validityDays: number | null }> {
     const fieldErrors: FieldErrors = {};
     const label = input.label.trim();
-    if (!label) fieldErrors.label = "Name the document, such as “Brain CT”.";
-    else if (label.length > REQUIREMENT_LABEL_MAX) fieldErrors.label = `Keep the name under ${REQUIREMENT_LABEL_MAX} characters.`;
-    else if (existingLabels.some((item) => item.trim().toLowerCase() === label.toLowerCase())) fieldErrors.label = "This bout already lists that document.";
+    if (!label) fieldErrors.label = t("boutMsg.requirement.labelRequired");
+    else if (label.length > REQUIREMENT_LABEL_MAX) fieldErrors.label = t("boutMsg.common.nameTooLong", { max: REQUIREMENT_LABEL_MAX });
+    else if (existingLabels.some((item) => item.trim().toLowerCase() === label.toLowerCase())) fieldErrors.label = t("boutMsg.requirement.labelTaken");
 
     const days = input.validityDays.trim();
     let validityDays: number | null = null;
     if (days) {
         if (!/^\d+$/.test(days) || Number(days) < 1 || Number(days) > VALIDITY_DAYS_MAX) {
-            fieldErrors.validityDays = `Enter a whole number of days from 1 to ${VALIDITY_DAYS_MAX}, or leave it empty.`;
+            fieldErrors.validityDays = t("boutMsg.requirement.validityDays", { max: VALIDITY_DAYS_MAX });
         } else {
             validityDays = Number(days);
         }
@@ -376,23 +390,23 @@ export interface RequirementUpdate {
  * F4 and T-003 §2: `PROVIDED` needs a valid-until date, `REJECTED` needs a reason, `CONFIRMED` is a doctor's.
  * A missing document keeps no dates.
  */
-export function validateRequirementUpdate(input: RequirementUpdateInput): Checked<RequirementUpdate> {
+export function validateRequirementUpdate(input: RequirementUpdateInput, t: Translator = english): Checked<RequirementUpdate> {
     const fieldErrors: FieldErrors = {};
     const state = input.state.trim();
-    if (state === "CONFIRMED") fieldErrors.state = "Only a doctor can confirm a document.";
-    else if (!(COACH_REQUIREMENT_STATES as readonly string[]).includes(state)) fieldErrors.state = "Choose a status.";
+    if (state === "CONFIRMED") fieldErrors.state = t("boutMsg.requirement.doctorConfirms");
+    else if (!(COACH_REQUIREMENT_STATES as readonly string[]).includes(state)) fieldErrors.state = t("boutMsg.requirement.stateRequired");
 
     const issuedOn = input.issuedOn.trim() || null;
     const validUntil = input.validUntil.trim() || null;
     const statusReason = input.statusReason.trim() || null;
-    if (issuedOn && !isDateKey(issuedOn)) fieldErrors.issuedOn = "Enter a valid issue date.";
-    if (validUntil && !isDateKey(validUntil)) fieldErrors.validUntil = "Enter a valid date.";
-    if (state === "PROVIDED" && !validUntil) fieldErrors.validUntil = "Enter the date this document is valid until.";
+    if (issuedOn && !isDateKey(issuedOn)) fieldErrors.issuedOn = t("boutMsg.requirement.issuedOnInvalid");
+    if (validUntil && !isDateKey(validUntil)) fieldErrors.validUntil = t("boutMsg.requirement.validUntilInvalid");
+    if (state === "PROVIDED" && !validUntil) fieldErrors.validUntil = t("boutMsg.requirement.validUntilRequired");
     if (issuedOn && validUntil && isDateKey(issuedOn) && isDateKey(validUntil) && validUntil < issuedOn) {
-        fieldErrors.validUntil = "The valid-until date can't be before the issue date.";
+        fieldErrors.validUntil = t("boutMsg.requirement.validUntilBeforeIssued");
     }
-    if (state === "REJECTED" && !statusReason) fieldErrors.statusReason = "Say why the document was rejected.";
-    if (statusReason && statusReason.length > STATUS_REASON_MAX) fieldErrors.statusReason = `Keep the reason under ${STATUS_REASON_MAX} characters.`;
+    if (state === "REJECTED" && !statusReason) fieldErrors.statusReason = t("boutMsg.requirement.reasonRequired");
+    if (statusReason && statusReason.length > STATUS_REASON_MAX) fieldErrors.statusReason = t("boutMsg.common.reasonTooLong", { max: STATUS_REASON_MAX });
 
     if (Object.keys(fieldErrors).length > 0) return { ok: false, fieldErrors };
     const value = state as RequirementState;
@@ -441,12 +455,12 @@ export function madeWeight(officialKg: number, limitKg: number | null): boolean 
     return limitKg === null || officialKg <= limitKg;
 }
 
-export function readOfficialWeight(raw: string) {
-    return parseKg(raw, { noun: "the official weight", example: "60.0" });
+export function readOfficialWeight(raw: string, t: Translator = english) {
+    return parseKg(raw, "official", t);
 }
 
-export function readCatchweight(raw: string) {
-    return parseKg(raw, { noun: "the catchweight", example: "61.5" });
+export function readCatchweight(raw: string, t: Translator = english) {
+    return parseKg(raw, "catchweight", t);
 }
 
 /** F6: a result is recorded once weighed in and from the bout day. */
@@ -476,18 +490,18 @@ export function asksHeadStrikes(result: string, method: string): boolean {
     return result === "LOSS" && method === "TKO";
 }
 
-export function validateOutcome(input: OutcomeInput, sport: BoutSport, recordedAt: string): Checked<BoutOutcome> {
+export function validateOutcome(input: OutcomeInput, sport: BoutSport, recordedAt: string, t: Translator = english): Checked<BoutOutcome> {
     const fieldErrors: FieldErrors = {};
     const result = (BOUT_RESULTS as readonly string[]).includes(input.result) ? (input.result as BoutResult) : null;
-    if (!result) fieldErrors.result = "Choose the result.";
+    if (!result) fieldErrors.result = t("boutMsg.outcome.resultRequired");
     const method = (methodsFor(sport) as string[]).includes(input.method) ? (input.method as BoutMethod) : null;
-    if (!method) fieldErrors.method = input.method === "SUBMISSION" ? "A submission ends MMA bouts only." : "Choose how the bout ended.";
+    if (!method) fieldErrors.method = input.method === "SUBMISSION" ? t("boutMsg.outcome.submissionMmaOnly") : t("boutMsg.outcome.methodRequired");
 
     const roundRaw = input.round.trim();
     let round: number | null = null;
     if (roundRaw) {
         if (!/^\d{1,2}$/.test(roundRaw) || Number(roundRaw) < 1 || Number(roundRaw) > MAX_ROUNDS) {
-            fieldErrors.round = `Enter a round from 1 to ${MAX_ROUNDS}, or leave it empty for a decision.`;
+            fieldErrors.round = t("boutMsg.outcome.round", { max: MAX_ROUNDS });
         } else {
             round = Number(roundRaw);
         }
@@ -496,18 +510,18 @@ export function validateOutcome(input: OutcomeInput, sport: BoutSport, recordedA
     let lossOfConsciousness: LossOfConsciousness | null = null;
     if (asksLossOfConsciousness(input.result, input.method)) {
         if ((LOSS_OF_CONSCIOUSNESS as readonly string[]).includes(input.lossOfConsciousness)) lossOfConsciousness = input.lossOfConsciousness as LossOfConsciousness;
-        else fieldErrors.lossOfConsciousness = "Say whether the fighter lost consciousness.";
+        else fieldErrors.lossOfConsciousness = t("boutMsg.outcome.locRequired");
     }
     let stoppedByHeadStrikes: boolean | null = null;
     if (asksHeadStrikes(input.result, input.method)) {
         if (input.stoppedByHeadStrikes === "yes" || input.stoppedByHeadStrikes === "no") stoppedByHeadStrikes = input.stoppedByHeadStrikes === "yes";
-        else fieldErrors.stoppedByHeadStrikes = "Say whether head strikes stopped the bout.";
+        else fieldErrors.stoppedByHeadStrikes = t("boutMsg.outcome.headStrikesRequired");
     }
 
     const injuryNote = input.injuryNote.trim();
     const notes = input.notes.trim();
-    if (injuryNote.length > OUTCOME_TEXT_MAX) fieldErrors.injuryNote = `Keep this under ${OUTCOME_TEXT_MAX} characters.`;
-    if (notes.length > OUTCOME_TEXT_MAX) fieldErrors.notes = `Keep this under ${OUTCOME_TEXT_MAX} characters.`;
+    if (injuryNote.length > OUTCOME_TEXT_MAX) fieldErrors.injuryNote = t("boutMsg.common.textTooLong", { max: OUTCOME_TEXT_MAX });
+    if (notes.length > OUTCOME_TEXT_MAX) fieldErrors.notes = t("boutMsg.common.textTooLong", { max: OUTCOME_TEXT_MAX });
 
     if (Object.keys(fieldErrors).length > 0 || !result || !method) return { ok: false, fieldErrors };
     return {

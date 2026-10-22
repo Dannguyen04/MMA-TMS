@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { InlineNote } from "@/components/dashboard/inline-note";
 import { RequirementStateBadge } from "@/components/domain/status-badges";
+import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { Callout } from "@/components/training/callout";
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { Button } from "@/components/ui/button";
@@ -17,7 +18,6 @@ import { addRequirementAction, removeRequirementAction, unlockChecklistAction, u
 import type { ActionState } from "@/lib/actions/state";
 import type { BoutRequirement, RequirementState } from "@/lib/domain/bout";
 import { COACH_REQUIREMENT_STATES, expiresBeforeBout, readyForBout, suggestedValidUntil } from "@/lib/domain/bout-rules";
-import { REQUIREMENT_STATE_LABELS } from "@/lib/domain/labels";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useNotify } from "../use-notify";
@@ -37,12 +37,12 @@ export interface MedicalChecklistProps {
     editable: boolean;
 }
 
-const STATE_OPTIONS = COACH_REQUIREMENT_STATES.map((value) => ({ value, label: REQUIREMENT_STATE_LABELS[value] }));
-
 
 /** F4: what the event asks for, each document's state and validity, and the deadline. No file uploads. */
 export function MedicalChecklist({ boutId, requirements, boutDay, dueOn, overdue, locked, canUnlock, unlock, editable }: MedicalChecklistProps) {
     const notify = useNotify();
+    const t = useT();
+    const locale = useLocale();
     const [adding, setAdding] = useState(false);
     const [editing, setEditing] = useState<BoutRequirement | null>(null);
     const [unlocking, setUnlocking] = useState(false);
@@ -53,42 +53,42 @@ export function MedicalChecklist({ boutId, requirements, boutDay, dueOn, overdue
     return (
         <Card>
             <CardHeader
-                title="Medical checklist"
-                description={`Due ${formatDate(dueOn)} · ${ready} of ${requirements.length} ready for the bout`}
+                title={t("boutDetail.checklist.title")}
+                description={t("boutDetail.checklist.description", { date: formatDate(dueOn, locale), ready, total: requirements.length })}
                 action={
                     canEdit ? (
                         <Button size="sm" variant="secondary" onClick={() => setAdding(true)}>
                             <Plus aria-hidden />
-                            Add item
+                            {t("boutDetail.checklist.add")}
                         </Button>
                     ) : undefined
                 }
             />
             <CardContent className="flex flex-col gap-4">
                 {overdue && (
-                    <Callout tone="danger" icon={CircleAlert} title="Documents late">
-                        The deadline was {formatDate(dueOn)}. The bout can&apos;t enter fight week until every required document is in.
+                    <Callout tone="danger" icon={CircleAlert} title={t("boutDetail.checklist.late.title")}>
+                        {t("boutDetail.checklist.late.text", { date: formatDate(dueOn, locale) })}
                     </Callout>
                 )}
                 {editable && locked && (
                     <div className="flex flex-wrap items-center justify-between gap-3">
-                        <InlineNote icon={Lock}>Locked for fight week. Unlock it to change a document, with a reason.</InlineNote>
+                        <InlineNote icon={Lock}>{t("boutDetail.checklist.locked")}</InlineNote>
                         {canUnlock && (
                             <Button size="sm" variant="secondary" onClick={() => setUnlocking(true)}>
                                 <LockOpen aria-hidden />
-                                Unlock
+                                {t("boutDetail.checklist.unlock")}
                             </Button>
                         )}
                     </div>
                 )}
                 {unlock && (
                     <InlineNote icon={LockOpen} tone="warning">
-                        Unlocked by {unlock.by}, {formatDateTime(unlock.at)}: {unlock.reason}
+                        {t("boutDetail.checklist.unlockedBy", { by: unlock.by, at: formatDateTime(unlock.at, locale), reason: unlock.reason })}
                     </InlineNote>
                 )}
 
                 {requirements.length === 0 ? (
-                    <p className="text-sm text-fg-muted">No documents listed. Add the ones the event&apos;s notice asks for.</p>
+                    <p className="text-sm text-fg-muted">{t("boutDetail.checklist.empty")}</p>
                 ) : (
                     <ul className="divide-y divide-border">
                         {requirements.map((item) => {
@@ -98,32 +98,34 @@ export function MedicalChecklist({ boutId, requirements, boutDay, dueOn, overdue
                                     <div className="min-w-0 flex-1">
                                         <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-fg">
                                             {item.label}
-                                            <span className="text-xs font-normal text-fg-subtle">{item.required ? "Required" : "Optional"}</span>
-                                            <RequirementStateBadge state={item.state} size="sm" />
+                                            <span className="text-xs font-normal text-fg-subtle">{item.required ? t("boutDetail.checklist.required") : t("boutDetail.checklist.optional")}</span>
+                                            <RequirementStateBadge state={item.state} size="sm" locale={locale} />
                                         </p>
                                         <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[13px] text-fg-muted">
-                                            {item.issuedOn && <span>Issued {formatDate(item.issuedOn)}</span>}
+                                            {item.issuedOn && <span>{t("boutDetail.checklist.issued", { date: formatDate(item.issuedOn, locale) })}</span>}
                                             {item.validUntil && (
                                                 <span className={cn(late && "font-medium text-danger-fg")}>
-                                                    Valid until {formatDate(item.validUntil)}
-                                                    {late && " (before the bout)"}
+                                                    {t("boutDetail.checklist.validUntil", { date: formatDate(item.validUntil, locale) })}
+                                                    {late && ` ${t("boutDetail.checklist.beforeBout")}`}
                                                 </span>
                                             )}
                                             {item.source === "COACH" && (
                                                 <span className="inline-flex items-center gap-1">
                                                     <PenLine aria-hidden className="size-3.5" />
-                                                    Coach-entered, not verified
+                                                    {t("boutDetail.coachEntered")}
                                                 </span>
                                             )}
                                         </p>
-                                        {item.state === "REJECTED" && item.statusReason && <p className="mt-1 text-[13px] text-danger-fg">Rejected: {item.statusReason}</p>}
+                                        {item.state === "REJECTED" && item.statusReason && (
+                                            <p className="mt-1 text-[13px] text-danger-fg">{t("boutDetail.checklist.rejected", { reason: item.statusReason })}</p>
+                                        )}
                                     </div>
                                     {canEdit && item.state !== "CONFIRMED" && (
                                         <div className="flex shrink-0 gap-1">
-                                            <Button size="sm" variant="ghost" onClick={() => setEditing(item)} aria-label={`Edit ${item.label}`}>
-                                                Edit
+                                            <Button size="sm" variant="ghost" onClick={() => setEditing(item)} aria-label={t("boutDetail.checklist.editAria", { label: item.label })}>
+                                                {t("boutDetail.common.edit")}
                                             </Button>
-                                            <Button size="sm" variant="ghost" onClick={() => remove.request(item)} aria-label={`Remove ${item.label}`}>
+                                            <Button size="sm" variant="ghost" onClick={() => remove.request(item)} aria-label={t("boutDetail.checklist.removeAria", { label: item.label })}>
                                                 <Trash2 aria-hidden />
                                             </Button>
                                         </div>
@@ -138,11 +140,11 @@ export function MedicalChecklist({ boutId, requirements, boutDay, dueOn, overdue
             <ActionDialog
                 open={adding}
                 onClose={() => setAdding(false)}
-                title="Add a document"
-                description="From the event's notice. It starts as missing and is marked coach-entered."
+                title={t("boutDetail.addDoc.title")}
+                description={t("boutDetail.addDoc.description")}
                 action={addRequirementAction}
-                submitLabel="Add"
-                pendingLabel="Adding"
+                submitLabel={t("boutDetail.addDoc.submit")}
+                pendingLabel={t("boutDetail.addDoc.pending")}
                 onSuccess={notify}
             >
                 {(form) => {
@@ -151,12 +153,18 @@ export function MedicalChecklist({ boutId, requirements, boutDay, dueOn, overdue
                     return (
                         <>
                             <input type="hidden" name="boutId" value={boutId} />
-                            <Field label="Document" htmlFor={label.id} required error={form.error("label")}>
-                                <Input {...label} maxLength={80} autoComplete="off" placeholder="Brain CT" />
+                            <Field label={t("boutDetail.addDoc.document")} htmlFor={label.id} required error={form.error("label")}>
+                                <Input {...label} maxLength={80} autoComplete="off" placeholder={t("boutDetail.addDoc.documentPlaceholder")} />
                             </Field>
-                            <Checkbox id={`${form.formProps.id}-required`} name="required" defaultChecked label="Required" description="Gate 1 waits for required documents. Optional ones never block fight week." />
-                            <Field label="Valid for" htmlFor={validity.id} optional error={form.error("validityDays")} hint="Days from the issue date, used to suggest the expiry. Such as 180.">
-                                <Input {...validity} inputMode="numeric" className="w-32" suffix="days" />
+                            <Checkbox
+                                id={`${form.formProps.id}-required`}
+                                name="required"
+                                defaultChecked
+                                label={t("boutDetail.checklist.required")}
+                                description={t("boutDetail.addDoc.requiredDescription")}
+                            />
+                            <Field label={t("boutDetail.addDoc.validFor")} htmlFor={validity.id} optional error={form.error("validityDays")} hint={t("boutDetail.addDoc.validForHint")}>
+                                <Input {...validity} inputMode="numeric" className="w-32" suffix={t("boutDetail.addDoc.days")} />
                             </Field>
                         </>
                     );
@@ -167,19 +175,19 @@ export function MedicalChecklist({ boutId, requirements, boutDay, dueOn, overdue
 
             <ConfirmDialog
                 {...remove.dialogProps}
-                title={`Remove ${remove.payload?.label ?? "this document"}?`}
-                description="It leaves the checklist, and Gate 1 no longer waits for it."
-                confirmLabel="Remove"
+                title={t("boutDetail.removeDoc.title", { label: remove.payload?.label ?? t("boutDetail.removeDoc.thisDocument") })}
+                description={t("boutDetail.removeDoc.description")}
+                confirmLabel={t("boutDetail.removeDoc.confirm")}
             />
 
             <ActionDialog
                 open={unlocking}
                 onClose={() => setUnlocking(false)}
-                title="Unlock the checklist"
-                description="Fight week locks the documents. Say why one has to change; the reason stays on the bout."
+                title={t("boutDetail.unlock.title")}
+                description={t("boutDetail.unlock.description")}
                 action={unlockChecklistAction}
-                submitLabel="Unlock"
-                pendingLabel="Unlocking"
+                submitLabel={t("boutDetail.checklist.unlock")}
+                pendingLabel={t("boutDetail.unlock.pending")}
                 onSuccess={notify}
             >
                 {(form) => {
@@ -187,7 +195,7 @@ export function MedicalChecklist({ boutId, requirements, boutDay, dueOn, overdue
                     return (
                         <>
                             <input type="hidden" name="boutId" value={boutId} />
-                            <Field label="Reason" htmlFor={reason.id} required error={form.error("reason")}>
+                            <Field label={t("boutDetail.common.reason")} htmlFor={reason.id} required error={form.error("reason")}>
                                 <Textarea {...reason} rows={3} maxLength={300} />
                             </Field>
                         </>
@@ -210,10 +218,12 @@ function EditRequirementDialog({
     onClose: () => void;
     onSuccess: (state: ActionState<unknown>) => void;
 }) {
+    const t = useT();
     const [open, setOpen] = useState(true);
     const [state, setState] = useState<RequirementState | "">(item.state === "CONFIRMED" ? "" : item.state);
     const [issuedOn, setIssuedOn] = useState(item.issuedOn ?? "");
     const [validUntil, setValidUntil] = useState(item.validUntil ?? "");
+    const stateOptions = COACH_REQUIREMENT_STATES.map((value) => ({ value, label: t(`boutLabel.requirement.${value}`) }));
     const close = () => {
         setOpen(false);
         onClose();
@@ -224,10 +234,10 @@ function EditRequirementDialog({
             open={open}
             onClose={close}
             title={item.label}
-            description="Provided needs the date it is valid until. Rejected needs a reason."
+            description={t("boutDetail.editDoc.description")}
             action={updateRequirementAction}
-            submitLabel="Save"
-            pendingLabel="Saving"
+            submitLabel={t("boutDetail.common.save")}
+            pendingLabel={t("boutDetail.common.saving")}
             onSuccess={onSuccess}
         >
             {(form) => {
@@ -242,9 +252,9 @@ function EditRequirementDialog({
                         <ChoiceGroup
                             id={`${form.formProps.id}-state`}
                             name="state"
-                            legend="Status"
+                            legend={t("boutDetail.editDoc.status")}
                             required
-                            options={STATE_OPTIONS}
+                            options={stateOptions}
                             value={state}
                             onChange={setState}
                             error={form.error("state")}
@@ -253,7 +263,7 @@ function EditRequirementDialog({
                         />
                         {showDates && (
                             <div className="grid min-w-0 grid-cols-1 gap-5 sm:grid-cols-2">
-                                <Field label="Issued on" htmlFor={issued.id} optional error={form.error("issuedOn")}>
+                                <Field label={t("boutDetail.editDoc.issuedOn")} htmlFor={issued.id} optional error={form.error("issuedOn")}>
                                     <Input
                                         {...issued}
                                         type="date"
@@ -269,18 +279,18 @@ function EditRequirementDialog({
                                     />
                                 </Field>
                                 <Field
-                                    label="Valid until"
+                                    label={t("boutDetail.editDoc.validUntil")}
                                     htmlFor={until.id}
                                     required={state === "PROVIDED"}
                                     error={form.error("validUntil")}
-                                    hint={item.validityDays ? `Suggested from ${item.validityDays} days of validity.` : "It must cover the bout day."}
+                                    hint={item.validityDays ? t("boutDetail.editDoc.validUntilSuggested", { n: item.validityDays }) : t("boutDetail.editDoc.validUntilHint")}
                                 >
                                     <Input {...until} type="date" value={validUntil} onChange={(event) => setValidUntil(event.target.value)} />
                                 </Field>
                             </div>
                         )}
                         {state === "REJECTED" && (
-                            <Field label="Reason" htmlFor={reason.id} required error={form.error("statusReason")}>
+                            <Field label={t("boutDetail.common.reason")} htmlFor={reason.id} required error={form.error("statusReason")}>
                                 <Textarea {...reason} rows={2} maxLength={200} defaultValue={item.statusReason ?? ""} />
                             </Field>
                         )}

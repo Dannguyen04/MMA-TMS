@@ -1,8 +1,10 @@
 import { LoadingRegion, PageHeaderSkeleton, Skeleton } from "@/components/ui/skeleton";
+import { getTranslator } from "@/lib/i18n/server";
 
-export default function FighterBoutLoading() {
+export default async function FighterBoutLoading() {
+    const { t } = await getTranslator();
     return (
-        <LoadingRegion label="Loading bout">
+        <LoadingRegion label={t("boutFighter.loading.bout")}>
             <PageHeaderSkeleton />
             <div className="flex flex-col gap-4">
                 <Skeleton className="h-16 w-full rounded-xl" />

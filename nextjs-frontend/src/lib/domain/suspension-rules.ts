@@ -1,4 +1,5 @@
 import { addDaysToKey, daysBetweenKeys, isDateKey } from "@/lib/format";
+import { createTranslator, plural, type Translator } from "@/lib/i18n/translate";
 
 import type { BoutOutcome, LossOfConsciousness, Suspension, SuspensionReason, SuspensionRule } from "./bout";
 import type { TrainingType } from "./types";
@@ -9,6 +10,9 @@ import type { TrainingType } from "./types";
  */
 
 type FieldErrors = Record<string, string>;
+
+/** Messages default to English, so the demo store and the tests need no translator. */
+const english = createTranslator("en");
 
 export const SUSPENSION_DAYS_MAX = 730;
 export const SUSPENSION_TEXT_MAX = 300;
@@ -68,13 +72,16 @@ export function suggestSuspension(rules: SuspensionRule[], input: SuggestionInpu
 }
 
 /** "KO or TKO", "2 earlier within 90 days", "lost consciousness over 1 minute": a rule in words. */
-export function describeRule(rule: SuspensionRule): string {
+export function describeRule(rule: SuspensionRule, t: Translator = english): string {
     const parts: string[] = [];
-    if (rule.reason) parts.push(rule.reason.join(" or "));
-    if (rule.priorCount !== undefined) parts.push(`${rule.priorCount} earlier ${rule.priorCount === 1 ? "knockout" : "knockouts"}${rule.withinDays ? ` within ${rule.withinDays} days` : ""}`);
-    if (rule.loc === "UNDER_1_MIN") parts.push("lost consciousness under 1 minute");
-    if (rule.loc === "OVER_1_MIN") parts.push("lost consciousness over 1 minute");
-    return `${parts.join(", ") || "Any bout"}: ${rule.minDays} days`;
+    if (rule.reason) parts.push(rule.reason.join(t("boutMsg.rule.or")));
+    if (rule.priorCount !== undefined) {
+        const prior = plural(t, "boutMsg.rule.prior", rule.priorCount);
+        parts.push(rule.withinDays ? t("boutMsg.rule.priorWithin", { prior, days: rule.withinDays }) : prior);
+    }
+    if (rule.loc === "UNDER_1_MIN") parts.push(t("boutMsg.rule.locUnder"));
+    if (rule.loc === "OVER_1_MIN") parts.push(t("boutMsg.rule.locOver"));
+    return t("boutMsg.rule.days", { rule: parts.join(", ") || t("boutMsg.rule.anyBout"), days: rule.minDays });
 }
 
 /** A suspension of `days` days that starts on `startsOn` ends `days` days later ("KO on 15 Dec, suspended to 13 Feb" is 60). */
@@ -147,27 +154,28 @@ export function validateSuspension(
     input: SuspensionInput,
     allowedReasons: readonly SuspensionReason[],
     trainingTypes: readonly TrainingType[],
+    t: Translator = english,
 ): { ok: true; value: SuspensionDraft } | { ok: false; fieldErrors: FieldErrors } {
     const fieldErrors: FieldErrors = {};
     const reason = (allowedReasons as readonly string[]).includes(input.reason) ? (input.reason as SuspensionReason) : null;
-    if (!reason) fieldErrors.reason = "Choose a reason.";
-    if (!isDateKey(input.startsOn)) fieldErrors.startsOn = "Enter the first day of the suspension.";
+    if (!reason) fieldErrors.reason = t("boutMsg.suspension.reasonRequired");
+    if (!isDateKey(input.startsOn)) fieldErrors.startsOn = t("boutMsg.suspension.startsOnRequired");
 
     const daysRaw = input.days.trim();
     const days = /^\d{1,3}$/.test(daysRaw) ? Number(daysRaw) : NaN;
-    if (!Number.isInteger(days) || days < 1 || days > SUSPENSION_DAYS_MAX) fieldErrors.days = `Enter a whole number of days from 1 to ${SUSPENSION_DAYS_MAX}.`;
+    if (!Number.isInteger(days) || days < 1 || days > SUSPENSION_DAYS_MAX) fieldErrors.days = t("boutMsg.suspension.days", { max: SUSPENSION_DAYS_MAX });
 
     const overrideReason = input.overrideReason.trim();
     if (input.suggestedDays !== null && Number.isInteger(days) && days !== input.suggestedDays && !overrideReason) {
-        fieldErrors.overrideReason = `Say why this differs from the ${input.suggestedDays} days the ruleset suggests.`;
+        fieldErrors.overrideReason = t("boutMsg.suspension.overrideRequired", { days: input.suggestedDays });
     }
-    if (overrideReason.length > SUSPENSION_TEXT_MAX) fieldErrors.overrideReason = `Keep the reason under ${SUSPENSION_TEXT_MAX} characters.`;
+    if (overrideReason.length > SUSPENSION_TEXT_MAX) fieldErrors.overrideReason = t("boutMsg.common.reasonTooLong", { max: SUSPENSION_TEXT_MAX });
 
     const blocked = input.blockedSessionTypes.filter((type): type is TrainingType => (trainingTypes as readonly string[]).includes(type));
-    if (blocked.length === 0) fieldErrors.blockedSessionTypes = "Block at least one kind of session.";
+    if (blocked.length === 0) fieldErrors.blockedSessionTypes = t("boutMsg.suspension.blockedRequired");
 
     const note = input.note.trim();
-    if (note.length > SUSPENSION_TEXT_MAX) fieldErrors.note = `Keep the note under ${SUSPENSION_TEXT_MAX} characters.`;
+    if (note.length > SUSPENSION_TEXT_MAX) fieldErrors.note = t("boutMsg.common.noteTooLong", { max: SUSPENSION_TEXT_MAX });
 
     if (Object.keys(fieldErrors).length > 0 || !reason) return { ok: false, fieldErrors };
     return {
@@ -186,9 +194,9 @@ export function validateSuspension(
 }
 
 /** Clearing needs a basis in words, such as "Neurologist cleared, CT normal" or "Coach confirmed, no medical clearance". */
-export function readClearanceNote(raw: string): { ok: true; value: string } | { ok: false; message: string } {
+export function readClearanceNote(raw: string, t: Translator = english): { ok: true; value: string } | { ok: false; message: string } {
     const value = raw.trim();
-    if (!value) return { ok: false, message: "Write what the decision is based on." };
-    if (value.length > SUSPENSION_TEXT_MAX) return { ok: false, message: `Keep this under ${SUSPENSION_TEXT_MAX} characters.` };
+    if (!value) return { ok: false, message: t("boutMsg.clearance.noteRequired") };
+    if (value.length > SUSPENSION_TEXT_MAX) return { ok: false, message: t("boutMsg.common.textTooLong", { max: SUSPENSION_TEXT_MAX }) };
     return { ok: true, value };
 }

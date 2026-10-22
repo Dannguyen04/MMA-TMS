@@ -13,36 +13,39 @@ import { requireRole } from "@/lib/auth/session";
 import { RequirementStateBadge } from "@/components/domain/status-badges";
 import { boutLimitKg } from "@/lib/domain/bout";
 import { boutOn, expiresBeforeBout, gateSummary } from "@/lib/domain/bout-rules";
-import { NUTRITION_PHASE_LABELS } from "@/lib/domain/labels";
 import { kgLabel } from "@/lib/domain/weight-input";
 import { nutritionPhaseFor, savedWeightMessage, weighInCountdown } from "@/lib/domain/nutrition";
 import { dayKey, formatDate, formatDateTime } from "@/lib/format";
+import { getTranslator } from "@/lib/i18n/server";
 import { cn } from "@/lib/utils";
 import { routes } from "@/lib/routes";
 import { getCurrentBout, getWeightTrack, wayOffForBout } from "@/lib/services/bouts";
 import { param } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Bout" };
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return { title: t("boutFighter.page.title") };
+}
 
 export default async function FighterBoutPage({ searchParams }: PageProps<"/fighter/bout">) {
     const user = await requireRole("fighter");
     if (!user.profileId) notFound();
-    const query = await searchParams;
+    const [query, { t, locale }] = await Promise.all([searchParams, getTranslator()]);
     const bout = await getCurrentBout(user.profileId);
-    const saved = savedWeightMessage(param(query.saved), param(query.status));
+    const saved = savedWeightMessage(param(query.saved), param(query.status), t);
 
     if (!bout) {
         return (
             <>
-                <PageHeader title="Bout" description="No upcoming bout" />
+                <PageHeader title={t("boutFighter.page.title")} description={t("boutFighter.page.noBout")} />
                 {saved && <SavedNote message={saved} />}
                 <EmptyState
                     icon={<Scale />}
-                    title="No upcoming bout"
-                    description="You can still log today's weight."
+                    title={t("boutFighter.page.noBout")}
+                    description={t("boutFighter.page.noBoutText")}
                     action={
                         <ButtonLink href={routes.fighter.weighIn} size="lg">
-                            Log weight
+                            {t("boutFighter.weight.logWeight")}
                         </ButtonLink>
                     }
                 />
@@ -61,7 +64,7 @@ export default async function FighterBoutPage({ searchParams }: PageProps<"/figh
         <>
             <PageHeader
                 title={bout.event}
-                description={bout.opponent ?? "Opponent TBA"}
+                description={bout.opponent ?? t("boutFighter.page.opponentTba")}
                 meta={<span className="text-sm text-fg-muted">{bout.weightClassLabel}</span>}
             />
             {saved && <SavedNote message={saved} />}
@@ -70,39 +73,45 @@ export default async function FighterBoutPage({ searchParams }: PageProps<"/figh
                 columns={2}
                 className="mb-6 grid-cols-2 lg:grid-cols-4"
                 items={[
-                    { label: bout.catchweightKg === null ? "Limit" : "Catchweight", value: limit === null ? "No upper limit" : kgLabel(limit) },
-                    { label: "Weigh-in", value: formatDateTime(bout.weighInAt) },
-                    { label: "Bout", value: formatDateTime(bout.boutAt) },
-                    { label: "Countdown", value: track ? weighInCountdown(track.daysToWeighIn) : "—" },
+                    {
+                        label: bout.catchweightKg === null ? t("boutFighter.page.limit") : t("boutFighter.page.catchweight"),
+                        value: limit === null ? t("boutFighter.page.noUpperLimit") : kgLabel(limit),
+                    },
+                    { label: t("boutFighter.page.weighIn"), value: formatDateTime(bout.weighInAt, locale) },
+                    { label: t("boutFighter.page.bout"), value: formatDateTime(bout.boutAt, locale) },
+                    { label: t("boutFighter.page.countdown"), value: track ? weighInCountdown(track.daysToWeighIn, t) : "—" },
                 ]}
             />
 
             <div className="flex flex-col gap-6">
-                {track && <CampWeightCard track={track} wayOff={wayOff} logHref={routes.fighter.weighIn} />}
+                {track && <CampWeightCard track={track} wayOff={wayOff} logHref={routes.fighter.weighIn} locale={locale} />}
 
                 {phaseKey && (
                     <Card>
-                        <CardHeader title={NUTRITION_PHASE_LABELS[phaseKey]} />
+                        <CardHeader title={t(`boutLabel.nutritionPhase.${phaseKey}`)} />
                         <CardContent>
                             {note ? (
                                 <>
                                     <p className="text-sm text-pretty whitespace-pre-wrap text-fg">{note.text}</p>
                                     <p className="mt-2 text-xs text-fg-muted">
-                                        {note.authorName} · {formatDateTime(note.updatedAt)}
+                                        {note.authorName} · {formatDateTime(note.updatedAt, locale)}
                                     </p>
                                 </>
                             ) : (
-                                <p className="text-sm text-fg-muted">No plan for this phase yet.</p>
+                                <p className="text-sm text-fg-muted">{t("boutFighter.page.noPlan")}</p>
                             )}
                         </CardContent>
                     </Card>
                 )}
 
                 <Card>
-                    <CardHeader title="Medical file" description={bout.requirements.length > 0 ? gateSummary(bout.requirements, boutDay) : undefined} />
+                    <CardHeader
+                        title={t("boutFighter.page.medicalFile")}
+                        description={bout.requirements.length > 0 ? gateSummary(bout.requirements, boutDay, t) : undefined}
+                    />
                     <CardContent>
                         {bout.requirements.length === 0 ? (
-                            <p className="text-sm text-fg-muted">Your coach hasn&apos;t listed any documents for this bout yet.</p>
+                            <p className="text-sm text-fg-muted">{t("boutFighter.page.noDocuments")}</p>
                         ) : (
                             <ul className="divide-y divide-border">
                                 {bout.requirements.map((item) => {
@@ -112,16 +121,17 @@ export default async function FighterBoutPage({ searchParams }: PageProps<"/figh
                                             <span className="min-w-0">
                                                 <span className="block text-fg">
                                                     {item.label}
-                                                    {!item.required && <span className="ml-1.5 text-xs text-fg-subtle">Optional</span>}
+                                                    {!item.required && <span className="ml-1.5 text-xs text-fg-subtle">{t("boutFighter.page.optional")}</span>}
                                                 </span>
                                                 {item.validUntil && (
                                                     <span className={cn("block text-[13px] text-fg-muted", late && "font-medium text-danger-fg")}>
-                                                        Valid until {formatDate(item.validUntil)}
-                                                        {late && " (before the bout)"}
+                                                        {t(late ? "boutFighter.page.validUntilLate" : "boutFighter.page.validUntil", {
+                                                            date: formatDate(item.validUntil, locale),
+                                                        })}
                                                     </span>
                                                 )}
                                             </span>
-                                            <RequirementStateBadge state={item.state} size="sm" />
+                                            <RequirementStateBadge state={item.state} size="sm" locale={locale} />
                                         </li>
                                     );
                                 })}

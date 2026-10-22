@@ -11,21 +11,27 @@ import { EmptyState } from "@/components/ui/states";
 import { accessibleFighterIds } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { isActivePhase, type Suspension } from "@/lib/domain/bout";
-import { LOSS_OF_CONSCIOUSNESS_LABELS, SUSPENSION_REASON_LABELS, TRAINING_TYPE_LABELS } from "@/lib/domain/labels";
 import { canClearSuspension, isSuspensionActive, suspensionDays, suspensionState, type SuspensionState } from "@/lib/domain/suspension-rules";
 import { dayKey, formatDate, formatDateTime } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
+import { getTranslator } from "@/lib/i18n/server";
+import type { Translator } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import { listCampBouts, listSuspensions } from "@/lib/services/bouts";
 import { listFighters } from "@/lib/services/people";
 import { ClearSuspensionButton, SuspensionDialogButton } from "../suspension-dialogs";
 
-export const metadata: Metadata = { title: "Suspensions" };
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return { title: t("coachBouts.suspensions.title") };
+}
 
 const STATE_ORDER: Record<SuspensionState, number> = { AWAITING_CLEARANCE: 0, ACTIVE: 1, UPCOMING: 2, CLEARED: 3, ENDED: 4 };
 
 /** Gate 2 and readiness (F7, H7): who is suspended, who waits for clearance, and who can take a new bout. */
 export default async function SuspensionsPage() {
     const user = await requireRole("coach");
+    const { t, locale } = await getTranslator();
     const scope = accessibleFighterIds(user);
     const todayOn = dayKey(new Date());
     const [fighters, suspensions, bouts] = await Promise.all([listFighters(user), listSuspensions(scope), listCampBouts(scope)]);
@@ -34,27 +40,31 @@ export default async function SuspensionsPage() {
         .map((item) => ({ item, state: suspensionState(item, todayOn) }))
         .sort((a, b) => STATE_ORDER[a.state] - STATE_ORDER[b.state] || (a.item.endsOn < b.item.endsOn ? -1 : 1));
     const fighterOptions = fighters.map((fighter) => ({ id: fighter.id, name: fighter.name }));
-    const newSuspension = <SuspensionDialogButton fighters={fighterOptions} defaultBlocked={["sparring"]} startsOn={todayOn} label="New suspension" />;
+    const newSuspension = <SuspensionDialogButton fighters={fighterOptions} defaultBlocked={["sparring"]} startsOn={todayOn} label={t("coachBouts.suspensions.new")} />;
 
     return (
         <>
-            <PageHeader
-                title="Suspensions"
-                description="While a suspension is active, its blocked sessions can't be scheduled or started. A knockout suspension stays until someone clears the fighter."
-                actions={newSuspension}
-            />
+            <PageHeader title={t("coachBouts.suspensions.title")} description={t("coachBouts.suspensions.description")} actions={newSuspension} />
 
             <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                 <div className="min-w-0 lg:col-span-2">
                     {rows.length === 0 ? (
-                        <EmptyState icon={<ShieldCheck />} title="No suspensions" description="A knockout loss suggests one when the result is recorded. Add one by hand for a knockout in sparring." />
+                        <EmptyState icon={<ShieldCheck />} title={t("coachBouts.suspensions.emptyTitle")} description={t("coachBouts.suspensions.emptyDescription")} />
                     ) : (
                         <Card>
-                            <CardHeader title="Suspensions" description="Waiting for clearance first, then active, then upcoming and past." />
+                            <CardHeader title={t("coachBouts.suspensions.listTitle")} description={t("coachBouts.suspensions.listDescription")} />
                             <CardContent>
                                 <ul className="divide-y divide-border">
                                     {rows.map(({ item, state }) => (
-                                        <SuspensionRow key={item.id} item={item} state={state} fighterName={names.get(item.fighterId) ?? "Fighter"} todayOn={todayOn} />
+                                        <SuspensionRow
+                                            key={item.id}
+                                            item={item}
+                                            state={state}
+                                            fighterName={names.get(item.fighterId) ?? t("coachBouts.common.fighterFallback")}
+                                            todayOn={todayOn}
+                                            t={t}
+                                            locale={locale}
+                                        />
                                     ))}
                                 </ul>
                             </CardContent>
@@ -63,7 +73,7 @@ export default async function SuspensionsPage() {
                 </div>
 
                 <Card className="min-w-0">
-                    <CardHeader title="Ready for a new bout" description="No bout in camp or later, and no active suspension." />
+                    <CardHeader title={t("coachBouts.suspensions.readyTitle")} description={t("coachBouts.suspensions.readyDescription")} />
                     <CardContent>
                         <ul className="divide-y divide-border">
                             {fighters.map((fighter) => {
@@ -76,14 +86,14 @@ export default async function SuspensionsPage() {
                                             <span className="truncate text-fg">{fighter.name}</span>
                                         </span>
                                         {suspended ? (
-                                            <SuspensionStateBadge state={suspensionState(suspended, todayOn)} size="sm" />
+                                            <SuspensionStateBadge state={suspensionState(suspended, todayOn)} size="sm" locale={locale} />
                                         ) : active ? (
                                             <Link href={routes.coach.bout(active.id)} aria-label={`${fighter.name}: ${active.event}`}>
-                                                <BoutPhaseBadge phase={active.phase} size="sm" />
+                                                <BoutPhaseBadge phase={active.phase} size="sm" locale={locale} />
                                             </Link>
                                         ) : (
                                             <Badge tone="success" icon={ShieldCheck} size="sm">
-                                                Ready
+                                                {t("coachBouts.suspensions.ready")}
                                             </Badge>
                                         )}
                                     </li>
@@ -97,7 +107,22 @@ export default async function SuspensionsPage() {
     );
 }
 
-function SuspensionRow({ item, state, fighterName, todayOn }: { item: Suspension; state: SuspensionState; fighterName: string; todayOn: string }) {
+function SuspensionRow({
+    item,
+    state,
+    fighterName,
+    todayOn,
+    t,
+    locale,
+}: {
+    item: Suspension;
+    state: SuspensionState;
+    fighterName: string;
+    todayOn: string;
+    t: Translator;
+    locale: Locale;
+}) {
+    const types = item.blockedSessionTypes.map((type) => t(`trainingType.${type}`).toLowerCase()).join(", ");
     return (
         <li className="flex flex-col gap-2 py-3.5">
             <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
@@ -106,32 +131,36 @@ function SuspensionRow({ item, state, fighterName, todayOn }: { item: Suspension
                     <span className="min-w-0">
                         <span className="block font-medium text-fg">{fighterName}</span>
                         <span className="block text-sm text-fg-muted">
-                            {SUSPENSION_REASON_LABELS[item.reason]} · {formatDate(item.startsOn)} – {formatDate(item.endsOn)} ({suspensionDays(item)} days)
+                            {t("coachBouts.suspensions.period", {
+                                reason: t(`boutLabel.suspensionReason.${item.reason}`),
+                                start: formatDate(item.startsOn, locale),
+                                end: formatDate(item.endsOn, locale),
+                                days: suspensionDays(item),
+                            })}
                         </span>
                     </span>
                 </span>
-                <SuspensionStateBadge state={state} />
+                <SuspensionStateBadge state={state} locale={locale} />
             </div>
             <p className="text-[13px] text-fg-muted">
-                Blocks {item.blockedSessionTypes.map((type) => TRAINING_TYPE_LABELS[type].toLowerCase()).join(", ")}
-                {item.requiresClearance && !item.clearedAt ? ". Needs clearance to train again." : "."}
-                {item.lossOfConsciousness && item.lossOfConsciousness !== "NONE" && ` Lost consciousness: ${LOSS_OF_CONSCIOUSNESS_LABELS[item.lossOfConsciousness].toLowerCase()}.`}
+                {t(item.requiresClearance && !item.clearedAt ? "coachBouts.suspensions.blocksNeedsClearance" : "coachBouts.suspensions.blocks", { types })}
+                {item.lossOfConsciousness &&
+                    item.lossOfConsciousness !== "NONE" &&
+                    ` ${t("coachBouts.suspensions.lostConsciousness", { duration: t(`boutLabel.loc.${item.lossOfConsciousness}`).toLowerCase() })}`}
             </p>
             {item.overrideReason && (
-                <p className="text-[13px] text-fg-muted">
-                    Changed from the suggested {item.suggestedDays} days: {item.overrideReason}
-                </p>
+                <p className="text-[13px] text-fg-muted">{t("coachBouts.suspensions.override", { n: item.suggestedDays ?? "", reason: item.overrideReason })}</p>
             )}
             {item.note && <p className="text-[13px] text-fg-muted">{item.note}</p>}
             {item.clearedAt && (
                 <p className="text-[13px] text-fg-muted">
-                    Cleared by {item.clearedBy}, {formatDateTime(item.clearedAt)}: {item.clearanceNote}
+                    {t("coachBouts.suspensions.cleared", { name: item.clearedBy ?? "", date: formatDateTime(item.clearedAt, locale), note: item.clearanceNote ?? "" })}
                 </p>
             )}
             <div className="flex flex-wrap items-center gap-3">
                 {item.boutId && (
                     <Link href={routes.coach.bout(item.boutId)} className="text-sm font-medium text-primary-soft-fg hover:underline">
-                        Open the bout
+                        {t("coachBouts.suspensions.openBout")}
                     </Link>
                 )}
                 {canClearSuspension(item, todayOn) && <ClearSuspensionButton suspensionId={item.id} fighterName={fighterName} />}

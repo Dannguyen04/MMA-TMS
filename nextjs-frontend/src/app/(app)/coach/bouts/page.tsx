@@ -13,15 +13,20 @@ import { accessibleFighterIds } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { isRunningPhase, type CampBout } from "@/lib/domain/bout";
 import { boutGate1, requirementsOverdue, weighInOn } from "@/lib/domain/bout-rules";
-import { BOUT_PHASE_LABELS, BOUT_RESULT_LABELS, CANCEL_REASON_LABELS } from "@/lib/domain/labels";
 import { weighInCountdown } from "@/lib/domain/nutrition";
 import type { WeightTrack } from "@/lib/domain/weight-track";
 import { dayKey, daysBetweenKeys, formatDate, formatDateTime } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
+import { getTranslator } from "@/lib/i18n/server";
+import type { Translator } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import { getWeightTrack, listCampBouts } from "@/lib/services/bouts";
 import { listFighters } from "@/lib/services/people";
 
-export const metadata: Metadata = { title: "Bouts" };
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return { title: t("coachBouts.list.title") };
+}
 
 /** Finished bouts stay on the list this long, so a result or a cancellation can still be opened. */
 const FINISHED_DAYS = 30;
@@ -37,6 +42,7 @@ interface BoutRow {
 
 export default async function CoachBoutsPage() {
     const user = await requireRole("coach");
+    const { t, locale } = await getTranslator();
     const now = new Date();
     const todayOn = dayKey(now);
     const [fighters, bouts] = await Promise.all([listFighters(user), listCampBouts(accessibleFighterIds(user))]);
@@ -46,9 +52,9 @@ export default async function CoachBoutsPage() {
     const rows: BoutRow[] = await Promise.all(
         running.map(async (bout) => ({
             bout,
-            fighterName: names.get(bout.fighterId) ?? "Fighter",
+            fighterName: names.get(bout.fighterId) ?? t("coachBouts.common.fighterFallback"),
             track: await getWeightTrack(bout.id, now),
-            countdown: weighInCountdown(daysBetweenKeys(todayOn, weighInOn(bout))),
+            countdown: weighInCountdown(daysBetweenKeys(todayOn, weighInOn(bout)), t),
             missing: boutGate1(bout).missing.length,
             overdue: requirementsOverdue(bout, todayOn),
         })),
@@ -59,28 +65,28 @@ export default async function CoachBoutsPage() {
     const newBout = (
         <ButtonLink href={routes.coach.newBout}>
             <Plus aria-hidden />
-            New bout
+            {t("coachBouts.common.newBout")}
         </ButtonLink>
     );
 
     return (
         <>
             <PageHeader
-                title="Bouts"
-                description="Running bouts on your roster, by weigh-in date: can each fighter make weight, and are the documents in?"
+                title={t("coachBouts.list.title")}
+                description={t("coachBouts.list.description")}
                 actions={rows.length > 0 ? newBout : undefined}
             />
 
             {rows.length === 0 ? (
                 <EmptyState
                     icon={<Swords />}
-                    title="No running bouts"
-                    description="Create a bout when the club accepts one. Its camp, weight and medical checklist start from there."
+                    title={t("coachBouts.list.emptyTitle")}
+                    description={t("coachBouts.list.emptyDescription")}
                     action={newBout}
                 />
             ) : (
                 <Card className="overflow-hidden">
-                    <ul className="divide-y divide-border md:hidden" aria-label="Running bouts">
+                    <ul className="divide-y divide-border md:hidden" aria-label={t("coachBouts.list.running")}>
                         {rows.map((row) => (
                             <li key={row.bout.id}>
                                 <Link href={routes.coach.bout(row.bout.id)} className="flex flex-col gap-2 px-4 py-3.5 hover:bg-surface-muted">
@@ -92,23 +98,23 @@ export default async function CoachBoutsPage() {
                                         </span>
                                     </span>
                                     <span className="text-sm text-fg-muted">
-                                        Weigh-in {formatDateTime(row.bout.weighInAt)} · {row.countdown}
+                                        {t("coachBouts.list.weighInLine", { date: formatDateTime(row.bout.weighInAt, locale), countdown: row.countdown })}
                                     </span>
-                                    <BadgeRow row={row} />
+                                    <BadgeRow row={row} locale={locale} />
                                 </Link>
                             </li>
                         ))}
                     </ul>
 
                     <div className="hidden md:block">
-                        <Table caption="Running bouts">
+                        <Table caption={t("coachBouts.list.running")}>
                             <THead>
                                 <tr>
-                                    <TH>Fighter</TH>
-                                    <TH>Weigh-in</TH>
-                                    <TH>Phase</TH>
-                                    <TH>Weight</TH>
-                                    <TH>Gate 1</TH>
+                                    <TH>{t("coachBouts.list.table.fighter")}</TH>
+                                    <TH>{t("coachBouts.list.table.weighIn")}</TH>
+                                    <TH>{t("coachBouts.list.table.phase")}</TH>
+                                    <TH>{t("coachBouts.list.table.weight")}</TH>
+                                    <TH>{t("coachBouts.list.table.gate1")}</TH>
                                 </tr>
                             </THead>
                             <TBody>
@@ -129,15 +135,15 @@ export default async function CoachBoutsPage() {
                                             </span>
                                         </TD>
                                         <TD className="whitespace-nowrap">
-                                            <span className="block text-fg">{formatDateTime(row.bout.weighInAt)}</span>
+                                            <span className="block text-fg">{formatDateTime(row.bout.weighInAt, locale)}</span>
                                             <span className="block text-fg-muted">{row.countdown}</span>
                                         </TD>
                                         <TD>
-                                            <BoutPhaseBadge phase={row.bout.phase} />
+                                            <BoutPhaseBadge phase={row.bout.phase} locale={locale} />
                                         </TD>
-                                        <TD>{row.track ? <WeightStatusBadge status={row.track.status} /> : <span className="text-fg-subtle">—</span>}</TD>
+                                        <TD>{row.track ? <WeightStatusBadge status={row.track.status} locale={locale} /> : <span className="text-fg-subtle">—</span>}</TD>
                                         <TD>
-                                            <Gate1Badge missing={row.missing} overdue={row.overdue} />
+                                            <Gate1Badge missing={row.missing} overdue={row.overdue} locale={locale} />
                                         </TD>
                                     </TR>
                                 ))}
@@ -149,7 +155,7 @@ export default async function CoachBoutsPage() {
 
             {finished.length > 0 && (
                 <Card className="mt-6">
-                    <CardHeader title="Recently finished" description={`Completed and cancelled bouts from the last ${FINISHED_DAYS} days.`} />
+                    <CardHeader title={t("coachBouts.list.finishedTitle")} description={t("coachBouts.list.finishedDescription", { n: FINISHED_DAYS })} />
                     <CardContent>
                         <ul className="divide-y divide-border">
                             {finished.map((bout) => (
@@ -157,13 +163,13 @@ export default async function CoachBoutsPage() {
                                     <Link href={routes.coach.bout(bout.id)} className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2.5 hover:underline">
                                         <span className="min-w-0">
                                             <span className="block font-medium text-fg">
-                                                {names.get(bout.fighterId) ?? "Fighter"} · {bout.event}
+                                                {names.get(bout.fighterId) ?? t("coachBouts.common.fighterFallback")} · {bout.event}
                                             </span>
                                             <span className="block text-sm text-fg-muted">
-                                                {formatDate(bout.boutAt)} · {finishedSummary(bout)}
+                                                {formatDate(bout.boutAt, locale)} · {finishedSummary(bout, t)}
                                             </span>
                                         </span>
-                                        <BoutPhaseBadge phase={bout.phase} />
+                                        <BoutPhaseBadge phase={bout.phase} locale={locale} />
                                     </Link>
                                 </li>
                             ))}
@@ -175,18 +181,20 @@ export default async function CoachBoutsPage() {
     );
 }
 
-function BadgeRow({ row }: { row: BoutRow }) {
+function BadgeRow({ row, locale }: { row: BoutRow; locale: Locale }) {
     return (
         <span className="flex flex-wrap items-center gap-1.5">
-            <BoutPhaseBadge phase={row.bout.phase} />
-            {row.track && <WeightStatusBadge status={row.track.status} />}
-            <Gate1Badge missing={row.missing} overdue={row.overdue} />
+            <BoutPhaseBadge phase={row.bout.phase} locale={locale} />
+            {row.track && <WeightStatusBadge status={row.track.status} locale={locale} />}
+            <Gate1Badge missing={row.missing} overdue={row.overdue} locale={locale} />
         </span>
     );
 }
 
-function finishedSummary(bout: CampBout): string {
-    if (bout.phase === "CANCELLED") return bout.cancelReason ? `Cancelled: ${CANCEL_REASON_LABELS[bout.cancelReason]}` : "Cancelled";
-    if (bout.outcome) return `${BOUT_RESULT_LABELS[bout.outcome.result]}`;
-    return BOUT_PHASE_LABELS[bout.phase];
+function finishedSummary(bout: CampBout, t: Translator): string {
+    if (bout.phase === "CANCELLED") {
+        return bout.cancelReason ? t("coachBouts.list.cancelledReason", { reason: t(`boutLabel.cancelReason.${bout.cancelReason}`) }) : t("coachBouts.list.cancelled");
+    }
+    if (bout.outcome) return t(`boutLabel.result.${bout.outcome.result}`);
+    return t(`boutLabel.phase.${bout.phase}`);
 }

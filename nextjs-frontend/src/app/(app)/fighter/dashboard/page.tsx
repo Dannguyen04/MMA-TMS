@@ -95,7 +95,7 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
         getCurrentBout(fighter.id).then(async (current) => ({ bout: current, track: current ? await getWeightTrack(current.id) : null })),
     ]);
     if (!health) notFound();
-    const savedWeight = savedWeightMessage(param(query.saved), param(query.status));
+    const savedWeight = savedWeightMessage(param(query.saved), param(query.status), t);
 
     const videos = videoItems ?? [];
     const activePlan = planDetail?.plan ?? null;
@@ -162,7 +162,7 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
                 )}
                 {savedWeight && <Callout tone="success" icon={CircleCheck} role="status" title={savedWeight} />}
 
-                {camp.bout && <FighterWeightCard event={camp.bout.event} track={camp.track} />}
+                {camp.bout && <FighterWeightCard event={camp.bout.event} track={camp.track} locale={locale} />}
 
                 <FightHero
                     bout={bout}

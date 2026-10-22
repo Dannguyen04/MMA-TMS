@@ -1,6 +1,10 @@
 import { viDemoFlow } from "./demo-flow.vi";
 import { viAccount } from "./account.vi";
 import { viAuth } from "./auth.vi";
+import { viBoutLabels } from "./bout-labels.vi";
+import { viBoutDetail } from "./bout-detail.vi";
+import { viBoutFighter } from "./bout-fighter.vi";
+import { viBoutMessages } from "./bout-messages.vi";
 import { viCoachBouts } from "./coach-bouts.vi";
 import { viCoachToday } from "./coach-today.vi";
 import { viFighterToday } from "./fighter-today.vi";
@@ -12,6 +16,10 @@ export const vi = {
     ...viDemoFlow,
     ...viAccount,
     ...viAuth,
+    ...viBoutLabels,
+    ...viBoutDetail,
+    ...viBoutFighter,
+    ...viBoutMessages,
     ...viCoachBouts,
     ...viCoachToday,
     ...viFighterToday,
@@ -151,6 +159,10 @@ export const vi = {
     "weightNote.fighter.GREY.title": "3 ngày chưa ghi cân",
     "weightNote.fighter.GREY.text": "Hãy ghi cân mỗi sáng.",
 
+    "chart.showTable": "Xem bảng số liệu",
+    "chart.hideTable": "Ẩn bảng số liệu",
+    "chart.noData": "Không có dữ liệu",
+    "chart.keyboardHintPeriods": "Dùng phím mũi tên trái và phải để đọc số liệu từng mốc.",
     "chart.weight": "Cân nặng",
     "chart.reference": "Lộ trình",
     "chart.limit": "Giới hạn",
