@@ -50,3 +50,21 @@ export class WeighInDto extends createZodDto(weighInSchema) {}
 export class CatchweightDto extends createZodDto(catchweightSchema) {}
 export class RecordResultDto extends createZodDto(recordResultSchema) {}
 export class WeighInResponseDto extends createZodDto(weighInResponseSchema) {}
+import {
+  opponentAnalysisInputSchema, opponentReviewInputSchema, roundInputSchema, roundParamsSchema,
+  priorContextQuerySchema, cornerCardSchema, roundsResponseSchema, roundResponseSchema,
+  priorContextResponseSchema, opponentAnalysisSchema,
+} from './bout-analysis.model.js';
+import { z } from 'zod';
+export class OpponentAnalysisDto extends createZodDto(opponentAnalysisInputSchema) {}
+export class OpponentReviewDto extends createZodDto(opponentReviewInputSchema) {}
+export class RoundInputDto extends createZodDto(roundInputSchema) {}
+export class RoundParamsDto extends createZodDto(roundParamsSchema) {}
+export class PriorContextQueryDto extends createZodDto(priorContextQuerySchema) {}
+export class CornerCardResponseDto extends createZodDto(cornerCardSchema) {}
+export class RoundsResponseDto extends createZodDto(roundsResponseSchema) {}
+export class RoundResponseDto extends createZodDto(roundResponseSchema) {}
+export class PriorContextResponseDto extends createZodDto(priorContextResponseSchema) {}
+export class AnalysisMutationResponseDto extends createZodDto(z.object({
+  opponentAnalysis: opponentAnalysisSchema, tacticsWithoutSessions: z.array(z.string()),
+})) {}

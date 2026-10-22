@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
   UsePipes,
@@ -36,6 +37,9 @@ import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import { appZodValidationPipe } from '../shared/pipes/zod-validation.pipe.js';
 import { BOUT_PERMISSIONS, BOUT_RESPONSE_MESSAGES } from './bouts.constants.js';
 import {
+  OpponentAnalysisDto, OpponentReviewDto, RoundInputDto, RoundParamsDto,
+  PriorContextQueryDto, CornerCardResponseDto, RoundsResponseDto, RoundResponseDto,
+  PriorContextResponseDto, AnalysisMutationResponseDto,
   BoutDetailResponseDto,
   BoutIdParamsDto,
   BoutListResponseDto,
@@ -139,6 +143,109 @@ export class BoutsController {
       body,
       randomUUID(),
     );
+  }
+
+
+  @Get('bouts/prior-context')
+  @RequirePermissions({ allOf: [BOUT_PERMISSIONS.GET_ALL] })
+  @ApiOperation({ summary: 'Get prior bout context' })
+  @ResponseMessage('Get prior bout context successfully')
+  @ApiSuccessEnvelope({ status: HttpStatus.OK, message: 'Get prior bout context successfully', model: PriorContextResponseDto })
+  @ApiValidationErrorEnvelope()
+  @ApiUnauthorizedEnvelope()
+  @ApiForbiddenEnvelope('Requires bout permission and access to the fighter')
+  @ApiNotFoundEnvelope('BOUT_NOT_FOUND', 'Bout not found')
+  @ApiConflictEnvelope('BOUT_INVALID_TRANSITION', 'The bout status forbids this operation')
+  async getPriorContext(
+    @CurrentUser() actor: AuthenticatedUser | undefined,
+    @Query() query: PriorContextQueryDto,
+  ) {
+    return this.boutsService.getPriorContext(this.requireActor(actor), query);
+  }
+
+  @Put('bouts/:id/opponent-analysis')
+  @RequirePermissions({ allOf: [BOUT_PERMISSIONS.UPDATE] })
+  @ApiOperation({ summary: 'Save opponent analysis' })
+  @ResponseMessage('Save opponent analysis successfully')
+  @ApiSuccessEnvelope({ status: HttpStatus.OK, message: 'Save opponent analysis successfully', model: AnalysisMutationResponseDto })
+  @ApiValidationErrorEnvelope()
+  @ApiUnauthorizedEnvelope()
+  @ApiForbiddenEnvelope('Requires bout permission and access to the fighter')
+  @ApiNotFoundEnvelope('BOUT_NOT_FOUND', 'Bout not found')
+  @ApiConflictEnvelope('BOUT_INVALID_TRANSITION', 'The bout status forbids this operation')
+  async putOpponentAnalysis(
+    @CurrentUser() actor: AuthenticatedUser | undefined,
+    @Param() params: BoutIdParamsDto, @Body() body: OpponentAnalysisDto,
+  ) {
+    return this.boutsService.putOpponentAnalysis(this.requireActor(actor), params.id, body, randomUUID());
+  }
+
+  @Put('bouts/:id/opponent-analysis/review')
+  @RequirePermissions({ allOf: [BOUT_PERMISSIONS.RESULT] })
+  @ApiOperation({ summary: 'Review opponent tactics' })
+  @ResponseMessage('Review opponent tactics successfully')
+  @ApiSuccessEnvelope({ status: HttpStatus.OK, message: 'Review opponent tactics successfully', model: AnalysisMutationResponseDto })
+  @ApiValidationErrorEnvelope()
+  @ApiUnauthorizedEnvelope()
+  @ApiForbiddenEnvelope('Requires bout permission and access to the fighter')
+  @ApiNotFoundEnvelope('BOUT_NOT_FOUND', 'Bout not found')
+  @ApiConflictEnvelope('BOUT_INVALID_TRANSITION', 'The bout status forbids this operation')
+  async putOpponentReview(
+    @CurrentUser() actor: AuthenticatedUser | undefined,
+    @Param() params: BoutIdParamsDto, @Body() body: OpponentReviewDto,
+  ) {
+    return this.boutsService.putOpponentReview(this.requireActor(actor), params.id, body, randomUUID());
+  }
+
+  @Put('bouts/:id/rounds/:roundNo')
+  @RequirePermissions({ allOf: [BOUT_PERMISSIONS.UPDATE] })
+  @ApiOperation({ summary: 'Save a bout round' })
+  @ResponseMessage('Save a bout round successfully')
+  @ApiSuccessEnvelope({ status: HttpStatus.OK, message: 'Save a bout round successfully', model: RoundResponseDto })
+  @ApiValidationErrorEnvelope()
+  @ApiUnauthorizedEnvelope()
+  @ApiForbiddenEnvelope('Requires bout permission and access to the fighter')
+  @ApiNotFoundEnvelope('BOUT_NOT_FOUND', 'Bout not found')
+  @ApiConflictEnvelope('BOUT_INVALID_TRANSITION', 'The bout status forbids this operation')
+  async putRound(
+    @CurrentUser() actor: AuthenticatedUser | undefined,
+    @Param() params: RoundParamsDto, @Body() body: RoundInputDto,
+  ) {
+    return this.boutsService.putRound(this.requireActor(actor), params.id, params.roundNo, body, randomUUID());
+  }
+
+  @Get('bouts/:id/rounds')
+  @RequirePermissions({ allOf: [BOUT_PERMISSIONS.READ] })
+  @ApiOperation({ summary: 'Get round records and advice' })
+  @ResponseMessage('Get round records and advice successfully')
+  @ApiSuccessEnvelope({ status: HttpStatus.OK, message: 'Get round records and advice successfully', model: RoundsResponseDto })
+  @ApiValidationErrorEnvelope()
+  @ApiUnauthorizedEnvelope()
+  @ApiForbiddenEnvelope('Requires bout permission and access to the fighter')
+  @ApiNotFoundEnvelope('BOUT_NOT_FOUND', 'Bout not found')
+  @ApiConflictEnvelope('BOUT_INVALID_TRANSITION', 'The bout status forbids this operation')
+  async getRounds(
+    @CurrentUser() actor: AuthenticatedUser | undefined,
+    @Param() params: BoutIdParamsDto,
+  ) {
+    return this.boutsService.getRounds(this.requireActor(actor), params.id);
+  }
+
+  @Get('bouts/:id/corner-card')
+  @RequirePermissions({ allOf: [BOUT_PERMISSIONS.READ] })
+  @ApiOperation({ summary: 'Get corner card' })
+  @ResponseMessage('Get corner card successfully')
+  @ApiSuccessEnvelope({ status: HttpStatus.OK, message: 'Get corner card successfully', model: CornerCardResponseDto })
+  @ApiValidationErrorEnvelope()
+  @ApiUnauthorizedEnvelope()
+  @ApiForbiddenEnvelope('Requires bout permission and access to the fighter')
+  @ApiNotFoundEnvelope('BOUT_NOT_FOUND', 'Bout not found')
+  @ApiConflictEnvelope('BOUT_INVALID_TRANSITION', 'The bout status forbids this operation')
+  async getCornerCard(
+    @CurrentUser() actor: AuthenticatedUser | undefined,
+    @Param() params: BoutIdParamsDto,
+  ) {
+    return this.boutsService.getCornerCard(this.requireActor(actor), params.id);
   }
 
   @Get('bouts/:id')

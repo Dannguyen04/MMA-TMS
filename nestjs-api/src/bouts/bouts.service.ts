@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnprocessableEntityException } from '@nestjs/common';
 import type {
   BoutHistoryEntry,
   BoutRequirementRow,
@@ -10,6 +10,7 @@ import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import { USER } from '../shared/types/user.role.js';
 import { setAuditContext } from '../shared/utils/audit-context.util.js';
 import {
+  boutAnalysisInvalid,
   boutActiveExists,
   boutChangeReasonRequired,
   boutCoachNotAssigned,
@@ -76,6 +77,11 @@ import {
   type WeighInResponse,
   type WeightTrack,
 } from './bouts.model.js';
+import {
+  buildCornerCard, buildRoundAdvice, normalizeOpponentName,
+  opponentAnalysisInputSchema, opponentReviewInputSchema, roundInputSchema,
+  type OpponentAnalysis, type OpponentAnalysisInput, type OpponentReviewInput, type RoundInput,
+} from './bout-analysis.model.js';
 import { BoutsRepository, type BoutScope } from './bouts.repo.js';
 
 @Injectable()
@@ -129,7 +135,15 @@ export class BoutsService {
   ): Promise<BoutDetailResponse> {
     const bout = await this.requireBout(id);
     await this.assertReadAccess(actor, bout.fighterId);
-    return this.buildDetail(bout);
+    const detail = await this.buildDetail(bout);
+    if (actor.role === USER.FIGHTER) {
+      detail.opponentAnalysis = fighterAnalysis(bout.opponentAnalysis);
+      const ids = [...new Set((bout.opponentAnalysis.tactics ?? []).flatMap((t) => t.sessionIds))];
+      detail.sessions = (await this.repo.findAnalysisSessions(ids, bout.fighterId)).map((r) => ({
+        ...r, scheduledAt: r.scheduledAt.toISOString(),
+      }));
+    }
+    return detail;
   }
 
   async getWeightTrack(
@@ -140,6 +154,135 @@ export class BoutsService {
     await this.assertReadAccess(actor, bout.fighterId);
     const ruleset = await this.requireRuleset(bout.rulesetId);
     return this.loadWeightTrack(bout, ruleset, new Date());
+  }
+
+
+  async putOpponentAnalysis(actor: AuthenticatedUser, id: string, input: OpponentAnalysisInput, requestId: string) {
+    const parsed = opponentAnalysisInputSchema.safeParse(input);
+    if (!parsed.success) throw analysisValidationError();
+    const data = parsed.data;
+    const observationIds = new Set(data.observations.map((o) => o.id));
+    if (data.tactics.some((t) => !t.observationIds.length || t.observationIds.some((id) => !observationIds.has(id))))
+      throw boutAnalysisInvalid('OPPONENT_TACTIC_EVIDENCE_REQUIRED');
+    return this.mutateAnalysis(actor, id, requestId, async (bout, tx) => {
+      if (isFinalStatus(bout.status)) throw boutNotEditable(bout.status);
+      const ids = [...new Set(data.tactics.flatMap((t) => t.sessionIds))];
+      const sessions = await this.repo.findAnalysisSessions(ids, bout.fighterId, tx);
+      if (sessions.length !== ids.length) throw boutAnalysisInvalid('OPPONENT_SESSION_INVALID');
+      const reviews = new Map((bout.opponentAnalysis.tactics ?? []).map((t) => [t.id, t.review]));
+      return { ...data, tactics: data.tactics.map((t) => {
+        const review = reviews.get(t.id);
+        return { ...t, ...(review ? { review } : {}) };
+      }) };
+    });
+  }
+
+  async putOpponentReview(actor: AuthenticatedUser, id: string, input: OpponentReviewInput, requestId: string) {
+    const parsed = opponentReviewInputSchema.safeParse(input);
+    if (!parsed.success) throw analysisValidationError();
+    return this.mutateAnalysis(actor, id, requestId, async (bout) => {
+      if (bout.status !== 'COMPLETED') throw boutNotEditable(bout.status);
+      const tactics = bout.opponentAnalysis.tactics ?? [];
+      if (parsed.data.reviews.some((r) => !tactics.some((t) => t.id === r.tacticId)))
+        throw boutAnalysisInvalid('OPPONENT_TACTIC_UNKNOWN');
+      return { ...bout.opponentAnalysis, tactics: tactics.map((t) => {
+        const r = parsed.data.reviews.find((r) => r.tacticId === t.id);
+        return r ? { ...t, review: { outcome: r.outcome, note: r.note ?? null, auto: false } } : t;
+      }) };
+    });
+  }
+
+  private async mutateAnalysis(
+    actor: AuthenticatedUser, id: string, requestId: string,
+    change: (bout: BoutRow, tx: Parameters<Parameters<BoutsRepository['transaction']>[0]>[0]) => Promise<OpponentAnalysis>,
+  ) {
+    const current = await this.requireBout(id);
+    await this.assertWriteAccess(actor, current.fighterId);
+    try {
+      return await this.repo.transaction(async (tx) => {
+        await setAuditContext(actor.authSubject, requestId, tx);
+        const bout = await this.repo.lockBoutById(id, tx);
+        if (!bout) throw boutNotFound();
+        const analysis = { ...await change(bout, tx), updatedAt: new Date().toISOString(), updatedById: actor.id };
+        const updated = await this.repo.updateBout(id, { opponentAnalysis: analysis }, { expectedStatus: bout.status }, tx);
+        if (!updated) throw boutStateConflict();
+        return { opponentAnalysis: analysis, tacticsWithoutSessions: (analysis.tactics ?? []).filter((t) => !t.sessionIds.length).map((t) => t.id) };
+      });
+    } catch (error) { throw mapBoutPersistenceError(error); }
+  }
+
+  async putRound(actor: AuthenticatedUser, id: string, roundNo: number, input: RoundInput, requestId: string) {
+    const parsed = roundInputSchema.safeParse(input);
+    if (!parsed.success) throw analysisValidationError();
+    const current = await this.requireBout(id);
+    await this.assertWriteAccess(actor, current.fighterId);
+    try {
+      const row = await this.repo.transaction(async (tx) => {
+        await setAuditContext(actor.authSubject, requestId, tx);
+        const bout = await this.repo.lockBoutById(id, tx);
+        if (!bout) throw boutNotFound();
+        this.assertCornerStatus(bout);
+        if (bout.scheduledRounds === null) throw boutAnalysisInvalid('BOUT_ROUNDS_NOT_SET');
+        if (!Number.isInteger(roundNo) || roundNo < 1 || roundNo > bout.scheduledRounds)
+          throw boutAnalysisInvalid('BOUT_ROUND_OUT_OF_RANGE');
+        const tactics = new Set((bout.opponentAnalysis.tactics ?? []).map((t) => t.id));
+        const observations = new Set((bout.opponentAnalysis.observations ?? []).map((o) => o.id));
+        if (Object.keys(parsed.data.tacticMarks ?? {}).some((id) => !tactics.has(id)) ||
+            Object.keys(parsed.data.observationMarks ?? {}).some((id) => !observations.has(id)))
+          throw boutAnalysisInvalid('BOUT_ROUND_MARK_UNKNOWN');
+        return this.repo.upsertRound({ ...parsed.data, boutId: id, roundNo, recordedById: actor.id }, tx);
+      });
+      return toRoundResponse(row);
+    } catch (error) { throw mapBoutPersistenceError(error); }
+  }
+
+  async getRounds(actor: AuthenticatedUser, id: string) {
+    const bout = await this.requireBout(id);
+    await this.assertPrivateReadAccess(actor, bout);
+    const rounds = await this.repo.listRounds(id);
+    return { scheduledRounds: bout.scheduledRounds, rounds: rounds.map(toRoundResponse),
+      advice: rounds.length && bout.scheduledRounds !== null && rounds.length < bout.scheduledRounds
+        ? buildRoundAdvice(bout.opponentAnalysis, rounds, bout.scheduledRounds) : null };
+  }
+
+  async getCornerCard(actor: AuthenticatedUser, id: string) {
+    const bout = await this.requireBout(id);
+    await this.assertPrivateReadAccess(actor, bout);
+    this.assertCornerStatus(bout);
+    return buildCornerCard(bout.opponentAnalysis, await this.repo.listRounds(id), null);
+  }
+
+  private assertCornerStatus(bout: BoutRow) {
+    if (bout.status !== 'WEIGHED_IN' && bout.status !== 'COMPLETED') throw boutNotEditable(bout.status);
+  }
+
+  private async assertPrivateReadAccess(actor: AuthenticatedUser, bout: BoutRow) {
+    if (actor.role !== USER.COACH && actor.role !== USER.DOCTOR && actor.role !== USER.ADMIN) throw forbidden();
+    await this.assertReadAccess(actor, bout.fighterId);
+  }
+
+  async getPriorContext(actor: AuthenticatedUser, query: { fighterId: string; opponentName: string }) {
+    // Resolve the exact same scope as listBouts; copy candidates may belong to other assigned fighters.
+    await this.resolveListScope(actor, query.fighterId);
+    const scope = await this.resolveListScope(actor, undefined);
+    let cursor: string | undefined;
+    let latest: BoutRow | undefined;
+    do {
+      const rows = await this.repo.listBouts({ scope, limit: 100, cursor });
+      const page = rows.slice(0, 100);
+      for (const row of page) {
+        if (row.opponentName !== null && normalizeOpponentName(row.opponentName) === normalizeOpponentName(query.opponentName) &&
+            (!latest || row.boutAt > latest.boutAt || (row.boutAt.getTime() === latest.boutAt.getTime() && row.id > latest.id))) latest = row;
+      }
+      const last = page[page.length - 1];
+      cursor = rows.length > 100 && last ? encodeBoutCursor({ weighInAt: last.weighInAt.toISOString(), id: last.id }) : undefined;
+    } while (cursor);
+    const analysis = latest ? withoutReviews(latest.opponentAnalysis) : undefined;
+    return {
+      improvementPoints: null,
+      copyableAnalysis: latest && analysis ? { boutId: latest.id, eventName: latest.eventName, opponentName: latest.opponentName,
+        opponentAnalysis: actor.role === USER.FIGHTER ? fighterAnalysis(analysis) : analysis } : null,
+    };
   }
 
   // ---------------------------------------------------------------------------
@@ -188,6 +331,7 @@ export class BoutsService {
             eventName: input.eventName,
             venue: input.venue ?? null,
             opponentName: input.opponentName ?? null,
+            scheduledRounds: input.scheduledRounds ?? null,
             weightClassCode: weightClass.code,
             weightLimitKg: String(weightClass.limitKg),
             acuteLossLimitPct: String(acuteLossLimitPct),
@@ -238,7 +382,7 @@ export class BoutsService {
     ] as const;
     const touchesSchedule = scheduleKeys.some((key) => input[key] !== undefined);
     const touchesOther = (
-      ['eventName', 'venue', 'opponentName'] as const
+      ['eventName', 'venue', 'opponentName', 'scheduledRounds'] as const
     ).some((key) => input[key] !== undefined);
 
     if (isFinalStatus(bout.status) && (touchesSchedule || touchesOther))
@@ -251,6 +395,7 @@ export class BoutsService {
     if (input.venue !== undefined) changes.venue = input.venue;
     if (input.opponentName !== undefined) changes.opponentName = input.opponentName;
     if (input.notes !== undefined) changes.notes = input.notes;
+    if (input.scheduledRounds !== undefined) changes.scheduledRounds = input.scheduledRounds;
     if (input.requirementsDueDays !== undefined)
       changes.requirementsDueDays = input.requirementsDueDays;
 
@@ -319,6 +464,13 @@ export class BoutsService {
     try {
       const updated = await this.repo.transaction(async (tx) => {
         await setAuditContext(actor.authSubject, requestId, tx);
+        if (input.scheduledRounds !== undefined) {
+          const locked = await this.repo.lockBoutById(bout.id, tx);
+          if (!locked || locked.status !== bout.status) throw boutStateConflict();
+          const rounds = await this.repo.listRounds(bout.id, tx);
+          if (input.scheduledRounds !== null && rounds.some((r) => r.roundNo > input.scheduledRounds!))
+            throw boutAnalysisInvalid('BOUT_ROUNDS_BELOW_RECORDED');
+        }
         return this.repo.updateBout(
           bout.id,
           changes,
@@ -957,6 +1109,8 @@ export class BoutsService {
 
     return {
       ...toBoutSummary(bout),
+      opponentAnalysis: bout.opponentAnalysis,
+      tacticsWithoutSessions: (bout.opponentAnalysis.tactics ?? []).filter((t) => !t.sessionIds.length).map((t) => t.id),
       ruleset: {
         id: ruleset.id,
         name: ruleset.name,
@@ -1154,6 +1308,7 @@ function toBoutSummary(row: BoutRow): BoutSummary {
     eventName: row.eventName,
     venue: row.venue,
     opponentName: row.opponentName,
+    scheduledRounds: row.scheduledRounds,
     weightClassCode: row.weightClassCode,
     weightLimitKg: Number(row.weightLimitKg),
     acuteLossLimitPct: Number(row.acuteLossLimitPct),
@@ -1201,4 +1356,19 @@ function toRequirementResponse(row: BoutRequirementRow): RequirementResponse {
     statusReason: row.statusReason,
     confirmedAt: row.confirmedAt ? row.confirmedAt.toISOString() : null,
   };
+}
+
+function analysisValidationError() {
+  return new UnprocessableEntityException({ statusCode: 422, error: 'Unprocessable Entity', code: 'VALIDATION_ERROR', message: 'Invalid analysis or round data.' });
+}
+function fighterAnalysis(analysis: OpponentAnalysis) {
+  return { tactics: (analysis.tactics ?? []).map((t) => ({
+    id: t.id, text: t.text, round: t.round, partnerBrief: t.partnerBrief ?? null, sessionIds: t.sessionIds,
+  })) };
+}
+function withoutReviews(analysis: OpponentAnalysis): OpponentAnalysis {
+  return { ...analysis, tactics: (analysis.tactics ?? []).map(({ review: _review, ...t }) => t) };
+}
+function toRoundResponse(row: Awaited<ReturnType<BoutsRepository['upsertRound']>>) {
+  return { ...row, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString() };
 }

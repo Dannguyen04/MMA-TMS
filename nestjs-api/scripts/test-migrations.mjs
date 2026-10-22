@@ -869,6 +869,48 @@ try {
       '0',
     );
   });
+
+  check('027 applies directly after 024: defaults, constraints, upsert, audit, cascade and RLS', () => {
+    const db = 'mma_013';
+    const target = '027_opponent_analysis_and_rounds.sql';
+    assert.equal(psql(db, 'SELECT count(*) FROM mma_private.migration_history WHERE version IN (25,26);'), '0');
+    migration(db, target);
+    const bout = '00000000-0000-4000-8000-0000000024e2';
+    const user = '00000000-0000-4000-8000-0000000024b2';
+    assert.equal(psql(db, `SELECT opponent_analysis::text || '|' || (scheduled_rounds IS NULL) FROM public.bouts WHERE id = '${bout}';`), '{}|true');
+    for (const n of [0,13]) {
+      rejects(db, `UPDATE public.bouts SET scheduled_rounds = ${n} WHERE id = '${bout}';`, /ck_bouts_scheduled_rounds/);
+      rejects(db, `INSERT INTO public.bout_rounds(bout_id, round_no, recorded_by_id) VALUES ('${bout}', ${n}, '${user}');`, /round_no_check/);
+    }
+    rejects(db, `UPDATE public.bouts SET opponent_analysis = '[]' WHERE id = '${bout}';`, /ck_bouts_opponent_analysis/);
+    psql(db, `INSERT INTO public.bout_rounds(bout_id, round_no, recorded_by_id) VALUES ('${bout}', 1, '${user}');`);
+    rejects(db, `INSERT INTO public.bout_rounds(bout_id, round_no, recorded_by_id) VALUES ('${bout}', 1, '${user}');`, /uq_bout_rounds_bout_round/);
+    rejects(db, `UPDATE public.bout_rounds SET tactic_marks = '[]';`, /ck_bout_rounds_tactic_marks/);
+    rejects(db, `UPDATE public.bout_rounds SET observation_marks = '[]';`, /ck_bout_rounds_observation_marks/);
+    rejects(db, `UPDATE public.bout_rounds SET self_score = 'OTHER';`, /self_score_check/);
+    rejects(db, `UPDATE public.bout_rounds SET knockdowns_against = 11;`, /knockdowns_against_check/);
+    rejects(db, `UPDATE public.bout_rounds SET note = repeat('x',301);`, /note_check/);
+    psql(db, `INSERT INTO public.bout_rounds(bout_id, round_no, recorded_by_id, note) VALUES ('${bout}', 1, '${user}', 'new') ON CONFLICT (bout_id,round_no) DO UPDATE SET note=EXCLUDED.note;`);
+    assert.equal(psql(db, `SELECT count(*) || '|' || min(note) FROM public.bout_rounds WHERE bout_id = '${bout}';`), '1|new');
+    assert.equal(psql(db, `SELECT updated_at >= created_at FROM public.bout_rounds WHERE bout_id = '${bout}';`), 't');
+    assert.equal(psql(db, `SELECT count(*) FROM public.audit_logs WHERE resource_type = 'bout_rounds' AND action IN ('INSERT','UPDATE');`), '2');
+    assert.equal(psql(db, `SELECT relrowsecurity FROM pg_class WHERE oid = 'public.bout_rounds'::regclass;`), 't');
+    for (const role of ['anon','authenticated']) {
+      rejects(db, `SET ROLE ${role}; SELECT * FROM public.bout_rounds;`, /permission denied/);
+      assert.equal(psql(db, `SELECT has_table_privilege('${role}', 'public.bout_rounds', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER');`), 'f');
+    }
+    psql(db, `DELETE FROM public.bouts WHERE id = '${bout}';`);
+    assert.equal(psql(db, 'SELECT count(*) FROM public.bout_rounds;'), '0');
+    rejects(db, readFileSync(join(api,'migrations',target),'utf8'), /027 already applied/);
+  });
+  check('027 rejects missing ledger 24 and collisions atomically', () => {
+    const target = readFileSync(join(api,'migrations','027_opponent_analysis_and_rounds.sql'),'utf8');
+    rejects('mma_024_no_023', target, /027 requires migration 024/);
+    assert.equal(psql('mma_024_no_023', 'SELECT count(*) FROM mma_private.migration_history WHERE version = 27;'), '0');
+    psql('mma_013', 'DELETE FROM mma_private.migration_history WHERE version = 27;');
+    rejects('mma_013', target, /027 .*collision/);
+    assert.equal(psql('mma_013', 'SELECT count(*) FROM mma_private.migration_history WHERE version = 27;'), '0');
+  });
   if (process.argv.includes('--export-catalog')) {
     mkdirSync(resolve(api, '../tmp'), { recursive: true });
     const catalog = psql(

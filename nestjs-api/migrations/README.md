@@ -1,4 +1,20 @@
-# Migrations 003–024 — Backend, Database & API Permissions
+# Migrations 003–027 — Backend, Database & API Permissions
+
+## Áp dụng migration 027 (Phân tích đối thủ và ghi hiệp)
+
+027 chỉ yêu cầu ledger 024, chưa có 027; không yêu cầu 025, 026.
+Thêm bouts.opponent_analysis (jsonb object, mặc định {}), scheduled_rounds
+(NULL hoặc 1–12) và bảng bout_rounds (unique trận/hiệp, FK cascade khi xoá trận).
+Preflight kiểm tra bảng/hàm trigger và collision. Các map phải là object;
+giới hạn hiệp, số lần ngã, điểm tự chấm và độ dài ghi chú bằng CHECK.
+Bật RLS, revoke PUBLIC/anon/authenticated; trigger cập nhật thời gian và audit.
+Không thêm quyền; API dùng bout:read, bout:update, bout:result từ 024.
+Ledger version 27, advisory lock (20260916, 27), checksum trong manifest.
+
+```sh
+pnpm db:check
+pnpm db:migrate:027
+```
 
 ## Áp dụng migration 024 (Bộ luật giải, trận, checklist hồ sơ - bouts)
 

@@ -332,3 +332,11 @@ export function mapBoutPersistenceError(error: unknown): HttpException {
       return boutOperationFailed();
   }
 }
+
+export function boutAnalysisInvalid(
+  code: 'OPPONENT_TACTIC_EVIDENCE_REQUIRED' | 'OPPONENT_SESSION_INVALID' |
+    'OPPONENT_TACTIC_UNKNOWN' | 'BOUT_ROUNDS_NOT_SET' | 'BOUT_ROUND_OUT_OF_RANGE' |
+    'BOUT_ROUND_MARK_UNKNOWN' | 'BOUT_ROUNDS_BELOW_RECORDED',
+): UnprocessableEntityException {
+  return unprocessable(code, 'The opponent analysis or round record is invalid.');
+}
