@@ -258,4 +258,18 @@ describe('T-010 strict input validation (AC8)', () => {
       false,
     );
   });
+  it('does not add undocumented 300-character caps to tactic text or partner briefs', () => {
+    expect(
+      opponentAnalysisInputSchema.safeParse({
+        ...input,
+        tactics: [
+          {
+            ...tactic('t1'),
+            text: 'x'.repeat(301),
+            partnerBrief: 'y'.repeat(301),
+          },
+        ],
+      }).success,
+    ).toBe(true);
+  });
 });
