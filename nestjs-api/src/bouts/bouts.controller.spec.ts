@@ -28,6 +28,9 @@ describe('BoutsController routes', () => {
     ['updateRequirement', RequestMethod.PATCH, 'bouts/:id/requirements/:code', BOUT_PERMISSIONS.REQUIREMENT],
     ['removeRequirement', RequestMethod.DELETE, 'bouts/:id/requirements/:code', BOUT_PERMISSIONS.REQUIREMENT],
     ['getWeightTrack', RequestMethod.GET, 'bouts/:id/weight-track', BOUT_PERMISSIONS.READ],
+    ['weighIn', RequestMethod.POST, 'bouts/:id/weigh-in', BOUT_PERMISSIONS.UPDATE],
+    ['catchweight', RequestMethod.POST, 'bouts/:id/catchweight', BOUT_PERMISSIONS.UPDATE],
+    ['recordResult', RequestMethod.POST, 'bouts/:id/result', BOUT_PERMISSIONS.RESULT],
   ];
 
   it.each(cases)('%s uses %s %s and requires %s', (name, method, path, permission) => {
@@ -37,7 +40,7 @@ describe('BoutsController routes', () => {
     expect(reflector.get(REQUIRED_PERMISSIONS, handler)).toEqual({ allOf: [permission] });
   });
 
-  it('exposes exactly the endpoints of the ticket (no result, weigh-in or suspension routes)', () => {
+  it('exposes exactly the endpoints of the ticket (T-006 weigh-in and result included)', () => {
     const handlers = Object.getOwnPropertyNames(proto).filter(
       (key) => key !== 'constructor' && key !== 'requireActor',
     );
