@@ -13,8 +13,13 @@ import {
   requirementRemovalResponseSchema,
   rulesetResponseSchema,
   startCampSchema,
+  catchweightSchema,
+  recordResultSchema,
+  removeRequirementQuerySchema,
   updateBoutSchema,
   updateRequirementSchema,
+  weighInResponseSchema,
+  weighInSchema,
   weightTrackResponseSchema,
 } from './bouts.model.js';
 
@@ -39,3 +44,9 @@ export class RequirementMutationResponseDto extends createZodDto(
 export class RequirementRemovalResponseDto extends createZodDto(
   requirementRemovalResponseSchema,
 ) {}
+
+export class RemoveRequirementQueryDto extends createZodDto(removeRequirementQuerySchema) {}
+export class WeighInDto extends createZodDto(weighInSchema) {}
+export class CatchweightDto extends createZodDto(catchweightSchema) {}
+export class RecordResultDto extends createZodDto(recordResultSchema) {}
+export class WeighInResponseDto extends createZodDto(weighInResponseSchema) {}

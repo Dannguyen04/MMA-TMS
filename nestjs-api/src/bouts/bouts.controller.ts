@@ -40,9 +40,12 @@ import {
   BoutIdParamsDto,
   BoutListResponseDto,
   CancelBoutDto,
+  CatchweightDto,
   CreateBoutDto,
   CreateRequirementDto,
   ListBoutsQueryDto,
+  RecordResultDto,
+  RemoveRequirementQueryDto,
   RequirementMutationResponseDto,
   RequirementParamsDto,
   RequirementRemovalResponseDto,
@@ -50,6 +53,8 @@ import {
   StartCampDto,
   UpdateBoutDto,
   UpdateRequirementDto,
+  WeighInDto,
+  WeighInResponseDto,
   WeightTrackResponseDto,
 } from './bouts.dto.js';
 import { BoutsService } from './bouts.service.js';
@@ -367,15 +372,21 @@ export class BoutsController {
   @ApiUnauthorizedEnvelope()
   @ApiForbiddenEnvelope('Requires bout:requirement and an assigned fighter')
   @ApiNotFoundEnvelope('BOUT_REQUIREMENT_NOT_FOUND', 'Bout or requirement not found')
+  @ApiConflictEnvelope(
+    'BOUT_REQUIREMENTS_LOCKED',
+    'Unlock reason required during fight week and weigh-in',
+  )
   async removeRequirement(
     @CurrentUser() actor: AuthenticatedUser | undefined,
     @Param() params: RequirementParamsDto,
+    @Query() query?: RemoveRequirementQueryDto,
   ) {
     return this.boutsService.removeRequirement(
       this.requireActor(actor),
       params.id,
       params.code,
       randomUUID(),
+      query?.unlockReason,
     );
   }
 
@@ -400,6 +411,112 @@ export class BoutsController {
     @Param() params: BoutIdParamsDto,
   ) {
     return this.boutsService.getWeightTrack(this.requireActor(actor), params.id);
+  }
+
+
+  @Post('bouts/:id/weigh-in')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions({ allOf: [BOUT_PERMISSIONS.UPDATE] })
+  @ApiOperation({
+    summary: 'Official weigh-in',
+    description:
+      'Records official weigh-in in FIGHT_WEEK. Passes to WEIGHED_IN on success, stays in FIGHT_WEEK on failure.',
+  })
+  @ResponseMessage(BOUT_RESPONSE_MESSAGES.WEIGH_IN)
+  @ApiSuccessEnvelope({
+    status: HttpStatus.OK,
+    message: BOUT_RESPONSE_MESSAGES.WEIGH_IN,
+    model: WeighInResponseDto,
+  })
+  @ApiValidationErrorEnvelope()
+  @ApiUnauthorizedEnvelope()
+  @ApiForbiddenEnvelope('Requires bout:update and an assigned fighter')
+  @ApiNotFoundEnvelope('BOUT_NOT_FOUND', 'Bout not found')
+  @ApiConflictEnvelope(
+    'BOUT_INVALID_TRANSITION',
+    'Invalid transition, too early, or concurrent update conflict',
+  )
+  async weighIn(
+    @CurrentUser() actor: AuthenticatedUser | undefined,
+    @Param() params: BoutIdParamsDto,
+    @Body() body: WeighInDto,
+  ) {
+    return this.boutsService.recordWeighIn(
+      this.requireActor(actor),
+      params.id,
+      body,
+      randomUUID(),
+    );
+  }
+
+  @Post('bouts/:id/catchweight')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions({ allOf: [BOUT_PERMISSIONS.UPDATE] })
+  @ApiOperation({
+    summary: 'Agree catchweight',
+    description:
+      'Agrees a catchweight limit after a failed weigh-in, moving FIGHT_WEEK to WEIGHED_IN.',
+  })
+  @ResponseMessage(BOUT_RESPONSE_MESSAGES.CATCHWEIGHT)
+  @ApiSuccessEnvelope({
+    status: HttpStatus.OK,
+    message: BOUT_RESPONSE_MESSAGES.CATCHWEIGHT,
+    model: BoutDetailResponseDto,
+  })
+  @ApiValidationErrorEnvelope()
+  @ApiUnauthorizedEnvelope()
+  @ApiForbiddenEnvelope('Requires bout:update and an assigned fighter')
+  @ApiNotFoundEnvelope('BOUT_NOT_FOUND', 'Bout not found')
+  @ApiConflictEnvelope(
+    'BOUT_WEIGH_IN_NOT_FAILED',
+    'Weigh-in did not fail or concurrent update conflict',
+  )
+  async catchweight(
+    @CurrentUser() actor: AuthenticatedUser | undefined,
+    @Param() params: BoutIdParamsDto,
+    @Body() body: CatchweightDto,
+  ) {
+    return this.boutsService.recordCatchweight(
+      this.requireActor(actor),
+      params.id,
+      body,
+      randomUUID(),
+    );
+  }
+
+  @Post('bouts/:id/result')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions({ allOf: [BOUT_PERMISSIONS.RESULT] })
+  @ApiOperation({
+    summary: 'Record bout result',
+    description:
+      'Records final result and method, moving WEIGHED_IN to COMPLETED.',
+  })
+  @ResponseMessage(BOUT_RESPONSE_MESSAGES.RESULT)
+  @ApiSuccessEnvelope({
+    status: HttpStatus.OK,
+    message: BOUT_RESPONSE_MESSAGES.RESULT,
+    model: BoutDetailResponseDto,
+  })
+  @ApiValidationErrorEnvelope()
+  @ApiUnauthorizedEnvelope()
+  @ApiForbiddenEnvelope('Requires bout:result and an assigned fighter')
+  @ApiNotFoundEnvelope('BOUT_NOT_FOUND', 'Bout not found')
+  @ApiConflictEnvelope(
+    'BOUT_INVALID_TRANSITION',
+    'Invalid transition, bout not started, or concurrent update conflict',
+  )
+  async recordResult(
+    @CurrentUser() actor: AuthenticatedUser | undefined,
+    @Param() params: BoutIdParamsDto,
+    @Body() body: RecordResultDto,
+  ) {
+    return this.boutsService.recordResult(
+      this.requireActor(actor),
+      params.id,
+      body,
+      randomUUID(),
+    );
   }
 
   private requireActor(
