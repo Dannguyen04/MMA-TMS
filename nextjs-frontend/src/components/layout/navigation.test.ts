@@ -104,8 +104,46 @@ describe("mobilePrimaryItems", () => {
         expect(labels("doctor")).toEqual(["Triage", "Patients", "Clinical"]);
     });
 
-    it("keeps admin's four most-used pages", () => {
-        expect(labels("admin")).toEqual(["Dashboard", "Users", "AI jobs", "Audit logs"]);
+    it("keeps the four admin hubs that stay open (admissions is frozen, T-001)", () => {
+        expect(labels("admin")).toEqual(["Today", "People", "AI platform", "System"]);
+        expect(mobilePrimaryItems("admin").map((item) => item.shortLabel ?? item.label)).toEqual(["Today", "People", "AI", "System"]);
+    });
+});
+
+describe("admin hubs", () => {
+    const items = NAVIGATION.admin.flatMap((section) => section.items);
+
+    it("groups the admin pages into a handful of hubs", () => {
+        expect(items.map((item) => item.label)).toEqual(["Today", "People", "Training", "AI platform", "System"]);
+    });
+
+    it("finds each page's hub, including detail pages under a tab", () => {
+        expect(hubForPath("admin", routes.admin.roles)?.label).toBe("People");
+        expect(hubForPath("admin", routes.admin.user("u-1"))?.label).toBe("People");
+        expect(hubForPath("admin", routes.admin.newUser)?.label).toBe("People");
+        expect(hubForPath("admin", routes.admin.videos)?.label).toBe("AI platform");
+        expect(hubForPath("admin", routes.admin.aiJob("j-1"))?.label).toBe("AI platform");
+        // AI models is frozen (T-001): its pages open by URL but belong to no hub.
+        expect(hubForPath("admin", routes.admin.aiModel("m-1"))).toBeNull();
+        expect(hubForPath("admin", routes.admin.notifications)?.label).toBe("System");
+        expect(hubForPath("admin", routes.admin.settings)?.label).toBe("System");
+        expect(hubForPath("admin", routes.admin.admissions)).toBeNull();
+        expect(hubForPath("admin", routes.admin.dashboard)).toBeNull();
+    });
+
+    it("shows tabs on hub pages only, and keeps single-page destinations current", () => {
+        expect(hubTabsFor("admin", routes.admin.videos)?.tabs.map((tab) => tab.label)).toEqual(["AI jobs", "Videos"]);
+        expect(hubTabsFor("admin", routes.admin.aiModels)).toBeNull();
+        expect(hubTabsFor("admin", routes.admin.user("u-1"))).toBeNull();
+        const training = items.find((item) => item.label === "Training")!;
+        expect(training.href).toBe(routes.admin.exercises);
+        expect(isNavItemActive(training, routes.admin.exercises)).toBe(true);
+        const people = items.find((item) => item.label === "People")!;
+        expect(isNavItemActive(people, routes.admin.admissions)).toBe(false);
+    });
+
+    it("carries the failed-jobs count on the AI platform hub", () => {
+        expect(items.find((item) => item.badge === "failedJobs")?.label).toBe("AI platform");
     });
 });
 
@@ -168,15 +206,14 @@ describe("acceptance criteria: frozen navigation removal", () => {
             "Clinical",
         ]);
 
-        const adminSections = NAVIGATION.admin.map((s) => ({
-            label: s.label,
-            items: s.items.map((i) => i.label),
-        }));
-        expect(adminSections).toEqual([
-            { label: undefined, items: ["Dashboard"] },
-            { label: "Access", items: ["Users", "Roles & permissions"] },
-            { label: "AI platform", items: ["Videos", "AI jobs"] },
-            { label: "Operations", items: ["Audit logs", "Broadcasts", "System settings"] },
+        // Admin is grouped into hubs since main's PR #22; Admissions and AI models stay out of them.
+        const adminHubs = NAVIGATION.admin.flatMap((s) => s.items).map((i) => ({ label: i.label, tabs: i.tabs?.map((tab) => tab.label) }));
+        expect(adminHubs).toEqual([
+            { label: "Today", tabs: undefined },
+            { label: "People", tabs: ["Users", "Roles & permissions"] },
+            { label: "Training", tabs: undefined },
+            { label: "AI platform", tabs: ["AI jobs", "Videos"] },
+            { label: "System", tabs: ["Audit logs", "Broadcasts", "Settings"] },
         ]);
 
         const clinical = NAVIGATION.doctor

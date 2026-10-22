@@ -88,7 +88,7 @@ export default async function FighterHealthPage({ searchParams }: PageProps<"/fi
                                 <ClearanceBadge state="none" className="w-fit" />
                                 <p className="text-[15px] font-semibold text-fg">No Medical Clearance on file yet</p>
                                 <p className="max-w-2xl text-sm text-pretty text-fg-muted">
-                                    Your sports doctor issues it after your baseline physical. Once it&apos;s in place, this card shows what training you&apos;re
+                                    Your sports doctor issues it after your baseline exam. Once it&apos;s in place, this card shows what training you&apos;re
                                     cleared for and any restrictions.
                                 </p>
                             </CardContent>

@@ -1,4 +1,4 @@
-import { KeyRound, LockKeyhole, MailCheck, ShieldAlert, UserRoundCheck, UsersRound } from "lucide-react";
+import { KeyRound, LockKeyhole, MailCheck, ShieldAlert, Stethoscope, UserRoundCheck, UsersRound } from "lucide-react";
 import type { Metadata } from "next";
 
 import { CLINICAL_PERMISSIONS, ROLE_ORDER } from "@/components/admin/admin-format";
@@ -9,13 +9,22 @@ import { Callout } from "@/components/training/callout";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { requireRole } from "@/lib/auth/session";
+import type { Role } from "@/lib/domain/types";
 import { dayKey } from "@/lib/format";
+import { parseEnum } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { listRoleDefinitions } from "@/lib/services/admin";
 import { usesUserServiceForms } from "@/lib/services/admin-features";
+import { param } from "@/lib/utils";
 
-export async function generateMetadata(): Promise<Metadata> {
-    return { title: usesUserServiceForms() ? "Add user" : "Invite user" };
+/** `?role=fighter` (an "Add fighter" entry) opens the form with that role already chosen. */
+async function presetRoleFrom(searchParams: PageProps<"/admin/users/new">["searchParams"]): Promise<Role | null> {
+    return parseEnum(param((await searchParams).role), ROLE_ORDER) ?? null;
+}
+
+export async function generateMetadata({ searchParams }: PageProps<"/admin/users/new">): Promise<Metadata> {
+    const fighter = (await presetRoleFrom(searchParams)) === "fighter";
+    return { title: usesUserServiceForms() ? (fighter ? "Add fighter" : "Add user") : "Invite user" };
 }
 
 const ACCESS_STEP = {
@@ -32,9 +41,14 @@ const ACCOUNT_STEPS = [
         body: "Share it privately. They can choose their own at any time with “Forgot password” on the sign-in page.",
     },
     {
+        icon: Stethoscope,
+        title: "A new fighter needs a sports doctor",
+        body: "They can't train until a sports doctor records their baseline exam. Assign the doctor, and a coach, from the fighter's account page.",
+    },
+    {
         icon: UsersRound,
         title: "Rosters come next",
-        body: "A new fighter starts without a coach or doctor. Assign them from the fighter's account page.",
+        body: "Coaches and doctors see the fighters assigned to them.",
     },
     ACCESS_STEP,
 ];
@@ -54,10 +68,11 @@ const INVITATION_STEPS = [
 ];
 
 /** API mode creates the account outright; the demo invites the person to set their own password. */
-export default async function NewUserPage() {
+export default async function NewUserPage({ searchParams }: PageProps<"/admin/users/new">) {
     await requireRole("admin");
     const serviceForms = usesUserServiceForms();
-    const definitions = await listRoleDefinitions();
+    const [definitions, presetRole] = await Promise.all([listRoleDefinitions(), presetRoleFrom(searchParams)]);
+    const addingFighter = serviceForms && presetRole === "fighter";
 
     const roles: RoleOption[] = ROLE_ORDER.flatMap((role) => {
         const definition = definitions.find((d) => d.role === role);
@@ -77,10 +92,12 @@ export default async function NewUserPage() {
         <>
             <PageHeader
                 back={{ href: routes.admin.users, label: "Users" }}
-                title={serviceForms ? "Add user" : "Invite user"}
+                title={serviceForms ? (addingFighter ? "Add fighter" : "Add user") : "Invite user"}
                 description={
                     serviceForms
-                        ? "Create an account with a first password and the person's profile."
+                        ? addingFighter
+                            ? "Create the fighter's account with a first password and their profile."
+                            : "Create an account with a first password and the person's profile."
                         : "Create an account and send the person an invitation to set their password."
                 }
             />
@@ -88,7 +105,11 @@ export default async function NewUserPage() {
             <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                 <Card className="min-w-0 overflow-hidden lg:col-span-2">
                     <CardHeader title="Account details" description="Fields marked * are required." />
-                    {serviceForms ? <CreateAccountForm roles={roles} defaultRole="fighter" today={dayKey(new Date())} /> : <InviteUserForm roles={roles} defaultRole="fighter" />}
+                    {serviceForms ? (
+                        <CreateAccountForm roles={roles} defaultRole="fighter" presetRole={presetRole} today={dayKey(new Date())} />
+                    ) : (
+                        <InviteUserForm roles={roles} defaultRole={presetRole ?? "fighter"} />
+                    )}
                 </Card>
 
                 <div className="flex min-w-0 flex-col gap-6">

@@ -1,53 +1,44 @@
-import {
-    Activity,
-    BellOff,
-    BrainCircuit,
-    CircleX,
-    Clock,
-    Cpu,
-    HardDrive,
-    Hourglass,
-    KeyRound,
-    ListOrdered,
-    ScrollText,
-    Timer,
-    UserPlus,
-    Users,
-} from "lucide-react";
+import { Activity, BellOff, BrainCircuit, CircleAlert, CircleX, Clock, Hourglass, KeyRound, ListOrdered, ScrollText, UserPlus, Users } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { formatDurationSec, percentOf, ROLE_ORDER } from "@/components/admin/admin-format";
+import { ADMIN_QUEUE_META, ADMIN_QUEUES, buildAdminAttention, type AdminQueue } from "@/components/admin/admin-attention";
+import { ROLE_ORDER } from "@/components/admin/admin-format";
 import { ModelStatusBadge } from "@/components/admin/admin-badges";
 import { AuditActivityList } from "@/components/admin/audit-activity-list";
-import { SystemStatus, type AttentionItem } from "@/components/admin/system-status";
+import { SystemStatus, type AttentionItem as SystemSignal } from "@/components/admin/system-status";
 import { BarChart } from "@/components/charts/bar-chart";
 import { ChartFigure } from "@/components/charts/chart-figure";
 import { seriesColor } from "@/components/charts/colors";
 import { HorizontalBars } from "@/components/charts/horizontal-bars";
 import { CardLink } from "@/components/dashboard/card-link";
+import { greetingTitle } from "@/components/dashboard/dashboard-utils";
+import { QueueCard } from "@/components/dashboard/queue-card";
 import { MetricTile } from "@/components/domain/metric-tile";
+import { Callout } from "@/components/training/callout";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { ProgressBar } from "@/components/ui/progress";
-import { StatCard, type StatDelta } from "@/components/ui/stat-card";
 import { EmptyState, FeatureUnavailable } from "@/components/ui/states";
 import { requireRole } from "@/lib/auth/session";
 import { AI_MODEL_TASK_LABELS, PIPELINE_STAGE_LABELS, ROLE_LABELS } from "@/lib/domain/labels";
 import type { AIModelTask } from "@/lib/domain/types";
-import { formatDateTime, formatDelta, formatNumber, formatPercent, formatRelative, formatShortDate, pluralize } from "@/lib/format";
-import { hrefWith } from "@/lib/query";
+import { formatDateTime, formatNumber, formatPercent, formatRelative, formatShortDate, formatWeekdayDate, pluralize } from "@/lib/format";
+import { hrefWith, parseEnum } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { getAdminOverview, getSettings } from "@/lib/services/admin";
 import { adminFeatureAvailable } from "@/lib/services/admin-features";
+import { listApplications } from "@/lib/services/admissions";
 import { getAIJobStats, listAIJobs, listAIModels, type AIJobListItem } from "@/lib/services/ai";
 import { nullIfServiceFails } from "@/lib/services/api-helpers";
 import { listAuditLogs } from "@/lib/services/audit";
+import { listStaffAccounts } from "@/lib/services/care-team";
+import { listCareTeamGaps } from "@/lib/services/care-team-gaps";
 import { platformFeatureAvailable } from "@/lib/services/platform-features";
-import { round } from "@/lib/utils";
+import { param } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Platform overview" };
+export const metadata: Metadata = { title: "Today" };
 
 const HOUR_MS = 3_600_000;
 const STALLED_AFTER_MS = 30 * 60_000;
@@ -56,21 +47,36 @@ const FAILED_SIGN_IN_ALERT = 3;
 const RECENT_FAILURE_LIMIT = 3;
 const TASKS = Object.keys(AI_MODEL_TASK_LABELS) as AIModelTask[];
 
-export default async function AdminDashboardPage() {
-    await requireRole("admin");
+/**
+ * The administrator's Today page answers one question: who is waiting on me? One queue of the hand-offs only an
+ * administrator makes (an assessing coach, a decision, a care team), filterable by group, with the accounts beside
+ * it. Platform health follows below: the signals that need an administrator, then the AI pipeline and activity.
+ */
+export default async function AdminDashboardPage({ searchParams }: PageProps<"/admin/dashboard">) {
+    const admin = await requireRole("admin");
+    const query = await searchParams;
     const nowDate = new Date();
     const now = nowDate.toISOString();
     const dayAgo = new Date(nowDate.getTime() - 24 * HOUR_MS).toISOString();
+    const showActivity = platformFeatureAvailable("auditLogs");
+    const showModels = platformFeatureAvailable("aiModels");
 
-    const [overview, pipeline, models, settings, failedSignIns] = await Promise.all([
+    const [applications, careTeamGaps, coaches, overview, pipeline, models, settings, failedSignIns] = await Promise.all([
+        listApplications(),
+        listCareTeamGaps(admin),
+        listStaffAccounts("coach"),
         getAdminOverview(nowDate),
-        // The analysis service is separate: when it doesn't answer, accounts and activity still show.
+        // The analysis service is separate: when it doesn't answer, the queue and accounts still show.
         nullIfServiceFails(Promise.all([getAIJobStats(nowDate), listAIJobs()])),
-        listAIModels(),
+        showModels ? listAIModels() : [],
         getSettings(),
         listAuditLogs({ resourceType: "auth", status: "failure", from: dayAgo }),
     ]);
     const [stats, jobs] = pipeline ?? [null, []];
+    const coachName = (coachId: string) => coaches.find((coach) => coach.staffId === coachId)?.name ?? "Coach";
+
+    const attention = buildAdminAttention({ applications, careTeamGaps, coachName, now });
+    const queue = parseEnum(param(query.queue), ADMIN_QUEUES);
 
     const processing = jobs.filter(({ job }) => job.status === "processing").sort((a, b) => (a.job.startedAt ?? "").localeCompare(b.job.startedAt ?? ""));
     const queued = jobs.filter(({ job }) => job.status === "queued").sort((a, b) => a.job.queuedAt.localeCompare(b.job.queuedAt));
@@ -81,26 +87,14 @@ export default async function AdminDashboardPage() {
         .sort((a, b) => (b.job.finishedAt ?? "").localeCompare(a.job.finishedAt ?? ""))
         .slice(0, RECENT_FAILURE_LIMIT);
 
-    const { completed, failed } = stats?.last24h ?? { completed: 0, failed: 0 };
-    const finished24h = completed + failed;
-    const failureRate24h = round(percentOf(failed, finished24h), 1);
-    const failureDelta = round(failureRate24h - (stats?.failureRate7d ?? 0), 1);
-    const failureDeltaStat: StatDelta | undefined =
-        finished24h === 0
-            ? undefined
-            : {
-                  value: `${formatDelta(failureDelta, 1)} pts`,
-                  direction: failureDelta > 0 ? "up" : failureDelta < 0 ? "down" : "flat",
-                  sentiment: failureDelta > 0 ? "bad" : failureDelta < 0 ? "good" : "neutral",
-                  label: "failure rate vs 7 d",
-              };
+    const failed = stats?.last24h.failed ?? 0;
     const totalUsers = ROLE_ORDER.reduce((total, role) => total + overview.usersByRole[role], 0);
     const invitations = adminFeatureAvailable("inviteUsers");
     const jobControl = platformFeatureAvailable("aiJobControl");
 
-    const attention: AttentionItem[] = [];
+    const signals: SystemSignal[] = [];
     if (!stats) {
-        attention.push({
+        signals.push({
             id: "pipeline-unavailable",
             icon: CircleX,
             title: "The AI analysis service isn't answering",
@@ -110,7 +104,7 @@ export default async function AdminDashboardPage() {
         });
     }
     if (failed > 0) {
-        attention.push({
+        signals.push({
             id: "failed-jobs",
             icon: CircleX,
             title: `${pluralize(failed, "AI job")} failed in the last 24 hours`,
@@ -120,7 +114,7 @@ export default async function AdminDashboardPage() {
         });
     }
     if (stalled.length > 0) {
-        attention.push({
+        signals.push({
             id: "stalled-jobs",
             icon: Hourglass,
             title: `${pluralize(stalled.length, "job")} processing for over 30 minutes`,
@@ -130,7 +124,7 @@ export default async function AdminDashboardPage() {
         });
     }
     if (queued.length >= QUEUE_BACKLOG) {
-        attention.push({
+        signals.push({
             id: "queue-backlog",
             icon: ListOrdered,
             title: `${pluralize(queued.length, "job")} waiting in the queue`,
@@ -140,7 +134,7 @@ export default async function AdminDashboardPage() {
         });
     }
     if (failedSignIns.length >= FAILED_SIGN_IN_ALERT) {
-        attention.push({
+        signals.push({
             id: "failed-sign-ins",
             icon: KeyRound,
             title: `${pluralize(failedSignIns.length, "failed sign-in attempt")} in the last 24 hours`,
@@ -150,7 +144,7 @@ export default async function AdminDashboardPage() {
         });
     }
     if (!settings.abnormalMovementAlertsEnabled) {
-        attention.push({
+        signals.push({
             id: "alerts-off",
             icon: BellOff,
             title: "AI movement observations are turned off",
@@ -163,59 +157,65 @@ export default async function AdminDashboardPage() {
     return (
         <>
             <PageHeader
-                eyebrow={settings.organizationName}
-                title="Platform overview"
-                description="Accounts, the AI analysis pipeline and system activity at a glance."
+                eyebrow={formatWeekdayDate(now)}
+                title={greetingTitle(now, admin)}
+                description={`${settings.organizationName} · ${attention.length === 0 ? "nothing is waiting on you" : `${pluralize(attention.length, "person", "people")} waiting on you`}`}
                 actions={
-                    <>
-                        <ButtonLink href={routes.admin.aiJobs} variant="secondary">
-                            <Cpu aria-hidden />
-                            AI jobs
-                        </ButtonLink>
-                        <ButtonLink href={routes.admin.newUser}>
-                            <UserPlus aria-hidden />
-                            {invitations ? "Invite user" : "Add user"}
-                        </ButtonLink>
-                    </>
+                    <ButtonLink href={routes.admin.newUser}>
+                        <UserPlus aria-hidden />
+                        {invitations ? "Invite user" : "Add user"}
+                    </ButtonLink>
                 }
             />
 
             <div className="flex flex-col gap-6">
-                <SystemStatus items={attention} checkedLabel={`Checked ${formatDateTime(now)}`} />
+                {careTeamGaps === null && (
+                    <Callout tone="warning" icon={CircleAlert} title="Care teams couldn't be checked">
+                        The fighter or medical service didn&apos;t answer, so fighters still waiting for a coach or a sports doctor aren&apos;t listed.
+                        Reload the page to try again.
+                    </Callout>
+                )}
 
-                <section aria-label="Key figures" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                    <StatCard
-                        label={overview.activeUsers7d === null ? "Active accounts" : "Active users · 7 days"}
-                        value={formatNumber(overview.activeUsers7d ?? overview.activeAccounts)}
-                        unit={`of ${totalUsers}`}
-                        icon={<Users aria-hidden />}
-                        hint={invitations ? `${overview.invitedUsers} invited · ${overview.suspendedUsers} suspended` : `${overview.suspendedUsers} suspended`}
-                        href={routes.admin.users}
+                <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
+                    <QueueCard
+                        title="Waiting for you"
+                        filterLabel="Filter your queue"
+                        items={attention}
+                        queues={ADMIN_QUEUES}
+                        meta={ADMIN_QUEUE_META}
+                        active={queue}
+                        hrefFor={(next: AdminQueue | null) => hrefWith(routes.admin.dashboard, query, { queue: next })}
+                        emptyAll={{
+                            title: "Nothing needs you right now",
+                            description: "Every applicant has an assessing coach or a decision, and every fighter has a coach and a sports doctor.",
+                        }}
+                        className="lg:col-span-2"
                     />
-                    <StatCard
-                        label="AI jobs · last 24 hours"
-                        value={stats ? formatNumber(completed) : "—"}
-                        unit={stats ? "completed" : undefined}
-                        icon={<Cpu aria-hidden />}
-                        delta={failureDeltaStat}
-                        hint={!stats ? "The analysis service isn't answering" : finished24h === 0 ? "No jobs finished in the last 24 hours" : `${failed} failed · ${formatPercent(failureRate24h, 1)} failure rate`}
-                        href={routes.admin.aiJobs}
-                    />
-                    <StatCard
-                        label="Avg processing time · 7 days"
-                        value={stats && stats.avgDurationSec7d > 0 ? formatDurationSec(stats.avgDurationSec7d) : "—"}
-                        icon={<Timer aria-hidden />}
-                        hint={stats ? `per completed job · ${processing.length + queued.length} in flight now` : "The analysis service isn't answering"}
-                    />
-                    <StatCard
-                        label="Video storage used"
-                        value={overview.storageUsedGb === null ? "—" : formatNumber(overview.storageUsedGb, 1)}
-                        unit={overview.storageUsedGb === null ? undefined : "GB"}
-                        icon={<HardDrive aria-hidden />}
-                        hint={overview.videosTotal === null ? "The video service isn't answering" : `${pluralize(overview.videosTotal, "video")} · ${settings.videoRetentionDays}-day retention`}
-                        href={routes.admin.videos}
-                    />
-                </section>
+
+                    <Card className="min-w-0">
+                        <CardHeader title="Users by role" description={`${pluralize(totalUsers, "account")} of every status`} icon={<Users />} />
+                        <CardContent>
+                            <HorizontalBars
+                                ariaLabel="Accounts per role"
+                                items={ROLE_ORDER.map((role) => ({ label: ROLE_LABELS[role], value: overview.usersByRole[role] }))}
+                            />
+                        </CardContent>
+                        <CardFooter>
+                            <span className="text-fg-muted">
+                                {invitations
+                                    ? overview.invitedUsers > 0
+                                        ? `${pluralize(overview.invitedUsers, "invitation")} pending`
+                                        : "No pending invitations"
+                                    : `${overview.suspendedUsers} suspended`}
+                            </span>
+                            <Link href={routes.admin.users} className="font-medium text-primary-soft-fg hover:underline">
+                                Manage users
+                            </Link>
+                        </CardFooter>
+                    </Card>
+                </div>
+
+                <SystemStatus items={signals} checkedLabel={`Checked ${formatDateTime(now)}`} />
 
                 {!stats ? (
                     <Card>
@@ -223,7 +223,7 @@ export default async function AdminDashboardPage() {
                         <CardContent>
                             <FeatureUnavailable
                                 title="AI pipeline figures can't be loaded right now"
-                                description="The analysis service didn't answer. Accounts and activity below are up to date."
+                                description="The analysis service didn't answer. Your queue and the accounts above are up to date."
                                 compact
                             />
                         </CardContent>
@@ -272,54 +272,34 @@ export default async function AdminDashboardPage() {
                         </Card>
 
                         <div className="flex min-w-0 flex-col gap-6">
-                            <QueueCard processing={processing} queued={queued} now={now} />
+                            <JobQueueCard processing={processing} queued={queued} now={now} />
                             <FailuresCard failures={recentFailures} now={now} canRetry={jobControl} />
                         </div>
                     </div>
                 )}
 
-                <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
-                    <Card className="min-w-0 overflow-hidden lg:col-span-2">
-                        <CardHeader
-                            title="Recent activity"
-                            description="Latest entries in the audit log"
-                            icon={<ScrollText />}
-                            action={<CardLink href={routes.admin.auditLogs}>Audit logs</CardLink>}
-                        />
-                        {!platformFeatureAvailable("auditLogs") ? (
-                            <CardContent>
-                                <FeatureUnavailable service="platform" title="Activity isn't available yet" compact />
-                            </CardContent>
-                        ) : overview.recentAudit.length === 0 ? (
-                            <CardContent>
-                                <EmptyState compact title="No activity yet" description="Sign-ins, changes and pipeline events will appear here." />
-                            </CardContent>
-                        ) : (
-                            <AuditActivityList entries={overview.recentAudit} now={now} className="border-t border-border" />
-                        )}
-                    </Card>
-
-                    <div className="flex min-w-0 flex-col gap-6">
-                        <Card>
-                            <CardHeader title="Users by role" description={`${pluralize(totalUsers, "account")} of every status`} icon={<Users />} />
-                            <CardContent>
-                                <HorizontalBars
-                                    ariaLabel="Accounts per role"
-                                    items={ROLE_ORDER.map((role) => ({ label: ROLE_LABELS[role], value: overview.usersByRole[role] }))}
+                {(showActivity || showModels) && (
+                    <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
+                        {showActivity && (
+                            <Card className={showModels ? "min-w-0 overflow-hidden lg:col-span-2" : "min-w-0 overflow-hidden lg:col-span-3"}>
+                                <CardHeader
+                                    title="Recent activity"
+                                    description="Latest entries in the audit log"
+                                    icon={<ScrollText />}
+                                    action={<CardLink href={routes.admin.auditLogs}>Audit logs</CardLink>}
                                 />
-                            </CardContent>
-                            <CardFooter>
-                                <span className="text-fg-muted">
-                                    {invitations && (overview.invitedUsers > 0 ? `${pluralize(overview.invitedUsers, "invitation")} pending` : "No pending invitations")}
-                                </span>
-                                <Link href={routes.admin.users} className="font-medium text-primary-soft-fg hover:underline">
-                                    Manage users
-                                </Link>
-                            </CardFooter>
-                        </Card>
+                                {overview.recentAudit.length === 0 ? (
+                                    <CardContent>
+                                        <EmptyState compact title="No activity yet" description="Sign-ins, changes and pipeline events will appear here." />
+                                    </CardContent>
+                                ) : (
+                                    <AuditActivityList entries={overview.recentAudit} now={now} className="border-t border-border" />
+                                )}
+                            </Card>
+                        )}
 
-                        {platformFeatureAvailable("aiModels") && (
-                            <Card className="overflow-hidden">
+                        {showModels && (
+                            <Card className={showActivity ? "min-w-0 overflow-hidden" : "min-w-0 overflow-hidden lg:col-span-3"}>
                                 <CardHeader
                                     title="Model status"
                                     description="Active model per task"
@@ -341,7 +321,12 @@ export default async function AdminDashboardPage() {
                                                         <ModelStatusBadge status="active" size="sm" />
                                                     </div>
                                                 ) : (
-                                                    <p className="mt-1 text-sm text-danger-fg">No active model</p>
+                                                    <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+                                                        <p className="text-sm text-danger-fg">No active model</p>
+                                                        <Link href={routes.admin.aiModels} className="text-[13px] font-medium text-primary-soft-fg hover:underline">
+                                                            Promote one
+                                                        </Link>
+                                                    </div>
                                                 )}
                                                 {staging.map((model) => (
                                                     <div key={model.id} className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
@@ -358,7 +343,7 @@ export default async function AdminDashboardPage() {
                             </Card>
                         )}
                     </div>
-                </div>
+                )}
             </div>
         </>
     );
@@ -368,12 +353,13 @@ function jobSubject({ video, fighter, job }: AIJobListItem): string {
     return [video?.title ?? job.videoId, fighter?.name].filter(Boolean).join(" · ");
 }
 
-function QueueCard({ processing, queued, now }: { processing: AIJobListItem[]; queued: AIJobListItem[]; now: string }) {
+/** The AI analysis queue right now: running jobs with their progress, then the waiting ones in order. */
+function JobQueueCard({ processing, queued, now }: { processing: AIJobListItem[]; queued: AIJobListItem[]; now: string }) {
     const empty = processing.length === 0 && queued.length === 0;
     return (
         <Card className="overflow-hidden">
             <CardHeader
-                title="Current queue"
+                title="Analysis queue"
                 description={empty ? "Nothing in flight" : `${processing.length} processing · ${queued.length} queued`}
                 icon={<ListOrdered />}
             />

@@ -44,7 +44,6 @@ export default async function EditPlanPage({ params }: PageProps<"/coach/trainin
         startDate: dayKey(plan.startDate),
         endDate: plan.endDate === null ? "" : dayKey(plan.endDate),
         weeklySessionTarget: plan.weeklySessionTarget === null ? "" : String(plan.weeklySessionTarget),
-        status: plan.status === "active" ? "active" : "draft",
         notes: plan.notes,
     };
 
@@ -57,7 +56,6 @@ export default async function EditPlanPage({ params }: PageProps<"/coach/trainin
                 back={{ href: routes.coach.plan(plan.id), label: "Back to plan" }}
             />
             <PlanForm
-                mode="edit"
                 action={updatePlan.bind(null, plan.id)}
                 fighters={[toFighterOption(fighter)]}
                 clearances={clearances}

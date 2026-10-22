@@ -65,7 +65,6 @@ export function TechniqueCheckboxes({ name, id, legend, value, onChange, restric
                                     checked={value.includes(technique)}
                                     onChange={(event) => toggle(technique, event.target.checked)}
                                     aria-invalid={error ? true : undefined}
-                                    aria-required={required || undefined}
                                     aria-describedby={describedBy}
                                     className="sr-only"
                                 />

@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { forwardRef, useState } from "react";
-import { Pressable, StyleSheet, TextInput, type TextInputProps } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View, type TextInputProps } from "react-native";
 
 import { AuthUnderlineField } from "@/components/auth/auth-underline-field";
 import { useAuthChrome } from "@/components/auth/auth-shell";
@@ -13,6 +13,7 @@ type AuthTextFieldProps = TextInputProps & {
   helper?: string;
   helperPersistent?: boolean;
   secureToggle?: boolean;
+  prefix?: string;
 };
 
 export const AuthTextField = forwardRef<TextInput, AuthTextFieldProps>(
@@ -23,6 +24,7 @@ export const AuthTextField = forwardRef<TextInput, AuthTextFieldProps>(
       helper,
       helperPersistent,
       secureToggle,
+      prefix,
       secureTextEntry,
       onFocus,
       onBlur,
@@ -38,8 +40,41 @@ export const AuthTextField = forwardRef<TextInput, AuthTextFieldProps>(
     const [focused, setFocused] = useState(false);
     const [hidden, setHidden] = useState(true);
     const isSecure = secureToggle ? hidden : secureTextEntry;
-    const filled = String(value ?? defaultValue ?? "").length > 0;
+    const filled = Boolean(prefix) || String(value ?? defaultValue ?? "").length > 0;
     const invalidState = { invalid: Boolean(error) };
+
+    const input = (
+      <TextInput
+        ref={ref}
+        {...props}
+        value={value}
+        defaultValue={defaultValue}
+        secureTextEntry={isSecure}
+        placeholder={focused || filled ? placeholder : undefined}
+        placeholderTextColor={colors.inkSubtle}
+        accessibilityState={invalidState}
+        accessibilityLabel={error ? `${label}. ${error}` : label}
+        onFocus={(event) => {
+          setFocused(true);
+          chrome?.setInputFocused(true);
+          onFocus?.(event);
+        }}
+        onBlur={(event) => {
+          setFocused(false);
+          chrome?.setInputFocused(false);
+          onBlur?.(event);
+        }}
+        style={[
+          styles.input,
+          type.body,
+          { color: colors.ink },
+          prefix ? styles.prefixedInput : null,
+          props.multiline
+            ? { minHeight: 88, textAlignVertical: "top", paddingTop: spacing.md }
+            : null,
+        ]}
+      />
+    );
 
     return (
       <AuthUnderlineField
@@ -68,35 +103,14 @@ export const AuthTextField = forwardRef<TextInput, AuthTextFieldProps>(
         }
         accessibilityLabel={error ? `${label}. ${error}` : label}
       >
-        <TextInput
-          ref={ref}
-          {...props}
-          value={value}
-          defaultValue={defaultValue}
-          secureTextEntry={isSecure}
-          placeholder={focused || filled ? placeholder : undefined}
-          placeholderTextColor={colors.inkSubtle}
-          accessibilityState={invalidState}
-          accessibilityLabel={error ? `${label}. ${error}` : label}
-          onFocus={(event) => {
-            setFocused(true);
-            chrome?.setInputFocused(true);
-            onFocus?.(event);
-          }}
-          onBlur={(event) => {
-            setFocused(false);
-            chrome?.setInputFocused(false);
-            onBlur?.(event);
-          }}
-          style={[
-            styles.input,
-            type.body,
-            { color: colors.ink },
-            props.multiline
-              ? { minHeight: 88, textAlignVertical: "top", paddingTop: spacing.md }
-              : null,
-          ]}
-        />
+        {prefix ? (
+          <View style={styles.prefixRow}>
+            <Text style={[type.body, styles.prefix, { color: colors.inkMuted }]}>{prefix}</Text>
+            {input}
+          </View>
+        ) : (
+          input
+        )}
       </AuthUnderlineField>
     );
   },
@@ -109,6 +123,19 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     paddingHorizontal: 0,
     margin: 0,
+  },
+  prefixRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  prefix: {
+    flexShrink: 0,
+  },
+  prefixedInput: {
+    flex: 1,
+    width: undefined,
+    minWidth: 0,
   },
   eye: {
     width: 44,

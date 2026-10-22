@@ -6,6 +6,7 @@ import { cache } from "react";
 import { AssessmentForm } from "@/components/admissions/assessment-form";
 import { ApplicantDetailsList, AssessmentView } from "@/components/admissions/application-views";
 import { ApplicationStatusBadge } from "@/components/domain/status-badges";
+import { TermHint } from "@/components/domain/term-hint";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { requireRole } from "@/lib/auth/session";
@@ -54,7 +55,14 @@ export default async function CoachAdmissionPage({ params }: PageProps<"/coach/a
                 <Card>
                     <CardHeader
                         title="Entrance assessment"
-                        description={application.assessment ? undefined : "Record what you checked and what you saw. It can't be changed once saved."}
+                        description={
+                            application.assessment ? undefined : (
+                                <span className="inline-flex flex-wrap items-center gap-1">
+                                    Record what you checked and what you saw. It can&apos;t be changed once saved.
+                                    <TermHint term="entranceAssessment" />
+                                </span>
+                            )
+                        }
                         icon={<ClipboardCheck />}
                     />
                     <CardContent>

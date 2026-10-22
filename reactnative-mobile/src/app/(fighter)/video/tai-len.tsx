@@ -1,18 +1,23 @@
-import { blocked } from "@/i18n/blocked";
-import { BlockedFighterPage, DisabledForm } from "@/screens/parity/blocked-workspace";
+import { View } from "react-native";
+import { useRouter, type Href } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+import { useFighterPalette } from "@/screens/fighter/redesign/palette";
+import { VideoUploadContent } from "@/screens/media/video-upload";
+import { useFighterId } from "@/screens/fighter/use-fighter-id";
 
 export default function FighterUploadRoute() {
+  const colors = useFighterPalette();
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const { fighterId, canFetch } = useFighterId();
   return (
-    <BlockedFighterPage title={blocked.upload} extra={blocked.relatedJobs}>
-      <DisabledForm
-        cta={blocked.pickVideo}
-        fields={[
-          { label: "Tiêu đề" },
-          { label: "Loại tập (web: video training type)" },
-          { label: "Góc máy (front / side / diagonal trên web mock)" },
-          { label: "Ghi chú" },
-        ]}
+    <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: insets.top }}>
+      <VideoUploadContent
+        fighterId={canFetch ? fighterId : null}
+        onBack={() => router.back()}
+        onUploaded={(id) => router.replace(`/video/${id}` as Href)}
       />
-    </BlockedFighterPage>
+    </View>
   );
 }

@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import Toast from "react-native-toast-message";
 
 import { forgotPassword } from "@/api/auth";
 import { vi } from "@/i18n/vi";
@@ -30,11 +31,12 @@ describe("ForgotPasswordScreen", () => {
     jest.clearAllMocks();
   });
 
-  it("asks for an email before calling the API", async () => {
+  it("stays disabled until an email is entered and does not call the API", async () => {
     await renderScreen();
+    expect(screen.getByTestId("forgot-submit")).toBeDisabled();
     await fireEvent.press(screen.getByTestId("forgot-submit"));
-    expect(screen.getByText(vi.field.required)).toBeTruthy();
     expect(forgotPassword).not.toHaveBeenCalled();
+    expect(screen.queryByText(vi.field.required)).toBeNull();
   });
 
   it("sends the trimmed email and shows the neutral success copy", async () => {
@@ -45,6 +47,11 @@ describe("ForgotPasswordScreen", () => {
     await waitFor(() =>
       expect(forgotPassword).toHaveBeenCalledWith({ email: "Fighter@Example.com" }),
     );
-    expect(screen.getByText(vi.forgot.sent)).toBeTruthy();
+    await waitFor(() => {
+      expect(Toast.show).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "success", text1: vi.forgot.sent }),
+      );
+    });
+    expect(screen.queryByText(vi.forgot.sent)).toBeNull();
   });
 });

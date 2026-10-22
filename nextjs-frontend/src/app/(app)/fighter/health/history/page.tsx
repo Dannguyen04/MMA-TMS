@@ -55,7 +55,7 @@ export default async function FighterMedicalHistoryPage() {
                 <Card className="min-w-0 lg:col-span-5">
                     <CardHeader title="Timeline" description={pluralize(timeline.length, "event")} icon={<History />} />
                     <CardContent>
-                        <ActivityTimeline items={timeline} now={now} emptyText="Nothing recorded yet. Your first entry will be your baseline physical." />
+                        <ActivityTimeline items={timeline} now={now} emptyText="Nothing recorded yet. Your first entry will be your baseline exam." />
                     </CardContent>
                 </Card>
 

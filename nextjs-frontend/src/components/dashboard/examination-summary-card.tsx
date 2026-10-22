@@ -57,8 +57,8 @@ export function ExaminationSummaryCard({ examination, doctorName, historyHref, n
                         title={compact ? "No medical checks yet" : "No examinations yet"}
                         description={
                             compact
-                                ? "Your sports doctor starts with a baseline physical."
-                                : "Your sports doctor starts with a baseline physical and records every check-up here."
+                                ? "Your sports doctor starts with a baseline exam."
+                                : "Your sports doctor starts with a baseline exam and records every check-up here."
                         }
                         className="pt-0"
                     />

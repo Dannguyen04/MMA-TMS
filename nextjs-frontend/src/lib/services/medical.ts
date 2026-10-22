@@ -40,7 +40,7 @@ import type { ClearanceStatus, ClinicalDossier } from "./medical.api";
  * milestones) exist only in API mode; demo mode keeps its own forms for those.
  */
 
-export type { ClearanceStatus, ClinicalDossier, CurrentExamination } from "./medical.api";
+export type { ClearanceStatus, ClinicalDossier, CurrentExamination, CurrentExaminationDetails } from "./medical.api";
 export type {
     AddTreatmentInput,
     ClearanceFilter,
@@ -236,6 +236,15 @@ export async function createReviewRequest(fighterId: string, reason: string, act
 export async function getClinicalDossier(fighterId: string): Promise<ClinicalDossier | null> {
     if (isDemoAuthEnabled()) return null;
     return api.clinicalDossier(fighterId);
+}
+
+/**
+ * The dossier read fresh from the service, for checking whether a write it didn't confirm was saved before anything is
+ * sent again. Null in demo mode, whose writes always answer.
+ */
+export async function rereadClinicalDossier(fighterId: string): Promise<ClinicalDossier | null> {
+    if (isDemoAuthEnabled()) return null;
+    return api.rereadClinicalDossier(fighterId);
 }
 
 /** Records an examination decision for a scope. API mode only; demo mode records vitals-based examinations. */

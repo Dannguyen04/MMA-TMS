@@ -49,6 +49,7 @@ export function apiErrorFromBody(status: number, body: unknown): ApiError {
 export const MEDICAL_GATE_CODE = "TRAINING_MEDICAL_ELIGIBILITY_REQUIRED";
 
 export const MEDICAL_ELIGIBILITY_REASONS = [
+  "EXAMINATION_REQUIRED",
   "REVIEW_REQUEST_PENDING",
   "EXAMINATION_NOT_ELIGIBLE",
   "CLEARANCE_REQUIRED",

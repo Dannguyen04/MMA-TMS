@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { buildCoachAttention, COACH_QUEUE_META, COACH_QUEUES, type CoachQueue } from "@/components/dashboard/coach-attention";
-import { firstName, greetingFor } from "@/components/dashboard/dashboard-utils";
+import { greetingTitle } from "@/components/dashboard/dashboard-utils";
 import { QueueCard } from "@/components/dashboard/queue-card";
 import { loadRoster } from "@/components/dashboard/roster-data";
 import { TodaySchedule } from "@/components/dashboard/today-schedule";
@@ -26,7 +26,7 @@ import { listGoals } from "@/lib/services/goals";
 import { listFighters } from "@/lib/services/people";
 import { platformFeatureAvailable } from "@/lib/services/platform-features";
 import { getNavBadgeCounts } from "@/lib/services/shell";
-import { listSessions } from "@/lib/services/training";
+import { listPlans, listSessions } from "@/lib/services/training";
 import { listReviewQueue } from "@/lib/services/videos";
 import { param } from "@/lib/utils";
 
@@ -36,7 +36,8 @@ const MISSED_WINDOW_DAYS = 7;
 
 /**
  * The coach's Today page answers one question: what needs me now? One corner queue, filterable by group, and
- * today's schedule beside it. Roster trends, volume and feedback live in their own hubs.
+ * today's schedule beside it. The queue also carries the coach's hand-off of fighters cleared to train who still need
+ * a plan; bouts that need a look sit above it. Roster trends, volume and feedback live in their own hubs.
  */
 export default async function CoachDashboardPage({ searchParams }: PageProps<"/coach/dashboard">) {
     const user = await requireRole("coach");
@@ -52,7 +53,7 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
     const weekEnd = new Date(Date.parse(academyDayStartIso(addDaysToKey(weekKey, 7))) - 1).toISOString();
 
     const fighterList = listFighters(user);
-    const [fighters, roster, weekSessions, reviewQueue, missed, goalsAtRisk, settings, weightAlerts, bouts] = await Promise.all([
+    const [fighters, roster, weekSessions, reviewQueue, missed, goalsAtRisk, settings, plans, weightAlerts, bouts] = await Promise.all([
         fighterList,
         loadRoster(user, now, { fighters: fighterList, performance: false }),
         listSessions({ fighterIds: scope, from: weekStart, to: weekEnd }),
@@ -61,6 +62,8 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
         // Without the goals service the Goals group is left out.
         platformFeatureAvailable("goals") ? listGoals({ fighterIds: scope, status: "at_risk" }) : null,
         getSettings(),
+        // Every status, so a fighter whose only plan is a draft is told to finish it rather than start another.
+        listPlans({ fighterIds: scope }),
         listWeightAlerts(scope, new Date(now)),
         listCampBouts(scope),
     ]);
@@ -80,10 +83,12 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
         reviewCount,
         missed,
         goalsAtRisk: goalsAtRisk ?? [],
+        plans,
         warningDays: settings.clearanceExpiryWarningDays,
         now,
     });
-    const queues = COACH_QUEUES.filter((queue) => queue !== "goals" || goalsAtRisk !== null);
+    // Admissions are frozen (T-001, context 19/10): coaches no longer assess applicants, so that group stays out.
+    const queues = COACH_QUEUES.filter((queue) => queue !== "applicants" && (queue !== "goals" || goalsAtRisk !== null));
     const queue = parseEnum(param(query.queue), queues);
 
     const todaySessions = weekSessions.filter((session) => session.scheduledAt >= todayStart && session.scheduledAt < tomorrowStart);
@@ -94,7 +99,7 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
         <>
             <PageHeader
                 eyebrow={formatWeekdayDate(now)}
-                title={`${greetingFor(now)}, ${firstName(user.name)}`}
+                title={greetingTitle(now, user)}
                 description={`${pluralize(fighters.length, "fighter")} in your corner · ${pluralize(todayActive.length, "session")} today`}
                 actions={
                     <>
@@ -174,7 +179,10 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
                     meta={COACH_QUEUE_META}
                     active={queue}
                     hrefFor={(next: CoachQueue | null) => hrefWith(routes.coach.dashboard, query, { queue: next })}
-                    emptyAll={{ title: "Nothing needs your attention", description: "No clearance problems, session clashes, analyses to review or goals at risk." }}
+                    emptyAll={{
+                        title: "Nothing needs your attention",
+                        description: "No clearance problems or session clashes, every cleared fighter has a plan, and no analyses are waiting for you.",
+                    }}
                     className="lg:col-span-2"
                 />
 

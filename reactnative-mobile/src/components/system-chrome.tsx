@@ -1,4 +1,5 @@
 import { NavigationBar, setVisibilityAsync as setNavVisibilityAsync } from "expo-navigation-bar";
+import { usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
 import { useEffect } from "react";
@@ -9,13 +10,17 @@ import { useSplashLock } from "@/components/launch/splash-lock";
 
 export function SystemChrome() {
   const locked = useSplashLock();
+  const pathname = usePathname();
   const { colors } = useThemePreference();
+  const visionAuth =
+    pathname === "/login" || pathname === "/register" || pathname === "/forgot-password";
   /** Home under ice uses app bg (`#090A0C`), not splash `#000`. */
   const bg = colors.bg;
   const lightIcons = locked ? true : chromeLightIcons(colors.bg);
   const navBarStyle = lightIcons ? "dark" : "light";
 
   useEffect(() => {
+    if (visionAuth) return;
     void SystemUI.setBackgroundColorAsync(bg);
 
     if (Platform.OS !== "android") return;
@@ -55,12 +60,14 @@ export function SystemChrome() {
     NavigationBar.setHidden(false);
     void setNavVisibilityAsync("visible");
     NavigationBar.setStyle(navBarStyle);
-  }, [bg, lightIcons, locked, navBarStyle]);
+  }, [bg, lightIcons, locked, navBarStyle, visionAuth]);
 
   return (
     <>
-      <StatusBar style={lightIcons ? "light" : "dark"} hidden={locked} />
-      {Platform.OS === "android" ? <NavigationBar style={navBarStyle} hidden={locked} /> : null}
+      <StatusBar style={visionAuth || lightIcons ? "light" : "dark"} hidden={locked} />
+      {Platform.OS === "android" ? (
+        <NavigationBar style={visionAuth ? "dark" : navBarStyle} hidden={locked} />
+      ) : null}
     </>
   );
 }

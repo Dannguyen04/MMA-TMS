@@ -36,7 +36,7 @@ adb reverse tcp:3001 tcp:3001
 adb reverse --list
 ```
 
-From this folder: `npm run adb:api`. `npm run android` / `npm run run:android` also set this reverse. `start_all.bat` tries it when Nest is up and a device is connected.
+From this folder: `npm run adb:api`. `npm run android` / `npm run run:android` also set this reverse; plain `npx expo run:android` does not. `start_all.bat` tries it when Nest is up and a device is connected. With Metro over USB the phone has no LAN bundler IP, so the app keeps `localhost:3001` and relies on this reverse.
 
 Redo reverse after unplugging USB. Then retry login — Metro does not need a restart.
 

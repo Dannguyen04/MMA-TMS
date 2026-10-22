@@ -1,7 +1,7 @@
 import "server-only";
 
 import { TRAINING_TYPE_LABELS } from "@/lib/domain/labels";
-import type { PlanExerciseFields } from "@/lib/domain/training-contract";
+import { EXERCISE_CATEGORY_FOR, exerciseCreateBody, serviceExerciseCategoryFor, type ExerciseFields, type PlanExerciseFields } from "@/lib/domain/training-contract";
 import { checkTrainingAgainstClearance, currentClearance, type ClearanceConflict } from "@/lib/domain/rules";
 import type {
     BodyRegion,
@@ -30,6 +30,11 @@ import type {
     ExerciseFilter,
     FeedbackFilter,
     FeedbackInput,
+    LibraryExercise,
+    LibraryFilter,
+    PlanCreation,
+    PlanExerciseInput,
+    PlanExercisesResult,
     PlanFilter,
     PlanInput,
     PlanUpdateInput,
@@ -88,6 +93,54 @@ export async function listExercises(filter: ExerciseFilter = {}): Promise<Exerci
         );
 }
 
+/** Details the demo library keeps for exercises added here; the seed has no muscle groups or videos. */
+const libraryExtras = new Map<string, Pick<LibraryExercise, "targetMuscleGroups" | "videoUrl">>();
+
+function toLibraryExercise(exercise: Exercise): LibraryExercise {
+    const extras = libraryExtras.get(exercise.id);
+    return {
+        id: exercise.id,
+        name: exercise.name,
+        category: serviceExerciseCategoryFor(exercise.category),
+        description: exercise.description,
+        targetMuscleGroups: extras?.targetMuscleGroups ?? [],
+        videoUrl: extras?.videoUrl ?? null,
+    };
+}
+
+/** The library as administrators manage it, in the training service's categories, sorted by name. */
+export async function listExerciseCatalog(filter: LibraryFilter = {}): Promise<LibraryExercise[]> {
+    await simulateLatency();
+    return db()
+        .exercises.map(toLibraryExercise)
+        .filter((exercise) => (!filter.category || exercise.category === filter.category) && matchesSearch(filter.search, exercise.name))
+        .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** Adds an exercise to the library, like the training service's administrator-only create. */
+export async function createExercise(input: ExerciseFields, actor: User): Promise<LibraryExercise> {
+    await simulateLatency(0.5);
+    const body = exerciseCreateBody(input);
+    const exercise: Exercise = {
+        id: newId("exr"),
+        name: body.name,
+        category: EXERCISE_CATEGORY_FOR[body.category],
+        description: body.description ?? "",
+        techniques: [],
+        intensity: null,
+        equipment: [],
+        defaultRounds: null,
+        defaultRoundSec: null,
+        defaultSets: null,
+        defaultReps: null,
+        loadsRegions: [],
+    };
+    db().exercises.push(exercise);
+    libraryExtras.set(exercise.id, { targetMuscleGroups: body.targetMuscleGroups, videoUrl: body.videoUrl });
+    recordAudit({ actor, action: "exercise.create", resourceType: "settings", resourceId: exercise.id, resourceLabel: exercise.name, details: `Exercise library, ${body.category}` });
+    return toLibraryExercise(exercise);
+}
+
 /* ─── Training plans ──────────────────────────────────────────────────────── */
 
 const PLAN_STATUS_ORDER: PlanStatus[] = ["active", "draft", "completed", "archived"];
@@ -135,7 +188,7 @@ function notifyPlanActivated(plan: TrainingPlan, actor: User): void {
         userIds,
         category: "training",
         title: "New training plan",
-        body: `${plan.title} is now active. Objective: ${plan.objective}`,
+        body: plan.objective ? `${plan.title} is now active. Objective: ${plan.objective}` : `${plan.title} is now active.`,
         href: routes.fighter.plan(plan.id),
     });
 }
@@ -170,6 +223,17 @@ export async function createPlan(input: PlanInput, actor: User): Promise<Trainin
     });
     if (plan.status === "active") notifyPlanActivated(plan, actor);
     return plan;
+}
+
+/**
+ * Like the training service flow: the plan is created as a draft, its exercises are added in order, and only then is
+ * it activated when asked, so the fighter is notified about a complete plan. It stays a draft when an exercise fails.
+ */
+export async function createPlanWithExercises(input: PlanInput, exercises: PlanExerciseInput[], actor: User): Promise<PlanCreation> {
+    const plan = await createPlan({ ...input, status: "draft" }, actor);
+    const { failed } = await addPlanExercises(plan.id, exercises, actor);
+    if (input.status !== "active" || failed.length > 0) return { plan, failedExercises: failed };
+    return { plan: (await setPlanStatus(plan.id, "active", actor)) ?? plan, failedExercises: [] };
 }
 
 /** Updates plan details. Returns null when the plan doesn't exist. */
@@ -674,6 +738,19 @@ export async function addPlanExercise(planId: string, exerciseId: string, input:
     store.planExercises.push(item);
     planExerciseAudit("training_plan.add_exercise", item, actor);
     return item;
+}
+
+/** Adds exercises at the end of the plan in order; one the library no longer has is reported, like the service does. */
+export async function addPlanExercises(planId: string, items: PlanExerciseInput[], actor: User): Promise<PlanExercisesResult> {
+    const result: PlanExercisesResult = { added: [], failed: [] };
+    for (const [index, { exerciseId, ...input }] of items.entries()) {
+        if (!db().exercises.some((exercise) => exercise.id === exerciseId)) {
+            result.failed.push({ index, exerciseId, message: "That exercise is no longer in the library. Reload the page and choose another." });
+            continue;
+        }
+        result.added.push(await addPlanExercise(planId, exerciseId, input, actor));
+    }
+    return result;
 }
 
 export async function updatePlanExercise(planId: string, id: string, input: PlanExerciseFields, actor: User): Promise<PlanExercise | null> {

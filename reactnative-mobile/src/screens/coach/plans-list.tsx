@@ -3,10 +3,12 @@ import { Pressable, Text, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 
 import { listExercises, listTrainingPlans, type Exercise, type TrainingPlan } from "@/api";
+import { useToastMessage } from "@/components/toast/app-toast";
 import { coach } from "@/i18n/coach";
 import { coachErrorMessage, coachHref } from "@/screens/coach/coach-error";
 import { CoachBanner, CoachCard, CoachPrimaryButton, CoachScaffold } from "@/screens/coach/coach-ui";
 import { useSession } from "@/session/session-context";
+import { planPhaseLabel } from "@/training/plan-phase";
 import { spacing, type, useThemePreference } from "@/theme";
 
 export function CoachPlansScreen() {
@@ -16,6 +18,7 @@ export function CoachPlansScreen() {
   const [plans, setPlans] = useState<TrainingPlan[]>([]);
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [error, setError] = useState("");
+  useToastMessage(error, "error");
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(() => {
@@ -58,7 +61,6 @@ export function CoachPlansScreen() {
       keyboard
       action={<CoachPrimaryButton title={coach.newPlan} onPress={() => router.push(coachHref("/(coach)/plans/new"))} />}
     >
-      {error ? <CoachBanner message={error} tone="danger" /> : null}
       {loading && plans.length === 0 ? <CoachBanner message={coach.loading} /> : null}
       {plans.length === 0 && !loading ? <CoachBanner message={coach.emptyPlans} /> : null}
       <View style={{ gap: spacing.md }}>
@@ -66,7 +68,7 @@ export function CoachPlansScreen() {
           <CoachCard key={row.id} onPress={() => router.push(coachHref(`/(coach)/plans/${row.id}`))}>
             <Text style={[type.body, { color: colors.ink }]}>{row.title}</Text>
             <Text style={[type.caption, { color: colors.inkMuted, lineHeight: 16 }]}>
-              {coach.planStatus[row.status]} · {row.startDate}
+              {coach.planStatus[row.status]} · {planPhaseLabel(row.phase)} · {row.startDate}
               {row.endDate ? ` → ${row.endDate}` : ""}
             </Text>
           </CoachCard>

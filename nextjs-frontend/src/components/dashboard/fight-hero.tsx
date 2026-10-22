@@ -1,23 +1,31 @@
-import { CalendarOff, ClipboardList, HeartPulse, ShieldX } from "lucide-react";
+import { ArrowRight, Camera, ClipboardList, Clock, HeartPulse, PenLine, ShieldQuestion, ShieldX, Sparkles, TriangleAlert, Upload, UserCheck, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { FighterJourney } from "@/components/domain/fighter-journey";
 import { TrainingTypeIcon } from "@/components/domain/training-type-icon";
 import { plannedEndMs, rpeText } from "@/components/training/training-utils";
 import { ButtonLink } from "@/components/ui/button";
 import { CornerTag } from "@/components/ui/corner-tag";
+import { AI_REVIEW_TERMS, formatReviewCounts } from "@/lib/domain/ai-review";
+import type { FighterJourney as Journey } from "@/lib/domain/journey";
 import { TRAINING_PHASE_LABELS, TRAINING_TYPE_LABELS, WEIGHT_CLASS_LABELS } from "@/lib/domain/labels";
-import type { TrainingPhase, TrainingSession, UpcomingBout } from "@/lib/domain/types";
-import { formatPercent, formatShortDate, formatTime, formatWeekdayDate } from "@/lib/format";
+import { isLowConfidence } from "@/lib/domain/rules";
+import type { AIFeedback, TrainingPhase, TrainingSession, UpcomingBout } from "@/lib/domain/types";
+import { formatConfidence, formatDateTime, formatPercent, formatRelative, formatShortDate, formatTime, formatWeekdayDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { relativeDay } from "./dashboard-utils";
 import { campDayLabel, campTimeline } from "./fight-camp";
 
-/** What the right half of the hero shows: the next session, why training is paused, or that nothing is booked. */
+/** What the right half of the hero shows: the one thing to do next, or what training waits for. */
 export type NextUp =
     | { kind: "session"; session: TrainingSession; coachName?: string; href: string; note?: ReactNode }
     | { kind: "paused"; reason: "not_cleared" | "expired"; doctorName?: string; followUpDate: string | null; healthHref: string }
-    | { kind: "none"; scheduleHref: string };
+    /** Training can't start yet: the journey step in the way, in plain words, and who's on it. */
+    | { kind: "blocked"; title: string; body: string; owner: string; attention: boolean; healthHref: string }
+    /** Cleared and nothing blocks: get the AI on the fighter's technique. */
+    | { kind: "analyse"; reason: "first" | "again" | "retry"; uploadHref: string; liveCheckHref: string }
+    | { kind: "processing"; videoTitle: string; uploadedAt: string; href: string };
 
 /** The active training plan, shown as one line under the camp. */
 export interface HeroPlan {
@@ -27,11 +35,27 @@ export interface HeroPlan {
     adherencePct: number | null;
 }
 
+/** The latest AI analysis, led by one finding. */
+export interface HeroAnalysis {
+    href: string;
+    videoTitle: string;
+    processedAt: string;
+    /** The finding to lead with, already phrased as an observation; null when there's none to show. */
+    headline: { title: string; confidence: number; review: AIFeedback | null } | null;
+    /** Who signed off the whole analysis, if a coach has. */
+    coachReviewer: string | null;
+    /** Unreviewed detections below the low-confidence threshold. */
+    lowConfidenceDetections: number;
+}
+
 export interface FightHeroProps {
     bout: UpcomingBout | null;
     /** Start of the fight-camp plan preparing this bout, if there is one. */
     campStart: string | null;
     plan: HeroPlan | null;
+    /** Shown in place of the camp while the fighter's journey to training isn't complete. */
+    journey: Journey | null;
+    analysis: HeroAnalysis | null;
     next: NextUp;
     /** Server time (ISO). */
     now: string;
@@ -39,15 +63,26 @@ export interface FightHeroProps {
 }
 
 /**
- * The fighter's Today hero: the fight-camp countdown on the blue-corner ground, and the one thing to do next.
- * Server Component.
+ * The fighter's Today hero on the blue-corner ground: their journey to training while it's incomplete, otherwise the
+ * fight-camp countdown or the latest AI analysis; and the one thing to do next beside it. Server Component.
  */
-export function FightHero({ bout, campStart, plan, next, now, className }: FightHeroProps) {
+export function FightHero({ bout, campStart, plan, journey, analysis, next, now, className }: FightHeroProps) {
     return (
-        <section aria-label="Fight camp and next session" className={cn("grid min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]", className)}>
+        <section aria-label="Your next step" className={cn("grid min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]", className)}>
             <div className="relative isolate flex min-w-0 flex-col gap-4 px-6 py-6 text-white sm:px-7">
                 <div aria-hidden className="absolute inset-0 -z-10 chamfer-tl cage-hatch bg-hero-bg" />
-                {bout ? <Camp bout={bout} campStart={campStart} now={now} /> : <OffCamp plan={plan} />}
+                {journey ? (
+                    <FighterJourney journey={journey} variant="full" ground="hero" hideNextAction />
+                ) : bout ? (
+                    <>
+                        <Camp bout={bout} campStart={campStart} now={now} />
+                        {analysis && <AnalysisLine analysis={analysis} />}
+                    </>
+                ) : analysis ? (
+                    <AnalysisLead analysis={analysis} now={now} />
+                ) : (
+                    <OffCamp plan={plan} />
+                )}
                 {plan && <PlanLine plan={plan} />}
             </div>
             <div className="relative isolate flex min-w-0 flex-col gap-3.5 px-6 py-6 sm:px-7">
@@ -56,6 +91,11 @@ export function FightHero({ bout, campStart, plan, next, now, className }: Fight
             </div>
         </section>
     );
+}
+
+/** Whether a session is under way at `now`. */
+export function isSessionLive(session: Pick<TrainingSession, "status" | "scheduledAt" | "durationMin">, now: string): boolean {
+    return session.status === "in_progress" || (Date.parse(session.scheduledAt) <= Date.parse(now) && plannedEndMs(session) > Date.parse(now));
 }
 
 function Camp({ bout, campStart, now }: { bout: UpcomingBout; campStart: string | null; now: string }) {
@@ -127,6 +167,86 @@ function OffCamp({ plan }: { plan: HeroPlan | null }) {
     );
 }
 
+/* ─── AI analysis ─────────────────────────────────────────────────────────── */
+
+/** How far a human has checked the analysis, in the review badges' words, as an icon and a label (the hero ground takes no tone badges). */
+function reviewState(analysis: HeroAnalysis): { icon: LucideIcon; label: string } {
+    const review = analysis.headline?.review;
+    if (review?.decision === "confirmed") return { icon: UserCheck, label: `Confirmed by ${review.reviewerName}` };
+    if (review?.decision === "corrected") return { icon: PenLine, label: `Corrected by ${review.reviewerName}` };
+    if (analysis.coachReviewer) return { icon: UserCheck, label: `Coach reviewed · ${analysis.coachReviewer}` };
+    const [lowConfidence] = formatReviewCounts({ lowConfidenceDetections: analysis.lowConfidenceDetections });
+    if (lowConfidence) return { icon: TriangleAlert, label: `${AI_REVIEW_TERMS.needsReview} · ${lowConfidence}` };
+    return { icon: Clock, label: "Awaiting coach review" };
+}
+
+function confidenceText(headline: NonNullable<HeroAnalysis["headline"]>): string {
+    const text = `${formatConfidence(headline.confidence)} confidence`;
+    return headline.review === null && isLowConfidence(headline.confidence) ? `${text} · ${AI_REVIEW_TERMS.needsReview.toLowerCase()}` : text;
+}
+
+/** The latest analysis as the hero's lead: one finding, how sure the AI is, and whether a coach has checked it. */
+function AnalysisLead({ analysis, now }: { analysis: HeroAnalysis; now: string }) {
+    const { headline } = analysis;
+    const state = reviewState(analysis);
+    return (
+        <>
+            <CornerTag tone="stage">
+                <Sparkles aria-hidden />
+                Latest AI analysis
+            </CornerTag>
+            <div>
+                <h2 className="font-display text-[30px] leading-[1.05] font-extrabold text-balance italic sm:text-[34px]">
+                    {headline ? (
+                        <>
+                            <span className="sr-only">AI finding: </span>
+                            {headline.title}
+                        </>
+                    ) : (
+                        "Your analysis is ready"
+                    )}
+                </h2>
+                <p className="mt-1 text-[15px] text-pretty text-white/85">
+                    {analysis.videoTitle} · analysed{" "}
+                    <time dateTime={analysis.processedAt} title={formatDateTime(analysis.processedAt)}>
+                        {formatRelative(analysis.processedAt, now)}
+                    </time>
+                </p>
+            </div>
+            <ul className="flex flex-wrap gap-x-4 gap-y-1.5 text-[13px] text-white">
+                <li className="inline-flex items-center gap-1.5">
+                    <Sparkles aria-hidden className="size-3.5 shrink-0" />
+                    {headline ? `AI-generated · ${confidenceText(headline)}` : "AI-generated"}
+                </li>
+                <li className="inline-flex items-center gap-1.5">
+                    <state.icon aria-hidden className="size-3.5 shrink-0" />
+                    {state.label}
+                </li>
+            </ul>
+            <p className="text-[13px] text-pretty text-white/85">AI results are estimates. Your coach reviews them; treat unreviewed items as a guide.</p>
+            <Link href={analysis.href} className="inline-flex w-fit items-center gap-1 rounded-sm text-[14px] font-semibold text-white underline-offset-2 hover:underline">
+                Open the analysis
+                <ArrowRight aria-hidden className="size-4" />
+            </Link>
+        </>
+    );
+}
+
+/** One line under the fight camp for the latest analysis. */
+function AnalysisLine({ analysis }: { analysis: HeroAnalysis }) {
+    const state = reviewState(analysis);
+    return (
+        <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 border-t border-white/20 pt-3 text-[13px] text-white/85">
+            <Sparkles aria-hidden className="size-3.5 shrink-0" />
+            <span className="sr-only">Latest AI analysis: </span>
+            <Link href={analysis.href} className="min-w-0 rounded-sm font-medium text-white underline-offset-2 hover:underline">
+                {analysis.headline?.title ?? analysis.videoTitle}
+            </Link>
+            <span>· {state.label}</span>
+        </p>
+    );
+}
+
 function PlanLine({ plan }: { plan: HeroPlan }) {
     return (
         <p className="mt-auto flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 border-t border-white/20 pt-3 text-[13px] text-white/85">
@@ -140,6 +260,8 @@ function PlanLine({ plan }: { plan: HeroPlan }) {
     );
 }
 
+/* ─── Next up ─────────────────────────────────────────────────────────────── */
+
 const PAUSED_COPY: Record<"not_cleared" | "expired", { title: string; body: string }> = {
     not_cleared: {
         title: "Not medically cleared",
@@ -151,56 +273,126 @@ const PAUSED_COPY: Record<"not_cleared" | "expired", { title: string; body: stri
     },
 };
 
+const ANALYSE_COPY: Record<"first" | "again" | "retry", { title: string; body: string }> = {
+    first: {
+        title: "Get your first AI analysis",
+        body: "Film a round of shadow boxing, pads or bag work. The AI maps your strikes, guard and footwork, and your coach reviews what it finds.",
+    },
+    again: {
+        title: "Put your next round under the AI",
+        body: "Upload a new round to track your technique over time. Your coach reviews what the AI finds.",
+    },
+    retry: {
+        title: "Your last upload didn't process",
+        body: "Try another clip with your whole body in frame, in steady light, with only you in the shot.",
+    },
+};
+
 function NextUpPanel({ next, now }: { next: NextUp; now: string }) {
-    if (next.kind === "paused") {
-        const copy = PAUSED_COPY[next.reason];
-        return (
-            <>
-                <CornerTag tone="red">
-                    <ShieldX aria-hidden />
-                    Training paused
-                </CornerTag>
-                <h2 className="text-[17px] leading-snug font-semibold text-fg">{copy.title}</h2>
-                <p className="text-sm text-pretty text-fg-muted">{copy.body}</p>
-                <p className="text-[13px] text-fg-muted">
-                    Next check with your doctor:{" "}
-                    {next.followUpDate ? (
-                        <span className="font-medium text-fg">
-                            <time dateTime={next.followUpDate}>{formatWeekdayDate(next.followUpDate)}</time>
-                            {next.doctorName ? ` with ${next.doctorName}` : ""}
-                        </span>
-                    ) : (
-                        "your doctor will arrange it"
-                    )}
-                </p>
-                <ButtonLink href={next.healthHref} className="mt-auto w-fit">
-                    <HeartPulse aria-hidden />
-                    View health &amp; clearance
-                </ButtonLink>
-            </>
-        );
+    switch (next.kind) {
+        case "paused":
+            return <PausedPanel next={next} />;
+        case "blocked":
+            return (
+                <>
+                    <CornerTag tone={next.attention ? "red" : "neutral"}>
+                        {next.attention ? <ShieldX aria-hidden /> : <ShieldQuestion aria-hidden />}
+                        {next.attention ? "Training paused" : "Before you train"}
+                    </CornerTag>
+                    <h2 className="text-[17px] leading-snug font-semibold text-pretty text-fg">{next.title}</h2>
+                    <p className="text-sm text-pretty text-fg-muted">{next.body}</p>
+                    <p className="text-[13px] text-fg-muted">
+                        With: <span className="font-medium text-fg">{next.owner}</span>
+                    </p>
+                    <ButtonLink href={next.healthHref} variant="secondary" className="mt-auto w-fit">
+                        <HeartPulse aria-hidden />
+                        View health &amp; care team
+                    </ButtonLink>
+                </>
+            );
+        case "analyse": {
+            const copy = ANALYSE_COPY[next.reason];
+            return (
+                <>
+                    <CornerTag tone="blue">
+                        <Sparkles aria-hidden />
+                        AI analysis
+                    </CornerTag>
+                    <h2 className="text-[17px] leading-snug font-semibold text-pretty text-fg">{copy.title}</h2>
+                    <p className="text-sm text-pretty text-fg-muted">{copy.body}</p>
+                    <div className="mt-auto flex flex-wrap items-center gap-2">
+                        {/* The label wraps in the narrow half of the hero rather than overflowing it. */}
+                        <ButtonLink href={next.uploadHref} className="h-auto! min-h-9 py-2 text-left whitespace-normal!">
+                            <Upload aria-hidden />
+                            Upload a video for AI analysis
+                        </ButtonLink>
+                        <ButtonLink href={next.liveCheckHref} variant="ghost">
+                            <Camera aria-hidden />
+                            Live form check
+                        </ButtonLink>
+                    </div>
+                </>
+            );
+        }
+        case "processing":
+            return (
+                <>
+                    <CornerTag tone="blue">
+                        <Sparkles aria-hidden />
+                        AI analysis
+                    </CornerTag>
+                    <h2 className="text-[17px] leading-snug font-semibold text-pretty text-fg">The AI is analysing your video</h2>
+                    <p className="text-sm text-pretty text-fg-muted">
+                        {next.videoTitle} · uploaded{" "}
+                        <time dateTime={next.uploadedAt} title={formatDateTime(next.uploadedAt)}>
+                            {formatRelative(next.uploadedAt, now)}
+                        </time>
+                        . The results land here, and your coach reviews them.
+                    </p>
+                    <ButtonLink href={next.href} variant="secondary" className="mt-auto w-fit">
+                        View progress
+                    </ButtonLink>
+                </>
+            );
+        case "session":
+            return <SessionPanel next={next} now={now} />;
     }
+}
 
-    if (next.kind === "none") {
-        return (
-            <>
-                <CornerTag tone="neutral">
-                    <CalendarOff aria-hidden />
-                    Nothing scheduled
-                </CornerTag>
-                <h2 className="text-[17px] leading-snug font-semibold text-fg">No sessions scheduled</h2>
-                <p className="text-sm text-pretty text-fg-muted">Your coach hasn&apos;t scheduled your next session yet. New sessions show up here and in your schedule.</p>
-                <ButtonLink href={next.scheduleHref} variant="secondary" className="mt-auto w-fit">
-                    View schedule
-                </ButtonLink>
-            </>
-        );
-    }
+function PausedPanel({ next }: { next: Extract<NextUp, { kind: "paused" }> }) {
+    const copy = PAUSED_COPY[next.reason];
+    return (
+        <>
+            <CornerTag tone="red">
+                <ShieldX aria-hidden />
+                Training paused
+            </CornerTag>
+            <h2 className="text-[17px] leading-snug font-semibold text-fg">{copy.title}</h2>
+            <p className="text-sm text-pretty text-fg-muted">{copy.body}</p>
+            <p className="text-[13px] text-fg-muted">
+                Next check with your doctor:{" "}
+                {next.followUpDate ? (
+                    <span className="font-medium text-fg">
+                        <time dateTime={next.followUpDate}>{formatWeekdayDate(next.followUpDate)}</time>
+                        {next.doctorName ? ` with ${next.doctorName}` : ""}
+                    </span>
+                ) : (
+                    "your doctor will arrange it"
+                )}
+            </p>
+            <ButtonLink href={next.healthHref} className="mt-auto w-fit">
+                <HeartPulse aria-hidden />
+                View health &amp; clearance
+            </ButtonLink>
+        </>
+    );
+}
 
+function SessionPanel({ next, now }: { next: Extract<NextUp, { kind: "session" }>; now: string }) {
     const { session, coachName, href, note } = next;
     const end = session.durationMin === null ? null : new Date(plannedEndMs(session)).toISOString();
     const intensity = rpeText(session.targetRpe);
-    const inProgress = session.status === "in_progress" || (Date.parse(session.scheduledAt) <= Date.parse(now) && plannedEndMs(session) > Date.parse(now));
+    const inProgress = isSessionLive(session, now);
 
     return (
         <>

@@ -3,12 +3,14 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { ApiError } from "@/lib/api/client";
 import { canAccessFighter, canAccessFighterClinically } from "@/lib/auth/access";
 import { authorizeAction, authorizeClinicalAction } from "@/lib/auth/session";
 import { milestoneDrafts, widenedLists, type MilestoneDraft, type RestrictionLists } from "@/lib/domain/medical-bodies";
 import {
     API_INJURY_SEVERITIES,
     BODY_JOINTS,
+    CLEARANCE_TYPE_LABELS,
     CLEARANCE_TYPES,
     CLEARANCE_TYPES_BY_SCOPE,
     EXAMINATION_DECISIONS,
@@ -18,7 +20,12 @@ import {
     RECOVERY_MILESTONES_MAX,
     SESSION_TYPES,
     TECHNIQUE_TYPES,
+    type ClearanceType,
+    type ExaminationScope,
 } from "@/lib/domain/medical-contract";
+import { clearanceFromExamination, isRecordedAttempt, RECONCILE_FIELD, type ExaminationAttempt, type MedicalWriteData } from "@/lib/domain/medical-flow";
+import { friendlyScat6Issues } from "@/lib/domain/medical-scat6";
+import type { MedicalClearance } from "@/lib/domain/types";
 import { academyWallClockToIso, dayKey, isDateKey, isDateTimeInputValue } from "@/lib/format";
 import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
@@ -31,9 +38,10 @@ import {
     recordExaminationDecision,
     recordInjury,
     recordTreatment,
+    rereadClinicalDossier,
     updateMilestonePlan,
 } from "@/lib/services/medical";
-import { medicalWriteFailure, type MedicalWriteErrorOptions } from "@/lib/services/medical-errors";
+import { isUnconfirmedWrite, medicalWriteFailure, unconfirmedWriteMessages, type MedicalWriteErrorOptions } from "@/lib/services/medical-errors";
 import { allBlank } from "@/lib/utils";
 import { assessmentSchema, checkBloodPressure, checkFollowUpDate, EXAMINATION_TYPES, issuesOf, readVitals, scat6Field, scat6Issues, toVitals, VITAL_FIELDS } from "./examination-fields";
 import { NOT_ASSIGNED, checked, isInFuture, jsonArray, optionalDate, revalidateClinical, text, texts } from "./form-helpers";
@@ -214,7 +222,36 @@ const EXAMINATION_FIELDS: MedicalWriteErrorOptions = {
     conflictFields: { EXAMINATION_CORRECTION_CONFLICT: "supersedesId", REVIEW_REQUEST_NOT_RESOLVABLE: "reviewRequestIds" },
 };
 
-export async function recordExaminationDecisionAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+/** A failed write's state with the data the form reacts to (a retry that checks the record first, an existing clearance). */
+function withData(message: string, data: MedicalWriteData, fieldErrors?: Record<string, string>): ActionState<MedicalWriteData> {
+    return { status: "error", message, fieldErrors, data };
+}
+
+const EXAMINATION_UNCONFIRMED = unconfirmedWriteMessages("examination");
+const CLEARANCE_UNCONFIRMED = unconfirmedWriteMessages("clearance");
+
+type ExaminationCheck = { found: "saved"; id: string } | { found: "other" } | { found: "none" } | { found: "unchecked" };
+
+/**
+ * Reads the fighter's record again to tell whether this examination is already saved: the scope's current examination
+ * has the same time, decision and reasoning. A different examination recorded since the form opened is reported too,
+ * so nothing is sent twice. Never throws: an unreadable record is "unchecked".
+ */
+async function findRecordedExamination(fighterId: string, scope: ExaminationScope, attempt: ExaminationAttempt, knownCurrentId: string): Promise<ExaminationCheck> {
+    try {
+        const current = (await rereadClinicalDossier(fighterId))?.currentExaminations[scope] ?? null;
+        if (current && isRecordedAttempt(current, attempt)) return { found: "saved", id: current.id };
+        if (current && current.id !== knownCurrentId) return { found: "other" };
+        return { found: "none" };
+    } catch {
+        return { found: "unchecked" };
+    }
+}
+
+const RECORDED_SINCE =
+    "Another examination of this scope was recorded since you opened this form, perhaps your earlier attempt. Open the fighter's record to check it before recording again.";
+
+export async function recordExaminationDecisionAction(_prev: ActionState<MedicalWriteData>, formData: FormData): Promise<ActionState<MedicalWriteData>> {
     const auth = await authorizeClinicalAction("medical:write");
     if (!auth.ok) return actionError(auth.message);
 
@@ -239,7 +276,7 @@ export async function recordExaminationDecisionAction(_prev: ActionState, formDa
     const vitals = baseline || !allBlank(rawVitals) ? vitalsSchema.safeParse(rawVitals) : undefined;
     const scat6 = baseline ? scat6Field.safeParse(text(formData, "scat6")) : undefined;
     if (!parsed.success || vitals?.success === false || scat6?.success === false) {
-        return restrictionFormError(new z.ZodError([...issuesOf(parsed), ...issuesOf(vitals), ...scat6Issues(scat6)]));
+        return restrictionFormError(new z.ZodError([...issuesOf(parsed), ...issuesOf(vitals), ...friendlyScat6Issues(scat6Issues(scat6))]));
     }
     const input = parsed.data;
     if (!canAccessFighterClinically(auth.user, input.fighterId)) return actionError(NOT_ASSIGNED, { fighterId: "Choose one of your assigned fighters." });
@@ -247,29 +284,47 @@ export async function recordExaminationDecisionAction(_prev: ActionState, formDa
     const examinedAt = wallClockIso(input.examinedAt);
     if (isInFuture(examinedAt)) return actionError(FIX_FIELDS, { examinedAt: "The examination time can't be in the future." });
 
-    let examinationId: string;
-    try {
-        const exam = await recordExaminationDecision(input.fighterId, {
-            scope: input.scope,
-            decision: input.decision,
-            examinedAt,
-            reason: input.reason,
-            restrictions: { ...toLists(input.lists), notes: input.restrictionNotes || null },
-            validUntil: input.validUntil ? academyWallClockToIso(input.validUntil, "23:59") : null,
-            supersedesId: input.supersedesId || null,
-            reviewRequestIds: input.reviewRequestIds,
-            details: {
-                type: input.type,
-                vitals: vitals?.success ? toVitals(vitals.data) : null,
-                assessments: input.assessments,
-                recommendations: input.recommendations || null,
-                followUpDate: input.followUpDate || null,
-                scat6: scat6?.success ? scat6.data : null,
-            },
-        });
-        examinationId = exam.id;
-    } catch (error) {
-        return failed(error, EXAMINATION_FIELDS);
+    const attempt: ExaminationAttempt = { decision: input.decision, examinedAt, reason: input.reason };
+    const knownCurrentId = text(formData, "knownCurrentId");
+    let examinationId: string | null = null;
+
+    // After a write the service didn't confirm, the record is read before anything is sent again.
+    if (text(formData, RECONCILE_FIELD) === "1") {
+        const check = await findRecordedExamination(input.fighterId, input.scope, attempt, knownCurrentId);
+        if (check.found === "saved") examinationId = check.id;
+        else if (check.found === "other") return actionError(RECORDED_SINCE);
+        else if (check.found === "unchecked") return withData(EXAMINATION_UNCONFIRMED.unchecked, { unconfirmed: true });
+    }
+
+    if (examinationId === null) {
+        try {
+            const exam = await recordExaminationDecision(input.fighterId, {
+                scope: input.scope,
+                decision: input.decision,
+                examinedAt,
+                reason: input.reason,
+                restrictions: { ...toLists(input.lists), notes: input.restrictionNotes || null },
+                validUntil: input.validUntil ? academyWallClockToIso(input.validUntil, "23:59") : null,
+                supersedesId: input.supersedesId || null,
+                reviewRequestIds: input.reviewRequestIds,
+                details: {
+                    type: input.type,
+                    vitals: vitals?.success ? toVitals(vitals.data) : null,
+                    assessments: input.assessments,
+                    recommendations: input.recommendations || null,
+                    followUpDate: input.followUpDate || null,
+                    scat6: scat6?.success ? scat6.data : null,
+                },
+            });
+            examinationId = exam.id;
+        } catch (error) {
+            if (!isUnconfirmedWrite(error)) return failed(error, EXAMINATION_FIELDS);
+            // The service may have saved it: read the record before telling the doctor anything.
+            const check = await findRecordedExamination(input.fighterId, input.scope, attempt, knownCurrentId);
+            if (check.found === "other") return actionError(RECORDED_SINCE);
+            if (check.found !== "saved") return withData(check.found === "none" ? EXAMINATION_UNCONFIRMED.notFound : EXAMINATION_UNCONFIRMED.unchecked, { unconfirmed: true });
+            examinationId = check.id;
+        }
     }
 
     revalidateClinical();
@@ -296,7 +351,31 @@ const clearanceSchema = z
         }
     });
 
-export async function issueClearanceAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+const CLEARANCE_FIELDS: MedicalWriteErrorOptions = {
+    fields: { examinationId: "examinationId", clearanceType: "clearanceType", validFrom: "validFrom", validUntil: "validUntil", notes: "notes", ...RESTRICTION_FIELDS },
+    conflictFields: { EXAMINATION_NOT_ELIGIBLE_FOR_CLEARANCE: "examinationId", MEDICAL_RECORD_CONFLICT: "clearanceType" },
+};
+
+/** The clearance from this examination with this type that isn't revoked, read fresh; undefined when the record can't be read. */
+async function findIssuedClearance(fighterId: string, examinationId: string, clearanceType: ClearanceType): Promise<MedicalClearance | null | undefined> {
+    try {
+        const dossier = await rereadClinicalDossier(fighterId);
+        return dossier ? clearanceFromExamination(dossier.activeClearances, examinationId, clearanceType) : null;
+    } catch {
+        return undefined;
+    }
+}
+
+/** "Already issued": the existing clearance, so the form can show it instead of issuing a duplicate. */
+function alreadyIssued(clearance: MedicalClearance, clearanceType: ClearanceType): ActionState<MedicalWriteData> {
+    return withData(
+        `A ${CLEARANCE_TYPE_LABELS[clearanceType].toLowerCase()} clearance from this examination is already in place, so nothing new was issued.`,
+        { existingClearance: { id: clearance.id, clearanceType, issuedAt: clearance.issuedAt, validUntil: clearance.validUntil } },
+        { clearanceType: "Already issued from this examination." },
+    );
+}
+
+export async function issueClearanceAction(_prev: ActionState<MedicalWriteData>, formData: FormData): Promise<ActionState<MedicalWriteData>> {
     const auth = await authorizeClinicalAction("clearance:manage");
     if (!auth.ok) return actionError(auth.message);
 
@@ -314,7 +393,12 @@ export async function issueClearanceAction(_prev: ActionState, formData: FormDat
     if (!canAccessFighterClinically(auth.user, input.fighterId)) return actionError(NOT_ASSIGNED, { fighterId: "Choose one of your assigned fighters." });
 
     // Check the rules the service applies, so the doctor sees which field to change instead of a bare refusal.
-    const dossier = await getClinicalDossier(input.fighterId);
+    let dossier: Awaited<ReturnType<typeof getClinicalDossier>>;
+    try {
+        dossier = await getClinicalDossier(input.fighterId);
+    } catch {
+        return withData("The medical service didn't answer, so nothing was issued. Your choices are still here: try again in a moment.", {});
+    }
     const exam = dossier ? Object.values(dossier.currentExaminations).find((current) => current?.id === input.examinationId) : null;
     if (!exam || exam.decision === "NOT_ELIGIBLE") {
         return actionError("A clearance can only come from the fighter's current positive examination. Reload the page and choose it again.", {
@@ -341,20 +425,31 @@ export async function issueClearanceAction(_prev: ActionState, formData: FormDat
         return actionError(FIX_FIELDS, { validUntil: "The clearance can't outlast the examination's decision." });
     }
 
-    try {
-        await issueClearance(input.fighterId, {
-            examinationId: exam.id,
-            clearanceType: input.clearanceType,
-            validFrom,
-            validUntil,
-            restrictions: lists,
-            notes: input.notes || null,
-        });
-    } catch (error) {
-        return failed(error, {
-            fields: { examinationId: "examinationId", clearanceType: "clearanceType", validFrom: "validFrom", validUntil: "validUntil", notes: "notes", ...RESTRICTION_FIELDS },
-            conflictFields: { EXAMINATION_NOT_ELIGIBLE_FOR_CLEARANCE: "examinationId", MEDICAL_RECORD_CONFLICT: "clearanceType" },
-        });
+    // One active clearance per examination and type. After a write the service didn't confirm, one found here is that
+    // write, saved after all; otherwise it was already there and is shown instead of being issued twice.
+    const reconciling = text(formData, RECONCILE_FIELD) === "1";
+    const existing = reconciling ? await findIssuedClearance(input.fighterId, exam.id, input.clearanceType) : clearanceFromExamination(dossier?.activeClearances ?? [], exam.id, input.clearanceType);
+    if (existing === undefined) return withData(CLEARANCE_UNCONFIRMED.unchecked, { unconfirmed: true });
+    if (existing && !reconciling) return alreadyIssued(existing, input.clearanceType);
+
+    if (!existing) {
+        try {
+            await issueClearance(input.fighterId, {
+                examinationId: exam.id,
+                clearanceType: input.clearanceType,
+                validFrom,
+                validUntil,
+                restrictions: lists,
+                notes: input.notes || null,
+            });
+        } catch (error) {
+            const conflict = error instanceof ApiError && error.status === 409 && error.code === "MEDICAL_RECORD_CONFLICT";
+            if (!conflict && !isUnconfirmedWrite(error)) return failed(error, CLEARANCE_FIELDS);
+            // Only the clearance is retried: the examination it comes from is already saved.
+            const found = await findIssuedClearance(input.fighterId, exam.id, input.clearanceType);
+            if (conflict) return found ? alreadyIssued(found, input.clearanceType) : failed(error, CLEARANCE_FIELDS);
+            if (!found) return withData(found === null ? CLEARANCE_UNCONFIRMED.notFound : CLEARANCE_UNCONFIRMED.unchecked, { unconfirmed: true });
+        }
     }
 
     revalidateClinical();

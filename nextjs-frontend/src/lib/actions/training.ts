@@ -4,15 +4,18 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { planCopyFrom, type PlanCopy } from "@/components/training/plan-drafts";
+import { ApiError } from "@/lib/api/client";
 import { canAccessFighter } from "@/lib/auth/access";
 import { authorizeAction } from "@/lib/auth/session";
 import { FEEDBACK_KIND_LABELS, PLAN_STATUS_LABELS, TECHNIQUES, TRAINING_PHASE_LABELS, TRAINING_TYPE_LABELS } from "@/lib/domain/labels";
 import type { EligibilityReason } from "@/lib/domain/medical-contract";
 import type { ClearanceConflict } from "@/lib/domain/rules";
-import { SERVICE_TRAINING_TYPES } from "@/lib/domain/training-contract";
+import { EXERCISE_LIMITS, exerciseNameKey, SERVICE_EXERCISE_CATEGORIES, SERVICE_TRAINING_TYPES } from "@/lib/domain/training-contract";
 import { planTransitions } from "@/lib/domain/training-plan";
+import { MAX_WEEKLY_REPEATS, missingStarterExercises, STARTER_EXERCISES, weeklyDates } from "@/lib/domain/training-templates";
 import type { FeedbackKind, PlanStatus, TrainingPhase, TrainingPlan, TrainingSession, TrainingType, User } from "@/lib/domain/types";
-import { academyDayEndIso, academyDayStartIso, academyWallClockToIso, isDateKey, isTimeValue } from "@/lib/format";
+import { academyDayEndIso, academyDayStartIso, academyWallClockToIso, dayKey, isDateKey, isTimeValue, pluralize } from "@/lib/format";
 import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { PLATFORM_FEATURE_UNAVAILABLE_MESSAGE, platformFeatureAvailable, usesTrainingServiceForms } from "@/lib/services/platform-features";
@@ -30,8 +33,15 @@ const FEEDBACK_KINDS = Object.keys(FEEDBACK_KIND_LABELS) as FeedbackKind[];
 
 const NOT_ON_ROSTER = "You can only manage training for fighters on your roster.";
 const PLAN_NOT_ON_ROSTER = "That plan no longer exists or isn't on your roster.";
-/** `?notice=` on the plan page when a new plan was saved but couldn't be activated. */
+/*
+ * `?notice=` values the plan page reads: the new plan was saved but couldn't be activated, or some exercises
+ * (`?failed=`) couldn't be added, which keeps a plan that was to be activated as a draft.
+ */
 const PLAN_NOT_ACTIVATED = "not-activated";
+const PLAN_EXERCISES_FAILED = "exercises-failed";
+const PLAN_EXERCISES_FAILED_DRAFT = "exercises-failed-draft";
+/** `?notice=` on the first session's page after a weekly repeat, with `created`, `failed` and `skipped` counts. */
+const SESSIONS_REPEATED = "repeated";
 const NO_COACH_PROFILE = "Your account isn't linked to a coach profile, so you can't plan training.";
 
 export interface SessionFormResult {
@@ -94,11 +104,12 @@ function planFieldsSchema(serviceForms: boolean) {
     return z
         .object({
             title: z.string().trim().min(3, "Enter a title of at least 3 characters.").max(120, "Keep the title under 120 characters."),
+            // Optional, like the service's goals; when given it should say something.
             objective: z
                 .string()
                 .trim()
-                .min(10, "Describe the objective in at least 10 characters.")
-                .max(600, "Keep the objective under 600 characters."),
+                .max(600, "Keep the objective under 600 characters.")
+                .refine((value) => value === "" || value.length >= 10, "Describe the objective in at least 10 characters, or leave it empty."),
             phase: z.enum(PHASES, "Choose a training phase."),
             focusAreas: serviceForms ? focusAreas : focusAreas.min(1, "Choose at least one focus area."),
             startDate: z.string().refine(isDateKey, "Enter a valid start date."),
@@ -152,26 +163,63 @@ function readPlanForm(formData: FormData) {
     };
 }
 
+/** Where a new plan's page opens, with a notice when it isn't quite what the coach asked for. */
+function createdPlanHref(plan: TrainingPlan, status: "draft" | "active", failedExercises: number): string {
+    if (failedExercises > 0) {
+        return hrefWith(routes.coach.plan(plan.id), {}, { notice: status === "active" ? PLAN_EXERCISES_FAILED_DRAFT : PLAN_EXERCISES_FAILED, failed: failedExercises });
+    }
+    if (status === "active" && plan.status !== "active") return hrefWith(routes.coach.plan(plan.id), {}, { notice: PLAN_NOT_ACTIVATED });
+    return routes.coach.plan(plan.id);
+}
+
+/**
+ * Creates a plan with the exercises chosen on the form. The service saves the plan as a draft, adds the exercises in
+ * order and only then activates it, so the fighter is told about a complete plan.
+ */
 export async function createPlan(_prev: ActionState, formData: FormData): Promise<ActionState> {
     const auth = await authorizeCoach();
     if (!auth.ok) return auth.state;
 
     const parsed = planFieldsSchema(usesTrainingServiceForms())
         .and(createPlacementSchema)
-        .safeParse({ ...readPlanForm(formData), fighterId: text(formData, "fighterId"), status: text(formData, "status") });
+        .and(z.object({ exercises: planExerciseListSchema }))
+        .safeParse({
+            ...readPlanForm(formData),
+            fighterId: text(formData, "fighterId"),
+            status: text(formData, "status"),
+            exercises: parseJson(text(formData, "exercises") || "[]"),
+        });
     if (!parsed.success) return validationError(parsed.error);
-    const { fighterId, status } = parsed.data;
+    const { fighterId, status, exercises } = parsed.data;
     if (!canAccessFighter(auth.user, fighterId)) return actionError(NOT_ON_ROSTER, { fighterId: "Choose a fighter from your roster." });
 
-    let plan: TrainingPlan;
+    let created: training.PlanCreation;
     try {
-        plan = await training.createPlan({ ...toPlanInput(parsed.data), fighterId, coachId: auth.coachId, status }, auth.user);
+        created = await training.createPlan({ ...toPlanInput(parsed.data), fighterId, coachId: auth.coachId, status }, auth.user, exercises.map(toPlanExerciseInput));
     } catch (error) {
         return planWriteFailure(error);
     }
+    const { plan, failedExercises } = created;
     revalidatePlan(plan.id, plan.fighterId);
-    // The plan is saved either way; a refused activation leaves a draft the coach can activate from the plan page.
-    redirect(status === "active" && plan.status !== "active" ? hrefWith(routes.coach.plan(plan.id), {}, { notice: PLAN_NOT_ACTIVATED }) : routes.coach.plan(plan.id));
+    // The plan is saved either way; what's missing is finished from the plan page.
+    redirect(createdPlanHref(plan, status, failedExercises.length));
+}
+
+/** A plan's content for "Copy an existing plan": read when the coach picks the plan, never its dates or status. */
+export async function loadPlanCopy(planId: string): Promise<ActionState<PlanCopy>> {
+    const auth = await authorizeCoach();
+    if (!auth.ok) return auth.state;
+    const parsed = z.string().min(1, "Choose a plan to copy.").safeParse(planId);
+    if (!parsed.success) return validationError(parsed.error);
+
+    const plan = await loadRosterPlan(auth.user, parsed.data);
+    if (!plan) return actionError(PLAN_NOT_ON_ROSTER);
+    try {
+        return actionSuccess("Plan copied.", planCopyFrom(plan, await training.listPlanExercises(plan.id)));
+    } catch (error) {
+        if (error instanceof ApiError) return actionError("That plan's exercises couldn't be read. Try again in a moment.");
+        throw error;
+    }
 }
 
 export async function updatePlan(planId: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -261,6 +309,50 @@ function planExerciseFailure(error: unknown): ActionState<never> {
         fields: { exerciseId: "exerciseId", sets: "sets", reps: "reps", durationSeconds: "durationMin", targetRpe: "targetRpe", coachNotes: "notes" },
     });
     return actionError(failure.message, failure.fieldErrors);
+}
+
+/** The most exercises one form adds to a plan. */
+const MAX_PLAN_EXERCISES_PER_SAVE = 40;
+
+/** Exercise rows sent as JSON by the plan forms (`serializePlanExerciseDrafts`); errors land on `exercises.<row>.<field>`. */
+const planExerciseListSchema = z
+    .array(planExerciseSchema.extend({ exerciseId: z.string().min(1, "Choose an exercise.") }), "The exercise list couldn't be read. Reload the page and try again.")
+    .max(MAX_PLAN_EXERCISES_PER_SAVE, `Add at most ${MAX_PLAN_EXERCISES_PER_SAVE} exercises at a time.`);
+
+function toPlanExerciseInput({ exerciseId, ...fields }: z.output<typeof planExerciseListSchema>[number]): training.PlanExerciseInput {
+    return { exerciseId, ...toPlanExerciseFields(fields) };
+}
+
+export interface AddPlanExercisesResult {
+    /** Rows (in the order sent) that couldn't be added; the form keeps them so the coach can try again. */
+    failedRows: number[];
+}
+
+/** Adds several exercises at the end of a plan in one go, in the order shown. */
+export async function addPlanExercises(planId: string, _prev: ActionState<AddPlanExercisesResult>, formData: FormData): Promise<ActionState<AddPlanExercisesResult>> {
+    const auth = await authorizeCoach();
+    if (!auth.ok) return auth.state;
+
+    const parsed = planExerciseListSchema.min(1, "Add at least one exercise.").safeParse(parseJson(text(formData, "exercises") || "[]"));
+    if (!parsed.success) return validationError(parsed.error);
+    const plan = await loadRosterPlan(auth.user, planId);
+    if (!plan) return actionError(PLAN_NOT_ON_ROSTER);
+
+    let result: training.PlanExercisesResult;
+    try {
+        result = await training.addPlanExercises(planId, parsed.data.map(toPlanExerciseInput), auth.user);
+    } catch (error) {
+        return planExerciseFailure(error);
+    }
+    if (result.added.length > 0) revalidatePlan(plan.id, plan.fighterId);
+    if (result.failed.length === 0) return actionSuccess(`${pluralize(result.added.length, "exercise")} added to the plan.`);
+
+    const reasons = [...new Set(result.failed.map((failure) => failure.message))].join(" ");
+    const summary =
+        result.added.length === 0
+            ? `${result.failed.length === 1 ? "The exercise" : "The exercises"} couldn't be added.`
+            : `${pluralize(result.added.length, "exercise")} added. ${pluralize(result.failed.length, "exercise")} couldn't be added and ${result.failed.length === 1 ? "is" : "are"} still listed below.`;
+    return { status: "error", message: `${summary} ${reasons}`, data: { failedRows: result.failed.map((failure) => failure.index) } };
 }
 
 export async function addPlanExercise(planId: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -432,15 +524,32 @@ function sessionFormFailure({ message, fieldErrors, conflicts }: Extract<Session
     return { status: "error", message, fieldErrors, data: { conflicts } };
 }
 
+const repeatCountMessage = `Repeat for 2 to ${MAX_WEEKLY_REPEATS} weeks.`;
+/** "Repeat weekly × N": N sessions in all, counting the first. Read only when the box is ticked. */
+const repeatSchema = z.coerce.number(repeatCountMessage).int(repeatCountMessage).min(2, repeatCountMessage).max(MAX_WEEKLY_REPEATS, repeatCountMessage);
+
+/** The last day of the session's plan, when it has one, so a weekly repeat stops there. */
+async function planLastDay(planId: string): Promise<string | null> {
+    if (!planId) return null;
+    const plan = await training.getPlan(planId);
+    return plan?.endDate ? dayKey(plan.endDate) : null;
+}
+
+/**
+ * Schedules a session, or one a week at the same time for N weeks when "Repeat weekly" is ticked. Repeats stop at the
+ * plan's last day. The first session is checked like any other; each later one is sent on its own and the coach is
+ * told how many were scheduled.
+ */
 export async function createSession(_prev: ActionState<SessionFormResult>, formData: FormData): Promise<ActionState<SessionFormResult>> {
     const auth = await authorizeCoach();
     if (!auth.ok) return auth.state;
 
+    const repeat = formData.get("repeat") === "on";
     const parsed = sessionFieldsSchema(usesTrainingServiceForms())
-        .extend({ fighterId: z.string().min(1, "Choose a fighter.") })
-        .safeParse({ ...readSessionForm(formData), fighterId: text(formData, "fighterId") });
+        .extend({ fighterId: z.string().min(1, "Choose a fighter."), repeatCount: repeat ? repeatSchema : z.unknown().transform(() => 1) })
+        .safeParse({ ...readSessionForm(formData), fighterId: text(formData, "fighterId"), repeatCount: text(formData, "repeatCount") });
     if (!parsed.success) return validationError(parsed.error);
-    const { fighterId } = parsed.data;
+    const { fighterId, repeatCount } = parsed.data;
     if (!canAccessFighter(auth.user, fighterId)) return actionError(NOT_ON_ROSTER, { fighterId: "Choose a fighter from your roster." });
 
     const scheduledAt = academyWallClockToIso(parsed.data.date, parsed.data.time);
@@ -448,10 +557,23 @@ export async function createSession(_prev: ActionState<SessionFormResult>, formD
         return actionError(FIX_FIELDS, { date: "Choose a date and time that hasn't passed." });
     }
 
-    const result = await writeSession(() => training.createSession({ ...toServiceInput(parsed.data, scheduledAt, auth.coachId), fighterId }, auth.user));
-    if (!result.ok) return sessionFormFailure(result);
-    revalidateSession(result.session);
-    redirect(routes.coach.session(result.session.id));
+    const { dates, skipped } = weeklyDates(parsed.data.date, repeatCount, repeatCount > 1 ? await planLastDay(parsed.data.planId) : null);
+    const write = (at: string) => writeSession(() => training.createSession({ ...toServiceInput(parsed.data, at, auth.coachId), fighterId }, auth.user));
+
+    const first = await write(scheduledAt);
+    if (!first.ok) return sessionFormFailure(first);
+    revalidateSession(first.session);
+    if (dates.length === 1 && repeatCount === 1) redirect(routes.coach.session(first.session.id));
+
+    // Later weeks go in one at a time; a refusal (a clearance block on that date, say) doesn't stop the others.
+    let created = 1;
+    for (const date of dates.slice(1)) {
+        const later = await write(academyWallClockToIso(date, parsed.data.time));
+        if (later.ok) created += 1;
+    }
+    redirect(
+        hrefWith(routes.coach.session(first.session.id), {}, { notice: SESSIONS_REPEATED, created, failed: dates.length - created, skipped: skipped || null }),
+    );
 }
 
 export async function updateSession(
@@ -659,4 +781,119 @@ export async function addSessionFeedback(sessionId: string, _prev: ActionState, 
     );
     revalidateSession(session);
     return actionSuccess("Feedback shared with the fighter.");
+}
+
+/* ─── Exercise library (administrators) ───────────────────────────────────── */
+
+const LIBRARY_ADMIN_ONLY = "Only administrators can change the exercise library.";
+
+/** The training service lets administrators alone add to the global library (`training.exercise:create`). */
+async function authorizeLibraryAdmin(): Promise<{ ok: true; user: User } | { ok: false; state: ActionState<never> }> {
+    const auth = await authorizeAction("settings:manage");
+    if (!auth.ok) return { ok: false, state: actionError(auth.message) };
+    if (auth.user.role !== "admin") return { ok: false, state: actionError(LIBRARY_ADMIN_ONLY) };
+    return { ok: true, user: auth.user };
+}
+
+function revalidateLibrary(): void {
+    revalidatePath(routes.admin.exercises);
+    revalidatePath(routes.coach.newPlan);
+}
+
+/** A refused library write. The service's roster wording doesn't apply here: a 403 means the account isn't an administrator. */
+function libraryWriteFailure(error: unknown): { message: string; fieldErrors?: Record<string, string> } {
+    if (error instanceof ApiError && error.status === 403) return { message: `The training service refused this. ${LIBRARY_ADMIN_ONLY}` };
+    return trainingWriteFailure(error, {
+        fields: { name: "name", category: "category", description: "description", targetMuscleGroups: "targetMuscleGroups", videoUrl: "videoUrl" },
+    });
+}
+
+const MUSCLE_GROUPS_MAX = 12;
+
+const exerciseSchema = z.object({
+    name: z.string().trim().min(2, "Enter the exercise name.").max(120, "Keep the name under 120 characters."),
+    category: z.enum(SERVICE_EXERCISE_CATEGORIES, "Choose a category."),
+    description: z.string().trim().max(EXERCISE_LIMITS.description, "Keep the description under 1,000 characters."),
+    targetMuscleGroups: z
+        .string()
+        .max(300, "Keep the muscle groups under 300 characters.")
+        .transform((value) => [...new Set(value.split(",").map((group) => group.trim().toLowerCase()).filter(Boolean))])
+        .pipe(z.array(z.string().max(50, "Keep each muscle group under 50 characters.")).max(MUSCLE_GROUPS_MAX, `List at most ${MUSCLE_GROUPS_MAX} muscle groups.`)),
+    videoUrl: z
+        .string()
+        .trim()
+        .max(EXERCISE_LIMITS.url, "Keep the link under 1,000 characters.")
+        .refine((value) => value === "" || /^https?:\/\/\S+$/i.test(value), "Enter a full link starting with https://, or leave it empty."),
+});
+
+/** Adds one exercise to the global library. A name already in the library is refused, ignoring case. */
+export async function createLibraryExercise(_prev: ActionState, formData: FormData): Promise<ActionState> {
+    const auth = await authorizeLibraryAdmin();
+    if (!auth.ok) return auth.state;
+
+    const parsed = exerciseSchema.safeParse({
+        name: text(formData, "name"),
+        category: text(formData, "category"),
+        description: text(formData, "description"),
+        targetMuscleGroups: text(formData, "targetMuscleGroups"),
+        videoUrl: text(formData, "videoUrl"),
+    });
+    if (!parsed.success) return validationError(parsed.error);
+    const { name, category, description, targetMuscleGroups, videoUrl } = parsed.data;
+
+    try {
+        // The library has no unique names, so the same drill twice would confuse every plan form.
+        const existing = await training.listExerciseCatalog({ search: name });
+        if (existing.some((exercise) => exerciseNameKey(exercise.name) === exerciseNameKey(name))) {
+            return actionError(FIX_FIELDS, { name: "That exercise is already in the library." });
+        }
+        await training.createExercise({ name, category, description: description || null, targetMuscleGroups, videoUrl: videoUrl || null }, auth.user);
+    } catch (error) {
+        const failure = libraryWriteFailure(error);
+        return actionError(failure.message, failure.fieldErrors);
+    }
+    revalidateLibrary();
+    return actionSuccess(`${name} added to the library.`);
+}
+
+export interface StarterImportResult {
+    created: string[];
+    /** Starter exercises the library already had. */
+    skipped: string[];
+    failed: { name: string; message: string }[];
+}
+
+/**
+ * Adds every starter exercise the templates use that the library lacks (matched by name, ignoring case), one at a
+ * time. The rest still go in when one is refused.
+ */
+export async function importStarterLibrary(): Promise<ActionState<StarterImportResult>> {
+    const auth = await authorizeLibraryAdmin();
+    if (!auth.ok) return auth.state;
+
+    let catalog: training.LibraryExercise[];
+    try {
+        catalog = await training.listExerciseCatalog();
+    } catch (error) {
+        if (error instanceof ApiError) return actionError("The exercise library couldn't be read, so nothing was imported. Try again in a moment.");
+        throw error;
+    }
+    const missing = missingStarterExercises(catalog);
+    const missingNames = new Set(missing.map((exercise) => exercise.name));
+    const result: StarterImportResult = { created: [], skipped: STARTER_EXERCISES.filter((exercise) => !missingNames.has(exercise.name)).map((exercise) => exercise.name), failed: [] };
+
+    for (const exercise of missing) {
+        try {
+            await training.createExercise({ ...exercise, videoUrl: null }, auth.user);
+            result.created.push(exercise.name);
+        } catch (error) {
+            result.failed.push({ name: exercise.name, message: libraryWriteFailure(error).message });
+        }
+    }
+    if (result.created.length > 0) revalidateLibrary();
+
+    if (missing.length === 0) return actionSuccess("The library already has every starter exercise.", result);
+    if (result.created.length === 0) return { status: "error", message: `No exercises were imported. ${result.failed[0]?.message ?? ""}`.trim(), data: result };
+    const failedText = result.failed.length > 0 ? ` ${pluralize(result.failed.length, "exercise")} couldn't be added.` : "";
+    return actionSuccess(`Imported ${pluralize(result.created.length, "exercise")}.${failedText}`, result);
 }

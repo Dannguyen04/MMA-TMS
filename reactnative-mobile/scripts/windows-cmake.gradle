@@ -1,6 +1,75 @@
 // Keep CMake's staging files out of deeply nested node_modules paths on Windows.
 // Namespace the normal Gradle cache by checkout and module to avoid collisions.
 if (System.getProperty('os.name').toLowerCase(java.util.Locale.ROOT).contains('windows')) {
+    // Junctions only. Never deleteDir(): rmdir removes the link, not the target.
+    def ensureJunction = { File link, File target ->
+        link.parentFile.mkdirs()
+        if (link.exists()) {
+            def current = link.canonicalFile.absolutePath
+            def wanted = target.canonicalFile.absolutePath
+            if (current.equalsIgnoreCase(wanted)) {
+                return link
+            }
+            def removed = ["cmd", "/c", "rmdir", link.absolutePath].execute()
+            def removedOut = new StringBuffer()
+            def removedErr = new StringBuffer()
+            removed.waitForProcessOutput(removedOut, removedErr)
+            if (link.exists()) {
+                throw new GradleException("Could not replace junction ${link} -> ${target}: ${removedErr}")
+            }
+        }
+        def created = ["cmd", "/c", "mklink", "/J", link.absolutePath, target.absolutePath].execute()
+        def createdOut = new StringBuffer()
+        def createdErr = new StringBuffer()
+        created.waitForProcessOutput(createdOut, createdErr)
+        if (created.exitValue() != 0 || !link.exists()) {
+            throw new GradleException("mklink /J failed for ${link} -> ${target}: ${createdOut} ${createdErr}")
+        }
+        return link
+    }
+
+    // One short root for every pnpm path the app CMake file stats. C:/rn keeps the
+    // longest codegen CMakeLists (315 chars) at 249, under Ninja's 260 limit.
+    def repoRoot = rootDir.parentFile.parentFile
+    def repoLink = ensureJunction(new File("C:/rn"), repoRoot)
+
+    def rewriteNinjaLongPaths = { Project nativeProject, String moduleId ->
+        def pairs = [[repoRoot.absolutePath, repoLink.absolutePath]]
+        if (nativeProject.ext.has("cmakePathRewrites")) {
+            pairs.addAll(nativeProject.ext.cmakePathRewrites)
+        }
+        def roots = [
+            new File(gradle.gradleUserHomeDir, "cxx/${moduleId}"),
+            new File(nativeProject.buildDir, "generated"),
+        ]
+        roots.each { cxxRoot ->
+        if (!cxxRoot.exists()) {
+            return
+        }
+        cxxRoot.eachFileRecurse { file ->
+            if (!file.isFile() || !(file.name == "build.ninja" || file.name.endsWith(".ninja") || file.name.endsWith(".cmake") || file.name == "compile_commands.json")) {
+                return
+            }
+            def text = file.getText("UTF-8")
+            def updated = text
+            pairs.each { pair ->
+                def longRoot = pair[0].toString()
+                def shortRoot = pair[1].toString()
+                def longFwd = longRoot.replace('\\', '/')
+                def shortFwd = shortRoot.replace('\\', '/')
+                def longNinja = longFwd.replace(":", "\$:")
+                def shortNinja = shortFwd.replace(":", "\$:")
+                updated = updated.replace(longNinja, shortNinja)
+                updated = updated.replace(longFwd, shortFwd)
+                updated = updated.replace(longRoot, shortRoot)
+            }
+            if (updated != text) {
+                java.nio.file.Files.write(file.toPath(), updated.getBytes("UTF-8"))
+            }
+        }
+        }
+    }
+
     def clearStaleCxxLockFiles = { File cxxRoot ->
         if (cxxRoot == null || !cxxRoot.exists()) {
             return
@@ -26,24 +95,97 @@ if (System.getProperty('os.name').toLowerCase(java.util.Locale.ROOT).contains('w
     subprojects { nativeProject ->
         ['com.android.application', 'com.android.library'].each { pluginId ->
             nativeProject.pluginManager.withPlugin(pluginId) {
+                def cacheKey = rootDir.canonicalPath + ':' + nativeProject.path
+                def moduleId = java.security.MessageDigest.getInstance('SHA-256')
+                    .digest(cacheKey.getBytes('UTF-8')).encodeHex().toString().take(12)
+                // prefab_command.bat is launched via CreateProcess (MAX_PATH 260).
+                // pnpm paths for worklets make that bat ~267 chars, so configure
+                // fails with error=2 once a newer CMake gets past SDK XML parsing.
+                if (pluginId == 'com.android.library') {
+                    def samplePrefab = new File(
+                        nativeProject.projectDir,
+                        "build/intermediates/cxx/Debug/00000000/logs/arm64-v8a/prefab_command.bat"
+                    )
+                    if (samplePrefab.absolutePath.length() > 240) {
+                        nativeProject.layout.buildDirectory.set(
+                            new File(gradle.gradleUserHomeDir, "rn-build/${moduleId}")
+                        )
+                    }
+                }
                 nativeProject.extensions.getByName('androidComponents').finalizeDsl { android ->
                     // React Native can assign the CMake path later in finalizeDsl.
-                    def cacheKey = rootDir.canonicalPath + ':' + nativeProject.path
-                    def moduleId = java.security.MessageDigest.getInstance('SHA-256')
-                        .digest(cacheKey.getBytes('UTF-8')).encodeHex().toString().take(12)
                     android.externalNativeBuild.cmake.buildStagingDirectory =
                         new File(gradle.gradleUserHomeDir, "cxx/${moduleId}")
+                    // AGP 8.12 only auto-selects CMake <= 3.22.1. That SDK CMake
+                    // cannot parse package.xml schema 4 (CXX5304). Pin the SDK
+                    // package that understands schema 4: cmake;3.31.6.
+                    def pinnedCmake = android.externalNativeBuild.cmake.version
+                    if (pinnedCmake == null || pinnedCmake.toString().trim().isEmpty()) {
+                        android.externalNativeBuild.cmake.version = "3.31.6"
+                    }
                     // Do not set CMAKE_OBJECT_PATH_MAX: 240 leaves ninja over the
                     // Windows 260-char Stat limit; 128 hashes names and breaks
                     // worklets mkdir. Omit so CMake keeps short object names.
+                    // Ninja stats the SOURCE cpp path. pnpm + Reanimated's CSS tree
+                    // is 261+ chars, so point CMake at a short junction of the package.
+                    def cmakePath = android.externalNativeBuild.cmake.path
+                    if (cmakePath != null) {
+                        def pkg = nativeProject.projectDir.parentFile
+                        def pkgPath = pkg.absolutePath
+                        def cmakeAbs = (cmakePath as File).absolutePath
+                        if (pkgPath.length() + 100 > 250 && cmakeAbs.regionMatches(true, 0, pkgPath, 0, pkgPath.length())) {
+                            def link = ensureJunction(new File(gradle.gradleUserHomeDir, "rn-src/${moduleId}"), pkg)
+                            def rel = cmakeAbs.substring(pkgPath.length()).replace('\\', '/')
+                            if (rel.startsWith("/")) {
+                                rel = rel.substring(1)
+                            }
+                            android.externalNativeBuild.cmake.path = new File(link, rel)
+                            if (!nativeProject.ext.has("cmakePathRewrites")) {
+                                nativeProject.ext.cmakePathRewrites = []
+                            }
+                            nativeProject.ext.cmakePathRewrites << [pkgPath, link.absolutePath]
+                        }
+                        def cmakeArgs = android.defaultConfig.externalNativeBuild.cmake.arguments
+                        for (int i = 0; i < cmakeArgs.size(); i++) {
+                            def arg = cmakeArgs.get(i).toString()
+                            def prefix = "-DREACT_NATIVE_DIR="
+                            if (!arg.startsWith(prefix)) {
+                                continue
+                            }
+                            def rnDir = new File(arg.substring(prefix.length()))
+                            if (rnDir.absolutePath.length() + 80 <= 250) {
+                                continue
+                            }
+                            def rnLink = ensureJunction(new File(gradle.gradleUserHomeDir, "rn-src/react-native"), rnDir)
+                            cmakeArgs.set(i, prefix + rnLink.absolutePath.replace('\\', '/'))
+                            if (!nativeProject.ext.has("cmakePathRewrites")) {
+                                nativeProject.ext.cmakePathRewrites = []
+                            }
+                            nativeProject.ext.cmakePathRewrites << [rnDir.absolutePath, rnLink.absolutePath]
+                        }
+                    }
                 }
 
                 nativeProject.tasks.configureEach { task ->
-                    if (!task.name.startsWith('configureCMake')) {
+                    def configureTask = task.name.startsWith('configureCMake')
+                    def buildTask = task.name.startsWith('buildCMake')
+                    if (!configureTask && !buildTask) {
                         return
                     }
-                    task.doFirst {
-                        clearStaleCxxLockFiles(new File(nativeProject.buildDir, 'intermediates/cxx'))
+                    if (configureTask) {
+                        task.doFirst {
+                            clearStaleCxxLockFiles(new File(nativeProject.buildDir, 'intermediates/cxx'))
+                            // Autolinking cmake is regenerated with pnpm paths before configure.
+                            rewriteNinjaLongPaths(nativeProject, moduleId)
+                        }
+                        task.doLast {
+                            rewriteNinjaLongPaths(nativeProject, moduleId)
+                        }
+                    }
+                    if (buildTask) {
+                        task.doFirst {
+                            rewriteNinjaLongPaths(nativeProject, moduleId)
+                        }
                     }
                 }
             }
@@ -59,12 +201,13 @@ gradle.projectsEvaluated {
     }
 
     def copyWorkletsLib = {
-        def tree = worklets.fileTree(dir: worklets.file('build'), include: '**/arm64-v8a/libworklets.so')
+        def workletsBuild = worklets.layout.buildDirectory.get().asFile
+        def tree = worklets.fileTree(dir: workletsBuild, include: '**/arm64-v8a/libworklets.so')
         def src = tree.files.find { it.isFile() }
         if (src == null) {
             return
         }
-        def cxxDebug = new File(worklets.projectDir, 'build/intermediates/cxx/Debug')
+        def cxxDebug = new File(workletsBuild, 'intermediates/cxx/Debug')
         if (cxxDebug.exists()) {
             cxxDebug.eachDir { hashDir ->
                 def dest = new File(hashDir, 'obj/arm64-v8a/libworklets.so')
@@ -74,7 +217,7 @@ gradle.projectsEvaluated {
                 }
             }
         }
-        def expoBuild = expoCore.file('build')
+        def expoBuild = expoCore.layout.buildDirectory.get().asFile
         if (!expoBuild.exists()) {
             return
         }

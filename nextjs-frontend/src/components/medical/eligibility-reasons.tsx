@@ -1,4 +1,4 @@
-import { CalendarX2, ClipboardPlus, ClipboardX, Hourglass, ShieldQuestion, type LucideIcon } from "lucide-react";
+import { CalendarX2, CircleQuestionMark, ClipboardPlus, ClipboardX, Hourglass, ShieldQuestion, type LucideIcon } from "lucide-react";
 
 import { ELIGIBILITY_REASON_DESCRIPTIONS, ELIGIBILITY_REASON_LABELS, type EligibilityReason } from "@/lib/domain/medical-contract";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,7 @@ const REASON_ICONS: Record<EligibilityReason, LucideIcon> = {
     CLEARANCE_REQUIRED: ShieldQuestion,
     CLEARANCE_EXPIRED: CalendarX2,
     SESSION_TYPE_RESTRICTED: ShieldQuestion,
+    OTHER_MEDICAL_REASON: CircleQuestionMark,
 };
 
 /**

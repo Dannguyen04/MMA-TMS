@@ -10,6 +10,7 @@ import {
   type SessionType,
   type TrainingPlan,
 } from "@/api";
+import { useToastMessage } from "@/components/toast/app-toast";
 import { coach } from "@/i18n/coach";
 import {
   coachErrorMessage,
@@ -51,6 +52,7 @@ export function CoachSessionFormScreen() {
   const [rounds, setRounds] = useState("0");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
+  useToastMessage(error, "error");
   const [saving, setSaving] = useState(false);
 
   useFocusEffect(
@@ -148,7 +150,6 @@ export function CoachSessionFormScreen() {
 
   return (
     <CoachScaffold title={coach.newSession} keyboard inStack>
-      {error ? <CoachBanner message={error} tone="danger" /> : null}
       <CoachPicker
         label={coach.fighter}
         placeholder={coach.pickFighter}

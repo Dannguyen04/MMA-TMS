@@ -47,6 +47,14 @@ describe("current user in API mode", () => {
         expect(authenticatedApiRequest).toHaveBeenCalledWith("/fighters?page=1&limit=100", expect.anything());
     });
 
+    it("treats a signed-in account that was deleted as signed out instead of failing the page", async () => {
+        authenticatedApiRequest.mockRejectedValue(new ApiError({ message: "User not found", kind: "http", status: 404, code: "USER_NOT_FOUND" }));
+        await expect(getSessionAccount()).resolves.toBeNull();
+
+        authenticatedApiRequest.mockRejectedValue(new ApiError({ message: "The service can't be reached right now.", kind: "network", code: "API_UNAVAILABLE" }));
+        await expect(getSessionAccount()).rejects.toThrow("can't be reached");
+    });
+
     it("treats a self-registered applicant as an applicant, not an academy member", async () => {
         authenticatedApiRequest.mockResolvedValue({ ...account, role: "GUEST", profile: null });
 

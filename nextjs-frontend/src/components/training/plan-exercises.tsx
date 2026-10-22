@@ -1,22 +1,27 @@
 "use client";
 
 import { Dumbbell, PenLine, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
+import { TermHint } from "@/components/domain/term-hint";
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/dialog";
-import { Field, Input, Select, Textarea } from "@/components/ui/form";
+import { Field, FormMessage, Input, Textarea } from "@/components/ui/form";
 import { EmptyState } from "@/components/ui/states";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { useToast } from "@/components/ui/toast";
-import type { ActionForm } from "@/components/ui/use-action-form";
+import { useActionForm, type ActionForm } from "@/components/ui/use-action-form";
 import { useConfirmAction } from "@/components/ui/use-confirm-action";
 import type { ActionState } from "@/lib/actions/state";
-import { addPlanExercise, removePlanExercise, updatePlanExercise } from "@/lib/actions/training";
+import { addPlanExercises, removePlanExercise, updatePlanExercise, type AddPlanExercisesResult } from "@/lib/actions/training";
+import type { GlossaryTerm } from "@/lib/domain/glossary";
 import { EXERCISE_CATEGORY_LABELS } from "@/lib/domain/labels";
 import type { Exercise, PlanExercise } from "@/lib/domain/types";
 import { pluralize } from "@/lib/format";
+import { sentDrafts, serializePlanExerciseDrafts, type PlanExerciseDraft } from "./plan-drafts";
+import { PlanExerciseRows } from "./plan-exercise-rows";
 
 export interface PlanExercisesCardProps {
     planId: string;
@@ -41,9 +46,15 @@ export function PlanExercisesCard({ planId, items, library, editable }: PlanExer
     const toast = useToast();
     const [editing, setEditing] = useState<PlanExercise | null>(null);
     const [adding, setAdding] = useState(false);
+    const addButtonRef = useRef<HTMLButtonElement>(null);
     const remove = useConfirmAction((item: PlanExercise) => removePlanExercise(planId, item.id), {
         onSuccess: (state) => toast({ title: state.message ?? "Exercise removed." }),
     });
+
+    const closeAdding = () => {
+        setAdding(false);
+        window.requestAnimationFrame(() => addButtonRef.current?.focus());
+    };
 
     return (
         <Card className="min-w-0">
@@ -52,23 +63,26 @@ export function PlanExercisesCard({ planId, items, library, editable }: PlanExer
                 description="Drills prescribed across the plan, in running order."
                 icon={<Dumbbell />}
                 action={
-                    editable && (
-                        <Button variant="secondary" size="sm" onClick={() => setAdding(true)}>
+                    editable &&
+                    !adding && (
+                        <Button ref={addButtonRef} variant="secondary" size="sm" onClick={() => setAdding(true)}>
                             <Plus aria-hidden />
-                            Add exercise
+                            Add exercises
                         </Button>
                     )
                 }
             />
-            <CardContent>
+            <CardContent className="flex flex-col gap-5">
                 {items.length === 0 ? (
-                    <EmptyState
-                        compact
-                        icon={<Dumbbell />}
-                        title="No exercises on this plan yet"
-                        description={editable ? "Add the drills this plan is built around, with sets, reps or time." : "Your coach hasn't listed exercises for this plan."}
-                        className="pt-0"
-                    />
+                    !adding && (
+                        <EmptyState
+                            compact
+                            icon={<Dumbbell />}
+                            title="No exercises on this plan yet"
+                            description={editable ? "Add the drills this plan is built around, with sets, reps or time." : "Your coach hasn't listed exercises for this plan."}
+                            className="pt-0"
+                        />
+                    )
                 ) : (
                     <ol className="flex flex-col divide-y divide-border">
                         {items.map((item, index) => {
@@ -99,22 +113,22 @@ export function PlanExercisesCard({ planId, items, library, editable }: PlanExer
                         })}
                     </ol>
                 )}
+
+                {editable && adding && (
+                    <AddExercisesPanel
+                        planId={planId}
+                        library={library}
+                        onDone={(message) => {
+                            toast({ title: message });
+                            closeAdding();
+                        }}
+                        onCancel={closeAdding}
+                    />
+                )}
             </CardContent>
 
             {editable && (
                 <>
-                    <ActionDialog
-                        open={adding}
-                        onClose={() => setAdding(false)}
-                        title="Add an exercise"
-                        description="It's added at the end of the plan. Leave anything you don't prescribe empty."
-                        action={(previous: ActionState, fd: FormData) => addPlanExercise(planId, previous, fd)}
-                        submitLabel="Add exercise"
-                        pendingLabel="Adding…"
-                        onSuccess={(state) => toast({ title: state.message ?? "Exercise added." })}
-                    >
-                        {(form) => <PlanExerciseFields form={form} library={library} />}
-                    </ActionDialog>
                     <ActionDialog
                         open={editing !== null}
                         onClose={() => setEditing(null)}
@@ -139,37 +153,85 @@ export function PlanExercisesCard({ planId, items, library, editable }: PlanExer
     );
 }
 
-/** The prescription fields, shared by adding and editing. The exercise is only chosen when adding. */
-function PlanExerciseFields({ form, library, item }: { form: ActionForm<undefined>; library?: Exercise[]; item?: PlanExercise }) {
+/**
+ * Adds several exercises in one go, inline: search the library, set each dose, save once. Exercises the service
+ * refuses stay listed with the reason, so the coach can fix them and save again.
+ */
+function AddExercisesPanel({ planId, library, onDone, onCancel }: { planId: string; library: Exercise[]; onDone(message: string): void; onCancel(): void }) {
+    const [rows, setRows] = useState<PlanExerciseDraft[]>([]);
+    const rowsRef = useRef(rows);
+    useEffect(() => {
+        rowsRef.current = rows;
+    });
+    const form = useActionForm<AddPlanExercisesResult>((previous, fd) => addPlanExercises(planId, previous, fd), {
+        id: "plan-add-exercises",
+        hiddenFields: ["exercises"],
+        onSuccess: (state) => onDone(state.message ?? "Exercises added."),
+        onError: (state) => {
+            const failedRows = state.data?.failedRows;
+            if (!failedRows) return;
+            const sent = sentDrafts(rowsRef.current);
+            const keep = new Set(failedRows.map((index) => sent[index]?.key).filter(Boolean));
+            setRows((current) => current.filter((row) => keep.has(row.key)));
+        },
+    });
+    const count = sentDrafts(rows).length;
+
+    return (
+        <form {...form.formProps} className="flex flex-col gap-4 border-t border-border pt-5" aria-label="Add exercises to the plan">
+            <input type="hidden" name="exercises" value={serializePlanExerciseDrafts(rows)} />
+            <div>
+                <h3 className="text-sm font-semibold text-fg">Add exercises</h3>
+                <p className="mt-0.5 text-[13px] text-fg-muted">They go after the last exercise, in this order.</p>
+            </div>
+            <PlanExerciseRows
+                idPrefix="plan-add"
+                rows={rows}
+                onChange={setRows}
+                library={library}
+                error={form.error}
+                markEdited={form.markEdited}
+                emptyText="Search the library below and add as many exercises as you need."
+            />
+            <FormMessage {...form.message} />
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <Button variant="ghost" onClick={onCancel} disabled={form.pending}>
+                    Cancel
+                </Button>
+                <SubmitButton pending={form.pending} pendingLabel="Adding…" disabled={count === 0}>
+                    {count === 0 ? "Add exercises" : `Add ${pluralize(count, "exercise")}`}
+                </SubmitButton>
+            </div>
+        </form>
+    );
+}
+
+const FIELD_TERMS: Record<"sets" | "reps" | "durationMin" | "targetRpe", GlossaryTerm> = {
+    sets: "sets",
+    reps: "reps",
+    durationMin: "exerciseMinutes",
+    targetRpe: "rpe",
+};
+
+/** The prescription fields when editing one exercise. */
+function PlanExerciseFields({ form, item }: { form: ActionForm<undefined>; item: PlanExercise }) {
     const { control, error } = form;
     const numberField = (name: "sets" | "reps" | "durationMin" | "targetRpe", label: string, max: number, value: number | null) => (
-        <Field label={label} htmlFor={control(name).id} optional error={error(name)}>
+        <Field label={label} htmlFor={control(name).id} optional info={<TermHint term={FIELD_TERMS[name]} />} error={error(name)}>
             <Input {...control(name)} type="number" inputMode="numeric" min={1} max={max} step={1} defaultValue={value ?? ""} />
         </Field>
     );
 
     return (
         <>
-            {library && (
-                <Field label="Exercise" htmlFor={control("exerciseId").id} required error={error("exerciseId")}>
-                    <Select {...control("exerciseId", { required: true })} defaultValue="">
-                        <option value="">Choose an exercise…</option>
-                        {library.map((exercise) => (
-                            <option key={exercise.id} value={exercise.id}>
-                                {exercise.name} · {EXERCISE_CATEGORY_LABELS[exercise.category]}
-                            </option>
-                        ))}
-                    </Select>
-                </Field>
-            )}
             <div className="grid grid-cols-2 gap-4">
-                {numberField("sets", "Sets", 20, item?.sets ?? null)}
-                {numberField("reps", "Reps", 200, item?.reps ?? null)}
-                {numberField("durationMin", "Minutes", 240, item?.durationSec === null || item?.durationSec === undefined ? null : Math.round(item.durationSec / 60))}
-                {numberField("targetRpe", "Target RPE", 10, item?.targetRpe ?? null)}
+                {numberField("sets", "Sets", 20, item.sets)}
+                {numberField("reps", "Reps", 200, item.reps)}
+                {numberField("durationMin", "Minutes", 240, item.durationSec === null ? null : Math.round(item.durationSec / 60))}
+                {numberField("targetRpe", "Target RPE", 10, item.targetRpe)}
             </div>
             <Field label="Notes" htmlFor={control("notes").id} optional error={error("notes")}>
-                <Textarea {...control("notes")} rows={2} maxLength={500} defaultValue={item?.notes ?? ""} />
+                <Textarea {...control("notes")} rows={2} maxLength={500} defaultValue={item.notes ?? ""} />
             </Field>
         </>
     );
