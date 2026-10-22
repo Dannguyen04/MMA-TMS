@@ -119,7 +119,7 @@ Bắt đầu khi HLV tạo trận, kết thúc khi trận vào tuần thi đấu
 
 | # | Nghiệp vụ | Người dùng làm | App tự làm | Quy tắc | Ticket |
 | --- | --- | --- | --- | --- | --- |
-| 1 | **Quản lý trận** | HLV tạo trận: giải, bộ luật, hạng cân, giờ cân, giờ thi, đối thủ, số hiệp. Đổi ngày, đổi hạng, huỷ | Kiểm tra phạm vi HLV và ngày giờ; chụp quy định từ bộ luật; sinh checklist hồ sơ; kiểm tra khả thi về cân ngay trên form; tính lại khi đổi ngày, đổi hạng; nhắc điểm cần luyện của trận trước | R1–R4c, R31 | T-003, T-004 |
+| 1 | **Quản lý trận** | HLV tạo trận: giải, bộ luật, hạng cân, giờ cân, giờ thi, đối thủ, số hiệp. Đổi ngày, đổi hạng, huỷ | Kiểm tra phạm vi HLV và ngày giờ; chụp quy định từ bộ luật; sinh checklist hồ sơ; kiểm tra khả thi về cân ngay trên form; tính lại khi đổi ngày, đổi hạng; nhắc điểm cần luyện của trận trước | R1–R4c, R31 | T-003, T-004; R31: T-029 |
 | 2 | **Lập camp và giáo án** | HLV gắn kế hoạch tập vào trận và xếp buổi tập. Ba mức giáo án: (a) mẫu cho từng buổi; (b) giáo án cả camp, app dàn buổi tập đếm ngược từ ngày thi; (c) giáo án theo đối thủ (nghiệp vụ 6) | Kiểm tra plan cùng võ sĩ, phase `fight_camp`, mỗi võ sĩ một trận đang chạy; điền sẵn buổi tập từ mẫu | R5 | (a) T-026; (b) cắt khỏi đợt đồ án; (c) T-010 |
 | 3 | **Kiểm soát cân** | Võ sĩ ghi một số kg mỗi sáng | Đường tham chiếu; trạng thái xanh, vàng, đỏ, xám; câu khuyến nghị khi đỏ | R6, R7 | T-003, T-005 |
 | 4 | **Ăn uống** | HLV hoặc chuyên gia nhập kế hoạch ăn cho ba giai đoạn; võ sĩ một chạm "Hôm qua ăn theo kế hoạch không?" | Hiện đúng kế hoạch của giai đoạn hiện tại; chấm màu trên biểu đồ cân | R8, R9 | T-009 |
@@ -171,13 +171,13 @@ Một thẻ trên dashboard HLV, gom việc của cả ba giai đoạn. Thẻ t�
 
 | Ý | Nghiệp vụ | Mức | Ticket đề xuất |
 | --- | --- | --- | --- |
-| Kiểm tra khả thi về cân ngay khi tạo trận (R31) | 1, 3 | Làm | T-004 (form), backend kèm T-006 |
+| Kiểm tra khả thi về cân ngay khi tạo trận (R31) | 1, 3 | Làm | T-029 (backend: Ken; form: Hoàng Anh). Dùng chung phép tính trạng thái cân với R32, nên không làm trong T-006 |
 | Bảng "Sẵn sàng nhận trận" toàn CLB, lọc theo hạng cân và ngày thi dự kiến (R32) | 15 | Làm | T-007 |
 | Dữ liệu demo theo giai đoạn: 5 võ sĩ giả, mỗi người đứng ở một giai đoạn (camp, tuần thi đấu, vừa cân xong, đang đình chỉ, sẵn sàng) | Demo | Làm | T-008 |
-| Dòng thời gian của trận: mọi chuyển trạng thái, đình chỉ, xác nhận tập lại, kèm người làm và lý do; đọc từ `bouts.history` và bảng đình chỉ | Cả 15 | Nếu còn thời gian | T-004 |
-| Nút "Đã trao đổi" trên Việc cần làm: HLV ghi một câu, dòng đó ẩn đến khi trạng thái gốc đổi. Cần chỗ lưu mới; đề xuất gộp vào migration 027 | Việc cần làm | Nếu còn thời gian | Cùng thẻ Việc cần làm |
-| Trang tóm tắt chấn thương đầu khi xác nhận cho tập lại: các lần KO/TKO do đòn vào đầu, mức mất ý thức, các đình chỉ trước | 13 | Nếu còn thời gian | T-007 |
-| Võ sĩ xem báo cáo trận bản rút gọn: kết quả đánh giá chiến thuật và điểm cần luyện, không có quan sát chi tiết | 14 | Nếu còn thời gian | T-010 |
+| Dòng thời gian của trận: mọi chuyển trạng thái, đình chỉ, xác nhận tập lại, kèm người làm và lý do; đọc từ `bouts.history` và bảng đình chỉ | Cả 15 | Nếu còn thời gian | Gemini, ticket riêng khi phần lõi đã xong |
+| Nút "Đã trao đổi" trên Việc cần làm: HLV ghi một câu, dòng đó ẩn đến khi trạng thái gốc đổi. Cần chỗ lưu mới; đề xuất gộp vào migration 027 | Việc cần làm | Nếu còn thời gian | Gemini, ticket riêng khi phần lõi đã xong |
+| Trang tóm tắt chấn thương đầu khi xác nhận cho tập lại: các lần KO/TKO do đòn vào đầu, mức mất ý thức, các đình chỉ trước | 13 | Nếu còn thời gian | Gemini, ticket riêng khi phần lõi đã xong |
+| Võ sĩ xem báo cáo trận bản rút gọn: kết quả đánh giá chiến thuật và điểm cần luyện, không có quan sát chi tiết | 14 | Nếu còn thời gian | Gemini, ticket riêng khi phần lõi đã xong |
 
 Dữ liệu demo theo giai đoạn là cần thiết, vì gần như mọi trạng thái đổi theo ngày: không có dữ liệu như vậy thì demo phải chờ đến ngày cân hay ngày hết đình chỉ. Không dùng cách "ngày giả lập" (tua thời gian), vì phải sửa mọi phép tính theo ngày.
 
