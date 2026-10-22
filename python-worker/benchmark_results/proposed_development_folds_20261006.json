@@ -1,0 +1,129 @@
+{
+  "status": "PROPOSED_NOT_TRAINED",
+  "manifestSha256": "68ae10fa47b820f9352ecf3318c703cec76deef0b74d808e6205825038f681f9",
+  "groupUnit": "sourceVideoId",
+  "fighterIndependenceVerified": false,
+  "productionEligible": false,
+  "fixedSeeds": [
+    20261006,
+    20261007,
+    20261008
+  ],
+  "maxEpochs": 40,
+  "patience": 10,
+  "folds": [
+    {
+      "fold": 1,
+      "validationSources": [
+        "V1"
+      ],
+      "trainSources": [
+        "V2",
+        "V3",
+        "V4",
+        "V7",
+        "adam",
+        "vid_01_cross_heavybag"
+      ],
+      "validationSamples": 1863,
+      "trainSamples": 1818,
+      "validationClassCounts": {
+        "jab": 451,
+        "cross": 679,
+        "lead_uppercut": 124,
+        "lead_hook": 365,
+        "rear_uppercut": 116,
+        "rear_hook": 128
+      },
+      "trainClassCounts": {
+        "jab": 496,
+        "cross": 461,
+        "lead_hook": 343,
+        "lead_uppercut": 204,
+        "rear_uppercut": 199,
+        "rear_hook": 115
+      }
+    },
+    {
+      "fold": 2,
+      "validationSources": [
+        "V2",
+        "V3"
+      ],
+      "trainSources": [
+        "V1",
+        "V4",
+        "V7",
+        "adam",
+        "vid_01_cross_heavybag"
+      ],
+      "validationSamples": 1043,
+      "trainSamples": 2638,
+      "validationClassCounts": {
+        "jab": 342,
+        "cross": 387,
+        "lead_hook": 136,
+        "lead_uppercut": 75,
+        "rear_uppercut": 71,
+        "rear_hook": 32
+      },
+      "trainClassCounts": {
+        "jab": 605,
+        "cross": 753,
+        "lead_uppercut": 253,
+        "lead_hook": 572,
+        "rear_uppercut": 244,
+        "rear_hook": 211
+      }
+    },
+    {
+      "fold": 3,
+      "validationSources": [
+        "V4",
+        "V7"
+      ],
+      "trainSources": [
+        "V1",
+        "V2",
+        "V3",
+        "adam",
+        "vid_01_cross_heavybag"
+      ],
+      "validationSamples": 754,
+      "trainSamples": 2927,
+      "validationClassCounts": {
+        "jab": 150,
+        "rear_hook": 80,
+        "lead_hook": 204,
+        "cross": 69,
+        "rear_uppercut": 125,
+        "lead_uppercut": 126
+      },
+      "trainClassCounts": {
+        "jab": 797,
+        "cross": 1071,
+        "lead_uppercut": 202,
+        "lead_hook": 504,
+        "rear_uppercut": 190,
+        "rear_hook": 163
+      }
+    }
+  ],
+  "calibrationSources": [
+    "V5"
+  ],
+  "historicalValidationDiagnostic": [
+    "V8"
+  ],
+  "observedDiagnostics": [
+    "V9",
+    "V10"
+  ],
+  "selection": "Mean of three fold macro-F1 means over seeds; worst-source agreement as tie-break; never select using V9/V10",
+  "limitations": [
+    "Same fighter across source IDs remains unknown.",
+    "Fold sizes differ; report source-level and pooled metrics separately.",
+    "Adam and heavybag remain training sources in every fold.",
+    "All labels remain unverified; these are development folds, not release tests."
+  ]
+}

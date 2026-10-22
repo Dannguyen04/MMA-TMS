@@ -1,0 +1,538 @@
+{
+  "status": "TEMPORARY_RESEARCH_USE",
+  "adamLabelPolicy": {
+    "status": "SOURCE_SELECTED_BY_USER",
+    "source": "adam_gt.csv",
+    "sourceSha256": "e7df3f784466f311a84b7d7d6aa6449e7eea5f9c3f91a1d512281b41769fdefb",
+    "sourceRows": 18,
+    "aiOverridesAllowed": false,
+    "intervalPolicy": "preserve_original_inclusive_frame_bounds",
+    "coachConfirmed": false
+  },
+  "sampleCount": 4775,
+  "splitCounts": {
+    "train": 3681,
+    "validation": 199,
+    "calibration": 595,
+    "test": 300
+  },
+  "aiSamplesAccepted": 3,
+  "adamSourceSamplesAccepted": 18,
+  "exclusions": [
+    {
+      "sampleId": "vid_01_cross_heavybag-review-0002",
+      "reason": "uncertain"
+    },
+    {
+      "sampleId": "vid_01_cross_heavybag-review-0005",
+      "reason": "fragment"
+    },
+    {
+      "sampleId": "vid_02_referee_gestures-review-0000",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_02_referee_gestures-review-0001",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_02_referee_gestures-review-0002",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_02_referee_gestures-review-0003",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_02_referee_gestures-review-0004",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_02_referee_gestures-review-0005",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_03_fighter_walkout-review-0000",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_03_fighter_walkout-review-0001",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_03_fighter_walkout-review-0002",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_03_fighter_walkout-review-0003",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_03_fighter_walkout-review-0004",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_03_fighter_walkout-review-0005",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_04_cage_striking-review-0000",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_04_cage_striking-review-0001",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_04_cage_striking-review-0002",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_04_cage_striking-review-0003",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_04_cage_striking-review-0004",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_04_cage_striking-review-0005",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_05_ground_grappling-review-0000",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_05_ground_grappling-review-0001",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_05_ground_grappling-review-0002",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_05_ground_grappling-review-0003",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_05_ground_grappling-review-0004",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_05_ground_grappling-review-0005",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_06_post_fight-review-0000",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_06_post_fight-review-0001",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_06_post_fight-review-0002",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_06_post_fight-review-0003",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_06_post_fight-review-0004",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_06_post_fight-review-0005",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "adam-review-0000",
+      "reason": "NO_ORIGINAL_ADAM_LABEL"
+    },
+    {
+      "sampleId": "adam-review-0002",
+      "reason": "NO_ORIGINAL_ADAM_LABEL"
+    },
+    {
+      "sampleId": "adam-review-0005",
+      "reason": "NO_ORIGINAL_ADAM_LABEL"
+    },
+    {
+      "sampleId": "adam-review-0007",
+      "reason": "NO_ORIGINAL_ADAM_LABEL"
+    },
+    {
+      "sampleId": "adam-review-0009",
+      "reason": "NO_ORIGINAL_ADAM_LABEL"
+    },
+    {
+      "sampleId": "adam-review-0011",
+      "reason": "NO_ORIGINAL_ADAM_LABEL"
+    },
+    {
+      "sampleId": "adam-review-0014",
+      "reason": "NO_ORIGINAL_ADAM_LABEL"
+    },
+    {
+      "sampleId": "adam-review-0017",
+      "reason": "NO_ORIGINAL_ADAM_LABEL"
+    },
+    {
+      "sampleId": "adam-review-0019",
+      "reason": "NO_ORIGINAL_ADAM_LABEL"
+    },
+    {
+      "sampleId": "adam-review-0021",
+      "reason": "NO_ORIGINAL_ADAM_LABEL"
+    },
+    {
+      "sampleId": "adam-review-0026",
+      "reason": "NO_ORIGINAL_ADAM_LABEL"
+    },
+    {
+      "sampleId": "adam-review-0029",
+      "reason": "NO_ORIGINAL_ADAM_LABEL"
+    },
+    {
+      "sampleId": "adam-review-0030",
+      "reason": "NO_ORIGINAL_ADAM_LABEL"
+    },
+    {
+      "sampleId": "vid_01_cross_heavybag-review-0000",
+      "reason": "MISSING_OR_DISCONTINUOUS_POSE"
+    }
+  ],
+  "manifestPath": "test_results\\provisional_dataset\\20261006_adam_source_v1\\manifest.json",
+  "manifestSha256": "68ae10fa47b820f9352ecf3318c703cec76deef0b74d808e6205825038f681f9",
+  "featureSha256": "5b8662a171b972e7d73a6b13979b1bc14743efadda619824b8e2614007eb15c6",
+  "adamSamples": [
+    {
+      "sampleId": "adam-review-0001",
+      "arrayIndex": 4757,
+      "sourceVideoId": "adam",
+      "sourceVideoSha256": "4398c790c6b7139d2cec90aa8678ab4a0b0b44afcbf45c64d0124f31111f781d",
+      "split": "train",
+      "trainingLabel": "jab",
+      "labelProvenance": "UPSTREAM_IMPORTED_UNVERIFIED",
+      "reviewStatus": "SOURCE_SELECTED_BY_USER",
+      "sourceAnnotationSha256": "e7df3f784466f311a84b7d7d6aa6449e7eea5f9c3f91a1d512281b41769fdefb",
+      "sourceRowId": "0",
+      "lossWeight": 0.25,
+      "coachConfirmed": false,
+      "goldEligible": false,
+      "startFrame": 1,
+      "endFrameExclusive": 40,
+      "boundariesConfirmed": false
+    },
+    {
+      "sampleId": "adam-review-0003",
+      "arrayIndex": 4758,
+      "sourceVideoId": "adam",
+      "sourceVideoSha256": "4398c790c6b7139d2cec90aa8678ab4a0b0b44afcbf45c64d0124f31111f781d",
+      "split": "train",
+      "trainingLabel": "cross",
+      "labelProvenance": "UPSTREAM_IMPORTED_UNVERIFIED",
+      "reviewStatus": "SOURCE_SELECTED_BY_USER",
+      "sourceAnnotationSha256": "e7df3f784466f311a84b7d7d6aa6449e7eea5f9c3f91a1d512281b41769fdefb",
+      "sourceRowId": "1",
+      "lossWeight": 0.25,
+      "coachConfirmed": false,
+      "goldEligible": false,
+      "startFrame": 42,
+      "endFrameExclusive": 93,
+      "boundariesConfirmed": false
+    },
+    {
+      "sampleId": "adam-review-0004",
+      "arrayIndex": 4759,
+      "sourceVideoId": "adam",
+      "sourceVideoSha256": "4398c790c6b7139d2cec90aa8678ab4a0b0b44afcbf45c64d0124f31111f781d",
+      "split": "train",
+      "trainingLabel": "lead_hook",
+      "labelProvenance": "UPSTREAM_IMPORTED_UNVERIFIED",
+      "reviewStatus": "SOURCE_SELECTED_BY_USER",
+      "sourceAnnotationSha256": "e7df3f784466f311a84b7d7d6aa6449e7eea5f9c3f91a1d512281b41769fdefb",
+      "sourceRowId": "2",
+      "lossWeight": 0.25,
+      "coachConfirmed": false,
+      "goldEligible": false,
+      "startFrame": 93,
+      "endFrameExclusive": 140,
+      "boundariesConfirmed": false
+    },
+    {
+      "sampleId": "adam-review-0006",
+      "arrayIndex": 4760,
+      "sourceVideoId": "adam",
+      "sourceVideoSha256": "4398c790c6b7139d2cec90aa8678ab4a0b0b44afcbf45c64d0124f31111f781d",
+      "split": "train",
+      "trainingLabel": "rear_hook",
+      "labelProvenance": "UPSTREAM_IMPORTED_UNVERIFIED",
+      "reviewStatus": "SOURCE_SELECTED_BY_USER",
+      "sourceAnnotationSha256": "e7df3f784466f311a84b7d7d6aa6449e7eea5f9c3f91a1d512281b41769fdefb",
+      "sourceRowId": "3",
+      "lossWeight": 0.25,
+      "coachConfirmed": false,
+      "goldEligible": false,
+      "startFrame": 144,
+      "endFrameExclusive": 190,
+      "boundariesConfirmed": false
+    },
+    {
+      "sampleId": "adam-review-0008",
+      "arrayIndex": 4761,
+      "sourceVideoId": "adam",
+      "sourceVideoSha256": "4398c790c6b7139d2cec90aa8678ab4a0b0b44afcbf45c64d0124f31111f781d",
+      "split": "train",
+      "trainingLabel": "lead_uppercut",
+      "labelProvenance": "UPSTREAM_IMPORTED_UNVERIFIED",
+      "reviewStatus": "SOURCE_SELECTED_BY_USER",
+      "sourceAnnotationSha256": "e7df3f784466f311a84b7d7d6aa6449e7eea5f9c3f91a1d512281b41769fdefb",
+      "sourceRowId": "4",
+      "lossWeight": 0.25,
+      "coachConfirmed": false,
+      "goldEligible": false,
+      "startFrame": 192,
+      "endFrameExclusive": 241,
+      "boundariesConfirmed": false
+    },
+    {
+      "sampleId": "adam-review-0010",
+      "arrayIndex": 4762,
+      "sourceVideoId": "adam",
+      "sourceVideoSha256": "4398c790c6b7139d2cec90aa8678ab4a0b0b44afcbf45c64d0124f31111f781d",
+      "split": "train",
+      "trainingLabel": "rear_uppercut",
+      "labelProvenance": "UPSTREAM_IMPORTED_UNVERIFIED",
+      "reviewStatus": "SOURCE_SELECTED_BY_USER",
+      "sourceAnnotationSha256": "e7df3f784466f311a84b7d7d6aa6449e7eea5f9c3f91a1d512281b41769fdefb",
+      "sourceRowId": "5",
+      "lossWeight": 0.25,
+      "coachConfirmed": false,
+      "goldEligible": false,
+      "startFrame": 243,
+      "endFrameExclusive": 287,
+      "boundariesConfirmed": false
+    },
+    {
+      "sampleId": "adam-review-0012",
+      "arrayIndex": 4763,
+      "sourceVideoId": "adam",
+      "sourceVideoSha256": "4398c790c6b7139d2cec90aa8678ab4a0b0b44afcbf45c64d0124f31111f781d",
+      "split": "train",
+      "trainingLabel": "jab",
+      "labelProvenance": "UPSTREAM_IMPORTED_UNVERIFIED",
+      "reviewStatus": "SOURCE_SELECTED_BY_USER",
+      "sourceAnnotationSha256": "e7df3f784466f311a84b7d7d6aa6449e7eea5f9c3f91a1d512281b41769fdefb",
+      "sourceRowId": "6",
+      "lossWeight": 0.25,
+      "coachConfirmed": false,
+      "goldEligible": false,
+      "startFrame": 293,
+      "endFrameExclusive": 312,
+      "boundariesConfirmed": false
+    },
+    {
+      "sampleId": "adam-review-0013",
+      "arrayIndex": 4764,
+      "sourceVideoId": "adam",
+      "sourceVideoSha256": "4398c790c6b7139d2cec90aa8678ab4a0b0b44afcbf45c64d0124f31111f781d",
+      "split": "train",
+      "trainingLabel": "cross",
+      "labelProvenance": "UPSTREAM_IMPORTED_UNVERIFIED",
+      "reviewStatus": "SOURCE_SELECTED_BY_USER",
+      "sourceAnnotationSha256": "e7df3f784466f311a84b7d7d6aa6449e7eea5f9c3f91a1d512281b41769fdefb",
+      "sourceRowId": "7",
+      "lossWeight": 0.25,
+      "coachConfirmed": false,
+      "goldEligible": false,
+      "startFrame": 311,
+      "endFrameExclusive": 326,
+      "boundariesConfirmed": false
+    },
+    {
+      "sampleId": "adam-review-0015",
+      "arrayIndex": 4765,
+      "sourceVideoId": "adam",
+      "sourceVideoSha256": "4398c790c6b7139d2cec90aa8678ab4a0b0b44afcbf45c64d0124f31111f781d",
+      "split": "train",
+      "trainingLabel": "lead_hook",
+      "labelProvenance": "UPSTREAM_IMPORTED_UNVERIFIED",
+      "reviewStatus": "SOURCE_SELECTED_BY_USER",
+      "sourceAnnotationSha256": "e7df3f784466f311a84b7d7d6aa6449e7eea5f9c3f91a1d512281b41769fdefb",
+      "sourceRowId": "8",
+      "lossWeight": 0.25,
+      "coachConfirmed": false,
+      "goldEligible": false,
+      "startFrame": 327,
+      "endFrameExclusive": 349,
+      "boundariesConfirmed": false
+    },
+    {
+      "sampleId": "adam-review-0016",
+      "arrayIndex": 4766,
+      "sourceVideoId": "adam",
+      "sourceVideoSha256": "4398c790c6b7139d2cec90aa8678ab4a0b0b44afcbf45c64d0124f31111f781d",
+      "split": "train",
+      "trainingLabel": "rear_hook",
+      "labelProvenance": "UPSTREAM_IMPORTED_UNVERIFIED",
+      "reviewStatus": "SOURCE_SELECTED_BY_USER",
+      "sourceAnnotationSha256": "e7df3f784466f311a84b7d7d6aa6449e7eea5f9c3f91a1d512281b41769fdefb",
+      "sourceRowId": "9",
+      "lossWeight": 0.25,
+      "coachConfirmed": false,
+      "goldEligible": false,
+      "startFrame": 349,
+      "endFrameExclusive": 365,
+      "boundariesConfirmed": false
+    },
+    {
+      "sampleId": "adam-review-0018",
+      "arrayIndex": 4767,
+      "sourceVideoId": "adam",
+      "sourceVideoSha256": "4398c790c6b7139d2cec90aa8678ab4a0b0b44afcbf45c64d0124f31111f781d",
+      "split": "train",
+      "trainingLabel": "lead_uppercut",
+      "labelProvenance": "UPSTREAM_IMPORTED_UNVERIFIED",
+      "reviewStatus": "SOURCE_SELECTED_BY_USER",
+      "sourceAnnotationSha256": "e7df3f784466f311a84b7d7d6aa6449e7eea5f9c3f91a1d512281b41769fdefb",
+      "sourceRowId": "10",
+      "lossWeight": 0.25,
+      "coachConfirmed": false,
+      "goldEligible": false,
+      "startFrame": 368,
+      "endFrameExclusive": 389,
+      "boundariesConfirmed": false
+    },
+    {
+      "sampleId": "adam-review-0020",
+      "arrayIndex": 4768,
+      "sourceVideoId": "adam",
+      "sourceVideoSha256": "4398c790c6b7139d2cec90aa8678ab4a0b0b44afcbf45c64d0124f31111f781d",
+      "split": "train",
+      "trainingLabel": "rear_uppercut",
+      "labelProvenance": "UPSTREAM_IMPORTED_UNVERIFIED",
+      "reviewStatus": "SOURCE_SELECTED_BY_USER",
+      "sourceAnnotationSha256": "e7df3f784466f311a84b7d7d6aa6449e7eea5f9c3f91a1d512281b41769fdefb",
+      "sourceRowId": "11",
+      "lossWeight": 0.25,
+      "coachConfirmed": false,
+      "goldEligible": false,
+      "startFrame": 390,
+      "endFrameExclusive": 405,
+      "boundariesConfirmed": false
+    },
+    {
+      "sampleId": "adam-review-0022",
+      "arrayIndex": 4769,
+      "sourceVideoId": "adam",
+      "sourceVideoSha256": "4398c790c6b7139d2cec90aa8678ab4a0b0b44afcbf45c64d0124f31111f781d",
+      "split": "train",
+      "trainingLabel": "jab",
+      "labelProvenance": "UPSTREAM_IMPORTED_UNVERIFIED",
+      "reviewStatus": "SOURCE_SELECTED_BY_USER",
+      "sourceAnnotationSha256": "e7df3f784466f311a84b7d7d6aa6449e7eea5f9c3f91a1d512281b41769fdefb",
+      "sourceRowId": "12",
+      "lossWeight": 0.25,
+      "coachConfirmed": false,
+      "goldEligible": false,
+      "startFrame": 424,
+      "endFrameExclusive": 436,
+      "boundariesConfirmed": false
+    },
+    {
+      "sampleId": "adam-review-0023",
+      "arrayIndex": 4770,
+      "sourceVideoId": "adam",
+      "sourceVideoSha256": "4398c790c6b7139d2cec90aa8678ab4a0b0b44afcbf45c64d0124f31111f781d",
+      "split": "train",
+      "trainingLabel": "cross",
+      "labelProvenance": "UPSTREAM_IMPORTED_UNVERIFIED",
+      "reviewStatus": "SOURCE_SELECTED_BY_USER",
+      "sourceAnnotationSha256": "e7df3f784466f311a84b7d7d6aa6449e7eea5f9c3f91a1d512281b41769fdefb",
+      "sourceRowId": "13",
+      "lossWeight": 0.25,
+      "coachConfirmed": false,
+      "goldEligible": false,
+      "startFrame": 435,
+      "endFrameExclusive": 444,
+      "boundariesConfirmed": false
+    },
+    {
+      "sampleId": "adam-review-0024",
+      "arrayIndex": 4771,
+      "sourceVideoId": "adam",
+      "sourceVideoSha256": "4398c790c6b7139d2cec90aa8678ab4a0b0b44afcbf45c64d0124f31111f781d",
+      "split": "train",
+      "trainingLabel": "lead_hook",
+      "labelProvenance": "UPSTREAM_IMPORTED_UNVERIFIED",
+      "reviewStatus": "SOURCE_SELECTED_BY_USER",
+      "sourceAnnotationSha256": "e7df3f784466f311a84b7d7d6aa6449e7eea5f9c3f91a1d512281b41769fdefb",
+      "sourceRowId": "14",
+      "lossWeight": 0.25,
+      "coachConfirmed": false,
+      "goldEligible": false,
+      "startFrame": 443,
+      "endFrameExclusive": 454,
+      "boundariesConfirmed": false
+    },
+    {
+      "sampleId": "adam-review-0025",
+      "arrayIndex": 4772,
+      "sourceVideoId": "adam",
+      "sourceVideoSha256": "4398c790c6b7139d2cec90aa8678ab4a0b0b44afcbf45c64d0124f31111f781d",
+      "split": "train",
+      "trainingLabel": "rear_hook",
+      "labelProvenance": "UPSTREAM_IMPORTED_UNVERIFIED",
+      "reviewStatus": "SOURCE_SELECTED_BY_USER",
+      "sourceAnnotationSha256": "e7df3f784466f311a84b7d7d6aa6449e7eea5f9c3f91a1d512281b41769fdefb",
+      "sourceRowId": "15",
+      "lossWeight": 0.25,
+      "coachConfirmed": false,
+      "goldEligible": false,
+      "startFrame": 453,
+      "endFrameExclusive": 461,
+      "boundariesConfirmed": false
+    },
+    {
+      "sampleId": "adam-review-0027",
+      "arrayIndex": 4773,
+      "sourceVideoId": "adam",
+      "sourceVideoSha256": "4398c790c6b7139d2cec90aa8678ab4a0b0b44afcbf45c64d0124f31111f781d",
+      "split": "train",
+      "trainingLabel": "lead_uppercut",
+      "labelProvenance": "UPSTREAM_IMPORTED_UNVERIFIED",
+      "reviewStatus": "SOURCE_SELECTED_BY_USER",
+      "sourceAnnotationSha256": "e7df3f784466f311a84b7d7d6aa6449e7eea5f9c3f91a1d512281b41769fdefb",
+      "sourceRowId": "16",
+      "lossWeight": 0.25,
+      "coachConfirmed": false,
+      "goldEligible": false,
+      "startFrame": 462,
+      "endFrameExclusive": 474,
+      "boundariesConfirmed": false
+    },
+    {
+      "sampleId": "adam-review-0028",
+      "arrayIndex": 4774,
+      "sourceVideoId": "adam",
+      "sourceVideoSha256": "4398c790c6b7139d2cec90aa8678ab4a0b0b44afcbf45c64d0124f31111f781d",
+      "split": "train",
+      "trainingLabel": "rear_uppercut",
+      "labelProvenance": "UPSTREAM_IMPORTED_UNVERIFIED",
+      "reviewStatus": "SOURCE_SELECTED_BY_USER",
+      "sourceAnnotationSha256": "e7df3f784466f311a84b7d7d6aa6449e7eea5f9c3f91a1d512281b41769fdefb",
+      "sourceRowId": "17",
+      "lossWeight": 0.25,
+      "coachConfirmed": false,
+      "goldEligible": false,
+      "startFrame": 474,
+      "endFrameExclusive": 484,
+      "boundariesConfirmed": false
+    }
+  ],
+  "modelRetrained": false,
+  "validation": "18 original CSV rows match loaded training targets and frame intervals"
+}

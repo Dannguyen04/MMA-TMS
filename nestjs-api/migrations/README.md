@@ -1,4 +1,36 @@
-# Migrations 003–018 — Backend, Database & API Permissions
+# Migrations 003–024 — Backend, Database & API Permissions
+
+## Áp dụng migration 024 (Bộ luật giải, trận, checklist hồ sơ - bouts)
+
+024 yêu cầu ledger đã có version 23 (023 academy_settings), chưa có 24, và ghi ledger version 24. Preflight cũng kiểm tra `training_plans.phase` (018), các hàm trigger của 003 và quyền `fighter.measurement:write` của 004.
+Nội dung:
+- Enum `bout_status`, `bout_sport`, `bout_result`, `bout_method`, `bout_requirement_status`.
+- Bảng `competition_rulesets` (hạng cân, mẫu hồ sơ, quy tắc đình chỉ ở dạng jsonb; `created_by_id` NULL cho preset hệ thống) và ba preset: "MMA – VMMAF 2021" (`verified = true`), "Boxing nghiệp dư – AIBA (tham khảo)" (kèm 3 mục hồ sơ mẫu cho demo), "Tự nhập".
+- Bảng `bouts` (snapshot hạng cân, ngưỡng giảm cấp tốc, hạn nộp hồ sơ; cột kết quả để NULL cho T-006). Ràng buộc `weigh_in_at < bout_at`, `cancel_reason` và `result`/`method` khác NULL khi và chỉ khi `CANCELLED`/`COMPLETED`; unique index `uq_bouts_active_per_fighter` (một trận `CAMP`, `FIGHT_WEEK`, `WEIGHED_IN` mỗi võ sĩ); khoá ngoại ghép `(training_plan_id, fighter_id)` tới `training_plans`.
+- Bảng `bout_requirements` (`source` PRESET hoặc COACH, `validity_days`; `PROVIDED` và `CONFIRMED` bắt buộc có `valid_until`, `REJECTED` bắt buộc có `status_reason`).
+- Triggers: `public.update_updated_at()`, `mma_private.audit_domain_mutation()`, `mma_private.reject_context_change('fighter_id')` trên `bouts`.
+- RLS bật, REVOKE ALL từ `PUBLIC, anon, authenticated`.
+- Quyền: `ruleset:read` (COACH, DOCTOR, ADMIN); `bout:get_all`, `bout:read` (FIGHTER, COACH, DOCTOR, ADMIN); `bout:create`, `bout:update`, `bout:result`, `bout:requirement` (COACH, ADMIN). Cấp thêm `fighter.measurement:write` cho FIGHTER (không cấp cho COACH).
+
+```sh
+pnpm db:check
+pnpm db:migrate:024
+```
+
+## Áp dụng migration 023 (Chế độ giám sát y tế - academy_settings)
+
+023 yêu cầu ledger đã có version 20 (020 movement evidence reviews) và ghi ledger version 23.
+Nội dung:
+- Enum `public.medical_supervision` (`DOCTOR`, `NONE`).
+- Bảng một dòng `public.academy_settings` (`id boolean PRIMARY KEY DEFAULT true CHECK (id)`, `medical_supervision public.medical_supervision NOT NULL DEFAULT 'DOCTOR'`, `change_reason text`, `updated_by_id uuid REFERENCES public.users(id)`, `updated_at timestamptz NOT NULL DEFAULT now()`). Insert sẵn một dòng mặc định.
+- Triggers: `public.update_updated_at()` và `mma_private.audit_domain_mutation()`.
+- RLS bật, REVOKE ALL từ `anon, authenticated`.
+- Quyền: `academy_settings:read` cho FIGHTER, COACH, DOCTOR, ADMIN; `academy_settings:manage` cho ADMIN.
+
+```sh
+pnpm db:check
+pnpm db:migrate:023
+```
 
 ## Áp dụng migration 018 (phase bắt buộc của Training Plan)
 

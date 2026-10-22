@@ -1,0 +1,241 @@
+{
+  "status": "ADAM_TRAINING_VIDEO_REGRESSION",
+  "independentAcceptance": false,
+  "annotationSha256": "e7df3f784466f311a84b7d7d6aa6449e7eea5f9c3f91a1d512281b41769fdefb",
+  "resultSha256": "9bc34c090e9effad71d6ec39bb44dc30ee54f14cd1ce512359d5cc47e9428a62",
+  "metrics": {
+    "0.1": {
+      "minIntervalIoU": 0.1,
+      "annotationCount": 18,
+      "candidateCount": 19,
+      "detection": {
+        "tp": 11,
+        "fp": 8,
+        "fn": 7,
+        "precision": 0.5789473684210527,
+        "recall": 0.6111111111111112,
+        "f1": 0.5945945945945946
+      },
+      "acceptedCount": 0,
+      "abstainedCandidates": 19,
+      "acceptedCandidateCoverage": 0.0,
+      "acceptedPrecision": null,
+      "recognitionRecall": 0.0,
+      "macroF1IncludingMissesAbstentionsAndExtraPredictions": 0.0,
+      "perClass": {
+        "jab": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 3,
+          "support": 3,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "cross": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 3,
+          "support": 3,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "lead_hook": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 3,
+          "support": 3,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "rear_hook": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 3,
+          "support": 3,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "lead_uppercut": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 3,
+          "support": 3,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "rear_uppercut": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 3,
+          "support": 3,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        }
+      },
+      "note": "Class-aware one-to-one interval matching. Unlabelled gaps require exhaustive annotation to interpret FP."
+    },
+    "0.3": {
+      "minIntervalIoU": 0.3,
+      "annotationCount": 18,
+      "candidateCount": 19,
+      "detection": {
+        "tp": 7,
+        "fp": 12,
+        "fn": 11,
+        "precision": 0.3684210526315789,
+        "recall": 0.3888888888888889,
+        "f1": 0.3783783783783784
+      },
+      "acceptedCount": 0,
+      "abstainedCandidates": 19,
+      "acceptedCandidateCoverage": 0.0,
+      "acceptedPrecision": null,
+      "recognitionRecall": 0.0,
+      "macroF1IncludingMissesAbstentionsAndExtraPredictions": 0.0,
+      "perClass": {
+        "jab": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 3,
+          "support": 3,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "cross": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 3,
+          "support": 3,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "lead_hook": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 3,
+          "support": 3,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "rear_hook": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 3,
+          "support": 3,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "lead_uppercut": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 3,
+          "support": 3,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "rear_uppercut": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 3,
+          "support": 3,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        }
+      },
+      "note": "Class-aware one-to-one interval matching. Unlabelled gaps require exhaustive annotation to interpret FP."
+    },
+    "0.5": {
+      "minIntervalIoU": 0.5,
+      "annotationCount": 18,
+      "candidateCount": 19,
+      "detection": {
+        "tp": 5,
+        "fp": 14,
+        "fn": 13,
+        "precision": 0.2631578947368421,
+        "recall": 0.2777777777777778,
+        "f1": 0.2702702702702703
+      },
+      "acceptedCount": 0,
+      "abstainedCandidates": 19,
+      "acceptedCandidateCoverage": 0.0,
+      "acceptedPrecision": null,
+      "recognitionRecall": 0.0,
+      "macroF1IncludingMissesAbstentionsAndExtraPredictions": 0.0,
+      "perClass": {
+        "jab": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 3,
+          "support": 3,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "cross": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 3,
+          "support": 3,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "lead_hook": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 3,
+          "support": 3,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "rear_hook": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 3,
+          "support": 3,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "lead_uppercut": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 3,
+          "support": 3,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "rear_uppercut": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 3,
+          "support": 3,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        }
+      },
+      "note": "Class-aware one-to-one interval matching. Unlabelled gaps require exhaustive annotation to interpret FP."
+    }
+  },
+  "limitations": [
+    "Adam is already in training; these are regression metrics only.",
+    "Original CSV overlaps are preserved; annotation exhaustiveness is unverified.",
+    "Correct abstention is not measurable without independent ambiguity/background labels."
+  ]
+}

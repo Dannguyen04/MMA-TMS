@@ -10,6 +10,7 @@ import {
     daysBetweenKeys,
     formatNumber,
     formatRelative,
+    formatShortDate,
     isDateKey,
     isTimeValue,
     toDateTimeInputValue,
@@ -105,5 +106,17 @@ describe("formatRelative and formatNumber", () => {
         expect(formatNumber(1234.567, 1)).toBe("1,234.6");
         expect(formatNumber(2, 2)).toBe("2.00");
         expect(formatNumber(1234.567, 1)).toBe("1,234.6");
+    });
+});
+
+describe("Vietnamese formatting", () => {
+    it("formats dates and relative times in Vietnamese when asked", () => {
+        expect(formatShortDate("2026-10-21T05:00:00Z", "vi")).toBe("21 thg 10");
+        expect(formatRelative("2026-10-17T05:00:00Z", "2026-10-19T05:00:00Z", "vi")).toBe("hôm kia");
+        expect(formatRelative("2026-10-19T04:59:30Z", "2026-10-19T05:00:00Z", "vi")).toBe("vừa xong");
+    });
+
+    it("keeps English output when no locale is given", () => {
+        expect(formatShortDate("2026-10-21T05:00:00Z")).toBe("21 Oct");
     });
 });

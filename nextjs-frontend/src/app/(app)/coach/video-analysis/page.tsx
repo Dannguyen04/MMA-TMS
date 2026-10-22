@@ -1,3 +1,4 @@
+import { getDemoCopy, getLocale } from "@/lib/i18n/server";
 import { ArrowRight, CircleX, LoaderCircle, Upload } from "lucide-react";
 import type { Metadata } from "next";
 
@@ -17,12 +18,13 @@ import type { User, VideoStatus } from "@/lib/domain/types";
 import { routes } from "@/lib/routes";
 import { listReviewQueue, listVideoLibrary, type VideoLibraryItem } from "@/lib/services/videos";
 
-export const metadata: Metadata = { title: "Film room" };
+export async function generateMetadata(): Promise<Metadata> { const copy = await getDemoCopy(); return { title: copy("Film room") }; }
 
 /** Footage that can't be reviewed yet: listed on its own and left out of the unfiltered library grid. */
 const ATTENTION_STATUSES: VideoStatus[] = ["processing", "queued", "failed"];
 
 export default async function CoachVideoAnalysisPage({ searchParams }: PageProps<"/coach/video-analysis">) {
+    const copy = await getDemoCopy();
     const user = await requireRole("coach");
     const params = await searchParams;
     const now = new Date().toISOString();
@@ -30,13 +32,12 @@ export default async function CoachVideoAnalysisPage({ searchParams }: PageProps
     return (
         <>
             <PageHeader
-                title="Film room"
-                description="See what the AI found in your fighters' footage, then confirm or correct it before it shapes training."
+                title={copy("Film room")}
+                description={copy("See what the AI found in your fighters' footage, then confirm or correct it before it shapes training.")}
                 actions={
                     <ButtonLink href={routes.coach.uploadVideo}>
                         <Upload aria-hidden />
-                        Upload video
-                    </ButtonLink>
+                        {copy("Upload video")} </ButtonLink>
                 }
             />
             {/* The review sections and the library are sibling async components, so their data loads in parallel. */}
@@ -45,9 +46,8 @@ export default async function CoachVideoAnalysisPage({ searchParams }: PageProps
                 <section aria-labelledby="library-heading" className="flex flex-col gap-4">
                     <div>
                         <h2 id="library-heading" className="text-lg font-semibold text-fg">
-                            All footage
-                        </h2>
-                        <p className="mt-0.5 text-sm text-fg-muted">Analysed footage from your roster, newest first. Filter by status to include processing or failed videos.</p>
+                            {copy("All footage")} </h2>
+                        <p className="mt-0.5 text-sm text-fg-muted">{copy("Analysed footage from your roster, newest first. Filter by status to include processing or failed videos.")} </p>
                     </div>
                     <VideoLibrary
                         user={user}
@@ -66,6 +66,7 @@ export default async function CoachVideoAnalysisPage({ searchParams }: PageProps
 
 /** The queue of analyses awaiting the coach's review, and footage that needs attention. */
 async function ReviewSections({ user, now }: { user: User; now: string }) {
+    const copy = await getDemoCopy();
     const scope = accessibleFighterIds(user);
     const [queue, roster] = await Promise.all([listReviewQueue(scope), listVideoLibrary({ fighterIds: scope })]);
     const attention = roster.filter((item) => ATTENTION_STATUSES.includes(item.video.status));
@@ -75,7 +76,7 @@ async function ReviewSections({ user, now }: { user: User; now: string }) {
             <ReviewQueue items={queue} now={now} />
             {attention.length > 0 && (
                 <Card>
-                    <CardHeader icon={<LoaderCircle />} title="Processing and needs attention" description="Footage still being analysed, and analyses that didn't finish." />
+                    <CardHeader icon={<LoaderCircle />} title={copy("Processing and needs attention")} description={copy("Footage still being analysed, and analyses that didn't finish.")} />
                     <ul className="divide-y divide-border border-t border-border">
                         {attention.map((item) => (
                             <AttentionRow key={item.video.id} item={item} />
@@ -87,7 +88,9 @@ async function ReviewSections({ user, now }: { user: User; now: string }) {
     );
 }
 
-function AttentionRow({ item: { video, fighter, job } }: { item: VideoLibraryItem }) {
+async function AttentionRow({ item: { video, fighter, job } }: { item: VideoLibraryItem }) {
+    const copy = await getDemoCopy();
+    const locale = await getLocale();
     const inFlight = video.status === "queued" || video.status === "processing";
     return (
         <li className="flex items-center gap-3 px-5 py-3.5 md:gap-4">
@@ -96,7 +99,7 @@ function AttentionRow({ item: { video, fighter, job } }: { item: VideoLibraryIte
                 <p className="text-sm font-medium text-fg sm:truncate">{video.title}</p>
                 <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1.5">
                     <FighterIdentity fighter={fighter} size="sm" showMeta={false} />
-                    <VideoStatusBadge status={video.status} size="sm" />
+                    <VideoStatusBadge locale={locale}  status={video.status} size="sm" />
                 </div>
                 {inFlight && video.jobId && (
                     <div className="mt-2 max-w-80">
@@ -110,9 +113,8 @@ function AttentionRow({ item: { video, fighter, job } }: { item: VideoLibraryIte
                     </p>
                 )}
             </div>
-            <ButtonLink href={routes.coach.video(video.id)} variant="secondary" size="sm" aria-label={`Open ${video.title}`}>
-                Open
-                <ArrowRight aria-hidden />
+            <ButtonLink href={routes.coach.video(video.id)} variant="secondary" size="sm" aria-label={copy("Open {title}", { title: video.title })}>
+                {copy("Open")} <ArrowRight aria-hidden />
             </ButtonLink>
         </li>
     );

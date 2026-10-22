@@ -1,5 +1,6 @@
 "use client";
 
+import { useDemoCopy } from "@/components/i18n/locale-provider";
 import { Ban, Check } from "lucide-react";
 
 import { TECHNIQUE_COLOR } from "@/components/charts/colors";
@@ -26,6 +27,7 @@ export interface TechniqueCheckboxesProps {
 
 /** Multi-select techniques as toggle chips. Native checkboxes keep keyboard and screen-reader support. */
 export function TechniqueCheckboxes({ name, id, legend, value, onChange, restricted = [], hint, error, required, optional }: TechniqueCheckboxesProps) {
+    const copy = useDemoCopy();
     const describedBy = fieldDescribedBy(id, { hint, error });
     const toggle = (technique: Technique, checked: boolean) => {
         onChange(checked ? TECHNIQUES.filter((t) => t === technique || value.includes(t)) : value.filter((t) => t !== technique));
@@ -40,10 +42,10 @@ export function TechniqueCheckboxes({ name, id, legend, value, onChange, restric
                         <span className="ml-0.5 text-danger-fg" aria-hidden>
                             *
                         </span>
-                        <span className="sr-only"> (required)</span>
+                        <span className="sr-only"> {copy("(required)")} </span>
                     </>
                 )}
-                {optional && <span className="ml-1.5 text-xs font-normal text-fg-subtle">(optional)</span>}
+                {optional && <span className="ml-1.5 text-xs font-normal text-fg-subtle">{copy("(optional)")} </span>}
             </legend>
             <ul className="flex flex-wrap gap-2">
                 {TECHNIQUES.map((technique) => {
@@ -74,11 +76,11 @@ export function TechniqueCheckboxes({ name, id, legend, value, onChange, restric
                                     className="size-2 shrink-0 rounded-[2px] group-has-checked:hidden"
                                     style={{ backgroundColor: TECHNIQUE_COLOR[technique] }}
                                 />
-                                {TECHNIQUE_LABELS[technique]}
+                                {copy(TECHNIQUE_LABELS[technique])}
                                 {isRestricted && (
                                     <>
                                         <Ban aria-hidden className="size-3.5 text-warning-fg" />
-                                        <span className="sr-only">(restricted by Medical Clearance)</span>
+                                        <span className="sr-only">{copy("(restricted by Medical Clearance)")} </span>
                                     </>
                                 )}
                             </label>

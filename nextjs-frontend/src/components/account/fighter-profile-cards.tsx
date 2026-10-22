@@ -1,7 +1,7 @@
 import { Activity, Swords, Trophy, Users } from "lucide-react";
 
 import { recordSpoken, recordText } from "@/components/dashboard/dashboard-utils";
-import { NOT_RECORDED, capitalize, describeDaysUntil, labelOf } from "@/components/domain/domain-format";
+import { labelOf } from "@/components/domain/domain-format";
 import { MetricTile } from "@/components/domain/metric-tile";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -9,17 +9,21 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { DescriptionList } from "@/components/ui/description-list";
 import { STANCE_LABELS, TRAINING_LEVEL_LABELS, WEIGHT_CLASS_LABELS } from "@/lib/domain/labels";
 import type { Coach, Doctor, Fighter } from "@/lib/domain/types";
-import { daysBetween, formatDate, formatNumber } from "@/lib/format";
+import { formatDate, formatNumber, formatRelative } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
+import { createTranslator } from "@/lib/i18n/translate";
 import { BodyMetricsDialog } from "./body-metrics-dialog";
 
 /* ─── Fight profile ───────────────────────────────────────────────────────── */
 
-export function FightProfileCard({ fighter, now }: { fighter: Fighter; now: string }) {
+export function FightProfileCard({ fighter, now, locale = "en" }: { fighter: Fighter; now: string; locale?: Locale }) {
     const bout = fighter.upcomingBout;
+    const t = createTranslator(locale);
+    const notRecorded = t("account.profile.notRecorded");
 
     return (
         <Card className="min-w-0">
-            <CardHeader title="Fight profile" icon={<Swords />} description="Kept up to date by your coaches — let them know if something has changed." />
+            <CardHeader title={t("account.fightProfile.title")} icon={<Swords />} description={t("account.fightProfile.description")} />
             <CardContent className="flex flex-col gap-5">
                 {bout ? (
                     <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface-muted/60 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -28,47 +32,47 @@ export function FightProfileCard({ fighter, now }: { fighter: Fighter; now: stri
                                 <Trophy className="size-[18px]" />
                             </span>
                             <div className="min-w-0">
-                                <p className="text-xs font-medium text-fg-muted">Next bout</p>
+                                <p className="text-xs font-medium text-fg-muted">{t("account.fightProfile.nextBout")}</p>
                                 <p className="text-[15px] font-semibold text-fg">{bout.event}</p>
                                 <p className="text-[13px] text-fg-muted">
-                                    vs {bout.opponent} · {WEIGHT_CLASS_LABELS[bout.weightClass]}
+                                    {t("account.fightProfile.vs", { opponent: bout.opponent, weightClass: WEIGHT_CLASS_LABELS[bout.weightClass] })}
                                 </p>
                             </div>
                         </div>
                         <div className="pl-12 sm:pl-0 sm:text-right">
                             <p className="text-sm font-medium text-fg">
-                                <time dateTime={bout.date}>{formatDate(bout.date)}</time>
+                                <time dateTime={bout.date}>{formatDate(bout.date, locale)}</time>
                             </p>
-                            <p className="text-[13px] text-fg-muted">{capitalize(describeDaysUntil(daysBetween(now, bout.date)))}</p>
+                            <p className="text-[13px] text-fg-muted">{formatRelative(bout.date, now, locale)}</p>
                         </div>
                     </div>
                 ) : (
                     <p className="rounded-lg bg-surface-muted px-4 py-3 text-sm text-fg-muted">
-                        No bout scheduled. Your coaches add bouts here once they are confirmed.
+                        {t("account.fightProfile.noBout")}
                     </p>
                 )}
                 <DescriptionList
                     columns={3}
                     className="grid-cols-2"
                     items={[
-                        { label: "Weight class", value: WEIGHT_CLASS_LABELS[fighter.weightClass] },
-                        { label: "Stance", value: labelOf(STANCE_LABELS, fighter.stance) ?? NOT_RECORDED },
-                        { label: "Level", value: labelOf(TRAINING_LEVEL_LABELS, fighter.level) ?? NOT_RECORDED },
-                        { label: "Discipline", value: fighter.primaryDiscipline ?? NOT_RECORDED },
+                        { label: t("account.fightProfile.weightClass"), value: WEIGHT_CLASS_LABELS[fighter.weightClass] },
+                        { label: t("account.fightProfile.stance"), value: labelOf(STANCE_LABELS, fighter.stance) ?? notRecorded },
+                        { label: t("account.fightProfile.level"), value: labelOf(TRAINING_LEVEL_LABELS, fighter.level) ?? notRecorded },
+                        { label: t("account.fightProfile.discipline"), value: fighter.primaryDiscipline ?? notRecorded },
                         {
-                            label: "Record (W-L-D)",
+                            label: t("account.fightProfile.record"),
                             value: fighter.record ? (
                                 <>
                                     <span aria-hidden>{recordText(fighter)}</span>
                                     <span className="sr-only">{recordSpoken(fighter)}</span>
                                 </>
                             ) : (
-                                NOT_RECORDED
+                                notRecorded
                             ),
                         },
-                        { label: "Height", value: fighter.heightCm === null ? NOT_RECORDED : `${fighter.heightCm} cm` },
-                        { label: "Reach", value: fighter.reachCm === null ? NOT_RECORDED : `${fighter.reachCm} cm` },
-                        { label: "Nationality", value: fighter.nationality },
+                        { label: t("account.fightProfile.height"), value: fighter.heightCm === null ? notRecorded : `${fighter.heightCm} cm` },
+                        { label: t("account.fightProfile.reach"), value: fighter.reachCm === null ? notRecorded : `${fighter.reachCm} cm` },
+                        { label: t("account.fightProfile.nationality"), value: fighter.nationality },
                     ]}
                 />
             </CardContent>
@@ -79,16 +83,18 @@ export function FightProfileCard({ fighter, now }: { fighter: Fighter; now: stri
 /* ─── Body metrics ────────────────────────────────────────────────────────── */
 
 /** `canLog` offers the fighter's own weigh-in log; off while body metrics can't be saved. */
-export function BodyMetricsCard({ fighter, canLog }: { fighter: Fighter; canLog: boolean }) {
+export function BodyMetricsCard({ fighter, canLog, locale = "en" }: { fighter: Fighter; canLog: boolean; locale?: Locale }) {
+    const t = createTranslator(locale);
     const classLabel = WEIGHT_CLASS_LABELS[fighter.weightClass];
     const gap = fighter.weightKg === null ? null : Number((fighter.weightKg - fighter.targetWeightKg).toFixed(1));
+    const notRecorded = t("account.profile.notRecorded");
 
     return (
         <Card className="min-w-0">
             <CardHeader
-                title="Body metrics"
+                title={t("account.bodyMetrics.title")}
                 icon={<Activity />}
-                description={canLog ? "Log changes after a weigh-in so your coaches plan around current numbers." : "Your latest recorded measurements."}
+                description={canLog ? t("account.bodyMetrics.descriptionCanLog") : t("account.bodyMetrics.descriptionReadOnly")}
                 action={
                     canLog && (
                         <BodyMetricsDialog
@@ -105,20 +111,20 @@ export function BodyMetricsCard({ fighter, canLog }: { fighter: Fighter; canLog:
             <CardContent>
                 <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                     <MetricTile
-                        label="Current weight"
-                        value={fighter.weightKg === null ? NOT_RECORDED : formatNumber(fighter.weightKg, 1)}
+                        label={t("account.bodyMetrics.currentWeight")}
+                        value={fighter.weightKg === null ? notRecorded : formatNumber(fighter.weightKg, 1)}
                         unit={fighter.weightKg === null ? undefined : "kg"}
-                        hint={gap === null ? undefined : gap > 0 ? `${formatNumber(gap, 1)} kg to cut` : "On weight"}
+                        hint={gap === null ? undefined : gap > 0 ? t("account.bodyMetrics.toCut", { gap: formatNumber(gap, 1) }) : t("account.bodyMetrics.onWeight")}
                     />
-                    <MetricTile label="Target weight" value={formatNumber(fighter.targetWeightKg, 1)} unit="kg" hint={`${classLabel} limit`} />
+                    <MetricTile label={t("account.bodyMetrics.targetWeight")} value={formatNumber(fighter.targetWeightKg, 1)} unit="kg" hint={t("account.bodyMetrics.limit", { classLabel })} />
                     <MetricTile
-                        label="Body fat"
-                        value={fighter.bodyFatPct === null ? NOT_RECORDED : formatNumber(fighter.bodyFatPct, 1)}
+                        label={t("account.bodyMetrics.bodyFat")}
+                        value={fighter.bodyFatPct === null ? notRecorded : formatNumber(fighter.bodyFatPct, 1)}
                         unit={fighter.bodyFatPct === null ? undefined : "%"}
                     />
                     <MetricTile
-                        label="Resting heart rate"
-                        value={fighter.restingHeartRate ?? NOT_RECORDED}
+                        label={t("account.bodyMetrics.restingHeartRate")}
+                        value={fighter.restingHeartRate ?? notRecorded}
                         unit={fighter.restingHeartRate === null ? undefined : "bpm"}
                     />
                 </div>
@@ -129,26 +135,28 @@ export function BodyMetricsCard({ fighter, canLog }: { fighter: Fighter; canLog:
 
 /* ─── Care team ───────────────────────────────────────────────────────────── */
 
-export function CareTeamCard({ coaches, doctors, primaryCoachId }: { coaches: Coach[]; doctors: Doctor[]; primaryCoachId: string | null }) {
+export function CareTeamCard({ coaches, doctors, primaryCoachId, locale = "en" }: { coaches: Coach[]; doctors: Doctor[]; primaryCoachId: string | null; locale?: Locale }) {
+    const t = createTranslator(locale);
+
     return (
         <Card className="min-w-0">
-            <CardHeader title="Care team" icon={<Users />} description="The coaches and sports doctors assigned to you." />
+            <CardHeader title={t("account.careTeam.title")} icon={<Users />} description={t("account.careTeam.description")} />
             <CardContent className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6">
                 <TeamSection
                     id="care-team-coaches"
-                    heading="Coaches"
-                    emptyText="No coaches assigned yet. The academy will assign a head coach."
+                    heading={t("account.careTeam.coaches")}
+                    emptyText={t("account.careTeam.noCoaches")}
                     people={coaches.map((coach) => ({
                         id: coach.id,
                         name: coach.name,
                         detail: coach.specialty,
-                        badge: coach.id === primaryCoachId ? "Primary coach" : null,
+                        badge: coach.id === primaryCoachId ? t("account.careTeam.primaryCoach") : null,
                     }))}
                 />
                 <TeamSection
                     id="care-team-doctors"
-                    heading="Sports doctors"
-                    emptyText="No sports doctor yet. The academy assigns one for your baseline exam, and they show up here and on your Today page."
+                    heading={t("account.careTeam.doctors")}
+                    emptyText={t("account.careTeam.noDoctors")}
                     people={doctors.map((doctor) => ({ id: doctor.id, name: doctor.name, detail: doctor.specialty, badge: null }))}
                 />
             </CardContent>

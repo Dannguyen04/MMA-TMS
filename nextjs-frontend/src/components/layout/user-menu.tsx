@@ -7,7 +7,8 @@ import { Avatar } from "@/components/ui/avatar";
 import { Popover } from "@/components/ui/popover";
 import { signOut } from "@/lib/actions/auth";
 import type { ThemePreference } from "@/lib/auth/constants";
-import { ROLE_LABELS } from "@/lib/domain/labels";
+import { LanguageSwitcher } from "@/components/i18n/language-switcher";
+import { useT } from "@/components/i18n/locale-provider";
 import type { Role } from "@/lib/domain/types";
 import { routes } from "@/lib/routes";
 import { ThemeSwitcher } from "./theme-switcher";
@@ -20,16 +21,17 @@ export interface ShellUser {
 }
 
 export function UserMenu({ user, theme }: { user: ShellUser; theme: ThemePreference }) {
+    const t = useT();
     return (
         <Popover
-            label="Account"
+            label={t("shell.account")}
             className="w-72"
             trigger={(props) => (
                 <button
                     {...props}
                     type="button"
                     className="flex h-9 items-center gap-2 rounded-lg pr-1.5 pl-1 text-left transition-colors hover:bg-surface-hover"
-                    aria-label={`Account menu for ${user.name}`}
+                    aria-label={t("shell.accountMenu", { name: user.name })}
                 >
                     <Avatar name={user.name} size="sm" shape={user.role === "fighter" ? "octagon" : "circle"} />
                     <span className="hidden max-w-36 truncate text-sm font-medium text-fg md:block">{user.name}</span>
@@ -45,25 +47,27 @@ export function UserMenu({ user, theme }: { user: ShellUser; theme: ThemePrefere
                             <p className="truncate text-sm font-semibold text-fg">{user.name}</p>
                             <p className="truncate text-[13px] text-fg-muted">{user.email}</p>
                             <p className="mt-0.5 text-xs text-fg-subtle">
-                                {ROLE_LABELS[user.role]} · {user.title}
+                                {t(`role.${user.role}`)} · {user.title}
                             </p>
                         </div>
                     </div>
                     <div className="border-b border-border p-3">
-                        <p className="mb-2 text-xs font-medium text-fg-muted">Appearance</p>
+                        <p className="mb-2 text-xs font-medium text-fg-muted">{t("shell.appearance")}</p>
                         <ThemeSwitcher initial={theme} />
+                        <p className="mt-3 mb-2 text-xs font-medium text-fg-muted">{t("shell.language")}</p>
+                        <LanguageSwitcher />
                     </div>
                     <ul className="p-1.5">
                         <li>
                             <Link href={routes.profile} onClick={close} className="flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-sm hover:bg-surface-muted">
                                 <UserRound aria-hidden className="size-4 text-fg-subtle" />
-                                Profile
+                                {t("shell.profile")}
                             </Link>
                         </li>
                         <li>
                             <Link href={routes.settings} onClick={close} className="flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-sm hover:bg-surface-muted">
                                 <SlidersHorizontal aria-hidden className="size-4 text-fg-subtle" />
-                                Preferences
+                                {t("shell.preferences")}
                             </Link>
                         </li>
                         <li>
@@ -73,7 +77,7 @@ export function UserMenu({ user, theme }: { user: ShellUser; theme: ThemePrefere
                                     className="flex h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-sm text-danger-fg hover:bg-danger-soft"
                                 >
                                     <LogOut aria-hidden className="size-4" />
-                                    Sign out
+                                    {t("shell.signOut")}
                                 </button>
                             </form>
                         </li>

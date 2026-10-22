@@ -1,8 +1,9 @@
 import { capitalize, describeDaysUntil } from "@/components/domain/domain-format";
 import { WEIGHT_CLASS_LIMIT_KG } from "@/lib/domain/labels";
 import type { ClearanceState } from "@/lib/domain/rules";
-import type { Fighter, HealthStatus, PerformanceMetric, User, WeightClass } from "@/lib/domain/types";
+import type { Fighter, HealthStatus, PerformanceMetric, WeightClass } from "@/lib/domain/types";
 import { APP_TIMEZONE, daysBetween, formatNumber } from "@/lib/format";
+import type { Translator } from "@/lib/i18n/translate";
 import { round } from "@/lib/utils";
 
 /** Pure helpers shared by the dashboards, roster, profile and health screens. Safe for Server and Client Components. */
@@ -10,6 +11,14 @@ import { round } from "@/lib/utils";
 const hourFmt = new Intl.DateTimeFormat("en-GB", { timeZone: APP_TIMEZONE, hour: "numeric", hourCycle: "h23" });
 
 /** "Good morning" / "Good afternoon" / "Good evening" by the academy's wall clock. */
+/** The greeting's dictionary key for the academy hour, for translated pages. */
+export function greetingKey(now: string): "greeting.morning" | "greeting.afternoon" | "greeting.evening" {
+    const hour = Number(hourFmt.format(new Date(now)));
+    if (hour >= 5 && hour < 12) return "greeting.morning";
+    if (hour >= 12 && hour < 18) return "greeting.afternoon";
+    return "greeting.evening";
+}
+
 export function greetingFor(now: string): string {
     const hour = Number(hourFmt.format(new Date(now)));
     if (hour >= 5 && hour < 12) return "Good morning";
@@ -22,13 +31,13 @@ export function firstName(name: string): string {
     return name.trim().split(/\s+/)[0] ?? name;
 }
 
-/**
- * "Good evening, Nora" for a Today page. Admins have no profile, so the API gives them their email as a name;
- * they get the greeting alone rather than "Good evening, nora@…".
- */
-export function greetingTitle(now: string, user: Pick<User, "name" | "email">): string {
-    const name = user.name.trim();
-    return name && name !== user.email ? `${greetingFor(now)}, ${firstName(name)}` : greetingFor(now);
+/** `relativeDay` in the viewer's language. */
+export function relativeDayText(t: Translator, value: string, now: string): string {
+    const days = daysBetween(now, value);
+    if (days === 0) return t("day.today");
+    if (days === 1) return t("day.tomorrow");
+    if (days === -1) return t("day.yesterday");
+    return days > 0 ? t("day.inDays", { n: days }) : t("day.daysAgo", { n: -days });
 }
 
 /** "Today", "Tomorrow", "In 3 days", "Yesterday" for a timestamp relative to `now` (academy calendar days). */
@@ -76,7 +85,12 @@ export function weightCheck(currentKg: number, weightClass: WeightClass, daysLef
 }
 
 /** "3.1 kg to cut" or "0.4 kg under the limit". */
-export function weightGapText(check: WeightCheck): string {
+export function weightGapText(check: WeightCheck, t?: Translator): string {
+    if (t) {
+        return check.onWeight
+            ? t("weightGap.underLimit", { kg: formatNumber(Math.abs(check.toCutKg), 1) })
+            : t("weightGap.toCut", { kg: formatNumber(check.toCutKg, 1) });
+    }
     return check.onWeight ? `${formatNumber(Math.abs(check.toCutKg), 1)} kg under the limit` : `${formatNumber(check.toCutKg, 1)} kg to cut`;
 }
 
