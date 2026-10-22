@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { opponentAnalysisSchema, fighterAnalysisSchema, analysisSessionsSchema } from './bout-analysis.model.js';
 import {
   dateOnlySchema,
   isoDateTimeSchema,
