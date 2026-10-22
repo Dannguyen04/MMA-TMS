@@ -1,30 +1,31 @@
-import { ChevronRight, ClipboardPen, Dumbbell, ServerCog, Stethoscope, Swords } from "lucide-react";
+import { ChevronRight, Dumbbell, ServerCog, Stethoscope, Swords } from "lucide-react";
 
 import { signInAsDemo } from "@/lib/actions/auth";
 import { DEMO_PASSWORD, isDemoAuthEnabled } from "@/lib/auth/constants";
+import { getTranslator } from "@/lib/i18n/server";
 import { cn } from "@/lib/utils";
 
-const ACCOUNTS: { role: Parameters<typeof signInAsDemo>[0]; name: string; description: string; icon: typeof Swords }[] = [
-    { role: "fighter", name: "Minh Trần", description: "Fighter", icon: Swords },
-    { role: "coach", name: "Rafael Costa", description: "Head coach", icon: Dumbbell },
-    { role: "doctor", name: "Dr. Thu Lê", description: "Sports doctor", icon: Stethoscope },
-    { role: "admin", name: "Nora Whitfield", description: "Administrator", icon: ServerCog },
-    { role: "applicant", name: "Quang Hồ", description: "Applicant", icon: ClipboardPen },
+const ACCOUNTS: { role: Parameters<typeof signInAsDemo>[0]; name: string; icon: typeof Swords }[] = [
+    { role: "fighter", name: "Minh Trần", icon: Swords },
+    { role: "coach", name: "Rafael Costa", icon: Dumbbell },
+    { role: "doctor", name: "Dr. Thu Lê", icon: Stethoscope },
+    { role: "admin", name: "Nora Whitfield", icon: ServerCog },
 ];
 
 /** Demo environment helper: one-click sign-in for each role while the auth service is mocked. */
-export function DemoAccounts({ next }: { next: string | null }) {
+export async function DemoAccounts({ next }: { next: string | null }) {
+    const { t } = await getTranslator();
     return (
         <section aria-labelledby="demo-accounts" className="mt-10">
             <div className="flex items-center gap-3">
                 <span className="h-px flex-1 bg-border" />
                 <h2 id="demo-accounts" className="text-xs font-semibold tracking-[0.08em] text-fg-subtle uppercase">
-                    Demo accounts
+                    {t("auth.demoAccounts")}
                 </h2>
                 <span className="h-px flex-1 bg-border" />
             </div>
             <ul className="mt-4 grid gap-2 sm:grid-cols-2">
-                {ACCOUNTS.map(({ role, name, description, icon: Icon }) => (
+                {ACCOUNTS.map(({ role, name, icon: Icon }) => (
                     <li key={role}>
                         <form action={signInAsDemo.bind(null, role, next)}>
                             <button
@@ -42,10 +43,10 @@ export function DemoAccounts({ next }: { next: string | null }) {
                                 </span>
                                 <span className="min-w-0 flex-1">
                                     <span className="block truncate text-sm font-semibold text-fg">{name}</span>
-                                    <span className="block truncate text-xs text-fg-muted">{description}</span>
+                                    <span className="block truncate text-xs text-fg-muted">{t(`auth.demo.${role}`)}</span>
                                 </span>
                                 <ChevronRight aria-hidden className="size-4 text-fg-subtle transition-transform group-hover:translate-x-0.5" />
-                                <span className="sr-only">Sign in as {role}</span>
+                                <span className="sr-only">{t("auth.demoSignInAs", { role: t(`auth.demo.${role}`) })}</span>
                             </button>
                         </form>
                     </li>
@@ -53,7 +54,7 @@ export function DemoAccounts({ next }: { next: string | null }) {
             </ul>
             {isDemoAuthEnabled() && (
                 <p className="mt-3 text-center text-xs text-fg-subtle">
-                    Or sign in with any demo email and the password <code className="rounded bg-surface-hover px-1 py-0.5 font-mono text-fg-muted">{DEMO_PASSWORD}</code>
+                    {t("auth.demoPassword")} <code className="rounded bg-surface-hover px-1 py-0.5 font-mono text-fg-muted">{DEMO_PASSWORD}</code>
                 </p>
             )}
         </section>

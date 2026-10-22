@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { TermHint } from "@/components/domain/term-hint";
+import { useT } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Field, FormMessage, Input } from "@/components/ui/form";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -17,6 +18,7 @@ import { routes } from "@/lib/routes";
  * the academy approves them. The email stays in the form, never in the URL.
  */
 export function EmailCodeForm() {
+    const t = useT();
     const [email, setEmail] = useState<string | null>(null);
     const request = useActionForm(requestAdmissionCodeAction, { id: "admission-email", onSuccess: (state) => setEmail(state.data?.email ?? null) });
     const verify = useActionForm(verifyAdmissionCodeAction, { id: "admission-code" });
@@ -26,11 +28,11 @@ export function EmailCodeForm() {
         return (
             <form {...request.formProps} className="mt-8 space-y-5">
                 <FormMessage {...request.message} />
-                <Field label="Email" htmlFor={control.id} required error={request.error("email")}>
+                <Field label={t("auth.email")} htmlFor={control.id} required error={request.error("email")}>
                     <Input {...control} type="email" autoComplete="email" placeholder="you@example.com" />
                 </Field>
-                <SubmitButton size="lg" className="w-full" pending={request.pending} pendingLabel="Sending code…">
-                    Send me a code
+                <SubmitButton size="lg" className="w-full" pending={request.pending} pendingLabel={t("auth.sendCodePending")}>
+                    {t("auth.sendCode")}
                 </SubmitButton>
                 <SignInHint />
             </form>
@@ -52,21 +54,21 @@ export function EmailCodeForm() {
             {request.state.status === "error" && <FormMessage {...request.message} />}
             <FormMessage {...verify.message} />
             <Field
-                label="Code"
+                label={t("auth.code")}
                 htmlFor={token.id}
                 required
                 info={<TermHint term="verificationCode" />}
                 error={verify.error("token")}
-                hint="The code expires after a while. Each code works once."
+                hint={t("auth.codeHint")}
             >
                 <Input {...token} inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]*" maxLength={10} placeholder="123456" className="tracking-widest" />
             </Field>
-            <SubmitButton size="lg" className="w-full" pending={verify.pending} pendingLabel="Checking code…">
-                Continue
+            <SubmitButton size="lg" className="w-full" pending={verify.pending} pendingLabel={t("auth.checkingCodePending")}>
+                {t("auth.continue")}
             </SubmitButton>
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <Button variant="ghost" size="sm" loading={request.pending} onClick={() => request.submit({ email })}>
-                    Send a new code
+                    {t("auth.sendNewCode")}
                 </Button>
                 <Button
                     variant="ghost"
@@ -77,7 +79,7 @@ export function EmailCodeForm() {
                         setEmail(null);
                     }}
                 >
-                    Use a different email
+                    {t("auth.useDifferentEmail")}
                 </Button>
             </div>
         </form>
@@ -85,11 +87,12 @@ export function EmailCodeForm() {
 }
 
 function SignInHint() {
+    const t = useT();
     return (
         <p className="text-center text-sm text-fg-muted">
-            Staff or fighter?{" "}
+            {t("auth.staffOrFighter")}{" "}
             <Link href={routes.login} className="font-medium text-primary-soft-fg hover:underline">
-                Sign in with your password
+                {t("auth.signInWithPassword")}
             </Link>
         </p>
     );

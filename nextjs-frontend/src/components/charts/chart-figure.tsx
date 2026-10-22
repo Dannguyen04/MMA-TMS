@@ -3,6 +3,7 @@
 import { Table2 } from "lucide-react";
 import { useId, useState, type ReactNode } from "react";
 
+import { useT } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { formatNumber } from "@/lib/format";
@@ -31,6 +32,7 @@ export interface ChartFigureProps {
  * reveals the same data as a real table, so no value is ever reachable only through hover.
  */
 export function ChartFigure({ title, description, children, table, tableCaption, className }: ChartFigureProps) {
+    const t = useT();
     const [showTable, setShowTable] = useState(false);
     const tableId = useId();
     const caption = tableCaption ?? (typeof title === "string" ? title : undefined);
@@ -59,7 +61,7 @@ export function ChartFigure({ title, description, children, table, tableCaption,
                     className="-mr-2"
                 >
                     <Table2 aria-hidden />
-                    {showTable ? "Hide data table" : "Show data table"}
+                    {t(showTable ? "chart.hideTable" : "chart.showTable")}
                 </Button>
             </div>
 
@@ -81,7 +83,7 @@ export function ChartFigure({ title, description, children, table, tableCaption,
                             {table.rows.length === 0 ? (
                                 <tr>
                                     <td colSpan={Math.max(1, table.columns.length)} className="px-5 py-3 text-fg-muted">
-                                        No data
+                                        {t("chart.noData")}
                                     </td>
                                 </tr>
                             ) : (

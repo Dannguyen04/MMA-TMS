@@ -1,5 +1,6 @@
 "use client";
 
+import { useDemoCopy } from "@/components/i18n/locale-provider";
 import { Archive, CircleCheck, Play, RotateCcw, type LucideIcon } from "lucide-react";
 import { useState, useTransition } from "react";
 
@@ -21,6 +22,17 @@ interface Transition {
     confirmLabel: string;
 }
 
+export interface PlanStatusActionsProps {
+    planId: string;
+    /** The statuses this plan can move to now (`planTransitions`). */
+    transitions: PlanStatus[];
+    planTitle: string;
+    fighterName: string;
+}
+
+/** Status changes for a plan, each confirmed with its consequence spelled out. */
+export function PlanStatusActions({ planId, transitions, planTitle, fighterName }: PlanStatusActionsProps) {
+    const copy = useDemoCopy();
 const ACTIVATE: Transition = {
     to: "active",
     label: "Activate plan",
@@ -28,7 +40,7 @@ const ACTIVATE: Transition = {
     variant: "primary",
     tone: "primary",
     title: "Activate this plan?",
-    description: (plan, fighter) => `${fighter} will see “${plan}” in their training plans and get a notification.`,
+    description: (plan, fighter) => copy("{fighter} will see “{plan}” and receive a notification.", { fighter, plan }),
     confirmLabel: "Activate plan",
 };
 
@@ -39,7 +51,7 @@ const COMPLETE: Transition = {
     variant: "secondary",
     tone: "primary",
     title: "Mark this plan as completed?",
-    description: (plan, fighter) => `“${plan}” moves to ${fighter}'s plan history. Sessions already on the calendar stay scheduled.`,
+    description: (plan, fighter) => copy("“{plan}” moves to {fighter}’s history. Scheduled sessions stay on the calendar.", { plan, fighter }),
     confirmLabel: "Mark completed",
 };
 
@@ -51,7 +63,7 @@ const ARCHIVE: Transition = {
     tone: "danger",
     title: "Archive this plan?",
     description: (plan) =>
-        `“${plan}” is removed from active planning and hidden from the fighter's current plans. Scheduled sessions stay on the calendar — cancel any you no longer need.`,
+        copy("“{plan}” is archived. Scheduled sessions stay on the calendar; cancel any you no longer need.", { plan }),
     confirmLabel: "Archive plan",
 };
 
@@ -62,7 +74,7 @@ const RESTORE: Transition = {
     variant: "secondary",
     tone: "primary",
     title: "Restore this plan as a draft?",
-    description: (plan) => `“${plan}” returns as a draft that only coaches can see. Activate it again when it's ready.`,
+    description: (plan) => copy("“{plan}” returns as a draft visible only to coaches.", { plan }),
     confirmLabel: "Restore as draft",
 };
 
@@ -74,16 +86,7 @@ const TRANSITION_TO: Record<PlanStatus, Transition> = {
     archived: ARCHIVE,
 };
 
-export interface PlanStatusActionsProps {
-    planId: string;
-    /** The statuses this plan can move to now (`planTransitions`). */
-    transitions: PlanStatus[];
-    planTitle: string;
-    fighterName: string;
-}
 
-/** Status changes for a plan, each confirmed with its consequence spelled out. */
-export function PlanStatusActions({ planId, transitions, planTitle, fighterName }: PlanStatusActionsProps) {
     const toast = useToast();
     const [active, setActive] = useState<Transition | null>(null);
     const [error, setError] = useState<string | undefined>();
@@ -99,11 +102,11 @@ export function PlanStatusActions({ planId, transitions, planTitle, fighterName 
         startTransition(async () => {
             const result = await setPlanStatus(planId, active.to);
             if (result.status === "success") {
-                toast({ title: result.message ?? "Plan updated." });
+                toast({ title: copy(result.message ?? "Plan updated.") });
                 setActive(null);
                 setError(undefined);
             } else {
-                setError(result.message);
+                setError(result.message ? copy(result.message) : undefined);
             }
         });
     };
@@ -123,7 +126,7 @@ export function PlanStatusActions({ planId, transitions, planTitle, fighterName 
                         }}
                     >
                         <Icon aria-hidden />
-                        {transition.label}
+                        {copy(transition.label)}
                     </Button>
                 );
             })}
@@ -133,9 +136,9 @@ export function PlanStatusActions({ planId, transitions, planTitle, fighterName 
                 onConfirm={confirm}
                 pending={pending}
                 tone={active?.tone ?? "primary"}
-                title={active?.title ?? ""}
+                title={copy(active?.title ?? "")}
                 description={active?.description(planTitle, fighterName) ?? ""}
-                confirmLabel={active?.confirmLabel ?? "Confirm"}
+                confirmLabel={copy(active?.confirmLabel ?? "Confirm")}
             >
                 {error && <FormMessage status="error" message={error} />}
             </ConfirmDialog>

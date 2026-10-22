@@ -1,6 +1,6 @@
 # Thu hẹp phạm vi: Quản lý võ sĩ trước – trong – sau trận
 
-**Cập nhật**: 2026-10-14 · **Tác giả**: Khoi Le
+**Cập nhật**: 2026-10-22 (góp ý review 2, mục 22) · **Tác giả**: Khoi Le
 **Trạng thái**: **Đã chốt** sau buổi review với giảng viên (ghi nhận ngày 14/10/2026, quyết định 10). Muốn đổi phạm vi thì chủ dự án quyết định và ghi vào bảng [Quyết định và câu hỏi](#quyết-định-và-câu-hỏi).
 **Bản đầu (11/10, đã cũ)**: [Claude Docs](https://claude.ai/code/artifact/7eadc14d-f9ae-4c40-9a1c-a25ea5ed090f)
 **Thuộc bộ tài liệu**: **Phạm vi** · [Nghiên cứu](./FIGHT-CAMP-DOMAIN-RESEARCH.md) · [Luồng nghiệp vụ](./FIGHT-CAMP-BUSINESS-FLOWS.md) · [Tech spec](./FIGHT-CAMP-TECH-SPEC.md) · [Kiểm thử người dùng](./FIGHT-CAMP-USER-TESTING.md) · [Câu hỏi mở](./FIGHT-CAMP-OPEN-QUESTIONS.md)
@@ -11,7 +11,7 @@ MMA-TMS là **đồ án**. Từ tuần 13/10, sản phẩm chỉ giải một b�
 
 - **Người dùng chính:** HLV. Võ sĩ là người dùng phụ (ghi cân, xem lịch). Bác sĩ không bắt buộc.
 - **Đối tượng trung tâm:** *Trận* (bout). Kế hoạch tập, cân nặng, hồ sơ, video và đình chỉ đều gắn vào một trận.
-- **Đóng băng:** phát triển thêm AI (phần AI đã làm vẫn được tính vào đồ án, quyết định 16), tuyển võ sĩ (admissions), cổng Doctor đầy đủ, admin AI models/dataset, app React Native. Không xoá code, chỉ dừng phát triển và ẩn khỏi menu.
+- **Đóng băng:** phát triển thêm AI, trừ recall của detector đấm (quyết định 20; phần AI đã làm vẫn được tính vào đồ án, quyết định 16), tuyển võ sĩ (admissions), cổng Doctor đầy đủ, admin AI models/dataset, app React Native. Không xoá code, chỉ dừng phát triển và ẩn khỏi menu.
 - **Hạn:** review 1 đã diễn ra (buổi duyệt phạm vi, trước 14/10). Còn **review 2 ngày 20/10** và **demo cuối ngày 31/10/2026**. Đồ án được đánh giá bằng demo, không có báo cáo (quyết định 17).
 - **Team:** 4 dev (2 backend, 1 frontend, 1 dev mobile chuyển sang làm web cho điện thoại) cùng Gemini nhận ticket; Claude viết ticket và review (quyết định 18).
 - **Mục tiêu đồ án:** (1) hệ thống chạy trọn vòng đời một trận, có bộ demo dựng sẵn; (2) qua các tiêu chí nghiệm thu của phần lõi. Không có buổi kiểm thử người dùng (quyết định 17).
@@ -166,7 +166,7 @@ Những phần dưới đây vẫn nằm trong thiết kế nhưng **không làm
 
 | Phần | Lý do cắt | Thay thế trong demo |
 | --- | --- | --- |
-| Tự sinh camp từ template | Tốn thời gian, không phải lõi của hai cổng | Gắn training plan có sẵn vào trận |
+| Tự sinh camp từ template (dàn nhiều buổi theo ngày thi) | Tốn thời gian, không phải lõi của hai cổng. Đã cân nhắc mở lại ngày 20/10 nhưng chủ dự án chọn mẫu cho từng buổi tập (quyết định 21) | Gắn training plan có sẵn vào trận |
 | Ghi buổi tập nhanh, ghi cho cả nhóm | Không bắt buộc cho luồng trận | Dùng màn buổi tập hiện có |
 | Thông báo trong app và job chạy hằng ngày | Cần scheduler mới | Cảnh báo hiển thị ngay trên dashboard |
 | Gắn video vào trận | Không thuộc hai cổng | Không |
@@ -209,3 +209,6 @@ Câu trả lời ghi vào [phiếu câu hỏi mở](./FIGHT-CAMP-OPEN-QUESTIONS.
 | 17 | Mốc và hình thức đánh giá | **Đã quyết (14/10):** review 1 đã diễn ra (buổi duyệt phạm vi); review 2 ngày 20/10; demo cuối ngày 31/10. Chỉ đánh giá bằng demo: không báo cáo, không kiểm thử người dùng | Sprint 1 rút còn 14–19/10; bỏ các thước đo lấy từ buổi kiểm thử (tỷ lệ hoàn thành, thời gian ghi cân, SUS) |
 | 18 | Nhân lực và người làm ticket | **Đã quyết (14/10):** 4 dev (2 backend, 1 frontend, 1 mobile) cùng Gemini nhận ticket; Claude viết ticket và review mọi ticket. Dev mobile chuyển sang các màn của võ sĩ trên web cho điện thoại; app React Native vẫn đóng băng | Quy trình trong [TEAM-WORKFLOW.md](./TEAM-WORKFLOW.md) áp dụng cho cả dev và Gemini |
 | 19 | Dev dùng Supabase khi phát triển | **Đã quyết (14/10):** dev được chạy backend và frontend bằng `.env` của team, nối với Supabase hiện có, để thử ở API mode; chỉ qua app và API, chỉ dữ liệu giả. Không chạy `db:migrate:*`, không chạy SQL trực tiếp; áp migration vẫn chỉ chủ dự án làm. Gemini vẫn không kết nối Supabase | Phần B của T-008a làm được; dữ liệu thử của dev nằm chung database với dữ liệu demo, nên dùng email `@example.com` và không xoá dữ liệu của người khác |
+| 20 | Cải thiện nhận diện đòn đấm của worker | **Đã quyết (20/10):** mở lại, chỉ cho **recall của detector đấm** ([T-022](./tickets/T-022-punch-detector-recall.md)). Dữ liệu đo là dữ liệu công khai (BoxingVI), chủ dự án không còn video riêng. Phân loại jab/cross/hook/uppercut chưa mở. Không chặn ticket Fight Camp; demo AI (T-012) vẫn chạy worker hiện có | Sửa quyết định 16 ("không phát triển thêm") cho riêng việc này. Bản đo ngày 20/10: Adam khớp 8/18 đoạn nhãn, 6 clip kiểm chứng 6 TP / 6 FP / 0 FN. Không nới ngưỡng theo một video; kết quả chỉ tính trên tập giữ riêng |
+| 21 | Mẫu giáo án (buổi tập) khi tạo buổi ([T-026](./tickets/T-026-session-templates.md)) | **Đã quyết (20/10): mở lại, làm trong đợt đồ án.** HLV chọn một trong các mẫu buổi tập (như bản demo `concept/fight-camp`, tab "Thiết kế giáo án") ngay trong form tạo buổi tập; mẫu điền sẵn tiêu đề, loại, thời lượng, các bước. Chỉ frontend, không migration: mẫu là hằng số trong code. Vẫn cắt: camp tự sinh từ template cả 6 tuần (dàn nhiều buổi theo ngày thi), lưu buổi đã sửa thành mẫu mới, mẫu "Đọc trận" ở API mode (cần thêm loại buổi ở backend) | Sửa quyết định 10 (phạm vi đã chốt); cần báo giảng viên. Số liệu của mẫu (thời lượng, RPE) chỉ là đề xuất, HLV chuyên môn phải thẩm định trước demo |
+| 22 | Góp ý của thầy ở review 2 (20/10) | **Chờ chốt.** Thầy muốn làm rõ hai giai đoạn **trong trận** và **sau trận**. Với phần trong trận, thầy gợi ý có thể làm thêm **phân tích trong trận đấu** | Là đầu vào cho T-006, T-007 (đang DRAFT). Gợi ý này khác hai điều tài liệu đang ghi: bảng "Trong trận" của [Luồng nghiệp vụ](./FIGHT-CAMP-BUSINESS-FLOWS.md#trong-trận) ghi app không làm gì trong lúc thi đấu (không chấm điểm, không theo dõi trực tiếp); "Xem lại video trận" và "Gắn video vào trận" đã cắt khỏi đợt đồ án, AI đóng băng phát triển (quyết định 16). Cần chủ dự án chốt "phân tích trong trận" là gì và có làm trước 31/10 không, rồi mới viết T-006, T-007 |

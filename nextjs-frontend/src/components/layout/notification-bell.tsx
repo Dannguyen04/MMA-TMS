@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRef, useTransition } from "react";
 
 import { NOTIFICATION_CATEGORY_ICONS, NOTIFICATION_SEVERITY_TONE } from "@/components/domain/notification-meta";
+import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Popover } from "@/components/ui/popover";
 import { TONE_SOFT } from "@/components/ui/tone";
@@ -19,6 +20,8 @@ import { useNotificationUpdates } from "./use-notification-updates";
 export function NotificationBell({ bell, now }: { bell: NotificationBellData; now: string }) {
     const { unread, latest, canMarkAllRead, live, allHref } = bell;
     const toast = useToast();
+    const t = useT();
+    const locale = useLocale();
     const [pending, startTransition] = useTransition();
     const headingRef = useRef<HTMLHeadingElement>(null);
     useNotificationUpdates({ unread, live });
@@ -28,20 +31,22 @@ export function NotificationBell({ bell, now }: { bell: NotificationBellData; no
         headingRef.current?.focus();
         startTransition(async () => {
             const result = await markAllRead();
-            toast({ title: result.message ?? "Done", tone: result.status === "error" ? "error" : "success" });
+            toast({ title: result.message ?? t("common.done"), tone: result.status === "error" ? "error" : "success" });
         });
     };
 
+    const notifTitle = t("notifications.title");
+
     return (
         <Popover
-            label="Notifications"
+            label={notifTitle}
             className="w-[min(24rem,calc(100vw-1.5rem))] max-sm:-right-12"
             trigger={(props) => (
                 <button
                     {...props}
                     type="button"
                     className="relative inline-flex size-9 items-center justify-center rounded-lg text-fg-muted transition-colors hover:bg-surface-hover hover:text-fg"
-                    aria-label={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}
+                    aria-label={unread > 0 ? `${notifTitle}, ${unread} ${t("notifications.statusUnread").toLowerCase()}` : notifTitle}
                 >
                     <Bell aria-hidden className="size-[18px]" />
                     {unread > 0 && (
@@ -56,17 +61,17 @@ export function NotificationBell({ bell, now }: { bell: NotificationBellData; no
                 <div>
                     <div className="flex items-center justify-between border-b border-border px-4 py-3">
                         <h2 ref={headingRef} tabIndex={-1} className="text-sm font-semibold focus:outline-none">
-                            Notifications
+                            {notifTitle}
                         </h2>
                         {canMarkAllRead && (
                             <Button variant="ghost" size="sm" disabled={unread === 0} loading={pending} onClick={markAll}>
                                 {!pending && <CheckCheck aria-hidden />}
-                                Mark all read
+                                {t("notifications.markAllRead")}
                             </Button>
                         )}
                     </div>
                     {latest.length === 0 ? (
-                        <p className="px-4 py-10 text-center text-sm text-fg-muted">No notifications yet.</p>
+                        <p className="px-4 py-10 text-center text-sm text-fg-muted">{t("notifications.noNotificationsYet")}</p>
                     ) : (
                         <ul className="scrollbar-thin max-h-[26rem] divide-y divide-border overflow-y-auto">
                             {latest.map((notification) => {
@@ -88,12 +93,12 @@ export function NotificationBell({ bell, now }: { bell: NotificationBellData; no
                                                 </span>
                                                 {!notification.readAt && (
                                                     <span className="mt-1.5 size-2 shrink-0 rounded-full bg-primary">
-                                                        <span className="sr-only">Unread</span>
+                                                        <span className="sr-only">{t("notifications.statusUnread")}</span>
                                                     </span>
                                                 )}
                                             </span>
                                             <span className="mt-0.5 line-clamp-2 block text-[13px] text-fg-muted">{notification.body}</span>
-                                            <span className="mt-1 block text-xs text-fg-subtle">{formatRelative(notification.createdAt, now)}</span>
+                                            <span className="mt-1 block text-xs text-fg-subtle">{formatRelative(notification.createdAt, now, locale)}</span>
                                         </span>
                                     </>
                                 );
@@ -125,7 +130,7 @@ export function NotificationBell({ bell, now }: { bell: NotificationBellData; no
                                 onClick={close}
                                 className="flex h-9 items-center justify-center rounded-lg text-sm font-medium text-primary-soft-fg hover:bg-surface-muted"
                             >
-                                View all notifications
+                                {t("notifications.viewAll")}
                             </Link>
                         </div>
                     )}

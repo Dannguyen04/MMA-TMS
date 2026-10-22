@@ -1,13 +1,81 @@
 # Python Worker — Martial Arts Tracker Phase 2
 
+## Nhãn Adam hiện hành
+
+Chủ dự án đã chốt 18 nhãn Adam gốc. Builder dùng CSV đã khóa hash; nhãn AI/Gemini
+chỉ là tham khảo cho Adam. Dataset hiện hành có 4.775 mẫu, xem
+[quyết định và phiên bản dữ liệu](../docs/archive/ai/AI-ADAM-LABEL-DECISION.md).
+
+Đã chạy đầy đủ 3 seed × 40 epoch, chọn seed 20261007, epoch 37. Xem
+[kết quả huấn luyện và checkpoint](../docs/archive/ai/AI-TRAINING-RESULTS-20261006.md).
+
+Vòng cải tiến theo nhóm nguồn có runner riêng: baseline, sampler theo nguồn,
+nhiễu pose và auxiliary heads, mỗi cấu hình 3 fold × 3 seed. Xem
+[protocol và cách thực thi](../docs/archive/ai/AI-GROUP-CV-IMPLEMENTATION-20261006.md).
+Đã chạy đủ 36 lượt và refit; [kết quả A0–A3](../docs/archive/ai/AI-GROUP-CV-RESULTS-20261006.md)
+ghi cả mức tăng CV nhỏ và sự giảm chất lượng trên diagnostic sau refit.
+
+```powershell
+& '.\.venv\Scripts\python.exe' run_temporal_ablations.py --manifest test_results/provisional_dataset/20261006_adam_source_v1/manifest.json --fold-plan benchmark_results/proposed_development_folds_20261006.json --output test_results/temporal_ablations/next_group_run
+```
+
+Huấn luyện đầy đủ với nhãn Adam gốc (3 seed, tối đa 40 epoch, chọn checkpoint
+bằng validation; calibration chỉ dùng sau khi chọn xong):
+
+```powershell
+& '.\.venv\Scripts\python.exe' train_provisional_model.py --manifest test_results/provisional_dataset/20261006_adam_source_v1/manifest.json --output test_results/provisional_training/next_full_run --epochs 40 --patience 10 --include-observed-test
+```
+
+Output phải là thư mục mới. Cờ `--include-observed-test` chỉ đo chẩn đoán trên
+V9/V10 đã quan sát; không dùng kết quả đó để chọn model. Checkpoint được chọn
+nằm trong `selected/`, có `report.json` và hash để nạp qua
+`pipeline.temporal_checkpoint.load_temporal_checkpoint`.
+
+## Gemini duyệt chéo dữ liệu
+
+Đã thêm CLI offline/online cho lượt review thứ hai; mặc định chỉ tạo kế hoạch,
+không gửi video. Key đọc từ `.env`, không ghi vào report. Xem
+[cấu hình, phạm vi gửi video và trạng thái chạy](../docs/archive/ai/AI-GEMINI-CROSS-REVIEW.md).
+
+## Lịch sử dataset tạm trước khi chốt nhãn Adam — 2026-10-06
+
+Theo chấp thuận của chủ dự án, đã tạo 4.768 mẫu gồm dữ liệu nguồn và 14 nhãn AI
+đề xuất qua kiểm tra pose; đã chạy thử huấn luyện 3 epoch. Nhãn AI chỉ vào train,
+trọng số loss 0,25, không tự trở thành HLV xác nhận. Xem
+[dataset, kết quả và lệnh sử dụng](../docs/archive/ai/AI-TEMPORARY-DATASET.md).
+
+## Bộ dữ liệu chờ HLV duyệt
+
+Đã đóng gói 4.754 skeleton nghiên cứu và 67 task review từ 7 video có sẵn;
+**0 mẫu HLV đã xác nhận**. Xem [gói dữ liệu và hướng dẫn mở công cụ](../docs/archive/ai/AI-COACH-REVIEW-DATASET.md).
+Chạy `serve_coach_review_dataset.py` để hỗ trợ tua video MP4; file review xuất ra
+chưa được xác thực và không được tự động dùng làm gold training data.
+
+## Temporal AI — cập nhật 2026-10-05
+
+Đã thêm normalizer theo timestamp, exporter pose offline, auditor dữ liệu bốn
+split và benchmark nhiều seed cho legacy TCN / residual TCN / graph-temporal
+baseline. Các mô hình vẫn research-only; không thay classifier active hoặc mở
+chấm kỹ thuật. Các ví dụ legacy phía dưới không phải đầu ra production đã kiểm định.
+
+- [Thiết kế, contract và lệnh chạy](../docs/archive/ai/AI-TEMPORAL-IMPLEMENTATION.md)
+- [Quy trình thu thập/gán nhãn cho HLV](../docs/archive/ai/AI-DATA-COLLECTION-PROTOCOL.md)
+- Template dữ liệu: `../docs/examples/temporal-dataset.manifest.json` (rỗng,
+  chưa đủ điều kiện huấn luyện; không có nhãn HLV giả).
+
+Benchmark mirror giữ feature version cũ vì thiếu timestamp/aspect metadata.
+Normalizer mới cần dữ liệu YOLO cùng pipeline triển khai; không tráo hai feature
+contract chỉ vì cùng số kênh. Kết quả benchmark và kiểm thử hiện tại được ghi trong
+`../AI_UPGRADE_STATUS.md`.
+
 AI Worker phân tích video võ thuật dùng **YOLOv8-Pose**. Chưa có benchmark độc lập để kết luận chính xác hơn pipeline khác.
 
-Hướng hiện tại: [Movement evidence v1](../docs/AI-MOVEMENT-EVIDENCE-v1.md) —
+Hướng hiện tại: [Movement evidence v1](../docs/archive/ai/AI-MOVEMENT-EVIDENCE-v1.md) —
 chuẩn bị bằng chứng để HLV/bác sĩ review, không tự chấm kỹ thuật hay quyết định y tế.
 
 ## AI upgrade — implementation status
 
-See [implementation report](../AI_UPGRADE_STATUS.md) for setup, checks and remaining release blockers.
+See [implementation report](../docs/archive/ai/AI_UPGRADE_STATUS.md) for setup, checks and remaining release blockers.
 The active detector remains legacy FSM; `shadowEventDetection` is experimental,
 not calibrated and never used to replace active output based on candidate counts.
 Session scores and prescriptive coaching are withheld while coverage is unknown.
@@ -237,4 +305,27 @@ CLI bổ sung `--exercise-id`, `--evidence-protocol` (`whole_body_v1`, `upper_bo
 `rehabilitation`). Worker nhận `exerciseContext` tùy chọn trong queue payload;
 backend producer hiện tại chưa nối context này từ kế hoạch tập.
 
-Chi tiết phạm vi, giới hạn và kiểm chứng: [movement evidence v1](../docs/AI-MOVEMENT-EVIDENCE-v1.md).
+Chi tiết phạm vi, giới hạn và kiểm chứng: [movement evidence v1](../docs/archive/ai/AI-MOVEMENT-EVIDENCE-v1.md).
+
+## Six-punch video trial and recovered V6 (2026-10-06)
+
+`recover_boxingvi_v6.py` now recovers the previously quarantined V6 by matching
+explicit source frame IDs (column 0 is not confidence). The new 5,460-sample
+dataset preserves all 18 original Adam labels. `run_v6_reflection.py` compares
+auxiliary TCN training with/without anatomical joint-aware reflection across
+four source folds and three seeds. Historical checkpoints remain loadable.
+
+`recognize_boxing_video.py` runs local single-person video recognition with
+explicit `unknown` results for poor pose, insufficient calibration support, low
+probability or reflection disagreement. It is a research trial, not the active
+worker model. `pipeline/recognition_metrics.py` counts missed/abstained events
+and extra accepted events, rather than reporting accuracy only on accepted clips.
+
+```powershell
+.\.venv\Scripts\python.exe recognize_boxing_video.py --video VIDEO.mp4 --checkpoint test_results/temporal_ablations/20261006_v6_reflection_v1/selected --output test_results/video_recognition/NEW_VIDEO
+```
+
+Optional `--pose-cache` requires matching video and YOLO weight hashes. Its
+generating code is explicitly unverified when an existing cache is used.
+Use a new output directory for each run. See the [six-punch scope, results and
+reproduction notes](../docs/archive/ai/AI-SIX-PUNCH-VIDEO-20261006.md).

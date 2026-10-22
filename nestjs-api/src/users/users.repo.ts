@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { invalidateAuthCache } from '../auth/auth-cache.js';
 import {
   and,
   count,
@@ -169,6 +170,7 @@ export class UsersRepository {
     id: string,
     database: DatabaseExecutor = this.db,
     authSubject?: string,
+    roleHint?: UserRole,
   ): Promise<PublicUser | undefined> {
     const filters = [
       eq(users.id, id),
@@ -177,14 +179,22 @@ export class UsersRepository {
     ];
     if (authSubject) filters.push(eq(users.authUserId, authSubject));
 
-    const [user] = await database
-      .select(userProjection)
-      .from(users)
-      .where(and(...filters))
-      .limit(1);
+    // With a role hint (the caller's own role, already known to the guard) the profile is read alongside the user
+    // row instead of after it; a wrong hint falls back to the sequential read.
+    const [[user], hinted] = await Promise.all([
+      database
+        .select(userProjection)
+        .from(users)
+        .where(and(...filters))
+        .limit(1),
+      roleHint ? this.findProfile(id, roleHint, database) : undefined,
+    ]);
     if (!user) return undefined;
 
-    const profile = await this.findProfile(user.id, user.role, database);
+    const profile =
+      hinted !== undefined && user.role === roleHint
+        ? hinted
+        : await this.findProfile(user.id, user.role, database);
     if (!PROFILE_LESS_ROLES.includes(user.role) && !profile) return undefined;
     return { ...user, profile };
   }
@@ -277,6 +287,7 @@ export class UsersRepository {
       .set({ role: USER.FIGHTER, updatedAt: new Date() })
       .where(and(eq(users.id, userId), eq(users.role, USER.GUEST)))
       .returning({ id: users.id });
+    invalidateAuthCache();
     return promoted;
   }
 
@@ -332,6 +343,7 @@ export class UsersRepository {
     }
 
     await database.update(users).set(state).where(eq(users.id, user.id));
+    invalidateAuthCache();
   }
 
   private async findProfile(

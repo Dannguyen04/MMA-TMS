@@ -85,7 +85,7 @@ export interface NotifyContext {
 // job Redis accepted after the timeout (harmless thanks to the dedupe key).
 export type NotifyResult =
   | { status: 'queued' }
-  | { status: 'skipped'; reason: 'NO_RECIPIENTS' }
+  | { status: 'skipped'; reason: 'NO_RECIPIENTS' | 'SUPERVISION_DISABLED' }
   | {
       status: 'failed';
       reason:

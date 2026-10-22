@@ -1,0 +1,674 @@
+{
+  "schemaVersion": "provisional_research_dataset_v1",
+  "featureVersion": "body_relative_image_pose_v1",
+  "status": "TEMPORARY_RESEARCH_USE",
+  "authorizedUse": "User requested temporary use on 2026-10-06",
+  "coachConfirmed": false,
+  "goldEligible": false,
+  "productionEligible": false,
+  "packId": "684fe820e8ef655fe44173e400313f714869b1c24bd5ecb35f865b5fbb204879",
+  "reviewSha256": "40ce96858e6e7a519db530e37d1bad7d587de13b57f7ee770fac15a007e2d654",
+  "inferenceSources": {
+    "adam": {
+      "videoSha256": "4398c790c6b7139d2cec90aa8678ab4a0b0b44afcbf45c64d0124f31111f781d",
+      "poseOutputSha256": "4b9fd765c8f4936ccf170e73efefd975c3f612b3ee8f2fe3761f215a90e3d65b"
+    },
+    "vid_01_cross_heavybag": {
+      "videoSha256": "6f425915fdf4d36eef342adc8d9017e421b22345ad0a7aa64cc1654e7d665175",
+      "poseOutputSha256": "b0be2803d04fd13552c24d263b904f5cf47a79baf9279403a334e8cf34b1804c"
+    }
+  },
+  "upstreamSamples": 4754,
+  "aiCandidateCount": 15,
+  "aiSamplesAccepted": 14,
+  "sampleCount": 4768,
+  "splitCounts": {
+    "train": 3674,
+    "validation": 199,
+    "calibration": 595,
+    "test": 300
+  },
+  "aiLossWeight": 0.25,
+  "exclusions": [
+    {
+      "sampleId": "adam-review-0000",
+      "reason": "uncertain"
+    },
+    {
+      "sampleId": "adam-review-0002",
+      "reason": "fragment"
+    },
+    {
+      "sampleId": "adam-review-0005",
+      "reason": "fragment"
+    },
+    {
+      "sampleId": "adam-review-0007",
+      "reason": "fragment"
+    },
+    {
+      "sampleId": "adam-review-0008",
+      "reason": "uncertain"
+    },
+    {
+      "sampleId": "adam-review-0009",
+      "reason": "fragment"
+    },
+    {
+      "sampleId": "adam-review-0011",
+      "reason": "fragment"
+    },
+    {
+      "sampleId": "adam-review-0013",
+      "reason": "fragment"
+    },
+    {
+      "sampleId": "adam-review-0014",
+      "reason": "fragment"
+    },
+    {
+      "sampleId": "adam-review-0015",
+      "reason": "uncertain"
+    },
+    {
+      "sampleId": "adam-review-0017",
+      "reason": "fragment"
+    },
+    {
+      "sampleId": "adam-review-0019",
+      "reason": "fragment"
+    },
+    {
+      "sampleId": "adam-review-0021",
+      "reason": "uncertain"
+    },
+    {
+      "sampleId": "adam-review-0022",
+      "reason": "fragment"
+    },
+    {
+      "sampleId": "adam-review-0023",
+      "reason": "uncertain"
+    },
+    {
+      "sampleId": "adam-review-0025",
+      "reason": "fragment"
+    },
+    {
+      "sampleId": "adam-review-0026",
+      "reason": "fragment"
+    },
+    {
+      "sampleId": "adam-review-0028",
+      "reason": "fragment"
+    },
+    {
+      "sampleId": "adam-review-0029",
+      "reason": "multiple_actions"
+    },
+    {
+      "sampleId": "adam-review-0030",
+      "reason": "multiple_actions"
+    },
+    {
+      "sampleId": "vid_01_cross_heavybag-review-0002",
+      "reason": "uncertain"
+    },
+    {
+      "sampleId": "vid_01_cross_heavybag-review-0005",
+      "reason": "fragment"
+    },
+    {
+      "sampleId": "vid_02_referee_gestures-review-0000",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_02_referee_gestures-review-0001",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_02_referee_gestures-review-0002",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_02_referee_gestures-review-0003",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_02_referee_gestures-review-0004",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_02_referee_gestures-review-0005",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_03_fighter_walkout-review-0000",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_03_fighter_walkout-review-0001",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_03_fighter_walkout-review-0002",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_03_fighter_walkout-review-0003",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_03_fighter_walkout-review-0004",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_03_fighter_walkout-review-0005",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_04_cage_striking-review-0000",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_04_cage_striking-review-0001",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_04_cage_striking-review-0002",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_04_cage_striking-review-0003",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_04_cage_striking-review-0004",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_04_cage_striking-review-0005",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_05_ground_grappling-review-0000",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_05_ground_grappling-review-0001",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_05_ground_grappling-review-0002",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_05_ground_grappling-review-0003",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_05_ground_grappling-review-0004",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_05_ground_grappling-review-0005",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_06_post_fight-review-0000",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_06_post_fight-review-0001",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_06_post_fight-review-0002",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_06_post_fight-review-0003",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_06_post_fight-review-0004",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_06_post_fight-review-0005",
+      "reason": "out_of_scope"
+    },
+    {
+      "sampleId": "vid_01_cross_heavybag-review-0000",
+      "reason": "MISSING_OR_DISCONTINUOUS_POSE"
+    }
+  ],
+  "sourceHashes": {
+    "prepare_provisional_dataset.py": "db9dd1b790ad19b51ad3fe3cbdc25d7ba614f73b8cb64a2118d76d15ffefc8a2",
+    "pipeline/boxing_research.py": "a14861fca6853ae2de2fe0f00f9e095c3bb480cb65206ef9e2512e64ea135f85",
+    "person_tracker.py": "7483c56d93950aae4208faf0e793ed4aa6d7038a699431f46202134f470713b9"
+  },
+  "limitations": [
+    "Loss weights are heuristic, not calibrated confidence.",
+    "AI labels and action boundaries are weak suggestions from sparse frames.",
+    "No background examples, coach-approved quality labels or independent acceptance test.",
+    "Source-video splits are preserved; fighter independence and cross-source identity are unknown.",
+    "Adam and heavybag are training sources and cannot be used as held-out evaluations of this model.",
+    "Historical V9/V10 remain observed diagnostics; no test inference is needed for a smoke run.",
+    "Legacy 25x85 image-relative features are not the new timestamp/aspect-corrected representation.",
+    "User permission for temporary experimentation does not verify commercial media rights."
+  ],
+  "manifestPath": "test_results\\provisional_dataset\\20261006_v2\\manifest.json",
+  "manifestSha256": "ca9325c3e75ffbe5a1f957c10b1b4f742ae16a65dd6d34395ac6c9e22c5aa69a",
+  "trainingReportPath": "test_results\\provisional_training\\20261006_smoke_v1\\report.json",
+  "trainingReportSha256": "6418539ffdc743c0524dc56e592744384d46984905131460ca2496de2fcf4a1c",
+  "training": {
+    "status": "PROVISIONAL_TRAINING_SMOKE_COMPLETED",
+    "architecture": "residual_tcn",
+    "seed": 20261006,
+    "epochs": 3,
+    "featureVersion": "body_relative_image_pose_v1",
+    "manifestSha256": "ca9325c3e75ffbe5a1f957c10b1b4f742ae16a65dd6d34395ac6c9e22c5aa69a",
+    "checkpointSha256": "48c2b5de8d1806166195437abc18cf01f2c7f299496167dbaf70b6165adba1c2",
+    "trainSamples": 3674,
+    "validationSamples": 199,
+    "aiTrainSamples": 14,
+    "aiLossWeight": 0.25,
+    "goldEligible": false,
+    "productionEligible": false,
+    "testEvaluated": false,
+    "calibrationFitted": false,
+    "checkpointRoundtripPassed": true,
+    "history": [
+      {
+        "epoch": 1,
+        "weightedTrainingLoss": 1.7041302099549398,
+        "validationUpstreamLabelAgreement": {
+          "count": 199,
+          "accuracy": 0.22613065326633167,
+          "macroF1": 0.11997180229224426,
+          "perClass": {
+            "jab": {
+              "support": 25,
+              "precision": 0.2553191489361702,
+              "recall": 0.48,
+              "f1": 0.3333333333333333
+            },
+            "cross": {
+              "support": 32,
+              "precision": 0.2080536912751678,
+              "recall": 0.96875,
+              "f1": 0.3425414364640884
+            },
+            "lead_hook": {
+              "support": 88,
+              "precision": 0.6666666666666666,
+              "recall": 0.022727272727272728,
+              "f1": 0.04395604395604396
+            },
+            "rear_hook": {
+              "support": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "lead_uppercut": {
+              "support": 29,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "rear_uppercut": {
+              "support": 25,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            }
+          },
+          "confusionRows": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut"
+          ],
+          "confusionColumns": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut",
+            "unknown"
+          ],
+          "confusionMatrix": [
+            [
+              12,
+              13,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              1,
+              31,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              30,
+              56,
+              2,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              28,
+              1,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              4,
+              21,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          ],
+          "abstained": 0
+        }
+      },
+      {
+        "epoch": 2,
+        "weightedTrainingLoss": 1.2965753512866047,
+        "validationUpstreamLabelAgreement": {
+          "count": 199,
+          "accuracy": 0.37185929648241206,
+          "macroF1": 0.24548946458113827,
+          "perClass": {
+            "jab": {
+              "support": 25,
+              "precision": 0.30303030303030304,
+              "recall": 0.4,
+              "f1": 0.3448275862068965
+            },
+            "cross": {
+              "support": 32,
+              "precision": 0.23076923076923078,
+              "recall": 0.65625,
+              "f1": 0.34146341463414637
+            },
+            "lead_hook": {
+              "support": 88,
+              "precision": 0.5757575757575758,
+              "recall": 0.4318181818181818,
+              "f1": 0.49350649350649356
+            },
+            "rear_hook": {
+              "support": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "lead_uppercut": {
+              "support": 29,
+              "precision": 0.5,
+              "recall": 0.13793103448275862,
+              "f1": 0.2162162162162162
+            },
+            "rear_uppercut": {
+              "support": 25,
+              "precision": 1.0,
+              "recall": 0.04,
+              "f1": 0.07692307692307693
+            }
+          },
+          "confusionRows": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut"
+          ],
+          "confusionColumns": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut",
+            "unknown"
+          ],
+          "confusionMatrix": [
+            [
+              10,
+              9,
+              6,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              2,
+              21,
+              9,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              18,
+              28,
+              38,
+              0,
+              4,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              20,
+              5,
+              0,
+              4,
+              0,
+              0
+            ],
+            [
+              3,
+              13,
+              8,
+              0,
+              0,
+              1,
+              0
+            ]
+          ],
+          "abstained": 0
+        }
+      },
+      {
+        "epoch": 3,
+        "weightedTrainingLoss": 0.992006989379233,
+        "validationUpstreamLabelAgreement": {
+          "count": 199,
+          "accuracy": 0.5025125628140703,
+          "macroF1": 0.3887998688456355,
+          "perClass": {
+            "jab": {
+              "support": 25,
+              "precision": 0.26666666666666666,
+              "recall": 0.48,
+              "f1": 0.3428571428571429
+            },
+            "cross": {
+              "support": 32,
+              "precision": 0.3492063492063492,
+              "recall": 0.6875,
+              "f1": 0.46315789473684205
+            },
+            "lead_hook": {
+              "support": 88,
+              "precision": 0.7580645161290323,
+              "recall": 0.5340909090909091,
+              "f1": 0.6266666666666667
+            },
+            "rear_hook": {
+              "support": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "lead_uppercut": {
+              "support": 29,
+              "precision": 0.875,
+              "recall": 0.2413793103448276,
+              "f1": 0.3783783783783784
+            },
+            "rear_uppercut": {
+              "support": 25,
+              "precision": 0.5714285714285714,
+              "recall": 0.48,
+              "f1": 0.5217391304347826
+            }
+          },
+          "confusionRows": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut"
+          ],
+          "confusionColumns": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut",
+            "unknown"
+          ],
+          "confusionMatrix": [
+            [
+              12,
+              7,
+              6,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              6,
+              22,
+              3,
+              0,
+              0,
+              1,
+              0
+            ],
+            [
+              24,
+              12,
+              47,
+              0,
+              1,
+              4,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              2,
+              15,
+              1,
+              0,
+              7,
+              4,
+              0
+            ],
+            [
+              1,
+              7,
+              5,
+              0,
+              0,
+              12,
+              0
+            ]
+          ],
+          "abstained": 0
+        }
+      }
+    ],
+    "runtime": {
+      "torch": "2.14.0+cpu",
+      "numpy": "2.4.6",
+      "threads": 4
+    },
+    "sourceHashes": {
+      "train_provisional_smoke.py": "fe657dcc16c32a6d6bf16a8372bfba0fc651b0d39adb5f5e29a56b3442ce3390",
+      "prepare_provisional_dataset.py": "db9dd1b790ad19b51ad3fe3cbdc25d7ba614f73b8cb64a2118d76d15ffefc8a2",
+      "pipeline/temporal_models.py": "1565854ec1799f343488d7820ca606711bdbccda5593e67ef3bbeb68a0297324"
+    },
+    "limitations": [
+      "Loss weights are heuristic, not calibrated confidence.",
+      "AI labels and action boundaries are weak suggestions from sparse frames.",
+      "No background examples, coach-approved quality labels or independent acceptance test.",
+      "Source-video splits are preserved; fighter independence and cross-source identity are unknown.",
+      "Adam and heavybag are training sources and cannot be used as held-out evaluations of this model.",
+      "Historical V9/V10 remain observed diagnostics; no test inference is needed for a smoke run.",
+      "Legacy 25x85 image-relative features are not the new timestamp/aspect-corrected representation.",
+      "User permission for temporary experimentation does not verify commercial media rights.",
+      "Three-epoch smoke training is not an ablation or accuracy claim.",
+      "No calibrated inference policy; checkpoint is not an active worker model.",
+      "Validation statistics measure agreement with unverified upstream labels."
+    ]
+  },
+  "verification": {
+    "targetedTestsPassed": 13
+  }
+}

@@ -1,4 +1,19 @@
+import type {
+    BoutMethod,
+    BoutPhase,
+    BoutResult,
+    BoutSport,
+    CancelReason,
+    HydrationCheck,
+    LossOfConsciousness,
+    NutritionPhaseKey,
+    RequirementState,
+    SuspensionReason,
+} from "./bout";
+import type { Gate1Reason } from "./bout-rules";
+import type { SuspensionState } from "./suspension-rules";
 import { EXAMINATION_SCOPE_LABELS } from "./medical-contract";
+import type { PlanAdherence, WeightStatus } from "./weight-chart";
 import type {
     AIJobStatus,
     Injury,
@@ -558,6 +573,111 @@ export const BROADCAST_CHANNEL_LABELS: Record<BroadcastChannel, string> = {
     in_app: "In-app",
     email: "Email",
     in_app_email: "In-app + email",
+};
+
+/* ─── Fight camp ──────────────────────────────────────────────────────────── */
+
+export const WEIGHT_STATUS_LABELS: Record<WeightStatus, string> = {
+    GREEN: "Green",
+    YELLOW: "Yellow",
+    RED: "Red",
+    GREY: "Grey",
+};
+
+export const PLAN_ADHERENCE_LABELS: Record<PlanAdherence, string> = {
+    ON_PLAN: "On plan",
+    SLIGHTLY_OFF: "Slightly off",
+    WAY_OFF: "Way off",
+};
+
+export const NUTRITION_PHASE_LABELS: Record<NutritionPhaseKey, string> = {
+    camp: "Camp",
+    fightWeek: "Fight week",
+    postWeighIn: "After the official weigh-in",
+};
+
+export const BOUT_PHASE_LABELS: Record<BoutPhase, string> = {
+    SCHEDULED: "Scheduled",
+    CAMP: "Camp",
+    FIGHT_WEEK: "Fight week",
+    WEIGHED_IN: "Weighed in",
+    COMPLETED: "Completed",
+    CANCELLED: "Cancelled",
+};
+
+export const BOUT_SPORT_LABELS: Record<BoutSport, string> = {
+    BOXING: "Boxing",
+    MUAY_THAI: "Muay Thai",
+    KICKBOXING: "Kickboxing",
+    MMA: "MMA",
+};
+
+export const REQUIREMENT_STATE_LABELS: Record<RequirementState, string> = {
+    MISSING: "Missing",
+    PROVIDED: "Provided",
+    CONFIRMED: "Confirmed",
+    REJECTED: "Rejected",
+};
+
+export const GATE1_REASON_LABELS: Record<Gate1Reason, string> = {
+    MISSING: "missing",
+    EXPIRED: "expires before the bout",
+    REJECTED: "rejected",
+};
+
+export const CANCEL_REASON_LABELS: Record<CancelReason, string> = {
+    OPPONENT_WITHDREW: "Opponent withdrew",
+    INJURY: "Injury",
+    MISSED_WEIGHT: "Missed weight",
+    DOCUMENTS: "Documents",
+    ORGANISER_CANCELLED: "Organiser cancelled",
+    OTHER: "Other",
+};
+
+export const HYDRATION_CHECK_LABELS: Record<HydrationCheck, string> = {
+    NOT_APPLICABLE: "Not applicable",
+    PASSED: "Passed",
+    FAILED: "Failed",
+};
+
+export const BOUT_RESULT_LABELS: Record<BoutResult, string> = {
+    WIN: "Win",
+    LOSS: "Loss",
+    DRAW: "Draw",
+    NO_CONTEST: "No contest",
+};
+
+export const BOUT_METHOD_LABELS: Record<BoutMethod, string> = {
+    KO: "KO",
+    TKO: "TKO",
+    DECISION: "Decision",
+    SUBMISSION: "Submission",
+    DQ: "Disqualification",
+    OTHER: "Other",
+};
+
+export const LOSS_OF_CONSCIOUSNESS_LABELS: Record<LossOfConsciousness, string> = {
+    NONE: "No",
+    UNDER_1_MIN: "Under 1 minute",
+    OVER_1_MIN: "Over 1 minute",
+    UNKNOWN: "Not known",
+};
+
+export const SUSPENSION_REASON_LABELS: Record<SuspensionReason, string> = {
+    KO: "KO",
+    TKO: "TKO",
+    DQ: "Disqualification",
+    MANDATORY_REST: "Mandatory rest",
+    MEDICAL: "Medical",
+    OTHER: "Other",
+};
+
+export const SUSPENSION_STATE_LABELS: Record<SuspensionState, string> = {
+    UPCOMING: "Starts later",
+    ACTIVE: "Suspended",
+    AWAITING_CLEARANCE: "Awaiting clearance",
+    ENDED: "Ended",
+    CLEARED: "Cleared to train",
 };
 
 /* ─── Display titles for records the medical service describes in free text ── */

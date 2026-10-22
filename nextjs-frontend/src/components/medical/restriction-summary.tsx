@@ -1,4 +1,4 @@
-import { RESTRICTION_SEVERITY_META } from "@/components/domain/restriction-list";
+import { RESTRICTION_SEVERITY_META } from "@/components/domain/restriction-meta";
 import { TONE_SOFT } from "@/components/ui/tone";
 import { restrictionSeverity } from "@/lib/domain/clearance-rules";
 import type { TrainingRestriction } from "@/lib/domain/types";

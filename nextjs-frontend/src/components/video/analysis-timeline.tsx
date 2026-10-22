@@ -40,7 +40,7 @@ const ZOOMS: { value: Exclude<ZoomId, "auto">; label: string; factor: number }[]
     { value: "4x", label: "4×", factor: 4 },
 ];
 
-const STRIKE_LANES: StrikeType[] = ["jab", "cross", "hook", "kick"];
+const STRIKE_LANES: StrikeType[] = ["jab", "cross", "hook", "kick", "punch"];
 /** Height of one strike lane: every marker keeps a 24px hit area without overlapping the next lane. */
 const LANE_PX = 24;
 const HEAD_MOVEMENT = new Set<MovementEvent["type"]>(["slip", "roll"]);
@@ -153,7 +153,7 @@ export function AnalysisTimeline({ analysis, findings, observations, onSelectFin
                 <div className="flex">
                     <div aria-hidden className="w-[76px] shrink-0 pr-2 text-xs font-medium text-fg-muted sm:w-[104px]">
                         <div className="h-8" />
-                        <TrackLabel className="h-24">Strikes</TrackLabel>
+                        <TrackLabel className="h-30">Strikes</TrackLabel>
                         <TrackLabel className="h-8">Combos</TrackLabel>
                         <TrackLabel className="h-8">Movement</TrackLabel>
                         <TrackLabel className="h-7">Guard</TrackLabel>
@@ -310,7 +310,7 @@ function StrikesTrack({ detections, pct, onSeek }: TrackProps & { detections: De
     const roving = useRovingFocus(detections.length);
     const activeId = usePlayback((s) => detectionAt(detections, s.timeMs)?.id ?? null);
     return (
-        <Track label={`Strikes: ${detections.length} detections. Use the arrow keys to move between them.`} className="h-24" onKeyDown={roving.onKeyDown}>
+        <Track label={`Strikes: ${detections.length} detections. Use the arrow keys to move between them.`} className="h-30" onKeyDown={roving.onKeyDown}>
             {detections.map((detection, index) => (
                 <StrikeMarker
                     key={detection.id}
@@ -376,6 +376,7 @@ export function StrikeShape({ type, hollow, className }: { type: StrikeType; hol
             {type === "cross" && <rect x="1.75" y="1.75" width="10.5" height="10.5" rx="1.5" {...paint} />}
             {type === "hook" && <path d="M7 1.2 12.9 12.2H1.1Z" strokeLinejoin="round" {...paint} />}
             {type === "kick" && <path d="M7 .8 13.2 7 7 13.2.8 7Z" strokeLinejoin="round" {...paint} />}
+            {type === "punch" && <rect x="1" y="4" width="12" height="6" rx="3" {...paint} />}
         </svg>
     );
 }

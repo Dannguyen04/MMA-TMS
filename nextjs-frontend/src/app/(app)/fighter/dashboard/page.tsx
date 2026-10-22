@@ -5,11 +5,12 @@ import { notFound } from "next/navigation";
 import { CardLink } from "@/components/dashboard/card-link";
 import { CornerFeed } from "@/components/dashboard/corner-feed";
 import { cornerFeedItems, headlineFinding } from "@/components/dashboard/corner-feed-items";
-import { firstName, greetingFor, weightCheck, weightGapText } from "@/components/dashboard/dashboard-utils";
+import { firstName, greetingKey, weightCheck, weightGapText } from "@/components/dashboard/dashboard-utils";
 import { FightHero, isSessionLive, type HeroAnalysis, type NextUp } from "@/components/dashboard/fight-hero";
 import { InlineNote } from "@/components/dashboard/inline-note";
 import { ReadinessCell, ReadinessNumber, ReadinessStrip } from "@/components/dashboard/readiness-strip";
 import { FighterJourney } from "@/components/domain/fighter-journey";
+import { FighterWeightCard } from "@/components/domain/fighter-weight-card";
 import { ClearanceBadge, HealthStatusBadge } from "@/components/domain/status-badges";
 import { WeekAgenda } from "@/components/domain/week-agenda";
 import { Callout } from "@/components/training/callout";
@@ -24,13 +25,18 @@ import { requireRole } from "@/lib/auth/session";
 import { NOT_RECORDED } from "@/components/domain/domain-format";
 import { reviewCounts } from "@/lib/domain/ai-review";
 import { journeyOwnerLabel, journeyStep, type FighterJourney as Journey, type JourneyCode, type JourneyStep, type JourneyStepId } from "@/lib/domain/journey";
-import { HEALTH_STATUS_DESCRIPTIONS, WEIGHT_CLASS_LABELS, WEIGHT_CLASS_LIMIT_KG } from "@/lib/domain/labels";
+import { savedWeightMessage } from "@/lib/domain/nutrition";
+import { WEIGHT_CLASS_LABELS, WEIGHT_CLASS_LIMIT_KG } from "@/lib/domain/labels";
 import type { ClearanceState } from "@/lib/domain/rules";
 import { planAdherence } from "@/lib/domain/training-plan";
 import type { AIAnalysis, MedicalClearance, TrainingPlan, TrainingSession, UpcomingBout } from "@/lib/domain/types";
-import { academyDayStartIso, addDaysToKey, dayKey, daysBetween, formatNumber, formatShortDate, formatWeekdayDate, pluralize } from "@/lib/format";
+import { academyDayStartIso, addDaysToKey, dayKey, daysBetween, formatNumber, formatShortDate, formatWeekdayDate } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
+import { getTranslator } from "@/lib/i18n/server";
+import { plural, type MessageKey, type Translator } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import { nullIfServiceFails } from "@/lib/services/api-helpers";
+import { getCurrentBout, getWeightTrack } from "@/lib/services/bouts";
 import { getFighterJourney } from "@/lib/services/fighter-journey";
 import { listGoals } from "@/lib/services/goals";
 import { getFighterHealthSummary } from "@/lib/services/medical";
@@ -40,7 +46,10 @@ import { getPlanWithSessions, getUpcomingSessions, listCoachFeedback, listPlans,
 import { getVideoDetail, listVideoLibrary, type VideoLibraryItem } from "@/lib/services/videos";
 import { param } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Today" };
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return { title: t("nav.Today") };
+}
 
 /** Belt stripes stand for the share of open goals on track. */
 const GOAL_STRIPES = 4;
@@ -55,7 +64,8 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
     if (!user.profileId) notFound();
     const fighter = await requireFighterAccess(user, user.profileId);
     const ids = [fighter.id];
-    const notice = param((await searchParams).notice);
+    const [query, { t, locale }] = await Promise.all([searchParams, getTranslator()]);
+    const notice = param(query.notice);
 
     const now = new Date().toISOString();
     const weekKey = weekStartKey(now);
@@ -66,7 +76,7 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
     // separate service: when it doesn't answer, the day's training still shows and the journey marks that step unknown.
     const plansRead = listPlans({ fighterIds: ids });
     const videosRead = nullIfServiceFails(listVideoLibrary({ fighterIds: ids }));
-    const [health, upcoming, weekSessions, planDetail, videoItems, latest, journey, feedback, goals, coaches, doctors] = await Promise.all([
+    const [health, upcoming, weekSessions, planDetail, videoItems, latest, journey, feedback, goals, coaches, doctors, camp] = await Promise.all([
         getFighterHealthSummary(fighter.id, now),
         getUpcomingSessions(ids, 1),
         listSessions({ fighterIds: ids, from: weekStart, to: new Date(Date.parse(nextWeekStart) - 1).toISOString() }),
@@ -81,8 +91,11 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
         listGoals({ fighterIds: ids }),
         listCoaches(),
         listDoctors(),
+        // The running bout's camp weight (T-005): a card above the fight hero, only while a bout is running.
+        getCurrentBout(fighter.id).then(async (current) => ({ bout: current, track: current ? await getWeightTrack(current.id) : null })),
     ]);
     if (!health) notFound();
+    const savedWeight = savedWeightMessage(param(query.saved), param(query.status), t);
 
     const videos = videoItems ?? [];
     const activePlan = planDetail?.plan ?? null;
@@ -104,6 +117,7 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
         restricted: clearanceState === "restricted",
         doctorName: followUpDoctor ?? clearanceDoctor,
         followUpDate: health.nextFollowUp?.date ?? null,
+        t,
     });
     const analysis = latest ? heroAnalysis(latest.item, latest.analysis) : null;
     // Until training can start, the journey leads the hero. Once cleared, the fight camp or the latest AI analysis leads,
@@ -128,13 +142,13 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
     return (
         <>
             <PageHeader
-                eyebrow={formatWeekdayDate(now)}
-                title={`${greetingFor(now)}, ${firstName(fighter.name)}`}
+                eyebrow={formatWeekdayDate(now, locale)}
+                title={t("greeting.named", { greeting: t(greetingKey(now)), name: firstName(fighter.name) })}
                 actions={
                     next.kind !== "analyse" && (
                         <ButtonLink href={routes.fighter.uploadVideo} variant="secondary">
                             <Upload aria-hidden />
-                            Upload video
+                            {t("fighterToday.uploadVideo")}
                         </ButtonLink>
                     )
                 }
@@ -142,10 +156,13 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
 
             <div className="flex flex-col gap-6">
                 {notice === "activated" && (
-                    <Callout tone="success" icon={CircleCheck} title="Your fighter account is active" role="status">
-                        {activatedNextStep(journey)}
+                    <Callout tone="success" icon={CircleCheck} title={t("fighterToday.activated.title")} role="status">
+                        {activatedNextStep(journey, t)}
                     </Callout>
                 )}
+                {savedWeight && <Callout tone="success" icon={CircleCheck} role="status" title={savedWeight} />}
+
+                {camp.bout && <FighterWeightCard event={camp.bout.event} track={camp.track} locale={locale} />}
 
                 <FightHero
                     bout={bout}
@@ -159,31 +176,33 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
                     analysis={analysis}
                     next={next}
                     now={now}
+                    t={t}
+                    locale={locale}
                 />
 
                 {!journey.complete && !journeyInHero && <FighterJourney journey={journey} variant="compact" />}
 
-                <ReadinessStrip label="Readiness">
+                <ReadinessStrip label={t("fighterToday.readiness")}>
                     <ReadinessCell
-                        label="Medical Clearance"
-                        value={<ClearanceBadge state={clearanceState} />}
-                        hint={clearanceHint(clearanceState, clearance)}
+                        label={t("fighterToday.medicalClearance")}
+                        value={<ClearanceBadge state={clearanceState} locale={locale} />}
+                        hint={clearanceHint(t, locale, clearanceState, clearance)}
                         href={routes.fighter.health}
                         className="col-span-2 sm:col-span-2 lg:col-span-1"
                     />
                     <ReadinessCell
-                        label="Health"
-                        value={<HealthStatusBadge status={health.fighter.healthStatus} />}
+                        label={t("fighterToday.health")}
+                        value={<HealthStatusBadge status={health.fighter.healthStatus} locale={locale} />}
                         hint={
                             health.nextFollowUp
-                                ? `Follow-up ${formatShortDate(health.nextFollowUp.date)}${followUpDoctor ? ` · ${followUpDoctor}` : ""}`
-                                : HEALTH_STATUS_DESCRIPTIONS[health.fighter.healthStatus]
+                                ? `${t("fighterToday.followUp", { date: formatShortDate(health.nextFollowUp.date, locale) })}${followUpDoctor ? ` · ${followUpDoctor}` : ""}`
+                                : t(`healthDescription.${health.fighter.healthStatus}`)
                         }
                         href={routes.fighter.health}
                         className="sm:col-span-2 lg:col-span-1"
                     />
                     <ReadinessCell
-                        label="Weight"
+                        label={t("weight.title")}
                         value={
                             weight ? (
                                 <ReadinessNumber value={formatNumber(weight.currentKg, 1)} unit="kg" />
@@ -191,14 +210,14 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
                                 <span className="text-sm font-medium text-fg-muted">{NOT_RECORDED}</span>
                             )
                         }
-                        hint={weight ? `${weightGapText(weight)} · ${weightLimit}` : `${weightLimit} limit`}
+                        hint={weight ? `${weightGapText(weight, t)} · ${weightLimit}` : t("weightGap.limit", { limit: weightLimit })}
                         href={routes.profile}
                         className="sm:col-span-2 lg:col-span-1"
                     />
                     <ReadinessCell
-                        label="This week"
-                        value={<ReadinessNumber value={weekCompleted} unit={`of ${weekPlanned.length} done`} />}
-                        hint={weekHint({ planned: weekPlanned.length, toGo: weekToGo, missed: weekMissed, paused })}
+                        label={t("fighterToday.thisWeek")}
+                        value={<ReadinessNumber value={weekCompleted} unit={t("fighterToday.sessionsDone", { total: weekPlanned.length })} />}
+                        hint={weekHint(t, { planned: weekPlanned.length, toGo: weekToGo, missed: weekMissed, paused })}
                         href={routes.fighter.schedule}
                         className="sm:col-span-3 lg:col-span-1"
                     >
@@ -208,28 +227,28 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
                                 max={weekPlanned.length}
                                 size="sm"
                                 hideValue
-                                label="Sessions completed this week"
-                                valueText={`${weekCompleted} of ${weekPlanned.length}`}
+                                label={t("fighterToday.sessionsDoneLabel")}
+                                valueText={t("fighterToday.sessionsDoneValue", { done: weekCompleted, total: weekPlanned.length })}
                             />
                         )}
                     </ReadinessCell>
                     <ReadinessCell
-                        label="Goals"
+                        label={t("fighterToday.goals")}
                         value={
                             openGoals.length > 0 ? (
-                                <ReadinessNumber value={onTrack} unit={`of ${openGoals.length} on track`} />
+                                <ReadinessNumber value={onTrack} unit={t("fighterToday.goalsOnTrack", { total: openGoals.length })} />
                             ) : (
-                                <span className="text-sm font-medium text-fg-muted">{goalsAvailable ? "No open goals" : "Not available yet"}</span>
+                                <span className="text-sm font-medium text-fg-muted">{t(goalsAvailable ? "fighterToday.noOpenGoals" : "fighterToday.goalsUnavailable")}</span>
                             )
                         }
                         hint={
                             !goalsAvailable
-                                ? "Goals arrive in a later release"
+                                ? t("fighterToday.goalsLater")
                                 : openGoals.length === 0
-                                  ? "Agree one with your coach"
+                                  ? t("fighterToday.agreeGoal")
                                   : atRisk > 0
-                                    ? `${pluralize(atRisk, "goal")} at risk`
-                                    : "Every open goal is on track"
+                                    ? plural(t, "fighterToday.goalsAtRisk", atRisk)
+                                    : t("fighterToday.allGoalsOnTrack")
                         }
                         href={routes.fighter.goals}
                         className="sm:col-span-3 lg:col-span-1"
@@ -238,7 +257,7 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
                             <BeltProgress
                                 stripes={(onTrack / openGoals.length) * GOAL_STRIPES}
                                 max={GOAL_STRIPES}
-                                label={`${onTrack} of ${openGoals.length} open goals on track`}
+                                label={t("fighterToday.goalsBelt", { onTrack, total: openGoals.length })}
                             />
                         )}
                     </ReadinessCell>
@@ -246,15 +265,17 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
 
                 <Card className="min-w-0">
                     <CardHeader
-                        title="This week"
-                        description={`${formatShortDate(weekStart)} – ${formatShortDate(addDaysToKey(weekKey, 6))} · ${
-                            paused && weekPlanned.length === 0 ? "training paused" : pluralize(weekPlanned.length, "session")
-                        }`}
+                        title={t("fighterToday.weekTitle")}
+                        description={t("fighterToday.weekDescription", {
+                            start: formatShortDate(weekStart, locale),
+                            end: formatShortDate(addDaysToKey(weekKey, 6), locale),
+                            sessions: paused && weekPlanned.length === 0 ? t("fighterToday.trainingPaused") : plural(t, "fighterToday.weekSessions", weekPlanned.length),
+                        })}
                         icon={<CalendarDays />}
-                        action={<CardLink href={routes.fighter.schedule}>Full schedule</CardLink>}
+                        action={<CardLink href={routes.fighter.schedule}>{t("fighterToday.fullSchedule")}</CardLink>}
                     />
                     <CardContent>
-                        <WeekAgenda sessions={weekSessions} startDate={weekStart} now={now} getHref={(session) => routes.fighter.session(session.id)} />
+                        <WeekAgenda sessions={weekSessions} startDate={weekStart} now={now} getHref={(session) => routes.fighter.session(session.id)} locale={locale} />
                     </CardContent>
                 </Card>
 
@@ -266,6 +287,7 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
                     filmHref={routes.fighter.videos}
                     uploadHref={routes.fighter.uploadVideo}
                     now={now}
+                    locale={locale}
                 />
             </div>
         </>
@@ -276,21 +298,19 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
 
 const MEDICAL_STEPS: ReadonlySet<JourneyStepId> = new Set(["doctor", "baseline", "clearance"]);
 
-const UNEXPLAINED_BLOCKER = "Your sports doctor hasn't cleared you to train yet. Ask them what's needed before your first session.";
-
 /** What each medical blocker means for the fighter, in plain words. */
-const BLOCKER_BODY: Partial<Record<JourneyCode, string>> = {
-    doctor_missing: "Your sports doctor runs your baseline exam and issues your Medical Clearance. There's nothing you need to do yet.",
-    baseline_pending: "A full check while you're healthy: vitals, heart, nerves, joints and a concussion screen. Training starts once you're cleared.",
-    clearance_pending: "Your baseline exam is on file. Your sports doctor issues your Medical Clearance next; it says what training you're cleared for.",
-    review_pending: "A review of your fitness to train was requested. Training waits until your sports doctor examines you.",
-    clearance_unspecified: UNEXPLAINED_BLOCKER,
-    unknown: "Your medical status didn't load, so we can't say yet whether you can train. Check your health page or try again shortly.",
+const BLOCKER_BODY: Partial<Record<JourneyCode, MessageKey>> = {
+    doctor_missing: "fighterToday.blocker.doctor_missing",
+    baseline_pending: "fighterToday.blocker.baseline_pending",
+    clearance_pending: "fighterToday.blocker.clearance_pending",
+    review_pending: "fighterToday.blocker.review_pending",
+    clearance_unspecified: "fighterToday.blocker.unexplained",
+    unknown: "fighterToday.blocker.unknown",
 };
 
-const BLOCKER_TITLE: Partial<Record<JourneyCode, string>> = {
-    review_pending: "Medical review pending",
-    unknown: "We couldn't check your Medical Clearance",
+const BLOCKER_TITLE: Partial<Record<JourneyCode, MessageKey>> = {
+    review_pending: "fighterToday.blocker.review_pending.title",
+    unknown: "fighterToday.blocker.unknown.title",
 };
 
 const LOADING_STATUSES: ReadonlySet<VideoLibraryItem["video"]["status"]> = new Set(["uploading", "queued", "processing"]);
@@ -306,6 +326,7 @@ interface NextUpInput {
     restricted: boolean;
     doctorName: string | undefined;
     followUpDate: string | null;
+    t: Translator;
 }
 
 /**
@@ -313,16 +334,17 @@ interface NextUpInput {
  * doctor stopped training). Once cleared: a session under way, an upload still processing, the first analysis, the next
  * session, then another round for the AI.
  */
-function nextUpFor({ journey, session, videos, now, coachName, restricted, doctorName, followUpDate }: NextUpInput): NextUp {
+function nextUpFor({ journey, session, videos, now, coachName, restricted, doctorName, followUpDate, t }: NextUpInput): NextUp {
     if (journey.cleared !== true) {
         const blocker = medicalBlocker(journey);
         if (blocker.code === "not_eligible" || blocker.code === "clearance_expired") {
             return { kind: "paused", reason: blocker.code === "clearance_expired" ? "expired" : "not_cleared", doctorName, followUpDate, healthHref: routes.fighter.health };
         }
+        const titleKey = BLOCKER_TITLE[blocker.code];
         return {
             kind: "blocked",
-            title: BLOCKER_TITLE[blocker.code] ?? blocker.detail,
-            body: BLOCKER_BODY[blocker.code] ?? UNEXPLAINED_BLOCKER,
+            title: titleKey ? t(titleKey) : blocker.detail,
+            body: t(BLOCKER_BODY[blocker.code] ?? "fighterToday.blocker.unexplained"),
             owner: blocker.person ?? journeyOwnerLabel(blocker.owner, "fighter"),
             attention: blocker.attention,
             healthHref: routes.fighter.health,
@@ -336,7 +358,7 @@ function nextUpFor({ journey, session, videos, now, coachName, restricted, docto
         href: routes.fighter.session(current.id),
         note: restricted ? (
             <InlineNote icon={ShieldAlert} tone="info">
-                You&apos;re cleared with restrictions — your coach plans every session within them.
+                {t("fighterToday.restrictedNote")}
             </InlineNote>
         ) : undefined,
     });
@@ -360,17 +382,17 @@ function medicalBlocker(journey: Journey): JourneyStep {
 }
 
 /** After activation, the next step in one sentence. */
-function activatedNextStep(journey: Journey): string {
+function activatedNextStep(journey: Journey, t: Translator): string {
     const active = journey.active;
     switch (active?.code) {
         case "doctor_missing":
-            return "Next: the academy assigns your sports doctor.";
+            return t("fighterToday.activated.doctor");
         case "baseline_pending":
-            return `Next: your baseline exam with ${active.person ?? "your sports doctor"}.`;
+            return active.person ? t("fighterToday.activated.baselineWith", { name: active.person }) : t("fighterToday.activated.baseline");
         case "clearance_pending":
-            return "Next: your sports doctor issues your Medical Clearance.";
+            return t("fighterToday.activated.clearance");
         default:
-            return "Your next step is right below.";
+            return t("fighterToday.activated.below");
     }
 }
 
@@ -398,25 +420,25 @@ function heroAnalysis(item: VideoLibraryItem, analysis: AIAnalysis): HeroAnalysi
 
 /* ─── Readiness ───────────────────────────────────────────────────────────── */
 
-function clearanceHint(state: ClearanceState, clearance: MedicalClearance | null): string {
+function clearanceHint(t: Translator, locale: Locale, state: ClearanceState, clearance: MedicalClearance | null): string {
     switch (state) {
         case "full":
-            return clearance?.validUntil ? `Valid until ${formatShortDate(clearance.validUntil)}` : "Cleared for full training";
+            return clearance?.validUntil ? t("clearanceHint.full", { date: formatShortDate(clearance.validUntil, locale) }) : t("clearanceHint.fullOpen");
         case "restricted":
-            return `${pluralize(clearance?.restrictions.length ?? 0, "restriction")} · your coach plans around them`;
+            return plural(t, "clearanceHint.restricted", clearance?.restrictions.length ?? 0);
         case "none":
-            return "Issued after your baseline exam";
+            return t("clearanceHint.none");
         case "expired":
-            return "Needs renewing before you train";
+            return t("clearanceHint.expired");
         case "not_cleared":
-            return "Training paused by your doctor";
+            return t("clearanceHint.not_cleared");
     }
 }
 
-function weekHint({ planned, toGo, missed, paused }: { planned: number; toGo: number; missed: number; paused: boolean }): string {
-    if (planned === 0) return paused ? "Training paused" : "Nothing planned yet";
-    const parts = [toGo > 0 ? `${toGo} still to go` : null, missed > 0 ? `${missed} missed` : null].filter(Boolean);
-    return parts.length > 0 ? parts.join(" · ") : "All done — great week";
+function weekHint(t: Translator, { planned, toGo, missed, paused }: { planned: number; toGo: number; missed: number; paused: boolean }): string {
+    if (planned === 0) return t(paused ? "weekHint.paused" : "weekHint.nothing");
+    const parts = [toGo > 0 ? t("weekHint.toGo", { n: toGo }) : null, missed > 0 ? t("weekHint.missed", { n: missed }) : null].filter(Boolean);
+    return parts.length > 0 ? parts.join(" · ") : t("weekHint.allDone");
 }
 
 /** Whether a plan is the fight camp for the booked bout: a fight-camp plan whose window includes fight night. */

@@ -2,6 +2,8 @@ import { Clock, TriangleAlert, UserCheck } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { AI_REVIEW_TERMS, formatReviewCounts } from "@/lib/domain/ai-review";
+import type { Locale } from "@/lib/i18n/config";
+import { createTranslator, plural } from "@/lib/i18n/translate";
 
 /** Coach review state of a completed analysis (label + icon + tone, never colour alone). */
 export function CoachReviewStateBadge({
@@ -9,13 +11,17 @@ export function CoachReviewStateBadge({
     lowConfidenceCount = 0,
     size,
     className,
+    locale,
 }: {
     reviewed: boolean;
     /** Unreviewed low-confidence detections; shown instead of "Awaiting" when present. */
     lowConfidenceCount?: number;
     size?: "sm" | "md";
     className?: string;
+    /** The viewer's language; English when omitted. */
+    locale?: Locale;
 }) {
+    if (locale) return <TranslatedReviewBadge reviewed={reviewed} lowConfidenceCount={lowConfidenceCount} size={size} className={className} locale={locale} />;
     if (reviewed) {
         return (
             <Badge tone="success" icon={UserCheck} size={size} className={className}>
@@ -34,6 +40,41 @@ export function CoachReviewStateBadge({
     return (
         <Badge tone="neutral" icon={Clock} size={size} className={className}>
             Awaiting coach review
+        </Badge>
+    );
+}
+
+function TranslatedReviewBadge({
+    reviewed,
+    lowConfidenceCount,
+    size,
+    className,
+    locale,
+}: {
+    reviewed: boolean;
+    lowConfidenceCount: number;
+    size?: "sm" | "md";
+    className?: string;
+    locale: Locale;
+}) {
+    const t = createTranslator(locale);
+    if (reviewed) {
+        return (
+            <Badge tone="success" icon={UserCheck} size={size} className={className}>
+                {t("review.coachReviewed")}
+            </Badge>
+        );
+    }
+    if (lowConfidenceCount > 0) {
+        return (
+            <Badge tone="warning" icon={TriangleAlert} size={size} className={className}>
+                {t("review.needsReview")} · {plural(t, "review.lowConfidence", lowConfidenceCount)}
+            </Badge>
+        );
+    }
+    return (
+        <Badge tone="neutral" icon={Clock} size={size} className={className}>
+            {t("review.awaiting")}
         </Badge>
     );
 }

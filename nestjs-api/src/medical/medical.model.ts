@@ -584,6 +584,7 @@ export const medicalEligibilitySchema = z.strictObject({
   scope: z.enum(examinationScopes),
   eligible: z.boolean(),
   reasons: z.array(z.enum(MEDICAL_ELIGIBILITY_REASON)),
+  supervision: z.enum(['DOCTOR', 'NONE']),
 });
 
 export const medicalDossierSchema = z.strictObject({

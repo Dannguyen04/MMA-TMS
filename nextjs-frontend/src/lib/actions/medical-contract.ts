@@ -27,6 +27,8 @@ import { clearanceFromExamination, isRecordedAttempt, RECONCILE_FIELD, type Exam
 import { friendlyScat6Issues } from "@/lib/domain/medical-scat6";
 import type { MedicalClearance } from "@/lib/domain/types";
 import { academyWallClockToIso, dayKey, isDateKey, isDateTimeInputValue } from "@/lib/format";
+import { getTranslator } from "@/lib/i18n/server";
+import type { Translator } from "@/lib/i18n/translate";
 import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import {
@@ -56,12 +58,12 @@ import { actionError, actionSuccess, FIX_FIELDS, validationError, type ActionSta
 
 const required = (message: string) => z.string().trim().min(1, message);
 
-const boundedText = (label: string, max: number, min = 0, minMessage = "") =>
+const boundedText = (label: string, max: number, min = 0, minMessage = "", t?: Translator) =>
     z
         .string()
         .trim()
         .min(min, minMessage)
-        .max(max, `Keep the ${label} under ${max.toLocaleString("en-US")} characters.`);
+        .max(max, t ? t("validation.maxChars", { label, max: max.toLocaleString("en-US") }) : `Keep the ${label} under ${max.toLocaleString("en-US")} characters.`);
 
 /** A datetime-local value in academy time, as an ISO timestamp. */
 function wallClockIso(value: string): string {
@@ -136,17 +138,18 @@ const limitsSomething = (lists: RestrictionLists) => lists.allowedSessionTypes !
 
 /* ─── Review requests ─────────────────────────────────────────────────────── */
 
-const reviewRequestSchema = z.object({
+const reviewRequestSchema = (t?: Translator) =>
+    z.object({
     fighterId: required("The fighter is missing. Reload the page and try again."),
-    reason: boundedText("reason", MEDICAL_TEXT_LIMITS.reviewReason, 10, "Say what happened or what worries you, in a sentence or two."),
+    reason: boundedText("reason", MEDICAL_TEXT_LIMITS.reviewReason, 10, "Say what happened or what worries you, in a sentence or two.", t),
 });
 
 /** A fighter (for themselves), their coach or their doctor asks for a medical review. */
 export async function requestMedicalReviewAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
-    const auth = await authorizeAction("medical:request_review");
+    const [auth, { t }] = await Promise.all([authorizeAction("medical:request_review"), getTranslator()]);
     if (!auth.ok) return actionError(auth.message);
 
-    const parsed = reviewRequestSchema.safeParse({ fighterId: text(formData, "fighterId"), reason: text(formData, "reason") });
+    const parsed = reviewRequestSchema(t).safeParse({ fighterId: text(formData, "fighterId"), reason: text(formData, "reason") });
     if (!parsed.success) return validationError(parsed.error);
     const { fighterId, reason } = parsed.data;
     const allowed = auth.user.role === "fighter" ? auth.user.profileId === fighterId : canAccessFighter(auth.user, fighterId);
@@ -165,15 +168,16 @@ export async function requestMedicalReviewAction(_prev: ActionState, formData: F
 
 /* ─── Examination decisions ───────────────────────────────────────────────── */
 
-const examinationSchema = z
+const examinationSchema = (t?: Translator) =>
+    z
     .object({
         fighterId: required("Choose the fighter you examined."),
         scope: z.enum(EXAMINATION_SCOPES, { error: "Choose what this examination decides." }),
         decision: z.enum(EXAMINATION_DECISIONS, { error: "Choose your decision." }),
         examinedAt: z.string().refine(isDateTimeInputValue, "Enter the date and time of the examination."),
-        reason: boundedText("reasoning", MEDICAL_TEXT_LIMITS.examinationReason, 10, "Explain your decision in a sentence or two."),
+        reason: boundedText("reasoning", MEDICAL_TEXT_LIMITS.examinationReason, 10, "Explain your decision in a sentence or two.", t),
         lists: restrictionListsSchema,
-        restrictionNotes: boundedText("restriction notes", MEDICAL_TEXT_LIMITS.restrictionNotes),
+        restrictionNotes: boundedText("restriction notes", MEDICAL_TEXT_LIMITS.restrictionNotes, 0, "", t),
         validUntil: optionalDate("Enter a valid date, or leave it empty."),
         supersedesId: z.string().trim(),
         reviewRequestIds: z.array(z.string().min(1)).max(50, "Choose at most 50 review requests."),
@@ -182,7 +186,7 @@ const examinationSchema = z
             max: EXAMINATION_DETAIL_LIMITS.assessments,
             maxMessage: `Record at most ${EXAMINATION_DETAIL_LIMITS.assessments} assessments.`,
         }),
-        recommendations: boundedText("recommendations", MEDICAL_TEXT_LIMITS.clinicalText),
+        recommendations: boundedText("recommendations", MEDICAL_TEXT_LIMITS.clinicalText, 0, "", t),
         followUpDate: optionalDate("Enter a valid follow-up date, or leave it empty."),
     })
     .superRefine((input, ctx) => {
@@ -252,10 +256,10 @@ const RECORDED_SINCE =
     "Another examination of this scope was recorded since you opened this form, perhaps your earlier attempt. Open the fighter's record to check it before recording again.";
 
 export async function recordExaminationDecisionAction(_prev: ActionState<MedicalWriteData>, formData: FormData): Promise<ActionState<MedicalWriteData>> {
-    const auth = await authorizeClinicalAction("medical:write");
+    const [auth, { t }] = await Promise.all([authorizeClinicalAction("medical:write"), getTranslator()]);
     if (!auth.ok) return actionError(auth.message);
 
-    const parsed = examinationSchema.safeParse({
+    const parsed = examinationSchema(t).safeParse({
         fighterId: text(formData, "fighterId"),
         scope: text(formData, "scope"),
         decision: text(formData, "decision"),
@@ -335,7 +339,8 @@ export async function recordExaminationDecisionAction(_prev: ActionState<Medical
 
 /* ─── Clearances ──────────────────────────────────────────────────────────── */
 
-const clearanceSchema = z
+const clearanceSchema = (t?: Translator) =>
+    z
     .object({
         fighterId: required("Choose the fighter this clearance is for."),
         examinationId: required("Choose the examination this clearance comes from."),
@@ -343,7 +348,7 @@ const clearanceSchema = z
         validFrom: optionalDate("Enter a valid start date, or leave it empty to start now."),
         validUntil: optionalDate("Enter a valid end date, or leave it empty to keep the examination's."),
         lists: restrictionListsSchema,
-        notes: boundedText("notes", MEDICAL_TEXT_LIMITS.clearanceNotes),
+        notes: boundedText("notes", MEDICAL_TEXT_LIMITS.clearanceNotes, 0, "", t),
     })
     .superRefine((input, ctx) => {
         if (input.validFrom && input.validUntil && input.validUntil <= input.validFrom) {
@@ -376,10 +381,10 @@ function alreadyIssued(clearance: MedicalClearance, clearanceType: ClearanceType
 }
 
 export async function issueClearanceAction(_prev: ActionState<MedicalWriteData>, formData: FormData): Promise<ActionState<MedicalWriteData>> {
-    const auth = await authorizeClinicalAction("clearance:manage");
+    const [auth, { t }] = await Promise.all([authorizeClinicalAction("clearance:manage"), getTranslator()]);
     if (!auth.ok) return actionError(auth.message);
 
-    const parsed = clearanceSchema.safeParse({
+    const parsed = clearanceSchema(t).safeParse({
         fighterId: text(formData, "fighterId"),
         examinationId: text(formData, "examinationId"),
         clearanceType: text(formData, "clearanceType"),
@@ -458,20 +463,21 @@ export async function issueClearanceAction(_prev: ActionState<MedicalWriteData>,
 
 /* ─── Injuries & treatments ───────────────────────────────────────────────── */
 
-const injurySchema = z.object({
+const injurySchema = (t?: Translator) =>
+    z.object({
     fighterId: required("Choose the injured fighter."),
     affectedJoint: z.enum(BODY_JOINTS, { error: "Choose the affected joint." }),
-    injuryType: boundedText("injury type", MEDICAL_TEXT_LIMITS.injuryType, 2, "Name the injury, e.g. “Lateral ankle sprain”."),
+    injuryType: boundedText("injury type", MEDICAL_TEXT_LIMITS.injuryType, 2, "Name the injury, e.g. “Lateral ankle sprain”.", t),
     severity: z.enum(API_INJURY_SEVERITIES, { error: "Choose a severity." }),
     occurredAt: z.string().refine(isDateTimeInputValue, "Enter the date and time the injury happened."),
-    description: boundedText("description", MEDICAL_TEXT_LIMITS.clinicalText),
+    description: boundedText("description", MEDICAL_TEXT_LIMITS.clinicalText, 0, "", t),
 });
 
 export async function recordInjuryAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
-    const auth = await authorizeClinicalAction("medical:write");
+    const [auth, { t }] = await Promise.all([authorizeClinicalAction("medical:write"), getTranslator()]);
     if (!auth.ok) return actionError(auth.message);
 
-    const parsed = injurySchema.safeParse({
+    const parsed = injurySchema(t).safeParse({
         fighterId: text(formData, "fighterId"),
         affectedJoint: text(formData, "affectedJoint"),
         injuryType: text(formData, "injuryType"),
@@ -504,14 +510,15 @@ export async function recordInjuryAction(_prev: ActionState, formData: FormData)
     redirect(hrefWith(routes.doctor.injury(injuryId), {}, { created: "1" }));
 }
 
-const treatmentSchema = z
+const treatmentSchema = (t?: Translator) =>
+    z
     .object({
         injuryId: required("The injury is missing. Reload the page and try again."),
         fighterId: required("The fighter is missing. Reload the page and try again."),
-        treatmentType: boundedText("treatment", MEDICAL_TEXT_LIMITS.treatmentType, 2, "Name the treatment, e.g. “Physiotherapy”."),
+        treatmentType: boundedText("treatment", MEDICAL_TEXT_LIMITS.treatmentType, 2, "Name the treatment, e.g. “Physiotherapy”.", t),
         treatmentDate: z.string().refine(isDateKey, "Enter the date of the treatment."),
-        description: boundedText("description", MEDICAL_TEXT_LIMITS.clinicalText),
-        outcomeNotes: boundedText("outcome notes", MEDICAL_TEXT_LIMITS.clinicalText),
+        description: boundedText("description", MEDICAL_TEXT_LIMITS.clinicalText, 0, "", t),
+        outcomeNotes: boundedText("outcome notes", MEDICAL_TEXT_LIMITS.clinicalText, 0, "", t),
         nextReviewAt: optionalDate("Enter a valid review date, or leave it empty."),
     })
     .superRefine((input, ctx) => {
@@ -521,10 +528,10 @@ const treatmentSchema = z
     });
 
 export async function recordTreatmentAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
-    const auth = await authorizeClinicalAction("medical:write");
+    const [auth, { t }] = await Promise.all([authorizeClinicalAction("medical:write"), getTranslator()]);
     if (!auth.ok) return actionError(auth.message);
 
-    const parsed = treatmentSchema.safeParse({
+    const parsed = treatmentSchema(t).safeParse({
         injuryId: text(formData, "injuryId"),
         fighterId: text(formData, "fighterId"),
         treatmentType: text(formData, "treatmentType"),
@@ -561,24 +568,26 @@ export async function recordTreatmentAction(_prev: ActionState, formData: FormDa
 
 /* ─── Recovery plans ──────────────────────────────────────────────────────── */
 
-const milestoneSchema = z.object({
-    title: boundedText("milestone", MEDICAL_TEXT_LIMITS.planTitle, 2, "Name this milestone."),
-    criteria: boundedText("criteria", MEDICAL_TEXT_LIMITS.clinicalText, 3, "Say how you'll know it's reached."),
+const milestoneSchema = (t?: Translator) =>
+    z.object({
+    title: boundedText("milestone", MEDICAL_TEXT_LIMITS.planTitle, 2, "Name this milestone.", t),
+    criteria: boundedText("criteria", MEDICAL_TEXT_LIMITS.clinicalText, 3, "Say how you'll know it's reached.", t),
     targetDate: optionalDate("Enter a valid target date, or leave it empty."),
-    notes: boundedText("notes", MEDICAL_TEXT_LIMITS.clinicalText),
+    notes: boundedText("notes", MEDICAL_TEXT_LIMITS.clinicalText, 0, "", t),
 });
 
-const milestoneList = jsonArray(milestoneSchema, "milestones", { max: RECOVERY_MILESTONES_MAX, maxMessage: `Use at most ${RECOVERY_MILESTONES_MAX} milestones.` });
+const milestoneList = (t?: Translator) => jsonArray(milestoneSchema(t), "milestones", { max: RECOVERY_MILESTONES_MAX, maxMessage: `Use at most ${RECOVERY_MILESTONES_MAX} milestones.` });
 
-const recoveryPlanSchema = z
+const recoveryPlanSchema = (t?: Translator) =>
+    z
     .object({
         fighterId: required("The fighter is missing. Reload the page and try again."),
         injuryId: required("Choose the injury this plan is for."),
-        title: boundedText("title", MEDICAL_TEXT_LIMITS.planTitle, 3, "Give the plan a short title."),
-        description: boundedText("description", MEDICAL_TEXT_LIMITS.clinicalText),
+        title: boundedText("title", MEDICAL_TEXT_LIMITS.planTitle, 3, "Give the plan a short title.", t),
+        description: boundedText("description", MEDICAL_TEXT_LIMITS.clinicalText, 0, "", t),
         startDate: z.string().refine(isDateKey, "Enter the plan start date."),
         estimatedEndDate: optionalDate("Enter a valid end date, or leave it empty."),
-        milestones: milestoneList,
+        milestones: milestoneList(t),
     })
     .superRefine((plan, ctx) => {
         if (plan.estimatedEndDate && isDateKey(plan.startDate) && plan.estimatedEndDate < plan.startDate) {
@@ -586,7 +595,7 @@ const recoveryPlanSchema = z
         }
     });
 
-const toDraft = (milestone: z.output<typeof milestoneSchema>): MilestoneDraft => ({
+const toDraft = (milestone: z.output<ReturnType<typeof milestoneSchema>>): MilestoneDraft => ({
     title: milestone.title,
     criteria: milestone.criteria,
     targetDate: milestone.targetDate || null,
@@ -604,10 +613,10 @@ const PLAN_FIELDS: Record<string, string> = {
 };
 
 export async function createMilestonePlanAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
-    const auth = await authorizeClinicalAction("medical:write");
+    const [auth, { t }] = await Promise.all([authorizeClinicalAction("medical:write"), getTranslator()]);
     if (!auth.ok) return actionError(auth.message);
 
-    const parsed = recoveryPlanSchema.safeParse({
+    const parsed = recoveryPlanSchema(t).safeParse({
         fighterId: text(formData, "fighterId"),
         injuryId: text(formData, "injuryId"),
         title: text(formData, "title"),
@@ -671,11 +680,11 @@ export async function setPlanMilestoneAction(input: { fighterId: string; planId:
 
 /** Adds a milestone to the end of the plan. */
 export async function addPlanMilestoneAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
-    const auth = await authorizeClinicalAction("medical:write");
+    const [auth, { t }] = await Promise.all([authorizeClinicalAction("medical:write"), getTranslator()]);
     if (!auth.ok) return actionError(auth.message);
     const ref = planRefSchema.safeParse({ fighterId: text(formData, "fighterId"), planId: text(formData, "planId") });
     if (!ref.success) return actionError("The recovery plan is missing. Reload the page and try again.");
-    const parsed = milestoneSchema.safeParse({
+    const parsed = milestoneSchema(t).safeParse({
         title: text(formData, "title"),
         criteria: text(formData, "criteria"),
         targetDate: text(formData, "targetDate"),

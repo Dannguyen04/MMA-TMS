@@ -23,7 +23,7 @@ from pathlib import Path
 import httpx
 import redis
 
-from process_video import process_video
+from process_video import YOLO, process_video
 from coaching_delivery import build_coaching_delivery
 
 logging.basicConfig(
@@ -62,6 +62,18 @@ WAIT_KEYS       = [f"bull:{QUEUE_NAME}:wait", f"bull:{QUEUE_NAME}:waiting"]
 ACTIVE_KEY      = f"bull:{QUEUE_NAME}:active"
 COMPLETED_KEY   = f"bull:{QUEUE_NAME}:completed"
 FAILED_KEY      = f"bull:{QUEUE_NAME}:failed"
+
+_pose_model = None
+_pose_model_name = None
+
+
+def get_pose_model():
+    """Reuse weights and the warmed predictor across this serial worker's jobs."""
+    global _pose_model, _pose_model_name
+    if _pose_model is None or _pose_model_name != YOLO_MODEL:
+        _pose_model = YOLO(YOLO_MODEL)
+        _pose_model_name = YOLO_MODEL
+    return _pose_model
 
 
 def get_redis() -> redis.Redis:
@@ -190,7 +202,7 @@ def process_job(r: redis.Redis, job_id: str):
     training_mode = payload.get("trainingMode")
     camera_view = payload.get("cameraView")
 
-    log.info(f"🎬 Đang xử lý job {db_job_id}: {video_url}")
+    log.info("🎬 Đang xử lý job %s", db_job_id)
 
     # Cập nhật trạng thái PROCESSING
     r.hset(job_key, "processedOn", int(time.time() * 1000))
@@ -202,6 +214,9 @@ def process_job(r: redis.Redis, job_id: str):
 
         # ── Chạy YOLO-Pose pipeline ──
         start_t = time.time()
+        model_started = time.perf_counter()
+        pose_model = get_pose_model()
+        model_seconds = time.perf_counter() - model_started
         result = process_video(
             input_path=video_url,
             model_name=YOLO_MODEL,
@@ -210,13 +225,20 @@ def process_job(r: redis.Redis, job_id: str):
             training_mode=training_mode,
             camera_view=camera_view,
             exercise_context=payload.get("exerciseContext"),
+            pose_model=pose_model,
+            compact_output=True,
         )
         elapsed = time.time() - start_t
         log.info(f"⚡ Xử lý xong trong {elapsed:.1f}s")
+        log.info("Job %s timings: model=%.3fs stages=%s", db_job_id,
+                 model_seconds, result.get("meta", {}).get("timingsSeconds", {}))
 
         # ── Upload lên Supabase ──
         remote_path = f"results/{db_job_id}/{result_filename}"
+        upload_started = time.perf_counter()
         result_url  = upload_to_supabase(local_result, remote_path)
+        log.info("Job %s result upload=%.3fs bytes=%d", db_job_id,
+                 time.perf_counter() - upload_started, Path(local_result).stat().st_size if Path(local_result).exists() else 0)
 
         # Durable structured evidence must exist before a job is announced DONE.
         # The API serializes receipts per job and accepts identical retries.

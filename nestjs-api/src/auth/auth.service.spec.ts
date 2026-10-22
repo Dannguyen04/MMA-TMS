@@ -10,6 +10,7 @@ import {
   SAME_PASSWORD_ERROR_CODE,
   WEAK_PASSWORD_ERROR_CODE,
 } from './auth.constants.js';
+import { invalidateAuthCache } from './auth-cache.js';
 import { AuthRepository } from './auth.repo.js';
 import { AuthService } from './auth.service.js';
 
@@ -510,6 +511,46 @@ describe('AuthService', () => {
     expect(
       ((error as HttpException).getResponse() as { code: string }).code,
     ).toBe('RESET_PASSWORD_IN_PROGRESS');
+  });
+
+  it('serves a repeated token from the identity cache without new lookups', async () => {
+    const { service, publicClient, repository } = dependencies();
+
+    const first = await service.authenticate('cache-token');
+    const second = await service.authenticate('cache-token');
+
+    expect(second).toEqual(first);
+    expect(publicClient.auth.getUser).toHaveBeenCalledTimes(1);
+    expect(repository.findActiveUserBySubject).toHaveBeenCalledTimes(1);
+  });
+
+  it('looks a token up again after invalidateAuthCache', async () => {
+    const { service, publicClient } = dependencies();
+
+    await service.authenticate('cache-token');
+    invalidateAuthCache();
+    await service.authenticate('cache-token');
+
+    expect(publicClient.auth.getUser).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not cache a rejected token', async () => {
+    const { service, publicClient } = dependencies();
+    publicClient.auth.getUser.mockResolvedValueOnce({ data: { user: null }, error: new Error('bad') });
+
+    await expect(service.authenticate('bad-token')).rejects.toBeInstanceOf(HttpException);
+    await service.authenticate('bad-token');
+
+    expect(publicClient.auth.getUser).toHaveBeenCalledTimes(2);
+  });
+
+  it('resolves the same permission requirement once per cache window', async () => {
+    const { service, repository } = dependencies();
+
+    await service.hasPermissions(authenticatedUser, { allOf: ['users.read'] });
+    await service.hasPermissions(authenticatedUser, { allOf: ['users.read'] });
+
+    expect(repository.resolvePermissions).toHaveBeenCalledTimes(1);
   });
 
   it('reports activation ready when password was already set', async () => {

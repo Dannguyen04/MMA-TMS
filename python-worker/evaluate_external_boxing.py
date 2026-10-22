@@ -35,12 +35,21 @@ def classify_interval(frames, start, end, model, card):
         return {"technique": "unknown", "reason": str(error), "confidence": None}
     probabilities = softmax(predict_logits(model, features[None]), card["temperature"])[0]
     candidate = LABELS[int(probabilities.argmax())]
+    if "acceptancePolicy" in card:
+        threshold = card["acceptancePolicy"]["threshold"]
+        accepted = threshold is not None and probabilities.max() >= threshold
+        return {"technique": candidate if accepted else "unknown", "candidate": candidate,
+                "researchSoftmax": float(probabilities.max()), "confidence": None,
+                "reason": "RESEARCH_CALIBRATION_THRESHOLD" if accepted else "RESEARCH_POLICY_ABSTAIN"}
     return {"technique": candidate if probabilities.max() >= .8 else "unknown",
             "candidate": candidate, "researchSoftmax": float(probabilities.max()), "confidence": None,
             "reason": "RESEARCH_ONLY_ACCEPTED_AT_FIXED_THRESHOLD" if probabilities.max() >= .8 else "LOW_RESEARCH_PROBABILITY"}
 
 
-def evaluate(data: Path, result_path: Path, model_directory: Path | None = None):
+def evaluate(data: Path, result_path: Path, model_directory: Path | None = None,
+             temporal_model_directory: Path | None = None):
+    if model_directory is not None and temporal_model_directory is not None:
+        raise ValueError("Choose only one research model")
     document = json.loads(result_path.read_text(encoding="utf-8"))
     truth = read_labels(data / "adam_gt.csv")
     frame_map = {f["frameIdx"]: f for f in document["frames"]}
@@ -71,8 +80,14 @@ def evaluate(data: Path, result_path: Path, model_directory: Path | None = None)
                 "Temporal IoU is not impact-timing accuracy. Source has no impact or technique-quality labels.",
                 "Commercial media and upstream data rights remain unverified.",
                 "Research classifier has AlphaPose-to-YOLO pose-source and image-aspect domain shift."]}
-    if model_directory is not None:
-        model, card = load_research_model(model_directory)
+    if model_directory is not None or temporal_model_directory is not None:
+        if temporal_model_directory is not None:
+            from pipeline.temporal_checkpoint import load_temporal_checkpoint
+            model, card = load_temporal_checkpoint(temporal_model_directory)
+            report["evaluationRuntimeHashes"].update({p: digest(Path(p)) for p in
+                ("pipeline/temporal_checkpoint.py", "pipeline/temporal_models.py", "benchmark_temporal_models.py")})
+        else:
+            model, card = load_research_model(model_directory)
         report["researchModel"] = card
         oracle_predictions = [classify_interval(frame_map, row["startFrame"], row["endFrame"], model, card) for row in truth]
         report["oracleBoundaryClassifier"] = {
@@ -92,15 +107,22 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data", type=Path, default=DATA_DEFAULT)
     parser.add_argument("--inference", type=Path, default=Path("test_results/external/adam_fresh_baseline.json"))
-    parser.add_argument("--model", type=Path)
+    models = parser.add_mutually_exclusive_group()
+    models.add_argument("--model", type=Path)
+    models.add_argument("--temporal-model", type=Path, help="Research checkpoint from benchmark_temporal_models.py")
     parser.add_argument("--output", type=Path, default=Path("benchmark_results/external_adam_report.json"))
     parser.add_argument("--fresh", action="store_true")
     args = parser.parse_args()
+    if args.output.exists():
+        parser.error("Use a new report path; existing evaluations are immutable")
+    if args.fresh and args.inference.exists():
+        parser.error("Fresh inference requires a new output path")
     if args.fresh:
         from process_video import process_video
         process_video(str(args.data / "adam.mp4"), output_path=str(args.inference), training_mode="SHADOW_BOXING", verbose=False)
-    result = evaluate(args.data, args.inference, args.model)
+    result = evaluate(args.data, args.inference, args.model, args.temporal_model)
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(result, indent=2), encoding="utf-8")
+    with args.output.open("x", encoding="utf-8") as stream:
+        json.dump(result, stream, indent=2, allow_nan=False)
     print(json.dumps({name: {k: v for k, v in item["byIoU"]["0.1"].items() if k in ("tp", "fp", "fn", "precision", "recall", "f1")}
                       for name, item in result["detectors"].items()}))

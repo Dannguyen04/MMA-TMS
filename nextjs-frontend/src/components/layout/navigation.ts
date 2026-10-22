@@ -1,17 +1,16 @@
 import {
     Activity,
-    ClipboardList,
     CalendarDays,
-    ChartLine,
     Cpu,
     Dumbbell,
     HeartPulse,
     LayoutDashboard,
-    Radar,
+    Scale,
     ScanLine,
     Settings,
     ShieldCheck,
     Stethoscope,
+    Swords,
     Users,
     Video,
     type LucideIcon,
@@ -64,6 +63,7 @@ export const NAVIGATION: Record<Role, NavSection[]> = {
         {
             items: [
                 { label: "Today", href: routes.fighter.dashboard, icon: LayoutDashboard },
+                { label: "Bout", href: routes.fighter.bout, icon: Scale },
                 {
                     label: "Training",
                     href: routes.fighter.schedule,
@@ -75,15 +75,6 @@ export const NAVIGATION: Record<Role, NavSection[]> = {
                     ],
                 },
                 { label: "Film", href: routes.fighter.videos, icon: Video },
-                {
-                    label: "Progress",
-                    href: routes.fighter.performance,
-                    icon: ChartLine,
-                    tabs: [
-                        { label: "Performance", href: routes.fighter.performance },
-                        { label: "Goals", href: routes.fighter.goals },
-                    ],
-                },
                 { label: "Health", href: routes.fighter.health, icon: HeartPulse },
             ],
         },
@@ -93,16 +84,15 @@ export const NAVIGATION: Record<Role, NavSection[]> = {
             items: [
                 { label: "Today", href: routes.coach.dashboard, icon: LayoutDashboard },
                 {
-                    label: "Roster",
-                    href: routes.coach.fighters,
-                    icon: Users,
+                    label: "Bouts",
+                    href: routes.coach.bouts,
+                    icon: Swords,
                     tabs: [
-                        { label: "Fighters", href: routes.coach.fighters },
-                        { label: "Performance", href: routes.coach.performance },
-                        { label: "Goals", href: routes.coach.goals },
-                        { label: "Applicants", href: routes.coach.admissions },
+                        { label: "Upcoming", href: routes.coach.bouts },
+                        { label: "Suspensions", href: routes.coach.suspensions },
                     ],
                 },
+                { label: "Roster", href: routes.coach.fighters, icon: Users },
                 {
                     label: "Training",
                     href: routes.coach.sessions,
@@ -121,27 +111,16 @@ export const NAVIGATION: Record<Role, NavSection[]> = {
         {
             items: [
                 { label: "Triage", href: routes.doctor.dashboard, icon: Activity },
-                {
-                    label: "Patients",
-                    href: routes.doctor.fighters,
-                    icon: Users,
-                    tabs: [
-                        { label: "Fighters", href: routes.doctor.fighters },
-                        { label: "Records", href: routes.doctor.records },
-                    ],
-                },
+                { label: "Patients", href: routes.doctor.fighters, icon: Users },
                 {
                     label: "Clinical",
-                    href: routes.doctor.examinations,
+                    href: routes.doctor.injuries,
                     icon: Stethoscope,
                     tabs: [
-                        { label: "Examinations", href: routes.doctor.examinations },
                         { label: "Injuries", href: routes.doctor.injuries },
-                        { label: "Recovery", href: routes.doctor.recovery },
                         { label: "Clearance", href: routes.doctor.clearance },
                     ],
                 },
-                { label: "Observations", href: routes.doctor.aiAlerts, icon: Radar, badge: "newAlerts" },
             ],
         },
     ],
@@ -158,7 +137,6 @@ export const NAVIGATION: Record<Role, NavSection[]> = {
                         { label: "Roles & permissions", href: routes.admin.roles },
                     ],
                 },
-                { label: "Admissions", href: routes.admin.admissions, icon: ClipboardList },
                 { label: "Training", href: routes.admin.exercises, icon: Dumbbell },
                 {
                     label: "AI platform",
@@ -170,7 +148,6 @@ export const NAVIGATION: Record<Role, NavSection[]> = {
                     tabs: [
                         { label: "AI jobs", href: routes.admin.aiJobs },
                         { label: "Videos", href: routes.admin.videos },
-                        { label: "AI models", href: routes.admin.aiModels },
                     ],
                 },
                 {
@@ -188,10 +165,10 @@ export const NAVIGATION: Record<Role, NavSection[]> = {
     ],
 };
 
-/** The admin hubs the mobile bottom bar has room for; Training stays in the menu. */
-const ADMIN_MOBILE_HUBS: readonly string[] = [routes.admin.dashboard, routes.admin.users, routes.admin.admissions, routes.admin.aiJobs, routes.admin.auditLogs];
+/** The admin hubs the mobile bottom bar shows; Training stays in the menu. Admissions is frozen (T-001). */
+const ADMIN_MOBILE_HUBS: readonly string[] = [routes.admin.dashboard, routes.admin.users, routes.admin.aiJobs, routes.admin.auditLogs];
 
-/** Destinations for the mobile bottom bar: every hub, or for admin the five it has room for. */
+/** Destinations for the mobile bottom bar: every hub, or for admin the four above. */
 export function mobilePrimaryItems(role: Role): NavItem[] {
     const items = NAVIGATION[role].flatMap((section) => section.items);
     return role === "admin" ? items.filter((item) => ADMIN_MOBILE_HUBS.includes(item.href)) : items;

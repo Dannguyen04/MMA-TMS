@@ -1,0 +1,334 @@
+{
+  "status": "GEMINI_REVIEW_COMPLETED",
+  "packId": "684fe820e8ef655fe44173e400313f714869b1c24bd5ecb35f865b5fbb204879",
+  "model": "gemini-3.8-flash",
+  "priorReviewSha256": "40ce96858e6e7a519db530e37d1bad7d587de13b57f7ee770fac15a007e2d654",
+  "taskCount": 9,
+  "reviews": [
+    {
+      "sampleId": "adam-review-0010",
+      "actorType": "AI",
+      "provider": "Gemini",
+      "requestedModel": "gemini-3.8-flash",
+      "returnedModelVersion": "gemini-3.8-flash",
+      "status": "AI_REVIEW_PROVISIONAL",
+      "coachConfirmed": false,
+      "goldEligible": false,
+      "productionEligible": false,
+      "boundariesConfirmed": false,
+      "comparison": "DISAGREE_ON_LABEL",
+      "priorCandidate": "lead_uppercut",
+      "videoSha256": "4398c790c6b7139d2cec90aa8678ab4a0b0b44afcbf45c64d0124f31111f781d",
+      "review": {
+        "requestId": "window-000",
+        "decision": "single_action",
+        "observedStance": "orthodox",
+        "observation": "Võ sĩ thực hiện một cú đấm móc xúc tay sau (rear uppercut).",
+        "events": [
+          {
+            "technique": "rear_uppercut",
+            "startTimeMs": 8000.0,
+            "endTimeMs": 9100.0,
+            "evidence": "Võ sĩ hạ thấp tay phải (tay sau), xoay hông và đánh móc hướng lên trên trước khi thu tay về tư thế thủ."
+          }
+        ]
+      }
+    },
+    {
+      "sampleId": "adam-review-0012",
+      "actorType": "AI",
+      "provider": "Gemini",
+      "requestedModel": "gemini-3.8-flash",
+      "returnedModelVersion": "gemini-3.8-flash",
+      "status": "AI_REVIEW_PROVISIONAL",
+      "coachConfirmed": false,
+      "goldEligible": false,
+      "productionEligible": false,
+      "boundariesConfirmed": false,
+      "comparison": "DISAGREE_ON_LABEL",
+      "priorCandidate": "rear_uppercut",
+      "videoSha256": "4398c790c6b7139d2cec90aa8678ab4a0b0b44afcbf45c64d0124f31111f781d",
+      "review": {
+        "requestId": "window-001",
+        "decision": "single_action",
+        "observedStance": "orthodox",
+        "observation": "Võ sĩ thực hiện một cú đấm móc xúc tay trước (lead uppercut).",
+        "events": [
+          {
+            "technique": "lead_uppercut",
+            "startTimeMs": 9800.0,
+            "endTimeMs": 11000.0,
+            "evidence": "Võ sĩ hạ thấp tay trái (tay trước), dồn lực từ chân trước và tung cú móc xúc từ dưới lên."
+          }
+        ]
+      }
+    },
+    {
+      "sampleId": "adam-review-0016",
+      "actorType": "AI",
+      "provider": "Gemini",
+      "requestedModel": "gemini-3.8-flash",
+      "returnedModelVersion": "gemini-3.8-flash",
+      "status": "AI_REVIEW_PROVISIONAL",
+      "coachConfirmed": false,
+      "goldEligible": false,
+      "productionEligible": false,
+      "boundariesConfirmed": false,
+      "comparison": "AGREE_ON_LABEL_ONLY",
+      "priorCandidate": "jab",
+      "videoSha256": "4398c790c6b7139d2cec90aa8678ab4a0b0b44afcbf45c64d0124f31111f781d",
+      "review": {
+        "requestId": "window-002",
+        "decision": "single_action",
+        "observedStance": "orthodox",
+        "observation": "Võ sĩ thực hiện một đòn đâm thẳng tay trước (jab).",
+        "events": [
+          {
+            "technique": "jab",
+            "startTimeMs": 11650.0,
+            "endTimeMs": 12300.0,
+            "evidence": "Tay trái (tay trước) duỗi thẳng ra phía trước và nhanh chóng thu hồi về vị trí phòng thủ."
+          }
+        ]
+      }
+    },
+    {
+      "sampleId": "adam-review-0018",
+      "actorType": "AI",
+      "provider": "Gemini",
+      "requestedModel": "gemini-3.8-flash",
+      "returnedModelVersion": "gemini-3.8-flash",
+      "status": "AI_REVIEW_PROVISIONAL",
+      "coachConfirmed": false,
+      "goldEligible": false,
+      "productionEligible": false,
+      "boundariesConfirmed": false,
+      "comparison": "AGREE_ON_LABEL_ONLY",
+      "priorCandidate": "cross",
+      "videoSha256": "4398c790c6b7139d2cec90aa8678ab4a0b0b44afcbf45c64d0124f31111f781d",
+      "review": {
+        "requestId": "window-003",
+        "decision": "single_action",
+        "observedStance": "orthodox",
+        "observation": "Võ sĩ thực hiện đòn đấm thẳng tay sau (cross).",
+        "events": [
+          {
+            "technique": "cross",
+            "startTimeMs": 12350.0,
+            "endTimeMs": 13000.0,
+            "evidence": "Tay phải (tay sau) đấm thẳng ra trước kết hợp xoay hông và nhón gót chân sau."
+          }
+        ]
+      }
+    },
+    {
+      "sampleId": "adam-review-0020",
+      "actorType": "AI",
+      "provider": "Gemini",
+      "requestedModel": "gemini-3.8-flash",
+      "returnedModelVersion": "gemini-3.8-flash",
+      "status": "AI_REVIEW_PROVISIONAL",
+      "coachConfirmed": false,
+      "goldEligible": false,
+      "productionEligible": false,
+      "boundariesConfirmed": false,
+      "comparison": "AGREE_ON_LABEL_ONLY",
+      "priorCandidate": "lead_hook",
+      "videoSha256": "4398c790c6b7139d2cec90aa8678ab4a0b0b44afcbf45c64d0124f31111f781d",
+      "review": {
+        "requestId": "window-004",
+        "decision": "single_action",
+        "observedStance": "orthodox",
+        "observation": "Võ sĩ thực hiện một đòn móc ngang tay trước (lead hook).",
+        "events": [
+          {
+            "technique": "lead_hook",
+            "startTimeMs": 13100.0,
+            "endTimeMs": 13900.0,
+            "evidence": "Tay trái (tay trước) nâng khuỷu tay ngang vai và vung theo quỹ đạo vòng ngang vào mục tiêu."
+          }
+        ]
+      }
+    },
+    {
+      "sampleId": "adam-review-0024",
+      "actorType": "AI",
+      "provider": "Gemini",
+      "requestedModel": "gemini-3.8-flash",
+      "returnedModelVersion": "gemini-3.8-flash",
+      "status": "AI_REVIEW_PROVISIONAL",
+      "coachConfirmed": false,
+      "goldEligible": false,
+      "productionEligible": false,
+      "boundariesConfirmed": false,
+      "comparison": "DISAGREE_ON_LABEL",
+      "priorCandidate": "lead_uppercut",
+      "videoSha256": "4398c790c6b7139d2cec90aa8678ab4a0b0b44afcbf45c64d0124f31111f781d",
+      "review": {
+        "requestId": "window-005",
+        "decision": "single_action",
+        "observedStance": "orthodox",
+        "observation": "Võ sĩ thực hiện một cú đấm móc xúc tay sau (rear uppercut).",
+        "events": [
+          {
+            "technique": "rear_uppercut",
+            "startTimeMs": 14700.0,
+            "endTimeMs": 15350.0,
+            "evidence": "Tay phải (tay sau) hạ xuống rồi thúc mạnh lên theo trục thẳng đứng, xoay hông về phía trước."
+          }
+        ]
+      }
+    },
+    {
+      "sampleId": "adam-review-0027",
+      "actorType": "AI",
+      "provider": "Gemini",
+      "requestedModel": "gemini-3.8-flash",
+      "returnedModelVersion": "gemini-3.8-flash",
+      "status": "AI_REVIEW_PROVISIONAL",
+      "coachConfirmed": false,
+      "goldEligible": false,
+      "productionEligible": false,
+      "boundariesConfirmed": false,
+      "comparison": "DISAGREE_ON_LABEL",
+      "priorCandidate": "rear_uppercut",
+      "videoSha256": "4398c790c6b7139d2cec90aa8678ab4a0b0b44afcbf45c64d0124f31111f781d",
+      "review": {
+        "requestId": "window-006",
+        "decision": "single_action",
+        "observedStance": "orthodox",
+        "observation": "Võ sĩ thực hiện một cú đấm móc xúc tay trước (lead uppercut).",
+        "events": [
+          {
+            "technique": "lead_uppercut",
+            "startTimeMs": 15450.0,
+            "endTimeMs": 16200.0,
+            "evidence": "Tay trái (tay trước) hạ thấp nhẹ và đánh móc hướng lên trên theo trục thẳng đứng."
+          }
+        ]
+      }
+    },
+    {
+      "sampleId": "adam-review-0029",
+      "actorType": "AI",
+      "provider": "Gemini",
+      "requestedModel": "gemini-3.8-flash",
+      "returnedModelVersion": "gemini-3.8-flash",
+      "status": "AI_REVIEW_PROVISIONAL",
+      "coachConfirmed": false,
+      "goldEligible": false,
+      "productionEligible": false,
+      "boundariesConfirmed": false,
+      "comparison": "AGREE_MULTIPLE_ACTIONS_ONLY",
+      "priorCandidate": null,
+      "videoSha256": "4398c790c6b7139d2cec90aa8678ab4a0b0b44afcbf45c64d0124f31111f781d",
+      "review": {
+        "requestId": "window-007",
+        "decision": "multiple_actions",
+        "observedStance": "orthodox",
+        "observation": "Võ sĩ thực hiện tổ hợp gồm ba đòn: jab, cross và lead hook liên tiếp.",
+        "events": [
+          {
+            "technique": "jab",
+            "startTimeMs": 16900.0,
+            "endTimeMs": 17300.0,
+            "evidence": "Tay trái phóng thẳng về phía trước trong đòn jab."
+          },
+          {
+            "technique": "cross",
+            "startTimeMs": 17300.0,
+            "endTimeMs": 17650.0,
+            "evidence": "Tay phải tung cú đấm thẳng kết hợp xoay hông."
+          },
+          {
+            "technique": "lead_hook",
+            "startTimeMs": 17650.0,
+            "endTimeMs": 18100.0,
+            "evidence": "Tay trái đánh một cú móc ngang với khuỷu tay nâng cao."
+          }
+        ]
+      }
+    },
+    {
+      "sampleId": "adam-review-0030",
+      "actorType": "AI",
+      "provider": "Gemini",
+      "requestedModel": "gemini-3.8-flash",
+      "returnedModelVersion": "gemini-3.8-flash",
+      "status": "AI_REVIEW_PROVISIONAL",
+      "coachConfirmed": false,
+      "goldEligible": false,
+      "productionEligible": false,
+      "boundariesConfirmed": false,
+      "comparison": "AGREE_MULTIPLE_ACTIONS_ONLY",
+      "priorCandidate": null,
+      "videoSha256": "4398c790c6b7139d2cec90aa8678ab4a0b0b44afcbf45c64d0124f31111f781d",
+      "review": {
+        "requestId": "window-008",
+        "decision": "multiple_actions",
+        "observedStance": "orthodox",
+        "observation": "Võ sĩ thực hiện chuỗi đòn gồm cross, rear uppercut và lead uppercut trước khi dừng lại.",
+        "events": [
+          {
+            "technique": "cross",
+            "startTimeMs": 18100.0,
+            "endTimeMs": 18400.0,
+            "evidence": "Tay phải đấm thẳng nhanh ra phía trước."
+          },
+          {
+            "technique": "rear_uppercut",
+            "startTimeMs": 18400.0,
+            "endTimeMs": 18900.0,
+            "evidence": "Tay phải tiếp nối bằng một cú móc xúc hướng lên trên."
+          },
+          {
+            "technique": "lead_uppercut",
+            "startTimeMs": 18900.0,
+            "endTimeMs": 19350.0,
+            "evidence": "Tay trái đánh một cú móc xúc từ dưới lên kết thúc tổ hợp."
+          }
+        ]
+      }
+    }
+  ],
+  "priorLabelsSent": false,
+  "coachConfirmed": false,
+  "goldEligible": false,
+  "productionEligible": false,
+  "trainingLabelsChanged": false,
+  "note": "Model agreement is not human approval. Timing proposals remain unverified.",
+  "comparisonCounts": {
+    "DISAGREE_ON_LABEL": 4,
+    "AGREE_ON_LABEL_ONLY": 3,
+    "AGREE_MULTIPLE_ACTIONS_ONLY": 2
+  },
+  "usageMetadata": {
+    "promptTokenCount": 14725,
+    "candidatesTokenCount": 1607,
+    "totalTokenCount": 20203,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 1093
+      },
+      {
+        "modality": "VIDEO",
+        "tokenCount": 13632
+      }
+    ],
+    "thoughtsTokenCount": 3871,
+    "serviceTier": "standard"
+  },
+  "requestedFps": 10,
+  "generateAttempts": 2,
+  "firstAttemptHttpStatus": 503,
+  "automaticRetry": false,
+  "sourceArtifacts": {
+    "responseSha256": "2d89714e9411e8bf8fd652e3b8796584914520e0ffdd34a62967a7609a0ded9b",
+    "planSha256": "db9ebe7f78047eedad37283b7ba96a63fb94b6f3f85e1c4e8c6ffd9db20fc5b6",
+    "originalComparisonSha256": "079130517267369cc172d8a2e3547c2f58f150794d48d62628a6d38d13999e3e"
+  },
+  "reconciliation": "Local comparison only; original provider response unchanged",
+  "testsPassed": 12,
+  "trainingDisposition": "Existing labels unchanged; four disputed uppercut candidates require further review"
+}

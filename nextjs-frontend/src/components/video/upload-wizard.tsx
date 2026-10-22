@@ -72,6 +72,7 @@ function WizardFlow({
     const stepRef = useRef<HTMLDivElement>(null);
     const timerRef = useRef<number | undefined>(undefined);
     const cancelledRef = useRef(false);
+    const uploadControllerRef = useRef<AbortController | null>(null);
     const firstRender = useRef(true);
 
     const initialFighter = fighters.find((f) => f.id === initialFighterId) ?? (role === "fighter" ? fighters[0] : undefined);
@@ -100,7 +101,10 @@ function WizardFlow({
     const [invalidAttempt, setInvalidAttempt] = useState(0);
     const [uploadState, submitUpload, registering] = useActionState<ActionState<UploadActionData>, FormData>(mode === "api" ? registerExternalUpload : createUpload, { status: "idle" });
 
-    useEffect(() => () => window.clearInterval(timerRef.current), []);
+    useEffect(() => () => {
+        window.clearInterval(timerRef.current);
+        uploadControllerRef.current?.abort();
+    }, []);
 
     useEffect(() => {
         if (firstRender.current) {
@@ -267,6 +271,8 @@ function WizardFlow({
         }
 
         setTransfer({ kind: "uploading", pct: null });
+        const controller = new AbortController();
+        uploadControllerRef.current = controller;
         try {
             const [{ uploadVideoToStorage }, { createJob }] = await Promise.all([import("@/lib/api/storage"), import("@/lib/api/jobs-client")]);
             const stored = await uploadVideoToStorage(file, {
@@ -277,26 +283,34 @@ function WizardFlow({
                 cameraAngle: details.cameraAngle,
                 sessionId: details.sessionId || undefined,
                 durationMs: Math.round(duration * 1000),
+            }, {
+                signal: controller.signal,
+                onProgress: (pct) => {
+                    if (!controller.signal.aborted) setTransfer({ kind: "uploading", pct });
+                },
             });
-            if (cancelledRef.current) return;
+            if (controller.signal.aborted) return;
             const { jobId } = await createJob({ videoId: stored.videoId,
                 sessionExerciseId: details.sessionExerciseId || undefined,
                 evidenceProtocol: details.evidenceProtocol ?? 'whole_body_v1' });
-            if (cancelledRef.current) return;
+            if (controller.signal.aborted) return;
             formData.set("videoId", stored.videoId);
             formData.set("sourceUrl", stored.sourceUrl);
             formData.set("externalJobId", jobId);
             submit(formData);
         } catch (error) {
-            if (!cancelledRef.current) setTransfer({ kind: "failed", message: error instanceof Error ? error.message : "The upload failed. Check your connection and try again." });
+            if (!controller.signal.aborted) setTransfer({ kind: "failed", message: error instanceof Error ? error.message : "The upload failed. Check your connection and try again." });
+        } finally {
+            if (uploadControllerRef.current === controller) uploadControllerRef.current = null;
         }
     };
 
     const cancelUpload = () => {
         window.clearInterval(timerRef.current);
         cancelledRef.current = true;
+        uploadControllerRef.current?.abort();
         setTransfer({ kind: "ready" });
-        toast({ tone: "info", title: "Upload cancelled", description: "Nothing was saved. Your details are still filled in." });
+        toast({ tone: "info", title: "Upload cancelled", description: "The transfer has stopped. Your details are still filled in. A video already received by the server may remain in your list." });
     };
 
     const onSettled = (response: AIJobPollResponse) => {

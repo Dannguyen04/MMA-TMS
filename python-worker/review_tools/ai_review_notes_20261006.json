@@ -1,0 +1,351 @@
+{
+  "adam": [
+    [
+      null,
+      "uncertain",
+      "Chỉ có một frame tư thế thủ; không đủ để kết luận có hay không có đòn."
+    ],
+    [
+      "jab",
+      "candidate",
+      "Tay phía trước duỗi thẳng rồi thu về; phù hợp ứng viên jab. Cần chốt onset/offset từ video liên tục."
+    ],
+    [
+      null,
+      "fragment",
+      "Hai frame thu tay/về thủ ngay sau đòn; không phải bằng chứng background độc lập."
+    ],
+    [
+      "cross",
+      "candidate",
+      "Tay phía sau duỗi thẳng cùng xoay thân và nhấc gót sau; phù hợp ứng viên cross."
+    ],
+    [
+      "lead_hook",
+      "candidate",
+      "Đầu khoảng còn giữ/thu đòn thẳng trước; cuối khoảng thấy tay trước vòng ngang. Ranh giới chứa nhiều pha."
+    ],
+    [
+      null,
+      "fragment",
+      "Bốn frame giữ tư thế tay cong sau đòn vòng; không phải một đòn mới."
+    ],
+    [
+      "rear_hook",
+      "candidate",
+      "Đầu khoảng còn tư thế đòn vòng trước; cuối khoảng xoay thân, tay sau cong ngang. Cần tách chu kỳ."
+    ],
+    [
+      null,
+      "fragment",
+      "Hai frame giữ tay sau cong phía trước, thuộc phần tiếp diễn của đòn trước."
+    ],
+    [
+      null,
+      "uncertain",
+      "Phần lớn frame là giữ/thu đòn trước và về thủ; cuối mới hạ người/tay chuẩn bị. Chưa thấy đủ uppercut trong khoảng."
+    ],
+    [
+      null,
+      "fragment",
+      "Hai frame chuyển trọng tâm, tay thấp; cửa sổ quá ngắn để gán một kỹ thuật hoàn chỉnh."
+    ],
+    [
+      "lead_uppercut",
+      "candidate",
+      "Tay phía trước từ thấp đi lên với khuỷu gập, sau đó về thủ; ứng viên lead uppercut, khác bên tay so với gợi ý nguồn."
+    ],
+    [
+      null,
+      "fragment",
+      "Các frame ở tư thế thủ và chuyển nhẹ; nằm giữa các động tác, chưa xác nhận background."
+    ],
+    [
+      "rear_uppercut",
+      "candidate",
+      "Tay phía sau đi lên với khuỷu gập và xoay thân; hình thái uppercut khác gợi ý jab."
+    ],
+    [
+      null,
+      "fragment",
+      "Các frame chủ yếu giữ tay cong ở cuối uppercut; không thấy pha duỗi thẳng của cross theo gợi ý nguồn."
+    ],
+    [
+      null,
+      "fragment",
+      "Một frame thuộc pha thu tay; không đủ cho nhãn độc lập."
+    ],
+    [
+      null,
+      "uncertain",
+      "Thu tay từ tư thế uppercut rồi về thủ; không thấy rõ một lead hook mới trong sáu frame."
+    ],
+    [
+      "jab",
+      "candidate",
+      "Tay trước đi từ thủ ra duỗi thẳng; hình thái đòn thẳng khác gợi ý rear hook."
+    ],
+    [
+      null,
+      "fragment",
+      "Ba frame giữ tay duỗi; tiếp diễn đòn trước, không tự gán background."
+    ],
+    [
+      "cross",
+      "candidate",
+      "Thu đòn thẳng trước rồi tay sau duỗi thẳng cùng xoay thân; khác hình thái uppercut của gợi ý nguồn."
+    ],
+    [
+      null,
+      "fragment",
+      "Một frame về thủ; không đủ thông tin thời gian."
+    ],
+    [
+      "lead_hook",
+      "candidate",
+      "Tay trước quét ngang, khuỷu gập khi thân xoay; khác hình thái uppercut của gợi ý nguồn."
+    ],
+    [
+      null,
+      "uncertain",
+      "Thu tay từ đòn vòng rồi bắt đầu chuyển sang động tác tiếp theo sát cuối khoảng; cần mở rộng ngữ cảnh."
+    ],
+    [
+      null,
+      "fragment",
+      "Đầu khoảng đã ở tư thế tay cong phía trước rồi thu tay; không thấy một jab mới rõ ràng."
+    ],
+    [
+      null,
+      "uncertain",
+      "Tư thế thủ chuyển sang hạ người/tay chuẩn bị; chưa thấy đòn thẳng cross hoàn chỉnh."
+    ],
+    [
+      "lead_uppercut",
+      "candidate",
+      "Tay phía trước đi lên từ thấp với khuỷu gập; khác hình thái hook của gợi ý nguồn."
+    ],
+    [
+      null,
+      "fragment",
+      "Giữ rồi thu tay sau động tác đi lên; chưa thấy một rear hook mới như gợi ý nguồn."
+    ],
+    [
+      null,
+      "fragment",
+      "Một frame chuyển tiếp; không đủ cho nhãn kỹ thuật."
+    ],
+    [
+      "rear_uppercut",
+      "candidate",
+      "Tay phía sau đi lên với khuỷu gập và xoay thân; cần xác minh bên tay, khác gợi ý lead uppercut."
+    ],
+    [
+      null,
+      "fragment",
+      "Tay đang ở cuối động tác đi lên rồi thu về; có thể là phần cuối đòn của khoảng trước, không đếm thêm đòn."
+    ],
+    [
+      null,
+      "multiple_actions",
+      "Từ tư thế thủ chuyển sang nhiều động tác tay; khoảng chưa nhãn có chuỗi đòn, cần chia event."
+    ],
+    [
+      null,
+      "multiple_actions",
+      "Có nhiều tư thế ra đòn, hạ người và về thủ trước khi thả tay; không dùng toàn khoảng làm background."
+    ]
+  ],
+  "vid_01_cross_heavybag": [
+    [
+      "cross",
+      "candidate",
+      "Một người tập bao; thấy đòn thẳng kèm xoay thân/gót sau. Ứng viên cross, cần kiểm tra toàn chu kỳ và bên tay."
+    ],
+    [
+      "cross",
+      "candidate",
+      "Thấy tay duỗi về phía bao rồi thu, sau đó quay mặt về máy; cần tách đòn khỏi phần trình bày."
+    ],
+    [
+      null,
+      "uncertain",
+      "Phần lớn là tư thế thủ/trình bày; cuối khoảng bắt đầu bước và chuyển động. Sáu frame chưa loại trừ đòn nhanh."
+    ],
+    [
+      "jab",
+      "candidate",
+      "Có tư thế tay trước duỗi về bao và thu về; ứng viên jab, không gán cross chỉ dựa tên file."
+    ],
+    [
+      "cross",
+      "candidate",
+      "Cuối khoảng có đòn thẳng cùng xoay thân và chân sau; cần xem dày frame để phân biệt bên tay."
+    ],
+    [
+      null,
+      "fragment",
+      "Đoạn cuối 0,13 giây chủ yếu giữ/thu tay sau đòn trước; không phải action mới hoặc negative đã xác nhận."
+    ]
+  ],
+  "vid_02_referee_gestures": [
+    [
+      null,
+      "out_of_scope",
+      "Chuyển cảnh toàn sân sang trọng tài và võ sĩ; nhiều người, không phải bài solo boxing."
+    ],
+    [
+      null,
+      "out_of_scope",
+      "Trọng tài ra hiệu rồi đổi góc máy; không có người tập solo được chỉ định."
+    ],
+    [
+      null,
+      "out_of_scope",
+      "Trọng tài đi/ra hiệu giữa sàn; đây là bối cảnh thi đấu, không gán động tác tay thành đòn boxing."
+    ],
+    [
+      null,
+      "out_of_scope",
+      "Trọng tài di chuyển trong sàn, võ sĩ xuất hiện ở mép; không phù hợp contract một người."
+    ],
+    [
+      null,
+      "out_of_scope",
+      "Trọng tài dang tay ra hiệu; có nguy cơ nhầm chuyển động tay với đòn."
+    ],
+    [
+      null,
+      "out_of_scope",
+      "Cuối khoảng hai võ sĩ tiến lại gần và bắt đầu trao đổi động tác; tuyệt đối không coi cả video là negative theo tên file."
+    ]
+  ],
+  "vid_03_fighter_walkout": [
+    [
+      null,
+      "out_of_scope",
+      "Cảnh giới thiệu một võ sĩ, chỉ thấy thân trên và đồ họa che phần dưới; không đủ quan sát toàn thân cho bài solo."
+    ],
+    [
+      null,
+      "out_of_scope",
+      "Đứng nhìn quanh trong cảnh giới thiệu; khung hình cắt chân và đồ họa che thân dưới."
+    ],
+    [
+      null,
+      "out_of_scope",
+      "Cảnh thân trên, nhìn quanh; không phải mẫu bài tập solo boxing."
+    ],
+    [
+      null,
+      "out_of_scope",
+      "Cúi đầu/nhìn xuống trong cảnh giới thiệu, không quan sát chân; chưa dùng làm negative theo frame thưa."
+    ],
+    [
+      null,
+      "out_of_scope",
+      "Đổi góc/cỡ cảnh khi di chuyển gần lồng; thiếu ngữ cảnh tập luyện và toàn thân."
+    ],
+    [
+      null,
+      "out_of_scope",
+      "Giơ tay lên cao trong cảnh giới thiệu; không gán thành uppercut từ cử động tay đơn thuần."
+    ]
+  ],
+  "vid_04_cage_striking": [
+    [
+      null,
+      "out_of_scope",
+      "Hai võ sĩ đối kháng, có động tác ra đòn; cần tracking theo người và nhãn đa tác nhân."
+    ],
+    [
+      null,
+      "out_of_scope",
+      "Hai người trao đổi đòn, trọng tài đi ngang che khuất; không phù hợp solo single-label."
+    ],
+    [
+      null,
+      "out_of_scope",
+      "Hai người di chuyển và trao đổi động tác, trọng tài che một phần; không xác định một actor cố định."
+    ],
+    [
+      null,
+      "out_of_scope",
+      "Chuyển từ đứng sang ôm/nhấc người và ngã; nhiều loại động tác ngoài sáu lớp boxing."
+    ],
+    [
+      null,
+      "out_of_scope",
+      "Hai người grappling dưới sàn; không thuộc bài solo boxing đứng."
+    ],
+    [
+      null,
+      "out_of_scope",
+      "Grappling dưới sàn, trọng tài và đổi góc máy gây che khuất; cần taxonomy/pipeline riêng."
+    ]
+  ],
+  "vid_05_ground_grappling": [
+    [
+      null,
+      "out_of_scope",
+      "Hai người ôm/khống chế sát nhau, một người thấp/quỳ; không tách được pose solo."
+    ],
+    [
+      null,
+      "out_of_scope",
+      "Grappling cận thân với nhiều khớp che nhau; không dùng sáu nhãn đòn đứng."
+    ],
+    [
+      null,
+      "out_of_scope",
+      "Khống chế thân và chuyển tư thế; đối tượng chồng hình."
+    ],
+    [
+      null,
+      "out_of_scope",
+      "Hai người chuyển từ thấp/đứng sang ngã xuống sàn; cần nhãn grappling riêng."
+    ],
+    [
+      null,
+      "out_of_scope",
+      "Khống chế trên sàn, cơ thể chồng lấn; ngoài phạm vi solo boxing."
+    ],
+    [
+      null,
+      "out_of_scope",
+      "Grappling trên sàn và đổi góc quay; không gán background của bài solo chỉ vì không thấy đòn đứng."
+    ]
+  ],
+  "vid_06_post_fight": [
+    [
+      null,
+      "out_of_scope",
+      "Người di chuyển gần camera, cắt thân và camera đổi hướng; không có bài tập solo."
+    ],
+    [
+      null,
+      "out_of_scope",
+      "Đi lại trong sàn, có trọng tài/người khác xuất hiện; không phải đoạn tập luyện được định nghĩa."
+    ],
+    [
+      null,
+      "out_of_scope",
+      "Nhiều người và đổi góc máy; hoạt động ngoài bài tập solo boxing."
+    ],
+    [
+      null,
+      "out_of_scope",
+      "Đi lại/đưa tay gần mặt giữa nhiều người; không đủ căn cứ gán kỹ thuật ra đòn."
+    ],
+    [
+      null,
+      "out_of_scope",
+      "Di chuyển giữa nhiều người, camera quay theo; ngoài phạm vi thu thập solo."
+    ],
+    [
+      null,
+      "out_of_scope",
+      "Nhiều người đứng quanh, khớp bị che và cắt khung; không dùng làm mẫu kỹ thuật solo."
+    ]
+  ]
+}

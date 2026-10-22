@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { movementEvidenceSchema, MOVEMENT_REVIEW_LABELS } from "@/lib/domain/movement-evidence";
 
+/** Bật lại để ẩn strike, combo và finding của AI, chỉ giữ các cửa sổ bằng chứng chuyển động. */
+export const AI_RESULTS_HIDDEN = false;
+
 import { LOW_CONFIDENCE_THRESHOLD } from "@/lib/domain/rules";
 import { TECHNIQUE_LABELS } from "@/lib/domain/labels";
 import type {
@@ -821,6 +824,8 @@ function strikeTypeFrom(punchType: string): StrikeType {
 }
 
 export function mapWorkerResult(result: WorkerResult, context: WorkerResultContext): AIAnalysis {
+    // Tạm thời hiện kết quả AI theo quyết định của chủ dự án (2026-10-20): bỏ chế độ "chỉ bằng chứng" của worker.
+    const movementEvidence = AI_RESULTS_HIDDEN ? result.movementEvidence : undefined;
     const key = context.analysisId.replace(/^an-/, "");
     const aspect = result.meta.imgWidth && result.meta.imgHeight ? result.meta.imgWidth / result.meta.imgHeight : 16 / 9;
     const durationMs = Math.max(1, Math.round(result.meta.durationMs));
@@ -961,7 +966,7 @@ export function mapWorkerResult(result: WorkerResult, context: WorkerResultConte
     const combinations: Combination[] = [];
     let group: Detection[] = [];
     const closeGroup = () => {
-        if (group.length >= 2 && !result.movementEvidence) {
+        if (group.length >= 2 && !movementEvidence) {
             const id = `cmb-${key}-${pad(combinations.length + 1, 2)}`;
             group.forEach((d) => (d.combinationId = id));
             combinations.push({
@@ -984,7 +989,7 @@ export function mapWorkerResult(result: WorkerResult, context: WorkerResultConte
 
     // Movement events the worker output supports: guard drops and tracking gaps.
     const drafted: Omit<MovementEvent, "id">[] = [];
-    for (const detection of result.movementEvidence ? [] : detections) {
+    for (const detection of movementEvidence ? [] : detections) {
         if (detection.guardMaintained) continue;
         const after = tracked.filter((f) => f.timeMs > detection.endMs && f.timeMs <= detection.endMs + 1500);
         const recovered = after.find((f) => oppositeHandUp(detection.limb, f));
@@ -1041,7 +1046,7 @@ export function mapWorkerResult(result: WorkerResult, context: WorkerResultConte
         balanceScore: Math.round(clamp(100 - hipSpread * 600, 35, 98)),
     });
 
-    const workerFindings = result.movementEvidence ? [] : result.findings ?? (result.punches ?? []).flatMap((p) => p.findings);
+    const workerFindings = movementEvidence ? [] : result.findings ?? (result.punches ?? []).flatMap((p) => p.findings);
     const findings: AIFinding[] = workerFindings.map((finding, index) => {
         const nearest = detections.reduce<Detection | null>(
             (best, d) => (Math.abs(d.peakMs - finding.timeMs) <= 800 && (!best || Math.abs(d.peakMs - finding.timeMs) < Math.abs(best.peakMs - finding.timeMs)) ? d : best),
@@ -1079,7 +1084,7 @@ export function mapWorkerResult(result: WorkerResult, context: WorkerResultConte
             ? "pass"
             : "unknown";
     const poseConfidence = result.analysisQuality?.metrics.meanKeypointConfidence ?? null;
-    const coachingEligible = !result.movementEvidence && evidenceQuality === "pass" && confidenceAvailable;
+    const coachingEligible = !movementEvidence && evidenceQuality === "pass" && confidenceAvailable;
 
     return {
         id: context.analysisId,
@@ -1096,10 +1101,10 @@ export function mapWorkerResult(result: WorkerResult, context: WorkerResultConte
         poseConfidence,
         coachingEligible,
         qualityReasons: result.analysisQuality?.reasonCodes ?? [],
-        movementEvidence: result.movementEvidence,
+        movementEvidence,
         trackingQuality: result.analysisQuality?.metrics.targetTrackRatio ?? (frames.length > 0 ? round(tracked.length / frames.length, 2) : 0),
-        summary: result.movementEvidence
-            ? `${MOVEMENT_REVIEW_LABELS[result.movementEvidence.status]}. ${result.movementEvidence.windows.length} footage windows; these are not repetitions or verified strikes. A professional must interpret the video. No technique score or clinical conclusion is generated.`
+        summary: movementEvidence
+            ? `${MOVEMENT_REVIEW_LABELS[movementEvidence.status]}. ${movementEvidence.windows.length} footage windows; these are not repetitions or verified strikes. A professional must interpret the video. No technique score or clinical conclusion is generated.`
             :
             `The model detected ${detections.length} strike candidates (${metrics.strikesPerMin} per minute), including ${metrics.combinations} combinations. ` +
             (!coachingEligible

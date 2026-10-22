@@ -27,6 +27,7 @@ import {
     getFighter,
     listCoaches,
     listFighters,
+    recordSelfWeight,
     updateOwnProfile,
 } from "./people";
 
@@ -415,5 +416,20 @@ describe("people API adapter", () => {
             await expect(getFighter("99999999-9999-4999-8999-999999999999")).resolves.toBeNull();
             expect(readCurrentAccount).not.toHaveBeenCalled();
         });
+    });
+
+    it("posts a self-reported weight to the fighter's measurements", async () => {
+        authenticatedMutableApiRequest.mockResolvedValue({});
+
+        await recordSelfWeight(fighterId, 66.5);
+
+        expect(authenticatedMutableApiRequest).toHaveBeenCalledWith(
+            `/fighters/${fighterId}/measurements`,
+            expect.anything(),
+            {
+                method: "POST",
+                body: JSON.stringify({ weightKg: 66.5, measurementContext: "SELF_REPORTED" }),
+            },
+        );
     });
 });

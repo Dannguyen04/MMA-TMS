@@ -4,6 +4,7 @@ import { Scale } from "lucide-react";
 import { useState } from "react";
 
 import { InlineNote } from "@/components/dashboard/inline-note";
+import { useT } from "@/components/i18n/locale-provider";
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/form";
@@ -28,22 +29,23 @@ type MetricName = keyof typeof BODY_METRIC_LIMITS;
 export function BodyMetricsDialog(props: BodyMetricsDialogProps) {
     const [open, setOpen] = useState(false);
     const toast = useToast();
+    const t = useT();
 
     return (
         <>
             <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
                 <Scale aria-hidden />
-                Update body metrics
+                {t("account.bodyMetrics.updateButton")}
             </Button>
             <ActionDialog
                 open={open}
                 onClose={() => setOpen(false)}
-                title="Update body metrics"
-                description="Log your latest weigh-in and morning readings. Your coaches and sports doctor see the new numbers straight away."
+                title={t("account.bodyMetrics.dialogTitle")}
+                description={t("account.bodyMetrics.dialogDescription")}
                 action={updateBodyMetricsAction}
-                submitLabel="Save metrics"
-                pendingLabel="Saving…"
-                onSuccess={(state) => toast({ title: "Body metrics updated", description: state.message })}
+                submitLabel={t("account.bodyMetrics.saveMetrics")}
+                pendingLabel={t("account.profile.saving")}
+                onSuccess={(state) => toast({ title: t("account.bodyMetrics.updatedToastTitle"), description: state.message })}
             >
                 {(form) => <BodyMetricsFields form={form} {...props} />}
             </ActionDialog>
@@ -53,6 +55,7 @@ export function BodyMetricsDialog(props: BodyMetricsDialogProps) {
 
 function BodyMetricsFields({ form, weightKg, bodyFatPct, restingHeartRate, targetWeightKg, weightClassLabel }: BodyMetricsDialogProps & { form: ActionForm<undefined> }) {
     const [weightDraft, setWeightDraft] = useState(weightKg === null ? "" : String(weightKg));
+    const t = useT();
     const { control, error } = form;
     const defaults: Record<MetricName, number | undefined> = {
         weightKg: weightKg ?? undefined,
@@ -65,7 +68,7 @@ function BodyMetricsFields({ form, weightKg, bodyFatPct, restingHeartRate, targe
     const gap = weightValid ? Number((weight - targetWeightKg).toFixed(1)) : null;
 
     const metricField = (name: MetricName, label: string, unit: string, limit: MeasurementLimit, hint: string) => {
-        const fullHint = `${hint} Allowed range ${formatNumber(limit.min)}–${formatNumber(limit.max)} ${unit}.`;
+        const fullHint = `${hint} ${t("account.bodyMetrics.allowedRange", { min: formatNumber(limit.min), max: formatNumber(limit.max), unit })}`;
         return (
             <Field label={label} htmlFor={control(name).id} required hint={fullHint} error={error(name)}>
                 <Input
@@ -86,20 +89,20 @@ function BodyMetricsFields({ form, weightKg, bodyFatPct, restingHeartRate, targe
     return (
         <>
             <div className="flex flex-col gap-2">
-                {metricField("weightKg", "Weight", "kg", BODY_METRIC_LIMITS.weightKg, "Weigh in at the same time of day for comparable numbers.")}
+                {metricField("weightKg", t("account.bodyMetrics.weightKg"), "kg", BODY_METRIC_LIMITS.weightKg, t("account.bodyMetrics.hintWeight"))}
                 <div aria-live="polite">
                     <InlineNote icon={Scale} tone={gap !== null && gap <= 0 ? "success" : "neutral"}>
                         {gap === null
-                            ? `${weightClassLabel} limit: ${formatNumber(targetWeightKg, 1)} kg.`
+                            ? t("account.bodyMetrics.limitExact", { classLabel: weightClassLabel, target: formatNumber(targetWeightKg, 1) })
                             : gap > 0
-                              ? `${formatNumber(gap, 1)} kg above your ${weightClassLabel} limit of ${formatNumber(targetWeightKg, 1)} kg.`
-                              : `On weight — ${formatNumber(Math.abs(gap), 1)} kg under your ${weightClassLabel} limit of ${formatNumber(targetWeightKg, 1)} kg.`}
+                              ? t("account.bodyMetrics.aboveLimit", { gap: formatNumber(gap, 1), classLabel: weightClassLabel, target: formatNumber(targetWeightKg, 1) })
+                              : t("account.bodyMetrics.underLimit", { gap: formatNumber(Math.abs(gap), 1), classLabel: weightClassLabel, target: formatNumber(targetWeightKg, 1) })}
                     </InlineNote>
                 </div>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {metricField("bodyFatPct", "Body fat", "%", BODY_METRIC_LIMITS.bodyFatPct, "From the academy scale or caliper test.")}
-                {metricField("restingHeartRate", "Resting heart rate", "bpm", BODY_METRIC_LIMITS.restingHeartRate, "Measured on waking.")}
+                {metricField("bodyFatPct", t("account.bodyMetrics.bodyFat"), "%", BODY_METRIC_LIMITS.bodyFatPct, t("account.bodyMetrics.hintBodyFat"))}
+                {metricField("restingHeartRate", t("account.bodyMetrics.restingHeartRate"), "bpm", BODY_METRIC_LIMITS.restingHeartRate, t("account.bodyMetrics.hintRhr"))}
             </div>
         </>
     );

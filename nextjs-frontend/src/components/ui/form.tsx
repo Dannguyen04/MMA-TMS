@@ -1,3 +1,4 @@
+import { FieldOptional } from "./field-optional";
 import { ChevronDown } from "lucide-react";
 import { Children, Fragment, cloneElement, isValidElement, type ComponentProps, type ReactElement, type ReactNode } from "react";
 
@@ -81,7 +82,7 @@ export function Field({ label, htmlFor, hint, error, required, optional, info, c
                     *
                 </span>
             )}
-            {optional && <span className="ml-1.5 text-xs font-normal text-fg-subtle">(optional)</span>}
+            {optional && <FieldOptional />}
         </label>
     );
     return (
@@ -247,17 +248,19 @@ export interface FormFooterProps {
     submitLabel: string;
     /** Shown on the submit button while saving, e.g. "Recording injury…". */
     pendingLabel: string;
+    /** The cancel link's text, for translated forms; "Cancel" when omitted. */
+    cancelLabel?: string;
     disabled?: boolean;
 }
 
 /** A page form's footer: the form-level message, then Cancel and submit (large, stacked and full width on phones). */
-export function FormFooter({ message, cancelHref, pending, submitLabel, pendingLabel, disabled }: FormFooterProps) {
+export function FormFooter({ message, cancelHref, pending, submitLabel, pendingLabel, cancelLabel = "Cancel", disabled }: FormFooterProps) {
     return (
         <div className="flex flex-col gap-3 border-t border-border pt-5">
             <FormMessage {...message} />
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                 <ButtonLink href={cancelHref} variant="secondary" size="lg" className="sm:h-9 sm:px-3.5 sm:text-sm">
-                    Cancel
+                    {cancelLabel}
                 </ButtonLink>
                 <Button type="submit" size="lg" loading={pending} disabled={disabled} className="sm:h-9 sm:px-3.5 sm:text-sm">
                     {pending ? pendingLabel : submitLabel}
