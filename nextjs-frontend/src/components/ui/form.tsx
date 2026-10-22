@@ -1,3 +1,4 @@
+import { FieldOptional } from "./field-optional";
 import { ChevronDown } from "lucide-react";
 import { Children, Fragment, cloneElement, isValidElement, type ComponentProps, type ReactElement, type ReactNode } from "react";
 
@@ -81,7 +82,7 @@ export function Field({ label, htmlFor, hint, error, required, optional, info, c
                     *
                 </span>
             )}
-            {optional && <span className="ml-1.5 text-xs font-normal text-fg-subtle">(optional)</span>}
+            {optional && <FieldOptional />}
         </label>
     );
     return (

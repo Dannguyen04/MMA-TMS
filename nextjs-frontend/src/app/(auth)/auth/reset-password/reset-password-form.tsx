@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { useT } from "@/components/i18n/locale-provider";
 import { FormMessage } from "@/components/ui/form";
 import { NewPasswordFields } from "@/components/ui/password-input";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -22,6 +23,7 @@ export interface ResetPasswordFormProps {
 
 /** Chooses the password for the account a recovery link was sent to: a first one for an approved applicant, or a new one. */
 export function ResetPasswordForm({ tokenHash, fieldLabel, submitLabel, back, help }: ResetPasswordFormProps) {
+    const t = useT();
     const form = useActionForm(resetPasswordAction, { id: "reset-password" });
     // A refusal without a field to fix is about the link (expired, used) or the service: say how to get a new link.
     const linkRefused = form.state.status === "error" && !form.state.fieldErrors;
@@ -32,7 +34,7 @@ export function ResetPasswordForm({ tokenHash, fieldLabel, submitLabel, back, he
             <FormMessage {...form.message} />
             {linkRefused && <div className="rounded-lg bg-surface-muted px-3.5 py-3 text-sm text-fg-muted">{help}</div>}
             <NewPasswordFields form={form} label={fieldLabel} />
-            <SubmitButton size="lg" className="w-full" pending={form.pending} pendingLabel="Saving password…">
+            <SubmitButton size="lg" className="w-full" pending={form.pending} pendingLabel={t("auth.savingPasswordPending")}>
                 {submitLabel}
             </SubmitButton>
             <Link href={back.href} className="flex items-center justify-center gap-1.5 text-sm font-medium text-fg-muted hover:text-fg">

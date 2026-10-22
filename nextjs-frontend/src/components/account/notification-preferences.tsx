@@ -4,6 +4,8 @@ import { CircleAlert, CircleCheck, HardDrive, Lock, RotateCcw } from "lucide-rea
 import { useMemo, useState, useSyncExternalStore } from "react";
 
 import { NOTIFICATION_CATEGORY_ICONS } from "@/components/domain/notification-meta";
+import { useT } from "@/components/i18n/locale-provider";
+import type { MessageKey } from "@/lib/i18n/translate";
 import { Button } from "@/components/ui/button";
 import { CardFooter } from "@/components/ui/card";
 import { SwitchInput } from "@/components/ui/switch";
@@ -86,6 +88,7 @@ export interface NotificationPreferencesProps {
 
 /** Per-category in-app and email switches, saved in this browser only. */
 export function NotificationPreferences({ userId, role, email, categories }: NotificationPreferencesProps) {
+    const t = useT();
     const key = storageKey(userId);
     const raw = useSyncExternalStore(
         subscribe,
@@ -113,18 +116,19 @@ export function NotificationPreferences({ userId, role, email, categories }: Not
 
     return (
         <>
-            <Table caption="Notification delivery by category">
+            <Table caption={t("account.notifications.tableCaption")}>
                 <THead>
                     <tr>
-                        <TH>Category</TH>
-                        <TH className="w-16 text-center sm:w-20">In-app</TH>
-                        <TH className="w-16 text-center sm:w-20">Email</TH>
+                        <TH>{t("account.notifications.thCategory")}</TH>
+                        <TH className="w-16 text-center sm:w-20">{t("account.notifications.thInApp")}</TH>
+                        <TH className="w-16 text-center sm:w-20">{t("account.notifications.thEmail")}</TH>
                     </tr>
                 </THead>
                 <TBody>
                     {categories.map((category) => {
                         const Icon = NOTIFICATION_CATEGORY_ICONS[category];
-                        const label = NOTIFICATION_CATEGORY_LABELS[category];
+                        const labelKey = `notifications.category.${category}` as MessageKey;
+                        const label = t(labelKey);
                         const locked = isInAppLocked(category);
                         const lockedNoteId = `notification-pref-${category}-locked`;
                         return (
@@ -136,11 +140,11 @@ export function NotificationPreferences({ userId, role, email, categories }: Not
                                         </span>
                                         <div className="min-w-0">
                                             <p className="text-sm font-medium text-fg">{label}</p>
-                                            <p className="text-[13px] text-pretty text-fg-muted">{categoryDescription(role, category)}</p>
+                                            <p className="text-[13px] text-pretty text-fg-muted">{categoryDescription(role, category, t)}</p>
                                             {locked && (
                                                 <p id={lockedNoteId} className="mt-1 flex items-start gap-1 text-xs text-fg-subtle">
                                                     <Lock aria-hidden className="mt-0.5 size-3 shrink-0" />
-                                                    In-app stays on — clearance decides what training is allowed.
+                                                    {t("account.notifications.lockedNote")}
                                                 </p>
                                             )}
                                         </div>
@@ -151,7 +155,7 @@ export function NotificationPreferences({ userId, role, email, categories }: Not
                                         checked={preferences[category].inApp}
                                         disabled={locked}
                                         onChange={(event) => update(category, "inApp", event.target.checked)}
-                                        aria-label={`${label}: in-app notifications`}
+                                        aria-label={t("account.notifications.ariaInApp", { category: label })}
                                         aria-describedby={locked ? lockedNoteId : undefined}
                                     />
                                 </TD>
@@ -159,7 +163,7 @@ export function NotificationPreferences({ userId, role, email, categories }: Not
                                     <SwitchInput
                                         checked={preferences[category].email}
                                         onChange={(event) => update(category, "email", event.target.checked)}
-                                        aria-label={`${label}: email notifications`}
+                                        aria-label={t("account.notifications.ariaEmail", { category: label })}
                                     />
                                 </TD>
                             </TR>
@@ -173,27 +177,27 @@ export function NotificationPreferences({ userId, role, email, categories }: Not
                         {status === "blocked" ? (
                             <>
                                 <CircleAlert aria-hidden className="size-4 shrink-0 text-warning-fg" />
-                                This browser blocks storage — changes last until you leave the page.
+                                {t("account.notifications.storageBlocked")}
                             </>
                         ) : status === "saved" ? (
                             <>
                                 <CircleCheck aria-hidden className="size-4 shrink-0 text-success-fg" />
-                                Changes saved on this device
+                                {t("account.notifications.changesSaved")}
                             </>
                         ) : (
                             <>
                                 <HardDrive aria-hidden className="size-4 shrink-0 text-fg-subtle" />
-                                Saved on this device
+                                {t("account.notifications.savedOnDevice")}
                             </>
                         )}
                     </p>
                     <p className="text-xs break-words text-fg-subtle">
-                        Emails go to {email}. Preferences don&apos;t sync to your other browsers yet.
+                        {t("account.notifications.emailDestination", { email })}
                     </p>
                 </div>
                 <Button variant="ghost" size="sm" onClick={reset} disabled={raw === null}>
                     <RotateCcw aria-hidden />
-                    Reset to defaults
+                    {t("account.notifications.resetDefaults")}
                 </Button>
             </CardFooter>
         </>

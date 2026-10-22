@@ -6,7 +6,7 @@ import { GoalGroups } from "@/components/performance/goal-groups";
 import { ButtonLink } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState, FeatureUnavailable } from "@/components/ui/states";
-import { requireFighterAccess } from "@/lib/auth/access";
+import { requireFighterId } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { pluralize } from "@/lib/format";
 import { routes } from "@/lib/routes";
@@ -18,7 +18,7 @@ export const metadata: Metadata = { title: "Goals" };
 export default async function FighterGoalsPage() {
     const user = await requireRole("fighter");
     if (!user.profileId) notFound();
-    const fighter = await requireFighterAccess(user, user.profileId);
+    const fighterId = requireFighterId(user, user.profileId);
     if (!platformFeatureAvailable("goals")) {
         return (
             <>
@@ -27,7 +27,7 @@ export default async function FighterGoalsPage() {
             </>
         );
     }
-    const goals = await listGoals({ fighterIds: [fighter.id] });
+    const goals = await listGoals({ fighterIds: [fighterId] });
     const now = new Date().toISOString();
     const active = goals.filter((goal) => goal.status === "on_track" || goal.status === "at_risk");
     const atRisk = active.filter((goal) => goal.status === "at_risk").length;

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Fighter, Permission, Role, User } from "@/lib/domain/types";
-import { accessibleFighterIds, canAccessFighter, canAccessFighterClinically, requireFighterAccess } from "./access";
+import { accessibleFighterIds, canAccessFighter, canAccessFighterClinically, requireFighterAccess, requireFighterId } from "./access";
 
 const { getFighter, notFound } = vi.hoisted(() => ({
     getFighter: vi.fn(),
@@ -80,6 +80,12 @@ describe("fighter access", () => {
 
         await expect(requireFighterAccess(user("coach", ["fighters:read"], [fighter.id]), fighter.id)).resolves.toBe(fighter);
         expect(getFighter).toHaveBeenCalledWith(fighter.id);
+    });
+
+    it("checks scope without reading the fighter profile", () => {
+        expect(requireFighterId(user("fighter", ["fighters:read"]), "fighter-profile")).toBe("fighter-profile");
+        expect(() => requireFighterId(user("fighter", ["fighters:read"]), "someone-else")).toThrow("NOT_FOUND");
+        expect(getFighter).not.toHaveBeenCalled();
     });
 
     it("does not load a fighter outside the authenticated scope", async () => {

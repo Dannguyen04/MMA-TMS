@@ -18,6 +18,11 @@ vi.mock("@/lib/auth/session", () => session);
 vi.mock("@/lib/auth/access", () => ({ canAccessFighter: () => true, canAccessFighterClinically: () => true }));
 vi.mock("next/navigation", () => navigation);
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+// The actions read the viewer's language from a cookie; outside a request the tests use English.
+vi.mock("@/lib/i18n/server", async () => {
+    const { createTranslator } = await import("@/lib/i18n/translate");
+    return { getTranslator: async () => ({ locale: "en", t: createTranslator("en") }) };
+});
 
 import { ApiError } from "@/lib/api/client";
 import type { ClinicalDossier, CurrentExamination } from "@/lib/services/medical";

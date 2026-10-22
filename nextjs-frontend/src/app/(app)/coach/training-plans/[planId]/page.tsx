@@ -1,3 +1,4 @@
+import { getDemoCopy } from "@/lib/i18n/server";
 import { CalendarPlus, Copy, PenLine } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -29,13 +30,13 @@ import { param } from "@/lib/utils";
 const loadPlan = cache(getPlanWithSessions);
 
 /** The toast after creating a plan (`?notice=` from `createPlan`), or null. */
-function planNotice(query: SearchParams): ToastInput | null {
+function planNotice(query: SearchParams, copy: (source: string) => string): ToastInput | null {
     const notice = param(query.notice);
     const failed = Math.max(1, Math.floor(Number(param(query.failed)) || 1));
     const exercises = pluralize(failed, "exercise");
     switch (notice) {
         case "not-activated":
-            return { title: "Plan saved as a draft", description: "It couldn't be activated. Activate it from this page.", tone: "warning" };
+            return { title: copy("Plan saved as a draft"), description: copy("It couldn't be activated. Activate it from this page."), tone: "warning" };
         case "exercises-failed":
             return { title: "Plan created", description: `${exercises} couldn't be added. Add ${failed === 1 ? "it" : "them"} from the exercise list.`, tone: "warning" };
         case "exercises-failed-draft":
@@ -50,12 +51,14 @@ function planNotice(query: SearchParams): ToastInput | null {
 }
 
 export async function generateMetadata({ params }: PageProps<"/coach/training-plans/[planId]">): Promise<Metadata> {
+    const copy = await getDemoCopy();
     const [{ planId }, user] = await Promise.all([params, getCurrentUser()]);
     const data = await loadPlan(planId);
-    return { title: data && user && canAccessFighter(user, data.plan.fighterId) ? data.plan.title : "Training plan" };
+    return { title: data && user && canAccessFighter(user, data.plan.fighterId) ? data.plan.title : copy("Training plan") };
 }
 
 export default async function CoachPlanPage({ params, searchParams }: PageProps<"/coach/training-plans/[planId]">) {
+    const copy = await getDemoCopy();
     const user = await requireRole("coach");
     const [{ planId }, query] = await Promise.all([params, searchParams]);
     const now = new Date().toISOString();
@@ -81,26 +84,25 @@ export default async function CoachPlanPage({ params, searchParams }: PageProps<
 
     return (
         <>
-            <FlashToast notice={planNotice(query)} cleanHref={routes.coach.plan(plan.id)} />
+            <FlashToast notice={planNotice(query, copy)} cleanHref={routes.coach.plan(plan.id)} />
             <PageHeader
-                eyebrow="Training plan"
+                eyebrow={copy("Training plan")}
                 title={plan.title}
-                back={{ href: routes.coach.plans, label: "Training plans" }}
+                back={{ href: routes.coach.plans, label: copy("Training plans") }}
                 actions={
                     <>
                         <ButtonLink href={routes.coach.editPlan(plan.id)} variant="secondary">
                             <PenLine aria-hidden />
-                            Edit
+                            {copy("Edit")}
                         </ButtonLink>
                         <ButtonLink href={hrefWith(routes.coach.newPlan, {}, { from: plan.id })} variant="secondary">
                             <Copy aria-hidden />
-                            Duplicate
+                            {copy("Duplicate")}
                         </ButtonLink>
                         {canSchedule && (
                             <ButtonLink href={scheduleHref}>
                                 <CalendarPlus aria-hidden />
-                                Schedule session
-                            </ButtonLink>
+                                {copy("Schedule session")} </ButtonLink>
                         )}
                     </>
                 }
@@ -128,7 +130,7 @@ export default async function CoachPlanPage({ params, searchParams }: PageProps<
                 <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                     <AdherenceChart
                         weeks={planAdherenceWeeks(plan, sessions, now)}
-                        description="Completed out of due sessions per week in this plan"
+                        description={copy("Completed out of due sessions per week in this plan")}
                         className="min-w-0 lg:col-span-2"
                     />
                     <div className="flex min-w-0 flex-col gap-6">
@@ -148,8 +150,7 @@ export default async function CoachPlanPage({ params, searchParams }: PageProps<
                         canSchedule ? (
                             <ButtonLink href={scheduleHref} variant="secondary" size="sm">
                                 <CalendarPlus aria-hidden />
-                                Schedule session
-                            </ButtonLink>
+                                {copy("Schedule session")} </ButtonLink>
                         ) : undefined
                     }
                 />

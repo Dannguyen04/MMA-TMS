@@ -1,3 +1,4 @@
+import { getDemoCopy } from "@/lib/i18n/server";
 import type { Metadata } from "next";
 
 import { scopedFighterIds } from "@/components/dashboard/roster-data";
@@ -16,11 +17,12 @@ import { usesTrainingServiceForms } from "@/lib/services/platform-features";
 import { listExercises, listPlanExercises, listPlans } from "@/lib/services/training";
 import { param } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "New training plan" };
+export async function generateMetadata(): Promise<Metadata> { const copy = await getDemoCopy(); return { title: copy("New training plan") }; }
 
 const DEFAULT_PLAN_WEEKS = 8;
 
 export default async function NewPlanPage({ searchParams }: PageProps<"/coach/training-plans/new">) {
+    const demoCopy = await getDemoCopy();
     const user = await requireRole("coach");
     const params = await searchParams;
     const now = new Date().toISOString();
@@ -67,13 +69,13 @@ export default async function NewPlanPage({ searchParams }: PageProps<"/coach/tr
         ? { href: routes.coach.plan(source.id), label: source.title }
         : fighter
           ? { href: routes.coach.fighterTraining(fighter.id), label: fighter.name }
-          : { href: routes.coach.plans, label: "Training plans" };
+          : { href: routes.coach.plans, label: demoCopy("Training plans") };
 
     return (
         <>
             <PageHeader
-                title="New training plan"
-                description="Start from a template, a blank plan or a copy of one you've run. Check the fighter's Medical Clearance so the plan fits their restrictions."
+                title={demoCopy("New training plan")}
+                description={demoCopy("Start from a template, a blank plan or a copy of one you've run. Check the fighter's Medical Clearance so the plan fits their restrictions.")}
                 back={back}
             />
             <PlanCreateForm

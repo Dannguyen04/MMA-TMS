@@ -1,3 +1,6 @@
+"use client";
+
+import { useDemoCopy } from "@/components/i18n/locale-provider";
 import { BarChart3, Timer } from "lucide-react";
 
 import { BarChart, type BarSeries } from "@/components/charts/bar-chart";
@@ -34,6 +37,7 @@ export function AdherenceChart({
     headingAs = "h2",
     className,
 }: AdherenceChartProps) {
+    const copy = useDemoCopy();
     // Without session times (weekly progress from the service) nothing can be called due yet.
     const knowsDue = weeks.every((w) => w.due !== undefined);
     const dueOf = (w: WeeklyAdherence) => w.due ?? w.planned;
@@ -43,18 +47,18 @@ export function AdherenceChart({
     const upcoming = planned - due;
     const summary =
         due === 0
-            ? "Nothing due yet"
-            : `${completed} of ${due} ${knowsDue ? "due sessions" : "sessions planned so far"} completed (${formatPercent((completed / due) * 100)})`;
+            ? copy("Nothing due yet")
+            : copy("{completed}/{due} sessions completed ({percent})", { completed, due, percent: formatPercent((completed / due) * 100) });
 
     const series: BarSeries[] = [
-        { id: "completed", label: "Completed", color: CHART_SERIES[0], values: weeks.map((w) => w.completed) },
-        { id: "not-completed", label: "Not completed", color: CHART_MUTED, values: weeks.map((w) => dueOf(w) - w.completed) },
+        { id: "completed", label: copy("Completed"), color: CHART_SERIES[0], values: weeks.map((w) => w.completed) },
+        { id: "not-completed", label: copy("Not completed"), color: CHART_MUTED, values: weeks.map((w) => dueOf(w) - w.completed) },
     ];
     if (upcoming > 0) {
-        series.push({ id: "upcoming", label: "Upcoming", color: UPCOMING_COLOR, values: weeks.map((w) => w.planned - dueOf(w)) });
+        series.push({ id: "upcoming", label: copy("Upcoming"), color: UPCOMING_COLOR, values: weeks.map((w) => w.planned - dueOf(w)) });
     }
 
-    const columns = ["Week of", knowsDue ? "Due" : "Planned", "Completed", "Missed", ...(upcoming > 0 ? ["Upcoming"] : []), "Adherence"];
+    const columns = [copy("Week of"), knowsDue ? copy("Due") : copy("Planned"), copy("Completed"), copy("Missed"), ...(upcoming > 0 ? [copy("Upcoming")] : []), copy("Adherence")];
     const rows = weeks.map((w) => [
         weekLabel(w.weekStart),
         dueOf(w),
@@ -66,15 +70,15 @@ export function AdherenceChart({
 
     return (
         <Card className={className}>
-            <CardHeader title={title} description={description} icon={<BarChart3 />} as={headingAs} />
+            <CardHeader title={copy(title)} description={description ? copy(description) : undefined} icon={<BarChart3 />} as={headingAs} />
             <CardContent>
                 {planned === 0 ? (
-                    <EmptyState compact title="No sessions planned yet" description="Adherence appears once sessions are scheduled." />
+                    <EmptyState compact title={copy("No sessions planned yet")} description={copy("Adherence appears once sessions are scheduled.")} />
                 ) : (
                     <ChartFigure
                         title={summary}
-                        description={upcoming > 0 ? `${upcoming} upcoming ${upcoming === 1 ? "session isn't" : "sessions aren't"} counted until they're due.` : undefined}
-                        tableCaption={`${title}: completed out of due sessions per week`}
+                        description={upcoming > 0 ? copy("{n} upcoming sessions are not counted until due.", { n: upcoming }) : undefined}
+                        tableCaption={copy(title) + ": " + copy("Completed out of due sessions per week")}
                         table={{ columns, rows }}
                     >
                         <BarChart ariaLabel={`${title}. ${summary}.`} labels={weeks.map((w) => weekLabel(w.weekStart))} series={series} stacked height={220} />
@@ -92,6 +96,7 @@ export interface MinutesChartProps {
 
 /** Completed training minutes per week. */
 export function MinutesChart({ weeks, className }: MinutesChartProps) {
+    const copy = useDemoCopy();
     const total = sum(weeks.map((w) => w.minutes));
     const trained = weeks.filter((w) => w.minutes > 0);
     const summary =
@@ -107,7 +112,7 @@ export function MinutesChart({ weeks, className }: MinutesChartProps) {
                     title={summary}
                     tableCaption="Completed training minutes per week"
                     table={{
-                        columns: ["Week of", "Sessions completed", "Minutes"],
+                        columns: [copy("Week of"), "Sessions completed", "Minutes"],
                         rows: weeks.map((w) => [weekLabel(w.weekStart), w.completed, w.minutes]),
                     }}
                 >

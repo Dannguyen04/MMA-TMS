@@ -3,6 +3,7 @@
 import { Check } from "lucide-react";
 import { useId } from "react";
 
+import { useT } from "@/components/i18n/locale-provider";
 import { THEME_OPTIONS, useThemePreference } from "@/components/layout/theme-switcher";
 import type { ThemePreference } from "@/lib/auth/constants";
 import { cn } from "@/lib/utils";
@@ -16,11 +17,12 @@ export function AppearanceSettings({ initial }: { initial: ThemePreference }) {
     const [theme, choose] = useThemePreference(initial);
     const systemDark = useMediaQuery("(prefers-color-scheme: dark)");
     const name = useId();
+    const t = useT();
 
     return (
         <div className="flex max-w-xl flex-col gap-4">
             <fieldset className="grid grid-cols-3 gap-3">
-                <legend className="sr-only">Theme</legend>
+                <legend className="sr-only">{t("theme.legend")}</legend>
                 {THEME_OPTIONS.map((option) => {
                     const active = theme === option.value;
                     return (
@@ -52,7 +54,7 @@ export function AppearanceSettings({ initial }: { initial: ThemePreference }) {
                             </span>
                             <span className={cn("mt-2 flex items-center justify-center gap-1 text-[13px]", active ? "font-medium text-fg" : "text-fg-muted")}>
                                 {active && <Check aria-hidden className="size-3.5 text-primary-soft-fg" />}
-                                {option.label}
+                                {t(option.label)}
                             </span>
                         </label>
                     );
@@ -60,9 +62,10 @@ export function AppearanceSettings({ initial }: { initial: ThemePreference }) {
             </fieldset>
             <p className="text-[13px] text-fg-muted" aria-live="polite">
                 {theme === "system"
-                    ? `Following your device${systemDark === null ? "" : ` — currently ${systemDark ? "dark" : "light"}`}.`
-                    : `Always ${theme}, whatever your device uses.`}{" "}
-                Applies instantly and is remembered on this browser.
+                    ? t("account.appearance.systemDesc", {
+                          status: systemDark === null ? "" : systemDark ? t("account.appearance.deviceDark") : t("account.appearance.deviceLight"),
+                      })
+                    : t("account.appearance.fixedDesc", { theme })}
             </p>
         </div>
     );

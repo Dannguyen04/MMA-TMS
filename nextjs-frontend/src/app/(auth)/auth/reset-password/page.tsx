@@ -2,19 +2,23 @@ import { LinkIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { unstable_rethrow } from "next/navigation";
-import type { ReactNode } from "react";
 
 import { TermHint } from "@/components/domain/term-hint";
 import { Callout } from "@/components/training/callout";
 import { buttonClasses } from "@/components/ui/button";
 import { getSessionAccount } from "@/lib/auth/session";
 import { awaitsFighterActivation } from "@/lib/domain/admissions";
+import { getTranslator } from "@/lib/i18n/server";
+import type { MessageKey, Translator } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import { listOwnApplications } from "@/lib/services/admissions";
 import { param } from "@/lib/utils";
 import { ResetPasswordForm } from "./reset-password-form";
 
-export const metadata: Metadata = { title: "Set your password" };
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return { title: t("auth.resetMetaTitle") };
+}
 
 /**
  * Who opened the link, as far as this browser can tell: an approved applicant setting their first password, an
@@ -39,54 +43,35 @@ async function passwordContext(): Promise<PasswordContext> {
     }
 }
 
-const COPY: Record<PasswordContext, { title: string; lead: ReactNode; field: string; submit: string }> = {
-    activation: {
-        title: "Set your password",
-        lead: (
-            <>
-                Set your password to activate your fighter account. From now on you sign in with your email and this password. <TermHint term="activation" />
-            </>
-        ),
-        field: "Password",
-        submit: "Set password",
-    },
-    reset: {
-        title: "Choose a new password",
-        lead: "Choose a new password for your academy account.",
-        field: "New password",
-        submit: "Save password",
-    },
-    unknown: {
-        title: "Set your password",
-        lead: "Approved by the academy? Set the password that activates your fighter account. Already have an account? Choose its new password here.",
-        field: "Password",
-        submit: "Set password",
-    },
+const COPY: Record<PasswordContext, { title: MessageKey; lead: MessageKey; field: MessageKey; submit: MessageKey }> = {
+    activation: { title: "auth.resetTitle", lead: "auth.reset.activationLead", field: "auth.password", submit: "auth.reset.setPassword" },
+    reset: { title: "auth.reset.newTitle", lead: "auth.reset.newLead", field: "auth.newPassword", submit: "auth.savePassword" },
+    unknown: { title: "auth.resetTitle", lead: "auth.reset.unknownLead", field: "auth.password", submit: "auth.reset.setPassword" },
 };
 
-function ResetLink() {
+function ResetLink({ t }: { t: Translator }) {
     return (
         <Link href={routes.forgotPassword} className="font-medium text-primary-soft-fg hover:underline">
-            Request a new reset link
+            {t("auth.reset.requestResetLink")}
         </Link>
     );
 }
 
 /** How to get a working link: approved applicants ask the academy; existing accounts request one themselves. */
-function NewLinkHelp({ context }: { context: PasswordContext }) {
-    if (context === "activation") return <p>Ask the academy to resend your set-up email, then open the new link.</p>;
+function NewLinkHelp({ context, t }: { context: PasswordContext; t: Translator }) {
+    if (context === "activation") return <p>{t("auth.reset.askResend")}</p>;
     if (context === "reset") {
         return (
             <p>
-                <ResetLink /> and open it from your email.
+                <ResetLink t={t} /> {t("auth.reset.openFromEmail")}
             </p>
         );
     }
     return (
         <ul className="flex flex-col gap-1">
-            <li>New fighter? Ask the academy to resend your set-up email.</li>
+            <li>{t("auth.reset.newFighter")}</li>
             <li>
-                Already have an account? <ResetLink />.
+                {t("auth.reset.haveAccount")} <ResetLink t={t} />.
             </li>
         </ul>
     );
@@ -97,22 +82,31 @@ function NewLinkHelp({ context }: { context: PasswordContext }) {
  * approved applicant's first password and resets a forgotten one, so the page says which it is when it can tell.
  */
 export default async function ResetPasswordPage({ searchParams }: PageProps<"/auth/reset-password">) {
-    const [query, context] = await Promise.all([searchParams, passwordContext()]);
+    const [query, context, { t }] = await Promise.all([searchParams, passwordContext(), getTranslator()]);
     const tokenHash = param(query.token_hash)?.trim() ?? "";
     const copy = COPY[context];
-    const back = context === "activation" ? { href: routes.apply, label: "Back to your application" } : { href: routes.login, label: "Back to sign in" };
+    const back =
+        context === "activation" ? { href: routes.apply, label: t("auth.reset.backToApplication") } : { href: routes.login, label: t("auth.backToSignIn") };
 
     return (
         <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-fg">{copy.title}</h1>
-            <p className="mt-1.5 text-[15px] text-fg-muted">{copy.lead}</p>
+            <h1 className="text-2xl font-semibold tracking-tight text-fg">{t(copy.title)}</h1>
+            <p className="mt-1.5 text-[15px] text-fg-muted">
+                {t(copy.lead)}
+                {context === "activation" && (
+                    <>
+                        {" "}
+                        <TermHint term="activation" />
+                    </>
+                )}
+            </p>
             {tokenHash ? (
-                <ResetPasswordForm tokenHash={tokenHash} fieldLabel={copy.field} submitLabel={copy.submit} back={back} help={<NewLinkHelp context={context} />} />
+                <ResetPasswordForm tokenHash={tokenHash} fieldLabel={t(copy.field)} submitLabel={t(copy.submit)} back={back} help={<NewLinkHelp context={context} t={t} />} />
             ) : (
                 <Callout
                     tone="warning"
                     icon={LinkIcon}
-                    title="This link is incomplete"
+                    title={t("auth.linkIncompleteTitle")}
                     className="mt-8"
                     action={
                         context === "activation" && (
@@ -123,8 +117,8 @@ export default async function ResetPasswordPage({ searchParams }: PageProps<"/au
                     }
                 >
                     <div className="flex flex-col gap-1">
-                        <p>Open the link from the email again. If it still doesn&apos;t work:</p>
-                        <NewLinkHelp context={context} />
+                        <p>{t("auth.reset.openAgain")}</p>
+                        <NewLinkHelp context={context} t={t} />
                     </div>
                 </Callout>
             )}

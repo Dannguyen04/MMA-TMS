@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
+import { useT } from "@/components/i18n/locale-provider";
 import type { ActionState } from "@/lib/actions/state";
 import { Button } from "./button";
 import { Dialog, type DialogProps } from "./dialog";
@@ -56,6 +57,7 @@ function ActionDialogInstance<T>({
     hiddenFields,
     children,
 }: ActionDialogProps<T>) {
+    const t = useT();
     const succeeded = useRef<ActionState<T> | null>(null);
     const onSuccessRef = useRef(onSuccess);
     const firstField = useRef<HTMLElement | null>(null);
@@ -103,7 +105,7 @@ function ActionDialogInstance<T>({
             footer={
                 <>
                     <Button variant="secondary" onClick={onClose} disabled={form.pending}>
-                        Cancel
+                        {t("common.cancel")}
                     </Button>
                     <Button type="submit" form={form.formProps.id} variant={submitVariant} loading={form.pending}>
                         {form.pending && pendingLabel ? pendingLabel : submitLabel}

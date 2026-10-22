@@ -1,167 +1,290 @@
 # T-004 Handover
 
-- Nhánh: `feat/T-004-bout-lifecycle-ui` (từ `feat/T-005a-fighter-weigh-in`, không push)
-- Commit: `0715f04` (màn HLV, demo store, T-006/T-007 ở demo mode), `d8793fa` (sửa sau khi chạy trình duyệt), `bc41283` (sửa theo code review), `d92a246` (adapter API mode), `3ce182a` (thanh điều hướng và khối thông tin trên điện thoại)
+- Nhánh: `feat/T-004-coach-bouts-ui`
+- Commit: `600101a`
 - Trạng thái: IN REVIEW
-- Người viết: Claude (Opus 5.5). Chủ dự án cho phép sửa code frontend trong phiên 19/10 và chọn: phạm vi gồm cả "Trong trận" (T-006) và "Sau trận" (T-007) ở demo mode; một nhánh mới cho mọi việc; seed phương án (a); adapter API làm ở P2.
 
 ## Thay đổi
+- `nextjs-frontend/src/lib/domain/types.ts`: Thêm các domain type `Bout`, `BoutRequirement`, `CompetitionRuleset`, `WeightTrack`, `WeightStatusSummary`, `ReferencePathPoint`, enum `BoutStatus`, `BoutRequirementStatus`, `WeightWarningStatus` (khớp T-003 §2–3).
+- `nextjs-frontend/src/lib/domain/labels.ts`: Thêm nhãn hiển thị tiếng Anh cho trạng thái trận (`SCHEDULED`, `CAMP`, `FIGHT_WEEK`, `WEIGHED_IN`, `COMPLETED`, `CANCELLED`), trạng thái yêu cầu y tế (`MISSING`, `PROVIDED`, `CONFIRMED`, `REJECTED`), trạng thái cảnh báo cân (`GREEN`, `YELLOW`, `RED`, `GREY`).
+- `nextjs-frontend/src/lib/domain/bout-rules.ts`: Hàm thuần dùng chung `computeBoutComputedFields`, `evaluateGate1`, `canEnterFightWeek`, `calculateSnapshotAcuteLimit`, `calculateWeightWarning`, `computeWeightPoints`, `isBoutInPast` (tính Cổng 1, cảnh báo cân, điểm cân cho biểu đồ T-005, snapshot acute cut limit theo giờ thi đấu vs giờ cân).
+- `nextjs-frontend/src/lib/domain/bout-rules.test.ts`: Unit test cho toàn bộ hàm thuần, bao gồm T-003 tiêu chí 1 (cảnh báo cân), tiêu chí 2 (snapshot ngưỡng 8% vs 5%), tiêu chí 3 (ngày học viện UTC+7), tiêu chí 4 (Cổng 1), tiêu chí 12b (lọc trùng số cân trong cùng ngày học viện).
+- `nextjs-frontend/src/lib/services/bouts.ts`: Service cho API mode với Zod schema xác thực dữ liệu từ backend T-003 (`backendBoutSchema`, `backendRulesetSchema`, `backendWeightTrackSchema`, `backendRequirementSchema`).
+- `nextjs-frontend/src/lib/services/bouts.demo.ts`: Service cho demo mode, mô phỏng latency, thao tác trên mock in-memory DB (`db().bouts`, `db().rulesets`, `db().boutMeasurements`), tính trường computed tự động theo quy tắc camp start date từ training plan (hoặc ngày tạo trận).
+- `nextjs-frontend/src/lib/mocks/bouts.ts`: Mock presets (VMMAF 2021, AIBA Boxing, Custom) và seed 3 trận cho coach Rafael Costa (1 trận cân đỏ, 1 trận thiếu hồ sơ Cổng 1 chặn, 1 trận đủ điều kiện vào fight week), cùng 1 trận của coach khác (Anna Volkova) để kiểm tra 404 access control.
+- `nextjs-frontend/src/lib/mocks/db.ts`: Đăng ký kho mock `bouts`, `rulesets`, `boutMeasurements`.
+- `nextjs-frontend/src/lib/actions/bouts.ts`: Server Actions (`createBoutAction`, `updateBoutAction`, `linkCampAction`, `enterFightWeekAction`, `cancelBoutAction`, `addRequirementAction`, `updateRequirementAction`, `removeRequirementAction`), hỗ trợ chuyển đổi dấu phẩy thập phân kiểu Việt Nam `63,5` -> `63.5`.
+- `nextjs-frontend/src/lib/routes.ts`: Bổ sung routes `coach.bouts`, `coach.newBout`, `coach.bout(id)`.
+- `nextjs-frontend/src/components/layout/navigation.ts`: Thêm mục "Bouts" vào menu HLV ngay sau "Today" với icon Swords.
+- `nextjs-frontend/src/components/layout/navigation.test.ts`: Cập nhật snapshot kiểm tra thứ tự menu HLV.
+- `nextjs-frontend/src/components/domain/status-badges.tsx`: Thêm `BoutStatusBadge`, `Gate1Badge`, `WeightWarningBadge`.
+- `nextjs-frontend/src/app/(app)/coach/bouts/page.tsx`: Màn danh sách trận HLV quản lý với thống kê, bảng trạng thái, Cổng 1, cảnh báo cân, đếm ngược, empty state.
+- `nextjs-frontend/src/app/(app)/coach/bouts/loading.tsx`: Skeleton loading cho trang danh sách.
+- `nextjs-frontend/src/app/(app)/coach/bouts/new/page.tsx`: Trang tạo trận mới cho HLV.
+- `nextjs-frontend/src/app/(app)/coach/bouts/new/bout-form.tsx`: Form tạo trận: chọn võ sĩ trong roster, preset, hạng cân (hoặc tự nhập kg), kiểm tra cân trước thi, cảnh báo preset unverified.
+- `nextjs-frontend/src/app/(app)/coach/bouts/new/loading.tsx`: Skeleton loading cho form tạo trận.
+- `nextjs-frontend/src/app/(app)/coach/bouts/[boutId]/page.tsx`: Trang chi tiết trận đấu với thông tin võ sĩ, đối thủ, đếm ngược cân, thẻ Cạnh tranh & Quy định, thẻ Fight Camp, thẻ Ghi chú, thẻ Lịch sử thay đổi trạng thái, 404 khi truy cập trận của võ sĩ ngoài roster.
+- `nextjs-frontend/src/app/(app)/coach/bouts/[boutId]/loading.tsx`: Skeleton loading cho trang chi tiết trận.
+- `nextjs-frontend/src/app/(app)/coach/bouts/[boutId]/bout-actions.tsx`: Client actions header: Link camp plan (`SCHEDULED`), Enter fight week (`CAMP`) với dialog chi tiết các mục thiếu nếu bị chặn, Cancel bout với lý do bắt buộc, Edit bout details.
+- `nextjs-frontend/src/app/(app)/coach/bouts/[boutId]/bout-checklist-card.tsx`: Quản lý checklist y tế & hồ sơ Cổng 1: danh sách mục, nhãn "Coach-entered, not verified" cho mục coach thêm, thêm mục mới (không có ô upload file), sửa trạng thái / ngày cấp / hạn dùng / lý do từ chối, xoá mục, cảnh báo quá hạn.
+- `nextjs-frontend/src/app/(app)/coach/bouts/[boutId]/bout-weight-card.tsx`: Thẻ hiển thị số cân mới nhất, phần trăm còn phải giảm, badge trạng thái, câu khuyến nghị khi đỏ (không vẽ biểu đồ, chờ T-005).
 
-Domain, hàm thuần có test:
-
-- `lib/domain/bout.ts`: `CampBout` thêm các trường của T-003 §2–3 (`coachId`, `rulesetId`, `rulesetName`, `rulesetVerified`, `sport`, `venue`, `weightClassCode`, `weightClassLabel`, `requirementsDueDays`, `fightWeekDays`, `trainingPlanId`, `createdOn`, `notes`, `cancelReason`, `history`), cộng `weighIn`, `outcome` (T-006) và `checklistUnlock` (F5). Bỏ enum `weightClass` cũ. Thêm `CompetitionRuleset`, `BoutRequirement` đủ trường, `Suspension`.
-- `lib/domain/bout-rules.ts`: `gate1`, `gateSummary`, `readyForBout`, `requirementsDueOn`, `requirementsOverdue`, `requirementsDueSoon` (F4, 14 ngày), `fightWeekOpensOn`, `canEnterFightWeek`, `acuteLossLimitPct`, `scheduleSummary`, `campStartedOn`, `canTransition`, `canEditSchedule`, `canCancel`, `checklistLocked`, `validateBoutSchedule`, `readWeightClass`, `readDueDays`, `requirementCode`, `validateNewRequirement`, `validateRequirementUpdate`, `suggestedValidUntil`, `requirementsFromTemplates`, `madeWeight`, `canRecordResult`, `validateOutcome`, `methodsFor`.
-- `lib/domain/suspension-rules.ts` (T-007): `suggestSuspension` (quy tắc dài nhất khớp, đếm KO trước đó), `suspensionReasonFor` (H3, H6), `suspensionState`, `isSuspensionActive`, `blockingSuspensions` (Cổng 2), `canClearSuspension`, `validateSuspension` (đổi số ngày gợi ý phải có lý do), `readClearanceNote`.
-- `lib/domain/weight-input.ts`: `parseKg` dùng chung cho cân sáng, cân chính thức, giới hạn tự nhập; `kgLabel`.
-- `lib/domain/labels.ts`: nhãn giai đoạn trận, môn, trạng thái hồ sơ, lý do Cổng 1, lý do huỷ, kiểm tra nước, kết quả, cách thắng, mất ý thức, lý do và trạng thái đình chỉ.
-- `lib/domain/bouts-contract.ts`: schema Zod và mapper cho response T-003, body request.
-- `lib/mocks/rulesets.ts`: ba preset đúng tên seed backend.
-
-Dữ liệu và service:
-
-- `lib/services/bouts.demo.ts`: store viết lại, giữ trên `globalThis`, seed theo `TODAY_KEY` (cùng mốc với các mock khác). Hàm cho mọi thao tác của T-004, T-006, T-007.
-- `lib/services/bouts.ts`: lớp service cho trang và action; demo gọi `bouts.demo.ts`, API gọi `bouts.api.ts`.
-- `lib/services/bouts.api.ts`: adapter mỏng theo T-003 §2.
-- `lib/services/training.demo.ts`: Cổng 2 khi tạo, sửa, bắt đầu buổi tập.
-- `lib/mocks/training.ts`: thêm ba plan `fight_camp` cho trận seed (`tp-kenji-fight-camp`, `tp-emma-nordic-camp`, `tp-linh-fight-camp`), đặt cuối danh sách để buổi tập cũ giữ plan cũ.
-
-Action và trang:
-
-- `lib/actions/bouts.ts`: `createBoutAction`, `updateBoutAction`, `linkCampAction`, `enterFightWeekAction`, `cancelBoutAction`, `addRequirementAction`, `updateRequirementAction`, `removeRequirementAction`, `unlockChecklistAction`, `recordWeighInAction`, `recordResultAction`, `createSuspensionAction`, `clearSuspensionAction`. Mỗi action kiểm `requireRole("coach")` và `canAccessFighter`.
-- `lib/routes.ts`: `coach.bouts`, `coach.newBout`, `coach.suspensions`. `navigation.ts`: hub "Bouts" sau "Today", tab "Upcoming" và "Suspensions".
-- `app/(app)/coach/bouts/page.tsx`: danh sách trận đang chạy, xếp theo giờ cân; bảng ở `md+`, thẻ xếp chồng ở điện thoại; "Recently finished".
-- `app/(app)/coach/bouts/new/`: form tạo trận, kiểm tra ở trình duyệt bằng chính `validateBoutSchedule` trước khi gửi, xem trước số ngày tới cân, khoảng cân – thi, ngưỡng 8%/5%.
-- `app/(app)/coach/bouts/[boutId]/`: thông tin trận, hành động theo giai đoạn (gắn camp, vào tuần thi đấu, cân chính thức, kết quả), sửa (F8), huỷ, Cổng 1, checklist (thêm, sửa, bỏ, khoá tuần thi đấu và mở khoá có lý do), kế hoạch ăn, kết quả, đình chỉ, lịch sử.
-- `app/(app)/coach/bouts/suspensions/`: danh sách đình chỉ, đình chỉ thủ công, "Clear to train", danh sách "Ready for a new bout" (H7).
-- `app/(app)/coach/dashboard/page.tsx`: "All bouts" trên "Weight alerts"; thẻ "Documents due" (F4).
-- `app/(app)/fighter/bout/page.tsx`: thẻ "Medical file" có trạng thái thật, hạn hiệu lực, một dòng tóm tắt Cổng 1.
-
-## Seed demo (phương án a)
-
-Ngày D là ngày server khởi động. Roster của Rafael.
-
-| Võ sĩ | Trận | Trạng thái lúc seed | Dùng để |
-| --- | --- | --- | --- |
-| Minh Trần | Không có | Cân từ D−28 đến D−4 (70,0 → 67,2 kg) | Tạo trận trên sân khấu; xám, ghi 66,5 thành đỏ |
-| Kenji Morita | Pacific Invitational 4, VMMAF 56 kg, cân D+3 | `CAMP`, đỏ (62,8 kg, 10,8%), đủ hồ sơ, vào được tuần thi đấu | Tiêu chí 1: trận đỏ, trận đủ điều kiện |
-| Aigerim Sadykova | Asian Combat Series 9, AIBA 51 kg, cân và thi cùng ngày D+27 (10 giờ, ngưỡng 5%) | `CAMP`, vàng; mục "Blood test" tuỳ chọn còn thiếu nhưng Cổng 1 vẫn đạt | Thứ tự cảnh báo; mục tuỳ chọn không chặn |
-| Emma Lindqvist | Nordic Open 12, Tự nhập 57 kg, cân D+5 | `CAMP`, xám, thiếu "Brain CT", quá hạn nộp | Tiêu chí 1 và 4: Cổng 1 chặn |
-| Linh Phạm | Saigon Amateur Night 5, AIBA 60 kg, cân 07:00 và thi 18:00 hôm nay | `FIGHT_WEEK`, xanh | T-006: cân chính thức, kết quả |
-| Diego Alvarez | Không có | Đình chỉ thủ công KO trong sparring, D−6 đến D+24, chặn sparring và grappling | T-007: Cổng 2 |
+## Kho dữ liệu cân cho T-005
+- **Tên kho mock:** `db().boutMeasurements` (nằm trong `nextjs-frontend/src/lib/mocks/db.ts`, kiểu `MockWeightMeasurement[]` định nghĩa tại `nextjs-frontend/src/lib/mocks/bouts.ts`).
+- **Cấu trúc mỗi bản ghi:**
+  ```ts
+  export interface MockWeightMeasurement {
+      id: string;
+      fighterId: string;
+      boutId?: string;
+      measuredAt: string; // ISO 8601
+      weightKg: number;
+      superseded?: boolean;
+  }
+  ```
+- **Cách ghi thêm từ T-005 (phần A - `recordSelfWeight`):**
+  T-005 import `db` từ `@/lib/mocks/db` và `newId`, `nowIso` để push bản ghi mới:
+  ```ts
+  db().boutMeasurements.push({
+      id: newId("m"),
+      fighterId,
+      boutId, // tuỳ chọn
+      measuredAt: nowIso(),
+      weightKg,
+  });
+  ```
+  `getWeightTrack(boutId)` và `enrichBout(bout)` trong `bouts.demo.ts` sẽ tự động lọc theo `fighterId`, ngày bắt đầu camp (`plan.startDate` nếu đã gắn plan, hoặc `bout.createdAt`), loại bỏ `superseded`, gom ngày học viện (UTC+7, giữ số cân mới nhất trong ngày) và trả về `points: [{ date, kg }]` cùng `latestKg`, `remainingPct`, `status`, `referencePath`.
 
 ## Đối chiếu tiêu chí nghiệm thu
 
-| Tiêu chí (T-004) | Đáp ứng ở đâu |
+| Tiêu chí (theo ticket T-004) | Đáp ứng ở đâu (file:dòng, test nào) |
 | --- | --- |
-| 1. Demo mode, HLV thấy "Bouts", danh sách đủ trận seed với đúng badge cân và Cổng 1 | `navigation.ts`, `coach/bouts/page.tsx`; test "seeds a red, a yellow and a grey bout…", "covers T-004 criterion 1…"; trình duyệt 1440 px (ảnh `02-bouts-list-1440.jpg`): Linh Green/Ready, Kenji Red/Ready, Emma Grey/"1 missing · overdue", Aigerim Yellow/Ready |
-| 2. Preset "MMA – VMMAF 2021" 60 kg → trận vào danh sách; "Tự nhập" 63,5 → lưu 63,5 | Trình duyệt: tạo "Lotus Fight Night 18" cho Minh, 60 kg (ảnh `03b`); 63,5: test `bout-rules.test.ts` "stores a custom limit of 63,5 kg as 63.5" và `actions/bouts.test.ts` "creates a scheduled bout and opens it" (`limitKg: 63.5`, nhãn "63.5 kg"); trình duyệt 20/10 ở 390 px: Tariq, "Tự nhập", gõ `63,5` → trang chi tiết "63.5 kg" (ảnh `03-new-bout-custom-preview-390.jpg`) |
-| 3. Cân sau thi → lỗi tại trường, không gửi | `prepare` trong `new/bout-form.tsx` chạy `validateBoutSchedule` ở trình duyệt; trình duyệt: "The bout must start after the weigh-in." dưới ô Bout (ảnh `03a`); test action "refuses a bout that starts before its weigh-in…" |
-| 4. Thiếu hồ sơ → "Enter fight week" liệt kê mục thiếu, trạng thái không đổi; đủ `PROVIDED` có hạn sau ngày thi → vào tuần thi đấu | Trình duyệt trên trận Minh: "Gate 1 is not met. The bout stays in camp. · Brain CT: missing" (ảnh `07b`); hạn trước ngày thi → "Brain CT: expires before the bout"; hạn hợp lệ → `FIGHT_WEEK`, history có dòng "Camp → Fight week" (ảnh `08`). Test demo store và test action |
-| 5. Trận của võ sĩ ngoài roster → 404 | `coach/bouts/[boutId]/page.tsx` gọi `notFound()` khi `!canAccessFighter`; test action "answers a bout outside the roster as not found"; trình duyệt: id giả trả trang 404 "We couldn't find that" (đọc qua HTML, xem "Kiểm tra trình duyệt") |
-| 6. `bout-rules.test.ts` có ví dụ T-003 tiêu chí 1, 2, 4 | `bout-rules.test.ts` mục "weight warning (T-003 criterion 1…)", "acute-loss limit snapshot (T-003 criterion 2)", "Gate 1 (T-003 criterion 4…)", cộng tiêu chí 3 và 5 |
-| 7. 390 px không cuộn ngang | Trình duyệt 20/10 ở 390 px: Today HLV, `/coach/bouts`, New bout, chi tiết trận (Emma, Tariq), dialog sửa hồ sơ, Suspensions; `scrollWidth` = 390 và không phần tử nào trong `main` vượt mép (trừ dải lọc hàng đợi trên Today, vốn cuộn ngang trong khung riêng). Sửa trong lần này: thanh điều hướng dưới có sáu mục bị gãy hai hàng, nay một hàng (`mobile-nav.tsx`); khối thông tin trận hai cột. Ảnh `*-390.jpg` |
-| 8. Handover liệt kê trường adapter và nguồn | Bảng "Adapter API" dưới đây |
+| 1. Ở demo mode, đăng nhập HLV demo: thấy mục "Bouts", danh sách có đủ 3 trận seed với đúng badge cân và Cổng 1 | Claude kiểm tra (`src/app/(app)/coach/bouts/page.tsx`, `src/lib/mocks/bouts.ts:131-302`, `src/components/layout/navigation.ts:87`) |
+| 2. Tạo trận mới với preset "MMA – VMMAF 2021", hạng 60 kg → trận xuất hiện trong danh sách; với "Tự nhập", nhập 63,5 kg → lưu đúng 63,5 | Claude kiểm tra (`src/app/(app)/coach/bouts/new/bout-form.tsx:64-75, 177-185`, `src/lib/actions/bouts.ts:25-35`, `src/lib/services/bouts.demo.ts:108-139`) |
+| 3. Thời điểm cân sau thời điểm thi → form báo lỗi tại trường, không gửi | Claude kiểm tra (`src/app/(app)/coach/bouts/new/bout-form.tsx:78-83`, `src/lib/actions/bouts.ts:47-51`) |
+| 4. Trận thiếu hồ sơ: bấm "Enter fight week" → hiện danh sách mục thiếu, trạng thái không đổi. Thêm và đánh dấu `PROVIDED` (có ngày hết hạn sau ngày thi) cho đủ mục → vào được tuần thi đấu | Claude kiểm tra (`src/app/(app)/coach/bouts/[boutId]/bout-actions.tsx:85-115`, `src/app/(app)/coach/bouts/[boutId]/bout-checklist-card.tsx:290-395`, `src/lib/services/bouts.demo.ts:182-205`) |
+| 5. HLV mở trận của võ sĩ không thuộc roster (sửa URL) → trang 404 | Claude kiểm tra (`src/app/(app)/coach/bouts/[boutId]/page.tsx:49-52`, `src/lib/auth/access.ts`) |
+| 6. `bout-rules.test.ts` kiểm tra các ví dụ ở T-003 tiêu chí 1, 2, 4 cho bản TypeScript của thuật toán | `src/lib/domain/bout-rules.test.ts` (test cases: Criterion 1 acute weight cut warnings, Criterion 2 snapshot limits 8% vs 5%, Criterion 3 Academy date UTC+7, Criterion 4 Gate 1 clearance, Criterion 12b weight points deduplication) |
+| 7. Trang hiển thị đúng ở bề rộng 390 px (không cuộn ngang) | Claude kiểm tra (`src/app/(app)/coach/bouts/page.tsx`, `src/app/(app)/coach/bouts/new/bout-form.tsx`, `src/app/(app)/coach/bouts/[boutId]/page.tsx` bọc table bằng `overflow-x-auto`, grid `grid-cols-1 lg:grid-cols-3`, `min-w-0`) |
+| 8. Handover liệt kê mọi trường của adapter API và nguồn của từng trường (T-003 mục nào); những gì chưa đối chiếu được với backend thật | Chi tiết tại bảng mục bên dưới. |
 
-### T-006, T-007 ở demo mode (ngoài T-004, theo chủ dự án ngày 19/10)
+## Bảng đối chiếu trường Adapter API (`src/lib/services/bouts.ts`) và nguồn T-003
 
-Chưa có ticket viết sẵn; làm theo Luồng nghiệp vụ F5, F6, F7, H2–H7 và Tech spec §2.5, §6.
+| Model / Endpoint | Trường trong Adapter API (`bouts.ts`) | Kiểu dữ liệu | Nguồn ở T-003 / Tech Spec | Ghi chú / Trạng thái đối chiếu |
+| --- | --- | --- | --- | --- |
+| **Bout** (`GET /bouts`, `GET /bouts/:id`, `POST /bouts`, `PATCH /bouts/:id`) | `id` | `string` | T-003 §2 | Khớp contract |
+| | `fighterId` | `string` | T-003 §2 | Khớp contract |
+| | `coachId` | `string` | T-003 §2 | Khớp contract |
+| | `rulesetId` | `string` | T-003 §2 | Khớp contract |
+| | `eventName` | `string` | T-003 §2 | Khớp contract |
+| | `venue` | `string \| null` | T-003 §2 | Khớp contract |
+| | `opponentName` | `string \| null` | T-003 §2 | Khớp contract |
+| | `weightClassCode` | `string` | T-003 §2 | Khớp contract |
+| | `weightLimitKg` | `number` | T-003 §2 | Khớp contract |
+| | `acuteLossLimitPct` | `number` | T-003 §2 | Snapshot (8.0 hoặc 5.0) |
+| | `requirementsDueDays` | `number` | T-003 §2 | Snapshot từ ruleset |
+| | `weighInAt` | `string` (ISO 8601) | T-003 §2 | Khớp contract |
+| | `boutAt` | `string` (ISO 8601) | T-003 §2 | Khớp contract |
+| | `status` | `BoutStatus` | T-003 §2 | `SCHEDULED`, `CAMP`, `FIGHT_WEEK`, `WEIGHED_IN`, `COMPLETED`, `CANCELLED` |
+| | `trainingPlanId` | `string \| null` | T-003 §2 | Khớp contract |
+| | `officialWeightKg` | `number \| null` | T-003 §2 | Dùng ở T-006 |
+| | `madeWeight` | `boolean \| null` | T-003 §2 | Dùng ở T-006 |
+| | `catchweightKg` | `number \| null` | T-003 §2 | Dùng ở T-006 |
+| | `hydrationCheck` | `enum \| null` | T-003 §2 | Dùng ở T-006 |
+| | `result` | `BoutResult \| null` | T-003 §2 | Dùng ở T-007 |
+| | `method` | `BoutMethod \| null` | T-003 §2 | Dùng ở T-007 |
+| | `resultRound` | `number \| null` | T-003 §2 | Dùng ở T-007 |
+| | `knockedDown` | `boolean \| null` | T-003 §2 | Dùng ở T-007 |
+| | `cancelReason` | `string \| null` | T-003 §2 | Bắt buộc khi `POST /cancel` |
+| | `notes` | `string \| null` | T-003 §2 | Khớp contract |
+| | `history` | `HistoryEntry[]` | T-003 §2 | Mảng `{ at, by, from, to, reason? }` |
+| | `createdById` | `string` | T-003 §2 | Khớp contract |
+| | `createdAt` | `string` (ISO 8601) | T-003 §2 | Khớp contract |
+| | `updatedAt` | `string` (ISO 8601) | T-003 §2 | Khớp contract |
+| | `deletedAt` | `string \| null` | T-003 §2 | Khớp contract |
+| | `requirements` | `BoutRequirement[]` | T-003 §2 | Mảng checklist hồ sơ đi kèm trận |
+| **Bout Computed** (`GET /bouts/:id`) | `daysToWeighIn` | `number` | T-003 §3 | Số ngày còn lại đến cân (âm nếu đã qua) |
+| | `requirementsDueOn` | `string` (ISO 8601) | T-003 §3 | Hạn nộp hồ sơ |
+| | `gate1` | `{ passed: boolean, missing: string[], expiring: string[] }` | T-003 §3, F4 | Cổng 1 kiểm tra hồ sơ |
+| | `canEnterFightWeek` | `boolean` | T-003 §3 | Đủ điều kiện vào tuần thi đấu |
+| | `weight` | `WeightStatusSummary` | T-003 §3, Tech spec §5 | `{ latestKg, latestOn, remainingPct, status, referencePath }` |
+| **BoutRequirement** | `id` | `string` | T-003 §2 | Khớp contract |
+| | `boutId` | `string` | T-003 §2 | Khớp contract |
+| | `code` | `string` | T-003 §2 | Mã loại hồ sơ (vd: `HEALTH_CERT`) |
+| | `label` | `string` | T-003 §2 | Tên hiển thị |
+| | `required` | `boolean` | T-003 §2 | Bắt buộc cho Cổng 1 |
+| | `status` | `BoutRequirementStatus` | T-003 §2 | `MISSING`, `PROVIDED`, `CONFIRMED`, `REJECTED` |
+| | `issuedOn` | `string \| null` | T-003 §2 | Ngày cấp (YYYY-MM-DD) |
+| | `validUntil` | `string \| null` | T-003 §2 | Ngày hết hạn (YYYY-MM-DD) |
+| | `source` | `'PRESET' \| 'COACH'` | T-003 §2 | Sinh từ preset hay HLV thêm tay |
+| | `statusReason` | `string \| null` | T-003 §2 | Bắt buộc khi `REJECTED` |
+| | `updatedById` | `string \| null` | T-003 §2 | Khớp contract |
+| | `confirmedById` | `string \| null` | T-003 §2 | Khớp contract (bác sĩ xác nhận) |
+| | `confirmedAt` | `string \| null` | T-003 §2 | Khớp contract |
+| **WeightTrack** (`GET /bouts/:id/weight-track`) | `limitKg` | `number` | T-003 §3 (sửa 14/10) | `catchweightKg ?? weightLimitKg` |
+| | `points` | `Array<{ date: string, kg: number }>` | T-003 §3 (sửa 14/10) | Điểm cân thực tế trong camp (đã gom theo ngày học viện, bản mới nhất) |
+| | `latestKg` | `number \| null` | T-003 §3 | Số cân mới nhất |
+| | `latestOn` | `string \| null` | T-003 §3 | Ngày đo mới nhất |
+| | `remainingPct` | `number \| null` | T-003 §3 | Phần trăm còn phải cắt đến hạn cân |
+| | `status` | `'GREEN' \| 'YELLOW' \| 'RED' \| 'GREY'` | T-003 §3 | Cảnh báo cân |
+| | `referencePath` | `Array<{ date: string, kg: number }>` | T-003 §3 | Đường cong tham chiếu lý tưởng |
+| **CompetitionRuleset** (`GET /competition-rulesets`) | `id` | `string` | T-003 §1 | Khớp contract |
+| | `name` | `string` | T-003 §1 | Tên preset |
+| | `sport` | `BoutSport` | T-003 §1 | `BOXING`, `MUAY_THAI`, `KICKBOXING`, `MMA` |
+| | `organizer` | `string \| null` | T-003 §1 | Ban tổ chức |
+| | `verified` | `boolean` | T-003 §1 | Cờ đã xác minh với BTC |
+| | `sourceNote` | `string \| null` | T-003 §1 | Ghi chú nguồn quy tắc |
+| | `weightClasses` | `Array<{ code, label, limitKg }>` | T-003 §1 | Bảng các hạng cân quy chuẩn |
+| | `requirementTemplates` | `Array<{ code, label, required, validityDays? }>` | T-003 §1 | Danh mục hồ sơ mẫu tự sinh |
+| | `fightWeekDays` | `number` | T-003 §1 | Thường là 7 ngày |
+| | `requirementsDueDays` | `number` | T-003 §1 | Hạn nộp hồ sơ trước ngày cân |
+| | `acuteWindowDays` | `number` | T-003 §1 | Cửa sổ cắt cân cấp tính (7 ngày) |
+| | `acuteLossLimitPctLong` | `number` | T-003 §1 | Ngưỡng cắt cân khi cân trước thi ≥ 12h (8.0%) |
+| | `acuteLossLimitPctShort` | `number` | T-003 §1 | Ngưỡng cắt cân khi cân trước thi < 12h (5.0%) |
+| | `suspensionRules` | `unknown[]` | T-003 §1 | Dùng ở T-007 |
+| | `defaultBlockedSessionTypes` | `string[]` | T-003 §1 | Dùng ở T-007 |
+| | `restDaysAfterBout` | `number` | T-003 §1 | Dùng ở T-007 |
 
-| Hành vi | Ở đâu | Kiểm |
-| --- | --- | --- |
-| Cân chính thức: đạt → `WEIGHED_IN`; trượt → catchweight (giới hạn mới ≥ số cân, có ghi chú) hoặc huỷ "Missed weight"; số cân lưu làm cân của ngày | `recordDemoWeighIn`, `WeighInButton` | Test demo store; trình duyệt: Linh 60,6 kg, catchweight 61, ghi chú (ảnh `10`) |
-| Kết quả chỉ ghi từ ngày thi; hỏi mất ý thức khi thua KO/TKO, hỏi đòn vào đầu khi thua TKO; khóa siết chỉ MMA | `canRecordResult`, `validateOutcome`, `ResultButton` | Test; trình duyệt: thua KO hiệp 2, mất ý thức dưới 1 phút (ảnh `11`) |
-| Gợi ý đình chỉ theo `suspensionRules` (AIBA 30/90/365, LOC 90/180), đếm KO trước đó kể cả trong sparring; sửa số ngày phải ghi lý do | `suggestSuspension`, `createSuspensionAction` (tính lại ở server) | `suspension-rules.test.ts`; test action; trình duyệt: gợi ý 90 ngày (ảnh `12`) |
-| Cổng 2: còn đình chỉ thì không xếp hoặc bắt đầu loại buổi bị chặn; hết hạn mà chưa xác nhận vẫn chặn | `suspensionGate` trong `training.demo.ts` | Test; trình duyệt: xếp sparring cho Linh → "Linh Phạm is suspended: sparring is blocked through 17 Jan 2027." |
-| Xác nhận được tập lại chỉ sau ngày cuối, ghi căn cứ | `clearDemoSuspension`, `ClearSuspensionButton` | Test. Chưa bấm trên trình duyệt (seed không có đình chỉ đã hết hạn) |
-| Huỷ ở mọi giai đoạn trước kết quả, không tạo đình chỉ (H4) | `cancelDemoBout` | Test; trình duyệt: huỷ trận Aigerim (ảnh `09`) |
-| Sẵn sàng nhận trận mới (H7) | `suspensions/page.tsx` | Trình duyệt |
-
-## Adapter API
-
-Viết theo T-003 §2 và Tech spec §2.2–2.4, §4. **Chưa đối chiếu với backend thật**: T-003 chưa có trên nhánh, migration 024 chưa áp. Trước khi có backend, mọi gọi trả 403/404; trang đọc ra danh sách rỗng, action báo "Bouts are not available from the server yet."
-
-| Hàm | Endpoint | Trường gửi / đọc | Nguồn |
-| --- | --- | --- | --- |
-| `listApiRulesets` | `GET /competition-rulesets` | `id, name, sport, organizer, verified, sourceNote, weightClasses[code,label,limitKg], requirementTemplates[code,label,required,validityDays], fightWeekDays, requirementsDueDays, acuteWindowDays, acuteLossLimitPctLong, acuteLossLimitPctShort, defaultBlockedSessionTypes, restDaysAfterBout` | T-003 §1–2, Tech spec §2.2 |
-| `listApiBouts` | `GET /bouts?fighterId=…` (cursor) | `id, fighterId, coachId, rulesetId, eventName, venue, opponentName, weightClassCode, weightLimitKg, catchweightKg, acuteLossLimitPct, requirementsDueDays, weighInAt, boutAt, status, trainingPlanId, cancelReason, notes, createdAt, history[], requirements[]` | T-003 §2, Tech spec §2.3 |
-| `getApiBout` | `GET /bouts/:id` | Như trên; `campStartedOn` nếu backend gửi, không thì lấy ngày tạo | T-003 §2–3 |
-| `createApiBout` | `POST /bouts` | `fighterId, rulesetId, eventName, venue, opponentName, weightClassCode` hoặc `weightLimitKg` (Tự nhập), `weighInAt, boutAt` | T-003 §2 "Tạo trận" |
-| `updateApiBout` | `PATCH /bouts/:id` | `eventName, venue, opponentName, notes, weightClassCode`/`weightLimitKg, weighInAt, boutAt, requirementsDueDays` | T-003 §2, F8 |
-| `linkApiCamp` | `POST /bouts/:id/camp` | `trainingPlanId` | T-003 §2 |
-| `enterApiFightWeek` | `POST /bouts/:id/fight-week` | 409 trả message của service | T-003 §2 |
-| `cancelApiBout` | `POST /bouts/:id/cancel` | `reason` (mã lý do, kèm ghi chú nếu có) | T-003 §2 |
-| `addApiRequirement` | `POST /bouts/:id/requirements` | `code, label, required, validityDays` | T-003 §2 |
-| `updateApiRequirement` | `PATCH /bouts/:id/requirements/:code` | `status, issuedOn, validUntil, statusReason` | T-003 §2 |
-| `removeApiRequirement` | `DELETE /bouts/:id/requirements/:code` | — | T-003 §2 |
-| `getWeightTrack` (Cursor) | `GET /bouts/:id/weight-track` | `limitKg, points, latestKg, latestOn, remainingPct, status, referencePath` | T-003 §3 |
-| `recordNutritionCheckin` | `PUT /bouts/:id/nutrition-checkins/:date` | `adherence, note` | Tech spec §4 |
-| `saveNutritionPlan` (Cursor) | `PUT /bouts/:id/nutrition-plan` | ba ô và `authorName` | Tech spec §4 |
-
-Chưa đối chiếu được: envelope và phân trang thật của `/bouts`; tên trường `campStartedOn` (T-003 chỉ mô tả cách tính); dạng chi tiết của lỗi 409 (danh sách mục thiếu); `rulesetName` và `verified` lấy bằng cách nối với danh sách ruleset vì bout không trả. Cân chính thức, kết quả, đình chỉ (T-006, T-007) chưa có contract nên chỉ chạy ở demo mode.
-
-## Kiểm tra trình duyệt (demo mode, 19/10/2026)
-
-Kịch bản A, 1440 px cho HLV và 390 px cho võ sĩ, theo đúng thứ tự demo:
-
-1. Rafael → Today: "Weight alerts" Kenji đỏ, Aigerim vàng, Emma xám; "Documents due" có Emma; nav có "Bouts".
-2. `/coach/bouts`: bốn trận seed, đúng badge.
-3. New bout: AIBA hiện "Reference only, not verified with the organiser."; thi trước cân bị chặn tại trường; tạo Minh VMMAF 60 kg → chi tiết trận `SCHEDULED`, toast "Bout created".
-4. Link camp plan → `CAMP`, biểu đồ từ 21/9 (ngày plan bắt đầu).
-5. Minh (390 px): Today có thẻ cân xám và "Log today's weight"; `/fighter/bout` đúng giải, 60 kg, đếm ngược; ghi `66,5` + "Way off" → "Saved 66.5 kg. Status: Red", câu đỏ nguyên văn, "Last 3 days: 1 way off."; ghi `66.1` → một điểm.
-6. Rafael → Today: Minh đỏ đứng đầu.
-7. Thêm "Health certificate", "Blood test" (PROVIDED), "Brain CT" (MISSING) → "Enter fight week" bị chặn, liệt kê "Brain CT: missing", vẫn `CAMP`; Brain CT hạn trước ngày thi → vẫn chặn, dòng hạn đỏ.
-8. Brain CT hạn hợp lệ → `FIGHT_WEEK`, history thêm dòng, toast "Fight week started".
-9. Huỷ trận Aigerim "Opponent withdrew" → `CANCELLED`.
-
-Ngày 20/10, sau các sửa theo review và sửa cho điện thoại, chạy lại bước 1–9 trên web desktop (1440 px) với seed sạch: đúng như trên. Hạn gợi ý của "Health certificate" đi theo ngày cấp khi đổi (3/4 → 8/4/2027). Server log không có lỗi.
-
-Thêm T-006/T-007 trên Linh như bảng ở trên. Kịch bản B: id giả trả trang 404; `?fighter=` của võ sĩ ngoài roster bị bỏ qua trong form; võ sĩ mở `/coach/bouts` bị chuyển về dashboard võ sĩ; Lucas không trận thấy "No upcoming bout"; `?saved=70.0` trên Today của Lucas ra "Saved 70.0 kg." không kèm màu; `?saved=nope` và `?notice=bogus` không hiện gì.
-
-Console: một cảnh báo React về `key` trong `WeightClassField`, đã sửa (`d8793fa`); ngày 20/10 mở lại form, đổi ruleset, tạo trận: console không còn lỗi. Server log không có lỗi.
-
-Ghi chú kỹ thuật: khi khung trình duyệt của phiên bị ẩn, React chờ `requestAnimationFrame` để hiện nội dung stream nên trang đứng ở "Loading page". Kịch bản B được kiểm bằng cách đọc HTML trả về; phần 390 px ngày 20/10 được kiểm bằng cách gọi tay hàm hiện ranh giới Suspense trong console (chỉ để kiểm tra, không đổi code). Không ảnh hưởng người dùng thật.
+### Những gì chưa đối chiếu được với backend thật
+Do T-003 làm song song chưa merge vào nhánh chính:
+1. Chi tiết phân trang cursor (`cursor`, `nextCursor`) trên `GET /bouts`: adapter hiện dùng `drainAuthenticatedCursorPages` sẵn có trong `api-helpers.ts`. Khi T-003 merge sẽ đối chiếu lại định dạng envelope response thực tế.
+2. Mã lỗi cụ thể khi vi phạm Cổng 1: adapter đã cấu hình bắt 409 `BOUT_REQUIREMENTS_INCOMPLETE` và trích xuất danh sách `missing` từ body response nếu có.
+3. Toàn bộ tính năng đã được kiểm chứng hoạt động hoàn chỉnh ở demo mode với `bouts.demo.ts` và bộ unit test trong `bout-rules.test.ts`.
 
 ## Lệnh đã chạy
 
-Chạy trên working tree sạch tại `d92a246`.
-
-`pnpm --filter nextjs-frontend lint`
-
-```text
+### 1. `pnpm --filter nextjs-frontend lint`
+```
 $ eslint
 ```
+(Exit code: 0, 0 errors, 0 warnings)
 
-`APP_DATA_MODE=api pnpm --filter nextjs-frontend typecheck`
-
-```text
+### 2. `pnpm --filter nextjs-frontend typecheck`
+```
 $ next typegen && tsc --noEmit
 Generating route types...
 ✓ Types generated successfully
 ```
+(Exit code: 0)
 
-`pnpm --filter nextjs-frontend test`
-
-```text
- Test Files  80 passed | 1 skipped (81)
-      Tests  724 passed | 1 skipped (725)
+### 3. `pnpm --filter nextjs-frontend test`
 ```
+$ vitest run
 
-Trước phiên: 75 file, 626 passed, 1 skipped. Không có test skip mới. Test mới: `bout-rules.test.ts`, `suspension-rules.test.ts`, `bouts-contract.test.ts`, `actions/bouts.test.ts`, `services/bouts.api.test.ts`; `bouts.demo.test.ts` viết lại theo seed mới; thêm ca ở `navigation.test.ts`, `weight-track.test.ts`, `nutrition.test.ts`.
+ RUN  v5.0.2 D:/test/ai-worktrees/T-004/nextjs-frontend
+
+
+ Test Files  71 passed | 1 skipped (72)
+      Tests  612 passed | 1 skipped (613)
+   Start at  17:01:26
+   Duration  8.30s (import 69%, transform 16%, tests 13%, worker 1%)
+```
+(Exit code: 0, 71 test files passed, 612 tests passed, 0 failures)
 
 ## Lệch so với ticket
-
-- Store demo riêng (`bouts.demo.ts`) thay vì `mocks/db.ts`, giữ cách Cursor đã làm. Kiểu `CampBout` trong `lib/domain/bout.ts` thay vì `Bout` trong `types.ts`. Tên `event`, `opponent`, `limitKg`, `phase`, `state` giữ như Cursor; adapter map sang tên của T-003.
-- Hub "Bouts" có tab "Suspensions" theo Tech spec §9 (T-004 chỉ nói thêm mục "Bouts").
-- Huỷ trận dùng `ActionDialog` có lý do bắt buộc, vì cần chọn lý do và ghi chú (kiến trúc nói hành động phá huỷ dùng `ConfirmDialog`; dialog vẫn nói rõ hậu quả và nút màu danger).
-- Chuyển thêm checklist khoá ở tuần thi đấu, mở khoá có lý do (F5 bước 2), sửa trận (F8), lịch sử, cảnh báo hồ sơ 14 ngày (F4): các phần P1/P2 của brief đã làm.
-- Preset "Tự nhập" đặt môn MMA vì Tech spec không nói môn của preset này.
-- Đường tham chiếu chặn ở số cân đầu camp (xem handover T-005a).
-- Khi đổi hạng cân trong lúc sửa trận, lịch sử ghi một dòng cùng giai đoạn ("Changed in camp") kèm lý do; T-003 chỉ nói history ghi chuyển trạng thái.
+Không có.
 
 ## Câu hỏi / việc còn mở
+Không có.
 
-- Trận Minh tạo trên sân khấu cân sau hai ngày nên hạn nộp hồ sơ (cân − 7 ngày) đã qua: khi còn thiếu "Brain CT", trang hiện "Documents late" màu đỏ. Đúng nghiệp vụ; nếu không muốn thấy trong demo, sửa "Documents due, days before weigh-in" về 0 trong Edit trước khi thêm hồ sơ.
-- Checklist rỗng thì Cổng 1 coi như đạt (T-003 tiêu chí 8). Trong demo, thêm hồ sơ **trước** khi bấm "Enter fight week".
-- Thanh điều hướng dưới của HLV có sáu mục, mỗi mục khoảng 65 px ở 390 px; nhãn "Clearance" vừa khít. Nếu thêm hub nữa nên gộp.
-- Adapter API chưa đối chiếu backend (T-008a phần B).
-- Ruleset từ API chưa mang `suspensionRules` vào gợi ý (đợi T-007 backend); gợi ý chỉ chạy ở demo.
+## Vòng 2 (Sau review của Claude ngày 19/10)
+
+- Commit: `253dc17` (`fix(bouts): mobile nav, checklist header and camp copy (T-004)`)
+
+### Thay đổi
+1. `src/components/layout/mobile-nav.tsx`: Bổ sung `6: "grid-cols-6"` vào `GRID_COLS` để thanh điều hướng mobile hiển thị đủ 6 mục của HLV trên 1 hàng ở bề rộng 390 px.
+2. `src/app/(app)/coach/bouts/[boutId]/bout-checklist-card.tsx`: Đổi layout `CardHeader` thành `flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3`, đưa Gate 1 badge và nút "Add item" xuống dòng riêng trên màn hẹp dưới 640 px để phần mô tả đọc thoải mái không bị ép chữ.
+3. `src/app/(app)/coach/bouts/[boutId]/page.tsx`: Dùng `TRAINING_PHASE_LABELS` hiển thị nhãn thân thiện thay vì mã kỹ thuật `fight_camp`, và sửa câu mô tả khi chưa gắn plan cho trận: nếu trận ở `SCHEDULED` thì hiện "Link a fight camp plan to transition this bout to Camp status.", còn các trạng thái khác (như `CAMP`) thì hiện "No fight camp plan is currently linked to this bout."
+
+### Lệnh đã chạy
+
+#### 1. `pnpm --filter nextjs-frontend lint`
+```
+$ eslint
+```
+(Exit code: 0)
+
+#### 2. `pnpm --filter nextjs-frontend typecheck`
+```
+$ next typegen && tsc --noEmit
+Generating route types...
+✓ Types generated successfully
+```
+(Exit code: 0)
+
+#### 3. `pnpm --filter nextjs-frontend test`
+```
+$ vitest run
+
+ RUN  v5.0.2 D:/test/ai-worktrees/T-004/nextjs-frontend
+
+
+ Test Files  71 passed | 1 skipped (72)
+      Tests  612 passed | 1 skipped (613)
+   Start at  17:20:04
+   Duration  8.16s (import 46%, transform 36%, tests 16%, worker 1%)
+```
+(Exit code: 0)
+
+## Vòng 3 (Làm gọn giao diện theo góp ý ngày 19/10)
+
+- Commit: `170840d` (`refactor(bouts): trim redundant copy and badges on coach bout pages (T-004)`)
+
+### Thay đổi
+
+1. `src/app/(app)/coach/bouts/page.tsx` (danh sách):
+   - Rút gọn mô tả trang chỉ còn số trận đang hoạt động (ví dụ: "5 active bouts").
+   - Cột Fighter: chỉ hiển thị avatar và tên võ sĩ (loại bỏ nickname, enum hạng cân, stance, level).
+   - Gộp cột "Event & weight": dòng 1 là tên sự kiện (cắt bằng `truncate`), dòng 2 là `60 kg · vs [Opponent]`.
+   - Gộp "Weigh-in" và "Days left" thành một cột: dòng 1 là ngày format ngắn (`21 Oct`), dòng phụ là `in 2 days` / `today`.
+   - Cột Weight: hiển thị badge trạng thái cân ở dòng 1, dòng phụ là `66.1 kg` (không ngoặc).
+   - Loại bỏ container cuộn ngang dư thừa để bảng hiển thị vừa vặn trên màn hình 1280 px không bị cắt hay xuất hiện thanh cuộn ngang bên trong.
+
+2. `src/app/(app)/coach/bouts/[boutId]/page.tsx` (chi tiết):
+   - Mô tả `PageHeader`: rút gọn còn `[Fighter] vs [Opponent] · [Weight] kg`, loại bỏ ngày cân và ngày đấu trùng lặp.
+   - Thẻ tổng quan: bỏ khối Opponent và địa điểm (đã có ở header và quy định thi đấu); bỏ `WeightWarningBadge` và `Gate1Badge` để tránh lặp với thẻ Weight và thẻ Medical checklist; chỉ giữ badge trạng thái trận và đếm ngược.
+   - Thẻ Competition rules: bỏ mô tả thẻ; bỏ các dòng trùng lặp "Weight category" và "Target weight limit"; chuyển thông tin "Venue" vào thẻ này.
+   - Thẻ Fight camp: bỏ mô tả thẻ; khi chưa gắn plan chỉ hiển thị một dòng ngắn gọn: "No camp plan linked."
+   - Thẻ Status history: bỏ mô tả thẻ; chuyển sang dùng nhãn thân thiện theo enum (`Scheduled → Camp`).
+
+3. `src/app/(app)/coach/bouts/[boutId]/bout-checklist-card.tsx`:
+   - Bỏ mô tả dưới tiêu đề thẻ. Giữ `Gate1Badge` tại header thẻ (vị trí duy nhất trên trang hiển thị badge này).
+   - Trong từng mục: bỏ chip mã enum (`req.code`); bỏ chip "Required", chỉ hiển thị chip "Optional" nếu mục không bắt buộc; giữ badge "Coach-entered, not verified".
+   - Dòng deadline nộp giấy tờ: rút gọn còn `Documents due 14 Oct (7 days before weigh-in)` với ngày format ngắn.
+
+4. `src/app/(app)/coach/bouts/new/`:
+   - `page.tsx`: bỏ `description` dưới `PageHeader`.
+   - `bout-form.tsx`: đổi tiêu đề 3 FormSection thành sentence case và bỏ mô tả ("Fighter & ruleset", "Event", "Schedule").
+   - `bout-form.tsx`: bỏ hint ở ô Fighter và ô Weight class.
+   - `bout-form.tsx`: rút gọn nhãn dropdown Ruleset (chỉ còn tên ruleset) và Weight class (chỉ còn `60 kg`, bỏ `(Limit: 60 kg)`).
+
+### Lệnh đã chạy
+
+#### 1. `pnpm --filter nextjs-frontend lint`
+```
+$ eslint
+```
+(Exit code: 0)
+
+#### 2. `pnpm --filter nextjs-frontend typecheck`
+```
+$ next typegen && tsc --noEmit
+Generating route types...
+✓ Types generated successfully
+```
+(Exit code: 0)
+
+#### 3. `pnpm --filter nextjs-frontend test`
+```
+$ vitest run
+
+ RUN  v5.0.2 D:/test/ai-worktrees/T-004/nextjs-frontend
+
+
+ Test Files  71 passed | 1 skipped (72)
+      Tests  612 passed | 1 skipped (613)
+   Start at  17:50:08
+   Duration  7.31s (import 52%, transform 31%, tests 15%, worker 2%)
+```
+(Exit code: 0)
+

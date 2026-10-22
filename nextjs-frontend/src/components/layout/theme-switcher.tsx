@@ -5,12 +5,14 @@ import { useId, useSyncExternalStore, useTransition } from "react";
 
 import { setThemePreference } from "@/lib/actions/auth";
 import { parseTheme, type ThemePreference } from "@/lib/auth/constants";
+import { useT } from "@/components/i18n/locale-provider";
+import type { MessageKey } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 
-export const THEME_OPTIONS: { value: ThemePreference; label: string; icon: LucideIcon }[] = [
-    { value: "light", label: "Light", icon: Sun },
-    { value: "dark", label: "Dark", icon: Moon },
-    { value: "system", label: "System", icon: Monitor },
+export const THEME_OPTIONS: { value: ThemePreference; label: MessageKey; icon: LucideIcon }[] = [
+    { value: "light", label: "theme.light", icon: Sun },
+    { value: "dark", label: "theme.dark", icon: Moon },
+    { value: "system", label: "theme.system", icon: Monitor },
 ];
 
 function subscribeToTheme(onChange: () => void) {
@@ -45,10 +47,11 @@ export function useThemePreference(initial: ThemePreference): [ThemePreference, 
 export function ThemeSwitcher({ initial, className }: { initial: ThemePreference; className?: string }) {
     const [theme, choose] = useThemePreference(initial);
     const name = useId();
+    const t = useT();
 
     return (
         <fieldset className={cn("grid grid-cols-3 gap-1 rounded-lg bg-surface-muted p-1", className)}>
-            <legend className="sr-only">Theme</legend>
+            <legend className="sr-only">{t("theme.legend")}</legend>
             {THEME_OPTIONS.map(({ value, label, icon: Icon }) => {
                 const selected = theme === value;
                 return (
@@ -62,7 +65,7 @@ export function ThemeSwitcher({ initial, className }: { initial: ThemePreference
                     >
                         <input type="radio" name={name} value={value} checked={selected} onChange={() => choose(value)} className="sr-only" />
                         <Icon aria-hidden className="size-3.5" />
-                        {label}
+                        {t(label)}
                     </label>
                 );
             })}

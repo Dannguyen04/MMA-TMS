@@ -2,8 +2,8 @@ import { CalendarPlus, ClipboardPlus } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { buildCoachAttention, COACH_QUEUE_META, COACH_QUEUES, type CoachQueue } from "@/components/dashboard/coach-attention";
-import { greetingTitle } from "@/components/dashboard/dashboard-utils";
+import { buildCoachAttention, coachQueueMeta, COACH_QUEUES, type CoachQueue } from "@/components/dashboard/coach-attention";
+import { firstName, greetingKey } from "@/components/dashboard/dashboard-utils";
 import { QueueCard } from "@/components/dashboard/queue-card";
 import { loadRoster } from "@/components/dashboard/roster-data";
 import { TodaySchedule } from "@/components/dashboard/today-schedule";
@@ -15,8 +15,10 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { accessibleFighterIds } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
-import { academyDayStartIso, addDaysToKey, DAY_MS, dayKey, formatShortDate, formatWeekdayDate, pluralize } from "@/lib/format";
+import { academyDayStartIso, addDaysToKey, DAY_MS, dayKey, formatShortDate, formatWeekdayDate } from "@/lib/format";
 import { hrefWith, parseEnum } from "@/lib/query";
+import { getTranslator } from "@/lib/i18n/server";
+import { plural } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import { requirementsDueOn, requirementsDueSoon, requirementsOverdue } from "@/lib/domain/bout-rules";
 import { adherenceAlertLine } from "@/lib/domain/nutrition";
@@ -30,7 +32,10 @@ import { listPlans, listSessions } from "@/lib/services/training";
 import { listReviewQueue } from "@/lib/services/videos";
 import { param } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Today" };
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return { title: t("nav.Today") };
+}
 
 const MISSED_WINDOW_DAYS = 7;
 
@@ -41,7 +46,7 @@ const MISSED_WINDOW_DAYS = 7;
  */
 export default async function CoachDashboardPage({ searchParams }: PageProps<"/coach/dashboard">) {
     const user = await requireRole("coach");
-    const query = await searchParams;
+    const [query, { t, locale }] = await Promise.all([searchParams, getTranslator()]);
     const now = new Date().toISOString();
     const scope = accessibleFighterIds(user);
 
@@ -86,6 +91,8 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
         plans,
         warningDays: settings.clearanceExpiryWarningDays,
         now,
+        t,
+        locale,
     });
     // Admissions are frozen (T-001, context 19/10): coaches no longer assess applicants, so that group stays out.
     const queues = COACH_QUEUES.filter((queue) => queue !== "applicants" && (queue !== "goals" || goalsAtRisk !== null));
@@ -98,18 +105,21 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
     return (
         <>
             <PageHeader
-                eyebrow={formatWeekdayDate(now)}
-                title={greetingTitle(now, user)}
-                description={`${pluralize(fighters.length, "fighter")} in your corner · ${pluralize(todayActive.length, "session")} today`}
+                eyebrow={formatWeekdayDate(now, locale)}
+                title={t("greeting.named", { greeting: t(greetingKey(now)), name: firstName(user.name) })}
+                description={t("coachToday.description", {
+                    fighters: plural(t, "coachToday.fighters", fighters.length),
+                    sessions: plural(t, "coachToday.sessions", todayActive.length),
+                })}
                 actions={
                     <>
                         <ButtonLink href={routes.coach.newPlan} variant="secondary">
                             <ClipboardPlus aria-hidden />
-                            New training plan
+                            {t("coachToday.newPlan")}
                         </ButtonLink>
                         <ButtonLink href={routes.coach.newSession}>
                             <CalendarPlus aria-hidden />
-                            Schedule session
+                            {t("coachToday.scheduleSession")}
                         </ButtonLink>
                     </>
                 }
@@ -172,21 +182,21 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
 
             <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                 <QueueCard
-                    title="Corner queue"
-                    filterLabel="Filter the corner queue"
+                    title={t("coachToday.queueTitle")}
+                    filterLabel={t("coachToday.queueFilter")}
                     items={attention}
                     queues={queues}
-                    meta={COACH_QUEUE_META}
+                    meta={coachQueueMeta(t)}
                     active={queue}
                     hrefFor={(next: CoachQueue | null) => hrefWith(routes.coach.dashboard, query, { queue: next })}
-                    emptyAll={{
-                        title: "Nothing needs your attention",
-                        description: "No clearance problems or session clashes, every cleared fighter has a plan, and no analyses are waiting for you.",
-                    }}
+                    emptyAll={{ title: t("coachToday.emptyTitle"), description: t("coachToday.emptyText") }}
+                    t={t}
                     className="lg:col-span-2"
                 />
 
-                <TodaySchedule sessions={todaySessions} fighters={scheduleFighters} />
+                <div className="flex min-w-0 flex-col gap-6">
+                    <TodaySchedule sessions={todaySessions} fighters={scheduleFighters} t={t} locale={locale} />
+                </div>
             </div>
         </>
     );
