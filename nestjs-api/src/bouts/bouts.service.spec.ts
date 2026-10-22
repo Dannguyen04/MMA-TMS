@@ -1395,9 +1395,45 @@ describe('BoutsService', () => {
       expect((err2 as HttpException).getStatus()).toBe(409);
       expect(((err2 as HttpException).getResponse() as { code: string }).code).toBe('BOUT_STATE_CONFLICT');
     });
+
+    it('a lost race fails inside the transaction so the WEIGH_IN measurement rolls back', async () => {
+      repo.updateBout.mockResolvedValueOnce(undefined);
+      const transaction = vi.spyOn(repo, 'transaction');
+
+      await expectHttp(
+        service.recordWeighIn(coachActor, BOUT_ID, { weightKg: 59.5 }, REQUEST_ID),
+        409,
+        'BOUT_STATE_CONFLICT',
+      );
+
+      expect(repo.insertFighterMeasurement).toHaveBeenCalledTimes(1);
+      await expect(transaction.mock.results[0]?.value).rejects.toBeInstanceOf(HttpException);
+    });
   });
 
   describe('recordCatchweight (criterion 7)', () => {
+    it('accepts a catchweight when only the hydration check failed (official weight below the limit)', async () => {
+      repo.findBoutById.mockResolvedValue(
+        makeBout({
+          status: 'FIGHT_WEEK',
+          weightLimitKg: '60.00',
+          officialWeightKg: '59.80',
+          madeWeight: true,
+          hydrationCheck: 'FAILED',
+        }),
+      );
+
+      const res = await service.recordCatchweight(coachActor, BOUT_ID, {}, REQUEST_ID);
+
+      expect(repo.updateBout).toHaveBeenCalledWith(
+        BOUT_ID,
+        expect.objectContaining({ catchweightKg: '59.80', status: 'WEIGHED_IN' }),
+        expect.anything(),
+        expect.anything(),
+      );
+      expect(res.status).toBe('WEIGHED_IN');
+    });
+
     beforeEach(() => {
       repo.findBoutById.mockResolvedValue(
         makeBout({

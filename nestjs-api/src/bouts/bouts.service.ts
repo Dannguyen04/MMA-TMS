@@ -443,12 +443,13 @@ export class BoutsService {
             action: 'REQUIREMENT_UNLOCK',
             requirementCode: input.code,
           };
-          await this.repo.updateBout(
+          const unlocked = await this.repo.updateBout(
             bout.id,
             {},
             { expectedStatus: bout.status, historyEntry },
             tx,
           );
+          if (!unlocked) throw boutStateConflict();
         }
         return this.repo.insertRequirements(
           [
@@ -529,12 +530,13 @@ export class BoutsService {
             action: 'REQUIREMENT_UNLOCK',
             requirementCode: code,
           };
-          await this.repo.updateBout(
+          const unlocked = await this.repo.updateBout(
             bout.id,
             {},
             { expectedStatus: bout.status, historyEntry },
             tx,
           );
+          if (!unlocked) throw boutStateConflict();
         }
         return this.repo.updateRequirement(
           bout.id,
@@ -588,12 +590,13 @@ export class BoutsService {
             action: 'REQUIREMENT_UNLOCK',
             requirementCode: code,
           };
-          await this.repo.updateBout(
+          const unlocked = await this.repo.updateBout(
             bout.id,
             {},
             { expectedStatus: bout.status, historyEntry },
             tx,
           );
+          if (!unlocked) throw boutStateConflict();
         }
         return this.repo.deleteRequirement(bout.id, code, tx);
       });
@@ -696,31 +699,27 @@ export class BoutsService {
           hydrationCheck,
         };
 
+        let historyEntry: BoutHistoryEntry | undefined;
         if (isPassed) {
           changes.status = 'WEIGHED_IN';
-          const historyEntry: BoutHistoryEntry = {
+          historyEntry = {
             at: now.toISOString(),
             by: actor.id,
             from: 'FIGHT_WEEK',
             to: 'WEIGHED_IN',
           };
-          return this.repo.updateBout(
-            bout.id,
-            changes,
-            { expectedStatus: 'FIGHT_WEEK', historyEntry },
-            tx,
-          );
-        } else {
-          return this.repo.updateBout(
-            bout.id,
-            changes,
-            { expectedStatus: 'FIGHT_WEEK' },
-            tx,
-          );
         }
+        const row = await this.repo.updateBout(
+          bout.id,
+          changes,
+          { expectedStatus: 'FIGHT_WEEK', ...(historyEntry ? { historyEntry } : {}) },
+          tx,
+        );
+        // Throw inside the transaction so a lost race rolls back the measurement insert.
+        if (!row) throw boutStateConflict();
+        return row;
       });
 
-      if (!updated) throw boutStateConflict();
       const detail = await this.buildDetail(updated, ruleset);
       return {
         ...detail,
@@ -752,10 +751,11 @@ export class BoutsService {
     }
 
     const officialWeight = Number(bout.officialWeightKg);
-    const weightLimit = Number(bout.weightLimitKg);
     const targetKg = input.catchweightKg ?? officialWeight;
 
-    if (targetKg < officialWeight || targetKg <= weightLimit) {
+    // An over-limit official weight already exceeds `weight_limit_kg`, so `>= officialWeight`
+    // is enough; a hydration-only failure has an official weight below the limit.
+    if (targetKg < officialWeight) {
       throw boutInvalidCatchweight();
     }
 
