@@ -482,18 +482,33 @@ export class BoutsRepository {
 
   // --- Weight measurements ---------------------------------------------------
 
+  async insertFighterMeasurement(
+    values: {
+      fighterId: string;
+      recordedById: string;
+      measuredAt: Date;
+      measurementContext: 'WEIGH_IN';
+      weightKg: string;
+      notes?: string | null;
+    },
+    database: DatabaseExecutor = this.db,
+  ): Promise<void> {
+    await database.insert(fighterMeasurements).values(values);
+  }
+
   /** Non-superseded measurements of a fighter within `[from, to]`, oldest first. */
   async findWeightMeasurements(
     fighterId: string,
     from: Date,
     to: Date,
     database: DatabaseExecutor = this.db,
-  ): Promise<WeightMeasurementInput[]> {
+  ): Promise<(WeightMeasurementInput & { measurementContext: string })[]> {
     const rows = await database
       .select({
         measuredAt: fighterMeasurements.measuredAt,
         createdAt: fighterMeasurements.createdAt,
         weightKg: fighterMeasurements.weightKg,
+        measurementContext: fighterMeasurements.measurementContext,
       })
       .from(fighterMeasurements)
       .where(
@@ -512,6 +527,7 @@ export class BoutsRepository {
       measuredAt: row.measuredAt,
       createdAt: row.createdAt,
       weightKg: Number(row.weightKg),
+      measurementContext: row.measurementContext,
     }));
   }
 }
