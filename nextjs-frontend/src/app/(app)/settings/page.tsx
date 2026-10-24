@@ -12,40 +12,44 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { THEME_COOKIE, parseTheme } from "@/lib/auth/constants";
 import { requireUser } from "@/lib/auth/session";
+import { getTranslator } from "@/lib/i18n/server";
 import { routes } from "@/lib/routes";
 
-export const metadata: Metadata = { title: "Preferences" };
-
-const SECTIONS = [
-    { id: "appearance", label: "Appearance", icon: Palette },
-    { id: "notifications", label: "Notifications", icon: Bell },
-    { id: "regional", label: "Language & region", icon: Globe },
-    { id: "accessibility", label: "Accessibility", icon: Accessibility },
-] as const;
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return { title: t("account.preferences.title") };
+}
 
 export default async function SettingsPage() {
-    const user = await requireUser();
+    const [user, { t, locale }] = await Promise.all([requireUser(), getTranslator()]);
     const now = new Date().toISOString();
     const store = await cookies();
     const theme = parseTheme(store.get(THEME_COOKIE)?.value);
     const categories = preferenceCategories(user.role);
 
+    const sections = [
+        { id: "appearance", label: t("account.preferences.nav.appearance"), icon: Palette },
+        { id: "notifications", label: t("account.preferences.nav.notifications"), icon: Bell },
+        { id: "regional", label: t("account.preferences.nav.regional"), icon: Globe },
+        { id: "accessibility", label: t("account.preferences.nav.accessibility"), icon: Accessibility },
+    ] as const;
+
     return (
         <>
             <PageHeader
-                title="Preferences"
-                description="Choose how MMA-TMS looks, what it tells you about, and how dates and times read."
+                title={t("account.preferences.title")}
+                description={t("account.preferences.description")}
                 actions={
                     <ButtonLink href={routes.profile} variant="secondary">
                         <UserRound aria-hidden />
-                        Profile
+                        {t("account.preferences.profileButton")}
                     </ButtonLink>
                 }
             />
             <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[13rem_minmax(0,1fr)]">
-                <nav aria-label="Preference sections" className="hidden lg:sticky lg:top-20 lg:block">
+                <nav aria-label={t("account.preferences.sectionsNav")} className="hidden lg:sticky lg:top-20 lg:block">
                     <ul className="flex flex-col gap-0.5">
-                        {SECTIONS.map(({ id, label, icon: Icon }) => (
+                        {sections.map(({ id, label, icon: Icon }) => (
                             <li key={id}>
                                 <a
                                     href={`#${id}`}
@@ -61,7 +65,7 @@ export default async function SettingsPage() {
 
                 <div className="flex min-w-0 max-w-4xl flex-col gap-6">
                     <Card id="appearance" className="scroll-mt-20">
-                        <CardHeader title="Appearance" icon={<Palette />} description="Light, dark, or match your device." />
+                        <CardHeader title={t("account.appearance.title")} icon={<Palette />} description={t("account.appearance.description")} />
                         <CardContent>
                             <AppearanceSettings initial={theme} />
                         </CardContent>
@@ -69,9 +73,9 @@ export default async function SettingsPage() {
 
                     <Card id="notifications" className="scroll-mt-20 overflow-hidden">
                         <CardHeader
-                            title="Notifications"
+                            title={t("account.notifications.title")}
                             icon={<Bell />}
-                            description="Choose which updates alert you in the app and which also arrive by email."
+                            description={t("account.notifications.description")}
                         />
                         <div className="border-t border-border">
                             <NotificationPreferences userId={user.id} role={user.role} email={user.email} categories={categories} />
@@ -79,14 +83,14 @@ export default async function SettingsPage() {
                     </Card>
 
                     <Card id="regional" className="scroll-mt-20">
-                        <CardHeader title="Language & region" icon={<Globe />} description="Dates and times always use academy time." />
+                        <CardHeader title={t("account.regional.title")} icon={<Globe />} description={t("account.regional.description")} />
                         <CardContent>
-                            <RegionalSettings now={now} />
+                            <RegionalSettings now={now} locale={locale} />
                         </CardContent>
                     </Card>
 
                     <Card id="accessibility" className="scroll-mt-20">
-                        <CardHeader title="Accessibility" icon={<Accessibility />} description="Motion and keyboard support." />
+                        <CardHeader title={t("account.a11y.title")} icon={<Accessibility />} description={t("account.a11y.description")} />
                         <CardContent>
                             <AccessibilitySettings />
                         </CardContent>

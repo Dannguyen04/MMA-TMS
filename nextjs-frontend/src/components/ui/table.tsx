@@ -1,3 +1,5 @@
+import { createDemoCopy } from "@/lib/i18n/demo-copy";
+import type { Locale } from "@/lib/i18n/config";
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import type { ComponentProps } from "react";
@@ -79,6 +81,7 @@ export function SortableTH({ label, sortKey, pathname, searchParams, activeSort,
 }
 
 export interface PaginationProps {
+    locale?: Locale;
     page: number;
     pageCount: number;
     total: number;
@@ -88,7 +91,8 @@ export interface PaginationProps {
     itemLabel?: string;
 }
 
-export function Pagination({ page, pageCount, total, pageSize, pathname, searchParams, itemLabel = "results" }: PaginationProps) {
+export function Pagination({ page, pageCount, total, pageSize, pathname, searchParams, itemLabel = "results", locale = "en" }: PaginationProps) {
+    const copy = createDemoCopy(locale);
     if (total === 0) return null;
     const from = (page - 1) * pageSize + 1;
     const to = Math.min(total, page * pageSize);
@@ -97,12 +101,12 @@ export function Pagination({ page, pageCount, total, pageSize, pathname, searchP
     const disabledClass = "pointer-events-none opacity-40";
 
     return (
-        <nav aria-label="Pagination" className="flex items-center justify-between gap-3 border-t border-border px-5 py-3">
+        <nav aria-label={copy("Pagination")} className="flex items-center justify-between gap-3 border-t border-border px-5 py-3">
             <p role="status" aria-live="polite" aria-atomic="true" className="text-[13px] text-fg-muted">
                 <span className="font-medium text-fg">
                     {formatNumber(from)}–{formatNumber(to)}
                 </span>{" "}
-                of {formatNumber(total)} {itemLabel}
+                {copy("of")} {formatNumber(total)} {itemLabel}
             </p>
             {pageCount > 1 && (
                 <div className="flex items-center gap-2">
@@ -114,7 +118,7 @@ export function Pagination({ page, pageCount, total, pageSize, pathname, searchP
                         scroll={false}
                     >
                         <ChevronLeft aria-hidden className="size-4" />
-                        <span className="max-sm:sr-only">Previous</span>
+                        <span className="max-sm:sr-only">{copy("Previous")}</span>
                     </Link>
                     <span className="text-[13px] text-fg-muted tabular-nums">
                         {page} / {pageCount}
@@ -126,7 +130,7 @@ export function Pagination({ page, pageCount, total, pageSize, pathname, searchP
                         className={cn(linkClass, page >= pageCount && disabledClass)}
                         scroll={false}
                     >
-                        <span className="max-sm:sr-only">Next</span>
+                        <span className="max-sm:sr-only">{copy("Next")}</span>
                         <ChevronRight aria-hidden className="size-4" />
                     </Link>
                 </div>

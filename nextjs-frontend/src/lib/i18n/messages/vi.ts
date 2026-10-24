@@ -1,15 +1,21 @@
+import { viDemoFlow } from "./demo-flow.vi";
+import { viAccount } from "./account.vi";
 import { viAuth } from "./auth.vi";
 import { viCoachBouts } from "./coach-bouts.vi";
 import { viCoachToday } from "./coach-today.vi";
 import { viFighterToday } from "./fighter-today.vi";
+import { viLanding } from "./landing.vi";
 import type { en } from "./en";
 
 /** Vietnamese interface text. Must define every key of `en` (enforced by the type below). */
 export const vi = {
+    ...viDemoFlow,
+    ...viAccount,
     ...viAuth,
     ...viCoachBouts,
     ...viCoachToday,
     ...viFighterToday,
+    ...viLanding,
     "nav.Today": "Hôm nay",
     "nav.Bout": "Trận đấu",
     "nav.Bouts": "Trận đấu",
@@ -69,7 +75,7 @@ export const vi = {
     "role.admin": "Quản trị viên",
 
     "boutStatus.SCHEDULED": "Đã lên lịch",
-    "boutStatus.CAMP": "Đang tập camp",
+    "boutStatus.CAMP": "Đang chuẩn bị thi đấu",
     "boutStatus.FIGHT_WEEK": "Tuần thi đấu",
     "boutStatus.WEIGHED_IN": "Đã cân",
     "boutStatus.COMPLETED": "Đã thi đấu",
@@ -96,6 +102,7 @@ export const vi = {
     "bout.weighInDone": "Đã qua buổi cân",
     "bout.detailsTitle": "Thông tin trận",
     "bout.weighIn": "Giờ cân",
+    "bout.loading": "Đang tải trận đấu của bạn",
     "bout.boutTime": "Giờ thi đấu",
     "bout.venue": "Địa điểm",
     "bout.noneTitle": "Chưa có trận sắp tới",
@@ -163,9 +170,14 @@ export const vi = {
     "weighIn.error.notFighter": "Chỉ võ sĩ mới tự ghi cân được.",
     "weighIn.error.forbidden": "Tài khoản của bạn chưa được phép ghi cân. Tạm thời nhờ HLV ghi giúp.",
     "weighIn.error.noProfile": "Không tìm thấy hồ sơ võ sĩ của bạn.",
+    "weighIn.loading": "Đang tải lượt cân",
 
     "form.fixFields": "Vui lòng sửa các ô được đánh dấu.",
+    "validation.maxChars": "Không nhập {label} quá {max} ký tự.",
     "common.cancel": "Huỷ",
     "common.closeDialog": "Đóng hộp thoại",
     "common.dismissNotification": "Ẩn thông báo",
+    "error.global.title": "MMA-TMS tạm thời không khả dụng",
+    "error.global.description": "Đã xảy ra lỗi ngoài dự kiến khiến ứng dụng không thể tải. Vui lòng thử lại.",
+    "error.global.retry": "Thử lại",
 } satisfies Record<keyof typeof en, string>;

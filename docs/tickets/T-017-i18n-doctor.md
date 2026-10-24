@@ -18,6 +18,7 @@ Tiền tố key: `doctor.`. Cặp file mới: `messages/doctor.en.ts` / `doctor.
 - **Route:** `src/app/(app)/doctor/{dashboard,fighters,injuries,medical-clearance}/**`, `doctor/layout.tsx`, `doctor/page.tsx`.
 - **Component:** phần còn lại của `src/components/medical/**` (triage, form cấp phép, SCAT6, restriction builder, patient card, health status control) và `src/components/clinical/**` (chấn thương, điều trị, kế hoạch hồi phục, mốc).
 - **Server:** `src/lib/actions/{medical,clinical}.ts`, `src/lib/services/medical-errors.ts`; `src/lib/domain/{scat6,scat6-scoring}.ts` trả mã, không trả câu.
+- **Lỗi giới hạn độ dài (từ review T-014):** `boundedText` trong `src/lib/actions/medical-contract.ts` nội suy tên trường tiếng Anh thô (`reasoning`, …) vào câu tiếng Việt và định dạng số bằng `en-US`. Truyền nhãn đã dịch (khoá trong từ điển) thay cho tên trường, và định dạng số theo `INTL_LOCALE[locale]`.
 - **Nhãn enum:** `EXAMINATION_*`, `ASSESSMENT_RESULT_LABELS`, `TREATMENT_*` trong `labels.ts` nếu route trong phạm vi còn dùng.
 - **Nội dung mẫu** (`examination-presets.ts`, `restriction-presets.ts`, `recovery-templates.ts`): dịch cả hai ngôn ngữ; giá trị đã lưu vào dữ liệu giữ đúng chữ người dùng chọn lúc đó.
 - Component chỉ phục vụ route đóng băng (examination, ai-alerts, observation) thì bỏ qua và ghi vào handover.

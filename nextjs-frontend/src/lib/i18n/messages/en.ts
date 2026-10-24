@@ -1,18 +1,24 @@
+import { enDemoFlow } from "./demo-flow.en";
 /**
  * English interface text. Keys are grouped by area (`nav.`, `shell.`, `bout.` …). Add a key here first:
  * the Vietnamese dictionary must then define it too, or typecheck fails.
  * `{name}` is filled from the params; a `.one` variant is used by `plural()` when the count is 1.
  */
+import { enAccount } from "./account.en";
 import { enAuth } from "./auth.en";
 import { enCoachBouts } from "./coach-bouts.en";
 import { enCoachToday } from "./coach-today.en";
 import { enFighterToday } from "./fighter-today.en";
+import { enLanding } from "./landing.en";
 
 export const en = {
+    ...enDemoFlow,
+    ...enAccount,
     ...enAuth,
     ...enCoachBouts,
     ...enCoachToday,
     ...enFighterToday,
+    ...enLanding,
     /* Navigation: keyed by the English label in `navigation.ts`. */
     "nav.Today": "Today",
     "nav.Bout": "Bout",
@@ -102,6 +108,7 @@ export const en = {
     "bout.weighInDone": "Weigh-in done",
     "bout.detailsTitle": "Fight details",
     "bout.weighIn": "Weigh-in",
+    "bout.loading": "Loading your bout",
     "bout.boutTime": "Bout",
     "bout.venue": "Venue",
     "bout.noneTitle": "No upcoming bout",
@@ -170,9 +177,14 @@ export const en = {
     "weighIn.error.notFighter": "Only fighters can log their own weight.",
     "weighIn.error.forbidden": "Your account can't log weigh-ins yet. Ask your coach to log it for now.",
     "weighIn.error.noProfile": "Your fighter profile wasn't found.",
+    "weighIn.loading": "Loading weigh-in",
 
     "form.fixFields": "Please fix the highlighted fields.",
+    "validation.maxChars": "Keep the {label} under {max} characters.",
     "common.cancel": "Cancel",
     "common.closeDialog": "Close dialog",
     "common.dismissNotification": "Dismiss notification",
+    "error.global.title": "MMA-TMS is temporarily unavailable",
+    "error.global.description": "An unexpected error stopped the app from loading. Please try again.",
+    "error.global.retry": "Try again",
 } as const;

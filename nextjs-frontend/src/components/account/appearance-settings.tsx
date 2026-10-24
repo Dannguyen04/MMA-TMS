@@ -62,9 +62,10 @@ export function AppearanceSettings({ initial }: { initial: ThemePreference }) {
             </fieldset>
             <p className="text-[13px] text-fg-muted" aria-live="polite">
                 {theme === "system"
-                    ? `Following your device${systemDark === null ? "" : ` — currently ${systemDark ? "dark" : "light"}`}.`
-                    : `Always ${theme}, whatever your device uses.`}{" "}
-                Applies instantly and is remembered on this browser.
+                    ? t("account.appearance.systemDesc", {
+                          status: systemDark === null ? "" : systemDark ? t("account.appearance.deviceDark") : t("account.appearance.deviceLight"),
+                      })
+                    : t("account.appearance.fixedDesc", { theme })}
             </p>
         </div>
     );

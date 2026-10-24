@@ -14,28 +14,26 @@ import { EmptyState } from "@/components/ui/states";
 import { Pagination } from "@/components/ui/table";
 import { requireUser } from "@/lib/auth/session";
 import { NOTIFICATION_CATEGORY_LABELS } from "@/lib/domain/labels";
-import type { NotificationCategory, Role } from "@/lib/domain/types";
-import { pluralize } from "@/lib/format";
+import type { NotificationCategory } from "@/lib/domain/types";
+import type { Locale } from "@/lib/i18n/config";
+import { createTranslator } from "@/lib/i18n/translate";
+import { getTranslator } from "@/lib/i18n/server";
 import { hrefWith, parseEnum } from "@/lib/query";
 import { dashboardPath, routes } from "@/lib/routes";
 import { canMarkAllNotificationsRead, getNotificationPage } from "@/lib/services/notifications";
 import { param } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Notifications" };
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return { title: t("notifications.title") };
+}
 
 const PAGE_SIZE = 20;
 const CATEGORIES = Object.keys(NOTIFICATION_CATEGORY_LABELS) as NotificationCategory[];
 
-const ROLE_DESCRIPTIONS: Record<Role, string> = {
-    fighter: "Training updates, AI analysis results, coach feedback, goals and Medical Clearance changes.",
-    coach: "Session updates, AI analyses to review, goals and clearance changes for your fighters.",
-    doctor: "AI movement observations, examinations, injuries, recovery and clearance renewals.",
-    admin: "Platform events, AI pipeline issues, security summaries and broadcasts.",
-};
-
 /** The inbox, a page at a time. Read-status filtering is the service's; category chips appear where it can filter by category. */
 export default async function NotificationsPage({ searchParams }: PageProps<"/notifications">) {
-    const user = await requireUser();
+    const [user, { t, locale }] = await Promise.all([requireUser(), getTranslator()]);
     const params = await searchParams;
     const now = new Date().toISOString();
     const pathname = routes.notifications;
@@ -45,22 +43,21 @@ export default async function NotificationsPage({ searchParams }: PageProps<"/no
     const requestedPage = Math.max(1, Math.floor(Number(param(params.page)) || 1));
     const page = await getNotificationPage({ id: user.id, role: user.role }, { page: requestedPage, pageSize: PAGE_SIZE, unreadOnly, category });
     const unreadCount = page.unread;
-    // Viewing unread, the service doesn't count the rest, so an empty page there means "all caught up", not an empty inbox.
     const empty = page.all === 0;
 
     const statusItems = [
-        { label: "All", count: page.all ?? undefined, active: !unreadOnly, href: hrefWith(pathname, params, { status: null, page: null }) },
-        { label: "Unread", count: unreadCount, active: unreadOnly, href: hrefWith(pathname, params, { status: "unread", page: null }) },
+        { label: t("notifications.statusAll"), count: page.all ?? undefined, active: !unreadOnly, href: hrefWith(pathname, params, { status: null, page: null }) },
+        { label: t("notifications.statusUnread"), count: unreadCount, active: unreadOnly, href: hrefWith(pathname, params, { status: "unread", page: null }) },
     ];
     const categoryItems = page.categories && [
         {
-            label: "All categories",
+            label: t("notifications.allCategories"),
             count: page.categories.reduce((sum, item) => sum + item.count, 0),
             active: !category,
             href: hrefWith(pathname, params, { category: null, page: null }),
         },
         ...page.categories.map(({ category: value, count }) => ({
-            label: NOTIFICATION_CATEGORY_LABELS[value],
+            label: t(`notifications.category.${value}`),
             icon: NOTIFICATION_CATEGORY_ICONS[value],
             count,
             active: category === value,
@@ -71,23 +68,23 @@ export default async function NotificationsPage({ searchParams }: PageProps<"/no
     const preferencesLink = (
         <ButtonLink href={`${routes.settings}#notifications`} variant="secondary">
             <SlidersHorizontal aria-hidden />
-            Preferences
+            {t("notifications.preferences")}
         </ButtonLink>
     );
 
     return (
         <>
             <PageHeader
-                title="Notifications"
-                description={ROLE_DESCRIPTIONS[user.role]}
+                title={t("notifications.title")}
+                description={t(`notifications.roleDesc.${user.role}`)}
                 meta={
                     unreadCount > 0 ? (
                         <Badge tone="primary" dot>
-                            {pluralize(unreadCount, "unread notification")}
+                            {t(unreadCount === 1 ? "notifications.unreadCount" : "notifications.unreadCount.plural", { count: unreadCount })}
                         </Badge>
                     ) : (
                         <Badge tone="success" icon={CheckCheck}>
-                            All caught up
+                            {t("notifications.allCaughtUp")}
                         </Badge>
                     )
                 }
@@ -104,12 +101,12 @@ export default async function NotificationsPage({ searchParams }: PageProps<"/no
             {empty ? (
                 <EmptyState
                     icon={<BellOff />}
-                    title="No notifications yet"
-                    description="When something needs your attention — a new analysis, a schedule change or a clearance update — it shows up here."
+                    title={t("notifications.noNotificationsYet")}
+                    description={t("notifications.noNotificationsYetDesc")}
                     action={
                         <>
                             <ButtonLink href={dashboardPath(user.role)} variant="secondary">
-                                Go to dashboard
+                                {t("notifications.goToDashboard")}
                             </ButtonLink>
                             {preferencesLink}
                         </>
@@ -118,8 +115,8 @@ export default async function NotificationsPage({ searchParams }: PageProps<"/no
             ) : (
                 <div className="flex flex-col gap-4">
                     <div className="flex min-w-0 flex-col gap-3">
-                        <SegmentedLinks items={statusItems} label="Filter by read status" />
-                        {categoryItems && <CategoryChips items={categoryItems} label="Filter by category" />}
+                        <SegmentedLinks items={statusItems} label={t("notifications.filterByStatus")} />
+                        {categoryItems && <CategoryChips items={categoryItems} label={t("notifications.filterByCategory")} />}
                     </div>
 
                     <Card className="overflow-hidden">
@@ -129,10 +126,11 @@ export default async function NotificationsPage({ searchParams }: PageProps<"/no
                                 category={category}
                                 clearHref={pathname}
                                 allHref={hrefWith(pathname, params, { status: null, page: null })}
+                                locale={locale}
                             />
                         ) : (
                             <>
-                                <NotificationList notifications={page.items} now={now} />
+                                <NotificationList notifications={page.items} now={now} locale={locale} />
                                 <Pagination
                                     page={page.page}
                                     pageCount={page.pageCount}
@@ -140,7 +138,7 @@ export default async function NotificationsPage({ searchParams }: PageProps<"/no
                                     pageSize={page.pageSize}
                                     pathname={pathname}
                                     searchParams={params}
-                                    itemLabel={page.total === 1 ? "notification" : "notifications"}
+                                    itemLabel={page.total === 1 ? t("notifications.itemLabel") : t("notifications.itemLabel.plural")}
                                 />
                             </>
                         )}
@@ -156,23 +154,27 @@ function EmptyNotifications({
     category,
     clearHref,
     allHref,
+    locale = "en",
 }: {
     unreadOnly: boolean;
     category: NotificationCategory | undefined;
     clearHref: string;
     allHref: string;
+    locale?: Locale;
 }) {
+    const translate = createTranslator(locale);
+
     if (unreadOnly && !category) {
         return (
             <EmptyState
                 compact
                 icon={<CheckCheck />}
-                title="You're all caught up"
-                description="There are no unread notifications. Everything you've already seen is still under All."
+                title={translate("notifications.emptyCaughtUpTitle")}
+                description={translate("notifications.emptyCaughtUpDesc")}
                 action={
                     <ButtonLink href={allHref} variant="secondary" size="sm">
                         <Inbox aria-hidden />
-                        View all notifications
+                        {translate("notifications.viewAll")}
                     </ButtonLink>
                 }
                 className="py-12"
@@ -180,27 +182,27 @@ function EmptyNotifications({
         );
     }
 
-    const label = category ? NOTIFICATION_CATEGORY_LABELS[category] : "these filters";
+    const label = category ? translate(`notifications.category.${category}`) : translate("notifications.theseFilters");
     return (
         <EmptyState
             compact
             icon={unreadOnly ? <CheckCheck /> : undefined}
-            title={unreadOnly ? `Nothing unread in ${label}` : `Nothing in ${label} yet`}
+            title={unreadOnly ? translate("notifications.emptyCategoryUnreadTitle", { category: label }) : translate("notifications.emptyCategoryTitle", { category: label })}
             description={
                 unreadOnly
-                    ? "You're all caught up in this category. Read notifications are still under All."
-                    : "Nothing in this category yet. Clear the filters to see everything."
+                    ? translate("notifications.emptyCategoryUnreadDesc")
+                    : translate("notifications.emptyCategoryDesc")
             }
             action={
                 <>
                     {unreadOnly && (
                         <ButtonLink href={allHref} variant="secondary" size="sm">
                             <Inbox aria-hidden />
-                            View all in {label}
+                            {translate("notifications.viewAllInCategory", { category: label })}
                         </ButtonLink>
                     )}
                     <ButtonLink href={clearHref} variant={unreadOnly ? "ghost" : "secondary"} size="sm">
-                        Clear filters
+                        {translate("notifications.clearFilters")}
                     </ButtonLink>
                 </>
             }
