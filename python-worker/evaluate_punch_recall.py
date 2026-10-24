@@ -1063,7 +1063,7 @@ def main():
         out_path.parent.mkdir(parents=True, exist_ok=True)
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(baseline_doc, f, indent=2, ensure_ascii=False)
-        print(f"✅ Baseline saved to {out_path}", flush=True)
+        print(f"Baseline saved to {out_path}", flush=True)
         return
 
     if args.run_dev_candidates:
@@ -1115,7 +1115,7 @@ def main():
         out_path.parent.mkdir(parents=True, exist_ok=True)
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(final_doc, f, indent=2, ensure_ascii=False)
-        print(f"✅ Final test evaluation saved to {out_path}", flush=True)
+        print(f"Final test evaluation saved to {out_path}", flush=True)
         return
 
     # Default single execution
