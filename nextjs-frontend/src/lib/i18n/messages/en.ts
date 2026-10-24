@@ -7,12 +7,14 @@ import { enAuth } from "./auth.en";
 import { enCoachBouts } from "./coach-bouts.en";
 import { enCoachToday } from "./coach-today.en";
 import { enFighterToday } from "./fighter-today.en";
+import { enTraining } from "./training.en";
 
 export const en = {
     ...enAuth,
     ...enCoachBouts,
     ...enCoachToday,
     ...enFighterToday,
+    ...enTraining,
     /* Navigation: keyed by the English label in `navigation.ts`. */
     "nav.Today": "Today",
     "nav.Bout": "Bout",

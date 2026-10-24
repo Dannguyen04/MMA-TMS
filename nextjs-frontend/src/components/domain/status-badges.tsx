@@ -299,8 +299,9 @@ export const PLAN_STATUS_META: Record<PlanStatus, StatusMeta> = {
     archived: { label: PLAN_STATUS_LABELS.archived, tone: "neutral", icon: Clock },
 };
 
-export function PlanStatusBadge({ status, size, className }: { status: PlanStatus; size?: BadgeSize; className?: string }) {
-    return <StatusBadge meta={PLAN_STATUS_META[status]} size={size} className={className} />;
+export function PlanStatusBadge({ status, size, className, locale }: { status: PlanStatus; size?: BadgeSize; className?: string; locale?: Locale }) {
+    const meta = PLAN_STATUS_META[status];
+    return <StatusBadge meta={locale ? { ...meta, label: createTranslator(locale)(planStatus.\) } : meta} size={size} className={className} />;
 }
 
 export const GOAL_STATUS_META: Record<GoalStatus, StatusMeta> = {

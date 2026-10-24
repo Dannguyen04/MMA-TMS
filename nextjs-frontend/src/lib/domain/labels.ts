@@ -1,3 +1,4 @@
+import type { Translator } from "@/lib/i18n";
 import { EXAMINATION_SCOPE_LABELS } from "./medical-contract";
 import type {
     AIJobStatus,
@@ -632,4 +633,38 @@ export const WEIGHT_WARNING_LABELS: Record<WeightWarningStatus, string> = {
     YELLOW: "Above tolerance",
     RED: "Exceeds cut limit",
     GREY: "No recent weigh-in",
+};
+
+/* ─── Training enum label helpers (T-015) ─────────────────────────────────── */
+
+export function trainingTypeLabel(t: Translator, type: TrainingType): string {
+    return t(`trainingType.${type}` as any);
+}
+
+export function techniqueLabel(t: Translator, technique: Technique | StrikeType): string {
+    return t(`technique.${technique}` as any);
+}
+
+export function exerciseCategoryLabel(t: Translator, category: ExerciseCategory): string {
+    return t(`exerciseCategory.${category}` as any);
+}
+
+export function intensityLabel(t: Translator, intensity: Intensity): string {
+    return t(`intensity.${intensity}` as any);
+}
+
+export function trainingPhaseLabel(t: Translator, phase: TrainingPhase): string {
+    return t(`trainingPhase.${phase}` as any);
+}
+
+export function planStatusLabel(t: Translator, status: PlanStatus): string {
+    return t(`planStatus.${status}` as any);
+}
+
+export function sessionStatusLabel(t: Translator, status: SessionStatus): string {
+    return t(`sessionStatus.${status}` as any);
+}
+
+export function feedbackKindLabel(t: Translator, kind: FeedbackKind): string {
+    return t(`feedbackKind.${kind}` as any);
 };
