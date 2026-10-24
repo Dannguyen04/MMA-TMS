@@ -278,18 +278,15 @@ def evaluate_punch_recall(
         )
 
     # Secondary metric: evaluate_intervals from boxing_research with min_iou
-    gt_dicts = [{"startFrame": g.start_frame, "endFrame": g.end_frame, "technique": g.label} for g in truth]
+    # IoU measures event intervals only. Use a common accepted class token so
+    # generic DEV-2 PUNCH labels do not invoke classification validation.
+    gt_dicts = [{"startFrame": g.start_frame, "endFrame": g.end_frame, "technique": "jab"} for g in truth]
     pred_dicts = [
-        {"startFrame": p.start_frame, "endFrame": p.end_frame, "technique": p.punch_type}
+        {"startFrame": p.start_frame, "endFrame": p.end_frame, "technique": "jab"}
         for p in predictions
         if p.end_frame >= p.start_frame >= 0
     ]
-    secondary_iou = None
-    if gt_dicts and pred_dicts:
-        try:
-            secondary_iou = evaluate_intervals(gt_dicts, pred_dicts, min_iou=min_iou)
-        except Exception:
-            secondary_iou = None
+    secondary_iou = evaluate_intervals(gt_dicts, pred_dicts, min_iou=min_iou)
 
     return {
         "dataset_kind": dataset_kind,
@@ -334,25 +331,22 @@ def file_sha256(path: Path) -> str:
 
 def load_csv_truth(csv_path: Path, window: Optional[Tuple[int, int]] = None) -> list[GroundTruthInterval]:
     """Load intervals from clean_annotation CSV, optionally filtering by [start, end) window."""
-    raw = read_labels(csv_path)
     intervals: list[GroundTruthInterval] = []
-    w_start, w_end = (window[0], window[1]) if window else (None, None)
-
-    for item in raw:
-        sf, ef = item["startFrame"], item["endFrame"]
-        if w_start is not None and w_end is not None:
-            # Check if interval intersects or is contained in window
-            if ef < w_start or sf >= w_end:
+    with csv_path.open(encoding="utf-8-sig", newline="") as source:
+        for index, row in enumerate(csv.DictReader(source)):
+            sf, ef = int(row["start_frame"]), int(row["end_frame"])
+            # Validate only the frozen evaluated window. V10 row 123 is reversed
+            # at 9760..9723, entirely outside [4000, 5500); never alter that label.
+            if window and (max(sf, ef) < window[0] or min(sf, ef) >= window[1]):
                 continue
-        intervals.append(
-            GroundTruthInterval(
-                start_frame=sf,
-                end_frame=ef,
-                label=item["technique"],
-                id=item["id"],
-                video=csv_path.stem,
-            )
-        )
+            if sf < 0 or ef < sf:
+                raise ValueError(f"Invalid annotation interval at row {index + 2}")
+            intervals.append(GroundTruthInterval(
+                start_frame=sf, end_frame=ef,
+                label=row["class"].strip().lower().replace(" ", "_"),
+                id=str(index), video=csv_path.stem,
+            ))
+
     return intervals
 
 
@@ -815,6 +809,8 @@ def evaluate_dataset_split(
         eval_keys = ["DEV-1", "DEV-2", "DEV-3"]
     elif split_name in ("test", "test-all"):
         eval_keys = ["TEST-1", "TEST-2"]
+    elif split_name == "all":
+        eval_keys = list(DATASET_SPECS)
     elif split_name == "dev-1":
         eval_keys = ["DEV-1"]
     elif split_name == "dev-2":
@@ -858,6 +854,9 @@ def evaluate_dataset_split(
                 rep["video"] = clip_name
                 rep["video_sha256"] = file_sha256(v_path)
                 rep["gt_sha256"] = file_sha256(gt_path)
+                rep["cache_sha256"] = file_sha256(cache_file)
+                rep["fps"] = vdata["fps"]
+                rep["evaluated_frames"] = len(vdata["frames"])
                 dev2_video_reports.append(rep)
 
                 aggregate_dev2_tp += rep["tp"]
@@ -902,6 +901,8 @@ def evaluate_dataset_split(
             rep["video"] = v_path.name
             rep["video_sha256"] = file_sha256(v_path)
             rep["truth_sha256"] = file_sha256(t_path)
+            rep["cache_sha256"] = file_sha256(cache_file)
+            rep["fps"] = vdata["fps"]
             rep["window"] = list(window) if window else None
             rep["evaluated_frames"] = len(vdata["frames"])
             results_per_video[key] = rep
@@ -931,6 +932,8 @@ def evaluate_dataset_split(
         "split": split_name,
         "candidate_id": candidate_id,
         "candidate_info": CANDIDATE_CONFIGS[candidate_id],
+        "configuration_sha256": hashlib.sha256(json.dumps(CANDIDATE_CONFIGS[candidate_id], sort_keys=True).encode()).hexdigest(),
+        "protocol_sha256": file_sha256(ROOT / "benchmark_results/punch_recall_protocol_t022.md"),
         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "pose_model_sha256": pose_model_hash,
         "code_hashes": code_hashes,
@@ -959,10 +962,8 @@ def select_best_candidate_on_dev(dev_reports: dict[str, dict[str, Any]]) -> str:
 
     # Specific clip baseline limits: vid_02 <= 3, vid_03 == 0, vid_05 <= 1, vid_06 <= 1
     clip_fp_limits = {
-        "vid_01_cross_heavybag": 0,
         "vid_02_referee_gestures": 3,
         "vid_03_fighter_walkout": 0,
-        "vid_04_cage_striking": 1,
         "vid_05_ground_grappling": 1,
         "vid_06_post_fight": 1,
     }
@@ -1000,6 +1001,10 @@ def select_best_candidate_on_dev(dev_reports: dict[str, dict[str, Any]]) -> str:
             "candidate_id": cid,
             "dev_recall": dev_recall,
             "unverified_v4": unverified_v4,
+            "macro_f1": sum(
+                (video.get("secondary_interval_iou") or {}).get("f1", 0.0)
+                for video in [rep["details"]["DEV-1"], rep["details"]["DEV-3"], *dev2["per_clip"]]
+            ) / (2 + len(dev2["per_clip"])),
             "family": rep["candidate_info"]["family"],
             "adam_tp": adam_tp,
             "v4_tp": v4_tp,
@@ -1015,6 +1020,7 @@ def select_best_candidate_on_dev(dev_reports: dict[str, dict[str, Any]]) -> str:
         key=lambda x: (
             x["dev_recall"],
             -x["unverified_v4"],
+            x["macro_f1"],
             family_pref.get(x["family"], 0),
         ),
         reverse=True,
@@ -1071,16 +1077,26 @@ def main():
             v4_tp = rep["details"]["DEV-3"]["tp"]
             dev2_fp = rep["details"]["DEV-2"]["fp"]
             dev2_fn = rep["details"]["DEV-2"]["fn"]
-            comb_rec = (adam_tp + v4_tp) / (18 + 137)
-            print(f"    Adam TP={adam_tp}/18, V4 TP={v4_tp}/137, Combined Recall={comb_rec:.1%}, DEV-2 FP={dev2_fp}, FN={dev2_fn}", flush=True)
+            comb_rec = (adam_tp + v4_tp) / (rep["details"]["DEV-1"]["total_gt"] + rep["details"]["DEV-3"]["total_gt"])
+            print(f"    Adam TP={adam_tp}/18, V4 TP={v4_tp}/71, Combined Recall={comb_rec:.1%}, DEV-2 FP={dev2_fp}, FN={dev2_fn}", flush=True)
 
         chosen = select_best_candidate_on_dev(all_dev_reports)
-        print(f"\n🏆 Best Candidate Selected by Protocol: {chosen}", flush=True)
+        out_path = args.output or (ROOT / "benchmark_results/punch_recall_t022_dev.json")
+        out_path.write_text(json.dumps({"dev_reports": all_dev_reports, "selected_candidate": chosen}, indent=2, ensure_ascii=False), encoding="utf-8")
+        print(f"\nBest Candidate Selected by Protocol: {chosen}; DEV reports: {out_path}", flush=True)
         return
 
     if args.run_final:
         # Run TEST once with candidate specified by --candidate
         cid = args.candidate
+        dev_path = ROOT / "benchmark_results/punch_recall_t022_dev.json"
+        dev_doc = json.loads(dev_path.read_text(encoding="utf-8"))
+        if cid != select_best_candidate_on_dev(dev_doc["dev_reports"]):
+            raise ValueError("Candidate must match the frozen DEV selection")
+        # Exclusive marker prevents accidentally repeating held-out candidate evaluation.
+        marker = args.cache_dir / "final_test_started.json"
+        with marker.open("x", encoding="utf-8") as handle:
+            json.dump({"candidate_id": cid, "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()}, handle)
         print(f"=== Running Final Evaluation on TEST with chosen candidate: {cid} ===", flush=True)
         test_final = evaluate_dataset_split("test", cid, args.cache_dir)
         final_doc = {
@@ -1091,6 +1107,9 @@ def main():
             "code_hashes": test_final["code_hashes"],
             "pose_model_sha256": test_final["pose_model_sha256"],
             "test_final": test_final,
+            "dev_reports": dev_doc["dev_reports"],
+            "selection": {"candidate_id": cid, "source": "DEV only; protocol section 4", "macro_f1_definition": "Mean per-video interval-event F1 over Adam, V4 and six DEV-2 clips"},
+            "configuration_sha256": test_final["configuration_sha256"],
         }
         out_path = args.output or (ROOT / "benchmark_results/punch_recall_t022_final.json")
         out_path.parent.mkdir(parents=True, exist_ok=True)

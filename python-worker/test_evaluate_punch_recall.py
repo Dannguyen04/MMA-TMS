@@ -147,3 +147,60 @@ def test_recall_calculation_and_empty_edge_cases():
     assert empty_truth.tp == 0
     assert empty_truth.fn == 0
     assert empty_truth.recall == 1.0
+
+
+def test_window_filters_invalid_annotation_outside_window(tmp_path):
+    from evaluate_punch_recall import load_csv_truth
+    labels = tmp_path / "labels.csv"
+    labels.write_text("start_frame,end_frame,class\n4001,4010,Jab\n9760,9723,Lead Hook\n")
+    assert len(load_csv_truth(labels, (4000, 5500))) == 1
+    with pytest.raises(ValueError, match="row 3"):
+        load_csv_truth(labels, (9500, 10000))
+
+
+def test_secondary_interval_f1_with_empty_predictions():
+    report = evaluate_punch_recall(
+        [GroundTruthInterval(10, 20)], [], dataset_kind="boxingvi", total_frames=100
+    )
+    assert report["secondary_interval_iou"]["fn"] == 1
+    assert report["secondary_interval_iou"]["f1"] == 0
+
+
+def test_matching_reassigns_to_maximize_cardinality():
+    truth = [GroundTruthInterval(10, 20, id="a"), GroundTruthInterval(20, 30, id="b")]
+    result = match_bipartite_predictions(truth, [PunchPrediction(21), PunchPrediction(30)])
+    assert result.tp == 2
+    assert {m["gt_id"]: m["impact_frame"] for m in result.matches} == {"a": 21, "b": 30}
+
+
+def _selection_report(family="C", f1=0.2, fp=6, fn=0):
+    return {
+        "candidate_info": {"family": family},
+        "details": {
+            "DEV-1": {"tp": 8, "total_gt": 18, "secondary_interval_iou": {"f1": f1}},
+            "DEV-3": {"tp": 10, "total_gt": 71, "unverified_excess": 3, "secondary_interval_iou": {"f1": f1}},
+            "DEV-2": {"fp": fp, "fn": fn, "per_clip": [
+                {"video": "vid_02_referee_gestures", "fp": 3, "secondary_interval_iou": {"f1": f1}}
+            ]},
+        },
+    }
+
+
+def test_selection_macro_interval_f1_before_family_preference():
+    from evaluate_punch_recall import select_best_candidate_on_dev
+    reports = {"C00_legacy_baseline": _selection_report(),
+               "C01": _selection_report("C", 0.2), "C06": _selection_report("A", 0.4)}
+    assert select_best_candidate_on_dev(reports) == "C06"
+    reports["C06"]["details"]["DEV-2"]["fn"] = 1
+    assert select_best_candidate_on_dev(reports) == "C01"
+    reports["C01"]["details"]["DEV-2"]["per_clip"][0]["fp"] = 4
+    assert select_best_candidate_on_dev(reports) == "C00_legacy_baseline"
+
+
+def test_selection_does_not_add_unfrozen_caps_on_positive_clips():
+    from evaluate_punch_recall import select_best_candidate_on_dev
+    report = _selection_report()
+    report["details"]["DEV-2"]["per_clip"].append(
+        {"video": "vid_01_cross_heavybag", "fp": 1, "secondary_interval_iou": {"f1": 0.2}}
+    )
+    assert select_best_candidate_on_dev({"C00_legacy_baseline": _selection_report(), "C01": report}) == "C01"
