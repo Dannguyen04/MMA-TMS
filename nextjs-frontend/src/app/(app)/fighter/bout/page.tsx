@@ -1,9 +1,10 @@
 import { createDemoCopy } from "@/lib/i18n/demo-copy";
-import { CalendarClock, FileCheck2, Scale, Swords } from "lucide-react";
+import { CalendarClock, FileCheck2, Scale, Swords, TriangleAlert } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { FlashToast } from "@/components/medical/flash-toast";
+import { Callout } from "@/components/training/callout";
 import { BoutRequirementStatusBadge, BoutStatusBadge, WeightWarningBadge } from "@/components/domain/status-badges";
 import { WeightChart } from "@/components/domain/weight-chart";
 import { WeightFigures, WeightStatusNote } from "@/components/domain/weight-summary";
@@ -15,15 +16,15 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/states";
 import { requireFighterId } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
-import type { Bout, BoutRequirement, WeightTrack } from "@/lib/domain/types";
+import type { Bout, BoutRequirement, WeighInReminderLevel, WeightReminder, WeightTrack } from "@/lib/domain/types";
 import { activeBout, WEIGHT_SAVED_NOTICE } from "@/lib/domain/weigh-in";
 import { dayKey, formatDate, formatDateTime, formatNumber } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
 import { getTranslator } from "@/lib/i18n/server";
-import { plural, type Translator } from "@/lib/i18n/translate";
+import { plural, type MessageKey, type Translator } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import { nullIfServiceFails } from "@/lib/services/api-helpers";
-import { getWeightTrack, listBouts } from "@/lib/services/bouts";
+import { getBout, getWeightTrack, listBouts } from "@/lib/services/bouts";
 import { param } from "@/lib/utils";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -51,7 +52,10 @@ export default async function FighterBoutPage({ searchParams }: PageProps<"/figh
 
     const bouts = await nullIfServiceFails(listBouts({ fighterIds: [fighterId] }));
     const bout = bouts ? activeBout(bouts) : null;
-    const track = bout ? await nullIfServiceFails(getWeightTrack(bout.id)) : null;
+    // The list carries no computed fields in API mode, so the weigh-in reminder comes from the bout itself.
+    const [track, detail] = bout
+        ? await Promise.all([nullIfServiceFails(getWeightTrack(bout.id)), nullIfServiceFails(getBout(bout.id))])
+        : [null, null];
 
     const saved = param(query.notice) === WEIGHT_SAVED_NOTICE;
     const notice =
@@ -104,7 +108,7 @@ export default async function FighterBoutPage({ searchParams }: PageProps<"/figh
 
             <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                 <div className="flex min-w-0 flex-col gap-6 lg:col-span-2">
-                    <FighterWeightCard bout={bout} track={track} limitKg={limitKg} t={t} locale={locale} />
+                    <FighterWeightCard bout={bout} track={track} reminder={detail?.weightReminder ?? null} limitKg={limitKg} t={t} locale={locale} />
                 </div>
                 <div className="flex min-w-0 flex-col gap-6">
                     <Card className="min-w-0">
@@ -127,6 +131,11 @@ export default async function FighterBoutPage({ searchParams }: PageProps<"/figh
     );
 }
 
+const REMINDER_TEXT: Record<WeighInReminderLevel, MessageKey> = {
+    ASK_TODAY: "weightReminder.WEIGHT_REMINDER_ASK_TODAY",
+    YESTERDAY_MISSING: "weightReminder.WEIGHT_REMINDER_YESTERDAY_MISSING",
+};
+
 function countdown(t: Translator, days: number): string {
     if (days > 0) return plural(t, "bout.daysToWeighIn", days);
     if (days === 0) return t("bout.weighInToday");
@@ -138,7 +147,7 @@ interface WithLanguage {
     locale: Locale;
 }
 
-function FighterWeightCard({ bout, track, limitKg, t, locale }: { bout: Bout; track: WeightTrack | null; limitKg: number } & WithLanguage) {
+function FighterWeightCard({ bout, track, reminder, limitKg, t, locale }: { bout: Bout; track: WeightTrack | null; reminder: WeightReminder | null; limitKg: number } & WithLanguage) {
     const weight = track ?? bout.weight ?? null;
     const status = weight?.status ?? "NOT_WEIGHED";
 
@@ -155,6 +164,9 @@ function FighterWeightCard({ bout, track, limitKg, t, locale }: { bout: Bout; tr
                     t={t}
                     locale={locale}
                 />
+                {reminder?.active && reminder.level && (
+                    <Callout tone={reminder.level === "YESTERDAY_MISSING" ? "danger" : "warning"} icon={TriangleAlert} title={t(REMINDER_TEXT[reminder.level])} role="status" />
+                )}
                 <WeightStatusNote status={status} audience="fighter" t={t} />
                 {track && <WeightChart track={track} weighInAt={bout.weighInAt} t={t} locale={locale} height={220} />}
 

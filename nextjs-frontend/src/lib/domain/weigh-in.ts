@@ -1,5 +1,5 @@
 import type { Translator } from "@/lib/i18n/translate";
-import type { Bout, BoutStatus, WeightWarningStatus } from "./types";
+import type { Bout, BoutStatus } from "./types";
 
 /** Self-reported body weight bounds, in kg (T-005). */
 export const WEIGHT_MIN_KG = 30;
@@ -37,19 +37,6 @@ export function activeBout(bouts: Bout[]): Bout | null {
             .filter((bout) => bout.deletedAt === null && ACTIVE_BOUT_STATUSES.includes(bout.status))
             .sort((a, b) => a.weighInAt.localeCompare(b.weighInAt))[0] ?? null
     );
-}
-
-const ALERT_ORDER: Partial<Record<WeightWarningStatus, number>> = { OVER_LIMIT: 0, ABOVE_TARGET: 1, NOT_WEIGHED: 2 };
-
-/**
- * Running bouts whose weight needs the coach's attention: red first, then yellow, then grey,
- * the earliest weigh-in first within each status. Green bouts are left out.
- */
-export function weightAlerts(bouts: Bout[]): Bout[] {
-    const rank = (bout: Bout) => ALERT_ORDER[bout.weight?.status ?? "NOT_WEIGHED"];
-    return bouts
-        .filter((bout) => bout.deletedAt === null && ACTIVE_BOUT_STATUSES.includes(bout.status) && rank(bout) !== undefined)
-        .sort((a, b) => rank(a)! - rank(b)! || a.weighInAt.localeCompare(b.weighInAt));
 }
 
 /** The field message for a weight that `parseWeightKg` rejected, in the viewer's language. */

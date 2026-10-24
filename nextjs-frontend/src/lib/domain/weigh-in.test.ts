@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Bout, BoutStatus, WeightWarningStatus } from "./types";
-import { activeBout, parseWeightKg, weightAlerts } from "./weigh-in";
+import { activeBout, parseWeightKg } from "./weigh-in";
 
 function bout(id: string, status: BoutStatus, weighInAt: string, weight: WeightWarningStatus | null = null): Bout {
     return {
@@ -53,20 +53,5 @@ describe("activeBout", () => {
     it("returns null when every bout is finished", () => {
         expect(activeBout([bout("done", "COMPLETED", "2026-09-01T02:00:00.000Z")])).toBeNull();
         expect(activeBout([])).toBeNull();
-    });
-});
-
-describe("weightAlerts", () => {
-    it("lists red, then yellow, then grey, and leaves out green and finished bouts", () => {
-        const bouts = [
-            bout("grey", "CAMP", "2026-10-21T02:00:00.000Z", "NOT_WEIGHED"),
-            bout("green", "CAMP", "2026-10-20T02:00:00.000Z", "ON_TRACK"),
-            bout("yellow", "CAMP", "2026-10-25T02:00:00.000Z", "ABOVE_TARGET"),
-            bout("red-late", "FIGHT_WEEK", "2026-10-28T02:00:00.000Z", "OVER_LIMIT"),
-            bout("red-soon", "CAMP", "2026-10-22T02:00:00.000Z", "OVER_LIMIT"),
-            bout("red-done", "COMPLETED", "2026-10-01T02:00:00.000Z", "OVER_LIMIT"),
-            bout("weighed", "WEIGHED_IN", "2026-10-23T02:00:00.000Z", "NEUTRAL"),
-        ];
-        expect(weightAlerts(bouts).map((item) => item.id)).toEqual(["red-soon", "red-late", "yellow", "grey"]);
     });
 });

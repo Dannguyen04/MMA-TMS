@@ -1159,6 +1159,59 @@ export interface Gate1Result {
     expiring: string[];
 }
 
+export type WeighInReminderLevel = "ASK_TODAY" | "YESTERDAY_MISSING";
+
+/** "No weight logged today" during the fight week (T0); `active` is false outside it. */
+export interface WeightReminder {
+    active: boolean;
+    level: WeighInReminderLevel | null;
+    daysSinceLastWeight: number | null;
+    messageCode: string | null;
+}
+
+export type BoutWarningCode = "WEIGHT_AT_RISK" | "WEIGHT_INSUFFICIENT_DATA";
+
+/** R31: can the fighter make the class from the latest weight? A warning, never a block. */
+export interface WeightFeasibility {
+    status: WeightWarningStatus;
+    remainingPct: number | null;
+    latestKg: number | null;
+    latestOn: string | null;
+    daysToWeighIn: number;
+    limitKg: number;
+    acuteLossLimitPct: number;
+    warnings: Array<{ code: BoutWarningCode }>;
+}
+
+export type CoachTodoPhase = "BEFORE" | "DURING" | "AFTER";
+
+export type CoachTodoSource =
+    | "REQUIREMENTS_DUE"
+    | "REQUIREMENTS_OVERDUE"
+    | "WEIGHT_OVER_LIMIT"
+    | "WEIGHT_ABOVE_TARGET"
+    | "WEIGHT_NOT_WEIGHED"
+    | "TACTICS_WITHOUT_SESSIONS"
+    | "CAN_ENTER_FIGHT_WEEK"
+    | "WEIGH_IN_TODAY"
+    | "RESULT_OVERDUE"
+    | "WEIGHT_NOT_LOGGED";
+
+export interface CoachTodoItem {
+    source: CoachTodoSource;
+    phase: CoachTodoPhase;
+    fighterId: string;
+    boutId: string;
+    eventName: string;
+    dueOn: string | null;
+    count: number | null;
+}
+
+export interface CoachTodo {
+    items: CoachTodoItem[];
+    truncated: boolean;
+}
+
 export interface WeightStatusSummary {
     latestKg: number | null;
     latestOn: string | null;
@@ -1205,6 +1258,7 @@ export interface Bout {
     gate1?: Gate1Result;
     canEnterFightWeek?: boolean;
     weight?: WeightStatusSummary;
+    weightReminder?: WeightReminder;
 }
 
 export interface WeightTrack {
