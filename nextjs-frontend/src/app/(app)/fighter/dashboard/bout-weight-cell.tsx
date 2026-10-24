@@ -25,7 +25,7 @@ export function BoutWeightCell({ bout, t, locale, className }: { bout: Bout; t: 
                     ) : (
                         <span className="text-sm font-medium text-fg-muted">{t("weight.noWeighInYet")}</span>
                     )}
-                    <WeightWarningBadge status={weight?.status ?? "GREY"} size="sm" locale={locale} />
+                    <WeightWarningBadge status={weight?.status ?? "NOT_WEIGHED"} size="sm" locale={locale} />
                 </>
             }
             hint={toCut ? t("weight.cellHint", { toCut, limit }) : t("weight.cellHintLimit", { limit })}

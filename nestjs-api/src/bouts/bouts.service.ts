@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnprocessableEntityException } from '@nestjs/common';
 import type {
   BoutHistoryEntry,
   BoutRequirementRow,
@@ -10,19 +10,27 @@ import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import { USER } from '../shared/types/user.role.js';
 import { setAuditContext } from '../shared/utils/audit-context.util.js';
 import {
+  boutAnalysisInvalid,
   boutActiveExists,
+  boutChangeReasonRequired,
   boutCoachNotAssigned,
   boutCoachRequired,
   boutFightWeekTooEarly,
   boutFighterNotFound,
+  boutInvalidCatchweight,
   boutInvalidPlan,
   boutInvalidSchedule,
   boutInvalidTransition,
   boutInvalidWeightClass,
   boutNotEditable,
   boutNotFound,
+  boutNotStarted,
   boutRequirementsIncomplete,
+  boutRequirementsLocked,
+  boutResultInvalid,
   boutStateConflict,
+  boutWeighInNotFailed,
+  boutWeighInTooEarly,
   mapBoutPersistenceError,
   requirementExists,
   requirementInvalid,
@@ -36,32 +44,53 @@ import {
   addDaysToDate,
   buildDailyWeightPoints,
   canEnterFightWeek,
+  campStartOf,
   canTransition,
-  computeWeightTrack,
+  computeAcuteLoss,
+  computeBoutWeightTrack,
+  computeWeighInReminder,
+  computeWeightFeasibility,
   daysToWeighIn,
   encodeBoutCursor,
   evaluateGate1,
+  FEASIBILITY_WEIGHT_MAX_AGE_DAYS,
   fightWeekStartsOn,
   isFinalStatus,
   requirementsDueOn,
   resolveWeightClass,
   SCHEDULE_EDITABLE_STATUSES,
+  weightFeasibilityWarnings,
+  type AcuteLossResult,
   type BoutDetailResponse,
   type BoutListResponse,
   type BoutStatus,
   type BoutSummary,
   type CancelBoutInput,
+  type CatchweightInput,
   type CreateBoutInput,
+  type CreateBoutResponse,
   type CreateRequirementInput,
+  type FeasibilityQuery,
+  type FeasibilityResponse,
   type Gate1Result,
   type ListBoutsQuery,
+  type RecordResultInput,
   type RequirementResponse,
   type RulesetResponse,
   type StartCampInput,
   type UpdateBoutInput,
   type UpdateRequirementInput,
+  type WeighInBlock,
+  type WeighInInput,
+  type WeighInResponse,
+  type WeightFeasibility,
   type WeightTrack,
 } from './bouts.model.js';
+import {
+  buildCornerCard, buildRoundAdvice, normalizeOpponentName,
+  opponentAnalysisInputSchema, opponentReviewInputSchema, roundInputSchema,
+  type OpponentAnalysis, type OpponentAnalysisInput, type OpponentReviewInput, type RoundInput,
+} from './bout-analysis.model.js';
 import { BoutsRepository, type BoutScope } from './bouts.repo.js';
 
 @Injectable()
@@ -115,7 +144,15 @@ export class BoutsService {
   ): Promise<BoutDetailResponse> {
     const bout = await this.requireBout(id);
     await this.assertReadAccess(actor, bout.fighterId);
-    return this.buildDetail(bout);
+    const detail = await this.buildDetail(bout);
+    if (actor.role === USER.FIGHTER) {
+      detail.opponentAnalysis = fighterAnalysis(bout.opponentAnalysis);
+      const ids = [...new Set((bout.opponentAnalysis.tactics ?? []).flatMap((t) => t.sessionIds))];
+      detail.sessions = (await this.repo.findAnalysisSessions(ids, bout.fighterId)).map((r) => ({
+        ...r, scheduledAt: r.scheduledAt.toISOString(),
+      }));
+    }
+    return detail;
   }
 
   async getWeightTrack(
@@ -128,6 +165,135 @@ export class BoutsService {
     return this.loadWeightTrack(bout, ruleset, new Date());
   }
 
+
+  async putOpponentAnalysis(actor: AuthenticatedUser, id: string, input: OpponentAnalysisInput, requestId: string) {
+    const parsed = opponentAnalysisInputSchema.safeParse(input);
+    if (!parsed.success) throw analysisValidationError();
+    const data = parsed.data;
+    const observationIds = new Set(data.observations.map((o) => o.id));
+    if (data.tactics.some((t) => !t.observationIds.length || t.observationIds.some((id) => !observationIds.has(id))))
+      throw boutAnalysisInvalid('OPPONENT_TACTIC_EVIDENCE_REQUIRED');
+    return this.mutateAnalysis(actor, id, requestId, async (bout, tx) => {
+      if (isFinalStatus(bout.status)) throw boutNotEditable(bout.status);
+      const ids = [...new Set(data.tactics.flatMap((t) => t.sessionIds))];
+      const sessions = await this.repo.findAnalysisSessions(ids, bout.fighterId, tx);
+      if (sessions.length !== ids.length) throw boutAnalysisInvalid('OPPONENT_SESSION_INVALID');
+      const reviews = new Map((bout.opponentAnalysis.tactics ?? []).map((t) => [t.id, t.review]));
+      return { ...data, tactics: data.tactics.map((t) => {
+        const review = reviews.get(t.id);
+        return { ...t, ...(review ? { review } : {}) };
+      }) };
+    });
+  }
+
+  async putOpponentReview(actor: AuthenticatedUser, id: string, input: OpponentReviewInput, requestId: string) {
+    const parsed = opponentReviewInputSchema.safeParse(input);
+    if (!parsed.success) throw analysisValidationError();
+    return this.mutateAnalysis(actor, id, requestId, async (bout) => {
+      if (bout.status !== 'COMPLETED') throw boutNotEditable(bout.status);
+      const tactics = bout.opponentAnalysis.tactics ?? [];
+      if (parsed.data.reviews.some((r) => !tactics.some((t) => t.id === r.tacticId)))
+        throw boutAnalysisInvalid('OPPONENT_TACTIC_UNKNOWN');
+      return { ...bout.opponentAnalysis, tactics: tactics.map((t) => {
+        const r = parsed.data.reviews.find((r) => r.tacticId === t.id);
+        return r ? { ...t, review: { outcome: r.outcome, note: r.note ?? null, auto: false } } : t;
+      }) };
+    });
+  }
+
+  private async mutateAnalysis(
+    actor: AuthenticatedUser, id: string, requestId: string,
+    change: (bout: BoutRow, tx: Parameters<Parameters<BoutsRepository['transaction']>[0]>[0]) => Promise<OpponentAnalysis>,
+  ) {
+    const current = await this.requireBout(id);
+    await this.assertWriteAccess(actor, current.fighterId);
+    try {
+      return await this.repo.transaction(async (tx) => {
+        await setAuditContext(actor.authSubject, requestId, tx);
+        const bout = await this.repo.lockBoutById(id, tx);
+        if (!bout) throw boutNotFound();
+        const analysis = { ...await change(bout, tx), updatedAt: new Date().toISOString(), updatedById: actor.id };
+        const updated = await this.repo.updateBout(id, { opponentAnalysis: analysis }, { expectedStatus: bout.status }, tx);
+        if (!updated) throw boutStateConflict();
+        return { opponentAnalysis: analysis, tacticsWithoutSessions: (analysis.tactics ?? []).filter((t) => !t.sessionIds.length).map((t) => t.id) };
+      });
+    } catch (error) { throw mapBoutPersistenceError(error); }
+  }
+
+  async putRound(actor: AuthenticatedUser, id: string, roundNo: number, input: RoundInput, requestId: string) {
+    const parsed = roundInputSchema.safeParse(input);
+    if (!parsed.success) throw analysisValidationError();
+    const current = await this.requireBout(id);
+    await this.assertWriteAccess(actor, current.fighterId);
+    try {
+      const row = await this.repo.transaction(async (tx) => {
+        await setAuditContext(actor.authSubject, requestId, tx);
+        const bout = await this.repo.lockBoutById(id, tx);
+        if (!bout) throw boutNotFound();
+        this.assertCornerStatus(bout);
+        if (bout.scheduledRounds === null) throw boutAnalysisInvalid('BOUT_ROUNDS_NOT_SET');
+        if (!Number.isInteger(roundNo) || roundNo < 1 || roundNo > bout.scheduledRounds)
+          throw boutAnalysisInvalid('BOUT_ROUND_OUT_OF_RANGE');
+        const tactics = new Set((bout.opponentAnalysis.tactics ?? []).map((t) => t.id));
+        const observations = new Set((bout.opponentAnalysis.observations ?? []).map((o) => o.id));
+        if (Object.keys(parsed.data.tacticMarks ?? {}).some((id) => !tactics.has(id)) ||
+            Object.keys(parsed.data.observationMarks ?? {}).some((id) => !observations.has(id)))
+          throw boutAnalysisInvalid('BOUT_ROUND_MARK_UNKNOWN');
+        return this.repo.upsertRound({ ...parsed.data, boutId: id, roundNo, recordedById: actor.id }, tx);
+      });
+      return toRoundResponse(row);
+    } catch (error) { throw mapBoutPersistenceError(error); }
+  }
+
+  async getRounds(actor: AuthenticatedUser, id: string) {
+    const bout = await this.requireBout(id);
+    await this.assertPrivateReadAccess(actor, bout);
+    const rounds = await this.repo.listRounds(id);
+    return { scheduledRounds: bout.scheduledRounds, rounds: rounds.map(toRoundResponse),
+      advice: rounds.length && bout.scheduledRounds !== null && rounds.length < bout.scheduledRounds
+        ? buildRoundAdvice(bout.opponentAnalysis, rounds, bout.scheduledRounds) : null };
+  }
+
+  async getCornerCard(actor: AuthenticatedUser, id: string) {
+    const bout = await this.requireBout(id);
+    await this.assertPrivateReadAccess(actor, bout);
+    this.assertCornerStatus(bout);
+    return buildCornerCard(bout.opponentAnalysis, await this.repo.listRounds(id), null);
+  }
+
+  private assertCornerStatus(bout: BoutRow) {
+    if (bout.status !== 'WEIGHED_IN' && bout.status !== 'COMPLETED') throw boutNotEditable(bout.status);
+  }
+
+  private async assertPrivateReadAccess(actor: AuthenticatedUser, bout: BoutRow) {
+    if (actor.role !== USER.COACH && actor.role !== USER.DOCTOR && actor.role !== USER.ADMIN) throw forbidden();
+    await this.assertReadAccess(actor, bout.fighterId);
+  }
+
+  async getPriorContext(actor: AuthenticatedUser, query: { fighterId: string; opponentName: string }) {
+    // Resolve the exact same scope as listBouts; copy candidates may belong to other assigned fighters.
+    await this.resolveListScope(actor, query.fighterId);
+    const scope = await this.resolveListScope(actor, undefined);
+    let cursor: string | undefined;
+    let latest: BoutRow | undefined;
+    do {
+      const rows = await this.repo.listBouts({ scope, limit: 100, cursor });
+      const page = rows.slice(0, 100);
+      for (const row of page) {
+        if (row.opponentName !== null && normalizeOpponentName(row.opponentName) === normalizeOpponentName(query.opponentName) &&
+            (!latest || row.boutAt > latest.boutAt || (row.boutAt.getTime() === latest.boutAt.getTime() && row.id > latest.id))) latest = row;
+      }
+      const last = page[page.length - 1];
+      cursor = rows.length > 100 && last ? encodeBoutCursor({ weighInAt: last.weighInAt.toISOString(), id: last.id }) : undefined;
+    } while (cursor);
+    const analysis = latest ? withoutReviews(latest.opponentAnalysis) : undefined;
+    return {
+      improvementPoints: null,
+      copyableAnalysis: latest && analysis ? { boutId: latest.id, eventName: latest.eventName, opponentName: latest.opponentName,
+        opponentAnalysis: actor.role === USER.FIGHTER ? fighterAnalysis(analysis) : analysis } : null,
+    };
+  }
+
   // ---------------------------------------------------------------------------
   // Create and edit
   // ---------------------------------------------------------------------------
@@ -136,7 +302,7 @@ export class BoutsService {
     actor: AuthenticatedUser,
     input: CreateBoutInput,
     requestId: string,
-  ): Promise<BoutDetailResponse> {
+  ): Promise<CreateBoutResponse> {
     await this.assertWriteAccess(actor, input.fighterId);
 
     const weighInAt = new Date(input.weighInAt);
@@ -174,6 +340,7 @@ export class BoutsService {
             eventName: input.eventName,
             venue: input.venue ?? null,
             opponentName: input.opponentName ?? null,
+            scheduledRounds: input.scheduledRounds ?? null,
             weightClassCode: weightClass.code,
             weightLimitKg: String(weightClass.limitKg),
             acuteLossLimitPct: String(acuteLossLimitPct),
@@ -200,10 +367,95 @@ export class BoutsService {
         );
         return created;
       });
-      return await this.buildDetail(bout, ruleset);
+      const detail = await this.buildDetail(bout, ruleset);
+      // R31: a warning only, never blocks saving the bout.
+      const feasibility = await this.loadFeasibility(
+        input.fighterId,
+        {
+          limitKg: weightClass.limitKg,
+          acuteLossLimitPct,
+          acuteWindowDays: ruleset.acuteWindowDays,
+          weighInAt,
+        },
+        now,
+      );
+      return { ...detail, warnings: weightFeasibilityWarnings(feasibility) };
     } catch (error) {
       throw mapBoutPersistenceError(error);
     }
+  }
+
+  /**
+   * Read-only preview of the weight feasibility (R31) for the create form, with the
+   * same access, ruleset and weight class rules as `createBout` but nothing saved.
+   */
+  async getFeasibility(
+    actor: AuthenticatedUser,
+    query: FeasibilityQuery,
+  ): Promise<FeasibilityResponse> {
+    await this.assertWriteAccess(actor, query.fighterId);
+
+    const weighInAt = new Date(query.weighInAt);
+    const boutAt = new Date(query.boutAt);
+    if (weighInAt.getTime() >= boutAt.getTime())
+      throw boutInvalidSchedule('WEIGH_IN_NOT_BEFORE_BOUT');
+    if (!(await this.repo.isActiveFighter(query.fighterId)))
+      throw boutFighterNotFound();
+    const ruleset = await this.requireRuleset(query.rulesetId);
+    const weightClass = resolveWeightClass(ruleset.weightClasses, {
+      weightClassCode: query.weightClassCode,
+      weightLimitKg: query.weightLimitKg,
+    });
+    if (!weightClass.ok) throw boutInvalidWeightClass(weightClass.reason);
+    const acuteLossLimitPct = acuteLossLimitPctFor(weighInAt, boutAt, {
+      long: Number(ruleset.acuteLossLimitPctLong),
+      short: Number(ruleset.acuteLossLimitPctShort),
+    });
+
+    const feasibility = await this.loadFeasibility(
+      query.fighterId,
+      {
+        limitKg: weightClass.limitKg,
+        acuteLossLimitPct,
+        acuteWindowDays: ruleset.acuteWindowDays,
+        weighInAt,
+      },
+      new Date(),
+    );
+    return {
+      ...feasibility,
+      limitKg: weightClass.limitKg,
+      acuteLossLimitPct,
+      warnings: weightFeasibilityWarnings(feasibility),
+    };
+  }
+
+  private async loadFeasibility(
+    fighterId: string,
+    target: {
+      limitKg: number;
+      acuteLossLimitPct: number;
+      acuteWindowDays: number;
+      weighInAt: Date;
+    },
+    now: Date,
+  ): Promise<WeightFeasibility> {
+    const today = academyDateOf(now);
+    const from = addDaysToDate(today, -FEASIBILITY_WEIGHT_MAX_AGE_DAYS);
+    const measurements = await this.repo.findWeightMeasurements(
+      fighterId,
+      academyStartOfDay(from),
+      now,
+    );
+    const points = buildDailyWeightPoints(measurements, { from, to: today });
+    return computeWeightFeasibility({
+      limitKg: target.limitKg,
+      acuteLossLimitPct: target.acuteLossLimitPct,
+      acuteWindowDays: target.acuteWindowDays,
+      today,
+      weighInDate: academyDateOf(target.weighInAt),
+      latest: points[points.length - 1] ?? null,
+    });
   }
 
   async updateBout(
@@ -224,7 +476,7 @@ export class BoutsService {
     ] as const;
     const touchesSchedule = scheduleKeys.some((key) => input[key] !== undefined);
     const touchesOther = (
-      ['eventName', 'venue', 'opponentName'] as const
+      ['eventName', 'venue', 'opponentName', 'scheduledRounds'] as const
     ).some((key) => input[key] !== undefined);
 
     if (isFinalStatus(bout.status) && (touchesSchedule || touchesOther))
@@ -237,6 +489,7 @@ export class BoutsService {
     if (input.venue !== undefined) changes.venue = input.venue;
     if (input.opponentName !== undefined) changes.opponentName = input.opponentName;
     if (input.notes !== undefined) changes.notes = input.notes;
+    if (input.scheduledRounds !== undefined) changes.scheduledRounds = input.scheduledRounds;
     if (input.requirementsDueDays !== undefined)
       changes.requirementsDueDays = input.requirementsDueDays;
 
@@ -265,12 +518,39 @@ export class BoutsService {
       );
     }
 
+    let weightClassHistoryEntry: BoutHistoryEntry | undefined;
     if (classChanged && ruleset) {
       const weightClass = resolveWeightClass(ruleset.weightClasses, {
         weightClassCode: input.weightClassCode ?? bout.weightClassCode,
         weightLimitKg: input.weightLimitKg,
       });
       if (!weightClass.ok) throw boutInvalidWeightClass(weightClass.reason);
+
+      const fromClass = bout.weightClassCode;
+      const toClass = weightClass.code;
+      const fromLimitKg = Number(bout.weightLimitKg);
+      const toLimitKg = weightClass.limitKg;
+
+      const isActuallyChanged =
+        fromClass !== toClass ||
+        Math.round(fromLimitKg * 100) !== Math.round(toLimitKg * 100);
+
+      if (isActuallyChanged) {
+        if (!input.reason) throw boutChangeReasonRequired();
+        weightClassHistoryEntry = {
+          at: new Date().toISOString(),
+          by: actor.id,
+          from: bout.status,
+          to: bout.status,
+          reason: input.reason,
+          action: 'WEIGHT_CLASS_CHANGE',
+          fromClass,
+          toClass,
+          fromLimitKg,
+          toLimitKg,
+        };
+      }
+
       changes.weightClassCode = weightClass.code;
       changes.weightLimitKg = String(weightClass.limitKg);
     }
@@ -278,10 +558,20 @@ export class BoutsService {
     try {
       const updated = await this.repo.transaction(async (tx) => {
         await setAuditContext(actor.authSubject, requestId, tx);
+        if (input.scheduledRounds !== undefined) {
+          const locked = await this.repo.lockBoutById(bout.id, tx);
+          if (!locked || locked.status !== bout.status) throw boutStateConflict();
+          const rounds = await this.repo.listRounds(bout.id, tx);
+          if (input.scheduledRounds !== null && rounds.some((r) => r.roundNo > input.scheduledRounds!))
+            throw boutAnalysisInvalid('BOUT_ROUNDS_BELOW_RECORDED');
+        }
         return this.repo.updateBout(
           bout.id,
           changes,
-          { expectedStatus: bout.status },
+          {
+            expectedStatus: bout.status,
+            historyEntry: weightClassHistoryEntry,
+          },
           tx,
         );
       });
@@ -380,12 +670,33 @@ export class BoutsService {
     await this.assertWriteAccess(actor, bout.fighterId);
     if (isFinalStatus(bout.status)) throw boutNotEditable(bout.status);
 
+    const isLocked = bout.status === 'FIGHT_WEEK' || bout.status === 'WEIGHED_IN';
+    if (isLocked && !input.unlockReason) throw boutRequirementsLocked();
+
     if (await this.repo.findRequirement(bout.id, input.code))
       throw requirementExists();
 
     try {
       const [created] = await this.repo.transaction(async (tx) => {
         await setAuditContext(actor.authSubject, requestId, tx);
+        if (isLocked) {
+          const historyEntry: BoutHistoryEntry = {
+            at: new Date().toISOString(),
+            by: actor.id,
+            from: bout.status,
+            to: bout.status,
+            reason: input.unlockReason,
+            action: 'REQUIREMENT_UNLOCK',
+            requirementCode: input.code,
+          };
+          const unlocked = await this.repo.updateBout(
+            bout.id,
+            {},
+            { expectedStatus: bout.status, historyEntry },
+            tx,
+          );
+          if (!unlocked) throw boutStateConflict();
+        }
         return this.repo.insertRequirements(
           [
             {
@@ -422,6 +733,9 @@ export class BoutsService {
     await this.assertWriteAccess(actor, bout.fighterId);
     if (isFinalStatus(bout.status)) throw boutNotEditable(bout.status);
 
+    const isLocked = bout.status === 'FIGHT_WEEK' || bout.status === 'WEIGHED_IN';
+    if (isLocked && !input.unlockReason) throw boutRequirementsLocked();
+
     const existing = await this.repo.findRequirement(bout.id, code);
     if (!existing) throw requirementNotFound();
 
@@ -452,6 +766,24 @@ export class BoutsService {
     try {
       const updated = await this.repo.transaction(async (tx) => {
         await setAuditContext(actor.authSubject, requestId, tx);
+        if (isLocked) {
+          const historyEntry: BoutHistoryEntry = {
+            at: new Date().toISOString(),
+            by: actor.id,
+            from: bout.status,
+            to: bout.status,
+            reason: input.unlockReason,
+            action: 'REQUIREMENT_UNLOCK',
+            requirementCode: code,
+          };
+          const unlocked = await this.repo.updateBout(
+            bout.id,
+            {},
+            { expectedStatus: bout.status, historyEntry },
+            tx,
+          );
+          if (!unlocked) throw boutStateConflict();
+        }
         return this.repo.updateRequirement(
           bout.id,
           code,
@@ -482,18 +814,318 @@ export class BoutsService {
     boutId: string,
     code: string,
     requestId: string,
+    unlockReason?: string,
   ): Promise<{ code: string; gate1: Gate1Result }> {
     const bout = await this.requireBout(boutId);
     await this.assertWriteAccess(actor, bout.fighterId);
     if (isFinalStatus(bout.status)) throw boutNotEditable(bout.status);
 
+    const isLocked = bout.status === 'FIGHT_WEEK' || bout.status === 'WEIGHED_IN';
+    if (isLocked && !unlockReason) throw boutRequirementsLocked();
+
     try {
       const removed = await this.repo.transaction(async (tx) => {
         await setAuditContext(actor.authSubject, requestId, tx);
+        if (isLocked) {
+          const historyEntry: BoutHistoryEntry = {
+            at: new Date().toISOString(),
+            by: actor.id,
+            from: bout.status,
+            to: bout.status,
+            reason: unlockReason,
+            action: 'REQUIREMENT_UNLOCK',
+            requirementCode: code,
+          };
+          const unlocked = await this.repo.updateBout(
+            bout.id,
+            {},
+            { expectedStatus: bout.status, historyEntry },
+            tx,
+          );
+          if (!unlocked) throw boutStateConflict();
+        }
         return this.repo.deleteRequirement(bout.id, code, tx);
       });
       if (!removed) throw requirementNotFound();
       return { code, gate1: await this.loadGate1(bout) };
+    } catch (error) {
+      throw mapBoutPersistenceError(error);
+    }
+  }
+
+
+  // ---------------------------------------------------------------------------
+  // Weigh-in and result (F5, F6, R17-R19, R26)
+  // ---------------------------------------------------------------------------
+
+  async recordWeighIn(
+    actor: AuthenticatedUser,
+    id: string,
+    input: WeighInInput,
+    requestId: string,
+  ): Promise<WeighInResponse> {
+    const bout = await this.requireBout(id);
+    await this.assertWriteAccess(actor, bout.fighterId);
+
+    if (bout.status !== 'FIGHT_WEEK') {
+      throw boutInvalidTransition(bout.status, 'WEIGHED_IN');
+    }
+
+    const now = new Date();
+    const today = academyDateOf(now);
+    const earliestOn = academyDateOf(bout.weighInAt);
+    if (today < earliestOn) {
+      throw boutWeighInTooEarly(earliestOn);
+    }
+
+    const ruleset = await this.requireRuleset(bout.rulesetId);
+    const limit = bout.catchweightKg !== null ? Number(bout.catchweightKg) : Number(bout.weightLimitKg);
+    const weightKg = input.weightKg;
+    const hydrationCheck = input.hydrationCheck ?? 'NOT_APPLICABLE';
+
+    const roundedWeight = Math.round(weightKg * 100);
+    const roundedLimit = Math.round(limit * 100);
+    const weightPassed = roundedWeight <= roundedLimit;
+
+    const isPassed = weightPassed && hydrationCheck !== 'FAILED';
+    const madeWeight = weightPassed;
+
+    let outcome: 'PASSED' | 'FAILED';
+    let reason: 'OVER_LIMIT' | 'HYDRATION_FAILED' | null = null;
+    let overByKg: number | null = null;
+    let overByPct: number | null = null;
+    let options: ('CATCHWEIGHT' | 'CANCEL')[] = [];
+
+    if (isPassed) {
+      outcome = 'PASSED';
+      reason = null;
+      overByKg = null;
+      overByPct = null;
+      options = [];
+    } else {
+      outcome = 'FAILED';
+      options = ['CATCHWEIGHT', 'CANCEL'];
+      if (!weightPassed) {
+        reason = 'OVER_LIMIT';
+        overByKg = Math.round((weightKg - limit) * 100) / 100;
+        overByPct = Math.round(((weightKg - limit) / limit * 100) * 10) / 10;
+      } else {
+        reason = 'HYDRATION_FAILED';
+        overByKg = null;
+        overByPct = null;
+      }
+    }
+
+    const weighInBlock: WeighInBlock = {
+      outcome,
+      reason,
+      overByKg,
+      overByPct,
+      options,
+    };
+
+    try {
+      const updated = await this.repo.transaction(async (tx) => {
+        await setAuditContext(actor.authSubject, requestId, tx);
+        await this.repo.insertFighterMeasurement(
+          {
+            fighterId: bout.fighterId,
+            recordedById: actor.id,
+            measuredAt: now,
+            measurementContext: 'WEIGH_IN',
+            weightKg: weightKg.toFixed(2),
+            notes: input.notes ?? null,
+          },
+          tx,
+        );
+
+        const changes: Parameters<BoutsRepository['updateBout']>[1] = {
+          officialWeightKg: weightKg.toFixed(2),
+          madeWeight,
+          hydrationCheck,
+        };
+
+        let historyEntry: BoutHistoryEntry | undefined;
+        if (isPassed) {
+          changes.status = 'WEIGHED_IN';
+          historyEntry = {
+            at: now.toISOString(),
+            by: actor.id,
+            from: 'FIGHT_WEEK',
+            to: 'WEIGHED_IN',
+          };
+        }
+        const row = await this.repo.updateBout(
+          bout.id,
+          changes,
+          { expectedStatus: 'FIGHT_WEEK', ...(historyEntry ? { historyEntry } : {}) },
+          tx,
+        );
+        // Throw inside the transaction so a lost race rolls back the measurement insert.
+        if (!row) throw boutStateConflict();
+        return row;
+      });
+
+      const detail = await this.buildDetail(updated, ruleset);
+      return {
+        ...detail,
+        weighIn: weighInBlock,
+      };
+    } catch (error) {
+      throw mapBoutPersistenceError(error);
+    }
+  }
+
+  async recordCatchweight(
+    actor: AuthenticatedUser,
+    id: string,
+    input: CatchweightInput,
+    requestId: string,
+  ): Promise<BoutDetailResponse> {
+    const bout = await this.requireBout(id);
+    await this.assertWriteAccess(actor, bout.fighterId);
+
+    if (
+      bout.status !== 'FIGHT_WEEK' ||
+      (bout.madeWeight !== false && bout.hydrationCheck !== 'FAILED')
+    ) {
+      throw boutWeighInNotFailed();
+    }
+
+    if (bout.officialWeightKg === null) {
+      throw boutWeighInNotFailed();
+    }
+
+    const officialWeight = Number(bout.officialWeightKg);
+    const targetKg = input.catchweightKg ?? officialWeight;
+
+    // An over-limit official weight already exceeds `weight_limit_kg`, so `>= officialWeight`
+    // is enough; a hydration-only failure has an official weight below the limit.
+    if (targetKg < officialWeight) {
+      throw boutInvalidCatchweight();
+    }
+
+    const reason = input.note ?? 'Catchweight';
+    const historyEntry: BoutHistoryEntry = {
+      at: new Date().toISOString(),
+      by: actor.id,
+      from: 'FIGHT_WEEK',
+      to: 'WEIGHED_IN',
+      reason,
+      catchweightKg: targetKg,
+    };
+
+    try {
+      const updated = await this.repo.transaction(async (tx) => {
+        await setAuditContext(actor.authSubject, requestId, tx);
+        return this.repo.updateBout(
+          bout.id,
+          {
+            catchweightKg: targetKg.toFixed(2),
+            madeWeight: true,
+            status: 'WEIGHED_IN',
+          },
+          { expectedStatus: 'FIGHT_WEEK', historyEntry },
+          tx,
+        );
+      });
+      if (!updated) throw boutStateConflict();
+      return await this.buildDetail(updated);
+    } catch (error) {
+      throw mapBoutPersistenceError(error);
+    }
+  }
+
+  async recordResult(
+    actor: AuthenticatedUser,
+    id: string,
+    input: RecordResultInput,
+    requestId: string,
+  ): Promise<BoutDetailResponse> {
+    const bout = await this.requireBout(id);
+    await this.assertWriteAccess(actor, bout.fighterId);
+
+    if (bout.status !== 'WEIGHED_IN') {
+      throw boutInvalidTransition(bout.status, 'COMPLETED');
+    }
+
+    const now = new Date();
+    const today = academyDateOf(now);
+    const earliestOn = academyDateOf(bout.boutAt);
+    if (today < earliestOn) {
+      throw boutNotStarted(earliestOn);
+    }
+
+    // Conditional validations (mục 4):
+    if (['KO', 'TKO', 'SUBMISSION'].includes(input.method)) {
+      if (input.resultRound === undefined || input.resultRound === null) {
+        throw boutResultInvalid('ROUND_REQUIRED');
+      }
+    } else if (input.method === 'DECISION') {
+      if (input.resultRound !== undefined && input.resultRound !== null) {
+        throw boutResultInvalid('ROUND_NOT_ALLOWED');
+      }
+    }
+
+    const isKoOrTkoLoss = input.result === 'LOSS' && ['KO', 'TKO'].includes(input.method);
+    if (isKoOrTkoLoss) {
+      if (!input.lossOfConsciousness) {
+        throw boutResultInvalid('CONSCIOUSNESS_REQUIRED');
+      }
+    } else {
+      if (input.lossOfConsciousness !== undefined && input.lossOfConsciousness !== null) {
+        throw boutResultInvalid('CONSCIOUSNESS_NOT_ALLOWED');
+      }
+    }
+
+    const isTkoLoss = input.result === 'LOSS' && input.method === 'TKO';
+    if (isTkoLoss) {
+      if (input.stoppedByHeadStrike === undefined || input.stoppedByHeadStrike === null) {
+        throw boutResultInvalid('HEAD_STRIKE_REQUIRED');
+      }
+    } else {
+      if (input.stoppedByHeadStrike !== undefined && input.stoppedByHeadStrike !== null) {
+        throw boutResultInvalid('HEAD_STRIKE_NOT_ALLOWED');
+      }
+    }
+
+    const historyEntry: BoutHistoryEntry = {
+      at: now.toISOString(),
+      by: actor.id,
+      from: 'WEIGHED_IN',
+      to: 'COMPLETED',
+      ...(input.lossOfConsciousness !== undefined
+        ? { lossOfConsciousness: input.lossOfConsciousness }
+        : {}),
+      ...(input.stoppedByHeadStrike !== undefined
+        ? { stoppedByHeadStrike: input.stoppedByHeadStrike }
+        : {}),
+      ...(input.injuryNote !== undefined
+        ? { injuryNote: input.injuryNote }
+        : {}),
+    };
+
+    const changes: Parameters<BoutsRepository['updateBout']>[1] = {
+      result: input.result,
+      method: input.method,
+      resultRound: input.resultRound ?? null,
+      knockedDown: input.knockedDown ?? false,
+      status: 'COMPLETED',
+      ...(input.notes !== undefined ? { notes: input.notes } : {}),
+    };
+
+    try {
+      const updated = await this.repo.transaction(async (tx) => {
+        await setAuditContext(actor.authSubject, requestId, tx);
+        return this.repo.updateBout(
+          bout.id,
+          changes,
+          { expectedStatus: 'WEIGHED_IN', historyEntry },
+          tx,
+        );
+      });
+      if (!updated) throw boutStateConflict();
+      return await this.buildDetail(updated);
     } catch (error) {
       throw mapBoutPersistenceError(error);
     }
@@ -549,8 +1181,30 @@ export class BoutsService {
     const track = await this.loadWeightTrack(bout, ruleset, now);
     const dueOn = requirementsDueOn(bout.weighInAt, bout.requirementsDueDays);
 
+    let acuteLoss: AcuteLossResult | null = null;
+    if (bout.officialWeightKg !== null) {
+      const windowStart = addDaysToDate(
+        academyDateOf(bout.weighInAt),
+        -ruleset.acuteWindowDays,
+      );
+      const measurements = await this.repo.findWeightMeasurements(
+        bout.fighterId,
+        academyStartOfDay(windowStart),
+        now,
+      );
+      acuteLoss = computeAcuteLoss({
+        officialWeightKg: Number(bout.officialWeightKg),
+        limitPct: Number(bout.acuteLossLimitPct),
+        acuteWindowDays: ruleset.acuteWindowDays,
+        weighInDate: academyDateOf(bout.weighInAt),
+        measurements,
+      });
+    }
+
     return {
       ...toBoutSummary(bout),
+      opponentAnalysis: bout.opponentAnalysis,
+      tacticsWithoutSessions: (bout.opponentAnalysis.tactics ?? []).filter((t) => !t.sessionIds.length).map((t) => t.id),
       ruleset: {
         id: ruleset.id,
         name: ruleset.name,
@@ -575,6 +1229,11 @@ export class BoutsService {
         now,
         gate1,
       }),
+      weightReminder: computeWeighInReminder({
+        status: bout.status,
+        today: academyDateOf(now),
+        latestOn: track.latestOn,
+      }),
       weight: {
         latestKg: track.latestKg,
         latestOn: track.latestOn,
@@ -582,6 +1241,7 @@ export class BoutsService {
         status: track.status,
         referencePath: track.referencePath,
       },
+      acuteLoss,
     };
   }
 
@@ -603,21 +1263,22 @@ export class BoutsService {
     const plan = bout.trainingPlanId
       ? await this.repo.findPlanById(bout.trainingPlanId)
       : undefined;
-    const campStart = plan?.startDate ?? academyDateOf(bout.createdAt);
-    const today = academyDateOf(now);
+    const planStartDate = plan?.startDate ?? null;
     const measurements = await this.repo.findWeightMeasurements(
       bout.fighterId,
-      academyStartOfDay(campStart),
+      academyStartOfDay(campStartOf(planStartDate, bout.createdAt)),
       now,
     );
-    return computeWeightTrack({
+    return computeBoutWeightTrack({
+      status: bout.status,
       limitKg: Number(bout.catchweightKg ?? bout.weightLimitKg),
       acuteLossLimitPct: Number(bout.acuteLossLimitPct),
       acuteWindowDays: ruleset.acuteWindowDays,
-      weighInDate: academyDateOf(bout.weighInAt),
-      today,
-      campStart,
-      points: buildDailyWeightPoints(measurements, { from: campStart, to: today }),
+      weighInAt: bout.weighInAt,
+      createdAt: bout.createdAt,
+      planStartDate,
+      measurements,
+      now,
     });
   }
 
@@ -747,6 +1408,7 @@ function toBoutSummary(row: BoutRow): BoutSummary {
     eventName: row.eventName,
     venue: row.venue,
     opponentName: row.opponentName,
+    scheduledRounds: row.scheduledRounds,
     weightClassCode: row.weightClassCode,
     weightLimitKg: Number(row.weightLimitKg),
     acuteLossLimitPct: Number(row.acuteLossLimitPct),
@@ -771,7 +1433,7 @@ function toBoutSummary(row: BoutRow): BoutSummary {
   };
 }
 
-function toRequirementState(row: BoutRequirementRow) {
+export function toRequirementState(row: BoutRequirementRow) {
   return {
     code: row.code,
     label: row.label,
@@ -794,4 +1456,19 @@ function toRequirementResponse(row: BoutRequirementRow): RequirementResponse {
     statusReason: row.statusReason,
     confirmedAt: row.confirmedAt ? row.confirmedAt.toISOString() : null,
   };
+}
+
+function analysisValidationError() {
+  return new UnprocessableEntityException({ statusCode: 422, error: 'Unprocessable Entity', code: 'VALIDATION_ERROR', message: 'Invalid analysis or round data.' });
+}
+function fighterAnalysis(analysis: OpponentAnalysis) {
+  return { tactics: (analysis.tactics ?? []).map((t) => ({
+    id: t.id, text: t.text, round: t.round, partnerBrief: t.partnerBrief ?? null, sessionIds: t.sessionIds,
+  })) };
+}
+function withoutReviews(analysis: OpponentAnalysis): OpponentAnalysis {
+  return { ...analysis, tactics: (analysis.tactics ?? []).map(({ review: _review, ...t }) => t) };
+}
+function toRoundResponse(row: Awaited<ReturnType<BoutsRepository['upsertRound']>>) {
+  return { ...row, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString() };
 }

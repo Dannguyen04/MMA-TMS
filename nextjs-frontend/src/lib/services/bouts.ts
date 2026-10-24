@@ -13,8 +13,10 @@ import type {
     BoutRequirement,
     BoutRequirementStatus,
     BoutStatus,
+    CoachTodo,
     CompetitionRuleset,
     User,
+    WeightFeasibility,
     WeightTrack,
 } from "@/lib/domain/types";
 import { isNotFound, nullIfNotFound, unsupportedOperation } from "./api-helpers";
@@ -28,7 +30,7 @@ export const boutResultSchema = z.enum(["WIN", "LOSS", "DRAW", "NO_CONTEST"]);
 export const boutMethodSchema = z.enum(["KO", "TKO", "DECISION", "SUBMISSION", "DQ", "OTHER"]);
 export const boutRequirementStatusSchema = z.enum(["MISSING", "PROVIDED", "CONFIRMED", "REJECTED"]);
 export const boutRequirementSourceSchema = z.enum(["PRESET", "COACH"]);
-export const weightWarningStatusSchema = z.enum(["GREEN", "YELLOW", "RED", "GREY"]);
+export const weightWarningStatusSchema = z.enum(["ON_TRACK", "ABOVE_TARGET", "OVER_LIMIT", "NOT_WEIGHED", "NEUTRAL"]);
 
 export const rulesetWeightClassSchema = z.object({
     code: z.string(),
@@ -109,6 +111,50 @@ export const weightStatusSummarySchema = z.object({
     referencePath: z.array(referencePathPointSchema),
 });
 
+export const weightReminderSchema = z.object({
+    active: z.boolean(),
+    level: z.enum(["ASK_TODAY", "YESTERDAY_MISSING"]).nullable(),
+    daysSinceLastWeight: z.number().nullable(),
+    messageCode: z.string().nullable(),
+});
+
+export const feasibilitySchema = z.object({
+    status: weightWarningStatusSchema,
+    remainingPct: z.number().nullable(),
+    latestKg: z.number().nullable(),
+    latestOn: z.string().nullable(),
+    daysToWeighIn: z.number(),
+    limitKg: z.number(),
+    acuteLossLimitPct: z.number(),
+    warnings: z.array(z.object({ code: z.enum(["WEIGHT_AT_RISK", "WEIGHT_INSUFFICIENT_DATA"]) })),
+});
+
+export const coachTodoSchema = z.object({
+    items: z.array(
+        z.object({
+            source: z.enum([
+                "REQUIREMENTS_DUE",
+                "REQUIREMENTS_OVERDUE",
+                "WEIGHT_OVER_LIMIT",
+                "WEIGHT_ABOVE_TARGET",
+                "WEIGHT_NOT_WEIGHED",
+                "TACTICS_WITHOUT_SESSIONS",
+                "CAN_ENTER_FIGHT_WEEK",
+                "WEIGH_IN_TODAY",
+                "RESULT_OVERDUE",
+                "WEIGHT_NOT_LOGGED",
+            ]),
+            phase: z.enum(["BEFORE", "DURING", "AFTER"]),
+            fighterId: z.string(),
+            boutId: z.string(),
+            eventName: z.string(),
+            dueOn: z.string().nullable(),
+            count: z.number().nullable(),
+        }),
+    ),
+    truncated: z.boolean(),
+});
+
 export const backendBoutSchema = z.object({
     id: z.string(),
     fighterId: z.string(),
@@ -147,6 +193,7 @@ export const backendBoutSchema = z.object({
     gate1: gate1Schema.optional(),
     canEnterFightWeek: z.boolean().optional(),
     weight: weightStatusSummarySchema.optional(),
+    weightReminder: weightReminderSchema.optional(),
 });
 
 export const backendWeightTrackSchema = z.object({
@@ -239,6 +286,16 @@ export interface UpdateRequirementInput {
     label?: string;
     required?: boolean;
     statusReason?: string | null;
+}
+
+/** What the create form knows about a bout it is about to save (R31 preview). */
+export interface FeasibilityInput {
+    fighterId: string;
+    rulesetId: string;
+    weightClassCode: string;
+    weightLimitKg: number;
+    weighInAt: string;
+    boutAt: string;
 }
 
 export type EnterFightWeekResult =
@@ -422,6 +479,30 @@ export async function removeRequirement(id: string, code: string, actor: User): 
         if (isNotFound(error)) return false;
         throw error;
     }
+}
+
+/** R31: can the fighter make the class? Read-only; null when the bouts service is off. */
+export async function getFeasibility(input: FeasibilityInput): Promise<WeightFeasibility | null> {
+    if (isDemoAuthEnabled()) return (await demoService()).getFeasibility(input);
+    if (!platformFeatureAvailable("bouts")) return null;
+
+    const params = new URLSearchParams({
+        fighterId: input.fighterId,
+        rulesetId: input.rulesetId,
+        weightClassCode: input.weightClassCode,
+        weightLimitKg: String(input.weightLimitKg),
+        weighInAt: input.weighInAt,
+        boutAt: input.boutAt,
+    });
+    return authenticatedApiRequest(`/bouts/feasibility?${params.toString()}`, feasibilitySchema);
+}
+
+/** The coach's to-do card. The backend scopes it to the signed-in coach; demo mode reads `scope`. */
+export async function getCoachTodo(scope: string[] | "all"): Promise<CoachTodo | null> {
+    if (isDemoAuthEnabled()) return (await demoService()).getCoachTodo(scope);
+    if (!platformFeatureAvailable("bouts")) return null;
+
+    return authenticatedApiRequest("/coach/todo", coachTodoSchema);
 }
 
 export async function getWeightTrack(id: string): Promise<WeightTrack | null> {

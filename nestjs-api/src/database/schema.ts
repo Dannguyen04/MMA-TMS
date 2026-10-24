@@ -1,5 +1,6 @@
 // SQL migrations are authoritative. This file maps public tables for Drizzle queries.
 // RLS, grants, trigger functions and migration history are owned by 003, not drizzle-kit.
+import type { OpponentAnalysis, RoundInput } from '../bouts/bout-analysis.model.js';
 import { sql } from 'drizzle-orm';
 import {
   pgTable,
@@ -4462,6 +4463,16 @@ export interface BoutHistoryEntry {
   from: string;
   to: string;
   reason?: string;
+  action?: string;
+  requirementCode?: string;
+  fromClass?: string;
+  toClass?: string;
+  fromLimitKg?: number;
+  toLimitKg?: number;
+  catchweightKg?: number;
+  lossOfConsciousness?: string;
+  stoppedByHeadStrike?: boolean;
+  injuryNote?: string;
 }
 
 export const bouts = pgTable('bouts', {
@@ -4472,6 +4483,8 @@ export const bouts = pgTable('bouts', {
   eventName: text('event_name').notNull(),
   venue: text('venue'),
   opponentName: text('opponent_name'),
+  opponentAnalysis: jsonb('opponent_analysis').$type<OpponentAnalysis>().notNull().default(sql`'{}'::jsonb`),
+  scheduledRounds: smallint('scheduled_rounds'),
   weightClassCode: text('weight_class_code').notNull(),
   weightLimitKg: numeric('weight_limit_kg', { precision: 5, scale: 2 }).notNull(),
   acuteLossLimitPct: numeric('acute_loss_limit_pct', { precision: 4, scale: 1 }).notNull(),
@@ -4501,6 +4514,8 @@ export const bouts = pgTable('bouts', {
     columns: [t.trainingPlanId, t.fighterId],
     foreignColumns: [trainingPlans.id, trainingPlans.fighterId],
   }),
+  check('ck_bouts_opponent_analysis', sql.raw("jsonb_typeof(opponent_analysis) = 'object'")),
+  check('ck_bouts_scheduled_rounds', sql.raw('scheduled_rounds BETWEEN 1 AND 12')),
   check('ck_bouts_event_name', sql.raw("(btrim(event_name) <> '')")),
   check('ck_bouts_schedule', sql.raw('(weigh_in_at < bout_at)')),
   check('ck_bouts_weight_limit', sql.raw('(weight_limit_kg > 0)')),
@@ -4563,3 +4578,30 @@ export type BoutRow = typeof bouts.$inferSelect;
 export type InsertBout = typeof bouts.$inferInsert;
 export type BoutRequirementRow = typeof boutRequirements.$inferSelect;
 export type InsertBoutRequirement = typeof boutRequirements.$inferInsert;
+
+// T-010: round records are private coach assessments.
+export const boutRounds = pgTable('bout_rounds', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  boutId: uuid('bout_id').notNull().references(() => bouts.id, { onDelete: 'cascade' }),
+  roundNo: smallint('round_no').notNull(),
+  tacticMarks: jsonb('tactic_marks').$type<NonNullable<RoundInput['tacticMarks']>>().notNull().default(sql`'{}'::jsonb`),
+  observationMarks: jsonb('observation_marks').$type<NonNullable<RoundInput['observationMarks']>>().notNull().default(sql`'{}'::jsonb`),
+  selfScore: text('self_score').$type<'WIN' | 'LOSS' | 'CLOSE'>(),
+  knockdownsAgainst: smallint('knockdowns_against').notNull().default(0),
+  stunned: boolean('stunned').notNull().default(false),
+  bleeding: boolean('bleeding').notNull().default(false),
+  fatigued: boolean('fatigued').notNull().default(false),
+  note: text('note'),
+  recordedById: uuid('recorded_by_id').notNull().references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  unique('uq_bout_rounds_bout_round').on(t.boutId, t.roundNo),
+  check('bout_rounds_round_no_check', sql.raw('round_no BETWEEN 1 AND 12')),
+  check('bout_rounds_self_score_check', sql.raw("self_score IN ('WIN', 'LOSS', 'CLOSE')")),
+  check('bout_rounds_knockdowns_against_check', sql.raw('knockdowns_against BETWEEN 0 AND 10')),
+  check('bout_rounds_note_check', sql.raw('note IS NULL OR char_length(note) <= 300')),
+  check('ck_bout_rounds_tactic_marks', sql.raw("jsonb_typeof(tactic_marks) = 'object'")),
+  check('ck_bout_rounds_observation_marks', sql.raw("jsonb_typeof(observation_marks) = 'object'")),
+]).enableRLS();
+export type BoutRoundRow = typeof boutRounds.$inferSelect;

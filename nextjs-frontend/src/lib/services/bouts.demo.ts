@@ -2,26 +2,33 @@ import "server-only";
 
 import {
     calculateSnapshotAcuteLimit,
+    calculateWeightFeasibility,
     calculateWeightWarning,
     canEnterFightWeek,
     computeBoutComputedFields,
     computeWeightPoints,
     evaluateGate1,
+    FEASIBILITY_WEIGHT_MAX_AGE_DAYS,
+    feasibilityWarnings,
 } from "@/lib/domain/bout-rules";
+import { buildDemoCoachTodo } from "@/lib/domain/coach-todo";
 import type {
     Bout,
     BoutRequirement,
+    CoachTodo,
     CompetitionRuleset,
     User,
+    WeightFeasibility,
     WeightTrack,
 } from "@/lib/domain/types";
-import { dayKey } from "@/lib/format";
+import { addDaysToKey, dayKey } from "@/lib/format";
 import { db, newId, nowIso, simulateLatency } from "@/lib/mocks/db";
 import type {
     AddRequirementInput,
     BoutFilter,
     CreateBoutInput,
     EnterFightWeekResult,
+    FeasibilityInput,
     UpdateBoutInput,
     UpdateRequirementInput,
 } from "./bouts";
@@ -296,6 +303,29 @@ export async function removeRequirement(id: string, code: string, actor: User): 
     return true;
 }
 
+export async function getFeasibility(input: FeasibilityInput): Promise<WeightFeasibility | null> {
+    await simulateLatency(0.5);
+    const ruleset = db().rulesets.find((r) => r.id === input.rulesetId);
+    if (!ruleset) return null;
+    const now = new Date();
+    const since = addDaysToKey(dayKey(now), -FEASIBILITY_WEIGHT_MAX_AGE_DAYS);
+    const points = computeWeightPoints(measurementsForFighter(input.fighterId, since));
+    const result = calculateWeightFeasibility({
+        limitKg: input.weightLimitKg,
+        acuteLossLimitPct: calculateSnapshotAcuteLimit(input.weighInAt, input.boutAt, ruleset),
+        acuteWindowDays: ruleset.acuteWindowDays,
+        weighInAt: input.weighInAt,
+        latest: points[points.length - 1] ?? null,
+        now,
+    });
+    return { ...result, warnings: feasibilityWarnings(result.status) };
+}
+
+export async function getCoachTodo(scope: string[] | "all"): Promise<CoachTodo> {
+    const bouts = await listBouts({ fighterIds: scope, status: ["SCHEDULED", "CAMP", "FIGHT_WEEK", "WEIGHED_IN"] });
+    return { items: buildDemoCoachTodo(bouts), truncated: false };
+}
+
 export async function getWeightTrack(id: string): Promise<WeightTrack | null> {
     await simulateLatency(0.5);
     const bout = db().bouts.find((b) => b.id === id && b.deletedAt === null);
@@ -315,6 +345,7 @@ export async function getWeightTrack(id: string): Promise<WeightTrack | null> {
         weighInAt: bout.weighInAt,
         campStartDate: campStart,
         measurements,
+        boutStatus: bout.status,
     });
 
     return {

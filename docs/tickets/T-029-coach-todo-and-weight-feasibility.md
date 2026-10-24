@@ -2,7 +2,7 @@
 
 | | |
 | --- | --- |
-| **Trạng thái** | IN PROGRESS (Claude làm cả backend lẫn frontend theo chỉ định của chủ dự án, 24/10). Slice 1 (mục 1, đổi tên status) xong; Q1, Q2, Q3 đã chốt |
+| **Trạng thái** | IN REVIEW (24/10). Claude làm cả backend lẫn frontend theo chỉ định của chủ dự án; Q1, Q2, Q3 đã chốt. Xem [handover](./T-029-HANDOVER.md) |
 | **Phần** | A: Backend (`nestjs-api`). Phần B (form tạo trận hiện khả thi, thẻ Việc cần làm trên dashboard HLV, nhắc cân trên app võ sĩ) có ticket riêng: B1 Hoàng Anh, B2 Fon |
 | **Người nhận** | Ken |
 | **Nhánh** | `feat/T-029-coach-todo` từ `fight-camp` mới nhất (đã có T-003, T-006, T-010; và T-007 nếu đã merge) |

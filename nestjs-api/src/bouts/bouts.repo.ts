@@ -15,6 +15,8 @@ import {
 } from 'drizzle-orm';
 import { DRIZZLE, type DrizzleDB } from '../database/database.module.js';
 import {
+  boutRounds,
+  trainingSessions,
   boutRequirements,
   bouts,
   coachFighters,
@@ -389,6 +391,39 @@ export class BoutsRepository {
     return row;
   }
 
+
+  /** Serialize all analysis/round writes and scheduled-round edits on the parent. */
+  async lockBoutById(id: string, database: DatabaseExecutor): Promise<BoutRow | undefined> {
+    const [row] = await database.select().from(bouts)
+      .where(and(eq(bouts.id, id), isNull(bouts.deletedAt))).for('update');
+    return row;
+  }
+
+  async findAnalysisSessions(ids: string[], fighterId: string, database: DatabaseExecutor = this.db) {
+    if (!ids.length) return [];
+    return database.select({ id: trainingSessions.id, title: trainingSessions.title,
+      scheduledAt: trainingSessions.scheduledAt }).from(trainingSessions)
+      .where(and(inArray(trainingSessions.id, ids), eq(trainingSessions.fighterId, fighterId), isNull(trainingSessions.deletedAt)))
+      .orderBy(asc(trainingSessions.scheduledAt), asc(trainingSessions.id));
+  }
+
+  async listRounds(boutId: string, database: DatabaseExecutor = this.db) {
+    return database.select().from(boutRounds).where(eq(boutRounds.boutId, boutId)).orderBy(asc(boutRounds.roundNo));
+  }
+
+  async upsertRound(
+    values: typeof boutRounds.$inferInsert, database: DatabaseExecutor = this.db,
+  ) {
+    const { boutId: _boutId, roundNo: _roundNo, ...changes } = values;
+    const [row] = await database.insert(boutRounds).values(values).onConflictDoUpdate({
+      target: [boutRounds.boutId, boutRounds.roundNo],
+      // Only supplied fields are updated; absent fields retain their old values.
+      set: { ...changes, updatedAt: new Date() },
+    }).returning();
+    if (!row) throw new Error('Round upsert returned no row');
+    return row;
+  }
+
   // --- Training plans --------------------------------------------------------
 
   async findPlanById(
@@ -409,7 +444,37 @@ export class BoutsRepository {
     return row;
   }
 
+  /** Plans of many bouts in one read (the coach to-do card). */
+  async findPlansByIds(
+    ids: readonly string[],
+    database: DatabaseExecutor = this.db,
+  ): Promise<PlanSummary[]> {
+    if (ids.length === 0) return [];
+    return database
+      .select({
+        id: trainingPlans.id,
+        fighterId: trainingPlans.fighterId,
+        phase: trainingPlans.phase,
+        startDate: trainingPlans.startDate,
+        deletedAt: trainingPlans.deletedAt,
+      })
+      .from(trainingPlans)
+      .where(inArray(trainingPlans.id, [...ids]));
+  }
+
   // --- Requirements ----------------------------------------------------------
+
+  /** Checklists of many bouts in one read (the coach to-do card). */
+  async listRequirementsForBouts(
+    boutIds: readonly string[],
+    database: DatabaseExecutor = this.db,
+  ): Promise<BoutRequirementRow[]> {
+    if (boutIds.length === 0) return [];
+    return database
+      .select()
+      .from(boutRequirements)
+      .where(inArray(boutRequirements.boutId, [...boutIds]));
+  }
 
   async listRequirements(
     boutId: string,
@@ -482,18 +547,69 @@ export class BoutsRepository {
 
   // --- Weight measurements ---------------------------------------------------
 
+  async insertFighterMeasurement(
+    values: {
+      fighterId: string;
+      recordedById: string;
+      measuredAt: Date;
+      measurementContext: 'WEIGH_IN';
+      weightKg: string;
+      notes?: string | null;
+    },
+    database: DatabaseExecutor = this.db,
+  ): Promise<void> {
+    await database.insert(fighterMeasurements).values(values);
+  }
+
+  /** `findWeightMeasurements` for many fighters at once, tagged with the fighter. */
+  async findWeightMeasurementsForFighters(
+    fighterIds: readonly string[],
+    from: Date,
+    to: Date,
+    database: DatabaseExecutor = this.db,
+  ): Promise<(WeightMeasurementInput & { fighterId: string })[]> {
+    if (fighterIds.length === 0) return [];
+    const rows = await database
+      .select({
+        fighterId: fighterMeasurements.fighterId,
+        measuredAt: fighterMeasurements.measuredAt,
+        createdAt: fighterMeasurements.createdAt,
+        weightKg: fighterMeasurements.weightKg,
+      })
+      .from(fighterMeasurements)
+      .where(
+        and(
+          inArray(fighterMeasurements.fighterId, [...fighterIds]),
+          sql`${fighterMeasurements.measuredAt} >= ${from.toISOString()}::timestamptz`,
+          sql`${fighterMeasurements.measuredAt} <= ${to.toISOString()}::timestamptz`,
+          sql`not exists (
+            select 1 from public.fighter_measurements succ
+            where succ.supersedes_id = ${fighterMeasurements.id}
+          )`,
+        ),
+      )
+      .orderBy(asc(fighterMeasurements.measuredAt), asc(fighterMeasurements.createdAt));
+    return rows.map((row) => ({
+      fighterId: row.fighterId,
+      measuredAt: row.measuredAt,
+      createdAt: row.createdAt,
+      weightKg: Number(row.weightKg),
+    }));
+  }
+
   /** Non-superseded measurements of a fighter within `[from, to]`, oldest first. */
   async findWeightMeasurements(
     fighterId: string,
     from: Date,
     to: Date,
     database: DatabaseExecutor = this.db,
-  ): Promise<WeightMeasurementInput[]> {
+  ): Promise<(WeightMeasurementInput & { measurementContext: string })[]> {
     const rows = await database
       .select({
         measuredAt: fighterMeasurements.measuredAt,
         createdAt: fighterMeasurements.createdAt,
         weightKg: fighterMeasurements.weightKg,
+        measurementContext: fighterMeasurements.measurementContext,
       })
       .from(fighterMeasurements)
       .where(
@@ -512,6 +628,7 @@ export class BoutsRepository {
       measuredAt: row.measuredAt,
       createdAt: row.createdAt,
       weightKg: Number(row.weightKg),
+      measurementContext: row.measurementContext,
     }));
   }
 }

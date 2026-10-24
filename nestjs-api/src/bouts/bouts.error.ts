@@ -189,6 +189,85 @@ export function boutStateConflict(): ConflictException {
   });
 }
 
+
+export function boutNotStarted(earliestOn: string): ConflictException {
+  return new ConflictException({
+    statusCode: HttpStatus.CONFLICT,
+    error: 'Conflict',
+    code: 'BOUT_NOT_STARTED',
+    message: 'The bout has not started yet.',
+    details: { earliestOn },
+  });
+}
+
+export function boutWeighInTooEarly(earliestOn: string): ConflictException {
+  return new ConflictException({
+    statusCode: HttpStatus.CONFLICT,
+    error: 'Conflict',
+    code: 'BOUT_WEIGH_IN_TOO_EARLY',
+    message: 'It is too early for official weigh-in.',
+    details: { earliestOn },
+  });
+}
+
+export function boutWeighInNotFailed(): ConflictException {
+  return new ConflictException({
+    statusCode: HttpStatus.CONFLICT,
+    error: 'Conflict',
+    code: 'BOUT_WEIGH_IN_NOT_FAILED',
+    message: 'Catchweight can only be agreed after a failed weigh-in.',
+  });
+}
+
+export function boutInvalidCatchweight(reason: string = 'OUT_OF_RANGE'): UnprocessableEntityException {
+  return unprocessable(
+    'BOUT_INVALID_CATCHWEIGHT',
+    'The catchweight limit must be at least the official weight and above the original limit.',
+    { reason },
+  );
+}
+
+export function boutResultInvalid(
+  reason:
+    | 'ROUND_REQUIRED'
+    | 'ROUND_NOT_ALLOWED'
+    | 'CONSCIOUSNESS_REQUIRED'
+    | 'CONSCIOUSNESS_NOT_ALLOWED'
+    | 'HEAD_STRIKE_REQUIRED'
+    | 'HEAD_STRIKE_NOT_ALLOWED'
+    | string,
+): UnprocessableEntityException {
+  const messages: Record<string, string> = {
+    ROUND_REQUIRED: 'A result round is required for KO, TKO and SUBMISSION.',
+    ROUND_NOT_ALLOWED: 'A result round is not allowed for DECISION.',
+    CONSCIOUSNESS_REQUIRED: 'Loss of consciousness evaluation is required for KO and TKO losses.',
+    CONSCIOUSNESS_NOT_ALLOWED: 'Loss of consciousness is only evaluated on KO and TKO losses.',
+    HEAD_STRIKE_REQUIRED: 'Stopped by head strike flag is required for TKO losses.',
+    HEAD_STRIKE_NOT_ALLOWED: 'Stopped by head strike flag is only allowed on TKO losses.',
+  };
+  return unprocessable(
+    'BOUT_RESULT_INVALID',
+    messages[reason] ?? 'The provided bout result data is invalid.',
+    { reason },
+  );
+}
+
+export function boutRequirementsLocked(): ConflictException {
+  return new ConflictException({
+    statusCode: HttpStatus.CONFLICT,
+    error: 'Conflict',
+    code: 'BOUT_REQUIREMENTS_LOCKED',
+    message: 'Requirements are locked during fight week and after weigh-in. An unlockReason is required.',
+  });
+}
+
+export function boutChangeReasonRequired(): UnprocessableEntityException {
+  return unprocessable(
+    'BOUT_CHANGE_REASON_REQUIRED',
+    'A reason is required when changing the weight class or weight limit.',
+  );
+}
+
 export function boutOperationFailed(): InternalServerErrorException {
   return new InternalServerErrorException({
     statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
@@ -252,4 +331,12 @@ export function mapBoutPersistenceError(error: unknown): HttpException {
     default:
       return boutOperationFailed();
   }
+}
+
+export function boutAnalysisInvalid(
+  code: 'OPPONENT_TACTIC_EVIDENCE_REQUIRED' | 'OPPONENT_SESSION_INVALID' |
+    'OPPONENT_TACTIC_UNKNOWN' | 'BOUT_ROUNDS_NOT_SET' | 'BOUT_ROUND_OUT_OF_RANGE' |
+    'BOUT_ROUND_MARK_UNKNOWN' | 'BOUT_ROUNDS_BELOW_RECORDED',
+): UnprocessableEntityException {
+  return unprocessable(code, 'The opponent analysis or round record is invalid.');
 }
