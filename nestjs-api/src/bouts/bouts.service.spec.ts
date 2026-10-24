@@ -1502,6 +1502,95 @@ describe('BoutsService', () => {
     });
   });
 
+  describe('weight feasibility and reminder (T-029)', () => {
+    const near = {
+      ...createInput,
+      weighInAt: '2026-10-22T08:00:00+07:00',
+      boutAt: '2026-10-23T10:00:00+07:00',
+    };
+    const weightOn = (iso: string, kg: number) => ({
+      measuredAt: new Date(iso),
+      createdAt: new Date(iso),
+      weightKg: kg,
+      measurementContext: 'TRAINING',
+    });
+
+    it('createBout warns WEIGHT_AT_RISK (60 kg, 2 days, 66 kg yesterday) and still saves', async () => {
+      repo.findWeightMeasurements.mockResolvedValue([weightOn('2026-10-19T03:00:00Z', 66)]);
+      const created = await service.createBout(coachActor, near, REQUEST_ID);
+      expect(repo.insertBout).toHaveBeenCalledTimes(1);
+      expect(created.warnings).toEqual([{ code: 'WEIGHT_AT_RISK' }]);
+    });
+
+    it('createBout warns WEIGHT_INSUFFICIENT_DATA without a weight in 7 days', async () => {
+      repo.findWeightMeasurements.mockResolvedValue([]);
+      const created = await service.createBout(coachActor, near, REQUEST_ID);
+      expect(created.warnings).toEqual([{ code: 'WEIGHT_INSUFFICIENT_DATA' }]);
+    });
+
+    it('createBout has no warning at 64.5 kg, nor while the weigh-in is outside the acute window', async () => {
+      repo.findWeightMeasurements.mockResolvedValue([weightOn('2026-10-20T01:00:00Z', 64.5)]);
+      expect((await service.createBout(coachActor, near, REQUEST_ID)).warnings).toEqual([]);
+      repo.findWeightMeasurements.mockResolvedValue([weightOn('2026-10-20T01:00:00Z', 66)]);
+      expect((await service.createBout(coachActor, createInput, REQUEST_ID)).warnings).toEqual([]);
+    });
+
+    it('getFeasibility previews without saving, with the same limits as createBout', async () => {
+      repo.findWeightMeasurements.mockResolvedValue([weightOn('2026-10-19T03:00:00Z', 66)]);
+      const preview = await service.getFeasibility(coachActor, {
+        fighterId: FIGHTER_ID,
+        rulesetId: RULESET_ID,
+        weightClassCode: '60',
+        weighInAt: near.weighInAt,
+        boutAt: near.boutAt,
+      });
+      expect(preview).toMatchObject({
+        status: 'OVER_LIMIT',
+        remainingPct: 9.1,
+        limitKg: 60,
+        acuteLossLimitPct: 8,
+        daysToWeighIn: 2,
+        warnings: [{ code: 'WEIGHT_AT_RISK' }],
+      });
+      expect(repo.insertBout).not.toHaveBeenCalled();
+    });
+
+    it('getFeasibility is for the coach of an assigned fighter, like createBout', async () => {
+      const query = {
+        fighterId: FIGHTER_ID,
+        rulesetId: RULESET_ID,
+        weightClassCode: '60',
+        weighInAt: near.weighInAt,
+        boutAt: near.boutAt,
+      };
+      await expectHttp(service.getFeasibility(fighterActor, query), 403);
+      repo.isCoachAssignedToFighter.mockResolvedValue(false);
+      await expectHttp(service.getFeasibility(coachActor, query), 403);
+      await expectHttp(
+        service.getFeasibility(adminActor, { ...query, weighInAt: query.boutAt }),
+        422,
+        'BOUT_INVALID_SCHEDULE',
+      );
+    });
+
+    it('the bout detail carries weightReminder only in FIGHT_WEEK', async () => {
+      repo.findWeightMeasurements.mockResolvedValue([weightOn('2026-10-19T03:00:00Z', 63)]);
+      repo.findBoutById.mockResolvedValue(makeBout({ status: 'FIGHT_WEEK' }));
+      expect((await service.getBout(coachActor, BOUT_ID)).weightReminder).toEqual({
+        active: true,
+        level: 'ASK_TODAY',
+        daysSinceLastWeight: 1,
+        messageCode: 'WEIGHT_REMINDER_ASK_TODAY',
+      });
+      repo.findWeightMeasurements.mockResolvedValue([weightOn('2026-10-18T03:00:00Z', 63)]);
+      expect((await service.getBout(coachActor, BOUT_ID)).weightReminder.level).toBe(
+        'YESTERDAY_MISSING',
+      );
+      repo.findBoutById.mockResolvedValue(makeBout({ status: 'CAMP' }));
+      expect((await service.getBout(coachActor, BOUT_ID)).weightReminder.active).toBe(false);
+    });
+  });
+
   describe('getWeightTrack with official weigh-in (criterion 10)', () => {
     it('criterion 10: official weigh-in appears in points and, from WEIGHED_IN on, the track is NEUTRAL (T-029)', async () => {
       const today = '2026-10-30';

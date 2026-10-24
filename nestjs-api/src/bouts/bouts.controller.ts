@@ -46,7 +46,10 @@ import {
   CancelBoutDto,
   CatchweightDto,
   CreateBoutDto,
+  CreateBoutResponseDto,
   CreateRequirementDto,
+  FeasibilityQueryDto,
+  FeasibilityResponseDto,
   ListBoutsQueryDto,
   RecordResultDto,
   RemoveRequirementQueryDto,
@@ -122,13 +125,14 @@ export class BoutsController {
     summary: 'Create a bout',
     description:
       'Creates a SCHEDULED bout for an assigned fighter and generates the paperwork ' +
-      'checklist from the ruleset (source = PRESET).',
+      'checklist from the ruleset (source = PRESET). The response carries `warnings` ' +
+      '(weight feasibility, R31); a warning never blocks saving.',
   })
   @ResponseMessage(BOUT_RESPONSE_MESSAGES.CREATE)
   @ApiSuccessEnvelope({
     status: HttpStatus.CREATED,
     message: BOUT_RESPONSE_MESSAGES.CREATE,
-    model: BoutDetailResponseDto,
+    model: CreateBoutResponseDto,
   })
   @ApiValidationErrorEnvelope()
   @ApiUnauthorizedEnvelope()
@@ -145,6 +149,32 @@ export class BoutsController {
     );
   }
 
+
+  @Get('bouts/feasibility')
+  @RequirePermissions({ allOf: [BOUT_PERMISSIONS.CREATE] })
+  @ApiOperation({
+    summary: 'Weight feasibility preview for a bout about to be created',
+    description:
+      'Read-only (R31). From the latest weight of the last 7 days: OVER_LIMIT or ON_TRACK ' +
+      'inside the acute window, NEUTRAL while the weigh-in is further out, NOT_WEIGHED when ' +
+      'there is no recent weight. A warning only; nothing is saved.',
+  })
+  @ResponseMessage(BOUT_RESPONSE_MESSAGES.FEASIBILITY)
+  @ApiSuccessEnvelope({
+    status: HttpStatus.OK,
+    message: BOUT_RESPONSE_MESSAGES.FEASIBILITY,
+    model: FeasibilityResponseDto,
+  })
+  @ApiValidationErrorEnvelope()
+  @ApiUnauthorizedEnvelope()
+  @ApiForbiddenEnvelope('Requires bout:create and an assigned fighter')
+  @ApiNotFoundEnvelope('RULESET_NOT_FOUND', 'Ruleset or fighter not found')
+  async getFeasibility(
+    @CurrentUser() actor: AuthenticatedUser | undefined,
+    @Query() query: FeasibilityQueryDto,
+  ) {
+    return this.boutsService.getFeasibility(this.requireActor(actor), query);
+  }
 
   @Get('bouts/prior-context')
   @RequirePermissions({ allOf: [BOUT_PERMISSIONS.GET_ALL] })
