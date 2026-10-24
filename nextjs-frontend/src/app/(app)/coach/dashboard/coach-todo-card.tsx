@@ -2,7 +2,6 @@ import { ChevronRight, ListChecks } from "lucide-react";
 import Link from "next/link";
 
 import { CardLink } from "@/components/dashboard/card-link";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import type { CoachTodo, CoachTodoItem, CoachTodoPhase, CoachTodoSource } from "@/lib/domain/types";
 import { formatShortDate } from "@/lib/format";
@@ -68,9 +67,9 @@ export function CoachTodoCard({ todo, fighterNames, t, locale }: CoachTodoCardPr
                                         >
                                             <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
                                                 <p className="max-w-full truncate text-sm font-medium text-fg">{fighterNames.get(item.fighterId) ?? t("weight.fighterFallback")}</p>
-                                                <Badge tone={URGENT.has(item.source) ? "warning" : "neutral"} size="sm">
+                                                <p className={URGENT.has(item.source) ? "text-xs font-medium text-warning-fg" : "text-xs font-medium text-fg"}>
                                                     {text(item, t, locale)}
-                                                </Badge>
+                                                </p>
                                                 <p className="max-w-full truncate text-xs text-fg-muted">{item.eventName}</p>
                                             </div>
                                             <ChevronRight aria-hidden className="size-4 shrink-0 text-fg-subtle" />
