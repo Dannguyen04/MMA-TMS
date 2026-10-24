@@ -444,7 +444,37 @@ export class BoutsRepository {
     return row;
   }
 
+  /** Plans of many bouts in one read (the coach to-do card). */
+  async findPlansByIds(
+    ids: readonly string[],
+    database: DatabaseExecutor = this.db,
+  ): Promise<PlanSummary[]> {
+    if (ids.length === 0) return [];
+    return database
+      .select({
+        id: trainingPlans.id,
+        fighterId: trainingPlans.fighterId,
+        phase: trainingPlans.phase,
+        startDate: trainingPlans.startDate,
+        deletedAt: trainingPlans.deletedAt,
+      })
+      .from(trainingPlans)
+      .where(inArray(trainingPlans.id, [...ids]));
+  }
+
   // --- Requirements ----------------------------------------------------------
+
+  /** Checklists of many bouts in one read (the coach to-do card). */
+  async listRequirementsForBouts(
+    boutIds: readonly string[],
+    database: DatabaseExecutor = this.db,
+  ): Promise<BoutRequirementRow[]> {
+    if (boutIds.length === 0) return [];
+    return database
+      .select()
+      .from(boutRequirements)
+      .where(inArray(boutRequirements.boutId, [...boutIds]));
+  }
 
   async listRequirements(
     boutId: string,
@@ -529,6 +559,42 @@ export class BoutsRepository {
     database: DatabaseExecutor = this.db,
   ): Promise<void> {
     await database.insert(fighterMeasurements).values(values);
+  }
+
+  /** `findWeightMeasurements` for many fighters at once, tagged with the fighter. */
+  async findWeightMeasurementsForFighters(
+    fighterIds: readonly string[],
+    from: Date,
+    to: Date,
+    database: DatabaseExecutor = this.db,
+  ): Promise<(WeightMeasurementInput & { fighterId: string })[]> {
+    if (fighterIds.length === 0) return [];
+    const rows = await database
+      .select({
+        fighterId: fighterMeasurements.fighterId,
+        measuredAt: fighterMeasurements.measuredAt,
+        createdAt: fighterMeasurements.createdAt,
+        weightKg: fighterMeasurements.weightKg,
+      })
+      .from(fighterMeasurements)
+      .where(
+        and(
+          inArray(fighterMeasurements.fighterId, [...fighterIds]),
+          sql`${fighterMeasurements.measuredAt} >= ${from.toISOString()}::timestamptz`,
+          sql`${fighterMeasurements.measuredAt} <= ${to.toISOString()}::timestamptz`,
+          sql`not exists (
+            select 1 from public.fighter_measurements succ
+            where succ.supersedes_id = ${fighterMeasurements.id}
+          )`,
+        ),
+      )
+      .orderBy(asc(fighterMeasurements.measuredAt), asc(fighterMeasurements.createdAt));
+    return rows.map((row) => ({
+      fighterId: row.fighterId,
+      measuredAt: row.measuredAt,
+      createdAt: row.createdAt,
+      weightKg: Number(row.weightKg),
+    }));
   }
 
   /** Non-superseded measurements of a fighter within `[from, to]`, oldest first. */

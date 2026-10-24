@@ -1,4 +1,5 @@
 import { createZodDto } from 'nestjs-zod';
+import { coachTodoResponseSchema } from './bouts-todo.model.js';
 import {
   boutDetailResponseSchema,
   boutIdParamsSchema,
@@ -29,6 +30,7 @@ import {
 export class BoutIdParamsDto extends createZodDto(boutIdParamsSchema) {}
 export class RequirementParamsDto extends createZodDto(requirementParamsSchema) {}
 export class ListBoutsQueryDto extends createZodDto(listBoutsQuerySchema) {}
+export class CoachTodoResponseDto extends createZodDto(coachTodoResponseSchema) {}
 export class CreateBoutDto extends createZodDto(createBoutSchema) {}
 export class CreateBoutResponseDto extends createZodDto(createBoutResponseSchema) {}
 export class FeasibilityQueryDto extends createZodDto(feasibilityQuerySchema) {}

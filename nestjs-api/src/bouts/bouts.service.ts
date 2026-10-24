@@ -1433,7 +1433,7 @@ function toBoutSummary(row: BoutRow): BoutSummary {
   };
 }
 
-function toRequirementState(row: BoutRequirementRow) {
+export function toRequirementState(row: BoutRequirementRow) {
   return {
     code: row.code,
     label: row.label,
