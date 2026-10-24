@@ -1,4 +1,5 @@
 import type { NotificationCategory, Role } from "@/lib/domain/types";
+import { hasMessage, type MessageKey, type Translator } from "@/lib/i18n/translate";
 
 /** Channels a notification category can be delivered on. */
 export interface ChannelPreference {
@@ -61,7 +62,13 @@ const ROLE_DESCRIPTIONS: Record<Role, Partial<Record<NotificationCategory, strin
     },
 };
 
-export function categoryDescription(role: Role, category: NotificationCategory): string {
+export function categoryDescription(role: Role, category: NotificationCategory, t?: Translator): string {
+    if (t) {
+        const roleKey = `notifications.pref.${role}.${category}` as MessageKey;
+        const genericKey = `notifications.pref.generic.${category}` as MessageKey;
+        if (hasMessage(roleKey)) return t(roleKey);
+        if (hasMessage(genericKey)) return t(genericKey);
+    }
     return ROLE_DESCRIPTIONS[role][category] ?? GENERIC_DESCRIPTIONS[category];
 }
 

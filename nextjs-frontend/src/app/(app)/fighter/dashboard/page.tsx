@@ -19,7 +19,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { ProgressBar } from "@/components/ui/progress";
-import { requireFighterAccess } from "@/lib/auth/access";
+import { requireFighterAccess, requireFighterId } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { NOT_RECORDED } from "@/components/domain/domain-format";
 import { WEIGHT_CLASS_LABELS, WEIGHT_CLASS_LIMIT_KG } from "@/lib/domain/labels";
@@ -27,7 +27,7 @@ import type { ClearanceState } from "@/lib/domain/rules";
 import { planAdherence } from "@/lib/domain/training-plan";
 import type { MedicalClearance, TrainingPlan } from "@/lib/domain/types";
 import { activeBout, WEIGHT_SAVED_NOTICE } from "@/lib/domain/weigh-in";
-import { academyDayStartIso, addDaysToKey, dayKey, daysBetween, formatNumber, formatShortDate, formatWeekdayDate, pluralize } from "@/lib/format";
+import { academyDayStartIso, addDaysToKey, dayKey, daysBetween, formatNumber, formatShortDate, formatWeekdayDate } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
 import { getTranslator } from "@/lib/i18n/server";
 import { plural, type Translator } from "@/lib/i18n/translate";
@@ -60,8 +60,10 @@ const GOAL_STRIPES = 4;
 export default async function FighterDashboardPage({ searchParams }: PageProps<"/fighter/dashboard">) {
     const user = await requireRole("fighter");
     if (!user.profileId) notFound();
-    const fighter = await requireFighterAccess(user, user.profileId);
-    const ids = [fighter.id];
+    const fighterId = requireFighterId(user, user.profileId);
+    // The profile read runs beside the page's own reads instead of ahead of them.
+    const fighterRead = requireFighterAccess(user, fighterId);
+    const ids = [fighterId];
     const [query, { t, locale }] = await Promise.all([searchParams, getTranslator()]);
     // The bouts service is separate from training: without it Today still shows, minus the weigh-in card.
     const boutsRead = nullIfServiceFails(listBouts({ fighterIds: ids }));
@@ -73,8 +75,10 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
 
     // The active plan's sessions chain onto the plan list, so they don't wait for the rest of the batch.
     const plansRead = listPlans({ fighterIds: ids });
-    const [health, upcoming, weekSessions, plans, planDetail, videos, feedback, goals, coaches, doctors] = await Promise.all([
-        getFighterHealthSummary(fighter.id, now),
+    const [fighter, bouts, health, upcoming, weekSessions, plans, planDetail, videos, feedback, goals, coaches, doctors] = await Promise.all([
+        fighterRead,
+        boutsRead,
+        getFighterHealthSummary(fighterId, now),
         getUpcomingSessions(ids, 1),
         listSessions({ fighterIds: ids, from: weekStart, to: new Date(Date.parse(nextWeekStart) - 1).toISOString() }),
         plansRead,
@@ -90,7 +94,6 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
         listDoctors(),
     ]);
     if (!health) notFound();
-    const bouts = await boutsRead;
     const runningBout = bouts ? activeBout(bouts) : null;
 
     const activePlan = planDetail?.plan ?? null;
@@ -105,7 +108,7 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
     const heroBout: HeroBout | null = runningBout
         ? {
               event: runningBout.eventName,
-              opponent: runningBout.opponentName ?? "opponent TBA",
+              opponent: runningBout.opponentName ?? t("bout.opponentTba"),
               date: runningBout.boutAt,
               detail: `${formatNumber(runningBout.catchweightKg ?? runningBout.weightLimitKg, 1)} kg`,
           }
@@ -161,7 +164,7 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
 
     const onboarding =
         daysBetween(fighter.joinedAt, now) <= NEW_FIGHTER_DAYS
-            ? onboardingSteps({ clearanceState, videos, plans, activePlan, goalCount: goalsAvailable ? goals.length : null })
+            ? onboardingSteps({ clearanceState, videos, plans, activePlan, goalCount: goalsAvailable ? goals.length : null }, t)
             : [];
 
     return (
@@ -196,7 +199,7 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
                     locale={locale}
                 />
 
-                {onboarding.some((step) => !step.done) && <OnboardingStrip steps={onboarding} />}
+                {onboarding.some((step) => !step.done) && <OnboardingStrip steps={onboarding} locale={locale} />}
 
                 <ReadinessStrip label={t("fighterToday.readiness")}>
                     <ReadinessCell
@@ -221,7 +224,7 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
                         <BoutWeightCell bout={runningBout} t={t} locale={locale} className="sm:col-span-2 lg:col-span-1" />
                     ) : (
                         <ReadinessCell
-                            label="Weight"
+                            label={t("weight.title")}
                             value={
                                 weight ? (
                                     <ReadinessNumber value={formatNumber(weight.currentKg, 1)} unit="kg" />
@@ -229,7 +232,7 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
                                     <span className="text-sm font-medium text-fg-muted">{NOT_RECORDED}</span>
                                 )
                             }
-                            hint={weight ? `${weightGapText(weight)} · ${weightLimit}` : `${weightLimit} limit`}
+                            hint={weight ? `${weightGapText(weight, t)} · ${weightLimit}` : t("weightGap.limit", { limit: weightLimit })}
                             href={routes.profile}
                             className="sm:col-span-2 lg:col-span-1"
                         />
@@ -352,45 +355,45 @@ interface OnboardingInput {
 }
 
 /** Getting-started steps for a new fighter, each done or still to do. */
-function onboardingSteps({ clearanceState, videos, plans, activePlan, goalCount }: OnboardingInput): OnboardingStep[] {
+function onboardingSteps({ clearanceState, videos, plans, activePlan, goalCount }: OnboardingInput, t: Translator): OnboardingStep[] {
     const analysed = videos.some((item) => item.video.status === "completed");
     const failedUpload = videos.some((item) => item.video.status === "failed");
     const draftPlan = plans.some((plan) => plan.status === "draft");
     const steps: OnboardingStep[] = [
         {
             id: "medical",
-            title: "Baseline medical",
+            title: t("onboarding.medical.title"),
             done: clearanceState !== "none",
             description:
                 clearanceState !== "none"
-                    ? "Your Medical Clearance is on file."
-                    : "An administrator assigns your sports doctor, who records your baseline examination and issues your Medical Clearance. Training starts after that.",
+                    ? t("onboarding.medical.done")
+                    : t("onboarding.medical.todo"),
             href: routes.fighter.health,
-            actionLabel: "View health",
+            actionLabel: t("onboarding.medical.action"),
         },
         {
             id: "video",
-            title: "First analysed video",
+            title: t("onboarding.video.title"),
             done: analysed,
             description: analysed
-                ? "The AI has mapped your technique — your coach reviews the findings."
+                ? t("onboarding.video.done")
                 : failedUpload
-                  ? "Your first upload didn't finish processing. Try another clip with your whole body in frame."
-                  : "Film a short shadow boxing or pad round so the AI can map your technique.",
+                  ? t("onboarding.video.failed")
+                  : t("onboarding.video.todo"),
             href: routes.fighter.uploadVideo,
-            actionLabel: "Upload video",
+            actionLabel: t("onboarding.video.action"),
         },
         {
             id: "plan",
-            title: "Training plan",
+            title: t("onboarding.plan.title"),
             done: activePlan !== null,
             description: activePlan
-                ? `${activePlan.title} is active.`
+                ? t("onboarding.plan.active", { title: activePlan.title })
                 : draftPlan
-                  ? "Your coach is preparing your first plan. It shows up here once it's active."
-                  : "Your coach builds a plan around your goals and schedule.",
+                  ? t("onboarding.plan.draft")
+                  : t("onboarding.plan.todo"),
             href: routes.fighter.schedule,
-            actionLabel: "View schedule",
+            actionLabel: t("onboarding.plan.action"),
         },
     ];
     if (goalCount === null) return steps;
@@ -398,11 +401,11 @@ function onboardingSteps({ clearanceState, videos, plans, activePlan, goalCount 
         ...steps,
         {
             id: "goals",
-            title: "First goal",
+            title: t("onboarding.goals.title"),
             done: goalCount > 0,
-            description: goalCount > 0 ? `You have ${pluralize(goalCount, "goal")} with your coach.` : "Agree a first measurable goal with your coach.",
+            description: goalCount > 0 ? plural(t, "onboarding.goals.count", goalCount) : t("onboarding.goals.todo"),
             href: routes.fighter.goals,
-            actionLabel: "View goals",
+            actionLabel: t("onboarding.goals.action"),
         },
     ];
 }

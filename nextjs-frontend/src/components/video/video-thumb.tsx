@@ -1,3 +1,4 @@
+import type { Locale } from "@/lib/i18n/config";
 import { TRAINING_TYPE_ICONS } from "@/components/domain/training-type-icon";
 import { VideoStatusBadge } from "@/components/domain/status-badges";
 import type { VideoStatus, VideoTrainingType } from "@/lib/domain/types";
@@ -8,12 +9,14 @@ const OCTAGON = "M47.6 5h64.8L158 34.6v20.8L112.4 85H47.6L2 55.4V34.6Z";
 
 /** Stylised placeholder tile for footage: training-type mark over a mat with octagon lines. Theme surfaces with a visible edge, so it never melts into a dark card. */
 export function VideoThumb({
+    locale,
     trainingType,
     status,
     durationSec,
     size = "md",
     className,
 }: {
+    locale?: Locale;
     trainingType: VideoTrainingType;
     status?: VideoStatus;
     durationSec: number;
@@ -40,7 +43,7 @@ export function VideoThumb({
             </span>
             {status && size === "md" && (
                 <span className="absolute top-2 left-2 max-sm:hidden">
-                    <VideoStatusBadge status={status} size="sm" />
+                    <VideoStatusBadge locale={locale} status={status} size="sm" />
                 </span>
             )}
             <span
@@ -49,7 +52,7 @@ export function VideoThumb({
                     size === "sm" ? "px-1 text-[10px]" : "px-1 text-[10px] sm:px-1.5 sm:py-0.5 sm:text-[11px]",
                 )}
             >
-                <span className="sr-only">Length </span>
+                <span className="sr-only">{locale === "vi" ? "Thời lượng " : "Length "}</span>
                 {formatClock(durationSec)}
             </span>
         </div>

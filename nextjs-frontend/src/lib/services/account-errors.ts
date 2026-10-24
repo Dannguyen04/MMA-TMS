@@ -1,5 +1,6 @@
 import "server-only";
 
+import type { Translator } from "@/lib/i18n/translate";
 import { apiWriteFailure, type ServiceErrorMessages, type WriteFailure } from "./api-write-errors";
 
 /** How the user service's refusals read on the account forms; the status rules are shared (`api-write-errors.ts`). */
@@ -22,6 +23,20 @@ const ACCOUNT_ERRORS: ServiceErrorMessages = {
 const ACCOUNT_FIELDS = { "user.email": "email", "user.password": "password", "user.profile": "profile" };
 
 /** What to show for a failed account write. Anything that isn't an API error is a bug and is rethrown. */
-export function accountWriteFailure(error: unknown): WriteFailure {
-    return apiWriteFailure(error, ACCOUNT_ERRORS, { fields: ACCOUNT_FIELDS, conflictFields: { USER_ALREADY_EXISTS: "email", USER_CREATION_FAILED: "email" } });
+export function accountWriteFailure(error: unknown, t?: Translator): WriteFailure {
+    const messages: ServiceErrorMessages = t
+        ? {
+              service: "user service",
+              forbidden: t("account.error.forbidden"),
+              notFound: t("account.error.notFound"),
+              codes: {
+                  USER_NOT_FOUND: t("account.error.userNotFound"),
+                  USER_ALREADY_EXISTS: t("account.error.alreadyExists"),
+                  USER_CREATION_FAILED: t("account.error.creationFailed"),
+                  USER_ROLE_MISMATCH: t("account.error.roleMismatch"),
+                  INVALID_USER_DATA: t("account.error.invalidUserData"),
+              },
+          }
+        : ACCOUNT_ERRORS;
+    return apiWriteFailure(error, messages, { fields: ACCOUNT_FIELDS, conflictFields: { USER_ALREADY_EXISTS: "email", USER_CREATION_FAILED: "email" } });
 }

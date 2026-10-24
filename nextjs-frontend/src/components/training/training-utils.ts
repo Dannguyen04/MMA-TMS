@@ -1,3 +1,5 @@
+import { createDemoCopy } from "@/lib/i18n/demo-copy";
+import type { Locale } from "@/lib/i18n/config";
 import type { ClearanceState } from "@/lib/domain/rules";
 import { isDueSession } from "@/lib/domain/training-plan";
 import type { Exercise, MedicalClearance, SessionExercise, TrainingPlan, TrainingProgress, TrainingSession } from "@/lib/domain/types";
@@ -53,11 +55,12 @@ export function parseWeekOffset(value: string | undefined): number {
     return Number.isNaN(parsed) ? 0 : clamp(parsed, -MAX_WEEK_OFFSET, MAX_WEEK_OFFSET);
 }
 
-export function describeWeekOffset(offset: number): string {
-    if (offset === 0) return "This week";
-    if (offset === 1) return "Next week";
-    if (offset === -1) return "Last week";
-    return offset > 0 ? `In ${pluralize(offset, "week")}` : `${pluralize(-offset, "week")} ago`;
+export function describeWeekOffset(offset: number, locale: Locale = "en"): string {
+    const copy = createDemoCopy(locale);
+    if (offset === 0) return copy("This week");
+    if (offset === 1) return copy("Next week");
+    if (offset === -1) return copy("Last week");
+    return locale === "en" ? (offset > 0 ? `In ${pluralize(offset, "week")}` : `${pluralize(-offset, "week")} ago`) : copy(offset > 0 ? "{n} weeks from now" : "{n} weeks ago", { n: Math.abs(offset) });
 }
 
 /* ─── Intensity ───────────────────────────────────────────────────────────── */

@@ -3,6 +3,7 @@
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
+import { useT } from "@/components/i18n/locale-provider";
 import { FormMessage } from "@/components/ui/form";
 import { NewPasswordFields } from "@/components/ui/password-input";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -12,6 +13,7 @@ import { routes } from "@/lib/routes";
 
 /** Chooses the password for the account a recovery link was sent to: a first one for an approved applicant, or a new one. */
 export function ResetPasswordForm({ tokenHash }: { tokenHash: string }) {
+    const t = useT();
     const form = useActionForm(resetPasswordAction, { id: "reset-password" });
 
     return (
@@ -19,12 +21,12 @@ export function ResetPasswordForm({ tokenHash }: { tokenHash: string }) {
             <input type="hidden" name="tokenHash" value={tokenHash} />
             <FormMessage {...form.message} />
             <NewPasswordFields form={form} />
-            <SubmitButton size="lg" className="w-full" pending={form.pending} pendingLabel="Saving password…">
-                Save password
+            <SubmitButton size="lg" className="w-full" pending={form.pending} pendingLabel={t("auth.savingPasswordPending")}>
+                {t("auth.savePassword")}
             </SubmitButton>
             <Link href={routes.login} className="flex items-center justify-center gap-1.5 text-sm font-medium text-fg-muted hover:text-fg">
                 <ArrowLeft aria-hidden className="size-4" />
-                Back to sign in
+                {t("auth.backToSignIn")}
             </Link>
         </form>
     );

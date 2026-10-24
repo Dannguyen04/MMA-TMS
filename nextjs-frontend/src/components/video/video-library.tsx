@@ -1,3 +1,4 @@
+import { getDemoCopy, getLocale } from "@/lib/i18n/server";
 import { SearchX, Upload, Video as VideoIcon } from "lucide-react";
 
 import { ButtonLink } from "@/components/ui/button";
@@ -7,7 +8,7 @@ import { Pagination } from "@/components/ui/table";
 import { accessibleFighterIds } from "@/lib/auth/access";
 import { TRAINING_TYPE_LABELS, VIDEO_STATUS_LABELS, VIDEO_TRAINING_TYPES } from "@/lib/domain/labels";
 import type { User, VideoStatus } from "@/lib/domain/types";
-import { pluralize } from "@/lib/format";
+
 import { hrefWith, paginate, parseEnum, type SearchParams } from "@/lib/query";
 import { listFighters } from "@/lib/services/people";
 import { listVideoLibrary } from "@/lib/services/videos";
@@ -34,6 +35,8 @@ export interface VideoLibraryProps {
 
 /** URL-filtered grid of video cards with pagination and helpful empty states. */
 export async function VideoLibrary({ user, role, pathname, searchParams, fighterId, uploadHref, now, headingLevel = 3, hideStatuses = [] }: VideoLibraryProps) {
+    const copy = await getDemoCopy();
+    const locale = await getLocale();
     const scope = fighterId ? [fighterId] : accessibleFighterIds(user);
     const showFighterFilter = role === "coach" && !fighterId;
     // ?fighter= is checked against record access up front, so the filter options and the videos load in parallel.
@@ -51,16 +54,16 @@ export async function VideoLibrary({ user, role, pathname, searchParams, fighter
     const items = hiddenCount > 0 ? matching.filter((item) => !hideStatuses.includes(item.video.status)) : matching;
     const page = paginate(items, param(searchParams.page), PAGE_SIZE);
     const filtered = Boolean(fighterFilter || status || trainingType || search);
-    const hiddenNote = hiddenCount > 0 ? `${pluralize(hiddenCount, "video")} still processing or needing attention ${hiddenCount === 1 ? "is" : "are"} listed separately.` : null;
-    const footnote = [page.pageCount > 1 ? null : `Showing all ${pluralize(page.total, "video")}`, hiddenNote].filter((part) => part !== null).join(" · ");
+    const hiddenNote = hiddenCount > 0 ? copy("{n} videos listed separately while processing or needing attention.", { n: hiddenCount }) : null;
+    const footnote = [page.pageCount > 1 ? null : copy("Showing all {n} videos", { n: page.total }), hiddenNote].filter((part) => part !== null).join(" · ");
 
     const filters: FilterDefinition[] = [
-        { type: "search", name: "q", label: "Search videos", placeholder: showFighterFilter ? "Search title, file or fighter" : "Search title or file" },
+        { type: "search", name: "q", label: copy("Search videos"), placeholder: showFighterFilter ? copy("Search title, file or fighter") : copy("Search title or file") },
         ...(showFighterFilter
-            ? [{ type: "select" as const, name: "fighter", label: "Fighters", options: fighters.map((f) => ({ value: f.id, label: f.name })) }]
+            ? [{ type: "select" as const, name: "fighter", label: copy("Fighters"), options: fighters.map((f) => ({ value: f.id, label: f.name })) }]
             : []),
-        { type: "select", name: "type", label: "Training types", options: VIDEO_TRAINING_TYPES.map((t) => ({ value: t, label: TRAINING_TYPE_LABELS[t] })) },
-        { type: "select", name: "status", label: "Statuses", options: STATUSES.map((s) => ({ value: s, label: VIDEO_STATUS_LABELS[s] })) },
+        { type: "select", name: "type", label: copy("Training types"), options: VIDEO_TRAINING_TYPES.map((t) => ({ value: t, label: copy(TRAINING_TYPE_LABELS[t]) })) },
+        { type: "select", name: "status", label: copy("Statuses"), options: STATUSES.map((s) => ({ value: s, label: copy(VIDEO_STATUS_LABELS[s]) })) },
     ];
 
     const clearHref = hrefWith(pathname, searchParams, { q: null, fighter: null, type: null, status: null, page: null });
@@ -72,29 +75,27 @@ export async function VideoLibrary({ user, role, pathname, searchParams, fighter
                 filtered ? (
                     <EmptyState
                         icon={<SearchX />}
-                        title="No videos match these filters"
-                        description={hiddenNote ? `Try a different search or training type. ${hiddenNote}` : "Try a different search, training type or status."}
+                        title={copy("No videos match these filters")}
+                        description={hiddenNote ? copy("Try a different search or training type.") + " " + hiddenNote : copy("Try a different search, training type or status.")}
                         action={
                             <ButtonLink href={clearHref} variant="secondary">
-                                Clear filters
-                            </ButtonLink>
+                                {copy("Clear filters")} </ButtonLink>
                         }
                     />
                 ) : (
                     <EmptyState
                         icon={<VideoIcon />}
-                        title={hiddenNote ? "No analysed footage yet" : role === "fighter" ? "No videos yet" : "No footage yet"}
+                        title={hiddenNote ? copy("No analysed footage yet") : role === "fighter" ? copy("No videos yet") : copy("No footage yet")}
                         description={
                             hiddenNote ??
                             (role === "fighter"
-                                ? "Upload a training clip and the AI will break down your strikes, guard and footwork for you and your coach."
-                                : "Upload pad work, bag or sparring footage and the AI will detect strikes and suggest findings to review.")
+                                ? copy("Upload a training clip and the AI will break down your strikes, guard and footwork for you and your coach.")
+                                : copy("Upload pad work, bag or sparring footage and the AI will detect strikes and suggest findings to review."))
                         }
                         action={
                             <ButtonLink href={uploadHref}>
                                 <Upload aria-hidden />
-                                Upload video
-                            </ButtonLink>
+                                {copy("Upload video")} </ButtonLink>
                         }
                     />
                 )
@@ -109,7 +110,7 @@ export async function VideoLibrary({ user, role, pathname, searchParams, fighter
                     </ul>
                     {page.pageCount > 1 && (
                         <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-card [&>nav]:border-t-0">
-                            <Pagination page={page.page} pageCount={page.pageCount} total={page.total} pageSize={page.pageSize} pathname={pathname} searchParams={searchParams} itemLabel="videos" />
+                            <Pagination locale={locale} page={page.page} pageCount={page.pageCount} total={page.total} pageSize={page.pageSize} pathname={pathname} searchParams={searchParams} itemLabel={copy("videos")} />
                         </div>
                     )}
                     {footnote && <p className="text-[13px] text-fg-muted">{footnote}</p>}

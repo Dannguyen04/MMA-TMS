@@ -1,5 +1,6 @@
 import "server-only";
 
+import { createDemoCopy } from "./demo-copy";
 import { cookies } from "next/headers";
 import { cache } from "react";
 
@@ -13,4 +14,8 @@ export const getLocale = cache(async (): Promise<Locale> => parseLocale((await c
 export async function getTranslator(): Promise<{ locale: Locale; t: Translator }> {
     const locale = await getLocale();
     return { locale, t: createTranslator(locale) };
+}
+
+export async function getDemoCopy() {
+    return createDemoCopy(await getLocale());
 }

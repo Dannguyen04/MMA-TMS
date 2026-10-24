@@ -46,6 +46,18 @@ Claude viết ticket (READY)
 4. Sau mỗi lượt chạy, Claude kiểm tra remote không có nhánh mới hay commit bị push.
 5. Ticket APPROVED được merge `--no-ff` vào `fight-camp` khi chủ dự án đồng ý.
 
+**Ticket giao cho Codex:** giống Gemini (worktree riêng, log trong `logs/`), chạy `codex exec -C <worktree> --dangerously-bypass-approvals-and-sandbox --json -o logs/T-xxx-last-N.md - < logs/T-xxx-prompt-N.md`; sửa tiếp bằng `codex exec resume <thread_id>`.
+
+**Chia việc và tiết kiệm token** (chủ dự án yêu cầu 24/10; ngày 20/10 sáu phiên Gemini chạy song song, mỗi phiên đốt 0,8–1,3 triệu token rồi hết quota, bỏ dở việc chưa commit):
+
+1. **Chia việc:** Codex nhận backend, migration và ticket nhiều quy tắc nghiệp vụ. Gemini nhận việc theo khuôn có sẵn: dịch giao diện, UI dựng theo màn mẫu, test bổ sung, script đo.
+2. **Song song:** cùng lúc tối đa một phiên Gemini và một phiên Codex. Hai phiên không được sửa chung file (từ điển `en.ts`/`vi.ts`, `labels.ts`, `status-badges.tsx` là các file hay đụng nhau).
+3. **Claude làm phần git trước khi giao:** tạo worktree, merge `fight-camp`, giải xung đột máy móc (dòng import, dòng spread từ điển), commit WIP khi phiên trước bị ngắt. Agent không phải tự tìm hiểu trạng thái nhánh.
+4. **Prompt ngắn, chỉ đúng chỗ:** trỏ tới ticket, danh sách file cần sửa và **một** file mẫu cùng loại để chép khuôn (cấu trúc, đặt tên, cách export). Không chép lại nội dung ticket vào prompt. Cấm khảo sát toàn repo, cấm tạo cấu trúc thư mục hay helper mới khi khuôn đã có.
+5. **Lệnh:** chạy thường, không chạy nền rồi ngồi chờ (vòng "Waiting for…" là chỗ tốn token nhất). Trong lúc làm chỉ chạy test của file liên quan (`pnpm --filter <app> exec vitest run <đường dẫn>`); bộ lệnh đầy đủ ở §5 chạy **một lần** cuối. Chỉ đọc phần cuối output (`| Select-Object -Last 40` hoặc `| tail -n 40`).
+6. **Phiên bị ngắt:** phiên đã phình to (trên khoảng 300 nghìn token) thì mở phiên mới với prompt "làm tiếp từ commit WIP", không resume.
+7. **Trả lời cuối:** chỉ hash commit và dòng tổng kết của từng lệnh; chi tiết nằm trong handover.
+
 ## 4. Quy tắc cho người thực hiện (dev và Gemini)
 
 1. **Đọc trước khi code:** ticket, các mục tài liệu ticket dẫn chiếu, code hiện có ở mọi file ticket nêu, và một module mẫu cùng loại (backend: `nestjs-api/src/fighters/`, hoặc `src/goals/` trên nhánh `wip/goals`).

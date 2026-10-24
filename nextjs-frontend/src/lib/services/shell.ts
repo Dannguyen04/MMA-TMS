@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { z } from "zod";
 
 import type { NavBadgeKey } from "@/components/layout/navigation";
@@ -17,7 +18,8 @@ const navBadgeCountsSchema = z.object({
 });
 
 /** Lay cac bo dem hien thi tren thanh dieu huong. Without the badge API the navigation shows no counts. */
-export async function getNavBadgeCounts(user: User): Promise<Partial<Record<NavBadgeKey, number>>> {
+/** Read once per request: the layout and a page that needs the same counts share one call. */
+export const getNavBadgeCounts = cache(async function getNavBadgeCounts(user: User): Promise<Partial<Record<NavBadgeKey, number>>> {
     if (!isDemoAuthEnabled()) {
         return platformFeatureAvailable("navBadges") ? authenticatedApiRequest("/navigation/badges", navBadgeCountsSchema) : {};
     }
@@ -41,4 +43,4 @@ export async function getNavBadgeCounts(user: User): Promise<Partial<Record<NavB
         counts.failedJobs = store.aiJobs.filter((j) => j.status === "failed").length;
     }
     return counts;
-}
+});

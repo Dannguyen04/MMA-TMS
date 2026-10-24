@@ -24,7 +24,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/states";
 import { TabLabel, Tabs } from "@/components/ui/tabs";
-import { requireFighterAccess } from "@/lib/auth/access";
+import { requireFighterAccess, requireFighterId } from "@/lib/auth/access";
 import { hasPermission, requireRole } from "@/lib/auth/session";
 import { examinationTitle } from "@/lib/domain/labels";
 import { formatDate, formatWeekdayDate } from "@/lib/format";
@@ -47,21 +47,24 @@ const TABS = ["status", "injuries", "history"] as const;
 export default async function FighterHealthPage({ searchParams }: PageProps<"/fighter/health">) {
     const user = await requireRole("fighter");
     if (!user.profileId) notFound();
-    const fighter = await requireFighterAccess(user, user.profileId);
-    const ids = [fighter.id];
+    const fighterId = requireFighterId(user, user.profileId);
+    // The profile read runs beside the page's own reads; only the care team and the name wait for it.
+    const fighterRead = requireFighterAccess(user, fighterId);
+    const ids = [fighterId];
     const now = new Date().toISOString();
     const tab = parseEnum(param((await searchParams).tab), TABS) ?? "status";
 
-    const [health, clearances, injuries, examinations, doctors, careTeam, settings, reviewRequests, { eligibility }] = await Promise.all([
-        getFighterHealthSummary(fighter.id, now),
+    const [fighter, health, clearances, injuries, examinations, doctors, careTeam, settings, reviewRequests, { eligibility }] = await Promise.all([
+        fighterRead,
+        getFighterHealthSummary(fighterId, now),
         listClearances({ fighterIds: ids }),
         listInjuries({ fighterIds: ids }),
         listExaminations({ fighterIds: ids }),
         listDoctors(),
-        loadCareTeam(fighter),
+        fighterRead.then(loadCareTeam),
         getSettings(),
-        listReviewRequests(fighter.id),
-        getClearanceStatus(fighter.id, now),
+        listReviewRequests(fighterId),
+        getClearanceStatus(fighterId, now),
     ]);
     if (!health) notFound();
 
