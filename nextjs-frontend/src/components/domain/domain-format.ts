@@ -1,4 +1,5 @@
 import { formatNumber, pluralize } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
 
 /**
  * Presentation helpers shared by the domain components. Generic date and number
@@ -13,7 +14,13 @@ export function formatMeasure(value: number, unit: string): string {
 }
 
 /** Whole-day distance as words: "today", "tomorrow", "in 5 days", "yesterday", "3 days ago". */
-export function describeDaysUntil(days: number): string {
+export function describeDaysUntil(days: number, locale: Locale = "en"): string {
+    if (locale === "vi") {
+        if (days === 0) return "hôm nay";
+        if (days === 1) return "ngày mai";
+        if (days === -1) return "hôm qua";
+        return days > 0 ? `sau ${days} ngày` : `${-days} ngày trước`;
+    }
     if (days === 0) return "today";
     if (days === 1) return "tomorrow";
     if (days === -1) return "yesterday";

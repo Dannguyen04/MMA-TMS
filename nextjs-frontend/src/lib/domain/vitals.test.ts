@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
+import { createTranslator } from "@/lib/i18n/translate";
 import type { Vitals } from "./types";
-import { assessVital, assessVitals, VITAL_REFERENCE_RANGES, WEIGHT_REVIEW_PCT } from "./vitals";
+import { assessVital, assessVitals, vitalAssessmentMessage, VITAL_REFERENCE_RANGES, WEIGHT_REVIEW_PCT } from "./vitals";
 
 const HEALTHY: Vitals = {
     weightKg: 72,
@@ -20,25 +21,44 @@ describe("assessVital", () => {
         expect(assessVital("restingHeartRate", max)?.status).toBe("normal");
         expect(assessVital("restingHeartRate", max + 1)?.status).toBe("check");
         expect(assessVital("restingHeartRate", min - 1)?.status).toBe("check");
-        expect(assessVital("temperatureC", 37.6)).toEqual({ status: "check", reference: "Normal 36.0–37.5 °C" });
+        expect(assessVital("temperatureC", 37.6)).toEqual({
+            status: "check",
+            code: "temperature_range",
+            params: { min: "36.0", max: "37.5" },
+        });
         expect(assessVital("spo2Pct", 94)?.status).toBe("check");
     });
 
-    it("needs both blood pressure readings in range, with one wording", () => {
-        expect(assessVital("bloodPressure", { systolic: 139, diastolic: 89 })).toEqual({ status: "normal", reference: "Target 90–139 / 55–89 mmHg" });
+    it("needs both blood pressure readings in range, with one code", () => {
+        expect(assessVital("bloodPressure", { systolic: 139, diastolic: 89 })).toEqual({
+            status: "normal",
+            code: "blood_pressure_target",
+            params: { sysMin: 90, sysMax: 139, diaMin: 55, diaMax: 89 },
+        });
         expect(assessVital("bloodPressure", { systolic: 120, diastolic: 92 })?.status).toBe("check");
         expect(assessVital("bloodPressure", { systolic: 85, diastolic: 70 })?.status).toBe("check");
     });
 
     it("advises fluids when hydration is not good", () => {
-        expect(assessVital("hydration", "good")).toEqual({ status: "normal", reference: "Well hydrated" });
-        expect(assessVital("hydration", "fair")?.advice).toBe("Increase fluids and recheck before hard sessions");
+        expect(assessVital("hydration", "good")).toEqual({
+            status: "normal",
+            code: "hydration_good",
+        });
+        expect(assessVital("hydration", "fair")?.adviceCode).toBe("increase_fluids");
         expect(assessVital("hydration", "poor")?.status).toBe("check");
     });
 
     it("judges weight against the class limit with a walk-around margin", () => {
-        expect(assessVital("weightKg", 70, { weightLimitKg: 70.3 })).toEqual({ status: "normal", reference: "Within the 70.3 kg class limit" });
-        expect(assessVital("weightKg", 75, { weightLimitKg: 70 })).toEqual({ status: "normal", reference: "5.0 kg (7.1%) above the 70.0 kg limit" });
+        expect(assessVital("weightKg", 70, { weightLimitKg: 70.3 })).toEqual({
+            status: "normal",
+            code: "weight_within_limit",
+            params: { limit: "70.3" },
+        });
+        expect(assessVital("weightKg", 75, { weightLimitKg: 70 })).toEqual({
+            status: "normal",
+            code: "weight_above_limit",
+            params: { diffKg: "5.0", abovePct: "7.1", limit: "70.0" },
+        });
         const overMargin = 70 * (1 + (WEIGHT_REVIEW_PCT + 1) / 100);
         expect(assessVital("weightKg", overMargin, { weightLimitKg: 70 })?.status).toBe("check");
     });
@@ -62,5 +82,28 @@ describe("assessVitals", () => {
         expect(assessments.temperatureC?.status).toBe("check");
         expect(assessments.hydration?.status).toBe("check");
         expect(assessments.bloodPressure?.status).toBe("normal");
+    });
+});
+
+describe("vitalAssessmentMessage", () => {
+    it("formats vitals in English matching previous strings", () => {
+        const enT = createTranslator("en");
+        const bp = assessVital("bloodPressure", { systolic: 139, diastolic: 89 })!;
+        expect(vitalAssessmentMessage(enT, bp)).toBe("Target 90–139 / 55–89 mmHg");
+
+        const fair = assessVital("hydration", "fair")!;
+        expect(vitalAssessmentMessage(enT, fair)).toBe("Increase fluids and recheck before hard sessions");
+
+        const weight = assessVital("weightKg", 75, { weightLimitKg: 70 })!;
+        expect(vitalAssessmentMessage(enT, weight)).toBe("5.0 kg (7.1%) above the 70.0 kg limit");
+    });
+
+    it("formats vitals in Vietnamese", () => {
+        const viT = createTranslator("vi");
+        const bp = assessVital("bloodPressure", { systolic: 139, diastolic: 89 })!;
+        expect(vitalAssessmentMessage(viT, bp)).toBe("Mục tiêu 90–139 / 55–89 mmHg");
+
+        const fair = assessVital("hydration", "fair")!;
+        expect(vitalAssessmentMessage(viT, fair)).toBe("Bổ sung nước và kiểm tra lại trước buổi tập nặng");
     });
 });
