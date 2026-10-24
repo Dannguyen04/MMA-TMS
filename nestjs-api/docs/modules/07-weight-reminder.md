@@ -4,6 +4,8 @@
 - Trạng thái: chưa lập plan. **Phạm vi mới do Ken quyết ngày 22/10**; câu hỏi còn mở: số 1 và 5 trong [README](./README.md).
 - Tài liệu: [Luồng nghiệp vụ nghiệp vụ 7, F3](../../../docs/FIGHT-CAMP-BUSINESS-FLOWS.md), ý của Ken ngày 22/10.
 
+> **Đã bị thay thế một phần (24/10), xem [T-029](../../../docs/tickets/T-029-coach-todo-and-weight-feasibility.md):** nhắc cân **chỉ áp trong `FIGHT_WEEK`** (không phải `CAMP` tới hết ngày thi); **không** nhắc ở ngày thi hay `WEIGHED_IN`; **bỏ** mức `STALE` và ngưỡng "XÁM 2 ngày trong cửa sổ cấp tính" (`WEIGHT_STALE_DAYS = 3` giữ nguyên). Màu cân từ `WEIGHED_IN` trở đi bị tắt. Các đoạn dưới đây chưa sửa; khi mâu thuẫn thì theo T-029.
+
 ## Mục tiêu
 
 Võ sĩ phải nhập cân mỗi sáng. Nếu hôm nay chưa có số cân thì nhắc **nhập cân hôm nay ngay**; không bắt nhập bù ngày cũ. Nhắc kéo dài từ lúc trận ở `CAMP` tới hết ngày thi.

@@ -42,9 +42,24 @@ Lý do thứ tự: Dan chốt Ken làm đình chỉ thủ công, Cổng 2, cho t
 6. Ngưỡng L lấy từ snapshot `bouts.acute_loss_limit_pct`, không hard-code (xem 04).
 7. Ken làm nguồn "nhắc cân" trên thẻ Việc cần làm của HLV (T-029A). Nhắc trên app võ sĩ do Dan làm (T-006), dùng chung hàm của Ken.
 
-## Câu hỏi nghiệp vụ còn mở (Ken chưa chốt)
+## Trả lời của chủ dự án (24/10): thay thế gợi ý ở bảng bên dưới
 
-Các việc đã quyết ở trên (nhắc cân từ `CAMP` tới hết ngày thi, thêm hàm R31 mới, không có nút nghỉ) không cần ai duyệt thêm; chỉ cần ghi vào handover.
+Ticket đã ghi các quyết định này: [T-007](../../../docs/tickets/T-007-suspensions-and-readiness.md). Câu 1, 4, 5 thuộc T-029 hoặc không đổi; câu 2, 3, 6 thuộc T-007.
+
+| # | Quyết định |
+| --- | --- |
+| 1 | Từ `WEIGHED_IN` trở đi (gồm `COMPLETED`, `CANCELLED`) không tính màu cân; biểu đồ vẫn hiện điểm. **Không nhắc nhập cân ngày thi; nhắc cân chỉ áp trong `FIGHT_WEEK`.** Việc này thuộc T-029 của Ken (thẻ Việc cần làm cũng đọc màu cân) |
+| 2 | Loại buổi bị chặn lấy từ request, vắng thì `{SPARRING}`. `requires_clearance` suy từ lý do: `KO`, `TKO` luôn cần và không cho tắt; `MEDICAL` mặc định cần; `DQ`, `MANDATORY_REST` không cần; `OTHER` theo request, mặc định không cần |
+| 3 | Truất quyền: `method = 'DQ'` và lý do đình chỉ `DQ`. Đòn vào đầu: `stoppedByHeadStrike`; mất ý thức: `lossOfConsciousness` (`bouts.model.ts:701, 714–715`). Cả hai chỉ nằm trên `history` của lần chuyển `COMPLETED`, không phải cột; riêng mất ý thức ghi thành cột `loss_of_consciousness` trên `suspensions`. T-006 đã merge |
+| 4 | Không đổi ngưỡng cân theo WBC, không thuộc T-007. Muốn đề xuất thì gửi văn bản gốc; nếu dùng thì làm tham số của bộ luật |
+| 5 | Không đổi `WEIGHT_STALE_DAYS = 3` (R7). Nhắc "hôm nay chưa ghi cân" trong tuần thi đấu là quy tắc riêng, không dựa vào XÁM |
+| 6 | `createSession` không bọc transaction (ghi lý do vào handover). Cổng 2 đặt trong transaction sẵn có khi bắt đầu buổi, cạnh medical gate. `updateSession` cũng phải qua Cổng 2 khi đổi loại hoặc ngày |
+
+**Hệ quả lên module 07 và 08:** quyết định 1 thu hẹp cửa sổ nhắc từ "`CAMP` tới hết ngày thi" (quyết định 2 của Ken ở trên) còn `FIGHT_WEEK`, và bỏ nhắc ở ngày thi. Module 07 chưa sửa cho khớp; sửa khi viết ticket T-029.
+
+## Câu hỏi ban đầu của Ken (đã được trả lời ở trên)
+
+Các việc đã quyết ở trên (thêm hàm R31 mới, không có nút nghỉ) không cần ai duyệt thêm; chỉ cần ghi vào handover. Cửa sổ nhắc cân của Ken (`CAMP` tới hết ngày thi) bị quyết định 1 của chủ dự án thay thế.
 
 | # | Câu hỏi | Gợi ý của Claude | Ảnh hưởng |
 | --- | --- | --- | --- |
