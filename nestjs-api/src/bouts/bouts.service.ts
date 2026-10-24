@@ -1179,6 +1179,7 @@ export class BoutsService {
       today,
       campStart,
       points: buildDailyWeightPoints(measurements, { from: campStart, to: today }),
+      boutStatus: bout.status,
     });
   }
 

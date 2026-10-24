@@ -38,7 +38,7 @@ export function WeightAlertsCard({ alerts, fighterNames, t, locale }: WeightAler
                             >
                                 <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
                                     <p className="max-w-full truncate text-sm font-medium text-fg">{fighterNames.get(bout.fighterId) ?? t("weight.fighterFallback")}</p>
-                                    <WeightWarningBadge status={bout.weight?.status ?? "GREY"} size="sm" locale={locale} />
+                                    <WeightWarningBadge status={bout.weight?.status ?? "NOT_WEIGHED"} size="sm" locale={locale} />
                                     <p className="text-xs text-fg-muted">{summary(bout, t)}</p>
                                 </div>
                                 <ChevronRight aria-hidden className="size-4 shrink-0 text-fg-subtle" />

@@ -14,7 +14,7 @@ const track: WeightTrack = {
     latestKg: 65.9,
     latestOn: "2026-10-13",
     remainingPct: 9,
-    status: "RED",
+    status: "OVER_LIMIT",
     referencePath: [
         { date: "2026-10-10", kg: 66.4 },
         { date: "2026-10-13", kg: 65.2 },
@@ -42,7 +42,7 @@ describe("weightChartData", () => {
     });
 
     it("keeps the reference series when there is no weigh-in yet", () => {
-        const empty: WeightTrack = { ...track, points: [], latestKg: null, latestOn: null, remainingPct: null, status: "GREY" };
+        const empty: WeightTrack = { ...track, points: [], latestKg: null, latestOn: null, remainingPct: null, status: "NOT_WEIGHED" };
         const range = weightChartRange(empty, "2026-10-15");
         expect(range).toEqual({ from: "2026-10-10", to: "2026-10-15" });
         const data = weightChartData(empty, range.from, range.to);

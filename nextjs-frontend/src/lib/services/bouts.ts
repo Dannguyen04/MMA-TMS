@@ -28,7 +28,7 @@ export const boutResultSchema = z.enum(["WIN", "LOSS", "DRAW", "NO_CONTEST"]);
 export const boutMethodSchema = z.enum(["KO", "TKO", "DECISION", "SUBMISSION", "DQ", "OTHER"]);
 export const boutRequirementStatusSchema = z.enum(["MISSING", "PROVIDED", "CONFIRMED", "REJECTED"]);
 export const boutRequirementSourceSchema = z.enum(["PRESET", "COACH"]);
-export const weightWarningStatusSchema = z.enum(["GREEN", "YELLOW", "RED", "GREY"]);
+export const weightWarningStatusSchema = z.enum(["ON_TRACK", "ABOVE_TARGET", "OVER_LIMIT", "NOT_WEIGHED", "NEUTRAL"]);
 
 export const rulesetWeightClassSchema = z.object({
     code: z.string(),

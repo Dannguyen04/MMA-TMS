@@ -502,7 +502,7 @@ export class BoutsController {
   @ApiOperation({
     summary: 'Weight track of a bout',
     description:
-      'Daily weight points since the camp start, the reference path and the GREEN/YELLOW/RED/GREY status.',
+      'Daily weight points since the camp start, the reference path and the ON_TRACK/ABOVE_TARGET/OVER_LIMIT/NOT_WEIGHED status.',
   })
   @ResponseMessage(BOUT_RESPONSE_MESSAGES.WEIGHT_TRACK)
   @ApiSuccessEnvelope({

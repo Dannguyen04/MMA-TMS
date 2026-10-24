@@ -428,10 +428,11 @@ export function BoutRequirementStatusBadge({
 }
 
 export const WEIGHT_WARNING_META: Record<WeightWarningStatus, StatusMeta> = {
-    GREEN: { label: WEIGHT_WARNING_LABELS.GREEN, tone: "success", icon: CircleCheck },
-    YELLOW: { label: WEIGHT_WARNING_LABELS.YELLOW, tone: "warning", icon: TriangleAlert },
-    RED: { label: WEIGHT_WARNING_LABELS.RED, tone: "danger", icon: TriangleAlert, solid: true },
-    GREY: { label: WEIGHT_WARNING_LABELS.GREY, tone: "neutral", icon: Clock },
+    ON_TRACK: { label: WEIGHT_WARNING_LABELS.ON_TRACK, tone: "success", icon: CircleCheck },
+    ABOVE_TARGET: { label: WEIGHT_WARNING_LABELS.ABOVE_TARGET, tone: "warning", icon: TriangleAlert },
+    OVER_LIMIT: { label: WEIGHT_WARNING_LABELS.OVER_LIMIT, tone: "danger", icon: TriangleAlert, solid: true },
+    NOT_WEIGHED: { label: WEIGHT_WARNING_LABELS.NOT_WEIGHED, tone: "neutral", icon: Clock },
+    NEUTRAL: { label: WEIGHT_WARNING_LABELS.NEUTRAL, tone: "neutral", icon: Scale },
 };
 
 export function WeightWarningBadge({

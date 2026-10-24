@@ -140,7 +140,7 @@ interface WithLanguage {
 
 function FighterWeightCard({ bout, track, limitKg, t, locale }: { bout: Bout; track: WeightTrack | null; limitKg: number } & WithLanguage) {
     const weight = track ?? bout.weight ?? null;
-    const status = weight?.status ?? "GREY";
+    const status = weight?.status ?? "NOT_WEIGHED";
 
     return (
         <Card className="min-w-0">

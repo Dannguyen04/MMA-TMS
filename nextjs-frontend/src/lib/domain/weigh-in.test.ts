@@ -59,12 +59,13 @@ describe("activeBout", () => {
 describe("weightAlerts", () => {
     it("lists red, then yellow, then grey, and leaves out green and finished bouts", () => {
         const bouts = [
-            bout("grey", "CAMP", "2026-10-21T02:00:00.000Z", "GREY"),
-            bout("green", "CAMP", "2026-10-20T02:00:00.000Z", "GREEN"),
-            bout("yellow", "CAMP", "2026-10-25T02:00:00.000Z", "YELLOW"),
-            bout("red-late", "FIGHT_WEEK", "2026-10-28T02:00:00.000Z", "RED"),
-            bout("red-soon", "CAMP", "2026-10-22T02:00:00.000Z", "RED"),
-            bout("red-done", "COMPLETED", "2026-10-01T02:00:00.000Z", "RED"),
+            bout("grey", "CAMP", "2026-10-21T02:00:00.000Z", "NOT_WEIGHED"),
+            bout("green", "CAMP", "2026-10-20T02:00:00.000Z", "ON_TRACK"),
+            bout("yellow", "CAMP", "2026-10-25T02:00:00.000Z", "ABOVE_TARGET"),
+            bout("red-late", "FIGHT_WEEK", "2026-10-28T02:00:00.000Z", "OVER_LIMIT"),
+            bout("red-soon", "CAMP", "2026-10-22T02:00:00.000Z", "OVER_LIMIT"),
+            bout("red-done", "COMPLETED", "2026-10-01T02:00:00.000Z", "OVER_LIMIT"),
+            bout("weighed", "WEIGHED_IN", "2026-10-23T02:00:00.000Z", "NEUTRAL"),
         ];
         expect(weightAlerts(bouts).map((item) => item.id)).toEqual(["red-soon", "red-late", "yellow", "grey"]);
     });

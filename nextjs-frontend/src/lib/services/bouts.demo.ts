@@ -315,6 +315,7 @@ export async function getWeightTrack(id: string): Promise<WeightTrack | null> {
         weighInAt: bout.weighInAt,
         campStartDate: campStart,
         measurements,
+        boutStatus: bout.status,
     });
 
     return {

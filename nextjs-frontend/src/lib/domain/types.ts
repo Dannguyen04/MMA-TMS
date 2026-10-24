@@ -1090,7 +1090,8 @@ export type BoutRequirementStatus = "MISSING" | "PROVIDED" | "CONFIRMED" | "REJE
 
 export type BoutRequirementSource = "PRESET" | "COACH";
 
-export type WeightWarningStatus = "GREEN" | "YELLOW" | "RED" | "GREY";
+/** Meaning, not colour: the UI maps it to a tone. `NEUTRAL` = not judged (from the official weigh-in on). */
+export type WeightWarningStatus = "ON_TRACK" | "ABOVE_TARGET" | "OVER_LIMIT" | "NOT_WEIGHED" | "NEUTRAL";
 
 export interface RulesetWeightClass {
     code: string;

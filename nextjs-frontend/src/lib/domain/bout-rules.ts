@@ -2,6 +2,7 @@ import { addDaysToKey, dayKey, daysBetweenKeys } from "@/lib/format";
 import type {
     Bout,
     BoutRequirement,
+    BoutStatus,
     CompetitionRuleset,
     Gate1Result,
     WeightStatusSummary,
@@ -92,6 +93,8 @@ export interface WeightMeasurementPoint {
     kg: number;
 }
 
+const WEIGHT_UNTRACKED_STATUSES: readonly BoutStatus[] = ["WEIGHED_IN", "COMPLETED", "CANCELLED"];
+
 export interface WeightWarningParams {
     limitKg: number;
     acuteLossLimitPct: number; // L (typically 8.0 or 5.0)
@@ -101,6 +104,8 @@ export interface WeightWarningParams {
     measurements: WeightMeasurementPoint[];
     tolKg?: number; // default 1.0 kg
     now?: string | Date;
+    /** From the official weigh-in on the track is not judged (status NEUTRAL). */
+    boutStatus?: BoutStatus;
 }
 
 /**
@@ -113,10 +118,11 @@ export interface WeightWarningParams {
  *   targetAtWindow = limitKg / (1 - L / 100)
  *
  * Status:
- *   - No weigh-in within the last 3 days (or no measurements) -> GREY
- *   - d <= A && remainingPct > L -> RED
- *   - d > A && W > reference(latestOn) + tolKg -> YELLOW
- *   - Otherwise -> GREEN
+ *   - Bout WEIGHED_IN, COMPLETED or CANCELLED (rehydration is expected) -> NEUTRAL
+ *   - No weigh-in within the last 3 days (or no measurements) -> NOT_WEIGHED
+ *   - d <= A && remainingPct > L -> OVER_LIMIT
+ *   - d > A && W > reference(latestOn) + tolKg -> ABOVE_TARGET
+ *   - Otherwise -> ON_TRACK
  */
 export function calculateWeightWarning(params: WeightWarningParams): WeightStatusSummary {
     const { limitKg, acuteLossLimitPct: L, acuteWindowDays: A, weighInAt, campStartDate, tolKg = 1.0 } = params;
@@ -126,12 +132,14 @@ export function calculateWeightWarning(params: WeightWarningParams): WeightStatu
     const weighInKey = dayKey(weighInAt);
     const d = daysBetweenKeys(todayKey, weighInKey);
 
+    const untracked = params.boutStatus !== undefined && WEIGHT_UNTRACKED_STATUSES.includes(params.boutStatus);
+
     if (params.measurements.length === 0) {
         return {
             latestKg: null,
             latestOn: null,
             remainingPct: null,
-            status: "GREY",
+            status: untracked ? "NEUTRAL" : "NOT_WEIGHED",
             referencePath: [],
         };
     }
@@ -193,14 +201,16 @@ export function calculateWeightWarning(params: WeightWarningParams): WeightStatu
     ];
 
     let status: WeightWarningStatus;
-    if (daysSinceLatest >= 3) {
-        status = "GREY";
+    if (untracked) {
+        status = "NEUTRAL";
+    } else if (daysSinceLatest >= 3) {
+        status = "NOT_WEIGHED";
     } else if (d <= A && remainingPct > L) {
-        status = "RED";
+        status = "OVER_LIMIT";
     } else if (d > A && latestKg > reference(latestKey) + tolKg) {
-        status = "YELLOW";
+        status = "ABOVE_TARGET";
     } else {
-        status = "GREEN";
+        status = "ON_TRACK";
     }
 
     return {
@@ -247,6 +257,7 @@ export function computeBoutComputedFields(
         campStartDate: effectiveCampStart,
         measurements,
         now,
+        boutStatus: bout.status,
     });
 
     return {

@@ -39,14 +39,14 @@ export function activeBout(bouts: Bout[]): Bout | null {
     );
 }
 
-const ALERT_ORDER: Partial<Record<WeightWarningStatus, number>> = { RED: 0, YELLOW: 1, GREY: 2 };
+const ALERT_ORDER: Partial<Record<WeightWarningStatus, number>> = { OVER_LIMIT: 0, ABOVE_TARGET: 1, NOT_WEIGHED: 2 };
 
 /**
  * Running bouts whose weight needs the coach's attention: red first, then yellow, then grey,
  * the earliest weigh-in first within each status. Green bouts are left out.
  */
 export function weightAlerts(bouts: Bout[]): Bout[] {
-    const rank = (bout: Bout) => ALERT_ORDER[bout.weight?.status ?? "GREY"];
+    const rank = (bout: Bout) => ALERT_ORDER[bout.weight?.status ?? "NOT_WEIGHED"];
     return bouts
         .filter((bout) => bout.deletedAt === null && ACTIVE_BOUT_STATUSES.includes(bout.status) && rank(bout) !== undefined)
         .sort((a, b) => rank(a)! - rank(b)! || a.weighInAt.localeCompare(b.weighInAt));

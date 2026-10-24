@@ -338,15 +338,18 @@ remainingPct = max(0, (W - limitKg) / W * 100)
 targetAtWindow = limitKg / (1 - L / 100)
 
 status =
-  không có số cân trong 3 ngày gần nhất            → GREY
-  d <= A && remainingPct > L                       → RED
-  d >  A && W > reference(latestOn) + tolKg        → YELLOW
-  ngược lại                                         → GREEN
+  trận ở WEIGHED_IN, COMPLETED hoặc CANCELLED       → NEUTRAL
+  không có số cân trong 3 ngày gần nhất            → NOT_WEIGHED
+  d <= A && remainingPct > L                       → OVER_LIMIT
+  d >  A && W > reference(latestOn) + tolKg        → ABOVE_TARGET
+  ngược lại                                         → ON_TRACK
 ```
 
-Ví dụ kiểm tra: giới hạn 60 kg, L = 8, còn 2 ngày, W = 66 → `remainingPct` = 9,1 > 8 → `RED`. W = 64,5 → 7,0 → `GREEN`.
+`status` nói về ý nghĩa, không phải màu; frontend tự ánh xạ sang màu (`ON_TRACK` xanh, `ABOVE_TARGET` vàng, `OVER_LIMIT` đỏ, `NOT_WEIGHED` xám, `NEUTRAL` không màu). Tên cũ `GREEN`, `YELLOW`, `RED`, `GREY` đã đổi ở T-029 (24/10). `NEUTRAL`: từ cân chính thức trở đi không đánh giá, vì võ sĩ bù nước nên cân tăng là bình thường; biểu đồ vẫn hiện mọi điểm cân.
 
-Thông báo đỏ chỉ gửi khi trạng thái **chuyển** sang `RED` (so với lần tính trước, lưu ở `bouts.history`), để không gửi lặp mỗi lần ghi cân.
+Ví dụ kiểm tra: giới hạn 60 kg, L = 8, còn 2 ngày, W = 66 → `remainingPct` = 9,1 > 8 → `OVER_LIMIT`. W = 64,5 → 7,0 → `ON_TRACK`. Cùng W = 66 ghi sau cân chính thức (trận `WEIGHED_IN`) → `NEUTRAL`.
+
+Thông báo đỏ chỉ gửi khi trạng thái **chuyển** sang `OVER_LIMIT` (so với lần tính trước, lưu ở `bouts.history`), để không gửi lặp mỗi lần ghi cân.
 
 ## 6. Cổng 2 trong training
 

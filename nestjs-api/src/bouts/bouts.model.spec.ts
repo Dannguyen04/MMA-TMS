@@ -38,41 +38,41 @@ describe('weight track (criterion 1)', () => {
     campStart: '2026-10-10',
   };
 
-  it('is RED when 2 days remain and W = 66 kg (remaining 9.1% > 8%)', () => {
+  it('is OVER_LIMIT when 2 days remain and W = 66 kg (remaining 9.1% > 8%)', () => {
     const track = computeWeightTrack({
       ...base,
       points: [{ date: '2026-10-20', kg: 66 }],
     });
-    expect(track.status).toBe('RED');
+    expect(track.status).toBe('OVER_LIMIT');
     expect(track.remainingPct).toBe(9.1);
     expect(track.latestKg).toBe(66);
     expect(track.latestOn).toBe('2026-10-20');
     expect(track.limitKg).toBe(60);
   });
 
-  it('is GREEN when 2 days remain and W = 64.5 kg (remaining 7.0%)', () => {
+  it('is ON_TRACK when 2 days remain and W = 64.5 kg (remaining 7.0%)', () => {
     const track = computeWeightTrack({
       ...base,
       points: [{ date: '2026-10-20', kg: 64.5 }],
     });
-    expect(track.status).toBe('GREEN');
+    expect(track.status).toBe('ON_TRACK');
     expect(track.remainingPct).toBe(7);
   });
 
-  it('is GREY when there is no weight in the last 3 days', () => {
+  it('is NOT_WEIGHED when there is no weight in the last 3 days', () => {
     const track = computeWeightTrack({
       ...base,
       points: [{ date: '2026-10-17', kg: 66 }],
     });
-    expect(track.status).toBe('GREY');
+    expect(track.status).toBe('NOT_WEIGHED');
     // The 3-day window covers today, yesterday and the day before.
     expect(
       computeWeightTrack({ ...base, points: [{ date: '2026-10-18', kg: 64 }] })
         .status,
-    ).toBe('GREEN');
+    ).toBe('ON_TRACK');
   });
 
-  it('is GREY with null numbers when no weight exists at all', () => {
+  it('is NOT_WEIGHED with null numbers when no weight exists at all', () => {
     const track = computeWeightTrack({ ...base, points: [] });
     expect(track).toEqual({
       limitKg: 60,
@@ -80,12 +80,12 @@ describe('weight track (criterion 1)', () => {
       latestKg: null,
       latestOn: null,
       remainingPct: null,
-      status: 'GREY',
+      status: 'NOT_WEIGHED',
       referencePath: [],
     });
   });
 
-  it('is YELLOW with 20 days left when W is 1.5 kg above the reference path', () => {
+  it('is ABOVE_TARGET with 20 days left when W is 1.5 kg above the reference path', () => {
     const far = {
       ...base,
       weighInDate: '2026-11-09',
@@ -108,7 +108,7 @@ describe('weight track (criterion 1)', () => {
         { date: '2026-10-20', kg: (reference as number) + 1.5 },
       ],
     });
-    expect(above.status).toBe('YELLOW');
+    expect(above.status).toBe('ABOVE_TARGET');
     const within = computeWeightTrack({
       ...far,
       points: [
@@ -116,7 +116,40 @@ describe('weight track (criterion 1)', () => {
         { date: '2026-10-20', kg: (reference as number) + 0.5 },
       ],
     });
-    expect(within.status).toBe('GREEN');
+    expect(within.status).toBe('ON_TRACK');
+  });
+
+  it('is NEUTRAL from WEIGHED_IN on: a heavier weight after the weigh-in (rehydration) is not judged', () => {
+    const afterWeighIn = {
+      ...base,
+      today: '2026-10-23',
+      points: [
+        { date: '2026-10-22', kg: 59.8 },
+        { date: '2026-10-23', kg: 66 },
+      ],
+    };
+    for (const boutStatus of ['WEIGHED_IN', 'COMPLETED', 'CANCELLED'] as const) {
+      const track = computeWeightTrack({ ...afterWeighIn, boutStatus });
+      expect(track.status).toBe('NEUTRAL');
+      // The chart keeps every point; only the colour is dropped.
+      expect(track.points).toHaveLength(2);
+      expect(track.latestKg).toBe(66);
+      expect(track.remainingPct).toBe(9.1);
+    }
+    expect(
+      computeWeightTrack({ ...afterWeighIn, boutStatus: 'FIGHT_WEEK' }).status,
+    ).toBe('OVER_LIMIT');
+    expect(computeWeightTrack({ ...afterWeighIn }).status).toBe('OVER_LIMIT');
+  });
+
+  it('is NEUTRAL (not NOT_WEIGHED) from WEIGHED_IN on even with no weight at all', () => {
+    const track = computeWeightTrack({
+      ...base,
+      boutStatus: 'COMPLETED',
+      points: [],
+    });
+    expect(track.status).toBe('NEUTRAL');
+    expect(track.points).toEqual([]);
   });
 
   it('builds the reference path: W0 at camp start, L% above the limit at weigh-in minus A, limit at weigh-in', () => {
@@ -171,7 +204,7 @@ describe('weight track (criterion 1)', () => {
       points: [{ date: '2026-10-20', kg: 66 }],
     });
     expect(track.remainingPct).toBe(4.5);
-    expect(track.status).toBe('GREEN');
+    expect(track.status).toBe('ON_TRACK');
   });
 });
 

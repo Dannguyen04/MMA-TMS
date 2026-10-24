@@ -37,15 +37,30 @@ export const COACH_REQUIREMENT_STATUSES = ['MISSING', 'PROVIDED', 'REJECTED'] as
 export const REQUIREMENT_SOURCES = ['PRESET', 'COACH'] as const;
 export type RequirementSource = (typeof REQUIREMENT_SOURCES)[number];
 
-export const WEIGHT_TRACK_STATUSES = ['GREEN', 'YELLOW', 'RED', 'GREY'] as const;
+export const WEIGHT_TRACK_STATUSES = [
+  'ON_TRACK',
+  'ABOVE_TARGET',
+  'OVER_LIMIT',
+  'NOT_WEIGHED',
+  'NEUTRAL',
+] as const;
 export type WeightTrackStatus = (typeof WEIGHT_TRACK_STATUSES)[number];
 
 export const CUSTOM_WEIGHT_CLASS_CODE = 'CUSTOM';
 export const WEIGHT_LIMIT_MIN_KG = 30;
 export const WEIGHT_LIMIT_MAX_KG = 200;
 export const WEIGHT_TOLERANCE_KG = 1.0;
-/** No weight in this many academy days (today included) turns the track GREY. */
+/** No weight in this many academy days (today included) turns the track NOT_WEIGHED. */
 export const WEIGHT_STALE_DAYS = 3;
+/**
+ * From the official weigh-in on the track is not judged: the fighter rehydrates,
+ * so a heavier weight after the weigh-in is expected (T-029, status NEUTRAL).
+ */
+export const WEIGHT_UNTRACKED_STATUSES: readonly BoutStatus[] = [
+  'WEIGHED_IN',
+  'COMPLETED',
+  'CANCELLED',
+];
 export const LONG_WEIGH_IN_TO_BOUT_HOURS = 12;
 
 // ---------------------------------------------------------------------------
@@ -377,10 +392,15 @@ export function computeWeightTrack(input: {
   campStart: string;
   points: readonly WeightPoint[];
   toleranceKg?: number;
+  /** Omitted = judge the track as in CAMP (kept for callers that have no bout). */
+  boutStatus?: BoutStatus;
 }): WeightTrack {
   const points = [...input.points];
   const first = points[0];
   const latest = points[points.length - 1];
+  const untracked =
+    input.boutStatus !== undefined &&
+    WEIGHT_UNTRACKED_STATUSES.includes(input.boutStatus);
   if (!first || !latest) {
     return {
       limitKg: input.limitKg,
@@ -388,7 +408,7 @@ export function computeWeightTrack(input: {
       latestKg: null,
       latestOn: null,
       remainingPct: null,
-      status: 'GREY',
+      status: untracked ? 'NEUTRAL' : 'NOT_WEIGHED',
       referencePath: [],
     };
   }
@@ -409,21 +429,23 @@ export function computeWeightTrack(input: {
   const tolerance = input.toleranceKg ?? WEIGHT_TOLERANCE_KG;
 
   let status: WeightTrackStatus;
-  if (daysBetweenDates(latest.date, input.today) >= WEIGHT_STALE_DAYS) {
-    status = 'GREY';
+  if (untracked) {
+    status = 'NEUTRAL';
+  } else if (daysBetweenDates(latest.date, input.today) >= WEIGHT_STALE_DAYS) {
+    status = 'NOT_WEIGHED';
   } else if (
     daysLeft <= input.acuteWindowDays &&
     rawRemainingPct > input.acuteLossLimitPct
   ) {
-    status = 'RED';
+    status = 'OVER_LIMIT';
   } else if (daysLeft > input.acuteWindowDays) {
     const reference = referenceKgAt(referencePath, latest.date);
     status =
       reference !== null && latest.kg > reference + tolerance
-        ? 'YELLOW'
-        : 'GREEN';
+        ? 'ABOVE_TARGET'
+        : 'ON_TRACK';
   } else {
-    status = 'GREEN';
+    status = 'ON_TRACK';
   }
 
   return {

@@ -1036,7 +1036,7 @@ describe('BoutsService', () => {
       expect(detail.requirementsOverdue).toBe(false);
       expect(detail.gate1).toEqual({ passed: true, missing: [], expiring: [] });
       expect(detail.canEnterFightWeek).toBe(true);
-      expect(detail.weight.status).toBe('GREY');
+      expect(detail.weight.status).toBe('NOT_WEIGHED');
       expect(detail.requirements).toHaveLength(1);
       expect(detail.ruleset.id).toBe(RULESET_ID);
     });
@@ -1125,10 +1125,10 @@ describe('BoutsService', () => {
       expect(track.limitKg).toBe(62.5);
     });
 
-    it('returns GREY with null numbers when the fighter has no weight yet', async () => {
+    it('returns NOT_WEIGHED with null numbers when the fighter has no weight yet', async () => {
       const track = await service.getWeightTrack(coachActor, BOUT_ID);
       expect(track).toMatchObject({
-        status: 'GREY',
+        status: 'NOT_WEIGHED',
         points: [],
         latestKg: null,
         latestOn: null,
@@ -1503,7 +1503,7 @@ describe('BoutsService', () => {
   });
 
   describe('getWeightTrack with official weigh-in (criterion 10)', () => {
-    it('criterion 10: official weigh-in changes status of weight-track and appears in points', async () => {
+    it('criterion 10: official weigh-in appears in points and, from WEIGHED_IN on, the track is NEUTRAL (T-029)', async () => {
       const today = '2026-10-30';
       vi.setSystemTime(new Date('2026-10-30T03:00:00Z'));
       repo.findBoutById.mockResolvedValue(
@@ -1536,7 +1536,7 @@ describe('BoutsService', () => {
       const track = await service.getWeightTrack(coachActor, BOUT_ID);
       expect(track.points).toContainEqual({ date: today, kg: 59.8 });
       expect(track.latestKg).toBe(59.8);
-      expect(track.status).toBe('GREEN');
+      expect(track.status).toBe('NEUTRAL');
     });
   });
 
