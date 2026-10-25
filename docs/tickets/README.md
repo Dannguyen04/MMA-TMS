@@ -57,7 +57,7 @@ Quyết định của chủ dự án 19/10: dịch toàn bộ app, làm dần, m
 | Ticket | Nội dung | Phụ thuộc | Trạng thái |
 | --- | --- | --- | --- |
 | [T-014](./T-014-i18n-auth-account.md) | Đăng nhập, đăng ký, applicant, tài khoản, thông báo; rà soát Today của võ sĩ | — | DONE (merge 20/10) |
-| [T-015](./T-015-i18n-training.md) | Training của võ sĩ và HLV; đổi `clearance-rules.ts` sang trả mã | — | READY |
+| [T-015](./T-015-i18n-training.md) | Training của võ sĩ và HLV; đổi `clearance-rules.ts` sang trả mã | — | [APPROVED](./T-015-REVIEW.md) 25/10, chờ merge. Còn kiểm tay 390 px |
 | [T-016](./T-016-i18n-health-clearance.md) | Health và Medical Clearance của võ sĩ, HLV | Dùng chung `clearance-rules.ts` với T-015 | READY |
 | [T-017](./T-017-i18n-doctor.md) | Khu vực bác sĩ | T-016 | READY |
 | [T-018](./T-018-i18n-film-video.md) | Film và phân tích video AI | — | READY |
