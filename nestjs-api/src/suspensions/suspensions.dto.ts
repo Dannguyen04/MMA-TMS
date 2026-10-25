@@ -1,6 +1,8 @@
 import { createZodDto } from 'nestjs-zod';
 import {
+  applySuspensionConflictsSchema,
   clearSuspensionSchema,
+  conflictProposalResponseSchema,
   createSuspensionSchema,
   listSuspensionsQuerySchema,
   suspensionIdParamsSchema,
@@ -21,4 +23,10 @@ export class SuspensionResponseDto extends createZodDto(
 ) {}
 export class SuspensionListResponseDto extends createZodDto(
   suspensionListResponseSchema,
+) {}
+export class ApplySuspensionConflictsDto extends createZodDto(
+  applySuspensionConflictsSchema,
+) {}
+export class ConflictProposalResponseDto extends createZodDto(
+  conflictProposalResponseSchema,
 ) {}

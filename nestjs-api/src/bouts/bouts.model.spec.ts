@@ -10,6 +10,7 @@ import {
   buildReferencePath,
   canEnterFightWeek,
   canTransition,
+  classifyReadiness,
   computeAcuteLoss,
   computeWeighInReminder,
   computeWeightFeasibility,
@@ -22,6 +23,7 @@ import {
   evaluateGate1,
   fightWeekStartsOn,
   listBoutsQuerySchema,
+  readinessQuerySchema,
   referenceKgAt,
   requirementsDueOn,
   resolveWeightClass,
@@ -842,6 +844,219 @@ describe('weigh-in reminder (T0, T-029)', () => {
     expect(justBefore).toBe('2026-10-19');
     expect(
       computeWeighInReminder({ status: 'FIGHT_WEEK', today: justBefore, latestOn: '2026-10-19' }).active,
+    ).toBe(false);
+  });
+});
+
+describe('classifyReadiness (R32, S3, T-007)', () => {
+  const fighterId = '10000000-0000-4000-8000-000000000001';
+  const fighterName = 'Nguyen Van A';
+
+  it('S3 boundaries: ends_on is SUSPENDED, ends_on + 1 is AWAITING_CLEARANCE when clearance is required else READY', () => {
+    const withClearance = {
+      startsOn: '2026-10-01',
+      endsOn: '2026-10-20',
+      requiresClearance: true,
+      clearedAt: null,
+      blockedSessionTypes: ['SPARRING', 'GRAPPLING'] as const,
+    };
+
+    const onEndDay = classifyReadiness({
+      fighterId,
+      fighterName,
+      today: '2026-10-20',
+      suspensions: [withClearance],
+    });
+    expect(onEndDay.status).toBe('SUSPENDED');
+    expect(onEndDay.ready).toBe(false);
+    expect(onEndDay.suspension).toEqual({
+      startsOn: '2026-10-01',
+      endsOn: '2026-10-20',
+      blockedSessionTypes: ['SPARRING', 'GRAPPLING'],
+      allowedSessionTypes: [
+        'SHADOW_BOXING',
+        'PAD_WORK',
+        'HEAVY_BAG',
+        'STRENGTH_CONDITIONING',
+        'RECOVERY',
+        'PHYSICAL_THERAPY',
+      ],
+      expectedResumeOn: null,
+    });
+
+    const dayAfterWithClearance = classifyReadiness({
+      fighterId,
+      fighterName,
+      today: '2026-10-21',
+      suspensions: [withClearance],
+    });
+    expect(dayAfterWithClearance.status).toBe('AWAITING_CLEARANCE');
+    expect(dayAfterWithClearance.ready).toBe(false);
+    expect(dayAfterWithClearance.suspension?.expectedResumeOn).toBeNull();
+
+    const withoutClearance = {
+      ...withClearance,
+      requiresClearance: false,
+    };
+    const onEndDayFixed = classifyReadiness({
+      fighterId,
+      fighterName,
+      today: '2026-10-20',
+      suspensions: [withoutClearance],
+    });
+    expect(onEndDayFixed.status).toBe('SUSPENDED');
+    expect(onEndDayFixed.ready).toBe(false);
+    expect(onEndDayFixed.suspension?.expectedResumeOn).toBe('2026-10-21');
+
+    const dayAfterFixed = classifyReadiness({
+      fighterId,
+      fighterName,
+      today: '2026-10-21',
+      suspensions: [withoutClearance],
+    });
+    expect(dayAfterFixed.status).toBe('READY');
+    expect(dayAfterFixed.ready).toBe(true);
+    expect(dayAfterFixed.suspension).toBeNull();
+  });
+
+  it('orders status priority: SUSPENDED > AWAITING_CLEARANCE > IN_BOUT > READY and picks suspension ending last', () => {
+    const awaiting = {
+      startsOn: '2026-09-01',
+      endsOn: '2026-09-30',
+      requiresClearance: true,
+      clearedAt: null,
+      blockedSessionTypes: ['SPARRING'] as const,
+    };
+    const activeLater = {
+      startsOn: '2026-10-15',
+      endsOn: '2026-10-25',
+      requiresClearance: false,
+      clearedAt: null,
+      blockedSessionTypes: ['SPARRING', 'HEAVY_BAG'] as const,
+    };
+    const activeBout = {
+      id: '40000000-0000-4000-8000-000000000001',
+      eventName: 'Autumn Fight',
+      status: 'CAMP' as const,
+      boutAt: '2026-11-10T10:00:00.000Z',
+    };
+
+    const both = classifyReadiness({
+      fighterId,
+      fighterName,
+      today: '2026-10-20',
+      suspensions: [awaiting, activeLater],
+      activeBout,
+    });
+    expect(both.status).toBe('SUSPENDED');
+    expect(both.ready).toBe(false);
+    expect(both.suspension?.endsOn).toBe('2026-10-25');
+    expect(both.suspension?.expectedResumeOn).toBe('2026-10-26');
+    expect(both.activeBout).toEqual(activeBout);
+
+    const awaitingAndBout = classifyReadiness({
+      fighterId,
+      fighterName,
+      today: '2026-10-20',
+      suspensions: [awaiting],
+      activeBout,
+    });
+    expect(awaitingAndBout.status).toBe('AWAITING_CLEARANCE');
+    expect(awaitingAndBout.ready).toBe(false);
+
+    const boutOnly = classifyReadiness({
+      fighterId,
+      fighterName,
+      today: '2026-10-20',
+      suspensions: [],
+      activeBout,
+    });
+    expect(boutOnly.status).toBe('IN_BOUT');
+    expect(boutOnly.ready).toBe(false);
+
+    // A SCHEDULED bout does NOT make the fighter unready
+    const scheduledBout = classifyReadiness({
+      fighterId,
+      fighterName,
+      today: '2026-10-20',
+      suspensions: [],
+      activeBout: { ...activeBout, status: 'SCHEDULED' },
+    });
+    expect(scheduledBout.status).toBe('READY');
+    expect(scheduledBout.ready).toBe(true);
+    expect(scheduledBout.activeBout).toBeNull();
+  });
+
+  it('applies boutOn filter and computes feasibility without altering ready', () => {
+    const suspension = {
+      startsOn: '2026-10-15',
+      endsOn: '2026-10-25',
+      requiresClearance: false,
+      clearedAt: null,
+      blockedSessionTypes: ['SPARRING'] as const,
+    };
+    const ruleset = {
+      acuteWindowDays: 7,
+      acuteLossLimitPctLong: 8,
+      acuteLossLimitPctShort: 5,
+    };
+
+    // boutOn inside suspension period -> ready = false, reason SUSPENDED_PAST_BOUT_DATE
+    const blockedOnBout = classifyReadiness({
+      fighterId,
+      fighterName,
+      today: '2026-10-20',
+      suspensions: [suspension],
+      boutOn: '2026-10-24',
+    });
+    expect(blockedOnBout.ready).toBe(false);
+    expect(blockedOnBout.notReadyReasons).toEqual(['SUSPENDED_PAST_BOUT_DATE']);
+
+    // boutOn after fixed suspension ends, with OVER_LIMIT weight feasibility -> ready stays true!
+    const readyOnBoutOverWeight = classifyReadiness({
+      fighterId,
+      fighterName,
+      today: '2026-10-20',
+      suspensions: [suspension],
+      latestWeight: { kg: 66, date: '2026-10-19' },
+      boutOn: '2026-10-26',
+      weightLimitKg: 60,
+      ruleset,
+    });
+    expect(readyOnBoutOverWeight.ready).toBe(true);
+    expect(readyOnBoutOverWeight.notReadyReasons).toEqual([]);
+    expect(readyOnBoutOverWeight.feasibility).toMatchObject({
+      status: 'OVER_LIMIT',
+      remainingPct: 9.1,
+      daysToWeighIn: 6,
+    });
+  });
+
+  it('validates readinessQuerySchema: weightLimitKg or boutOn without rulesetId fails with 422', () => {
+    const rulesetId = '30000000-0000-4000-8000-000000000001';
+    expect(readinessQuerySchema.safeParse({}).success).toBe(true);
+    expect(readinessQuerySchema.safeParse({ rulesetId }).success).toBe(true);
+    expect(
+      readinessQuerySchema.safeParse({ rulesetId, boutOn: '2026-11-01' }).success,
+    ).toBe(true);
+    expect(
+      readinessQuerySchema.safeParse({
+        rulesetId,
+        boutOn: '2026-11-01',
+        weightLimitKg: 60,
+      }).success,
+    ).toBe(true);
+    expect(
+      readinessQuerySchema.safeParse({ weightLimitKg: 60 }).success,
+    ).toBe(false);
+    expect(
+      readinessQuerySchema.safeParse({ boutOn: '2026-11-01' }).success,
+    ).toBe(false);
+    expect(
+      readinessQuerySchema.safeParse({ rulesetId, weightLimitKg: 25 }).success,
+    ).toBe(false);
+    expect(
+      readinessQuerySchema.safeParse({ rulesetId, weightLimitKg: 205 }).success,
     ).toBe(false);
   });
 });

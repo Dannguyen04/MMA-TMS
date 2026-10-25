@@ -11,6 +11,8 @@ import { TrainingSessionController } from './sessions/training-session.controlle
 import { TrainingSessionService } from './sessions/training-session.service.js';
 import { ExerciseController } from './exercises/exercise.controller.js';
 import { ExerciseService } from './exercises/exercise.service.js';
+import { TrainingSuspensionConflictsController } from './training-suspension-conflicts.controller.js';
+import { TrainingSuspensionConflictsService } from './training-suspension-conflicts.service.js';
 
 @Module({
   imports: [
@@ -23,6 +25,7 @@ import { ExerciseService } from './exercises/exercise.service.js';
     TrainingPlanController,
     TrainingSessionController,
     ExerciseController,
+    TrainingSuspensionConflictsController,
   ],
   providers: [
     TrainingRepository,
@@ -30,7 +33,13 @@ import { ExerciseService } from './exercises/exercise.service.js';
     TrainingPlanService,
     TrainingSessionService,
     ExerciseService,
+    TrainingSuspensionConflictsService,
   ],
-  exports: [TrainingPlanService, TrainingSessionService, ExerciseService],
+  exports: [
+    TrainingPlanService,
+    TrainingSessionService,
+    ExerciseService,
+    TrainingSuspensionConflictsService,
+  ],
 })
 export class TrainingModule {}

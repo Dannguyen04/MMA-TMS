@@ -26,6 +26,26 @@ export function suspensionAlreadyCleared(): ConflictException {
   });
 }
 
+export function suspensionDaysRequired(): UnprocessableEntityException {
+  return new UnprocessableEntityException({
+    statusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+    error: 'Unprocessable Entity',
+    code: 'SUSPENSION_DAYS_REQUIRED',
+    message:
+      'suspensionDays is required when the ruleset does not suggest suspension days.',
+  });
+}
+
+export function suspensionOverrideReasonRequired(): UnprocessableEntityException {
+  return new UnprocessableEntityException({
+    statusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+    error: 'Unprocessable Entity',
+    code: 'SUSPENSION_OVERRIDE_REASON_REQUIRED',
+    message:
+      'suspensionOverrideReason is required when suspensionDays differs from the suggested days.',
+  });
+}
+
 export function suspensionValidationError(
   message = 'Validation failed',
   issues?: { code: string; path: (string | number)[]; message: string }[],

@@ -417,3 +417,14 @@ export const updateSessionStatusSchema = z
     }
   });
 export type UpdateSessionStatusInput = z.infer<typeof updateSessionStatusSchema>;
+
+export {
+  applySuspensionConflictsSchema,
+  conflictProposalResponseSchema,
+  CONFLICT_ACTIONS,
+  suspensionIdParamsSchema,
+  type ApplySuspensionConflictsInput,
+  type ConflictAction,
+  type ConflictProposal,
+  type ConflictProposalResponse,
+} from '../suspensions/suspensions.model.js';

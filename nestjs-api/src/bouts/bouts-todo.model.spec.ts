@@ -4,7 +4,9 @@ import {
   fightWeekProvider,
   requirementsProvider,
   resultOverdueProvider,
+  suspensionAwaitingClearanceProvider,
   tacticsProvider,
+  trainingConflictsProvider,
   weighInTodayProvider,
   weightNotLoggedProvider,
   weightProvider,
@@ -131,6 +133,106 @@ describe('weightNotLoggedProvider (T0)', () => {
   });
 });
 
+describe('suspensionAwaitingClearanceProvider (S3)', () => {
+  const suspension = {
+    startsOn: '2026-10-01',
+    endsOn: '2026-10-20',
+    requiresClearance: true,
+    clearedAt: null,
+    blockedSessionTypes: ['SPARRING'] as const,
+  };
+
+  it('appears on ends_on + 1 (phase AFTER), NOT on ends_on, and not once cleared or when requiresClearance is false', () => {
+    expect(
+      suspensionAwaitingClearanceProvider(
+        ctx({ today: '2026-10-20', suspensions: [suspension] }),
+      ),
+    ).toEqual([]);
+
+    expect(
+      suspensionAwaitingClearanceProvider(
+        ctx({ today: '2026-10-21', suspensions: [suspension] }),
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        source: 'SUSPENSION_AWAITING_CLEARANCE',
+        phase: 'AFTER',
+        dueOn: null,
+        count: null,
+      }),
+    ]);
+
+    expect(
+      suspensionAwaitingClearanceProvider(
+        ctx({
+          today: '2026-10-21',
+          suspensions: [{ ...suspension, clearedAt: new Date('2026-10-21T03:00:00Z') }],
+        }),
+      ),
+    ).toEqual([]);
+
+    expect(
+      suspensionAwaitingClearanceProvider(
+        ctx({
+          today: '2026-10-21',
+          suspensions: [{ ...suspension, requiresClearance: false }],
+        }),
+      ),
+    ).toEqual([]);
+  });
+});
+
+describe('trainingConflictsProvider (R28)', () => {
+  const suspension = {
+    startsOn: '2026-10-15',
+    endsOn: '2026-10-25',
+    requiresClearance: false,
+    clearedAt: null,
+    blockedSessionTypes: ['SPARRING', 'GRAPPLING'] as const,
+  };
+
+  it('counts unresolved R28 proposals over SCHEDULED sessions from today on', () => {
+    const sessions = [
+      {
+        id: '70000000-0000-4000-8000-000000000001',
+        sessionType: 'SPARRING' as const,
+        status: 'SCHEDULED',
+        scheduledAt: new Date('2026-10-21T03:00:00Z'),
+      },
+      {
+        id: '70000000-0000-4000-8000-000000000002',
+        sessionType: 'GRAPPLING' as const,
+        status: 'SCHEDULED',
+        scheduledAt: new Date('2026-10-22T03:00:00Z'),
+      },
+      {
+        id: '70000000-0000-4000-8000-000000000003',
+        sessionType: 'PAD_WORK' as const,
+        status: 'SCHEDULED',
+        scheduledAt: new Date('2026-10-22T05:00:00Z'),
+      },
+    ];
+
+    expect(
+      trainingConflictsProvider(
+        ctx({
+          today: '2026-10-20',
+          suspensions: [suspension],
+          scheduledSessions: sessions,
+        }),
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        source: 'TRAINING_CONFLICTS_WITH_SUSPENSION',
+        phase: 'AFTER',
+        count: 2,
+      }),
+    ]);
+
+    expect(trainingConflictsProvider(ctx({ today: '2026-10-20' }))).toEqual([]);
+  });
+});
+
 describe('collectTodoItems', () => {
   it('gathers the items of every bout, and a provider with no data adds nothing', () => {
     const items = collectTodoItems([
@@ -144,5 +246,41 @@ describe('collectTodoItems', () => {
     ]);
     // A source with no data (T-007's, until it merges) is just a provider returning [].
     expect(collectTodoItems([ctx(), ctx()], [() => []])).toEqual([]);
+  });
+
+  it('emits at most one SUSPENSION_AWAITING_CLEARANCE / TRAINING_CONFLICTS_WITH_SUSPENSION per fighter using their most recent running bout', () => {
+    const suspensions = [
+      {
+        startsOn: '2026-10-01',
+        endsOn: '2026-10-19',
+        requiresClearance: true,
+        clearedAt: null,
+        blockedSessionTypes: ['SPARRING'] as const,
+      },
+    ];
+    const items = collectTodoItems([
+      ctx({
+        boutId: '40000000-0000-4000-8000-000000000001',
+        eventName: 'Earlier Running Bout',
+        boutAt: new Date('2026-11-01T03:00:00Z'),
+        today: '2026-10-20',
+        suspensions,
+      }),
+      ctx({
+        boutId: '40000000-0000-4000-8000-000000000002',
+        eventName: 'Later Running Bout',
+        boutAt: new Date('2026-11-15T03:00:00Z'),
+        today: '2026-10-20',
+        suspensions,
+      }),
+    ]);
+    const awaitingItems = items.filter(
+      (i) => i.source === 'SUSPENSION_AWAITING_CLEARANCE',
+    );
+    expect(awaitingItems).toHaveLength(1);
+    expect(awaitingItems[0]).toMatchObject({
+      boutId: '40000000-0000-4000-8000-000000000002',
+      eventName: 'Later Running Bout',
+    });
   });
 });
