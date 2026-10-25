@@ -1,12 +1,13 @@
 import "server-only";
 
+import { cookies } from "next/headers";
 import { z } from "zod";
 
 import { ApiError, authenticatedApiRequest, authenticatedMutableApiRequest } from "@/lib/api/client";
 import { isDemoAuthEnabled } from "@/lib/auth/constants";
 import type { BoutOutcome, CampBout, CancelReason, CompetitionRuleset, NutritionPhaseKey, Suspension } from "@/lib/domain/bout";
 import { boutLimitKg, isRunningPhase } from "@/lib/domain/bout";
-import { requirementCode, type RequirementUpdate } from "@/lib/domain/bout-rules";
+import { awaitsWeighInDecision, requirementCode, type RequirementUpdate } from "@/lib/domain/bout-rules";
 import { wayOffCount } from "@/lib/domain/nutrition";
 import type { SuspensionDraft } from "@/lib/domain/suspension-rules";
 import type { TrainingType, User } from "@/lib/domain/types";
@@ -23,9 +24,9 @@ export type { BoutEdit, CreateResult, FightWeekResult, NewBout, WeighInEntry } f
 
 /**
  * Bouts, their camp weight and checklist, and suspensions (T-003, T-004, T-006, T-007). Demo mode runs on
- * `bouts.demo.ts`. API mode calls the T-003 contract through `bouts.api.ts`; until the backend serves it, reads
- * come back empty and writes say so instead of failing. The official weigh-in, result and suspensions (T-006,
- * T-007) have no contract yet and stay demo-only.
+ * `bouts.demo.ts`. API mode calls the T-003 and T-006 contracts through `bouts.api.ts`; until the backend serves
+ * them, reads come back empty and writes say so instead of failing. Suspensions (T-007) have no contract yet and
+ * stay demo-only.
  */
 
 export interface WeightAlert {
@@ -79,7 +80,9 @@ export async function listCampBouts(fighterIds: string[] | "all" = "all"): Promi
 
 export async function getCampBout(boutId: string): Promise<CampBout | null> {
     if (isDemoAuthEnabled()) return (await demo()).getDemoBout(boutId);
-    return (await api()).getApiBout(boutId);
+    const bout = await (await api()).getApiBout(boutId);
+    if (!bout || (bout.phase !== "FIGHT_WEEK" && bout.phase !== "WEIGHED_IN")) return bout;
+    return { ...bout, checklistUnlock: await readChecklistUnlock(bout.id) };
 }
 
 /** The fighter's running bout with the earliest weigh-in. */
@@ -220,34 +223,51 @@ export async function addRequirement(boutId: string, item: { label: string; requ
     if (isDemoAuthEnabled()) return (await demo()).addDemoRequirement(boutId, item);
     const bout = await getCampBout(boutId);
     const code = requirementCode(item.label, bout?.requirements.map((requirement) => requirement.code) ?? []);
-    return (await api()).addApiRequirement(boutId, { code, ...item });
+    return (await api()).addApiRequirement(boutId, { code, ...item }, bout?.checklistUnlock?.reason ?? null);
 }
 
 export async function updateRequirement(boutId: string, code: string, update: RequirementUpdate): Promise<WriteResult> {
     if (isDemoAuthEnabled()) return (await demo()).updateDemoRequirement(boutId, code, update);
-    return (await api()).updateApiRequirement(boutId, code, update);
+    return (await api()).updateApiRequirement(boutId, code, update, await unlockReasonFor(boutId));
 }
 
 export async function removeRequirement(boutId: string, code: string): Promise<WriteResult> {
     if (isDemoAuthEnabled()) return (await demo()).removeDemoRequirement(boutId, code);
-    return (await api()).removeApiRequirement(boutId, code);
+    return (await api()).removeApiRequirement(boutId, code, await unlockReasonFor(boutId));
 }
 
+/**
+ * F5 in API mode: the service keeps no "unlocked" state, it wants a reason with every checklist change in fight
+ * week (T-006 §2). The coach's reason is kept for an hour in a cookie for this bout, and goes with each change.
+ * Call from a Server Action only, where cookies can be set.
+ */
 export async function unlockChecklist(boutId: string, reason: string, actor: User, now = new Date()): Promise<WriteResult> {
     if (isDemoAuthEnabled()) return (await demo()).unlockDemoChecklist(boutId, reason, actorOf(actor), now);
-    return unavailable();
+    const bout = await getCampBout(boutId);
+    if (!bout) return unavailable();
+    if (bout.phase !== "FIGHT_WEEK" && bout.phase !== "WEIGHED_IN") return { ok: false, message: "Only a fight-week checklist is locked." };
+    const value = Buffer.from(JSON.stringify({ at: now.toISOString(), by: actor.name, reason })).toString("base64url");
+    (await cookies()).set(unlockCookie(boutId), value, { path: "/", sameSite: "lax", httpOnly: true, maxAge: UNLOCK_SECONDS });
+    return { ok: true };
 }
 
 /* ─── Official weigh-in, result, suspensions (T-006, T-007) ───────────────── */
 
 export async function recordWeighIn(boutId: string, entry: WeighInEntry, actor: User, now = new Date()): Promise<WriteResult> {
     if (isDemoAuthEnabled()) return (await demo()).recordDemoWeighIn(boutId, entry, actorOf(actor), now);
-    return unavailable();
+    // A miss the service already holds (the coach left before deciding) is not weighed again.
+    const bout = await getCampBout(boutId);
+    const recorded =
+        bout !== null &&
+        awaitsWeighInDecision(bout) &&
+        bout.weighIn?.weightKg === entry.weightKg &&
+        (bout.weighIn.hydrationCheck ?? "NOT_APPLICABLE") === (entry.hydrationCheck ?? "NOT_APPLICABLE");
+    return (await api()).recordApiWeighIn(boutId, entry, recorded);
 }
 
 export async function recordResult(boutId: string, outcome: BoutOutcome, actor: User, now = new Date()): Promise<WriteResult> {
     if (isDemoAuthEnabled()) return (await demo()).recordDemoResult(boutId, outcome, actorOf(actor), now);
-    return unavailable();
+    return (await api()).recordApiResult(boutId, outcome);
 }
 
 export async function createSuspension(fighterId: string, boutId: string | null, draft: SuspensionDraft, actor: User, now = new Date()): Promise<WriteResult> {
@@ -258,6 +278,30 @@ export async function createSuspension(fighterId: string, boutId: string | null,
 export async function clearSuspension(id: string, note: string, actor: User, now = new Date()): Promise<WriteResult> {
     if (isDemoAuthEnabled()) return (await demo()).clearDemoSuspension(id, note, actorOf(actor), now);
     return unavailable("Suspensions are not available from the server yet.");
+}
+
+/* ─── Checklist unlock in API mode (T-006 §2) ─────────────────────────────── */
+
+const UNLOCK_SECONDS = 60 * 60;
+const unlockCookie = (boutId: string) => `mma_checklist_unlock_${boutId}`;
+const unlockSchema = z.object({ at: z.string(), by: z.string(), reason: z.string().min(1) });
+
+/** The coach's reason for reopening this bout's checklist, while the cookie lasts. */
+async function readChecklistUnlock(boutId: string): Promise<CampBout["checklistUnlock"]> {
+    const raw = (await cookies()).get(unlockCookie(boutId))?.value;
+    if (!raw) return null;
+    try {
+        const parsed = unlockSchema.safeParse(JSON.parse(Buffer.from(raw, "base64url").toString("utf8")));
+        return parsed.success ? parsed.data : null;
+    } catch {
+        return null;
+    }
+}
+
+/** The reason to send with a checklist change: only in fight week, where the service asks for one. */
+async function unlockReasonFor(boutId: string): Promise<string | null> {
+    const bout = await getCampBout(boutId);
+    return bout?.checklistUnlock?.reason ?? null;
 }
 
 /** A ruleset without classes ("Tự nhập") takes the coach's own limit in kg instead of a class code. */

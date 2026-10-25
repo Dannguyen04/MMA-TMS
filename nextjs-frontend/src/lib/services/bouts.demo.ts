@@ -27,7 +27,9 @@ import {
     canRecordResult,
     canTransition,
     checklistLocked,
+    computeAcuteLoss,
     madeWeight,
+    passesWeighIn,
     requirementCode,
     requirementsFromTemplates,
     type Gate1Gap,
@@ -751,12 +753,15 @@ export function recordDemoWeighIn(boutId: string, entry: WeighInEntry, actor: Ac
     const bout = findBout(boutId);
     if (!bout) return { ok: false, message: BOUT_GONE };
     if (bout.phase !== "FIGHT_WEEK") return { ok: false, message: "The official weigh-in is recorded in fight week." };
-    const made = madeWeight(entry.weightKg, boutLimitKg(bout));
+    const onScale = madeWeight(entry.weightKg, boutLimitKg(bout));
+    const made = passesWeighIn(entry.weightKg, boutLimitKg(bout), entry.hydrationCheck);
     if (!made && !entry.decision) return { ok: false, message: "Choose what happens after the miss.", fieldErrors: { decision: "Choose catchweight or cancel." } };
 
+    // R19 reads the morning weights before the official one replaces the day's entry.
+    const acuteLoss = demoAcuteLoss(bout, entry.weightKg);
     recordMeasurement(bout.fighterId, entry.weightKg, now, "WEIGH_IN");
     if (!made && entry.decision === "CANCEL") {
-        bout.weighIn = { weightKg: entry.weightKg, madeWeight: false, hydrationCheck: entry.hydrationCheck, recordedAt: now.toISOString(), catchweightNote: null };
+        bout.weighIn = { weightKg: entry.weightKg, madeWeight: onScale, hydrationCheck: entry.hydrationCheck, recordedAt: now.toISOString(), catchweightNote: null, acuteLoss };
         bout.cancelReason = "MISSED_WEIGHT";
         bout.cancelNote = entry.note;
         move(bout, "CANCELLED", actor, now, CANCEL_REASON_LABELS.MISSED_WEIGHT);
@@ -765,13 +770,22 @@ export function recordDemoWeighIn(boutId: string, entry: WeighInEntry, actor: Ac
     if (!made) bout.catchweightKg = entry.catchweightKg;
     bout.weighIn = {
         weightKg: entry.weightKg,
-        madeWeight: made,
+        madeWeight: onScale,
         hydrationCheck: entry.hydrationCheck,
         recordedAt: now.toISOString(),
         catchweightNote: made ? null : entry.note,
+        acuteLoss,
     };
     move(bout, "WEIGHED_IN", actor, now, made ? null : `Catchweight ${entry.catchweightKg} kg`);
     return { ok: true };
+}
+
+/** R19 on the demo's daily weights: the official weigh-in itself never counts as the starting weight. */
+function demoAcuteLoss(bout: CampBout, officialKg: number) {
+    const weights = demoCampStore()
+        .measurements.filter((item) => item.fighterId === bout.fighterId && item.context !== "WEIGH_IN")
+        .map((item) => ({ on: item.academyDate, kg: item.kg }));
+    return computeAcuteLoss(weights, officialKg, dayKey(bout.weighInAt), bout.acuteWindowDays, bout.acuteLossLimitPct);
 }
 
 /** F6: WEIGHED_IN → COMPLETED from the bout day; a mandatory rest from the ruleset follows every bout. */
@@ -904,7 +918,7 @@ function cloneBout(bout: CampBout): CampBout {
             postWeighIn: bout.nutritionPlan.postWeighIn ? { ...bout.nutritionPlan.postWeighIn } : null,
         },
         history: bout.history.map((entry) => ({ ...entry })),
-        weighIn: bout.weighIn ? { ...bout.weighIn } : null,
+        weighIn: bout.weighIn ? { ...bout.weighIn, acuteLoss: bout.weighIn.acuteLoss ? { ...bout.weighIn.acuteLoss } : null } : null,
         outcome: bout.outcome ? { ...bout.outcome } : null,
         checklistUnlock: bout.checklistUnlock ? { ...bout.checklistUnlock } : null,
     };

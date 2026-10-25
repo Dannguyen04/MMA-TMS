@@ -283,6 +283,23 @@ describe("official weigh-in and result (T-006)", () => {
         expect(getDemoBout("b-linh-saigon")).toMatchObject({ phase: "CANCELLED", cancelReason: "MISSED_WEIGHT" });
     });
 
+    it("treats a failed hydration check as a miss, and keeps the scale's verdict (R17)", () => {
+        resetDemoCampStore(TODAY);
+        const dry = { weightKg: 59.8, hydrationCheck: "FAILED" as const, catchweightKg: null, note: null };
+        expect(recordDemoWeighIn("b-linh-saigon", { ...dry, decision: null }, RAFAEL, NOW)).toMatchObject({ ok: false, fieldErrors: { decision: expect.any(String) } });
+        expect(recordDemoWeighIn("b-linh-saigon", { ...dry, decision: "CANCEL" }, RAFAEL, NOW)).toEqual({ ok: true });
+        expect(getDemoBout("b-linh-saigon")).toMatchObject({ phase: "CANCELLED", weighIn: { madeWeight: true, hydrationCheck: "FAILED" } });
+    });
+
+    it("keeps the acute loss from the daily weights before the official one (R19)", () => {
+        resetDemoCampStore(TODAY);
+        const before = getDemoBout("b-linh-saigon")!;
+        recordDemoWeighIn("b-linh-saigon", { weightKg: 59.8, hydrationCheck: null, decision: null, catchweightKg: null, note: null }, RAFAEL, NOW);
+        const loss = getDemoBout("b-linh-saigon")!.weighIn?.acuteLoss;
+        expect(loss?.limitPct).toBe(before.acuteLossLimitPct);
+        expect(loss?.startKg).not.toBe(59.8);
+    });
+
     it("records the result from the bout day only", () => {
         resetDemoCampStore(TODAY);
         recordDemoWeighIn("b-linh-saigon", { weightKg: 59.8, hydrationCheck: null, decision: null, catchweightKg: null, note: null }, RAFAEL, NOW);

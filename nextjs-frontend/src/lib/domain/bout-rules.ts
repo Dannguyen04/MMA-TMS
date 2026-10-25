@@ -4,6 +4,7 @@ import { createTranslator, type Translator } from "@/lib/i18n/translate";
 import {
     isActivePhase,
     isReadyState,
+    type AcuteLoss,
     type BoutMethod,
     type BoutOutcome,
     type BoutPhase,
@@ -452,7 +453,38 @@ export function methodsFor(sport: BoutSport): BoutMethod[] {
 
 /** The app's suggestion at the official weigh-in; the coach confirms it. An open class always makes weight. */
 export function madeWeight(officialKg: number, limitKg: number | null): boolean {
-    return limitKg === null || officialKg <= limitKg;
+    // In hundredths, so 60.0 against 60 never misses on a floating-point remainder.
+    return limitKg === null || Math.round(officialKg * 100) <= Math.round(limitKg * 100);
+}
+
+/** R17: the bout goes on only when the fighter made weight and didn't fail the hydration check. */
+export function passesWeighIn(officialKg: number, limitKg: number | null, hydrationCheck: HydrationCheck | null): boolean {
+    return madeWeight(officialKg, limitKg) && hydrationCheck !== "FAILED";
+}
+
+/** Weighed in but neither passed nor decided: the coach still has to choose a catchweight or cancel (R18). */
+export function awaitsWeighInDecision(bout: Pick<CampBout, "phase" | "weighIn">): boolean {
+    return bout.phase === "FIGHT_WEEK" && bout.weighIn !== null && (!bout.weighIn.madeWeight || bout.weighIn.hydrationCheck === "FAILED");
+}
+
+/**
+ * R19: the loss from the first morning weight in the `windowDays` before the weigh-in day to the official weight.
+ * `weights` are the fighter's daily weights (never the official one), oldest first or in any order.
+ */
+export function computeAcuteLoss(
+    weights: { on: string; kg: number }[],
+    officialKg: number,
+    weighInOn: string,
+    windowDays: number,
+    limitPct: number,
+): AcuteLoss {
+    const opensOn = addDaysToKey(weighInOn, -windowDays);
+    const start = weights
+        .filter((point) => daysBetweenKeys(opensOn, point.on) >= 0 && daysBetweenKeys(point.on, weighInOn) >= 0)
+        .sort((a, b) => a.on.localeCompare(b.on))[0];
+    if (!start) return { status: "NO_DATA", startKg: null, startOn: null, lossPct: null, limitPct };
+    const lossPct = Math.round(((start.kg - officialKg) / start.kg) * 1000) / 10;
+    return { status: lossPct > limitPct ? "EXCEEDED" : "WITHIN", startKg: start.kg, startOn: start.on, lossPct, limitPct };
 }
 
 export function readOfficialWeight(raw: string, t: Translator = english) {
@@ -490,6 +522,13 @@ export function asksHeadStrikes(result: string, method: string): boolean {
     return result === "LOSS" && method === "TKO";
 }
 
+/** T-006 §4: a stoppage names its round, a decision goes the distance, DQ and "Other" may say either. */
+export function roundRuleFor(method: string): "REQUIRED" | "NOT_ALLOWED" | "OPTIONAL" {
+    if (method === "KO" || method === "TKO" || method === "SUBMISSION") return "REQUIRED";
+    if (method === "DECISION") return "NOT_ALLOWED";
+    return "OPTIONAL";
+}
+
 export function validateOutcome(input: OutcomeInput, sport: BoutSport, recordedAt: string, t: Translator = english): Checked<BoutOutcome> {
     const fieldErrors: FieldErrors = {};
     const result = (BOUT_RESULTS as readonly string[]).includes(input.result) ? (input.result as BoutResult) : null;
@@ -506,6 +545,9 @@ export function validateOutcome(input: OutcomeInput, sport: BoutSport, recordedA
             round = Number(roundRaw);
         }
     }
+    const roundRule = roundRuleFor(input.method);
+    if (roundRule === "REQUIRED" && !roundRaw) fieldErrors.round = t("boutMsg.outcome.roundRequired");
+    if (roundRule === "NOT_ALLOWED" && roundRaw) fieldErrors.round = t("boutMsg.outcome.roundNotAllowed");
 
     let lossOfConsciousness: LossOfConsciousness | null = null;
     if (asksLossOfConsciousness(input.result, input.method)) {

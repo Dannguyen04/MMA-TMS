@@ -57,7 +57,7 @@ export async function generateMetadata({ params }: PageProps<"/coach/sessions/[s
 
 export default async function CoachSessionPage({ params, searchParams }: PageProps<"/coach/sessions/[sessionId]">) {
     const user = await requireRole("coach");
-    const [{ sessionId }, query, { t }] = await Promise.all([params, searchParams, getTranslator()]);
+    const [{ sessionId }, query, { t, locale }] = await Promise.all([params, searchParams, getTranslator()]);
     // Reference lookups start with the session read; everything about the session waits for the access check.
     const [session, coachNames, exercises] = await Promise.all([loadSession(sessionId), getCoachNames(), getExerciseLibrary()]);
     if (!session) notFound();
@@ -111,7 +111,7 @@ export default async function CoachSessionPage({ params, searchParams }: PagePro
                 eyebrow={t("training.sessionPage.eyebrowCoach", { name: fighter.name })}
                 title={session.title}
                 back={{ href: routes.coach.sessions, label: t("training.sessionPage.backSessions") }}
-                meta={<SessionHeaderMeta session={session} />}
+                meta={<SessionHeaderMeta session={session} locale={locale} />}
                 actions={
                     <>
                         <ButtonLink href={hrefWith(routes.coach.newSession, {}, { from: session.id })} variant="secondary">
@@ -125,13 +125,14 @@ export default async function CoachSessionPage({ params, searchParams }: PagePro
                             </ButtonLink>
                         )}
                         {scheduled && started && <MarkMissedButton {...transitionProps} />}
-                        {active && <CancelSessionButton {...transitionProps} when={formatDateTime(session.scheduledAt)} />}
+                        {active && <CancelSessionButton {...transitionProps} when={formatDateTime(session.scheduledAt, locale)} />}
                         {canRecord && recordButton}
                         {scheduled && <StartSessionButton {...transitionProps} />}
                     </>
                 }
             />
             <SessionDetail
+                locale={locale}
                 session={session}
                 audience="coach"
                 now={now}

@@ -11,7 +11,7 @@ import { CANCEL_REASONS, type CampBout, type CancelReason, type HydrationCheck, 
 import {
     canEnterFightWeek,
     HYDRATION_CHECKS,
-    madeWeight,
+    passesWeighIn,
     NOTES_MAX,
     readCatchweight,
     readDueDays,
@@ -29,7 +29,7 @@ import { readPlanAnswer, readPlanAuthor, readPlanText } from "@/lib/domain/nutri
 import { readClearanceNote, suggestSuspension, suspensionReasonFor, validateSuspension, MANUAL_SUSPENSION_REASONS, SUSPENSION_REASONS } from "@/lib/domain/suspension-rules";
 import type { TrainingType, User } from "@/lib/domain/types";
 import { parseSelfWeight } from "@/lib/domain/weight-input";
-import { dayKey, formatDate } from "@/lib/format";
+import { dayKey, formatDate, formatNumber } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
 import { getTranslator } from "@/lib/i18n/server";
 import { createTranslator, type Translator } from "@/lib/i18n/translate";
@@ -412,7 +412,7 @@ export async function recordWeighInAction(_prev: ActionState, formData: FormData
     if (hydrationRaw && !hydrationCheck) fieldErrors.hydrationCheck = t("boutMsg.action.hydrationInvalid");
 
     const limit = bout.catchweightKg ?? bout.limitKg;
-    const made = weight.ok ? madeWeight(weight.kg, limit) : true;
+    const made = weight.ok ? passesWeighIn(weight.kg, limit, hydrationCheck) : true;
     const decisionRaw = text(formData, "decision");
     const decision = decisionRaw === "CATCHWEIGHT" || decisionRaw === "CANCEL" ? decisionRaw : null;
     let catchweightKg: number | null = null;
@@ -423,6 +423,9 @@ export async function recordWeighInAction(_prev: ActionState, formData: FormData
             const catchweight = readCatchweight(text(formData, "catchweightKg"), t);
             if (!catchweight.ok) fieldErrors.catchweightKg = catchweight.message;
             else if (weight.ok && catchweight.kg < weight.kg) fieldErrors.catchweightKg = t("boutMsg.action.catchweightBelow");
+            // T-006 §3: the service only takes a catchweight above the original limit.
+            else if (bout.limitKg !== null && catchweight.kg <= bout.limitKg)
+                fieldErrors.catchweightKg = t("boutMsg.action.catchweightAboveLimit", { kg: formatNumber(bout.limitKg, 1) });
             else catchweightKg = catchweight.kg;
             if (!note) fieldErrors.note = t("boutMsg.action.catchweightNote");
         }
@@ -431,8 +434,9 @@ export async function recordWeighInAction(_prev: ActionState, formData: FormData
     if (Object.keys(fieldErrors).length > 0 || !weight.ok) return actionError(t("form.fixFields"), fieldErrors);
 
     const result = await recordWeighIn(bout.id, { weightKg: weight.kg, hydrationCheck, decision: made ? null : decision, catchweightKg, note: note || null }, found.user);
-    if (!result.ok) return actionError(serviceMessage(result.message, t), result.fieldErrors);
+    // Even a refusal may follow a saved weigh-in (the service holds a miss until the coach decides).
     revalidateBout(bout);
+    if (!result.ok) return actionError(serviceMessage(result.message, t), result.fieldErrors);
     return actionSuccess(
         made ? t("boutMsg.action.madeWeight") : decision === "CANCEL" ? t("boutMsg.action.cancelledMissedWeight") : t("boutMsg.action.weighedInCatchweight"),
     );

@@ -2,7 +2,7 @@ import { CalendarClock, CheckCircle2, CircleSlash, Info, ShieldAlert, ShieldChec
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { cache } from "react";
+import { cache, type ReactNode } from "react";
 
 import { InlineNote } from "@/components/dashboard/inline-note";
 import { CampWeightCard } from "@/components/domain/camp-weight-card";
@@ -343,7 +343,7 @@ function GateCard({ bout, todayOn, lang: { t, locale } }: { bout: CampBout; toda
 }
 
 function ResultCard({ bout, lang: { t } }: { bout: CampBout; lang: Lang }) {
-    const items = [];
+    const items: { label: string; value: ReactNode }[] = [];
     if (bout.weighIn) {
         items.push({
             label: t("boutDetail.common.officialWeight"),
@@ -351,6 +351,26 @@ function ResultCard({ bout, lang: { t } }: { bout: CampBout; lang: Lang }) {
         });
         if (bout.weighIn.hydrationCheck) items.push({ label: t("boutDetail.common.hydrationCheck"), value: t(`boutLabel.hydration.${bout.weighIn.hydrationCheck}`) });
         if (bout.weighIn.catchweightNote) items.push({ label: t("boutDetail.resultCard.catchweightNote"), value: bout.weighIn.catchweightNote });
+        const loss = bout.weighIn.acuteLoss;
+        if (loss) {
+            items.push({
+                label: t("boutDetail.resultCard.acuteLoss"),
+                value:
+                    loss.status === "NO_DATA" || loss.lossPct === null || loss.startKg === null ? (
+                        t("boutDetail.resultCard.acuteLossNoData", { days: bout.acuteWindowDays })
+                    ) : loss.lossPct < 0 ? (
+                        t("boutDetail.resultCard.acuteLossGained", { pct: formatNumber(-loss.lossPct, 1), from: formatNumber(loss.startKg, 1) })
+                    ) : (
+                        <span className={loss.status === "EXCEEDED" ? "font-medium text-danger-fg" : undefined}>
+                            {t(loss.status === "EXCEEDED" ? "boutDetail.resultCard.acuteLossExceeded" : "boutDetail.resultCard.acuteLossWithin", {
+                                pct: formatNumber(loss.lossPct, 1),
+                                from: formatNumber(loss.startKg, 1),
+                                limit: formatNumber(loss.limitPct, 1),
+                            })}
+                        </span>
+                    ),
+            });
+        }
     }
     if (bout.outcome) {
         const outcome = bout.outcome;

@@ -113,7 +113,7 @@ export function SessionForm({ mode, action, fighters, plans, library, clearances
         ...defaults,
         location: defaults.location || DEFAULT_LOCATION[defaults.type],
         // A new session's title follows its type and plan until the coach types one.
-        title: defaults.title || (mode === "create" ? suggestedSessionTitle(defaults.type, planTitleFor(defaults.planId)) : ""),
+        title: defaults.title || (mode === "create" ? suggestedSessionTitle(defaults.type, planTitleFor(defaults.planId), trainingTypeLabel(t, defaults.type)) : ""),
     }));
     const [titleTouched, setTitleTouched] = useState(defaults.title !== "");
     const [repeat, setRepeat] = useState(false);
@@ -176,7 +176,7 @@ export function SessionForm({ mode, action, fighters, plans, library, clearances
         ...current,
         type,
         planId,
-        title: titleTouched ? current.title : suggestedSessionTitle(type, planTitleFor(planId)),
+        title: titleTouched ? current.title : suggestedSessionTitle(type, planTitleFor(planId), trainingTypeLabel(t, type)),
         location: !current.location.trim() || current.location === DEFAULT_LOCATION[current.type] ? DEFAULT_LOCATION[type] : current.location,
         durationMin: !current.durationMin.trim() || current.durationMin === String(presetDuration(current.type)) ? String(presetDuration(type)) : current.durationMin,
     });
@@ -192,7 +192,7 @@ export function SessionForm({ mode, action, fighters, plans, library, clearances
             return withDefaults({ ...current, fighterId: next }, current.type, planStillValid ? current.planId : onlyActivePlan(plans, next));
         });
 
-    const suggestedTitle = suggestedSessionTitle(values.type, planTitleFor(values.planId));
+    const suggestedTitle = suggestedSessionTitle(values.type, planTitleFor(values.planId), trainingTypeLabel(t, values.type));
     const preset = SESSION_PRESETS[values.type];
     const selectedPlan = plans.find((plan) => plan.id === values.planId);
     const repeats = Number(repeatCount);

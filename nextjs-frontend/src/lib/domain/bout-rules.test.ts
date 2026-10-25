@@ -5,14 +5,18 @@ import { dayKey } from "@/lib/format";
 import { BOUT_PHASES, type BoutPhase, type BoutRequirement } from "./bout";
 import {
     acuteLossLimitPct,
+    awaitsWeighInDecision,
     canEnterFightWeek,
     canRecordResult,
     canTransition,
     campStartedOn,
     checklistLocked,
+    computeAcuteLoss,
     gate1,
     gateSummary,
+    madeWeight,
     methodsFor,
+    passesWeighIn,
     readDueDays,
     readWeightClass,
     requirementCode,
@@ -20,6 +24,7 @@ import {
     requirementsDueSoon,
     requirementsFromTemplates,
     requirementsOverdue,
+    roundRuleFor,
     scheduleSummary,
     suggestedValidUntil,
     validateBoutSchedule,
@@ -362,10 +367,63 @@ describe("result (F6)", () => {
         expect(validateOutcome({ ...base, round: "13" }, "MMA", "")).toMatchObject({ ok: false, fieldErrors: { round: expect.any(String) } });
     });
 
+    it("names the round of a stoppage and none for a decision (T-006 criterion 12)", () => {
+        expect(roundRuleFor("KO")).toBe("REQUIRED");
+        expect(roundRuleFor("SUBMISSION")).toBe("REQUIRED");
+        expect(roundRuleFor("DECISION")).toBe("NOT_ALLOWED");
+        expect(roundRuleFor("DQ")).toBe("OPTIONAL");
+        expect(validateOutcome({ ...base, result: "WIN", method: "KO" }, "MMA", "")).toMatchObject({ ok: false, fieldErrors: { round: "Enter the round the bout was stopped in." } });
+        expect(validateOutcome({ ...base, round: "3" }, "MMA", "")).toMatchObject({ ok: false, fieldErrors: { round: "A decision goes the distance: leave the round empty." } });
+        expect(validateOutcome({ ...base, method: "DQ" }, "MMA", "")).toMatchObject({ ok: true, value: { round: null } });
+        expect(validateOutcome({ ...base, method: "DQ", round: "2" }, "MMA", "")).toMatchObject({ ok: true, value: { round: 2 } });
+    });
+
     it("is recorded from the bout day, once weighed in", () => {
         const weighed = { phase: "WEIGHED_IN" as BoutPhase, boutAt: wallClockIso("2026-10-23T19:00") };
         expect(canRecordResult(weighed, "2026-10-22")).toEqual({ ok: false, reason: "BOUT_NOT_STARTED" });
         expect(canRecordResult(weighed, "2026-10-23")).toEqual({ ok: true });
         expect(canRecordResult({ ...weighed, phase: "FIGHT_WEEK" }, "2026-10-23")).toEqual({ ok: false, reason: "NOT_WEIGHED_IN" });
+    });
+});
+
+describe("official weigh-in (T-006 §3, R17–R19)", () => {
+    it("makes weight at the limit exactly, and misses just over it (T-006 criterion 5)", () => {
+        expect(madeWeight(60, 60)).toBe(true);
+        expect(madeWeight(59.8, 60)).toBe(true);
+        expect(madeWeight(60.5, 60)).toBe(false);
+        expect(madeWeight(0.1 + 0.2, 0.3)).toBe(true);
+        expect(madeWeight(95, null)).toBe(true);
+    });
+
+    it("counts a failed hydration check as a miss even on the limit (T-006 criterion 6)", () => {
+        expect(passesWeighIn(59.8, 60, "FAILED")).toBe(false);
+        expect(passesWeighIn(59.8, 60, "PASSED")).toBe(true);
+        expect(passesWeighIn(59.8, 60, null)).toBe(true);
+        expect(passesWeighIn(60.5, 60, "PASSED")).toBe(false);
+    });
+
+    it("waits for the coach's choice after a miss the service holds", () => {
+        const weighIn = { weightKg: 60.5, madeWeight: false, hydrationCheck: null, recordedAt: "", catchweightNote: null, acuteLoss: null };
+        expect(awaitsWeighInDecision({ phase: "FIGHT_WEEK", weighIn })).toBe(true);
+        expect(awaitsWeighInDecision({ phase: "FIGHT_WEEK", weighIn: { ...weighIn, weightKg: 59.8, madeWeight: true, hydrationCheck: "FAILED" } })).toBe(true);
+        expect(awaitsWeighInDecision({ phase: "WEIGHED_IN", weighIn })).toBe(false);
+        expect(awaitsWeighInDecision({ phase: "FIGHT_WEEK", weighIn: null })).toBe(false);
+    });
+
+    describe("acute loss (T-006 criterion 3)", () => {
+        const weights = [
+            { on: "2026-10-14", kg: 67.5 },
+            { on: "2026-10-16", kg: 66.0 },
+            { on: "2026-10-20", kg: 62.4 },
+        ];
+
+        it("measures from the earliest weight in the window", () => {
+            expect(computeAcuteLoss(weights, 60.8, "2026-10-23", 7, 8)).toEqual({ status: "WITHIN", startKg: 66, startOn: "2026-10-16", lossPct: 7.9, limitPct: 8 });
+            expect(computeAcuteLoss(weights, 60.0, "2026-10-23", 7, 8)).toMatchObject({ status: "EXCEEDED", lossPct: 9.1 });
+        });
+
+        it("has no data without a weight in the window", () => {
+            expect(computeAcuteLoss([{ on: "2026-10-01", kg: 70 }], 60, "2026-10-23", 7, 8)).toEqual({ status: "NO_DATA", startKg: null, startOn: null, lossPct: null, limitPct: 8 });
+        });
     });
 });

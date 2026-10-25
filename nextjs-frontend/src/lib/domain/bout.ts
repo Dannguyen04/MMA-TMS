@@ -130,14 +130,26 @@ export type BoutResult = "WIN" | "LOSS" | "DRAW" | "NO_CONTEST";
 
 export type BoutMethod = "KO" | "TKO" | "DECISION" | "SUBMISSION" | "DQ" | "OTHER";
 
+/** R19: how much the fighter cut in the days before the official weigh-in, against the bout's limit. */
+export interface AcuteLoss {
+    status: "EXCEEDED" | "WITHIN" | "NO_DATA";
+    /** The first morning weight in the window (not the official one), and its academy date. */
+    startKg: number | null;
+    startOn: string | null;
+    lossPct: number | null;
+    limitPct: number;
+}
+
 /** The official weigh-in (F5). */
 export interface OfficialWeighIn {
     weightKg: number;
+    /** On the scale: at or under the limit. A failed hydration check is a miss even then (R17). */
     madeWeight: boolean;
     hydrationCheck: HydrationCheck | null;
     recordedAt: string;
     /** Set when the coach went on at a catchweight after missing the limit. */
     catchweightNote: string | null;
+    acuteLoss: AcuteLoss | null;
 }
 
 /** How the bout ended (F6). */

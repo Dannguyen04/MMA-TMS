@@ -27,7 +27,7 @@ vi.mock("@/lib/i18n/server", async () => {
 
 import { addDaysToKey, dayKey } from "@/lib/format";
 import { getDemoBout, listDemoBouts, recordDemoResult, recordDemoWeighIn, resetDemoCampStore } from "@/lib/services/bouts.demo";
-import { createBoutAction, createSuspensionAction, enterFightWeekAction, updateRequirementAction } from "./bouts";
+import { createBoutAction, createSuspensionAction, enterFightWeekAction, recordWeighInAction, updateRequirementAction } from "./bouts";
 import { IDLE } from "./state";
 
 function rafael(fighterIds = ROSTER): User {
@@ -118,6 +118,18 @@ describe("bout actions in demo mode", () => {
             updateRequirementAction(IDLE, form({ boutId: "b-emma-nordic", code: "BRAIN_CT", state: "PROVIDED", issuedOn: today(), validUntil: "", statusReason: "" })),
         ).resolves.toMatchObject({ status: "error", fieldErrors: { validUntil: "Enter the date this document is valid until." } });
         expect(getDemoBout("b-emma-nordic")?.requirements.find((item) => item.code === "BRAIN_CT")?.state).toBe("MISSING");
+    });
+
+    it("asks for a decision after a failed hydration check and a catchweight above the original limit (T-006 §3)", async () => {
+        const dry = { boutId: "b-linh-saigon", weightKg: "59,8", hydrationCheck: "FAILED", note: "Agreed with the promoter" };
+        await expect(recordWeighInAction(IDLE, form(dry))).resolves.toMatchObject({ status: "error", fieldErrors: { decision: expect.any(String) } });
+        await expect(recordWeighInAction(IDLE, form({ ...dry, decision: "CATCHWEIGHT", catchweightKg: "59,9" }))).resolves.toMatchObject({
+            status: "error",
+            fieldErrors: { catchweightKg: "The catchweight must be above the original limit of 60.0 kg." },
+        });
+        expect(getDemoBout("b-linh-saigon")?.phase).toBe("FIGHT_WEEK");
+        await expect(recordWeighInAction(IDLE, form({ ...dry, decision: "CATCHWEIGHT", catchweightKg: "60,5" }))).resolves.toMatchObject({ status: "success" });
+        expect(getDemoBout("b-linh-saigon")).toMatchObject({ phase: "WEIGHED_IN", catchweightKg: 60.5 });
     });
 
     it("works out the suggested suspension itself and asks why the days changed", async () => {

@@ -299,8 +299,7 @@ export function presetDuration(type: TrainingType): number {
 }
 
 /** "Pad work — Fight camp", or just the type when there's no plan; shortened to the title limit. */
-export function suggestedSessionTitle(type: TrainingType, planTitle?: string | null): string {
-    const label = TRAINING_TYPE_LABELS[type];
+export function suggestedSessionTitle(type: TrainingType, planTitle?: string | null, label = TRAINING_TYPE_LABELS[type]): string {
     const plan = planTitle?.trim();
     const title = plan ? `${label} — ${plan}` : label;
     return title.length > TITLE_MAX ? `${title.slice(0, TITLE_MAX - 1).trimEnd()}…` : title;

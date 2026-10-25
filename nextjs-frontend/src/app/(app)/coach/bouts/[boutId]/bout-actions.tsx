@@ -20,7 +20,18 @@ import {
     updateBoutAction,
 } from "@/lib/actions/bouts";
 import { CANCEL_REASONS, type CampBout, type CompetitionRuleset } from "@/lib/domain/bout";
-import { asksHeadStrikes, asksLossOfConsciousness, BOUT_RESULTS, HYDRATION_CHECKS, LOSS_OF_CONSCIOUSNESS, madeWeight, methodsFor } from "@/lib/domain/bout-rules";
+import {
+    asksHeadStrikes,
+    asksLossOfConsciousness,
+    awaitsWeighInDecision,
+    BOUT_RESULTS,
+    HYDRATION_CHECKS,
+    LOSS_OF_CONSCIOUSNESS,
+    madeWeight,
+    methodsFor,
+    passesWeighIn,
+    roundRuleFor,
+} from "@/lib/domain/bout-rules";
 import { formatNumber, toDateTimeInputValue } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { EventFields, RulesetNote, ScheduleFields, WeightClassField } from "../bout-schedule-fields";
@@ -232,29 +243,36 @@ export function EnterFightWeekForm({ boutId }: { boutId: string }) {
 /* ─── Fight week: official weigh-in (F5) ──────────────────────────────────── */
 
 export function WeighInButton({ bout }: { bout: CampBout }) {
+    // A miss already on record (the service keeps it until the coach decides) opens on that weight, so only the
+    // decision is left to make.
+    const pending = awaitsWeighInDecision(bout) ? bout.weighIn : null;
+    const initialWeight = pending ? String(pending.weightKg) : "";
+    const initialHydration = pending?.hydrationCheck ?? "";
     const [open, setOpen] = useState(false);
-    const [weight, setWeight] = useState("");
-    const [hydration, setHydration] = useState<string>("");
+    const [weight, setWeight] = useState(initialWeight);
+    const [hydration, setHydration] = useState<string>(initialHydration);
     const [decision, setDecision] = useState<"" | "CATCHWEIGHT" | "CANCEL">("");
     const notify = useNotify();
     const t = useT();
     const limit = bout.catchweightKg ?? bout.limitKg;
     const kg = Number(weight.trim().replace(",", "."));
-    const missed = weight.trim() !== "" && Number.isFinite(kg) && !madeWeight(kg, limit);
+    const entered = weight.trim() !== "" && Number.isFinite(kg);
+    const overLimit = entered && !madeWeight(kg, limit);
+    const missed = entered && !passesWeighIn(kg, limit, hydration === "FAILED" ? "FAILED" : null);
 
     return (
         <>
             <Button onClick={() => setOpen(true)} className="self-start">
                 <Scale aria-hidden />
-                {t("boutDetail.weighIn.button")}
+                {pending ? t("boutDetail.weighIn.decideButton") : t("boutDetail.weighIn.button")}
             </Button>
             <ActionDialog
                 open={open}
                 onClose={() => {
                     setOpen(false);
-                    setWeight("");
+                    setWeight(initialWeight);
                     setDecision("");
-                    setHydration("");
+                    setHydration(initialHydration);
                 }}
                 title={t("boutDetail.weighIn.title")}
                 description={limit === null ? t("boutDetail.weighIn.openClass") : t("boutDetail.weighIn.limit", { kg: formatNumber(limit, 1) })}
@@ -275,9 +293,13 @@ export function WeighInButton({ bout }: { bout: CampBout }) {
                             <Field label={t("boutDetail.common.officialWeight")} htmlFor={weightControl.id} required error={form.error("weightKg")}>
                                 <Input {...weightControl} inputMode="decimal" autoComplete="off" suffix="kg" value={weight} onChange={(event) => setWeight(event.target.value)} />
                             </Field>
-                            {weight.trim() !== "" && Number.isFinite(kg) && limit !== null && (
+                            {entered && (limit !== null || missed) && (
                                 <p role="status" className={missed ? "text-sm font-medium text-danger-fg" : "text-sm font-medium text-success-fg"}>
-                                    {missed ? t("boutDetail.weighIn.over", { kg: formatNumber(kg - limit, 1) }) : t("boutDetail.weighIn.made")}
+                                    {overLimit && limit !== null
+                                        ? t("boutDetail.weighIn.over", { kg: formatNumber(kg - limit, 1) })
+                                        : missed
+                                          ? t("boutDetail.weighIn.hydrationFailed")
+                                          : t("boutDetail.weighIn.made")}
                                 </p>
                             )}
                             <Field label={t("boutDetail.common.hydrationCheck")} htmlFor={hydrationControl.id} optional error={form.error("hydrationCheck")} hint={t("boutDetail.weighIn.hydrationHint")}>
@@ -336,6 +358,7 @@ export function ResultButton({ bout }: { bout: CampBout }) {
     const notify = useNotify();
     const t = useT();
     const methods = methodsFor(bout.sport);
+    const roundRule = roundRuleFor(method);
 
     return (
         <>
@@ -361,7 +384,7 @@ export function ResultButton({ bout }: { bout: CampBout }) {
                 {(form) => {
                     const resultControl = form.control("result", { required: true });
                     const methodControl = form.control("method", { required: true });
-                    const round = form.control("round", { hint: true });
+                    const round = form.control("round", { hint: true, required: roundRule === "REQUIRED" });
                     const loc = form.control("lossOfConsciousness", { required: true });
                     const head = form.control("stoppedByHeadStrikes", { required: true });
                     const knockedDown = form.control("knockedDown");
@@ -392,9 +415,18 @@ export function ResultButton({ bout }: { bout: CampBout }) {
                                     </Select>
                                 </Field>
                             </div>
-                            <Field label={t("boutDetail.result.round")} htmlFor={round.id} optional error={form.error("round")} hint={t("boutDetail.result.roundHint")}>
-                                <Input {...round} inputMode="numeric" className="w-28" />
-                            </Field>
+                            {roundRule !== "NOT_ALLOWED" && (
+                                <Field
+                                    label={t("boutDetail.result.round")}
+                                    htmlFor={round.id}
+                                    required={roundRule === "REQUIRED"}
+                                    optional={roundRule === "OPTIONAL"}
+                                    error={form.error("round")}
+                                    hint={roundRule === "REQUIRED" ? t("boutDetail.result.roundRequiredHint") : t("boutDetail.result.roundHint")}
+                                >
+                                    <Input {...round} inputMode="numeric" className="w-28" />
+                                </Field>
+                            )}
                             {asksLossOfConsciousness(result, method) && (
                                 <Field label={t("boutDetail.result.lostConsciousness")} htmlFor={loc.id} required error={form.error("lossOfConsciousness")}>
                                     <Select {...loc} defaultValue="">
