@@ -1,109 +1,60 @@
 {
-  "status": "BLOCKED",
-  "workingDirectory": "D:\\test\\ai-worktrees\\T-012\\python-worker",
-  "python": "D:/test/ai-worktrees/T-022/python-worker/.venv/Scripts/python.exe",
-  "model": {
-    "path": "yolov8n-pose.pt",
-    "sha256": "c6fa93dd1ee4a2c18c900a45c1d864a1c6f7aba75d84f91648a30b7fb641d212"
+  "selected": "vid_01_cross_heavybag.mp4",
+  "selection_reason": "vid_01: 5/5 nhan, 0 ngoai nhan; Adam: 8/18, 3 ngoai nhan (tieu chi a)",
+  "command": "process_video.py -i <video> -o <out> --model yolov8n-pose",
+  "python": "T-022 .venv",
+  "video_sha256": {
+    "vid_01": "6f425915fdf4d36eef342adc8d9017e421b22345ad0a7aa64cc1654e7d665175",
+    "adam": "4398c790c6b7139d2cec90aa8678ab4a0b0b44afcbf45c64d0124f31111f781d"
   },
-  "runs": [
-    {
-      "candidate": "vid_01",
-      "video": "validation_videos/vid_01_cross_heavybag.mp4",
-      "videoSha256": "6f425915fdf4d36eef342adc8d9017e421b22345ad0a7aa64cc1654e7d665175",
-      "labels": "ground_truth/gt_01_cross_heavybag.json",
-      "labelsSha256": "072f96283a392ca8bb4c6869937e8e71e4dd62a7e132ca93b02f2cdcdfb6c113",
-      "command": [
-        "D:/test/ai-worktrees/T-022/python-worker/.venv/Scripts/python.exe",
-        "process_video.py",
-        "--input",
-        "validation_videos/vid_01_cross_heavybag.mp4",
-        "--output",
-        "benchmark_results/t012_demo/vid_01_run1.json",
-        "--training-mode",
-        "HEAVY_BAG",
-        "--martial-art",
-        "boxing",
-        "--model",
-        "yolov8n-pose"
-      ],
-      "exitCode": 1,
-      "resultFile": null,
-      "requestedOutput": "benchmark_results/t012_demo/vid_01_run1.json",
-      "log": "vid_01_run1.log",
-      "commandWallSeconds": 5.2547906,
-      "timingsSeconds": null,
-      "detectorVersion": null,
-      "error": "RubricSelectionError: Unsupported martial art discipline 'boxing' requested. No discipline-specific evaluator is integrated in Task 4 (only generic legacy evaluators available)."
-    },
-    {
-      "candidate": "adam",
-      "video": "test_results/external/boxe_ml/96f3a7d0716040682381fb63f80afac96f74cfa6/adam.mp4",
-      "videoSha256": "4398c790c6b7139d2cec90aa8678ab4a0b0b44afcbf45c64d0124f31111f781d",
-      "labels": "test_results/external/boxe_ml/96f3a7d0716040682381fb63f80afac96f74cfa6/adam_gt.csv",
-      "labelsSha256": "e7df3f784466f311a84b7d7d6aa6449e7eea5f9c3f91a1d512281b41769fdefb",
-      "command": [
-        "D:/test/ai-worktrees/T-022/python-worker/.venv/Scripts/python.exe",
-        "process_video.py",
-        "--input",
-        "test_results/external/boxe_ml/96f3a7d0716040682381fb63f80afac96f74cfa6/adam.mp4",
-        "--output",
-        "benchmark_results/t012_demo/adam_run1.json",
-        "--training-mode",
-        "HEAVY_BAG",
-        "--martial-art",
-        "boxing",
-        "--model",
-        "yolov8n-pose"
-      ],
-      "exitCode": 1,
-      "resultFile": null,
-      "requestedOutput": "benchmark_results/t012_demo/adam_run1.json",
-      "log": "adam_run1.log",
-      "commandWallSeconds": 4.1646122,
-      "timingsSeconds": null,
-      "detectorVersion": null,
-      "error": "RubricSelectionError: Unsupported martial art discipline 'boxing' requested. No discipline-specific evaluator is integrated in Task 4 (only generic legacy evaluators available)."
-    }
+  "model_sha256": "c6fa93dd1ee4a2c18c900a45c1d864a1c6f7aba75d84f91648a30b7fb641d212",
+  "runs": {
+    "vid_01": 2,
+    "adam": 1
+  },
+  "stable_punches_run1_vs_run2": true,
+  "punches": [
+    [
+      75,
+      "right"
+    ],
+    [
+      132,
+      "right"
+    ],
+    [
+      184,
+      "right"
+    ],
+    [
+      370,
+      "right"
+    ],
+    [
+      578,
+      "right"
+    ]
   ],
-  "selectedClip": null,
-  "stability": null,
-  "contract": null,
-  "note": "Command wall times include startup and logging; these are failed commands, not video processing timings. No result JSON was produced. No extra inference run or parameter substitution.",
-  "checks": [
-    {
-      "command": [
-        "D:/test/ai-worktrees/T-022/python-worker/.venv/Scripts/python.exe",
-        "-m",
-        "pytest",
-        "-q",
-        "test_demo_t012_summary.py",
-        "test_punch_analyzer.py",
-        "test_pipeline.py",
-        "test_worker_delivery.py",
-        "test_release_safety.py"
-      ],
-      "exitCode": 0,
-      "log": "pytest.log",
-      "summary": "45 passed in 5.66s"
+  "contract_checks_pass": true,
+  "detectorVersion": "legacy_fsm_v1",
+  "timingsSeconds": {
+    "run1": {
+      "modelLoad": 0.175,
+      "download": 0.0,
+      "frames": 154.517,
+      "postprocess": 0.164
     },
-    {
-      "command": [
-        "D:/test/ai-worktrees/T-022/python-worker/.venv/Scripts/python.exe",
-        "process_video.py",
-        "--help"
-      ],
-      "exitCode": 0,
-      "log": "process_help.log"
-    },
-    {
-      "command": [
-        "D:/test/ai-worktrees/T-022/python-worker/.venv/Scripts/python.exe",
-        "demo_t012_summary.py",
-        "--help"
-      ],
-      "exitCode": 0,
-      "log": "summary_help.log"
+    "run2": {
+      "modelLoad": 0.089,
+      "download": 0.0,
+      "frames": 52.914,
+      "postprocess": 0.135
     }
-  ]
+  },
+  "meta": {
+    "fps": 60.0,
+    "totalFrames": 608,
+    "durationMs": 10133.3
+  },
+  "adam_punches": 13
 }

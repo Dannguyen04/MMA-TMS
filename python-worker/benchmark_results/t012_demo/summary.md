@@ -1,15 +1,19 @@
-# T-012 — BLOCKED
+# T-012 — Tóm tắt sự kiện đấm
 
-Chưa chọn clip. Cả hai lệnh ứng viên đều thoát mã 1 trước khi xuất result JSON:
-`RubricSelectionError: Unsupported martial art discipline 'boxing' requested.`
+Video: validation_videos/vid_01_cross_heavybag.mp4
+Detector: legacy_fsm_v1
+Ghép một-một với nhãn, dung sai ±3 khung; tên nhãn là tham chiếu thủ công.
 
-| Ứng viên | Số lần gọi process_video | Result | Nhãn bắt được | Ngoài mọi nhãn |
+| # | Thời điểm | Impact frame | Tay | Nhãn khớp (ID, khoảng khung) |
 | --- | --- | --- | --- | --- |
-| vid_01_cross_heavybag | 1 | Không được tạo | Chưa đo | Chưa đo |
-| Adam | 1 | Không được tạo | Chưa đo | Chưa đo |
+| 1 | 00:01.2 | 75 | right | 1 (63–87) |
+| 2 | 00:02.2 | 132 | right | 2 (124–144) |
+| 3 | 00:03.1 | 184 | right | 3 (173–201) |
+| 4 | 00:06.2 | 370 | right | 4 (363–381) |
+| 5 | 00:09.6 | 578 | right | 6 (555–600) |
 
-Không có số liệu để áp dụng thứ tự chọn clip. Chưa chạy lần xác nhận, chưa kiểm contract,
-chưa có detectorVersion hoặc meta.timingsSeconds. Đây là trạng thái lỗi, không phải kết quả 0 cú đấm.
-Xem run_info.json và hai log nguyên văn. Script summary chỉ được kiểm bằng dữ liệu tổng hợp trong test.
+Tổng phát hiện: 5.
+Số nhãn bắt được: 5/5 (100.0%).
+Không khớp một-một: 0; nằm ngoài mọi nhãn (±3 khung): 0.
 
 Kết quả chỉ đếm sự kiện đấm, không chấm kỹ thuật hay phân loại đòn
