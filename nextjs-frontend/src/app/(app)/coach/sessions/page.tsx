@@ -19,7 +19,7 @@ import { WeekNav, weekRangeLabel } from "@/components/training/week-nav";
 import { WeekSummary } from "@/components/training/week-summary";
 import { accessibleFighterIds, canAccessFighter } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
-import { sessionStatusLabel, trainingTypeLabel } from "@/lib/domain/labels";
+import { sessionStatusLabel, TRAINING_TYPE_LABELS, trainingTypeLabel } from "@/lib/domain/labels";
 import type { SessionStatus, TrainingSession, TrainingType } from "@/lib/domain/types";
 import { dayKey } from "@/lib/format";
 import { getTranslator } from "@/lib/i18n/server";
@@ -37,7 +37,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 const VIEWS = ["week", "list"] as const;
 const STATUSES: SessionStatus[] = ["scheduled", "in_progress", "completed", "missed", "cancelled"];
-const TRAINING_TYPES: TrainingType[] = ["sparring", "pad_work", "bag_work", "grappling", "wrestling", "bjj", "clinch", "strength_conditioning", "mobility", "recovery", "film_study"];
+const TRAINING_TYPES = Object.keys(TRAINING_TYPE_LABELS) as TrainingType[];
 const AWAITING_LIMIT = 6;
 const LIST_PAGE_SIZE = 15;
 

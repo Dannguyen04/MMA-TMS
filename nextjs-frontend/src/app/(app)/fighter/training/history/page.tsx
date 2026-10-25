@@ -14,7 +14,7 @@ import { MinutesChart } from "@/components/training/training-charts";
 import { SESSION_SORT_KEYS, fromTrainingProgress, rpeLabel, sessionMinutes, sortSessions, withinDayRange } from "@/components/training/training-utils";
 import { requireFighterAccess } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
-import { sessionStatusLabel, trainingTypeLabel } from "@/lib/domain/labels";
+import { sessionStatusLabel, TRAINING_TYPE_LABELS, trainingTypeLabel } from "@/lib/domain/labels";
 import type { SessionStatus, TrainingSession, TrainingType } from "@/lib/domain/types";
 import { dayKey, formatDelta, formatMinutes, formatNumber } from "@/lib/format";
 import { getTranslator } from "@/lib/i18n/server";
@@ -31,7 +31,7 @@ export async function generateMetadata(): Promise<Metadata> {
 const DAY_MS = 86_400_000;
 const WINDOW_DAYS = 30;
 const HISTORY_STATUSES: SessionStatus[] = ["completed", "missed", "cancelled"];
-const TRAINING_TYPES: TrainingType[] = ["sparring", "pad_work", "bag_work", "grappling", "wrestling", "bjj", "clinch", "strength_conditioning", "mobility", "recovery", "film_study"];
+const TRAINING_TYPES = Object.keys(TRAINING_TYPE_LABELS) as TrainingType[];
 
 interface WindowStats {
     completed: number;

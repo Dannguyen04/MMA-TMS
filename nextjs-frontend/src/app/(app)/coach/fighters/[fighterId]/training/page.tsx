@@ -53,10 +53,7 @@ export default async function CoachFighterTrainingPage({ params }: PageProps<"/c
     const scheduleHref = hrefWith(routes.coach.newSession, {}, { fighter: fighter.id, plan: activePlan?.id });
     const newPlanHref = hrefWith(routes.coach.newPlan, {}, { fighter: fighter.id });
 
-    const drafts = draftCount > 0 ? plural(locale, draftCount, {
-        one: t("training.coachFighter.draftPlanCount.one"),
-        other: t("training.coachFighter.draftPlanCount", { n: draftCount }),
-    }) : "";
+    const drafts = draftCount > 0 ? plural(t, "training.coachFighter.draftPlanCount", draftCount) : "";
 
     return (
         <section aria-labelledby="training-heading" className="flex flex-col gap-6">
@@ -125,10 +122,7 @@ export default async function CoachFighterTrainingPage({ params }: PageProps<"/c
                         description={
                             upcoming.length > 0
                                 ? t("training.coachFighter.nextSessions", {
-                                    count: plural(locale, upcoming.length, {
-                                        one: t("training.sessionsCount.one"),
-                                        other: t("training.sessionsCount", { n: upcoming.length }),
-                                    }),
+                                    count: plural(t, "training.sessionsCount", upcoming.length),
                                 })
                                 : undefined
                         }
