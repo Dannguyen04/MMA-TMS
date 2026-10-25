@@ -6,9 +6,11 @@ import type { ActivityTimelineItem } from "@/components/domain/activity-timeline
 import type { BodyMapHighlight } from "@/components/domain/body-map";
 import { INJURY_STATUS_META } from "@/components/domain/status-badges";
 import { injuryTitle } from "@/components/clinical/clinical-copy";
-import { CLEARANCE_LEVEL_LABELS, EXAMINATION_OUTCOME_LABELS, examinationTitle, INJURY_STATUS_LABELS, injuryTypeName, treatmentTitle } from "@/lib/domain/labels";
+import { clearanceLevelLabel, examinationTitle, injuryStatusLabel, injuryTypeName, treatmentTitle } from "@/lib/domain/labels";
 import type { Fighter, Injury, MedicalClearance, MedicalExamination, Treatment } from "@/lib/domain/types";
 import { daysBetween, formatDate, formatMonthYear } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
+import { createTranslator } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import { getMedicalRecord } from "@/lib/services/medical";
 import { medicalFeatureAvailable } from "@/lib/services/medical-features";
@@ -40,7 +42,7 @@ export async function loadCareTeam(fighter: Fighter): Promise<CareTeamMember[]> 
 }
 
 /** Open injuries plus those resolved in the last 12 months, for the fighter's body map. */
-export function injuryHighlights(injuries: Injury[], now: string): BodyMapHighlight[] {
+export function injuryHighlights(injuries: Injury[], now: string, locale: Locale = "en"): BodyMapHighlight[] {
     return injuries
         .filter((injury) => injury.status !== "resolved" || (injury.resolvedAt !== null && daysBetween(injury.resolvedAt, now) <= BODY_MAP_WINDOW_DAYS))
         .map((injury) => ({
@@ -48,8 +50,8 @@ export function injuryHighlights(injuries: Injury[], now: string): BodyMapHighli
             tone: INJURY_STATUS_META[injury.status].tone,
             label:
                 injury.status === "resolved" && injury.resolvedAt
-                    ? `${injuryTypeName(injury)} · resolved ${formatMonthYear(injury.resolvedAt)}`
-                    : `${injuryTypeName(injury)} · ${INJURY_STATUS_LABELS[injury.status].toLowerCase()}`,
+                    ? `${injuryTypeName(injury, locale)} · ${locale === "vi" ? `đã khỏi ${formatMonthYear(injury.resolvedAt, locale)}` : `resolved ${formatMonthYear(injury.resolvedAt, locale)}`}`
+                    : `${injuryTypeName(injury, locale)} · ${injuryStatusLabel(injury.status, locale).toLowerCase()}`,
         }));
 }
 
@@ -62,8 +64,9 @@ export interface MedicalHistoryInput {
 }
 
 /** One timeline of the fighter's own medical events, newest first. Examinations, injuries, treatments and clearance decisions stay distinct. */
-export function medicalHistoryItems({ examinations, injuries, treatments, clearances, doctorNames }: MedicalHistoryInput): ActivityTimelineItem[] {
-    const doctor = (id: string) => doctorNames.get(id) ?? "Sports doctor";
+export function medicalHistoryItems({ examinations, injuries, treatments, clearances, doctorNames }: MedicalHistoryInput, locale: Locale = "en"): ActivityTimelineItem[] {
+    const t = createTranslator(locale);
+    const doctor = (id: string) => doctorNames.get(id) ?? t("fighterHistory.doctorFallback");
     const injuryById = new Map(injuries.map((injury) => [injury.id, injury]));
     const items: ActivityTimelineItem[] = [];
 
@@ -72,8 +75,8 @@ export function medicalHistoryItems({ examinations, injuries, treatments, cleara
             id: `exam-${exam.id}`,
             icon: Stethoscope,
             tone: exam.outcome === "fit" ? "success" : exam.outcome === "fit_with_restrictions" ? "warning" : "danger",
-            title: `${examinationTitle(exam)} — ${EXAMINATION_OUTCOME_LABELS[exam.outcome]}`,
-            description: `Examination · ${formatDate(exam.date)} · ${doctor(exam.doctorId)}`,
+            title: `${examinationTitle(exam, locale)} — ${t(`examinationOutcome.${exam.outcome}`)}`,
+            description: `${t("health.examinationFallback")} · ${formatDate(exam.date, locale)} · ${doctor(exam.doctorId)}`,
             time: exam.date,
         });
     }
@@ -83,8 +86,8 @@ export function medicalHistoryItems({ examinations, injuries, treatments, cleara
             id: `injury-${injury.id}`,
             icon: Bandage,
             tone: "danger",
-            title: `Injury recorded: ${injuryTitle(injury)}`,
-            description: `Injury · ${formatDate(injury.occurredAt)} · recorded by ${doctor(injury.recordedById)}`,
+            title: locale === "vi" ? `Ghi nhận chấn thương: ${injuryTitle(injury, locale)}` : `Injury recorded: ${injuryTitle(injury, locale)}`,
+            description: `${t("health.injuryFallback")} · ${formatDate(injury.occurredAt, locale)} · ${locale === "vi" ? `ghi nhận bởi ${doctor(injury.recordedById)}` : `recorded by ${doctor(injury.recordedById)}`}`,
             time: injury.occurredAt,
             href: routes.fighter.injury(injury.id),
         });
@@ -93,8 +96,8 @@ export function medicalHistoryItems({ examinations, injuries, treatments, cleara
                 id: `injury-resolved-${injury.id}`,
                 icon: CircleCheck,
                 tone: "success",
-                title: `Injury resolved: ${injuryTitle(injury)}`,
-                description: `Injury · ${formatDate(injury.resolvedAt)}`,
+                title: locale === "vi" ? `Chấn thương đã hồi phục: ${injuryTitle(injury, locale)}` : `Injury resolved: ${injuryTitle(injury, locale)}`,
+                description: `${t("health.injuryFallback")} · ${formatDate(injury.resolvedAt, locale)}`,
                 time: injury.resolvedAt,
                 href: routes.fighter.injury(injury.id),
             });
@@ -103,13 +106,13 @@ export function medicalHistoryItems({ examinations, injuries, treatments, cleara
 
     for (const treatment of treatments) {
         const injury = injuryById.get(treatment.injuryId);
-        const context = injury ? ` for ${injuryTitle(injury).toLowerCase()}` : "";
+        const context = injury ? (locale === "vi" ? ` cho ${injuryTitle(injury, locale).toLowerCase()}` : ` for ${injuryTitle(injury, locale).toLowerCase()}`) : "";
         items.push({
             id: `treatment-${treatment.id}`,
             icon: Activity,
             tone: "info",
-            title: `Treatment started: ${treatmentTitle(treatment)}`,
-            description: `Treatment${context} · ${formatDate(treatment.startDate)} · ${treatment.providerName}`,
+            title: locale === "vi" ? `Bắt đầu điều trị: ${treatmentTitle(treatment)}` : `Treatment started: ${treatmentTitle(treatment)}`,
+            description: `${locale === "vi" ? "Điều trị" : "Treatment"}${context} · ${formatDate(treatment.startDate, locale)} · ${treatment.providerName}`,
             time: treatment.startDate,
             href: injury ? routes.fighter.injury(injury.id) : undefined,
         });
@@ -118,8 +121,8 @@ export function medicalHistoryItems({ examinations, injuries, treatments, cleara
                 id: `treatment-done-${treatment.id}`,
                 icon: CircleCheck,
                 tone: "neutral",
-                title: `Treatment completed: ${treatmentTitle(treatment)}`,
-                description: `Treatment${context} · ${formatDate(treatment.endDate)}`,
+                title: locale === "vi" ? `Hoàn thành điều trị: ${treatmentTitle(treatment)}` : `Treatment completed: ${treatmentTitle(treatment)}`,
+                description: `${locale === "vi" ? "Điều trị" : "Treatment"}${context} · ${formatDate(treatment.endDate, locale)}`,
                 time: treatment.endDate,
                 href: injury ? routes.fighter.injury(injury.id) : undefined,
             });
@@ -131,9 +134,9 @@ export function medicalHistoryItems({ examinations, injuries, treatments, cleara
             id: `clearance-${clearance.id}`,
             icon: clearance.level === "full" ? ShieldCheck : clearance.level === "restricted" ? ShieldAlert : ShieldX,
             tone: clearance.level === "full" ? "success" : clearance.level === "restricted" ? "warning" : "danger",
-            title: `Medical Clearance: ${CLEARANCE_LEVEL_LABELS[clearance.level]}`,
-            description: `Clearance · ${formatDate(clearance.issuedAt)} · ${doctor(clearance.doctorId)}${
-                clearance.restrictions.length > 0 ? ` · ${clearance.restrictions.length} restrictions` : ""
+            title: `${t("coachClearance.pageTitle")}: ${clearanceLevelLabel(clearance.level, locale)}`,
+            description: `${t("nav.Clearance")} · ${formatDate(clearance.issuedAt, locale)} · ${doctor(clearance.doctorId)}${
+                clearance.restrictions.length > 0 ? (locale === "vi" ? ` · ${clearance.restrictions.length} hạn chế` : ` · ${clearance.restrictions.length} restrictions`) : ""
             }`,
             time: clearance.issuedAt,
         });
@@ -142,8 +145,8 @@ export function medicalHistoryItems({ examinations, injuries, treatments, cleara
                 id: `clearance-revoked-${clearance.id}`,
                 icon: ShieldBan,
                 tone: "danger",
-                title: "Medical Clearance revoked",
-                description: `Clearance · ${formatDate(clearance.revokedAt)}`,
+                title: locale === "vi" ? "Thu hồi cấp phép y tế" : "Medical Clearance revoked",
+                description: `${t("nav.Clearance")} · ${formatDate(clearance.revokedAt, locale)}`,
                 time: clearance.revokedAt,
             });
         }

@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 import { CardLink } from "@/components/dashboard/card-link";
 import { CareTeamCard } from "@/components/dashboard/care-team-card";
 import { CheckInTrends } from "@/components/dashboard/check-in-trends";
-import { relativeDay } from "@/components/dashboard/dashboard-utils";
+import { relativeDayText } from "@/components/dashboard/dashboard-utils";
 import { ExaminationSummaryCard } from "@/components/dashboard/examination-summary-card";
 import { injuryHighlights, loadCareTeam } from "@/components/dashboard/health-data";
 import { HealthStatusCard } from "@/components/dashboard/health-status-card";
@@ -28,6 +28,7 @@ import { requireFighterAccess, requireFighterId } from "@/lib/auth/access";
 import { hasPermission, requireRole } from "@/lib/auth/session";
 import { examinationTitle } from "@/lib/domain/labels";
 import { formatDate, formatWeekdayDate } from "@/lib/format";
+import { getTranslator } from "@/lib/i18n/server";
 import { parseEnum } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
@@ -36,7 +37,10 @@ import { getClearanceStatus, getFighterHealthSummary, listClearances, listExamin
 import { listDoctors } from "@/lib/services/people";
 import { cn, param } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Health & Medical Clearance" };
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return { title: t("fighterHealth.metaTitle") };
+}
 
 const TABS = ["status", "injuries", "history"] as const;
 
@@ -54,7 +58,7 @@ export default async function FighterHealthPage({ searchParams }: PageProps<"/fi
     const now = new Date().toISOString();
     const tab = parseEnum(param((await searchParams).tab), TABS) ?? "status";
 
-    const [fighter, health, clearances, injuries, examinations, doctors, careTeam, settings, reviewRequests, { eligibility }] = await Promise.all([
+    const [fighter, health, clearances, injuries, examinations, doctors, careTeam, settings, reviewRequests, { eligibility }, { t, locale }] = await Promise.all([
         fighterRead,
         getFighterHealthSummary(fighterId, now),
         listClearances({ fighterIds: ids }),
@@ -65,6 +69,7 @@ export default async function FighterHealthPage({ searchParams }: PageProps<"/fi
         getSettings(),
         listReviewRequests(fighterId),
         getClearanceStatus(fighterId, now),
+        getTranslator(),
     ]);
     if (!health) notFound();
 
@@ -86,13 +91,12 @@ export default async function FighterHealthPage({ searchParams }: PageProps<"/fi
                 <>
                     {clearanceState === "none" ? (
                         <Card className="min-w-0">
-                            <CardHeader title="Medical Clearance" icon={<ShieldQuestion />} />
+                            <CardHeader title={t("coachClearance.pageTitle")} icon={<ShieldQuestion />} />
                             <CardContent className="flex flex-col gap-3">
-                                <ClearanceBadge state="none" className="w-fit" />
-                                <p className="text-[15px] font-semibold text-fg">No Medical Clearance on file yet</p>
+                                <ClearanceBadge state="none" className="w-fit" locale={locale} />
+                                <p className="text-[15px] font-semibold text-fg">{t("fighterHealth.noClearanceOnFile")}</p>
                                 <p className="max-w-2xl text-sm text-pretty text-fg-muted">
-                                    Your sports doctor issues it after your baseline physical. Once it&apos;s in place, this card shows what training you&apos;re
-                                    cleared for and any restrictions.
+                                    {t("fighterHealth.noClearanceDesc")}
                                 </p>
                             </CardContent>
                         </Card>
@@ -122,33 +126,35 @@ export default async function FighterHealthPage({ searchParams }: PageProps<"/fi
             }
             side={
                 <>
-                    <HealthStatusCard status={health.fighter.healthStatus}>
+                    <HealthStatusCard status={health.fighter.healthStatus} locale={locale}>
                         {followUp ? (
                             <div className="rounded-lg border border-border px-3 py-2.5 text-[13px]">
                                 <p className="flex items-center gap-1.5 text-fg-muted">
                                     <CalendarClock aria-hidden className="size-3.5 text-fg-subtle" />
-                                    Next follow-up
+                                    {t("fighterHealth.nextFollowUp")}
                                 </p>
                                 <p className="mt-0.5 text-pretty">
                                     <time dateTime={followUp.date} className="font-medium text-fg">
-                                        {formatWeekdayDate(followUp.date)}
+                                        {formatWeekdayDate(followUp.date, locale)}
                                     </time>
                                     <span className="text-fg-muted">
-                                        {" "}
-                                        · {relativeDay(followUp.date, now).toLowerCase()} · after your {examinationTitle(followUp.examination).toLowerCase()}
+                                        {t("fighterHealth.followUpDetail", {
+                                            relative: relativeDayText(t, followUp.date, now).toLowerCase(),
+                                            exam: examinationTitle(followUp.examination, locale).toLowerCase(),
+                                        })}
                                     </span>
                                 </p>
                             </div>
                         ) : (
-                            <InlineNote icon={CalendarClock}>No follow-up booked — your doctor arranges your next check.</InlineNote>
+                            <InlineNote icon={CalendarClock}>{t("fighterHealth.noFollowUpBooked")}</InlineNote>
                         )}
                         {contactDoctor && (
                             <InlineNote icon={HeartHandshake}>
-                                Questions about your clearance? Talk to <span className="font-medium">{contactDoctor}</span>.
+                                {t("fighterHealth.questionsAboutClearance", { doctor: contactDoctor })}
                             </InlineNote>
                         )}
                     </HealthStatusCard>
-                    <CareTeamCard members={careTeam} />
+                    <CareTeamCard members={careTeam} locale={locale} />
                 </>
             }
         />
@@ -161,13 +167,13 @@ export default async function FighterHealthPage({ searchParams }: PageProps<"/fi
                     {recovery && (
                         <Card className="min-w-0">
                             <CardHeader
-                                title="Recovery plan"
-                                description={`${recovery.plan.title}${recoveryInjury ? ` · ${injuryTitle(recoveryInjury)}` : ""}`}
+                                title={t("fighterHealth.recoveryPlan")}
+                                description={`${recovery.plan.title}${recoveryInjury ? ` · ${injuryTitle(recoveryInjury, locale)}` : ""}`}
                                 icon={<RefreshCw />}
-                                action={recoveryInjury && <CardLink href={routes.fighter.injury(recoveryInjury.id)}>Details</CardLink>}
+                                action={recoveryInjury && <CardLink href={routes.fighter.injury(recoveryInjury.id)}>{t("health.details")}</CardLink>}
                             />
                             <CardContent className="flex flex-col gap-6">
-                                <RecoveryProgress plan={recovery.plan} now={now} />
+                                <RecoveryProgress plan={recovery.plan} now={now} locale={locale} />
                                 {medicalFeatureAvailable("recoveryPhasesAndCheckIns") && (
                                     <div className="border-t border-border pt-5">
                                         <CheckInTrends checkIns={recovery.plan.checkIns} now={now} />
@@ -179,8 +185,8 @@ export default async function FighterHealthPage({ searchParams }: PageProps<"/fi
 
                     <Card className="min-w-0">
                         <CardHeader
-                            title="Active injuries"
-                            description={openInjuries.length > 0 ? "Open an injury for treatment, recovery and what to expect" : undefined}
+                            title={t("fighterHealth.activeInjuries")}
+                            description={openInjuries.length > 0 ? t("fighterHealth.activeInjuriesDesc") : undefined}
                             icon={<Bandage />}
                         />
                         <CardContent>
@@ -188,11 +194,11 @@ export default async function FighterHealthPage({ searchParams }: PageProps<"/fi
                                 <EmptyState
                                     compact
                                     icon={<Bandage />}
-                                    title="No active injuries"
+                                    title={t("fighterHealth.noActiveInjuries")}
                                     description={
                                         resolvedCount > 0
-                                            ? "Nothing is limiting your training right now. Past injuries are in your medical history."
-                                            : "Nothing is limiting your training right now."
+                                            ? t("fighterHealth.noActiveInjuriesResolved")
+                                            : t("fighterHealth.noActiveInjuriesPlain")
                                     }
                                     className="pt-0"
                                 />
@@ -200,7 +206,7 @@ export default async function FighterHealthPage({ searchParams }: PageProps<"/fi
                                 <ul className={cn("grid grid-cols-1 gap-4", openInjuries.length > 1 && "md:grid-cols-2")}>
                                     {openInjuries.map((injury) => (
                                         <li key={injury.id} className="min-w-0">
-                                            <InjuryCard injury={injury} now={now} href={routes.fighter.injury(injury.id)} className="h-full" />
+                                            <InjuryCard injury={injury} now={now} href={routes.fighter.injury(injury.id)} className="h-full" locale={locale} />
                                         </li>
                                     ))}
                                 </ul>
@@ -211,10 +217,10 @@ export default async function FighterHealthPage({ searchParams }: PageProps<"/fi
             }
             side={
                 <Card className="min-w-0">
-                    <CardHeader title="Body map" description="Current injuries and those resolved in the last 12 months" icon={<MapPinned />} />
+                    <CardHeader title={t("fighterHealth.bodyMap")} description={t("fighterHealth.bodyMapDesc")} icon={<MapPinned />} />
                     <CardContent>
-                        <BodyMap highlights={highlights} size="md" />
-                        {highlights.length === 0 && <p className="mt-3 text-center text-[13px] text-fg-muted">No injuries in the last 12 months.</p>}
+                        <BodyMap highlights={highlights} size="md" locale={locale} />
+                        {highlights.length === 0 && <p className="mt-3 text-center text-[13px] text-fg-muted">{t("fighterHealth.noInjuries12Months")}</p>}
                     </CardContent>
                 </Card>
             }
@@ -225,20 +231,24 @@ export default async function FighterHealthPage({ searchParams }: PageProps<"/fi
         <TwoColumns
             main={
                 <Card className="min-w-0">
-                    <CardHeader title="Medical history" description="Everything your sports doctor has recorded" icon={<FileClock />} />
+                    <CardHeader title={t("fighterHealth.medicalHistory")} description={t("fighterHealth.medicalHistoryDesc")} icon={<FileClock />} />
                     <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                         <div className="grid flex-1 grid-cols-3 gap-2">
-                            <MetricTile label="Examinations" value={examinations.length} />
-                            <MetricTile label="Injuries" value={injuries.length} hint={resolvedCount > 0 ? `${resolvedCount} resolved` : undefined} />
+                            <MetricTile label={t("fighterHealth.metricExaminations")} value={examinations.length} />
                             <MetricTile
-                                label="Clearance decisions"
+                                label={t("fighterHealth.metricInjuries")}
+                                value={injuries.length}
+                                hint={resolvedCount > 0 ? t("fighterHealth.metricResolvedCount", { count: resolvedCount }) : undefined}
+                            />
+                            <MetricTile
+                                label={t("fighterHealth.metricClearanceDecisions")}
                                 value={clearances.length}
-                                hint={latestDecision ? `Latest ${formatDate(latestDecision.issuedAt)}` : undefined}
+                                hint={latestDecision ? t("fighterHealth.metricLatestDate", { date: formatDate(latestDecision.issuedAt, locale) }) : undefined}
                             />
                         </div>
                         <ButtonLink href={routes.fighter.medicalHistory} variant="secondary" className="shrink-0">
                             <History aria-hidden />
-                            View timeline
+                            {t("fighterHealth.viewTimeline")}
                         </ButtonLink>
                     </CardContent>
                 </Card>
@@ -249,6 +259,7 @@ export default async function FighterHealthPage({ searchParams }: PageProps<"/fi
                     doctorName={health.latestExamination ? doctorNames.get(health.latestExamination.doctorId) : undefined}
                     historyHref={routes.fighter.medicalHistory}
                     now={now}
+                    locale={locale}
                 />
             }
         />
@@ -256,17 +267,17 @@ export default async function FighterHealthPage({ searchParams }: PageProps<"/fi
 
     return (
         <>
-            <PageHeader title="Health & Medical Clearance" description="Your clearance, injuries and recovery — kept up to date by your sports doctor." />
+            <PageHeader title={t("fighterHealth.pageTitle")} description={t("fighterHealth.pageDesc")} />
             <Tabs
                 key={tab}
                 defaultTab={tab}
                 urlParam="tab"
-                label="Health sections"
+                label={t("fighterHealth.tabsLabel")}
                 listClassName="mb-6"
                 items={[
-                    { id: "status", label: "Status", content: status },
-                    { id: "injuries", label: <TabLabel label="Injuries & recovery" count={openInjuries.length || undefined} />, content: injuriesAndRecovery },
-                    { id: "history", label: "History", content: history },
+                    { id: "status", label: t("fighterHealth.tabStatus"), content: status },
+                    { id: "injuries", label: <TabLabel label={t("fighterHealth.tabInjuries")} count={openInjuries.length || undefined} />, content: injuriesAndRecovery },
+                    { id: "history", label: t("fighterHealth.tabHistory"), content: history },
                 ]}
             />
         </>

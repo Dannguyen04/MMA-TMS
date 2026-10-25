@@ -3,6 +3,8 @@ import { Ban, CalendarX2, Check, CircleCheck, CircleDashed, CircleDot, CircleMin
 import { StatusBadge, type BadgeSize, type StatusMeta } from "@/components/domain/status-badges";
 import { ASSESSMENT_RESULT_LABELS, CLEARANCE_STATUS_LABELS, EXAMINATION_OUTCOME_LABELS } from "@/lib/domain/labels";
 import type { AssessmentResult, ClearanceLevel, ClearanceStatus, ExaminationOutcome } from "@/lib/domain/types";
+import type { Locale } from "@/lib/i18n/config";
+import { createTranslator } from "@/lib/i18n/translate";
 
 /**
  * Presentation for clinical statuses that have no badge in the shared domain set:
@@ -30,8 +32,9 @@ export const CLEARANCE_LEVEL_FOR_OUTCOME: Record<ExaminationOutcome, ClearanceLe
     unfit: "not_cleared",
 };
 
-export function ExaminationOutcomeBadge({ outcome, size, className }: { outcome: ExaminationOutcome; size?: BadgeSize; className?: string }) {
-    return <StatusBadge meta={EXAMINATION_OUTCOME_META[outcome]} size={size} className={className} />;
+export function ExaminationOutcomeBadge({ outcome, size, className, locale }: { outcome: ExaminationOutcome; size?: BadgeSize; className?: string; locale?: Locale }) {
+    const meta = EXAMINATION_OUTCOME_META[outcome];
+    return <StatusBadge meta={locale ? { ...meta, label: createTranslator(locale)(`examinationOutcome.${outcome}`) } : meta} size={size} className={className} />;
 }
 
 export const ASSESSMENT_RESULT_META: Record<AssessmentResult, StatusMeta> = {
@@ -52,6 +55,7 @@ const CLEARANCE_RECORD_META: Record<ClearanceStatus, StatusMeta> = {
 };
 
 /** Lifecycle of a clearance record (active, superseded, revoked, expired) — not the training state. */
-export function ClearanceRecordStatusBadge({ status, size, className }: { status: ClearanceStatus; size?: BadgeSize; className?: string }) {
-    return <StatusBadge meta={CLEARANCE_RECORD_META[status]} variant="outline" size={size} className={className} />;
+export function ClearanceRecordStatusBadge({ status, size, className, locale }: { status: ClearanceStatus; size?: BadgeSize; className?: string; locale?: Locale }) {
+    const meta = CLEARANCE_RECORD_META[status];
+    return <StatusBadge meta={locale ? { ...meta, label: createTranslator(locale)(`clearanceStatus.${status}`) } : meta} variant="outline" size={size} className={className} />;
 }

@@ -149,16 +149,18 @@ export function FighterStatusBadges({
     clearanceState,
     size,
     className,
+    locale,
 }: {
     healthStatus: HealthStatus;
     clearanceState: ClearanceState;
     size?: BadgeSize;
     className?: string;
+    locale?: Locale;
 }) {
     return (
         <span className={cn("inline-flex flex-wrap items-center gap-1.5", className)}>
-            <ClearanceBadge state={clearanceState} size={size} />
-            {healthStatus !== "not_cleared" && <HealthStatusBadge status={healthStatus} size={size} />}
+            <ClearanceBadge state={clearanceState} size={size} locale={locale} />
+            {healthStatus !== "not_cleared" && <HealthStatusBadge status={healthStatus} size={size} locale={locale} />}
         </span>
     );
 }
@@ -324,8 +326,9 @@ export const INJURY_SEVERITY_META: Record<InjurySeverity, StatusMeta> = {
     critical: { label: INJURY_SEVERITY_LABELS.critical, tone: "danger", icon: TriangleAlert, solid: true },
 };
 
-export function InjurySeverityBadge({ severity, size, className }: { severity: InjurySeverity; size?: BadgeSize; className?: string }) {
-    return <StatusBadge meta={INJURY_SEVERITY_META[severity]} size={size} className={className} />;
+export function InjurySeverityBadge({ severity, size, className, locale }: { severity: InjurySeverity; size?: BadgeSize; className?: string; locale?: Locale }) {
+    const meta = INJURY_SEVERITY_META[severity];
+    return <StatusBadge meta={locale ? { ...meta, label: createTranslator(locale)(`injurySeverity.${severity}`) } : meta} size={size} className={className} />;
 }
 
 export const INJURY_STATUS_META: Record<InjuryStatus, StatusMeta> = {
@@ -334,8 +337,9 @@ export const INJURY_STATUS_META: Record<InjuryStatus, StatusMeta> = {
     resolved: { label: INJURY_STATUS_LABELS.resolved, tone: "success", icon: CircleCheck },
 };
 
-export function InjuryStatusBadge({ status, size, className }: { status: InjuryStatus; size?: BadgeSize; className?: string }) {
-    return <StatusBadge meta={INJURY_STATUS_META[status]} size={size} className={className} />;
+export function InjuryStatusBadge({ status, size, className, locale }: { status: InjuryStatus; size?: BadgeSize; className?: string; locale?: Locale }) {
+    const meta = INJURY_STATUS_META[status];
+    return <StatusBadge meta={locale ? { ...meta, label: createTranslator(locale)(`injuryStatus.${status}`) } : meta} size={size} className={className} />;
 }
 
 /* ─── Accounts ────────────────────────────────────────────────────────────── */
