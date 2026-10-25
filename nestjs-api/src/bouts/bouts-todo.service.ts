@@ -1,4 +1,4 @@
-import { Injectable, Optional } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import type { SuspensionRow } from '../database/schema.js';
 import { forbidden } from '../shared/errors/access.error.js';
 import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
@@ -38,7 +38,7 @@ export const COACH_TODO_BOUT_LIMIT = 100;
 export class BoutsTodoService {
   constructor(
     private readonly repo: BoutsRepository,
-    @Optional() private readonly suspensionsRepo?: SuspensionsRepository,
+    private readonly suspensionsRepo: SuspensionsRepository,
   ) {}
 
   /**
@@ -58,8 +58,7 @@ export class BoutsTodoService {
         statuses: RUNNING_STATUSES,
         limit: COACH_TODO_BOUT_LIMIT,
       }),
-      this.suspensionsRepo?.findUnresolvedSuspensionsInScope?.(scope, today) ??
-        Promise.resolve([] as SuspensionRow[]),
+      this.suspensionsRepo.findUnresolvedSuspensionsInScope(scope, today),
     ]);
     const truncated = rows.length > COACH_TODO_BOUT_LIMIT;
     const bouts = truncated ? rows.slice(0, COACH_TODO_BOUT_LIMIT) : rows;
@@ -78,14 +77,12 @@ export class BoutsTodoService {
     const [scheduledSessions, fallbackBouts] =
       suspendedFighterIds.length > 0
         ? await Promise.all([
-            this.repo.findScheduledSessionsForFighters?.(
+            this.repo.findScheduledSessionsForFighters(
               suspendedFighterIds,
               academyStartOfDay(today),
-            ) ?? Promise.resolve([]),
+            ),
             missingBoutFighterIds.length > 0
-              ? (this.repo.findLatestBoutsForFighters?.(
-                  missingBoutFighterIds,
-                ) ?? Promise.resolve([]))
+              ? this.repo.findLatestBoutsForFighters(missingBoutFighterIds)
               : Promise.resolve([]),
           ])
         : [[], []];

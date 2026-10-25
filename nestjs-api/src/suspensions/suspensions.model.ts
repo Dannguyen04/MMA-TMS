@@ -1,12 +1,10 @@
 import { z } from 'zod';
 import {
-  LOSS_OF_CONSCIOUSNESS_VALUES,
-  type LossOfConsciousness,
-} from '../bouts/bouts.constants.js';
-import {
   academyDateOf,
   addDaysToDate,
   daysBetweenDates,
+  LOSS_OF_CONSCIOUSNESS_VALUES,
+  type LossOfConsciousness,
 } from '../bouts/bouts.model.js';
 import {
   dateOnlySchema,
@@ -822,7 +820,7 @@ export function suggestSuspensions(
   }
 
   // DQ rule matching
-  if (event.method === 'DQ') {
+  if (event.method === 'DQ' && event.result === 'LOSS') {
     const dqRules = parsedRules.filter((rule) => {
       if (rule.reason === undefined || rule.reason === null) return false;
       if (Array.isArray(rule.reason)) {

@@ -17,6 +17,7 @@ import {
 } from './bout-analysis.model.js';
 import { BoutsRepository } from './bouts.repo.js';
 import { BoutsService } from './bouts.service.js';
+import { SuspensionsRepository } from '../suspensions/suspensions.repo.js';
 
 const NOW = new Date('2026-10-20T03:00:00.000Z'); // 2026-10-20 10:00 in Vietnam
 const FIGHTER_ID = '10000000-0000-4000-8000-000000000001';
@@ -172,11 +173,30 @@ async function expectHttp(
 describe('BoutsService', () => {
   let service: BoutsService;
   let repo: Mocked<BoutsRepository>;
+  let suspensionsRepo: Mocked<SuspensionsRepository>;
   const tx = { execute: vi.fn() } as unknown as Transaction;
 
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
+
+    suspensionsRepo = {
+      findSuspensionById: vi.fn().mockResolvedValue(undefined),
+      findSuspensionsByFighterId: vi.fn().mockResolvedValue([]),
+      findSuspensionsByFighterIds: vi.fn().mockResolvedValue([]),
+      findUnresolvedSuspensionsInScope: vi.fn().mockResolvedValue([]),
+      findPriorKoTkoSuspensions: vi.fn().mockResolvedValue([]),
+      insertSuspension: vi.fn(async (values: unknown) => ({
+        id: '90000000-0000-4000-8000-000000000001',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        deletedAt: null,
+        clearedAt: null,
+        clearedById: null,
+        clearanceNote: null,
+        ...(values as Record<string, unknown>),
+      })),
+    } as unknown as Mocked<SuspensionsRepository>;
 
     repo = {
       transaction: vi.fn(async (work: (t: Transaction) => unknown) => work(tx)),
@@ -237,7 +257,7 @@ describe('BoutsService', () => {
       findWeightMeasurements: vi.fn().mockResolvedValue([]),
     } as unknown as Mocked<BoutsRepository>;
 
-    service = new BoutsService(repo);
+    service = new BoutsService(repo, suspensionsRepo);
   });
 
   afterEach(() => {
@@ -2003,7 +2023,7 @@ describe('BoutsService', () => {
           method: 'TKO',
           resultRound: 2,
           lossOfConsciousness: 'NONE',
-          stoppedByHeadStrike: true,
+          stoppedByHeadStrike: false,
           injuryNote: 'Minor eyebrow cut',
         },
         REQUEST_ID,
@@ -2023,7 +2043,7 @@ describe('BoutsService', () => {
             from: 'WEIGHED_IN',
             to: 'COMPLETED',
             lossOfConsciousness: 'NONE',
-            stoppedByHeadStrike: true,
+            stoppedByHeadStrike: false,
             injuryNote: 'Minor eyebrow cut',
           }),
         }),
@@ -3639,6 +3659,43 @@ describe('BoutsService', () => {
       expect(suspensionsRepo.insertSuspension).not.toHaveBeenCalled();
     });
 
+    it('DQ: winner by DQ does not get a DQ suspension, only mandatory rest (G1)', async () => {
+      repo.findRulesetById.mockResolvedValue(
+        makeRuleset({
+          name: 'Tournament with DQ and Rest',
+          suspensionRules: [{ reason: 'DQ', minDays: 60 }],
+          restDaysAfterBout: 5,
+          defaultBlockedSessionTypes: ['SPARRING'],
+        }),
+      );
+
+      const resWin = await eService.recordResult(
+        coachActor,
+        BOUT_ID,
+        { result: 'WIN', method: 'DQ' },
+        REQUEST_ID,
+      );
+
+      expect(resWin.suspensions).toEqual([
+        expect.objectContaining({
+          reason: 'MANDATORY_REST',
+          startsOn: today,
+          endsOn: '2026-11-04',
+          suggestedDays: 5,
+          requiresClearance: false,
+        }),
+      ]);
+      expect(suspensionsRepo.insertSuspension).toHaveBeenCalledTimes(1);
+      expect(suspensionsRepo.insertSuspension).toHaveBeenCalledWith(
+        expect.objectContaining({
+          reason: 'MANDATORY_REST',
+          fighterId: FIGHTER_ID,
+          boutId: BOUT_ID,
+        }),
+        tx,
+      );
+    });
+
     it('mandatory rest: creates MANDATORY_REST row and both rows when KO occurs', async () => {
       repo.findRulesetById.mockResolvedValue(
         makeRuleset({
@@ -3741,6 +3798,29 @@ describe('BoutsService', () => {
     it('a failure while inserting the suspension rolls back the bout completion', async () => {
       suspensionsRepo.insertSuspension.mockRejectedValue(
         new Error('Database disk error during suspension insert'),
+      );
+
+      await expect(
+        eService.recordResult(
+          coachActor,
+          BOUT_ID,
+          {
+            result: 'LOSS',
+            method: 'KO',
+            resultRound: 1,
+            lossOfConsciousness: 'NONE',
+          },
+          REQUEST_ID,
+        ),
+      ).rejects.toThrow();
+
+      const bout = await repo.findBoutById(BOUT_ID);
+      expect(bout?.status).toBe('WEIGHED_IN');
+    });
+
+    it('a failure while querying prior suspensions rejects recordResult and leaves bout uncompleted (G2)', async () => {
+      suspensionsRepo.findPriorKoTkoSuspensions.mockRejectedValue(
+        new Error('Database query failure during findPriorKoTkoSuspensions'),
       );
 
       await expect(

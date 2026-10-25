@@ -788,6 +788,10 @@ describe('TrainingSessionService', () => {
   describe('Suspension gate (Gate 2)', () => {
     const suspensionId = '90000000-0000-4000-8000-000000000001';
 
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
     function makeKoSuspension(
       over: Partial<SuspensionRow> = {},
     ): SuspensionRow {
@@ -1016,6 +1020,65 @@ describe('TrainingSessionService', () => {
         fighterId,
         expect.anything(),
       );
+    });
+
+    it('rejects starting a session whose scheduledAt is before suspension starts if started while suspension is in force (NOW)', async () => {
+      vi.setSystemTime(new Date('2026-10-25T10:00:00.000Z'));
+      const pastScheduledSession: TrainingSessionEntity = {
+        ...session,
+        scheduledAt: '2026-10-20T10:00:00.000Z',
+        sessionType: 'SPARRING',
+        status: 'SCHEDULED',
+      };
+      repo.findSessionById.mockResolvedValue(pastScheduledSession);
+      repo.findActiveFighterIdByUserId.mockResolvedValue(fighterId);
+      suspensionsRepo.findSuspensionsByFighterId.mockResolvedValue([
+        makeKoSuspension({
+          startsOn: '2026-10-22',
+          endsOn: '2026-11-05',
+        }),
+      ]);
+
+      await expect(
+        service.updateSessionStatus(fighterActor, sessionId, 'IN_PROGRESS'),
+      ).rejects.toSatisfy((error: unknown) => {
+        const resp = responseOf(error) as { code?: string };
+        return (
+          (error as HttpException).getStatus() === 409 &&
+          resp.code === 'TRAINING_SUSPENSION_ACTIVE'
+        );
+      });
+      expect(repo.updateSessionStatus).not.toHaveBeenCalled();
+    });
+
+    it('allows starting a session whose scheduledAt is inside a future suspension if started when no suspension is in force (NOW)', async () => {
+      vi.setSystemTime(new Date('2026-10-15T10:00:00.000Z'));
+      const futureScheduledSession: TrainingSessionEntity = {
+        ...session,
+        scheduledAt: '2026-10-25T10:00:00.000Z',
+        sessionType: 'SPARRING',
+        status: 'SCHEDULED',
+      };
+      repo.findSessionById.mockResolvedValue(futureScheduledSession);
+      repo.findActiveFighterIdByUserId.mockResolvedValue(fighterId);
+      repo.updateSessionStatus.mockResolvedValue({
+        ...futureScheduledSession,
+        status: 'IN_PROGRESS',
+      });
+      suspensionsRepo.findSuspensionsByFighterId.mockResolvedValue([
+        makeKoSuspension({
+          startsOn: '2026-10-22',
+          endsOn: '2026-11-05',
+        }),
+      ]);
+
+      const result = await service.updateSessionStatus(
+        fighterActor,
+        sessionId,
+        'IN_PROGRESS',
+      );
+      expect(result.status).toBe('IN_PROGRESS');
+      expect(repo.updateSessionStatus).toHaveBeenCalled();
     });
 
     it('returns 409 TRAINING_MEDICAL_ELIGIBILITY_REQUIRED with both details.reasons and details.suspensions when blocked by both gates', async () => {

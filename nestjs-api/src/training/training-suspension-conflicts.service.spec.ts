@@ -33,7 +33,6 @@ const coachId = '88f97dd5-8f68-45bf-81db-4a778d30853a';
 const suspensionId = '70000000-0000-4000-8000-000000000001';
 const session1Id = '51c38f60-0f4e-48aa-848b-20f5ef828f01';
 const session2Id = '51c38f60-0f4e-48aa-848b-20f5ef828f02';
-const session3Id = '51c38f60-0f4e-48aa-848b-20f5ef828f03';
 const outsideSessionId = '51c38f60-0f4e-48aa-848b-20f5ef828f99';
 
 const fighterActor: AuthenticatedUser = {
@@ -198,6 +197,11 @@ describe('TrainingSuspensionConflictsService (R28)', () => {
     suspensionsRepo = module.get<Mocked<SuspensionsRepository>>(
       SuspensionsRepository,
     );
+    vi.setSystemTime(new Date('2026-10-05T10:00:00.000Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   describe('getConflicts (GET /suspensions/:id/conflicts)', () => {
@@ -265,6 +269,100 @@ describe('TrainingSuspensionConflictsService (R28)', () => {
         service.getConflicts(fighterActor, suspensionId),
       ).rejects.toThrow(ForbiddenException);
       expect(repo.findScheduledSessionsByFighterId).not.toHaveBeenCalled();
+    });
+
+    it('F4: filters proposals to suspension :id period and blocked type, and returns [] when not in force', async () => {
+      const otherSuspensionId = '70000000-0000-4000-8000-000000000002';
+      // Today is 2026-10-05
+      vi.setSystemTime(new Date('2026-10-05T10:00:00.000Z'));
+
+      const suspA = makeSuspensionRow({
+        id: suspensionId,
+        startsOn: '2026-10-01',
+        endsOn: '2026-10-14',
+        blockedSessionTypes: ['SPARRING'],
+        requiresClearance: false,
+      });
+      const suspB = makeSuspensionRow({
+        id: otherSuspensionId,
+        startsOn: '2026-10-20',
+        endsOn: '2026-10-30',
+        blockedSessionTypes: ['GRAPPLING'],
+        requiresClearance: false,
+      });
+
+      const s1 = makeSessionEntity({
+        id: session1Id,
+        sessionType: 'SPARRING',
+        scheduledAt: '2026-10-05T10:00:00.000Z',
+      });
+      const s2 = makeSessionEntity({
+        id: session2Id,
+        sessionType: 'GRAPPLING',
+        scheduledAt: '2026-10-25T10:00:00.000Z',
+      });
+
+      repo.isCoachAssignedToFighter.mockResolvedValue(true);
+      suspensionsRepo.findSuspensionsByFighterId.mockResolvedValue([suspA, suspB]);
+      repo.findScheduledSessionsByFighterId.mockResolvedValue([s1, s2]);
+
+      // Endpoint for suspA returns only its own session (s1)
+      suspensionsRepo.findSuspensionById.mockResolvedValue(suspA);
+      const proposalsA = await service.getConflicts(coachActor, suspensionId);
+      expect(proposalsA).toEqual([
+        {
+          sessionId: session1Id,
+          action: 'CHANGE_TYPE',
+          toType: 'RECOVERY',
+        },
+      ]);
+
+      // If suspB is not in force today (2026-10-05 is before startsOn 2026-10-20), returns []
+      suspensionsRepo.findSuspensionById.mockResolvedValue(suspB);
+      const proposalsBBefore = await service.getConflicts(coachActor, otherSuspensionId);
+      expect(proposalsBBefore).toEqual([]);
+
+      // On 2026-10-22, suspB is in force today, returns only its own session (s2)
+      vi.setSystemTime(new Date('2026-10-22T10:00:00.000Z'));
+      const proposalsBInForce = await service.getConflicts(coachActor, otherSuspensionId);
+      expect(proposalsBInForce).toEqual([
+        {
+          sessionId: session2Id,
+          action: 'CHANGE_TYPE',
+          toType: 'RECOVERY',
+        },
+      ]);
+    });
+
+    it('F5: loads all scheduled sessions without a 100-row cap and plans them all', async () => {
+      const susp = makeSuspensionRow({
+        startsOn: '2026-10-01',
+        endsOn: '2026-10-14',
+        blockedSessionTypes: ['SPARRING'],
+        requiresClearance: false,
+      });
+
+      const manySessions: TrainingSessionEntity[] = Array.from(
+        { length: 105 },
+        (_, i) =>
+          makeSessionEntity({
+            id: `51c38f60-0f4e-48aa-848b-${String(i).padStart(12, '0')}`,
+            sessionType: 'SPARRING',
+            scheduledAt: '2026-10-05T10:00:00.000Z',
+          }),
+      );
+
+      suspensionsRepo.findSuspensionById.mockResolvedValue(susp);
+      suspensionsRepo.findSuspensionsByFighterId.mockResolvedValue([susp]);
+      repo.isCoachAssignedToFighter.mockResolvedValue(true);
+      repo.findScheduledSessionsByFighterId.mockResolvedValue(manySessions);
+
+      const proposals = await service.getConflicts(coachActor, suspensionId);
+      expect(proposals).toHaveLength(105);
+      expect(repo.findScheduledSessionsByFighterId).toHaveBeenCalledWith(
+        fighterId,
+        undefined,
+      );
     });
   });
 
@@ -356,6 +454,99 @@ describe('TrainingSuspensionConflictsService (R28)', () => {
       expect(repo.updateSession).not.toHaveBeenCalled();
       expect(repo.updateSessionStatus).not.toHaveBeenCalled();
       expect(notifications.notifyResolved).not.toHaveBeenCalled();
+    });
+
+    it('F3: rejects apply if session transitions to IN_PROGRESS between proposal and lock, modifying nothing', async () => {
+      const susp = makeSuspensionRow({
+        startsOn: '2026-10-01',
+        endsOn: '2026-10-14',
+        blockedSessionTypes: ['SPARRING'],
+        requiresClearance: false,
+      });
+      const s1 = makeSessionEntity({
+        id: session1Id,
+        sessionType: 'SPARRING',
+        scheduledAt: '2026-10-05T10:00:00.000Z',
+        status: 'SCHEDULED',
+      });
+
+      suspensionsRepo.findSuspensionById.mockResolvedValue(susp);
+      suspensionsRepo.findSuspensionsByFighterId.mockResolvedValue([susp]);
+      repo.isCoachAssignedToFighter.mockResolvedValue(true);
+      repo.findScheduledSessionsByFighterId.mockResolvedValue([s1]);
+      repo.lockSessionById.mockResolvedValue({
+        ...s1,
+        status: 'IN_PROGRESS',
+      });
+
+      await expect(
+        service.applyConflicts(coachActor, suspensionId, {
+          sessionIds: [session1Id],
+        }),
+      ).rejects.toSatisfy((err: unknown) => {
+        const resp = responseOf(err);
+        return (
+          err instanceof UnprocessableEntityException &&
+          (err as HttpException).getStatus() === 422 &&
+          resp.code === 'VALIDATION_ERROR' &&
+          resp.message === `Session ${session1Id} is not in the current conflict proposal`
+        );
+      });
+
+      expect(repo.updateSession).not.toHaveBeenCalled();
+      expect(repo.updateSessionStatus).not.toHaveBeenCalled();
+      expect(notifications.notifyResolved).not.toHaveBeenCalled();
+    });
+
+    it('F4: rejects applying a session that belongs to another suspension with 422', async () => {
+      const otherSuspensionId = '70000000-0000-4000-8000-000000000002';
+      vi.setSystemTime(new Date('2026-10-05T10:00:00.000Z'));
+
+      const suspA = makeSuspensionRow({
+        id: suspensionId,
+        startsOn: '2026-10-01',
+        endsOn: '2026-10-14',
+        blockedSessionTypes: ['SPARRING'],
+        requiresClearance: false,
+      });
+      const suspB = makeSuspensionRow({
+        id: otherSuspensionId,
+        startsOn: '2026-10-20',
+        endsOn: '2026-10-30',
+        blockedSessionTypes: ['GRAPPLING'],
+        requiresClearance: false,
+      });
+
+      const s1 = makeSessionEntity({
+        id: session1Id,
+        sessionType: 'SPARRING',
+        scheduledAt: '2026-10-05T10:00:00.000Z',
+      });
+      const s2 = makeSessionEntity({
+        id: session2Id,
+        sessionType: 'GRAPPLING',
+        scheduledAt: '2026-10-25T10:00:00.000Z',
+      });
+
+      suspensionsRepo.findSuspensionById.mockResolvedValue(suspA);
+      suspensionsRepo.findSuspensionsByFighterId.mockResolvedValue([suspA, suspB]);
+      repo.isCoachAssignedToFighter.mockResolvedValue(true);
+      repo.findScheduledSessionsByFighterId.mockResolvedValue([s1, s2]);
+
+      // Applying s2 (which belongs to suspB) against suspA is rejected
+      await expect(
+        service.applyConflicts(coachActor, suspensionId, {
+          sessionIds: [session2Id],
+        }),
+      ).rejects.toSatisfy((err: unknown) => {
+        const resp = responseOf(err);
+        return (
+          err instanceof UnprocessableEntityException &&
+          (err as HttpException).getStatus() === 422 &&
+          resp.code === 'VALIDATION_ERROR' &&
+          resp.message === `Session ${session2Id} is not in the current conflict proposal`
+        );
+      });
     });
 
     it('is atomic: a failure on the second session rolls back the first and sends no notifications', async () => {
@@ -451,14 +642,6 @@ describe('TrainingSuspensionConflictsService (R28)', () => {
         blockedSessionTypes: [...SESSION_TYPES],
         requiresClearance: true,
       });
-      // S3 (only SPARRING blocked on 2026-09-10..2026-09-15) -> session3 on 2026-09-12 is CHANGE_TYPE to RECOVERY
-      const suspSparringOnly = makeSuspensionRow({
-        id: '70000000-0000-4000-8000-000000000003',
-        startsOn: '2026-09-10',
-        endsOn: '2026-09-15',
-        blockedSessionTypes: ['SPARRING'],
-        requiresClearance: false,
-      });
 
       const sReschedule = makeSessionEntity({
         id: session1Id,
@@ -470,26 +653,19 @@ describe('TrainingSuspensionConflictsService (R28)', () => {
         sessionType: 'SPARRING',
         scheduledAt: '2026-10-22T10:00:00.000Z',
       });
-      const sChangeType = makeSessionEntity({
-        id: session3Id,
-        sessionType: 'SPARRING',
-        scheduledAt: '2026-09-12T10:00:00.000Z',
-      });
 
       suspensionsRepo.findSuspensionById.mockResolvedValue(suspFixed);
       suspensionsRepo.findSuspensionsByFighterId.mockResolvedValue([
         suspFixed,
         suspOpen,
-        suspSparringOnly,
       ]);
       repo.isCoachAssignedToFighter.mockResolvedValue(true);
       repo.findScheduledSessionsByFighterId.mockResolvedValue([
         sReschedule,
         sCancel,
-        sChangeType,
       ]);
       repo.lockSessionById.mockImplementation(async (id) =>
-        [sReschedule, sCancel, sChangeType].find((s) => s.id === id),
+        [sReschedule, sCancel].find((s) => s.id === id),
       );
 
       repo.transaction.mockImplementation(async (work) => {
@@ -501,9 +677,8 @@ describe('TrainingSuspensionConflictsService (R28)', () => {
 
       repo.updateSession.mockImplementation(async (id, data) => {
         callOrder.push(`repo:updateSession:${id}`);
-        const base = id === session1Id ? sReschedule : sChangeType;
         return {
-          ...base,
+          ...sReschedule,
           ...(data.scheduledAt ? { scheduledAt: data.scheduledAt } : {}),
           ...(data.sessionType ? { sessionType: data.sessionType } : {}),
           updatedAt: '2026-10-01T12:00:00.000Z',
@@ -536,25 +711,34 @@ describe('TrainingSuspensionConflictsService (R28)', () => {
         },
       );
 
-      const result = await service.applyConflicts(coachActor, suspensionId, {
-        sessionIds: [session1Id, session2Id, session3Id],
+      vi.setSystemTime(new Date('2026-10-05T10:00:00.000Z'));
+      const result1 = await service.applyConflicts(coachActor, suspFixed.id, {
+        sessionIds: [session1Id],
       });
 
-      expect(result).toHaveLength(3);
-      expect(result[0]?.scheduledAt).toBe('2026-10-11T10:00:00.000Z');
-      expect(result[1]?.status).toBe('CANCELLED');
-      expect(result[1]?.cancellationReason).toBe(
+      expect(result1).toHaveLength(1);
+      expect(result1[0]?.scheduledAt).toBe('2026-10-11T10:00:00.000Z');
+
+      suspensionsRepo.findSuspensionById.mockResolvedValue(suspOpen);
+      vi.setSystemTime(new Date('2026-10-22T10:00:00.000Z'));
+      const result2 = await service.applyConflicts(coachActor, suspOpen.id, {
+        sessionIds: [session2Id],
+      });
+
+      expect(result2).toHaveLength(1);
+      expect(result2[0]?.status).toBe('CANCELLED');
+      expect(result2[0]?.cancellationReason).toBe(
         SUSPENSION_CONFLICT_CANCELLATION_REASON,
       );
-      expect(result[2]?.sessionType).toBe('RECOVERY');
 
       expect(callOrder).toEqual([
         'tx:begin',
         `repo:updateSession:${session1Id}`,
-        `repo:updateSessionStatus:${session2Id}`,
-        `repo:updateSession:${session3Id}`,
         'tx:commit',
         `notify:${NOTIFICATION_TYPE.TRAINING_SESSION_RESCHEDULED}`,
+        'tx:begin',
+        `repo:updateSessionStatus:${session2Id}`,
+        'tx:commit',
         `notify:${NOTIFICATION_TYPE.TRAINING_SESSION_CANCELLED}`,
       ]);
       expect(publishedPayloads).toHaveLength(2);

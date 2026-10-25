@@ -1,4 +1,4 @@
-import { Injectable, Optional, UnprocessableEntityException } from '@nestjs/common';
+import { Injectable, UnprocessableEntityException } from '@nestjs/common';
 import type {
   BoutHistoryEntry,
   BoutRequirementRow,
@@ -120,7 +120,7 @@ import { SuspensionsRepository } from '../suspensions/suspensions.repo.js';
 export class BoutsService {
   constructor(
     private readonly repo: BoutsRepository,
-    @Optional() private readonly suspensionsRepo?: SuspensionsRepository,
+    private readonly suspensionsRepo: SuspensionsRepository,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -166,7 +166,7 @@ export class BoutsService {
     const today = academyDateOf(now);
 
     const [suspensions, activeBouts, latestWeights] = await Promise.all([
-      this.suspensionsRepo?.findSuspensionsByFighterIds(fighterIds) ?? [],
+      this.suspensionsRepo.findSuspensionsByFighterIds(fighterIds),
       this.repo.findActiveBoutsForFighters(fighterIds),
       this.repo.findLatestWeightsForFighters(fighterIds, now),
     ]);
@@ -690,7 +690,7 @@ export class BoutsService {
       );
       const [activeBoutId, fighterSuspensions] = await Promise.all([
         this.repo.findActiveBoutIdForFighter(input.fighterId, bout.id),
-        this.suspensionsRepo?.findSuspensionsByFighterId(input.fighterId) ?? [],
+        this.suspensionsRepo.findSuspensionsByFighterId(input.fighterId),
       ]);
       const warnings = [
         ...weightFeasibilityWarnings(feasibility),
@@ -1578,19 +1578,13 @@ export class BoutsService {
     today: string,
     tx: Transaction,
   ): Promise<RecordResultSuspension[]> {
-    if (!this.suspensionsRepo) {
-      return [];
-    }
-
     const priorSuspensions =
-      typeof this.suspensionsRepo.findPriorKoTkoSuspensions === 'function'
-        ? await this.suspensionsRepo.findPriorKoTkoSuspensions(
-            bout.fighterId,
-            undefined,
-            bout.id,
-            tx,
-          )
-        : [];
+      await this.suspensionsRepo.findPriorKoTkoSuspensions(
+        bout.fighterId,
+        undefined,
+        bout.id,
+        tx,
+      );
 
     const suggestion = suggestSuspensions({
       event: {
@@ -1630,9 +1624,6 @@ export class BoutsService {
 
     const created: RecordResultSuspension[] = [];
     for (const s of suggestion.suspensions) {
-      if (typeof this.suspensionsRepo.insertSuspension !== 'function') {
-        continue;
-      }
       const row = await this.suspensionsRepo.insertSuspension(
         {
           fighterId: bout.fighterId,

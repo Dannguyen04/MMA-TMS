@@ -9,13 +9,35 @@ import {
   SESSION_TYPES,
   SUSPENSION_REASONS,
   type SessionType,
-  type SuspensionReason,
 } from '../suspensions/suspensions.constants.js';
-import {
-  isInForceOn,
-  suspensionStatusOn,
-  type SuspensionStateInput,
-} from '../suspensions/suspensions.model.js';
+export interface SuspensionStateInput {
+  startsOn: string;
+  endsOn: string;
+  requiresClearance: boolean;
+  clearedAt: Date | string | null;
+}
+
+export function isInForceOn(
+  suspension: SuspensionStateInput,
+  d: string,
+): boolean {
+  return (
+    suspension.clearedAt === null &&
+    suspension.startsOn <= d &&
+    (d <= suspension.endsOn || suspension.requiresClearance)
+  );
+}
+
+export function suspensionStatusOn(
+  suspension: SuspensionStateInput,
+  d: string,
+): 'UPCOMING' | 'ACTIVE' | 'AWAITING_CLEARANCE' | 'ENDED' {
+  if (suspension.clearedAt !== null) return 'ENDED';
+  if (d < suspension.startsOn) return 'UPCOMING';
+  if (d <= suspension.endsOn) return 'ACTIVE';
+  if (suspension.requiresClearance) return 'AWAITING_CLEARANCE';
+  return 'ENDED';
+}
 
 // ---------------------------------------------------------------------------
 // Enumerations (mirror migration 024)
@@ -1301,22 +1323,35 @@ export function classifyReadiness(input: ClassifyReadinessInput): ReadinessRow {
 
   let suspension: ReadinessSuspensionSummary | null = null;
   if (inForceToday.length > 0) {
-    const lastEnding = [...inForceToday].sort((a, b) => {
-      if (a.endsOn !== b.endsOn) {
-        return b.endsOn.localeCompare(a.endsOn);
+    const isOpenEnded = (s: ReadinessSuspensionInput) =>
+      s.requiresClearance && (s.clearedAt === null || s.clearedAt === undefined);
+
+    const anyOpenEnded = inForceToday.some(isOpenEnded);
+
+    let earliestStartsOn = inForceToday[0]!.startsOn;
+    let latestEndsOn = inForceToday[0]!.endsOn;
+    const blockedSessionTypes: SessionType[] = [];
+
+    for (const s of inForceToday) {
+      if (s.startsOn < earliestStartsOn) earliestStartsOn = s.startsOn;
+      if (s.endsOn > latestEndsOn) latestEndsOn = s.endsOn;
+      for (const t of s.blockedSessionTypes) {
+        if (!blockedSessionTypes.includes(t)) {
+          blockedSessionTypes.push(t);
+        }
       }
-      return Number(b.requiresClearance) - Number(a.requiresClearance);
-    })[0]!;
-    const blockedSessionTypes = [...lastEnding.blockedSessionTypes];
+    }
+
     const allowedSessionTypes = SESSION_TYPES.filter(
       (t) => !blockedSessionTypes.includes(t),
     );
-    const expectedResumeOn = lastEnding.requiresClearance
+    const expectedResumeOn = anyOpenEnded
       ? null
-      : addDaysToDate(lastEnding.endsOn, 1);
+      : addDaysToDate(latestEndsOn, 1);
+
     suspension = {
-      startsOn: lastEnding.startsOn,
-      endsOn: lastEnding.endsOn,
+      startsOn: earliestStartsOn,
+      endsOn: latestEndsOn,
       blockedSessionTypes,
       allowedSessionTypes,
       expectedResumeOn,
