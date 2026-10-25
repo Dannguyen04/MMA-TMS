@@ -1,4 +1,3 @@
-import { getDemoCopy, getLocale } from "@/lib/i18n/server";
 import { CalendarDays, CalendarPlus, ClipboardCheck, List } from "lucide-react";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
@@ -20,20 +19,25 @@ import { WeekNav, weekRangeLabel } from "@/components/training/week-nav";
 import { WeekSummary } from "@/components/training/week-summary";
 import { accessibleFighterIds, canAccessFighter } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
-import { SESSION_STATUS_LABELS, TRAINING_TYPE_LABELS } from "@/lib/domain/labels";
+import { sessionStatusLabel, trainingTypeLabel } from "@/lib/domain/labels";
 import type { SessionStatus, TrainingSession, TrainingType } from "@/lib/domain/types";
 import { dayKey } from "@/lib/format";
+import { getTranslator } from "@/lib/i18n/server";
+import { plural, type Translator } from "@/lib/i18n/translate";
 import { hrefWith, paginate, parseEnum, parseSortDirection } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { listFighters } from "@/lib/services/people";
 import { getWeekAgenda, listSessions } from "@/lib/services/training";
 import { param } from "@/lib/utils";
 
-export async function generateMetadata(): Promise<Metadata> { const copy = await getDemoCopy(); return { title: copy("Sessions") }; }
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return { title: t("training.coachSessions.title") };
+}
 
 const VIEWS = ["week", "list"] as const;
-const STATUSES = Object.keys(SESSION_STATUS_LABELS) as SessionStatus[];
-const TRAINING_TYPES = Object.keys(TRAINING_TYPE_LABELS) as TrainingType[];
+const STATUSES: SessionStatus[] = ["scheduled", "in_progress", "completed", "missed", "cancelled"];
+const TRAINING_TYPES: TrainingType[] = ["sparring", "pad_work", "bag_work", "grappling", "wrestling", "bjj", "clinch", "strength_conditioning", "mobility", "recovery", "film_study"];
 const AWAITING_LIMIT = 6;
 const LIST_PAGE_SIZE = 15;
 
@@ -41,7 +45,7 @@ type Params = Awaited<PageProps<"/coach/sessions">["searchParams"]>;
 type Scope = string[] | "all";
 
 export default async function CoachSessionsPage({ searchParams }: PageProps<"/coach/sessions">) {
-    const copy = await getDemoCopy();
+    const { t, locale } = await getTranslator();
     const user = await requireRole("coach");
     const params = await searchParams;
     const now = new Date().toISOString();
@@ -64,32 +68,37 @@ export default async function CoachSessionsPage({ searchParams }: PageProps<"/co
     const scheduleButton = (
         <ButtonLink href={hrefWith(routes.coach.newSession, {}, { fighter: fighterId })}>
             <CalendarPlus aria-hidden />
-            {copy("Schedule session")} </ButtonLink>
+            {t("training.coachSessions.scheduleSession")}
+        </ButtonLink>
     );
 
     const fighterFilter: FilterDefinition = {
         type: "select",
         name: "fighter",
-        label: copy("Fighters"),
+        label: t("training.coachSessions.filterFighters"),
         options: fighters.map((f) => ({ value: f.id, label: f.name })),
     };
 
     return (
         <>
-            <PageHeader title={copy("Sessions")} description={copy("Every training session across your roster — plan the week, then record results.")} actions={scheduleButton} />
+            <PageHeader
+                title={t("training.coachSessions.title")}
+                description={t("training.coachSessions.description")}
+                actions={scheduleButton}
+            />
 
             <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
                     <ViewToggle
-                        label={copy("Session view")}
+                        label={t("training.coachSessions.viewLabel")}
                         active={view}
                         defaultValue="week"
                         pathname={pathname}
                         searchParams={params}
-                        reset={["page", "sort", "dir", "type", "status", copy("from"), copy("to"), "week"]}
+                        reset={["page", "sort", "dir", "type", "status", "from", "to", "week"]}
                         options={[
-                            { value: "week", label: copy("Week"), icon: CalendarDays },
-                            { value: "list", label: copy("List"), icon: List },
+                            { value: "week", label: t("training.coachSessions.viewWeek"), icon: CalendarDays },
+                            { value: "list", label: t("training.coachSessions.viewList"), icon: List },
                         ]}
                     />
                     <FilterBar
@@ -99,19 +108,19 @@ export default async function CoachSessionsPage({ searchParams }: PageProps<"/co
                                 ? [fighterFilter]
                                 : [
                                       fighterFilter,
-                                      { type: "select", name: "type", label: copy("Types"), options: TRAINING_TYPES.map((value) => ({ value, label: copy(TRAINING_TYPE_LABELS[value]) })) },
-                                      { type: "select", name: "status", label: copy("Statuses"), options: STATUSES.map((value) => ({ value, label: copy(SESSION_STATUS_LABELS[value]) })) },
-                                      { type: "date", name: copy("from"), label: copy("From") },
-                                      { type: "date", name: copy("to"), label: copy("To") },
+                                      { type: "select", name: "type", label: t("training.coachSessions.filterTypes"), options: TRAINING_TYPES.map((value) => ({ value, label: trainingTypeLabel(t, value) })) },
+                                      { type: "select", name: "status", label: t("training.coachSessions.filterStatuses"), options: STATUSES.map((value) => ({ value, label: sessionStatusLabel(t, value) })) },
+                                      { type: "date", name: "from", label: t("training.coachSessions.filterFrom") },
+                                      { type: "date", name: "to", label: t("training.coachSessions.filterTo") },
                                   ]
                         }
                     />
                 </div>
 
                 {data.view === "week" ? (
-                    <WeekView data={data} params={params} now={now} fightersById={fightersById} fighterName={fighterName} />
+                    <WeekView data={data} params={params} now={now} fightersById={fightersById} fighterName={fighterName} t={t} locale={locale} />
                 ) : (
-                    <ListView data={data} params={params} fightersById={fightersById} fighterNames={fighterNames} scheduleButton={scheduleButton} />
+                    <ListView data={data} params={params} fightersById={fightersById} fighterNames={fighterNames} scheduleButton={scheduleButton} t={t} locale={locale} />
                 )}
             </div>
         </>
@@ -140,21 +149,23 @@ async function loadWeek(params: Params, scope: Scope, now: string): Promise<Week
     return { view: "week", offset, startKey, weekStartIso, weekSessions: agenda.flatMap((day) => day.sessions), awaiting, coachNames };
 }
 
-async function WeekView({
+function WeekView({
     data,
     params,
     now,
     fightersById,
     fighterName,
+    t,
+    locale,
 }: {
     data: WeekData;
     params: Params;
     now: string;
     fightersById: Record<string, FighterIdentityData>;
     fighterName?: string;
+    t: Translator;
+    locale: "vi" | "en";
 }) {
-    const copy = await getDemoCopy();
-    const locale = await getLocale();
     const { offset, startKey, weekStartIso, weekSessions, awaiting, coachNames } = data;
 
     return (
@@ -162,13 +173,14 @@ async function WeekView({
             <Card>
                 <CardHeader
                     title={weekRangeLabel(startKey, locale)}
-                    description={`${describeWeekOffset(offset, locale)} · ${copy("{n} sessions", { n: weekSessions.filter((s) => s.status !== "cancelled").length })} · ${fighterName ?? copy("Whole roster")}`}
+                    description={`${describeWeekOffset(offset, locale)} · ${plural(t, "training.sessionsCount", weekSessions.filter((s) => s.status !== "cancelled").length)} · ${fighterName ?? t("training.coachSessions.wholeRoster")}`}
                     icon={<CalendarDays />}
                     action={<WeekNav locale={locale} pathname={routes.coach.sessions} searchParams={params} offset={offset} startKey={startKey} />}
                     className="flex-wrap"
                 />
                 <CardContent>
-                    <WeekAgenda locale={locale}
+                    <WeekAgenda
+                        locale={locale}
                         sessions={weekSessions}
                         startDate={weekStartIso}
                         now={now}
@@ -181,11 +193,11 @@ async function WeekView({
             <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                 <Card className="min-w-0 overflow-hidden lg:col-span-2">
                     <CardHeader
-                        title={copy("Awaiting results")}
+                        title={t("training.coachSessions.awaitingResultsTitle")}
                         description={
                             awaiting.length === 0
-                                ? copy("Every past session has a result")
-                                : copy("{n} sessions awaiting results", { n: awaiting.length })
+                                ? t("training.coachSessions.awaitingAllCaughtUpDesc")
+                                : plural(t, "training.coachSessions.awaitingCountDesc", awaiting.length)
                         }
                         icon={<ClipboardCheck />}
                     />
@@ -194,15 +206,16 @@ async function WeekView({
                             <EmptyState
                                 compact
                                 icon={<ClipboardCheck />}
-                                title={copy("All caught up")}
-                                description={copy("Results keep adherence and training load accurate for fighters and doctors.")}
+                                title={t("training.coachSessions.allCaughtUpTitle")}
+                                description={t("training.coachSessions.allCaughtUpDesc")}
                             />
                         </CardContent>
                     ) : (
                         <ul className="divide-y divide-border border-t border-border">
                             {awaiting.slice(0, AWAITING_LIMIT).map((session) => (
                                 <li key={session.id}>
-                                    <SessionListItem locale={locale}
+                                    <SessionListItem
+                                        locale={locale}
                                         session={session}
                                         href={routes.coach.session(session.id)}
                                         fighter={fightersById[session.fighterId]}
@@ -213,7 +226,7 @@ async function WeekView({
                         </ul>
                     )}
                 </Card>
-                <WeekSummary locale={locale} sessions={weekSessions} description={fighterName ? `${fighterName} · ${weekRangeLabel(startKey, locale)}` : `${copy("Whole roster")} · ${weekRangeLabel(startKey, locale)}`} />
+                <WeekSummary locale={locale} sessions={weekSessions} description={fighterName ? `${fighterName} · ${weekRangeLabel(startKey, locale)}` : `${t("training.coachSessions.wholeRoster")} · ${weekRangeLabel(startKey, locale)}`} />
             </div>
         </div>
     );
@@ -239,21 +252,23 @@ async function loadList(params: Params, scope: Scope): Promise<ListData> {
     };
 }
 
-async function ListView({
+function ListView({
     data,
     params,
     fightersById,
     fighterNames,
     scheduleButton,
+    t,
+    locale,
 }: {
     data: ListData;
     params: Params;
     fightersById: Record<string, FighterIdentityData>;
     fighterNames: Record<string, string>;
     scheduleButton: ReactNode;
+    t: Translator;
+    locale: "vi" | "en";
 }) {
-    const copy = await getDemoCopy();
-    const locale = await getLocale();
     const { sessions, hasFilters } = data;
     const sort = parseEnum(param(params.sort), SESSION_SORT_KEYS) ?? "date";
     const dir = parseSortDirection(param(params.dir), param(params.sort) ? "asc" : "desc");
@@ -262,43 +277,46 @@ async function ListView({
 
     return (
         <Card className="overflow-hidden">
-            <CardHeader title={copy("All sessions")} description={copy("{n} sessions", { n: sessions.length })} icon={<List />} />
+            <CardHeader title={t("training.coachSessions.allSessionsTitle")} description={plural(t, "training.sessionsCount", sessions.length)} icon={<List />} />
             {page.total === 0 ? (
                 <CardContent>
                     {hasFilters ? (
                         <EmptyState
                             compact
-                            title={copy("No sessions match these filters")}
-                            description={copy("Try another fighter, type, status or date range.")}
+                            title={t("training.coachSessions.noMatchingTitle")}
+                            description={t("training.coachSessions.noMatchingDesc")}
                             action={
                                 <ButtonLink href={`${pathname}?view=list`} variant="secondary" size="sm">
-                                    {copy("Clear filters")} </ButtonLink>
+                                    {t("training.fighterHistory.clearFilters")}
+                                </ButtonLink>
                             }
                         />
                     ) : (
-                        <EmptyState compact title={copy("No sessions yet")} description={copy("Schedule a session for a fighter on your roster.")} action={scheduleButton} />
+                        <EmptyState compact title={t("training.coachSessions.noSessionsTitle")} description={t("training.coachSessions.noSessionsDesc")} action={scheduleButton} />
                     )}
                 </CardContent>
             ) : (
                 <div className="border-t border-border">
-                    <SessionTable locale={locale}
+                    <SessionTable
+                        locale={locale}
                         sessions={page.items}
                         audience="coach"
-                        caption={copy("Training sessions across your roster")}
+                        caption={t("training.coachSessions.tableCaption")}
                         fightersById={fightersById}
                         showFighter
                         showVideo
                         stackOnMobile
                         sort={{ pathname, searchParams: params, sort, dir }}
                     />
-                    <Pagination locale={locale}
+                    <Pagination
+                        locale={locale}
                         page={page.page}
                         pageCount={page.pageCount}
                         total={page.total}
                         pageSize={page.pageSize}
                         pathname={pathname}
                         searchParams={params}
-                        itemLabel={copy("sessions")}
+                        itemLabel={t("training.coachSessions.itemLabel")}
                     />
                 </div>
             )}
