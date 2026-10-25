@@ -1,7 +1,10 @@
 import { HttpException, Inject, Injectable } from '@nestjs/common';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_ADMIN_CLIENT } from '../common/supabase/supabase.module.js';
-import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
+import type {
+  AuthenticatedUser,
+  UserRole,
+} from '../shared/models/auth-context.model.js';
 import { USER } from '../shared/types/user.role.js';
 import {
   setAuditContext,
@@ -157,8 +160,15 @@ export class UsersService {
     return created;
   }
 
-  async findOne(id: string): Promise<PublicUser> {
-    const user = await this.usersRepository.findActiveById(id);
+  async findOne(id: string, roleHint?: UserRole): Promise<PublicUser> {
+    const user = roleHint
+      ? await this.usersRepository.findActiveById(
+          id,
+          undefined,
+          undefined,
+          roleHint,
+        )
+      : await this.usersRepository.findActiveById(id);
     if (!user) throw userNotFound();
     return user;
   }

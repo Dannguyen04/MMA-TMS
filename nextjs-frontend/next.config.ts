@@ -18,6 +18,12 @@ const nextConfig: NextConfig = {
     outputFileTracingRoot: repoRoot,
     turbopack: { root: repoRoot },
     /**
+     * Pages are dynamic (every read is `no-store`), so by default each tab switch asks the server again. Keep a
+     * visited page's payload for a short while so going back and forth between tabs is instant; Server Actions that
+     * write call revalidatePath, which clears this cache.
+     */
+    experimental: { staleTimes: { dynamic: 30 } },
+    /**
      * Legacy prototype routes now live in the fighter video area. Temporary (307) so the paths can be
      * reused later. Signed-out visitors are sent to login by the proxy; other roles are redirected to
      * their own dashboard by the fighter layout.

@@ -25,6 +25,11 @@ export type DrizzleDB = ReturnType<typeof drizzle<typeof schema>>;
         const pool = new Pool({
           connectionString,
           ssl: isRemote ? { rejectUnauthorized: false } : undefined,
+          // Reuse warm connections: a fresh TCP + TLS + auth handshake to the remote pooler costs several round trips.
+          max: 10,
+          keepAlive: true,
+          idleTimeoutMillis: 30_000,
+          connectionTimeoutMillis: 10_000,
         });
         return drizzle(pool, { schema });
       },

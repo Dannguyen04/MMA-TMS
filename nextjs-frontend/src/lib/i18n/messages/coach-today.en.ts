@@ -38,6 +38,7 @@ export const enCoachToday = {
     "queue.all": "All",
     "queue.showing": "Showing the {shown} most urgent of {total}. Pick a group above to see the rest.",
 
+    "coachToday.loading": "Loading today",
     "coachToday.description": "{fighters} in your corner · {sessions} today",
     "coachToday.fighters": "{n} fighters",
     "coachToday.fighters.one": "1 fighter",

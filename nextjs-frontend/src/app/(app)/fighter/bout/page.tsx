@@ -1,3 +1,4 @@
+import { createDemoCopy } from "@/lib/i18n/demo-copy";
 import { CalendarClock, FileCheck2, Scale, Swords } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -12,7 +13,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { DescriptionList } from "@/components/ui/description-list";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/states";
-import { requireFighterAccess } from "@/lib/auth/access";
+import { requireFighterId } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import type { Bout, BoutRequirement, WeightTrack } from "@/lib/domain/types";
 import { activeBout, WEIGHT_SAVED_NOTICE } from "@/lib/domain/weigh-in";
@@ -45,10 +46,10 @@ const atNoon = (key: string) => `${key}T12:00:00+07:00`;
 export default async function FighterBoutPage({ searchParams }: PageProps<"/fighter/bout">) {
     const user = await requireRole("fighter");
     if (!user.profileId) notFound();
-    const fighter = await requireFighterAccess(user, user.profileId);
+    const fighterId = requireFighterId(user, user.profileId);
     const [query, { t, locale }] = await Promise.all([searchParams, getTranslator()]);
 
-    const bouts = await nullIfServiceFails(listBouts({ fighterIds: [fighter.id] }));
+    const bouts = await nullIfServiceFails(listBouts({ fighterIds: [fighterId] }));
     const bout = bouts ? activeBout(bouts) : null;
     const track = bout ? await nullIfServiceFails(getWeightTrack(bout.id)) : null;
 
@@ -167,6 +168,7 @@ function FighterWeightCard({ bout, track, limitKg, t, locale }: { bout: Bout; tr
 }
 
 function MedicalDocumentsCard({ requirements, boutAt, t, locale }: { requirements: BoutRequirement[]; boutAt: string } & WithLanguage) {
+    const copy = createDemoCopy(locale);
     const boutDay = dayKey(boutAt);
     const ready = requirements.filter((item) => isReady(item, boutDay)).length;
 
@@ -183,7 +185,7 @@ function MedicalDocumentsCard({ requirements, boutAt, t, locale }: { requirement
                         {requirements.map((item) => (
                             <li key={item.id} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
                                 <span className="min-w-0 text-sm text-fg">
-                                    {item.label}
+                                    {item.source === "PRESET" ? copy(item.label) : item.label}
                                     {item.validUntil && (
                                         <span className="block text-xs text-fg-subtle">{t("bout.validUntil", { date: formatDate(atNoon(item.validUntil), locale) })}</span>
                                     )}

@@ -301,8 +301,9 @@ export const PLAN_STATUS_META: Record<PlanStatus, StatusMeta> = {
     archived: { label: PLAN_STATUS_LABELS.archived, tone: "neutral", icon: Clock },
 };
 
-export function PlanStatusBadge({ status, size, className }: { status: PlanStatus; size?: BadgeSize; className?: string }) {
-    return <StatusBadge meta={PLAN_STATUS_META[status]} size={size} className={className} />;
+export function PlanStatusBadge({ status, size, className, locale }: { status: PlanStatus; size?: BadgeSize; className?: string; locale?: Locale }) {
+    const meta = PLAN_STATUS_META[status];
+    return <StatusBadge meta={locale ? { ...meta, label: createTranslator(locale)(`planStatus.${status}`) } : meta} size={size} className={className} />;
 }
 
 export const GOAL_STATUS_META: Record<GoalStatus, StatusMeta> = {
@@ -349,14 +350,15 @@ export const USER_STATUS_META: Record<UserStatus, StatusMeta> = {
     suspended: { label: USER_STATUS_LABELS.suspended, tone: "danger", icon: Ban },
 };
 
-export function UserStatusBadge({ status, size, className }: { status: UserStatus; size?: BadgeSize; className?: string }) {
-    return <StatusBadge meta={USER_STATUS_META[status]} size={size} className={className} />;
+export function UserStatusBadge({ status, size, className, locale }: { status: UserStatus; size?: BadgeSize; className?: string; locale?: Locale }) {
+    const meta = USER_STATUS_META[status];
+    return <StatusBadge meta={locale ? { ...meta, label: createTranslator(locale)(`userStatus.${status}`) } : meta} size={size} className={className} />;
 }
 
-export function RoleBadge({ role, size, className }: { role: Role; size?: BadgeSize; className?: string }) {
+export function RoleBadge({ role, size, className, locale }: { role: Role; size?: BadgeSize; className?: string; locale?: Locale }) {
     return (
         <Badge tone="neutral" variant="outline" size={size} className={className}>
-            {ROLE_LABELS[role]}
+            {locale ? createTranslator(locale)(`role.${role}`) : ROLE_LABELS[role]}
         </Badge>
     );
 }
@@ -372,7 +374,11 @@ export const APPLICATION_STATUS_META: Record<ApplicationStatus, StatusMeta> = {
     rejected: { label: APPLICATION_STATUS_LABELS.rejected, tone: "danger", icon: UserX },
 };
 
-export function ApplicationStatusBadge({ status, size, className }: { status: ApplicationStatus; size?: BadgeSize; className?: string }) {
+export function ApplicationStatusBadge({ status, size, className, locale }: { status: ApplicationStatus; size?: BadgeSize; className?: string; locale?: Locale }) {
+    if (locale) {
+        const t = createTranslator(locale);
+        return <StatusBadge meta={{ ...APPLICATION_STATUS_META[status], label: t(`applicant.status.${status}`) }} size={size} className={className} />;
+    }
     return <StatusBadge meta={APPLICATION_STATUS_META[status]} size={size} className={className} />;
 }
 

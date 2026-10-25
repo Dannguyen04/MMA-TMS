@@ -1,3 +1,4 @@
+import { getDemoCopy } from "@/lib/i18n/server";
 import {
     Activity,
     Calendar,
@@ -40,6 +41,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function CoachBoutDetailPage({ params }: PageProps) {
+    const copy = await getDemoCopy();
     const user = await requireRole("coach");
     const [{ boutId }, { t, locale }] = await Promise.all([params, getTranslator()]);
 
@@ -136,7 +138,7 @@ export default async function CoachBoutDetailPage({ params }: PageProps) {
                             </div>
                             <div className="flex justify-between border-b border-border pb-2">
                                 <span className="text-fg-muted">{t("coachBouts.detail.sportLabel")}</span>
-                                <span className="font-medium text-fg">{ruleset?.sport ?? "MMA"}</span>
+                                <span className="font-medium text-fg">{copy(ruleset?.sport ?? "MMA")}</span>
                             </div>
                             {bout.venue && (
                                 <div className="flex justify-between border-b border-border pb-2">
@@ -232,7 +234,7 @@ export default async function CoachBoutDetailPage({ params }: PageProps) {
                                                 </span>
                                             </div>
                                             {entry.reason && (
-                                                <span className="text-fg-muted italic">&ldquo;{entry.reason}&rdquo;</span>
+                                                <span className="text-fg-muted italic">&ldquo;{copy(entry.reason)}&rdquo;</span>
                                             )}
                                         </div>
                                     ))}

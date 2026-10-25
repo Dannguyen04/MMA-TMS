@@ -3,6 +3,7 @@
 import { ArrowRight, Check, CheckCheck } from "lucide-react";
 import { useEffect, useRef, useTransition } from "react";
 
+import { useT } from "@/components/i18n/locale-provider";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { markAllRead, markRead } from "@/lib/actions/notifications";
@@ -10,22 +11,23 @@ import { markAllRead, markRead } from "@/lib/actions/notifications";
 /** Header action: marks every notification as read and confirms with a toast. */
 export function MarkAllReadButton({ unread }: { unread: number }) {
     const toast = useToast();
+    const t = useT();
     const [pending, startTransition] = useTransition();
 
     const onClick = () =>
         startTransition(async () => {
             const result = await markAllRead();
             if (result.status === "error") {
-                toast({ title: "Couldn't mark notifications as read", description: result.message, tone: "error" });
+                toast({ title: t("notifications.toastFailedMarkAll"), description: result.message, tone: "error" });
             } else {
-                toast({ title: "All caught up", description: result.message });
+                toast({ title: t("notifications.allCaughtUp"), description: result.message });
             }
         });
 
     return (
         <Button onClick={onClick} loading={pending} disabled={unread === 0}>
             {!pending && <CheckCheck aria-hidden />}
-            Mark all as read
+            {t("notifications.markAllAsRead")}
         </Button>
     );
 }
@@ -43,6 +45,7 @@ export interface NotificationItemActionsProps {
  */
 export function NotificationItemActions({ id, title, href, unread }: NotificationItemActionsProps) {
     const toast = useToast();
+    const t = useT();
     const [pending, startTransition] = useTransition();
     const rootRef = useRef<HTMLDivElement>(null);
     const restoreFocus = useRef(false);
@@ -61,7 +64,7 @@ export function NotificationItemActions({ id, title, href, unread }: Notificatio
             const result = await markRead(id);
             if (result.status === "error") {
                 restoreFocus.current = false;
-                toast({ title: "Couldn't mark as read", description: result.message, tone: "error" });
+                toast({ title: t("notifications.toastFailedMarkRead"), description: result.message, tone: "error" });
             }
         });
 
@@ -70,7 +73,7 @@ export function NotificationItemActions({ id, title, href, unread }: Notificatio
             {unread && (
                 <Button variant="ghost" size="sm" onClick={onMarkRead} loading={pending}>
                     {!pending && <Check aria-hidden />}
-                    Mark as read
+                    {t("notifications.markAsRead")}
                     <span className="sr-only">: {title}</span>
                 </Button>
             )}
@@ -83,7 +86,7 @@ export function NotificationItemActions({ id, title, href, unread }: Notificatio
                         if (unread) void markRead(id);
                     }}
                 >
-                    Open
+                    {t("notifications.open")}
                     <span className="sr-only">: {title}</span>
                     <ArrowRight aria-hidden />
                 </ButtonLink>

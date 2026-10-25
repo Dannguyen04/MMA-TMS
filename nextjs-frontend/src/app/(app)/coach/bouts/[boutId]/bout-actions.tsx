@@ -3,7 +3,7 @@
 import { Edit3, Link2, Swords, TriangleAlert, XCircle } from "lucide-react";
 import { useState } from "react";
 
-import { useT } from "@/components/i18n/locale-provider";
+import { useDemoCopy, useT } from "@/components/i18n/locale-provider";
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/form";
@@ -31,6 +31,7 @@ function toLocalDatetimeInput(isoDate: string): string {
 
 export function BoutHeaderActions({ bout, plans }: BoutHeaderActionsProps) {
     const t = useT();
+    const copy = useDemoCopy();
     const toast = useToast();
 
     const [linkOpen, setLinkOpen] = useState(false);
@@ -145,7 +146,7 @@ export function BoutHeaderActions({ bout, plans }: BoutHeaderActionsProps) {
                                     <span className="font-semibold">{t("coachBouts.dialog.enterFightWeek.gate1MissingTitle")}</span>
                                     <ul className="mt-1 list-inside list-disc">
                                         {[...bout.gate1.missing, ...bout.gate1.expiring].map((item) => (
-                                            <li key={item}>{item}</li>
+                                            <li key={item}>{copy(item)}</li>
                                         ))}
                                     </ul>
                                 </div>

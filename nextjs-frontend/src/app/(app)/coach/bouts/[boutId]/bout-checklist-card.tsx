@@ -16,7 +16,7 @@ import {
     BoutRequirementStatusBadge,
     Gate1Badge,
 } from "@/components/domain/status-badges";
-import { useLocale, useT } from "@/components/i18n/locale-provider";
+import { useDemoCopy, useLocale, useT } from "@/components/i18n/locale-provider";
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,7 @@ import { dayKey, formatDate, formatShortDate } from "@/lib/format";
 
 export function BoutChecklistCard({ bout }: { bout: Bout }) {
     const t = useT();
+    const copy = useDemoCopy();
     const locale = useLocale();
     const toast = useToast();
     const [addOpen, setAddOpen] = useState(false);
@@ -121,7 +122,7 @@ export function BoutChecklistCard({ bout }: { bout: Bout }) {
                                 >
                                     <div className="flex min-w-0 flex-1 flex-col gap-1">
                                         <div className="flex flex-wrap items-center gap-2">
-                                            <span className="font-medium text-fg">{req.label}</span>
+                                            <span className="font-medium text-fg">{req.source === "PRESET" ? copy(req.label) : req.label}</span>
                                             {!req.required && (
                                                 <Badge tone="neutral" variant="outline" size="sm">
                                                     {t("coachBouts.checklist.optional")}
@@ -158,7 +159,7 @@ export function BoutChecklistCard({ bout }: { bout: Bout }) {
                                             variant="ghost"
                                             size="sm"
                                             onClick={() => setEditItem(req)}
-                                            aria-label={t("coachBouts.checklist.editItemAria", { label: req.label })}
+                                            aria-label={t("coachBouts.checklist.editItemAria", { label: req.source === "PRESET" ? copy(req.label) : req.label })}
                                         >
                                             <Edit2 aria-hidden className="size-3.5" />
                                             {t("coachBouts.checklist.edit")}

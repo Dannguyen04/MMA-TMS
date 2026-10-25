@@ -20,6 +20,7 @@ import { resolveRedisConnection } from './shared/config/redis.config.js';
 import { loadEnv } from './shared/config/env.js';
 import { VideosModule } from './videos/videos.module.js';
 import { AcademySettingsModule } from './academy-settings/academy-settings.module.js';
+import { BoutsModule } from './bouts/bouts.module.js';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { AcademySettingsModule } from './academy-settings/academy-settings.modul
     MedicalModule,
     CoachingModule,
     AcademySettingsModule,
+    BoutsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
