@@ -3,10 +3,11 @@
 import { ArrowDown, ArrowUp, ListPlus, Plus, ShieldAlert, Trash2 } from "lucide-react";
 import { useState } from "react";
 
+import { useT } from "@/components/i18n/locale-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input, Select, fieldDescribedBy } from "@/components/ui/form";
-import { EXERCISE_CATEGORY_LABELS, INTENSITY_LABELS } from "@/lib/domain/labels";
+import { EXERCISE_CATEGORY_LABELS, exerciseCategoryLabel, intensityLabel } from "@/lib/domain/labels";
 import type { BodyRegion, Exercise, ExerciseCategory, Technique } from "@/lib/domain/types";
 import { formatClock } from "@/lib/format";
 import { groupBy } from "@/lib/utils";
@@ -26,10 +27,11 @@ export interface ExerciseBuilderProps {
     restrictedRegions: BodyRegion[];
 }
 
-const CATEGORY_OPTIONS = Object.entries(EXERCISE_CATEGORY_LABELS) as [ExerciseCategory, string][];
+const CATEGORY_KEYS = Object.keys(EXERCISE_CATEGORY_LABELS) as ExerciseCategory[];
 
 /** Pick drills from the exercise library, set their volume, reorder and remove them. */
 export function ExerciseBuilder({ library, rows, onChange, error: errorFor, markEdited, restrictedTechniques, restrictedRegions }: ExerciseBuilderProps) {
+    const t = useT();
     const [category, setCategory] = useState<ExerciseCategory | "">("");
     const [pick, setPick] = useState("");
     const [announcement, setAnnouncement] = useState("");
@@ -67,7 +69,7 @@ export function ExerciseBuilder({ library, rows, onChange, error: errorFor, mark
             },
         ]);
         setPick("");
-        setAnnouncement(`Added ${exercise.name}. ${rows.length + 1} exercises in the session.`);
+        setAnnouncement(t("training.exerciseBuilder.announcedAdded", { name: exercise.name, count: rows.length + 1 }));
     };
 
     const update = (index: number, field: "rounds" | "roundSec" | "sets" | "reps" | "notes", value: string) => {
@@ -82,27 +84,27 @@ export function ExerciseBuilder({ library, rows, onChange, error: errorFor, mark
         [next[index], next[target]] = [next[target], next[index]];
         changeRows(next);
         const row = rows[index];
-        setAnnouncement(`${byId[row.exerciseId]?.name ?? "Exercise"} moved to position ${target + 1} of ${rows.length}.`);
+        setAnnouncement(t("training.exerciseBuilder.announcedMoved", { name: byId[row.exerciseId]?.name ?? "Exercise", pos: target + 1, total: rows.length }));
         focus(`${row.key}-${direction === -1 ? "up" : "down"}`, `${row.key}-${direction === -1 ? "down" : "up"}`);
     };
 
     const remove = (index: number) => {
         const row = rows[index];
         changeRows(rows.filter((_, i) => i !== index));
-        setAnnouncement(`Removed ${byId[row.exerciseId]?.name ?? "exercise"}. ${rows.length - 1} exercises in the session.`);
+        setAnnouncement(t("training.exerciseBuilder.announcedRemoved", { name: byId[row.exerciseId]?.name ?? "exercise", count: rows.length - 1 }));
         focus("exercise-pick");
     };
 
     return (
         <fieldset className="@container flex min-w-0 flex-col gap-3">
             <legend className="mb-1.5 text-sm font-medium text-fg">
-                Exercises <span className="ml-1 text-xs font-normal text-fg-subtle">(optional)</span>
+                {t("training.exerciseBuilder.legend")} <span className="ml-1 text-xs font-normal text-fg-subtle">{t("training.exerciseBuilder.optional")}</span>
             </legend>
 
             <div className="grid grid-cols-1 gap-3 rounded-lg bg-surface-muted/70 p-3 @md:grid-cols-[minmax(0,10rem)_minmax(0,1fr)] @3xl:grid-cols-[minmax(0,11rem)_minmax(0,1fr)_auto] @3xl:items-end">
                 <div className="flex min-w-0 flex-col gap-1.5">
                     <label htmlFor="exercise-category" className="text-[13px] font-medium text-fg-muted">
-                        Category
+                        {t("training.exerciseBuilder.category")}
                     </label>
                     <Select
                         id="exercise-category"
@@ -112,22 +114,22 @@ export function ExerciseBuilder({ library, rows, onChange, error: errorFor, mark
                             setPick("");
                         }}
                     >
-                        <option value="">All categories</option>
-                        {CATEGORY_OPTIONS.map(([value, label]) => (
+                        <option value="">{t("training.exerciseBuilder.allCategories")}</option>
+                        {CATEGORY_KEYS.map((value) => (
                             <option key={value} value={value}>
-                                {label}
+                                {exerciseCategoryLabel(t, value)}
                             </option>
                         ))}
                     </Select>
                 </div>
                 <div className="flex min-w-0 flex-col gap-1.5">
                     <label htmlFor="exercise-pick" className="text-[13px] font-medium text-fg-muted">
-                        Exercise library
+                        {t("training.exerciseBuilder.library")}
                     </label>
                     <Select id="exercise-pick" value={pick} onChange={(event) => setPick(event.target.value)}>
-                        <option value="">{available.length === 0 ? "No more exercises in this category" : "Choose an exercise…"}</option>
+                        <option value="">{available.length === 0 ? t("training.exerciseBuilder.noMore") : t("training.exerciseBuilder.choose")}</option>
                         {(Object.entries(groups) as [ExerciseCategory, Exercise[]][]).map(([group, exercises]) => (
-                            <optgroup key={group} label={EXERCISE_CATEGORY_LABELS[group]}>
+                            <optgroup key={group} label={exerciseCategoryLabel(t, group)}>
                                 {exercises.map((exercise) => (
                                     <option key={exercise.id} value={exercise.id}>
                                         {exercise.name}
@@ -139,7 +141,7 @@ export function ExerciseBuilder({ library, rows, onChange, error: errorFor, mark
                 </div>
                 <Button variant="secondary" onClick={add} disabled={!pick} className="@md:col-span-2 @md:justify-self-end @3xl:col-span-1">
                     <Plus aria-hidden />
-                    Add exercise
+                    {t("training.exerciseBuilder.add")}
                 </Button>
             </div>
 
@@ -148,7 +150,7 @@ export function ExerciseBuilder({ library, rows, onChange, error: errorFor, mark
             {rows.length === 0 ? (
                 <div className="flex items-center gap-3 rounded-lg border border-dashed border-border-strong px-4 py-4 text-[13px] text-fg-muted">
                     <ListPlus aria-hidden className="size-5 shrink-0 text-fg-subtle" />
-                    <p>No exercises yet. Add drills from the library — their techniques and loaded body areas are checked against the Medical Clearance.</p>
+                    <p>{t("training.exerciseBuilder.emptyDesc")}</p>
                 </div>
             ) : (
                 <ol className="flex flex-col gap-2">
@@ -158,7 +160,7 @@ export function ExerciseBuilder({ library, rows, onChange, error: errorFor, mark
                         const rounds = exercise ? isRoundBased(exercise) : row.rounds !== "";
                         const touchesRestriction =
                             exercise !== undefined &&
-                            (exercise.techniques.some((t) => restrictedTechniques.includes(t)) || exercise.loadsRegions.some((r) => restrictedRegions.includes(r)));
+                            (exercise.techniques.some((tech) => restrictedTechniques.includes(tech)) || exercise.loadsRegions.some((r) => restrictedRegions.includes(r)));
                         const fieldId = (field: string) => `${row.key}-${field}`;
                         const error = (field: string) => errorFor(`exercises.${index}.${field}`);
                         const numberInput = (field: "rounds" | "roundSec" | "sets" | "reps", label: string, min: number, max: number, hint?: string) => (
@@ -207,13 +209,13 @@ export function ExerciseBuilder({ library, rows, onChange, error: errorFor, mark
                                         <div className="mt-1 flex flex-wrap items-center gap-1.5">
                                             {exercise && (
                                                 <span className="text-xs text-fg-muted">
-                                                    {EXERCISE_CATEGORY_LABELS[exercise.category]}
-                                                    {exercise.intensity && ` · ${INTENSITY_LABELS[exercise.intensity]} intensity`}
+                                                    {exerciseCategoryLabel(t, exercise.category)}
+                                                    {exercise.intensity && ` · ${t("training.exerciseBuilder.intensityTag", { intensity: intensityLabel(t, exercise.intensity) })}`}
                                                 </span>
                                             )}
                                             {touchesRestriction && (
                                                 <Badge tone="warning" size="sm" icon={ShieldAlert}>
-                                                    Touches a restriction
+                                                    {t("training.exerciseBuilder.touchesRestriction")}
                                                 </Badge>
                                             )}
                                         </div>
@@ -225,7 +227,7 @@ export function ExerciseBuilder({ library, rows, onChange, error: errorFor, mark
                                             size="icon-sm"
                                             onClick={() => move(index, -1)}
                                             disabled={index === 0}
-                                            aria-label={`Move ${name} up`}
+                                            aria-label={t("training.exerciseBuilder.moveUp", { name })}
                                         >
                                             <ArrowUp />
                                         </Button>
@@ -235,11 +237,11 @@ export function ExerciseBuilder({ library, rows, onChange, error: errorFor, mark
                                             size="icon-sm"
                                             onClick={() => move(index, 1)}
                                             disabled={index === rows.length - 1}
-                                            aria-label={`Move ${name} down`}
+                                            aria-label={t("training.exerciseBuilder.moveDown", { name })}
                                         >
                                             <ArrowDown />
                                         </Button>
-                                        <Button variant="ghost" size="icon-sm" onClick={() => remove(index)} aria-label={`Remove ${name}`} className="hover:text-danger-fg">
+                                        <Button variant="ghost" size="icon-sm" onClick={() => remove(index)} aria-label={t("training.exerciseBuilder.remove", { name })} className="hover:text-danger-fg">
                                             <Trash2 />
                                         </Button>
                                     </div>
@@ -247,31 +249,31 @@ export function ExerciseBuilder({ library, rows, onChange, error: errorFor, mark
                                 <div className="mt-3 grid grid-cols-2 gap-3 @md:grid-cols-[minmax(0,6rem)_minmax(0,7rem)_minmax(0,1fr)]">
                                     {rounds ? (
                                         <>
-                                            {numberInput("rounds", "Rounds", 1, 30)}
+                                            {numberInput("rounds", t("training.exerciseBuilder.rounds"), 1, 30)}
                                             {numberInput(
                                                 "roundSec",
-                                                "Round (sec)",
+                                                t("training.exerciseBuilder.roundSec"),
                                                 10,
                                                 1800,
-                                                roundSeconds >= 10 ? `${formatClock(roundSeconds)} per round` : undefined,
+                                                roundSeconds >= 10 ? t("training.exerciseBuilder.secPerRound", { clock: formatClock(roundSeconds) }) : undefined,
                                             )}
                                         </>
                                     ) : (
                                         <>
-                                            {numberInput("sets", "Sets", 1, 20)}
-                                            {numberInput("reps", "Reps", 1, 200)}
+                                            {numberInput("sets", t("training.exerciseBuilder.sets"), 1, 20)}
+                                            {numberInput("reps", t("training.exerciseBuilder.reps"), 1, 200)}
                                         </>
                                     )}
                                     <div className="col-span-2 flex min-w-0 flex-col gap-1 @md:col-span-1">
                                         <label htmlFor={fieldId("notes")} className="text-xs font-medium text-fg-muted">
-                                            Notes <span className="font-normal text-fg-subtle">(optional)</span>
+                                            {t("training.exerciseBuilder.notesLabel")} <span className="font-normal text-fg-subtle">{t("training.exerciseBuilder.optional")}</span>
                                         </label>
                                         <Input
                                             id={fieldId("notes")}
                                             value={row.notes}
                                             onChange={(event) => update(index, "notes", event.target.value)}
                                             maxLength={300}
-                                            placeholder="e.g. Southpaw feeds only"
+                                            placeholder={t("training.exerciseBuilder.notesPlaceholder")}
                                             aria-invalid={Boolean(error("notes")) || undefined}
                                             aria-describedby={fieldDescribedBy(fieldId("notes"), { error: error("notes") })}
                                             className="h-8"

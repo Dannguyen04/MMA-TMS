@@ -1,9 +1,9 @@
-import { createDemoCopy } from "@/lib/i18n/demo-copy";
 import type { Locale } from "@/lib/i18n/config";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { ButtonLink } from "@/components/ui/button";
 import { addDaysToKey, formatDate, formatShortDate } from "@/lib/format";
+import { createTranslator } from "@/lib/i18n";
 import { hrefWith, type SearchParams } from "@/lib/query";
 import { MAX_WEEK_OFFSET, describeWeekOffset } from "./training-utils";
 
@@ -25,17 +25,17 @@ export interface WeekNavProps {
 
 /** Previous / next week and "This week" links driven by ?week=. */
 export function WeekNav({ pathname, searchParams, offset, startKey, locale = "en" }: WeekNavProps) {
-    const copy = createDemoCopy(locale);
+    const t = createTranslator(locale);
     const href = (week: number) => hrefWith(pathname, searchParams, { week: week === 0 ? null : week });
     const range = weekRangeLabel(startKey, locale);
     return (
-        <nav aria-label={copy("Week navigation")} className="flex items-center gap-1.5">
+        <nav aria-label={t("training.weekNav.aria")} className="flex items-center gap-1.5">
             <ButtonLink
                 href={href(offset - 1)}
                 variant="secondary"
                 size="icon-sm"
                 scroll={false}
-                aria-label={`${copy("Previous week")} (${describeWeekOffset(offset - 1, locale).toLowerCase()})`}
+                aria-label={t("training.weekNav.prevWeekLabel", { offset: describeWeekOffset(offset - 1, locale).toLowerCase() })}
                 aria-disabled={offset <= -MAX_WEEK_OFFSET}
                 tabIndex={offset <= -MAX_WEEK_OFFSET ? -1 : undefined}
             >
@@ -50,21 +50,21 @@ export function WeekNav({ pathname, searchParams, offset, startKey, locale = "en
                 aria-disabled={offset === 0}
                 tabIndex={offset === 0 ? -1 : undefined}
             >
-                {copy("This week")}
+                {t("training.weekNav.thisWeek")}
             </ButtonLink>
             <ButtonLink
                 href={href(offset + 1)}
                 variant="secondary"
                 size="icon-sm"
                 scroll={false}
-                aria-label={`${copy("Next week")} (${describeWeekOffset(offset + 1, locale).toLowerCase()})`}
+                aria-label={t("training.weekNav.nextWeekLabel", { offset: describeWeekOffset(offset + 1, locale).toLowerCase() })}
                 aria-disabled={offset >= MAX_WEEK_OFFSET}
                 tabIndex={offset >= MAX_WEEK_OFFSET ? -1 : undefined}
             >
                 <ChevronRight />
             </ButtonLink>
             <span className="sr-only" aria-live="polite">
-                {range}
+                {t("training.weekNav.showing", { range })}
             </span>
         </nav>
     );

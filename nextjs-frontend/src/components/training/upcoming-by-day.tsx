@@ -1,10 +1,10 @@
-import { createDemoCopy } from "@/lib/i18n/demo-copy";
 import type { Locale } from "@/lib/i18n/config";
 import type { FighterIdentityData } from "@/components/domain/fighter-identity";
 import { SessionListItem } from "@/components/domain/session-list-item";
 import { Badge } from "@/components/ui/badge";
 import type { TrainingSession } from "@/lib/domain/types";
-import { dayKey, daysBetween, formatWeekdayDate, pluralize } from "@/lib/format";
+import { dayKey, daysBetween, formatWeekdayDate } from "@/lib/format";
+import { createTranslator, plural } from "@/lib/i18n";
 import { groupBy } from "@/lib/utils";
 import { sessionHref, type TrainingAudience } from "./session-table";
 
@@ -21,7 +21,7 @@ export interface UpcomingByDayProps {
 
 /** Sessions grouped under a heading per day, soonest first. */
 export function UpcomingByDay({ sessions, now, audience, coachNames, fightersById, headingLevel = 3, locale = "en" }: UpcomingByDayProps) {
-    const copy = createDemoCopy(locale);
+    const t = createTranslator(locale);
     const Heading = headingLevel === 3 ? "h3" : "h4";
     const sorted = [...sessions].sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt));
     const groups = groupBy(sorted, (s) => dayKey(s.scheduledAt));
@@ -30,22 +30,23 @@ export function UpcomingByDay({ sessions, now, audience, coachNames, fightersByI
         <ol className="flex flex-col">
             {Object.entries(groups).map(([key, daySessions]) => {
                 const offset = daysBetween(now, `${key}T12:00:00Z`);
-                const relative = offset === 0 ? "Today" : offset === 1 ? "Tomorrow" : null;
+                const relative = offset === 0 ? t("training.relative.today") : offset === 1 ? t("training.relative.tomorrow") : null;
                 return (
                     <li key={key} className="border-t border-border first:border-t-0">
                         <Heading className="flex flex-wrap items-center gap-2 bg-surface-muted/50 px-4 py-2 text-[13px] font-semibold text-fg">
                             {formatWeekdayDate(`${key}T12:00:00Z`, locale)}
                             {relative && (
                                 <Badge tone={offset === 0 ? "primary" : "neutral"} size="sm">
-                                    {locale === "vi" ? (offset === 0 ? "Hôm nay" : "Ngày mai") : relative}
+                                    {relative}
                                 </Badge>
                             )}
-                            <span className="font-normal text-fg-muted">· {locale === "vi" ? copy("{n} sessions", { n: daySessions.length }) : pluralize(daySessions.length, "session")}</span>
+                            <span className="font-normal text-fg-muted">· {plural(t, "training.sessionsCount", daySessions.length)}</span>
                         </Heading>
                         <ul className="divide-y divide-border">
                             {daySessions.map((session) => (
                                 <li key={session.id}>
-                                    <SessionListItem locale={locale}
+                                    <SessionListItem
+                                        locale={locale}
                                         session={session}
                                         href={sessionHref(audience, session.id)}
                                         coachName={session.coachId ? coachNames?.[session.coachId] : undefined}
