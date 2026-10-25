@@ -19,6 +19,7 @@ import {
 } from "@/lib/domain/bouts-contract";
 import type { WriteResult } from "@/lib/domain/write-result";
 import { formatDate } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
 import { getTranslator } from "@/lib/i18n/server";
 import type { MessageKey, Translator } from "@/lib/i18n/translate";
 import { nullIfNotFound, nullIfServiceFails } from "./api-helpers";
@@ -77,7 +78,7 @@ const detail = (error: ApiError, key: string): string | number | undefined => {
  * The service's refusals in the viewer's language. Codes this screen knows get its own words (with the date or
  * counts the service sent); anything else keeps the service's message.
  */
-export function boutRefusal(error: ApiError, t: Translator, locale: Parameters<typeof formatDate>[1] = "en"): string {
+function boutRefusal(error: ApiError, t: Translator, locale: Locale): string {
     const earliest = detail(error, "earliestOn");
     const date = typeof earliest === "string" ? formatDate(earliest, locale) : "";
     switch (error.code) {

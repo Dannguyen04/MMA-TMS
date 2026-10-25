@@ -5,6 +5,102 @@
 - Trạng thái: IN REVIEW
 - Người viết: Claude (Opus 5.5). Chủ dự án cho phép sửa code frontend trong phiên 19/10 và chọn: phạm vi gồm cả "Trong trận" (T-006) và "Sau trận" (T-007) ở demo mode; một nhánh mới cho mọi việc; seed phương án (a); adapter API làm ở P2.
 - Cập nhật 22/10: merge `origin/main` (`d40165f`), merge `origin/fight-camp` (`2aeb90b`), dịch màn Trận sang tiếng Việt (commit ngay sau `2aeb90b`). Xem mục [Cập nhật 22/10](#cập-nhật-2210-merge-và-dịch-màn-trận).
+- Cập nhật 25/10: merge `origin/fight-camp` (`8b83d99`), T-006 phần B nối API (`a182bd1`). Xem mục [Cập nhật 25/10](#cập-nhật-2510-merge-fight-camp-mới-và-t-006-phần-b-màn-hlv-nối-api).
+
+## Cập nhật 25/10: merge `fight-camp` mới và T-006 phần B (màn HLV nối API)
+
+- Commit: `8b83d99` (merge `origin/fight-camp` tại `0ff5f13`), `a182bd1` (T-006 B), commit handover này.
+- Người viết: Claude (Opus 5.5), theo chỉ dẫn trực tiếp của chủ dự án ngày 25/10 ("chỉ làm phần frontend", lên plan rồi làm luôn). T-006 B chưa có ticket riêng; làm theo contract trong [T-006](./T-006-weigh-in-and-result.md) §2–6 và code backend đã merge (`nestjs-api/src/bouts/bouts.model.ts`, `bouts.error.ts`).
+
+### Merge `origin/fight-camp` (`8b83d99`)
+
+Mang vào T-010 lượt 2, T-012 phần A, T-015 (dịch Training), T-022. Xung đột ở 12 file Training, giữa tính năng từ `main` (lặp buổi hằng tuần, nhân bản giáo án, thêm nhiều bài tập một lần, mục tiêu giáo án không bắt buộc) và bản dịch T-015:
+
+- Giữ tính năng của `main`, dùng key dịch của T-015 cho chữ đã có key.
+- Chữ chỉ `main` có thì thêm key mới ở cả `training.en.ts` và `training.vi.ts`: `training.repeat.*`, `training.planDetails.{createdTitle,duplicate,exercisesFailedDesc,exercisesFailedDraftDesc}`, `training.planExercises.{addMany,addCount,cancel,addedManyToast,panelAria,panelDesc,panelEmpty}`, `training.planForm.descCreateFromSource`, `training.schema.objectiveMinOrEmpty`.
+- `PlanForm` và `PlanExercisesCard` bỏ `useDemoCopy` (cách dịch theo chuỗi tiếng Anh) để dùng `useT()` như phần còn lại của T-015.
+- Bỏ action `addPlanExercise` (một bài), không còn màn nào gọi; `addPlanExercises` (nhiều bài) thay thế.
+- `actions/training.test.ts` thêm mock `getTranslator` như `actions/bouts.test.ts`.
+- `labels.ts`: bỏ khối nhãn Trận của T-004 bản Gemini mà `fight-camp` mang lại (nhánh này đã bỏ ở merge 22/10).
+
+Ngoài phần xung đột, sửa hai chỗ T-015 còn sót trên `fight-camp`: trang buổi tập của HLV và của võ sĩ không truyền `locale` cho `SessionHeaderMeta` và `SessionDetail`, nên phần đầu trang và chi tiết buổi tập hiện tiếng Anh. Tiêu đề gợi ý của buổi tập ("Pad work — …") nay theo ngôn ngữ đang chọn.
+
+### T-006 B (`a182bd1`)
+
+| Hành vi | Ở đâu |
+| --- | --- |
+| API mode: cân chính thức gọi `POST /bouts/:id/weigh-in`; trượt thì gọi tiếp `/catchweight` hoặc `/cancel` (lý do `MISSED_WEIGHT[: ghi chú]`) theo lựa chọn của HLV trong cùng form | `recordApiWeighIn` trong `services/bouts.api.ts` |
+| Service đã giữ một lần trượt (HLV đóng trang trước khi chọn) thì không cân lại; nút đổi thành "Quyết định sau buổi cân trượt", form mở sẵn số cân cũ | `recordWeighIn` trong `services/bouts.ts`, `awaitsWeighInDecision`, `WeighInButton` |
+| Kết quả gọi `POST /bouts/:id/result`, chỉ gửi trường mà quy tắc cho phép | `recordApiResult`, `resultBody` |
+| Đọc trận: `officialWeightKg`, `madeWeight`, `hydrationCheck`, `result`, `method`, `resultRound`, `knockedDown`, `acuteLoss` và các trường thêm của `history` (catchweight, mất ý thức, đòn vào đầu, ghi chú chấn thương) | `weighInOf`, `outcomeOf` trong `domain/bouts-contract.ts` |
+| Khoá hồ sơ tuần thi đấu (T-006 §2): service không có trạng thái "đã mở khoá", mỗi thay đổi phải kèm `unlockReason`. Lý do HLV nhập khi mở khoá được giữ 1 giờ trong cookie httpOnly theo từng trận và gửi kèm mọi thay đổi hồ sơ; `DELETE` gửi ở query string | `unlockChecklist`, `readChecklistUnlock`, `unlockReasonFor` trong `services/bouts.ts`; `add/update/removeApiRequirement` |
+| Đổi hạng cân gửi `reason` (T-006 §5) | `updateApiBout` |
+| Lỗi của service (mã T-006 và `BOUT_ROUNDS_INCOMPLETE` của T-010) hiện bằng ngôn ngữ đang chọn, có ngày hoặc số hiệp service gửi | `boutRefusal` trong `services/bouts.api.ts`, key `boutMsg.api.*` |
+| R17: kiểm tra nước "Không đạt" là trượt cân dù số cân đạt; form hỏi catchweight hoặc huỷ | `passesWeighIn`; dùng ở action, form và store demo |
+| Catchweight phải cao hơn giới hạn gốc (ngoài điều kiện ≥ số cân chính thức đã có) | `recordWeighInAction` |
+| So số cân theo phần trăm kg (60,0 với giới hạn 60 là đạt) | `madeWeight` |
+| T-006 §4: KO, TKO, khoá siết bắt buộc hiệp; tính điểm không ghi hiệp (ô Hiệp ẩn); truất quyền, khác tuỳ chọn | `roundRuleFor`, `validateOutcome`, `ResultButton` |
+| R19: thẻ "Buổi cân" hiện giảm cân cấp tính từ số cân hằng ngày đầu tiên trong cửa sổ, đỏ khi vượt ngưỡng, "Không giảm" khi võ sĩ nặng hơn | `computeAcuteLoss`, `ResultCard` trong trang chi tiết trận; demo tính lúc ghi cân, API lấy `acuteLoss` của service |
+| Sửa lỗi có sẵn: `addApiRequirement` gửi `validityDays: null`, service (Zod strict, số hoặc bỏ trống) sẽ trả 400 | `addApiRequirement` |
+
+Test mới: `bout-rules.test.ts` (đạt cân ở đúng giới hạn, R17, chờ quyết định, giảm cấp tính theo ví dụ của T-006 tiêu chí 3: 66,0 → 60,8 = 7,9% trong ngưỡng; 60,0 = 9,1% vượt; không có số liệu; quy tắc hiệp), `bouts-contract.test.ts` (đọc cân, giảm cấp tính, kết quả; body), `bouts.api.test.ts` (6 ca: cân đạt một lần gọi, trượt rồi catchweight, huỷ khi service đã giữ lần trượt, service đếm trượt mà form không ngờ, lỗi tiếng Việt có ngày, lý do mở khoá ở POST và DELETE), `bouts.demo.test.ts` (R17, giảm cấp tính), `actions/bouts.test.ts` (catchweight phải trên giới hạn gốc).
+
+### Đối chiếu T-006 (phần màn HLV)
+
+| Tiêu chí T-006 | Màn HLV đáp ứng |
+| --- | --- |
+| 3. Giảm cấp tính 7,9% / 9,1% / không số liệu | `computeAcuteLoss` + test; thẻ "Buổi cân" |
+| 4–5. Đạt cân, đúng giới hạn, trượt 0,5 kg | `madeWeight`, `passesWeighIn` + test; trình duyệt (Kenji 56,0 với giới hạn 56) |
+| 6. Nước "Không đạt" khi cân đạt | `passesWeighIn`, form hỏi quyết định; trình duyệt (Linh 59,8 + nước không đạt) |
+| 7. Catchweight mặc định, dưới số cân, cân đã đạt | catchweight dưới số cân và không trên giới hạn bị chặn tại trường; trình duyệt (59,9 bị chặn, 60,5 qua) |
+| 8. Cân lại khi còn tuần thi đấu | không cân lại một lần trượt service đã giữ (cùng số cân); test adapter |
+| 9, 11. Cân hoặc ghi kết quả quá sớm | thông báo tiếng Việt có ngày (`BOUT_WEIGH_IN_TOO_EARLY`, `BOUT_NOT_STARTED`); demo đã chặn kết quả trước ngày thi |
+| 12–13. Ràng buộc kết quả | `validateOutcome` chặn trước khi gửi; ô Hiệp theo cách kết thúc; trình duyệt (KO không hiệp bị chặn) |
+| 15. Khoá hồ sơ, `unlockReason` | cookie lý do + gửi kèm; test adapter; trình duyệt demo (Kenji) |
+| 16. Lý do đổi hạng | `reason` gửi kèm khi sửa trận |
+
+### Kiểm tra trình duyệt (demo mode, 25/10, tiếng Việt, khung 800 px và 420 px)
+
+1. Linh (tuần thi đấu): cân 59,8 + nước "Không đạt" → form báo "Trượt kiểm tra nước…" và hỏi tiếp theo; catchweight 59,9 → lỗi tại trường "Catchweight phải cao hơn giới hạn gốc 60.0 kg."; 60,5 + ghi chú → "Đã cân", mức cân 60.5 kg, thẻ "Buổi cân" có kiểm tra nước, ghi chú catchweight, giảm cân cấp tính.
+2. Linh: "Ghi kết quả" → Thắng + Tính điểm: ô Hiệp ẩn; đổi KO, để trống → "Nhập hiệp mà trận đấu dừng lại."; hiệp 2 → "Đã thi đấu", "Thắng · KO, hiệp 2".
+3. Kenji: "Vào tuần thi đấu" → hồ sơ khoá; "Mở khoá" + lý do → có lại "Thêm mục", "Sửa"; cân 56 → "Đạt cân", "Giảm 11.4% từ 63.2 kg, vượt ngưỡng 8.0%" màu đỏ.
+4. Training: lên lịch buổi cho Minh, "Lặp lại hằng tuần" → "4 buổi: 26 thg 10, 2 thg 11, …", nút "Lên lịch 4 buổi" → toast "Đã lên lịch 4 buổi"; trang buổi tập và trang giáo án ("Nhân bản", panel "Thêm bài tập") tiếng Việt.
+5. Console trình duyệt không lỗi; 420 px không cuộn ngang (`scrollWidth` 405 ≤ 420). Log server có một lỗi `useToast must be used inside <ToastProvider>` xuất hiện đúng lúc Fast Refresh tải lại toàn trang khi sửa file từ điển; không lặp lại ở các lần mở trang sau và ở lần chạy lại server sạch (xem "Lệnh đã chạy").
+
+**Chưa kiểm tra ở API mode với backend thật** (không chạy backend nối Supabase trong phiên này). Adapter được kiểm bằng test với client giả, theo đúng schema của `bouts.model.ts`.
+
+### Lệnh đã chạy (25/10, tại `a182bd1`)
+
+`pnpm --filter nextjs-frontend lint`
+
+```text
+$ eslint
+```
+
+`APP_DATA_MODE=api pnpm --filter nextjs-frontend typecheck`
+
+```text
+$ next typegen && tsc --noEmit
+Generating route types...
+✓ Types generated successfully
+```
+
+`pnpm --filter nextjs-frontend test`
+
+```text
+ Test Files  100 passed | 1 skipped (101)
+      Tests  910 passed | 2 skipped (912)
+```
+
+So với lần chạy 22/10 (892 qua, 2 skip): thêm 18 test, không test lỗi, không skip mới. Chạy lại lần cuối trên server dev khởi động sạch: log không có lỗi khi mở chi tiết trận, danh sách trận và trang giáo án có toast.
+
+### Còn mở
+
+- Cookie lý do mở khoá hết hạn sau 1 giờ, sau đó hồ sơ khoá lại trên màn hình. Nếu muốn khác (đến hết ngày, hoặc hỏi lý do ở mỗi lần sửa), chủ dự án chọn.
+- `BOUT_ROUNDS_INCOMPLETE` (T-010): màn HLV chỉ báo "Mới ghi X/Y hiệp…", chưa có ô xác nhận `confirmIncompleteRounds`; ghi hiệp là phần của Fon (T-010 B).
+- `history[].by` từ service là id người dùng, nên lịch sử ở API mode hiện id thay vì tên.
+- Còn tiếng Anh: chữ gợi ý ghi chú theo loại buổi (`SESSION_PRESETS`), lý do trong lịch sử do store demo viết ("Catchweight 60.5 kg"), số thập phân dùng dấu chấm.
+- T-007 B, T-029 B chưa làm: chưa có ticket và backend T-007 chưa merge. Màn Đình chỉ và Cổng 2 vẫn chỉ chạy ở demo mode.
 
 ## Cập nhật 22/10: merge và dịch màn Trận
 
