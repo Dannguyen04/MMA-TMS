@@ -10,6 +10,10 @@ import type { AuthenticatedUser } from '../../shared/models/auth-context.model.j
 import { USER } from '../../shared/types/user.role.js';
 import { NOTIFICATION_PUBLISHER } from '../../shared/contracts/notification.contract.js';
 import { MedicalService } from '../../medical/medical.service.js';
+import type { SuspensionRow } from '../../database/schema.js';
+import { SuspensionGate } from '../../suspensions/suspension.gate.js';
+import { endsOnFor } from '../../suspensions/suspensions.model.js';
+import { SuspensionsRepository } from '../../suspensions/suspensions.repo.js';
 import type {
   TrainingPlanEntity,
   TrainingSessionEntity,
@@ -127,6 +131,12 @@ function medicalServiceMock() {
   };
 }
 
+function suspensionsRepositoryMock() {
+  return {
+    findSuspensionsByFighterId: vi.fn().mockResolvedValue([]),
+  };
+}
+
 function responseOf(error: unknown): Record<string, unknown> {
   return (error as HttpException).getResponse() as Record<string, unknown>;
 }
@@ -135,14 +145,20 @@ describe('TrainingSessionService', () => {
   let service: TrainingSessionService;
   let repo: Mocked<TrainingRepository>;
   let medical: Mocked<MedicalService>;
+  let suspensionsRepo: Mocked<SuspensionsRepository>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TrainingSessionService,
         TrainingAccessService,
+        SuspensionGate,
         { provide: TrainingRepository, useValue: repositoryMock() },
         { provide: MedicalService, useValue: medicalServiceMock() },
+        {
+          provide: SuspensionsRepository,
+          useValue: suspensionsRepositoryMock(),
+        },
         {
           provide: NOTIFICATION_PUBLISHER,
           useValue: {
@@ -156,6 +172,8 @@ describe('TrainingSessionService', () => {
     service = module.get(TrainingSessionService);
     repo = module.get<Mocked<TrainingRepository>>(TrainingRepository);
     medical = module.get<Mocked<MedicalService>>(MedicalService);
+    suspensionsRepo =
+      module.get<Mocked<SuspensionsRepository>>(SuspensionsRepository);
 
     repo.lockSessionById.mockImplementation(async (id) =>
       repo.findSessionById(id),
@@ -764,6 +782,386 @@ describe('TrainingSessionService', () => {
           sessionType: 'SPARRING',
         }),
       ).resolves.toEqual(updatedSession);
+    });
+  });
+
+  describe('Suspension gate (Gate 2)', () => {
+    const suspensionId = '90000000-0000-4000-8000-000000000001';
+
+    function makeKoSuspension(
+      over: Partial<SuspensionRow> = {},
+    ): SuspensionRow {
+      return {
+        id: suspensionId,
+        fighterId,
+        boutId: '80000000-0000-4000-8000-000000000001',
+        reason: 'KO',
+        startsOn: '2026-10-01',
+        endsOn: endsOnFor('2026-10-01', 45), // 2026-11-14
+        lossOfConsciousness: 'UNDER_1_MIN',
+        suggestedDays: 45,
+        overrideReason: null,
+        blockedSessionTypes: ['SPARRING'],
+        requiresClearance: true,
+        clearedAt: null,
+        clearedById: null,
+        clearanceNote: null,
+        createdById: coachUserId,
+        createdAt: new Date('2026-10-01T03:00:00.000Z'),
+        updatedAt: new Date('2026-10-01T03:00:00.000Z'),
+        deletedAt: null,
+        ...over,
+      };
+    }
+
+    it('rejects scheduling SPARRING on day 10 of a 45-day KO suspension with 409 TRAINING_SUSPENSION_ACTIVE, while PAD_WORK passes', async () => {
+      suspensionsRepo.findSuspensionsByFighterId.mockResolvedValue([
+        makeKoSuspension(),
+      ]);
+      const day10Iso = '2026-10-10T10:00:00.000Z';
+
+      await expect(
+        service.createSession(adminActor, {
+          fighterId,
+          title: 'Sparring session',
+          scheduledAt: day10Iso,
+          sessionType: 'SPARRING',
+          roundCount: 3,
+        }),
+      ).rejects.toSatisfy((error: unknown) => {
+        const resp = responseOf(error) as {
+          code?: string;
+          details?: { suspensions?: unknown[] };
+        };
+        return (
+          (error as HttpException).getStatus() === 409 &&
+          resp.code === 'TRAINING_SUSPENSION_ACTIVE' &&
+          JSON.stringify(resp.details?.suspensions) ===
+            JSON.stringify([
+              {
+                suspensionId,
+                reason: 'KO',
+                endsOn: '2026-11-14',
+                requiresClearance: true,
+              },
+            ])
+        );
+      });
+      expect(repo.createSession).not.toHaveBeenCalled();
+
+      const createdPadWork: TrainingSessionEntity = {
+        ...session,
+        scheduledAt: day10Iso,
+        sessionType: 'PAD_WORK',
+      };
+      repo.createSession.mockResolvedValueOnce(createdPadWork);
+
+      await expect(
+        service.createSession(adminActor, {
+          fighterId,
+          title: 'Pad work session',
+          scheduledAt: day10Iso,
+          sessionType: 'PAD_WORK',
+          roundCount: 3,
+        }),
+      ).resolves.toEqual(createdPadWork);
+      expect(repo.createSession).toHaveBeenCalledTimes(1);
+    });
+
+    it('continues blocking SPARRING past ends_on while not cleared, and allows scheduling SPARRING once cleared', async () => {
+      const pastEndsOnIso = '2026-11-20T10:00:00.000Z';
+      suspensionsRepo.findSuspensionsByFighterId.mockResolvedValueOnce([
+        makeKoSuspension({ clearedAt: null }),
+      ]);
+
+      await expect(
+        service.createSession(adminActor, {
+          fighterId,
+          title: 'Sparring after ends_on without clearance',
+          scheduledAt: pastEndsOnIso,
+          sessionType: 'SPARRING',
+          roundCount: 3,
+        }),
+      ).rejects.toSatisfy((error: unknown) => {
+        const resp = responseOf(error);
+        return (
+          (error as HttpException).getStatus() === 409 &&
+          resp.code === 'TRAINING_SUSPENSION_ACTIVE'
+        );
+      });
+      expect(repo.createSession).not.toHaveBeenCalled();
+
+      // After clearance is recorded, SPARRING can be scheduled
+      suspensionsRepo.findSuspensionsByFighterId.mockResolvedValueOnce([
+        makeKoSuspension({
+          clearedAt: new Date('2026-11-19T08:00:00.000Z'),
+          clearedById: doctorUserId,
+          clearanceNote: 'Cleared by doctor after CT',
+        }),
+      ]);
+      const createdSparring: TrainingSessionEntity = {
+        ...session,
+        scheduledAt: pastEndsOnIso,
+        sessionType: 'SPARRING',
+      };
+      repo.createSession.mockResolvedValueOnce(createdSparring);
+
+      await expect(
+        service.createSession(adminActor, {
+          fighterId,
+          title: 'Sparring after clearance',
+          scheduledAt: pastEndsOnIso,
+          sessionType: 'SPARRING',
+          roundCount: 3,
+        }),
+      ).resolves.toEqual(createdSparring);
+      expect(repo.createSession).toHaveBeenCalledTimes(1);
+    });
+
+    it('allows scheduling SPARRING before an UPCOMING suspension startsOn and blocks from startsOn onward, and stops blocking after early clearance', async () => {
+      const upcoming = makeKoSuspension({
+        startsOn: '2026-10-05',
+        endsOn: '2026-10-18',
+      });
+      suspensionsRepo.findSuspensionsByFighterId.mockResolvedValue([upcoming]);
+
+      const beforeStartIso = '2026-10-04T10:00:00.000Z';
+      const createdBefore: TrainingSessionEntity = {
+        ...session,
+        scheduledAt: beforeStartIso,
+        sessionType: 'SPARRING',
+      };
+      repo.createSession.mockResolvedValueOnce(createdBefore);
+      await expect(
+        service.createSession(adminActor, {
+          fighterId,
+          title: 'Sparring before suspension starts',
+          scheduledAt: beforeStartIso,
+          sessionType: 'SPARRING',
+          roundCount: 3,
+        }),
+      ).resolves.toEqual(createdBefore);
+
+      const onStartIso = '2026-10-05T10:00:00.000Z';
+      await expect(
+        service.createSession(adminActor, {
+          fighterId,
+          title: 'Sparring on startsOn',
+          scheduledAt: onStartIso,
+          sessionType: 'SPARRING',
+          roundCount: 3,
+        }),
+      ).rejects.toSatisfy(
+        (error: unknown) =>
+          (error as HttpException).getStatus() === 409 &&
+          responseOf(error).code === 'TRAINING_SUSPENSION_ACTIVE',
+      );
+
+      // Early clearance before ends_on lifts Gate 2 immediately
+      suspensionsRepo.findSuspensionsByFighterId.mockResolvedValueOnce([
+        makeKoSuspension({
+          startsOn: '2026-10-05',
+          endsOn: '2026-10-18',
+          clearedAt: new Date('2026-10-06T08:00:00.000Z'),
+          clearedById: coachUserId,
+          clearanceNote: 'Cleared early',
+        }),
+      ]);
+      const createdAfterEarlyClear: TrainingSessionEntity = {
+        ...session,
+        scheduledAt: '2026-10-07T10:00:00.000Z',
+        sessionType: 'SPARRING',
+      };
+      repo.createSession.mockResolvedValueOnce(createdAfterEarlyClear);
+      await expect(
+        service.createSession(adminActor, {
+          fighterId,
+          title: 'Sparring after early clear',
+          scheduledAt: '2026-10-07T10:00:00.000Z',
+          sessionType: 'SPARRING',
+          roundCount: 3,
+        }),
+      ).resolves.toEqual(createdAfterEarlyClear);
+    });
+
+    it('blocks starting (IN_PROGRESS) a SPARRING session during an active suspension with 409 TRAINING_SUSPENSION_ACTIVE', async () => {
+      const sparringSession: TrainingSessionEntity = {
+        ...session,
+        scheduledAt: '2026-10-10T10:00:00.000Z',
+        sessionType: 'SPARRING',
+        status: 'SCHEDULED',
+      };
+      repo.findSessionById.mockResolvedValue(sparringSession);
+      repo.findActiveFighterIdByUserId.mockResolvedValue(fighterId);
+      suspensionsRepo.findSuspensionsByFighterId.mockResolvedValue([
+        makeKoSuspension(),
+      ]);
+
+      await expect(
+        service.updateSessionStatus(fighterActor, sessionId, 'IN_PROGRESS'),
+      ).rejects.toSatisfy((error: unknown) => {
+        const resp = responseOf(error) as {
+          code?: string;
+          details?: { suspensions?: unknown[] };
+        };
+        return (
+          (error as HttpException).getStatus() === 409 &&
+          resp.code === 'TRAINING_SUSPENSION_ACTIVE' &&
+          Array.isArray(resp.details?.suspensions) &&
+          resp.details.suspensions.length === 1
+        );
+      });
+      expect(repo.updateSessionStatus).not.toHaveBeenCalled();
+      expect(suspensionsRepo.findSuspensionsByFighterId).toHaveBeenCalledWith(
+        fighterId,
+        expect.anything(),
+      );
+    });
+
+    it('returns 409 TRAINING_MEDICAL_ELIGIBILITY_REQUIRED with both details.reasons and details.suspensions when blocked by both gates', async () => {
+      const sparringSession: TrainingSessionEntity = {
+        ...session,
+        scheduledAt: '2026-10-10T10:00:00.000Z',
+        sessionType: 'SPARRING',
+        status: 'SCHEDULED',
+      };
+      repo.findSessionById.mockResolvedValue(sparringSession);
+      repo.findActiveFighterIdByUserId.mockResolvedValue(fighterId);
+      medical.evaluateTrainingEligibility.mockResolvedValueOnce({
+        eligible: false,
+        reasons: ['EXAMINATION_REQUIRED', 'REVIEW_REQUEST_PENDING'],
+      });
+      suspensionsRepo.findSuspensionsByFighterId.mockResolvedValue([
+        makeKoSuspension(),
+      ]);
+
+      await expect(
+        service.updateSessionStatus(fighterActor, sessionId, 'IN_PROGRESS'),
+      ).rejects.toSatisfy((error: unknown) => {
+        const resp = responseOf(error) as {
+          code?: string;
+          details?: {
+            reasons?: string[];
+            suspensions?: Array<{
+              suspensionId: string;
+              reason: string;
+              endsOn: string;
+              requiresClearance: boolean;
+            }>;
+          };
+        };
+        return (
+          (error as HttpException).getStatus() === 409 &&
+          resp.code === 'TRAINING_MEDICAL_ELIGIBILITY_REQUIRED' &&
+          JSON.stringify(resp.details?.reasons) ===
+            JSON.stringify(['EXAMINATION_REQUIRED', 'REVIEW_REQUEST_PENDING']) &&
+          JSON.stringify(resp.details?.suspensions) ===
+            JSON.stringify([
+              {
+                suspensionId,
+                reason: 'KO',
+                endsOn: '2026-11-14',
+                requiresClearance: true,
+              },
+            ])
+        );
+      });
+      expect(repo.updateSessionStatus).not.toHaveBeenCalled();
+    });
+
+    it('allows cancelling, skipping, completing, or abandoning a session of a suspended fighter', async () => {
+      const scheduledSparring: TrainingSessionEntity = {
+        ...session,
+        scheduledAt: '2026-10-10T10:00:00.000Z',
+        sessionType: 'SPARRING',
+        status: 'SCHEDULED',
+      };
+      const cancelledSparring: TrainingSessionEntity = {
+        ...scheduledSparring,
+        status: 'CANCELLED',
+        cancellationReason: 'Suspended after KO',
+      };
+      repo.findSessionById.mockResolvedValue(scheduledSparring);
+      repo.findActiveFighterIdByUserId.mockResolvedValue(fighterId);
+      repo.updateSessionStatus.mockResolvedValue(cancelledSparring);
+      suspensionsRepo.findSuspensionsByFighterId.mockResolvedValue([
+        makeKoSuspension(),
+      ]);
+
+      await expect(
+        service.updateSessionStatus(
+          fighterActor,
+          sessionId,
+          'CANCELLED',
+          'Suspended after KO',
+        ),
+      ).resolves.toEqual(cancelledSparring);
+      expect(
+        suspensionsRepo.findSuspensionsByFighterId,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('rejects updateSession when changing sessionType or scheduledAt into an active suspension with 409 TRAINING_SUSPENSION_ACTIVE', async () => {
+      suspensionsRepo.findSuspensionsByFighterId.mockResolvedValue([
+        makeKoSuspension(),
+      ]);
+
+      // 1. Changing sessionType from PAD_WORK to SPARRING on a date inside the suspension
+      const padWorkDuringSuspension: TrainingSessionEntity = {
+        ...session,
+        scheduledAt: '2026-10-10T10:00:00.000Z',
+        sessionType: 'PAD_WORK',
+      };
+      repo.findSessionById.mockResolvedValue(padWorkDuringSuspension);
+
+      await expect(
+        service.updateSession(adminActor, sessionId, {
+          sessionType: 'SPARRING',
+        }),
+      ).rejects.toSatisfy(
+        (error: unknown) =>
+          (error as HttpException).getStatus() === 409 &&
+          responseOf(error).code === 'TRAINING_SUSPENSION_ACTIVE',
+      );
+      expect(repo.updateSession).not.toHaveBeenCalled();
+
+      // 2. Changing scheduledAt of a SPARRING session into the suspension window
+      const sparringBeforeSuspension: TrainingSessionEntity = {
+        ...session,
+        scheduledAt: '2026-09-25T10:00:00.000Z',
+        sessionType: 'SPARRING',
+      };
+      repo.findSessionById.mockResolvedValue(sparringBeforeSuspension);
+
+      await expect(
+        service.updateSession(adminActor, sessionId, {
+          scheduledAt: '2026-10-10T10:00:00.000Z',
+        }),
+      ).rejects.toSatisfy(
+        (error: unknown) =>
+          (error as HttpException).getStatus() === 409 &&
+          responseOf(error).code === 'TRAINING_SUSPENSION_ACTIVE',
+      );
+      expect(repo.updateSession).not.toHaveBeenCalled();
+
+      // 3. Updating non-schedule/non-type fields (e.g. title) on a session during suspension is allowed
+      const updatedTitle: TrainingSessionEntity = {
+        ...padWorkDuringSuspension,
+        sessionType: 'SPARRING',
+        title: 'Updated title only',
+      };
+      repo.findSessionById.mockResolvedValue({
+        ...padWorkDuringSuspension,
+        sessionType: 'SPARRING',
+      });
+      repo.updateSession.mockResolvedValueOnce(updatedTitle);
+
+      await expect(
+        service.updateSession(adminActor, sessionId, {
+          title: 'Updated title only',
+        }),
+      ).resolves.toEqual(updatedTitle);
+      expect(repo.updateSession).toHaveBeenCalledTimes(1);
     });
   });
 });

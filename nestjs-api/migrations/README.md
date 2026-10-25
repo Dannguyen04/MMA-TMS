@@ -16,6 +16,23 @@ pnpm db:check
 pnpm db:migrate:027
 ```
 
+## Áp dụng migration 025 (Đình chỉ tập/thi đấu và loại thông báo - suspensions)
+
+025 chỉ yêu cầu ledger 024, chưa có 025; không yêu cầu 026 hay 027.
+Nội dung:
+- Enum `public.suspension_reason` (`KO`, `TKO`, `DQ`, `MANDATORY_REST`, `MEDICAL`, `OTHER`).
+- Bảng `public.suspensions`: lưu đợt đình chỉ tự động sau trận hoặc tạo tay (`fighter_id`, `bout_id` nullable, `reason`, `starts_on`, `ends_on`, `loss_of_consciousness`, `suggested_days`, `override_reason`, `blocked_session_types`, `requires_clearance`, `cleared_at`, `cleared_by_id`, `clearance_note`, `created_by_id`, `created_at`, `updated_at`, `deleted_at`). Ràng buộc `ck_suspensions_loss_of_consciousness`, `ck_suspensions_dates` (`ends_on >= starts_on`), `ck_suspensions_cleared` (`(cleared_at IS NULL) = (cleared_by_id IS NULL)`); index `idx_suspensions_fighter_active (fighter_id, ends_on) WHERE deleted_at IS NULL`.
+- Triggers: `public.update_updated_at()` và `mma_private.audit_domain_mutation()`.
+- RLS bật, `REVOKE ALL` từ `PUBLIC, anon, authenticated`.
+- Quyền: `suspension:read` (FIGHTER, COACH, DOCTOR, ADMIN); `suspension:create` (COACH, DOCTOR, ADMIN); `suspension:clear` (chỉ COACH, DOCTOR; ADMIN không có quyền này).
+- Thêm 7 giá trị vào `public.notification_type` (`BOUT_CREATED`, `BOUT_WEIGHT_AT_RISK`, `BOUT_REQUIREMENT_REJECTED`, `BOUT_REQUIREMENT_DUE`, `BOUT_WEIGHT_MISSING`, `SUSPENSION_CREATED`, `SUSPENSION_AWAITING_CLEARANCE`), chỉ thêm chứ không dùng làm literal trong cùng transaction.
+- Ledger version 25, advisory lock `(20260916, 25)`, checksum trong `manifest.json`.
+
+```sh
+pnpm db:check
+pnpm db:migrate:025
+```
+
 ## Áp dụng migration 024 (Bộ luật giải, trận, checklist hồ sơ - bouts)
 
 024 yêu cầu ledger đã có version 23 (023 academy_settings), chưa có 24, và ghi ledger version 24. Preflight cũng kiểm tra `training_plans.phase` (018), các hàm trigger của 003 và quyền `fighter.measurement:write` của 004.

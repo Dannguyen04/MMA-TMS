@@ -76,6 +76,8 @@ Huỷ, dừng, bỏ buổi tập không bị chặn (nhánh `newStatus !== 'IN_P
 
 - `SuspensionGate.blockingSuspensions(fighterId, sessionType, at)` trả các đình chỉ còn hiệu lực vào ngày học viện của `at` mà chặn `sessionType`. Đình chỉ chờ xác nhận vẫn chặn.
 - Lỗi: 409 `TRAINING_SUSPENSION_ACTIVE` đặt trong `training.error.ts` theo khuôn `trainingMedicalEligibilityRequired`, kèm `{ suspensionId, reason, endsOn, requiresClearance }`. Hai cổng chạy độc lập, medical gate trước, response **gộp lý do của cả hai**.
+- **Quyết định đã chốt 25/10 (thay phần ticket ghi cổng nằm ở `BoutsModule`):** tạo `SuspensionsModule` riêng (`src/suspensions/`), chỉ phụ thuộc `DatabaseModule`, export `SuspensionGate` và `SuspensionsRepository`. `TrainingModule` và `BoutsModule` đều import nó; không module nào import ngược `TrainingModule` hay `BoutsModule`. R28 nằm ở `TrainingModule` (cần buổi tập), R32 và R27 ở `BoutsModule`. Ghi vào "Lệch so với ticket" của handover.
+- **Lỗi khi cả hai cổng chặn (chốt 25/10):** chỉ medical chặn: giữ nguyên `TRAINING_MEDICAL_ELIGIBILITY_REQUIRED`; chỉ đình chỉ chặn: `TRAINING_SUSPENSION_ACTIVE` kèm `details.suspensions`; cả hai chặn: giữ mã `TRAINING_MEDICAL_ELIGIBILITY_REQUIRED` và thêm `details.suspensions` để client cũ không vỡ.
 - Cấu trúc module (ràng buộc có sẵn): `BoutsModule` có chú thích rõ rằng T-007 sẽ làm training import bouts (`src/bouts/bouts.module.ts`). Thêm provider cổng vào `BoutsModule` và export; thêm `BoutsModule` vào `imports` của `TrainingModule` (hiện `DatabaseModule, MedicalModule, NotificationsModule`); **không** cho `BoutsModule` import ngược `TrainingModule`. Module `suspensions` (mục 2) nằm ở đâu, import ai, Ken chốt khi lập plan sao cho không có vòng phụ thuộc.
 
 ### 4. Xử lý lịch xung đột (R28)
@@ -128,7 +130,7 @@ Ken **không code** phần phụ thuộc cho tới khi có câu trả lời. Ken
 
 | # | Câu hỏi | Gợi ý |
 | --- | --- | --- |
-| Q1 | ~~Ngày bắt đầu và kết thúc của đình chỉ tạo từ kết quả trận~~ | **Đã chốt 24/10:** đề xuất ở dưới được chấp nhận phần `days`; `startsOn` do người tạo chọn. Đình chỉ tự tạo từ kết quả (mục 7) dùng `starts_on` = ngày học viện ghi kết quả, `ends_on = starts_on + days − 1` (đề xuất của Claude, chưa được hỏi riêng; nếu chủ dự án muốn khác thì sửa ở mục 7) |
+| Q1 | ~~Ngày bắt đầu và kết thúc của đình chỉ tạo từ kết quả trận~~ | **Đã chốt 24/10:** đề xuất ở dưới được chấp nhận phần `days`; `startsOn` do người tạo chọn. Đình chỉ tự tạo từ kết quả (mục 7) dùng `starts_on` = ngày học viện ghi kết quả, `ends_on = starts_on + days − 1` (chủ dự án đã xác nhận 25/10) |
 | Q2 | ~~Đình chỉ thủ công nhận `days` hay `endsOn`~~ | **Đã chốt 24/10:** nhận `days` (≥ 1) và `startsOn` tùy chọn (mặc định hôm nay), **không được ở quá khứ**; có thể là ngày tương lai. Response trả `endsOn = startsOn + days − 1` |
 | Q5 | ~~Kết thúc đình chỉ sớm khi võ sĩ đã ổn~~ | **Đã chốt 24/10:** HLV hoặc bác sĩ (quyền `suspension:clear`, ADMIN không), mọi lý do kể cả `KO`/`TKO`/`MEDICAL`, bắt buộc `clearanceNote`. Làm theo mục 2 "Kết thúc sớm". Đây là thay đổi so với F7 ("chỉ sau ngày kết thúc"): Claude cập nhật Luồng nghiệp vụ F7 và Tech spec §2.5 khi review |
 | Q3 | Mã lỗi mới ngoài hai mã đã có trong Tech spec §4 (`TRAINING_SUSPENSION_ACTIVE`, `SUSPENSION_OVERRIDE_REASON_REQUIRED`) | **Đã duyệt 24/10:** `SUSPENSION_NOT_FOUND` (404), `SUSPENSION_ALREADY_CLEARED` (409), `SUSPENSION_DAYS_REQUIRED` (422, khi bộ luật không có quy tắc). Hai mã `SUSPENSION_CLEARANCE_NOT_REQUIRED` và `SUSPENSION_CLEARANCE_TOO_EARLY` **bỏ** vì Q5 cho kết thúc sớm mọi đình chỉ |

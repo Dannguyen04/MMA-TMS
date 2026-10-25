@@ -6,6 +6,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
+import type { BlockingSuspension } from '../suspensions/suspensions.model.js';
 
 export function planNotFound(): NotFoundException {
   return new NotFoundException({
@@ -140,10 +141,12 @@ export function invalidPlanDateRange(): BadRequestException {
 /**
  * The session cannot start or continue until the Fighter's medical
  * obligation is met. `details.reasons` carries only the fixed eligibility
- * reason codes, never clinical content.
+ * reason codes, never clinical content. When active suspensions also block
+ * the session, `details.suspensions` is included alongside `details.reasons`.
  */
 export function trainingMedicalEligibilityRequired(
   reasons: readonly string[],
+  suspensions?: readonly BlockingSuspension[],
 ): ConflictException {
   return new ConflictException({
     statusCode: HttpStatus.CONFLICT,
@@ -151,7 +154,23 @@ export function trainingMedicalEligibilityRequired(
     code: 'TRAINING_MEDICAL_ELIGIBILITY_REQUIRED',
     message:
       'A baseline medical examination and a valid medical clearance are required before this training session can start.',
-    details: { reasons },
+    details:
+      suspensions && suspensions.length > 0
+        ? { reasons, suspensions }
+        : { reasons },
+  });
+}
+
+export function trainingSuspensionActive(
+  suspensions: readonly BlockingSuspension[],
+): ConflictException {
+  return new ConflictException({
+    statusCode: HttpStatus.CONFLICT,
+    error: 'Conflict',
+    code: 'TRAINING_SUSPENSION_ACTIVE',
+    message:
+      'The fighter has an active suspension that blocks this training session type.',
+    details: { suspensions },
   });
 }
 
