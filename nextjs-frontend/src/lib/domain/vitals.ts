@@ -55,7 +55,7 @@ const within = (value: number, range: Range) => value >= range.min && value <= r
 const { restingHeartRate, bloodPressureSystolic, bloodPressureDiastolic, temperatureC, spo2Pct } = VITAL_REFERENCE_RANGES;
 
 const ASSESSORS: { [K in VitalKey]: (value: VitalValues[K], ctx: VitalContext) => VitalAssessment | null } = {
-    weightKg: (weight, { weightLimitKg }) => {
+    weightKg: (weight, { weightLimitKg }): VitalAssessment | null => {
         if (!weightLimitKg || weightLimitKg <= 0) return null;
         const limit = formatNumber(weightLimitKg, 1);
         const abovePct = ((weight - weightLimitKg) / weightLimitKg) * 100;
