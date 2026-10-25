@@ -1,20 +1,24 @@
 import { treatmentTitle } from "@/lib/domain/labels";
 import type { Treatment } from "@/lib/domain/types";
 import { formatDate } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
+import { createTranslator } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 import { TreatmentStatusBadge, TreatmentTypeIcon } from "./clinical-badges";
 import { TreatmentStatusMenu } from "./treatment-status-menu";
-import { NOT_RECORDED } from "@/components/domain/domain-format";
 
 export interface TreatmentListProps {
     treatments: Treatment[];
     /** Shows the status change menu on each treatment. */
     editable?: boolean;
     className?: string;
+    locale?: Locale;
 }
 
 /** Treatments in order: type icon, what and who, frequency, dates and status. */
-export function TreatmentList({ treatments, editable = false, className }: TreatmentListProps) {
+export function TreatmentList({ treatments, editable = false, className, locale = "en" }: TreatmentListProps) {
+    const t = createTranslator(locale);
+    const notRecorded = t("health.notRecorded");
     return (
         <ul className={cn("flex flex-col divide-y divide-border", className)}>
             {treatments.map((treatment) => (
@@ -30,16 +34,16 @@ export function TreatmentList({ treatments, editable = false, className }: Treat
                             // A treatment from the medical service: a dated entry with an optional review, no provider or schedule.
                             <dl className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-fg-muted">
                                 <div className="flex gap-1">
-                                    <dt>Given</dt>
+                                    <dt>{locale === "vi" ? "Thời gian" : "Given"}</dt>
                                     <dd>
-                                        <time dateTime={treatment.startDate}>{formatDate(treatment.startDate)}</time>
+                                        <time dateTime={treatment.startDate}>{formatDate(treatment.startDate, locale)}</time>
                                     </dd>
                                 </div>
                                 {treatment.nextReviewAt && (
                                     <div className="flex gap-1">
-                                        <dt>Review</dt>
+                                        <dt>{locale === "vi" ? "Tái khám" : "Review"}</dt>
                                         <dd>
-                                            <time dateTime={treatment.nextReviewAt}>{formatDate(treatment.nextReviewAt)}</time>
+                                            <time dateTime={treatment.nextReviewAt}>{formatDate(treatment.nextReviewAt, locale)}</time>
                                         </dd>
                                     </div>
                                 )}
@@ -48,18 +52,18 @@ export function TreatmentList({ treatments, editable = false, className }: Treat
                             <dl className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-fg-muted">
                                 <div className="flex gap-1">
                                     <dt className="sr-only">Provider</dt>
-                                    <dd>{treatment.providerName ?? NOT_RECORDED}</dd>
+                                    <dd>{treatment.providerName ?? notRecorded}</dd>
                                 </div>
                                 <div className="flex gap-1">
                                     <dt className="sr-only">Frequency</dt>
-                                    <dd>{treatment.frequency ?? NOT_RECORDED}</dd>
+                                    <dd>{treatment.frequency ?? notRecorded}</dd>
                                 </div>
                                 <div className="flex gap-1">
                                     <dt className="sr-only">Dates</dt>
                                     <dd>
-                                        <time dateTime={treatment.startDate}>{formatDate(treatment.startDate)}</time>
+                                        <time dateTime={treatment.startDate}>{formatDate(treatment.startDate, locale)}</time>
                                         {" – "}
-                                        {treatment.endDate ? <time dateTime={treatment.endDate}>{formatDate(treatment.endDate)}</time> : "open-ended"}
+                                        {treatment.endDate ? <time dateTime={treatment.endDate}>{formatDate(treatment.endDate, locale)}</time> : (locale === "vi" ? "chưa xác định" : "open-ended")}
                                     </dd>
                                 </div>
                             </dl>
