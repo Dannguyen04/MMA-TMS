@@ -25,7 +25,7 @@ import type { Injury } from "@/lib/domain/types";
 import { daysBetween, formatDate } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
 import { getTranslator } from "@/lib/i18n/server";
-import { createTranslator, plural, type Translator } from "@/lib/i18n/translate";
+import { plural, type Translator } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import { getInjuryDetail, type InjuryDetail } from "@/lib/services/medical";
 import { medicalFeatureAvailable } from "@/lib/services/medical-features";
