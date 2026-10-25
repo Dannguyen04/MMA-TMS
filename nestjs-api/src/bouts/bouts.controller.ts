@@ -37,10 +37,19 @@ import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import { appZodValidationPipe } from '../shared/pipes/zod-validation.pipe.js';
 import { BOUT_PERMISSIONS, BOUT_RESPONSE_MESSAGES } from './bouts.constants.js';
 import {
-  OpponentAnalysisDto, OpponentReviewDto, RoundInputDto, RoundParamsDto,
-  PriorContextQueryDto, CornerCardResponseDto, RoundsResponseDto, RoundResponseDto,
-  PriorContextResponseDto, AnalysisMutationResponseDto,
+  OpponentAnalysisDto,
+  OpponentReviewDto,
+  RoundInputDto,
+  RoundParamsDto,
+  PriorContextQueryDto,
+  CornerCardResponseDto,
+  RoundsResponseDto,
+  RoundResponseDto,
+  PriorContextResponseDto,
+  AnalysisMutationResponseDto,
   BoutDetailResponseDto,
+  BoutReportResponseDto,
+  ResultPrefillResponseDto,
   BoutIdParamsDto,
   BoutListResponseDto,
   CancelBoutDto,
@@ -145,17 +154,23 @@ export class BoutsController {
     );
   }
 
-
   @Get('bouts/prior-context')
   @RequirePermissions({ allOf: [BOUT_PERMISSIONS.GET_ALL] })
   @ApiOperation({ summary: 'Get prior bout context' })
   @ResponseMessage('Get prior bout context successfully')
-  @ApiSuccessEnvelope({ status: HttpStatus.OK, message: 'Get prior bout context successfully', model: PriorContextResponseDto })
+  @ApiSuccessEnvelope({
+    status: HttpStatus.OK,
+    message: 'Get prior bout context successfully',
+    model: PriorContextResponseDto,
+  })
   @ApiValidationErrorEnvelope()
   @ApiUnauthorizedEnvelope()
   @ApiForbiddenEnvelope('Requires bout permission and access to the fighter')
   @ApiNotFoundEnvelope('BOUT_NOT_FOUND', 'Bout not found')
-  @ApiConflictEnvelope('BOUT_INVALID_TRANSITION', 'The bout status forbids this operation')
+  @ApiConflictEnvelope(
+    'BOUT_INVALID_TRANSITION',
+    'The bout status forbids this operation',
+  )
   async getPriorContext(
     @CurrentUser() actor: AuthenticatedUser | undefined,
     @Query() query: PriorContextQueryDto,
@@ -167,63 +182,110 @@ export class BoutsController {
   @RequirePermissions({ allOf: [BOUT_PERMISSIONS.UPDATE] })
   @ApiOperation({ summary: 'Save opponent analysis' })
   @ResponseMessage('Save opponent analysis successfully')
-  @ApiSuccessEnvelope({ status: HttpStatus.OK, message: 'Save opponent analysis successfully', model: AnalysisMutationResponseDto })
+  @ApiSuccessEnvelope({
+    status: HttpStatus.OK,
+    message: 'Save opponent analysis successfully',
+    model: AnalysisMutationResponseDto,
+  })
   @ApiValidationErrorEnvelope()
   @ApiUnauthorizedEnvelope()
   @ApiForbiddenEnvelope('Requires bout permission and access to the fighter')
   @ApiNotFoundEnvelope('BOUT_NOT_FOUND', 'Bout not found')
-  @ApiConflictEnvelope('BOUT_INVALID_TRANSITION', 'The bout status forbids this operation')
+  @ApiConflictEnvelope(
+    'BOUT_INVALID_TRANSITION',
+    'The bout status forbids this operation',
+  )
   async putOpponentAnalysis(
     @CurrentUser() actor: AuthenticatedUser | undefined,
-    @Param() params: BoutIdParamsDto, @Body() body: OpponentAnalysisDto,
+    @Param() params: BoutIdParamsDto,
+    @Body() body: OpponentAnalysisDto,
   ) {
-    return this.boutsService.putOpponentAnalysis(this.requireActor(actor), params.id, body, randomUUID());
+    return this.boutsService.putOpponentAnalysis(
+      this.requireActor(actor),
+      params.id,
+      body,
+      randomUUID(),
+    );
   }
 
   @Put('bouts/:id/opponent-analysis/review')
   @RequirePermissions({ allOf: [BOUT_PERMISSIONS.RESULT] })
   @ApiOperation({ summary: 'Review opponent tactics' })
   @ResponseMessage('Review opponent tactics successfully')
-  @ApiSuccessEnvelope({ status: HttpStatus.OK, message: 'Review opponent tactics successfully', model: AnalysisMutationResponseDto })
+  @ApiSuccessEnvelope({
+    status: HttpStatus.OK,
+    message: 'Review opponent tactics successfully',
+    model: AnalysisMutationResponseDto,
+  })
   @ApiValidationErrorEnvelope()
   @ApiUnauthorizedEnvelope()
   @ApiForbiddenEnvelope('Requires bout permission and access to the fighter')
   @ApiNotFoundEnvelope('BOUT_NOT_FOUND', 'Bout not found')
-  @ApiConflictEnvelope('BOUT_INVALID_TRANSITION', 'The bout status forbids this operation')
+  @ApiConflictEnvelope(
+    'BOUT_INVALID_TRANSITION',
+    'The bout status forbids this operation',
+  )
   async putOpponentReview(
     @CurrentUser() actor: AuthenticatedUser | undefined,
-    @Param() params: BoutIdParamsDto, @Body() body: OpponentReviewDto,
+    @Param() params: BoutIdParamsDto,
+    @Body() body: OpponentReviewDto,
   ) {
-    return this.boutsService.putOpponentReview(this.requireActor(actor), params.id, body, randomUUID());
+    return this.boutsService.putOpponentReview(
+      this.requireActor(actor),
+      params.id,
+      body,
+      randomUUID(),
+    );
   }
 
   @Put('bouts/:id/rounds/:roundNo')
   @RequirePermissions({ allOf: [BOUT_PERMISSIONS.UPDATE] })
   @ApiOperation({ summary: 'Save a bout round' })
   @ResponseMessage('Save a bout round successfully')
-  @ApiSuccessEnvelope({ status: HttpStatus.OK, message: 'Save a bout round successfully', model: RoundResponseDto })
+  @ApiSuccessEnvelope({
+    status: HttpStatus.OK,
+    message: 'Save a bout round successfully',
+    model: RoundResponseDto,
+  })
   @ApiValidationErrorEnvelope()
   @ApiUnauthorizedEnvelope()
   @ApiForbiddenEnvelope('Requires bout permission and access to the fighter')
   @ApiNotFoundEnvelope('BOUT_NOT_FOUND', 'Bout not found')
-  @ApiConflictEnvelope('BOUT_INVALID_TRANSITION', 'The bout status forbids this operation')
+  @ApiConflictEnvelope(
+    'BOUT_INVALID_TRANSITION',
+    'The bout status forbids this operation',
+  )
   async putRound(
     @CurrentUser() actor: AuthenticatedUser | undefined,
-    @Param() params: RoundParamsDto, @Body() body: RoundInputDto,
+    @Param() params: RoundParamsDto,
+    @Body() body: RoundInputDto,
   ) {
-    return this.boutsService.putRound(this.requireActor(actor), params.id, params.roundNo, body, randomUUID());
+    return this.boutsService.putRound(
+      this.requireActor(actor),
+      params.id,
+      params.roundNo,
+      body,
+      randomUUID(),
+    );
   }
 
   @Get('bouts/:id/rounds')
   @RequirePermissions({ allOf: [BOUT_PERMISSIONS.READ] })
   @ApiOperation({ summary: 'Get round records and advice' })
   @ResponseMessage('Get round records and advice successfully')
-  @ApiSuccessEnvelope({ status: HttpStatus.OK, message: 'Get round records and advice successfully', model: RoundsResponseDto })
+  @ApiSuccessEnvelope({
+    status: HttpStatus.OK,
+    message: 'Get round records and advice successfully',
+    model: RoundsResponseDto,
+  })
   @ApiValidationErrorEnvelope()
   @ApiUnauthorizedEnvelope()
   @ApiForbiddenEnvelope('Requires bout permission and access to the fighter')
   @ApiNotFoundEnvelope('BOUT_NOT_FOUND', 'Bout not found')
-  @ApiConflictEnvelope('BOUT_INVALID_TRANSITION', 'The bout status forbids this operation')
+  @ApiConflictEnvelope(
+    'BOUT_INVALID_TRANSITION',
+    'The bout status forbids this operation',
+  )
   async getRounds(
     @CurrentUser() actor: AuthenticatedUser | undefined,
     @Param() params: BoutIdParamsDto,
@@ -235,17 +297,75 @@ export class BoutsController {
   @RequirePermissions({ allOf: [BOUT_PERMISSIONS.READ] })
   @ApiOperation({ summary: 'Get corner card' })
   @ResponseMessage('Get corner card successfully')
-  @ApiSuccessEnvelope({ status: HttpStatus.OK, message: 'Get corner card successfully', model: CornerCardResponseDto })
+  @ApiSuccessEnvelope({
+    status: HttpStatus.OK,
+    message: 'Get corner card successfully',
+    model: CornerCardResponseDto,
+  })
   @ApiValidationErrorEnvelope()
   @ApiUnauthorizedEnvelope()
   @ApiForbiddenEnvelope('Requires bout permission and access to the fighter')
   @ApiNotFoundEnvelope('BOUT_NOT_FOUND', 'Bout not found')
-  @ApiConflictEnvelope('BOUT_INVALID_TRANSITION', 'The bout status forbids this operation')
+  @ApiConflictEnvelope(
+    'BOUT_INVALID_TRANSITION',
+    'The bout status forbids this operation',
+  )
   async getCornerCard(
     @CurrentUser() actor: AuthenticatedUser | undefined,
     @Param() params: BoutIdParamsDto,
   ) {
     return this.boutsService.getCornerCard(this.requireActor(actor), params.id);
+  }
+
+  @Get('bouts/:id/report')
+  @RequirePermissions({ allOf: [BOUT_PERMISSIONS.READ] })
+  @ApiOperation({ summary: 'Get bout report' })
+  @ResponseMessage('Get bout report successfully')
+  @ApiSuccessEnvelope({
+    status: HttpStatus.OK,
+    message: 'Get bout report successfully',
+    model: BoutReportResponseDto,
+  })
+  @ApiValidationErrorEnvelope()
+  @ApiUnauthorizedEnvelope()
+  @ApiForbiddenEnvelope('Requires bout permission and access to the fighter')
+  @ApiNotFoundEnvelope('BOUT_NOT_FOUND', 'Bout not found')
+  @ApiConflictEnvelope(
+    'BOUT_INVALID_TRANSITION',
+    'The bout status forbids this operation',
+  )
+  async getReport(
+    @CurrentUser() actor: AuthenticatedUser | undefined,
+    @Param() params: BoutIdParamsDto,
+  ) {
+    return this.boutsService.getReport(this.requireActor(actor), params.id);
+  }
+
+  @Get('bouts/:id/result-prefill')
+  @RequirePermissions({ allOf: [BOUT_PERMISSIONS.RESULT] })
+  @ApiOperation({ summary: 'Get result prefill' })
+  @ResponseMessage('Get result prefill successfully')
+  @ApiSuccessEnvelope({
+    status: HttpStatus.OK,
+    message: 'Get result prefill successfully',
+    model: ResultPrefillResponseDto,
+  })
+  @ApiValidationErrorEnvelope()
+  @ApiUnauthorizedEnvelope()
+  @ApiForbiddenEnvelope('Requires bout permission and access to the fighter')
+  @ApiNotFoundEnvelope('BOUT_NOT_FOUND', 'Bout not found')
+  @ApiConflictEnvelope(
+    'BOUT_INVALID_TRANSITION',
+    'The bout status forbids this operation',
+  )
+  async getResultPrefill(
+    @CurrentUser() actor: AuthenticatedUser | undefined,
+    @Param() params: BoutIdParamsDto,
+  ) {
+    return this.boutsService.getResultPrefill(
+      this.requireActor(actor),
+      params.id,
+    );
   }
 
   @Get('bouts/:id')
@@ -288,7 +408,10 @@ export class BoutsController {
   @ApiUnauthorizedEnvelope()
   @ApiForbiddenEnvelope('Requires bout:update and an assigned fighter')
   @ApiNotFoundEnvelope('BOUT_NOT_FOUND', 'Bout not found')
-  @ApiConflictEnvelope('BOUT_INVALID_TRANSITION', 'The bout status forbids this change')
+  @ApiConflictEnvelope(
+    'BOUT_INVALID_TRANSITION',
+    'The bout status forbids this change',
+  )
   async updateBout(
     @CurrentUser() actor: AuthenticatedUser | undefined,
     @Param() params: BoutIdParamsDto,
@@ -374,7 +497,8 @@ export class BoutsController {
   @RequirePermissions({ allOf: [BOUT_PERMISSIONS.UPDATE] })
   @ApiOperation({
     summary: 'Cancel a bout',
-    description: 'Any status except COMPLETED and CANCELLED; a reason is required.',
+    description:
+      'Any status except COMPLETED and CANCELLED; a reason is required.',
   })
   @ResponseMessage(BOUT_RESPONSE_MESSAGES.CANCEL)
   @ApiSuccessEnvelope({
@@ -417,7 +541,10 @@ export class BoutsController {
   @ApiUnauthorizedEnvelope()
   @ApiForbiddenEnvelope('Requires bout:requirement and an assigned fighter')
   @ApiNotFoundEnvelope('BOUT_NOT_FOUND', 'Bout not found')
-  @ApiConflictEnvelope('BOUT_REQUIREMENT_EXISTS', 'The code already exists on this bout')
+  @ApiConflictEnvelope(
+    'BOUT_REQUIREMENT_EXISTS',
+    'The code already exists on this bout',
+  )
   async addRequirement(
     @CurrentUser() actor: AuthenticatedUser | undefined,
     @Param() params: BoutIdParamsDto,
@@ -448,7 +575,10 @@ export class BoutsController {
   @ApiValidationErrorEnvelope()
   @ApiUnauthorizedEnvelope()
   @ApiForbiddenEnvelope('Requires bout:requirement and an assigned fighter')
-  @ApiNotFoundEnvelope('BOUT_REQUIREMENT_NOT_FOUND', 'Bout or requirement not found')
+  @ApiNotFoundEnvelope(
+    'BOUT_REQUIREMENT_NOT_FOUND',
+    'Bout or requirement not found',
+  )
   async updateRequirement(
     @CurrentUser() actor: AuthenticatedUser | undefined,
     @Param() params: RequirementParamsDto,
@@ -478,7 +608,10 @@ export class BoutsController {
   })
   @ApiUnauthorizedEnvelope()
   @ApiForbiddenEnvelope('Requires bout:requirement and an assigned fighter')
-  @ApiNotFoundEnvelope('BOUT_REQUIREMENT_NOT_FOUND', 'Bout or requirement not found')
+  @ApiNotFoundEnvelope(
+    'BOUT_REQUIREMENT_NOT_FOUND',
+    'Bout or requirement not found',
+  )
   @ApiConflictEnvelope(
     'BOUT_REQUIREMENTS_LOCKED',
     'Unlock reason required during fight week and weigh-in',
@@ -517,9 +650,11 @@ export class BoutsController {
     @CurrentUser() actor: AuthenticatedUser | undefined,
     @Param() params: BoutIdParamsDto,
   ) {
-    return this.boutsService.getWeightTrack(this.requireActor(actor), params.id);
+    return this.boutsService.getWeightTrack(
+      this.requireActor(actor),
+      params.id,
+    );
   }
-
 
   @Post('bouts/:id/weigh-in')
   @HttpCode(HttpStatus.OK)
@@ -594,6 +729,10 @@ export class BoutsController {
   @Post('bouts/:id/result')
   @HttpCode(HttpStatus.OK)
   @RequirePermissions({ allOf: [BOUT_PERMISSIONS.RESULT] })
+  @ApiConflictEnvelope(
+    'BOUT_ROUNDS_INCOMPLETE',
+    'Confirm incomplete round records before recording a decision',
+  )
   @ApiOperation({
     summary: 'Record bout result',
     description:

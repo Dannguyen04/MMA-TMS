@@ -52,7 +52,9 @@ const doctorActor: AuthenticatedUser = {
   role: USER.DOCTOR,
 };
 
-function makeRuleset(over: Partial<CompetitionRuleset> = {}): CompetitionRuleset {
+function makeRuleset(
+  over: Partial<CompetitionRuleset> = {},
+): CompetitionRuleset {
   return {
     id: RULESET_ID,
     name: 'Boxing test',
@@ -163,8 +165,7 @@ async function expectHttp(
   expect(error).toBeInstanceOf(HttpException);
   const http = error as HttpException;
   expect(http.getStatus()).toBe(status);
-  if (code)
-    expect((http.getResponse() as { code?: string }).code).toBe(code);
+  if (code) expect((http.getResponse() as { code?: string }).code).toBe(code);
   return http;
 }
 
@@ -189,7 +190,7 @@ describe('BoutsService', () => {
       findRulesetById: vi.fn().mockResolvedValue(makeRuleset()),
       findBoutById: vi.fn().mockResolvedValue(makeBout()),
       listBouts: vi.fn().mockResolvedValue([]),
-      lockBoutById: vi.fn().mockResolvedValue(makeBout()),
+      lockBoutById: vi.fn(async (id: string) => repo.findBoutById(id)),
       listRounds: vi.fn().mockResolvedValue([]),
       findAnalysisSessions: vi.fn().mockResolvedValue([]),
       upsertRound: vi.fn(),
@@ -202,28 +203,35 @@ describe('BoutsService', () => {
         async (
           id: string,
           changes: Partial<BoutRow>,
-          options?: { expectedStatus?: string; historyEntry?: BoutHistoryEntry },
+          options?: {
+            expectedStatus?: string;
+            historyEntry?: BoutHistoryEntry;
+          },
         ) => {
           const current = await repo.findBoutById(id);
           return makeBout({
             ...current,
             ...changes,
-            ...(options?.historyEntry ? { history: [...(current?.history ?? []), options.historyEntry] } : {}),
+            ...(options?.historyEntry
+              ? { history: [...(current?.history ?? []), options.historyEntry] }
+              : {}),
           });
         },
       ),
       findPlanById: vi.fn().mockResolvedValue(undefined),
       listRequirements: vi.fn().mockResolvedValue([]),
       findRequirement: vi.fn().mockResolvedValue(undefined),
-      insertRequirements: vi.fn(
-        async (rows: Partial<BoutRequirementRow>[]) =>
-          rows.map((row, index) =>
-            makeRequirement({ code: `ROW${index}`, ...row }),
-          ),
+      insertRequirements: vi.fn(async (rows: Partial<BoutRequirementRow>[]) =>
+        rows.map((row, index) =>
+          makeRequirement({ code: `ROW${index}`, ...row }),
+        ),
       ),
       updateRequirement: vi.fn(
-        async (_b: string, code: string, changes: Partial<BoutRequirementRow>) =>
-          makeRequirement({ code, ...changes }),
+        async (
+          _b: string,
+          code: string,
+          changes: Partial<BoutRequirementRow>,
+        ) => makeRequirement({ code, ...changes }),
       ),
       deleteRequirement: vi.fn().mockResolvedValue(true),
       findWeightMeasurements: vi.fn().mockResolvedValue([]),
@@ -297,12 +305,22 @@ describe('BoutsService', () => {
     });
 
     it('forbids FIGHTER and DOCTOR from creating bouts even if the route permission was granted', async () => {
-      await expectHttp(service.createBout(fighterActor, createInput, REQUEST_ID), 403);
-      await expectHttp(service.createBout(doctorActor, createInput, REQUEST_ID), 403);
+      await expectHttp(
+        service.createBout(fighterActor, createInput, REQUEST_ID),
+        403,
+      );
+      await expectHttp(
+        service.createBout(doctorActor, createInput, REQUEST_ID),
+        403,
+      );
     });
 
     it('creates an empty checklist for a ruleset without templates, then the coach adds 3 items with source COACH (criterion 8)', async () => {
-      const detail = await service.createBout(coachActor, createInput, REQUEST_ID);
+      const detail = await service.createBout(
+        coachActor,
+        createInput,
+        REQUEST_ID,
+      );
       expect(repo.insertRequirements).toHaveBeenCalledWith([], tx);
       expect(detail.requirements).toEqual([]);
       expect(detail.status).toBe('SCHEDULED');
@@ -317,7 +335,11 @@ describe('BoutsService', () => {
         );
         const [rows] = repo.insertRequirements.mock.calls[0]!;
         expect(rows).toHaveLength(1);
-        expect(rows[0]).toMatchObject({ code, source: 'COACH', validityDays: 90 });
+        expect(rows[0]).toMatchObject({
+          code,
+          source: 'COACH',
+          validityDays: 90,
+        });
       }
     });
 
@@ -325,7 +347,12 @@ describe('BoutsService', () => {
       repo.findRulesetById.mockResolvedValue(
         makeRuleset({
           requirementTemplates: [
-            { code: 'HEALTH_CERT', label: 'Giấy khám sức khỏe', required: true, validityDays: 180 },
+            {
+              code: 'HEALTH_CERT',
+              label: 'Giấy khám sức khỏe',
+              required: true,
+              validityDays: 180,
+            },
             { code: 'INSURANCE', label: 'Bảo hiểm thi đấu', required: false },
           ],
         }),
@@ -373,13 +400,18 @@ describe('BoutsService', () => {
         REQUEST_ID,
       );
       expect(repo.insertBout).toHaveBeenLastCalledWith(
-        expect.objectContaining({ acuteLossLimitPct: '5', requirementsDueDays: 10 }),
+        expect.objectContaining({
+          acuteLossLimitPct: '5',
+          requirementsDueDays: 10,
+        }),
         tx,
       );
     });
 
     it('needs weightLimitKg for a free-form ruleset and for an open class', async () => {
-      repo.findRulesetById.mockResolvedValue(makeRuleset({ weightClasses: [] }));
+      repo.findRulesetById.mockResolvedValue(
+        makeRuleset({ weightClasses: [] }),
+      );
       await expectHttp(
         service.createBout(
           coachActor,
@@ -395,7 +427,10 @@ describe('BoutsService', () => {
         REQUEST_ID,
       );
       expect(repo.insertBout).toHaveBeenLastCalledWith(
-        expect.objectContaining({ weightClassCode: 'CUSTOM', weightLimitKg: '72.5' }),
+        expect.objectContaining({
+          weightClassCode: 'CUSTOM',
+          weightLimitKg: '72.5',
+        }),
         tx,
       );
 
@@ -428,7 +463,11 @@ describe('BoutsService', () => {
       );
       repo.isCoachProfileAssignedToFighter.mockResolvedValue(false);
       await expectHttp(
-        service.createBout(adminActor, { ...createInput, coachId: COACH_ID }, REQUEST_ID),
+        service.createBout(
+          adminActor,
+          { ...createInput, coachId: COACH_ID },
+          REQUEST_ID,
+        ),
         422,
         'BOUT_COACH_NOT_ASSIGNED',
       );
@@ -517,18 +556,34 @@ describe('BoutsService', () => {
         '40000000-0000-4000-8000-000000000099',
       );
       await expectHttp(
-        service.startCamp(coachActor, BOUT_ID, { trainingPlanId: PLAN_ID }, REQUEST_ID),
+        service.startCamp(
+          coachActor,
+          BOUT_ID,
+          { trainingPlanId: PLAN_ID },
+          REQUEST_ID,
+        ),
         409,
         'BOUT_ACTIVE_EXISTS',
       );
-      expect(repo.findActiveBoutIdForFighter).toHaveBeenCalledWith(FIGHTER_ID, BOUT_ID);
+      expect(repo.findActiveBoutIdForFighter).toHaveBeenCalledWith(
+        FIGHTER_ID,
+        BOUT_ID,
+      );
       expect(repo.updateBout).not.toHaveBeenCalled();
     });
 
     it('rejects a plan of another fighter with 422 (criterion 11)', async () => {
-      repo.findPlanById.mockResolvedValue({ ...plan, fighterId: OTHER_FIGHTER_ID });
+      repo.findPlanById.mockResolvedValue({
+        ...plan,
+        fighterId: OTHER_FIGHTER_ID,
+      });
       await expectHttp(
-        service.startCamp(coachActor, BOUT_ID, { trainingPlanId: PLAN_ID }, REQUEST_ID),
+        service.startCamp(
+          coachActor,
+          BOUT_ID,
+          { trainingPlanId: PLAN_ID },
+          REQUEST_ID,
+        ),
         422,
         'BOUT_PLAN_INVALID',
       );
@@ -538,7 +593,12 @@ describe('BoutsService', () => {
     it('rejects a plan whose phase is not fight_camp with 422 (criterion 11)', async () => {
       repo.findPlanById.mockResolvedValue({ ...plan, phase: 'build' });
       await expectHttp(
-        service.startCamp(coachActor, BOUT_ID, { trainingPlanId: PLAN_ID }, REQUEST_ID),
+        service.startCamp(
+          coachActor,
+          BOUT_ID,
+          { trainingPlanId: PLAN_ID },
+          REQUEST_ID,
+        ),
         422,
         'BOUT_PLAN_INVALID',
       );
@@ -547,13 +607,23 @@ describe('BoutsService', () => {
     it('rejects a deleted or unknown plan with 422', async () => {
       repo.findPlanById.mockResolvedValue({ ...plan, deletedAt: new Date() });
       await expectHttp(
-        service.startCamp(coachActor, BOUT_ID, { trainingPlanId: PLAN_ID }, REQUEST_ID),
+        service.startCamp(
+          coachActor,
+          BOUT_ID,
+          { trainingPlanId: PLAN_ID },
+          REQUEST_ID,
+        ),
         422,
         'BOUT_PLAN_INVALID',
       );
       repo.findPlanById.mockResolvedValue(undefined);
       await expectHttp(
-        service.startCamp(coachActor, BOUT_ID, { trainingPlanId: PLAN_ID }, REQUEST_ID),
+        service.startCamp(
+          coachActor,
+          BOUT_ID,
+          { trainingPlanId: PLAN_ID },
+          REQUEST_ID,
+        ),
         422,
         'BOUT_PLAN_INVALID',
       );
@@ -562,7 +632,12 @@ describe('BoutsService', () => {
     it('rejects starting a camp from any status other than SCHEDULED', async () => {
       repo.findBoutById.mockResolvedValue(makeBout({ status: 'CAMP' }));
       await expectHttp(
-        service.startCamp(coachActor, BOUT_ID, { trainingPlanId: PLAN_ID }, REQUEST_ID),
+        service.startCamp(
+          coachActor,
+          BOUT_ID,
+          { trainingPlanId: PLAN_ID },
+          REQUEST_ID,
+        ),
         409,
         'BOUT_INVALID_TRANSITION',
       );
@@ -571,7 +646,12 @@ describe('BoutsService', () => {
     it('reports a concurrent status change as 409 BOUT_STATE_CONFLICT', async () => {
       repo.updateBout.mockResolvedValue(undefined);
       await expectHttp(
-        service.startCamp(coachActor, BOUT_ID, { trainingPlanId: PLAN_ID }, REQUEST_ID),
+        service.startCamp(
+          coachActor,
+          BOUT_ID,
+          { trainingPlanId: PLAN_ID },
+          REQUEST_ID,
+        ),
         409,
         'BOUT_STATE_CONFLICT',
       );
@@ -605,7 +685,11 @@ describe('BoutsService', () => {
         409,
         'BOUT_REQUIREMENTS_INCOMPLETE',
       );
-      const details = (error.getResponse() as { details: { missing: { code: string }[]; expiring: unknown[] } }).details;
+      const details = (
+        error.getResponse() as {
+          details: { missing: { code: string }[]; expiring: unknown[] };
+        }
+      ).details;
       expect(details.missing.map((m) => m.code)).toEqual(['B']);
       expect(details.expiring).toEqual([]);
       expect(repo.updateBout).not.toHaveBeenCalled();
@@ -613,28 +697,45 @@ describe('BoutsService', () => {
 
     it('reports items that expire before the bout', async () => {
       repo.listRequirements.mockResolvedValue([
-        makeRequirement({ code: 'A', status: 'PROVIDED', validUntil: '2026-10-23' }),
+        makeRequirement({
+          code: 'A',
+          status: 'PROVIDED',
+          validUntil: '2026-10-23',
+        }),
       ]);
       const error = await expectHttp(
         service.enterFightWeek(coachActor, BOUT_ID, REQUEST_ID),
         409,
         'BOUT_REQUIREMENTS_INCOMPLETE',
       );
-      const details = (error.getResponse() as { details: { expiring: { code: string }[] } }).details;
+      const details = (
+        error.getResponse() as { details: { expiring: { code: string }[] } }
+      ).details;
       expect(details.expiring.map((m) => m.code)).toEqual(['A']);
     });
 
     it('moves CAMP to FIGHT_WEEK when Gate 1 passes inside the window', async () => {
       repo.listRequirements.mockResolvedValue([
-        makeRequirement({ code: 'A', status: 'PROVIDED', validUntil: '2027-01-01' }),
+        makeRequirement({
+          code: 'A',
+          status: 'PROVIDED',
+          validUntil: '2027-01-01',
+        }),
       ]);
-      const detail = await service.enterFightWeek(coachActor, BOUT_ID, REQUEST_ID);
+      const detail = await service.enterFightWeek(
+        coachActor,
+        BOUT_ID,
+        REQUEST_ID,
+      );
       expect(repo.updateBout).toHaveBeenCalledWith(
         BOUT_ID,
         { status: 'FIGHT_WEEK' },
         expect.objectContaining({
           expectedStatus: 'CAMP',
-          historyEntry: expect.objectContaining({ from: 'CAMP', to: 'FIGHT_WEEK' }),
+          historyEntry: expect.objectContaining({
+            from: 'CAMP',
+            to: 'FIGHT_WEEK',
+          }),
         }),
         tx,
       );
@@ -653,9 +754,10 @@ describe('BoutsService', () => {
         409,
         'BOUT_FIGHT_WEEK_TOO_EARLY',
       );
-      expect((error.getResponse() as { details: { earliestOn: string } }).details.earliestOn).toBe(
-        '2026-10-23',
-      );
+      expect(
+        (error.getResponse() as { details: { earliestOn: string } }).details
+          .earliestOn,
+      ).toBe('2026-10-23');
       expect(repo.updateBout).not.toHaveBeenCalled();
     });
 
@@ -671,7 +773,12 @@ describe('BoutsService', () => {
 
   describe('cancelBout', () => {
     it('cancels from each non-final status and records the reason in the history', async () => {
-      for (const status of ['SCHEDULED', 'CAMP', 'FIGHT_WEEK', 'WEIGHED_IN'] as const) {
+      for (const status of [
+        'SCHEDULED',
+        'CAMP',
+        'FIGHT_WEEK',
+        'WEIGHED_IN',
+      ] as const) {
         repo.findBoutById.mockResolvedValue(makeBout({ status }));
         repo.updateBout.mockClear();
         const detail = await service.cancelBout(
@@ -703,7 +810,12 @@ describe('BoutsService', () => {
       for (const status of ['COMPLETED', 'CANCELLED'] as const) {
         repo.findBoutById.mockResolvedValue(makeBout({ status }));
         await expectHttp(
-          service.cancelBout(coachActor, BOUT_ID, { reason: 'x y z' }, REQUEST_ID),
+          service.cancelBout(
+            coachActor,
+            BOUT_ID,
+            { reason: 'x y z' },
+            REQUEST_ID,
+          ),
           409,
           'BOUT_INVALID_TRANSITION',
         );
@@ -751,7 +863,11 @@ describe('BoutsService', () => {
       await service.updateBout(
         coachActor,
         BOUT_ID,
-        { weightClassCode: '91+', weightLimitKg: 95, reason: 'Heavyweight match' },
+        {
+          weightClassCode: '91+',
+          weightLimitKg: 95,
+          reason: 'Heavyweight match',
+        },
         REQUEST_ID,
       );
       expect(repo.updateBout).toHaveBeenCalledWith(
@@ -772,7 +888,12 @@ describe('BoutsService', () => {
       for (const status of ['WEIGHED_IN', 'COMPLETED', 'CANCELLED'] as const) {
         repo.findBoutById.mockResolvedValue(makeBout({ status }));
         await expectHttp(
-          service.updateBout(coachActor, BOUT_ID, { requirementsDueDays: 3 }, REQUEST_ID),
+          service.updateBout(
+            coachActor,
+            BOUT_ID,
+            { requirementsDueDays: 3 },
+            REQUEST_ID,
+          ),
           409,
           'BOUT_INVALID_TRANSITION',
         );
@@ -781,7 +902,12 @@ describe('BoutsService', () => {
 
     it('lets a final bout change only its notes', async () => {
       repo.findBoutById.mockResolvedValue(makeBout({ status: 'COMPLETED' }));
-      await service.updateBout(coachActor, BOUT_ID, { notes: 'Ghi chú sau trận' }, REQUEST_ID);
+      await service.updateBout(
+        coachActor,
+        BOUT_ID,
+        { notes: 'Ghi chú sau trận' },
+        REQUEST_ID,
+      );
       expect(repo.updateBout).toHaveBeenCalledWith(
         BOUT_ID,
         { notes: 'Ghi chú sau trận' },
@@ -789,7 +915,12 @@ describe('BoutsService', () => {
         tx,
       );
       await expectHttp(
-        service.updateBout(coachActor, BOUT_ID, { eventName: 'Khác' }, REQUEST_ID),
+        service.updateBout(
+          coachActor,
+          BOUT_ID,
+          { eventName: 'Khác' },
+          REQUEST_ID,
+        ),
         409,
         'BOUT_INVALID_TRANSITION',
       );
@@ -798,7 +929,9 @@ describe('BoutsService', () => {
 
   describe('requirements', () => {
     it('rejects PROVIDED without validUntil with 422', async () => {
-      repo.findRequirement.mockResolvedValue(makeRequirement({ code: 'HEALTH_CERT' }));
+      repo.findRequirement.mockResolvedValue(
+        makeRequirement({ code: 'HEALTH_CERT' }),
+      );
       await expectHttp(
         service.updateRequirement(
           coachActor,
@@ -838,7 +971,9 @@ describe('BoutsService', () => {
     });
 
     it('rejects REJECTED without a statusReason with 422', async () => {
-      repo.findRequirement.mockResolvedValue(makeRequirement({ code: 'INSURANCE' }));
+      repo.findRequirement.mockResolvedValue(
+        makeRequirement({ code: 'INSURANCE' }),
+      );
       await expectHttp(
         service.updateRequirement(
           coachActor,
@@ -860,7 +995,10 @@ describe('BoutsService', () => {
       expect(repo.updateRequirement).toHaveBeenCalledWith(
         BOUT_ID,
         'INSURANCE',
-        expect.objectContaining({ status: 'REJECTED', statusReason: 'Sai tên võ sĩ' }),
+        expect.objectContaining({
+          status: 'REJECTED',
+          statusReason: 'Sai tên võ sĩ',
+        }),
         tx,
       );
     });
@@ -872,7 +1010,11 @@ describe('BoutsService', () => {
           coachActor,
           BOUT_ID,
           'A',
-          { status: 'PROVIDED', issuedOn: '2026-10-10', validUntil: '2026-10-01' },
+          {
+            status: 'PROVIDED',
+            issuedOn: '2026-10-10',
+            validUntil: '2026-10-01',
+          },
           REQUEST_ID,
         ),
         422,
@@ -912,7 +1054,11 @@ describe('BoutsService', () => {
     it('returns the refreshed Gate 1 after a change', async () => {
       repo.findRequirement.mockResolvedValue(makeRequirement({ code: 'A' }));
       repo.listRequirements.mockResolvedValue([
-        makeRequirement({ code: 'A', status: 'PROVIDED', validUntil: '2027-01-01' }),
+        makeRequirement({
+          code: 'A',
+          status: 'PROVIDED',
+          validUntil: '2027-01-01',
+        }),
       ]);
       const result = await service.updateRequirement(
         coachActor,
@@ -926,7 +1072,13 @@ describe('BoutsService', () => {
 
     it('returns 404 for an unknown item and 409 for a duplicate code', async () => {
       await expectHttp(
-        service.updateRequirement(coachActor, BOUT_ID, 'NOPE', { label: 'x' }, REQUEST_ID),
+        service.updateRequirement(
+          coachActor,
+          BOUT_ID,
+          'NOPE',
+          { label: 'x' },
+          REQUEST_ID,
+        ),
         404,
         'BOUT_REQUIREMENT_NOT_FOUND',
       );
@@ -950,7 +1102,12 @@ describe('BoutsService', () => {
     });
 
     it('removes an item inside an audited transaction', async () => {
-      const result = await service.removeRequirement(coachActor, BOUT_ID, 'A', REQUEST_ID);
+      const result = await service.removeRequirement(
+        coachActor,
+        BOUT_ID,
+        'A',
+        REQUEST_ID,
+      );
       expect(repo.deleteRequirement).toHaveBeenCalledWith(BOUT_ID, 'A', tx);
       expect(result.code).toBe('A');
     });
@@ -1008,12 +1165,19 @@ describe('BoutsService', () => {
     it('lets an assigned DOCTOR and any ADMIN read', async () => {
       await service.getBout(doctorActor, BOUT_ID);
       await service.getBout(adminActor, BOUT_ID);
-      expect(repo.isDoctorAssignedToFighter).toHaveBeenCalledWith(doctorActor.id, FIGHTER_ID);
+      expect(repo.isDoctorAssignedToFighter).toHaveBeenCalledWith(
+        doctorActor.id,
+        FIGHTER_ID,
+      );
     });
 
     it('returns 404 for an unknown bout', async () => {
       repo.findBoutById.mockResolvedValue(undefined);
-      await expectHttp(service.getBout(adminActor, BOUT_ID), 404, 'BOUT_NOT_FOUND');
+      await expectHttp(
+        service.getBout(adminActor, BOUT_ID),
+        404,
+        'BOUT_NOT_FOUND',
+      );
     });
   });
 
@@ -1028,7 +1192,11 @@ describe('BoutsService', () => {
         }),
       );
       repo.listRequirements.mockResolvedValue([
-        makeRequirement({ code: 'A', status: 'PROVIDED', validUntil: '2027-01-01' }),
+        makeRequirement({
+          code: 'A',
+          status: 'PROVIDED',
+          validUntil: '2027-01-01',
+        }),
       ]);
       const detail = await service.getBout(coachActor, BOUT_ID);
       expect(detail.daysToWeighIn).toBe(3);
@@ -1165,10 +1333,15 @@ describe('BoutsService', () => {
     it('scopes a FIGHTER to their own bouts and forbids another fighterId', async () => {
       await service.listBouts(fighterActor, { limit: 20 });
       expect(repo.listBouts).toHaveBeenLastCalledWith(
-        expect.objectContaining({ scope: { kind: 'FIGHTER', fighterId: FIGHTER_ID } }),
+        expect.objectContaining({
+          scope: { kind: 'FIGHTER', fighterId: FIGHTER_ID },
+        }),
       );
       await expectHttp(
-        service.listBouts(fighterActor, { limit: 20, fighterId: OTHER_FIGHTER_ID }),
+        service.listBouts(fighterActor, {
+          limit: 20,
+          fighterId: OTHER_FIGHTER_ID,
+        }),
         403,
       );
     });
@@ -1183,11 +1356,16 @@ describe('BoutsService', () => {
       );
       await service.listBouts(doctorActor, { limit: 20 });
       expect(repo.listBouts).toHaveBeenLastCalledWith(
-        expect.objectContaining({ scope: { kind: 'DOCTOR', userId: doctorActor.id } }),
+        expect.objectContaining({
+          scope: { kind: 'DOCTOR', userId: doctorActor.id },
+        }),
       );
       repo.isCoachAssignedToFighter.mockResolvedValue(false);
       await expectHttp(
-        service.listBouts(coachActor, { limit: 20, fighterId: OTHER_FIGHTER_ID }),
+        service.listBouts(coachActor, {
+          limit: 20,
+          fighterId: OTHER_FIGHTER_ID,
+        }),
         403,
       );
     });
@@ -1353,7 +1531,12 @@ describe('BoutsService', () => {
         makeBout({ status: 'WEIGHED_IN', weighInAt, boutAt }),
       );
       await expectHttp(
-        service.recordWeighIn(coachActor, BOUT_ID, { weightKg: 59.9 }, REQUEST_ID),
+        service.recordWeighIn(
+          coachActor,
+          BOUT_ID,
+          { weightKg: 59.9 },
+          REQUEST_ID,
+        ),
         409,
         'BOUT_INVALID_TRANSITION',
       );
@@ -1362,18 +1545,31 @@ describe('BoutsService', () => {
     it('criterion 9: weigh-in before weigh-in date throws 409 BOUT_WEIGH_IN_TOO_EARLY; bout in CAMP throws 409 BOUT_INVALID_TRANSITION', async () => {
       vi.setSystemTime(new Date('2026-10-25T03:00:00Z'));
       const err = await expectHttp(
-        service.recordWeighIn(coachActor, BOUT_ID, { weightKg: 59.5 }, REQUEST_ID),
+        service.recordWeighIn(
+          coachActor,
+          BOUT_ID,
+          { weightKg: 59.5 },
+          REQUEST_ID,
+        ),
         409,
         'BOUT_WEIGH_IN_TOO_EARLY',
       );
-      expect((err.getResponse() as { details: { earliestOn: string } }).details.earliestOn).toBe('2026-10-30');
+      expect(
+        (err.getResponse() as { details: { earliestOn: string } }).details
+          .earliestOn,
+      ).toBe('2026-10-30');
 
       vi.setSystemTime(new Date('2026-10-30T03:00:00Z'));
       repo.findBoutById.mockResolvedValue(
         makeBout({ status: 'CAMP', weighInAt, boutAt }),
       );
       await expectHttp(
-        service.recordWeighIn(coachActor, BOUT_ID, { weightKg: 59.5 }, REQUEST_ID),
+        service.recordWeighIn(
+          coachActor,
+          BOUT_ID,
+          { weightKg: 59.5 },
+          REQUEST_ID,
+        ),
         409,
         'BOUT_INVALID_TRANSITION',
       );
@@ -1396,15 +1592,14 @@ describe('BoutsService', () => {
         REQUEST_ID,
       );
 
-      const [res1, err2] = await Promise.all([
-        p1,
-        p2.catch((e: unknown) => e),
-      ]);
+      const [res1, err2] = await Promise.all([p1, p2.catch((e: unknown) => e)]);
 
       expect(res1.status).toBe('WEIGHED_IN');
       expect(err2).toBeInstanceOf(HttpException);
       expect((err2 as HttpException).getStatus()).toBe(409);
-      expect(((err2 as HttpException).getResponse() as { code: string }).code).toBe('BOUT_STATE_CONFLICT');
+      expect(
+        ((err2 as HttpException).getResponse() as { code: string }).code,
+      ).toBe('BOUT_STATE_CONFLICT');
     });
 
     it('a lost race fails inside the transaction so the WEIGH_IN measurement rolls back', async () => {
@@ -1412,13 +1607,20 @@ describe('BoutsService', () => {
       const transaction = vi.spyOn(repo, 'transaction');
 
       await expectHttp(
-        service.recordWeighIn(coachActor, BOUT_ID, { weightKg: 59.5 }, REQUEST_ID),
+        service.recordWeighIn(
+          coachActor,
+          BOUT_ID,
+          { weightKg: 59.5 },
+          REQUEST_ID,
+        ),
         409,
         'BOUT_STATE_CONFLICT',
       );
 
       expect(repo.insertFighterMeasurement).toHaveBeenCalledTimes(1);
-      await expect(transaction.mock.results[0]?.value).rejects.toBeInstanceOf(HttpException);
+      await expect(transaction.mock.results[0]?.value).rejects.toBeInstanceOf(
+        HttpException,
+      );
     });
   });
 
@@ -1434,11 +1636,19 @@ describe('BoutsService', () => {
         }),
       );
 
-      const res = await service.recordCatchweight(coachActor, BOUT_ID, {}, REQUEST_ID);
+      const res = await service.recordCatchweight(
+        coachActor,
+        BOUT_ID,
+        {},
+        REQUEST_ID,
+      );
 
       expect(repo.updateBout).toHaveBeenCalledWith(
         BOUT_ID,
-        expect.objectContaining({ catchweightKg: '59.80', status: 'WEIGHED_IN' }),
+        expect.objectContaining({
+          catchweightKg: '59.80',
+          status: 'WEIGHED_IN',
+        }),
         expect.anything(),
         expect.anything(),
       );
@@ -1458,7 +1668,12 @@ describe('BoutsService', () => {
     });
 
     it('criterion 7: catchweight defaults to official weight (60.5) and moves to WEIGHED_IN; rejects < official weight with 422; rejects when weigh-in did not fail with 409', async () => {
-      const res = await service.recordCatchweight(coachActor, BOUT_ID, {}, REQUEST_ID);
+      const res = await service.recordCatchweight(
+        coachActor,
+        BOUT_ID,
+        {},
+        REQUEST_ID,
+      );
       expect(repo.updateBout).toHaveBeenCalledWith(
         BOUT_ID,
         expect.objectContaining({
@@ -1480,7 +1695,12 @@ describe('BoutsService', () => {
       expect(res.status).toBe('WEIGHED_IN');
 
       await expectHttp(
-        service.recordCatchweight(coachActor, BOUT_ID, { catchweightKg: 60.2 }, REQUEST_ID),
+        service.recordCatchweight(
+          coachActor,
+          BOUT_ID,
+          { catchweightKg: 60.2 },
+          REQUEST_ID,
+        ),
         422,
         'BOUT_INVALID_CATCHWEIGHT',
       );
@@ -1565,7 +1785,10 @@ describe('BoutsService', () => {
         409,
         'BOUT_NOT_STARTED',
       );
-      expect((err.getResponse() as { details: { earliestOn: string } }).details.earliestOn).toBe('2026-10-31');
+      expect(
+        (err.getResponse() as { details: { earliestOn: string } }).details
+          .earliestOn,
+      ).toBe('2026-10-31');
 
       vi.setSystemTime(new Date('2026-10-31T05:00:00Z'));
       const res = await service.recordResult(
@@ -1609,31 +1832,47 @@ describe('BoutsService', () => {
         422,
         'BOUT_RESULT_INVALID',
       );
-      expect((err1.getResponse() as { details: { reason: string } }).details.reason).toBe('CONSCIOUSNESS_REQUIRED');
+      expect(
+        (err1.getResponse() as { details: { reason: string } }).details.reason,
+      ).toBe('CONSCIOUSNESS_REQUIRED');
 
       const err2 = await expectHttp(
         service.recordResult(
           coachActor,
           BOUT_ID,
-          { result: 'WIN', method: 'KO', resultRound: 1, lossOfConsciousness: 'NONE' },
+          {
+            result: 'WIN',
+            method: 'KO',
+            resultRound: 1,
+            lossOfConsciousness: 'NONE',
+          },
           REQUEST_ID,
         ),
         422,
         'BOUT_RESULT_INVALID',
       );
-      expect((err2.getResponse() as { details: { reason: string } }).details.reason).toBe('CONSCIOUSNESS_NOT_ALLOWED');
+      expect(
+        (err2.getResponse() as { details: { reason: string } }).details.reason,
+      ).toBe('CONSCIOUSNESS_NOT_ALLOWED');
 
       const err3 = await expectHttp(
         service.recordResult(
           coachActor,
           BOUT_ID,
-          { result: 'LOSS', method: 'TKO', resultRound: 2, lossOfConsciousness: 'NONE' },
+          {
+            result: 'LOSS',
+            method: 'TKO',
+            resultRound: 2,
+            lossOfConsciousness: 'NONE',
+          },
           REQUEST_ID,
         ),
         422,
         'BOUT_RESULT_INVALID',
       );
-      expect((err3.getResponse() as { details: { reason: string } }).details.reason).toBe('HEAD_STRIKE_REQUIRED');
+      expect(
+        (err3.getResponse() as { details: { reason: string } }).details.reason,
+      ).toBe('HEAD_STRIKE_REQUIRED');
 
       const err4 = await expectHttp(
         service.recordResult(
@@ -1645,7 +1884,9 @@ describe('BoutsService', () => {
         422,
         'BOUT_RESULT_INVALID',
       );
-      expect((err4.getResponse() as { details: { reason: string } }).details.reason).toBe('ROUND_NOT_ALLOWED');
+      expect(
+        (err4.getResponse() as { details: { reason: string } }).details.reason,
+      ).toBe('ROUND_NOT_ALLOWED');
 
       const err5 = await expectHttp(
         service.recordResult(
@@ -1657,7 +1898,9 @@ describe('BoutsService', () => {
         422,
         'BOUT_RESULT_INVALID',
       );
-      expect((err5.getResponse() as { details: { reason: string } }).details.reason).toBe('ROUND_REQUIRED');
+      expect(
+        (err5.getResponse() as { details: { reason: string } }).details.reason,
+      ).toBe('ROUND_REQUIRED');
     });
 
     it('criterion 13: valid TKO loss records history with all 3 fields, completes bout, and creates no injury or suspension records', async () => {
@@ -1698,7 +1941,9 @@ describe('BoutsService', () => {
         expect.anything(),
       );
       expect(res.status).toBe('COMPLETED');
-      expect((repo as Record<string, unknown>).insertInjuryRecord).toBeUndefined();
+      expect(
+        (repo as Record<string, unknown>).insertInjuryRecord,
+      ).toBeUndefined();
     });
 
     it('criterion 14: WEIGHED_IN -> CANCELLED with reason "Không đạt cân" does not create anything else', async () => {
@@ -1792,7 +2037,12 @@ describe('BoutsService', () => {
       await service.addRequirement(
         coachActor,
         BOUT_ID,
-        { code: 'EXTRA', label: 'Extra', required: true, unlockReason: 'Special permit' },
+        {
+          code: 'EXTRA',
+          label: 'Extra',
+          required: true,
+          unlockReason: 'Special permit',
+        },
         REQUEST_ID,
       );
       expect(repo.updateBout).toHaveBeenLastCalledWith(
@@ -1945,7 +2195,12 @@ describe('BoutsService', () => {
 
     it('criterion 17: FIGHTER and unassigned COACH get 403, ADMIN succeeds on weighIn, catchweight, result', async () => {
       await expectHttp(
-        service.recordWeighIn(fighterActor, BOUT_ID, { weightKg: 60.0 }, REQUEST_ID),
+        service.recordWeighIn(
+          fighterActor,
+          BOUT_ID,
+          { weightKg: 60.0 },
+          REQUEST_ID,
+        ),
         403,
       );
       await expectHttp(
@@ -1953,13 +2208,23 @@ describe('BoutsService', () => {
         403,
       );
       await expectHttp(
-        service.recordResult(fighterActor, BOUT_ID, { result: 'WIN', method: 'DECISION' }, REQUEST_ID),
+        service.recordResult(
+          fighterActor,
+          BOUT_ID,
+          { result: 'WIN', method: 'DECISION' },
+          REQUEST_ID,
+        ),
         403,
       );
 
       repo.isCoachAssignedToFighter.mockResolvedValue(false);
       await expectHttp(
-        service.recordWeighIn(coachActor, BOUT_ID, { weightKg: 60.0 }, REQUEST_ID),
+        service.recordWeighIn(
+          coachActor,
+          BOUT_ID,
+          { weightKg: 60.0 },
+          REQUEST_ID,
+        ),
         403,
       );
       await expectHttp(
@@ -1967,7 +2232,12 @@ describe('BoutsService', () => {
         403,
       );
       await expectHttp(
-        service.recordResult(coachActor, BOUT_ID, { result: 'WIN', method: 'DECISION' }, REQUEST_ID),
+        service.recordResult(
+          coachActor,
+          BOUT_ID,
+          { result: 'WIN', method: 'DECISION' },
+          REQUEST_ID,
+        ),
         403,
       );
 
@@ -1979,7 +2249,12 @@ describe('BoutsService', () => {
       );
       expect(weighInRes.weighIn.outcome).toBe('PASSED');
 
-      const catchRes = await service.recordCatchweight(adminActor, BOUT_ID, {}, REQUEST_ID);
+      const catchRes = await service.recordCatchweight(
+        adminActor,
+        BOUT_ID,
+        {},
+        REQUEST_ID,
+      );
       expect(catchRes.status).toBe('WEIGHED_IN');
 
       repo.findBoutById.mockResolvedValue(
@@ -1997,7 +2272,6 @@ describe('BoutsService', () => {
       expect(resultRes.status).toBe('COMPLETED');
     });
   });
-
 
   describe('T-010 opponent analysis and rounds', () => {
     const input: OpponentAnalysisInput = {
@@ -2477,6 +2751,398 @@ describe('BoutsService', () => {
       expect(repo.insertBout.mock.calls[0]?.[0].scheduledRounds).toBe(5);
     });
 
+    it('report restricts private data by role and assignment before loading rounds (AC11)', async () => {
+      setup({ status: 'COMPLETED' });
+      await expectHttp(service.getReport(fighterActor, BOUT_ID), 403);
+      repo.isCoachAssignedToFighter.mockResolvedValue(false);
+      await expectHttp(service.getReport(coachActor, BOUT_ID), 403);
+      repo.isDoctorAssignedToFighter.mockResolvedValue(false);
+      await expectHttp(service.getReport(doctorActor, BOUT_ID), 403);
+      expect(repo.listRounds).not.toHaveBeenCalled();
+      repo.isDoctorAssignedToFighter.mockResolvedValue(true);
+      expect(
+        (await service.getReport(doctorActor, BOUT_ID)).roundsRecorded,
+      ).toBe(0);
+      expect(
+        (await service.getReport(adminActor, BOUT_ID)).roundsRecorded,
+      ).toBe(0);
+    });
+
+    it.each(['WEIGHED_IN', 'CAMP', 'CANCELLED'] as const)(
+      'report requires COMPLETED, rejects %s (AC17)',
+      async (status) => {
+        setup({ status });
+        await expectHttp(
+          service.getReport(coachActor, BOUT_ID),
+          409,
+          'BOUT_INVALID_TRANSITION',
+        );
+        expect(repo.listRounds).not.toHaveBeenCalled();
+      },
+    );
+
+    it('report exposes evaluations, saved reviews and improvement data without changing analysis (AC6, AC7)', async () => {
+      const bout = setup({
+        status: 'COMPLETED',
+        result: 'WIN',
+        method: 'DECISION',
+        resultRound: null,
+        knockedDown: true,
+      });
+      repo.listRounds.mockResolvedValue([
+        round(1, {
+          tacticMarks: { t1: 'INEFFECTIVE' },
+          observationMarks: { o1: 'NOT_SEEN' },
+        }),
+        round(2, { fatigued: true }),
+        round(3, { fatigued: true }),
+      ]);
+      const report = await service.getReport(coachActor, BOUT_ID);
+      expect(report.result).toEqual({
+        result: 'WIN',
+        method: 'DECISION',
+        resultRound: null,
+        knockedDown: true,
+      });
+      expect(report.tactics).toEqual([
+        {
+          id: 't1',
+          text: 'counter',
+          effectiveRounds: 0,
+          ineffectiveRounds: 1,
+          outcome: 'INEFFECTIVE',
+          review: null,
+        },
+      ]);
+      expect(report.observations).toEqual([
+        { id: 'o1', text: 'opening', notSeenInBout: true },
+      ]);
+      expect(report.improvementPoints).toEqual([
+        { code: 'TACTIC_INEFFECTIVE', tacticId: 't1', text: 'counter' },
+        { code: 'FATIGUE_FROM_ROUND_2', fromRound: 2 },
+      ]);
+      expect(report.roundsRecorded).toBe(3);
+      expect(bout.opponentAnalysis).toEqual(input);
+      expect(repo.updateBout).not.toHaveBeenCalled();
+    });
+
+    it('report without rounds suppresses outcomes and tactical points even with saved reviews (AC17)', async () => {
+      setup({
+        status: 'COMPLETED',
+        officialWeightKg: '60',
+        weighInAt: NOW,
+        opponentAnalysis: {
+          ...input,
+          tactics: [
+            {
+              ...input.tactics[0]!,
+              review: { outcome: 'INEFFECTIVE', auto: false },
+            },
+          ],
+        },
+      });
+      repo.findWeightMeasurements.mockResolvedValue([
+        { measuredAt: new Date('2026-10-15T03:00:00Z'), weightKg: 70 },
+      ]);
+      const report = await service.getReport(coachActor, BOUT_ID);
+      expect(report.roundsRecorded).toBe(0);
+      expect(report.tactics[0]).toMatchObject({
+        outcome: null,
+        effectiveRounds: 0,
+        ineffectiveRounds: 0,
+        review: { outcome: 'INEFFECTIVE' },
+      });
+      expect(report.improvementPoints).toEqual([
+        { code: 'ACUTE_LOSS_EXCEEDED' },
+      ]);
+      expect(report.acuteLoss?.status).toBe('EXCEEDED');
+      expect(report.observations[0]?.notSeenInBout).toBe(false);
+      repo.findWeightMeasurements.mockResolvedValue([]);
+      expect(
+        (await service.getReport(coachActor, BOUT_ID)).improvementPoints,
+      ).toEqual([]);
+    });
+
+    it('corner-card uses T-006 acute loss, including NO_DATA and absent official weight', async () => {
+      setup({ officialWeightKg: '60', weighInAt: NOW });
+      repo.findWeightMeasurements.mockResolvedValue([
+        { measuredAt: new Date('2026-10-15T03:00:00Z'), weightKg: 70 },
+      ]);
+      expect(
+        (await service.getCornerCard(coachActor, BOUT_ID)).acuteLossFlag,
+      ).toBe(true);
+      repo.findWeightMeasurements.mockResolvedValue([]);
+      expect(
+        (await service.getCornerCard(coachActor, BOUT_ID)).acuteLossFlag,
+      ).toBe(false);
+      setup();
+      expect(
+        (await service.getCornerCard(coachActor, BOUT_ID)).acuteLossFlag,
+      ).toBe(false);
+    });
+
+    it('prior-context derives points from latest completed bout of requested fighter across scoped pages (AC15)', async () => {
+      const completed = setup({
+        status: 'COMPLETED',
+        opponentName: 'different',
+      });
+      const old = {
+        ...completed,
+        id: 'older',
+        boutAt: new Date('2026-01-01'),
+        opponentAnalysis: {},
+      };
+      const other = {
+        ...completed,
+        id: 'other',
+        fighterId: OTHER_FIGHTER_ID,
+        boutAt: new Date('2026-12-01'),
+        opponentAnalysis: {},
+      };
+      repo.listBouts
+        .mockResolvedValueOnce(Array.from({ length: 101 }, () => old))
+        .mockResolvedValueOnce([completed, other]);
+      repo.listRounds.mockResolvedValue([
+        round(1, { tacticMarks: { t1: 'INEFFECTIVE' } }),
+      ]);
+      const result = await service.getPriorContext(coachActor, {
+        fighterId: FIGHTER_ID,
+        opponentName: 'unmatched',
+      });
+      expect(result.copyableAnalysis).toBeNull();
+      expect(result.improvementPoints).toEqual([
+        { code: 'TACTIC_INEFFECTIVE', tacticId: 't1', text: 'counter' },
+      ]);
+      expect(repo.listRounds).toHaveBeenCalledWith(BOUT_ID);
+      expect(repo.listBouts.mock.calls[1]?.[0].cursor).toBeDefined();
+      repo.isCoachAssignedToFighter.mockResolvedValue(false);
+      await expectHttp(
+        service.getPriorContext(coachActor, {
+          fighterId: FIGHTER_ID,
+          opponentName: 'different',
+        }),
+        403,
+      );
+    });
+
+    it('result-prefill returns the last recorded round and knockdowns, or nulls without rounds (AC16)', async () => {
+      setup();
+      expect(await service.getResultPrefill(coachActor, BOUT_ID)).toEqual({
+        resultRound: null,
+        knockedDown: null,
+      });
+      repo.listRounds.mockResolvedValue([
+        round(1),
+        round(2, { knockdownsAgainst: 1 }),
+        round(3),
+      ]);
+      expect(await service.getResultPrefill(coachActor, BOUT_ID)).toEqual({
+        resultRound: 3,
+        knockedDown: true,
+      });
+      repo.listRounds.mockResolvedValue([round(1)]);
+      expect(await service.getResultPrefill(adminActor, BOUT_ID)).toEqual({
+        resultRound: 1,
+        knockedDown: false,
+      });
+      await expectHttp(service.getResultPrefill(fighterActor, BOUT_ID), 403);
+      await expectHttp(service.getResultPrefill(doctorActor, BOUT_ID), 403);
+      repo.isCoachAssignedToFighter.mockResolvedValue(false);
+      await expectHttp(service.getResultPrefill(coachActor, BOUT_ID), 403);
+      setup({ status: 'COMPLETED' });
+      await expectHttp(
+        service.getResultPrefill(adminActor, BOUT_ID),
+        409,
+        'BOUT_INVALID_TRANSITION',
+      );
+    });
+
+    it('R26 validates scheduled rounds from locked row and requires explicit incomplete decision confirmation (AC16)', async () => {
+      vi.setSystemTime(new Date('2026-11-01T03:00:00Z'));
+      setup();
+      // The row locked in the transaction is authoritative, even after an intervening schedule edit.
+      repo.findBoutById.mockResolvedValue(
+        makeBout({ status: 'WEIGHED_IN', scheduledRounds: 5 }),
+      );
+      const err = await expectHttp(
+        service.recordResult(
+          coachActor,
+          BOUT_ID,
+          { result: 'WIN', method: 'KO', resultRound: 5 },
+          REQUEST_ID,
+        ),
+        422,
+        'BOUT_RESULT_INVALID',
+      );
+      expect(err.getResponse()).toMatchObject({
+        details: { reason: 'ROUND_EXCEEDS_SCHEDULED' },
+      });
+      expect(repo.updateBout).not.toHaveBeenCalled();
+      repo.listRounds.mockResolvedValue([round(1), round(2)]);
+      const incomplete = await expectHttp(
+        service.recordResult(
+          coachActor,
+          BOUT_ID,
+          { result: 'WIN', method: 'DECISION', confirmIncompleteRounds: false },
+          REQUEST_ID,
+        ),
+        409,
+        'BOUT_ROUNDS_INCOMPLETE',
+      );
+      expect(incomplete.getResponse()).toMatchObject({
+        details: { recorded: 2, scheduled: 3 },
+      });
+      expect(repo.updateBout).not.toHaveBeenCalled();
+      const done = await service.recordResult(
+        coachActor,
+        BOUT_ID,
+        { result: 'WIN', method: 'DECISION', confirmIncompleteRounds: true },
+        REQUEST_ID,
+      );
+      expect(done.status).toBe('COMPLETED');
+      expect(repo.lockBoutById).toHaveBeenCalledWith(BOUT_ID, tx);
+      expect(repo.listRounds).toHaveBeenCalledWith(BOUT_ID, tx);
+    });
+
+    it.each([null, 3])(
+      'R26 allows decisions without recorded rounds or without a schedule (%s) and does not auto review absent rounds (AC16)',
+      async (scheduledRounds) => {
+        vi.setSystemTime(new Date('2026-11-01T03:00:00Z'));
+        setup({ scheduledRounds });
+        const result = await service.recordResult(
+          coachActor,
+          BOUT_ID,
+          { result: 'WIN', method: 'DECISION' },
+          REQUEST_ID,
+        );
+        expect(result.status).toBe('COMPLETED');
+        expect(repo.updateBout.mock.calls[0]?.[1]).not.toHaveProperty(
+          'opponentAnalysis',
+        );
+        if (scheduledRounds === null) {
+          repo.listRounds.mockResolvedValue([round(1)]);
+          expect(
+            (
+              await service.recordResult(
+                coachActor,
+                BOUT_ID,
+                { result: 'WIN', method: 'DECISION' },
+                REQUEST_ID,
+              )
+            ).status,
+          ).toBe('COMPLETED');
+        }
+      },
+    );
+
+    it('R29 auto reviews only missing reviews in the same audited result update (AC16)', async () => {
+      vi.setSystemTime(new Date('2026-11-01T03:00:00Z'));
+      const bout = setup({
+        opponentAnalysis: {
+          ...input,
+          tactics: [
+            input.tactics[0]!,
+            {
+              ...input.tactics[0]!,
+              id: 't2',
+              review: { outcome: 'INEFFECTIVE', note: 'keep', auto: false },
+            },
+            { ...input.tactics[0]!, id: 't3' },
+          ],
+        },
+      });
+      repo.listRounds.mockResolvedValue([
+        round(1, { tacticMarks: { t1: 'EFFECTIVE', t2: 'EFFECTIVE' } }),
+        round(2),
+        round(3),
+      ]);
+      const result = await service.recordResult(
+        coachActor,
+        BOUT_ID,
+        { result: 'WIN', method: 'DECISION' },
+        REQUEST_ID,
+      );
+      expect(
+        result.opponentAnalysis.tactics?.map((t) =>
+          'review' in t ? t.review : undefined,
+        ),
+      ).toEqual([
+        { outcome: 'EFFECTIVE', note: null, auto: true },
+        { outcome: 'INEFFECTIVE', note: 'keep', auto: false },
+        { outcome: 'NOT_USED', note: null, auto: true },
+      ]);
+      expect(repo.updateBout).toHaveBeenCalledTimes(1);
+      expect(repo.updateBout).toHaveBeenCalledWith(
+        BOUT_ID,
+        expect.objectContaining({
+          status: 'COMPLETED',
+          opponentAnalysis: expect.any(Object),
+        }),
+        expect.anything(),
+        tx,
+      );
+      expect(tx.execute).toHaveBeenCalled();
+      expect(bout.opponentAnalysis.tactics?.[0]).not.toHaveProperty('review');
+      setup({
+        status: 'COMPLETED',
+        opponentAnalysis:
+          result.opponentAnalysis as BoutRow['opponentAnalysis'],
+      });
+      const manual = await service.putOpponentReview(
+        coachActor,
+        BOUT_ID,
+        {
+          reviews: [
+            {
+              tacticId: 't1',
+              outcome: 'INEFFECTIVE',
+              note: 'coach correction',
+            },
+          ],
+        },
+        REQUEST_ID,
+      );
+      expect(manual.opponentAnalysis.tactics?.[0]?.review).toEqual({
+        outcome: 'INEFFECTIVE',
+        note: 'coach correction',
+        auto: false,
+      });
+    });
+
+    it('result does not write reviews when locked status changes or the conditional result update fails (AC16)', async () => {
+      vi.setSystemTime(new Date('2026-11-01T03:00:00Z'));
+      setup();
+      repo.lockBoutById.mockResolvedValue(makeBout({ status: 'COMPLETED' }));
+      await expectHttp(
+        service.recordResult(
+          coachActor,
+          BOUT_ID,
+          { result: 'WIN', method: 'DECISION' },
+          REQUEST_ID,
+        ),
+        409,
+        'BOUT_STATE_CONFLICT',
+      );
+      expect(repo.updateBout).not.toHaveBeenCalled();
+      const bout = setup();
+      repo.listRounds.mockResolvedValue([
+        round(1, { tacticMarks: { t1: 'INEFFECTIVE' } }),
+      ]);
+      repo.updateBout.mockResolvedValue(undefined);
+      await expectHttp(
+        service.recordResult(
+          coachActor,
+          BOUT_ID,
+          { result: 'WIN', method: 'KO', resultRound: 1 },
+          REQUEST_ID,
+        ),
+        409,
+        'BOUT_STATE_CONFLICT',
+      );
+      expect(repo.updateBout).toHaveBeenCalledTimes(1);
+      expect(bout.opponentAnalysis.tactics?.[0]).not.toHaveProperty('review');
+    });
+
     it('normalizes opponent names, selects the latest visible bout and strips reviews (AC15 copy)', async () => {
       const bout = setup({
         opponentName: 'nguyen van a',
@@ -2504,7 +3170,7 @@ describe('BoutsService', () => {
         limit: 100,
         cursor: undefined,
       });
-      expect(result.improvementPoints).toBeNull(); // Section 6 waits for T-006.
+      expect(result.improvementPoints).toBeNull(); // No completed bout in this history.
       repo.listBouts.mockResolvedValue([]); // Scope excludes the unassigned historical fighter.
       expect(
         (
