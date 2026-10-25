@@ -1,4 +1,3 @@
-import { getDemoCopy } from "@/lib/i18n/server";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
@@ -10,6 +9,7 @@ import { updatePlan } from "@/lib/actions/training";
 import { canAccessFighter, requireFighterAccess } from "@/lib/auth/access";
 import { getCurrentUser, requireRole } from "@/lib/auth/session";
 import { dayKey } from "@/lib/format";
+import { getTranslator } from "@/lib/i18n/server";
 import { routes } from "@/lib/routes";
 import { usesTrainingServiceForms } from "@/lib/services/platform-features";
 import { getPlan } from "@/lib/services/training";
@@ -18,16 +18,14 @@ import { getPlan } from "@/lib/services/training";
 const loadPlan = cache(getPlan);
 
 export async function generateMetadata({ params }: PageProps<"/coach/training-plans/[planId]/edit">): Promise<Metadata> {
-    const copy = await getDemoCopy();
-    const [{ planId }, user] = await Promise.all([params, getCurrentUser()]);
+    const [{ planId }, user, { t }] = await Promise.all([params, getCurrentUser(), getTranslator()]);
     const plan = await loadPlan(planId);
-    return { title: plan && user && canAccessFighter(user, plan.fighterId) ? copy("Edit {title}", { title: plan.title }) : copy("Edit training plan") };
+    return { title: plan && user && canAccessFighter(user, plan.fighterId) ? `${t("training.planForm.titleEdit")} ${plan.title}` : t("training.planForm.titleEdit") };
 }
 
 export default async function EditPlanPage({ params }: PageProps<"/coach/training-plans/[planId]/edit">) {
-    const copy = await getDemoCopy();
     const user = await requireRole("coach");
-    const { planId } = await params;
+    const [{ planId }, { t }] = await Promise.all([params, getTranslator()]);
     const now = new Date().toISOString();
     // The clearance lookup starts with the plan read and only covers a fighter this coach may see.
     const planRead = loadPlan(planId);
@@ -54,10 +52,10 @@ export default async function EditPlanPage({ params }: PageProps<"/coach/trainin
     return (
         <>
             <PageHeader
-                eyebrow={copy("Edit training plan")}
+                eyebrow={t("training.planForm.titleEdit")}
                 title={plan.title}
-                description={plan.status === "active" ? copy("{fighter} sees your changes on the active plan straight away.", { fighter: fighter.name }) : undefined}
-                back={{ href: routes.coach.plan(plan.id), label: copy("Back to plan") }}
+                description={plan.status === "active" ? t("training.planForm.descEditActive", { name: fighter.name }) : undefined}
+                back={{ href: routes.coach.plan(plan.id), label: t("training.planDetails.backToPlan") }}
             />
             <PlanForm
                 mode="edit"

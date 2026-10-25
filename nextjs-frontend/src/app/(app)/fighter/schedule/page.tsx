@@ -1,4 +1,3 @@
-import { getDemoCopy, getLocale } from "@/lib/i18n/server";
 import { CalendarClock, CalendarDays, ClipboardList } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -18,18 +17,22 @@ import { WeekSummary } from "@/components/training/week-summary";
 import { requireFighterId } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { academyDayStartIso, addDaysToKey } from "@/lib/format";
+import { getTranslator } from "@/lib/i18n/server";
+import { plural } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import { getWeekAgenda, listPlans, listSessions } from "@/lib/services/training";
 import { param } from "@/lib/utils";
 
-export async function generateMetadata(): Promise<Metadata> { const copy = await getDemoCopy(); return { title: copy("Schedule") }; }
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return { title: t("training.fighterSchedule.title") };
+}
 
 const DAY_MS = 86_400_000;
 const UPCOMING_DAYS = 14;
 
 export default async function FighterSchedulePage({ searchParams }: PageProps<"/fighter/schedule">) {
-    const copy = await getDemoCopy();
-    const locale = await getLocale();
+    const { t, locale } = await getTranslator();
     const user = await requireRole("fighter");
     if (!user.profileId) notFound();
     const fighterId = requireFighterId(user, user.profileId);
@@ -64,13 +67,18 @@ export default async function FighterSchedulePage({ searchParams }: PageProps<"/
     const upcoming = later.filter((s) => plannedEndMs(s) >= nowMs);
     const activePlan = activePlans[0];
     const scheduledCount = weekSessions.filter((s) => s.status !== "cancelled").length;
-    const upcomingDescription = offset === 0 ? copy("Next week and beyond") : offset > 0 ? copy("After {date}", { date: weekRangeLabel(startKey, locale) }) : copy("Next {n} days", { n: UPCOMING_DAYS });
+    const upcomingDescription =
+        offset === 0
+            ? t("training.fighterSchedule.upcomingDescNextWeek")
+            : offset > 0
+              ? t("training.fighterSchedule.upcomingDescAfter", { range: weekRangeLabel(startKey, locale) })
+              : t("training.fighterSchedule.upcomingDescNextDays", { n: UPCOMING_DAYS });
 
     return (
         <>
             <PageHeader
-                title={copy("Schedule")}
-                description={copy("Your training week and what's coming up. Open a session for drills, targets and coach notes.")}
+                title={t("training.fighterSchedule.title")}
+                description={t("training.fighterSchedule.description")}
             />
 
             <div className="flex flex-col gap-6">
@@ -79,7 +87,7 @@ export default async function FighterSchedulePage({ searchParams }: PageProps<"/
                 <Card>
                     <CardHeader
                         title={weekRangeLabel(startKey, locale)}
-                        description={`${describeWeekOffset(offset, locale)} · ${copy("{n} sessions", { n: scheduledCount })}`}
+                        description={`${describeWeekOffset(offset, locale)} · ${plural(t, "training.sessionsCount", scheduledCount)}`}
                         icon={<CalendarDays />}
                         action={<WeekNav locale={locale} pathname={routes.fighter.schedule} searchParams={params} offset={offset} startKey={startKey} />}
                         className="flex-wrap"
@@ -91,14 +99,14 @@ export default async function FighterSchedulePage({ searchParams }: PageProps<"/
 
                 <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                     <Card className="min-w-0 overflow-hidden lg:col-span-2">
-                        <CardHeader title={copy("Upcoming")} description={upcomingDescription} icon={<CalendarClock />} />
+                        <CardHeader title={t("training.fighterSchedule.upcomingTitle")} description={upcomingDescription} icon={<CalendarClock />} />
                         {upcoming.length === 0 ? (
                             <CardContent>
                                 <EmptyState
                                     compact
                                     icon={<CalendarClock />}
-                                    title={showsPastWeek ? copy("Nothing scheduled in the next two weeks") : copy(offset === 0 ? "Nothing scheduled after this week yet" : "Nothing scheduled after that week yet")}
-                                    description={copy("When your coach schedules sessions they appear here, and you'll get a notification.")}
+                                    title={showsPastWeek ? t("training.fighterSchedule.noUpcomingPastTitle") : t("training.fighterSchedule.noUpcomingFutureTitle", { which: offset === 0 ? t("training.fighterSchedule.this") : t("training.fighterSchedule.that") })}
+                                    description={t("training.fighterSchedule.noUpcomingDesc")}
                                 />
                             </CardContent>
                         ) : (
@@ -112,7 +120,7 @@ export default async function FighterSchedulePage({ searchParams }: PageProps<"/
                         <WeekSummary locale={locale} sessions={weekSessions} description={weekRangeLabel(startKey, locale)} />
                         {activePlan && (
                             <Card>
-                                <CardHeader title={copy("Current plan")} icon={<ClipboardList />} />
+                                <CardHeader title={t("training.fighterSchedule.currentPlan")} icon={<ClipboardList />} />
                                 <CardContent className="flex flex-col gap-3">
                                     <Link href={routes.fighter.plan(activePlan.id)} className="text-sm font-semibold text-fg hover:underline">
                                         {activePlan.title}
@@ -120,8 +128,8 @@ export default async function FighterSchedulePage({ searchParams }: PageProps<"/
                                     <PlanTimelineBar plan={activePlan} now={now} size="sm" />
                                     <p className="text-[13px] text-fg-muted">
                                         {[
-                                            activePlan.weeklySessionTarget === null ? null : copy("Target {n} sessions a week", { n: activePlan.weeklySessionTarget }),
-                                            coachNames[activePlan.coachId] ? copy("Coach {name}", { name: coachNames[activePlan.coachId] }) : null,
+                                            activePlan.weeklySessionTarget === null ? null : t("training.fighterSchedule.targetSessionsAWeek", { count: plural(t, "training.sessionsCount", activePlan.weeklySessionTarget) }),
+                                            coachNames[activePlan.coachId] ? t("training.plan.coachPrefix", { name: coachNames[activePlan.coachId] }) : null,
                                         ]
                                             .filter(Boolean)
                                             .join(" · ")}

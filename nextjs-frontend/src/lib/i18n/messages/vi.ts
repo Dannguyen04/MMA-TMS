@@ -4,6 +4,7 @@ import { viAuth } from "./auth.vi";
 import { viCoachBouts } from "./coach-bouts.vi";
 import { viCoachToday } from "./coach-today.vi";
 import { viFighterToday } from "./fighter-today.vi";
+import { viTraining } from "./training.vi";
 import { viLanding } from "./landing.vi";
 import type { en } from "./en";
 
@@ -15,6 +16,7 @@ export const vi = {
     ...viCoachBouts,
     ...viCoachToday,
     ...viFighterToday,
+    ...viTraining,
     ...viLanding,
     "nav.Today": "Hôm nay",
     "nav.Bout": "Trận đấu",
