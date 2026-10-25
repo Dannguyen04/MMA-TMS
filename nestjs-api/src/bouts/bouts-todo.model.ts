@@ -1,7 +1,14 @@
 import { z } from 'zod';
 import {
+  planConflicts,
+  suspensionStatusOn,
+  type ConflictSessionInput,
+  type ConflictSuspensionInput,
+} from '../suspensions/suspensions.model.js';
+import {
   academyDateOf,
   daysBetweenDates,
+  isFinalStatus,
   type BoutStatus,
   type WeighInReminderLevel,
   type WeightTrackStatus,
@@ -27,6 +34,8 @@ export const TODO_SOURCES = [
   'WEIGH_IN_TODAY',
   'RESULT_OVERDUE',
   'WEIGHT_NOT_LOGGED',
+  'SUSPENSION_AWAITING_CLEARANCE',
+  'TRAINING_CONFLICTS_WITH_SUSPENSION',
 ] as const;
 export type TodoSource = (typeof TODO_SOURCES)[number];
 
@@ -50,7 +59,7 @@ export const coachTodoResponseSchema = z.object({
 });
 export type CoachTodoResponse = z.infer<typeof coachTodoResponseSchema>;
 
-/** Everything a provider may read about one running bout. */
+/** Everything a provider may read about one bout. */
 export interface TodoBoutContext {
   boutId: string;
   fighterId: string;
@@ -67,6 +76,10 @@ export interface TodoBoutContext {
   weightStatus: WeightTrackStatus;
   weightReminderLevel: WeighInReminderLevel | null;
   tacticsWithoutSessions: number;
+  /** Fighter's suspensions (for S3 / R28 AFTER-phase providers). */
+  suspensions?: readonly ConflictSuspensionInput[];
+  /** Fighter's SCHEDULED sessions from today on (for R28 AFTER-phase provider). */
+  scheduledSessions?: readonly ConflictSessionInput[];
 }
 
 /** R11: paperwork still open within 14 days of its due date, or past it. */
@@ -95,7 +108,7 @@ const BEFORE_FIGHT_WEEK_ENDS: readonly BoutStatus[] = ['SCHEDULED', 'CAMP', 'FIG
 
 /** R11. */
 export const requirementsProvider: Provider = (ctx) => {
-  if (ctx.requirementsOpen === 0) return [];
+  if (isFinalStatus(ctx.status) || ctx.requirementsOpen === 0) return [];
   if (ctx.today > ctx.requirementsDueOn) {
     return [
       item(ctx, 'REQUIREMENTS_OVERDUE', 'BEFORE', {
@@ -135,7 +148,9 @@ export const tacticsProvider: Provider = (ctx) =>
 
 /** R16. */
 export const fightWeekProvider: Provider = (ctx) =>
-  ctx.canEnterFightWeek ? [item(ctx, 'CAN_ENTER_FIGHT_WEEK', 'BEFORE')] : [];
+  !isFinalStatus(ctx.status) && ctx.canEnterFightWeek
+    ? [item(ctx, 'CAN_ENTER_FIGHT_WEEK', 'BEFORE')]
+    : [];
 
 /** R17: the official weigh-in is today. */
 export const weighInTodayProvider: Provider = (ctx) =>
@@ -145,6 +160,7 @@ export const weighInTodayProvider: Provider = (ctx) =>
 
 /** R26: the bout date has passed and there is still no result. */
 export const resultOverdueProvider: Provider = (ctx) => {
+  if (isFinalStatus(ctx.status)) return [];
   const boutOn = academyDateOf(ctx.boutAt);
   return ctx.today > boutOn ? [item(ctx, 'RESULT_OVERDUE', 'DURING', { dueOn: boutOn })] : [];
 };
@@ -155,6 +171,40 @@ export const weightNotLoggedProvider: Provider = (ctx) =>
     ? [item(ctx, 'WEIGHT_NOT_LOGGED', 'DURING')]
     : [];
 
+/** S3: the fighter has a suspension whose status is AWAITING_CLEARANCE (appears on ends_on + 1, not ends_on). */
+export const suspensionAwaitingClearanceProvider: Provider = (ctx) => {
+  const suspensions = ctx.suspensions ?? [];
+  const awaiting = suspensions.some(
+    (s) =>
+      (s.deletedAt === null || s.deletedAt === undefined) &&
+      suspensionStatusOn(s, ctx.today) === 'AWAITING_CLEARANCE',
+  );
+  return awaiting ? [item(ctx, 'SUSPENSION_AWAITING_CLEARANCE', 'AFTER')] : [];
+};
+
+/** R28: unresolved R28 proposals over the fighter's SCHEDULED sessions (from today on) and suspensions. */
+export const trainingConflictsProvider: Provider = (ctx) => {
+  const suspensions = ctx.suspensions ?? [];
+  const sessions = (ctx.scheduledSessions ?? []).filter((session) => {
+    const scheduledAt =
+      session.scheduledAt instanceof Date
+        ? session.scheduledAt
+        : new Date(session.scheduledAt);
+    return academyDateOf(scheduledAt) >= ctx.today;
+  });
+  if (suspensions.length === 0 || sessions.length === 0) return [];
+  const proposals = planConflicts(sessions, suspensions);
+  return proposals.length > 0
+    ? [
+        item(ctx, 'TRAINING_CONFLICTS_WITH_SUSPENSION', 'AFTER', {
+          count: proposals.length,
+        }),
+      ]
+    : [];
+};
+export const trainingConflictsWithSuspensionProvider =
+  trainingConflictsProvider;
+
 export const TODO_PROVIDERS: readonly Provider[] = [
   requirementsProvider,
   weightProvider,
@@ -163,11 +213,52 @@ export const TODO_PROVIDERS: readonly Provider[] = [
   weighInTodayProvider,
   resultOverdueProvider,
   weightNotLoggedProvider,
+  suspensionAwaitingClearanceProvider,
+  trainingConflictsProvider,
 ];
+
+const FIGHTER_SCOPED_SOURCES: ReadonlySet<TodoSource> = new Set([
+  'SUSPENSION_AWAITING_CLEARANCE',
+  'TRAINING_CONFLICTS_WITH_SUSPENSION',
+]);
+
+function isMoreRecentFighterBout(
+  candidate: TodoBoutContext,
+  current: TodoBoutContext,
+): boolean {
+  const candidateRunning = !isFinalStatus(candidate.status);
+  const currentRunning = !isFinalStatus(current.status);
+  if (candidateRunning !== currentRunning) {
+    return candidateRunning;
+  }
+  const candidateTime = candidate.boutAt.getTime();
+  const currentTime = current.boutAt.getTime();
+  if (candidateTime !== currentTime) {
+    return candidateTime > currentTime;
+  }
+  return candidate.boutId > current.boutId;
+}
 
 export function collectTodoItems(
   contexts: readonly TodoBoutContext[],
   providers: readonly Provider[] = TODO_PROVIDERS,
 ): TodoItem[] {
-  return contexts.flatMap((ctx) => providers.flatMap((provider) => provider(ctx)));
+  const primaryBoutByFighter = new Map<string, TodoBoutContext>();
+  for (const ctx of contexts) {
+    const existing = primaryBoutByFighter.get(ctx.fighterId);
+    if (!existing || isMoreRecentFighterBout(ctx, existing)) {
+      primaryBoutByFighter.set(ctx.fighterId, ctx);
+    }
+  }
+
+  return contexts.flatMap((ctx) => {
+    const isPrimaryForFighter =
+      primaryBoutByFighter.get(ctx.fighterId) === ctx;
+    return providers.flatMap((provider) =>
+      provider(ctx).filter(
+        (todo) =>
+          !FIGHTER_SCOPED_SOURCES.has(todo.source) || isPrimaryForFighter,
+      ),
+    );
+  });
 }

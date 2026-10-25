@@ -5,9 +5,11 @@ import type {
   BoutRequirementRow,
   BoutRow,
   CompetitionRuleset,
+  SuspensionRow,
 } from '../database/schema.js';
 import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import { USER } from '../shared/types/user.role.js';
+import { SuspensionsRepository } from '../suspensions/suspensions.repo.js';
 import { BoutsTodoService } from './bouts-todo.service.js';
 import { BoutsRepository } from './bouts.repo.js';
 
@@ -66,6 +68,7 @@ function requirement(over: Partial<BoutRequirementRow> & { boutId: string }): Bo
 describe('BoutsTodoService', () => {
   let service: BoutsTodoService;
   let repo: Mocked<BoutsRepository>;
+  let suspensionsRepo: Mocked<SuspensionsRepository>;
 
   beforeEach(() => {
     vi.useFakeTimers();
@@ -76,8 +79,13 @@ describe('BoutsTodoService', () => {
       listRequirementsForBouts: vi.fn().mockResolvedValue([]),
       findPlansByIds: vi.fn().mockResolvedValue([]),
       findWeightMeasurementsForFighters: vi.fn().mockResolvedValue([]),
+      findScheduledSessionsForFighters: vi.fn().mockResolvedValue([]),
+      findLatestBoutsForFighters: vi.fn().mockResolvedValue([]),
     } as unknown as Mocked<BoutsRepository>;
-    service = new BoutsTodoService(repo);
+    suspensionsRepo = {
+      findUnresolvedSuspensionsInScope: vi.fn().mockResolvedValue([]),
+    } as unknown as Mocked<SuspensionsRepository>;
+    service = new BoutsTodoService(repo, suspensionsRepo);
   });
 
   afterEach(() => {
@@ -168,5 +176,107 @@ describe('BoutsTodoService', () => {
     const result = await service.getCoachTodo(admin);
     expect(result.truncated).toBe(true);
     expect(repo.listRequirementsForBouts.mock.calls[0]?.[0]).toHaveLength(100);
+  });
+
+  it('batches SUSPENSION_AWAITING_CLEARANCE and TRAINING_CONFLICTS_WITH_SUSPENSION using running or last bout, and skips fighters without any bout', async () => {
+    const FIGHTER_C = '10000000-0000-4000-8000-00000000000c';
+    const runningBoutA = bout({
+      id: '40000000-0000-4000-8000-00000000000a',
+      fighterId: FIGHTER_A,
+      eventName: 'Next Cup',
+      status: 'SCHEDULED',
+    });
+    const completedBoutB = bout({
+      id: '40000000-0000-4000-8000-00000000000b',
+      fighterId: FIGHTER_B,
+      eventName: 'Last Cup',
+      status: 'COMPLETED',
+    });
+
+    repo.listBouts.mockResolvedValue([runningBoutA]);
+    repo.findWeightMeasurementsForFighters.mockResolvedValue([
+      { fighterId: FIGHTER_A, measuredAt: NOW, createdAt: NOW, weightKg: 60 },
+    ]);
+    suspensionsRepo.findUnresolvedSuspensionsInScope.mockResolvedValue([
+      // Fighter A: active suspension blocking SPARRING
+      {
+        id: '80000000-0000-4000-8000-000000000001',
+        fighterId: FIGHTER_A,
+        startsOn: '2026-10-18',
+        endsOn: '2026-10-25',
+        requiresClearance: false,
+        clearedAt: null,
+        blockedSessionTypes: ['SPARRING'],
+        deletedAt: null,
+      } as unknown as SuspensionRow,
+      // Fighter B: awaiting clearance on 2026-10-20 (endsOn was 2026-10-19)
+      {
+        id: '80000000-0000-4000-8000-000000000002',
+        fighterId: FIGHTER_B,
+        startsOn: '2026-09-20',
+        endsOn: '2026-10-19',
+        requiresClearance: true,
+        clearedAt: null,
+        blockedSessionTypes: ['SPARRING'],
+        deletedAt: null,
+      } as unknown as SuspensionRow,
+      // Fighter C: awaiting clearance, but has no bout at all -> should be skipped
+      {
+        id: '80000000-0000-4000-8000-000000000003',
+        fighterId: FIGHTER_C,
+        startsOn: '2026-09-20',
+        endsOn: '2026-10-19',
+        requiresClearance: true,
+        clearedAt: null,
+        blockedSessionTypes: ['SPARRING'],
+        deletedAt: null,
+      } as unknown as SuspensionRow,
+    ]);
+    repo.findScheduledSessionsForFighters.mockResolvedValue([
+      {
+        id: '70000000-0000-4000-8000-000000000001',
+        fighterId: FIGHTER_A,
+        sessionType: 'SPARRING',
+        status: 'SCHEDULED',
+        scheduledAt: new Date('2026-10-21T03:00:00Z'),
+      },
+      {
+        id: '70000000-0000-4000-8000-000000000002',
+        fighterId: FIGHTER_A,
+        sessionType: 'SPARRING',
+        status: 'SCHEDULED',
+        scheduledAt: new Date('2026-10-22T03:00:00Z'),
+      },
+    ]);
+    repo.findLatestBoutsForFighters.mockResolvedValue([completedBoutB]);
+
+    const { items } = await service.getCoachTodo(coach);
+
+    expect(suspensionsRepo.findUnresolvedSuspensionsInScope).toHaveBeenCalledTimes(1);
+    expect(repo.findScheduledSessionsForFighters).toHaveBeenCalledTimes(1);
+    expect(repo.findLatestBoutsForFighters).toHaveBeenCalledWith([
+      FIGHTER_B,
+      FIGHTER_C,
+    ]);
+
+    expect(items).toContainEqual({
+      source: 'TRAINING_CONFLICTS_WITH_SUSPENSION',
+      phase: 'AFTER',
+      fighterId: FIGHTER_A,
+      boutId: runningBoutA.id,
+      eventName: 'Next Cup',
+      dueOn: null,
+      count: 2,
+    });
+    expect(items).toContainEqual({
+      source: 'SUSPENSION_AWAITING_CLEARANCE',
+      phase: 'AFTER',
+      fighterId: FIGHTER_B,
+      boutId: completedBoutB.id,
+      eventName: 'Last Cup',
+      dueOn: null,
+      count: null,
+    });
+    expect(items.some((item) => item.fighterId === FIGHTER_C)).toBe(false);
   });
 });

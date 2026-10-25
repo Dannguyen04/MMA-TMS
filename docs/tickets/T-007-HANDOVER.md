@@ -285,3 +285,290 @@ $ node run_sql.mjs --check
 ### Câu hỏi / việc còn mở
 
 - Không có câu hỏi tồn đọng cho Round B. Sẵn sàng chuyển sang Round C.
+
+---
+
+## Round C
+
+- Nhánh: `User_Feature` (để nguyên các thay đổi uncommitted trên working tree theo chỉ định).
+- Phạm vi Round C: Xử lý xung đột lịch tập với đình chỉ theo quy tắc R28 — hàm thuần `planConflicts(sessions, suspensions)` trong `src/suspensions/suspensions.model.ts`, cùng controller và service mới trong `src/training/` (`GET /suspensions/:id/conflicts` và `POST /suspensions/:id/conflicts/apply`), đăng ký trong `training.module.ts`, và bộ unit test đầy đủ.
+
+### Thay đổi
+
+- `nestjs-api/src/suspensions/suspensions.model.ts` & `nestjs-api/src/suspensions/suspensions.dto.ts`:
+  - Khai báo `CONFLICT_ACTIONS` (`CHANGE_TYPE`, `RESCHEDULE`, `CANCEL`), `ConflictAction`, `ConflictProposal` (`{ sessionId, action, toType?, toScheduledAt? }`), `ConflictSessionInput`, `ConflictSuspensionInput`, cùng schema `applySuspensionConflictsSchema` (`{ sessionIds: uuid[] }` không trùng lặp), `conflictProposalResponseSchema` và các DTO `ApplySuspensionConflictsDto`, `ConflictProposalResponseDto`.
+  - Cài đặt hàm thuần `planConflicts(sessions, suspensions)` theo đúng quy tắc R28:
+    - Bỏ qua các đình chỉ đã xoá mềm (`deletedAt !== null`) và các buổi tập không ở trạng thái `SCHEDULED` hoặc đã xoá mềm.
+    - Xét ngày học viện (`academyDateOf`) của buổi tập; tìm mọi đình chỉ đang có hiệu lực (`isInForceOn(s, sessionDate)`) chặn loại buổi tập đó.
+    - (1) Nếu `RECOVERY` không bị bất kỳ đình chỉ đang có hiệu lực nào chặn trong ngày đó → đề xuất `{ sessionId, action: 'CHANGE_TYPE', toType: 'RECOVERY' }`.
+    - (2) Ngược lại, nếu mọi đình chỉ đang chặn buổi tập đều có ngày kết thúc cố định (`requiresClearance = false`) → dời sang ngày đầu tiên sau `ends_on` muộn nhất (`latestEndsOn + 1`, đồng thời vượt qua các đình chỉ cố định kế tiếp nếu có để luôn qua Cổng 2; nếu đụng đình chỉ `requiresClearance = true` thì chuyển sang `CANCEL`), giữ nguyên giờ trong ngày theo múi giờ học viện (`action: 'RESCHEDULE', toScheduledAt: Date`).
+    - (3) Ngược lại (có ít nhất một đình chỉ chặn buổi tập cần xác nhận y tế `requiresClearance = true`) → đề xuất `{ sessionId, action: 'CANCEL' }`.
+- `nestjs-api/src/training/`:
+  - `training.constants.ts`: thêm hằng số `SUSPENSION_CONFLICT_CANCELLATION_REASON = 'Suspension in force'`.
+  - `training.model.ts` & `training.dto.ts`: re-export schema và DTO xung đột lịch tập để dùng thống nhất trong `training`.
+  - `training.repo.ts`: thêm phương thức bổ trợ `findScheduledSessionsByFighterId(fighterId, database?)` lấy toàn bộ buổi tập `SCHEDULED` chưa xoá mềm của võ sĩ (sắp xếp theo `scheduledAt asc, id asc`).
+  - `sessions/training-session.service.ts`: thêm các phương thức bổ trợ `applySessionUpdateInTransaction`, `applySessionCancelInTransaction`, `notifySessionRescheduled`, `notifySessionCancelled` dùng chung logic khoá dòng, kiểm tra Cổng 2 (`SuspensionGate` — không bao giờ bỏ qua cổng), cập nhật DB trong transaction và gửi thông báo `TRAINING_SESSION_RESCHEDULED` / `TRAINING_SESSION_CANCELLED` sau khi transaction commit; `CHANGE_TYPE` chỉ cập nhật `sessionType` sang `RECOVERY` (không bắn thông báo, đúng hành vi `updateSession` hiện tại).
+  - `training-suspension-conflicts.service.ts`:
+    - `getConflicts(actor, suspensionId)`: kiểm tra đình chỉ tồn tại (404 `SUSPENSION_NOT_FOUND` nếu không có hoặc đã xoá mềm), kiểm tra quyền truy cập võ sĩ (`assertFighterAccess`), tính toán đề xuất khi đọc (không lưu DB) qua `planConflicts`.
+    - `applyConflicts(actor, suspensionId, input)`: kiểm tra `assertTrainingWriteAllowed` + `assertFighterAccess`, mở **một transaction duy nhất** tính lại đề xuất hiện hành, từ chối 422 nếu bất kỳ `sessionId` nào không nằm trong đề xuất hiện tại (không áp dụng bất kỳ thay đổi nào), chỉ áp dụng các `sessionIds` được liệt kê bằng đường cập nhật/huỷ buổi tập chuẩn (đi qua Cổng 2 `SuspensionGate`), và chỉ gửi thông báo `TRAINING_SESSION_RESCHEDULED` / `TRAINING_SESSION_CANCELLED` sau khi transaction commit thành công.
+  - `training-suspension-conflicts.controller.ts` & `training.module.ts`:
+    - `GET /suspensions/:id/conflicts` yêu cầu quyền `suspension:read`.
+    - `POST /suspensions/:id/conflicts/apply` yêu cầu quyền `TRAINING_PERMISSIONS.SESSION_UPDATE` (`training.session:update`).
+    - Đăng ký `TrainingSuspensionConflictsController` và `TrainingSuspensionConflictsService` trong `TrainingModule`.
+- Unit test mới:
+  - `nestjs-api/src/suspensions/suspensions.model.spec.ts`: thêm 6 test cho `planConflicts` (tổng 23 test trong file).
+  - `nestjs-api/src/training/training-suspension-conflicts.service.spec.ts`: 8 test kiểm tra `getConflicts`, áp dụng một phần danh sách (`sessionIds` để lại không bị đụng), tính nguyên tử khi lỗi ở buổi thứ hai (rollback toàn bộ và không gửi thông báo), từ chối 422 khi gửi `sessionId` ngoài đề xuất, chỉ gửi thông báo sau khi commit, chặn 403 khi HLV không được phân công võ sĩ hoặc bác sĩ gọi `apply`, và trả 404 `SUSPENSION_NOT_FOUND`.
+  - `nestjs-api/src/training/training-suspension-conflicts.controller.spec.ts`: 5 test kiểm tra route metadata, permission metadata (`suspension:read`, `training.session:update`), Zod DTO validation và uỷ quyền xuống service.
+
+### Đối chiếu tiêu chí nghiệm thu (phạm vi Round C)
+
+| Tiêu chí (theo ticket, phạm vi Round C) | Đáp ứng ở đâu (file:dòng, test nào) |
+| --- | --- |
+| 12a — `planConflicts`: buổi `SPARRING` ngày thứ 5 của đình chỉ → `CHANGE_TYPE` sang `RECOVERY` (khi `RECOVERY` không bị chặn) | Đạt: `nestjs-api/src/suspensions/suspensions.model.ts:200`, `nestjs-api/src/suspensions/suspensions.model.spec.ts:281`. |
+| 12b — `planConflicts`: `RECOVERY` cũng bị chặn và các đình chỉ đều có ngày kết thúc cố định → `RESCHEDULE` sang `ends_on + 1` (giữ nguyên giờ); hai đình chỉ chồng nhau lấy `ends_on` muộn nhất; đúng ngày `ends_on` vẫn nằm trong khoảng đình chỉ | Đạt: `nestjs-api/src/suspensions/suspensions.model.ts:259`, `nestjs-api/src/suspensions/suspensions.model.spec.ts:304`, `nestjs-api/src/suspensions/suspensions.model.spec.ts:346`, `nestjs-api/src/suspensions/suspensions.model.spec.ts:431`. |
+| 12c — `planConflicts`: `RECOVERY` bị chặn và có đình chỉ cần xác nhận (`requiresClearance = true`) → `CANCEL`; buổi không bị chặn / ngoài khoảng / không phải `SCHEDULED` / đã xoá mềm không sinh đề xuất | Đạt: `nestjs-api/src/suspensions/suspensions.model.ts:251`, `nestjs-api/src/suspensions/suspensions.model.spec.ts:327`, `nestjs-api/src/suspensions/suspensions.model.spec.ts:386`. |
+| 12d — `GET /suspensions/:id/conflicts` và `POST /suspensions/:id/conflicts/apply`: tính đề xuất khi đọc; `apply` chỉ xử lý các `sessionIds` được chọn trong 1 transaction nguyên tử, đi qua Cổng 2, từ chối 422 nếu `sessionId` ngoài đề xuất, gửi thông báo sau commit, kiểm tra phân quyền theo võ sĩ | Đạt: `nestjs-api/src/training/training-suspension-conflicts.controller.ts:53`, `nestjs-api/src/training/training-suspension-conflicts.controller.ts:79`, `nestjs-api/src/training/training-suspension-conflicts.service.ts:38`, `nestjs-api/src/training/training-suspension-conflicts.service.ts:70`, `nestjs-api/src/training/training-suspension-conflicts.service.spec.ts:132`, `nestjs-api/src/training/training-suspension-conflicts.controller.spec.ts:18`. |
+
+### Lệnh đã chạy
+
+#### `pnpm --filter nestjs-api lint`
+
+Exit 0. Không có cảnh báo hay lỗi ở bất kỳ file nào thuộc Round A, Round B và Round C; cuối output nguyên văn:
+
+```text
+test/coaching-loop-persistence.spec.ts:19:3: warning eslint(no-unused-vars): Identifier 'fighterBaselines' is imported but never used. help: Consider removing this import.
+test/coaching-loop-persistence.spec.ts:20:3: warning eslint(no-unused-vars): Identifier 'auditLogs' is imported but never used. help: Consider removing this import.
+test/coaching-loop-persistence.spec.ts:21:3: warning eslint(no-unused-vars): Identifier 'actionAssessments' is imported but never used. help: Consider removing this import.
+test/coaching-loop-persistence.spec.ts:22:3: warning eslint(no-unused-vars): Identifier 'actionFindingReviews' is imported but never used. help: Consider removing this import.
+test/coaching-loop-persistence.spec.ts:23:3: warning eslint(no-unused-vars): Identifier 'techniqueReferences' is imported but never used. help: Consider removing this import.
+test/coaching-loop-persistence.spec.ts:25:14: warning eslint(no-unused-vars): Identifier 'and' is imported but never used. help: Consider removing this import.
+src/medical/scat6.model.spec.ts:5:3: warning eslint(no-unused-vars): Identifier 'scat6ScoresSchema' is imported but never used. help: Consider removing this import.
+```
+
+#### `pnpm --filter nestjs-api build`
+
+Exit 0. Nguyên văn output:
+
+```text
+$ nest build
+```
+
+#### `pnpm --filter nestjs-api test`
+
+Exit 1 (đúng baseline: 6 file lỗi gồm 4 file spec rỗng trong `src/notifications/` và 2 file integration `test/coaching-loop-persistence.spec.ts`, `test/dataset-export-trust-boundary.spec.ts` cần `SUPABASE_URL`/Redis; toàn bộ 58 file unit test khác đều PASS với 950/950 test PASS, tăng thêm 2 file và 19 test mới so với Round B). Cuối output nguyên văn:
+
+```text
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/31]⎯
+
+
+ Test Files  6 failed | 58 passed (64)
+      Tests  26 failed | 950 passed (976)
+   Start at  17:49:03
+   Duration  693.37s (transform 6.85s, setup 0ms, import 72.65s, tests 769.67s, environment 7ms)
+
+[ELIFECYCLE] Test failed. See above for more details.
+Error: ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL
+
+  × "pnpm recursive run" failed in D:\MMA-TMS\nestjs-api
+```
+
+Kiểm tra riêng `src/suspensions` và `src/training` (`pnpm --filter nestjs-api exec vitest run src/suspensions src/training`):
+
+```text
+ RUN  v4.1.11 D:/MMA-TMS/nestjs-api
+
+
+ Test Files  11 passed (11)
+      Tests  224 passed (224)
+   Start at  17:46:42
+   Duration  1.34s (transform 682ms, setup 0ms, import 5.95s, tests 478ms, environment 2ms)
+```
+
+#### `pnpm --filter nestjs-api test:db`
+
+Exit 0 (45/45 nhóm kiểm tra PASS). Cuối output nguyên văn:
+
+```text
+PASS 024 applies on ledger 23, seeds three presets and wires bouts, requirements and permissions
+PASS 024 requires ledger 23 and leaves nothing behind on a collision
+PASS 027 applies directly after 024: defaults, constraints, upsert, audit, cascade and RLS
+PASS 025 applies on ledger 24: enum, table, constraints, permissions, notifications, triggers and RLS
+PASS 025 rejects missing ledger 24 and collisions atomically
+PASS 027 rejects missing ledger 24 and collisions atomically
+PASS 005 rejects a pre-existing milestones column without writing history
+PASS 006 rejects a database without migration 005 history
+PASS 006 rejects a permission collision without partial inserts
+PASS 003 preserves nonempty legacy data without coercion
+PASS old insert/update contract still works
+PASS reapplying 003 fails safely
+PASS baseline drift aborts before domain DDL
+PASS partial domain collision rolls back all new objects
+PASS domain integrity and RLS role matrix
+PASS fresh clinical schema through 011
+PASS 012 rejects a concurrently committed clearance and rolls back DDL/ledger
+PASS 012 proceeds after a concurrent issuer rolls back; no orphan revision
+PASS 012 orders identical created_at values by server issuance sequence
+PASS 012 rejects reapplication without changing the applied ledger
+Migration checks passed: 45. PostgreSQL stopped after tests. Scratch: C:\Users\PC\AppData\Local\Temp\mma-migrations-56MWz2
+```
+
+#### `pnpm --filter nestjs-api db:check`
+
+Exit 0. Nguyên văn output:
+
+```text
+$ node run_sql.mjs --check
+001-027 checksums OK. No database connection was opened.
+```
+
+### Lệch so với ticket
+
+- Không lệch so với ticket và chỉ định của Round C. Đề xuất xung đột R28 được tính trực tiếp khi đọc (`GET /suspensions/:id/conflicts`), không lưu bảng phụ; `POST /suspensions/:id/conflicts/apply` chạy trong một transaction duy nhất, đi qua Cổng 2 (`SuspensionGate`) đối với mọi buổi tập được đổi loại hoặc dời lịch, dùng lý do huỷ cố định `'Suspension in force'` (`SUSPENSION_CONFLICT_CANCELLATION_REASON`), và chỉ gửi thông báo `TRAINING_SESSION_RESCHEDULED` / `TRAINING_SESSION_CANCELLED` sau khi transaction commit.
+
+### Câu hỏi / việc còn mở
+
+- Không có câu hỏi tồn đọng cho Round C. Sẵn sàng chuyển sang Round D.
+
+---
+
+## Round D
+
+- Nhánh: `User_Feature` (để nguyên các thay đổi uncommitted trên working tree theo chỉ định).
+- Phạm vi Round D:
+  - **D1.** Bảng sẵn sàng nhận trận `GET /readiness` (R32, S3) trong `src/bouts/` kèm hàm phân loại thuần `classifyReadiness` và truy vấn theo lô (không N+1).
+  - **D2.** Cảnh báo khi tạo trận trong `createBout` (R4): bổ sung `FIGHTER_ACTIVE_BOUT` và `FIGHTER_SUSPENDED_PAST_BOUT_DATE` vào `BOUT_WARNING_CODES`, không chặn lưu trận mới.
+  - **D3.** Hai nguồn việc cần làm mới trong `src/bouts/bouts-todo.*`: `SUSPENSION_AWAITING_CLEARANCE` (R28/S3) và `TRAINING_CONFLICTS_WITH_SUSPENSION` (R28), truy vấn theo lô.
+  - **Module wiring:** `BoutsModule` import `SuspensionsModule` (không import `TrainingModule`).
+
+### Thay đổi
+
+- `nestjs-api/src/suspensions/suspensions.constants.ts` & `nestjs-api/src/suspensions/suspensions.model.ts`:
+  - Chuyển hằng số `SESSION_TYPES` sang `suspensions.constants.ts` (và re-export từ `suspensions.model.ts`) để tránh vòng phụ thuộc khởi tạo mức module với `bouts.model.ts`.
+- `nestjs-api/src/suspensions/suspensions.repo.ts`:
+  - Thêm `findSuspensionsByFighterIds(fighterIds)` và `findUnresolvedSuspensionsInScope(scope)` để phục vụ truy vấn theo lô cho bảng sẵn sàng (`GET /readiness`) và thẻ việc cần làm (`GET /bouts/todo`).
+- `nestjs-api/src/bouts/bouts.constants.ts`:
+  - Thêm thông điệp `READINESS: 'Get fighter readiness successfully'` trong `BOUT_RESPONSE_MESSAGES` và hằng số `LOSS_OF_CONSCIOUSNESS_VALUES`.
+- `nestjs-api/src/bouts/bouts.model.ts` & `nestjs-api/src/bouts/bouts.dto.ts`:
+  - Thêm `'FIGHTER_ACTIVE_BOUT'` và `'FIGHTER_SUSPENDED_PAST_BOUT_DATE'` vào `BOUT_WARNING_CODES`.
+  - Khai báo `ACTIVE_BOUT_STATUSES` (`CAMP`, `FIGHT_WEEK`, `WEIGHED_IN`), `READINESS_STATUSES` (`SUSPENDED`, `AWAITING_CLEARANCE`, `IN_BOUT`, `READY`), `NOT_READY_REASONS` (`SUSPENDED_PAST_BOUT_DATE`, `ACTIVE_BOUT`), `readinessQuerySchema` (bắt buộc `rulesetId` khi truyền `weightLimitKg` hoặc `boutOn` -> 422), `readinessRowSchema`, cùng `ReadinessQueryDto` và `ReadinessRowDto`.
+  - Cài đặt hàm thuần `classifyReadiness(...)`:
+    - Thứ tự ưu tiên `status`: `SUSPENDED` (có đình chỉ đang `ACTIVE` hôm nay) > `AWAITING_CLEARANCE` (có đình chỉ đang `AWAITING_CLEARANCE` hôm nay) > `IN_BOUT` (có trận ở `CAMP` / `FIGHT_WEEK` / `WEIGHED_IN`; trận `SCHEDULED` không làm võ sĩ mất sẵn sàng) > `READY`.
+    - `suspension`: lấy đình chỉ còn hiệu lực có `ends_on` muộn nhất, trả `{ startsOn, endsOn, blockedSessionTypes, allowedSessionTypes, expectedResumeOn }` (`allowedSessionTypes` = 8 loại buổi tập trừ đi các loại bị chặn; `expectedResumeOn = ends_on + 1` hoặc `null` nếu `requiresClearance = true`).
+    - Khi có `boutOn`: đánh dấu `ready = false` và điền `notReadyReasons` (`SUSPENDED_PAST_BOUT_DATE`, `ACTIVE_BOUT`) nếu có đình chỉ còn hiệu lực vào ngày `boutOn` hoặc đang có trận hoạt động.
+    - Khi có đủ `weightLimitKg`, `rulesetId` và `boutOn`: tính thêm `feasibility` bằng `computeWeightFeasibility` và `acuteLossLimitPctFor` (dùng ngưỡng dài hạn của bộ luật, cân gần nhất trong 7 ngày qua); `feasibility` chỉ mang tính thông tin và không làm đổi `ready`.
+- `nestjs-api/src/bouts/bouts.repo.ts`:
+  - Thêm các truy vấn theo lô: `listActiveFightersInScope`, `findActiveBoutsForFighters`, `findLatestWeightsForFighters`, `findScheduledSessionsForFighters`, `findLatestBoutsForFighters`.
+- `nestjs-api/src/bouts/bouts.service.ts`, `nestjs-api/src/bouts/bouts.controller.ts` & `nestjs-api/src/bouts/bouts.module.ts`:
+  - `BoutsModule` import `SuspensionsModule`.
+  - Thêm `GET /readiness` (`@RequirePermissions({ allOf: [BOUT_PERMISSIONS.GET_ALL] })`); trong `BoutsService.getReadiness`, chỉ cho phép `COACH` (võ sĩ được phân công) và `ADMIN` (toàn CLB), trả 403 cho `FIGHTER` và `DOCTOR`.
+  - Trong `BoutsService.createBout` (chỉnh sửa tối thiểu, không đụng `updateBout`, `resolveWeightClass`, `computeWeightTrack`): kiểm tra `repo.findActiveBoutIdForFighter` để thêm cảnh báo `FIGHTER_ACTIVE_BOUT`, và kiểm tra đình chỉ còn hiệu lực vào ngày học viện của `boutAt` để thêm cảnh báo `FIGHTER_SUSPENDED_PAST_BOUT_DATE` cạnh các cảnh báo cân nặng; không bao giờ chặn lưu trận.
+- `nestjs-api/src/bouts/bouts-todo.model.ts` & `nestjs-api/src/bouts/bouts-todo.service.ts`:
+  - Thêm `'SUSPENSION_AWAITING_CLEARANCE'` và `'TRAINING_CONFLICTS_WITH_SUSPENSION'` vào `TODO_SOURCES`.
+  - Thêm `suspensionAwaitingClearanceProvider` (phase `AFTER`, xuất hiện từ ngày `ends_on + 1` khi `suspensionStatusOn(s, today) === 'AWAITING_CLEARANCE'`, tối đa 1 mục trên mỗi võ sĩ gắn với trận đang chạy hoặc trận gần nhất của võ sĩ; bỏ qua nếu võ sĩ chưa từng có trận) và `trainingConflictsProvider` (phase `AFTER`, `count` = số đề xuất xung đột R28 tính bằng `planConflicts` trên các buổi `SCHEDULED` từ hôm nay trở đi và các đình chỉ của võ sĩ).
+  - Cập nhật `BoutsTodoService.getTodo` để nạp theo lô đình chỉ chưa kết thúc, buổi tập `SCHEDULED` từ hôm nay và trận gần nhất cho các võ sĩ không có trận đang chạy.
+- Unit test mới / cập nhật:
+  - `nestjs-api/src/bouts/bouts.model.spec.ts`: kiểm tra `classifyReadiness` (ranh giới S3 `ends_on` vs `ends_on + 1`, `requiresClearance`, trận `SCHEDULED` vs `CAMP`, bộ lọc `boutOn` / `weightLimitKg` / `rulesetId`, validation 422 của `readinessQuerySchema`).
+  - `nestjs-api/src/bouts/bouts.service.spec.ts`: kiểm tra phân quyền và phạm vi của `getReadiness` (`COACH` chỉ thấy võ sĩ được phân công, `ADMIN` thấy tất cả, `FIGHTER` / `DOCTOR` bị 403, `rulesetId` không tồn tại trả 404) và cảnh báo R4 trong `createBout` (`FIGHTER_ACTIVE_BOUT`, `FIGHTER_SUSPENDED_PAST_BOUT_DATE`, vẫn lưu thành công trận `SCHEDULED` khi đang có trận `CAMP`).
+  - `nestjs-api/src/bouts/bouts.controller.spec.ts`: kiểm tra route `GET /readiness`, permission `bout:get_all` và uỷ quyền xuống `BoutsService.getReadiness`.
+  - `nestjs-api/src/bouts/bouts-todo.model.spec.ts` & `nestjs-api/src/bouts/bouts-todo.service.spec.ts`: kiểm tra 2 provider mới (`SUSPENSION_AWAITING_CLEARANCE` không hiện ở `ends_on` mà hiện ở `ends_on + 1`, `TRAINING_CONFLICTS_WITH_SUSPENSION` đếm đúng số đề xuất R28, gộp tối đa 1 mục mỗi võ sĩ theo trận đang chạy hoặc trận gần nhất, bỏ qua nếu võ sĩ chưa có trận).
+
+### Lệnh đã chạy
+
+#### `pnpm --filter nestjs-api lint`
+
+Exit 0. Không có cảnh báo hay lỗi ở bất kỳ file nào thuộc `src/bouts/` hay `src/suspensions/`; cuối output nguyên văn:
+
+```text
+src/coaching/coaching.service.ts:13:24: warning eslint(no-unused-vars): Type 'DrizzleDB' is imported but never used. help: Consider removing this import.
+src/coaching/coaching.service.ts:177:16: warning eslint(no-unused-vars): Catch parameter 'err' is caught but never used. help: Consider handling this error.
+src/coaching/coaching.service.ts:504:27: warning unicorn(no-useless-fallback-in-spread): Empty fallbacks in spreads are unnecessary help: Spreading falsy values in object literals won't add any unexpected properties, so it's unnecessary to add an empty object as fallback.
+src/coaching/coaching.service.ts:534:27: warning unicorn(no-useless-fallback-in-spread): Empty fallbacks in spreads are unnecessary help: Spreading falsy values in object literals won't add any unexpected properties, so it's unnecessary to add an empty object as fallback.
+src/coaching/coaching.service.ts:534:54: warning unicorn(no-useless-fallback-in-spread): Empty fallbacks in spreads are unnecessary help: Spreading falsy values in object literals won't add any unexpected properties, so it's unnecessary to add an empty object as fallback.
+src/main.ts:7:10: warning eslint(no-unused-vars): Identifier 'createOpenApiDocument' is imported but never used. help: Consider removing this import.
+src/coaching/movement-review.service.spec.ts:32:5: warning unicorn(no-thenable): Do not add `then` to a class. help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+src/app.module.ts:18:10: warning eslint(no-unused-vars): Identifier 'NotificationsModule' is imported but never used. help: Consider removing this import.
+```
+
+#### `pnpm --filter nestjs-api build`
+
+Exit 0. Nguyên văn output:
+
+```text
+$ nest build
+```
+
+#### `pnpm --filter nestjs-api test`
+
+Exit 1 (đúng baseline: 6 file lỗi gồm 4 file spec rỗng trong `src/notifications/` và 2 file integration `test/coaching-loop-persistence.spec.ts`, `test/dataset-export-trust-boundary.spec.ts` cần `SUPABASE_URL`/Redis; toàn bộ 58 file unit test khác đều PASS với 966/966 test PASS, tăng thêm 16 test mới trong `src/bouts/` so với Round C). Cuối output nguyên văn:
+
+```text
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/31]⎯
+
+
+ Test Files  6 failed | 58 passed (64)
+      Tests  26 failed | 966 passed (992)
+   Start at  18:49:00
+   Duration  698.92s (transform 5.15s, setup 0ms, import 56.79s, tests 777.98s, environment 6ms)
+
+[ELIFECYCLE] Test failed. See above for more details.
+Error: ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL
+
+  × "pnpm recursive run" failed in D:\MMA-TMS\nestjs-api
+```
+
+Kiểm tra riêng `src/bouts`, `src/suspensions` và `src/training` (`pnpm --filter nestjs-api exec vitest run src/bouts src/suspensions src/training`):
+
+```text
+ RUN  v4.1.11 D:/MMA-TMS/nestjs-api
+
+
+ Test Files  19 passed (19)
+      Tests  476 passed (476)
+   Start at  18:47:09
+   Duration  1.77s (transform 1.97s, setup 0ms, import 17.40s, tests 912ms, environment 2ms)
+```
+
+#### `pnpm --filter nestjs-api test:db`
+
+Exit 0 (45/45 nhóm kiểm tra PASS). Cuối output nguyên văn:
+
+```text
+PASS 024 applies on ledger 23, seeds three presets and wires bouts, requirements and permissions
+PASS 024 requires ledger 23 and leaves nothing behind on a collision
+PASS 027 applies directly after 024: defaults, constraints, upsert, audit, cascade and RLS
+PASS 025 applies on ledger 24: enum, table, constraints, permissions, notifications, triggers and RLS
+PASS 025 rejects missing ledger 24 and collisions atomically
+PASS 027 rejects missing ledger 24 and collisions atomically
+PASS 005 rejects a pre-existing milestones column without writing history
+PASS 006 rejects a database without migration 005 history
+PASS 006 rejects a permission collision without partial inserts
+PASS 003 preserves nonempty legacy data without coercion
+PASS old insert/update contract still works
+PASS reapplying 003 fails safely
+PASS baseline drift aborts before domain DDL
+PASS partial domain collision rolls back all new objects
+PASS domain integrity and RLS role matrix
+PASS fresh clinical schema through 011
+PASS 012 rejects a concurrently committed clearance and rolls back DDL/ledger
+PASS 012 proceeds after a concurrent issuer rolls back; no orphan revision
+PASS 012 orders identical created_at values by server issuance sequence
+PASS 012 rejects reapplication without changing the applied ledger
+Migration checks passed: 45. PostgreSQL stopped after tests. Scratch: C:\Users\PC\AppData\Local\Temp\mma-migrations-dXxg9e
+```
+
+#### `pnpm --filter nestjs-api db:check`
+
+Exit 0. Nguyên văn output:
+
+```text
+$ node run_sql.mjs --check
+001-027 checksums OK. No database connection was opened.
+```
+
+### Lệch so với ticket
+
+- Không lệch so với ticket và chỉ định của Round D.
+
+### Câu hỏi
+
+- Không có câu hỏi tồn đọng cho Round D. Sẵn sàng chuyển sang Round E.

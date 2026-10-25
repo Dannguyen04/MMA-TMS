@@ -144,45 +144,9 @@ export class TrainingSessionService {
 
       // The lock makes the reschedule check compare against exactly the row this
       // UPDATE replaces, never a snapshot a concurrent request changed.
-      result = await this.repo.transaction(async (transaction) => {
-        const locked = await this.repo.lockSessionById(id, transaction);
-        if (!locked) throw sessionNotFound();
-        const nextSessionType = data.sessionType;
-        // Switching a running session to another type could step outside a
-        // medical restriction, so it passes the same gate as starting it.
-        if (
-          nextSessionType !== undefined &&
-          locked.status === 'IN_PROGRESS' &&
-          nextSessionType !== locked.sessionType
-        ) {
-          await this.assertMedicallyEligible(
-            locked.fighterId,
-            nextSessionType,
-            transaction,
-          );
-        }
-        const sessionTypeChanged =
-          data.sessionType !== undefined &&
-          data.sessionType !== locked.sessionType;
-        const scheduledAtChanged =
-          data.scheduledAt !== undefined &&
-          new Date(data.scheduledAt).getTime() !==
-            new Date(locked.scheduledAt).getTime();
-        if (sessionTypeChanged || scheduledAtChanged) {
-          const effectiveSessionType = data.sessionType ?? locked.sessionType;
-          const effectiveScheduledAt = data.scheduledAt ?? locked.scheduledAt;
-          await this.assertNotSuspended(
-            locked.fighterId,
-            effectiveSessionType,
-            new Date(effectiveScheduledAt),
-            transaction,
-          );
-        }
-        const rescheduled = this.isRescheduled(locked, data);
-        const updated = await this.repo.updateSession(id, data, transaction);
-        if (!updated) throw sessionNotFound();
-        return { updated, rescheduled };
-      });
+      result = await this.repo.transaction(async (transaction) =>
+        this.applySessionUpdateInTransaction(id, data, transaction),
+      );
     } catch (error) {
       throw mapTrainingPersistenceError(error);
     }
@@ -190,15 +154,97 @@ export class TrainingSessionService {
     // T4, after commit: only a real time/location change; notes, RPE, title, type
     // or a repeated request notify nobody.
     if (result.rescheduled) {
-      await this.notifySessionEvent(
-        actor,
-        result.updated,
-        NOTIFICATION_TYPE.TRAINING_SESSION_RESCHEDULED,
-        TRAINING_NOTIFICATION_TEXT.SESSION_RESCHEDULED,
-        `session:${id}:rescheduled:${result.updated.updatedAt}`,
-      );
+      await this.notifySessionRescheduled(actor, result.updated);
     }
     return result.updated;
+  }
+
+  async applySessionUpdateInTransaction(
+    id: string,
+    data: UpdateSessionInput,
+    transaction: Transaction,
+  ): Promise<{ updated: TrainingSessionEntity; rescheduled: boolean }> {
+    const locked = await this.repo.lockSessionById(id, transaction);
+    if (!locked) throw sessionNotFound();
+    const nextSessionType = data.sessionType;
+    // Switching a running session to another type could step outside a
+    // medical restriction, so it passes the same gate as starting it.
+    if (
+      nextSessionType !== undefined &&
+      locked.status === 'IN_PROGRESS' &&
+      nextSessionType !== locked.sessionType
+    ) {
+      await this.assertMedicallyEligible(
+        locked.fighterId,
+        nextSessionType,
+        transaction,
+      );
+    }
+    const sessionTypeChanged =
+      data.sessionType !== undefined &&
+      data.sessionType !== locked.sessionType;
+    const scheduledAtChanged =
+      data.scheduledAt !== undefined &&
+      new Date(data.scheduledAt).getTime() !==
+        new Date(locked.scheduledAt).getTime();
+    if (sessionTypeChanged || scheduledAtChanged) {
+      const effectiveSessionType = data.sessionType ?? locked.sessionType;
+      const effectiveScheduledAt = data.scheduledAt ?? locked.scheduledAt;
+      await this.assertNotSuspended(
+        locked.fighterId,
+        effectiveSessionType,
+        new Date(effectiveScheduledAt),
+        transaction,
+      );
+    }
+    const rescheduled = this.isRescheduled(locked, data);
+    const updated = await this.repo.updateSession(id, data, transaction);
+    if (!updated) throw sessionNotFound();
+    return { updated, rescheduled };
+  }
+
+  async applySessionCancelInTransaction(
+    id: string,
+    cancellationReason: string,
+    transaction: Transaction,
+  ): Promise<TrainingSessionEntity> {
+    const locked = await this.repo.lockSessionById(id, transaction);
+    if (!locked) throw sessionNotFound();
+    if (!ALLOWED_SESSION_TRANSITIONS[locked.status]?.includes('CANCELLED')) {
+      throw invalidSessionStatusTransition(locked.status, 'CANCELLED');
+    }
+    return this.applyStatusTransition(
+      locked,
+      'CANCELLED',
+      cancellationReason,
+      transaction,
+    );
+  }
+
+  notifySessionRescheduled(
+    actor: AuthenticatedUser,
+    session: TrainingSessionEntity,
+  ) {
+    return this.notifySessionEvent(
+      actor,
+      session,
+      NOTIFICATION_TYPE.TRAINING_SESSION_RESCHEDULED,
+      TRAINING_NOTIFICATION_TEXT.SESSION_RESCHEDULED,
+      `session:${session.id}:rescheduled:${session.updatedAt}`,
+    );
+  }
+
+  notifySessionCancelled(
+    actor: AuthenticatedUser,
+    session: TrainingSessionEntity,
+  ) {
+    return this.notifySessionEvent(
+      actor,
+      session,
+      NOTIFICATION_TYPE.TRAINING_SESSION_CANCELLED,
+      TRAINING_NOTIFICATION_TEXT.SESSION_CANCELLED,
+      `session:${session.id}:cancelled`,
+    );
   }
 
   /**

@@ -6,10 +6,12 @@ import {
   exists,
   gt,
   gte,
+  inArray,
   isNotNull,
   isNull,
   lt,
   lte,
+  ne,
   or,
   sql,
   type SQL,
@@ -173,6 +175,127 @@ export class SuspensionsRepository {
           isNull(suspensions.deletedAt),
         ),
       )
+      .orderBy(asc(suspensions.startsOn), asc(suspensions.id));
+  }
+
+  async findSuspensionsByFighterIds(
+    fighterIds: readonly string[],
+    database: DatabaseExecutor = this.db,
+  ): Promise<SuspensionRow[]> {
+    if (fighterIds.length === 0) return [];
+    return database
+      .select()
+      .from(suspensions)
+      .where(
+        and(
+          inArray(suspensions.fighterId, [...fighterIds]),
+          isNull(suspensions.deletedAt),
+        ),
+      )
+      .orderBy(asc(suspensions.startsOn), asc(suspensions.id));
+  }
+
+  async findUnresolvedSuspensionsInScope(
+    scope: { kind: 'ALL' } | { kind: 'COACH'; userId: string },
+    today: string,
+    database: DatabaseExecutor = this.db,
+  ): Promise<SuspensionRow[]> {
+    const conditions: (SQL | undefined)[] = [
+      isNull(suspensions.deletedAt),
+      isNull(suspensions.clearedAt),
+      or(
+        gte(suspensions.endsOn, today),
+        eq(suspensions.requiresClearance, true),
+      ),
+    ];
+
+    if (scope.kind === 'COACH') {
+      const now = new Date();
+      conditions.push(
+        exists(
+          database
+            .select({ id: coachFighters.id })
+            .from(coachFighters)
+            .innerJoin(coaches, eq(coachFighters.coachId, coaches.id))
+            .innerJoin(fighters, eq(coachFighters.fighterId, fighters.id))
+            .where(
+              and(
+                eq(coaches.userId, scope.userId),
+                eq(coaches.isActive, true),
+                isNull(coaches.deletedAt),
+                eq(coachFighters.fighterId, suspensions.fighterId),
+                lte(coachFighters.startsAt, now),
+                or(isNull(coachFighters.endsAt), gt(coachFighters.endsAt, now)),
+                eq(fighters.isActive, true),
+                isNull(fighters.deletedAt),
+              ),
+            ),
+        ),
+      );
+    }
+
+    return database
+      .select()
+      .from(suspensions)
+      .where(and(...conditions))
+      .orderBy(asc(suspensions.startsOn), asc(suspensions.id));
+  }
+
+  /**
+   * Count prior KO/TKO suspensions for a fighter starting on or after `sinceDate`,
+   * excluding soft-deleted rows and optionally excluding a current bout.
+   */
+  async countPriorKoTkoSuspensions(
+    fighterId: string,
+    sinceDate: string,
+    excludeBoutId?: string,
+    database: DatabaseExecutor = this.db,
+  ): Promise<number> {
+    const conditions: (SQL | undefined)[] = [
+      eq(suspensions.fighterId, fighterId),
+      isNull(suspensions.deletedAt),
+      inArray(suspensions.reason, ['KO', 'TKO']),
+      gte(suspensions.startsOn, sinceDate),
+    ];
+    if (excludeBoutId) {
+      conditions.push(
+        or(isNull(suspensions.boutId), ne(suspensions.boutId, excludeBoutId)),
+      );
+    }
+    const [row] = await database
+      .select({ count: sql<number>`count(*)::int` })
+      .from(suspensions)
+      .where(and(...conditions));
+    return Number(row?.count ?? 0);
+  }
+
+  /**
+   * List prior KO/TKO suspensions for a fighter, optionally filtered by `sinceDate`,
+   * excluding soft-deleted rows and optionally excluding a current bout.
+   */
+  async findPriorKoTkoSuspensions(
+    fighterId: string,
+    sinceDate?: string,
+    excludeBoutId?: string,
+    database: DatabaseExecutor = this.db,
+  ): Promise<SuspensionRow[]> {
+    const conditions: (SQL | undefined)[] = [
+      eq(suspensions.fighterId, fighterId),
+      isNull(suspensions.deletedAt),
+      inArray(suspensions.reason, ['KO', 'TKO']),
+    ];
+    if (sinceDate) {
+      conditions.push(gte(suspensions.startsOn, sinceDate));
+    }
+    if (excludeBoutId) {
+      conditions.push(
+        or(isNull(suspensions.boutId), ne(suspensions.boutId, excludeBoutId)),
+      );
+    }
+    return database
+      .select()
+      .from(suspensions)
+      .where(and(...conditions))
       .orderBy(asc(suspensions.startsOn), asc(suspensions.id));
   }
 
