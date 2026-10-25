@@ -107,7 +107,7 @@ pnpm --filter nextjs-frontend typecheck
 pnpm --filter nextjs-frontend test
 pnpm --filter nextjs-frontend build
 ```
-**Baseline trên `User_Feature` ngày 25/10:** typecheck có **52 lỗi có sẵn** (admin dashboard `greetingTitle`, form clinical, `training-plans/[planId]/edit`, `account-profile-fields`...) và 10 test lỗi ở `lib/actions/medical-contract.test.ts`; cả hai không do ticket này. Không được thêm lỗi nào. Kiểm tra bằng mắt: chạy `next dev` ở demo mode, xem từng màn ở 390 px và 1440 px, cả hai ngôn ngữ.
+**Baseline trên `User_Feature` ngày 25/10:** typecheck có **52 lỗi có sẵn** (admin dashboard `greetingTitle`, form clinical, `training-plans/[planId]/edit`, `account-profile-fields`...) và **19 test lỗi ở 4 file**: `lib/actions/medical-contract.test.ts` (10), `components/layout/navigation.test.ts` (5, test mong đợi tên hub `Today`/`People`, code đang là `Dashboard`/`Users`), `components/dashboard/coach-attention.test.ts` (2) và `dashboard-utils.test.ts` (2, thiếu `greetingTitle`). Nguồn gốc: test và code thuộc hai dòng làm việc khác nhau sau lần merge `fight-camp` ngày 22/10 (commit `d60b9d0` của Hoàng Anh ngày 13/10 và `1fe50de`), không do T-007 hay T-029. Ticket này không được thêm lỗi nào; sửa các lỗi có sẵn là việc riêng. Kiểm tra bằng mắt: chạy `next dev` ở demo mode, xem từng màn ở 390 px và 1440 px, cả hai ngôn ngữ.
 
 ## Ghi chú cho người thực hiện
 - Đọc `lib/services/bouts.ts`, `bouts.demo.ts`, `lib/actions/bouts.ts` và `app/(app)/coach/dashboard/coach-todo-card.tsx` trước: chúng là khuôn mẫu cho dịch vụ, demo mode, server action và thẻ.
