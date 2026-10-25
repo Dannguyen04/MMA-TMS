@@ -13,6 +13,7 @@ import { enBoutMessages } from "./bout-messages.en";
 import { enCoachBouts } from "./coach-bouts.en";
 import { enCoachToday } from "./coach-today.en";
 import { enFighterToday } from "./fighter-today.en";
+import { enTraining } from "./training.en";
 import { enLanding } from "./landing.en";
 
 export const en = {
@@ -26,6 +27,7 @@ export const en = {
     ...enCoachBouts,
     ...enCoachToday,
     ...enFighterToday,
+    ...enTraining,
     ...enLanding,
     /* Navigation: keyed by the English label in `navigation.ts`. */
     "nav.Today": "Today",

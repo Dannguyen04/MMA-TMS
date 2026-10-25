@@ -1,4 +1,3 @@
-import { getDemoCopy } from "@/lib/i18n/server";
 import type { Metadata } from "next";
 
 import { scopedFighterIds } from "@/components/dashboard/roster-data";
@@ -11,18 +10,22 @@ import { accessibleFighterIds } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { planEndKey, planTemplate, planWholeWeeks } from "@/lib/domain/training-templates";
 import { addDaysToKey, dayKey } from "@/lib/format";
+import { getTranslator } from "@/lib/i18n/server";
 import { routes } from "@/lib/routes";
 import { listFighters } from "@/lib/services/people";
 import { usesTrainingServiceForms } from "@/lib/services/platform-features";
 import { listExercises, listPlanExercises, listPlans } from "@/lib/services/training";
 import { param } from "@/lib/utils";
 
-export async function generateMetadata(): Promise<Metadata> { const copy = await getDemoCopy(); return { title: copy("New training plan") }; }
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return { title: t("training.planForm.titleCreate") };
+}
 
 const DEFAULT_PLAN_WEEKS = 8;
 
 export default async function NewPlanPage({ searchParams }: PageProps<"/coach/training-plans/new">) {
-    const demoCopy = await getDemoCopy();
+    const { t } = await getTranslator();
     const user = await requireRole("coach");
     const params = await searchParams;
     const now = new Date().toISOString();
@@ -69,13 +72,13 @@ export default async function NewPlanPage({ searchParams }: PageProps<"/coach/tr
         ? { href: routes.coach.plan(source.id), label: source.title }
         : fighter
           ? { href: routes.coach.fighterTraining(fighter.id), label: fighter.name }
-          : { href: routes.coach.plans, label: demoCopy("Training plans") };
+          : { href: routes.coach.plans, label: t("training.coachPlans.title") };
 
     return (
         <>
             <PageHeader
-                title={demoCopy("New training plan")}
-                description={demoCopy("Start from a template, a blank plan or a copy of one you've run. Check the fighter's Medical Clearance so the plan fits their restrictions.")}
+                title={t("training.planForm.titleCreate")}
+                description={t("training.planForm.descCreateFromSource")}
                 back={back}
             />
             <PlanCreateForm

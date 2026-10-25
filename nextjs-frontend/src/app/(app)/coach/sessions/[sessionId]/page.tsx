@@ -12,7 +12,9 @@ import { SessionDetail, SessionHeaderMeta } from "@/components/training/session-
 import { getCoachNames, getExerciseLibrary, toIdentity } from "@/components/training/training-data";
 import { canAccessFighter, requireFighterAccess } from "@/lib/auth/access";
 import { getCurrentUser, requireRole } from "@/lib/auth/session";
-import { formatDateTime, pluralize } from "@/lib/format";
+import { formatDateTime } from "@/lib/format";
+import { getTranslator } from "@/lib/i18n/server";
+import { plural, type Translator } from "@/lib/i18n/translate";
 import { hrefWith, type SearchParams } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { platformFeatureAvailable, usesTrainingServiceForms } from "@/lib/services/platform-features";
@@ -27,33 +29,35 @@ const loadSession = cache(getSession);
 const count = (value: string | string[] | undefined) => Math.max(0, Math.floor(Number(param(value)) || 0));
 
 /** The toast after "Repeat weekly" (`?notice=repeated` from `createSession`), or null. */
-function repeatNotice(query: SearchParams): ToastInput | null {
+function repeatNotice(query: SearchParams, t: Translator): ToastInput | null {
     if (param(query.notice) !== "repeated") return null;
     const created = Math.max(1, count(query.created));
     const failed = count(query.failed);
     const skipped = count(query.skipped);
-    const skippedText = skipped > 0 ? `${pluralize(skipped, "week")} after the plan ends ${skipped === 1 ? "was" : "were"} left out.` : null;
+    const skippedText = skipped > 0 ? plural(t, "training.repeat.weeksSkipped", skipped) : null;
     if (failed > 0) {
         return {
-            title: `${created} of ${pluralize(created + failed, "session")} scheduled`,
-            description: [`${pluralize(failed, "session")} couldn't be scheduled. Check the sessions list and add ${failed === 1 ? "it" : "them"} again.`, skippedText]
-                .filter(Boolean)
-                .join(" "),
+            title: plural(t, "training.repeat.partialTitle", created + failed, { created }),
+            description: [plural(t, "training.repeat.partialDesc", failed), skippedText].filter(Boolean).join(" "),
             tone: "warning",
         };
     }
-    return { title: `${pluralize(created, "session")} scheduled`, description: [created > 1 ? "One a week at the same time." : null, skippedText].filter(Boolean).join(" ") || undefined, tone: "success" };
+    return {
+        title: plural(t, "training.repeat.doneTitle", created),
+        description: [created > 1 ? t("training.repeat.doneDesc") : null, skippedText].filter(Boolean).join(" ") || undefined,
+        tone: "success",
+    };
 }
 
 export async function generateMetadata({ params }: PageProps<"/coach/sessions/[sessionId]">): Promise<Metadata> {
-    const [{ sessionId }, user] = await Promise.all([params, getCurrentUser()]);
+    const [{ sessionId }, user, { t }] = await Promise.all([params, getCurrentUser(), getTranslator()]);
     const session = await loadSession(sessionId);
-    return { title: session && user && canAccessFighter(user, session.fighterId) ? session.title : "Training session" };
+    return { title: session && user && canAccessFighter(user, session.fighterId) ? session.title : t("training.sessionPage.eyebrowFighter") };
 }
 
 export default async function CoachSessionPage({ params, searchParams }: PageProps<"/coach/sessions/[sessionId]">) {
     const user = await requireRole("coach");
-    const [{ sessionId }, query] = await Promise.all([params, searchParams]);
+    const [{ sessionId }, query, { t }] = await Promise.all([params, searchParams, getTranslator()]);
     // Reference lookups start with the session read; everything about the session waits for the access check.
     const [session, coachNames, exercises] = await Promise.all([loadSession(sessionId), getCoachNames(), getExerciseLibrary()]);
     if (!session) notFound();
@@ -96,28 +100,28 @@ export default async function CoachSessionPage({ params, searchParams }: PagePro
     const uploadLink = (
         <ButtonLink href={hrefWith(routes.coach.uploadVideo, {}, { fighter: fighter.id, session: session.id })} variant="secondary" size="sm">
             <Upload aria-hidden />
-            Upload video
+            {t("training.sessionPage.uploadVideo")}
         </ButtonLink>
     );
 
     return (
         <>
-            <FlashToast notice={repeatNotice(query)} cleanHref={routes.coach.session(session.id)} />
+            <FlashToast notice={repeatNotice(query, t)} cleanHref={routes.coach.session(session.id)} />
             <PageHeader
-                eyebrow={`Training session · ${fighter.name}`}
+                eyebrow={t("training.sessionPage.eyebrowCoach", { name: fighter.name })}
                 title={session.title}
-                back={{ href: routes.coach.sessions, label: "Sessions" }}
+                back={{ href: routes.coach.sessions, label: t("training.sessionPage.backSessions") }}
                 meta={<SessionHeaderMeta session={session} />}
                 actions={
                     <>
                         <ButtonLink href={hrefWith(routes.coach.newSession, {}, { from: session.id })} variant="secondary">
                             <CalendarPlus aria-hidden />
-                            Schedule again
+                            {t("training.repeat.scheduleAgain")}
                         </ButtonLink>
                         {scheduled && (
                             <ButtonLink href={routes.coach.editSession(session.id)} variant="secondary">
                                 <PenLine aria-hidden />
-                                Edit
+                                {t("training.sessionPage.edit")}
                             </ButtonLink>
                         )}
                         {scheduled && started && <MarkMissedButton {...transitionProps} />}
@@ -131,7 +135,7 @@ export default async function CoachSessionPage({ params, searchParams }: PagePro
                 session={session}
                 audience="coach"
                 now={now}
-                coachName={(session.coachId && coachNames[session.coachId]) || "Coach"}
+                coachName={(session.coachId && coachNames[session.coachId]) || t("training.plan.coach")}
                 coachNames={coachNames}
                 fighter={toIdentity(fighter)}
                 fighterHref={routes.coach.fighter(fighter.id)}

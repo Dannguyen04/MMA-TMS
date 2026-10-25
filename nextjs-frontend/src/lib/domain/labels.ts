@@ -12,6 +12,7 @@ import type {
 } from "./bout";
 import type { Gate1Reason } from "./bout-rules";
 import type { SuspensionState } from "./suspension-rules";
+import type { MessageKey, Translator } from "@/lib/i18n/translate";
 import { EXAMINATION_SCOPE_LABELS } from "./medical-contract";
 import type { PlanAdherence, WeightStatus } from "./weight-chart";
 import type {
@@ -698,4 +699,38 @@ export function injuryTypeName(injury: Pick<Injury, "type" | "typeLabel">): stri
 export function treatmentTitle(treatment: Pick<Treatment, "type" | "typeLabel">): string {
     if (treatment.type) return TREATMENT_TYPE_LABELS[treatment.type];
     return treatment.typeLabel?.trim() || "Treatment";
+}
+
+/* ─── Training enum label helpers (T-015) ─────────────────────────────────── */
+
+export function trainingTypeLabel(t: Translator, type: TrainingType): string {
+    return t(`trainingType.${type}` as MessageKey);
+}
+
+export function techniqueLabel(t: Translator, technique: Technique | StrikeType): string {
+    return t(`technique.${technique}` as MessageKey);
+}
+
+export function exerciseCategoryLabel(t: Translator, category: ExerciseCategory): string {
+    return t(`exerciseCategory.${category}` as MessageKey);
+}
+
+export function intensityLabel(t: Translator, intensity: Intensity): string {
+    return t(`intensity.${intensity}` as MessageKey);
+}
+
+export function trainingPhaseLabel(t: Translator, phase: TrainingPhase): string {
+    return t(`trainingPhase.${phase}` as MessageKey);
+}
+
+export function planStatusLabel(t: Translator, status: PlanStatus): string {
+    return t(`planStatus.${status}` as MessageKey);
+}
+
+export function sessionStatusLabel(t: Translator, status: SessionStatus): string {
+    return t(`sessionStatus.${status}` as MessageKey);
+}
+
+export function feedbackKindLabel(t: Translator, kind: FeedbackKind): string {
+    return t(`feedbackKind.${kind}` as MessageKey);
 }

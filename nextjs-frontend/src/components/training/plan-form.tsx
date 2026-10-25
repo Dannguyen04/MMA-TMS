@@ -1,6 +1,6 @@
 "use client";
 
-import { useDemoCopy } from "@/components/i18n/locale-provider";
+import { useT } from "@/components/i18n/locale-provider";
 import { ShieldAlert, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 
@@ -15,7 +15,7 @@ import { EmptyState } from "@/components/ui/states";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useActionForm } from "@/components/ui/use-action-form";
 import type { ActionState } from "@/lib/actions/state";
-import { TECHNIQUE_LABELS, TRAINING_PHASE_LABELS } from "@/lib/domain/labels";
+import { techniqueLabel, trainingPhaseLabel } from "@/lib/domain/labels";
 import type { Technique, TrainingPhase } from "@/lib/domain/types";
 import { Callout } from "./callout";
 import { TechniqueCheckboxes } from "./technique-checkboxes";
@@ -50,68 +50,63 @@ export interface PlanFormProps {
     serviceForm: boolean;
 }
 
-const HINTS = {
-    objective: "One or two sentences the fighter will see at the top of the plan.",
-    weeklySessionTarget: "Between 1 and 14 sessions a week.",
-};
+const PHASES: TrainingPhase[] = ["base", "build", "fight_camp", "taper", "rehab", "maintenance"];
+const HINTED_FIELDS = new Set<keyof PlanFormValues>(["objective", "weeklySessionTarget"]);
 
 /**
  * Edit a training plan, with the fighter's Medical Clearance alongside. New plans use `PlanCreateForm`, which adds
  * templates, copying and exercises.
  */
 export function PlanForm({ action, fighters, clearances, defaults, now, cancelHref, serviceForm }: PlanFormProps) {
-    const copy = useDemoCopy();
-    const PHASE_OPTIONS = (Object.entries(TRAINING_PHASE_LABELS) as [TrainingPhase, string][]).map(([value, label]) => ({ value, label: copy(label) }));
+    const t = useT();
+    const PHASE_OPTIONS = PHASES.map((value) => ({ value, label: trainingPhaseLabel(t, value) }));
     const form = useActionForm(action, { id: "plan" });
     const [values, setValues] = useState(defaults);
-    const error = (name: string) => {
-        const value = form.error(name);
-        return value ? copy(value) : undefined;
-    };
+    const error = (name: string) => form.error(name) || undefined;
     const set = <K extends keyof PlanFormValues>(key: K, value: PlanFormValues[K]) => setValues((current) => ({ ...current, [key]: value }));
     const fighter = fighters.find((f) => f.id === values.fighterId);
     const clearance = values.fighterId ? clearances[values.fighterId] : undefined;
     const restrictedTechniques =
         clearance?.state === "restricted" && clearance.clearance ? clearance.clearance.restrictions.flatMap((r) => r.blockedTechniques) : [];
-    const restrictedFocus = values.focusAreas.filter((t) => restrictedTechniques.includes(t));
+    const restrictedFocus = values.focusAreas.filter((item) => restrictedTechniques.includes(item));
 
-    const input = (name: keyof PlanFormValues) => form.control(name, { hint: name in HINTS || undefined, required: name !== "notes" && name !== "objective" });
+    const input = (name: keyof PlanFormValues) => form.control(name, { hint: HINTED_FIELDS.has(name) || undefined, required: name !== "notes" && name !== "objective" });
 
     return (
         <form {...form.formProps} className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
             <Card className="min-w-0 lg:col-span-2">
                 <CardContent className="pt-6">
-                    <FormSection title={copy("Fighter & objective")} description={copy("Who the plan is for and what it should achieve.")}>
+                    <FormSection title={t("training.planForm.sectionObjective")} description={t("training.planForm.sectionObjectiveDesc")}>
                         {fighter && (
                             <div className="flex flex-col gap-1.5">
-                                <p className="text-sm font-medium text-fg">{copy("Fighter")}</p>
+                                <p className="text-sm font-medium text-fg">{t("training.planForm.fighter")}</p>
                                 <FighterIdentity fighter={fighter} showHealth />
                             </div>
                         )}
-                        <Field label={copy("Plan title")} htmlFor="plan-title" required error={error("title")}>
+                        <Field label={t("training.planForm.title")} htmlFor="plan-title" required error={error("title")}>
                             <Input
                                 {...input("title")}
                                 value={values.title}
                                 onChange={(event) => set("title", event.target.value)}
-                                placeholder={copy("e.g. Fight camp — Lotus Fight Night 18")}
+                                placeholder={t("training.planForm.titlePlaceholder")}
                                 maxLength={120}
                             />
                         </Field>
-                        <Field label={copy("Objective")} htmlFor="plan-objective" optional info={<TermHint term="planObjective" />} error={error("objective")} hint={copy(HINTS.objective)}>
+                        <Field label={t("training.planForm.objective")} htmlFor="plan-objective" optional info={<TermHint term="planObjective" />} error={error("objective")} hint={t("training.planForm.hintObjective")}>
                             <Textarea {...input("objective")} value={values.objective} onChange={(event) => set("objective", event.target.value)} rows={3} maxLength={600} />
                         </Field>
                     </FormSection>
 
                     <FormSection
-                        title={copy("Focus")}
-                        description={copy(serviceForm ? "The training phase this block belongs to." : "The training phase and the techniques this block develops.")}
+                        title={t("training.planForm.sectionFocus")}
+                        description={serviceForm ? t("training.planForm.sectionFocusDescService") : t("training.planForm.sectionFocusDescDemo")}
                     >
                         <ChoiceGroup
                             id="plan-phase"
                             name="phase"
                             legend={
                                 <span className="inline-flex items-center gap-1.5">
-                                    {copy("Phase")} <TermHint term="trainingPhase" />
+                                    {t("training.planForm.phase")} <TermHint term="trainingPhase" />
                                 </span>
                             }
                             required
@@ -127,31 +122,29 @@ export function PlanForm({ action, fighters, clearances, defaults, now, cancelHr
                                 <TechniqueCheckboxes
                                     id="plan-focusAreas"
                                     name="focusAreas"
-                                    legend={copy("Focus areas")}
+                                    legend={t("training.planCard.focusAreas")}
                                     required
                                     value={values.focusAreas}
                                     onChange={(next) => set("focusAreas", next)}
                                     restricted={restrictedTechniques}
                                     error={error("focusAreas")}
-                                    hint={copy(restrictedTechniques.length > 0 ? "Marked techniques are restricted by the current Medical Clearance." : "Choose one or more.")}
+                                    hint={restrictedTechniques.length > 0 ? t("training.planForm.hintFocusRestricted") : t("training.planForm.hintFocusNormal")}
                                 />
                                 {restrictedFocus.length > 0 && (
-                                    <Callout tone="warning" icon={ShieldAlert} title={copy("Some focus areas are restricted right now")}>
-                                        {copy("{techniques} cannot be trained under the current clearance. Sessions that include them will show a warning.", {
-                                            techniques: restrictedFocus.map((technique) => copy(TECHNIQUE_LABELS[technique])).join(", "),
-                                        })}
+                                    <Callout tone="warning" icon={ShieldAlert} title={t("training.planForm.restrictedFocusTitle")}>
+                                        {t("training.planForm.restrictedFocusDesc", { techniques: restrictedFocus.map((tech) => techniqueLabel(t, tech)).join(", ") })}
                                     </Callout>
                                 )}
                             </div>
                         )}
                     </FormSection>
 
-                    <FormSection title={copy("Schedule")} description={copy(serviceForm ? "When the plan starts and ends." : "Plan window and how often the fighter should train.")}>
+                    <FormSection title={t("training.planForm.sectionSchedule")} description={serviceForm ? t("training.planForm.sectionScheduleDescService") : t("training.planForm.sectionScheduleDescDemo")}>
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <Field label={copy("Start date")} htmlFor="plan-startDate" required error={error("startDate")}>
+                            <Field label={t("training.planForm.startDate")} htmlFor="plan-startDate" required error={error("startDate")}>
                                 <Input {...input("startDate")} type="date" value={values.startDate} onChange={(event) => set("startDate", event.target.value)} />
                             </Field>
-                            <Field label={copy("End date")} htmlFor="plan-endDate" required error={error("endDate")}>
+                            <Field label={t("training.planForm.endDate")} htmlFor="plan-endDate" required error={error("endDate")}>
                                 <Input
                                     {...input("endDate")}
                                     type="date"
@@ -163,11 +156,11 @@ export function PlanForm({ action, fighters, clearances, defaults, now, cancelHr
                         </div>
                         {!serviceForm && (
                             <Field
-                                label={copy("Weekly session target")}
+                                label={t("training.planForm.weeklySessionTarget")}
                                 htmlFor="plan-weeklySessionTarget"
                                 required
                                 error={error("weeklySessionTarget")}
-                                hint={copy(HINTS.weeklySessionTarget)}
+                                hint={t("training.planForm.hintWeekly")}
                                 className="sm:max-w-56"
                             >
                                 <Input
@@ -185,8 +178,8 @@ export function PlanForm({ action, fighters, clearances, defaults, now, cancelHr
                     </FormSection>
 
 
-                    <FormSection title={copy("Coach notes")} description={copy("Context for the fighter and other coaches, e.g. sparring caps or nutrition.")}>
-                        <Field label={copy("Notes")} htmlFor="plan-notes" optional error={error("notes")}>
+                    <FormSection title={t("training.planForm.sectionNotes")} description={t("training.planForm.sectionNotesDesc")}>
+                        <Field label={t("training.planForm.notes")} htmlFor="plan-notes" optional error={error("notes")}>
                             <Textarea
                                 {...input("notes")}
                                 value={values.notes}
@@ -203,16 +196,16 @@ export function PlanForm({ action, fighters, clearances, defaults, now, cancelHr
                     </div>
                     <div className="flex flex-col-reverse gap-2 sm:flex-row">
                         <ButtonLink href={cancelHref} variant="secondary">
-                            {copy("Cancel")}
+                            {t("common.cancel")}
                         </ButtonLink>
-                        <SubmitButton pending={form.pending} pendingLabel={copy("Saving…")}>
-                            {copy("Save changes")}
+                        <SubmitButton pending={form.pending} pendingLabel={t("training.planForm.submittingEdit")}>
+                            {t("training.planForm.submitEdit")}
                         </SubmitButton>
                     </div>
                 </CardFooter>
             </Card>
 
-            <aside aria-label={copy("Medical Clearance for this fighter")} className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-20">
+            <aside aria-label={t("training.planForm.asideAria")} className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-20">
                 {clearance ? (
                     <ClearanceCard
                         clearance={clearance.clearance}
@@ -227,14 +220,14 @@ export function PlanForm({ action, fighters, clearances, defaults, now, cancelHr
                             <EmptyState
                                 compact
                                 icon={<ShieldCheck />}
-                                title={copy("Medical Clearance")}
-                                description={copy("Choose a fighter to see their clearance and restrictions before you plan.")}
+                                title={t("training.planForm.emptyClearanceTitle")}
+                                description={t("training.planForm.emptyClearanceDesc")}
                             />
                         </CardContent>
                     </Card>
                 )}
                 <p className="px-1 text-[13px] text-pretty text-fg-muted">
-                    {copy("Plans do not change a clearance. Each session is checked against the fighter’s Medical Clearance; only the sports doctor can update it.")}
+                    {t("training.planForm.asideDesc")}
                 </p>
             </aside>
         </form>
