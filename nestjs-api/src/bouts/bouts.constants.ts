@@ -29,11 +29,3 @@ export const BOUT_RESPONSE_MESSAGES = {
   RESULT: 'Record bout result successfully',
 } as const;
 
-export const LOSS_OF_CONSCIOUSNESS_VALUES = [
-  'NONE',
-  'UNDER_1_MIN',
-  'OVER_1_MIN',
-  'UNKNOWN',
-] as const;
-export type LossOfConsciousness = (typeof LOSS_OF_CONSCIOUSNESS_VALUES)[number];
-

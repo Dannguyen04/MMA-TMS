@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import type { SuspensionRow } from '../database/schema.js';
 import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import type { DatabaseExecutor } from '../shared/utils/audit-context.util.js';
 import {
@@ -6,7 +7,9 @@ import {
   suspensionValidationError,
 } from '../suspensions/suspensions.error.js';
 import {
+  academyDateOf,
   applySuspensionConflictsSchema,
+  isInForceOn,
   planConflicts,
   type ApplySuspensionConflictsInput,
   type ConflictAction,
@@ -24,6 +27,29 @@ interface AppliedConflictOutcome {
   session: TrainingSessionEntity;
   action: ConflictAction;
   rescheduled: boolean;
+}
+
+function filterProposalsForSuspension(
+  proposals: ConflictProposal[],
+  suspension: SuspensionRow,
+  sessions: TrainingSessionEntity[],
+): ConflictProposal[] {
+  const isOpenEnded =
+    suspension.requiresClearance && suspension.clearedAt === null;
+  const sessionById = new Map(sessions.map((s) => [s.id, s]));
+
+  return proposals.filter((proposal) => {
+    const session = sessionById.get(proposal.sessionId);
+    if (!session) return false;
+    const sessionDate = academyDateOf(new Date(session.scheduledAt));
+    const inPeriod = isOpenEnded
+      ? suspension.startsOn <= sessionDate
+      : suspension.startsOn <= sessionDate && sessionDate <= suspension.endsOn;
+    const typeBlocked = suspension.blockedSessionTypes.includes(
+      session.sessionType,
+    );
+    return inPeriod && typeBlocked;
+  });
 }
 
 @Injectable()
@@ -47,7 +73,11 @@ export class TrainingSuspensionConflictsService {
       }
       await this.access.assertFighterAccess(actor, suspension.fighterId);
 
-      if (suspension.clearedAt !== null) {
+      const today = academyDateOf(new Date());
+      if (
+        suspension.clearedAt !== null ||
+        !isInForceOn(suspension, today)
+      ) {
         return [];
       }
 
@@ -61,7 +91,8 @@ export class TrainingSuspensionConflictsService {
         ? fighterSuspensions
         : [suspension, ...fighterSuspensions];
 
-      return planConflicts(sessions, allSuspensions);
+      const allProposals = planConflicts(sessions, allSuspensions);
+      return filterProposalsForSuspension(allProposals, suspension, sessions);
     } catch (error) {
       throw mapTrainingPersistenceError(error);
     }
@@ -118,10 +149,19 @@ export class TrainingSuspensionConflictsService {
         )
           ? fighterSuspensions
           : [currentSuspension, ...fighterSuspensions];
-        const proposals =
-          currentSuspension.clearedAt === null
-            ? planConflicts(sessions, allSuspensions)
-            : [];
+        const today = academyDateOf(new Date());
+        const isTargetInForce =
+          currentSuspension.clearedAt === null &&
+          isInForceOn(currentSuspension, today);
+
+        const allProposals = isTargetInForce
+          ? planConflicts(sessions, allSuspensions)
+          : [];
+        const proposals = filterProposalsForSuspension(
+          allProposals,
+          currentSuspension,
+          sessions,
+        );
         const proposalBySessionId = new Map(
           proposals.map((proposal) => [proposal.sessionId, proposal]),
         );
@@ -141,6 +181,21 @@ export class TrainingSuspensionConflictsService {
           }
         }
 
+        const ensureScheduled = (locked: TrainingSessionEntity) => {
+          if (locked.status !== 'SCHEDULED') {
+            throw suspensionValidationError(
+              `Session ${locked.id} is not in the current conflict proposal`,
+              [
+                {
+                  code: 'custom',
+                  path: ['sessionIds'],
+                  message: `Session ${locked.id} is not in the current conflict proposal`,
+                },
+              ],
+            );
+          }
+        };
+
         const applied: AppliedConflictOutcome[] = [];
         for (const sessionId of data.sessionIds) {
           const proposal = proposalBySessionId.get(sessionId)!;
@@ -150,6 +205,7 @@ export class TrainingSuspensionConflictsService {
                 sessionId,
                 { sessionType: proposal.toType ?? 'RECOVERY' },
                 transaction,
+                ensureScheduled,
               );
             applied.push({
               session: updated,
@@ -162,6 +218,7 @@ export class TrainingSuspensionConflictsService {
                 sessionId,
                 { scheduledAt: proposal.toScheduledAt!.toISOString() },
                 transaction,
+                ensureScheduled,
               );
             applied.push({
               session: updated,
@@ -174,6 +231,7 @@ export class TrainingSuspensionConflictsService {
                 sessionId,
                 SUSPENSION_CONFLICT_CANCELLATION_REASON,
                 transaction,
+                ensureScheduled,
               );
             applied.push({
               session: updated,
@@ -205,18 +263,10 @@ export class TrainingSuspensionConflictsService {
     return outcomes.map((outcome) => outcome.session);
   }
 
-  private async loadFighterSessions(
+  private loadFighterSessions(
     fighterId: string,
     database?: DatabaseExecutor,
   ): Promise<TrainingSessionEntity[]> {
-    if (typeof this.repo.findScheduledSessionsByFighterId === 'function') {
-      return this.repo.findScheduledSessionsByFighterId(fighterId, database);
-    }
-    const result = await this.repo.findSessions(
-      { fighterId, status: 'SCHEDULED', page: 1, limit: 100 },
-      {},
-      database,
-    );
-    return result.data;
+    return this.repo.findScheduledSessionsByFighterId(fighterId, database);
   }
 }

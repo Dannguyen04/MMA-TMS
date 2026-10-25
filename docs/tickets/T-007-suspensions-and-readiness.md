@@ -2,7 +2,7 @@
 
 | | |
 | --- | --- |
-| **Trạng thái** | READY (24/10: Q1, Q2, Q3, Q4, Q5 đã chốt; Q1 phần `ends_on` của đình chỉ tự tạo từ kết quả ghi theo đề xuất, chủ dự án sửa nếu muốn khác) |
+| **Trạng thái** | IN REVIEW (backend, 25/10). `agy` làm các lượt A đến G, Claude review; xem [handover](./T-007-HANDOVER.md). Phần B (Hoàng Anh) và C (Fon) chưa có ticket |
 | **Phần** | A: Backend (`nestjs-api`). Phần B (tab Đình chỉ, tab Sẵn sàng, xử lý lịch: Hoàng Anh) và C (võ sĩ xem trạng thái đình chỉ: Fon) có ticket riêng, dùng contract của ticket này |
 | **Người nhận** | Ken |
 | **Nhánh** | `feat/T-007-suspensions` từ `fight-camp` mới nhất (đã có T-003, T-006, T-010) |

@@ -163,9 +163,11 @@ export class TrainingSessionService {
     id: string,
     data: UpdateSessionInput,
     transaction: Transaction,
+    onLocked?: (locked: TrainingSessionEntity) => void,
   ): Promise<{ updated: TrainingSessionEntity; rescheduled: boolean }> {
     const locked = await this.repo.lockSessionById(id, transaction);
     if (!locked) throw sessionNotFound();
+    onLocked?.(locked);
     const nextSessionType = data.sessionType;
     // Switching a running session to another type could step outside a
     // medical restriction, so it passes the same gate as starting it.
@@ -207,9 +209,11 @@ export class TrainingSessionService {
     id: string,
     cancellationReason: string,
     transaction: Transaction,
+    onLocked?: (locked: TrainingSessionEntity) => void,
   ): Promise<TrainingSessionEntity> {
     const locked = await this.repo.lockSessionById(id, transaction);
     if (!locked) throw sessionNotFound();
+    onLocked?.(locked);
     if (!ALLOWED_SESSION_TRANSITIONS[locked.status]?.includes('CANCELLED')) {
       throw invalidSessionStatusTransition(locked.status, 'CANCELLED');
     }
@@ -313,7 +317,7 @@ export class TrainingSessionService {
         await this.assertEligibleAndNotSuspended(
           locked.fighterId,
           locked.sessionType,
-          new Date(locked.scheduledAt),
+          new Date(),
           transaction,
         );
         if (lockedSameStatus) return locked;

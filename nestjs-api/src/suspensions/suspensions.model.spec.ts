@@ -862,6 +862,64 @@ describe('suggestSuspensions (R27)', () => {
     });
   });
 
+  it('DQ: WIN + DQ with a DQ rule creates NO DQ suspension (only mandatory rest if restDays > 0)', () => {
+    const rulesetWithDqAndRest = {
+      name: 'Custom Ruleset with DQ and Rest',
+      suspensionRules: [{ reason: 'DQ', minDays: 60 }],
+      restDaysAfterBout: 7,
+      defaultBlockedSessionTypes: ['SPARRING'] as const,
+    };
+
+    const resWinDq = suggestSuspensions({
+      event: { result: 'WIN', method: 'DQ' },
+      ruleset: rulesetWithDqAndRest,
+      today,
+    });
+
+    expect(resWinDq).toEqual({
+      ok: true,
+      suspensions: [
+        expect.objectContaining({
+          reason: 'MANDATORY_REST',
+          days: 7,
+          requiresClearance: false,
+        }),
+      ],
+    });
+
+    const resDrawDq = suggestSuspensions({
+      event: { result: 'DRAW', method: 'DQ' },
+      ruleset: rulesetWithDqAndRest,
+      today,
+    });
+    expect(resDrawDq).toEqual({
+      ok: true,
+      suspensions: [
+        expect.objectContaining({
+          reason: 'MANDATORY_REST',
+          days: 7,
+          requiresClearance: false,
+        }),
+      ],
+    });
+
+    const resNoContestDq = suggestSuspensions({
+      event: { result: 'NO_CONTEST', method: 'DQ' },
+      ruleset: rulesetWithDqAndRest,
+      today,
+    });
+    expect(resNoContestDq).toEqual({
+      ok: true,
+      suspensions: [
+        expect.objectContaining({
+          reason: 'MANDATORY_REST',
+          days: 7,
+          requiresClearance: false,
+        }),
+      ],
+    });
+  });
+
   it('Mandatory rest: creates MANDATORY_REST suspension row when restDaysAfterBout > 0', () => {
     const rulesetWithRest = {
       name: 'Tournament Ruleset',

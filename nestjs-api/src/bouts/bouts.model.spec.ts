@@ -951,7 +951,7 @@ describe('classifyReadiness (R32, S3, T-007)', () => {
     expect(both.status).toBe('SUSPENDED');
     expect(both.ready).toBe(false);
     expect(both.suspension?.endsOn).toBe('2026-10-25');
-    expect(both.suspension?.expectedResumeOn).toBe('2026-10-26');
+    expect(both.suspension?.expectedResumeOn).toBeNull();
     expect(both.activeBout).toEqual(activeBout);
 
     const awaitingAndBout = classifyReadiness({
@@ -985,6 +985,90 @@ describe('classifyReadiness (R32, S3, T-007)', () => {
     expect(scheduledBout.status).toBe('READY');
     expect(scheduledBout.ready).toBe(true);
     expect(scheduledBout.activeBout).toBeNull();
+  });
+
+  it('F2: combines overlapping suspensions and treats open-ended (unconfirmed clearance) suspension as ending last', () => {
+    // Two overlapping suspensions:
+    // a KO (requires clearance, ends_on 20/10, not cleared)
+    // a MANDATORY_REST (ends_on 30/10), today 25/10
+    const koSuspension = {
+      startsOn: '2026-10-01',
+      endsOn: '2026-10-20',
+      requiresClearance: true,
+      clearedAt: null,
+      blockedSessionTypes: ['SPARRING'] as const,
+    };
+    const restSuspension = {
+      startsOn: '2026-10-20',
+      endsOn: '2026-10-30',
+      requiresClearance: false,
+      clearedAt: null,
+      blockedSessionTypes: ['GRAPPLING'] as const,
+    };
+
+    const result = classifyReadiness({
+      fighterId,
+      fighterName,
+      today: '2026-10-25',
+      suspensions: [koSuspension, restSuspension],
+    });
+
+    expect(result.status).toBe('SUSPENDED');
+    expect(result.ready).toBe(false);
+    expect(result.suspension).toEqual({
+      startsOn: '2026-10-01',
+      endsOn: '2026-10-30',
+      blockedSessionTypes: ['SPARRING', 'GRAPPLING'],
+      allowedSessionTypes: [
+        'SHADOW_BOXING',
+        'PAD_WORK',
+        'HEAVY_BAG',
+        'STRENGTH_CONDITIONING',
+        'RECOVERY',
+        'PHYSICAL_THERAPY',
+      ],
+      expectedResumeOn: null,
+    });
+
+    // Two fixed-end suspensions: resume = latest end + 1
+    const fixedA = {
+      startsOn: '2026-10-01',
+      endsOn: '2026-10-20',
+      requiresClearance: false,
+      clearedAt: null,
+      blockedSessionTypes: ['SPARRING'] as const,
+    };
+    const fixedB = {
+      startsOn: '2026-10-10',
+      endsOn: '2026-10-25',
+      requiresClearance: false,
+      clearedAt: null,
+      blockedSessionTypes: ['GRAPPLING'] as const,
+    };
+
+    const fixedResult = classifyReadiness({
+      fighterId,
+      fighterName,
+      today: '2026-10-15',
+      suspensions: [fixedA, fixedB],
+    });
+
+    expect(fixedResult.status).toBe('SUSPENDED');
+    expect(fixedResult.ready).toBe(false);
+    expect(fixedResult.suspension).toEqual({
+      startsOn: '2026-10-01',
+      endsOn: '2026-10-25',
+      blockedSessionTypes: ['SPARRING', 'GRAPPLING'],
+      allowedSessionTypes: [
+        'SHADOW_BOXING',
+        'PAD_WORK',
+        'HEAVY_BAG',
+        'STRENGTH_CONDITIONING',
+        'RECOVERY',
+        'PHYSICAL_THERAPY',
+      ],
+      expectedResumeOn: '2026-10-26',
+    });
   });
 
   it('applies boutOn filter and computes feasibility without altering ready', () => {
