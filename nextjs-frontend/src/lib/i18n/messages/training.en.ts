@@ -562,6 +562,7 @@ export const enTraining = {
     "training.fighterOverview.noFeedbackTitle": "No feedback yet",
     "training.fighterOverview.noFeedbackDesc": "Feedback left on sessions and videos appears here.",
     "training.fighterOverview.coachFallback": "Coach",
+    "training.fighterOverview.trainingPaused": "Training is paused until the sports doctor clears them.",
 
     /* Coach Fighter Training Tab */
     "training.coachFighter.metaTitle": "Training · {name}",

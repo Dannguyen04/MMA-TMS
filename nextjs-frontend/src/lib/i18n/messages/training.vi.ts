@@ -562,6 +562,7 @@ export const viTraining = {
     "training.fighterOverview.noFeedbackTitle": "Chưa có nhận xét nào",
     "training.fighterOverview.noFeedbackDesc": "Nhận xét trong các buổi tập và video sẽ hiển thị ở đây.",
     "training.fighterOverview.coachFallback": "HLV",
+    "training.fighterOverview.trainingPaused": "Tập luyện tạm dừng cho đến khi được bác sĩ thể thao cấp phép.",
 
     /* Coach Fighter Training Tab */
     "training.coachFighter.metaTitle": "Tập luyện · {name}",

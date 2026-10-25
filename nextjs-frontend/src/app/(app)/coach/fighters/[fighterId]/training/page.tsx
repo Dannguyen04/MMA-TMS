@@ -13,15 +13,17 @@ import { planAdherence, planAdherenceWeeks, recentAdherenceWeeks } from "@/compo
 import { UpcomingByDay } from "@/components/training/upcoming-by-day";
 import { requireFighterAccess } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
-import { pluralize } from "@/lib/format";
+import { getTranslator } from "@/lib/i18n/server";
+import { plural } from "@/lib/i18n/translate";
 import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { getSessionHistory, getUpcomingSessions, listPlans, listSessions } from "@/lib/services/training";
 
 export async function generateMetadata({ params }: PageProps<"/coach/fighters/[fighterId]/training">): Promise<Metadata> {
+    const { t } = await getTranslator();
     const user = await requireRole("coach");
     const fighter = await requireFighterAccess(user, (await params).fighterId);
-    return { title: `Training · ${fighter.name}` };
+    return { title: t("training.coachFighter.metaTitle", { name: fighter.name }) };
 }
 
 const UPCOMING_LIMIT = 6;
@@ -29,6 +31,7 @@ const HISTORY_LIMIT = 8;
 const ADHERENCE_WEEKS = 8;
 
 export default async function CoachFighterTrainingPage({ params }: PageProps<"/coach/fighters/[fighterId]/training">) {
+    const { t, locale } = await getTranslator();
     const user = await requireRole("coach");
     const fighter = await requireFighterAccess(user, (await params).fighterId);
     const now = new Date().toISOString();
@@ -50,27 +53,39 @@ export default async function CoachFighterTrainingPage({ params }: PageProps<"/c
     const scheduleHref = hrefWith(routes.coach.newSession, {}, { fighter: fighter.id, plan: activePlan?.id });
     const newPlanHref = hrefWith(routes.coach.newPlan, {}, { fighter: fighter.id });
 
+    const drafts = draftCount > 0 ? plural(locale, draftCount, {
+        one: t("training.coachFighter.draftPlanCount.one"),
+        other: t("training.coachFighter.draftPlanCount", { n: draftCount }),
+    }) : "";
+
     return (
         <section aria-labelledby="training-heading" className="flex flex-col gap-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div className="min-w-0">
                     <h2 id="training-heading" className="text-lg font-semibold text-fg">
-                        Training
+                        {t("training.coachFighter.heading")}
                     </h2>
                     <p className="mt-0.5 text-sm text-fg-muted">
                         {activePlan
-                            ? `${firstName} is on “${activePlan.title}”${draftCount > 0 ? ` · ${pluralize(draftCount, "draft plan")}` : ""}.`
-                            : `${firstName} has no active plan${draftCount > 0 ? ` · ${pluralize(draftCount, "draft plan")} waiting` : ""}.`}
+                            ? t("training.coachFighter.activePlanDesc", {
+                                name: firstName,
+                                title: activePlan.title,
+                                drafts: draftCount > 0 ? t("training.coachFighter.draftsSuffix", { drafts }) : "",
+                            })
+                            : t("training.coachFighter.noActivePlanDesc", {
+                                name: firstName,
+                                drafts: draftCount > 0 ? t("training.coachFighter.draftsWaitingSuffix", { drafts }) : "",
+                            })}
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                     <ButtonLink href={newPlanHref} variant="secondary">
                         <ClipboardPlus aria-hidden />
-                        New plan
+                        {t("training.coachFighter.newPlan")}
                     </ButtonLink>
                     <ButtonLink href={scheduleHref}>
                         <CalendarPlus aria-hidden />
-                        Schedule session
+                        {t("training.coachFighter.scheduleSession")}
                     </ButtonLink>
                 </div>
             </div>
@@ -86,18 +101,18 @@ export default async function CoachFighterTrainingPage({ params }: PageProps<"/c
                     actions={
                         <ButtonLink href={routes.coach.plan(activePlan.id)} variant="secondary" className="w-full sm:w-auto">
                             <ClipboardList aria-hidden />
-                            Open plan
+                            {t("training.coachFighter.openPlan")}
                         </ButtonLink>
                     }
                 />
             ) : (
                 <EmptyState
                     icon={<ClipboardList />}
-                    title={`No active plan for ${firstName}`}
-                    description="A plan sets the objective, phase and weekly target, and gives sessions an adherence baseline."
+                    title={t("training.coachFighter.noActivePlanTitle", { name: firstName })}
+                    description={t("training.coachFighter.noActivePlanEmptyDesc")}
                     action={
                         <ButtonLink href={plans.length > 0 ? hrefWith(routes.coach.plans, {}, { fighter: fighter.id }) : newPlanHref} variant="secondary">
-                            {plans.length > 0 ? "View their plans" : "Create a plan"}
+                            {plans.length > 0 ? t("training.coachFighter.viewTheirPlans") : t("training.coachFighter.createPlan")}
                         </ButtonLink>
                     }
                 />
@@ -106,35 +121,48 @@ export default async function CoachFighterTrainingPage({ params }: PageProps<"/c
             <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-2">
                 <Card className="min-w-0 overflow-hidden">
                     <CardHeader
-                        title="Upcoming sessions"
-                        description={upcoming.length > 0 ? `Next ${pluralize(upcoming.length, "session")}` : undefined}
+                        title={t("training.coachFighter.upcomingSessions")}
+                        description={
+                            upcoming.length > 0
+                                ? t("training.coachFighter.nextSessions", {
+                                    count: plural(locale, upcoming.length, {
+                                        one: t("training.sessionsCount.one"),
+                                        other: t("training.sessionsCount", { n: upcoming.length }),
+                                    }),
+                                })
+                                : undefined
+                        }
                         icon={<CalendarClock />}
                         as="h3"
-                        action={<CardLink href={hrefWith(routes.coach.sessions, {}, { fighter: fighter.id })}>Calendar</CardLink>}
+                        action={<CardLink href={hrefWith(routes.coach.sessions, {}, { fighter: fighter.id })}>{t("training.coachFighter.calendar")}</CardLink>}
                     />
                     {upcoming.length === 0 ? (
                         <CardContent>
                             <EmptyState
                                 compact
                                 icon={<CalendarClock />}
-                                title="Nothing scheduled"
-                                description={`Schedule ${firstName}'s next session — it's checked against their Medical Clearance.`}
+                                title={t("training.coachFighter.nothingScheduledTitle")}
+                                description={t("training.coachFighter.nothingScheduledDesc", { name: firstName })}
                                 action={
                                     <ButtonLink href={scheduleHref} variant="secondary" size="sm">
-                                        Schedule session
+                                        {t("training.coachFighter.scheduleSession")}
                                     </ButtonLink>
                                 }
                             />
                         </CardContent>
                     ) : (
                         <div className="border-t border-border">
-                            <UpcomingByDay sessions={upcoming} now={now} audience="coach" coachNames={coachNames} headingLevel={4} />
+                            <UpcomingByDay sessions={upcoming} now={now} audience="coach" coachNames={coachNames} headingLevel={4} locale={locale} />
                         </div>
                     )}
                 </Card>
                 <AdherenceChart
                     weeks={adherenceWeeks}
-                    description={activePlan ? "Completed out of due sessions per week in the active plan" : `Completed out of due sessions per week, last ${ADHERENCE_WEEKS} weeks`}
+                    description={
+                        activePlan
+                            ? t("training.coachFighter.chartActiveDesc")
+                            : t("training.coachFighter.chartRecentDesc", { weeks: ADHERENCE_WEEKS })
+                    }
                     headingAs="h3"
                     className="min-w-0"
                 />
@@ -142,19 +170,19 @@ export default async function CoachFighterTrainingPage({ params }: PageProps<"/c
 
             <Card className="overflow-hidden">
                 <CardHeader
-                    title="Recent history"
-                    description="Latest completed, missed and cancelled sessions"
+                    title={t("training.coachFighter.recentHistory")}
+                    description={t("training.coachFighter.recentHistoryDesc")}
                     icon={<History />}
                     as="h3"
-                    action={<CardLink href={hrefWith(routes.coach.sessions, {}, { view: "list", fighter: fighter.id })}>All sessions</CardLink>}
+                    action={<CardLink href={hrefWith(routes.coach.sessions, {}, { view: "list", fighter: fighter.id })}>{t("training.coachFighter.allSessions")}</CardLink>}
                 />
                 {history.length === 0 ? (
                     <CardContent>
-                        <EmptyState compact icon={<History />} title="No past sessions yet" description="Completed, missed and cancelled sessions appear here." />
+                        <EmptyState compact icon={<History />} title={t("training.coachFighter.noPastSessionsTitle")} description={t("training.coachFighter.noPastSessionsDesc")} />
                     </CardContent>
                 ) : (
                     <div className="border-t border-border">
-                        <SessionTable sessions={history} audience="coach" caption={`Recent sessions for ${fighter.name}`} showVideo stackOnMobile />
+                        <SessionTable sessions={history} audience="coach" caption={t("training.coachFighter.recentSessionsCaption", { name: fighter.name })} showVideo stackOnMobile locale={locale} />
                     </div>
                 )}
             </Card>
