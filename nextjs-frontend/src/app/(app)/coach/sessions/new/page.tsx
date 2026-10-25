@@ -11,6 +11,7 @@ import { TRAINING_TYPE_LABELS } from "@/lib/domain/labels";
 import { SERVICE_TRAINING_TYPES } from "@/lib/domain/training-contract";
 import type { TrainingType } from "@/lib/domain/types";
 import { addDaysToKey, dayKey } from "@/lib/format";
+import { getTranslator } from "@/lib/i18n/server";
 import { parseEnum } from "@/lib/query";
 import { getLocale } from "@/lib/i18n/server";
 import { routes } from "@/lib/routes";
@@ -19,11 +20,15 @@ import { usesTrainingServiceForms } from "@/lib/services/platform-features";
 import { listExercises, listPlans, listSessions, listSessionTemplates } from "@/lib/services/training";
 import { param } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Schedule session" };
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return { title: t("training.sessionForm.titleCreate") };
+}
 
 const TRAINING_TYPES = Object.keys(TRAINING_TYPE_LABELS) as TrainingType[];
 
 export default async function NewSessionPage({ searchParams }: PageProps<"/coach/sessions/new">) {
+    const { t } = await getTranslator();
     const user = await requireRole("coach");
     const params = await searchParams;
     const now = new Date().toISOString();
@@ -65,16 +70,16 @@ export default async function NewSessionPage({ searchParams }: PageProps<"/coach
         ? { href: routes.coach.plan(plan.id), label: plan.title }
         : fighter
           ? { href: routes.coach.fighterTraining(fighter.id), label: fighter.name }
-          : { href: routes.coach.sessions, label: "Sessions" };
+          : { href: routes.coach.sessions, label: t("training.coachSessions.title") };
 
     return (
         <>
             <PageHeader
-                title="Schedule a session"
+                title={t("training.sessionForm.titleCreate")}
                 description={
                     serviceForm
-                        ? "The fighter's Medical Clearance is checked when the session starts."
-                        : "Every session is checked live against the fighter's Medical Clearance. The fighter is notified when you schedule it."
+                        ? t("training.sessionForm.descCreateService")
+                        : t("training.sessionForm.descCreateDemo")
                 }
                 back={back}
             />

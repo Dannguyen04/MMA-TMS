@@ -92,7 +92,7 @@ CREATE TABLE public.competition_rulesets (
   `priorCount` đếm các đình chỉ lý do KO/TKO trước đó của võ sĩ trong `withinDays` ngày, gồm cả đình chỉ tạo thủ công khi bị KO trong buổi tập. `loc` (mất ý thức) do HLV hoặc bác sĩ nhập khi ghi kết quả. Mảng rỗng nghĩa là ruleset không gợi ý, HLV tự nhập số ngày.
 - Migration seed ba preset, `source_note` trỏ tới [Nghiên cứu](./FIGHT-CAMP-DOMAIN-RESEARCH.md):
   - **"MMA – VMMAF 2021"**: hạng cân theo Điều 7 (cận trên 44, 48, 52, 56, 60, 65, 70, 77, 84, 93, 120 kg và trên 120 kg), cân trước ngày thi 1 ngày theo Điều 9. `verified = true` cho hai phần này; `requirement_templates` và `suspension_rules` rỗng vì luật giao cho điều lệ từng giải. Mặc định chặn `SPARRING` và `GRAPPLING` khi đình chỉ.
-  - **"Boxing nghiệp dư – AIBA (tham khảo)"**: quy tắc đình chỉ như trên, hạng cân AIBA 2002, `verified = false`, chặn mọi loại buổi tập trừ `RECOVERY` và `PHYSICAL_THERAPY`.
+  - **"Boxing nghiệp dư – AIBA (tham khảo)"**: quy tắc đình chỉ như trên, hạng cân AIBA 2002, `verified = false`, `requirement_templates` mẫu tham khảo cho demo (giấy khám sức khỏe 180 ngày, bảo hiểm thi đấu 365 ngày, đăng ký thi đấu 365 ngày; chưa xác minh với ban tổ chức nào), chặn mọi loại buổi tập trừ `RECOVERY` và `PHYSICAL_THERAPY`.
   - **"Tự nhập"**: mọi danh sách rỗng; HLV nhập hạng cân, checklist hồ sơ và số ngày đình chỉ trên từng trận.
 - Ngưỡng 5% dùng cho mọi khoảng dưới 12 giờ. Nguồn chỉ nêu 5% cho khoảng 6 giờ trở xuống; khoảng 6–12 giờ không có số liệu nên chọn mức thận trọng.
 

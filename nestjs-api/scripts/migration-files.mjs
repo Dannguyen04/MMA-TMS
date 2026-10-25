@@ -29,6 +29,8 @@ export const migrationNames = [
   '019_ai_delivery_receipts.sql',
   '020_movement_evidence_reviews.sql',
   '023_academy_settings.sql',
+  '024_bouts.sql',
+  '027_opponent_analysis_and_rounds.sql',
   '028_session_type_tactical_analysis.sql',
   '029_session_templates.sql',
 ];

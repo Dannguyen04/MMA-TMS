@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { invalidateAuthCache } from '../auth/auth-cache.js';
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { DRIZZLE, type DrizzleDB } from '../database/database.module.js';
 import {
@@ -180,6 +181,7 @@ export class AuthorizationRepository {
         grantedBy: userPermissions.grantedBy,
         createdAt: userPermissions.createdAt,
       });
+    invalidateAuthCache();
     return row as UserPermissionRow;
   }
 
@@ -207,6 +209,7 @@ export class AuthorizationRepository {
         grantedBy: userPermissions.grantedBy,
         createdAt: userPermissions.createdAt,
       });
+    invalidateAuthCache();
     return row as UserPermissionRow | undefined;
   }
 
@@ -244,6 +247,7 @@ export class AuthorizationRepository {
         ),
       )
       .limit(1);
+    invalidateAuthCache();
     return row as RolePermissionRow;
   }
 
@@ -269,6 +273,7 @@ export class AuthorizationRepository {
         permissionId: rolePermissions.permissionId,
         createdAt: rolePermissions.createdAt,
       });
+    invalidateAuthCache();
     return row as RolePermissionRow | undefined;
   }
 }

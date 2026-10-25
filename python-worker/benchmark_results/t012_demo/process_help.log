@@ -1,0 +1,44 @@
+usage: process_video.py [-h] --input INPUT [--output OUTPUT]
+                        [--model {yolov8n-pose,yolov8s-pose,yolov8m-pose,yolov8l-pose,yolov8x-pose}]
+                        [--conf CONF] [--max-frames MAX_FRAMES]
+                        [--stance {orthodox,southpaw,switch,unknown}]
+                        [--coach-stance {orthodox,southpaw,switch,unknown}]
+                        [--martial-art {boxing,muay_thai,kickboxing,karate,taekwondo,mma,generic,unknown}]
+                        [--training-mode {HEAVY_BAG,PAD_WORK,SHADOW_BOXING,SPARRING}]
+                        [--camera-view {FRONT,SIDE,DIAGONAL}]
+                        [--exercise-id EXERCISE_ID]
+                        [--evidence-protocol {whole_body_v1,upper_body_v1,lower_body_v1}]
+                        [--analysis-purpose {training,longitudinal_monitoring,rehabilitation}]
+
+Phân tích kỹ thuật võ thuật từ video dùng YOLO-Pose
+
+options:
+  -h, --help            show this help message and exit
+  --input INPUT, -i INPUT
+                        Đường dẫn video MP4 hoặc URL
+  --output OUTPUT, -o OUTPUT
+                        File JSON output (mặc định: result.json)
+  --model {yolov8n-pose,yolov8s-pose,yolov8m-pose,yolov8l-pose,yolov8x-pose}, -m {yolov8n-pose,yolov8s-pose,yolov8m-pose,yolov8l-pose,yolov8x-pose}
+                        Model YOLO-Pose (n=nhanh/CPU, x=chính xác/GPU)
+  --conf CONF, -c CONF  Ngưỡng confidence (0–1, mặc định: 0.5)
+  --max-frames MAX_FRAMES
+                        Giới hạn số frame (dùng để test nhanh)
+  --stance {orthodox,southpaw,switch,unknown}
+                        Thế thủ võ sĩ do user khai báo (mặc định: None ->
+                        unknown)
+  --coach-stance {orthodox,southpaw,switch,unknown}
+                        Thế thủ võ sĩ do HLV xác nhận (ưu tiên cao hơn
+                        --stance)
+  --martial-art {boxing,muay_thai,kickboxing,karate,taekwondo,mma,generic,unknown}
+                        Môn võ phân tích (mặc định: None -> generic)
+  --training-mode {HEAVY_BAG,PAD_WORK,SHADOW_BOXING,SPARRING}
+                        Loại buổi tập, dùng để chọn detector phù hợp
+  --camera-view {FRONT,SIDE,DIAGONAL}
+                        Góc máy do nguồn upload khai báo
+  --exercise-id EXERCISE_ID
+                        Declared assigned exercise ID; never an AI-confirmed
+                        label
+  --evidence-protocol {whole_body_v1,upper_body_v1,lower_body_v1}
+  --analysis-purpose {training,longitudinal_monitoring,rehabilitation}
+                        Declared review context; does not grant clinical
+                        permissions

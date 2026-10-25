@@ -144,3 +144,50 @@ HTTP trực tiếp vào `/training-session-templates`:
 Trình duyệt headless, `/coach/sessions/new` với HLV thật, desktop: tiếng Việt và tiếng Anh đều hiện đủ 4 thẻ lấy từ API; chọn "Đọc trận & phân tích đối thủ" thì điền tiêu đề, loại `tactical_analysis`, thời lượng 40, địa điểm Film room, ghi chú 3 dòng; không lỗi trang.
 
 Chưa làm: gửi form tạo buổi tập thật (sẽ ghi dữ liệu vào database dùng chung).
+
+## Cập nhật 25/10: merge `fight-camp` mới vào nhánh
+
+- Nhánh: `feat/T-026-session-templates-ui`. Merge `origin/fight-camp` tại `0ff5f13` (gồm T-003, T-006 A, T-010, T-012 A, T-015, T-022), **không rebase**, theo kế hoạch Sprint 2 của chủ dự án.
+- Người làm: Claude (Opus 5.5), theo chỉ dẫn trực tiếp của chủ dự án ngày 25/10.
+
+### Xung đột và cách giải
+
+| File | Cách giải |
+| --- | --- |
+| `nestjs-api/migrations/manifest.json`, `scripts/migration-files.mjs`, `run_sql.mjs`, `package.json` | Giữ cả hai bên theo thứ tự số: 024, 027 (fight-camp) rồi 028, 029 (nhánh này). `run_sql.mjs`: dòng hướng dẫn liệt kê đủ `--apply-024 … --apply-029`, thông báo `001-029 checksums OK` |
+| `nestjs-api/scripts/test-migrations.mjs` | Giữ cả hai: hằng `target024` cạnh `target028`, `target029`; ca 024, 027 chạy trước, rồi 028, 029 trên cùng database `mma_013` |
+| `nestjs-api/migrations/README.md` | Tiêu đề "003–029"; các mục theo thứ tự 029, 028, 027, 024; đóng lại khối lệnh của 028 bị cắt ở chỗ xung đột |
+| `docs/tickets/README.md` | Lấy bản của `fight-camp` (mới hơn) |
+| `nextjs-frontend/src/components/training/session-form.tsx` | Giữ prop `templates` và khối `SessionTemplatePicker` của nhánh này, dùng key dịch của T-015 cho mục "Võ sĩ & giáo án"; bỏ một dòng `import { useT }` bị lặp sau merge |
+
+028 chỉ yêu cầu ledger 023 nên chạy được sau 024 và 027; 029 yêu cầu 028. Không đổi nội dung file SQL nào, checksum giữ nguyên.
+
+### Lệnh đã chạy (sau merge)
+
+```
+pnpm --filter nestjs-api db:check
+001-029 checksums OK. No database connection was opened.
+
+pnpm --filter nestjs-api test:db
+Migration checks passed: 46. PostgreSQL stopped after tests.
+  (PASS 024 …, 024 requires ledger 23 …, 027 applies directly after 024 …, 027 rejects missing ledger 24 …,
+   028 adds the TACTICAL_ANALYSIS session type …, 029 seeds four read-only session templates …,
+   028 and 029 reject a database without their ledger prerequisites)
+
+pnpm --filter nestjs-api lint     → exit 0, chỉ cảnh báo có sẵn
+pnpm --filter nestjs-api build    → $ nest build (không lỗi)
+pnpm --filter nestjs-api test
+ Test Files  5 failed | 53 passed (58)
+      Tests  2 failed | 901 passed (903)
+  5 file lỗi đều thuộc baseline: 4 file spec rỗng của notifications (B2) và test/coaching-loop-persistence.spec.ts cần Redis (B1).
+
+pnpm --filter nextjs-frontend lint       → $ eslint (không lỗi)
+APP_DATA_MODE=api pnpm --filter nextjs-frontend typecheck → ✓ Types generated successfully, tsc không lỗi
+pnpm --filter nextjs-frontend test
+ Test Files  77 passed | 1 skipped (78)
+      Tests  667 passed | 2 skipped (669)
+```
+
+`test:db` chạy trong container `postgres:18` (Docker, PostgreSQL 18, `PG_TEST_BIN=/usr/lib/postgresql/18/bin`) vì máy này chưa cài PostgreSQL 18 ở `C:/Program Files/PostgreSQL/18`. Repo mount chỉ đọc; cluster tạm trong container, không đọc `.env`, không kết nối Supabase.
+
+Kiểm tra tay (demo mode, tiếng Việt): `/coach/sessions/new?fighter=f-minh-tran` hiện 4 thẻ mẫu; chọn "Jab – cross – thoát góc" điền tiêu đề, loại Đấm đích (`pad_work`), 45 phút và ghi chú 3 bước. Phần còn lại của form nay tiếng Việt nhờ T-015.

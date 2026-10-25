@@ -1,3 +1,4 @@
+import { enDemoFlow } from "./demo-flow.en";
 /**
  * English interface text. Keys are grouped by area (`nav.`, `shell.`, `bout.` …). Add a key here first:
  * the Vietnamese dictionary must then define it too, or typecheck fails.
@@ -8,15 +9,18 @@ import { enAuth } from "./auth.en";
 import { enCoachBouts } from "./coach-bouts.en";
 import { enCoachToday } from "./coach-today.en";
 import { enFighterToday } from "./fighter-today.en";
+import { enTraining } from "./training.en";
 import { enLanding } from "./landing.en";
 import { enSessionTemplates } from "./session-templates.en";
 
 export const en = {
+    ...enDemoFlow,
     ...enAccount,
     ...enAuth,
     ...enCoachBouts,
     ...enCoachToday,
     ...enFighterToday,
+    ...enTraining,
     ...enLanding,
     ...enSessionTemplates,
     /* Navigation: keyed by the English label in `navigation.ts`. */

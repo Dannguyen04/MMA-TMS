@@ -13,10 +13,13 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { DescriptionList, type DescriptionItem } from "@/components/ui/description-list";
 import { EmptyState } from "@/components/ui/states";
 import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/table";
-import { EXERCISE_CATEGORY_LABELS, TRAINING_TYPE_LABELS } from "@/lib/domain/labels";
+import { clearanceConflictMessage } from "@/lib/domain/clearance-rules";
+import { exerciseCategoryLabel, trainingTypeLabel } from "@/lib/domain/labels";
 import type { ClearanceConflict } from "@/lib/domain/rules";
 import type { CoachFeedback, Exercise, SessionResult, TrainingPlan, TrainingSession, Video } from "@/lib/domain/types";
 import { formatClock, formatDate, formatDateTime, formatMinutes, formatTime, formatWeekdayDate, pluralize } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
+import { createTranslator, plural, type Translator } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import { sum } from "@/lib/utils";
 import { Callout } from "./callout";
@@ -25,17 +28,18 @@ import { NOT_RECORDED } from "@/components/domain/domain-format";
 import { exerciseVolume, plannedEndMs, rpeLabel, rpeText } from "./training-utils";
 
 /** Status, type and start time for the session page header. */
-export function SessionHeaderMeta({ session }: { session: TrainingSession }) {
+export function SessionHeaderMeta({ session, locale = "en" }: { session: TrainingSession; locale?: Locale }) {
+    const t = createTranslator(locale);
     const TypeIcon = TRAINING_TYPE_ICONS[session.type];
     return (
         <>
-            <SessionStatusBadge status={session.status} />
+            <SessionStatusBadge locale={locale} status={session.status} />
             <Badge variant="outline" icon={TypeIcon}>
-                {TRAINING_TYPE_LABELS[session.type]}
+                {trainingTypeLabel(t, session.type)}
             </Badge>
             <span className="inline-flex items-center gap-1.5 text-sm text-fg-muted">
                 <Clock aria-hidden className="size-3.5 text-fg-subtle" />
-                <time dateTime={session.scheduledAt}>{formatDateTime(session.scheduledAt)}</time>
+                <time dateTime={session.scheduledAt}>{formatDateTime(session.scheduledAt, locale)}</time>
             </span>
         </>
     );
@@ -66,6 +70,7 @@ export interface SessionDetailProps {
     videoAction?: ReactNode;
     /** What the training service keeps (`usesTrainingServiceForms`): no exercise list, target intensity or coach rating. */
     serviceForm: boolean;
+    locale?: Locale;
 }
 
 /** Everything about one training session. Shared by the fighter and coach views. */
@@ -85,7 +90,9 @@ export function SessionDetail({
     feedbackAction,
     videoAction,
     serviceForm,
+    locale = "en",
 }: SessionDetailProps) {
+    const t = createTranslator(locale);
     const started = session.scheduledAt <= now;
     const awaitingResult = started && !session.result && (session.status === "scheduled" || session.status === "in_progress");
 
@@ -93,40 +100,40 @@ export function SessionDetail({
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
             <div className="flex min-w-0 flex-col gap-6 lg:col-span-2">
                 {session.status === "cancelled" && (
-                    <Callout tone="neutral" icon={Ban} title="This session was cancelled">
-                        {session.cancellationReason ?? "No reason was recorded."}
+                    <Callout tone="neutral" icon={Ban} title={t("training.sessionDetail.cancelledTitle")}>
+                        {session.cancellationReason ?? t("training.sessionDetail.noCancellationReason")}
                     </Callout>
                 )}
                 {session.status === "missed" && (
-                    <Callout tone="warning" icon={CalendarX2} title="This session was missed">
+                    <Callout tone="warning" icon={CalendarX2} title={t("training.sessionDetail.missedTitle")}>
                         {audience === "fighter"
-                            ? "No result was recorded. If something kept you from training, let your coach know so the plan can adapt."
-                            : "No result was recorded. Check in with the fighter and adjust the plan if needed."}
+                            ? t("training.sessionDetail.missedFighterDesc")
+                            : t("training.sessionDetail.missedCoachDesc")}
                     </Callout>
                 )}
-                {conflicts.length > 0 && <ClearanceNote conflicts={conflicts} audience={audience} />}
+                {conflicts.length > 0 && <ClearanceNote conflicts={conflicts} audience={audience} t={t} locale={locale} />}
 
                 {session.result ? (
-                    <ResultCard session={session} result={session.result} withRating={!serviceForm} />
+                    <ResultCard session={session} result={session.result} withRating={!serviceForm} t={t} locale={locale} />
                 ) : (
                     awaitingResult && (
                         <Card>
-                            <CardHeader title="Session result" icon={<ListChecks />} />
+                            <CardHeader title={t("training.sessionDetail.resultTitle")} icon={<ListChecks />} />
                             <CardContent>
                                 <EmptyState
                                     compact
                                     icon={<ListChecks />}
-                                    title="Result not recorded yet"
+                                    title={t("training.sessionDetail.resultNotRecorded")}
                                     description={
                                         serviceForm
                                             ? audience === "fighter"
-                                                ? "Your coach records your RPE and rounds after the session."
+                                                ? t("training.sessionDetail.resultDescServiceFighter")
                                                 : session.status === "in_progress"
-                                                  ? "Record the fighter's RPE and rounds to complete the session."
-                                                  : "Start the session when it begins, then record the fighter's RPE and rounds to complete it."
+                                                  ? t("training.sessionDetail.resultDescServiceCoachInProgress")
+                                                  : t("training.sessionDetail.resultDescServiceCoachScheduled")
                                             : audience === "fighter"
-                                              ? "Your coach records duration, RPE and a rating after the session."
-                                              : "Use Record result to log the actual duration, the fighter's RPE and your rating so adherence and load stay accurate."
+                                              ? t("training.sessionDetail.resultDescDemoFighter")
+                                              : t("training.sessionDetail.resultDescDemoCoach")
                                     }
                                 />
                             </CardContent>
@@ -134,13 +141,13 @@ export function SessionDetail({
                     )
                 )}
 
-                {!serviceForm && <ExercisesCard session={session} exercises={exercises} />}
+                {!serviceForm && <ExercisesCard session={session} exercises={exercises} t={t} />}
 
                 {feedback && (
                     <Card>
                         <CardHeader
-                            title="Coach feedback"
-                            description="Notes on this session"
+                            title={t("training.sessionDetail.feedbackTitle")}
+                            description={t("training.sessionDetail.feedbackDesc")}
                             icon={<MessageSquare />}
                             action={feedbackAction}
                         />
@@ -149,11 +156,11 @@ export function SessionDetail({
                                 <EmptyState
                                     compact
                                     icon={<MessageSquare />}
-                                    title="No feedback yet"
+                                    title={t("training.sessionDetail.feedbackEmptyTitle")}
                                     description={
                                         audience === "fighter"
-                                            ? "Feedback from your coach about this session will appear here."
-                                            : "Share praise, corrections or notes so the fighter knows what to work on."
+                                            ? t("training.sessionDetail.feedbackEmptyFighter")
+                                            : t("training.sessionDetail.feedbackEmptyCoach")
                                     }
                                 />
                             ) : (
@@ -162,7 +169,7 @@ export function SessionDetail({
                                         <li key={item.id} className="py-4 first:pt-0 last:pb-0">
                                             <CoachFeedbackItem
                                                 feedback={item}
-                                                coachName={coachNames[item.coachId] ?? "Coach"}
+                                                coachName={coachNames[item.coachId] ?? t("training.plan.coach")}
                                                 now={now}
                                                 videoHref={item.videoId ? videoHref(audience, item.videoId) : undefined}
                                             />
@@ -176,20 +183,20 @@ export function SessionDetail({
             </div>
 
             <div className="flex min-w-0 flex-col gap-6">
-                <DetailsCard session={session} audience={audience} coachName={coachName} fighter={fighter} fighterHref={fighterHref} plan={plan} withTarget={!serviceForm} />
+                <DetailsCard session={session} audience={audience} coachName={coachName} fighter={fighter} fighterHref={fighterHref} plan={plan} withTarget={!serviceForm} t={t} locale={locale} />
 
                 <Card>
-                    <CardHeader title="Linked videos" icon={<VideoIcon />} />
+                    <CardHeader title={t("training.sessionDetail.videosTitle")} icon={<VideoIcon />} />
                     <CardContent>
                         {videos.length === 0 ? (
                             <EmptyState
                                 compact
                                 icon={<VideoIcon />}
-                                title="No footage linked"
+                                title={t("training.sessionDetail.videosEmptyTitle")}
                                 description={
                                     audience === "fighter"
-                                        ? "Videos uploaded for this session appear here with their AI analysis status."
-                                        : "Upload footage from this session to run AI analysis."
+                                        ? t("training.sessionDetail.videosEmptyFighter")
+                                        : t("training.sessionDetail.videosEmptyCoach")
                                 }
                                 action={videoAction}
                             />
@@ -208,9 +215,9 @@ export function SessionDetail({
                                                 {video.title}
                                             </Link>
                                             <p className="mt-0.5 text-xs text-fg-muted">
-                                                {formatClock(video.durationSec)} · uploaded {formatDate(video.uploadedAt)}
+                                                {formatClock(video.durationSec)} · {t("training.sessionDetail.videoUploaded", { date: formatDate(video.uploadedAt, locale) })}
                                             </p>
-                                            <VideoStatusBadge status={video.status} size="sm" className="mt-1.5" />
+                                            <VideoStatusBadge locale={locale} status={video.status} size="sm" className="mt-1.5" />
                                         </div>
                                     </li>
                                 ))}
@@ -224,47 +231,47 @@ export function SessionDetail({
     );
 }
 
-function ClearanceNote({ conflicts, audience }: { conflicts: ClearanceConflict[]; audience: TrainingAudience }) {
+function ClearanceNote({ conflicts, audience, t, locale }: { conflicts: ClearanceConflict[]; audience: TrainingAudience; t: Translator; locale: Locale }) {
     const blocked = conflicts.some((c) => c.severity === "block");
     return (
         <Callout
             tone={blocked ? "danger" : "warning"}
             icon={ShieldAlert}
-            title={blocked ? "This session conflicts with the Medical Clearance" : "Medical Clearance restrictions apply to this session"}
+            title={blocked ? t("training.sessionDetail.clearanceConflictTitle") : t("training.sessionDetail.clearanceRestrictionsTitle")}
             action={
                 <Link
                     href={audience === "fighter" ? routes.fighter.health : routes.coach.clearance}
                     className="text-sm font-medium text-primary-soft-fg hover:underline"
                 >
-                    View clearance
+                    {t("training.sessionDetail.viewClearance")}
                 </Link>
             }
         >
             <ul className="mt-1 list-disc space-y-0.5 pl-4">
-                {conflicts.map((conflict) => (
-                    <li key={conflict.message}>{conflict.message}</li>
+                {conflicts.map((conflict, index) => (
+                    <li key={index}>{clearanceConflictMessage(t, conflict, locale)}</li>
                 ))}
             </ul>
             <p className="mt-1.5">
                 {audience === "fighter"
-                    ? "Follow your doctor's restrictions. Talk to your coach before training if the session doesn't match them."
+                    ? t("training.sessionDetail.clearanceNoteFighter")
                     : blocked
-                      ? "Adjust or cancel this session. Only the sports doctor can change the clearance."
-                      : "Adapt the drills to protect the affected area, or talk to the sports doctor."}
+                      ? t("training.sessionDetail.clearanceNoteCoachBlocked")
+                      : t("training.sessionDetail.clearanceNoteCoachWarn")}
             </p>
         </Callout>
     );
 }
 
-function ResultCard({ session, result, withRating }: { session: TrainingSession; result: SessionResult; withRating: boolean }) {
+function ResultCard({ session, result, withRating, t, locale }: { session: TrainingSession; result: SessionResult; withRating: boolean; t: Translator; locale: Locale }) {
     const durationDelta = result.actualDurationMin !== null && session.durationMin !== null ? result.actualDurationMin - session.durationMin : null;
     return (
         <Card>
             <CardHeader
-                title="Session result"
+                title={t("training.sessionDetail.resultTitle")}
                 description={
                     <>
-                        Recorded <time dateTime={result.completedAt}>{formatDateTime(result.completedAt)}</time>
+                        {t("training.sessionDetail.recordedAt", { date: "" })} <time dateTime={result.completedAt}>{formatDateTime(result.completedAt, locale)}</time>
                     </>
                 }
                 icon={<ListChecks />}
@@ -272,31 +279,31 @@ function ResultCard({ session, result, withRating }: { session: TrainingSession;
             <CardContent className="flex flex-col gap-4">
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                     <MetricTile
-                        label="Actual duration"
+                        label={t("training.sessionDetail.actualDuration")}
                         value={result.actualDurationMin === null ? NOT_RECORDED : formatMinutes(result.actualDurationMin)}
                         hint={
                             durationDelta === null
                                 ? undefined
                                 : durationDelta === 0
-                                  ? "As planned"
-                                  : `Planned ${formatMinutes(session.durationMin ?? 0)}`
+                                  ? t("training.sessionDetail.asPlanned")
+                                  : t("training.sessionDetail.plannedDurationHint", { min: formatMinutes(session.durationMin ?? 0) })
                         }
                     />
                     <MetricTile
-                        label="Session RPE"
+                        label={t("training.sessionDetail.sessionRpe")}
                         value={result.rpe ?? NOT_RECORDED}
                         unit={result.rpe === null ? undefined : rpeLabel(result.rpe)}
-                        hint={session.targetRpe === null ? undefined : `Target ${session.targetRpe}`}
+                        hint={session.targetRpe === null ? undefined : t("training.sessionDetail.targetRpeHint", { rpe: session.targetRpe })}
                     />
-                    <MetricTile label="Rounds completed" value={result.roundsCompleted} />
+                    <MetricTile label={t("training.sessionDetail.roundsCompleted")} value={result.roundsCompleted} />
                     {withRating && (
                         <MetricTile
-                            label="Coach rating"
+                            label={t("training.sessionDetail.coachRating")}
                             value={
                                 result.coachRating === null ? (
                                     NOT_RECORDED
                                 ) : (
-                                    <CoachRating rating={result.coachRating} className="flex-wrap gap-y-1 text-base font-normal" />
+                                    <CoachRating locale={locale} rating={result.coachRating} className="flex-wrap gap-y-1 text-base font-normal" />
                                 )
                             }
                         />
@@ -304,7 +311,7 @@ function ResultCard({ session, result, withRating }: { session: TrainingSession;
                 </div>
                 {result.summary && (
                     <div className="rounded-lg border border-border px-4 py-3">
-                        <p className="text-xs font-semibold tracking-wide text-fg-subtle uppercase">Coach summary</p>
+                        <p className="text-xs font-semibold tracking-wide text-fg-subtle uppercase">{t("training.sessionDetail.coachSummary")}</p>
                         <p className="mt-1 text-sm text-pretty whitespace-pre-line text-fg">{result.summary}</p>
                     </div>
                 )}
@@ -313,35 +320,35 @@ function ResultCard({ session, result, withRating }: { session: TrainingSession;
     );
 }
 
-function ExercisesCard({ session, exercises }: { session: TrainingSession; exercises: Record<string, Exercise> }) {
+function ExercisesCard({ session, exercises, t }: { session: TrainingSession; exercises: Record<string, Exercise>; t: Translator }) {
     const rounds = sum(session.exercises.map((e) => e.rounds ?? 0));
     const completedSession = session.status === "completed";
     const doneCount = session.exercises.filter((e) => e.completed).length;
     const description =
         session.exercises.length === 0
             ? undefined
-            : [pluralize(session.exercises.length, "exercise"), rounds > 0 ? pluralize(rounds, "round") : null, completedSession ? `${doneCount} done` : null]
+            : [pluralize(session.exercises.length, "exercise"), rounds > 0 ? plural(t, "training.sessionDetail.roundsCount", rounds) : null, completedSession ? t("training.sessionDetail.exercisesDoneCount", { done: doneCount }) : null]
                   .filter(Boolean)
                   .join(" · ");
 
     return (
         <Card>
-            <CardHeader title="Exercises" description={description} icon={<Dumbbell />} />
+            <CardHeader title={t("training.sessionDetail.exercisesTitle")} description={description} icon={<Dumbbell />} />
             {session.exercises.length === 0 ? (
                 <CardContent>
-                    <EmptyState compact icon={<Dumbbell />} title="No exercises listed" description="This session has no planned drills." />
+                    <EmptyState compact icon={<Dumbbell />} title={t("training.sessionDetail.exercisesEmptyTitle")} description={t("training.sessionDetail.exercisesEmptyDesc")} />
                 </CardContent>
             ) : (
                 <div className="border-t border-border">
-                    <Table caption="Exercises in this session" className="relative">
+                    <Table caption={t("training.sessionDetail.captionExercises")} className="relative">
                         <THead>
                             <tr>
-                                <TH className="w-10">#</TH>
-                                <TH>Exercise</TH>
-                                <TH>Category</TH>
-                                <TH>Volume</TH>
-                                <TH>Notes</TH>
-                                <TH className="text-center">Done</TH>
+                                <TH className="w-10">{t("training.sessionDetail.thNum")}</TH>
+                                <TH>{t("training.sessionDetail.thExercise")}</TH>
+                                <TH>{t("training.sessionDetail.thCategory")}</TH>
+                                <TH>{t("training.sessionDetail.thVolume")}</TH>
+                                <TH>{t("training.sessionDetail.thNotes")}</TH>
+                                <TH className="text-center">{t("training.sessionDetail.thDone")}</TH>
                             </tr>
                         </THead>
                         <TBody>
@@ -350,8 +357,8 @@ function ExercisesCard({ session, exercises }: { session: TrainingSession; exerc
                                 return (
                                     <TR key={`${item.exerciseId}-${index}`}>
                                         <TD className="text-fg-subtle">{index + 1}</TD>
-                                        <TD className="min-w-48 font-medium">{exercise?.name ?? "Exercise no longer in library"}</TD>
-                                        <TD className="whitespace-nowrap text-fg-muted">{exercise ? EXERCISE_CATEGORY_LABELS[exercise.category] : "—"}</TD>
+                                        <TD className="min-w-48 font-medium">{exercise?.name ?? t("training.sessionDetail.exerciseNoLongerInLibrary")}</TD>
+                                        <TD className="whitespace-nowrap text-fg-muted">{exercise ? exerciseCategoryLabel(t, exercise.category) : "—"}</TD>
                                         <TD className="whitespace-nowrap">{exerciseVolume(item) ?? <span className="text-fg-subtle">—</span>}</TD>
                                         <TD className="min-w-40 text-fg-muted">{item.notes ?? <span className="text-fg-subtle">—</span>}</TD>
                                         <TD className="text-center">
@@ -360,12 +367,12 @@ function ExercisesCard({ session, exercises }: { session: TrainingSession; exerc
                                                     <span aria-hidden className="text-fg-subtle">
                                                         —
                                                     </span>
-                                                    <span className="sr-only">Not yet done</span>
+                                                    <span className="sr-only">{t("training.sessionDetail.notYetDone")}</span>
                                                 </>
                                             ) : item.completed ? (
-                                                <CircleCheck role="img" aria-label="Completed" className="mx-auto size-[18px] text-success-fg" />
+                                                <CircleCheck role="img" aria-label={t("training.sessionDetail.completedAria")} className="mx-auto size-[18px] text-success-fg" />
                                             ) : (
-                                                <CircleDashed role="img" aria-label="Not completed" className="mx-auto size-[18px] text-fg-subtle" />
+                                                <CircleDashed role="img" aria-label={t("training.sessionDetail.notCompletedAria")} className="mx-auto size-[18px] text-fg-subtle" />
                                             )}
                                         </TD>
                                     </TR>
@@ -387,6 +394,8 @@ function DetailsCard({
     fighterHref,
     plan,
     withTarget,
+    t,
+    locale,
 }: {
     session: TrainingSession;
     audience: TrainingAudience;
@@ -396,34 +405,36 @@ function DetailsCard({
     plan: Pick<TrainingPlan, "id" | "title"> | null;
     /** Show the planned intensity, which the training service doesn't keep. */
     withTarget: boolean;
+    t: Translator;
+    locale: Locale;
 }) {
     const end = session.durationMin === null ? null : new Date(plannedEndMs(session)).toISOString();
     const items: DescriptionItem[] = [];
     if (fighter) {
-        items.push({ label: "Fighter", value: <FighterIdentity fighter={fighter} href={fighterHref} size="sm" className="mt-1" />, wide: true });
+        items.push({ label: t("training.sessionDetail.fighter"), value: <FighterIdentity fighter={fighter} href={fighterHref} size="sm" className="mt-1" />, wide: true });
     }
     items.push(
-        { label: "Date", value: <time dateTime={session.scheduledAt}>{formatWeekdayDate(session.scheduledAt)}</time> },
+        { label: t("training.sessionDetail.date"), value: <time dateTime={session.scheduledAt}>{formatWeekdayDate(session.scheduledAt, locale)}</time> },
         {
-            label: "Time",
+            label: t("training.sessionDetail.time"),
             value: (
                 <>
-                    <time dateTime={session.scheduledAt}>{formatTime(session.scheduledAt)}</time>
+                    <time dateTime={session.scheduledAt}>{formatTime(session.scheduledAt, locale)}</time>
                     {end && (
                         <>
                             {" – "}
-                            <time dateTime={end}>{formatTime(end)}</time>
+                            <time dateTime={end}>{formatTime(end, locale)}</time>
                         </>
                     )}
                 </>
             ),
         },
-        { label: "Planned duration", value: session.durationMin === null ? NOT_RECORDED : formatMinutes(session.durationMin) },
-        ...(withTarget ? [{ label: "Target intensity", value: rpeText(session.targetRpe) ?? NOT_RECORDED }] : []),
-        { label: "Location", value: session.location || NOT_RECORDED, wide: true },
-        { label: "Coach", value: coachName, wide: true },
+        { label: t("training.sessionDetail.plannedDuration"), value: session.durationMin === null ? NOT_RECORDED : formatMinutes(session.durationMin) },
+        ...(withTarget ? [{ label: t("training.sessionDetail.targetIntensity"), value: rpeText(session.targetRpe) ?? NOT_RECORDED }] : []),
+        { label: t("training.sessionDetail.location"), value: session.location || NOT_RECORDED, wide: true },
+        { label: t("training.sessionDetail.coach"), value: coachName, wide: true },
         {
-            label: "Training plan",
+            label: t("training.sessionDetail.trainingPlan"),
             wide: true,
             value: plan ? (
                 <Link
@@ -433,19 +444,18 @@ function DetailsCard({
                     {plan.title}
                 </Link>
             ) : (
-                <span className="font-normal text-fg-muted">Not part of a plan</span>
+                <span className="font-normal text-fg-muted">{t("training.sessionDetail.notPartOfPlan")}</span>
             ),
         },
     );
-    if (session.notes) items.push({ label: "Session notes", value: <span className="font-normal whitespace-pre-line">{session.notes}</span>, wide: true });
+    if (session.notes) items.push({ label: t("training.sessionDetail.sessionNotes"), value: <span className="font-normal whitespace-pre-line">{session.notes}</span>, wide: true });
 
     return (
         <Card>
-            <CardHeader title="Session details" icon={<Clock />} />
+            <CardHeader title={t("training.sessionDetail.detailsTitle")} icon={<Clock />} />
             <CardContent>
                 <DescriptionList items={items} />
             </CardContent>
         </Card>
     );
 }
-

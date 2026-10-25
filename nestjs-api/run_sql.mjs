@@ -23,6 +23,8 @@ const migrationByMode = new Map([
   ['--apply-019', '019_ai_delivery_receipts.sql'],
   ['--apply-020', '020_movement_evidence_reviews.sql'],
   ['--apply-023', '023_academy_settings.sql'],
+  ['--apply-024', '024_bouts.sql'],
+  ['--apply-027', '027_opponent_analysis_and_rounds.sql'],
   ['--apply-028', '028_session_type_tactical_analysis.sql'],
   ['--apply-029', '029_session_templates.sql'],
 ]);
@@ -31,7 +33,7 @@ if (
   process.argv.length > 3
 ) {
   console.error(
-    'Usage: node run_sql.mjs [--check | --apply-003 | --apply-004 | --apply-005 | --apply-006 | --apply-007 | --apply-008 | --apply-009 | --apply-010 | --apply-011 | --apply-012 | --apply-013 | --apply-014 | --apply-015 | --apply-016 | --apply-017 | --apply-018 | --apply-019 | --apply-020 | --apply-023 | --apply-028 | --apply-029]',
+    'Usage: node run_sql.mjs [--check | --apply-003 | --apply-004 | --apply-005 | --apply-006 | --apply-007 | --apply-008 | --apply-009 | --apply-010 | --apply-011 | --apply-012 | --apply-013 | --apply-014 | --apply-015 | --apply-016 | --apply-017 | --apply-018 | --apply-019 | --apply-020 | --apply-023 | --apply-024 | --apply-027 | --apply-028 | --apply-029]',
   );
   process.exitCode = 1;
 } else {

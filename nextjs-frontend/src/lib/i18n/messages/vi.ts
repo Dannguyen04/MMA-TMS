@@ -1,19 +1,23 @@
+import { viDemoFlow } from "./demo-flow.vi";
 import { viAccount } from "./account.vi";
 import { viAuth } from "./auth.vi";
 import { viCoachBouts } from "./coach-bouts.vi";
 import { viCoachToday } from "./coach-today.vi";
 import { viFighterToday } from "./fighter-today.vi";
+import { viTraining } from "./training.vi";
 import { viLanding } from "./landing.vi";
 import { viSessionTemplates } from "./session-templates.vi";
 import type { en } from "./en";
 
 /** Vietnamese interface text. Must define every key of `en` (enforced by the type below). */
 export const vi = {
+    ...viDemoFlow,
     ...viAccount,
     ...viAuth,
     ...viCoachBouts,
     ...viCoachToday,
     ...viFighterToday,
+    ...viTraining,
     ...viLanding,
     ...viSessionTemplates,
     "nav.Today": "Hôm nay",
@@ -75,7 +79,7 @@ export const vi = {
     "role.admin": "Quản trị viên",
 
     "boutStatus.SCHEDULED": "Đã lên lịch",
-    "boutStatus.CAMP": "Đang tập camp",
+    "boutStatus.CAMP": "Đang chuẩn bị thi đấu",
     "boutStatus.FIGHT_WEEK": "Tuần thi đấu",
     "boutStatus.WEIGHED_IN": "Đã cân",
     "boutStatus.COMPLETED": "Đã thi đấu",

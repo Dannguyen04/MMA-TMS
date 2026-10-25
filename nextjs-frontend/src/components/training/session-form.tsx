@@ -18,7 +18,7 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { useActionForm } from "@/components/ui/use-action-form";
 import type { ActionState } from "@/lib/actions/state";
 import { previewSessionConflicts, type SessionFormResult } from "@/lib/actions/training";
-import { PLAN_STATUS_LABELS, TRAINING_TYPE_LABELS } from "@/lib/domain/labels";
+import { planStatusLabel, trainingTypeLabel, TRAINING_TYPE_LABELS } from "@/lib/domain/labels";
 import { SERVICE_TRAINING_TYPES } from "@/lib/domain/training-contract";
 import type { ClearanceConflict } from "@/lib/domain/rules";
 import { applySessionTemplate, type SessionTemplate } from "@/lib/domain/session-templates";
@@ -90,7 +90,6 @@ const DEFAULT_LOCATION: Record<TrainingType, string> = {
     tactical_analysis: "Film room",
 };
 
-
 interface CheckResult {
     key: string;
     status: Exclude<ClearanceCheckStatus, "idle">;
@@ -151,9 +150,9 @@ export function SessionForm({ mode, action, fighters, plans, templates = [], lib
 
     const blockedReason =
         checkStatus === "ready" && blocks.length > 0
-            ? "Resolve the blocking clearance conflicts to schedule this session."
+            ? t("training.sessionForm.blockedResolve")
             : checkStatus === "ready" && warnings.length > 0 && !acknowledged
-              ? "Confirm you've reviewed the clearance warnings to continue."
+              ? t("training.sessionForm.blockedConfirm")
               : null;
 
     const changeType = (next: TrainingType) =>
@@ -177,19 +176,18 @@ export function SessionForm({ mode, action, fighters, plans, templates = [], lib
     const types = serviceForm ? SERVICE_TRAINING_TYPES : (Object.keys(TRAINING_TYPE_LABELS) as TrainingType[]);
     const typeOptions: ChoiceOption<TrainingType>[] = types.map((value) => ({
         value,
-        label: TRAINING_TYPE_LABELS[value],
+        label: trainingTypeLabel(t, value),
         icon: TRAINING_TYPE_ICONS[value],
         extra: restrictedTypes.includes(value) ? (
             <Badge tone="danger" size="sm" icon={Ban} className="mt-1.5">
-                Restricted
+                {t("training.sessionForm.restrictedBadge")}
             </Badge>
         ) : undefined,
     }));
 
     const input = (name: keyof SessionFormValues, options?: { hint?: boolean; required?: boolean }) => form.control(name, options);
 
-    const submitLabel = mode === "create" ? "Schedule session" : "Save changes";
-    // The training service doesn't move a session to another plan.
+    const submitLabel = mode === "create" ? t("training.sessionForm.submitCreate") : t("training.sessionForm.submitEdit");
     const planLocked = serviceForm && mode === "edit";
 
     return (
@@ -209,11 +207,11 @@ export function SessionForm({ mode, action, fighters, plans, templates = [], lib
                             />
                         </FormSection>
                     )}
-                    <FormSection title="Fighter & plan" description="Who trains, and which plan the session counts towards.">
+                    <FormSection title={t("training.sessionForm.sectionFighterPlan")} description={t("training.sessionForm.sectionFighterPlanDesc")}>
                         {mode === "create" ? (
-                            <Field label="Fighter" htmlFor="session-fighterId" required error={error("fighterId")}>
+                            <Field label={t("training.sessionForm.fighter")} htmlFor="session-fighterId" required error={error("fighterId")}>
                                 <Select {...input("fighterId", { required: true })} value={values.fighterId} onChange={(event) => changeFighter(event.target.value)}>
-                                    <option value="">Choose a fighter…</option>
+                                    <option value="">{t("training.sessionForm.chooseFighter")}</option>
                                     {fighters.map((option) => (
                                         <option key={option.id} value={option.id}>
                                             {option.name}
@@ -224,22 +222,22 @@ export function SessionForm({ mode, action, fighters, plans, templates = [], lib
                         ) : (
                             fighter && (
                                 <div className="flex flex-col gap-1.5">
-                                    <p className="text-sm font-medium text-fg">Fighter</p>
+                                    <p className="text-sm font-medium text-fg">{t("training.sessionForm.fighter")}</p>
                                     <FighterIdentity fighter={fighter} showHealth />
                                 </div>
                             )
                         )}
                         <Field
-                            label="Training plan"
+                            label={t("training.sessionForm.plan")}
                             htmlFor="session-planId"
                             optional
                             error={error("planId")}
                             hint={
                                 planLocked
-                                    ? "A session stays in the plan it was scheduled under."
+                                    ? t("training.sessionForm.planLocked")
                                     : values.fighterId
-                                      ? "Active and draft plans for this fighter."
-                                      : "Choose a fighter first."
+                                      ? t("training.sessionForm.planHint")
+                                      : t("training.sessionForm.planChooseFirst")
                             }
                         >
                             <Select
@@ -248,31 +246,31 @@ export function SessionForm({ mode, action, fighters, plans, templates = [], lib
                                 onChange={(event) => set("planId", event.target.value)}
                                 disabled={!values.fighterId || planLocked}
                             >
-                                <option value="">Not part of a plan</option>
+                                <option value="">{t("training.sessionForm.noPlan")}</option>
                                 {fighterPlans.map((plan) => (
                                     <option key={plan.id} value={plan.id}>
                                         {plan.title}
-                                        {plan.status !== "active" ? ` (${PLAN_STATUS_LABELS[plan.status]})` : ""}
+                                        {plan.status !== "active" ? ` (${planStatusLabel(t, plan.status)})` : ""}
                                     </option>
                                 ))}
                             </Select>
                         </Field>
-                        <Field label="Session title" htmlFor="session-title" required error={error("title")}>
+                        <Field label={t("training.sessionForm.title")} htmlFor="session-title" required error={error("title")}>
                             <Input
                                 {...input("title", { required: true })}
                                 value={values.title}
                                 onChange={(event) => set("title", event.target.value)}
-                                placeholder={`e.g. ${TRAINING_TYPE_LABELS[values.type]} — lead hook counters`}
+                                placeholder={t("training.sessionForm.titlePlaceholder", { type: trainingTypeLabel(t, values.type) })}
                                 maxLength={120}
                             />
                         </Field>
                     </FormSection>
 
-                    <FormSection title="Training type" description="Some types may be restricted by the fighter's Medical Clearance.">
+                    <FormSection title={t("training.sessionForm.sectionType")} description={t("training.sessionForm.sectionTypeDesc")}>
                         <ChoiceGroup
                             id="session-type"
                             name="type"
-                            legend="Type"
+                            legend={t("training.sessionForm.sectionType")}
                             required
                             columns={2}
                             value={values.type}
@@ -282,15 +280,15 @@ export function SessionForm({ mode, action, fighters, plans, templates = [], lib
                         />
                     </FormSection>
 
-                    <FormSection title="When & where" description="Academy time (Ho Chi Minh City).">
+                    <FormSection title={t("training.sessionForm.sectionWhenWhere")} description={t("training.sessionForm.sectionWhenWhereDesc")}>
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                            <Field label="Date" htmlFor="session-date" required error={error("date")}>
+                            <Field label={t("training.sessionForm.date")} htmlFor="session-date" required error={error("date")}>
                                 <Input {...input("date", { required: true })} type="date" min={minDate} value={values.date} onChange={(event) => set("date", event.target.value)} />
                             </Field>
-                            <Field label="Start time" htmlFor="session-time" required error={error("time")}>
+                            <Field label={t("training.sessionForm.time")} htmlFor="session-time" required error={error("time")}>
                                 <Input {...input("time", { required: true })} type="time" step={300} value={values.time} onChange={(event) => set("time", event.target.value)} />
                             </Field>
-                            <Field label="Duration (min)" htmlFor="session-durationMin" required error={error("durationMin")}>
+                            <Field label={t("training.sessionForm.durationMin")} htmlFor="session-durationMin" required error={error("durationMin")}>
                                 <Input
                                     {...input("durationMin", { required: true })}
                                     type="number"
@@ -303,7 +301,7 @@ export function SessionForm({ mode, action, fighters, plans, templates = [], lib
                                 />
                             </Field>
                         </div>
-                        <Field label="Location" htmlFor="session-location" required error={error("location")}>
+                        <Field label={t("training.sessionForm.location")} htmlFor="session-location" required error={error("location")}>
                             <Input
                                 {...input("location", { required: true })}
                                 list="session-location-options"
@@ -321,21 +319,21 @@ export function SessionForm({ mode, action, fighters, plans, templates = [], lib
 
                     {!serviceForm && (
                         <>
-                            <FormSection title="Intensity" description="Target session RPE — how hard it should feel overall.">
+                            <FormSection title={t("training.sessionForm.sectionIntensity")} description={t("training.sessionForm.sectionIntensityDesc")}>
                                 <RpeSlider
                                     id="session-targetRpe"
                                     name="targetRpe"
-                                    label="Target RPE"
+                                    label={t("training.sessionForm.targetRpe")}
                                     value={values.targetRpe}
                                     onChange={(next) => set("targetRpe", next)}
-                                    hint="How hard the session should feel, from 1 to 10."
+                                    hint={t("training.sessionForm.targetRpeHint")}
                                     required
                                     maxAllowed={clearanceMaxRpe(clearance)}
                                     error={error("targetRpe")}
                                 />
                             </FormSection>
 
-                            <FormSection title="Exercises" description="Drills in running order with rounds or sets.">
+                            <FormSection title={t("training.sessionForm.sectionExercises")} description={t("training.sessionForm.sectionExercisesDesc")}>
                                 <ExerciseBuilder
                                     library={library}
                                     rows={values.exercises}
@@ -349,8 +347,8 @@ export function SessionForm({ mode, action, fighters, plans, templates = [], lib
                         </>
                     )}
 
-                    <FormSection title="Notes" description="Anything the fighter should know or bring.">
-                        <Field label="Session notes" htmlFor="session-notes" optional error={error("notes")}>
+                    <FormSection title={t("training.sessionForm.sectionNotes")} description={t("training.sessionForm.sectionNotesDesc")}>
+                        <Field label={t("training.sessionForm.sessionNotes")} htmlFor="session-notes" optional error={error("notes")}>
                             <Textarea {...input("notes")} value={values.notes} onChange={(event) => set("notes", event.target.value)} rows={3} maxLength={1000} />
                         </Field>
                     </FormSection>
@@ -366,8 +364,8 @@ export function SessionForm({ mode, action, fighters, plans, templates = [], lib
                             <EmptyState
                                 compact
                                 icon={<ShieldCheck />}
-                                title="Medical Clearance"
-                                description="Choose a fighter to see their clearance and restrictions."
+                                title={t("training.sessionForm.emptyClearanceTitle")}
+                                description={t("training.sessionForm.emptyClearanceDesc")}
                             />
                         </CardContent>
                     </Card>
@@ -375,7 +373,7 @@ export function SessionForm({ mode, action, fighters, plans, templates = [], lib
 
                 <div className="flex flex-col gap-4 lg:sticky lg:top-20">
                     {serviceForm ? (
-                        <InlineNote icon={ShieldCheck}>The training service checks the fighter&apos;s Medical Clearance when you start the session.</InlineNote>
+                        <InlineNote icon={ShieldCheck}>{t("training.sessionForm.serviceClearanceNotice")}</InlineNote>
                     ) : (
                         <ClearanceCheckPanel
                             status={checkStatus}
@@ -388,14 +386,14 @@ export function SessionForm({ mode, action, fighters, plans, templates = [], lib
                     )}
                     <Card className="flex flex-col gap-3 p-4">
                         <FormMessage {...form.message} />
-                        <SubmitButton size="lg" className="w-full" disabled={blockedReason !== null} pending={form.pending} pendingLabel={mode === "create" ? "Scheduling…" : "Saving…"}>
+                        <SubmitButton size="lg" className="w-full" disabled={blockedReason !== null} pending={form.pending} pendingLabel={mode === "create" ? t("training.sessionForm.submittingCreate") : t("training.sessionForm.submittingEdit")}>
                             {submitLabel}
                         </SubmitButton>
                         <p className={blockedReason ? "text-center text-[13px] text-fg-muted" : "sr-only"} aria-live="polite">
                             {blockedReason}
                         </p>
                         <ButtonLink href={cancelHref} variant="ghost" className="w-full">
-                            Cancel
+                            {t("common.cancel")}
                         </ButtonLink>
                     </Card>
                 </div>

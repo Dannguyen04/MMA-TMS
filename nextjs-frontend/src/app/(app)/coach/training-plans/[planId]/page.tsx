@@ -17,6 +17,7 @@ import { planAdherence, planAdherenceWeeks } from "@/components/training/trainin
 import { canAccessFighter, requireFighterAccess } from "@/lib/auth/access";
 import { getCurrentUser, requireRole } from "@/lib/auth/session";
 import { planTransitions } from "@/lib/domain/training-plan";
+import { getTranslator } from "@/lib/i18n/server";
 import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { usesTrainingServiceForms } from "@/lib/services/platform-features";
@@ -27,14 +28,14 @@ import { param } from "@/lib/utils";
 const loadPlan = cache(getPlanWithSessions);
 
 export async function generateMetadata({ params }: PageProps<"/coach/training-plans/[planId]">): Promise<Metadata> {
-    const [{ planId }, user] = await Promise.all([params, getCurrentUser()]);
+    const [{ planId }, user, { t }] = await Promise.all([params, getCurrentUser(), getTranslator()]);
     const data = await loadPlan(planId);
-    return { title: data && user && canAccessFighter(user, data.plan.fighterId) ? data.plan.title : "Training plan" };
+    return { title: data && user && canAccessFighter(user, data.plan.fighterId) ? data.plan.title : t("training.planDetails.eyebrow") };
 }
 
 export default async function CoachPlanPage({ params, searchParams }: PageProps<"/coach/training-plans/[planId]">) {
     const user = await requireRole("coach");
-    const [{ planId }, query] = await Promise.all([params, searchParams]);
+    const [{ planId }, query, { t }] = await Promise.all([params, searchParams, getTranslator()]);
     const now = new Date().toISOString();
 
     // Coach names and the clearance lookup start with the plan read; clearance is only read for a fighter this coach may see.
@@ -61,25 +62,25 @@ export default async function CoachPlanPage({ params, searchParams }: PageProps<
             <FlashToast
                 notice={
                     param(query.notice) === "not-activated"
-                        ? { title: "Plan saved as a draft", description: "It couldn't be activated. Activate it from this page.", tone: "warning" }
+                        ? { title: t("training.planDetails.draftNoticeTitle"), description: t("training.planDetails.draftNoticeDesc"), tone: "warning" }
                         : null
                 }
                 cleanHref={routes.coach.plan(plan.id)}
             />
             <PageHeader
-                eyebrow="Training plan"
+                eyebrow={t("training.planDetails.eyebrow")}
                 title={plan.title}
-                back={{ href: routes.coach.plans, label: "Training plans" }}
+                back={{ href: routes.coach.plans, label: t("training.planDetails.backToPlans") }}
                 actions={
                     <>
                         <ButtonLink href={routes.coach.editPlan(plan.id)} variant="secondary">
                             <PenLine aria-hidden />
-                            Edit
+                            {t("training.planDetails.edit")}
                         </ButtonLink>
                         {canSchedule && (
                             <ButtonLink href={scheduleHref}>
                                 <CalendarPlus aria-hidden />
-                                Schedule session
+                                {t("training.planDetails.scheduleSession")}
                             </ButtonLink>
                         )}
                     </>
@@ -108,7 +109,7 @@ export default async function CoachPlanPage({ params, searchParams }: PageProps<
                 <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                     <AdherenceChart
                         weeks={planAdherenceWeeks(plan, sessions, now)}
-                        description="Completed out of due sessions per week in this plan"
+                        description={t("training.planDetails.chartInPlanDesc")}
                         className="min-w-0 lg:col-span-2"
                     />
                     <div className="flex min-w-0 flex-col gap-6">
@@ -128,7 +129,7 @@ export default async function CoachPlanPage({ params, searchParams }: PageProps<
                         canSchedule ? (
                             <ButtonLink href={scheduleHref} variant="secondary" size="sm">
                                 <CalendarPlus aria-hidden />
-                                Schedule session
+                                {t("training.planDetails.scheduleSession")}
                             </ButtonLink>
                         ) : undefined
                     }
