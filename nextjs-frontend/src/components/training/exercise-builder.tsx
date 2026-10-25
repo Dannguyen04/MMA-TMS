@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowDown, ArrowUp, ListPlus, Plus, ShieldAlert, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { useT } from "@/components/i18n/locale-provider";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +32,7 @@ const CATEGORY_KEYS = Object.keys(EXERCISE_CATEGORY_LABELS) as ExerciseCategory[
 /** Pick drills from the exercise library, set their volume, reorder and remove them. */
 export function ExerciseBuilder({ library, rows, onChange, error: errorFor, markEdited, restrictedTechniques, restrictedRegions }: ExerciseBuilderProps) {
     const t = useT();
+    const rowIdRef = useRef(0);
     const [category, setCategory] = useState<ExerciseCategory | "">("");
     const [pick, setPick] = useState("");
     const [announcement, setAnnouncement] = useState("");
@@ -59,7 +60,7 @@ export function ExerciseBuilder({ library, rows, onChange, error: errorFor, mark
         changeRows([
             ...rows,
             {
-                key: `${exercise.id}-${Date.now().toString(36)}`,
+                key: `${exercise.id}-${++rowIdRef.current}`,
                 exerciseId: exercise.id,
                 rounds: rounds ? numberOrEmpty(exercise.defaultRounds ?? 3) : "",
                 roundSec: rounds ? numberOrEmpty(exercise.defaultRoundSec ?? 180) : "",

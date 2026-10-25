@@ -1,4 +1,4 @@
-import type { Translator } from "@/lib/i18n/translate";
+import type { MessageKey, Translator } from "@/lib/i18n/translate";
 import { EXAMINATION_SCOPE_LABELS } from "./medical-contract";
 import type {
     AIJobStatus,
@@ -638,33 +638,33 @@ export const WEIGHT_WARNING_LABELS: Record<WeightWarningStatus, string> = {
 /* ─── Training enum label helpers (T-015) ─────────────────────────────────── */
 
 export function trainingTypeLabel(t: Translator, type: TrainingType): string {
-    return t(`trainingType.${type}` as any);
+    return t(`trainingType.${type}` as MessageKey);
 }
 
 export function techniqueLabel(t: Translator, technique: Technique | StrikeType): string {
-    return t(`technique.${technique}` as any);
+    return t(`technique.${technique}` as MessageKey);
 }
 
 export function exerciseCategoryLabel(t: Translator, category: ExerciseCategory): string {
-    return t(`exerciseCategory.${category}` as any);
+    return t(`exerciseCategory.${category}` as MessageKey);
 }
 
 export function intensityLabel(t: Translator, intensity: Intensity): string {
-    return t(`intensity.${intensity}` as any);
+    return t(`intensity.${intensity}` as MessageKey);
 }
 
 export function trainingPhaseLabel(t: Translator, phase: TrainingPhase): string {
-    return t(`trainingPhase.${phase}` as any);
+    return t(`trainingPhase.${phase}` as MessageKey);
 }
 
 export function planStatusLabel(t: Translator, status: PlanStatus): string {
-    return t(`planStatus.${status}` as any);
+    return t(`planStatus.${status}` as MessageKey);
 }
 
 export function sessionStatusLabel(t: Translator, status: SessionStatus): string {
-    return t(`sessionStatus.${status}` as any);
+    return t(`sessionStatus.${status}` as MessageKey);
 }
 
 export function feedbackKindLabel(t: Translator, kind: FeedbackKind): string {
-    return t(`feedbackKind.${kind}` as any);
+    return t(`feedbackKind.${kind}` as MessageKey);
 };

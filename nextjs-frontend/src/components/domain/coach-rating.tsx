@@ -2,7 +2,7 @@ import { Star } from "lucide-react";
 import type { CSSProperties } from "react";
 
 import type { Locale } from "@/lib/i18n/config";
-import { createTranslator } from "@/lib/i18n/translate";
+import { createTranslator, type MessageKey } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 
 /** Words for a coach rating, indexed by rating − 1. */
@@ -26,7 +26,7 @@ export interface CoachRatingProps {
 /** Read-only coach rating: one image of stars (a single CSS mask), with the value in words. */
 export function CoachRating({ rating, max = MAX_RATING, compact = false, className, locale }: CoachRatingProps) {
     const t = locale ? createTranslator(locale) : undefined;
-    const word = t ? t(`training.coachRating.${Math.min(Math.max(Math.round(rating), 1), 5)}` as any) : coachRatingWord(rating);
+    const word = t ? t(`training.coachRating.${Math.min(Math.max(Math.round(rating), 1), 5)}` as MessageKey) : coachRatingWord(rating);
     const style = {
         "--rating-fill": `${(Math.min(Math.max(rating, 0), max) / max) * 100}%`,
         "--rating-max": max,
@@ -84,7 +84,7 @@ export function CoachRatingInput({ id, name, legend, value, onChange, error, req
                 <div className={cn("flex items-center gap-0.5 rounded-lg", error && "ring-1 ring-danger-solid")}>
                     {COACH_RATING_WORDS.map((wordEn, index) => {
                         const rating = index + 1;
-                        const word = t ? t(`training.coachRating.${rating}` as any) : wordEn;
+                        const word = t ? t(`training.coachRating.${rating}` as MessageKey) : wordEn;
                         const label = t ? t("training.coachRating.of", { rating, max: MAX_RATING, word }) : `${rating} of ${MAX_RATING} · ${word}`;
                         return (
                             <label
@@ -116,7 +116,7 @@ export function CoachRatingInput({ id, name, legend, value, onChange, error, req
                 <p aria-hidden className="text-sm text-fg-muted">
                     {value > 0
                         ? t
-                            ? t("training.coachRating.of", { rating: value, max: MAX_RATING, word: t(`training.coachRating.${value}` as any) })
+                            ? t("training.coachRating.of", { rating: value, max: MAX_RATING, word: t(`training.coachRating.${value}` as MessageKey) })
                             : `${value} of ${MAX_RATING} · ${coachRatingWord(value)}`
                         : t
                         ? t("training.coachRating.notRated")

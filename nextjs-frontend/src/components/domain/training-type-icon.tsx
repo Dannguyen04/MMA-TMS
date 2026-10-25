@@ -10,7 +10,7 @@ import {
     type LucideIcon,
 } from "lucide-react";
 
-import { TRAINING_TYPE_LABELS } from "@/lib/domain/labels";
+import { TRAINING_TYPE_LABELS, trainingTypeLabel } from "@/lib/domain/labels";
 import type { TrainingType } from "@/lib/domain/types";
 import type { Locale } from "@/lib/i18n/config";
 import { createTranslator } from "@/lib/i18n/translate";
@@ -38,7 +38,7 @@ export interface TrainingTypeIconProps {
 
 export function TrainingTypeIcon({ type, labelled = false, className, locale }: TrainingTypeIconProps) {
     const Icon = TRAINING_TYPE_ICONS[type];
-    const label = locale ? createTranslator(locale)(`trainingType.${type}` as any) : TRAINING_TYPE_LABELS[type];
+    const label = locale ? trainingTypeLabel(createTranslator(locale), type) : TRAINING_TYPE_LABELS[type];
     return labelled ? (
         <Icon role="img" aria-label={label} className={cn("size-4 shrink-0", className)} />
     ) : (
