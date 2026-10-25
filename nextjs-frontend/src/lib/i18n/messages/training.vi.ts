@@ -141,6 +141,9 @@ export const viTraining = {
     "training.weekNav.prevWeekLabel": "Tuần trước ({offset})",
     "training.weekNav.nextWeekLabel": "Tuần sau ({offset})",
     "training.dates.noEndDate": "từ {start} · không có ngày kết thúc",
+    "training.dates.from": "từ",
+    "training.dates.to": "đến",
+    "training.dates.noEndDateText": "Không có ngày kết thúc",
 
     /* Week Summary */
     "training.weekSummary.title": "Tổng quan tuần",
@@ -763,6 +766,7 @@ export const viTraining = {
     "training.planDetails.ofDueSessionsHint": "{pct} số buổi đến hạn",
     "training.planDetails.captionUpcoming": "Các buổi tập sắp tới trong giáo án này",
     "training.planDetails.captionPast": "Các buổi tập trước đây trong giáo án này",
+    "training.planDetails.chartInPlanDesc": "Số buổi hoàn thành trên tổng số buổi đến hạn mỗi tuần trong giáo án này",
     "training.planDetails.draftNoticeTitle": "Giáo án được lưu dạng bản nháp",
     "training.planDetails.draftNoticeDesc": "Chưa thể kích hoạt giáo án. Kích hoạt trực tiếp từ trang này.",
     "training.planDetails.backToPlans": "Giáo án tập luyện",

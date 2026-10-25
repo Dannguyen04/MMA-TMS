@@ -141,6 +141,9 @@ export const enTraining = {
     "training.weekNav.prevWeekLabel": "Previous week ({offset})",
     "training.weekNav.nextWeekLabel": "Next week ({offset})",
     "training.dates.noEndDate": "from {start} · no end date",
+    "training.dates.from": "from",
+    "training.dates.to": "to",
+    "training.dates.noEndDateText": "No end date",
 
     /* Week Summary */
     "training.weekSummary.title": "Week at a glance",
@@ -763,6 +766,7 @@ export const enTraining = {
     "training.planDetails.ofDueSessionsHint": "{pct} of due sessions",
     "training.planDetails.captionUpcoming": "Upcoming sessions in this plan",
     "training.planDetails.captionPast": "Past sessions in this plan",
+    "training.planDetails.chartInPlanDesc": "Completed out of due sessions per week in this plan",
     "training.planDetails.draftNoticeTitle": "Plan saved as a draft",
     "training.planDetails.draftNoticeDesc": "It couldn't be activated. Activate it from this page.",
     "training.planDetails.backToPlans": "Training plans",
