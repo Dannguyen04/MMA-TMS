@@ -4,7 +4,7 @@ import { isDueSession } from "@/lib/domain/training-plan";
 import type { Exercise, MedicalClearance, SessionExercise, TrainingPlan, TrainingProgress, TrainingSession } from "@/lib/domain/types";
 import { addDaysToKey, dayKey, formatClock, isDateKey, pluralize } from "@/lib/format";
 import { sortItems, type SortDirection } from "@/lib/query";
-import { createTranslator, plural, type MessageKey, type Translator } from "@/lib/i18n";
+import { createTranslator, plural, type MessageKey, type Translator } from "@/lib/i18n/translate";
 import { clamp } from "@/lib/utils";
 
 /**

@@ -1,4 +1,4 @@
-import type { Translator } from "@/lib/i18n";
+import type { Translator } from "@/lib/i18n/translate";
 import { EXAMINATION_SCOPE_LABELS } from "./medical-contract";
 import type {
     AIJobStatus,

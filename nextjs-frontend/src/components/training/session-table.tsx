@@ -11,7 +11,7 @@ import { SortableTH, TBody, TD, TH, THead, TR, Table } from "@/components/ui/tab
 import { trainingTypeLabel } from "@/lib/domain/labels";
 import type { TrainingSession } from "@/lib/domain/types";
 import { formatMinutes, formatTime, formatWeekdayDate } from "@/lib/format";
-import { createTranslator, type Translator } from "@/lib/i18n";
+import { createTranslator, type Translator } from "@/lib/i18n/translate";
 import type { SearchParams, SortDirection } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";

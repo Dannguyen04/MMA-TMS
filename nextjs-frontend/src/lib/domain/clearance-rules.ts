@@ -1,5 +1,6 @@
 import { formatDate } from "@/lib/format";
-import type { Locale, Translator } from "@/lib/i18n";
+import type { Locale } from "@/lib/i18n/config";
+import type { Translator } from "@/lib/i18n/translate";
 import { BODY_REGION_LABELS, techniqueLabel, trainingTypeLabel } from "./labels";
 import { clearanceState } from "./rules";
 import type { BodyRegion, MedicalClearance, Technique, TrainingRestriction, TrainingType } from "./types";

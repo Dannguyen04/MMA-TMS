@@ -4,7 +4,7 @@ import { SessionListItem } from "@/components/domain/session-list-item";
 import { Badge } from "@/components/ui/badge";
 import type { TrainingSession } from "@/lib/domain/types";
 import { dayKey, daysBetween, formatWeekdayDate } from "@/lib/format";
-import { createTranslator, plural } from "@/lib/i18n";
+import { createTranslator, plural } from "@/lib/i18n/translate";
 import { groupBy } from "@/lib/utils";
 import { sessionHref, type TrainingAudience } from "./session-table";
 

@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { ButtonLink } from "@/components/ui/button";
 import { addDaysToKey, formatDate, formatShortDate } from "@/lib/format";
-import { createTranslator } from "@/lib/i18n";
+import { createTranslator } from "@/lib/i18n/translate";
 import { hrefWith, type SearchParams } from "@/lib/query";
 import { MAX_WEEK_OFFSET, describeWeekOffset } from "./training-utils";
 

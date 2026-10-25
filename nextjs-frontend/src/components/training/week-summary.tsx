@@ -6,7 +6,7 @@ import { MetricTile } from "@/components/domain/metric-tile";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import type { TrainingSession } from "@/lib/domain/types";
 import { formatMinutes } from "@/lib/format";
-import { createTranslator, plural, type MessageKey } from "@/lib/i18n";
+import { createTranslator, plural, type MessageKey } from "@/lib/i18n/translate";
 import { sum } from "@/lib/utils";
 import { sessionMinutes } from "./training-utils";
 

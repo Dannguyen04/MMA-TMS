@@ -2,7 +2,7 @@ import "server-only";
 
 import { ApiError } from "@/lib/api/client";
 import { ELIGIBILITY_REASONS, type EligibilityReason } from "@/lib/domain/medical-contract";
-import type { Translator } from "@/lib/i18n";
+import type { Translator } from "@/lib/i18n/translate";
 import { apiWriteFailure, type ServiceErrorMessages, type WriteErrorOptions, type WriteFailure } from "./api-write-errors";
 
 /** How the training service's refusals read on the coach's forms; the status rules are shared (`api-write-errors.ts`). */
