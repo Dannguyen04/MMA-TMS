@@ -1,0 +1,7 @@
+❌ Lỗi: Unsupported martial art discipline 'boxing' requested. No discipline-specific evaluator is integrated in Task 4 (only generic legacy evaluators available).
+Traceback (most recent call last):
+  File "D:\test\ai-worktrees\T-012\python-worker\process_video.py", line 775, in <module>
+    process_video(
+  File "D:\test\ai-worktrees\T-012\python-worker\process_video.py", line 184, in process_video
+    raise RubricSelectionError(
+action_result.RubricSelectionError: Unsupported martial art discipline 'boxing' requested. No discipline-specific evaluator is integrated in Task 4 (only generic legacy evaluators available).
