@@ -4,6 +4,7 @@ import { Canvas, useFrame, useLoader, useThree } from "@react-three/fiber";
 import { Suspense, useEffect, useRef, useState, type RefObject } from "react";
 import * as THREE from "three";
 
+import { useT } from "@/components/i18n/locale-provider";
 import { ARENA_PLATE } from "./arena-plate";
 import { FIGHTER_IMAGE } from "./pose-skeleton";
 import { stageAt, type StoryState } from "./story";
@@ -21,8 +22,10 @@ export interface FighterSceneProps {
 
 /** The fixed WebGL stage: the fighter in the octagon and every chapter effect, driven by the scroll story. */
 export default function FighterScene({ story, labels, compact, animate, onReady }: FighterSceneProps) {
+    const t = useT();
     return (
         <Canvas
+            aria-label={t("landing.stage.canvasAria")}
             dpr={[1, compact ? 1.35 : 1.75]}
             gl={{ antialias: false, alpha: false, powerPreference: "high-performance" }}
             camera={{ fov: 30, near: 0.1, far: 90, position: [0, 2, 12] }}

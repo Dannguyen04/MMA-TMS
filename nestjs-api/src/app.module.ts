@@ -19,6 +19,9 @@ import { NotificationsModule } from './notifications/notifications.module.js';
 import { resolveRedisConnection } from './shared/config/redis.config.js';
 import { loadEnv } from './shared/config/env.js';
 import { VideosModule } from './videos/videos.module.js';
+import { AcademySettingsModule } from './academy-settings/academy-settings.module.js';
+import { BoutsModule } from './bouts/bouts.module.js';
+import { SuspensionsModule } from './suspensions/suspensions.module.js';
 
 @Module({
   imports: [
@@ -51,6 +54,9 @@ import { VideosModule } from './videos/videos.module.js';
     CoachesModule,
     MedicalModule,
     CoachingModule,
+    AcademySettingsModule,
+    BoutsModule,
+    SuspensionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

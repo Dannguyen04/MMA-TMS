@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { AcademySettingsRepository } from '../academy-settings/academy-settings.repo.js';
 import { AuthorizationService } from '../authorization/authorization.service.js';
 import {
   NOTIFICATION_PUBLISHER,
@@ -26,6 +27,7 @@ export class DoctorAssignmentReminder {
   constructor(
     private readonly repo: MedicalRepository,
     private readonly authorization: AuthorizationService,
+    private readonly academySettingsRepo: AcademySettingsRepository,
     @Inject(NOTIFICATION_PUBLISHER)
     private readonly notifications: NotificationPublisher,
   ) {}
@@ -37,11 +39,16 @@ export class DoctorAssignmentReminder {
    * notification and never widens it to every Admin. One reminder per
    * Fighter: a replay or retry reuses the same dedupe key.
    */
-  remind(
+  async remind(
     fighterUserId: string,
     requestId: string,
     actorUserId?: string,
   ): Promise<readonly NotifyResult[]> {
+    const supervision = await this.academySettingsRepo.getMedicalSupervision();
+    if (supervision === 'NONE') {
+      return [{ status: 'skipped', reason: 'SUPERVISION_DISABLED' }];
+    }
+
     return this.notifications.notifyResolved(
       async () => {
         const [fighter, recipientUserIds] = await Promise.all([

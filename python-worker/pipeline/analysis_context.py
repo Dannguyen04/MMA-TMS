@@ -6,7 +6,7 @@ có kiểm soát chặt chẽ các trường thông tin đầu vào phục vụ 
 phân loại kỹ thuật và đánh giá chuyên môn theo đặc thù môn võ (Discipline-Aware).
 
 Tuân thủ:
-- docs/MARTIAL-ARTS-AI-COACHING-SPEC-v1.md (§2.5, §3.1, §10, §17).
+- docs/archive/ai/MARTIAL-ARTS-AI-COACHING-SPEC-v1.md (§2.5, §3.1, §10, §17).
 - MMA-TMS Master Specification v3.0.
 - Task 4 Acceptance Criteria.
 """

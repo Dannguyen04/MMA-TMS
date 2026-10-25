@@ -1,3 +1,4 @@
+import { getDemoCopy, getLocale } from "@/lib/i18n/server";
 import { CalendarDays, CalendarPlus, ClipboardCheck, List } from "lucide-react";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
@@ -21,14 +22,14 @@ import { accessibleFighterIds, canAccessFighter } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { SESSION_STATUS_LABELS, TRAINING_TYPE_LABELS } from "@/lib/domain/labels";
 import type { SessionStatus, TrainingSession, TrainingType } from "@/lib/domain/types";
-import { dayKey, pluralize } from "@/lib/format";
+import { dayKey } from "@/lib/format";
 import { hrefWith, paginate, parseEnum, parseSortDirection } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { listFighters } from "@/lib/services/people";
 import { getWeekAgenda, listSessions } from "@/lib/services/training";
 import { param } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Sessions" };
+export async function generateMetadata(): Promise<Metadata> { const copy = await getDemoCopy(); return { title: copy("Sessions") }; }
 
 const VIEWS = ["week", "list"] as const;
 const STATUSES = Object.keys(SESSION_STATUS_LABELS) as SessionStatus[];
@@ -40,6 +41,7 @@ type Params = Awaited<PageProps<"/coach/sessions">["searchParams"]>;
 type Scope = string[] | "all";
 
 export default async function CoachSessionsPage({ searchParams }: PageProps<"/coach/sessions">) {
+    const copy = await getDemoCopy();
     const user = await requireRole("coach");
     const params = await searchParams;
     const now = new Date().toISOString();
@@ -62,33 +64,32 @@ export default async function CoachSessionsPage({ searchParams }: PageProps<"/co
     const scheduleButton = (
         <ButtonLink href={hrefWith(routes.coach.newSession, {}, { fighter: fighterId })}>
             <CalendarPlus aria-hidden />
-            Schedule session
-        </ButtonLink>
+            {copy("Schedule session")} </ButtonLink>
     );
 
     const fighterFilter: FilterDefinition = {
         type: "select",
         name: "fighter",
-        label: "Fighters",
+        label: copy("Fighters"),
         options: fighters.map((f) => ({ value: f.id, label: f.name })),
     };
 
     return (
         <>
-            <PageHeader title="Sessions" description="Every training session across your roster — plan the week, then record results." actions={scheduleButton} />
+            <PageHeader title={copy("Sessions")} description={copy("Every training session across your roster — plan the week, then record results.")} actions={scheduleButton} />
 
             <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
                     <ViewToggle
-                        label="Session view"
+                        label={copy("Session view")}
                         active={view}
                         defaultValue="week"
                         pathname={pathname}
                         searchParams={params}
-                        reset={["page", "sort", "dir", "type", "status", "from", "to", "week"]}
+                        reset={["page", "sort", "dir", "type", "status", copy("from"), copy("to"), "week"]}
                         options={[
-                            { value: "week", label: "Week", icon: CalendarDays },
-                            { value: "list", label: "List", icon: List },
+                            { value: "week", label: copy("Week"), icon: CalendarDays },
+                            { value: "list", label: copy("List"), icon: List },
                         ]}
                     />
                     <FilterBar
@@ -98,10 +99,10 @@ export default async function CoachSessionsPage({ searchParams }: PageProps<"/co
                                 ? [fighterFilter]
                                 : [
                                       fighterFilter,
-                                      { type: "select", name: "type", label: "Types", options: TRAINING_TYPES.map((value) => ({ value, label: TRAINING_TYPE_LABELS[value] })) },
-                                      { type: "select", name: "status", label: "Statuses", options: STATUSES.map((value) => ({ value, label: SESSION_STATUS_LABELS[value] })) },
-                                      { type: "date", name: "from", label: "From" },
-                                      { type: "date", name: "to", label: "To" },
+                                      { type: "select", name: "type", label: copy("Types"), options: TRAINING_TYPES.map((value) => ({ value, label: copy(TRAINING_TYPE_LABELS[value]) })) },
+                                      { type: "select", name: "status", label: copy("Statuses"), options: STATUSES.map((value) => ({ value, label: copy(SESSION_STATUS_LABELS[value]) })) },
+                                      { type: "date", name: copy("from"), label: copy("From") },
+                                      { type: "date", name: copy("to"), label: copy("To") },
                                   ]
                         }
                     />
@@ -139,7 +140,7 @@ async function loadWeek(params: Params, scope: Scope, now: string): Promise<Week
     return { view: "week", offset, startKey, weekStartIso, weekSessions: agenda.flatMap((day) => day.sessions), awaiting, coachNames };
 }
 
-function WeekView({
+async function WeekView({
     data,
     params,
     now,
@@ -152,20 +153,22 @@ function WeekView({
     fightersById: Record<string, FighterIdentityData>;
     fighterName?: string;
 }) {
+    const copy = await getDemoCopy();
+    const locale = await getLocale();
     const { offset, startKey, weekStartIso, weekSessions, awaiting, coachNames } = data;
 
     return (
         <div className="flex flex-col gap-6">
             <Card>
                 <CardHeader
-                    title={weekRangeLabel(startKey)}
-                    description={`${describeWeekOffset(offset)} · ${pluralize(weekSessions.filter((s) => s.status !== "cancelled").length, "session")}${fighterName ? ` · ${fighterName}` : " · whole roster"}`}
+                    title={weekRangeLabel(startKey, locale)}
+                    description={`${describeWeekOffset(offset, locale)} · ${copy("{n} sessions", { n: weekSessions.filter((s) => s.status !== "cancelled").length })} · ${fighterName ?? copy("Whole roster")}`}
                     icon={<CalendarDays />}
-                    action={<WeekNav pathname={routes.coach.sessions} searchParams={params} offset={offset} startKey={startKey} />}
+                    action={<WeekNav locale={locale} pathname={routes.coach.sessions} searchParams={params} offset={offset} startKey={startKey} />}
                     className="flex-wrap"
                 />
                 <CardContent>
-                    <WeekAgenda
+                    <WeekAgenda locale={locale}
                         sessions={weekSessions}
                         startDate={weekStartIso}
                         now={now}
@@ -178,11 +181,11 @@ function WeekView({
             <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                 <Card className="min-w-0 overflow-hidden lg:col-span-2">
                     <CardHeader
-                        title="Awaiting results"
+                        title={copy("Awaiting results")}
                         description={
                             awaiting.length === 0
-                                ? "Every past session has a result"
-                                : `${pluralize(awaiting.length, "past session")} still marked as scheduled`
+                                ? copy("Every past session has a result")
+                                : copy("{n} sessions awaiting results", { n: awaiting.length })
                         }
                         icon={<ClipboardCheck />}
                     />
@@ -191,15 +194,15 @@ function WeekView({
                             <EmptyState
                                 compact
                                 icon={<ClipboardCheck />}
-                                title="All caught up"
-                                description="Results keep adherence and training load accurate for fighters and doctors."
+                                title={copy("All caught up")}
+                                description={copy("Results keep adherence and training load accurate for fighters and doctors.")}
                             />
                         </CardContent>
                     ) : (
                         <ul className="divide-y divide-border border-t border-border">
                             {awaiting.slice(0, AWAITING_LIMIT).map((session) => (
                                 <li key={session.id}>
-                                    <SessionListItem
+                                    <SessionListItem locale={locale}
                                         session={session}
                                         href={routes.coach.session(session.id)}
                                         fighter={fightersById[session.fighterId]}
@@ -210,7 +213,7 @@ function WeekView({
                         </ul>
                     )}
                 </Card>
-                <WeekSummary sessions={weekSessions} description={fighterName ? `${fighterName} · ${weekRangeLabel(startKey)}` : `Roster · ${weekRangeLabel(startKey)}`} />
+                <WeekSummary locale={locale} sessions={weekSessions} description={fighterName ? `${fighterName} · ${weekRangeLabel(startKey, locale)}` : `${copy("Whole roster")} · ${weekRangeLabel(startKey, locale)}`} />
             </div>
         </div>
     );
@@ -236,7 +239,7 @@ async function loadList(params: Params, scope: Scope): Promise<ListData> {
     };
 }
 
-function ListView({
+async function ListView({
     data,
     params,
     fightersById,
@@ -249,6 +252,8 @@ function ListView({
     fighterNames: Record<string, string>;
     scheduleButton: ReactNode;
 }) {
+    const copy = await getDemoCopy();
+    const locale = await getLocale();
     const { sessions, hasFilters } = data;
     const sort = parseEnum(param(params.sort), SESSION_SORT_KEYS) ?? "date";
     const dir = parseSortDirection(param(params.dir), param(params.sort) ? "asc" : "desc");
@@ -257,44 +262,43 @@ function ListView({
 
     return (
         <Card className="overflow-hidden">
-            <CardHeader title="All sessions" description={pluralize(sessions.length, "session")} icon={<List />} />
+            <CardHeader title={copy("All sessions")} description={copy("{n} sessions", { n: sessions.length })} icon={<List />} />
             {page.total === 0 ? (
                 <CardContent>
                     {hasFilters ? (
                         <EmptyState
                             compact
-                            title="No sessions match these filters"
-                            description="Try another fighter, type, status or date range."
+                            title={copy("No sessions match these filters")}
+                            description={copy("Try another fighter, type, status or date range.")}
                             action={
                                 <ButtonLink href={`${pathname}?view=list`} variant="secondary" size="sm">
-                                    Clear filters
-                                </ButtonLink>
+                                    {copy("Clear filters")} </ButtonLink>
                             }
                         />
                     ) : (
-                        <EmptyState compact title="No sessions yet" description="Schedule a session for a fighter on your roster." action={scheduleButton} />
+                        <EmptyState compact title={copy("No sessions yet")} description={copy("Schedule a session for a fighter on your roster.")} action={scheduleButton} />
                     )}
                 </CardContent>
             ) : (
                 <div className="border-t border-border">
-                    <SessionTable
+                    <SessionTable locale={locale}
                         sessions={page.items}
                         audience="coach"
-                        caption="Training sessions across your roster"
+                        caption={copy("Training sessions across your roster")}
                         fightersById={fightersById}
                         showFighter
                         showVideo
                         stackOnMobile
                         sort={{ pathname, searchParams: params, sort, dir }}
                     />
-                    <Pagination
+                    <Pagination locale={locale}
                         page={page.page}
                         pageCount={page.pageCount}
                         total={page.total}
                         pageSize={page.pageSize}
                         pathname={pathname}
                         searchParams={params}
-                        itemLabel="sessions"
+                        itemLabel={copy("sessions")}
                     />
                 </div>
             )}

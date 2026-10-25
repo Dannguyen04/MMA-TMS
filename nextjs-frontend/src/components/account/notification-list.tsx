@@ -1,15 +1,17 @@
 import { NOTIFICATION_CATEGORY_ICONS, NOTIFICATION_SEVERITY_TONE } from "@/components/domain/notification-meta";
 import { TONE_SOFT } from "@/components/ui/tone";
-import { NOTIFICATION_CATEGORY_LABELS } from "@/lib/domain/labels";
 import type { Notification } from "@/lib/domain/types";
 import { formatDateTime, formatRelative, pluralize } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
+import { createTranslator } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 import { NotificationItemActions } from "./notification-actions";
 import { groupNotificationsByDay } from "./notification-groups";
 
 /** Notifications grouped under day headings ("Today", "Yesterday", "Mon, 8 Sept"). */
-export function NotificationList({ notifications, now }: { notifications: Notification[]; now: string }) {
-    const groups = groupNotificationsByDay(notifications, now);
+export function NotificationList({ notifications, now, locale = "en" }: { notifications: Notification[]; now: string; locale?: Locale }) {
+    const groups = groupNotificationsByDay(notifications, now, locale);
+    const t = createTranslator(locale);
 
     return (
         <div>
@@ -23,13 +25,15 @@ export function NotificationList({ notifications, now }: { notifications: Notifi
                                 {group.label}
                             </h2>
                             <p className="text-xs text-fg-subtle">
-                                {pluralize(group.items.length, "notification")}
-                                {unread > 0 && ` · ${unread} unread`}
+                                {locale === "vi"
+                                    ? `${group.items.length} ${t("notifications.itemLabel")}`
+                                    : pluralize(group.items.length, t("notifications.itemLabel"), t("notifications.itemLabel.plural"))}
+                                {unread > 0 && t("notifications.nUnread", { count: unread })}
                             </p>
                         </div>
                         <ul className="divide-y divide-border">
                             {group.items.map((notification) => (
-                                <NotificationRow key={notification.id} notification={notification} now={now} />
+                                <NotificationRow key={notification.id} notification={notification} now={now} locale={locale} />
                             ))}
                         </ul>
                     </section>
@@ -39,9 +43,10 @@ export function NotificationList({ notifications, now }: { notifications: Notifi
     );
 }
 
-function NotificationRow({ notification, now }: { notification: Notification; now: string }) {
+function NotificationRow({ notification, now, locale = "en" }: { notification: Notification; now: string; locale?: Locale }) {
     const Icon = NOTIFICATION_CATEGORY_ICONS[notification.category];
     const unread = notification.readAt === null;
+    const t = createTranslator(locale);
 
     return (
         <li
@@ -64,17 +69,17 @@ function NotificationRow({ notification, now }: { notification: Notification; no
                         {notification.title}
                         {unread && (
                             <span className="ml-2 inline-block size-2 rounded-full bg-primary align-middle">
-                                <span className="sr-only">Unread</span>
+                                <span className="sr-only">{t("notifications.statusUnread")}</span>
                             </span>
                         )}
                     </h3>
                     <p className="mt-0.5 max-w-3xl text-[13px] text-pretty text-fg-muted">{notification.body}</p>
                     <p className="mt-1.5 flex flex-wrap items-center gap-x-1.5 text-xs text-fg-subtle">
-                        <span>{NOTIFICATION_CATEGORY_LABELS[notification.category]}</span>
+                        <span>{t(`notifications.category.${notification.category}`)}</span>
                         <span aria-hidden>·</span>
-                        <time dateTime={notification.createdAt} title={formatDateTime(notification.createdAt)}>
-                            {formatRelative(notification.createdAt, now)}
-                            <span className="sr-only"> ({formatDateTime(notification.createdAt)})</span>
+                        <time dateTime={notification.createdAt} title={formatDateTime(notification.createdAt, locale)}>
+                            {formatRelative(notification.createdAt, now, locale)}
+                            <span className="sr-only"> ({formatDateTime(notification.createdAt, locale)})</span>
                         </time>
                     </p>
                 </div>

@@ -48,6 +48,12 @@ import type {
     VideoStatus,
     VideoTrainingType,
     WeightClass,
+    BoutMethod,
+    BoutRequirementStatus,
+    BoutResult,
+    BoutSport,
+    BoutStatus,
+    WeightWarningStatus,
 } from "./types";
 
 /** Human-readable labels for every domain enum. Single source of truth for UI copy. */
@@ -579,3 +585,52 @@ export function treatmentTitle(treatment: Pick<Treatment, "type" | "typeLabel">)
     if (treatment.type) return TREATMENT_TYPE_LABELS[treatment.type];
     return treatment.typeLabel?.trim() || "Treatment";
 }
+
+/* ─── Bouts & Competition Rulesets (T-004) ─────────────────────────────────── */
+
+export const BOUT_STATUS_LABELS: Record<BoutStatus, string> = {
+    SCHEDULED: "Scheduled",
+    CAMP: "Camp",
+    FIGHT_WEEK: "Fight week",
+    WEIGHED_IN: "Weighed in",
+    COMPLETED: "Completed",
+    CANCELLED: "Cancelled",
+};
+
+export const BOUT_SPORT_LABELS: Record<BoutSport, string> = {
+    BOXING: "Boxing",
+    MUAY_THAI: "Muay Thai",
+    KICKBOXING: "Kickboxing",
+    MMA: "MMA",
+};
+
+export const BOUT_RESULT_LABELS: Record<BoutResult, string> = {
+    WIN: "Win",
+    LOSS: "Loss",
+    DRAW: "Draw",
+    NO_CONTEST: "No contest",
+};
+
+export const BOUT_METHOD_LABELS: Record<BoutMethod, string> = {
+    KO: "KO",
+    TKO: "TKO",
+    DECISION: "Decision",
+    SUBMISSION: "Submission",
+    DQ: "Disqualification",
+    OTHER: "Other",
+};
+
+export const BOUT_REQUIREMENT_STATUS_LABELS: Record<BoutRequirementStatus, string> = {
+    MISSING: "Missing",
+    PROVIDED: "Provided",
+    CONFIRMED: "Confirmed",
+    REJECTED: "Rejected",
+};
+
+export const WEIGHT_WARNING_LABELS: Record<WeightWarningStatus, string> = {
+    ON_TRACK: "On track",
+    ABOVE_TARGET: "Above tolerance",
+    OVER_LIMIT: "Exceeds cut limit",
+    NOT_WEIGHED: "No recent weigh-in",
+    NEUTRAL: "Not judged",
+};

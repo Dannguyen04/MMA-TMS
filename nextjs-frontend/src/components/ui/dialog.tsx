@@ -3,6 +3,7 @@
 import { TriangleAlert, X } from "lucide-react";
 import { useEffect, useId, useRef, type ReactNode, type RefObject } from "react";
 
+import { useT } from "@/components/i18n/locale-provider";
 import { cn } from "@/lib/utils";
 import { Button } from "./button";
 import { FormMessage } from "./form";
@@ -43,6 +44,7 @@ export function Dialog({
     initialFocusRef,
     className,
 }: DialogProps) {
+    const t = useT();
     const ref = useRef<HTMLDialogElement>(null);
     const titleId = useId();
     const descriptionId = useId();
@@ -92,7 +94,7 @@ export function Dialog({
                                 </p>
                             )}
                         </div>
-                        <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Close dialog" disabled={!dismissible}>
+                        <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label={t("common.closeDialog")} disabled={!dismissible}>
                             <X />
                         </Button>
                     </div>
@@ -136,6 +138,7 @@ export function ConfirmDialog({
     error,
     children,
 }: ConfirmDialogProps) {
+    const t = useT();
     return (
         <Dialog
             open={open}
@@ -152,7 +155,7 @@ export function ConfirmDialog({
             footer={
                 <>
                     <Button variant="secondary" onClick={onClose} disabled={pending}>
-                        Cancel
+                        {t("common.cancel")}
                     </Button>
                     <Button variant={tone === "danger" ? "danger" : "primary"} onClick={onConfirm} loading={pending}>
                         {confirmLabel}

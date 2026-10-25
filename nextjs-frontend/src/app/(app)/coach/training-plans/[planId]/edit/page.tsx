@@ -1,3 +1,4 @@
+import { getDemoCopy } from "@/lib/i18n/server";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
@@ -17,12 +18,14 @@ import { getPlan } from "@/lib/services/training";
 const loadPlan = cache(getPlan);
 
 export async function generateMetadata({ params }: PageProps<"/coach/training-plans/[planId]/edit">): Promise<Metadata> {
+    const copy = await getDemoCopy();
     const [{ planId }, user] = await Promise.all([params, getCurrentUser()]);
     const plan = await loadPlan(planId);
-    return { title: plan && user && canAccessFighter(user, plan.fighterId) ? `Edit ${plan.title}` : "Edit training plan" };
+    return { title: plan && user && canAccessFighter(user, plan.fighterId) ? copy("Edit {title}", { title: plan.title }) : copy("Edit training plan") };
 }
 
 export default async function EditPlanPage({ params }: PageProps<"/coach/training-plans/[planId]/edit">) {
+    const copy = await getDemoCopy();
     const user = await requireRole("coach");
     const { planId } = await params;
     const now = new Date().toISOString();
@@ -50,10 +53,10 @@ export default async function EditPlanPage({ params }: PageProps<"/coach/trainin
     return (
         <>
             <PageHeader
-                eyebrow="Edit training plan"
+                eyebrow={copy("Edit training plan")}
                 title={plan.title}
-                description={plan.status === "active" ? `${fighter.name} sees your changes on the active plan straight away.` : undefined}
-                back={{ href: routes.coach.plan(plan.id), label: "Back to plan" }}
+                description={plan.status === "active" ? copy("{fighter} sees your changes on the active plan straight away.", { fighter: fighter.name }) : undefined}
+                back={{ href: routes.coach.plan(plan.id), label: copy("Back to plan") }}
             />
             <PlanForm
                 action={updatePlan.bind(null, plan.id)}

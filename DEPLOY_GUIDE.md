@@ -30,8 +30,9 @@ Tài liệu hướng dẫn từng bước triển khai hệ thống **MMA-TMS** 
 1. Đăng nhập [Supabase](https://supabase.com), vào project của bạn.
 2. Vào **SQL Editor**, mở file [`scripts/supabase-setup.sql`](file:///d:/test/ai/scripts/supabase-setup.sql), copy nội dung và bấm **Run**:
     - Tạo enum `job_status` và bảng `analysis_jobs`.
-    - Tạo 2 bucket storage: `videos` và `analysis-results` (đều đặt **Public**).
-    - Thiết lập RLS policies cho phép upload và đọc file.
+    - Tạo 2 bucket storage **riêng tư**: `videos` và `analysis-results`. Không bật Public: đây là video và dữ liệu của võ sĩ.
+    - Gỡ các policy công khai của bản setup cũ. Không cần policy mới: NestJS và Worker dùng `service_role`, trình duyệt chỉ nhận signed URL qua route đã xác thực.
+    - Project đã tạo bằng bản cũ (bucket Public): chạy lại script để chuyển về riêng tư.
 3. Vào **Project Settings > API**:
     - Copy `Project URL` → `SUPABASE_URL`
     - Copy `anon` (public) → `SUPABASE_ANON_KEY`

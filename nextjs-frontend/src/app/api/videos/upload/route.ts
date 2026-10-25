@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
             body: request.body,
             cache: "no-store",
             duplex: "half",
+            signal: request.signal,
         } as RequestInit & { duplex: "half" });
         const body: unknown = await response.json().catch(() => null);
         if (!response.ok) {

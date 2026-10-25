@@ -34,6 +34,13 @@ export const NOTIFICATION_TYPE = {
    * no effective Doctor assignment, needed for the baseline examination.
    */
   FIGHTER_DOCTOR_ASSIGNMENT_REQUIRED: 'FIGHTER_DOCTOR_ASSIGNMENT_REQUIRED',
+  BOUT_CREATED: 'BOUT_CREATED',
+  BOUT_WEIGHT_AT_RISK: 'BOUT_WEIGHT_AT_RISK',
+  BOUT_REQUIREMENT_REJECTED: 'BOUT_REQUIREMENT_REJECTED',
+  BOUT_REQUIREMENT_DUE: 'BOUT_REQUIREMENT_DUE',
+  BOUT_WEIGHT_MISSING: 'BOUT_WEIGHT_MISSING',
+  SUSPENSION_CREATED: 'SUSPENSION_CREATED',
+  SUSPENSION_AWAITING_CLEARANCE: 'SUSPENSION_AWAITING_CLEARANCE',
 } as const;
 
 export type NotificationType =
@@ -85,7 +92,7 @@ export interface NotifyContext {
 // job Redis accepted after the timeout (harmless thanks to the dedupe key).
 export type NotifyResult =
   | { status: 'queued' }
-  | { status: 'skipped'; reason: 'NO_RECIPIENTS' }
+  | { status: 'skipped'; reason: 'NO_RECIPIENTS' | 'SUPERVISION_DISABLED' }
   | {
       status: 'failed';
       reason:

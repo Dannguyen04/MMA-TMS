@@ -1,8 +1,8 @@
 import { CalendarPlus, ClipboardPlus } from "lucide-react";
 import type { Metadata } from "next";
 
-import { buildCoachAttention, COACH_QUEUE_META, COACH_QUEUES, type CoachQueue } from "@/components/dashboard/coach-attention";
-import { greetingTitle } from "@/components/dashboard/dashboard-utils";
+import { buildCoachAttention, coachQueueMeta, COACH_QUEUES, type CoachQueue } from "@/components/dashboard/coach-attention";
+import { firstName, greetingKey } from "@/components/dashboard/dashboard-utils";
 import { QueueCard } from "@/components/dashboard/queue-card";
 import { loadRoster } from "@/components/dashboard/roster-data";
 import { TodaySchedule } from "@/components/dashboard/today-schedule";
@@ -11,32 +11,37 @@ import { ButtonLink } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { accessibleFighterIds } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
-import { academyDayStartIso, addDaysToKey, DAY_MS, dayKey, formatWeekdayDate, pluralize } from "@/lib/format";
+import { academyDayStartIso, addDaysToKey, DAY_MS, dayKey, formatWeekdayDate } from "@/lib/format";
 import { hrefWith, parseEnum } from "@/lib/query";
+import { getTranslator } from "@/lib/i18n/server";
+import { plural } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
-import { listAssignedApplications } from "@/lib/services/admissions";
+import { nullIfServiceFails } from "@/lib/services/api-helpers";
+import { getCoachTodo } from "@/lib/services/bouts";
 import { listGoals } from "@/lib/services/goals";
 import { listFighters } from "@/lib/services/people";
 import { platformFeatureAvailable } from "@/lib/services/platform-features";
 import { getNavBadgeCounts } from "@/lib/services/shell";
-import { listPlans, listSessions } from "@/lib/services/training";
+import { listSessions } from "@/lib/services/training";
 import { listReviewQueue } from "@/lib/services/videos";
 import { param } from "@/lib/utils";
+import { CoachTodoCard } from "./coach-todo-card";
 
-export const metadata: Metadata = { title: "Today" };
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return { title: t("nav.Today") };
+}
 
 const MISSED_WINDOW_DAYS = 7;
 
 /**
  * The coach's Today page answers one question: what needs me now? One corner queue, filterable by group, and
- * today's schedule beside it. The queue also carries the coach's hand-offs: applicants waiting for their entrance
- * assessment and fighters cleared to train who still need a plan. Roster trends, volume and feedback live in their
- * own hubs.
+ * today's schedule beside it. Roster trends, volume and feedback live in their own hubs.
  */
 export default async function CoachDashboardPage({ searchParams }: PageProps<"/coach/dashboard">) {
     const user = await requireRole("coach");
-    const query = await searchParams;
+    const [query, { t, locale }] = await Promise.all([searchParams, getTranslator()]);
     const now = new Date().toISOString();
     const scope = accessibleFighterIds(user);
 
@@ -48,7 +53,7 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
     const weekEnd = new Date(Date.parse(academyDayStartIso(addDaysToKey(weekKey, 7))) - 1).toISOString();
 
     const fighterList = listFighters(user);
-    const [fighters, roster, weekSessions, reviewQueue, missed, goalsAtRisk, settings, plans, applicants] = await Promise.all([
+    const [fighters, roster, weekSessions, reviewQueue, missed, goalsAtRisk, settings, todo] = await Promise.all([
         fighterList,
         loadRoster(user, now, { fighters: fighterList, performance: false }),
         listSessions({ fighterIds: scope, from: weekStart, to: weekEnd }),
@@ -57,9 +62,8 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
         // Without the goals service the Goals group is left out.
         platformFeatureAvailable("goals") ? listGoals({ fighterIds: scope, status: "at_risk" }) : null,
         getSettings(),
-        // Every status, so a fighter whose only plan is a draft is told to finish it rather than start another.
-        listPlans({ fighterIds: scope }),
-        listAssignedApplications(user),
+        // The to-do card (T-029). Without the bouts service it is left out.
+        nullIfServiceFails(getCoachTodo(scope)),
     ]);
     // Without a per-analysis queue (API mode), the navigation's review count still says how many are waiting.
     const reviewCount = reviewQueue.length === 0 ? ((await getNavBadgeCounts(user)).reviewQueue ?? 0) : 0;
@@ -71,10 +75,10 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
         reviewCount,
         missed,
         goalsAtRisk: goalsAtRisk ?? [],
-        plans,
-        applicants,
         warningDays: settings.clearanceExpiryWarningDays,
         now,
+        t,
+        locale,
     });
     const queues = COACH_QUEUES.filter((queue) => queue !== "goals" || goalsAtRisk !== null);
     const queue = parseEnum(param(query.queue), queues);
@@ -86,18 +90,21 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
     return (
         <>
             <PageHeader
-                eyebrow={formatWeekdayDate(now)}
-                title={greetingTitle(now, user)}
-                description={`${pluralize(fighters.length, "fighter")} in your corner · ${pluralize(todayActive.length, "session")} today`}
+                eyebrow={formatWeekdayDate(now, locale)}
+                title={t("greeting.named", { greeting: t(greetingKey(now)), name: firstName(user.name) })}
+                description={t("coachToday.description", {
+                    fighters: plural(t, "coachToday.fighters", fighters.length),
+                    sessions: plural(t, "coachToday.sessions", todayActive.length),
+                })}
                 actions={
                     <>
                         <ButtonLink href={routes.coach.newPlan} variant="secondary">
                             <ClipboardPlus aria-hidden />
-                            New training plan
+                            {t("coachToday.newPlan")}
                         </ButtonLink>
                         <ButtonLink href={routes.coach.newSession}>
                             <CalendarPlus aria-hidden />
-                            Schedule session
+                            {t("coachToday.scheduleSession")}
                         </ButtonLink>
                     </>
                 }
@@ -105,21 +112,22 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
 
             <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                 <QueueCard
-                    title="Corner queue"
-                    filterLabel="Filter the corner queue"
+                    title={t("coachToday.queueTitle")}
+                    filterLabel={t("coachToday.queueFilter")}
                     items={attention}
                     queues={queues}
-                    meta={COACH_QUEUE_META}
+                    meta={coachQueueMeta(t)}
                     active={queue}
                     hrefFor={(next: CoachQueue | null) => hrefWith(routes.coach.dashboard, query, { queue: next })}
-                    emptyAll={{
-                        title: "Nothing needs your attention",
-                        description: "No clearance problems or session clashes, every cleared fighter has a plan, and no analyses or applicants are waiting for you.",
-                    }}
+                    emptyAll={{ title: t("coachToday.emptyTitle"), description: t("coachToday.emptyText") }}
+                    t={t}
                     className="lg:col-span-2"
                 />
 
-                <TodaySchedule sessions={todaySessions} fighters={scheduleFighters} />
+                <div className="flex min-w-0 flex-col gap-6">
+                    {todo && <CoachTodoCard todo={todo} fighterNames={new Map(fighters.map((fighter) => [fighter.id, fighter.name]))} t={t} locale={locale} />}
+                    <TodaySchedule sessions={todaySessions} fighters={scheduleFighters} t={t} locale={locale} />
+                </div>
             </div>
         </>
     );

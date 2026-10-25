@@ -25,6 +25,8 @@ worker_tmp/
 tmp/
 video-data-test/
 artifacts/
+# Club review packs: athlete videos and consent references, never commit
+local-data/
 
 # OS files
 Thumbs.db

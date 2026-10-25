@@ -75,3 +75,9 @@ export class TrainingPlanExerciseResponseDto extends createZodDto(
 export class RemovedPlanExerciseDto extends createZodDto(
   removedPlanExerciseSchema,
 ) {}
+
+export {
+  ApplySuspensionConflictsDto,
+  ConflictProposalResponseDto,
+  SuspensionIdParamsDto,
+} from '../suspensions/suspensions.dto.js';

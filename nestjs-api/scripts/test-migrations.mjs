@@ -80,6 +80,8 @@ const target017 = '017_doctor_assignment_notification.sql';
 const target018 = '018_training_plan_phase.sql';
 const target019 = '019_ai_delivery_receipts.sql';
 const target020 = '020_movement_evidence_reviews.sql';
+const target023 = '023_academy_settings.sql';
+const target024 = '024_bouts.sql';
 const trainingPermissionCodes = [
   'training.plan:get_all',
   'training.plan:read',
@@ -360,22 +362,22 @@ try {
       migration(database, name);
     psql(database, planFixture(deletedAt));
     check(
-      `018 aborts without changes when a ${deletedAt ? 'soft-deleted' : 'live'} plan exists`,
+      `018 backfills ${deletedAt ? 'soft-deleted' : 'live'} plan to base`,
       () => {
-        rejects(
-          database,
-          readFileSync(join(api, 'migrations', target018), 'utf8'),
-          /018 requires an empty training_plans table/,
+        migration(database, target018);
+        assert.equal(
+          psql(
+            database,
+            `SELECT phase FROM training_plans;`,
+          ),
+          'base',
         );
         assert.equal(
           psql(
             database,
-            `SELECT to_regtype('public.training_plan_phase') IS NULL
-               AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'training_plans' AND column_name = 'phase')
-               AND NOT EXISTS (SELECT 1 FROM mma_private.migration_history WHERE version = 18)
-               AND (SELECT count(*) FROM training_plans) = 1;`,
+            `SELECT count(*) FROM mma_private.migration_history WHERE version = 18;`,
           ),
-          't',
+          '1',
         );
       },
     );
@@ -621,6 +623,369 @@ try {
     rejects('mma_013', `SET ROLE authenticated; SELECT * FROM public.movement_evidence_reviews;`, /permission denied/);
     rejects('mma_013', readFileSync(join(api, 'migrations', target020), 'utf8'), /already applied/);
   });
+  check('023 applies on ledger 20, rejects second row, and records ledger 23', () => {
+    migration('mma_013', target023);
+    assert.equal(
+      psql('mma_013', `SELECT count(*) FROM mma_private.migration_history WHERE version = 23;`),
+      '1',
+    );
+    assert.equal(
+      psql('mma_013', `SELECT medical_supervision FROM public.academy_settings;`),
+      'DOCTOR',
+    );
+    assert.equal(
+      psql('mma_013', `SELECT count(*) FROM public.academy_settings;`),
+      '1',
+    );
+    rejects('mma_013', `INSERT INTO public.academy_settings DEFAULT VALUES;`, /duplicate key|violates/);
+    rejects('mma_013', readFileSync(join(api, 'migrations', target023), 'utf8'), /already applied/);
+
+    // Verify audit trigger on update
+    psql('mma_013', `
+      SELECT set_config('request.jwt.claims', '{"sub":"test-admin-sub"}', true);
+      SELECT set_config('mma.request_id', 'test-req-001', true);
+      UPDATE public.academy_settings SET medical_supervision = 'NONE', change_reason = 'Testing no doctor mode' WHERE id = true;
+    `);
+    assert.equal(
+      psql('mma_013', `SELECT medical_supervision FROM public.academy_settings;`),
+      'NONE',
+    );
+    assert.equal(
+      psql('mma_013', `SELECT count(*) FROM public.audit_logs WHERE resource_type = 'academy_settings' AND action = 'UPDATE';`),
+      '1',
+    );
+  });
+  check('024 applies on ledger 23, seeds three presets and wires bouts, requirements and permissions', () => {
+    const writePermission = (role) =>
+      psql(
+        'mma_013',
+        `SELECT count(*) FROM public.role_permissions rp JOIN public.permissions p ON p.id = rp.permission_id WHERE rp.role = '${role}' AND p.code = 'fighter.measurement:write';`,
+      );
+    assert.equal(writePermission('FIGHTER'), '0');
+    migration('mma_013', target024);
+    assert.equal(
+      psql('mma_013', `SELECT count(*) FROM mma_private.migration_history WHERE version = 24;`),
+      '1',
+    );
+
+    // Three presets with the agreed flags and list sizes.
+    assert.equal(
+      psql('mma_013', `SELECT count(*) FROM public.competition_rulesets;`),
+      '3',
+    );
+    assert.equal(
+      psql(
+        'mma_013',
+        `SELECT string_agg(name || '|' || sport || '|' || verified || '|' || jsonb_array_length(weight_classes) || '|' || jsonb_array_length(requirement_templates) || '|' || jsonb_array_length(suspension_rules) || '|' || coalesce(array_to_string(default_blocked_session_types, ','), ''), ' # ' ORDER BY name) FROM public.competition_rulesets;`,
+      ),
+      [
+        'Boxing nghiệp dư – AIBA (tham khảo)|BOXING|false|12|3|5|SHADOW_BOXING,PAD_WORK,HEAVY_BAG,SPARRING,GRAPPLING,STRENGTH_CONDITIONING',
+        'MMA – VMMAF 2021|MMA|true|12|0|0|SPARRING,GRAPPLING',
+        'Tự nhập|MMA|false|0|0|0|',
+      ].join(' # '),
+    );
+    assert.equal(
+      psql(
+        'mma_013',
+        `SELECT string_agg(t->>'code' || ':' || (t->>'required') || ':' || (t->>'validityDays'), ',' ORDER BY t->>'code') FROM public.competition_rulesets, jsonb_array_elements(requirement_templates) t WHERE name LIKE 'Boxing%';`,
+      ),
+      'FEDERATION_REG:true:365,HEALTH_CERT:true:180,INSURANCE:true:365',
+    );
+    assert.equal(
+      psql(
+        'mma_013',
+        `SELECT string_agg(coalesce(c->>'limitKg', 'open'), ',') FROM public.competition_rulesets, jsonb_array_elements(weight_classes) c WHERE name LIKE 'MMA%';`,
+      ),
+      '44,48,52,56,60,65,70,77,84,93,120,open',
+    );
+    assert.equal(
+      psql(
+        'mma_013',
+        `SELECT string_agg(coalesce(c->>'limitKg', 'open'), ',') FROM public.competition_rulesets, jsonb_array_elements(weight_classes) c WHERE name LIKE 'Boxing%';`,
+      ),
+      '48,51,54,57,60,63.5,67,71,75,81,91,open',
+    );
+    assert.equal(
+      psql(
+        'mma_013',
+        `SELECT count(*) FROM public.competition_rulesets WHERE source_note IS NULL OR btrim(source_note) = '' OR (name LIKE 'Boxing%' AND source_note NOT LIKE '%mẫu tham khảo cho demo%');`,
+      ),
+      '0',
+    );
+
+    // Permission matrix.
+    assert.equal(
+      psql(
+        'mma_013',
+        `SELECT string_agg(p.code || '=' || roles, ';' ORDER BY p.code) FROM public.permissions p JOIN LATERAL (SELECT string_agg(rp.role::text, ',' ORDER BY rp.role::text) AS roles FROM public.role_permissions rp WHERE rp.permission_id = p.id) r ON true WHERE p.code IN ('ruleset:read','bout:get_all','bout:read','bout:create','bout:update','bout:result','bout:requirement');`,
+      ),
+      [
+        'bout:create=ADMIN,COACH',
+        'bout:get_all=ADMIN,COACH,DOCTOR,FIGHTER',
+        'bout:read=ADMIN,COACH,DOCTOR,FIGHTER',
+        'bout:requirement=ADMIN,COACH',
+        'bout:result=ADMIN,COACH',
+        'bout:update=ADMIN,COACH',
+        'ruleset:read=ADMIN,COACH,DOCTOR',
+      ].join(';'),
+    );
+    assert.equal(
+      psql('mma_013', `SELECT count(*) FROM public.permissions WHERE code IN ('ruleset:manage','bout:requirement_confirm');`),
+      '0',
+    );
+    assert.equal(writePermission('FIGHTER'), '1');
+    assert.equal(writePermission('COACH'), '0');
+    assert.equal(writePermission('ADMIN'), '1');
+
+    // Fixtures.
+    psql('mma_013', `
+      INSERT INTO auth.users(id) VALUES
+        ('00000000-0000-4000-8000-0000000024a1'), ('00000000-0000-4000-8000-0000000024a2'),
+        ('00000000-0000-4000-8000-0000000024a3');
+      INSERT INTO public.users(id, auth_user_id, email, role) VALUES
+        ('00000000-0000-4000-8000-0000000024b1', '00000000-0000-4000-8000-0000000024a1', 'f1-024@example.invalid', 'FIGHTER'),
+        ('00000000-0000-4000-8000-0000000024b2', '00000000-0000-4000-8000-0000000024a2', 'c-024@example.invalid', 'COACH'),
+        ('00000000-0000-4000-8000-0000000024b3', '00000000-0000-4000-8000-0000000024a3', 'f2-024@example.invalid', 'FIGHTER');
+      INSERT INTO public.fighters(id, user_id, first_name, last_name, date_of_birth, weight_class) VALUES
+        ('00000000-0000-4000-8000-0000000024c1', '00000000-0000-4000-8000-0000000024b1', 'Test', 'One', '2000-01-01', 'LIGHTWEIGHT'),
+        ('00000000-0000-4000-8000-0000000024c3', '00000000-0000-4000-8000-0000000024b3', 'Test', 'Two', '2000-01-01', 'LIGHTWEIGHT');
+      INSERT INTO public.coaches(id, user_id, first_name, last_name)
+        VALUES ('00000000-0000-4000-8000-0000000024c2', '00000000-0000-4000-8000-0000000024b2', 'Test', 'Coach');
+      INSERT INTO public.training_plans(id, fighter_id, coach_id, title, start_date, phase) VALUES
+        ('00000000-0000-4000-8000-0000000024d1', '00000000-0000-4000-8000-0000000024c1', '00000000-0000-4000-8000-0000000024c2', 'Camp 1', '2026-09-01', 'fight_camp'),
+        ('00000000-0000-4000-8000-0000000024d3', '00000000-0000-4000-8000-0000000024c3', '00000000-0000-4000-8000-0000000024c2', 'Camp 2', '2026-09-01', 'fight_camp');
+    `);
+    const boutInsert = (id, extra = {}) => {
+      const v = {
+        fighter: '00000000-0000-4000-8000-0000000024c1',
+        weighIn: '2026-11-10 01:00:00+00',
+        boutAt: '2026-11-11 03:00:00+00',
+        status: 'SCHEDULED',
+        plan: 'NULL',
+        ...extra,
+      };
+      return `INSERT INTO public.bouts(id, fighter_id, coach_id, ruleset_id, event_name, weight_class_code, weight_limit_kg, acute_loss_limit_pct, requirements_due_days, weigh_in_at, bout_at, status, training_plan_id, created_by_id)
+        SELECT '${id}', '${v.fighter}', '00000000-0000-4000-8000-0000000024c2', r.id, 'Test Cup', '60', 60, 8, 7, '${v.weighIn}', '${v.boutAt}', '${v.status}', ${v.plan}, '00000000-0000-4000-8000-0000000024b2'
+        FROM public.competition_rulesets r WHERE r.name = 'Tự nhập';`;
+    };
+    const bout1 = '00000000-0000-4000-8000-0000000024e1';
+    const bout2 = '00000000-0000-4000-8000-0000000024e2';
+    psql('mma_013', boutInsert(bout1));
+    assert.equal(
+      psql('mma_013', `SELECT status || ',' || jsonb_array_length(history) FROM public.bouts WHERE id = '${bout1}';`),
+      'SCHEDULED,0',
+    );
+
+    // weigh_in_at < bout_at
+    rejects('mma_013', boutInsert('00000000-0000-4000-8000-0000000024e9', { weighIn: '2026-11-11 03:00:00+00' }), /ck_bouts_schedule/);
+    rejects('mma_013', boutInsert('00000000-0000-4000-8000-0000000024e9', { weighIn: '2026-11-12 03:00:00+00' }), /ck_bouts_schedule/);
+
+    // One running bout per fighter (CAMP, FIGHT_WEEK, WEIGHED_IN); SCHEDULED is unrestricted.
+    psql('mma_013', `UPDATE public.bouts SET status = 'CAMP' WHERE id = '${bout1}';`);
+    rejects('mma_013', boutInsert(bout2, { status: 'FIGHT_WEEK' }), /uq_bouts_active_per_fighter/);
+    psql('mma_013', boutInsert(bout2));
+    rejects('mma_013', `UPDATE public.bouts SET status = 'CAMP' WHERE id = '${bout2}';`, /uq_bouts_active_per_fighter/);
+    psql('mma_013', boutInsert('00000000-0000-4000-8000-0000000024e3', { fighter: '00000000-0000-4000-8000-0000000024c3', status: 'CAMP' }));
+
+    // cancel_reason and result/method consistency
+    rejects('mma_013', `UPDATE public.bouts SET status = 'CANCELLED' WHERE id = '${bout2}';`, /ck_bouts_cancel_reason/);
+    rejects('mma_013', `UPDATE public.bouts SET cancel_reason = 'x' WHERE id = '${bout2}';`, /ck_bouts_cancel_reason/);
+    psql('mma_013', `UPDATE public.bouts SET status = 'CANCELLED', cancel_reason = 'Đối thủ rút' WHERE id = '${bout2}';`);
+    rejects('mma_013', `UPDATE public.bouts SET status = 'COMPLETED' WHERE id = '${bout1}';`, /ck_bouts_(result|method)/);
+    rejects('mma_013', `UPDATE public.bouts SET result = 'WIN', method = 'KO' WHERE id = '${bout1}';`, /ck_bouts_(result|method)/);
+    psql('mma_013', `UPDATE public.bouts SET status = 'COMPLETED', result = 'WIN', method = 'KO' WHERE id = '${bout1}';`);
+
+    // fighter_id is immutable; plans must belong to the same fighter.
+    rejects('mma_013', `UPDATE public.bouts SET fighter_id = '00000000-0000-4000-8000-0000000024c3' WHERE id = '${bout2}';`, /immutable/);
+    rejects('mma_013', boutInsert('00000000-0000-4000-8000-0000000024e8', { plan: `'00000000-0000-4000-8000-0000000024d3'` }), /fk_bout_plan_fighter/);
+    psql('mma_013', boutInsert('00000000-0000-4000-8000-0000000024e7', { plan: `'00000000-0000-4000-8000-0000000024d1'` }));
+
+    // Requirements
+    const requirementInsert = (code, columns = '', values = '', source = 'PRESET') =>
+      `INSERT INTO public.bout_requirements(bout_id, code, label, required, source${columns})
+       VALUES ('${bout2}', '${code}', 'Label', true, '${source}'${values});`;
+    psql('mma_013', requirementInsert('HEALTH_CERT'));
+    rejects('mma_013', requirementInsert('HEALTH_CERT'), /uq_bout_requirements_code/);
+    rejects('mma_013', requirementInsert('BAD_SOURCE', '', '', 'OTHER'), /ck_bout_requirements_source/);
+    rejects('mma_013', requirementInsert('NO_VALID_UNTIL', ', status', ", 'PROVIDED'"), /ck_bout_requirements_valid_until/);
+    rejects('mma_013', requirementInsert('NO_REASON', ', status', ", 'REJECTED'"), /ck_bout_requirements_rejected_reason/);
+    psql('mma_013', requirementInsert('PROVIDED_OK', ', status, valid_until', ", 'PROVIDED', '2027-01-01'"));
+    psql('mma_013', `DELETE FROM public.bout_requirements WHERE bout_id = '${bout2}' AND code = 'PROVIDED_OK';`);
+    assert.equal(
+      psql('mma_013', `SELECT count(*) FROM public.audit_logs WHERE resource_type = 'bout_requirements' AND action = 'DELETE';`),
+      '1',
+    );
+    assert.equal(
+      psql('mma_013', `SELECT count(*) FROM public.audit_logs WHERE resource_type = 'bouts' AND action = 'INSERT';`),
+      '4',
+    );
+    psql('mma_013', `UPDATE public.bout_requirements SET label = 'Renamed' WHERE code = 'HEALTH_CERT';`);
+    assert.equal(
+      psql('mma_013', `SELECT updated_at > created_at FROM public.bout_requirements WHERE code = 'HEALTH_CERT';`),
+      't',
+    );
+
+    // Ruleset constraints
+    rejects('mma_013', `INSERT INTO public.competition_rulesets(name, sport, weight_classes, requirement_templates) VALUES ('Bad', 'MMA', '{}'::jsonb, '[]'::jsonb);`, /ck_rulesets_weight_classes/);
+    rejects('mma_013', `INSERT INTO public.competition_rulesets(name, sport, weight_classes, requirement_templates, acute_loss_limit_pct_long) VALUES ('Bad2', 'MMA', '[]'::jsonb, '[]'::jsonb, 20.5);`, /ck_rulesets_acute_pct/);
+    rejects('mma_013', `INSERT INTO public.competition_rulesets(name, sport, weight_classes, requirement_templates) VALUES ('tự nhập', 'MMA', '[]'::jsonb, '[]'::jsonb);`, /uq_competition_rulesets_name/);
+
+    // RLS on, no direct client access.
+    for (const table of ['competition_rulesets', 'bouts', 'bout_requirements']) {
+      assert.equal(
+        psql('mma_013', `SELECT relrowsecurity FROM pg_class WHERE oid = 'public.${table}'::regclass;`),
+        't',
+      );
+      rejects('mma_013', `SET ROLE authenticated; SELECT * FROM public.${table};`, /permission denied/);
+      rejects('mma_013', `SET ROLE anon; SELECT * FROM public.${table};`, /permission denied/);
+    }
+
+    // Re-application is refused.
+    rejects('mma_013', readFileSync(join(api, 'migrations', target024), 'utf8'), /already applied/);
+  });
+  check('024 requires ledger 23 and leaves nothing behind on a collision', () => {
+    prepare('mma_024_no_023');
+    for (const name of migrationNames.filter((name) => {
+      const version = Number(name.slice(0, 3));
+      return version >= 3 && version <= 20;
+    }))
+      migration('mma_024_no_023', name);
+    rejects('mma_024_no_023', readFileSync(join(api, 'migrations', target024), 'utf8'), /024 requires migration 023/);
+
+    prepare('mma_024_collision');
+    for (const name of migrationNames.filter((name) => {
+      const version = Number(name.slice(0, 3));
+      return version >= 3 && version <= 23;
+    }))
+      migration('mma_024_collision', name);
+    psql('mma_024_collision', `CREATE TABLE public.bouts(id uuid);`);
+    rejects('mma_024_collision', readFileSync(join(api, 'migrations', target024), 'utf8'), /024 type or table collision/);
+    assert.equal(
+      psql('mma_024_collision', `SELECT count(*) FROM mma_private.migration_history WHERE version = 24;`),
+      '0',
+    );
+    assert.equal(
+      psql('mma_024_collision', `SELECT count(*) FROM pg_type WHERE typname IN ('bout_status', 'bout_sport');`),
+      '0',
+    );
+  });
+
+  check('027 applies directly after 024: defaults, constraints, upsert, audit, cascade and RLS', () => {
+    const db = 'mma_013';
+    const target = '027_opponent_analysis_and_rounds.sql';
+    assert.equal(psql(db, 'SELECT count(*) FROM mma_private.migration_history WHERE version IN (25,26);'), '0');
+    migration(db, target);
+    const bout = '00000000-0000-4000-8000-0000000024e2';
+    const user = '00000000-0000-4000-8000-0000000024b2';
+    assert.equal(psql(db, `SELECT opponent_analysis::text || '|' || (scheduled_rounds IS NULL) FROM public.bouts WHERE id = '${bout}';`), '{}|true');
+    for (const n of [0,13]) {
+      rejects(db, `UPDATE public.bouts SET scheduled_rounds = ${n} WHERE id = '${bout}';`, /ck_bouts_scheduled_rounds/);
+      rejects(db, `INSERT INTO public.bout_rounds(bout_id, round_no, recorded_by_id) VALUES ('${bout}', ${n}, '${user}');`, /round_no_check/);
+    }
+    rejects(db, `UPDATE public.bouts SET opponent_analysis = '[]' WHERE id = '${bout}';`, /ck_bouts_opponent_analysis/);
+    psql(db, `INSERT INTO public.bout_rounds(bout_id, round_no, recorded_by_id) VALUES ('${bout}', 1, '${user}');`);
+    rejects(db, `INSERT INTO public.bout_rounds(bout_id, round_no, recorded_by_id) VALUES ('${bout}', 1, '${user}');`, /uq_bout_rounds_bout_round/);
+    rejects(db, `UPDATE public.bout_rounds SET tactic_marks = '[]';`, /ck_bout_rounds_tactic_marks/);
+    rejects(db, `UPDATE public.bout_rounds SET observation_marks = '[]';`, /ck_bout_rounds_observation_marks/);
+    rejects(db, `UPDATE public.bout_rounds SET self_score = 'OTHER';`, /self_score_check/);
+    rejects(db, `UPDATE public.bout_rounds SET knockdowns_against = 11;`, /knockdowns_against_check/);
+    rejects(db, `UPDATE public.bout_rounds SET note = repeat('x',301);`, /note_check/);
+    psql(db, `INSERT INTO public.bout_rounds(bout_id, round_no, recorded_by_id, note) VALUES ('${bout}', 1, '${user}', 'new') ON CONFLICT (bout_id,round_no) DO UPDATE SET note=EXCLUDED.note;`);
+    assert.equal(psql(db, `SELECT count(*) || '|' || min(note) FROM public.bout_rounds WHERE bout_id = '${bout}';`), '1|new');
+    assert.equal(psql(db, `SELECT updated_at >= created_at FROM public.bout_rounds WHERE bout_id = '${bout}';`), 't');
+    assert.equal(psql(db, `SELECT count(*) FROM public.audit_logs WHERE resource_type = 'bout_rounds' AND action IN ('INSERT','UPDATE');`), '2');
+    assert.equal(psql(db, `SELECT relrowsecurity FROM pg_class WHERE oid = 'public.bout_rounds'::regclass;`), 't');
+    for (const role of ['anon','authenticated']) {
+      rejects(db, `SET ROLE ${role}; SELECT * FROM public.bout_rounds;`, /permission denied/);
+      assert.equal(psql(db, `SELECT has_table_privilege('${role}', 'public.bout_rounds', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER');`), 'f');
+    }
+    psql(db, `DELETE FROM public.bouts WHERE id = '${bout}';`);
+    assert.equal(psql(db, 'SELECT count(*) FROM public.bout_rounds;'), '0');
+    rejects(db, readFileSync(join(api,'migrations',target),'utf8'), /027 already applied/);
+  });
+  check('025 applies on ledger 24: enum, table, constraints, permissions, notifications, triggers and RLS', () => {
+    const db = 'mma_013';
+    const target = '025_suspensions.sql';
+    migration(db, target);
+    assert.equal(psql(db, 'SELECT count(*) FROM mma_private.migration_history WHERE version = 25;'), '1');
+    assert.equal(
+      psql(db, `SELECT string_agg(enumlabel, ',' ORDER BY enumsortorder) FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid WHERE t.typname = 'suspension_reason';`),
+      'KO,TKO,DQ,MANDATORY_REST,MEDICAL,OTHER',
+    );
+    assert.equal(
+      psql(db, `SELECT count(*) FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid WHERE t.typname = 'notification_type' AND enumlabel IN ('BOUT_CREATED','BOUT_WEIGHT_AT_RISK','BOUT_REQUIREMENT_REJECTED','BOUT_REQUIREMENT_DUE','BOUT_WEIGHT_MISSING','SUSPENSION_CREATED','SUSPENSION_AWAITING_CLEARANCE');`),
+      '7',
+    );
+    assert.equal(
+      psql(
+        db,
+        `SELECT string_agg(p.code || '=' || roles, ';' ORDER BY p.code) FROM public.permissions p JOIN LATERAL (SELECT string_agg(rp.role::text, ',' ORDER BY rp.role::text) AS roles FROM public.role_permissions rp WHERE rp.permission_id = p.id) r ON true WHERE p.code IN ('suspension:read','suspension:create','suspension:clear');`,
+      ),
+      [
+        'suspension:clear=COACH,DOCTOR',
+        'suspension:create=ADMIN,COACH,DOCTOR',
+        'suspension:read=ADMIN,COACH,DOCTOR,FIGHTER',
+      ].join(';'),
+    );
+    const suspId = '00000000-0000-4000-8000-0000000025a1';
+    const fighter = '00000000-0000-4000-8000-0000000024c1';
+    const bout = '00000000-0000-4000-8000-0000000024e1';
+    const user = '00000000-0000-4000-8000-0000000024b2';
+    psql(
+      db,
+      `INSERT INTO public.suspensions(id, fighter_id, bout_id, reason, starts_on, ends_on, loss_of_consciousness, suggested_days, blocked_session_types, requires_clearance, created_by_id)
+       VALUES ('${suspId}', '${fighter}', '${bout}', 'KO', '2026-11-11', '2026-12-10', 'UNDER_1_MIN', 30, '{SPARRING}', true, '${user}');`,
+    );
+    rejects(
+      db,
+      `INSERT INTO public.suspensions(fighter_id, reason, starts_on, ends_on, blocked_session_types, requires_clearance, created_by_id)
+       VALUES ('${fighter}', 'MEDICAL', '2026-12-10', '2026-11-11', '{SPARRING}', true, '${user}');`,
+      /ck_suspensions_dates/,
+    );
+    rejects(
+      db,
+      `INSERT INTO public.suspensions(fighter_id, reason, starts_on, ends_on, loss_of_consciousness, blocked_session_types, requires_clearance, created_by_id)
+       VALUES ('${fighter}', 'KO', '2026-11-11', '2026-12-10', 'SEVERE', '{SPARRING}', true, '${user}');`,
+      /ck_suspensions_loss_of_consciousness/,
+    );
+    rejects(
+      db,
+      `UPDATE public.suspensions SET cleared_at = now() WHERE id = '${suspId}';`,
+      /ck_suspensions_cleared/,
+    );
+    rejects(
+      db,
+      `UPDATE public.suspensions SET cleared_by_id = '${user}' WHERE id = '${suspId}';`,
+      /ck_suspensions_cleared/,
+    );
+    psql(
+      db,
+      `UPDATE public.suspensions SET cleared_at = now(), cleared_by_id = '${user}', clearance_note = 'Cleared by doctor' WHERE id = '${suspId}';`,
+    );
+    assert.equal(psql(db, `SELECT updated_at >= created_at FROM public.suspensions WHERE id = '${suspId}';`), 't');
+    assert.equal(psql(db, `SELECT count(*) FROM public.audit_logs WHERE resource_type = 'suspensions' AND action IN ('INSERT','UPDATE');`), '2');
+    assert.equal(psql(db, `SELECT relrowsecurity FROM pg_class WHERE oid = 'public.suspensions'::regclass;`), 't');
+    for (const role of ['anon', 'authenticated']) {
+      rejects(db, `SET ROLE ${role}; SELECT * FROM public.suspensions;`, /permission denied/);
+      assert.equal(psql(db, `SELECT has_table_privilege('${role}', 'public.suspensions', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER');`), 'f');
+    }
+    rejects(db, readFileSync(join(api, 'migrations', target), 'utf8'), /025 already applied/);
+  });
+  check('025 rejects missing ledger 24 and collisions atomically', () => {
+    const target = readFileSync(join(api, 'migrations', '025_suspensions.sql'), 'utf8');
+    rejects('mma_024_no_023', target, /025 requires migration 024/);
+    assert.equal(psql('mma_024_no_023', 'SELECT count(*) FROM mma_private.migration_history WHERE version = 25;'), '0');
+    psql('mma_013', 'DELETE FROM mma_private.migration_history WHERE version = 25;');
+    rejects('mma_013', target, /025 .*collision/);
+    assert.equal(psql('mma_013', 'SELECT count(*) FROM mma_private.migration_history WHERE version = 25;'), '0');
+  });
+  check('027 rejects missing ledger 24 and collisions atomically', () => {
+    const target = readFileSync(join(api,'migrations','027_opponent_analysis_and_rounds.sql'),'utf8');
+    rejects('mma_024_no_023', target, /027 requires migration 024/);
+    assert.equal(psql('mma_024_no_023', 'SELECT count(*) FROM mma_private.migration_history WHERE version = 27;'), '0');
+    psql('mma_013', 'DELETE FROM mma_private.migration_history WHERE version = 27;');
+    rejects('mma_013', target, /027 .*collision/);
+    assert.equal(psql('mma_013', 'SELECT count(*) FROM mma_private.migration_history WHERE version = 27;'), '0');
   });
   if (process.argv.includes('--export-catalog')) {
     mkdirSync(resolve(api, '../tmp'), { recursive: true });

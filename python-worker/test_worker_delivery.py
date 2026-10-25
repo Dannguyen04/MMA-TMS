@@ -19,6 +19,7 @@ def test_structured_evidence_precedes_done(monkeypatch, tmp_path, persist_fails)
         received.update(kwargs)
         return result
     monkeypatch.setattr(worker, "process_video", analyze)
+    monkeypatch.setattr(worker, "get_pose_model", lambda: object())
     monkeypatch.setattr(worker, "upload_to_supabase", lambda *_: "https://example.test/result.json")
     monkeypatch.setattr(worker, "notify_nestjs", lambda job, status, **kwargs: events.append((status, kwargs)))
 

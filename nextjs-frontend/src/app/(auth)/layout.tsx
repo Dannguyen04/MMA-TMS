@@ -1,14 +1,17 @@
 import { Activity, HeartPulse, ScanLine, ShieldCheck } from "lucide-react";
 
 import { Logo } from "@/components/brand/logo";
+import { LanguageSwitcher } from "@/components/i18n/language-switcher";
+import { getTranslator } from "@/lib/i18n/server";
 
 const HIGHLIGHTS = [
-    { icon: ScanLine, title: "AI-assisted video analysis", text: "Strike detection, pose tracking and technique metrics — always reviewed by a coach." },
-    { icon: Activity, title: "Performance you can act on", text: "Jab to head movement, tracked week over week against real goals." },
-    { icon: HeartPulse, title: "Sports medicine built in", text: "Injuries, recovery plans and Medical Clearance in the same place as training." },
-];
+    { icon: ScanLine, key: "video" },
+    { icon: Activity, key: "performance" },
+    { icon: HeartPulse, key: "medicine" },
+] as const;
 
-export default function AuthLayout({ children }: { children: React.ReactNode }) {
+export default async function AuthLayout({ children }: { children: React.ReactNode }) {
+    const { t } = await getTranslator();
     return (
         <div className="grid min-h-dvh lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
             <aside className="relative hidden overflow-hidden bg-nav-bg px-12 py-10 text-nav-fg lg:flex lg:flex-col">
@@ -28,18 +31,18 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
                 <div className="relative mt-auto max-w-md">
                     <p className="text-xs font-semibold tracking-[0.12em] text-nav-accent uppercase">Lotus Combat Academy</p>
                     <p className="mt-3 text-[34px] leading-tight font-semibold tracking-tight text-balance text-white">
-                        Train harder. Recover smarter. Fight cleared.
+                        {t("auth.slogan")}
                     </p>
                     <p className="mt-3 text-[15px] text-nav-fg">Hệ thống Quản lý Huấn luyện và Theo dõi Sức khỏe Võ sĩ</p>
                     <ul className="mt-10 space-y-6">
-                        {HIGHLIGHTS.map(({ icon: Icon, title, text }) => (
-                            <li key={title} className="flex gap-4">
+                        {HIGHLIGHTS.map(({ icon: Icon, key }) => (
+                            <li key={key} className="flex gap-4">
                                 <span className="octagon flex size-10 shrink-0 items-center justify-center bg-nav-surface text-nav-accent">
                                     <Icon aria-hidden className="size-[18px]" />
                                 </span>
                                 <span>
-                                    <span className="block text-sm font-semibold text-white">{title}</span>
-                                    <span className="mt-0.5 block text-sm text-nav-fg">{text}</span>
+                                    <span className="block text-sm font-semibold text-white">{t(`auth.highlight.${key}.title`)}</span>
+                                    <span className="mt-0.5 block text-sm text-nav-fg">{t(`auth.highlight.${key}.text`)}</span>
                                 </span>
                             </li>
                         ))}
@@ -47,10 +50,13 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
                 </div>
                 <p className="relative mt-12 flex items-center gap-2 text-xs text-nav-fg/70">
                     <ShieldCheck aria-hidden className="size-3.5" />
-                    Medical data is only visible to assigned sports doctors.
+                    {t("auth.privacy")}
                 </p>
             </aside>
             <main className="flex flex-col px-5 py-8 sm:px-10">
+                <div className="mb-6 flex justify-end">
+                    <LanguageSwitcher className="w-56" />
+                </div>
                 <div className="mb-10 lg:hidden">
                     <span className="inline-flex rounded-xl bg-nav-bg px-3 py-2">
                         <Logo />

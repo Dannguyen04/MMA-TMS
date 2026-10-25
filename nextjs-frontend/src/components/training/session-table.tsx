@@ -1,3 +1,5 @@
+import { createDemoCopy } from "@/lib/i18n/demo-copy";
+import type { Locale } from "@/lib/i18n/config";
 import { PlayCircle } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -33,6 +35,7 @@ export interface SessionTableSort {
 }
 
 export interface SessionTableProps {
+    locale?: Locale;
     sessions: TrainingSession[];
     audience: TrainingAudience;
     caption: string;
@@ -86,6 +89,7 @@ function VideoLink({ session, audience }: { session: TrainingSession; audience: 
 
 /** Sessions as a table (with optional sortable headers) and, optionally, stacked cards on small screens. */
 export function SessionTable({
+    locale = "en",
     sessions,
     audience,
     caption,
@@ -95,13 +99,14 @@ export function SessionTable({
     sort,
     stackOnMobile = false,
 }: SessionTableProps) {
+    const copy = createDemoCopy(locale);
     // With a fighter column the table gets wide, so the type moves under the title.
     const typeColumn = !showFighter;
     const header = (key: SessionSortKey, label: string, className?: string): ReactNode =>
         sort ? (
             <SortableTH
                 key={key}
-                label={label}
+                label={copy(label)}
                 sortKey={key}
                 pathname={sort.pathname}
                 searchParams={sort.searchParams}
@@ -111,7 +116,7 @@ export function SessionTable({
             />
         ) : (
             <TH key={key} className={className}>
-                {label}
+                {copy(label)}
             </TH>
         );
 
@@ -139,9 +144,9 @@ export function SessionTable({
                                 <TR key={session.id}>
                                     <TD className="whitespace-nowrap">
                                         <time dateTime={session.scheduledAt} className="block font-medium">
-                                            {formatWeekdayDate(session.scheduledAt)}
+                                            {formatWeekdayDate(session.scheduledAt, locale)}
                                         </time>
-                                        <span className="text-xs text-fg-muted">{formatTime(session.scheduledAt)}</span>
+                                        <span className="text-xs text-fg-muted">{formatTime(session.scheduledAt, locale)}</span>
                                     </TD>
                                     <TD className="min-w-48">
                                         <Link
@@ -156,7 +161,7 @@ export function SessionTable({
                                         {!typeColumn && (
                                             <span className="mt-0.5 flex items-center gap-1.5 text-xs text-fg-muted">
                                                 <TrainingTypeIcon type={session.type} className="size-3.5 text-fg-subtle" />
-                                                {TRAINING_TYPE_LABELS[session.type]}
+                                                {copy(TRAINING_TYPE_LABELS[session.type])}
                                             </span>
                                         )}
                                     </TD>

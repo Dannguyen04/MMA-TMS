@@ -35,7 +35,9 @@ export type PlatformFeature =
     /** A user editing their own name and phone number (`PATCH /users/me`). */
     | "selfProfileEdit"
     /** A fighter recording their own weight and body metrics. */
-    | "bodyMetrics";
+    | "bodyMetrics"
+    /** Competition bouts, rulesets and fight camp tracking (`/bouts`). */
+    | "bouts";
 
 /** Features with no API yet. Remove one from this list once the backend offers it. */
 export const platformFeatureAvailable = demoOnlyFeatureGate<PlatformFeature>([
@@ -51,6 +53,7 @@ export const platformFeatureAvailable = demoOnlyFeatureGate<PlatformFeature>([
     "aiJobInsights",
     "selfProfileEdit",
     "bodyMetrics",
+    "bouts",
 ]);
 
 /**

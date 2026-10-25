@@ -108,6 +108,11 @@ export const medicalDataConstraintConflict = () =>
     'MEDICAL_DATA_CONSTRAINT_CONFLICT',
     'The operation conflicts with a medical record invariant',
   );
+export const medicalSupervisionDisabled = () =>
+  conflict(
+    'MEDICAL_SUPERVISION_DISABLED',
+    'Medical supervision is disabled; review requests and doctor workflows are not available',
+  );
 
 // --- 500 ---
 

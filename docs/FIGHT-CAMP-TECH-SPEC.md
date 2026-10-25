@@ -92,7 +92,7 @@ CREATE TABLE public.competition_rulesets (
   `priorCount` đếm các đình chỉ lý do KO/TKO trước đó của võ sĩ trong `withinDays` ngày, gồm cả đình chỉ tạo thủ công khi bị KO trong buổi tập. `loc` (mất ý thức) do HLV hoặc bác sĩ nhập khi ghi kết quả. Mảng rỗng nghĩa là ruleset không gợi ý, HLV tự nhập số ngày.
 - Migration seed ba preset, `source_note` trỏ tới [Nghiên cứu](./FIGHT-CAMP-DOMAIN-RESEARCH.md):
   - **"MMA – VMMAF 2021"**: hạng cân theo Điều 7 (cận trên 44, 48, 52, 56, 60, 65, 70, 77, 84, 93, 120 kg và trên 120 kg), cân trước ngày thi 1 ngày theo Điều 9. `verified = true` cho hai phần này; `requirement_templates` và `suspension_rules` rỗng vì luật giao cho điều lệ từng giải. Mặc định chặn `SPARRING` và `GRAPPLING` khi đình chỉ.
-  - **"Boxing nghiệp dư – AIBA (tham khảo)"**: quy tắc đình chỉ như trên, hạng cân AIBA 2002, `verified = false`, chặn mọi loại buổi tập trừ `RECOVERY` và `PHYSICAL_THERAPY`.
+  - **"Boxing nghiệp dư – AIBA (tham khảo)"**: quy tắc đình chỉ như trên, hạng cân AIBA 2002, `verified = false`, `requirement_templates` mẫu tham khảo cho demo (giấy khám sức khỏe 180 ngày, bảo hiểm thi đấu 365 ngày, đăng ký thi đấu 365 ngày; chưa xác minh với ban tổ chức nào), chặn mọi loại buổi tập trừ `RECOVERY` và `PHYSICAL_THERAPY`.
   - **"Tự nhập"**: mọi danh sách rỗng; HLV nhập hạng cân, checklist hồ sơ và số ngày đình chỉ trên từng trận.
 - Ngưỡng 5% dùng cho mọi khoảng dưới 12 giờ. Nguồn chỉ nêu 5% cho khoảng 6 giờ trở xuống; khoảng 6–12 giờ không có số liệu nên chọn mức thận trọng.
 
@@ -338,15 +338,18 @@ remainingPct = max(0, (W - limitKg) / W * 100)
 targetAtWindow = limitKg / (1 - L / 100)
 
 status =
-  không có số cân trong 3 ngày gần nhất            → GREY
-  d <= A && remainingPct > L                       → RED
-  d >  A && W > reference(latestOn) + tolKg        → YELLOW
-  ngược lại                                         → GREEN
+  trận ở WEIGHED_IN, COMPLETED hoặc CANCELLED       → NEUTRAL
+  không có số cân trong 3 ngày gần nhất            → NOT_WEIGHED
+  d <= A && remainingPct > L                       → OVER_LIMIT
+  d >  A && W > reference(latestOn) + tolKg        → ABOVE_TARGET
+  ngược lại                                         → ON_TRACK
 ```
 
-Ví dụ kiểm tra: giới hạn 60 kg, L = 8, còn 2 ngày, W = 66 → `remainingPct` = 9,1 > 8 → `RED`. W = 64,5 → 7,0 → `GREEN`.
+`status` nói về ý nghĩa, không phải màu; frontend tự ánh xạ sang màu (`ON_TRACK` xanh, `ABOVE_TARGET` vàng, `OVER_LIMIT` đỏ, `NOT_WEIGHED` xám, `NEUTRAL` không màu). Tên cũ `GREEN`, `YELLOW`, `RED`, `GREY` đã đổi ở T-029 (24/10). `NEUTRAL`: từ cân chính thức trở đi không đánh giá, vì võ sĩ bù nước nên cân tăng là bình thường; biểu đồ vẫn hiện mọi điểm cân.
 
-Thông báo đỏ chỉ gửi khi trạng thái **chuyển** sang `RED` (so với lần tính trước, lưu ở `bouts.history`), để không gửi lặp mỗi lần ghi cân.
+Ví dụ kiểm tra: giới hạn 60 kg, L = 8, còn 2 ngày, W = 66 → `remainingPct` = 9,1 > 8 → `OVER_LIMIT`. W = 64,5 → 7,0 → `ON_TRACK`. Cùng W = 66 ghi sau cân chính thức (trận `WEIGHED_IN`) → `NEUTRAL`.
+
+Thông báo đỏ chỉ gửi khi trạng thái **chuyển** sang `OVER_LIMIT` (so với lần tính trước, lưu ở `bouts.history`), để không gửi lặp mỗi lần ghi cân.
 
 ## 6. Cổng 2 trong training
 

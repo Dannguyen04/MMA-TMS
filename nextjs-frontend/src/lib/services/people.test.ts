@@ -27,6 +27,7 @@ import {
     getFighter,
     listCoaches,
     listFighters,
+    recordSelfWeight,
     updateOwnProfile,
 } from "./people";
 
@@ -415,5 +416,41 @@ describe("people API adapter", () => {
             await expect(getFighter("99999999-9999-4999-8999-999999999999")).resolves.toBeNull();
             expect(readCurrentAccount).not.toHaveBeenCalled();
         });
+    });
+});
+
+describe("recordSelfWeight", () => {
+    beforeEach(() => {
+        authenticatedMutableApiRequest.mockReset();
+    });
+
+    it("posts a self-reported weigh-in for the fighter's own profile in API mode", async () => {
+        vi.stubEnv("APP_DATA_MODE", "api");
+        authenticatedMutableApiRequest.mockResolvedValue({ measuredAt: "2026-10-19T00:30:00.000Z", weightKg: 66.5, heightCm: null, reachCm: null });
+
+        await expect(recordSelfWeight(fighterId, 66.5)).resolves.toEqual({ ok: true, weightKg: 66.5, measuredAt: "2026-10-19T00:30:00.000Z" });
+        expect(authenticatedMutableApiRequest).toHaveBeenCalledWith(`/fighters/${fighterId}/measurements`, expect.anything(), {
+            method: "POST",
+            body: JSON.stringify({ weightKg: 66.5, measurementContext: "SELF_REPORTED" }),
+        });
+    });
+
+    it("explains a 403 instead of throwing, for a backend without the fighter's write permission", async () => {
+        vi.stubEnv("APP_DATA_MODE", "api");
+        authenticatedMutableApiRequest.mockRejectedValue(new ApiError({ message: "Forbidden", kind: "http", status: 403 }));
+
+        const result = await recordSelfWeight(fighterId, 66.5);
+        expect(result.ok).toBe(false);
+    });
+
+    it("writes to the demo weigh-in store that the bout weight track reads", async () => {
+        vi.stubEnv("APP_DATA_MODE", "demo");
+        const { db } = await import("@/lib/mocks/db");
+        const before = db().boutMeasurements.length;
+
+        await expect(recordSelfWeight("f-minh-tran", 65.4)).resolves.toMatchObject({ ok: true, weightKg: 65.4 });
+        const added = db().boutMeasurements.slice(before);
+        expect(added).toEqual([expect.objectContaining({ fighterId: "f-minh-tran", weightKg: 65.4 })]);
+        expect(authenticatedMutableApiRequest).not.toHaveBeenCalled();
     });
 });

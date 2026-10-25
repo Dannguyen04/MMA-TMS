@@ -7,7 +7,7 @@ import { clampPastToday, dateKeyFromToday, daysAgo, daysFromNow } from "./time";
  * FIGHTER STORYLINES — every other mock module must stay consistent with these:
  *
  * f-minh-tran      Featherweight Muay Thai pro. Healthy, full clearance. Fight camp for
- *                  Lotus Fight Night 18 in 41 days. Jab/cross improving steadily; hook is the
+ *                  Saigon Warriors MMA 04 in 3 days. Jab/cross improving steadily; hook is the
  *                  weakness (drops right guard after the lead hook). Demo fighter account.
  * f-lucas-ferreira Lightweight BJJ pro. RECOVERY — left hamstring strain (moderate) 24 days ago
  *                  in sparring. Restricted clearance: no sparring, no kicks, max RPE 7. Training
@@ -104,9 +104,9 @@ export const mockFighters: SeedFighter[] = [
         healthStatus: "healthy",
         joinedAt: daysAgo(760),
         upcomingBout: {
-            date: daysFromNow(41, 20, 0),
-            event: "Lotus Fight Night 18",
-            opponent: "Arman Petrosyan",
+            date: daysFromNow(3, 19, 0),
+            event: "Saigon Warriors MMA 04",
+            opponent: "Nguyễn Văn Hùng",
             weightClass: "featherweight",
         },
     },

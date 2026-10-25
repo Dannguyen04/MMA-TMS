@@ -1,8 +1,10 @@
 import { LoadingRegion, PageHeaderSkeleton, Skeleton, TableCardSkeleton } from "@/components/ui/skeleton";
+import { getTranslator } from "@/lib/i18n/server";
 
-export default function NotificationsLoading() {
+export default async function NotificationsLoading() {
+    const { t } = await getTranslator();
     return (
-        <LoadingRegion label="Loading notifications">
+        <LoadingRegion label={t("notifications.loading")}>
             <PageHeaderSkeleton meta actions={2} />
             <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-3">
