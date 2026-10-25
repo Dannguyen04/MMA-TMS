@@ -106,10 +106,10 @@ export function BodyMap({ highlights, size = "md", showLegend = true, className,
     const summary =
         highlights.length === 0
             ? t("bodyMap.summaryEmpty")
-            : t("bodyMap.summaryCount", {
+            : t("bodyMap.summary", {
                   count: highlights.length,
                   areas: highlights.length === 1 ? t("bodyMap.area") : t("bodyMap.areas"),
-                  items: highlights
+                  details: highlights
                       .map((h, i) => `${i + 1}, ${bodyRegionLabel(h.region, locale)}: ${h.label}`)
                       .join("; "),
               });
@@ -191,7 +191,7 @@ export function BodyMap({ highlights, size = "md", showLegend = true, className,
                             </li>
                         ))}
                     </ol>
-                    {hasPosterior && <p className="mt-2 text-xs text-fg-subtle">{t("bodyMap.dashedPosteriorNotice")}</p>}
+                    {hasPosterior && <p className="mt-2 text-xs text-fg-subtle">{t("bodyMap.dashedRings")}</p>}
                 </div>
             )}
         </div>

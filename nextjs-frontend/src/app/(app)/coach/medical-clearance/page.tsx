@@ -48,7 +48,7 @@ export default async function CoachMedicalClearancePage() {
                 meta={
                     <p className="flex items-start gap-1.5 text-[13px] text-pretty text-fg-muted">
                         <Lock aria-hidden className="mt-0.5 size-3.5 shrink-0 text-fg-subtle" />
-                        {t("coachClearance.doctorLockNotice")}
+                        {t("coachClearance.lockNotice")}
                     </p>
                 }
             />
@@ -61,7 +61,7 @@ export default async function CoachMedicalClearancePage() {
                 />
             ) : (
                 <div className="flex flex-col gap-6">
-                    <section aria-label={t("coachClearance.summaryAria")} className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+                    <section aria-label={t("coachClearance.summarySection")} className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
                         <StatCard
                             label={t("coachClearance.statNotCleared")}
                             value={notCleared.length}
@@ -85,16 +85,16 @@ export default async function CoachMedicalClearancePage() {
                             href="#restricted"
                             hint={
                                 expiringRestricted > 0
-                                    ? t("coachClearance.hintExpiringSoon", { count: expiringRestricted })
+                                    ? t("coachClearance.hintMoreExpiring", { count: expiringRestricted })
                                     : t("coachClearance.hintTrainWithinLimits")
                             }
                         />
                         <StatCard
-                            label={t("coachClearance.statExpiringDays", { days: warningDays })}
+                            label={t("coachClearance.statExpiring", { days: warningDays })}
                             value={expiring.length}
                             icon={<CalendarClock />}
                             href="#expiring"
-                            hint={expiring.length > 0 ? t("coachClearance.hintSessionsBlocked") : t("coachClearance.hintNoLapsingSoon")}
+                            hint={expiring.length > 0 ? t("coachClearance.hintSessionsBlocked") : t("coachClearance.hintNoLapsing")}
                         />
                         <StatCard
                             label={t("coachClearance.statCleared")}
@@ -103,7 +103,7 @@ export default async function CoachMedicalClearancePage() {
                             href="#cleared"
                             hint={
                                 expiringFull > 0
-                                    ? t("coachClearance.hintExpiringSoon", { count: expiringFull })
+                                    ? t("coachClearance.hintMoreExpiring", { count: expiringFull })
                                     : t("coachClearance.hintFullTraining")
                             }
                         />

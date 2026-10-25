@@ -87,7 +87,7 @@ export default async function FighterInjuryPage({ params }: PageProps<"/fighter/
                               : [
                                     {
                                         label: t("fighterInjury.fieldExpectedReturn"),
-                                        value: injury.expectedReturnAt ? <time dateTime={injury.expectedReturnAt}>{formatDate(injury.expectedReturnAt, locale)}</time> : t("fighterInjury.toBeAssessed"),
+                                        value: injury.expectedReturnAt ? <time dateTime={injury.expectedReturnAt}>{formatDate(injury.expectedReturnAt, locale)}</time> : t("injuryCard.toBeAssessed"),
                                     },
                                 ]),
                         { label: t("fighterInjury.fieldRecordedBy"), value: recordedBy?.name ?? t("fighterInjury.doctorFallback") },

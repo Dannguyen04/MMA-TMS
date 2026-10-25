@@ -103,7 +103,7 @@ function ClearanceRow({
             </div>
 
             <div className="min-w-0 text-sm">
-                <p className="sr-only">{t("clearanceBoard.srWhatApplies")}</p>
+                <p className="sr-only">{t("clearanceBoard.srApplies")}</p>
                 {state === "restricted" && clearance ? (
                     <RestrictionList restrictions={clearance.restrictions} />
                 ) : (
@@ -124,7 +124,7 @@ function ClearanceRow({
                         {clearance ? (doctorNames.get(clearance.doctorId) ?? t("role.doctor")) : "—"}
                         {clearance && (
                             <span className="block font-normal text-fg-muted">
-                                {t("clearanceBoard.issuedOn", {
+                                {t("clearanceBoard.onDate", {
                                     date: formatDate(revoked && clearance.revokedAt ? clearance.revokedAt : clearance.issuedAt, locale),
                                 })}
                             </span>
@@ -132,7 +132,7 @@ function ClearanceRow({
                     </dd>
                 </div>
                 <div className="col-span-2 min-w-0 sm:col-span-1">
-                    <dt className="text-fg-muted">{t("clearanceBoard.nextDays", { days: SESSION_HORIZON_DAYS })}</dt>
+                    <dt className="text-fg-muted">{t("clearanceBoard.nextHorizonDays", { days: SESSION_HORIZON_DAYS })}</dt>
                     <dd className="mt-0.5">
                         {upcoming.length === 0 ? (
                             <span className="text-fg-muted">{t("clearanceBoard.noneScheduled")}</span>
@@ -148,8 +148,8 @@ function ClearanceRow({
                             <span className="flex flex-col gap-0.5">
                                 <span className={cn("flex items-start gap-1 font-medium", blocking > 0 ? "text-danger-fg" : "text-warning-fg")}>
                                     <TriangleAlert aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-                                    {t("clearanceBoard.affectedCount", {
-                                        count: affected.length,
+                                    {t("clearanceBoard.affectedSessions", {
+                                        affected: affected.length,
                                         total: upcoming.length,
                                         sessions: upcoming.length === 1 ? t("clearanceBoard.session") : t("clearanceBoard.sessions"),
                                     })}
@@ -160,7 +160,7 @@ function ClearanceRow({
                                 >
                                     <CalendarDays aria-hidden className="size-3.5" />
                                     {t("clearanceBoard.reviewSessions")}
-                                    <span className="sr-only">{t("clearanceBoard.reviewSessionsSr", { name: fighter.name })}</span>
+                                    <span className="sr-only">{t("clearanceBoard.reviewSessionsFor", { name: fighter.name })}</span>
                                 </Link>
                             </span>
                         )}
@@ -174,7 +174,7 @@ function ClearanceRow({
 function stateText({ clearance, clearanceState: state, revoked }: RosterEntry, locale: Locale = "en"): string {
     const t = createTranslator(locale);
     if (revoked && clearance?.revokedAt) {
-        return t("clearanceBoard.revokedOn", { date: formatDate(clearance.revokedAt, locale) });
+        return t("clearanceBoard.stateRevoked", { date: formatDate(clearance.revokedAt, locale) });
     }
     switch (state) {
         case "not_cleared":

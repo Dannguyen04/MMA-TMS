@@ -9,6 +9,12 @@ import { createTranslator } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 import { describeDaysUntil } from "./domain-format";
 
+export const RECOVERY_PHASE_STATUS_TEXT: Record<RecoveryPhaseStatus, string> = {
+    completed: "Completed",
+    current: "Current phase",
+    upcoming: "Upcoming",
+};
+
 export interface RecoveryProgressProps {
     plan: RecoveryPlan;
     /** Server time (ISO) used for days to the target return date. */

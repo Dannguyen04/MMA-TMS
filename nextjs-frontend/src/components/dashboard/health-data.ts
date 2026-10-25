@@ -135,7 +135,7 @@ export function medicalHistoryItems({ examinations, injuries, treatments, cleara
             icon: clearance.level === "full" ? ShieldCheck : clearance.level === "restricted" ? ShieldAlert : ShieldX,
             tone: clearance.level === "full" ? "success" : clearance.level === "restricted" ? "warning" : "danger",
             title: `${t("coachClearance.pageTitle")}: ${clearanceLevelLabel(clearance.level, locale)}`,
-            description: `${t("nav.clearance")} · ${formatDate(clearance.issuedAt, locale)} · ${doctor(clearance.doctorId)}${
+            description: `${t("nav.Clearance")} · ${formatDate(clearance.issuedAt, locale)} · ${doctor(clearance.doctorId)}${
                 clearance.restrictions.length > 0 ? (locale === "vi" ? ` · ${clearance.restrictions.length} hạn chế` : ` · ${clearance.restrictions.length} restrictions`) : ""
             }`,
             time: clearance.issuedAt,
@@ -146,7 +146,7 @@ export function medicalHistoryItems({ examinations, injuries, treatments, cleara
                 icon: ShieldBan,
                 tone: "danger",
                 title: locale === "vi" ? "Thu hồi cấp phép y tế" : "Medical Clearance revoked",
-                description: `${t("nav.clearance")} · ${formatDate(clearance.revokedAt, locale)}`,
+                description: `${t("nav.Clearance")} · ${formatDate(clearance.revokedAt, locale)}`,
                 time: clearance.revokedAt,
             });
         }
