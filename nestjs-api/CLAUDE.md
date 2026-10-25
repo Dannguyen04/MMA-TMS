@@ -1,6 +1,6 @@
 # Backend: hướng dẫn cho Claude
 
-Từ 2026-10-24, Claude **được viết code production, migration và test** ở backend, ngoài việc lập kế hoạch, viết ticket, review và chạy kiểm tra, và làm ngay trên nhánh đang checkout (không tách nhánh, không worktree): xem [CLAUDE.md gốc](../CLAUDE.md) và [quy trình team](../docs/TEAM-WORKFLOW.md). Quy ước backend mà ticket, code và review đối chiếu nằm ở [nestjs-api/AGENTS.md](AGENTS.md); khi Claude viết code thì áp dụng chính các quy ước đó.
+Từ 2026-10-13, Claude **không viết code production hay test** ở backend. Vai trò của Claude là lập kế hoạch, viết ticket, review và chạy kiểm tra: xem [CLAUDE.md gốc](../CLAUDE.md) và [quy trình team](../docs/TEAM-WORKFLOW.md). Quy ước backend mà ticket và review đối chiếu nằm ở [nestjs-api/AGENTS.md](AGENTS.md).
 
 ## Danh mục review backend
 
