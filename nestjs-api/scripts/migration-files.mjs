@@ -30,6 +30,7 @@ export const migrationNames = [
   '020_movement_evidence_reviews.sql',
   '023_academy_settings.sql',
   '024_bouts.sql',
+  '025_suspensions.sql',
   '027_opponent_analysis_and_rounds.sql',
 ];
 export function readVerifiedMigrations() {

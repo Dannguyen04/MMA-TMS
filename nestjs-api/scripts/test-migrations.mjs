@@ -903,6 +903,82 @@ try {
     assert.equal(psql(db, 'SELECT count(*) FROM public.bout_rounds;'), '0');
     rejects(db, readFileSync(join(api,'migrations',target),'utf8'), /027 already applied/);
   });
+  check('025 applies on ledger 24: enum, table, constraints, permissions, notifications, triggers and RLS', () => {
+    const db = 'mma_013';
+    const target = '025_suspensions.sql';
+    migration(db, target);
+    assert.equal(psql(db, 'SELECT count(*) FROM mma_private.migration_history WHERE version = 25;'), '1');
+    assert.equal(
+      psql(db, `SELECT string_agg(enumlabel, ',' ORDER BY enumsortorder) FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid WHERE t.typname = 'suspension_reason';`),
+      'KO,TKO,DQ,MANDATORY_REST,MEDICAL,OTHER',
+    );
+    assert.equal(
+      psql(db, `SELECT count(*) FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid WHERE t.typname = 'notification_type' AND enumlabel IN ('BOUT_CREATED','BOUT_WEIGHT_AT_RISK','BOUT_REQUIREMENT_REJECTED','BOUT_REQUIREMENT_DUE','BOUT_WEIGHT_MISSING','SUSPENSION_CREATED','SUSPENSION_AWAITING_CLEARANCE');`),
+      '7',
+    );
+    assert.equal(
+      psql(
+        db,
+        `SELECT string_agg(p.code || '=' || roles, ';' ORDER BY p.code) FROM public.permissions p JOIN LATERAL (SELECT string_agg(rp.role::text, ',' ORDER BY rp.role::text) AS roles FROM public.role_permissions rp WHERE rp.permission_id = p.id) r ON true WHERE p.code IN ('suspension:read','suspension:create','suspension:clear');`,
+      ),
+      [
+        'suspension:clear=COACH,DOCTOR',
+        'suspension:create=ADMIN,COACH,DOCTOR',
+        'suspension:read=ADMIN,COACH,DOCTOR,FIGHTER',
+      ].join(';'),
+    );
+    const suspId = '00000000-0000-4000-8000-0000000025a1';
+    const fighter = '00000000-0000-4000-8000-0000000024c1';
+    const bout = '00000000-0000-4000-8000-0000000024e1';
+    const user = '00000000-0000-4000-8000-0000000024b2';
+    psql(
+      db,
+      `INSERT INTO public.suspensions(id, fighter_id, bout_id, reason, starts_on, ends_on, loss_of_consciousness, suggested_days, blocked_session_types, requires_clearance, created_by_id)
+       VALUES ('${suspId}', '${fighter}', '${bout}', 'KO', '2026-11-11', '2026-12-10', 'UNDER_1_MIN', 30, '{SPARRING}', true, '${user}');`,
+    );
+    rejects(
+      db,
+      `INSERT INTO public.suspensions(fighter_id, reason, starts_on, ends_on, blocked_session_types, requires_clearance, created_by_id)
+       VALUES ('${fighter}', 'MEDICAL', '2026-12-10', '2026-11-11', '{SPARRING}', true, '${user}');`,
+      /ck_suspensions_dates/,
+    );
+    rejects(
+      db,
+      `INSERT INTO public.suspensions(fighter_id, reason, starts_on, ends_on, loss_of_consciousness, blocked_session_types, requires_clearance, created_by_id)
+       VALUES ('${fighter}', 'KO', '2026-11-11', '2026-12-10', 'SEVERE', '{SPARRING}', true, '${user}');`,
+      /ck_suspensions_loss_of_consciousness/,
+    );
+    rejects(
+      db,
+      `UPDATE public.suspensions SET cleared_at = now() WHERE id = '${suspId}';`,
+      /ck_suspensions_cleared/,
+    );
+    rejects(
+      db,
+      `UPDATE public.suspensions SET cleared_by_id = '${user}' WHERE id = '${suspId}';`,
+      /ck_suspensions_cleared/,
+    );
+    psql(
+      db,
+      `UPDATE public.suspensions SET cleared_at = now(), cleared_by_id = '${user}', clearance_note = 'Cleared by doctor' WHERE id = '${suspId}';`,
+    );
+    assert.equal(psql(db, `SELECT updated_at >= created_at FROM public.suspensions WHERE id = '${suspId}';`), 't');
+    assert.equal(psql(db, `SELECT count(*) FROM public.audit_logs WHERE resource_type = 'suspensions' AND action IN ('INSERT','UPDATE');`), '2');
+    assert.equal(psql(db, `SELECT relrowsecurity FROM pg_class WHERE oid = 'public.suspensions'::regclass;`), 't');
+    for (const role of ['anon', 'authenticated']) {
+      rejects(db, `SET ROLE ${role}; SELECT * FROM public.suspensions;`, /permission denied/);
+      assert.equal(psql(db, `SELECT has_table_privilege('${role}', 'public.suspensions', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER');`), 'f');
+    }
+    rejects(db, readFileSync(join(api, 'migrations', target), 'utf8'), /025 already applied/);
+  });
+  check('025 rejects missing ledger 24 and collisions atomically', () => {
+    const target = readFileSync(join(api, 'migrations', '025_suspensions.sql'), 'utf8');
+    rejects('mma_024_no_023', target, /025 requires migration 024/);
+    assert.equal(psql('mma_024_no_023', 'SELECT count(*) FROM mma_private.migration_history WHERE version = 25;'), '0');
+    psql('mma_013', 'DELETE FROM mma_private.migration_history WHERE version = 25;');
+    rejects('mma_013', target, /025 .*collision/);
+    assert.equal(psql('mma_013', 'SELECT count(*) FROM mma_private.migration_history WHERE version = 25;'), '0');
+  });
   check('027 rejects missing ledger 24 and collisions atomically', () => {
     const target = readFileSync(join(api,'migrations','027_opponent_analysis_and_rounds.sql'),'utf8');
     rejects('mma_024_no_023', target, /027 requires migration 024/);

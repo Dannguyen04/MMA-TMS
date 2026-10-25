@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { DatabaseModule } from '../database/database.module.js';
 import { MedicalModule } from '../medical/medical.module.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
+import { SuspensionsModule } from '../suspensions/suspensions.module.js';
 import { TrainingRepository } from './training.repo.js';
 import { TrainingAccessService } from './training-access.service.js';
 import { TrainingPlanController } from './plans/training-plan.controller.js';
@@ -12,7 +13,12 @@ import { ExerciseController } from './exercises/exercise.controller.js';
 import { ExerciseService } from './exercises/exercise.service.js';
 
 @Module({
-  imports: [DatabaseModule, MedicalModule, NotificationsModule],
+  imports: [
+    DatabaseModule,
+    MedicalModule,
+    NotificationsModule,
+    SuspensionsModule,
+  ],
   controllers: [
     TrainingPlanController,
     TrainingSessionController,
