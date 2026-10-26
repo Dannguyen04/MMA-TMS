@@ -1,8 +1,8 @@
 "use client";
 
-import { TriangleAlert } from "lucide-react";
+import { Scale, TriangleAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 
 import { useT } from "@/components/i18n/locale-provider";
 import { ButtonLink } from "@/components/ui/button";
@@ -10,8 +10,11 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Field, FormMessage, FormSection, Input, Select, Textarea } from "@/components/ui/form";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useActionForm } from "@/components/ui/use-action-form";
+import { previewFeasibilityAction } from "@/lib/actions/bouts";
 import type { ActionState } from "@/lib/actions/state";
-import type { CompetitionRuleset } from "@/lib/domain/types";
+import type { CompetitionRuleset, WeightFeasibility } from "@/lib/domain/types";
+import { Callout } from "@/components/training/callout";
+import { formatNumber } from "@/lib/format";
 import { routes } from "@/lib/routes";
 
 export interface BoutFormFighter {
@@ -51,6 +54,33 @@ export function BoutForm({
 
     const selectedRuleset = rulesets.find((r) => r.id === rulesetId);
     const hasWeightClasses = Boolean(selectedRuleset && selectedRuleset.weightClasses.length > 0);
+
+    // R31: the weight check re-reads when the fighter, class or schedule changes. A warning, never a block.
+    const limitKg = Number(weightLimitKg.replace(",", "."));
+    const previewKey =
+        fighterId && rulesetId && weighInAt && boutAt && Number.isFinite(limitKg)
+            ? JSON.stringify({ fighterId, rulesetId, weightClassCode, weightLimitKg: limitKg, weighInAt, boutAt })
+            : null;
+    const [preview, setPreview] = useState<{ key: string; value: WeightFeasibility | null } | null>(null);
+    useEffect(() => {
+        if (!previewKey) return;
+        let stale = false;
+        const timer = setTimeout(() => {
+            previewFeasibilityAction(JSON.parse(previewKey)).then(
+                (value) => {
+                    if (!stale) setPreview({ key: previewKey, value });
+                },
+                () => {
+                    if (!stale) setPreview({ key: previewKey, value: null });
+                },
+            );
+        }, 400);
+        return () => {
+            stale = true;
+            clearTimeout(timer);
+        };
+    }, [previewKey]);
+    const feasibility = previewKey && preview?.key === previewKey ? preview.value : null;
 
     const form = useActionForm(action, {
         id: formId,
@@ -286,6 +316,8 @@ export function BoutForm({
                             </Field>
                         </div>
 
+                        {feasibility && <FeasibilityNote feasibility={feasibility} t={t} />}
+
                         <Field
                             label={t("coachBouts.form.notes")}
                             htmlFor={`${formId}-notes`}
@@ -309,5 +341,28 @@ export function BoutForm({
                 </CardFooter>
             </Card>
         </form>
+    );
+}
+
+const FEASIBILITY_TEXT = {
+    OVER_LIMIT: "feasibility.OVER_LIMIT",
+    ON_TRACK: "feasibility.ON_TRACK",
+    NEUTRAL: "feasibility.NEUTRAL",
+    NOT_WEIGHED: "feasibility.NOT_WEIGHED",
+    ABOVE_TARGET: "feasibility.ON_TRACK",
+} as const;
+
+function FeasibilityNote({ feasibility, t }: { feasibility: WeightFeasibility; t: ReturnType<typeof useT> }) {
+    const tone = feasibility.status === "OVER_LIMIT" ? "danger" : feasibility.status === "ON_TRACK" ? "success" : "neutral";
+    return (
+        <Callout tone={tone} icon={feasibility.status === "OVER_LIMIT" ? TriangleAlert : Scale} title={t("feasibility.title")} role="status">
+            {t(FEASIBILITY_TEXT[feasibility.status], {
+                kg: feasibility.latestKg != null ? formatNumber(feasibility.latestKg, 1) : "",
+                remaining: feasibility.remainingPct != null ? formatNumber(feasibility.remainingPct, 1) : "",
+                limit: formatNumber(feasibility.acuteLossLimitPct, 1),
+                limitKg: formatNumber(feasibility.limitKg, 1),
+                window: 7,
+            })}
+        </Callout>
     );
 }

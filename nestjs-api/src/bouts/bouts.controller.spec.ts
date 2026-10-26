@@ -50,6 +50,12 @@ describe('BoutsController routes', () => {
       'bouts/:id/corner-card',
       BOUT_PERMISSIONS.READ,
     ],
+    [
+      'getFeasibility',
+      RequestMethod.GET,
+      'bouts/feasibility',
+      BOUT_PERMISSIONS.CREATE,
+    ],
     ['getReport', RequestMethod.GET, 'bouts/:id/report', BOUT_PERMISSIONS.READ],
     [
       'getResultPrefill',
@@ -132,6 +138,13 @@ describe('BoutsController routes', () => {
       });
     },
   );
+
+  it('registers feasibility before the dynamic ID route', () => {
+    const handlers = Object.getOwnPropertyNames(proto);
+    expect(handlers.indexOf('getFeasibility')).toBeLessThan(
+      handlers.indexOf('getBout'),
+    );
+  });
 
   it('registers prior-context before the dynamic ID route', () => {
     const handlers = Object.getOwnPropertyNames(proto);

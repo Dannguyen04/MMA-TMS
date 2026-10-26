@@ -13,7 +13,7 @@ export async function BoutWeightCard({ bout }: { bout: Bout }) {
     // The chart is extra: when the weight track can't be read, the figures above it still show.
     const [track, { t, locale }] = await Promise.all([nullIfServiceFails(getWeightTrack(bout.id)), getTranslator()]);
     const weight = bout.weight;
-    const status = weight?.status ?? "GREY";
+    const status = weight?.status ?? "NOT_WEIGHED";
 
     return (
         <Card className="min-w-0">

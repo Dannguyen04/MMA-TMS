@@ -1,10 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 
 import { canAccessFighter } from "@/lib/auth/access";
 import { authorizeAction } from "@/lib/auth/session";
-import type { User } from "@/lib/domain/types";
+import type { User, WeightFeasibility } from "@/lib/domain/types";
 import { getDemoCopy, getTranslator } from "@/lib/i18n/server";
 import type { Translator } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
@@ -14,6 +15,7 @@ import {
     createBout as createBoutService,
     enterFightWeek as enterFightWeekService,
     getBout,
+    getFeasibility as getFeasibilityService,
     linkCamp as linkCampService,
     removeRequirement as removeRequirementService,
     updateBout as updateBoutService,
@@ -74,6 +76,44 @@ export async function createBoutAction(_prev: ActionState<{ id: string }>, formD
         return actionSuccess(t("coachBouts.action.boutCreated"), { id: bout.id });
     } catch (error: unknown) {
         return actionError(error instanceof Error ? error.message : t("coachBouts.action.failedToCreateBout"));
+    }
+}
+
+/* ─── Weight feasibility preview (R31) ────────────────────────────────────── */
+
+const feasibilityInputSchema = z.object({
+    fighterId: z.string().min(1),
+    rulesetId: z.string().min(1),
+    weightClassCode: z.string().min(1),
+    weightLimitKg: z.number().finite().min(30).max(200),
+    weighInAt: z.string().min(1),
+    boutAt: z.string().min(1),
+});
+
+/**
+ * Read-only: how far the fighter's latest weight is from the class, for the create form to show
+ * before saving. Returns null when the preview is not available (half-filled form, a fighter
+ * outside the roster, an invalid schedule): the form then simply shows nothing.
+ */
+export async function previewFeasibilityAction(input: z.input<typeof feasibilityInputSchema>): Promise<WeightFeasibility | null> {
+    const { t } = await getTranslator();
+    const auth = await authorizeCoach(t);
+    if (!auth.ok) return null;
+    const parsed = feasibilityInputSchema.safeParse(input);
+    if (!parsed.success || !canAccessFighter(auth.user, parsed.data.fighterId)) return null;
+
+    const weighInMs = new Date(parsed.data.weighInAt).getTime();
+    const boutMs = new Date(parsed.data.boutAt).getTime();
+    if (Number.isNaN(weighInMs) || Number.isNaN(boutMs) || weighInMs >= boutMs) return null;
+
+    try {
+        return await getFeasibilityService({
+            ...parsed.data,
+            weighInAt: new Date(weighInMs).toISOString(),
+            boutAt: new Date(boutMs).toISOString(),
+        });
+    } catch {
+        return null;
     }
 }
 

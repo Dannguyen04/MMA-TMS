@@ -49,14 +49,14 @@ function Figure({ label, value, caption }: { label: string; value: string; capti
 
 const NOTES: Record<"coach" | "fighter", Partial<Record<WeightWarningStatus, { title: MessageKey; text?: MessageKey }>>> = {
     coach: {
-        RED: { title: "weightNote.coach.RED.title", text: "weightNote.coach.RED.text" },
-        YELLOW: { title: "weightNote.coach.YELLOW.title", text: "weightNote.coach.YELLOW.text" },
-        GREY: { title: "weightNote.coach.GREY.title", text: "weightNote.coach.GREY.text" },
+        OVER_LIMIT: { title: "weightNote.coach.OVER_LIMIT.title", text: "weightNote.coach.OVER_LIMIT.text" },
+        ABOVE_TARGET: { title: "weightNote.coach.ABOVE_TARGET.title", text: "weightNote.coach.ABOVE_TARGET.text" },
+        NOT_WEIGHED: { title: "weightNote.coach.NOT_WEIGHED.title", text: "weightNote.coach.NOT_WEIGHED.text" },
     },
     fighter: {
-        RED: { title: "weightNote.fighter.RED.title", text: "weightNote.fighter.RED.text" },
-        YELLOW: { title: "weightNote.fighter.YELLOW.title" },
-        GREY: { title: "weightNote.fighter.GREY.title", text: "weightNote.fighter.GREY.text" },
+        OVER_LIMIT: { title: "weightNote.fighter.OVER_LIMIT.title", text: "weightNote.fighter.OVER_LIMIT.text" },
+        ABOVE_TARGET: { title: "weightNote.fighter.ABOVE_TARGET.title" },
+        NOT_WEIGHED: { title: "weightNote.fighter.NOT_WEIGHED.title", text: "weightNote.fighter.NOT_WEIGHED.text" },
     },
 };
 
@@ -64,9 +64,9 @@ const NOTES: Record<"coach" | "fighter", Partial<Record<WeightWarningStatus, { t
 export function WeightStatusNote({ status, audience, t }: { status: WeightWarningStatus; audience: "coach" | "fighter"; t: Translator }) {
     const note = NOTES[audience][status];
     if (!note) return null;
-    const tone = status === "RED" ? "danger" : status === "YELLOW" ? "warning" : "neutral";
+    const tone = status === "OVER_LIMIT" ? "danger" : status === "ABOVE_TARGET" ? "warning" : "neutral";
     return (
-        <Callout tone={tone} icon={status === "GREY" ? Clock : TriangleAlert} title={t(note.title)}>
+        <Callout tone={tone} icon={status === "NOT_WEIGHED" ? Clock : TriangleAlert} title={t(note.title)}>
             {note.text && t(note.text)}
         </Callout>
     );

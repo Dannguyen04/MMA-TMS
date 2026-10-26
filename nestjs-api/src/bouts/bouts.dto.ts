@@ -1,4 +1,5 @@
 import { createZodDto } from 'nestjs-zod';
+import { coachTodoResponseSchema } from './bouts-todo.model.js';
 import {
   boutDetailResponseSchema,
   acuteLossResponseSchema,
@@ -7,8 +8,11 @@ import {
   boutListResponseSchema,
   boutSummarySchema,
   cancelBoutSchema,
+  createBoutResponseSchema,
   createBoutSchema,
   createRequirementSchema,
+  feasibilityQuerySchema,
+  feasibilityResponseSchema,
   listBoutsQuerySchema,
   requirementMutationResponseSchema,
   requirementParamsSchema,
@@ -30,7 +34,11 @@ export class RequirementParamsDto extends createZodDto(
   requirementParamsSchema,
 ) {}
 export class ListBoutsQueryDto extends createZodDto(listBoutsQuerySchema) {}
+export class CoachTodoResponseDto extends createZodDto(coachTodoResponseSchema) {}
 export class CreateBoutDto extends createZodDto(createBoutSchema) {}
+export class CreateBoutResponseDto extends createZodDto(createBoutResponseSchema) {}
+export class FeasibilityQueryDto extends createZodDto(feasibilityQuerySchema) {}
+export class FeasibilityResponseDto extends createZodDto(feasibilityResponseSchema) {}
 export class UpdateBoutDto extends createZodDto(updateBoutSchema) {}
 export class StartCampDto extends createZodDto(startCampSchema) {}
 export class CancelBoutDto extends createZodDto(cancelBoutSchema) {}

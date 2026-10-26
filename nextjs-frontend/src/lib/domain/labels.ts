@@ -685,10 +685,11 @@ export const BOUT_REQUIREMENT_STATUS_LABELS: Record<BoutRequirementStatus, strin
 };
 
 export const WEIGHT_WARNING_LABELS: Record<WeightWarningStatus, string> = {
-    GREEN: "On track",
-    YELLOW: "Above tolerance",
-    RED: "Exceeds cut limit",
-    GREY: "No recent weigh-in",
+    ON_TRACK: "On track",
+    ABOVE_TARGET: "Above tolerance",
+    OVER_LIMIT: "Exceeds cut limit",
+    NOT_WEIGHED: "No recent weigh-in",
+    NEUTRAL: "Not judged",
 };
 
 /* ─── Training enum label helpers (T-015) ─────────────────────────────────── */

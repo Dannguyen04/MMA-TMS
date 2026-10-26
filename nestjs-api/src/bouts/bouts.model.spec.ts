@@ -11,6 +11,8 @@ import {
   canEnterFightWeek,
   canTransition,
   computeAcuteLoss,
+  computeWeighInReminder,
+  computeWeightFeasibility,
   computeWeightTrack,
   createBoutSchema,
   daysBetweenDates,
@@ -38,41 +40,41 @@ describe('weight track (criterion 1)', () => {
     campStart: '2026-10-10',
   };
 
-  it('is RED when 2 days remain and W = 66 kg (remaining 9.1% > 8%)', () => {
+  it('is OVER_LIMIT when 2 days remain and W = 66 kg (remaining 9.1% > 8%)', () => {
     const track = computeWeightTrack({
       ...base,
       points: [{ date: '2026-10-20', kg: 66 }],
     });
-    expect(track.status).toBe('RED');
+    expect(track.status).toBe('OVER_LIMIT');
     expect(track.remainingPct).toBe(9.1);
     expect(track.latestKg).toBe(66);
     expect(track.latestOn).toBe('2026-10-20');
     expect(track.limitKg).toBe(60);
   });
 
-  it('is GREEN when 2 days remain and W = 64.5 kg (remaining 7.0%)', () => {
+  it('is ON_TRACK when 2 days remain and W = 64.5 kg (remaining 7.0%)', () => {
     const track = computeWeightTrack({
       ...base,
       points: [{ date: '2026-10-20', kg: 64.5 }],
     });
-    expect(track.status).toBe('GREEN');
+    expect(track.status).toBe('ON_TRACK');
     expect(track.remainingPct).toBe(7);
   });
 
-  it('is GREY when there is no weight in the last 3 days', () => {
+  it('is NOT_WEIGHED when there is no weight in the last 3 days', () => {
     const track = computeWeightTrack({
       ...base,
       points: [{ date: '2026-10-17', kg: 66 }],
     });
-    expect(track.status).toBe('GREY');
+    expect(track.status).toBe('NOT_WEIGHED');
     // The 3-day window covers today, yesterday and the day before.
     expect(
       computeWeightTrack({ ...base, points: [{ date: '2026-10-18', kg: 64 }] })
         .status,
-    ).toBe('GREEN');
+    ).toBe('ON_TRACK');
   });
 
-  it('is GREY with null numbers when no weight exists at all', () => {
+  it('is NOT_WEIGHED with null numbers when no weight exists at all', () => {
     const track = computeWeightTrack({ ...base, points: [] });
     expect(track).toEqual({
       limitKg: 60,
@@ -80,12 +82,12 @@ describe('weight track (criterion 1)', () => {
       latestKg: null,
       latestOn: null,
       remainingPct: null,
-      status: 'GREY',
+      status: 'NOT_WEIGHED',
       referencePath: [],
     });
   });
 
-  it('is YELLOW with 20 days left when W is 1.5 kg above the reference path', () => {
+  it('is ABOVE_TARGET with 20 days left when W is 1.5 kg above the reference path', () => {
     const far = {
       ...base,
       weighInDate: '2026-11-09',
@@ -108,7 +110,7 @@ describe('weight track (criterion 1)', () => {
         { date: '2026-10-20', kg: (reference as number) + 1.5 },
       ],
     });
-    expect(above.status).toBe('YELLOW');
+    expect(above.status).toBe('ABOVE_TARGET');
     const within = computeWeightTrack({
       ...far,
       points: [
@@ -116,7 +118,40 @@ describe('weight track (criterion 1)', () => {
         { date: '2026-10-20', kg: (reference as number) + 0.5 },
       ],
     });
-    expect(within.status).toBe('GREEN');
+    expect(within.status).toBe('ON_TRACK');
+  });
+
+  it('is NEUTRAL from WEIGHED_IN on: a heavier weight after the weigh-in (rehydration) is not judged', () => {
+    const afterWeighIn = {
+      ...base,
+      today: '2026-10-23',
+      points: [
+        { date: '2026-10-22', kg: 59.8 },
+        { date: '2026-10-23', kg: 66 },
+      ],
+    };
+    for (const boutStatus of ['WEIGHED_IN', 'COMPLETED', 'CANCELLED'] as const) {
+      const track = computeWeightTrack({ ...afterWeighIn, boutStatus });
+      expect(track.status).toBe('NEUTRAL');
+      // The chart keeps every point; only the colour is dropped.
+      expect(track.points).toHaveLength(2);
+      expect(track.latestKg).toBe(66);
+      expect(track.remainingPct).toBe(9.1);
+    }
+    expect(
+      computeWeightTrack({ ...afterWeighIn, boutStatus: 'FIGHT_WEEK' }).status,
+    ).toBe('OVER_LIMIT');
+    expect(computeWeightTrack({ ...afterWeighIn }).status).toBe('OVER_LIMIT');
+  });
+
+  it('is NEUTRAL (not NOT_WEIGHED) from WEIGHED_IN on even with no weight at all', () => {
+    const track = computeWeightTrack({
+      ...base,
+      boutStatus: 'COMPLETED',
+      points: [],
+    });
+    expect(track.status).toBe('NEUTRAL');
+    expect(track.points).toEqual([]);
   });
 
   it('builds the reference path: W0 at camp start, L% above the limit at weigh-in minus A, limit at weigh-in', () => {
@@ -171,7 +206,7 @@ describe('weight track (criterion 1)', () => {
       points: [{ date: '2026-10-20', kg: 66 }],
     });
     expect(track.remainingPct).toBe(4.5);
-    expect(track.status).toBe('GREEN');
+    expect(track.status).toBe('ON_TRACK');
   });
 });
 
@@ -682,5 +717,131 @@ describe('computeAcuteLoss (criterion 3)', () => {
     });
     expect(result.startKg).toBe(66);
     expect(result.startOn).toBe('2026-10-14');
+  });
+});
+
+describe('weight feasibility (R31, T-029)', () => {
+  const base = {
+    limitKg: 60,
+    acuteLossLimitPct: 8,
+    acuteWindowDays: 7,
+    today: '2026-10-20',
+  };
+
+  it('is OVER_LIMIT inside the acute window when remainingPct > L (60 kg, 2 days, 66 kg)', () => {
+    const result = computeWeightFeasibility({
+      ...base,
+      weighInDate: '2026-10-22',
+      latest: { date: '2026-10-19', kg: 66 },
+    });
+    expect(result.status).toBe('OVER_LIMIT');
+    expect(result.remainingPct).toBe(9.1);
+    expect(result.daysToWeighIn).toBe(2);
+  });
+
+  it('is ON_TRACK inside the acute window at 64.5 kg (remaining 7.0%)', () => {
+    const result = computeWeightFeasibility({
+      ...base,
+      weighInDate: '2026-10-22',
+      latest: { date: '2026-10-20', kg: 64.5 },
+    });
+    expect(result.status).toBe('ON_TRACK');
+    expect(result.remainingPct).toBe(7);
+  });
+
+  it('colours only when D <= A: D = A is judged, D = A + 1 is NEUTRAL with the figures', () => {
+    const at = computeWeightFeasibility({
+      ...base,
+      weighInDate: '2026-10-27',
+      latest: { date: '2026-10-20', kg: 66 },
+    });
+    expect(at.daysToWeighIn).toBe(7);
+    expect(at.status).toBe('OVER_LIMIT');
+    const beyond = computeWeightFeasibility({
+      ...base,
+      weighInDate: '2026-10-28',
+      latest: { date: '2026-10-20', kg: 66 },
+    });
+    expect(beyond.daysToWeighIn).toBe(8);
+    expect(beyond.status).toBe('NEUTRAL');
+    expect(beyond.remainingPct).toBe(9.1);
+    expect(beyond.latestKg).toBe(66);
+  });
+
+  it('is 0% and ON_TRACK when the fighter is already under the limit', () => {
+    const result = computeWeightFeasibility({
+      ...base,
+      weighInDate: '2026-10-22',
+      latest: { date: '2026-10-20', kg: 58 },
+    });
+    expect(result.remainingPct).toBe(0);
+    expect(result.status).toBe('ON_TRACK');
+  });
+
+  it('is NOT_WEIGHED (no data) without a weight in the last 7 days; 7 days old still counts, 8 does not', () => {
+    const args = { ...base, weighInDate: '2026-10-22' };
+    expect(computeWeightFeasibility({ ...args, latest: null }).status).toBe('NOT_WEIGHED');
+    expect(
+      computeWeightFeasibility({ ...args, latest: { date: '2026-10-13', kg: 66 } }).status,
+    ).toBe('OVER_LIMIT');
+    const stale = computeWeightFeasibility({ ...args, latest: { date: '2026-10-12', kg: 66 } });
+    expect(stale.status).toBe('NOT_WEIGHED');
+    expect(stale.remainingPct).toBeNull();
+  });
+});
+
+describe('weigh-in reminder (T0, T-029)', () => {
+  const today = '2026-10-20';
+
+  it('asks for today when yesterday has a weight but today does not', () => {
+    expect(
+      computeWeighInReminder({ status: 'FIGHT_WEEK', today, latestOn: '2026-10-19' }),
+    ).toEqual({
+      active: true,
+      level: 'ASK_TODAY',
+      daysSinceLastWeight: 1,
+      messageCode: 'WEIGHT_REMINDER_ASK_TODAY',
+    });
+  });
+
+  it('escalates to YESTERDAY_MISSING from 2 days without a weight', () => {
+    const reminder = computeWeighInReminder({ status: 'FIGHT_WEEK', today, latestOn: '2026-10-18' });
+    expect(reminder.level).toBe('YESTERDAY_MISSING');
+    expect(reminder.messageCode).toBe('WEIGHT_REMINDER_YESTERDAY_MISSING');
+    expect(
+      computeWeighInReminder({ status: 'FIGHT_WEEK', today, latestOn: '2026-10-10' }).level,
+    ).toBe('YESTERDAY_MISSING');
+  });
+
+  it('does not remind once today has a weight', () => {
+    expect(
+      computeWeighInReminder({ status: 'FIGHT_WEEK', today, latestOn: today }),
+    ).toMatchObject({ active: false, level: null, messageCode: null });
+  });
+
+  it('asks for today when there is no weight at all', () => {
+    expect(
+      computeWeighInReminder({ status: 'FIGHT_WEEK', today, latestOn: null }),
+    ).toMatchObject({ active: true, level: 'ASK_TODAY', daysSinceLastWeight: null });
+  });
+
+  it('reminds only in FIGHT_WEEK, not even on the bout day', () => {
+    for (const status of ['SCHEDULED', 'CAMP', 'WEIGHED_IN', 'COMPLETED', 'CANCELLED'] as const) {
+      expect(computeWeighInReminder({ status, today, latestOn: '2026-10-15' }).active).toBe(false);
+    }
+  });
+
+  it('reads the day on the Asia/Ho_Chi_Minh calendar around midnight', () => {
+    // 2026-10-19T17:30Z is already 2026-10-20 in Vietnam.
+    const justAfterMidnight = academyDateOf(new Date('2026-10-19T17:30:00Z'));
+    expect(justAfterMidnight).toBe('2026-10-20');
+    expect(
+      computeWeighInReminder({ status: 'FIGHT_WEEK', today: justAfterMidnight, latestOn: '2026-10-19' }).level,
+    ).toBe('ASK_TODAY');
+    const justBefore = academyDateOf(new Date('2026-10-19T16:30:00Z'));
+    expect(justBefore).toBe('2026-10-19');
+    expect(
+      computeWeighInReminder({ status: 'FIGHT_WEEK', today: justBefore, latestOn: '2026-10-19' }).active,
+    ).toBe(false);
   });
 });

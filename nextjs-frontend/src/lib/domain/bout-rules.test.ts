@@ -136,7 +136,7 @@ describe("bout-rules", () => {
         const today = new Date("2026-10-15T09:00:00+07:00");
         const todayKey = dayKey(today); // 2026-10-15
 
-        it("returns RED when 2 days remain and remaining cut % exceeds L (W = 66, limit = 60, L = 8)", () => {
+        it("returns OVER_LIMIT when 2 days remain and remaining cut % exceeds L (W = 66, limit = 60, L = 8)", () => {
             const weighInDate = addDaysToKey(todayKey, 2); // 2 days left (d = 2 <= A = 7)
             const campStart = addDaysToKey(todayKey, -30);
 
@@ -153,12 +153,12 @@ describe("bout-rules", () => {
                 now: today,
             });
 
-            expect(result.status).toBe("RED");
+            expect(result.status).toBe("OVER_LIMIT");
             expect(result.remainingPct).toBe(9.1); // (66-60)/66 * 100 = 9.09%
             expect(result.latestKg).toBe(66);
         });
 
-        it("returns GREEN when 2 days remain and remaining cut % is within L (W = 64.5, limit = 60, L = 8)", () => {
+        it("returns ON_TRACK when 2 days remain and remaining cut % is within L (W = 64.5, limit = 60, L = 8)", () => {
             const weighInDate = addDaysToKey(todayKey, 2);
             const campStart = addDaysToKey(todayKey, -30);
 
@@ -175,12 +175,12 @@ describe("bout-rules", () => {
                 now: today,
             });
 
-            expect(result.status).toBe("GREEN");
+            expect(result.status).toBe("ON_TRACK");
             expect(result.remainingPct).toBe(7.0); // (64.5-60)/64.5 * 100 = 6.976%
             expect(result.latestKg).toBe(64.5);
         });
 
-        it("returns GREY when there are no weigh-ins in the last 3 days", () => {
+        it("returns NOT_WEIGHED when there are no weigh-ins in the last 3 days", () => {
             const weighInDate = addDaysToKey(todayKey, 2);
             const campStart = addDaysToKey(todayKey, -30);
             const threeDaysAgo = addDaysToKey(todayKey, -3);
@@ -198,10 +198,31 @@ describe("bout-rules", () => {
                 now: today,
             });
 
-            expect(result.status).toBe("GREY");
+            expect(result.status).toBe("NOT_WEIGHED");
         });
 
-        it("returns YELLOW when 20 days remain and W is > reference + 1.0 kg tolerance", () => {
+        it("returns NEUTRAL from WEIGHED_IN on, even when the rehydrated weight is far above the limit", () => {
+            const campStart = addDaysToKey(todayKey, -30);
+            const params = {
+                limitKg: 60,
+                acuteLossLimitPct: 8,
+                acuteWindowDays: 7,
+                weighInAt: `${addDaysToKey(todayKey, -1)}T10:00:00+07:00`,
+                campStartDate: `${campStart}T10:00:00+07:00`,
+                measurements: [{ date: `${todayKey}T07:00:00+07:00`, kg: 66 }],
+                now: today,
+            };
+
+            for (const boutStatus of ["WEIGHED_IN", "COMPLETED", "CANCELLED"] as const) {
+                const result = calculateWeightWarning({ ...params, boutStatus });
+                expect(result.status).toBe("NEUTRAL");
+                expect(result.latestKg).toBe(66);
+            }
+            expect(calculateWeightWarning({ ...params, boutStatus: "FIGHT_WEEK" }).status).toBe("OVER_LIMIT");
+            expect(calculateWeightWarning({ ...params, boutStatus: "COMPLETED", measurements: [] }).status).toBe("NEUTRAL");
+        });
+
+        it("returns ABOVE_TARGET when 20 days remain and W is > reference + 1.0 kg tolerance", () => {
             const weighInDate = addDaysToKey(todayKey, 20); // 20 days left (d = 20 > A = 7)
             const campStart = addDaysToKey(todayKey, -20); // 40-day camp total
             // Camp start: W0 = 70 kg at day -20.
@@ -225,7 +246,7 @@ describe("bout-rules", () => {
                 now: today,
             });
 
-            expect(resultYellow.status).toBe("YELLOW");
+            expect(resultYellow.status).toBe("ABOVE_TARGET");
 
             // If W = ref + 0.5 kg (<= ref + 1.0 kg tolerance):
             const resultGreen = calculateWeightWarning({
@@ -242,7 +263,7 @@ describe("bout-rules", () => {
                 now: today,
             });
 
-            expect(resultGreen.status).toBe("GREEN");
+            expect(resultGreen.status).toBe("ON_TRACK");
         });
     });
 

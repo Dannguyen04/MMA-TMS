@@ -45,17 +45,22 @@ import {
   addDaysToDate,
   buildDailyWeightPoints,
   canEnterFightWeek,
+  campStartOf,
   canTransition,
   computeAcuteLoss,
-  computeWeightTrack,
+  computeBoutWeightTrack,
+  computeWeighInReminder,
+  computeWeightFeasibility,
   daysToWeighIn,
   encodeBoutCursor,
   evaluateGate1,
+  FEASIBILITY_WEIGHT_MAX_AGE_DAYS,
   fightWeekStartsOn,
   isFinalStatus,
   requirementsDueOn,
   resolveWeightClass,
   SCHEDULE_EDITABLE_STATUSES,
+  weightFeasibilityWarnings,
   type AcuteLossResult,
   type BoutDetailResponse,
   type BoutListResponse,
@@ -64,7 +69,10 @@ import {
   type CancelBoutInput,
   type CatchweightInput,
   type CreateBoutInput,
+  type CreateBoutResponse,
   type CreateRequirementInput,
+  type FeasibilityQuery,
+  type FeasibilityResponse,
   type Gate1Result,
   type ListBoutsQuery,
   type RecordResultInput,
@@ -76,6 +84,7 @@ import {
   type WeighInBlock,
   type WeighInInput,
   type WeighInResponse,
+  type WeightFeasibility,
   type WeightTrack,
 } from './bouts.model.js';
 import {
@@ -514,7 +523,7 @@ export class BoutsService {
     actor: AuthenticatedUser,
     input: CreateBoutInput,
     requestId: string,
-  ): Promise<BoutDetailResponse> {
+  ): Promise<CreateBoutResponse> {
     await this.assertWriteAccess(actor, input.fighterId);
 
     const weighInAt = new Date(input.weighInAt);
@@ -579,10 +588,95 @@ export class BoutsService {
         );
         return created;
       });
-      return await this.buildDetail(bout, ruleset);
+      const detail = await this.buildDetail(bout, ruleset);
+      // R31: a warning only, never blocks saving the bout.
+      const feasibility = await this.loadFeasibility(
+        input.fighterId,
+        {
+          limitKg: weightClass.limitKg,
+          acuteLossLimitPct,
+          acuteWindowDays: ruleset.acuteWindowDays,
+          weighInAt,
+        },
+        now,
+      );
+      return { ...detail, warnings: weightFeasibilityWarnings(feasibility) };
     } catch (error) {
       throw mapBoutPersistenceError(error);
     }
+  }
+
+  /**
+   * Read-only preview of the weight feasibility (R31) for the create form, with the
+   * same access, ruleset and weight class rules as `createBout` but nothing saved.
+   */
+  async getFeasibility(
+    actor: AuthenticatedUser,
+    query: FeasibilityQuery,
+  ): Promise<FeasibilityResponse> {
+    await this.assertWriteAccess(actor, query.fighterId);
+
+    const weighInAt = new Date(query.weighInAt);
+    const boutAt = new Date(query.boutAt);
+    if (weighInAt.getTime() >= boutAt.getTime())
+      throw boutInvalidSchedule('WEIGH_IN_NOT_BEFORE_BOUT');
+    if (!(await this.repo.isActiveFighter(query.fighterId)))
+      throw boutFighterNotFound();
+    const ruleset = await this.requireRuleset(query.rulesetId);
+    const weightClass = resolveWeightClass(ruleset.weightClasses, {
+      weightClassCode: query.weightClassCode,
+      weightLimitKg: query.weightLimitKg,
+    });
+    if (!weightClass.ok) throw boutInvalidWeightClass(weightClass.reason);
+    const acuteLossLimitPct = acuteLossLimitPctFor(weighInAt, boutAt, {
+      long: Number(ruleset.acuteLossLimitPctLong),
+      short: Number(ruleset.acuteLossLimitPctShort),
+    });
+
+    const feasibility = await this.loadFeasibility(
+      query.fighterId,
+      {
+        limitKg: weightClass.limitKg,
+        acuteLossLimitPct,
+        acuteWindowDays: ruleset.acuteWindowDays,
+        weighInAt,
+      },
+      new Date(),
+    );
+    return {
+      ...feasibility,
+      limitKg: weightClass.limitKg,
+      acuteLossLimitPct,
+      warnings: weightFeasibilityWarnings(feasibility),
+    };
+  }
+
+  private async loadFeasibility(
+    fighterId: string,
+    target: {
+      limitKg: number;
+      acuteLossLimitPct: number;
+      acuteWindowDays: number;
+      weighInAt: Date;
+    },
+    now: Date,
+  ): Promise<WeightFeasibility> {
+    const today = academyDateOf(now);
+    const from = addDaysToDate(today, -FEASIBILITY_WEIGHT_MAX_AGE_DAYS);
+    const measurements = await this.repo.findWeightMeasurements(
+      fighterId,
+      academyStartOfDay(from),
+      now,
+    );
+    const points = buildDailyWeightPoints(measurements, { from, to: today });
+    return computeWeightFeasibility({
+      limitKg: target.limitKg,
+      acuteLossLimitPct: target.acuteLossLimitPct,
+      acuteWindowDays: target.acuteWindowDays,
+      today,
+      weighInDate: academyDateOf(target.weighInAt),
+      latest: points[points.length - 1] ?? null,
+    });
   }
 
   async updateBout(
@@ -1452,6 +1546,11 @@ export class BoutsService {
         now,
         gate1,
       }),
+      weightReminder: computeWeighInReminder({
+        status: bout.status,
+        today: academyDateOf(now),
+        latestOn: track.latestOn,
+      }),
       weight: {
         latestKg: track.latestKg,
         latestOn: track.latestOn,
@@ -1481,24 +1580,22 @@ export class BoutsService {
     const plan = bout.trainingPlanId
       ? await this.repo.findPlanById(bout.trainingPlanId)
       : undefined;
-    const campStart = plan?.startDate ?? academyDateOf(bout.createdAt);
-    const today = academyDateOf(now);
+    const planStartDate = plan?.startDate ?? null;
     const measurements = await this.repo.findWeightMeasurements(
       bout.fighterId,
-      academyStartOfDay(campStart),
+      academyStartOfDay(campStartOf(planStartDate, bout.createdAt)),
       now,
     );
-    return computeWeightTrack({
+    return computeBoutWeightTrack({
+      status: bout.status,
       limitKg: Number(bout.catchweightKg ?? bout.weightLimitKg),
       acuteLossLimitPct: Number(bout.acuteLossLimitPct),
       acuteWindowDays: ruleset.acuteWindowDays,
-      weighInDate: academyDateOf(bout.weighInAt),
-      today,
-      campStart,
-      points: buildDailyWeightPoints(measurements, {
-        from: campStart,
-        to: today,
-      }),
+      weighInAt: bout.weighInAt,
+      createdAt: bout.createdAt,
+      planStartDate,
+      measurements,
+      now,
     });
   }
 
@@ -1654,7 +1751,7 @@ function toBoutSummary(row: BoutRow): BoutSummary {
   };
 }
 
-function toRequirementState(row: BoutRequirementRow) {
+export function toRequirementState(row: BoutRequirementRow) {
   return {
     code: row.code,
     label: row.label,

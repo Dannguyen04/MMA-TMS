@@ -123,7 +123,7 @@ export const mockRulesets: CompetitionRuleset[] = [
 /**
  * Seed bouts for coach Rafael Costa (`c-rafael-costa`).
  * Meets Acceptance Criteria 1:
- * - Bout 1: Weight warning is RED (Minh Trần, 60kg, 2 days left, latest 66kg -> 9.1% cut > 8%)
+ * - Bout 1: Weight warning is OVER_LIMIT (Minh Trần, 60kg, 2 days left, latest 66kg -> 9.1% cut > 8%)
  * - Bout 2: Missing requirements (Gate 1 blocking) (Aigerim Sadykova, 54kg)
  * - Bout 3: Eligible to enter fight week (Kenji Morita, 65kg, Gate 1 passed, 6 days left)
  * - Bout 4: Unassigned fighter (Lucas Ferreira, coach Anna Volkova) to test 404 access
