@@ -5,6 +5,39 @@ import {
   isoDateTimeSchema,
   trimmedTextSchema,
 } from '../shared/utils/zod-schema.util.js';
+import {
+  SESSION_TYPES,
+  SUSPENSION_REASONS,
+  type SessionType,
+} from '../suspensions/suspensions.constants.js';
+export interface SuspensionStateInput {
+  startsOn: string;
+  endsOn: string;
+  requiresClearance: boolean;
+  clearedAt: Date | string | null;
+}
+
+export function isInForceOn(
+  suspension: SuspensionStateInput,
+  d: string,
+): boolean {
+  return (
+    suspension.clearedAt === null &&
+    suspension.startsOn <= d &&
+    (d <= suspension.endsOn || suspension.requiresClearance)
+  );
+}
+
+export function suspensionStatusOn(
+  suspension: SuspensionStateInput,
+  d: string,
+): 'UPCOMING' | 'ACTIVE' | 'AWAITING_CLEARANCE' | 'ENDED' {
+  if (suspension.clearedAt !== null) return 'ENDED';
+  if (d < suspension.startsOn) return 'UPCOMING';
+  if (d <= suspension.endsOn) return 'ACTIVE';
+  if (suspension.requiresClearance) return 'AWAITING_CLEARANCE';
+  return 'ENDED';
+}
 
 // ---------------------------------------------------------------------------
 // Enumerations (mirror migration 024)
@@ -37,15 +70,30 @@ export const COACH_REQUIREMENT_STATUSES = ['MISSING', 'PROVIDED', 'REJECTED'] as
 export const REQUIREMENT_SOURCES = ['PRESET', 'COACH'] as const;
 export type RequirementSource = (typeof REQUIREMENT_SOURCES)[number];
 
-export const WEIGHT_TRACK_STATUSES = ['GREEN', 'YELLOW', 'RED', 'GREY'] as const;
+export const WEIGHT_TRACK_STATUSES = [
+  'ON_TRACK',
+  'ABOVE_TARGET',
+  'OVER_LIMIT',
+  'NOT_WEIGHED',
+  'NEUTRAL',
+] as const;
 export type WeightTrackStatus = (typeof WEIGHT_TRACK_STATUSES)[number];
 
 export const CUSTOM_WEIGHT_CLASS_CODE = 'CUSTOM';
 export const WEIGHT_LIMIT_MIN_KG = 30;
 export const WEIGHT_LIMIT_MAX_KG = 200;
 export const WEIGHT_TOLERANCE_KG = 1.0;
-/** No weight in this many academy days (today included) turns the track GREY. */
+/** No weight in this many academy days (today included) turns the track NOT_WEIGHED. */
 export const WEIGHT_STALE_DAYS = 3;
+/**
+ * From the official weigh-in on the track is not judged: the fighter rehydrates,
+ * so a heavier weight after the weigh-in is expected (T-029, status NEUTRAL).
+ */
+export const WEIGHT_UNTRACKED_STATUSES: readonly BoutStatus[] = [
+  'WEIGHED_IN',
+  'COMPLETED',
+  'CANCELLED',
+];
 export const LONG_WEIGH_IN_TO_BOUT_HOURS = 12;
 
 // ---------------------------------------------------------------------------
@@ -377,10 +425,15 @@ export function computeWeightTrack(input: {
   campStart: string;
   points: readonly WeightPoint[];
   toleranceKg?: number;
+  /** Omitted = judge the track as in CAMP (kept for callers that have no bout). */
+  boutStatus?: BoutStatus;
 }): WeightTrack {
   const points = [...input.points];
   const first = points[0];
   const latest = points[points.length - 1];
+  const untracked =
+    input.boutStatus !== undefined &&
+    WEIGHT_UNTRACKED_STATUSES.includes(input.boutStatus);
   if (!first || !latest) {
     return {
       limitKg: input.limitKg,
@@ -388,7 +441,7 @@ export function computeWeightTrack(input: {
       latestKg: null,
       latestOn: null,
       remainingPct: null,
-      status: 'GREY',
+      status: untracked ? 'NEUTRAL' : 'NOT_WEIGHED',
       referencePath: [],
     };
   }
@@ -409,21 +462,23 @@ export function computeWeightTrack(input: {
   const tolerance = input.toleranceKg ?? WEIGHT_TOLERANCE_KG;
 
   let status: WeightTrackStatus;
-  if (daysBetweenDates(latest.date, input.today) >= WEIGHT_STALE_DAYS) {
-    status = 'GREY';
+  if (untracked) {
+    status = 'NEUTRAL';
+  } else if (daysBetweenDates(latest.date, input.today) >= WEIGHT_STALE_DAYS) {
+    status = 'NOT_WEIGHED';
   } else if (
     daysLeft <= input.acuteWindowDays &&
     rawRemainingPct > input.acuteLossLimitPct
   ) {
-    status = 'RED';
+    status = 'OVER_LIMIT';
   } else if (daysLeft > input.acuteWindowDays) {
     const reference = referenceKgAt(referencePath, latest.date);
     status =
       reference !== null && latest.kg > reference + tolerance
-        ? 'YELLOW'
-        : 'GREEN';
+        ? 'ABOVE_TARGET'
+        : 'ON_TRACK';
   } else {
-    status = 'GREEN';
+    status = 'ON_TRACK';
   }
 
   return {
@@ -439,6 +494,175 @@ export function computeWeightTrack(input: {
 
 function round2(value: number): number {
   return Math.round(value * 100) / 100;
+}
+
+/** Camp start: the attached plan's start date, else the day the bout was created. */
+export function campStartOf(planStartDate: string | null, createdAt: Date): string {
+  return planStartDate ?? academyDateOf(createdAt);
+}
+
+/**
+ * The weight track of a bout from already loaded measurements. The single place
+ * that turns a bout row into `computeWeightTrack` input, so the detail view and
+ * the coach to-do card cannot disagree.
+ */
+export function computeBoutWeightTrack(input: {
+  status: BoutStatus;
+  limitKg: number;
+  acuteLossLimitPct: number;
+  acuteWindowDays: number;
+  weighInAt: Date;
+  createdAt: Date;
+  planStartDate: string | null;
+  measurements: readonly WeightMeasurementInput[];
+  now: Date;
+}): WeightTrack {
+  const campStart = campStartOf(input.planStartDate, input.createdAt);
+  const today = academyDateOf(input.now);
+  return computeWeightTrack({
+    limitKg: input.limitKg,
+    acuteLossLimitPct: input.acuteLossLimitPct,
+    acuteWindowDays: input.acuteWindowDays,
+    weighInDate: academyDateOf(input.weighInAt),
+    today,
+    campStart,
+    points: buildDailyWeightPoints(input.measurements, { from: campStart, to: today }),
+    boutStatus: input.status,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Weight feasibility when a bout is created (R31, T-029)
+// ---------------------------------------------------------------------------
+
+/** A weight older than this many academy days is "no data" for R31. */
+export const FEASIBILITY_WEIGHT_MAX_AGE_DAYS = 7;
+
+export interface WeightFeasibility {
+  /**
+   * Same vocabulary as the weight track: `OVER_LIMIT` / `ON_TRACK` inside the
+   * acute window, `NEUTRAL` while the weigh-in is still outside it (not judged),
+   * `NOT_WEIGHED` when there is no weight in the last 7 days (no data).
+   */
+  status: WeightTrackStatus;
+  remainingPct: number | null;
+  latestKg: number | null;
+  latestOn: string | null;
+  daysToWeighIn: number;
+}
+
+/**
+ * Can the fighter make the class from the latest weight? Warning only, never a
+ * block. Colours only inside the acute window `D <= A`, with the same rule as R7
+ * (`remainingPct > L` is OVER_LIMIT); further out the bout has no snapshot path
+ * yet, and a slope model would be an invented club rule (T-029, Q2).
+ */
+export function computeWeightFeasibility(input: {
+  limitKg: number;
+  acuteLossLimitPct: number;
+  acuteWindowDays: number;
+  today: string;
+  weighInDate: string;
+  latest: WeightPoint | null;
+}): WeightFeasibility {
+  const daysToWeighInValue = daysBetweenDates(input.today, input.weighInDate);
+  const { latest } = input;
+  if (
+    !latest ||
+    daysBetweenDates(latest.date, input.today) > FEASIBILITY_WEIGHT_MAX_AGE_DAYS
+  ) {
+    return {
+      status: 'NOT_WEIGHED',
+      remainingPct: null,
+      latestKg: null,
+      latestOn: null,
+      daysToWeighIn: daysToWeighInValue,
+    };
+  }
+  const rawRemainingPct = Math.max(
+    0,
+    ((latest.kg - input.limitKg) / latest.kg) * 100,
+  );
+  let status: WeightTrackStatus = 'NEUTRAL';
+  if (daysToWeighInValue <= input.acuteWindowDays) {
+    status = rawRemainingPct > input.acuteLossLimitPct ? 'OVER_LIMIT' : 'ON_TRACK';
+  }
+  return {
+    status,
+    remainingPct: Math.round(rawRemainingPct * 10) / 10,
+    latestKg: latest.kg,
+    latestOn: latest.date,
+    daysToWeighIn: daysToWeighInValue,
+  };
+}
+
+export const BOUT_WARNING_CODES = [
+  'WEIGHT_AT_RISK',
+  'WEIGHT_INSUFFICIENT_DATA',
+  'FIGHTER_ACTIVE_BOUT',
+  'FIGHTER_SUSPENDED_PAST_BOUT_DATE',
+] as const;
+export type BoutWarningCode = (typeof BOUT_WARNING_CODES)[number];
+
+export function weightFeasibilityWarnings(
+  feasibility: WeightFeasibility,
+): { code: BoutWarningCode }[] {
+  if (feasibility.status === 'OVER_LIMIT') return [{ code: 'WEIGHT_AT_RISK' }];
+  if (feasibility.status === 'NOT_WEIGHED')
+    return [{ code: 'WEIGHT_INSUFFICIENT_DATA' }];
+  return [];
+}
+
+// ---------------------------------------------------------------------------
+// Weigh-in reminder: "no weight logged today" during the fight week (T0, T-029)
+// ---------------------------------------------------------------------------
+
+export const WEIGH_IN_REMINDER_LEVELS = ['ASK_TODAY', 'YESTERDAY_MISSING'] as const;
+export type WeighInReminderLevel = (typeof WEIGH_IN_REMINDER_LEVELS)[number];
+
+export const WEIGH_IN_REMINDER_MESSAGE_CODES = {
+  ASK_TODAY: 'WEIGHT_REMINDER_ASK_TODAY',
+  YESTERDAY_MISSING: 'WEIGHT_REMINDER_YESTERDAY_MISSING',
+} as const satisfies Record<WeighInReminderLevel, string>;
+
+export const weightReminderSchema = z.object({
+  active: z.boolean(),
+  level: z.enum(WEIGH_IN_REMINDER_LEVELS).nullable(),
+  daysSinceLastWeight: z.number().int().nullable(),
+  messageCode: z.string().nullable(),
+});
+export type WeightReminder = z.infer<typeof weightReminderSchema>;
+
+/**
+ * Only in FIGHT_WEEK. The reminder always points at today (no back-filling) and is
+ * independent of the NOT_WEIGHED rule of the weight track. No weight at all
+ * counts as "ask today".
+ */
+export function computeWeighInReminder(input: {
+  status: BoutStatus;
+  today: string;
+  latestOn: string | null;
+}): WeightReminder {
+  const daysSinceLastWeight =
+    input.latestOn === null ? null : daysBetweenDates(input.latestOn, input.today);
+  const none: WeightReminder = {
+    active: false,
+    level: null,
+    daysSinceLastWeight,
+    messageCode: null,
+  };
+  if (input.status !== 'FIGHT_WEEK') return none;
+  if (daysSinceLastWeight !== null && daysSinceLastWeight <= 0) return none;
+  const level: WeighInReminderLevel =
+    daysSinceLastWeight !== null && daysSinceLastWeight >= 2
+      ? 'YESTERDAY_MISSING'
+      : 'ASK_TODAY';
+  return {
+    active: true,
+    level,
+    daysSinceLastWeight,
+    messageCode: WEIGH_IN_REMINDER_MESSAGE_CODES[level],
+  };
 }
 // ---------------------------------------------------------------------------
 // Acute weight loss calculation (Tech spec 2.3, R19)
@@ -716,6 +940,8 @@ export const recordResultSchema = z.strictObject({
   stoppedByHeadStrike: z.boolean().optional(),
   injuryNote: trimmedTextSchema(1000).optional(),
   notes: trimmedTextSchema(2000).optional(),
+  suspensionDays: z.number().int().min(1).max(365).optional(),
+  suspensionOverrideReason: trimmedTextSchema(500, 3).optional(),
 });
 export type RecordResultInput = z.infer<typeof recordResultSchema>;
 
@@ -884,6 +1110,7 @@ export const boutDetailResponseSchema = boutSummarySchema.extend({
   requirementsOverdue: z.boolean(),
   gate1: gate1ResponseSchema,
   canEnterFightWeek: z.boolean(),
+  weightReminder: weightReminderSchema,
   weight: weightTrackResponseSchema.pick({
     latestKg: true,
     latestOn: true,
@@ -894,6 +1121,40 @@ export const boutDetailResponseSchema = boutSummarySchema.extend({
   acuteLoss: acuteLossResponseSchema.nullable(),
 });
 export type BoutDetailResponse = z.infer<typeof boutDetailResponseSchema>;
+
+export const boutWarningSchema = z.object({ code: z.enum(BOUT_WARNING_CODES) });
+
+export const createBoutResponseSchema = boutDetailResponseSchema.extend({
+  warnings: z.array(boutWarningSchema),
+});
+export type CreateBoutResponse = z.infer<typeof createBoutResponseSchema>;
+
+export const feasibilityQuerySchema = z.strictObject({
+  fighterId: z.uuid(),
+  rulesetId: z.uuid(),
+  weightClassCode: trimmedTextSchema(20).optional(),
+  weightLimitKg: z.coerce
+    .number()
+    .finite()
+    .min(WEIGHT_LIMIT_MIN_KG)
+    .max(WEIGHT_LIMIT_MAX_KG)
+    .optional(),
+  weighInAt: offsetDateTimeSchema,
+  boutAt: offsetDateTimeSchema,
+});
+export type FeasibilityQuery = z.infer<typeof feasibilityQuerySchema>;
+
+export const feasibilityResponseSchema = z.object({
+  status: z.enum(WEIGHT_TRACK_STATUSES),
+  remainingPct: z.number().nullable(),
+  latestKg: z.number().nullable(),
+  latestOn: z.string().nullable(),
+  daysToWeighIn: z.number().int(),
+  limitKg: z.number(),
+  acuteLossLimitPct: z.number(),
+  warnings: z.array(boutWarningSchema),
+});
+export type FeasibilityResponse = z.infer<typeof feasibilityResponseSchema>;
 
 export const requirementMutationResponseSchema = z.object({
   requirement: requirementResponseSchema,
@@ -918,3 +1179,301 @@ export const weighInResponseSchema = boutDetailResponseSchema.extend({
   weighIn: weighInBlockSchema,
 });
 export type WeighInResponse = z.infer<typeof weighInResponseSchema>;
+
+export const recordResultSuspensionSchema = z.object({
+  id: z.uuid(),
+  reason: z.enum(SUSPENSION_REASONS),
+  startsOn: dateOnlySchema,
+  endsOn: dateOnlySchema,
+  requiresClearance: z.boolean(),
+  suggestedDays: z.number().int().nullable(),
+  explanation: z.string(),
+});
+export type RecordResultSuspension = z.infer<
+  typeof recordResultSuspensionSchema
+>;
+
+export const recordResultResponseSchema = boutDetailResponseSchema.extend({
+  suspensions: z.array(recordResultSuspensionSchema),
+});
+export type RecordResultResponse = z.infer<typeof recordResultResponseSchema>;
+
+// ---------------------------------------------------------------------------
+// Readiness board (R32, T-007)
+// ---------------------------------------------------------------------------
+
+export const ACTIVE_BOUT_STATUSES = [
+  'CAMP',
+  'FIGHT_WEEK',
+  'WEIGHED_IN',
+] as const;
+export type ActiveBoutStatus = (typeof ACTIVE_BOUT_STATUSES)[number];
+
+export const READINESS_STATUSES = [
+  'SUSPENDED',
+  'AWAITING_CLEARANCE',
+  'IN_BOUT',
+  'READY',
+] as const;
+export type ReadinessStatus = (typeof READINESS_STATUSES)[number];
+
+export const NOT_READY_REASONS = [
+  'SUSPENDED_PAST_BOUT_DATE',
+  'ACTIVE_BOUT',
+] as const;
+export type NotReadyReason = (typeof NOT_READY_REASONS)[number];
+
+export interface ReadinessActiveBout {
+  id: string;
+  eventName: string;
+  status: BoutStatus;
+  boutAt: string;
+}
+
+export interface ReadinessSuspensionSummary {
+  startsOn: string;
+  endsOn: string;
+  blockedSessionTypes: SessionType[];
+  allowedSessionTypes: SessionType[];
+  expectedResumeOn: string | null;
+}
+
+export interface ReadinessRow {
+  fighterId: string;
+  fighterName: string;
+  ready: boolean;
+  status: ReadinessStatus;
+  latestWeightKg: number | null;
+  latestWeightOn: string | null;
+  activeBout: ReadinessActiveBout | null;
+  suspension: ReadinessSuspensionSummary | null;
+  notReadyReasons?: NotReadyReason[];
+  feasibility?: WeightFeasibility;
+}
+
+export interface ReadinessSuspensionInput extends SuspensionStateInput {
+  blockedSessionTypes: readonly SessionType[];
+  deletedAt?: Date | string | null;
+}
+
+export interface ReadinessBoutInput {
+  id: string;
+  eventName: string;
+  status: BoutStatus;
+  boutAt: Date | string;
+}
+
+export interface ReadinessRulesetInput {
+  acuteWindowDays: number;
+  acuteLossLimitPctLong: number | string;
+  acuteLossLimitPctShort?: number | string;
+}
+
+export interface ClassifyReadinessInput {
+  fighterId: string;
+  fighterName: string;
+  today: string;
+  suspensions?: readonly ReadinessSuspensionInput[];
+  activeBout?: ReadinessBoutInput | null;
+  latestWeight?: { kg: number; date: string } | null;
+  boutOn?: string;
+  weightLimitKg?: number;
+  ruleset?: ReadinessRulesetInput;
+}
+
+export function classifyReadiness(input: ClassifyReadinessInput): ReadinessRow {
+  const activeSuspensions = (input.suspensions ?? []).filter(
+    (s) => s.deletedAt === null || s.deletedAt === undefined,
+  );
+  const inForceToday = activeSuspensions.filter((s) =>
+    isInForceOn(s, input.today),
+  );
+  const hasActiveSuspension = inForceToday.some(
+    (s) => suspensionStatusOn(s, input.today) === 'ACTIVE',
+  );
+  const hasAwaitingClearance = inForceToday.some(
+    (s) => suspensionStatusOn(s, input.today) === 'AWAITING_CLEARANCE',
+  );
+
+  const rawBout = input.activeBout ?? null;
+  const activeBout: ReadinessActiveBout | null =
+    rawBout &&
+    (ACTIVE_BOUT_STATUSES as readonly string[]).includes(rawBout.status)
+      ? {
+          id: rawBout.id,
+          eventName: rawBout.eventName,
+          status: rawBout.status,
+          boutAt:
+            rawBout.boutAt instanceof Date
+              ? rawBout.boutAt.toISOString()
+              : rawBout.boutAt,
+        }
+      : null;
+
+  let status: ReadinessStatus;
+  if (hasActiveSuspension) {
+    status = 'SUSPENDED';
+  } else if (hasAwaitingClearance) {
+    status = 'AWAITING_CLEARANCE';
+  } else if (activeBout !== null) {
+    status = 'IN_BOUT';
+  } else {
+    status = 'READY';
+  }
+
+  let suspension: ReadinessSuspensionSummary | null = null;
+  if (inForceToday.length > 0) {
+    const isOpenEnded = (s: ReadinessSuspensionInput) =>
+      s.requiresClearance && (s.clearedAt === null || s.clearedAt === undefined);
+
+    const anyOpenEnded = inForceToday.some(isOpenEnded);
+
+    let earliestStartsOn = inForceToday[0]!.startsOn;
+    let latestEndsOn = inForceToday[0]!.endsOn;
+    const blockedSessionTypes: SessionType[] = [];
+
+    for (const s of inForceToday) {
+      if (s.startsOn < earliestStartsOn) earliestStartsOn = s.startsOn;
+      if (s.endsOn > latestEndsOn) latestEndsOn = s.endsOn;
+      for (const t of s.blockedSessionTypes) {
+        if (!blockedSessionTypes.includes(t)) {
+          blockedSessionTypes.push(t);
+        }
+      }
+    }
+
+    const allowedSessionTypes = SESSION_TYPES.filter(
+      (t) => !blockedSessionTypes.includes(t),
+    );
+    const expectedResumeOn = anyOpenEnded
+      ? null
+      : addDaysToDate(latestEndsOn, 1);
+
+    suspension = {
+      startsOn: earliestStartsOn,
+      endsOn: latestEndsOn,
+      blockedSessionTypes,
+      allowedSessionTypes,
+      expectedResumeOn,
+    };
+  }
+
+  const latestWeightKg = input.latestWeight ? input.latestWeight.kg : null;
+  const latestWeightOn = input.latestWeight ? input.latestWeight.date : null;
+
+  let ready = status === 'READY';
+  let notReadyReasons: NotReadyReason[] | undefined;
+
+  if (input.boutOn !== undefined) {
+    notReadyReasons = [];
+    if (activeSuspensions.some((s) => isInForceOn(s, input.boutOn!))) {
+      notReadyReasons.push('SUSPENDED_PAST_BOUT_DATE');
+    }
+    if (activeBout !== null) {
+      notReadyReasons.push('ACTIVE_BOUT');
+    }
+    ready = notReadyReasons.length === 0;
+  }
+
+  let feasibility: WeightFeasibility | undefined;
+  if (
+    input.weightLimitKg !== undefined &&
+    input.ruleset !== undefined &&
+    input.boutOn !== undefined
+  ) {
+    const acuteLossLimitPct = acuteLossLimitPctFor(
+      new Date(0),
+      new Date(LONG_WEIGH_IN_TO_BOUT_HOURS * 3_600_000),
+      {
+        long: Number(input.ruleset.acuteLossLimitPctLong),
+        short: Number(
+          input.ruleset.acuteLossLimitPctShort ??
+            input.ruleset.acuteLossLimitPctLong,
+        ),
+      },
+    );
+    feasibility = computeWeightFeasibility({
+      limitKg: input.weightLimitKg,
+      acuteLossLimitPct,
+      acuteWindowDays: input.ruleset.acuteWindowDays,
+      today: input.today,
+      weighInDate: input.boutOn,
+      latest: input.latestWeight ?? null,
+    });
+  }
+
+  return {
+    fighterId: input.fighterId,
+    fighterName: input.fighterName,
+    ready,
+    status,
+    latestWeightKg,
+    latestWeightOn,
+    activeBout,
+    suspension,
+    ...(notReadyReasons !== undefined ? { notReadyReasons } : {}),
+    ...(feasibility !== undefined ? { feasibility } : {}),
+  };
+}
+
+export const readinessQuerySchema = z
+  .strictObject({
+    weightLimitKg: z.coerce
+      .number()
+      .finite()
+      .min(WEIGHT_LIMIT_MIN_KG)
+      .max(WEIGHT_LIMIT_MAX_KG)
+      .optional(),
+    rulesetId: z.uuid().optional(),
+    boutOn: dateOnlySchema.optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (
+      (data.weightLimitKg !== undefined || data.boutOn !== undefined) &&
+      !data.rulesetId
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['rulesetId'],
+        message:
+          'rulesetId is required when weightLimitKg or boutOn is provided.',
+      });
+    }
+  });
+export type ReadinessQuery = z.infer<typeof readinessQuerySchema>;
+
+export const weightFeasibilitySchema = z.object({
+  status: z.enum(WEIGHT_TRACK_STATUSES),
+  remainingPct: z.number().nullable(),
+  latestKg: z.number().nullable(),
+  latestOn: z.string().nullable(),
+  daysToWeighIn: z.number().int(),
+});
+
+export const readinessRowSchema = z.object({
+  fighterId: z.uuid(),
+  fighterName: z.string(),
+  ready: z.boolean(),
+  status: z.enum(READINESS_STATUSES),
+  latestWeightKg: z.number().nullable(),
+  latestWeightOn: z.string().nullable(),
+  activeBout: z
+    .object({
+      id: z.uuid(),
+      eventName: z.string(),
+      status: z.enum(BOUT_STATUSES),
+      boutAt: isoDateTimeSchema,
+    })
+    .nullable(),
+  suspension: z
+    .object({
+      startsOn: dateOnlySchema,
+      endsOn: dateOnlySchema,
+      blockedSessionTypes: z.array(z.enum(SESSION_TYPES)),
+      allowedSessionTypes: z.array(z.enum(SESSION_TYPES)),
+      expectedResumeOn: dateOnlySchema.nullable(),
+    })
+    .nullable(),
+  notReadyReasons: z.array(z.enum(NOT_READY_REASONS)).optional(),
+  feasibility: weightFeasibilitySchema.optional(),
+});

@@ -1,3 +1,4 @@
+import type { Bout, WeightFeasibility, WeightWarningStatus, WeightReminder, WeighInReminderLevel } from "./types";
 import { academyWallClockToIso, addDaysToKey, dayKey, daysBetweenKeys, isDateKey, isDateTimeInputValue } from "@/lib/format";
 import { createTranslator, type Translator } from "@/lib/i18n/translate";
 
@@ -588,3 +589,74 @@ export function validateOutcome(input: OutcomeInput, sport: BoutSport, recordedA
 export function activeBoutOf<T extends Pick<CampBout, "fighterId" | "phase">>(bouts: T[], fighterId: string): T | null {
     return bouts.find((bout) => bout.fighterId === fighterId && isActivePhase(bout.phase)) ?? null;
 }
+
+export const FEASIBILITY_WEIGHT_MAX_AGE_DAYS = 7;
+
+/**
+ * R31 (mirror of the backend `computeWeightFeasibility`): OVER_LIMIT or ON_TRACK inside the
+ * acute window, NEUTRAL while the weigh-in is further out, NOT_WEIGHED without a weight in 7 days.
+ */
+export function calculateWeightFeasibility(params: {
+    limitKg: number;
+    acuteLossLimitPct: number;
+    acuteWindowDays: number;
+    weighInAt: string | Date;
+    latest: { date: string | Date; kg: number } | null;
+    now?: string | Date;
+}): Omit<WeightFeasibility, "warnings"> {
+    const todayKey = dayKey(params.now ?? new Date());
+    const daysToWeighIn = daysBetweenKeys(todayKey, dayKey(params.weighInAt));
+    const latestKey = params.latest ? dayKey(params.latest.date) : null;
+    if (!params.latest || latestKey === null || daysBetweenKeys(latestKey, todayKey) > FEASIBILITY_WEIGHT_MAX_AGE_DAYS) {
+        return {
+            status: "NOT_WEIGHED",
+            remainingPct: null,
+            latestKg: null,
+            latestOn: null,
+            daysToWeighIn,
+            limitKg: params.limitKg,
+            acuteLossLimitPct: params.acuteLossLimitPct,
+        };
+    }
+    const raw = Math.max(0, ((params.latest.kg - params.limitKg) / params.latest.kg) * 100);
+    let status: WeightWarningStatus = "NEUTRAL";
+    if (daysToWeighIn <= params.acuteWindowDays) status = raw > params.acuteLossLimitPct ? "OVER_LIMIT" : "ON_TRACK";
+    return {
+        status,
+        remainingPct: Number(raw.toFixed(1)),
+        latestKg: params.latest.kg,
+        latestOn: latestKey,
+        daysToWeighIn,
+        limitKg: params.limitKg,
+        acuteLossLimitPct: params.acuteLossLimitPct,
+    };
+}
+
+export function feasibilityWarnings(status: WeightWarningStatus): WeightFeasibility["warnings"] {
+    if (status === "OVER_LIMIT") return [{ code: "WEIGHT_AT_RISK" }];
+    if (status === "NOT_WEIGHED") return [{ code: "WEIGHT_INSUFFICIENT_DATA" }];
+    return [];
+}
+
+/**
+ * T0 (mirror of the backend `computeWeighInReminder`): only in FIGHT_WEEK, always pointing at today.
+ * No weight at all counts as "ask today".
+ */
+export function computeWeighInReminder(params: {
+    status: Bout["status"];
+    latestOn: string | null;
+    now?: string | Date;
+}): WeightReminder {
+    const daysSinceLastWeight = params.latestOn === null ? null : daysBetweenKeys(dayKey(params.latestOn), dayKey(params.now ?? new Date()));
+    const none: WeightReminder = { active: false, level: null, daysSinceLastWeight, messageCode: null };
+    if (params.status !== "FIGHT_WEEK") return none;
+    if (daysSinceLastWeight !== null && daysSinceLastWeight <= 0) return none;
+    const level: WeighInReminderLevel = daysSinceLastWeight !== null && daysSinceLastWeight >= 2 ? "YESTERDAY_MISSING" : "ASK_TODAY";
+    return {
+        active: true,
+        level,
+        daysSinceLastWeight,
+        messageCode: level === "ASK_TODAY" ? "WEIGHT_REMINDER_ASK_TODAY" : "WEIGHT_REMINDER_YESTERDAY_MISSING",
+    };
+}
+

@@ -60,3 +60,10 @@ Dán phần cuối output vào `docs/tickets/T-012-HANDOVER.md` theo [TEAM-WORKF
 - Không cài thư viện. File `yolov8n-pose.pt` đã có trong `python-worker/` (không commit).
 - Video và nhãn chỉ dùng để đo, không chỉnh ngưỡng theo chúng.
 - Thấy mâu thuẫn giữa ticket và code thì ghi vào mục "Câu hỏi" của handover, không đoán.
+
+## Kết quả phần B (chạy thật 25/10, chủ dự án upload, Claude theo dõi)
+
+- Redis cục bộ, backend `localhost:3001`, worker và frontend (`APP_DATA_MODE=api` ghi đè khi chạy, không sửa `.env.local`) bằng `.env` của team. Chủ dự án đăng nhập tài khoản HLV của mình và upload `vid_01_cross_heavybag.mp4` (tài khoản `coach.demo@example.com` của T-008a chưa tồn tại).
+- Job `02231f13-dd57-4b94-ae67-f9a45fe6cf54`: nhận lúc 20:45:46, xử lý 52,7 s (tải video 5,1 s, khung 47,2 s), upload kết quả lên Supabase lần 1 bị ngắt kết nối (`Errno 10054`), lần 2 thành công sau 57,8 s; `POST /coaching/results` và `PATCH /jobs/:id/status` đều 200. Tổng khoảng 2 phút từ lúc nhận job.
+- `punches` của kết quả thật **giống hệt** phần A: khung 75, 132, 184, 370, 578, tay phải, `legacy_fsm_v1`. Score `WITHHELD_REQUIRES_REVIEW`, 0 cảnh báo sức khỏe.
+- Lưu ý cho tổng duyệt 30/10: dự tính 2 phút (upload kết quả lên Supabase có thể phải thử lại); giữ `summary.md` làm phương án dự phòng.

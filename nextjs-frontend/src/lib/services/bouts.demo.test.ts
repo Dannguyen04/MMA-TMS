@@ -83,18 +83,18 @@ function created(result: ReturnType<typeof createDemoBout>): string {
 describe("demo camp seed", () => {
     it("seeds a red, a yellow and a grey bout on the coach's roster, and no bout for Minh", () => {
         resetDemoCampStore(TODAY);
-        expect(demoWeightTrack("b-kenji-pacific", NOW)?.status).toBe("RED");
+        expect(demoWeightTrack("b-kenji-pacific", NOW)?.status).toBe("OVER_LIMIT");
         expect(demoWeightTrack("b-kenji-pacific", NOW)?.remainingPct).toBe(10.8);
-        expect(demoWeightTrack("b-aigerim-asian", NOW)?.status).toBe("YELLOW");
-        expect(demoWeightTrack("b-emma-nordic", NOW)?.status).toBe("GREY");
-        expect(demoWeightTrack("b-linh-saigon", NOW)?.status).toBe("GREEN");
+        expect(demoWeightTrack("b-aigerim-asian", NOW)?.status).toBe("ABOVE_TARGET");
+        expect(demoWeightTrack("b-emma-nordic", NOW)?.status).toBe("NOT_WEIGHED");
+        expect(demoWeightTrack("b-linh-saigon", NOW)?.status).toBe("ON_TRACK");
         expect(getDemoCurrentBout("f-minh-tran")).toBeNull();
 
         const alerts = listDemoWeightAlerts("all", NOW);
         expect(alerts.map((alert) => [alert.bout.id, alert.track.status])).toEqual([
-            ["b-kenji-pacific", "RED"],
-            ["b-aigerim-asian", "YELLOW"],
-            ["b-emma-nordic", "GREY"],
+            ["b-kenji-pacific", "OVER_LIMIT"],
+            ["b-aigerim-asian", "ABOVE_TARGET"],
+            ["b-emma-nordic", "NOT_WEIGHED"],
         ]);
         expect(alerts[0]?.wayOff).toBe(2);
     });
@@ -194,10 +194,10 @@ describe("the review 2 flow", () => {
         const track = demoWeightTrack(id, NOW)!;
         expect(track.points[0]?.date).toBe(day(-28));
         expect(track.latestOn).toBe(day(-4));
-        expect(track.status).toBe("GREY");
+        expect(track.status).toBe("NOT_WEIGHED");
 
         recordDemoSelfWeight("f-minh-tran", 66.5, NOW);
-        expect(demoWeightTrack(id, NOW)).toMatchObject({ status: "RED", latestKg: 66.5, remainingPct: 9.8 });
+        expect(demoWeightTrack(id, NOW)).toMatchObject({ status: "OVER_LIMIT", latestKg: 66.5, remainingPct: 9.8 });
     });
 
     it("allows one bout in camp per fighter", () => {

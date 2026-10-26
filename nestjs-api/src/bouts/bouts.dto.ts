@@ -1,4 +1,5 @@
 import { createZodDto } from 'nestjs-zod';
+import { coachTodoResponseSchema } from './bouts-todo.model.js';
 import {
   boutDetailResponseSchema,
   acuteLossResponseSchema,
@@ -7,15 +8,21 @@ import {
   boutListResponseSchema,
   boutSummarySchema,
   cancelBoutSchema,
+  createBoutResponseSchema,
   createBoutSchema,
   createRequirementSchema,
+  feasibilityQuerySchema,
+  feasibilityResponseSchema,
   listBoutsQuerySchema,
+  readinessQuerySchema,
+  readinessRowSchema,
   requirementMutationResponseSchema,
   requirementParamsSchema,
   requirementRemovalResponseSchema,
   rulesetResponseSchema,
   startCampSchema,
   catchweightSchema,
+  recordResultResponseSchema,
   recordResultSchema,
   removeRequirementQuerySchema,
   updateBoutSchema,
@@ -30,7 +37,13 @@ export class RequirementParamsDto extends createZodDto(
   requirementParamsSchema,
 ) {}
 export class ListBoutsQueryDto extends createZodDto(listBoutsQuerySchema) {}
+export class CoachTodoResponseDto extends createZodDto(coachTodoResponseSchema) {}
 export class CreateBoutDto extends createZodDto(createBoutSchema) {}
+export class CreateBoutResponseDto extends createZodDto(createBoutResponseSchema) {}
+export class FeasibilityQueryDto extends createZodDto(feasibilityQuerySchema) {}
+export class FeasibilityResponseDto extends createZodDto(feasibilityResponseSchema) {}
+export class ReadinessQueryDto extends createZodDto(readinessQuerySchema) {}
+export class ReadinessRowDto extends createZodDto(readinessRowSchema) {}
 export class UpdateBoutDto extends createZodDto(updateBoutSchema) {}
 export class StartCampDto extends createZodDto(startCampSchema) {}
 export class CancelBoutDto extends createZodDto(cancelBoutSchema) {}
@@ -64,6 +77,9 @@ export class WeighInDto extends createZodDto(weighInSchema) {}
 export class CatchweightDto extends createZodDto(catchweightSchema) {}
 export class RecordResultDto extends createZodDto(recordResultSchema) {}
 export class WeighInResponseDto extends createZodDto(weighInResponseSchema) {}
+export class RecordResultResponseDto extends createZodDto(
+  recordResultResponseSchema,
+) {}
 import {
   opponentAnalysisInputSchema,
   opponentReviewInputSchema,

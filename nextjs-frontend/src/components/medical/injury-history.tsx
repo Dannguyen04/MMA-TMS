@@ -4,35 +4,43 @@ import Link from "next/link";
 import { InjurySeverityBadge, InjuryStatusBadge } from "@/components/domain/status-badges";
 import { EmptyState } from "@/components/ui/states";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
-import { BODY_REGION_LABELS, INJURY_MECHANISM_LABELS, injuryTypeName } from "@/lib/domain/labels";
+import { bodyRegionLabel, injuryMechanismLabel, injuryTypeName } from "@/lib/domain/labels";
 import type { Injury } from "@/lib/domain/types";
 import { formatDate } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
+import { createTranslator } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
-import { NOT_RECORDED, labelOf } from "@/components/domain/domain-format";
+
+export interface InjuryHistoryProps {
+    injuries: Injury[];
+    locale?: Locale;
+}
 
 /** Every injury recorded for a fighter, open and resolved, most recent first. */
-export function InjuryHistory({ injuries }: { injuries: Injury[] }) {
+export function InjuryHistory({ injuries, locale = "en" }: InjuryHistoryProps) {
+    const t = createTranslator(locale);
+
     if (injuries.length === 0) {
         return (
             <EmptyState
                 compact
                 icon={<Bandage />}
-                title="No injuries recorded"
-                description="Injuries you record, including resolved ones, stay in this history."
+                title={t("injuryHistory.emptyTitle")}
+                description={t("injuryHistory.emptyDesc")}
             />
         );
     }
 
     return (
-        <Table caption="Injury history">
+        <Table caption={t("injuryHistory.caption")}>
             <THead>
                 <tr>
-                    <TH>Injury</TH>
-                    <TH>Severity</TH>
-                    <TH>Status</TH>
-                    <TH>Occurred</TH>
-                    <TH>Return / resolved</TH>
-                    <TH>Mechanism</TH>
+                    <TH>{t("injuryHistory.thInjury")}</TH>
+                    <TH>{t("injuryHistory.thSeverity")}</TH>
+                    <TH>{t("injuryHistory.thStatus")}</TH>
+                    <TH>{t("injuryHistory.thOccurred")}</TH>
+                    <TH>{t("injuryHistory.thReturnResolved")}</TH>
+                    <TH>{t("injuryHistory.thMechanism")}</TH>
                 </tr>
             </THead>
             <TBody>
@@ -40,33 +48,35 @@ export function InjuryHistory({ injuries }: { injuries: Injury[] }) {
                     <TR key={injury.id}>
                         <TD className="min-w-52">
                             <Link href={routes.doctor.injury(injury.id)} className="rounded-sm font-medium text-fg hover:underline">
-                                {injuryTypeName(injury)}
+                                {injuryTypeName(injury, locale)}
                             </Link>
-                            <span className="block text-xs text-fg-muted">{BODY_REGION_LABELS[injury.bodyRegion]}</span>
+                            <span className="block text-xs text-fg-muted">{bodyRegionLabel(injury.bodyRegion, locale)}</span>
                         </TD>
                         <TD>
-                            <InjurySeverityBadge severity={injury.severity} size="sm" />
+                            <InjurySeverityBadge severity={injury.severity} size="sm" locale={locale} />
                         </TD>
                         <TD>
-                            <InjuryStatusBadge status={injury.status} size="sm" />
+                            <InjuryStatusBadge status={injury.status} size="sm" locale={locale} />
                         </TD>
                         <TD className="whitespace-nowrap text-[13px]">
-                            <time dateTime={injury.occurredAt}>{formatDate(injury.occurredAt)}</time>
+                            <time dateTime={injury.occurredAt}>{formatDate(injury.occurredAt, locale)}</time>
                         </TD>
                         <TD className="whitespace-nowrap text-[13px]">
                             {injury.resolvedAt ? (
                                 <span>
-                                    Resolved <time dateTime={injury.resolvedAt}>{formatDate(injury.resolvedAt)}</time>
+                                    {t("injuryHistory.resolvedOn", { date: formatDate(injury.resolvedAt, locale) })}
                                 </span>
                             ) : injury.expectedReturnAt ? (
                                 <span>
-                                    Expected <time dateTime={injury.expectedReturnAt}>{formatDate(injury.expectedReturnAt)}</time>
+                                    {t("injuryHistory.expectedOn", { date: formatDate(injury.expectedReturnAt, locale) })}
                                 </span>
                             ) : (
-                                <span className="text-fg-muted">To be assessed</span>
+                                <span className="text-fg-muted">{t("injuryHistory.toBeAssessed")}</span>
                             )}
                         </TD>
-                        <TD className="whitespace-nowrap text-[13px]">{(labelOf(INJURY_MECHANISM_LABELS, injury.mechanism) ?? NOT_RECORDED)}</TD>
+                        <TD className="whitespace-nowrap text-[13px]">
+                            {injury.mechanism ? injuryMechanismLabel(injury.mechanism, locale) : t("health.notRecorded")}
+                        </TD>
                     </TR>
                 ))}
             </TBody>

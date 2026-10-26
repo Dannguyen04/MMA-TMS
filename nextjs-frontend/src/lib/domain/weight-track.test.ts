@@ -16,14 +16,14 @@ describe("buildWeightTrack", () => {
         const track = buildWeightTrack({ ...camp, points: [{ date: "2026-10-16", kg: 66 }] });
         expect(track.remainingPct).toBe(9.1);
         expect(track.daysToWeighIn).toBe(2);
-        expect(track.status).toBe("RED");
+        expect(track.status).toBe("OVER_LIMIT");
         expect(track.latestKg).toBe(66);
     });
 
     it("is green inside the window when remaining percent is within the limit", () => {
         const track = buildWeightTrack({ ...camp, points: [{ date: "2026-10-16", kg: 64.5 }] });
         expect(track.remainingPct).toBe(7);
-        expect(track.status).toBe("GREEN");
+        expect(track.status).toBe("ON_TRACK");
     });
 
     it("is yellow when weigh-in is still outside the window and weight sits above the reference", () => {
@@ -34,7 +34,7 @@ describe("buildWeightTrack", () => {
             points: [{ date: "2026-10-01", kg: 70 }, { date: "2026-10-16", kg: 68.9 }],
         });
         expect(track.daysToWeighIn).toBe(20);
-        expect(track.status).toBe("YELLOW");
+        expect(track.status).toBe("ABOVE_TARGET");
         const onToday = track.referencePath.find((point) => point.date === "2026-10-16");
         expect(onToday).toBeDefined();
         expect(68.9).toBeGreaterThan((onToday?.kg ?? 0) + 1);
@@ -42,18 +42,18 @@ describe("buildWeightTrack", () => {
 
     it("is grey when the last weigh-in is three or more academy days ago", () => {
         const track = buildWeightTrack({ ...camp, points: [{ date: "2026-10-13", kg: 66 }] });
-        expect(track.status).toBe("GREY");
+        expect(track.status).toBe("NOT_WEIGHED");
         expect(track.latestKg).toBe(66);
     });
 
     it("keeps a two-day-old weigh-in out of grey", () => {
         const track = buildWeightTrack({ ...camp, points: [{ date: "2026-10-14", kg: 64.5 }] });
-        expect(track.status).not.toBe("GREY");
+        expect(track.status).not.toBe("NOT_WEIGHED");
     });
 
     it("is grey with no numbers when nothing has been logged", () => {
         const track = buildWeightTrack({ ...camp, points: [] });
-        expect(track.status).toBe("GREY");
+        expect(track.status).toBe("NOT_WEIGHED");
         expect(track.latestKg).toBeNull();
         expect(track.remainingPct).toBeNull();
         expect(track.limitKg).toBe(60);
@@ -103,6 +103,6 @@ describe("reference line for a fighter who starts light", () => {
             ],
         });
         expect(Math.max(...track.referencePath.map((point) => point.kg))).toBe(59.6);
-        expect(track.status).toBe("GREEN");
+        expect(track.status).toBe("ON_TRACK");
     });
 });

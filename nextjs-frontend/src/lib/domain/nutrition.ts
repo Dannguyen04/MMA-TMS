@@ -85,7 +85,7 @@ export function savedWeightMessage(saved: string | undefined, status: string | u
 }
 
 function isWeightStatus(value: string | undefined): value is WeightStatus {
-    return value === "GREEN" || value === "YELLOW" || value === "RED" || value === "GREY";
+    return value === "ON_TRACK" || value === "ABOVE_TARGET" || value === "OVER_LIMIT" || value === "NOT_WEIGHED" || value === "NEUTRAL";
 }
 
 export function weighInCountdown(days: number, t: Translator = english): string {

@@ -17,6 +17,7 @@ import {
   fighterPlanMismatch,
   sessionStateConflict,
   trainingMedicalEligibilityRequired,
+  trainingSuspensionActive,
 } from '../training.error.js';
 import type {
   CreateSessionInput,
@@ -30,6 +31,7 @@ import type {
   Transaction,
 } from '../../shared/utils/audit-context.util.js';
 import { MedicalService } from '../../medical/medical.service.js';
+import { SuspensionGate } from '../../suspensions/suspension.gate.js';
 import type { AuthenticatedUser } from '../../shared/models/auth-context.model.js';
 import { USER } from '../../shared/types/user.role.js';
 import { forbidden } from '../../shared/errors/access.error.js';
@@ -47,6 +49,7 @@ export class TrainingSessionService {
     private readonly medical: MedicalService,
     @Inject(NOTIFICATION_PUBLISHER)
     private readonly notifications: NotificationPublisher,
+    private readonly suspensionGate: SuspensionGate,
   ) {}
 
   async listSessions(actor: AuthenticatedUser, query: ListSessionsQuery) {
@@ -102,6 +105,16 @@ export class TrainingSessionService {
         }
       }
 
+      // Gate 2 (scheduling): createSession is not wrapped in a transaction;
+      // the IN_PROGRESS start-session gate below is the second layer inside a
+      // transaction, so a suspension created between this check and the insert
+      // is still caught when the session starts.
+      await this.assertNotSuspended(
+        data.fighterId,
+        data.sessionType,
+        new Date(data.scheduledAt),
+      );
+
       const created = await this.repo.createSession(data);
       // T3, after the autocommitted insert; the publisher never throws.
       await this.notifySessionEvent(
@@ -131,28 +144,9 @@ export class TrainingSessionService {
 
       // The lock makes the reschedule check compare against exactly the row this
       // UPDATE replaces, never a snapshot a concurrent request changed.
-      result = await this.repo.transaction(async (transaction) => {
-        const locked = await this.repo.lockSessionById(id, transaction);
-        if (!locked) throw sessionNotFound();
-        const nextSessionType = data.sessionType;
-        // Switching a running session to another type could step outside a
-        // medical restriction, so it passes the same gate as starting it.
-        if (
-          nextSessionType !== undefined &&
-          locked.status === 'IN_PROGRESS' &&
-          nextSessionType !== locked.sessionType
-        ) {
-          await this.assertMedicallyEligible(
-            locked.fighterId,
-            nextSessionType,
-            transaction,
-          );
-        }
-        const rescheduled = this.isRescheduled(locked, data);
-        const updated = await this.repo.updateSession(id, data, transaction);
-        if (!updated) throw sessionNotFound();
-        return { updated, rescheduled };
-      });
+      result = await this.repo.transaction(async (transaction) =>
+        this.applySessionUpdateInTransaction(id, data, transaction),
+      );
     } catch (error) {
       throw mapTrainingPersistenceError(error);
     }
@@ -160,15 +154,101 @@ export class TrainingSessionService {
     // T4, after commit: only a real time/location change; notes, RPE, title, type
     // or a repeated request notify nobody.
     if (result.rescheduled) {
-      await this.notifySessionEvent(
-        actor,
-        result.updated,
-        NOTIFICATION_TYPE.TRAINING_SESSION_RESCHEDULED,
-        TRAINING_NOTIFICATION_TEXT.SESSION_RESCHEDULED,
-        `session:${id}:rescheduled:${result.updated.updatedAt}`,
-      );
+      await this.notifySessionRescheduled(actor, result.updated);
     }
     return result.updated;
+  }
+
+  async applySessionUpdateInTransaction(
+    id: string,
+    data: UpdateSessionInput,
+    transaction: Transaction,
+    onLocked?: (locked: TrainingSessionEntity) => void,
+  ): Promise<{ updated: TrainingSessionEntity; rescheduled: boolean }> {
+    const locked = await this.repo.lockSessionById(id, transaction);
+    if (!locked) throw sessionNotFound();
+    onLocked?.(locked);
+    const nextSessionType = data.sessionType;
+    // Switching a running session to another type could step outside a
+    // medical restriction, so it passes the same gate as starting it.
+    if (
+      nextSessionType !== undefined &&
+      locked.status === 'IN_PROGRESS' &&
+      nextSessionType !== locked.sessionType
+    ) {
+      await this.assertMedicallyEligible(
+        locked.fighterId,
+        nextSessionType,
+        transaction,
+      );
+    }
+    const sessionTypeChanged =
+      data.sessionType !== undefined &&
+      data.sessionType !== locked.sessionType;
+    const scheduledAtChanged =
+      data.scheduledAt !== undefined &&
+      new Date(data.scheduledAt).getTime() !==
+        new Date(locked.scheduledAt).getTime();
+    if (sessionTypeChanged || scheduledAtChanged) {
+      const effectiveSessionType = data.sessionType ?? locked.sessionType;
+      const effectiveScheduledAt = data.scheduledAt ?? locked.scheduledAt;
+      await this.assertNotSuspended(
+        locked.fighterId,
+        effectiveSessionType,
+        new Date(effectiveScheduledAt),
+        transaction,
+      );
+    }
+    const rescheduled = this.isRescheduled(locked, data);
+    const updated = await this.repo.updateSession(id, data, transaction);
+    if (!updated) throw sessionNotFound();
+    return { updated, rescheduled };
+  }
+
+  async applySessionCancelInTransaction(
+    id: string,
+    cancellationReason: string,
+    transaction: Transaction,
+    onLocked?: (locked: TrainingSessionEntity) => void,
+  ): Promise<TrainingSessionEntity> {
+    const locked = await this.repo.lockSessionById(id, transaction);
+    if (!locked) throw sessionNotFound();
+    onLocked?.(locked);
+    if (!ALLOWED_SESSION_TRANSITIONS[locked.status]?.includes('CANCELLED')) {
+      throw invalidSessionStatusTransition(locked.status, 'CANCELLED');
+    }
+    return this.applyStatusTransition(
+      locked,
+      'CANCELLED',
+      cancellationReason,
+      transaction,
+    );
+  }
+
+  notifySessionRescheduled(
+    actor: AuthenticatedUser,
+    session: TrainingSessionEntity,
+  ) {
+    return this.notifySessionEvent(
+      actor,
+      session,
+      NOTIFICATION_TYPE.TRAINING_SESSION_RESCHEDULED,
+      TRAINING_NOTIFICATION_TEXT.SESSION_RESCHEDULED,
+      `session:${session.id}:rescheduled:${session.updatedAt}`,
+    );
+  }
+
+  notifySessionCancelled(
+    actor: AuthenticatedUser,
+    session: TrainingSessionEntity,
+  ) {
+    return this.notifySessionEvent(
+      actor,
+      session,
+      NOTIFICATION_TYPE.TRAINING_SESSION_CANCELLED,
+      TRAINING_NOTIFICATION_TEXT.SESSION_CANCELLED,
+      `session:${session.id}:cancelled`,
+    );
   }
 
   /**
@@ -234,9 +314,10 @@ export class TrainingSessionService {
         ) {
           throw invalidSessionStatusTransition(locked.status, newStatus);
         }
-        await this.assertMedicallyEligible(
+        await this.assertEligibleAndNotSuspended(
           locked.fighterId,
           locked.sessionType,
+          new Date(),
           transaction,
         );
         if (lockedSameStatus) return locked;
@@ -315,6 +396,54 @@ export class TrainingSessionService {
     );
     if (!eligibility.eligible) {
       throw trainingMedicalEligibilityRequired(eligibility.reasons);
+    }
+  }
+
+  private async assertNotSuspended(
+    fighterId: string,
+    sessionType: TrainingSessionEntity['sessionType'],
+    at: Date,
+    database?: DatabaseExecutor,
+  ): Promise<void> {
+    const suspensions = await this.suspensionGate.blockingSuspensions(
+      fighterId,
+      sessionType,
+      at,
+      database,
+    );
+    if (suspensions.length > 0) {
+      throw trainingSuspensionActive(suspensions);
+    }
+  }
+
+  private async assertEligibleAndNotSuspended(
+    fighterId: string,
+    sessionType: TrainingSessionEntity['sessionType'],
+    at: Date,
+    transaction: Transaction,
+  ): Promise<void> {
+    const eligibility = await this.medical.evaluateTrainingEligibility(
+      fighterId,
+      sessionType,
+      transaction,
+    );
+    const suspensions = await this.suspensionGate.blockingSuspensions(
+      fighterId,
+      sessionType,
+      at,
+      transaction,
+    );
+    if (!eligibility.eligible && suspensions.length > 0) {
+      throw trainingMedicalEligibilityRequired(
+        eligibility.reasons,
+        suspensions,
+      );
+    }
+    if (!eligibility.eligible) {
+      throw trainingMedicalEligibilityRequired(eligibility.reasons);
+    }
+    if (suspensions.length > 0) {
+      throw trainingSuspensionActive(suspensions);
     }
   }
 

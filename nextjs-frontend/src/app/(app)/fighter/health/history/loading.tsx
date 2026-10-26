@@ -1,5 +1,7 @@
 import { DetailSkeleton } from "@/components/ui/skeleton";
+import { getTranslator } from "@/lib/i18n/server";
 
-export default function FighterMedicalHistoryLoading() {
-    return <DetailSkeleton label="Loading your medical history" />;
+export default async function FighterMedicalHistoryLoading() {
+    const { t } = await getTranslator();
+    return <DetailSkeleton label={t("health.loadingHistory")} />;
 }

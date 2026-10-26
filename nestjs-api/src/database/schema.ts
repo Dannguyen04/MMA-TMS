@@ -329,6 +329,14 @@ export const notificationTypeEnum = pgEnum('notification_type', [
   'TRAINING_SESSION_CANCELLED',
   // 017: Admin task to assign a Doctor to a new Fighter.
   'FIGHTER_DOCTOR_ASSIGNMENT_REQUIRED',
+  // 025: Bout & Suspension notification types.
+  'BOUT_CREATED',
+  'BOUT_WEIGHT_AT_RISK',
+  'BOUT_REQUIREMENT_REJECTED',
+  'BOUT_REQUIREMENT_DUE',
+  'BOUT_WEIGHT_MISSING',
+  'SUSPENSION_CREATED',
+  'SUSPENSION_AWAITING_CLEARANCE',
 ]);
 
 // ─── Task 14 Enums ────────────────────────────────────────────────────────────
@@ -4605,3 +4613,44 @@ export const boutRounds = pgTable('bout_rounds', {
   check('ck_bout_rounds_observation_marks', sql.raw("jsonb_typeof(observation_marks) = 'object'")),
 ]).enableRLS();
 export type BoutRoundRow = typeof boutRounds.$inferSelect;
+
+export const suspensionReasonEnum = pgEnum('suspension_reason', [
+  'KO',
+  'TKO',
+  'DQ',
+  'MANDATORY_REST',
+  'MEDICAL',
+  'OTHER',
+]);
+
+export const suspensions = pgTable('suspensions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  fighterId: uuid('fighter_id').notNull().references(() => fighters.id),
+  boutId: uuid('bout_id').references(() => bouts.id),
+  reason: suspensionReasonEnum('reason').notNull(),
+  startsOn: date('starts_on').notNull(),
+  endsOn: date('ends_on').notNull(),
+  lossOfConsciousness: text('loss_of_consciousness'),
+  suggestedDays: smallint('suggested_days'),
+  overrideReason: text('override_reason'),
+  blockedSessionTypes: sessionTypeEnum('blocked_session_types').array().notNull(),
+  requiresClearance: boolean('requires_clearance').notNull(),
+  clearedAt: timestamp('cleared_at', { withTimezone: true }),
+  clearedById: uuid('cleared_by_id').references(() => users.id),
+  clearanceNote: text('clearance_note'),
+  createdById: uuid('created_by_id').notNull().references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+}, (t) => [
+  check(
+    'ck_suspensions_loss_of_consciousness',
+    sql.raw("(loss_of_consciousness IS NULL OR loss_of_consciousness IN ('NONE', 'UNDER_1_MIN', 'OVER_1_MIN', 'UNKNOWN'))"),
+  ),
+  check('ck_suspensions_dates', sql.raw('(ends_on >= starts_on)')),
+  check('ck_suspensions_cleared', sql.raw('((cleared_at IS NULL) = (cleared_by_id IS NULL))')),
+  index('idx_suspensions_fighter_active').on(t.fighterId, t.endsOn).where(sql`deleted_at IS NULL`),
+]).enableRLS();
+
+export type SuspensionRow = typeof suspensions.$inferSelect;
+export type InsertSuspension = typeof suspensions.$inferInsert;

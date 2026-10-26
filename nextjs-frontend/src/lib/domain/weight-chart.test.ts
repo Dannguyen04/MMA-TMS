@@ -5,7 +5,7 @@ import { weightChartAriaLabel, weightChartData, weightChartWindow } from "./weig
 const track = {
     limitKg: 60,
     latestKg: 66,
-    status: "RED" as const,
+    status: "OVER_LIMIT" as const,
     weighInOn: "2026-10-18",
     points: [
         { date: "2026-10-14", kg: 68 },
@@ -79,7 +79,7 @@ describe("weightChartAriaLabel", () => {
     });
 
     it("says when nothing has been logged", () => {
-        expect(weightChartAriaLabel({ limitKg: 60, latestKg: null, status: "GREY" })).toBe(
+        expect(weightChartAriaLabel({ limitKg: 60, latestKg: null, status: "NOT_WEIGHED" })).toBe(
             "Weight against a 60.0 kg limit. No weight logged, status Grey.",
         );
     });

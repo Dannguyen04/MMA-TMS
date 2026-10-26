@@ -1073,3 +1073,202 @@ export interface SystemSettings {
     notifyDoctorOnAlert: boolean;
     clearanceExpiryWarningDays: number;
 }
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Bouts & Competition Rulesets (T-004)
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+export type BoutSport = "BOXING" | "MUAY_THAI" | "KICKBOXING" | "MMA";
+
+export type BoutStatus = "SCHEDULED" | "CAMP" | "FIGHT_WEEK" | "WEIGHED_IN" | "COMPLETED" | "CANCELLED";
+
+export type BoutResult = "WIN" | "LOSS" | "DRAW" | "NO_CONTEST";
+
+export type BoutMethod = "KO" | "TKO" | "DECISION" | "SUBMISSION" | "DQ" | "OTHER";
+
+export type BoutRequirementStatus = "MISSING" | "PROVIDED" | "CONFIRMED" | "REJECTED";
+
+export type BoutRequirementSource = "PRESET" | "COACH";
+
+/** Meaning, not colour: the UI maps it to a tone. `NEUTRAL` = not judged (from the official weigh-in on). */
+export type WeightWarningStatus = "ON_TRACK" | "ABOVE_TARGET" | "OVER_LIMIT" | "NOT_WEIGHED" | "NEUTRAL";
+
+export interface RulesetWeightClass {
+    code: string;
+    label: string;
+    limitKg: number;
+}
+
+export interface RulesetRequirementTemplate {
+    code: string;
+    label: string;
+    required: boolean;
+    validityDays?: number | null;
+}
+
+export interface CompetitionRuleset {
+    id: string;
+    name: string;
+    sport: BoutSport;
+    organizer: string | null;
+    verified: boolean;
+    sourceNote: string | null;
+    weightClasses: RulesetWeightClass[];
+    requirementTemplates: RulesetRequirementTemplate[];
+    fightWeekDays: number;
+    requirementsDueDays: number;
+    acuteWindowDays: number;
+    acuteLossLimitPctLong: number;
+    acuteLossLimitPctShort: number;
+    suspensionRules: unknown[];
+    defaultBlockedSessionTypes: string[];
+    restDaysAfterBout: number;
+    createdById: string;
+    createdAt: ISODate;
+    updatedAt: ISODate;
+    deletedAt: ISODate | null;
+}
+
+export interface BoutRequirement {
+    id: string;
+    boutId: string;
+    code: string;
+    label: string;
+    required: boolean;
+    status: BoutRequirementStatus;
+    issuedOn: string | null;
+    validUntil: string | null;
+    source: BoutRequirementSource;
+    statusReason: string | null;
+    updatedById?: string | null;
+    confirmedById?: string | null;
+    confirmedAt?: ISODate | null;
+}
+
+export interface BoutHistoryEntry {
+    at: ISODate;
+    by: string;
+    from: BoutStatus;
+    to: BoutStatus;
+    reason?: string;
+}
+
+export interface Gate1Result {
+    passed: boolean;
+    missing: string[];
+    expiring: string[];
+}
+
+export type WeighInReminderLevel = "ASK_TODAY" | "YESTERDAY_MISSING";
+
+/** "No weight logged today" during the fight week (T0); `active` is false outside it. */
+export interface WeightReminder {
+    active: boolean;
+    level: WeighInReminderLevel | null;
+    daysSinceLastWeight: number | null;
+    messageCode: string | null;
+}
+
+export type BoutWarningCode = "WEIGHT_AT_RISK" | "WEIGHT_INSUFFICIENT_DATA";
+
+/** R31: can the fighter make the class from the latest weight? A warning, never a block. */
+export interface WeightFeasibility {
+    status: WeightWarningStatus;
+    remainingPct: number | null;
+    latestKg: number | null;
+    latestOn: string | null;
+    daysToWeighIn: number;
+    limitKg: number;
+    acuteLossLimitPct: number;
+    warnings: Array<{ code: BoutWarningCode }>;
+}
+
+export type CoachTodoPhase = "BEFORE" | "DURING" | "AFTER";
+
+export type CoachTodoSource =
+    | "REQUIREMENTS_DUE"
+    | "REQUIREMENTS_OVERDUE"
+    | "WEIGHT_OVER_LIMIT"
+    | "WEIGHT_ABOVE_TARGET"
+    | "WEIGHT_NOT_WEIGHED"
+    | "TACTICS_WITHOUT_SESSIONS"
+    | "CAN_ENTER_FIGHT_WEEK"
+    | "WEIGH_IN_TODAY"
+    | "RESULT_OVERDUE"
+    | "WEIGHT_NOT_LOGGED";
+
+export interface CoachTodoItem {
+    source: CoachTodoSource;
+    phase: CoachTodoPhase;
+    fighterId: string;
+    boutId: string;
+    eventName: string;
+    dueOn: string | null;
+    count: number | null;
+}
+
+export interface CoachTodo {
+    items: CoachTodoItem[];
+    truncated: boolean;
+}
+
+export interface WeightStatusSummary {
+    latestKg: number | null;
+    latestOn: string | null;
+    remainingPct: number | null;
+    status: WeightWarningStatus;
+    referencePath: Array<{ date: string; kg: number }>;
+}
+
+export interface Bout {
+    id: string;
+    fighterId: string;
+    coachId: string;
+    rulesetId: string;
+    eventName: string;
+    venue: string | null;
+    opponentName: string | null;
+    weightClassCode: string;
+    weightLimitKg: number;
+    acuteLossLimitPct: number;
+    requirementsDueDays: number;
+    weighInAt: ISODate;
+    boutAt: ISODate;
+    status: BoutStatus;
+    trainingPlanId: string | null;
+    officialWeightKg: number | null;
+    madeWeight: boolean | null;
+    catchweightKg: number | null;
+    hydrationCheck: "NOT_APPLICABLE" | "PASSED" | "FAILED" | null;
+    result: BoutResult | null;
+    method: BoutMethod | null;
+    resultRound: number | null;
+    knockedDown: boolean | null;
+    cancelReason: string | null;
+    notes: string | null;
+    history: BoutHistoryEntry[];
+    createdById: string;
+    createdAt: ISODate;
+    updatedAt: ISODate;
+    deletedAt: ISODate | null;
+    requirements: BoutRequirement[];
+    // Computed fields from T-003 §3
+    daysToWeighIn?: number;
+    requirementsDueOn?: string;
+    gate1?: Gate1Result;
+    canEnterFightWeek?: boolean;
+    weight?: WeightStatusSummary;
+    weightReminder?: WeightReminder;
+}
+
+export interface WeightTrack {
+    limitKg: number;
+    points: Array<{ date: string; kg: number }>;
+    latestKg: number | null;
+    latestOn: string | null;
+    remainingPct: number | null;
+    status: WeightWarningStatus;
+    referencePath: Array<{ date: string; kg: number }>;
+}
+
+

@@ -1,3 +1,7 @@
+import type { CoachTodo, WeightFeasibility } from "@/lib/domain/types";
+import { buildDemoCoachTodo } from "@/lib/domain/coach-todo";
+import { boutGate1, calculateWeightFeasibility, feasibilityWarnings, computeWeighInReminder, requirementsDueOn } from "@/lib/domain/bout-rules";
+import type { FeasibilityInput } from "./bouts";
 import "server-only";
 
 import {
@@ -86,7 +90,7 @@ export type CreateResult = { ok: true; boutId: string; warning: string | null } 
 
 export type FightWeekResult = { ok: true } | { ok: false; message: string; lines: string[] };
 
-const STATUS_ORDER = { RED: 0, YELLOW: 1, GREY: 2, GREEN: 3 } as const;
+const STATUS_ORDER = { OVER_LIMIT: 0, ABOVE_TARGET: 1, NOT_WEIGHED: 2, ON_TRACK: 3, NEUTRAL: 4 } as const;
 
 const RAFAEL_ID = "c-rafael-costa";
 const RAFAEL = "Rafael Costa";
@@ -407,7 +411,7 @@ export function demoWeightTrack(boutId: string, now = new Date()): WeightTrack |
     if (!bout) return null;
     const todayOn = dayKey(now);
     const adherenceByDay = new Map(camp.checkins.filter((item) => item.boutId === bout.id).map((item) => [item.loggedOn, item.adherence]));
-    return buildWeightTrack({
+    const track = buildWeightTrack({
         limitKg: boutLimitKg(bout),
         acuteLossLimitPct: bout.acuteLossLimitPct,
         acuteWindowDays: bout.acuteWindowDays,
@@ -432,7 +436,7 @@ export function listDemoWeightAlerts(fighterIds: string[] | "all", now = new Dat
         .filter((bout) => isRunningPhase(bout.phase))
         .flatMap((bout) => {
             const track = demoWeightTrack(bout.id, now);
-            if (!track || track.status === "GREEN") return [];
+            if (!track || (track.status === "ON_TRACK" || track.status === "NEUTRAL")) return [];
             return [{ bout, track, wayOff: wayOffCount(campCheckins(bout.id), todayOn) }];
         })
         .sort((a, b) => STATUS_ORDER[a.track.status] - STATUS_ORDER[b.track.status] || (a.bout.weighInAt < b.bout.weighInAt ? -1 : 1));
@@ -922,4 +926,23 @@ function cloneBout(bout: CampBout): CampBout {
         outcome: bout.outcome ? { ...bout.outcome } : null,
         checklistUnlock: bout.checklistUnlock ? { ...bout.checklistUnlock } : null,
     };
+}
+
+export async function getFeasibility(input: FeasibilityInput): Promise<WeightFeasibility | null> {
+    const rules = getDemoRuleset(input.rulesetId);
+    if (!rules) return null;
+    const store = demoCampStore();
+    const today = dayKey(new Date());
+    const latest = store.measurements.filter(m => m.fighterId === input.fighterId && m.academyDate <= today).sort((a,b) => a.recordedAt.localeCompare(b.recordedAt)).at(-1);
+    const result = calculateWeightFeasibility({ limitKg: input.weightLimitKg, acuteLossLimitPct: acuteLossLimitPct(input.weighInAt, input.boutAt, rules), acuteWindowDays: rules.acuteWindowDays, weighInAt: input.weighInAt, latest: latest ? { date: latest.academyDate, kg: latest.kg } : null });
+    return { ...result, warnings: feasibilityWarnings(result.status) };
+}
+export async function getCoachTodo(scope: string[] | "all"): Promise<CoachTodo> {
+    const now = new Date();
+    const bouts = listDemoBouts(scope).map(bout => {
+        const weight = demoWeightTrack(bout.id, now);
+        const gate = boutGate1(bout);
+        return { ...bout, status: bout.phase, deletedAt: null, eventName: bout.event, requirementsDueOn: requirementsDueOn(bout), gate1: { passed: gate.passed, missing: gate.missing.map(gap => gap.requirement.code), expiring: [] }, weight: weight ?? undefined, canEnterFightWeek: canEnterFightWeek(bout, dayKey(now)).ok, weightReminder: computeWeighInReminder({ status: bout.phase, latestOn: weight?.latestOn ?? null, now }) };
+    });
+    return { items: buildDemoCoachTodo(bouts, now), truncated: false };
 }

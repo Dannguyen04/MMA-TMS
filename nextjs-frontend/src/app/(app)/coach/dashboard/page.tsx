@@ -16,6 +16,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { accessibleFighterIds } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { academyDayStartIso, addDaysToKey, DAY_MS, dayKey, formatShortDate, formatWeekdayDate } from "@/lib/format";
+
 import { hrefWith, parseEnum } from "@/lib/query";
 import { getTranslator } from "@/lib/i18n/server";
 import { plural } from "@/lib/i18n/translate";
@@ -24,6 +25,9 @@ import { requirementsDueOn, requirementsDueSoon, requirementsOverdue } from "@/l
 import { adherenceAlertLine } from "@/lib/domain/nutrition";
 import { getSettings } from "@/lib/services/admin";
 import { listCampBouts, listWeightAlerts } from "@/lib/services/bouts";
+import { nullIfServiceFails } from "@/lib/services/api-helpers";
+import { getCoachTodo } from "@/lib/services/bouts";
+
 import { listGoals } from "@/lib/services/goals";
 import { listFighters } from "@/lib/services/people";
 import { platformFeatureAvailable } from "@/lib/services/platform-features";
@@ -31,6 +35,8 @@ import { getNavBadgeCounts } from "@/lib/services/shell";
 import { listPlans, listSessions } from "@/lib/services/training";
 import { listReviewQueue } from "@/lib/services/videos";
 import { param } from "@/lib/utils";
+import { CoachTodoCard } from "./coach-todo-card";
+
 
 export async function generateMetadata(): Promise<Metadata> {
     const { t } = await getTranslator();
@@ -58,7 +64,8 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
     const weekEnd = new Date(Date.parse(academyDayStartIso(addDaysToKey(weekKey, 7))) - 1).toISOString();
 
     const fighterList = listFighters(user);
-    const [fighters, roster, weekSessions, reviewQueue, missed, goalsAtRisk, settings, plans, weightAlerts, bouts] = await Promise.all([
+    const [fighters, roster, weekSessions, reviewQueue, missed, goalsAtRisk, settings, plans, weightAlerts, bouts, todo] = await Promise.all([
+
         fighterList,
         loadRoster(user, now, { fighters: fighterList, performance: false }),
         listSessions({ fighterIds: scope, from: weekStart, to: weekEnd }),
@@ -71,6 +78,9 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
         listPlans({ fighterIds: scope }),
         listWeightAlerts(scope, new Date(now)),
         listCampBouts(scope),
+        // The to-do card (T-029). Without the bouts service it is left out.
+        nullIfServiceFails(getCoachTodo(scope)),
+
     ]);
     // F4: from 14 days before the documents deadline, bouts with required documents still missing.
     const documentsDue = bouts
@@ -199,6 +209,8 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
                 />
 
                 <div className="flex min-w-0 flex-col gap-6">
+                    {todo && <CoachTodoCard todo={todo} fighterNames={new Map(fighters.map((fighter) => [fighter.id, fighter.name]))} t={t} locale={locale} />}
+
                     <TodaySchedule sessions={todaySessions} fighters={scheduleFighters} t={t} locale={locale} />
                 </div>
             </div>

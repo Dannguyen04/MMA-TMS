@@ -63,10 +63,10 @@ export function buildWeightTrack(input: WeightTrackInput): WeightTrack {
     const stale = latest === null || !isDateKey(input.todayOn) || daysBetweenKeys(latest.date, input.todayOn) >= WEIGHT_STALE_DAYS;
     const referenceKg = latest && limitKg !== null ? referenceKgOn({ ...input, limitKg }, points[0] ?? null, latest.date) : null;
 
-    let status: WeightStatus = "GREEN";
-    if (stale) status = "GREY";
-    else if (remainingPct !== null && daysToWeighIn <= input.acuteWindowDays && remainingPct > input.acuteLossLimitPct) status = "RED";
-    else if (latestKg !== null && referenceKg !== null && daysToWeighIn > input.acuteWindowDays && latestKg > referenceKg + toleranceKg) status = "YELLOW";
+    let status: WeightStatus = "ON_TRACK";
+    if (stale) status = "NOT_WEIGHED";
+    else if (remainingPct !== null && daysToWeighIn <= input.acuteWindowDays && remainingPct > input.acuteLossLimitPct) status = "OVER_LIMIT";
+    else if (latestKg !== null && referenceKg !== null && daysToWeighIn > input.acuteWindowDays && latestKg > referenceKg + toleranceKg) status = "ABOVE_TARGET";
 
     return {
         limitKg: input.limitKg,

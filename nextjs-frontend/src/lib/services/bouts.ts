@@ -1,3 +1,5 @@
+import type { CoachTodo, WeightFeasibility } from "@/lib/domain/types";
+import { platformFeatureAvailable } from "./platform-features";
 import "server-only";
 
 import { cookies } from "next/headers";
@@ -36,7 +38,7 @@ export interface WeightAlert {
     wayOff: number;
 }
 
-const STATUS_ORDER: Record<WeightStatus, number> = { RED: 0, YELLOW: 1, GREY: 2, GREEN: 3 };
+const STATUS_ORDER: Record<WeightStatus, number> = { OVER_LIMIT: 0, ABOVE_TARGET: 1, NOT_WEIGHED: 2, ON_TRACK: 3, NEUTRAL: 4 };
 
 /** Writes the backend does not serve yet refuse with this, never with an exception that blanks the page. */
 export const BOUTS_UNAVAILABLE = "Bouts are not available from the server yet.";
@@ -56,7 +58,7 @@ const apiTrackSchema = z.object({
     latestKg: z.number().nullable(),
     latestOn: z.string().nullable(),
     remainingPct: z.number().nullable(),
-    status: z.enum(["GREEN", "YELLOW", "RED", "GREY"]),
+    status: z.enum(["ON_TRACK", "ABOVE_TARGET", "OVER_LIMIT", "NOT_WEIGHED", "NEUTRAL"]),
     referencePath: z.array(z.object({ date: z.string(), kg: z.number() })),
 });
 
@@ -124,7 +126,7 @@ export async function listWeightAlerts(fighterIds: string[] | "all", now = new D
     const rows = await Promise.all(
         bouts.map(async (bout) => {
             const track = await getWeightTrack(bout.id, now);
-            if (!track || track.status === "GREEN") return null;
+            if (!track || (track.status === "ON_TRACK" || track.status === "NEUTRAL")) return null;
             const fighterName = (await getFighter(bout.fighterId))?.name ?? "Fighter";
             return { bout, fighterName, track, wayOff: 0 };
         }),
@@ -312,4 +314,85 @@ async function usesCustomLimit(rulesetId: string): Promise<boolean> {
 
 function isUnavailable(error: unknown): boolean {
     return error instanceof ApiError && (error.status === 403 || error.status === 404);
+}
+
+const weightWarningStatusSchema = z.enum(["ON_TRACK", "ABOVE_TARGET", "OVER_LIMIT", "NOT_WEIGHED", "NEUTRAL"]);
+export const feasibilitySchema = z.object({
+    status: weightWarningStatusSchema,
+    remainingPct: z.number().nullable(),
+    latestKg: z.number().nullable(),
+    latestOn: z.string().nullable(),
+    daysToWeighIn: z.number(),
+    limitKg: z.number(),
+    acuteLossLimitPct: z.number(),
+    warnings: z.array(z.object({ code: z.enum(["WEIGHT_AT_RISK", "WEIGHT_INSUFFICIENT_DATA"]) })),
+});
+
+export const coachTodoSchema = z.object({
+    items: z.array(
+        z.object({
+            source: z.enum([
+                "REQUIREMENTS_DUE",
+                "REQUIREMENTS_OVERDUE",
+                "WEIGHT_OVER_LIMIT",
+                "WEIGHT_ABOVE_TARGET",
+                "WEIGHT_NOT_WEIGHED",
+                "TACTICS_WITHOUT_SESSIONS",
+                "CAN_ENTER_FIGHT_WEEK",
+                "WEIGH_IN_TODAY",
+                "RESULT_OVERDUE",
+                "WEIGHT_NOT_LOGGED",
+            ]),
+            phase: z.enum(["BEFORE", "DURING", "AFTER"]),
+            fighterId: z.string(),
+            boutId: z.string(),
+            eventName: z.string(),
+            dueOn: z.string().nullable(),
+            count: z.number().nullable(),
+        }),
+    ),
+    truncated: z.boolean(),
+});
+
+
+export interface FeasibilityInput {
+    fighterId: string;
+    rulesetId: string;
+    weightClassCode: string;
+    weightLimitKg: number;
+    weighInAt: string;
+    boutAt: string;
+}
+
+
+export async function getFeasibility(input: FeasibilityInput): Promise<WeightFeasibility | null> {
+    if (isDemoAuthEnabled()) return (await demo()).getFeasibility(input);
+    if (!platformFeatureAvailable("bouts")) return null;
+
+    const params = new URLSearchParams({
+        fighterId: input.fighterId,
+        rulesetId: input.rulesetId,
+        weightClassCode: input.weightClassCode,
+        weightLimitKg: String(input.weightLimitKg),
+        weighInAt: input.weighInAt,
+        boutAt: input.boutAt,
+    });
+    return authenticatedApiRequest(`/bouts/feasibility?${params.toString()}`, feasibilitySchema);
+}
+
+/** The coach's to-do card. The backend scopes it to the signed-in coach; demo mode reads `scope`. */
+export async function getCoachTodo(scope: string[] | "all"): Promise<CoachTodo | null> {
+    if (isDemoAuthEnabled()) return (await demo()).getCoachTodo(scope);
+    if (!platformFeatureAvailable("bouts")) return null;
+
+    return authenticatedApiRequest("/coach/todo", coachTodoSchema);
+}
+
+export async function getWeightTrack(id: string): Promise<WeightTrack | null> {
+    if (isDemoAuthEnabled()) return (await demo()).getWeightTrack(id);
+    if (!platformFeatureAvailable("bouts")) return null;
+
+    return nullIfNotFound(
+        authenticatedApiRequest(`/bouts/${encodeURIComponent(id)}/weight-track`, backendWeightTrackSchema),
+    );
 }

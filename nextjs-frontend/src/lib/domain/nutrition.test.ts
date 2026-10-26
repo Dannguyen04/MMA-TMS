@@ -66,14 +66,14 @@ describe("copy", () => {
 
 describe("saved weight notice", () => {
     it("repeats the kilograms the action sent with one decimal, and the status in words", () => {
-        expect(savedWeightMessage((66.5).toFixed(1), "RED")).toBe("Saved 66.5 kg. Status: Red");
+        expect(savedWeightMessage((66.5).toFixed(1), "OVER_LIMIT")).toBe("Saved 66.5 kg. Status: Red");
         expect(savedWeightMessage((70).toFixed(1), undefined)).toBe("Saved 70.0 kg.");
     });
 
     it("does not invent a notice from a hand-edited query", () => {
-        expect(savedWeightMessage("nope", "RED")).toBeNull();
-        expect(savedWeightMessage("999", "RED")).toBeNull();
-        expect(savedWeightMessage("66.55", "RED")).toBeNull();
+        expect(savedWeightMessage("nope", "OVER_LIMIT")).toBeNull();
+        expect(savedWeightMessage("999", "OVER_LIMIT")).toBeNull();
+        expect(savedWeightMessage("66.55", "OVER_LIMIT")).toBeNull();
         expect(savedWeightMessage("66.5", "BLUE")).toBe("Saved 66.5 kg.");
     });
 });

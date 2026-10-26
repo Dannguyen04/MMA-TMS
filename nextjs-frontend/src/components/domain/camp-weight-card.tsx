@@ -18,7 +18,7 @@ export async function CampWeightCard({ track, wayOff, logHref, locale }: { track
     const lang = locale ?? (await getLocale());
     const t = createTranslator(lang);
     const window = weightChartWindow(track);
-    const showAdherence = wayOff > 0 && (track.status === "RED" || track.status === "YELLOW");
+    const showAdherence = wayOff > 0 && (track.status === "OVER_LIMIT" || track.status === "ABOVE_TARGET");
     const latest = track.latestKg === null ? t("boutFighter.weight.noWeight") : `${formatNumber(track.latestKg, 1)} kg`;
     const remaining = track.remainingPct === null ? null : t("boutFighter.weight.remaining", { pct: formatNumber(track.remainingPct, 1) });
 
@@ -30,12 +30,12 @@ export async function CampWeightCard({ track, wayOff, logHref, locale }: { track
                 action={<WeightStatusBadge status={track.status} locale={lang} />}
             />
             <CardContent className="flex flex-col gap-4">
-                {track.status === "RED" && (
+                {track.status === "OVER_LIMIT" && (
                     <Callout tone="danger" icon={CircleAlert} role="alert" title={t("boutMsg.redWeightRecommendation")}>
                         {showAdherence ? adherenceAlertLine(wayOff, t) : null}
                     </Callout>
                 )}
-                {track.status === "YELLOW" && showAdherence && <p className="text-sm text-fg-muted">{adherenceAlertLine(wayOff, t)}</p>}
+                {track.status === "ABOVE_TARGET" && showAdherence && <p className="text-sm text-fg-muted">{adherenceAlertLine(wayOff, t)}</p>}
                 {window && track.points.length > 0 ? (
                     <WeightChart track={track} from={window.from} to={window.to} />
                 ) : (

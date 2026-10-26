@@ -147,16 +147,18 @@ export function FighterStatusBadges({
     clearanceState,
     size,
     className,
+    locale,
 }: {
     healthStatus: HealthStatus;
     clearanceState: ClearanceState;
     size?: BadgeSize;
     className?: string;
+    locale?: Locale;
 }) {
     return (
         <span className={cn("inline-flex flex-wrap items-center gap-1.5", className)}>
-            <ClearanceBadge state={clearanceState} size={size} />
-            {healthStatus !== "not_cleared" && <HealthStatusBadge status={healthStatus} size={size} />}
+            <ClearanceBadge state={clearanceState} size={size} locale={locale} />
+            {healthStatus !== "not_cleared" && <HealthStatusBadge status={healthStatus} size={size} locale={locale} />}
         </span>
     );
 }
@@ -322,8 +324,9 @@ export const INJURY_SEVERITY_META: Record<InjurySeverity, StatusMeta> = {
     critical: { label: INJURY_SEVERITY_LABELS.critical, tone: "danger", icon: TriangleAlert, solid: true },
 };
 
-export function InjurySeverityBadge({ severity, size, className }: { severity: InjurySeverity; size?: BadgeSize; className?: string }) {
-    return <StatusBadge meta={INJURY_SEVERITY_META[severity]} size={size} className={className} />;
+export function InjurySeverityBadge({ severity, size, className, locale }: { severity: InjurySeverity; size?: BadgeSize; className?: string; locale?: Locale }) {
+    const meta = INJURY_SEVERITY_META[severity];
+    return <StatusBadge meta={locale ? { ...meta, label: createTranslator(locale)(`injurySeverity.${severity}`) } : meta} size={size} className={className} />;
 }
 
 export const INJURY_STATUS_META: Record<InjuryStatus, StatusMeta> = {
@@ -332,8 +335,9 @@ export const INJURY_STATUS_META: Record<InjuryStatus, StatusMeta> = {
     resolved: { label: INJURY_STATUS_LABELS.resolved, tone: "success", icon: CircleCheck },
 };
 
-export function InjuryStatusBadge({ status, size, className }: { status: InjuryStatus; size?: BadgeSize; className?: string }) {
-    return <StatusBadge meta={INJURY_STATUS_META[status]} size={size} className={className} />;
+export function InjuryStatusBadge({ status, size, className, locale }: { status: InjuryStatus; size?: BadgeSize; className?: string; locale?: Locale }) {
+    const meta = INJURY_STATUS_META[status];
+    return <StatusBadge meta={locale ? { ...meta, label: createTranslator(locale)(`injuryStatus.${status}`) } : meta} size={size} className={className} />;
 }
 
 /* ─── Accounts ────────────────────────────────────────────────────────────── */
@@ -388,10 +392,11 @@ export function ConclusionBadge({ conclusion, size, className }: { conclusion: A
 /* ─── Fight camp ──────────────────────────────────────────────────────────── */
 
 export const WEIGHT_STATUS_META: Record<WeightStatus, StatusMeta> = {
-    GREEN: { label: WEIGHT_STATUS_LABELS.GREEN, tone: "success", icon: CircleCheck },
-    YELLOW: { label: WEIGHT_STATUS_LABELS.YELLOW, tone: "warning", icon: TrendingUp },
-    RED: { label: WEIGHT_STATUS_LABELS.RED, tone: "danger", icon: TriangleAlert, solid: true },
-    GREY: { label: WEIGHT_STATUS_LABELS.GREY, tone: "neutral", icon: CircleDashed },
+    ON_TRACK: { label: WEIGHT_STATUS_LABELS.ON_TRACK, tone: "success", icon: CircleCheck },
+    ABOVE_TARGET: { label: WEIGHT_STATUS_LABELS.ABOVE_TARGET, tone: "warning", icon: TrendingUp },
+    OVER_LIMIT: { label: WEIGHT_STATUS_LABELS.OVER_LIMIT, tone: "danger", icon: TriangleAlert, solid: true },
+    NEUTRAL: { label: WEIGHT_STATUS_LABELS.NEUTRAL, tone: "neutral", icon: CircleDashed },
+    NOT_WEIGHED: { label: WEIGHT_STATUS_LABELS.NOT_WEIGHED, tone: "neutral", icon: CircleDashed },
 };
 
 /** Camp weight against the bout limit. Grey means no weigh-in for three days, not "fine". */
@@ -431,6 +436,7 @@ export function RequirementStateBadge({ state, size, className, locale }: { stat
 
 /** Gate 1 in a word: ready, how many items stop it, and "overdue" once the documents deadline has passed. */
 export function Gate1Badge({ missing, overdue, size, className, locale = "en" }: { missing: number; overdue?: boolean; size?: BadgeSize; className?: string; locale?: Locale }) {
+
     const t = createTranslator(locale);
     const meta: StatusMeta =
         missing === 0

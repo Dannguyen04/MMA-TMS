@@ -10,7 +10,10 @@ import {
   buildReferencePath,
   canEnterFightWeek,
   canTransition,
+  classifyReadiness,
   computeAcuteLoss,
+  computeWeighInReminder,
+  computeWeightFeasibility,
   computeWeightTrack,
   createBoutSchema,
   daysBetweenDates,
@@ -20,6 +23,7 @@ import {
   evaluateGate1,
   fightWeekStartsOn,
   listBoutsQuerySchema,
+  readinessQuerySchema,
   referenceKgAt,
   requirementsDueOn,
   resolveWeightClass,
@@ -38,41 +42,41 @@ describe('weight track (criterion 1)', () => {
     campStart: '2026-10-10',
   };
 
-  it('is RED when 2 days remain and W = 66 kg (remaining 9.1% > 8%)', () => {
+  it('is OVER_LIMIT when 2 days remain and W = 66 kg (remaining 9.1% > 8%)', () => {
     const track = computeWeightTrack({
       ...base,
       points: [{ date: '2026-10-20', kg: 66 }],
     });
-    expect(track.status).toBe('RED');
+    expect(track.status).toBe('OVER_LIMIT');
     expect(track.remainingPct).toBe(9.1);
     expect(track.latestKg).toBe(66);
     expect(track.latestOn).toBe('2026-10-20');
     expect(track.limitKg).toBe(60);
   });
 
-  it('is GREEN when 2 days remain and W = 64.5 kg (remaining 7.0%)', () => {
+  it('is ON_TRACK when 2 days remain and W = 64.5 kg (remaining 7.0%)', () => {
     const track = computeWeightTrack({
       ...base,
       points: [{ date: '2026-10-20', kg: 64.5 }],
     });
-    expect(track.status).toBe('GREEN');
+    expect(track.status).toBe('ON_TRACK');
     expect(track.remainingPct).toBe(7);
   });
 
-  it('is GREY when there is no weight in the last 3 days', () => {
+  it('is NOT_WEIGHED when there is no weight in the last 3 days', () => {
     const track = computeWeightTrack({
       ...base,
       points: [{ date: '2026-10-17', kg: 66 }],
     });
-    expect(track.status).toBe('GREY');
+    expect(track.status).toBe('NOT_WEIGHED');
     // The 3-day window covers today, yesterday and the day before.
     expect(
       computeWeightTrack({ ...base, points: [{ date: '2026-10-18', kg: 64 }] })
         .status,
-    ).toBe('GREEN');
+    ).toBe('ON_TRACK');
   });
 
-  it('is GREY with null numbers when no weight exists at all', () => {
+  it('is NOT_WEIGHED with null numbers when no weight exists at all', () => {
     const track = computeWeightTrack({ ...base, points: [] });
     expect(track).toEqual({
       limitKg: 60,
@@ -80,12 +84,12 @@ describe('weight track (criterion 1)', () => {
       latestKg: null,
       latestOn: null,
       remainingPct: null,
-      status: 'GREY',
+      status: 'NOT_WEIGHED',
       referencePath: [],
     });
   });
 
-  it('is YELLOW with 20 days left when W is 1.5 kg above the reference path', () => {
+  it('is ABOVE_TARGET with 20 days left when W is 1.5 kg above the reference path', () => {
     const far = {
       ...base,
       weighInDate: '2026-11-09',
@@ -108,7 +112,7 @@ describe('weight track (criterion 1)', () => {
         { date: '2026-10-20', kg: (reference as number) + 1.5 },
       ],
     });
-    expect(above.status).toBe('YELLOW');
+    expect(above.status).toBe('ABOVE_TARGET');
     const within = computeWeightTrack({
       ...far,
       points: [
@@ -116,7 +120,40 @@ describe('weight track (criterion 1)', () => {
         { date: '2026-10-20', kg: (reference as number) + 0.5 },
       ],
     });
-    expect(within.status).toBe('GREEN');
+    expect(within.status).toBe('ON_TRACK');
+  });
+
+  it('is NEUTRAL from WEIGHED_IN on: a heavier weight after the weigh-in (rehydration) is not judged', () => {
+    const afterWeighIn = {
+      ...base,
+      today: '2026-10-23',
+      points: [
+        { date: '2026-10-22', kg: 59.8 },
+        { date: '2026-10-23', kg: 66 },
+      ],
+    };
+    for (const boutStatus of ['WEIGHED_IN', 'COMPLETED', 'CANCELLED'] as const) {
+      const track = computeWeightTrack({ ...afterWeighIn, boutStatus });
+      expect(track.status).toBe('NEUTRAL');
+      // The chart keeps every point; only the colour is dropped.
+      expect(track.points).toHaveLength(2);
+      expect(track.latestKg).toBe(66);
+      expect(track.remainingPct).toBe(9.1);
+    }
+    expect(
+      computeWeightTrack({ ...afterWeighIn, boutStatus: 'FIGHT_WEEK' }).status,
+    ).toBe('OVER_LIMIT');
+    expect(computeWeightTrack({ ...afterWeighIn }).status).toBe('OVER_LIMIT');
+  });
+
+  it('is NEUTRAL (not NOT_WEIGHED) from WEIGHED_IN on even with no weight at all', () => {
+    const track = computeWeightTrack({
+      ...base,
+      boutStatus: 'COMPLETED',
+      points: [],
+    });
+    expect(track.status).toBe('NEUTRAL');
+    expect(track.points).toEqual([]);
   });
 
   it('builds the reference path: W0 at camp start, L% above the limit at weigh-in minus A, limit at weigh-in', () => {
@@ -171,7 +208,7 @@ describe('weight track (criterion 1)', () => {
       points: [{ date: '2026-10-20', kg: 66 }],
     });
     expect(track.remainingPct).toBe(4.5);
-    expect(track.status).toBe('GREEN');
+    expect(track.status).toBe('ON_TRACK');
   });
 });
 
@@ -682,5 +719,428 @@ describe('computeAcuteLoss (criterion 3)', () => {
     });
     expect(result.startKg).toBe(66);
     expect(result.startOn).toBe('2026-10-14');
+  });
+});
+
+describe('weight feasibility (R31, T-029)', () => {
+  const base = {
+    limitKg: 60,
+    acuteLossLimitPct: 8,
+    acuteWindowDays: 7,
+    today: '2026-10-20',
+  };
+
+  it('is OVER_LIMIT inside the acute window when remainingPct > L (60 kg, 2 days, 66 kg)', () => {
+    const result = computeWeightFeasibility({
+      ...base,
+      weighInDate: '2026-10-22',
+      latest: { date: '2026-10-19', kg: 66 },
+    });
+    expect(result.status).toBe('OVER_LIMIT');
+    expect(result.remainingPct).toBe(9.1);
+    expect(result.daysToWeighIn).toBe(2);
+  });
+
+  it('is ON_TRACK inside the acute window at 64.5 kg (remaining 7.0%)', () => {
+    const result = computeWeightFeasibility({
+      ...base,
+      weighInDate: '2026-10-22',
+      latest: { date: '2026-10-20', kg: 64.5 },
+    });
+    expect(result.status).toBe('ON_TRACK');
+    expect(result.remainingPct).toBe(7);
+  });
+
+  it('colours only when D <= A: D = A is judged, D = A + 1 is NEUTRAL with the figures', () => {
+    const at = computeWeightFeasibility({
+      ...base,
+      weighInDate: '2026-10-27',
+      latest: { date: '2026-10-20', kg: 66 },
+    });
+    expect(at.daysToWeighIn).toBe(7);
+    expect(at.status).toBe('OVER_LIMIT');
+    const beyond = computeWeightFeasibility({
+      ...base,
+      weighInDate: '2026-10-28',
+      latest: { date: '2026-10-20', kg: 66 },
+    });
+    expect(beyond.daysToWeighIn).toBe(8);
+    expect(beyond.status).toBe('NEUTRAL');
+    expect(beyond.remainingPct).toBe(9.1);
+    expect(beyond.latestKg).toBe(66);
+  });
+
+  it('is 0% and ON_TRACK when the fighter is already under the limit', () => {
+    const result = computeWeightFeasibility({
+      ...base,
+      weighInDate: '2026-10-22',
+      latest: { date: '2026-10-20', kg: 58 },
+    });
+    expect(result.remainingPct).toBe(0);
+    expect(result.status).toBe('ON_TRACK');
+  });
+
+  it('is NOT_WEIGHED (no data) without a weight in the last 7 days; 7 days old still counts, 8 does not', () => {
+    const args = { ...base, weighInDate: '2026-10-22' };
+    expect(computeWeightFeasibility({ ...args, latest: null }).status).toBe('NOT_WEIGHED');
+    expect(
+      computeWeightFeasibility({ ...args, latest: { date: '2026-10-13', kg: 66 } }).status,
+    ).toBe('OVER_LIMIT');
+    const stale = computeWeightFeasibility({ ...args, latest: { date: '2026-10-12', kg: 66 } });
+    expect(stale.status).toBe('NOT_WEIGHED');
+    expect(stale.remainingPct).toBeNull();
+  });
+});
+
+describe('weigh-in reminder (T0, T-029)', () => {
+  const today = '2026-10-20';
+
+  it('asks for today when yesterday has a weight but today does not', () => {
+    expect(
+      computeWeighInReminder({ status: 'FIGHT_WEEK', today, latestOn: '2026-10-19' }),
+    ).toEqual({
+      active: true,
+      level: 'ASK_TODAY',
+      daysSinceLastWeight: 1,
+      messageCode: 'WEIGHT_REMINDER_ASK_TODAY',
+    });
+  });
+
+  it('escalates to YESTERDAY_MISSING from 2 days without a weight', () => {
+    const reminder = computeWeighInReminder({ status: 'FIGHT_WEEK', today, latestOn: '2026-10-18' });
+    expect(reminder.level).toBe('YESTERDAY_MISSING');
+    expect(reminder.messageCode).toBe('WEIGHT_REMINDER_YESTERDAY_MISSING');
+    expect(
+      computeWeighInReminder({ status: 'FIGHT_WEEK', today, latestOn: '2026-10-10' }).level,
+    ).toBe('YESTERDAY_MISSING');
+  });
+
+  it('does not remind once today has a weight', () => {
+    expect(
+      computeWeighInReminder({ status: 'FIGHT_WEEK', today, latestOn: today }),
+    ).toMatchObject({ active: false, level: null, messageCode: null });
+  });
+
+  it('asks for today when there is no weight at all', () => {
+    expect(
+      computeWeighInReminder({ status: 'FIGHT_WEEK', today, latestOn: null }),
+    ).toMatchObject({ active: true, level: 'ASK_TODAY', daysSinceLastWeight: null });
+  });
+
+  it('reminds only in FIGHT_WEEK, not even on the bout day', () => {
+    for (const status of ['SCHEDULED', 'CAMP', 'WEIGHED_IN', 'COMPLETED', 'CANCELLED'] as const) {
+      expect(computeWeighInReminder({ status, today, latestOn: '2026-10-15' }).active).toBe(false);
+    }
+  });
+
+  it('reads the day on the Asia/Ho_Chi_Minh calendar around midnight', () => {
+    // 2026-10-19T17:30Z is already 2026-10-20 in Vietnam.
+    const justAfterMidnight = academyDateOf(new Date('2026-10-19T17:30:00Z'));
+    expect(justAfterMidnight).toBe('2026-10-20');
+    expect(
+      computeWeighInReminder({ status: 'FIGHT_WEEK', today: justAfterMidnight, latestOn: '2026-10-19' }).level,
+    ).toBe('ASK_TODAY');
+    const justBefore = academyDateOf(new Date('2026-10-19T16:30:00Z'));
+    expect(justBefore).toBe('2026-10-19');
+    expect(
+      computeWeighInReminder({ status: 'FIGHT_WEEK', today: justBefore, latestOn: '2026-10-19' }).active,
+    ).toBe(false);
+  });
+});
+
+describe('classifyReadiness (R32, S3, T-007)', () => {
+  const fighterId = '10000000-0000-4000-8000-000000000001';
+  const fighterName = 'Nguyen Van A';
+
+  it('S3 boundaries: ends_on is SUSPENDED, ends_on + 1 is AWAITING_CLEARANCE when clearance is required else READY', () => {
+    const withClearance = {
+      startsOn: '2026-10-01',
+      endsOn: '2026-10-20',
+      requiresClearance: true,
+      clearedAt: null,
+      blockedSessionTypes: ['SPARRING', 'GRAPPLING'] as const,
+    };
+
+    const onEndDay = classifyReadiness({
+      fighterId,
+      fighterName,
+      today: '2026-10-20',
+      suspensions: [withClearance],
+    });
+    expect(onEndDay.status).toBe('SUSPENDED');
+    expect(onEndDay.ready).toBe(false);
+    expect(onEndDay.suspension).toEqual({
+      startsOn: '2026-10-01',
+      endsOn: '2026-10-20',
+      blockedSessionTypes: ['SPARRING', 'GRAPPLING'],
+      allowedSessionTypes: [
+        'SHADOW_BOXING',
+        'PAD_WORK',
+        'HEAVY_BAG',
+        'STRENGTH_CONDITIONING',
+        'RECOVERY',
+        'PHYSICAL_THERAPY',
+      ],
+      expectedResumeOn: null,
+    });
+
+    const dayAfterWithClearance = classifyReadiness({
+      fighterId,
+      fighterName,
+      today: '2026-10-21',
+      suspensions: [withClearance],
+    });
+    expect(dayAfterWithClearance.status).toBe('AWAITING_CLEARANCE');
+    expect(dayAfterWithClearance.ready).toBe(false);
+    expect(dayAfterWithClearance.suspension?.expectedResumeOn).toBeNull();
+
+    const withoutClearance = {
+      ...withClearance,
+      requiresClearance: false,
+    };
+    const onEndDayFixed = classifyReadiness({
+      fighterId,
+      fighterName,
+      today: '2026-10-20',
+      suspensions: [withoutClearance],
+    });
+    expect(onEndDayFixed.status).toBe('SUSPENDED');
+    expect(onEndDayFixed.ready).toBe(false);
+    expect(onEndDayFixed.suspension?.expectedResumeOn).toBe('2026-10-21');
+
+    const dayAfterFixed = classifyReadiness({
+      fighterId,
+      fighterName,
+      today: '2026-10-21',
+      suspensions: [withoutClearance],
+    });
+    expect(dayAfterFixed.status).toBe('READY');
+    expect(dayAfterFixed.ready).toBe(true);
+    expect(dayAfterFixed.suspension).toBeNull();
+  });
+
+  it('orders status priority: SUSPENDED > AWAITING_CLEARANCE > IN_BOUT > READY and picks suspension ending last', () => {
+    const awaiting = {
+      startsOn: '2026-09-01',
+      endsOn: '2026-09-30',
+      requiresClearance: true,
+      clearedAt: null,
+      blockedSessionTypes: ['SPARRING'] as const,
+    };
+    const activeLater = {
+      startsOn: '2026-10-15',
+      endsOn: '2026-10-25',
+      requiresClearance: false,
+      clearedAt: null,
+      blockedSessionTypes: ['SPARRING', 'HEAVY_BAG'] as const,
+    };
+    const activeBout = {
+      id: '40000000-0000-4000-8000-000000000001',
+      eventName: 'Autumn Fight',
+      status: 'CAMP' as const,
+      boutAt: '2026-11-10T10:00:00.000Z',
+    };
+
+    const both = classifyReadiness({
+      fighterId,
+      fighterName,
+      today: '2026-10-20',
+      suspensions: [awaiting, activeLater],
+      activeBout,
+    });
+    expect(both.status).toBe('SUSPENDED');
+    expect(both.ready).toBe(false);
+    expect(both.suspension?.endsOn).toBe('2026-10-25');
+    expect(both.suspension?.expectedResumeOn).toBeNull();
+    expect(both.activeBout).toEqual(activeBout);
+
+    const awaitingAndBout = classifyReadiness({
+      fighterId,
+      fighterName,
+      today: '2026-10-20',
+      suspensions: [awaiting],
+      activeBout,
+    });
+    expect(awaitingAndBout.status).toBe('AWAITING_CLEARANCE');
+    expect(awaitingAndBout.ready).toBe(false);
+
+    const boutOnly = classifyReadiness({
+      fighterId,
+      fighterName,
+      today: '2026-10-20',
+      suspensions: [],
+      activeBout,
+    });
+    expect(boutOnly.status).toBe('IN_BOUT');
+    expect(boutOnly.ready).toBe(false);
+
+    // A SCHEDULED bout does NOT make the fighter unready
+    const scheduledBout = classifyReadiness({
+      fighterId,
+      fighterName,
+      today: '2026-10-20',
+      suspensions: [],
+      activeBout: { ...activeBout, status: 'SCHEDULED' },
+    });
+    expect(scheduledBout.status).toBe('READY');
+    expect(scheduledBout.ready).toBe(true);
+    expect(scheduledBout.activeBout).toBeNull();
+  });
+
+  it('F2: combines overlapping suspensions and treats open-ended (unconfirmed clearance) suspension as ending last', () => {
+    // Two overlapping suspensions:
+    // a KO (requires clearance, ends_on 20/10, not cleared)
+    // a MANDATORY_REST (ends_on 30/10), today 25/10
+    const koSuspension = {
+      startsOn: '2026-10-01',
+      endsOn: '2026-10-20',
+      requiresClearance: true,
+      clearedAt: null,
+      blockedSessionTypes: ['SPARRING'] as const,
+    };
+    const restSuspension = {
+      startsOn: '2026-10-20',
+      endsOn: '2026-10-30',
+      requiresClearance: false,
+      clearedAt: null,
+      blockedSessionTypes: ['GRAPPLING'] as const,
+    };
+
+    const result = classifyReadiness({
+      fighterId,
+      fighterName,
+      today: '2026-10-25',
+      suspensions: [koSuspension, restSuspension],
+    });
+
+    expect(result.status).toBe('SUSPENDED');
+    expect(result.ready).toBe(false);
+    expect(result.suspension).toEqual({
+      startsOn: '2026-10-01',
+      endsOn: '2026-10-30',
+      blockedSessionTypes: ['SPARRING', 'GRAPPLING'],
+      allowedSessionTypes: [
+        'SHADOW_BOXING',
+        'PAD_WORK',
+        'HEAVY_BAG',
+        'STRENGTH_CONDITIONING',
+        'RECOVERY',
+        'PHYSICAL_THERAPY',
+      ],
+      expectedResumeOn: null,
+    });
+
+    // Two fixed-end suspensions: resume = latest end + 1
+    const fixedA = {
+      startsOn: '2026-10-01',
+      endsOn: '2026-10-20',
+      requiresClearance: false,
+      clearedAt: null,
+      blockedSessionTypes: ['SPARRING'] as const,
+    };
+    const fixedB = {
+      startsOn: '2026-10-10',
+      endsOn: '2026-10-25',
+      requiresClearance: false,
+      clearedAt: null,
+      blockedSessionTypes: ['GRAPPLING'] as const,
+    };
+
+    const fixedResult = classifyReadiness({
+      fighterId,
+      fighterName,
+      today: '2026-10-15',
+      suspensions: [fixedA, fixedB],
+    });
+
+    expect(fixedResult.status).toBe('SUSPENDED');
+    expect(fixedResult.ready).toBe(false);
+    expect(fixedResult.suspension).toEqual({
+      startsOn: '2026-10-01',
+      endsOn: '2026-10-25',
+      blockedSessionTypes: ['SPARRING', 'GRAPPLING'],
+      allowedSessionTypes: [
+        'SHADOW_BOXING',
+        'PAD_WORK',
+        'HEAVY_BAG',
+        'STRENGTH_CONDITIONING',
+        'RECOVERY',
+        'PHYSICAL_THERAPY',
+      ],
+      expectedResumeOn: '2026-10-26',
+    });
+  });
+
+  it('applies boutOn filter and computes feasibility without altering ready', () => {
+    const suspension = {
+      startsOn: '2026-10-15',
+      endsOn: '2026-10-25',
+      requiresClearance: false,
+      clearedAt: null,
+      blockedSessionTypes: ['SPARRING'] as const,
+    };
+    const ruleset = {
+      acuteWindowDays: 7,
+      acuteLossLimitPctLong: 8,
+      acuteLossLimitPctShort: 5,
+    };
+
+    // boutOn inside suspension period -> ready = false, reason SUSPENDED_PAST_BOUT_DATE
+    const blockedOnBout = classifyReadiness({
+      fighterId,
+      fighterName,
+      today: '2026-10-20',
+      suspensions: [suspension],
+      boutOn: '2026-10-24',
+    });
+    expect(blockedOnBout.ready).toBe(false);
+    expect(blockedOnBout.notReadyReasons).toEqual(['SUSPENDED_PAST_BOUT_DATE']);
+
+    // boutOn after fixed suspension ends, with OVER_LIMIT weight feasibility -> ready stays true!
+    const readyOnBoutOverWeight = classifyReadiness({
+      fighterId,
+      fighterName,
+      today: '2026-10-20',
+      suspensions: [suspension],
+      latestWeight: { kg: 66, date: '2026-10-19' },
+      boutOn: '2026-10-26',
+      weightLimitKg: 60,
+      ruleset,
+    });
+    expect(readyOnBoutOverWeight.ready).toBe(true);
+    expect(readyOnBoutOverWeight.notReadyReasons).toEqual([]);
+    expect(readyOnBoutOverWeight.feasibility).toMatchObject({
+      status: 'OVER_LIMIT',
+      remainingPct: 9.1,
+      daysToWeighIn: 6,
+    });
+  });
+
+  it('validates readinessQuerySchema: weightLimitKg or boutOn without rulesetId fails with 422', () => {
+    const rulesetId = '30000000-0000-4000-8000-000000000001';
+    expect(readinessQuerySchema.safeParse({}).success).toBe(true);
+    expect(readinessQuerySchema.safeParse({ rulesetId }).success).toBe(true);
+    expect(
+      readinessQuerySchema.safeParse({ rulesetId, boutOn: '2026-11-01' }).success,
+    ).toBe(true);
+    expect(
+      readinessQuerySchema.safeParse({
+        rulesetId,
+        boutOn: '2026-11-01',
+        weightLimitKg: 60,
+      }).success,
+    ).toBe(true);
+    expect(
+      readinessQuerySchema.safeParse({ weightLimitKg: 60 }).success,
+    ).toBe(false);
+    expect(
+      readinessQuerySchema.safeParse({ boutOn: '2026-11-01' }).success,
+    ).toBe(false);
+    expect(
+      readinessQuerySchema.safeParse({ rulesetId, weightLimitKg: 25 }).success,
+    ).toBe(false);
+    expect(
+      readinessQuerySchema.safeParse({ rulesetId, weightLimitKg: 205 }).success,
+    ).toBe(false);
   });
 });

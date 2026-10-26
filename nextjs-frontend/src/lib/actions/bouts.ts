@@ -1,3 +1,6 @@
+import { z } from "zod";
+import type { WeightFeasibility } from "@/lib/domain/types";
+import { getFeasibility as getFeasibilityService } from "@/lib/services/bouts";
 "use server";
 
 import { revalidatePath } from "next/cache";
@@ -544,3 +547,39 @@ export async function clearSuspensionAction(_prev: ActionState, formData: FormDa
     if (suspension.boutId) revalidatePath(routes.coach.bout(suspension.boutId));
     return actionSuccess(t("boutMsg.action.cleared"));
 }
+
+const feasibilityInputSchema = z.object({
+    fighterId: z.string().min(1),
+    rulesetId: z.string().min(1),
+    weightClassCode: z.string().min(1),
+    weightLimitKg: z.number().finite().min(30).max(200),
+    weighInAt: z.string().min(1),
+    boutAt: z.string().min(1),
+});
+
+/**
+ * Read-only: how far the fighter's latest weight is from the class, for the create form to show
+ * before saving. Returns null when the preview is not available (half-filled form, a fighter
+ * outside the roster, an invalid schedule): the form then simply shows nothing.
+ */
+export async function previewFeasibilityAction(input: z.input<typeof feasibilityInputSchema>): Promise<WeightFeasibility | null> {
+    const { t } = await getTranslator();
+    const user = await requireRole("coach");
+    const parsed = feasibilityInputSchema.safeParse(input);
+    if (!parsed.success || !canAccessFighter(user, parsed.data.fighterId)) return null;
+
+    const weighInMs = new Date(parsed.data.weighInAt).getTime();
+    const boutMs = new Date(parsed.data.boutAt).getTime();
+    if (Number.isNaN(weighInMs) || Number.isNaN(boutMs) || weighInMs >= boutMs) return null;
+
+    try {
+        return await getFeasibilityService({
+            ...parsed.data,
+            weighInAt: new Date(weighInMs).toISOString(),
+            boutAt: new Date(boutMs).toISOString(),
+        });
+    } catch {
+        return null;
+    }
+}
+

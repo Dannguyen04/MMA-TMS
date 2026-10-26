@@ -2,10 +2,11 @@ import type { enBoutLabels } from "./bout-labels.en";
 
 /** Vietnamese labels for the bout vocabulary; must define every key of `enBoutLabels`. */
 export const viBoutLabels = {
-    "boutLabel.weightStatus.GREEN": "Xanh",
-    "boutLabel.weightStatus.YELLOW": "Vàng",
-    "boutLabel.weightStatus.RED": "Đỏ",
-    "boutLabel.weightStatus.GREY": "Xám",
+    "boutLabel.weightStatus.ON_TRACK": "Đúng lộ trình",
+    "boutLabel.weightStatus.ABOVE_TARGET": "Vượt đường mục tiêu",
+    "boutLabel.weightStatus.OVER_LIMIT": "Vượt giới hạn giảm cân",
+    "boutLabel.weightStatus.NOT_WEIGHED": "Chưa cân gần đây",
+    "boutLabel.weightStatus.NEUTRAL": "Không đánh giá",
 
     "boutLabel.adherence.ON_PLAN": "Đúng kế hoạch",
     "boutLabel.adherence.SLIGHTLY_OFF": "Lệch một chút",

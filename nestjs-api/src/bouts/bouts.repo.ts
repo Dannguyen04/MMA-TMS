@@ -2,9 +2,11 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   and,
   asc,
+  desc,
   eq,
   exists,
   gt,
+  gte,
   inArray,
   isNull,
   lte,
@@ -43,6 +45,7 @@ import {
   type BoutStatus,
   type WeightMeasurementInput,
 } from './bouts.model.js';
+import type { SessionType } from '../suspensions/suspensions.model.js';
 
 export type BoutScope =
   | { kind: 'ALL' }
@@ -444,7 +447,37 @@ export class BoutsRepository {
     return row;
   }
 
+  /** Plans of many bouts in one read (the coach to-do card). */
+  async findPlansByIds(
+    ids: readonly string[],
+    database: DatabaseExecutor = this.db,
+  ): Promise<PlanSummary[]> {
+    if (ids.length === 0) return [];
+    return database
+      .select({
+        id: trainingPlans.id,
+        fighterId: trainingPlans.fighterId,
+        phase: trainingPlans.phase,
+        startDate: trainingPlans.startDate,
+        deletedAt: trainingPlans.deletedAt,
+      })
+      .from(trainingPlans)
+      .where(inArray(trainingPlans.id, [...ids]));
+  }
+
   // --- Requirements ----------------------------------------------------------
+
+  /** Checklists of many bouts in one read (the coach to-do card). */
+  async listRequirementsForBouts(
+    boutIds: readonly string[],
+    database: DatabaseExecutor = this.db,
+  ): Promise<BoutRequirementRow[]> {
+    if (boutIds.length === 0) return [];
+    return database
+      .select()
+      .from(boutRequirements)
+      .where(inArray(boutRequirements.boutId, [...boutIds]));
+  }
 
   async listRequirements(
     boutId: string,
@@ -531,6 +564,42 @@ export class BoutsRepository {
     await database.insert(fighterMeasurements).values(values);
   }
 
+  /** `findWeightMeasurements` for many fighters at once, tagged with the fighter. */
+  async findWeightMeasurementsForFighters(
+    fighterIds: readonly string[],
+    from: Date,
+    to: Date,
+    database: DatabaseExecutor = this.db,
+  ): Promise<(WeightMeasurementInput & { fighterId: string })[]> {
+    if (fighterIds.length === 0) return [];
+    const rows = await database
+      .select({
+        fighterId: fighterMeasurements.fighterId,
+        measuredAt: fighterMeasurements.measuredAt,
+        createdAt: fighterMeasurements.createdAt,
+        weightKg: fighterMeasurements.weightKg,
+      })
+      .from(fighterMeasurements)
+      .where(
+        and(
+          inArray(fighterMeasurements.fighterId, [...fighterIds]),
+          sql`${fighterMeasurements.measuredAt} >= ${from.toISOString()}::timestamptz`,
+          sql`${fighterMeasurements.measuredAt} <= ${to.toISOString()}::timestamptz`,
+          sql`not exists (
+            select 1 from public.fighter_measurements succ
+            where succ.supersedes_id = ${fighterMeasurements.id}
+          )`,
+        ),
+      )
+      .orderBy(asc(fighterMeasurements.measuredAt), asc(fighterMeasurements.createdAt));
+    return rows.map((row) => ({
+      fighterId: row.fighterId,
+      measuredAt: row.measuredAt,
+      createdAt: row.createdAt,
+      weightKg: Number(row.weightKg),
+    }));
+  }
+
   /** Non-superseded measurements of a fighter within `[from, to]`, oldest first. */
   async findWeightMeasurements(
     fighterId: string,
@@ -564,5 +633,179 @@ export class BoutsRepository {
       weightKg: Number(row.weightKg),
       measurementContext: row.measurementContext,
     }));
+  }
+
+  // --- Readiness board & To-do card batched queries --------------------------
+
+  async listActiveFightersInScope(
+    scope: { kind: 'ALL' } | { kind: 'COACH'; userId: string },
+    database: DatabaseExecutor = this.db,
+  ): Promise<{ id: string; firstName: string; lastName: string }[]> {
+    const conditions: (SQL | undefined)[] = [
+      eq(fighters.isActive, true),
+      isNull(fighters.deletedAt),
+    ];
+
+    if (scope.kind === 'COACH') {
+      const now = new Date();
+      conditions.push(
+        exists(
+          database
+            .select({ id: coachFighters.id })
+            .from(coachFighters)
+            .innerJoin(coaches, eq(coachFighters.coachId, coaches.id))
+            .where(
+              and(
+                eq(coaches.userId, scope.userId),
+                eq(coaches.isActive, true),
+                isNull(coaches.deletedAt),
+                eq(coachFighters.fighterId, fighters.id),
+                lte(coachFighters.startsAt, now),
+                or(isNull(coachFighters.endsAt), gt(coachFighters.endsAt, now)),
+              ),
+            ),
+        ),
+      );
+    }
+
+    return database
+      .select({
+        id: fighters.id,
+        firstName: fighters.firstName,
+        lastName: fighters.lastName,
+      })
+      .from(fighters)
+      .where(and(...conditions))
+      .orderBy(asc(fighters.lastName), asc(fighters.firstName), asc(fighters.id));
+  }
+
+  async findActiveBoutsForFighters(
+    fighterIds: readonly string[],
+    database: DatabaseExecutor = this.db,
+  ): Promise<
+    {
+      id: string;
+      fighterId: string;
+      eventName: string;
+      status: BoutStatus;
+      boutAt: Date;
+    }[]
+  > {
+    if (fighterIds.length === 0) return [];
+    return database
+      .select({
+        id: bouts.id,
+        fighterId: bouts.fighterId,
+        eventName: bouts.eventName,
+        status: bouts.status,
+        boutAt: bouts.boutAt,
+      })
+      .from(bouts)
+      .where(
+        and(
+          inArray(bouts.fighterId, [...fighterIds]),
+          inArray(bouts.status, ['CAMP', 'FIGHT_WEEK', 'WEIGHED_IN']),
+          isNull(bouts.deletedAt),
+        ),
+      )
+      .orderBy(asc(bouts.fighterId), desc(bouts.boutAt), desc(bouts.id));
+  }
+
+  async findLatestWeightsForFighters(
+    fighterIds: readonly string[],
+    now: Date,
+    database: DatabaseExecutor = this.db,
+  ): Promise<(WeightMeasurementInput & { fighterId: string })[]> {
+    if (fighterIds.length === 0) return [];
+    const rows = await database
+      .selectDistinctOn([fighterMeasurements.fighterId], {
+        fighterId: fighterMeasurements.fighterId,
+        measuredAt: fighterMeasurements.measuredAt,
+        createdAt: fighterMeasurements.createdAt,
+        weightKg: fighterMeasurements.weightKg,
+      })
+      .from(fighterMeasurements)
+      .where(
+        and(
+          inArray(fighterMeasurements.fighterId, [...fighterIds]),
+          sql`${fighterMeasurements.measuredAt} <= ${now.toISOString()}::timestamptz`,
+          sql`not exists (
+            select 1 from public.fighter_measurements succ
+            where succ.supersedes_id = ${fighterMeasurements.id}
+          )`,
+        ),
+      )
+      .orderBy(
+        asc(fighterMeasurements.fighterId),
+        desc(fighterMeasurements.measuredAt),
+        desc(fighterMeasurements.createdAt),
+      );
+    return rows.map((row) => ({
+      fighterId: row.fighterId,
+      measuredAt: row.measuredAt,
+      createdAt: row.createdAt,
+      weightKg: Number(row.weightKg),
+    }));
+  }
+
+  /** SCHEDULED sessions of many fighters from `from` (start of today) on (for the coach to-do card). */
+  async findScheduledSessionsForFighters(
+    fighterIds: readonly string[],
+    from: Date,
+    database: DatabaseExecutor = this.db,
+  ): Promise<
+    {
+      id: string;
+      fighterId: string;
+      sessionType: SessionType;
+      status: string;
+      scheduledAt: Date;
+    }[]
+  > {
+    if (fighterIds.length === 0) return [];
+    const rows = await database
+      .select({
+        id: trainingSessions.id,
+        fighterId: trainingSessions.fighterId,
+        sessionType: trainingSessions.sessionType,
+        status: trainingSessions.status,
+        scheduledAt: trainingSessions.scheduledAt,
+      })
+      .from(trainingSessions)
+      .where(
+        and(
+          inArray(trainingSessions.fighterId, [...fighterIds]),
+          eq(trainingSessions.status, 'SCHEDULED'),
+          gte(trainingSessions.scheduledAt, from),
+          isNull(trainingSessions.deletedAt),
+        ),
+      )
+      .orderBy(asc(trainingSessions.scheduledAt), asc(trainingSessions.id));
+    return rows.map((row) => ({
+      ...row,
+      sessionType: row.sessionType as SessionType,
+    }));
+  }
+
+  async findLatestBoutsForFighters(
+    fighterIds: readonly string[],
+    database: DatabaseExecutor = this.db,
+  ): Promise<BoutRow[]> {
+    if (fighterIds.length === 0) return [];
+    return database
+      .selectDistinctOn([bouts.fighterId])
+      .from(bouts)
+      .where(
+        and(
+          inArray(bouts.fighterId, [...fighterIds]),
+          isNull(bouts.deletedAt),
+        ),
+      )
+      .orderBy(
+        asc(bouts.fighterId),
+        desc(bouts.boutAt),
+        desc(bouts.createdAt),
+        desc(bouts.id),
+      );
   }
 }

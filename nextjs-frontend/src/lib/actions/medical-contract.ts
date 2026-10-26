@@ -153,7 +153,7 @@ export async function requestMedicalReviewAction(_prev: ActionState, formData: F
     if (!parsed.success) return validationError(parsed.error);
     const { fighterId, reason } = parsed.data;
     const allowed = auth.user.role === "fighter" ? auth.user.profileId === fighterId : canAccessFighter(auth.user, fighterId);
-    if (!allowed) return actionError("You can only request a review for yourself or a fighter you're assigned to.");
+    if (!allowed) return actionError(t("reviewRequest.unauthorized"));
 
     try {
         const result = await createReviewRequest(fighterId, reason, auth.user);
@@ -163,7 +163,7 @@ export async function requestMedicalReviewAction(_prev: ActionState, formData: F
     }
 
     revalidateClinical();
-    return actionSuccess("Review requested. Training is paused until the sports doctor examines the fighter.");
+    return actionSuccess(t("reviewRequest.actionSuccess"));
 }
 
 /* ─── Examination decisions ───────────────────────────────────────────────── */

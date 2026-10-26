@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
   and,
+  asc,
   desc,
   eq,
   gte,
@@ -136,6 +137,10 @@ export interface ITrainingRepository {
     scope?: TrainingListScope,
     database?: DatabaseExecutor,
   ): Promise<{ data: TrainingSessionEntity[]; total: number }>;
+  findScheduledSessionsByFighterId(
+    fighterId: string,
+    database?: DatabaseExecutor,
+  ): Promise<TrainingSessionEntity[]>;
   findSessionById(id: string, database?: DatabaseExecutor): Promise<TrainingSessionEntity | undefined>;
   lockSessionById(id: string, transaction: Transaction): Promise<TrainingSessionEntity | undefined>;
   createSession(data: CreateSessionInput, database?: DatabaseExecutor): Promise<TrainingSessionEntity>;
@@ -510,6 +515,24 @@ export class TrainingRepository implements ITrainingRepository {
       database.select({ count: sql<number>`count(*)::int` }).from(trainingSessions).where(whereClause),
     ]);
     return { data: rows.map(mapToSession), total: countResult[0]?.count ?? 0 };
+  }
+
+  async findScheduledSessionsByFighterId(
+    fighterId: string,
+    database: DatabaseExecutor = this.db,
+  ): Promise<TrainingSessionEntity[]> {
+    const rows = await database
+      .select()
+      .from(trainingSessions)
+      .where(
+        and(
+          eq(trainingSessions.fighterId, fighterId),
+          eq(trainingSessions.status, 'SCHEDULED'),
+          isNull(trainingSessions.deletedAt),
+        ),
+      )
+      .orderBy(asc(trainingSessions.scheduledAt), asc(trainingSessions.id));
+    return rows.map(mapToSession);
   }
 
   async findSessionById(id: string, database: DatabaseExecutor = this.db) {

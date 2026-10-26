@@ -3,10 +3,11 @@
  * `boutLabel.<group>.<value>` so screens can write `t(\`boutLabel.phase.${phase}\`)`. Keep them in step with `labels.ts`.
  */
 export const enBoutLabels = {
-    "boutLabel.weightStatus.GREEN": "Green",
-    "boutLabel.weightStatus.YELLOW": "Yellow",
-    "boutLabel.weightStatus.RED": "Red",
-    "boutLabel.weightStatus.GREY": "Grey",
+    "boutLabel.weightStatus.ON_TRACK": "On track",
+    "boutLabel.weightStatus.ABOVE_TARGET": "Above tolerance",
+    "boutLabel.weightStatus.OVER_LIMIT": "Exceeds cut limit",
+    "boutLabel.weightStatus.NOT_WEIGHED": "No recent weigh-in",
+    "boutLabel.weightStatus.NEUTRAL": "Not judged",
 
     "boutLabel.adherence.ON_PLAN": "On plan",
     "boutLabel.adherence.SLIGHTLY_OFF": "Slightly off",

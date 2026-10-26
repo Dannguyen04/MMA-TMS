@@ -17,6 +17,7 @@ import {
 } from './bout-analysis.model.js';
 import { BoutsRepository } from './bouts.repo.js';
 import { BoutsService } from './bouts.service.js';
+import { SuspensionsRepository } from '../suspensions/suspensions.repo.js';
 
 const NOW = new Date('2026-10-20T03:00:00.000Z'); // 2026-10-20 10:00 in Vietnam
 const FIGHTER_ID = '10000000-0000-4000-8000-000000000001';
@@ -172,11 +173,30 @@ async function expectHttp(
 describe('BoutsService', () => {
   let service: BoutsService;
   let repo: Mocked<BoutsRepository>;
+  let suspensionsRepo: Mocked<SuspensionsRepository>;
   const tx = { execute: vi.fn() } as unknown as Transaction;
 
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
+
+    suspensionsRepo = {
+      findSuspensionById: vi.fn().mockResolvedValue(undefined),
+      findSuspensionsByFighterId: vi.fn().mockResolvedValue([]),
+      findSuspensionsByFighterIds: vi.fn().mockResolvedValue([]),
+      findUnresolvedSuspensionsInScope: vi.fn().mockResolvedValue([]),
+      findPriorKoTkoSuspensions: vi.fn().mockResolvedValue([]),
+      insertSuspension: vi.fn(async (values: unknown) => ({
+        id: '90000000-0000-4000-8000-000000000001',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        deletedAt: null,
+        clearedAt: null,
+        clearedById: null,
+        clearanceNote: null,
+        ...(values as Record<string, unknown>),
+      })),
+    } as unknown as Mocked<SuspensionsRepository>;
 
     repo = {
       transaction: vi.fn(async (work: (t: Transaction) => unknown) => work(tx)),
@@ -237,7 +257,7 @@ describe('BoutsService', () => {
       findWeightMeasurements: vi.fn().mockResolvedValue([]),
     } as unknown as Mocked<BoutsRepository>;
 
-    service = new BoutsService(repo);
+    service = new BoutsService(repo, suspensionsRepo);
   });
 
   afterEach(() => {
@@ -1204,7 +1224,7 @@ describe('BoutsService', () => {
       expect(detail.requirementsOverdue).toBe(false);
       expect(detail.gate1).toEqual({ passed: true, missing: [], expiring: [] });
       expect(detail.canEnterFightWeek).toBe(true);
-      expect(detail.weight.status).toBe('GREY');
+      expect(detail.weight.status).toBe('NOT_WEIGHED');
       expect(detail.requirements).toHaveLength(1);
       expect(detail.ruleset.id).toBe(RULESET_ID);
     });
@@ -1293,10 +1313,10 @@ describe('BoutsService', () => {
       expect(track.limitKg).toBe(62.5);
     });
 
-    it('returns GREY with null numbers when the fighter has no weight yet', async () => {
+    it('returns NOT_WEIGHED with null numbers when the fighter has no weight yet', async () => {
       const track = await service.getWeightTrack(coachActor, BOUT_ID);
       expect(track).toMatchObject({
-        status: 'GREY',
+        status: 'NOT_WEIGHED',
         points: [],
         latestKg: null,
         latestOn: null,
@@ -1722,8 +1742,97 @@ describe('BoutsService', () => {
     });
   });
 
+  describe('weight feasibility and reminder (T-029)', () => {
+    const near = {
+      ...createInput,
+      weighInAt: '2026-10-22T08:00:00+07:00',
+      boutAt: '2026-10-23T10:00:00+07:00',
+    };
+    const weightOn = (iso: string, kg: number) => ({
+      measuredAt: new Date(iso),
+      createdAt: new Date(iso),
+      weightKg: kg,
+      measurementContext: 'TRAINING',
+    });
+
+    it('createBout warns WEIGHT_AT_RISK (60 kg, 2 days, 66 kg yesterday) and still saves', async () => {
+      repo.findWeightMeasurements.mockResolvedValue([weightOn('2026-10-19T03:00:00Z', 66)]);
+      const created = await service.createBout(coachActor, near, REQUEST_ID);
+      expect(repo.insertBout).toHaveBeenCalledTimes(1);
+      expect(created.warnings).toEqual([{ code: 'WEIGHT_AT_RISK' }]);
+    });
+
+    it('createBout warns WEIGHT_INSUFFICIENT_DATA without a weight in 7 days', async () => {
+      repo.findWeightMeasurements.mockResolvedValue([]);
+      const created = await service.createBout(coachActor, near, REQUEST_ID);
+      expect(created.warnings).toEqual([{ code: 'WEIGHT_INSUFFICIENT_DATA' }]);
+    });
+
+    it('createBout has no warning at 64.5 kg, nor while the weigh-in is outside the acute window', async () => {
+      repo.findWeightMeasurements.mockResolvedValue([weightOn('2026-10-20T01:00:00Z', 64.5)]);
+      expect((await service.createBout(coachActor, near, REQUEST_ID)).warnings).toEqual([]);
+      repo.findWeightMeasurements.mockResolvedValue([weightOn('2026-10-20T01:00:00Z', 66)]);
+      expect((await service.createBout(coachActor, createInput, REQUEST_ID)).warnings).toEqual([]);
+    });
+
+    it('getFeasibility previews without saving, with the same limits as createBout', async () => {
+      repo.findWeightMeasurements.mockResolvedValue([weightOn('2026-10-19T03:00:00Z', 66)]);
+      const preview = await service.getFeasibility(coachActor, {
+        fighterId: FIGHTER_ID,
+        rulesetId: RULESET_ID,
+        weightClassCode: '60',
+        weighInAt: near.weighInAt,
+        boutAt: near.boutAt,
+      });
+      expect(preview).toMatchObject({
+        status: 'OVER_LIMIT',
+        remainingPct: 9.1,
+        limitKg: 60,
+        acuteLossLimitPct: 8,
+        daysToWeighIn: 2,
+        warnings: [{ code: 'WEIGHT_AT_RISK' }],
+      });
+      expect(repo.insertBout).not.toHaveBeenCalled();
+    });
+
+    it('getFeasibility is for the coach of an assigned fighter, like createBout', async () => {
+      const query = {
+        fighterId: FIGHTER_ID,
+        rulesetId: RULESET_ID,
+        weightClassCode: '60',
+        weighInAt: near.weighInAt,
+        boutAt: near.boutAt,
+      };
+      await expectHttp(service.getFeasibility(fighterActor, query), 403);
+      repo.isCoachAssignedToFighter.mockResolvedValue(false);
+      await expectHttp(service.getFeasibility(coachActor, query), 403);
+      await expectHttp(
+        service.getFeasibility(adminActor, { ...query, weighInAt: query.boutAt }),
+        422,
+        'BOUT_INVALID_SCHEDULE',
+      );
+    });
+
+    it('the bout detail carries weightReminder only in FIGHT_WEEK', async () => {
+      repo.findWeightMeasurements.mockResolvedValue([weightOn('2026-10-19T03:00:00Z', 63)]);
+      repo.findBoutById.mockResolvedValue(makeBout({ status: 'FIGHT_WEEK' }));
+      expect((await service.getBout(coachActor, BOUT_ID)).weightReminder).toEqual({
+        active: true,
+        level: 'ASK_TODAY',
+        daysSinceLastWeight: 1,
+        messageCode: 'WEIGHT_REMINDER_ASK_TODAY',
+      });
+      repo.findWeightMeasurements.mockResolvedValue([weightOn('2026-10-18T03:00:00Z', 63)]);
+      expect((await service.getBout(coachActor, BOUT_ID)).weightReminder.level).toBe(
+        'YESTERDAY_MISSING',
+      );
+      repo.findBoutById.mockResolvedValue(makeBout({ status: 'CAMP' }));
+      expect((await service.getBout(coachActor, BOUT_ID)).weightReminder.active).toBe(false);
+    });
+  });
+
   describe('getWeightTrack with official weigh-in (criterion 10)', () => {
-    it('criterion 10: official weigh-in changes status of weight-track and appears in points', async () => {
+    it('criterion 10: official weigh-in appears in points and, from WEIGHED_IN on, the track is NEUTRAL (T-029)', async () => {
       const today = '2026-10-30';
       vi.setSystemTime(new Date('2026-10-30T03:00:00Z'));
       repo.findBoutById.mockResolvedValue(
@@ -1756,7 +1865,7 @@ describe('BoutsService', () => {
       const track = await service.getWeightTrack(coachActor, BOUT_ID);
       expect(track.points).toContainEqual({ date: today, kg: 59.8 });
       expect(track.latestKg).toBe(59.8);
-      expect(track.status).toBe('GREEN');
+      expect(track.status).toBe('NEUTRAL');
     });
   });
 
@@ -1914,7 +2023,7 @@ describe('BoutsService', () => {
           method: 'TKO',
           resultRound: 2,
           lossOfConsciousness: 'NONE',
-          stoppedByHeadStrike: true,
+          stoppedByHeadStrike: false,
           injuryNote: 'Minor eyebrow cut',
         },
         REQUEST_ID,
@@ -1934,7 +2043,7 @@ describe('BoutsService', () => {
             from: 'WEIGHED_IN',
             to: 'COMPLETED',
             lossOfConsciousness: 'NONE',
-            stoppedByHeadStrike: true,
+            stoppedByHeadStrike: false,
             injuryNote: 'Minor eyebrow cut',
           }),
         }),
@@ -3199,6 +3308,537 @@ describe('BoutsService', () => {
       });
       expect(result.copyableAnalysis?.boutId).toBe(BOUT_ID);
       expect(repo.listBouts.mock.calls[1]?.[0].cursor).toBeDefined();
+    });
+  });
+
+  describe('recordResult automatic suspensions (Round E / R27)', () => {
+    let suspensionsRepo: Mocked<SuspensionsRepository>;
+    let eService: BoutsService;
+    const boutAt = new Date('2026-10-31T03:00:00Z');
+    const today = '2026-10-31';
+
+    const aibaRuleset = makeRuleset({
+      name: 'Boxing nghiệp dư – AIBA (tham khảo)',
+      suspensionRules: [
+        { reason: ['KO', 'TKO'], minDays: 30 },
+        { reason: ['KO', 'TKO'], priorCount: 1, withinDays: 90, minDays: 90 },
+        { reason: ['KO', 'TKO'], priorCount: 2, withinDays: 365, minDays: 365 },
+        { loc: 'UNDER_1_MIN', minDays: 90 },
+        { loc: 'OVER_1_MIN', minDays: 180 },
+      ],
+      defaultBlockedSessionTypes: ['SPARRING'],
+      restDaysAfterBout: 0,
+    });
+
+    beforeEach(() => {
+      vi.setSystemTime(new Date('2026-10-31T05:00:00Z'));
+      suspensionsRepo = {
+        findSuspensionsByFighterId: vi.fn().mockResolvedValue([]),
+        findSuspensionsByFighterIds: vi.fn().mockResolvedValue([]),
+        findPriorKoTkoSuspensions: vi.fn().mockResolvedValue([]),
+        countPriorKoTkoSuspensions: vi.fn().mockResolvedValue(0),
+        insertSuspension: vi.fn(async (values: unknown) => ({
+          id: '90000000-0000-4000-8000-000000000001',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          deletedAt: null,
+          clearedAt: null,
+          clearedById: null,
+          clearanceNote: null,
+          ...(values as Record<string, unknown>),
+        })),
+      } as unknown as Mocked<SuspensionsRepository>;
+
+      eService = new BoutsService(repo, suspensionsRepo);
+
+      repo.findBoutById.mockResolvedValue(
+        makeBout({
+          status: 'WEIGHED_IN',
+          boutAt,
+          weighInAt: new Date('2026-10-30T01:00:00Z'),
+        }),
+      );
+      repo.findRulesetById.mockResolvedValue(aibaRuleset);
+    });
+
+    it('AIBA preset: first KO loss creates 30 days suspension in same transaction', async () => {
+      const res = await eService.recordResult(
+        coachActor,
+        BOUT_ID,
+        {
+          result: 'LOSS',
+          method: 'KO',
+          resultRound: 1,
+          lossOfConsciousness: 'NONE',
+        },
+        REQUEST_ID,
+      );
+
+      expect(res.status).toBe('COMPLETED');
+      expect(suspensionsRepo.insertSuspension).toHaveBeenCalledWith(
+        expect.objectContaining({
+          fighterId: FIGHTER_ID,
+          boutId: BOUT_ID,
+          reason: 'KO',
+          startsOn: today,
+          endsOn: '2026-11-29',
+          suggestedDays: 30,
+          requiresClearance: true,
+          overrideReason: null,
+          blockedSessionTypes: ['SPARRING'],
+        }),
+        tx,
+      );
+      expect(res.suspensions).toEqual([
+        expect.objectContaining({
+          reason: 'KO',
+          startsOn: today,
+          endsOn: '2026-11-29',
+          requiresClearance: true,
+          suggestedDays: 30,
+          explanation: 'KO, AIBA preset: 30 days',
+        }),
+      ]);
+    });
+
+    it('AIBA preset: manual 40-day-old KO suspension then a KO loss -> 90 days', async () => {
+      suspensionsRepo.findPriorKoTkoSuspensions.mockResolvedValue([
+        {
+          id: 'prior-susp-1',
+          fighterId: FIGHTER_ID,
+          boutId: null,
+          reason: 'KO',
+          startsOn: '2026-09-21',
+          endsOn: '2026-10-20',
+          requiresClearance: true,
+          clearedAt: new Date('2026-10-21T00:00:00Z'),
+          clearedById: 'user-doc',
+          clearanceNote: 'Cleared',
+          lossOfConsciousness: 'NONE',
+          suggestedDays: null,
+          overrideReason: null,
+          blockedSessionTypes: ['SPARRING'],
+          createdById: 'user-coach',
+          createdAt: new Date('2026-09-21T00:00:00Z'),
+          updatedAt: new Date('2026-09-21T00:00:00Z'),
+          deletedAt: null,
+        },
+      ]);
+
+      const res = await eService.recordResult(
+        coachActor,
+        BOUT_ID,
+        {
+          result: 'LOSS',
+          method: 'KO',
+          resultRound: 2,
+          lossOfConsciousness: 'NONE',
+        },
+        REQUEST_ID,
+      );
+
+      expect(res.status).toBe('COMPLETED');
+      expect(suspensionsRepo.insertSuspension).toHaveBeenCalledWith(
+        expect.objectContaining({
+          reason: 'KO',
+          startsOn: today,
+          endsOn: '2027-01-28',
+          suggestedDays: 90,
+          requiresClearance: true,
+        }),
+        tx,
+      );
+      expect(res.suspensions[0]?.explanation).toBe(
+        'KO, second in 90 days, AIBA preset: 90 days',
+      );
+    });
+
+    it('TKO loss with stoppedByHeadStrike = true -> 30 days, without -> no TKO suspension', async () => {
+      const resWithHeadStrike = await eService.recordResult(
+        coachActor,
+        BOUT_ID,
+        {
+          result: 'LOSS',
+          method: 'TKO',
+          resultRound: 2,
+          lossOfConsciousness: 'NONE',
+          stoppedByHeadStrike: true,
+        },
+        REQUEST_ID,
+      );
+      expect(resWithHeadStrike.suspensions).toHaveLength(1);
+      expect(resWithHeadStrike.suspensions[0]?.reason).toBe('TKO');
+      expect(resWithHeadStrike.suspensions[0]?.suggestedDays).toBe(30);
+
+      vi.clearAllMocks();
+      const resWithoutHeadStrike = await eService.recordResult(
+        coachActor,
+        BOUT_ID,
+        {
+          result: 'LOSS',
+          method: 'TKO',
+          resultRound: 3,
+          lossOfConsciousness: 'NONE',
+          stoppedByHeadStrike: false,
+        },
+        REQUEST_ID,
+      );
+      expect(resWithoutHeadStrike.suspensions).toHaveLength(0);
+      expect(suspensionsRepo.insertSuspension).not.toHaveBeenCalled();
+    });
+
+    it('loc rules: UNDER_1_MIN -> 90 days, OVER_1_MIN -> 180 days', async () => {
+      const resUnder = await eService.recordResult(
+        coachActor,
+        BOUT_ID,
+        {
+          result: 'LOSS',
+          method: 'KO',
+          resultRound: 1,
+          lossOfConsciousness: 'UNDER_1_MIN',
+        },
+        REQUEST_ID,
+      );
+      expect(resUnder.suspensions[0]?.suggestedDays).toBe(90);
+      expect(resUnder.suspensions[0]?.explanation).toBe(
+        'KO, loss of consciousness under 1 min, AIBA preset: 90 days',
+      );
+
+      const resOver = await eService.recordResult(
+        coachActor,
+        BOUT_ID,
+        {
+          result: 'LOSS',
+          method: 'KO',
+          resultRound: 1,
+          lossOfConsciousness: 'OVER_1_MIN',
+        },
+        REQUEST_ID,
+      );
+      expect(resOver.suspensions[0]?.suggestedDays).toBe(180);
+      expect(resOver.suspensions[0]?.explanation).toBe(
+        'KO, loss of consciousness over 1 min, AIBA preset: 180 days',
+      );
+    });
+
+    it('VMMAF (empty rules): KO loss without suspensionDays -> 422 SUSPENSION_DAYS_REQUIRED, with it -> created', async () => {
+      repo.findRulesetById.mockResolvedValue(
+        makeRuleset({
+          name: 'MMA – VMMAF 2021',
+          suspensionRules: [],
+          restDaysAfterBout: 0,
+        }),
+      );
+
+      await expectHttp(
+        eService.recordResult(
+          coachActor,
+          BOUT_ID,
+          {
+            result: 'LOSS',
+            method: 'KO',
+            resultRound: 1,
+            lossOfConsciousness: 'NONE',
+          },
+          REQUEST_ID,
+        ),
+        422,
+        'SUSPENSION_DAYS_REQUIRED',
+      );
+
+      const res = await eService.recordResult(
+        coachActor,
+        BOUT_ID,
+        {
+          result: 'LOSS',
+          method: 'KO',
+          resultRound: 1,
+          lossOfConsciousness: 'NONE',
+          suspensionDays: 45,
+        },
+        REQUEST_ID,
+      );
+      expect(res.status).toBe('COMPLETED');
+      expect(res.suspensions).toEqual([
+        expect.objectContaining({
+          reason: 'KO',
+          startsOn: today,
+          endsOn: '2026-12-14',
+          suggestedDays: null,
+          requiresClearance: true,
+          explanation: 'KO, coach specified: 45 days',
+        }),
+      ]);
+      expect(suspensionsRepo.insertSuspension).toHaveBeenCalledWith(
+        expect.objectContaining({
+          suggestedDays: null,
+          overrideReason: null,
+        }),
+        tx,
+      );
+    });
+
+    it('days different from suggestion without reason -> 422 SUSPENSION_OVERRIDE_REASON_REQUIRED, with reason -> stored', async () => {
+      await expectHttp(
+        eService.recordResult(
+          coachActor,
+          BOUT_ID,
+          {
+            result: 'LOSS',
+            method: 'KO',
+            resultRound: 1,
+            lossOfConsciousness: 'NONE',
+            suspensionDays: 45,
+          },
+          REQUEST_ID,
+        ),
+        422,
+        'SUSPENSION_OVERRIDE_REASON_REQUIRED',
+      );
+
+      const res = await eService.recordResult(
+        coachActor,
+        BOUT_ID,
+        {
+          result: 'LOSS',
+          method: 'KO',
+          resultRound: 1,
+          lossOfConsciousness: 'NONE',
+          suspensionDays: 45,
+          suspensionOverrideReason: 'Severe concussion symptoms',
+        },
+        REQUEST_ID,
+      );
+      expect(res.status).toBe('COMPLETED');
+      expect(suspensionsRepo.insertSuspension).toHaveBeenCalledWith(
+        expect.objectContaining({
+          suggestedDays: 30,
+          overrideReason: 'Severe concussion symptoms',
+        }),
+        tx,
+      );
+      expect(res.suspensions[0]?.explanation).toBe(
+        'KO, AIBA preset: 30 days (overridden to 45 days)',
+      );
+    });
+
+    it('DQ: creates DQ suspension with requiresClearance = false with rule, nothing without rule', async () => {
+      repo.findRulesetById.mockResolvedValue(
+        makeRuleset({
+          name: 'Tournament with DQ',
+          suspensionRules: [{ reason: 'DQ', minDays: 60 }],
+          restDaysAfterBout: 0,
+        }),
+      );
+
+      const resWithRule = await eService.recordResult(
+        coachActor,
+        BOUT_ID,
+        { result: 'LOSS', method: 'DQ' },
+        REQUEST_ID,
+      );
+      expect(resWithRule.suspensions).toEqual([
+        expect.objectContaining({
+          reason: 'DQ',
+          startsOn: today,
+          endsOn: '2026-12-29',
+          suggestedDays: 60,
+          requiresClearance: false,
+        }),
+      ]);
+
+      vi.clearAllMocks();
+      repo.findRulesetById.mockResolvedValue(aibaRuleset);
+      const resWithoutRule = await eService.recordResult(
+        coachActor,
+        BOUT_ID,
+        { result: 'LOSS', method: 'DQ' },
+        REQUEST_ID,
+      );
+      expect(resWithoutRule.suspensions).toEqual([]);
+      expect(suspensionsRepo.insertSuspension).not.toHaveBeenCalled();
+    });
+
+    it('DQ: winner by DQ does not get a DQ suspension, only mandatory rest (G1)', async () => {
+      repo.findRulesetById.mockResolvedValue(
+        makeRuleset({
+          name: 'Tournament with DQ and Rest',
+          suspensionRules: [{ reason: 'DQ', minDays: 60 }],
+          restDaysAfterBout: 5,
+          defaultBlockedSessionTypes: ['SPARRING'],
+        }),
+      );
+
+      const resWin = await eService.recordResult(
+        coachActor,
+        BOUT_ID,
+        { result: 'WIN', method: 'DQ' },
+        REQUEST_ID,
+      );
+
+      expect(resWin.suspensions).toEqual([
+        expect.objectContaining({
+          reason: 'MANDATORY_REST',
+          startsOn: today,
+          endsOn: '2026-11-04',
+          suggestedDays: 5,
+          requiresClearance: false,
+        }),
+      ]);
+      expect(suspensionsRepo.insertSuspension).toHaveBeenCalledTimes(1);
+      expect(suspensionsRepo.insertSuspension).toHaveBeenCalledWith(
+        expect.objectContaining({
+          reason: 'MANDATORY_REST',
+          fighterId: FIGHTER_ID,
+          boutId: BOUT_ID,
+        }),
+        tx,
+      );
+    });
+
+    it('mandatory rest: creates MANDATORY_REST row and both rows when KO occurs', async () => {
+      repo.findRulesetById.mockResolvedValue(
+        makeRuleset({
+          ...aibaRuleset,
+          restDaysAfterBout: 14,
+          defaultBlockedSessionTypes: ['SPARRING', 'GRAPPLING'],
+        }),
+      );
+
+      const res = await eService.recordResult(
+        coachActor,
+        BOUT_ID,
+        {
+          result: 'LOSS',
+          method: 'KO',
+          resultRound: 1,
+          lossOfConsciousness: 'NONE',
+        },
+        REQUEST_ID,
+      );
+
+      expect(res.suspensions).toHaveLength(2);
+      expect(res.suspensions[0]).toMatchObject({
+        reason: 'KO',
+        requiresClearance: true,
+      });
+      expect(res.suspensions[1]).toMatchObject({
+        reason: 'MANDATORY_REST',
+        suggestedDays: 14,
+        startsOn: today,
+        endsOn: '2026-11-13',
+        requiresClearance: false,
+        explanation: 'Mandatory rest after bout: 14 days',
+      });
+    });
+
+    it('a win with knockedDown creates NO suspension records', async () => {
+      const res = await eService.recordResult(
+        coachActor,
+        BOUT_ID,
+        {
+          result: 'WIN',
+          method: 'KO',
+          resultRound: 1,
+          knockedDown: true,
+        },
+        REQUEST_ID,
+      );
+
+      expect(res.status).toBe('COMPLETED');
+      expect(res.suspensions).toEqual([]);
+      expect(suspensionsRepo.insertSuspension).not.toHaveBeenCalled();
+    });
+
+    it('sending suspensionDays when no KO/TKO suspension is due throws 422 BOUT_RESULT_INVALID', async () => {
+      await expectHttp(
+        eService.recordResult(
+          coachActor,
+          BOUT_ID,
+          {
+            result: 'WIN',
+            method: 'DECISION',
+            suspensionDays: 30,
+          },
+          REQUEST_ID,
+        ),
+        422,
+        'BOUT_RESULT_INVALID',
+      );
+
+      await expectHttp(
+        eService.recordResult(
+          coachActor,
+          BOUT_ID,
+          {
+            result: 'LOSS',
+            method: 'TKO',
+            resultRound: 1,
+            stoppedByHeadStrike: false,
+            suspensionDays: 30,
+          },
+          REQUEST_ID,
+        ),
+        422,
+        'BOUT_RESULT_INVALID',
+      );
+    });
+
+    it('cancelBout creates nothing and leaves suspensions untouched (also from WEIGHED_IN)', async () => {
+      const res = await eService.cancelBout(
+        coachActor,
+        BOUT_ID,
+        { reason: 'Fighter withdrawn' },
+        REQUEST_ID,
+      );
+      expect(res.status).toBe('CANCELLED');
+      expect(suspensionsRepo.insertSuspension).not.toHaveBeenCalled();
+    });
+
+    it('a failure while inserting the suspension rolls back the bout completion', async () => {
+      suspensionsRepo.insertSuspension.mockRejectedValue(
+        new Error('Database disk error during suspension insert'),
+      );
+
+      await expect(
+        eService.recordResult(
+          coachActor,
+          BOUT_ID,
+          {
+            result: 'LOSS',
+            method: 'KO',
+            resultRound: 1,
+            lossOfConsciousness: 'NONE',
+          },
+          REQUEST_ID,
+        ),
+      ).rejects.toThrow();
+
+      const bout = await repo.findBoutById(BOUT_ID);
+      expect(bout?.status).toBe('WEIGHED_IN');
+    });
+
+    it('a failure while querying prior suspensions rejects recordResult and leaves bout uncompleted (G2)', async () => {
+      suspensionsRepo.findPriorKoTkoSuspensions.mockRejectedValue(
+        new Error('Database query failure during findPriorKoTkoSuspensions'),
+      );
+
+      await expect(
+        eService.recordResult(
+          coachActor,
+          BOUT_ID,
+          {
+            result: 'LOSS',
+            method: 'KO',
+            resultRound: 1,
+            lossOfConsciousness: 'NONE',
+          },
+          REQUEST_ID,
+        ),
+      ).rejects.toThrow();
+
+      const bout = await repo.findBoutById(BOUT_ID);
+      expect(bout?.status).toBe('WEIGHED_IN');
     });
   });
 });

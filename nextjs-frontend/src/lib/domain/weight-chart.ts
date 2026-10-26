@@ -3,7 +3,7 @@ import { addDaysToKey, daysBetweenKeys, formatNumber, isDateKey } from "@/lib/fo
 import { WEIGHT_STATUS_LABELS } from "./labels";
 
 /** Camp weight status. The service that owns the bout computes this; the chart only displays it. */
-export type WeightStatus = "GREEN" | "YELLOW" | "RED" | "GREY";
+export type WeightStatus = "ON_TRACK" | "ABOVE_TARGET" | "OVER_LIMIT" | "NOT_WEIGHED" | "NEUTRAL";
 
 /** Whether yesterday followed the meal plan the coach wrote. The app does not score the food. */
 export type PlanAdherence = "ON_PLAN" | "SLIGHTLY_OFF" | "WAY_OFF";

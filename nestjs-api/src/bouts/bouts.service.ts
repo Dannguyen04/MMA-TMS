@@ -4,11 +4,12 @@ import type {
   BoutRequirementRow,
   BoutRow,
   CompetitionRuleset,
+  SuspensionRow,
 } from '../database/schema.js';
 import { forbidden } from '../shared/errors/access.error.js';
 import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import { USER } from '../shared/types/user.role.js';
-import { setAuditContext } from '../shared/utils/audit-context.util.js';
+import { setAuditContext, type Transaction } from '../shared/utils/audit-context.util.js';
 import {
   boutAnalysisInvalid,
   boutActiveExists,
@@ -45,17 +46,24 @@ import {
   addDaysToDate,
   buildDailyWeightPoints,
   canEnterFightWeek,
+  campStartOf,
   canTransition,
+  classifyReadiness,
   computeAcuteLoss,
-  computeWeightTrack,
+  computeBoutWeightTrack,
+  computeWeighInReminder,
+  computeWeightFeasibility,
   daysToWeighIn,
   encodeBoutCursor,
   evaluateGate1,
+  FEASIBILITY_WEIGHT_MAX_AGE_DAYS,
   fightWeekStartsOn,
   isFinalStatus,
+  readinessQuerySchema,
   requirementsDueOn,
   resolveWeightClass,
   SCHEDULE_EDITABLE_STATUSES,
+  weightFeasibilityWarnings,
   type AcuteLossResult,
   type BoutDetailResponse,
   type BoutListResponse,
@@ -64,10 +72,17 @@ import {
   type CancelBoutInput,
   type CatchweightInput,
   type CreateBoutInput,
+  type CreateBoutResponse,
   type CreateRequirementInput,
+  type FeasibilityQuery,
+  type FeasibilityResponse,
   type Gate1Result,
   type ListBoutsQuery,
+  type ReadinessQuery,
+  type ReadinessRow,
   type RecordResultInput,
+  type RecordResultResponse,
+  type RecordResultSuspension,
   type RequirementResponse,
   type RulesetResponse,
   type StartCampInput,
@@ -76,6 +91,7 @@ import {
   type WeighInBlock,
   type WeighInInput,
   type WeighInResponse,
+  type WeightFeasibility,
   type WeightTrack,
 } from './bouts.model.js';
 import {
@@ -93,10 +109,19 @@ import {
   type RoundInput,
 } from './bout-analysis.model.js';
 import { BoutsRepository, type BoutScope } from './bouts.repo.js';
+import { isInForceOn, suggestSuspensions } from '../suspensions/suspensions.model.js';
+import {
+  suspensionDaysRequired,
+  suspensionOverrideReasonRequired,
+} from '../suspensions/suspensions.error.js';
+import { SuspensionsRepository } from '../suspensions/suspensions.repo.js';
 
 @Injectable()
 export class BoutsService {
-  constructor(private readonly repo: BoutsRepository) {}
+  constructor(
+    private readonly repo: BoutsRepository,
+    private readonly suspensionsRepo: SuspensionsRepository,
+  ) {}
 
   // ---------------------------------------------------------------------------
   // Rulesets
@@ -105,6 +130,78 @@ export class BoutsService {
   async listRulesets(): Promise<RulesetResponse[]> {
     const rows = await this.repo.listRulesets();
     return rows.map(toRulesetResponse);
+  }
+
+  async getReadiness(
+    actor: AuthenticatedUser,
+    rawQuery: ReadinessQuery = {},
+  ): Promise<ReadinessRow[]> {
+    if (actor.role !== USER.COACH && actor.role !== USER.ADMIN) {
+      throw forbidden();
+    }
+    const parsed = readinessQuerySchema.safeParse(rawQuery);
+    if (!parsed.success) {
+      throw new UnprocessableEntityException({
+        statusCode: 422,
+        error: 'Unprocessable Entity',
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid readiness query parameters.',
+      });
+    }
+    const query = parsed.data;
+    const ruleset = query.rulesetId
+      ? await this.requireRuleset(query.rulesetId)
+      : undefined;
+
+    const scope =
+      actor.role === USER.ADMIN
+        ? ({ kind: 'ALL' } as const)
+        : ({ kind: 'COACH', userId: actor.id } as const);
+
+    const fightersInScope = await this.repo.listActiveFightersInScope(scope);
+    if (fightersInScope.length === 0) return [];
+
+    const fighterIds = fightersInScope.map((f) => f.id);
+    const now = new Date();
+    const today = academyDateOf(now);
+
+    const [suspensions, activeBouts, latestWeights] = await Promise.all([
+      this.suspensionsRepo.findSuspensionsByFighterIds(fighterIds),
+      this.repo.findActiveBoutsForFighters(fighterIds),
+      this.repo.findLatestWeightsForFighters(fighterIds, now),
+    ]);
+
+    const suspensionsByFighter = new Map<string, SuspensionRow[]>();
+    for (const s of suspensions) {
+      const list = suspensionsByFighter.get(s.fighterId) ?? [];
+      list.push(s);
+      suspensionsByFighter.set(s.fighterId, list);
+    }
+    const activeBoutByFighter = new Map(
+      activeBouts.map((b) => [b.fighterId, b]),
+    );
+    const latestWeightByFighter = new Map(
+      latestWeights.map((w) => [
+        w.fighterId,
+        { kg: w.weightKg, date: academyDateOf(w.measuredAt) },
+      ]),
+    );
+
+    return fightersInScope.map((fighter) =>
+      classifyReadiness({
+        fighterId: fighter.id,
+        fighterName: `${fighter.firstName} ${fighter.lastName}`.trim(),
+        today,
+        suspensions: suspensionsByFighter.get(fighter.id) ?? [],
+        activeBout: activeBoutByFighter.get(fighter.id) ?? null,
+        latestWeight: latestWeightByFighter.get(fighter.id) ?? null,
+        ...(query.boutOn !== undefined ? { boutOn: query.boutOn } : {}),
+        ...(query.weightLimitKg !== undefined
+          ? { weightLimitKg: query.weightLimitKg }
+          : {}),
+        ...(ruleset !== undefined ? { ruleset } : {}),
+      }),
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -514,7 +611,7 @@ export class BoutsService {
     actor: AuthenticatedUser,
     input: CreateBoutInput,
     requestId: string,
-  ): Promise<BoutDetailResponse> {
+  ): Promise<CreateBoutResponse> {
     await this.assertWriteAccess(actor, input.fighterId);
 
     const weighInAt = new Date(input.weighInAt);
@@ -579,10 +676,106 @@ export class BoutsService {
         );
         return created;
       });
-      return await this.buildDetail(bout, ruleset);
+      const detail = await this.buildDetail(bout, ruleset);
+      // R31: a warning only, never blocks saving the bout.
+      const feasibility = await this.loadFeasibility(
+        input.fighterId,
+        {
+          limitKg: weightClass.limitKg,
+          acuteLossLimitPct,
+          acuteWindowDays: ruleset.acuteWindowDays,
+          weighInAt,
+        },
+        now,
+      );
+      const [activeBoutId, fighterSuspensions] = await Promise.all([
+        this.repo.findActiveBoutIdForFighter(input.fighterId, bout.id),
+        this.suspensionsRepo.findSuspensionsByFighterId(input.fighterId),
+      ]);
+      const warnings = [
+        ...weightFeasibilityWarnings(feasibility),
+        ...(activeBoutId ? [{ code: 'FIGHTER_ACTIVE_BOUT' as const }] : []),
+        ...(fighterSuspensions.some((s) => isInForceOn(s, academyDateOf(boutAt)))
+          ? [{ code: 'FIGHTER_SUSPENDED_PAST_BOUT_DATE' as const }]
+          : []),
+      ];
+      return { ...detail, warnings };
     } catch (error) {
       throw mapBoutPersistenceError(error);
     }
+  }
+
+  /**
+   * Read-only preview of the weight feasibility (R31) for the create form, with the
+   * same access, ruleset and weight class rules as `createBout` but nothing saved.
+   */
+  async getFeasibility(
+    actor: AuthenticatedUser,
+    query: FeasibilityQuery,
+  ): Promise<FeasibilityResponse> {
+    await this.assertWriteAccess(actor, query.fighterId);
+
+    const weighInAt = new Date(query.weighInAt);
+    const boutAt = new Date(query.boutAt);
+    if (weighInAt.getTime() >= boutAt.getTime())
+      throw boutInvalidSchedule('WEIGH_IN_NOT_BEFORE_BOUT');
+    if (!(await this.repo.isActiveFighter(query.fighterId)))
+      throw boutFighterNotFound();
+    const ruleset = await this.requireRuleset(query.rulesetId);
+    const weightClass = resolveWeightClass(ruleset.weightClasses, {
+      weightClassCode: query.weightClassCode,
+      weightLimitKg: query.weightLimitKg,
+    });
+    if (!weightClass.ok) throw boutInvalidWeightClass(weightClass.reason);
+    const acuteLossLimitPct = acuteLossLimitPctFor(weighInAt, boutAt, {
+      long: Number(ruleset.acuteLossLimitPctLong),
+      short: Number(ruleset.acuteLossLimitPctShort),
+    });
+
+    const feasibility = await this.loadFeasibility(
+      query.fighterId,
+      {
+        limitKg: weightClass.limitKg,
+        acuteLossLimitPct,
+        acuteWindowDays: ruleset.acuteWindowDays,
+        weighInAt,
+      },
+      new Date(),
+    );
+    return {
+      ...feasibility,
+      limitKg: weightClass.limitKg,
+      acuteLossLimitPct,
+      warnings: weightFeasibilityWarnings(feasibility),
+    };
+  }
+
+  private async loadFeasibility(
+    fighterId: string,
+    target: {
+      limitKg: number;
+      acuteLossLimitPct: number;
+      acuteWindowDays: number;
+      weighInAt: Date;
+    },
+    now: Date,
+  ): Promise<WeightFeasibility> {
+    const today = academyDateOf(now);
+    const from = addDaysToDate(today, -FEASIBILITY_WEIGHT_MAX_AGE_DAYS);
+    const measurements = await this.repo.findWeightMeasurements(
+      fighterId,
+      academyStartOfDay(from),
+      now,
+    );
+    const points = buildDailyWeightPoints(measurements, { from, to: today });
+    return computeWeightFeasibility({
+      limitKg: target.limitKg,
+      acuteLossLimitPct: target.acuteLossLimitPct,
+      acuteWindowDays: target.acuteWindowDays,
+      today,
+      weighInDate: academyDateOf(target.weighInAt),
+      latest: points[points.length - 1] ?? null,
+    });
   }
 
   async updateBout(
@@ -1201,7 +1394,7 @@ export class BoutsService {
     id: string,
     input: RecordResultInput,
     requestId: string,
-  ): Promise<BoutDetailResponse> {
+  ): Promise<RecordResultResponse> {
     const bout = await this.requireBout(id);
     await this.assertWriteAccess(actor, bout.fighterId);
 
@@ -1259,6 +1452,24 @@ export class BoutsService {
       }
     }
 
+    const isKoDue = input.result === 'LOSS' && input.method === 'KO';
+    const isTkoDue = isTkoLoss && input.stoppedByHeadStrike === true;
+    const isSuspensionDue = isKoDue || isTkoDue;
+    if (!isSuspensionDue) {
+      if (input.suspensionDays !== undefined && input.suspensionDays !== null) {
+        throw boutResultInvalid('SUSPENSION_DAYS_NOT_ALLOWED');
+      }
+      if (
+        input.suspensionOverrideReason !== undefined &&
+        input.suspensionOverrideReason !== null &&
+        input.suspensionOverrideReason.trim().length > 0
+      ) {
+        throw boutResultInvalid('SUSPENSION_OVERRIDE_NOT_ALLOWED');
+      }
+    }
+
+    const ruleset = await this.requireRuleset(bout.rulesetId);
+
     const historyEntry: BoutHistoryEntry = {
       at: now.toISOString(),
       by: actor.id,
@@ -1285,6 +1496,7 @@ export class BoutsService {
     };
 
     try {
+      let createdSuspensions: RecordResultSuspension[] = [];
       const updated = await this.repo.transaction(async (tx) => {
         await setAuditContext(actor.authSubject, requestId, tx);
         const locked = await this.repo.lockBoutById(bout.id, tx);
@@ -1328,18 +1540,121 @@ export class BoutsService {
             ),
           };
         }
-        return this.repo.updateBout(
+        const updatedRow = await this.repo.updateBout(
           bout.id,
           changes,
           { expectedStatus: 'WEIGHED_IN', historyEntry },
           tx,
         );
+        if (!updatedRow) throw boutStateConflict();
+
+        createdSuspensions = await this.applyResultSuspensions(
+          actor,
+          bout,
+          ruleset,
+          input,
+          today,
+          tx,
+        );
+
+        return updatedRow;
       });
-      if (!updated) throw boutStateConflict();
-      return await this.buildDetail(updated);
+
+      const detail = await this.buildDetail(updated, ruleset);
+      return {
+        ...detail,
+        suspensions: createdSuspensions,
+      };
     } catch (error) {
       throw mapBoutPersistenceError(error);
     }
+  }
+
+  private async applyResultSuspensions(
+    actor: AuthenticatedUser,
+    bout: BoutRow,
+    ruleset: CompetitionRuleset,
+    input: RecordResultInput,
+    today: string,
+    tx: Transaction,
+  ): Promise<RecordResultSuspension[]> {
+    const priorSuspensions =
+      await this.suspensionsRepo.findPriorKoTkoSuspensions(
+        bout.fighterId,
+        undefined,
+        bout.id,
+        tx,
+      );
+
+    const suggestion = suggestSuspensions({
+      event: {
+        result: input.result,
+        method: input.method,
+        lossOfConsciousness: input.lossOfConsciousness,
+        stoppedByHeadStrike: input.stoppedByHeadStrike,
+        knockedDown: input.knockedDown,
+      },
+      ruleset: {
+        name: ruleset.name,
+        suspensionRules: ruleset.suspensionRules,
+        restDaysAfterBout: ruleset.restDaysAfterBout,
+        defaultBlockedSessionTypes: ruleset.defaultBlockedSessionTypes,
+      },
+      today,
+      boutDate: academyDateOf(bout.boutAt),
+      priorKoTkoCount: priorSuspensions,
+      coachInput: {
+        suspensionDays: input.suspensionDays,
+        suspensionOverrideReason: input.suspensionOverrideReason,
+      },
+    });
+
+    if (!suggestion.ok) {
+      if (suggestion.error === 'SUSPENSION_DAYS_REQUIRED') {
+        throw suspensionDaysRequired();
+      }
+      if (suggestion.error === 'SUSPENSION_OVERRIDE_REASON_REQUIRED') {
+        throw suspensionOverrideReasonRequired();
+      }
+      if (suggestion.error === 'SUSPENSION_DAYS_NOT_ALLOWED') {
+        throw boutResultInvalid('SUSPENSION_DAYS_NOT_ALLOWED');
+      }
+      throw boutResultInvalid('SUSPENSION_OVERRIDE_NOT_ALLOWED');
+    }
+
+    const created: RecordResultSuspension[] = [];
+    for (const s of suggestion.suspensions) {
+      const row = await this.suspensionsRepo.insertSuspension(
+        {
+          fighterId: bout.fighterId,
+          boutId: bout.id,
+          reason: s.reason,
+          startsOn: s.startsOn,
+          endsOn: s.endsOn,
+          lossOfConsciousness: s.lossOfConsciousness,
+          suggestedDays: s.suggestedDays,
+          overrideReason: s.overrideReason,
+          blockedSessionTypes: [...s.blockedSessionTypes],
+          requiresClearance: s.requiresClearance,
+          createdById: actor.id,
+          clearedAt: null,
+          clearedById: null,
+          clearanceNote: null,
+        },
+        tx,
+      );
+      created.push({
+        id: row.id,
+        reason: row.reason,
+        startsOn: row.startsOn,
+        endsOn: row.endsOn,
+        requiresClearance: row.requiresClearance,
+        suggestedDays: row.suggestedDays,
+        explanation: s.explanation,
+      });
+    }
+
+    return created;
   }
 
   // ---------------------------------------------------------------------------
@@ -1452,6 +1767,11 @@ export class BoutsService {
         now,
         gate1,
       }),
+      weightReminder: computeWeighInReminder({
+        status: bout.status,
+        today: academyDateOf(now),
+        latestOn: track.latestOn,
+      }),
       weight: {
         latestKg: track.latestKg,
         latestOn: track.latestOn,
@@ -1481,24 +1801,22 @@ export class BoutsService {
     const plan = bout.trainingPlanId
       ? await this.repo.findPlanById(bout.trainingPlanId)
       : undefined;
-    const campStart = plan?.startDate ?? academyDateOf(bout.createdAt);
-    const today = academyDateOf(now);
+    const planStartDate = plan?.startDate ?? null;
     const measurements = await this.repo.findWeightMeasurements(
       bout.fighterId,
-      academyStartOfDay(campStart),
+      academyStartOfDay(campStartOf(planStartDate, bout.createdAt)),
       now,
     );
-    return computeWeightTrack({
+    return computeBoutWeightTrack({
+      status: bout.status,
       limitKg: Number(bout.catchweightKg ?? bout.weightLimitKg),
       acuteLossLimitPct: Number(bout.acuteLossLimitPct),
       acuteWindowDays: ruleset.acuteWindowDays,
-      weighInDate: academyDateOf(bout.weighInAt),
-      today,
-      campStart,
-      points: buildDailyWeightPoints(measurements, {
-        from: campStart,
-        to: today,
-      }),
+      weighInAt: bout.weighInAt,
+      createdAt: bout.createdAt,
+      planStartDate,
+      measurements,
+      now,
     });
   }
 
@@ -1654,7 +1972,7 @@ function toBoutSummary(row: BoutRow): BoutSummary {
   };
 }
 
-function toRequirementState(row: BoutRequirementRow) {
+export function toRequirementState(row: BoutRequirementRow) {
   return {
     code: row.code,
     label: row.label,

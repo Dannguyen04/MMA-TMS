@@ -100,12 +100,12 @@ describe("weight warning (T-003 criterion 1, Business flows §6)", () => {
     const base = { limitKg: 60, acuteLossLimitPct: 8, acuteWindowDays: 7, campStartedOn: "2026-10-01", weighInOn: "2026-10-22", todayOn: "2026-10-20" };
 
     it("is red at 66 kg two days out and green at 64.5 kg", () => {
-        expect(buildWeightTrack({ ...base, points: [{ date: "2026-10-20", kg: 66 }] })).toMatchObject({ status: "RED", remainingPct: 9.1 });
-        expect(buildWeightTrack({ ...base, points: [{ date: "2026-10-20", kg: 64.5 }] })).toMatchObject({ status: "GREEN", remainingPct: 7 });
+        expect(buildWeightTrack({ ...base, points: [{ date: "2026-10-20", kg: 66 }] })).toMatchObject({ status: "OVER_LIMIT", remainingPct: 9.1 });
+        expect(buildWeightTrack({ ...base, points: [{ date: "2026-10-20", kg: 64.5 }] })).toMatchObject({ status: "ON_TRACK", remainingPct: 7 });
     });
 
     it("is grey without a weight in the last three days", () => {
-        expect(buildWeightTrack({ ...base, points: [{ date: "2026-10-17", kg: 64 }] }).status).toBe("GREY");
+        expect(buildWeightTrack({ ...base, points: [{ date: "2026-10-17", kg: 64 }] }).status).toBe("NOT_WEIGHED");
     });
 
     it("is yellow 20 days out when the weight is 1.5 kg above the reference line", () => {
@@ -115,11 +115,11 @@ describe("weight warning (T-003 criterion 1, Business flows §6)", () => {
         ];
         const reference = buildWeightTrack({ ...base, weighInOn: "2026-11-09", points: [points[0]] }).referencePath.find((point) => point.date === "2026-10-20")!.kg;
         points[1].kg = Math.round((reference + 1.5) * 10) / 10;
-        expect(buildWeightTrack({ ...base, weighInOn: "2026-11-09", points }).status).toBe("YELLOW");
+        expect(buildWeightTrack({ ...base, weighInOn: "2026-11-09", points }).status).toBe("ABOVE_TARGET");
     });
 
     it("has no reference or remaining share for an open class", () => {
-        expect(buildWeightTrack({ ...base, limitKg: null, points: [{ date: "2026-10-20", kg: 130 }] })).toMatchObject({ status: "GREEN", remainingPct: null, referencePath: [] });
+        expect(buildWeightTrack({ ...base, limitKg: null, points: [{ date: "2026-10-20", kg: 130 }] })).toMatchObject({ status: "ON_TRACK", remainingPct: null, referencePath: [] });
     });
 });
 
