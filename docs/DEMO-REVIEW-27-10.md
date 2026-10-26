@@ -58,6 +58,18 @@ Câu chuyển: "Đến đây là phần thầy đã xem. Phần mới là trong 
 | 14 | Đánh giá trận | Sửa nếu không đồng ý | **Tự đánh giá từng chiến thuật** từ bản ghi các hiệp (R29); lập **điểm cần luyện cho camp sau** (R30): chiến thuật không hiệu quả, giảm cân cấp tốc vượt ngưỡng, "đuối sức từ hiệp 2" | Backend có; màn báo cáo chưa có. Dự phòng: test `buildImprovementPoints` |
 | 15 | Sẵn sàng nhận trận mới | Không | Bảng sẵn sàng toàn CLB: võ sĩ không có trận đang chạy và không có đình chỉ còn hiệu lực; khi tạo trận tiếp theo, hiện điểm cần luyện từ trận trước | Backend có (`GET /readiness`); màn chưa có |
 
+**Dự phòng cho bước 14–15** (backend có, chưa có màn; Claude chạy thử 26/10: 8 test qua):
+
+```bash
+cd nestjs-api
+npx vitest run src/bouts/bout-analysis.model.spec.ts src/bouts/bouts.model.spec.ts -t "R29|R30|classifyReadiness"
+```
+
+Nói kèm từng ca:
+- *R29 evaluates counts, ties, unused tactics…*: app tự chấm từng chiến thuật sau trận từ bản ghi các hiệp. Hiệu quả 2 hiệp, không dùng hiệp 3 thì "Hiệu quả"; hiệu quả 1, không hiệu quả 1 thì vẫn "Hiệu quả"; không hiệp nào dùng thì "Chưa dùng". HLV sửa nếu không đồng ý.
+- *R30 uses saved reviews…*, *R30 detects only a consecutive fatigue suffix*: điểm cần luyện cho camp sau, gồm chiến thuật không hiệu quả, giảm cân cấp tốc vượt ngưỡng, và "đuối sức từ hiệp 2" khi mệt liên tiếp tới hiệp cuối. Danh sách này hiện ra khi HLV tạo trận tiếp theo cho võ sĩ.
+- *classifyReadiness (R32, S3)*: bảng sẵn sàng toàn CLB. Thứ tự ưu tiên: đang đình chỉ, chờ xác nhận tập lại, đang có trận, sẵn sàng. Ngày cuối đình chỉ vẫn tính là đình chỉ; hôm sau là "chờ xác nhận" nếu bộ luật yêu cầu, ngược lại là "sẵn sàng".
+
 Câu kết: "Sau trận, HLV gần như không nhập gì: app tự tạo đình chỉ, tự chặn lịch tập nguy hiểm, tự đánh giá chiến thuật và chuyển bài học sang camp sau. Vòng đời quay lại bước 1."
 
 ## 4. Chuẩn bị (tối 26/10, Claude kiểm và cập nhật bảng trạng thái)
