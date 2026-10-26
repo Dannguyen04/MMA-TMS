@@ -3,9 +3,9 @@
 | | |
 | --- | --- |
 | **Trạng thái** | READY (26/10, tối) |
-| **Phần** | Frontend (`nextjs-frontend`). Phần A: 3 lỗi giao diện (bắt buộc, làm trước). Phần B: Việt hoá chữ còn tiếng Anh trên các màn hình trong kịch bản |
+| **Phần** | Frontend (`nextjs-frontend`). A1: lỗi logic, làm trước demo. A2, A3 và phần B: chỉ đổi câu chữ, làm sau demo (gộp được với [T-025](./T-025-i18n-final-sweep.md)) |
 | **Người nhận** | Team (dev hoặc Gemini). Claude review |
-| **Hạn** | Trước buổi demo sáng 27/10 |
+| **Hạn** | A1: trước buổi demo sáng 27/10. A2, A3, phần B: sau demo |
 | **Nhánh** | Tạo `fix/T-032-demo-fixes` từ `sync/T-004-fight-camp`; review xong thì merge lại vào `sync/T-004-fight-camp` (nhánh demo). Không đụng `main` |
 | **Tài liệu dẫn chiếu** | Kịch bản demo `docs/DEMO-REVIEW-27-10.md` (có trên nhánh `fight-camp`), [T-007](./T-007-suspensions-and-readiness.md), [T-010B](./T-010B-corner-card-rounds-ui.md) |
 | **Migration** | Không |
@@ -14,11 +14,15 @@
 
 Tối 26/10 Hoàng Anh chạy đủ kịch bản demo của Dan (bước 1.1 đến 5.6) trên `sync/T-004-fight-camp`, chế độ demo (`APP_DATA_MODE=demo`). Các kết quả chính ra đúng kịch bản, nhưng còn 3 chỗ giao diện tự mâu thuẫn hoặc gây hiểu nhầm (phần A), và nhiều chữ tiếng Anh lẫn trong giao diện tiếng Việt (phần B). Giao diện mặc định là tiếng Việt (`DEFAULT_LOCALE = "vi"` trong `src/lib/i18n/config.ts`); tiếng Anh vẫn chọn được trong menu tài khoản, nên mọi khoá i18n mới phải có cả `vi` và `en`.
 
+Quy ước của team trước demo: chỉ sửa lỗi, không sửa phần chỉ là câu chữ hay định dạng. Vì vậy trước demo chỉ làm A1. A2, A3 và phần B chỉ đổi chữ, để sau demo; đừng gộp chung vào nhánh sửa A1.
+
 Mọi đường dẫn bên dưới tính từ `nextjs-frontend/`. Số dòng đúng tại commit `2d119f8`.
 
-## Phần A. Lỗi giao diện (bắt buộc)
+## Phần A. Lỗi giao diện
 
 ### A1. Ô "Kiểm tra cấp phép" báo "Không có xung đột" khi võ sĩ đang bị đình chỉ (kịch bản bước 5.5)
+
+**Ưu tiên: trước demo.** Đây là lỗi logic, không phải câu chữ: hai thông báo trái nhau cùng lúc. Nếu không kịp làm xong và qua review trước demo thì không merge; Dan nói ở bước 5.5 rằng ô bên phải chỉ kiểm cấp phép y tế, còn đình chỉ được kiểm khi bấm lưu.
 
 **Hiện tượng.** Ở `/coach/sessions/new`, chọn Linh Phạm (vừa bị đình chỉ vì KO) và loại "Đấu tập": ô bên phải hiện xanh "Không có xung đột với cấp phép y tế của Linh Phạm." Chỉ khi bấm "Lên lịch buổi tập" mới hiện đỏ "Linh Phạm đang bị đình chỉ: buổi đấu tập bị chặn đến hết ngày 25 thg 11, 2026." Trên màn hình cùng lúc có hai thông báo trái nhau.
 
@@ -38,6 +42,8 @@ Mọi đường dẫn bên dưới tính từ `nextjs-frontend/`. Số dòng đ�
 
 ### A2. Khung "Sẵn sàng nhận trận mới" mâu thuẫn với dòng mô tả (bước 5.4)
 
+**Ưu tiên: sau demo.** Chỉ đổi chữ.
+
 **Hiện tượng.** Ở `/coach/bouts/suspensions`, khung bên phải có mô tả "Không có trận nào từ giai đoạn chuẩn bị thi đấu trở đi, và không bị đình chỉ." nhưng lại liệt kê mọi võ sĩ, kể cả người "Đang đình chỉ" và "Đang chuẩn bị thi đấu".
 
 **Nguyên nhân.** `src/app/(app)/coach/bouts/suspensions/page.tsx` (dòng 75–104) cố ý hiện trạng thái của từng võ sĩ. Chỉ phần chữ sai.
@@ -55,6 +61,8 @@ Chữ có thể chỉnh lại, miễn mô tả khớp với những gì danh sá
 
 ### A3. Nút vẫn ghi "Lưu hiệp N" sau khi hiệp đã lưu (bước 4.2)
 
+**Ưu tiên: sau demo.** Chỉ đổi nhãn nút; lưu lần hai vẫn ghi đè đúng.
+
 **Hiện tượng.** Ở `/coach/bouts/<id>/rounds`, sau khi lưu hiệp 1, thẻ Hiệp 1 đã có nhãn "Đã lưu" nhưng nút vẫn ghi "Lưu hiệp 1". Bấm lần nữa thì ghi đè, nên người xem không biết là lưu mới hay sửa.
 
 **Nguyên nhân.** `src/app/(app)/coach/bouts/[boutId]/rounds/rounds-view.tsx`, dòng 502–509, luôn dùng `boutAnalysis.rounds.saveRound`. Component đã nhận prop `existing` (truyền ở dòng 185–193), có giá trị khi hiệp đã lưu.
@@ -66,6 +74,8 @@ Chữ có thể chỉnh lại, miễn mô tả khớp với những gì danh sá
 **Nghiệm thu.** Hiệp chưa lưu thì nút ghi "Lưu hiệp N". Lưu xong thì ngay sau khi trang làm mới, nút đổi thành "Cập nhật hiệp N". Nhãn lúc đang lưu vẫn là "Đang lưu…".
 
 ## Phần B. Việt hoá các màn hình trong kịch bản
+
+**Ưu tiên: sau demo.** Toàn bộ phần B chỉ là câu chữ. Có thể làm cùng [T-025](./T-025-i18n-final-sweep.md).
 
 **Phạm vi:** thanh bên của HLV, chi tiết trận, ghi hiệp, trang đình chỉ, form lên lịch buổi tập. Đây là các màn hình xuất hiện trong kịch bản demo.
 
@@ -143,4 +153,5 @@ Sau khi kiểm tay xong phải **khởi động lại dev server** để dữ li
 
 - Bước 5.2: khi chọn "KO", form hiện thêm câu bắt buộc "Có mất ý thức không?". Ghi rõ chọn "Không" để giữ đề xuất 30 ngày. Nên tích ô "Bị đánh ngã trong trận" để kết quả "Thua · KO" không đi kèm "Bị đánh ngã: Không".
 - Bước 5.3: bấm "Xác nhận đình chỉ" chỉ mở hộp thoại; phải bấm thêm "Lưu đình chỉ". Sau đó hiện thông báo "Đã lưu đình chỉ" (khoá `boutMsg.action.suspensionSaved`) và nhãn "Đang đình chỉ".
+- Bước 5.5: nếu A1 chưa merge trước demo, nói rõ ô "Kiểm tra cấp phép" chỉ xét cấp phép y tế; đình chỉ được kiểm khi bấm "Lên lịch buổi tập".
 - Bước 1.3: nếu B2 đổi tên "Brain CT" thì sửa câu chờ đợi "Brain CT · Bắt buộc · Còn thiếu" theo tên mới.
