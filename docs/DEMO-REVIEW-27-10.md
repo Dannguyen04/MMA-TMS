@@ -6,6 +6,10 @@
 
 **Thời lượng gợi ý:** 12–15 phút. Trước trận 3 phút, trong trận 6 phút, sau trận 4 phút, hỏi đáp phần còn lại.
 
+**Người trình bày** (chủ dự án chốt 26/10): trước trận **Hoàng Anh** (màn HLV); trong trận **Dan** (phần giảng viên hỏi nhiều nhất, R20–R26); sau trận **Ken** (đình chỉ, Cổng 2, bảng sẵn sàng). Fon chạy máy và chuyển màn.
+
+**Nhánh chạy demo:** `sync/T-004-fight-camp` (frontend của Hoàng Anh đưa lên `fight-camp`, cộng T-010 B). Chạy: `cd nextjs-frontend && APP_DATA_MODE=demo pnpm dev`, mở `http://localhost:3000`.
+
 **Một câu mở đầu:** "App quản lý một võ sĩ qua vòng đời một trận. Người dùng chỉ nhập những gì chỉ họ biết; mọi kiểm tra, cảnh báo và hệ quả do app tự làm."
 
 Ký hiệu màn: **Có** = đã có trên nhánh demo; **Đang làm** = Gemini/Codex làm hôm nay 26/10, Claude kiểm trước tối 26/10; **Dự phòng** = cách trình bày nếu màn chưa xong.
