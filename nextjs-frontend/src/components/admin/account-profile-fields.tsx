@@ -1,9 +1,15 @@
 "use client";
 
+import { ChevronDown } from "lucide-react";
+import { useState } from "react";
+
+import { TermHint } from "@/components/domain/term-hint";
+import { Button } from "@/components/ui/button";
 import { Checkbox, Field, Input, Select } from "@/components/ui/form";
 import type { ActionForm } from "@/components/ui/use-action-form";
 import { ACCOUNT_LIMITS, type AccountProfile, type CoachProfileFields, type DoctorProfileFields, type FighterProfileFields } from "@/lib/domain/account-contract";
-import { STANCE_LABELS, WEIGHT_CLASS_LABELS, WEIGHT_CLASS_ORDER } from "@/lib/domain/labels";
+import { STANCE_LABELS, WEIGHT_CLASS_LABELS, WEIGHT_CLASS_LIMIT_KG, WEIGHT_CLASS_ORDER } from "@/lib/domain/labels";
+import { cn } from "@/lib/utils";
 
 export type StaffAccount = Exclude<AccountProfile, { role: "admin" }>;
 
@@ -38,35 +44,53 @@ function FighterFields({ form, saved, today }: FormProp & { saved: FighterProfil
     const dateOfBirth = form.control("profile.dateOfBirth", { required: true });
     const weightClass = form.control("profile.weightClass", { required: true });
     const stance = form.control("profile.dominantStance");
+    const optionalError = Boolean(form.error("profile.dominantStance") || form.error("profile.nationality"));
+    const [showOptional, setShowOptional] = useState(Boolean(saved?.dominantStance || saved?.nationality));
+    const optionalOpen = showOptional || optionalError;
+    const optionalId = `${stance.id}-optional`;
     return (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-            <Field label="Date of birth" htmlFor={dateOfBirth.id} required error={form.error("profile.dateOfBirth")}>
-                <Input {...dateOfBirth} type="date" max={today} defaultValue={saved?.dateOfBirth ?? ""} />
-            </Field>
-            <Field label="Weight class" htmlFor={weightClass.id} required error={form.error("profile.weightClass")}>
-                <Select {...weightClass} defaultValue={saved?.weightClass ?? ""}>
-                    <option value="" disabled>
-                        Choose a weight class
-                    </option>
-                    {WEIGHT_CLASS_ORDER.map((value) => (
-                        <option key={value} value={value}>
-                            {WEIGHT_CLASS_LABELS[value]}
+        <>
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                <Field label="Date of birth" htmlFor={dateOfBirth.id} required error={form.error("profile.dateOfBirth")}>
+                    <Input {...dateOfBirth} type="date" max={today} defaultValue={saved?.dateOfBirth ?? ""} />
+                </Field>
+                <Field label="Weight class" htmlFor={weightClass.id} required info={<TermHint term="weightClass" />} error={form.error("profile.weightClass")}>
+                    <Select {...weightClass} defaultValue={saved?.weightClass ?? ""}>
+                        <option value="" disabled>
+                            Choose a weight class
                         </option>
-                    ))}
-                </Select>
-            </Field>
-            <Field label="Stance" htmlFor={stance.id} optional error={form.error("profile.dominantStance")}>
-                <Select {...stance} defaultValue={saved?.dominantStance ?? ""}>
-                    <option value="">Not recorded</option>
-                    {Object.entries(STANCE_LABELS).map(([value, label]) => (
-                        <option key={value} value={value}>
-                            {label}
-                        </option>
-                    ))}
-                </Select>
-            </Field>
-            <TextField form={form} name="nationality" label="Nationality" max={ACCOUNT_LIMITS.nationality} defaultValue={saved?.nationality} placeholder="e.g. Vietnamese" />
-        </div>
+                        {WEIGHT_CLASS_ORDER.map((value) => (
+                            <option key={value} value={value}>
+                                {WEIGHT_CLASS_LABELS[value]} · up to {WEIGHT_CLASS_LIMIT_KG[value]} kg
+                            </option>
+                        ))}
+                    </Select>
+                </Field>
+            </div>
+            {/* Stance and nationality are rarely known on day one; they stay in the form (and are sent) while folded away. */}
+            <div className="flex flex-col gap-4">
+                <div>
+                    <Button variant="ghost" size="sm" aria-expanded={optionalOpen} aria-controls={optionalId} onClick={() => setShowOptional((open) => !open)}>
+                        <ChevronDown aria-hidden className={cn("transition-transform", optionalOpen && "rotate-180")} />
+                        Optional details
+                        <span className="font-normal text-fg-subtle">stance, nationality</span>
+                    </Button>
+                </div>
+                <div id={optionalId} hidden={!optionalOpen} className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                    <Field label="Stance" htmlFor={stance.id} optional info={<TermHint term="stance" />} error={form.error("profile.dominantStance")}>
+                        <Select {...stance} defaultValue={saved?.dominantStance ?? ""}>
+                            <option value="">Not recorded</option>
+                            {Object.entries(STANCE_LABELS).map(([value, label]) => (
+                                <option key={value} value={value}>
+                                    {label}
+                                </option>
+                            ))}
+                        </Select>
+                    </Field>
+                    <TextField form={form} name="nationality" label="Nationality" max={ACCOUNT_LIMITS.nationality} defaultValue={saved?.nationality} placeholder="e.g. Vietnamese" />
+                </div>
+            </div>
+        </>
     );
 }
 

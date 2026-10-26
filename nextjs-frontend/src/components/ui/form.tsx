@@ -56,6 +56,8 @@ export interface FieldProps {
     required?: boolean;
     /** Marks the field as optional in the label (use when most fields are required). */
     optional?: boolean;
+    /** Shown right after the label, outside the `<label>` element: e.g. a `<TermHint>` explaining a term. */
+    info?: ReactNode;
     className?: string;
     children: ReactNode;
 }
@@ -65,24 +67,34 @@ export interface FieldProps {
  * aria-describedby, aria-invalid and aria-required automatically; explicit props still win.
  * The Field never assigns ids: set the control's id to `htmlFor` yourself.
  */
-export function Field({ label, htmlFor, hint, error, required, optional, className, children }: FieldProps) {
+export function Field({ label, htmlFor, hint, error, required, optional, info, className, children }: FieldProps) {
     const wiring: FieldWiring = {
         hintId: hint && !error ? `${htmlFor}-hint` : undefined,
         errorId: error ? `${htmlFor}-error` : undefined,
         invalid: Boolean(error),
         required: Boolean(required),
     };
+    const labelElement = (
+        <label htmlFor={htmlFor} className="text-sm font-medium text-fg">
+            {label}
+            {required && (
+                <span className="ml-0.5 text-danger-fg" aria-hidden>
+                    *
+                </span>
+            )}
+            {optional && <FieldOptional />}
+        </label>
+    );
     return (
         <div className={cn("flex flex-col gap-1.5", className)}>
-            <label htmlFor={htmlFor} className="text-sm font-medium text-fg">
-                {label}
-                {required && (
-                    <span className="ml-0.5 text-danger-fg" aria-hidden>
-                        *
-                    </span>
-                )}
-                {optional && <FieldOptional />}
-            </label>
+            {info ? (
+                <div className="flex items-center gap-1.5">
+                    {labelElement}
+                    {info}
+                </div>
+            ) : (
+                labelElement
+            )}
             {wireControls(children, wiring)}
             {hint && !error && (
                 <p id={`${htmlFor}-hint`} className="text-[13px] text-fg-subtle">
@@ -142,9 +154,16 @@ export function Select({ className, children, ...props }: ComponentProps<"select
     );
 }
 
-export function Checkbox({ label, description, className, id, ...props }: ComponentProps<"input"> & { label: ReactNode; description?: ReactNode }) {
-    return (
-        <label htmlFor={id} className={cn("flex cursor-pointer items-start gap-3", className)}>
+export interface CheckboxProps extends ComponentProps<"input"> {
+    label: ReactNode;
+    description?: ReactNode;
+    /** Shown after the label, outside the `<label>` element: e.g. a `<TermHint>`. */
+    info?: ReactNode;
+}
+
+export function Checkbox({ label, description, info, className, id, ...props }: CheckboxProps) {
+    const element = (
+        <label htmlFor={id} className={cn("flex cursor-pointer items-start gap-3", !info && className)}>
             <input
                 id={id}
                 type="checkbox"
@@ -157,17 +176,27 @@ export function Checkbox({ label, description, className, id, ...props }: Compon
             </span>
         </label>
     );
+    if (!info) return element;
+    return (
+        <div className={cn("flex items-start gap-1.5", className)}>
+            {element}
+            <span className="mt-0.5">{info}</span>
+        </div>
+    );
 }
 
 /** Groups related fields under a heading, e.g. "Schedule" in the session form. */
 export function FormSection({
     title,
     description,
+    info,
     children,
     className,
 }: {
     title: string;
     description?: ReactNode;
+    /** Shown after the visible title, e.g. a `<TermHint>`. */
+    info?: ReactNode;
     children: ReactNode;
     className?: string;
 }) {
@@ -180,9 +209,12 @@ export function FormSection({
         >
             <legend className="sr-only">{title}</legend>
             <div>
-                <p aria-hidden className="text-sm font-semibold text-fg">
-                    {title}
-                </p>
+                <div className="flex items-center gap-1.5">
+                    <p aria-hidden className="text-sm font-semibold text-fg">
+                        {title}
+                    </p>
+                    {info}
+                </div>
                 {description && <p className="mt-1 text-[13px] text-fg-muted">{description}</p>}
             </div>
             <div className="grid min-w-0 gap-5">{children}</div>
@@ -216,17 +248,19 @@ export interface FormFooterProps {
     submitLabel: string;
     /** Shown on the submit button while saving, e.g. "Recording injury…". */
     pendingLabel: string;
+    /** The cancel link's text, for translated forms; "Cancel" when omitted. */
+    cancelLabel?: string;
     disabled?: boolean;
 }
 
 /** A page form's footer: the form-level message, then Cancel and submit (large, stacked and full width on phones). */
-export function FormFooter({ message, cancelHref, pending, submitLabel, pendingLabel, disabled }: FormFooterProps) {
+export function FormFooter({ message, cancelHref, pending, submitLabel, pendingLabel, cancelLabel = "Cancel", disabled }: FormFooterProps) {
     return (
         <div className="flex flex-col gap-3 border-t border-border pt-5">
             <FormMessage {...message} />
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                 <ButtonLink href={cancelHref} variant="secondary" size="lg" className="sm:h-9 sm:px-3.5 sm:text-sm">
-                    Cancel
+                    {cancelLabel}
                 </ButtonLink>
                 <Button type="submit" size="lg" loading={pending} disabled={disabled} className="sm:h-9 sm:px-3.5 sm:text-sm">
                     {pending ? pendingLabel : submitLabel}

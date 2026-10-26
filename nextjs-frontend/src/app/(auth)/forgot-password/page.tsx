@@ -17,6 +17,9 @@ export default async function ForgotPasswordPage() {
                 {t("auth.forgotDescription")}
             </p>
             <ForgotPasswordForm />
+            <p className="mt-6 text-center text-sm text-fg-muted">
+                Approved to train and setting up your fighter account? Use the set-up email from the academy, or ask them to resend it.
+            </p>
         </div>
     );
 }

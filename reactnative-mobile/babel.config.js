@@ -1,7 +1,11 @@
 module.exports = function (api) {
-  api.cache(true);
+  const isTest = api.env("test");
+  api.cache.using(() => process.env.NODE_ENV ?? "development");
   return {
-    presets: ["babel-preset-expo"],
-    plugins: ["react-native-reanimated/plugin"],
+    presets: isTest
+      ? ["babel-preset-expo"]
+      : [["babel-preset-expo", { jsxImportSource: "nativewind" }], "nativewind/babel"],
+    // Must stay last.
+    plugins: ["react-native-worklets/plugin"],
   };
 };

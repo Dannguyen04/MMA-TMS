@@ -8,8 +8,9 @@ import {
   type ApplicationStatus,
   type StaffApplication,
 } from "@/api/admissions";
-import { AuthFormError } from "@/components/auth/auth-form-error";
+import { useToastMessage } from "@/components/toast/app-toast";
 import { vi } from "@/i18n/vi";
+import { AdminApplicationList } from "@/screens/admin/admin-applications";
 import { AdmissionPage } from "@/screens/admissions/page";
 import { mapApiMessage } from "@/session/map-api-message";
 import { type, useThemePreference } from "@/theme";
@@ -23,12 +24,17 @@ export function StaffListScreen({
   const router = useRouter();
   const [items, setItems] = useState<StaffApplication[]>([]);
   const [error, setError] = useState("");
+  useToastMessage(error, "error");
+  const [total, setTotal] = useState(0);
+  const [loaded, setLoaded] = useState(false);
 
   const load = useCallback(() => {
     const request = audience === "admin" ? listApplications : listAssignedApplications;
     void request({ page: 1, limit: 20 })
       .then((page) => {
         setItems(page.items);
+        setTotal(page.total);
+        setLoaded(true);
         setError("");
       })
       .catch((cause: unknown) => setError(mapApiMessage(cause)));
@@ -43,12 +49,13 @@ export function StaffListScreen({
     router.push(href as never);
   };
 
+  if (audience === "admin") {
+    return <AdminApplicationList items={items} total={total} loaded={loaded} error={error} onOpen={open} />;
+  }
+
   return (
-    <AdmissionPage title={audience === "admin" ? vi.admission.roleAdmin : vi.admission.roleCoach}>
-      <Text style={[type.caption, { color: colors.inkMuted }]}>
-        {audience === "admin" ? vi.admission.staff : vi.admission.assigned}
-      </Text>
-      <AuthFormError message={error} />
+    <AdmissionPage title={vi.admission.roleCoach} onBack={false}>
+      <Text style={[type.caption, { color: colors.inkMuted }]}>{vi.admission.assigned}</Text>
       {items.length === 0 ? (
         <Text style={[type.body, { color: colors.inkMuted }]}>{vi.admission.empty}</Text>
       ) : null}

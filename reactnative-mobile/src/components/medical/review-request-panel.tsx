@@ -9,7 +9,7 @@ import {
   type ReviewRequestStatus,
 } from "@/api/types";
 import { AuthButton } from "@/components/auth/auth-button";
-import { AuthFormError } from "@/components/auth/auth-form-error";
+import { useToastMessage } from "@/components/toast/app-toast";
 import { AuthTextField } from "@/components/auth/auth-text-field";
 import {
   formatMedicalWhen,
@@ -64,6 +64,9 @@ export function ReviewRequestPanel({
   const [notice, setNotice] = useState("");
   const [needsRecheck, setNeedsRecheck] = useState(false);
   const requestSeq = useRef(0);
+  useToastMessage(listError, "error");
+  useToastMessage(formError, needsRecheck ? "info" : "error");
+  useToastMessage(notice, "success");
 
   const load = useCallback(
     async (nextPage: number) => {
@@ -153,7 +156,6 @@ export function ReviewRequestPanel({
           />
         ))}
       </View>
-      <AuthFormError message={listError} />
       {listError ? <MedicalLink label={medical.retry} onPress={() => void load(1)} /> : null}
       <MedicalCard>
         {loading && rows.length === 0 ? <MedicalMuted text={medical.loading} /> : null}
@@ -187,8 +189,6 @@ export function ReviewRequestPanel({
           helperPersistent
           error={tooLong ? medical.reviewTooLong : undefined}
         />
-        <AuthFormError message={formError} tone={needsRecheck ? "info" : "danger"} />
-        <AuthFormError message={notice} tone="success" />
         <AuthButton
           title={medical.reviewSubmit}
           onPress={submit}

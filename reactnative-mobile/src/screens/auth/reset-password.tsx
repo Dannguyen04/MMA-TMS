@@ -6,9 +6,9 @@ import { Link, useLocalSearchParams, useRouter } from "expo-router";
 import { resetPassword } from "@/api/auth";
 import { PASSWORD_MAX, PASSWORD_MIN } from "@/auth/register-steps";
 import { AuthButton } from "@/components/auth/auth-button";
-import { AuthFormError } from "@/components/auth/auth-form-error";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { AuthTextField } from "@/components/auth/auth-text-field";
+import { useToastMessage } from "@/components/toast/app-toast";
 import { vi } from "@/i18n/vi";
 import { mapApiMessage } from "@/session/map-api-message";
 import { type, useThemePreference } from "@/theme";
@@ -36,6 +36,7 @@ export function ResetPasswordScreen() {
   const [notice, setNotice] = useState(linkReady ? "" : vi.resetPassword.missingLink);
   const [done, setDone] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  useToastMessage(notice, done ? "success" : "error");
   const confirmRef = useRef<TextInput>(null);
 
   const onSubmit = () => {
@@ -109,7 +110,6 @@ export function ResetPasswordScreen() {
           />
         )
       }
-      banner={<AuthFormError message={notice} tone={done ? "success" : "danger"} />}
     >
       <AuthTextField
         label={vi.register.password}

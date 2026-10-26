@@ -11,8 +11,11 @@ describe("mapApiMessage", () => {
     jest.restoreAllMocks();
   });
 
-  it("uses registration copy only for REGISTRATION_CONFLICT", () => {
+  it("uses registration copy for email conflicts", () => {
     expect(mapApiMessage(new ApiError(409, "REGISTRATION_CONFLICT", "x"))).toBe(
+      vi.api.registrationConflict,
+    );
+    expect(mapApiMessage(new ApiError(409, "USER_ALREADY_EXISTS", "x"))).toBe(
       vi.api.registrationConflict,
     );
     expect(mapApiMessage(new ApiError(409, "SESSION_STATE_CONFLICT", "x"))).toBe(vi.api.conflict);

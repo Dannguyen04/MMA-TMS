@@ -43,9 +43,14 @@ export function EligibilityLine({ eligibility, label }: { eligibility: MedicalEl
       <Text style={[type.body, { color: eligibility.eligible ? colors.ink : colors.danger }]}>
         {label}: {eligibility.eligible ? medical.eligible : medical.notEligible}
       </Text>
-      {eligibility.reasons.map((code) => (
-        <MedicalMuted key={code} text={`• ${eligibilityReasonLabel(code)}`} />
-      ))}
+      {(eligibility.eligible ? eligibility.reasons : eligibility.reasons.length > 0 ? eligibility.reasons : ["__EMPTY__"]).map(
+        (code) => (
+          <MedicalMuted
+            key={code}
+            text={`• ${code === "__EMPTY__" ? medical.unknownReason : eligibilityReasonLabel(code)}`}
+          />
+        ),
+      )}
     </View>
   );
 }
@@ -81,6 +86,18 @@ function ExamBlock({ label, exam }: { label: string; exam: MedicalExamination | 
         {decisionLabel(exam.decision)}
       </Text>
       <MedicalMuted text={formatMedicalWhen(exam.examinedAt)} />
+      {exam.details ? (
+        <MedicalFact label={medical.currentExams} value={exam.details.examinationType} />
+      ) : (
+        <MedicalMuted text={medical.legacyDetails} />
+      )}
+      {exam.details?.scat6 ? (
+        <MedicalMuted
+          text={`${exam.details.scat6.formVersion} · ${exam.details.scat6.responses.status}${
+            exam.details.scat6.scoringVersion != null ? ` · v${exam.details.scat6.scoringVersion}` : ""
+          }`}
+        />
+      ) : null}
       {exam.reason ? <MedicalFact label={medical.snapshot.reason} value={exam.reason} /> : null}
       {restrictions ? <RestrictionFacts value={restrictions} /> : null}
       <MedicalMuted

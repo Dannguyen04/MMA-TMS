@@ -8,12 +8,14 @@ import { INJURY_SEVERITY_META } from "@/components/domain/status-badges";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ChoiceGroup, type ChoiceOption } from "@/components/ui/choice-group";
 import { Field, FormFooter, FormSection, Input, Select, Textarea } from "@/components/ui/form";
-import { useActionForm } from "@/components/ui/use-action-form";
+import { SuggestionChips } from "@/components/ui/suggestion-chips";
+import { useActionForm, type ActionForm } from "@/components/ui/use-action-form";
 import { recordInjuryAction } from "@/lib/actions/medical-contract";
 import { API_INJURY_SEVERITIES, BODY_JOINT_LABELS, MEDICAL_TEXT_LIMITS, type ApiInjurySeverity, type BodyJoint } from "@/lib/domain/medical-contract";
 import { JOINT_REGIONS } from "@/lib/domain/medical-mappings";
 import { INJURY_SEVERITY_LABELS } from "@/lib/domain/labels";
 import type { InjurySeverity } from "@/lib/domain/types";
+import { addDaysToKey, toDateTimeInputValue } from "@/lib/format";
 import { INJURY_SEVERITY_DESCRIPTIONS } from "./clinical-copy";
 
 export interface InjuryRecordFormProps {
@@ -39,6 +41,56 @@ const SEVERITY_OPTIONS: ChoiceOption<ApiInjurySeverity>[] = API_INJURY_SEVERITIE
     icon: INJURY_SEVERITY_META[severityKey(value)].icon,
     tone: INJURY_SEVERITY_META[severityKey(value)].tone,
 }));
+
+/**
+ * When the injury happened, as a day and a time that start empty: nothing is assumed. "Now", "Today" and "Yesterday"
+ * fill them in one tap ("Today" and "Yesterday" fill only the day); the action reads the combined value.
+ */
+function OccurredAtField({ form, maxDay }: { form: Pick<ActionForm<unknown>, "control" | "error" | "markEdited">; maxDay: string }) {
+    const [day, setDay] = useState("");
+    const [time, setTime] = useState("");
+    const control = form.control("occurredAt", { hint: true, required: true });
+    const message = form.error("occurredAt");
+    const pick = (value: string) => {
+        const now = toDateTimeInputValue(new Date());
+        if (value === "now") {
+            setDay(now.slice(0, 10));
+            setTime(now.slice(11));
+        } else {
+            setDay(value === "today" ? now.slice(0, 10) : addDaysToKey(now.slice(0, 10), -1));
+        }
+        form.markEdited("occurredAt");
+    };
+    return (
+        <Field label="Occurred" htmlFor={control.id} error={message} required hint="Academy time (Ho Chi Minh City)">
+            <div className="flex flex-col gap-2">
+                <input type="hidden" name="occurredAt" value={day && time ? `${day}T${time}` : ""} />
+                <div className="flex flex-wrap items-center gap-2">
+                    <Input {...control} name={undefined} type="date" value={day} max={maxDay} onChange={(event) => setDay(event.target.value)} className="w-44" />
+                    <Input
+                        id={`${control.id}-time`}
+                        type="time"
+                        value={time}
+                        onChange={(event) => setTime(event.target.value)}
+                        aria-label="Time it happened"
+                        aria-invalid={message ? true : undefined}
+                        aria-required
+                        className="w-32"
+                    />
+                </div>
+                <SuggestionChips
+                    label="Quick pick"
+                    suggestions={[
+                        { label: "Now", value: "now" },
+                        { label: "Today", value: "today" },
+                        { label: "Yesterday", value: "yesterday" },
+                    ]}
+                    onPick={pick}
+                />
+            </div>
+        </Field>
+    );
+}
 
 /** Records an injury as the medical service keeps it: the affected joint, the diagnosis in words, severity and when it happened. */
 export function InjuryRecordForm({ fighters, defaultFighterId, nowInput, cancelHref }: InjuryRecordFormProps) {
@@ -104,9 +156,7 @@ export function InjuryRecordForm({ fighters, defaultFighterId, nowInput, cancelH
                 </FormSection>
 
                 <FormSection title="When and what" description="When it happened and what you found.">
-                    <Field label="Occurred" htmlFor={control("occurredAt").id} error={error("occurredAt")} required hint="Academy time (Ho Chi Minh City)">
-                        <Input {...control("occurredAt", { hint: true, required: true })} type="datetime-local" defaultValue={nowInput} max={nowInput} className="sm:w-64" />
-                    </Field>
+                    <OccurredAtField form={form} maxDay={nowInput.slice(0, 10)} />
                     <Field label="Clinical findings" htmlFor={control("description").id} error={error("description")} optional hint="Mechanism, symptoms, examination and imaging. Coaches never see this.">
                         <Textarea {...control("description", { hint: true })} rows={5} maxLength={MEDICAL_TEXT_LIMITS.clinicalText} />
                     </Field>

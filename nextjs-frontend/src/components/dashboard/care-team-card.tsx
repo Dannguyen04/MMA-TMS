@@ -31,21 +31,33 @@ function specialtyToShow({ title, specialty }: CareTeamMember): string | null {
     return words && !comparable(title).includes(words) ? specialty : null;
 }
 
-/** The sports doctors and coaches looking after a fighter. */
+/** The sports doctors and coaches looking after a fighter, and who arranges the ones still missing. */
 export function CareTeamCard({ members, className, locale = "en" }: { members: CareTeamMember[]; className?: string; locale?: Locale }) {
     const t = createTranslator(locale);
-    const groups: { label: string; items: CareTeamMember[] }[] = [
-        { label: t("careTeam.sportsMedicine"), items: members.filter((member) => member.role === "doctor") },
-        { label: t("careTeam.coaching"), items: members.filter((member) => member.role === "coach") },
+    const groups: { label: string; items: CareTeamMember[]; empty: string }[] = [
+        {
+            label: t("careTeam.sportsMedicine"),
+            items: members.filter((member) => member.role === "doctor"),
+            empty: t("careTeam.noDoctor"),
+        },
+        {
+            label: t("careTeam.coaching"),
+            items: members.filter((member) => member.role === "coach"),
+            empty: t("careTeam.noCoach"),
+        },
     ];
 
     return (
         <Card className={cn("min-w-0", className)}>
             <CardHeader title={t("careTeam.title")} icon={<UsersRound />} />
             <div className="flex flex-col gap-4 px-5 pb-5">
-                {groups
-                    .filter((group) => group.items.length > 0)
-                    .map((group) => (
+                {groups.map((group) =>
+                    group.items.length === 0 ? (
+                        <div key={group.label}>
+                            <h3 className="mb-1 text-xs font-semibold tracking-wide text-fg-subtle uppercase">{group.label}</h3>
+                            <p className="text-[13px] text-pretty text-fg-muted">{group.empty}</p>
+                        </div>
+                    ) : (
                         <div key={group.label}>
                             <h3 className="mb-2 text-xs font-semibold tracking-wide text-fg-subtle uppercase">{group.label}</h3>
                             <ul className="flex flex-col gap-3">
@@ -71,7 +83,8 @@ export function CareTeamCard({ members, className, locale = "en" }: { members: C
                                 })}
                             </ul>
                         </div>
-                    ))}
+                    ),
+                )}
             </div>
         </Card>
     );

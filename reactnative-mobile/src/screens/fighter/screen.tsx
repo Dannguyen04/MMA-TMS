@@ -13,7 +13,7 @@ import {
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { AuthFormError } from "@/components/auth/auth-form-error";
+import { useToastMessage } from "@/components/toast/app-toast";
 import { fighter } from "@/i18n/fighter";
 import { FighterTabBar } from "@/screens/fighter/tab-bar";
 import { radius, spacing, type, useThemePreference } from "@/theme";
@@ -115,15 +115,13 @@ export function GlassCard({ children }: { children: ReactNode }) {
 
 export function StatusLine({ message, onRetry }: { message: string; onRetry?: () => void }) {
   const { colors } = useThemePreference();
-  if (!message) return null;
+  useToastMessage(message, "error");
+  if (!message || !onRetry) return null;
   return (
     <View style={styles.status}>
-      <AuthFormError message={message} />
-      {onRetry ? (
-        <Pressable accessibilityRole="button" onPress={onRetry} style={styles.retry}>
-          <Text style={[type.link, { color: colors.lotus }]}>{fighter.common.retry}</Text>
-        </Pressable>
-      ) : null}
+      <Pressable accessibilityRole="button" onPress={onRetry} style={styles.retry}>
+        <Text style={[type.link, { color: colors.lotus }]}>{fighter.common.retry}</Text>
+      </Pressable>
     </View>
   );
 }

@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { fighter } from "@/i18n/fighter";
-import { spacing, type, useThemePreference } from "@/theme";
+import { useFighterPalette } from "@/screens/fighter/redesign/palette";
 
 export type FighterTab = "home" | "tap" | "plans" | "body" | "me";
 
@@ -14,23 +14,24 @@ const TABS: {
   label: string;
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
 }[] = [
-  { key: "home", href: "/", label: fighter.tabs.home, icon: "home-outline" },
-  { key: "tap", href: "/tap" as Href, label: fighter.tabs.tap, icon: "boxing-glove" },
+  { key: "home", href: "/", label: fighter.tabs.home, icon: "home-variant" },
+  { key: "tap", href: "/tap" as Href, label: fighter.tabs.tap, icon: "link-variant" },
   { key: "plans", href: "/giao-an" as Href, label: fighter.tabs.plans, icon: "clipboard-text-outline" },
   { key: "body", href: "/co-the" as Href, label: fighter.tabs.body, icon: "human" },
   { key: "me", href: "/toi" as Href, label: fighter.tabs.me, icon: "account-outline" },
 ];
 
-function tabFromPath(path: string): FighterTab {
+function tabFromPath(path: string): FighterTab | null {
   if (path.startsWith("/tap")) return "tap";
   if (path.startsWith("/giao-an")) return "plans";
   if (path.startsWith("/co-the")) return "body";
   if (path.startsWith("/toi")) return "me";
-  return "home";
+  if (path === "/" || path === "") return "home";
+  return null;
 }
 
 export function FighterTabBar() {
-  const { colors } = useThemePreference();
+  const colors = useFighterPalette();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const path = usePathname();
@@ -42,15 +43,15 @@ export function FighterTabBar() {
       style={[
         styles.bar,
         {
-          backgroundColor: colors.surface,
+          backgroundColor: colors.bg,
           borderTopColor: colors.line,
-          paddingBottom: Math.max(insets.bottom, spacing.sm),
+          paddingBottom: Math.max(insets.bottom, 8),
         },
       ]}
     >
       {TABS.map((tab) => {
         const selected = tab.key === active;
-        const color = selected ? colors.lotus : colors.inkMuted;
+        const color = selected ? colors.accent : colors.muted;
         return (
           <Pressable
             key={tab.key}
@@ -63,8 +64,17 @@ export function FighterTabBar() {
             }}
             style={styles.item}
           >
-            <MaterialCommunityIcons name={tab.icon} size={22} color={color} />
-            <Text style={[type.caption, styles.label, { color }]}>{tab.label}</Text>
+            <View
+              style={[
+                styles.iconWrap,
+                selected ? { backgroundColor: colors.accentSoft, borderRadius: 99 } : null,
+              ]}
+            >
+              <MaterialCommunityIcons name={tab.icon} size={20} color={color} />
+            </View>
+            <Text style={[styles.label, { color, fontWeight: selected ? "700" : "500" }]} maxFontSizeMultiplier={1.4}>
+              {tab.label}
+            </Text>
           </Pressable>
         );
       })}
@@ -76,17 +86,21 @@ const styles = StyleSheet.create({
   bar: {
     flexDirection: "row",
     borderTopWidth: StyleSheet.hairlineWidth,
-    paddingTop: spacing.sm,
+    paddingTop: 10,
+    paddingHorizontal: 8,
   },
   item: {
     flex: 1,
     minHeight: 48,
     alignItems: "center",
     justifyContent: "center",
-    gap: 2,
+    gap: 4,
   },
-  label: {
-    lineHeight: 16,
-    fontSize: 11,
+  iconWrap: {
+    width: 48,
+    height: 28,
+    alignItems: "center",
+    justifyContent: "center",
   },
+  label: { fontSize: 10, lineHeight: 14 },
 });

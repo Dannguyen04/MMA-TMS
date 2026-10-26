@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/states";
 import { rowFromSessionExercise } from "@/components/training/exercise-rows";
 import { SessionForm, type SessionFormValues } from "@/components/training/session-form";
-import { getClearanceSummaries, toFighterOption } from "@/components/training/training-data";
+import { getClearanceSummaries, toFighterOption, toSessionFormPlan } from "@/components/training/training-data";
 import { updateSession } from "@/lib/actions/training";
 import { canAccessFighter, requireFighterAccess } from "@/lib/auth/access";
 import { getCurrentUser, requireRole } from "@/lib/auth/session";
@@ -98,7 +98,7 @@ export default async function EditSessionPage({ params }: PageProps<"/coach/sess
                 mode="edit"
                 action={updateSession.bind(null, session.id)}
                 fighters={[toFighterOption(fighter)]}
-                plans={plans.map((p) => ({ id: p.id, title: p.title, fighterId: p.fighterId, status: p.status }))}
+                plans={plans.map(toSessionFormPlan)}
                 library={library}
                 clearances={clearances}
                 locations={[...new Set(sessions.map((s) => s.location).filter(Boolean))].sort()}

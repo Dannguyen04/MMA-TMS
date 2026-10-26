@@ -12,6 +12,17 @@ export const APPLICATION_STATUSES = [
 ] as const;
 export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
 
+/** Must match the API's OPEN_APPLICATION_STATUSES / uq_fighter_application_open. */
+export const OPEN_APPLICATION_STATUSES: readonly ApplicationStatus[] = [
+  "SUBMITTED",
+  "PASSED",
+  "APPROVED",
+];
+
+export function hasOpenApplication(items: readonly { status: ApplicationStatus }[]): boolean {
+  return items.some((item) => OPEN_APPLICATION_STATUSES.includes(item.status));
+}
+
 export const ACTIVATION_STATUSES = [
   "PENDING",
   "IN_PROGRESS",

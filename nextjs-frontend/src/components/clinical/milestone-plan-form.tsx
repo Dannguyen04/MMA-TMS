@@ -3,6 +3,7 @@
 import { ArrowDown, ArrowUp, Info, ListPlus, Plus, Trash2 } from "lucide-react";
 import { useId, useState } from "react";
 
+import { TermHint } from "@/components/domain/term-hint";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Field, FormFooter, FormSection, Input, Select, Textarea } from "@/components/ui/form";
@@ -76,7 +77,7 @@ export function MilestonePlanForm({ fighter, injuries, defaultInjuryId, today, c
                 <input type="hidden" name="fighterId" value={fighter.id} />
                 <input type="hidden" name="milestones" value={serialized} />
 
-                <FormSection title="Plan" description={`What ${fighter.name} is recovering from and when you expect them back.`}>
+                <FormSection title="Plan" info={<TermHint term="recoveryPlan" />} description={`What ${fighter.name} is recovering from and when you expect them back.`}>
                     <Field label="Injury" htmlFor={control("injuryId").id} error={error("injuryId")} required>
                         <Select
                             {...control("injuryId", { required: true })}
@@ -113,7 +114,7 @@ export function MilestonePlanForm({ fighter, injuries, defaultInjuryId, today, c
                     </Field>
                 </FormSection>
 
-                <FormSection title="Milestones" description="In order. Each says how you'll know it's reached. You can add more later.">
+                <FormSection title="Milestones" info={<TermHint term="milestone" />} description="In order. Each says how you'll know it's reached. You can add more later.">
                     {rows.length === 0 ? (
                         <p className="rounded-lg bg-surface-muted px-4 py-3 text-sm text-fg-muted">No milestones yet. Add your own or start from the standard steps.</p>
                     ) : (

@@ -18,7 +18,9 @@ export {
   logout,
   refresh,
   register,
+  requestAdmissionEmailCode,
   resetPassword,
+  verifyAdmissionEmail,
 } from "./auth";
 export {
   activateAdmission,
@@ -48,13 +50,21 @@ export {
   updateFighter,
 } from "./fighters";
 export {
+  assignFighterDoctor,
+  createFighterExamination,
+  createFighterInjury,
+  createFighterRecoveryPlan,
   createFighterReviewRequest,
   getFighterMedical,
+  issueFighterClearance,
+  listDoctorFighters,
   listFighterDoctors,
   listFighterMedicalExaminations,
   listFighterMedicalHistory,
   listFighterReviewRequests,
 } from "./medical";
+export { listNotifications, markNotificationRead } from "./notifications";
+export { listUsers } from "./users";
 export { getApiHello, getHealth } from "./system";
 export {
   addTrainingPlanExercise,

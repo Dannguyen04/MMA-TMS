@@ -1,19 +1,17 @@
-import { Text } from "react-native";
+import { Text, View } from "react-native";
 
-import { blocked } from "@/i18n/blocked";
-import { GlassCard } from "@/screens/fighter/screen";
-import { BlockedFighterPage } from "@/screens/parity/blocked-workspace";
-import { type, useThemePreference } from "@/theme";
+import { media } from "@/i18n/media";
+import { useFighterPalette } from "@/screens/fighter/redesign/palette";
+import { FighterStack } from "@/screens/fighter/redesign/shell";
 
-export default function FighterLiveRoute() {
-  const { colors } = useThemePreference();
+export default function FighterLiveCheckRoute() {
+  const colors = useFighterPalette();
   return (
-    <BlockedFighterPage title={blocked.liveCheck} extra={blocked.live}>
-      <GlassCard>
-        <Text style={[type.body, { color: colors.inkMuted }]}>
-          Khung camera giữ chỗ. Không bật camera vì chưa có hợp đồng realtime trên nestjs-api.
-        </Text>
-      </GlassCard>
-    </BlockedFighterPage>
+    <FighterStack>
+      <View style={{ paddingHorizontal: 20, gap: 8 }}>
+        <Text style={{ color: colors.ink, fontSize: 22, fontWeight: "700" }}>Form trực tiếp</Text>
+        <Text style={{ color: colors.muted }}>{media.liveMissing}</Text>
+      </View>
+    </FighterStack>
   );
 }

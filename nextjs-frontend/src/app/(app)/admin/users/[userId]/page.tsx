@@ -9,6 +9,7 @@ import { CareTeamCard } from "@/components/admin/care-team-card";
 import { PermissionList } from "@/components/admin/permission-list";
 import { AuditActivityList } from "@/components/admin/audit-activity-list";
 import { UserActions } from "@/components/admin/user-actions";
+import { FighterJourney } from "@/components/domain/fighter-journey";
 import { RoleBadge, UserStatusBadge } from "@/components/domain/status-badges";
 import { FlashToast } from "@/components/medical/flash-toast";
 import { Callout } from "@/components/training/callout";
@@ -20,6 +21,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState, FeatureUnavailable } from "@/components/ui/states";
 import { requireRole } from "@/lib/auth/session";
 import { NOT_RECORDED, labelOf } from "@/components/domain/domain-format";
+import { CARE_ROLES } from "@/lib/domain/care-team";
 import { ROLE_LABELS, STANCE_LABELS, TRAINING_LEVEL_LABELS, WEIGHT_CLASS_LABELS } from "@/lib/domain/labels";
 import type { Coach, Doctor, Fighter, User } from "@/lib/domain/types";
 import { dayKey, formatDate, formatDateTime, formatRelative, pluralize } from "@/lib/format";
@@ -28,6 +30,7 @@ import { routes } from "@/lib/routes";
 import { getUserDetail, listPermissionCatalog } from "@/lib/services/admin";
 import { adminFeatureAvailable, usesUserServiceForms } from "@/lib/services/admin-features";
 import { getCareTeam, listAssignableStaff } from "@/lib/services/care-team";
+import { getFighterJourney } from "@/lib/services/fighter-journey";
 import { param } from "@/lib/utils";
 
 /** One read per request, shared by the metadata and the page. */
@@ -53,7 +56,9 @@ export default async function AdminUserDetailPage({ params, searchParams }: Page
     if (!detail) notFound();
     const { user, profile, recentAudit, permissions, account } = detail;
     const fighterProfile = user.role === "fighter" ? profile : null;
-    const [careTeam, assignableStaff] = fighterProfile ? await Promise.all([getCareTeam(fighterProfile.id), listAssignableStaff()]) : [null, null];
+    const [careTeam, assignableStaff, journey] = fighterProfile
+        ? await Promise.all([getCareTeam(fighterProfile.id), listAssignableStaff(), getFighterJourney(fighterProfile.id, { viewer: "admin" })])
+        : [null, null, null];
 
     const isSelf = user.id === admin.id;
     const roleLockReason = isSelf
@@ -82,9 +87,18 @@ export default async function AdminUserDetailPage({ params, searchParams }: Page
         { label: "Account ID", value: <code className="font-mono text-[13px]">{user.id}</code>, wide: true },
     ];
 
+    // A new fighter can't train yet: the notice names the next step instead of ending at "can sign in".
+    const missing = careTeam ? CARE_ROLES.filter((role) => careTeam[role]?.length === 0) : [];
+    const nextStep = missing.includes("doctor")
+        ? missing.includes("coach")
+            ? " Next, assign a coach and a sports doctor below."
+            : " Next, assign a sports doctor below for the baseline examination."
+        : missing.includes("coach")
+          ? " Next, assign a coach below."
+          : "";
     const notices = {
-        invited: { title: "Invitation sent", description: `${user.email} will receive a link to set a password.` },
-        created: { title: "Account created", description: `${user.name} can sign in now with the password you set.` },
+        invited: { title: "Invitation sent", description: `${user.email} will receive a link to set a password.${nextStep}` },
+        created: { title: "Account created", description: `${user.name} can sign in now with the password you set.${nextStep}` },
     };
     const notice = param(query.notice);
 
@@ -133,6 +147,14 @@ export default async function AdminUserDetailPage({ params, searchParams }: Page
             <div className="flex flex-col gap-6">
                 <StatusCallout user={user} now={now} />
 
+                {/* Where the fighter is on the way to training; the care team card below holds the assign actions. */}
+                {journey && !journey.complete && <FighterJourney journey={journey} variant="compact" />}
+
+                {/* A fighter's care team decides whether they can train, so it leads the page; an empty role is its next step. */}
+                {fighterProfile && careTeam && assignableStaff && (
+                    <CareTeamCard fighterId={fighterProfile.id} fighterName={user.name} team={careTeam} staff={assignableStaff} />
+                )}
+
                 <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                     <div className="flex min-w-0 flex-col gap-6 lg:col-span-2">
                         <Card>
@@ -152,10 +174,6 @@ export default async function AdminUserDetailPage({ params, searchParams }: Page
                                 <LinkedProfile user={user} profile={profile} showCredentials={adminFeatureAvailable("coachCredentials")} />
                             </CardContent>
                         </Card>
-
-                        {fighterProfile && careTeam && assignableStaff && (
-                            <CareTeamCard fighterId={fighterProfile.id} fighterName={user.name} team={careTeam} staff={assignableStaff} />
-                        )}
 
                         <Card className="overflow-hidden">
                             <CardHeader

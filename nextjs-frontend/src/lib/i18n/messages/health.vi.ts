@@ -115,6 +115,7 @@ export const viHealth: Record<keyof typeof enHealth, string> = {
     "eligibilityReason.CLEARANCE_REQUIRED": "Cần có cấp phép y tế",
     "eligibilityReason.CLEARANCE_EXPIRED": "Cấp phép y tế đã hết hạn",
     "eligibilityReason.SESSION_TYPE_RESTRICTED": "Loại buổi tập bị hạn chế",
+    "eligibilityReason.OTHER_MEDICAL_REASON": "Lý do y tế khác",
 
     "eligibilityReasonDesc.EXAMINATION_REQUIRED": "Mỗi võ sĩ đều cần được bác sĩ khám thể lực ban đầu, kèm kiểm tra SCAT6, trước khi tập luyện.",
     "eligibilityReasonDesc.REVIEW_REQUEST_PENDING": "Đã có yêu cầu xem xét y tế. Tạm dừng tập luyện cho đến khi bác sĩ tiến hành khám.",
@@ -122,6 +123,7 @@ export const viHealth: Record<keyof typeof enHealth, string> = {
     "eligibilityReasonDesc.CLEARANCE_REQUIRED": "Chưa có cấp phép y tế hợp lệ trong hồ sơ. Bác sĩ cần cấp phép.",
     "eligibilityReasonDesc.CLEARANCE_EXPIRED": "Cấp phép y tế đã hết hạn. Bác sĩ cần gia hạn.",
     "eligibilityReasonDesc.SESSION_TYPE_RESTRICTED": "Loại buổi tập này không được phép theo các hạn chế y tế hiện tại.",
+    "eligibilityReasonDesc.OTHER_MEDICAL_REASON": "Bộ phận y tế đưa ra một lý do khác mà ứng dụng chưa hiển thị được. Hỏi bác sĩ thể thao trước khi tập.",
 
     /* ─── Vitals assessment ─── */
     "vitalReference.weight_within_limit": "Trong giới hạn hạng cân {limit} kg",
@@ -335,6 +337,8 @@ export const viHealth: Record<keyof typeof enHealth, string> = {
     "careTeam.coaching": "Ban huấn luyện",
     "careTeam.primaryCoach": "HLV chính",
     "careTeam.primaryDoctor": "Bác sĩ chính",
+    "careTeam.noDoctor": "Chưa có bác sĩ thể thao. Học viện sẽ phân công một bác sĩ cho buổi khám ban đầu, và bác sĩ sẽ hiện ở đây cũng như trên trang Hôm nay của bạn.",
+    "careTeam.noCoach": "Chưa có HLV. Học viện sẽ phân công HLV cho bạn, và bạn sẽ nhận được thông báo khi có.",
 
     /* ─── Examination Summary Card ─── */
     "examSummary.lastCheck": "Lần kiểm tra y tế gần nhất",

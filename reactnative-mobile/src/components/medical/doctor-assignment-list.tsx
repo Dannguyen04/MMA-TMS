@@ -4,7 +4,7 @@ import { Text, View } from "react-native";
 import { isApiError } from "@/api/errors";
 import { listFighterDoctors } from "@/api/medical";
 import type { DoctorAssignment } from "@/api/types";
-import { AuthFormError } from "@/components/auth/auth-form-error";
+import { useToastMessage } from "@/components/toast/app-toast";
 import { formatMedicalWhen } from "@/components/medical/medical-format";
 import {
   MedicalCard,
@@ -35,6 +35,7 @@ export function DoctorAssignmentList({
   const [hasNext, setHasNext] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  useToastMessage(error, "error");
   const seqRef = useRef(0);
 
   const load = useCallback(
@@ -73,7 +74,6 @@ export function DoctorAssignmentList({
   return (
     <View style={medicalStyles.stack}>
       <MedicalSection text={medical.doctors} />
-      <AuthFormError message={error} />
       {error ? <MedicalLink label={medical.retry} onPress={() => void load(1)} /> : null}
       <MedicalCard>
         {loading && rows.length === 0 ? <MedicalMuted text={medical.loading} /> : null}

@@ -1,0 +1,128 @@
+import { render, waitFor } from "@testing-library/react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+
+import { getAnalysisJob, getVideo, listAnalysisJobs } from "@/api/media";
+import { getMemorySession } from "@/api/tokens";
+import { ThemePreferenceProvider } from "@/theme";
+
+import { REFERENCED_VIDEO_DETAIL, VIDEO_LIST_FIXTURE } from "./video-model";
+import { VideoDetailContent } from "./video-detail";
+
+jest.mock("expo-video", () => ({
+  useVideoPlayer: (_source: unknown, setup?: (player: { pause: () => void; timeUpdateEventInterval: number }) => void) => {
+    const player = {
+      pause: jest.fn(),
+      timeUpdateEventInterval: 0,
+      addListener: (name: string, listener: (event: { status?: string; currentTime?: number }) => void) => {
+        if (name === "statusChange") listener({ status: "loading" });
+        if (name === "timeUpdate") listener({ currentTime: 0 });
+        return { remove: jest.fn() };
+      },
+    };
+    setup?.(player);
+    return player;
+  },
+  VideoView: () => null,
+}));
+
+jest.mock("@/api/tokens", () => ({
+  getMemorySession: jest.fn(),
+}));
+
+jest.mock("@/api/media", () => {
+  const actual = jest.requireActual("@/api/media");
+  return {
+    ...actual,
+    getVideo: jest.fn(),
+    listAnalysisJobs: jest.fn(),
+    getAnalysisJob: jest.fn(),
+    createAnalysisJob: jest.fn(),
+  };
+});
+
+const insets = {
+  frame: { x: 0, y: 0, width: 390, height: 844 },
+  insets: { top: 47, left: 0, right: 0, bottom: 34 },
+};
+
+describe("VideoDetailContent", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (getMemorySession as jest.Mock).mockReturnValue({ accessToken: "token" });
+    (getVideo as jest.Mock).mockResolvedValue({
+      id: REFERENCED_VIDEO_DETAIL.id,
+      fighterId: "fighter-1",
+      uploadedById: "user-1",
+      sessionId: null,
+      title: REFERENCED_VIDEO_DETAIL.title,
+      description: null,
+      trainingType: REFERENCED_VIDEO_DETAIL.trainingType,
+      cameraAngle: REFERENCED_VIDEO_DETAIL.cameraAngle,
+      status: REFERENCED_VIDEO_DETAIL.processingStatus,
+      originalFilename: "clip.mp4",
+      fileSizeBytes: 1000,
+      mimeType: "video/mp4",
+      durationMs: 1000,
+      sourceUrl: `/videos/${REFERENCED_VIDEO_DETAIL.id}/content`,
+      createdAt: REFERENCED_VIDEO_DETAIL.createdAt,
+      updatedAt: REFERENCED_VIDEO_DETAIL.createdAt,
+    });
+    (listAnalysisJobs as jest.Mock).mockResolvedValue([
+      {
+        id: "job-referenced",
+        status: "DONE",
+        score: null,
+        fighterId: "fighter-1",
+        sessionId: null,
+        videoId: REFERENCED_VIDEO_DETAIL.id,
+        alertCount: 0,
+        hasImpairment: false,
+        createdAt: REFERENCED_VIDEO_DETAIL.createdAt,
+        updatedAt: REFERENCED_VIDEO_DETAIL.createdAt,
+      },
+      {
+        id: "job-other-heavy-bag",
+        status: "DONE",
+        score: 70,
+        fighterId: "fighter-1",
+        sessionId: null,
+        videoId: VIDEO_LIST_FIXTURE[3]!.id,
+        alertCount: 0,
+        hasImpairment: false,
+        createdAt: VIDEO_LIST_FIXTURE[3]!.createdAt,
+        updatedAt: VIDEO_LIST_FIXTURE[3]!.createdAt,
+      },
+    ]);
+    (getAnalysisJob as jest.Mock).mockImplementation(async (id: string) => {
+      if (id !== "job-referenced") throw new Error("wrong job");
+      return {
+        id,
+        status: "DONE",
+        score: null,
+        fighterId: "fighter-1",
+        sessionId: null,
+        videoId: REFERENCED_VIDEO_DETAIL.id,
+        alertCount: 0,
+        hasImpairment: false,
+        createdAt: REFERENCED_VIDEO_DETAIL.createdAt,
+        updatedAt: REFERENCED_VIDEO_DETAIL.createdAt,
+      };
+    });
+  });
+
+  it("shows media loading and a finished analysis with zero warnings, not score 70", async () => {
+    const view = await render(
+      <SafeAreaProvider initialMetrics={insets}>
+        <ThemePreferenceProvider>
+          <VideoDetailContent videoId={REFERENCED_VIDEO_DETAIL.id} canRequestAnalysis onBack={jest.fn()} />
+        </ThemePreferenceProvider>
+      </SafeAreaProvider>,
+    );
+    expect(await view.findByText("Đang tải video…")).toBeTruthy();
+    expect(await view.findByText("Xong")).toBeTruthy();
+    expect(view.getByText("0")).toBeTruthy();
+    expect(view.queryByText("70")).toBeNull();
+    expect(view.queryByText("Điểm 70")).toBeNull();
+    await waitFor(() => expect(getAnalysisJob).toHaveBeenCalledWith("job-referenced"));
+  });
+});

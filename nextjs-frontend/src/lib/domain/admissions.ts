@@ -110,11 +110,17 @@ export const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
 };
 
 export const ACTIVATION_STATUS_LABELS: Record<ActivationStatus, string> = {
-    pending: "Waiting for a new password",
+    pending: "Waiting to set a password",
     in_progress: "Setting a password",
     password_set: "Ready to activate",
     completed: "Activated",
 };
+
+/** `?notice=` on the fighter Today page right after the applicant activated their fighter account. */
+export const ACTIVATED_NOTICE = "activated";
+
+/** `?notice=` on the application page when the set-up link chose the password in a browser still signed in as the applicant. */
+export const PASSWORD_SET_NOTICE = "password-set";
 
 export const CONCLUSION_LABELS: Record<AssessmentConclusion, string> = { pass: "Pass", fail: "Fail" };
 
@@ -147,6 +153,12 @@ export function openApplication<T extends { status: ApplicationStatus }>(applica
     return applications.find(isOpenApplication) ?? null;
 }
 
+/** Whether the applicant was approved and still has to set their first password or activate. */
+export function awaitsFighterActivation(applications: Pick<OwnApplication, "status" | "activation">[]): boolean {
+    const open = openApplication(applications);
+    return open?.status === "approved" && open.activation !== "completed";
+}
+
 /** The applicant's view of an application: outcomes and dates, without the coach's or administrator's notes. */
 export function toOwnApplication(application: Application): OwnApplication {
     return {
@@ -158,6 +170,84 @@ export function toOwnApplication(application: Application): OwnApplication {
         decidedAt: application.decision?.decidedAt ?? null,
         activation: application.activation?.status ?? null,
     };
+}
+
+/* ─── The applicant's journey ─────────────────────────────────────────────── */
+
+export type JourneyStepId = "email" | "application" | "assessment" | "decision" | "password" | "activation" | "doctor" | "baseline" | "cleared";
+
+/** `ended` is where a closed application stopped: the assessment it failed or the decision that turned it down. */
+export type JourneyStepState = "done" | "current" | "upcoming" | "ended";
+
+export interface JourneyStep {
+    id: JourneyStepId;
+    label: string;
+    state: JourneyStepState;
+    /** When the step happened, when the applicant may know it. */
+    date: string | null;
+    /** `admission` steps happen here; `fighter` steps happen in the fighter account after activation. */
+    phase: "admission" | "fighter";
+    /** The outcome of an `ended` step, e.g. "Did not pass". */
+    outcome: string | null;
+}
+
+const JOURNEY_LABELS: Record<JourneyStepId, string> = {
+    email: "Email verified",
+    application: "Application",
+    assessment: "Coach assessment",
+    decision: "Decision",
+    password: "Set password",
+    activation: "Activate",
+    doctor: "Doctor assigned",
+    baseline: "Baseline exam",
+    cleared: "Cleared to train",
+};
+
+const ADMISSION_STEPS: JourneyStepId[] = ["email", "application", "assessment", "decision", "password", "activation"];
+const FIGHTER_STEPS: JourneyStepId[] = ["doctor", "baseline", "cleared"];
+
+/**
+ * The whole way from a verified email to training, from what the applicant may read of their own application.
+ * The fighter steps (doctor, baseline exam, clearance) happen after activation, in the fighter account, so they are
+ * always still to come here. A failed or rejected application ends at that step.
+ */
+export function applicantJourney(application: OwnApplication): JourneyStep[] {
+    const { status, activation } = application;
+    const activated = status === "activated" || activation === "completed";
+    const passwordSet = activated || activation === "password_set";
+    const done: Record<JourneyStepId, boolean> = {
+        email: true,
+        application: true,
+        assessment: application.assessedAt !== null || status !== "submitted",
+        decision: application.decidedAt !== null || status === "approved" || status === "activated" || status === "rejected",
+        password: passwordSet,
+        activation: activated,
+        doctor: false,
+        baseline: false,
+        cleared: false,
+    };
+    const dates: Partial<Record<JourneyStepId, string | null>> = {
+        application: application.submittedAt,
+        assessment: application.assessedAt,
+        decision: application.decidedAt,
+    };
+    const endedAt: JourneyStepId | null = status === "failed" ? "assessment" : status === "rejected" ? "decision" : null;
+    const current = endedAt ? null : (ADMISSION_STEPS.find((id) => !done[id]) ?? null);
+
+    const steps: JourneyStep[] = [];
+    for (const id of [...ADMISSION_STEPS, ...FIGHTER_STEPS]) {
+        const ended = id === endedAt;
+        steps.push({
+            id,
+            label: JOURNEY_LABELS[id],
+            state: ended ? "ended" : done[id] ? "done" : id === current ? "current" : "upcoming",
+            date: dates[id] ?? null,
+            phase: FIGHTER_STEPS.includes(id) ? "fighter" : "admission",
+            outcome: ended ? APPLICATION_STATUS_LABELS[status] : null,
+        });
+        if (ended) break;
+    }
+    return steps;
 }
 
 export type ApplicationInput = Omit<ApplicantDetails, "email">;

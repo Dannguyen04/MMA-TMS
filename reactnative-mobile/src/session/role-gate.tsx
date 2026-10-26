@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
 import { Redirect, usePathname, useRouter } from "expo-router";
 
 import {
@@ -18,18 +18,22 @@ const AUTHENTICATED: SessionGate[] = ["guest", "fighter", "coach", "doctor", "ad
 export function usePostIntroRedirect(options?: { forceLeaveIndex?: boolean }) {
   const { gate } = useSession();
   const router = useRouter();
-  const pathname = usePathname();
+  const pathname = usePathname() || "/";
+  const ownPath = useRef(pathname).current;
   const forceLeaveIndex = options?.forceLeaveIndex === true;
 
   useEffect(() => {
     if (gate === "loading") return;
+    // usePathname is global: once the user taps a tab, this screen can still be
+    // mounted and must not replace the new route with the role home again.
+    if (pathname !== ownPath) return;
     const href = postIntroHref(gate);
     if (!href) return;
     if (gate === "fighter" && !forceLeaveIndex && (pathname === "/" || pathname === "")) {
       return;
     }
     router.replace(href);
-  }, [forceLeaveIndex, gate, pathname, router]);
+  }, [forceLeaveIndex, gate, ownPath, pathname, router]);
 }
 
 /** @deprecated Prefer usePostIntroRedirect — kept as alias for staff-off-index call sites. */

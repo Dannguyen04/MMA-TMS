@@ -3,19 +3,20 @@ import { Keyboard, StyleSheet, Text, TextInput, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import { Link, useRouter } from "expo-router";
 
-import { AuthButton } from "@/components/auth/auth-button";
 import { AuthDemoSwitch } from "@/components/auth/auth-demo-switch";
-import { AuthFormError } from "@/components/auth/auth-form-error";
-import { AuthShell } from "@/components/auth/auth-shell";
-import { AuthTextField } from "@/components/auth/auth-text-field";
+import {
+  AuthVisionButton,
+  AuthVisionField,
+  AuthVisionShell,
+} from "@/components/auth/auth-vision-shell";
+import { authDark, authType } from "@/components/auth/auth-vision-tokens";
+import { useToastMessage } from "@/components/toast/app-toast";
 import { vi } from "@/i18n/vi";
 import { mapApiMessage } from "@/session/map-api-message";
 import { homeHrefForGate, useSession } from "@/session/session-context";
-import { spacing, type, useThemePreference } from "@/theme";
 import { isValidEmail } from "@/utils/is-valid-email";
 
 export function LoginScreen() {
-  const { colors } = useThemePreference();
   const { signIn } = useSession();
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -24,21 +25,15 @@ export function LoginScreen() {
   const [passwordError, setPasswordError] = useState("");
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  useToastMessage(formError, "error");
   const [demoOpen, setDemoOpen] = useState(false);
   const passwordRef = useRef<TextInput>(null);
+  const canSubmit = email.trim().length > 0 && password.length > 0;
 
   const onSubmit = () => {
-    if (submitting) return;
+    if (submitting || !canSubmit) return;
 
     const trimmedEmail = email.trim();
-    const empty = !trimmedEmail || !password;
-    if (empty) {
-      setFormError(vi.login.fillRequired);
-      setEmailError(trimmedEmail ? "" : vi.field.required);
-      setPasswordError(password ? "" : vi.field.required);
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      return;
-    }
     if (!isValidEmail(trimmedEmail)) {
       setPasswordError("");
       setFormError(vi.field.invalidEmail);
@@ -64,88 +59,94 @@ export function LoginScreen() {
       });
   };
 
+  const canLeave = typeof router.canGoBack === "function" && router.canGoBack();
+
   return (
     <>
-      <AuthShell
+      <AuthVisionShell
         title={vi.login.title}
-        subtitle={vi.login.subtitle}
-        hideFooterWhenKeyboard
+        onBack={canLeave ? () => router.back() : undefined}
         onWordmarkLongPress={() => {
           Keyboard.dismiss();
           setDemoOpen(true);
         }}
         footer={
-          <View style={styles.footer}>
-            <Text style={[type.caption, { color: colors.inkMuted, textAlign: "center" }]}>
-              {vi.login.noAccount}{" "}
-              <Link href="/register" style={[type.link, { color: colors.lotus }]}>
-                {vi.login.create}
-              </Link>
-            </Text>
-            <Link
-              href="/forgot-password"
-              style={[type.caption, { color: colors.inkSubtle, textAlign: "center" }]}
-            >
-              {vi.login.forgot}
+          <Text style={[authType.caption, styles.footerText]}>
+            {vi.login.noAccount}{" "}
+            <Link href="/register" style={[authType.link, { color: authDark.gold }]}>
+              {vi.login.create}
             </Link>
-          </View>
+          </Text>
         }
-        cta={
-          <AuthButton
-            testID="login-submit"
-            title={vi.login.submit}
-            onPress={onSubmit}
-            loading={submitting}
-            disabled={submitting}
-          />
-        }
-        banner={<AuthFormError message={formError} />}
       >
-        <AuthTextField
-          label={vi.login.email}
-          value={email}
-          onChangeText={(value) => {
-            setEmail(value);
-            setEmailError("");
-            setPasswordError("");
-            setFormError("");
-          }}
-          error={emailError}
-          autoCapitalize="none"
-          autoComplete="email"
-          keyboardType="email-address"
-          textContentType="emailAddress"
-          returnKeyType="next"
-          blurOnSubmit={false}
-          onSubmitEditing={() => passwordRef.current?.focus()}
+        <View style={styles.credentials}>
+          <AuthVisionField
+            label={vi.login.email}
+            placeholder={vi.login.emailPlaceholder}
+            value={email}
+            onChangeText={(value) => {
+              setEmail(value);
+              setEmailError("");
+              setPasswordError("");
+              setFormError("");
+            }}
+            error={emailError}
+            autoCapitalize="none"
+            autoComplete="email"
+            keyboardType="email-address"
+            textContentType="emailAddress"
+            returnKeyType="next"
+            blurOnSubmit={false}
+            onSubmitEditing={() => passwordRef.current?.focus()}
+          />
+          <AuthVisionField
+            ref={passwordRef}
+            label={vi.login.password}
+            placeholder={vi.login.passwordPlaceholder}
+            value={password}
+            onChangeText={(value) => {
+              setPassword(value);
+              setPasswordError("");
+              setFormError("");
+            }}
+            error={passwordError}
+            secureToggle
+            autoCapitalize="none"
+            autoComplete="password"
+            textContentType="password"
+            returnKeyType="done"
+            onSubmitEditing={onSubmit}
+          />
+          <Link href="/forgot-password" style={[authType.link, styles.forgot]}>
+            {vi.login.forgot}
+          </Link>
+        </View>
+        <AuthVisionButton
+          testID="login-submit"
+          title={vi.login.submit}
+          onPress={onSubmit}
+          loading={submitting}
+          disabled={!canSubmit}
         />
-        <AuthTextField
-          ref={passwordRef}
-          label={vi.login.password}
-          value={password}
-          onChangeText={(value) => {
-            setPassword(value);
-            setPasswordError("");
-            setFormError("");
-          }}
-          error={passwordError}
-          secureToggle
-          autoComplete="password"
-          textContentType="password"
-          returnKeyType="done"
-          onSubmitEditing={onSubmit}
-        />
-      </AuthShell>
+      </AuthVisionShell>
       <AuthDemoSwitch open={demoOpen} onClose={() => setDemoOpen(false)} />
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  footer: {
-    gap: spacing.xs,
+  credentials: {
+    gap: 16,
     width: "100%",
-    alignItems: "center",
-    overflow: "hidden",
+  },
+  forgot: {
+    color: authDark.gold,
+    alignSelf: "flex-end",
+    minHeight: 44,
+    textAlignVertical: "center",
+  },
+  footerText: {
+    color: authDark.muted,
+    textAlign: "center",
   },
 });
