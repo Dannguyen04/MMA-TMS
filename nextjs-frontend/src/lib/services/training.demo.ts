@@ -1,5 +1,7 @@
 import "server-only";
 
+import { getTranslator } from "@/lib/i18n/server";
+
 import { TRAINING_TYPE_LABELS } from "@/lib/domain/labels";
 import { EXERCISE_CATEGORY_FOR, exerciseCreateBody, serviceExerciseCategoryFor, type ExerciseFields, type PlanExerciseFields } from "@/lib/domain/training-contract";
 import { checkTrainingAgainstClearance, currentClearance, type ClearanceConflict } from "@/lib/domain/rules";
@@ -671,12 +673,18 @@ async function suspensionGate(fighterId: string, type: TrainingSession["type"], 
     const day = dayKey(at);
     const [blocking] = demoBlockingSuspensions(fighterId, type, day);
     if (!blocking) return null;
-    const until = blocking.endsOn >= day ? `through ${formatDate(blocking.endsOn)}` : "until a coach clears the fighter to train";
+    // Read the request locale when there is one; unit tests have no request and keep the English text.
+    const i18n = await getTranslator().catch(() => null);
+    const t = i18n?.t;
+    const until = blocking.endsOn >= day
+        ? (t ? t("training.gate2.through", { date: formatDate(blocking.endsOn, i18n?.locale) }) : `through ${formatDate(blocking.endsOn)}`)
+        : (t ? t("training.gate2.untilCleared") : "until a coach clears the fighter to train");
+    const typeLabel = (t ? t(`trainingType.${type}`) : TRAINING_TYPE_LABELS[type]).toLowerCase();
     const clearance = conflicts.filter((c) => c.severity === "block").map((c) => c.message);
     return {
         ok: false,
         reason: "blocked",
-        message: [`${fighterName(fighterId)} is suspended: ${TRAINING_TYPE_LABELS[type].toLowerCase()} is blocked ${until}.`, ...clearance].join(" "),
+        message: [t ? t("training.gate2.suspended", { name: fighterName(fighterId), type: typeLabel, until }) : `${fighterName(fighterId)} is suspended: ${typeLabel} is blocked ${until}.`, ...clearance].join(" "),
         conflicts,
     };
 }

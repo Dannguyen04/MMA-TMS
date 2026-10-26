@@ -902,4 +902,8 @@ export const enTraining = {
     "training.planExercises.panelDesc": "They go after the last exercise, in this order.",
     "training.planExercises.panelEmpty": "Search the library below and add as many exercises as you need.",
     "training.schema.objectiveMinOrEmpty": "Describe the objective in at least 10 characters, or leave it empty.",
+    "training.clearanceCheck.noConflictsNamed": "No conflicts with {name}'s Medical Clearance.",
+    "training.gate2.suspended": "{name} is suspended: {type} is blocked {until}.",
+    "training.gate2.through": "through {date}",
+    "training.gate2.untilCleared": "until a coach clears the fighter to train",
 } as const;
