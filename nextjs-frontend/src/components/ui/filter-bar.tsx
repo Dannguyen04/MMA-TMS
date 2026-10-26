@@ -1,5 +1,6 @@
 "use client";
 
+import { useDemoCopy, useLocale } from "@/components/i18n/locale-provider";
 import { Search, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useId, useRef, useState, useTransition, type CSSProperties } from "react";
@@ -26,6 +27,8 @@ export interface FilterBarProps {
  * shareable and survive reloads. Changing any filter resets pagination.
  */
 export function FilterBar({ filters, label, className }: FilterBarProps) {
+    const copy = useDemoCopy();
+    const locale = useLocale();
     const router = useRouter();
     const rootRef = useRef<HTMLDivElement>(null);
     const pathname = usePathname();
@@ -103,7 +106,7 @@ export function FilterBar({ filters, label, className }: FilterBarProps) {
                                 {filter.label}
                             </label>
                             <Select id={id} value={searchParams.get(filter.name) ?? ""} onChange={(event) => update(filter.name, event.target.value)}>
-                                <option value="">{filter.allLabel ?? `All ${filter.label.toLowerCase()}`}</option>
+                                <option value="">{filter.allLabel ?? (locale === "vi" ? copy("All") : `All ${filter.label.toLowerCase()}`)}</option>
                                 {filter.options.map((option) => (
                                     <option key={option.value} value={option.value}>
                                         {option.label}
@@ -126,7 +129,7 @@ export function FilterBar({ filters, label, className }: FilterBarProps) {
             {activeCount > 0 && (
                 <Button variant="ghost" size="md" onClick={clearAll}>
                     <X aria-hidden />
-                    Clear filters
+                    {copy("Clear filters")}
                 </Button>
             )}
             <span aria-live="polite" className="contents">

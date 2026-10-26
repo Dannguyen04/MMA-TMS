@@ -1,10 +1,12 @@
 import "server-only";
 
 import type { FighterIdentityData } from "@/components/domain/fighter-identity";
-import type { Exercise, Fighter, MedicalClearance } from "@/lib/domain/types";
+import type { Exercise, Fighter, MedicalClearance, TrainingPlan } from "@/lib/domain/types";
+import { dayKey } from "@/lib/format";
 import { getClearanceStatus } from "@/lib/services/medical";
 import { listCoaches, listDoctors } from "@/lib/services/people";
 import { listExercises } from "@/lib/services/training";
+import type { SessionFormPlan } from "./session-form";
 import type { ClearanceSummary } from "./training-utils";
 
 /** Server-side lookups shared by the training pages. */
@@ -34,6 +36,11 @@ export function toIdentity(fighter: Fighter): FighterIdentityData {
 /** Identity plus id, for forms that let the coach choose a fighter. */
 export function toFighterOption(fighter: Fighter): FighterIdentityData & { id: string } {
     return { id: fighter.id, ...toIdentity(fighter) };
+}
+
+/** A plan as the session form offers it, with its last academy day for weekly repeats. */
+export function toSessionFormPlan(plan: TrainingPlan): SessionFormPlan {
+    return { id: plan.id, title: plan.title, fighterId: plan.fighterId, status: plan.status, endDate: plan.endDate === null ? null : dayKey(plan.endDate) };
 }
 
 export function identitiesById(fighters: Fighter[]): Record<string, FighterIdentityData> {

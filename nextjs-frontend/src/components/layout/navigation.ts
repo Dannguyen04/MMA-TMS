@@ -1,21 +1,18 @@
 import {
     Activity,
-    BrainCircuit,
-    ClipboardList,
     CalendarDays,
-    ChartLine,
     Cpu,
     Film,
     HeartPulse,
     KeyRound,
     LayoutDashboard,
     Megaphone,
-    Radar,
     ScanLine,
     ScrollText,
     Settings,
     ShieldCheck,
     Stethoscope,
+    Swords,
     Users,
     Video,
     type LucideIcon,
@@ -68,6 +65,7 @@ export const NAVIGATION: Record<Role, NavSection[]> = {
         {
             items: [
                 { label: "Today", href: routes.fighter.dashboard, icon: LayoutDashboard },
+                { label: "Bout", href: routes.fighter.bout, icon: Swords },
                 {
                     label: "Training",
                     href: routes.fighter.schedule,
@@ -79,15 +77,6 @@ export const NAVIGATION: Record<Role, NavSection[]> = {
                     ],
                 },
                 { label: "Film", href: routes.fighter.videos, icon: Video },
-                {
-                    label: "Progress",
-                    href: routes.fighter.performance,
-                    icon: ChartLine,
-                    tabs: [
-                        { label: "Performance", href: routes.fighter.performance },
-                        { label: "Goals", href: routes.fighter.goals },
-                    ],
-                },
                 { label: "Health", href: routes.fighter.health, icon: HeartPulse },
             ],
         },
@@ -96,17 +85,8 @@ export const NAVIGATION: Record<Role, NavSection[]> = {
         {
             items: [
                 { label: "Today", href: routes.coach.dashboard, icon: LayoutDashboard },
-                {
-                    label: "Roster",
-                    href: routes.coach.fighters,
-                    icon: Users,
-                    tabs: [
-                        { label: "Fighters", href: routes.coach.fighters },
-                        { label: "Performance", href: routes.coach.performance },
-                        { label: "Goals", href: routes.coach.goals },
-                        { label: "Applicants", href: routes.coach.admissions },
-                    ],
-                },
+                { label: "Bouts", href: routes.coach.bouts, icon: Swords },
+                { label: "Roster", href: routes.coach.fighters, icon: Users },
                 {
                     label: "Training",
                     href: routes.coach.sessions,
@@ -125,27 +105,16 @@ export const NAVIGATION: Record<Role, NavSection[]> = {
         {
             items: [
                 { label: "Triage", href: routes.doctor.dashboard, icon: Activity },
-                {
-                    label: "Patients",
-                    href: routes.doctor.fighters,
-                    icon: Users,
-                    tabs: [
-                        { label: "Fighters", href: routes.doctor.fighters },
-                        { label: "Records", href: routes.doctor.records },
-                    ],
-                },
+                { label: "Patients", href: routes.doctor.fighters, icon: Users },
                 {
                     label: "Clinical",
-                    href: routes.doctor.examinations,
+                    href: routes.doctor.injuries,
                     icon: Stethoscope,
                     tabs: [
-                        { label: "Examinations", href: routes.doctor.examinations },
                         { label: "Injuries", href: routes.doctor.injuries },
-                        { label: "Recovery", href: routes.doctor.recovery },
                         { label: "Clearance", href: routes.doctor.clearance },
                     ],
                 },
-                { label: "Observations", href: routes.doctor.aiAlerts, icon: Radar, badge: "newAlerts" },
             ],
         },
     ],
@@ -155,7 +124,6 @@ export const NAVIGATION: Record<Role, NavSection[]> = {
             label: "Access",
             items: [
                 { label: "Users", href: routes.admin.users, icon: Users },
-                { label: "Admissions", href: routes.admin.admissions, icon: ClipboardList },
                 { label: "Roles & permissions", shortLabel: "Roles", href: routes.admin.roles, icon: KeyRound },
             ],
         },
@@ -164,7 +132,6 @@ export const NAVIGATION: Record<Role, NavSection[]> = {
             items: [
                 { label: "Videos", href: routes.admin.videos, icon: Film },
                 { label: "AI jobs", href: routes.admin.aiJobs, icon: Cpu, badge: "failedJobs" },
-                { label: "AI models", shortLabel: "Models", href: routes.admin.aiModels, icon: BrainCircuit },
             ],
         },
         {

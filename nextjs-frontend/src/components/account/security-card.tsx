@@ -1,5 +1,8 @@
+"use client";
+
 import { KeyRound, Lock, LogOut, MonitorSmartphone, ShieldCheck } from "lucide-react";
 
+import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { signOut } from "@/lib/actions/auth";
@@ -8,19 +11,21 @@ import { PasswordResetButton } from "./password-reset-button";
 
 /** Password is owned by the identity provider; the user can request a reset email or sign out here. */
 export function SecurityCard({ lastActiveAt, now }: { lastActiveAt: string | null; now: string }) {
+    const t = useT();
+    const locale = useLocale();
+
     return (
         <Card className="min-w-0">
-            <CardHeader title="Sign-in & security" icon={<ShieldCheck />} />
+            <CardHeader title={t("account.security.title")} icon={<ShieldCheck />} />
             <CardContent className="flex flex-col divide-y divide-border">
                 <section aria-labelledby="security-password" className="flex flex-col gap-3 pb-4">
                     <div>
                         <h3 id="security-password" className="flex items-center gap-1.5 text-sm font-medium text-fg">
                             <KeyRound aria-hidden className="size-3.5 text-fg-subtle" />
-                            Password
+                            {t("account.security.password")}
                         </h3>
                         <p className="mt-1 text-[13px] text-pretty text-fg-muted">
-                            Your password is managed by the academy&apos;s identity provider, so it can&apos;t be changed on this page. We can email
-                            you a secure link to set a new one.
+                            {t("account.security.passwordDesc")}
                         </p>
                     </div>
                     <div
@@ -29,7 +34,7 @@ export function SecurityCard({ lastActiveAt, now }: { lastActiveAt: string | nul
                     >
                         <Lock className="size-3.5 shrink-0" />
                         <span className="tracking-[0.2em]">••••••••</span>
-                        <span className="ml-auto truncate text-xs">Managed externally</span>
+                        <span className="ml-auto truncate text-xs">{t("account.security.managedExternally")}</span>
                     </div>
                     <div>
                         <PasswordResetButton />
@@ -39,25 +44,25 @@ export function SecurityCard({ lastActiveAt, now }: { lastActiveAt: string | nul
                     <div>
                         <h3 id="security-session" className="flex items-center gap-1.5 text-sm font-medium text-fg">
                             <MonitorSmartphone aria-hidden className="size-3.5 text-fg-subtle" />
-                            This device
+                            {t("account.security.thisDevice")}
                         </h3>
                         <p className="mt-1 text-[13px] text-fg-muted">
-                            Signed in
+                            {t("account.security.signedIn")}
                             {lastActiveAt && (
                                 <>
-                                    {" · last active "}
-                                    <time dateTime={lastActiveAt} title={formatDateTime(lastActiveAt)}>
-                                        {formatRelative(lastActiveAt, now)}
+                                    {t("account.security.lastActive")}
+                                    <time dateTime={lastActiveAt} title={formatDateTime(lastActiveAt, locale)}>
+                                        {formatRelative(lastActiveAt, now, locale)}
                                     </time>
                                 </>
                             )}
-                            . Sign out when you use a shared gym computer.
+                            {t("account.security.signOutNote")}
                         </p>
                     </div>
                     <form action={signOut}>
                         <Button type="submit" variant="danger-soft" size="sm">
                             <LogOut aria-hidden />
-                            Sign out
+                            {t("account.security.signOut")}
                         </Button>
                     </form>
                 </section>

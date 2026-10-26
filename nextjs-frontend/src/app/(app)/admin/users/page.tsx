@@ -66,10 +66,16 @@ export default async function AdminUsersPage({ searchParams }: PageProps<"/admin
     // API mode creates accounts outright; the demo sends invitations.
     const canAdd = canInvite || usesUserServiceForms();
     const inviteButton = canAdd && (
-        <ButtonLink href={routes.admin.newUser}>
-            <UserPlus aria-hidden />
-            {canInvite ? "Invite user" : "Add user"}
-        </ButtonLink>
+        <div className="flex flex-wrap gap-2">
+            <ButtonLink href={routes.admin.newUser} variant="secondary">
+                <UserPlus aria-hidden />
+                {canInvite ? "Invite user" : "Add user"}
+            </ButtonLink>
+            <ButtonLink href={routes.admin.newUserAs("fighter")}>
+                <UserPlus aria-hidden />
+                {canInvite ? "Invite fighter" : "Add fighter"}
+            </ButtonLink>
+        </div>
     );
     const sortProps = { pathname, searchParams: params, activeSort: sort, direction: dir };
 

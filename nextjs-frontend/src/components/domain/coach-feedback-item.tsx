@@ -7,6 +7,8 @@ import type { Tone } from "@/components/ui/tone";
 import { FEEDBACK_KIND_LABELS } from "@/lib/domain/labels";
 import type { CoachFeedback, FeedbackKind } from "@/lib/domain/types";
 import { formatDateTime, formatRelative } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
+import { createTranslator } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 import { TechniqueChips } from "./technique-chip";
 
@@ -25,11 +27,14 @@ export interface CoachFeedbackItemProps {
     sessionHref?: string;
     /** Link to the video the feedback is about. */
     videoHref?: string;
+    /** The viewer's language; English when omitted. */
+    locale?: Locale;
     className?: string;
 }
 
 /** A piece of coach feedback: who, what kind, the message, techniques and related session/video. */
-export function CoachFeedbackItem({ feedback, coachName, now, sessionHref, videoHref, className }: CoachFeedbackItemProps) {
+export function CoachFeedbackItem({ feedback, coachName, now, sessionHref, videoHref, locale, className }: CoachFeedbackItemProps) {
+    const t = createTranslator(locale ?? "en");
     const kind = KIND_META[feedback.kind];
     const linkClass = "inline-flex h-8 items-center gap-1.5 rounded-md px-1.5 text-[13px] font-medium text-primary-soft-fg hover:bg-surface-hover";
 
@@ -40,26 +45,26 @@ export function CoachFeedbackItem({ feedback, coachName, now, sessionHref, video
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                     <p className="text-sm font-semibold text-fg">{coachName}</p>
                     <Badge tone={kind.tone} icon={kind.icon} size="sm">
-                        {FEEDBACK_KIND_LABELS[feedback.kind]}
+                        {locale ? t(`feedbackKind.${feedback.kind}`) : FEEDBACK_KIND_LABELS[feedback.kind]}
                     </Badge>
-                    <time dateTime={feedback.createdAt} title={formatDateTime(feedback.createdAt)} className="text-xs text-fg-subtle">
-                        {formatRelative(feedback.createdAt, now)}
+                    <time dateTime={feedback.createdAt} title={formatDateTime(feedback.createdAt, locale)} className="text-xs text-fg-subtle">
+                        {formatRelative(feedback.createdAt, now, locale)}
                     </time>
                 </div>
                 <p className="mt-1 text-sm text-pretty whitespace-pre-line text-fg">{feedback.body}</p>
-                <TechniqueChips techniques={feedback.techniques} label="Techniques" size="sm" className="mt-2" />
+                <TechniqueChips techniques={feedback.techniques} label={t("feedback.techniques")} size="sm" className="mt-2" />
                 {(sessionHref || videoHref) && (
                     <div className="mt-1.5 -ml-1.5 flex flex-wrap gap-1">
                         {sessionHref && (
                             <Link href={sessionHref} className={linkClass}>
                                 <CalendarDays aria-hidden className="size-3.5" />
-                                View session
+                                {t("feedback.viewSession")}
                             </Link>
                         )}
                         {videoHref && (
                             <Link href={videoHref} className={linkClass}>
                                 <Video aria-hidden className="size-3.5" />
-                                View video
+                                {t("feedback.viewVideo")}
                             </Link>
                         )}
                     </div>

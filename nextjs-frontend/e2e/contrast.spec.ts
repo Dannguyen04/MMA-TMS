@@ -11,7 +11,7 @@ const SCREENS: { who: "fighter" | "coach" | "doctor" | "admin"; path: string; h1
     { who: "fighter", path: "/fighter/health", h1: "Health & Medical Clearance" },
     { who: "coach", path: "/coach/dashboard", h1: /^Good (morning|afternoon|evening), / },
     { who: "doctor", path: "/doctor/dashboard", h1: "Triage" },
-    { who: "admin", path: "/admin/dashboard", h1: "Platform overview" },
+    { who: "admin", path: "/admin/dashboard", h1: /^Good (morning|afternoon|evening)$/ },
 ];
 
 for (const theme of ["light", "dark"] as const) {

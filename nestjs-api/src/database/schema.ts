@@ -1,5 +1,6 @@
 // SQL migrations are authoritative. This file maps public tables for Drizzle queries.
 // RLS, grants, trigger functions and migration history are owned by 003, not drizzle-kit.
+import type { OpponentAnalysis, RoundInput } from '../bouts/bout-analysis.model.js';
 import { sql } from 'drizzle-orm';
 import {
   pgTable,
@@ -328,6 +329,14 @@ export const notificationTypeEnum = pgEnum('notification_type', [
   'TRAINING_SESSION_CANCELLED',
   // 017: Admin task to assign a Doctor to a new Fighter.
   'FIGHTER_DOCTOR_ASSIGNMENT_REQUIRED',
+  // 025: Bout & Suspension notification types.
+  'BOUT_CREATED',
+  'BOUT_WEIGHT_AT_RISK',
+  'BOUT_REQUIREMENT_REJECTED',
+  'BOUT_REQUIREMENT_DUE',
+  'BOUT_WEIGHT_MISSING',
+  'SUSPENSION_CREATED',
+  'SUSPENSION_AWAITING_CLEARANCE',
 ]);
 
 // ─── Task 14 Enums ────────────────────────────────────────────────────────────
@@ -4346,3 +4355,302 @@ export type InsertTechniqueReference = typeof techniqueReferences.$inferInsert;
 
 export type ProgressSnapshot = typeof progressSnapshots.$inferSelect;
 export type InsertProgressSnapshot = typeof progressSnapshots.$inferInsert;
+
+export const medicalSupervisionEnum = pgEnum('medical_supervision', [
+  'DOCTOR',
+  'NONE',
+]);
+export type MedicalSupervision = 'DOCTOR' | 'NONE';
+
+export const academySettings = pgTable('academy_settings', {
+  id: boolean('id').primaryKey().default(true),
+  medicalSupervision: medicalSupervisionEnum('medical_supervision').notNull().default('DOCTOR'),
+  changeReason: text('change_reason'),
+  updatedById: uuid('updated_by_id').references(() => users.id),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (_t) => [
+  check('academy_settings_id_check', sql.raw('id')),
+]).enableRLS();
+
+export type AcademySettings = typeof academySettings.$inferSelect;
+export type InsertAcademySettings = typeof academySettings.$inferInsert;
+
+export const boutStatusEnum = pgEnum('bout_status', [
+  'SCHEDULED',
+  'CAMP',
+  'FIGHT_WEEK',
+  'WEIGHED_IN',
+  'COMPLETED',
+  'CANCELLED',
+]);
+export const boutSportEnum = pgEnum('bout_sport', [
+  'BOXING',
+  'MUAY_THAI',
+  'KICKBOXING',
+  'MMA',
+]);
+export const boutResultEnum = pgEnum('bout_result', [
+  'WIN',
+  'LOSS',
+  'DRAW',
+  'NO_CONTEST',
+]);
+export const boutMethodEnum = pgEnum('bout_method', [
+  'KO',
+  'TKO',
+  'DECISION',
+  'SUBMISSION',
+  'DQ',
+  'OTHER',
+]);
+export const boutRequirementStatusEnum = pgEnum('bout_requirement_status', [
+  'MISSING',
+  'PROVIDED',
+  'CONFIRMED',
+  'REJECTED',
+]);
+
+export interface RulesetWeightClass {
+  code: string;
+  label: string;
+  /** null = open class (no upper limit); the bout must then carry its own limit. */
+  limitKg: number | null;
+}
+
+export interface RulesetRequirementTemplate {
+  code: string;
+  label: string;
+  required: boolean;
+  validityDays?: number;
+}
+
+export const competitionRulesets = pgTable('competition_rulesets', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  sport: boutSportEnum('sport').notNull(),
+  organizer: text('organizer'),
+  verified: boolean('verified').notNull().default(false),
+  sourceNote: text('source_note'),
+  weightClasses: jsonb('weight_classes').$type<RulesetWeightClass[]>().notNull(),
+  requirementTemplates: jsonb('requirement_templates')
+    .$type<RulesetRequirementTemplate[]>()
+    .notNull(),
+  fightWeekDays: smallint('fight_week_days').notNull().default(7),
+  requirementsDueDays: smallint('requirements_due_days').notNull().default(7),
+  acuteWindowDays: smallint('acute_window_days').notNull().default(7),
+  acuteLossLimitPctLong: numeric('acute_loss_limit_pct_long', { precision: 4, scale: 1 }).notNull().default('8.0'),
+  acuteLossLimitPctShort: numeric('acute_loss_limit_pct_short', { precision: 4, scale: 1 }).notNull().default('5.0'),
+  suspensionRules: jsonb('suspension_rules').$type<Record<string, unknown>[]>().notNull().default(sql`'[]'::jsonb`),
+  defaultBlockedSessionTypes: sessionTypeEnum('default_blocked_session_types')
+    .array()
+    .notNull()
+    .default(sql`'{SPARRING}'`),
+  restDaysAfterBout: smallint('rest_days_after_bout').notNull().default(0),
+  createdById: uuid('created_by_id').references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+}, (_t) => [
+  check('ck_rulesets_name', sql.raw("(btrim(name) <> '')")),
+  check('ck_rulesets_weight_classes', sql.raw("(jsonb_typeof(weight_classes) = 'array')")),
+  check('ck_rulesets_requirement_templates', sql.raw("(jsonb_typeof(requirement_templates) = 'array')")),
+  check('ck_rulesets_suspension_rules', sql.raw("(jsonb_typeof(suspension_rules) = 'array')")),
+  check(
+    'ck_rulesets_days',
+    sql.raw('(fight_week_days >= 0 AND requirements_due_days >= 0 AND acute_window_days >= 0 AND rest_days_after_bout >= 0)'),
+  ),
+  check(
+    'ck_rulesets_acute_pct',
+    sql.raw('(acute_loss_limit_pct_long > 0 AND acute_loss_limit_pct_long <= 20 AND acute_loss_limit_pct_short > 0 AND acute_loss_limit_pct_short <= 20)'),
+  ),
+]).enableRLS();
+
+export interface BoutHistoryEntry {
+  at: string;
+  by: string;
+  from: string;
+  to: string;
+  reason?: string;
+  action?: string;
+  requirementCode?: string;
+  fromClass?: string;
+  toClass?: string;
+  fromLimitKg?: number;
+  toLimitKg?: number;
+  catchweightKg?: number;
+  lossOfConsciousness?: string;
+  stoppedByHeadStrike?: boolean;
+  injuryNote?: string;
+}
+
+export const bouts = pgTable('bouts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  fighterId: uuid('fighter_id').notNull().references(() => fighters.id),
+  coachId: uuid('coach_id').notNull().references(() => coaches.id),
+  rulesetId: uuid('ruleset_id').notNull().references(() => competitionRulesets.id),
+  eventName: text('event_name').notNull(),
+  venue: text('venue'),
+  opponentName: text('opponent_name'),
+  opponentAnalysis: jsonb('opponent_analysis').$type<OpponentAnalysis>().notNull().default(sql`'{}'::jsonb`),
+  scheduledRounds: smallint('scheduled_rounds'),
+  weightClassCode: text('weight_class_code').notNull(),
+  weightLimitKg: numeric('weight_limit_kg', { precision: 5, scale: 2 }).notNull(),
+  acuteLossLimitPct: numeric('acute_loss_limit_pct', { precision: 4, scale: 1 }).notNull(),
+  requirementsDueDays: smallint('requirements_due_days').notNull(),
+  weighInAt: timestamp('weigh_in_at', { withTimezone: true }).notNull(),
+  boutAt: timestamp('bout_at', { withTimezone: true }).notNull(),
+  status: boutStatusEnum('status').notNull().default('SCHEDULED'),
+  trainingPlanId: uuid('training_plan_id'),
+  officialWeightKg: numeric('official_weight_kg', { precision: 5, scale: 2 }),
+  madeWeight: boolean('made_weight'),
+  catchweightKg: numeric('catchweight_kg', { precision: 5, scale: 2 }),
+  hydrationCheck: text('hydration_check'),
+  result: boutResultEnum('result'),
+  method: boutMethodEnum('method'),
+  resultRound: smallint('result_round'),
+  knockedDown: boolean('knocked_down'),
+  cancelReason: text('cancel_reason'),
+  notes: text('notes'),
+  history: jsonb('history').$type<BoutHistoryEntry[]>().notNull().default(sql`'[]'::jsonb`),
+  createdById: uuid('created_by_id').notNull().references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+}, (t) => [
+  foreignKey({
+    name: 'fk_bout_plan_fighter',
+    columns: [t.trainingPlanId, t.fighterId],
+    foreignColumns: [trainingPlans.id, trainingPlans.fighterId],
+  }),
+  check('ck_bouts_opponent_analysis', sql.raw("jsonb_typeof(opponent_analysis) = 'object'")),
+  check('ck_bouts_scheduled_rounds', sql.raw('scheduled_rounds BETWEEN 1 AND 12')),
+  check('ck_bouts_event_name', sql.raw("(btrim(event_name) <> '')")),
+  check('ck_bouts_schedule', sql.raw('(weigh_in_at < bout_at)')),
+  check('ck_bouts_weight_limit', sql.raw('(weight_limit_kg > 0)')),
+  check('ck_bouts_acute_pct', sql.raw('(acute_loss_limit_pct > 0 AND acute_loss_limit_pct <= 20)')),
+  check('ck_bouts_requirements_due_days', sql.raw('(requirements_due_days >= 0)')),
+  check(
+    'ck_bouts_hydration',
+    sql.raw("(hydration_check IS NULL OR hydration_check IN ('NOT_APPLICABLE', 'PASSED', 'FAILED'))"),
+  ),
+  check('ck_bouts_cancel_reason', sql.raw("((status = 'CANCELLED') = (cancel_reason IS NOT NULL))")),
+  check('ck_bouts_result', sql.raw("((status = 'COMPLETED') = (result IS NOT NULL))")),
+  check('ck_bouts_method', sql.raw("((status = 'COMPLETED') = (method IS NOT NULL))")),
+  check('ck_bouts_history', sql.raw("(jsonb_typeof(history) = 'array')")),
+  uniqueIndex('uq_bouts_active_per_fighter')
+    .on(t.fighterId)
+    .where(sql`status IN ('CAMP', 'FIGHT_WEEK', 'WEIGHED_IN') AND deleted_at IS NULL`),
+  index('idx_bouts_fighter_weigh_in').on(t.fighterId, t.weighInAt).where(sql`deleted_at IS NULL`),
+  index('idx_bouts_status_weigh_in').on(t.status, t.weighInAt, t.id).where(sql`deleted_at IS NULL`),
+]).enableRLS();
+
+export const boutRequirements = pgTable('bout_requirements', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  boutId: uuid('bout_id').notNull().references(() => bouts.id, { onDelete: 'cascade' }),
+  code: text('code').notNull(),
+  label: text('label').notNull(),
+  required: boolean('required').notNull(),
+  status: boutRequirementStatusEnum('status').notNull().default('MISSING'),
+  issuedOn: date('issued_on'),
+  validUntil: date('valid_until'),
+  validityDays: smallint('validity_days'),
+  source: text('source').notNull(),
+  statusReason: text('status_reason'),
+  updatedById: uuid('updated_by_id').references(() => users.id),
+  confirmedById: uuid('confirmed_by_id').references(() => users.id),
+  confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(sql`clock_timestamp()`),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  unique('uq_bout_requirements_code').on(t.boutId, t.code),
+  check('ck_bout_requirements_code', sql.raw('(char_length(code) BETWEEN 1 AND 64)')),
+  check('ck_bout_requirements_label', sql.raw("(btrim(label) <> '')")),
+  check('ck_bout_requirements_source', sql.raw("(source IN ('PRESET', 'COACH'))")),
+  check('ck_bout_requirements_validity_days', sql.raw('(validity_days IS NULL OR validity_days > 0)')),
+  check(
+    'ck_bout_requirements_valid_until',
+    sql.raw("(status NOT IN ('PROVIDED', 'CONFIRMED') OR valid_until IS NOT NULL)"),
+  ),
+  check(
+    'ck_bout_requirements_rejected_reason',
+    sql.raw("(status <> 'REJECTED' OR nullif(btrim(status_reason), '') IS NOT NULL)"),
+  ),
+  check(
+    'ck_bout_requirements_period',
+    sql.raw('(issued_on IS NULL OR valid_until IS NULL OR valid_until >= issued_on)'),
+  ),
+]).enableRLS();
+
+export type CompetitionRuleset = typeof competitionRulesets.$inferSelect;
+export type BoutRow = typeof bouts.$inferSelect;
+export type InsertBout = typeof bouts.$inferInsert;
+export type BoutRequirementRow = typeof boutRequirements.$inferSelect;
+export type InsertBoutRequirement = typeof boutRequirements.$inferInsert;
+
+// T-010: round records are private coach assessments.
+export const boutRounds = pgTable('bout_rounds', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  boutId: uuid('bout_id').notNull().references(() => bouts.id, { onDelete: 'cascade' }),
+  roundNo: smallint('round_no').notNull(),
+  tacticMarks: jsonb('tactic_marks').$type<NonNullable<RoundInput['tacticMarks']>>().notNull().default(sql`'{}'::jsonb`),
+  observationMarks: jsonb('observation_marks').$type<NonNullable<RoundInput['observationMarks']>>().notNull().default(sql`'{}'::jsonb`),
+  selfScore: text('self_score').$type<'WIN' | 'LOSS' | 'CLOSE'>(),
+  knockdownsAgainst: smallint('knockdowns_against').notNull().default(0),
+  stunned: boolean('stunned').notNull().default(false),
+  bleeding: boolean('bleeding').notNull().default(false),
+  fatigued: boolean('fatigued').notNull().default(false),
+  note: text('note'),
+  recordedById: uuid('recorded_by_id').notNull().references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  unique('uq_bout_rounds_bout_round').on(t.boutId, t.roundNo),
+  check('bout_rounds_round_no_check', sql.raw('round_no BETWEEN 1 AND 12')),
+  check('bout_rounds_self_score_check', sql.raw("self_score IN ('WIN', 'LOSS', 'CLOSE')")),
+  check('bout_rounds_knockdowns_against_check', sql.raw('knockdowns_against BETWEEN 0 AND 10')),
+  check('bout_rounds_note_check', sql.raw('note IS NULL OR char_length(note) <= 300')),
+  check('ck_bout_rounds_tactic_marks', sql.raw("jsonb_typeof(tactic_marks) = 'object'")),
+  check('ck_bout_rounds_observation_marks', sql.raw("jsonb_typeof(observation_marks) = 'object'")),
+]).enableRLS();
+export type BoutRoundRow = typeof boutRounds.$inferSelect;
+
+export const suspensionReasonEnum = pgEnum('suspension_reason', [
+  'KO',
+  'TKO',
+  'DQ',
+  'MANDATORY_REST',
+  'MEDICAL',
+  'OTHER',
+]);
+
+export const suspensions = pgTable('suspensions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  fighterId: uuid('fighter_id').notNull().references(() => fighters.id),
+  boutId: uuid('bout_id').references(() => bouts.id),
+  reason: suspensionReasonEnum('reason').notNull(),
+  startsOn: date('starts_on').notNull(),
+  endsOn: date('ends_on').notNull(),
+  lossOfConsciousness: text('loss_of_consciousness'),
+  suggestedDays: smallint('suggested_days'),
+  overrideReason: text('override_reason'),
+  blockedSessionTypes: sessionTypeEnum('blocked_session_types').array().notNull(),
+  requiresClearance: boolean('requires_clearance').notNull(),
+  clearedAt: timestamp('cleared_at', { withTimezone: true }),
+  clearedById: uuid('cleared_by_id').references(() => users.id),
+  clearanceNote: text('clearance_note'),
+  createdById: uuid('created_by_id').notNull().references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+}, (t) => [
+  check(
+    'ck_suspensions_loss_of_consciousness',
+    sql.raw("(loss_of_consciousness IS NULL OR loss_of_consciousness IN ('NONE', 'UNDER_1_MIN', 'OVER_1_MIN', 'UNKNOWN'))"),
+  ),
+  check('ck_suspensions_dates', sql.raw('(ends_on >= starts_on)')),
+  check('ck_suspensions_cleared', sql.raw('((cleared_at IS NULL) = (cleared_by_id IS NULL))')),
+  index('idx_suspensions_fighter_active').on(t.fighterId, t.endsOn).where(sql`deleted_at IS NULL`),
+]).enableRLS();
+
+export type SuspensionRow = typeof suspensions.$inferSelect;
+export type InsertSuspension = typeof suspensions.$inferInsert;

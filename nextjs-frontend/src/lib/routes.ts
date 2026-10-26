@@ -19,6 +19,9 @@ export function roleForPath(pathname: string): Role | null {
     return (Object.keys(ROLE_BASE_PATH) as Role[]).find((role) => ROLE_BASE_PATH[role] === `/${segment}`) ?? null;
 }
 
+/** Element id of the care team card on an admin's user page, for links that jump straight to it. */
+export const CARE_TEAM_ANCHOR = "care-team";
+
 export const routes = {
     login: "/login",
     forgotPassword: "/forgot-password",
@@ -34,6 +37,8 @@ export const routes = {
 
     fighter: {
         dashboard: "/fighter/dashboard",
+        bout: "/fighter/bout",
+        weighIn: "/fighter/bout/weigh-in",
         schedule: "/fighter/schedule",
         training: "/fighter/training",
         plan: (planId: string) => `/fighter/training/plans/${planId}`,
@@ -53,6 +58,9 @@ export const routes = {
 
     coach: {
         dashboard: "/coach/dashboard",
+        bouts: "/coach/bouts",
+        newBout: "/coach/bouts/new",
+        bout: (boutId: string) => `/coach/bouts/${boutId}`,
         fighters: "/coach/fighters",
         fighter: (fighterId: string) => `/coach/fighters/${fighterId}`,
         fighterPerformance: (fighterId: string) => `/coach/fighters/${fighterId}/performance`,
@@ -100,10 +108,17 @@ export const routes = {
         dashboard: "/admin/dashboard",
         users: "/admin/users",
         newUser: "/admin/users/new",
+        /** The new-account form with the role already chosen, e.g. an "Add fighter" entry. */
+        newUserAs: (role: "fighter" | "coach" | "doctor" | "admin") => `/admin/users/new?role=${role}`,
         user: (userId: string) => `/admin/users/${userId}`,
+        /** A fighter's account page, scrolled to their care team. */
+        userCareTeam: (userId: string) => `/admin/users/${userId}#${CARE_TEAM_ANCHOR}`,
+        /** Opens a fighter's account from their fighter profile id (notifications name the profile, not the account). */
+        fighter: (fighterId: string) => `/admin/fighters/${fighterId}`,
         admissions: "/admin/admissions",
         admission: (applicationId: string) => `/admin/admissions/${applicationId}`,
         roles: "/admin/roles",
+        exercises: "/admin/exercises",
         videos: "/admin/videos",
         aiJobs: "/admin/ai-jobs",
         aiJob: (jobId: string) => `/admin/ai-jobs/${jobId}`,

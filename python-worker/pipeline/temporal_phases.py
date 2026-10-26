@@ -15,7 +15,7 @@ Tuân thủ:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum
 import math
 import re
@@ -556,6 +556,25 @@ def calculate_leg_knee_angle(
 
 # ─── Phase Segmentation Logic ───
 
+def _align_rounded_coincident_boundaries(boundaries: dict[str, PhaseBoundary]) -> None:
+    """One frame has one timestamp; reconcile only 0.1ms serialization drift.
+
+    Preserve the observed peak timestamp and strict validation of genuinely
+    inconsistent or reversed frames instead of relaxing the phase contract.
+    """
+    groups: dict[int, list[str]] = {}
+    for name, boundary in boundaries.items():
+        if boundary.frame_idx is not None:
+            groups.setdefault(boundary.frame_idx, []).append(name)
+    for names in groups.values():
+        times = [boundaries[name].time_ms for name in names]
+        if len(names) < 2 or max(times) - min(times) > 0.100001:
+            continue
+        anchor = boundaries["peak" if "peak" in names else names[0]].time_ms
+        for name in names:
+            boundaries[name] = replace(boundaries[name], time_ms=anchor)
+
+
 def segment_punch_phases(
     window_start_frame: int,
     window_end_frame: int,
@@ -804,6 +823,7 @@ def segment_punch_phases(
             ),
         )
 
+    _align_rounded_coincident_boundaries(boundaries)
     return TemporalPhaseSequence(
         action_family="punch",
         impact_type="peak_extension_proxy",
@@ -1040,6 +1060,7 @@ def segment_kick_phases(
             ),
         )
 
+    _align_rounded_coincident_boundaries(boundaries)
     return TemporalPhaseSequence(
         action_family="kick",
         impact_type="max_extension_proxy",

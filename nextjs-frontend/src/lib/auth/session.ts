@@ -8,7 +8,7 @@ import { ApiError, authenticatedApiRequest } from "@/lib/api/client";
 import type { Applicant } from "@/lib/domain/admissions";
 import type { Permission, Role, User } from "@/lib/domain/types";
 import { dashboardPath, routes } from "@/lib/routes";
-import { drainNumberedPages, fighterRosterPath } from "@/lib/services/api-helpers";
+import { drainNumberedPages, fighterRosterPath, isNotFound } from "@/lib/services/api-helpers";
 import { permissionsForRole } from "./capabilities";
 import { isDemoAuthEnabled } from "./constants";
 
@@ -94,7 +94,8 @@ export const getSessionAccount = cache(async (): Promise<SessionAccount | null> 
         if (account.role === "GUEST") return { kind: "applicant", applicant: { id: account.id, email: account.email } };
         return { kind: "user", user: await withAssignmentScope(normalizeUser({ ...account, role: account.role })) };
     } catch (error) {
-        if (error instanceof ApiError && error.kind === "unauthorized") return null;
+        // `/users/me` answers 404 when the account behind a still-valid token has been deleted.
+        if ((error instanceof ApiError && error.kind === "unauthorized") || isNotFound(error)) return null;
         throw error;
     }
 });

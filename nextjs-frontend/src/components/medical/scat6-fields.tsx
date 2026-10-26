@@ -1,44 +1,99 @@
 "use client";
 
-import { Plus, X } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { CheckCheck, Clock, Plus, SkipForward, X } from "lucide-react";
+import { useMemo, useState, type ReactNode } from "react";
 
+import { TermHint } from "@/components/domain/term-hint";
 import { Button } from "@/components/ui/button";
 import { ChoiceGroup } from "@/components/ui/choice-group";
 import { Checkbox, Field, FormSection, Input, Select, Textarea } from "@/components/ui/form";
-import type { ActionForm } from "@/components/ui/use-action-form";
+import { SuggestionChips } from "@/components/ui/suggestion-chips";
+import type { ActionForm, ActionFormControl } from "@/components/ui/use-action-form";
+import type { GlossaryTerm } from "@/lib/domain/glossary";
 import { SCAT6, SCAT6_LISTS } from "@/lib/domain/scat6";
 import { ageFromBirthDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { anyGaitTrialIncomplete, digitTestContinues, emptyScat6Draft, scat6FromDraft, type Scat6Draft, type StancesDraft } from "./scat6-draft";
+import { QuickFill } from "./quick-fill";
+import {
+    anyGaitTrialIncomplete,
+    BACKGROUND_CONDITIONS,
+    canFillNoBackground,
+    canFillNoSymptoms,
+    delayedRecallEarliest,
+    digitTestContinues,
+    emptyScat6Draft,
+    fillNoBackground,
+    fillNoSymptoms,
+    fillToggleRow,
+    problemSentence,
+    problemsByPath,
+    scat6FromDraft,
+    scat6Problems,
+    skipPart,
+    stampNow,
+    toggleRows,
+    toggleValues,
+    type QuickFillResult,
+    type Scat6Draft,
+    type Scat6Step,
+    type StancesDraft,
+    type YesNo,
+} from "./scat6-draft";
 
 type FormControls = Pick<ActionForm<unknown>, "error" | "control" | "markEdited">;
-
-export interface Scat6FieldsProps {
-    form: FormControls;
-    /** YYYY-MM-DDTHH:mm in the academy timezone; also the latest time a field accepts. */
-    nowInput: string;
-    /** Only a baseline carries a SCAT6. While inactive the answers are kept but hidden and not sent. */
-    active: boolean;
-    /** The athlete's date of birth, when known: a SCAT6 is only administered from age 13. */
-    dateOfBirth: string | null;
-}
 
 const LIST_OPTIONS = SCAT6_LISTS.map((value) => ({ value, label: `List ${value}` }));
 const numbered = (count: number) => Array.from({ length: count }, (_, index) => index);
 
-/**
+/*
  * The SCAT6 a baseline examination carries, entered item by item as numbered on the official paper form (the form's own
- * wording is never shown here). Each part can be marked as not performed with the reason; nothing is assumed normal.
- * The record travels as one serialized field and the medical service computes the scores.
+ * wording is never shown). One draft (`useScat6Draft`) feeds three groups of parts, so the examination form can give
+ * each its own step and the demo form can show them in a row. Nothing is assumed normal or skipped: every quick fill is
+ * a button the doctor clicks, and the medical service computes the scores.
  */
-export function Scat6Fields({ form, nowInput, active, dateOfBirth }: Scat6FieldsProps) {
+
+/* ─── State ───────────────────────────────────────────────────────────────── */
+
+export interface Scat6Controller {
+    draft: Scat6Draft;
+    /** Applies a change and hides the server error of the field (or group) it touched. */
+    change: (edit: (next: Scat6Draft) => void, path?: string) => void;
+    /** Runs a quick fill the doctor clicked and keeps its note under `key`. */
+    quick: (key: string, compute: (draft: Scat6Draft) => QuickFillResult | null, path: string) => void;
+    notes: Record<string, string>;
+    /** The server's error for a record path, or the form's own once the doctor tried to leave that step. */
+    error: (path: string) => string | undefined;
+    id: (path: string) => string;
+    form: FormControls;
+    /** YYYY-MM-DDTHH:mm in the academy timezone, when the page loaded. */
+    nowInput: string;
+    tooYoung: boolean;
+    underAgeOn: (value: string) => boolean;
+    /** Checks one step before leaving it: shows its problems in place and returns a sentence for the footer, or null. */
+    validate: (step: Scat6Step) => string | null;
+    /** Every problem, keyed by form field name (`scat6.<path>`), for a last check before sending; null when there are none. */
+    validateAll: () => Record<string, string> | null;
+}
+
+export interface UseScat6DraftOptions {
+    form: FormControls;
+    nowInput: string;
+    /** The athlete's date of birth, when known: a SCAT6 is only administered from age 13. */
+    dateOfBirth: string | null;
+}
+
+/** The SCAT6's working state for one examination form. It lives as long as the form, never in browser storage. */
+export function useScat6Draft({ form, nowInput, dateOfBirth }: UseScat6DraftOptions): Scat6Controller {
     /** Whether the athlete was under 13 on that day (datetime-local value), when the date of birth is known. */
     const underAgeOn = (value: string) => dateOfBirth !== null && value !== "" && ageFromBirthDate(dateOfBirth, value.slice(0, 10)) < SCAT6.MIN_AGE_YEARS;
     const tooYoung = underAgeOn(nowInput);
     const [draft, setDraft] = useState(() => ({ ...emptyScat6Draft(nowInput), ...(tooYoung ? { status: "NOT_ADMINISTERED" as const } : {}) }));
-    /** Applies a change and hides the error of the field (or group) it touched. */
-    const change = (edit: (next: Scat6Draft) => void, path?: string) => {
+    const [notes, setNotes] = useState<Record<string, string>>({});
+    const [attempted, setAttempted] = useState<ReadonlySet<Scat6Step>>(() => new Set());
+    const problems = useMemo(() => scat6Problems(draft), [draft]);
+    const byPath = useMemo(() => problemsByPath(problems), [problems]);
+
+    const change: Scat6Controller["change"] = (edit, path) => {
         setDraft((current) => {
             const next = structuredClone(current);
             edit(next);
@@ -46,295 +101,405 @@ export function Scat6Fields({ form, nowInput, active, dateOfBirth }: Scat6Fields
         });
         if (path) form.markEdited(`scat6.${path}`);
     };
-    const error = (path: string) => form.error(`scat6.${path}`);
-    const id = (path: string) => form.control(`scat6.${path}`).id;
-    const kit: Kit = { draft, change, error, id, form, nowInput };
 
+    const quick: Scat6Controller["quick"] = (key, compute, path) => {
+        const result = compute(draft);
+        if (!result) return;
+        setDraft(result.draft);
+        setNotes((current) => ({ ...current, [key]: result.filled }));
+        form.markEdited(`scat6.${path}`);
+    };
+
+    const error = (path: string) => {
+        const server = form.error(`scat6.${path}`);
+        if (server) return server;
+        const problem = byPath[path];
+        return problem && attempted.has(problem.step) ? problem.message : undefined;
+    };
+
+    const validate = (step: Scat6Step) => {
+        setAttempted((current) => new Set(current).add(step));
+        const found = problems.filter((problem) => problem.step === step);
+        if (found.length === 0) return null;
+        return found.length === 1 ? problemSentence(found[0]) : `${found.length} answers on this step need attention, starting with ${problemSentence(found[0]).replace(/\.$/, "")}. Each is marked in place.`;
+    };
+
+    const validateAll = () => {
+        setAttempted(new Set<Scat6Step>(["history", "memory", "balance"]));
+        if (problems.length === 0) return null;
+        return Object.fromEntries(problems.map((problem) => [`scat6.${problem.path}`, problem.message]));
+    };
+
+    return { draft, change, quick, notes, error, id: (path) => form.control(`scat6.${path}`).id, form, nowInput, tooYoung, underAgeOn, validate, validateAll };
+}
+
+/** The serialized record the action reads; sent only while the examination carries a SCAT6. */
+export function Scat6RecordInput({ scat6 }: { scat6: Scat6Controller }) {
+    return <input type="hidden" name="scat6" value={JSON.stringify(scat6FromDraft(scat6.draft))} />;
+}
+
+/* ─── Step 1: status, history and symptoms ────────────────────────────────── */
+
+/** Whether it was administered, the athlete's background, the immediate assessment and the symptoms. */
+export function Scat6HistoryFields({ scat6 }: { scat6: Scat6Controller }) {
+    const { draft, change, tooYoung } = scat6;
     return (
-        <fieldset disabled={!active} hidden={!active} className="contents">
-            <input type="hidden" name="scat6" value={JSON.stringify(scat6FromDraft(draft))} />
-            <FormSection title="SCAT6" description="Record it by item number, reading the wording from the official paper form. The medical service calculates the scores.">
+        <>
+            <FormSection
+                title="SCAT6"
+                info={<TermHint term="scat6" />}
+                description="Record it by item number, reading the wording from the official paper form. The medical service calculates the scores."
+            >
                 <ChoiceGroup
-                    id={id("status")}
+                    id={scat6.id("status")}
                     name="scat6.status"
                     legend="SCAT6 at this baseline"
                     columns={2}
                     variant="compact"
                     options={[
                         { value: "ADMINISTERED", label: "Administered", description: tooYoung ? "Not before age 13: the athlete is younger." : "Athlete is 13 or older.", disabled: tooYoung },
-                        { value: "NOT_ADMINISTERED", label: "Not administered", description: "e.g. under 13 or not clinically appropriate." },
+                        { value: "NOT_ADMINISTERED", label: "Not administered", description: "For example under 13, or not clinically appropriate." },
                     ]}
                     value={draft.status}
                     onChange={(status) => change((next) => { next.status = status; })}
                 />
                 {draft.status === "NOT_ADMINISTERED" ? (
-                    <TextArea kit={kit} path="reason" label="Why it wasn't administered" value={draft.notAdministeredReason} max={2_000} onChange={(value) => change((next) => { next.notAdministeredReason = value; }, "reason")} />
+                    <TextArea scat6={scat6} path="reason" label="Why it wasn't administered" value={draft.notAdministeredReason} max={2_000} onChange={(value) => change((next) => { next.notAdministeredReason = value; }, "reason")} />
                 ) : (
                     <>
-                        <DateTime kit={kit} path="administeredAt" label="Administered" value={draft.administeredAt} onChange={(value) => change((next) => { next.administeredAt = value; }, "administeredAt")} />
-                        {underAgeOn(draft.administeredAt) && <ErrorText message="The athlete was under 13 on that day. Record the SCAT6 as not administered." />}
+                        <DateTime scat6={scat6} path="administeredAt" label="Started" value={draft.administeredAt} onChange={(value) => change((next) => { next.administeredAt = value; }, "administeredAt")} />
+                        {scat6.underAgeOn(draft.administeredAt) && <ErrorText message="The athlete was under 13 on that day. Record the SCAT6 as not administered." />}
                         <Checkbox
-                            id={id("examinerAttestation")}
+                            id={scat6.id("examinerAttestation")}
                             name="scat6.examinerAttestation"
                             checked={draft.examinerAttestation}
-                            onChange={(event) => change((next) => { next.examinerAttestation = event.target.checked; })}
+                            onChange={(event) => change((next) => { next.examinerAttestation = event.target.checked; }, "examinerAttestation")}
                             label="I'm a healthcare professional and administered or supervised this SCAT6"
-                            aria-invalid={error("examinerAttestation") ? true : undefined}
+                            info={<TermHint term="examinerAttestation" />}
+                            aria-invalid={scat6.error("examinerAttestation") ? true : undefined}
                         />
-                        <ErrorText message={error("examinerAttestation")} />
+                        <ErrorText message={scat6.error("examinerAttestation")} />
                     </>
                 )}
             </FormSection>
-            {draft.status === "ADMINISTERED" && <AdministeredSections kit={kit} />}
-        </fieldset>
+            {draft.status === "ADMINISTERED" && (
+                <>
+                    <AthleteFields scat6={scat6} />
+                    <ImmediateAssessmentFields scat6={scat6} />
+                    <BackgroundFields scat6={scat6} />
+                    <SymptomFields scat6={scat6} />
+                </>
+            )}
+        </>
     );
 }
 
-interface Kit {
-    draft: Scat6Draft;
-    change: (edit: (next: Scat6Draft) => void, path?: string) => void;
-    error: (path: string) => string | undefined;
-    id: (path: string) => string;
-    form: FormControls;
-    nowInput: string;
-}
-
-function AdministeredSections({ kit }: { kit: Kit }) {
-    const { draft, change } = kit;
-    const ia = draft.immediateAssessment;
-    const dual = draft.dualTaskGait;
+function AthleteFields({ scat6 }: { scat6: Scat6Controller }) {
+    const { draft, change } = scat6;
+    const history = draft.concussionHistory;
     return (
-        <>
-            <FormSection title="Athlete" description="Background the form asks for before testing.">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <Field label="Dominant hand" htmlFor={kit.id("athlete.dominantHand")} error={kit.error("athlete.dominantHand")} required>
-                        <Select
-                            id={kit.id("athlete.dominantHand")}
-                            name="scat6.athlete.dominantHand"
-                            value={draft.athlete.dominantHand}
-                            onChange={(event) => change((next) => { next.athlete.dominantHand = event.target.value as Scat6Draft["athlete"]["dominantHand"]; })}
-                        >
-                            <option value="">Choose…</option>
-                            <option value="LEFT">Left</option>
-                            <option value="RIGHT">Right</option>
-                            <option value="AMBIDEXTROUS">Ambidextrous</option>
-                        </Select>
-                    </Field>
-                    <Text kit={kit} path="athlete.sportTeamSchool" label="Sport, team or school" value={draft.athlete.sportTeamSchool} max={200} optional onChange={(value) => change((next) => { next.athlete.sportTeamSchool = value; })} />
-                    <Text kit={kit} path="athlete.currentSchoolYear" label="Current school year" value={draft.athlete.currentSchoolYear} max={50} optional onChange={(value) => change((next) => { next.athlete.currentSchoolYear = value; })} />
-                    <NumberField kit={kit} path="athlete.yearsOfEducation" label="Years of education" value={draft.athlete.yearsOfEducation} min={0} max={40} optional onChange={(value) => change((next) => { next.athlete.yearsOfEducation = value; })} />
-                    <Text kit={kit} path="athlete.firstLanguage" label="First language" value={draft.athlete.firstLanguage} max={100} optional onChange={(value) => change((next) => { next.athlete.firstLanguage = value; })} />
-                    <Text kit={kit} path="athlete.preferredLanguage" label="Preferred language" value={draft.athlete.preferredLanguage} max={100} optional onChange={(value) => change((next) => { next.athlete.preferredLanguage = value; })} />
-                </div>
-            </FormSection>
-
-            <FormSection title="Concussion history">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <FormSection title="Athlete background" info={<TermHint term="athleteBackground" />} description="What the form asks before testing.">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label="Dominant hand" htmlFor={scat6.id("athlete.dominantHand")} error={scat6.error("athlete.dominantHand")} required>
+                    <Select
+                        id={scat6.id("athlete.dominantHand")}
+                        name="scat6.athlete.dominantHand"
+                        value={draft.athlete.dominantHand}
+                        onChange={(event) => change((next) => { next.athlete.dominantHand = event.target.value as Scat6Draft["athlete"]["dominantHand"]; }, "athlete.dominantHand")}
+                    >
+                        <option value="">Choose…</option>
+                        <option value="LEFT">Left</option>
+                        <option value="RIGHT">Right</option>
+                        <option value="AMBIDEXTROUS">Ambidextrous</option>
+                    </Select>
+                </Field>
+                <Text scat6={scat6} path="athlete.sportTeamSchool" label="Sport, team or school" value={draft.athlete.sportTeamSchool} max={200} optional onChange={(value) => change((next) => { next.athlete.sportTeamSchool = value; })} />
+                <Text scat6={scat6} path="athlete.currentSchoolYear" label="Current school year" value={draft.athlete.currentSchoolYear} max={50} optional onChange={(value) => change((next) => { next.athlete.currentSchoolYear = value; })} />
+                <NumberField scat6={scat6} path="athlete.yearsOfEducation" label="Years of education" value={draft.athlete.yearsOfEducation} min={0} max={40} optional onChange={(value) => change((next) => { next.athlete.yearsOfEducation = value; })} />
+                <Text scat6={scat6} path="athlete.firstLanguage" label="First language" value={draft.athlete.firstLanguage} max={100} optional onChange={(value) => change((next) => { next.athlete.firstLanguage = value; })} />
+                <Text scat6={scat6} path="athlete.preferredLanguage" label="Preferred language" value={draft.athlete.preferredLanguage} max={100} optional onChange={(value) => change((next) => { next.athlete.preferredLanguage = value; })} />
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="flex flex-col gap-2">
                     <NumberField
-                        kit={kit}
+                        scat6={scat6}
                         path="concussionHistory.priorDiagnosedConcussions"
                         label="Diagnosed concussions before"
-                        value={draft.concussionHistory.priorDiagnosedConcussions}
+                        value={history.priorDiagnosedConcussions}
                         min={0}
                         max={100}
-                        onChange={(value) => change((next) => { next.concussionHistory.priorDiagnosedConcussions = value; })}
+                        onChange={(value) => change((next) => { next.concussionHistory.priorDiagnosedConcussions = value; }, "concussionHistory.priorDiagnosedConcussions")}
                     />
-                    <NumberField
-                        kit={kit}
-                        path="concussionHistory.mostRecentRecoveryDays"
-                        label="Days to recover from the last one"
-                        value={draft.concussionHistory.mostRecentRecoveryDays}
-                        min={0}
-                        max={3_650}
-                        optional
-                        onChange={(value) => change((next) => { next.concussionHistory.mostRecentRecoveryDays = value; })}
-                    />
-                    <Text kit={kit} path="concussionHistory.mostRecentConcussion" label="Most recent concussion" value={draft.concussionHistory.mostRecentConcussion} max={200} optional onChange={(value) => change((next) => { next.concussionHistory.mostRecentConcussion = value; })} />
-                </div>
-                <TextArea kit={kit} path="concussionHistory.primarySymptoms" label="Primary symptoms" value={draft.concussionHistory.primarySymptoms} max={1_000} optional onChange={(value) => change((next) => { next.concussionHistory.primarySymptoms = value; })} />
-            </FormSection>
-
-            <Part kit={kit} path="immediateAssessment" title="Immediate assessment" description="The on-field screen. Usually not performed at a baseline.">
-                <div className="grid gap-3 sm:grid-cols-2">
-                    <Flag kit={kit} path="immediateAssessment.observableSigns.witnessed" label="Signs witnessed" checked={ia.witnessed} onChange={(value) => change((next) => { next.immediateAssessment.witnessed = value; })} />
-                    <Flag kit={kit} path="immediateAssessment.observableSigns.observedOnVideo" label="Observed on video" checked={ia.observedOnVideo} onChange={(value) => change((next) => { next.immediateAssessment.observedOnVideo = value; })} />
-                </div>
-                <Toggles kit={kit} path="immediateAssessment.observableSigns.signs" legend="Observable signs present" values={ia.signs} onToggle={(index, value) => change((next) => { next.immediateAssessment.signs[index] = value; })} />
-                <GcsRows kit={kit} />
-                <div className="grid gap-3 sm:grid-cols-2">
-                    <Flag kit={kit} path="immediateAssessment.cervicalSpine.neckPainAtRest" label="Neck pain at rest" checked={ia.neckPainAtRest} onChange={(value) => change((next) => { next.immediateAssessment.neckPainAtRest = value; })} />
-                    <Flag kit={kit} path="immediateAssessment.cervicalSpine.tendernessToPalpation" label="Tenderness to palpation" checked={ia.tendernessToPalpation} onChange={(value) => change((next) => { next.immediateAssessment.tendernessToPalpation = value; })} />
-                    {!ia.neckPainAtRest && !ia.tendernessToPalpation && (
-                        <Flag
-                            kit={kit}
-                            path="immediateAssessment.cervicalSpine.fullActiveRangeOfMotion"
-                            label="Full active range of motion"
-                            checked={ia.fullActiveRangeOfMotion}
-                            onChange={(value) => change((next) => { next.immediateAssessment.fullActiveRangeOfMotion = value; })}
+                    {history.priorDiagnosedConcussions.trim() === "" && (
+                        <SuggestionChips
+                            label="Quick pick"
+                            suggestions={[{ label: "None", value: "0" }]}
+                            onPick={(value) => change((next) => { next.concussionHistory.priorDiagnosedConcussions = value; }, "concussionHistory.priorDiagnosedConcussions")}
                         />
                     )}
-                    <Flag
-                        kit={kit}
-                        path="immediateAssessment.cervicalSpine.limbStrengthAndSensationNormal"
-                        label="Limb strength and sensation normal"
-                        checked={ia.limbStrengthAndSensationNormal}
-                        onChange={(value) => change((next) => { next.immediateAssessment.limbStrengthAndSensationNormal = value; })}
-                    />
-                    <Flag kit={kit} path="immediateAssessment.coordinationOcularMotor.fingerToNoseNormal" label="Finger-to-nose normal" checked={ia.fingerToNoseNormal} onChange={(value) => change((next) => { next.immediateAssessment.fingerToNoseNormal = value; })} />
-                    <Flag
-                        kit={kit}
-                        path="immediateAssessment.coordinationOcularMotor.ocularMotorWithoutDoubleVision"
-                        label="No double vision"
-                        checked={ia.ocularMotorWithoutDoubleVision}
-                        onChange={(value) => change((next) => { next.immediateAssessment.ocularMotorWithoutDoubleVision = value; })}
-                    />
-                    <Flag
-                        kit={kit}
-                        path="immediateAssessment.coordinationOcularMotor.extraocularMovementsNormal"
-                        label="Extraocular movements normal"
-                        checked={ia.extraocularMovementsNormal}
-                        onChange={(value) => change((next) => { next.immediateAssessment.extraocularMovementsNormal = value; })}
-                    />
                 </div>
-                {!ia.extraocularMovementsNormal && (
-                    <TextArea
-                        kit={kit}
-                        path="immediateAssessment.coordinationOcularMotor.extraocularDescription"
-                        label="Describe the extraocular movements"
-                        value={ia.extraocularDescription}
-                        max={1_000}
-                        onChange={(value) => change((next) => { next.immediateAssessment.extraocularDescription = value; }, "immediateAssessment.coordinationOcularMotor.extraocularDescription")}
-                    />
-                )}
-                <Toggles kit={kit} path="immediateAssessment.maddocks" legend="Maddocks questions answered correctly" values={ia.maddocks} onToggle={(index, value) => change((next) => { next.immediateAssessment.maddocks[index] = value; })} />
-            </Part>
+                <NumberField
+                    scat6={scat6}
+                    path="concussionHistory.mostRecentRecoveryDays"
+                    label="Days to recover from the last one"
+                    value={history.mostRecentRecoveryDays}
+                    min={0}
+                    max={3_650}
+                    optional
+                    onChange={(value) => change((next) => { next.concussionHistory.mostRecentRecoveryDays = value; })}
+                />
+                <Text scat6={scat6} path="concussionHistory.mostRecentConcussion" label="Most recent concussion" value={history.mostRecentConcussion} max={200} optional onChange={(value) => change((next) => { next.concussionHistory.mostRecentConcussion = value; })} />
+            </div>
+            <TextArea scat6={scat6} path="concussionHistory.primarySymptoms" label="Primary symptoms" value={history.primarySymptoms} max={1_000} optional onChange={(value) => change((next) => { next.concussionHistory.primarySymptoms = value; })} />
+        </FormSection>
+    );
+}
 
-            <FormSection title="Background" description="Conditions that can affect the results.">
-                <div className="grid gap-3 sm:grid-cols-2">
-                    {(
-                        [
-                            ["hospitalisedForHeadInjury", "Hospitalised for a head injury"],
-                            ["headacheDisorderOrMigraine", "Headache disorder or migraine"],
-                            ["learningDisabilityOrDyslexia", "Learning disability or dyslexia"],
-                            ["adhd", "ADHD"],
-                            ["depressionAnxietyOrOtherPsychological", "Depression, anxiety or other psychological disorder"],
-                        ] as const
-                    ).map(([key, label]) => (
-                        <Flag key={key} kit={kit} path={`background.${key}`} label={label} checked={draft.background[key]} onChange={(value) => change((next) => { next.background[key] = value; })} />
-                    ))}
-                </div>
-                <TextArea kit={kit} path="background.notes" label="Notes" value={draft.background.notes} max={2_000} optional onChange={(value) => change((next) => { next.background.notes = value; })} />
-                <TextArea kit={kit} path="background.currentMedications" label="Current medications" value={draft.background.currentMedications} max={2_000} optional onChange={(value) => change((next) => { next.background.currentMedications = value; })} />
-            </FormSection>
+function ImmediateAssessmentFields({ scat6 }: { scat6: Scat6Controller }) {
+    const { draft, change } = scat6;
+    const ia = draft.immediateAssessment;
+    const yesNo = (path: string, label: string, value: YesNo, set: (next: Scat6Draft, value: boolean) => void) => (
+        <YesNoField scat6={scat6} path={path} label={label} value={value} onChange={(answer) => change((next) => set(next, answer), path)} />
+    );
+    return (
+        <OptionalPart scat6={scat6} part="immediateAssessment" title="Immediate assessment" term="immediateAssessment" description="The on-field screen after a suspected head injury." skipLabel="Not performed — baseline, no injury">
+            <div className="grid gap-3 sm:grid-cols-2">
+                {yesNo("immediateAssessment.observableSigns.witnessed", "Signs witnessed", ia.witnessed, (next, value) => { next.immediateAssessment.witnessed = value; })}
+                {yesNo("immediateAssessment.observableSigns.observedOnVideo", "Observed on video", ia.observedOnVideo, (next, value) => { next.immediateAssessment.observedOnVideo = value; })}
+            </div>
+            <Toggles scat6={scat6} path="immediateAssessment.observableSigns.signs" legend="Observable signs present" term="observableSigns" values={ia.signs} />
+            <GcsRows scat6={scat6} />
+            <div className="flex items-center gap-1.5">
+                <p className="text-sm font-medium text-fg">Cervical spine</p>
+                <TermHint term="cervicalSpine" />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+                {yesNo("immediateAssessment.cervicalSpine.neckPainAtRest", "Neck pain at rest", ia.neckPainAtRest, (next, value) => { next.immediateAssessment.neckPainAtRest = value; })}
+                {yesNo("immediateAssessment.cervicalSpine.tendernessToPalpation", "Tenderness to palpation", ia.tendernessToPalpation, (next, value) => { next.immediateAssessment.tendernessToPalpation = value; })}
+                {ia.neckPainAtRest === false &&
+                    ia.tendernessToPalpation === false &&
+                    yesNo("immediateAssessment.cervicalSpine.fullActiveRangeOfMotion", "Full active range of motion", ia.fullActiveRangeOfMotion, (next, value) => { next.immediateAssessment.fullActiveRangeOfMotion = value; })}
+                {yesNo("immediateAssessment.cervicalSpine.limbStrengthAndSensationNormal", "Limb strength and sensation normal", ia.limbStrengthAndSensationNormal, (next, value) => {
+                    next.immediateAssessment.limbStrengthAndSensationNormal = value;
+                })}
+                {yesNo("immediateAssessment.coordinationOcularMotor.fingerToNoseNormal", "Finger-to-nose normal", ia.fingerToNoseNormal, (next, value) => { next.immediateAssessment.fingerToNoseNormal = value; })}
+                {yesNo("immediateAssessment.coordinationOcularMotor.ocularMotorWithoutDoubleVision", "No double vision", ia.ocularMotorWithoutDoubleVision, (next, value) => {
+                    next.immediateAssessment.ocularMotorWithoutDoubleVision = value;
+                })}
+                {yesNo("immediateAssessment.coordinationOcularMotor.extraocularMovementsNormal", "Extraocular movements normal", ia.extraocularMovementsNormal, (next, value) => {
+                    next.immediateAssessment.extraocularMovementsNormal = value;
+                })}
+            </div>
+            {ia.extraocularMovementsNormal === false && (
+                <TextArea
+                    scat6={scat6}
+                    path="immediateAssessment.coordinationOcularMotor.extraocularDescription"
+                    label="Describe the extraocular movements"
+                    value={ia.extraocularDescription}
+                    max={1_000}
+                    onChange={(value) => change((next) => { next.immediateAssessment.extraocularDescription = value; }, "immediateAssessment.coordinationOcularMotor.extraocularDescription")}
+                />
+            )}
+            <Toggles scat6={scat6} path="immediateAssessment.maddocks" legend="Maddocks questions answered correctly" term="maddocks" values={ia.maddocks} />
+        </OptionalPart>
+    );
+}
 
-            <Part kit={kit} path="symptoms" title="Symptoms" description="The athlete rates each item 0–6, in form order.">
-                <fieldset className="flex flex-col gap-2">
-                    <legend className="mb-1 text-sm font-medium text-fg">Ratings by item</legend>
-                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-6 xl:grid-cols-8">
-                        {draft.symptoms.ratings.map((rating, index) => (
-                            <label key={index} className="flex flex-col gap-1 text-xs text-fg-muted">
-                                Item {index + 1}
+function BackgroundFields({ scat6 }: { scat6: Scat6Controller }) {
+    const { draft, change } = scat6;
+    return (
+        <FormSection title="Medical background" info={<TermHint term="athleteBackground" />} description="Conditions that can affect the results. Answer each one.">
+            <QuickFill label="None apply" icon={CheckCheck} available={canFillNoBackground(draft)} note={scat6.notes.background} onClick={() => scat6.quick("background", fillNoBackground, "background")} />
+            <div className="grid gap-3 sm:grid-cols-2">
+                {BACKGROUND_CONDITIONS.map(([key, label]) => (
+                    <YesNoField key={key} scat6={scat6} path={`background.${key}`} label={label} value={draft.background[key]} onChange={(value) => change((next) => { next.background[key] = value; }, `background.${key}`)} />
+                ))}
+            </div>
+            <TextArea scat6={scat6} path="background.notes" label="Notes" value={draft.background.notes} max={2_000} optional onChange={(value) => change((next) => { next.background.notes = value; })} />
+            <TextArea scat6={scat6} path="background.currentMedications" label="Current medications" value={draft.background.currentMedications} max={2_000} optional onChange={(value) => change((next) => { next.background.currentMedications = value; })} />
+        </FormSection>
+    );
+}
+
+function SymptomFields({ scat6 }: { scat6: Scat6Controller }) {
+    const { draft, change } = scat6;
+    const symptoms = draft.symptoms;
+    const rated = symptoms.ratings.filter((rating) => rating.trim() !== "").length;
+    const percent = symptoms.percentOfNormal.trim();
+    const ratingsError = symptoms.ratings.map((_, index) => scat6.error(`symptoms.ratings.${index}`)).find(Boolean);
+    return (
+        <Part scat6={scat6} path="symptoms" title="Symptom evaluation" term="symptomEvaluation" description="The athlete rates each item 0–6, in form order.">
+            <QuickFill label="No symptoms" icon={CheckCheck} available={canFillNoSymptoms(draft)} note={scat6.notes.symptoms} onClick={() => scat6.quick("symptoms", fillNoSymptoms, "symptoms")} />
+            <fieldset className="flex flex-col gap-2" aria-invalid={ratingsError ? true : undefined}>
+                <legend className="mb-1 text-sm font-medium text-fg">
+                    Ratings by item{" "}
+                    <span className="font-normal text-fg-subtle">
+                        ({rated} of {symptoms.ratings.length} rated)
+                    </span>
+                </legend>
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-6 xl:grid-cols-8">
+                    {symptoms.ratings.map((rating, index) => {
+                        const path = `symptoms.ratings.${index}`;
+                        const id = scat6.id(path);
+                        return (
+                            <div key={index} className="flex min-w-0 flex-col gap-1">
+                                <label htmlFor={id} className="text-xs text-fg-muted">
+                                    Item {index + 1}
+                                </label>
                                 <Select
-                                    id={kit.id(`symptoms.ratings.${index}`)}
-                                    name={`scat6.symptoms.ratings.${index}`}
+                                    id={id}
+                                    name={`scat6.${path}`}
                                     value={rating}
-                                    onChange={(event) => change((next) => { next.symptoms.ratings[index] = event.target.value; })}
-                                    aria-invalid={kit.error(`symptoms.ratings.${index}`) ? true : undefined}
+                                    onChange={(event) => change((next) => { next.symptoms.ratings[index] = event.target.value; }, path)}
+                                    aria-invalid={scat6.error(path) ? true : undefined}
                                 >
+                                    <option value="">–</option>
                                     {numbered(SCAT6.SYMPTOM_MAX_RATING + 1).map((value) => (
                                         <option key={value} value={value}>
                                             {value}
                                         </option>
                                     ))}
                                 </Select>
-                            </label>
-                        ))}
-                    </div>
-                </fieldset>
-                <div className="grid gap-3 sm:grid-cols-2">
-                    <Flag kit={kit} path="symptoms.worseWithPhysicalActivity" label="Worse with physical activity" checked={draft.symptoms.worseWithPhysicalActivity} onChange={(value) => change((next) => { next.symptoms.worseWithPhysicalActivity = value; })} />
-                    <Flag kit={kit} path="symptoms.worseWithMentalActivity" label="Worse with mental activity" checked={draft.symptoms.worseWithMentalActivity} onChange={(value) => change((next) => { next.symptoms.worseWithMentalActivity = value; })} />
+                            </div>
+                        );
+                    })}
                 </div>
-                <NumberField kit={kit} path="symptoms.percentOfNormal" label="Percent of normal" value={draft.symptoms.percentOfNormal} min={0} max={100} suffix="%" onChange={(value) => change((next) => { next.symptoms.percentOfNormal = value; })} />
-                {draft.symptoms.percentOfNormal.trim() !== "100" && (
-                    <TextArea kit={kit} path="symptoms.notNormalReason" label="Why not 100%" value={draft.symptoms.notNormalReason} max={1_000} optional onChange={(value) => change((next) => { next.symptoms.notNormalReason = value; })} />
-                )}
-            </Part>
-
-            <Part kit={kit} path="orientation" title="Orientation">
-                <Toggles kit={kit} path="orientation.answers" legend="Questions answered correctly" values={draft.orientation.answers} onToggle={(index, value) => change((next) => { next.orientation.answers[index] = value; })} />
-            </Part>
-
-            <Part kit={kit} path="immediateMemory" title="Immediate memory" description="Three trials of the same word list; tick each word recalled.">
-                <ListChoice kit={kit} path="immediateMemory.wordList" value={draft.immediateMemory.wordList} onChange={(value) => change((next) => { next.immediateMemory.wordList = value; }, "immediateMemory.wordList")} />
-                {draft.immediateMemory.trials.map((trial, trialIndex) => (
-                    <Toggles
-                        key={trialIndex}
-                        kit={kit}
-                        path={`immediateMemory.trials.${trialIndex}`}
-                        legend={`Trial ${trialIndex + 1}: words recalled`}
-                        values={trial}
-                        itemLabel="Word"
-                        onToggle={(index, value) => change((next) => { next.immediateMemory.trials[trialIndex][index] = value; })}
-                    />
-                ))}
-                <DateTime
-                    kit={kit}
-                    path="immediateMemory.lastTrialCompletedAt"
-                    label="Last trial completed"
-                    value={draft.immediateMemory.lastTrialCompletedAt}
-                    onChange={(value) => change((next) => { next.immediateMemory.lastTrialCompletedAt = value; }, "immediateMemory.lastTrialCompletedAt")}
+                <ErrorText message={ratingsError} />
+            </fieldset>
+            <div className="grid gap-3 sm:grid-cols-2">
+                <YesNoField scat6={scat6} path="symptoms.worseWithPhysicalActivity" label="Worse with physical activity" value={symptoms.worseWithPhysicalActivity} onChange={(value) => change((next) => { next.symptoms.worseWithPhysicalActivity = value; }, "symptoms.worseWithPhysicalActivity")} />
+                <YesNoField scat6={scat6} path="symptoms.worseWithMentalActivity" label="Worse with mental activity" value={symptoms.worseWithMentalActivity} onChange={(value) => change((next) => { next.symptoms.worseWithMentalActivity = value; }, "symptoms.worseWithMentalActivity")} />
+            </div>
+            <div className="flex flex-col gap-2">
+                <NumberField
+                    scat6={scat6}
+                    path="symptoms.percentOfNormal"
+                    label="Percent of normal"
+                    info={<TermHint term="percentOfNormal" />}
+                    value={symptoms.percentOfNormal}
+                    min={0}
+                    max={100}
+                    suffix="%"
+                    onChange={(value) => change((next) => { next.symptoms.percentOfNormal = value; }, "symptoms.percentOfNormal")}
                 />
+                {percent === "" && (
+                    <SuggestionChips label="Athlete said" suggestions={[{ label: "100%", value: "100" }]} onPick={(value) => change((next) => { next.symptoms.percentOfNormal = value; }, "symptoms.percentOfNormal")} />
+                )}
+            </div>
+            {percent !== "" && percent !== "100" && (
+                <TextArea scat6={scat6} path="symptoms.notNormalReason" label="Why not 100%" value={symptoms.notNormalReason} max={1_000} optional onChange={(value) => change((next) => { next.symptoms.notNormalReason = value; })} />
+            )}
+        </Part>
+    );
+}
+
+/* ─── Step 2: memory and concentration ────────────────────────────────────── */
+
+/** Orientation, immediate memory, digits backward and months in reverse. */
+export function Scat6MemoryFields({ scat6 }: { scat6: Scat6Controller }) {
+    const { draft, change } = scat6;
+    const memory = draft.immediateMemory;
+    const months = draft.monthsReverse;
+    return (
+        <>
+            <Part scat6={scat6} path="orientation" title="Orientation" term="orientation">
+                <Toggles scat6={scat6} path="orientation.answers" legend="Questions answered correctly" values={draft.orientation.answers} />
             </Part>
 
-            <Part kit={kit} path="digitsBackward" title="Digits backward" description="Strings by length, shortest first. Trial 2 only after a wrong trial 1; the test ends when both trials of a length are wrong.">
-                <ListChoice kit={kit} path="digitsBackward.digitList" value={draft.digitsBackward.digitList} onChange={(value) => change((next) => { next.digitsBackward.digitList = value; }, "digitsBackward.digitList")} />
-                <DigitStrings kit={kit} />
+            <Part scat6={scat6} path="immediateMemory" title="Immediate memory" term="immediateMemory" description="Three trials of the same word list; tick each word recalled.">
+                <ListChoice scat6={scat6} path="immediateMemory.wordList" value={memory.wordList} onChange={(value) => change((next) => { next.immediateMemory.wordList = value; }, "immediateMemory.wordList")} />
+                {memory.trials.map((trial, trialIndex) => (
+                    <Toggles key={trialIndex} scat6={scat6} path={`immediateMemory.trials.${trialIndex}`} legend={`Trial ${trialIndex + 1}: words recalled`} values={trial} itemLabel="Word" />
+                ))}
+                <StampedTime scat6={scat6} field="immediateMemory.lastTrialCompletedAt" label="Last trial completed" value={memory.lastTrialCompletedAt} hint="Delayed recall starts at least 5 minutes after this." />
             </Part>
 
-            <Part kit={kit} path="monthsReverse" title="Months in reverse order" description="Tick each response given correctly, in the form's order.">
-                <Toggles kit={kit} path="monthsReverse.correctResponses" legend="Correct responses" values={draft.monthsReverse.correct} onToggle={(index, value) => change((next) => { next.monthsReverse.correct[index] = value; })} />
-                <div className="grid grid-cols-2 gap-4 sm:max-w-md">
-                    <NumberField kit={kit} path="monthsReverse.timeSeconds" label="Time" value={draft.monthsReverse.timeSeconds} min={0} max={3_600} step="0.1" suffix="s" onChange={(value) => change((next) => { next.monthsReverse.timeSeconds = value; })} />
-                    <NumberField kit={kit} path="monthsReverse.errors" label="Errors" value={draft.monthsReverse.errors} min={0} max={SCAT6.MONTHS} onChange={(value) => change((next) => { next.monthsReverse.errors = value; })} />
+            <Part
+                scat6={scat6}
+                path="digitsBackward"
+                title="Digits backward"
+                term="digitsBackward"
+                description="Strings by length, shortest first. Trial 2 only after a wrong trial 1; the test ends when both trials of a length are wrong."
+            >
+                <ListChoice scat6={scat6} path="digitsBackward.digitList" value={draft.digitsBackward.digitList} onChange={(value) => change((next) => { next.digitsBackward.digitList = value; }, "digitsBackward.digitList")} />
+                <DigitStrings scat6={scat6} />
+            </Part>
+
+            <Part scat6={scat6} path="monthsReverse" title="Months in reverse order" term="monthsReverse" description="Tick each response given correctly, in the form's order.">
+                <Toggles scat6={scat6} path="monthsReverse.correctResponses" legend="Correct responses" values={months.correct} />
+                <div className="grid grid-cols-1 gap-4 sm:max-w-md sm:grid-cols-2">
+                    <NumberField scat6={scat6} path="monthsReverse.timeSeconds" label="Time" value={months.timeSeconds} min={0} max={3_600} step="0.1" suffix="s" onChange={(value) => change((next) => { next.monthsReverse.timeSeconds = value; }, "monthsReverse.timeSeconds")} />
+                    <div className="flex flex-col gap-2">
+                        <NumberField scat6={scat6} path="monthsReverse.errors" label="Errors" value={months.errors} min={0} max={SCAT6.MONTHS} onChange={(value) => change((next) => { next.monthsReverse.errors = value; }, "monthsReverse.errors")} />
+                        {months.errors.trim() === "" && draft.marked["monthsReverse.correctResponses"] && months.correct.every(Boolean) && (
+                            <SuggestionChips label="Quick pick" suggestions={[{ label: "No errors", value: "0" }]} onPick={(value) => change((next) => { next.monthsReverse.errors = value; }, "monthsReverse.errors")} />
+                        )}
+                    </div>
                 </div>
             </Part>
+        </>
+    );
+}
 
-            <Part kit={kit} path="mbess" title="Balance (mBESS)" description="Errors per 20-second stance. A stance not held for 5 seconds at the start scores the maximum.">
+/* ─── Step 3: balance, delayed recall and the SCAT6 decision ──────────────── */
+
+const SURFACES = [{ label: "Firm floor" }, { label: "Mat" }];
+const FOOTWEAR = [{ label: "Barefoot" }, { label: "Shoes" }];
+
+/** mBESS, tandem and dual-task gait, delayed recall and the doctor's reading of the SCAT6. */
+export function Scat6BalanceFields({ scat6 }: { scat6: Scat6Controller }) {
+    const { draft, change } = scat6;
+    const dual = draft.dualTaskGait;
+    const earliest = delayedRecallEarliest(draft);
+    const pick = (field: "testingSurface" | "footwear", options: { label: string }[]) => (value: string) =>
+        change((next) => {
+            const current = next.mbess[field].trim();
+            // A chip fills a blank field or switches between chips; it never replaces something typed.
+            if (current === "" || options.some((option) => option.label === current)) next.mbess[field] = value;
+        }, `mbess.${field}`);
+    return (
+        <>
+            <Part scat6={scat6} path="mbess" title="Balance (mBESS)" term="mbess" description="Errors per 20-second stance. A stance not held for 5 seconds at the start scores the maximum.">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                    <Field label="Foot tested" htmlFor={kit.id("mbess.footTested")} error={kit.error("mbess.footTested")} required>
+                    <Field label="Foot tested" htmlFor={scat6.id("mbess.footTested")} error={scat6.error("mbess.footTested")} required hint="Usually the non-dominant foot.">
                         <Select
-                            id={kit.id("mbess.footTested")}
+                            id={scat6.id("mbess.footTested")}
                             name="scat6.mbess.footTested"
                             value={draft.mbess.footTested}
-                            onChange={(event) => change((next) => { next.mbess.footTested = event.target.value as Scat6Draft["mbess"]["footTested"]; })}
+                            onChange={(event) => change((next) => { next.mbess.footTested = event.target.value as Scat6Draft["mbess"]["footTested"]; }, "mbess.footTested")}
                         >
                             <option value="">Choose…</option>
                             <option value="LEFT">Left</option>
                             <option value="RIGHT">Right</option>
                         </Select>
                     </Field>
-                    <Text kit={kit} path="mbess.testingSurface" label="Testing surface" value={draft.mbess.testingSurface} max={200} onChange={(value) => change((next) => { next.mbess.testingSurface = value; })} />
-                    <Text kit={kit} path="mbess.footwear" label="Footwear" value={draft.mbess.footwear} max={200} onChange={(value) => change((next) => { next.mbess.footwear = value; })} />
+                    <div className="flex flex-col gap-2">
+                        <Text scat6={scat6} path="mbess.testingSurface" label="Testing surface" value={draft.mbess.testingSurface} max={200} onChange={(value) => change((next) => { next.mbess.testingSurface = value; }, "mbess.testingSurface")} />
+                        <SuggestionChips label="Quick pick" suggestions={SURFACES} onPick={pick("testingSurface", SURFACES)} />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                        <Text scat6={scat6} path="mbess.footwear" label="Footwear" value={draft.mbess.footwear} max={200} onChange={(value) => change((next) => { next.mbess.footwear = value; }, "mbess.footwear")} />
+                        <SuggestionChips label="Quick pick" suggestions={FOOTWEAR} onPick={pick("footwear", FOOTWEAR)} />
+                    </div>
                 </div>
-                <Stances kit={kit} surface="firm" stances={draft.mbess.firm} />
+                <Stances scat6={scat6} surface="firm" stances={draft.mbess.firm} />
                 <Checkbox
-                    id={kit.id("mbess.foam.performed")}
+                    id={scat6.id("mbess.foam.performed")}
                     name="scat6.mbess.foam.performed"
                     checked={draft.mbess.foamPerformed}
                     onChange={(event) => change((next) => { next.mbess.foamPerformed = event.target.checked; })}
                     label="Also tested on foam"
                 />
-                {draft.mbess.foamPerformed && <Stances kit={kit} surface="foam" stances={draft.mbess.foam} />}
+                {draft.mbess.foamPerformed && <Stances scat6={scat6} surface="foam" stances={draft.mbess.foam} />}
             </Part>
 
-            <Part kit={kit} path="tandemGait" title="Timed tandem gait" description="Three trials. Untick a trial the athlete didn't complete.">
-                <GaitTrials kit={kit} />
+            <Part scat6={scat6} path="tandemGait" title="Timed tandem gait" term="tandemGait" description="Three trials. Tick “Stopped early” for a trial the athlete didn't complete.">
+                <GaitTrials scat6={scat6} />
             </Part>
 
-            <Part kit={kit} path="dualTaskGait" title="Dual-task gait" description="Optional. Needs all three tandem gait trials completed first.">
+            <OptionalPart scat6={scat6} part="dualTaskGait" title="Dual-task gait" term="dualTaskGait" description="Optional. Needs all three tandem gait trials completed first." skipLabel="Not done at this baseline">
                 <NumberField
-                    kit={kit}
+                    scat6={scat6}
                     path="dualTaskGait.subtractionStep"
                     label="Subtraction step"
                     value={dual.subtractionStep}
@@ -343,13 +508,13 @@ function AdministeredSections({ kit }: { kit: Kit }) {
                     hint="7 unless the practice couldn't be completed with 7s."
                     onChange={(value) => change((next) => { next.dualTaskGait.subtractionStep = value; })}
                 />
-                <Toggles kit={kit} path="dualTaskGait.practice.correctResponses" legend="Practice: correct responses" values={dual.practice.correct} onToggle={(index, value) => change((next) => { next.dualTaskGait.practice.correct[index] = value; })} />
-                <div className="grid grid-cols-2 gap-4 sm:max-w-md">
-                    <NumberField kit={kit} path="dualTaskGait.practice.errors" label="Practice errors" value={dual.practice.errors} min={0} max={100} onChange={(value) => change((next) => { next.dualTaskGait.practice.errors = value; })} />
-                    <NumberField kit={kit} path="dualTaskGait.practice.timeSeconds" label="Practice time" value={dual.practice.timeSeconds} min={0} max={3_600} step="0.1" suffix="s" optional onChange={(value) => change((next) => { next.dualTaskGait.practice.timeSeconds = value; })} />
+                <Toggles scat6={scat6} path="dualTaskGait.practice.correctResponses" legend="Practice: correct responses" values={dual.practice.correct} />
+                <div className="grid grid-cols-1 gap-4 sm:max-w-md sm:grid-cols-2">
+                    <NumberField scat6={scat6} path="dualTaskGait.practice.errors" label="Practice errors" value={dual.practice.errors} min={0} max={100} onChange={(value) => change((next) => { next.dualTaskGait.practice.errors = value; })} />
+                    <NumberField scat6={scat6} path="dualTaskGait.practice.timeSeconds" label="Practice time" value={dual.practice.timeSeconds} min={0} max={3_600} step="0.1" suffix="s" optional onChange={(value) => change((next) => { next.dualTaskGait.practice.timeSeconds = value; })} />
                 </div>
                 <ChoiceGroup
-                    id={kit.id("dualTaskGait.sequence.kind")}
+                    id={scat6.id("dualTaskGait.sequence.kind")}
                     name="scat6.dualTaskGait.sequence.kind"
                     legend="Trials used"
                     columns={2}
@@ -360,25 +525,31 @@ function AdministeredSections({ kit }: { kit: Kit }) {
                     ]}
                     value={dual.kind}
                     onChange={(kind) => change((next) => { next.dualTaskGait.kind = kind; }, "dualTaskGait.sequence")}
-                    error={kit.error("dualTaskGait.sequence")}
+                    error={scat6.error("dualTaskGait.sequence")}
                 />
-                {dual.kind === "PRINTED" ? <PrintedTrials kit={kit} /> : <AlternateTrial kit={kit} />}
-            </Part>
+                {dual.kind === "PRINTED" ? <PrintedTrials scat6={scat6} /> : <AlternateTrial scat6={scat6} />}
+            </OptionalPart>
 
             {anyGaitTrialIncomplete(draft) && (
                 <FormSection title="Gait trials not completed">
-                    <TextArea kit={kit} path="gaitIncompleteReason" label="Why a gait trial wasn't completed" value={draft.gaitIncompleteReason} max={1_000} onChange={(value) => change((next) => { next.gaitIncompleteReason = value; }, "gaitIncompleteReason")} />
+                    <TextArea scat6={scat6} path="gaitIncompleteReason" label="Why a gait trial wasn't completed" value={draft.gaitIncompleteReason} max={1_000} onChange={(value) => change((next) => { next.gaitIncompleteReason = value; }, "gaitIncompleteReason")} />
                 </FormSection>
             )}
 
-            <Part kit={kit} path="delayedRecall" title="Delayed recall" description="The Immediate Memory list, at least 5 minutes after its last trial.">
-                <DateTime kit={kit} path="delayedRecall.startedAt" label="Started" value={draft.delayedRecall.startedAt} onChange={(value) => change((next) => { next.delayedRecall.startedAt = value; }, "delayedRecall.startedAt")} />
-                <Toggles kit={kit} path="delayedRecall.words" legend="Words recalled" values={draft.delayedRecall.words} itemLabel="Word" onToggle={(index, value) => change((next) => { next.delayedRecall.words[index] = value; })} />
+            <Part scat6={scat6} path="delayedRecall" title="Delayed recall" term="delayedRecall" description="The immediate memory list again, at least 5 minutes after its last trial.">
+                <StampedTime
+                    scat6={scat6}
+                    field="delayedRecall.startedAt"
+                    label="Started"
+                    value={draft.delayedRecall.startedAt}
+                    hint={earliest ? `Can start from ${earliest.slice(11)} (5 minutes after the last memory trial).` : "Record when the last memory trial ended first."}
+                />
+                <Toggles scat6={scat6} path="delayedRecall.words" legend="Words recalled" values={draft.delayedRecall.words} itemLabel="Word" />
             </Part>
 
-            <FormSection title="Decision" description="Your overall reading of the SCAT6.">
+            <FormSection title="SCAT6 decision" description="Your overall reading of the SCAT6.">
                 <ChoiceGroup
-                    id={kit.id("differentFromUsualSelf")}
+                    id={scat6.id("differentFromUsualSelf")}
                     name="scat6.differentFromUsualSelf"
                     legend="Different from their usual self?"
                     required
@@ -391,11 +562,11 @@ function AdministeredSections({ kit }: { kit: Kit }) {
                     ]}
                     value={draft.differentFromUsualSelf}
                     onChange={(value) => change((next) => { next.differentFromUsualSelf = value; }, "differentFromUsualSelf")}
-                    error={kit.error("differentFromUsualSelf")}
+                    error={scat6.error("differentFromUsualSelf")}
                 />
-                <Field label="Concussion diagnosed" htmlFor={kit.id("concussionDiagnosed")} error={kit.error("concussionDiagnosed")} optional>
+                <Field label="Concussion diagnosed" htmlFor={scat6.id("concussionDiagnosed")} error={scat6.error("concussionDiagnosed")} optional>
                     <Select
-                        id={kit.id("concussionDiagnosed")}
+                        id={scat6.id("concussionDiagnosed")}
                         name="scat6.concussionDiagnosed"
                         value={draft.concussionDiagnosed}
                         onChange={(event) => change((next) => { next.concussionDiagnosed = event.target.value as Scat6Draft["concussionDiagnosed"]; })}
@@ -407,7 +578,7 @@ function AdministeredSections({ kit }: { kit: Kit }) {
                         <option value="DEFERRED">Deferred</option>
                     </Select>
                 </Field>
-                <TextArea kit={kit} path="clinicalNotes" label="Clinical notes" value={draft.clinicalNotes} max={4_000} optional onChange={(value) => change((next) => { next.clinicalNotes = value; })} />
+                <TextArea scat6={scat6} path="clinicalNotes" label="Clinical notes" value={draft.clinicalNotes} max={4_000} optional onChange={(value) => change((next) => { next.clinicalNotes = value; })} />
             </FormSection>
         </>
     );
@@ -415,43 +586,95 @@ function AdministeredSections({ kit }: { kit: Kit }) {
 
 /* ─── Parts ───────────────────────────────────────────────────────────────── */
 
-type PartPath = "immediateAssessment" | "symptoms" | "orientation" | "immediateMemory" | "digitsBackward" | "monthsReverse" | "mbess" | "tandemGait" | "dualTaskGait" | "delayedRecall";
+type PartPath = "symptoms" | "orientation" | "immediateMemory" | "digitsBackward" | "monthsReverse" | "mbess" | "tandemGait" | "delayedRecall";
 
-/** A part of the test, performed with its answers or not performed with the reason. */
-function Part({ kit, path, title, description, children }: { kit: Kit; path: PartPath; title: string; description?: ReactNode; children: ReactNode }) {
-    const part = kit.draft[path];
+/** A part every baseline performs unless the doctor says otherwise, with the reason. */
+function Part({ scat6, path, title, term, description, children }: { scat6: Scat6Controller; path: PartPath; title: string; term: GlossaryTerm; description?: ReactNode; children: ReactNode }) {
+    const part = scat6.draft[path];
+    const message = scat6.error(path);
     return (
-        <FormSection title={title} description={description}>
-            <Checkbox
-                id={kit.id(`${path}.performed`)}
-                name={`scat6.${path}.performed`}
-                checked={part.performed}
-                onChange={(event) => kit.change((next) => { next[path].performed = event.target.checked; }, path)}
-                label="Performed"
-            />
-            <ErrorText message={kit.error(path)} />
+        <FormSection title={title} info={<TermHint term={term} />} description={description}>
+            <div data-invalid={message ? "true" : undefined} className="flex flex-col gap-1">
+                <Checkbox
+                    id={scat6.id(`${path}.performed`)}
+                    name={`scat6.${path}.performed`}
+                    checked={!part.performed}
+                    onChange={(event) => scat6.change((next) => { next[path].performed = !event.target.checked; }, path)}
+                    label="Not performed"
+                />
+                <ErrorText message={message} />
+            </div>
             {part.performed ? (
                 children
             ) : (
-                <TextArea kit={kit} path={`${path}.reason`} label="Why it wasn't performed" value={part.reason} max={1_000} onChange={(value) => kit.change((next) => { next[path].reason = value; }, `${path}.reason`)} />
+                <TextArea scat6={scat6} path={`${path}.reason`} label="Why it wasn't performed" value={part.reason} max={1_000} onChange={(value) => scat6.change((next) => { next[path].reason = value; }, `${path}.reason`)} />
             )}
         </FormSection>
     );
 }
 
-function GcsRows({ kit }: { kit: Kit }) {
-    const rows = kit.draft.immediateAssessment.gcs;
+/** A part a baseline often skips: the doctor says whether it was performed, with a one-click "not performed" for the usual reason. */
+function OptionalPart({
+    scat6,
+    part,
+    title,
+    term,
+    description,
+    skipLabel,
+    children,
+}: {
+    scat6: Scat6Controller;
+    part: "immediateAssessment" | "dualTaskGait";
+    title: string;
+    term: GlossaryTerm;
+    description: string;
+    skipLabel: string;
+    children: ReactNode;
+}) {
+    const { performed, reason } = scat6.draft[part];
+    const message = scat6.error(`${part}.performed`) ?? scat6.error(part);
+    return (
+        <FormSection title={title} info={<TermHint term={term} />} description={description}>
+            <ChoiceGroup
+                id={scat6.id(`${part}.performed`)}
+                name={`scat6.${part}.performed`}
+                legend="Performed at this visit?"
+                required
+                columns={2}
+                variant="compact"
+                options={[
+                    { value: "YES", label: "Performed" },
+                    { value: "NO", label: "Not performed" },
+                ]}
+                value={performed === null ? "" : performed ? "YES" : "NO"}
+                onChange={(value) => scat6.change((next) => { next[part].performed = value === "YES"; }, part)}
+                error={message}
+            />
+            <QuickFill label={skipLabel} icon={SkipForward} available={performed === null} note={scat6.notes[part]} onClick={() => scat6.quick(part, (draft) => skipPart(draft, part), part)} />
+            {performed === false && (
+                <TextArea scat6={scat6} path={`${part}.reason`} label="Why it wasn't performed" value={reason} max={1_000} onChange={(value) => scat6.change((next) => { next[part].reason = value; }, `${part}.reason`)} />
+            )}
+            {performed === true && children}
+        </FormSection>
+    );
+}
+
+function GcsRows({ scat6 }: { scat6: Scat6Controller }) {
+    const rows = scat6.draft.immediateAssessment.gcs;
     const scale = (row: number, key: "eye" | "verbal" | "motor", label: string, max: number) => {
         const path = `immediateAssessment.glasgowComaScale.${row}.${key}`;
+        const id = scat6.id(path);
         return (
-            <label className="flex flex-col gap-1 text-xs text-fg-muted">
-                {label}
+            <div className="flex flex-col gap-1">
+                <label htmlFor={id} className="text-xs text-fg-muted">
+                    {label}
+                </label>
                 <Select
-                    id={kit.id(path)}
+                    id={id}
                     name={`scat6.${path}`}
                     value={rows[row][key]}
-                    onChange={(event) => kit.change((next) => { next.immediateAssessment.gcs[row][key] = event.target.value; })}
-                    aria-invalid={kit.error(path) ? true : undefined}
+                    onChange={(event) => scat6.change((next) => { next.immediateAssessment.gcs[row][key] = event.target.value; }, path)}
+                    aria-invalid={scat6.error(path) ? true : undefined}
                 >
                     <option value="">–</option>
                     {numbered(max).map((index) => (
@@ -460,21 +683,23 @@ function GcsRows({ kit }: { kit: Kit }) {
                         </option>
                     ))}
                 </Select>
-                <ErrorText message={kit.error(path)} />
-            </label>
+                <ErrorText message={scat6.error(path)} />
+            </div>
         );
     };
     return (
         <fieldset className="flex flex-col gap-3">
-            <legend className="mb-1 text-sm font-medium text-fg">Glasgow Coma Scale</legend>
+            <legend className="mb-1 flex items-center gap-1.5 text-sm font-medium text-fg">
+                Glasgow Coma Scale <TermHint term="gcs" />
+            </legend>
             {rows.map((row, index) => (
                 <div key={index} className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 rounded-lg border border-border p-3 sm:grid-cols-[minmax(0,14rem)_repeat(3,5rem)_auto]">
                     <DateTime
-                        kit={kit}
+                        scat6={scat6}
                         path={`immediateAssessment.glasgowComaScale.${index}.assessedAt`}
                         label={`Assessment ${index + 1}`}
                         value={row.assessedAt}
-                        onChange={(value) => kit.change((next) => { next.immediateAssessment.gcs[index].assessedAt = value; })}
+                        onChange={(value) => scat6.change((next) => { next.immediateAssessment.gcs[index].assessedAt = value; }, `immediateAssessment.glasgowComaScale.${index}.assessedAt`)}
                     />
                     {scale(index, "eye", "Eye", 4)}
                     {scale(index, "verbal", "Verbal", 5)}
@@ -484,7 +709,7 @@ function GcsRows({ kit }: { kit: Kit }) {
                         size="icon"
                         disabled={rows.length === 1}
                         aria-label={`Remove assessment ${index + 1}`}
-                        onClick={() => kit.change((next) => { next.immediateAssessment.gcs.splice(index, 1); }, "immediateAssessment.glasgowComaScale")}
+                        onClick={() => scat6.change((next) => { next.immediateAssessment.gcs.splice(index, 1); }, "immediateAssessment.glasgowComaScale")}
                     >
                         <X />
                     </Button>
@@ -495,7 +720,7 @@ function GcsRows({ kit }: { kit: Kit }) {
                     variant="secondary"
                     size="sm"
                     className="self-start"
-                    onClick={() => kit.change((next) => { next.immediateAssessment.gcs.push({ assessedAt: kit.nowInput, eye: "", verbal: "", motor: "" }); })}
+                    onClick={() => scat6.change((next) => { next.immediateAssessment.gcs.push({ assessedAt: "", eye: "", verbal: "", motor: "" }); })}
                 >
                     <Plus aria-hidden />
                     Add assessment
@@ -505,10 +730,10 @@ function GcsRows({ kit }: { kit: Kit }) {
     );
 }
 
-function DigitStrings({ kit }: { kit: Kit }) {
-    const strings = kit.draft.digitsBackward.strings;
+function DigitStrings({ scat6 }: { scat6: Scat6Controller }) {
+    const strings = scat6.draft.digitsBackward.strings;
     const answer = (index: number, trial: "trial1" | "trial2", value: boolean) =>
-        kit.change((next) => {
+        scat6.change((next) => {
             const entries = next.digitsBackward.strings;
             entries[index][trial] = value;
             if (trial === "trial1" && value) entries[index].trial2 = null;
@@ -518,13 +743,13 @@ function DigitStrings({ kit }: { kit: Kit }) {
         }, "digitsBackward.strings");
     return (
         <div className="flex flex-col gap-2">
-            <ErrorText message={kit.error("digitsBackward.strings")} />
+            <ErrorText message={scat6.error("digitsBackward.strings")} />
             {strings.map((entry, index) => (
                 <div key={index} className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border border-border px-3 py-2.5">
                     <span className="w-28 text-sm font-medium text-fg">String length {index + 1}</span>
-                    <YesNo kit={kit} path={`digitsBackward.strings.${index}.trial1Correct`} label="Trial 1 correct" value={entry.trial1} onChange={(value) => answer(index, "trial1", value)} />
+                    <YesNoField scat6={scat6} path={`digitsBackward.strings.${index}.trial1Correct`} label="Trial 1 correct" value={entry.trial1} inline onChange={(value) => answer(index, "trial1", value)} />
                     {entry.trial1 === false && (
-                        <YesNo kit={kit} path={`digitsBackward.strings.${index}.trial2Correct`} label="Trial 2 correct" value={entry.trial2} onChange={(value) => answer(index, "trial2", value)} />
+                        <YesNoField scat6={scat6} path={`digitsBackward.strings.${index}.trial2Correct`} label="Trial 2 correct" value={entry.trial2} inline onChange={(value) => answer(index, "trial2", value)} />
                     )}
                 </div>
             ))}
@@ -532,7 +757,7 @@ function DigitStrings({ kit }: { kit: Kit }) {
     );
 }
 
-function Stances({ kit, surface, stances }: { kit: Kit; surface: "firm" | "foam"; stances: StancesDraft }) {
+function Stances({ scat6, surface, stances }: { scat6: Scat6Controller; surface: "firm" | "foam"; stances: StancesDraft }) {
     const base = surface === "firm" ? "mbess.firm" : "mbess.foam.stances";
     return (
         <fieldset className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -546,37 +771,40 @@ function Stances({ kit, surface, stances }: { kit: Kit; surface: "firm" | "foam"
             ).map(([key, label]) => (
                 <div key={key} className="flex flex-col gap-2 rounded-lg border border-border p-3">
                     <p className="text-sm font-medium text-fg">{label}</p>
-                    <Checkbox
-                        id={kit.id(`${base}.${key}.held`)}
-                        name={`scat6.${base}.${key}.held`}
-                        checked={stances[key].held}
-                        onChange={(event) => kit.change((next) => { next.mbess[surface][key].held = event.target.checked; })}
-                        label="Held for 5 seconds"
-                    />
                     {stances[key].held && (
-                        <NumberField kit={kit} path={`${base}.${key}.errors`} label="Errors" value={stances[key].errors} min={0} max={SCAT6.MBESS_MAX_ERRORS} onChange={(value) => kit.change((next) => { next.mbess[surface][key].errors = value; })} />
+                        <NumberField
+                            scat6={scat6}
+                            path={`${base}.${key}.errors`}
+                            label="Errors"
+                            value={stances[key].errors}
+                            min={0}
+                            max={SCAT6.MBESS_MAX_ERRORS}
+                            onChange={(value) => scat6.change((next) => { next.mbess[surface][key].errors = value; }, `${base}.${key}.errors`)}
+                        />
                     )}
+                    <Checkbox
+                        id={scat6.id(`${base}.${key}.unableToHoldFiveSeconds`)}
+                        name={`scat6.${base}.${key}.unableToHoldFiveSeconds`}
+                        checked={!stances[key].held}
+                        onChange={(event) => scat6.change((next) => { next.mbess[surface][key].held = !event.target.checked; }, `${base}.${key}`)}
+                        label="Couldn't hold for 5 seconds"
+                        description={stances[key].held ? undefined : "Scores the maximum of 10 errors."}
+                    />
                 </div>
             ))}
         </fieldset>
     );
 }
 
-function GaitTrials({ kit }: { kit: Kit }) {
+function GaitTrials({ scat6 }: { scat6: Scat6Controller }) {
     return (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            {kit.draft.tandemGait.trials.map((trial, index) => (
+            {scat6.draft.tandemGait.trials.map((trial, index) => (
                 <div key={index} className="flex flex-col gap-2 rounded-lg border border-border p-3">
-                    <Checkbox
-                        id={kit.id(`tandemGait.trials.${index}.completed`)}
-                        name={`scat6.tandemGait.trials.${index}.completed`}
-                        checked={trial.completed}
-                        onChange={(event) => kit.change((next) => { next.tandemGait.trials[index].completed = event.target.checked; })}
-                        label={`Trial ${index + 1} completed`}
-                    />
+                    <p className="text-sm font-medium text-fg">Trial {index + 1}</p>
                     {trial.completed && (
                         <NumberField
-                            kit={kit}
+                            scat6={scat6}
                             path={`tandemGait.trials.${index}.timeSeconds`}
                             label="Time"
                             value={trial.timeSeconds}
@@ -584,35 +812,36 @@ function GaitTrials({ kit }: { kit: Kit }) {
                             max={3_600}
                             step="0.1"
                             suffix="s"
-                            onChange={(value) => kit.change((next) => { next.tandemGait.trials[index].timeSeconds = value; })}
+                            onChange={(value) => scat6.change((next) => { next.tandemGait.trials[index].timeSeconds = value; }, `tandemGait.trials.${index}.timeSeconds`)}
                         />
                     )}
+                    <Checkbox
+                        id={scat6.id(`tandemGait.trials.${index}.completed`)}
+                        name={`scat6.tandemGait.trials.${index}.completed`}
+                        checked={!trial.completed}
+                        onChange={(event) => scat6.change((next) => { next.tandemGait.trials[index].completed = !event.target.checked; }, `tandemGait.trials.${index}`)}
+                        label="Stopped early"
+                    />
                 </div>
             ))}
         </div>
     );
 }
 
-function PrintedTrials({ kit }: { kit: Kit }) {
+function PrintedTrials({ scat6 }: { scat6: Scat6Controller }) {
     return (
         <div className="flex flex-col gap-3">
-            {kit.draft.dualTaskGait.printed.map((trial, index) => {
+            {scat6.draft.dualTaskGait.printed.map((trial, index) => {
                 const path = `dualTaskGait.sequence.trials.${index}`;
                 return (
                     <div key={index} className="flex flex-col gap-3 rounded-lg border border-border p-3">
-                        <Checkbox
-                            id={kit.id(`${path}.completed`)}
-                            name={`scat6.${path}.completed`}
-                            checked={trial.completed}
-                            onChange={(event) => kit.change((next) => { next.dualTaskGait.printed[index].completed = event.target.checked; })}
-                            label={`Trial ${index + 1} completed`}
-                        />
-                        <Toggles kit={kit} path={`${path}.correctResponses`} legend="Correct responses" values={trial.correct} onToggle={(item, value) => kit.change((next) => { next.dualTaskGait.printed[index].correct[item] = value; })} />
+                        <p className="text-sm font-medium text-fg">Trial {index + 1}</p>
+                        <Toggles scat6={scat6} path={`${path}.correctResponses`} legend="Correct responses" values={trial.correct} />
                         {trial.completed && (
-                            <div className="grid grid-cols-2 gap-4 sm:max-w-md">
-                                <NumberField kit={kit} path={`${path}.errors`} label="Errors" value={trial.errors} min={0} max={100} onChange={(value) => kit.change((next) => { next.dualTaskGait.printed[index].errors = value; })} />
+                            <div className="grid grid-cols-1 gap-4 sm:max-w-md sm:grid-cols-2">
+                                <NumberField scat6={scat6} path={`${path}.errors`} label="Errors" value={trial.errors} min={0} max={100} onChange={(value) => scat6.change((next) => { next.dualTaskGait.printed[index].errors = value; })} />
                                 <NumberField
-                                    kit={kit}
+                                    scat6={scat6}
                                     path={`${path}.timeSeconds`}
                                     label="Time"
                                     value={trial.timeSeconds}
@@ -620,10 +849,17 @@ function PrintedTrials({ kit }: { kit: Kit }) {
                                     max={3_600}
                                     step="0.1"
                                     suffix="s"
-                                    onChange={(value) => kit.change((next) => { next.dualTaskGait.printed[index].timeSeconds = value; })}
+                                    onChange={(value) => scat6.change((next) => { next.dualTaskGait.printed[index].timeSeconds = value; })}
                                 />
                             </div>
                         )}
+                        <Checkbox
+                            id={scat6.id(`${path}.completed`)}
+                            name={`scat6.${path}.completed`}
+                            checked={!trial.completed}
+                            onChange={(event) => scat6.change((next) => { next.dualTaskGait.printed[index].completed = !event.target.checked; }, path)}
+                            label="Stopped early"
+                        />
                     </div>
                 );
             })}
@@ -631,35 +867,35 @@ function PrintedTrials({ kit }: { kit: Kit }) {
     );
 }
 
-function AlternateTrial({ kit }: { kit: Kit }) {
-    const alternate = kit.draft.dualTaskGait.alternate;
+function AlternateTrial({ scat6 }: { scat6: Scat6Controller }) {
+    const alternate = scat6.draft.dualTaskGait.alternate;
     const path = "dualTaskGait.sequence";
     return (
         <div className="flex flex-col gap-4 rounded-lg border border-border p-3">
-            <NumberField kit={kit} path={`${path}.startingInteger`} label="Starting number" value={alternate.startingInteger} min={1} max={1_000} onChange={(value) => kit.change((next) => { next.dualTaskGait.alternate.startingInteger = value; })} />
+            <NumberField scat6={scat6} path={`${path}.startingInteger`} label="Starting number" value={alternate.startingInteger} min={1} max={1_000} onChange={(value) => scat6.change((next) => { next.dualTaskGait.alternate.startingInteger = value; })} />
             <Text
-                kit={kit}
+                scat6={scat6}
                 path={`${path}.responses`}
                 label="Numbers said, in order"
                 value={alternate.responses}
                 max={400}
                 optional
                 hint="Separate them with commas or spaces, up to 30."
-                onChange={(value) => kit.change((next) => { next.dualTaskGait.alternate.responses = value; })}
-            />
-            <Checkbox
-                id={kit.id(`${path}.trial.completed`)}
-                name={`scat6.${path}.trial.completed`}
-                checked={alternate.completed}
-                onChange={(event) => kit.change((next) => { next.dualTaskGait.alternate.completed = event.target.checked; })}
-                label="Trial completed"
+                onChange={(value) => scat6.change((next) => { next.dualTaskGait.alternate.responses = value; })}
             />
             {alternate.completed && (
-                <div className="grid grid-cols-2 gap-4 sm:max-w-md">
-                    <NumberField kit={kit} path={`${path}.trial.errors`} label="Errors" value={alternate.errors} min={0} max={100} onChange={(value) => kit.change((next) => { next.dualTaskGait.alternate.errors = value; })} />
-                    <NumberField kit={kit} path={`${path}.trial.timeSeconds`} label="Time" value={alternate.timeSeconds} min={0} max={3_600} step="0.1" suffix="s" onChange={(value) => kit.change((next) => { next.dualTaskGait.alternate.timeSeconds = value; })} />
+                <div className="grid grid-cols-1 gap-4 sm:max-w-md sm:grid-cols-2">
+                    <NumberField scat6={scat6} path={`${path}.trial.errors`} label="Errors" value={alternate.errors} min={0} max={100} onChange={(value) => scat6.change((next) => { next.dualTaskGait.alternate.errors = value; })} />
+                    <NumberField scat6={scat6} path={`${path}.trial.timeSeconds`} label="Time" value={alternate.timeSeconds} min={0} max={3_600} step="0.1" suffix="s" onChange={(value) => scat6.change((next) => { next.dualTaskGait.alternate.timeSeconds = value; })} />
                 </div>
             )}
+            <Checkbox
+                id={scat6.id(`${path}.trial.completed`)}
+                name={`scat6.${path}.trial.completed`}
+                checked={!alternate.completed}
+                onChange={(event) => scat6.change((next) => { next.dualTaskGait.alternate.completed = !event.target.checked; }, `${path}.trial`)}
+                label="Stopped early"
+            />
         </div>
     );
 }
@@ -670,13 +906,21 @@ function ErrorText({ message }: { message?: string }) {
     return message ? <p className="text-[13px] font-medium text-danger-fg">{message}</p> : null;
 }
 
-/** Numbered tick boxes for a row of the form (signs, questions, words, responses), in form order. */
-function Toggles({ kit, path, legend, values, itemLabel = "Item", onToggle }: { kit: Kit; path: string; legend: string; values: boolean[]; itemLabel?: string; onToggle: (index: number, value: boolean) => void }) {
-    const message = kit.error(path);
+/**
+ * Numbered tick boxes for a row of the form (signs, questions, words, responses), in form order. Until the doctor
+ * ticks an item or chooses all or none, the row reads "not marked" and isn't sent as "none ticked".
+ */
+function Toggles({ scat6, path, legend, values, itemLabel = "Item", term }: { scat6: Scat6Controller; path: string; legend: string; values: boolean[]; itemLabel?: string; term?: GlossaryTerm }) {
+    const message = scat6.error(path);
+    const marked = Boolean(scat6.draft.marked[path]);
+    const rule = toggleRows(scat6.draft).find((candidate) => candidate.path === path);
+    const ticked = values.filter(Boolean).length;
     return (
-        <fieldset className="flex flex-col gap-1.5" aria-invalid={message ? true : undefined}>
-            <legend className="mb-1 text-sm font-medium text-fg">
-                {legend} <span className="font-normal text-fg-subtle">({values.filter(Boolean).length} of {values.length})</span>
+        <fieldset className="flex min-w-0 flex-col gap-1.5" aria-invalid={message ? true : undefined}>
+            <legend className="mb-1 flex flex-wrap items-center gap-x-1.5 text-sm font-medium text-fg">
+                {legend}
+                {term && <TermHint term={term} />}
+                <span className="font-normal text-fg-subtle">{marked ? `(${ticked} of ${values.length})` : "(not marked yet)"}</span>
             </legend>
             <div className="flex flex-wrap gap-1.5">
                 {values.map((checked, index) => (
@@ -688,68 +932,123 @@ function Toggles({ kit, path, legend, values, itemLabel = "Item", onToggle }: { 
                             checked ? "border-primary bg-primary-soft text-primary-soft-fg" : "border-border text-fg-muted hover:bg-surface-hover",
                         )}
                     >
-                        <input type="checkbox" name={`scat6.${path}.${index}`} checked={checked} onChange={(event) => onToggle(index, event.target.checked)} className="sr-only" aria-label={`${itemLabel} ${index + 1}`} />
+                        <input
+                            type="checkbox"
+                            name={`scat6.${path}.${index}`}
+                            checked={checked}
+                            onChange={(event) => {
+                                const value = event.target.checked;
+                                scat6.change((next) => {
+                                    const row = toggleValues(next, path);
+                                    if (row) row[index] = value;
+                                    next.marked[path] = true;
+                                }, path);
+                            }}
+                            className="sr-only"
+                            aria-label={`${itemLabel} ${index + 1}`}
+                        />
                         {index + 1}
                     </label>
                 ))}
             </div>
+            {rule && !marked && (
+                <div className="flex flex-wrap items-center gap-2">
+                    <Button variant="secondary" size="sm" onClick={() => scat6.quick(path, (draft) => fillToggleRow(draft, path, true), path)}>
+                        <CheckCheck aria-hidden />
+                        {rule.all}
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => scat6.quick(path, (draft) => fillToggleRow(draft, path, false), path)}>
+                        {rule.none}
+                    </Button>
+                </div>
+            )}
+            <p aria-live="polite" className="text-[13px] text-fg-muted">
+                {marked ? scat6.notes[path] : null}
+            </p>
             <ErrorText message={message} />
         </fieldset>
     );
 }
 
-function Flag({ kit, path, label, checked, onChange }: { kit: Kit; path: string; label: string; checked: boolean; onChange: (value: boolean) => void }) {
-    return <Checkbox id={kit.id(path)} name={`scat6.${path}`} checked={checked} onChange={(event) => onChange(event.target.checked)} label={label} />;
-}
-
-function YesNo({ kit, path, label, value, onChange }: { kit: Kit; path: string; label: string; value: boolean | null; onChange: (value: boolean) => void }) {
-    const message = kit.error(path);
+/** A yes/no answer that starts unanswered. */
+function YesNoField({ scat6, path, label, value, inline, onChange }: { scat6: Scat6Controller; path: string; label: string; value: YesNo; inline?: boolean; onChange: (value: boolean) => void }) {
+    const message = scat6.error(path);
+    const name = `scat6.${path}`;
     return (
-        <fieldset className="flex items-center gap-3" aria-invalid={message ? true : undefined}>
-            <legend className="sr-only">{label}</legend>
-            <span aria-hidden className="text-[13px] text-fg-muted">
+        <fieldset
+            role="radiogroup"
+            aria-label={label}
+            aria-required
+            aria-invalid={message ? true : undefined}
+            className={cn("flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1", !inline && "rounded-lg border px-3 py-2", !inline && (message ? "border-danger-border" : "border-border"))}
+        >
+            <span aria-hidden className={cn("text-[13px]", inline ? "text-fg-muted" : "min-w-0 flex-1 text-fg")}>
                 {label}
             </span>
-            {(
-                [
-                    [true, "Yes"],
-                    [false, "No"],
-                ] as const
-            ).map(([option, text]) => (
-                <label key={text} className="inline-flex items-center gap-1.5 text-sm">
-                    <input type="radio" name={`scat6.${path}`} checked={value === option} onChange={() => onChange(option)} className="accent-[var(--primary)]" />
-                    {text}
-                </label>
-            ))}
-            <ErrorText message={message} />
+            <span className="flex items-center gap-3">
+                {(
+                    [
+                        [true, "Yes"],
+                        [false, "No"],
+                    ] as const
+                ).map(([option, text]) => (
+                    <label key={text} className="inline-flex cursor-pointer items-center gap-1.5 text-sm">
+                        <input type="radio" name={name} required checked={value === option} onChange={() => onChange(option)} className="size-4 accent-[var(--primary)]" />
+                        {text}
+                    </label>
+                ))}
+            </span>
+            {message && <p className="w-full text-[13px] font-medium text-danger-fg">{message}</p>}
         </fieldset>
     );
 }
 
-function ListChoice({ kit, path, value, onChange }: { kit: Kit; path: string; value: string; onChange: (value: "A" | "B" | "C") => void }) {
-    return <ChoiceGroup id={kit.id(path)} name={`scat6.${path}`} legend="List used" required columns={3} variant="compact" options={LIST_OPTIONS} value={value as "A" | "B" | "C" | ""} onChange={onChange} error={kit.error(path)} />;
+function ListChoice({ scat6, path, value, onChange }: { scat6: Scat6Controller; path: string; value: string; onChange: (value: "A" | "B" | "C") => void }) {
+    return <ChoiceGroup id={scat6.id(path)} name={`scat6.${path}`} legend="List used" required columns={3} variant="compact" options={LIST_OPTIONS} value={value as "A" | "B" | "C" | ""} onChange={onChange} error={scat6.error(path)} />;
 }
 
-function Text({ kit, path, label, value, max, optional, hint, onChange }: { kit: Kit; path: string; label: string; value: string; max: number; optional?: boolean; hint?: string; onChange: (value: string) => void }) {
-    const control = kit.form.control(`scat6.${path}`, { required: !optional, hint });
+/** A time the doctor stamps with one click when the step happens, or types. A time already entered is never replaced. */
+function StampedTime({ scat6, field, label, value, hint }: { scat6: Scat6Controller; field: "immediateMemory.lastTrialCompletedAt" | "delayedRecall.startedAt"; label: string; value: string; hint: string }) {
+    const set = (next: Scat6Draft, time: string) => {
+        if (field === "immediateMemory.lastTrialCompletedAt") next.immediateMemory.lastTrialCompletedAt = time;
+        else next.delayedRecall.startedAt = time;
+    };
     return (
-        <Field label={label} htmlFor={control.id} error={kit.error(path)} required={!optional} optional={optional} hint={hint}>
-            <Input {...control} value={value} maxLength={max} onChange={(event) => onChange(event.target.value)} />
+        <div className="flex flex-col gap-2">
+            <DateTime scat6={scat6} path={field} label={label} value={value} hint={hint} onChange={(time) => scat6.change((next) => set(next, time), field)} />
+            <QuickFill
+                label="Stamp now"
+                icon={Clock}
+                available={value === ""}
+                note={value ? scat6.notes[field] : undefined}
+                onClick={() => scat6.quick(field, (draft) => stampNow(draft, field, new Date()), field)}
+            />
+        </div>
+    );
+}
+
+function Text({ scat6, path, label, value, max, optional, hint, onChange }: { scat6: Scat6Controller; path: string; label: string; value: string; max: number; optional?: boolean; hint?: string; onChange: (value: string) => void }) {
+    const control = scat6.form.control(`scat6.${path}`, { required: !optional, hint });
+    const message = scat6.error(path);
+    return (
+        <Field label={label} htmlFor={control.id} error={message} required={!optional} optional={optional} hint={hint}>
+            <Input {...wired(control, message)} value={value} maxLength={max} onChange={(event) => onChange(event.target.value)} />
         </Field>
     );
 }
 
-function TextArea({ kit, path, label, value, max, optional, onChange }: { kit: Kit; path: string; label: string; value: string; max: number; optional?: boolean; onChange: (value: string) => void }) {
-    const control = kit.form.control(`scat6.${path}`, { required: !optional });
+function TextArea({ scat6, path, label, value, max, optional, onChange }: { scat6: Scat6Controller; path: string; label: string; value: string; max: number; optional?: boolean; onChange: (value: string) => void }) {
+    const control = scat6.form.control(`scat6.${path}`, { required: !optional });
+    const message = scat6.error(path);
     return (
-        <Field label={label} htmlFor={control.id} error={kit.error(path)} required={!optional} optional={optional}>
-            <Textarea {...control} rows={2} value={value} maxLength={max} onChange={(event) => onChange(event.target.value)} />
+        <Field label={label} htmlFor={control.id} error={message} required={!optional} optional={optional}>
+            <Textarea {...wired(control, message)} rows={2} value={value} maxLength={max} onChange={(event) => onChange(event.target.value)} />
         </Field>
     );
 }
 
 function NumberField({
-    kit,
+    scat6,
     path,
     label,
     value,
@@ -759,9 +1058,10 @@ function NumberField({
     suffix,
     hint,
     optional,
+    info,
     onChange,
 }: {
-    kit: Kit;
+    scat6: Scat6Controller;
     path: string;
     label: string;
     value: string;
@@ -771,21 +1071,40 @@ function NumberField({
     suffix?: string;
     hint?: string;
     optional?: boolean;
+    info?: ReactNode;
     onChange: (value: string) => void;
 }) {
-    const control = kit.form.control(`scat6.${path}`, { required: !optional, hint });
+    const control = scat6.form.control(`scat6.${path}`, { required: !optional, hint });
+    const message = scat6.error(path);
     return (
-        <Field label={label} htmlFor={control.id} error={kit.error(path)} required={!optional} optional={optional} hint={hint}>
-            <Input {...control} type="number" inputMode="decimal" min={min} max={max} step={step ?? "1"} suffix={suffix} value={value} onChange={(event) => onChange(event.target.value)} className="sm:w-36" />
+        <Field label={label} htmlFor={control.id} error={message} required={!optional} optional={optional} hint={hint} info={info}>
+            <Input
+                {...wired(control, message)}
+                type="number"
+                inputMode="decimal"
+                min={min}
+                max={max}
+                step={step ?? "1"}
+                suffix={suffix}
+                value={value}
+                onChange={(event) => onChange(event.target.value)}
+                className="sm:w-36"
+            />
         </Field>
     );
 }
 
-function DateTime({ kit, path, label, value, onChange }: { kit: Kit; path: string; label: string; value: string; onChange: (value: string) => void }) {
-    const control = kit.form.control(`scat6.${path}`, { required: true });
+function DateTime({ scat6, path, label, value, hint, onChange }: { scat6: Scat6Controller; path: string; label: string; value: string; hint?: string; onChange: (value: string) => void }) {
+    const control = scat6.form.control(`scat6.${path}`, { required: true, hint: true });
+    const message = scat6.error(path);
     return (
-        <Field label={label} htmlFor={control.id} error={kit.error(path)} required hint="Academy time (Ho Chi Minh City)">
-            <Input {...control} type="datetime-local" max={kit.nowInput} value={value} onChange={(event) => onChange(event.target.value)} className="sm:w-64" />
+        <Field label={label} htmlFor={control.id} error={message} required hint={hint ?? "Academy time (Ho Chi Minh City)"}>
+            <Input {...wired(control, message)} type="datetime-local" value={value} onChange={(event) => onChange(event.target.value)} className="sm:w-64" />
         </Field>
     );
+}
+
+/** A control's wiring with the form's own problem shown like a server error. */
+function wired(control: ActionFormControl, message: string | undefined): ActionFormControl {
+    return { ...control, "aria-invalid": message ? true : undefined, "aria-describedby": message ? `${control.id}-error` : control["aria-describedby"] };
 }

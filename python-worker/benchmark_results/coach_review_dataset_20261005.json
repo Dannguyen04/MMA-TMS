@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "coach_review_pack_v1",
+  "packId": "684fe820e8ef655fe44173e400313f714869b1c24bd5ecb35f865b5fbb204879",
+  "status": "PENDING_COACH_REVIEW",
+  "researchSamples": 4754,
+  "researchClassCounts": {
+    "jab": 1282,
+    "cross": 1370,
+    "lead_uppercut": 428,
+    "lead_hook": 907,
+    "rear_uppercut": 471,
+    "rear_hook": 296
+  },
+  "reviewVideos": 7,
+  "videoReviewTasks": 67,
+  "upstreamSuggestedTasks": 18,
+  "unlabelledContextTasks": 49,
+  "overlapFlaggedTasks": 6,
+  "coachConfirmed": 0,
+  "goldEligible": 0,
+  "productionEligible": false,
+  "quarantinedSourceRows": 12,
+  "excludedSources": [
+    {
+      "video": "V6",
+      "reason": "INCOMPATIBLE_FRAME_LEVEL_SCHEMA"
+    }
+  ],
+  "artifactHashes": {
+    "research_features.npz": "1aaddf7838350cb72abe4a4b54c02d96b40453ef820fc4c59a23007949193a0a",
+    "research_samples.json": "6827ae7405e348e6617a2a5397c0eeee073714d6825d56b9a98191f6a3a136b3",
+    "source_audit.json": "b28208158fe958d0e77171b0f371aef5b7fb511dcd9cf40c3130c053830e6558",
+    "review_index.json": "3184e6148dbc24953d18e3010a60e91a816c4862ad49a2c92a476b15c6df61ec",
+    "review.html": "d07fa916029770563b6a05edc9f87cd7439f7a8b5780688f78881296a3595516"
+  },
+  "sourceCodeHashes": {
+    "build_coach_review_dataset.py": "c495bc3400c5af6cd9e23f2daa4ca5ac16504a2c158cf600827cda6b8c25b6e4",
+    "review_tools/coach_review.html": "fa60caa0b240fdf2e15dd23d3c7f832b695cb2c0ac7d0781f89028177f27ba9b",
+    "train_boxing_research.py": "fa93ef7158a6121f41f9df380ccdb4e1fb5347257ec30d6289cff5eae1f1232f",
+    "pipeline/boxing_research.py": "a14861fca6853ae2de2fe0f00f9e095c3bb480cb65206ef9e2512e64ea135f85"
+  },
+  "limitations": [
+    "Upstream labels and local drafts are not coach-confirmed labels.",
+    "Missing RGB for the mirror skeleton corpus prevents full human video review of those samples.",
+    "No athlete identities, rights, approval records or new independent test set were fabricated.",
+    "Unlabelled intervals are review tasks, not confirmed negative training examples.",
+    "Original overlapping inclusive label boundaries are preserved and flagged."
+  ]
+}

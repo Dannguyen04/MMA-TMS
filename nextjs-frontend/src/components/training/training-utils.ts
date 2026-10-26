@@ -1,8 +1,10 @@
+import type { Locale } from "@/lib/i18n/config";
 import type { ClearanceState } from "@/lib/domain/rules";
 import { isDueSession } from "@/lib/domain/training-plan";
 import type { Exercise, MedicalClearance, SessionExercise, TrainingPlan, TrainingProgress, TrainingSession } from "@/lib/domain/types";
 import { addDaysToKey, dayKey, formatClock, isDateKey, pluralize } from "@/lib/format";
 import { sortItems, type SortDirection } from "@/lib/query";
+import { createTranslator, plural, type MessageKey, type Translator } from "@/lib/i18n/translate";
 import { clamp } from "@/lib/utils";
 
 /**
@@ -25,6 +27,13 @@ export function sessionMinutes(session: Pick<TrainingSession, "durationMin" | "r
 }
 
 /** "RPE 7 · Hard", or null when no intensity was set. */
+/** `rpeText` in the viewer's language. */
+export function rpeTextFor(t: Translator, rpe: number | null): string | null {
+    if (rpe === null) return null;
+    const step = clamp(Math.round(rpe), 1, 10);
+    return t("rpe.text", { n: rpe, label: t(`rpe.${step}` as MessageKey) });
+}
+
 export function rpeText(rpe: number | null): string | null {
     return rpe === null ? null : `RPE ${rpe} · ${rpeLabel(rpe)}`;
 }
@@ -45,11 +54,12 @@ export function parseWeekOffset(value: string | undefined): number {
     return Number.isNaN(parsed) ? 0 : clamp(parsed, -MAX_WEEK_OFFSET, MAX_WEEK_OFFSET);
 }
 
-export function describeWeekOffset(offset: number): string {
-    if (offset === 0) return "This week";
-    if (offset === 1) return "Next week";
-    if (offset === -1) return "Last week";
-    return offset > 0 ? `In ${pluralize(offset, "week")}` : `${pluralize(-offset, "week")} ago`;
+export function describeWeekOffset(offset: number, locale: Locale = "en"): string {
+    const t = createTranslator(locale);
+    if (offset === 0) return t("training.weekNav.thisWeek");
+    if (offset === 1) return t("training.weekNav.nextWeek");
+    if (offset === -1) return t("training.weekNav.lastWeek");
+    return offset > 0 ? plural(t, "training.weekNav.inWeeks", offset) : plural(t, "training.weekNav.weeksAgo", -offset);
 }
 
 /* ─── Intensity ───────────────────────────────────────────────────────────── */

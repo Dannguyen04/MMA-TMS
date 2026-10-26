@@ -3,57 +3,69 @@
  * client output match and hydration stays stable.
  */
 
+import { INTL_LOCALE, type Locale } from "@/lib/i18n/config";
+
 export const APP_TIMEZONE = "Asia/Ho_Chi_Minh";
-const LOCALE = "en-GB";
 
 export const DAY_MS = 86_400_000;
 
-const dateFmt = new Intl.DateTimeFormat(LOCALE, { timeZone: APP_TIMEZONE, day: "numeric", month: "short", year: "numeric" });
-const shortDateFmt = new Intl.DateTimeFormat(LOCALE, { timeZone: APP_TIMEZONE, day: "numeric", month: "short" });
-const weekdayDateFmt = new Intl.DateTimeFormat(LOCALE, { timeZone: APP_TIMEZONE, weekday: "short", day: "numeric", month: "short" });
-const timeFmt = new Intl.DateTimeFormat(LOCALE, { timeZone: APP_TIMEZONE, hour: "2-digit", minute: "2-digit", hour12: false });
-const dateTimeFmt = new Intl.DateTimeFormat(LOCALE, {
-    timeZone: APP_TIMEZONE,
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-});
+const FORMATS = {
+    date: { day: "numeric", month: "short", year: "numeric" },
+    shortDate: { day: "numeric", month: "short" },
+    weekdayDate: { weekday: "short", day: "numeric", month: "short" },
+    time: { hour: "2-digit", minute: "2-digit", hour12: false },
+    dateTime: { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false },
+    monthYear: { month: "long", year: "numeric" },
+} satisfies Record<string, Intl.DateTimeFormatOptions>;
+
+const formatters = new Map<string, Intl.DateTimeFormat>();
+
+/**
+ * One cached formatter per language and format. Screens not translated yet call the helpers without a
+ * locale and keep the English output (`en-GB`).
+ */
+function formatter(locale: Locale, format: keyof typeof FORMATS): Intl.DateTimeFormat {
+    const cacheKey = `${locale}:${format}`;
+    let found = formatters.get(cacheKey);
+    if (!found) {
+        found = new Intl.DateTimeFormat(INTL_LOCALE[locale], { timeZone: APP_TIMEZONE, ...FORMATS[format] });
+        formatters.set(cacheKey, found);
+    }
+    return found;
+}
+
 const dayKeyFmt = new Intl.DateTimeFormat("en-CA", { timeZone: APP_TIMEZONE, year: "numeric", month: "2-digit", day: "2-digit" });
-const monthYearFmt = new Intl.DateTimeFormat(LOCALE, { timeZone: APP_TIMEZONE, month: "long", year: "numeric" });
 
 const toDate = (value: string | Date) => (typeof value === "string" ? new Date(value) : value);
 
-/** 14 Sept 2026 */
-export function formatDate(value: string | Date): string {
-    return dateFmt.format(toDate(value));
+/** 14 Sept 2026 · 14 thg 9, 2026 */
+export function formatDate(value: string | Date, locale: Locale = "en"): string {
+    return formatter(locale, "date").format(toDate(value));
 }
 
-/** 14 Sept */
-export function formatShortDate(value: string | Date): string {
-    return shortDateFmt.format(toDate(value));
+/** 14 Sept · 14 thg 9 */
+export function formatShortDate(value: string | Date, locale: Locale = "en"): string {
+    return formatter(locale, "shortDate").format(toDate(value));
 }
 
-/** Mon, 14 Sept */
-export function formatWeekdayDate(value: string | Date): string {
-    return weekdayDateFmt.format(toDate(value));
+/** Mon, 14 Sept · Th 2, 14 thg 9 */
+export function formatWeekdayDate(value: string | Date, locale: Locale = "en"): string {
+    return formatter(locale, "weekdayDate").format(toDate(value));
 }
 
 /** 18:30 */
-export function formatTime(value: string | Date): string {
-    return timeFmt.format(toDate(value));
+export function formatTime(value: string | Date, locale: Locale = "en"): string {
+    return formatter(locale, "time").format(toDate(value));
 }
 
 /** 14 Sept 2026, 18:30 */
-export function formatDateTime(value: string | Date): string {
-    return dateTimeFmt.format(toDate(value));
+export function formatDateTime(value: string | Date, locale: Locale = "en"): string {
+    return formatter(locale, "dateTime").format(toDate(value));
 }
 
-/** September 2026 */
-export function formatMonthYear(value: string | Date): string {
-    return monthYearFmt.format(toDate(value));
+/** September 2026 · tháng 9 năm 2026 */
+export function formatMonthYear(value: string | Date, locale: Locale = "en"): string {
+    return formatter(locale, "monthYear").format(toDate(value));
 }
 
 /** Calendar day key in the academy timezone, e.g. 2026-09-14. */
@@ -146,16 +158,27 @@ export function isDateTimeInputValue(value: string | undefined): value is string
     return rest.length === 0 && isDateKey(day) && isTimeValue(time);
 }
 
-const relativeFmt = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+const relativeFmts: Record<Locale, Intl.RelativeTimeFormat> = {
+    en: new Intl.RelativeTimeFormat("en", { numeric: "auto" }),
+    vi: new Intl.RelativeTimeFormat("vi", { numeric: "auto" }),
+};
+const JUST_NOW: Record<Locale, string> = { en: "just now", vi: "vừa xong" };
 
 /** "in 3 days", "yesterday", "5 min ago". `now` must come from the server when rendered on the client. */
-export function formatRelative(value: string | Date, now: string | Date = new Date()): string {
+export function formatRelative(value: string | Date, now: string | Date = new Date(), locale: Locale = "en"): string {
+    const text = relativeText(value, now, locale);
+    // Vietnamese Intl capitalises "Hôm kia"; the phrase always sits mid-sentence here.
+    return locale === "vi" ? text.charAt(0).toLocaleLowerCase("vi") + text.slice(1) : text;
+}
+
+function relativeText(value: string | Date, now: string | Date, locale: Locale): string {
+    const relativeFmt = relativeFmts[locale];
     const target = toDate(value).getTime();
     const base = toDate(now).getTime();
     const diffMs = target - base;
     const abs = Math.abs(diffMs);
 
-    if (abs < 60_000) return "just now";
+    if (abs < 60_000) return JUST_NOW[locale];
     if (abs < 3_600_000) return relativeFmt.format(Math.round(diffMs / 60_000), "minute");
     if (abs < DAY_MS) return relativeFmt.format(Math.round(diffMs / 3_600_000), "hour");
     const days = daysBetween(new Date(base), new Date(target));

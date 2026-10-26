@@ -1,6 +1,7 @@
 "use client";
 
-import { Ban, ShieldCheck } from "lucide-react";
+import { useLocale, useT } from "@/components/i18n/locale-provider";
+import { Ban, Repeat, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { InlineNote } from "@/components/dashboard/inline-note";
@@ -11,16 +12,20 @@ import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChoiceGroup, type ChoiceOption } from "@/components/ui/choice-group";
-import { Field, FormMessage, FormSection, Input, Select, Textarea } from "@/components/ui/form";
+import { Checkbox, Field, FormMessage, FormSection, Input, Select, Textarea } from "@/components/ui/form";
 import { EmptyState } from "@/components/ui/states";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { appendSuggestion, SuggestionChips } from "@/components/ui/suggestion-chips";
 import { useActionForm } from "@/components/ui/use-action-form";
 import type { ActionState } from "@/lib/actions/state";
 import { previewSessionConflicts, type SessionFormResult } from "@/lib/actions/training";
-import { PLAN_STATUS_LABELS, TRAINING_TYPE_LABELS } from "@/lib/domain/labels";
+import { planStatusLabel, trainingTypeLabel, TRAINING_TYPE_LABELS } from "@/lib/domain/labels";
 import { SERVICE_TRAINING_TYPES } from "@/lib/domain/training-contract";
 import type { ClearanceConflict } from "@/lib/domain/rules";
+import { MAX_WEEKLY_REPEATS, presetDuration, SESSION_PRESETS, suggestedSessionTitle, weeklyDates } from "@/lib/domain/training-templates";
 import type { Exercise, PlanStatus, TrainingType } from "@/lib/domain/types";
+import { academyDayStartIso, formatShortDate, isDateKey } from "@/lib/format";
+import { plural } from "@/lib/i18n/translate";
 import { ClearanceCheckPanel, type ClearanceCheckStatus } from "./clearance-check-panel";
 import { ExerciseBuilder } from "./exercise-builder";
 import { serializeExerciseRows, type ExerciseRow } from "./exercise-rows";
@@ -47,6 +52,14 @@ export interface SessionFormPlan {
     title: string;
     fighterId: string;
     status: PlanStatus;
+    /** The plan's last academy day (YYYY-MM-DD), or null for an open-ended plan. Weekly repeats stop there. */
+    endDate: string | null;
+}
+
+/** The fighter's plan to preselect: their only active plan, when they have exactly one. */
+function onlyActivePlan(plans: SessionFormPlan[], fighterId: string): string {
+    const active = plans.filter((plan) => plan.fighterId === fighterId && plan.status === "active");
+    return active.length === 1 ? active[0].id : "";
 }
 
 export interface SessionFormProps {
@@ -84,7 +97,6 @@ const DEFAULT_LOCATION: Record<TrainingType, string> = {
     recovery_mobility: "Recovery room",
 };
 
-
 interface CheckResult {
     key: string;
     status: Exclude<ClearanceCheckStatus, "idle">;
@@ -93,8 +105,19 @@ interface CheckResult {
 
 /** Schedule or edit a session with a live Medical Clearance check. */
 export function SessionForm({ mode, action, fighters, plans, library, clearances, locations, defaults, now, minDate, cancelHref, serviceForm }: SessionFormProps) {
+    const t = useT();
+    const locale = useLocale();
     const form = useActionForm(action, { id: "session" });
-    const [values, setValues] = useState(() => ({ ...defaults, location: defaults.location || DEFAULT_LOCATION[defaults.type] }));
+    const planTitleFor = (planId: string) => plans.find((plan) => plan.id === planId)?.title ?? null;
+    const [values, setValues] = useState(() => ({
+        ...defaults,
+        location: defaults.location || DEFAULT_LOCATION[defaults.type],
+        // A new session's title follows its type and plan until the coach types one.
+        title: defaults.title || (mode === "create" ? suggestedSessionTitle(defaults.type, planTitleFor(defaults.planId), trainingTypeLabel(t, defaults.type)) : ""),
+    }));
+    const [titleTouched, setTitleTouched] = useState(defaults.title !== "");
+    const [repeat, setRepeat] = useState(false);
+    const [repeatCount, setRepeatCount] = useState("4");
     const [check, setCheck] = useState<CheckResult | null>(null);
     const [acknowledgedFor, setAcknowledgedFor] = useState<string | null>(null);
     const { error } = form;
@@ -143,39 +166,59 @@ export function SessionForm({ mode, action, fighters, plans, library, clearances
 
     const blockedReason =
         checkStatus === "ready" && blocks.length > 0
-            ? "Resolve the blocking clearance conflicts to schedule this session."
+            ? t("training.sessionForm.blockedResolve")
             : checkStatus === "ready" && warnings.length > 0 && !acknowledged
-              ? "Confirm you've reviewed the clearance warnings to continue."
+              ? t("training.sessionForm.blockedConfirm")
               : null;
 
-    const changeType = (next: TrainingType) =>
-        setValues((current) => ({
-            ...current,
-            type: next,
-            location: !current.location.trim() || current.location === DEFAULT_LOCATION[current.type] ? DEFAULT_LOCATION[next] : current.location,
-        }));
+    /** Title, location and duration follow the type and plan while they still hold the defaults. */
+    const withDefaults = (current: SessionFormValues, type: TrainingType, planId: string): SessionFormValues => ({
+        ...current,
+        type,
+        planId,
+        title: titleTouched ? current.title : suggestedSessionTitle(type, planTitleFor(planId), trainingTypeLabel(t, type)),
+        location: !current.location.trim() || current.location === DEFAULT_LOCATION[current.type] ? DEFAULT_LOCATION[type] : current.location,
+        durationMin: !current.durationMin.trim() || current.durationMin === String(presetDuration(current.type)) ? String(presetDuration(type)) : current.durationMin,
+    });
 
+    const changeType = (next: TrainingType) => setValues((current) => withDefaults(current, next, current.planId));
+
+    const changePlan = (next: string) => setValues((current) => withDefaults(current, current.type, next));
+
+    // A plan that belongs to someone else gives way to the new fighter's only active plan, if they have exactly one.
     const changeFighter = (next: string) =>
         setValues((current) => {
             const planStillValid = plans.some((plan) => plan.id === current.planId && plan.fighterId === next);
-            return { ...current, fighterId: next, planId: planStillValid ? current.planId : "" };
+            return withDefaults({ ...current, fighterId: next }, current.type, planStillValid ? current.planId : onlyActivePlan(plans, next));
         });
+
+    const suggestedTitle = suggestedSessionTitle(values.type, planTitleFor(values.planId), trainingTypeLabel(t, values.type));
+    const preset = SESSION_PRESETS[values.type];
+    const selectedPlan = plans.find((plan) => plan.id === values.planId);
+    const repeats = Number(repeatCount);
+    const repeatValid = Number.isInteger(repeats) && repeats >= 2 && repeats <= MAX_WEEKLY_REPEATS;
+    const repeatPlan = repeat && repeatValid && isDateKey(values.date) ? weeklyDates(values.date, repeats, selectedPlan?.endDate ?? null) : null;
 
     const types = serviceForm ? SERVICE_TRAINING_TYPES : (Object.keys(TRAINING_TYPE_LABELS) as TrainingType[]);
     const typeOptions: ChoiceOption<TrainingType>[] = types.map((value) => ({
         value,
-        label: TRAINING_TYPE_LABELS[value],
+        label: trainingTypeLabel(t, value),
         icon: TRAINING_TYPE_ICONS[value],
         extra: restrictedTypes.includes(value) ? (
             <Badge tone="danger" size="sm" icon={Ban} className="mt-1.5">
-                Restricted
+                {t("training.sessionForm.restrictedBadge")}
             </Badge>
         ) : undefined,
     }));
 
     const input = (name: keyof SessionFormValues, options?: { hint?: boolean; required?: boolean }) => form.control(name, options);
 
-    const submitLabel = mode === "create" ? "Schedule session" : "Save changes";
+    const submitLabel =
+        mode === "edit"
+            ? t("training.sessionForm.submitEdit")
+            : repeatPlan && repeatPlan.dates.length > 1
+              ? t("training.repeat.submitMany", { n: repeatPlan.dates.length })
+              : t("training.sessionForm.submitCreate");
     // The training service doesn't move a session to another plan.
     const planLocked = serviceForm && mode === "edit";
 
@@ -185,11 +228,11 @@ export function SessionForm({ mode, action, fighters, plans, library, clearances
 
             <Card className="min-w-0 lg:col-span-2">
                 <CardContent className="pt-6">
-                    <FormSection title="Fighter & plan" description="Who trains, and which plan the session counts towards.">
+                    <FormSection title={t("training.sessionForm.sectionFighterPlan")} description={t("training.sessionForm.sectionFighterPlanDesc")}>
                         {mode === "create" ? (
-                            <Field label="Fighter" htmlFor="session-fighterId" required error={error("fighterId")}>
+                            <Field label={t("training.sessionForm.fighter")} htmlFor="session-fighterId" required error={error("fighterId")}>
                                 <Select {...input("fighterId", { required: true })} value={values.fighterId} onChange={(event) => changeFighter(event.target.value)}>
-                                    <option value="">Choose a fighter…</option>
+                                    <option value="">{t("training.sessionForm.chooseFighter")}</option>
                                     {fighters.map((option) => (
                                         <option key={option.id} value={option.id}>
                                             {option.name}
@@ -200,55 +243,71 @@ export function SessionForm({ mode, action, fighters, plans, library, clearances
                         ) : (
                             fighter && (
                                 <div className="flex flex-col gap-1.5">
-                                    <p className="text-sm font-medium text-fg">Fighter</p>
+                                    <p className="text-sm font-medium text-fg">{t("training.sessionForm.fighter")}</p>
                                     <FighterIdentity fighter={fighter} showHealth />
                                 </div>
                             )
                         )}
                         <Field
-                            label="Training plan"
+                            label={t("training.sessionForm.plan")}
                             htmlFor="session-planId"
                             optional
                             error={error("planId")}
                             hint={
                                 planLocked
-                                    ? "A session stays in the plan it was scheduled under."
+                                    ? t("training.sessionForm.planLocked")
                                     : values.fighterId
-                                      ? "Active and draft plans for this fighter."
-                                      : "Choose a fighter first."
+                                      ? t("training.sessionForm.planHint")
+                                      : t("training.sessionForm.planChooseFirst")
                             }
                         >
                             <Select
                                 {...input("planId", { hint: true })}
                                 value={values.planId}
-                                onChange={(event) => set("planId", event.target.value)}
+                                onChange={(event) => changePlan(event.target.value)}
                                 disabled={!values.fighterId || planLocked}
                             >
-                                <option value="">Not part of a plan</option>
+                                <option value="">{t("training.sessionForm.noPlan")}</option>
                                 {fighterPlans.map((plan) => (
                                     <option key={plan.id} value={plan.id}>
                                         {plan.title}
-                                        {plan.status !== "active" ? ` (${PLAN_STATUS_LABELS[plan.status]})` : ""}
+                                        {plan.status !== "active" ? ` (${planStatusLabel(t, plan.status)})` : ""}
                                     </option>
                                 ))}
                             </Select>
                         </Field>
-                        <Field label="Session title" htmlFor="session-title" required error={error("title")}>
-                            <Input
-                                {...input("title", { required: true })}
-                                value={values.title}
-                                onChange={(event) => set("title", event.target.value)}
-                                placeholder={`e.g. ${TRAINING_TYPE_LABELS[values.type]} — lead hook counters`}
-                                maxLength={120}
-                            />
-                        </Field>
+                        <div className="flex flex-col gap-2">
+                            <Field label={t("training.sessionForm.title")} htmlFor="session-title" required error={error("title")}>
+                                <Input
+                                    {...input("title", { required: true })}
+                                    value={values.title}
+                                    onChange={(event) => {
+                                        setTitleTouched(true);
+                                        set("title", event.target.value);
+                                    }}
+                                    placeholder={t("training.sessionForm.titlePlaceholder", { type: trainingTypeLabel(t, values.type) })}
+                                    maxLength={120}
+                                />
+                            </Field>
+                            {mode === "create" && values.title.trim() !== suggestedTitle && (
+                                <SuggestionChips
+                                    label={t("training.repeat.suggested")}
+                                    suggestions={[{ label: suggestedTitle }]}
+                                    onPick={(value) => {
+                                        setTitleTouched(false);
+                                        set("title", value);
+                                        form.markEdited("title");
+                                    }}
+                                />
+                            )}
+                        </div>
                     </FormSection>
 
-                    <FormSection title="Training type" description="Some types may be restricted by the fighter's Medical Clearance.">
+                    <FormSection title={t("training.sessionForm.sectionType")} description={t("training.sessionForm.sectionTypeDesc")}>
                         <ChoiceGroup
                             id="session-type"
                             name="type"
-                            legend="Type"
+                            legend={t("training.sessionForm.sectionType")}
                             required
                             columns={2}
                             value={values.type}
@@ -258,15 +317,15 @@ export function SessionForm({ mode, action, fighters, plans, library, clearances
                         />
                     </FormSection>
 
-                    <FormSection title="When & where" description="Academy time (Ho Chi Minh City).">
+                    <FormSection title={t("training.sessionForm.sectionWhenWhere")} description={t("training.sessionForm.sectionWhenWhereDesc")}>
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                            <Field label="Date" htmlFor="session-date" required error={error("date")}>
+                            <Field label={t("training.sessionForm.date")} htmlFor="session-date" required error={error("date")}>
                                 <Input {...input("date", { required: true })} type="date" min={minDate} value={values.date} onChange={(event) => set("date", event.target.value)} />
                             </Field>
-                            <Field label="Start time" htmlFor="session-time" required error={error("time")}>
+                            <Field label={t("training.sessionForm.time")} htmlFor="session-time" required error={error("time")}>
                                 <Input {...input("time", { required: true })} type="time" step={300} value={values.time} onChange={(event) => set("time", event.target.value)} />
                             </Field>
-                            <Field label="Duration (min)" htmlFor="session-durationMin" required error={error("durationMin")}>
+                            <Field label={t("training.sessionForm.durationMin")} htmlFor="session-durationMin" required error={error("durationMin")}>
                                 <Input
                                     {...input("durationMin", { required: true })}
                                     type="number"
@@ -279,7 +338,7 @@ export function SessionForm({ mode, action, fighters, plans, library, clearances
                                 />
                             </Field>
                         </div>
-                        <Field label="Location" htmlFor="session-location" required error={error("location")}>
+                        <Field label={t("training.sessionForm.location")} htmlFor="session-location" required error={error("location")}>
                             <Input
                                 {...input("location", { required: true })}
                                 list="session-location-options"
@@ -293,25 +352,62 @@ export function SessionForm({ mode, action, fighters, plans, library, clearances
                                 ))}
                             </datalist>
                         </Field>
+                        {mode === "create" && (
+                            <div className="flex flex-col gap-3 rounded-lg bg-surface-muted p-3">
+                                <Checkbox
+                                    id="session-repeat"
+                                    name="repeat"
+                                    checked={repeat}
+                                    onChange={(event) => setRepeat(event.target.checked)}
+                                    label={t("training.repeat.weekly")}
+                                    description={t(selectedPlan?.endDate ? "training.repeat.weeklyDescPlanEnd" : "training.repeat.weeklyDesc", { max: MAX_WEEKLY_REPEATS })}
+                                />
+                                {repeat && (
+                                    <div className="flex flex-col gap-2 pl-7">
+                                        <Field label={t("training.repeat.count")} htmlFor="session-repeatCount" required error={error("repeatCount")} hint={t("training.repeat.countHint")} className="max-w-40">
+                                            <Input
+                                                {...form.control("repeatCount", { required: true, hint: true })}
+                                                type="number"
+                                                inputMode="numeric"
+                                                min={2}
+                                                max={MAX_WEEKLY_REPEATS}
+                                                step={1}
+                                                value={repeatCount}
+                                                onChange={(event) => setRepeatCount(event.target.value)}
+                                            />
+                                        </Field>
+                                        {repeatPlan && (
+                                            <p className="flex items-start gap-2 text-[13px] text-fg-muted" aria-live="polite">
+                                                <Repeat aria-hidden className="mt-0.5 size-3.5 shrink-0" />
+                                                <span>
+                                                    {t("training.repeat.preview", { n: repeatPlan.dates.length, dates: repeatPlan.dates.map((date) => formatShortDate(academyDayStartIso(date), locale)).join(", ") })}
+                                                    {repeatPlan.skipped > 0 && ` ${plural(t, "training.repeat.weeksSkippedPreview", repeatPlan.skipped)}`}
+                                                </span>
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </FormSection>
 
                     {!serviceForm && (
                         <>
-                            <FormSection title="Intensity" description="Target session RPE — how hard it should feel overall.">
+                            <FormSection title={t("training.sessionForm.sectionIntensity")} description={t("training.sessionForm.sectionIntensityDesc")}>
                                 <RpeSlider
                                     id="session-targetRpe"
                                     name="targetRpe"
-                                    label="Target RPE"
+                                    label={t("training.sessionForm.targetRpe")}
                                     value={values.targetRpe}
                                     onChange={(next) => set("targetRpe", next)}
-                                    hint="How hard the session should feel, from 1 to 10."
+                                    hint={t("training.sessionForm.targetRpeHint")}
                                     required
                                     maxAllowed={clearanceMaxRpe(clearance)}
                                     error={error("targetRpe")}
                                 />
                             </FormSection>
 
-                            <FormSection title="Exercises" description="Drills in running order with rounds or sets.">
+                            <FormSection title={t("training.sessionForm.sectionExercises")} description={t("training.sessionForm.sectionExercisesDesc")}>
                                 <ExerciseBuilder
                                     library={library}
                                     rows={values.exercises}
@@ -325,10 +421,22 @@ export function SessionForm({ mode, action, fighters, plans, library, clearances
                         </>
                     )}
 
-                    <FormSection title="Notes" description="Anything the fighter should know or bring.">
-                        <Field label="Session notes" htmlFor="session-notes" optional error={error("notes")}>
-                            <Textarea {...input("notes")} value={values.notes} onChange={(event) => set("notes", event.target.value)} rows={3} maxLength={1000} />
-                        </Field>
+                    <FormSection title={t("training.sessionForm.sectionNotes")} description={t("training.sessionForm.sectionNotesDesc")}>
+                        <div className="flex flex-col gap-2">
+                            <Field label={t("training.sessionForm.sessionNotes")} htmlFor="session-notes" optional error={error("notes")}>
+                                <Textarea {...input("notes")} value={values.notes} onChange={(event) => set("notes", event.target.value)} rows={3} maxLength={1000} />
+                            </Field>
+                            {preset && (
+                                <SuggestionChips
+                                    label={t("training.repeat.addSuggestion")}
+                                    suggestions={[{ label: preset.notes }]}
+                                    onPick={(value) => {
+                                        set("notes", appendSuggestion(values.notes, value));
+                                        form.markEdited("notes");
+                                    }}
+                                />
+                            )}
+                        </div>
                     </FormSection>
                 </CardContent>
             </Card>
@@ -342,8 +450,8 @@ export function SessionForm({ mode, action, fighters, plans, library, clearances
                             <EmptyState
                                 compact
                                 icon={<ShieldCheck />}
-                                title="Medical Clearance"
-                                description="Choose a fighter to see their clearance and restrictions."
+                                title={t("training.sessionForm.emptyClearanceTitle")}
+                                description={t("training.sessionForm.emptyClearanceDesc")}
                             />
                         </CardContent>
                     </Card>
@@ -351,7 +459,7 @@ export function SessionForm({ mode, action, fighters, plans, library, clearances
 
                 <div className="flex flex-col gap-4 lg:sticky lg:top-20">
                     {serviceForm ? (
-                        <InlineNote icon={ShieldCheck}>The training service checks the fighter&apos;s Medical Clearance when you start the session.</InlineNote>
+                        <InlineNote icon={ShieldCheck}>{t("training.sessionForm.serviceClearanceNotice")}</InlineNote>
                     ) : (
                         <ClearanceCheckPanel
                             status={checkStatus}
@@ -364,14 +472,14 @@ export function SessionForm({ mode, action, fighters, plans, library, clearances
                     )}
                     <Card className="flex flex-col gap-3 p-4">
                         <FormMessage {...form.message} />
-                        <SubmitButton size="lg" className="w-full" disabled={blockedReason !== null} pending={form.pending} pendingLabel={mode === "create" ? "Scheduling…" : "Saving…"}>
+                        <SubmitButton size="lg" className="w-full" disabled={blockedReason !== null} pending={form.pending} pendingLabel={mode === "create" ? t("training.sessionForm.submittingCreate") : t("training.sessionForm.submittingEdit")}>
                             {submitLabel}
                         </SubmitButton>
                         <p className={blockedReason ? "text-center text-[13px] text-fg-muted" : "sr-only"} aria-live="polite">
                             {blockedReason}
                         </p>
                         <ButtonLink href={cancelHref} variant="ghost" className="w-full">
-                            Cancel
+                            {t("common.cancel")}
                         </ButtonLink>
                     </Card>
                 </div>

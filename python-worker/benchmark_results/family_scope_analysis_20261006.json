@@ -1,0 +1,4019 @@
+{
+  "manifestSha256": "bcbb417c1eafa1a0c1d40db26021cd3c17a631af4adb2cc41ab669d34b91769b",
+  "manifest": "test_results\\provisional_dataset\\20261006_v6_recovered_v2\\manifest.json",
+  "role": "research_only; no training; V9/V10 already observed diagnostic, not independent test",
+  "familyDefinition": {
+    "straight": [
+      "jab",
+      "cross"
+    ],
+    "hook": [
+      "lead_hook",
+      "rear_hook"
+    ],
+    "uppercut": [
+      "lead_uppercut",
+      "rear_uppercut"
+    ]
+  },
+  "releaseGateMacroF1": 0.85,
+  "models": {
+    "B0": {
+      "weightsSha256": "3fa9cf2195615220a1ca4149cb018d5cd56bed10cb53912ebb8cdf5181aaccd9",
+      "temperature": 0.9130000654136892,
+      "primary": true,
+      "splits": {
+        "validation_V8": {
+          "count": 199,
+          "sixClass": {
+            "accuracy": 0.8592964824120602,
+            "macroF1": 0.7271076224294162
+          },
+          "family": {
+            "accuracy": 0.8944723618090452,
+            "macroF1": 0.894088669950739,
+            "perClass": {
+              "straight": {
+                "support": 57,
+                "precision": 0.8545454545454545,
+                "recall": 0.8245614035087719,
+                "f1": 0.8392857142857144
+              },
+              "hook": {
+                "support": 88,
+                "precision": 0.9069767441860465,
+                "recall": 0.8863636363636364,
+                "f1": 0.896551724137931
+              },
+              "uppercut": {
+                "support": 54,
+                "precision": 0.9137931034482759,
+                "recall": 0.9814814814814815,
+                "f1": 0.9464285714285714
+              }
+            },
+            "confusionRows(truth)": [
+              "straight",
+              "hook",
+              "uppercut"
+            ],
+            "confusionColumns(pred)": [
+              "straight",
+              "hook",
+              "uppercut"
+            ],
+            "confusionMatrix": [
+              [
+                47,
+                7,
+                3
+              ],
+              [
+                8,
+                78,
+                2
+              ],
+              [
+                0,
+                1,
+                53
+              ]
+            ],
+            "macroF1Bootstrap95_clipIID_optimistic": [
+              0.8491296348657286,
+              0.933464228809705
+            ]
+          },
+          "familySupport": {
+            "straight": 57,
+            "hook": 88,
+            "uppercut": 54
+          },
+          "majorityFamilyBaselineAccuracy": 0.44221105527638194,
+          "familyCollapsedFromSixClassArgmax": {
+            "macroF1": 0.894088669950739,
+            "accuracy": 0.8944723618090452
+          },
+          "side": {
+            "familyCorrect": 178,
+            "total": 199,
+            "sideCorrectGivenFamilyCorrect": 171,
+            "sideAccuracyGivenFamilyCorrect": 0.9606741573033708,
+            "wilson95": [
+              0.9211,
+              0.9808
+            ],
+            "wrongFamily": 21,
+            "rightFamilyWrongSide": 7,
+            "perFamily": {
+              "straight": {
+                "familyCorrect": 47,
+                "sideCorrect": 46,
+                "sideAccuracy": 0.9787234042553191
+              },
+              "hook": {
+                "familyCorrect": 78,
+                "sideCorrect": 74,
+                "sideAccuracy": 0.9487179487179487
+              },
+              "uppercut": {
+                "familyCorrect": 53,
+                "sideCorrect": 51,
+                "sideAccuracy": 0.9622641509433962
+              }
+            }
+          },
+          "sixClassConfusion": {
+            "rows": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut"
+            ],
+            "columns": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut"
+            ],
+            "matrix": [
+              [
+                24,
+                0,
+                0,
+                0,
+                1,
+                0
+              ],
+              [
+                1,
+                22,
+                3,
+                4,
+                1,
+                1
+              ],
+              [
+                5,
+                3,
+                74,
+                4,
+                2,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                1,
+                0,
+                27,
+                1
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                1,
+                24
+              ]
+            ]
+          }
+        },
+        "calibration_V5": {
+          "count": 595,
+          "sixClass": {
+            "accuracy": 0.8605042016806723,
+            "macroF1": 0.8153331424826433
+          },
+          "family": {
+            "accuracy": 0.8705882352941177,
+            "macroF1": 0.8265602596942309,
+            "perClass": {
+              "straight": {
+                "support": 374,
+                "precision": 0.9739884393063584,
+                "recall": 0.9010695187165776,
+                "f1": 0.936111111111111
+              },
+              "hook": {
+                "support": 108,
+                "precision": 0.7833333333333333,
+                "recall": 0.8703703703703703,
+                "f1": 0.8245614035087719
+              },
+              "uppercut": {
+                "support": 113,
+                "precision": 0.6744186046511628,
+                "recall": 0.7699115044247787,
+                "f1": 0.71900826446281
+              }
+            },
+            "confusionRows(truth)": [
+              "straight",
+              "hook",
+              "uppercut"
+            ],
+            "confusionColumns(pred)": [
+              "straight",
+              "hook",
+              "uppercut"
+            ],
+            "confusionMatrix": [
+              [
+                337,
+                4,
+                33
+              ],
+              [
+                5,
+                94,
+                9
+              ],
+              [
+                4,
+                22,
+                87
+              ]
+            ],
+            "macroF1Bootstrap95_clipIID_optimistic": [
+              0.790569997692035,
+              0.8598235267953446
+            ]
+          },
+          "familySupport": {
+            "straight": 374,
+            "hook": 108,
+            "uppercut": 113
+          },
+          "majorityFamilyBaselineAccuracy": 0.6285714285714286,
+          "familyCollapsedFromSixClassArgmax": {
+            "macroF1": 0.8265602596942309,
+            "accuracy": 0.8705882352941177
+          },
+          "side": {
+            "familyCorrect": 518,
+            "total": 595,
+            "sideCorrectGivenFamilyCorrect": 512,
+            "sideAccuracyGivenFamilyCorrect": 0.9884169884169884,
+            "wilson95": [
+              0.975,
+              0.9947
+            ],
+            "wrongFamily": 77,
+            "rightFamilyWrongSide": 6,
+            "perFamily": {
+              "straight": {
+                "familyCorrect": 337,
+                "sideCorrect": 332,
+                "sideAccuracy": 0.9851632047477745
+              },
+              "hook": {
+                "familyCorrect": 94,
+                "sideCorrect": 93,
+                "sideAccuracy": 0.9893617021276596
+              },
+              "uppercut": {
+                "familyCorrect": 87,
+                "sideCorrect": 87,
+                "sideAccuracy": 1.0
+              }
+            }
+          },
+          "sixClassConfusion": {
+            "rows": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut"
+            ],
+            "columns": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut"
+            ],
+            "matrix": [
+              [
+                196,
+                4,
+                1,
+                1,
+                32,
+                0
+              ],
+              [
+                1,
+                136,
+                0,
+                2,
+                0,
+                1
+              ],
+              [
+                1,
+                0,
+                58,
+                1,
+                9,
+                0
+              ],
+              [
+                0,
+                4,
+                0,
+                35,
+                0,
+                0
+              ],
+              [
+                3,
+                0,
+                0,
+                0,
+                36,
+                0
+              ],
+              [
+                0,
+                1,
+                0,
+                22,
+                0,
+                51
+              ]
+            ]
+          }
+        },
+        "diagnostic_V9": {
+          "count": 149,
+          "sixClass": {
+            "accuracy": 0.8053691275167785,
+            "macroF1": 0.7780758994143296
+          },
+          "family": {
+            "accuracy": 0.9328859060402684,
+            "macroF1": 0.9304809121082087,
+            "perClass": {
+              "straight": {
+                "support": 58,
+                "precision": 1.0,
+                "recall": 0.8620689655172413,
+                "f1": 0.9259259259259259
+              },
+              "hook": {
+                "support": 31,
+                "precision": 0.90625,
+                "recall": 0.9354838709677419,
+                "f1": 0.9206349206349206
+              },
+              "uppercut": {
+                "support": 60,
+                "precision": 0.8955223880597015,
+                "recall": 1.0,
+                "f1": 0.9448818897637796
+              }
+            },
+            "confusionRows(truth)": [
+              "straight",
+              "hook",
+              "uppercut"
+            ],
+            "confusionColumns(pred)": [
+              "straight",
+              "hook",
+              "uppercut"
+            ],
+            "confusionMatrix": [
+              [
+                50,
+                3,
+                5
+              ],
+              [
+                0,
+                29,
+                2
+              ],
+              [
+                0,
+                0,
+                60
+              ]
+            ],
+            "macroF1Bootstrap95_clipIID_optimistic": [
+              0.8850708691700073,
+              0.9692942366137123
+            ]
+          },
+          "familySupport": {
+            "straight": 58,
+            "hook": 31,
+            "uppercut": 60
+          },
+          "majorityFamilyBaselineAccuracy": 0.40268456375838924,
+          "familyCollapsedFromSixClassArgmax": {
+            "macroF1": 0.9164701257861635,
+            "accuracy": 0.9194630872483222
+          },
+          "side": {
+            "familyCorrect": 137,
+            "total": 149,
+            "sideCorrectGivenFamilyCorrect": 120,
+            "sideAccuracyGivenFamilyCorrect": 0.8759124087591241,
+            "wilson95": [
+              0.8103,
+              0.9211
+            ],
+            "wrongFamily": 12,
+            "rightFamilyWrongSide": 17,
+            "perFamily": {
+              "straight": {
+                "familyCorrect": 48,
+                "sideCorrect": 33,
+                "sideAccuracy": 0.6875
+              },
+              "hook": {
+                "familyCorrect": 29,
+                "sideCorrect": 28,
+                "sideAccuracy": 0.9655172413793104
+              },
+              "uppercut": {
+                "familyCorrect": 60,
+                "sideCorrect": 59,
+                "sideAccuracy": 0.9833333333333333
+              }
+            }
+          },
+          "sixClassConfusion": {
+            "rows": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut"
+            ],
+            "columns": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut"
+            ],
+            "matrix": [
+              [
+                28,
+                0,
+                2,
+                0,
+                1,
+                0
+              ],
+              [
+                15,
+                5,
+                1,
+                1,
+                5,
+                0
+              ],
+              [
+                0,
+                0,
+                18,
+                0,
+                2,
+                0
+              ],
+              [
+                0,
+                0,
+                1,
+                10,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                25,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                1,
+                34
+              ]
+            ]
+          }
+        },
+        "diagnostic_V10": {
+          "count": 151,
+          "sixClass": {
+            "accuracy": 0.271523178807947,
+            "macroF1": 0.30754065661191504
+          },
+          "family": {
+            "accuracy": 0.44370860927152317,
+            "macroF1": 0.4646611815151141,
+            "perClass": {
+              "straight": {
+                "support": 85,
+                "precision": 1.0,
+                "recall": 0.047058823529411764,
+                "f1": 0.0898876404494382
+              },
+              "hook": {
+                "support": 31,
+                "precision": 0.7435897435897436,
+                "recall": 0.9354838709677419,
+                "f1": 0.8285714285714285
+              },
+              "uppercut": {
+                "support": 35,
+                "precision": 0.3148148148148148,
+                "recall": 0.9714285714285714,
+                "f1": 0.4755244755244756
+              }
+            },
+            "confusionRows(truth)": [
+              "straight",
+              "hook",
+              "uppercut"
+            ],
+            "confusionColumns(pred)": [
+              "straight",
+              "hook",
+              "uppercut"
+            ],
+            "confusionMatrix": [
+              [
+                4,
+                9,
+                72
+              ],
+              [
+                0,
+                29,
+                2
+              ],
+              [
+                0,
+                1,
+                34
+              ]
+            ],
+            "macroF1Bootstrap95_clipIID_optimistic": [
+              0.4044615889120994,
+              0.520134603504244
+            ]
+          },
+          "familySupport": {
+            "straight": 85,
+            "hook": 31,
+            "uppercut": 35
+          },
+          "majorityFamilyBaselineAccuracy": 0.5629139072847682,
+          "familyCollapsedFromSixClassArgmax": {
+            "macroF1": 0.4646611815151141,
+            "accuracy": 0.44370860927152317
+          },
+          "side": {
+            "familyCorrect": 67,
+            "total": 151,
+            "sideCorrectGivenFamilyCorrect": 41,
+            "sideAccuracyGivenFamilyCorrect": 0.6119402985074627,
+            "wilson95": [
+              0.4922,
+              0.7195
+            ],
+            "wrongFamily": 84,
+            "rightFamilyWrongSide": 26,
+            "perFamily": {
+              "straight": {
+                "familyCorrect": 4,
+                "sideCorrect": 1,
+                "sideAccuracy": 0.25
+              },
+              "hook": {
+                "familyCorrect": 29,
+                "sideCorrect": 18,
+                "sideAccuracy": 0.6206896551724138
+              },
+              "uppercut": {
+                "familyCorrect": 34,
+                "sideCorrect": 22,
+                "sideAccuracy": 0.6470588235294118
+              }
+            }
+          },
+          "sixClassConfusion": {
+            "rows": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut"
+            ],
+            "columns": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut"
+            ],
+            "matrix": [
+              [
+                1,
+                0,
+                1,
+                0,
+                47,
+                0
+              ],
+              [
+                3,
+                0,
+                7,
+                1,
+                22,
+                3
+              ],
+              [
+                0,
+                0,
+                12,
+                11,
+                2,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                6,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                10,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                12,
+                12
+              ]
+            ]
+          }
+        },
+        "diagnostic_V9_V10": {
+          "count": 300,
+          "sixClass": {
+            "accuracy": 0.5366666666666666,
+            "macroF1": 0.5417322393064374
+          },
+          "family": {
+            "accuracy": 0.6866666666666666,
+            "macroF1": 0.7055666992259743,
+            "perClass": {
+              "straight": {
+                "support": 143,
+                "precision": 1.0,
+                "recall": 0.3776223776223776,
+                "f1": 0.5482233502538071
+              },
+              "hook": {
+                "support": 62,
+                "precision": 0.8169014084507042,
+                "recall": 0.9354838709677419,
+                "f1": 0.8721804511278196
+              },
+              "uppercut": {
+                "support": 95,
+                "precision": 0.5371428571428571,
+                "recall": 0.9894736842105263,
+                "f1": 0.6962962962962963
+              }
+            },
+            "confusionRows(truth)": [
+              "straight",
+              "hook",
+              "uppercut"
+            ],
+            "confusionColumns(pred)": [
+              "straight",
+              "hook",
+              "uppercut"
+            ],
+            "confusionMatrix": [
+              [
+                54,
+                12,
+                77
+              ],
+              [
+                0,
+                58,
+                4
+              ],
+              [
+                0,
+                1,
+                94
+              ]
+            ],
+            "macroF1Bootstrap95_clipIID_optimistic": [
+              0.6556903856569296,
+              0.7534899596608109
+            ]
+          },
+          "familySupport": {
+            "straight": 143,
+            "hook": 62,
+            "uppercut": 95
+          },
+          "majorityFamilyBaselineAccuracy": 0.4766666666666667,
+          "familyCollapsedFromSixClassArgmax": {
+            "macroF1": 0.6975773041312503,
+            "accuracy": 0.68
+          },
+          "side": {
+            "familyCorrect": 204,
+            "total": 300,
+            "sideCorrectGivenFamilyCorrect": 161,
+            "sideAccuracyGivenFamilyCorrect": 0.7892156862745098,
+            "wilson95": [
+              0.7282,
+              0.8396
+            ],
+            "wrongFamily": 96,
+            "rightFamilyWrongSide": 43,
+            "perFamily": {
+              "straight": {
+                "familyCorrect": 52,
+                "sideCorrect": 34,
+                "sideAccuracy": 0.6538461538461539
+              },
+              "hook": {
+                "familyCorrect": 58,
+                "sideCorrect": 46,
+                "sideAccuracy": 0.7931034482758621
+              },
+              "uppercut": {
+                "familyCorrect": 94,
+                "sideCorrect": 81,
+                "sideAccuracy": 0.8617021276595744
+              }
+            }
+          },
+          "sixClassConfusion": {
+            "rows": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut"
+            ],
+            "columns": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut"
+            ],
+            "matrix": [
+              [
+                29,
+                0,
+                3,
+                0,
+                48,
+                0
+              ],
+              [
+                18,
+                5,
+                8,
+                2,
+                27,
+                3
+              ],
+              [
+                0,
+                0,
+                30,
+                11,
+                4,
+                0
+              ],
+              [
+                0,
+                0,
+                1,
+                16,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                35,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                13,
+                46
+              ]
+            ]
+          }
+        }
+      },
+      "abstention": {
+        "rules": {
+          "point": "V5 precision >= 0.9, max coverage, min 30 accepted",
+          "wilson": "V5 Wilson95 lower bound >= 0.9, max coverage (repo rule)"
+        },
+        "confidence": "max over summed family probabilities (T = checkpoint temperature)",
+        "policies": {
+          "point": {
+            "selection": {
+              "threshold": 0.5501089230279986,
+              "calibrationAccepted": 552,
+              "calibrationCorrect": 497,
+              "calibrationPrecision": 0.9003623188405797,
+              "calibrationCoverage": 0.9277310924369748,
+              "reason": "V5_ONLY_point"
+            },
+            "applied": {
+              "validation_V8": {
+                "accepted": 197,
+                "coverage": 0.9899497487437185,
+                "correct": 178,
+                "precision": 0.9035532994923858,
+                "precisionWilson95": [
+                  0.8543,
+                  0.9374
+                ],
+                "macroF1IncludingAbstentionAsMiss": 0.8998246006866696,
+                "perClassRecallIncludingAbstention": {
+                  "straight": 0.8245614035087719,
+                  "hook": 0.8863636363636364,
+                  "uppercut": 0.9814814814814815
+                },
+                "acceptedPerFamily": {
+                  "straight": 56,
+                  "hook": 87,
+                  "uppercut": 54
+                },
+                "supportPerFamily": {
+                  "straight": 57,
+                  "hook": 88,
+                  "uppercut": 54
+                }
+              },
+              "calibration_V5": {
+                "accepted": 552,
+                "coverage": 0.9277310924369748,
+                "correct": 497,
+                "precision": 0.9003623188405797,
+                "precisionWilson95": [
+                  0.8725,
+                  0.9226
+                ],
+                "macroF1IncludingAbstentionAsMiss": 0.8260309165837217,
+                "perClassRecallIncludingAbstention": {
+                  "straight": 0.8716577540106952,
+                  "hook": 0.8148148148148148,
+                  "uppercut": 0.7345132743362832
+                },
+                "acceptedPerFamily": {
+                  "straight": 348,
+                  "hook": 100,
+                  "uppercut": 104
+                },
+                "supportPerFamily": {
+                  "straight": 374,
+                  "hook": 108,
+                  "uppercut": 113
+                }
+              },
+              "diagnostic_V9": {
+                "accepted": 138,
+                "coverage": 0.9261744966442953,
+                "correct": 131,
+                "precision": 0.9492753623188406,
+                "precisionWilson95": [
+                  0.899,
+                  0.9752
+                ],
+                "macroF1IncludingAbstentionAsMiss": 0.916349547046035,
+                "perClassRecallIncludingAbstention": {
+                  "straight": 0.7586206896551724,
+                  "hook": 0.9354838709677419,
+                  "uppercut": 0.9666666666666667
+                },
+                "acceptedPerFamily": {
+                  "straight": 49,
+                  "hook": 31,
+                  "uppercut": 58
+                },
+                "supportPerFamily": {
+                  "straight": 58,
+                  "hook": 31,
+                  "uppercut": 60
+                }
+              },
+              "diagnostic_V10": {
+                "accepted": 150,
+                "coverage": 0.9933774834437086,
+                "correct": 66,
+                "precision": 0.44,
+                "precisionWilson95": [
+                  0.363,
+                  0.52
+                ],
+                "macroF1IncludingAbstentionAsMiss": 0.45742590742590744,
+                "perClassRecallIncludingAbstention": {
+                  "straight": 0.03529411764705882,
+                  "hook": 0.9354838709677419,
+                  "uppercut": 0.9714285714285714
+                },
+                "acceptedPerFamily": {
+                  "straight": 84,
+                  "hook": 31,
+                  "uppercut": 35
+                },
+                "supportPerFamily": {
+                  "straight": 85,
+                  "hook": 31,
+                  "uppercut": 35
+                }
+              },
+              "diagnostic_V9_V10": {
+                "accepted": 288,
+                "coverage": 0.96,
+                "correct": 197,
+                "precision": 0.6840277777777778,
+                "precisionWilson95": [
+                  0.6282,
+                  0.735
+                ],
+                "macroF1IncludingAbstentionAsMiss": 0.689790534030132,
+                "perClassRecallIncludingAbstention": {
+                  "straight": 0.32867132867132864,
+                  "hook": 0.9354838709677419,
+                  "uppercut": 0.968421052631579
+                },
+                "acceptedPerFamily": {
+                  "straight": 133,
+                  "hook": 62,
+                  "uppercut": 93
+                },
+                "supportPerFamily": {
+                  "straight": 143,
+                  "hook": 62,
+                  "uppercut": 95
+                }
+              }
+            }
+          },
+          "wilson": {
+            "selection": {
+              "threshold": 0.6648788977280871,
+              "calibrationAccepted": 502,
+              "calibrationCorrect": 465,
+              "calibrationPrecision": 0.9262948207171314,
+              "calibrationCoverage": 0.8436974789915966,
+              "reason": "V5_ONLY_wilson"
+            },
+            "applied": {
+              "validation_V8": {
+                "accepted": 186,
+                "coverage": 0.9346733668341709,
+                "correct": 174,
+                "precision": 0.9354838709677419,
+                "precisionWilson95": [
+                  0.8906,
+                  0.9627
+                ],
+                "macroF1IncludingAbstentionAsMiss": 0.9037261010323131,
+                "perClassRecallIncludingAbstention": {
+                  "straight": 0.7894736842105263,
+                  "hook": 0.875,
+                  "uppercut": 0.9629629629629629
+                },
+                "acceptedPerFamily": {
+                  "straight": 50,
+                  "hook": 83,
+                  "uppercut": 53
+                },
+                "supportPerFamily": {
+                  "straight": 57,
+                  "hook": 88,
+                  "uppercut": 54
+                }
+              },
+              "calibration_V5": {
+                "accepted": 502,
+                "coverage": 0.8436974789915966,
+                "correct": 465,
+                "precision": 0.9262948207171314,
+                "precisionWilson95": [
+                  0.9001,
+                  0.9461
+                ],
+                "macroF1IncludingAbstentionAsMiss": 0.8199388483484508,
+                "perClassRecallIncludingAbstention": {
+                  "straight": 0.8074866310160428,
+                  "hook": 0.7685185185185185,
+                  "uppercut": 0.7079646017699115
+                },
+                "acceptedPerFamily": {
+                  "straight": 317,
+                  "hook": 94,
+                  "uppercut": 91
+                },
+                "supportPerFamily": {
+                  "straight": 374,
+                  "hook": 108,
+                  "uppercut": 113
+                }
+              },
+              "diagnostic_V9": {
+                "accepted": 121,
+                "coverage": 0.8120805369127517,
+                "correct": 115,
+                "precision": 0.9504132231404959,
+                "precisionWilson95": [
+                  0.896,
+                  0.9771
+                ],
+                "macroF1IncludingAbstentionAsMiss": 0.8437978414871868,
+                "perClassRecallIncludingAbstention": {
+                  "straight": 0.5517241379310345,
+                  "hook": 0.8064516129032258,
+                  "uppercut": 0.9666666666666667
+                },
+                "acceptedPerFamily": {
+                  "straight": 36,
+                  "hook": 27,
+                  "uppercut": 58
+                },
+                "supportPerFamily": {
+                  "straight": 58,
+                  "hook": 31,
+                  "uppercut": 60
+                }
+              },
+              "diagnostic_V10": {
+                "accepted": 141,
+                "coverage": 0.9337748344370861,
+                "correct": 64,
+                "precision": 0.45390070921985815,
+                "precisionWilson95": [
+                  0.374,
+                  0.5362
+                ],
+                "macroF1IncludingAbstentionAsMiss": 0.46330317428350504,
+                "perClassRecallIncludingAbstention": {
+                  "straight": 0.023529411764705882,
+                  "hook": 0.9354838709677419,
+                  "uppercut": 0.9428571428571428
+                },
+                "acceptedPerFamily": {
+                  "straight": 77,
+                  "hook": 30,
+                  "uppercut": 34
+                },
+                "supportPerFamily": {
+                  "straight": 85,
+                  "hook": 31,
+                  "uppercut": 35
+                }
+              },
+              "diagnostic_V9_V10": {
+                "accepted": 262,
+                "coverage": 0.8733333333333333,
+                "correct": 179,
+                "precision": 0.683206106870229,
+                "precisionWilson95": [
+                  0.6246,
+                  0.7365
+                ],
+                "macroF1IncludingAbstentionAsMiss": 0.6508221801862571,
+                "perClassRecallIncludingAbstention": {
+                  "straight": 0.23776223776223776,
+                  "hook": 0.8709677419354839,
+                  "uppercut": 0.9578947368421052
+                },
+                "acceptedPerFamily": {
+                  "straight": 113,
+                  "hook": 57,
+                  "uppercut": 92
+                },
+                "supportPerFamily": {
+                  "straight": 143,
+                  "hook": 62,
+                  "uppercut": 95
+                }
+              }
+            }
+          }
+        },
+        "v5NoAbstentionFamilyAccuracy": 0.8705882352941177,
+        "sixClassStoredPolicyOnV9V10": {
+          "threshold": 0.7006136730837446,
+          "accepted": 239,
+          "coverage": 0.7966666666666666,
+          "accuracyWhenAccepted": 0.5732217573221757
+        }
+      },
+      "sourceCV": {
+        "variantRuns": "B0_v6_auxiliary",
+        "runs": [
+          {
+            "fold": 1,
+            "seed": 20261006,
+            "n": 1863,
+            "sixClassSupportedMacroF1": 0.4313129566450093,
+            "familySupportedMacroF1": 0.5566106347862113,
+            "familyAccuracy": 0.6001073537305421,
+            "familySupport": [
+              1130,
+              493,
+              240
+            ],
+            "familyConfusion": [
+              [
+                623,
+                314,
+                193
+              ],
+              [
+                39,
+                360,
+                94
+              ],
+              [
+                10,
+                95,
+                135
+              ]
+            ],
+            "familyPerClass": {
+              "straight": {
+                "support": 1130,
+                "precision": 0.9270833333333334,
+                "recall": 0.5513274336283186,
+                "f1": 0.6914539400665927
+              },
+              "hook": {
+                "support": 493,
+                "precision": 0.4681404421326398,
+                "recall": 0.7302231237322515,
+                "f1": 0.5705229793977813
+              },
+              "uppercut": {
+                "support": 240,
+                "precision": 0.31990521327014215,
+                "recall": 0.5625,
+                "f1": 0.40785498489425986
+              }
+            },
+            "perSource": {
+              "V1": {
+                "count": 1863,
+                "familySupportedMacroF1": 0.5566106347862113,
+                "sixClassSupportedMacroF1": 0.4313129566450093,
+                "familyAccuracy": 0.6001073537305421
+              }
+            }
+          },
+          {
+            "fold": 1,
+            "seed": 20261007,
+            "n": 1863,
+            "sixClassSupportedMacroF1": 0.4675202962644022,
+            "familySupportedMacroF1": 0.495542206553735,
+            "familyAccuracy": 0.5324745034889963,
+            "familySupport": [
+              1130,
+              493,
+              240
+            ],
+            "familyConfusion": [
+              [
+                593,
+                202,
+                335
+              ],
+              [
+                50,
+                225,
+                218
+              ],
+              [
+                15,
+                51,
+                174
+              ]
+            ],
+            "familyPerClass": {
+              "straight": {
+                "support": 1130,
+                "precision": 0.9012158054711246,
+                "recall": 0.5247787610619469,
+                "f1": 0.6633109619686801
+              },
+              "hook": {
+                "support": 493,
+                "precision": 0.4707112970711297,
+                "recall": 0.4563894523326572,
+                "f1": 0.46343975283213185
+              },
+              "uppercut": {
+                "support": 240,
+                "precision": 0.2393397524071527,
+                "recall": 0.725,
+                "f1": 0.359875904860393
+              }
+            },
+            "perSource": {
+              "V1": {
+                "count": 1863,
+                "familySupportedMacroF1": 0.495542206553735,
+                "sixClassSupportedMacroF1": 0.4675202962644022,
+                "familyAccuracy": 0.5324745034889963
+              }
+            }
+          },
+          {
+            "fold": 1,
+            "seed": 20261008,
+            "n": 1863,
+            "sixClassSupportedMacroF1": 0.4860365209266028,
+            "familySupportedMacroF1": 0.5504147217993103,
+            "familyAccuracy": 0.6006441223832528,
+            "familySupport": [
+              1130,
+              493,
+              240
+            ],
+            "familyConfusion": [
+              [
+                631,
+                244,
+                255
+              ],
+              [
+                37,
+                363,
+                93
+              ],
+              [
+                11,
+                104,
+                125
+              ]
+            ],
+            "familyPerClass": {
+              "straight": {
+                "support": 1130,
+                "precision": 0.9293078055964654,
+                "recall": 0.5584070796460177,
+                "f1": 0.6976229961304588
+              },
+              "hook": {
+                "support": 493,
+                "precision": 0.510548523206751,
+                "recall": 0.7363083164300203,
+                "f1": 0.6029900332225913
+              },
+              "uppercut": {
+                "support": 240,
+                "precision": 0.2642706131078224,
+                "recall": 0.5208333333333334,
+                "f1": 0.3506311360448808
+              }
+            },
+            "perSource": {
+              "V1": {
+                "count": 1863,
+                "familySupportedMacroF1": 0.5504147217993103,
+                "sixClassSupportedMacroF1": 0.4860365209266028,
+                "familyAccuracy": 0.6006441223832528
+              }
+            }
+          },
+          {
+            "fold": 2,
+            "seed": 20261006,
+            "n": 1043,
+            "sixClassSupportedMacroF1": 0.6239956483503092,
+            "familySupportedMacroF1": 0.6507078057775281,
+            "familyAccuracy": 0.7516778523489933,
+            "familySupport": [
+              729,
+              168,
+              146
+            ],
+            "familyConfusion": [
+              [
+                608,
+                17,
+                104
+              ],
+              [
+                81,
+                72,
+                15
+              ],
+              [
+                39,
+                3,
+                104
+              ]
+            ],
+            "familyPerClass": {
+              "straight": {
+                "support": 729,
+                "precision": 0.8351648351648352,
+                "recall": 0.8340192043895748,
+                "f1": 0.8345916266300618
+              },
+              "hook": {
+                "support": 168,
+                "precision": 0.782608695652174,
+                "recall": 0.42857142857142855,
+                "f1": 0.5538461538461539
+              },
+              "uppercut": {
+                "support": 146,
+                "precision": 0.4663677130044843,
+                "recall": 0.7123287671232876,
+                "f1": 0.5636856368563685
+              }
+            },
+            "perSource": {
+              "V2": {
+                "count": 232,
+                "familySupportedMacroF1": 0.7518678574858351,
+                "sixClassSupportedMacroF1": 0.702050635564145,
+                "familyAccuracy": 0.75
+              },
+              "V3": {
+                "count": 811,
+                "familySupportedMacroF1": 0.5340022250303201,
+                "sixClassSupportedMacroF1": 0.5805616116771061,
+                "familyAccuracy": 0.752157829839704
+              }
+            }
+          },
+          {
+            "fold": 2,
+            "seed": 20261007,
+            "n": 1043,
+            "sixClassSupportedMacroF1": 0.5381079880711959,
+            "familySupportedMacroF1": 0.5553158565508814,
+            "familyAccuracy": 0.6414189837008629,
+            "familySupport": [
+              729,
+              168,
+              146
+            ],
+            "familyConfusion": [
+              [
+                484,
+                51,
+                194
+              ],
+              [
+                63,
+                62,
+                43
+              ],
+              [
+                16,
+                7,
+                123
+              ]
+            ],
+            "familyPerClass": {
+              "straight": {
+                "support": 729,
+                "precision": 0.8596802841918295,
+                "recall": 0.663923182441701,
+                "f1": 0.7492260061919505
+              },
+              "hook": {
+                "support": 168,
+                "precision": 0.5166666666666667,
+                "recall": 0.36904761904761907,
+                "f1": 0.4305555555555556
+              },
+              "uppercut": {
+                "support": 146,
+                "precision": 0.3416666666666667,
+                "recall": 0.8424657534246576,
+                "f1": 0.48616600790513836
+              }
+            },
+            "perSource": {
+              "V2": {
+                "count": 232,
+                "familySupportedMacroF1": 0.7670114373012925,
+                "sixClassSupportedMacroF1": 0.7524044084570399,
+                "familyAccuracy": 0.7974137931034483
+              },
+              "V3": {
+                "count": 811,
+                "familySupportedMacroF1": 0.4220376445867322,
+                "sixClassSupportedMacroF1": 0.45125031819430883,
+                "familyAccuracy": 0.5967940813810111
+              }
+            }
+          },
+          {
+            "fold": 2,
+            "seed": 20261008,
+            "n": 1043,
+            "sixClassSupportedMacroF1": 0.5532285960604563,
+            "familySupportedMacroF1": 0.5908411446630347,
+            "familyAccuracy": 0.6510067114093959,
+            "familySupport": [
+              729,
+              168,
+              146
+            ],
+            "familyConfusion": [
+              [
+                468,
+                70,
+                191
+              ],
+              [
+                41,
+                107,
+                20
+              ],
+              [
+                14,
+                28,
+                104
+              ]
+            ],
+            "familyPerClass": {
+              "straight": {
+                "support": 729,
+                "precision": 0.8948374760994264,
+                "recall": 0.6419753086419753,
+                "f1": 0.7476038338658147
+              },
+              "hook": {
+                "support": 168,
+                "precision": 0.5219512195121951,
+                "recall": 0.6369047619047619,
+                "f1": 0.5737265415549597
+              },
+              "uppercut": {
+                "support": 146,
+                "precision": 0.33015873015873015,
+                "recall": 0.7123287671232876,
+                "f1": 0.4511930585683297
+              }
+            },
+            "perSource": {
+              "V2": {
+                "count": 232,
+                "familySupportedMacroF1": 0.8027082167920655,
+                "sixClassSupportedMacroF1": 0.7735669025882481,
+                "familyAccuracy": 0.8017241379310345
+              },
+              "V3": {
+                "count": 811,
+                "familySupportedMacroF1": 0.4698404674725279,
+                "sixClassSupportedMacroF1": 0.4750543279007062,
+                "familyAccuracy": 0.6078914919852034
+              }
+            }
+          },
+          {
+            "fold": 3,
+            "seed": 20261006,
+            "n": 754,
+            "sixClassSupportedMacroF1": 0.2545347219172737,
+            "familySupportedMacroF1": 0.35052989400931356,
+            "familyAccuracy": 0.40185676392572944,
+            "familySupport": [
+              219,
+              284,
+              251
+            ],
+            "familyConfusion": [
+              [
+                62,
+                155,
+                2
+              ],
+              [
+                67,
+                206,
+                11
+              ],
+              [
+                90,
+                126,
+                35
+              ]
+            ],
+            "familyPerClass": {
+              "straight": {
+                "support": 219,
+                "precision": 0.2831050228310502,
+                "recall": 0.2831050228310502,
+                "f1": 0.2831050228310502
+              },
+              "hook": {
+                "support": 284,
+                "precision": 0.42299794661190965,
+                "recall": 0.7253521126760564,
+                "f1": 0.5343709468223087
+              },
+              "uppercut": {
+                "support": 251,
+                "precision": 0.7291666666666666,
+                "recall": 0.1394422310756972,
+                "f1": 0.2341137123745819
+              }
+            },
+            "perSource": {
+              "V4": {
+                "count": 559,
+                "familySupportedMacroF1": 0.2339848703485067,
+                "sixClassSupportedMacroF1": 0.09554555293191658,
+                "familyAccuracy": 0.31305903398926654
+              },
+              "V7": {
+                "count": 195,
+                "familySupportedMacroF1": 0.6406700617167211,
+                "sixClassSupportedMacroF1": 0.5954593529033275,
+                "familyAccuracy": 0.6564102564102564
+              }
+            }
+          },
+          {
+            "fold": 3,
+            "seed": 20261007,
+            "n": 754,
+            "sixClassSupportedMacroF1": 0.23684087169632972,
+            "familySupportedMacroF1": 0.38429576978071456,
+            "familyAccuracy": 0.45490716180371354,
+            "familySupport": [
+              219,
+              284,
+              251
+            ],
+            "familyConfusion": [
+              [
+                44,
+                163,
+                12
+              ],
+              [
+                12,
+                253,
+                19
+              ],
+              [
+                14,
+                191,
+                46
+              ]
+            ],
+            "familyPerClass": {
+              "straight": {
+                "support": 219,
+                "precision": 0.6285714285714286,
+                "recall": 0.2009132420091324,
+                "f1": 0.3044982698961938
+              },
+              "hook": {
+                "support": 284,
+                "precision": 0.41680395387149916,
+                "recall": 0.8908450704225352,
+                "f1": 0.5679012345679012
+              },
+              "uppercut": {
+                "support": 251,
+                "precision": 0.5974025974025974,
+                "recall": 0.18326693227091634,
+                "f1": 0.28048780487804875
+              }
+            },
+            "perSource": {
+              "V4": {
+                "count": 559,
+                "familySupportedMacroF1": 0.23446435773964946,
+                "sixClassSupportedMacroF1": 0.06816613083272273,
+                "familyAccuracy": 0.38998211091234347
+              },
+              "V7": {
+                "count": 195,
+                "familySupportedMacroF1": 0.6382608984676438,
+                "sixClassSupportedMacroF1": 0.5343706893416041,
+                "familyAccuracy": 0.6410256410256411
+              }
+            }
+          },
+          {
+            "fold": 3,
+            "seed": 20261008,
+            "n": 754,
+            "sixClassSupportedMacroF1": 0.2627293316002993,
+            "familySupportedMacroF1": 0.4123034572099425,
+            "familyAccuracy": 0.4177718832891247,
+            "familySupport": [
+              219,
+              284,
+              251
+            ],
+            "familyConfusion": [
+              [
+                113,
+                90,
+                16
+              ],
+              [
+                125,
+                135,
+                24
+              ],
+              [
+                118,
+                66,
+                67
+              ]
+            ],
+            "familyPerClass": {
+              "straight": {
+                "support": 219,
+                "precision": 0.31741573033707865,
+                "recall": 0.5159817351598174,
+                "f1": 0.39304347826086955
+              },
+              "hook": {
+                "support": 284,
+                "precision": 0.4639175257731959,
+                "recall": 0.4753521126760563,
+                "f1": 0.4695652173913043
+              },
+              "uppercut": {
+                "support": 251,
+                "precision": 0.6261682242990654,
+                "recall": 0.26693227091633465,
+                "f1": 0.3743016759776536
+              }
+            },
+            "perSource": {
+              "V4": {
+                "count": 559,
+                "familySupportedMacroF1": 0.2867772028704372,
+                "sixClassSupportedMacroF1": 0.06828038974531388,
+                "familyAccuracy": 0.3076923076923077
+              },
+              "V7": {
+                "count": 195,
+                "familySupportedMacroF1": 0.7337505489679402,
+                "sixClassSupportedMacroF1": 0.621553284148704,
+                "familyAccuracy": 0.7333333333333333
+              }
+            }
+          },
+          {
+            "fold": 4,
+            "seed": 20261006,
+            "n": 685,
+            "sixClassSupportedMacroF1": 0.7620197889861229,
+            "familySupportedMacroF1": 0.8316592924993185,
+            "familyAccuracy": 0.8364963503649635,
+            "familySupport": [
+              0,
+              220,
+              465
+            ],
+            "familyConfusion": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                16,
+                158,
+                46
+              ],
+              [
+                16,
+                34,
+                415
+              ]
+            ],
+            "familyPerClass": {
+              "straight": {
+                "support": 0,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "hook": {
+                "support": 220,
+                "precision": 0.8229166666666666,
+                "recall": 0.7181818181818181,
+                "f1": 0.7669902912621359
+              },
+              "uppercut": {
+                "support": 465,
+                "precision": 0.9002169197396963,
+                "recall": 0.8924731182795699,
+                "f1": 0.896328293736501
+              }
+            },
+            "perSource": {
+              "V6": {
+                "count": 685,
+                "familySupportedMacroF1": 0.8316592924993185,
+                "sixClassSupportedMacroF1": 0.7620197889861229,
+                "familyAccuracy": 0.8364963503649635
+              }
+            }
+          },
+          {
+            "fold": 4,
+            "seed": 20261007,
+            "n": 685,
+            "sixClassSupportedMacroF1": 0.8176035434094217,
+            "familySupportedMacroF1": 0.8392429089984051,
+            "familyAccuracy": 0.8321167883211679,
+            "familySupport": [
+              0,
+              220,
+              465
+            ],
+            "familyConfusion": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                11,
+                188,
+                21
+              ],
+              [
+                20,
+                63,
+                382
+              ]
+            ],
+            "familyPerClass": {
+              "straight": {
+                "support": 0,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "hook": {
+                "support": 220,
+                "precision": 0.749003984063745,
+                "recall": 0.8545454545454545,
+                "f1": 0.7983014861995754
+              },
+              "uppercut": {
+                "support": 465,
+                "precision": 0.9478908188585607,
+                "recall": 0.821505376344086,
+                "f1": 0.8801843317972349
+              }
+            },
+            "perSource": {
+              "V6": {
+                "count": 685,
+                "familySupportedMacroF1": 0.8392429089984051,
+                "sixClassSupportedMacroF1": 0.8176035434094217,
+                "familyAccuracy": 0.8321167883211679
+              }
+            }
+          },
+          {
+            "fold": 4,
+            "seed": 20261008,
+            "n": 685,
+            "sixClassSupportedMacroF1": 0.6763786859160685,
+            "familySupportedMacroF1": 0.7407199796413857,
+            "familyAccuracy": 0.6686131386861314,
+            "familySupport": [
+              0,
+              220,
+              465
+            ],
+            "familyConfusion": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                75,
+                115,
+                30
+              ],
+              [
+                110,
+                12,
+                343
+              ]
+            ],
+            "familyPerClass": {
+              "straight": {
+                "support": 0,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "hook": {
+                "support": 220,
+                "precision": 0.905511811023622,
+                "recall": 0.5227272727272727,
+                "f1": 0.6628242074927954
+              },
+              "uppercut": {
+                "support": 465,
+                "precision": 0.9195710455764075,
+                "recall": 0.7376344086021506,
+                "f1": 0.818615751789976
+              }
+            },
+            "perSource": {
+              "V6": {
+                "count": 685,
+                "familySupportedMacroF1": 0.7407199796413857,
+                "sixClassSupportedMacroF1": 0.6763786859160685,
+                "familyAccuracy": 0.6686131386861314
+              }
+            }
+          }
+        ],
+        "folds": {
+          "1": {
+            "sources": [
+              "V1"
+            ],
+            "clips": 1863,
+            "familySupport": {
+              "straight": 1130,
+              "hook": 493,
+              "uppercut": 240
+            },
+            "sixClassMean": 0.4616232579453381,
+            "familyMean": 0.5341891877130855,
+            "familyStd": 0.027444358242131886,
+            "familyAccuracyMean": 0.5777419932009304
+          },
+          "2": {
+            "sources": [
+              "V2",
+              "V3"
+            ],
+            "clips": 1043,
+            "familySupport": {
+              "straight": 729,
+              "hook": 168,
+              "uppercut": 146
+            },
+            "sixClassMean": 0.5717774108273205,
+            "familyMean": 0.5989549356638147,
+            "familyStd": 0.039363953033353036,
+            "familyAccuracyMean": 0.6813678491530841
+          },
+          "3": {
+            "sources": [
+              "V4",
+              "V7"
+            ],
+            "clips": 754,
+            "familySupport": {
+              "straight": 219,
+              "hook": 284,
+              "uppercut": 251
+            },
+            "sixClassMean": 0.25136830840463426,
+            "familyMean": 0.38237637366665683,
+            "familyStd": 0.02525544612827788,
+            "familyAccuracyMean": 0.4248452696728559
+          },
+          "4": {
+            "sources": [
+              "V6"
+            ],
+            "clips": 685,
+            "familySupport": {
+              "straight": 0,
+              "hook": 220,
+              "uppercut": 465
+            },
+            "sixClassMean": 0.7520006727705377,
+            "familyMean": 0.8038740603797031,
+            "familyStd": 0.0447638711851998,
+            "familyAccuracyMean": 0.7790754257907543
+          }
+        },
+        "perSource": {
+          "V1": {
+            "clips": 1863,
+            "sixClassMean": 0.4616232579453381,
+            "familyMean": 0.5341891877130855,
+            "familyAccuracyMean": 0.5777419932009304
+          },
+          "V2": {
+            "clips": 232,
+            "sixClassMean": 0.7426739822031444,
+            "familyMean": 0.7738625038597311,
+            "familyAccuracyMean": 0.7830459770114944
+          },
+          "V3": {
+            "clips": 811,
+            "sixClassMean": 0.502288752590707,
+            "familyMean": 0.47529344569652676,
+            "familyAccuracyMean": 0.6522811344019729
+          },
+          "V4": {
+            "clips": 559,
+            "sixClassMean": 0.07733069116998438,
+            "familyMean": 0.25174214365286446,
+            "familyAccuracyMean": 0.33691115086463924
+          },
+          "V6": {
+            "clips": 685,
+            "sixClassMean": 0.7520006727705377,
+            "familyMean": 0.8038740603797031,
+            "familyAccuracyMean": 0.7790754257907543
+          },
+          "V7": {
+            "clips": 195,
+            "sixClassMean": 0.5837944421312119,
+            "familyMean": 0.6708938363841016,
+            "familyAccuracyMean": 0.6769230769230768
+          }
+        },
+        "meanFoldSixClass": 0.5091924124869576,
+        "meanFoldFamily": 0.5798486393558151,
+        "worstFoldFamily": 0.38237637366665683,
+        "note": "Out-of-fold logits of the 24 saved CV runs (temperature 1.0, not calibrated). Folds differ from the refit checkpoint (trained without the held-out source). V6 has only 4 classes; family F1 averages families with support. Same models were used to select B0/B1, so scores are selection-biased."
+      }
+    },
+    "B1": {
+      "weightsSha256": "45f2f8fd345ddf0504850d46855ad4ca07c0a9aab0fa562aaa14b6751218ffa4",
+      "temperature": 0.9130000654136892,
+      "primary": false,
+      "splits": {
+        "validation_V8": {
+          "count": 199,
+          "sixClass": {
+            "accuracy": 0.6834170854271356,
+            "macroF1": 0.601984126984127
+          },
+          "family": {
+            "accuracy": 0.7035175879396985,
+            "macroF1": 0.706365881401454,
+            "perClass": {
+              "straight": {
+                "support": 57,
+                "precision": 0.7580645161290323,
+                "recall": 0.8245614035087719,
+                "f1": 0.7899159663865545
+              },
+              "hook": {
+                "support": 88,
+                "precision": 0.8913043478260869,
+                "recall": 0.4659090909090909,
+                "f1": 0.6119402985074627
+              },
+              "uppercut": {
+                "support": 54,
+                "precision": 0.5714285714285714,
+                "recall": 0.9629629629629629,
+                "f1": 0.7172413793103448
+              }
+            },
+            "confusionRows(truth)": [
+              "straight",
+              "hook",
+              "uppercut"
+            ],
+            "confusionColumns(pred)": [
+              "straight",
+              "hook",
+              "uppercut"
+            ],
+            "confusionMatrix": [
+              [
+                47,
+                3,
+                7
+              ],
+              [
+                15,
+                41,
+                32
+              ],
+              [
+                0,
+                2,
+                52
+              ]
+            ],
+            "macroF1Bootstrap95_clipIID_optimistic": [
+              0.6410186799721792,
+              0.7643983557737881
+            ]
+          },
+          "familySupport": {
+            "straight": 57,
+            "hook": 88,
+            "uppercut": 54
+          },
+          "majorityFamilyBaselineAccuracy": 0.44221105527638194,
+          "familyCollapsedFromSixClassArgmax": {
+            "macroF1": 0.7114534702769996,
+            "accuracy": 0.7085427135678392
+          },
+          "side": {
+            "familyCorrect": 141,
+            "total": 199,
+            "sideCorrectGivenFamilyCorrect": 136,
+            "sideAccuracyGivenFamilyCorrect": 0.9645390070921985,
+            "wilson95": [
+              0.9197,
+              0.9848
+            ],
+            "wrongFamily": 58,
+            "rightFamilyWrongSide": 5,
+            "perFamily": {
+              "straight": {
+                "familyCorrect": 47,
+                "sideCorrect": 47,
+                "sideAccuracy": 1.0
+              },
+              "hook": {
+                "familyCorrect": 42,
+                "sideCorrect": 39,
+                "sideAccuracy": 0.9285714285714286
+              },
+              "uppercut": {
+                "familyCorrect": 52,
+                "sideCorrect": 50,
+                "sideAccuracy": 0.9615384615384616
+              }
+            }
+          },
+          "sixClassConfusion": {
+            "rows": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut"
+            ],
+            "columns": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut"
+            ],
+            "matrix": [
+              [
+                24,
+                0,
+                1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                23,
+                0,
+                2,
+                3,
+                4
+              ],
+              [
+                14,
+                1,
+                39,
+                3,
+                27,
+                4
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                2,
+                0,
+                25,
+                2
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                25
+              ]
+            ]
+          }
+        },
+        "calibration_V5": {
+          "count": 595,
+          "sixClass": {
+            "accuracy": 0.865546218487395,
+            "macroF1": 0.7692217865406027
+          },
+          "family": {
+            "accuracy": 0.8991596638655462,
+            "macroF1": 0.8530516851233804,
+            "perClass": {
+              "straight": {
+                "support": 374,
+                "precision": 0.8980582524271845,
+                "recall": 0.9893048128342246,
+                "f1": 0.9414758269720102
+              },
+              "hook": {
+                "support": 108,
+                "precision": 0.9428571428571428,
+                "recall": 0.6111111111111112,
+                "f1": 0.7415730337078652
+              },
+              "uppercut": {
+                "support": 113,
+                "precision": 0.8761061946902655,
+                "recall": 0.8761061946902655,
+                "f1": 0.8761061946902655
+              }
+            },
+            "confusionRows(truth)": [
+              "straight",
+              "hook",
+              "uppercut"
+            ],
+            "confusionColumns(pred)": [
+              "straight",
+              "hook",
+              "uppercut"
+            ],
+            "confusionMatrix": [
+              [
+                370,
+                2,
+                2
+              ],
+              [
+                30,
+                66,
+                12
+              ],
+              [
+                12,
+                2,
+                99
+              ]
+            ],
+            "macroF1Bootstrap95_clipIID_optimistic": [
+              0.8170094756185731,
+              0.8852480602489533
+            ]
+          },
+          "familySupport": {
+            "straight": 374,
+            "hook": 108,
+            "uppercut": 113
+          },
+          "majorityFamilyBaselineAccuracy": 0.6285714285714286,
+          "familyCollapsedFromSixClassArgmax": {
+            "macroF1": 0.8468185505896618,
+            "accuracy": 0.8941176470588236
+          },
+          "side": {
+            "familyCorrect": 532,
+            "total": 595,
+            "sideCorrectGivenFamilyCorrect": 515,
+            "sideAccuracyGivenFamilyCorrect": 0.9680451127819549,
+            "wilson95": [
+              0.9494,
+              0.98
+            ],
+            "wrongFamily": 63,
+            "rightFamilyWrongSide": 17,
+            "perFamily": {
+              "straight": {
+                "familyCorrect": 370,
+                "sideCorrect": 366,
+                "sideAccuracy": 0.9891891891891892
+              },
+              "hook": {
+                "familyCorrect": 66,
+                "sideCorrect": 58,
+                "sideAccuracy": 0.8787878787878788
+              },
+              "uppercut": {
+                "familyCorrect": 96,
+                "sideCorrect": 91,
+                "sideAccuracy": 0.9479166666666666
+              }
+            }
+          },
+          "sixClassConfusion": {
+            "rows": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut"
+            ],
+            "columns": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut"
+            ],
+            "matrix": [
+              [
+                227,
+                4,
+                2,
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                139,
+                0,
+                0,
+                0,
+                1
+              ],
+              [
+                13,
+                0,
+                48,
+                8,
+                0,
+                0
+              ],
+              [
+                0,
+                17,
+                0,
+                10,
+                1,
+                11
+              ],
+              [
+                5,
+                0,
+                2,
+                0,
+                27,
+                5
+              ],
+              [
+                0,
+                10,
+                0,
+                0,
+                0,
+                64
+              ]
+            ]
+          }
+        },
+        "diagnostic_V9": {
+          "count": 149,
+          "sixClass": {
+            "accuracy": 0.6040268456375839,
+            "macroF1": 0.5829153288662087
+          },
+          "family": {
+            "accuracy": 0.9530201342281879,
+            "macroF1": 0.9460506706408346,
+            "perClass": {
+              "straight": {
+                "support": 58,
+                "precision": 1.0,
+                "recall": 0.896551724137931,
+                "f1": 0.9454545454545454
+              },
+              "hook": {
+                "support": 31,
+                "precision": 0.8571428571428571,
+                "recall": 0.967741935483871,
+                "f1": 0.909090909090909
+              },
+              "uppercut": {
+                "support": 60,
+                "precision": 0.967741935483871,
+                "recall": 1.0,
+                "f1": 0.9836065573770492
+              }
+            },
+            "confusionRows(truth)": [
+              "straight",
+              "hook",
+              "uppercut"
+            ],
+            "confusionColumns(pred)": [
+              "straight",
+              "hook",
+              "uppercut"
+            ],
+            "confusionMatrix": [
+              [
+                52,
+                5,
+                1
+              ],
+              [
+                0,
+                30,
+                1
+              ],
+              [
+                0,
+                0,
+                60
+              ]
+            ],
+            "macroF1Bootstrap95_clipIID_optimistic": [
+              0.9047626106029917,
+              0.9807282726989779
+            ]
+          },
+          "familySupport": {
+            "straight": 58,
+            "hook": 31,
+            "uppercut": 60
+          },
+          "majorityFamilyBaselineAccuracy": 0.40268456375838924,
+          "familyCollapsedFromSixClassArgmax": {
+            "macroF1": 0.9442374902347765,
+            "accuracy": 0.9530201342281879
+          },
+          "side": {
+            "familyCorrect": 142,
+            "total": 149,
+            "sideCorrectGivenFamilyCorrect": 90,
+            "sideAccuracyGivenFamilyCorrect": 0.6338028169014085,
+            "wilson95": [
+              0.552,
+              0.7085
+            ],
+            "wrongFamily": 7,
+            "rightFamilyWrongSide": 52,
+            "perFamily": {
+              "straight": {
+                "familyCorrect": 52,
+                "sideCorrect": 25,
+                "sideAccuracy": 0.4807692307692308
+              },
+              "hook": {
+                "familyCorrect": 30,
+                "sideCorrect": 27,
+                "sideAccuracy": 0.9
+              },
+              "uppercut": {
+                "familyCorrect": 60,
+                "sideCorrect": 38,
+                "sideAccuracy": 0.6333333333333333
+              }
+            }
+          },
+          "sixClassConfusion": {
+            "rows": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut"
+            ],
+            "columns": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut"
+            ],
+            "matrix": [
+              [
+                25,
+                0,
+                6,
+                0,
+                0,
+                0
+              ],
+              [
+                27,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                18,
+                1,
+                1,
+                0
+              ],
+              [
+                0,
+                0,
+                2,
+                9,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                18,
+                7
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                15,
+                20
+              ]
+            ]
+          }
+        },
+        "diagnostic_V10": {
+          "count": 151,
+          "sixClass": {
+            "accuracy": 0.31125827814569534,
+            "macroF1": 0.2937267108029469
+          },
+          "family": {
+            "accuracy": 0.423841059602649,
+            "macroF1": 0.40856365856365856,
+            "perClass": {
+              "straight": {
+                "support": 85,
+                "precision": 1.0,
+                "recall": 0.03529411764705882,
+                "f1": 0.06818181818181818
+              },
+              "hook": {
+                "support": 31,
+                "precision": 0.49056603773584906,
+                "recall": 0.8387096774193549,
+                "f1": 0.6190476190476191
+              },
+              "uppercut": {
+                "support": 35,
+                "precision": 0.3684210526315789,
+                "recall": 1.0,
+                "f1": 0.5384615384615384
+              }
+            },
+            "confusionRows(truth)": [
+              "straight",
+              "hook",
+              "uppercut"
+            ],
+            "confusionColumns(pred)": [
+              "straight",
+              "hook",
+              "uppercut"
+            ],
+            "confusionMatrix": [
+              [
+                3,
+                27,
+                55
+              ],
+              [
+                0,
+                26,
+                5
+              ],
+              [
+                0,
+                0,
+                35
+              ]
+            ],
+            "macroF1Bootstrap95_clipIID_optimistic": [
+              0.3423315615497371,
+              0.4667442289113291
+            ]
+          },
+          "familySupport": {
+            "straight": 85,
+            "hook": 31,
+            "uppercut": 35
+          },
+          "majorityFamilyBaselineAccuracy": 0.5629139072847682,
+          "familyCollapsedFromSixClassArgmax": {
+            "macroF1": 0.40856365856365856,
+            "accuracy": 0.423841059602649
+          },
+          "side": {
+            "familyCorrect": 64,
+            "total": 151,
+            "sideCorrectGivenFamilyCorrect": 47,
+            "sideAccuracyGivenFamilyCorrect": 0.734375,
+            "wilson95": [
+              0.6152,
+              0.827
+            ],
+            "wrongFamily": 87,
+            "rightFamilyWrongSide": 17,
+            "perFamily": {
+              "straight": {
+                "familyCorrect": 3,
+                "sideCorrect": 1,
+                "sideAccuracy": 0.3333333333333333
+              },
+              "hook": {
+                "familyCorrect": 26,
+                "sideCorrect": 23,
+                "sideAccuracy": 0.8846153846153846
+              },
+              "uppercut": {
+                "familyCorrect": 35,
+                "sideCorrect": 23,
+                "sideAccuracy": 0.6571428571428571
+              }
+            }
+          },
+          "sixClassConfusion": {
+            "rows": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut"
+            ],
+            "columns": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut"
+            ],
+            "matrix": [
+              [
+                1,
+                0,
+                14,
+                0,
+                33,
+                1
+              ],
+              [
+                2,
+                0,
+                8,
+                5,
+                8,
+                13
+              ],
+              [
+                0,
+                0,
+                19,
+                1,
+                0,
+                5
+              ],
+              [
+                0,
+                0,
+                2,
+                4,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                3,
+                7
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                5,
+                20
+              ]
+            ]
+          }
+        },
+        "diagnostic_V9_V10": {
+          "count": 300,
+          "sixClass": {
+            "accuracy": 0.45666666666666667,
+            "macroF1": 0.4490744429489597
+          },
+          "family": {
+            "accuracy": 0.6866666666666666,
+            "macroF1": 0.6853968253968253,
+            "perClass": {
+              "straight": {
+                "support": 143,
+                "precision": 1.0,
+                "recall": 0.38461538461538464,
+                "f1": 0.5555555555555556
+              },
+              "hook": {
+                "support": 62,
+                "precision": 0.6363636363636364,
+                "recall": 0.9032258064516129,
+                "f1": 0.7466666666666666
+              },
+              "uppercut": {
+                "support": 95,
+                "precision": 0.6050955414012739,
+                "recall": 1.0,
+                "f1": 0.7539682539682538
+              }
+            },
+            "confusionRows(truth)": [
+              "straight",
+              "hook",
+              "uppercut"
+            ],
+            "confusionColumns(pred)": [
+              "straight",
+              "hook",
+              "uppercut"
+            ],
+            "confusionMatrix": [
+              [
+                55,
+                32,
+                56
+              ],
+              [
+                0,
+                56,
+                6
+              ],
+              [
+                0,
+                0,
+                95
+              ]
+            ],
+            "macroF1Bootstrap95_clipIID_optimistic": [
+              0.6322305128416041,
+              0.7367918685834315
+            ]
+          },
+          "familySupport": {
+            "straight": 143,
+            "hook": 62,
+            "uppercut": 95
+          },
+          "majorityFamilyBaselineAccuracy": 0.4766666666666667,
+          "familyCollapsedFromSixClassArgmax": {
+            "macroF1": 0.6847498404713254,
+            "accuracy": 0.6866666666666666
+          },
+          "side": {
+            "familyCorrect": 206,
+            "total": 300,
+            "sideCorrectGivenFamilyCorrect": 137,
+            "sideAccuracyGivenFamilyCorrect": 0.6650485436893204,
+            "wilson95": [
+              0.5981,
+              0.726
+            ],
+            "wrongFamily": 94,
+            "rightFamilyWrongSide": 69,
+            "perFamily": {
+              "straight": {
+                "familyCorrect": 55,
+                "sideCorrect": 26,
+                "sideAccuracy": 0.4727272727272727
+              },
+              "hook": {
+                "familyCorrect": 56,
+                "sideCorrect": 50,
+                "sideAccuracy": 0.8928571428571429
+              },
+              "uppercut": {
+                "familyCorrect": 95,
+                "sideCorrect": 61,
+                "sideAccuracy": 0.6421052631578947
+              }
+            }
+          },
+          "sixClassConfusion": {
+            "rows": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut"
+            ],
+            "columns": [
+              "jab",
+              "cross",
+              "lead_hook",
+              "rear_hook",
+              "lead_uppercut",
+              "rear_uppercut"
+            ],
+            "matrix": [
+              [
+                26,
+                0,
+                20,
+                0,
+                33,
+                1
+              ],
+              [
+                29,
+                0,
+                8,
+                5,
+                8,
+                13
+              ],
+              [
+                0,
+                0,
+                37,
+                2,
+                1,
+                5
+              ],
+              [
+                0,
+                0,
+                4,
+                13,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                21,
+                14
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                20,
+                40
+              ]
+            ]
+          }
+        }
+      },
+      "abstention": {
+        "rules": {
+          "point": "V5 precision >= 0.9, max coverage, min 30 accepted",
+          "wilson": "V5 Wilson95 lower bound >= 0.9, max coverage (repo rule)"
+        },
+        "confidence": "max over summed family probabilities (T = checkpoint temperature)",
+        "policies": {
+          "point": {
+            "selection": {
+              "threshold": 0.3873535381314575,
+              "calibrationAccepted": 594,
+              "calibrationCorrect": 535,
+              "calibrationPrecision": 0.9006734006734006,
+              "calibrationCoverage": 0.9983193277310924,
+              "reason": "V5_ONLY_point"
+            },
+            "applied": {
+              "validation_V8": {
+                "accepted": 199,
+                "coverage": 1.0,
+                "correct": 140,
+                "precision": 0.7035175879396985,
+                "precisionWilson95": [
+                  0.6367,
+                  0.7626
+                ],
+                "macroF1IncludingAbstentionAsMiss": 0.706365881401454,
+                "perClassRecallIncludingAbstention": {
+                  "straight": 0.8245614035087719,
+                  "hook": 0.4659090909090909,
+                  "uppercut": 0.9629629629629629
+                },
+                "acceptedPerFamily": {
+                  "straight": 57,
+                  "hook": 88,
+                  "uppercut": 54
+                },
+                "supportPerFamily": {
+                  "straight": 57,
+                  "hook": 88,
+                  "uppercut": 54
+                }
+              },
+              "calibration_V5": {
+                "accepted": 594,
+                "coverage": 0.9983193277310924,
+                "correct": 535,
+                "precision": 0.9006734006734006,
+                "precisionWilson95": [
+                  0.874,
+                  0.9222
+                ],
+                "macroF1IncludingAbstentionAsMiss": 0.8543496202266251,
+                "perClassRecallIncludingAbstention": {
+                  "straight": 0.9893048128342246,
+                  "hook": 0.6111111111111112,
+                  "uppercut": 0.8761061946902655
+                },
+                "acceptedPerFamily": {
+                  "straight": 373,
+                  "hook": 108,
+                  "uppercut": 113
+                },
+                "supportPerFamily": {
+                  "straight": 374,
+                  "hook": 108,
+                  "uppercut": 113
+                }
+              },
+              "diagnostic_V9": {
+                "accepted": 148,
+                "coverage": 0.9932885906040269,
+                "correct": 142,
+                "precision": 0.9594594594594594,
+                "precisionWilson95": [
+                  0.9144,
+                  0.9813
+                ],
+                "macroF1IncludingAbstentionAsMiss": 0.9487603305785125,
+                "perClassRecallIncludingAbstention": {
+                  "straight": 0.896551724137931,
+                  "hook": 0.967741935483871,
+                  "uppercut": 1.0
+                },
+                "acceptedPerFamily": {
+                  "straight": 57,
+                  "hook": 31,
+                  "uppercut": 60
+                },
+                "supportPerFamily": {
+                  "straight": 58,
+                  "hook": 31,
+                  "uppercut": 60
+                }
+              },
+              "diagnostic_V10": {
+                "accepted": 151,
+                "coverage": 1.0,
+                "correct": 64,
+                "precision": 0.423841059602649,
+                "precisionWilson95": [
+                  0.3479,
+                  0.5036
+                ],
+                "macroF1IncludingAbstentionAsMiss": 0.40856365856365856,
+                "perClassRecallIncludingAbstention": {
+                  "straight": 0.03529411764705882,
+                  "hook": 0.8387096774193549,
+                  "uppercut": 1.0
+                },
+                "acceptedPerFamily": {
+                  "straight": 85,
+                  "hook": 31,
+                  "uppercut": 35
+                },
+                "supportPerFamily": {
+                  "straight": 85,
+                  "hook": 31,
+                  "uppercut": 35
+                }
+              },
+              "diagnostic_V9_V10": {
+                "accepted": 299,
+                "coverage": 0.9966666666666667,
+                "correct": 206,
+                "precision": 0.6889632107023411,
+                "precisionWilson95": [
+                  0.6344,
+                  0.7388
+                ],
+                "macroF1IncludingAbstentionAsMiss": 0.686398111258669,
+                "perClassRecallIncludingAbstention": {
+                  "straight": 0.38461538461538464,
+                  "hook": 0.9032258064516129,
+                  "uppercut": 1.0
+                },
+                "acceptedPerFamily": {
+                  "straight": 142,
+                  "hook": 62,
+                  "uppercut": 95
+                },
+                "supportPerFamily": {
+                  "straight": 143,
+                  "hook": 62,
+                  "uppercut": 95
+                }
+              }
+            }
+          },
+          "wilson": {
+            "selection": {
+              "threshold": 0.6217120857478737,
+              "calibrationAccepted": 554,
+              "calibrationCorrect": 513,
+              "calibrationPrecision": 0.9259927797833934,
+              "calibrationCoverage": 0.9310924369747899,
+              "reason": "V5_ONLY_wilson"
+            },
+            "applied": {
+              "validation_V8": {
+                "accepted": 172,
+                "coverage": 0.864321608040201,
+                "correct": 129,
+                "precision": 0.75,
+                "precisionWilson95": [
+                  0.6803,
+                  0.8088
+                ],
+                "macroF1IncludingAbstentionAsMiss": 0.69712738403579,
+                "perClassRecallIncludingAbstention": {
+                  "straight": 0.7719298245614035,
+                  "hook": 0.375,
+                  "uppercut": 0.9629629629629629
+                },
+                "acceptedPerFamily": {
+                  "straight": 51,
+                  "hook": 67,
+                  "uppercut": 54
+                },
+                "supportPerFamily": {
+                  "straight": 57,
+                  "hook": 88,
+                  "uppercut": 54
+                }
+              },
+              "calibration_V5": {
+                "accepted": 554,
+                "coverage": 0.9310924369747899,
+                "correct": 513,
+                "precision": 0.9259927797833934,
+                "precisionWilson95": [
+                  0.9011,
+                  0.945
+                ],
+                "macroF1IncludingAbstentionAsMiss": 0.8330677536903218,
+                "perClassRecallIncludingAbstention": {
+                  "straight": 0.9759358288770054,
+                  "hook": 0.5555555555555556,
+                  "uppercut": 0.7787610619469026
+                },
+                "acceptedPerFamily": {
+                  "straight": 366,
+                  "hook": 92,
+                  "uppercut": 96
+                },
+                "supportPerFamily": {
+                  "straight": 374,
+                  "hook": 108,
+                  "uppercut": 113
+                }
+              },
+              "diagnostic_V9": {
+                "accepted": 137,
+                "coverage": 0.9194630872483222,
+                "correct": 135,
+                "precision": 0.9854014598540146,
+                "precisionWilson95": [
+                  0.9483,
+                  0.996
+                ],
+                "macroF1IncludingAbstentionAsMiss": 0.9377569607077804,
+                "perClassRecallIncludingAbstention": {
+                  "straight": 0.8103448275862069,
+                  "hook": 0.9032258064516129,
+                  "uppercut": 1.0
+                },
+                "acceptedPerFamily": {
+                  "straight": 49,
+                  "hook": 28,
+                  "uppercut": 60
+                },
+                "supportPerFamily": {
+                  "straight": 58,
+                  "hook": 31,
+                  "uppercut": 60
+                }
+              },
+              "diagnostic_V10": {
+                "accepted": 135,
+                "coverage": 0.8940397350993378,
+                "correct": 62,
+                "precision": 0.45925925925925926,
+                "precisionWilson95": [
+                  0.3775,
+                  0.5433
+                ],
+                "macroF1IncludingAbstentionAsMiss": 0.42721756238997627,
+                "perClassRecallIncludingAbstention": {
+                  "straight": 0.023529411764705882,
+                  "hook": 0.8064516129032258,
+                  "uppercut": 1.0
+                },
+                "acceptedPerFamily": {
+                  "straight": 70,
+                  "hook": 30,
+                  "uppercut": 35
+                },
+                "supportPerFamily": {
+                  "straight": 85,
+                  "hook": 31,
+                  "uppercut": 35
+                }
+              },
+              "diagnostic_V9_V10": {
+                "accepted": 272,
+                "coverage": 0.9066666666666666,
+                "correct": 197,
+                "precision": 0.7242647058823529,
+                "precisionWilson95": [
+                  0.6683,
+                  0.774
+                ],
+                "macroF1IncludingAbstentionAsMiss": 0.6903706853111614,
+                "perClassRecallIncludingAbstention": {
+                  "straight": 0.34265734265734266,
+                  "hook": 0.8548387096774194,
+                  "uppercut": 1.0
+                },
+                "acceptedPerFamily": {
+                  "straight": 119,
+                  "hook": 58,
+                  "uppercut": 95
+                },
+                "supportPerFamily": {
+                  "straight": 143,
+                  "hook": 62,
+                  "uppercut": 95
+                }
+              }
+            }
+          }
+        },
+        "v5NoAbstentionFamilyAccuracy": 0.8991596638655462,
+        "sixClassStoredPolicyOnV9V10": {
+          "threshold": 0.6840862924346494,
+          "accepted": 190,
+          "coverage": 0.6333333333333333,
+          "accuracyWhenAccepted": 0.5526315789473685
+        }
+      },
+      "sourceCV": {
+        "variantRuns": "B1_v6_reflection",
+        "runs": [
+          {
+            "fold": 1,
+            "seed": 20261006,
+            "n": 1863,
+            "sixClassSupportedMacroF1": 0.42505311097212667,
+            "familySupportedMacroF1": 0.45707469559601316,
+            "familyAccuracy": 0.4745034889962426,
+            "familySupport": [
+              1130,
+              493,
+              240
+            ],
+            "familyConfusion": [
+              [
+                454,
+                331,
+                345
+              ],
+              [
+                10,
+                252,
+                231
+              ],
+              [
+                14,
+                48,
+                178
+              ]
+            ],
+            "familyPerClass": {
+              "straight": {
+                "support": 1130,
+                "precision": 0.9497907949790795,
+                "recall": 0.40176991150442476,
+                "f1": 0.5646766169154229
+              },
+              "hook": {
+                "support": 493,
+                "precision": 0.3993660855784469,
+                "recall": 0.5111561866125761,
+                "f1": 0.4483985765124555
+              },
+              "uppercut": {
+                "support": 240,
+                "precision": 0.23607427055702918,
+                "recall": 0.7416666666666667,
+                "f1": 0.35814889336016104
+              }
+            },
+            "perSource": {
+              "V1": {
+                "count": 1863,
+                "familySupportedMacroF1": 0.45707469559601316,
+                "sixClassSupportedMacroF1": 0.42505311097212667,
+                "familyAccuracy": 0.4745034889962426
+              }
+            }
+          },
+          {
+            "fold": 1,
+            "seed": 20261007,
+            "n": 1863,
+            "sixClassSupportedMacroF1": 0.37456568858352535,
+            "familySupportedMacroF1": 0.4123792695533403,
+            "familyAccuracy": 0.4176060118089104,
+            "familySupport": [
+              1130,
+              493,
+              240
+            ],
+            "familyConfusion": [
+              [
+                293,
+                540,
+                297
+              ],
+              [
+                6,
+                322,
+                165
+              ],
+              [
+                14,
+                63,
+                163
+              ]
+            ],
+            "familyPerClass": {
+              "straight": {
+                "support": 1130,
+                "precision": 0.9361022364217252,
+                "recall": 0.2592920353982301,
+                "f1": 0.4060984060984061
+              },
+              "hook": {
+                "support": 493,
+                "precision": 0.3481081081081081,
+                "recall": 0.6531440162271805,
+                "f1": 0.45416078984485186
+              },
+              "uppercut": {
+                "support": 240,
+                "precision": 0.2608,
+                "recall": 0.6791666666666667,
+                "f1": 0.376878612716763
+              }
+            },
+            "perSource": {
+              "V1": {
+                "count": 1863,
+                "familySupportedMacroF1": 0.4123792695533403,
+                "sixClassSupportedMacroF1": 0.37456568858352535,
+                "familyAccuracy": 0.4176060118089104
+              }
+            }
+          },
+          {
+            "fold": 1,
+            "seed": 20261008,
+            "n": 1863,
+            "sixClassSupportedMacroF1": 0.42058489303211316,
+            "familySupportedMacroF1": 0.4619618784289618,
+            "familyAccuracy": 0.4675254965110038,
+            "familySupport": [
+              1130,
+              493,
+              240
+            ],
+            "familyConfusion": [
+              [
+                346,
+                622,
+                162
+              ],
+              [
+                8,
+                383,
+                102
+              ],
+              [
+                0,
+                98,
+                142
+              ]
+            ],
+            "familyPerClass": {
+              "straight": {
+                "support": 1130,
+                "precision": 0.9774011299435028,
+                "recall": 0.30619469026548674,
+                "f1": 0.46630727762803226
+              },
+              "hook": {
+                "support": 493,
+                "precision": 0.3472348141432457,
+                "recall": 0.7768762677484787,
+                "f1": 0.47994987468671685
+              },
+              "uppercut": {
+                "support": 240,
+                "precision": 0.3497536945812808,
+                "recall": 0.5916666666666667,
+                "f1": 0.4396284829721362
+              }
+            },
+            "perSource": {
+              "V1": {
+                "count": 1863,
+                "familySupportedMacroF1": 0.4619618784289618,
+                "sixClassSupportedMacroF1": 0.42058489303211316,
+                "familyAccuracy": 0.4675254965110038
+              }
+            }
+          },
+          {
+            "fold": 2,
+            "seed": 20261006,
+            "n": 1043,
+            "sixClassSupportedMacroF1": 0.4780661098000097,
+            "familySupportedMacroF1": 0.506046006141588,
+            "familyAccuracy": 0.660594439117929,
+            "familySupport": [
+              729,
+              168,
+              146
+            ],
+            "familyConfusion": [
+              [
+                571,
+                42,
+                116
+              ],
+              [
+                113,
+                47,
+                8
+              ],
+              [
+                28,
+                47,
+                71
+              ]
+            ],
+            "familyPerClass": {
+              "straight": {
+                "support": 729,
+                "precision": 0.8019662921348315,
+                "recall": 0.7832647462277091,
+                "f1": 0.7925052047189451
+              },
+              "hook": {
+                "support": 168,
+                "precision": 0.34558823529411764,
+                "recall": 0.27976190476190477,
+                "f1": 0.3092105263157895
+              },
+              "uppercut": {
+                "support": 146,
+                "precision": 0.3641025641025641,
+                "recall": 0.4863013698630137,
+                "f1": 0.4164222873900293
+              }
+            },
+            "perSource": {
+              "V2": {
+                "count": 232,
+                "familySupportedMacroF1": 0.5059911893941277,
+                "sixClassSupportedMacroF1": 0.5380450134593708,
+                "familyAccuracy": 0.5301724137931034
+              },
+              "V3": {
+                "count": 811,
+                "familySupportedMacroF1": 0.4750530279698087,
+                "sixClassSupportedMacroF1": 0.4637294081297884,
+                "familyAccuracy": 0.6979038224414303
+              }
+            }
+          },
+          {
+            "fold": 2,
+            "seed": 20261007,
+            "n": 1043,
+            "sixClassSupportedMacroF1": 0.4980609669996668,
+            "familySupportedMacroF1": 0.5166816636618555,
+            "familyAccuracy": 0.5934803451581975,
+            "familySupport": [
+              729,
+              168,
+              146
+            ],
+            "familyConfusion": [
+              [
+                443,
+                82,
+                204
+              ],
+              [
+                67,
+                84,
+                17
+              ],
+              [
+                2,
+                52,
+                92
+              ]
+            ],
+            "familyPerClass": {
+              "straight": {
+                "support": 729,
+                "precision": 0.865234375,
+                "recall": 0.607681755829904,
+                "f1": 0.7139403706688157
+              },
+              "hook": {
+                "support": 168,
+                "precision": 0.3853211009174312,
+                "recall": 0.5,
+                "f1": 0.43523316062176165
+              },
+              "uppercut": {
+                "support": 146,
+                "precision": 0.2939297124600639,
+                "recall": 0.6301369863013698,
+                "f1": 0.40087145969498916
+              }
+            },
+            "perSource": {
+              "V2": {
+                "count": 232,
+                "familySupportedMacroF1": 0.6821879186339292,
+                "sixClassSupportedMacroF1": 0.6974475104104856,
+                "familyAccuracy": 0.6810344827586207
+              },
+              "V3": {
+                "count": 811,
+                "familySupportedMacroF1": 0.43265669402018236,
+                "sixClassSupportedMacroF1": 0.4345827441035877,
+                "familyAccuracy": 0.5684340320591862
+              }
+            }
+          },
+          {
+            "fold": 2,
+            "seed": 20261008,
+            "n": 1043,
+            "sixClassSupportedMacroF1": 0.5042839026546178,
+            "familySupportedMacroF1": 0.5271406352612212,
+            "familyAccuracy": 0.700862895493768,
+            "familySupport": [
+              729,
+              168,
+              146
+            ],
+            "familyConfusion": [
+              [
+                627,
+                64,
+                38
+              ],
+              [
+                121,
+                40,
+                7
+              ],
+              [
+                32,
+                50,
+                64
+              ]
+            ],
+            "familyPerClass": {
+              "straight": {
+                "support": 729,
+                "precision": 0.8038461538461539,
+                "recall": 0.8600823045267489,
+                "f1": 0.8310139165009941
+              },
+              "hook": {
+                "support": 168,
+                "precision": 0.2597402597402597,
+                "recall": 0.23809523809523808,
+                "f1": 0.24844720496894407
+              },
+              "uppercut": {
+                "support": 146,
+                "precision": 0.5871559633027523,
+                "recall": 0.4383561643835616,
+                "f1": 0.5019607843137255
+              }
+            },
+            "perSource": {
+              "V2": {
+                "count": 232,
+                "familySupportedMacroF1": 0.4635792846502058,
+                "sixClassSupportedMacroF1": 0.5021123220492554,
+                "familyAccuracy": 0.4956896551724138
+              },
+              "V3": {
+                "count": 811,
+                "familySupportedMacroF1": 0.5286096902566174,
+                "sixClassSupportedMacroF1": 0.5364334027177321,
+                "familyAccuracy": 0.7595561035758323
+              }
+            }
+          },
+          {
+            "fold": 3,
+            "seed": 20261006,
+            "n": 754,
+            "sixClassSupportedMacroF1": 0.45590818388392756,
+            "familySupportedMacroF1": 0.5189065123185704,
+            "familyAccuracy": 0.5185676392572944,
+            "familySupport": [
+              219,
+              284,
+              251
+            ],
+            "familyConfusion": [
+              [
+                121,
+                77,
+                21
+              ],
+              [
+                54,
+                120,
+                110
+              ],
+              [
+                60,
+                41,
+                150
+              ]
+            ],
+            "familyPerClass": {
+              "straight": {
+                "support": 219,
+                "precision": 0.5148936170212766,
+                "recall": 0.5525114155251142,
+                "f1": 0.5330396475770924
+              },
+              "hook": {
+                "support": 284,
+                "precision": 0.5042016806722689,
+                "recall": 0.4225352112676056,
+                "f1": 0.45977011494252873
+              },
+              "uppercut": {
+                "support": 251,
+                "precision": 0.5338078291814946,
+                "recall": 0.5976095617529881,
+                "f1": 0.5639097744360902
+              }
+            },
+            "perSource": {
+              "V4": {
+                "count": 559,
+                "familySupportedMacroF1": 0.454507208048944,
+                "sixClassSupportedMacroF1": 0.4175497844293988,
+                "familyAccuracy": 0.45796064400715564
+              },
+              "V7": {
+                "count": 195,
+                "familySupportedMacroF1": 0.6869027876490564,
+                "sixClassSupportedMacroF1": 0.5574019030216305,
+                "familyAccuracy": 0.6923076923076923
+              }
+            }
+          },
+          {
+            "fold": 3,
+            "seed": 20261007,
+            "n": 754,
+            "sixClassSupportedMacroF1": 0.4770325460078375,
+            "familySupportedMacroF1": 0.5259825673739432,
+            "familyAccuracy": 0.5185676392572944,
+            "familySupport": [
+              219,
+              284,
+              251
+            ],
+            "familyConfusion": [
+              [
+                126,
+                79,
+                14
+              ],
+              [
+                55,
+                125,
+                104
+              ],
+              [
+                26,
+                85,
+                140
+              ]
+            ],
+            "familyPerClass": {
+              "straight": {
+                "support": 219,
+                "precision": 0.6086956521739131,
+                "recall": 0.5753424657534246,
+                "f1": 0.5915492957746479
+              },
+              "hook": {
+                "support": 284,
+                "precision": 0.43252595155709345,
+                "recall": 0.44014084507042256,
+                "f1": 0.43630017452006986
+              },
+              "uppercut": {
+                "support": 251,
+                "precision": 0.5426356589147286,
+                "recall": 0.5577689243027888,
+                "f1": 0.5500982318271119
+              }
+            },
+            "perSource": {
+              "V4": {
+                "count": 559,
+                "familySupportedMacroF1": 0.4681311848703369,
+                "sixClassSupportedMacroF1": 0.45161733277687377,
+                "familyAccuracy": 0.46153846153846156
+              },
+              "V7": {
+                "count": 195,
+                "familySupportedMacroF1": 0.671718726277518,
+                "sixClassSupportedMacroF1": 0.6032554314222468,
+                "familyAccuracy": 0.6820512820512821
+              }
+            }
+          },
+          {
+            "fold": 3,
+            "seed": 20261008,
+            "n": 754,
+            "sixClassSupportedMacroF1": 0.49829944163474343,
+            "familySupportedMacroF1": 0.5430394757722762,
+            "familyAccuracy": 0.5450928381962865,
+            "familySupport": [
+              219,
+              284,
+              251
+            ],
+            "familyConfusion": [
+              [
+                131,
+                61,
+                27
+              ],
+              [
+                60,
+                109,
+                115
+              ],
+              [
+                42,
+                38,
+                171
+              ]
+            ],
+            "familyPerClass": {
+              "straight": {
+                "support": 219,
+                "precision": 0.5622317596566524,
+                "recall": 0.5981735159817352,
+                "f1": 0.5796460176991152
+              },
+              "hook": {
+                "support": 284,
+                "precision": 0.5240384615384616,
+                "recall": 0.38380281690140844,
+                "f1": 0.44308943089430897
+              },
+              "uppercut": {
+                "support": 251,
+                "precision": 0.5463258785942492,
+                "recall": 0.6812749003984063,
+                "f1": 0.6063829787234043
+              }
+            },
+            "perSource": {
+              "V4": {
+                "count": 559,
+                "familySupportedMacroF1": 0.49322630896840325,
+                "sixClassSupportedMacroF1": 0.49595735108946165,
+                "familyAccuracy": 0.5008944543828264
+              },
+              "V7": {
+                "count": 195,
+                "familySupportedMacroF1": 0.6705582561247523,
+                "sixClassSupportedMacroF1": 0.5199569134351743,
+                "familyAccuracy": 0.6717948717948717
+              }
+            }
+          },
+          {
+            "fold": 4,
+            "seed": 20261006,
+            "n": 685,
+            "sixClassSupportedMacroF1": 0.6224871802507416,
+            "familySupportedMacroF1": 0.8432432432432433,
+            "familyAccuracy": 0.8291970802919708,
+            "familySupport": [
+              0,
+              220,
+              465
+            ],
+            "familyConfusion": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                12,
+                158,
+                50
+              ],
+              [
+                38,
+                17,
+                410
+              ]
+            ],
+            "familyPerClass": {
+              "straight": {
+                "support": 0,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "hook": {
+                "support": 220,
+                "precision": 0.9028571428571428,
+                "recall": 0.7181818181818181,
+                "f1": 0.8
+              },
+              "uppercut": {
+                "support": 465,
+                "precision": 0.8913043478260869,
+                "recall": 0.8817204301075269,
+                "f1": 0.8864864864864864
+              }
+            },
+            "perSource": {
+              "V6": {
+                "count": 685,
+                "familySupportedMacroF1": 0.8432432432432433,
+                "sixClassSupportedMacroF1": 0.6224871802507416,
+                "familyAccuracy": 0.8291970802919708
+              }
+            }
+          },
+          {
+            "fold": 4,
+            "seed": 20261007,
+            "n": 685,
+            "sixClassSupportedMacroF1": 0.6876806955647184,
+            "familySupportedMacroF1": 0.8420301112315971,
+            "familyAccuracy": 0.7897810218978102,
+            "familySupport": [
+              0,
+              220,
+              465
+            ],
+            "familyConfusion": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                11,
+                207,
+                2
+              ],
+              [
+                71,
+                60,
+                334
+              ]
+            ],
+            "familyPerClass": {
+              "straight": {
+                "support": 0,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "hook": {
+                "support": 220,
+                "precision": 0.7752808988764045,
+                "recall": 0.9409090909090909,
+                "f1": 0.8501026694045175
+              },
+              "uppercut": {
+                "support": 465,
+                "precision": 0.9940476190476191,
+                "recall": 0.7182795698924731,
+                "f1": 0.8339575530586767
+              }
+            },
+            "perSource": {
+              "V6": {
+                "count": 685,
+                "familySupportedMacroF1": 0.8420301112315971,
+                "sixClassSupportedMacroF1": 0.6876806955647184,
+                "familyAccuracy": 0.7897810218978102
+              }
+            }
+          },
+          {
+            "fold": 4,
+            "seed": 20261008,
+            "n": 685,
+            "sixClassSupportedMacroF1": 0.6152754706533776,
+            "familySupportedMacroF1": 0.8370946671698551,
+            "familyAccuracy": 0.8189781021897811,
+            "familySupport": [
+              0,
+              220,
+              465
+            ],
+            "familyConfusion": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                27,
+                144,
+                49
+              ],
+              [
+                42,
+                6,
+                417
+              ]
+            ],
+            "familyPerClass": {
+              "straight": {
+                "support": 0,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0
+              },
+              "hook": {
+                "support": 220,
+                "precision": 0.96,
+                "recall": 0.6545454545454545,
+                "f1": 0.7783783783783784
+              },
+              "uppercut": {
+                "support": 465,
+                "precision": 0.8948497854077253,
+                "recall": 0.896774193548387,
+                "f1": 0.8958109559613319
+              }
+            },
+            "perSource": {
+              "V6": {
+                "count": 685,
+                "familySupportedMacroF1": 0.8370946671698551,
+                "sixClassSupportedMacroF1": 0.6152754706533776,
+                "familyAccuracy": 0.8189781021897811
+              }
+            }
+          }
+        ],
+        "folds": {
+          "1": {
+            "sources": [
+              "V1"
+            ],
+            "clips": 1863,
+            "familySupport": {
+              "straight": 1130,
+              "hook": 493,
+              "uppercut": 240
+            },
+            "sixClassMean": 0.40673456419592174,
+            "familyMean": 0.44380528119277174,
+            "familyStd": 0.022310935953502378,
+            "familyAccuracyMean": 0.45321166577205224
+          },
+          "2": {
+            "sources": [
+              "V2",
+              "V3"
+            ],
+            "clips": 1043,
+            "familySupport": {
+              "straight": 729,
+              "hook": 168,
+              "uppercut": 146
+            },
+            "sixClassMean": 0.4934703264847647,
+            "familyMean": 0.5166227683548882,
+            "familyStd": 0.008611946969824596,
+            "familyAccuracyMean": 0.6516458932566315
+          },
+          "3": {
+            "sources": [
+              "V4",
+              "V7"
+            ],
+            "clips": 754,
+            "familySupport": {
+              "straight": 219,
+              "hook": 284,
+              "uppercut": 251
+            },
+            "sixClassMean": 0.4770800571755029,
+            "familyMean": 0.5293095184882634,
+            "familyStd": 0.010129213001751614,
+            "familyAccuracyMean": 0.5274093722369585
+          },
+          "4": {
+            "sources": [
+              "V6"
+            ],
+            "clips": 685,
+            "familySupport": {
+              "straight": 0,
+              "hook": 220,
+              "uppercut": 465
+            },
+            "sixClassMean": 0.6418144488229459,
+            "familyMean": 0.8407893405482318,
+            "familyStd": 0.0026590575835665673,
+            "familyAccuracyMean": 0.8126520681265207
+          }
+        },
+        "perSource": {
+          "V1": {
+            "clips": 1863,
+            "sixClassMean": 0.40673456419592174,
+            "familyMean": 0.44380528119277174,
+            "familyAccuracyMean": 0.45321166577205224
+          },
+          "V2": {
+            "clips": 232,
+            "sixClassMean": 0.5792016153063706,
+            "familyMean": 0.5505861308927543,
+            "familyAccuracyMean": 0.5689655172413793
+          },
+          "V3": {
+            "clips": 811,
+            "sixClassMean": 0.478248518317036,
+            "familyMean": 0.4787731374155362,
+            "familyAccuracyMean": 0.675297986025483
+          },
+          "V4": {
+            "clips": 559,
+            "sixClassMean": 0.4550414894319114,
+            "familyMean": 0.47195490062922807,
+            "familyAccuracyMean": 0.47346451997614786
+          },
+          "V6": {
+            "clips": 685,
+            "sixClassMean": 0.6418144488229459,
+            "familyMean": 0.8407893405482318,
+            "familyAccuracyMean": 0.8126520681265207
+          },
+          "V7": {
+            "clips": 195,
+            "sixClassMean": 0.5602047492930172,
+            "familyMean": 0.6763932566837756,
+            "familyAccuracyMean": 0.682051282051282
+          }
+        },
+        "meanFoldSixClass": 0.5047748491697838,
+        "meanFoldFamily": 0.5826317271460388,
+        "worstFoldFamily": 0.44380528119277174,
+        "note": "Out-of-fold logits of the 24 saved CV runs (temperature 1.0, not calibrated). Folds differ from the refit checkpoint (trained without the held-out source). V6 has only 4 classes; family F1 averages families with support. Same models were used to select B0/B1, so scores are selection-biased."
+      }
+    }
+  },
+  "limitations": [
+    "V9/V10 were observed before this analysis; family scope is a post-hoc re-reading of the same data.",
+    "Source IDs are not verified independent athletes; clip bootstrap CIs assume i.i.d. clips and are optimistic.",
+    "Clips are pre-trimmed positives: no continuous-video detection, no no-punch/other class, so family scope does not measure false events.",
+    "The 3-class model was NOT trained; family probabilities are sums of 6-class softmax outputs.",
+    "Calibration V5 is a single source; abstention thresholds picked there may not transfer."
+  ]
+}

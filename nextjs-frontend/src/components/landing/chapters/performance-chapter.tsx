@@ -1,3 +1,4 @@
+import { getTranslator } from "@/lib/i18n/server";
 import { SAMPLE_GOALS, SAMPLE_SCORES } from "../landing-data";
 import { ChapterTitle, Kicker, Panel, SampleTag, TONE_BG, TONE_TEXT } from "./chapter-parts";
 
@@ -16,25 +17,26 @@ const TREND_AREA = `${TREND_PATH} L${CHART.width} ${CHART.height} L0 ${CHART.hei
 const GOAL_Y = chartPoint(GOAL, 0)[1];
 
 /** 03 — Performance. Pinned: 3D score bars rise around the fighter while the numbers count up. */
-export function PerformanceChapter() {
+export async function PerformanceChapter() {
+    const { t } = await getTranslator();
     return (
         <section id="performance" data-chapter="performance" aria-labelledby="performance-title" className="landing-chapter">
             <div className="landing-chapter-inner flex-col items-stretch gap-8 lg:flex-row lg:items-center lg:justify-between">
                 <div className="w-full max-w-[26rem]">
-                    <Kicker index="03">Performance</Kicker>
-                    <ChapterTitle id="performance-title">Progress you can prove.</ChapterTitle>
+                    <Kicker index="03">{t("landing.performance.kicker")}</Kicker>
+                    <ChapterTitle id="performance-title">{t("landing.performance.title")}</ChapterTitle>
                     <p data-reveal className="mt-5 text-[15px] leading-7 text-nav-fg">
-                        Every technique is scored 0–100 from AI video metrics and coach-rated session quality, then compared with the previous four weeks.
+                        {t("landing.performance.text")}
                     </p>
                     <Panel data-reveal className="mt-6 p-4">
                         <div className="mb-3 flex items-center justify-between">
-                            <p className="text-sm font-semibold text-white">Technique scores</p>
-                            <SampleTag>Sample fighter</SampleTag>
+                            <p className="text-sm font-semibold text-white">{t("landing.performance.techniqueScores")}</p>
+                            <SampleTag>{t("landing.sampleTag.fighter")}</SampleTag>
                         </div>
                         <ul className="grid grid-cols-2 gap-x-5 gap-y-2">
-                            {SAMPLE_SCORES.map(({ technique, score, baseline }) => (
-                                <li key={technique} className="flex items-baseline justify-between gap-2 text-[13px]">
-                                    <span className="truncate text-nav-fg">{technique}</span>
+                            {SAMPLE_SCORES.map(({ id, techniqueKey, score, baseline }) => (
+                                <li key={id} className="flex items-baseline justify-between gap-2 text-[13px]">
+                                    <span className="truncate text-nav-fg">{t(techniqueKey)}</span>
                                     <span className="font-mono text-white">
                                         <span data-count-to={score}>{score}</span>
                                         <span className={`ml-1.5 text-[11px] ${score >= baseline ? "text-landing-success" : "text-landing-danger"}`}>
@@ -51,10 +53,10 @@ export function PerformanceChapter() {
                 <div className="w-full max-w-[24rem] space-y-3">
                     <Panel data-reveal className="p-5">
                         <p className="flex items-center justify-between text-sm font-semibold text-white">
-                            Score trend
-                            <span className="font-mono text-xs font-normal text-nav-fg">8 weeks</span>
+                            {t("landing.performance.trendTitle")}
+                            <span className="font-mono text-xs font-normal text-nav-fg">{t("landing.performance.trendDuration")}</span>
                         </p>
-                        <svg viewBox={`0 -6 ${CHART.width} ${CHART.height + 12}`} className="mt-4 h-32 w-full overflow-visible" role="img" aria-label="Overall score rising from 61 to 76 over eight weeks, approaching the goal of 78.">
+                        <svg viewBox={`0 -6 ${CHART.width} ${CHART.height + 12}`} className="mt-4 h-32 w-full overflow-visible" role="img" aria-label={t("landing.performance.chartAria")}>
                             <defs>
                                 <linearGradient id="landing-trend-fill" x1="0" x2="0" y1="0" y2="1">
                                     <stop offset="0%" stopColor="var(--color-landing-cyan)" stopOpacity="0.28" />
@@ -63,7 +65,7 @@ export function PerformanceChapter() {
                             </defs>
                             <line x1="0" x2={CHART.width} y1={GOAL_Y} y2={GOAL_Y} stroke="white" strokeOpacity="0.35" strokeDasharray="4 5" />
                             <text x={CHART.width} y={GOAL_Y - 6} textAnchor="end" className="fill-white/50 font-mono text-[10px]">
-                                Goal target {GOAL}
+                                {t("landing.performance.goalTarget", { goal: String(GOAL) })}
                             </text>
                             <path data-trend-area d={TREND_AREA} fill="url(#landing-trend-fill)" />
                             <path data-trend-line d={TREND_PATH} pathLength={1} fill="none" stroke="var(--color-landing-cyan)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -74,15 +76,15 @@ export function PerformanceChapter() {
                         </svg>
                     </Panel>
                     <Panel data-reveal className="p-5">
-                        <p className="text-sm font-semibold text-white">Goals</p>
+                        <p className="text-sm font-semibold text-white">{t("landing.performance.goals")}</p>
                         <ul className="mt-3 space-y-3">
                             {SAMPLE_GOALS.map((goal) => (
-                                <li key={goal.goal} data-goal>
+                                <li key={goal.id} data-goal>
                                     <p className="flex items-baseline justify-between gap-3 text-[13px]">
                                         <span className="text-white">
-                                            {goal.goal} <span className="text-nav-fg">· {goal.target}</span>
+                                            {t(goal.goalKey)} <span className="text-nav-fg">· {t(goal.targetKey)}</span>
                                         </span>
-                                        <span className={`shrink-0 text-[11px] font-semibold ${TONE_TEXT[goal.tone]}`}>{goal.status}</span>
+                                        <span className={`shrink-0 text-[11px] font-semibold ${TONE_TEXT[goal.tone]}`}>{t(goal.statusKey)}</span>
                                     </p>
                                     <div className="mt-1.5 h-1 rounded-full bg-white/10">
                                         <div data-goal-bar className={`h-full origin-left rounded-full ${TONE_BG[goal.tone]}`} style={{ width: `${goal.progress * 100}%` }} />

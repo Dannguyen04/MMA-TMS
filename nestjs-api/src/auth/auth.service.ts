@@ -8,6 +8,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { createHash } from 'node:crypto';
 import type { Session, SupabaseClient } from '@supabase/supabase-js';
 import {
   SUPABASE_ADMIN_CLIENT,
@@ -61,11 +62,14 @@ import type {
   ResetPasswordInput,
   ResetPasswordResponse,
 } from './auth.model.js';
+import { TtlCache, jwtExpiryMs } from './auth-cache.js';
 import { AuthRepository } from './auth.repo.js';
 
 @Injectable()
 export class AuthService implements AuthAccessService, RecoveryEmailService {
   private readonly logger = new Logger(AuthService.name);
+  private readonly identityCache = new TtlCache<AuthenticatedUser>();
+  private readonly permissionCache = new TtlCache<Map<string, boolean>>();
 
   constructor(
     @Inject(SUPABASE_AUTH_CLIENT)
@@ -440,6 +444,9 @@ export class AuthService implements AuthAccessService, RecoveryEmailService {
   }
 
   async authenticate(accessToken: string): Promise<AuthenticatedUser> {
+    const cacheKey = createHash('sha256').update(accessToken).digest('hex');
+    const cached = this.identityCache.get(cacheKey);
+    if (cached) return cached;
     try {
       const { data, error } = await this.supabase.auth.getUser(accessToken);
       if (error || !data.user?.id) throw authenticationRequired();
@@ -448,6 +455,11 @@ export class AuthService implements AuthAccessService, RecoveryEmailService {
         data.user.id,
       );
       if (!user) throw authenticationRequired();
+      this.identityCache.set(
+        cacheKey,
+        user,
+        jwtExpiryMs(accessToken) ?? undefined,
+      );
       return user;
     } catch (error) {
       if (error instanceof HttpException) throw error;
@@ -464,11 +476,16 @@ export class AuthService implements AuthAccessService, RecoveryEmailService {
     if ((allOf.length === 0) === (anyOf.length === 0)) return false;
 
     const requested = [...new Set([...allOf, ...anyOf])];
-    const resolved = await this.authRepository.resolvePermissions(
-      user.id,
-      user.role,
-      requested,
-    );
+    const permissionKey = `${user.id}:${user.role}:${[...requested].sort().join(',')}`;
+    let resolved = this.permissionCache.get(permissionKey);
+    if (!resolved) {
+      resolved = await this.authRepository.resolvePermissions(
+        user.id,
+        user.role,
+        requested,
+      );
+      this.permissionCache.set(permissionKey, resolved);
+    }
 
     return allOf.length > 0
       ? allOf.every((code) => resolved.get(code) === true)

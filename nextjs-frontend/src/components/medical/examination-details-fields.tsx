@@ -1,8 +1,9 @@
 "use client";
 
-import { CircleCheck, ListRestart, Plus, TriangleAlert, X } from "lucide-react";
-import { useState } from "react";
+import { CheckCheck, CircleCheck, ListRestart, Plus, TriangleAlert, X } from "lucide-react";
+import { useState, type ReactNode } from "react";
 
+import { TermHint } from "@/components/domain/term-hint";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/form";
 import { TONE_SOFT, TONE_TEXT } from "@/components/ui/tone";
@@ -12,7 +13,8 @@ import type { AssessmentResult, ExaminationType } from "@/lib/domain/types";
 import { addDaysToKey } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ASSESSMENT_RESULT_META } from "./clinical-badges";
-import { ASSESSMENT_PRESETS, checkVitals, EXAMINATION_TYPE_HINTS, type VitalCheck } from "./examination-presets";
+import { ASSESSMENT_PRESETS, checkVitals, EXAMINATION_TYPE_HINTS, markUnmarkedNormal, unmarkedAreas, type VitalCheck } from "./examination-presets";
+import { QuickFill } from "./quick-fill";
 
 /**
  * What a doctor records at the visit, shared by the demo examination form and the medical service's examination form:
@@ -46,6 +48,7 @@ export function ExaminationTypeField({
             error={form.error("type")}
             required
             hint={value ? EXAMINATION_TYPE_HINTS[value] : "The type sets a starting list of assessments."}
+            info={<TermHint term="baselineExam" />}
             className={className}
         >
             <Select {...form.control("type", { hint: true, required: true })} value={value} onChange={(event) => onChange(event.target.value as ExaminationType | "")} className="sm:max-w-sm">
@@ -81,11 +84,11 @@ export function VitalsFields({ form, value, onChange, weightLimitKg, required }:
     const id = (name: string) => form.control(name).id;
     const bpRangeId = `${id("bp")}-range`;
 
-    const vitalInput = (name: VitalField, label: string, unit: string, props: { step?: string; min?: number; max?: number }, check: VitalCheck | undefined) => {
+    const vitalInput = (name: VitalField, label: string, unit: string, props: { step?: string; min?: number; max?: number }, check: VitalCheck | undefined, info?: ReactNode) => {
         const message = error(name);
         const hintId = `${id(name)}-range`;
         return (
-            <Field label={`${label} (${unit})`} htmlFor={id(name)} error={message} required={required}>
+            <Field label={`${label} (${unit})`} htmlFor={id(name)} error={message} required={required} info={info}>
                 <Input
                     {...form.control(name, { required })}
                     type="number"
@@ -106,8 +109,8 @@ export function VitalsFields({ form, value, onChange, weightLimitKg, required }:
         <>
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
                 {vitalInput("weightKg", "Weight", "kg", { step: "0.1", min: 35, max: 180 }, checks.weightKg)}
-                {vitalInput("restingHeartRate", "Resting heart rate", "bpm", { min: 25, max: 150 }, checks.restingHeartRate)}
-                {vitalInput("temperatureC", "Temperature", "°C", { step: "0.1", min: 33, max: 42 }, checks.temperatureC)}
+                {vitalInput("restingHeartRate", "Resting heart rate", "bpm", { min: 25, max: 150 }, checks.restingHeartRate, <TermHint term="restingHeartRate" />)}
+                {vitalInput("temperatureC", "Temperature", "°C", { step: "0.1", min: 33, max: 42 }, checks.temperatureC, <TermHint term="bodyTemperature" />)}
                 <fieldset className="flex min-w-0 flex-col gap-1.5 sm:col-span-2 xl:col-span-2">
                     <legend className="mb-1.5 text-sm font-medium text-fg">
                         Blood pressure (mmHg)
@@ -122,6 +125,7 @@ export function VitalsFields({ form, value, onChange, weightLimitKg, required }:
                             id={id("bloodPressureSystolic")}
                             name="bloodPressureSystolic"
                             label="Systolic"
+                            info={<TermHint term="systolicPressure" />}
                             value={value.bloodPressureSystolic}
                             required={required}
                             error={error("bloodPressureSystolic")}
@@ -132,6 +136,7 @@ export function VitalsFields({ form, value, onChange, weightLimitKg, required }:
                             id={id("bloodPressureDiastolic")}
                             name="bloodPressureDiastolic"
                             label="Diastolic"
+                            info={<TermHint term="diastolicPressure" />}
                             value={value.bloodPressureDiastolic}
                             required={required}
                             error={error("bloodPressureDiastolic")}
@@ -141,8 +146,8 @@ export function VitalsFields({ form, value, onChange, weightLimitKg, required }:
                     </div>
                     <RangeHint id={bpRangeId} check={checks.bloodPressure} />
                 </fieldset>
-                {vitalInput("spo2Pct", "SpO₂", "%", { min: 70, max: 100 }, checks.spo2Pct)}
-                <Field label="Hydration" htmlFor={id("hydration")} error={error("hydration")} required={required}>
+                {vitalInput("spo2Pct", "SpO₂", "%", { min: 70, max: 100 }, checks.spo2Pct, <TermHint term="spo2" />)}
+                <Field label="Hydration" htmlFor={id("hydration")} error={error("hydration")} required={required} info={<TermHint term="hydration" />}>
                     <Select
                         {...form.control("hydration", { required })}
                         value={value.hydration}
@@ -184,6 +189,7 @@ function BpInput({
     id,
     name,
     label,
+    info,
     value,
     required,
     error,
@@ -193,6 +199,7 @@ function BpInput({
     id: string;
     name: string;
     label: string;
+    info?: ReactNode;
     value: string;
     required: boolean;
     error?: string;
@@ -201,9 +208,12 @@ function BpInput({
 }) {
     return (
         <div className="flex min-w-0 flex-col gap-1">
-            <label htmlFor={id} className="text-xs text-fg-muted">
-                {label}
-            </label>
+            <div className="flex items-center gap-1">
+                <label htmlFor={id} className="text-xs text-fg-muted">
+                    {label}
+                </label>
+                {info}
+            </div>
             <Input
                 id={id}
                 name={name}
@@ -283,14 +293,42 @@ export function useAssessmentRows(form: FormControls, initialType: ExaminationTy
             setNextKey((key) => key + 1);
             setEdited(true);
         },
+        /** The doctor's "mark the unmarked areas Normal": named rows without a result only. Returns the areas it marked. */
+        markUnmarkedNormal: (): string[] => {
+            const { rows: next, filled } = markUnmarkedNormal(rows);
+            if (filled.length === 0) return filled;
+            setRows(next);
+            next.forEach((row, index) => {
+                if (row !== rows[index]) form.markEdited(`assessments.${index}.result`);
+            });
+            setEdited(true);
+            return filled;
+        },
     };
 }
 
 export type AssessmentRows = ReturnType<typeof useAssessmentRows>;
 
-/** One row per area examined, sent as a single serialized field. */
-export function AssessmentsField({ form, type, rows }: { form: FormControls; type: ExaminationType | ""; rows: AssessmentRows }) {
+/** One row per area examined, sent as a single serialized field. No row starts with a result. */
+export function AssessmentsField({
+    form,
+    type,
+    rows,
+    checkMissing = false,
+}: {
+    form: FormControls;
+    type: ExaminationType | "";
+    rows: AssessmentRows;
+    /** After the doctor tried to move on: rows still without a name or result are marked, so none is taken as examined. */
+    checkMissing?: boolean;
+}) {
     const idPrefix = form.control("assessment").id;
+    const [note, setNote] = useState<string>();
+    const unmarked = unmarkedAreas(rows.rows).length;
+    const markNormal = () => {
+        const filled = rows.markUnmarkedNormal();
+        if (filled.length > 0) setNote(`Marked Normal: ${filled.join(", ")}. Change any that weren't.`);
+    };
     return (
         <>
             <input type="hidden" name="assessments" value={JSON.stringify(rows.rows.map(({ area, result, note }) => ({ area, result, note })))} />
@@ -303,6 +341,13 @@ export function AssessmentsField({ form, type, rows }: { form: FormControls; typ
                     </Button>
                 )}
             </div>
+            <QuickFill
+                label={`Mark the ${unmarked === 1 ? "unmarked area" : `${unmarked} unmarked areas`} Normal`}
+                icon={CheckCheck}
+                available={unmarked > 0}
+                note={note}
+                onClick={markNormal}
+            />
             {form.error("assessments") && <p className="text-[13px] font-medium text-danger-fg">{form.error("assessments")}</p>}
             <ol className="flex flex-col gap-3">
                 {rows.rows.map((row, index) => (
@@ -312,9 +357,9 @@ export function AssessmentsField({ form, type, rows }: { form: FormControls; typ
                         index={index}
                         idPrefix={`${idPrefix}-${row.key}`}
                         errors={{
-                            area: form.error(`assessments.${index}.area`),
-                            result: form.error(`assessments.${index}.result`),
-                            note: form.error(`assessments.${index}.note`),
+                            area: form.error(`assessments.${index}.area`) ?? (checkMissing && !row.area.trim() ? "Name the area assessed, or remove the row." : undefined),
+                            result: form.error(`assessments.${index}.result`) ?? (checkMissing && !row.result ? "Choose a result." : undefined),
+                            note: form.error(`assessments.${index}.note`) ?? (checkMissing && row.result === "abnormal" && !row.note.trim() ? "Describe the abnormal finding." : undefined),
                         }}
                         onChange={(patch) => rows.update(index, patch)}
                         onRemove={() => rows.remove(row.key)}
@@ -437,7 +482,7 @@ const FOLLOW_UP_PICKS = [7, 14, 28];
 export function FollowUpField({ form, examDay, value, onChange, hint }: { form: FormControls; examDay: string; value: string; onChange: (value: string) => void; hint: string }) {
     const control = form.control("followUpDate", { hint: true });
     return (
-        <Field label="Follow-up examination" htmlFor={control.id} error={form.error("followUpDate")} optional hint={hint}>
+        <Field label="Follow-up examination" htmlFor={control.id} error={form.error("followUpDate")} optional hint={hint} info={<TermHint term="followUpDate" />}>
             <div className="flex flex-wrap items-center gap-2">
                 <div className="w-44">
                     <Input {...control} type="date" value={value} min={examDay ? addDaysToKey(examDay, 1) : undefined} onChange={(event) => onChange(event.target.value)} />

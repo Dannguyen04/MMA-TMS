@@ -181,7 +181,7 @@ function AnalysisSummary({ analysis, role }: { analysis: AIAnalysis; role: "figh
 
     return (
         <section aria-label="AI summary" className="flex flex-col gap-3">
-            <Card className="flex flex-col gap-4 px-5 py-4 lg:flex-row lg:items-center lg:gap-8">
+            <Card className={cn("flex flex-col gap-4 px-5 py-4", stats.length <= 4 && "lg:flex-row lg:items-center lg:gap-8")}>
                 <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                         <AIGeneratedBadge size="sm" label="AI summary" />
@@ -189,7 +189,7 @@ function AnalysisSummary({ analysis, role }: { analysis: AIAnalysis; role: "figh
                     </div>
                     <p className="mt-2 text-sm text-pretty text-fg">{analysis.summary}</p>
                 </div>
-                <dl className="grid shrink-0 grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4 lg:gap-x-8">
+                <dl className={cn("grid shrink-0 grid-cols-2 gap-x-6 gap-y-3 lg:gap-x-8", stats.length <= 4 ? "sm:grid-cols-4" : "sm:grid-cols-3 lg:grid-cols-5")}>
                     {stats.map((stat) => (
                         <div key={stat.label} className="min-w-0">
                             <dt className="text-xs text-fg-muted">{stat.label}</dt>

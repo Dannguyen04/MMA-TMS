@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/components/i18n/locale-provider";
 import { Archive, CircleCheck, Play, RotateCcw, type LucideIcon } from "lucide-react";
 import { useState, useTransition } from "react";
 
@@ -9,69 +10,60 @@ import { FormMessage } from "@/components/ui/form";
 import { useToast } from "@/components/ui/toast";
 import { setPlanStatus } from "@/lib/actions/training";
 import type { PlanStatus } from "@/lib/domain/types";
+import type { Translator } from "@/lib/i18n/translate";
 
-interface Transition {
+interface TransitionConfig {
     to: PlanStatus;
-    label: string;
+    labelKey: "training.planActions.activateLabel" | "training.planActions.completeLabel" | "training.planActions.archiveLabel" | "training.planActions.restoreLabel";
     icon: LucideIcon;
     variant: ButtonVariant;
     tone: "primary" | "danger";
-    title: string;
-    description: (planTitle: string, fighterName: string) => string;
-    confirmLabel: string;
+    titleKey: "training.planActions.activateTitle" | "training.planActions.completeTitle" | "training.planActions.archiveTitle" | "training.planActions.restoreTitle";
+    description: (t: Translator, planTitle: string, fighterName: string) => string;
+    confirmLabelKey: "training.planActions.activateLabel" | "training.planActions.completeLabel" | "training.planActions.archiveLabel" | "training.planActions.restoreLabel";
 }
 
-const ACTIVATE: Transition = {
-    to: "active",
-    label: "Activate plan",
-    icon: Play,
-    variant: "primary",
-    tone: "primary",
-    title: "Activate this plan?",
-    description: (plan, fighter) => `${fighter} will see “${plan}” in their training plans and get a notification.`,
-    confirmLabel: "Activate plan",
-};
-
-const COMPLETE: Transition = {
-    to: "completed",
-    label: "Mark completed",
-    icon: CircleCheck,
-    variant: "secondary",
-    tone: "primary",
-    title: "Mark this plan as completed?",
-    description: (plan, fighter) => `“${plan}” moves to ${fighter}'s plan history. Sessions already on the calendar stay scheduled.`,
-    confirmLabel: "Mark completed",
-};
-
-const ARCHIVE: Transition = {
-    to: "archived",
-    label: "Archive",
-    icon: Archive,
-    variant: "secondary",
-    tone: "danger",
-    title: "Archive this plan?",
-    description: (plan) =>
-        `“${plan}” is removed from active planning and hidden from the fighter's current plans. Scheduled sessions stay on the calendar — cancel any you no longer need.`,
-    confirmLabel: "Archive plan",
-};
-
-const RESTORE: Transition = {
-    to: "draft",
-    label: "Restore as draft",
-    icon: RotateCcw,
-    variant: "secondary",
-    tone: "primary",
-    title: "Restore this plan as a draft?",
-    description: (plan) => `“${plan}” returns as a draft that only coaches can see. Activate it again when it's ready.`,
-    confirmLabel: "Restore as draft",
-};
-
-/** How each status change reads, by the status it moves to. */
-const TRANSITION_TO: Record<PlanStatus, Transition> = {
-    draft: RESTORE,
-    active: ACTIVATE,
-    completed: COMPLETE,
-    archived: ARCHIVE,
+const TRANSITIONS: Record<PlanStatus, TransitionConfig> = {
+    active: {
+        to: "active",
+        labelKey: "training.planActions.activateLabel",
+        icon: Play,
+        variant: "primary",
+        tone: "primary",
+        titleKey: "training.planActions.activateTitle",
+        description: (t, plan, fighter) => t("training.planActions.activateDesc", { plan, fighter }),
+        confirmLabelKey: "training.planActions.activateLabel",
+    },
+    completed: {
+        to: "completed",
+        labelKey: "training.planActions.completeLabel",
+        icon: CircleCheck,
+        variant: "secondary",
+        tone: "primary",
+        titleKey: "training.planActions.completeTitle",
+        description: (t, plan, fighter) => t("training.planActions.completeDesc", { plan, fighter }),
+        confirmLabelKey: "training.planActions.completeLabel",
+    },
+    archived: {
+        to: "archived",
+        labelKey: "training.planActions.archiveLabel",
+        icon: Archive,
+        variant: "secondary",
+        tone: "danger",
+        titleKey: "training.planActions.archiveTitle",
+        description: (t, plan, fighter) => t("training.planActions.archiveDesc", { plan, fighter }),
+        confirmLabelKey: "training.planActions.archiveLabel",
+    },
+    draft: {
+        to: "draft",
+        labelKey: "training.planActions.restoreLabel",
+        icon: RotateCcw,
+        variant: "secondary",
+        tone: "primary",
+        titleKey: "training.planActions.restoreTitle",
+        description: (t, plan, fighter) => t("training.planActions.restoreDesc", { plan, fighter }),
+        confirmLabelKey: "training.planActions.restoreLabel",
+    },
 };
 
 export interface PlanStatusActionsProps {
@@ -84,8 +76,9 @@ export interface PlanStatusActionsProps {
 
 /** Status changes for a plan, each confirmed with its consequence spelled out. */
 export function PlanStatusActions({ planId, transitions, planTitle, fighterName }: PlanStatusActionsProps) {
+    const t = useT();
     const toast = useToast();
-    const [active, setActive] = useState<Transition | null>(null);
+    const [active, setActive] = useState<TransitionConfig | null>(null);
     const [error, setError] = useState<string | undefined>();
     const [pending, startTransition] = useTransition();
 
@@ -99,7 +92,7 @@ export function PlanStatusActions({ planId, transitions, planTitle, fighterName 
         startTransition(async () => {
             const result = await setPlanStatus(planId, active.to);
             if (result.status === "success") {
-                toast({ title: result.message ?? "Plan updated." });
+                toast({ title: result.message ?? t("training.planActions.updated") });
                 setActive(null);
                 setError(undefined);
             } else {
@@ -111,7 +104,7 @@ export function PlanStatusActions({ planId, transitions, planTitle, fighterName 
     return (
         <>
             {transitions.map((next) => {
-                const transition = TRANSITION_TO[next];
+                const transition = TRANSITIONS[next];
                 const Icon = transition.icon;
                 return (
                     <Button
@@ -123,7 +116,7 @@ export function PlanStatusActions({ planId, transitions, planTitle, fighterName 
                         }}
                     >
                         <Icon aria-hidden />
-                        {transition.label}
+                        {t(transition.labelKey)}
                     </Button>
                 );
             })}
@@ -133,9 +126,9 @@ export function PlanStatusActions({ planId, transitions, planTitle, fighterName 
                 onConfirm={confirm}
                 pending={pending}
                 tone={active?.tone ?? "primary"}
-                title={active?.title ?? ""}
-                description={active?.description(planTitle, fighterName) ?? ""}
-                confirmLabel={active?.confirmLabel ?? "Confirm"}
+                title={active ? t(active.titleKey) : ""}
+                description={active?.description(t, planTitle, fighterName) ?? ""}
+                confirmLabel={active ? t(active.confirmLabelKey) : "Confirm"}
             >
                 {error && <FormMessage status="error" message={error} />}
             </ConfirmDialog>

@@ -1,7 +1,8 @@
 import "server-only";
 
 import { ApiError } from "@/lib/api/client";
-import { ELIGIBILITY_REASONS, type EligibilityReason } from "@/lib/domain/medical-contract";
+import { eligibilityReasonsFrom, type EligibilityReason } from "@/lib/domain/medical-contract";
+import type { Translator } from "@/lib/i18n/translate";
 import { apiWriteFailure, type ServiceErrorMessages, type WriteErrorOptions, type WriteFailure } from "./api-write-errors";
 
 /** How the training service's refusals read on the coach's forms; the status rules are shared (`api-write-errors.ts`). */
@@ -31,20 +32,46 @@ const TRAINING_ERRORS: ServiceErrorMessages = {
     },
 };
 
-/** What to show for a failed training write. Anything that isn't an API error is a bug and is rethrown. */
-export function trainingWriteFailure(error: unknown, options: WriteErrorOptions = {}): WriteFailure {
-    return apiWriteFailure(error, TRAINING_ERRORS, options);
+function getTrainingErrors(t?: Translator): ServiceErrorMessages {
+    if (!t) return TRAINING_ERRORS;
+    return {
+        service: t("training.error.service"),
+        forbidden: t("training.error.forbidden"),
+        notFound: t("training.error.notFound"),
+        codes: {
+            TRAINING_PLAN_NOT_FOUND: t("training.error.planNotFound"),
+            TRAINING_SESSION_NOT_FOUND: t("training.error.sessionNotFound"),
+            EXERCISE_NOT_FOUND: t("training.error.exerciseNotFound"),
+            PLAN_EXERCISE_NOT_FOUND: t("training.error.planExerciseNotFound"),
+            REFERENCED_ENTITY_NOT_FOUND: t("training.error.referencedNotFound"),
+            INVALID_SESSION_STATUS_TRANSITION: t("training.error.invalidSessionStatus"),
+            INVALID_PLAN_STATUS_TRANSITION: t("training.error.invalidPlanStatus"),
+            INVALID_SESSION_PLAN: t("training.error.invalidSessionPlan"),
+            FIGHTER_PLAN_MISMATCH: t("training.error.fighterPlanMismatch"),
+            INVALID_SESSION_PLAN_REFERENCE: t("training.error.invalidSessionPlanRef"),
+            INVALID_PLAN_DATE_RANGE: t("training.error.invalidPlanDateRange"),
+            PLAN_STATE_CONFLICT: t("training.error.planStateConflict"),
+            SESSION_STATE_CONFLICT: t("training.error.sessionStateConflict"),
+            TRAINING_MEDICAL_ELIGIBILITY_REQUIRED: t("training.error.medicalEligibilityRequired"),
+            TRAINING_CONFLICT: t("training.error.trainingConflict"),
+            TRAINING_CHECK_VIOLATION: t("training.error.checkViolation"),
+            TRAINING_INVARIANT_CONFLICT: t("training.error.invariantConflict"),
+        },
+    };
 }
 
-const knownReasons = new Set<string>(ELIGIBILITY_REASONS);
+/** What to show for a failed training write. Anything that isn't an API error is a bug and is rethrown. */
+export function trainingWriteFailure(error: unknown, options: WriteErrorOptions = {}, t?: Translator): WriteFailure {
+    return apiWriteFailure(error, getTrainingErrors(t), options);
+}
 
 /**
  * Why the service refused to start a training session (409 TRAINING_MEDICAL_ELIGIBILITY_REQUIRED), or null for any
- * other error. Reasons the interface doesn't know yet are left out.
+ * other error. A reason the interface doesn't know yet reads as "Other medical reason" rather than disappearing.
  */
 export function trainingEligibilityReasons(error: unknown): EligibilityReason[] | null {
     if (!(error instanceof ApiError) || error.status !== 409 || error.code !== "TRAINING_MEDICAL_ELIGIBILITY_REQUIRED") return null;
     const reasons = (error.details as { reasons?: unknown } | undefined)?.reasons;
     if (!Array.isArray(reasons)) return [];
-    return reasons.filter((reason): reason is EligibilityReason => typeof reason === "string" && knownReasons.has(reason));
+    return eligibilityReasonsFrom(reasons.filter((reason): reason is string => typeof reason === "string"));
 }

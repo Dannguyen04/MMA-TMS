@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { TONE_SOFT, type Tone } from "@/components/ui/tone";
 import { formatDateTime, formatRelative } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
 import { cn } from "@/lib/utils";
 
 export interface ActivityTimelineItem {
@@ -22,10 +23,11 @@ export interface ActivityTimelineProps {
     now: string;
     emptyText?: string;
     className?: string;
+    locale?: Locale;
 }
 
 /** Vertical timeline of recent events. Server Component (icons are component references). */
-export function ActivityTimeline({ items, now, emptyText = "No recent activity.", className }: ActivityTimelineProps) {
+export function ActivityTimeline({ items, now, emptyText = "No recent activity.", className, locale = "en" }: ActivityTimelineProps) {
     if (items.length === 0) {
         return <p className={cn("py-6 text-center text-sm text-fg-muted", className)}>{emptyText}</p>;
     }
@@ -58,8 +60,8 @@ export function ActivityTimeline({ items, now, emptyText = "No recent activity."
                                         item.title
                                     )}
                                 </p>
-                                <time dateTime={item.time} title={formatDateTime(item.time)} className="shrink-0 text-xs text-fg-subtle">
-                                    {formatRelative(item.time, now)}
+                                <time dateTime={item.time} title={formatDateTime(item.time, locale)} className="shrink-0 text-xs text-fg-subtle">
+                                    {formatRelative(item.time, now, locale)}
                                 </time>
                             </div>
                             {item.description && <p className="mt-0.5 text-[13px] text-pretty text-fg-muted">{item.description}</p>}

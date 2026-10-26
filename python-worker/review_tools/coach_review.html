@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bộ dữ liệu chờ HLV duyệt</title>
+<style>
+:root{color-scheme:light;font-family:system-ui,-apple-system,sans-serif;color:#142537;background:#edf2f6}
+*{box-sizing:border-box}body{margin:0}header{padding:24px 30px;background:#132638;color:white}h1{font-size:25px;margin:6px 0 10px}p{line-height:1.55;margin:8px 0}.eyebrow{font-size:12px;letter-spacing:2px;color:#8adecf}.muted{color:#597084;font-size:13px}.intro{max-width:920px;color:#d1dfe9;font-size:14px}.stats{display:flex;flex-wrap:wrap;gap:20px;margin-top:18px}.stats strong{font-size:24px;display:block}.stats span{font-size:12px;color:#bbccd8}.layout{max-width:1440px;margin:22px auto;padding:0 22px;display:grid;grid-template-columns:265px minmax(320px,1fr) 320px;gap:18px}.panel{background:white;border:1px solid #dbe4eb;border-radius:12px;padding:16px;align-self:start}h2{font-size:17px;margin:0 0 14px}label{font-size:13px;font-weight:600;display:block;margin:14px 0 6px}select,input,textarea,button{font:inherit}select,input,textarea{width:100%;padding:9px;border:1px solid #a9bbc9;border-radius:6px;background:white;color:#142537}textarea{resize:vertical;min-height:72px}button{border:1px solid #a9bbc9;border-radius:7px;background:white;padding:9px 12px;cursor:pointer;color:#173c51}button:hover{background:#e9f5f4}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #199b9a;outline-offset:2px}.primary{background:#116b65;color:white;border-color:#116b65}.primary:hover{background:#0d5550}.full{width:100%;margin-top:12px}.list{height:58vh;overflow:auto;margin-top:12px;display:flex;flex-direction:column;gap:6px}.task{text-align:left;font-size:12px;line-height:1.5}.task.active{border:2px solid #116b65;background:#e6f4f1}.task .state{font-size:11px;display:block;color:#697985}.pill{display:inline-block;background:#fff2d6;color:#815900;border:1px solid #ead5a0;padding:4px 8px;border-radius:6px;font-size:12px}.video{background:#081119;border-radius:8px;min-height:300px;display:grid;place-items:center}video{width:100%;max-height:440px}.controls{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin:12px 0}.controls select{width:auto}.time{font-variant-numeric:tabular-nums;font-size:13px;color:#426072}.row{display:grid;grid-template-columns:1fr 1fr;gap:9px}.notice{background:#f4f8fb;border-left:3px solid #7996a9;padding:10px;font-size:13px}.flags{font-size:13px;color:#925411;margin:10px 0;white-space:pre-line}.check{display:flex;gap:8px;align-items:flex-start;font-weight:400;line-height:1.45}.check input{width:auto;margin-top:3px}.message{min-height:38px;font-size:13px;margin-top:10px;white-space:pre-line}details{font-size:13px;margin-top:14px}summary{cursor:pointer;font-weight:600}.footer{max-width:1400px;margin:10px auto 25px;padding:0 22px;font-size:12px;color:#516b7e}a{color:#116b65}.subtle{font-size:12px}.mode{color:#166d65}.empty{padding:10px;color:#647789}
+@media(max-width:1100px){.layout{grid-template-columns:230px 1fr}.review{grid-column:2}.list{height:65vh}}
+@media(max-width:700px){header{padding:20px}.layout{display:flex;flex-direction:column;padding:0 12px}.panel{width:100%}.list{height:180px}.video{min-height:240px}.stats{gap:14px}}
+</style>
+</head>
+<body>
+<header><div class="eyebrow">MMA-TMS · DATA REVIEW</div><h1>Bộ dữ liệu chờ HLV duyệt</h1>
+<p class="intro">Xem video, xác định khoảng động tác và ghi nhãn độc lập. Nhãn nguồn chỉ là gợi ý. Bản duyệt lưu tại máy này; cần xác minh người duyệt trước khi dùng làm dữ liệu HLV xác nhận.</p>
+<div class="stats"><div><strong id="videoCount"></strong><span>video để xem</span></div><div><strong id="taskCount"></strong><span>khoảng cần duyệt</span></div><div><strong id="draftCount">0</strong><span>bản duyệt cục bộ</span></div><div><strong>0</strong><span>xác nhận đã được kiểm chứng</span></div><div><strong id="researchCount"></strong><span>mẫu skeleton nghiên cứu</span></div></div></header>
+<main class="layout">
+<aside class="panel"><h2>Danh sách đoạn</h2><label for="videoFilter">Video</label><select id="videoFilter"><option value="">Tất cả video</option></select><label for="pendingOnly" class="check"><input type="checkbox" id="pendingOnly">Chỉ hiện đoạn chưa lưu bản duyệt</label><div class="list" id="taskList" aria-label="Danh sách đoạn cần duyệt"></div></aside>
+<section class="panel"><div class="pill">Chờ HLV duyệt</div><h2 id="taskTitle" style="margin-top:12px"></h2><div class="video"><video id="video" controls preload="metadata"></video></div>
+<div class="controls"><button id="playRange">Phát đoạn</button><button id="previousFrame" title="Lùi theo một bước FPS nguồn">−1 frame</button><button id="nextFrame" title="Tiến theo một bước FPS nguồn">+1 frame</button><select id="speed" aria-label="Tốc độ phát"><option value="0.25">0,25×</option><option value="0.5">0,5×</option><option value="1" selected>1×</option></select><span class="time" id="playhead">0,000 s</span></div>
+<p id="sourceTiming" class="muted"></p><p id="videoError" class="flags" role="alert"></p><div id="flags" class="flags"></div>
+<div class="notice">Các khoảng chưa có nhãn có thể chứa đòn, chuyển động khác hoặc nhiều người. Không mặc định chúng là background. Mở video đầy đủ bằng thanh điều khiển để xem ngữ cảnh.</div>
+<details id="sourceDetails"><summary>Xem nhãn nguồn chưa xác nhận</summary><p id="sourceSuggestion"></p></details>
+<p class="subtle muted">Các video này đã được dùng trong nghiên cứu. Duyệt lại không biến chúng thành bộ test độc lập mới.</p></section>
+<section class="panel review"><h2>Bản duyệt độc lập</h2>
+<label for="reviewer">Mã người duyệt</label><input id="reviewer" placeholder="Nhập mã HLV của bạn" autocomplete="off">
+<div class="row"><div><label for="startMs">Bắt đầu (ms)</label><input type="number" id="startMs" min="0" step="any"><button class="full subtle" id="setStart">Lấy mốc hiện tại</button></div><div><label for="endMs">Kết thúc (ms)</label><input type="number" id="endMs" min="0" step="any"><button class="full subtle" id="setEnd">Lấy mốc hiện tại</button></div></div>
+<label for="technique">Nhãn bạn xác định</label><select id="technique"><option value="">Chưa chọn</option></select>
+<label for="decision">Kết quả xem xét</label><select id="decision"><option value="">Chưa chọn</option><option value="labelled">Đủ bằng chứng để gán nhãn</option><option value="uncertain">Chưa đủ bằng chứng</option><option value="reject">Loại khỏi phạm vi dữ liệu</option></select>
+<label for="stance">Thế thủ quan sát được</label><select id="stance"><option value="unknown">Chưa xác định / không áp dụng</option><option value="orthodox">Orthodox</option><option value="southpaw">Southpaw</option><option value="switching">Có đổi thế thủ</option></select>
+<label for="note">Nhận xét / lý do</label><textarea id="note" placeholder="Che khuất, đổi người, ranh giới cần sửa…"></textarea>
+<label class="check"><input type="checkbox" id="watched">Tôi đã xem đoạn này và tự đánh giá nhãn.</label>
+<button id="save" class="primary full">Lưu bản duyệt cục bộ</button><button id="export" class="full">Xuất bản duyệt JSON</button><div id="message" class="message" role="status" aria-live="polite"></div>
+<p class="muted subtle">Mỗi lần lưu tạo một phiên bản. Trang này không đăng nhập tài khoản HLV; file xuất cần được xác minh trước khi đưa vào gold set.</p></section>
+</main><footer class="footer">Mẫu skeleton chưa có RGB trong gói này chỉ phục vụ nghiên cứu, chưa đủ để HLV kiểm chứng từ video. Xem <a href="dataset_summary.json">thống kê</a> · <a href="review_index.json">nguồn và danh sách đoạn</a> · <a href="README.md">hướng dẫn</a>.</footer>
+<script type="application/json" id="reviewData">__REVIEW_DATA_JSON__</script>
+<script>
+'use strict';
+const data=JSON.parse(document.getElementById('reviewData').textContent);
+const $=id=>document.getElementById(id), video=$('video');
+const videoMap=new Map(data.videos.map(v=>[v.videoId,v]));
+const key='mma-coach-review-draft-'+data.packId;
+let history=[], current=data.tasks[0], stopAt=null, currentVideo=null, sourceRevealed=false;
+try {const stored=JSON.parse(localStorage.getItem(key)||'[]'); if(Array.isArray(stored)) history=stored.filter(r=>r.packId===data.packId && r.status==='LOCAL_REVIEW_UNVERIFIED' && data.tasks.some(t=>t.sampleId===r.sampleId));} catch (_) {}
+const latest=id=>history.filter(r=>r.sampleId===id).at(-1);
+const labelNames={jab:'Jab',cross:'Cross',lead_hook:'Lead hook',rear_hook:'Rear hook',lead_uppercut:'Lead uppercut',rear_uppercut:'Rear uppercut',background:'Background — không có đòn',unknown:'Chưa xác định',out_of_scope:'Ngoài phạm vi'};
+for(const label of data.labels){const option=document.createElement('option');option.value=label;option.textContent=labelNames[label];$('technique').append(option);}
+for(const item of data.videos){const option=document.createElement('option');option.value=item.videoId;option.textContent=item.videoId;$('videoFilter').append(option);}
+$('videoCount').textContent=data.videos.length;$('taskCount').textContent=data.tasks.length;$('researchCount').textContent=data.researchSampleCount.toLocaleString('vi-VN');
+function message(text){$('message').textContent=text;}
+function drawList(){
+  $('draftCount').textContent=new Set(history.map(r=>r.sampleId)).size;
+  $('taskList').replaceChildren();
+  const tasks=data.tasks.filter(t=>(!$('videoFilter').value||t.videoId===$('videoFilter').value)&&(!$('pendingOnly').checked||!latest(t.sampleId)));
+  for(const task of tasks){const button=document.createElement('button');button.className='task'+(task.sampleId===current?.sampleId?' active':'');button.setAttribute('aria-pressed',String(task.sampleId===current?.sampleId));
+    const name=document.createElement('span');name.textContent=task.videoId+' · '+(task.startTimeMs/1000).toFixed(2)+'–'+(task.endTimeMs/1000).toFixed(2)+' s';
+    const state=document.createElement('span');state.className='state';state.textContent=latest(task.sampleId)?'Có bản duyệt cục bộ':'Chưa lưu bản duyệt';button.append(name,state);button.onclick=()=>select(task);$('taskList').append(button);}
+  if(!tasks.length){const empty=document.createElement('p');empty.className='empty';empty.textContent='Không có đoạn trong bộ lọc này.';$('taskList').append(empty);}
+}
+function seek(time){video.currentTime=Math.max(0,Math.min(time,(video.duration||videoMap.get(current.videoId).durationMs/1000)));}
+function select(task){
+  video.pause();stopAt=null;current=task;const info=videoMap.get(task.videoId),saved=latest(task.sampleId);
+  if(currentVideo!==task.videoId){currentVideo=task.videoId;video.src=info.path;$('videoError').textContent='';video.onloadedmetadata=()=>seek(Number($('startMs').value)/1000);}
+  $('taskTitle').textContent=task.sampleId;$('startMs').value=saved?.startTimeMs??task.startTimeMs;$('endMs').value=saved?.endTimeMs??task.endTimeMs;
+  $('technique').value=saved?.technique??'';$('decision').value=saved?.decision??'';$('stance').value=saved?.stance??'unknown';$('note').value=saved?.note??'';$('watched').checked=false;
+  $('sourceDetails').open=false;sourceRevealed=false;$('sourceSuggestion').textContent=task.suggestedTechnique?labelNames[task.suggestedTechnique]+' · nguồn '+task.labelProvenance:'Chưa có nhãn; cần xem video để xác định.';
+  $('flags').textContent=[...(task.reviewReasons.includes('SOURCE_LABEL_BOUNDARY_OVERLAP')?['Ranh giới nhãn nguồn chồng lấn: hãy kiểm tra từng frame.']:[]),...(info.scope!=='solo_boxing'?['Cần kiểm tra người mục tiêu và phạm vi; video có thể không phải solo boxing.']:[])].join('\n');
+  $('sourceTiming').textContent=info.decodedFrames+' frame giải mã · '+info.fps.toFixed(2)+' FPS khai báo · mốc gợi ý tính từ frame/FPS';
+  seek(Number($('startMs').value)/1000);drawList();message(saved?'Đang xem bản duyệt cục bộ mới nhất.':'');
+}
+video.addEventListener('timeupdate',()=>{$('playhead').textContent=video.currentTime.toFixed(3)+' s';if(stopAt!==null&&video.currentTime>=stopAt){video.pause();stopAt=null;}});
+video.addEventListener('error',()=>{$('videoError').textContent='Không mở được video. Giữ thư mục media cạnh review.html hoặc dùng server cục bộ theo hướng dẫn.';});
+$('playRange').onclick=()=>{const start=Number($('startMs').value),end=Number($('endMs').value);if(!Number.isFinite(start)||!Number.isFinite(end)||end<=start){message('Kiểm tra lại khoảng thời gian.');return;}stopAt=end/1000;seek(start/1000);video.play().catch(()=>message('Trình duyệt chưa phát được video; dùng nút Play trên video.'));};
+$('previousFrame').onclick=()=>{video.pause();stopAt=null;seek(video.currentTime-1/videoMap.get(current.videoId).fps);};
+$('nextFrame').onclick=()=>{video.pause();stopAt=null;seek(video.currentTime+1/videoMap.get(current.videoId).fps);};
+$('setStart').onclick=()=>$('startMs').value=(video.currentTime*1000).toFixed(3);
+$('setEnd').onclick=()=>$('endMs').value=(video.currentTime*1000).toFixed(3);
+$('speed').onchange=()=>video.playbackRate=Number($('speed').value);
+$('videoFilter').onchange=drawList;$('pendingOnly').onchange=drawList;
+$('sourceDetails').addEventListener('toggle',()=>{if($('sourceDetails').open)sourceRevealed=true;});
+$('save').onclick=()=>{
+  const reviewer=$('reviewer').value.trim(),technique=$('technique').value,decision=$('decision').value;
+  const start=Number($('startMs').value),end=Number($('endMs').value),info=videoMap.get(current.videoId);
+  if(!reviewer||!technique||!decision||!$('watched').checked){message('Điền mã người duyệt, nhãn, kết quả và xác nhận đã xem.');return;}
+  if(!Number.isFinite(start)||!Number.isFinite(end)||start<0||end<=start||end>info.durationMs+.01){message('Khoảng thời gian phải nằm trong video đã giải mã.');return;}
+  if((decision==='uncertain'&&technique!=='unknown')||(decision==='reject'&&technique!=='out_of_scope')||(decision==='labelled'&&['unknown','out_of_scope'].includes(technique))){message('Nhãn và kết quả xem xét chưa khớp: chưa rõ → Chưa xác định; loại → Ngoài phạm vi.');return;}
+  const record={packId:data.packId,sampleId:current.sampleId,revision:history.filter(r=>r.sampleId===current.sampleId).length+1,
+    status:'LOCAL_REVIEW_UNVERIFIED',actorType:'declared_human_reviewer',declaredReviewerId:reviewer,reviewerAuthenticated:false,
+    coachConfirmed:false,goldEligible:false,videoSha256:info.sha256,startTimeMs:start,endTimeMs:end,technique,decision,stance:$('stance').value,
+    note:$('note').value.trim(),reviewedAt:new Date().toISOString(),sourceSuggestionRevealed:sourceRevealed};
+  history.push(record);try{localStorage.setItem(key,JSON.stringify(history));message('Đã lưu bản duyệt cục bộ. Xuất JSON để bàn giao và xác minh.');}catch(_){message('Không lưu được trong trình duyệt. Hãy xuất JSON ngay để giữ bản duyệt.');}
+  $('watched').checked=false;drawList();
+};
+$('export').onclick=()=>{
+  const submission={schemaVersion:'coach_review_submission_v1',packId:data.packId,status:'LOCAL_REVIEW_UNVERIFIED',reviewerAuthenticated:false,coachConfirmed:false,goldEligible:false,exportedAt:new Date().toISOString(),reviews:history};
+  const url=URL.createObjectURL(new Blob([JSON.stringify(submission,null,2)],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download='coach-review-'+data.packId.slice(0,12)+'.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);message('Đã xuất '+history.length+' phiên bản bản duyệt. File chưa phải xác nhận HLV đã kiểm chứng.');
+};
+if(current)select(current);else message('Gói không có video để duyệt.');
+</script>
+</body></html>

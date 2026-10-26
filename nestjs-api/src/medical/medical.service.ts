@@ -39,10 +39,12 @@ import {
   medicalExaminationNotFound,
   medicalRecordConflict,
   medicalReviewRequestNotFound,
+  medicalSupervisionDisabled,
   recoveryPlanDateConflict,
   recoveryPlanNotFound,
   reviewRequestNotResolvable,
 } from './medical.error.js';
+import { AcademySettingsRepository } from '../academy-settings/academy-settings.repo.js';
 import type {
   AssignDoctorInput,
   Clearance,
@@ -89,6 +91,7 @@ import { scoreScat6 } from './scat6.scoring.js';
 
 interface EligibilityState {
   scope: ExaminationScope;
+  supervision: 'DOCTOR' | 'NONE';
   openReviewRequests: number;
   /** TRAINING only: a BASELINE examination (or the 016 legacy exemption) is on file. */
   baselineOnFile: boolean;
@@ -131,13 +134,25 @@ function isRestricted(clearance: ClearanceEligibilityRow): boolean {
  * `state.clearances` must be ordered newest issuance first.
  */
 export function evaluateEligibility(state: EligibilityState): MedicalEligibility {
-  const reasons: MedicalEligibilityReason[] = [];
-  const { scope, currentExamination: exam, now } = state;
+  const { scope, supervision, currentExamination: exam, now } = state;
 
-  if (scope === 'TRAINING' && !state.baselineOnFile) {
+  const isNoDoctorTraining = supervision === 'NONE' && scope === 'TRAINING';
+
+  if (isNoDoctorTraining && !exam) {
+    return {
+      scope,
+      eligible: true,
+      reasons: [],
+      supervision,
+    };
+  }
+
+  const reasons: MedicalEligibilityReason[] = [];
+
+  if (scope === 'TRAINING' && !isNoDoctorTraining && !state.baselineOnFile) {
     reasons.push(MEDICAL_ELIGIBILITY_REASON.EXAMINATION_REQUIRED);
   }
-  if (scope === 'TRAINING' && state.openReviewRequests > 0) {
+  if (scope === 'TRAINING' && !isNoDoctorTraining && state.openReviewRequests > 0) {
     reasons.push(MEDICAL_ELIGIBILITY_REASON.REVIEW_REQUEST_PENDING);
   }
 
@@ -149,12 +164,12 @@ export function evaluateEligibility(state: EligibilityState): MedicalEligibility
         ? MEDICAL_ELIGIBILITY_REASON.EXAMINATION_REQUIRED
         : MEDICAL_ELIGIBILITY_REASON.CLEARANCE_REQUIRED;
     if (!reasons.includes(missing)) reasons.push(missing);
-    return { scope, eligible: false, reasons };
+    return { scope, eligible: false, reasons, supervision };
   }
 
   if (exam.decision === 'NOT_ELIGIBLE') {
     reasons.push(MEDICAL_ELIGIBILITY_REASON.EXAMINATION_NOT_ELIGIBLE);
-    return { scope, eligible: false, reasons };
+    return { scope, eligible: false, reasons, supervision };
   }
 
   const governing = state.clearances.at(0);
@@ -193,7 +208,7 @@ export function evaluateEligibility(state: EligibilityState): MedicalEligibility
     reasons.push(MEDICAL_ELIGIBILITY_REASON.SESSION_TYPE_RESTRICTED);
   }
 
-  return { scope, eligible: reasons.length === 0, reasons };
+  return { scope, eligible: reasons.length === 0, reasons, supervision };
 }
 
 function isSubset<T>(values: readonly T[], allowed: readonly T[]): boolean {
@@ -292,6 +307,7 @@ export class MedicalService {
   constructor(
     private readonly repo: MedicalRepository,
     private readonly access: MedicalAccessService,
+    private readonly academySettingsRepo: AcademySettingsRepository,
   ) {}
 
   private async write<T>(
@@ -437,6 +453,7 @@ export class MedicalService {
       trainingExam,
       competitionExam,
       baselineOnFile,
+      supervision,
     ] = await Promise.all([
       this.repo.listActiveInjuries(fighterId),
       this.repo.listActiveRecoveryPlans(fighterId),
@@ -445,6 +462,7 @@ export class MedicalService {
       this.repo.findCurrentExamination(fighterId, 'TRAINING'),
       this.repo.findCurrentExamination(fighterId, 'COMPETITION'),
       this.repo.hasBaselineOnFile(fighterId),
+      this.academySettingsRepo.getMedicalSupervision(),
     ]);
     const [training, competition, details] = await Promise.all([
       this.eligibilityFrom(
@@ -453,8 +471,20 @@ export class MedicalService {
         openReviewRequests.length,
         baselineOnFile,
         now,
+        undefined,
+        undefined,
+        supervision,
       ),
-      this.eligibilityFrom('COMPETITION', competitionExam, 0, true, now),
+      this.eligibilityFrom(
+        'COMPETITION',
+        competitionExam,
+        0,
+        true,
+        now,
+        undefined,
+        undefined,
+        supervision,
+      ),
       this.repo.findExaminationDetails(
         [trainingExam?.id, competitionExam?.id].filter(
           (id): id is string => id !== undefined,
@@ -534,8 +564,9 @@ export class MedicalService {
     openReviewRequests: number,
     baselineOnFile: boolean,
     now: Date,
-    database?: DatabaseExecutor,
-    sessionType?: SessionTypeValue,
+    database: DatabaseExecutor | undefined,
+    sessionType: SessionTypeValue | undefined,
+    supervision: 'DOCTOR' | 'NONE',
   ): Promise<MedicalEligibility> {
     const clearances =
       exam && exam.decision !== 'NOT_ELIGIBLE'
@@ -547,6 +578,7 @@ export class MedicalService {
         : [];
     return evaluateEligibility({
       scope,
+      supervision,
       openReviewRequests,
       baselineOnFile,
       currentExamination: exam,
@@ -566,6 +598,8 @@ export class MedicalService {
     sessionType: SessionTypeValue,
     transaction: Transaction,
   ): Promise<MedicalEligibility> {
+    const supervision =
+      await this.academySettingsRepo.getMedicalSupervision(transaction);
     await this.repo.lockFighterMedicalState(fighterId, transaction);
     const openReviewRequests = await this.repo.countOpenReviewRequests(
       fighterId,
@@ -588,6 +622,7 @@ export class MedicalService {
       new Date(),
       transaction,
       sessionType,
+      supervision,
     );
   }
 
@@ -599,6 +634,10 @@ export class MedicalService {
     input: CreateReviewRequestInput,
     requestId: string,
   ): Promise<ReviewRequest> {
+    const supervision = await this.academySettingsRepo.getMedicalSupervision();
+    if (supervision === 'NONE') {
+      throw medicalSupervisionDisabled();
+    }
     const fighter = await this.access.requireFighter(fighterId);
     return this.write(actor, requestId, async (tx) => {
       await this.access.assertReviewRequestScope(actor, fighter, tx);

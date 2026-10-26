@@ -5,11 +5,11 @@
 -- ============================================================
 
 -- ── 1. Enum & Bảng dữ liệu Jobs ─────────────────────────────
-DO  BEGIN
+DO $$ BEGIN
     CREATE TYPE job_status AS ENUM ('PENDING', 'PROCESSING', 'DONE', 'FAILED');
 EXCEPTION
     WHEN duplicate_object THEN null;
-END ;
+END $$;
 
 CREATE TABLE IF NOT EXISTS analysis_jobs (
   id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -28,12 +28,12 @@ CREATE INDEX IF NOT EXISTS idx_analysis_jobs_status  ON analysis_jobs (status);
 
 -- Trigger auto-update updated_at
 CREATE OR REPLACE FUNCTION update_updated_at()
-RETURNS TRIGGER AS 
+RETURNS TRIGGER AS $$
 BEGIN
   NEW.updated_at = NOW();
   RETURN NEW;
 END;
- LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS set_updated_at ON analysis_jobs;
 CREATE TRIGGER set_updated_at
@@ -41,46 +41,26 @@ CREATE TRIGGER set_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at();
 
--- ── 2. Tạo Storage Buckets ──────────────────────────────────
--- Bucket 'videos': chứa video do user upload từ web
+-- ── 2. Tạo Storage Buckets (riêng tư) ───────────────────────
+-- Video võ sĩ và kết quả phân tích là dữ liệu cá nhân: KHÔNG đặt public.
+-- NestJS và Worker dùng service role (bỏ qua RLS); trình duyệt chỉ nhận
+-- signed URL ngắn hạn qua route đã xác thực. Đường dẫn dạng
+-- /storage/v1/object/public/... trong result_url chỉ là định danh để
+-- NestJS tách storage key, không phải link đọc công khai.
+-- Chạy lại script trên project cũ sẽ chuyển bucket về riêng tư.
 INSERT INTO storage.buckets (id, name, public)
-VALUES ('videos', 'videos', true)
-ON CONFLICT (id) DO UPDATE SET public = true;
+VALUES ('videos', 'videos', false)
+ON CONFLICT (id) DO UPDATE SET public = false;
 
--- Bucket 'analysis-results': chứa file JSON kết quả do Worker xuất
 INSERT INTO storage.buckets (id, name, public)
-VALUES ('analysis-results', 'analysis-results', true)
-ON CONFLICT (id) DO UPDATE SET public = true;
+VALUES ('analysis-results', 'analysis-results', false)
+ON CONFLICT (id) DO UPDATE SET public = false;
 
 -- ── 3. Storage Policies (RLS) ───────────────────────────────
--- Xóa policy cũ nếu có để tránh trùng lặp
+-- Gỡ các policy công khai của bản setup cũ (áp cho mọi role, kể cả anon:
+-- đọc, upload, ghi đè). Không tạo policy mới: service role không cần.
 DROP POLICY IF EXISTS "Public read videos" ON storage.objects;
 DROP POLICY IF EXISTS "Public upload videos" ON storage.objects;
 DROP POLICY IF EXISTS "Public read analysis-results" ON storage.objects;
 DROP POLICY IF EXISTS "Public upload analysis-results" ON storage.objects;
 DROP POLICY IF EXISTS "Public update analysis-results" ON storage.objects;
-
--- Cho phép đọc công khai (SELECT) từ bucket 'videos'
-CREATE POLICY "Public read videos"
-ON storage.objects FOR SELECT
-USING (bucket_id = 'videos');
-
--- Cho phép upload (INSERT) vào bucket 'videos'
-CREATE POLICY "Public upload videos"
-ON storage.objects FOR INSERT
-WITH CHECK (bucket_id = 'videos');
-
--- Cho phép đọc công khai (SELECT) từ bucket 'analysis-results'
-CREATE POLICY "Public read analysis-results"
-ON storage.objects FOR SELECT
-USING (bucket_id = 'analysis-results');
-
--- Cho phép Worker upload (INSERT) kết quả phân tích
-CREATE POLICY "Public upload analysis-results"
-ON storage.objects FOR INSERT
-WITH CHECK (bucket_id = 'analysis-results');
-
--- Cho phép Worker ghi đè / upsert (UPDATE) kết quả phân tích
-CREATE POLICY "Public update analysis-results"
-ON storage.objects FOR UPDATE
-USING (bucket_id = 'analysis-results');

@@ -1,13 +1,15 @@
 import Link from "next/link";
 
 import { DescriptionList, type DescriptionItem } from "@/components/ui/description-list";
-import { BODY_REGION_LABELS, INJURY_MECHANISM_LABELS, injuryTypeName } from "@/lib/domain/labels";
+import { injuryMechanismLabel } from "@/lib/domain/labels";
+import { injuryTitle } from "@/components/clinical/clinical-copy";
 import type { Injury } from "@/lib/domain/types";
 import { daysBetween, formatDate } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
+import { createTranslator } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 import { describeDaysUntil } from "./domain-format";
 import { InjurySeverityBadge, InjuryStatusBadge } from "./status-badges";
-import { labelOf, NOT_RECORDED } from "@/components/domain/domain-format";
 
 export interface InjuryCardProps {
     injury: Injury;
@@ -17,25 +19,28 @@ export interface InjuryCardProps {
     href?: string;
     headingLevel?: 2 | 3;
     className?: string;
+    locale?: Locale;
 }
 
 /** Injury summary: what and where, severity + status, key dates and mechanism. */
-export function InjuryCard({ injury, now, href, headingLevel = 3, className }: InjuryCardProps) {
+export function InjuryCard({ injury, now, href, headingLevel = 3, className, locale = "en" }: InjuryCardProps) {
+    const t = createTranslator(locale);
     const Heading = headingLevel === 2 ? "h2" : "h3";
-    const title = `${injuryTypeName(injury)} — ${BODY_REGION_LABELS[injury.bodyRegion]}`;
+    const title = injuryTitle(injury, locale);
 
     // The medical service records the joint but no diagnosis date, mechanism or expected return: show only what it keeps.
     const serviceRecord = injury.joint !== undefined;
+    const notRecorded = t("health.notRecorded");
     const items: DescriptionItem[] = serviceRecord
         ? [
-              { label: "Occurred", value: <time dateTime={injury.occurredAt}>{formatDate(injury.occurredAt)}</time> },
-              ...(injury.resolvedAt ? [{ label: "Resolved", value: <time dateTime={injury.resolvedAt}>{formatDate(injury.resolvedAt)}</time> }] : []),
+              { label: t("injuryCard.occurred"), value: <time dateTime={injury.occurredAt}>{formatDate(injury.occurredAt, locale)}</time> },
+              ...(injury.resolvedAt ? [{ label: t("injuryCard.resolved"), value: <time dateTime={injury.resolvedAt}>{formatDate(injury.resolvedAt, locale)}</time> }] : []),
           ]
         : [
-              { label: "Occurred", value: <time dateTime={injury.occurredAt}>{formatDate(injury.occurredAt)}</time> },
-              { label: "Diagnosed", value: injury.diagnosedAt ? <time dateTime={injury.diagnosedAt}>{formatDate(injury.diagnosedAt)}</time> : NOT_RECORDED },
-              { label: "Mechanism", value: labelOf(INJURY_MECHANISM_LABELS, injury.mechanism) ?? NOT_RECORDED },
-              { label: injury.resolvedAt ? "Resolved" : "Expected return", value: <ReturnValue injury={injury} now={now} /> },
+              { label: t("injuryCard.occurred"), value: <time dateTime={injury.occurredAt}>{formatDate(injury.occurredAt, locale)}</time> },
+              { label: t("injuryCard.diagnosed"), value: injury.diagnosedAt ? <time dateTime={injury.diagnosedAt}>{formatDate(injury.diagnosedAt, locale)}</time> : notRecorded },
+              { label: t("injuryCard.mechanism"), value: injury.mechanism ? injuryMechanismLabel(injury.mechanism, locale) : notRecorded },
+              { label: injury.resolvedAt ? t("injuryCard.resolved") : t("injuryCard.expectedReturn"), value: <ReturnValue injury={injury} now={now} locale={locale} /> },
           ];
 
     return (
@@ -57,8 +62,8 @@ export function InjuryCard({ injury, now, href, headingLevel = 3, className }: I
                     )}
                 </Heading>
                 <div className="flex flex-wrap gap-1.5">
-                    <InjurySeverityBadge severity={injury.severity} size="sm" />
-                    <InjuryStatusBadge status={injury.status} size="sm" />
+                    <InjurySeverityBadge severity={injury.severity} size="sm" locale={locale} />
+                    <InjuryStatusBadge status={injury.status} size="sm" locale={locale} />
                 </div>
             </div>
             <p className="line-clamp-2 text-sm text-pretty text-fg-muted">{injury.description}</p>
@@ -67,19 +72,22 @@ export function InjuryCard({ injury, now, href, headingLevel = 3, className }: I
     );
 }
 
-function ReturnValue({ injury, now }: { injury: Injury; now: string }) {
+function ReturnValue({ injury, now, locale = "en" }: { injury: Injury; now: string; locale?: Locale }) {
+    const t = createTranslator(locale);
     if (injury.resolvedAt) {
-        return <time dateTime={injury.resolvedAt}>{formatDate(injury.resolvedAt)}</time>;
+        return <time dateTime={injury.resolvedAt}>{formatDate(injury.resolvedAt, locale)}</time>;
     }
     if (!injury.expectedReturnAt) {
-        return <span className="font-normal text-fg-muted">To be assessed</span>;
+        return <span className="font-normal text-fg-muted">{t("injuryCard.toBeAssessed")}</span>;
     }
     const days = daysBetween(now, injury.expectedReturnAt);
     return (
         <span className="flex flex-col gap-0.5">
-            <time dateTime={injury.expectedReturnAt}>{formatDate(injury.expectedReturnAt)}</time>
+            <time dateTime={injury.expectedReturnAt}>{formatDate(injury.expectedReturnAt, locale)}</time>
             <span className="text-[13px] font-normal text-fg-muted">
-                {days < 0 ? `Target passed ${describeDaysUntil(days)}` : `Return ${describeDaysUntil(days)}`}
+                {days < 0
+                    ? t("injuryCard.targetPassed", { when: describeDaysUntil(days, locale) })
+                    : t("injuryCard.returnWhen", { when: describeDaysUntil(days, locale) })}
             </span>
         </span>
     );

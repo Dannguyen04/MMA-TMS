@@ -28,11 +28,14 @@ import type {
     Treatment,
     User,
     Video,
+    Bout,
+    CompetitionRuleset,
 } from "@/lib/domain/types";
 import type { Applicant, Application } from "@/lib/domain/admissions";
 import type { MedicalReviewRequest } from "@/lib/domain/medical-contract";
 import { mockApplicants, mockApplications } from "./admissions";
 import { mockAbnormalMovementAlerts, mockAIAnalyses, mockAIJobs, mockAIModels, mockVideos } from "./ai";
+import { mockRulesets, mockBouts, mockBoutMeasurements, type MockWeightMeasurement } from "./bouts";
 import {
     mockInjuries,
     mockMedicalClearances,
@@ -86,6 +89,9 @@ export interface MockDatabase {
     /** Self-registered accounts that can apply but aren't fighters yet. */
     applicants: Applicant[];
     admissionApplications: Application[];
+    rulesets: CompetitionRuleset[];
+    bouts: Bout[];
+    boutMeasurements: MockWeightMeasurement[];
 }
 
 function seedData(): MockDatabase {
@@ -120,6 +126,9 @@ function seedData(): MockDatabase {
         auditLogs: mockAuditLogs,
         applicants: mockApplicants,
         admissionApplications: mockApplications,
+        rulesets: mockRulesets,
+        bouts: mockBouts,
+        boutMeasurements: mockBoutMeasurements,
     };
 }
 

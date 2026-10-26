@@ -1,3 +1,6 @@
+"use client";
+
+import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { ShieldCheck } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -5,7 +8,7 @@ import { Callout } from "@/components/training/callout";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { DescriptionList, type DescriptionItem } from "@/components/ui/description-list";
 import { EmptyState } from "@/components/ui/states";
-import { CLEARANCE_LEVEL_LABELS, CLEARANCE_STATUS_LABELS } from "@/lib/domain/labels";
+import { clearanceLevelLabel, clearanceStatusLabel } from "@/lib/domain/labels";
 import type { ClearanceState } from "@/lib/domain/rules";
 import type { MedicalClearance } from "@/lib/domain/types";
 import { formatDate } from "@/lib/format";
@@ -14,21 +17,6 @@ import { RestrictionList } from "./restriction-list";
 import { CLEARANCE_STATE_META, ClearanceBadge } from "./status-badges";
 
 const NoClearanceIcon = CLEARANCE_STATE_META.none.icon;
-
-const HEADLINES: Record<ClearanceState, string> = {
-    full: "Full training",
-    restricted: "Training within restrictions",
-    not_cleared: "No training permitted",
-    expired: "Renewal required",
-    none: "Awaiting clearance",
-};
-
-const EXPLANATIONS: Record<Exclude<ClearanceState, "none">, string> = {
-    full: "Cleared for all training. No restrictions apply.",
-    restricted: "Cleared to train, but only within the restrictions below. Plan sessions around them.",
-    not_cleared: "Must not train. Only the sports doctor can change this clearance.",
-    expired: "This clearance has lapsed. A sports doctor must renew it before training continues.",
-};
 
 export interface ClearanceCardProps {
     clearance: MedicalClearance | null;
@@ -50,9 +38,6 @@ export interface ClearanceCardProps {
     className?: string;
 }
 
-const PAUSED_HEADLINE = "Paused for a medical review";
-const PAUSED_EXPLANATION = "The clearance below still stands, but training waits until the sports doctor examines the fighter.";
-
 /** Medical Clearance at a glance: state, validity, issuing doctor and restrictions. */
 export function ClearanceCard({
     clearance,
@@ -65,19 +50,21 @@ export function ClearanceCard({
     pausedForReview = false,
     className,
 }: ClearanceCardProps) {
+    const t = useT();
+
     return (
         <Card className={className}>
-            <CardHeader title="Medical Clearance" icon={<ShieldCheck />} action={actions} />
+            <CardHeader title={t("coachClearance.pageTitle")} icon={<ShieldCheck />} action={actions} />
             <CardContent>
                 {state === "none" || !clearance ? (
                     <EmptyState
                         compact
                         icon={<NoClearanceIcon />}
-                        title="No Medical Clearance on file"
+                        title={t("clearanceCard.emptyTitle")}
                         description={
                             variant === "clinical"
-                                ? "Complete a baseline examination, then issue a clearance so coaches can plan training against it."
-                                : "Training can't be checked against medical guidance yet. A sports doctor issues a clearance after a baseline examination."
+                                ? t("clearanceCard.emptyClinicalDesc")
+                                : t("clearanceCard.emptySummaryDesc")
                         }
                     />
                 ) : (
@@ -113,6 +100,8 @@ function ClearanceDetails({
     warningDays: number;
     paused: boolean;
 }) {
+    const t = useT();
+    const locale = useLocale();
     const meta = CLEARANCE_STATE_META[state];
     const isExpired = state === "expired";
     // While paused, the clearance's own level describes its validity and restrictions.
@@ -120,16 +109,16 @@ function ClearanceDetails({
 
     const items: DescriptionItem[] = [
         {
-            label: "Validity",
-            value: <ClearanceValidity clearance={clearance} state={recordState} now={now} warningDays={warningDays} />,
+            label: t("clearanceCard.validity"),
+            value: <ClearanceValidity locale={locale} clearance={clearance} state={recordState} now={now} warningDays={warningDays} />,
         },
         {
-            label: "Issued by",
+            label: t("clearanceCard.issuedBy"),
             value: (
                 <span className="flex flex-col gap-0.5">
-                    {doctorName ?? "Sports doctor"}
+                    {doctorName ?? t("role.doctor")}
                     <span className="text-[13px] font-normal text-fg-muted">
-                        on <time dateTime={clearance.issuedAt}>{formatDate(clearance.issuedAt)}</time>
+                        {t("clearanceCard.issuedOn", { date: formatDate(clearance.issuedAt, locale) })}
                     </span>
                 </span>
             ),
@@ -137,21 +126,21 @@ function ClearanceDetails({
     ];
 
     if (isExpired) {
-        items.push({ label: "Lapsed clearance level", value: CLEARANCE_LEVEL_LABELS[clearance.level] });
+        items.push({ label: t("clearanceCard.lapsedLevel"), value: clearanceLevelLabel(clearance.level, locale) });
     }
     if (variant === "clinical" && clearance.status !== "active" && clearance.status !== "expired") {
         items.push({
-            label: "Record status",
+            label: t("clearanceCard.recordStatus"),
             value: clearance.revokedAt
-                ? `${CLEARANCE_STATUS_LABELS[clearance.status]} on ${formatDate(clearance.revokedAt)}`
-                : CLEARANCE_STATUS_LABELS[clearance.status],
+                ? t("clearanceCard.recordStatusOn", { status: clearanceStatusLabel(clearance.status, locale), date: formatDate(clearance.revokedAt, locale) })
+                : clearanceStatusLabel(clearance.status, locale),
         });
     }
     if (variant === "clinical" && clearance.revokedReason) {
-        items.push({ label: "Revocation reason", value: clearance.revokedReason, wide: true });
+        items.push({ label: t("clearanceCard.revocationReason"), value: clearance.revokedReason, wide: true });
     }
     if (variant === "clinical" && clearance.reason) {
-        items.push({ label: "Clinical reason", value: <span className="font-normal">{clearance.reason}</span>, wide: true });
+        items.push({ label: t("clearanceCard.clinicalReason"), value: <span className="font-normal">{clearance.reason}</span>, wide: true });
     }
 
     return (
@@ -161,12 +150,12 @@ function ClearanceDetails({
                 icon={meta.icon}
                 title={
                     <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                        {paused ? PAUSED_HEADLINE : HEADLINES[state]}
-                        <ClearanceBadge state={state} size="sm" />
+                        {paused ? t("clearanceCard.headline.paused") : t(`clearanceCard.headline.${state}`)}
+                        <ClearanceBadge locale={locale} state={state} size="sm" />
                     </span>
                 }
             >
-                {paused ? PAUSED_EXPLANATION : EXPLANATIONS[state]}
+                {paused ? t("clearanceCard.explanation.paused") : t(`clearanceCard.explanation.${state}`)}
             </Callout>
 
             <DescriptionList items={items} />
@@ -174,7 +163,7 @@ function ClearanceDetails({
             {clearance.restrictions.length > 0 && (
                 <div>
                     <h3 className="mb-2 text-[13px] font-semibold text-fg">
-                        {isExpired ? "Restrictions on the lapsed clearance" : "Restrictions"}
+                        {isExpired ? t("clearanceCard.restrictionsLapsed") : t("clearanceCard.restrictions")}
                         <span className="ml-1.5 font-normal text-fg-muted">({clearance.restrictions.length})</span>
                     </h3>
                     <RestrictionList restrictions={clearance.restrictions} />

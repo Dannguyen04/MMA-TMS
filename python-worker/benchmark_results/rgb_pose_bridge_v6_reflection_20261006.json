@@ -1,0 +1,5834 @@
+{
+  "status": "PAIRED_POSE_DIAGNOSTIC",
+  "model": {
+    "architecture": "residual_tcn",
+    "seed": 20261006,
+    "bestEpoch": 26,
+    "mode": "research_only",
+    "productionEligible": false,
+    "featureVersion": "body_relative_image_pose_v1",
+    "labels": [
+      "jab",
+      "cross",
+      "lead_hook",
+      "rear_hook",
+      "lead_uppercut",
+      "rear_uppercut"
+    ],
+    "temperature": 0.9130000654136892,
+    "weightsSha256": "3fa9cf2195615220a1ca4149cb018d5cd56bed10cb53912ebb8cdf5181aaccd9",
+    "acceptancePolicy": {
+      "threshold": 0.7006136730837446,
+      "calibrationAccepted": 482,
+      "calibrationCorrect": 447,
+      "calibrationWilsonLower": 0.9007,
+      "precisionLowerBoundTarget": 0.9,
+      "minimumSupport": 30,
+      "reason": "CALIBRATION_SELECTED_RESEARCH_ONLY"
+    },
+    "reportSha256": "5f5cb8b44452956165f5aef2c32b4727b8127a40f63aef48c24b7ba2a7059716",
+    "configurationSha256": "a5cae9e8cc6ee717ba76b09fafdf3fcdd858b360f0b577c93d3e79ae9d73fa53",
+    "modelAndFeatureSourceVerified": true
+  },
+  "summaries": [
+    {
+      "source": "V4",
+      "offset": -1,
+      "count": 18,
+      "medianJointError": 0.010469694674866649,
+      "upstream": {
+        "raw": {
+          "count": 18,
+          "accuracy": 0.8888888888888888,
+          "macroF1": 0.8857142857142857,
+          "perClass": {
+            "jab": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 0.6666666666666666,
+              "f1": 0.8
+            },
+            "cross": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0
+            },
+            "lead_hook": {
+              "support": 3,
+              "precision": 0.75,
+              "recall": 1.0,
+              "f1": 0.8571428571428571
+            },
+            "rear_hook": {
+              "support": 3,
+              "precision": 0.75,
+              "recall": 1.0,
+              "f1": 0.8571428571428571
+            },
+            "lead_uppercut": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0
+            },
+            "rear_uppercut": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 0.6666666666666666,
+              "f1": 0.8
+            }
+          },
+          "confusionRows": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut"
+          ],
+          "confusionColumns": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut",
+            "unknown"
+          ],
+          "confusionMatrix": [
+            [
+              2,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              3,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              3,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              3,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              3,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              1,
+              0,
+              2,
+              0
+            ]
+          ],
+          "abstained": 0
+        },
+        "accepted": 8,
+        "acceptedCorrect": 7,
+        "coverage": 0.4444444444444444,
+        "withAbstention": {
+          "count": 18,
+          "accuracy": 0.3888888888888889,
+          "macroF1": 0.41111111111111115,
+          "perClass": {
+            "jab": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "cross": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0
+            },
+            "lead_hook": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 0.6666666666666666,
+              "f1": 0.8
+            },
+            "rear_hook": {
+              "support": 3,
+              "precision": 0.6666666666666666,
+              "recall": 0.6666666666666666,
+              "f1": 0.6666666666666666
+            },
+            "lead_uppercut": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "rear_uppercut": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            }
+          },
+          "confusionRows": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut"
+          ],
+          "confusionColumns": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut",
+            "unknown"
+          ],
+          "confusionMatrix": [
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ],
+            [
+              0,
+              3,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              2,
+              0,
+              0,
+              0,
+              1
+            ],
+            [
+              0,
+              0,
+              0,
+              2,
+              0,
+              0,
+              1
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ],
+            [
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              2
+            ]
+          ],
+          "abstained": 10
+        }
+      },
+      "yolo": {
+        "raw": {
+          "count": 18,
+          "accuracy": 0.8333333333333334,
+          "macroF1": 0.8361111111111111,
+          "perClass": {
+            "jab": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0
+            },
+            "cross": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0
+            },
+            "lead_hook": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 0.6666666666666666,
+              "f1": 0.8
+            },
+            "rear_hook": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 0.6666666666666666,
+              "f1": 0.8
+            },
+            "lead_uppercut": {
+              "support": 3,
+              "precision": 0.6,
+              "recall": 1.0,
+              "f1": 0.7499999999999999
+            },
+            "rear_uppercut": {
+              "support": 3,
+              "precision": 0.6666666666666666,
+              "recall": 0.6666666666666666,
+              "f1": 0.6666666666666666
+            }
+          },
+          "confusionRows": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut"
+          ],
+          "confusionColumns": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut",
+            "unknown"
+          ],
+          "confusionMatrix": [
+            [
+              3,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              3,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              2,
+              0,
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              2,
+              0,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              3,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              1,
+              2,
+              0
+            ]
+          ],
+          "abstained": 0
+        },
+        "accepted": 4,
+        "acceptedCorrect": 4,
+        "coverage": 0.2222222222222222,
+        "withAbstention": {
+          "count": 18,
+          "accuracy": 0.2222222222222222,
+          "macroF1": 0.3,
+          "perClass": {
+            "jab": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "cross": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 0.3333333333333333,
+              "f1": 0.5
+            },
+            "lead_hook": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 0.3333333333333333,
+              "f1": 0.5
+            },
+            "rear_hook": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 0.6666666666666666,
+              "f1": 0.8
+            },
+            "lead_uppercut": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "rear_uppercut": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            }
+          },
+          "confusionRows": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut"
+          ],
+          "confusionColumns": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut",
+            "unknown"
+          ],
+          "confusionMatrix": [
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ],
+            [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              2
+            ],
+            [
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              2
+            ],
+            [
+              0,
+              0,
+              0,
+              2,
+              0,
+              0,
+              1
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ]
+          ],
+          "abstained": 14
+        }
+      }
+    },
+    {
+      "source": "V4",
+      "offset": 0,
+      "count": 18,
+      "medianJointError": 0.008298989936382627,
+      "upstream": {
+        "raw": {
+          "count": 18,
+          "accuracy": 0.8888888888888888,
+          "macroF1": 0.8857142857142857,
+          "perClass": {
+            "jab": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 0.6666666666666666,
+              "f1": 0.8
+            },
+            "cross": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0
+            },
+            "lead_hook": {
+              "support": 3,
+              "precision": 0.75,
+              "recall": 1.0,
+              "f1": 0.8571428571428571
+            },
+            "rear_hook": {
+              "support": 3,
+              "precision": 0.75,
+              "recall": 1.0,
+              "f1": 0.8571428571428571
+            },
+            "lead_uppercut": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0
+            },
+            "rear_uppercut": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 0.6666666666666666,
+              "f1": 0.8
+            }
+          },
+          "confusionRows": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut"
+          ],
+          "confusionColumns": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut",
+            "unknown"
+          ],
+          "confusionMatrix": [
+            [
+              2,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              3,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              3,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              3,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              3,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              1,
+              0,
+              2,
+              0
+            ]
+          ],
+          "abstained": 0
+        },
+        "accepted": 8,
+        "acceptedCorrect": 7,
+        "coverage": 0.4444444444444444,
+        "withAbstention": {
+          "count": 18,
+          "accuracy": 0.3888888888888889,
+          "macroF1": 0.41111111111111115,
+          "perClass": {
+            "jab": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "cross": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0
+            },
+            "lead_hook": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 0.6666666666666666,
+              "f1": 0.8
+            },
+            "rear_hook": {
+              "support": 3,
+              "precision": 0.6666666666666666,
+              "recall": 0.6666666666666666,
+              "f1": 0.6666666666666666
+            },
+            "lead_uppercut": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "rear_uppercut": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            }
+          },
+          "confusionRows": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut"
+          ],
+          "confusionColumns": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut",
+            "unknown"
+          ],
+          "confusionMatrix": [
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ],
+            [
+              0,
+              3,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              2,
+              0,
+              0,
+              0,
+              1
+            ],
+            [
+              0,
+              0,
+              0,
+              2,
+              0,
+              0,
+              1
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ],
+            [
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              2
+            ]
+          ],
+          "abstained": 10
+        }
+      },
+      "yolo": {
+        "raw": {
+          "count": 18,
+          "accuracy": 0.7777777777777778,
+          "macroF1": 0.7869047619047619,
+          "perClass": {
+            "jab": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0
+            },
+            "cross": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 0.6666666666666666,
+              "f1": 0.8
+            },
+            "lead_hook": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 0.6666666666666666,
+              "f1": 0.8
+            },
+            "rear_hook": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 0.6666666666666666,
+              "f1": 0.8
+            },
+            "lead_uppercut": {
+              "support": 3,
+              "precision": 0.6,
+              "recall": 1.0,
+              "f1": 0.7499999999999999
+            },
+            "rear_uppercut": {
+              "support": 3,
+              "precision": 0.5,
+              "recall": 0.6666666666666666,
+              "f1": 0.5714285714285715
+            }
+          },
+          "confusionRows": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut"
+          ],
+          "confusionColumns": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut",
+            "unknown"
+          ],
+          "confusionMatrix": [
+            [
+              3,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              2,
+              0,
+              0,
+              0,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              2,
+              0,
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              2,
+              0,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              3,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              1,
+              2,
+              0
+            ]
+          ],
+          "abstained": 0
+        },
+        "accepted": 2,
+        "acceptedCorrect": 2,
+        "coverage": 0.1111111111111111,
+        "withAbstention": {
+          "count": 18,
+          "accuracy": 0.1111111111111111,
+          "macroF1": 0.16666666666666666,
+          "perClass": {
+            "jab": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "cross": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 0.3333333333333333,
+              "f1": 0.5
+            },
+            "lead_hook": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 0.3333333333333333,
+              "f1": 0.5
+            },
+            "rear_hook": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "lead_uppercut": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "rear_uppercut": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            }
+          },
+          "confusionRows": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut"
+          ],
+          "confusionColumns": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut",
+            "unknown"
+          ],
+          "confusionMatrix": [
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ],
+            [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              2
+            ],
+            [
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              2
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ]
+          ],
+          "abstained": 16
+        }
+      }
+    },
+    {
+      "source": "V6",
+      "offset": -1,
+      "count": 12,
+      "medianJointError": 0.011656070260440516,
+      "upstream": {
+        "raw": {
+          "count": 12,
+          "accuracy": 0.9166666666666666,
+          "macroF1": 0.6095238095238095,
+          "perClass": {
+            "jab": {
+              "support": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "cross": {
+              "support": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "lead_hook": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0
+            },
+            "rear_hook": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 0.6666666666666666,
+              "f1": 0.8
+            },
+            "lead_uppercut": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0
+            },
+            "rear_uppercut": {
+              "support": 3,
+              "precision": 0.75,
+              "recall": 1.0,
+              "f1": 0.8571428571428571
+            }
+          },
+          "confusionRows": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut"
+          ],
+          "confusionColumns": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut",
+            "unknown"
+          ],
+          "confusionMatrix": [
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              3,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              2,
+              0,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              3,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              3,
+              0
+            ]
+          ],
+          "abstained": 0
+        },
+        "accepted": 2,
+        "acceptedCorrect": 2,
+        "coverage": 0.16666666666666666,
+        "withAbstention": {
+          "count": 12,
+          "accuracy": 0.16666666666666666,
+          "macroF1": 0.13333333333333333,
+          "perClass": {
+            "jab": {
+              "support": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "cross": {
+              "support": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "lead_hook": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 0.6666666666666666,
+              "f1": 0.8
+            },
+            "rear_hook": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "lead_uppercut": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "rear_uppercut": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            }
+          },
+          "confusionRows": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut"
+          ],
+          "confusionColumns": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut",
+            "unknown"
+          ],
+          "confusionMatrix": [
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              2,
+              0,
+              0,
+              0,
+              1
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ]
+          ],
+          "abstained": 10
+        }
+      },
+      "yolo": {
+        "raw": {
+          "count": 12,
+          "accuracy": 0.8333333333333334,
+          "macroF1": 0.5539682539682539,
+          "perClass": {
+            "jab": {
+              "support": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "cross": {
+              "support": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "lead_hook": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0
+            },
+            "rear_hook": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 0.6666666666666666,
+              "f1": 0.8
+            },
+            "lead_uppercut": {
+              "support": 3,
+              "precision": 0.75,
+              "recall": 1.0,
+              "f1": 0.8571428571428571
+            },
+            "rear_uppercut": {
+              "support": 3,
+              "precision": 0.6666666666666666,
+              "recall": 0.6666666666666666,
+              "f1": 0.6666666666666666
+            }
+          },
+          "confusionRows": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut"
+          ],
+          "confusionColumns": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut",
+            "unknown"
+          ],
+          "confusionMatrix": [
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              3,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              2,
+              0,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              3,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              1,
+              2,
+              0
+            ]
+          ],
+          "abstained": 0
+        },
+        "accepted": 3,
+        "acceptedCorrect": 3,
+        "coverage": 0.25,
+        "withAbstention": {
+          "count": 12,
+          "accuracy": 0.25,
+          "macroF1": 0.21666666666666667,
+          "perClass": {
+            "jab": {
+              "support": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "cross": {
+              "support": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "lead_hook": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 0.6666666666666666,
+              "f1": 0.8
+            },
+            "rear_hook": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "lead_uppercut": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 0.3333333333333333,
+              "f1": 0.5
+            },
+            "rear_uppercut": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            }
+          },
+          "confusionRows": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut"
+          ],
+          "confusionColumns": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut",
+            "unknown"
+          ],
+          "confusionMatrix": [
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              2,
+              0,
+              0,
+              0,
+              1
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              2
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ]
+          ],
+          "abstained": 9
+        }
+      }
+    },
+    {
+      "source": "V6",
+      "offset": 0,
+      "count": 12,
+      "medianJointError": 0.008810298020120993,
+      "upstream": {
+        "raw": {
+          "count": 12,
+          "accuracy": 0.9166666666666666,
+          "macroF1": 0.6095238095238095,
+          "perClass": {
+            "jab": {
+              "support": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "cross": {
+              "support": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "lead_hook": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0
+            },
+            "rear_hook": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 0.6666666666666666,
+              "f1": 0.8
+            },
+            "lead_uppercut": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0
+            },
+            "rear_uppercut": {
+              "support": 3,
+              "precision": 0.75,
+              "recall": 1.0,
+              "f1": 0.8571428571428571
+            }
+          },
+          "confusionRows": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut"
+          ],
+          "confusionColumns": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut",
+            "unknown"
+          ],
+          "confusionMatrix": [
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              3,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              2,
+              0,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              3,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              3,
+              0
+            ]
+          ],
+          "abstained": 0
+        },
+        "accepted": 2,
+        "acceptedCorrect": 2,
+        "coverage": 0.16666666666666666,
+        "withAbstention": {
+          "count": 12,
+          "accuracy": 0.16666666666666666,
+          "macroF1": 0.13333333333333333,
+          "perClass": {
+            "jab": {
+              "support": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "cross": {
+              "support": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "lead_hook": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 0.6666666666666666,
+              "f1": 0.8
+            },
+            "rear_hook": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "lead_uppercut": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "rear_uppercut": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            }
+          },
+          "confusionRows": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut"
+          ],
+          "confusionColumns": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut",
+            "unknown"
+          ],
+          "confusionMatrix": [
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              2,
+              0,
+              0,
+              0,
+              1
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ]
+          ],
+          "abstained": 10
+        }
+      },
+      "yolo": {
+        "raw": {
+          "count": 12,
+          "accuracy": 0.9166666666666666,
+          "macroF1": 0.6095238095238095,
+          "perClass": {
+            "jab": {
+              "support": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "cross": {
+              "support": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "lead_hook": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0
+            },
+            "rear_hook": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 0.6666666666666666,
+              "f1": 0.8
+            },
+            "lead_uppercut": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0
+            },
+            "rear_uppercut": {
+              "support": 3,
+              "precision": 0.75,
+              "recall": 1.0,
+              "f1": 0.8571428571428571
+            }
+          },
+          "confusionRows": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut"
+          ],
+          "confusionColumns": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut",
+            "unknown"
+          ],
+          "confusionMatrix": [
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              3,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              2,
+              0,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              3,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              3,
+              0
+            ]
+          ],
+          "abstained": 0
+        },
+        "accepted": 3,
+        "acceptedCorrect": 3,
+        "coverage": 0.25,
+        "withAbstention": {
+          "count": 12,
+          "accuracy": 0.25,
+          "macroF1": 0.21666666666666667,
+          "perClass": {
+            "jab": {
+              "support": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "cross": {
+              "support": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "lead_hook": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 0.6666666666666666,
+              "f1": 0.8
+            },
+            "rear_hook": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "lead_uppercut": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 0.3333333333333333,
+              "f1": 0.5
+            },
+            "rear_uppercut": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            }
+          },
+          "confusionRows": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut"
+          ],
+          "confusionColumns": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut",
+            "unknown"
+          ],
+          "confusionMatrix": [
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              2,
+              0,
+              0,
+              0,
+              1
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              2
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ]
+          ],
+          "abstained": 9
+        }
+      }
+    },
+    {
+      "source": "V10",
+      "offset": -1,
+      "count": 18,
+      "medianJointError": 0.00960038859269953,
+      "upstream": {
+        "raw": {
+          "count": 18,
+          "accuracy": 0.4444444444444444,
+          "macroF1": 0.3642857142857143,
+          "perClass": {
+            "jab": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "cross": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "lead_hook": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 0.3333333333333333,
+              "f1": 0.5
+            },
+            "rear_hook": {
+              "support": 3,
+              "precision": 0.75,
+              "recall": 1.0,
+              "f1": 0.8571428571428571
+            },
+            "lead_uppercut": {
+              "support": 3,
+              "precision": 0.2727272727272727,
+              "recall": 1.0,
+              "f1": 0.42857142857142855
+            },
+            "rear_uppercut": {
+              "support": 3,
+              "precision": 0.5,
+              "recall": 0.3333333333333333,
+              "f1": 0.4
+            }
+          },
+          "confusionRows": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut"
+          ],
+          "confusionColumns": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut",
+            "unknown"
+          ],
+          "confusionMatrix": [
+            [
+              0,
+              0,
+              0,
+              0,
+              3,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              2,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              1,
+              0,
+              2,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              3,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              3,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              1,
+              1,
+              1,
+              0
+            ]
+          ],
+          "abstained": 0
+        },
+        "accepted": 2,
+        "acceptedCorrect": 1,
+        "coverage": 0.1111111111111111,
+        "withAbstention": {
+          "count": 18,
+          "accuracy": 0.05555555555555555,
+          "macroF1": 0.06666666666666667,
+          "perClass": {
+            "jab": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "cross": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "lead_hook": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "rear_hook": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "lead_uppercut": {
+              "support": 3,
+              "precision": 0.5,
+              "recall": 0.3333333333333333,
+              "f1": 0.4
+            },
+            "rear_uppercut": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            }
+          },
+          "confusionRows": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut"
+          ],
+          "confusionColumns": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut",
+            "unknown"
+          ],
+          "confusionMatrix": [
+            [
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              2
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              2
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ]
+          ],
+          "abstained": 16
+        }
+      },
+      "yolo": {
+        "raw": {
+          "count": 18,
+          "accuracy": 0.4444444444444444,
+          "macroF1": 0.3642857142857143,
+          "perClass": {
+            "jab": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "cross": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "lead_hook": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 0.3333333333333333,
+              "f1": 0.5
+            },
+            "rear_hook": {
+              "support": 3,
+              "precision": 0.75,
+              "recall": 1.0,
+              "f1": 0.8571428571428571
+            },
+            "lead_uppercut": {
+              "support": 3,
+              "precision": 0.2727272727272727,
+              "recall": 1.0,
+              "f1": 0.42857142857142855
+            },
+            "rear_uppercut": {
+              "support": 3,
+              "precision": 0.5,
+              "recall": 0.3333333333333333,
+              "f1": 0.4
+            }
+          },
+          "confusionRows": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut"
+          ],
+          "confusionColumns": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut",
+            "unknown"
+          ],
+          "confusionMatrix": [
+            [
+              0,
+              0,
+              0,
+              0,
+              3,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              2,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              1,
+              0,
+              2,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              3,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              3,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              1,
+              1,
+              1,
+              0
+            ]
+          ],
+          "abstained": 0
+        },
+        "accepted": 3,
+        "acceptedCorrect": 1,
+        "coverage": 0.16666666666666666,
+        "withAbstention": {
+          "count": 18,
+          "accuracy": 0.05555555555555555,
+          "macroF1": 0.05555555555555555,
+          "perClass": {
+            "jab": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "cross": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "lead_hook": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "rear_hook": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "lead_uppercut": {
+              "support": 3,
+              "precision": 0.3333333333333333,
+              "recall": 0.3333333333333333,
+              "f1": 0.3333333333333333
+            },
+            "rear_uppercut": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            }
+          },
+          "confusionRows": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut"
+          ],
+          "confusionColumns": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut",
+            "unknown"
+          ],
+          "confusionMatrix": [
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              2,
+              0,
+              1
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              2
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ]
+          ],
+          "abstained": 15
+        }
+      }
+    },
+    {
+      "source": "V10",
+      "offset": 0,
+      "count": 18,
+      "medianJointError": 0.007053132503753531,
+      "upstream": {
+        "raw": {
+          "count": 18,
+          "accuracy": 0.4444444444444444,
+          "macroF1": 0.3642857142857143,
+          "perClass": {
+            "jab": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "cross": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "lead_hook": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 0.3333333333333333,
+              "f1": 0.5
+            },
+            "rear_hook": {
+              "support": 3,
+              "precision": 0.75,
+              "recall": 1.0,
+              "f1": 0.8571428571428571
+            },
+            "lead_uppercut": {
+              "support": 3,
+              "precision": 0.2727272727272727,
+              "recall": 1.0,
+              "f1": 0.42857142857142855
+            },
+            "rear_uppercut": {
+              "support": 3,
+              "precision": 0.5,
+              "recall": 0.3333333333333333,
+              "f1": 0.4
+            }
+          },
+          "confusionRows": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut"
+          ],
+          "confusionColumns": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut",
+            "unknown"
+          ],
+          "confusionMatrix": [
+            [
+              0,
+              0,
+              0,
+              0,
+              3,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              2,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              1,
+              0,
+              2,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              3,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              3,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              1,
+              1,
+              1,
+              0
+            ]
+          ],
+          "abstained": 0
+        },
+        "accepted": 2,
+        "acceptedCorrect": 1,
+        "coverage": 0.1111111111111111,
+        "withAbstention": {
+          "count": 18,
+          "accuracy": 0.05555555555555555,
+          "macroF1": 0.06666666666666667,
+          "perClass": {
+            "jab": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "cross": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "lead_hook": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "rear_hook": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "lead_uppercut": {
+              "support": 3,
+              "precision": 0.5,
+              "recall": 0.3333333333333333,
+              "f1": 0.4
+            },
+            "rear_uppercut": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            }
+          },
+          "confusionRows": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut"
+          ],
+          "confusionColumns": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut",
+            "unknown"
+          ],
+          "confusionMatrix": [
+            [
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              2
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              2
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ]
+          ],
+          "abstained": 16
+        }
+      },
+      "yolo": {
+        "raw": {
+          "count": 18,
+          "accuracy": 0.4444444444444444,
+          "macroF1": 0.3642857142857143,
+          "perClass": {
+            "jab": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "cross": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "lead_hook": {
+              "support": 3,
+              "precision": 1.0,
+              "recall": 0.3333333333333333,
+              "f1": 0.5
+            },
+            "rear_hook": {
+              "support": 3,
+              "precision": 0.75,
+              "recall": 1.0,
+              "f1": 0.8571428571428571
+            },
+            "lead_uppercut": {
+              "support": 3,
+              "precision": 0.2727272727272727,
+              "recall": 1.0,
+              "f1": 0.42857142857142855
+            },
+            "rear_uppercut": {
+              "support": 3,
+              "precision": 0.5,
+              "recall": 0.3333333333333333,
+              "f1": 0.4
+            }
+          },
+          "confusionRows": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut"
+          ],
+          "confusionColumns": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut",
+            "unknown"
+          ],
+          "confusionMatrix": [
+            [
+              0,
+              0,
+              0,
+              0,
+              3,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              2,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              1,
+              0,
+              2,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              3,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              3,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              1,
+              1,
+              1,
+              0
+            ]
+          ],
+          "abstained": 0
+        },
+        "accepted": 2,
+        "acceptedCorrect": 0,
+        "coverage": 0.1111111111111111,
+        "withAbstention": {
+          "count": 18,
+          "accuracy": 0.0,
+          "macroF1": 0.0,
+          "perClass": {
+            "jab": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "cross": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "lead_hook": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "rear_hook": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "lead_uppercut": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            },
+            "rear_uppercut": {
+              "support": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            }
+          },
+          "confusionRows": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut"
+          ],
+          "confusionColumns": [
+            "jab",
+            "cross",
+            "lead_hook",
+            "rear_hook",
+            "lead_uppercut",
+            "rear_uppercut",
+            "unknown"
+          ],
+          "confusionMatrix": [
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              2,
+              0,
+              1
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ]
+          ],
+          "abstained": 16
+        }
+      }
+    }
+  ],
+  "bridgeReportSha256": "1a951766ac71a8c4949117a2fd3d5cb3d54e30a85e8d269a85cc567fcac9c3ab",
+  "codeSha256": "c4df3568899223ab9b5add1a1516e13bfbb7c8eebfb6fb524714da760878730e",
+  "manifestSha256": "bcbb417c1eafa1a0c1d40db26021cd3c17a631af4adb2cc41ab669d34b91769b",
+  "samples": [
+    {
+      "source": "V4",
+      "rowId": 0,
+      "label": "jab",
+      "sourceStartFrame": 6437,
+      "sourceEndFrame": 6449,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.01036137589612823,
+      "featureIndex": 0,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_hook",
+        "reason": "LOW_RESEARCH_PROBABILITY",
+        "confidence": null,
+        "researchProbability": 0.5824098571334294,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "jab",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9409476409537468,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V4",
+      "rowId": 0,
+      "label": "jab",
+      "sourceStartFrame": 6437,
+      "sourceEndFrame": 6449,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.006351140262797263,
+      "featureIndex": 1,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_hook",
+        "reason": "LOW_RESEARCH_PROBABILITY",
+        "confidence": null,
+        "researchProbability": 0.5824098571334294,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "jab",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9700989967391006,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V4",
+      "rowId": 1,
+      "label": "rear_hook",
+      "sourceStartFrame": 6452,
+      "sourceEndFrame": 6460,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.010746848348962125,
+      "featureIndex": 2,
+      "upstream": {
+        "technique": "rear_hook",
+        "candidateTechnique": "rear_hook",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.8097341180784734,
+        "reflectedCandidate": "rear_hook",
+        "reviewRequired": false
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.8468570477412769,
+        "reflectedCandidate": "rear_hook",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V4",
+      "rowId": 1,
+      "label": "rear_hook",
+      "sourceStartFrame": 6452,
+      "sourceEndFrame": 6460,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.009939616580751603,
+      "featureIndex": 3,
+      "upstream": {
+        "technique": "rear_hook",
+        "candidateTechnique": "rear_hook",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.8097341180784734,
+        "reflectedCandidate": "rear_hook",
+        "reviewRequired": false
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.8583433320735513,
+        "reflectedCandidate": "cross",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V4",
+      "rowId": 2,
+      "label": "lead_hook",
+      "sourceStartFrame": 6463,
+      "sourceEndFrame": 6470,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.011647457216095577,
+      "featureIndex": 4,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_hook",
+        "reason": "LOW_RESEARCH_PROBABILITY",
+        "confidence": null,
+        "researchProbability": 0.6111661182843148,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9761038061427684,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V4",
+      "rowId": 2,
+      "label": "lead_hook",
+      "sourceStartFrame": 6463,
+      "sourceEndFrame": 6470,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.009830334087708533,
+      "featureIndex": 5,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_hook",
+        "reason": "LOW_RESEARCH_PROBABILITY",
+        "confidence": null,
+        "researchProbability": 0.6111661182843148,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9548133553658307,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V4",
+      "rowId": 13,
+      "label": "cross",
+      "sourceStartFrame": 7132,
+      "sourceEndFrame": 7139,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.007917656253625286,
+      "featureIndex": 6,
+      "upstream": {
+        "technique": "cross",
+        "candidateTechnique": "cross",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.9637781202616481,
+        "reflectedCandidate": "cross",
+        "reviewRequired": false
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "cross",
+        "reason": "LOW_RESEARCH_PROBABILITY",
+        "confidence": null,
+        "researchProbability": 0.9467777007027477,
+        "reflectedCandidate": "cross",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V4",
+      "rowId": 13,
+      "label": "cross",
+      "sourceStartFrame": 7132,
+      "sourceEndFrame": 7139,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.0075389626251683856,
+      "featureIndex": 7,
+      "upstream": {
+        "technique": "cross",
+        "candidateTechnique": "cross",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.9637781202616481,
+        "reflectedCandidate": "cross",
+        "reviewRequired": false
+      },
+      "yolo": {
+        "technique": "cross",
+        "candidateTechnique": "cross",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.9464523091022077,
+        "reflectedCandidate": "cross",
+        "reviewRequired": false
+      }
+    },
+    {
+      "source": "V4",
+      "rowId": 51,
+      "label": "cross",
+      "sourceStartFrame": 7837,
+      "sourceEndFrame": 7842,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.008730226935658107,
+      "featureIndex": 8,
+      "upstream": {
+        "technique": "cross",
+        "candidateTechnique": "cross",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.9495888971598919,
+        "reflectedCandidate": "cross",
+        "reviewRequired": false
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "cross",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.6272375825768718,
+        "reflectedCandidate": "rear_hook",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V4",
+      "rowId": 51,
+      "label": "cross",
+      "sourceStartFrame": 7837,
+      "sourceEndFrame": 7842,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.009009079207435784,
+      "featureIndex": 9,
+      "upstream": {
+        "technique": "cross",
+        "candidateTechnique": "cross",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.9495888971598919,
+        "reflectedCandidate": "cross",
+        "reviewRequired": false
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "cross",
+        "reason": "LOW_RESEARCH_PROBABILITY",
+        "confidence": null,
+        "researchProbability": 0.6607525411138042,
+        "reflectedCandidate": "cross",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V4",
+      "rowId": 61,
+      "label": "rear_uppercut",
+      "sourceStartFrame": 8207,
+      "sourceEndFrame": 8215,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.008693345500091801,
+      "featureIndex": 10,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_uppercut",
+        "reason": "LOW_RESEARCH_PROBABILITY",
+        "confidence": null,
+        "researchProbability": 0.9058502944044786,
+        "reflectedCandidate": "rear_uppercut",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.853252929825706,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V4",
+      "rowId": 61,
+      "label": "rear_uppercut",
+      "sourceStartFrame": 8207,
+      "sourceEndFrame": 8215,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.008252038802479681,
+      "featureIndex": 11,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_uppercut",
+        "reason": "LOW_RESEARCH_PROBABILITY",
+        "confidence": null,
+        "researchProbability": 0.9058502944044786,
+        "reflectedCandidate": "rear_uppercut",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9351458550553063,
+        "reflectedCandidate": "rear_uppercut",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V4",
+      "rowId": 64,
+      "label": "lead_uppercut",
+      "sourceStartFrame": 8387,
+      "sourceEndFrame": 8398,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.01119622927165118,
+      "featureIndex": 12,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.7363931118243777,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.8264798474947986,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V4",
+      "rowId": 64,
+      "label": "lead_uppercut",
+      "sourceStartFrame": 8387,
+      "sourceEndFrame": 8398,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.009779722992980302,
+      "featureIndex": 13,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.7363931118243777,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.731996079161133,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V4",
+      "rowId": 142,
+      "label": "jab",
+      "sourceStartFrame": 10404,
+      "sourceEndFrame": 10410,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.011402931409163528,
+      "featureIndex": 14,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "jab",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9783230431766181,
+        "reflectedCandidate": "rear_uppercut",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "jab",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9848139947520175,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V4",
+      "rowId": 142,
+      "label": "jab",
+      "sourceStartFrame": 10404,
+      "sourceEndFrame": 10410,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.007473992054985007,
+      "featureIndex": 15,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "jab",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9783230431766181,
+        "reflectedCandidate": "rear_uppercut",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "jab",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9862848638332535,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V4",
+      "rowId": 248,
+      "label": "rear_hook",
+      "sourceStartFrame": 14421,
+      "sourceEndFrame": 14429,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.010578013453605067,
+      "featureIndex": 16,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_hook",
+        "reason": "LOW_RESEARCH_PROBABILITY",
+        "confidence": null,
+        "researchProbability": 0.9619061265258351,
+        "reflectedCandidate": "rear_hook",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "rear_hook",
+        "candidateTechnique": "rear_hook",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.8341825629609814,
+        "reflectedCandidate": "rear_hook",
+        "reviewRequired": false
+      }
+    },
+    {
+      "source": "V4",
+      "rowId": 248,
+      "label": "rear_hook",
+      "sourceStartFrame": 14421,
+      "sourceEndFrame": 14429,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.008245932235767752,
+      "featureIndex": 17,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_hook",
+        "reason": "LOW_RESEARCH_PROBABILITY",
+        "confidence": null,
+        "researchProbability": 0.9619061265258351,
+        "reflectedCandidate": "rear_hook",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_hook",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9319716354023616,
+        "reflectedCandidate": "cross",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V4",
+      "rowId": 322,
+      "label": "rear_uppercut",
+      "sourceStartFrame": 16282,
+      "sourceEndFrame": 16285,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.012980568449080767,
+      "featureIndex": 18,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9516845641896785,
+        "reflectedCandidate": "rear_hook",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.8444502153726889,
+        "reflectedCandidate": "rear_hook",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V4",
+      "rowId": 322,
+      "label": "rear_uppercut",
+      "sourceStartFrame": 16282,
+      "sourceEndFrame": 16285,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.010769853549535122,
+      "featureIndex": 19,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9516845641896785,
+        "reflectedCandidate": "rear_hook",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9360460809014445,
+        "reflectedCandidate": "cross",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V4",
+      "rowId": 348,
+      "label": "lead_hook",
+      "sourceStartFrame": 18436,
+      "sourceEndFrame": 18447,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.007299377764245902,
+      "featureIndex": 20,
+      "upstream": {
+        "technique": "lead_hook",
+        "candidateTechnique": "lead_hook",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.9958287389629337,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": false
+      },
+      "yolo": {
+        "technique": "lead_hook",
+        "candidateTechnique": "lead_hook",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.8666943418817017,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": false
+      }
+    },
+    {
+      "source": "V4",
+      "rowId": 348,
+      "label": "lead_hook",
+      "sourceStartFrame": 18436,
+      "sourceEndFrame": 18447,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.006293441207910596,
+      "featureIndex": 21,
+      "upstream": {
+        "technique": "lead_hook",
+        "candidateTechnique": "lead_hook",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.9958287389629337,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": false
+      },
+      "yolo": {
+        "technique": "lead_hook",
+        "candidateTechnique": "lead_hook",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.8447888075516414,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": false
+      }
+    },
+    {
+      "source": "V4",
+      "rowId": 353,
+      "label": "lead_uppercut",
+      "sourceStartFrame": 18622,
+      "sourceEndFrame": 18628,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.00945487653291028,
+      "featureIndex": 22,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.948148600134689,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9672047435515801,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V4",
+      "rowId": 353,
+      "label": "lead_uppercut",
+      "sourceStartFrame": 18622,
+      "sourceEndFrame": 18628,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.008345941070285575,
+      "featureIndex": 23,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.948148600134689,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9610941962972368,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V4",
+      "rowId": 441,
+      "label": "cross",
+      "sourceStartFrame": 20483,
+      "sourceEndFrame": 20485,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.01627871804938893,
+      "featureIndex": 24,
+      "upstream": {
+        "technique": "cross",
+        "candidateTechnique": "cross",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.9456947045121653,
+        "reflectedCandidate": "cross",
+        "reviewRequired": false
+      },
+      "yolo": {
+        "technique": "cross",
+        "candidateTechnique": "cross",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.8282167181421877,
+        "reflectedCandidate": "cross",
+        "reviewRequired": false
+      }
+    },
+    {
+      "source": "V4",
+      "rowId": 441,
+      "label": "cross",
+      "sourceStartFrame": 20483,
+      "sourceEndFrame": 20485,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.008768461330281942,
+      "featureIndex": 25,
+      "upstream": {
+        "technique": "cross",
+        "candidateTechnique": "cross",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.9456947045121653,
+        "reflectedCandidate": "cross",
+        "reviewRequired": false
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.6810333899555169,
+        "reflectedCandidate": "cross",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V4",
+      "rowId": 525,
+      "label": "rear_hook",
+      "sourceStartFrame": 23841,
+      "sourceEndFrame": 23849,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.009961048453306661,
+      "featureIndex": 26,
+      "upstream": {
+        "technique": "rear_hook",
+        "candidateTechnique": "rear_hook",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.9663754786559748,
+        "reflectedCandidate": "rear_hook",
+        "reviewRequired": false
+      },
+      "yolo": {
+        "technique": "rear_hook",
+        "candidateTechnique": "rear_hook",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.8740222212794718,
+        "reflectedCandidate": "rear_hook",
+        "reviewRequired": false
+      }
+    },
+    {
+      "source": "V4",
+      "rowId": 525,
+      "label": "rear_hook",
+      "sourceStartFrame": 23841,
+      "sourceEndFrame": 23849,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.007093627860546683,
+      "featureIndex": 27,
+      "upstream": {
+        "technique": "rear_hook",
+        "candidateTechnique": "rear_hook",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.9663754786559748,
+        "reflectedCandidate": "rear_hook",
+        "reviewRequired": false
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_hook",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9751222202489848,
+        "reflectedCandidate": "cross",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V4",
+      "rowId": 552,
+      "label": "jab",
+      "sourceStartFrame": 24601,
+      "sourceEndFrame": 24609,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.010294739593370097,
+      "featureIndex": 28,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "jab",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.97002263944445,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "jab",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9740822007408778,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V4",
+      "rowId": 552,
+      "label": "jab",
+      "sourceStartFrame": 24601,
+      "sourceEndFrame": 24609,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.007367128820116506,
+      "featureIndex": 29,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "jab",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.97002263944445,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "jab",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9756584263699641,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V4",
+      "rowId": 557,
+      "label": "lead_uppercut",
+      "sourceStartFrame": 24667,
+      "sourceEndFrame": 24676,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.02009753951099353,
+      "featureIndex": 30,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9750618657561055,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9957438161938936,
+        "reflectedCandidate": "cross",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V4",
+      "rowId": 557,
+      "label": "lead_uppercut",
+      "sourceStartFrame": 24667,
+      "sourceEndFrame": 24676,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.01760032477259863,
+      "featureIndex": 31,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9750618657561055,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9956739766575958,
+        "reflectedCandidate": "cross",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V4",
+      "rowId": 558,
+      "label": "lead_hook",
+      "sourceStartFrame": 24686,
+      "sourceEndFrame": 24696,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.009797440630582147,
+      "featureIndex": 32,
+      "upstream": {
+        "technique": "lead_hook",
+        "candidateTechnique": "lead_hook",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.9855169349678439,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": false
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_hook",
+        "reason": "LOW_RESEARCH_PROBABILITY",
+        "confidence": null,
+        "researchProbability": 0.6641235400761882,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V4",
+      "rowId": 558,
+      "label": "lead_hook",
+      "sourceStartFrame": 24686,
+      "sourceEndFrame": 24696,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.007870949314903892,
+      "featureIndex": 33,
+      "upstream": {
+        "technique": "lead_hook",
+        "candidateTechnique": "lead_hook",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.9855169349678439,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": false
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_hook",
+        "reason": "LOW_RESEARCH_PROBABILITY",
+        "confidence": null,
+        "researchProbability": 0.646956452466781,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V4",
+      "rowId": 559,
+      "label": "rear_uppercut",
+      "sourceStartFrame": 24725,
+      "sourceEndFrame": 24731,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.012013183653449678,
+      "featureIndex": 34,
+      "upstream": {
+        "technique": "rear_hook",
+        "candidateTechnique": "rear_hook",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.7102518625106912,
+        "reflectedCandidate": "rear_hook",
+        "reviewRequired": false
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.6628810914768192,
+        "reflectedCandidate": "rear_hook",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V4",
+      "rowId": 559,
+      "label": "rear_uppercut",
+      "sourceStartFrame": 24725,
+      "sourceEndFrame": 24731,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.008590738586477586,
+      "featureIndex": 35,
+      "upstream": {
+        "technique": "rear_hook",
+        "candidateTechnique": "rear_hook",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.7102518625106912,
+        "reflectedCandidate": "rear_hook",
+        "reviewRequired": false
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.7863080234945313,
+        "reflectedCandidate": "cross",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V6",
+      "rowId": 0,
+      "label": "lead_uppercut",
+      "sourceStartFrame": 157,
+      "sourceEndFrame": 171,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.01644373282317356,
+      "featureIndex": 36,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.998714441653939,
+        "reflectedCandidate": "rear_uppercut",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9942396998118092,
+        "reflectedCandidate": "rear_uppercut",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V6",
+      "rowId": 0,
+      "label": "lead_uppercut",
+      "sourceStartFrame": 157,
+      "sourceEndFrame": 171,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.01153328720502592,
+      "featureIndex": 37,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.998714441653939,
+        "reflectedCandidate": "rear_uppercut",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9954400468164543,
+        "reflectedCandidate": "rear_uppercut",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V6",
+      "rowId": 3,
+      "label": "lead_hook",
+      "sourceStartFrame": 391,
+      "sourceEndFrame": 402,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.00998362290016988,
+      "featureIndex": 38,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_hook",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.8658742294551155,
+        "reflectedCandidate": "rear_hook",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_hook",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.6849241822464899,
+        "reflectedCandidate": "rear_hook",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V6",
+      "rowId": 3,
+      "label": "lead_hook",
+      "sourceStartFrame": 391,
+      "sourceEndFrame": 402,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.008642044812217867,
+      "featureIndex": 39,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_hook",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.8658742294551155,
+        "reflectedCandidate": "rear_hook",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_hook",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.5626600742115511,
+        "reflectedCandidate": "rear_hook",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V6",
+      "rowId": 4,
+      "label": "rear_hook",
+      "sourceStartFrame": 402,
+      "sourceEndFrame": 415,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.012182803932064251,
+      "featureIndex": 40,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_hook",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9959862675051195,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_hook",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9940784172454147,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V6",
+      "rowId": 4,
+      "label": "rear_hook",
+      "sourceStartFrame": 402,
+      "sourceEndFrame": 415,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.009226205374448054,
+      "featureIndex": 41,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_hook",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9959862675051195,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_hook",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9895624841673418,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V6",
+      "rowId": 6,
+      "label": "rear_uppercut",
+      "sourceStartFrame": 541,
+      "sourceEndFrame": 549,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.012150004370692694,
+      "featureIndex": 42,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9974028166970734,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9688143418439543,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V6",
+      "rowId": 6,
+      "label": "rear_uppercut",
+      "sourceStartFrame": 541,
+      "sourceEndFrame": 549,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.00943876930548741,
+      "featureIndex": 43,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9974028166970734,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9844907373513261,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V6",
+      "rowId": 101,
+      "label": "lead_hook",
+      "sourceStartFrame": 13054,
+      "sourceEndFrame": 13076,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.011737912851214236,
+      "featureIndex": 44,
+      "upstream": {
+        "technique": "lead_hook",
+        "candidateTechnique": "lead_hook",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.9969555731013628,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": false
+      },
+      "yolo": {
+        "technique": "lead_hook",
+        "candidateTechnique": "lead_hook",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.9963555770530618,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": false
+      }
+    },
+    {
+      "source": "V6",
+      "rowId": 101,
+      "label": "lead_hook",
+      "sourceStartFrame": 13054,
+      "sourceEndFrame": 13076,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.009806003741072246,
+      "featureIndex": 45,
+      "upstream": {
+        "technique": "lead_hook",
+        "candidateTechnique": "lead_hook",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.9969555731013628,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": false
+      },
+      "yolo": {
+        "technique": "lead_hook",
+        "candidateTechnique": "lead_hook",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.9965901928378258,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": false
+      }
+    },
+    {
+      "source": "V6",
+      "rowId": 128,
+      "label": "rear_hook",
+      "sourceStartFrame": 14051,
+      "sourceEndFrame": 14064,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.010398903324342818,
+      "featureIndex": 46,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_hook",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9971444973994001,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_hook",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9950166069531944,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V6",
+      "rowId": 128,
+      "label": "rear_hook",
+      "sourceStartFrame": 14051,
+      "sourceEndFrame": 14064,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.009555593600389697,
+      "featureIndex": 47,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_hook",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9971444973994001,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_hook",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9942962653633214,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V6",
+      "rowId": 363,
+      "label": "lead_uppercut",
+      "sourceStartFrame": 31630,
+      "sourceEndFrame": 31645,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.012538742103864197,
+      "featureIndex": 48,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "LOW_RESEARCH_PROBABILITY",
+        "confidence": null,
+        "researchProbability": 0.9980751875918618,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "lead_uppercut",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.9971139674564699,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": false
+      }
+    },
+    {
+      "source": "V6",
+      "rowId": 363,
+      "label": "lead_uppercut",
+      "sourceStartFrame": 31630,
+      "sourceEndFrame": 31645,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.008374755400276903,
+      "featureIndex": 49,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "LOW_RESEARCH_PROBABILITY",
+        "confidence": null,
+        "researchProbability": 0.9980751875918618,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "lead_uppercut",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.9969971288767058,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": false
+      }
+    },
+    {
+      "source": "V6",
+      "rowId": 434,
+      "label": "lead_hook",
+      "sourceStartFrame": 35166,
+      "sourceEndFrame": 35182,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.011574227669666795,
+      "featureIndex": 50,
+      "upstream": {
+        "technique": "lead_hook",
+        "candidateTechnique": "lead_hook",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.9937033484282702,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": false
+      },
+      "yolo": {
+        "technique": "lead_hook",
+        "candidateTechnique": "lead_hook",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.9896531911552975,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": false
+      }
+    },
+    {
+      "source": "V6",
+      "rowId": 434,
+      "label": "lead_hook",
+      "sourceStartFrame": 35166,
+      "sourceEndFrame": 35182,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.008978551228024116,
+      "featureIndex": 51,
+      "upstream": {
+        "technique": "lead_hook",
+        "candidateTechnique": "lead_hook",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.9937033484282702,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": false
+      },
+      "yolo": {
+        "technique": "lead_hook",
+        "candidateTechnique": "lead_hook",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.9921187955753729,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": false
+      }
+    },
+    {
+      "source": "V6",
+      "rowId": 475,
+      "label": "rear_uppercut",
+      "sourceStartFrame": 37329,
+      "sourceEndFrame": 37341,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.010138611655914287,
+      "featureIndex": 52,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9929383845629405,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "LOW_RESEARCH_PROBABILITY",
+        "confidence": null,
+        "researchProbability": 0.49739319670733384,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V6",
+      "rowId": 475,
+      "label": "rear_uppercut",
+      "sourceStartFrame": 37329,
+      "sourceEndFrame": 37341,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.007692510192780531,
+      "featureIndex": 53,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9929383845629405,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9572539648899517,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V6",
+      "rowId": 517,
+      "label": "rear_hook",
+      "sourceStartFrame": 37951,
+      "sourceEndFrame": 37966,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.012582583288792464,
+      "featureIndex": 54,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9253287978958701,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9806355789274365,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V6",
+      "rowId": 517,
+      "label": "rear_hook",
+      "sourceStartFrame": 37951,
+      "sourceEndFrame": 37966,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.008400995356099067,
+      "featureIndex": 55,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9253287978958701,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9916366291054781,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V6",
+      "rowId": 683,
+      "label": "rear_uppercut",
+      "sourceStartFrame": 44325,
+      "sourceEndFrame": 44338,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.00949565182929688,
+      "featureIndex": 56,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9906646236280607,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.916628392645654,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V6",
+      "rowId": 683,
+      "label": "rear_uppercut",
+      "sourceStartFrame": 44325,
+      "sourceEndFrame": 44338,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.007896728117009795,
+      "featureIndex": 57,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9906646236280607,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.970727782945767,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V6",
+      "rowId": 684,
+      "label": "lead_uppercut",
+      "sourceStartFrame": 44352,
+      "sourceEndFrame": 44372,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.008185364312772732,
+      "featureIndex": 58,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9966193626062494,
+        "reflectedCandidate": "rear_uppercut",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9931695028666223,
+        "reflectedCandidate": "rear_uppercut",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V6",
+      "rowId": 684,
+      "label": "lead_uppercut",
+      "sourceStartFrame": 44352,
+      "sourceEndFrame": 44372,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.007576775947661771,
+      "featureIndex": 59,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9966193626062494,
+        "reflectedCandidate": "rear_uppercut",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9951715315083195,
+        "reflectedCandidate": "rear_uppercut",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V10",
+      "rowId": 0,
+      "label": "cross",
+      "sourceStartFrame": 1721,
+      "sourceEndFrame": 1731,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.0074848865015699475,
+      "featureIndex": 60,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "LOW_RESEARCH_PROBABILITY",
+        "confidence": null,
+        "researchProbability": 0.8649775171569067,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "lead_uppercut",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.9234097795698926,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": false
+      }
+    },
+    {
+      "source": "V10",
+      "rowId": 0,
+      "label": "cross",
+      "sourceStartFrame": 1721,
+      "sourceEndFrame": 1731,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.007498378121245146,
+      "featureIndex": 61,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "LOW_RESEARCH_PROBABILITY",
+        "confidence": null,
+        "researchProbability": 0.8649775171569067,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "lead_uppercut",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.8955696413094069,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": false
+      }
+    },
+    {
+      "source": "V10",
+      "rowId": 3,
+      "label": "lead_hook",
+      "sourceStartFrame": 1995,
+      "sourceEndFrame": 2007,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.008022982862715518,
+      "featureIndex": 62,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9913879035637171,
+        "reflectedCandidate": "rear_uppercut",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9959639249511731,
+        "reflectedCandidate": "rear_uppercut",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V10",
+      "rowId": 3,
+      "label": "lead_hook",
+      "sourceStartFrame": 1995,
+      "sourceEndFrame": 2007,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.006225020091081707,
+      "featureIndex": 63,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9913879035637171,
+        "reflectedCandidate": "rear_uppercut",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.996151831518987,
+        "reflectedCandidate": "rear_uppercut",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V10",
+      "rowId": 4,
+      "label": "jab",
+      "sourceStartFrame": 2069,
+      "sourceEndFrame": 2078,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.00850169187447412,
+      "featureIndex": 64,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.985917002266933,
+        "reflectedCandidate": "rear_uppercut",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9948163266439143,
+        "reflectedCandidate": "rear_uppercut",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V10",
+      "rowId": 4,
+      "label": "jab",
+      "sourceStartFrame": 2069,
+      "sourceEndFrame": 2078,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.007041532838805417,
+      "featureIndex": 65,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.985917002266933,
+        "reflectedCandidate": "rear_uppercut",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "LOW_RESEARCH_PROBABILITY",
+        "confidence": null,
+        "researchProbability": 0.9947673472610609,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V10",
+      "rowId": 5,
+      "label": "rear_hook",
+      "sourceStartFrame": 2116,
+      "sourceEndFrame": 2133,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.0084304499559446,
+      "featureIndex": 66,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_hook",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9917327938798807,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_hook",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9758829922950389,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V10",
+      "rowId": 5,
+      "label": "rear_hook",
+      "sourceStartFrame": 2116,
+      "sourceEndFrame": 2133,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.007034766097962884,
+      "featureIndex": 67,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_hook",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9917327938798807,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_hook",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9867885112773592,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V10",
+      "rowId": 7,
+      "label": "lead_uppercut",
+      "sourceStartFrame": 2330,
+      "sourceEndFrame": 2345,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.011267235940445377,
+      "featureIndex": 68,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9962906995476967,
+        "reflectedCandidate": "rear_uppercut",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9950868506612162,
+        "reflectedCandidate": "rear_uppercut",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V10",
+      "rowId": 7,
+      "label": "lead_uppercut",
+      "sourceStartFrame": 2330,
+      "sourceEndFrame": 2345,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.00665269378230849,
+      "featureIndex": 69,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9962906995476967,
+        "reflectedCandidate": "rear_uppercut",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9962056315304637,
+        "reflectedCandidate": "rear_uppercut",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V10",
+      "rowId": 39,
+      "label": "rear_uppercut",
+      "sourceStartFrame": 4341,
+      "sourceEndFrame": 4350,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.012266884717833179,
+      "featureIndex": 70,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9895827231255717,
+        "reflectedCandidate": "rear_uppercut",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9890251488877102,
+        "reflectedCandidate": "rear_uppercut",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V10",
+      "rowId": 39,
+      "label": "rear_uppercut",
+      "sourceStartFrame": 4341,
+      "sourceEndFrame": 4350,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.006946567303332322,
+      "featureIndex": 71,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9895827231255717,
+        "reflectedCandidate": "rear_uppercut",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9932490141525729,
+        "reflectedCandidate": "rear_uppercut",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V10",
+      "rowId": 55,
+      "label": "jab",
+      "sourceStartFrame": 5089,
+      "sourceEndFrame": 5100,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.009425065449285893,
+      "featureIndex": 72,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9928054131616607,
+        "reflectedCandidate": "rear_uppercut",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9951483889684046,
+        "reflectedCandidate": "rear_uppercut",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V10",
+      "rowId": 55,
+      "label": "jab",
+      "sourceStartFrame": 5089,
+      "sourceEndFrame": 5100,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.006370387813521178,
+      "featureIndex": 73,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9928054131616607,
+        "reflectedCandidate": "rear_uppercut",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9949676205693738,
+        "reflectedCandidate": "rear_uppercut",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V10",
+      "rowId": 69,
+      "label": "cross",
+      "sourceStartFrame": 5502,
+      "sourceEndFrame": 5514,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.007123586508010101,
+      "featureIndex": 74,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.35562340303881135,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.6371512742486335,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V10",
+      "rowId": 69,
+      "label": "cross",
+      "sourceStartFrame": 5502,
+      "sourceEndFrame": 5514,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.00605230520949063,
+      "featureIndex": 75,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.35562340303881135,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.5282975559736725,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V10",
+      "rowId": 73,
+      "label": "lead_hook",
+      "sourceStartFrame": 5687,
+      "sourceEndFrame": 5700,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.008702835434170643,
+      "featureIndex": 76,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_hook",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9861904590669698,
+        "reflectedCandidate": "rear_hook",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_hook",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.8998907690408731,
+        "reflectedCandidate": "rear_hook",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V10",
+      "rowId": 73,
+      "label": "lead_hook",
+      "sourceStartFrame": 5687,
+      "sourceEndFrame": 5700,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.006725121894545854,
+      "featureIndex": 77,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_hook",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9861904590669698,
+        "reflectedCandidate": "rear_hook",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_hook",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9616659790173737,
+        "reflectedCandidate": "rear_hook",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V10",
+      "rowId": 81,
+      "label": "rear_uppercut",
+      "sourceStartFrame": 5987,
+      "sourceEndFrame": 6000,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.010687399919057296,
+      "featureIndex": 78,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.8488742661589938,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.6521938625983094,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V10",
+      "rowId": 81,
+      "label": "rear_uppercut",
+      "sourceStartFrame": 5987,
+      "sourceEndFrame": 6000,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.0073075660780748345,
+      "featureIndex": 79,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.8488742661589938,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.5898723022865595,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V10",
+      "rowId": 125,
+      "label": "jab",
+      "sourceStartFrame": 10189,
+      "sourceEndFrame": 10201,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.0089207224527878,
+      "featureIndex": 80,
+      "upstream": {
+        "technique": "lead_uppercut",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.9681031430431797,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": false
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9768720341024202,
+        "reflectedCandidate": "rear_uppercut",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V10",
+      "rowId": 125,
+      "label": "jab",
+      "sourceStartFrame": 10189,
+      "sourceEndFrame": 10201,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.006793703940436769,
+      "featureIndex": 81,
+      "upstream": {
+        "technique": "lead_uppercut",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.9681031430431797,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": false
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9807486741329613,
+        "reflectedCandidate": "rear_uppercut",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V10",
+      "rowId": 126,
+      "label": "cross",
+      "sourceStartFrame": 10202,
+      "sourceEndFrame": 10211,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.009660931420348729,
+      "featureIndex": 82,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "LOW_RESEARCH_PROBABILITY",
+        "confidence": null,
+        "researchProbability": 0.6763828059250303,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "lead_uppercut",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.7513181202815856,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": false
+      }
+    },
+    {
+      "source": "V10",
+      "rowId": 126,
+      "label": "cross",
+      "sourceStartFrame": 10202,
+      "sourceEndFrame": 10211,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.007064732168701645,
+      "featureIndex": 83,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "LOW_RESEARCH_PROBABILITY",
+        "confidence": null,
+        "researchProbability": 0.6763828059250303,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "lead_uppercut",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.8919714297041864,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": false
+      }
+    },
+    {
+      "source": "V10",
+      "rowId": 133,
+      "label": "lead_uppercut",
+      "sourceStartFrame": 18752,
+      "sourceEndFrame": 18762,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.009539845765050329,
+      "featureIndex": 84,
+      "upstream": {
+        "technique": "lead_uppercut",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.9178709602164408,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": false
+      },
+      "yolo": {
+        "technique": "lead_uppercut",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.7023316032526833,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": false
+      }
+    },
+    {
+      "source": "V10",
+      "rowId": 133,
+      "label": "lead_uppercut",
+      "sourceStartFrame": 18752,
+      "sourceEndFrame": 18762,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.007933873431465956,
+      "featureIndex": 85,
+      "upstream": {
+        "technique": "lead_uppercut",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "RESEARCH_GATES_PASSED",
+        "confidence": null,
+        "researchProbability": 0.9178709602164408,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": false
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "LOW_RESEARCH_PROBABILITY",
+        "confidence": null,
+        "researchProbability": 0.5974180539675873,
+        "reflectedCandidate": "lead_uppercut",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V10",
+      "rowId": 136,
+      "label": "rear_hook",
+      "sourceStartFrame": 20578,
+      "sourceEndFrame": 20592,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.01021433496528961,
+      "featureIndex": 86,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_hook",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.993646450377073,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_hook",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.602488348299211,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V10",
+      "rowId": 136,
+      "label": "rear_hook",
+      "sourceStartFrame": 20578,
+      "sourceEndFrame": 20592,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.00910550773732399,
+      "featureIndex": 87,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_hook",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.993646450377073,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_hook",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.8638213843406715,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V10",
+      "rowId": 142,
+      "label": "rear_hook",
+      "sourceStartFrame": 20689,
+      "sourceEndFrame": 20702,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.011894024747525433,
+      "featureIndex": 88,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_hook",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9833427910119555,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_hook",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.6973840071619,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V10",
+      "rowId": 142,
+      "label": "rear_hook",
+      "sourceStartFrame": 20689,
+      "sourceEndFrame": 20702,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.010436774902967447,
+      "featureIndex": 89,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_hook",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9833427910119555,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_hook",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9195351449967581,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V10",
+      "rowId": 143,
+      "label": "lead_hook",
+      "sourceStartFrame": 20710,
+      "sourceEndFrame": 20719,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.009881081394112937,
+      "featureIndex": 90,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.6137147191404437,
+        "reflectedCandidate": "rear_hook",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9484308856111081,
+        "reflectedCandidate": "rear_hook",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V10",
+      "rowId": 143,
+      "label": "lead_hook",
+      "sourceStartFrame": 20710,
+      "sourceEndFrame": 20719,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.007778770634286437,
+      "featureIndex": 91,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.6137147191404437,
+        "reflectedCandidate": "rear_hook",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.6576250471954657,
+        "reflectedCandidate": "rear_hook",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V10",
+      "rowId": 150,
+      "label": "rear_uppercut",
+      "sourceStartFrame": 20844,
+      "sourceEndFrame": 20855,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.011689190741142122,
+      "featureIndex": 92,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_hook",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.6167783861810038,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_hook",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.5612483921604597,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V10",
+      "rowId": 150,
+      "label": "rear_uppercut",
+      "sourceStartFrame": 20844,
+      "sourceEndFrame": 20855,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.00938782558383595,
+      "featureIndex": 93,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_hook",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.6167783861810038,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "rear_hook",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.5770634349510917,
+        "reflectedCandidate": "lead_hook",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V10",
+      "rowId": 151,
+      "label": "lead_uppercut",
+      "sourceStartFrame": 20860,
+      "sourceEndFrame": 20872,
+      "decodedFrameOffset": -1,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.012046450521615775,
+      "featureIndex": 94,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9208900247616184,
+        "reflectedCandidate": "rear_uppercut",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.8289971194902793,
+        "reflectedCandidate": "rear_uppercut",
+        "reviewRequired": true
+      }
+    },
+    {
+      "source": "V10",
+      "rowId": 151,
+      "label": "lead_uppercut",
+      "sourceStartFrame": 20860,
+      "sourceEndFrame": 20872,
+      "decodedFrameOffset": 0,
+      "singlePersonFraction": 1.0,
+      "wristCoverage": 1.0,
+      "medianJointErrorImageCoordinates": 0.008224147775414683,
+      "featureIndex": 95,
+      "upstream": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.9208900247616184,
+        "reflectedCandidate": "rear_uppercut",
+        "reviewRequired": true
+      },
+      "yolo": {
+        "technique": "unknown",
+        "candidateTechnique": "lead_uppercut",
+        "reason": "REFLECTION_DISAGREEMENT",
+        "confidence": null,
+        "researchProbability": 0.7797506738736836,
+        "reflectedCandidate": "rear_uppercut",
+        "reviewRequired": true
+      }
+    }
+  ],
+  "productionEligible": false,
+  "limitations": [
+    "Two frame-index hypotheses retained; no label or timing correction made.",
+    "Raw YOLO single-person output; not the stateful runtime tracker.",
+    "Sampled positive intervals only, not continuous event detection.",
+    "Differences include estimator, resolution, codec and possible frame alignment.",
+    "Selected rows are a small diagnostic sample, not an accuracy estimate.",
+    "The two offsets reuse each source row; do not count them as independent samples.",
+    "Abstention here tests probability/reflection gates; full video has additional per-joint quality gates."
+  ]
+}

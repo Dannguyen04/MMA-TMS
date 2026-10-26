@@ -3,12 +3,14 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { ApiError } from "@/lib/api/client";
 import { canAccessFighter, canAccessFighterClinically } from "@/lib/auth/access";
 import { authorizeAction, authorizeClinicalAction } from "@/lib/auth/session";
 import { milestoneDrafts, widenedLists, type MilestoneDraft, type RestrictionLists } from "@/lib/domain/medical-bodies";
 import {
     API_INJURY_SEVERITIES,
     BODY_JOINTS,
+    CLEARANCE_TYPE_LABELS,
     CLEARANCE_TYPES,
     CLEARANCE_TYPES_BY_SCOPE,
     EXAMINATION_DECISIONS,
@@ -18,8 +20,15 @@ import {
     RECOVERY_MILESTONES_MAX,
     SESSION_TYPES,
     TECHNIQUE_TYPES,
+    type ClearanceType,
+    type ExaminationScope,
 } from "@/lib/domain/medical-contract";
+import { clearanceFromExamination, isRecordedAttempt, RECONCILE_FIELD, type ExaminationAttempt, type MedicalWriteData } from "@/lib/domain/medical-flow";
+import { friendlyScat6Issues } from "@/lib/domain/medical-scat6";
+import type { MedicalClearance } from "@/lib/domain/types";
 import { academyWallClockToIso, dayKey, isDateKey, isDateTimeInputValue } from "@/lib/format";
+import { getTranslator } from "@/lib/i18n/server";
+import type { Translator } from "@/lib/i18n/translate";
 import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import {
@@ -31,9 +40,10 @@ import {
     recordExaminationDecision,
     recordInjury,
     recordTreatment,
+    rereadClinicalDossier,
     updateMilestonePlan,
 } from "@/lib/services/medical";
-import { medicalWriteFailure, type MedicalWriteErrorOptions } from "@/lib/services/medical-errors";
+import { isUnconfirmedWrite, medicalWriteFailure, unconfirmedWriteMessages, type MedicalWriteErrorOptions } from "@/lib/services/medical-errors";
 import { allBlank } from "@/lib/utils";
 import { assessmentSchema, checkBloodPressure, checkFollowUpDate, EXAMINATION_TYPES, issuesOf, readVitals, scat6Field, scat6Issues, toVitals, VITAL_FIELDS } from "./examination-fields";
 import { NOT_ASSIGNED, checked, isInFuture, jsonArray, optionalDate, revalidateClinical, text, texts } from "./form-helpers";
@@ -48,12 +58,12 @@ import { actionError, actionSuccess, FIX_FIELDS, validationError, type ActionSta
 
 const required = (message: string) => z.string().trim().min(1, message);
 
-const boundedText = (label: string, max: number, min = 0, minMessage = "") =>
+const boundedText = (label: string, max: number, min = 0, minMessage = "", t?: Translator) =>
     z
         .string()
         .trim()
         .min(min, minMessage)
-        .max(max, `Keep the ${label} under ${max.toLocaleString("en-US")} characters.`);
+        .max(max, t ? t("validation.maxChars", { label, max: max.toLocaleString("en-US") }) : `Keep the ${label} under ${max.toLocaleString("en-US")} characters.`);
 
 /** A datetime-local value in academy time, as an ISO timestamp. */
 function wallClockIso(value: string): string {
@@ -128,21 +138,22 @@ const limitsSomething = (lists: RestrictionLists) => lists.allowedSessionTypes !
 
 /* ─── Review requests ─────────────────────────────────────────────────────── */
 
-const reviewRequestSchema = z.object({
+const reviewRequestSchema = (t?: Translator) =>
+    z.object({
     fighterId: required("The fighter is missing. Reload the page and try again."),
-    reason: boundedText("reason", MEDICAL_TEXT_LIMITS.reviewReason, 10, "Say what happened or what worries you, in a sentence or two."),
+    reason: boundedText("reason", MEDICAL_TEXT_LIMITS.reviewReason, 10, "Say what happened or what worries you, in a sentence or two.", t),
 });
 
 /** A fighter (for themselves), their coach or their doctor asks for a medical review. */
 export async function requestMedicalReviewAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
-    const auth = await authorizeAction("medical:request_review");
+    const [auth, { t }] = await Promise.all([authorizeAction("medical:request_review"), getTranslator()]);
     if (!auth.ok) return actionError(auth.message);
 
-    const parsed = reviewRequestSchema.safeParse({ fighterId: text(formData, "fighterId"), reason: text(formData, "reason") });
+    const parsed = reviewRequestSchema(t).safeParse({ fighterId: text(formData, "fighterId"), reason: text(formData, "reason") });
     if (!parsed.success) return validationError(parsed.error);
     const { fighterId, reason } = parsed.data;
     const allowed = auth.user.role === "fighter" ? auth.user.profileId === fighterId : canAccessFighter(auth.user, fighterId);
-    if (!allowed) return actionError("You can only request a review for yourself or a fighter you're assigned to.");
+    if (!allowed) return actionError(t("reviewRequest.unauthorized"));
 
     try {
         const result = await createReviewRequest(fighterId, reason, auth.user);
@@ -152,20 +163,21 @@ export async function requestMedicalReviewAction(_prev: ActionState, formData: F
     }
 
     revalidateClinical();
-    return actionSuccess("Review requested. Training is paused until the sports doctor examines the fighter.");
+    return actionSuccess(t("reviewRequest.actionSuccess"));
 }
 
 /* ─── Examination decisions ───────────────────────────────────────────────── */
 
-const examinationSchema = z
+const examinationSchema = (t?: Translator) =>
+    z
     .object({
         fighterId: required("Choose the fighter you examined."),
         scope: z.enum(EXAMINATION_SCOPES, { error: "Choose what this examination decides." }),
         decision: z.enum(EXAMINATION_DECISIONS, { error: "Choose your decision." }),
         examinedAt: z.string().refine(isDateTimeInputValue, "Enter the date and time of the examination."),
-        reason: boundedText("reasoning", MEDICAL_TEXT_LIMITS.examinationReason, 10, "Explain your decision in a sentence or two."),
+        reason: boundedText("reasoning", MEDICAL_TEXT_LIMITS.examinationReason, 10, "Explain your decision in a sentence or two.", t),
         lists: restrictionListsSchema,
-        restrictionNotes: boundedText("restriction notes", MEDICAL_TEXT_LIMITS.restrictionNotes),
+        restrictionNotes: boundedText("restriction notes", MEDICAL_TEXT_LIMITS.restrictionNotes, 0, "", t),
         validUntil: optionalDate("Enter a valid date, or leave it empty."),
         supersedesId: z.string().trim(),
         reviewRequestIds: z.array(z.string().min(1)).max(50, "Choose at most 50 review requests."),
@@ -174,7 +186,7 @@ const examinationSchema = z
             max: EXAMINATION_DETAIL_LIMITS.assessments,
             maxMessage: `Record at most ${EXAMINATION_DETAIL_LIMITS.assessments} assessments.`,
         }),
-        recommendations: boundedText("recommendations", MEDICAL_TEXT_LIMITS.clinicalText),
+        recommendations: boundedText("recommendations", MEDICAL_TEXT_LIMITS.clinicalText, 0, "", t),
         followUpDate: optionalDate("Enter a valid follow-up date, or leave it empty."),
     })
     .superRefine((input, ctx) => {
@@ -214,11 +226,40 @@ const EXAMINATION_FIELDS: MedicalWriteErrorOptions = {
     conflictFields: { EXAMINATION_CORRECTION_CONFLICT: "supersedesId", REVIEW_REQUEST_NOT_RESOLVABLE: "reviewRequestIds" },
 };
 
-export async function recordExaminationDecisionAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
-    const auth = await authorizeClinicalAction("medical:write");
+/** A failed write's state with the data the form reacts to (a retry that checks the record first, an existing clearance). */
+function withData(message: string, data: MedicalWriteData, fieldErrors?: Record<string, string>): ActionState<MedicalWriteData> {
+    return { status: "error", message, fieldErrors, data };
+}
+
+const EXAMINATION_UNCONFIRMED = unconfirmedWriteMessages("examination");
+const CLEARANCE_UNCONFIRMED = unconfirmedWriteMessages("clearance");
+
+type ExaminationCheck = { found: "saved"; id: string } | { found: "other" } | { found: "none" } | { found: "unchecked" };
+
+/**
+ * Reads the fighter's record again to tell whether this examination is already saved: the scope's current examination
+ * has the same time, decision and reasoning. A different examination recorded since the form opened is reported too,
+ * so nothing is sent twice. Never throws: an unreadable record is "unchecked".
+ */
+async function findRecordedExamination(fighterId: string, scope: ExaminationScope, attempt: ExaminationAttempt, knownCurrentId: string): Promise<ExaminationCheck> {
+    try {
+        const current = (await rereadClinicalDossier(fighterId))?.currentExaminations[scope] ?? null;
+        if (current && isRecordedAttempt(current, attempt)) return { found: "saved", id: current.id };
+        if (current && current.id !== knownCurrentId) return { found: "other" };
+        return { found: "none" };
+    } catch {
+        return { found: "unchecked" };
+    }
+}
+
+const RECORDED_SINCE =
+    "Another examination of this scope was recorded since you opened this form, perhaps your earlier attempt. Open the fighter's record to check it before recording again.";
+
+export async function recordExaminationDecisionAction(_prev: ActionState<MedicalWriteData>, formData: FormData): Promise<ActionState<MedicalWriteData>> {
+    const [auth, { t }] = await Promise.all([authorizeClinicalAction("medical:write"), getTranslator()]);
     if (!auth.ok) return actionError(auth.message);
 
-    const parsed = examinationSchema.safeParse({
+    const parsed = examinationSchema(t).safeParse({
         fighterId: text(formData, "fighterId"),
         scope: text(formData, "scope"),
         decision: text(formData, "decision"),
@@ -239,7 +280,7 @@ export async function recordExaminationDecisionAction(_prev: ActionState, formDa
     const vitals = baseline || !allBlank(rawVitals) ? vitalsSchema.safeParse(rawVitals) : undefined;
     const scat6 = baseline ? scat6Field.safeParse(text(formData, "scat6")) : undefined;
     if (!parsed.success || vitals?.success === false || scat6?.success === false) {
-        return restrictionFormError(new z.ZodError([...issuesOf(parsed), ...issuesOf(vitals), ...scat6Issues(scat6)]));
+        return restrictionFormError(new z.ZodError([...issuesOf(parsed), ...issuesOf(vitals), ...friendlyScat6Issues(scat6Issues(scat6))]));
     }
     const input = parsed.data;
     if (!canAccessFighterClinically(auth.user, input.fighterId)) return actionError(NOT_ASSIGNED, { fighterId: "Choose one of your assigned fighters." });
@@ -247,29 +288,47 @@ export async function recordExaminationDecisionAction(_prev: ActionState, formDa
     const examinedAt = wallClockIso(input.examinedAt);
     if (isInFuture(examinedAt)) return actionError(FIX_FIELDS, { examinedAt: "The examination time can't be in the future." });
 
-    let examinationId: string;
-    try {
-        const exam = await recordExaminationDecision(input.fighterId, {
-            scope: input.scope,
-            decision: input.decision,
-            examinedAt,
-            reason: input.reason,
-            restrictions: { ...toLists(input.lists), notes: input.restrictionNotes || null },
-            validUntil: input.validUntil ? academyWallClockToIso(input.validUntil, "23:59") : null,
-            supersedesId: input.supersedesId || null,
-            reviewRequestIds: input.reviewRequestIds,
-            details: {
-                type: input.type,
-                vitals: vitals?.success ? toVitals(vitals.data) : null,
-                assessments: input.assessments,
-                recommendations: input.recommendations || null,
-                followUpDate: input.followUpDate || null,
-                scat6: scat6?.success ? scat6.data : null,
-            },
-        });
-        examinationId = exam.id;
-    } catch (error) {
-        return failed(error, EXAMINATION_FIELDS);
+    const attempt: ExaminationAttempt = { decision: input.decision, examinedAt, reason: input.reason };
+    const knownCurrentId = text(formData, "knownCurrentId");
+    let examinationId: string | null = null;
+
+    // After a write the service didn't confirm, the record is read before anything is sent again.
+    if (text(formData, RECONCILE_FIELD) === "1") {
+        const check = await findRecordedExamination(input.fighterId, input.scope, attempt, knownCurrentId);
+        if (check.found === "saved") examinationId = check.id;
+        else if (check.found === "other") return actionError(RECORDED_SINCE);
+        else if (check.found === "unchecked") return withData(EXAMINATION_UNCONFIRMED.unchecked, { unconfirmed: true });
+    }
+
+    if (examinationId === null) {
+        try {
+            const exam = await recordExaminationDecision(input.fighterId, {
+                scope: input.scope,
+                decision: input.decision,
+                examinedAt,
+                reason: input.reason,
+                restrictions: { ...toLists(input.lists), notes: input.restrictionNotes || null },
+                validUntil: input.validUntil ? academyWallClockToIso(input.validUntil, "23:59") : null,
+                supersedesId: input.supersedesId || null,
+                reviewRequestIds: input.reviewRequestIds,
+                details: {
+                    type: input.type,
+                    vitals: vitals?.success ? toVitals(vitals.data) : null,
+                    assessments: input.assessments,
+                    recommendations: input.recommendations || null,
+                    followUpDate: input.followUpDate || null,
+                    scat6: scat6?.success ? scat6.data : null,
+                },
+            });
+            examinationId = exam.id;
+        } catch (error) {
+            if (!isUnconfirmedWrite(error)) return failed(error, EXAMINATION_FIELDS);
+            // The service may have saved it: read the record before telling the doctor anything.
+            const check = await findRecordedExamination(input.fighterId, input.scope, attempt, knownCurrentId);
+            if (check.found === "other") return actionError(RECORDED_SINCE);
+            if (check.found !== "saved") return withData(check.found === "none" ? EXAMINATION_UNCONFIRMED.notFound : EXAMINATION_UNCONFIRMED.unchecked, { unconfirmed: true });
+            examinationId = check.id;
+        }
     }
 
     revalidateClinical();
@@ -280,7 +339,8 @@ export async function recordExaminationDecisionAction(_prev: ActionState, formDa
 
 /* ─── Clearances ──────────────────────────────────────────────────────────── */
 
-const clearanceSchema = z
+const clearanceSchema = (t?: Translator) =>
+    z
     .object({
         fighterId: required("Choose the fighter this clearance is for."),
         examinationId: required("Choose the examination this clearance comes from."),
@@ -288,7 +348,7 @@ const clearanceSchema = z
         validFrom: optionalDate("Enter a valid start date, or leave it empty to start now."),
         validUntil: optionalDate("Enter a valid end date, or leave it empty to keep the examination's."),
         lists: restrictionListsSchema,
-        notes: boundedText("notes", MEDICAL_TEXT_LIMITS.clearanceNotes),
+        notes: boundedText("notes", MEDICAL_TEXT_LIMITS.clearanceNotes, 0, "", t),
     })
     .superRefine((input, ctx) => {
         if (input.validFrom && input.validUntil && input.validUntil <= input.validFrom) {
@@ -296,11 +356,35 @@ const clearanceSchema = z
         }
     });
 
-export async function issueClearanceAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
-    const auth = await authorizeClinicalAction("clearance:manage");
+const CLEARANCE_FIELDS: MedicalWriteErrorOptions = {
+    fields: { examinationId: "examinationId", clearanceType: "clearanceType", validFrom: "validFrom", validUntil: "validUntil", notes: "notes", ...RESTRICTION_FIELDS },
+    conflictFields: { EXAMINATION_NOT_ELIGIBLE_FOR_CLEARANCE: "examinationId", MEDICAL_RECORD_CONFLICT: "clearanceType" },
+};
+
+/** The clearance from this examination with this type that isn't revoked, read fresh; undefined when the record can't be read. */
+async function findIssuedClearance(fighterId: string, examinationId: string, clearanceType: ClearanceType): Promise<MedicalClearance | null | undefined> {
+    try {
+        const dossier = await rereadClinicalDossier(fighterId);
+        return dossier ? clearanceFromExamination(dossier.activeClearances, examinationId, clearanceType) : null;
+    } catch {
+        return undefined;
+    }
+}
+
+/** "Already issued": the existing clearance, so the form can show it instead of issuing a duplicate. */
+function alreadyIssued(clearance: MedicalClearance, clearanceType: ClearanceType): ActionState<MedicalWriteData> {
+    return withData(
+        `A ${CLEARANCE_TYPE_LABELS[clearanceType].toLowerCase()} clearance from this examination is already in place, so nothing new was issued.`,
+        { existingClearance: { id: clearance.id, clearanceType, issuedAt: clearance.issuedAt, validUntil: clearance.validUntil } },
+        { clearanceType: "Already issued from this examination." },
+    );
+}
+
+export async function issueClearanceAction(_prev: ActionState<MedicalWriteData>, formData: FormData): Promise<ActionState<MedicalWriteData>> {
+    const [auth, { t }] = await Promise.all([authorizeClinicalAction("clearance:manage"), getTranslator()]);
     if (!auth.ok) return actionError(auth.message);
 
-    const parsed = clearanceSchema.safeParse({
+    const parsed = clearanceSchema(t).safeParse({
         fighterId: text(formData, "fighterId"),
         examinationId: text(formData, "examinationId"),
         clearanceType: text(formData, "clearanceType"),
@@ -314,7 +398,12 @@ export async function issueClearanceAction(_prev: ActionState, formData: FormDat
     if (!canAccessFighterClinically(auth.user, input.fighterId)) return actionError(NOT_ASSIGNED, { fighterId: "Choose one of your assigned fighters." });
 
     // Check the rules the service applies, so the doctor sees which field to change instead of a bare refusal.
-    const dossier = await getClinicalDossier(input.fighterId);
+    let dossier: Awaited<ReturnType<typeof getClinicalDossier>>;
+    try {
+        dossier = await getClinicalDossier(input.fighterId);
+    } catch {
+        return withData("The medical service didn't answer, so nothing was issued. Your choices are still here: try again in a moment.", {});
+    }
     const exam = dossier ? Object.values(dossier.currentExaminations).find((current) => current?.id === input.examinationId) : null;
     if (!exam || exam.decision === "NOT_ELIGIBLE") {
         return actionError("A clearance can only come from the fighter's current positive examination. Reload the page and choose it again.", {
@@ -341,20 +430,31 @@ export async function issueClearanceAction(_prev: ActionState, formData: FormDat
         return actionError(FIX_FIELDS, { validUntil: "The clearance can't outlast the examination's decision." });
     }
 
-    try {
-        await issueClearance(input.fighterId, {
-            examinationId: exam.id,
-            clearanceType: input.clearanceType,
-            validFrom,
-            validUntil,
-            restrictions: lists,
-            notes: input.notes || null,
-        });
-    } catch (error) {
-        return failed(error, {
-            fields: { examinationId: "examinationId", clearanceType: "clearanceType", validFrom: "validFrom", validUntil: "validUntil", notes: "notes", ...RESTRICTION_FIELDS },
-            conflictFields: { EXAMINATION_NOT_ELIGIBLE_FOR_CLEARANCE: "examinationId", MEDICAL_RECORD_CONFLICT: "clearanceType" },
-        });
+    // One active clearance per examination and type. After a write the service didn't confirm, one found here is that
+    // write, saved after all; otherwise it was already there and is shown instead of being issued twice.
+    const reconciling = text(formData, RECONCILE_FIELD) === "1";
+    const existing = reconciling ? await findIssuedClearance(input.fighterId, exam.id, input.clearanceType) : clearanceFromExamination(dossier?.activeClearances ?? [], exam.id, input.clearanceType);
+    if (existing === undefined) return withData(CLEARANCE_UNCONFIRMED.unchecked, { unconfirmed: true });
+    if (existing && !reconciling) return alreadyIssued(existing, input.clearanceType);
+
+    if (!existing) {
+        try {
+            await issueClearance(input.fighterId, {
+                examinationId: exam.id,
+                clearanceType: input.clearanceType,
+                validFrom,
+                validUntil,
+                restrictions: lists,
+                notes: input.notes || null,
+            });
+        } catch (error) {
+            const conflict = error instanceof ApiError && error.status === 409 && error.code === "MEDICAL_RECORD_CONFLICT";
+            if (!conflict && !isUnconfirmedWrite(error)) return failed(error, CLEARANCE_FIELDS);
+            // Only the clearance is retried: the examination it comes from is already saved.
+            const found = await findIssuedClearance(input.fighterId, exam.id, input.clearanceType);
+            if (conflict) return found ? alreadyIssued(found, input.clearanceType) : failed(error, CLEARANCE_FIELDS);
+            if (!found) return withData(found === null ? CLEARANCE_UNCONFIRMED.notFound : CLEARANCE_UNCONFIRMED.unchecked, { unconfirmed: true });
+        }
     }
 
     revalidateClinical();
@@ -363,20 +463,21 @@ export async function issueClearanceAction(_prev: ActionState, formData: FormDat
 
 /* ─── Injuries & treatments ───────────────────────────────────────────────── */
 
-const injurySchema = z.object({
+const injurySchema = (t?: Translator) =>
+    z.object({
     fighterId: required("Choose the injured fighter."),
     affectedJoint: z.enum(BODY_JOINTS, { error: "Choose the affected joint." }),
-    injuryType: boundedText("injury type", MEDICAL_TEXT_LIMITS.injuryType, 2, "Name the injury, e.g. “Lateral ankle sprain”."),
+    injuryType: boundedText("injury type", MEDICAL_TEXT_LIMITS.injuryType, 2, "Name the injury, e.g. “Lateral ankle sprain”.", t),
     severity: z.enum(API_INJURY_SEVERITIES, { error: "Choose a severity." }),
     occurredAt: z.string().refine(isDateTimeInputValue, "Enter the date and time the injury happened."),
-    description: boundedText("description", MEDICAL_TEXT_LIMITS.clinicalText),
+    description: boundedText("description", MEDICAL_TEXT_LIMITS.clinicalText, 0, "", t),
 });
 
 export async function recordInjuryAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
-    const auth = await authorizeClinicalAction("medical:write");
+    const [auth, { t }] = await Promise.all([authorizeClinicalAction("medical:write"), getTranslator()]);
     if (!auth.ok) return actionError(auth.message);
 
-    const parsed = injurySchema.safeParse({
+    const parsed = injurySchema(t).safeParse({
         fighterId: text(formData, "fighterId"),
         affectedJoint: text(formData, "affectedJoint"),
         injuryType: text(formData, "injuryType"),
@@ -409,14 +510,15 @@ export async function recordInjuryAction(_prev: ActionState, formData: FormData)
     redirect(hrefWith(routes.doctor.injury(injuryId), {}, { created: "1" }));
 }
 
-const treatmentSchema = z
+const treatmentSchema = (t?: Translator) =>
+    z
     .object({
         injuryId: required("The injury is missing. Reload the page and try again."),
         fighterId: required("The fighter is missing. Reload the page and try again."),
-        treatmentType: boundedText("treatment", MEDICAL_TEXT_LIMITS.treatmentType, 2, "Name the treatment, e.g. “Physiotherapy”."),
+        treatmentType: boundedText("treatment", MEDICAL_TEXT_LIMITS.treatmentType, 2, "Name the treatment, e.g. “Physiotherapy”.", t),
         treatmentDate: z.string().refine(isDateKey, "Enter the date of the treatment."),
-        description: boundedText("description", MEDICAL_TEXT_LIMITS.clinicalText),
-        outcomeNotes: boundedText("outcome notes", MEDICAL_TEXT_LIMITS.clinicalText),
+        description: boundedText("description", MEDICAL_TEXT_LIMITS.clinicalText, 0, "", t),
+        outcomeNotes: boundedText("outcome notes", MEDICAL_TEXT_LIMITS.clinicalText, 0, "", t),
         nextReviewAt: optionalDate("Enter a valid review date, or leave it empty."),
     })
     .superRefine((input, ctx) => {
@@ -426,10 +528,10 @@ const treatmentSchema = z
     });
 
 export async function recordTreatmentAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
-    const auth = await authorizeClinicalAction("medical:write");
+    const [auth, { t }] = await Promise.all([authorizeClinicalAction("medical:write"), getTranslator()]);
     if (!auth.ok) return actionError(auth.message);
 
-    const parsed = treatmentSchema.safeParse({
+    const parsed = treatmentSchema(t).safeParse({
         injuryId: text(formData, "injuryId"),
         fighterId: text(formData, "fighterId"),
         treatmentType: text(formData, "treatmentType"),
@@ -466,24 +568,26 @@ export async function recordTreatmentAction(_prev: ActionState, formData: FormDa
 
 /* ─── Recovery plans ──────────────────────────────────────────────────────── */
 
-const milestoneSchema = z.object({
-    title: boundedText("milestone", MEDICAL_TEXT_LIMITS.planTitle, 2, "Name this milestone."),
-    criteria: boundedText("criteria", MEDICAL_TEXT_LIMITS.clinicalText, 3, "Say how you'll know it's reached."),
+const milestoneSchema = (t?: Translator) =>
+    z.object({
+    title: boundedText("milestone", MEDICAL_TEXT_LIMITS.planTitle, 2, "Name this milestone.", t),
+    criteria: boundedText("criteria", MEDICAL_TEXT_LIMITS.clinicalText, 3, "Say how you'll know it's reached.", t),
     targetDate: optionalDate("Enter a valid target date, or leave it empty."),
-    notes: boundedText("notes", MEDICAL_TEXT_LIMITS.clinicalText),
+    notes: boundedText("notes", MEDICAL_TEXT_LIMITS.clinicalText, 0, "", t),
 });
 
-const milestoneList = jsonArray(milestoneSchema, "milestones", { max: RECOVERY_MILESTONES_MAX, maxMessage: `Use at most ${RECOVERY_MILESTONES_MAX} milestones.` });
+const milestoneList = (t?: Translator) => jsonArray(milestoneSchema(t), "milestones", { max: RECOVERY_MILESTONES_MAX, maxMessage: `Use at most ${RECOVERY_MILESTONES_MAX} milestones.` });
 
-const recoveryPlanSchema = z
+const recoveryPlanSchema = (t?: Translator) =>
+    z
     .object({
         fighterId: required("The fighter is missing. Reload the page and try again."),
         injuryId: required("Choose the injury this plan is for."),
-        title: boundedText("title", MEDICAL_TEXT_LIMITS.planTitle, 3, "Give the plan a short title."),
-        description: boundedText("description", MEDICAL_TEXT_LIMITS.clinicalText),
+        title: boundedText("title", MEDICAL_TEXT_LIMITS.planTitle, 3, "Give the plan a short title.", t),
+        description: boundedText("description", MEDICAL_TEXT_LIMITS.clinicalText, 0, "", t),
         startDate: z.string().refine(isDateKey, "Enter the plan start date."),
         estimatedEndDate: optionalDate("Enter a valid end date, or leave it empty."),
-        milestones: milestoneList,
+        milestones: milestoneList(t),
     })
     .superRefine((plan, ctx) => {
         if (plan.estimatedEndDate && isDateKey(plan.startDate) && plan.estimatedEndDate < plan.startDate) {
@@ -491,7 +595,7 @@ const recoveryPlanSchema = z
         }
     });
 
-const toDraft = (milestone: z.output<typeof milestoneSchema>): MilestoneDraft => ({
+const toDraft = (milestone: z.output<ReturnType<typeof milestoneSchema>>): MilestoneDraft => ({
     title: milestone.title,
     criteria: milestone.criteria,
     targetDate: milestone.targetDate || null,
@@ -509,10 +613,10 @@ const PLAN_FIELDS: Record<string, string> = {
 };
 
 export async function createMilestonePlanAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
-    const auth = await authorizeClinicalAction("medical:write");
+    const [auth, { t }] = await Promise.all([authorizeClinicalAction("medical:write"), getTranslator()]);
     if (!auth.ok) return actionError(auth.message);
 
-    const parsed = recoveryPlanSchema.safeParse({
+    const parsed = recoveryPlanSchema(t).safeParse({
         fighterId: text(formData, "fighterId"),
         injuryId: text(formData, "injuryId"),
         title: text(formData, "title"),
@@ -576,11 +680,11 @@ export async function setPlanMilestoneAction(input: { fighterId: string; planId:
 
 /** Adds a milestone to the end of the plan. */
 export async function addPlanMilestoneAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
-    const auth = await authorizeClinicalAction("medical:write");
+    const [auth, { t }] = await Promise.all([authorizeClinicalAction("medical:write"), getTranslator()]);
     if (!auth.ok) return actionError(auth.message);
     const ref = planRefSchema.safeParse({ fighterId: text(formData, "fighterId"), planId: text(formData, "planId") });
     if (!ref.success) return actionError("The recovery plan is missing. Reload the page and try again.");
-    const parsed = milestoneSchema.safeParse({
+    const parsed = milestoneSchema(t).safeParse({
         title: text(formData, "title"),
         criteria: text(formData, "criteria"),
         targetDate: text(formData, "targetDate"),
