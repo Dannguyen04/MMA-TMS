@@ -35,7 +35,7 @@ Câu chuyển: "Đến đây là phần thầy đã xem. Phần mới là trong 
 | 9b | **Giữa các hiệp** | Trợ lý ghi mỗi hiệp: chiến thuật hiệu quả hay không, quan sát có thấy lại không, HLV tự chấm hiệp, bị ngã, choáng | **Xếp lại chiến thuật cho hiệp sau** (R21): chiến thuật không hiệu quả 2 hiệp liền bị đưa xuống; chiến thuật chưa dùng cùng căn cứ với chiến thuật đang hiệu quả được đẩy lên. **Cảnh báo đối thủ đã đổi lối đánh** (R22) khi quan sát không thấy lại 2 hiệp. **Thế trận** (R23): đang dẫn, cần thắng N hiệp, hay khó thắng điểm. **Cảnh báo an toàn** (R24): bị ngã 2 lần hoặc choáng 2 hiệp liền thì báo đỏ "Cân nhắc dừng trận, báo bác sĩ của giải" | `/coach/bouts/[id]/rounds` · Đang làm |
 | 10 | Ghi kết quả | HLV 2 chạm: kết quả, cách kết thúc; thua KO/TKO thêm 2 câu | **Điền sẵn** hiệp kết thúc và việc bị ngã từ bản ghi các hiệp (R25); kiểm tra mâu thuẫn (hiệp kết thúc vượt số hiệp; thắng điểm mà mới ghi 2/3 hiệp thì hỏi lại) (R26); trận sang "Đã xong" | Chi tiết trận · Có (nhánh Hoàng Anh) |
 
-**Cách diễn bước 9b (ví dụ có sẵn trong dữ liệu demo, trận 3 hiệp):**
+**Cách diễn bước 9b** (dữ liệu demo: đăng nhập bằng nút demo **HLV Rafael Costa** ở `/login`; trận `bout-weighed-in`, võ sĩ Kenji Morita gặp Lê Hoàng Nam, 3 hiệp, đã cân 64,8 kg; mở `/coach/bouts/bout-weighed-in/corner-card` và `/coach/bouts/bout-weighed-in/rounds`):
 1. Mở thẻ góc đài: chỉ cho thầy thứ tự chiến thuật và nhãn "Chưa luyện".
 2. Ghi hiệp 1: chiến thuật A không hiệu quả, HLV chấm thua hiệp.
 3. Ghi hiệp 2: A lại không hiệu quả, quan sát X không thấy lại, võ sĩ bị ngã 1 lần.
