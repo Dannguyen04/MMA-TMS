@@ -5,8 +5,8 @@
 | **Trạng thái** | READY (24/10: Q1, Q2, Q3, Q4, Q5 đã chốt; Q1 phần `ends_on` của đình chỉ tự tạo từ kết quả ghi theo đề xuất, chủ dự án sửa nếu muốn khác) |
 | **Phần** | A: Backend (`nestjs-api`). Phần B (tab Đình chỉ, tab Sẵn sàng, xử lý lịch: Hoàng Anh) và C (võ sĩ xem trạng thái đình chỉ: Fon) có ticket riêng, dùng contract của ticket này |
 | **Người nhận** | Ken |
-| **Nhánh** | `feat/T-007-suspensions` từ `fight-camp` mới nhất (đã có T-003, T-006, T-010) |
-| **Hạn** | Merge trước 25/10 (mục 1 đến 6). Mục 7 làm ngay sau khi mục 1 merge |
+| **Nhánh** | `feat/T-007-suspensions` từ `fight-camp` mới nhất (đã có T-003, T-006, T-010, T-029 merge 26/10) |
+| **Hạn** | Trễ hạn 25/10. Hạn mới: mục 1–6 merge trước 28/10 để kịp tổng duyệt 30/10; mục 7 ngay sau |
 | **Tài liệu dẫn chiếu** | [Tech spec §2.5, §4, §6, §7, §8](../FIGHT-CAMP-TECH-SPEC.md), [Luồng nghiệp vụ nghiệp vụ 11–13, 15, F6, F7, R4, R27, R28, R32, S3, H3–H7](../FIGHT-CAMP-BUSINESS-FLOWS.md), [T-006](./T-006-weigh-in-and-result.md) mục "Dữ liệu để lại cho T-007, T-010", tách module chi tiết ở [nestjs-api/docs/modules/](../../nestjs-api/docs/modules/README.md) (01, 02, 03, 05, 10) |
 | **Migration** | **025** (`025_suspensions.sql`). Preflight: ledger có 024, chưa có 025. Không yêu cầu 026, 027 (027 đã áp trên Supabase) |
 
@@ -95,7 +95,7 @@ Bảng chỉ đọc, tính khi đọc, mỗi võ sĩ trong phạm vi người xe
 
 ### 6. Cảnh báo R4 khi tạo trận
 
-`createBout` (`src/bouts/bouts.service.ts:292`) vẫn lưu được, trả thêm `warnings` khi võ sĩ còn đình chỉ kéo dài quá ngày thi (định nghĩa còn hiệu lực ở mục 1, tại ngày thi) hoặc đang có trận khác ở `CAMP`/`FIGHT_WEEK`/`WEIGHED_IN`. **Không đụng `updateBout` và `resolveWeightClass`.** Báo Dan trước khi sửa `bouts.service.ts`. R31 (cân) thuộc T-029, không làm ở đây. Mã cảnh báo và hình dạng `warnings`: xem Q4.
+`createBout` (`src/bouts/bouts.service.ts:522`, trên `fight-camp` 26/10) vẫn lưu được, trả thêm `warnings` khi võ sĩ còn đình chỉ kéo dài quá ngày thi (định nghĩa còn hiệu lực ở mục 1, tại ngày thi) hoặc đang có trận khác ở `CAMP`/`FIGHT_WEEK`/`WEIGHED_IN`. **Không đụng `updateBout` và `resolveWeightClass`.** Báo Dan trước khi sửa `bouts.service.ts`. R31 (cân) thuộc T-029, không làm ở đây. Mã cảnh báo và hình dạng `warnings`: xem Q4.
 
 ### 7. Tự tạo đình chỉ khi ghi kết quả (R27)
 
@@ -178,3 +178,8 @@ Không lệnh nào được thêm lỗi so với [baseline](./BASELINE.md). **Kh
 - "Lệch so với ticket" trong handover phải ghi: lý do `createSession` không bọc transaction; mọi tên endpoint, mã lỗi, field đã chốt ở Q1–Q4; việc `recordResultSchema` đổi contract.
 - Thông báo Dan trước khi sửa `bouts.service.ts`; thông báo Hoàng Anh và Fon khi contract đổi (`createBout` có `warnings`, `recordResult` nhận số ngày, các endpoint mới).
 - Thấy lệch giữa ticket và code thì ghi vào mục "Câu hỏi" của handover, không đoán.
+
+## Bổ sung 26/10 (Claude, sau khi T-029 merge)
+
+- **Nối vào T-029:** thêm hai nguồn còn thiếu vào thẻ Việc cần làm (`src/bouts/bouts-todo.service.ts`): R28 (buổi tập xung đột với đình chỉ) và S3 (đình chỉ chờ xác nhận). R27 "cân nhắc đình chỉ thủ công" lấy từ `safety` của T-010 (`buildRoundAdvice`, mã `KNOCKDOWNS`, `STUNNED_STREAK`). Bộ lọc `GET /readiness` dùng `computeWeightFeasibility` (R31) của T-029. Mỗi nguồn có test riêng, theo khuôn `bouts-todo.service.spec.ts`.
+- **Trạng thái cân** đã đổi tên ở T-029: `ON_TRACK`, `ABOVE_TARGET`, `OVER_LIMIT`, `NOT_WEIGHED`, `NEUTRAL`. Không dùng tên cũ.
