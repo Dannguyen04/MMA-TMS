@@ -24,20 +24,25 @@ import type {
 } from "@/lib/domain/types";
 import { SESSION_TYPES } from "@/lib/domain/medical-contract";
 import {
+    exerciseCreateBody,
     planBody,
     planCreateBody,
     planExerciseBody,
+    serviceExerciseCategoryFor,
     sessionBody,
     sessionCreateBody,
     sessionResultBody,
     sessionStatusBody,
     TRAINING_TYPE_FOR,
+    type ExerciseFields,
     type PlanExerciseFields,
+    type ServiceExerciseCategory,
 } from "@/lib/domain/training-contract";
 import { academyDayEndIso, academyDayStartIso, DAY_MS, dayKey } from "@/lib/format";
 import { matchesSearch } from "@/lib/query";
 import { drainNumberedPages, nullIfNotFound, unsupportedOperation } from "./api-helpers";
 import { platformFeatureAvailable } from "./platform-features";
+import { trainingWriteFailure } from "./training-errors";
 import { plannedEndMs, sessionMinutes } from "@/components/training/training-utils";
 
 type FighterScope = string[] | "all";
@@ -334,6 +339,46 @@ export async function listExercises(filter: ExerciseFilter = {}): Promise<Exerci
         .sort((left, right) => left.category.localeCompare(right.category) || left.name.localeCompare(right.name));
 }
 
+/** A library exercise as administrators manage it, in the service's own categories. */
+export interface LibraryExercise {
+    id: string;
+    name: string;
+    category: ServiceExerciseCategory;
+    description: string;
+    targetMuscleGroups: string[];
+    videoUrl: string | null;
+}
+
+export interface LibraryFilter {
+    search?: string;
+    /** Filtered by the service itself. */
+    category?: ServiceExerciseCategory;
+}
+
+function toLibraryExercise(exercise: BackendExercise): LibraryExercise {
+    return {
+        id: exercise.id,
+        name: exercise.name,
+        category: serviceExerciseCategoryFor(exerciseCategoryFromApi[exercise.category]),
+        description: exercise.description ?? "",
+        targetMuscleGroups: exercise.targetMuscleGroups,
+        videoUrl: exercise.videoUrl,
+    };
+}
+
+/** The global exercise library for its administrators, sorted by name. */
+export async function listExerciseCatalog(filter: LibraryFilter = {}): Promise<LibraryExercise[]> {
+    if (isDemoAuthEnabled()) return (await demoService()).listExerciseCatalog(filter);
+    const exercises = await drainNumberedPages("/exercises", backendExerciseSchema, { search: filter.search?.trim() || undefined, category: filter.category });
+    return exercises.map(toLibraryExercise).sort((left, right) => left.name.localeCompare(right.name));
+}
+
+/** Adds an exercise to the global library. The service lets administrators only; failures throw its ApiError. */
+export async function createExercise(input: ExerciseFields, actor: User): Promise<LibraryExercise> {
+    if (isDemoAuthEnabled()) return (await demoService()).createExercise(input, actor);
+    return toLibraryExercise(await authenticatedMutableApiRequest("/exercises", backendExerciseSchema, { method: "POST", body: JSON.stringify(exerciseCreateBody(input)) }));
+}
+
 export interface PlanFilter {
     /** Fighters the viewer may see (from `accessibleFighterIds`). Omit for all. */
     fighterIds?: FighterScope;
@@ -398,20 +443,47 @@ export interface PlanInput {
 /** Fields a coach can edit after creation. The fighter and status are changed through their own flows. */
 export type PlanUpdateInput = Omit<PlanInput, "fighterId" | "coachId" | "status">;
 
+/** An exercise to add to a plan: which one, and its prescription. */
+export interface PlanExerciseInput extends PlanExerciseFields {
+    exerciseId: string;
+}
+
+/** An exercise that couldn't be added, with what the service said. */
+export interface PlanExerciseFailure {
+    /** Position in the list that was sent. */
+    index: number;
+    exerciseId: string;
+    message: string;
+}
+
+export interface PlanExercisesResult {
+    added: PlanExercise[];
+    failed: PlanExerciseFailure[];
+}
+
+export interface PlanCreation {
+    plan: TrainingPlan;
+    /** Exercises the plan was created without. When any failed, an active plan is left as a draft. */
+    failedExercises: PlanExerciseFailure[];
+}
+
 /**
- * API mode creates the plan, then publishes it when asked: the service always creates drafts. When publishing is
- * refused the draft is returned as it is, so the caller can tell the coach it wasn't activated.
+ * Creates a plan with its exercises, and only then activates it when asked, so the fighter's "plan active"
+ * notification arrives once the plan is complete. The service always creates drafts. The plan stays a draft when an
+ * exercise couldn't be added or activating is refused, so the caller can tell the coach what to finish.
  */
-export async function createPlan(input: PlanInput, actor: User): Promise<TrainingPlan> {
-    if (isDemoAuthEnabled()) return (await demoService()).createPlan(input, actor);
+export async function createPlan(input: PlanInput, actor: User, exercises: PlanExerciseInput[] = []): Promise<PlanCreation> {
+    if (isDemoAuthEnabled()) return (await demoService()).createPlanWithExercises(input, exercises, actor);
     const plan = toPlan(
         await authenticatedMutableApiRequest("/training-plans", backendPlanSchema, { method: "POST", body: JSON.stringify(planCreateBody(input)) }),
     );
-    if (input.status !== "active") return plan;
+    // A new plan has no exercises yet, so there is nothing to read before numbering them.
+    const { failed } = await postPlanExercises(plan.id, 0, exercises);
+    if (input.status !== "active" || failed.length > 0) return { plan, failedExercises: failed };
     try {
-        return (await setPlanStatus(plan.id, "active", actor)) ?? plan;
+        return { plan: (await setPlanStatus(plan.id, "active", actor)) ?? plan, failedExercises: [] };
     } catch (error) {
-        if (error instanceof ApiError) return plan;
+        if (error instanceof ApiError) return { plan, failedExercises: [] };
         throw error;
     }
 }
@@ -466,17 +538,59 @@ export async function listPlanExercises(planId: string): Promise<PlanExercise[]>
     return items.map(toPlanExercise).sort((left, right) => left.orderIndex - right.orderIndex);
 }
 
+/** The order index after the plan's last exercise. */
+function nextOrderIndex(items: PlanExercise[]): number {
+    return items.reduce((next, item) => Math.max(next, item.orderIndex + 1), 0);
+}
+
+function postPlanExercise(planId: string, orderIndex: number, { exerciseId, ...input }: PlanExerciseInput): Promise<PlanExercise> {
+    return authenticatedMutableApiRequest(planExercisesPath(planId), backendPlanExerciseSchema, {
+        method: "POST",
+        body: JSON.stringify({ exerciseId, orderIndex, ...planExerciseBody(input) }),
+    }).then(toPlanExercise);
+}
+
+/** A refusal the service answered: nothing was saved, so the order index is still free. */
+function definitelyRefused(error: ApiError): boolean {
+    return error.status !== null && error.status >= 400 && error.status < 500;
+}
+
+/**
+ * Adds exercises one after another from `startIndex`, in the order given. Each failure is reported and the rest
+ * still go in. A refused exercise leaves its order index to the next one; one that may have been saved (a timeout
+ * or a service failure) keeps it, so a later exercise never collides with it.
+ */
+async function postPlanExercises(planId: string, startIndex: number, items: PlanExerciseInput[]): Promise<PlanExercisesResult> {
+    const added: PlanExercise[] = [];
+    const failed: PlanExerciseFailure[] = [];
+    let orderIndex = startIndex;
+    for (const [index, item] of items.entries()) {
+        try {
+            added.push(await postPlanExercise(planId, orderIndex, item));
+            orderIndex += 1;
+        } catch (error) {
+            if (!(error instanceof ApiError)) throw error;
+            failed.push({ index, exerciseId: item.exerciseId, message: trainingWriteFailure(error).message });
+            if (!definitelyRefused(error)) orderIndex += 1;
+        }
+    }
+    return { added, failed };
+}
+
 /** Adds an exercise at the end of the plan. API-mode writes throw the service's ApiError on failure. */
 export async function addPlanExercise(planId: string, exerciseId: string, input: PlanExerciseFields, actor: User): Promise<PlanExercise> {
     if (isDemoAuthEnabled()) return (await demoService()).addPlanExercise(planId, exerciseId, input, actor);
-    const current = await listPlanExercises(planId);
-    const orderIndex = current.reduce((next, item) => Math.max(next, item.orderIndex + 1), 0);
-    return toPlanExercise(
-        await authenticatedMutableApiRequest(planExercisesPath(planId), backendPlanExerciseSchema, {
-            method: "POST",
-            body: JSON.stringify({ exerciseId, orderIndex, ...planExerciseBody(input) }),
-        }),
-    );
+    return postPlanExercise(planId, nextOrderIndex(await listPlanExercises(planId)), { exerciseId, ...input });
+}
+
+/**
+ * Adds several exercises at the end of the plan, in order, reading the plan's list once. Failures are reported per
+ * exercise rather than thrown; reading the list still throws the service's ApiError.
+ */
+export async function addPlanExercises(planId: string, items: PlanExerciseInput[], actor: User): Promise<PlanExercisesResult> {
+    if (isDemoAuthEnabled()) return (await demoService()).addPlanExercises(planId, items, actor);
+    if (items.length === 0) return { added: [], failed: [] };
+    return postPlanExercises(planId, nextOrderIndex(await listPlanExercises(planId)), items);
 }
 
 export async function updatePlanExercise(planId: string, id: string, input: PlanExerciseFields, actor: User): Promise<PlanExercise | null> {

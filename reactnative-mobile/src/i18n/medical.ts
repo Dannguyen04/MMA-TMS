@@ -89,13 +89,28 @@ export const medical = {
     ADMIN: "Quản trị",
   },
   reason: {
+    EXAMINATION_REQUIRED:
+      "Cần hoàn tất khám baseline, hoặc kết luận tập luyện phù hợp, trước khi tập. Hồ sơ cũ đã có kết luận tập luyện không bị yêu cầu khám lại chỉ vì thiếu chi tiết.",
     REVIEW_REQUEST_PENDING: "Còn yêu cầu khám chưa được xử lý.",
     EXAMINATION_NOT_ELIGIBLE: "Kết luận khám hiện hành là chưa đủ điều kiện.",
     CLEARANCE_REQUIRED: "Chưa có giấy phép phù hợp từ kết luận hiện hành, hoặc giấy đã bị thu hồi.",
     CLEARANCE_EXPIRED: "Giấy phép cần thiết đã hết hạn. Cần bác sĩ đánh giá lại.",
     SESSION_TYPE_RESTRICTED: "Loại buổi tập này nằm ngoài phạm vi được phép.",
   },
-  unknownReason: "Chưa đủ điều kiện y tế.",
+  unknownReason: "Chưa đủ điều kiện y tế. Máy chủ không gửi lý do — không coi đây là đủ điều kiện.",
+  stepAssignDoctor: "Đang chờ Admin phân công bác sĩ. Chưa được tập.",
+  stepBaseline: "Đang chờ bác sĩ khám baseline. Chưa được tập.",
+  stepClearance: "Đang chờ bác sĩ cấp giấy phép y tế. Chưa được tập.",
+  stepEligible: "Hồ sơ y tế đang cho phép tập theo kết luận của bác sĩ.",
+  clearanceUnconfirmed:
+    "Đã cấp giấy. Chưa tải lại được điều kiện tập, nên chưa kết luận là được tập.",
+  clearanceSavedNotEligible:
+    "Đã cấp giấy. Điều kiện tập chưa được xác nhận là đủ. Không coi là được tập.",
+  stepBlocked: "Chưa đủ điều kiện tập.",
+  legacyDetails: "Bản ghi cũ không có chi tiết khám. Không suy ra là chưa khám.",
+  scat6NotEmbedded:
+    "Màn này ghi nhận SCAT6 chưa thực hiện và lý do. Nội dung câu hỏi chính thức chưa được nhúng vì chưa có quyền số hóa.",
+  examSavedClearanceFailed: "Đã lưu lần khám. Cấp giấy chưa xong — gửi lại chỉ bước cấp giấy, không tạo khám mới.",
   scope: {
     TRAINING: "Tập luyện",
     COMPETITION: "Thi đấu",
@@ -112,7 +127,7 @@ export const medical = {
     COMPETITION: "Thi đấu",
   },
   clearanceStatus: {
-    ACTIVE: "Đang lưu",
+    ACTIVE: "Đang hiệu lực",
     EXPIRED: "Hết hạn",
     REVOKED: "Đã thu hồi",
   },

@@ -2,6 +2,10 @@ import { viDemoFlow } from "./demo-flow.vi";
 import { viAccount } from "./account.vi";
 import { viAuth } from "./auth.vi";
 import { viBoutAnalysis } from "./bout-analysis.vi";
+import { viBoutLabels } from "./bout-labels.vi";
+import { viBoutDetail } from "./bout-detail.vi";
+import { viBoutFighter } from "./bout-fighter.vi";
+import { viBoutMessages } from "./bout-messages.vi";
 import { viCoachBouts } from "./coach-bouts.vi";
 import { viCoachToday } from "./coach-today.vi";
 import { viFighterToday } from "./fighter-today.vi";
@@ -16,6 +20,10 @@ export const vi = {
     ...viAccount,
     ...viAuth,
     ...viBoutAnalysis,
+    ...viBoutLabels,
+    ...viBoutDetail,
+    ...viBoutFighter,
+    ...viBoutMessages,
     ...viCoachBouts,
     ...viCoachToday,
     ...viFighterToday,
@@ -25,6 +33,8 @@ export const vi = {
     "nav.Today": "Hôm nay",
     "nav.Bout": "Trận đấu",
     "nav.Bouts": "Trận đấu",
+    "nav.Upcoming": "Sắp tới",
+    "nav.Suspensions": "Đình chỉ",
     "nav.Training": "Tập luyện",
     "nav.Schedule": "Lịch tập",
     "nav.Plans": "Giáo án",
@@ -41,6 +51,9 @@ export const vi = {
     "nav.Injuries": "Chấn thương",
     "nav.Dashboard": "Tổng quan",
     "nav.Access": "Truy cập",
+    "nav.People": "Người dùng",
+    "nav.AI": "AI",
+    "nav.System": "Hệ thống",
     "nav.Users": "Người dùng",
     "nav.Roles & permissions": "Vai trò và quyền",
     "nav.Roles": "Vai trò",
@@ -178,6 +191,10 @@ export const vi = {
     "weightNote.fighter.NOT_WEIGHED.title": "3 ngày chưa ghi cân",
     "weightNote.fighter.NOT_WEIGHED.text": "Hãy ghi cân mỗi sáng.",
 
+    "chart.showTable": "Xem bảng số liệu",
+    "chart.hideTable": "Ẩn bảng số liệu",
+    "chart.noData": "Không có dữ liệu",
+    "chart.keyboardHintPeriods": "Dùng phím mũi tên trái và phải để đọc số liệu từng mốc.",
     "chart.weight": "Cân nặng",
     "chart.reference": "Lộ trình",
     "chart.limit": "Giới hạn",

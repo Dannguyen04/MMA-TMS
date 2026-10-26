@@ -11,10 +11,12 @@ import { useRouter, type Href } from "expo-router";
 import {
   MEDICAL_STATUSES,
   isApiError,
-  listFighters,
+  listDoctorFighters,
   type MedicalStatus,
   type PublicFighter,
+  type PublicUser,
 } from "@/api";
+import { useToastMessage } from "@/components/toast/app-toast";
 import { doctor } from "@/i18n/doctor";
 import { vi } from "@/i18n/vi";
 import { mapApiMessage } from "@/session/map-api-message";
@@ -24,6 +26,12 @@ import { type, useThemePreference } from "@/theme";
 import { DoctorCard, DoctorChrome, doctorStyles, fighterName } from "./doctor-chrome";
 import { useSelectedFighter } from "./selected-fighter";
 
+function profileId(user: PublicUser | null): string | null {
+  const profile = user?.profile;
+  if (!profile || typeof profile.id !== "string") return null;
+  return profile.id;
+}
+
 export function DoctorFightersScreen() {
   const { colors } = useThemePreference();
   const router = useRouter();
@@ -32,6 +40,7 @@ export function DoctorFightersScreen() {
   const [rows, setRows] = useState<PublicFighter[]>([]);
   const [filter, setFilter] = useState<MedicalStatus | "">("");
   const [error, setError] = useState("");
+  useToastMessage(error, "error");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -47,7 +56,13 @@ export function DoctorFightersScreen() {
     else setLoading(true);
     setError("");
     try {
-      const page = await listFighters({ page: 1, limit: 50 });
+      const doctorId = profileId(user);
+      if (!doctorId) {
+        setRows([]);
+        setError(doctor.roleOnly);
+        return;
+      }
+      const page = await listDoctorFighters(doctorId, { page: 1, limit: 50 });
       setRows(page.data);
     } catch (cause: unknown) {
       setRows([]);
@@ -60,7 +75,7 @@ export function DoctorFightersScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [isDemo, user?.role]);
+  }, [isDemo, user]);
 
   useEffect(() => {
     void load();
@@ -91,12 +106,9 @@ export function DoctorFightersScreen() {
           }
         >
           {error ? (
-            <DoctorCard>
-              <Text style={[type.body, { color: colors.danger }]}>{error}</Text>
-              <Pressable accessibilityRole="button" onPress={() => void load()} style={doctorStyles.link}>
-                <Text style={[type.link, { color: colors.lotus }]}>{doctor.retry}</Text>
-              </Pressable>
-            </DoctorCard>
+            <Pressable accessibilityRole="button" onPress={() => void load()} style={doctorStyles.link}>
+              <Text style={[type.link, { color: colors.lotus }]}>{doctor.retry}</Text>
+            </Pressable>
           ) : null}
 
           <DoctorCard>

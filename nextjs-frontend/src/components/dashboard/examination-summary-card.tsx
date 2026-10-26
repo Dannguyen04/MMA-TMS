@@ -63,6 +63,7 @@ export function ExaminationSummaryCard({ examination, doctorName, historyHref, n
                             compact
                                 ? t("examSummary.emptyCompactDesc")
                                 : t("examSummary.emptyFullDesc")
+
                         }
                         className="pt-0"
                     />

@@ -97,6 +97,7 @@ export default async function FighterHealthPage({ searchParams }: PageProps<"/fi
                                 <p className="text-[15px] font-semibold text-fg">{t("fighterHealth.noClearanceOnFile")}</p>
                                 <p className="max-w-2xl text-sm text-pretty text-fg-muted">
                                     {t("fighterHealth.noClearanceDesc")}
+
                                 </p>
                             </CardContent>
                         </Card>

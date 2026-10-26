@@ -6,10 +6,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { canAccessFighter } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
+import { boutLimitKg } from "@/lib/domain/bout";
 import { getTranslator } from "@/lib/i18n/server";
 import { routes } from "@/lib/routes";
 import { getBoutAnalysisDetail, getCornerCard } from "@/lib/services/bout-analysis";
-import { getBout } from "@/lib/services/bouts";
+import { getCampBout } from "@/lib/services/bouts";
 import { getFighter } from "@/lib/services/people";
 import { CornerCardView } from "./corner-card-view";
 
@@ -19,10 +20,10 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
     const [{ boutId }, { t }] = await Promise.all([params, getTranslator()]);
-    const bout = await getBout(boutId);
+    const bout = await getCampBout(boutId);
     return {
         title: bout
-            ? t("boutAnalysis.cornerCard.metaTitle", { eventName: bout.eventName })
+            ? t("boutAnalysis.cornerCard.metaTitle", { eventName: bout.event })
             : t("boutAnalysis.cornerCard.metaTitleDefault"),
     };
 }
@@ -31,7 +32,7 @@ export default async function CoachCornerCardPage({ params }: PageProps) {
     const user = await requireRole("coach");
     const [{ boutId }, { t }] = await Promise.all([params, getTranslator()]);
 
-    const bout = await getBout(boutId);
+    const bout = await getCampBout(boutId);
     if (!bout || !canAccessFighter(user, bout.fighterId)) {
         notFound();
     }
@@ -50,6 +51,8 @@ export default async function CoachCornerCardPage({ params }: PageProps) {
         notFound();
     }
 
+    const weightLimitKg = boutLimitKg(bout) ?? bout.limitKg ?? 0;
+
     return (
         <div className="flex min-w-0 flex-col gap-5">
             <div className="print:hidden">
@@ -59,11 +62,11 @@ export default async function CoachCornerCardPage({ params }: PageProps) {
                         href: routes.coach.bout(bout.id),
                         label: t("boutAnalysis.cornerCard.backToBout"),
                     }}
-                    title={bout.eventName}
+                    title={bout.event}
                     description={t("coachBouts.detail.headerDescription", {
                         fighter: fighter.name,
-                        opponent: bout.opponentName ?? t("bout.opponentTba"),
-                        weight: bout.weightLimitKg,
+                        opponent: bout.opponent ?? t("bout.opponentTba"),
+                        weight: weightLimitKg,
                     })}
                 />
             </div>
@@ -85,10 +88,10 @@ export default async function CoachCornerCardPage({ params }: PageProps) {
             ) : (
                 <CornerCardView
                     boutId={bout.id}
-                    eventName={bout.eventName}
+                    eventName={bout.event}
                     fighterName={fighter.name}
-                    opponentName={bout.opponentName ?? t("bout.opponentTba")}
-                    weightLimitKg={bout.weightLimitKg}
+                    opponentName={bout.opponent ?? t("bout.opponentTba")}
+                    weightLimitKg={weightLimitKg}
                     scheduledRounds={analysisDetail?.scheduledRounds ?? null}
                     card={cardResult.card}
                 />

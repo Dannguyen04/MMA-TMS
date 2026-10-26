@@ -9,7 +9,7 @@ import { requireRole } from "@/lib/auth/session";
 import { getTranslator } from "@/lib/i18n/server";
 import { routes } from "@/lib/routes";
 import { getBoutAnalysisDetail, getBoutRounds } from "@/lib/services/bout-analysis";
-import { getBout } from "@/lib/services/bouts";
+import { getCampBout } from "@/lib/services/bouts";
 import { getFighter } from "@/lib/services/people";
 import { RoundsView } from "./rounds-view";
 
@@ -19,10 +19,10 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
     const [{ boutId }, { t }] = await Promise.all([params, getTranslator()]);
-    const bout = await getBout(boutId);
+    const bout = await getCampBout(boutId);
     return {
         title: bout
-            ? t("boutAnalysis.rounds.metaTitle", { eventName: bout.eventName })
+            ? t("boutAnalysis.rounds.metaTitle", { eventName: bout.event })
             : t("boutAnalysis.rounds.metaTitleDefault"),
     };
 }
@@ -31,7 +31,7 @@ export default async function CoachBoutRoundsPage({ params }: PageProps) {
     const user = await requireRole("coach");
     const [{ boutId }, { t }] = await Promise.all([params, getTranslator()]);
 
-    const bout = await getBout(boutId);
+    const bout = await getCampBout(boutId);
     if (!bout || !canAccessFighter(user, bout.fighterId)) {
         notFound();
     }
@@ -50,7 +50,7 @@ export default async function CoachBoutRoundsPage({ params }: PageProps) {
         notFound();
     }
 
-    const canRecordRounds = bout.status === "WEIGHED_IN" || bout.status === "COMPLETED";
+    const canRecordRounds = bout.phase === "WEIGHED_IN" || bout.phase === "COMPLETED";
     const scheduledRounds =
         (roundsResult.ok ? roundsResult.data.scheduledRounds : null) ??
         analysisDetail?.scheduledRounds ??
@@ -67,7 +67,7 @@ export default async function CoachBoutRoundsPage({ params }: PageProps) {
                 title={t("boutAnalysis.rounds.title")}
                 description={t("boutAnalysis.rounds.description", {
                     fighter: fighter.name,
-                    opponent: bout.opponentName ?? t("bout.opponentTba"),
+                    opponent: bout.opponent ?? t("bout.opponentTba"),
                     rounds: scheduledRounds ?? 0,
                 })}
             />

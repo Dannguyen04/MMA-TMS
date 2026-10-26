@@ -4,7 +4,7 @@ const DASHBOARD_HEADINGS: Record<Role, RegExp> = {
     fighter: /, Minh$/,
     coach: /, Rafael$/,
     doctor: /^Triage$/,
-    admin: /^Platform overview$/,
+    admin: /^Good (morning|afternoon|evening)$/,
 };
 
 test.describe("authentication", () => {

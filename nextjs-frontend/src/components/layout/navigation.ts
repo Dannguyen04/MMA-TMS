@@ -2,13 +2,11 @@ import {
     Activity,
     CalendarDays,
     Cpu,
-    Film,
+    Dumbbell,
     HeartPulse,
-    KeyRound,
     LayoutDashboard,
-    Megaphone,
+    Scale,
     ScanLine,
-    ScrollText,
     Settings,
     ShieldCheck,
     Stethoscope,
@@ -57,15 +55,15 @@ export interface NavSection {
 }
 
 /**
- * Role-based information architecture. Fighters, coaches and doctors get a handful of hubs, each
- * answering one kind of question; related pages sit behind the hub's tabs. Admin keeps its sections.
+ * Role-based information architecture. Every role gets a handful of hubs, each answering one kind of question;
+ * related pages sit behind the hub's tabs.
  */
 export const NAVIGATION: Record<Role, NavSection[]> = {
     fighter: [
         {
             items: [
                 { label: "Today", href: routes.fighter.dashboard, icon: LayoutDashboard },
-                { label: "Bout", href: routes.fighter.bout, icon: Swords },
+                { label: "Bout", href: routes.fighter.bout, icon: Scale },
                 {
                     label: "Training",
                     href: routes.fighter.schedule,
@@ -85,7 +83,15 @@ export const NAVIGATION: Record<Role, NavSection[]> = {
         {
             items: [
                 { label: "Today", href: routes.coach.dashboard, icon: LayoutDashboard },
-                { label: "Bouts", href: routes.coach.bouts, icon: Swords },
+                {
+                    label: "Bouts",
+                    href: routes.coach.bouts,
+                    icon: Swords,
+                    tabs: [
+                        { label: "Upcoming", href: routes.coach.bouts },
+                        { label: "Suspensions", href: routes.coach.suspensions },
+                    ],
+                },
                 { label: "Roster", href: routes.coach.fighters, icon: Users },
                 {
                     label: "Training",
@@ -119,41 +125,53 @@ export const NAVIGATION: Record<Role, NavSection[]> = {
         },
     ],
     admin: [
-        { items: [{ label: "Dashboard", href: routes.admin.dashboard, icon: LayoutDashboard }] },
         {
-            label: "Access",
             items: [
-                { label: "Users", href: routes.admin.users, icon: Users },
-                { label: "Roles & permissions", shortLabel: "Roles", href: routes.admin.roles, icon: KeyRound },
-            ],
-        },
-        {
-            label: "AI platform",
-            items: [
-                { label: "Videos", href: routes.admin.videos, icon: Film },
-                { label: "AI jobs", href: routes.admin.aiJobs, icon: Cpu, badge: "failedJobs" },
-            ],
-        },
-        {
-            label: "Operations",
-            items: [
-                { label: "Audit logs", shortLabel: "Audit", href: routes.admin.auditLogs, icon: ScrollText },
-                { label: "Broadcasts", href: routes.admin.notifications, icon: Megaphone },
-                { label: "System settings", shortLabel: "Settings", href: routes.admin.settings, icon: Settings },
+                { label: "Today", href: routes.admin.dashboard, icon: LayoutDashboard },
+                {
+                    label: "People",
+                    href: routes.admin.users,
+                    icon: Users,
+                    tabs: [
+                        { label: "Users", href: routes.admin.users },
+                        { label: "Roles & permissions", href: routes.admin.roles },
+                    ],
+                },
+                { label: "Training", href: routes.admin.exercises, icon: Dumbbell },
+                {
+                    label: "AI platform",
+                    shortLabel: "AI",
+                    // Jobs lead: failures are what an administrator comes here for, and the hub carries their count.
+                    href: routes.admin.aiJobs,
+                    icon: Cpu,
+                    badge: "failedJobs",
+                    tabs: [
+                        { label: "AI jobs", href: routes.admin.aiJobs },
+                        { label: "Videos", href: routes.admin.videos },
+                    ],
+                },
+                {
+                    label: "System",
+                    href: routes.admin.auditLogs,
+                    icon: Settings,
+                    tabs: [
+                        { label: "Audit logs", href: routes.admin.auditLogs },
+                        { label: "Broadcasts", href: routes.admin.notifications },
+                        { label: "Settings", href: routes.admin.settings },
+                    ],
+                },
             ],
         },
     ],
 };
 
-/**
- * Destinations for the mobile bottom bar. Roles built on hubs show every hub; admin picks its four
- * most-used pages.
- */
+/** The admin hubs the mobile bottom bar shows; Training stays in the menu. Admissions is frozen (T-001). */
+const ADMIN_MOBILE_HUBS: readonly string[] = [routes.admin.dashboard, routes.admin.users, routes.admin.aiJobs, routes.admin.auditLogs];
+
+/** Destinations for the mobile bottom bar: every hub, or for admin the four above. */
 export function mobilePrimaryItems(role: Role): NavItem[] {
     const items = NAVIGATION[role].flatMap((section) => section.items);
-    if (role !== "admin") return items;
-    const admin = [routes.admin.dashboard, routes.admin.users, routes.admin.aiJobs, routes.admin.auditLogs];
-    return admin.map((href) => items.find((item) => item.href === href)).filter((item): item is NavItem => Boolean(item));
+    return role === "admin" ? items.filter((item) => ADMIN_MOBILE_HUBS.includes(item.href)) : items;
 }
 
 function matchesPath(href: string, pathname: string): boolean {

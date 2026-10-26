@@ -8,25 +8,24 @@ import {
     type RoundRecord,
 } from "@/lib/domain/round-advice";
 import type { User } from "@/lib/domain/types";
-import type { MockBoutRecord } from "@/lib/mocks/bouts";
-import { db, newId, nowIso, simulateLatency } from "@/lib/mocks/db";
 import type {
     BoutAnalysisDetail,
     GetBoutRoundsResult,
     GetCornerCardResult,
     UpsertBoutRoundResult,
 } from "./bout-analysis";
+import { demoCampStore, type DemoBoutRecord } from "./bouts.demo";
 
-function findBoutRecord(boutId: string): MockBoutRecord | null {
-    const bout = db().bouts.find((b) => b.id === boutId && b.deletedAt === null);
-    return (bout as MockBoutRecord | undefined) ?? null;
+function findBoutRecord(boutId: string): DemoBoutRecord | null {
+    const bout = demoCampStore().bouts.find((b) => b.id === boutId);
+    return bout ?? null;
 }
 
-function getAnalysis(bout: MockBoutRecord): OpponentAnalysis {
+function getAnalysis(bout: DemoBoutRecord): OpponentAnalysis {
     return bout.opponentAnalysis ?? { observations: [], tactics: [] };
 }
 
-function getRounds(bout: MockBoutRecord): RoundRecord[] {
+function getRounds(bout: DemoBoutRecord): RoundRecord[] {
     if (!bout.boutRounds) {
         bout.boutRounds = [];
     }
@@ -34,7 +33,6 @@ function getRounds(bout: MockBoutRecord): RoundRecord[] {
 }
 
 export async function getBoutAnalysisDetail(boutId: string): Promise<BoutAnalysisDetail | null> {
-    await simulateLatency(0.3);
     const bout = findBoutRecord(boutId);
     if (!bout) return null;
 
@@ -49,22 +47,20 @@ export async function getBoutAnalysisDetail(boutId: string): Promise<BoutAnalysi
 }
 
 export async function getCornerCard(boutId: string): Promise<GetCornerCardResult> {
-    await simulateLatency(0.3);
     const bout = findBoutRecord(boutId);
     if (!bout) return { ok: false, error: "BOUT_NOT_FOUND" };
 
-    if (bout.status !== "WEIGHED_IN" && bout.status !== "COMPLETED") {
+    if (bout.phase !== "WEIGHED_IN" && bout.phase !== "COMPLETED") {
         return { ok: false, error: "BOUT_INVALID_TRANSITION" };
     }
 
     const analysis = getAnalysis(bout);
     const rounds = getRounds(bout);
-    const card = buildCornerCard(analysis, rounds, null);
+    const card = buildCornerCard(analysis, rounds, bout.weighIn?.acuteLoss ?? null);
     return { ok: true, card };
 }
 
 export async function getBoutRounds(boutId: string): Promise<GetBoutRoundsResult> {
-    await simulateLatency(0.3);
     const bout = findBoutRecord(boutId);
     if (!bout) return { ok: false, error: "BOUT_NOT_FOUND" };
 
@@ -93,11 +89,10 @@ export async function upsertBoutRound(
     input: RoundInput,
     actor: User,
 ): Promise<UpsertBoutRoundResult> {
-    await simulateLatency(0.4);
     const bout = findBoutRecord(boutId);
     if (!bout) return { ok: false, error: "BOUT_NOT_FOUND" };
 
-    if (bout.status !== "WEIGHED_IN" && bout.status !== "COMPLETED") {
+    if (bout.phase !== "WEIGHED_IN" && bout.phase !== "COMPLETED") {
         return { ok: false, error: "BOUT_INVALID_TRANSITION" };
     }
 
@@ -134,7 +129,8 @@ export async function upsertBoutRound(
         bout.boutRounds = [];
     }
 
-    const now = nowIso();
+    const store = demoCampStore();
+    const now = new Date().toISOString();
     const existingIdx = bout.boutRounds.findIndex((r) => r.roundNo === roundNo);
 
     if (existingIdx >= 0) {
@@ -154,7 +150,7 @@ export async function upsertBoutRound(
         };
     } else {
         bout.boutRounds.push({
-            id: newId("round"),
+            id: `round-${boutId}-${roundNo}-${store.sequence++}`,
             boutId,
             roundNo,
             tacticMarks: input.tacticMarks ?? {},

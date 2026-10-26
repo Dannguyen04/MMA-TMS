@@ -2,6 +2,7 @@ import { Tabs } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { coach } from "@/i18n/coach";
+import { vi } from "@/i18n/vi";
 import { RoleLayoutGate } from "@/session/role-gate";
 import { useThemePreference } from "@/theme";
 
@@ -51,6 +52,15 @@ export default function CoachTabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="danh-gia"
+        options={{
+          title: vi.admission.assigned,
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="clipboard-check-outline" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="me"
         options={{
           title: coach.tabs.me,
@@ -64,7 +74,6 @@ export default function CoachTabsLayout() {
       <Tabs.Screen name="performance" options={{ href: null, title: "Hiệu suất" }} />
       <Tabs.Screen name="clearance" options={{ href: null, title: "Giấy phép" }} />
       <Tabs.Screen name="thong-bao" options={{ href: null, title: "Thông báo" }} />
-      <Tabs.Screen name="danh-gia" options={{ href: null, title: "Nhập học" }} />
     </Tabs>
     </RoleLayoutGate>
   );

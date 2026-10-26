@@ -1,360 +1,470 @@
 "use client";
 
-import { Edit3, Link2, Swords, TriangleAlert, XCircle } from "lucide-react";
+import { Ban, CalendarPlus, Flag, Link2, Pencil, Scale, ShieldAlert, Trophy } from "lucide-react";
 import { useState } from "react";
 
-import { useDemoCopy, useT } from "@/components/i18n/locale-provider";
+import { useT } from "@/components/i18n/locale-provider";
+import { Callout } from "@/components/training/callout";
 import { ActionDialog } from "@/components/ui/action-dialog";
-import { Button } from "@/components/ui/button";
-import { Field, Input, Select, Textarea } from "@/components/ui/form";
-import { useToast } from "@/components/ui/toast";
+import { Button, ButtonLink } from "@/components/ui/button";
+import { ChoiceGroup } from "@/components/ui/choice-group";
+import { Checkbox, Field, Input, Select, Textarea } from "@/components/ui/form";
+import { SubmitButton } from "@/components/ui/submit-button";
+import { useActionForm } from "@/components/ui/use-action-form";
 import {
     cancelBoutAction,
     enterFightWeekAction,
     linkCampAction,
+    recordResultAction,
+    recordWeighInAction,
     updateBoutAction,
 } from "@/lib/actions/bouts";
-import type { Bout, TrainingPlan } from "@/lib/domain/types";
+import { CANCEL_REASONS, type CampBout, type CompetitionRuleset } from "@/lib/domain/bout";
+import {
+    asksHeadStrikes,
+    asksLossOfConsciousness,
+    awaitsWeighInDecision,
+    BOUT_RESULTS,
+    HYDRATION_CHECKS,
+    LOSS_OF_CONSCIOUSNESS,
+    madeWeight,
+    methodsFor,
+    passesWeighIn,
+    roundRuleFor,
+} from "@/lib/domain/bout-rules";
+import { formatNumber, toDateTimeInputValue } from "@/lib/format";
+import { routes } from "@/lib/routes";
+import { EventFields, RulesetNote, ScheduleFields, WeightClassField } from "../bout-schedule-fields";
+import { useNotify } from "../use-notify";
 
-export interface BoutHeaderActionsProps {
-    bout: Bout;
-    plans: TrainingPlan[];
-}
 
-function toLocalDatetimeInput(isoDate: string): string {
-    const d = new Date(isoDate);
-    if (Number.isNaN(d.getTime())) return "";
-    // Offset for UTC+7 (Asia/Ho_Chi_Minh)
-    const local = new Date(d.getTime() + 7 * 60 * 60 * 1000);
-    return local.toISOString().slice(0, 16);
-}
+/* ─── Header: edit and cancel ─────────────────────────────────────────────── */
 
-export function BoutHeaderActions({ bout, plans }: BoutHeaderActionsProps) {
+/** F8: event details, dates, class and the documents deadline. A class change needs a reason. */
+export function EditBoutButton({ bout, ruleset, todayOn }: { bout: CampBout; ruleset: CompetitionRuleset | null; todayOn: string }) {
+    const [open, setOpen] = useState(false);
+    const notify = useNotify();
     const t = useT();
-    const copy = useDemoCopy();
-    const toast = useToast();
-
-    const [linkOpen, setLinkOpen] = useState(false);
-    const [enterWeekOpen, setEnterWeekOpen] = useState(false);
-    const [cancelOpen, setCancelOpen] = useState(false);
-    const [editOpen, setEditOpen] = useState(false);
-
-    const isScheduled = bout.status === "SCHEDULED";
-    const isCamp = bout.status === "CAMP";
-    const canCancel = bout.status !== "COMPLETED" && bout.status !== "CANCELLED";
-    const canEdit = bout.status === "SCHEDULED" || bout.status === "CAMP" || bout.status === "FIGHT_WEEK";
-
+    const defaults = {
+        event: bout.event,
+        venue: bout.venue ?? "",
+        opponent: bout.opponent ?? "",
+        weightClassCode: bout.weightClassCode,
+        weightLimitKg: bout.limitKg === null ? "" : String(bout.limitKg),
+        weighInAt: toDateTimeInputValue(bout.weighInAt),
+        boutAt: toDateTimeInputValue(bout.boutAt),
+    };
     return (
-        <div className="flex flex-wrap items-center gap-2">
-            {isScheduled && (
-                <Button variant="primary" size="sm" onClick={() => setLinkOpen(true)}>
-                    <Link2 aria-hidden className="size-4" />
-                    {t("coachBouts.actions.linkCamp")}
-                </Button>
-            )}
-
-            {isCamp && (
-                <Button variant="primary" size="sm" onClick={() => setEnterWeekOpen(true)}>
-                    <Swords aria-hidden className="size-4" />
-                    {t("coachBouts.actions.enterFightWeek")}
-                </Button>
-            )}
-
-            {canEdit && (
-                <Button variant="secondary" size="sm" onClick={() => setEditOpen(true)}>
-                    <Edit3 aria-hidden className="size-4" />
-                    {t("coachBouts.actions.edit")}
-                </Button>
-            )}
-
-            {canCancel && (
-                <Button variant="ghost" size="sm" onClick={() => setCancelOpen(true)} className="text-danger-fg hover:bg-danger-soft">
-                    <XCircle aria-hidden className="size-4" />
-                    {t("coachBouts.actions.cancelBout")}
-                </Button>
-            )}
-
-            {/* Link Camp Plan Dialog */}
+        <>
+            <Button variant="secondary" onClick={() => setOpen(true)}>
+                <Pencil aria-hidden />
+                {t("boutDetail.common.edit")}
+            </Button>
             <ActionDialog
-                open={linkOpen}
-                onClose={() => setLinkOpen(false)}
-                title={t("coachBouts.dialog.linkCamp.title")}
-                description={t("coachBouts.dialog.linkCamp.description")}
-                action={linkCampAction}
-                submitLabel={t("coachBouts.dialog.linkCamp.submit")}
-                pendingLabel={t("coachBouts.dialog.linkCamp.pending")}
-                onSuccess={(state) => {
-                    toast({ title: t("coachBouts.toast.campLinked"), description: state.message });
-                    setLinkOpen(false);
-                }}
+                open={open}
+                onClose={() => setOpen(false)}
+                title={t("boutDetail.edit.title")}
+                description={t("boutDetail.edit.description")}
+                size="lg"
+                action={updateBoutAction}
+                submitLabel={t("boutDetail.edit.submit")}
+                pendingLabel={t("boutDetail.common.saving")}
+                onSuccess={notify}
             >
-                {(form) => (
-                    <div className="flex flex-col gap-4">
-                        <input type="hidden" name="boutId" value={bout.id} />
-                        {plans.length === 0 ? (
-                            <div className="rounded-lg border border-warning-border bg-warning-soft p-3.5 text-xs text-warning-fg">
-                                <span className="font-semibold">{t("coachBouts.dialog.linkCamp.noPlansTitle")}</span>
-                                <p className="mt-1">
-                                    {t("coachBouts.dialog.linkCamp.noPlansText")}
-                                </p>
-                            </div>
-                        ) : (
-                            <Field
-                                label={t("coachBouts.dialog.linkCamp.planLabel")}
-                                htmlFor="link-plan-id"
-                                required
-                                error={form.error("trainingPlanId")}
-                                hint={t("coachBouts.dialog.linkCamp.planHint")}
-                            >
-                                <Select id="link-plan-id" name="trainingPlanId" required defaultValue={plans[0]?.id}>
-                                    {plans.map((p) => (
-                                        <option key={p.id} value={p.id}>
-                                            {p.title} ({t("coachBouts.dialog.linkCamp.phaseOption", { phase: t(`coachBouts.phase.${p.phase}`) })})
+                {(form) => {
+                    const due = form.control("requirementsDueDays", { required: true, hint: true });
+                    const reason = form.control("changeReason", { hint: true });
+                    const notes = form.control("notes");
+                    return (
+                        <>
+                            <input type="hidden" name="boutId" value={bout.id} />
+                            <EventFields form={form} defaults={defaults} />
+                            <RulesetNote ruleset={ruleset} />
+                            <WeightClassField form={form} ruleset={ruleset} defaults={defaults} />
+                            <Field label={t("boutDetail.edit.changeReason")} htmlFor={reason.id} optional error={form.error("changeReason")} hint={t("boutDetail.edit.changeReasonHint")}>
+                                <Input {...reason} maxLength={300} />
+                            </Field>
+                            <ScheduleFields form={form} ruleset={ruleset} defaults={defaults} todayOn={todayOn} />
+                            <Field label={t("boutDetail.edit.dueDays")} htmlFor={due.id} required error={form.error("requirementsDueDays")} hint={t("boutDetail.edit.dueDaysHint")}>
+                                <Input {...due} inputMode="numeric" defaultValue={String(bout.requirementsDueDays)} className="w-28" />
+                            </Field>
+                            <Field label={t("boutDetail.common.notes")} htmlFor={notes.id} optional error={form.error("notes")}>
+                                <Textarea {...notes} rows={3} maxLength={500} defaultValue={bout.notes ?? ""} />
+                            </Field>
+                        </>
+                    );
+                }}
+            </ActionDialog>
+        </>
+    );
+}
+
+/** Cancelling is final; the camp plan stays and no suspension is created (H4). */
+export function CancelBoutButton({ bout }: { bout: CampBout }) {
+    const [open, setOpen] = useState(false);
+    const notify = useNotify();
+    const t = useT();
+    return (
+        <>
+            <Button variant="danger-soft" onClick={() => setOpen(true)}>
+                <Ban aria-hidden />
+                {t("boutDetail.cancel.button")}
+            </Button>
+            <ActionDialog
+                open={open}
+                onClose={() => setOpen(false)}
+                title={t("boutDetail.cancel.title")}
+                description={t("boutDetail.cancel.description")}
+                action={cancelBoutAction}
+                submitLabel={t("boutDetail.cancel.button")}
+                pendingLabel={t("boutDetail.cancel.pending")}
+                submitVariant="danger"
+                onSuccess={notify}
+            >
+                {(form) => {
+                    const reason = form.control("reason", { required: true });
+                    const note = form.control("note", { hint: true });
+                    return (
+                        <>
+                            <input type="hidden" name="boutId" value={bout.id} />
+                            <Field label={t("boutDetail.common.reason")} htmlFor={reason.id} required error={form.error("reason")}>
+                                <Select {...reason} defaultValue="">
+                                    <option value="">{t("boutDetail.cancel.chooseReason")}</option>
+                                    {CANCEL_REASONS.map((value) => (
+                                        <option key={value} value={value}>
+                                            {t(`boutLabel.cancelReason.${value}`)}
                                         </option>
                                     ))}
                                 </Select>
                             </Field>
-                        )}
-                    </div>
-                )}
-            </ActionDialog>
-
-            {/* Enter Fight Week Dialog */}
-            <ActionDialog
-                open={enterWeekOpen}
-                onClose={() => setEnterWeekOpen(false)}
-                title={t("coachBouts.dialog.enterFightWeek.title")}
-                description={t("coachBouts.dialog.enterFightWeek.description")}
-                action={enterFightWeekAction}
-                submitLabel={t("coachBouts.dialog.enterFightWeek.submit")}
-                pendingLabel={t("coachBouts.dialog.enterFightWeek.pending")}
-                onSuccess={(state) => {
-                    toast({ title: t("coachBouts.toast.enteredFightWeek"), description: state.message });
-                    setEnterWeekOpen(false);
+                            <Field label={t("boutDetail.common.note")} htmlFor={note.id} error={form.error("note")} hint={t("boutDetail.cancel.noteHint")}>
+                                <Textarea {...note} rows={3} maxLength={300} />
+                            </Field>
+                        </>
+                    );
                 }}
-            >
-                {() => (
-                    <div className="flex flex-col gap-3">
-                        <input type="hidden" name="boutId" value={bout.id} />
-                        <p className="text-sm text-fg">
-                            {t("coachBouts.dialog.enterFightWeek.notice")}
-                        </p>
-                        {bout.gate1 && !bout.gate1.passed && (
-                            <div className="flex items-start gap-2 rounded-lg border border-danger-border bg-danger-soft p-3 text-xs text-danger-fg">
-                                <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
-                                <div>
-                                    <span className="font-semibold">{t("coachBouts.dialog.enterFightWeek.gate1MissingTitle")}</span>
-                                    <ul className="mt-1 list-inside list-disc">
-                                        {[...bout.gate1.missing, ...bout.gate1.expiring].map((item) => (
-                                            <li key={item}>{copy(item)}</li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                )}
             </ActionDialog>
+        </>
+    );
+}
 
-            {/* Cancel Bout Dialog */}
+/* ─── Scheduled: link the camp ────────────────────────────────────────────── */
+
+export interface CampPlanOption {
+    id: string;
+    title: string;
+    period: string;
+}
+
+/** F2: link one of the fighter's fight-camp plans; the bout moves to camp. */
+export function LinkCampButton({ bout, plans, fighterName }: { bout: CampBout; plans: CampPlanOption[]; fighterName: string }) {
+    const [open, setOpen] = useState(false);
+    const notify = useNotify();
+    const t = useT();
+    if (plans.length === 0) {
+        return (
+            <div className="flex flex-col gap-3">
+                <p className="text-sm text-fg-muted">{t("boutDetail.link.noPlans", { name: fighterName })}</p>
+                <ButtonLink href={`${routes.coach.newPlan}?fighter=${encodeURIComponent(bout.fighterId)}`} className="self-start">
+                    <CalendarPlus aria-hidden />
+                    {t("boutDetail.link.createPlan")}
+                </ButtonLink>
+            </div>
+        );
+    }
+    return (
+        <>
+            <Button onClick={() => setOpen(true)} className="self-start">
+                <Link2 aria-hidden />
+                {t("boutDetail.link.button")}
+            </Button>
             <ActionDialog
-                open={cancelOpen}
-                onClose={() => setCancelOpen(false)}
-                title={t("coachBouts.dialog.cancel.title")}
-                description={t("coachBouts.dialog.cancel.description")}
-                action={cancelBoutAction}
-                submitLabel={t("coachBouts.dialog.cancel.submit")}
-                submitVariant="danger"
-                pendingLabel={t("coachBouts.dialog.cancel.pending")}
-                onSuccess={(state) => {
-                    toast({ title: t("coachBouts.toast.boutCancelled"), description: state.message });
-                    setCancelOpen(false);
+                open={open}
+                onClose={() => setOpen(false)}
+                title={t("boutDetail.link.title")}
+                description={t("boutDetail.link.description")}
+                action={linkCampAction}
+                submitLabel={t("boutDetail.link.submit")}
+                pendingLabel={t("boutDetail.link.pending")}
+                onSuccess={notify}
+            >
+                {(form) => {
+                    const plan = form.control("trainingPlanId", { required: true });
+                    return (
+                        <>
+                            <input type="hidden" name="boutId" value={bout.id} />
+                            <Field label={t("boutDetail.link.plan")} htmlFor={plan.id} required error={form.error("trainingPlanId")}>
+                                <Select {...plan} defaultValue={plans.length === 1 ? plans[0].id : ""}>
+                                    {plans.length > 1 && <option value="">{t("boutDetail.link.choosePlan")}</option>}
+                                    {plans.map((option) => (
+                                        <option key={option.id} value={option.id}>
+                                            {option.title} ({option.period})
+                                        </option>
+                                    ))}
+                                </Select>
+                            </Field>
+                        </>
+                    );
                 }}
-            >
-                {(form) => (
-                    <div className="flex flex-col gap-4">
-                        <input type="hidden" name="boutId" value={bout.id} />
-                        <Field
-                            label={t("coachBouts.dialog.cancel.reasonLabel")}
-                            htmlFor="cancel-reason"
-                            required
-                            error={form.error("reason")}
-                            hint={t("coachBouts.dialog.cancel.reasonHint")}
-                        >
-                            <Textarea
-                                {...form.control("reason", { id: "cancel-reason", required: true })}
-                                rows={3}
-                                placeholder={t("coachBouts.dialog.cancel.reasonPlaceholder")}
-                                maxLength={300}
-                            />
-                        </Field>
-                    </div>
-                )}
             </ActionDialog>
+        </>
+    );
+}
 
-            {/* Edit Bout Dialog */}
+/* ─── Camp: Gate 1 ────────────────────────────────────────────────────────── */
+
+/** CAMP → FIGHT_WEEK. When Gate 1 refuses, the bout stays in camp and the reasons are listed here. */
+export function EnterFightWeekForm({ boutId }: { boutId: string }) {
+    const form = useActionForm(enterFightWeekAction);
+    const t = useT();
+    const blocked = form.state.status === "error" ? form.state : null;
+    return (
+        <form {...form.formProps} className="flex flex-col gap-3">
+            <input type="hidden" name="boutId" value={boutId} />
+            {blocked && (
+                <Callout tone="warning" icon={ShieldAlert} role="alert" title={blocked.message ?? t("boutDetail.fightWeek.blocked")}>
+                    {blocked.data?.lines.length ? (
+                        <ul className="mt-1 list-disc pl-5">
+                            {blocked.data.lines.map((line) => (
+                                <li key={line}>{line}</li>
+                            ))}
+                        </ul>
+                    ) : null}
+                </Callout>
+            )}
+            <SubmitButton pending={form.pending} pendingLabel={t("boutDetail.fightWeek.pending")} className="self-start">
+                <Flag aria-hidden />
+                {t("boutDetail.fightWeek.submit")}
+            </SubmitButton>
+        </form>
+    );
+}
+
+/* ─── Fight week: official weigh-in (F5) ──────────────────────────────────── */
+
+export function WeighInButton({ bout }: { bout: CampBout }) {
+    // A miss already on record (the service keeps it until the coach decides) opens on that weight, so only the
+    // decision is left to make.
+    const pending = awaitsWeighInDecision(bout) ? bout.weighIn : null;
+    const initialWeight = pending ? String(pending.weightKg) : "";
+    const initialHydration = pending?.hydrationCheck ?? "";
+    const [open, setOpen] = useState(false);
+    const [weight, setWeight] = useState(initialWeight);
+    const [hydration, setHydration] = useState<string>(initialHydration);
+    const [decision, setDecision] = useState<"" | "CATCHWEIGHT" | "CANCEL">("");
+    const notify = useNotify();
+    const t = useT();
+    const limit = bout.catchweightKg ?? bout.limitKg;
+    const kg = Number(weight.trim().replace(",", "."));
+    const entered = weight.trim() !== "" && Number.isFinite(kg);
+    const overLimit = entered && !madeWeight(kg, limit);
+    const missed = entered && !passesWeighIn(kg, limit, hydration === "FAILED" ? "FAILED" : null);
+
+    return (
+        <>
+            <Button onClick={() => setOpen(true)} className="self-start">
+                <Scale aria-hidden />
+                {pending ? t("boutDetail.weighIn.decideButton") : t("boutDetail.weighIn.button")}
+            </Button>
             <ActionDialog
-                open={editOpen}
-                onClose={() => setEditOpen(false)}
+                open={open}
+                onClose={() => {
+                    setOpen(false);
+                    setWeight(initialWeight);
+                    setDecision("");
+                    setHydration(initialHydration);
+                }}
+                title={t("boutDetail.weighIn.title")}
+                description={limit === null ? t("boutDetail.weighIn.openClass") : t("boutDetail.weighIn.limit", { kg: formatNumber(limit, 1) })}
+                action={recordWeighInAction}
+                submitLabel={missed && decision === "CANCEL" ? t("boutDetail.cancel.button") : t("boutDetail.weighIn.submit")}
+                submitVariant={missed && decision === "CANCEL" ? "danger" : "primary"}
+                pendingLabel={t("boutDetail.common.saving")}
+                onSuccess={notify}
+            >
+                {(form) => {
+                    const weightControl = form.control("weightKg", { required: true });
+                    const hydrationControl = form.control("hydrationCheck", { hint: true });
+                    const catchweight = form.control("catchweightKg", { required: true });
+                    const note = form.control("note");
+                    return (
+                        <>
+                            <input type="hidden" name="boutId" value={bout.id} />
+                            <Field label={t("boutDetail.common.officialWeight")} htmlFor={weightControl.id} required error={form.error("weightKg")}>
+                                <Input {...weightControl} inputMode="decimal" autoComplete="off" suffix="kg" value={weight} onChange={(event) => setWeight(event.target.value)} />
+                            </Field>
+                            {entered && (limit !== null || missed) && (
+                                <p role="status" className={missed ? "text-sm font-medium text-danger-fg" : "text-sm font-medium text-success-fg"}>
+                                    {overLimit && limit !== null
+                                        ? t("boutDetail.weighIn.over", { kg: formatNumber(kg - limit, 1) })
+                                        : missed
+                                          ? t("boutDetail.weighIn.hydrationFailed")
+                                          : t("boutDetail.weighIn.made")}
+                                </p>
+                            )}
+                            <Field label={t("boutDetail.common.hydrationCheck")} htmlFor={hydrationControl.id} optional error={form.error("hydrationCheck")} hint={t("boutDetail.weighIn.hydrationHint")}>
+                                <Select {...hydrationControl} value={hydration} onChange={(event) => setHydration(event.target.value)}>
+                                    <option value="">{t("boutDetail.weighIn.notRecorded")}</option>
+                                    {HYDRATION_CHECKS.map((value) => (
+                                        <option key={value} value={value}>
+                                            {t(`boutLabel.hydration.${value}`)}
+                                        </option>
+                                    ))}
+                                </Select>
+                            </Field>
+                            {missed && (
+                                <>
+                                    <ChoiceGroup
+                                        id={`${form.formProps.id}-decision`}
+                                        name="decision"
+                                        legend={t("boutDetail.weighIn.decision")}
+                                        required
+                                        options={[
+                                            { value: "CATCHWEIGHT", label: t("boutDetail.weighIn.goOn"), description: t("boutDetail.weighIn.goOnDescription") },
+                                            {
+                                                value: "CANCEL",
+                                                label: t("boutDetail.weighIn.cancel"),
+                                                description: t("boutDetail.weighIn.cancelDescription", { reason: t("boutLabel.cancelReason.MISSED_WEIGHT") }),
+                                            },
+                                        ]}
+                                        value={decision}
+                                        onChange={setDecision}
+                                        error={form.error("decision")}
+                                    />
+                                    {decision === "CATCHWEIGHT" && (
+                                        <Field label={t("boutDetail.common.catchweight")} htmlFor={catchweight.id} required error={form.error("catchweightKg")}>
+                                            <Input {...catchweight} inputMode="decimal" autoComplete="off" suffix="kg" />
+                                        </Field>
+                                    )}
+                                    <Field label={t("boutDetail.common.note")} htmlFor={note.id} required={decision === "CATCHWEIGHT"} optional={decision !== "CATCHWEIGHT"} error={form.error("note")}>
+                                        <Textarea {...note} rows={2} maxLength={300} placeholder={decision === "CATCHWEIGHT" ? t("boutDetail.weighIn.notePlaceholder") : undefined} />
+                                    </Field>
+                                </>
+                            )}
+                        </>
+                    );
+                }}
+            </ActionDialog>
+        </>
+    );
+}
+
+/* ─── Weighed in: result (F6) ─────────────────────────────────────────────── */
+
+export function ResultButton({ bout }: { bout: CampBout }) {
+    const [open, setOpen] = useState(false);
+    const [result, setResult] = useState("");
+    const [method, setMethod] = useState("");
+    const notify = useNotify();
+    const t = useT();
+    const methods = methodsFor(bout.sport);
+    const roundRule = roundRuleFor(method);
+
+    return (
+        <>
+            <Button onClick={() => setOpen(true)} className="self-start">
+                <Trophy aria-hidden />
+                {t("boutDetail.result.button")}
+            </Button>
+            <ActionDialog
+                open={open}
+                onClose={() => {
+                    setOpen(false);
+                    setResult("");
+                    setMethod("");
+                }}
+                title={t("boutDetail.result.title")}
+                description={t("boutDetail.result.description")}
                 size="lg"
-                title={t("coachBouts.dialog.edit.title")}
-                description={t("coachBouts.dialog.edit.description")}
-                action={updateBoutAction}
-                submitLabel={t("coachBouts.dialog.edit.submit")}
-                pendingLabel={t("coachBouts.dialog.edit.pending")}
-                prepare={(fd) => {
-                    const rawWeight = fd.get("weightLimitKg");
-                    if (typeof rawWeight === "string") {
-                        fd.set("weightLimitKg", rawWeight.replace(",", "."));
-                    }
-                    const wIn = fd.get("weighInAt") as string;
-                    const bAt = fd.get("boutAt") as string;
-                    if (wIn && bAt) {
-                        const wMs = new Date(wIn).getTime();
-                        const bMs = new Date(bAt).getTime();
-                        if (wMs >= bMs) {
-                            return {
-                                status: "error",
-                                message: t("coachBouts.form.error.weighInBeforeBout"),
-                                fieldErrors: { weighInAt: t("coachBouts.form.error.weighInBeforeBout") },
-                            };
-                        }
-                    }
-                }}
-                onSuccess={(state) => {
-                    toast({ title: t("coachBouts.toast.boutUpdated"), description: state.message });
-                    setEditOpen(false);
-                }}
+                action={recordResultAction}
+                submitLabel={t("boutDetail.result.submit")}
+                pendingLabel={t("boutDetail.common.saving")}
+                onSuccess={notify}
             >
-                {(form) => (
-                    <div className="flex flex-col gap-4">
-                        <input type="hidden" name="boutId" value={bout.id} />
-
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <Field
-                                label={t("coachBouts.form.eventName")}
-                                htmlFor="edit-event-name"
-                                required
-                                error={form.error("eventName")}
-                            >
-                                <Input
-                                    id="edit-event-name"
-                                    name="eventName"
-                                    required
-                                    defaultValue={bout.eventName}
-                                    maxLength={120}
-                                />
-                            </Field>
-
-                            <Field
-                                label={t("bout.venue")}
-                                htmlFor="edit-venue"
-                                error={form.error("venue")}
-                            >
-                                <Input
-                                    id="edit-venue"
-                                    name="venue"
-                                    defaultValue={bout.venue ?? ""}
-                                    maxLength={120}
-                                />
-                            </Field>
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <Field
-                                label={t("coachBouts.form.opponent")}
-                                htmlFor="edit-opponent-name"
-                                error={form.error("opponentName")}
-                            >
-                                <Input
-                                    id="edit-opponent-name"
-                                    name="opponentName"
-                                    defaultValue={bout.opponentName ?? ""}
-                                    maxLength={100}
-                                />
-                            </Field>
-
-                            <Field
-                                label={t("coachBouts.form.weightLimit")}
-                                htmlFor="edit-weight-limit"
-                                required
-                                error={form.error("weightLimitKg")}
-                            >
-                                <Input
-                                    id="edit-weight-limit"
-                                    name="weightLimitKg"
-                                    type="text"
-                                    inputMode="decimal"
-                                    required
-                                    defaultValue={bout.weightLimitKg.toString()}
-                                />
-                            </Field>
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <Field
-                                label={t("coachBouts.form.weighInAt")}
-                                htmlFor="edit-weigh-in-at"
-                                required
-                                error={form.error("weighInAt")}
-                            >
-                                <Input
-                                    id="edit-weigh-in-at"
-                                    name="weighInAt"
-                                    type="datetime-local"
-                                    required
-                                    defaultValue={toLocalDatetimeInput(bout.weighInAt)}
-                                />
-                            </Field>
-
-                            <Field
-                                label={t("coachBouts.form.boutAt")}
-                                htmlFor="edit-bout-at"
-                                required
-                                error={form.error("boutAt")}
-                            >
-                                <Input
-                                    id="edit-bout-at"
-                                    name="boutAt"
-                                    type="datetime-local"
-                                    required
-                                    defaultValue={toLocalDatetimeInput(bout.boutAt)}
-                                />
-                            </Field>
-                        </div>
-
-                        <Field
-                            label={t("coachBouts.dialog.edit.dueDaysLabel")}
-                            htmlFor="edit-due-days"
-                            error={form.error("requirementsDueDays")}
-                            hint={t("coachBouts.dialog.edit.dueDaysHint")}
-                        >
-                            <Input
-                                id="edit-due-days"
-                                name="requirementsDueDays"
-                                type="number"
-                                min={0}
-                                max={60}
-                                defaultValue={bout.requirementsDueDays}
+                {(form) => {
+                    const resultControl = form.control("result", { required: true });
+                    const methodControl = form.control("method", { required: true });
+                    const round = form.control("round", { hint: true, required: roundRule === "REQUIRED" });
+                    const loc = form.control("lossOfConsciousness", { required: true });
+                    const head = form.control("stoppedByHeadStrikes", { required: true });
+                    const knockedDown = form.control("knockedDown");
+                    const injury = form.control("injuryNote", { hint: true });
+                    const notes = form.control("notes");
+                    return (
+                        <>
+                            <input type="hidden" name="boutId" value={bout.id} />
+                            <div className="grid min-w-0 grid-cols-1 gap-5 sm:grid-cols-2">
+                                <Field label={t("boutDetail.common.result")} htmlFor={resultControl.id} required error={form.error("result")}>
+                                    <Select {...resultControl} value={result} onChange={(event) => setResult(event.target.value)}>
+                                        <option value="">{t("boutDetail.common.choose")}</option>
+                                        {BOUT_RESULTS.map((value) => (
+                                            <option key={value} value={value}>
+                                                {t(`boutLabel.result.${value}`)}
+                                            </option>
+                                        ))}
+                                    </Select>
+                                </Field>
+                                <Field label={t("boutDetail.result.method")} htmlFor={methodControl.id} required error={form.error("method")}>
+                                    <Select {...methodControl} value={method} onChange={(event) => setMethod(event.target.value)}>
+                                        <option value="">{t("boutDetail.common.choose")}</option>
+                                        {methods.map((value) => (
+                                            <option key={value} value={value}>
+                                                {t(`boutLabel.method.${value}`)}
+                                            </option>
+                                        ))}
+                                    </Select>
+                                </Field>
+                            </div>
+                            {roundRule !== "NOT_ALLOWED" && (
+                                <Field
+                                    label={t("boutDetail.result.round")}
+                                    htmlFor={round.id}
+                                    required={roundRule === "REQUIRED"}
+                                    optional={roundRule === "OPTIONAL"}
+                                    error={form.error("round")}
+                                    hint={roundRule === "REQUIRED" ? t("boutDetail.result.roundRequiredHint") : t("boutDetail.result.roundHint")}
+                                >
+                                    <Input {...round} inputMode="numeric" className="w-28" />
+                                </Field>
+                            )}
+                            {asksLossOfConsciousness(result, method) && (
+                                <Field label={t("boutDetail.result.lostConsciousness")} htmlFor={loc.id} required error={form.error("lossOfConsciousness")}>
+                                    <Select {...loc} defaultValue="">
+                                        <option value="">{t("boutDetail.common.choose")}</option>
+                                        {LOSS_OF_CONSCIOUSNESS.map((value) => (
+                                            <option key={value} value={value}>
+                                                {t(`boutLabel.loc.${value}`)}
+                                            </option>
+                                        ))}
+                                    </Select>
+                                </Field>
+                            )}
+                            {asksHeadStrikes(result, method) && (
+                                <Field label={t("boutDetail.result.headStrikes")} htmlFor={head.id} required error={form.error("stoppedByHeadStrikes")}>
+                                    <Select {...head} defaultValue="">
+                                        <option value="">{t("boutDetail.common.choose")}</option>
+                                        <option value="yes">{t("boutDetail.common.yes")}</option>
+                                        <option value="no">{t("boutDetail.common.no")}</option>
+                                    </Select>
+                                </Field>
+                            )}
+                            <Checkbox
+                                id={knockedDown.id}
+                                name="knockedDown"
+                                value="yes"
+                                label={t("boutDetail.result.knockedDown")}
+                                description={t("boutDetail.result.knockedDownDescription")}
                             />
-                        </Field>
-
-                        <Field
-                            label={t("coachBouts.form.notes")}
-                            htmlFor="edit-notes"
-                            error={form.error("notes")}
-                        >
-                            <Textarea
-                                id="edit-notes"
-                                name="notes"
-                                rows={2}
-                                defaultValue={bout.notes ?? ""}
-                                maxLength={500}
-                            />
-                        </Field>
-                    </div>
-                )}
+                            <Field label={t("boutDetail.result.injuries")} htmlFor={injury.id} optional error={form.error("injuryNote")} hint={t("boutDetail.result.injuriesHint")}>
+                                <Textarea {...injury} rows={2} maxLength={500} />
+                            </Field>
+                            <Field label={t("boutDetail.common.notes")} htmlFor={notes.id} optional error={form.error("notes")}>
+                                <Textarea {...notes} rows={2} maxLength={500} />
+                            </Field>
+                        </>
+                    );
+                }}
             </ActionDialog>
-        </div>
+        </>
     );
 }

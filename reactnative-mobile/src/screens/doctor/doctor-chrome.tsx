@@ -7,7 +7,7 @@ import { ThemeToggle } from "@/components/auth/theme-toggle";
 import { doctor } from "@/i18n/doctor";
 import { vi } from "@/i18n/vi";
 import { useSession } from "@/session/session-context";
-import { radius, spacing, type, useThemePreference } from "@/theme";
+import { radius, spacing, type, useThemePreference, useTypography } from "@/theme";
 
 export function fighterName(row: { firstName: string; lastName: string }): string {
   return `${row.firstName} ${row.lastName}`.trim();
@@ -31,6 +31,8 @@ export function DoctorChrome({
   requireDoctor?: boolean;
 }) {
   const { colors } = useThemePreference();
+  const { sizeFactor } = useTypography();
+  const wordmarkSize = sizeFactor === 1 ? 22 : Math.round(22 * sizeFactor * 10) / 10;
   const insets = useSafeAreaInsets();
   const { user } = useSession();
   const isDoctor = user?.role === "DOCTOR";
@@ -39,7 +41,7 @@ export function DoctorChrome({
   return (
     <View style={[styles.root, { backgroundColor: colors.bg, paddingTop: insets.top + spacing.md }]}>
       <View style={styles.top}>
-        <Text style={[type.wordmark, { color: colors.ink, fontSize: 22 }]}>{vi.brand.wordmark}</Text>
+        <Text style={[type.wordmark, { color: colors.ink, fontSize: wordmarkSize }]}>{vi.brand.wordmark}</Text>
         <ThemeToggle />
       </View>
       <Text style={[type.title, { color: colors.ink }]}>{title}</Text>

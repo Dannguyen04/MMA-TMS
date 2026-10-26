@@ -3,6 +3,7 @@ import { Text } from "react-native";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 
 import { getFighterMedical, isApiError, type MedicalDossier } from "@/api";
+import { useToastMessage } from "@/components/toast/app-toast";
 import { DoctorAssignmentList } from "@/components/medical/doctor-assignment-list";
 import { MedicalDossierView } from "@/components/medical/medical-dossier-view";
 import { ReviewRequestPanel } from "@/components/medical/review-request-panel";
@@ -35,6 +36,7 @@ export function CoachFighterMedicalScreen() {
   const fighterId = useCoachFighterId();
   const [dossier, setDossier] = useState<MedicalDossier | null>(null);
   const [error, setError] = useState("");
+  useToastMessage(error, "error");
   const [loading, setLoading] = useState(false);
   const [closed, setClosed] = useState(false);
   const seqRef = useRef(0);
@@ -81,7 +83,6 @@ export function CoachFighterMedicalScreen() {
 
   return (
     <CoachScaffold title={coach.medicalTitle} keyboard inStack>
-      {error ? <CoachBanner message={error} tone="danger" /> : null}
       {error ? (
         <CoachCard onPress={load}>
           <Text style={[type.link, { color: colors.lotus }]}>{coach.retry}</Text>

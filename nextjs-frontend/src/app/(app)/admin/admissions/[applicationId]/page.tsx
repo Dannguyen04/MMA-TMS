@@ -1,22 +1,25 @@
-import { ClipboardCheck, Gavel, MailCheck, UserRound, UserSearch, UsersRound } from "lucide-react";
+import { ClipboardCheck, Gavel, MailCheck, Stethoscope, UserRound, UserSearch, UsersRound } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 
+import { careTeamNextStep } from "@/components/admin/admin-attention";
 import { DecisionForm, EvaluatorForm, ResendActivationForm } from "@/components/admissions/admission-admin-forms";
 import { ApplicantDetailsList, AssessmentView } from "@/components/admissions/application-views";
 import { ApplicationStatusBadge } from "@/components/domain/status-badges";
+import { Callout } from "@/components/training/callout";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { DescriptionList } from "@/components/ui/description-list";
 import { PageHeader } from "@/components/ui/page-header";
 import { requireRole } from "@/lib/auth/session";
 import { ACTIVATION_STATUS_LABELS, DECISION_LABELS, applicantName, type Application } from "@/lib/domain/admissions";
-import type { StaffOption } from "@/lib/domain/care-team";
+import { CARE_ROLES, type CareRole, type CareTeamMember, type StaffOption } from "@/lib/domain/care-team";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { getApplication } from "@/lib/services/admissions";
-import { listStaffAccounts } from "@/lib/services/care-team";
+import { getCareTeam, listStaffAccounts } from "@/lib/services/care-team";
+import { getUser } from "@/lib/services/people";
 
 /** One read per request, shared by the metadata and the page. */
 const loadApplication = cache((applicationId: string) => getApplication(applicationId));
@@ -27,12 +30,30 @@ export async function generateMetadata({ params }: PageProps<"/admin/admissions/
     return { title: application ? `${applicantName(application.applicant)} — Application` : "Application not found" };
 }
 
+interface FighterCareTeam {
+    members: Record<CareRole, CareTeamMember[]>;
+    missing: CareRole[];
+}
+
+/** An activated applicant's care team, read through their new fighter profile; null when it couldn't be read. */
+async function loadFighterCareTeam(userId: string): Promise<FighterCareTeam | null> {
+    const account = await getUser(userId);
+    if (!account?.profileId) return null;
+    const { coach, doctor } = await getCareTeam(account.profileId);
+    if (coach === null || doctor === null) return null;
+    const members = { coach, doctor };
+    return { members, missing: CARE_ROLES.filter((role) => members[role].length === 0) };
+}
+
 export default async function AdminAdmissionPage({ params }: PageProps<"/admin/admissions/[applicationId]">) {
     await requireRole("admin");
     const [application, coaches] = await Promise.all([loadApplication((await params).applicationId), listStaffAccounts("coach")]);
     if (!application) notFound();
     const name = applicantName(application.applicant);
     const coachName = (coachId: string) => coaches.find((coach) => coach.staffId === coachId)?.name ?? "Coach";
+    // Activation isn't the end of admission: the new fighter can't train until they have a sports doctor.
+    const careTeam = application.status === "activated" ? await loadFighterCareTeam(application.applicantId) : null;
+    const nextStep = careTeam ? careTeamNextStep(careTeam.missing) : null;
 
     return (
         <>
@@ -48,6 +69,24 @@ export default async function AdminAdmissionPage({ params }: PageProps<"/admin/a
                     </>
                 }
             />
+            {careTeam && nextStep && (
+                <Callout
+                    tone={careTeam.missing.includes("doctor") ? "warning" : "info"}
+                    icon={careTeam.missing.includes("doctor") ? Stethoscope : UsersRound}
+                    title={nextStep.title}
+                    className="mb-6"
+                    action={
+                        <ButtonLink href={routes.admin.userCareTeam(application.applicantId)}>
+                            <UsersRound aria-hidden />
+                            {nextStep.action}
+                        </ButtonLink>
+                    }
+                >
+                    {careTeam.missing.includes("doctor")
+                        ? `${name} activated their fighter account. They can't train until a sports doctor runs the baseline examination.`
+                        : `${name} activated their fighter account and has a sports doctor. Nobody plans their training until a coach is assigned.`}
+                </Callout>
+            )}
             <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                 <div className="flex min-w-0 flex-col gap-6 lg:col-span-2">
                     <Card>
@@ -72,7 +111,7 @@ export default async function AdminAdmissionPage({ params }: PageProps<"/admin/a
                 </div>
                 <div className="flex min-w-0 flex-col gap-6">
                     <EvaluatorCard application={application} coaches={coaches} coachName={coachName} />
-                    {application.activation && <ActivationCard application={application} activation={application.activation} />}
+                    {application.activation && <ActivationCard application={application} activation={application.activation} careTeam={careTeam} />}
                 </div>
             </div>
         </>
@@ -127,7 +166,21 @@ function EvaluatorCard({ application, coaches, coachName }: { application: Appli
     );
 }
 
-function ActivationCard({ application, activation }: { application: Application; activation: NonNullable<Application["activation"]> }) {
+/**
+ * The activation emails and, once activated, who looks after the new fighter. While the care team is incomplete the
+ * page's callout carries the one action, so the card only links to the account.
+ */
+function ActivationCard({
+    application,
+    activation,
+    careTeam,
+}: {
+    application: Application;
+    activation: NonNullable<Application["activation"]>;
+    /** The new fighter's care team; null before activation or when it couldn't be read. */
+    careTeam: FighterCareTeam | null;
+}) {
+    const names = (role: CareRole) => careTeam?.members[role].map((member) => member.name).join(", ");
     return (
         <Card>
             <CardHeader title="Activation" icon={<MailCheck />} />
@@ -143,13 +196,19 @@ function ActivationCard({ application, activation }: { application: Application;
                             value: activation.lastAcceptedAt ? formatDateTime(activation.lastAcceptedAt) : <span className="font-normal text-fg-subtle">Not yet</span>,
                         },
                         ...(activation.completedAt ? [{ label: "Activated", value: formatDateTime(activation.completedAt) }] : []),
+                        ...(careTeam
+                            ? [
+                                  { label: "Coach", value: names("coach") || <span className="font-normal text-fg-subtle">Not assigned yet</span> },
+                                  { label: "Sports doctor", value: names("doctor") || <span className="font-normal text-fg-subtle">Not assigned yet</span> },
+                              ]
+                            : []),
                     ]}
                 />
                 {application.status === "approved" && <ResendActivationForm applicationId={application.id} />}
-                {application.status === "activated" && (
-                    <ButtonLink href={routes.admin.user(application.applicantId)} variant="secondary" size="sm" className="self-start">
+                {application.status === "activated" && (careTeam === null || careTeam.missing.length === 0) && (
+                    <ButtonLink href={routes.admin.userCareTeam(application.applicantId)} variant="secondary" size="sm" className="self-start">
                         <UsersRound aria-hidden />
-                        Assign a coach and a sports doctor
+                        {careTeam ? "View care team" : "Check the care team"}
                     </ButtonLink>
                 )}
             </CardContent>

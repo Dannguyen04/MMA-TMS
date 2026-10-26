@@ -1,5 +1,5 @@
-import { DashboardSkeleton } from "@/components/ui/skeleton";
+import { QueueSkeleton } from "@/components/ui/skeleton";
 
 export default function Loading() {
-    return <DashboardSkeleton label="Loading platform overview" eyebrow />;
+    return <QueueSkeleton label="Loading today" actions={1} />;
 }

@@ -1,15 +1,10 @@
-import { blocked } from "@/i18n/blocked";
-import { DoctorBlockedCard, DoctorBlockedPage } from "@/screens/doctor/blocked-page";
-import { Text } from "react-native";
-import { type, useThemePreference } from "@/theme";
+import { NotificationInbox } from "@/screens/notifications/inbox";
+import { DoctorChrome } from "@/screens/doctor/doctor-chrome";
 
 export default function DoctorNotificationsRoute() {
-  const { colors } = useThemePreference();
   return (
-    <DoctorBlockedPage title={blocked.notificationsNav} extra={blocked.notifications}>
-      <DoctorBlockedCard>
-        <Text style={[type.body, { color: colors.inkMuted }]}>{blocked.empty}</Text>
-      </DoctorBlockedCard>
-    </DoctorBlockedPage>
+    <DoctorChrome title="Thông báo">
+      <NotificationInbox title="Hộp thư" />
+    </DoctorChrome>
   );
 }

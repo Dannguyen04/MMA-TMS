@@ -1,15 +1,16 @@
-import { blocked } from "@/i18n/blocked";
-import { DoctorBlockedCard, DoctorBlockedPage } from "@/screens/doctor/blocked-page";
 import { Text } from "react-native";
+
+import { media } from "@/i18n/media";
+import { DoctorChrome } from "@/screens/doctor/doctor-chrome";
 import { type, useThemePreference } from "@/theme";
 
-export default function DoctorAiAlertDetailRoute() {
+export default function DoctorAiAlertLegacyRoute() {
   const { colors } = useThemePreference();
   return (
-    <DoctorBlockedPage title={blocked.aiAlerts} extra={blocked.relatedJobs}>
-      <DoctorBlockedCard>
-        <Text style={[type.body, { color: colors.inkMuted }]}>{blocked.empty}</Text>
-      </DoctorBlockedCard>
-    </DoctorBlockedPage>
+    <DoctorChrome title={media.alertDetailTitle}>
+      <Text style={[type.body, { color: colors.ink }]}>
+        Mở một cảnh báo từ danh sách. GET /jobs/impairments trả job mà bác sĩ đang phụ trách được xem.
+      </Text>
+    </DoctorChrome>
   );
 }

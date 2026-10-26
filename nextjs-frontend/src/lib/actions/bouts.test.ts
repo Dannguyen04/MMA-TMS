@@ -1,261 +1,152 @@
-import { describe, expect, it } from "vitest";
-import { z } from "zod";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { enCoachBouts } from "@/lib/i18n/messages/coach-bouts.en";
-import { viCoachBouts } from "@/lib/i18n/messages/coach-bouts.vi";
-import {
-    addRequirementSchema,
-    buildAddRequirementSchema,
-    buildCreateBoutSchema,
-    buildUpdateBoutSchema,
-    createBoutSchema,
-    emptyToUndefined,
-    updateBoutSchema,
-} from "./bout-schemas";
-import { FIX_FIELDS, validationError } from "./state";
+import type { User } from "@/lib/domain/types";
 
-describe("bouts schema numeric preprocessing and validation", () => {
-    describe("emptyToUndefined helper", () => {
-        it("converts empty string to undefined", () => {
-            expect(emptyToUndefined("")).toBeUndefined();
-        });
+const ROSTER = ["f-minh-tran", "f-aigerim-sadykova", "f-kenji-morita", "f-diego-alvarez", "f-linh-pham", "f-marcus-hale", "f-tariq-haddad", "f-emma-lindqvist"];
 
-        it("converts whitespace string to undefined", () => {
-            expect(emptyToUndefined("   ")).toBeUndefined();
-        });
+const coach = vi.hoisted(() => ({
+    current: null as User | null,
+}));
+const navigation = vi.hoisted(() => ({
+    redirect: vi.fn((href: string) => {
+        throw new Error(`redirect:${href}`);
+    }),
+}));
 
-        it("preserves undefined and null as undefined", () => {
-            expect(emptyToUndefined(undefined)).toBeUndefined();
-            expect(emptyToUndefined(null)).toBeUndefined();
-        });
+vi.mock("next/navigation", () => navigation);
+vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+vi.mock("@/lib/auth/session", async (loadOriginal) => ({
+    ...(await loadOriginal<typeof import("@/lib/auth/session")>()),
+    requireRole: vi.fn(async () => coach.current),
+}));
+// The actions read the viewer's language from a cookie; outside a request the tests use English.
+vi.mock("@/lib/i18n/server", async () => {
+    const { createTranslator } = await import("@/lib/i18n/translate");
+    return { getTranslator: async () => ({ locale: "en", t: createTranslator("en") }) };
+});
 
-        it("replaces decimal commas with dots and trims strings", () => {
-            expect(emptyToUndefined(" 63,5 ")).toBe("63.5");
-        });
+import { addDaysToKey, dayKey } from "@/lib/format";
+import { getDemoBout, listDemoBouts, recordDemoResult, recordDemoWeighIn, resetDemoCampStore } from "@/lib/services/bouts.demo";
+import { createBoutAction, createSuspensionAction, enterFightWeekAction, recordWeighInAction, updateRequirementAction } from "./bouts";
+import { IDLE } from "./state";
 
-        it("preserves non-empty string and numbers", () => {
-            expect(emptyToUndefined("30")).toBe("30");
-            expect(emptyToUndefined(30)).toBe(30);
-        });
+function rafael(fighterIds = ROSTER): User {
+    return {
+        id: "u-rafael-costa",
+        email: "rafael@example.com",
+        name: "Rafael Costa",
+        role: "coach",
+        title: "Head Coach — Striking",
+        phone: null,
+        status: "active",
+        createdAt: "2024-01-01T00:00:00.000Z",
+        lastActiveAt: null,
+        profileId: "c-rafael-costa",
+        effectiveCapabilities: ["fighters:read"],
+        assignmentScope: { fighterIds },
+    };
+}
+
+function form(fields: Record<string, string>): FormData {
+    const data = new FormData();
+    for (const [name, value] of Object.entries(fields)) data.set(name, value);
+    return data;
+}
+
+const today = () => dayKey(new Date());
+const at = (days: number, time: string) => `${addDaysToKey(today(), days)}T${time}`;
+
+const newBout = (overrides: Record<string, string> = {}) =>
+    form({
+        fighterId: "f-minh-tran",
+        rulesetId: "rs-vmmaf-2021",
+        weightClassCode: "60",
+        weightLimitKg: "",
+        event: "Lotus Fight Night 18",
+        venue: "",
+        opponent: "Arman Petrosyan",
+        weighInAt: at(2, "10:00"),
+        boutAt: at(3, "19:00"),
+        ...overrides,
     });
 
-    describe("addRequirementSchema", () => {
-        const baseValid = {
-            boutId: "bout-1",
-            code: "BRAIN_MRI",
-            label: "Brain MRI",
-            required: true,
-        };
-
-        it("(a) validityDays left empty is valid and results in undefined", () => {
-            const parsedEmpty = addRequirementSchema.safeParse({
-                ...baseValid,
-                validityDays: "",
-            });
-            expect(parsedEmpty.success).toBe(true);
-            if (parsedEmpty.success) {
-                expect(parsedEmpty.data.validityDays).toBeUndefined();
-            }
-
-            const parsedWhitespace = addRequirementSchema.safeParse({
-                ...baseValid,
-                validityDays: "   ",
-            });
-            expect(parsedWhitespace.success).toBe(true);
-            if (parsedWhitespace.success) {
-                expect(parsedWhitespace.data.validityDays).toBeUndefined();
-            }
-        });
-
-        it("(b) validityDays = '0' is rejected", () => {
-            const parsedZero = addRequirementSchema.safeParse({
-                ...baseValid,
-                validityDays: "0",
-            });
-            expect(parsedZero.success).toBe(false);
-        });
-
-        it("accepts valid positive integer for validityDays", () => {
-            const parsed = addRequirementSchema.safeParse({
-                ...baseValid,
-                validityDays: "180",
-            });
-            expect(parsed.success).toBe(true);
-            if (parsed.success) {
-                expect(parsed.data.validityDays).toBe(180);
-            }
-        });
+describe("bout actions in demo mode", () => {
+    beforeEach(() => {
+        vi.stubEnv("APP_DATA_MODE", "demo");
+        coach.current = rafael();
+        navigation.redirect.mockClear();
+        resetDemoCampStore();
     });
 
-    describe("createBoutSchema and updateBoutSchema", () => {
-        const baseCreate = {
-            fighterId: "fighter-1",
-            rulesetId: "ruleset-1",
-            eventName: "Lotus Fight Night",
-            weightClassCode: "welterweight",
-            weightLimitKg: "77",
-            weighInAt: "2026-11-01T09:00:00.000Z",
-            boutAt: "2026-11-02T19:00:00.000Z",
-        };
-
-        it("(c) requirementsDueDays left empty in createBoutSchema does not become 0 (results in undefined)", () => {
-            const parsedEmpty = createBoutSchema.safeParse({
-                ...baseCreate,
-                requirementsDueDays: "",
-            });
-            expect(parsedEmpty.success).toBe(true);
-            if (parsedEmpty.success) {
-                expect(parsedEmpty.data.requirementsDueDays).toBeUndefined();
-                expect(parsedEmpty.data.requirementsDueDays).not.toBe(0);
-            }
-
-            const parsedWhitespace = createBoutSchema.safeParse({
-                ...baseCreate,
-                requirementsDueDays: "   ",
-            });
-            expect(parsedWhitespace.success).toBe(true);
-            if (parsedWhitespace.success) {
-                expect(parsedWhitespace.data.requirementsDueDays).toBeUndefined();
-            }
+    it("refuses a bout that starts before its weigh-in, at the bout field, and saves nothing", async () => {
+        const before = listDemoBouts().length;
+        await expect(createBoutAction(IDLE, newBout({ boutAt: at(2, "09:00") }))).resolves.toMatchObject({
+            status: "error",
+            fieldErrors: { boutAt: "The bout must start after the weigh-in." },
         });
-
-        it("(c) requirementsDueDays left empty in updateBoutSchema does not become 0 (results in undefined)", () => {
-            const parsedEmpty = updateBoutSchema.safeParse({
-                boutId: "bout-1",
-                requirementsDueDays: "",
-            });
-            expect(parsedEmpty.success).toBe(true);
-            if (parsedEmpty.success) {
-                expect(parsedEmpty.data.requirementsDueDays).toBeUndefined();
-                expect(parsedEmpty.data.requirementsDueDays).not.toBe(0);
-            }
-        });
-
-        it("weightLimitKg left empty in updateBoutSchema does not fail min(30) (results in undefined)", () => {
-            const parsedEmpty = updateBoutSchema.safeParse({
-                boutId: "bout-1",
-                weightLimitKg: "",
-            });
-            expect(parsedEmpty.success).toBe(true);
-            if (parsedEmpty.success) {
-                expect(parsedEmpty.data.weightLimitKg).toBeUndefined();
-            }
-        });
+        expect(listDemoBouts()).toHaveLength(before);
+        expect(navigation.redirect).not.toHaveBeenCalled();
     });
 
-    describe("validationError custom message", () => {
-        const testSchema = z.object({ code: z.string().min(1) });
-
-        it("uses FIX_FIELDS by default", () => {
-            const res = testSchema.safeParse({});
-            expect(res.success).toBe(false);
-            if (!res.success) {
-                const state = validationError(res.error);
-                expect(state.message).toBe(FIX_FIELDS);
-            }
-        });
-
-        it("uses custom message when provided", () => {
-            const res = testSchema.safeParse({});
-            expect(res.success).toBe(false);
-            if (!res.success) {
-                const state = validationError(res.error, "Vui lòng sửa các ô được đánh dấu.");
-                expect(state.message).toBe("Vui lòng sửa các ô được đánh dấu.");
-            }
-        });
+    it("refuses a fighter who is not on the coach's roster", async () => {
+        coach.current = rafael(ROSTER.filter((id) => id !== "f-minh-tran"));
+        await expect(createBoutAction(IDLE, newBout())).resolves.toMatchObject({ status: "error", fieldErrors: { fighterId: "Choose a fighter on your roster." } });
     });
 
-    describe("translated numeric validation messages in English and Vietnamese", () => {
-        const fakeTEn = (key: string) => (enCoachBouts as Record<string, string>)[key] ?? key;
-        const fakeTVi = (key: string) => (viCoachBouts as Record<string, string>)[key] ?? key;
+    it("creates a scheduled bout and opens it", async () => {
+        await expect(createBoutAction(IDLE, newBout({ rulesetId: "rs-custom", weightClassCode: "", weightLimitKg: "63,5" }))).rejects.toThrow(/^redirect:\/coach\/bouts\/b-minh-tran-\d+\?notice=created$/);
+        const created = listDemoBouts(["f-minh-tran"])[0];
+        expect(created).toMatchObject({ phase: "SCHEDULED", limitKg: 63.5, weightClassLabel: "63.5 kg", rulesetName: "Tự nhập" });
+    });
 
-        it("translates validityDays errors", () => {
-            const enSchema = buildAddRequirementSchema(fakeTEn);
-            const viSchema = buildAddRequirementSchema(fakeTVi);
-
-            const enMin = enSchema.safeParse({ boutId: "1", code: "TEST", label: "Test", required: true, validityDays: "0" });
-            const viMin = viSchema.safeParse({ boutId: "1", code: "TEST", label: "Test", required: true, validityDays: "0" });
-            expect(enMin.error?.issues[0].message).toBe("Validity period must be at least 1 day.");
-            expect(viMin.error?.issues[0].message).toBe("Thời hạn hiệu lực phải từ 1 ngày trở lên.");
-
-            const enInt = enSchema.safeParse({ boutId: "1", code: "TEST", label: "Test", required: true, validityDays: "1.5" });
-            const viInt = viSchema.safeParse({ boutId: "1", code: "TEST", label: "Test", required: true, validityDays: "1.5" });
-            expect(enInt.error?.issues[0].message).toBe("Validity period must be an integer.");
-            expect(viInt.error?.issues[0].message).toBe("Thời hạn hiệu lực phải là số nguyên.");
-
-            const enInvalid = enSchema.safeParse({ boutId: "1", code: "TEST", label: "Test", required: true, validityDays: "abc" });
-            const viInvalid = viSchema.safeParse({ boutId: "1", code: "TEST", label: "Test", required: true, validityDays: "abc" });
-            expect(enInvalid.error?.issues[0].message).toBe("Enter a valid validity period in days.");
-            expect(viInvalid.error?.issues[0].message).toBe("Nhập số ngày thời hạn hợp lệ.");
+    it("keeps a bout in camp when Gate 1 refuses fight week, and lists the missing document", async () => {
+        await expect(enterFightWeekAction({ status: "idle" }, form({ boutId: "b-emma-nordic" }))).resolves.toEqual({
+            status: "error",
+            message: "Gate 1 is not met. The bout stays in camp.",
+            data: { lines: ["Brain CT: missing"] },
         });
+        expect(getDemoBout("b-emma-nordic")?.phase).toBe("CAMP");
+    });
 
-        it("translates requirementsDueDays errors", () => {
-            const enSchema = buildUpdateBoutSchema(fakeTEn);
-            const viSchema = buildUpdateBoutSchema(fakeTVi);
+    it("answers a bout outside the roster as not found", async () => {
+        coach.current = rafael(ROSTER.filter((id) => id !== "f-emma-lindqvist"));
+        await expect(enterFightWeekAction({ status: "idle" }, form({ boutId: "b-emma-nordic" }))).resolves.toMatchObject({ status: "error", message: "That bout is not on your roster." });
+    });
 
-            const enMin = enSchema.safeParse({ boutId: "1", requirementsDueDays: "-1" });
-            const viMin = viSchema.safeParse({ boutId: "1", requirementsDueDays: "-1" });
-            expect(enMin.error?.issues[0].message).toBe("Checklist due days must be at least 0.");
-            expect(viMin.error?.issues[0].message).toBe("Số ngày nộp hồ sơ phải từ 0 trở lên.");
+    it("needs a valid-until date to mark a document provided", async () => {
+        await expect(
+            updateRequirementAction(IDLE, form({ boutId: "b-emma-nordic", code: "BRAIN_CT", state: "PROVIDED", issuedOn: today(), validUntil: "", statusReason: "" })),
+        ).resolves.toMatchObject({ status: "error", fieldErrors: { validUntil: "Enter the date this document is valid until." } });
+        expect(getDemoBout("b-emma-nordic")?.requirements.find((item) => item.code === "BRAIN_CT")?.state).toBe("MISSING");
+    });
 
-            const enMax = enSchema.safeParse({ boutId: "1", requirementsDueDays: "61" });
-            const viMax = viSchema.safeParse({ boutId: "1", requirementsDueDays: "61" });
-            expect(enMax.error?.issues[0].message).toBe("Checklist due days must be at most 60.");
-            expect(viMax.error?.issues[0].message).toBe("Số ngày nộp hồ sơ tối đa là 60 ngày.");
-
-            const enInt = enSchema.safeParse({ boutId: "1", requirementsDueDays: "3.5" });
-            const viInt = viSchema.safeParse({ boutId: "1", requirementsDueDays: "3.5" });
-            expect(enInt.error?.issues[0].message).toBe("Checklist due days must be an integer.");
-            expect(viInt.error?.issues[0].message).toBe("Số ngày nộp hồ sơ phải là số nguyên.");
-
-            const enInvalid = enSchema.safeParse({ boutId: "1", requirementsDueDays: "abc" });
-            const viInvalid = viSchema.safeParse({ boutId: "1", requirementsDueDays: "abc" });
-            expect(enInvalid.error?.issues[0].message).toBe("Enter a valid number of days.");
-            expect(viInvalid.error?.issues[0].message).toBe("Nhập số ngày hợp lệ.");
+    it("asks for a decision after a failed hydration check and a catchweight above the original limit (T-006 §3)", async () => {
+        const dry = { boutId: "b-linh-saigon", weightKg: "59,8", hydrationCheck: "FAILED", note: "Agreed with the promoter" };
+        await expect(recordWeighInAction(IDLE, form(dry))).resolves.toMatchObject({ status: "error", fieldErrors: { decision: expect.any(String) } });
+        await expect(recordWeighInAction(IDLE, form({ ...dry, decision: "CATCHWEIGHT", catchweightKg: "59,9" }))).resolves.toMatchObject({
+            status: "error",
+            fieldErrors: { catchweightKg: "The catchweight must be above the original limit of 60.0 kg." },
         });
+        expect(getDemoBout("b-linh-saigon")?.phase).toBe("FIGHT_WEEK");
+        await expect(recordWeighInAction(IDLE, form({ ...dry, decision: "CATCHWEIGHT", catchweightKg: "60,5" }))).resolves.toMatchObject({ status: "success" });
+        expect(getDemoBout("b-linh-saigon")).toMatchObject({ phase: "WEIGHED_IN", catchweightKg: 60.5 });
+    });
 
-        it("translates weightLimitKg errors in updateBoutSchema", () => {
-            const enSchema = buildUpdateBoutSchema(fakeTEn);
-            const viSchema = buildUpdateBoutSchema(fakeTVi);
-
-            const enMin = enSchema.safeParse({ boutId: "1", weightLimitKg: "25" });
-            const viMin = viSchema.safeParse({ boutId: "1", weightLimitKg: "25" });
-            expect(enMin.error?.issues[0].message).toBe("Weight limit must be at least 30 kg.");
-            expect(viMin.error?.issues[0].message).toBe("Giới hạn cân phải từ 30 kg trở lên.");
-
-            const enMax = enSchema.safeParse({ boutId: "1", weightLimitKg: "250" });
-            const viMax = viSchema.safeParse({ boutId: "1", weightLimitKg: "250" });
-            expect(enMax.error?.issues[0].message).toBe("Weight limit must be at most 200 kg.");
-            expect(viMax.error?.issues[0].message).toBe("Giới hạn cân tối đa là 200 kg.");
-
-            const enInvalid = enSchema.safeParse({ boutId: "1", weightLimitKg: "abc" });
-            const viInvalid = viSchema.safeParse({ boutId: "1", weightLimitKg: "abc" });
-            expect(enInvalid.error?.issues[0].message).toBe("Enter a valid weight limit.");
-            expect(viInvalid.error?.issues[0].message).toBe("Nhập giới hạn cân hợp lệ.");
-        });
-
-        it("translates requirementsDueDays and weightLimitKg errors in createBoutSchema", () => {
-            const enSchema = buildCreateBoutSchema(fakeTEn);
-            const viSchema = buildCreateBoutSchema(fakeTVi);
-
-            const base = {
-                fighterId: "f-1",
-                rulesetId: "r-1",
-                eventName: "Lotus Fight",
-                weightClassCode: "welterweight",
-                weighInAt: "2026-11-01T09:00:00.000Z",
-                boutAt: "2026-11-02T19:00:00.000Z",
-            };
-
-            const enWeightMin = enSchema.safeParse({ ...base, weightLimitKg: "25" });
-            const viWeightMin = viSchema.safeParse({ ...base, weightLimitKg: "25" });
-            expect(enWeightMin.error?.issues[0].message).toBe("Weight limit must be at least 30 kg.");
-            expect(viWeightMin.error?.issues[0].message).toBe("Giới hạn cân phải từ 30 kg trở lên.");
-
-            const enDueMax = enSchema.safeParse({ ...base, weightLimitKg: "70", requirementsDueDays: "70" });
-            const viDueMax = viSchema.safeParse({ ...base, weightLimitKg: "70", requirementsDueDays: "70" });
-            expect(enDueMax.error?.issues[0].message).toBe("Checklist due days must be at most 60.");
-            expect(viDueMax.error?.issues[0].message).toBe("Số ngày nộp hồ sơ tối đa là 60 ngày.");
-        });
+    it("works out the suggested suspension itself and asks why the days changed", async () => {
+        const now = new Date();
+        recordDemoWeighIn("b-linh-saigon", { weightKg: 59.8, hydrationCheck: null, decision: null, catchweightKg: null, note: null }, { name: "Rafael Costa" }, now);
+        recordDemoResult(
+            "b-linh-saigon",
+            { result: "LOSS", method: "KO", round: 2, knockedDown: true, lossOfConsciousness: "NONE", stoppedByHeadStrikes: null, injuryNote: null, notes: null, recordedAt: now.toISOString() },
+            { name: "Rafael Costa" },
+            now,
+        );
+        const fields = { boutId: "b-linh-saigon", reason: "KO", startsOn: today(), days: "45", overrideReason: "", note: "" };
+        const data = form(fields);
+        data.append("blockedSessionTypes", "sparring");
+        // AIBA suggests 30 days for a first KO: 45 needs a reason.
+        await expect(createSuspensionAction(IDLE, data)).resolves.toMatchObject({ status: "error", fieldErrors: { overrideReason: "Say why this differs from the 30 days the ruleset suggests." } });
+        data.set("days", "30");
+        await expect(createSuspensionAction(IDLE, data)).resolves.toMatchObject({ status: "success" });
     });
 });

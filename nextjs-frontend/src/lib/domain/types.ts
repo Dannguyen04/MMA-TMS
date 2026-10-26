@@ -1271,3 +1271,4 @@ export interface WeightTrack {
     referencePath: Array<{ date: string; kg: number }>;
 }
 
+

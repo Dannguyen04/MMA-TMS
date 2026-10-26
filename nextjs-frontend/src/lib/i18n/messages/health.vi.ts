@@ -330,6 +330,10 @@ export const viHealth: Record<keyof typeof enHealth, string> = {
     "reviewRequest.unauthorized": "Bạn chỉ có thể yêu cầu xem xét cho chính mình hoặc võ sĩ được phân công.",
 
     /* ─── Care Team Card ─── */
+    "careTeam.noDoctor": "Chưa có bác sĩ thể thao. Học viện sẽ phân công bác sĩ khám ban đầu; thông tin sẽ xuất hiện ở đây và trên trang Hôm nay.",
+    "careTeam.noCoach": "Chưa có huấn luyện viên. Học viện sẽ phân công và thông báo cho bạn.",
+    "eligibilityReason.OTHER_MEDICAL_REASON": "Lý do y tế khác",
+    "eligibilityReasonDesc.OTHER_MEDICAL_REASON": "Xem hướng dẫn của bác sĩ trước khi bắt đầu buổi tập.",
     "careTeam.title": "Đội ngũ chăm sóc",
     "careTeam.sportsMedicine": "Y học thể thao",
     "careTeam.coaching": "Ban huấn luyện",

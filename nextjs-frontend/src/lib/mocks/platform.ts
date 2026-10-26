@@ -27,6 +27,7 @@ import type {
 } from "@/lib/domain/types";
 import { daysBetween, formatConfidence, formatDate, formatDateTime, formatFileSize, formatShortDate, formatTime, formatWeekdayDate, pluralize } from "@/lib/format";
 import { routes } from "@/lib/routes";
+import { round } from "@/lib/utils";
 import { mockAbnormalMovementAlerts, mockAIAnalyses, mockAIJobs, mockAIModels, mockVideos } from "./ai";
 import { mockInjuries, mockMedicalClearances, mockMedicalExaminations, mockRecoveryPlans, mockTreatments } from "./medical";
 import { BAO_BASELINE_EXAM_DATE, mockCoaches, mockDoctors, mockFighters, mockUsers } from "./people";
@@ -611,7 +612,7 @@ const INBOXES: Inbox[] = [
                 "training",
                 "info",
                 "Weigh-in reminder",
-                `Log your morning weight before training: ${daysBetween(TODAY_START, boutDate("f-minh-tran"))} days until Saigon Warriors MMA 04.`,
+                `Log your morning weight before training. You're ${round(fighterById("f-minh-tran").weightKg - fighterById("f-minh-tran").targetWeightKg, 1)} kg above the featherweight limit with ${daysBetween(TODAY_START, boutDate("f-minh-tran"))} days until Lotus Fight Night 18.`,
                 routes.fighter.dashboard,
             ),
             ...goalCheckpoint("g-minh-guard-recovery", "fighter"),

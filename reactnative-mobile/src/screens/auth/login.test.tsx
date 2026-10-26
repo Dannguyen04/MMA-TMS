@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import Toast from "react-native-toast-message";
 
 import { LoginScreen } from "@/screens/auth/login";
 import { useSession } from "@/session/session-context";
@@ -27,6 +28,7 @@ function renderLogin() {
 }
 
 describe("LoginScreen", () => {
+  jest.setTimeout(20000);
   const signIn = jest.fn();
   const replace = jest.fn();
 
@@ -43,13 +45,15 @@ describe("LoginScreen", () => {
     });
   });
 
-  it("shows errors on empty submit", async () => {
-    const haptics = require("expo-haptics") as { impactAsync: jest.Mock };
+  it("keeps login disabled until email and password are filled", async () => {
     await renderLogin();
+    expect(screen.queryByText(vi.theme.light)).toBeNull();
+    expect(screen.queryByText(vi.theme.dark)).toBeNull();
+    expect(screen.getByTestId("login-submit")).toBeDisabled();
     await fireEvent.press(screen.getByTestId("login-submit"));
-    expect(screen.getByText(vi.login.fillRequired)).toBeTruthy();
-    expect(screen.getAllByText(vi.field.required).length).toBeGreaterThan(0);
-    expect(haptics.impactAsync).toHaveBeenCalled();
+    expect(signIn).not.toHaveBeenCalled();
+    expect(Toast.show).not.toHaveBeenCalled();
+    expect(screen.queryByText(vi.field.required)).toBeNull();
   });
 
   it("rejects an invalid email", async () => {

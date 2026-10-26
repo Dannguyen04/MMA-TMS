@@ -1,74 +1,86 @@
 import { describe, expect, it } from "vitest";
 
-import type { WeightTrack } from "./types";
-import { weightChartData, weightChartRange } from "./weight-chart";
+import { weightChartAriaLabel, weightChartData, weightChartWindow } from "./weight-chart";
 
-const track: WeightTrack = {
+const track = {
     limitKg: 60,
+    latestKg: 66,
+    status: "OVER_LIMIT" as const,
+    weighInOn: "2026-10-18",
     points: [
-        { date: "2026-10-10", kg: 66.4 },
-        { date: "2026-10-11", kg: 66.2 },
-        // 12/10 has no weigh-in.
-        { date: "2026-10-13", kg: 65.9 },
+        { date: "2026-10-14", kg: 68 },
+        { date: "2026-10-16", kg: 66 },
     ],
-    latestKg: 65.9,
-    latestOn: "2026-10-13",
-    remainingPct: 9,
-    status: "OVER_LIMIT",
     referencePath: [
-        { date: "2026-10-10", kg: 66.4 },
-        { date: "2026-10-13", kg: 65.2 },
-        { date: "2026-10-15", kg: 60 },
+        { date: "2026-10-14", kg: 68 },
+        { date: "2026-10-15", kg: 67 },
+        { date: "2026-10-16", kg: 66 },
+        { date: "2026-10-17", kg: 63 },
+        { date: "2026-10-18", kg: 60 },
     ],
 };
 
 describe("weightChartData", () => {
-    it("labels every day from the first point to the weigh-in day, with no gaps", () => {
-        const data = weightChartData(track, "2026-10-10", "2026-10-15");
-        expect(data.days).toEqual(["2026-10-10", "2026-10-11", "2026-10-12", "2026-10-13", "2026-10-14", "2026-10-15"]);
-        expect(data.labels).toHaveLength(6);
-        expect(data.labels[0]).toMatch(/10/);
+    it("labels every academy day from the first day through weigh-in", () => {
+        const data = weightChartData(track, "2026-10-14", "2026-10-18");
+        expect(data.labels).toEqual(["2026-10-14", "2026-10-15", "2026-10-16", "2026-10-17", "2026-10-18"]);
     });
 
-    it("leaves null on a day without a weigh-in", () => {
-        const data = weightChartData(track, "2026-10-10", "2026-10-15");
-        expect(data.weight).toEqual([66.4, 66.2, null, 65.9, null, null]);
+    it("leaves a gap on a day with no measurement", () => {
+        const data = weightChartData(track, "2026-10-14", "2026-10-18");
+        expect(data.weight).toEqual([68, null, 66, null, null]);
     });
 
-    it("draws the reference path through its anchors and the limit as the target", () => {
-        const data = weightChartData(track, "2026-10-10", "2026-10-15");
-        expect(data.reference).toEqual([66.4, 66, 65.6, 65.2, 62.6, 60]);
-        expect(data.target).toEqual({ value: 60, label: "Limit" });
+    it("keeps the reference series when no weight has been logged", () => {
+        const data = weightChartData({ points: [], referencePath: track.referencePath }, "2026-10-14", "2026-10-18");
+        expect(data.weight).toEqual([null, null, null, null, null]);
+        expect(data.reference).toEqual([68, 67, 66, 63, 60]);
     });
 
-    it("keeps the reference series when there is no weigh-in yet", () => {
-        const empty: WeightTrack = { ...track, points: [], latestKg: null, latestOn: null, remainingPct: null, status: "NOT_WEIGHED" };
-        const range = weightChartRange(empty, "2026-10-15");
-        expect(range).toEqual({ from: "2026-10-10", to: "2026-10-15" });
-        const data = weightChartData(empty, range.from, range.to);
-        expect(data.weight.every((value) => value === null)).toBe(true);
-        expect(data.reference.filter((value) => value !== null)).toHaveLength(6);
+    it("uses the later point when the same day is logged twice", () => {
+        const data = weightChartData(
+            {
+                points: [
+                    { date: "2026-10-16", kg: 66.5 },
+                    { date: "2026-10-16", kg: 66.1 },
+                ],
+                referencePath: [],
+            },
+            "2026-10-16",
+            "2026-10-16",
+        );
+        expect(data.weight).toEqual([66.1]);
     });
 
-    it("is null outside the reference path", () => {
-        const data = weightChartData(track, "2026-10-08", "2026-10-16");
-        expect(data.reference[0]).toBeNull();
-        expect(data.reference[data.reference.length - 1]).toBeNull();
+    it("returns nothing for a reversed range", () => {
+        expect(weightChartData(track, "2026-10-18", "2026-10-14")).toEqual({ labels: [], weight: [], reference: [], adherence: [] });
     });
 });
 
-describe("weightChartRange", () => {
-    it("runs from the first weigh-in to the weigh-in day", () => {
-        expect(weightChartRange(track, "2026-10-15")).toEqual({ from: "2026-10-10", to: "2026-10-15" });
+describe("weightChartWindow", () => {
+    it("starts at the first reference day and ends on weigh-in day", () => {
+        expect(weightChartWindow({ ...track, points: [] })).toEqual({ from: "2026-10-14", to: "2026-10-18" });
     });
 
-    it("stretches to a weigh-in recorded after the weigh-in day", () => {
-        const late = { ...track, points: [...track.points, { date: "2026-10-16", kg: 60.2 }] };
-        expect(weightChartRange(late, "2026-10-15").to).toBe("2026-10-16");
+    it("starts at the first logged day when that is earlier than the reference", () => {
+        expect(
+            weightChartWindow({
+                ...track,
+                points: [{ date: "2026-10-12", kg: 70 }],
+                referencePath: [{ date: "2026-10-14", kg: 68 }],
+            }),
+        ).toEqual({ from: "2026-10-12", to: "2026-10-18" });
+    });
+});
+
+describe("weightChartAriaLabel", () => {
+    it("includes the limit, the latest weight, and the status", () => {
+        expect(weightChartAriaLabel(track)).toBe("Weight against a 60.0 kg limit. Latest 66.0 kg, status Exceeds cut limit.");
     });
 
-    it("falls back to the weigh-in day when there is no data at all", () => {
-        const none: WeightTrack = { ...track, points: [], referencePath: [] };
-        expect(weightChartRange(none, "2026-10-15")).toEqual({ from: "2026-10-15", to: "2026-10-15" });
+    it("says when nothing has been logged", () => {
+        expect(weightChartAriaLabel({ limitKg: 60, latestKg: null, status: "NOT_WEIGHED" })).toBe(
+            "Weight against a 60.0 kg limit. No weight logged, status No recent weigh-in.",
+        );
     });
 });

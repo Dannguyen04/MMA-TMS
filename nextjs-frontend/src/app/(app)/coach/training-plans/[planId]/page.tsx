@@ -1,10 +1,11 @@
-import { CalendarPlus, PenLine } from "lucide-react";
+import { CalendarPlus, Copy, PenLine } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 
 import { ClearanceCard } from "@/components/domain/clearance-card";
 import { FlashToast } from "@/components/medical/flash-toast";
+import type { ToastInput } from "@/components/ui/toast";
 import { ButtonLink } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { PlanExercisesCard } from "@/components/training/plan-exercises";
@@ -18,7 +19,8 @@ import { canAccessFighter, requireFighterAccess } from "@/lib/auth/access";
 import { getCurrentUser, requireRole } from "@/lib/auth/session";
 import { planTransitions } from "@/lib/domain/training-plan";
 import { getTranslator } from "@/lib/i18n/server";
-import { hrefWith } from "@/lib/query";
+import { plural, type Translator } from "@/lib/i18n/translate";
+import { hrefWith, type SearchParams } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { usesTrainingServiceForms } from "@/lib/services/platform-features";
 import { getPlanWithSessions, listExercises, listPlanExercises } from "@/lib/services/training";
@@ -26,6 +28,21 @@ import { param } from "@/lib/utils";
 
 /** One plan read per request, shared by the metadata and the page. */
 const loadPlan = cache(getPlanWithSessions);
+
+/** The toast after creating a plan (`?notice=` from `createPlan`), or null. */
+function planNotice(query: SearchParams, t: Translator): ToastInput | null {
+    const failed = Math.max(1, Math.floor(Number(param(query.failed)) || 1));
+    switch (param(query.notice)) {
+        case "not-activated":
+            return { title: t("training.planDetails.draftNoticeTitle"), description: t("training.planDetails.draftNoticeDesc"), tone: "warning" };
+        case "exercises-failed":
+            return { title: t("training.planDetails.createdTitle"), description: plural(t, "training.planDetails.exercisesFailedDesc", failed), tone: "warning" };
+        case "exercises-failed-draft":
+            return { title: t("training.planDetails.draftNoticeTitle"), description: plural(t, "training.planDetails.exercisesFailedDraftDesc", failed), tone: "warning" };
+        default:
+            return null;
+    }
+}
 
 export async function generateMetadata({ params }: PageProps<"/coach/training-plans/[planId]">): Promise<Metadata> {
     const [{ planId }, user, { t }] = await Promise.all([params, getCurrentUser(), getTranslator()]);
@@ -59,14 +76,7 @@ export default async function CoachPlanPage({ params, searchParams }: PageProps<
 
     return (
         <>
-            <FlashToast
-                notice={
-                    param(query.notice) === "not-activated"
-                        ? { title: t("training.planDetails.draftNoticeTitle"), description: t("training.planDetails.draftNoticeDesc"), tone: "warning" }
-                        : null
-                }
-                cleanHref={routes.coach.plan(plan.id)}
-            />
+            <FlashToast notice={planNotice(query, t)} cleanHref={routes.coach.plan(plan.id)} />
             <PageHeader
                 eyebrow={t("training.planDetails.eyebrow")}
                 title={plan.title}
@@ -76,6 +86,10 @@ export default async function CoachPlanPage({ params, searchParams }: PageProps<
                         <ButtonLink href={routes.coach.editPlan(plan.id)} variant="secondary">
                             <PenLine aria-hidden />
                             {t("training.planDetails.edit")}
+                        </ButtonLink>
+                        <ButtonLink href={hrefWith(routes.coach.newPlan, {}, { from: plan.id })} variant="secondary">
+                            <Copy aria-hidden />
+                            {t("training.planDetails.duplicate")}
                         </ButtonLink>
                         {canSchedule && (
                             <ButtonLink href={scheduleHref}>

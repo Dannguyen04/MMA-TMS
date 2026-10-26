@@ -17,7 +17,7 @@ import { getTranslator } from "@/lib/i18n/server";
 import type { Translator } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import { upsertBoutRound } from "@/lib/services/bout-analysis";
-import { getBout } from "@/lib/services/bouts";
+import { getCampBout } from "@/lib/services/bouts";
 import { actionError, actionSuccess, validationError, type ActionState } from "./state";
 
 async function authorizeCoach(
@@ -52,7 +52,7 @@ export async function recordBoutRoundAction(_prev: ActionState, formData: FormDa
         return actionError(t("coachBouts.action.boutIdRequired"));
     }
 
-    const existing = await getBout(boutId);
+    const existing = await getCampBout(boutId);
     if (!existing || !canAccessFighter(auth.user, existing.fighterId)) {
         return actionError(t("coachBouts.action.boutNotFoundOrNotOnRoster"));
     }

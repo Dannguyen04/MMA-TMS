@@ -28,9 +28,9 @@ describe("trainingWriteFailure", () => {
 });
 
 describe("trainingEligibilityReasons", () => {
-    it("reads the reasons from a refused training start", () => {
+    it("reads the reasons from a refused training start, keeping unknown ones as a generic reason", () => {
         const error = http(409, "TRAINING_MEDICAL_ELIGIBILITY_REQUIRED", { reasons: ["REVIEW_REQUEST_PENDING", "SOMETHING_NEW", "CLEARANCE_EXPIRED"] });
-        expect(trainingEligibilityReasons(error)).toEqual(["REVIEW_REQUEST_PENDING", "CLEARANCE_EXPIRED"]);
+        expect(trainingEligibilityReasons(error)).toEqual(["REVIEW_REQUEST_PENDING", "OTHER_MEDICAL_REASON", "CLEARANCE_EXPIRED"]);
     });
 
     it("ignores other errors", () => {

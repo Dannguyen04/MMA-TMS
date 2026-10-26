@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import Toast from "react-native-toast-message";
 
 import { resetPassword } from "@/api/auth";
 import { vi } from "@/i18n/vi";
@@ -36,7 +37,12 @@ describe("ResetPasswordScreen", () => {
   it("refuses a link that is not a recovery token", async () => {
     globalThis.__authParams = { token_hash: token, type: "signup" };
     await renderScreen();
-    expect(screen.getByText(vi.resetPassword.missingLink)).toBeTruthy();
+    await waitFor(() => {
+      expect(Toast.show).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "error", text1: vi.resetPassword.missingLink }),
+      );
+    });
+    expect(screen.queryByText(vi.resetPassword.missingLink)).toBeNull();
     expect(screen.getByTestId("reset-submit")).toBeDisabled();
     expect(resetPassword).not.toHaveBeenCalled();
   });
@@ -56,6 +62,11 @@ describe("ResetPasswordScreen", () => {
         newPassword: "new-password",
       }),
     );
-    expect(screen.getByText(vi.resetPassword.success)).toBeTruthy();
+    await waitFor(() => {
+      expect(Toast.show).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "success", text1: vi.resetPassword.success }),
+      );
+    });
+    expect(screen.queryByText(vi.resetPassword.success)).toBeNull();
   });
 });

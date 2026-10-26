@@ -1,24 +1,32 @@
-import { CalendarOff, ClipboardList, HeartPulse, ShieldX } from "lucide-react";
+import { ArrowRight, Camera, ClipboardList, Clock, HeartPulse, PenLine, ShieldQuestion, ShieldX, Sparkles, TriangleAlert, Upload, UserCheck, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { FighterJourney } from "@/components/domain/fighter-journey";
 import { TrainingTypeIcon } from "@/components/domain/training-type-icon";
 import { plannedEndMs, rpeTextFor } from "@/components/training/training-utils";
 import { ButtonLink } from "@/components/ui/button";
 import { CornerTag } from "@/components/ui/corner-tag";
-import type { TrainingPhase, TrainingSession } from "@/lib/domain/types";
-import { formatPercent, formatShortDate, formatTime, formatWeekdayDate } from "@/lib/format";
+import type { FighterJourney as Journey } from "@/lib/domain/journey";
+import { WEIGHT_CLASS_LABELS } from "@/lib/domain/labels";
+import { isLowConfidence } from "@/lib/domain/rules";
+import type { AIFeedback, TrainingPhase, TrainingSession, UpcomingBout } from "@/lib/domain/types";
+import { formatConfidence, formatDateTime, formatPercent, formatRelative, formatShortDate, formatTime, formatWeekdayDate } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
 import { plural, type Translator } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 import { relativeDayText } from "./dashboard-utils";
 import { campDayText, campTimeline } from "./fight-camp";
 
-/** What the right half of the hero shows: the next session, why training is paused, or that nothing is booked. */
+/** What the right half of the hero shows: the one thing to do next, or what training waits for. */
 export type NextUp =
     | { kind: "session"; session: TrainingSession; coachName?: string; href: string; note?: ReactNode }
     | { kind: "paused"; reason: "not_cleared" | "expired"; doctorName?: string; followUpDate: string | null; healthHref: string }
-    | { kind: "none"; scheduleHref: string };
+    /** Training can't start yet: the journey step in the way, in plain words, and who's on it. */
+    | { kind: "blocked"; title: string; body: string; owner: string; attention: boolean; healthHref: string }
+    /** Cleared and nothing blocks: get the AI on the fighter's technique. */
+    | { kind: "analyse"; reason: "first" | "again" | "retry"; uploadHref: string; liveCheckHref: string }
+    | { kind: "processing"; videoTitle: string; uploadedAt: string; href: string };
 
 /** The active training plan, shown as one line under the camp. */
 export interface HeroPlan {
@@ -28,20 +36,27 @@ export interface HeroPlan {
     adherencePct: number | null;
 }
 
-/** The booked bout as the hero shows it; `detail` is the weight line, e.g. "60 kg" or "Lightweight". */
-export interface HeroBout {
-    event: string;
-    opponent: string;
-    /** Fight night (ISO). */
-    date: string;
-    detail: string;
+/** The latest AI analysis, led by one finding. */
+export interface HeroAnalysis {
+    href: string;
+    videoTitle: string;
+    processedAt: string;
+    /** The finding to lead with, already phrased as an observation; null when there's none to show. */
+    headline: { title: string; confidence: number; review: AIFeedback | null } | null;
+    /** Who signed off the whole analysis, if a coach has. */
+    coachReviewer: string | null;
+    /** Unreviewed detections below the low-confidence threshold. */
+    lowConfidenceDetections: number;
 }
 
 export interface FightHeroProps {
-    bout: HeroBout | null;
+    bout: UpcomingBout | null;
     /** Start of the fight-camp plan preparing this bout, if there is one. */
     campStart: string | null;
     plan: HeroPlan | null;
+    /** Shown in place of the camp while the fighter's journey to training isn't complete. */
+    journey: Journey | null;
+    analysis: HeroAnalysis | null;
     next: NextUp;
     /** Server time (ISO). */
     now: string;
@@ -56,15 +71,26 @@ interface Lang {
 }
 
 /**
- * The fighter's Today hero: the fight-camp countdown on the blue-corner ground, and the one thing to do next.
- * Server Component.
+ * The fighter's Today hero on the blue-corner ground: their journey to training while it's incomplete, otherwise the
+ * fight-camp countdown or the latest AI analysis; and the one thing to do next beside it. Server Component.
  */
-export function FightHero({ bout, campStart, plan, next, now, t, locale, className }: FightHeroProps) {
+export function FightHero({ bout, campStart, plan, journey, analysis, next, now, t, locale, className }: FightHeroProps) {
     return (
         <section aria-label={t("hero.section")} className={cn("grid min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]", className)}>
             <div className="relative isolate flex min-w-0 flex-col gap-4 px-6 py-6 text-white sm:px-7">
                 <div aria-hidden className="absolute inset-0 -z-10 chamfer-tl cage-hatch bg-hero-bg" />
-                {bout ? <Camp bout={bout} campStart={campStart} now={now} t={t} locale={locale} /> : <OffCamp plan={plan} t={t} />}
+                {journey ? (
+                    <FighterJourney journey={journey} variant="full" ground="hero" hideNextAction />
+                ) : bout ? (
+                    <>
+                        <Camp bout={bout} campStart={campStart} now={now} t={t} locale={locale} />
+                        {analysis && <AnalysisLine analysis={analysis} t={t} />}
+                    </>
+                ) : analysis ? (
+                    <AnalysisLead analysis={analysis} now={now} t={t} locale={locale} />
+                ) : (
+                    <OffCamp plan={plan} t={t} />
+                )}
                 {plan && <PlanLine plan={plan} t={t} />}
             </div>
             <div className="relative isolate flex min-w-0 flex-col gap-3.5 px-6 py-6 sm:px-7">
@@ -75,7 +101,12 @@ export function FightHero({ bout, campStart, plan, next, now, t, locale, classNa
     );
 }
 
-function Camp({ bout, campStart, now, t, locale }: { bout: HeroBout; campStart: string | null; now: string } & Lang) {
+/** Whether a session is under way at `now`. */
+export function isSessionLive(session: Pick<TrainingSession, "status" | "scheduledAt" | "durationMin">, now: string): boolean {
+    return session.status === "in_progress" || (Date.parse(session.scheduledAt) <= Date.parse(now) && plannedEndMs(session) > Date.parse(now));
+}
+
+function Camp({ bout, campStart, now, t, locale }: { bout: UpcomingBout; campStart: string | null; now: string } & Lang) {
     const timeline = campTimeline(bout, campStart, now);
     const label = campDayText(t, timeline);
 
@@ -85,7 +116,8 @@ function Camp({ bout, campStart, now, t, locale }: { bout: HeroBout; campStart: 
             <div>
                 <h2 className="font-display text-[30px] leading-[1.05] font-extrabold text-balance italic sm:text-[34px]">{bout.event}</h2>
                 <p className="mt-1 text-[15px] text-white/85">
-                    {t("bout.versus", { opponent: bout.opponent })} · <time dateTime={bout.date}>{formatWeekdayDate(bout.date, locale)}</time> · {bout.detail}
+                    {t("bout.versus", { opponent: bout.opponent })} · <time dateTime={bout.date}>{formatWeekdayDate(bout.date, locale)}</time> ·{" "}
+                    {WEIGHT_CLASS_LABELS[bout.weightClass]}
                 </p>
             </div>
             <p className="flex items-end gap-3">
@@ -136,11 +168,88 @@ function OffCamp({ plan, t }: { plan: HeroPlan | null; t: Translator }) {
             <CornerTag tone="stage">{plan ? t("hero.phase", { phase: t(`phase.${plan.phase}`) }) : t("hero.offCamp")}</CornerTag>
             <div>
                 <h2 className="font-display text-[30px] leading-[1.05] font-extrabold italic sm:text-[34px]">{t("hero.noBout")}</h2>
-                <p className="mt-1 max-w-md text-[15px] text-pretty text-white/85">
-                    {t("hero.noBoutText")}
-                </p>
+                <p className="mt-1 max-w-md text-[15px] text-pretty text-white/85">{t("hero.noBoutText")}</p>
             </div>
         </>
+    );
+}
+
+/* ─── AI analysis ─────────────────────────────────────────────────────────── */
+
+/** How far a human has checked the analysis, in the review badges' words, as an icon and a label (the hero ground takes no tone badges). */
+function reviewState(analysis: HeroAnalysis, t: Translator): { icon: LucideIcon; label: string } {
+    const review = analysis.headline?.review;
+    if (review?.decision === "confirmed") return { icon: UserCheck, label: t("hero.analysis.confirmedBy", { name: review.reviewerName }) };
+    if (review?.decision === "corrected") return { icon: PenLine, label: t("hero.analysis.correctedBy", { name: review.reviewerName }) };
+    if (analysis.coachReviewer) return { icon: UserCheck, label: t("hero.analysis.coachReviewed", { name: analysis.coachReviewer }) };
+    if (analysis.lowConfidenceDetections > 0) return { icon: TriangleAlert, label: plural(t, "hero.analysis.needsReview", analysis.lowConfidenceDetections) };
+    return { icon: Clock, label: t("hero.analysis.awaiting") };
+}
+
+function confidenceText(headline: NonNullable<HeroAnalysis["headline"]>, t: Translator): string {
+    const pct = formatConfidence(headline.confidence);
+    return t(headline.review === null && isLowConfidence(headline.confidence) ? "hero.analysis.confidenceNeedsReview" : "hero.analysis.confidence", { pct });
+}
+
+/** The latest analysis as the hero's lead: one finding, how sure the AI is, and whether a coach has checked it. */
+function AnalysisLead({ analysis, now, t, locale }: { analysis: HeroAnalysis; now: string } & Lang) {
+    const { headline } = analysis;
+    const state = reviewState(analysis, t);
+    return (
+        <>
+            <CornerTag tone="stage">
+                <Sparkles aria-hidden />
+                {t("hero.analysis.tag")}
+            </CornerTag>
+            <div>
+                <h2 className="font-display text-[30px] leading-[1.05] font-extrabold text-balance italic sm:text-[34px]">
+                    {headline ? (
+                        <>
+                            <span className="sr-only">{t("hero.analysis.findingSr")}</span>
+                            {headline.title}
+                        </>
+                    ) : (
+                        t("hero.analysis.ready")
+                    )}
+                </h2>
+                <p className="mt-1 text-[15px] text-pretty text-white/85">
+                    {t("hero.analysis.analysed", { video: analysis.videoTitle })}{" "}
+                    <time dateTime={analysis.processedAt} title={formatDateTime(analysis.processedAt, locale)}>
+                        {formatRelative(analysis.processedAt, now, locale)}
+                    </time>
+                </p>
+            </div>
+            <ul className="flex flex-wrap gap-x-4 gap-y-1.5 text-[13px] text-white">
+                <li className="inline-flex items-center gap-1.5">
+                    <Sparkles aria-hidden className="size-3.5 shrink-0" />
+                    {headline ? t("hero.analysis.aiGeneratedWith", { confidence: confidenceText(headline, t) }) : t("hero.analysis.aiGenerated")}
+                </li>
+                <li className="inline-flex items-center gap-1.5">
+                    <state.icon aria-hidden className="size-3.5 shrink-0" />
+                    {state.label}
+                </li>
+            </ul>
+            <p className="text-[13px] text-pretty text-white/85">{t("hero.analysis.estimates")}</p>
+            <Link href={analysis.href} className="inline-flex w-fit items-center gap-1 rounded-sm text-[14px] font-semibold text-white underline-offset-2 hover:underline">
+                {t("hero.analysis.open")}
+                <ArrowRight aria-hidden className="size-4" />
+            </Link>
+        </>
+    );
+}
+
+/** One line under the fight camp for the latest analysis. */
+function AnalysisLine({ analysis, t }: { analysis: HeroAnalysis; t: Translator }) {
+    const state = reviewState(analysis, t);
+    return (
+        <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 border-t border-white/20 pt-3 text-[13px] text-white/85">
+            <Sparkles aria-hidden className="size-3.5 shrink-0" />
+            <span className="sr-only">{t("hero.analysis.lineSr")}</span>
+            <Link href={analysis.href} className="min-w-0 rounded-sm font-medium text-white underline-offset-2 hover:underline">
+                {analysis.headline?.title ?? analysis.videoTitle}
+            </Link>
+            <span>· {state.label}</span>
+        </p>
     );
 }
 
@@ -157,56 +266,110 @@ function PlanLine({ plan, t }: { plan: HeroPlan; t: Translator }) {
     );
 }
 
+/* ─── Next up ─────────────────────────────────────────────────────────────── */
+
 function NextUpPanel({ next, now, t, locale }: { next: NextUp; now: string } & Lang) {
-    if (next.kind === "paused") {
-        const copy = { title: t(`hero.paused.${next.reason}.title`), body: t(`hero.paused.${next.reason}.body`) };
-        return (
-            <>
-                <CornerTag tone="red">
-                    <ShieldX aria-hidden />
-                    {t("hero.pausedTag")}
-                </CornerTag>
-                <h2 className="text-[17px] leading-snug font-semibold text-fg">{copy.title}</h2>
-                <p className="text-sm text-pretty text-fg-muted">{copy.body}</p>
-                <p className="text-[13px] text-fg-muted">
-                    {t("hero.nextCheck")}{" "}
-                    {next.followUpDate ? (
-                        <span className="font-medium text-fg">
-                            <time dateTime={next.followUpDate}>{formatWeekdayDate(next.followUpDate, locale)}</time>
-                            {next.doctorName ? t("hero.withDoctor", { name: next.doctorName }) : ""}
-                        </span>
-                    ) : (
-                        t("hero.doctorWillArrange")
-                    )}
-                </p>
-                <ButtonLink href={next.healthHref} className="mt-auto w-fit">
-                    <HeartPulse aria-hidden />
-                    {t("hero.viewHealth")}
-                </ButtonLink>
-            </>
-        );
+    switch (next.kind) {
+        case "paused":
+            return <PausedPanel next={next} t={t} locale={locale} />;
+        case "blocked":
+            return (
+                <>
+                    <CornerTag tone={next.attention ? "red" : "neutral"}>
+                        {next.attention ? <ShieldX aria-hidden /> : <ShieldQuestion aria-hidden />}
+                        {t(next.attention ? "hero.pausedTag" : "hero.beforeYouTrain")}
+                    </CornerTag>
+                    <h2 className="text-[17px] leading-snug font-semibold text-pretty text-fg">{next.title}</h2>
+                    <p className="text-sm text-pretty text-fg-muted">{next.body}</p>
+                    <p className="text-[13px] text-fg-muted">
+                        {t("hero.with")} <span className="font-medium text-fg">{next.owner}</span>
+                    </p>
+                    <ButtonLink href={next.healthHref} variant="secondary" className="mt-auto w-fit">
+                        <HeartPulse aria-hidden />
+                        {t("hero.viewCareTeam")}
+                    </ButtonLink>
+                </>
+            );
+        case "analyse":
+            return (
+                <>
+                    <CornerTag tone="blue">
+                        <Sparkles aria-hidden />
+                        {t("hero.analyse.tag")}
+                    </CornerTag>
+                    <h2 className="text-[17px] leading-snug font-semibold text-pretty text-fg">{t(`hero.analyse.${next.reason}.title`)}</h2>
+                    <p className="text-sm text-pretty text-fg-muted">{t(`hero.analyse.${next.reason}.body`)}</p>
+                    <div className="mt-auto flex flex-wrap items-center gap-2">
+                        {/* The label wraps in the narrow half of the hero rather than overflowing it. */}
+                        <ButtonLink href={next.uploadHref} className="h-auto! min-h-9 py-2 text-left whitespace-normal!">
+                            <Upload aria-hidden />
+                            {t("hero.analyse.upload")}
+                        </ButtonLink>
+                        <ButtonLink href={next.liveCheckHref} variant="ghost">
+                            <Camera aria-hidden />
+                            {t("hero.analyse.liveCheck")}
+                        </ButtonLink>
+                    </div>
+                </>
+            );
+        case "processing":
+            return (
+                <>
+                    <CornerTag tone="blue">
+                        <Sparkles aria-hidden />
+                        {t("hero.analyse.tag")}
+                    </CornerTag>
+                    <h2 className="text-[17px] leading-snug font-semibold text-pretty text-fg">{t("hero.processing.title")}</h2>
+                    <p className="text-sm text-pretty text-fg-muted">
+                        {t("hero.processing.uploaded", { video: next.videoTitle })}{" "}
+                        <time dateTime={next.uploadedAt} title={formatDateTime(next.uploadedAt, locale)}>
+                            {formatRelative(next.uploadedAt, now, locale)}
+                        </time>
+                        {t("hero.processing.after")}
+                    </p>
+                    <ButtonLink href={next.href} variant="secondary" className="mt-auto w-fit">
+                        {t("hero.processing.viewProgress")}
+                    </ButtonLink>
+                </>
+            );
+        case "session":
+            return <SessionPanel next={next} now={now} t={t} locale={locale} />;
     }
+}
 
-    if (next.kind === "none") {
-        return (
-            <>
-                <CornerTag tone="neutral">
-                    <CalendarOff aria-hidden />
-                    {t("hero.nothingTag")}
-                </CornerTag>
-                <h2 className="text-[17px] leading-snug font-semibold text-fg">{t("hero.noSessions")}</h2>
-                <p className="text-sm text-pretty text-fg-muted">{t("hero.noSessionsText")}</p>
-                <ButtonLink href={next.scheduleHref} variant="secondary" className="mt-auto w-fit">
-                    {t("hero.viewSchedule")}
-                </ButtonLink>
-            </>
-        );
-    }
+function PausedPanel({ next, t, locale }: { next: Extract<NextUp, { kind: "paused" }> } & Lang) {
+    return (
+        <>
+            <CornerTag tone="red">
+                <ShieldX aria-hidden />
+                {t("hero.pausedTag")}
+            </CornerTag>
+            <h2 className="text-[17px] leading-snug font-semibold text-fg">{t(`hero.paused.${next.reason}.title`)}</h2>
+            <p className="text-sm text-pretty text-fg-muted">{t(`hero.paused.${next.reason}.body`)}</p>
+            <p className="text-[13px] text-fg-muted">
+                {t("hero.nextCheck")}{" "}
+                {next.followUpDate ? (
+                    <span className="font-medium text-fg">
+                        <time dateTime={next.followUpDate}>{formatWeekdayDate(next.followUpDate, locale)}</time>
+                        {next.doctorName ? t("hero.withDoctor", { name: next.doctorName }) : ""}
+                    </span>
+                ) : (
+                    t("hero.doctorWillArrange")
+                )}
+            </p>
+            <ButtonLink href={next.healthHref} className="mt-auto w-fit">
+                <HeartPulse aria-hidden />
+                {t("hero.viewHealth")}
+            </ButtonLink>
+        </>
+    );
+}
 
+function SessionPanel({ next, now, t, locale }: { next: Extract<NextUp, { kind: "session" }>; now: string } & Lang) {
     const { session, coachName, href, note } = next;
     const end = session.durationMin === null ? null : new Date(plannedEndMs(session)).toISOString();
     const intensity = rpeTextFor(t, session.targetRpe);
-    const inProgress = session.status === "in_progress" || (Date.parse(session.scheduledAt) <= Date.parse(now) && plannedEndMs(session) > Date.parse(now));
+    const inProgress = isSessionLive(session, now);
 
     return (
         <>

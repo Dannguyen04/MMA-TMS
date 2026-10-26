@@ -10,6 +10,7 @@ import {
 } from "@/screens/fighter/api";
 import { fighter } from "@/i18n/fighter";
 import { formatDay, formatMinutes, planStatusLabel } from "@/screens/fighter/format";
+import { planPhaseLabel } from "@/training/plan-phase";
 import { EmptyCopy, FighterScreen, GlassCard, SectionLabel, StatusLine } from "@/screens/fighter/screen";
 import { useFighterId } from "@/screens/fighter/use-fighter-id";
 import { useLoad } from "@/screens/fighter/use-load";
@@ -68,6 +69,11 @@ export function FighterPlanDetailScreen() {
         <GlassCard>
           <Text style={[type.title, { color: colors.ink }]}>{plan.title}</Text>
           <Text style={[type.body, { color: colors.inkMuted }]}>{planStatusLabel(plan.status)}</Text>
+          {plan.phase ? (
+            <Text style={[type.body, { color: colors.ink }]}>
+              {fighter.plans.phase}: {planPhaseLabel(plan.phase)}
+            </Text>
+          ) : null}
           <Text style={[type.caption, styles.meta, { color: colors.inkMuted }]}>
             {fighter.plans.dates}: {formatDay(plan.startDate)}
             {plan.endDate ? ` – ${formatDay(plan.endDate)}` : ""}

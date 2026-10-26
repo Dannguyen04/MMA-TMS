@@ -1,6 +1,6 @@
 export const fighter = {
   tabs: {
-    home: "Home",
+    home: "Trang chủ",
     tap: "Tập",
     plans: "Giáo án",
     body: "Cơ thể",
@@ -12,7 +12,7 @@ export const fighter = {
     save: "Lưu",
     add: "Thêm",
     back: "Quay lại",
-    demoHint: "Đây là bản xem thử. Chưa gọi máy chủ nên danh sách trống.",
+    demoHint: "Đây là bản xem thử nên chưa có dữ liệu.",
     unauthorized: "Phiên đăng nhập hết hạn. Hãy đăng nhập lại.",
     forbidden: "Bạn không xem được mục này.",
     notFound: "Không tìm thấy.",
@@ -23,7 +23,7 @@ export const fighter = {
     numberInvalid: "Hãy nhập số lớn hơn 0.",
   },
   home: {
-    title: "Home",
+    title: "Trang chủ",
     greeting: "Xin chào",
     recentSessions: "Buổi tập gần đây",
     plans: "Giáo án",
@@ -37,7 +37,7 @@ export const fighter = {
     health: "Sức khỏe",
     seeHealth: "Xem cơ thể và giấy phép",
     noScore:
-      "Điểm kỹ thuật và video phân tích chưa có trên điện thoại vì máy chủ chưa mở hợp đồng phân tích đã xác thực.",
+      "Điểm kỹ thuật chi tiết chưa có trên điện thoại. Video hiện trạng thái phân tích, điểm tổng và số cảnh báo khi máy chủ trả về.",
     restricted:
       "Hồ sơ ghi chưa được phép tập. Đây không phải chẩn đoán. Hãy hỏi bác sĩ của bạn.",
   },
@@ -79,7 +79,8 @@ export const fighter = {
   },
   plans: {
     title: "Giáo án",
-    empty: "Chưa có giáo án.",
+    empty: "Chưa có giáo án được giao. Giáo án do huấn luyện viên tạo, võ sĩ không tự gán.",
+    phase: "Giai đoạn",
     detailTitle: "Chi tiết giáo án",
     dates: "Thời gian",
     goals: "Mục tiêu",
