@@ -1,80 +1,193 @@
 # Kịch bản trình bày 27/10: trước, trong và sau trận
 
-**Mục tiêu.** Ở review 2 (20/10), giảng viên nhận xét: phần trước trận ổn; phần trong và sau trận chưa rõ nghiệp vụ, người dùng tự làm hầu hết, hệ thống chủ yếu nhận dữ liệu. Buổi này cần cho thấy ở mỗi bước **người dùng làm gì (ít) và app tự làm gì (nhiều)**, nhất là trong và sau trận. Ví dụ giảng viên gợi ý là phân tích đối thủ giữa các hiệp; đây là phần trọng tâm (bước 9).
+> Đọc hết một lượt trước buổi review. Mỗi bước ghi **mở gì → bấm gì → trên màn thấy gì → nói gì**. Chữ trong ngoặc kép là chữ thật trên màn (Claude chạy thử bằng Playwright ngày 26/10 trên nhánh demo). Chỗ nào khác với màn thật thì làm theo màn và báo lại để sửa tài liệu.
 
-**Chế độ chạy:** demo mode (không cần backend, dữ liệu mẫu trong bộ nhớ). Mọi quy tắc nói dưới đây đã có ở backend thật và có unit test; demo mode cho thấy cùng hành vi trên giao diện.
+## 0. Tóm tắt
 
-**Thời lượng gợi ý:** 12–15 phút. Trước trận 3 phút, trong trận 6 phút, sau trận 4 phút, hỏi đáp phần còn lại.
+**Vì sao có buổi này.** Ở review 2 (20/10), giảng viên nhận xét: phần trước trận ổn; phần trong và sau trận chưa rõ nghiệp vụ, người dùng tự làm hầu hết, hệ thống chủ yếu nhận dữ liệu. Thầy gợi ý một ví dụ: phân tích đối thủ giữa các hiệp.
 
-**Người trình bày** (chủ dự án chốt 26/10): trước trận **Hoàng Anh** (màn HLV); trong trận **Dan** (phần giảng viên hỏi nhiều nhất, R20–R26); sau trận **Ken** (đình chỉ, Cổng 2, bảng sẵn sàng). Fon chạy máy và chuyển màn.
+**Thông điệp cần thầy nhớ:** người dùng chỉ nhập điều chỉ họ biết (vài chạm); app tự kiểm tra, tự cảnh báo, tự tạo hệ quả. Trong trận, app gợi ý lời dặn giữa hiệp; HLV vẫn là người quyết.
 
-**Nhánh chạy demo:** `sync/T-004-fight-camp` (frontend của Hoàng Anh đưa lên `fight-camp`, cộng T-010 B). Chạy: `cd nextjs-frontend && APP_DATA_MODE=demo pnpm dev`, mở `http://localhost:3000`.
+| Phần | Người nói | Thời gian | Trọng tâm |
+| --- | --- | --- | --- |
+| Mở đầu | Dan | 1 phút | Vòng đời một trận, thông điệp chính |
+| 1. Trước trận | Hoàng Anh | 3 phút | Đi nhanh, thầy đã duyệt |
+| 2. Trong trận | Dan | 6 phút | **Phần thầy quan tâm nhất** |
+| 3. Sau trận | Ken | 4 phút | Cân, kết quả, đình chỉ, Cổng 2, cho tập lại |
+| Kết | Dan | 30 giây | Quay lại vòng đời |
+| Hỏi đáp | Cả nhóm | phần còn lại | Xem mục 7 |
 
-**Một câu mở đầu:** "App quản lý một võ sĩ qua vòng đời một trận. Người dùng chỉ nhập những gì chỉ họ biết; mọi kiểm tra, cảnh báo và hệ quả do app tự làm."
+Fon chạy máy và chuyển màn theo lời người nói. Người nói đọc to tên nút trước khi Fon bấm.
 
-Ký hiệu màn: **Có** = đã có trên nhánh demo; **Đang làm** = Gemini/Codex làm hôm nay 26/10, Claude kiểm trước tối 26/10; **Dự phòng** = cách trình bày nếu màn chưa xong.
+## 1. Chuẩn bị
 
-## 1. Trước trận (3 phút, đã duyệt ở review 2, đi nhanh)
-
-| # | Nghiệp vụ | Người dùng làm | App tự làm | Màn |
-| --- | --- | --- | --- | --- |
-| 1 | Tạo trận | HLV nhập giải, bộ luật, hạng cân, ngày cân, ngày thi, đối thủ, số hiệp | Kiểm tra phạm vi HLV, ngày giờ; chụp quy định của bộ luật; sinh checklist hồ sơ; **kiểm tra khả thi về cân** (R31): vượt ngưỡng thì cảnh báo nhưng vẫn cho lưu | `/coach/bouts/new` · Có |
-| 3 | Kiểm soát cân | Võ sĩ ghi một số kg mỗi sáng | Đường tham chiếu, trạng thái theo ý nghĩa (đúng tiến độ, cao hơn mục tiêu, vượt giới hạn, chưa cân); từ ngày cân không tính màu nữa | `/fighter/bout/weigh-in`, chi tiết trận · Có |
-| 5 | Hồ sơ thi đấu | HLV đánh dấu giấy tờ đã có | Hạn nộp, nhãn trễ hạn, **Cổng 1** chặn vào tuần thi đấu khi thiếu hồ sơ | Chi tiết trận · Có |
-| — | Việc cần làm | Không nhập | Thẻ trên dashboard HLV gom việc từ mọi trận: hồ sơ sắp hạn, cân vượt, chiến thuật chưa luyện, đủ điều kiện vào tuần thi đấu, hôm nay cân chính thức, quá ngày chưa ghi kết quả | `/coach/dashboard` · Có |
-
-Câu chuyển: "Đến đây là phần thầy đã xem. Phần mới là trong và sau trận."
-
-## 2. Trong trận (6 phút, trọng tâm)
-
-| # | Nghiệp vụ | Người dùng làm | App tự làm | Màn |
-| --- | --- | --- | --- | --- |
-| 7 | Tuần thi đấu | Bấm "Vào tuần thi đấu" | Chỉ cho vào khi Cổng 1 đạt; khoá hồ sơ; nhắc võ sĩ ghi cân mỗi ngày (hôm nay chưa cân, hôm qua thiếu cân) | Chi tiết trận · Có |
-| 8 | Cân chính thức | HLV nhập số cân và kết quả kiểm tra nước | Đạt: tự sang "Đã cân". Không đạt: **chỉ hỏi một câu**, catchweight hay huỷ. Giảm cân cấp tốc vượt ngưỡng: gắn cờ đỏ | `/coach/bouts/b-linh-saigon` → "Ghi cân chính thức" · Có (chạy thử 26/10: 59,6 kg → đạt cân) |
-| 9a | Thẻ góc đài | Xem trên điện thoại hoặc in A4 | Dựng từ phân tích đối thủ: chiến thuật có căn cứ lặp lại xếp trước, chiến thuật đã luyện xếp trước; nhãn "Chưa luyện"; cờ giảm cân cấp tốc | `/coach/bouts/[id]/corner-card` · Có (chạy thử 26/10) |
-| 9b | **Giữa các hiệp** | Trợ lý ghi mỗi hiệp: chiến thuật hiệu quả hay không, quan sát có thấy lại không, HLV tự chấm hiệp, bị ngã, choáng | **Xếp lại chiến thuật cho hiệp sau** (R21): chiến thuật không hiệu quả 2 hiệp liền bị đưa xuống; chiến thuật chưa dùng cùng căn cứ với chiến thuật đang hiệu quả được đẩy lên. **Cảnh báo đối thủ đã đổi lối đánh** (R22) khi quan sát không thấy lại 2 hiệp. **Thế trận** (R23): đang dẫn, cần thắng N hiệp, hay khó thắng điểm. **Cảnh báo an toàn** (R24): bị ngã 2 lần hoặc choáng 2 hiệp liền thì báo đỏ "Cân nhắc dừng trận, báo bác sĩ của giải" | `/coach/bouts/[id]/rounds` · Có (chạy thử 26/10) |
-| 10 | Ghi kết quả | HLV 2 chạm: kết quả, cách kết thúc; thua KO/TKO thêm 2 câu | **Điền sẵn** hiệp kết thúc và việc bị ngã từ bản ghi các hiệp (R25); kiểm tra mâu thuẫn (hiệp kết thúc vượt số hiệp; thắng điểm mà mới ghi 2/3 hiệp thì hỏi lại) (R26); trận sang "Đã xong" | Cùng trận → "Ghi kết quả" · Có (chạy thử 26/10: Thua, KO, hiệp 2) |
-
-**Cách diễn bước 9b** (dữ liệu demo: đăng nhập bằng nút demo **HLV Rafael Costa** ở `/login`; trận `bout-weighed-in`, võ sĩ Diego Alvarez gặp Lê Hoàng Nam, 3 hiệp, đã cân 64,8 kg; mở `/coach/bouts/bout-weighed-in/corner-card` và `/coach/bouts/bout-weighed-in/rounds`). Claude chạy thử bằng Playwright ở 390 px ngày 26/10: hai màn dựng đúng, không cuộn ngang, không lỗi; lời dặn hiện sau khi lưu hiệp 1.
-
-**Trước khi trình bày, khởi động lại server demo:** dữ liệu demo nằm trong bộ nhớ server, các hiệp đã ghi lúc tập sẽ còn lại (đủ 3/3 hiệp thì lời dặn không hiện nữa, đúng thiết kế).
-
-1. Mở thẻ góc đài: chỉ cho thầy thứ tự chiến thuật và nhãn "Chưa luyện".
-2. Ghi hiệp 1: bấm "Thua hiệp"; chiến thuật đầu tiên "Không hiệu quả"; quan sát đầu tiên "Không thấy"; số lần bị ngã 1; "Lưu hiệp 1". Lời dặn trước hiệp 2 hiện ngay ở đầu trang.
-3. Ghi hiệp 2: lại "Thua hiệp"; chiến thuật đầu tiên "Không hiệu quả"; quan sát đầu tiên "Không thấy"; số lần bị ngã 1; "Lưu hiệp 2".
-4. Lời dặn trước hiệp 3 (đã thấy khi chạy thử): chiến thuật đầu bị gạch, ghi "Tạm bỏ (không hiệu quả 2 hiệp liền)", xuống cuối (R21); thế trận "Khó thắng điểm, số hiệp còn lại không đủ bù (HLV tự chấm)" (R23). Với các thao tác ở bước 2–3 còn có: chiến thuật chỉ dựa trên quan sát đầu tiên kèm cảnh báo đối thủ có thể đã đổi lối đánh (R22), và cảnh báo đỏ "Cân nhắc dừng trận, báo bác sĩ của giải" vì bị ngã 2 lần (R24).
-5. Nhấn mạnh câu trên màn: "Chỉ mang tính gợi ý, HLV là người quyết định." App không tự dừng trận.
-
-**Dự phòng nếu 9a/9b chưa xong:** chạy test backend trước mặt thầy, mỗi ca test là một tình huống trên:
-`pnpm --filter nestjs-api exec vitest run src/bouts/bout-analysis.model.spec.ts` (các ca R20–R24), rồi giải thích từng ca bằng bảng ở trên.
-
-## 3. Sau trận (4 phút)
-
-| # | Nghiệp vụ | Người dùng làm | App tự làm | Màn |
-| --- | --- | --- | --- | --- |
-| 11 | Đình chỉ | Một chạm "Xác nhận đình chỉ" (sửa số ngày thì ghi lý do) | Ngay khi lưu kết quả thua KO, app **đề xuất** số ngày theo bộ luật kèm lý do ("30 ngày, KO hoặc TKO: 30 ngày"); xác nhận xong là có hiệu lực ngay, kèm danh sách loại buổi bị chặn. Ở backend thật (T-007), đình chỉ được tạo luôn trong cùng giao dịch ghi kết quả: AIBA KO đầu 30 ngày, KO lặp lại trong thời hạn 90 ngày; TKO đánh đầu 30 ngày | Chi tiết trận, rồi `/coach/bouts/suspensions` · Có (chạy thử 26/10: Linh Phạm, 30 ngày, "Đang đình chỉ", chặn đấu tập, bao cát…) |
-| 12 | Điều chỉnh lịch tập | Một chạm "Áp dụng tất cả" | **Cổng 2** chặn xếp buổi sparring khi đang đình chỉ; tìm buổi đã xếp bị xung đột, đề xuất dời hoặc huỷ | `/coach/sessions/new`: chọn Linh Phạm, loại "Đấu tập", bấm "Lên lịch buổi tập" · Có (chạy thử 26/10: bị chặn, "Linh Phạm đang bị đình chỉ: buổi đấu tập bị chặn đến hết ngày 25 thg 11, 2026") |
-| 13 | Cho tập lại | HLV hoặc bác sĩ ghi căn cứ | Đình chỉ cần xác nhận thì tạo việc "Chờ xác nhận được tập lại" trên thẻ Việc cần làm | `/coach/bouts/suspensions`, nút "Cho tập lại" **ở dòng của Linh Phạm** (trang có sẵn đình chỉ của võ sĩ khác) · Có (chạy thử 26/10: ghi căn cứ, người xác nhận, võ sĩ về "Sẵn sàng nhận trận mới") |
-| 14 | Đánh giá trận | Sửa nếu không đồng ý | **Tự đánh giá từng chiến thuật** từ bản ghi các hiệp (R29); lập **điểm cần luyện cho camp sau** (R30): chiến thuật không hiệu quả, giảm cân cấp tốc vượt ngưỡng, "đuối sức từ hiệp 2" | Backend có; màn báo cáo chưa có. Dự phòng: test `buildImprovementPoints` |
-| 15 | Sẵn sàng nhận trận mới | Không | Bảng sẵn sàng toàn CLB: võ sĩ không có trận đang chạy và không có đình chỉ còn hiệu lực; khi tạo trận tiếp theo, hiện điểm cần luyện từ trận trước | Backend có (`GET /readiness`); màn chưa có |
-
-**Dự phòng cho bước 14–15** (backend có, chưa có màn; Claude chạy thử 26/10: 8 test qua):
+### Tối 26/10 (mỗi người, 15 phút)
 
 ```bash
-cd nestjs-api
+git fetch origin && git checkout sync/T-004-fight-camp && git pull
+pnpm install
+cd nextjs-frontend && APP_DATA_MODE=demo pnpm dev
+```
+
+Mở <http://localhost:3000> → trang đăng nhập → bấm nút demo **"Rafael Costa"** (HLV). Tập phần của mình một lần từ đầu đến cuối.
+
+### 15 phút trước giờ trình bày (máy của Fon)
+
+1. **Tắt server cũ và chạy lại `pnpm dev`.** Dữ liệu demo nằm trong bộ nhớ server: các hiệp đã ghi và đình chỉ đã tạo lúc tập vẫn còn. Đủ 3/3 hiệp thì lời dặn không hiện nữa; Linh đã cân hoặc đã bị đình chỉ thì phần sau trận không diễn lại được.
+2. Đăng nhập "Rafael Costa", mở sẵn các tab theo thứ tự:
+   1. `/coach/dashboard`
+   2. `/coach/bouts`
+   3. `/coach/bouts/bout-weighed-in/corner-card`
+   4. `/coach/bouts/bout-weighed-in/rounds`
+   5. `/coach/bouts/b-linh-saigon`
+   6. `/coach/bouts/suspensions`
+3. Phóng to trình duyệt 125% để thầy đọc được chữ. Phần trong trận có thể bật chế độ điện thoại (F12 → biểu tượng điện thoại, 390 px) để cho thấy dùng ở góc đài.
+4. Mở sẵn một terminal ở thư mục `nestjs-api` cho lệnh dự phòng (mục 8).
+
+## 2. Mở đầu (Dan, 1 phút)
+
+**Nói:** "Lần trước thầy nhận xét phần trong và sau trận người dùng phải tự làm nhiều. Hôm nay nhóm em đi qua một trận từ đầu đến cuối. Ở mỗi bước, em chỉ rõ người dùng bấm gì và app tự làm gì. Phần trong trận em làm theo gợi ý của thầy: phân tích đối thủ giữa các hiệp."
+
+## 3. Trước trận (Hoàng Anh, 3 phút)
+
+| # | Mở | Bấm | Trên màn thấy | Nói |
+| --- | --- | --- | --- | --- |
+| 1.1 | Tab `/coach/dashboard` | Cuộn tới thẻ "Việc cần làm" | Mục "TRƯỚC TRẬN": "Kenji Morita · Cân vượt ngưỡng giảm cân" và "Kenji Morita · Đủ điều kiện vào tuần thi đấu" (giải Pacific Invitational 4) | "HLV không phải đi tìm việc. App gom việc từ mọi trận: ai cân vượt ngưỡng, ai đủ điều kiện vào tuần thi đấu, hồ sơ nào sắp hết hạn." |
+| 1.2 | Tab `/coach/bouts` | Không bấm | Bảng trận, mỗi dòng có giai đoạn, cân nặng, Cổng 1. Kenji: "Vượt giới hạn giảm cân". Emma Lindqvist: "Thiếu 1 · quá hạn". Linh Phạm: "Hôm nay là buổi cân" | "Trạng thái cân và Cổng 1 do app tính sẵn, từ số cân võ sĩ ghi mỗi sáng và hồ sơ đã nộp." |
+| 1.3 | Bấm dòng **Emma Lindqvist** | Cuộn tới phần hồ sơ | "Brain CT · Bắt buộc · Còn thiếu"; phần "Tuần thi đấu": "Thiếu 1 · quá hạn" | "Cổng 1: thiếu một giấy bắt buộc là chưa được vào tuần thi đấu. Hạn nộp do bộ luật quy định, app tự tính." |
+| 1.4 | Cùng trang | Bấm **"Vào tuần thi đấu"** | App báo không vào được vì Cổng 1 *(chưa chạy thử bước này; nếu nút bị khoá thì chỉ vào nút và nói tiếp)* | "HLV không cần nhớ quy định. App chặn đúng lúc và nói rõ thiếu gì." |
+| 1.5 | `/coach/bouts/new` | Chỉ vào các ô, không cần tạo | "Võ sĩ", "Bộ luật thi đấu" (MMA – VMMAF 2021; Boxing nghiệp dư – AIBA (tham khảo); Tự nhập), "Hạng cân" (đổi theo bộ luật), "Giờ cân", "Giờ thi đấu" | "Tạo trận chỉ vài ô. Chọn bộ luật là app tự lấy hạng cân, hạn nộp hồ sơ, giới hạn giảm cân cấp tính, và sinh danh sách hồ sơ cần nộp." |
+
+**Chuyển:** "Đó là phần thầy đã xem. Giờ Dan trình bày phần mới: trong trận."
+
+## 4. Trong trận (Dan, 6 phút, trọng tâm)
+
+Trận dùng xuyên suốt: **Diego Alvarez gặp Lê Hoàng Nam**, giải Vietnam MMA Open 2026, 65 kg, 3 hiệp, đã cân chính thức 64,8 kg.
+
+### 4.1 Thẻ góc đài (1,5 phút)
+
+**Mở:** tab `/coach/bouts/bout-weighed-in/corner-card`.
+
+**Trên màn thấy:** đầu thẻ có võ sĩ, đối thủ, hạng cân, "Số hiệp dự kiến 3", nút "In thẻ A4". Bốn chiến thuật đã xếp sẵn:
+
+1. "Bước chéo sang trái, phản đòn móc trái ngay khi đối thủ thu chân đá thấp": "Mọi hiệp", "Căn cứ lặp lại", "Đã luyện"
+2. "Ép góc bằng chuỗi jab - đấm thẳng rồi cắt góc ngang…": "Hiệp 1", "Căn cứ lặp lại", "Chưa luyện"
+3. "Giữ tay phải cao che hàm khi thoát áp sát…": "Hiệp 2", "Quan sát 1 lần", "Đã luyện"
+4. "Tăng nhịp đòn vào vùng bụng và đổi tầng vật từ giữa hiệp 2": "Mọi hiệp", "Quan sát 1 lần", "Chưa luyện"
+
+Mỗi chiến thuật có dòng "Mô tả tình huống" cho bạn tập.
+
+**Nói:** "Trước trận, HLV phân tích đối thủ; mỗi chiến thuật phải dựa trên quan sát có bằng chứng. App tự dựng thẻ góc đài: chiến thuật có căn cứ lặp lại lên trước, chiến thuật đã luyện lên trước, chiến thuật chưa luyện được gắn nhãn 'Chưa luyện' để HLV thấy rủi ro. Thẻ in A4, hoặc mở trên điện thoại ở góc đài."
+
+Bấm "Lọc theo hiệp" → "Hiệp 1" để cho thấy thẻ lọc theo hiệp. Rồi bấm **"Ghi hiệp & lời dặn"**.
+
+### 4.2 Ghi hiệp 1 (1,5 phút)
+
+**Mở:** `/coach/bouts/bout-weighed-in/rounds`. Ba thẻ "Hiệp 1", "Hiệp 2", "Hiệp 3", đều "Chưa ghi".
+
+**Nói trước khi bấm:** "Giữa hai hiệp có khoảng một phút. Trợ lý ghi bằng vài chạm, không gõ chữ."
+
+Trong thẻ **Hiệp 1**, bấm lần lượt:
+
+1. "HLV tự chấm" → **"Thua hiệp"**
+2. "Số lần bị đánh ngã (0–10)" → nhập **1**
+3. "Đánh dấu chiến thuật", chiến thuật đầu tiên ("Bước chéo sang trái…") → **"Không hiệu quả"**
+4. "Đánh dấu quan sát đối thủ", quan sát đầu tiên ("Hạ tay phải sau khi tung đòn đá thấp chân sau") → **"Không thấy"**
+5. **"Lưu hiệp 1"**
+
+**Trên màn thấy:** thẻ Hiệp 1 chuyển "Đã lưu"; đầu trang hiện khung **"Lời dặn giữa hiệp (trước hiệp 2)"**, ngay dưới là "Chỉ mang tính gợi ý — HLV là người quyết định tại góc đài."
+
+**Nói:** "Lưu xong là có lời dặn cho hiệp sau. Chiến thuật mới không hiệu quả một lần thì app chưa bỏ, chỉ hạ điểm."
+
+### 4.3 Ghi hiệp 2, đọc lời dặn trước hiệp 3 (2,5 phút)
+
+Trong thẻ **Hiệp 2**, bấm y như hiệp 1: "Thua hiệp", số lần bị ngã **1**, chiến thuật đầu "Không hiệu quả", quan sát đầu "Không thấy", **"Lưu hiệp 2"**.
+
+**Trên màn thấy** khung **"Lời dặn giữa hiệp (trước hiệp 3)"**. Chỉ lần lượt từng phần, mỗi phần một câu:
+
+| Trên màn | Quy tắc | Nói |
+| --- | --- | --- |
+| "Khó thắng điểm — số hiệp còn lại không đủ bù (HLV tự chấm)" | R23 | "Thua hai hiệp, còn một hiệp: thắng điểm gần như không thể. App nói thẳng để HLV đổi chiến lược. Đây là HLV tự chấm, không phải điểm trọng tài." |
+| Chiến thuật đầu bị gạch, ghi "Tạm bỏ (không hiệu quả 2 hiệp liền)", nằm cuối danh sách | R21 | "Không hiệu quả hai hiệp liền thì app gạch và đưa xuống cuối. Chiến thuật chưa dùng mà cùng căn cứ với chiến thuật đang dùng được đẩy lên." |
+| "Đối thủ có thể đã đổi lối đánh (không thấy quan sát căn cứ 2 hiệp liền)" | R22 | "Thói quen của đối thủ hai hiệp không thấy lại: có thể đối thủ đã đổi. Chiến thuật chỉ dựa trên thói quen đó bị đánh dấu." |
+| Khung đỏ "Cân nhắc dừng trận, báo bác sĩ của giải" | R24 | "Bị ngã tổng hai lần thì app cảnh báo đỏ. App không tự dừng trận; quyết định là của HLV và bác sĩ giải." |
+
+**Nói chốt:** "Đây là ví dụ thầy gợi ý. Người dùng chạm bốn, năm lần mỗi hiệp; phần phân tích và gợi ý do app làm, dựa trên phân tích đối thủ soạn trước trận."
+
+**Chuyển:** "Trận đã cân và đã thi xong. Ken trình bày phần cân, kết quả và những gì app làm sau trận."
+
+## 5. Sau trận (Ken, 4 phút)
+
+Trận dùng: **Linh Phạm gặp Vũ Mai Anh**, Saigon Amateur Night 5, 60 kg, bộ luật "Boxing nghiệp dư – AIBA (tham khảo)", hôm nay là buổi cân.
+
+| # | Mở | Bấm | Trên màn thấy | Nói |
+| --- | --- | --- | --- | --- |
+| 5.1 | Tab `/coach/bouts/b-linh-saigon` | **"Ghi cân chính thức"** → ô "Cân chính thức" nhập **59.6** → **"Lưu kết quả cân"** | "Đạt cân."; trận sang "Đã cân" | "HLV nhập một số. Đạt thì app tự chuyển trạng thái. Không đạt thì app chỉ hỏi một câu: thi ở mức cân thoả thuận hay huỷ trận." |
+| 5.2 | Cùng trang | **"Ghi kết quả"** → "Kết quả": **Thua** → "Cách kết thúc": **KO** → "Hiệp": **2** → "Có mất ý thức không?": chọn một đáp án → **"Lưu kết quả"** | "Thua · KO, hiệp 2"; ngay dưới: "Đề xuất: 30 ngày (KO hoặc TKO: 30 ngày)." và nút "Xác nhận đình chỉ" | "Thua KO là app đề xuất đình chỉ ngay theo bộ luật, kèm lý do. HLV không phải tra luật." |
+| 5.3 | Cùng trang | **"Xác nhận đình chỉ"** (sửa số ngày thì phải ghi lý do) | "Đã lưu đình chỉ", "Đang đình chỉ" | "Một chạm là đình chỉ có hiệu lực. Ở backend thật, đình chỉ được tạo ngay trong cùng giao dịch ghi kết quả; KO lần hai trong thời hạn thì 90 ngày." |
+| 5.4 | Tab `/coach/bouts/suspensions` | Không bấm | "Linh Phạm · KO · 26 thg 10, 2026 – 25 thg 11, 2026 (30 ngày) · Đang đình chỉ"; "Chặn đánh bóng, đấm đích, bao cát, đấu tập, luyện kỹ thuật, vật, thể lực. Cần cấp phép để tập lại" (ngày đổi theo ngày chạy) | "Trang Đình chỉ của cả CLB: ai đang bị đình chỉ, đến ngày nào, bị chặn những loại buổi nào." |
+| 5.5 | `/coach/sessions/new` | "Võ sĩ": **Linh Phạm**; loại buổi **"Đấu tập"**; nhập tiêu đề, ngày mai, giờ bất kỳ → **"Lên lịch buổi tập"** | Không tạo được; dòng báo: "Linh Phạm đang bị đình chỉ: buổi đấu tập bị chặn đến hết ngày 25 thg 11, 2026." | "Đây là Cổng 2. Võ sĩ đang đình chỉ thì app không cho xếp, cũng không cho bắt đầu loại buổi bị cấm. Không ai phải nhớ." |
+| 5.6 | Tab `/coach/bouts/suspensions` | Nút **"Cho tập lại"** ở **đúng dòng Linh Phạm** (trang có sẵn đình chỉ của võ sĩ khác, đừng bấm nhầm) → ô "Căn cứ" nhập "Bác sĩ CLB khám lại, cho tập nhẹ" → xác nhận | "Rafael Costa xác nhận được tập lại, <giờ>: Bác sĩ CLB khám lại, cho tập nhẹ"; võ sĩ "Sẵn sàng nhận trận mới" | "Đình chỉ cần cấp phép thì chỉ HLV hoặc bác sĩ được cho tập lại, và phải ghi căn cứ. Xong là võ sĩ quay lại danh sách sẵn sàng nhận trận mới." |
+
+**Nói thêm (không cần màn):** "Sau trận app còn tự đánh giá từng chiến thuật từ bản ghi các hiệp, và lập điểm cần luyện cho camp sau, ví dụ 'đuối sức từ hiệp 2'. Backend đã có và có test; màn báo cáo đang làm. Thầy muốn xem thì em chạy test ngay." (Lệnh ở mục 8.)
+
+## 6. Kết (Dan, 30 giây)
+
+**Nói:** "Tóm lại: trước trận app chặn đúng lúc; trong trận app gợi ý lời dặn giữa hiệp từ phân tích đối thủ; sau trận app tự đề xuất đình chỉ, tự chặn lịch tập nguy hiểm và chuyển bài học sang camp sau. Người dùng chỉ nhập điều họ biết. Vòng đời quay lại bước tạo trận mới."
+
+## 7. Câu hỏi thầy có thể hỏi
+
+| Câu hỏi | Trả lời gợi ý |
+| --- | --- |
+| Giữa hiệp chỉ có một phút, có kịp ghi không? | Mỗi hiệp 4–5 chạm, không gõ chữ. Không kịp thì ghi sau trận trên cùng màn; lời dặn chỉ có ý nghĩa khi ghi trước hiệp cuối. Giải không cho dùng điện thoại ở góc đài thì vẫn dùng thẻ in A4. |
+| App có tự dừng trận không? | Không. App chỉ cảnh báo đỏ và ghi rõ "Chỉ mang tính gợi ý — HLV là người quyết định tại góc đài." Dừng trận là việc của HLV và bác sĩ giải. |
+| Ngưỡng "2 hiệp liền", "bị ngã 2 lần" lấy ở đâu? | Đề xuất của nhóm, đặt thành hằng số có tên trong code để đổi một chỗ; đang chờ HLV có chuyên môn duyệt. |
+| Số ngày đình chỉ theo luật nào? | Theo bộ luật gắn với trận. AIBA trong demo ghi rõ "Chỉ để tham khảo, chưa xác minh với ban tổ chức". Bộ luật không có quy tắc thì HLV nhập số ngày. |
+| Đây là demo giả hay chạy thật? | Màn hôm nay chạy chế độ demo cho nhanh và ổn định. Backend thật đã có đủ các quy tắc này: hơn 1.000 test backend qua, migration đình chỉ đã áp lên database. AI nhận diện đòn đã chạy thật qua backend ngày 25/10. |
+| Khác gì ghi vào Excel? | Excel chỉ lưu. App kiểm tra và tạo hệ quả: chặn vào tuần thi đấu khi thiếu hồ sơ, tự đề xuất đình chỉ, chặn xếp buổi tập bị cấm, xếp lại chiến thuật giữa hiệp. |
+
+## 8. Sự cố và dự phòng
+
+| Sự cố | Xử lý |
+| --- | --- |
+| Lời dặn không hiện sau khi lưu hiệp | Dữ liệu cũ còn trong bộ nhớ (đã đủ 3/3 hiệp). Khởi động lại server, đăng nhập lại, làm lại từ 4.2. Hết giờ thì dùng lệnh dự phòng phần trong trận. |
+| Không thấy nút "Ghi cân chính thức" | Trận Linh đã cân lúc tập. Khởi động lại server. |
+| Trang báo lỗi hoặc trắng | Tải lại trang; vẫn lỗi thì chạy lệnh dự phòng của phần đó và nói tiếp. |
+
+**Lệnh dự phòng** (terminal ở `nestjs-api`; mỗi ca test là một tình huống trong kịch bản):
+
+```bash
+# Trong trận: thẻ góc đài và lời dặn giữa hiệp (R20–R24); Claude chạy thử 26/10: 5 test qua
+npx vitest run src/bouts/bout-analysis.model.spec.ts -t "R20|R21|R22|R23|R24"
+
+# Sau trận: đánh giá chiến thuật, điểm cần luyện, bảng sẵn sàng (R29, R30, R32); Claude chạy thử 26/10: 8 test qua
 npx vitest run src/bouts/bout-analysis.model.spec.ts src/bouts/bouts.model.spec.ts -t "R29|R30|classifyReadiness"
 ```
 
-Nói kèm từng ca:
-- *R29 evaluates counts, ties, unused tactics…*: app tự chấm từng chiến thuật sau trận từ bản ghi các hiệp. Hiệu quả 2 hiệp, không dùng hiệp 3 thì "Hiệu quả"; hiệu quả 1, không hiệu quả 1 thì vẫn "Hiệu quả"; không hiệp nào dùng thì "Chưa dùng". HLV sửa nếu không đồng ý.
-- *R30 uses saved reviews…*, *R30 detects only a consecutive fatigue suffix*: điểm cần luyện cho camp sau, gồm chiến thuật không hiệu quả, giảm cân cấp tốc vượt ngưỡng, và "đuối sức từ hiệp 2" khi mệt liên tiếp tới hiệp cuối. Danh sách này hiện ra khi HLV tạo trận tiếp theo cho võ sĩ.
-- *classifyReadiness (R32, S3)*: bảng sẵn sàng toàn CLB. Thứ tự ưu tiên: đang đình chỉ, chờ xác nhận tập lại, đang có trận, sẵn sàng. Ngày cuối đình chỉ vẫn tính là đình chỉ; hôm sau là "chờ xác nhận" nếu bộ luật yêu cầu, ngược lại là "sẵn sàng".
+Giải thích nhanh các ca của lệnh thứ hai:
 
-Câu kết: "Sau trận, HLV gần như không nhập gì: app tự tạo đình chỉ, tự chặn lịch tập nguy hiểm, tự đánh giá chiến thuật và chuyển bài học sang camp sau. Vòng đời quay lại bước 1."
+- *R29*: app tự chấm từng chiến thuật sau trận. Hiệu quả 2 hiệp, không dùng hiệp 3 thì "Hiệu quả"; hiệu quả 1, không hiệu quả 1 thì vẫn "Hiệu quả"; không hiệp nào dùng thì "Chưa dùng".
+- *R30*: điểm cần luyện cho camp sau, gồm chiến thuật không hiệu quả, giảm cân cấp tốc vượt ngưỡng, "đuối sức từ hiệp 2" khi mệt liên tiếp tới hiệp cuối. Hiện ra khi tạo trận tiếp theo cho võ sĩ.
+- *classifyReadiness*: bảng sẵn sàng toàn CLB, ưu tiên: đang đình chỉ, chờ xác nhận tập lại, đang có trận, sẵn sàng.
 
-## 4. Chuẩn bị (tối 26/10, Claude kiểm và cập nhật bảng trạng thái)
+## 9. Phụ lục: 15 nghiệp vụ và màn tương ứng
 
-- [ ] Nhánh demo đã có: T-004/T-006 B của Hoàng Anh trên nền `fight-camp` (Codex), T-010 B (Gemini).
-- [ ] Chạy thử toàn bộ kịch bản ở demo mode, 390 px cho bước 9.
-- [ ] Mở sẵn terminal cho các lệnh dự phòng.
-- [ ] Số liệu nói được: backend 1021 test qua; 15 nghiệp vụ; quy tắc R1–R32 nằm ở [Luồng nghiệp vụ](./FIGHT-CAMP-BUSINESS-FLOWS.md).
+| # | Nghiệp vụ | Giai đoạn | Màn hôm nay | Bước |
+| --- | --- | --- | --- | --- |
+| 1 | Tạo trận | Trước | Có | 1.5 |
+| 2 | Lập camp và giáo án | Trước | Có, không diễn | — |
+| 3 | Kiểm soát cân | Trước | Có | 1.1, 1.2 |
+| 4 | Ăn uống | Trước | Có một phần, không diễn | — |
+| 5 | Hồ sơ thi đấu, Cổng 1 | Trước | Có | 1.3, 1.4 |
+| 6 | Phân tích đối thủ | Trước | Thẻ góc đài có; màn soạn phân tích chưa có | 4.1 |
+| 7 | Tuần thi đấu | Trong | Có | 1.4 |
+| 8 | Cân chính thức | Trong | Có | 5.1 |
+| 9 | Thi đấu: thẻ góc đài, ghi hiệp, lời dặn | Trong | Có | 4.1–4.3 |
+| 10 | Ghi kết quả | Trong | Có | 5.2 |
+| 11 | Đình chỉ | Sau | Có | 5.2–5.4 |
+| 12 | Điều chỉnh lịch tập, Cổng 2 | Sau | Có | 5.5 |
+| 13 | Cho tập lại | Sau | Có | 5.6 |
+| 14 | Đánh giá trận, điểm cần luyện | Sau | Backend có, màn chưa có | Lệnh dự phòng |
+| 15 | Sẵn sàng nhận trận mới | Sau | Backend có, màn chưa có | 5.6, lệnh dự phòng |
+
+Quy tắc chi tiết R1–R32: [Luồng nghiệp vụ](./FIGHT-CAMP-BUSINESS-FLOWS.md#nghiệp-vụ-hệ-thống-trước-trong-và-sau-trận-đề-xuất-2010-chờ-duyệt).
