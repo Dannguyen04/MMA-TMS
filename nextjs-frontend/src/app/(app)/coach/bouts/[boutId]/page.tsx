@@ -3,11 +3,14 @@ import {
     Activity,
     Calendar,
     CalendarClock,
+    ClipboardList,
+    FileText,
     History,
     Shield,
     TriangleAlert,
 } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { FighterIdentity } from "@/components/domain/fighter-identity";
@@ -75,6 +78,8 @@ export default async function CoachBoutDetailPage({ params }: PageProps) {
                   : plural(t, "coachBouts.detail.weighedInDaysAgo", Math.abs(daysLeft))
             : "";
 
+    const canAccessRingsideTools = bout.status === "WEIGHED_IN" || bout.status === "COMPLETED";
+
     return (
         <div className="flex flex-col gap-6">
             <PageHeader
@@ -104,6 +109,34 @@ export default async function CoachBoutDetailPage({ params }: PageProps) {
                     </div>
                 </CardContent>
             </Card>
+
+            {/* Corner card & Round tracking links — only shown when WEIGHED_IN or COMPLETED (T-010B §3) */}
+            {canAccessRingsideTools && (
+                <Card className="min-w-0">
+                    <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
+                            <p className="text-sm font-semibold text-fg">{t("boutAnalysis.nav.ringsideTitle")}</p>
+                            <p className="text-xs text-fg-muted">{t("boutAnalysis.nav.ringsideDesc")}</p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Link
+                                href={`${routes.coach.bout(bout.id)}/corner-card`}
+                                className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3.5 text-xs font-semibold text-primary-fg transition hover:opacity-90"
+                            >
+                                <FileText aria-hidden className="size-3.5 shrink-0" />
+                                <span>{t("boutAnalysis.nav.cornerCard")}</span>
+                            </Link>
+                            <Link
+                                href={`${routes.coach.bout(bout.id)}/rounds`}
+                                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3.5 text-xs font-semibold text-fg transition hover:bg-surface-muted"
+                            >
+                                <ClipboardList aria-hidden className="size-3.5 shrink-0" />
+                                <span>{t("boutAnalysis.nav.rounds")}</span>
+                            </Link>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
 
             {/* Unverified ruleset notice */}
             {ruleset && !ruleset.verified && (
