@@ -346,9 +346,102 @@ export const fighterAnalysisSchema = z.object({
 export const analysisSessionsSchema = z.array(
   z.object({ id: z.uuid(), title: z.string(), scheduledAt: z.iso.datetime() }),
 );
+export function evaluateTactics(
+  analysis: OpponentAnalysis,
+  rounds: readonly AnalysisRound[],
+) {
+  return {
+    tactics: (analysis.tactics ?? []).map((t) => {
+      const effectiveRounds = rounds.filter(
+        (r) => r.tacticMarks?.[t.id] === 'EFFECTIVE',
+      ).length;
+      const ineffectiveRounds = rounds.filter(
+        (r) => r.tacticMarks?.[t.id] === 'INEFFECTIVE',
+      ).length;
+      const outcome: z.infer<typeof tacticOutcomeSchema> =
+        ineffectiveRounds > effectiveRounds
+          ? 'INEFFECTIVE'
+          : effectiveRounds > 0
+            ? 'EFFECTIVE'
+            : 'NOT_USED';
+      return {
+        id: t.id,
+        text: t.text,
+        effectiveRounds,
+        ineffectiveRounds,
+        outcome,
+      };
+    }),
+    observations: (analysis.observations ?? []).map((o) => {
+      const marks = rounds
+        .map((r) => r.observationMarks?.[o.id])
+        .filter((m) => m !== undefined);
+      return {
+        id: o.id,
+        text: o.text,
+        notSeenInBout: marks.length > 0 && marks.every((m) => m === 'NOT_SEEN'),
+      };
+    }),
+  };
+}
+
+export const improvementPointSchema = z.union([
+  z.object({
+    code: z.literal('TACTIC_INEFFECTIVE'),
+    tacticId: analysisIdSchema,
+    text: z.string(),
+  }),
+  z.object({ code: z.literal('ACUTE_LOSS_EXCEEDED') }),
+  z.object({
+    code: z.string().regex(/^FATIGUE_FROM_ROUND_([1-9]|1[0-2])$/),
+    fromRound: z.number().int().min(1).max(12),
+  }),
+]);
+export type ImprovementPoint = z.infer<typeof improvementPointSchema>;
+
+export function buildImprovementPoints(
+  analysis: OpponentAnalysis,
+  inputRounds: readonly AnalysisRound[],
+  acuteLoss: { status: string } | null,
+): ImprovementPoint[] {
+  const points: ImprovementPoint[] = [];
+  // Without round records R25 only permits the acute-loss flag, even with saved reviews.
+  if (inputRounds.length) {
+    const evaluation = evaluateTactics(analysis, inputRounds);
+    for (const t of analysis.tactics ?? []) {
+      const outcome =
+        t.review?.outcome ??
+        evaluation.tactics.find((e) => e.id === t.id)!.outcome;
+      if (outcome === 'INEFFECTIVE')
+        points.push({
+          code: 'TACTIC_INEFFECTIVE',
+          tacticId: t.id,
+          text: t.text,
+        });
+    }
+  }
+  if (acuteLoss?.status === 'EXCEEDED')
+    points.push({ code: 'ACUTE_LOSS_EXCEEDED' });
+  const rounds = [...inputRounds].sort((a, b) => a.roundNo - b.roundNo);
+  let streak = 0;
+  for (let i = rounds.length - 1; i >= 0; i--) {
+    if (
+      !rounds[i]!.fatigued ||
+      (i < rounds.length - 1 &&
+        rounds[i + 1]!.roundNo !== rounds[i]!.roundNo + 1)
+    )
+      break;
+    streak++;
+  }
+  if (streak >= 2) {
+    const fromRound = rounds[rounds.length - streak]!.roundNo;
+    points.push({ code: `FATIGUE_FROM_ROUND_${fromRound}`, fromRound });
+  }
+  return points;
+}
+
 export const priorContextResponseSchema = z.object({
-  // R30 calculation is deferred until T-006 is merged (ticket section 6).
-  improvementPoints: z.null(),
+  improvementPoints: z.array(improvementPointSchema).nullable(),
   copyableAnalysis: z
     .object({
       boutId: z.uuid(),

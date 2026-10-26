@@ -28,6 +28,7 @@ import {
   boutRequirementsIncomplete,
   boutRequirementsLocked,
   boutResultInvalid,
+  boutRoundsIncomplete,
   boutStateConflict,
   boutWeighInNotFailed,
   boutWeighInTooEarly,
@@ -87,9 +88,18 @@ import {
   type WeightTrack,
 } from './bouts.model.js';
 import {
-  buildCornerCard, buildRoundAdvice, normalizeOpponentName,
-  opponentAnalysisInputSchema, opponentReviewInputSchema, roundInputSchema,
-  type OpponentAnalysis, type OpponentAnalysisInput, type OpponentReviewInput, type RoundInput,
+  buildCornerCard,
+  buildRoundAdvice,
+  buildImprovementPoints,
+  evaluateTactics,
+  normalizeOpponentName,
+  opponentAnalysisInputSchema,
+  opponentReviewInputSchema,
+  roundInputSchema,
+  type OpponentAnalysis,
+  type OpponentAnalysisInput,
+  type OpponentReviewInput,
+  type RoundInput,
 } from './bout-analysis.model.js';
 import { BoutsRepository, type BoutScope } from './bouts.repo.js';
 
@@ -147,9 +157,16 @@ export class BoutsService {
     const detail = await this.buildDetail(bout);
     if (actor.role === USER.FIGHTER) {
       detail.opponentAnalysis = fighterAnalysis(bout.opponentAnalysis);
-      const ids = [...new Set((bout.opponentAnalysis.tactics ?? []).flatMap((t) => t.sessionIds))];
-      detail.sessions = (await this.repo.findAnalysisSessions(ids, bout.fighterId)).map((r) => ({
-        ...r, scheduledAt: r.scheduledAt.toISOString(),
+      const ids = [
+        ...new Set(
+          (bout.opponentAnalysis.tactics ?? []).flatMap((t) => t.sessionIds),
+        ),
+      ];
+      detail.sessions = (
+        await this.repo.findAnalysisSessions(ids, bout.fighterId)
+      ).map((r) => ({
+        ...r,
+        scheduledAt: r.scheduledAt.toISOString(),
       }));
     }
     return detail;
@@ -165,45 +182,91 @@ export class BoutsService {
     return this.loadWeightTrack(bout, ruleset, new Date());
   }
 
-
-  async putOpponentAnalysis(actor: AuthenticatedUser, id: string, input: OpponentAnalysisInput, requestId: string) {
+  async putOpponentAnalysis(
+    actor: AuthenticatedUser,
+    id: string,
+    input: OpponentAnalysisInput,
+    requestId: string,
+  ) {
     const parsed = opponentAnalysisInputSchema.safeParse(input);
     if (!parsed.success) throw analysisValidationError();
     const data = parsed.data;
     const observationIds = new Set(data.observations.map((o) => o.id));
-    if (data.tactics.some((t) => !t.observationIds.length || t.observationIds.some((id) => !observationIds.has(id))))
+    if (
+      data.tactics.some(
+        (t) =>
+          !t.observationIds.length ||
+          t.observationIds.some((id) => !observationIds.has(id)),
+      )
+    )
       throw boutAnalysisInvalid('OPPONENT_TACTIC_EVIDENCE_REQUIRED');
     return this.mutateAnalysis(actor, id, requestId, async (bout, tx) => {
       if (isFinalStatus(bout.status)) throw boutNotEditable(bout.status);
       const ids = [...new Set(data.tactics.flatMap((t) => t.sessionIds))];
-      const sessions = await this.repo.findAnalysisSessions(ids, bout.fighterId, tx);
-      if (sessions.length !== ids.length) throw boutAnalysisInvalid('OPPONENT_SESSION_INVALID');
-      const reviews = new Map((bout.opponentAnalysis.tactics ?? []).map((t) => [t.id, t.review]));
-      return { ...data, tactics: data.tactics.map((t) => {
-        const review = reviews.get(t.id);
-        return { ...t, ...(review ? { review } : {}) };
-      }) };
+      const sessions = await this.repo.findAnalysisSessions(
+        ids,
+        bout.fighterId,
+        tx,
+      );
+      if (sessions.length !== ids.length)
+        throw boutAnalysisInvalid('OPPONENT_SESSION_INVALID');
+      const reviews = new Map(
+        (bout.opponentAnalysis.tactics ?? []).map((t) => [t.id, t.review]),
+      );
+      return {
+        ...data,
+        tactics: data.tactics.map((t) => {
+          const review = reviews.get(t.id);
+          return { ...t, ...(review ? { review } : {}) };
+        }),
+      };
     });
   }
 
-  async putOpponentReview(actor: AuthenticatedUser, id: string, input: OpponentReviewInput, requestId: string) {
+  async putOpponentReview(
+    actor: AuthenticatedUser,
+    id: string,
+    input: OpponentReviewInput,
+    requestId: string,
+  ) {
     const parsed = opponentReviewInputSchema.safeParse(input);
     if (!parsed.success) throw analysisValidationError();
     return this.mutateAnalysis(actor, id, requestId, async (bout) => {
       if (bout.status !== 'COMPLETED') throw boutNotEditable(bout.status);
       const tactics = bout.opponentAnalysis.tactics ?? [];
-      if (parsed.data.reviews.some((r) => !tactics.some((t) => t.id === r.tacticId)))
+      if (
+        parsed.data.reviews.some(
+          (r) => !tactics.some((t) => t.id === r.tacticId),
+        )
+      )
         throw boutAnalysisInvalid('OPPONENT_TACTIC_UNKNOWN');
-      return { ...bout.opponentAnalysis, tactics: tactics.map((t) => {
-        const r = parsed.data.reviews.find((r) => r.tacticId === t.id);
-        return r ? { ...t, review: { outcome: r.outcome, note: r.note ?? null, auto: false } } : t;
-      }) };
+      return {
+        ...bout.opponentAnalysis,
+        tactics: tactics.map((t) => {
+          const r = parsed.data.reviews.find((r) => r.tacticId === t.id);
+          return r
+            ? {
+                ...t,
+                review: {
+                  outcome: r.outcome,
+                  note: r.note ?? null,
+                  auto: false,
+                },
+              }
+            : t;
+        }),
+      };
     });
   }
 
   private async mutateAnalysis(
-    actor: AuthenticatedUser, id: string, requestId: string,
-    change: (bout: BoutRow, tx: Parameters<Parameters<BoutsRepository['transaction']>[0]>[0]) => Promise<OpponentAnalysis>,
+    actor: AuthenticatedUser,
+    id: string,
+    requestId: string,
+    change: (
+      bout: BoutRow,
+      tx: Parameters<Parameters<BoutsRepository['transaction']>[0]>[0],
+    ) => Promise<OpponentAnalysis>,
   ) {
     const current = await this.requireBout(id);
     await this.assertWriteAccess(actor, current.fighterId);
@@ -212,15 +275,37 @@ export class BoutsService {
         await setAuditContext(actor.authSubject, requestId, tx);
         const bout = await this.repo.lockBoutById(id, tx);
         if (!bout) throw boutNotFound();
-        const analysis = { ...await change(bout, tx), updatedAt: new Date().toISOString(), updatedById: actor.id };
-        const updated = await this.repo.updateBout(id, { opponentAnalysis: analysis }, { expectedStatus: bout.status }, tx);
+        const analysis = {
+          ...(await change(bout, tx)),
+          updatedAt: new Date().toISOString(),
+          updatedById: actor.id,
+        };
+        const updated = await this.repo.updateBout(
+          id,
+          { opponentAnalysis: analysis },
+          { expectedStatus: bout.status },
+          tx,
+        );
         if (!updated) throw boutStateConflict();
-        return { opponentAnalysis: analysis, tacticsWithoutSessions: (analysis.tactics ?? []).filter((t) => !t.sessionIds.length).map((t) => t.id) };
+        return {
+          opponentAnalysis: analysis,
+          tacticsWithoutSessions: (analysis.tactics ?? [])
+            .filter((t) => !t.sessionIds.length)
+            .map((t) => t.id),
+        };
       });
-    } catch (error) { throw mapBoutPersistenceError(error); }
+    } catch (error) {
+      throw mapBoutPersistenceError(error);
+    }
   }
 
-  async putRound(actor: AuthenticatedUser, id: string, roundNo: number, input: RoundInput, requestId: string) {
+  async putRound(
+    actor: AuthenticatedUser,
+    id: string,
+    roundNo: number,
+    input: RoundInput,
+    requestId: string,
+  ) {
     const parsed = roundInputSchema.safeParse(input);
     if (!parsed.success) throw analysisValidationError();
     const current = await this.requireBout(id);
@@ -231,66 +316,202 @@ export class BoutsService {
         const bout = await this.repo.lockBoutById(id, tx);
         if (!bout) throw boutNotFound();
         this.assertCornerStatus(bout);
-        if (bout.scheduledRounds === null) throw boutAnalysisInvalid('BOUT_ROUNDS_NOT_SET');
-        if (!Number.isInteger(roundNo) || roundNo < 1 || roundNo > bout.scheduledRounds)
+        if (bout.scheduledRounds === null)
+          throw boutAnalysisInvalid('BOUT_ROUNDS_NOT_SET');
+        if (
+          !Number.isInteger(roundNo) ||
+          roundNo < 1 ||
+          roundNo > bout.scheduledRounds
+        )
           throw boutAnalysisInvalid('BOUT_ROUND_OUT_OF_RANGE');
-        const tactics = new Set((bout.opponentAnalysis.tactics ?? []).map((t) => t.id));
-        const observations = new Set((bout.opponentAnalysis.observations ?? []).map((o) => o.id));
-        if (Object.keys(parsed.data.tacticMarks ?? {}).some((id) => !tactics.has(id)) ||
-            Object.keys(parsed.data.observationMarks ?? {}).some((id) => !observations.has(id)))
+        const tactics = new Set(
+          (bout.opponentAnalysis.tactics ?? []).map((t) => t.id),
+        );
+        const observations = new Set(
+          (bout.opponentAnalysis.observations ?? []).map((o) => o.id),
+        );
+        if (
+          Object.keys(parsed.data.tacticMarks ?? {}).some(
+            (id) => !tactics.has(id),
+          ) ||
+          Object.keys(parsed.data.observationMarks ?? {}).some(
+            (id) => !observations.has(id),
+          )
+        )
           throw boutAnalysisInvalid('BOUT_ROUND_MARK_UNKNOWN');
-        return this.repo.upsertRound({ ...parsed.data, boutId: id, roundNo, recordedById: actor.id }, tx);
+        return this.repo.upsertRound(
+          { ...parsed.data, boutId: id, roundNo, recordedById: actor.id },
+          tx,
+        );
       });
       return toRoundResponse(row);
-    } catch (error) { throw mapBoutPersistenceError(error); }
+    } catch (error) {
+      throw mapBoutPersistenceError(error);
+    }
   }
 
   async getRounds(actor: AuthenticatedUser, id: string) {
     const bout = await this.requireBout(id);
     await this.assertPrivateReadAccess(actor, bout);
     const rounds = await this.repo.listRounds(id);
-    return { scheduledRounds: bout.scheduledRounds, rounds: rounds.map(toRoundResponse),
-      advice: rounds.length && bout.scheduledRounds !== null && rounds.length < bout.scheduledRounds
-        ? buildRoundAdvice(bout.opponentAnalysis, rounds, bout.scheduledRounds) : null };
+    return {
+      scheduledRounds: bout.scheduledRounds,
+      rounds: rounds.map(toRoundResponse),
+      advice:
+        rounds.length &&
+        bout.scheduledRounds !== null &&
+        rounds.length < bout.scheduledRounds
+          ? buildRoundAdvice(
+              bout.opponentAnalysis,
+              rounds,
+              bout.scheduledRounds,
+            )
+          : null,
+    };
   }
 
   async getCornerCard(actor: AuthenticatedUser, id: string) {
     const bout = await this.requireBout(id);
     await this.assertPrivateReadAccess(actor, bout);
     this.assertCornerStatus(bout);
-    return buildCornerCard(bout.opponentAnalysis, await this.repo.listRounds(id), null);
+    return buildCornerCard(
+      bout.opponentAnalysis,
+      await this.repo.listRounds(id),
+      await this.loadAcuteLoss(bout),
+    );
+  }
+
+  async getReport(actor: AuthenticatedUser, id: string) {
+    const bout = await this.requireBout(id);
+    await this.assertPrivateReadAccess(actor, bout);
+    if (bout.status !== 'COMPLETED') throw boutNotEditable(bout.status);
+    const rounds = await this.repo.listRounds(id);
+    const acuteLoss = await this.loadAcuteLoss(bout);
+    const evaluation = evaluateTactics(bout.opponentAnalysis, rounds);
+    return {
+      result: {
+        result: bout.result,
+        method: bout.method,
+        resultRound: bout.resultRound,
+        knockedDown: bout.knockedDown,
+      },
+      tactics: evaluation.tactics.map((t) => ({
+        ...t,
+        outcome: rounds.length ? t.outcome : null,
+        review:
+          bout.opponentAnalysis.tactics?.find((source) => source.id === t.id)
+            ?.review ?? null,
+      })),
+      observations: evaluation.observations,
+      acuteLoss,
+      improvementPoints: buildImprovementPoints(
+        bout.opponentAnalysis,
+        rounds,
+        acuteLoss,
+      ),
+      roundsRecorded: rounds.length,
+    };
+  }
+
+  async getResultPrefill(actor: AuthenticatedUser, id: string) {
+    const bout = await this.requireBout(id);
+    await this.assertWriteAccess(actor, bout.fighterId);
+    if (bout.status !== 'WEIGHED_IN') throw boutNotEditable(bout.status);
+    const rounds = await this.repo.listRounds(id);
+    return {
+      resultRound: rounds.length
+        ? Math.max(...rounds.map((r) => r.roundNo))
+        : null,
+      knockedDown: rounds.length
+        ? rounds.some((r) => r.knockdownsAgainst > 0)
+        : null,
+    };
   }
 
   private assertCornerStatus(bout: BoutRow) {
-    if (bout.status !== 'WEIGHED_IN' && bout.status !== 'COMPLETED') throw boutNotEditable(bout.status);
+    if (bout.status !== 'WEIGHED_IN' && bout.status !== 'COMPLETED')
+      throw boutNotEditable(bout.status);
   }
 
-  private async assertPrivateReadAccess(actor: AuthenticatedUser, bout: BoutRow) {
-    if (actor.role !== USER.COACH && actor.role !== USER.DOCTOR && actor.role !== USER.ADMIN) throw forbidden();
+  private async assertPrivateReadAccess(
+    actor: AuthenticatedUser,
+    bout: BoutRow,
+  ) {
+    if (
+      actor.role !== USER.COACH &&
+      actor.role !== USER.DOCTOR &&
+      actor.role !== USER.ADMIN
+    )
+      throw forbidden();
     await this.assertReadAccess(actor, bout.fighterId);
   }
 
-  async getPriorContext(actor: AuthenticatedUser, query: { fighterId: string; opponentName: string }) {
+  async getPriorContext(
+    actor: AuthenticatedUser,
+    query: { fighterId: string; opponentName: string },
+  ) {
     // Resolve the exact same scope as listBouts; copy candidates may belong to other assigned fighters.
     await this.resolveListScope(actor, query.fighterId);
     const scope = await this.resolveListScope(actor, undefined);
     let cursor: string | undefined;
     let latest: BoutRow | undefined;
+    let latestCompleted: BoutRow | undefined;
     do {
       const rows = await this.repo.listBouts({ scope, limit: 100, cursor });
       const page = rows.slice(0, 100);
       for (const row of page) {
-        if (row.opponentName !== null && normalizeOpponentName(row.opponentName) === normalizeOpponentName(query.opponentName) &&
-            (!latest || row.boutAt > latest.boutAt || (row.boutAt.getTime() === latest.boutAt.getTime() && row.id > latest.id))) latest = row;
+        if (
+          row.fighterId === query.fighterId &&
+          row.status === 'COMPLETED' &&
+          (!latestCompleted ||
+            row.boutAt > latestCompleted.boutAt ||
+            (row.boutAt.getTime() === latestCompleted.boutAt.getTime() &&
+              row.id > latestCompleted.id))
+        )
+          latestCompleted = row;
+        if (
+          row.opponentName !== null &&
+          normalizeOpponentName(row.opponentName) ===
+            normalizeOpponentName(query.opponentName) &&
+          (!latest ||
+            row.boutAt > latest.boutAt ||
+            (row.boutAt.getTime() === latest.boutAt.getTime() &&
+              row.id > latest.id))
+        )
+          latest = row;
       }
       const last = page[page.length - 1];
-      cursor = rows.length > 100 && last ? encodeBoutCursor({ weighInAt: last.weighInAt.toISOString(), id: last.id }) : undefined;
+      cursor =
+        rows.length > 100 && last
+          ? encodeBoutCursor({
+              weighInAt: last.weighInAt.toISOString(),
+              id: last.id,
+            })
+          : undefined;
     } while (cursor);
-    const analysis = latest ? withoutReviews(latest.opponentAnalysis) : undefined;
+    const analysis = latest
+      ? withoutReviews(latest.opponentAnalysis)
+      : undefined;
     return {
-      improvementPoints: null,
-      copyableAnalysis: latest && analysis ? { boutId: latest.id, eventName: latest.eventName, opponentName: latest.opponentName,
-        opponentAnalysis: actor.role === USER.FIGHTER ? fighterAnalysis(analysis) : analysis } : null,
+      improvementPoints: latestCompleted
+        ? buildImprovementPoints(
+            latestCompleted.opponentAnalysis,
+            await this.repo.listRounds(latestCompleted.id),
+            await this.loadAcuteLoss(latestCompleted),
+          )
+        : null,
+      copyableAnalysis:
+        latest && analysis
+          ? {
+              boutId: latest.id,
+              eventName: latest.eventName,
+              opponentName: latest.opponentName,
+              opponentAnalysis:
+                actor.role === USER.FIGHTER
+                  ? fighterAnalysis(analysis)
+                  : analysis,
+            }
+          : null,
     };
   }
 
@@ -474,7 +695,9 @@ export class BoutsService {
       'weightLimitKg',
       'requirementsDueDays',
     ] as const;
-    const touchesSchedule = scheduleKeys.some((key) => input[key] !== undefined);
+    const touchesSchedule = scheduleKeys.some(
+      (key) => input[key] !== undefined,
+    );
     const touchesOther = (
       ['eventName', 'venue', 'opponentName', 'scheduledRounds'] as const
     ).some((key) => input[key] !== undefined);
@@ -487,9 +710,11 @@ export class BoutsService {
     const changes: Parameters<BoutsRepository['updateBout']>[1] = {};
     if (input.eventName !== undefined) changes.eventName = input.eventName;
     if (input.venue !== undefined) changes.venue = input.venue;
-    if (input.opponentName !== undefined) changes.opponentName = input.opponentName;
+    if (input.opponentName !== undefined)
+      changes.opponentName = input.opponentName;
     if (input.notes !== undefined) changes.notes = input.notes;
-    if (input.scheduledRounds !== undefined) changes.scheduledRounds = input.scheduledRounds;
+    if (input.scheduledRounds !== undefined)
+      changes.scheduledRounds = input.scheduledRounds;
     if (input.requirementsDueDays !== undefined)
       changes.requirementsDueDays = input.requirementsDueDays;
 
@@ -499,10 +724,13 @@ export class BoutsService {
       input.weightClassCode !== undefined || input.weightLimitKg !== undefined;
 
     let ruleset: CompetitionRuleset | undefined;
-    if (datesChanged || classChanged) ruleset = await this.requireRuleset(bout.rulesetId);
+    if (datesChanged || classChanged)
+      ruleset = await this.requireRuleset(bout.rulesetId);
 
     if (datesChanged && ruleset) {
-      const weighInAt = input.weighInAt ? new Date(input.weighInAt) : bout.weighInAt;
+      const weighInAt = input.weighInAt
+        ? new Date(input.weighInAt)
+        : bout.weighInAt;
       const boutAt = input.boutAt ? new Date(input.boutAt) : bout.boutAt;
       if (weighInAt.getTime() >= boutAt.getTime())
         throw boutInvalidSchedule('WEIGH_IN_NOT_BEFORE_BOUT');
@@ -560,9 +788,13 @@ export class BoutsService {
         await setAuditContext(actor.authSubject, requestId, tx);
         if (input.scheduledRounds !== undefined) {
           const locked = await this.repo.lockBoutById(bout.id, tx);
-          if (!locked || locked.status !== bout.status) throw boutStateConflict();
+          if (!locked || locked.status !== bout.status)
+            throw boutStateConflict();
           const rounds = await this.repo.listRounds(bout.id, tx);
-          if (input.scheduledRounds !== null && rounds.some((r) => r.roundNo > input.scheduledRounds!))
+          if (
+            input.scheduledRounds !== null &&
+            rounds.some((r) => r.roundNo > input.scheduledRounds!)
+          )
             throw boutAnalysisInvalid('BOUT_ROUNDS_BELOW_RECORDED');
         }
         return this.repo.updateBout(
@@ -599,8 +831,10 @@ export class BoutsService {
 
     const plan = await this.repo.findPlanById(input.trainingPlanId);
     if (!plan || plan.deletedAt !== null) throw boutInvalidPlan('NOT_FOUND');
-    if (plan.fighterId !== bout.fighterId) throw boutInvalidPlan('FIGHTER_MISMATCH');
-    if (plan.phase !== 'fight_camp') throw boutInvalidPlan('PHASE_NOT_FIGHT_CAMP');
+    if (plan.fighterId !== bout.fighterId)
+      throw boutInvalidPlan('FIGHTER_MISMATCH');
+    if (plan.phase !== 'fight_camp')
+      throw boutInvalidPlan('PHASE_NOT_FIGHT_CAMP');
 
     if (await this.repo.findActiveBoutIdForFighter(bout.fighterId, bout.id))
       throw boutActiveExists();
@@ -622,7 +856,10 @@ export class BoutsService {
 
     const ruleset = await this.requireRuleset(bout.rulesetId);
     const requirements = await this.repo.listRequirements(bout.id);
-    const gate1 = evaluateGate1(requirements.map(toRequirementState), bout.boutAt);
+    const gate1 = evaluateGate1(
+      requirements.map(toRequirementState),
+      bout.boutAt,
+    );
     if (!gate1.passed)
       throw boutRequirementsIncomplete({
         missing: gate1.missing,
@@ -670,7 +907,8 @@ export class BoutsService {
     await this.assertWriteAccess(actor, bout.fighterId);
     if (isFinalStatus(bout.status)) throw boutNotEditable(bout.status);
 
-    const isLocked = bout.status === 'FIGHT_WEEK' || bout.status === 'WEIGHED_IN';
+    const isLocked =
+      bout.status === 'FIGHT_WEEK' || bout.status === 'WEIGHED_IN';
     if (isLocked && !input.unlockReason) throw boutRequirementsLocked();
 
     if (await this.repo.findRequirement(bout.id, input.code))
@@ -733,25 +971,33 @@ export class BoutsService {
     await this.assertWriteAccess(actor, bout.fighterId);
     if (isFinalStatus(bout.status)) throw boutNotEditable(bout.status);
 
-    const isLocked = bout.status === 'FIGHT_WEEK' || bout.status === 'WEIGHED_IN';
+    const isLocked =
+      bout.status === 'FIGHT_WEEK' || bout.status === 'WEIGHED_IN';
     if (isLocked && !input.unlockReason) throw boutRequirementsLocked();
 
     const existing = await this.repo.findRequirement(bout.id, code);
     if (!existing) throw requirementNotFound();
 
     const status = input.status ?? existing.status;
-    let issuedOn = input.issuedOn !== undefined ? input.issuedOn : existing.issuedOn;
+    let issuedOn =
+      input.issuedOn !== undefined ? input.issuedOn : existing.issuedOn;
     let validUntil =
       input.validUntil !== undefined ? input.validUntil : existing.validUntil;
     let statusReason =
-      input.statusReason !== undefined ? input.statusReason : existing.statusReason;
+      input.statusReason !== undefined
+        ? input.statusReason
+        : existing.statusReason;
 
     if (status === 'MISSING') {
       issuedOn = null;
       validUntil = null;
       statusReason = null;
     } else if (status === 'PROVIDED') {
-      if (validUntil === null && issuedOn !== null && existing.validityDays !== null)
+      if (
+        validUntil === null &&
+        issuedOn !== null &&
+        existing.validityDays !== null
+      )
         validUntil = addDaysToDate(issuedOn, existing.validityDays);
       if (validUntil === null) throw requirementInvalid('VALID_UNTIL_REQUIRED');
       if (input.status !== undefined && input.statusReason === undefined)
@@ -789,7 +1035,9 @@ export class BoutsService {
           code,
           {
             ...(input.label !== undefined ? { label: input.label } : {}),
-            ...(input.required !== undefined ? { required: input.required } : {}),
+            ...(input.required !== undefined
+              ? { required: input.required }
+              : {}),
             status,
             issuedOn,
             validUntil,
@@ -820,7 +1068,8 @@ export class BoutsService {
     await this.assertWriteAccess(actor, bout.fighterId);
     if (isFinalStatus(bout.status)) throw boutNotEditable(bout.status);
 
-    const isLocked = bout.status === 'FIGHT_WEEK' || bout.status === 'WEIGHED_IN';
+    const isLocked =
+      bout.status === 'FIGHT_WEEK' || bout.status === 'WEIGHED_IN';
     if (isLocked && !unlockReason) throw boutRequirementsLocked();
 
     try {
@@ -853,7 +1102,6 @@ export class BoutsService {
     }
   }
 
-
   // ---------------------------------------------------------------------------
   // Weigh-in and result (F5, F6, R17-R19, R26)
   // ---------------------------------------------------------------------------
@@ -879,7 +1127,10 @@ export class BoutsService {
     }
 
     const ruleset = await this.requireRuleset(bout.rulesetId);
-    const limit = bout.catchweightKg !== null ? Number(bout.catchweightKg) : Number(bout.weightLimitKg);
+    const limit =
+      bout.catchweightKg !== null
+        ? Number(bout.catchweightKg)
+        : Number(bout.weightLimitKg);
     const weightKg = input.weightKg;
     const hydrationCheck = input.hydrationCheck ?? 'NOT_APPLICABLE';
 
@@ -908,7 +1159,7 @@ export class BoutsService {
       if (!weightPassed) {
         reason = 'OVER_LIMIT';
         overByKg = Math.round((weightKg - limit) * 100) / 100;
-        overByPct = Math.round(((weightKg - limit) / limit * 100) * 10) / 10;
+        overByPct = Math.round(((weightKg - limit) / limit) * 100 * 10) / 10;
       } else {
         reason = 'HYDRATION_FAILED';
         overByKg = null;
@@ -958,7 +1209,10 @@ export class BoutsService {
         const row = await this.repo.updateBout(
           bout.id,
           changes,
-          { expectedStatus: 'FIGHT_WEEK', ...(historyEntry ? { historyEntry } : {}) },
+          {
+            expectedStatus: 'FIGHT_WEEK',
+            ...(historyEntry ? { historyEntry } : {}),
+          },
           tx,
         );
         // Throw inside the transaction so a lost race rolls back the measurement insert.
@@ -1067,24 +1321,34 @@ export class BoutsService {
       }
     }
 
-    const isKoOrTkoLoss = input.result === 'LOSS' && ['KO', 'TKO'].includes(input.method);
+    const isKoOrTkoLoss =
+      input.result === 'LOSS' && ['KO', 'TKO'].includes(input.method);
     if (isKoOrTkoLoss) {
       if (!input.lossOfConsciousness) {
         throw boutResultInvalid('CONSCIOUSNESS_REQUIRED');
       }
     } else {
-      if (input.lossOfConsciousness !== undefined && input.lossOfConsciousness !== null) {
+      if (
+        input.lossOfConsciousness !== undefined &&
+        input.lossOfConsciousness !== null
+      ) {
         throw boutResultInvalid('CONSCIOUSNESS_NOT_ALLOWED');
       }
     }
 
     const isTkoLoss = input.result === 'LOSS' && input.method === 'TKO';
     if (isTkoLoss) {
-      if (input.stoppedByHeadStrike === undefined || input.stoppedByHeadStrike === null) {
+      if (
+        input.stoppedByHeadStrike === undefined ||
+        input.stoppedByHeadStrike === null
+      ) {
         throw boutResultInvalid('HEAD_STRIKE_REQUIRED');
       }
     } else {
-      if (input.stoppedByHeadStrike !== undefined && input.stoppedByHeadStrike !== null) {
+      if (
+        input.stoppedByHeadStrike !== undefined &&
+        input.stoppedByHeadStrike !== null
+      ) {
         throw boutResultInvalid('HEAD_STRIKE_NOT_ALLOWED');
       }
     }
@@ -1117,6 +1381,47 @@ export class BoutsService {
     try {
       const updated = await this.repo.transaction(async (tx) => {
         await setAuditContext(actor.authSubject, requestId, tx);
+        const locked = await this.repo.lockBoutById(bout.id, tx);
+        if (!locked) throw boutNotFound();
+        if (locked.status !== 'WEIGHED_IN') throw boutStateConflict();
+        if (
+          locked.scheduledRounds !== null &&
+          input.resultRound !== undefined &&
+          input.resultRound > locked.scheduledRounds
+        ) {
+          throw boutResultInvalid('ROUND_EXCEEDS_SCHEDULED');
+        }
+        const rounds = await this.repo.listRounds(bout.id, tx);
+        if (
+          input.method === 'DECISION' &&
+          locked.scheduledRounds !== null &&
+          rounds.length > 0 &&
+          rounds.length < locked.scheduledRounds &&
+          input.confirmIncompleteRounds !== true
+        ) {
+          throw boutRoundsIncomplete(rounds.length, locked.scheduledRounds);
+        }
+        if (rounds.length && locked.opponentAnalysis.tactics?.length) {
+          const evaluation = evaluateTactics(locked.opponentAnalysis, rounds);
+          changes.opponentAnalysis = {
+            ...locked.opponentAnalysis,
+            updatedAt: now.toISOString(),
+            updatedById: actor.id,
+            tactics: locked.opponentAnalysis.tactics.map((t) =>
+              t.review
+                ? t
+                : {
+                    ...t,
+                    review: {
+                      outcome: evaluation.tactics.find((e) => e.id === t.id)!
+                        .outcome,
+                      note: null,
+                      auto: true,
+                    },
+                  },
+            ),
+          };
+        }
         return this.repo.updateBout(
           bout.id,
           changes,
@@ -1170,6 +1475,31 @@ export class BoutsService {
     }
   }
 
+  private async loadAcuteLoss(
+    bout: BoutRow,
+    knownRuleset?: CompetitionRuleset,
+    now = new Date(),
+  ): Promise<AcuteLossResult | null> {
+    if (bout.officialWeightKg === null) return null;
+    const ruleset = knownRuleset ?? (await this.requireRuleset(bout.rulesetId));
+    const windowStart = addDaysToDate(
+      academyDateOf(bout.weighInAt),
+      -ruleset.acuteWindowDays,
+    );
+    const measurements = await this.repo.findWeightMeasurements(
+      bout.fighterId,
+      academyStartOfDay(windowStart),
+      now,
+    );
+    return computeAcuteLoss({
+      officialWeightKg: Number(bout.officialWeightKg),
+      limitPct: Number(bout.acuteLossLimitPct),
+      acuteWindowDays: ruleset.acuteWindowDays,
+      weighInDate: academyDateOf(bout.weighInAt),
+      measurements,
+    });
+  }
+
   private async buildDetail(
     bout: BoutRow,
     knownRuleset?: CompetitionRuleset,
@@ -1177,34 +1507,21 @@ export class BoutsService {
     const now = new Date();
     const ruleset = knownRuleset ?? (await this.requireRuleset(bout.rulesetId));
     const requirementRows = await this.repo.listRequirements(bout.id);
-    const gate1 = evaluateGate1(requirementRows.map(toRequirementState), bout.boutAt);
+    const gate1 = evaluateGate1(
+      requirementRows.map(toRequirementState),
+      bout.boutAt,
+    );
     const track = await this.loadWeightTrack(bout, ruleset, now);
     const dueOn = requirementsDueOn(bout.weighInAt, bout.requirementsDueDays);
 
-    let acuteLoss: AcuteLossResult | null = null;
-    if (bout.officialWeightKg !== null) {
-      const windowStart = addDaysToDate(
-        academyDateOf(bout.weighInAt),
-        -ruleset.acuteWindowDays,
-      );
-      const measurements = await this.repo.findWeightMeasurements(
-        bout.fighterId,
-        academyStartOfDay(windowStart),
-        now,
-      );
-      acuteLoss = computeAcuteLoss({
-        officialWeightKg: Number(bout.officialWeightKg),
-        limitPct: Number(bout.acuteLossLimitPct),
-        acuteWindowDays: ruleset.acuteWindowDays,
-        weighInDate: academyDateOf(bout.weighInAt),
-        measurements,
-      });
-    }
+    const acuteLoss = await this.loadAcuteLoss(bout, ruleset, now);
 
     return {
       ...toBoutSummary(bout),
       opponentAnalysis: bout.opponentAnalysis,
-      tacticsWithoutSessions: (bout.opponentAnalysis.tactics ?? []).filter((t) => !t.sessionIds.length).map((t) => t.id),
+      tacticsWithoutSessions: (bout.opponentAnalysis.tactics ?? [])
+        .filter((t) => !t.sessionIds.length)
+        .map((t) => t.id),
       ruleset: {
         id: ruleset.id,
         name: ruleset.name,
@@ -1321,7 +1638,8 @@ export class BoutsService {
         return { kind: 'ALL' };
       case USER.FIGHTER: {
         const own = await this.repo.findActiveFighterIdByUserId(actor.id);
-        if (!own || (fighterId !== undefined && fighterId !== own)) throw forbidden();
+        if (!own || (fighterId !== undefined && fighterId !== own))
+          throw forbidden();
         return { kind: 'FIGHTER', fighterId: own };
       }
       case USER.COACH:
@@ -1459,16 +1777,36 @@ function toRequirementResponse(row: BoutRequirementRow): RequirementResponse {
 }
 
 function analysisValidationError() {
-  return new UnprocessableEntityException({ statusCode: 422, error: 'Unprocessable Entity', code: 'VALIDATION_ERROR', message: 'Invalid analysis or round data.' });
+  return new UnprocessableEntityException({
+    statusCode: 422,
+    error: 'Unprocessable Entity',
+    code: 'VALIDATION_ERROR',
+    message: 'Invalid analysis or round data.',
+  });
 }
 function fighterAnalysis(analysis: OpponentAnalysis) {
-  return { tactics: (analysis.tactics ?? []).map((t) => ({
-    id: t.id, text: t.text, round: t.round, partnerBrief: t.partnerBrief ?? null, sessionIds: t.sessionIds,
-  })) };
+  return {
+    tactics: (analysis.tactics ?? []).map((t) => ({
+      id: t.id,
+      text: t.text,
+      round: t.round,
+      partnerBrief: t.partnerBrief ?? null,
+      sessionIds: t.sessionIds,
+    })),
+  };
 }
 function withoutReviews(analysis: OpponentAnalysis): OpponentAnalysis {
-  return { ...analysis, tactics: (analysis.tactics ?? []).map(({ review: _review, ...t }) => t) };
+  return {
+    ...analysis,
+    tactics: (analysis.tactics ?? []).map(({ review: _review, ...t }) => t),
+  };
 }
-function toRoundResponse(row: Awaited<ReturnType<BoutsRepository['upsertRound']>>) {
-  return { ...row, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString() };
+function toRoundResponse(
+  row: Awaited<ReturnType<BoutsRepository['upsertRound']>>,
+) {
+  return {
+    ...row,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
 }

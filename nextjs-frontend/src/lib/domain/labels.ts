@@ -1,3 +1,5 @@
+import type { Locale } from "@/lib/i18n/config";
+import { createTranslator, type MessageKey, type Translator } from "@/lib/i18n/translate";
 import { EXAMINATION_SCOPE_LABELS } from "./medical-contract";
 import type {
     AIJobStatus,
@@ -566,18 +568,73 @@ export const BROADCAST_CHANNEL_LABELS: Record<BroadcastChannel, string> = {
     in_app_email: "In-app + email",
 };
 
+export function healthStatusLabel(status: HealthStatus, locale?: Locale): string {
+    if (locale) return createTranslator(locale)(`healthStatus.${status}`);
+    return HEALTH_STATUS_LABELS[status];
+}
+
+export function healthStatusDescription(status: HealthStatus, locale?: Locale): string {
+    if (locale) return createTranslator(locale)(`healthStatusDesc.${status}`);
+    return HEALTH_STATUS_DESCRIPTIONS[status];
+}
+
+export function clearanceLevelLabel(level: ClearanceLevel, locale?: Locale): string {
+    if (locale) return createTranslator(locale)(`clearanceLevel.${level}`);
+    return CLEARANCE_LEVEL_LABELS[level];
+}
+
+export function clearanceStatusLabel(status: ClearanceStatus, locale?: Locale): string {
+    if (locale) return createTranslator(locale)(`clearanceStatus.${status}`);
+    return CLEARANCE_STATUS_LABELS[status];
+}
+
+export function injuryTypeLabel(type: InjuryType, locale?: Locale): string {
+    if (locale) return createTranslator(locale)(`injuryType.${type}`);
+    return INJURY_TYPE_LABELS[type];
+}
+
+export function injurySeverityLabel(severity: InjurySeverity, locale?: Locale): string {
+    if (locale) return createTranslator(locale)(`injurySeverity.${severity}`);
+    return INJURY_SEVERITY_LABELS[severity];
+}
+
+export function injuryStatusLabel(status: InjuryStatus, locale?: Locale): string {
+    if (locale) return createTranslator(locale)(`injuryStatus.${status}`);
+    return INJURY_STATUS_LABELS[status];
+}
+
+export function injuryMechanismLabel(mechanism: InjuryMechanism, locale?: Locale): string {
+    if (locale) return createTranslator(locale)(`injuryMechanism.${mechanism}`);
+    return INJURY_MECHANISM_LABELS[mechanism];
+}
+
+export function bodyRegionLabel(region: BodyRegion, locale?: Locale): string {
+    if (locale) return createTranslator(locale)(`bodyRegion.${region}`);
+    return BODY_REGION_LABELS[region];
+}
+
+export function recoveryPlanStatusLabel(status: RecoveryPlanStatus, locale?: Locale): string {
+    if (locale) return createTranslator(locale)(`recoveryPlanStatus.${status}`);
+    return RECOVERY_PLAN_STATUS_LABELS[status];
+}
+
 /* ─── Display titles for records the medical service describes in free text ── */
 
 /** "Routine check", or the decision's scope for a medical-service examination ("Training examination"). */
-export function examinationTitle(examination: Pick<MedicalExamination, "type" | "scope">): string {
+export function examinationTitle(examination: Pick<MedicalExamination, "type" | "scope">, locale?: Locale): string {
+    if (locale) {
+        const t = createTranslator(locale);
+        if (examination.type) return t(`examinationType.${examination.type}`);
+        return examination.scope ? t("health.examinationScopeSuffix", { scope: EXAMINATION_SCOPE_LABELS[examination.scope] }) : t("health.examinationFallback");
+    }
     if (examination.type) return EXAMINATION_TYPE_LABELS[examination.type];
     return examination.scope ? `${EXAMINATION_SCOPE_LABELS[examination.scope]} examination` : "Examination";
 }
 
 /** "Strain", or the injury type as the doctor wrote it. */
-export function injuryTypeName(injury: Pick<Injury, "type" | "typeLabel">): string {
-    if (injury.type) return INJURY_TYPE_LABELS[injury.type];
-    return injury.typeLabel?.trim() || "Injury";
+export function injuryTypeName(injury: Pick<Injury, "type" | "typeLabel">, locale?: Locale): string {
+    if (injury.type) return injuryTypeLabel(injury.type, locale);
+    return injury.typeLabel?.trim() || (locale ? createTranslator(locale)("health.injuryFallback") : "Injury");
 }
 
 /** "Physiotherapy", or the treatment as the doctor wrote it. */
@@ -633,4 +690,38 @@ export const WEIGHT_WARNING_LABELS: Record<WeightWarningStatus, string> = {
     OVER_LIMIT: "Exceeds cut limit",
     NOT_WEIGHED: "No recent weigh-in",
     NEUTRAL: "Not judged",
+};
+
+/* ─── Training enum label helpers (T-015) ─────────────────────────────────── */
+
+export function trainingTypeLabel(t: Translator, type: TrainingType): string {
+    return t(`trainingType.${type}` as MessageKey);
+}
+
+export function techniqueLabel(t: Translator, technique: Technique | StrikeType): string {
+    return t(`technique.${technique}` as MessageKey);
+}
+
+export function exerciseCategoryLabel(t: Translator, category: ExerciseCategory): string {
+    return t(`exerciseCategory.${category}` as MessageKey);
+}
+
+export function intensityLabel(t: Translator, intensity: Intensity): string {
+    return t(`intensity.${intensity}` as MessageKey);
+}
+
+export function trainingPhaseLabel(t: Translator, phase: TrainingPhase): string {
+    return t(`trainingPhase.${phase}` as MessageKey);
+}
+
+export function planStatusLabel(t: Translator, status: PlanStatus): string {
+    return t(`planStatus.${status}` as MessageKey);
+}
+
+export function sessionStatusLabel(t: Translator, status: SessionStatus): string {
+    return t(`sessionStatus.${status}` as MessageKey);
+}
+
+export function feedbackKindLabel(t: Translator, kind: FeedbackKind): string {
+    return t(`feedbackKind.${kind}` as MessageKey);
 };

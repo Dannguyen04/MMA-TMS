@@ -1,4 +1,5 @@
 import { formatNumber } from "@/lib/format";
+import type { Translator } from "@/lib/i18n/translate";
 import type { Vitals } from "./types";
 
 /** Athlete reference ranges for examination vitals, inclusive. */
@@ -29,46 +30,81 @@ export interface VitalContext {
     weightLimitKg?: number | null;
 }
 
+export type VitalCode =
+    | "weight_within_limit"
+    | "weight_above_limit"
+    | "heart_rate_range"
+    | "blood_pressure_target"
+    | "temperature_range"
+    | "spo2_min"
+    | "hydration_good";
+
+export type VitalAdviceCode = "increase_fluids";
+
 export interface VitalAssessment {
     status: "normal" | "check";
-    /** The reference the value was judged against, e.g. "Athlete range 38–75 bpm". */
-    reference: string;
-    /** What to do when the value needs a check. */
-    advice?: string;
+    code: VitalCode;
+    params?: Record<string, string | number>;
+    adviceCode?: VitalAdviceCode;
 }
 
 type Range = { readonly min: number; readonly max: number };
 
 const within = (value: number, range: Range) => value >= range.min && value <= range.max;
 
-function inRange(value: number, range: Range, reference: string): VitalAssessment {
-    return { status: within(value, range) ? "normal" : "check", reference };
-}
-
 const { restingHeartRate, bloodPressureSystolic, bloodPressureDiastolic, temperatureC, spo2Pct } = VITAL_REFERENCE_RANGES;
 
 const ASSESSORS: { [K in VitalKey]: (value: VitalValues[K], ctx: VitalContext) => VitalAssessment | null } = {
-    weightKg: (weight, { weightLimitKg }) => {
+    weightKg: (weight, { weightLimitKg }): VitalAssessment | null => {
         if (!weightLimitKg || weightLimitKg <= 0) return null;
         const limit = formatNumber(weightLimitKg, 1);
         const abovePct = ((weight - weightLimitKg) / weightLimitKg) * 100;
-        if (abovePct <= 0) return { status: "normal", reference: `Within the ${limit} kg class limit` };
+        if (abovePct <= 0) {
+            return {
+                status: "normal",
+                code: "weight_within_limit",
+                params: { limit },
+            };
+        }
         return {
             status: abovePct > WEIGHT_REVIEW_PCT ? "check" : "normal",
-            reference: `${formatNumber(weight - weightLimitKg, 1)} kg (${formatNumber(abovePct, 1)}%) above the ${limit} kg limit`,
+            code: "weight_above_limit",
+            params: {
+                diffKg: formatNumber(weight - weightLimitKg, 1),
+                abovePct: formatNumber(abovePct, 1),
+                limit,
+            },
         };
     },
-    restingHeartRate: (value) => inRange(value, restingHeartRate, `Athlete range ${restingHeartRate.min}–${restingHeartRate.max} bpm`),
+    restingHeartRate: (value) => ({
+        status: within(value, restingHeartRate) ? "normal" : "check",
+        code: "heart_rate_range",
+        params: { min: restingHeartRate.min, max: restingHeartRate.max },
+    }),
     bloodPressure: ({ systolic, diastolic }) => ({
         status: within(systolic, bloodPressureSystolic) && within(diastolic, bloodPressureDiastolic) ? "normal" : "check",
-        reference: `Target ${bloodPressureSystolic.min}–${bloodPressureSystolic.max} / ${bloodPressureDiastolic.min}–${bloodPressureDiastolic.max} mmHg`,
+        code: "blood_pressure_target",
+        params: {
+            sysMin: bloodPressureSystolic.min,
+            sysMax: bloodPressureSystolic.max,
+            diaMin: bloodPressureDiastolic.min,
+            diaMax: bloodPressureDiastolic.max,
+        },
     }),
-    temperatureC: (value) => inRange(value, temperatureC, `Normal ${formatNumber(temperatureC.min, 1)}–${formatNumber(temperatureC.max, 1)} °C`),
-    spo2Pct: (value) => inRange(value, spo2Pct, `Normal ${spo2Pct.min}% or higher`),
+    temperatureC: (value) => ({
+        status: within(value, temperatureC) ? "normal" : "check",
+        code: "temperature_range",
+        params: { min: formatNumber(temperatureC.min, 1), max: formatNumber(temperatureC.max, 1) },
+    }),
+    spo2Pct: (value) => ({
+        status: within(value, spo2Pct) ? "normal" : "check",
+        code: "spo2_min",
+        params: { min: spo2Pct.min },
+    }),
     hydration: (value) =>
         value === "good"
-            ? { status: "normal", reference: "Well hydrated" }
-            : { status: "check", reference: "Well hydrated", advice: "Increase fluids and recheck before hard sessions" },
+            ? { status: "normal", code: "hydration_good" }
+            : { status: "check", code: "hydration_good", adviceCode: "increase_fluids" },
 };
 
 /** Judges one vital against its reference; null when there is nothing to judge it against. */
@@ -87,4 +123,10 @@ export function assessVitals(vitals: Vitals, weightLimitKg: number | null | unde
         spo2Pct: assessVital("spo2Pct", vitals.spo2Pct),
         hydration: assessVital("hydration", vitals.hydration),
     };
+}
+
+/** The rendered reference or advice string for a judged vital in the viewer's language. */
+export function vitalAssessmentMessage(t: Translator, assessment: VitalAssessment): string {
+    if (assessment.adviceCode) return t(`vitalAdvice.${assessment.adviceCode}`);
+    return t(`vitalReference.${assessment.code}`, assessment.params);
 }

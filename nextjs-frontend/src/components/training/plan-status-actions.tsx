@@ -1,6 +1,6 @@
 "use client";
 
-import { useDemoCopy } from "@/components/i18n/locale-provider";
+import { useT } from "@/components/i18n/locale-provider";
 import { Archive, CircleCheck, Play, RotateCcw, type LucideIcon } from "lucide-react";
 import { useState, useTransition } from "react";
 
@@ -10,17 +10,61 @@ import { FormMessage } from "@/components/ui/form";
 import { useToast } from "@/components/ui/toast";
 import { setPlanStatus } from "@/lib/actions/training";
 import type { PlanStatus } from "@/lib/domain/types";
+import type { Translator } from "@/lib/i18n/translate";
 
-interface Transition {
+interface TransitionConfig {
     to: PlanStatus;
-    label: string;
+    labelKey: "training.planActions.activateLabel" | "training.planActions.completeLabel" | "training.planActions.archiveLabel" | "training.planActions.restoreLabel";
     icon: LucideIcon;
     variant: ButtonVariant;
     tone: "primary" | "danger";
-    title: string;
-    description: (planTitle: string, fighterName: string) => string;
-    confirmLabel: string;
+    titleKey: "training.planActions.activateTitle" | "training.planActions.completeTitle" | "training.planActions.archiveTitle" | "training.planActions.restoreTitle";
+    description: (t: Translator, planTitle: string, fighterName: string) => string;
+    confirmLabelKey: "training.planActions.activateLabel" | "training.planActions.completeLabel" | "training.planActions.archiveLabel" | "training.planActions.restoreLabel";
 }
+
+const TRANSITIONS: Record<PlanStatus, TransitionConfig> = {
+    active: {
+        to: "active",
+        labelKey: "training.planActions.activateLabel",
+        icon: Play,
+        variant: "primary",
+        tone: "primary",
+        titleKey: "training.planActions.activateTitle",
+        description: (t, plan, fighter) => t("training.planActions.activateDesc", { plan, fighter }),
+        confirmLabelKey: "training.planActions.activateLabel",
+    },
+    completed: {
+        to: "completed",
+        labelKey: "training.planActions.completeLabel",
+        icon: CircleCheck,
+        variant: "secondary",
+        tone: "primary",
+        titleKey: "training.planActions.completeTitle",
+        description: (t, plan, fighter) => t("training.planActions.completeDesc", { plan, fighter }),
+        confirmLabelKey: "training.planActions.completeLabel",
+    },
+    archived: {
+        to: "archived",
+        labelKey: "training.planActions.archiveLabel",
+        icon: Archive,
+        variant: "secondary",
+        tone: "danger",
+        titleKey: "training.planActions.archiveTitle",
+        description: (t, plan, fighter) => t("training.planActions.archiveDesc", { plan, fighter }),
+        confirmLabelKey: "training.planActions.archiveLabel",
+    },
+    draft: {
+        to: "draft",
+        labelKey: "training.planActions.restoreLabel",
+        icon: RotateCcw,
+        variant: "secondary",
+        tone: "primary",
+        titleKey: "training.planActions.restoreTitle",
+        description: (t, plan, fighter) => t("training.planActions.restoreDesc", { plan, fighter }),
+        confirmLabelKey: "training.planActions.restoreLabel",
+    },
+};
 
 export interface PlanStatusActionsProps {
     planId: string;
@@ -32,63 +76,9 @@ export interface PlanStatusActionsProps {
 
 /** Status changes for a plan, each confirmed with its consequence spelled out. */
 export function PlanStatusActions({ planId, transitions, planTitle, fighterName }: PlanStatusActionsProps) {
-    const copy = useDemoCopy();
-const ACTIVATE: Transition = {
-    to: "active",
-    label: "Activate plan",
-    icon: Play,
-    variant: "primary",
-    tone: "primary",
-    title: "Activate this plan?",
-    description: (plan, fighter) => copy("{fighter} will see “{plan}” and receive a notification.", { fighter, plan }),
-    confirmLabel: "Activate plan",
-};
-
-const COMPLETE: Transition = {
-    to: "completed",
-    label: "Mark completed",
-    icon: CircleCheck,
-    variant: "secondary",
-    tone: "primary",
-    title: "Mark this plan as completed?",
-    description: (plan, fighter) => copy("“{plan}” moves to {fighter}’s history. Scheduled sessions stay on the calendar.", { plan, fighter }),
-    confirmLabel: "Mark completed",
-};
-
-const ARCHIVE: Transition = {
-    to: "archived",
-    label: "Archive",
-    icon: Archive,
-    variant: "secondary",
-    tone: "danger",
-    title: "Archive this plan?",
-    description: (plan) =>
-        copy("“{plan}” is archived. Scheduled sessions stay on the calendar; cancel any you no longer need.", { plan }),
-    confirmLabel: "Archive plan",
-};
-
-const RESTORE: Transition = {
-    to: "draft",
-    label: "Restore as draft",
-    icon: RotateCcw,
-    variant: "secondary",
-    tone: "primary",
-    title: "Restore this plan as a draft?",
-    description: (plan) => copy("“{plan}” returns as a draft visible only to coaches.", { plan }),
-    confirmLabel: "Restore as draft",
-};
-
-/** How each status change reads, by the status it moves to. */
-const TRANSITION_TO: Record<PlanStatus, Transition> = {
-    draft: RESTORE,
-    active: ACTIVATE,
-    completed: COMPLETE,
-    archived: ARCHIVE,
-};
-
-
+    const t = useT();
     const toast = useToast();
-    const [active, setActive] = useState<Transition | null>(null);
+    const [active, setActive] = useState<TransitionConfig | null>(null);
     const [error, setError] = useState<string | undefined>();
     const [pending, startTransition] = useTransition();
 
@@ -102,11 +92,11 @@ const TRANSITION_TO: Record<PlanStatus, Transition> = {
         startTransition(async () => {
             const result = await setPlanStatus(planId, active.to);
             if (result.status === "success") {
-                toast({ title: copy(result.message ?? "Plan updated.") });
+                toast({ title: result.message ?? t("training.planActions.updated") });
                 setActive(null);
                 setError(undefined);
             } else {
-                setError(result.message ? copy(result.message) : undefined);
+                setError(result.message);
             }
         });
     };
@@ -114,7 +104,7 @@ const TRANSITION_TO: Record<PlanStatus, Transition> = {
     return (
         <>
             {transitions.map((next) => {
-                const transition = TRANSITION_TO[next];
+                const transition = TRANSITIONS[next];
                 const Icon = transition.icon;
                 return (
                     <Button
@@ -126,7 +116,7 @@ const TRANSITION_TO: Record<PlanStatus, Transition> = {
                         }}
                     >
                         <Icon aria-hidden />
-                        {copy(transition.label)}
+                        {t(transition.labelKey)}
                     </Button>
                 );
             })}
@@ -136,9 +126,9 @@ const TRANSITION_TO: Record<PlanStatus, Transition> = {
                 onConfirm={confirm}
                 pending={pending}
                 tone={active?.tone ?? "primary"}
-                title={copy(active?.title ?? "")}
-                description={active?.description(planTitle, fighterName) ?? ""}
-                confirmLabel={copy(active?.confirmLabel ?? "Confirm")}
+                title={active ? t(active.titleKey) : ""}
+                description={active?.description(t, planTitle, fighterName) ?? ""}
+                confirmLabel={active ? t(active.confirmLabelKey) : "Confirm"}
             >
                 {error && <FormMessage status="error" message={error} />}
             </ConfirmDialog>

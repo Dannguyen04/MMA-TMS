@@ -893,6 +893,7 @@ export const LOSS_OF_CONSCIOUSNESS_VALUES = [
 export type LossOfConsciousness = (typeof LOSS_OF_CONSCIOUSNESS_VALUES)[number];
 
 export const recordResultSchema = z.strictObject({
+  confirmIncompleteRounds: z.boolean().optional(),
   result: z.enum(BOUT_RESULTS),
   method: z.enum(BOUT_METHODS),
   resultRound: z.number().int().min(1).max(12).optional(),

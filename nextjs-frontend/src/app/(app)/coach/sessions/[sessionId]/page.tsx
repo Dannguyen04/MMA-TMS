@@ -11,6 +11,7 @@ import { getCoachNames, getExerciseLibrary, toIdentity } from "@/components/trai
 import { canAccessFighter, requireFighterAccess } from "@/lib/auth/access";
 import { getCurrentUser, requireRole } from "@/lib/auth/session";
 import { formatDateTime } from "@/lib/format";
+import { getTranslator } from "@/lib/i18n/server";
 import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { platformFeatureAvailable, usesTrainingServiceForms } from "@/lib/services/platform-features";
@@ -23,14 +24,14 @@ import { plannedEndMs } from "@/components/training/training-utils";
 const loadSession = cache(getSession);
 
 export async function generateMetadata({ params }: PageProps<"/coach/sessions/[sessionId]">): Promise<Metadata> {
-    const [{ sessionId }, user] = await Promise.all([params, getCurrentUser()]);
+    const [{ sessionId }, user, { t }] = await Promise.all([params, getCurrentUser(), getTranslator()]);
     const session = await loadSession(sessionId);
-    return { title: session && user && canAccessFighter(user, session.fighterId) ? session.title : "Training session" };
+    return { title: session && user && canAccessFighter(user, session.fighterId) ? session.title : t("training.sessionPage.eyebrowFighter") };
 }
 
 export default async function CoachSessionPage({ params }: PageProps<"/coach/sessions/[sessionId]">) {
     const user = await requireRole("coach");
-    const { sessionId } = await params;
+    const [{ sessionId }, { t }] = await Promise.all([params, getTranslator()]);
     // Reference lookups start with the session read; everything about the session waits for the access check.
     const [session, coachNames, exercises] = await Promise.all([loadSession(sessionId), getCoachNames(), getExerciseLibrary()]);
     if (!session) notFound();
@@ -73,23 +74,23 @@ export default async function CoachSessionPage({ params }: PageProps<"/coach/ses
     const uploadLink = (
         <ButtonLink href={hrefWith(routes.coach.uploadVideo, {}, { fighter: fighter.id, session: session.id })} variant="secondary" size="sm">
             <Upload aria-hidden />
-            Upload video
+            {t("training.sessionPage.uploadVideo")}
         </ButtonLink>
     );
 
     return (
         <>
             <PageHeader
-                eyebrow={`Training session · ${fighter.name}`}
+                eyebrow={t("training.sessionPage.eyebrowCoach", { name: fighter.name })}
                 title={session.title}
-                back={{ href: routes.coach.sessions, label: "Sessions" }}
+                back={{ href: routes.coach.sessions, label: t("training.sessionPage.backSessions") }}
                 meta={<SessionHeaderMeta session={session} />}
                 actions={
                     <>
                         {scheduled && (
                             <ButtonLink href={routes.coach.editSession(session.id)} variant="secondary">
                                 <PenLine aria-hidden />
-                                Edit
+                                {t("training.sessionPage.edit")}
                             </ButtonLink>
                         )}
                         {scheduled && started && <MarkMissedButton {...transitionProps} />}
@@ -103,7 +104,7 @@ export default async function CoachSessionPage({ params }: PageProps<"/coach/ses
                 session={session}
                 audience="coach"
                 now={now}
-                coachName={(session.coachId && coachNames[session.coachId]) || "Coach"}
+                coachName={(session.coachId && coachNames[session.coachId]) || t("training.plan.coach")}
                 coachNames={coachNames}
                 fighter={toIdentity(fighter)}
                 fighterHref={routes.coach.fighter(fighter.id)}

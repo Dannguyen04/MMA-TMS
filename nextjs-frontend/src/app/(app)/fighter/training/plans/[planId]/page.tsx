@@ -12,6 +12,7 @@ import { planAdherence, planAdherenceWeeks } from "@/components/training/trainin
 import { requireFighterAccess } from "@/lib/auth/access";
 import { getCurrentUser, requireRole } from "@/lib/auth/session";
 import type { TrainingPlan, User } from "@/lib/domain/types";
+import { getTranslator } from "@/lib/i18n/server";
 import { routes } from "@/lib/routes";
 import { getPlanWithSessions, listExercises, listPlanExercises } from "@/lib/services/training";
 
@@ -24,14 +25,14 @@ function isVisibleTo(plan: TrainingPlan, user: User): boolean {
 }
 
 export async function generateMetadata({ params }: PageProps<"/fighter/training/plans/[planId]">): Promise<Metadata> {
-    const [{ planId }, user] = await Promise.all([params, getCurrentUser()]);
+    const [{ planId }, user, { t }] = await Promise.all([params, getCurrentUser(), getTranslator()]);
     const data = await loadPlan(planId);
-    return { title: data && user && isVisibleTo(data.plan, user) ? data.plan.title : "Training plan" };
+    return { title: data && user && isVisibleTo(data.plan, user) ? data.plan.title : t("training.planDetails.eyebrow") };
 }
 
 export default async function FighterPlanPage({ params, searchParams }: PageProps<"/fighter/training/plans/[planId]">) {
     const user = await requireRole("fighter");
-    const [{ planId }, query] = await Promise.all([params, searchParams]);
+    const [{ planId }, query, { t }] = await Promise.all([params, searchParams, getTranslator()]);
     const [data, coachNames] = await Promise.all([loadPlan(planId), getCoachNames()]);
     if (!data || !isVisibleTo(data.plan, user)) notFound();
     await requireFighterAccess(user, data.plan.fighterId);
@@ -42,7 +43,7 @@ export default async function FighterPlanPage({ params, searchParams }: PageProp
 
     return (
         <>
-            <PageHeader eyebrow="Training plan" title={plan.title} back={{ href: routes.fighter.training, label: "Training plans" }} />
+            <PageHeader eyebrow={t("training.planDetails.eyebrow")} title={plan.title} back={{ href: routes.fighter.training, label: t("training.planDetails.backToPlans") }} />
 
             <div className="flex flex-col gap-6">
                 <PlanOverview plan={plan} now={now} coachName={coachNames[plan.coachId]} adherence={planAdherence(sessions, now)} showNotes />
@@ -50,7 +51,7 @@ export default async function FighterPlanPage({ params, searchParams }: PageProp
                 <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                     <AdherenceChart
                         weeks={planAdherenceWeeks(plan, sessions, now)}
-                        description="Completed out of due sessions per week in this plan"
+                        description={t("training.planDetails.chartInPlanDesc")}
                         className="min-w-0 lg:col-span-2"
                     />
                     <PlanStatsCard sessions={sessions} now={now} />

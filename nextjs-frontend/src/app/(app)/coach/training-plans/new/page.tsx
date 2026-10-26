@@ -1,4 +1,3 @@
-import { getDemoCopy } from "@/lib/i18n/server";
 import type { Metadata } from "next";
 
 import { scopedFighterIds } from "@/components/dashboard/roster-data";
@@ -8,17 +7,21 @@ import { getClearanceSummaries, toFighterOption } from "@/components/training/tr
 import { requireRole } from "@/lib/auth/session";
 import { createPlan } from "@/lib/actions/training";
 import { addDaysToKey, dayKey } from "@/lib/format";
+import { getTranslator } from "@/lib/i18n/server";
 import { routes } from "@/lib/routes";
 import { listFighters } from "@/lib/services/people";
 import { usesTrainingServiceForms } from "@/lib/services/platform-features";
 import { param } from "@/lib/utils";
 
-export async function generateMetadata(): Promise<Metadata> { const copy = await getDemoCopy(); return { title: copy("New training plan") }; }
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return { title: t("training.planForm.titleCreate") };
+}
 
 const DEFAULT_PLAN_WEEKS = 8;
 
 export default async function NewPlanPage({ searchParams }: PageProps<"/coach/training-plans/new">) {
-    const copy = await getDemoCopy();
+    const { t } = await getTranslator();
     const user = await requireRole("coach");
     const params = await searchParams;
     const now = new Date().toISOString();
@@ -45,9 +48,9 @@ export default async function NewPlanPage({ searchParams }: PageProps<"/coach/tr
     return (
         <>
             <PageHeader
-                title={copy("New training plan")}
-                description={copy(serviceForm ? "Set the objective, phase and dates. Check the fighter’s Medical Clearance before planning." : "Set the objective, phase and weekly target. Check the fighter’s Medical Clearance before planning.")}
-                back={prefilled ? { href: routes.coach.fighterTraining(prefilled.id), label: prefilled.name } : { href: routes.coach.plans, label: copy("Training plans") }}
+                title={t("training.planForm.titleCreate")}
+                description={serviceForm ? t("training.planForm.descCreateService") : t("training.planForm.descCreateDemo")}
+                back={prefilled ? { href: routes.coach.fighterTraining(prefilled.id), label: prefilled.name } : { href: routes.coach.plans, label: t("training.coachPlans.title") }}
             />
             <PlanForm
                 mode="create"

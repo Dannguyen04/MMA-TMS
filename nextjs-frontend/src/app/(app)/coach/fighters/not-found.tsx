@@ -3,19 +3,21 @@ import Link from "next/link";
 
 import { buttonClasses } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/states";
+import { getTranslator } from "@/lib/i18n/server";
 import { routes } from "@/lib/routes";
 
-export default function CoachFighterNotFound() {
+export default async function CoachFighterNotFound() {
+    const { t } = await getTranslator();
     return (
         <EmptyState
             className="mt-10"
             icon={<UserX />}
-            title="Fighter not found"
-            description="This fighter isn't on your roster, or the profile no longer exists. Ask an administrator if you should have access."
+            title={t("training.notFound.title")}
+            description={t("training.notFound.desc")}
             action={
                 <Link href={routes.coach.fighters} className={buttonClasses({ variant: "secondary" })}>
                     <ArrowLeft aria-hidden />
-                    Back to fighters
+                    {t("training.notFound.back")}
                 </Link>
             }
         />

@@ -64,3 +64,51 @@ Việc Codex làm đúng quy trình: không đụng `docs/` ngoài handover (ph�
 ## Việc còn lại (lượt 2)
 
 Sau khi T-006 merge vào `fight-camp`: merge `fight-camp` vào nhánh này (không rebase, giữ cả hai bên; xung đột dự kiến ở 8 file bouts và `schema.ts`), rồi làm mục 6 (R29, R30, `GET /bouts/:id/report`, `improvementPoints` trong `prior-context`, `acuteLoss` cho corner-card) và mục 7 (R25, R26, tự điền `review`), cùng tiêu chí 6–7, 16–17. Giao lại cho Codex bằng `codex exec resume` hoặc phiên mới; prompt trỏ vào ticket và handover.
+
+---
+
+# Lượt 2 (mục 6–7)
+
+- Ngày review: 24/10/2026, Claude.
+- Phạm vi: 3 commit của Codex trên `feat/T-010-opponent-analysis-and-rounds` (`ab50ce1`, `5c94a3c`, `2d81891`), nền `593490e` (Claude fast-forward lên `fight-camp` có T-006 trước khi giao).
+- **Kết luận: APPROVED.** Ticket T-010 phần A xong. Không có vấn đề mức "chặn".
+
+## Lệnh đã chạy lại (trong `D:/test/ai-worktrees/T-010` tại `2d81891`)
+
+```text
+lint      : qua (chỉ cảnh báo có sẵn ở coaching, dataset-export)
+build     : $ nest build — qua
+test      : Test Files  6 failed | 49 passed (55)
+                 Tests  26 failed | 864 passed (890)
+test:db   : Migration checks passed: 43. PostgreSQL stopped after tests.
+db:check  : 001-027 checksums OK. No database connection was opened.
+```
+
+26 lỗi đúng baseline B1, không có file `bouts` nào lỗi; khớp handover (lượt 1: 811 qua, lượt 2 thêm 53 test).
+
+## Đối chiếu tiêu chí còn lại
+
+| Tiêu chí | Kết quả | Ghi chú |
+| --- | --- | --- |
+| 6 (R29) | Đạt | `evaluateTactics` (`bout-analysis.model.ts:349`): `INEFFECTIVE` khi `ineffective > effective`, ngược lại `EFFECTIVE` khi có ít nhất 1 hiệp hiệu quả, còn lại `NOT_USED`; ca bằng nhau ra `EFFECTIVE` |
+| 7 (R30) | Đạt | `buildImprovementPoints` (`bout-analysis.model.ts:402`): ưu tiên review đã lưu; chuỗi `fatigued` phải liên tiếp và kết thúc ở hiệp cuối đã ghi |
+| 11 (report) | Đạt | `getReport` dùng `assertPrivateReadAccess`, FIGHTER 403 |
+| 15 (improvementPoints) | Đạt | `getPriorContext` lấy trận `COMPLETED` mới nhất của võ sĩ |
+| 16 | Đạt | `recordResult`: kiểm `ROUND_EXCEEDS_SCHEDULED` và `BOUT_ROUNDS_INCOMPLETE` trong giao dịch sau khi khoá dòng; tự điền `review.auto = true` chỉ cho chiến thuật chưa có review; `result-prefill` quyền `bout:result`, trận `WEIGHED_IN` |
+| 17 | Đạt | Không có hiệp: `outcome = null`, `improvementPoints` chỉ còn `ACUTE_LOSS_EXCEEDED` |
+
+**Đọc chéo R20–R24** (việc còn nợ từ lượt 1): đã đọc `buildCornerCard`, `buildRoundAdvice` và các hàm chuỗi (`bout-analysis.model.ts:137-312`), khớp mục 5 của ticket: thứ tự `REPEATED` rồi có buổi tập rồi thứ tự tài liệu; hiệp không ghi dấu không cắt chuỗi `INEFFECTIVE`; `OPPONENT_MAY_HAVE_CHANGED` chỉ khi **mọi** quan sát căn cứ đều bị hạ; `needed = l − w + 1`; các ngưỡng là hằng số có tên.
+
+Vấn đề 1 của lượt 1 (code viết dày) đã xử lý: Codex chạy prettier trên `bouts.service.ts`. Vì vậy diff lượt 2 lớn hơn phần logic thật.
+
+## Vấn đề
+
+| # | Mức | Vị trí | Vấn đề | Xử lý |
+| --- | --- | --- | --- | --- |
+| 1 | Gợi ý | `bouts.service.ts`, `getPriorContext` | Gọi `listRounds` và `loadAcuteLoss` thêm cho trận cũ, cộng với việc duyệt toàn bộ trận (vấn đề 2 của lượt 1) | Chấp nhận cho đồ án |
+| 2 | Gợi ý | `improvementPointSchema` | Mã `FATIGUE_FROM_ROUND_N` là chuỗi động, frontend phải đọc `fromRound` thay vì so mã cố định | Ghi vào ticket phần B |
+
+## Việc tiếp theo
+
+- Chủ dự án merge `--no-ff` vào `fight-camp` khi đồng ý. Không có migration mới (027 đã áp ngày 22/10).
+- Phần B (Fon) cần ticket: tab Đối thủ, thẻ góc đài in A4, màn ghi hiệp, báo cáo trận, prefill kết quả.

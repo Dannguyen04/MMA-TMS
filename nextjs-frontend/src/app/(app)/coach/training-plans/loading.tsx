@@ -1,8 +1,10 @@
 import { CardGridSkeleton, FilterRowSkeleton, LoadingRegion, PageHeaderSkeleton, Skeleton } from "@/components/ui/skeleton";
+import { getTranslator } from "@/lib/i18n/server";
 
-export default function Loading() {
+export default async function Loading() {
+    const { t } = await getTranslator();
     return (
-        <LoadingRegion label="Loading training plans">
+        <LoadingRegion label={t("training.loading.plans")}>
             <PageHeaderSkeleton actions={1} />
             <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
