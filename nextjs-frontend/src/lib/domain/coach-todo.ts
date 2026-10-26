@@ -14,7 +14,7 @@ export const REQUIREMENTS_WARNING_DAYS = 14;
 const RUNNING: readonly BoutStatus[] = ["SCHEDULED", "CAMP", "FIGHT_WEEK", "WEIGHED_IN"];
 const BEFORE_WEIGHED_IN: readonly BoutStatus[] = ["SCHEDULED", "CAMP", "FIGHT_WEEK"];
 
-export function buildDemoCoachTodo(bouts: Bout[], now: string | Date = new Date()): CoachTodoItem[] {
+export function buildDemoCoachTodo(bouts: Pick<Bout, "id" | "fighterId" | "status" | "deletedAt" | "eventName" | "gate1" | "requirementsDueOn" | "weighInAt" | "requirementsDueDays" | "weight" | "canEnterFightWeek" | "boutAt" | "weightReminder">[], now: string | Date = new Date()): CoachTodoItem[] {
     const today = dayKey(now);
     const items: CoachTodoItem[] = [];
 

@@ -387,12 +387,3 @@ export async function getCoachTodo(scope: string[] | "all"): Promise<CoachTodo |
 
     return authenticatedApiRequest("/coach/todo", coachTodoSchema);
 }
-
-export async function getWeightTrack(id: string): Promise<WeightTrack | null> {
-    if (isDemoAuthEnabled()) return (await demo()).getWeightTrack(id);
-    if (!platformFeatureAvailable("bouts")) return null;
-
-    return nullIfNotFound(
-        authenticatedApiRequest(`/bouts/${encodeURIComponent(id)}/weight-track`, backendWeightTrackSchema),
-    );
-}

@@ -422,6 +422,7 @@ export function demoWeightTrack(boutId: string, now = new Date()): WeightTrack |
             .filter((item) => item.fighterId === bout.fighterId)
             .map((item) => ({ date: item.academyDate, kg: item.kg, adherence: adherenceByDay.get(item.academyDate) ?? null })),
     });
+    return { ...track, status: ["WEIGHED_IN", "COMPLETED", "CANCELLED"].includes(bout.phase) ? "NEUTRAL" : track.status };
 }
 
 export interface DemoWeightAlert {

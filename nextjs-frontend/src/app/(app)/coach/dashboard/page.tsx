@@ -152,7 +152,7 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
                                                 <span className="min-w-0">
                                                     <span className="block font-medium text-fg">{alert.fighterName}</span>
                                                     <span className="block truncate text-sm text-fg-muted">{alert.bout.event}</span>
-                                                    {alert.wayOff > 0 && (alert.track.status === "RED" || alert.track.status === "YELLOW") && (
+                                                    {alert.wayOff > 0 && (alert.track.status === "OVER_LIMIT" || alert.track.status === "ABOVE_TARGET") && (
                                                         <span className="block text-sm text-fg-muted">{adherenceAlertLine(alert.wayOff, t)}</span>
                                                     )}
                                                 </span>
