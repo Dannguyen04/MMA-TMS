@@ -4,7 +4,7 @@
 | --- | --- |
 | **Trạng thái** | READY (25/10) |
 | **Phần** | Frontend (`nextjs-frontend`). Phần A sửa lỗi lệch contract (làm trước, nhỏ). Phần B giao diện đình chỉ (T-007 phần B và C, trước đây chưa có ticket) |
-| **Người nhận** | Chủ dự án (làm ngày 26/10). `agy` có thể làm phần B nếu chủ dự án muốn giao |
+| **Người nhận** | Gemini (`agy`, `gemini-4-argon-high`), chủ dự án chốt 26/10 |
 | **Nhánh** | `feat/T-030-frontend-suspensions-sync`, tạo từ `User_Feature` ngày 25/10 (đã có backend T-007 và T-029) |
 | **Tài liệu dẫn chiếu** | [T-007](./T-007-suspensions-and-readiness.md), [T-007-HANDOVER](./T-007-HANDOVER.md), [T-029](./T-029-coach-todo-and-weight-feasibility.md), [Luồng nghiệp vụ F7, S3, R4, R27, R28, R32](../FIGHT-CAMP-BUSINESS-FLOWS.md), [Tech spec §6, §9](../FIGHT-CAMP-TECH-SPEC.md), [quy định làm việc](../WORKING-RULES-CLAUDE-AGY.md) |
 | **Migration** | Không (frontend). Migration 025 phải đã được áp lên Supabase thì chế độ API mới chạy được |
