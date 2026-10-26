@@ -248,19 +248,21 @@ export function buildRoundAdvice(
                 source.observationIds.length > 0 &&
                 source.observationIds.every((id) => demoted.has(id));
             return {
-                ...t,
-                score: rounds.reduce(
-                    (sum, r) =>
-                        sum +
-                        (r.tacticMarks?.[t.id] === "EFFECTIVE"
-                            ? 1
-                            : r.tacticMarks?.[t.id] === "INEFFECTIVE"
-                              ? -1
-                              : 0),
-                    0,
-                ),
-                dropped: ineffectiveStreak(rounds, t.id) >= INEFFECTIVE_STREAK_TO_DROP,
-                ...(changed ? { note: "OPPONENT_MAY_HAVE_CHANGED" as const } : {}),
+                item: {
+                    ...t,
+                    score: rounds.reduce(
+                        (sum, r) =>
+                            sum +
+                            (r.tacticMarks?.[t.id] === "EFFECTIVE"
+                                ? 1
+                                : r.tacticMarks?.[t.id] === "INEFFECTIVE"
+                                  ? -1
+                                  : 0),
+                        0,
+                    ),
+                    dropped: ineffectiveStreak(rounds, t.id) >= INEFFECTIVE_STREAK_TO_DROP,
+                    ...(changed ? { note: "OPPONENT_MAY_HAVE_CHANGED" as const } : {}),
+                },
                 promote:
                     !used.has(t.id) &&
                     source.observationIds.some((id) => usedBasis.has(id)),
@@ -268,9 +270,9 @@ export function buildRoundAdvice(
         })
         .sort(
             (a, b) =>
-                Number(a.dropped || Boolean(a.note)) -
-                    Number(b.dropped || Boolean(b.note)) ||
-                b.score - a.score ||
+                Number(a.item.dropped || Boolean(a.item.note)) -
+                    Number(b.item.dropped || Boolean(b.item.note)) ||
+                b.item.score - a.item.score ||
                 Number(b.promote) - Number(a.promote),
         );
     const w = rounds.filter((r) => r.selfScore === "WIN").length;
@@ -303,7 +305,7 @@ export function buildRoundAdvice(
     }
     if (stunned >= STUNNED_STREAK_WARN) reasons.push("STUNNED_STREAK");
     return {
-        tactics: ranked.map(({ promote: _promote, ...t }) => t),
+        tactics: ranked.map((entry) => entry.item),
         standing,
         safety: reasons.length ? { level: "RED", reasons } : null,
     };
