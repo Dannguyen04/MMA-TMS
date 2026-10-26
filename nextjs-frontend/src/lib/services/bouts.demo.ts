@@ -368,7 +368,7 @@ export function createCampStore(todayOn: string): CampStore {
                     catchweightNote: null,
                     acuteLoss: {
                         startKg: 66.0,
-                        officialKg: 64.8,
+                        startOn: day(-6),
                         lossPct: 1.8,
                         limitPct: 8.0,
                         status: "WITHIN",

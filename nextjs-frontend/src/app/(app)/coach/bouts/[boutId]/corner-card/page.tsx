@@ -63,7 +63,7 @@ export default async function CoachCornerCardPage({ params }: PageProps) {
                         label: t("boutAnalysis.cornerCard.backToBout"),
                     }}
                     title={bout.event}
-                    description={t("coachBouts.detail.headerDescription", {
+                    description={t("boutAnalysis.headerDescription", {
                         fighter: fighter.name,
                         opponent: bout.opponent ?? t("bout.opponentTba"),
                         weight: weightLimitKg,

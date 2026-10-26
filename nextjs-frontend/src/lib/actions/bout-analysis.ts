@@ -25,7 +25,7 @@ async function authorizeCoach(
 ): Promise<{ ok: true; user: User; coachId: string } | { ok: false; state: ActionState<never> }> {
     const auth = await authorizeAction("training:write");
     if (!auth.ok) return { ok: false, state: actionError(auth.message) };
-    if (!auth.user.profileId) return { ok: false, state: actionError(t("coachBouts.action.noCoachProfile")) };
+    if (!auth.user.profileId) return { ok: false, state: actionError(t("boutAnalysis.action.noCoachProfile")) };
     return { ok: true, user: auth.user, coachId: auth.user.profileId };
 }
 
@@ -49,12 +49,12 @@ export async function recordBoutRoundAction(_prev: ActionState, formData: FormDa
     const boutId = String(formData.get("boutId") ?? "").trim();
     const roundNoRaw = Number(formData.get("roundNo"));
     if (!boutId || !Number.isInteger(roundNoRaw) || roundNoRaw < 1) {
-        return actionError(t("coachBouts.action.boutIdRequired"));
+        return actionError(t("boutAnalysis.action.boutIdRequired"));
     }
 
     const existing = await getCampBout(boutId);
     if (!existing || !canAccessFighter(auth.user, existing.fighterId)) {
-        return actionError(t("coachBouts.action.boutNotFoundOrNotOnRoster"));
+        return actionError(t("boutAnalysis.action.boutNotFoundOrNotOnRoster"));
     }
 
     const tacticMarks: Record<string, TacticOutcome> = {};
