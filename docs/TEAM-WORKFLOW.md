@@ -41,7 +41,7 @@ Claude viết ticket (READY)
 **Ticket giao cho Gemini:** Claude giao qua CLI `agy` của Antigravity (`~/.gemini/bin/agy.exe`), không cần chủ dự án chuyển lời:
 
 1. Claude tạo một **git worktree riêng** cho mỗi ticket tại `D:/test/ai-worktrees/T-xxx`, trên nhánh `feat/T-xxx-…` tạo từ `fight-camp`, và cài dependency. Worktree không có file `.env`, nên không kết nối được database thật. Thư mục làm việc chính của chủ dự án không bị đụng tới.
-2. Claude chạy Gemini ở chế độ không tương tác, tự duyệt thao tác (theo quyết định của chủ dự án ngày 13/10): `agy -p "<prompt>" --dangerously-skip-permissions --model gemini-3.8-flash-high --output-format json`. Prompt và log của mỗi lượt lưu ở `D:/test/ai-worktrees/logs/`.
+2. Claude chạy Gemini ở chế độ không tương tác, tự duyệt thao tác (theo quyết định của chủ dự án ngày 13/10): `agy -p "<prompt>" --dangerously-skip-permissions --model <model> --output-format json`, với `<model>` là `gemini-4-argon-high` cho việc nặng (migration, module mới, nhiều file) và `gemini-3.8-flash-high` cho việc theo khuôn (dịch giao diện, UI theo màn mẫu) (chủ dự án chốt 26/10; chi tiết cách chạy ở [WORKING-RULES-CLAUDE-AGY.md](WORKING-RULES-CLAUDE-AGY.md)). Prompt và log của mỗi lượt lưu ở `D:/test/ai-worktrees/logs/`.
 3. Khi review cần sửa, Claude gửi tiếp vào **cùng phiên** bằng `agy --conversation <conversation_id> -p "<phản hồi>"`.
 4. Sau mỗi lượt chạy, Claude kiểm tra remote không có nhánh mới hay commit bị push.
 5. Ticket APPROVED được merge `--no-ff` vào `fight-camp` khi chủ dự án đồng ý.
