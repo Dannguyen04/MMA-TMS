@@ -17,6 +17,7 @@ describe('BoutsController routes', () => {
       'competition-rulesets',
       BOUT_PERMISSIONS.RULESET_READ,
     ],
+    ['getReadiness', RequestMethod.GET, 'readiness', BOUT_PERMISSIONS.GET_ALL],
     ['listBouts', RequestMethod.GET, 'bouts', BOUT_PERMISSIONS.GET_ALL],
     ['createBout', RequestMethod.POST, 'bouts', BOUT_PERMISSIONS.CREATE],
     [
@@ -168,6 +169,7 @@ import {
   BoutReportResponseDto,
   ResultPrefillResponseDto,
   OpponentAnalysisDto,
+  ReadinessQueryDto,
   RoundInputDto,
   RoundParamsDto,
 } from './bouts.dto.js';
@@ -294,6 +296,51 @@ describe('T-010 controller DTO boundary', () => {
         false,
       );
     }
+  });
+
+  it('validates ReadinessQueryDto (422 without rulesetId when weightLimitKg or boutOn is given) and forwards getReadiness', async () => {
+    for (const badQuery of [
+      { weightLimitKg: '60' },
+      { boutOn: '2026-11-01' },
+      { rulesetId: '30000000-0000-4000-8000-000000000001', weightLimitKg: '20' },
+    ]) {
+      await expect(
+        Promise.resolve().then(() =>
+          appZodValidationPipe.transform(badQuery, {
+            type: 'query',
+            metatype: ReadinessQueryDto,
+          }),
+        ),
+      ).rejects.toMatchObject({ status: 422 });
+    }
+
+    const validQuery = await appZodValidationPipe.transform(
+      {
+        rulesetId: '30000000-0000-4000-8000-000000000001',
+        weightLimitKg: '60',
+        boutOn: '2026-11-01',
+      },
+      {
+        type: 'query',
+        metatype: ReadinessQueryDto,
+      },
+    );
+    const getReadiness = vi.fn().mockResolvedValue([]);
+    const controller = new BoutsController({
+      getReadiness,
+    } as unknown as BoutsService);
+    const actor = {
+      id: 'coach',
+      authSubject: 'sub',
+      email: 'coach@example.invalid',
+      role: USER.COACH,
+    };
+    expect(await controller.getReadiness(actor, validQuery)).toEqual([]);
+    expect(getReadiness).toHaveBeenCalledWith(actor, {
+      rulesetId: '30000000-0000-4000-8000-000000000001',
+      weightLimitKg: 60,
+      boutOn: '2026-11-01',
+    });
   });
 });
 

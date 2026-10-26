@@ -21,6 +21,7 @@ import { loadEnv } from './shared/config/env.js';
 import { VideosModule } from './videos/videos.module.js';
 import { AcademySettingsModule } from './academy-settings/academy-settings.module.js';
 import { BoutsModule } from './bouts/bouts.module.js';
+import { SuspensionsModule } from './suspensions/suspensions.module.js';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { BoutsModule } from './bouts/bouts.module.js';
     CoachingModule,
     AcademySettingsModule,
     BoutsModule,
+    SuspensionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

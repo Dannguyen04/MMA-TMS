@@ -60,6 +60,8 @@ import {
   FeasibilityQueryDto,
   FeasibilityResponseDto,
   ListBoutsQueryDto,
+  ReadinessQueryDto,
+  ReadinessRowDto,
   RecordResultDto,
   RemoveRequirementQueryDto,
   RequirementMutationResponseDto,
@@ -101,6 +103,31 @@ export class BoutsController {
   @ApiForbiddenEnvelope('Requires ruleset:read')
   async listRulesets() {
     return this.boutsService.listRulesets();
+  }
+
+  @Get('readiness')
+  @RequirePermissions({ allOf: [BOUT_PERMISSIONS.GET_ALL] })
+  @ApiOperation({
+    summary: 'List fighter readiness for taking a new bout',
+    description:
+      'One row per fighter in the viewer scope (COACH sees assigned fighters, ADMIN all; FIGHTER and DOCTOR get 403).',
+  })
+  @ResponseMessage(BOUT_RESPONSE_MESSAGES.READINESS)
+  @ApiSuccessEnvelope({
+    status: HttpStatus.OK,
+    message: BOUT_RESPONSE_MESSAGES.READINESS,
+    model: ReadinessRowDto,
+    isArray: true,
+  })
+  @ApiValidationErrorEnvelope()
+  @ApiUnauthorizedEnvelope()
+  @ApiForbiddenEnvelope('Requires bout:get_all and COACH or ADMIN role')
+  @ApiNotFoundEnvelope('RULESET_NOT_FOUND', 'Ruleset not found')
+  async getReadiness(
+    @CurrentUser() actor: AuthenticatedUser | undefined,
+    @Query() query: ReadinessQueryDto,
+  ) {
+    return this.boutsService.getReadiness(this.requireActor(actor), query);
   }
 
   @Get('bouts')

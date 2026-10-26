@@ -22,8 +22,10 @@ export const BOUT_RESPONSE_MESSAGES = {
   REQUIREMENT_DELETE: 'Remove bout requirement successfully',
   WEIGHT_TRACK: 'Get bout weight track successfully',
   FEASIBILITY: 'Get bout weight feasibility successfully',
+  READINESS: 'Get fighter readiness successfully',
   COACH_TODO: 'Get coach to-do successfully',
   WEIGH_IN: 'Record official weigh-in successfully',
   CATCHWEIGHT: 'Agree catchweight successfully',
   RESULT: 'Record bout result successfully',
 } as const;
+
