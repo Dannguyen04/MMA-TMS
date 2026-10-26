@@ -3,9 +3,9 @@
 | | |
 | --- | --- |
 | **Trạng thái** | READY (26/10, tối) |
-| **Phần** | Frontend (`nextjs-frontend`). A1: lỗi logic, làm trước demo. A2, A3 và phần B: chỉ đổi câu chữ, làm sau demo (gộp được với [T-025](./T-025-i18n-final-sweep.md)) |
+| **Phần** | Chỉ frontend (`nextjs-frontend`), không đụng backend. Làm theo thứ tự: A1 (lỗi logic), A2, A3, B1, B2, B3 |
 | **Người nhận** | Team (dev hoặc Gemini). Claude review |
-| **Hạn** | A1: trước buổi demo sáng 27/10. A2, A3, phần B: sau demo |
+| **Hạn** | Tất cả trước buổi demo sáng 27/10 (Hoàng Anh chốt 26/10, 22:26) |
 | **Nhánh** | Tạo `fix/T-032-demo-fixes` từ `sync/T-004-fight-camp`; review xong thì merge lại vào `sync/T-004-fight-camp` (nhánh demo). Không đụng `main` |
 | **Tài liệu dẫn chiếu** | Kịch bản demo `docs/DEMO-REVIEW-27-10.md` (có trên nhánh `fight-camp`), [T-007](./T-007-suspensions-and-readiness.md), [T-010B](./T-010B-corner-card-rounds-ui.md) |
 | **Migration** | Không |
@@ -14,7 +14,9 @@
 
 Tối 26/10 Hoàng Anh chạy đủ kịch bản demo của Dan (bước 1.1 đến 5.6) trên `sync/T-004-fight-camp`, chế độ demo (`APP_DATA_MODE=demo`). Các kết quả chính ra đúng kịch bản, nhưng còn 3 chỗ giao diện tự mâu thuẫn hoặc gây hiểu nhầm (phần A), và nhiều chữ tiếng Anh lẫn trong giao diện tiếng Việt (phần B). Giao diện mặc định là tiếng Việt (`DEFAULT_LOCALE = "vi"` trong `src/lib/i18n/config.ts`); tiếng Anh vẫn chọn được trong menu tài khoản, nên mọi khoá i18n mới phải có cả `vi` và `en`.
 
-Quy ước của team trước demo: chỉ sửa lỗi, không sửa phần chỉ là câu chữ hay định dạng. Vì vậy trước demo chỉ làm A1. A2, A3 và phần B chỉ đổi chữ, để sau demo; đừng gộp chung vào nhánh sửa A1.
+A1 là lỗi logic. A2, A3 và phần B chỉ đổi chữ, nhưng Hoàng Anh chốt làm hết trước demo. Không file nào trong ticket thuộc phần của Ken (backend T-007, T-029); các dòng sửa đều do Hoàng Anh hoặc Dan viết. Riêng `bouts.demo.ts` có hàm `getFeasibility` và `getCoachTodo` của Ken ở cuối file (khoảng dòng 1075–1084): không sửa đoạn đó.
+
+Mỗi mục một commit, theo thứ tự trên. Nếu sát giờ demo mà chưa xong, merge những commit đã qua review, phần còn lại để sau.
 
 Mọi đường dẫn bên dưới tính từ `nextjs-frontend/`. Số dòng đúng tại commit `2d119f8`.
 
@@ -22,7 +24,7 @@ Mọi đường dẫn bên dưới tính từ `nextjs-frontend/`. Số dòng đ�
 
 ### A1. Ô "Kiểm tra cấp phép" báo "Không có xung đột" khi võ sĩ đang bị đình chỉ (kịch bản bước 5.5)
 
-**Ưu tiên: trước demo.** Đây là lỗi logic, không phải câu chữ: hai thông báo trái nhau cùng lúc. Nếu không kịp làm xong và qua review trước demo thì không merge; Dan nói ở bước 5.5 rằng ô bên phải chỉ kiểm cấp phép y tế, còn đình chỉ được kiểm khi bấm lưu.
+**Làm đầu tiên.** Đây là lỗi logic, không phải câu chữ: hai thông báo trái nhau cùng lúc. Nếu không kịp làm xong và qua review trước demo thì không merge; Dan nói ở bước 5.5 rằng ô bên phải chỉ kiểm cấp phép y tế, còn đình chỉ được kiểm khi bấm lưu.
 
 **Hiện tượng.** Ở `/coach/sessions/new`, chọn Linh Phạm (vừa bị đình chỉ vì KO) và loại "Đấu tập": ô bên phải hiện xanh "Không có xung đột với cấp phép y tế của Linh Phạm." Chỉ khi bấm "Lên lịch buổi tập" mới hiện đỏ "Linh Phạm đang bị đình chỉ: buổi đấu tập bị chặn đến hết ngày 25 thg 11, 2026." Trên màn hình cùng lúc có hai thông báo trái nhau.
 
@@ -42,7 +44,7 @@ Mọi đường dẫn bên dưới tính từ `nextjs-frontend/`. Số dòng đ�
 
 ### A2. Khung "Sẵn sàng nhận trận mới" mâu thuẫn với dòng mô tả (bước 5.4)
 
-**Ưu tiên: sau demo.** Chỉ đổi chữ.
+Chỉ đổi chữ.
 
 **Hiện tượng.** Ở `/coach/bouts/suspensions`, khung bên phải có mô tả "Không có trận nào từ giai đoạn chuẩn bị thi đấu trở đi, và không bị đình chỉ." nhưng lại liệt kê mọi võ sĩ, kể cả người "Đang đình chỉ" và "Đang chuẩn bị thi đấu".
 
@@ -61,7 +63,7 @@ Chữ có thể chỉnh lại, miễn mô tả khớp với những gì danh sá
 
 ### A3. Nút vẫn ghi "Lưu hiệp N" sau khi hiệp đã lưu (bước 4.2)
 
-**Ưu tiên: sau demo.** Chỉ đổi nhãn nút; lưu lần hai vẫn ghi đè đúng.
+Chỉ đổi nhãn nút; lưu lần hai vẫn ghi đè đúng.
 
 **Hiện tượng.** Ở `/coach/bouts/<id>/rounds`, sau khi lưu hiệp 1, thẻ Hiệp 1 đã có nhãn "Đã lưu" nhưng nút vẫn ghi "Lưu hiệp 1". Bấm lần nữa thì ghi đè, nên người xem không biết là lưu mới hay sửa.
 
@@ -75,7 +77,7 @@ Chữ có thể chỉnh lại, miễn mô tả khớp với những gì danh sá
 
 ## Phần B. Việt hoá các màn hình trong kịch bản
 
-**Ưu tiên: sau demo.** Toàn bộ phần B chỉ là câu chữ. Có thể làm cùng [T-025](./T-025-i18n-final-sweep.md).
+Toàn bộ phần B chỉ là câu chữ. Phần ngoài phạm vi màn hình demo vẫn để cho [T-025](./T-025-i18n-final-sweep.md).
 
 **Phạm vi:** thanh bên của HLV, chi tiết trận, ghi hiệp, trang đình chỉ, form lên lịch buổi tập. Đây là các màn hình xuất hiện trong kịch bản demo.
 
@@ -112,10 +114,9 @@ Thư viện bài tập (cùng file `training-templates.ts`, khoảng 36 bài, t�
 Cập nhật các test đang so khớp chữ cũ:
 - `src/lib/services/bouts.demo.test.ts` (dòng 170–171, 218).
 - `src/lib/actions/training.test.ts` (dòng 112).
-- `src/lib/domain/coach-todo.test.ts` (dòng 97).
-- `src/lib/domain/bout-rules.test.ts` (dòng 130, 149, 293).
+- `src/lib/domain/bout-rules.test.ts` (dòng 130, 149, 293), nếu test đọc tên từ dữ liệu mẫu.
 
-Riêng các test của `requirementCode` và `gate1` chỉ dùng tên làm dữ liệu đầu vào, có thể giữ chữ tiếng Anh. Không bắt buộc đổi.
+**Không sửa** `src/lib/domain/coach-todo.test.ts` (test của Ken, T-029). Dòng 97 tự đưa "Health certificate" vào làm dữ liệu đầu vào, và `coach-todo.ts` chỉ đếm số hồ sơ thiếu, nên đổi tên ở B2 không ảnh hưởng. Các test khác của `requirementCode` và `gate1` chỉ dùng tên làm dữ liệu đầu vào thì cũng giữ nguyên.
 
 ## Ngoài phạm vi
 
