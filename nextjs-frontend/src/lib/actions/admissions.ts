@@ -5,9 +5,10 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { authorizeAction, getSessionAccount } from "@/lib/auth/session";
-import { ADMISSION_DECISIONS, ADMISSION_LIMITS as LIMITS, ASSESSMENT_CONCLUSIONS, DECISION_LABELS, type Applicant } from "@/lib/domain/admissions";
+import { ACTIVATED_NOTICE, ADMISSION_DECISIONS, ADMISSION_LIMITS as LIMITS, ASSESSMENT_CONCLUSIONS, DECISION_LABELS, type Applicant } from "@/lib/domain/admissions";
 import { WEIGHT_CLASS_ORDER } from "@/lib/domain/labels";
 import type { User } from "@/lib/domain/types";
+import { hrefWith } from "@/lib/query";
 import { dashboardPath, routes } from "@/lib/routes";
 import { activateFighterAccount, assignEvaluator, decideApplication, resendActivationEmail, submitApplication, submitAssessment } from "@/lib/services/admissions";
 import { idSchema, jsonArray, nullableText, pastDate, requiredText, text } from "./form-helpers";
@@ -46,13 +47,16 @@ export async function submitApplicationAction(_prev: ActionState, formData: Form
     return writeResultState(result, "A coach will be in touch to arrange your assessment.");
 }
 
-/** Turns the approved applicant into a fighter and opens their dashboard. */
+/**
+ * Turns the approved applicant into a fighter and opens their Today page, which explains what comes next (a sports
+ * doctor, then the baseline exam). The service refuses until the password is set, so this never activates early.
+ */
 export async function activateFighterAccountAction(): Promise<ActionState> {
     const applicant = await signedInApplicant();
     if (!applicant) return actionError(SIGNED_OUT);
     const result = await activateFighterAccount(applicant);
     if (!result.ok) return actionError(result.message);
-    redirect(dashboardPath("fighter"));
+    redirect(hrefWith(dashboardPath("fighter"), {}, { notice: ACTIVATED_NOTICE }));
 }
 
 /* ─── Administrator ─────────────────────────────────────────────────────── */

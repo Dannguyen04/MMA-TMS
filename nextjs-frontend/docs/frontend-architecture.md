@@ -128,7 +128,7 @@ export default async function Page({ searchParams }: PageProps<"/coach/fighters"
   - Fighter: Today · Training · Film · Progress · Health.
   - Coach: Today · Roster · Training · Film room · Clearance.
   - Doctor: Triage · Patients · Clinical · Observations.
-  - Admin keeps its sections.
+  - Admin: Today · People · Admissions · Training · AI platform · System.
 
   A hub's sub-pages are tabs (`tabs` on the nav item, rendered by `HubTabs`; `hubForPath` and `hubTabsFor` decide the
   active hub and tab). Add a page to an existing hub's tabs before adding a sidebar item. Account links live in the
@@ -137,6 +137,13 @@ export default async function Page({ searchParams }: PageProps<"/coach/fighters"
   - Fighter Today: what do I do now (fight hero, readiness, this week).
   - Coach Today: a corner queue and today's schedule.
   - Doctor Triage: who needs me first, with recent examinations beside it.
+  - Admin Today: who is stuck between roles (needs an assessor, awaiting a decision, needs a care team), with system
+    status below the queue.
+
+  A fighter who can't train yet sees the journey (`components/domain/fighter-journey.tsx`, built by
+  `lib/domain/journey.ts` and read by `services/fighter-journey.ts`): account → sports doctor → baseline exam → Medical
+  Clearance → training plan → first AI analysis, each step naming who moves it. The fighter's Today hero, the coach's
+  fighter overview and the admin user page show it until every step is done.
 
   A queue is an `AttentionList` whose items carry a `group` (and an `at` due time). It is filtered by `?queue=` through
   `SegmentedLinks`, which hides empty groups, and the unfiltered view shows the most urgent eight. The doctor's order
@@ -236,6 +243,21 @@ return (
 it (explicit props win), so `fieldDescribedBy` is only needed for controls outside a `Field` (row builders, checkbox
 groups). Required fields set `required` on both the `Field` (visible star) and the control.
 
+### Long forms, terms and quick fill
+
+- **Steps, one submission.** A form longer than one screen is split with `FormSteps` / `FormStep`
+  (`components/ui/form-steps.tsx`). Every step stays mounted (inactive ones are `hidden`), so values survive moving
+  between steps and one Server Action receives every field. "Next" only checks that the step's required controls are
+  filled (`validateStep` adds custom checks); the server stays the authority, and an error result opens the step that
+  holds the first invalid control. `useFormSteps()` gives `goTo(id)` for "Edit" links on a review step.
+- **Terms.** Jargon gets a tooltip from the glossary (`lib/domain/glossary/{admissions,medical,training}.ts`):
+  `<TermHint term="spo2" />` in a `Field`'s, `Checkbox`'s or `FormSection`'s `info` slot (never inside a `<label>`),
+  or `<Term term="rpe">RPE</Term>` inside text. Definitions are plain English, at most 220 characters.
+- **Pick, don't type.** `SuggestionChips` fill or extend a field (`appendSuggestion`), templates prefill whole forms,
+  and only facts the app already knows are prefilled silently (dates of today, the fighter in context, the exam just
+  recorded). Clinical answers are never defaulted: a quick fill such as "Mark the remaining areas Normal" is a button
+  the doctor presses, and it never overwrites an answered item.
+
 ## AI and medical communication
 
 - AI output is **assistive**. Label it with `AIGeneratedBadge` / `ReviewStateBadge`, show confidence
@@ -280,7 +302,14 @@ groups). Required fields set `required` on both the `Field` (visible star) and t
   - 422 lands on the form field.
   - 403 means the doctor is no longer assigned.
   - 404 and 409 get a message per code.
-  - 5xx and timeouts say "may not have been saved, reload first".
+  - 5xx, network errors and timeouts are unconfirmed: the clinical actions re-read the dossier first
+    (`lib/actions/medical-contract.ts`). An examination that turns out saved moves on to the clearance step, an
+    existing clearance (or a 409) is shown instead of a second one, and otherwise the draft stays on screen with
+    "Try again", which re-reads again before resending. A clearance retry never touches the examination.
+- The baseline examination is one stepped form (Vitals → Physical exam → three SCAT6 steps → Decision → Review) that
+  sends one POST; issuing the clearance is step 2 on its own page, with the examination read back. Nothing clinical is
+  pre-answered (`scat6-draft.ts` starts every answer blank); quick-fill buttons ("No symptoms", "Mark the N unmarked
+  areas Normal", "Stamp now") are the doctor's own action and never overwrite an answer.
 - Review requests: fighters ask for themselves, coaches and doctors for assigned fighters. A coach never sees what a
   fighter wrote to the doctor, only that a review was requested.
 
@@ -302,6 +331,14 @@ in API mode, the richer demo forms in demo mode (`usesTrainingServiceForms`, `us
 - `lib/domain/training-contract.ts` maps session types and builds plan, plan exercise and session bodies. Every plan has
   a phase. Plans are created as drafts and then activated; a result is recorded on the session before it is completed.
   Starting a session can be refused by medical eligibility; `trainingEligibilityReasons()` lists why.
+- The service has no templates or copy endpoints, so they live in the client: `lib/domain/training-templates.ts` holds
+  the plan templates, session presets and a starter exercise library, with exercises named rather than referenced by id.
+  A new plan is POSTed as a draft, its exercises are added in order, and it is activated only when every exercise went
+  in, so the fighter's "plan active" notification arrives for a complete plan. "Duplicate" and "Schedule again" copy an
+  existing plan or session through the ordinary reads. The objective is optional, as in the service.
+- The exercise catalog (`/exercises`) is shared and only administrators may write to it. Template exercises missing from
+  it are shown as "Not in library" and skipped; an administrator fills it from Training › Exercise library, whose
+  "Import starter library" creates the missing starter exercises.
 - Jobs and videos come from `/videos` and `/jobs`. A job's `score` is not a confidence; without one the UI shows
   "Unavailable — requires review" (`null`). Doctor-facing AI observations are the jobs' health alerts
   (`/jobs/impairments`); reviewing them is demo-only. Pages that aren't about video (the fighter dashboard, the
@@ -347,8 +384,9 @@ in API mode, the richer demo forms in demo mode (`usesTrainingServiceForms`, `us
   `requireUser()` sends them to `/apply` and `requireApplicant()` sends members to their dashboard.
 - Applicants sign up, and come back to their application, at `/register` with a code sent to their email
   (`POST /auth/admission/email-code`, then `/verify-email`): no password until they're approved. They apply and follow
-  their application at `/apply`, set their first password from the activation email (`/auth/reset-password` explains
-  both that and "forgot password") and activate their fighter account. A new fighter then waits for a sports doctor and
+  their application at `/apply`, set their first password from the activation email and activate their fighter
+  account. `/auth/reset-password` words itself for the context it can see (an approved applicant's first password, or a
+  member's reset) and never calls the first password "forgot password", because Supabase sends both from one template. A new fighter then waits for a sports doctor and
   a baseline examination before training.
 - Administrators assign the assessing coach and approve or reject passed applicants at `/admin/admissions`; coaches
   record the entrance assessment under Roster › Applicants (`/coach/admissions`). `lib/domain/admissions.ts` holds

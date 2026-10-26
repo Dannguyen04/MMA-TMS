@@ -1,9 +1,11 @@
-import { PenLine, Upload } from "lucide-react";
+import { CalendarPlus, PenLine, Upload } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 
+import { FlashToast } from "@/components/medical/flash-toast";
 import { ButtonLink } from "@/components/ui/button";
+import type { ToastInput } from "@/components/ui/toast";
 import { PageHeader } from "@/components/ui/page-header";
 import { AddFeedbackButton, CancelSessionButton, MarkMissedButton, RecordResultButton, StartSessionButton } from "@/components/training/session-coach-actions";
 import { SessionDetail, SessionHeaderMeta } from "@/components/training/session-detail";
@@ -12,16 +14,40 @@ import { canAccessFighter, requireFighterAccess } from "@/lib/auth/access";
 import { getCurrentUser, requireRole } from "@/lib/auth/session";
 import { formatDateTime } from "@/lib/format";
 import { getTranslator } from "@/lib/i18n/server";
-import { hrefWith } from "@/lib/query";
+import { plural, type Translator } from "@/lib/i18n/translate";
+import { hrefWith, type SearchParams } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { platformFeatureAvailable, usesTrainingServiceForms } from "@/lib/services/platform-features";
 import { getPlan, getSession, listCoachFeedback, loadSessionClearanceConflicts } from "@/lib/services/training";
 import { listVideos } from "@/lib/services/videos";
-import { sum } from "@/lib/utils";
+import { param, sum } from "@/lib/utils";
 import { plannedEndMs } from "@/components/training/training-utils";
 
 /** One session read per request, shared by the metadata and the page. */
 const loadSession = cache(getSession);
+
+const count = (value: string | string[] | undefined) => Math.max(0, Math.floor(Number(param(value)) || 0));
+
+/** The toast after "Repeat weekly" (`?notice=repeated` from `createSession`), or null. */
+function repeatNotice(query: SearchParams, t: Translator): ToastInput | null {
+    if (param(query.notice) !== "repeated") return null;
+    const created = Math.max(1, count(query.created));
+    const failed = count(query.failed);
+    const skipped = count(query.skipped);
+    const skippedText = skipped > 0 ? plural(t, "training.repeat.weeksSkipped", skipped) : null;
+    if (failed > 0) {
+        return {
+            title: plural(t, "training.repeat.partialTitle", created + failed, { created }),
+            description: [plural(t, "training.repeat.partialDesc", failed), skippedText].filter(Boolean).join(" "),
+            tone: "warning",
+        };
+    }
+    return {
+        title: plural(t, "training.repeat.doneTitle", created),
+        description: [created > 1 ? t("training.repeat.doneDesc") : null, skippedText].filter(Boolean).join(" ") || undefined,
+        tone: "success",
+    };
+}
 
 export async function generateMetadata({ params }: PageProps<"/coach/sessions/[sessionId]">): Promise<Metadata> {
     const [{ sessionId }, user, { t }] = await Promise.all([params, getCurrentUser(), getTranslator()]);
@@ -29,9 +55,9 @@ export async function generateMetadata({ params }: PageProps<"/coach/sessions/[s
     return { title: session && user && canAccessFighter(user, session.fighterId) ? session.title : t("training.sessionPage.eyebrowFighter") };
 }
 
-export default async function CoachSessionPage({ params }: PageProps<"/coach/sessions/[sessionId]">) {
+export default async function CoachSessionPage({ params, searchParams }: PageProps<"/coach/sessions/[sessionId]">) {
     const user = await requireRole("coach");
-    const [{ sessionId }, { t }] = await Promise.all([params, getTranslator()]);
+    const [{ sessionId }, query, { t, locale }] = await Promise.all([params, searchParams, getTranslator()]);
     // Reference lookups start with the session read; everything about the session waits for the access check.
     const [session, coachNames, exercises] = await Promise.all([loadSession(sessionId), getCoachNames(), getExerciseLibrary()]);
     if (!session) notFound();
@@ -80,13 +106,18 @@ export default async function CoachSessionPage({ params }: PageProps<"/coach/ses
 
     return (
         <>
+            <FlashToast notice={repeatNotice(query, t)} cleanHref={routes.coach.session(session.id)} />
             <PageHeader
                 eyebrow={t("training.sessionPage.eyebrowCoach", { name: fighter.name })}
                 title={session.title}
                 back={{ href: routes.coach.sessions, label: t("training.sessionPage.backSessions") }}
-                meta={<SessionHeaderMeta session={session} />}
+                meta={<SessionHeaderMeta session={session} locale={locale} />}
                 actions={
                     <>
+                        <ButtonLink href={hrefWith(routes.coach.newSession, {}, { from: session.id })} variant="secondary">
+                            <CalendarPlus aria-hidden />
+                            {t("training.repeat.scheduleAgain")}
+                        </ButtonLink>
                         {scheduled && (
                             <ButtonLink href={routes.coach.editSession(session.id)} variant="secondary">
                                 <PenLine aria-hidden />
@@ -94,13 +125,14 @@ export default async function CoachSessionPage({ params }: PageProps<"/coach/ses
                             </ButtonLink>
                         )}
                         {scheduled && started && <MarkMissedButton {...transitionProps} />}
-                        {active && <CancelSessionButton {...transitionProps} when={formatDateTime(session.scheduledAt)} />}
+                        {active && <CancelSessionButton {...transitionProps} when={formatDateTime(session.scheduledAt, locale)} />}
                         {canRecord && recordButton}
                         {scheduled && <StartSessionButton {...transitionProps} />}
                     </>
                 }
             />
             <SessionDetail
+                locale={locale}
                 session={session}
                 audience="coach"
                 now={now}

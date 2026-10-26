@@ -29,11 +29,11 @@ export const palettes: Record<ColorSchemeName, ColorTokens> = {
     surfaceMuted: "#DEDBD4",
     ink: "#121316",
     inkMuted: "#5C5E66",
-    inkSubtle: "#7A7C84",
+    inkSubtle: "#62646C",
     line: "#C9C6BE",
     controlBorder: "#7E7B74",
     cage: "#1C1E22",
-    lotus: "#8F7040",
+    lotus: "#735A30",
     cta: "#16181C",
     onCta: "#F6F5F2",
     ring: "#8F7040",
@@ -65,4 +65,11 @@ export const palettes: Record<ColorSchemeName, ColorTokens> = {
     disabledFill: "#2A2D33",
     disabledInk: "#6E7178",
   },
+};
+
+/** OLED preset: dark tokens on pure black. */
+export const trueBlackPalette: ColorTokens = {
+  ...palettes.dark,
+  bg: "#000000",
+  surface: "#0E0F11",
 };

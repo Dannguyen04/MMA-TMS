@@ -17,11 +17,14 @@ import { ApiError } from "@/lib/api/client";
 import {
     addCoachFeedback,
     addPlanExercise,
+    addPlanExercises,
     cancelSession,
+    createExercise,
     createPlan,
     createSession,
     getPlan,
     listCoachFeedback,
+    listExerciseCatalog,
     listExercises,
     listPlanExercises,
     listSessions,
@@ -243,7 +246,7 @@ describe("training API adapter", () => {
         it("creates a plan with the service's own fields, its phase and academy days, then publishes it", async () => {
             authenticatedMutableApiRequest.mockResolvedValueOnce(backendPlan("DRAFT")).mockResolvedValueOnce(backendPlan("ACTIVE"));
 
-            await expect(createPlan({ ...planInput, status: "active" }, actor)).resolves.toMatchObject({ status: "active" });
+            await expect(createPlan({ ...planInput, status: "active" }, actor)).resolves.toMatchObject({ plan: { status: "active" }, failedExercises: [] });
             expect(authenticatedMutableApiRequest.mock.calls[0][0]).toBe("/training-plans");
             expect(sent(0)).toEqual({
                 fighterId: "fighter-1",
@@ -263,7 +266,83 @@ describe("training API adapter", () => {
                 .mockResolvedValueOnce(backendPlan("DRAFT"))
                 .mockRejectedValueOnce(new ApiError({ message: "Conflict", kind: "http", status: 409, code: "PLAN_STATE_CONFLICT" }));
 
-            await expect(createPlan({ ...planInput, status: "active" }, actor)).resolves.toMatchObject({ status: "draft" });
+            await expect(createPlan({ ...planInput, status: "active" }, actor)).resolves.toMatchObject({ plan: { status: "draft" } });
+        });
+
+        const planExercise = (id: string, orderIndex: number) => ({
+            id,
+            planId: "plan-1",
+            exerciseId: `ex-${id}`,
+            orderIndex,
+            sets: 4,
+            reps: null,
+            durationSeconds: 900,
+            targetRpe: 6,
+            coachNotes: null,
+            createdAt: "2026-09-01T00:00:00.000Z",
+        });
+        const prescription = { sets: 4, reps: null, durationSec: 900, targetRpe: 6, notes: null };
+
+        it("adds a new plan's exercises in order before activating it, without reading the empty list", async () => {
+            authenticatedMutableApiRequest
+                .mockResolvedValueOnce(backendPlan("DRAFT"))
+                .mockResolvedValueOnce(planExercise("a", 0))
+                .mockResolvedValueOnce(planExercise("b", 1))
+                .mockResolvedValueOnce(backendPlan("ACTIVE"));
+
+            const exercises = [
+                { exerciseId: "ex-a", ...prescription },
+                { exerciseId: "ex-b", ...prescription, notes: " Both sides " },
+            ];
+            await expect(createPlan({ ...planInput, status: "active" }, actor, exercises)).resolves.toMatchObject({ plan: { status: "active" }, failedExercises: [] });
+            expect(authenticatedApiRequest).not.toHaveBeenCalled();
+            expect(authenticatedMutableApiRequest.mock.calls.map((call) => call[0])).toEqual([
+                "/training-plans",
+                "/training-plans/plan-1/exercises",
+                "/training-plans/plan-1/exercises",
+                "/training-plans/plan-1/status",
+            ]);
+            expect(sent(1)).toEqual({ exerciseId: "ex-a", orderIndex: 0, sets: 4, reps: null, durationSeconds: 900, targetRpe: 6, coachNotes: null });
+            expect(sent(2)).toMatchObject({ exerciseId: "ex-b", orderIndex: 1, coachNotes: "Both sides" });
+            expect(sent(3)).toEqual({ status: "ACTIVE" });
+        });
+
+        it("keeps a plan with a refused exercise as a draft and reports it, reusing the free order index", async () => {
+            authenticatedMutableApiRequest
+                .mockResolvedValueOnce(backendPlan("DRAFT"))
+                .mockResolvedValueOnce(planExercise("a", 0))
+                .mockRejectedValueOnce(new ApiError({ message: "Not found", kind: "http", status: 404, code: "EXERCISE_NOT_FOUND" }))
+                .mockResolvedValueOnce(planExercise("c", 1));
+
+            const exercises = ["ex-a", "ex-b", "ex-c"].map((exerciseId) => ({ exerciseId, ...prescription }));
+            const result = await createPlan({ ...planInput, status: "active" }, actor, exercises);
+
+            expect(result.plan.status).toBe("draft");
+            expect(result.failedExercises).toEqual([{ index: 1, exerciseId: "ex-b", message: expect.stringContaining("no longer in the library") }]);
+            expect(sent(3)).toMatchObject({ exerciseId: "ex-c", orderIndex: 1 });
+            // Never activated: the fighter isn't told about an incomplete plan.
+            expect(authenticatedMutableApiRequest).toHaveBeenCalledTimes(4);
+        });
+
+        it("adds several exercises after the plan's last one, reading the list once", async () => {
+            authenticatedApiRequest.mockResolvedValue([planExercise("x", 4), planExercise("y", 1)]);
+            authenticatedMutableApiRequest
+                .mockRejectedValueOnce(new ApiError({ message: "Timed out", kind: "timeout", status: null, code: "TIMEOUT" }))
+                .mockResolvedValueOnce(planExercise("b", 6));
+
+            const result = await addPlanExercises("plan-1", [{ exerciseId: "ex-a", ...prescription }, { exerciseId: "ex-b", ...prescription }], actor);
+
+            expect(authenticatedApiRequest).toHaveBeenCalledTimes(1);
+            expect(sent(0)).toMatchObject({ exerciseId: "ex-a", orderIndex: 5 });
+            // The first may have been saved, so the next one doesn't take its place.
+            expect(sent(1)).toMatchObject({ exerciseId: "ex-b", orderIndex: 6 });
+            expect(result.added).toHaveLength(1);
+            expect(result.failed).toEqual([{ index: 0, exerciseId: "ex-a", message: expect.stringContaining("may not have been saved") }]);
+        });
+
+        it("asks nothing when there are no exercises to add", async () => {
+            await expect(addPlanExercises("plan-1", [], actor)).resolves.toEqual({ added: [], failed: [] });
+            expect(authenticatedApiRequest).not.toHaveBeenCalled();
         });
 
         it("reads a plan the service stores with a phase but without focus areas or weekly target", async () => {
@@ -364,6 +443,51 @@ describe("training API adapter", () => {
 
         await expect(listSessions({ fighterIds: ["fighter-1"], type: "recovery_mobility" })).resolves.toHaveLength(1);
         expect(authenticatedApiRequest).toHaveBeenCalledWith(expect.not.stringContaining("sessionType"), expect.anything());
+    });
+
+    const backendExercise = {
+        id: "ex-1",
+        name: "Kettlebell swings",
+        description: null,
+        category: "STRENGTH_CONDITIONING",
+        targetMuscleGroups: ["glutes"],
+        videoUrl: null,
+        thumbnailUrl: null,
+        isActive: true,
+        createdAt: "2026-09-01T00:00:00.000Z",
+        updatedAt: "2026-09-01T00:00:00.000Z",
+        deletedAt: null,
+    };
+
+    it("lists the library for administrators with the service's own category filter", async () => {
+        authenticatedApiRequest.mockResolvedValue({
+            data: [backendExercise, { ...backendExercise, id: "ex-2", name: "Band pull-aparts", category: "STRENGTH" }],
+            total: 2,
+            hasNextPage: false,
+        });
+
+        await expect(listExerciseCatalog({ search: " swings ", category: "STRENGTH_CONDITIONING" })).resolves.toEqual([
+            expect.objectContaining({ id: "ex-2", category: "STRENGTH_CONDITIONING" }),
+            { id: "ex-1", name: "Kettlebell swings", category: "STRENGTH_CONDITIONING", description: "", targetMuscleGroups: ["glutes"], videoUrl: null },
+        ]);
+        const path = authenticatedApiRequest.mock.calls[0][0] as string;
+        expect(path).toContain("/exercises?");
+        expect(path).toContain("search=swings");
+        expect(path).toContain("category=STRENGTH_CONDITIONING");
+    });
+
+    it("adds a library exercise in the service's terms", async () => {
+        authenticatedMutableApiRequest.mockResolvedValue(backendExercise);
+
+        await createExercise({ name: " Kettlebell swings ", category: "STRENGTH_CONDITIONING", description: "", targetMuscleGroups: ["glutes"], videoUrl: null }, actor);
+        expect(authenticatedMutableApiRequest).toHaveBeenCalledWith("/exercises", expect.anything(), expect.objectContaining({ method: "POST" }));
+        expect(JSON.parse(authenticatedMutableApiRequest.mock.calls[0][2].body)).toEqual({
+            name: "Kettlebell swings",
+            category: "STRENGTH_CONDITIONING",
+            description: null,
+            targetMuscleGroups: ["glutes"],
+            videoUrl: null,
+        });
     });
 
     it("asks nothing about coach feedback while the feedback service isn't available", async () => {

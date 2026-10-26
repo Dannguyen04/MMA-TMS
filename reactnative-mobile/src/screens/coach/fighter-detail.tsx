@@ -2,6 +2,8 @@ import { useCallback, useRef, useState } from "react";
 import { Text, View } from "react-native";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 
+import { useToastMessage } from "@/components/toast/app-toast";
+
 import {
   getFighter,
   getFighterMedical,
@@ -17,7 +19,24 @@ import {
   type TrainingPlan,
   type TrainingSessionSummary,
 } from "@/api";
-import { EligibilityLine } from "@/components/medical/medical-dossier-view";
+import { eligibilityReasonLabel, measurementContextLabel } from "@/components/medical/medical-format";
+import {
+  AvatarInitials,
+  CountRow,
+  Divider,
+  LinkRow,
+  PersonHeader,
+  PersonHeaderSkeleton,
+  PLAN_STATUS_TONE,
+  PlanStatusMark,
+  SessionTimeline,
+  SessionTypeMix,
+  SkeletonBlock,
+  SkeletonCards,
+  StatusBlock,
+  StatusChip,
+  WeightChart,
+} from "@/components/visuals";
 import { coach } from "@/i18n/coach";
 import { medical as medicalCopy } from "@/i18n/medical";
 import { vi } from "@/i18n/vi";
@@ -30,6 +49,11 @@ import {
 import { CoachBanner, CoachCard, CoachScaffold } from "@/screens/coach/coach-ui";
 import { useSession } from "@/session/session-context";
 import { spacing, type, useThemePreference } from "@/theme";
+
+function shortDate(iso: string): string {
+  const date = new Date(iso);
+  return `${date.getDate()}/${date.getMonth() + 1}`;
+}
 
 function lostAccess(error: unknown): boolean {
   return isApiError(error) && (error.status === 403 || error.status === 404);
@@ -54,6 +78,7 @@ export function CoachFighterDetailScreen() {
   const [assignments, setAssignments] = useState<CoachAssignment[]>([]);
   const [plans, setPlans] = useState<TrainingPlan[]>([]);
   const [error, setError] = useState("");
+  useToastMessage(error, "error");
   const [loading, setLoading] = useState(false);
   const [accessLost, setAccessLost] = useState(false);
   const seqRef = useRef(0);
@@ -126,25 +151,27 @@ export function CoachFighterDetailScreen() {
 
   return (
     <CoachScaffold title={fighter ? fighterDisplayName(fighter) : coach.fighterDetail} inStack>
-      {error ? <CoachBanner message={error} tone="danger" /> : null}
       {accessLost ? (
         <CoachCard onPress={() => router.replace(coachHref("/(coach)/fighters"))}>
           <Text style={[type.link, { color: colors.lotus }]}>{coach.backToRoster}</Text>
         </CoachCard>
       ) : null}
       {fighter ? (
-        <CoachCard>
-          <Text style={[type.body, { color: colors.inkMuted }]}>
-            {coach.weightClass}: {vi.weightClass[fighter.weightClass]}
-          </Text>
-          {fighter.gym ? (
-            <Text style={[type.body, { color: colors.inkMuted }]}>
-              {coach.gym}: {fighter.gym}
-            </Text>
-          ) : null}
-        </CoachCard>
+        <PersonHeader
+          colors={colors}
+          name={fighterDisplayName(fighter)}
+          stat={[
+            `${coach.weightClass}: ${vi.weightClass[fighter.weightClass]}`,
+            fighter.gym ? `${coach.gym}: ${fighter.gym}` : null,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        />
       ) : loading ? (
-        <CoachBanner message={coach.loading} />
+        <>
+          <PersonHeaderSkeleton colors={colors} label={coach.loading} />
+          <SkeletonCards colors={colors} count={4} />
+        </>
       ) : null}
 
       {fighter ? (
@@ -152,21 +179,37 @@ export function CoachFighterDetailScreen() {
           <Text style={[type.title, { color: colors.ink }]}>{coach.medicalSummary}</Text>
           <CoachCard onPress={() => router.push(coachHref(`/(coach)/fighters/${fighterId}/medical`))}>
             {medical ? (
-              <>
-                <EligibilityLine
-                  eligibility={medical.eligibility.training}
-                  label={medicalCopy.eligibilityTraining}
-                />
+              <View style={{ gap: spacing.md }}>
+                <View style={{ gap: spacing.xs }}>
+                  <StatusBlock
+                    colors={colors}
+                    tone={medical.eligibility.training.eligible ? "success" : "danger"}
+                    icon={medical.eligibility.training.eligible ? "checkmark" : "close"}
+                    eyebrow={medicalCopy.eligibilityTraining}
+                    label={
+                      medical.eligibility.training.eligible ? medicalCopy.eligible : medicalCopy.notEligible
+                    }
+                  />
+                  {medical.eligibility.training.reasons.map((code) => (
+                    <Text key={code} style={[type.caption, { color: colors.inkMuted, lineHeight: 16 }]}>
+                      {`• ${eligibilityReasonLabel(code)}`}
+                    </Text>
+                  ))}
+                </View>
                 {medical.openReviewRequests.length > 0 ? (
-                  <Text style={[type.caption, { color: colors.inkMuted, lineHeight: 16 }]}>
-                    {medicalCopy.openRequests}: {medical.openReviewRequests.length}
-                  </Text>
+                  <CountRow
+                    colors={colors}
+                    count={medical.openReviewRequests.length}
+                    label={medicalCopy.openRequests}
+                  />
                 ) : null}
-              </>
+              </View>
+            ) : medicalError ? (
+              <Text style={[type.body, { color: colors.inkMuted }]}>{medicalError}</Text>
+            ) : loading ? (
+              <SkeletonBlock colors={colors} height={80} label={coach.loading} />
             ) : (
-              <Text style={[type.body, { color: colors.inkMuted }]}>
-                {medicalError || coach.loading}
-              </Text>
+              <Text style={[type.body, { color: colors.inkMuted }]}>{coach.loading}</Text>
             )}
             <Text style={[type.link, { color: colors.lotus }]}>{coach.openMedical}</Text>
           </CoachCard>
@@ -175,91 +218,154 @@ export function CoachFighterDetailScreen() {
           <Text style={[type.caption, { color: colors.inkMuted, lineHeight: 16 }]}>
             {coach.sessionHistoryHint}
           </Text>
-          <View style={{ gap: spacing.sm }}>
-            {sessions.length === 0 ? <CoachBanner message={coach.emptySessions} /> : null}
-            {sessions.map((row) => (
-              <CoachCard
-                key={row.id}
-                onPress={() => router.push(coachHref(`/(coach)/schedule/${row.id}`))}
-              >
-                <Text style={[type.body, { color: colors.ink }]}>{row.title}</Text>
-                <Text style={[type.caption, { color: colors.inkMuted, lineHeight: 16 }]}>
-                  {formatWhen(row.scheduledAt)} · {coach.sessionTypeLabel[row.sessionType]} ·{" "}
-                  {coach.sessionStatus[row.status]}
-                </Text>
-              </CoachCard>
-            ))}
-          </View>
+          {sessions.length > 0 ? (
+            <CoachCard>
+              <SessionTimeline
+                colors={colors}
+                rows={sessions}
+                whenLabel={formatWhen}
+                typeLabel={(value) => coach.sessionTypeLabel[value]}
+                statusLabel={(value) => coach.sessionStatus[value]}
+                onPressRow={(row) => router.push(coachHref(`/(coach)/schedule/${row.id}`))}
+              />
+              <Divider colors={colors} />
+              <SessionTypeMix
+                colors={colors}
+                sessions={sessions}
+                typeLabel={(value) => coach.sessionTypeLabel[value]}
+                title={`${coach.sessionType} · ${sessions.length}`}
+              />
+            </CoachCard>
+          ) : loading ? (
+            <SkeletonCards colors={colors} count={1} label={coach.loading} />
+          ) : (
+            <CoachBanner message={coach.emptySessions} />
+          )}
 
-          <CoachCard onPress={() => router.push(coachHref(`/(coach)/fighters/${fighterId}/videos`))}>
-            <Text style={[type.link, { color: colors.lotus }]}>Video võ sĩ</Text>
-          </CoachCard>
-          <CoachCard onPress={() => router.push(coachHref(`/(coach)/fighters/${fighterId}/goals`))}>
-            <Text style={[type.link, { color: colors.lotus }]}>Mục tiêu võ sĩ</Text>
-          </CoachCard>
-          <CoachCard
-            onPress={() => router.push(coachHref(`/(coach)/fighters/${fighterId}/performance`))}
-          >
-            <Text style={[type.link, { color: colors.lotus }]}>Hiệu suất võ sĩ</Text>
+          <CoachCard>
+            <LinkRow
+              colors={colors}
+              label="Video võ sĩ"
+              onPress={() => router.push(coachHref(`/(coach)/fighters/${fighterId}/videos`))}
+            />
+            <LinkRow
+              colors={colors}
+              label="Mục tiêu võ sĩ"
+              onPress={() => router.push(coachHref(`/(coach)/fighters/${fighterId}/goals`))}
+            />
+            <LinkRow
+              colors={colors}
+              label="Hiệu suất võ sĩ"
+              onPress={() => router.push(coachHref(`/(coach)/fighters/${fighterId}/performance`))}
+            />
           </CoachCard>
 
           <Text style={[type.title, { color: colors.ink }]}>{coach.fighterPlans}</Text>
           <View style={{ gap: spacing.sm }}>
-            {plans.length === 0 ? <CoachBanner message={coach.emptyPlans} /> : null}
+            {plans.length === 0 ? (
+              loading ? (
+                <SkeletonCards colors={colors} count={1} label={coach.loading} />
+              ) : (
+                <CoachBanner message={coach.emptyPlans} />
+              )
+            ) : null}
             {plans.map((row) => (
               <CoachCard
                 key={row.id}
                 onPress={() => router.push(coachHref(`/(coach)/plans/${row.id}`))}
               >
-                <Text style={[type.body, { color: colors.ink }]}>{row.title}</Text>
-                <Text style={[type.caption, { color: colors.inkMuted, lineHeight: 16 }]}>
-                  {coach.planStatus[row.status]}
-                </Text>
-                <Text style={[type.link, { color: colors.lotus }]}>{coach.openPlan}</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.md }}>
+                  <PlanStatusMark colors={colors} status={row.status} size={52} />
+                  <View style={{ flex: 1, gap: spacing.xs }}>
+                    <Text style={[type.body, { color: colors.ink }]} numberOfLines={2}>
+                      {row.title}
+                    </Text>
+                    <StatusChip
+                      colors={colors}
+                      label={coach.planStatus[row.status]}
+                      tone={PLAN_STATUS_TONE[row.status]}
+                    />
+                  </View>
+                </View>
+                <Text style={[type.link, { color: colors.lotus, alignSelf: "flex-end" }]}>{coach.openPlan}</Text>
               </CoachCard>
             ))}
           </View>
 
           <Text style={[type.title, { color: colors.ink }]}>{coach.assignments}</Text>
           <View style={{ gap: spacing.sm }}>
-            {assignments.length === 0 ? <CoachBanner message={coach.emptyAssignments} /> : null}
-            {assignments.map((row) => (
-              <CoachCard key={row.id}>
-                <Text style={[type.body, { color: colors.ink }]}>
-                  {row.coachName ?? coach.coachFallback}
-                </Text>
-                <Text style={[type.caption, { color: colors.inkMuted, lineHeight: 16 }]}>
-                  {row.endsAt ? coach.assignmentEnded : coach.assignmentActive} ·{" "}
-                  {formatWhen(row.startsAt)}
-                  {row.endsAt ? ` – ${formatWhen(row.endsAt)}` : ""}
-                  {row.coachGym ? ` · ${row.coachGym}` : ""}
-                </Text>
-                {row.endReason ? (
-                  <Text style={[type.caption, { color: colors.inkMuted, lineHeight: 16 }]}>
-                    {coach.endReason}: {row.endReason}
-                  </Text>
-                ) : null}
-              </CoachCard>
-            ))}
+            {assignments.length === 0 ? (
+              loading ? (
+                <SkeletonCards colors={colors} count={1} label={coach.loading} />
+              ) : (
+                <CoachBanner message={coach.emptyAssignments} />
+              )
+            ) : null}
+            {assignments.map((row) => {
+              const coachName = row.coachName ?? coach.coachFallback;
+              return (
+                <CoachCard key={row.id}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.md }}>
+                    <AvatarInitials colors={colors} name={coachName} />
+                    <View style={{ flex: 1, gap: spacing.xs }}>
+                      <Text style={[type.body, { color: colors.ink }]} numberOfLines={1}>
+                        {coachName}
+                      </Text>
+                      <Text style={[type.caption, { color: colors.inkMuted, lineHeight: 16 }]}>
+                        {formatWhen(row.startsAt)}
+                        {row.endsAt ? ` – ${formatWhen(row.endsAt)}` : ""}
+                        {row.coachGym ? ` · ${row.coachGym}` : ""}
+                      </Text>
+                      {row.endReason ? (
+                        <Text style={[type.caption, { color: colors.inkMuted, lineHeight: 16 }]}>
+                          {coach.endReason}: {row.endReason}
+                        </Text>
+                      ) : null}
+                      <StatusChip
+                        colors={colors}
+                        label={row.endsAt ? coach.assignmentEnded : coach.assignmentActive}
+                        tone={row.endsAt ? "neutral" : "success"}
+                      />
+                    </View>
+                  </View>
+                </CoachCard>
+              );
+            })}
           </View>
 
           <Text style={[type.title, { color: colors.ink }]}>{coach.measurementTitle}</Text>
-          <View style={{ gap: spacing.sm }}>
-            {measurements.length === 0 ? (
-              <CoachBanner message={coach.emptyMeasurements} />
+          {measurements.length === 0 ? (
+            loading ? (
+              <SkeletonCards colors={colors} count={1} label={coach.loading} />
             ) : (
-              measurements.map((row) => (
-                <CoachCard key={row.id}>
+              <CoachBanner message={coach.emptyMeasurements} />
+            )
+          ) : (
+            <CoachCard>
+              <WeightChart
+                colors={colors}
+                points={measurements.map((row) => ({
+                  id: row.id,
+                  weightKg: row.weightKg,
+                  measuredAt: row.measuredAt,
+                  caption: measurementContextLabel(row.measurementContext),
+                }))}
+                unit="kg"
+                latestNote={(latest) => `${latest.caption ?? ""} · ${shortDate(latest.measuredAt)}`}
+              />
+              <Divider colors={colors} />
+              {measurements.map((row) => (
+                <View key={row.id} style={{ gap: 2 }}>
                   <Text style={[type.body, { color: colors.ink }]}>
-                    {row.weightKg} kg · {row.measurementContext}
+                    {row.weightKg} kg · {measurementContextLabel(row.measurementContext)}
                   </Text>
                   <Text style={[type.caption, { color: colors.inkMuted, lineHeight: 16 }]}>
                     {formatWhen(row.measuredAt)}
                   </Text>
-                </CoachCard>
-              ))
-            )}
-          </View>
+                </View>
+              ))}
+            </CoachCard>
+          )}
         </>
       ) : null}
     </CoachScaffold>

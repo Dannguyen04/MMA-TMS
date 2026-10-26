@@ -86,9 +86,10 @@ function hrefFor(target: { type: string; id: string } | undefined, role: Notific
             return role === "coach" ? routes.coach.plan(id) : role === "fighter" ? routes.fighter.plan(id) : null;
         case "TRAINING_SESSION":
             return role === "coach" ? routes.coach.session(id) : role === "fighter" ? routes.fighter.session(id) : null;
-        // The target is the fighter's profile; an admin assigns their care team from the account list.
+        // The target is the fighter's profile id, not their account: an admin's link resolves it to the account's care team
+        // (a new fighter waiting for a coach or a sports doctor). The page re-reads the care team and checks the session.
         case "FIGHTER":
-            return role === "coach" ? routes.coach.fighter(id) : role === "doctor" ? routes.doctor.fighter(id) : role === "admin" ? routes.admin.users : null;
+            return role === "coach" ? routes.coach.fighter(id) : role === "doctor" ? routes.doctor.fighter(id) : role === "admin" ? routes.admin.fighter(id) : null;
         case "COACH_ASSIGNMENT":
             return role === "coach" ? routes.coach.fighters : role === "fighter" ? routes.fighter.health : null;
         default:

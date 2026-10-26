@@ -2,22 +2,27 @@
 
 import { useT } from "@/components/i18n/locale-provider";
 import { Dumbbell, PenLine, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
+import { TermHint } from "@/components/domain/term-hint";
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/dialog";
-import { Field, Input, Select, Textarea } from "@/components/ui/form";
+import { Field, FormMessage, Input, Textarea } from "@/components/ui/form";
 import { EmptyState } from "@/components/ui/states";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { useToast } from "@/components/ui/toast";
-import type { ActionForm } from "@/components/ui/use-action-form";
+import { useActionForm, type ActionForm } from "@/components/ui/use-action-form";
 import { useConfirmAction } from "@/components/ui/use-confirm-action";
 import type { ActionState } from "@/lib/actions/state";
-import { addPlanExercise, removePlanExercise, updatePlanExercise } from "@/lib/actions/training";
+import { addPlanExercises, removePlanExercise, updatePlanExercise, type AddPlanExercisesResult } from "@/lib/actions/training";
+import type { GlossaryTerm } from "@/lib/domain/glossary";
 import { exerciseCategoryLabel } from "@/lib/domain/labels";
 import type { Exercise, PlanExercise } from "@/lib/domain/types";
-import type { Translator } from "@/lib/i18n/translate";
+import { plural, type Translator } from "@/lib/i18n/translate";
+import { sentDrafts, serializePlanExerciseDrafts, type PlanExerciseDraft } from "./plan-drafts";
+import { PlanExerciseRows } from "./plan-exercise-rows";
 
 export interface PlanExercisesCardProps {
     planId: string;
@@ -50,9 +55,15 @@ export function PlanExercisesCard({ planId, items, library, editable }: PlanExer
     const toast = useToast();
     const [editing, setEditing] = useState<PlanExercise | null>(null);
     const [adding, setAdding] = useState(false);
+    const addButtonRef = useRef<HTMLButtonElement>(null);
     const remove = useConfirmAction((item: PlanExercise) => removePlanExercise(planId, item.id), {
         onSuccess: (state) => toast({ title: state.message ?? t("training.planExercises.removedToast") }),
     });
+
+    const closeAdding = () => {
+        setAdding(false);
+        window.requestAnimationFrame(() => addButtonRef.current?.focus());
+    };
 
     return (
         <Card className="min-w-0">
@@ -61,23 +72,26 @@ export function PlanExercisesCard({ planId, items, library, editable }: PlanExer
                 description={t("training.planExercises.description")}
                 icon={<Dumbbell />}
                 action={
-                    editable && (
-                        <Button variant="secondary" size="sm" onClick={() => setAdding(true)}>
+                    editable &&
+                    !adding && (
+                        <Button ref={addButtonRef} variant="secondary" size="sm" onClick={() => setAdding(true)}>
                             <Plus aria-hidden />
-                            {t("training.planExercises.add")}
+                            {t("training.planExercises.addMany")}
                         </Button>
                     )
                 }
             />
-            <CardContent>
+            <CardContent className="flex flex-col gap-5">
                 {items.length === 0 ? (
-                    <EmptyState
-                        compact
-                        icon={<Dumbbell />}
-                        title={t("training.planExercises.emptyTitle")}
-                        description={editable ? t("training.planExercises.emptyDescCoach") : t("training.planExercises.emptyDescFighter")}
-                        className="pt-0"
-                    />
+                    !adding && (
+                        <EmptyState
+                            compact
+                            icon={<Dumbbell />}
+                            title={t("training.planExercises.emptyTitle")}
+                            description={editable ? t("training.planExercises.emptyDescCoach") : t("training.planExercises.emptyDescFighter")}
+                            className="pt-0"
+                        />
+                    )
                 ) : (
                     <ol className="flex flex-col divide-y divide-border">
                         {items.map((item, index) => {
@@ -108,22 +122,22 @@ export function PlanExercisesCard({ planId, items, library, editable }: PlanExer
                         })}
                     </ol>
                 )}
+
+                {editable && adding && (
+                    <AddExercisesPanel
+                        planId={planId}
+                        library={library}
+                        onDone={(message) => {
+                            toast({ title: message });
+                            closeAdding();
+                        }}
+                        onCancel={closeAdding}
+                    />
+                )}
             </CardContent>
 
             {editable && (
                 <>
-                    <ActionDialog
-                        open={adding}
-                        onClose={() => setAdding(false)}
-                        title={t("training.planExercises.dialogAddTitle")}
-                        description={t("training.planExercises.dialogAddDesc")}
-                        action={(previous: ActionState, fd: FormData) => addPlanExercise(planId, previous, fd)}
-                        submitLabel={t("training.planExercises.submitAdd")}
-                        pendingLabel={t("training.planExercises.submittingAdd")}
-                        onSuccess={(state) => toast({ title: state.message ?? t("training.planExercises.addedToast") })}
-                    >
-                        {(form) => <PlanExerciseFields form={form} library={library} />}
-                    </ActionDialog>
                     <ActionDialog
                         open={editing !== null}
                         onClose={() => setEditing(null)}
@@ -148,38 +162,87 @@ export function PlanExercisesCard({ planId, items, library, editable }: PlanExer
     );
 }
 
-/** The prescription fields, shared by adding and editing. The exercise is only chosen when adding. */
-function PlanExerciseFields({ form, library, item }: { form: ActionForm<undefined>; library?: Exercise[]; item?: PlanExercise }) {
+/**
+ * Adds several exercises in one go, inline: search the library, set each dose, save once. Exercises the service
+ * refuses stay listed with the reason, so the coach can fix them and save again.
+ */
+function AddExercisesPanel({ planId, library, onDone, onCancel }: { planId: string; library: Exercise[]; onDone(message: string): void; onCancel(): void }) {
+    const t = useT();
+    const [rows, setRows] = useState<PlanExerciseDraft[]>([]);
+    const rowsRef = useRef(rows);
+    useEffect(() => {
+        rowsRef.current = rows;
+    });
+    const form = useActionForm<AddPlanExercisesResult>((previous, fd) => addPlanExercises(planId, previous, fd), {
+        id: "plan-add-exercises",
+        hiddenFields: ["exercises"],
+        onSuccess: (state) => onDone(state.message ?? t("training.planExercises.addedManyToast")),
+        onError: (state) => {
+            const failedRows = state.data?.failedRows;
+            if (!failedRows) return;
+            const sent = sentDrafts(rowsRef.current);
+            const keep = new Set(failedRows.map((index) => sent[index]?.key).filter(Boolean));
+            setRows((current) => current.filter((row) => keep.has(row.key)));
+        },
+    });
+    const count = sentDrafts(rows).length;
+
+    return (
+        <form {...form.formProps} className="flex flex-col gap-4 border-t border-border pt-5" aria-label={t("training.planExercises.panelAria")}>
+            <input type="hidden" name="exercises" value={serializePlanExerciseDrafts(rows)} />
+            <div>
+                <h3 className="text-sm font-semibold text-fg">{t("training.planExercises.addMany")}</h3>
+                <p className="mt-0.5 text-[13px] text-fg-muted">{t("training.planExercises.panelDesc")}</p>
+            </div>
+            <PlanExerciseRows
+                idPrefix="plan-add"
+                rows={rows}
+                onChange={setRows}
+                library={library}
+                error={form.error}
+                markEdited={form.markEdited}
+                emptyText={t("training.planExercises.panelEmpty")}
+            />
+            <FormMessage {...form.message} />
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <Button variant="ghost" onClick={onCancel} disabled={form.pending}>
+                    {t("training.planExercises.cancel")}
+                </Button>
+                <SubmitButton pending={form.pending} pendingLabel={t("training.planExercises.submittingAdd")} disabled={count === 0}>
+                    {count === 0 ? t("training.planExercises.addMany") : plural(t, "training.planExercises.addCount", count)}
+                </SubmitButton>
+            </div>
+        </form>
+    );
+}
+
+const FIELD_TERMS: Record<"sets" | "reps" | "durationMin" | "targetRpe", GlossaryTerm> = {
+    sets: "sets",
+    reps: "reps",
+    durationMin: "exerciseMinutes",
+    targetRpe: "rpe",
+};
+
+/** The prescription fields when editing one exercise. */
+function PlanExerciseFields({ form, item }: { form: ActionForm<undefined>; item: PlanExercise }) {
     const t = useT();
     const { control, error } = form;
     const numberField = (name: "sets" | "reps" | "durationMin" | "targetRpe", label: string, max: number, value: number | null) => (
-        <Field label={label} htmlFor={control(name).id} optional error={error(name)}>
+        <Field label={label} htmlFor={control(name).id} optional info={<TermHint term={FIELD_TERMS[name]} />} error={error(name)}>
             <Input {...control(name)} type="number" inputMode="numeric" min={1} max={max} step={1} defaultValue={value ?? ""} />
         </Field>
     );
 
     return (
         <>
-            {library && (
-                <Field label={t("training.planExercises.fieldExercise")} htmlFor={control("exerciseId").id} required error={error("exerciseId")}>
-                    <Select {...control("exerciseId", { required: true })} defaultValue="">
-                        <option value="">{t("training.planExercises.chooseExercise")}</option>
-                        {library.map((exercise) => (
-                            <option key={exercise.id} value={exercise.id}>
-                                {exercise.name} · {exerciseCategoryLabel(t, exercise.category)}
-                            </option>
-                        ))}
-                    </Select>
-                </Field>
-            )}
             <div className="grid grid-cols-2 gap-4">
-                {numberField("sets", t("training.planExercises.fieldSets"), 20, item?.sets ?? null)}
-                {numberField("reps", t("training.planExercises.fieldReps"), 200, item?.reps ?? null)}
-                {numberField("durationMin", t("training.planExercises.fieldMinutes"), 240, item?.durationSec === null || item?.durationSec === undefined ? null : Math.round(item.durationSec / 60))}
-                {numberField("targetRpe", t("training.planExercises.fieldTargetRpe"), 10, item?.targetRpe ?? null)}
+                {numberField("sets", t("training.planExercises.fieldSets"), 20, item.sets)}
+                {numberField("reps", t("training.planExercises.fieldReps"), 200, item.reps)}
+                {numberField("durationMin", t("training.planExercises.fieldMinutes"), 240, item.durationSec === null ? null : Math.round(item.durationSec / 60))}
+                {numberField("targetRpe", t("training.planExercises.fieldTargetRpe"), 10, item.targetRpe)}
             </div>
             <Field label={t("training.planExercises.fieldNotes")} htmlFor={control("notes").id} optional error={error("notes")}>
-                <Textarea {...control("notes")} rows={2} maxLength={500} defaultValue={item?.notes ?? ""} />
+                <Textarea {...control("notes")} rows={2} maxLength={500} defaultValue={item.notes ?? ""} />
             </Field>
         </>
     );

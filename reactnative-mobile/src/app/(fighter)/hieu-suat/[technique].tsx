@@ -1,10 +1,17 @@
-import { blocked } from "@/i18n/blocked";
-import { BlockedFighterPage, EmptyBlockedList } from "@/screens/parity/blocked-workspace";
+import { Text, View } from "react-native";
+
+import { media } from "@/i18n/media";
+import { useFighterPalette } from "@/screens/fighter/redesign/palette";
+import { FighterStack } from "@/screens/fighter/redesign/shell";
 
 export default function FighterTechniqueRoute() {
+  const colors = useFighterPalette();
   return (
-    <BlockedFighterPage title="Kỹ thuật" extra={blocked.performance}>
-      <EmptyBlockedList />
-    </BlockedFighterPage>
+    <FighterStack>
+      <View style={{ paddingHorizontal: 20, gap: 8 }}>
+        <Text style={{ color: colors.ink, fontSize: 22, fontWeight: "700" }}>Kỹ thuật</Text>
+        <Text style={{ color: colors.muted }}>{media.performanceMissing}</Text>
+      </View>
+    </FighterStack>
   );
 }

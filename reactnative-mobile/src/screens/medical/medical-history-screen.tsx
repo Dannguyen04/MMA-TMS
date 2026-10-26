@@ -12,7 +12,7 @@ import {
   type MedicalHistoryRecordType,
   type Paginated,
 } from "@/api/types";
-import { AuthFormError } from "@/components/auth/auth-form-error";
+import { useToastMessage } from "@/components/toast/app-toast";
 import {
   decisionLabel,
   describeSnapshot,
@@ -172,6 +172,7 @@ export function MedicalHistoryContent({
   const history = usePagedList(enabled && !!fighterId && tab === "history", fetchHistory, onAccessLost);
   const exams = usePagedList(enabled && !!fighterId && tab === "exams", fetchExams, onAccessLost);
   const active = tab === "history" ? history : exams;
+  useToastMessage(active.error, "error");
 
   return (
     <View style={medicalStyles.stack}>
@@ -206,7 +207,6 @@ export function MedicalHistoryContent({
         </View>
       )}
 
-      <AuthFormError message={active.error} />
       {active.error ? <MedicalLink label={medical.retry} onPress={active.reload} /> : null}
 
       <MedicalCard>

@@ -2,7 +2,7 @@ import { LoadingRegion, PageHeaderSkeleton, Skeleton } from "@/components/ui/ske
 
 export default function Loading() {
     return (
-        <LoadingRegion label="Loading invitation form">
+        <LoadingRegion label="Loading account form">
             <PageHeaderSkeleton back />
             <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                 <Skeleton className="h-[34rem] rounded-xl lg:col-span-2" />

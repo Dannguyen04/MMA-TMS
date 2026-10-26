@@ -1,7 +1,8 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
 
-import { createTrainingPlan, listFighters, type PublicFighter } from "@/api";
+import { createTrainingPlan, listFighters, type PublicFighter, type TrainingPlanPhase } from "@/api";
+import { useToastMessage } from "@/components/toast/app-toast";
 import { coach } from "@/i18n/coach";
 import {
   coachErrorMessage,
@@ -18,6 +19,7 @@ import {
   CoachScaffold,
 } from "@/screens/coach/coach-ui";
 import { useSession } from "@/session/session-context";
+import { buildCreateTrainingPlanBody, planPhaseLabel, planPhaseOptions } from "@/training/plan-phase";
 import { isValidDateOnly } from "@/utils/is-valid-date-only";
 
 export function CoachPlanFormScreen() {
@@ -31,18 +33,28 @@ export function CoachPlanFormScreen() {
   const [endDate, setEndDate] = useState("");
   const [description, setDescription] = useState("");
   const [goals, setGoals] = useState("");
+  const [phase, setPhase] = useState<TrainingPlanPhase | "">("");
   const [error, setError] = useState("");
+  useToastMessage(error, "error");
   const [saving, setSaving] = useState(false);
+  const [loadingFighters, setLoadingFighters] = useState(true);
+  const lock = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
       if (isDemo) {
         setFighters([]);
+        setLoadingFighters(false);
         return;
       }
+      setLoadingFighters(true);
       void listFighters({ limit: 50 })
-        .then((page) => setFighters(page.data))
-        .catch((cause: unknown) => setError(coachErrorMessage(cause)));
+        .then((page) => {
+          setFighters(page.data);
+          setError("");
+        })
+        .catch((cause: unknown) => setError(coachErrorMessage(cause)))
+        .finally(() => setLoadingFighters(false));
     }, [isDemo]),
   );
 
@@ -53,49 +65,59 @@ export function CoachPlanFormScreen() {
   const selectedFighter = fighters.find((row) => row.id === fighterId);
 
   const onCreate = () => {
-    if (isDemo) return;
+    if (lock.current || saving || isDemo) return;
     if (!myCoachId) {
       setError(coach.assignNeedProfile);
       return;
     }
-    if (!fighterId || !title.trim()) {
-      setError(coach.required);
-      return;
-    }
-    if (!isValidDateOnly(startDate)) {
+    if (!isValidDateOnly(startDate) || (endDate.trim() && !isValidDateOnly(endDate.trim()))) {
       setError(coach.dateInvalid);
       return;
     }
-    if (endDate.trim() && !isValidDateOnly(endDate.trim())) {
-      setError(coach.dateInvalid);
-      return;
-    }
-    setSaving(true);
-    setError("");
-    void createTrainingPlan({
+    const built = buildCreateTrainingPlanBody({
       fighterId,
       coachId: myCoachId,
-      title: title.trim(),
+      title,
       startDate,
-      ...(endDate.trim() ? { endDate: endDate.trim() } : {}),
-      ...(description.trim() ? { description: description.trim() } : {}),
-      ...(goals.trim() ? { goals: goals.trim() } : {}),
-    })
+      phase,
+      endDate,
+      description,
+      goals,
+    });
+    if (!built.ok) {
+      setError(built.reason === "phase" ? coach.phaseRequired : coach.required);
+      return;
+    }
+    lock.current = true;
+    setSaving(true);
+    setError("");
+    void createTrainingPlan(built.body)
       .then((plan) => router.replace(coachHref(`/(coach)/plans/${plan.id}`)))
       .catch((cause: unknown) => setError(coachErrorMessage(cause)))
-      .finally(() => setSaving(false));
+      .finally(() => {
+        lock.current = false;
+        setSaving(false);
+      });
   };
 
   return (
     <CoachScaffold title={coach.newPlan} keyboard inStack>
-      {error ? <CoachBanner message={error} tone="danger" /> : null}
       {!myCoachId ? <CoachBanner message={coach.assignNeedProfile} /> : null}
+      {loadingFighters ? <CoachBanner message={coach.loading} /> : null}
+      {!loadingFighters && fighters.length === 0 ? <CoachBanner message={coach.emptyFighters} /> : null}
       <CoachPicker
         label={coach.fighter}
         placeholder={coach.pickFighter}
         valueLabel={selectedFighter ? fighterDisplayName(selectedFighter) : ""}
         options={fighterOptions}
         onSelect={setFighterId}
+      />
+      <CoachPicker
+        label={coach.phase}
+        placeholder={coach.pickPhase}
+        valueLabel={phase ? planPhaseLabel(phase) : ""}
+        options={planPhaseOptions()}
+        onSelect={setPhase}
       />
       <CoachField label={coach.title} value={title} onChangeText={setTitle} />
       <CoachField
@@ -120,7 +142,12 @@ export function CoachPlanFormScreen() {
         multiline
       />
       <CoachField label={coach.goals} helper={coach.optional} value={goals} onChangeText={setGoals} multiline />
-      <CoachPrimaryButton title={coach.create} onPress={onCreate} loading={saving} disabled={!myCoachId} />
+      <CoachPrimaryButton
+        title={coach.create}
+        onPress={onCreate}
+        loading={saving}
+        disabled={!myCoachId || saving || loadingFighters}
+      />
     </CoachScaffold>
   );
 }

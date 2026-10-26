@@ -1,7 +1,7 @@
 import "server-only";
 
 import { ApiError } from "@/lib/api/client";
-import { ELIGIBILITY_REASONS, type EligibilityReason } from "@/lib/domain/medical-contract";
+import { eligibilityReasonsFrom, type EligibilityReason } from "@/lib/domain/medical-contract";
 import type { Translator } from "@/lib/i18n/translate";
 import { apiWriteFailure, type ServiceErrorMessages, type WriteErrorOptions, type WriteFailure } from "./api-write-errors";
 
@@ -65,15 +65,13 @@ export function trainingWriteFailure(error: unknown, options: WriteErrorOptions 
     return apiWriteFailure(error, getTrainingErrors(t), options);
 }
 
-const knownReasons = new Set<string>(ELIGIBILITY_REASONS);
-
 /**
  * Why the service refused to start a training session (409 TRAINING_MEDICAL_ELIGIBILITY_REQUIRED), or null for any
- * other error. Reasons the interface doesn't know yet are left out.
+ * other error. A reason the interface doesn't know yet reads as "Other medical reason" rather than disappearing.
  */
 export function trainingEligibilityReasons(error: unknown): EligibilityReason[] | null {
     if (!(error instanceof ApiError) || error.status !== 409 || error.code !== "TRAINING_MEDICAL_ELIGIBILITY_REQUIRED") return null;
     const reasons = (error.details as { reasons?: unknown } | undefined)?.reasons;
     if (!Array.isArray(reasons)) return [];
-    return reasons.filter((reason): reason is EligibilityReason => typeof reason === "string" && knownReasons.has(reason));
+    return eligibilityReasonsFrom(reasons.filter((reason): reason is string => typeof reason === "string"));
 }

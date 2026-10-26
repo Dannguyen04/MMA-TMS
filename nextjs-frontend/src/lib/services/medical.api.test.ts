@@ -18,7 +18,7 @@ vi.mock("@/lib/auth/session", () => ({ getCurrentUser: vi.fn().mockResolvedValue
 
 import { ApiError } from "@/lib/api/client";
 import type { Fighter } from "@/lib/domain/types";
-import { getClearanceStatus, getDoctorOverview, getFighterHealthSummary, getInjuryDetail, listClearances, listInjuries } from "./medical";
+import { getClearanceStatus, getClinicalDossier, getDoctorOverview, getFighterHealthSummary, getInjuryDetail, listClearances, listInjuries, rereadClinicalDossier } from "./medical";
 
 const FIGHTER = "f-1";
 const fighter = { id: FIGHTER, name: "Minh Tran", healthStatus: "healthy" } as Fighter;
@@ -240,6 +240,15 @@ describe("medical service reads in API mode", () => {
             scat6: { scoringVersion: 2, scores },
         });
         expect(summary?.nextFollowUp).toMatchObject({ date: "2026-09-10T03:00:00.000Z", daysUntil: 5 });
+
+        // The clearance step reads the same details back from the forms' dossier, and an examination without them stays null.
+        const forms = await getClinicalDossier(FIGHTER);
+        expect(forms?.currentExaminations.TRAINING).toMatchObject({
+            id: "exam-1",
+            details: { type: "baseline", vitals: { hydration: "good" }, assessments: [{ result: "normal" }], scat6: { scores } },
+        });
+        respond({ [`/fighters/${FIGHTER}/medical`]: dossier });
+        await expect(rereadClinicalDossier(FIGHTER)).resolves.toMatchObject({ currentExaminations: { TRAINING: { id: "exam-1", details: null } } });
     });
 
     it("keeps a fighter waiting for a baseline examination on 'no clearance' with the reason", async () => {
@@ -296,7 +305,19 @@ describe("medical service reads in API mode", () => {
                 eligibility: { training: { scope: "TRAINING", eligible: false, reasons: ["REVIEW_REQUEST_PENDING", "SOMETHING_NEW"] }, competition: eligible },
             },
         });
-        await expect(getClearanceStatus(FIGHTER)).resolves.toMatchObject({ state: "not_cleared", eligibility: { reasons: ["REVIEW_REQUEST_PENDING"] } });
+        // A reason the interface doesn't know is kept as "other medical reason", never dropped.
+        await expect(getClearanceStatus(FIGHTER)).resolves.toMatchObject({ state: "not_cleared", eligibility: { reasons: ["REVIEW_REQUEST_PENDING", "OTHER_MEDICAL_REASON"] } });
+
+        respond({
+            [`/fighters/${FIGHTER}/medical`]: {
+                ...dossier,
+                activeClearances: [],
+                currentExaminations: { training: null, competition: null },
+                eligibility: { training: { scope: "TRAINING", eligible: false, reasons: ["SOMETHING_NEW", "ANOTHER_ONE"] }, competition: eligible },
+            },
+        });
+        // Only unknown reasons still mean "not cleared", not "no clearance yet".
+        await expect(getClearanceStatus(FIGHTER)).resolves.toMatchObject({ state: "not_cleared", eligibility: { reasons: ["OTHER_MEDICAL_REASON"] } });
     });
 
     it("merges active injuries with the newest history revision of closed ones", async () => {

@@ -72,6 +72,7 @@ export default async function FighterMedicalHistoryPage() {
                             emptyText={t("fighterHistory.timelineEmpty")}
                             locale={locale}
                         />
+
                     </CardContent>
                 </Card>
 

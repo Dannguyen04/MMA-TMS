@@ -19,6 +19,7 @@ export function mapApiMessage(error: unknown): string {
     case "MEDICAL_ACCESS_DENIED":
       return vi.api.forbidden;
     case "REGISTRATION_CONFLICT":
+    case "USER_ALREADY_EXISTS":
       return vi.api.registrationConflict;
     case MEDICAL_GATE_CODE:
       return vi.api.medicalGate;

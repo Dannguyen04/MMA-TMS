@@ -1,6 +1,7 @@
 import { Pressable, Text } from "react-native";
 import { useRouter } from "expo-router";
 
+import { AppearanceLink } from "@/components/appearance/appearance-link";
 import { ThemeToggle } from "@/components/auth/theme-toggle";
 import { coach } from "@/i18n/coach";
 import { coachProfileId, fighterDisplayName } from "@/screens/coach/coach-error";
@@ -59,6 +60,9 @@ export function CoachMeScreen() {
         <Pressable accessibilityRole="button" onPress={() => router.push("/thong-bao")}>
           <Text style={[type.link, { color: colors.lotus }]}>Thông báo</Text>
         </Pressable>
+      </CoachCard>
+      <CoachCard>
+        <AppearanceLink />
       </CoachCard>
       <Pressable accessibilityRole="button" onPress={onLogout}>
         <Text style={[type.link, { color: colors.lotus }]}>{coach.logout}</Text>

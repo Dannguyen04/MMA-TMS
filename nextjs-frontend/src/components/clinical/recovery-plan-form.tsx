@@ -4,6 +4,7 @@ import { LayoutTemplate, ListChecks, Plus, Sparkle } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { InjuryCard } from "@/components/domain/injury-card";
+import { TermHint } from "@/components/domain/term-hint";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -194,7 +195,7 @@ export function RecoveryPlanForm({ injuries, defaultInjuryId, today, now, cancel
         >
             <input type="hidden" name="phases" value={serializedPhases} />
             <Card className="min-w-0 px-5 py-6 sm:px-6">
-                <FormSection title="Injury & plan" description="The injury this plan treats, what to call it, and the planned return date.">
+                <FormSection title="Injury & plan" info={<TermHint term="recoveryPlan" />} description="The injury this plan treats, what to call it, and the planned return date.">
                     <Field
                         label="Injury"
                         htmlFor={id("injuryId")}
@@ -305,6 +306,7 @@ export function RecoveryPlanForm({ injuries, defaultInjuryId, today, now, cancel
 
                 <FormSection
                     title="Phases"
+                    info={<TermHint term="milestone" />}
                     description="Each phase has a goal and milestones. Progress counts completed phases plus milestones done in the current phase."
                 >
                     <PhaseBuilder
