@@ -1,6 +1,7 @@
 import { viDemoFlow } from "./demo-flow.vi";
 import { viAccount } from "./account.vi";
 import { viAuth } from "./auth.vi";
+import { viBoutAnalysis } from "./bout-analysis.vi";
 import { viCoachBouts } from "./coach-bouts.vi";
 import { viCoachToday } from "./coach-today.vi";
 import { viFighterToday } from "./fighter-today.vi";
@@ -14,6 +15,7 @@ export const vi = {
     ...viDemoFlow,
     ...viAccount,
     ...viAuth,
+    ...viBoutAnalysis,
     ...viCoachBouts,
     ...viCoachToday,
     ...viFighterToday,

@@ -6,6 +6,7 @@ import { enDemoFlow } from "./demo-flow.en";
  */
 import { enAccount } from "./account.en";
 import { enAuth } from "./auth.en";
+import { enBoutAnalysis } from "./bout-analysis.en";
 import { enCoachBouts } from "./coach-bouts.en";
 import { enCoachToday } from "./coach-today.en";
 import { enFighterToday } from "./fighter-today.en";
@@ -17,6 +18,7 @@ export const en = {
     ...enDemoFlow,
     ...enAccount,
     ...enAuth,
+    ...enBoutAnalysis,
     ...enCoachBouts,
     ...enCoachToday,
     ...enFighterToday,
