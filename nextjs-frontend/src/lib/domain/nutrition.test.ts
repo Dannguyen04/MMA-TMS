@@ -66,7 +66,7 @@ describe("copy", () => {
 
 describe("saved weight notice", () => {
     it("repeats the kilograms the action sent with one decimal, and the status in words", () => {
-        expect(savedWeightMessage((66.5).toFixed(1), "OVER_LIMIT")).toBe("Saved 66.5 kg. Status: Red");
+        expect(savedWeightMessage((66.5).toFixed(1), "OVER_LIMIT")).toBe("Saved 66.5 kg. Status: Exceeds cut limit");
         expect(savedWeightMessage((70).toFixed(1), undefined)).toBe("Saved 70.0 kg.");
     });
 

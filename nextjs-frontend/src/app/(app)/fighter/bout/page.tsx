@@ -1,4 +1,4 @@
-import { CheckCircle2, Scale } from "lucide-react";
+import { CheckCircle2, Scale, TriangleAlert } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -12,7 +12,7 @@ import { EmptyState } from "@/components/ui/states";
 import { requireRole } from "@/lib/auth/session";
 import { RequirementStateBadge } from "@/components/domain/status-badges";
 import { boutLimitKg } from "@/lib/domain/bout";
-import { boutOn, expiresBeforeBout, gateSummary } from "@/lib/domain/bout-rules";
+import { boutOn, expiresBeforeBout, gateSummary, computeWeighInReminder } from "@/lib/domain/bout-rules";
 import { kgLabel } from "@/lib/domain/weight-input";
 import { nutritionPhaseFor, savedWeightMessage, weighInCountdown } from "@/lib/domain/nutrition";
 import { dayKey, formatDate, formatDateTime } from "@/lib/format";
@@ -55,6 +55,7 @@ export default async function FighterBoutPage({ searchParams }: PageProps<"/figh
 
     const todayOn = dayKey(new Date());
     const [track, wayOff] = await Promise.all([getWeightTrack(bout.id), wayOffForBout(bout.id, todayOn)]);
+    const reminder = computeWeighInReminder({ status: bout.phase, latestOn: track?.latestOn ?? null });
     const limit = boutLimitKg(bout);
     const boutDay = boutOn(bout);
     const phaseKey = nutritionPhaseFor(bout.phase);
@@ -84,6 +85,7 @@ export default async function FighterBoutPage({ searchParams }: PageProps<"/figh
             />
 
             <div className="flex flex-col gap-6">
+                {reminder.active && reminder.level && <Callout tone={reminder.level === "YESTERDAY_MISSING" ? "danger" : "warning"} icon={TriangleAlert} title={t(reminder.level === "YESTERDAY_MISSING" ? "weightReminder.WEIGHT_REMINDER_YESTERDAY_MISSING" : "weightReminder.WEIGHT_REMINDER_ASK_TODAY")} role="status" />}
                 {track && <CampWeightCard track={track} wayOff={wayOff} logHref={routes.fighter.weighIn} locale={locale} />}
 
                 {phaseKey && (

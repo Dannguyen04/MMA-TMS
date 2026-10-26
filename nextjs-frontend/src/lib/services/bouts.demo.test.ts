@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { BoutOutcome, CompetitionRuleset } from "@/lib/domain/bout";
 import { boutGate1, canEnterFightWeek, requirementsOverdue } from "@/lib/domain/bout-rules";
@@ -19,6 +19,8 @@ import {
     demoWeightTrack,
     enterDemoFightWeek,
     getDemoBout,
+    getCoachTodo,
+    getFeasibility,
     getDemoCurrentBout,
     linkDemoCamp,
     listDemoBouts,
@@ -344,11 +346,42 @@ describe("suspensions and Gate 2 (T-007)", () => {
         expect(demoBlockingSuspensions("f-linh-pham", "recovery_mobility", day(1))).toEqual([]);
     });
 
-    it("clears a fighter only after the last suspended day", () => {
+    it("clears a fighter before the last day without changing the end date", () => {
         resetDemoCampStore(TODAY);
-        expect(clearDemoSuspension("sus-diego-sparring", "Neurologist cleared, CT normal", RAFAEL, NOW)).toMatchObject({ ok: false });
+        const end = demoCampStore().suspensions.find(item => item.id === "sus-diego-sparring")!.endsOn;
+        expect(clearDemoSuspension("sus-diego-sparring", "Neurologist cleared, CT normal", RAFAEL, NOW)).toEqual({ ok: true });
+        expect(demoCampStore().suspensions.find(item => item.id === "sus-diego-sparring")!.endsOn).toBe(end);
+        expect(demoBlockingSuspensions("f-diego-alvarez", "sparring", TODAY)).toEqual([]);
+        resetDemoCampStore(TODAY);
         const after = new Date(`${day(25)}T03:00:00.000Z`);
         expect(clearDemoSuspension("sus-diego-sparring", "Neurologist cleared, CT normal", RAFAEL, after)).toEqual({ ok: true });
         expect(demoBlockingSuspensions("f-diego-alvarez", "sparring", day(25))).toEqual([]);
+    });
+});
+
+
+describe("T-029 reads from the lifecycle demo store", () => {
+    it("stops cut warnings after official weigh-in and refreshes the coach task list", async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(NOW);
+        try {
+            resetDemoCampStore(TODAY);
+            expect((await getCoachTodo(["f-linh-pham"])).items.some(item => item.source === "WEIGH_IN_TODAY")).toBe(true);
+            expect(recordDemoWeighIn("b-linh-saigon", { weightKg: 55, hydrationCheck: "PASSED", decision: null, catchweightKg: null, note: null }, RAFAEL, NOW)).toMatchObject({ ok: true });
+            expect(demoWeightTrack("b-linh-saigon", NOW)).toMatchObject({ latestKg: 55, status: "NEUTRAL" });
+            expect((await getCoachTodo(["f-linh-pham"])).items.some(item => item.source === "WEIGH_IN_TODAY" || item.source === "WEIGHT_OVER_LIMIT")).toBe(false);
+        } finally { vi.useRealTimers(); }
+    });
+    it("previews feasibility from the same self-reported measurements", async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(NOW);
+        try {
+            resetDemoCampStore(TODAY);
+            const bout = getDemoBout("b-kenji-pacific")!;
+            const input = { fighterId: bout.fighterId, rulesetId: bout.rulesetId, weightClassCode: bout.weightClassCode, weightLimitKg: bout.limitKg!, weighInAt: bout.weighInAt, boutAt: bout.boutAt };
+            expect(await getFeasibility(input)).toMatchObject({ status: "OVER_LIMIT" });
+            recordDemoSelfWeight(bout.fighterId, 55, NOW);
+            expect(await getFeasibility(input)).toMatchObject({ latestKg: 55, status: "ON_TRACK", warnings: [] });
+        } finally { vi.useRealTimers(); }
     });
 });

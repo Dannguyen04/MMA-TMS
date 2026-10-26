@@ -869,8 +869,8 @@ export function createDemoSuspension(fighterId: string, boutId: string | null, d
 export function clearDemoSuspension(id: string, note: string, actor: Actor, now = new Date()): WriteResult {
     const suspension = demoCampStore().suspensions.find((item) => item.id === id);
     if (!suspension) return { ok: false, message: "That suspension no longer exists." };
-    if (!suspension.requiresClearance || suspension.clearedAt) return { ok: false, message: "This suspension needs no clearance." };
-    if (daysBetweenKeys(suspension.endsOn, dayKey(now)) <= 0) return { ok: false, message: `Clearance opens after ${formatDate(suspension.endsOn)}.` };
+    if (suspension.clearedAt) return { ok: false, message: "This suspension needs no clearance." };
+    if (note.trim().length < 3 || note.trim().length > 500) return { ok: false, message: "A clearance note of 3–500 characters is required." };
     suspension.clearedAt = now.toISOString();
     suspension.clearedBy = actor.name;
     suspension.clearanceNote = note;

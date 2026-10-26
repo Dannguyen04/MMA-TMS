@@ -75,12 +75,12 @@ describe("weightChartWindow", () => {
 
 describe("weightChartAriaLabel", () => {
     it("includes the limit, the latest weight, and the status", () => {
-        expect(weightChartAriaLabel(track)).toBe("Weight against a 60.0 kg limit. Latest 66.0 kg, status Red.");
+        expect(weightChartAriaLabel(track)).toBe("Weight against a 60.0 kg limit. Latest 66.0 kg, status Exceeds cut limit.");
     });
 
     it("says when nothing has been logged", () => {
         expect(weightChartAriaLabel({ limitKg: 60, latestKg: null, status: "NOT_WEIGHED" })).toBe(
-            "Weight against a 60.0 kg limit. No weight logged, status Grey.",
+            "Weight against a 60.0 kg limit. No weight logged, status No recent weigh-in.",
         );
     });
 });

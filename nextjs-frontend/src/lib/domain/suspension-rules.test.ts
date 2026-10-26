@@ -90,10 +90,12 @@ describe("Gate 2 (Business flows §6)", () => {
         expect(isSuspensionActive({ ...ko, requiresClearance: false }, "2026-12-08")).toBe(false);
     });
 
-    it("lets a coach clear only after the last day", () => {
-        expect(canClearSuspension(ko, "2026-12-07")).toBe(false);
+    it("lets a coach end an uncleared suspension early", () => {
+        expect(canClearSuspension(ko, "2026-12-07")).toBe(true);
         expect(canClearSuspension(ko, "2026-12-08")).toBe(true);
-        expect(canClearSuspension({ ...ko, requiresClearance: false }, "2026-12-08")).toBe(false);
+        expect(isSuspensionActive({ ...ko, clearedAt: "2026-11-01T03:00:00.000Z" }, "2026-11-01")).toBe(false);
+        expect(canClearSuspension({ ...ko, clearedAt: "2026-11-01T03:00:00.000Z" }, "2026-11-01")).toBe(false);
+        expect(canClearSuspension({ ...ko, requiresClearance: false }, "2026-12-08")).toBe(true);
     });
 
     it("is not active before it starts", () => {

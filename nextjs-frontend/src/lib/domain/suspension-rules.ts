@@ -97,6 +97,7 @@ export type SuspensionState = "UPCOMING" | "ACTIVE" | "AWAITING_CLEARANCE" | "EN
 
 /** Tech spec §2.5: active from the start day through the end day, and after it until cleared when clearance is required. */
 export function suspensionState(suspension: Pick<Suspension, "startsOn" | "endsOn" | "requiresClearance" | "clearedAt">, day: string): SuspensionState {
+    if (suspension.clearedAt) return "CLEARED";
     if (daysBetweenKeys(suspension.startsOn, day) < 0) return "UPCOMING";
     if (daysBetweenKeys(day, suspension.endsOn) >= 0) return "ACTIVE";
     if (suspension.requiresClearance) return suspension.clearedAt ? "CLEARED" : "AWAITING_CLEARANCE";
@@ -118,9 +119,9 @@ export function blockingSuspensions<T extends Pick<Suspension, "fighterId" | "st
     return suspensions.filter((item) => item.fighterId === fighterId && item.blockedSessionTypes.includes(type) && isSuspensionActive(item, day));
 }
 
-/** F7: a coach confirms the fighter may train again only after the last suspended day. */
+/** T-007: an explicit clearance may end an uncleared suspension early. */
 export function canClearSuspension(suspension: Pick<Suspension, "endsOn" | "requiresClearance" | "clearedAt">, todayOn: string): boolean {
-    return suspension.requiresClearance && !suspension.clearedAt && daysBetweenKeys(suspension.endsOn, todayOn) > 0;
+    return !suspension.clearedAt && isDateKey(todayOn);
 }
 
 export interface SuspensionInput {

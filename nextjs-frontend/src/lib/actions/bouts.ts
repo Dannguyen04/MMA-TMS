@@ -1,7 +1,8 @@
+"use server";
+
 import { z } from "zod";
 import type { WeightFeasibility } from "@/lib/domain/types";
 import { getFeasibility as getFeasibilityService } from "@/lib/services/bouts";
-"use server";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -563,7 +564,6 @@ const feasibilityInputSchema = z.object({
  * outside the roster, an invalid schedule): the form then simply shows nothing.
  */
 export async function previewFeasibilityAction(input: z.input<typeof feasibilityInputSchema>): Promise<WeightFeasibility | null> {
-    const { t } = await getTranslator();
     const user = await requireRole("coach");
     const parsed = feasibilityInputSchema.safeParse(input);
     if (!parsed.success || !canAccessFighter(user, parsed.data.fighterId)) return null;
