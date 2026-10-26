@@ -50,10 +50,15 @@ export type FighterPublicProfile = {
   profileImageUrl?: string | null;
 };
 
+/** Hồ sơ HLV / bác sĩ (coachProfileSchema / doctorProfileSchema + id trong users.model.ts). */
 export type NamedPublicProfile = {
   id: string;
   firstName: string;
   lastName: string;
+  isHeadCoach?: boolean;
+  specialization?: string | null;
+  licenseNumber?: string;
+  profileImageUrl?: string | null;
 };
 
 export type PublicUser = {

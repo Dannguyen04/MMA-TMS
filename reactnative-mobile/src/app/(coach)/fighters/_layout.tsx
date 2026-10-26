@@ -16,6 +16,7 @@ export default function CoachFightersStack() {
       }}
     >
       <Stack.Screen name="index" options={{ headerShown: false, title: coach.tabs.fighters }} />
+      <Stack.Screen name="chi-tiet" options={{ headerShown: false }} />
       <Stack.Screen name="[id]" options={{ headerShown: false, title: coach.fighterDetail }} />
     </Stack>
   );

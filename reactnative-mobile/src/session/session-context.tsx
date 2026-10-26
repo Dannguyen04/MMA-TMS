@@ -254,6 +254,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 
+/** Role of the signed-in user, or null outside a SessionProvider (tests, standalone screens). */
+export function useSessionRole(): string | null {
+  return use(SessionContext)?.user?.role ?? null;
+}
+
 export function useSession(): SessionValue {
   const value = use(SessionContext);
   if (!value) {

@@ -182,7 +182,7 @@ function Customize({
         </Pressable>
       </View>
       <View style={styles.row}>
-        <ThemeCard id="default" label="Mặc định" swatch="#D9492F" wash="#F6F6F8" draft={draft} onChange={onChange} />
+        <ThemeCard id="default" label="Mặc định" swatch="#C23A22" wash="#F6F6F8" draft={draft} onChange={onChange} />
         <ThemeCard id="paper" label="Giấy" swatch="#8D6B48" wash="#F0E7D6" draft={draft} onChange={onChange} />
         <ThemeCard id="mint" label="Bạc hà" swatch="#408369" wash="#E0EEE7" draft={draft} onChange={onChange} />
       </View>

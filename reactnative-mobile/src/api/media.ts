@@ -1,4 +1,6 @@
 import { apiFetch } from "./client";
+import { API_BASE_URL } from "./config";
+import { ApiError } from "./errors";
 import { withQuery } from "./query";
 
 /** Matches `UploadVideoQueryDto` / `ListVideosQueryDto` on `VideosController`. */
@@ -203,4 +205,37 @@ export function createAnalysisJob(videoId: string) {
 
 export function getJobHealthAlerts(jobId: string) {
   return apiFetch<JobHealthAlerts>(`/jobs/${jobId}/health-alerts`);
+}
+
+/** DELETE /videos/:id (FIGHTER, COACH, ADMIN) — ẩn video (isActive=false, deletedAt). */
+export function deleteVideo(videoId: string) {
+  return apiFetch<null>(`/videos/${encodeURIComponent(videoId)}`, { method: "DELETE" });
+}
+
+export type VideoStream = { uri: string; headers?: Record<string, string> };
+
+/**
+ * GET /videos/:id/content trả 307 sang signed URL Supabase (hết hạn sau 300 giây).
+ * Không đưa thẳng URL API cho player: trên web `<video>` không gửi được header Authorization
+ * (expo-video chỉ hỗ trợ `headers` trên Android/iOS) nên nhận 401; trên native header Bearer
+ * của app bị chuyển tiếp sang Supabase khi theo redirect và có thể bị từ chối.
+ * Vì vậy gọi HEAD có Authorization (Express trả HEAD cho route GET), đọc `response.url` sau redirect
+ * rồi phát signed URL không kèm header. Nếu không đọc được URL cuối thì quay về URL API + header (native).
+ */
+export async function resolveVideoStream(sourcePath: string, token: string): Promise<VideoStream> {
+  const apiUrl = sourcePath.startsWith("http") ? sourcePath : `${API_BASE_URL}${sourcePath.startsWith("/") ? "" : "/"}${sourcePath}`;
+  const headers = { Authorization: `Bearer ${token}` };
+  let response: Response;
+  try {
+    response = await fetch(apiUrl, { method: "HEAD", headers });
+  } catch {
+    throw new ApiError(0, "NETWORK_ERROR", "Network request failed");
+  }
+  if (response.status === 401 || response.status === 403 || response.status === 404 || response.status === 503) {
+    throw new ApiError(response.status, response.status === 503 ? "VIDEO_STORAGE_UNAVAILABLE" : "VIDEO_CONTENT_DENIED", "Video content unavailable");
+  }
+  if (response.url && response.url !== apiUrl && !response.url.startsWith(API_BASE_URL)) {
+    return { uri: response.url };
+  }
+  return { uri: apiUrl, headers };
 }

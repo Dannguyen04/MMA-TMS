@@ -21,6 +21,8 @@ export function VideoScreenHeader({ title, onBack }: { title: string; onBack: ()
       </Pressable>
       <Text
         accessibilityRole="header"
+        numberOfLines={1}
+        ellipsizeMode="tail"
         style={{
           flex: 1,
           color: colors.ink,

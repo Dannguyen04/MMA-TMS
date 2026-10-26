@@ -116,9 +116,10 @@ export function fighterDraftToShared(
 ): AppliedAppearance {
   const palette = previewPalette(draft);
   return {
-    presetId: draft.mode === "dark" ? "dark" : "light",
+    presetId: "system",
     settings: {
       ...current.settings,
+      paletteId: "figma",
       mode: draft.mode,
       fontFamily: "inter",
       fontScale: snapNumber("fontScale", TYPE_SCALE[draft.typeSize]),

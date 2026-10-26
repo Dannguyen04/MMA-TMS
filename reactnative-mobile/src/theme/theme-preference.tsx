@@ -45,6 +45,7 @@ import {
 import {
   buildColors,
   buildLayout,
+  nativeMode,
   buildTypography,
   toSemantic,
   type ColorVariant,
@@ -264,7 +265,7 @@ export function ThemePreferenceProvider({ children }: { children: ReactNode }) {
       if (cancelled) return;
       if (adopt) {
         setApplied(nextShared);
-        applyNativeScheme(nextShared.settings.mode);
+        applyNativeScheme(nativeMode(nextShared.settings));
         if (nextShared.settings.mode === "system") setAppearanceScheme(readAppearanceScheme());
         publishFighter(nextFighter, fighterSaved != null);
       }
@@ -298,7 +299,7 @@ export function ThemePreferenceProvider({ children }: { children: ReactNode }) {
     async (next: AppliedAppearance) => {
       touchedRef.current = true;
       setApplied(next);
-      applyNativeScheme(next.settings.mode);
+      applyNativeScheme(nativeMode(next.settings));
       const scheme = readAppearanceScheme();
       if (next.settings.mode === "system") setAppearanceScheme(scheme);
       applyRootBackground(buildColors(next.settings, scheme).colors.bg);
@@ -340,7 +341,7 @@ export function ThemePreferenceProvider({ children }: { children: ReactNode }) {
           publishFighter(nextFighter, true);
           touchedRef.current = true;
           setApplied(shared);
-          applyNativeScheme(shared.settings.mode);
+          applyNativeScheme(nativeMode(shared.settings));
           applyRootBackground(buildColors(shared.settings, readAppearanceScheme()).colors.bg);
         })();
         return;
@@ -368,7 +369,7 @@ export function ThemePreferenceProvider({ children }: { children: ReactNode }) {
     touchedRef.current = true;
     setPreviousApplied(appliedRef.current);
     setApplied(shared);
-    applyNativeScheme(shared.settings.mode);
+    applyNativeScheme(nativeMode(shared.settings));
     const scheme = readAppearanceScheme();
     if (shared.settings.mode === "system") setAppearanceScheme(scheme);
     applyRootBackground(buildColors(shared.settings, scheme).colors.bg);

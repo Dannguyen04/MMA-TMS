@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Image, Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Linking, Pressable, StyleSheet, Text } from "react-native";
 import { useLocalSearchParams, useRouter, type Href } from "expo-router";
 
 import { EXERCISE_CATEGORIES, type Exercise, type ExerciseCategory } from "@/api";
@@ -10,7 +10,9 @@ import { mapFighterError } from "@/screens/fighter/errors";
 import { EmptyCopy, FighterScreen, GlassCard, SectionLabel, StatusLine } from "@/screens/fighter/screen";
 import { useFighterId } from "@/screens/fighter/use-fighter-id";
 import { useLoad } from "@/screens/fighter/use-load";
-import { radius, spacing, type, useThemePreference } from "@/theme";
+import { radius, spacing, type, useThemePreference } from "@/theme";
+import { FilterSelect } from "@/components/filter-sheet";
+import { SkeletonFooter, SkeletonRows } from "@/components/loading";
 
 const PAGE_SIZE = 20;
 
@@ -39,12 +41,12 @@ export function FighterExerciseLibraryScreen() {
   }, [search, muscle]);
 
   const fetchPage = useCallback(
-    (nextPage: number) => {
+    (nextPage: number, mode: "initial" | "refresh" = "initial") => {
       if (!canFetch) return;
       const seq = ++seqRef.current;
-      setLoading(true);
+      if (mode === "initial") setLoading(true);
       setError("");
-      void listExercises({
+      return listExercises({
         page: nextPage,
         limit: PAGE_SIZE,
         ...(category ? { category } : {}),
@@ -59,6 +61,7 @@ export function FighterExerciseLibraryScreen() {
         })
         .catch((cause: unknown) => {
           if (seq !== seqRef.current) return;
+          if (mode === "refresh") throw cause;
           if (nextPage === 1) setRows([]);
           setError(mapFighterError(cause));
         })
@@ -70,13 +73,13 @@ export function FighterExerciseLibraryScreen() {
   );
 
   useEffect(() => {
-    fetchPage(1);
+    void fetchPage(1);
   }, [fetchPage]);
 
   const emptyText = isDemo || !canFetch ? fighter.common.demoHint : fighter.exercises.empty;
 
   return (
-    <FighterScreen title={fighter.exercises.libraryTitle} onBack keyboard refreshing={loading}>
+    <FighterScreen title={fighter.exercises.libraryTitle} onBack keyboard refreshing={loading && page === 1} onRefresh={() => fetchPage(1, "refresh")}>
       <GlassCard>
         <AuthTextField
           label={fighter.exercises.search}
@@ -93,19 +96,15 @@ export function FighterExerciseLibraryScreen() {
           autoCapitalize="none"
           maxLength={100}
         />
-        <View style={styles.chips}>
-          <Chip label={fighter.tap.filterAll} active={category === null} onPress={() => setCategory(null)} />
-          {EXERCISE_CATEGORIES.map((value) => (
-            <Chip
-              key={value}
-              label={categoryLabel(value)}
-              active={category === value}
-              onPress={() => setCategory(value)}
-            />
-          ))}
-        </View>
+        <FilterSelect
+          label="Nhóm bài tập"
+          options={[{ value: "" as const, label: fighter.tap.filterAll }, ...EXERCISE_CATEGORIES.map((value) => ({ value, label: categoryLabel(value) }))]}
+          value={category ?? ""}
+          allValue=""
+          onChange={(next) => setCategory(next === "" ? null : next)}
+        />
       </GlassCard>
-      <StatusLine message={error} onRetry={() => fetchPage(1)} />
+      <StatusLine message={error} onRetry={() => void fetchPage(1)} />
       <GlassCard>
         {rows.length > 0 ? (
           rows.map((row) => (
@@ -122,11 +121,14 @@ export function FighterExerciseLibraryScreen() {
               </Text>
             </Pressable>
           ))
-        ) : loading ? null : (
+        ) : loading ? (
+          <SkeletonRows rows={4} />
+        ) : (
           <EmptyCopy text={emptyText} />
         )}
+        <SkeletonFooter active={loading && rows.length > 0} />
         {hasNext && !loading ? (
-          <Pressable accessibilityRole="button" onPress={() => fetchPage(page + 1)} style={styles.row}>
+          <Pressable accessibilityRole="button" onPress={() => void fetchPage(page + 1)} style={styles.row}>
             <Text style={[type.link, { color: colors.lotus }]}>{fighter.exercises.loadMore}</Text>
           </Pressable>
         ) : null}
@@ -143,7 +145,7 @@ export function FighterExerciseDetailScreen() {
   const [linkError, setLinkError] = useState("");
 
   const load = useCallback(() => getExercise(exerciseId), [exerciseId]);
-  const { data, error, loading, reload } = useLoad(canFetch && !!exerciseId, exerciseId, load);
+  const { data, error, loading, reload, refresh } = useLoad(canFetch && !!exerciseId, exerciseId, load);
 
   const openVideo = useCallback((url: string) => {
     setLinkError("");
@@ -151,7 +153,7 @@ export function FighterExerciseDetailScreen() {
   }, []);
 
   return (
-    <FighterScreen title={fighter.exercises.detailTitle} onBack refreshing={loading}>
+    <FighterScreen title={fighter.exercises.detailTitle} onBack refreshing={loading} onRefresh={refresh}>
       <StatusLine message={error || linkError} onRetry={error ? reload : undefined} />
       {data ? (
         <>
@@ -202,26 +204,6 @@ export function FighterExerciseDetailScreen() {
         </GlassCard>
       )}
     </FighterScreen>
-  );
-}
-
-function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
-  const { colors } = useThemePreference();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ selected: active }}
-      onPress={onPress}
-      style={[
-        styles.chip,
-        {
-          borderColor: active ? colors.lotus : colors.line,
-          backgroundColor: active ? colors.lotus : "transparent",
-        },
-      ]}
-    >
-      <Text style={[type.caption, { color: active ? colors.surface : colors.ink }]}>{label}</Text>
-    </Pressable>
   );
 }
 

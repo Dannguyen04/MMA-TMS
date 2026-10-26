@@ -3,35 +3,31 @@ import { useCallback, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter, type Href } from "expo-router";
 
-import { getFighterMedical, type MedicalDossier, type MedicalEligibility, type ReviewRequestStatus } from "@/api";
+import { getFighterMedical, type MedicalDossier, type ReviewRequestStatus } from "@/api";
 import { useToastMessage } from "@/components/toast/app-toast";
-import { clearanceTypeLabel, decisionLabel, eligibilityReasonLabel } from "@/components/medical/medical-format";
-import { medical } from "@/i18n/medical";
+import { clearanceTypeLabel, decisionLabel } from "@/components/medical/medical-format";
+import { fighterBody as t } from "@/i18n/fighter-body";
+import { EligibilityTiles, HealthInfoButton, TodayCard } from "@/screens/fighter/redesign/health-status";
 import {
   initialBodyChrome,
   keepBodyChrome,
-  measurementAvailability,
   selectBodySection,
   withExamFilter,
   withExamReason,
 } from "@/screens/fighter/redesign/body-section";
 import { ExamRequestSection } from "@/screens/fighter/redesign/exam-requests";
+import { MedicalReviewAction } from "@/screens/one-tap/medical-review-action";
 import { useFighterPalette } from "@/screens/fighter/redesign/palette";
 import { FighterHub, HubHeader } from "@/screens/fighter/redesign/shell";
 import { useFighterId } from "@/screens/fighter/use-fighter-id";
 import { useLoad } from "@/screens/fighter/use-load";
-
-function examLine(exam: { decision: string } | null): string {
-  if (!exam) return "chưa có";
-  return decisionLabel(exam.decision);
-}
+import { HealthDossierSkeleton } from "@/components/screen-skeletons";
 
 export function FighterBodyScreen() {
   const colors = useFighterPalette();
   const router = useRouter();
-  const { fighterId, user, canFetch } = useFighterId();
+  const { fighterId, canFetch } = useFighterId();
   const [chrome, setChrome] = useState(initialBodyChrome);
-  const measurements = measurementAvailability(user?.role);
 
   const loadDossier = useCallback(async () => {
     if (!fighterId) throw new Error("missing");
@@ -41,62 +37,50 @@ export function FighterBodyScreen() {
   useToastMessage(dossier.error, "error");
 
   const data = dossier.data;
-  const training = data?.eligibility.training;
-  const competition = data?.eligibility.competition;
-
+  const pendingCount = data?.openReviewRequests.length ?? 0;
   const showHealth = chrome.section === "health";
+  const toExam = () => setChrome((current) => selectBodySection(current, "exam"));
 
   return (
-    <FighterHub keyboard refreshing={dossier.loading && !data}>
-      <HubHeader title="Cơ thể" />
+    <FighterHub keyboard refreshing={dossier.loading && !data} onRefresh={dossier.refresh}>
+      <HubHeader title={t.title} trailing={<HealthInfoButton />} />
       <View style={styles.pad}>
         <View accessibilityRole="tablist" style={styles.tabs}>
           <SectionTab
-            label="Hồ sơ sức khỏe"
+            label={t.tabHealth}
             selected={showHealth}
             onPress={() => setChrome((current) => selectBodySection(current, "health"))}
           />
           <SectionTab
-            label="Yêu cầu khám"
+            label={t.tabExam}
+            count={pendingCount}
             selected={!showHealth}
-            onPress={() => setChrome((current) => selectBodySection(current, "exam"))}
+            onPress={toExam}
           />
         </View>
 
-        <View style={showHealth ? undefined : styles.hidden}>
+        <View style={[styles.stack, showHealth ? undefined : styles.hidden]}>
           {dossier.error ? (
-            <Pressable accessibilityRole="button" onPress={dossier.reload}>
-              <Text style={[styles.meta, { color: colors.accent }]}>Thử lại</Text>
+            <Pressable accessibilityRole="button" onPress={dossier.reload} style={styles.retry}>
+              <Text style={[styles.link, { color: colors.accent }]}>{t.retry}</Text>
             </Pressable>
           ) : null}
 
-          {data && training && competition ? (
+          {data ? (
             <>
-              <View style={styles.cards}>
-                <EligibilityCard scope="Tập luyện" eligibility={training} />
-                <EligibilityCard scope="Thi đấu" eligibility={competition} />
-              </View>
-              <Text style={[styles.meta, { color: colors.muted }]}>
-                Điều kiện tập và thi đấu là hai kết luận riêng. Giới hạn còn phụ thuộc loại buổi tập. Đối kháng vẫn có thể bị giới hạn dù đủ điều kiện tập luyện.
-              </Text>
+              <TodayCard dossier={data} onRequest={toExam} />
+              <EligibilityTiles dossier={data} onRequest={toExam} />
               <Profile data={data} onHistory={() => router.push("/suc-khoe/lich-su" as Href)} />
             </>
+          ) : dossier.loading && !dossier.error ? (
+            <HealthDossierSkeleton />
           ) : !dossier.error ? (
-            <Text style={[styles.meta, { color: colors.muted }]}>
-              {dossier.loading ? medical.loading : "Hồ sơ y tế sẽ hiện khi hệ thống trả về."}
-            </Text>
+            <Text style={[styles.meta, { color: colors.muted }]}>{t.empty}</Text>
           ) : null}
-
-          {measurements.mayRead ? null : (
-            <View style={{ gap: 4 }}>
-              <Text style={[styles.section, { color: colors.ink }]}>Số đo</Text>
-              <Text style={[styles.meta, { color: colors.muted }]}>{measurements.message}</Text>
-            </View>
-          )}
-
-          <Text style={[styles.fine, { color: colors.muted }]}>
-            Hồ sơ trên hệ thống không thay thế lời khuyên y tế trực tiếp. Nếu lo về sức khỏe, hãy gặp bác sĩ.
-          </Text>
+          {/* Yêu cầu khám lại: ẩn khi dossier có yêu cầu đang mở; không đọc được dossier thì 409 từ máy chủ vẫn ra chip. */}
+          {fighterId && (data || !dossier.loading) ? (
+            <MedicalReviewAction fighterId={fighterId} openCount={pendingCount} onSent={dossier.reload} />
+          ) : null}
         </View>
 
         <View style={showHealth ? styles.hidden : undefined}>
@@ -121,83 +105,59 @@ function SectionTab({
   label,
   selected,
   onPress,
+  count = 0,
 }: {
   label: string;
   selected: boolean;
   onPress: () => void;
+  count?: number;
 }) {
   const colors = useFighterPalette();
   return (
     <Pressable
       accessibilityRole="tab"
-      accessibilityLabel={label}
+      accessibilityLabel={count > 0 ? t.tabExamCount(count) : label}
       accessibilityState={{ selected }}
       onPress={onPress}
       style={[styles.tab, { backgroundColor: selected ? colors.accent : colors.surface2 }]}
     >
       <Text style={[styles.tabLabel, { color: selected ? colors.onAccent : colors.ink }]}>{label}</Text>
+      {count > 0 ? (
+        <View style={[styles.badge, { backgroundColor: selected ? colors.onAccent : colors.accent }]}>
+          <Text style={[styles.badgeText, { color: selected ? colors.accent : colors.onAccent }]}>{count}</Text>
+        </View>
+      ) : null}
     </Pressable>
   );
 }
 
-function EligibilityCard({
-  scope,
-  eligibility,
-}: {
-  scope: string;
-  eligibility: MedicalEligibility;
-}) {
-  const colors = useFighterPalette();
-  const ok = eligibility.eligible;
-  const tone = ok ? colors.success : colors.warning;
-  const bg = ok ? colors.successSoft : colors.warningSoft;
-  return (
-    <View style={[styles.card, { backgroundColor: bg }]} accessibilityLabel={`${scope}: ${ok ? "Đủ điều kiện" : "Chưa đủ điều kiện"}`}>
-      <MaterialCommunityIcons name={ok ? "shield-check" : "shield-off-outline"} size={22} color={tone} />
-      <Text style={[styles.cardLabel, { color: tone }]}>{scope}</Text>
-      <Text style={[styles.cardValue, { color: tone }]}>{ok ? "Đủ điều kiện" : "Chưa đủ điều kiện"}</Text>
-      {eligibility.reasons.length > 0 ? (
-        <Text style={[styles.fine, { color: tone }]}>
-          {eligibility.reasons.map((code) => eligibilityReasonLabel(code)).join(" · ")}
-        </Text>
-      ) : null}
-    </View>
-  );
-}
-
+/** Chỉ hiện mục có dữ liệu; lịch sử luôn ở cuối. */
 function Profile({ data, onHistory }: { data: MedicalDossier; onHistory: () => void }) {
   const colors = useFighterPalette();
-  const licenseLine =
-    data.activeClearances.length === 0
-      ? "Chưa có giấy phép được lưu"
-      : data.activeClearances
-          .map((item) => clearanceTypeLabel(item.clearanceType))
-          .join(" · ");
-  const injuryLine =
-    data.activeInjuries.length === 0
-      ? "Không có chấn thương đang theo dõi"
-      : `${data.activeInjuries.length} chấn thương đang theo dõi`;
-  const recoveryLine =
-    data.activeRecoveryPlans.length === 0
-      ? "Không có kế hoạch phục hồi đang hoạt động"
-      : data.activeRecoveryPlans.map((plan) => plan.title).join(" · ");
+  const exams = [
+    data.currentExaminations.training ? `${t.scope.training}: ${decisionLabel(data.currentExaminations.training.decision)}` : null,
+    data.currentExaminations.competition ? `${t.scope.competition}: ${decisionLabel(data.currentExaminations.competition.decision)}` : null,
+  ].filter(Boolean);
+  const rows: { icon: keyof typeof MaterialCommunityIcons.glyphMap; title: string; detail: string }[] = [];
+  if (exams.length) rows.push({ icon: "file-document-outline", title: t.records.exam, detail: exams.join(" · ") });
+  if (data.activeClearances.length)
+    rows.push({ icon: "badge-account-horizontal-outline", title: t.records.clearance, detail: [...new Set(data.activeClearances.map((c) => clearanceTypeLabel(c.clearanceType)))].join(" · ") });
+  if (data.activeInjuries.length) rows.push({ icon: "pulse", title: t.records.injuries, detail: t.records.injuryCount(data.activeInjuries.length) });
+  if (data.activeRecoveryPlans.length)
+    rows.push({ icon: "heart-pulse", title: t.records.recovery, detail: data.activeRecoveryPlans.map((plan) => plan.title).join(" · ") });
 
   return (
     <View>
-      <Text style={[styles.section, { color: colors.ink }]}>Hồ sơ hiện tại</Text>
-      <Record icon="file-document-outline" title="Kết luận lâm sàng" detail={`Tập luyện: ${examLine(data.currentExaminations.training)} • Thi đấu: ${examLine(data.currentExaminations.competition)}`} />
-      <Record icon="badge-account-horizontal-outline" title="Giấy phép" detail={licenseLine} />
-      <Record icon="pulse" title="Chấn thương" detail={injuryLine} />
-      <Record icon="heart-pulse" title="Phục hồi" detail={recoveryLine} />
+      <Text accessibilityRole="header" style={[styles.section, { color: colors.ink }]}>{t.records.title}</Text>
+      {rows.length === 0 ? <Text style={[styles.meta, { color: colors.muted, paddingVertical: 8 }]}>{t.records.none}</Text> : null}
+      {rows.map((row) => (
+        <Record key={row.title} icon={row.icon} title={row.title} detail={row.detail} />
+      ))}
       <Pressable accessibilityRole="button" onPress={onHistory} style={[styles.record, { borderBottomColor: colors.line }]}>
         <MaterialCommunityIcons name="history" size={20} color={colors.ink} />
-        <Text style={[styles.recordTitle, { color: colors.ink, flex: 1 }]}>Lịch sử sức khỏe</Text>
-        <MaterialCommunityIcons name="chevron-right" size={16} color={colors.muted} />
+        <Text style={[styles.recordTitle, { color: colors.ink, flex: 1 }]}>{t.records.history}</Text>
+        <MaterialCommunityIcons name="chevron-right" size={18} color={colors.muted} />
       </Pressable>
-      <Text style={[styles.meta, { color: colors.muted, marginTop: 12 }]}>
-        Danh sách giấy phép không xác nhận hiệu lực hiện tại. Kết luận đạt vẫn cần giấy phép do bác sĩ cấp phù hợp với kết luận hiện hành.
-      </Text>
-      <View style={[styles.divider, { backgroundColor: colors.line }]} />
     </View>
   );
 }
@@ -226,18 +186,17 @@ function Record({
 const styles = StyleSheet.create({
   pad: { paddingHorizontal: 20, paddingBottom: 24, gap: 20 },
   tabs: { flexDirection: "row", gap: 8 },
-  tab: { flex: 1, minHeight: 44, borderRadius: 12, alignItems: "center", justifyContent: "center", paddingHorizontal: 8 },
+  tab: { flex: 1, minHeight: 44, borderRadius: 12, flexDirection: "row", gap: 6, alignItems: "center", justifyContent: "center", paddingHorizontal: 8 },
   tabLabel: { fontSize: 14, lineHeight: 20, fontWeight: "600", textAlign: "center" },
   hidden: { display: "none" },
-  cards: { flexDirection: "row", gap: 10 },
-  card: { flex: 1, borderRadius: 12, padding: 14, gap: 8 },
-  cardLabel: { fontSize: 12, lineHeight: 17 },
-  cardValue: { fontSize: 15, lineHeight: 21, fontWeight: "700" },
+  stack: { gap: 16 },
+  retry: { minHeight: 44, justifyContent: "center" },
+  link: { fontSize: 14, lineHeight: 20, fontWeight: "600" },
+  badge: { minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 6, alignItems: "center", justifyContent: "center" },
+  badgeText: { fontSize: 12, lineHeight: 16, fontWeight: "700" },
   section: { fontSize: 16, lineHeight: 22, fontWeight: "700", marginBottom: 4 },
   record: { flexDirection: "row", gap: 12, alignItems: "center", paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
   recordTitle: { fontSize: 14, lineHeight: 20, fontWeight: "600" },
   meta: { fontSize: 12, lineHeight: 17 },
-  fine: { fontSize: 11, lineHeight: 16 },
   flex: { flex: 1, gap: 3 },
-  divider: { height: 1, marginTop: 20 },
 });

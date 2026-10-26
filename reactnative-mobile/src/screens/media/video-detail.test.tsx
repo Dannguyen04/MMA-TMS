@@ -1,4 +1,4 @@
-import { render, waitFor } from "@testing-library/react-native";
+import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { getAnalysisJob, getVideo, listAnalysisJobs } from "@/api/media";
@@ -25,6 +25,12 @@ jest.mock("expo-video", () => ({
   VideoView: () => null,
 }));
 
+jest.mock("@/api/evidence", () => ({
+  getCoachingState: jest.fn().mockRejectedValue(new Error("x")),
+  getMovementReviews: jest.fn().mockRejectedValue(new Error("x")),
+  getJobResult: jest.fn().mockResolvedValue({ fps: 30, durationMs: 1000, width: null, height: null, frames: [], strikes: [], findings: [], movementEvidence: null, avgScore: null }),
+}));
+
 jest.mock("@/api/tokens", () => ({
   getMemorySession: jest.fn(),
 }));
@@ -37,6 +43,7 @@ jest.mock("@/api/media", () => {
     listAnalysisJobs: jest.fn(),
     getAnalysisJob: jest.fn(),
     createAnalysisJob: jest.fn(),
+    resolveVideoStream: jest.fn().mockResolvedValue({ uri: "https://storage.example/signed.mp4" }),
   };
 });
 
@@ -119,10 +126,38 @@ describe("VideoDetailContent", () => {
       </SafeAreaProvider>,
     );
     expect(await view.findByText("Đang tải video…")).toBeTruthy();
+    await fireEvent.press(await view.findByTestId("tab-metrics"));
     expect(await view.findByText("Xong")).toBeTruthy();
-    expect(view.getByText("0")).toBeTruthy();
+    expect(view.getAllByText("0").length).toBeGreaterThan(0);
     expect(view.queryByText("70")).toBeNull();
     expect(view.queryByText("Điểm 70")).toBeNull();
     await waitFor(() => expect(getAnalysisJob).toHaveBeenCalledWith("job-referenced"));
+  });
+
+  it("shows Diễn biến with strikes and hides Nhận xét for doctors", async () => {
+    const { getJobResult } = jest.requireMock("@/api/evidence") as { getJobResult: jest.Mock };
+    getJobResult.mockResolvedValueOnce({
+      fps: 30,
+      durationMs: 2000,
+      width: 540,
+      height: 960,
+      frames: [],
+      strikes: [
+        { actionId: "a1", family: "punch", technique: "cross", side: "right", startMs: 1000, impactMs: 1250, endMs: 1400, score: 90, confidence: 0.9, peakSpeed: 2, angle: 170, guardKept: true },
+      ],
+      findings: [],
+      movementEvidence: null,
+      avgScore: 90,
+    });
+    const view = await render(
+      <SafeAreaProvider initialMetrics={insets}>
+        <ThemePreferenceProvider>
+          <VideoDetailContent videoId={REFERENCED_VIDEO_DETAIL.id} canRequestAnalysis={false} onBack={jest.fn()} role="doctor" />
+        </ThemePreferenceProvider>
+      </SafeAreaProvider>,
+    );
+    expect(await view.findByTestId("tab-timeline")).toBeTruthy();
+    expect(view.getAllByText("Cross phải").length).toBeGreaterThan(0);
+    expect(view.queryByTestId("tab-review")).toBeNull();
   });
 });

@@ -30,7 +30,9 @@ export function lerpHex(from: string, to: string, t: number): string {
 export function lerpTokens(from: ColorTokens, to: ColorTokens, t: number): ColorTokens {
   const next = { ...to };
   (Object.keys(from) as (keyof ColorTokens)[]).forEach((key) => {
-    next[key] = lerpHex(from[key], to[key], t);
+    const a = from[key];
+    const b = to[key];
+    if (a && b) next[key] = lerpHex(a, b, t);
   });
   return next;
 }

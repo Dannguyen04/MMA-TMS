@@ -19,6 +19,10 @@ import { useFighterPalette } from "@/screens/fighter/redesign/palette";
 import { FighterHub, HubHeader } from "@/screens/fighter/redesign/shell";
 import { useFighterId } from "@/screens/fighter/use-fighter-id";
 import { useLoad } from "@/screens/fighter/use-load";
+import { FadeInView, PressableScale } from "@/components/motion";
+import { FilterSelect } from "@/components/filter-sheet";
+import { SkeletonCards } from "@/components/loading";
+import { Skeleton } from "@/components/motion";
 
 type SessionList = {
   rows: TrainingSessionSummary[];
@@ -63,7 +67,7 @@ export function FighterSessionsScreen() {
     };
   }, [fighterId, status]);
 
-  const { data, error, loading, reload } = useLoad(canFetch, `${fighterId ?? "none"}:${status || "all"}`, load);
+  const { data, error, loading, reload, refresh } = useLoad(canFetch, `${fighterId ?? "none"}:${status || "all"}`, load);
   useToastMessage(error, "error");
   useToastMessage(data?.medicalError, "error");
   useToastMessage(data?.planError, "error");
@@ -73,20 +77,16 @@ export function FighterSessionsScreen() {
   const training = data?.medical?.eligibility.training;
 
   return (
-    <FighterHub refreshing={loading && !data}>
+    <FighterHub refreshing={loading && !data} onRefresh={refresh}>
       <HubHeader title="Buổi tập" />
       <View style={styles.pad}>
-        <View style={styles.chips}>
-          <Chip label={fighter.tap.filterAll} selected={status === ""} onPress={() => setStatus("")} />
-          {SESSION_STATUSES.map((value) => (
-            <Chip
-              key={value}
-              label={sessionStatusLabel(value)}
-              selected={status === value}
-              onPress={() => setStatus(value)}
-            />
-          ))}
-        </View>
+        <FilterSelect
+          label="Trạng thái"
+          options={[{ value: "" as const, label: fighter.tap.filterAll }, ...SESSION_STATUSES.map((value) => ({ value, label: sessionStatusLabel(value) }))]}
+          value={status}
+          allValue=""
+          onChange={setStatus}
+        />
         <View style={styles.rowBetween}>
           <Text style={[styles.kicker, { color: colors.muted }]}>DANH SÁCH</Text>
           <Text style={[styles.kicker, { color: colors.muted, fontWeight: "400" }]}>
@@ -102,7 +102,7 @@ export function FighterSessionsScreen() {
         ) : null}
 
         {!error && loading && !data ? (
-          <Text style={[styles.emptyBody, { color: colors.muted }]}>{fighter.common.loading}</Text>
+          <SkeletonCards count={3} lines={2} />
         ) : null}
 
         {noneAtAll ? (
@@ -126,18 +126,19 @@ export function FighterSessionsScreen() {
           </View>
         ) : null}
 
-        {rows.map((row) => (
-          <Pressable
-            key={row.id}
-            accessibilityRole="button"
-            onPress={() => router.push(`/tap/${row.id}` as Href)}
-            style={[styles.session, { borderBottomColor: colors.line }]}
-          >
-            <Text style={[styles.sessionTitle, { color: colors.ink }]}>{row.title}</Text>
-            <Text style={[styles.meta, { color: colors.muted }]}>
-              {formatWhen(row.scheduledAt)} · {sessionTypeLabel(row.sessionType)} · {sessionStatusLabel(row.status)}
-            </Text>
-          </Pressable>
+        {rows.map((row, i) => (
+          <FadeInView key={row.id} index={i}>
+            <PressableScale
+              accessibilityRole="button"
+              onPress={() => router.push(`/tap/${row.id}` as Href)}
+              style={[styles.session, { borderBottomColor: colors.line }]}
+            >
+              <Text style={[styles.sessionTitle, { color: colors.ink }]}>{row.title}</Text>
+              <Text style={[styles.meta, { color: colors.muted }]}>
+                {formatWhen(row.scheduledAt)} · {sessionTypeLabel(row.sessionType)} · {sessionStatusLabel(row.status)}
+              </Text>
+            </PressableScale>
+          </FadeInView>
         ))}
 
         <View style={[styles.readiness, { backgroundColor: colors.surface2 }]}>
@@ -156,13 +157,17 @@ export function FighterSessionsScreen() {
                 <Text style={[styles.sessionTitle, { color: colors.ink }]}>
                   {training?.eligible ? "Đủ điều kiện tập luyện" : training ? "Chưa đủ điều kiện tập luyện" : "Điều kiện tập luyện"}
                 </Text>
-                <Text style={[styles.meta, { color: colors.muted }]}>
-                  {training?.eligible
-                    ? "Điều kiện còn tùy loại buổi tập."
-                    : training
-                      ? "Xem lý do trên Cơ thể. Không bắt đầu buổi tập từ nhãn này."
-                      : "Đang tải kết luận của hệ thống."}
-                </Text>
+                {loading && !data ? (
+                  <Skeleton width="60%" height={14} />
+                ) : (
+                  <Text style={[styles.meta, { color: colors.muted }]}>
+                    {training?.eligible
+                      ? "Điều kiện còn tùy loại buổi tập."
+                      : training
+                        ? "Xem lý do trên Cơ thể. Không bắt đầu buổi tập từ nhãn này."
+                        : "Chưa có kết luận của hệ thống."}
+                  </Text>
+                )}
               </View>
             </View>
           )}
@@ -183,40 +188,24 @@ export function FighterSessionsScreen() {
           <MaterialCommunityIcons name="clipboard-text-outline" size={20} color={colors.ink} />
           <View style={styles.flex}>
             <Text style={[styles.sessionTitle, { color: colors.ink }]}>Giáo án của bạn</Text>
-            <Text style={[styles.meta, { color: colors.muted }]}>
-              {data?.planError
-                ? "Không tải được"
-                : data?.planCount === 0
-                  ? "Chưa có giáo án được giao"
-                  : data?.planCount
-                    ? `${data.planCount} giáo án được giao`
-                    : "Đang tải"}
-            </Text>
+            {loading && !data ? (
+              <Skeleton width="60%" height={14} />
+            ) : (
+              <Text style={[styles.meta, { color: colors.muted }]}>
+                {data?.planError
+                  ? "Không tải được"
+                  : data?.planCount === 0
+                    ? "Chưa có giáo án được giao"
+                    : data?.planCount
+                      ? `${data.planCount} giáo án được giao`
+                      : "—"}
+              </Text>
+            )}
           </View>
           <MaterialCommunityIcons name="chevron-right" size={16} color={colors.muted} />
         </Pressable>
       </View>
     </FighterHub>
-  );
-}
-
-function Chip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
-  const colors = useFighterPalette();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ selected }}
-      accessibilityLabel={label}
-      onPress={onPress}
-      style={[
-        styles.chip,
-        { backgroundColor: selected ? colors.accent : colors.surface2 },
-      ]}
-    >
-      <Text style={{ color: selected ? colors.onAccent : colors.muted, fontSize: 12, fontWeight: selected ? "600" : "400" }}>
-        {label}
-      </Text>
-    </Pressable>
   );
 }
 

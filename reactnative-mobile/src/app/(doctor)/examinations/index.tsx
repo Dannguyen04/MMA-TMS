@@ -1,4 +1,4 @@
-import { ExaminationListScreen } from "@/screens/doctor/clinical-write";
+import { ExaminationListScreen } from "@/screens/doctor/clinical-read";
 
 export default function DoctorExamsRoute() {
   return <ExaminationListScreen />;

@@ -17,10 +17,12 @@ import {
   CoachPicker,
   CoachPrimaryButton,
   CoachScaffold,
+  CoachEmpty,
 } from "@/screens/coach/coach-ui";
 import { useSession } from "@/session/session-context";
 import { buildCreateTrainingPlanBody, planPhaseLabel, planPhaseOptions } from "@/training/plan-phase";
 import { isValidDateOnly } from "@/utils/is-valid-date-only";
+import { SkeletonList } from "@/components/motion";
 
 export function CoachPlanFormScreen() {
   const router = useRouter();
@@ -103,8 +105,8 @@ export function CoachPlanFormScreen() {
   return (
     <CoachScaffold title={coach.newPlan} keyboard inStack>
       {!myCoachId ? <CoachBanner message={coach.assignNeedProfile} /> : null}
-      {loadingFighters ? <CoachBanner message={coach.loading} /> : null}
-      {!loadingFighters && fighters.length === 0 ? <CoachBanner message={coach.emptyFighters} /> : null}
+      {loadingFighters ? <SkeletonList rows={3} /> : null}
+      {!loadingFighters && fighters.length === 0 ? <CoachEmpty message={coach.emptyFighters} /> : null}
       <CoachPicker
         label={coach.fighter}
         placeholder={coach.pickFighter}

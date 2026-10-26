@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { SlideSheet, SheetOption } from "@/components/ui/slide-sheet";
 import { useToastMessage } from "@/components/toast/app-toast";
 import { appearance } from "@/i18n/appearance";
 import { ensureContrast } from "@/theme/appearance/color-math";
@@ -19,17 +20,20 @@ import { BODY_FONTS, isFamilyLoaded, loadFamily } from "@/theme/appearance/fonts
 import {
   appearanceEqual,
   shouldAnnounceApplySuccess,
-  BRIGHTNESS_MODES,
+  hasDarkStyle,
+  hasModeSelector,
+  READING_SUPPORT_IDS,
+  matchesPreset,
+  MODE_OPTIONS,
   DARK_VARIANTS,
   DEFAULT_APPEARANCE,
   DENSITIES,
   FONT_FAMILY_IDS,
   FONT_WEIGHTS,
   NUMERIC_RANGES,
-  PRESET_IDS,
+  THEME_LIST_IDS,
   RADIUS_SCALES,
   resolvePreset,
-  settingsEqual,
   type AppearanceSettings,
   type AppliedAppearance,
   type FontFamilyId,
@@ -54,18 +58,22 @@ import {
   type ColorsValue,
 } from "@/theme";
 
+import { homeHrefForGate, useSession } from "@/session/session-context";
+import { BadgeColorEditor } from "@/screens/doctor/badge-color-editor";
+
 import { AppearancePreview } from "./appearance-preview";
 import { HexField, HsvPicker, Segmented, SwatchRow, TrackSlider } from "./controls";
 import { FullPreview } from "./full-preview";
+import { useReadableWidth } from "@/components/readable-width";
 
 type ColorRole = "textColor" | "backgroundColor" | "surfaceColor" | "accentColor";
 const COLOR_ROLES: readonly ColorRole[] = ["textColor", "backgroundColor", "surfaceColor", "accentColor"];
 
 const SWATCHES: Record<ColorRole, readonly string[]> = {
   textColor: ["#121316", "#000000", "#3B2F20", "#13241A", "#F3F1EC", "#FFFFFF"],
-  backgroundColor: ["#FFFFFF", "#E8E6E1", "#F4ECD8", "#E3EFE3", "#D9DBDF", "#090A0C", "#000000"],
-  surfaceColor: ["#FFFFFF", "#F6F5F2", "#FBF6EA", "#F2F8F2", "#14161A", "#0E0F11"],
-  accentColor: ["#735A30", "#C9A86C", "#1F5FBF", "#1F6B3A", "#B3261E", "#6A3FB5", "#B35200"],
+  backgroundColor: ["#F6F6F8", "#FFFFFF", "#F4ECD8", "#E3EFE3", "#D9DBDF", "#0A0A0C", "#000000"],
+  surfaceColor: ["#FFFFFF", "#ECECEF", "#FBF6EA", "#F2F8F2", "#16161A", "#1E1E24"],
+  accentColor: ["#C23A22", "#408369", "#8D6B48", "#1F5FBF", "#1F6B3A", "#B3261E", "#6A3FB5", "#B35200"],
 };
 
 const HISTORY_LIMIT = 50;
@@ -79,6 +87,12 @@ const SECTION_KEYS: Record<SectionId, readonly (keyof AppearanceSettings)[]> = {
   layout: ["radiusScale", "density"],
 };
 
+function presetSwatches(id: PresetId): readonly [string, string] {
+  const settings = resolvePreset(id);
+  const built = buildColors(settings, "light").colors;
+  return [built.bg, built.cta];
+}
+
 function options<T extends string>(values: readonly T[], labels: Record<T, string>) {
   return values.map((value) => ({ value, label: labels[value] }));
 }
@@ -88,11 +102,14 @@ function formatRatio(n: number) {
 }
 
 export function AppearanceScreen() {
+  const readable = useReadableWidth();
   const { colors } = useThemePreference();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const navigation = useNavigation();
   const { applied, previousApplied, systemScheme, osFontScale, persistError } = useAppearanceState();
+  const { user, gate } = useSession();
+  const [picker, setPicker] = useState<null | "theme" | "font">(null);
   const { applyAppearance, undoLastApply, registerFont } = useAppearanceActions();
 
   const [draft, setDraft] = useState<AppliedAppearance>(applied);
@@ -342,7 +359,8 @@ export function AppearanceScreen() {
   const leave = () => {
     allowLeaveRef.current = true;
     if (router.canGoBack()) router.back();
-    else router.replace("/");
+    // Về home đúng role (không dùng "/" vì trùng giữa các group).
+    else router.replace(homeHrefForGate(gate));
   };
 
   const doApply = async () => {
@@ -364,7 +382,6 @@ export function AppearanceScreen() {
 
   const onCancel = () => {
     discardDraft();
-    leave();
   };
 
   const runApply = (after?: () => void) => {
@@ -411,9 +428,19 @@ export function AppearanceScreen() {
     }
   };
 
-  const presetLabel = settingsEqual(draft.settings, resolvePreset(draft.presetId))
+  const presetLabel = matchesPreset(draft)
     ? appearance.presets[draft.presetId]
     : `${appearance.customPreset} (${appearance.presets[draft.presetId]})`;
+
+  // Hệ thống / Sáng / Tối / Đen tuyền — only for Đỏ võ đài; shown in the Chủ đề section and above the theme list.
+  const modeSelector = (
+    <Segmented
+      accessibilityLabel={appearance.sections.brightness}
+      options={options(MODE_OPTIONS, appearance.modes)}
+      value={draft.settings.mode}
+      onChange={(mode) => update({ mode, paletteId: "figma" })}
+    />
+  );
 
   const roleValue = draft.settings[colorRole];
   const roleEffective =
@@ -535,7 +562,7 @@ export function AppearanceScreen() {
         style={editorTab === "customize" ? styles.flex : styles.hidden}
         scrollEnabled={scrollEnabled}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={styles.controls}
+        contentContainerStyle={[styles.controls, readable]}
       >
         {issues.length > 0 ? <ContrastIssues issues={issues} onFix={fixIssue} /> : null}
 
@@ -543,36 +570,31 @@ export function AppearanceScreen() {
           title={appearance.sections.theme}
           onReset={() => onResetSection("theme", appearance.sections.theme)}
         >
-          <View style={styles.presetGrid}>
-            {PRESET_IDS.map((id) => {
-              const selected = draft.presetId === id;
-              return (
-                <Pressable
-                  key={id}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected }}
-                  onPress={() => pickPreset(id)}
-                  style={[
-                    styles.presetChip,
-                    {
-                      borderColor: selected ? colors.ink : colors.line,
-                      backgroundColor: selected ? colors.surfaceMuted : colors.surface,
-                    },
-                  ]}
-                >
-                  <Text style={[type.label, { color: colors.ink }]}>{appearance.presets[id]}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-          <Label text={appearance.sections.brightness} />
-          <Segmented
-            accessibilityLabel={appearance.sections.brightness}
-            options={options(BRIGHTNESS_MODES, appearance.modes)}
-            value={draft.settings.mode}
-            onChange={(mode) => update({ mode })}
+          <ChoiceField
+            label={appearance.sections.theme}
+            value={presetLabel}
+            onPress={() => setPicker("theme")}
           />
-          {draft.settings.mode === "system" ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={appearance.defaultTheme}
+            accessibilityHint={appearance.defaultThemeHint}
+            accessibilityState={{ selected: draft.presetId === DEFAULT_APPEARANCE.presetId }}
+            onPress={() => pickPreset(DEFAULT_APPEARANCE.presetId)}
+            style={[styles.defaultButton, { borderColor: colors.controlBorder }]}
+          >
+            <MaterialCommunityIcons name="restore" size={24} color={colors.lotus} />
+            <Text style={[type.label, { color: colors.ink }]}>
+              {appearance.defaultTheme} · {appearance.defaultThemeHint}
+            </Text>
+          </Pressable>
+          {hasModeSelector(draft.presetId) ? (
+            <>
+              <Label text={appearance.sections.brightness} />
+              {modeSelector}
+            </>
+          ) : null}
+          {hasModeSelector(draft.presetId) && hasDarkStyle(draft.settings.mode) ? (
             <>
               <Label text={appearance.sections.darkVariant} />
               <Segmented
@@ -589,51 +611,12 @@ export function AppearanceScreen() {
           title={appearance.sections.text}
           onReset={() => onResetSection("text", appearance.sections.text)}
         >
-          <Label text={appearance.sections.fontFamily} />
           <Text style={[type.caption, { color: colors.inkMuted }]}>{appearance.sections.fontFamilyHint}</Text>
-          <View accessibilityRole="radiogroup" style={styles.fontList}>
-            {FONT_FAMILY_IDS.map((id) => {
-              const def = BODY_FONTS[id];
-              const selected = draft.settings.fontFamily === id;
-              const loading = pendingFont === id;
-              const face = isFamilyLoaded(id) ? def.faces.regular : undefined;
-              return (
-                <Pressable
-                  key={id}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected, busy: loading }}
-                  accessibilityLabel={def.label}
-                  accessibilityHint={loading ? appearance.fontLoading : undefined}
-                  onPress={() => selectFont(id)}
-                  style={[
-                    styles.fontRow,
-                    { borderColor: selected ? colors.ink : colors.line, backgroundColor: colors.surface },
-                  ]}
-                >
-                  {loading ? (
-                    <ActivityIndicator size="small" color={colors.lotus} style={styles.fontSpinner} />
-                  ) : (
-                    <MaterialCommunityIcons
-                      name={selected ? "radiobox-marked" : "radiobox-blank"}
-                      size={22}
-                      color={selected ? colors.lotus : colors.inkMuted}
-                    />
-                  )}
-                  <View style={styles.flex}>
-                    <Text style={[type.body, face ? { fontFamily: face } : null, { color: colors.ink }]}>
-                      {def.label}
-                    </Text>
-                    <Text
-                      numberOfLines={1}
-                      style={[type.caption, face ? { fontFamily: face } : null, { color: colors.inkMuted }]}
-                    >
-                      {appearance.fontSample}
-                    </Text>
-                  </View>
-                </Pressable>
-              );
-            })}
-          </View>
+          <ChoiceField
+            label={appearance.sections.fontFamily}
+            value={BODY_FONTS[draft.settings.fontFamily].label}
+            onPress={() => setPicker("font")}
+          />
 
           <TrackSlider
             label={appearance.sections.fontScale}
@@ -693,6 +676,7 @@ export function AppearanceScreen() {
             onChange={(hex) => setRoleColor(colorRole, hex)}
             onSlidingChange={onSlidingChange}
           />
+          {user?.role === "DOCTOR" ? <BadgeColorEditor /> : null}
         </Section>
 
         <Section
@@ -715,6 +699,54 @@ export function AppearanceScreen() {
           />
         </Section>
       </ScrollView>
+      <SlideSheet visible={picker === "theme"} onClose={() => setPicker(null)} title={appearance.sections.theme}>
+        {hasModeSelector(draft.presetId) ? (
+          <View style={styles.sheetMode}>
+            <Label text={appearance.sections.brightness} />
+            {modeSelector}
+          </View>
+        ) : null}
+        {[...THEME_LIST_IDS, null, ...READING_SUPPORT_IDS].map((id) =>
+          id === null ? (
+            <Text
+              key="reading-support"
+              accessibilityRole="header"
+              style={[type.label, styles.sheetGroup, { color: colors.ink, borderTopColor: colors.line }]}
+            >
+              {appearance.sections.readingSupport}
+            </Text>
+          ) : (
+          <SheetOption
+            key={id}
+            swatches={presetSwatches(id)}
+            label={appearance.presets[id]}
+            selected={draft.presetId === id}
+            onPress={() => {
+              pickPreset(id);
+              setPicker(null);
+            }}
+          />
+          ),
+        )}
+      </SlideSheet>
+      <SlideSheet
+        visible={picker === "font"}
+        onClose={() => setPicker(null)}
+        title={appearance.sections.fontFamily}
+      >
+        {FONT_FAMILY_IDS.map((id) => (
+          <SheetOption
+            key={id}
+            label={BODY_FONTS[id].label}
+            selected={draft.settings.fontFamily === id}
+            onPress={() => {
+              selectFont(id);
+              setPicker(null);
+            }}
+          />
+        ))}
+        {pendingFont ? <ActivityIndicator color={colors.lotus} /> : null}
+      </SlideSheet>
 
       <View
         style={[
@@ -795,6 +827,35 @@ function Section({ title, onReset, children }: { title: string; onReset?: () => 
   );
 }
 
+function ChoiceField({ label, value, onPress }: { label: string; value: string; onPress: () => void }) {
+  const { colors } = useThemePreference();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={({ pressed }) => [
+        {
+          minHeight: 48,
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: spacing.md,
+          borderWidth: 1,
+          borderColor: colors.line,
+          borderRadius: radius.field,
+          paddingHorizontal: spacing.md,
+          backgroundColor: colors.surface,
+          opacity: pressed ? 0.7 : 1,
+        },
+      ]}
+    >
+      <Text style={[type.body, { color: colors.ink }]}>{label}</Text>
+      <Text style={[type.label, { color: colors.lotus, flexShrink: 1 }]}>{value}</Text>
+    </Pressable>
+  );
+}
+
 function Label({ text }: { text: string }) {
   const { colors } = useThemePreference();
   return <Text style={[type.label, { color: colors.ink }]}>{text}</Text>;
@@ -840,6 +901,8 @@ function ContrastIssues({ issues, onFix }: { issues: ContrastCheck[]; onFix: (ch
 }
 
 const styles = StyleSheet.create({
+  sheetMode: { gap: spacing.xs, paddingBottom: spacing.sm },
+  sheetGroup: { fontWeight: "700", paddingTop: spacing.md, paddingBottom: spacing.xs, marginTop: spacing.sm, borderTopWidth: 1 },
   root: { flex: 1 },
   flex: { flex: 1 },
   header: {
@@ -879,6 +942,16 @@ const styles = StyleSheet.create({
     borderCurve: "continuous",
     paddingLeft: spacing.md,
     minHeight: 48,
+  },
+  defaultButton: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderRadius: radius.field,
+    borderCurve: "continuous",
+    paddingHorizontal: spacing.lg,
   },
   presetGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
   presetChip: {
