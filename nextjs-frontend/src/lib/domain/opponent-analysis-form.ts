@@ -1,5 +1,10 @@
 import { z } from "zod";
+
+import type { MessageKey, Translator } from "@/lib/i18n/translate";
 import { observationSchema, tacticSchema, type OpponentAnalysis, type OpponentObservation, type OpponentTactic } from "./round-advice";
+
+export const MAX_OBSERVATIONS = 6;
+export const MAX_TACTICS = 5;
 
 export type OpponentAnalysisForm = { observations: OpponentObservation[]; tactics: OpponentTactic[] };
 export type OpponentAnalysisInput = {
@@ -21,8 +26,8 @@ export function removeObservation(form: OpponentAnalysisForm, id: string): Oppon
 /** Whitelist editable fields; restore hidden data from the current server record. */
 export function buildOpponentAnalysisInput(raw: unknown, existing: OpponentAnalysis, scheduledRounds: number | null) {
     const parsed = z.object({
-        observations: z.array(observationSchema).max(6),
-        tactics: z.array(tacticSchema.omit({ sessionIds: true, review: true })).max(5),
+        observations: z.array(observationSchema).max(MAX_OBSERVATIONS),
+        tactics: z.array(tacticSchema.omit({ sessionIds: true, review: true })).max(MAX_TACTICS),
     }).safeParse(raw);
     if (!parsed.success) return parsed;
     const issues: z.core.$ZodIssue[] = [];
@@ -58,4 +63,23 @@ export function buildOpponentAnalysisInput(raw: unknown, existing: OpponentAnaly
         })),
     };
     return { success: true as const, data };
+}
+
+const ISSUE_KEYS: Record<string, MessageKey> = {
+    uniqueId: "boutAnalysis.analysis.error.uniqueId",
+    evidence: "boutAnalysis.analysis.error.evidence",
+    url: "boutAnalysis.analysis.error.url",
+    basis: "boutAnalysis.analysis.error.basis",
+    round: "boutAnalysis.analysis.error.round",
+};
+
+/** First translated error per dotted field name, e.g. "tactics.0.observationIds". */
+export function analysisFieldErrors(error: z.ZodError, t: Translator): Record<string, string> {
+    const fieldErrors: Record<string, string> = {};
+    for (const issue of error.issues) {
+        const key = issue.path.join(".");
+        if (!key || fieldErrors[key]) continue;
+        fieldErrors[key] = t(ISSUE_KEYS[issue.message] ?? "boutAnalysis.analysis.error.invalid");
+    }
+    return fieldErrors;
 }

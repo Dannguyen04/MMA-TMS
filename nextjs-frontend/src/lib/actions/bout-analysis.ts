@@ -12,11 +12,12 @@ import {
     type ObservationMark,
     type TacticOutcome,
 } from "@/lib/domain/round-advice";
+import { analysisFieldErrors, buildOpponentAnalysisInput } from "@/lib/domain/opponent-analysis-form";
 import type { User } from "@/lib/domain/types";
 import { getTranslator } from "@/lib/i18n/server";
 import type { Translator } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
-import { upsertBoutRound } from "@/lib/services/bout-analysis";
+import { getBoutAnalysisDetail, saveOpponentAnalysis, upsertBoutRound } from "@/lib/services/bout-analysis";
 import { getCampBout } from "@/lib/services/bouts";
 import { actionError, actionSuccess, validationError, type ActionState } from "./state";
 
@@ -35,6 +36,7 @@ function revalidateBoutAnalysisPaths(boutId: string, fighterId?: string) {
     revalidatePath(boutPath);
     revalidatePath(`${boutPath}/corner-card`);
     revalidatePath(`${boutPath}/rounds`);
+    revalidatePath(`${boutPath}/opponent-analysis`);
     revalidatePath(routes.coach.dashboard);
     if (fighterId) {
         revalidatePath(routes.coach.fighter(fighterId));
@@ -128,5 +130,51 @@ export async function recordBoutRoundAction(_prev: ActionState, formData: FormDa
         return actionSuccess(t("boutAnalysis.action.roundSaved", { roundNo: roundNoRaw }));
     } catch (error: unknown) {
         return actionError(error instanceof Error ? error.message : t("boutAnalysis.action.saveFailed"));
+    }
+}
+
+export async function saveOpponentAnalysisAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+    const { t } = await getTranslator();
+    const auth = await authorizeCoach(t);
+    if (!auth.ok) return auth.state;
+
+    const boutId = String(formData.get("boutId") ?? "").trim();
+    if (!boutId) return actionError(t("boutAnalysis.action.boutIdRequired"));
+
+    const existing = await getCampBout(boutId);
+    if (!existing || !canAccessFighter(auth.user, existing.fighterId)) {
+        return actionError(t("boutAnalysis.action.boutNotFoundOrNotOnRoster"));
+    }
+
+    let raw: unknown;
+    try {
+        raw = JSON.parse(String(formData.get("analysis") ?? ""));
+    } catch {
+        return actionError(t("form.fixFields"));
+    }
+
+    const detail = await getBoutAnalysisDetail(boutId);
+    const parsed = buildOpponentAnalysisInput(
+        raw,
+        detail?.opponentAnalysis ?? { observations: [], tactics: [] },
+        detail?.scheduledRounds ?? null,
+    );
+    if (!parsed.success) {
+        return actionError(t("form.fixFields"), analysisFieldErrors(parsed.error, t));
+    }
+
+    try {
+        const result = await saveOpponentAnalysis(boutId, parsed.data, auth.user);
+        if (!result.ok) {
+            if (result.error === "BOUT_INVALID_TRANSITION") {
+                return actionError(t("boutAnalysis.analysis.action.locked"));
+            }
+            return actionError(t("boutAnalysis.analysis.action.saveFailed"));
+        }
+
+        revalidateBoutAnalysisPaths(boutId, existing.fighterId);
+        return actionSuccess(t("boutAnalysis.analysis.action.saved"));
+    } catch (error: unknown) {
+        return actionError(error instanceof Error ? error.message : t("boutAnalysis.analysis.action.saveFailed"));
     }
 }

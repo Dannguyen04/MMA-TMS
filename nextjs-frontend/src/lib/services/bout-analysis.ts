@@ -16,6 +16,7 @@ import {
     type RoundInput,
     type RoundsResponse,
 } from "@/lib/domain/round-advice";
+import type { OpponentAnalysisInput } from "@/lib/domain/opponent-analysis-form";
 import type { User } from "@/lib/domain/types";
 import { isNotFound, nullIfNotFound, unsupportedOperation } from "./api-helpers";
 import { platformFeatureAvailable } from "./platform-features";
@@ -44,6 +45,8 @@ export type GetBoutRoundsResult =
 export type UpsertBoutRoundResult =
     | { ok: true; data: RoundsResponse }
     | { ok: false; error: string };
+
+export type SaveOpponentAnalysisResult = { ok: true } | { ok: false; error: string };
 
 async function demoService(): Promise<typeof import("./bout-analysis.demo")> {
     return import("./bout-analysis.demo");
@@ -138,6 +141,35 @@ export async function upsertBoutRound(
                 ok: false,
                 error: err.responseBody?.code ?? (err.status === 409 ? "BOUT_INVALID_TRANSITION" : "BOUT_ROUND_INVALID"),
             };
+        }
+        throw error;
+    }
+}
+
+export async function saveOpponentAnalysis(
+    boutId: string,
+    input: OpponentAnalysisInput,
+    actor: User,
+): Promise<SaveOpponentAnalysisResult> {
+    if (isDemoAuthEnabled()) return (await demoService()).saveOpponentAnalysis(boutId, input, actor);
+    if (!platformFeatureAvailable("bouts")) unsupportedOperation("Saving opponent analysis", "bouts");
+
+    try {
+        await authenticatedMutableApiRequest(
+            `/bouts/${encodeURIComponent(boutId)}/opponent-analysis`,
+            z.unknown(),
+            {
+                method: "PUT",
+                body: JSON.stringify(input),
+            },
+        );
+        return { ok: true };
+    } catch (error: unknown) {
+        if (isNotFound(error)) return { ok: false, error: "BOUT_NOT_FOUND" };
+        const err = error as { status?: number; responseBody?: { code?: string } };
+        if (err?.status === 409) return { ok: false, error: "BOUT_INVALID_TRANSITION" };
+        if (err?.status === 422 || err?.status === 400) {
+            return { ok: false, error: err.responseBody?.code ?? "BOUT_ANALYSIS_INVALID" };
         }
         throw error;
     }

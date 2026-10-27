@@ -1,4 +1,4 @@
-import { CalendarClock, CheckCircle2, CircleSlash, ClipboardList, FileText, Info, ShieldAlert, ShieldCheck } from "lucide-react";
+import { CalendarClock, CheckCircle2, CircleSlash, ClipboardList, FileText, Info, ShieldAlert, ShieldCheck, Swords } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -189,27 +189,42 @@ export default async function CoachBoutPage({ params, searchParams }: PageProps<
                 </CardContent>
             </Card>
 
-            {canAccessRingsideTools && (
+            {bout.phase !== "CANCELLED" && (
                 <Card className="mb-6 min-w-0">
                     <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
                         <div className="min-w-0">
-                            <p className="text-sm font-semibold text-fg">{t("boutAnalysis.nav.ringsideTitle")}</p>
-                            <p className="text-xs text-fg-muted">{t("boutAnalysis.nav.ringsideDesc")}</p>
+                            <p className="text-sm font-semibold text-fg">
+                                {t(canAccessRingsideTools ? "boutAnalysis.nav.ringsideTitle" : "boutAnalysis.nav.analysisTitle")}
+                            </p>
+                            <p className="text-xs text-fg-muted">
+                                {t(canAccessRingsideTools ? "boutAnalysis.nav.ringsideDesc" : "boutAnalysis.nav.analysisDesc")}
+                            </p>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
+                            {canAccessRingsideTools && (
+                                <>
+                                    <Link
+                                        href={`${routes.coach.bout(bout.id)}/corner-card`}
+                                        className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3.5 text-xs font-semibold text-primary-fg transition hover:opacity-90"
+                                    >
+                                        <FileText aria-hidden className="size-3.5 shrink-0" />
+                                        <span>{t("boutAnalysis.nav.cornerCard")}</span>
+                                    </Link>
+                                    <Link
+                                        href={`${routes.coach.bout(bout.id)}/rounds`}
+                                        className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3.5 text-xs font-semibold text-fg transition hover:bg-surface-muted"
+                                    >
+                                        <ClipboardList aria-hidden className="size-3.5 shrink-0" />
+                                        <span>{t("boutAnalysis.nav.rounds")}</span>
+                                    </Link>
+                                </>
+                            )}
                             <Link
-                                href={`${routes.coach.bout(bout.id)}/corner-card`}
-                                className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3.5 text-xs font-semibold text-primary-fg transition hover:opacity-90"
-                            >
-                                <FileText aria-hidden className="size-3.5 shrink-0" />
-                                <span>{t("boutAnalysis.nav.cornerCard")}</span>
-                            </Link>
-                            <Link
-                                href={`${routes.coach.bout(bout.id)}/rounds`}
+                                href={`${routes.coach.bout(bout.id)}/opponent-analysis`}
                                 className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3.5 text-xs font-semibold text-fg transition hover:bg-surface-muted"
                             >
-                                <ClipboardList aria-hidden className="size-3.5 shrink-0" />
-                                <span>{t("boutAnalysis.nav.rounds")}</span>
+                                <Swords aria-hidden className="size-3.5 shrink-0" />
+                                <span>{t("boutAnalysis.nav.opponentAnalysis")}</span>
                             </Link>
                         </div>
                     </CardContent>
