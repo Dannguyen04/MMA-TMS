@@ -9,6 +9,7 @@ import { routes } from "@/lib/routes";
 import { getBoutAnalysisDetail } from "@/lib/services/bout-analysis";
 import { getCampBout } from "@/lib/services/bouts";
 import { getFighter } from "@/lib/services/people";
+import { listSessions } from "@/lib/services/training";
 import { OpponentAnalysisView } from "./opponent-analysis-view";
 
 interface PageProps {
@@ -34,14 +35,19 @@ export default async function CoachOpponentAnalysisPage({ params }: PageProps) {
         notFound();
     }
 
-    const [fighter, analysisDetail] = await Promise.all([
+    const [fighter, analysisDetail, sessions] = await Promise.all([
         getFighter(bout.fighterId),
         getBoutAnalysisDetail(boutId),
+        listSessions({ fighterIds: [bout.fighterId], from: bout.campStartedOn || undefined }),
     ]);
 
     if (!fighter) {
         notFound();
     }
+
+    const campSessions = sessions
+        .filter((s) => s.status !== "cancelled")
+        .map((s) => ({ id: s.id, title: s.title, type: s.type, scheduledAt: s.scheduledAt }));
 
     const analysis = analysisDetail?.opponentAnalysis ?? { observations: [], tactics: [] };
     const locked = bout.phase === "COMPLETED" || bout.phase === "CANCELLED";
@@ -68,6 +74,9 @@ export default async function CoachOpponentAnalysisPage({ params }: PageProps) {
                 analysis={analysis}
                 locked={locked}
                 canOpenCornerCard={canOpenCornerCard}
+                fighterName={fighter.name}
+                fighter={{ stance: fighter.stance, heightCm: fighter.heightCm, reachCm: fighter.reachCm, record: fighter.record }}
+                sessions={campSessions}
             />
         </div>
     );

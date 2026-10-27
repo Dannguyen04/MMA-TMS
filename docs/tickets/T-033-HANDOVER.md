@@ -14,6 +14,11 @@
 - `.../[boutId]/page.tsx`: thẻ lối vào hiện ở mọi phase trừ `CANCELLED`; link "Phân tích đối thủ" luôn có, thẻ góc đài và ghi hiệp vẫn chỉ ở `WEIGHED_IN`/`COMPLETED`.
 - `.../corner-card/corner-card-view.tsx`: link "Phân tích đối thủ".
 - `nextjs-frontend/src/lib/i18n/messages/bout-analysis.{en,vi}.ts`: chữ mới.
+- **Mở rộng (mục 8–12 của ticket):**
+  - `nextjs-frontend/src/lib/domain/opponent-analysis-insights.ts` (+ test, 8 ca): `tacticInsights` (dùng `buildCornerCard`), `planFindings` (P1–P6), `matchupNotes` (C1–C4).
+  - `opponent-analysis-form.ts`: nhận `profile` và `sessionIds` từ form; form không gửi thì giữ giá trị cũ; bỏ buổi tập trùng.
+  - `page.tsx`: nạp buổi tập của võ sĩ từ `campStartedOn` (bỏ buổi huỷ) và chỉ số của võ sĩ.
+  - `opponent-analysis-view.tsx`: hai cột; trái là hồ sơ, quan sát, chiến thuật (nhãn tự tính, chọn buổi tập); phải (dính khi cuộn) là "App kiểm tra kế hoạch" và "App so sánh", cập nhật khi nhập.
 
 ## Đối chiếu tiêu chí nghiệm thu
 
@@ -28,13 +33,16 @@ Kiểm bằng Playwright (Chrome) trên demo mode, `next dev -p 3002`:
 | 5. Link ở trận đang `CAMP` | PASS: `/coach/bouts/b-emma-nordic` |
 | 6. Test của hàm thuần | `opponent-analysis-form.test.ts`, 9 test |
 | 7. Không thêm lỗi so với baseline | Xem dưới |
+| Mở rộng: so sánh hồ sơ | PASS: "Đối thủ đánh tay trái…", "Sải tay võ sĩ mình dài hơn 9 cm…" (Diego 185 cm, đối thủ 176 cm) |
+| Mở rộng: kiểm tra kế hoạch | PASS: 2 dòng "Chiến thuật chưa có buổi tập"; thêm sơ hở mới thì hiện "Sơ hở chưa có chiến thuật khai thác", chọn nó làm căn cứ thì dòng đó mất |
+| Mở rộng: gắn buổi tập | PASS: 18 buổi của camp; chọn một buổi thì nhãn "Chưa luyện" mất; lưu xong thẻ góc đài ghi "Đã luyện" và xếp chiến thuật đó lên trước chiến thuật chưa luyện |
 
 ## Lệnh đã chạy
 
 ```text
-$ pnpm --filter nextjs-frontend exec vitest run src/lib/domain/opponent-analysis-form.test.ts
- Test Files  1 passed (1)
-      Tests  9 passed (9)
+$ pnpm --filter nextjs-frontend exec vitest run src/lib/domain/opponent-analysis-form.test.ts src/lib/domain/opponent-analysis-insights.test.ts
+ Test Files  2 passed (2)
+      Tests  17 passed (17)
 
 $ pnpm --filter nextjs-frontend lint
 $ eslint
@@ -46,8 +54,8 @@ $ next typegen && tsc --noEmit
 (exit 0)
 
 $ pnpm --filter nextjs-frontend test
- Test Files  103 passed | 1 skipped (104)
-      Tests  939 passed | 2 skipped (941)
+ Test Files  104 passed | 1 skipped (105)
+      Tests  947 passed | 2 skipped (949)
 ```
 
 ## Lệch so với ticket
@@ -56,6 +64,9 @@ $ pnpm --filter nextjs-frontend test
 - Kiểm tra chạy ở server action (cùng hàm thuần), không chạy trước ở client: `prepare` của `useActionForm` giữ closure của lần render đầu nên đọc `draft` cũ.
 
 ## Câu hỏi / việc còn mở
+
+- Quy tắc P1–P6, C1–C4 và các ngưỡng (`MIN_TACTICS`, `REACH_GAP_CM`, `HEIGHT_GAP_CM`) là đề xuất của nhóm, chưa có trong [Luồng nghiệp vụ](../FIGHT-CAMP-BUSINESS-FLOWS.md); cần ghi vào tài liệu và chờ HLV chuyên môn duyệt như R20–R24.
+- Dữ liệu demo của trận Diego gắn `ts-1`, `ts-2` không có trong lịch tập demo, nên màn hiện "1 buổi tập khác đã gắn".
 
 - `typecheck` báo "Demo and mock pipeline modes are disabled in production builds" nếu worktree có `.env.local` đặt `APP_DATA_MODE=demo`, vì `next typegen` chạy ở chế độ production. Không phải lỗi của ticket; chạy typecheck khi không có file đó.
 - Trang ghi hiệp có sẵn cũng không giữ được thông báo "Đã lưu hiệp N." sau khi lưu (cùng nguyên nhân mount lại); ngoài phạm vi.

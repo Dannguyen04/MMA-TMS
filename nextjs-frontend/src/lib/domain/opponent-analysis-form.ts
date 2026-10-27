@@ -1,12 +1,20 @@
 import { z } from "zod";
 
 import type { MessageKey, Translator } from "@/lib/i18n/translate";
-import { observationSchema, tacticSchema, type OpponentAnalysis, type OpponentObservation, type OpponentTactic } from "./round-advice";
+import {
+    observationSchema,
+    opponentProfileSchema,
+    tacticSchema,
+    type OpponentAnalysis,
+    type OpponentObservation,
+    type OpponentProfile,
+    type OpponentTactic,
+} from "./round-advice";
 
 export const MAX_OBSERVATIONS = 6;
 export const MAX_TACTICS = 5;
 
-export type OpponentAnalysisForm = { observations: OpponentObservation[]; tactics: OpponentTactic[] };
+export type OpponentAnalysisForm = { profile?: OpponentProfile; observations: OpponentObservation[]; tactics: OpponentTactic[] };
 export type OpponentAnalysisInput = {
     profile: NonNullable<OpponentAnalysis["profile"]>;
     observations: OpponentObservation[];
@@ -19,15 +27,19 @@ export function nextAnalysisId(prefix: "obs" | "tac", ids: readonly string[]): s
 }
 export function removeObservation(form: OpponentAnalysisForm, id: string): OpponentAnalysisForm {
     return {
+        ...form,
         observations: form.observations.filter((o) => o.id !== id),
         tactics: form.tactics.map((t) => ({ ...t, observationIds: t.observationIds.filter((basis) => basis !== id) })),
     };
 }
-/** Whitelist editable fields; restore hidden data from the current server record. */
+/** Whitelist editable fields; restore data the form did not send from the current server record. */
 export function buildOpponentAnalysisInput(raw: unknown, existing: OpponentAnalysis, scheduledRounds: number | null) {
     const parsed = z.object({
+        profile: opponentProfileSchema.optional(),
         observations: z.array(observationSchema).max(MAX_OBSERVATIONS),
-        tactics: z.array(tacticSchema.omit({ sessionIds: true, review: true })).max(MAX_TACTICS),
+        tactics: z
+            .array(tacticSchema.omit({ review: true }).extend({ sessionIds: z.array(z.string()).optional() }))
+            .max(MAX_TACTICS),
     }).safeParse(raw);
     if (!parsed.success) return parsed;
     const issues: z.core.$ZodIssue[] = [];
@@ -50,7 +62,7 @@ export function buildOpponentAnalysisInput(raw: unknown, existing: OpponentAnaly
     });
     if (issues.length) return { success: false as const, error: new z.ZodError(issues) };
     const data: OpponentAnalysisInput = {
-        profile: { ...(existing.profile ?? {}) },
+        profile: { ...(parsed.data.profile ?? existing.profile ?? {}) },
         observations: parsed.data.observations.map((o) => ({
             ...o,
             evidenceTime: existing.observations?.find((old) => old.id === o.id)?.evidenceTime ?? null,
@@ -59,7 +71,7 @@ export function buildOpponentAnalysisInput(raw: unknown, existing: OpponentAnaly
         })),
         tactics: parsed.data.tactics.map((t) => ({
             ...t,
-            sessionIds: [...(existing.tactics?.find((old) => old.id === t.id)?.sessionIds ?? [])],
+            sessionIds: [...new Set(t.sessionIds ?? existing.tactics?.find((old) => old.id === t.id)?.sessionIds ?? [])],
         })),
     };
     return { success: true as const, data };

@@ -85,14 +85,13 @@ describe("buildOpponentAnalysisInput", () => {
         });
     });
 
-    it("keeps profile, sessionIds and evidenceTime from the server and drops review", () => {
+    it("keeps profile, sessionIds and evidenceTime from the server when the form omits them, and drops review", () => {
+        const withoutSessions: Partial<OpponentTactic> = tac("t1", ["o1"], { text: "Edited" });
+        delete withoutSessions.sessionIds;
         const result = buildOpponentAnalysisInput(
             {
                 observations: [obs("o1", { evidenceTime: "99:99" }), obs("obs-1")],
-                tactics: [
-                    { ...tac("t1", ["o1"], { text: "Edited" }), sessionIds: ["forged"], review: { outcome: "INEFFECTIVE" } },
-                    tac("tac-1", ["obs-1"]),
-                ],
+                tactics: [{ ...withoutSessions, review: { outcome: "INEFFECTIVE" } }, tac("tac-1", ["obs-1"])],
             },
             existing,
             3,
@@ -103,6 +102,21 @@ describe("buildOpponentAnalysisInput", () => {
         expect(result.data.tactics[0]).toMatchObject({ id: "t1", text: "Edited", sessionIds: ["11111111-1111-4111-8111-111111111111"] });
         expect(result.data.tactics[0]).not.toHaveProperty("review");
         expect(result.data.tactics[1]?.sessionIds).toEqual([]);
+    });
+
+    it("uses the profile and session links the form sends, without duplicate sessions", () => {
+        const result = buildOpponentAnalysisInput(
+            {
+                profile: { stance: "ORTHODOX", reachCm: 190 },
+                observations: [obs("o1")],
+                tactics: [tac("t1", ["o1"], { sessionIds: ["s-1", "s-1", "s-2"] })],
+            },
+            existing,
+            3,
+        );
+        if (!result.success) throw new Error("expected success");
+        expect(result.data.profile).toEqual({ stance: "ORTHODOX", reachCm: 190 });
+        expect(result.data.tactics[0]?.sessionIds).toEqual(["s-1", "s-2"]);
     });
 });
 

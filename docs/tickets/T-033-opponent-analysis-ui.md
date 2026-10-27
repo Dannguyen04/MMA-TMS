@@ -26,9 +26,23 @@ Thẻ góc đài và lời dặn giữa hiệp (T-010B) dựng từ phân tích 
 6. **Lối vào** ở `nextjs-frontend/src/app/(app)/coach/bouts/[boutId]/page.tsx`: link "Phân tích đối thủ" hiện ở **mọi** phase trừ `CANCELLED` (khác thẻ ring-side hiện chỉ ở `WEIGHED_IN`/`COMPLETED`). Thêm cùng link ở đầu trang thẻ góc đài.
 7. **Chữ giao diện** vào `nextjs-frontend/src/lib/i18n/messages/bout-analysis.vi.ts` và `.en.ts`, không viết cứng.
 
+### Mở rộng 27/10 (chủ dự án yêu cầu: màn chỉ là form nhập thì "sơ sài")
+
+8. **Hồ sơ đối thủ** (E2 phần 1): thành tích, tư thế, phong cách, chiều cao, sải tay, nguồn. Không bắt buộc.
+9. **Gắn chiến thuật với buổi tập** (E2 phần 4): mỗi chiến thuật chọn buổi tập của võ sĩ từ ngày bắt đầu camp (`listSessions`, bỏ buổi đã huỷ). Backend đã kiểm buổi tập thuộc võ sĩ (`OPPONENT_SESSION_INVALID`).
+10. **Nhãn tự tính trên từng chiến thuật**, tính từ bản nháp bằng chính `buildCornerCard`: thứ tự trên thẻ góc đài, "Căn cứ lặp lại"/"Quan sát 1 lần", "Đã luyện"/"Chưa luyện".
+11. **App kiểm tra kế hoạch**, cập nhật khi nhập, hàm thuần `lib/domain/opponent-analysis-insights.ts`. Quy tắc **đề xuất, chờ HLV chuyên môn duyệt**, ngưỡng là hằng số có tên:
+    - P1: quan sát loại *Sơ hở* chưa có chiến thuật nào dùng làm căn cứ.
+    - P2: quan sát loại *Điểm mạnh* chưa có chiến thuật nào dùng làm căn cứ (chưa có cách phòng).
+    - P3: chiến thuật chỉ dựa trên quan sát thấy 1 lần.
+    - P4: chiến thuật chưa có buổi tập (R14).
+    - P5: mọi chiến thuật đều gắn hiệp cụ thể mà còn hiệp không có chiến thuật nào.
+    - P6: ít hơn `MIN_TACTICS` = 3 chiến thuật (E2: 3–5).
+12. **App so sánh hồ sơ** với võ sĩ mình (đề xuất): C1 khác tư thế (thuận gặp nghịch) hoặc đối thủ đổi tư thế; C2 chênh sải tay ≥ `REACH_GAP_CM` = 5; C3 chênh chiều cao ≥ `HEIGHT_GAP_CM` = 5; C4 số trận hai bên.
+
 ## Ngoài phạm vi
 
-Gắn chiến thuật với buổi tập (phần 4 của E2), đánh giá sau trận (phần 5), sửa hồ sơ đối thủ (phần 1), màn cho võ sĩ. Sửa backend, migration. Cài thư viện. Sửa `round-advice.ts` ngoài việc import.
+Đánh giá sau trận (phần 5), màn cho võ sĩ. Sửa backend, migration. Cài thư viện. Sửa `round-advice.ts` ngoài việc import.
 
 ## Tiêu chí nghiệm thu
 
