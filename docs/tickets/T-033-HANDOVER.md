@@ -20,6 +20,17 @@
   - `page.tsx`: nạp buổi tập của võ sĩ từ `campStartedOn` (bỏ buổi huỷ) và chỉ số của võ sĩ.
   - `opponent-analysis-view.tsx`: hai cột; trái là hồ sơ, quan sát, chiến thuật (nhãn tự tính, chọn buổi tập); phải (dính khi cuộn) là "App kiểm tra kế hoạch" và "App so sánh", cập nhật khi nhập.
 
+## Thiết kế lại giao diện (27/10, sau góp ý của chủ dự án)
+
+Đo bản trước ở 390 px: trang cao 8,2 màn hình, 130 ô nhập (88 checkbox), 94 vùng bấm dưới 24 px, khung "App kiểm tra kế hoạch" nằm dưới nút Lưu (y = 6.017). Bản mới:
+
+- Thứ tự theo việc của HLV: **kế hoạch còn thiếu gì** (đầu trang trên điện thoại, cột phải dính trên desktop) → đối thủ (một dòng tóm tắt + bảng số đo, bấm "Sửa" mới mở form) → quan sát → chiến thuật.
+- Quan sát và chiến thuật hiện dạng dòng đọc nhanh (QSn, loại, mức chắc chắn, bằng chứng, "Căn cứ của chiến thuật #n"; chiến thuật: căn cứ, hiệp, trạng thái tập, thứ tự trên thẻ). Bấm dòng mới mở trình sửa; dòng có lỗi tự mở và viền đỏ.
+- Loại, mức chắc chắn, hiệp, tư thế: nút chọn một chạm thay cho dropdown. Căn cứ và buổi tập: nút bật/tắt cao 44 px thay cho checkbox; buổi tập nằm trong mục thu gọn "Chọn buổi tập (n đã gắn · m đã tập)", chia nhóm "Đã tập" / "Chưa tập".
+- Cảnh báo cần sửa luôn hiện; gợi ý (mức info) thu gọn sau "Xem n gợi ý". Mỗi dòng có nút hành động.
+- Thanh Lưu dính đáy (trên thanh tab điện thoại), báo "Có thay đổi chưa lưu".
+- Đo lại ở 390 px: trang 3,0 màn hình; kiểm tra kế hoạch ở y = 311; nút Lưu trong màn đầu; 0 vùng bấm dưới 36 px. Desktop 1280 px: 1,8 màn hình.
+
 ## Đối chiếu tiêu chí nghiệm thu
 
 Kiểm bằng Playwright (Chrome) trên demo mode, `next dev -p 3002`:

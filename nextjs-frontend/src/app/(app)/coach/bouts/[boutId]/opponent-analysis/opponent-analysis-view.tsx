@@ -1,17 +1,31 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { CheckCircle2, Eye, FileText, Info, Plus, Scale, ShieldCheck, Swords, Trash2, TriangleAlert, UserRound } from "lucide-react";
+import {
+    Check,
+    CheckCircle2,
+    ChevronDown,
+    ChevronRight,
+    FileText,
+    Info,
+    Link2,
+    NotebookPen,
+    Pencil,
+    Plus,
+    ShieldCheck,
+    Trash2,
+    TriangleAlert,
+} from "lucide-react";
 
 import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Field, FormMessage, Input, Select } from "@/components/ui/form";
+import { Card, CardContent } from "@/components/ui/card";
+import { Field, FormMessage, Input, Select, Textarea } from "@/components/ui/form";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useToast } from "@/components/ui/toast";
-import { useActionForm } from "@/components/ui/use-action-form";
+import { useActionForm, type ActionForm } from "@/components/ui/use-action-form";
 import { saveOpponentAnalysisAction } from "@/lib/actions/bout-analysis";
 import { trainingTypeLabel } from "@/lib/domain/labels";
 import {
@@ -28,12 +42,14 @@ import {
     type FighterSide,
     type MatchupRow,
     type PlanFinding,
+    type TacticInsight,
 } from "@/lib/domain/opponent-analysis-insights";
 import type { OpponentAnalysis, OpponentObservation, OpponentProfile, OpponentTactic } from "@/lib/domain/round-advice";
 import type { TrainingType } from "@/lib/domain/types";
 import { formatDate } from "@/lib/format";
 import type { Translator } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
+import { cn } from "@/lib/utils";
 
 export interface CampSessionOption {
     id: string;
@@ -50,14 +66,24 @@ interface OpponentAnalysisViewProps {
     locked: boolean;
     canOpenCornerCard: boolean;
     fighterName: string;
+    opponentName: string;
     fighter: FighterSide;
     sessions: CampSessionOption[];
 }
+
+type OpenItem = { kind: "profile" } | { kind: "obs" | "tac"; id: string } | null;
+type Form = ActionForm<undefined>;
 
 const KINDS: OpponentObservation["kind"][] = ["STRENGTH", "OPENING", "HABIT"];
 const CONFIDENCES: OpponentObservation["confidence"][] = ["ONCE", "REPEATED"];
 const STANCES = ["ORTHODOX", "SOUTHPAW", "SWITCH"] as const;
 const STYLES = ["STRIKER", "WRESTLER", "GRAPPLER", "ALL_ROUND"] as const;
+const FIGHTER_STANCE_KEY = { orthodox: "ORTHODOX", southpaw: "SOUTHPAW", switch: "SWITCH" } as const;
+const KIND_TONE = { STRENGTH: "danger", OPENING: "success", HABIT: "info" } as const;
+
+/** Rows and toggles share one touch-sized style (44px min height). */
+const TOGGLE =
+    "flex min-h-11 w-full min-w-0 items-center gap-2.5 rounded-lg border px-3 py-2 text-left text-sm transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60";
 
 function allIds(form: OpponentAnalysisForm): string[] {
     return [...form.observations, ...form.tactics].map((x) => x.id);
@@ -66,7 +92,13 @@ function allIds(form: OpponentAnalysisForm): string[] {
 /** Empty inputs drop the field so the backend's optional profile fields stay unset. */
 function numberOrUndefined(value: string): number | undefined {
     const n = Number(value);
-    return value.trim() === "" || !Number.isFinite(n) || n < 0 ? undefined : n;
+    return value.trim() === "" || !Number.isFinite(n) || n <= 0 ? undefined : n;
+}
+
+/** Lower-cases the first letter so an observation reads inside "When the opponent …". */
+function asClause(text: string): string {
+    const trimmed = text.trim().replace(/\.+$/, "");
+    return trimmed.charAt(0).toLocaleLowerCase() + trimmed.slice(1);
 }
 
 function findingText(t: Translator, f: PlanFinding): string {
@@ -79,8 +111,6 @@ function findingText(t: Translator, f: PlanFinding): string {
             return t(`boutAnalysis.analysis.check.${f.code}`, { text: f.text || "—" });
     }
 }
-
-const FIGHTER_STANCE_KEY = { orthodox: "ORTHODOX", southpaw: "SOUTHPAW", switch: "SWITCH" } as const;
 
 function matchupCells(t: Translator, row: MatchupRow): [label: string, opponent: string, fighter: string, diff: string] {
     if (row.field === "stance") {
@@ -95,12 +125,6 @@ function matchupCells(t: Translator, row: MatchupRow): [label: string, opponent:
     return [t(`boutAnalysis.analysis.${row.field}`), String(row.opponent), String(row.fighter), diff];
 }
 
-/** Lower-cases the first letter so an observation reads inside "When the opponent …". */
-function asClause(text: string): string {
-    const trimmed = text.trim().replace(/\.+$/, "");
-    return trimmed.charAt(0).toLocaleLowerCase() + trimmed.slice(1);
-}
-
 export function OpponentAnalysisView({
     boutId,
     scheduledRounds,
@@ -108,30 +132,38 @@ export function OpponentAnalysisView({
     locked,
     canOpenCornerCard,
     fighterName,
+    opponentName,
     fighter,
     sessions,
 }: OpponentAnalysisViewProps) {
     const t = useT();
-    const locale = useLocale();
     const toast = useToast();
-    const [draft, setDraft] = useState<OpponentAnalysisForm>(() => ({
+    const [initial] = useState<OpponentAnalysisForm>(() => ({
         profile: analysis.profile ?? {},
         observations: analysis.observations ?? [],
         tactics: analysis.tactics ?? [],
     }));
+    const [draft, setDraft] = useState<OpponentAnalysisForm>(initial);
+    const [open, setOpen] = useState<OpenItem>(null);
+    const [showTips, setShowTips] = useState(false);
     // Validation runs in the server action (same helper), which returns per-row field errors.
     // Saving revalidates this page and remounts the form, so success is a toast rather than form state.
     const form = useActionForm(saveOpponentAnalysisAction, {
         id: "opponent-analysis-form",
         onSuccess: (state) => toast({ tone: "success", title: state.message ?? t("boutAnalysis.analysis.action.saved") }),
     });
-    const roundNumbers = Array.from({ length: scheduledRounds ?? 0 }, (_, idx) => idx + 1);
-    const sessionIds = new Set(sessions.map((s) => s.id));
-    const completedSessionIds = useMemo(() => new Set(sessions.filter((s) => s.completed).map((s) => s.id)), [sessions]);
 
+    const completedSessionIds = useMemo(() => new Set(sessions.filter((s) => s.completed).map((s) => s.id)), [sessions]);
     const insights = useMemo(() => tacticInsights(draft, completedSessionIds), [draft, completedSessionIds]);
     const findings = useMemo(() => planFindings(draft, scheduledRounds, completedSessionIds), [draft, scheduledRounds, completedSessionIds]);
     const matchup = useMemo(() => matchupRows(draft.profile, fighter), [draft.profile, fighter]);
+    const dirty = useMemo(() => JSON.stringify(draft) !== JSON.stringify(initial), [draft, initial]);
+
+    const errorKeys = form.state.status === "error" ? Object.keys(form.state.fieldErrors ?? {}) : [];
+    const hasError = (prefix: string) => errorKeys.some((k) => k.startsWith(prefix) && form.error(k));
+    const obsNumber = new Map(draft.observations.map((o, i) => [o.id, i + 1]));
+    const tacNumber = new Map(draft.tactics.map((x, i) => [x.id, i + 1]));
+    const isOpen = (kind: "obs" | "tac", id: string) => open?.kind === kind && open.id === id;
 
     function updateProfile(patch: Partial<OpponentProfile>) {
         setDraft((d) => {
@@ -143,22 +175,30 @@ export function OpponentAnalysisView({
         });
     }
 
-    function updateObservation(index: number, patch: Partial<OpponentObservation>) {
-        setDraft((d) => ({ ...d, observations: d.observations.map((o, i) => (i === index ? { ...o, ...patch } : o)) }));
+    function updateObservation(id: string, patch: Partial<OpponentObservation>) {
+        setDraft((d) => ({ ...d, observations: d.observations.map((o) => (o.id === id ? { ...o, ...patch } : o)) }));
     }
 
-    function updateTactic(index: number, patch: Partial<OpponentTactic>) {
-        setDraft((d) => ({ ...d, tactics: d.tactics.map((x, i) => (i === index ? { ...x, ...patch } : x)) }));
+    function updateTactic(id: string, patch: Partial<OpponentTactic>) {
+        setDraft((d) => ({ ...d, tactics: d.tactics.map((x) => (x.id === id ? { ...x, ...patch } : x)) }));
+    }
+
+    function reveal(kind: "obs" | "tac", id: string) {
+        setOpen({ kind, id });
+        window.requestAnimationFrame(() => {
+            const row = document.getElementById(`${kind}-${id}`);
+            row?.scrollIntoView({ behavior: "smooth", block: "start" });
+            row?.querySelector<HTMLElement>("textarea, input")?.focus({ preventScroll: true });
+        });
     }
 
     function addObservation() {
+        const id = nextAnalysisId("obs", allIds(draft));
         setDraft((d) => ({
             ...d,
-            observations: [
-                ...d.observations,
-                { id: nextAnalysisId("obs", allIds(d)), kind: "OPENING", text: "", evidenceUrl: null, evidenceNote: null, confidence: "ONCE" },
-            ],
+            observations: [...d.observations, { id, kind: "OPENING", text: "", evidenceUrl: null, evidenceNote: null, confidence: "ONCE" }],
         }));
+        reveal("obs", id);
     }
 
     function addTactic(seed?: { text: string; observationId: string }) {
@@ -170,89 +210,800 @@ export function OpponentAnalysisView({
                 { id, text: seed?.text ?? "", round: null, observationIds: seed ? [seed.observationId] : [], sessionIds: [], partnerBrief: null },
             ],
         }));
-        return id;
+        reveal("tac", id);
     }
 
-    /** Quick fix for an unused opening or unanswered strength: a tactic already based on it, text started. */
-    function createTacticFrom(observationId: string, text: string) {
-        const id = addTactic({ observationId, text: t("boutAnalysis.analysis.tacticFrom", { text: asClause(text) }) });
-        focusTactic(id);
+    function fixAction(f: PlanFinding): ReactNode {
+        if (locked) return null;
+        if (f.code === "OPENING_UNUSED" || f.code === "STRENGTH_UNANSWERED") {
+            return (
+                <Button
+                    variant="secondary"
+                    size="sm"
+                    className="min-h-11 sm:min-h-9"
+                    disabled={draft.tactics.length >= MAX_TACTICS}
+                    onClick={() => addTactic({ observationId: f.observationId, text: t("boutAnalysis.analysis.tacticFrom", { text: asClause(f.text) }) })}
+                >
+                    <Plus aria-hidden className="size-4" />
+                    {t("boutAnalysis.analysis.fix.createTactic")}
+                </Button>
+            );
+        }
+        if (f.code === "UNTRAINED" || f.code === "NOT_YET_PRACTISED" || f.code === "WEAK_BASIS") {
+            return (
+                <Button variant="secondary" size="sm" className="min-h-11 sm:min-h-9" onClick={() => reveal("tac", f.tacticId)}>
+                    {t("boutAnalysis.analysis.fix.goTo")}
+                    <ChevronRight aria-hidden className="size-4" />
+                </Button>
+            );
+        }
+        return null;
     }
 
-    function focusTactic(tacticId: string) {
-        window.requestAnimationFrame(() => {
-            // The tactic text is the first input of its fieldset.
-            const input = document.querySelector<HTMLInputElement>(`#tactic-${tacticId} input`);
-            document.getElementById(`tactic-${tacticId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
-            input?.focus({ preventScroll: true });
-            if (input) input.setSelectionRange(input.value.length, input.value.length);
-        });
-    }
-
-    function toggleIn(list: string[], id: string, checked: boolean): string[] {
-        return checked ? [...list, id] : list.filter((x) => x !== id);
-    }
-
+    const toFix = findings.filter((f) => f.level === "warning");
+    const tips = findings.filter((f) => f.level === "info");
     const profile = draft.profile ?? {};
 
     return (
-        <form {...form.formProps} className="grid min-w-0 grid-cols-1 items-start gap-5 lg:grid-cols-3">
+        <form {...form.formProps} className="flex min-w-0 flex-col gap-5">
             <input type="hidden" name="boutId" value={boutId} />
             <input type="hidden" name="analysis" value={JSON.stringify(draft)} />
 
-            <div className="flex min-w-0 flex-col gap-5 lg:col-span-2">
-                {locked && (
-                    <Card className="min-w-0 border-warning-border bg-warning-soft">
-                        <CardContent className="flex items-start gap-3 p-5 text-xs text-warning-fg">
-                            <TriangleAlert aria-hidden className="mt-0.5 size-5 shrink-0" />
-                            <div className="min-w-0">
-                                <p className="text-sm font-semibold">{t("boutAnalysis.analysis.lockedTitle")}</p>
-                                <p className="mt-1 break-words leading-relaxed">{t("boutAnalysis.analysis.lockedText")}</p>
+            {locked && (
+                <p className="flex items-start gap-2 rounded-lg bg-warning-soft px-3 py-2.5 text-sm text-warning-fg ring-1 ring-inset ring-warning-border">
+                    <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
+                    <span>{t("boutAnalysis.analysis.lockedText")}</span>
+                </p>
+            )}
+            <FormMessage {...form.message} />
+
+            <div className="grid min-w-0 grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
+                {/* 1. What the app derives — first on every screen size */}
+                <section aria-labelledby="plan-health" className="min-w-0 lg:sticky lg:top-4 lg:order-2">
+                    <Card className={cn("min-w-0", toFix.length > 0 ? "border-warning-border" : "border-success-border")}>
+                        <CardContent className="flex flex-col gap-3 p-4">
+                            <div className="flex items-start gap-2.5">
+                                {toFix.length > 0 ? (
+                                    <ShieldCheck aria-hidden className="mt-0.5 size-5 shrink-0 text-warning-fg" />
+                                ) : (
+                                    <CheckCircle2 aria-hidden className="mt-0.5 size-5 shrink-0 text-success-fg" />
+                                )}
+                                <div className="min-w-0">
+                                    <h2 id="plan-health" className="text-base font-semibold text-fg">
+                                        {toFix.length === 0 && tips.length === 0
+                                            ? t("boutAnalysis.analysis.healthOkTitle")
+                                            : t("boutAnalysis.analysis.healthTitle", { fix: toFix.length, tips: tips.length })}
+                                    </h2>
+                                    <p className="text-xs text-fg-muted">{t("boutAnalysis.analysis.checkDesc")}</p>
+                                </div>
                             </div>
+
+                            {toFix.length === 0 && tips.length === 0 && (
+                                <p className="text-sm text-success-fg">{t("boutAnalysis.analysis.checkOk")}</p>
+                            )}
+
+                            {toFix.length > 0 && (
+                                <ul className="flex flex-col gap-3" aria-live="polite">
+                                    {toFix.map((f, idx) => (
+                                        <li key={`${f.code}-${idx}`} className="flex min-w-0 flex-col items-start gap-1.5 border-t border-border pt-3 first:border-t-0 first:pt-0">
+                                            <span className="flex items-start gap-2 text-sm text-fg">
+                                                <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0 text-warning-fg" />
+                                                <span className="min-w-0 break-words">{findingText(t, f)}</span>
+                                            </span>
+                                            <span className="pl-6">{fixAction(f)}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+
+                            {tips.length > 0 && (
+                                <div className="flex flex-col gap-2">
+                                    <button
+                                        type="button"
+                                        aria-expanded={showTips}
+                                        onClick={() => setShowTips((v) => !v)}
+                                        className="inline-flex min-h-11 items-center gap-1.5 self-start text-sm font-semibold text-primary sm:min-h-9"
+                                    >
+                                        <ChevronDown aria-hidden className={cn("size-4 transition", showTips && "rotate-180")} />
+                                        {showTips ? t("boutAnalysis.analysis.hideTips") : t("boutAnalysis.analysis.showTips", { count: tips.length })}
+                                    </button>
+                                    {showTips && (
+                                        <ul className="flex flex-col gap-3">
+                                            {tips.map((f, idx) => (
+                                                <li key={`${f.code}-${idx}`} className="flex min-w-0 flex-col items-start gap-1.5">
+                                                    <span className="flex items-start gap-2 text-sm text-fg-muted">
+                                                        <Info aria-hidden className="mt-0.5 size-4 shrink-0" />
+                                                        <span className="min-w-0 break-words">{findingText(t, f)}</span>
+                                                    </span>
+                                                    <span className="pl-6">{fixAction(f)}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
+                            )}
+
+                            {canOpenCornerCard && (
+                                <Link
+                                    href={`${routes.coach.bout(boutId)}/corner-card`}
+                                    className="inline-flex min-h-11 items-center gap-1.5 self-start text-sm font-semibold text-primary underline-offset-2 hover:underline sm:min-h-9"
+                                >
+                                    <FileText aria-hidden className="size-4" />
+                                    {t("boutAnalysis.nav.cornerCard")}
+                                </Link>
+                            )}
                         </CardContent>
                     </Card>
-                )}
+                </section>
 
-                <FormMessage {...form.message} />
-
-                {/* E2 part 1: opponent profile */}
-                <Card className="min-w-0">
-                    <CardHeader
-                        title={t("boutAnalysis.analysis.profileTitle")}
-                        description={t("boutAnalysis.analysis.profileDesc", { fighter: fighterName })}
-                        icon={<UserRound aria-hidden />}
+                <div className="flex min-w-0 flex-col gap-5 lg:order-1">
+                    {/* 2. Opponent: one summary line, edit on demand */}
+                    <ProfileSection
+                        t={t}
+                        opponentName={opponentName}
+                        fighterName={fighterName}
+                        profile={profile}
+                        matchup={matchup}
+                        editing={open?.kind === "profile"}
+                        locked={locked}
+                        onToggle={() => setOpen(open?.kind === "profile" ? null : { kind: "profile" })}
+                        onChange={updateProfile}
                     />
-                    <CardContent>
-                        <fieldset disabled={locked} className="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-4">
-                            {(["wins", "losses", "draws"] as const).map((key) => (
-                                <Field key={key} label={t(`boutAnalysis.analysis.${key}`)} htmlFor={`profile-${key}`}>
-                                    <Input
-                                        id={`profile-${key}`}
-                                        type="number"
-                                        min={0}
-                                        inputMode="numeric"
-                                        value={profile[key] ?? ""}
-                                        onChange={(e) => updateProfile({ [key]: numberOrUndefined(e.target.value) })}
-                                    />
-                                </Field>
-                            ))}
-                            <Field label={t("boutAnalysis.analysis.stance")} htmlFor="profile-stance">
-                                <Select
-                                    id="profile-stance"
-                                    value={profile.stance ?? ""}
-                                    onChange={(e) => updateProfile({ stance: (e.target.value || undefined) as OpponentProfile["stance"] })}
+
+                    {/* 3. Observations */}
+                    <section aria-labelledby="obs-heading" className="flex min-w-0 flex-col gap-2">
+                        <SectionHeading
+                            id="obs-heading"
+                            title={t("boutAnalysis.analysis.observationsTitle", { count: draft.observations.length, max: MAX_OBSERVATIONS })}
+                            description={t("boutAnalysis.analysis.observationsDesc")}
+                            action={
+                                !locked && (
+                                    <Button variant="secondary" size="sm" className="min-h-11 sm:min-h-9" disabled={draft.observations.length >= MAX_OBSERVATIONS} onClick={addObservation}>
+                                        <Plus aria-hidden className="size-4" />
+                                        {t("boutAnalysis.analysis.addObservation")}
+                                    </Button>
+                                )
+                            }
+                        />
+                        {draft.observations.length === 0 && <EmptyLine>{t("boutAnalysis.analysis.noObservations")}</EmptyLine>}
+                        <ul className="flex flex-col gap-2">
+                            {draft.observations.map((o, i) => {
+                                const users = draft.tactics.filter((x) => x.observationIds.includes(o.id)).map((x) => `#${tacNumber.get(x.id)}`);
+                                const opened = isOpen("obs", o.id) || hasError(`observations.${i}.`);
+                                return (
+                                    <li key={o.id} id={`obs-${o.id}`} className="scroll-mt-20">
+                                        <Card className={cn("min-w-0", hasError(`observations.${i}.`) && "border-danger-border")}>
+                                            <RowSummary
+                                                expanded={opened}
+                                                onClick={() => setOpen(opened ? null : { kind: "obs", id: o.id })}
+                                                lead={t("boutAnalysis.analysis.obsShort", { n: i + 1 })}
+                                                title={o.text || t("boutAnalysis.analysis.untitledObs")}
+                                                muted={!o.text}
+                                                meta={
+                                                    <>
+                                                        <Badge tone={KIND_TONE[o.kind]} size="sm">{t(`boutAnalysis.analysis.kind.${o.kind}`)}</Badge>
+                                                        <Badge tone={o.confidence === "REPEATED" ? "success" : "neutral"} variant="outline" size="sm">
+                                                            {t(`boutAnalysis.analysis.confidence.${o.confidence}`)}
+                                                        </Badge>
+                                                        {o.evidenceUrl ? (
+                                                            <Badge tone="neutral" variant="outline" size="sm" icon={Link2}>{t("boutAnalysis.analysis.hasLink")}</Badge>
+                                                        ) : o.evidenceNote ? (
+                                                            <Badge tone="neutral" variant="outline" size="sm" icon={NotebookPen}>{t("boutAnalysis.analysis.hasNote")}</Badge>
+                                                        ) : (
+                                                            <Badge tone="warning" size="sm">{t("boutAnalysis.analysis.noEvidence")}</Badge>
+                                                        )}
+                                                        <span className="text-xs text-fg-muted">
+                                                            {users.length > 0 ? t("boutAnalysis.analysis.usedBy", { list: users.join(", ") }) : t("boutAnalysis.analysis.notUsed")}
+                                                        </span>
+                                                    </>
+                                                }
+                                                errorText={hasError(`observations.${i}.`) ? t("boutAnalysis.analysis.rowError") : undefined}
+                                            />
+                                            {opened && (
+                                                <ObservationEditor
+                                                    t={t}
+                                                    form={form}
+                                                    index={i}
+                                                    observation={o}
+                                                    locked={locked}
+                                                    onChange={(patch) => updateObservation(o.id, patch)}
+                                                    onRemove={() => {
+                                                        setDraft((d) => removeObservation(d, o.id));
+                                                        form.markEdited("observations");
+                                                        form.markEdited("tactics");
+                                                        setOpen(null);
+                                                    }}
+                                                    onDone={() => setOpen(null)}
+                                                />
+                                            )}
+                                        </Card>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    </section>
+
+                    {/* 4. Tactics */}
+                    <section aria-labelledby="tac-heading" className="flex min-w-0 flex-col gap-2">
+                        <SectionHeading
+                            id="tac-heading"
+                            title={t("boutAnalysis.analysis.tacticsTitle", { count: draft.tactics.length, max: MAX_TACTICS })}
+                            description={t("boutAnalysis.analysis.tacticsDesc")}
+                            action={
+                                !locked && (
+                                    <Button variant="secondary" size="sm" className="min-h-11 sm:min-h-9" disabled={draft.tactics.length >= MAX_TACTICS} onClick={() => addTactic()}>
+                                        <Plus aria-hidden className="size-4" />
+                                        {t("boutAnalysis.analysis.addTactic")}
+                                    </Button>
+                                )
+                            }
+                        />
+                        {draft.tactics.length === 0 && <EmptyLine>{t("boutAnalysis.analysis.noTactics")}</EmptyLine>}
+                        <ul className="flex flex-col gap-2">
+                            {draft.tactics.map((tactic, i) => {
+                                const insight = insights.get(tactic.id);
+                                const errored = hasError(`tactics.${i}.`);
+                                const opened = isOpen("tac", tactic.id) || errored;
+                                return (
+                                    <li key={tactic.id} id={`tac-${tactic.id}`} className="scroll-mt-20">
+                                        <Card className={cn("min-w-0", errored && "border-danger-border")}>
+                                            <RowSummary
+                                                expanded={opened}
+                                                onClick={() => setOpen(opened ? null : { kind: "tac", id: tactic.id })}
+                                                lead={`#${i + 1}`}
+                                                title={tactic.text || t("boutAnalysis.analysis.untitledTactic")}
+                                                muted={!tactic.text}
+                                                meta={<TacticMeta t={t} tactic={tactic} insight={insight} obsNumber={obsNumber} />}
+                                                errorText={errored ? t("boutAnalysis.analysis.rowError") : undefined}
+                                            />
+                                            {opened && (
+                                                <TacticEditor
+                                                    t={t}
+                                                    form={form}
+                                                    index={i}
+                                                    tactic={tactic}
+                                                    observations={draft.observations}
+                                                    scheduledRounds={scheduledRounds}
+                                                    sessions={sessions}
+                                                    locked={locked}
+                                                    onChange={(patch) => updateTactic(tactic.id, patch)}
+                                                    onRemove={() => {
+                                                        setDraft((d) => ({ ...d, tactics: d.tactics.filter((x) => x.id !== tactic.id) }));
+                                                        form.markEdited("tactics");
+                                                        setOpen(null);
+                                                    }}
+                                                    onDone={() => setOpen(null)}
+                                                />
+                                            )}
+                                        </Card>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    </section>
+                </div>
+            </div>
+
+            {/* 5. Save bar stays in reach above the mobile tab bar */}
+            {!locked && (
+                <div className="sticky bottom-20 z-10 -mx-4 flex items-center justify-between gap-3 border-t border-border bg-surface/95 px-4 py-3 backdrop-blur md:bottom-0 md:mx-0 md:rounded-xl md:border">
+                    <span className={cn("text-sm", dirty ? "font-semibold text-fg" : "text-fg-muted")} aria-live="polite">
+                        {dirty ? t("boutAnalysis.analysis.unsaved") : t("boutAnalysis.analysis.allSaved")}
+                    </span>
+                    <SubmitButton size="lg" className="min-h-11" pending={form.pending} pendingLabel={t("boutAnalysis.analysis.saving")}>
+                        {t("boutAnalysis.analysis.save")}
+                    </SubmitButton>
+                </div>
+            )}
+        </form>
+    );
+}
+
+function SectionHeading({ id, title, description, action }: { id: string; title: string; description: string; action?: ReactNode }) {
+    return (
+        <div className="flex flex-wrap items-end justify-between gap-2">
+            <div className="min-w-0">
+                <h2 id={id} className="text-base font-semibold text-fg">{title}</h2>
+                <p className="text-xs text-fg-muted">{description}</p>
+            </div>
+            {action}
+        </div>
+    );
+}
+
+function EmptyLine({ children }: { children: ReactNode }) {
+    return <p className="rounded-lg border border-dashed border-border px-3 py-4 text-sm text-fg-muted">{children}</p>;
+}
+
+/** Collapsed, read-first row; the whole row is the toggle. */
+function RowSummary({
+    expanded,
+    onClick,
+    lead,
+    title,
+    muted,
+    meta,
+    errorText,
+}: {
+    expanded: boolean;
+    onClick(): void;
+    lead: string;
+    title: string;
+    muted?: boolean;
+    meta: ReactNode;
+    errorText?: string;
+}) {
+    return (
+        <button
+            type="button"
+            aria-expanded={expanded}
+            onClick={onClick}
+            className="flex min-h-11 w-full min-w-0 items-start gap-3 rounded-xl p-3 text-left transition hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        >
+            <span className="mt-0.5 inline-flex h-6 min-w-9 shrink-0 items-center justify-center rounded-md bg-surface-muted px-1.5 text-xs font-bold text-fg">
+                {lead}
+            </span>
+            <span className="flex min-w-0 flex-1 flex-col gap-1.5">
+                <span className={cn("break-words text-sm font-medium", muted ? "italic text-fg-muted" : "text-fg")}>{title}</span>
+                <span className="flex flex-wrap items-center gap-1.5">{meta}</span>
+                {errorText && <span className="text-xs font-semibold text-danger-fg">{errorText}</span>}
+            </span>
+            <ChevronDown aria-hidden className={cn("mt-0.5 size-5 shrink-0 text-fg-muted transition", expanded && "rotate-180")} />
+        </button>
+    );
+}
+
+function TacticMeta({
+    t,
+    tactic,
+    insight,
+    obsNumber,
+}: {
+    t: Translator;
+    tactic: OpponentTactic;
+    insight: TacticInsight | undefined;
+    obsNumber: Map<string, number>;
+}) {
+    return (
+        <>
+            {tactic.observationIds.map((id) => (
+                <Badge key={id} tone="neutral" variant="outline" size="sm">
+                    {t("boutAnalysis.analysis.obsShort", { n: obsNumber.get(id) ?? "?" })}
+                </Badge>
+            ))}
+            <Badge tone="neutral" variant="outline" size="sm">
+                {tactic.round === null ? t("boutAnalysis.analysis.allRounds") : t("boutAnalysis.analysis.roundOption", { round: tactic.round })}
+            </Badge>
+            {insight?.practice === "PRACTISED" && <Badge tone="success" size="sm" icon={Check}>{t("boutAnalysis.cornerCard.trainedBadge")}</Badge>}
+            {insight?.practice === "SCHEDULED" && <Badge tone="info" size="sm">{t("boutAnalysis.analysis.practice.SCHEDULED")}</Badge>}
+            {insight?.practice === "NONE" && <Badge tone="warning" size="sm" icon={TriangleAlert}>{t("boutAnalysis.cornerCard.untrainedBadge")}</Badge>}
+            {insight && tactic.observationIds.length > 0 && (
+                <span className="text-xs text-fg-muted">
+                    {t(`boutAnalysis.cornerCard.basis.${insight.basis}`)} · {t("boutAnalysis.analysis.cardOrder", { n: insight.cardOrder })}
+                </span>
+            )}
+        </>
+    );
+}
+
+function EditorFooter({ t, locked, onRemove, onDone }: { t: Translator; locked: boolean; onRemove(): void; onDone(): void }) {
+    return (
+        <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
+            {!locked ? (
+                <Button variant="ghost" size="sm" className="min-h-11 text-danger-fg sm:min-h-9" onClick={onRemove}>
+                    <Trash2 aria-hidden className="size-4" />
+                    {t("boutAnalysis.analysis.remove")}
+                </Button>
+            ) : (
+                <span />
+            )}
+            <Button variant="secondary" size="sm" className="min-h-11 sm:min-h-9" onClick={onDone}>
+                {t("boutAnalysis.analysis.done")}
+            </Button>
+        </div>
+    );
+}
+
+/** Segmented choice for short enums: one tap, no dropdown. */
+function Segmented<T extends string>({
+    label,
+    value,
+    options,
+    onChange,
+    error,
+    name,
+}: {
+    label: string;
+    value: T;
+    options: { value: T; label: string }[];
+    onChange(value: T): void;
+    error?: string;
+    name: string;
+}) {
+    return (
+        <fieldset className="flex min-w-0 flex-col gap-1.5">
+            <legend className="mb-1.5 text-sm font-medium text-fg">{label}</legend>
+            <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={label}>
+                {options.map((o) => {
+                    const selected = o.value === value;
+                    return (
+                        <button
+                            key={o.value}
+                            type="button"
+                            role="radio"
+                            aria-checked={selected}
+                            name={name}
+                            onClick={() => onChange(o.value)}
+                            className={cn(
+                                "inline-flex min-h-11 items-center rounded-lg border px-3 text-sm font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:min-h-9",
+                                selected ? "border-primary bg-primary text-primary-fg" : "border-border bg-surface text-fg hover:bg-surface-hover",
+                            )}
+                        >
+                            {o.label}
+                        </button>
+                    );
+                })}
+            </div>
+            {error && <p role="alert" className="text-xs text-danger-fg">{error}</p>}
+        </fieldset>
+    );
+}
+
+function ObservationEditor({
+    t,
+    form,
+    index,
+    observation: o,
+    locked,
+    onChange,
+    onRemove,
+    onDone,
+}: {
+    t: Translator;
+    form: Form;
+    index: number;
+    observation: OpponentObservation;
+    locked: boolean;
+    onChange(patch: Partial<OpponentObservation>): void;
+    onRemove(): void;
+    onDone(): void;
+}) {
+    const textControl = form.control(`observations.${index}.text`);
+    const urlControl = form.control(`observations.${index}.evidenceUrl`);
+    const noteControl = form.control(`observations.${index}.evidenceNote`);
+    return (
+        <fieldset disabled={locked} className="flex min-w-0 flex-col gap-4 border-t border-border px-3 pb-3 pt-4">
+            <Field label={t("boutAnalysis.analysis.text")} htmlFor={textControl.id} error={form.error(textControl.name)}>
+                <Textarea
+                    {...textControl}
+                    rows={2}
+                    maxLength={300}
+                    value={o.text}
+                    placeholder={t("boutAnalysis.analysis.textPlaceholder")}
+                    onChange={(e) => onChange({ text: e.target.value })}
+                />
+            </Field>
+            <Segmented
+                label={t("boutAnalysis.analysis.kind")}
+                name={`observations.${index}.kind`}
+                value={o.kind}
+                options={KINDS.map((k) => ({ value: k, label: t(`boutAnalysis.analysis.kind.${k}`) }))}
+                onChange={(kind) => onChange({ kind })}
+            />
+            <Segmented
+                label={t("boutAnalysis.analysis.confidence")}
+                name={`observations.${index}.confidence`}
+                value={o.confidence}
+                options={CONFIDENCES.map((c) => ({ value: c, label: t(`boutAnalysis.analysis.confidence.${c}`) }))}
+                onChange={(confidence) => onChange({ confidence })}
+            />
+            <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label={t("boutAnalysis.analysis.evidenceNote")} htmlFor={noteControl.id} error={form.error(noteControl.name)} optional>
+                    <Input
+                        {...noteControl}
+                        value={o.evidenceNote ?? ""}
+                        placeholder={t("boutAnalysis.analysis.evidenceNotePlaceholder")}
+                        onChange={(e) => onChange({ evidenceNote: e.target.value || null })}
+                    />
+                </Field>
+                <Field label={t("boutAnalysis.analysis.evidenceUrl")} htmlFor={urlControl.id} error={form.error(urlControl.name)} optional>
+                    <Input
+                        {...urlControl}
+                        type="url"
+                        inputMode="url"
+                        value={o.evidenceUrl ?? ""}
+                        placeholder="https://"
+                        onChange={(e) => onChange({ evidenceUrl: e.target.value || null })}
+                    />
+                </Field>
+            </div>
+            <EditorFooter t={t} locked={locked} onRemove={onRemove} onDone={onDone} />
+        </fieldset>
+    );
+}
+
+function TacticEditor({
+    t,
+    form,
+    index,
+    tactic,
+    observations,
+    scheduledRounds,
+    sessions,
+    locked,
+    onChange,
+    onRemove,
+    onDone,
+}: {
+    t: Translator;
+    form: Form;
+    index: number;
+    tactic: OpponentTactic;
+    observations: OpponentObservation[];
+    scheduledRounds: number | null;
+    sessions: CampSessionOption[];
+    locked: boolean;
+    onChange(patch: Partial<OpponentTactic>): void;
+    onRemove(): void;
+    onDone(): void;
+}) {
+    const locale = useLocale();
+    const textControl = form.control(`tactics.${index}.text`);
+    const briefControl = form.control(`tactics.${index}.partnerBrief`);
+    const basisError = form.error(`tactics.${index}.observationIds`);
+    const roundError = form.error(`tactics.${index}.round`);
+    const known = new Set(sessions.map((s) => s.id));
+    const linked = tactic.sessionIds.filter((id) => known.has(id));
+    const otherLinked = tactic.sessionIds.length - linked.length;
+    const doneCount = sessions.filter((s) => s.completed && tactic.sessionIds.includes(s.id)).length;
+    const toggle = (list: string[], id: string) => (list.includes(id) ? list.filter((x) => x !== id) : [...list, id]);
+    const groups = [
+        { key: "done", label: t("boutAnalysis.analysis.sessionsDoneGroup"), items: sessions.filter((s) => s.completed) },
+        { key: "upcoming", label: t("boutAnalysis.analysis.sessionsUpcomingGroup"), items: sessions.filter((s) => !s.completed) },
+    ].filter((g) => g.items.length > 0);
+
+    return (
+        <fieldset disabled={locked} className="flex min-w-0 flex-col gap-4 border-t border-border px-3 pb-3 pt-4">
+            <Field label={t("boutAnalysis.analysis.tacticText")} htmlFor={textControl.id} error={form.error(textControl.name)}>
+                <Textarea
+                    {...textControl}
+                    rows={2}
+                    value={tactic.text}
+                    placeholder={t("boutAnalysis.analysis.tacticPlaceholder")}
+                    onChange={(e) => onChange({ text: e.target.value })}
+                />
+            </Field>
+
+            <fieldset className="flex min-w-0 flex-col gap-1.5">
+                <legend className="mb-1.5 text-sm font-medium text-fg">{t("boutAnalysis.analysis.basis")}</legend>
+                {observations.length === 0 ? (
+                    <p className="text-sm text-fg-muted">{t("boutAnalysis.analysis.basisEmpty")}</p>
+                ) : (
+                    <div className="flex flex-col gap-1.5">
+                        {observations.map((o, oi) => {
+                            const on = tactic.observationIds.includes(o.id);
+                            return (
+                                <button
+                                    key={o.id}
+                                    type="button"
+                                    aria-pressed={on}
+                                    onClick={() => {
+                                        onChange({ observationIds: toggle(tactic.observationIds, o.id) });
+                                        form.markEdited(`tactics.${index}.observationIds`);
+                                    }}
+                                    className={cn(TOGGLE, on ? "border-primary bg-primary-soft text-fg" : "border-border bg-surface text-fg hover:bg-surface-hover")}
                                 >
-                                    <option value="">{t("boutAnalysis.analysis.unknown")}</option>
-                                    {STANCES.map((s) => (
-                                        <option key={s} value={s}>{t(`boutAnalysis.analysis.stance.${s}`)}</option>
-                                    ))}
-                                </Select>
-                            </Field>
+                                    <span className={cn("flex size-5 shrink-0 items-center justify-center rounded border", on ? "border-primary bg-primary text-primary-fg" : "border-border")}>
+                                        {on && <Check aria-hidden className="size-3.5" />}
+                                    </span>
+                                    <span className="shrink-0 text-xs font-bold">{t("boutAnalysis.analysis.obsShort", { n: oi + 1 })}</span>
+                                    <span className="min-w-0 truncate">{o.text || t("boutAnalysis.analysis.untitledObs")}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
+                {basisError && <p role="alert" className="text-xs text-danger-fg">{basisError}</p>}
+            </fieldset>
+
+            <Segmented
+                label={t("boutAnalysis.analysis.round")}
+                name={`tactics.${index}.round`}
+                value={tactic.round === null ? "all" : String(tactic.round)}
+                options={[
+                    { value: "all", label: t("boutAnalysis.analysis.allRounds") },
+                    ...Array.from({ length: scheduledRounds ?? 0 }, (_, r) => ({ value: String(r + 1), label: t("boutAnalysis.analysis.roundOption", { round: r + 1 }) })),
+                ]}
+                onChange={(v) => onChange({ round: v === "all" ? null : Number(v) })}
+                error={roundError}
+            />
+
+            <details className="group min-w-0 rounded-lg border border-border">
+                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-sm">
+                    <span className="min-w-0">
+                        <span className="font-medium text-fg">{t("boutAnalysis.analysis.chooseSessions")}</span>
+                        <span className="block text-xs text-fg-muted">
+                            {t("boutAnalysis.analysis.sessionsSummary", { linked: tactic.sessionIds.length, done: doneCount })}
+                            {otherLinked > 0 && ` · ${t("boutAnalysis.analysis.sessionsOther", { count: otherLinked })}`}
+                        </span>
+                    </span>
+                    <ChevronDown aria-hidden className="size-5 shrink-0 text-fg-muted transition group-open:rotate-180" />
+                </summary>
+                <div className="flex max-h-80 flex-col gap-3 overflow-y-auto border-t border-border p-2">
+                    {groups.length === 0 && <p className="px-1 text-sm text-fg-muted">{t("boutAnalysis.analysis.sessionsEmpty")}</p>}
+                    {groups.map((g) => (
+                        <div key={g.key} role="group" aria-labelledby={`sessions-${tactic.id}-${g.key}`} className="flex flex-col gap-1.5">
+                            <p id={`sessions-${tactic.id}-${g.key}`} className="px-1 text-xs font-semibold uppercase tracking-wide text-fg-muted">{g.label}</p>
+                            {g.items.map((s) => {
+                                const on = tactic.sessionIds.includes(s.id);
+                                return (
+                                    <button
+                                        key={s.id}
+                                        type="button"
+                                        aria-pressed={on}
+                                        onClick={() => onChange({ sessionIds: toggle(tactic.sessionIds, s.id) })}
+                                        className={cn(TOGGLE, on ? "border-primary bg-primary-soft" : "border-border bg-surface hover:bg-surface-hover")}
+                                    >
+                                        <span className={cn("flex size-5 shrink-0 items-center justify-center rounded border", on ? "border-primary bg-primary text-primary-fg" : "border-border")}>
+                                            {on && <Check aria-hidden className="size-3.5" />}
+                                        </span>
+                                        <span className="flex min-w-0 flex-col">
+                                            <span className="truncate text-fg">{s.title}</span>
+                                            <span className="text-xs text-fg-muted">
+                                                {formatDate(s.scheduledAt, locale)} · {trainingTypeLabel(t, s.type)}
+                                            </span>
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    ))}
+                </div>
+            </details>
+
+            <Field label={t("boutAnalysis.analysis.partnerBrief")} htmlFor={briefControl.id} error={form.error(briefControl.name)} optional>
+                <Input
+                    {...briefControl}
+                    value={tactic.partnerBrief ?? ""}
+                    placeholder={t("boutAnalysis.analysis.partnerBriefPlaceholder")}
+                    onChange={(e) => onChange({ partnerBrief: e.target.value || null })}
+                />
+            </Field>
+
+            <EditorFooter t={t} locked={locked} onRemove={onRemove} onDone={onDone} />
+        </fieldset>
+    );
+}
+
+function ProfileSection({
+    t,
+    opponentName,
+    fighterName,
+    profile,
+    matchup,
+    editing,
+    locked,
+    onToggle,
+    onChange,
+}: {
+    t: Translator;
+    opponentName: string;
+    fighterName: string;
+    profile: OpponentProfile;
+    matchup: MatchupRow[];
+    editing: boolean;
+    locked: boolean;
+    onToggle(): void;
+    onChange(patch: Partial<OpponentProfile>): void;
+}) {
+    const record = [profile.wins, profile.losses, profile.draws].some((v) => v !== undefined)
+        ? `${profile.wins ?? 0}-${profile.losses ?? 0}-${profile.draws ?? 0}`
+        : null;
+    const summary = [
+        record,
+        profile.stance && t(`boutAnalysis.analysis.stance.${profile.stance}`),
+        profile.style && t(`boutAnalysis.analysis.style.${profile.style}`),
+    ].filter(Boolean);
+
+    return (
+        <section aria-labelledby="profile-heading">
+            <Card className="min-w-0">
+                <CardContent className="flex flex-col gap-3 p-4">
+                    <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                            <h2 id="profile-heading" className="text-base font-semibold text-fg">{opponentName}</h2>
+                            <p className="text-sm text-fg-muted">{summary.length > 0 ? summary.join(" · ") : t("boutAnalysis.analysis.profileEmpty")}</p>
+                        </div>
+                        {!locked && (
+                            <Button variant="secondary" size="sm" className="min-h-11 shrink-0 sm:min-h-9" aria-expanded={editing} onClick={onToggle}>
+                                {editing ? t("boutAnalysis.analysis.done") : (
+                                    <>
+                                        <Pencil aria-hidden className="size-4" />
+                                        {t("boutAnalysis.analysis.edit")}
+                                    </>
+                                )}
+                            </Button>
+                        )}
+                    </div>
+
+                    {matchup.length > 0 && (
+                        <table className="w-full text-sm">
+                            <caption className="sr-only">{t("boutAnalysis.analysis.matchupTitle")}</caption>
+                            <thead>
+                                <tr className="text-left text-xs text-fg-muted">
+                                    <th scope="col" className="pb-1 font-medium"><span className="sr-only">{t("boutAnalysis.analysis.matchupTitle")}</span></th>
+                                    <th scope="col" className="pb-1 font-medium">{t("boutAnalysis.analysis.matchupOpponent")}</th>
+                                    <th scope="col" className="pb-1 font-medium">{fighterName}</th>
+                                    <th scope="col" className="pb-1 text-right font-medium">{t("boutAnalysis.analysis.matchupDiff")}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {matchup.map((row) => {
+                                    const [label, opponent, ours, diff] = matchupCells(t, row);
+                                    return (
+                                        <tr key={row.field} className={cn("border-t border-border", row.notable ? "font-semibold text-warning-fg" : "text-fg")}>
+                                            <th scope="row" className="py-1.5 pr-2 text-left font-medium">
+                                                {label}
+                                                {row.notable && <span className="sr-only"> ({t("boutAnalysis.analysis.matchupNotable")})</span>}
+                                            </th>
+                                            <td className="py-1.5 pr-2">{opponent}</td>
+                                            <td className="py-1.5 pr-2">{ours}</td>
+                                            <td className="py-1.5 text-right tabular-nums">
+                                                {row.notable && <TriangleAlert aria-hidden className="mr-1 inline size-3.5 align-[-2px]" />}
+                                                {diff}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    )}
+
+                    {editing && (
+                        <fieldset disabled={locked} className="flex min-w-0 flex-col gap-4 border-t border-border pt-4">
+                            <Segmented
+                                label={t("boutAnalysis.analysis.stance")}
+                                name="profile.stance"
+                                value={profile.stance ?? ""}
+                                options={[{ value: "", label: t("boutAnalysis.analysis.unknown") }, ...STANCES.map((s) => ({ value: s, label: t(`boutAnalysis.analysis.stance.${s}`) }))]}
+                                onChange={(v) => onChange({ stance: (v || undefined) as OpponentProfile["stance"] })}
+                            />
+                            <div className="grid min-w-0 grid-cols-2 gap-3">
+                                {(["heightCm", "reachCm"] as const).map((key) => (
+                                    <Field key={key} label={t(`boutAnalysis.analysis.${key}`)} htmlFor={`profile-${key}`}>
+                                        <Input
+                                            id={`profile-${key}`}
+                                            type="number"
+                                            min={1}
+                                            inputMode="numeric"
+                                            value={profile[key] ?? ""}
+                                            onChange={(e) => onChange({ [key]: numberOrUndefined(e.target.value) })}
+                                        />
+                                    </Field>
+                                ))}
+                            </div>
+                            <div className="grid min-w-0 grid-cols-3 gap-3">
+                                {(["wins", "losses", "draws"] as const).map((key) => (
+                                    <Field key={key} label={t(`boutAnalysis.analysis.${key}`)} htmlFor={`profile-${key}`}>
+                                        <Input
+                                            id={`profile-${key}`}
+                                            type="number"
+                                            min={0}
+                                            inputMode="numeric"
+                                            value={profile[key] ?? ""}
+                                            onChange={(e) => {
+                                                const n = Number(e.target.value);
+                                                onChange({ [key]: e.target.value === "" || !Number.isInteger(n) || n < 0 ? undefined : n });
+                                            }}
+                                        />
+                                    </Field>
+                                ))}
+                            </div>
                             <Field label={t("boutAnalysis.analysis.style")} htmlFor="profile-style">
                                 <Select
                                     id="profile-style"
                                     value={profile.style ?? ""}
-                                    onChange={(e) => updateProfile({ style: (e.target.value || undefined) as OpponentProfile["style"] })}
+                                    onChange={(e) => onChange({ style: (e.target.value || undefined) as OpponentProfile["style"] })}
                                 >
                                     <option value="">{t("boutAnalysis.analysis.unknown")}</option>
                                     {STYLES.map((s) => (
@@ -260,413 +1011,18 @@ export function OpponentAnalysisView({
                                     ))}
                                 </Select>
                             </Field>
-                            {(["heightCm", "reachCm"] as const).map((key) => (
-                                <Field key={key} label={t(`boutAnalysis.analysis.${key}`)} htmlFor={`profile-${key}`}>
-                                    <Input
-                                        id={`profile-${key}`}
-                                        type="number"
-                                        min={1}
-                                        inputMode="numeric"
-                                        value={profile[key] ?? ""}
-                                        onChange={(e) => updateProfile({ [key]: numberOrUndefined(e.target.value) || undefined })}
-                                    />
-                                </Field>
-                            ))}
-                            <Field label={t("boutAnalysis.analysis.source")} htmlFor="profile-source" className="col-span-2 sm:col-span-4" optional>
+                            <Field label={t("boutAnalysis.analysis.source")} htmlFor="profile-source" optional>
                                 <Input
                                     id="profile-source"
                                     value={profile.source ?? ""}
                                     placeholder={t("boutAnalysis.analysis.sourcePlaceholder")}
-                                    onChange={(e) => updateProfile({ source: e.target.value || undefined })}
+                                    onChange={(e) => onChange({ source: e.target.value || undefined })}
                                 />
                             </Field>
                         </fieldset>
-                    </CardContent>
-                </Card>
-
-                {/* E2 part 2: observations */}
-                <Card className="min-w-0">
-                    <CardHeader
-                        title={t("boutAnalysis.analysis.observationsTitle", { count: draft.observations.length, max: MAX_OBSERVATIONS })}
-                        description={t("boutAnalysis.analysis.observationsDesc")}
-                        icon={<Eye aria-hidden />}
-                    />
-                    <CardContent className="flex min-w-0 flex-col gap-4">
-                        {draft.observations.length === 0 && (
-                            <p className="text-xs text-fg-muted">{t("boutAnalysis.analysis.noObservations")}</p>
-                        )}
-                        {draft.observations.map((o, i) => {
-                            const textControl = form.control(`observations.${i}.text`);
-                            const urlControl = form.control(`observations.${i}.evidenceUrl`);
-                            const noteControl = form.control(`observations.${i}.evidenceNote`);
-                            const kindControl = form.control(`observations.${i}.kind`);
-                            const confidenceControl = form.control(`observations.${i}.confidence`);
-                            return (
-                                <fieldset key={o.id} disabled={locked} className="flex min-w-0 flex-col gap-3 rounded-lg border border-border p-3">
-                                    <div className="flex items-center justify-between gap-2">
-                                        <legend className="text-sm font-semibold text-fg">
-                                            {t("boutAnalysis.analysis.observationLabel", { n: i + 1 })}
-                                        </legend>
-                                        {!locked && (
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => {
-                                                    setDraft((d) => removeObservation(d, o.id));
-                                                    form.markEdited("observations");
-                                                    form.markEdited("tactics");
-                                                }}
-                                            >
-                                                <Trash2 aria-hidden className="size-3.5" />
-                                                {t("boutAnalysis.analysis.remove")}
-                                            </Button>
-                                        )}
-                                    </div>
-                                    <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
-                                        <Field label={t("boutAnalysis.analysis.kind")} htmlFor={kindControl.id} error={form.error(kindControl.name)}>
-                                            <Select
-                                                {...kindControl}
-                                                value={o.kind}
-                                                onChange={(e) => updateObservation(i, { kind: e.target.value as OpponentObservation["kind"] })}
-                                            >
-                                                {KINDS.map((k) => (
-                                                    <option key={k} value={k}>{t(`boutAnalysis.analysis.kind.${k}`)}</option>
-                                                ))}
-                                            </Select>
-                                        </Field>
-                                        <Field label={t("boutAnalysis.analysis.confidence")} htmlFor={confidenceControl.id} error={form.error(confidenceControl.name)}>
-                                            <Select
-                                                {...confidenceControl}
-                                                value={o.confidence}
-                                                onChange={(e) => updateObservation(i, { confidence: e.target.value as OpponentObservation["confidence"] })}
-                                            >
-                                                {CONFIDENCES.map((c) => (
-                                                    <option key={c} value={c}>{t(`boutAnalysis.analysis.confidence.${c}`)}</option>
-                                                ))}
-                                            </Select>
-                                        </Field>
-                                    </div>
-                                    <Field label={t("boutAnalysis.analysis.text")} htmlFor={textControl.id} error={form.error(textControl.name)}>
-                                        <Input
-                                            {...textControl}
-                                            maxLength={300}
-                                            value={o.text}
-                                            placeholder={t("boutAnalysis.analysis.textPlaceholder")}
-                                            onChange={(e) => updateObservation(i, { text: e.target.value })}
-                                        />
-                                    </Field>
-                                    <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
-                                        <Field label={t("boutAnalysis.analysis.evidenceUrl")} htmlFor={urlControl.id} error={form.error(urlControl.name)} optional>
-                                            <Input
-                                                {...urlControl}
-                                                type="url"
-                                                value={o.evidenceUrl ?? ""}
-                                                placeholder="https://"
-                                                onChange={(e) => updateObservation(i, { evidenceUrl: e.target.value || null })}
-                                            />
-                                        </Field>
-                                        <Field label={t("boutAnalysis.analysis.evidenceNote")} htmlFor={noteControl.id} error={form.error(noteControl.name)} optional>
-                                            <Input
-                                                {...noteControl}
-                                                value={o.evidenceNote ?? ""}
-                                                placeholder={t("boutAnalysis.analysis.evidenceNotePlaceholder")}
-                                                onChange={(e) => updateObservation(i, { evidenceNote: e.target.value || null })}
-                                            />
-                                        </Field>
-                                    </div>
-                                </fieldset>
-                            );
-                        })}
-                        {!locked && (
-                            <Button
-                                variant="secondary"
-                                size="sm"
-                                className="w-fit"
-                                disabled={draft.observations.length >= MAX_OBSERVATIONS}
-                                onClick={addObservation}
-                            >
-                                <Plus aria-hidden className="size-3.5" />
-                                {t("boutAnalysis.analysis.addObservation")}
-                            </Button>
-                        )}
-                    </CardContent>
-                </Card>
-
-                {/* E2 parts 3–4: tactics and the sessions that train them */}
-                <Card className="min-w-0">
-                    <CardHeader
-                        title={t("boutAnalysis.analysis.tacticsTitle", { count: draft.tactics.length, max: MAX_TACTICS })}
-                        description={t("boutAnalysis.analysis.tacticsDesc")}
-                        icon={<Swords aria-hidden />}
-                    />
-                    <CardContent className="flex min-w-0 flex-col gap-4">
-                        {draft.tactics.length === 0 && (
-                            <p className="text-xs text-fg-muted">{t("boutAnalysis.analysis.noTactics")}</p>
-                        )}
-                        {draft.tactics.map((tactic, i) => {
-                            const textControl = form.control(`tactics.${i}.text`);
-                            const roundControl = form.control(`tactics.${i}.round`);
-                            const briefControl = form.control(`tactics.${i}.partnerBrief`);
-                            const basisError = form.error(`tactics.${i}.observationIds`);
-                            const insight = insights.get(tactic.id);
-                            const otherSessions = tactic.sessionIds.filter((id) => !sessionIds.has(id)).length;
-                            return (
-                                <fieldset
-                                    key={tactic.id}
-                                    id={`tactic-${tactic.id}`}
-                                    disabled={locked}
-                                    className="flex min-w-0 scroll-mt-4 flex-col gap-3 rounded-lg border border-border p-3"
-                                >
-                                    <div className="flex flex-wrap items-center justify-between gap-2">
-                                        <legend className="text-sm font-semibold text-fg">
-                                            {t("boutAnalysis.analysis.tacticLabel", { n: i + 1 })}
-                                        </legend>
-                                        <div className="flex flex-wrap items-center gap-1.5">
-                                            {insight && tactic.observationIds.length > 0 && (
-                                                <>
-                                                    <Badge tone="info" variant="outline">
-                                                        {t("boutAnalysis.analysis.cardOrder", { n: insight.cardOrder })}
-                                                    </Badge>
-                                                    <Badge tone={insight.basis === "REPEATED" ? "success" : "neutral"} variant="outline">
-                                                        {t(`boutAnalysis.cornerCard.basis.${insight.basis}`)}
-                                                    </Badge>
-                                                </>
-                                            )}
-                                            {insight?.practice === "PRACTISED" && (
-                                                <Badge tone="success" variant="outline">{t("boutAnalysis.cornerCard.trainedBadge")}</Badge>
-                                            )}
-                                            {insight?.practice === "SCHEDULED" && (
-                                                <Badge tone="info" variant="outline">{t("boutAnalysis.analysis.practice.SCHEDULED")}</Badge>
-                                            )}
-                                            {insight?.practice === "NONE" && (
-                                                <Badge tone="warning" icon={TriangleAlert}>{t("boutAnalysis.cornerCard.untrainedBadge")}</Badge>
-                                            )}
-                                            {!locked && (
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => {
-                                                        setDraft((d) => ({ ...d, tactics: d.tactics.filter((x) => x.id !== tactic.id) }));
-                                                        form.markEdited("tactics");
-                                                    }}
-                                                >
-                                                    <Trash2 aria-hidden className="size-3.5" />
-                                                    {t("boutAnalysis.analysis.remove")}
-                                                </Button>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <Field label={t("boutAnalysis.analysis.tacticText")} htmlFor={textControl.id} error={form.error(textControl.name)}>
-                                        <Input
-                                            {...textControl}
-                                            value={tactic.text}
-                                            placeholder={t("boutAnalysis.analysis.tacticPlaceholder")}
-                                            onChange={(e) => updateTactic(i, { text: e.target.value })}
-                                        />
-                                    </Field>
-                                    <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
-                                        <Field label={t("boutAnalysis.analysis.round")} htmlFor={roundControl.id} error={form.error(roundControl.name)}>
-                                            <Select
-                                                {...roundControl}
-                                                value={tactic.round === null ? "" : String(tactic.round)}
-                                                onChange={(e) => updateTactic(i, { round: e.target.value ? Number(e.target.value) : null })}
-                                            >
-                                                <option value="">{t("boutAnalysis.analysis.allRounds")}</option>
-                                                {roundNumbers.map((r) => (
-                                                    <option key={r} value={r}>{t("boutAnalysis.analysis.roundOption", { round: r })}</option>
-                                                ))}
-                                            </Select>
-                                        </Field>
-                                        <Field label={t("boutAnalysis.analysis.partnerBrief")} htmlFor={briefControl.id} error={form.error(briefControl.name)} optional>
-                                            <Input
-                                                {...briefControl}
-                                                value={tactic.partnerBrief ?? ""}
-                                                placeholder={t("boutAnalysis.analysis.partnerBriefPlaceholder")}
-                                                onChange={(e) => updateTactic(i, { partnerBrief: e.target.value || null })}
-                                            />
-                                        </Field>
-                                    </div>
-                                    <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
-                                        <div className="flex min-w-0 flex-col gap-1.5">
-                                            <p className="text-xs font-medium text-fg">{t("boutAnalysis.analysis.basis")}</p>
-                                            {draft.observations.length === 0 ? (
-                                                <p className="text-xs text-fg-muted">{t("boutAnalysis.analysis.basisEmpty")}</p>
-                                            ) : (
-                                                draft.observations.map((o, oi) => (
-                                                    <label key={o.id} className="flex min-w-0 items-start gap-2 text-xs text-fg">
-                                                        <input
-                                                            type="checkbox"
-                                                            className="mt-0.5"
-                                                            checked={tactic.observationIds.includes(o.id)}
-                                                            onChange={(e) => {
-                                                                updateTactic(i, { observationIds: toggleIn(tactic.observationIds, o.id, e.target.checked) });
-                                                                form.markEdited(`tactics.${i}.observationIds`);
-                                                            }}
-                                                        />
-                                                        <span className="min-w-0 break-words">
-                                                            {t("boutAnalysis.analysis.observationLabel", { n: oi + 1 })}: {o.text || "—"}
-                                                        </span>
-                                                    </label>
-                                                ))
-                                            )}
-                                            {basisError && <p role="alert" className="text-xs text-danger-fg">{basisError}</p>}
-                                        </div>
-                                        <div className="flex min-w-0 flex-col gap-1.5">
-                                            <p className="text-xs font-medium text-fg">{t("boutAnalysis.analysis.sessions")}</p>
-                                            {sessions.length === 0 ? (
-                                                <p className="text-xs text-fg-muted">{t("boutAnalysis.analysis.sessionsEmpty")}</p>
-                                            ) : (
-                                                <div className="flex max-h-44 flex-col gap-1.5 overflow-y-auto pr-1">
-                                                    {sessions.map((s) => (
-                                                        <label key={s.id} className="flex min-w-0 items-start gap-2 text-xs text-fg">
-                                                            <input
-                                                                type="checkbox"
-                                                                className="mt-0.5"
-                                                                checked={tactic.sessionIds.includes(s.id)}
-                                                                onChange={(e) => updateTactic(i, { sessionIds: toggleIn(tactic.sessionIds, s.id, e.target.checked) })}
-                                                            />
-                                                            <span className="min-w-0 break-words">
-                                                                {formatDate(s.scheduledAt, locale)} · {trainingTypeLabel(t, s.type)} · {s.title}{" "}
-                                                                <span className={s.completed ? "text-success-fg" : "text-fg-muted"}>
-                                                                    ({t(s.completed ? "boutAnalysis.analysis.sessionDone" : "boutAnalysis.analysis.sessionPlanned")})
-                                                                </span>
-                                                            </span>
-                                                        </label>
-                                                    ))}
-                                                </div>
-                                            )}
-                                            {otherSessions > 0 && (
-                                                <p className="text-xs text-fg-muted">{t("boutAnalysis.analysis.sessionsOther", { count: otherSessions })}</p>
-                                            )}
-                                        </div>
-                                    </div>
-                                </fieldset>
-                            );
-                        })}
-                        {!locked && (
-                            <Button
-                                variant="secondary"
-                                size="sm"
-                                className="w-fit"
-                                disabled={draft.tactics.length >= MAX_TACTICS}
-                                onClick={() => addTactic()}
-                            >
-                                <Plus aria-hidden className="size-3.5" />
-                                {t("boutAnalysis.analysis.addTactic")}
-                            </Button>
-                        )}
-                    </CardContent>
-                </Card>
-
-                {!locked && (
-                    <SubmitButton size="lg" className="w-full sm:w-fit" pending={form.pending} pendingLabel={t("boutAnalysis.analysis.saving")}>
-                        {t("boutAnalysis.analysis.save")}
-                    </SubmitButton>
-                )}
-            </div>
-
-            {/* What the app derives from the draft, live */}
-            <div className="flex min-w-0 flex-col gap-5 lg:sticky lg:top-4">
-                <Card className="min-w-0 border-primary/40">
-                    <CardHeader
-                        title={t("boutAnalysis.analysis.checkTitle")}
-                        description={t("boutAnalysis.analysis.checkDesc")}
-                        icon={<ShieldCheck aria-hidden />}
-                    />
-                    <CardContent>
-                        {findings.length === 0 ? (
-                            <p className="flex items-start gap-2 text-xs text-success-fg">
-                                <CheckCircle2 aria-hidden className="mt-0.5 size-4 shrink-0" />
-                                <span>{t("boutAnalysis.analysis.checkOk")}</span>
-                            </p>
-                        ) : (
-                            <ul className="flex flex-col gap-2" aria-live="polite">
-                                {findings.map((f, idx) => (
-                                    <li
-                                        key={`${f.code}-${idx}`}
-                                        className={f.level === "warning" ? "flex items-start gap-2 text-xs text-warning-fg" : "flex items-start gap-2 text-xs text-fg-muted"}
-                                    >
-                                        {f.level === "warning" ? (
-                                            <TriangleAlert aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-                                        ) : (
-                                            <Info aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-                                        )}
-                                        <div className="flex min-w-0 flex-col items-start gap-1">
-                                            <span className="break-words">{findingText(t, f)}</span>
-                                            {!locked && (f.code === "OPENING_UNUSED" || f.code === "STRENGTH_UNANSWERED") && (
-                                                <Button
-                                                    variant="secondary"
-                                                    size="sm"
-                                                    disabled={draft.tactics.length >= MAX_TACTICS}
-                                                    onClick={() => createTacticFrom(f.observationId, f.text)}
-                                                >
-                                                    <Plus aria-hidden className="size-3.5" />
-                                                    {t("boutAnalysis.analysis.fix.createTactic")}
-                                                </Button>
-                                            )}
-                                            {(f.code === "UNTRAINED" || f.code === "NOT_YET_PRACTISED" || f.code === "WEAK_BASIS") && (
-                                                <button
-                                                    type="button"
-                                                    className="text-xs font-semibold text-primary underline-offset-2 hover:underline"
-                                                    onClick={() => focusTactic(f.tacticId)}
-                                                >
-                                                    {t("boutAnalysis.analysis.fix.goTo")}
-                                                </button>
-                                            )}
-                                        </div>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </CardContent>
-                </Card>
-
-                <Card className="min-w-0">
-                    <CardHeader title={t("boutAnalysis.analysis.matchupTitle")} icon={<Scale aria-hidden />} />
-                    <CardContent>
-                        {matchup.length === 0 ? (
-                            <p className="text-xs text-fg-muted">{t("boutAnalysis.analysis.matchupEmpty")}</p>
-                        ) : (
-                            <table className="w-full text-xs">
-                                <thead>
-                                    <tr className="text-left text-fg-muted">
-                                        <th scope="col" className="pb-1.5 font-medium"><span className="sr-only">—</span></th>
-                                        <th scope="col" className="pb-1.5 font-medium">{t("boutAnalysis.analysis.matchupOpponent")}</th>
-                                        <th scope="col" className="pb-1.5 font-medium">{fighterName}</th>
-                                        <th scope="col" className="pb-1.5 text-right font-medium">{t("boutAnalysis.analysis.matchupDiff")}</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {matchup.map((row) => {
-                                        const [label, opponent, ours, diff] = matchupCells(t, row);
-                                        return (
-                                            <tr key={row.field} className={row.notable ? "font-semibold text-warning-fg" : "text-fg"}>
-                                                <th scope="row" className="py-1 pr-2 text-left font-medium">
-                                                    {label}
-                                                    {row.notable && <span className="sr-only"> ({t("boutAnalysis.analysis.matchupNotable")})</span>}
-                                                </th>
-                                                <td className="py-1 pr-2">{opponent}</td>
-                                                <td className="py-1 pr-2">{ours}</td>
-                                                <td className="py-1 text-right tabular-nums">{diff}</td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        )}
-                    </CardContent>
-                </Card>
-
-                {canOpenCornerCard && (
-                    <Link
-                        href={`${routes.coach.bout(boutId)}/corner-card`}
-                        className="inline-flex h-9 w-fit items-center gap-1.5 rounded-lg border border-border bg-surface px-3.5 text-xs font-semibold text-fg transition hover:bg-surface-muted"
-                    >
-                        <FileText aria-hidden className="size-3.5 shrink-0" />
-                        <span>{t("boutAnalysis.nav.cornerCard")}</span>
-                    </Link>
-                )}
-            </div>
-        </form>
+                    )}
+                </CardContent>
+            </Card>
+        </section>
     );
 }

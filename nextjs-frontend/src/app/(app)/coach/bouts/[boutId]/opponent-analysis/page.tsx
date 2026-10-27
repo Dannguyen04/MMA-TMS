@@ -75,6 +75,7 @@ export default async function CoachOpponentAnalysisPage({ params }: PageProps) {
                 locked={locked}
                 canOpenCornerCard={canOpenCornerCard}
                 fighterName={fighter.name}
+                opponentName={bout.opponent ?? t("bout.opponentTba")}
                 fighter={{ stance: fighter.stance, heightCm: fighter.heightCm, reachCm: fighter.reachCm }}
                 sessions={campSessions}
             />
