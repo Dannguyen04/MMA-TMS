@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { matchupNotes, planFindings, tacticInsights, type FighterSide } from "./opponent-analysis-insights";
+import { matchupRows, planFindings, tacticInsights, type FighterSide } from "./opponent-analysis-insights";
 import type { OpponentAnalysis, OpponentObservation, OpponentTactic } from "./round-advice";
 
 const obs = (id: string, kind: OpponentObservation["kind"], confidence: OpponentObservation["confidence"]): OpponentObservation => ({
@@ -55,6 +55,7 @@ describe("planFindings", () => {
         });
         expect(found.filter((c) => c === "WEAK_BASIS")).toHaveLength(3);
         expect(found.filter((c) => c === "UNTRAINED")).toHaveLength(1);
+        expect(found.filter((c) => c === "NOT_YET_PRACTISED")).toHaveLength(2);
     });
 
     it("reports rounds with no tactic only when every tactic is round-specific", () => {
@@ -70,23 +71,50 @@ describe("planFindings", () => {
     });
 });
 
-describe("matchupNotes", () => {
-    const fighter: FighterSide = { stance: "orthodox", heightCm: 180, reachCm: 185, record: { wins: 17, losses: 5, draws: 1 } };
+describe("practice state", () => {
+    const analysis: OpponentAnalysis = {
+        observations: [obs("o1", "OPENING", "REPEATED")],
+        tactics: [
+            tac("none", ["o1"]),
+            tac("planned", ["o1"], { sessionIds: ["s-future"] }),
+            tac("done", ["o1"], { sessionIds: ["s-future", "s-done"] }),
+        ],
+    };
+    const completed = new Set(["s-done"]);
 
-    it("notes opposite stance, reach and height gaps, and experience", () => {
-        expect(matchupNotes({ stance: "SOUTHPAW", reachCm: 176, heightCm: 174, wins: 6, losses: 2, draws: 0 }, fighter)).toEqual([
-            { code: "OPPOSITE_STANCE", opponentStance: "SOUTHPAW" },
-            { code: "REACH_GAP", diffCm: -9 },
-            { code: "HEIGHT_GAP", diffCm: -6 },
-            { code: "EXPERIENCE", opponentBouts: 8, fighterBouts: 23 },
+    it("counts only completed sessions as practised", () => {
+        const insights = tacticInsights(analysis, completed);
+        expect(insights.get("none")?.practice).toBe("NONE");
+        expect(insights.get("planned")?.practice).toBe("SCHEDULED");
+        expect(insights.get("done")?.practice).toBe("PRACTISED");
+    });
+
+    it("warns for no session and notes scheduled-only tactics", () => {
+        const findings = planFindings(analysis, 3, completed);
+        expect(findings).toContainEqual(expect.objectContaining({ code: "UNTRAINED", tacticId: "none" }));
+        expect(findings).toContainEqual(expect.objectContaining({ code: "NOT_YET_PRACTISED", tacticId: "planned" }));
+        expect(findings.some((f) => "tacticId" in f && f.tacticId === "done")).toBe(false);
+    });
+});
+
+describe("matchupRows", () => {
+    const fighter: FighterSide = { stance: "orthodox", heightCm: 180, reachCm: 185 };
+
+    it("puts both sides' figures together and marks notable gaps", () => {
+        expect(matchupRows({ stance: "SOUTHPAW", reachCm: 176, heightCm: 182 }, fighter)).toEqual([
+            { field: "stance", opponent: "SOUTHPAW", fighter: "orthodox", notable: true },
+            { field: "heightCm", opponent: 182, fighter: 180, diffCm: 2, notable: false },
+            { field: "reachCm", opponent: 176, fighter: 185, diffCm: -9, notable: true },
         ]);
     });
 
-    it("ignores small gaps, same stance and missing data", () => {
-        expect(matchupNotes({ stance: "ORTHODOX", reachCm: 188, heightCm: 182 }, fighter)).toEqual([]);
-        expect(matchupNotes({ stance: "SWITCH" }, { stance: null, heightCm: null, reachCm: null, record: null })).toEqual([
-            { code: "SWITCH_STANCE" },
+    it("treats a switch-stance opponent as notable and skips unknown values", () => {
+        expect(matchupRows({ stance: "SWITCH" }, { stance: "southpaw", heightCm: null, reachCm: null })).toEqual([
+            { field: "stance", opponent: "SWITCH", fighter: "southpaw", notable: true },
         ]);
-        expect(matchupNotes(undefined, fighter)).toEqual([]);
+        expect(matchupRows({ stance: "ORTHODOX" }, fighter)).toEqual([
+            { field: "stance", opponent: "ORTHODOX", fighter: "orthodox", notable: false },
+        ]);
+        expect(matchupRows(undefined, fighter)).toEqual([]);
     });
 });

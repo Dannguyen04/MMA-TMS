@@ -33,16 +33,17 @@ Kiểm bằng Playwright (Chrome) trên demo mode, `next dev -p 3002`:
 | 5. Link ở trận đang `CAMP` | PASS: `/coach/bouts/b-emma-nordic` |
 | 6. Test của hàm thuần | `opponent-analysis-form.test.ts`, 9 test |
 | 7. Không thêm lỗi so với baseline | Xem dưới |
-| Mở rộng: so sánh hồ sơ | PASS: "Đối thủ đánh tay trái…", "Sải tay võ sĩ mình dài hơn 9 cm…" (Diego 185 cm, đối thủ 176 cm) |
-| Mở rộng: kiểm tra kế hoạch | PASS: 2 dòng "Chiến thuật chưa có buổi tập"; thêm sơ hở mới thì hiện "Sơ hở chưa có chiến thuật khai thác", chọn nó làm căn cứ thì dòng đó mất |
-| Mở rộng: gắn buổi tập | PASS: 18 buổi của camp; chọn một buổi thì nhãn "Chưa luyện" mất; lưu xong thẻ góc đài ghi "Đã luyện" và xếp chiến thuật đó lên trước chiến thuật chưa luyện |
+| Mở rộng: bảng so số đo | PASS: dòng "Sải tay (cm) 176 / 185 / −9" tô đậm, tư thế "Nghịch / Thuận"; không còn câu giảng giải hay dòng số trận |
+| Mở rộng: kiểm tra kế hoạch | PASS: 2 dòng "Chiến thuật chưa có buổi tập", 2 dòng "mới xếp lịch, chưa có buổi tập nào hoàn thành" |
+| Mở rộng: nút sửa nhanh | PASS: thêm sơ hở "Lùi thẳng khi bị ép góc" → bấm "Tạo chiến thuật" → chiến thuật mới có chữ "Khi đối thủ lùi thẳng khi bị ép góc thì ", đã chọn căn cứ, cảnh báo mất |
+| Mở rộng: gắn buổi tập | PASS: 17 buổi đã tập, 1 chưa tập; chọn buổi chưa tập → "Đã xếp lịch, chưa tập"; chọn thêm buổi đã tập → "Đã luyện"; lưu xong thẻ góc đài hiện chiến thuật mới |
 
 ## Lệnh đã chạy
 
 ```text
 $ pnpm --filter nextjs-frontend exec vitest run src/lib/domain/opponent-analysis-form.test.ts src/lib/domain/opponent-analysis-insights.test.ts
  Test Files  2 passed (2)
-      Tests  17 passed (17)
+      Tests  19 passed (19)
 
 $ pnpm --filter nextjs-frontend lint
 $ eslint
@@ -55,7 +56,7 @@ $ next typegen && tsc --noEmit
 
 $ pnpm --filter nextjs-frontend test
  Test Files  104 passed | 1 skipped (105)
-      Tests  947 passed | 2 skipped (949)
+      Tests  949 passed | 2 skipped (951)
 ```
 
 ## Lệch so với ticket
@@ -65,7 +66,8 @@ $ pnpm --filter nextjs-frontend test
 
 ## Câu hỏi / việc còn mở
 
-- Quy tắc P1–P6, C1–C4 và các ngưỡng (`MIN_TACTICS`, `REACH_GAP_CM`, `HEIGHT_GAP_CM`) là đề xuất của nhóm, chưa có trong [Luồng nghiệp vụ](../FIGHT-CAMP-BUSINESS-FLOWS.md); cần ghi vào tài liệu và chờ HLV chuyên môn duyệt như R20–R24.
+- Thẻ góc đài (frontend `buildCornerCard` và backend) vẫn coi chiến thuật có gắn bất kỳ buổi tập nào là "Đã luyện"; màn soạn chặt hơn (chỉ tính buổi đã tập xong). Nên thống nhất định nghĩa R14 ở cả hai chỗ trong một ticket sau, vì phải sửa backend.
+- Quy tắc P1–P7, C1–C3 và các ngưỡng (`MIN_TACTICS`, `REACH_GAP_CM`, `HEIGHT_GAP_CM`) là đề xuất của nhóm, chưa có trong [Luồng nghiệp vụ](../FIGHT-CAMP-BUSINESS-FLOWS.md); cần ghi vào tài liệu và chờ HLV chuyên môn duyệt như R20–R24.
 - Dữ liệu demo của trận Diego gắn `ts-1`, `ts-2` không có trong lịch tập demo, nên màn hiện "1 buổi tập khác đã gắn".
 
 - `typecheck` báo "Demo and mock pipeline modes are disabled in production builds" nếu worktree có `.env.local` đặt `APP_DATA_MODE=demo`, vì `next typegen` chạy ở chế độ production. Không phải lỗi của ticket; chạy typecheck khi không có file đó.

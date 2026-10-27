@@ -22,11 +22,11 @@ import {
     type OpponentAnalysisForm,
 } from "@/lib/domain/opponent-analysis-form";
 import {
-    matchupNotes,
+    matchupRows,
     planFindings,
     tacticInsights,
     type FighterSide,
-    type MatchupNote,
+    type MatchupRow,
     type PlanFinding,
 } from "@/lib/domain/opponent-analysis-insights";
 import type { OpponentAnalysis, OpponentObservation, OpponentProfile, OpponentTactic } from "@/lib/domain/round-advice";
@@ -40,6 +40,7 @@ export interface CampSessionOption {
     title: string;
     type: TrainingType;
     scheduledAt: string;
+    completed: boolean;
 }
 
 interface OpponentAnalysisViewProps {
@@ -79,19 +80,25 @@ function findingText(t: Translator, f: PlanFinding): string {
     }
 }
 
-function matchupText(t: Translator, n: MatchupNote): string {
-    switch (n.code) {
-        case "OPPOSITE_STANCE":
-            return t(`boutAnalysis.analysis.matchup.OPPOSITE_STANCE.${n.opponentStance}`);
-        case "SWITCH_STANCE":
-            return t("boutAnalysis.analysis.matchup.SWITCH_STANCE");
-        case "REACH_GAP":
-            return t(n.diffCm > 0 ? "boutAnalysis.analysis.matchup.REACH_LONGER" : "boutAnalysis.analysis.matchup.REACH_SHORTER", { cm: Math.abs(n.diffCm) });
-        case "HEIGHT_GAP":
-            return t(n.diffCm > 0 ? "boutAnalysis.analysis.matchup.HEIGHT_TALLER" : "boutAnalysis.analysis.matchup.HEIGHT_SHORTER", { cm: Math.abs(n.diffCm) });
-        case "EXPERIENCE":
-            return t("boutAnalysis.analysis.matchup.EXPERIENCE", { opponent: n.opponentBouts, fighter: n.fighterBouts });
+const FIGHTER_STANCE_KEY = { orthodox: "ORTHODOX", southpaw: "SOUTHPAW", switch: "SWITCH" } as const;
+
+function matchupCells(t: Translator, row: MatchupRow): [label: string, opponent: string, fighter: string, diff: string] {
+    if (row.field === "stance") {
+        return [
+            t("boutAnalysis.analysis.stance"),
+            t(`boutAnalysis.analysis.stance.${row.opponent}`),
+            t(`boutAnalysis.analysis.stance.${FIGHTER_STANCE_KEY[row.fighter]}`),
+            "",
+        ];
     }
+    const diff = row.diffCm === 0 ? "0" : `${row.diffCm > 0 ? "+" : "−"}${Math.abs(row.diffCm)}`;
+    return [t(`boutAnalysis.analysis.${row.field}`), String(row.opponent), String(row.fighter), diff];
+}
+
+/** Lower-cases the first letter so an observation reads inside "When the opponent …". */
+function asClause(text: string): string {
+    const trimmed = text.trim().replace(/\.+$/, "");
+    return trimmed.charAt(0).toLocaleLowerCase() + trimmed.slice(1);
 }
 
 export function OpponentAnalysisView({
@@ -120,10 +127,11 @@ export function OpponentAnalysisView({
     });
     const roundNumbers = Array.from({ length: scheduledRounds ?? 0 }, (_, idx) => idx + 1);
     const sessionIds = new Set(sessions.map((s) => s.id));
+    const completedSessionIds = useMemo(() => new Set(sessions.filter((s) => s.completed).map((s) => s.id)), [sessions]);
 
-    const insights = useMemo(() => tacticInsights(draft), [draft]);
-    const findings = useMemo(() => planFindings(draft, scheduledRounds), [draft, scheduledRounds]);
-    const matchup = useMemo(() => matchupNotes(draft.profile, fighter), [draft.profile, fighter]);
+    const insights = useMemo(() => tacticInsights(draft, completedSessionIds), [draft, completedSessionIds]);
+    const findings = useMemo(() => planFindings(draft, scheduledRounds, completedSessionIds), [draft, scheduledRounds, completedSessionIds]);
+    const matchup = useMemo(() => matchupRows(draft.profile, fighter), [draft.profile, fighter]);
 
     function updateProfile(patch: Partial<OpponentProfile>) {
         setDraft((d) => {
@@ -153,14 +161,32 @@ export function OpponentAnalysisView({
         }));
     }
 
-    function addTactic() {
+    function addTactic(seed?: { text: string; observationId: string }) {
+        const id = nextAnalysisId("tac", allIds(draft));
         setDraft((d) => ({
             ...d,
             tactics: [
                 ...d.tactics,
-                { id: nextAnalysisId("tac", allIds(d)), text: "", round: null, observationIds: [], sessionIds: [], partnerBrief: null },
+                { id, text: seed?.text ?? "", round: null, observationIds: seed ? [seed.observationId] : [], sessionIds: [], partnerBrief: null },
             ],
         }));
+        return id;
+    }
+
+    /** Quick fix for an unused opening or unanswered strength: a tactic already based on it, text started. */
+    function createTacticFrom(observationId: string, text: string) {
+        const id = addTactic({ observationId, text: t("boutAnalysis.analysis.tacticFrom", { text: asClause(text) }) });
+        focusTactic(id);
+    }
+
+    function focusTactic(tacticId: string) {
+        window.requestAnimationFrame(() => {
+            // The tactic text is the first input of its fieldset.
+            const input = document.querySelector<HTMLInputElement>(`#tactic-${tacticId} input`);
+            document.getElementById(`tactic-${tacticId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+            input?.focus({ preventScroll: true });
+            if (input) input.setSelectionRange(input.value.length, input.value.length);
+        });
     }
 
     function toggleIn(list: string[], id: string, checked: boolean): string[] {
@@ -385,7 +411,12 @@ export function OpponentAnalysisView({
                             const insight = insights.get(tactic.id);
                             const otherSessions = tactic.sessionIds.filter((id) => !sessionIds.has(id)).length;
                             return (
-                                <fieldset key={tactic.id} disabled={locked} className="flex min-w-0 flex-col gap-3 rounded-lg border border-border p-3">
+                                <fieldset
+                                    key={tactic.id}
+                                    id={`tactic-${tactic.id}`}
+                                    disabled={locked}
+                                    className="flex min-w-0 scroll-mt-4 flex-col gap-3 rounded-lg border border-border p-3"
+                                >
                                     <div className="flex flex-wrap items-center justify-between gap-2">
                                         <legend className="text-sm font-semibold text-fg">
                                             {t("boutAnalysis.analysis.tacticLabel", { n: i + 1 })}
@@ -401,11 +432,15 @@ export function OpponentAnalysisView({
                                                     </Badge>
                                                 </>
                                             )}
-                                            {insight && (insight.trained ? (
-                                                <Badge tone="neutral" variant="outline">{t("boutAnalysis.cornerCard.trainedBadge")}</Badge>
-                                            ) : (
+                                            {insight?.practice === "PRACTISED" && (
+                                                <Badge tone="success" variant="outline">{t("boutAnalysis.cornerCard.trainedBadge")}</Badge>
+                                            )}
+                                            {insight?.practice === "SCHEDULED" && (
+                                                <Badge tone="info" variant="outline">{t("boutAnalysis.analysis.practice.SCHEDULED")}</Badge>
+                                            )}
+                                            {insight?.practice === "NONE" && (
                                                 <Badge tone="warning" icon={TriangleAlert}>{t("boutAnalysis.cornerCard.untrainedBadge")}</Badge>
-                                            ))}
+                                            )}
                                             {!locked && (
                                                 <Button
                                                     variant="ghost"
@@ -491,7 +526,10 @@ export function OpponentAnalysisView({
                                                                 onChange={(e) => updateTactic(i, { sessionIds: toggleIn(tactic.sessionIds, s.id, e.target.checked) })}
                                                             />
                                                             <span className="min-w-0 break-words">
-                                                                {formatDate(s.scheduledAt, locale)} · {trainingTypeLabel(t, s.type)} · {s.title}
+                                                                {formatDate(s.scheduledAt, locale)} · {trainingTypeLabel(t, s.type)} · {s.title}{" "}
+                                                                <span className={s.completed ? "text-success-fg" : "text-fg-muted"}>
+                                                                    ({t(s.completed ? "boutAnalysis.analysis.sessionDone" : "boutAnalysis.analysis.sessionPlanned")})
+                                                                </span>
                                                             </span>
                                                         </label>
                                                     ))}
@@ -511,7 +549,7 @@ export function OpponentAnalysisView({
                                 size="sm"
                                 className="w-fit"
                                 disabled={draft.tactics.length >= MAX_TACTICS}
-                                onClick={addTactic}
+                                onClick={() => addTactic()}
                             >
                                 <Plus aria-hidden className="size-3.5" />
                                 {t("boutAnalysis.analysis.addTactic")}
@@ -553,7 +591,29 @@ export function OpponentAnalysisView({
                                         ) : (
                                             <Info aria-hidden className="mt-0.5 size-3.5 shrink-0" />
                                         )}
-                                        <span className="min-w-0 break-words">{findingText(t, f)}</span>
+                                        <div className="flex min-w-0 flex-col items-start gap-1">
+                                            <span className="break-words">{findingText(t, f)}</span>
+                                            {!locked && (f.code === "OPENING_UNUSED" || f.code === "STRENGTH_UNANSWERED") && (
+                                                <Button
+                                                    variant="secondary"
+                                                    size="sm"
+                                                    disabled={draft.tactics.length >= MAX_TACTICS}
+                                                    onClick={() => createTacticFrom(f.observationId, f.text)}
+                                                >
+                                                    <Plus aria-hidden className="size-3.5" />
+                                                    {t("boutAnalysis.analysis.fix.createTactic")}
+                                                </Button>
+                                            )}
+                                            {(f.code === "UNTRAINED" || f.code === "NOT_YET_PRACTISED" || f.code === "WEAK_BASIS") && (
+                                                <button
+                                                    type="button"
+                                                    className="text-xs font-semibold text-primary underline-offset-2 hover:underline"
+                                                    onClick={() => focusTactic(f.tacticId)}
+                                                >
+                                                    {t("boutAnalysis.analysis.fix.goTo")}
+                                                </button>
+                                            )}
+                                        </div>
                                     </li>
                                 ))}
                             </ul>
@@ -567,14 +627,32 @@ export function OpponentAnalysisView({
                         {matchup.length === 0 ? (
                             <p className="text-xs text-fg-muted">{t("boutAnalysis.analysis.matchupEmpty")}</p>
                         ) : (
-                            <ul className="flex flex-col gap-2">
-                                {matchup.map((n) => (
-                                    <li key={n.code} className="flex items-start gap-2 text-xs text-fg">
-                                        <Info aria-hidden className="mt-0.5 size-3.5 shrink-0 text-fg-muted" />
-                                        <span className="min-w-0 break-words">{matchupText(t, n)}</span>
-                                    </li>
-                                ))}
-                            </ul>
+                            <table className="w-full text-xs">
+                                <thead>
+                                    <tr className="text-left text-fg-muted">
+                                        <th scope="col" className="pb-1.5 font-medium"><span className="sr-only">—</span></th>
+                                        <th scope="col" className="pb-1.5 font-medium">{t("boutAnalysis.analysis.matchupOpponent")}</th>
+                                        <th scope="col" className="pb-1.5 font-medium">{fighterName}</th>
+                                        <th scope="col" className="pb-1.5 text-right font-medium">{t("boutAnalysis.analysis.matchupDiff")}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {matchup.map((row) => {
+                                        const [label, opponent, ours, diff] = matchupCells(t, row);
+                                        return (
+                                            <tr key={row.field} className={row.notable ? "font-semibold text-warning-fg" : "text-fg"}>
+                                                <th scope="row" className="py-1 pr-2 text-left font-medium">
+                                                    {label}
+                                                    {row.notable && <span className="sr-only"> ({t("boutAnalysis.analysis.matchupNotable")})</span>}
+                                                </th>
+                                                <td className="py-1 pr-2">{opponent}</td>
+                                                <td className="py-1 pr-2">{ours}</td>
+                                                <td className="py-1 text-right tabular-nums">{diff}</td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
                         )}
                     </CardContent>
                 </Card>

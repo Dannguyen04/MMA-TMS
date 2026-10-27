@@ -36,9 +36,11 @@ Thẻ góc đài và lời dặn giữa hiệp (T-010B) dựng từ phân tích 
     - P2: quan sát loại *Điểm mạnh* chưa có chiến thuật nào dùng làm căn cứ (chưa có cách phòng).
     - P3: chiến thuật chỉ dựa trên quan sát thấy 1 lần.
     - P4: chiến thuật chưa có buổi tập (R14).
+    - P7: chiến thuật chỉ có buổi tập đã xếp lịch, chưa buổi nào `completed`. Nhãn trên màn soạn: "Đã luyện" chỉ khi có ít nhất một buổi đã tập xong; có buổi nhưng chưa tập xong thì "Đã xếp lịch, chưa tập".
+    - Cảnh báo P1, P2 có nút "Tạo chiến thuật": tạo chiến thuật đã chọn sẵn quan sát đó làm căn cứ, chữ bắt đầu "Khi đối thủ … thì ". Cảnh báo P3, P4, P7 có nút "Mở chiến thuật".
     - P5: mọi chiến thuật đều gắn hiệp cụ thể mà còn hiệp không có chiến thuật nào.
     - P6: ít hơn `MIN_TACTICS` = 3 chiến thuật (E2: 3–5).
-12. **App so sánh hồ sơ** với võ sĩ mình (đề xuất): C1 khác tư thế (thuận gặp nghịch) hoặc đối thủ đổi tư thế; C2 chênh sải tay ≥ `REACH_GAP_CM` = 5; C3 chênh chiều cao ≥ `HEIGHT_GAP_CM` = 5; C4 số trận hai bên.
+12. **Bảng so số đo** với võ sĩ mình (đề xuất): tư thế, chiều cao, sải tay của hai bên và mức chênh, chỉ hiện khi biết cả hai giá trị. Tô đậm khi C1 khác tư thế hoặc đối thủ đổi tư thế; C2 chênh sải tay ≥ `REACH_GAP_CM` = 5; C3 chênh chiều cao ≥ `HEIGHT_GAP_CM` = 5. Không đưa câu giảng giải chiến thuật và không so số trận (số trận không nói gì về trình độ đối thủ đã gặp).
 
 ## Ngoài phạm vi
 

@@ -1,36 +1,62 @@
 import type { Stance } from "./types";
 import { buildCornerCard, type CornerTactic, type OpponentAnalysis, type OpponentProfile } from "./round-advice";
 
-// Proposed thresholds, pending specialist approval (T-033 P1–P6, C1–C4).
+// Proposed thresholds, pending specialist approval (T-033 P1–P7, C1–C3).
 export const MIN_TACTICS = 3;
 export const REACH_GAP_CM = 5;
 export const HEIGHT_GAP_CM = 5;
+
+/** NONE: no session linked; SCHEDULED: linked sessions, none completed yet; PRACTISED: at least one completed. */
+export type PracticeState = "NONE" | "SCHEDULED" | "PRACTISED";
 
 export type PlanFinding =
     | { code: "OPENING_UNUSED"; level: "warning"; observationId: string; text: string }
     | { code: "STRENGTH_UNANSWERED"; level: "warning"; observationId: string; text: string }
     | { code: "WEAK_BASIS"; level: "info"; tacticId: string; text: string }
     | { code: "UNTRAINED"; level: "warning"; tacticId: string; text: string }
+    | { code: "NOT_YET_PRACTISED"; level: "info"; tacticId: string; text: string }
     | { code: "ROUND_GAP"; level: "info"; round: number }
     | { code: "TOO_FEW_TACTICS"; level: "info"; count: number };
 
 export interface TacticInsight extends CornerTactic {
     /** 1-based position the tactic will take on the corner card. */
     cardOrder: number;
+    practice: PracticeState;
 }
 
-/** Labels the corner card will show, computed from the unsaved draft (same rules as buildCornerCard). */
-export function tacticInsights(analysis: OpponentAnalysis): Map<string, TacticInsight> {
+function practiceState(sessionIds: readonly string[], completedSessionIds: ReadonlySet<string>): PracticeState {
+    if (sessionIds.length === 0) return "NONE";
+    return sessionIds.some((id) => completedSessionIds.has(id)) ? "PRACTISED" : "SCHEDULED";
+}
+
+/**
+ * Labels computed from the unsaved draft. Order and basis follow buildCornerCard; practice
+ * counts only completed sessions, stricter than the card's "trained" (any linked session).
+ */
+export function tacticInsights(
+    analysis: OpponentAnalysis,
+    completedSessionIds: ReadonlySet<string> = new Set(),
+): Map<string, TacticInsight> {
     const card = buildCornerCard(analysis);
-    return new Map(card.tactics.map((t, index) => [t.id, { ...t, cardOrder: index + 1 }]));
+    const sessionsOf = new Map((analysis.tactics ?? []).map((t) => [t.id, t.sessionIds]));
+    return new Map(
+        card.tactics.map((t, index) => [
+            t.id,
+            { ...t, cardOrder: index + 1, practice: practiceState(sessionsOf.get(t.id) ?? [], completedSessionIds) },
+        ]),
+    );
 }
 
-/** What the plan still lacks: unused openings, unanswered strengths, weak basis, untrained tactics, uncovered rounds. */
-export function planFindings(analysis: OpponentAnalysis, scheduledRounds: number | null): PlanFinding[] {
+/** What the plan still lacks: unused openings, unanswered strengths, weak basis, unpractised tactics, uncovered rounds. */
+export function planFindings(
+    analysis: OpponentAnalysis,
+    scheduledRounds: number | null,
+    completedSessionIds: ReadonlySet<string> = new Set(),
+): PlanFinding[] {
     const observations = analysis.observations ?? [];
     const tactics = analysis.tactics ?? [];
     const used = new Set(tactics.flatMap((t) => t.observationIds));
-    const insights = tacticInsights(analysis);
+    const insights = tacticInsights(analysis, completedSessionIds);
     const findings: PlanFinding[] = [];
 
     for (const o of observations) {
@@ -39,10 +65,12 @@ export function planFindings(analysis: OpponentAnalysis, scheduledRounds: number
         if (o.kind === "STRENGTH") findings.push({ code: "STRENGTH_UNANSWERED", level: "warning", observationId: o.id, text: o.text });
     }
     for (const t of tactics) {
-        if (t.observationIds.length > 0 && insights.get(t.id)?.basis === "ONCE") {
+        const insight = insights.get(t.id);
+        if (t.observationIds.length > 0 && insight?.basis === "ONCE") {
             findings.push({ code: "WEAK_BASIS", level: "info", tacticId: t.id, text: t.text });
         }
-        if (t.sessionIds.length === 0) findings.push({ code: "UNTRAINED", level: "warning", tacticId: t.id, text: t.text });
+        if (insight?.practice === "NONE") findings.push({ code: "UNTRAINED", level: "warning", tacticId: t.id, text: t.text });
+        if (insight?.practice === "SCHEDULED") findings.push({ code: "NOT_YET_PRACTISED", level: "info", tacticId: t.id, text: t.text });
     }
     if (scheduledRounds !== null && tactics.length > 0 && tactics.every((t) => t.round !== null)) {
         const covered = new Set(tactics.map((t) => t.round));
@@ -54,43 +82,36 @@ export function planFindings(analysis: OpponentAnalysis, scheduledRounds: number
     return findings;
 }
 
-export type MatchupNote =
-    | { code: "OPPOSITE_STANCE"; opponentStance: "SOUTHPAW" | "ORTHODOX" }
-    | { code: "SWITCH_STANCE" }
-    | { code: "REACH_GAP"; diffCm: number }
-    | { code: "HEIGHT_GAP"; diffCm: number }
-    | { code: "EXPERIENCE"; opponentBouts: number; fighterBouts: number };
-
 export interface FighterSide {
     stance: Stance | null;
     heightCm: number | null;
     reachCm: number | null;
-    record: { wins: number; losses: number; draws: number } | null;
 }
 
-/** Compares the opponent profile with our fighter. Positive diffs mean the opponent is bigger. */
-export function matchupNotes(profile: OpponentProfile | undefined, fighter: FighterSide): MatchupNote[] {
+export type MatchupRow =
+    | { field: "stance"; opponent: NonNullable<OpponentProfile["stance"]>; fighter: Stance; notable: boolean }
+    | { field: "heightCm" | "reachCm"; opponent: number; fighter: number; diffCm: number; notable: boolean };
+
+const FIGHTER_STANCE = { orthodox: "ORTHODOX", southpaw: "SOUTHPAW", switch: "SWITCH" } as const;
+
+/** Side-by-side figures where both values are known; `notable` marks a stance mismatch or a gap at the threshold. */
+export function matchupRows(profile: OpponentProfile | undefined, fighter: FighterSide): MatchupRow[] {
     if (!profile) return [];
-    const notes: MatchupNote[] = [];
-    if (profile.stance === "SWITCH") notes.push({ code: "SWITCH_STANCE" });
-    else if (
-        (profile.stance === "SOUTHPAW" && fighter.stance === "orthodox") ||
-        (profile.stance === "ORTHODOX" && fighter.stance === "southpaw")
-    ) {
-        notes.push({ code: "OPPOSITE_STANCE", opponentStance: profile.stance });
+    const rows: MatchupRow[] = [];
+    if (profile.stance && fighter.stance) {
+        rows.push({
+            field: "stance",
+            opponent: profile.stance,
+            fighter: fighter.stance,
+            notable: profile.stance === "SWITCH" || profile.stance !== FIGHTER_STANCE[fighter.stance],
+        });
     }
-    if (profile.reachCm !== undefined && fighter.reachCm !== null) {
-        const diffCm = Math.round(profile.reachCm - fighter.reachCm);
-        if (Math.abs(diffCm) >= REACH_GAP_CM) notes.push({ code: "REACH_GAP", diffCm });
+    for (const [field, gap] of [["heightCm", HEIGHT_GAP_CM], ["reachCm", REACH_GAP_CM]] as const) {
+        const opponent = profile[field];
+        const ours = fighter[field];
+        if (opponent === undefined || ours === null) continue;
+        const diffCm = Math.round(opponent - ours);
+        rows.push({ field, opponent, fighter: ours, diffCm, notable: Math.abs(diffCm) >= gap });
     }
-    if (profile.heightCm !== undefined && fighter.heightCm !== null) {
-        const diffCm = Math.round(profile.heightCm - fighter.heightCm);
-        if (Math.abs(diffCm) >= HEIGHT_GAP_CM) notes.push({ code: "HEIGHT_GAP", diffCm });
-    }
-    const opponentBouts = (profile.wins ?? 0) + (profile.losses ?? 0) + (profile.draws ?? 0);
-    if (opponentBouts > 0 && fighter.record) {
-        const fighterBouts = fighter.record.wins + fighter.record.losses + fighter.record.draws;
-        notes.push({ code: "EXPERIENCE", opponentBouts, fighterBouts });
-    }
-    return notes;
+    return rows;
 }

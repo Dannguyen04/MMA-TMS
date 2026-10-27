@@ -47,7 +47,7 @@ export default async function CoachOpponentAnalysisPage({ params }: PageProps) {
 
     const campSessions = sessions
         .filter((s) => s.status !== "cancelled")
-        .map((s) => ({ id: s.id, title: s.title, type: s.type, scheduledAt: s.scheduledAt }));
+        .map((s) => ({ id: s.id, title: s.title, type: s.type, scheduledAt: s.scheduledAt, completed: s.status === "completed" }));
 
     const analysis = analysisDetail?.opponentAnalysis ?? { observations: [], tactics: [] };
     const locked = bout.phase === "COMPLETED" || bout.phase === "CANCELLED";
@@ -75,7 +75,7 @@ export default async function CoachOpponentAnalysisPage({ params }: PageProps) {
                 locked={locked}
                 canOpenCornerCard={canOpenCornerCard}
                 fighterName={fighter.name}
-                fighter={{ stance: fighter.stance, heightCm: fighter.heightCm, reachCm: fighter.reachCm, record: fighter.record }}
+                fighter={{ stance: fighter.stance, heightCm: fighter.heightCm, reachCm: fighter.reachCm }}
                 sessions={campSessions}
             />
         </div>
