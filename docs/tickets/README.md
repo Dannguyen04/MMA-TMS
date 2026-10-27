@@ -52,6 +52,14 @@ Số migration 025, 026, 027 cố định; mỗi migration chỉ yêu cầu ledg
 
 Nếu đến 27/10 chưa xong, đề xuất cắt theo thứ tự (chờ chủ dự án duyệt): (1) các ý "nếu còn thời gian" ở [Luồng nghiệp vụ, Bổ sung 21/10](../FIGHT-CAMP-BUSINESS-FLOWS.md#bổ-sung-2110-chờ-duyệt), giao Gemini nếu có thời gian; (2) gợi ý từ trận trước (R4b, R30); (3) ghi hiệp trực tiếp, chỉ giữ thẻ góc đài và ghi lại sau trận; (4) chấm màu ăn uống trên biểu đồ. Luôn giữ: hai cổng, cân chính thức, kết quả, đình chỉ, thẻ góc đài.
 
+## Sau review 27/10 (28/10 – 9/11)
+
+Nhận xét của thầy và chia việc 2 tuần do Dan ghi lại theo trí nhớ, chờ nhóm xác nhận trước 29/10. Chưa có ticket chi tiết thì chưa code.
+
+| Ticket | Nội dung | Phần | Người nhận | Phụ thuộc | Trạng thái |
+| --- | --- | --- | --- | --- | --- |
+| [T-036A](./T-036A-suspension-training-plan-link.md) | Đình chỉ chặn được việc tập: đóng lỗ `POST /coaching/assignments` không qua Cổng 2 (phần 1); gắn đình chỉ vào giáo án: xử lý buổi đã xếp, camp sang hồi phục, chặn theo cường độ, tập lại theo bậc (phần 2) | Backend | Ken | T-007, T-032 | Phần 1: READY 27/10. Phần 2: DRAFT, chờ chủ dự án chốt 4 câu hỏi trong ticket |
+
 ## Giao diện tiếng Việt ([T-013](./T-013-i18n-vi.md))
 
 Quyết định của chủ dự án 19/10: dịch toàn bộ app, làm dần, mặc định tiếng Việt. T-013 phần 1 và 2 đã merge vào `fight-camp` (20/10). Phần 3 chia thành các ticket dưới đây; chạy song song được vì mỗi ticket có cặp file từ điển riêng. Route đóng băng không dịch. Chủ dự án chốt 20/10: dịch toàn bộ, kể cả route đóng băng (T-022 đến T-024). Landing page ở T-020; `src/app/concept/` đã là tiếng Việt.
