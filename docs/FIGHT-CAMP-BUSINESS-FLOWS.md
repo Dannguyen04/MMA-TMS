@@ -552,7 +552,7 @@ Ví dụ với preset AIBA: KO lần đầu gợi ý 30 ngày. KO lần hai tron
 
 **Đình chỉ còn hiệu lực** khi hôm nay nằm trong khoảng [ngày bắt đầu, ngày kết thúc], hoặc khi đã qua ngày kết thúc nhưng đình chỉ cần xác nhận mà chưa ai xác nhận.
 
-**Cổng 2:** trong thời gian đình chỉ còn hiệu lực, với các loại buổi tập bị chặn (mặc định theo ruleset: `SPARRING`, hoặc mọi loại trừ `RECOVERY` và `PHYSICAL_THERAPY` với preset AIBA; HLV chặn thêm được):
+**Cổng 2:** trong thời gian đình chỉ còn hiệu lực, với các loại buổi tập bị chặn (đình chỉ từ kết quả trận: mặc định theo ruleset, `SPARRING`, hoặc mọi loại trừ `RECOVERY` và `PHYSICAL_THERAPY` với preset AIBA; đình chỉ thủ công: mặc định mọi loại trừ `RECOVERY` và `PHYSICAL_THERAPY`, theo [quyết định 22](./SCOPE-FIGHT-CAMP.md#quyết-định-và-câu-hỏi); HLV chọn khác được):
 
 - Không xếp được buổi tập loại đó vào ngày nằm trong đình chỉ: 409 `TRAINING_SUSPENSION_ACTIVE`.
 - Không bắt đầu được buổi tập loại đó (chuyển sang `IN_PROGRESS`): cùng mã lỗi.
