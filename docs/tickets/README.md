@@ -70,5 +70,6 @@ Quyết định của chủ dự án 19/10: dịch toàn bộ app, làm dần, m
 | [T-023](./T-023-i18n-frozen-clinical.md) | Hồ sơ y tế, khám, hồi phục, cảnh báo AI của bác sĩ (đóng băng) | T-017 | READY, ưu tiên thấp |
 | [T-024](./T-024-i18n-frozen-admissions-models.md) | Admissions (HLV, admin) và AI models (đóng băng) | T-014, T-019 | READY, ưu tiên thấp |
 | [T-025](./T-025-i18n-final-sweep.md) | Rà soát cuối, bắt buộc `locale`, test chống chữ Anh quay lại, cập nhật tài liệu quy ước | Mọi ticket T-014 đến T-024 | READY, làm cuối |
+| [T-032](./T-032-backend-json-schema-dto-fixes.md) | Hotfix: backend không khởi động được vì `Date` trong JSON Schema của Swagger (đình chỉ, T-007); trùng tên `AssignCoachDto` | Backend | Fon sửa (27/10), lỗi gốc của Ken | — | [APPROVED](./T-032-REVIEW.md) 27/10, nhánh `fix/T-032-swagger-dto`, chờ chủ dự án merge |
 
 Thứ tự ưu tiên: T-021 và T-014, T-015, T-016, T-020, T-018, T-017, T-019, rồi T-022 đến T-024, T-025 cuối cùng.
