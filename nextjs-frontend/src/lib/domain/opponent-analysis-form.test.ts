@@ -90,7 +90,7 @@ describe("buildOpponentAnalysisInput", () => {
         delete withoutSessions.sessionIds;
         const result = buildOpponentAnalysisInput(
             {
-                observations: [obs("o1", { evidenceTime: "99:99" }), obs("obs-1")],
+                observations: [obs("o1"), obs("obs-1", { evidenceTime: "00:42" })],
                 tactics: [{ ...withoutSessions, review: { outcome: "INEFFECTIVE" } }, tac("tac-1", ["obs-1"])],
             },
             existing,
@@ -99,6 +99,7 @@ describe("buildOpponentAnalysisInput", () => {
         if (!result.success) throw new Error("expected success");
         expect(result.data.profile).toEqual({ stance: "SOUTHPAW" });
         expect(result.data.observations[0]?.evidenceTime).toBe("02:15");
+        expect(result.data.observations[1]?.evidenceTime).toBe("00:42");
         expect(result.data.tactics[0]).toMatchObject({ id: "t1", text: "Edited", sessionIds: ["11111111-1111-4111-8111-111111111111"] });
         expect(result.data.tactics[0]).not.toHaveProperty("review");
         expect(result.data.tactics[1]?.sessionIds).toEqual([]);

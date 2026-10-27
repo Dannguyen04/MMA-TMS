@@ -65,7 +65,7 @@ export function buildOpponentAnalysisInput(raw: unknown, existing: OpponentAnaly
         profile: { ...(parsed.data.profile ?? existing.profile ?? {}) },
         observations: parsed.data.observations.map((o) => ({
             ...o,
-            evidenceTime: existing.observations?.find((old) => old.id === o.id)?.evidenceTime ?? null,
+            evidenceTime: o.evidenceTime ?? existing.observations?.find((old) => old.id === o.id)?.evidenceTime ?? null,
             evidenceUrl: o.evidenceUrl?.trim() || null,
             evidenceNote: o.evidenceNote?.trim() || null,
         })),

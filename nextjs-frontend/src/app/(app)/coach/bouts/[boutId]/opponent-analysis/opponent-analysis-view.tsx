@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, useTransition, type KeyboardEvent, type ReactNode } from "react";
 import Link from "next/link";
 import {
     Check,
@@ -12,8 +12,10 @@ import {
     Link2,
     NotebookPen,
     Pencil,
+    Play,
     Plus,
     ShieldCheck,
+    Sparkles,
     Trash2,
     TriangleAlert,
 } from "lucide-react";
@@ -26,7 +28,9 @@ import { Field, FormMessage, Input, Select, Textarea } from "@/components/ui/for
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useToast } from "@/components/ui/toast";
 import { useActionForm, type ActionForm } from "@/components/ui/use-action-form";
-import { saveOpponentAnalysisAction } from "@/lib/actions/bout-analysis";
+import { saveOpponentAnalysisAction, suggestObservationsFromVideoAction, type VideoSuggestionsData } from "@/lib/actions/bout-analysis";
+import type { ActionState } from "@/lib/actions/state";
+import { suggestionToObservation, videoUrlAt, type VideoSuggestion } from "@/lib/domain/opponent-video-suggestions";
 import { trainingTypeLabel } from "@/lib/domain/labels";
 import {
     MAX_OBSERVATIONS,
@@ -46,7 +50,7 @@ import {
 } from "@/lib/domain/opponent-analysis-insights";
 import type { OpponentAnalysis, OpponentObservation, OpponentProfile, OpponentTactic } from "@/lib/domain/round-advice";
 import type { TrainingType } from "@/lib/domain/types";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatDateTime } from "@/lib/format";
 import type { Translator } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
@@ -146,6 +150,7 @@ export function OpponentAnalysisView({
     const [draft, setDraft] = useState<OpponentAnalysisForm>(initial);
     const [open, setOpen] = useState<OpenItem>(null);
     const [showTips, setShowTips] = useState(false);
+    const [showAi, setShowAi] = useState(false);
     // Validation runs in the server action (same helper), which returns per-row field errors.
     // Saving revalidates this page and remounts the form, so success is a toast rather than form state.
     const form = useActionForm(saveOpponentAnalysisAction, {
@@ -199,6 +204,13 @@ export function OpponentAnalysisView({
             observations: [...d.observations, { id, kind: "OPENING", text: "", evidenceUrl: null, evidenceNote: null, confidence: "ONCE" }],
         }));
         reveal("obs", id);
+    }
+
+    function acceptSuggestion(s: VideoSuggestion, url: string) {
+        setDraft((d) => ({
+            ...d,
+            observations: [...d.observations, suggestionToObservation(s, url, nextAnalysisId("obs", allIds(d)), t("boutAnalysis.analysis.ai.note"))],
+        }));
     }
 
     function addTactic(seed?: { text: string; observationId: string }) {
@@ -358,13 +370,33 @@ export function OpponentAnalysisView({
                             description={t("boutAnalysis.analysis.observationsDesc")}
                             action={
                                 !locked && (
-                                    <Button variant="secondary" size="sm" className="min-h-11 sm:min-h-9" disabled={draft.observations.length >= MAX_OBSERVATIONS} onClick={addObservation}>
-                                        <Plus aria-hidden className="size-4" />
-                                        {t("boutAnalysis.analysis.addObservation")}
-                                    </Button>
+                                    <div className="flex flex-wrap gap-2">
+                                        <Button
+                                            variant="secondary"
+                                            size="sm"
+                                            className="min-h-11 sm:min-h-9"
+                                            aria-expanded={showAi}
+                                            onClick={() => setShowAi((v) => !v)}
+                                        >
+                                            <Sparkles aria-hidden className="size-4" />
+                                            {t("boutAnalysis.analysis.ai.open")}
+                                        </Button>
+                                        <Button variant="secondary" size="sm" className="min-h-11 sm:min-h-9" disabled={draft.observations.length >= MAX_OBSERVATIONS} onClick={addObservation}>
+                                            <Plus aria-hidden className="size-4" />
+                                            {t("boutAnalysis.analysis.addObservation")}
+                                        </Button>
+                                    </div>
                                 )
                             }
                         />
+                        {showAi && !locked && (
+                            <VideoSuggestPanel
+                                t={t}
+                                boutId={boutId}
+                                full={draft.observations.length >= MAX_OBSERVATIONS}
+                                onAccept={acceptSuggestion}
+                            />
+                        )}
                         {draft.observations.length === 0 && <EmptyLine>{t("boutAnalysis.analysis.noObservations")}</EmptyLine>}
                         <ul className="flex flex-col gap-2">
                             {draft.observations.map((o, i) => {
@@ -496,6 +528,165 @@ export function OpponentAnalysisView({
                 </div>
             )}
         </form>
+    );
+}
+
+/** AI drafts; nothing enters the analysis until the coach accepts it. Sits inside the analysis form, so it calls the action directly. */
+function VideoSuggestPanel({
+    t,
+    boutId,
+    full,
+    onAccept,
+}: {
+    t: Translator;
+    boutId: string;
+    full: boolean;
+    onAccept(s: VideoSuggestion, url: string): void;
+}) {
+    const locale = useLocale();
+    const [url, setUrl] = useState("");
+    const [who, setWho] = useState("");
+    const [pending, startTransition] = useTransition();
+    const [result, setResult] = useState<ActionState<VideoSuggestionsData> | null>(null);
+    const [analysedUrl, setAnalysedUrl] = useState("");
+    const [handled, setHandled] = useState<Record<number, "accepted" | "dismissed">>({});
+
+    function run() {
+        if (pending || !url.trim()) return;
+        const target = url.trim();
+        startTransition(async () => {
+            const next = await suggestObservationsFromVideoAction(boutId, target, who);
+            setResult(next);
+            setAnalysedUrl(target);
+            setHandled({});
+        });
+    }
+
+    const onEnter = (e: KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            run();
+        }
+    };
+    const data = result?.status === "success" ? result.data : undefined;
+
+    return (
+        <Card className="min-w-0 border-ai-border bg-ai-soft">
+            <CardContent className="flex flex-col gap-4 p-4">
+                <div className="flex items-start gap-2.5">
+                    <Sparkles aria-hidden className="mt-0.5 size-5 shrink-0 text-ai-fg" />
+                    <div className="min-w-0">
+                        <h3 className="text-base font-semibold text-fg">{t("boutAnalysis.analysis.ai.title")}</h3>
+                        <p className="text-xs text-fg-muted">{t("boutAnalysis.analysis.ai.desc")}</p>
+                    </div>
+                </div>
+                <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                    <Field label={t("boutAnalysis.analysis.ai.url")} htmlFor="ai-video-url" error={result?.fieldErrors?.videoUrl}>
+                        <Input
+                            id="ai-video-url"
+                            type="url"
+                            inputMode="url"
+                            value={url}
+                            placeholder="https://www.youtube.com/watch?v=…"
+                            onChange={(e) => setUrl(e.target.value)}
+                            onKeyDown={onEnter}
+                        />
+                    </Field>
+                    <Field label={t("boutAnalysis.analysis.ai.who")} htmlFor="ai-video-who" optional>
+                        <Input
+                            id="ai-video-who"
+                            value={who}
+                            placeholder={t("boutAnalysis.analysis.ai.whoPlaceholder")}
+                            onChange={(e) => setWho(e.target.value)}
+                            onKeyDown={onEnter}
+                        />
+                    </Field>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                    <Button className="min-h-11" disabled={pending || !url.trim()} loading={pending} onClick={run}>
+                        <Sparkles aria-hidden className="size-4" />
+                        {t("boutAnalysis.analysis.ai.run")}
+                    </Button>
+                    {pending && (
+                        <span role="status" className="text-sm text-fg-muted">
+                            {t("boutAnalysis.analysis.ai.running")}
+                        </span>
+                    )}
+                </div>
+
+                {!pending && result?.status === "error" && (
+                    <p role="alert" className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger-fg ring-1 ring-inset ring-danger-border">
+                        {result.message}
+                    </p>
+                )}
+
+                {!pending && data && (
+                    <div className="flex flex-col gap-2">
+                        <p role="status" className="text-xs text-fg-muted">
+                            {result?.message} {t("boutAnalysis.analysis.ai.analyzedAt", { time: formatDateTime(data.analyzedAt, locale) })}
+                            {data.cached && ` (${t("boutAnalysis.analysis.ai.cachedNote")})`}
+                        </p>
+                        <p className="text-xs font-medium text-warning-fg">{t("boutAnalysis.analysis.ai.disclaimer")}</p>
+                        <ul className="flex flex-col gap-2">
+                            {data.suggestions.map((s, idx) => {
+                                const state = handled[idx];
+                                if (state === "dismissed") return null;
+                                return (
+                                    <li key={idx} className="flex min-w-0 flex-col gap-2 rounded-lg border border-border bg-surface p-3">
+                                        <p className="break-words text-sm font-medium text-fg">{s.text}</p>
+                                        <div className="flex flex-wrap items-center gap-1.5">
+                                            <Badge tone={KIND_TONE[s.kind]} size="sm">{t(`boutAnalysis.analysis.kind.${s.kind}`)}</Badge>
+                                            <Badge tone={s.confidence === "REPEATED" ? "success" : "neutral"} variant="outline" size="sm">
+                                                {t(`boutAnalysis.analysis.confidence.${s.confidence}`)}
+                                            </Badge>
+                                            <a
+                                                href={videoUrlAt(analysedUrl, s.time)}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="inline-flex min-h-9 items-center gap-1 text-xs font-semibold text-primary underline-offset-2 hover:underline"
+                                            >
+                                                <Play aria-hidden className="size-3.5" />
+                                                {t("boutAnalysis.analysis.ai.watch", { time: s.time })}
+                                            </a>
+                                        </div>
+                                        {state === "accepted" ? (
+                                            <span className="inline-flex items-center gap-1 text-sm font-semibold text-success-fg">
+                                                <Check aria-hidden className="size-4" />
+                                                {t("boutAnalysis.analysis.ai.accepted")}
+                                            </span>
+                                        ) : (
+                                            <div className="flex flex-wrap gap-2">
+                                                <Button
+                                                    size="sm"
+                                                    className="min-h-11 sm:min-h-9"
+                                                    disabled={full}
+                                                    onClick={() => {
+                                                        onAccept(s, analysedUrl);
+                                                        setHandled((h) => ({ ...h, [idx]: "accepted" }));
+                                                    }}
+                                                >
+                                                    <Check aria-hidden className="size-4" />
+                                                    {t("boutAnalysis.analysis.ai.accept")}
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="min-h-11 sm:min-h-9"
+                                                    onClick={() => setHandled((h) => ({ ...h, [idx]: "dismissed" }))}
+                                                >
+                                                    {t("boutAnalysis.analysis.ai.dismiss")}
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                        {full && <p className="text-xs text-fg-muted">{t("boutAnalysis.analysis.ai.full")}</p>}
+                    </div>
+                )}
+            </CardContent>
+        </Card>
     );
 }
 

@@ -13,11 +13,13 @@ import {
     type TacticOutcome,
 } from "@/lib/domain/round-advice";
 import { analysisFieldErrors, buildOpponentAnalysisInput } from "@/lib/domain/opponent-analysis-form";
+import { isSupportedVideoUrl, type VideoSuggestion } from "@/lib/domain/opponent-video-suggestions";
 import type { User } from "@/lib/domain/types";
 import { getTranslator } from "@/lib/i18n/server";
 import type { Translator } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import { getBoutAnalysisDetail, saveOpponentAnalysis, upsertBoutRound } from "@/lib/services/bout-analysis";
+import { suggestObservationsFromVideo } from "@/lib/services/opponent-video-ai";
 import { getCampBout } from "@/lib/services/bouts";
 import { actionError, actionSuccess, validationError, type ActionState } from "./state";
 
@@ -131,6 +133,38 @@ export async function recordBoutRoundAction(_prev: ActionState, formData: FormDa
     } catch (error: unknown) {
         return actionError(error instanceof Error ? error.message : t("boutAnalysis.action.saveFailed"));
     }
+}
+
+export interface VideoSuggestionsData {
+    suggestions: VideoSuggestion[];
+    analyzedAt: string;
+    cached: boolean;
+}
+
+/** Called directly (not as a form action): the suggestion panel sits inside the analysis form. */
+export async function suggestObservationsFromVideoAction(
+    boutId: string,
+    url: string,
+    who: string,
+): Promise<ActionState<VideoSuggestionsData>> {
+    const { t } = await getTranslator();
+    const auth = await authorizeCoach(t);
+    if (!auth.ok) return auth.state;
+
+    const existing = await getCampBout(boutId);
+    if (!existing || !canAccessFighter(auth.user, existing.fighterId)) {
+        return actionError(t("boutAnalysis.action.boutNotFoundOrNotOnRoster"));
+    }
+    if (!isSupportedVideoUrl(url)) {
+        return actionError(t("boutAnalysis.analysis.ai.error.UNSUPPORTED_URL"), { videoUrl: t("boutAnalysis.analysis.ai.error.UNSUPPORTED_URL") });
+    }
+
+    const result = await suggestObservationsFromVideo(url, who.trim() || t("boutAnalysis.analysis.ai.defaultWho"));
+    if (!result.ok) return actionError(t(`boutAnalysis.analysis.ai.error.${result.error}`));
+    return actionSuccess(
+        t("boutAnalysis.analysis.ai.done", { count: result.suggestions.length }),
+        { suggestions: result.suggestions, analyzedAt: result.analyzedAt, cached: result.cached },
+    );
 }
 
 export async function saveOpponentAnalysisAction(_prev: ActionState, formData: FormData): Promise<ActionState> {

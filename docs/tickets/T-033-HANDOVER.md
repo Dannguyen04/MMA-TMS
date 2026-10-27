@@ -31,6 +31,15 @@
 - Thanh Lưu dính đáy (trên thanh tab điện thoại), báo "Có thay đổi chưa lưu".
 - Đo lại ở 390 px: trang 3,0 màn hình; kiểm tra kế hoạch ở y = 311; nút Lưu trong màn đầu; 0 vùng bấm dưới 36 px. Desktop 1280 px: 1,8 màn hình.
 
+## Gợi ý quan sát từ video (Gemini, mục 13–16 của ticket)
+
+- `nextjs-frontend/src/lib/domain/opponent-video-suggestions.ts` (+ test, 6 ca): kiểm link YouTube, đọc kết quả model (bỏ mục sai, tối đa 6), đổi mốc thời gian thành giây, link mở video đúng mốc, chuyển gợi ý thành quan sát.
+- `nextjs-frontend/src/lib/services/opponent-video-ai.ts` (server-only): gọi `generateContent` với `file_data` YouTube, `responseSchema`, `MEDIA_RESOLUTION_LOW`; thử lại một lần khi 5xx; lưu kết quả vào `os.tmpdir()/fight-camp-opponent-video-ai`; ghi mã lỗi HTTP vào log máy chủ (không ghi key).
+- `lib/actions/bout-analysis.ts`: `suggestObservationsFromVideoAction` (kiểm quyền HLV và võ sĩ như các action khác).
+- `opponent-analysis-form.ts`: nhận `evidenceTime` từ form (trước đây luôn lấy từ bản ghi cũ).
+- `opponent-analysis-view.tsx`: nút "Gợi ý từ video (AI)" và khung gợi ý (Nhận / Bỏ / Xem ở mm:ss).
+- Thử thật với `https://www.youtube.com/watch?v=dKw5POIXlsI` (trận "FREE FIGHT" của Caio Borralho, kênh UFC): lượt đầu Gemini trả 503, thử lại thành công, 3 gợi ý sau 135 giây; lượt sau từ cache, 0 giây. Gọi thẳng API ngoài app cùng video: 44–170 giây.
+
 ## Đối chiếu tiêu chí nghiệm thu
 
 Kiểm bằng Playwright (Chrome) trên demo mode, `next dev -p 3002`:
@@ -53,8 +62,8 @@ Kiểm bằng Playwright (Chrome) trên demo mode, `next dev -p 3002`:
 
 ```text
 $ pnpm --filter nextjs-frontend exec vitest run src/lib/domain/opponent-analysis-form.test.ts src/lib/domain/opponent-analysis-insights.test.ts
- Test Files  2 passed (2)
-      Tests  19 passed (19)
+ Test Files  3 passed (3)
+      Tests  25 passed (25)
 
 $ pnpm --filter nextjs-frontend lint
 $ eslint
@@ -66,8 +75,8 @@ $ next typegen && tsc --noEmit
 (exit 0)
 
 $ pnpm --filter nextjs-frontend test
- Test Files  104 passed | 1 skipped (105)
-      Tests  949 passed | 2 skipped (951)
+ Test Files  105 passed | 1 skipped (106)
+      Tests  955 passed | 2 skipped (957)
 ```
 
 ## Lệch so với ticket
@@ -76,6 +85,8 @@ $ pnpm --filter nextjs-frontend test
 - Kiểm tra chạy ở server action (cùng hàm thuần), không chạy trước ở client: `prepare` của `useActionForm` giữ closure của lần render đầu nên đọc `draft` cũ.
 
 ## Câu hỏi / việc còn mở
+
+- Gợi ý AI: cache nằm trong thư mục tạm của máy chủ, chỉ hợp cho demo; bản thật nên lưu trong database theo trận. Cần ghi ngoại lệ của quyết định 16/20 vào [Phạm vi](../SCOPE-FIGHT-CAMP.md#quyết-định-và-câu-hỏi). Máy chạy demo phải có `GEMINI_API_KEY` trong `nextjs-frontend/.env.local`.
 
 - Thẻ góc đài (frontend `buildCornerCard` và backend) vẫn coi chiến thuật có gắn bất kỳ buổi tập nào là "Đã luyện"; màn soạn chặt hơn (chỉ tính buổi đã tập xong). Nên thống nhất định nghĩa R14 ở cả hai chỗ trong một ticket sau, vì phải sửa backend.
 - Quy tắc P1–P7, C1–C3 và các ngưỡng (`MIN_TACTICS`, `REACH_GAP_CM`, `HEIGHT_GAP_CM`) là đề xuất của nhóm, chưa có trong [Luồng nghiệp vụ](../FIGHT-CAMP-BUSINESS-FLOWS.md); cần ghi vào tài liệu và chờ HLV chuyên môn duyệt như R20–R24.

@@ -42,6 +42,15 @@ Thẻ góc đài và lời dặn giữa hiệp (T-010B) dựng từ phân tích 
     - P6: ít hơn `MIN_TACTICS` = 3 chiến thuật (E2: 3–5).
 12. **Bảng so số đo** với võ sĩ mình (đề xuất): tư thế, chiều cao, sải tay của hai bên và mức chênh, chỉ hiện khi biết cả hai giá trị. Tô đậm khi C1 khác tư thế hoặc đối thủ đổi tư thế; C2 chênh sải tay ≥ `REACH_GAP_CM` = 5; C3 chênh chiều cao ≥ `HEIGHT_GAP_CM` = 5. Không đưa câu giảng giải chiến thuật và không so số trận (số trận không nói gì về trình độ đối thủ đã gặp).
 
+### Gợi ý quan sát từ video bằng Gemini (27/10, chủ dự án quyết định làm ngay)
+
+**Ngoại lệ phạm vi:** quyết định 16 và 20 đóng băng việc phát triển thêm AI; chủ dự án mở ngoại lệ cho tính năng này ngày 27/10.
+
+13. HLV dán link YouTube công khai của trận đối thủ và mô tả đối thủ trong video (ví dụ "quần đen"). Server gọi Gemini (`GEMINI_API_KEY`, model `GEMINI_OPPONENT_MODEL`, mặc định `gemini-3.8-flash`) với video và structured output; nhận tối đa 6 quan sát gồm loại, câu mô tả, mốc thời gian `mm:ss`, mức chắc chắn.
+14. Gợi ý không vào phân tích cho tới khi HLV bấm "Nhận". Quan sát được nhận có `evidenceUrl` mở video đúng mốc (`&t=…s`), `evidenceTime`, ghi chú "AI gợi ý từ video, HLV đã duyệt". Có nút "Bỏ" và link "Xem ở mm:ss" để kiểm tra trước.
+15. Kết quả lưu theo (model, link, mô tả đối thủ) trong thư mục tạm của máy chủ: một lượt phân tích mất 1–3 phút, lần sau hiện ngay và ghi "kết quả đã lưu, không gọi lại AI". Lỗi 5xx thử lại một lần; quá 4 phút, hết lượt (429), link không phải YouTube đều báo bằng câu cụ thể.
+16. Key chỉ ở server (`.env.local` của frontend, không commit). Chỉ gửi video công khai của đối thủ và mô tả do HLV nhập; không gửi dữ liệu võ sĩ của CLB. Lưu ý gói miễn phí: Google có thể dùng nội dung gửi lên để cải thiện sản phẩm.
+
 ## Ngoài phạm vi
 
 Đánh giá sau trận (phần 5), màn cho võ sĩ. Sửa backend, migration. Cài thư viện. Sửa `round-advice.ts` ngoài việc import.
