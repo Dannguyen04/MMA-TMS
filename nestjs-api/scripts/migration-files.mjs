@@ -32,6 +32,7 @@ export const migrationNames = [
   '024_bouts.sql',
   '025_suspensions.sql',
   '027_opponent_analysis_and_rounds.sql',
+  '030_between_round_plan.sql',
 ];
 export function readVerifiedMigrations() {
   const manifest = JSON.parse(

@@ -899,9 +899,33 @@ try {
       rejects(db, `SET ROLE ${role}; SELECT * FROM public.bout_rounds;`, /permission denied/);
       assert.equal(psql(db, `SELECT has_table_privilege('${role}', 'public.bout_rounds', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER');`), 'f');
     }
+
+    rejects(db, readFileSync(join(api,'migrations',target),'utf8'), /027 already applied/);
+  });
+  check('030 applies directly after 027: old-row default, object constraint, upsert preservation and preflight', () => {
+    const db = 'mma_013';
+    const target = '030_between_round_plan.sql';
+    const sql = readFileSync(join(api, 'migrations', target), 'utf8');
+    const bout = '00000000-0000-4000-8000-0000000024e2';
+    const user = '00000000-0000-4000-8000-0000000024b2';
+    assert.equal(psql(db, 'SELECT count(*) FROM mma_private.migration_history WHERE version IN (28,29,30);'), '0');
+    migration(db, target);
+    assert.equal(psql(db, 'SELECT count(*) FROM mma_private.migration_history WHERE version = 30;'), '1');
+    assert.equal(psql(db, 'SELECT next_round_plan::text FROM public.bout_rounds;'), '{}');
+    rejects(db, "UPDATE public.bout_rounds SET next_round_plan = '[]'::jsonb;", /ck_bout_rounds_next_round_plan/);
+    rejects(db, 'UPDATE public.bout_rounds SET next_round_plan = NULL;', /not-null constraint/);
+    psql(db, `UPDATE public.bout_rounds SET next_round_plan = '{"focusTacticIds":["t1"]}'::jsonb;`);
+    psql(db, `INSERT INTO public.bout_rounds(bout_id, round_no, recorded_by_id, note) VALUES ('${bout}', 1, '${user}', 'edited') ON CONFLICT (bout_id,round_no) DO UPDATE SET note=EXCLUDED.note;`);
+    assert.equal(psql(db, "SELECT next_round_plan->'focusTacticIds'->>0 FROM public.bout_rounds;"), 't1');
+    psql(db, `INSERT INTO public.bout_rounds(bout_id, round_no, recorded_by_id) VALUES ('${bout}', 2, '${user}');`);
+    assert.equal(psql(db, 'SELECT next_round_plan::text FROM public.bout_rounds WHERE round_no = 2;'), '{}');
+    rejects(db, sql, /030 already applied/);
+    psql(db, 'DELETE FROM mma_private.migration_history WHERE version = 30;');
+    rejects(db, sql, /030 column collision/);
+    assert.equal(psql(db, 'SELECT count(*) FROM mma_private.migration_history WHERE version = 30;'), '0');
+    rejects('mma_024_no_023', sql, /030 requires migration 027/);
     psql(db, `DELETE FROM public.bouts WHERE id = '${bout}';`);
     assert.equal(psql(db, 'SELECT count(*) FROM public.bout_rounds;'), '0');
-    rejects(db, readFileSync(join(api,'migrations',target),'utf8'), /027 already applied/);
   });
   check('025 applies on ledger 24: enum, table, constraints, permissions, notifications, triggers and RLS', () => {
     const db = 'mma_013';

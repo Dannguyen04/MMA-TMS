@@ -103,6 +103,7 @@ import {
   opponentAnalysisInputSchema,
   opponentReviewInputSchema,
   roundInputSchema,
+  nextRoundPlanSchema,
   type OpponentAnalysis,
   type OpponentAnalysisInput,
   type OpponentReviewInput,
@@ -418,6 +419,27 @@ export class BoutsService {
         const observations = new Set(
           (bout.opponentAnalysis.observations ?? []).map((o) => o.id),
         );
+        const rounds = await this.repo.listRounds(id, tx);
+        const previousAdded = rounds.filter((r) => r.roundNo < roundNo)
+          .flatMap((r) => r.nextRoundPlan?.addedTactics ?? []);
+        for (const t of previousAdded) tactics.add(t.id);
+        const plan = parsed.data.nextRoundPlan;
+        if (plan && roundNo === bout.scheduledRounds &&
+          (plan.focusTacticIds.length || plan.addedTactics.length || plan.instructions.length))
+          throw boutAnalysisInvalid('BOUT_NEXT_ROUND_PLAN_LAST_ROUND');
+        const existingIds = new Set([...tactics, ...observations,
+          ...rounds.filter((r) => r.roundNo !== roundNo)
+            .flatMap((r) => (r.nextRoundPlan?.addedTactics ?? []).map((t) => t.id)),
+        ]);
+        for (const t of plan?.addedTactics ?? []) {
+          if (existingIds.has(t.id) || t.observationIds.some((oid) => !observations.has(oid)))
+            throw boutAnalysisInvalid('BOUT_ROUND_MARK_UNKNOWN');
+          existingIds.add(t.id);
+        }
+        const planTactics = new Set([...tactics, ...(plan?.addedTactics ?? []).map((t) => t.id)]);
+        if (plan?.focusTacticIds.some((tid) => !planTactics.has(tid)) ||
+          plan?.instructions.some((instruction) => instruction.tacticId && !planTactics.has(instruction.tacticId)))
+          throw boutAnalysisInvalid('BOUT_ROUND_MARK_UNKNOWN');
         if (
           Object.keys(parsed.data.tacticMarks ?? {}).some(
             (id) => !tactics.has(id),
@@ -2027,6 +2049,7 @@ function toRoundResponse(
 ) {
   return {
     ...row,
+    nextRoundPlan: nextRoundPlanSchema.parse(row.nextRoundPlan ?? {}),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

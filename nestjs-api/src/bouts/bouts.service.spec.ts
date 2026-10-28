@@ -11,6 +11,7 @@ import { USER } from '../shared/types/user.role.js';
 import type { Transaction } from '../shared/utils/audit-context.util.js';
 import { academyStartOfDay, type CreateBoutInput } from './bouts.model.js';
 import {
+  roundInputSchema,
   buildRoundAdvice,
   type OpponentAnalysisInput,
   type RoundInput,
@@ -2419,6 +2420,7 @@ describe('BoutsService', () => {
       id: '60000000-0000-4000-8000-000000000001',
       boutId: BOUT_ID,
       roundNo,
+      nextRoundPlan: { focusTacticIds: [], addedTactics: [], instructions: [] },
       tacticMarks: {},
       observationMarks: {},
       selfScore: null,
@@ -2710,6 +2712,58 @@ describe('BoutsService', () => {
         409,
         'BOUT_INVALID_TRANSITION',
       );
+    });
+
+    it('T-037 saves, returns and preserves coach plans; later rounds mark added tactics', async () => {
+      setup();
+      const plan = { focusTacticIds: ['new1'], addedTactics: [{ id: 'new1', text: 'new', observationIds: ['o1'] }], instructions: [{ code: 'USE_TACTIC' as const, tacticId: 'new1' }] };
+      let stored = round(1);
+      repo.upsertRound.mockImplementation(async (value) => {
+        stored = { ...stored, ...value } as typeof stored;
+        return stored;
+      });
+      expect((await service.putRound(coachActor, BOUT_ID, 1, { nextRoundPlan: plan }, REQUEST_ID)).nextRoundPlan).toEqual(plan);
+      repo.listRounds.mockResolvedValue([stored]);
+      const response = await service.getRounds(coachActor, BOUT_ID);
+      expect(response.advice?.nextRound.plan).toEqual(plan);
+      expect(response.advice?.tactics[0]).toMatchObject({ id: 'new1', focus: true, addedRound: 1, trained: false });
+      expect((await service.putRound(coachActor, BOUT_ID, 1, { note: 'edited' }, REQUEST_ID)).nextRoundPlan).toEqual(plan);
+      expect(repo.upsertRound.mock.calls[1]?.[0]).not.toHaveProperty('nextRoundPlan');
+      await service.putRound(coachActor, BOUT_ID, 2, { tacticMarks: { new1: 'EFFECTIVE' } }, REQUEST_ID);
+      expect(repo.upsertRound).toHaveBeenLastCalledWith(expect.objectContaining({ tacticMarks: { new1: 'EFFECTIVE' } }), tx);
+      expect(repo.listRounds).toHaveBeenCalledWith(BOUT_ID, tx);
+    });
+
+    it.each([
+      { focusTacticIds: ['bad'] },
+      { instructions: [{ code: 'USE_TACTIC', tacticId: 'bad' }] },
+      { addedTactics: [{ id: 'new', text: 'new', observationIds: ['bad'] }] },
+      { addedTactics: [{ id: 't1', text: 'duplicate' }] },
+      { addedTactics: [{ id: 'o1', text: 'duplicate' }] },
+      { addedTactics: [{ id: 'new', text: 'new' }, { id: 'new', text: 'duplicate' }] },
+    ])('T-037 rejects invalid references without writes: %j', async (plan) => {
+      setup();
+      const parsed = roundInputSchema.parse({ nextRoundPlan: plan });
+      await expectHttp(service.putRound(coachActor, BOUT_ID, 1, parsed, REQUEST_ID), 422, 'BOUT_ROUND_MARK_UNKNOWN');
+      expect(repo.upsertRound).not.toHaveBeenCalled();
+    });
+
+    it('T-037 rejects content at the last round but accepts an empty plan', async () => {
+      setup();
+      await expectHttp(service.putRound(coachActor, BOUT_ID, 3, roundInputSchema.parse({ nextRoundPlan: { focusTacticIds: ['t1'] } }), REQUEST_ID), 422, 'BOUT_NEXT_ROUND_PLAN_LAST_ROUND');
+      expect(repo.upsertRound).not.toHaveBeenCalled();
+      repo.upsertRound.mockResolvedValue(round(3));
+      await service.putRound(coachActor, BOUT_ID, 3, roundInputSchema.parse({ nextRoundPlan: {} }), REQUEST_ID);
+    });
+
+    it('T-037 excludes future added tactics and rejects reuse of prior IDs', async () => {
+      setup();
+      repo.listRounds.mockResolvedValue([round(2, roundInputSchema.parse({ nextRoundPlan: { addedTactics: [{ id: 'new', text: 'new' }] } }))]);
+      await expectHttp(service.putRound(coachActor, BOUT_ID, 1, { tacticMarks: { new: 'EFFECTIVE' } }, REQUEST_ID), 422, 'BOUT_ROUND_MARK_UNKNOWN');
+      await expectHttp(service.putRound(coachActor, BOUT_ID, 3, { tacticMarks: {}, ...roundInputSchema.parse({ nextRoundPlan: { addedTactics: [{ id: 'new', text: 'duplicate' }] } }) }, REQUEST_ID), 422, 'BOUT_NEXT_ROUND_PLAN_LAST_ROUND');
+      setup({ scheduledRounds: 5 });
+      await expectHttp(service.putRound(coachActor, BOUT_ID, 3, roundInputSchema.parse({ nextRoundPlan: { addedTactics: [{ id: 'new', text: 'duplicate' }] } }), REQUEST_ID), 422, 'BOUT_ROUND_MARK_UNKNOWN');
+      expect(repo.upsertRound).not.toHaveBeenCalled();
     });
 
     it('checks schedule, range, state and map IDs before upsert (AC12)', async () => {
