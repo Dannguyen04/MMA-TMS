@@ -58,6 +58,7 @@ Kết quả và cách xử lý:
 3. Gửi `blockedSessionTypes: ["SPARRING"]` thì chỉ chặn `SPARRING`, như trước.
 4. Gợi ý đình chỉ từ kết quả trận **có** ruleset vẫn dùng loại buổi của ruleset. Các test hiện có của `suggestSuspensions` không phải sửa kỳ vọng, trừ ca không có ruleset; ca nào sửa thì ghi vào handover.
 5. `POST /coaching/assignments` cho võ sĩ đang đình chỉ, loại buổi bị chặn: 409 `TRAINING_SUSPENSION_ACTIVE`, không tạo thêm dòng `training_plans` hay `training_sessions`. Loại không bị chặn thì tạo như cũ. Có unit test ở `coaching.service.spec.ts`.
+5b. Cùng võ sĩ và loại buổi bị chặn, nhưng `scheduledAt` sau ngày kết thúc đình chỉ thì `POST /coaching/assignments` tạo được như cũ. Có unit test ở `coaching.service.spec.ts` (lấy từ T-036A phần 1, gộp 28/10).
 6. Phần C có kết quả ghi trong handover. Nếu là lỗi thật thì có test tái hiện, test đó lỗi trước khi sửa và qua sau khi sửa.
 7. Không lệnh nào thêm lỗi so với [baseline](./BASELINE.md).
 

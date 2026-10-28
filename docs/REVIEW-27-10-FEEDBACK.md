@@ -78,6 +78,7 @@ Làm song song theo người, đổi việc linh hoạt khi cần (Dan chốt 27
 | T-041 | Màn báo cáo sau trận (nghiệp vụ 14); bảng sẵn sàng đã nằm ở T-030 | 4 | Fon | — | 1–2 |
 | T-042 | Model 3D cơ thể võ sĩ: vùng chấn thương, vùng bị đánh trúng, vùng bị hạn chế | 5 | Hoàng Anh | Gemini | 2 |
 | T-043 | UI sinh động hơn, hoạt hoạ diễn lại hiệp và chiến thuật (2D trước, 3D nếu kịp) | 5 | Hoàng Anh | Gemini, Fon | 2 |
+| [T-044](./tickets/T-044-codebase-trim.md) | Tinh gọn source: xoá file không dùng (A), bỏ demo mode sau T-040 (B) | 4 | A: Gemini flash. B: người làm T-040 | — | A: 0–1. B: sau 2 |
 
 **Lưu ý:**
 
