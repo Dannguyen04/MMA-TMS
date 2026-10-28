@@ -4616,6 +4616,34 @@ export const boutRounds = pgTable('bout_rounds', {
 ]).enableRLS();
 export type BoutRoundRow = typeof boutRounds.$inferSelect;
 
+export const boutAiSuggestions = pgTable('bout_ai_suggestions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  boutId: uuid('bout_id').notNull().references(() => bouts.id, { onDelete: 'cascade' }),
+  kind: text('kind').$type<import('../bouts/bout-analysis.model.js').BoutAiKind>().notNull(),
+  roundNo: smallint('round_no'),
+  status: text('status').$type<'OK' | 'FAILED'>().notNull(),
+  errorCode: text('error_code').$type<import('../bouts/bout-analysis.model.js').BoutAiError>(),
+  model: text('model').notNull(),
+  inputHash: text('input_hash').notNull(),
+  output: jsonb('output').$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+  latencyMs: integer('latency_ms'),
+  requestedById: uuid('requested_by_id').notNull().references(() => users.id),
+  decision: text('decision').$type<'ACCEPTED' | 'PARTIAL' | 'REJECTED'>(),
+  acceptedItemIds: text('accepted_item_ids').array().notNull().default(sql`'{}'::text[]`),
+  decidedAt: timestamp('decided_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index('idx_bout_ai_suggestions_bout_kind_created').on(t.boutId, t.kind, t.createdAt.desc()),
+  check('bout_ai_suggestions_kind_check', sql.raw("kind IN ('PRE_BOUT_TACTICS','BETWEEN_ROUNDS','VIDEO_OBSERVATIONS')")),
+  check('bout_ai_suggestions_round_no_check', sql.raw('round_no BETWEEN 1 AND 12')),
+  check('bout_ai_suggestions_status_check', sql.raw("status IN ('OK','FAILED')")),
+  check('bout_ai_suggestions_decision_check', sql.raw("decision IN ('ACCEPTED','PARTIAL','REJECTED')")),
+  check('ck_bout_ai_round', sql.raw("(kind = 'BETWEEN_ROUNDS') = (round_no IS NOT NULL)")),
+  check('ck_bout_ai_error', sql.raw("status <> 'FAILED' OR error_code IS NOT NULL")),
+  check('ck_bout_ai_output', sql.raw("jsonb_typeof(output) = 'object'")),
+]).enableRLS();
+export type BoutAiSuggestionRow = typeof boutAiSuggestions.$inferSelect;
+
 export const suspensionReasonEnum = pgEnum('suspension_reason', [
   'KO',
   'TKO',

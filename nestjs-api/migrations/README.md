@@ -1,4 +1,15 @@
-# Migrations 003–030 — Backend, Database & API Permissions
+# Migrations 003–031 — Backend, Database & API Permissions
+
+## Áp dụng migration 031 (Gợi ý AI cho trận)
+
+031 yêu cầu ledger 027 và 030, chưa có 031; kiểm collision bảng và hàm audit.
+Bảng bout_ai_suggestions lưu cả OK và FAILED, hash cache, model, độ trễ,
+người yêu cầu và quyết định của HLV. CHECK loại/hiệp, FAILED có lỗi và output object;
+FK bout cascade, index bout/kind/created_at DESC. Audit, RLS và revoke
+PUBLIC/anon/authenticated giống bout_rounds; API kiểm quyền truy cập trận.
+Advisory lock (20260916, 31), ledger 31, checksum trong manifest.
+Chủ dự án tự áp bằng pnpm db:migrate:031 sau pnpm db:check.
+Kiểm thử dùng PostgreSQL tạm; không kết nối Supabase.
 
 ## Áp dụng migration 030 (Kế hoạch hiệp sau)
 

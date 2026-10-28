@@ -1,4 +1,11 @@
 import { createZodDto } from 'nestjs-zod';
+import { aiDecisionSchema, aiVideoInputSchema, aiSuggestionParamsSchema, aiHistoryQuerySchema, aiResponseSchema, aiHistoryResponseSchema } from './bout-analysis.model.js';
+export class AiVideoInputDto extends createZodDto(aiVideoInputSchema) {}
+export class AiDecisionDto extends createZodDto(aiDecisionSchema) {}
+export class AiSuggestionParamsDto extends createZodDto(aiSuggestionParamsSchema) {}
+export class AiHistoryQueryDto extends createZodDto(aiHistoryQuerySchema) {}
+export class AiResponseDto extends createZodDto(aiResponseSchema) {}
+export class AiHistoryResponseDto extends createZodDto(aiHistoryResponseSchema) {}
 import { coachTodoResponseSchema } from './bouts-todo.model.js';
 import {
   boutDetailResponseSchema,
