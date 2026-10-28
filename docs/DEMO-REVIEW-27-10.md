@@ -12,7 +12,7 @@
 | --- | --- | --- | --- |
 | Mở đầu | Dan | 1 phút | Vòng đời một trận, thông điệp chính |
 | 1. Trước trận | Hoàng Anh | 3 phút | Đi nhanh, thầy đã duyệt |
-| 2. Trong trận | Dan | 6 phút | **Phần thầy quan tâm nhất** |
+| 2. Phân tích đối thủ và trong trận | Dan | 7,5 phút | **Phần thầy quan tâm nhất** |
 | 3. Sau trận | Ken | 4 phút | Cân, kết quả, đình chỉ, Cổng 2, cho tập lại |
 | Kết | Dan | 30 giây | Quay lại vòng đời |
 | Hỏi đáp | Cả nhóm | phần còn lại | Xem mục 7 |
@@ -31,18 +31,35 @@ cd nextjs-frontend && APP_DATA_MODE=demo pnpm dev
 
 Mở <http://localhost:3000> → trang đăng nhập → bấm nút demo **"Rafael Costa"** (HLV). Tập phần của mình một lần từ đầu đến cuối.
 
-### 15 phút trước giờ trình bày (máy của Fon)
+### 15 phút trước giờ trình bày (máy của Dan, chủ dự án chốt sáng 27/10)
 
-1. **Tắt server cũ và chạy lại `pnpm dev`.** Dữ liệu demo nằm trong bộ nhớ server: các hiệp đã ghi và đình chỉ đã tạo lúc tập vẫn còn. Đủ 3/3 hiệp thì lời dặn không hiện nữa; Linh đã cân hoặc đã bị đình chỉ thì phần sau trận không diễn lại được.
-2. Đăng nhập "Rafael Costa", mở sẵn các tab theo thứ tự:
+Demo chạy trên máy Dan, từ worktree `D:/test/ai-worktrees/T-033` (nhánh `feat/T-033-opponent-analysis-ui`, tạo từ đỉnh nhánh demo, có thêm màn soạn phân tích đối thủ). Server ở cổng **3002**; cổng 3000 trên máy này là bản khác, đừng mở nhầm. Worktree đã có `nextjs-frontend/.env.local` với `APP_DATA_MODE=demo` và `GEMINI_API_KEY`.
+
+1. **Tắt server cũ và chạy lại.** Dữ liệu demo nằm trong bộ nhớ server: các hiệp đã ghi và đình chỉ đã tạo lúc tập vẫn còn. Đủ 3/3 hiệp thì lời dặn không hiện nữa; Linh đã cân hoặc đã bị đình chỉ thì phần sau trận không diễn lại được.
+
+   ```powershell
+   # tắt tiến trình đang giữ cổng 3002 (Ctrl+C ở terminal đang chạy, hoặc:)
+   Stop-Process -Id (Get-NetTCPConnection -LocalPort 3002 -State Listen).OwningProcess -Force
+   cd D:/test/ai-worktrees/T-033/nextjs-frontend; pnpm exec next dev -p 3002
+   ```
+
+2. Mở <http://localhost:3002>, đăng nhập "Rafael Costa", mở sẵn các tab theo thứ tự:
    1. `/coach/dashboard`
    2. `/coach/bouts`
-   3. `/coach/bouts/bout-weighed-in/corner-card`
-   4. `/coach/bouts/bout-weighed-in/rounds`
-   5. `/coach/bouts/b-linh-saigon`
-   6. `/coach/bouts/suspensions`
-3. Phóng to trình duyệt 125% để thầy đọc được chữ. Phần trong trận có thể bật chế độ điện thoại (F12 → biểu tượng điện thoại, 390 px) để cho thấy dùng ở góc đài.
-4. Mở sẵn một terminal ở thư mục `nestjs-api` cho lệnh dự phòng (mục 8).
+   3. `/coach/bouts/bout-weighed-in/opponent-analysis`
+   4. `/coach/bouts/bout-weighed-in/corner-card`
+   5. `/coach/bouts/bout-weighed-in/rounds`
+   6. `/coach/bouts/b-linh-saigon`
+   7. `/coach/bouts/suspensions`
+3. Mở Notepad, để sẵn hai dòng để dán ở bước 4.0 (phải đúng từng chữ thì mới lấy kết quả đã lưu, không gọi lại AI):
+
+   ```text
+   https://www.youtube.com/watch?v=dKw5POIXlsI
+   Đối thủ của Caio Borralho
+   ```
+
+4. Phóng to trình duyệt 125% để thầy đọc được chữ. Phần trong trận có thể bật chế độ điện thoại (F12 → biểu tượng điện thoại, 390 px) để cho thấy dùng ở góc đài.
+5. Mở sẵn một terminal ở thư mục `D:/test/ai-worktrees/T-033/nestjs-api` cho lệnh dự phòng (mục 8).
 
 ## 2. Mở đầu (Dan, 1 phút)
 
@@ -60,9 +77,36 @@ Mở <http://localhost:3000> → trang đăng nhập → bấm nút demo **"Rafa
 
 **Chuyển:** "Đó là phần thầy đã xem. Giờ Dan trình bày phần mới: trong trận."
 
-## 4. Trong trận (Dan, 6 phút, trọng tâm)
+## 4. Phân tích đối thủ và trong trận (Dan, 7,5 phút, trọng tâm)
 
 Trận dùng xuyên suốt: **Diego Alvarez gặp Lê Hoàng Nam**, giải Vietnam MMA Open 2026, 65 kg, 3 hiệp, đã cân chính thức 64,8 kg.
+
+### 4.0 Soạn phân tích đối thủ, gợi ý từ video bằng AI (1,5 phút)
+
+**Mở:** tab `/coach/bouts/bout-weighed-in/opponent-analysis`. (Lối vào: trang trận có link "Phân tích đối thủ".)
+
+**Trên màn thấy** (chạy thử 27/10):
+
+- Đầu trang: "Kế hoạch: 2 cần sửa · 4 gợi ý", dưới là "Cập nhật ngay khi nhập, trước khi lưu. Chỉ là gợi ý; HLV quyết định." và hai dòng "Chiến thuật chưa có buổi tập: …" có nút "Mở chiến thuật".
+- Hồ sơ đối thủ "Lê Hoàng Nam · 6-2-0 · Nghịch (tay trái) · Đứng đòn" và bảng "So số đo": "Sải tay (cm) 176 / 185 / −9", "(Chênh lệch đáng chú ý)".
+- "Quan sát (4/6)": QS1–QS4, mỗi dòng có loại (Thói quen / Sơ hở / Điểm mạnh), "Lặp lại nhiều lần" hoặc "Thấy 1 lần", "Có link" / "Có ghi chú", "Căn cứ của chiến thuật #n".
+- "Chiến thuật (4/5)": mỗi chiến thuật có căn cứ QSn, hiệp, "Chưa luyện" hoặc "Đã xếp lịch, chưa tập", "Thứ n trên thẻ góc đài".
+
+**Nói:** "Đây là chỗ HLV soạn phân tích đối thủ. Mỗi chiến thuật bắt buộc dựa trên ít nhất một quan sát có bằng chứng. App so số đo, và kiểm tra kế hoạch ngay khi nhập: ở đây hai chiến thuật chưa có buổi tập nào để luyện."
+
+**Bấm:** **"Gợi ý từ video (AI)"** → dán dòng 1 vào ô "Link video YouTube", dòng 2 vào ô "Đối thủ trong video là ai" → **"Phân tích video"**.
+
+**Trên màn thấy** ngay: "AI đề xuất 3 quan sát. Phân tích lúc 12:36 27 thg 10, 2026 (kết quả đã lưu, không gọi lại AI)", "AI có thể sai. Mở mốc thời gian để kiểm tra trước khi nhận." Gợi ý đầu: "Lao người về phía trước khi ra đòn tay phải, để hở cằm cao và không lắc đầu tránh né · Sơ hở · Lặp lại nhiều lần · Xem ở 02:08", có nút "Nhận" / "Bỏ".
+
+**Nói:** "HLV dán link video trận cũ của đối thủ. Gemini xem video và đề xuất quan sát kèm mốc thời gian. Đây là video công khai của một trận UFC, nhóm dùng làm mẫu; thật thì HLV dán video của chính đối thủ. Video dài thì AI mất 1–3 phút, nên em đã chạy trước và app lưu kết quả lại. AI có thể sai, nên HLV bấm mốc thời gian để xem lại rồi mới nhận."
+
+**Bấm:** **"Nhận"** ở gợi ý đầu.
+
+**Trên màn thấy:** quan sát mới QS5 "Có link", "Chưa chiến thuật nào dùng"; đầu trang đổi thành "Kế hoạch: 3 cần sửa", dòng mới **"Sơ hở chưa có chiến thuật khai thác: "Lao người về phía trước…""** có nút "Tạo chiến thuật".
+
+**Nói:** "Nhận xong là app thấy ngay: có sơ hở mà chưa có chiến thuật nào khai thác. Bấm 'Tạo chiến thuật' là app tạo sẵn chiến thuật đã gắn quan sát làm căn cứ, HLV chỉ viết nốt cách làm. Lưu thì thẻ góc đài cập nhật theo."
+
+**Không bấm "Lưu phân tích"** (để thẻ góc đài và lời dặn ở 4.1–4.3 đúng như kịch bản). Bấm link **"Thẻ góc đài"** ở đầu trang; rời trang không bị hỏi.
 
 ### 4.1 Thẻ góc đài (1,5 phút)
 
@@ -122,11 +166,11 @@ Trận dùng: **Linh Phạm gặp Vũ Mai Anh**, Saigon Amateur Night 5, 60 kg, 
 
 | # | Mở | Bấm | Trên màn thấy | Nói |
 | --- | --- | --- | --- | --- |
-| 5.1 | Tab `/coach/bouts/b-linh-saigon` | **"Ghi cân chính thức"** → ô "Cân chính thức" nhập **59.6** → **"Lưu kết quả cân"** | "Đạt cân."; trận sang "Đã cân" | "HLV nhập một số. Đạt thì app tự chuyển trạng thái. Không đạt thì app chỉ hỏi một câu: thi ở mức cân thoả thuận hay huỷ trận." |
+| 5.1 | Tab `/coach/bouts/b-linh-saigon` | **"Ghi cân chính thức"** → ô "Cân chính thức" nhập **59.6** → **"Lưu kết quả cân"** | "Đạt cân"; trận sang "Đã cân" | "HLV nhập một số. Đạt thì app tự chuyển trạng thái. Không đạt thì app chỉ hỏi một câu: thi ở mức cân thoả thuận hay huỷ trận." |
 | 5.2 | Cùng trang | **"Ghi kết quả"** → "Kết quả": **Thua** → "Cách kết thúc": **KO** → "Hiệp": **2** → "Có mất ý thức không?": chọn một đáp án → **"Lưu kết quả"** | "Thua · KO, hiệp 2"; ngay dưới: "Đề xuất: 30 ngày (KO hoặc TKO: 30 ngày)." và nút "Xác nhận đình chỉ" | "Thua KO là app đề xuất đình chỉ ngay theo bộ luật, kèm lý do. HLV không phải tra luật." |
-| 5.3 | Cùng trang | **"Xác nhận đình chỉ"** (sửa số ngày thì phải ghi lý do) | "Đã lưu đình chỉ", "Đang đình chỉ" | "Một chạm là đình chỉ có hiệu lực. Ở backend thật, đình chỉ được tạo ngay trong cùng giao dịch ghi kết quả; KO lần hai trong thời hạn thì 90 ngày." |
+| 5.3 | Cùng trang | **"Xác nhận đình chỉ"** (mở hộp thoại; sửa số ngày thì phải ghi lý do) → **"Lưu đình chỉ"** | "Đã lưu đình chỉ", "Đang đình chỉ" | "Một chạm là đình chỉ có hiệu lực. Ở backend thật, đình chỉ được tạo ngay trong cùng giao dịch ghi kết quả; KO lần hai trong thời hạn thì 90 ngày." |
 | 5.4 | Tab `/coach/bouts/suspensions` | Không bấm | "Linh Phạm · KO · 26 thg 10, 2026 – 25 thg 11, 2026 (30 ngày) · Đang đình chỉ"; "Chặn đánh bóng, đấm đích, bao cát, đấu tập, luyện kỹ thuật, vật, thể lực. Cần cấp phép để tập lại" (ngày đổi theo ngày chạy) | "Trang Đình chỉ của cả CLB: ai đang bị đình chỉ, đến ngày nào, bị chặn những loại buổi nào." |
-| 5.5 | `/coach/sessions/new` | "Võ sĩ": **Linh Phạm**; loại buổi **"Đấu tập"**; nhập tiêu đề, ngày mai, giờ bất kỳ → **"Lên lịch buổi tập"** | Không tạo được; dòng báo: "Linh Phạm đang bị đình chỉ: buổi đấu tập bị chặn đến hết ngày 25 thg 11, 2026." | "Đây là Cổng 2. Võ sĩ đang đình chỉ thì app không cho xếp, cũng không cho bắt đầu loại buổi bị cấm. Không ai phải nhớ." |
+| 5.5 | `/coach/sessions/new` | "Võ sĩ": **Linh Phạm**; loại buổi **"Đấu tập"**; nhập tiêu đề, ngày mai, giờ bất kỳ → **"Lên lịch buổi tập"** | Không tạo được; dòng báo: "Linh Phạm đang bị đình chỉ: buổi đấu tập bị chặn đến hết ngày 25 thg 11, 2026." (Trước khi bấm, form hiện "Không có xung đột với cấp phép y tế"; đừng chỉ vào dòng này, lỗi đình chỉ chỉ hiện sau khi bấm.) | "Đây là Cổng 2. Võ sĩ đang đình chỉ thì app không cho xếp, cũng không cho bắt đầu loại buổi bị cấm. Không ai phải nhớ." |
 | 5.6 | Tab `/coach/bouts/suspensions` | Nút **"Cho tập lại"** ở **đúng dòng Linh Phạm** (trang có sẵn đình chỉ của võ sĩ khác, đừng bấm nhầm) → ô "Căn cứ" nhập "Bác sĩ CLB khám lại, cho tập nhẹ" → xác nhận | "Rafael Costa xác nhận được tập lại, <giờ>: Bác sĩ CLB khám lại, cho tập nhẹ"; võ sĩ "Sẵn sàng nhận trận mới" | "Đình chỉ cần cấp phép thì chỉ HLV hoặc bác sĩ được cho tập lại, và phải ghi căn cứ. Xong là võ sĩ quay lại danh sách sẵn sàng nhận trận mới." |
 
 **Nói thêm (không cần màn):** "Sau trận app còn tự đánh giá từng chiến thuật từ bản ghi các hiệp, và lập điểm cần luyện cho camp sau, ví dụ 'đuối sức từ hiệp 2'. Backend đã có và có test; màn báo cáo đang làm. Thầy muốn xem thì em chạy test ngay." (Lệnh ở mục 8.)
@@ -143,6 +187,7 @@ Trận dùng: **Linh Phạm gặp Vũ Mai Anh**, Saigon Amateur Night 5, 60 kg, 
 | App có tự dừng trận không? | Không. App chỉ cảnh báo đỏ và ghi rõ "Chỉ mang tính gợi ý — HLV là người quyết định tại góc đài." Dừng trận là việc của HLV và bác sĩ giải. |
 | Ngưỡng "2 hiệp liền", "bị ngã 2 lần" lấy ở đâu? | Đề xuất của nhóm, đặt thành hằng số có tên trong code để đổi một chỗ; đang chờ HLV có chuyên môn duyệt. |
 | Số ngày đình chỉ theo luật nào? | Theo bộ luật gắn với trận. AIBA trong demo ghi rõ "Chỉ để tham khảo, chưa xác minh với ban tổ chức". Bộ luật không có quy tắc thì HLV nhập số ngày. |
+| AI xem video có đáng tin không? Tốn bao lâu? | Gemini (Google) xem video YouTube công khai, trả quan sát có mốc thời gian. AI chỉ đề xuất: HLV mở mốc để kiểm và tự bấm "Nhận"; không có gì tự vào kế hoạch. Video vài phút mất 1–3 phút (lượt chạy sáng 27/10: 191 giây), nên app lưu kết quả theo video để không gọi lại. Bản hiện tại lưu tạm trên máy chủ, bản thật sẽ lưu vào database theo trận. |
 | Đây là demo giả hay chạy thật? | Màn hôm nay chạy chế độ demo cho nhanh và ổn định. Backend thật đã có đủ các quy tắc này: hơn 1.000 test backend qua, migration đình chỉ đã áp lên database. AI nhận diện đòn đã chạy thật qua backend ngày 25/10. |
 | Khác gì ghi vào Excel? | Excel chỉ lưu. App kiểm tra và tạo hệ quả: chặn vào tuần thi đấu khi thiếu hồ sơ, tự đề xuất đình chỉ, chặn xếp buổi tập bị cấm, xếp lại chiến thuật giữa hiệp. |
 
@@ -152,6 +197,7 @@ Trận dùng: **Linh Phạm gặp Vũ Mai Anh**, Saigon Amateur Night 5, 60 kg, 
 | --- | --- |
 | Lời dặn không hiện sau khi lưu hiệp | Dữ liệu cũ còn trong bộ nhớ (đã đủ 3/3 hiệp). Khởi động lại server, đăng nhập lại, làm lại từ 4.2. Hết giờ thì dùng lệnh dự phòng phần trong trận. |
 | Không thấy nút "Ghi cân chính thức" | Trận Linh đã cân lúc tập. Khởi động lại server. |
+| Bấm "Phân tích video" mà hiện "Đang phân tích video…" quá vài giây | Link hoặc tên gõ khác dòng đã lưu, app đang gọi Gemini thật (1–3 phút). Không chờ: nói "video dài thì AI mất 1–3 phút", tải lại trang và dán lại đúng hai dòng trong Notepad. |
 | Trang báo lỗi hoặc trắng | Tải lại trang; vẫn lỗi thì chạy lệnh dự phòng của phần đó và nói tiếp. |
 
 **Lệnh dự phòng** (terminal ở `nestjs-api`; mỗi ca test là một tình huống trong kịch bản):
@@ -179,7 +225,7 @@ Giải thích nhanh các ca của lệnh thứ hai:
 | 3 | Kiểm soát cân | Trước | Có | 1.1, 1.2 |
 | 4 | Ăn uống | Trước | Có một phần, không diễn | — |
 | 5 | Hồ sơ thi đấu, Cổng 1 | Trước | Có | 1.3, 1.4 |
-| 6 | Phân tích đối thủ | Trước | Thẻ góc đài có; màn soạn phân tích chưa có | 4.1 |
+| 6 | Phân tích đối thủ | Trước | Có: màn soạn phân tích, kiểm tra kế hoạch, gợi ý từ video bằng AI (T-033, chưa merge), thẻ góc đài | 4.0, 4.1 |
 | 7 | Tuần thi đấu | Trong | Có | 1.4 |
 | 8 | Cân chính thức | Trong | Có | 5.1 |
 | 9 | Thi đấu: thẻ góc đài, ghi hiệp, lời dặn | Trong | Có | 4.1–4.3 |

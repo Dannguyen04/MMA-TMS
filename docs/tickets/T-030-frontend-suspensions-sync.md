@@ -40,6 +40,16 @@ Sửa:
 - Thêm hàm đọc `details.suspensions` (kiểu an toàn, bỏ qua phần tử sai hình dạng), dùng cho cả hai mã lỗi, rồi hiện trong chỗ đang hiện lý do y tế (`data: { reasons }` ở `lib/actions/training.ts:739`).
 - Test trong `training-errors.test.ts`: cả ba ca (chỉ đình chỉ, chỉ y tế, cả hai), và `details` sai hình dạng.
 
+### A3. Cổng 2 ở demo mode (thêm 27/10)
+
+Ngày 27/10 kiểm lại: Cổng 2 ở demo mode **đã có** trên nhánh demo `sync/T-004-fight-camp`. Hàm `suspensionGate` trong `lib/services/training.demo.ts` (dòng 671) đọc `demoBlockingSuspensions` của `bouts.demo.ts` và được gọi ở `createSession`, `updateSession` và `startSession` (dòng 470, 544, 698). Nhánh đó cũng đã có trang `/coach/bouts/suspensions`. Trên `fight-camp` chưa có vì nhánh demo chưa merge (36 commit, đếm ngày 27/10).
+
+Việc của A3:
+
+- Làm T-030 trên nền có nhánh demo, hoặc sau khi chủ dự án merge `sync/T-004-fight-camp` vào `fight-camp`. **Không** viết lại cổng demo.
+- Đối chiếu phần B với các màn đã có trên nhánh demo (trang Đình chỉ, `suspension-dialogs.tsx`). Màn nào đã có thì chỉ bổ sung phần còn thiếu.
+- Đình chỉ tạo tay ở demo mà không chọn loại buổi thì mặc định chặn mọi loại trừ `recovery_mobility`, theo [quyết định 22](../SCOPE-FIGHT-CAMP.md#quyết-định-và-câu-hỏi).
+
 ## Phần B. Giao diện đình chỉ
 
 Làm sau phần A. Theo [Tech spec §9](../FIGHT-CAMP-TECH-SPEC.md) và [Luồng nghiệp vụ](../FIGHT-CAMP-BUSINESS-FLOWS.md): hub "Trận" của HLV có thêm tab Đình chỉ và tab Sẵn sàng (route hiện có: `routes.coach.bouts = /coach/bouts`). Theo khuôn dịch vụ có sẵn: `lib/services/<x>.ts` (gọi API) + `<x>.demo.ts` (demo mode) + `lib/actions/<x>.ts` (server action), như `bouts`. Mọi chuỗi có vi và en.
@@ -99,6 +109,7 @@ Làm sau phần A. Theo [Tech spec §9](../FIGHT-CAMP-TECH-SPEC.md) và [Luồng
 5. B3: bỏ chọn một buổi thì buổi đó không bị đổi; áp dụng lỗi thì không buổi nào đổi.
 6. B4: tạo trận cho võ sĩ đang có trận ở `CAMP` hiện cảnh báo nhưng vẫn lưu được.
 7. Demo mode có đủ các màn (dữ liệu mẫu đủ để xem mọi trạng thái), vi và en đủ khoá.
+8. A3: nhánh của T-030 có cổng demo của nhánh demo; đình chỉ tạo tay ở demo mà không chọn loại buổi thì chặn `pad_work` nhưng cho `recovery_mobility`.
 
 ## Lệnh kiểm tra bắt buộc
 ```bash
