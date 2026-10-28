@@ -270,10 +270,11 @@ async function callGemini({ fileUri, mimeType, videoMetadata, apiKey, model }) {
     let lastStatus = null;
     let generateMs = 0;
     let resultJson = null;
+    // Wall time from the first attempt: a failed try and the retry wait are part of what the corner waits for.
+    const start = Date.now();
 
     for (let attempt = 1; attempt <= 2; attempt++) {
         attempts = attempt;
-        const start = Date.now();
         try {
             const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
                 method: "POST",
@@ -535,8 +536,6 @@ async function main() {
             fps: item.fps,
             start_offset: `${item.startSec.toFixed(2)}s`,
             end_offset: `${item.endSec.toFixed(2)}s`,
-            startOffset: `${item.startSec.toFixed(2)}s`,
-            endOffset: `${item.endSec.toFixed(2)}s`,
         };
 
         const callRes = await callGemini({
