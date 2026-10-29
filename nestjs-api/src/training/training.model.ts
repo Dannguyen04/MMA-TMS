@@ -43,6 +43,7 @@ export const SessionStatus = z.enum([
   'SKIPPED',
   'CANCELLED',
   'ABANDONED',
+  'PENDING',
 ]);
 export type SessionStatusType = z.infer<typeof SessionStatus>;
 

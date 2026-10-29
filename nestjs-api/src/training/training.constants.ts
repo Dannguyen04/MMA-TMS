@@ -1,4 +1,4 @@
-import { SessionStatusType, TrainingPlanStatusType } from "./training.model.js";
+import { SessionStatusType, TrainingPlanStatusType } from './training.model.js';
 
 /**
  * Plan transitions the domain forbids. This is a denylist, not a full matrix:
@@ -22,6 +22,7 @@ const ALLOWED_SESSION_TRANSITIONS: Partial<
 > = {
   SCHEDULED: ['IN_PROGRESS', 'CANCELLED', 'SKIPPED'],
   IN_PROGRESS: ['COMPLETED', 'ABANDONED', 'CANCELLED'],
+  PENDING: ['SCHEDULED', 'CANCELLED'],
 };
 
 const TERMINAL_SESSION_STATUSES: readonly SessionStatusType[] = [

@@ -75,6 +75,7 @@ import {
   WeighInResponseDto,
   WeightTrackResponseDto,
 } from './bouts.dto.js';
+import { AiVideoInputDto, AiDecisionDto, AiSuggestionParamsDto, AiHistoryQueryDto, AiResponseDto, AiHistoryResponseDto } from './bouts.dto.js';
 import { BoutsService } from './bouts.service.js';
 
 @ApiTags('Bouts')
@@ -349,6 +350,81 @@ export class BoutsController {
     @Param() params: BoutIdParamsDto,
   ) {
     return this.boutsService.getRounds(this.requireActor(actor), params.id);
+  }
+
+  @Post('bouts/:id/ai/tactics')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions({ allOf: [BOUT_PERMISSIONS.UPDATE] })
+  @ApiOperation({ summary: 'suggestAiTactics' })
+  @ResponseMessage('Bout AI suggestion successfully')
+  @ApiSuccessEnvelope({ status: HttpStatus.OK, message: 'Bout AI suggestion successfully', model: AiResponseDto })
+  @ApiValidationErrorEnvelope()
+  @ApiUnauthorizedEnvelope()
+  @ApiForbiddenEnvelope('Requires bout permission and access to the fighter')
+  @ApiNotFoundEnvelope('BOUT_NOT_FOUND', 'Bout not found')
+  @ApiConflictEnvelope('BOUT_INVALID_TRANSITION', 'The bout status forbids this operation')
+  async suggestAiTactics(@CurrentUser() actor: AuthenticatedUser | undefined, @Param() params: BoutIdParamsDto,) {
+    return this.boutsService.suggestAiTactics(this.requireActor(actor), params.id, randomUUID());
+  }
+
+  @Post('bouts/:id/ai/round-advice/:roundNo')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions({ allOf: [BOUT_PERMISSIONS.UPDATE] })
+  @ApiOperation({ summary: 'suggestAiRoundAdvice' })
+  @ResponseMessage('Bout AI suggestion successfully')
+  @ApiSuccessEnvelope({ status: HttpStatus.OK, message: 'Bout AI suggestion successfully', model: AiResponseDto })
+  @ApiValidationErrorEnvelope()
+  @ApiUnauthorizedEnvelope()
+  @ApiForbiddenEnvelope('Requires bout permission and access to the fighter')
+  @ApiNotFoundEnvelope('BOUT_NOT_FOUND', 'Bout not found')
+  @ApiConflictEnvelope('BOUT_INVALID_TRANSITION', 'The bout status forbids this operation')
+  async suggestAiRoundAdvice(@CurrentUser() actor: AuthenticatedUser | undefined, @Param() params: RoundParamsDto,) {
+    return this.boutsService.suggestAiRoundAdvice(this.requireActor(actor), params.id, params.roundNo, randomUUID());
+  }
+
+  @Post('bouts/:id/ai/video-observations')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions({ allOf: [BOUT_PERMISSIONS.UPDATE] })
+  @ApiOperation({ summary: 'suggestAiVideo' })
+  @ResponseMessage('Bout AI suggestion successfully')
+  @ApiSuccessEnvelope({ status: HttpStatus.OK, message: 'Bout AI suggestion successfully', model: AiResponseDto })
+  @ApiValidationErrorEnvelope()
+  @ApiUnauthorizedEnvelope()
+  @ApiForbiddenEnvelope('Requires bout permission and access to the fighter')
+  @ApiNotFoundEnvelope('BOUT_NOT_FOUND', 'Bout not found')
+  @ApiConflictEnvelope('BOUT_INVALID_TRANSITION', 'The bout status forbids this operation')
+  async suggestAiVideo(@CurrentUser() actor: AuthenticatedUser | undefined, @Param() params: BoutIdParamsDto, @Body() body: AiVideoInputDto,) {
+    return this.boutsService.suggestAiVideo(this.requireActor(actor), params.id, body, randomUUID());
+  }
+
+  @Get('bouts/:id/ai/suggestions')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions({ allOf: [BOUT_PERMISSIONS.READ] })
+  @ApiOperation({ summary: 'getAiSuggestions' })
+  @ResponseMessage('Bout AI suggestion successfully')
+  @ApiSuccessEnvelope({ status: HttpStatus.OK, message: 'Bout AI suggestion successfully', model: AiHistoryResponseDto })
+  @ApiValidationErrorEnvelope()
+  @ApiUnauthorizedEnvelope()
+  @ApiForbiddenEnvelope('Requires bout permission and access to the fighter')
+  @ApiNotFoundEnvelope('BOUT_NOT_FOUND', 'Bout not found')
+  @ApiConflictEnvelope('BOUT_INVALID_TRANSITION', 'The bout status forbids this operation')
+  async getAiSuggestions(@CurrentUser() actor: AuthenticatedUser | undefined, @Param() params: BoutIdParamsDto, @Query() query: AiHistoryQueryDto,) {
+    return this.boutsService.getAiSuggestions(this.requireActor(actor), params.id, query.kind);
+  }
+
+  @Patch('bouts/:id/ai/suggestions/:suggestionId')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions({ allOf: [BOUT_PERMISSIONS.UPDATE] })
+  @ApiOperation({ summary: 'decideAiSuggestion' })
+  @ResponseMessage('Bout AI suggestion successfully')
+  @ApiSuccessEnvelope({ status: HttpStatus.OK, message: 'Bout AI suggestion successfully', model: AiResponseDto })
+  @ApiValidationErrorEnvelope()
+  @ApiUnauthorizedEnvelope()
+  @ApiForbiddenEnvelope('Requires bout permission and access to the fighter')
+  @ApiNotFoundEnvelope('BOUT_NOT_FOUND', 'Bout not found')
+  @ApiConflictEnvelope('BOUT_AI_ALREADY_DECIDED', 'The coach has already decided on this suggestion')
+  async decideAiSuggestion(@CurrentUser() actor: AuthenticatedUser | undefined, @Param() params: AiSuggestionParamsDto, @Body() body: AiDecisionDto,) {
+    return this.boutsService.decideAiSuggestion(this.requireActor(actor), params.id, params.suggestionId, body, randomUUID());
   }
 
   @Get('bouts/:id/corner-card')

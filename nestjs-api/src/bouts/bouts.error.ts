@@ -17,6 +17,17 @@ export function boutNotFound(): NotFoundException {
   });
 }
 
+export function boutAiNoObservations(): UnprocessableEntityException {
+  return unprocessable('BOUT_AI_NO_OBSERVATIONS', 'At least one observation is required for AI tactics.');
+}
+
+export function boutAiAlreadyDecided(): ConflictException {
+  return new ConflictException({
+    statusCode: HttpStatus.CONFLICT, error: 'Conflict', code: 'BOUT_AI_ALREADY_DECIDED',
+    message: 'The coach has already decided on this suggestion.',
+  });
+}
+
 export function rulesetNotFound(): NotFoundException {
   return new NotFoundException({
     statusCode: HttpStatus.NOT_FOUND,
@@ -350,6 +361,7 @@ export function boutAnalysisInvalid(
     | 'OPPONENT_TACTIC_UNKNOWN'
     | 'BOUT_ROUNDS_NOT_SET'
     | 'BOUT_ROUND_OUT_OF_RANGE'
+    | 'BOUT_NEXT_ROUND_PLAN_LAST_ROUND'
     | 'BOUT_ROUND_MARK_UNKNOWN'
     | 'BOUT_ROUNDS_BELOW_RECORDED',
 ): UnprocessableEntityException {

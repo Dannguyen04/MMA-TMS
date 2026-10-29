@@ -1,10 +1,13 @@
 import { createZodDto } from 'nestjs-zod';
-import { z } from 'zod';
 import {
+  affectedPlanSchema,
+  affectedSessionSchema,
   applySuspensionConflictsSchema,
   clearSuspensionSchema,
   conflictProposalResponseSchema,
+  createSuspensionResponseSchema,
   createSuspensionSchema,
+  gradedReturnSchema,
   listSuspensionsQuerySchema,
   suspensionIdParamsSchema,
   suspensionListResponseSchema,
@@ -19,8 +22,14 @@ export class ListSuspensionsQueryDto extends createZodDto(
 ) {}
 export class CreateSuspensionDto extends createZodDto(createSuspensionSchema) {}
 export class ClearSuspensionDto extends createZodDto(clearSuspensionSchema) {}
+export class AffectedSessionDto extends createZodDto(affectedSessionSchema) {}
+export class AffectedPlanDto extends createZodDto(affectedPlanSchema) {}
+export class GradedReturnDto extends createZodDto(gradedReturnSchema) {}
 export class SuspensionResponseDto extends createZodDto(
   suspensionResponseSchema,
+) {}
+export class CreateSuspensionResponseDto extends createZodDto(
+  createSuspensionResponseSchema,
 ) {}
 export class SuspensionListResponseDto extends createZodDto(
   suspensionListResponseSchema,
@@ -29,9 +38,5 @@ export class ApplySuspensionConflictsDto extends createZodDto(
   applySuspensionConflictsSchema,
 ) {}
 export class ConflictProposalResponseDto extends createZodDto(
-  // Date objects are serialized to ISO strings on the HTTP boundary.
-  // Keep the domain schema Date-aware while exposing a JSON Schema-safe DTO.
-  conflictProposalResponseSchema.extend({
-    toScheduledAt: z.iso.datetime({ offset: true }).optional(),
-  }),
+  conflictProposalResponseSchema,
 ) {}

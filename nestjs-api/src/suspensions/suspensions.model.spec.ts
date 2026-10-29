@@ -1,14 +1,20 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
 import {
+  blockedTypesForMaxTier,
   clearSuspensionSchema,
   createSuspensionSchema,
   decodeSuspensionCursor,
+  DEFAULT_MANUAL_BLOCKED_SESSION_TYPES,
   deriveRequiresClearance,
   encodeSuspensionCursor,
   endsOnFor,
+  gradedReturnCeiling,
+  gradedReturnFor,
   isInForceOn,
   listSuspensionsQuerySchema,
+  maxAllowedTier,
   planConflicts,
+  SESSION_INTENSITY_TIERS,
   SESSION_TYPES,
   suggestSuspensions,
   SUSPENSION_REASONS,
@@ -300,45 +306,45 @@ describe('planConflicts (R28)', () => {
     ...over,
   });
 
-  it('proposes CHANGE_TYPE to RECOVERY for a SPARRING session on day 5 of a suspension when RECOVERY is not blocked', () => {
-    const proposals = planConflicts([makeSession()], [makeSuspension()]);
-    expect(proposals).toEqual([
-      {
-        sessionId: 'sess-1',
-        action: 'CHANGE_TYPE',
-        toType: 'RECOVERY',
-      },
-    ]);
-  });
-
-  it('proposes RESCHEDULE to ends_on + 1 (same time of day) when RECOVERY is blocked and no blocking suspension requires clearance', () => {
-    const susp = makeSuspension({
+  it('proposes PENDING when blocking suspension does not require clearance (whether RECOVERY is blocked or not)', () => {
+    const suspRecoveryAllowed = makeSuspension({
       startsOn: '2026-10-01',
       endsOn: '2026-10-10',
-      blockedSessionTypes: [...SESSION_TYPES], // all types blocked, including RECOVERY
+      blockedSessionTypes: ['SPARRING'],
       requiresClearance: false,
     });
-    const sess = makeSession({
-      id: 'sess-reschedule',
+    const suspAllBlocked = makeSuspension({
+      id: 'susp-all',
+      startsOn: '2026-10-01',
+      endsOn: '2026-10-10',
+      blockedSessionTypes: [...SESSION_TYPES],
+      requiresClearance: false,
+    });
+    const sess1 = makeSession({
+      id: 'sess-pending-1',
       sessionType: 'SPARRING',
       scheduledAt: new Date('2026-10-05T09:30:00.000Z'),
     });
 
-    const proposals = planConflicts([sess], [susp]);
-    expect(proposals).toEqual([
+    expect(planConflicts([sess1], [suspRecoveryAllowed])).toEqual([
       {
-        sessionId: 'sess-reschedule',
-        action: 'RESCHEDULE',
-        toScheduledAt: new Date('2026-10-11T09:30:00.000Z'),
+        sessionId: 'sess-pending-1',
+        action: 'PENDING',
+      },
+    ]);
+    expect(planConflicts([sess1], [suspAllBlocked])).toEqual([
+      {
+        sessionId: 'sess-pending-1',
+        action: 'PENDING',
       },
     ]);
   });
 
-  it('proposes CANCEL when RECOVERY is blocked and a blocking suspension requires clearance (both during ACTIVE and when AWAITING_CLEARANCE)', () => {
+  it('proposes CANCEL when a blocking suspension requires clearance (both during ACTIVE and when AWAITING_CLEARANCE)', () => {
     const susp = makeSuspension({
       startsOn: '2026-10-01',
       endsOn: '2026-10-10',
-      blockedSessionTypes: [...SESSION_TYPES],
+      blockedSessionTypes: ['SPARRING', 'RECOVERY'],
       requiresClearance: true,
       clearedAt: null,
     });
@@ -360,50 +366,36 @@ describe('planConflicts (R28)', () => {
     ]);
   });
 
-  it('uses the latest ends_on among overlapping in-force suspensions that block the session type', () => {
-    const susp1 = makeSuspension({
-      id: 'susp-1',
+  it('proposes CANCEL when two blocking suspensions overlap on the same session and one has requiresClearance = true while the other is false', () => {
+    const suspFixed = makeSuspension({
+      id: 'susp-fixed',
       startsOn: '2026-10-01',
       endsOn: '2026-10-10',
-      blockedSessionTypes: [...SESSION_TYPES],
-      requiresClearance: false,
-    });
-    const susp2 = makeSuspension({
-      id: 'susp-2',
-      startsOn: '2026-10-03',
-      endsOn: '2026-10-20',
       blockedSessionTypes: ['SPARRING'],
       requiresClearance: false,
     });
-    // A third suspension with an even later end date that does NOT block SPARRING
-    const suspOtherType = makeSuspension({
-      id: 'susp-3',
-      startsOn: '2026-10-01',
-      endsOn: '2026-10-30',
-      blockedSessionTypes: ['GRAPPLING'],
-      requiresClearance: false,
+    const suspClearance = makeSuspension({
+      id: 'susp-clearance',
+      startsOn: '2026-10-03',
+      endsOn: '2026-10-20',
+      blockedSessionTypes: ['SPARRING'],
+      requiresClearance: true,
     });
-
     const sess = makeSession({
       id: 'sess-overlap',
       sessionType: 'SPARRING',
       scheduledAt: new Date('2026-10-05T14:15:00.000Z'),
     });
 
-    const proposals = planConflicts(
-      [sess],
-      [susp1, susp2, suspOtherType],
-    );
-    expect(proposals).toEqual([
+    expect(planConflicts([sess], [suspFixed, suspClearance])).toEqual([
       {
         sessionId: 'sess-overlap',
-        action: 'RESCHEDULE',
-        toScheduledAt: new Date('2026-10-21T14:15:00.000Z'),
+        action: 'CANCEL',
       },
     ]);
   });
 
-  it('produces nothing for an unblocked session type, a session outside the period, or a non-SCHEDULED session, and ignores soft-deleted or cleared records', () => {
+  it('produces nothing for an unblocked session type, a session outside the period, or a non-SCHEDULED session (including PENDING), and ignores soft-deleted or cleared records', () => {
     const fixedSusp = makeSuspension({
       startsOn: '2026-10-01',
       endsOn: '2026-10-10',
@@ -442,6 +434,10 @@ describe('planConflicts (R28)', () => {
       sessionType: 'SPARRING',
       scheduledAt: new Date('2026-10-11T10:00:00.000Z'),
     });
+    const pendingSession = makeSession({
+      id: 'sess-pending',
+      status: 'PENDING',
+    });
     const inProgress = makeSession({
       id: 'sess-in-progress',
       status: 'IN_PROGRESS',
@@ -465,6 +461,7 @@ describe('planConflicts (R28)', () => {
           unblockedType,
           beforeStart,
           afterEnd,
+          pendingSession,
           inProgress,
           completed,
           cancelled,
@@ -491,8 +488,7 @@ describe('planConflicts (R28)', () => {
     expect(planConflicts([onEndsOn], [susp])).toEqual([
       {
         sessionId: 'sess-on-ends-on',
-        action: 'CHANGE_TYPE',
-        toType: 'RECOVERY',
+        action: 'PENDING',
       },
     ]);
   });
@@ -1023,5 +1019,138 @@ describe('suggestSuspensions (R27)', () => {
         }),
       ],
     });
+  });
+});
+
+describe('T-045 intensity tiers and graded return', () => {
+  it('Criterion 1: SESSION_INTENSITY_TIERS maps all 8 session types per table 2.1', () => {
+    expect(Object.keys(SESSION_INTENSITY_TIERS)).toHaveLength(8);
+    for (const type of SESSION_TYPES) {
+      expect(SESSION_INTENSITY_TIERS[type]).toBeDefined();
+    }
+    expect(SESSION_INTENSITY_TIERS).toEqual({
+      RECOVERY: 1,
+      PHYSICAL_THERAPY: 1,
+      STRENGTH_CONDITIONING: 2,
+      SHADOW_BOXING: 3,
+      HEAVY_BAG: 3,
+      PAD_WORK: 3,
+      GRAPPLING: 4,
+      SPARRING: 5,
+    });
+  });
+
+  it('Criterion 2: blockedTypesForMaxTier(3) returns types > tier 3 in SESSION_TYPES order, and createSuspensionSchema rejects maxTier with blockedSessionTypes', () => {
+    expect(blockedTypesForMaxTier(3)).toEqual(['SPARRING', 'GRAPPLING']);
+    expect(new Set(blockedTypesForMaxTier(3))).toEqual(
+      new Set(['GRAPPLING', 'SPARRING']),
+    );
+    expect(blockedTypesForMaxTier(1)).toEqual([
+      ...DEFAULT_MANUAL_BLOCKED_SESSION_TYPES,
+    ]);
+    expect(blockedTypesForMaxTier(4)).toEqual(['SPARRING']);
+    expect(blockedTypesForMaxTier(5)).toEqual([]);
+
+    const fighterId = '11111111-1111-4111-8111-111111111111';
+    expect(
+      createSuspensionSchema.safeParse({
+        fighterId,
+        reason: 'MEDICAL',
+        days: 14,
+        maxTier: 3,
+      }).success,
+    ).toBe(true);
+
+    const bothProvided = createSuspensionSchema.safeParse({
+      fighterId,
+      reason: 'MEDICAL',
+      days: 14,
+      maxTier: 3,
+      blockedSessionTypes: ['SPARRING'],
+    });
+    expect(bothProvided.success).toBe(false);
+
+    expect(
+      createSuspensionSchema.safeParse({
+        fighterId,
+        reason: 'MEDICAL',
+        days: 14,
+        maxTier: 0,
+      }).success,
+    ).toBe(false);
+    expect(
+      createSuspensionSchema.safeParse({
+        fighterId,
+        reason: 'MEDICAL',
+        days: 14,
+        maxTier: 6,
+      }).success,
+    ).toBe(false);
+  });
+
+  it('Criterion 3: maxAllowedTier returns 1 for T-035 default and 4 when only SPARRING is blocked', () => {
+    expect(maxAllowedTier(DEFAULT_MANUAL_BLOCKED_SESSION_TYPES)).toBe(1);
+    expect(maxAllowedTier(['SPARRING'])).toBe(4);
+    expect(maxAllowedTier(['GRAPPLING', 'SPARRING'])).toBe(3);
+    expect(maxAllowedTier([])).toBe(5);
+    expect(maxAllowedTier(['RECOVERY'])).toBe(0);
+  });
+
+  it('Criteria 4, 5, 6: gradedReturnCeiling and gradedReturnFor handle cleared KO, MANDATORY_REST, and uncleared KO', () => {
+    // Criterion 4: KO 60 days (2026-10-20..2026-12-18), cleared on D = 2026-12-19
+    const clearedKo = {
+      reason: 'KO' as const,
+      startsOn: '2026-10-20',
+      endsOn: '2026-12-18',
+      requiresClearance: true,
+      clearedAt: new Date('2026-12-19T03:00:00.000Z'), // 2026-12-19 in academy TZ
+    };
+    expect(gradedReturnCeiling(clearedKo, '2026-12-19')).toBe(3);
+    expect(gradedReturnFor(clearedKo, '2026-12-19')).toEqual({
+      ceiling: 3,
+      fullReturnOn: '2026-12-21',
+    });
+    expect(gradedReturnCeiling(clearedKo, '2026-12-20')).toBe(4);
+    expect(gradedReturnFor(clearedKo, '2026-12-20')).toEqual({
+      ceiling: 4,
+      fullReturnOn: '2026-12-21',
+    });
+    expect(gradedReturnCeiling(clearedKo, '2026-12-21')).toBeNull();
+    expect(gradedReturnFor(clearedKo, '2026-12-21')).toBeNull();
+
+    // TKO without requiresClearance: R = endsOn + 1
+    const noClearanceTko = {
+      reason: 'TKO' as const,
+      startsOn: '2026-10-01',
+      endsOn: '2026-10-30',
+      requiresClearance: false,
+      clearedAt: null,
+    };
+    expect(gradedReturnCeiling(noClearanceTko, '2026-10-30')).toBeNull();
+    expect(gradedReturnCeiling(noClearanceTko, '2026-10-31')).toBe(3);
+    expect(gradedReturnCeiling(noClearanceTko, '2026-11-01')).toBe(4);
+    expect(gradedReturnCeiling(noClearanceTko, '2026-11-02')).toBeNull();
+
+    // Criterion 5: MANDATORY_REST ending on E has no graded return on E+1
+    const mandatoryRest = {
+      reason: 'MANDATORY_REST' as const,
+      startsOn: '2026-10-20',
+      endsOn: '2026-10-26',
+      requiresClearance: false,
+      clearedAt: null,
+    };
+    expect(gradedReturnCeiling(mandatoryRest, '2026-10-27')).toBeNull();
+    expect(gradedReturnFor(mandatoryRest, '2026-10-27')).toBeNull();
+
+    // Criterion 6: KO not yet cleared has no graded return
+    const unclearedKo = {
+      reason: 'KO' as const,
+      startsOn: '2026-10-20',
+      endsOn: '2026-12-18',
+      requiresClearance: true,
+      clearedAt: null,
+    };
+    expect(gradedReturnCeiling(unclearedKo, '2026-12-19')).toBeNull();
+    expect(gradedReturnFor(unclearedKo, '2026-12-19')).toBeNull();
   });
 });

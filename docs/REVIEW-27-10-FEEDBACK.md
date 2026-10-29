@@ -73,7 +73,7 @@ Làm song song theo người, đổi việc linh hoạt khi cần (Dan chốt 27
 | T-036 | Đình chỉ gắn với giáo án: camp tự chuyển sang hồi phục, chặn theo cường độ, lộ trình tập lại theo bậc. Phần A backend (có migration), phần B màn HLV | 1 | A: Ken. B: Hoàng Anh | Codex | 1 |
 | T-037 | Đổi chiến thuật giữa hiệp, lời dặn nói rõ hiệp sau làm gì. Phần A backend, phần B màn ghi hiệp trên điện thoại | 2 | A: Dan. B: Fon | — | 1 |
 | T-038 | AI gợi ý chiến thuật trước trận (từ quan sát và hồ sơ hai bên) và lời dặn giữa hiệp; lưu kết quả AI vào database | 3, 4 | Dan | Codex | 1 |
-| T-039 | Đo xem AI có xem được video trận đang diễn ra không. Chỉ đo, chưa làm tính năng | 3 | Codex | Dan duyệt | 1, kết luận trước 3/11 |
+| [T-039](./tickets/T-039-RESULT.md) | Đo xem AI có xem được video trận đang diễn ra không. Chỉ đo, chưa làm tính năng | 3 | Codex | Dan duyệt | 1, kết luận trước 3/11 |
 | T-040 | Demo trên backend thật: merge nhánh demo, kiểm từng màn ở API mode, dữ liệu demo (gộp T-008), sửa chỗ chập chờn | 4 | Ken | Cả nhóm thử màn của mình | 2 |
 | T-041 | Màn báo cáo sau trận (nghiệp vụ 14); bảng sẵn sàng đã nằm ở T-030 | 4 | Fon | — | 1–2 |
 | T-042 | Model 3D cơ thể võ sĩ: vùng chấn thương, vùng bị đánh trúng, vùng bị hạn chế | 5 | Hoàng Anh | Gemini | 2 |
@@ -83,5 +83,5 @@ Làm song song theo người, đổi việc linh hoạt khi cần (Dan chốt 27
 **Lưu ý:**
 
 - Làm 3D cần cài thư viện mới (ví dụ `three`). Phải được Dan duyệt trước khi cài, theo [quy trình §4.7](./TEAM-WORKFLOW.md#4-quy-tắc-cho-người-thực-hiện-dev-và-gemini).
-- T-039 có thể kết luận "không làm được trong 2 tuần". Khi đó nhóm báo thầy kèm số liệu đo, không hứa tính năng.
+- T-039 kết luận ngày 28/10, Dan duyệt 29/10: **AI xem video trận trực tiếp không làm được trong 2 tuần.** Lần nhanh nhất mất 140 s mỗi hiệp, trong khi chỉ có khoảng 40 s dùng được trong 60 s nghỉ; 13/18 lần gọi lỗi (503, 429). Nhóm báo thầy kèm [số liệu](./tickets/T-039-RESULT.md). Hướng thay thế: AI viết lời dặn từ dữ liệu HLV ghi (T-038) và xem video sau trận ([T-047](./tickets/T-047-post-bout-video-analysis.md)).
 - Ý nào ở mục 1–6 bị nhóm gạch đi thì Claude bỏ hoặc sửa ticket tương ứng.

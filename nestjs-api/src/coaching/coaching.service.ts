@@ -43,12 +43,17 @@ import {
 } from './dto/coaching.dto.js';
 import { resultDigest } from './result-receipt.js';
 import { movementEvidenceSchema } from './movement-evidence.contract.js';
+import { SuspensionGate } from '../suspensions/suspension.gate.js';
+import { trainingSuspensionActive } from '../training/training.error.js';
 
 @Injectable()
 export class CoachingService implements OnModuleInit {
   private readonly logger = new Logger(CoachingService.name);
 
-  constructor(@Inject(DRIZZLE) private readonly db: any) {}
+  constructor(
+    @Inject(DRIZZLE) private readonly db: any,
+    private readonly suspensionGate: SuspensionGate,
+  ) {}
 
   async onModuleInit() {
     const requiredTables = [
@@ -197,6 +202,20 @@ export class CoachingService implements OnModuleInit {
       // 1. Verify active coach-fighter relationship
       await this.verifyCoachAuthorization(dto.coachId, dto.fighterId, tx);
 
+      // Gate 2 (suspensions): verify fighter is not blocked by active suspensions
+      const scheduledAt = dto.scheduledAt ? new Date(dto.scheduledAt) : new Date();
+      const sessionType = dto.sessionType ?? 'SHADOW_BOXING';
+
+      const suspensions = await this.suspensionGate.blockingSuspensions(
+        dto.fighterId,
+        sessionType,
+        scheduledAt,
+        tx,
+      );
+      if (suspensions.length > 0) {
+        throw trainingSuspensionActive(suspensions);
+      }
+
       // 2. Create training plan
       const planTitle = dto.planTitle || `Plan for ${dto.title}`;
       const [plan] = await tx
@@ -212,9 +231,6 @@ export class CoachingService implements OnModuleInit {
         .returning();
 
       // 3. Create training session
-      const scheduledAt = dto.scheduledAt ? new Date(dto.scheduledAt) : new Date();
-      const sessionType = dto.sessionType ?? 'SHADOW_BOXING';
-
       const [session] = await tx
         .insert(trainingSessions)
         .values({

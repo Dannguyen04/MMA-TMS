@@ -11,6 +11,11 @@ describe('BoutsController routes', () => {
   const proto = BoutsController.prototype;
 
   const cases: [keyof BoutsController, RequestMethod, string, string][] = [
+    ['suggestAiTactics', RequestMethod.POST, 'bouts/:id/ai/tactics', BOUT_PERMISSIONS.UPDATE],
+    ['suggestAiRoundAdvice', RequestMethod.POST, 'bouts/:id/ai/round-advice/:roundNo', BOUT_PERMISSIONS.UPDATE],
+    ['suggestAiVideo', RequestMethod.POST, 'bouts/:id/ai/video-observations', BOUT_PERMISSIONS.UPDATE],
+    ['getAiSuggestions', RequestMethod.GET, 'bouts/:id/ai/suggestions', BOUT_PERMISSIONS.READ],
+    ['decideAiSuggestion', RequestMethod.PATCH, 'bouts/:id/ai/suggestions/:suggestionId', BOUT_PERMISSIONS.UPDATE],
     [
       'listRulesets',
       RequestMethod.GET,
@@ -127,6 +132,11 @@ describe('BoutsController routes', () => {
       BOUT_PERMISSIONS.RESULT,
     ],
   ];
+
+  it('returns HTTP 200 for all three AI POSTs, including failed AI results', () => {
+    for (const name of ['suggestAiTactics', 'suggestAiRoundAdvice', 'suggestAiVideo'] as const)
+      expect(Reflect.getMetadata('__httpCode__', proto[name])).toBe(200);
+  });
 
   it.each(cases)(
     '%s uses %s %s and requires %s',
