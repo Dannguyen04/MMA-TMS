@@ -149,6 +149,7 @@ export const sessionStatusEnum = pgEnum('session_status', [
   'SKIPPED',
   'CANCELLED',
   'ABANDONED',
+  'PENDING',
 ]);
 export const sessionTypeEnum = pgEnum('session_type', [
   'SHADOW_BOXING',

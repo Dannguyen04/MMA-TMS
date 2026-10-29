@@ -987,6 +987,37 @@ try {
     rejects('mma_013', target, /027 .*collision/);
     assert.equal(psql('mma_013', 'SELECT count(*) FROM mma_private.migration_history WHERE version = 27;'), '0');
   });
+  check('032 applies on ledger 24 without 025-031, adds PENDING to session_status, and rejects re-application or missing 024', () => {
+    const db = 'mma_013';
+    const target = '032_session_status_pending.sql';
+    const sql = readFileSync(join(api, 'migrations', target), 'utf8');
+    assert.equal(
+      psql(db, 'SELECT count(*) FROM mma_private.migration_history WHERE version BETWEEN 25 AND 31;'),
+      '0',
+    );
+    migration(db, target);
+    assert.equal(
+      psql(db, 'SELECT count(*) FROM mma_private.migration_history WHERE version = 32 AND name = \'032_session_status_pending.sql\';'),
+      '1',
+    );
+    assert.equal(
+      psql(
+        db,
+        `SELECT string_agg(enumlabel, ',' ORDER BY enumsortorder) FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid WHERE t.typname = 'session_status';`,
+      ),
+      'SCHEDULED,IN_PROGRESS,COMPLETED,SKIPPED,CANCELLED,ABANDONED,PENDING',
+    );
+    rejects(db, sql, /032 already applied/);
+    assert.equal(
+      psql(db, 'SELECT count(*) FROM mma_private.migration_history WHERE version = 32;'),
+      '1',
+    );
+    rejects('mma_024_no_023', sql, /032 requires migration 024/);
+    assert.equal(
+      psql('mma_024_no_023', 'SELECT count(*) FROM mma_private.migration_history WHERE version = 32;'),
+      '0',
+    );
+  });
   if (process.argv.includes('--export-catalog')) {
     mkdirSync(resolve(api, '../tmp'), { recursive: true });
     const catalog = psql(

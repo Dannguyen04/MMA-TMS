@@ -300,45 +300,45 @@ describe('planConflicts (R28)', () => {
     ...over,
   });
 
-  it('proposes CHANGE_TYPE to RECOVERY for a SPARRING session on day 5 of a suspension when RECOVERY is not blocked', () => {
-    const proposals = planConflicts([makeSession()], [makeSuspension()]);
-    expect(proposals).toEqual([
-      {
-        sessionId: 'sess-1',
-        action: 'CHANGE_TYPE',
-        toType: 'RECOVERY',
-      },
-    ]);
-  });
-
-  it('proposes RESCHEDULE to ends_on + 1 (same time of day) when RECOVERY is blocked and no blocking suspension requires clearance', () => {
-    const susp = makeSuspension({
+  it('proposes PENDING when blocking suspension does not require clearance (whether RECOVERY is blocked or not)', () => {
+    const suspRecoveryAllowed = makeSuspension({
       startsOn: '2026-10-01',
       endsOn: '2026-10-10',
-      blockedSessionTypes: [...SESSION_TYPES], // all types blocked, including RECOVERY
+      blockedSessionTypes: ['SPARRING'],
       requiresClearance: false,
     });
-    const sess = makeSession({
-      id: 'sess-reschedule',
+    const suspAllBlocked = makeSuspension({
+      id: 'susp-all',
+      startsOn: '2026-10-01',
+      endsOn: '2026-10-10',
+      blockedSessionTypes: [...SESSION_TYPES],
+      requiresClearance: false,
+    });
+    const sess1 = makeSession({
+      id: 'sess-pending-1',
       sessionType: 'SPARRING',
       scheduledAt: new Date('2026-10-05T09:30:00.000Z'),
     });
 
-    const proposals = planConflicts([sess], [susp]);
-    expect(proposals).toEqual([
+    expect(planConflicts([sess1], [suspRecoveryAllowed])).toEqual([
       {
-        sessionId: 'sess-reschedule',
-        action: 'RESCHEDULE',
-        toScheduledAt: new Date('2026-10-11T09:30:00.000Z'),
+        sessionId: 'sess-pending-1',
+        action: 'PENDING',
+      },
+    ]);
+    expect(planConflicts([sess1], [suspAllBlocked])).toEqual([
+      {
+        sessionId: 'sess-pending-1',
+        action: 'PENDING',
       },
     ]);
   });
 
-  it('proposes CANCEL when RECOVERY is blocked and a blocking suspension requires clearance (both during ACTIVE and when AWAITING_CLEARANCE)', () => {
+  it('proposes CANCEL when a blocking suspension requires clearance (both during ACTIVE and when AWAITING_CLEARANCE)', () => {
     const susp = makeSuspension({
       startsOn: '2026-10-01',
       endsOn: '2026-10-10',
-      blockedSessionTypes: [...SESSION_TYPES],
+      blockedSessionTypes: ['SPARRING', 'RECOVERY'],
       requiresClearance: true,
       clearedAt: null,
     });
@@ -360,50 +360,36 @@ describe('planConflicts (R28)', () => {
     ]);
   });
 
-  it('uses the latest ends_on among overlapping in-force suspensions that block the session type', () => {
-    const susp1 = makeSuspension({
-      id: 'susp-1',
+  it('proposes CANCEL when two blocking suspensions overlap on the same session and one has requiresClearance = true while the other is false', () => {
+    const suspFixed = makeSuspension({
+      id: 'susp-fixed',
       startsOn: '2026-10-01',
       endsOn: '2026-10-10',
-      blockedSessionTypes: [...SESSION_TYPES],
-      requiresClearance: false,
-    });
-    const susp2 = makeSuspension({
-      id: 'susp-2',
-      startsOn: '2026-10-03',
-      endsOn: '2026-10-20',
       blockedSessionTypes: ['SPARRING'],
       requiresClearance: false,
     });
-    // A third suspension with an even later end date that does NOT block SPARRING
-    const suspOtherType = makeSuspension({
-      id: 'susp-3',
-      startsOn: '2026-10-01',
-      endsOn: '2026-10-30',
-      blockedSessionTypes: ['GRAPPLING'],
-      requiresClearance: false,
+    const suspClearance = makeSuspension({
+      id: 'susp-clearance',
+      startsOn: '2026-10-03',
+      endsOn: '2026-10-20',
+      blockedSessionTypes: ['SPARRING'],
+      requiresClearance: true,
     });
-
     const sess = makeSession({
       id: 'sess-overlap',
       sessionType: 'SPARRING',
       scheduledAt: new Date('2026-10-05T14:15:00.000Z'),
     });
 
-    const proposals = planConflicts(
-      [sess],
-      [susp1, susp2, suspOtherType],
-    );
-    expect(proposals).toEqual([
+    expect(planConflicts([sess], [suspFixed, suspClearance])).toEqual([
       {
         sessionId: 'sess-overlap',
-        action: 'RESCHEDULE',
-        toScheduledAt: new Date('2026-10-21T14:15:00.000Z'),
+        action: 'CANCEL',
       },
     ]);
   });
 
-  it('produces nothing for an unblocked session type, a session outside the period, or a non-SCHEDULED session, and ignores soft-deleted or cleared records', () => {
+  it('produces nothing for an unblocked session type, a session outside the period, or a non-SCHEDULED session (including PENDING), and ignores soft-deleted or cleared records', () => {
     const fixedSusp = makeSuspension({
       startsOn: '2026-10-01',
       endsOn: '2026-10-10',
@@ -442,6 +428,10 @@ describe('planConflicts (R28)', () => {
       sessionType: 'SPARRING',
       scheduledAt: new Date('2026-10-11T10:00:00.000Z'),
     });
+    const pendingSession = makeSession({
+      id: 'sess-pending',
+      status: 'PENDING',
+    });
     const inProgress = makeSession({
       id: 'sess-in-progress',
       status: 'IN_PROGRESS',
@@ -465,6 +455,7 @@ describe('planConflicts (R28)', () => {
           unblockedType,
           beforeStart,
           afterEnd,
+          pendingSession,
           inProgress,
           completed,
           cancelled,
@@ -491,8 +482,7 @@ describe('planConflicts (R28)', () => {
     expect(planConflicts([onEndsOn], [susp])).toEqual([
       {
         sessionId: 'sess-on-ends-on',
-        action: 'CHANGE_TYPE',
-        toType: 'RECOVERY',
+        action: 'PENDING',
       },
     ]);
   });

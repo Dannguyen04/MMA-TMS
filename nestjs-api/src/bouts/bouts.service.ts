@@ -114,6 +114,7 @@ import {
   suspensionDaysRequired,
   suspensionOverrideReasonRequired,
 } from '../suspensions/suspensions.error.js';
+import { SuspensionEffects } from '../suspensions/suspension.effects.js';
 import { SuspensionsRepository } from '../suspensions/suspensions.repo.js';
 
 @Injectable()
@@ -121,6 +122,7 @@ export class BoutsService {
   constructor(
     private readonly repo: BoutsRepository,
     private readonly suspensionsRepo: SuspensionsRepository,
+    private readonly suspensionEffects: SuspensionEffects,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -1497,6 +1499,7 @@ export class BoutsService {
 
     try {
       let createdSuspensions: RecordResultSuspension[] = [];
+      let afterCommit: () => Promise<void> = async () => {};
       const updated = await this.repo.transaction(async (tx) => {
         await setAuditContext(actor.authSubject, requestId, tx);
         const locked = await this.repo.lockBoutById(bout.id, tx);
@@ -1548,7 +1551,7 @@ export class BoutsService {
         );
         if (!updatedRow) throw boutStateConflict();
 
-        createdSuspensions = await this.applyResultSuspensions(
+        const applied = await this.applyResultSuspensions(
           actor,
           bout,
           ruleset,
@@ -1557,8 +1560,11 @@ export class BoutsService {
           tx,
         );
 
+        createdSuspensions = applied.suspensions;
+        afterCommit = applied.afterCommit;
         return updatedRow;
       });
+      await afterCommit();
 
       const detail = await this.buildDetail(updated, ruleset);
       return {
@@ -1577,7 +1583,10 @@ export class BoutsService {
     input: RecordResultInput,
     today: string,
     tx: Transaction,
-  ): Promise<RecordResultSuspension[]> {
+  ): Promise<{
+    suspensions: RecordResultSuspension[];
+    afterCommit: () => Promise<void>;
+  }> {
     const priorSuspensions =
       await this.suspensionsRepo.findPriorKoTkoSuspensions(
         bout.fighterId,
@@ -1622,7 +1631,7 @@ export class BoutsService {
       throw boutResultInvalid('SUSPENSION_OVERRIDE_NOT_ALLOWED');
     }
 
-    const created: RecordResultSuspension[] = [];
+    const insertedRows: { row: SuspensionRow; explanation: string }[] = [];
     for (const s of suggestion.suspensions) {
       const row = await this.suspensionsRepo.insertSuspension(
         {
@@ -1643,19 +1652,35 @@ export class BoutsService {
         },
         tx,
       );
-      created.push({
+      insertedRows.push({ row, explanation: s.explanation });
+    }
+    const effects =
+      insertedRows.length > 0
+        ? await this.suspensionEffects.runOnCreated(
+            insertedRows.map((item) => item.row),
+            tx,
+          )
+        : {
+            affectedSessions: [],
+            affectedPlans: [],
+            afterCommit: async () => {},
+          };
+    return {
+      suspensions: insertedRows.map(({ row, explanation }) => ({
         id: row.id,
         reason: row.reason,
         startsOn: row.startsOn,
         endsOn: row.endsOn,
         requiresClearance: row.requiresClearance,
         suggestedDays: row.suggestedDays,
-        explanation: s.explanation,
-      });
-    }
-
-    return created;
+        explanation,
+        affectedSessions: effects.affectedSessions,
+        affectedPlans: effects.affectedPlans,
+      })),
+      afterCommit: effects.afterCommit,
+    };
   }
+
 
   // ---------------------------------------------------------------------------
   // Internals

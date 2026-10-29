@@ -17,7 +17,13 @@ import {
 } from './bout-analysis.model.js';
 import { BoutsRepository } from './bouts.repo.js';
 import { BoutsService } from './bouts.service.js';
+import { z } from 'zod';
 import { SuspensionsRepository } from '../suspensions/suspensions.repo.js';
+import { SuspensionEffects } from '../suspensions/suspension.effects.js';
+import {
+  RecordResultResponseDto,
+  RecordResultSuspensionDto,
+} from './bouts.dto.js';
 
 const NOW = new Date('2026-10-20T03:00:00.000Z'); // 2026-10-20 10:00 in Vietnam
 const FIGHTER_ID = '10000000-0000-4000-8000-000000000001';
@@ -257,7 +263,7 @@ describe('BoutsService', () => {
       findWeightMeasurements: vi.fn().mockResolvedValue([]),
     } as unknown as Mocked<BoutsRepository>;
 
-    service = new BoutsService(repo, suspensionsRepo);
+    service = new BoutsService(repo, suspensionsRepo, new SuspensionEffects());
   });
 
   afterEach(() => {
@@ -3349,7 +3355,7 @@ describe('BoutsService', () => {
         })),
       } as unknown as Mocked<SuspensionsRepository>;
 
-      eService = new BoutsService(repo, suspensionsRepo);
+      eService = new BoutsService(repo, suspensionsRepo, new SuspensionEffects());
 
       repo.findBoutById.mockResolvedValue(
         makeBout({
@@ -3816,6 +3822,152 @@ describe('BoutsService', () => {
 
       const bout = await repo.findBoutById(BOUT_ID);
       expect(bout?.status).toBe('WEIGHED_IN');
+    });
+
+    it('runs SuspensionEffects.runOnCreated once with both KO and MANDATORY_REST suspensions, cancels conflicting session, transitions fight_camp plan to rehab, and rolls back session status when transaction fails after runOnCreated (Criterion 4)', async () => {
+      repo.findRulesetById.mockResolvedValue(
+        makeRuleset({
+          ...aibaRuleset,
+          restDaysAfterBout: 14,
+          defaultBlockedSessionTypes: ['SPARRING', 'GRAPPLING'],
+        }),
+      );
+
+      let insertIdx = 0;
+      suspensionsRepo.insertSuspension.mockImplementation(
+        async (values: unknown) => {
+          insertIdx += 1;
+          return {
+            id: `90000000-0000-4000-8000-00000000000${insertIdx}`,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            deletedAt: null,
+            clearedAt: null,
+            clearedById: null,
+            clearanceNote: null,
+            ...(values as Record<string, unknown>),
+          } as never;
+        },
+      );
+
+      const effects = new SuspensionEffects();
+      let sessionStatusInDb: 'SCHEDULED' | 'CANCELLED' | 'PENDING' = 'SCHEDULED';
+      let planPhaseInDb: 'fight_camp' | 'rehab' = 'fight_camp';
+      const afterCommitSpy = vi.fn(async () => {});
+
+      const handlerSpy = vi.fn(async (createdRows, effectTx) => {
+        expect(effectTx).toBe(tx);
+        // Because KO has requiresClearance = true, conflicting session is CANCELLED and fight_camp plan becomes rehab
+        const hasRequiresClearance = createdRows.some(
+          (r) => r.requiresClearance,
+        );
+        sessionStatusInDb = hasRequiresClearance ? 'CANCELLED' : 'PENDING';
+        planPhaseInDb = 'rehab';
+        return {
+          affectedSessions: [
+            {
+              sessionId: '70000000-0000-4000-8000-000000000001',
+              action: hasRequiresClearance
+                ? ('CANCEL' as const)
+                : ('PENDING' as const),
+            },
+          ],
+          affectedPlans: [
+            {
+              planId: PLAN_ID,
+              fromPhase: 'fight_camp' as const,
+              toPhase: 'rehab' as const,
+            },
+          ],
+          afterCommit: afterCommitSpy,
+        };
+      });
+      effects.register(handlerSpy);
+
+      const serviceWithEffects = new BoutsService(
+        repo,
+        suspensionsRepo,
+        effects,
+      );
+
+      const res = await serviceWithEffects.recordResult(
+        coachActor,
+        BOUT_ID,
+        {
+          result: 'LOSS',
+          method: 'KO',
+          resultRound: 1,
+          lossOfConsciousness: 'NONE',
+        },
+        REQUEST_ID,
+      );
+
+      expect(handlerSpy).toHaveBeenCalledTimes(1);
+      const passedSuspensions = handlerSpy.mock.calls[0]?.[0] ?? [];
+      expect(passedSuspensions).toHaveLength(2);
+      expect(passedSuspensions.map((s: { reason: string }) => s.reason)).toEqual([
+        'KO',
+        'MANDATORY_REST',
+      ]);
+      expect(sessionStatusInDb).toBe('CANCELLED');
+      expect(planPhaseInDb).toBe('rehab');
+      expect(afterCommitSpy).toHaveBeenCalledTimes(1);
+      expect(res.suspensions).toHaveLength(2);
+      expect(res.suspensions[0]?.affectedSessions).toEqual([
+        {
+          sessionId: '70000000-0000-4000-8000-000000000001',
+          action: 'CANCEL',
+        },
+      ]);
+      expect(res.suspensions[0]?.affectedPlans).toEqual([
+        {
+          planId: PLAN_ID,
+          fromPhase: 'fight_camp',
+          toPhase: 'rehab',
+        },
+      ]);
+      expect('afterCommit' in res.suspensions[0]!).toBe(false);
+
+      // Simulate transaction rollback when an error is thrown in the transaction after runOnCreated
+      sessionStatusInDb = 'SCHEDULED';
+      planPhaseInDb = 'fight_camp';
+      afterCommitSpy.mockClear();
+      repo.transaction.mockImplementationOnce(async (work) => {
+        const snapshotSession = sessionStatusInDb;
+        const snapshotPlan = planPhaseInDb;
+        try {
+          await work(tx);
+          throw new Error('Simulated failure in transaction after runOnCreated');
+        } catch (err) {
+          sessionStatusInDb = snapshotSession;
+          planPhaseInDb = snapshotPlan;
+          throw err;
+        }
+      });
+
+      await expect(
+        serviceWithEffects.recordResult(
+          coachActor,
+          BOUT_ID,
+          {
+            result: 'LOSS',
+            method: 'KO',
+            resultRound: 1,
+            lossOfConsciousness: 'NONE',
+          },
+          REQUEST_ID,
+        ),
+      ).rejects.toThrow();
+
+      expect(sessionStatusInDb).toBe('SCHEDULED');
+      expect(planPhaseInDb).toBe('fight_camp');
+      expect(afterCommitSpy).not.toHaveBeenCalled();
+    });
+
+    it('serializes RecordResultSuspensionDto and RecordResultResponseDto to JSON Schema without Date errors (Criterion 9)', () => {
+      for (const Dto of [RecordResultSuspensionDto, RecordResultResponseDto]) {
+        expect(() => z.toJSONSchema(Dto.schema)).not.toThrow();
+      }
     });
 
     it('a failure while querying prior suspensions rejects recordResult and leaves bout uncompleted (G2)', async () => {

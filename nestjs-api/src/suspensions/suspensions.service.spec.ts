@@ -5,6 +5,7 @@ import type { SuspensionRow } from '../database/schema.js';
 import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import { USER } from '../shared/types/user.role.js';
 import type { Transaction } from '../shared/utils/audit-context.util.js';
+import { SuspensionEffects } from './suspension.effects.js';
 import type { CreateSuspensionInput } from './suspensions.model.js';
 import { SuspensionsRepository } from './suspensions.repo.js';
 import { SuspensionsService } from './suspensions.service.js';
@@ -127,7 +128,7 @@ describe('SuspensionsService', () => {
       ),
     } as unknown as Mocked<SuspensionsRepository>;
 
-    service = new SuspensionsService(repo);
+    service = new SuspensionsService(repo, new SuspensionEffects());
   });
 
   afterEach(() => {
@@ -458,6 +459,113 @@ describe('SuspensionsService', () => {
         REQUEST_ID,
       );
       expect(createdByAdmin.id).toBe(SUSPENSION_ID);
+      expect(createdByAdmin.affectedSessions).toEqual([]);
+      expect(createdByAdmin.affectedPlans).toEqual([]);
+    });
+
+    it('invokes SuspensionEffects.runOnCreated inside the create transaction, calls afterCommit only after transaction resolves, and omits afterCommit from response JSON (Criterion 3)', async () => {
+      const effects = new SuspensionEffects();
+      const sessionId = '51c38f60-0f4e-48aa-848b-20f5ef828f01';
+      const callOrder: string[] = [];
+      const afterCommit = vi.fn(async () => {
+        callOrder.push('afterCommit');
+      });
+      const handler = vi.fn(async () => {
+        callOrder.push('runOnCreated');
+        return {
+          affectedSessions: [{ sessionId, action: 'PENDING' as const }],
+          affectedPlans: [],
+          afterCommit,
+        };
+      });
+      effects.register(handler);
+      const testTx = { execute: txExecute } as unknown as Transaction;
+      repo.transaction.mockImplementationOnce(async (work) => {
+        callOrder.push('tx:begin');
+        const out = await work(testTx);
+        callOrder.push('tx:commit');
+        return out;
+      });
+      const serviceWithEffects = new SuspensionsService(repo, effects);
+
+      const res = await serviceWithEffects.createSuspension(
+        coachActor,
+        {
+          fighterId: FIGHTER_ID,
+          reason: 'DQ',
+          days: 14,
+          blockedSessionTypes: ['SPARRING'],
+        },
+        REQUEST_ID,
+      );
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(handler).toHaveBeenCalledWith(
+        [
+          expect.objectContaining({
+            id: SUSPENSION_ID,
+            fighterId: FIGHTER_ID,
+            reason: 'DQ',
+            requiresClearance: false,
+          }),
+        ],
+        expect.anything(),
+      );
+      expect(callOrder).toEqual([
+        'tx:begin',
+        'runOnCreated',
+        'tx:commit',
+        'afterCommit',
+      ]);
+      expect(afterCommit).toHaveBeenCalledTimes(1);
+      expect(res.affectedSessions).toEqual([{ sessionId, action: 'PENDING' }]);
+      expect(res.affectedPlans).toEqual([]);
+      expect('afterCommit' in res).toBe(false);
+
+      // When transaction fails after runOnCreated, afterCommit must NOT be called
+      afterCommit.mockClear();
+      repo.transaction.mockImplementationOnce(async (work) => {
+        await work(testTx);
+        throw new Error('Transaction commit failure');
+      });
+      await expect(
+        serviceWithEffects.createSuspension(
+          coachActor,
+          {
+            fighterId: FIGHTER_ID,
+            reason: 'DQ',
+            days: 14,
+            blockedSessionTypes: ['SPARRING'],
+          },
+          REQUEST_ID,
+        ),
+      ).rejects.toThrow();
+      expect(afterCommit).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('SuspensionEffects (Criterion 7)', () => {
+    it('returns empty affectedSessions, affectedPlans, and no-op afterCommit when no handler is registered, and throws when register is called a second time', async () => {
+      const effects = new SuspensionEffects();
+      const tx = { execute: vi.fn() } as unknown as Transaction;
+
+      const noHandlerResult = await effects.runOnCreated([makeSuspension()], tx);
+      expect(noHandlerResult).toEqual({
+        affectedSessions: [],
+        affectedPlans: [],
+        afterCommit: expect.any(Function),
+      });
+      await expect(noHandlerResult.afterCommit()).resolves.toBeUndefined();
+
+      const firstHandler = vi.fn().mockResolvedValue({
+        affectedSessions: [],
+        affectedPlans: [],
+        afterCommit: async () => {},
+      });
+      effects.register(firstHandler);
+      expect(() => effects.register(vi.fn())).toThrow(
+        /already been registered/,
+      );
     });
   });
 
