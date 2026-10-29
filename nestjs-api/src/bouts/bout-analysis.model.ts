@@ -7,6 +7,34 @@ export const KNOCKDOWN_WARN_TOTAL = 2;
 export const STUNNED_STREAK_WARN = 2;
 
 export const analysisIdSchema = z.string().regex(/^[a-z0-9_-]{1,20}$/);
+export const aiKindSchema = z.enum(['PRE_BOUT_TACTICS', 'BETWEEN_ROUNDS', 'VIDEO_OBSERVATIONS']);
+export type BoutAiKind = z.infer<typeof aiKindSchema>;
+export type BoutAiError = 'NOT_CONFIGURED' | 'TIMEOUT' | 'QUOTA' | 'UPSTREAM' | 'EMPTY';
+export const aiDecisionSchema = z.strictObject({
+  decision: z.enum(['ACCEPTED', 'PARTIAL', 'REJECTED']),
+  acceptedItemIds: z.array(analysisIdSchema).refine((ids) => new Set(ids).size === ids.length),
+});
+export const aiSuggestionParamsSchema = z.strictObject({ id: z.uuid(), suggestionId: z.uuid() });
+export const aiHistoryQuerySchema = z.strictObject({ kind: aiKindSchema.optional() });
+// Keep the public YouTube URL rule identical to T-033.
+export function isSupportedVideoUrl(url: string): boolean {
+  return /^https:\/\/(www\.|m\.)?(youtube\.com\/(watch\?v=|shorts\/)|youtu\.be\/)[A-Za-z0-9_-]{6,}/.test(url.trim());
+}
+export const aiVideoInputSchema = z.strictObject({
+  url: z.string().trim().refine(isSupportedVideoUrl),
+  who: z.string().trim().min(1).max(200),
+});
+export const aiSuggestionSchema = z.object({
+  id: z.uuid(), kind: aiKindSchema, roundNo: z.number().nullable(),
+  status: z.enum(['OK', 'FAILED']), errorCode: z.string().nullable(),
+  model: z.string(), output: z.record(z.string(), z.unknown()), cached: z.boolean(),
+  createdAt: z.iso.datetime(),
+});
+export const aiResponseSchema = z.object({ suggestion: aiSuggestionSchema });
+export const aiHistoryResponseSchema = z.object({ suggestions: z.array(aiSuggestionSchema.extend({
+  decision: aiDecisionSchema.shape.decision.nullable(), acceptedItemIds: z.array(z.string()),
+  decidedAt: z.iso.datetime().nullable(),
+})) });
 export const tacticOutcomeSchema = z.enum([
   'EFFECTIVE',
   'INEFFECTIVE',
