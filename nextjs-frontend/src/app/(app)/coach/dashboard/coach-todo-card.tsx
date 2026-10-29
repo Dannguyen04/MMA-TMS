@@ -22,6 +22,8 @@ const TEXT: Record<CoachTodoSource, MessageKey> = {
     WEIGH_IN_TODAY: "coachTodo.WEIGH_IN_TODAY",
     RESULT_OVERDUE: "coachTodo.RESULT_OVERDUE",
     WEIGHT_NOT_LOGGED: "coachTodo.WEIGHT_NOT_LOGGED",
+    SUSPENSION_AWAITING_CLEARANCE: "coachTodo.SUSPENSION_AWAITING_CLEARANCE",
+    TRAINING_CONFLICTS_WITH_SUSPENSION: "coachTodo.TRAINING_CONFLICTS_WITH_SUSPENSION",
 };
 
 const PHASE_TEXT: Record<CoachTodoPhase, MessageKey> = {
@@ -31,7 +33,14 @@ const PHASE_TEXT: Record<CoachTodoPhase, MessageKey> = {
 };
 
 /** Sources that are late or unsafe rather than merely due: they get the warning tone. */
-const URGENT: ReadonlySet<CoachTodoSource> = new Set(["REQUIREMENTS_OVERDUE", "WEIGHT_OVER_LIMIT", "RESULT_OVERDUE", "WEIGHT_NOT_LOGGED"]);
+const URGENT: ReadonlySet<CoachTodoSource> = new Set([
+    "REQUIREMENTS_OVERDUE",
+    "WEIGHT_OVER_LIMIT",
+    "RESULT_OVERDUE",
+    "WEIGHT_NOT_LOGGED",
+    "SUSPENSION_AWAITING_CLEARANCE",
+    "TRAINING_CONFLICTS_WITH_SUSPENSION",
+]);
 
 export interface CoachTodoCardProps {
     todo: CoachTodo;
@@ -68,7 +77,7 @@ export function CoachTodoCard({ todo, fighterNames, t, locale }: CoachTodoCardPr
                                             <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
                                                 <p className="max-w-full truncate text-sm font-medium text-fg">{fighterNames.get(item.fighterId) ?? t("weight.fighterFallback")}</p>
                                                 <p className={URGENT.has(item.source) ? "text-xs font-medium text-warning-fg" : "text-xs font-medium text-fg"}>
-                                                    {text(item, t, locale)}
+                                                    {coachTodoText(item, t, locale)}
                                                 </p>
                                                 <p className="max-w-full truncate text-xs text-fg-muted">{item.eventName}</p>
                                             </div>
@@ -86,7 +95,7 @@ export function CoachTodoCard({ todo, fighterNames, t, locale }: CoachTodoCardPr
     );
 }
 
-function text(item: CoachTodoItem, t: Translator, locale: Locale): string {
+export function coachTodoText(item: CoachTodoItem, t: Translator, locale: Locale): string {
     return t(TEXT[item.source], {
         count: item.count ?? 0,
         date: item.dueOn ? formatShortDate(`${item.dueOn}T12:00:00+07:00`, locale) : "",

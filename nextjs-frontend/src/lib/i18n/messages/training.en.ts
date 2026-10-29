@@ -103,6 +103,10 @@ export const enTraining = {
     "training.error.trainingConflict": "This conflicts with the fighter's existing training. Reload the page and check it.",
     "training.error.checkViolation": "The training service rejected some of the values. Check the form and try again.",
     "training.error.invariantConflict": "The training service rejected this change because the record changed. Reload the page and try again.",
+    "training.error.suspensionActiveWithReason": "The fighter is suspended ({reason}); this session type is blocked until {endsOn}.",
+    "training.error.suspensionActiveRequiresClearance": "The fighter is suspended ({reason}): this session type is blocked until {endsOn}, then until cleared to resume training.",
+    "training.error.suspensionGradedReturn": "The fighter is on a graded return after a {reason} suspension: that day is capped at tier {ceiling}, full return from {fullReturnOn}.",
+    "training.error.suspensionActiveGeneral": "The fighter has an active suspension that blocks this training session type.",
 
     /* Loading Skeletons */
     "training.loading.plans": "Loading training plans",

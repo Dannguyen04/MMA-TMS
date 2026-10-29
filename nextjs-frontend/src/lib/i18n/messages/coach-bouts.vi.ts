@@ -236,4 +236,12 @@ export const viCoachBouts = {
     "coachBouts.phase.taper": "Giảm tải",
     "coachBouts.phase.rehab": "Phục hồi chức năng",
     "coachBouts.phase.maintenance": "Duy trì",
+
+    /* Suspension reasons */
+    "suspension.reason.KO": "KO",
+    "suspension.reason.TKO": "TKO",
+    "suspension.reason.DQ": "Truất quyền",
+    "suspension.reason.MANDATORY_REST": "Nghỉ bắt buộc",
+    "suspension.reason.MEDICAL": "Y tế",
+    "suspension.reason.OTHER": "Khác",
 } satisfies Record<keyof typeof enCoachBouts, string>;

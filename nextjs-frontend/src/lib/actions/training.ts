@@ -22,7 +22,7 @@ import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { PLATFORM_FEATURE_UNAVAILABLE_MESSAGE, platformFeatureAvailable, usesTrainingServiceForms } from "@/lib/services/platform-features";
 import * as training from "@/lib/services/training";
-import { trainingEligibilityReasons, trainingWriteFailure } from "@/lib/services/training-errors";
+import { trainingEligibilityReasons, trainingSuspensions, trainingWriteFailure, type TrainingBlockingSuspension } from "@/lib/services/training-errors";
 import { text, texts } from "./form-helpers";
 import { actionError, actionSuccess, FIX_FIELDS, validationError, type ActionState } from "./state";
 
@@ -734,6 +734,8 @@ export async function cancelSession(sessionId: string, input: { reason: string }
 export interface StartSessionResult {
     /** Why the fighter's Medical Clearance doesn't allow the session now, when the service said. */
     reasons: EligibilityReason[];
+    /** Active suspensions blocking this session. */
+    suspensions?: TrainingBlockingSuspension[];
 }
 
 /** Checks the fighter in. The training service refuses when their Medical Clearance doesn't allow it now. */
@@ -749,10 +751,17 @@ export async function startSession(sessionId: string): Promise<ActionState<Start
         const result = await training.startSession(sessionId, auth.user);
         if (!result.ok) return actionError(result.message);
         revalidateSession(result.session);
-        return actionSuccess(t("training.action.sessionStartedRecord"), { reasons: [] });
+        return actionSuccess(t("training.action.sessionStartedRecord"), { reasons: [], suspensions: [] });
     } catch (error) {
         const failure = trainingWriteFailure(error, { fields: SESSION_FORM_FIELDS }, t);
-        return { status: "error", message: failure.message, data: { reasons: trainingEligibilityReasons(error) ?? [] } };
+        return {
+            status: "error",
+            message: failure.message,
+            data: {
+                reasons: trainingEligibilityReasons(error) ?? [],
+                suspensions: trainingSuspensions(error) ?? [],
+            },
+        };
     }
 }
 

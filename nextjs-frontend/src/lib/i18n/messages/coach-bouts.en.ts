@@ -234,4 +234,12 @@ export const enCoachBouts = {
     "coachBouts.phase.taper": "Taper",
     "coachBouts.phase.rehab": "Rehab",
     "coachBouts.phase.maintenance": "Maintenance",
+
+    /* Suspension reasons */
+    "suspension.reason.KO": "KO",
+    "suspension.reason.TKO": "TKO",
+    "suspension.reason.DQ": "Disqualification",
+    "suspension.reason.MANDATORY_REST": "Mandatory rest",
+    "suspension.reason.MEDICAL": "Medical",
+    "suspension.reason.OTHER": "Other",
 } as const;

@@ -103,6 +103,10 @@ export const viTraining = {
     "training.error.trainingConflict": "Thao tác này xung đột với lịch tập hiện tại của võ sĩ. Hãy tải lại trang và kiểm tra lại.",
     "training.error.checkViolation": "Dịch vụ tập luyện từ chối một số giá trị nhập vào. Kiểm tra lại biểu mẫu và thử lại.",
     "training.error.invariantConflict": "Dịch vụ tập luyện từ chối thay đổi này do dữ liệu đã cập nhật. Hãy tải lại trang và thử lại.",
+    "training.error.suspensionActiveWithReason": "Võ sĩ đang bị đình chỉ ({reason}), buổi tập loại này bị chặn đến ngày {endsOn}.",
+    "training.error.suspensionActiveRequiresClearance": "Võ sĩ đang bị đình chỉ ({reason}): buổi tập loại này bị chặn đến ngày {endsOn}, sau đó chờ xác nhận được tập lại.",
+    "training.error.suspensionGradedReturn": "Võ sĩ đang tập lại theo bậc sau đình chỉ {reason}: ngày này tối đa bậc {ceiling}, tập đầy đủ từ {fullReturnOn}.",
+    "training.error.suspensionActiveGeneral": "Võ sĩ đang bị đình chỉ, buổi tập loại này bị chặn.",
 
     /* Loading Skeletons */
     "training.loading.plans": "Đang tải giáo án tập luyện",
