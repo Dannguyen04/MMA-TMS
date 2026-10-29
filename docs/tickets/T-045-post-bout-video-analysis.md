@@ -17,6 +17,10 @@ Sau trận, HLV dán link video trận (YouTube) và mốc bắt đầu, kết t
 
 Kết quả lưu vào `bout_ai_suggestions`. Báo cáo trận (T-041) hiện kết quả này cạnh bản ghi hiệp của HLV. HLV chọn nhận xét nào thì nhận xét đó được đưa vào phân tích đối thủ cho lần gặp lại (R4b, R30).
 
+## Việc phải làm trước
+
+Đo lại trên **video trận đấu thật**. Các video "BoxingVI" dùng ở T-022, T-034, T-039 đều là video tập thể dục (xem đính chính trong [T-039-RESULT](./T-039-RESULT.md)), và Gemini đã bịa ra đối thủ khi xem chúng.
+
 ## Câu hỏi cần chốt trước khi viết chi tiết
 
 1. Thêm `kind` mới (ví dụ `POST_BOUT_ROUND_VIDEO`) vào CHECK của `bout_ai_suggestions`, tức migration 032, hay dùng lại `VIDEO_OBSERVATIONS` kèm `round_no`? Phương án sau phải sửa ràng buộc `ck_bout_ai_round`, nên cũng là migration.
