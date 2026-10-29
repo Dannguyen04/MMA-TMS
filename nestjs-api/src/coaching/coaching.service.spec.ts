@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { ConflictException } from '@nestjs/common';
 import { CoachingService } from './coaching.service.js';
 import { type CreateAssignmentInput } from './coaching.model.js';
 
@@ -11,6 +12,7 @@ describe('CoachingService - createAssignment (contract unit test with mocked tx)
   let service: CoachingService;
   let mockDb: any;
   let mockTx: any;
+  let mockSuspensionGate: any;
   let insertedPlanValues: any;
   let insertedSessionValues: any;
 
@@ -55,7 +57,11 @@ describe('CoachingService - createAssignment (contract unit test with mocked tx)
       insert: vi.fn(),
     };
 
-    service = new CoachingService(mockDb);
+    mockSuspensionGate = {
+      blockingSuspensions: vi.fn().mockResolvedValue([]),
+    };
+
+    service = new CoachingService(mockDb, mockSuspensionGate);
     // Mock verifyCoachAuthorization and logAudit to focus on createAssignment persistence contract
     vi.spyOn(service, 'verifyCoachAuthorization').mockResolvedValue(undefined as any);
     vi.spyOn(service, 'logAudit').mockResolvedValue(undefined as any);
@@ -119,5 +125,104 @@ describe('CoachingService - createAssignment (contract unit test with mocked tx)
 
     expect(insertedSessionValues.sessionType).toBe('BAG_WORK');
     expect(insertedPlanValues.phase).toBe('build');
+  });
+
+  it('throws ConflictException with code TRAINING_SUSPENSION_ACTIVE and does not insert plan/session when active suspension blocks sessionType', async () => {
+    const blockingSuspensions = [
+      {
+        suspensionId: 'susp-active-1',
+        reason: 'Post-fight medical suspension',
+        endsOn: '2026-11-14',
+        requiresClearance: true,
+      },
+    ];
+    mockSuspensionGate.blockingSuspensions.mockResolvedValueOnce(blockingSuspensions);
+
+    const dto: CreateAssignmentInput = {
+      coachId,
+      fighterId,
+      title: 'Hard Sparring',
+      phase: 'fight_camp',
+      sessionType: 'SPARRING',
+      scheduledAt: '2026-11-01T10:00:00.000Z',
+    };
+
+    await expect(service.createAssignment(dto as any)).rejects.toSatisfy((error: unknown) => {
+      if (!(error instanceof ConflictException)) return false;
+      const resp = error.getResponse() as {
+        code?: string;
+        details?: { suspensions?: unknown[] };
+      };
+      return (
+        error.getStatus() === 409 &&
+        resp.code === 'TRAINING_SUSPENSION_ACTIVE' &&
+        JSON.stringify(resp.details?.suspensions) === JSON.stringify(blockingSuspensions)
+      );
+    });
+
+    expect(mockSuspensionGate.blockingSuspensions).toHaveBeenCalledWith(
+      fighterId,
+      'SPARRING',
+      new Date('2026-11-01T10:00:00.000Z'),
+      mockTx,
+    );
+    expect(mockTx.insert).not.toHaveBeenCalled();
+  });
+
+  it('creates assignment successfully when sessionType is not blocked by suspension', async () => {
+    mockSuspensionGate.blockingSuspensions.mockResolvedValueOnce([]);
+
+    const dto: CreateAssignmentInput = {
+      coachId,
+      fighterId,
+      title: 'Pad Work Session',
+      phase: 'build',
+      sessionType: 'PAD_WORK',
+    };
+
+    const result = await service.createAssignment(dto as any);
+
+    expect(mockSuspensionGate.blockingSuspensions).toHaveBeenCalledWith(
+      fighterId,
+      'PAD_WORK',
+      expect.any(Date),
+      mockTx,
+    );
+    expect(mockTx.insert).toHaveBeenCalled();
+    expect(result).toMatchObject({
+      planId,
+      sessionId,
+      title: 'Pad Work Session',
+      status: 'SCHEDULED',
+    });
+  });
+
+  it('creates assignment successfully when scheduledAt is after suspension ends', async () => {
+    mockSuspensionGate.blockingSuspensions.mockResolvedValueOnce([]);
+
+    const dto: CreateAssignmentInput = {
+      coachId,
+      fighterId,
+      title: 'Return to Sparring',
+      phase: 'build',
+      sessionType: 'SPARRING',
+      scheduledAt: '2026-11-20T10:00:00.000Z',
+    };
+
+    const result = await service.createAssignment(dto as any);
+
+    expect(mockSuspensionGate.blockingSuspensions).toHaveBeenCalledWith(
+      fighterId,
+      'SPARRING',
+      new Date('2026-11-20T10:00:00.000Z'),
+      mockTx,
+    );
+    expect(mockTx.insert).toHaveBeenCalled();
+    expect(result).toMatchObject({
+      planId,
+      sessionId,
+      title: 'Return to Sparring',
+      status: 'SCHEDULED',
+    });
   });
 });
