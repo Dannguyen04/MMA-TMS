@@ -14,9 +14,13 @@ import {
 } from '../shared/contracts/notification.contract.js';
 import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import { USER } from '../shared/types/user.role.js';
+import type { Transaction } from '../shared/utils/audit-context.util.js';
 import { SuspensionEffects } from '../suspensions/suspension.effects.js';
 import { SuspensionGate } from '../suspensions/suspension.gate.js';
-import { SESSION_TYPES } from '../suspensions/suspensions.model.js';
+import {
+  DEFAULT_MANUAL_BLOCKED_SESSION_TYPES,
+  SESSION_TYPES,
+} from '../suspensions/suspensions.model.js';
 import { SuspensionsRepository } from '../suspensions/suspensions.repo.js';
 import { SuspensionsService } from '../suspensions/suspensions.service.js';
 import { TrainingSessionService } from './sessions/training-session.service.js';
@@ -151,6 +155,7 @@ function repositoryMock() {
   return {
     transaction: vi.fn(async (work) => work(transaction)),
     findScheduledSessionsByFighterId: vi.fn().mockResolvedValue([]),
+    findPendingSessionsByFighterId: vi.fn().mockResolvedValue([]),
     findSessions: vi.fn().mockResolvedValue({ data: [], total: 0 }),
     findSessionById: vi.fn(),
     lockSessionById: vi.fn(),
@@ -1263,6 +1268,434 @@ describe('TrainingSuspensionConflictsService (R28 / T-036)', () => {
         expect(repo.lockActiveCampPlansByFighterId).not.toHaveBeenCalled();
         expect(repo.updatePlan).not.toHaveBeenCalled();
       }
+    });
+  });
+
+  describe('Part A2: PENDING sessions when creating new suspensions (P1–P7)', () => {
+    const priorOtherSuspension = makeSuspensionRow({
+      id: '70000000-0000-4000-8000-000000000090',
+      fighterId,
+      reason: 'OTHER',
+      startsOn: '2026-11-01',
+      endsOn: '2026-11-07',
+      suggestedDays: 7,
+      blockedSessionTypes: [...DEFAULT_MANUAL_BLOCKED_SESSION_TYPES],
+      requiresClearance: false,
+      clearedAt: null,
+    });
+
+    function setupTransactionalHarness(initial: {
+      sessions: TrainingSessionEntity[];
+      suspensions?: SuspensionRow[];
+      plans?: TrainingPlanEntity[];
+      overrideLockedSession?: (
+        session: TrainingSessionEntity,
+      ) => TrainingSessionEntity | undefined;
+      failAfterRunOnCreated?: boolean;
+    }) {
+      let committedSessions = initial.sessions.map((s) => ({ ...s }));
+      let committedSuspensions = (initial.suspensions ?? []).map((s) => ({
+        ...s,
+      }));
+      let committedPlans = (initial.plans ?? []).map((p) => ({ ...p }));
+      const callOrder: string[] = [];
+
+      const txBuffers = new WeakMap<
+        Transaction,
+        {
+          sessions: TrainingSessionEntity[];
+          suspensions: SuspensionRow[];
+          plans: TrainingPlanEntity[];
+        }
+      >();
+
+      const requireTxBuffer = (database: unknown, op: string) => {
+        const buf = txBuffers.get(database as Transaction);
+        if (!buf) {
+          throw new Error(
+            `${op} was called without the active transaction object`,
+          );
+        }
+        return buf;
+      };
+
+      let insertCounter = 0;
+      suspensionsRepo.insertSuspension.mockImplementation(
+        async (values: unknown, database?: unknown) => {
+          const buf = requireTxBuffer(database, 'insertSuspension');
+          insertCounter += 1;
+          const created = makeSuspensionRow({
+            ...(values as Partial<SuspensionRow>),
+            id: `70000000-0000-4000-8000-00000000009${insertCounter}`,
+          });
+          buf.suspensions.push(created);
+          return created;
+        },
+      );
+
+      suspensionsRepo.findSuspensionsByFighterId.mockImplementation(
+        async (_fId: string, database?: unknown) => {
+          const buf = requireTxBuffer(database, 'findSuspensionsByFighterId');
+          return buf.suspensions.map((s) => ({ ...s }));
+        },
+      );
+
+      repo.findScheduledSessionsByFighterId.mockImplementation(
+        async (_fId: string, database?: unknown) => {
+          const buf = requireTxBuffer(
+            database,
+            'findScheduledSessionsByFighterId',
+          );
+          return buf.sessions
+            .filter((s) => s.status === 'SCHEDULED' && s.deletedAt === null)
+            .map((s) => ({ ...s }));
+        },
+      );
+
+      repo.findPendingSessionsByFighterId.mockImplementation(
+        async (_fId: string, database?: unknown) => {
+          const buf = requireTxBuffer(
+            database,
+            'findPendingSessionsByFighterId',
+          );
+          return buf.sessions
+            .filter((s) => s.status === 'PENDING' && s.deletedAt === null)
+            .map((s) => ({ ...s }));
+        },
+      );
+
+      repo.lockSessionById.mockImplementation(
+        async (id: string, database?: unknown) => {
+          const buf = requireTxBuffer(database, 'lockSessionById');
+          const found = buf.sessions.find((s) => s.id === id);
+          if (!found) return undefined;
+          return initial.overrideLockedSession
+            ? initial.overrideLockedSession({ ...found })
+            : { ...found };
+        },
+      );
+
+      repo.updateSessionStatus.mockImplementation(
+        async (
+          id: string,
+          _expectedStatus: string,
+          newStatus: TrainingSessionEntity['status'],
+          _stoppedAt: Date,
+          outcome: {
+            cancellationReason: string | null;
+            actualDurationSec: number | null;
+          },
+          database?: unknown,
+        ) => {
+          const buf = requireTxBuffer(database, 'updateSessionStatus');
+          callOrder.push(`db:updateSessionStatus:${id}:${newStatus}`);
+          const idx = buf.sessions.findIndex((s) => s.id === id);
+          if (idx === -1) return undefined;
+          const updated: TrainingSessionEntity = {
+            ...buf.sessions[idx]!,
+            status: newStatus,
+            cancellationReason: outcome.cancellationReason,
+            actualDurationSec: outcome.actualDurationSec,
+          };
+          buf.sessions[idx] = updated;
+          return { ...updated };
+        },
+      );
+
+      repo.lockActiveCampPlansByFighterId.mockImplementation(
+        async (_fId: string, database?: unknown) => {
+          const buf = requireTxBuffer(
+            database,
+            'lockActiveCampPlansByFighterId',
+          );
+          return buf.plans.map((p) => ({ ...p }));
+        },
+      );
+
+      repo.updatePlan.mockImplementation(
+        async (
+          id: string,
+          changes: Partial<TrainingPlanEntity>,
+          database?: unknown,
+        ) => {
+          const buf = requireTxBuffer(database, 'updatePlan');
+          callOrder.push(`db:updatePlan:${id}:${String(changes.phase)}`);
+          const idx = buf.plans.findIndex((p) => p.id === id);
+          if (idx === -1) return undefined;
+          const updated: TrainingPlanEntity = {
+            ...buf.plans[idx]!,
+            ...changes,
+          };
+          buf.plans[idx] = updated;
+          return { ...updated };
+        },
+      );
+
+      notifications.notifyResolved.mockImplementation(
+        async (resolve: () => Promise<unknown[]>) => {
+          const items = await resolve();
+          for (const item of items as Array<{ type: string }>) {
+            callOrder.push(`notify:${item.type}`);
+          }
+          return [{ status: 'queued' }];
+        },
+      );
+
+      suspensionsRepo.transaction.mockImplementation(async (work) => {
+        const activeTx = { execute: vi.fn() } as unknown as Transaction;
+        txBuffers.set(activeTx, {
+          sessions: committedSessions.map((s) => ({ ...s })),
+          suspensions: committedSuspensions.map((s) => ({ ...s })),
+          plans: committedPlans.map((p) => ({ ...p })),
+        });
+        callOrder.push('tx:begin');
+        const out = await work(activeTx);
+        if (initial.failAfterRunOnCreated) {
+          callOrder.push('tx:rollback');
+          throw new Error('Simulated transaction failure after runOnCreated');
+        }
+        const staged = txBuffers.get(activeTx)!;
+        committedSessions = staged.sessions;
+        committedSuspensions = staged.suspensions;
+        committedPlans = staged.plans;
+        callOrder.push('tx:commit');
+        return out;
+      });
+
+      const suspensionsService = new SuspensionsService(
+        suspensionsRepo,
+        suspensionEffects,
+      );
+
+      return {
+        suspensionsService,
+        callOrder,
+        getCommittedSessions: () => committedSessions,
+        getCommittedSuspensions: () => committedSuspensions,
+      };
+    }
+
+    beforeEach(() => {
+      vi.setSystemTime(new Date('2026-11-04T03:00:00.000Z'));
+    });
+
+    it('P1: cancels a PENDING SPARRING session (S1 on 2026-11-05 from prior OTHER 2026-11-01..07) when a KO suspension starting 2026-11-04 (requiresClearance = true) is created, sets reason "Suspension in force", returns {S1, CANCEL} in affectedSessions, and sends cancel notification once strictly after commit', async () => {
+      const s1 = makeSessionEntity({
+        id: session1Id,
+        sessionType: 'SPARRING',
+        scheduledAt: '2026-11-05T10:00:00.000Z',
+        status: 'PENDING',
+      });
+
+      const { suspensionsService, callOrder, getCommittedSessions } =
+        setupTransactionalHarness({
+          sessions: [s1],
+          suspensions: [priorOtherSuspension],
+        });
+
+      const res = await suspensionsService.createSuspension(
+        coachActor,
+        {
+          fighterId,
+          reason: 'KO',
+          startsOn: '2026-11-04',
+          days: 30,
+        },
+        'req-p1',
+      );
+
+      const [committedS1] = getCommittedSessions();
+      expect(committedS1?.status).toBe('CANCELLED');
+      expect(committedS1?.cancellationReason).toBe(
+        SUSPENSION_CONFLICT_CANCELLATION_REASON,
+      );
+      expect(res.affectedSessions).toEqual([
+        { sessionId: session1Id, action: 'CANCEL' },
+      ]);
+      expect(notifications.notifyResolved).toHaveBeenCalledTimes(1);
+      expect(callOrder).toEqual([
+        'tx:begin',
+        `db:updateSessionStatus:${session1Id}:CANCELLED`,
+        'tx:commit',
+        `notify:${NOTIFICATION_TYPE.TRAINING_SESSION_CANCELLED}`,
+      ]);
+    });
+
+    it('P2: keeps S1 in PENDING with empty affectedSessions and no notification when a MANDATORY_REST suspension (2026-11-04..06, requiresClearance = false) is created', async () => {
+      const s1 = makeSessionEntity({
+        id: session1Id,
+        sessionType: 'SPARRING',
+        scheduledAt: '2026-11-05T10:00:00.000Z',
+        status: 'PENDING',
+      });
+
+      const { suspensionsService, getCommittedSessions } =
+        setupTransactionalHarness({
+          sessions: [s1],
+          suspensions: [priorOtherSuspension],
+        });
+
+      const res = await suspensionsService.createSuspension(
+        coachActor,
+        {
+          fighterId,
+          reason: 'MANDATORY_REST',
+          startsOn: '2026-11-04',
+          days: 3,
+        },
+        'req-p2',
+      );
+
+      const [committedS1] = getCommittedSessions();
+      expect(committedS1?.status).toBe('PENDING');
+      expect(res.affectedSessions).toEqual([]);
+      expect(repo.updateSessionStatus).not.toHaveBeenCalled();
+      expect(notifications.notifyResolved).not.toHaveBeenCalled();
+    });
+
+    it('P3: leaves PENDING RECOVERY session S2 on 2026-11-05 untouched when creating a default KO suspension (RECOVERY not blocked)', async () => {
+      const s2 = makeSessionEntity({
+        id: session2Id,
+        sessionType: 'RECOVERY',
+        scheduledAt: '2026-11-05T10:00:00.000Z',
+        status: 'PENDING',
+      });
+
+      const { suspensionsService, getCommittedSessions } =
+        setupTransactionalHarness({
+          sessions: [s2],
+          suspensions: [priorOtherSuspension],
+        });
+
+      const res = await suspensionsService.createSuspension(
+        coachActor,
+        {
+          fighterId,
+          reason: 'KO',
+          startsOn: '2026-11-04',
+          days: 30,
+        },
+        'req-p3',
+      );
+
+      const [committedS2] = getCommittedSessions();
+      expect(committedS2?.status).toBe('PENDING');
+      expect(res.affectedSessions).toEqual([]);
+      expect(repo.updateSessionStatus).not.toHaveBeenCalled();
+      expect(notifications.notifyResolved).not.toHaveBeenCalled();
+    });
+
+    it('P4: leaves PENDING SPARRING session S3 on 2026-10-20 (before KO startsOn 2026-11-04) untouched when creating a KO suspension from 2026-11-04', async () => {
+      const s3 = makeSessionEntity({
+        id: outsideSessionId,
+        sessionType: 'SPARRING',
+        scheduledAt: '2026-10-20T10:00:00.000Z',
+        status: 'PENDING',
+      });
+
+      const { suspensionsService, getCommittedSessions } =
+        setupTransactionalHarness({
+          sessions: [s3],
+          suspensions: [priorOtherSuspension],
+        });
+
+      const res = await suspensionsService.createSuspension(
+        coachActor,
+        {
+          fighterId,
+          reason: 'KO',
+          startsOn: '2026-11-04',
+          days: 30,
+        },
+        'req-p4',
+      );
+
+      const [committedS3] = getCommittedSessions();
+      expect(committedS3?.status).toBe('PENDING');
+      expect(res.affectedSessions).toEqual([]);
+      expect(repo.updateSessionStatus).not.toHaveBeenCalled();
+      expect(notifications.notifyResolved).not.toHaveBeenCalled();
+    });
+
+    it('P5: does not throw, does not modify S1, and omits S1 from affectedSessions when S1 is PENDING on read but already CANCELLED when locked', async () => {
+      const s1 = makeSessionEntity({
+        id: session1Id,
+        sessionType: 'SPARRING',
+        scheduledAt: '2026-11-05T10:00:00.000Z',
+        status: 'PENDING',
+      });
+
+      const { suspensionsService } = setupTransactionalHarness({
+        sessions: [s1],
+        suspensions: [priorOtherSuspension],
+        overrideLockedSession: (locked) => ({
+          ...locked,
+          status: 'CANCELLED',
+          cancellationReason: 'Cancelled by coach concurrently',
+        }),
+      });
+
+      const res = await suspensionsService.createSuspension(
+        coachActor,
+        {
+          fighterId,
+          reason: 'KO',
+          startsOn: '2026-11-04',
+          days: 30,
+        },
+        'req-p5',
+      );
+
+      expect(res.affectedSessions).toEqual([]);
+      expect(repo.updateSessionStatus).not.toHaveBeenCalled();
+      expect(notifications.notifyResolved).not.toHaveBeenCalled();
+    });
+
+    it('P6: keeps S1 in PENDING (does not promote staged CANCEL) and sends no notification when transaction throws after runOnCreated', async () => {
+      const s1 = makeSessionEntity({
+        id: session1Id,
+        sessionType: 'SPARRING',
+        scheduledAt: '2026-11-05T10:00:00.000Z',
+        status: 'PENDING',
+      });
+
+      const { suspensionsService, callOrder, getCommittedSessions } =
+        setupTransactionalHarness({
+          sessions: [s1],
+          suspensions: [priorOtherSuspension],
+          failAfterRunOnCreated: true,
+        });
+
+      await expect(
+        suspensionsService.createSuspension(
+          coachActor,
+          {
+            fighterId,
+            reason: 'KO',
+            startsOn: '2026-11-04',
+            days: 30,
+          },
+          'req-p6',
+        ),
+      ).rejects.toThrow();
+
+      const [committedS1] = getCommittedSessions();
+      expect(committedS1?.status).toBe('PENDING');
+      expect(committedS1?.cancellationReason).toBeNull();
+      expect(notifications.notifyResolved).not.toHaveBeenCalled();
+      expect(callOrder).toEqual([
+        'tx:begin',
+        `db:updateSessionStatus:${session1Id}:CANCELLED`,
+        'tx:rollback',
+      ]);
+    });
+
+    it('P7: DEFAULT_MANUAL_BLOCKED_SESSION_TYPES is SESSION_TYPES minus RECOVERY and PHYSICAL_THERAPY (C7); C1–C9 tests above run unchanged', async () => {
+      expect(DEFAULT_MANUAL_BLOCKED_SESSION_TYPES).toEqual(
+        SESSION_TYPES.filter(
+          (t) => t !== 'RECOVERY' && t !== 'PHYSICAL_THERAPY',
+        ),
+      );
     });
   });
 });
