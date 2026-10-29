@@ -5,6 +5,7 @@ import { forbidden } from '../shared/errors/access.error.js';
 import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import { USER } from '../shared/types/user.role.js';
 import { setAuditContext } from '../shared/utils/audit-context.util.js';
+import { SuspensionEffects } from './suspension.effects.js';
 import {
   mapSuspensionPersistenceError,
   suspensionAlreadyCleared,
@@ -22,6 +23,7 @@ import {
   suspensionStatusOn,
   type ClearSuspensionInput,
   type CreateSuspensionInput,
+  type CreateSuspensionResponse,
   type ListSuspensionsQuery,
   type LossOfConsciousness,
   type SuspensionListResponse,
@@ -34,7 +36,10 @@ import {
 
 @Injectable()
 export class SuspensionsService {
-  constructor(private readonly repo: SuspensionsRepository) {}
+  constructor(
+    private readonly repo: SuspensionsRepository,
+    private readonly suspensionEffects: SuspensionEffects,
+  ) {}
 
   async listSuspensions(
     actor: AuthenticatedUser,
@@ -70,7 +75,7 @@ export class SuspensionsService {
     actor: AuthenticatedUser,
     input: CreateSuspensionInput,
     requestId: string,
-  ): Promise<SuspensionResponse> {
+  ): Promise<CreateSuspensionResponse> {
     const parsed = createSuspensionSchema.safeParse(input);
     if (!parsed.success) {
       throw suspensionValidationError(
@@ -101,9 +106,9 @@ export class SuspensionsService {
     ];
 
     try {
-      const created = await this.repo.transaction(async (tx) => {
+      const { created, effects } = await this.repo.transaction(async (tx) => {
         await setAuditContext(actor.authSubject, requestId, tx);
-        return this.repo.insertSuspension(
+        const row = await this.repo.insertSuspension(
           {
             fighterId: data.fighterId,
             boutId: null,
@@ -122,8 +127,18 @@ export class SuspensionsService {
           },
           tx,
         );
+        const effectResult = await this.suspensionEffects.runOnCreated(
+          [row],
+          tx,
+        );
+        return { created: row, effects: effectResult };
       });
-      return toSuspensionResponse(created, today);
+      await effects.afterCommit();
+      return {
+        ...toSuspensionResponse(created, today),
+        affectedSessions: effects.affectedSessions,
+        affectedPlans: effects.affectedPlans,
+      };
     } catch (error) {
       throw mapSuspensionPersistenceError(error);
     }

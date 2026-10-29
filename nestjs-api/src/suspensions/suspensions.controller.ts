@@ -39,6 +39,7 @@ import {
 import {
   ClearSuspensionDto,
   CreateSuspensionDto,
+  CreateSuspensionResponseDto,
   ListSuspensionsQueryDto,
   SuspensionIdParamsDto,
   SuspensionListResponseDto,
@@ -94,7 +95,7 @@ export class SuspensionsController {
   @ApiSuccessEnvelope({
     status: HttpStatus.CREATED,
     message: SUSPENSION_RESPONSE_MESSAGES.CREATE,
-    model: SuspensionResponseDto,
+    model: CreateSuspensionResponseDto,
   })
   @ApiValidationErrorEnvelope()
   @ApiUnauthorizedEnvelope()

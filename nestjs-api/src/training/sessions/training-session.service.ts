@@ -189,7 +189,9 @@ export class TrainingSessionService {
       data.scheduledAt !== undefined &&
       new Date(data.scheduledAt).getTime() !==
         new Date(locked.scheduledAt).getTime();
-    if (sessionTypeChanged || scheduledAtChanged) {
+    const pendingReschedule =
+      locked.status === 'PENDING' && data.scheduledAt !== undefined;
+    if (sessionTypeChanged || scheduledAtChanged || pendingReschedule) {
       const effectiveSessionType = data.sessionType ?? locked.sessionType;
       const effectiveScheduledAt = data.scheduledAt ?? locked.scheduledAt;
       await this.assertNotSuspended(
@@ -200,9 +202,32 @@ export class TrainingSessionService {
       );
     }
     const rescheduled = this.isRescheduled(locked, data);
-    const updated = await this.repo.updateSession(id, data, transaction);
+    const updated = await this.repo.updateSession(
+      id,
+      pendingReschedule ? { ...data, status: 'SCHEDULED' } : data,
+      transaction,
+    );
     if (!updated) throw sessionNotFound();
     return { updated, rescheduled };
+  }
+
+  async applySessionPendingInTransaction(
+    id: string,
+    transaction: Transaction,
+    onLocked?: (locked: TrainingSessionEntity) => void,
+  ): Promise<TrainingSessionEntity> {
+    const locked = await this.repo.lockSessionById(id, transaction);
+    if (!locked) throw sessionNotFound();
+    onLocked?.(locked);
+    if (locked.status !== 'SCHEDULED') {
+      throw invalidSessionStatusTransition(locked.status, 'PENDING');
+    }
+    return this.applyStatusTransition(
+      locked,
+      'PENDING',
+      undefined,
+      transaction,
+    );
   }
 
   async applySessionCancelInTransaction(
@@ -239,7 +264,7 @@ export class TrainingSessionService {
   }
 
   notifySessionCancelled(
-    actor: AuthenticatedUser,
+    actor: Pick<AuthenticatedUser, 'id'>,
     session: TrainingSessionEntity,
   ) {
     return this.notifySessionEvent(
@@ -272,8 +297,9 @@ export class TrainingSessionService {
       const currentStatus = session.status;
       const isSameStatus = currentStatus === newStatus;
       if (
-        !isSameStatus &&
-        !ALLOWED_SESSION_TRANSITIONS[currentStatus]?.includes(newStatus)
+        (currentStatus === 'PENDING' && newStatus === 'SCHEDULED') ||
+        (!isSameStatus &&
+          !ALLOWED_SESSION_TRANSITIONS[currentStatus]?.includes(newStatus))
       ) {
         throw invalidSessionStatusTransition(currentStatus, newStatus);
       }
@@ -359,7 +385,7 @@ export class TrainingSessionService {
    * isolation, so it cannot fail the committed operation.
    */
   private notifySessionEvent(
-    actor: AuthenticatedUser,
+    actor: Pick<AuthenticatedUser, 'id'>,
     session: TrainingSessionEntity,
     type: NotificationType,
     text: { title: string; message: string },

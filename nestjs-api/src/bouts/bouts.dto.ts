@@ -24,6 +24,7 @@ import {
   catchweightSchema,
   recordResultResponseSchema,
   recordResultSchema,
+  recordResultSuspensionSchema,
   removeRequirementQuerySchema,
   updateBoutSchema,
   updateRequirementSchema,
@@ -76,6 +77,9 @@ export class RemoveRequirementQueryDto extends createZodDto(
 export class WeighInDto extends createZodDto(weighInSchema) {}
 export class CatchweightDto extends createZodDto(catchweightSchema) {}
 export class RecordResultDto extends createZodDto(recordResultSchema) {}
+export class RecordResultSuspensionDto extends createZodDto(
+  recordResultSuspensionSchema,
+) {}
 export class WeighInResponseDto extends createZodDto(weighInResponseSchema) {}
 export class RecordResultResponseDto extends createZodDto(
   recordResultResponseSchema,

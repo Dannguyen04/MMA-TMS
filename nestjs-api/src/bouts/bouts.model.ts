@@ -1,4 +1,8 @@
 import { z } from 'zod';
+import {
+  affectedPlanSchema,
+  affectedSessionSchema,
+} from '../suspensions/suspensions.model.js';
 import { opponentAnalysisSchema, fighterAnalysisSchema, analysisSessionsSchema } from './bout-analysis.model.js';
 import {
   dateOnlySchema,
@@ -1188,6 +1192,8 @@ export const recordResultSuspensionSchema = z.object({
   requiresClearance: z.boolean(),
   suggestedDays: z.number().int().nullable(),
   explanation: z.string(),
+  affectedSessions: z.array(affectedSessionSchema),
+  affectedPlans: z.array(affectedPlanSchema),
 });
 export type RecordResultSuspension = z.infer<
   typeof recordResultSuspensionSchema

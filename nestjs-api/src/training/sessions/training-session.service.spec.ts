@@ -1239,6 +1239,116 @@ describe('TrainingSessionService', () => {
       ).not.toHaveBeenCalled();
     });
 
+    it('reschedules a PENDING session past endsOn to SCHEDULED in the same UPDATE, rejects rescheduling into suspension with 409 keeping PENDING, rejects status transition to IN_PROGRESS or SCHEDULED with 400, and allows CANCELLED with notification (Criterion 5)', async () => {
+      const mandatoryRestSuspension = makeKoSuspension({
+        reason: 'MANDATORY_REST',
+        requiresClearance: false,
+        startsOn: '2026-10-01',
+        endsOn: '2026-10-14',
+        blockedSessionTypes: ['SPARRING'],
+      });
+      suspensionsRepo.findSuspensionsByFighterId.mockResolvedValue([
+        mandatoryRestSuspension,
+      ]);
+
+      const pendingSparring: TrainingSessionEntity = {
+        ...session,
+        status: 'PENDING',
+        sessionType: 'SPARRING',
+        scheduledAt: '2026-10-10T10:00:00.000Z',
+      };
+      repo.findSessionById.mockResolvedValue(pendingSparring);
+
+      // 1. PATCH with scheduledAt still inside suspension period -> 409 TRAINING_SUSPENSION_ACTIVE, keeps PENDING
+      await expect(
+        service.updateSession(adminActor, sessionId, {
+          scheduledAt: '2026-10-12T10:00:00.000Z',
+        }),
+      ).rejects.toSatisfy(
+        (error: unknown) =>
+          (error as HttpException).getStatus() === 409 &&
+          responseOf(error).code === 'TRAINING_SUSPENSION_ACTIVE',
+      );
+      expect(repo.updateSession).not.toHaveBeenCalled();
+
+      // 2. PATCH with scheduledAt after endsOn -> transitions status to SCHEDULED in the same UPDATE
+      const newScheduledAt = '2026-10-20T10:00:00.000Z';
+      const rescheduledEntity: TrainingSessionEntity = {
+        ...pendingSparring,
+        scheduledAt: newScheduledAt,
+        status: 'SCHEDULED',
+      };
+      repo.updateSession.mockResolvedValueOnce(rescheduledEntity);
+
+      const updated = await service.updateSession(adminActor, sessionId, {
+        scheduledAt: newScheduledAt,
+      });
+      expect(updated.status).toBe('SCHEDULED');
+      expect(repo.updateSession).toHaveBeenCalledWith(
+        sessionId,
+        {
+          scheduledAt: newScheduledAt,
+          status: 'SCHEDULED',
+        },
+        expect.anything(),
+      );
+
+      // 3. PATCH /:id/status to IN_PROGRESS or SCHEDULED -> 400 INVALID_SESSION_STATUS_TRANSITION
+      repo.findActiveFighterIdByUserId.mockResolvedValue(fighterId);
+      await expect(
+        service.updateSessionStatus(fighterActor, sessionId, 'IN_PROGRESS'),
+      ).rejects.toSatisfy(
+        (error: unknown) =>
+          (error as HttpException).getStatus() === 400 &&
+          responseOf(error).code === 'INVALID_SESSION_STATUS_TRANSITION',
+      );
+      await expect(
+        service.updateSessionStatus(fighterActor, sessionId, 'SCHEDULED'),
+      ).rejects.toSatisfy(
+        (error: unknown) =>
+          (error as HttpException).getStatus() === 400 &&
+          responseOf(error).code === 'INVALID_SESSION_STATUS_TRANSITION',
+      );
+      expect(repo.updateSessionStatus).not.toHaveBeenCalled();
+
+      // 4. PATCH /:id/status to CANCELLED with cancellationReason -> succeeds and sends TRAINING_SESSION_CANCELLED
+      const cancelledFromPending: TrainingSessionEntity = {
+        ...pendingSparring,
+        status: 'CANCELLED',
+        cancellationReason: 'Cannot reschedule before camp ends',
+      };
+      repo.updateSessionStatus.mockResolvedValueOnce(cancelledFromPending);
+      (
+        repo as unknown as { findParticipantUserIds: ReturnType<typeof vi.fn> }
+      ).findParticipantUserIds = vi
+        .fn()
+        .mockResolvedValue([fighterUserId, coachUserId]);
+      const notifications = (
+        service as unknown as {
+          notifications: { notifyResolved: ReturnType<typeof vi.fn> };
+        }
+      ).notifications;
+      notifications.notifyResolved.mockClear();
+
+      await expect(
+        service.updateSessionStatus(
+          fighterActor,
+          sessionId,
+          'CANCELLED',
+          'Cannot reschedule before camp ends',
+        ),
+      ).resolves.toEqual(cancelledFromPending);
+      expect(notifications.notifyResolved).toHaveBeenCalledTimes(1);
+      const resolver = notifications.notifyResolved.mock.calls[0]?.[0] as () => Promise<
+        Array<{ type: string }>
+      >;
+      await expect(resolver()).resolves.toEqual([
+        expect.objectContaining({
+          type: 'TRAINING_SESSION_CANCELLED',
+        }),
+      ]);
+    });
+
     it('rejects updateSession when changing sessionType or scheduledAt into an active suspension with 409 TRAINING_SUSPENSION_ACTIVE', async () => {
       suspensionsRepo.findSuspensionsByFighterId.mockResolvedValue([
         makeKoSuspension(),
