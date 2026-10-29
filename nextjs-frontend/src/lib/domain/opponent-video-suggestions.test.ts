@@ -2,11 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import { buildOpponentAnalysisInput } from "./opponent-analysis-form";
 import {
+    embedUrl,
+    formatClock,
     isSupportedVideoUrl,
     parseVideoSuggestions,
     suggestionToObservation,
     timeToSeconds,
     videoUrlAt,
+    youtubeVideoId,
 } from "./opponent-video-suggestions";
 
 describe("isSupportedVideoUrl", () => {
@@ -65,5 +68,32 @@ describe("video links", () => {
         const saved = buildOpponentAnalysisInput({ observations: [o], tactics: [] }, { observations: [], tactics: [] }, 3);
         expect(saved.success).toBe(true);
         if (saved.success) expect(saved.data.observations[0]?.evidenceTime).toBe("01:53");
+    });
+});
+
+describe("youtubeVideoId and embedUrl", () => {
+    it("reads the ID from every accepted link form and rejects the rest", () => {
+        expect(youtubeVideoId("https://www.youtube.com/watch?v=dKw5POIXlsI")).toBe("dKw5POIXlsI");
+        expect(youtubeVideoId("https://m.youtube.com/watch?v=dKw5POIXlsI&t=30s")).toBe("dKw5POIXlsI");
+        expect(youtubeVideoId("https://youtu.be/dKw5POIXlsI?t=12")).toBe("dKw5POIXlsI");
+        expect(youtubeVideoId("https://www.youtube.com/shorts/abcdef123")).toBe("abcdef123");
+        expect(youtubeVideoId("https://vimeo.com/123456")).toBeNull();
+        expect(youtubeVideoId("https://www.youtube.com.evil.test/watch?v=dKw5POIXlsI")).toBeNull();
+        expect(youtubeVideoId(null)).toBeNull();
+    });
+
+    it("starts at the observation time, else at t= in the link, else at 0", () => {
+        const url = "https://www.youtube.com/watch?v=dKw5POIXlsI";
+        expect(embedUrl(url, "01:23")).toBe("https://www.youtube-nocookie.com/embed/dKw5POIXlsI?start=83&rel=0");
+        expect(embedUrl(url, "1:02:03")).toBe("https://www.youtube-nocookie.com/embed/dKw5POIXlsI?start=3723&rel=0");
+        expect(embedUrl(videoUrlAt(url, "00:45"), null)).toBe("https://www.youtube-nocookie.com/embed/dKw5POIXlsI?start=45&rel=0");
+        expect(embedUrl(url)).toBe("https://www.youtube-nocookie.com/embed/dKw5POIXlsI?rel=0");
+        expect(embedUrl(url, "not a time")).toBe("https://www.youtube-nocookie.com/embed/dKw5POIXlsI?rel=0");
+        expect(embedUrl("https://vimeo.com/123456", "01:00")).toBeNull();
+    });
+
+    it("formats seconds as a clock", () => {
+        expect(formatClock(83)).toBe("01:23");
+        expect(formatClock(3723)).toBe("1:02:03");
     });
 });

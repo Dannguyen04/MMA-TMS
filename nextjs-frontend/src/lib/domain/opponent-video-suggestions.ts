@@ -41,6 +41,36 @@ export function videoUrlAt(url: string, time: string): string {
     return `${clean}${clean.includes("?") ? "&" : "?"}t=${timeToSeconds(time)}s`;
 }
 
+const YOUTUBE_ID = /(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/;
+
+/** Video ID of a link that `isSupportedVideoUrl` accepts; null for anything else. */
+export function youtubeVideoId(url: string | null | undefined): string | null {
+    if (!url || !isSupportedVideoUrl(url)) return null;
+    return YOUTUBE_ID.exec(url.trim())?.[1] ?? null;
+}
+
+/** Start point in seconds: the observation time wins, else a `t=` already in the link, else 0. */
+export function startSeconds(url: string, time?: string | null): number {
+    if (time && TIME.test(time.trim())) return timeToSeconds(time.trim());
+    const t = /[?&]t=(\d+)s?(?:&|$)/.exec(url);
+    return t ? Number(t[1]) : 0;
+}
+
+export function formatClock(seconds: number): string {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = String(seconds % 60).padStart(2, "0");
+    return h > 0 ? `${h}:${String(m).padStart(2, "0")}:${s}` : `${String(m).padStart(2, "0")}:${s}`;
+}
+
+/** Privacy-enhanced embed (no cookies until play) starting at the observed moment. */
+export function embedUrl(url: string, time?: string | null): string | null {
+    const id = youtubeVideoId(url);
+    if (!id) return null;
+    const start = startSeconds(url, time);
+    return `https://www.youtube-nocookie.com/embed/${id}?${start > 0 ? `start=${start}&` : ""}rel=0`;
+}
+
 /** An accepted suggestion becomes an ordinary observation; the evidence points back to the video moment. */
 export function suggestionToObservation(s: VideoSuggestion, url: string, id: string, note: string): OpponentObservation {
     return {

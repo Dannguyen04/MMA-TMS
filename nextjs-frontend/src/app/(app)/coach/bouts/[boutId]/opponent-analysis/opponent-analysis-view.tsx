@@ -7,6 +7,7 @@ import {
     CheckCircle2,
     ChevronDown,
     ChevronRight,
+    ExternalLink,
     FileText,
     Info,
     Link2,
@@ -30,7 +31,15 @@ import { useToast } from "@/components/ui/toast";
 import { useActionForm, type ActionForm } from "@/components/ui/use-action-form";
 import { saveOpponentAnalysisAction, suggestObservationsFromVideoAction, type VideoSuggestionsData } from "@/lib/actions/bout-analysis";
 import type { ActionState } from "@/lib/actions/state";
-import { suggestionToObservation, videoUrlAt, type VideoSuggestion } from "@/lib/domain/opponent-video-suggestions";
+import { YoutubePlayer } from "@/components/video/youtube-player";
+import {
+    formatClock,
+    startSeconds,
+    suggestionToObservation,
+    videoUrlAt,
+    youtubeVideoId,
+    type VideoSuggestion,
+} from "@/lib/domain/opponent-video-suggestions";
 import { trainingTypeLabel } from "@/lib/domain/labels";
 import {
     MAX_OBSERVATIONS,
@@ -151,6 +160,8 @@ export function OpponentAnalysisView({
     const [open, setOpen] = useState<OpenItem>(null);
     const [showTips, setShowTips] = useState(false);
     const [showAi, setShowAi] = useState(false);
+    // The inline player shows the last clicked moment, else the first observation that has a YouTube link.
+    const [watching, setWatching] = useState<{ url: string; time: string | null } | null>(null);
     // Validation runs in the server action (same helper), which returns per-row field errors.
     // Saving revalidates this page and remounts the form, so success is a toast rather than form state.
     const form = useActionForm(saveOpponentAnalysisAction, {
@@ -195,6 +206,11 @@ export function OpponentAnalysisView({
             row?.scrollIntoView({ behavior: "smooth", block: "start" });
             row?.querySelector<HTMLElement>("textarea, input")?.focus({ preventScroll: true });
         });
+    }
+
+    function watchAt(url: string, time: string | null) {
+        setWatching({ url, time });
+        window.requestAnimationFrame(() => document.getElementById("opponent-video")?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
     }
 
     function addObservation() {
@@ -255,6 +271,8 @@ export function OpponentAnalysisView({
     const toFix = findings.filter((f) => f.level === "warning");
     const tips = findings.filter((f) => f.level === "info");
     const profile = draft.profile ?? {};
+    const firstWithVideo = draft.observations.find((o) => youtubeVideoId(o.evidenceUrl));
+    const playing = watching ?? (firstWithVideo?.evidenceUrl ? { url: firstWithVideo.evidenceUrl, time: firstWithVideo.evidenceTime ?? null } : null);
 
     return (
         <form {...form.formProps} className="flex min-w-0 flex-col gap-5">
@@ -395,7 +413,19 @@ export function OpponentAnalysisView({
                                 boutId={boutId}
                                 full={draft.observations.length >= MAX_OBSERVATIONS}
                                 onAccept={acceptSuggestion}
+                                onWatch={watchAt}
                             />
+                        )}
+                        {playing && youtubeVideoId(playing.url) && (
+                            <Card id="opponent-video" className="min-w-0 scroll-mt-20">
+                                <CardContent className="flex flex-col gap-2 p-3">
+                                    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                                        <h3 className="text-sm font-semibold text-fg">{t("boutAnalysis.analysis.video.title")}</h3>
+                                        <p className="text-xs text-fg-muted">{t("boutAnalysis.analysis.video.desc")}</p>
+                                    </div>
+                                    <YoutubePlayer url={playing.url} time={playing.time} title={t("boutAnalysis.analysis.video.playerTitle")} />
+                                </CardContent>
+                            </Card>
                         )}
                         {draft.observations.length === 0 && <EmptyLine>{t("boutAnalysis.analysis.noObservations")}</EmptyLine>}
                         <ul className="flex flex-col gap-2">
@@ -431,6 +461,9 @@ export function OpponentAnalysisView({
                                                 }
                                                 errorText={hasError(`observations.${i}.`) ? t("boutAnalysis.analysis.rowError") : undefined}
                                             />
+                                            {o.evidenceUrl && youtubeVideoId(o.evidenceUrl) && (
+                                                <VideoMomentLinks t={t} url={o.evidenceUrl} time={o.evidenceTime ?? null} onWatch={watchAt} className="px-3 pb-3 pl-15" />
+                                            )}
                                             {opened && (
                                                 <ObservationEditor
                                                     t={t}
@@ -537,11 +570,13 @@ function VideoSuggestPanel({
     boutId,
     full,
     onAccept,
+    onWatch,
 }: {
     t: Translator;
     boutId: string;
     full: boolean;
     onAccept(s: VideoSuggestion, url: string): void;
+    onWatch(url: string, time: string | null): void;
 }) {
     const locale = useLocale();
     const [url, setUrl] = useState("");
@@ -639,16 +674,8 @@ function VideoSuggestPanel({
                                             <Badge tone={s.confidence === "REPEATED" ? "success" : "neutral"} variant="outline" size="sm">
                                                 {t(`boutAnalysis.analysis.confidence.${s.confidence}`)}
                                             </Badge>
-                                            <a
-                                                href={videoUrlAt(analysedUrl, s.time)}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                className="inline-flex min-h-9 items-center gap-1 text-xs font-semibold text-primary underline-offset-2 hover:underline"
-                                            >
-                                                <Play aria-hidden className="size-3.5" />
-                                                {t("boutAnalysis.analysis.ai.watch", { time: s.time })}
-                                            </a>
                                         </div>
+                                        <VideoMomentLinks t={t} url={analysedUrl} time={s.time} onWatch={onWatch} />
                                         {state === "accepted" ? (
                                             <span className="inline-flex items-center gap-1 text-sm font-semibold text-success-fg">
                                                 <Check aria-hidden className="size-4" />
@@ -687,6 +714,41 @@ function VideoSuggestPanel({
                 )}
             </CardContent>
         </Card>
+    );
+}
+
+/** "Watch at mm:ss" plays inline; "Open on YouTube" stays as the fallback. */
+function VideoMomentLinks({
+    t,
+    url,
+    time,
+    onWatch,
+    className,
+}: {
+    t: Translator;
+    url: string;
+    time: string | null;
+    onWatch(url: string, time: string | null): void;
+    className?: string;
+}) {
+    const start = startSeconds(url, time);
+    const clock = time ?? (start > 0 ? formatClock(start) : null);
+    return (
+        <div className={cn("flex flex-wrap items-center gap-x-3 gap-y-1", className)}>
+            <Button variant="secondary" size="sm" className="min-h-11 sm:min-h-9" onClick={() => onWatch(url, clock)}>
+                <Play aria-hidden className="size-4" />
+                {clock ? t("boutAnalysis.analysis.ai.watch", { time: clock }) : t("boutAnalysis.analysis.video.watchStart")}
+            </Button>
+            <a
+                href={clock ? videoUrlAt(url, clock) : url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex min-h-11 items-center gap-1 text-xs font-semibold text-primary underline-offset-2 hover:underline sm:min-h-9"
+            >
+                <ExternalLink aria-hidden className="size-3.5" />
+                {t("boutAnalysis.analysis.video.openYoutube")}
+            </a>
+        </div>
     );
 }
 
