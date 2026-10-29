@@ -54,6 +54,7 @@ describe('T-010 repository SQL boundaries', () => {
     const update = sql.split('do update set')[1]!.split('returning')[0]!;
     expect(update).toContain('"note" =');
     expect(update).toContain('"stunned" =');
+    expect(update).not.toContain('"next_round_plan" =');
     expect(update).not.toContain('"tactic_marks" =');
     expect(update).not.toContain('"observation_marks" =');
     expect(update).not.toContain('"knockdowns_against" =');
@@ -73,5 +74,20 @@ describe('T-010 repository SQL boundaries', () => {
     expect(sql).toContain('"coaches"."user_id" =');
     expect(sql).toContain('"coach_fighters"."ends_at" is null');
     expect(sql).toContain('"coaches"."deleted_at" is null');
+  });
+
+  it('writes an explicitly supplied next-round plan on insert and conflict update', async () => {
+    const { repo, query } = harness();
+    const nextRoundPlan = {
+      focusTacticIds: ['t1'], addedTactics: [], instructions: [],
+    };
+    await expect(repo.upsertRound({
+      boutId, roundNo: 1, recordedById: fighterId, nextRoundPlan,
+    })).rejects.toThrow('Round upsert returned no row');
+    const [config, params] = query.mock.calls[0]!;
+    expect(config.text.split('do update set')[1]!.split('returning')[0])
+      .toContain('"next_round_plan" =');
+    expect(params.filter((value: unknown) => value === JSON.stringify(nextRoundPlan)))
+      .toHaveLength(2);
   });
 });

@@ -350,6 +350,7 @@ export function boutAnalysisInvalid(
     | 'OPPONENT_TACTIC_UNKNOWN'
     | 'BOUT_ROUNDS_NOT_SET'
     | 'BOUT_ROUND_OUT_OF_RANGE'
+    | 'BOUT_NEXT_ROUND_PLAN_LAST_ROUND'
     | 'BOUT_ROUND_MARK_UNKNOWN'
     | 'BOUT_ROUNDS_BELOW_RECORDED',
 ): UnprocessableEntityException {

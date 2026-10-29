@@ -1,6 +1,6 @@
 // SQL migrations are authoritative. This file maps public tables for Drizzle queries.
 // RLS, grants, trigger functions and migration history are owned by 003, not drizzle-kit.
-import type { OpponentAnalysis, RoundInput } from '../bouts/bout-analysis.model.js';
+import type { NextRoundPlan, OpponentAnalysis, RoundInput } from '../bouts/bout-analysis.model.js';
 import { sql } from 'drizzle-orm';
 import {
   pgTable,
@@ -4592,6 +4592,7 @@ export const boutRounds = pgTable('bout_rounds', {
   id: uuid('id').primaryKey().defaultRandom(),
   boutId: uuid('bout_id').notNull().references(() => bouts.id, { onDelete: 'cascade' }),
   roundNo: smallint('round_no').notNull(),
+  nextRoundPlan: jsonb('next_round_plan').$type<NextRoundPlan>().notNull().default(sql`'{}'::jsonb`),
   tacticMarks: jsonb('tactic_marks').$type<NonNullable<RoundInput['tacticMarks']>>().notNull().default(sql`'{}'::jsonb`),
   observationMarks: jsonb('observation_marks').$type<NonNullable<RoundInput['observationMarks']>>().notNull().default(sql`'{}'::jsonb`),
   selfScore: text('self_score').$type<'WIN' | 'LOSS' | 'CLOSE'>(),
@@ -4609,6 +4610,7 @@ export const boutRounds = pgTable('bout_rounds', {
   check('bout_rounds_self_score_check', sql.raw("self_score IN ('WIN', 'LOSS', 'CLOSE')")),
   check('bout_rounds_knockdowns_against_check', sql.raw('knockdowns_against BETWEEN 0 AND 10')),
   check('bout_rounds_note_check', sql.raw('note IS NULL OR char_length(note) <= 300')),
+  check('ck_bout_rounds_next_round_plan', sql.raw("jsonb_typeof(next_round_plan) = 'object'")),
   check('ck_bout_rounds_tactic_marks', sql.raw("jsonb_typeof(tactic_marks) = 'object'")),
   check('ck_bout_rounds_observation_marks', sql.raw("jsonb_typeof(observation_marks) = 'object'")),
 ]).enableRLS();

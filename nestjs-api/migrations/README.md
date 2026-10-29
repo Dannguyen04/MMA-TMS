@@ -1,4 +1,12 @@
-# Migrations 003–027 — Backend, Database & API Permissions
+# Migrations 003–030 — Backend, Database & API Permissions
+
+## Áp dụng migration 030 (Kế hoạch hiệp sau)
+
+030 yêu cầu ledger 027 và chưa có 030; không yêu cầu 028, 029.
+Thêm bout_rounds.next_round_plan jsonb NOT NULL DEFAULT '{}' và CHECK
+ck_bout_rounds_next_round_plan chỉ nhận object. Preflight chặn cột đã tồn tại;
+advisory lock (20260916, 30), ledger version 30, checksum trong manifest.
+Chủ dự án tự áp bằng db:migrate:030 sau khi kiểm db:check; không kết nối Supabase trong kiểm thử.
 
 ## Áp dụng migration 027 (Phân tích đối thủ và ghi hiệp)
 

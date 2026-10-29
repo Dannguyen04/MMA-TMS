@@ -83,6 +83,8 @@ export class RecordResultResponseDto extends createZodDto(
 import {
   opponentAnalysisInputSchema,
   opponentReviewInputSchema,
+  nextRoundPlanSchema,
+  roundAdviceSchema,
   roundInputSchema,
   roundParamsSchema,
   priorContextQuerySchema,
@@ -103,6 +105,8 @@ export class OpponentAnalysisDto extends createZodDto(
 export class OpponentReviewDto extends createZodDto(
   opponentReviewInputSchema,
 ) {}
+export class NextRoundPlanDto extends createZodDto(nextRoundPlanSchema) {}
+export class RoundAdviceDto extends createZodDto(roundAdviceSchema) {}
 export class RoundInputDto extends createZodDto(roundInputSchema) {}
 export class RoundParamsDto extends createZodDto(roundParamsSchema) {}
 export class PriorContextQueryDto extends createZodDto(
