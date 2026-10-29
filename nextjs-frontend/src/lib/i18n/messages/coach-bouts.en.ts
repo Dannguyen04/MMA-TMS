@@ -242,4 +242,46 @@ export const enCoachBouts = {
     "suspension.reason.MANDATORY_REST": "Mandatory rest",
     "suspension.reason.MEDICAL": "Medical",
     "suspension.reason.OTHER": "Other",
+
+    /* Suspension statuses */
+    "suspension.status.UPCOMING": "Upcoming",
+    "suspension.status.ACTIVE": "Active",
+    "suspension.status.AWAITING_CLEARANCE": "Awaiting clearance",
+    "suspension.status.ENDED": "Ended",
+
+    /* Intensity tiers */
+    "intensityTier.1.name": "Recovery & light movement",
+    "intensityTier.2.name": "General conditioning",
+    "intensityTier.3.name": "Non-contact technical",
+    "intensityTier.4.name": "Controlled contact",
+    "intensityTier.5.name": "Full sparring",
+    "intensityTier.1.label": "Tier 1",
+    "intensityTier.2.label": "Tier 2",
+    "intensityTier.3.label": "Tier 3",
+    "intensityTier.4.label": "Tier 4",
+    "intensityTier.5.label": "Tier 5",
+
+    /* Readiness statuses */
+    "readiness.status.READY": "Ready",
+    "readiness.status.SUSPENDED": "Suspended",
+    "readiness.status.AWAITING_CLEARANCE": "Awaiting clearance",
+    "readiness.status.IN_BOUT": "In bout",
+
+    /* Suspension actions */
+    "suspensions.action.created": "Suspension created successfully.",
+    "suspensions.action.cleared": "Suspension cleared successfully.",
+    "suspensions.action.conflictsApplied": "Training conflicts applied successfully.",
+    "suspensions.action.unauthorized": "You don't have permission to do this.",
+    "suspensions.action.notFound": "Suspension not found.",
+    "suspensions.action.adminClearForbidden": "Administrators cannot clear suspensions. Only assigned coaches or doctors can.",
+    "suspensions.action.clearanceNoteLength": "Clearance note must be between 3 and 500 characters.",
+    "suspensions.action.maxTierAndTypesExclusive": "Cannot select both maximum tier and individual session types.",
+    "suspensions.action.requiresClearanceKoMandatory": "Suspensions due to KO or TKO must require clearance.",
+    "suspensions.action.requiresClearanceDqForbidden": "Suspensions due to DQ or mandatory rest cannot require clearance.",
+    "suspensions.action.alreadyCleared": "The suspension has already been cleared.",
+    "suspensions.action.failed": "Operation failed.",
+    "suspensions.action.startsOnNotBeforeToday": "startsOn must not be before today.",
+    "suspensions.action.blockedSessionTypesMin": "At least one blocked session type must be selected.",
+    "suspensions.action.duplicateSessionTypes": "Duplicate session types are not allowed.",
+    "suspensions.action.daysRange": "Suspension days must be between 1 and 365.",
 } as const;

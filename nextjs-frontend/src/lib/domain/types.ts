@@ -1,4 +1,4 @@
-import type { BodyJoint, ClearanceType, ClinicalRestrictions, ExaminationScope, RecoveryMilestone } from "./medical-contract";
+import type { BodyJoint, ClearanceType, ClinicalRestrictions, ExaminationScope, RecoveryMilestone, SessionType } from "./medical-contract";
 import type { MovementEvidence } from "./movement-evidence";
 import type { Scat6Record } from "./scat6";
 
@@ -266,7 +266,7 @@ export interface PlanExercise {
     notes: string | null;
 }
 
-export type SessionStatus = "scheduled" | "in_progress" | "completed" | "missed" | "cancelled";
+export type SessionStatus = "scheduled" | "in_progress" | "completed" | "missed" | "cancelled" | "pending";
 
 export interface SessionExercise {
     exerciseId: string;
@@ -1273,3 +1273,111 @@ export interface WeightTrack {
     referencePath: Array<{ date: string; kg: number }>;
 }
 
+
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Suspensions & Fighter Readiness (T-007, T-030, T-036, T-045)
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+export type SuspensionReason = "KO" | "TKO" | "DQ" | "MANDATORY_REST" | "MEDICAL" | "OTHER";
+
+export type SuspensionStatus = "UPCOMING" | "ACTIVE" | "AWAITING_CLEARANCE" | "ENDED";
+
+export type LossOfConsciousness = "NONE" | "UNDER_1_MIN" | "OVER_1_MIN" | "UNKNOWN";
+
+export interface GradedReturn {
+    ceiling: 3 | 4;
+    fullReturnOn: string;
+}
+
+export type ConflictAction = "pending" | "cancel";
+
+export interface AffectedSession {
+    sessionId: string;
+    action: ConflictAction;
+}
+
+export interface AffectedPlan {
+    planId: string;
+    fromPhase: TrainingPhase;
+    toPhase: TrainingPhase;
+}
+
+export interface ConflictProposal {
+    sessionId: string;
+    action: ConflictAction;
+}
+
+export interface Suspension {
+    id: string;
+    fighterId: string;
+    boutId: string | null;
+    reason: SuspensionReason;
+    startsOn: string;
+    endsOn: string;
+    lossOfConsciousness: LossOfConsciousness | null;
+    suggestedDays: number | null;
+    overrideReason: string | null;
+    blockedSessionTypes: SessionType[];
+    maxAllowedTier: number;
+    requiresClearance: boolean;
+    clearedAt: ISODate | null;
+    clearedById: string | null;
+    clearanceNote: string | null;
+    createdById: string;
+    createdAt: ISODate;
+    updatedAt: ISODate;
+    status: SuspensionStatus;
+    gradedReturn: GradedReturn | null;
+    affectedSessions?: AffectedSession[];
+    affectedPlans?: AffectedPlan[];
+}
+
+export interface SuspensionCreation extends Suspension {
+    affectedSessions: AffectedSession[];
+    affectedPlans: AffectedPlan[];
+}
+
+export type ReadinessStatus = "SUSPENDED" | "AWAITING_CLEARANCE" | "IN_BOUT" | "READY";
+
+export type NotReadyReason = "SUSPENDED_PAST_BOUT_DATE" | "ACTIVE_BOUT";
+
+export interface ReadinessSuspensionSummary {
+    startsOn: string;
+    endsOn: string;
+    blockedSessionTypes: SessionType[];
+    allowedSessionTypes: SessionType[];
+    expectedResumeOn: string | null;
+    fullReturnOn?: string | null;
+    gradedReturn?: GradedReturn | null;
+}
+
+export interface ReadinessActiveBout {
+    id: string;
+    eventName: string;
+    status: BoutStatus;
+    boutAt: ISODate;
+}
+
+export interface ReadinessWeightFeasibility {
+    status: WeightTrack["status"];
+    remainingPct: number | null;
+    latestKg: number | null;
+    latestOn: string | null;
+    daysToWeighIn: number;
+}
+
+export interface ReadinessRow {
+    fighterId: string;
+    fighterName: string;
+    ready: boolean;
+    status: ReadinessStatus;
+    latestWeightKg: number | null;
+    latestWeightOn: string | null;
+    activeBout: ReadinessActiveBout | null;
+    suspension: ReadinessSuspensionSummary | null;
+    fullReturnOn: string | null;
+    gradedReturn: GradedReturn | null;
+    notReadyReasons?: NotReadyReason[];
+    feasibility?: ReadinessWeightFeasibility;
+}

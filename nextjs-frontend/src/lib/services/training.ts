@@ -97,7 +97,7 @@ const backendPlanSchema = z.object({
     weeklySessionTarget: z.number().int().positive().optional(),
 });
 
-const backendSessionSchema = z.object({
+export const backendSessionSchema = z.object({
     id: z.string(),
     fighterId: z.string(),
     coachId: z.string().nullable(),
@@ -109,7 +109,7 @@ const backendSessionSchema = z.object({
     roundCount: z.number().int().nonnegative(),
     location: nullableTextSchema,
     sessionType: z.enum(SESSION_TYPES),
-    status: z.enum(["SCHEDULED", "IN_PROGRESS", "COMPLETED", "SKIPPED", "CANCELLED", "ABANDONED"]),
+    status: z.enum(["SCHEDULED", "IN_PROGRESS", "COMPLETED", "SKIPPED", "CANCELLED", "ABANDONED", "PENDING"]),
     coachNotes: nullableTextSchema,
     cancellationReason: nullableTextSchema,
     checkedInAt: isoDateSchema.nullable(),
@@ -206,20 +206,22 @@ const planStatusToApi: Record<PlanStatus, BackendPlan["status"]> = {
     completed: "COMPLETED",
     archived: "CANCELLED",
 };
-const sessionStatusFromApi: Record<BackendSession["status"], SessionStatus> = {
+export const sessionStatusFromApi: Record<BackendSession["status"], SessionStatus> = {
     SCHEDULED: "scheduled",
     IN_PROGRESS: "in_progress",
     COMPLETED: "completed",
     SKIPPED: "missed",
     CANCELLED: "cancelled",
     ABANDONED: "cancelled",
+    PENDING: "pending",
 };
-const sessionStatusToApi: Record<SessionStatus, BackendSession["status"]> = {
+export const sessionStatusToApi: Record<SessionStatus, BackendSession["status"]> = {
     scheduled: "SCHEDULED",
     in_progress: "IN_PROGRESS",
     completed: "COMPLETED",
     missed: "SKIPPED",
     cancelled: "CANCELLED",
+    pending: "PENDING",
 };
 const exerciseCategoryFromApi: Record<BackendExercise["category"], ExerciseCategory> = {
     STRIKING: "striking",
@@ -269,7 +271,7 @@ function toPlan(plan: BackendPlan): TrainingPlan {
 }
 
 /** Fields the API doesn't return yet (target RPE, exercises, linked videos, coach rating) read as null or empty. */
-function toSession(session: BackendSession): TrainingSession {
+export function toSession(session: BackendSession): TrainingSession {
     const completedAt = session.status === "COMPLETED" ? session.completedAt : null;
     return {
         id: session.id,

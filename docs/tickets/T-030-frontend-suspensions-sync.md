@@ -111,7 +111,7 @@ Kiểm tra mỗi phần: `pnpm --filter nextjs-frontend lint`, `typecheck`, `tes
 
 | Ca | Đầu vào | Kết quả mong đợi |
 | --- | --- | --- |
-| B4-1 | Demo, HLV mở trang | Thấy đủ các đình chỉ của võ sĩ mình; thẻ thống kê đếm đúng |
+| B4-1 | Demo, HLV mở trang | Thấy đủ các đình chỉ của võ sĩ mình; số đếm trên từng nút lọc đúng; bấm nút lọc thì danh sách chỉ còn trạng thái đó |
 | B4-2 | Tạo `KO` từ panel | Panel chuyển sang bảng tóm tắt: buổi bị huỷ, giáo án sang hồi phục, đọc từ response |
 | B4-3 | Chọn `maxTier` và tick loại buổi cùng lúc | Không cho; chỉ một trong hai |
 | B4-4 | Lý do `KO` | Công tắc "Cần xác nhận" bật và khoá, có câu giải thích |

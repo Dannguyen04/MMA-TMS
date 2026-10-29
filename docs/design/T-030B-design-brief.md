@@ -22,8 +22,7 @@ Sinh động nằm ở **chuyển động có nghĩa** (150–250 ms, CSS, tắt
 - Thang bậc: khi đổi bậc trong form, các đoạn lấp đầy lần lượt từ trái sang phải (so le 40 ms).
 - Bảng tóm tắt hệ quả: từng dòng trượt vào theo thứ tự, buổi bị huỷ có gạch ngang chạy qua tên buổi, buổi "Chờ xếp lại" có icon đồng hồ.
 - Lộ trình 3 bước: bước hôm nay có vòng sáng nhẹ (pulse 2 lần rồi dừng), bước đã qua có dấu tích.
-- Số đếm trên thẻ thống kê của bảng sẵn sàng đếm lên khi tải lần đầu.
-Không có chuyển động lặp vô hạn, không hiệu ứng khi tải trang ngoài những chỗ trên.
+Khoảnh khắc chuyển động chính là **bảng tóm tắt hệ quả** sau khi tạo đình chỉ; các chuyển động khác chỉ báo đổi trạng thái. Không có chuyển động lặp vô hạn, không hiệu ứng khi tải trang, không số đếm chạy (sửa 29/10 theo craft floor của Impeccable).
 
 ## 4. Các màn và thành phần
 
@@ -37,7 +36,7 @@ Không có chuyển động lặp vô hạn, không hiệu ứng khi tải trang
 ### 4.2 `/coach/bouts/suspensions`: danh sách đình chỉ (màn mới, tab trong hub "Trận")
 
 - `PageHeader`: tiêu đề "Đình chỉ", mô tả đếm số đang hiệu lực, nút chính "Tạo đình chỉ".
-- Hàng `StatCard`: Đang đình chỉ · Chờ xác nhận · Đang tập lại theo bậc · Chờ xếp lại (số buổi). Bấm thẻ thì lọc danh sách.
+- Hàng nút lọc (dùng `SegmentedControl` hoặc `FilterBar` có sẵn), mỗi nút kèm số đếm: Tất cả · Đang đình chỉ · Chờ xác nhận · Đang tập lại · Đã hết. Không dùng hàng thẻ số lớn (mẫu "hero-metric" mà craft floor yêu cầu tránh; sửa 29/10).
 - Danh sách dạng thẻ dòng (không phải bảng dày), mỗi đình chỉ: avatar bát giác + tên võ sĩ; lý do (KO, TKO, MEDICAL…) và trận gắn kèm nếu có; khoảng ngày và thanh tiến độ ngày (x/y); `IntensityLadder` cỡ `md`; badge trạng thái; hành động: "Xác nhận được tập lại" (chỉ khi `AWAITING_CLEARANCE`, mở form ghi căn cứ), "Xem lịch tập".
 - Dòng đang trong lộ trình tập lại có thêm `GradedReturnSteps` ngay dưới.
 - Trạng thái: rỗng (dạy cách dùng: "Đình chỉ tự tạo khi ghi kết quả trận thua KO; tạo thủ công cho KO khi sparring"), đang tải (skeleton theo hình dòng), lỗi (thông báo kèm thử lại), không có quyền.

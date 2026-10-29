@@ -244,4 +244,46 @@ export const viCoachBouts = {
     "suspension.reason.MANDATORY_REST": "Nghỉ bắt buộc",
     "suspension.reason.MEDICAL": "Y tế",
     "suspension.reason.OTHER": "Khác",
+
+    /* Suspension statuses */
+    "suspension.status.UPCOMING": "Sắp tới",
+    "suspension.status.ACTIVE": "Đang đình chỉ",
+    "suspension.status.AWAITING_CLEARANCE": "Chờ xác nhận",
+    "suspension.status.ENDED": "Đã hết",
+
+    /* Intensity tiers */
+    "intensityTier.1.name": "Hồi phục, vận động nhẹ",
+    "intensityTier.2.name": "Thể lực chung",
+    "intensityTier.3.name": "Kỹ thuật không va chạm",
+    "intensityTier.4.name": "Va chạm có kiểm soát",
+    "intensityTier.5.name": "Đối kháng toàn phần",
+    "intensityTier.1.label": "Bậc 1",
+    "intensityTier.2.label": "Bậc 2",
+    "intensityTier.3.label": "Bậc 3",
+    "intensityTier.4.label": "Bậc 4",
+    "intensityTier.5.label": "Bậc 5",
+
+    /* Readiness statuses */
+    "readiness.status.READY": "Sẵn sàng",
+    "readiness.status.SUSPENDED": "Đình chỉ",
+    "readiness.status.AWAITING_CLEARANCE": "Chờ xác nhận",
+    "readiness.status.IN_BOUT": "Đang có trận",
+
+    /* Suspension actions */
+    "suspensions.action.created": "Đã tạo đình chỉ thành công.",
+    "suspensions.action.cleared": "Đã xác nhận cho tập lại thành công.",
+    "suspensions.action.conflictsApplied": "Đã áp dụng xử lý xung đột lịch tập.",
+    "suspensions.action.unauthorized": "Bạn không có quyền thực hiện thao tác này.",
+    "suspensions.action.notFound": "Không tìm thấy đình chỉ.",
+    "suspensions.action.adminClearForbidden": "Quản trị viên không có quyền kết thúc đình chỉ. Chỉ HLV hoặc bác sĩ phụ trách mới có quyền này.",
+    "suspensions.action.clearanceNoteLength": "Căn cứ xác nhận phải từ 3 đến 500 ký tự.",
+    "suspensions.action.maxTierAndTypesExclusive": "Không thể chọn cả bậc tối đa và danh sách loại buổi.",
+    "suspensions.action.requiresClearanceKoMandatory": "Đình chỉ do KO hoặc TKO bắt buộc phải cần xác nhận y tế mới được tập lại.",
+    "suspensions.action.requiresClearanceDqForbidden": "Đình chỉ do DQ hoặc nghỉ bắt buộc không được bật yêu cầu xác nhận.",
+    "suspensions.action.alreadyCleared": "Đình chỉ này đã được xác nhận kết thúc trước đó.",
+    "suspensions.action.failed": "Thao tác không thành công.",
+    "suspensions.action.startsOnNotBeforeToday": "Ngày bắt đầu không được trước ngày hôm nay.",
+    "suspensions.action.blockedSessionTypesMin": "Phải chọn ít nhất một loại buổi tập bị chặn.",
+    "suspensions.action.duplicateSessionTypes": "Không được chọn trùng loại buổi tập.",
+    "suspensions.action.daysRange": "Số ngày đình chỉ phải từ 1 đến 365.",
 } satisfies Record<keyof typeof enCoachBouts, string>;

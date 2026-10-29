@@ -286,6 +286,7 @@ export const SESSION_STATUS_META: Record<SessionStatus, StatusMeta> = {
     in_progress: { label: SESSION_STATUS_LABELS.in_progress, tone: "primary", icon: Activity },
     completed: { label: SESSION_STATUS_LABELS.completed, tone: "success", icon: CalendarCheck2 },
     missed: { label: SESSION_STATUS_LABELS.missed, tone: "warning", icon: CalendarX2 },
+    pending: { label: SESSION_STATUS_LABELS.pending, tone: "warning", icon: Clock },
     cancelled: { label: SESSION_STATUS_LABELS.cancelled, tone: "neutral", icon: CircleX },
 };
 
