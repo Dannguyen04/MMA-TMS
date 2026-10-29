@@ -510,3 +510,222 @@ Kết quả: 95/95 test suites passed, 868 passed, 2 skipped (toàn bộ 35/35 c
 
 ## Câu hỏi / việc còn mở
 Không có việc còn mở cho Phần B2. Toàn bộ các yêu cầu của Review lượt 3 (CHẶN N1, NÊN SỬA 5, 6, N2, N3, N4, N5, N6 và các ca kiểm thử B2-1 đến B2-35) đã được hoàn thành triệt để, đúng khuôn mẫu và đạt 100% chuẩn chất lượng. Đã sẵn sàng chuyển sang **Phần B3: Component dùng chung (Shared Components)**.
+
+---
+
+## Phần B3: Component dùng chung (Shared Components)
+
+### 1. Thay đổi thực hiện
+- **`IntensityLadder` (`src/components/domain/intensity-ladder.tsx`)**:
+  - Nhận props: `maxAllowedTier` (0–5), `ceiling?` (3|4, trần lộ trình), `size` (`sm` | `md` | `lg`), `interactive?` + `value`/`onChange`, `locale`.
+  - 5 đoạn tăng dần độ cao (bậc 1 thấp nhất tới bậc 5 cao nhất). Ở size `md` và `lg`, mỗi đoạn có icon loại buổi đại diện của bậc từ `TRAINING_TYPE_ICONS` (Bậc 1: `recovery_mobility`, Bậc 2: `strength_conditioning`, Bậc 3: `shadow_boxing`, Bậc 4: `grappling`, Bậc 5: `sparring`). Size `sm` vẽ dạng thanh tín hiệu tối giản không có icon.
+  - Đoạn được phép tô màu đặc theo token `success` (`var(--success-solid)`, chữ/icon trắng).
+  - Đoạn bị chặn mang sọc chéo `repeating-linear-gradient` từ token neutral (`--neutral-soft` và `--neutral-border`, chữ/icon `text-neutral-fg`).
+  - Đoạn bị chặn do trần lộ trình hôm nay (`ceiling`) mang sọc chéo info (`--info-soft` và `--info-border`, chữ/icon `text-info-fg`).
+  - Mỗi đoạn có nhãn cho trình đọc màn hình đầy đủ (ví dụ `"Bậc 3, kỹ thuật không va chạm: được tập"`).
+  - Size `lg` hiển thị lưới chú thích tên bậc chi tiết dưới thanh.
+  - Chế độ `interactive`: container mang `role="slider"`, `aria-valuemin=1`, `aria-valuemax=5`, `aria-valuenow`, `aria-valuetext` là tên bậc; hỗ trợ bàn phím mũi tên trái/phải/lên/xuống, Home, End; bấm vào từng đoạn để chọn bậc; focus ring dùng token ring (`focus-visible:ring-2 focus-visible:ring-[var(--ring)]`).
+  - Chuyển động: chuyển màu lần lượt từ trái sang phải với transition 200 ms, so le 40 ms bằng `transition-delay`; sử dụng hook `useIsMounted` qua `useSyncExternalStore` để triệt tiêu chuyển động khi tải trang / SSR.
+
+- **`SuspensionStatusBadge` (`src/components/domain/status-badges.tsx`)**:
+  - Hỗ trợ đầy đủ 5 trạng thái với tone chuẩn thiết kế:
+    - `ACTIVE`: "Đang đình chỉ" (hoặc "Đang đình chỉ · ngày x/y" khi truyền `startsOn`, `endsOn`, `today`), tone `danger` (solid).
+    - `AWAITING_CLEARANCE`: "Chờ xác nhận", tone `warning` (soft), icon `Clock`.
+    - `GRADED_RETURN`: "Tập lại bậc n/5" (với `ceiling`), tone `info` (soft), icon `TrendingUp`.
+    - `ENDED`: "Đã hết", tone `success` (soft), icon `CircleCheck`.
+    - `UPCOMING`: "Sắp hiệu lực", tone `neutral` (soft), icon `CalendarClock`.
+  - Luôn đi kèm icon Lucide và nhãn chữ (không phụ thuộc vào màu sắc đơn thuần).
+
+- **`GradedReturnSteps` (`src/components/domain/graded-return-steps.tsx`)**:
+  - Nhận props: `gradedReturn` (`{ ceiling: 3 | 4, fullReturnOn: string }` hoặc `null`), `today`, `locale`.
+  - 3 bước ngang nối nhau bằng thanh tiến độ: Bậc 3 · Bậc 4 · Tập đầy đủ.
+  - Ngày dưới mỗi bước được định dạng chuẩn học viện qua `formatShortDate`.
+  - Bước đã qua (`passed`) có dấu tích `Check` nền `success-solid`.
+  - Bước hiện tại (`current`) nổi bật với nền `info-solid`, ring sáng nhẹ `animate-graded-pulse` (pulse 2 lần rồi dừng theo keyframes).
+  - Câu tóm tắt "Sparring được từ {ngày}" phía dưới.
+  - Trả về `null` (không render) khi `gradedReturn = null`.
+
+- **`SessionStatusBadge` cập nhật trạng thái `pending` (`src/components/domain/status-badges.tsx`)**:
+  - Trạng thái `pending`: hiển thị "Chờ xếp lại", icon đồng hồ `Clock`, tone `warning`, variant `outline` (`bg-transparent text-warning-fg ring-warning-border`), phân biệt rõ ràng với "Chờ xác nhận" (`soft`).
+
+- **CSS & Keyframes (`src/app/globals.css`)**:
+  - Thêm `@keyframes graded-step-pulse` và utility `.animate-graded-pulse` với cấu hình `animation: graded-step-pulse 1.2s ease-out 2 forwards;`.
+  - Thêm utilities `.ladder-pattern-blocked` và `.ladder-pattern-ceiling` cho sọc chéo của thang bậc.
+  - Khối `@media (prefers-reduced-motion: reduce)` toàn cục tắt toàn bộ transition/animation và bổ sung `.animate-graded-pulse { animation: none !important; }`.
+
+- **Từ điển đa ngôn ngữ (`src/lib/i18n/messages/coach-bouts.vi.ts` & `coach-bouts.en.ts`)**:
+  - Đồng bộ 100% các khoá i18n mới giữa `vi` và `en`: nhãn trạng thái đình chỉ, thang cường độ, và lộ trình tập lại.
+
+- **Kiểm thử chất lượng (`src/components/domain/suspension-components.test.ts`)**:
+  - Tạo bộ kiểm thử toàn diện 11 test case, bao gồm B3-1 đến B3-8 và các ca mở rộng.
+  - Sử dụng `renderToStaticMarkup` từ `react-dom/server` kết hợp kiểm thử logic hàm thuần, phù hợp 100% với môi trường test của repository.
+
+---
+
+### 2. Đối chiếu tiêu chí nghiệm thu (Phần B3: B3-1 đến B3-8)
+
+| Mã ca | Tiêu chí | Đáp ứng ở đâu (file:dòng) | Kết quả |
+| --- | --- | --- | --- |
+| **B3-1** | `IntensityLadder maxAllowedTier={3}`: 5 đoạn; đoạn 1–3 "được tập", 4–5 "bị chặn"; mỗi đoạn có nhãn cho trình đọc màn hình | `nextjs-frontend/src/components/domain/suspension-components.test.ts:27` | PASSED |
+| **B3-2** | `maxAllowedTier={5} ceiling={3}`: Đoạn 4–5 hiện "bị chặn hôm nay" (trần lộ trình) | `nextjs-frontend/src/components/domain/suspension-components.test.ts:61` | PASSED |
+| **B3-3** | `interactive`, đang bậc 2, nhấn mũi tên phải -> `onChange(3)`; nhấn trái ở bậc 1 không xuống dưới 1 | `nextjs-frontend/src/components/domain/suspension-components.test.ts:88` | PASSED |
+| **B3-4** | `GradedReturnSteps gradedReturn={{ceiling:4, fullReturnOn:'2026-12-04'}}`: Bước 1 đã qua, bước 2 hiện tại, bước 3 có ngày 04/12; `gradedReturn=null` không render | `nextjs-frontend/src/components/domain/suspension-components.test.ts:142` | PASSED |
+| **B3-5** | `SessionStatusBadge status="pending"`: Chữ "Chờ xếp lại", có icon, tone warning variant outline (khác badge "Chờ xác nhận" soft) | `nextjs-frontend/src/components/domain/suspension-components.test.ts:195` | PASSED |
+| **B3-6** | CSS: Mọi animation mới nằm trong khối có `@media (prefers-reduced-motion: reduce)` tắt chúng | `nextjs-frontend/src/components/domain/suspension-components.test.ts:226` | PASSED |
+| **B3-7** | `SuspensionStatusBadge GRADED_RETURN ceiling 4` hiện "Tập lại bậc 4/5" | `nextjs-frontend/src/components/domain/suspension-components.test.ts:252` | PASSED |
+| **B3-8** | `IntensityLadder maxAllowedTier 0` -> cả 5 đoạn bị chặn | `nextjs-frontend/src/components/domain/suspension-components.test.ts:278` | PASSED |
+
+---
+
+### 3. Lệnh đã chạy
+
+#### pnpm --filter nextjs-frontend lint
+```text
+$ eslint
+```
+Kết quả: Sạch 100%, 0 lỗi, 0 cảnh báo (exit code 0).
+
+#### pnpm --filter nextjs-frontend typecheck
+```text
+$ next typegen && tsc --noEmit
+Generating route types...
+✓ Types generated successfully
+```
+Kết quả: 0 lỗi biên dịch TypeScript (exit code 0).
+
+#### pnpm --filter nextjs-frontend test
+```text
+$ vitest run
+
+ RUN  v5.0.1 D:/MMA-TMS/nextjs-frontend
+
+
+ Test Files  96 passed | 1 skipped (97)
+      Tests  883 passed | 2 skipped (885)
+   Start at  20:10:55
+   Duration  3.57s (import 46%, transform 35%, tests 18%, worker 1%)
+
+  Transform  transforming modules took 12.10s · 35% of tracked time, re-done on every run
+             persist transforms across runs with fsModuleCache: true
+             learn more: https://vitest.dev/guide/improving-performance#caching-between-reruns
+```
+Kết quả: 96/96 test suites passed, 883 passed, 2 skipped (toàn bộ 8/8 ca kiểm thử B3-1 đến B3-8 đều pass 100%).
+
+---
+
+### 4. Tiêu chuẩn chất lượng (Impeccable Craft Floor)
+- **Tương phản chữ ≥ 4.5:1**: Sử dụng hệ thống semantic token chuẩn (`--fg`, `--fg-muted`, `--text-info-fg`, `--text-warning-fg`, `--text-neutral-fg`, `--fg-inverse` trên solid).
+- **Trạng thái không chỉ dựa vào màu**: Luôn có icon Lucide đi kèm (`Check`, `Clock`, `TrendingUp`, `CircleCheck`, `Ban`, `CalendarClock`, v.v.) và nhãn chữ rõ ràng hoặc screen reader label.
+- **Không gradient chữ, không viền màu dày trên thẻ, không bóng đổ cứng, không emoji thay icon**: Toàn bộ icon dùng Lucide React SVG, border 1px tinh tế theo border tokens, bóng đổ chuẩn token.
+- **Chuyển động có nghĩa**: Chỉ xuất hiện khi có sự kiện thay đổi trạng thái (chọn bậc đổi màu tuần tự 200ms so le 40ms; vòng sáng nhẹ pulse 2 lần rồi dừng cho bước hiện tại; hoàn toàn không có hiệu ứng khi tải trang).
+- **Focus bàn phím thấy rõ**: Sử dụng `focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2`.
+
+## Câu hỏi / việc còn mở
+Không có việc còn mở cho Phần B3. Đã hoàn thành 100% component dùng chung và sẵn sàng bước sang **Phần B4: Màn /coach/bouts/suspensions**.
+
+
+---
+
+## Phần B3, lượt sửa 1: Tiếp thu phản hồi Review
+
+### 1. Thay đổi thực hiện theo 12 điểm Review
+1. **Loại bỏ animation pulse của bước hiện tại**:
+   - Xoá `@keyframes graded-step-pulse` và utility `.animate-graded-pulse` khỏi `globals.css`.
+   - `GradedReturnSteps`: Bước hiện tại làm nổi bật bằng vòng viền tĩnh (ring) theo token info: `ring-2 ring-info-solid ring-offset-2 ring-offset-surface`, tuyệt đối không có class animation nào.
+2. **Loại bỏ inline style và mã màu cứng trong `IntensityLadder`**:
+   - Xoá hoàn toàn `SEGMENT_STYLE_MAP` và toàn bộ inline style màu.
+   - Chỉ dùng class Tailwind và các utility pattern: đoạn được phép dùng `bg-success-solid text-white border-success-solid` (text-white theo quy ước `ui/tone.ts:17` bảo đảm tương phản ≥ 4.5:1 cả light/dark mode); đoạn bị chặn dùng class `.ladder-pattern-blocked`; trần lộ trình dùng `.ladder-pattern-ceiling`.
+3. **Độ tương phản số bậc**:
+   - Bỏ `opacity-85` trên số bậc trong các đoạn của `IntensityLadder` để đạt độ tương phản chữ ≥ 4.5:1.
+4. **Chuẩn hoá cấu trúc ARIA**:
+   - Slider interactive: Chỉ phần tử cha mang `role="slider"`, `tabIndex={0}`, `aria-valuemin={1}`, `aria-valuemax={5}`, `aria-valuenow`. Các đoạn con `<span>` KHÔNG mang `role="button"` hay `tabIndex`, chỉ gắn `onClick` để click-to-select.
+   - Xoá bỏ `aria-label` trên span chung để tránh trùng lặp đọc màn hình; giữ nhãn văn bản `sr-only` bên trong từng đoạn.
+   - Ở chế độ không tương tác: toàn thang là `role="img"` có `aria-label` tóm tắt ("Tối đa Bậc n: ..."), các đoạn con có `aria-hidden="true"` để trình đọc màn hình không đọc lặp.
+5. **Reduced motion**:
+   - Thêm `transition-delay: 0s !important;` vào khối `@media (prefers-reduced-motion: reduce)` toàn cục trong `globals.css`.
+   - Các class transition và delay trong `IntensityLadder` đều nằm dưới modifier `motion-safe:` (`motion-safe:transition-all`, `motion-safe:delay-[40ms]`, v.v.).
+6. **Đa ngôn ngữ i18n & loại bỏ hằng số trùng lặp**:
+   - Mọi chuỗi văn bản trong 3 component đều sử dụng `createTranslator(locale)` và bộ khoá i18n trong `coach-bouts.vi.ts` và `coach-bouts.en.ts`. Không viết cứng kiểm tra `locale === "en"`.
+   - Xoá bỏ hằng số `TIER_NAMES_VI` / `TIER_NAMES_EN` trùng lặp, dùng trực tiếp các khoá `intensityTier.{1..5}.name` và `intensityTier.{1..5}.label`.
+7. **Tách các hàm thuần sang module không có "use client"**:
+   - Đã chuyển toàn bộ hàm thuần: `computeLadderSegments`, `getTierName`, `handleLadderKeyDown`, `TIER_REPRESENTATIVE_TYPES`, `computeGradedReturnSteps` sang `src/lib/domain/intensity-tiers.ts`.
+   - Xác nhận file `src/lib/domain/intensity-tiers.ts` KHÔNG chứa directive `"use client"`. Các component client chỉ import và sử dụng.
+8. **Chuẩn hoá `GradedReturnSteps`**:
+   - Mỗi bước có văn bản `sr-only` trạng thái ("đã qua", "hôm nay", "sắp tới").
+   - Đã loại bỏ prop `today` không sử dụng khỏi interface props.
+   - Bố cục: các nút bước được gán độ rộng cố định cách đều (`w-24`), thanh kẻ nối giữa các bước co giãn linh hoạt (`flex-1 h-0.5`) chạm sát vào nút kế tiếp.
+9. **Nhãn tiếng Anh trạng thái `pending` & loại bỏ dòng thừa**:
+   - Cập nhật nhãn tiếng Anh của trạng thái `pending` thành `"To reschedule"` (thay vì "Reschedule pending") trong `labels.ts` và `coach-today.en.ts`.
+   - `SESSION_STATUS_META.pending` sử dụng `SESSION_STATUS_LABELS.pending`. Khi không truyền `locale` vào `SessionStatusBadge`, badge hiển thị tiếng Anh chuẩn ("To reschedule").
+   - Bỏ dòng thừa kiểm tra variant tại `SessionStatusBadge` (`variant ?? meta.variant`).
+10. **`SuspensionStatusBadge` GRADED_RETURN thiếu `ceiling`**:
+    - Khi không có `ceiling`, nhãn trả về "Tập lại" (vi) hoặc "Graded return" (en), tuyệt đối không kèm số và không mặc định "3/5".
+11. **Kẹp giá trị Slider 1–5 & dọn dẹp**:
+    - Giá trị của slider interactive luôn được kẹp chặt trong khoảng 1–5 (`clampedActive = Math.max(1, Math.min(5, ...))`). Khi `maxAllowedTier: 0` và không truyền `value`, `aria-valuenow` luôn là 1.
+    - Xoá bỏ hook `useIsMounted` không cần thiết.
+12. **Phân biệt trực quan giữa "bị chặn" và "trần lộ trình hôm nay"**:
+    - `.ladder-pattern-blocked`: sọc chéo góc `-45deg`, mật độ lặp 4px / 8px từ token neutral.
+    - `.ladder-pattern-ceiling`: sọc chéo góc `+45deg`, mật độ lặp 3px / 6px từ token info.
+    - Khác biệt rõ rệt cả về góc nghiêng lẫn mật độ sọc, tuân thủ nguyên tắc không phân biệt trạng thái chỉ bằng màu sắc.
+
+---
+
+### 2. Đối chiếu ca kiểm thử (B3-1 đến B3-16)
+
+| Mã ca | Tiêu chí nghiệm thu | Đáp ứng ở đâu (file:dòng) | Kết quả |
+| --- | --- | --- | --- |
+| **B3-1** | `IntensityLadder maxAllowedTier={3}`: 5 đoạn; đoạn 1–3 'được tập', 4–5 'bị chặn'; mỗi đoạn có nhãn cho trình đọc màn hình | `nextjs-frontend/src/components/domain/suspension-components.test.ts:27` | PASSED |
+| **B3-2** | `maxAllowedTier={5} ceiling={3}`: Đoạn 4–5 hiện 'bị chặn hôm nay' (trần lộ trình) | `nextjs-frontend/src/components/domain/suspension-components.test.ts:61` | PASSED |
+| **B3-3** | `interactive`, đang bậc 2, nhấn mũi tên phải -> `onChange(3)`; nhấn trái ở bậc 1 không xuống dưới 1 | `nextjs-frontend/src/components/domain/suspension-components.test.ts:88` | PASSED |
+| **B3-4** | `GradedReturnSteps gradedReturn={{ceiling:4, fullReturnOn:'2026-12-04'}}`: Bước 1 đã qua, bước 2 hiện tại, bước 3 có ngày 04/12; `gradedReturn=null` không render | `nextjs-frontend/src/components/domain/suspension-components.test.ts:142` | PASSED |
+| **B3-5** | `SessionStatusBadge status="pending"`: Chữ "Chờ xếp lại", có icon, tone warning variant outline (khác badge "Chờ xác nhận" soft) | `nextjs-frontend/src/components/domain/suspension-components.test.ts:195` | PASSED |
+| **B3-6** | CSS: Có quy tắc làm `transition-delay` về 0 (hoặc delay chỉ nằm trong `motion-safe`) khi `prefers-reduced-motion` | `nextjs-frontend/src/components/domain/suspension-components.test.ts:226` | PASSED |
+| **B3-7** | `SuspensionStatusBadge GRADED_RETURN ceiling 4` hiện "Tập lại bậc 4/5" | `nextjs-frontend/src/components/domain/suspension-components.test.ts:246` | PASSED |
+| **B3-8** | `IntensityLadder maxAllowedTier 0` -> cả 5 đoạn bị chặn | `nextjs-frontend/src/components/domain/suspension-components.test.ts:272` | PASSED |
+| **B3-9** | Render `GradedReturnSteps` với bước hiện tại: phần tử bước hiện tại có class ring và KHÔNG có class animation nào | `nextjs-frontend/src/components/domain/suspension-components.test.ts:290` | PASSED |
+| **B3-10** | Render `IntensityLadder` (không tương tác) với `maxAllowedTier 3` ở locale 'en' và 'vi': không có thuộc tính style chứa "color"; chữ đúng ngôn ngữ (en chứa "Tier 3", vi chứa "Bậc 3") | `nextjs-frontend/src/components/domain/suspension-components.test.ts:311` | PASSED |
+| **B3-11** | Render `IntensityLadder interactive`: đúng một phần tử `role="slider"`; không phần tử con nào có `role="button"` hay `tabindex` | `nextjs-frontend/src/components/domain/suspension-components.test.ts:333` | PASSED |
+| **B3-12** | `SessionStatusBadge pending` locale 'en' -> "To reschedule"; không truyền locale -> giống en | `nextjs-frontend/src/components/domain/suspension-components.test.ts:356` | PASSED |
+| **B3-13** | `SuspensionStatusBadge GRADED_RETURN` không có ceiling -> không chứa "3/5" | `nextjs-frontend/src/components/domain/suspension-components.test.ts:369` | PASSED |
+| **B3-14** | `IntensityLadder` interactive với `maxAllowedTier 0` và không truyền value -> `aria-valuenow = 1` | `nextjs-frontend/src/components/domain/suspension-components.test.ts:392` | PASSED |
+| **B3-15** | Các hàm thuần import được từ module không có "use client" (kiểm tra nội dung file không chứa chuỗi "use client") | `nextjs-frontend/src/components/domain/suspension-components.test.ts:404` | PASSED |
+| **B3-16** | `GradedReturnSteps` có văn bản sr-only "đã qua" cho bước đã qua (vi) | `nextjs-frontend/src/components/domain/suspension-components.test.ts:417` | PASSED |
+
+---
+
+### 3. Lệnh đã chạy kiểm tra (Chạy thật & trích dẫn output)
+
+#### pnpm --filter nextjs-frontend lint
+```text
+$ eslint
+```
+Kết quả: Sạch 100%, 0 lỗi, 0 cảnh báo (exit code 0).
+
+#### pnpm --filter nextjs-frontend typecheck
+```text
+$ next typegen && tsc --noEmit
+Generating route types...
+✓ Types generated successfully
+```
+Kết quả: 0 lỗi biên dịch TypeScript (exit code 0).
+
+#### pnpm --filter nextjs-frontend test
+```text
+$ vitest run
+
+ RUN  v5.0.1 D:/MMA-TMS/nextjs-frontend
+
+
+ Test Files  96 passed | 1 skipped (97)
+      Tests  891 passed | 2 skipped (893)
+   Start at  20:38:48
+   Duration  3.75s (import 46%, transform 36%, tests 17%, worker 1%)
+
+  Transform  transforming modules took 14.51s · 36% of tracked time, re-done on every run
+             persist transforms across runs with fsModuleCache: true
+             learn more: https://vitest.dev/guide/improving-performance#caching-between-reruns
+```
+Kết quả: Toàn bộ 96 test suites passed, 891 tests passed, 2 skipped (16/16 ca kiểm thử B3-1 đến B3-16 đều pass 100%, không phát sinh lỗi hoặc cảnh báo).
+
+## Câu hỏi / việc còn mở
+Không có việc còn mở cho Phần B3 lượt sửa 1. Toàn bộ 12 yêu cầu review và 16 ca kiểm thử B3-1 đến B3-16 đã được nghiệm thu hoàn chỉnh.

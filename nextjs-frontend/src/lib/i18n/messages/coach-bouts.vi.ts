@@ -246,10 +246,32 @@ export const viCoachBouts = {
     "suspension.reason.OTHER": "Khác",
 
     /* Suspension statuses */
-    "suspension.status.UPCOMING": "Sắp tới",
+    "suspension.status.UPCOMING": "Sắp hiệu lực",
     "suspension.status.ACTIVE": "Đang đình chỉ",
     "suspension.status.AWAITING_CLEARANCE": "Chờ xác nhận",
     "suspension.status.ENDED": "Đã hết",
+    "suspension.status.GRADED_RETURN": "Tập lại",
+    "suspension.status.GRADED_RETURN_TIER": "Tập lại bậc {tier}/5",
+    "suspension.status.ACTIVE_WITH_DAY": "Đang đình chỉ · ngày {elapsed}/{total}",
+
+    /* Graded return roadmap */
+    "gradedReturn.step.tier3": "Bậc 3",
+    "gradedReturn.step.tier4": "Bậc 4",
+    "gradedReturn.step.full": "Tập đầy đủ",
+    "gradedReturn.status.passed": "đã qua",
+    "gradedReturn.status.current": "hôm nay",
+    "gradedReturn.status.upcoming": "sắp tới",
+    "gradedReturn.summary": "Sparring được từ {date}",
+    "gradedReturn.regionLabel": "Lộ trình tập lại theo bậc",
+
+    /* Intensity ladder */
+    "intensityLadder.allowed": "được tập",
+    "intensityLadder.blocked": "bị chặn",
+    "intensityLadder.blockedToday": "bị chặn hôm nay",
+    "intensityLadder.sliderLabel": "Chọn bậc cường độ tối đa",
+    "intensityLadder.summary": "Tối đa {label}: {name}",
+    "intensityLadder.summaryBlocked": "Tất cả 5 bậc bị chặn",
+    "intensityLadder.segmentSr": "{label}, {name}: {status}",
 
     /* Intensity tiers */
     "intensityTier.1.name": "Hồi phục, vận động nhẹ",

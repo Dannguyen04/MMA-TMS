@@ -468,6 +468,7 @@
             animation-duration: 0.01ms !important;
             animation-iteration-count: 1 !important;
             transition-duration: 0.01ms !important;
+            transition-delay: 0s !important;
             scroll-behavior: auto !important;
         }
     }
@@ -542,6 +543,14 @@
 
 @utility animate-indeterminate {
     animation: indeterminate 1.4s ease-in-out infinite;
+}
+
+@utility ladder-pattern-blocked {
+    background-image: repeating-linear-gradient(-45deg, var(--neutral-soft), var(--neutral-soft) 4px, var(--neutral-border) 4px, var(--neutral-border) 8px);
+}
+
+@utility ladder-pattern-ceiling {
+    background-image: repeating-linear-gradient(45deg, var(--info-soft), var(--info-soft) 3px, var(--info-border) 3px, var(--info-border) 6px);
 }
 
 /*

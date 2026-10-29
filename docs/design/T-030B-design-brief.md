@@ -21,7 +21,7 @@ Màu theo nghĩa, không trang trí: đang đình chỉ dùng `danger`; chờ x�
 Sinh động nằm ở **chuyển động có nghĩa** (150–250 ms, CSS, tắt khi `prefers-reduced-motion`):
 - Thang bậc: khi đổi bậc trong form, các đoạn lấp đầy lần lượt từ trái sang phải (so le 40 ms).
 - Bảng tóm tắt hệ quả: từng dòng trượt vào theo thứ tự, buổi bị huỷ có gạch ngang chạy qua tên buổi, buổi "Chờ xếp lại" có icon đồng hồ.
-- Lộ trình 3 bước: bước hôm nay có vòng sáng nhẹ (pulse 2 lần rồi dừng), bước đã qua có dấu tích.
+- Lộ trình 3 bước: bước hôm nay nổi bật bằng vòng viền tĩnh, bước đã qua có dấu tích. (Bỏ hiệu ứng nhấp nháy 29/10: trái quy tắc chuyển động 150–250 ms chỉ để báo đổi trạng thái.)
 Khoảnh khắc chuyển động chính là **bảng tóm tắt hệ quả** sau khi tạo đình chỉ; các chuyển động khác chỉ báo đổi trạng thái. Không có chuyển động lặp vô hạn, không hiệu ứng khi tải trang, không số đếm chạy (sửa 29/10 theo craft floor của Impeccable).
 
 ## 4. Các màn và thành phần
@@ -30,7 +30,7 @@ Khoảnh khắc chuyển động chính là **bảng tóm tắt hệ quả** sau
 
 - **`IntensityLadder`**: props `maxAllowedTier` (0–5), `ceiling?` (bậc trần của lộ trình hôm nay), `size` (`sm` cho bảng, `md` cho dòng, `lg` cho form), `interactive?` + `onChange` (form). Mỗi đoạn có nhãn ẩn cho trình đọc màn hình ("Bậc 3, kỹ thuật không va chạm: được tập"). Bàn phím: mũi tên trái/phải đổi bậc khi `interactive`. Hiện chú thích bậc dưới thanh ở `lg`.
 - **`SuspensionStatusBadge`**: `ACTIVE` (Đang đình chỉ, ngày x/y), `AWAITING_CLEARANCE` (Chờ xác nhận), `GRADED_RETURN` (Tập lại bậc n/5), `ENDED` (Đã hết). Thêm vào `status-badges.tsx` theo mẫu các badge có sẵn.
-- **`GradedReturnSteps`**: 3 bước ngang (Bậc 3 · Bậc 4 · Tập đầy đủ) với ngày dưới mỗi bước, bước hiện tại nổi bật; câu tóm tắt "Sparring được từ {ngày}".
+- **`GradedReturnSteps`**: 3 bước ngang (Bậc 3 · Bậc 4 · Tập đầy đủ) với ngày dưới mỗi bước, bước hiện tại nổi bật bằng viền tĩnh; câu tóm tắt "Sparring được từ {ngày}".
 - **`SessionStatusBadge`**: thêm trạng thái `pending` ("Chờ xếp lại", icon đồng hồ, `warning` outline).
 
 ### 4.2 `/coach/bouts/suspensions`: danh sách đình chỉ (màn mới, tab trong hub "Trận")

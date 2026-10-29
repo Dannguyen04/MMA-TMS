@@ -1,5 +1,8 @@
+import { formatShortDate } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
+import { createTranslator, type MessageKey } from "@/lib/i18n/translate";
 import { SESSION_TYPES, type SessionType } from "./medical-contract";
-import type { TrainingType } from "./types";
+import type { GradedReturn, TrainingType } from "./types";
 
 export type SessionIntensityTier = 1 | 2 | 3 | 4 | 5;
 
@@ -74,4 +77,186 @@ export function tierOfTrainingType(type: TrainingType): SessionIntensityTier {
         case "sparring":
             return 5;
     }
+}
+
+/* ─── Pure functions for IntensityLadder ──────────────────────────────────── */
+
+export type LadderSegmentStatus = "allowed" | "blocked" | "blocked_ceiling";
+
+export interface LadderSegmentInfo {
+    tier: SessionIntensityTier;
+    status: LadderSegmentStatus;
+    name: string;
+    label: string;
+    statusLabel: string;
+    screenReaderLabel: string;
+    trainingType: TrainingType;
+}
+
+export const TIER_REPRESENTATIVE_TYPES: Record<SessionIntensityTier, TrainingType> = {
+    1: "recovery_mobility",
+    2: "strength_conditioning",
+    3: "shadow_boxing",
+    4: "grappling",
+    5: "sparring",
+};
+
+export function getTierName(tier: SessionIntensityTier, locale: Locale = "vi"): string {
+    const t = createTranslator(locale);
+    return t(`intensityTier.${tier}.name` as MessageKey);
+}
+
+export function computeLadderSegments(
+    maxAllowedTier: number,
+    ceiling?: 3 | 4,
+    locale: Locale = "vi",
+): LadderSegmentInfo[] {
+    const t = createTranslator(locale);
+    return ([1, 2, 3, 4, 5] as const).map((tier) => {
+        let status: LadderSegmentStatus;
+        if (tier > maxAllowedTier) {
+            status = "blocked";
+        } else if (ceiling !== undefined && tier > ceiling) {
+            status = "blocked_ceiling";
+        } else {
+            status = "allowed";
+        }
+
+        const name = t(`intensityTier.${tier}.name` as MessageKey);
+        const label = t(`intensityTier.${tier}.label` as MessageKey);
+        let statusLabel: string;
+        if (status === "allowed") {
+            statusLabel = t("intensityLadder.allowed");
+        } else if (status === "blocked_ceiling") {
+            statusLabel = t("intensityLadder.blockedToday");
+        } else {
+            statusLabel = t("intensityLadder.blocked");
+        }
+
+        const srName = locale === "vi" ? name.charAt(0).toLowerCase() + name.slice(1) : name;
+        const screenReaderLabel = t("intensityLadder.segmentSr", {
+            tier,
+            label,
+            name: srName,
+            status: statusLabel,
+        });
+
+        return {
+            tier,
+            status,
+            name,
+            label,
+            statusLabel,
+            screenReaderLabel,
+            trainingType: TIER_REPRESENTATIVE_TYPES[tier],
+        };
+    });
+}
+
+export function handleLadderKeyDown(
+    key: string,
+    currentValue: number,
+    onChange?: (tier: SessionIntensityTier) => void,
+): boolean {
+    let nextTier: SessionIntensityTier | undefined;
+    if (key === "ArrowRight" || key === "ArrowUp") {
+        nextTier = Math.min(5, Math.max(1, currentValue + 1)) as SessionIntensityTier;
+    } else if (key === "ArrowLeft" || key === "ArrowDown") {
+        nextTier = Math.max(1, Math.min(5, currentValue - 1)) as SessionIntensityTier;
+    } else if (key === "Home") {
+        nextTier = 1;
+    } else if (key === "End") {
+        nextTier = 5;
+    }
+    if (nextTier !== undefined) {
+        if (nextTier !== currentValue) {
+            onChange?.(nextTier);
+        }
+        return true;
+    }
+    return false;
+}
+
+/* ─── Pure functions for GradedReturnSteps ────────────────────────────────── */
+
+export type GradedStepStatus = "passed" | "current" | "upcoming";
+
+export interface GradedStepItem {
+    id: 3 | 4 | "full";
+    stepNumber: 1 | 2 | 3;
+    label: string;
+    date: string;
+    dateFormatted: string;
+    status: GradedStepStatus;
+    statusText: string;
+}
+
+const DAY_MS = 86_400_000;
+function addDays(date: string, days: number): string {
+    return new Date(Date.parse(`${date}T00:00:00.000Z`) + days * DAY_MS)
+        .toISOString()
+        .slice(0, 10);
+}
+
+export function computeGradedReturnSteps(
+    gradedReturn: GradedReturn,
+    locale: Locale = "vi",
+): GradedStepItem[] {
+    const t = createTranslator(locale);
+    const fullDate = gradedReturn.fullReturnOn;
+    const dateStep1 = addDays(fullDate, -2);
+    const dateStep2 = addDays(fullDate, -1);
+    const dateStep3 = fullDate;
+
+    // Step 1: Bậc 3
+    const status1: GradedStepStatus = gradedReturn.ceiling === 3 ? "current" : "passed";
+
+    // Step 2: Bậc 4
+    let status2: GradedStepStatus;
+    if (gradedReturn.ceiling === 3) {
+        status2 = "upcoming";
+    } else if (gradedReturn.ceiling === 4) {
+        status2 = "current";
+    } else {
+        status2 = "passed";
+    }
+
+    // Step 3: Tập đầy đủ
+    const status3: GradedStepStatus = "upcoming";
+
+    const getStatusText = (st: GradedStepStatus): string => {
+        if (st === "passed") return t("gradedReturn.status.passed");
+        if (st === "current") return t("gradedReturn.status.current");
+        return t("gradedReturn.status.upcoming");
+    };
+
+    return [
+        {
+            id: 3,
+            stepNumber: 1,
+            label: t("gradedReturn.step.tier3"),
+            date: dateStep1,
+            dateFormatted: formatShortDate(dateStep1, locale),
+            status: status1,
+            statusText: getStatusText(status1),
+        },
+        {
+            id: 4,
+            stepNumber: 2,
+            label: t("gradedReturn.step.tier4"),
+            date: dateStep2,
+            dateFormatted: formatShortDate(dateStep2, locale),
+            status: status2,
+            statusText: getStatusText(status2),
+        },
+        {
+            id: "full",
+            stepNumber: 3,
+            label: t("gradedReturn.step.full"),
+            date: dateStep3,
+            dateFormatted: formatShortDate(dateStep3, locale),
+            status: status3,
+            statusText: getStatusText(status3),
+        },
+    ];
 }

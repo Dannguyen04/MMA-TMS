@@ -21,3 +21,11 @@
   - **Test không bắt được lỗi** (một số do Claude đặc tả chưa chặt): B2-4, B2-6, B2-7, B2-24, B2-26, B2-27, B2-31 đã viết lại.
 - Lệnh Claude chạy lại sau lượt cuối: `lint` sạch, `typecheck` 0 lỗi, `test` `Tests 872 passed | 2 skipped (874)`.
 - Review độc lập lần 4: không còn lỗi chặn; 3 mục nên sửa (F1–F3) đã sửa ở lượt 5, Claude kiểm lại code và test.
+
+## B3 (component dùng chung): APPROVED 29/10, xem lại khi gắn vào màn ở B4
+
+- `IntensityLadder` (thang 5 bậc, chỉ xem hoặc slider), `GradedReturnSteps` (lộ trình 3 bước), `SuspensionStatusBadge`, badge buổi `pending`.
+- Claude chụp app ở demo mode (dashboard, lịch tập, trận; 1440 px và 390 px; vi và en): badge "Chờ xếp lại" rõ ràng, tách khỏi "Đã huỷ"; nhãn tiếng Anh "Reschedule pending" bị cắt trong thẻ tuần → đổi thành "To reschedule". Thẻ Việc cần làm ở demo chưa sinh 2 mã đình chỉ (chuyển sang B4). Hai khái niệm "chưa có cấp phép y tế" và "đình chỉ" dễ nhầm trên dashboard (xử lý câu chữ và liên kết ở B4).
+- Review độc lập: không lỗi chặn; 9 mục nên sửa (vòng viền bước hiện tại mất sau hiệu ứng, tương phản chế độ tối, số bậc dưới 4.5:1, ARIA lồng nút trong slider, độ trễ so le không tắt khi giảm chuyển động, khoá i18n không dùng, hàm thuần nằm trong module client, trạng thái bước chỉ có ở `title`, style trùng). Đã sửa ở lượt 1 cùng các gợi ý (kẹp giá trị slider, phân biệt sọc không chỉ bằng màu). Claude quyết bỏ hiệu ứng nhấp nháy của bước hiện tại (bản thiết kế đã sửa).
+- Lệnh Claude chạy lại: `lint` sạch, `typecheck` 0 lỗi, `test` `Tests 891 passed | 2 skipped (893)`.
+- Lượt sửa chưa có review độc lập riêng; các component sẽ được review lại cùng màn ở B4 (ảnh chụp và review độc lập).

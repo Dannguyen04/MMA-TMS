@@ -18,7 +18,7 @@ export const enCoachToday = {
     "sessionStatus.completed": "Completed",
     "sessionStatus.missed": "Missed",
     "sessionStatus.cancelled": "Cancelled",
-    "sessionStatus.pending": "Reschedule pending",
+    "sessionStatus.pending": "To reschedule",
     "clearance.full": "Cleared",
     "clearance.restricted": "Restricted",
     "clearance.not_cleared": "Not cleared",

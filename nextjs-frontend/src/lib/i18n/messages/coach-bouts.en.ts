@@ -248,6 +248,28 @@ export const enCoachBouts = {
     "suspension.status.ACTIVE": "Active",
     "suspension.status.AWAITING_CLEARANCE": "Awaiting clearance",
     "suspension.status.ENDED": "Ended",
+    "suspension.status.GRADED_RETURN": "Graded return",
+    "suspension.status.GRADED_RETURN_TIER": "Graded return tier {tier}/5",
+    "suspension.status.ACTIVE_WITH_DAY": "Active · day {elapsed}/{total}",
+
+    /* Graded return roadmap */
+    "gradedReturn.step.tier3": "Tier 3",
+    "gradedReturn.step.tier4": "Tier 4",
+    "gradedReturn.step.full": "Full return",
+    "gradedReturn.status.passed": "passed",
+    "gradedReturn.status.current": "today",
+    "gradedReturn.status.upcoming": "upcoming",
+    "gradedReturn.summary": "Sparring permitted from {date}",
+    "gradedReturn.regionLabel": "Graded return roadmap",
+
+    /* Intensity ladder */
+    "intensityLadder.allowed": "allowed",
+    "intensityLadder.blocked": "blocked",
+    "intensityLadder.blockedToday": "blocked today",
+    "intensityLadder.sliderLabel": "Select maximum intensity tier",
+    "intensityLadder.summary": "Maximum {label}: {name}",
+    "intensityLadder.summaryBlocked": "All 5 tiers blocked",
+    "intensityLadder.segmentSr": "{label}, {name}: {status}",
 
     /* Intensity tiers */
     "intensityTier.1.name": "Recovery & light movement",

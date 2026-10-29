@@ -217,7 +217,7 @@ export const PLAN_STATUS_LABELS: Record<PlanStatus, string> = {
 export const SESSION_STATUS_LABELS: Record<SessionStatus, string> = {
     scheduled: "Scheduled",
     in_progress: "In progress",
-    pending: "Pending",
+    pending: "To reschedule",
     completed: "Completed",
     missed: "Missed",
     cancelled: "Cancelled",
