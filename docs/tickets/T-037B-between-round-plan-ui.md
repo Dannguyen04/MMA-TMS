@@ -44,6 +44,15 @@ Các file đều đã có trên nhánh T-033 (từ T-010B):
 
 Giới hạn sử dụng: chọn bằng chạm, không bắt buộc gõ chữ. Ở 390 px không cuộn ngang, nút chạm cao ít nhất 44 px.
 
+### Chế độ ghi giữa hiệp (thêm 29/10 từ [review T-010B](./T-010B-REVIEW.md))
+
+Hiện màn ghi hiệp mở cả các hiệp cùng lúc, mỗi hiệp khoảng 20 nút cao khoảng 30 px. Như vậy chỉ ghi được sau trận. Để dùng ở góc đài trong 60 s nghỉ:
+
+1. Chỉ mở **hiệp đang ghi**, tức `advice.nextRound.roundNo` hoặc hiệp 1 nếu chưa ghi hiệp nào; các hiệp đã ghi thu gọn thành một dòng tóm tắt. Bỏ `nextRoundNo = rounds.length + 1` (`rounds-view.tsx:54`).
+2. Mặc định chỉ hiện **4 chạm** theo [luồng nghiệp vụ 9](../FIGHT-CAMP-BUSINESS-FLOWS.md): hai chiến thuật đang được dặn (trọng tâm của hiệp trước; nếu không có thì hai chiến thuật đầu `advice.tactics`), một quan sát chính, và HLV tự chấm hiệp. Tình trạng võ sĩ, các chiến thuật và quan sát khác nằm sau nút "Ghi thêm".
+3. Mọi nút chạm trên màn ghi hiệp cao ít nhất 44 px.
+4. Tiêu chí thêm: ở 390 px, hiệp đang ghi cùng khối "Hiệp sau" nằm gọn trong 2 màn hình cuộn; đếm nút dưới 44 px trong `main` bằng 0.
+
 ## 3. Ngoài phạm vi
 
 - Lời dặn do AI viết (T-038 B).
