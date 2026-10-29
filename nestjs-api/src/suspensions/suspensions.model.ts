@@ -10,10 +10,12 @@ import {
   daysBetweenDates,
   LOSS_OF_CONSCIOUSNESS_VALUES,
   REHAB_TRIGGER_SUSPENSION_REASONS,
+  SESSION_INTENSITY_TIERS,
   SESSION_TYPES,
   SUSPENSION_REASONS,
   TRAINING_PLAN_PHASES,
   type LossOfConsciousness,
+  type SessionIntensityTier,
   type SessionType,
   type SuspensionReason,
   type TrainingPlanPhase,
@@ -25,10 +27,12 @@ export {
   daysBetweenDates,
   LOSS_OF_CONSCIOUSNESS_VALUES,
   REHAB_TRIGGER_SUSPENSION_REASONS,
+  SESSION_INTENSITY_TIERS,
   SESSION_TYPES,
   SUSPENSION_REASONS,
   TRAINING_PLAN_PHASES,
   type LossOfConsciousness,
+  type SessionIntensityTier,
   type SessionType,
   type SuspensionReason,
   type TrainingPlanPhase,
@@ -65,11 +69,21 @@ export interface SuspensionStateInput {
   clearedAt: Date | string | null;
 }
 
+export interface SuspensionGradedReturnInput extends SuspensionStateInput {
+  reason?: SuspensionReason | undefined;
+}
+
+export interface GradedReturn {
+  ceiling: 3 | 4;
+  fullReturnOn: string;
+}
+
 export interface BlockingSuspension {
   suspensionId: string;
   reason: SuspensionReason;
   endsOn: string;
   requiresClearance: boolean;
+  gradedReturn?: GradedReturn;
 }
 
 export const CONFLICT_ACTIONS = ['PENDING', 'CANCEL'] as const;
@@ -133,6 +147,96 @@ export function isInForceOn(
  */
 export function endsOnFor(startsOn: string, days: number): string {
   return addDaysToDate(startsOn, days - 1);
+}
+
+/**
+ * Returns all session types whose intensity tier is strictly greater than `maxTier`,
+ * preserving `SESSION_TYPES` order.
+ */
+export function blockedTypesForMaxTier(maxTier: number): SessionType[] {
+  return SESSION_TYPES.filter(
+    (type) => SESSION_INTENSITY_TIERS[type] > maxTier,
+  );
+}
+
+/**
+ * Highest intensity tier `t` (1..5) such that every session type at tier `<= t`
+ * is NOT in `blockedSessionTypes` (returns 0 if any tier-1 session type is blocked).
+ */
+export function maxAllowedTier(
+  blockedSessionTypes: readonly SessionType[],
+): 0 | SessionIntensityTier {
+  const blocked = new Set<SessionType>(blockedSessionTypes);
+  let highest: 0 | SessionIntensityTier = 0;
+  for (const tier of [1, 2, 3, 4, 5] as const) {
+    const typesInTier = SESSION_TYPES.filter(
+      (type) => SESSION_INTENSITY_TIERS[type] === tier,
+    );
+    if (typesInTier.some((type) => blocked.has(type))) {
+      break;
+    }
+    highest = tier;
+  }
+  return highest;
+}
+
+/**
+ * Computes the graded-return state `{ ceiling, fullReturnOn }` for a head-injury
+ * (`KO` / `TKO`) suspension on academy date `d` (YYYY-MM-DD), or `null` when not
+ * in the graded-return window.
+ *
+ * - Start date `R`:
+ *   - `requiresClearance = true`: `academyDateOf(clearedAt)` once cleared (`null` while uncleared).
+ *   - `requiresClearance = false`: `endsOn + 1`.
+ * - Ceiling by day: day `R` -> ceiling 3; day `R + 1` -> ceiling 4; from `R + 2` (`fullReturnOn`) -> `null`.
+ */
+export function gradedReturnFor(
+  suspension: SuspensionGradedReturnInput,
+  d: string,
+): GradedReturn | null {
+  if (suspension.reason !== 'KO' && suspension.reason !== 'TKO') {
+    return null;
+  }
+  if (
+    isInForceOn(suspension, d) ||
+    suspensionStatusOn(suspension, d) !== 'ENDED'
+  ) {
+    return null;
+  }
+
+  let startDate: string;
+  if (suspension.requiresClearance) {
+    if (suspension.clearedAt === null || suspension.clearedAt === undefined) {
+      return null;
+    }
+    const clearedInstant =
+      suspension.clearedAt instanceof Date
+        ? suspension.clearedAt
+        : new Date(suspension.clearedAt);
+    startDate = academyDateOf(clearedInstant);
+  } else {
+    startDate = addDaysToDate(suspension.endsOn, 1);
+  }
+
+  const fullReturnOn = addDaysToDate(startDate, 2);
+  if (d === startDate) {
+    return { ceiling: 3, fullReturnOn };
+  }
+  if (d === addDaysToDate(startDate, 1)) {
+    return { ceiling: 4, fullReturnOn };
+  }
+  return null;
+}
+
+/**
+ * Returns the graded-return intensity tier ceiling (`3 | 4`) for `suspension` on
+ * academy date `d`, or `null` if unconstrained by graded return on `d`.
+ */
+export function gradedReturnCeiling(
+  suspension: SuspensionGradedReturnInput,
+  d: string,
+): 3 | 4 | null {
+  return gradedReturnFor(suspension, d)?.ceiling ?? null;
 }
 
 export type RequiresClearanceResolution =
@@ -314,6 +418,7 @@ export const createSuspensionSchema = z
         'Duplicate session types are not allowed',
       )
       .optional(),
+    maxTier: z.number().int().min(1).max(5).optional(),
     requiresClearance: z.boolean().optional(),
     lossOfConsciousness: z
       .enum(LOSS_OF_CONSCIOUSNESS_VALUES)
@@ -321,6 +426,16 @@ export const createSuspensionSchema = z
       .optional(),
   })
   .superRefine((value, ctx) => {
+    if (
+      value.maxTier !== undefined &&
+      value.blockedSessionTypes !== undefined
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['maxTier'],
+        message: 'maxTier and blockedSessionTypes cannot both be provided',
+      });
+    }
     const clearance = deriveRequiresClearance(
       value.reason,
       value.requiresClearance,
@@ -838,6 +953,11 @@ export function suggestSuspensions(
 // Response schemas
 // ---------------------------------------------------------------------------
 
+export const gradedReturnSchema = z.object({
+  ceiling: z.union([z.literal(3), z.literal(4)]),
+  fullReturnOn: dateOnlySchema,
+});
+
 export const suspensionResponseSchema = z.object({
   id: z.uuid(),
   fighterId: z.uuid(),
@@ -849,6 +969,7 @@ export const suspensionResponseSchema = z.object({
   suggestedDays: z.number().int().nullable(),
   overrideReason: z.string().nullable(),
   blockedSessionTypes: z.array(z.enum(SESSION_TYPES)),
+  maxAllowedTier: z.number().int().min(0).max(5),
   requiresClearance: z.boolean(),
   clearedAt: isoDateTimeSchema.nullable(),
   clearedById: z.uuid().nullable(),
@@ -857,6 +978,7 @@ export const suspensionResponseSchema = z.object({
   createdAt: isoDateTimeSchema,
   updatedAt: isoDateTimeSchema,
   status: z.enum(SUSPENSION_STATUSES),
+  gradedReturn: gradedReturnSchema.nullable(),
   affectedSessions: z.array(affectedSessionSchema).optional(),
   affectedPlans: z.array(affectedPlanSchema).optional(),
 });

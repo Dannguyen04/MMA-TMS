@@ -2,6 +2,11 @@ import { z } from 'zod';
 import {
   affectedPlanSchema,
   affectedSessionSchema,
+  blockedTypesForMaxTier,
+  gradedReturnCeiling,
+  gradedReturnFor,
+  gradedReturnSchema,
+  type GradedReturn,
 } from '../suspensions/suspensions.model.js';
 import { opponentAnalysisSchema, fighterAnalysisSchema, analysisSessionsSchema } from './bout-analysis.model.js';
 import {
@@ -13,6 +18,7 @@ import {
   SESSION_TYPES,
   SUSPENSION_REASONS,
   type SessionType,
+  type SuspensionReason,
 } from '../suspensions/suspensions.constants.js';
 export interface SuspensionStateInput {
   startsOn: string;
@@ -1242,6 +1248,8 @@ export interface ReadinessSuspensionSummary {
   blockedSessionTypes: SessionType[];
   allowedSessionTypes: SessionType[];
   expectedResumeOn: string | null;
+  fullReturnOn?: string | null;
+  gradedReturn?: GradedReturn | null;
 }
 
 export interface ReadinessRow {
@@ -1253,11 +1261,14 @@ export interface ReadinessRow {
   latestWeightOn: string | null;
   activeBout: ReadinessActiveBout | null;
   suspension: ReadinessSuspensionSummary | null;
+  fullReturnOn: string | null;
+  gradedReturn: GradedReturn | null;
   notReadyReasons?: NotReadyReason[];
   feasibility?: WeightFeasibility;
 }
 
 export interface ReadinessSuspensionInput extends SuspensionStateInput {
+  reason?: SuspensionReason | undefined;
   blockedSessionTypes: readonly SessionType[];
   deletedAt?: Date | string | null;
 }
@@ -1300,6 +1311,35 @@ export function classifyReadiness(input: ClassifyReadinessInput): ReadinessRow {
   const hasAwaitingClearance = inForceToday.some(
     (s) => suspensionStatusOn(s, input.today) === 'AWAITING_CLEARANCE',
   );
+  const gradedReturnsToday = activeSuspensions
+    .map((s) => ({
+      suspension: s,
+      gradedReturn: gradedReturnFor(s, input.today),
+    }))
+    .filter(
+      (
+        item,
+      ): item is {
+        suspension: ReadinessSuspensionInput;
+        gradedReturn: GradedReturn;
+      } => item.gradedReturn !== null,
+    );
+
+  let gradedReturn: GradedReturn | null = null;
+  if (gradedReturnsToday.length > 0) {
+    let ceiling = gradedReturnsToday[0]!.gradedReturn.ceiling;
+    let fullReturnOnVal = gradedReturnsToday[0]!.gradedReturn.fullReturnOn;
+    for (const item of gradedReturnsToday) {
+      if (item.gradedReturn.ceiling < ceiling) {
+        ceiling = item.gradedReturn.ceiling;
+      }
+      if (item.gradedReturn.fullReturnOn > fullReturnOnVal) {
+        fullReturnOnVal = item.gradedReturn.fullReturnOn;
+      }
+    }
+    gradedReturn = { ceiling, fullReturnOn: fullReturnOnVal };
+  }
+  const fullReturnOn = gradedReturn ? gradedReturn.fullReturnOn : null;
 
   const rawBout = input.activeBout ?? null;
   const activeBout: ReadinessActiveBout | null =
@@ -1317,7 +1357,7 @@ export function classifyReadiness(input: ClassifyReadinessInput): ReadinessRow {
       : null;
 
   let status: ReadinessStatus;
-  if (hasActiveSuspension) {
+  if (hasActiveSuspension || (gradedReturn !== null && !hasAwaitingClearance)) {
     status = 'SUSPENDED';
   } else if (hasAwaitingClearance) {
     status = 'AWAITING_CLEARANCE';
@@ -1361,6 +1401,29 @@ export function classifyReadiness(input: ClassifyReadinessInput): ReadinessRow {
       blockedSessionTypes,
       allowedSessionTypes,
       expectedResumeOn,
+      ...(gradedReturn !== null
+        ? { fullReturnOn: gradedReturn.fullReturnOn, gradedReturn }
+        : {}),
+    };
+  } else if (gradedReturn !== null) {
+    let earliestStartsOn = gradedReturnsToday[0]!.suspension.startsOn;
+    let latestEndsOn = gradedReturnsToday[0]!.suspension.endsOn;
+    for (const { suspension: s } of gradedReturnsToday) {
+      if (s.startsOn < earliestStartsOn) earliestStartsOn = s.startsOn;
+      if (s.endsOn > latestEndsOn) latestEndsOn = s.endsOn;
+    }
+    const blockedSessionTypes = blockedTypesForMaxTier(gradedReturn.ceiling);
+    const allowedSessionTypes = SESSION_TYPES.filter(
+      (t) => !blockedSessionTypes.includes(t),
+    );
+    suspension = {
+      startsOn: earliestStartsOn,
+      endsOn: latestEndsOn,
+      blockedSessionTypes,
+      allowedSessionTypes,
+      expectedResumeOn: gradedReturn.fullReturnOn,
+      fullReturnOn: gradedReturn.fullReturnOn,
+      gradedReturn,
     };
   }
 
@@ -1372,7 +1435,13 @@ export function classifyReadiness(input: ClassifyReadinessInput): ReadinessRow {
 
   if (input.boutOn !== undefined) {
     notReadyReasons = [];
-    if (activeSuspensions.some((s) => isInForceOn(s, input.boutOn!))) {
+    if (
+      activeSuspensions.some(
+        (s) =>
+          isInForceOn(s, input.boutOn!) ||
+          gradedReturnCeiling(s, input.boutOn!) !== null,
+      )
+    ) {
       notReadyReasons.push('SUSPENDED_PAST_BOUT_DATE');
     }
     if (activeBout !== null) {
@@ -1417,6 +1486,8 @@ export function classifyReadiness(input: ClassifyReadinessInput): ReadinessRow {
     latestWeightOn,
     activeBout,
     suspension,
+    fullReturnOn,
+    gradedReturn,
     ...(notReadyReasons !== undefined ? { notReadyReasons } : {}),
     ...(feasibility !== undefined ? { feasibility } : {}),
   };
@@ -1456,6 +1527,16 @@ export const weightFeasibilitySchema = z.object({
   daysToWeighIn: z.number().int(),
 });
 
+export const readinessSuspensionSchema = z.object({
+  startsOn: dateOnlySchema,
+  endsOn: dateOnlySchema,
+  blockedSessionTypes: z.array(z.enum(SESSION_TYPES)),
+  allowedSessionTypes: z.array(z.enum(SESSION_TYPES)),
+  expectedResumeOn: dateOnlySchema.nullable(),
+  fullReturnOn: dateOnlySchema.nullable().optional(),
+  gradedReturn: gradedReturnSchema.nullable().optional(),
+});
+
 export const readinessRowSchema = z.object({
   fighterId: z.uuid(),
   fighterName: z.string(),
@@ -1478,8 +1559,12 @@ export const readinessRowSchema = z.object({
       blockedSessionTypes: z.array(z.enum(SESSION_TYPES)),
       allowedSessionTypes: z.array(z.enum(SESSION_TYPES)),
       expectedResumeOn: dateOnlySchema.nullable(),
+      fullReturnOn: dateOnlySchema.nullable().optional(),
+      gradedReturn: gradedReturnSchema.nullable().optional(),
     })
     .nullable(),
+  fullReturnOn: dateOnlySchema.nullable(),
+  gradedReturn: gradedReturnSchema.nullable(),
   notReadyReasons: z.array(z.enum(NOT_READY_REASONS)).optional(),
   feasibility: weightFeasibilitySchema.optional(),
 });

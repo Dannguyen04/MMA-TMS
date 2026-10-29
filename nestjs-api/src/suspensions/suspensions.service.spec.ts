@@ -314,6 +314,114 @@ describe('SuspensionsService', () => {
       );
     });
 
+    it('Criterion 2 & 3: creates a manual suspension with maxTier = 3 (storing SPARRING and GRAPPLING in SESSION_TYPES order), computes maxAllowedTier and gradedReturn in responses, and rejects maxTier + blockedSessionTypes with 422', async () => {
+      const createdWithMaxTier = await service.createSuspension(
+        coachActor,
+        {
+          fighterId: FIGHTER_ID,
+          reason: 'MEDICAL',
+          days: 14,
+          maxTier: 3,
+        },
+        REQUEST_ID,
+      );
+
+      expect(repo.insertSuspension).toHaveBeenCalledWith(
+        expect.objectContaining({
+          blockedSessionTypes: ['SPARRING', 'GRAPPLING'],
+        }),
+        expect.anything(),
+      );
+      expect(createdWithMaxTier.blockedSessionTypes).toEqual([
+        'SPARRING',
+        'GRAPPLING',
+      ]);
+      expect(createdWithMaxTier.maxAllowedTier).toBe(3);
+      expect(createdWithMaxTier.gradedReturn).toBeNull();
+
+      await expectHttp(
+        service.createSuspension(
+          coachActor,
+          {
+            fighterId: FIGHTER_ID,
+            reason: 'MEDICAL',
+            days: 14,
+            maxTier: 3,
+            blockedSessionTypes: ['SPARRING'],
+          },
+          REQUEST_ID,
+        ),
+        422,
+        'VALIDATION_ERROR',
+      );
+
+      // Default T-035 -> maxAllowedTier = 1; only SPARRING -> maxAllowedTier = 4
+      const defaultRes = await service.createSuspension(
+        coachActor,
+        {
+          fighterId: FIGHTER_ID,
+          reason: 'KO',
+          days: 60,
+        },
+        REQUEST_ID,
+      );
+      expect(defaultRes.maxAllowedTier).toBe(1);
+
+      const sparringOnlyRes = await service.createSuspension(
+        coachActor,
+        {
+          fighterId: FIGHTER_ID,
+          reason: 'KO',
+          days: 60,
+          blockedSessionTypes: ['SPARRING'],
+        },
+        REQUEST_ID,
+      );
+      expect(sparringOnlyRes.maxAllowedTier).toBe(4);
+
+      // Cleared KO on today (2026-10-20) -> gradedReturn has ceiling 3, fullReturnOn 2026-10-22
+      const clearedRow = makeSuspension({
+        reason: 'KO',
+        startsOn: '2026-08-20',
+        endsOn: '2026-10-18',
+        requiresClearance: true,
+        clearedAt: NOW,
+        clearedById: doctorActor.id,
+        clearanceNote: 'Cleared by ringside doctor',
+      });
+      repo.findSuspensionById.mockResolvedValueOnce(
+        makeSuspension({
+          reason: 'KO',
+          startsOn: '2026-08-20',
+          endsOn: '2026-10-18',
+          requiresClearance: true,
+          clearedAt: null,
+        }),
+      );
+      repo.lockSuspensionById.mockResolvedValueOnce(
+        makeSuspension({
+          reason: 'KO',
+          startsOn: '2026-08-20',
+          endsOn: '2026-10-18',
+          requiresClearance: true,
+          clearedAt: null,
+        }),
+      );
+      repo.clearSuspension.mockResolvedValueOnce(clearedRow);
+
+      const clearedResponse = await service.clearSuspension(
+        doctorActor,
+        SUSPENSION_ID,
+        { clearanceNote: 'Cleared by ringside doctor' },
+        REQUEST_ID,
+      );
+      expect(clearedResponse.status).toBe('ENDED');
+      expect(clearedResponse.gradedReturn).toEqual({
+        ceiling: 3,
+        fullReturnOn: '2026-10-22',
+      });
+    });
+
     it('accepts a future startsOn (status = UPCOMING) and rejects a past startsOn with 422', async () => {
       const future = await service.createSuspension(
         doctorActor,

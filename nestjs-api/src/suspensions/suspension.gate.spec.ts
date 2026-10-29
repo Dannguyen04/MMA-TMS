@@ -112,7 +112,7 @@ describe('SuspensionGate.blockingSuspensions', () => {
       },
     ]);
 
-    // Once cleared (either after ends_on or early before ends_on), it never blocks
+    // Once cleared on D = 2026-11-19, KO enters 2-day graded return (D and D+1) and stops blocking SPARRING from D+2 (2026-11-21)
     const cleared = makeSuspension({
       ...awaitingClearance,
       clearedAt: new Date('2026-11-19T08:00:00.000Z'),
@@ -121,7 +121,11 @@ describe('SuspensionGate.blockingSuspensions', () => {
     });
     findSuspensionsByFighterId.mockResolvedValueOnce([cleared]);
     await expect(
-      gate.blockingSuspensions(FIGHTER_ID, 'SPARRING', pastEndsOn),
+      gate.blockingSuspensions(
+        FIGHTER_ID,
+        'SPARRING',
+        new Date('2026-11-21T03:00:00.000Z'),
+      ),
     ).resolves.toEqual([]);
 
     findSuspensionsByFighterId.mockResolvedValueOnce([cleared]);
@@ -206,6 +210,95 @@ describe('SuspensionGate.blockingSuspensions', () => {
         new Date('2026-10-20T18:00:00.000Z'),
       ),
     ).resolves.toHaveLength(1);
+  });
+
+  it('Criteria 4, 5, 6: enforces graded return ceiling for cleared 60-day KO on D and D+1, allows SPARRING on D+2, has no graded return for MANDATORY_REST on E+1, and omits gradedReturn for uncleared KO', async () => {
+    // Criterion 4: 60-day KO (2026-10-20..2026-12-18), cleared on D = 2026-12-19
+    const clearedKo60 = makeSuspension({
+      reason: 'KO',
+      startsOn: '2026-10-20',
+      endsOn: endsOnFor('2026-10-20', 60), // 2026-12-18
+      requiresClearance: true,
+      clearedAt: new Date('2026-12-19T02:00:00.000Z'), // D = 2026-12-19
+      clearedById: '30000000-0000-4000-8000-000000000001',
+      clearanceNote: 'Cleared by doctor',
+    });
+    const gate = new SuspensionGate({
+      findSuspensionsByFighterId: vi.fn().mockResolvedValue([clearedKo60]),
+    } as unknown as SuspensionsRepository);
+
+    const dayD = new Date('2026-12-19T03:00:00.000Z');
+    const dayDPlus1 = new Date('2026-12-20T03:00:00.000Z');
+    const dayDPlus2 = new Date('2026-12-21T03:00:00.000Z');
+
+    // Day D: PAD_WORK (tier 3 <= ceiling 3) allowed; GRAPPLING (tier 4 > 3) blocked with gradedReturn
+    await expect(
+      gate.blockingSuspensions(FIGHTER_ID, 'PAD_WORK', dayD),
+    ).resolves.toEqual([]);
+    await expect(
+      gate.blockingSuspensions(FIGHTER_ID, 'GRAPPLING', dayD),
+    ).resolves.toEqual([
+      {
+        suspensionId: SUSPENSION_ID,
+        reason: 'KO',
+        endsOn: '2026-12-18',
+        requiresClearance: true,
+        gradedReturn: {
+          ceiling: 3,
+          fullReturnOn: '2026-12-21',
+        },
+      },
+    ]);
+
+    // Day D+1: GRAPPLING (tier 4 <= ceiling 4) allowed; SPARRING (tier 5 > 4) blocked with gradedReturn
+    await expect(
+      gate.blockingSuspensions(FIGHTER_ID, 'GRAPPLING', dayDPlus1),
+    ).resolves.toEqual([]);
+    await expect(
+      gate.blockingSuspensions(FIGHTER_ID, 'SPARRING', dayDPlus1),
+    ).resolves.toEqual([
+      {
+        suspensionId: SUSPENSION_ID,
+        reason: 'KO',
+        endsOn: '2026-12-18',
+        requiresClearance: true,
+        gradedReturn: {
+          ceiling: 4,
+          fullReturnOn: '2026-12-21',
+        },
+      },
+    ]);
+
+    // Day D+2: SPARRING allowed
+    await expect(
+      gate.blockingSuspensions(FIGHTER_ID, 'SPARRING', dayDPlus2),
+    ).resolves.toEqual([]);
+
+    // Criterion 6: Uncleared KO blocks without gradedReturn property
+    const unclearedKo = makeSuspension({
+      reason: 'KO',
+      startsOn: '2026-10-20',
+      endsOn: '2026-12-18',
+      requiresClearance: true,
+      clearedAt: null,
+    });
+    const unclearedGate = new SuspensionGate({
+      findSuspensionsByFighterId: vi.fn().mockResolvedValue([unclearedKo]),
+    } as unknown as SuspensionsRepository);
+    const unclearedBlocking = await unclearedGate.blockingSuspensions(
+      FIGHTER_ID,
+      'SPARRING',
+      dayD,
+    );
+    expect(unclearedBlocking).toEqual([
+      {
+        suspensionId: SUSPENSION_ID,
+        reason: 'KO',
+        endsOn: '2026-12-18',
+        requiresClearance: true,
+      },
+    ]);
+    expect(unclearedBlocking[0]?.gradedReturn).toBeUndefined();
   });
 });
 

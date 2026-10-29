@@ -21,6 +21,7 @@ import { z } from 'zod';
 import { SuspensionsRepository } from '../suspensions/suspensions.repo.js';
 import { SuspensionEffects } from '../suspensions/suspension.effects.js';
 import {
+  ReadinessRowDto,
   RecordResultResponseDto,
   RecordResultSuspensionDto,
 } from './bouts.dto.js';
@@ -3991,6 +3992,57 @@ describe('BoutsService', () => {
 
       const bout = await repo.findBoutById(BOUT_ID);
       expect(bout?.status).toBe('WEIGHED_IN');
+    });
+
+    it('Criterion 7 (T-045): getReadiness on day D+1 of a cleared KO suspension marks fighter not ready with fullReturnOn = D+2, and ReadinessRowDto serializes to JSON Schema', async () => {
+      vi.setSystemTime(new Date('2026-12-20T03:00:00.000Z')); // D+1 = 2026-12-20
+      (repo as unknown as Record<string, unknown>).listActiveFightersInScope =
+        vi
+          .fn()
+          .mockResolvedValue([
+            { id: FIGHTER_ID, firstName: 'Nguyen', lastName: 'Van A' },
+          ]);
+      (repo as unknown as Record<string, unknown>).findActiveBoutsForFighters =
+        vi.fn().mockResolvedValue([]);
+      (repo as unknown as Record<string, unknown>).findLatestWeightsForFighters =
+        vi.fn().mockResolvedValue([]);
+      suspensionsRepo.findSuspensionsByFighterIds.mockResolvedValue([
+        {
+          id: '90000000-0000-4000-8000-000000000001',
+          fighterId: FIGHTER_ID,
+          boutId: BOUT_ID,
+          reason: 'KO',
+          startsOn: '2026-10-20',
+          endsOn: '2026-12-18',
+          lossOfConsciousness: 'NONE',
+          suggestedDays: 60,
+          overrideReason: null,
+          blockedSessionTypes: ['SPARRING', 'GRAPPLING'],
+          requiresClearance: true,
+          clearedAt: new Date('2026-12-19T02:00:00.000Z'), // D = 2026-12-19
+          clearedById: 'user-doc',
+          clearanceNote: 'Cleared by ringside doctor',
+          createdById: 'user-coach',
+          createdAt: new Date('2026-10-20T00:00:00.000Z'),
+          updatedAt: new Date('2026-12-19T02:00:00.000Z'),
+          deletedAt: null,
+        },
+      ]);
+
+      const rows = await eService.getReadiness(coachActor, {});
+      expect(rows).toHaveLength(1);
+      expect(rows[0]?.ready).toBe(false);
+      expect(rows[0]?.status).toBe('SUSPENDED');
+      expect(rows[0]?.fullReturnOn).toBe('2026-12-21');
+      expect(rows[0]?.gradedReturn).toEqual({
+        ceiling: 4,
+        fullReturnOn: '2026-12-21',
+      });
+      expect(rows[0]?.suspension?.fullReturnOn).toBe('2026-12-21');
+
+      const schema = z.toJSONSchema(ReadinessRowDto.schema);
+      expect(schema.properties?.fullReturnOn).toBeDefined();
+      expect(schema.properties?.gradedReturn).toBeDefined();
     });
   });
 });

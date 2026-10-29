@@ -6,7 +6,9 @@ import {
   AffectedPlanDto,
   AffectedSessionDto,
   ConflictProposalResponseDto,
+  CreateSuspensionDto,
   CreateSuspensionResponseDto,
+  GradedReturnDto,
   SuspensionResponseDto,
 } from './suspensions.dto.js';
 
@@ -27,7 +29,12 @@ describe('Swagger response and request model names', () => {
 
     expect(() => z.toJSONSchema(AffectedSessionDto.schema)).not.toThrow();
     expect(() => z.toJSONSchema(AffectedPlanDto.schema)).not.toThrow();
-    expect(() => z.toJSONSchema(SuspensionResponseDto.schema)).not.toThrow();
+    expect(() => z.toJSONSchema(GradedReturnDto.schema)).not.toThrow();
+    const createReqSchema = z.toJSONSchema(CreateSuspensionDto.schema);
+    expect(createReqSchema.properties?.maxTier).toBeDefined();
+    const responseSchema = z.toJSONSchema(SuspensionResponseDto.schema);
+    expect(responseSchema.properties?.maxAllowedTier).toBeDefined();
+    expect(responseSchema.properties?.gradedReturn).toBeDefined();
     expect(() =>
       z.toJSONSchema(CreateSuspensionResponseDto.schema),
     ).not.toThrow();
