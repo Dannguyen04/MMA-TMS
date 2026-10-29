@@ -49,6 +49,7 @@ Demo ở review 2 chạy với **backend thật** trên Supabase hiện có ([qu
 | T-040 | Demo trên backend thật: merge nhánh demo, kiểm từng màn ở API mode, dữ liệu demo (gộp T-008), sửa chỗ chập chờn (mục 4) | Backend + Frontend | Ken, cả nhóm thử màn của mình | T-035, T-036, T-037 | DRAFT (27/10). Đợt 2 (6–9/11), tổng duyệt 9/11 |
 | [T-044](./T-044-codebase-trim.md) | Tinh gọn source: xoá 18 file không dùng ở ba app (phần A); bỏ demo mode sau khi demo chạy backend thật (phần B) | Backend + Frontend + điện thoại | A: chưa giao (đề xuất Gemini flash). B: người làm T-040 | A: không. B: T-040 | DRAFT (27/10). A giao được ngay; B chờ quyết định của chủ dự án |
 | [T-045](./T-045-post-bout-video-analysis.md) | AI xem video từng hiệp sau trận, đưa vào báo cáo trận (hướng thay cho AI xem video trực tiếp, theo kết quả T-039) | Backend + điện thoại | Đề xuất: backend Dan (Codex), màn Fon | T-038 A, T-041 | DRAFT (29/10), còn 3 câu hỏi cho chủ dự án |
+| [T-046](./T-046-embedded-youtube-player.md) | Nhúng video YouTube vào màn phân tích đối thủ, bấm quan sát là tua tới đúng mốc | Frontend | Hoàng Anh | T-033 (nhánh gốc) | READY (29/10) |
 | T-041 | Màn báo cáo sau trận, nghiệp vụ 14 (mục 4) | Điện thoại | Fon | T-010 | DRAFT (27/10). Đợt 1–2 |
 | T-042 | Model 3D cơ thể võ sĩ: chấn thương, vùng bị đánh trúng, vùng bị hạn chế (mục 5) | Frontend | Hoàng Anh (Gemini hỗ trợ) | Dan duyệt cài thư viện 3D | DRAFT (27/10). Đợt 2 |
 | T-043 | UI sinh động hơn, hoạt hoạ diễn lại hiệp và chiến thuật (mục 5) | Frontend | Hoàng Anh (Gemini, Fon hỗ trợ) | — | DRAFT (27/10). Đợt 2 |
