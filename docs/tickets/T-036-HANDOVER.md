@@ -209,3 +209,186 @@ Không có
 ## Câu hỏi / việc còn mở
 
 Không có
+
+
+---
+
+# Phần A2: Buổi "Chờ xếp lại" khi có thêm đình chỉ cần xác nhận
+
+## Thay đổi
+
+- `nestjs-api/src/training/training.repo.ts`:
+  - Thêm phương thức `findPendingSessionsByFighterId(fighterId: string, database: DatabaseExecutor = this.db): Promise<TrainingSessionEntity[]>` đọc các buổi tập có `status = 'PENDING'`, `deleted_at IS NULL` của võ sĩ, sắp xếp theo `scheduled_at ASC, id ASC`.
+- `nestjs-api/src/training/training-suspension-conflicts.service.ts`:
+  - Thêm lỗi nội bộ `SessionNoLongerPendingError` và hàm `skipIfNotPending(locked: TrainingSessionEntity): void`.
+  - Tách hàm `isSessionBlockedBySuspension(session, suspension)` dùng chung việc kiểm tra ngày và loại buổi tập bị đình chỉ chặn (xét `startsOn <= sessionDate` cho đình chỉ cần xác nhận chưa xác nhận, hoặc `startsOn <= sessionDate <= endsOn`).
+  - Thêm hàm `loadFighterPendingSessions(fighterId, database)`.
+  - Cập nhật `handleSuspensionsCreated`: trong cùng transaction tạo đình chỉ, với mỗi đình chỉ vừa tạo có `requiresClearance = true`, lọc các buổi `PENDING` có ngày nằm trong khoảng hiệu lực và loại nằm trong `blockedSessionTypes`; gộp các thao tác (`SCHEDULED` proposal và `PENDING` cancel) vào `mutationsBySessionId` theo `sessionId` (tránh lặp buổi/thông báo); sắp xếp theo `sessionId` tăng dần để khoá hàng theo thứ tự xác định; huỷ buổi `PENDING` bằng `applySessionCancelInTransaction` với lý do `SUSPENSION_CONFLICT_CANCELLATION_REASON` và `skipIfNotPending` (bỏ qua nếu sau khi khoá buổi không còn `PENDING`); bổ sung vào `affectedSessions` (`action: 'CANCEL'`) và `cancelledToNotify` (gửi thông báo huỷ sau commit qua `afterCommit`).
+- `nestjs-api/src/training/training-suspension-conflicts.service.spec.ts`:
+  - Bổ sung mock `findPendingSessionsByFighterId` vào `repositoryMock`.
+  - Thêm bộ test P1–P7 trong describe block `Part A2: PENDING sessions when creating new suspensions (P1–P7)` sử dụng transactional harness với `WeakMap<Transaction, ...>` kiểm tra `tx` nghiêm ngặt và xác thực thứ tự thông báo sau commit.
+- `nestjs-api/src/bouts/bouts.service.spec.ts`:
+  - **(N1)**: Khắc phục lỗi type mismatch (TS2322) của `notifyResolved` trong `notificationsMock` bằng cách định kiểu tường minh theo `NotificationPublisher['notifyResolved']` và `NotificationPublisher['notify']`.
+  - **(N2)**: Bổ sung kiểm tra `tx` nghiêm ngặt cho `suspensionsRepo.insertSuspension` và `suspensionsRepo.findSuspensionsByFighterId` thông qua `requireTxBuffer`, đồng thời lưu trữ `suspensions` trong `txBuffers` (chỉ commit sang `committedSuspensions` khi transaction thành công).
+  - Thêm ca kiểm thử P6 tương ứng cho đường ghi kết quả trận KO: buổi `S1` `PENDING` được xử lý trong transaction của `recordResult`, nhưng khi transaction ném lỗi sau `runOnCreated` thì rollback hoàn toàn, `S1` giữ nguyên trạng thái `PENDING` và không gửi thông báo nào.
+
+## Đối chiếu tiêu chí nghiệm thu P1–P7 (Mục 5b)
+
+| Ca | Dữ liệu trước | Hành động | Kết quả mong đợi | Đáp ứng ở đâu (`file:dòng`) |
+| --- | --- | --- | --- | --- |
+| **P1** | Buổi `S1` `SPARRING` 2026-11-05 trạng thái `PENDING` (do đình chỉ `OTHER` 2026-11-01..07 không cần xác nhận) | Tạo đình chỉ `KO` từ 2026-11-04, cần xác nhận | `S1` thành `CANCELLED`, lý do `'Suspension in force'`; `affectedSessions` có `{S1, CANCEL}`; thông báo huỷ gửi đúng 1 lần, **sau** commit | `nestjs-api/src/training/training-suspension-conflicts.service.spec.ts:1486-1526` (`P1: cancels a PENDING SPARRING session (S1 on 2026-11-05 from prior OTHER 2026-11-01..07) when a KO suspension starting 2026-11-04 (requiresClearance = true) is created, sets reason "Suspension in force", returns {S1, CANCEL} in affectedSessions, and sends cancel notification once strictly after commit`) |
+| **P2** | Như P1 | Tạo đình chỉ `MANDATORY_REST` 2026-11-04..06 (không cần xác nhận) | `S1` vẫn `PENDING`; `affectedSessions` rỗng; không thông báo | `nestjs-api/src/training/training-suspension-conflicts.service.spec.ts:1528-1558` (`P2: keeps S1 in PENDING with empty affectedSessions and no notification when a MANDATORY_REST suspension (2026-11-04..06, requiresClearance = false) is created`) |
+| **P3** | `S2` `RECOVERY` `PENDING` 2026-11-05 | Tạo `KO` mặc định (không chặn `RECOVERY`) | `S2` không đổi | `nestjs-api/src/training/training-suspension-conflicts.service.spec.ts:1560-1590` (`P3: leaves PENDING RECOVERY session S2 on 2026-11-05 untouched when creating a default KO suspension (RECOVERY not blocked)`) |
+| **P4** | `S3` `SPARRING` `PENDING` 2026-10-20 (trước `startsOn` của KO 2026-11-04) | Tạo `KO` từ 2026-11-04 | `S3` không đổi | `nestjs-api/src/training/training-suspension-conflicts.service.spec.ts:1592-1622` (`P4: leaves PENDING SPARRING session S3 on 2026-10-20 (before KO startsOn 2026-11-04) untouched when creating a KO suspension from 2026-11-04`) |
+| **P5** | `S1` `PENDING` lúc đọc; lúc khoá đã `CANCELLED` (HLV vừa huỷ) | Tạo `KO` | Không ném lỗi; `S1` không đổi; không có trong `affectedSessions` | `nestjs-api/src/training/training-suspension-conflicts.service.spec.ts:1624-1656` (`P5: does not throw, does not modify S1, and omits S1 from affectedSessions when S1 is PENDING on read but already CANCELLED when locked`) |
+| **P6** | Như P1 nhưng transaction ném lỗi sau `runOnCreated` | Ghi kết quả trận thua KO | `S1` vẫn `PENDING` (không promote); không thông báo | `nestjs-api/src/bouts/bouts.service.spec.ts:4228-4471` (`P6: keeps PENDING SPARRING session S1 (on 2026-11-05 from prior OTHER 2026-11-01..07) in PENDING without promoting staged CANCEL or sending notification when recordResult (KO loss on 2026-11-04) transaction fails after runOnCreated`) & `nestjs-api/src/training/training-suspension-conflicts.service.spec.ts:1658-1695` (`P6: keeps S1 in PENDING (does not promote staged CANCEL) and sends no notification when transaction throws after runOnCreated`) |
+| **P7** | Ca cũ của lượt sửa 2 (C1–C9) | — | Vẫn qua, không sửa kết quả mong đợi | `nestjs-api/src/training/training-suspension-conflicts.service.spec.ts:1697-1703` (`P7: DEFAULT_MANUAL_BLOCKED_SESSION_TYPES is SESSION_TYPES minus RECOVERY and PHYSICAL_THERAPY (C7); C1–C9 tests above run unchanged`), kết hợp cùng các test C1–C5, C8 ở `training-suspension-conflicts.service.spec.ts:505,735,850`, C6 ở `bouts.service.spec.ts:3896`, C7 ở `suspensions.model.spec.ts`. |
+
+## Output lỗi của P1 trước khi sửa code
+
+```text
+ FAIL  src/training/training-suspension-conflicts.service.spec.ts > TrainingSuspensionConflictsService (R28 / T-036) > Part A2: PENDING sessions when creating new suspensions (P1–P7) > P1: cancels a PENDING SPARRING session (S1 on 2026-11-05 from prior OTHER 2026-11-01..07) when a KO suspension starting 2026-11-04 (requiresClearance = true) is created, sets reason "Suspension in force", returns {S1, CANCEL} in affectedSessions, and sends cancel notification once strictly after commit
+AssertionError: expected 'PENDING' to be 'CANCELLED' // Object.is equality
+
+Expected: "CANCELLED"
+Received: "PENDING"
+
+ ❯ src/training/training-suspension-conflicts.service.spec.ts:1512:35
+    1510|
+    1511|       const [committedS1] = getCommittedSessions();
+    1512|       expect(committedS1?.status).toBe('CANCELLED');
+       |                                   ^
+    1513|       expect(committedS1?.cancellationReason).toBe(
+    1514|         SUSPENSION_CONFLICT_CANCELLATION_REASON,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 21 skipped (22)
+   Start at  16:05:45
+   Duration  1.24s (transform 224ms, setup 0ms, import 1.02s, tests 108ms, environment 0ms)
+```
+
+## Lệnh đã chạy (Phần A2)
+
+### 1. `pnpm --filter nestjs-api lint`
+```text
+$ oxlint src/ test/
+src/notifications/notifications.config.spec.ts:1:1: warning unicorn(no-empty-file): Empty files are not allowed. help: Delete this file or add some code to it.
+src/notifications/notification-stream.service.ts:91:33: warning unicorn(no-useless-spread): Using a spread operator here creates a new array unnecessarily. help: `for…of` can iterate over iterable, it's unnecessary to convert to an array.
+src/notifications/notification-stream.service.ts:318:24: warning unicorn(no-useless-spread): Using a spread operator here creates a new array unnecessarily. help: `for…of` can iterate over iterable, it's unnecessary to convert to an array.
+src/notifications/notification-stream.service.ts:319:33: warning unicorn(no-useless-spread): Using a spread operator here creates a new array unnecessarily. help: `for…of` can iterate over iterable, it's unnecessary to convert to an array.
+src/notifications/notification-stream.service.ts:333:31: warning unicorn(no-useless-spread): Using a spread operator here creates a new array unnecessarily. help: `for…of` can iterate over iterable, it's unnecessary to convert to an array.
+src/notifications/notification-stream.service.spec.ts:1:1: warning unicorn(no-empty-file): Empty files are not allowed. help: Delete this file or add some code to it.
+src/notifications/notification-producer.service.spec.ts:1:1: warning unicorn(no-empty-file): Empty files are not allowed. help: Delete this file or add some code to it.
+test/coaching-loop-persistence.spec.ts:13:3: warning eslint(no-unused-vars): Identifier 'trainingPlans' is imported but never used. help: Consider removing this import.
+test/coaching-loop-persistence.spec.ts:14:3: warning eslint(no-unused-vars): Identifier 'trainingSessions' is imported but never used. help: Consider removing this import.
+test/coaching-loop-persistence.spec.ts:15:3: warning eslint(no-unused-vars): Identifier 'videos' is imported but never used. help: Consider removing this import.
+test/coaching-loop-persistence.spec.ts:18:3: warning eslint(no-unused-vars): Identifier 'coachReviews' is imported but never used. help: Consider removing this import.
+test/coaching-loop-persistence.spec.ts:19:3: warning eslint(no-unused-vars): Identifier 'fighterBaselines' is imported but never used. help: Consider removing this import.
+test/coaching-loop-persistence.spec.ts:20:3: warning eslint(no-unused-vars): Identifier 'auditLogs' is imported but never used. help: Consider removing this import.
+test/coaching-loop-persistence.spec.ts:21:3: warning eslint(no-unused-vars): Identifier 'actionAssessments' is imported but never used. help: Consider removing this import.
+test/coaching-loop-persistence.spec.ts:22:3: warning eslint(no-unused-vars): Identifier 'actionFindingReviews' is imported but never used. help: Consider removing this import.
+test/coaching-loop-persistence.spec.ts:23:3: warning eslint(no-unused-vars): Identifier 'techniqueReferences' is imported but never used. help: Consider removing this import.
+test/coaching-loop-persistence.spec.ts:25:14: warning eslint(no-unused-vars): Identifier 'and' is imported but never used. help: Consider removing this import.
+src/coaching/coaching.service.ts:12:13: warning eslint(no-unused-vars): Identifier 'crypto' is imported but never used. help: Consider removing this import.
+src/coaching/coaching.service.ts:13:24: warning eslint(no-unused-vars): Type 'DrizzleDB' is imported but never used. help: Consider removing this import.
+src/coaching/coaching.service.ts:182:16: warning eslint(no-unused-vars): Catch parameter 'err' is caught but never used. help: Consider handling this error.
+src/coaching/coaching.service.ts:520:27: warning unicorn(no-useless-fallback-in-spread): Empty fallbacks in spreads are unnecessary help: Spreading falsy values in object literals won't add any unexpected properties, so it's unnecessary to add an empty object as fallback.
+src/coaching/coaching.service.ts:550:27: warning unicorn(no-useless-fallback-in-spread): Empty fallbacks in spreads are unnecessary help: Spreading falsy values in object literals won't add any unexpected properties, so it's unnecessary to add an empty object as fallback.
+src/coaching/coaching.service.ts:550:54: warning unicorn(no-useless-fallback-in-spread): Empty fallbacks in spreads are unnecessary help: Spreading falsy values in object literals won't add any unexpected properties, so it's unnecessary to add an empty object as fallback.
+src/notifications/notification-distribution.service.spec.ts:7:3: warning eslint(no-unused-vars): Identifier 'NOTIFICATION_DISTRIBUTION_EVENT' is imported but never used. help: Consider removing this import.
+src/notifications/notification-distribution.service.spec.ts:74:9: warning eslint(no-unused-vars): Variable 'subscribedEmitted' is declared but never used. Unused variables should start with a '_'. help: Consider removing this declaration.
+src/medical/scat6.model.spec.ts:5:3: warning eslint(no-unused-vars): Identifier 'scat6ScoresSchema' is imported but never used. help: Consider removing this import.
+src/dataset-export/services/authoritative-governance.service.ts:6:3: warning eslint(no-unused-vars): Identifier 'ConflictException' is imported but never used. help: Consider removing this import.
+src/dataset-export/services/authoritative-governance.service.ts:10:81: warning eslint(no-unused-vars): Identifier 'coaches' is imported but never used. help: Consider removing this import.
+src/dataset-export/services/authoritative-governance.service.ts:11:14: warning eslint(no-unused-vars): Identifier 'and' is imported but never used. help: Consider removing this import.
+src/dataset-export/services/authoritative-governance.service.ts:86:10: warning eslint(no-useless-escape): Unnecessary escape character '-' help: Replace `\-` with `-`.
+src/dataset-export/services/authoritative-governance.service.ts:87:10: warning eslint(no-useless-escape): Unnecessary escape character '-' help: Replace `\-` with `-`.
+src/dataset-export/dto/candidate-export.dto.ts:15:29: warning eslint(no-useless-escape): Unnecessary escape character '-' help: Replace `\-` with `-`.
+src/main.ts:7:10: warning eslint(no-unused-vars): Identifier 'createOpenApiDocument' is imported but never used. help: Consider removing this import.
+src/dataset-export/dto/promotion-request.dto.ts:8:3: warning eslint(no-unused-vars): Identifier 'Matches' is imported but never used. help: Consider removing this import.
+src/app.module.ts:18:10: warning eslint(no-unused-vars): Identifier 'NotificationsModule' is imported but never used. help: Consider removing this import.
+src/notifications/notifications.service.spec.ts:1:1: warning unicorn(no-empty-file): Empty files are not allowed. help: Delete this file or add some code to it.
+src/coaching/result-receipt.spec.ts:22:5: warning unicorn(no-thenable): Do not add `then` to a class. help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+src/coaching/movement-review.service.spec.ts:32:5: warning unicorn(no-thenable): Do not add `then` to a class. help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+```
+*(Kết quả: exit code 0, 0 error)*
+
+### 2. `pnpm --filter nestjs-api build`
+```text
+$ nest build
+```
+*(Kết quả: exit code 0)*
+
+### 3. `pnpm --filter nestjs-api test`
+```text
+ FAIL  src/notifications/notification-producer.service.spec.ts [ src/notifications/notification-producer.service.spec.ts ]
+Error: No test suite found in file D:/MMA-TMS/nestjs-api/src/notifications/notification-producer.service.spec.ts
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  src/notifications/notification-stream.service.spec.ts [ src/notifications/notification-stream.service.spec.ts ]
+Error: No test suite found in file D:/MMA-TMS/nestjs-api/src/notifications/notification-stream.service.spec.ts
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  src/notifications/notifications.config.spec.ts [ src/notifications/notifications.config.spec.ts ]
+Error: No test suite found in file D:/MMA-TMS/nestjs-api/src/notifications/notifications.config.spec.ts
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  src/notifications/notifications.service.spec.ts [ src/notifications/notifications.service.spec.ts ]
+Error: No test suite found in file D:/MMA-TMS/nestjs-api/src/notifications/notifications.service.spec.ts
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  4 failed | 62 passed (66)
+      Tests  1144 passed (1144)
+   Start at  16:11:28
+   Duration  5.00s (transform 4.66s, setup 0ms, import 58.87s, tests 3.39s, environment 6ms)
+```
+*(Ghi chú: 2 file integration test `test/coaching-loop-persistence.spec.ts` [5 test] và `test/dataset-export-trust-boundary.spec.ts` [21 test] cần Redis tại `127.0.0.1:6379` theo `docs/tickets/BASELINE.md` mục B1 và mỗi test chờ timeout 30s khi không có Redis. Khi chạy toàn bộ 66 file `src/` và 2 file test cô lập: **1144 passed / 0 failed** trên 62 file có test + 4 file spec rỗng có sẵn ở B2; tính cả 26 lỗi Redis có sẵn ở B1 là **1144 passed / 26 failed trên 1170 tests**, không thêm bất kỳ lỗi mới nào so với baseline).*
+
+### 4. `pnpm --filter nestjs-api test:db`
+```text
+PASS 023 applies on ledger 20, rejects second row, and records ledger 23
+PASS 024 applies on ledger 23, seeds three presets and wires bouts, requirements and permissions
+PASS 024 requires ledger 23 and leaves nothing behind on a collision
+PASS 027 applies directly after 024: defaults, constraints, upsert, audit, cascade and RLS
+PASS 030 applies directly after 027: old-row default, object constraint, upsert preservation and preflight
+PASS 031 requires both 027 and 030; applies after 030 with CHECKs, audit, cascade and RLS
+PASS 025 applies on ledger 24: enum, table, constraints, permissions, notifications, triggers and RLS
+PASS 025 rejects missing ledger 24 and collisions atomically
+PASS 027 rejects missing ledger 24 and collisions atomically
+PASS 032 applies on ledger 24 without 025-031, adds PENDING to session_status, and rejects re-application or missing 024
+PASS 005 rejects a pre-existing milestones column without writing history
+PASS 006 rejects a database without migration 005 history
+PASS 006 rejects a permission collision without partial inserts
+PASS 003 preserves nonempty legacy data without coercion
+PASS old insert/update contract still works
+PASS reapplying 003 fails safely
+PASS baseline drift aborts before domain DDL
+PASS partial domain collision rolls back all new objects
+PASS domain integrity and RLS role matrix
+PASS fresh clinical schema through 011
+PASS 012 rejects a concurrently committed clearance and rolls back DDL/ledger
+PASS 012 proceeds after a concurrent issuer rolls back; no orphan revision
+PASS 012 orders identical created_at values by server issuance sequence
+PASS 012 rejects reapplication without changing the applied ledger
+Migration checks passed: 48. PostgreSQL stopped after tests. Scratch: C:\Users\PC\AppData\Local\Temp\mma-migrations-9Bzemh
+```
+*(Kết quả: exit code 0, 48 checks passed)*
+
+### 5. `pnpm --filter nestjs-api db:check`
+```text
+$ node run_sql.mjs --check
+001-032 checksums OK. No database connection was opened.
+```
+*(Kết quả: exit code 0)*
+
+## Lệch so với ticket
+
+Không có
+
+## Câu hỏi / việc còn mở
+
+Không có
