@@ -53,14 +53,8 @@ export type SuspensionStatus = (typeof SUSPENSION_STATUSES)[number];
 /**
  * Default blocked session types for manual suspensions: the 6 non-recovery/PT types.
  */
-export const DEFAULT_MANUAL_BLOCKED_SESSION_TYPES: readonly SessionType[] = [
-  'SHADOW_BOXING',
-  'PAD_WORK',
-  'HEAVY_BAG',
-  'SPARRING',
-  'GRAPPLING',
-  'STRENGTH_CONDITIONING',
-];
+export const DEFAULT_MANUAL_BLOCKED_SESSION_TYPES: readonly SessionType[] =
+  SESSION_TYPES.filter((t) => t !== 'RECOVERY' && t !== 'PHYSICAL_THERAPY');
 
 export interface SuspensionStateInput {
   startsOn: string;

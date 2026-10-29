@@ -15,8 +15,14 @@ import {
   trimmedTextSchema,
 } from '../shared/utils/zod-schema.util.js';
 import {
+  ACADEMY_UTC_OFFSET_MS,
+  academyDateOf,
+  addDaysToDate,
+  daysBetweenDates,
+  LOSS_OF_CONSCIOUSNESS_VALUES,
   SESSION_TYPES,
   SUSPENSION_REASONS,
+  type LossOfConsciousness,
   type SessionType,
   type SuspensionReason,
 } from '../suspensions/suspensions.constants.js';
@@ -110,33 +116,16 @@ export const LONG_WEIGH_IN_TO_BOUT_HOURS = 12;
 // Academy calendar (Asia/Ho_Chi_Minh is UTC+7 all year, no daylight saving)
 // ---------------------------------------------------------------------------
 
-const ACADEMY_UTC_OFFSET_MS = 7 * 3_600_000;
-const DAY_MS = 86_400_000;
-
-/** Academy calendar date (YYYY-MM-DD) of an instant. */
-export function academyDateOf(instant: Date): string {
-  return new Date(instant.getTime() + ACADEMY_UTC_OFFSET_MS)
-    .toISOString()
-    .slice(0, 10);
-}
+export {
+  ACADEMY_UTC_OFFSET_MS,
+  academyDateOf,
+  addDaysToDate,
+  daysBetweenDates,
+};
 
 /** First instant of an academy calendar date. */
 export function academyStartOfDay(date: string): Date {
   return new Date(Date.parse(`${date}T00:00:00.000Z`) - ACADEMY_UTC_OFFSET_MS);
-}
-
-export function addDaysToDate(date: string, days: number): string {
-  return new Date(Date.parse(`${date}T00:00:00.000Z`) + days * DAY_MS)
-    .toISOString()
-    .slice(0, 10);
-}
-
-/** Whole days from `from` to `to` (negative when `to` is earlier). */
-export function daysBetweenDates(from: string, to: string): number {
-  return Math.round(
-    (Date.parse(`${to}T00:00:00.000Z`) - Date.parse(`${from}T00:00:00.000Z`)) /
-      DAY_MS,
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -932,13 +921,7 @@ export const BOUT_METHODS = [
 ] as const;
 export type BoutMethod = (typeof BOUT_METHODS)[number];
 
-export const LOSS_OF_CONSCIOUSNESS_VALUES = [
-  'NONE',
-  'UNDER_1_MIN',
-  'OVER_1_MIN',
-  'UNKNOWN',
-] as const;
-export type LossOfConsciousness = (typeof LOSS_OF_CONSCIOUSNESS_VALUES)[number];
+export { LOSS_OF_CONSCIOUSNESS_VALUES, type LossOfConsciousness };
 
 export const recordResultSchema = z.strictObject({
   confirmIncompleteRounds: z.boolean().optional(),
