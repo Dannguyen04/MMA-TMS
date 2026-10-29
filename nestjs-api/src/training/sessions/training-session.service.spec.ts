@@ -970,7 +970,8 @@ describe('TrainingSessionService', () => {
       });
       expect(repo.createSession).not.toHaveBeenCalled();
 
-      // After clearance is recorded, SPARRING can be scheduled
+      // After clearance on D = 2026-11-19, SPARRING can be scheduled from D+2 = 2026-11-21
+      const fullReturnIso = '2026-11-21T10:00:00.000Z';
       suspensionsRepo.findSuspensionsByFighterId.mockResolvedValueOnce([
         makeKoSuspension({
           clearedAt: new Date('2026-11-19T08:00:00.000Z'),
@@ -980,7 +981,7 @@ describe('TrainingSessionService', () => {
       ]);
       const createdSparring: TrainingSessionEntity = {
         ...session,
-        scheduledAt: pastEndsOnIso,
+        scheduledAt: fullReturnIso,
         sessionType: 'SPARRING',
       };
       repo.createSession.mockResolvedValueOnce(createdSparring);
@@ -989,7 +990,7 @@ describe('TrainingSessionService', () => {
         service.createSession(adminActor, {
           fighterId,
           title: 'Sparring after clearance',
-          scheduledAt: pastEndsOnIso,
+          scheduledAt: fullReturnIso,
           sessionType: 'SPARRING',
           roundCount: 3,
         }),
@@ -1036,7 +1037,7 @@ describe('TrainingSessionService', () => {
           responseOf(error).code === 'TRAINING_SUSPENSION_ACTIVE',
       );
 
-      // Early clearance before ends_on lifts Gate 2 immediately
+      // Early clearance on D = 2026-10-06 lifts Gate 2 for SPARRING from D+2 = 2026-10-08
       suspensionsRepo.findSuspensionsByFighterId.mockResolvedValueOnce([
         makeKoSuspension({
           startsOn: '2026-10-05',
@@ -1048,7 +1049,7 @@ describe('TrainingSessionService', () => {
       ]);
       const createdAfterEarlyClear: TrainingSessionEntity = {
         ...session,
-        scheduledAt: '2026-10-07T10:00:00.000Z',
+        scheduledAt: '2026-10-08T10:00:00.000Z',
         sessionType: 'SPARRING',
       };
       repo.createSession.mockResolvedValueOnce(createdAfterEarlyClear);
@@ -1056,11 +1057,170 @@ describe('TrainingSessionService', () => {
         service.createSession(adminActor, {
           fighterId,
           title: 'Sparring after early clear',
-          scheduledAt: '2026-10-07T10:00:00.000Z',
+          scheduledAt: '2026-10-08T10:00:00.000Z',
           sessionType: 'SPARRING',
           roundCount: 3,
         }),
       ).resolves.toEqual(createdAfterEarlyClear);
+    });
+
+    it('Criteria 4, 5, 6 (T-045): 60-day KO cleared on D allows PAD_WORK and rejects GRAPPLING (409 ceiling 3, fullReturnOn D+2) on D, allows GRAPPLING and rejects SPARRING (409 ceiling 4, fullReturnOn D+2) on D+1, allows SPARRING on D+2; MANDATORY_REST ending E allows SPARRING on E+1; uncleared KO has no gradedReturn', async () => {
+      const ko60Cleared = makeKoSuspension({
+        reason: 'KO',
+        startsOn: '2026-10-20',
+        endsOn: '2026-12-18',
+        requiresClearance: true,
+        clearedAt: new Date('2026-12-19T02:00:00.000Z'), // D = 2026-12-19
+        clearedById: doctorUserId,
+        clearanceNote: 'Cleared by doctor',
+      });
+      suspensionsRepo.findSuspensionsByFighterId.mockResolvedValue([
+        ko60Cleared,
+      ]);
+
+      const dayDIso = '2026-12-19T10:00:00.000Z';
+      const dayDPlus1Iso = '2026-12-20T10:00:00.000Z';
+      const dayDPlus2Iso = '2026-12-21T10:00:00.000Z';
+
+      // Day D: PAD_WORK succeeds
+      const createdPadWork: TrainingSessionEntity = {
+        ...session,
+        scheduledAt: dayDIso,
+        sessionType: 'PAD_WORK',
+      };
+      repo.createSession.mockResolvedValueOnce(createdPadWork);
+      await expect(
+        service.createSession(adminActor, {
+          fighterId,
+          title: 'Pad work on D',
+          scheduledAt: dayDIso,
+          sessionType: 'PAD_WORK',
+        }),
+      ).resolves.toEqual(createdPadWork);
+
+      // Day D: GRAPPLING -> 409 with gradedReturn { ceiling: 3, fullReturnOn: '2026-12-21' }
+      await expect(
+        service.createSession(adminActor, {
+          fighterId,
+          title: 'Grappling on D',
+          scheduledAt: dayDIso,
+          sessionType: 'GRAPPLING',
+        }),
+      ).rejects.toSatisfy((error: unknown) => {
+        const resp = responseOf(error) as {
+          code?: string;
+          details?: { suspensions?: unknown[] };
+        };
+        return (
+          (error as HttpException).getStatus() === 409 &&
+          resp.code === 'TRAINING_SUSPENSION_ACTIVE' &&
+          JSON.stringify(resp.details?.suspensions) ===
+            JSON.stringify([
+              {
+                suspensionId,
+                reason: 'KO',
+                endsOn: '2026-12-18',
+                requiresClearance: true,
+                gradedReturn: {
+                  ceiling: 3,
+                  fullReturnOn: '2026-12-21',
+                },
+              },
+            ])
+        );
+      });
+
+      // Day D+1: GRAPPLING succeeds
+      const createdGrappling: TrainingSessionEntity = {
+        ...session,
+        scheduledAt: dayDPlus1Iso,
+        sessionType: 'GRAPPLING',
+      };
+      repo.createSession.mockResolvedValueOnce(createdGrappling);
+      await expect(
+        service.createSession(adminActor, {
+          fighterId,
+          title: 'Grappling on D+1',
+          scheduledAt: dayDPlus1Iso,
+          sessionType: 'GRAPPLING',
+        }),
+      ).resolves.toEqual(createdGrappling);
+
+      // Day D+1: SPARRING -> 409 with gradedReturn { ceiling: 4, fullReturnOn: '2026-12-21' }
+      await expect(
+        service.createSession(adminActor, {
+          fighterId,
+          title: 'Sparring on D+1',
+          scheduledAt: dayDPlus1Iso,
+          sessionType: 'SPARRING',
+          roundCount: 3,
+        }),
+      ).rejects.toSatisfy((error: unknown) => {
+        const resp = responseOf(error) as {
+          code?: string;
+          details?: { suspensions?: unknown[] };
+        };
+        return (
+          (error as HttpException).getStatus() === 409 &&
+          resp.code === 'TRAINING_SUSPENSION_ACTIVE' &&
+          JSON.stringify(resp.details?.suspensions) ===
+            JSON.stringify([
+              {
+                suspensionId,
+                reason: 'KO',
+                endsOn: '2026-12-18',
+                requiresClearance: true,
+                gradedReturn: {
+                  ceiling: 4,
+                  fullReturnOn: '2026-12-21',
+                },
+              },
+            ])
+        );
+      });
+
+      // Day D+2: SPARRING succeeds
+      const createdSparringDPlus2: TrainingSessionEntity = {
+        ...session,
+        scheduledAt: dayDPlus2Iso,
+        sessionType: 'SPARRING',
+      };
+      repo.createSession.mockResolvedValueOnce(createdSparringDPlus2);
+      await expect(
+        service.createSession(adminActor, {
+          fighterId,
+          title: 'Sparring on D+2',
+          scheduledAt: dayDPlus2Iso,
+          sessionType: 'SPARRING',
+          roundCount: 3,
+        }),
+      ).resolves.toEqual(createdSparringDPlus2);
+
+      // Criterion 5: MANDATORY_REST ending E = 2026-10-26 -> E+1 = 2026-10-27 SPARRING succeeds
+      suspensionsRepo.findSuspensionsByFighterId.mockResolvedValueOnce([
+        makeKoSuspension({
+          reason: 'MANDATORY_REST',
+          startsOn: '2026-10-20',
+          endsOn: '2026-10-26',
+          requiresClearance: false,
+          clearedAt: null,
+        }),
+      ]);
+      const createdSparringAfterRest: TrainingSessionEntity = {
+        ...session,
+        scheduledAt: '2026-10-27T10:00:00.000Z',
+        sessionType: 'SPARRING',
+      };
+      repo.createSession.mockResolvedValueOnce(createdSparringAfterRest);
+      await expect(
+        service.createSession(adminActor, {
+          fighterId,
+          title: 'Sparring on E+1 after mandatory rest',
+          scheduledAt: '2026-10-27T10:00:00.000Z',
+          sessionType: 'SPARRING',
+          roundCount: 3,
+        }),
+      ).resolves.toEqual(createdSparringAfterRest);
     });
 
     it('blocks starting (IN_PROGRESS) a SPARRING session during an active suspension with 409 TRAINING_SUSPENSION_ACTIVE', async () => {

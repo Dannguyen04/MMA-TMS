@@ -22,6 +22,22 @@ export const SESSION_TYPES = [
 ] as const;
 export type SessionType = (typeof SESSION_TYPES)[number];
 
+export type SessionIntensityTier = 1 | 2 | 3 | 4 | 5;
+
+export const SESSION_INTENSITY_TIERS: Record<
+  SessionType,
+  SessionIntensityTier
+> = {
+  RECOVERY: 1,
+  PHYSICAL_THERAPY: 1,
+  STRENGTH_CONDITIONING: 2,
+  SHADOW_BOXING: 3,
+  HEAVY_BAG: 3,
+  PAD_WORK: 3,
+  GRAPPLING: 4,
+  SPARRING: 5,
+};
+
 export const SUSPENSION_REASONS = [
   'KO',
   'TKO',

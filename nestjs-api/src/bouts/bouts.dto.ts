@@ -16,6 +16,7 @@ import {
   listBoutsQuerySchema,
   readinessQuerySchema,
   readinessRowSchema,
+  readinessSuspensionSchema,
   requirementMutationResponseSchema,
   requirementParamsSchema,
   requirementRemovalResponseSchema,
@@ -44,6 +45,9 @@ export class CreateBoutResponseDto extends createZodDto(createBoutResponseSchema
 export class FeasibilityQueryDto extends createZodDto(feasibilityQuerySchema) {}
 export class FeasibilityResponseDto extends createZodDto(feasibilityResponseSchema) {}
 export class ReadinessQueryDto extends createZodDto(readinessQuerySchema) {}
+export class ReadinessSuspensionDto extends createZodDto(
+  readinessSuspensionSchema,
+) {}
 export class ReadinessRowDto extends createZodDto(readinessRowSchema) {}
 export class UpdateBoutDto extends createZodDto(updateBoutSchema) {}
 export class StartCampDto extends createZodDto(startCampSchema) {}

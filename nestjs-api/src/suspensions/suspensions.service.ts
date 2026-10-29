@@ -14,12 +14,15 @@ import {
 } from './suspensions.error.js';
 import {
   academyDateOf,
+  blockedTypesForMaxTier,
   clearSuspensionSchema,
   createSuspensionSchema,
   DEFAULT_MANUAL_BLOCKED_SESSION_TYPES,
   deriveRequiresClearance,
   encodeSuspensionCursor,
   endsOnFor,
+  gradedReturnFor,
+  maxAllowedTier,
   suspensionStatusOn,
   type ClearSuspensionInput,
   type CreateSuspensionInput,
@@ -101,9 +104,12 @@ export class SuspensionsService {
     if (!clearance.ok) {
       throw suspensionValidationError('Invalid requiresClearance for reason');
     }
-    const blockedSessionTypes = data.blockedSessionTypes ?? [
-      ...DEFAULT_MANUAL_BLOCKED_SESSION_TYPES,
-    ];
+    const blockedSessionTypes =
+      data.maxTier !== undefined
+        ? blockedTypesForMaxTier(data.maxTier)
+        : (data.blockedSessionTypes ?? [
+            ...DEFAULT_MANUAL_BLOCKED_SESSION_TYPES,
+          ]);
 
     try {
       const { created, effects } = await this.repo.transaction(async (tx) => {
@@ -310,6 +316,7 @@ export function toSuspensionResponse(
     suggestedDays: row.suggestedDays,
     overrideReason: row.overrideReason,
     blockedSessionTypes: [...row.blockedSessionTypes],
+    maxAllowedTier: maxAllowedTier(row.blockedSessionTypes),
     requiresClearance: row.requiresClearance,
     clearedAt: row.clearedAt ? row.clearedAt.toISOString() : null,
     clearedById: row.clearedById,
@@ -318,5 +325,6 @@ export function toSuspensionResponse(
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     status: suspensionStatusOn(row, today),
+    gradedReturn: gradedReturnFor(row, today),
   };
 }

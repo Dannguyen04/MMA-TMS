@@ -1,14 +1,20 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
 import {
+  blockedTypesForMaxTier,
   clearSuspensionSchema,
   createSuspensionSchema,
   decodeSuspensionCursor,
+  DEFAULT_MANUAL_BLOCKED_SESSION_TYPES,
   deriveRequiresClearance,
   encodeSuspensionCursor,
   endsOnFor,
+  gradedReturnCeiling,
+  gradedReturnFor,
   isInForceOn,
   listSuspensionsQuerySchema,
+  maxAllowedTier,
   planConflicts,
+  SESSION_INTENSITY_TIERS,
   SESSION_TYPES,
   suggestSuspensions,
   SUSPENSION_REASONS,
@@ -1013,5 +1019,138 @@ describe('suggestSuspensions (R27)', () => {
         }),
       ],
     });
+  });
+});
+
+describe('T-045 intensity tiers and graded return', () => {
+  it('Criterion 1: SESSION_INTENSITY_TIERS maps all 8 session types per table 2.1', () => {
+    expect(Object.keys(SESSION_INTENSITY_TIERS)).toHaveLength(8);
+    for (const type of SESSION_TYPES) {
+      expect(SESSION_INTENSITY_TIERS[type]).toBeDefined();
+    }
+    expect(SESSION_INTENSITY_TIERS).toEqual({
+      RECOVERY: 1,
+      PHYSICAL_THERAPY: 1,
+      STRENGTH_CONDITIONING: 2,
+      SHADOW_BOXING: 3,
+      HEAVY_BAG: 3,
+      PAD_WORK: 3,
+      GRAPPLING: 4,
+      SPARRING: 5,
+    });
+  });
+
+  it('Criterion 2: blockedTypesForMaxTier(3) returns types > tier 3 in SESSION_TYPES order, and createSuspensionSchema rejects maxTier with blockedSessionTypes', () => {
+    expect(blockedTypesForMaxTier(3)).toEqual(['SPARRING', 'GRAPPLING']);
+    expect(new Set(blockedTypesForMaxTier(3))).toEqual(
+      new Set(['GRAPPLING', 'SPARRING']),
+    );
+    expect(blockedTypesForMaxTier(1)).toEqual([
+      ...DEFAULT_MANUAL_BLOCKED_SESSION_TYPES,
+    ]);
+    expect(blockedTypesForMaxTier(4)).toEqual(['SPARRING']);
+    expect(blockedTypesForMaxTier(5)).toEqual([]);
+
+    const fighterId = '11111111-1111-4111-8111-111111111111';
+    expect(
+      createSuspensionSchema.safeParse({
+        fighterId,
+        reason: 'MEDICAL',
+        days: 14,
+        maxTier: 3,
+      }).success,
+    ).toBe(true);
+
+    const bothProvided = createSuspensionSchema.safeParse({
+      fighterId,
+      reason: 'MEDICAL',
+      days: 14,
+      maxTier: 3,
+      blockedSessionTypes: ['SPARRING'],
+    });
+    expect(bothProvided.success).toBe(false);
+
+    expect(
+      createSuspensionSchema.safeParse({
+        fighterId,
+        reason: 'MEDICAL',
+        days: 14,
+        maxTier: 0,
+      }).success,
+    ).toBe(false);
+    expect(
+      createSuspensionSchema.safeParse({
+        fighterId,
+        reason: 'MEDICAL',
+        days: 14,
+        maxTier: 6,
+      }).success,
+    ).toBe(false);
+  });
+
+  it('Criterion 3: maxAllowedTier returns 1 for T-035 default and 4 when only SPARRING is blocked', () => {
+    expect(maxAllowedTier(DEFAULT_MANUAL_BLOCKED_SESSION_TYPES)).toBe(1);
+    expect(maxAllowedTier(['SPARRING'])).toBe(4);
+    expect(maxAllowedTier(['GRAPPLING', 'SPARRING'])).toBe(3);
+    expect(maxAllowedTier([])).toBe(5);
+    expect(maxAllowedTier(['RECOVERY'])).toBe(0);
+  });
+
+  it('Criteria 4, 5, 6: gradedReturnCeiling and gradedReturnFor handle cleared KO, MANDATORY_REST, and uncleared KO', () => {
+    // Criterion 4: KO 60 days (2026-10-20..2026-12-18), cleared on D = 2026-12-19
+    const clearedKo = {
+      reason: 'KO' as const,
+      startsOn: '2026-10-20',
+      endsOn: '2026-12-18',
+      requiresClearance: true,
+      clearedAt: new Date('2026-12-19T03:00:00.000Z'), // 2026-12-19 in academy TZ
+    };
+    expect(gradedReturnCeiling(clearedKo, '2026-12-19')).toBe(3);
+    expect(gradedReturnFor(clearedKo, '2026-12-19')).toEqual({
+      ceiling: 3,
+      fullReturnOn: '2026-12-21',
+    });
+    expect(gradedReturnCeiling(clearedKo, '2026-12-20')).toBe(4);
+    expect(gradedReturnFor(clearedKo, '2026-12-20')).toEqual({
+      ceiling: 4,
+      fullReturnOn: '2026-12-21',
+    });
+    expect(gradedReturnCeiling(clearedKo, '2026-12-21')).toBeNull();
+    expect(gradedReturnFor(clearedKo, '2026-12-21')).toBeNull();
+
+    // TKO without requiresClearance: R = endsOn + 1
+    const noClearanceTko = {
+      reason: 'TKO' as const,
+      startsOn: '2026-10-01',
+      endsOn: '2026-10-30',
+      requiresClearance: false,
+      clearedAt: null,
+    };
+    expect(gradedReturnCeiling(noClearanceTko, '2026-10-30')).toBeNull();
+    expect(gradedReturnCeiling(noClearanceTko, '2026-10-31')).toBe(3);
+    expect(gradedReturnCeiling(noClearanceTko, '2026-11-01')).toBe(4);
+    expect(gradedReturnCeiling(noClearanceTko, '2026-11-02')).toBeNull();
+
+    // Criterion 5: MANDATORY_REST ending on E has no graded return on E+1
+    const mandatoryRest = {
+      reason: 'MANDATORY_REST' as const,
+      startsOn: '2026-10-20',
+      endsOn: '2026-10-26',
+      requiresClearance: false,
+      clearedAt: null,
+    };
+    expect(gradedReturnCeiling(mandatoryRest, '2026-10-27')).toBeNull();
+    expect(gradedReturnFor(mandatoryRest, '2026-10-27')).toBeNull();
+
+    // Criterion 6: KO not yet cleared has no graded return
+    const unclearedKo = {
+      reason: 'KO' as const,
+      startsOn: '2026-10-20',
+      endsOn: '2026-12-18',
+      requiresClearance: true,
+      clearedAt: null,
+    };
+    expect(gradedReturnCeiling(unclearedKo, '2026-12-19')).toBeNull();
+    expect(gradedReturnFor(unclearedKo, '2026-12-19')).toBeNull();
   });
 });
