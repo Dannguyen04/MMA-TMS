@@ -60,6 +60,7 @@ export const routes = {
         dashboard: "/coach/dashboard",
         bouts: "/coach/bouts",
         suspensions: "/coach/bouts/suspensions",
+        readiness: "/coach/bouts/readiness",
         newBout: "/coach/bouts/new",
         bout: (boutId: string) => `/coach/bouts/${boutId}`,
         fighters: "/coach/fighters",

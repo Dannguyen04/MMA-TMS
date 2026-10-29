@@ -1340,3 +1340,115 @@ Không có. Toàn bộ các yêu cầu của mục B5 và lượt sửa 2 đã �
 
 ### 5. Câu hỏi / việc còn mở
 Không có. Toàn bộ phần B5 lượt sửa 2 đã hoàn thiện, toàn bộ test suite xanh, sạch lint và typecheck.
+
+---
+
+## Phần B6: Màn /coach/bouts/readiness
+
+### 1. Thay đổi đã thực hiện
+
+1. **Định tuyến & Cấu hình điều hướng (Navigation & Routes)**:
+   - Thêm helper route `readiness: "/coach/bouts/readiness"` trong `routes.coach` tại `src/lib/routes.ts`.
+   - Cập nhật hub "Trận đấu" trong `src/components/layout/navigation.ts`, bổ sung tab thứ 3 "Readiness" ngay sau "Suspensions".
+   - Khởi tạo trang Server Component `src/app/(app)/coach/bouts/readiness/page.tsx` chỉ cho phép HLV truy cập thông qua `requireRole("coach")`. Admin truy cập route này sẽ tự động bị điều hướng về dashboard của admin (`/admin/dashboard`), không thêm nhánh admin theo đúng quy định.
+   - Cập nhật test B4-3 trong `src/app/(app)/coach/bouts/suspensions/suspensions-page.test.ts` để kiểm tra đồng bộ cả 3 tab của hub Trận.
+
+2. **Bộ lọc Sẵn sàng thi đấu (`ReadinessFilterBar`)**:
+   - Xây dựng component `src/app/(app)/coach/bouts/readiness/readiness-filter-bar.tsx` dạng form GET gồm:
+     - Chọn bộ luật (`rulesetId`): danh sách đọc từ `listRulesets()`.
+     - Chọn hạng cân (`weightLimitKg`): hiển thị danh sách `weightClasses` thuộc bộ luật đang chọn, tự động mở khóa/cập nhật khi HLV chọn bộ luật.
+     - Ngày thi dự kiến (`boutOn`): input ngày dạng `date`.
+     - Nút "Áp dụng" (submit) và nút "Xoá lọc" (reset URL về `/coach/bouts/readiness`).
+   - Xử lý an toàn theo tiêu chí **B6-4**: Khi người dùng chọn hạng cân hoặc ngày thi mà chưa chọn bộ luật, server component không chuyển tiếp bộ lọc không hợp lệ sang API/service `getReadiness` (tránh lỗi 422 `VALIDATION_ERROR` từ backend), đồng thời hiển thị thông báo cảnh báo nổi bật: *"Chọn bộ luật để kiểm tra hạng cân và ngày thi"*.
+
+3. **Bố cục 3 cột Kanban & Thẻ võ sĩ phẳng**:
+   - Bố cục đáp ứng (Responsive):
+     - Màn hình rộng (`≥ lg`): Grid 3 cột song song ("Sẵn sàng", "Đang tập lại", "Chưa sẵn sàng").
+     - Màn hình hẹp (`< lg` / 390 px): Chuyển thành 3 nhóm dọc với tiêu đề dính (`sticky top-0 z-10`), giúp HLV cuộn xem mượt mà trên di động.
+     - Mỗi tiêu đề cột có huy hiệu hiển thị số đếm số lượng võ sĩ.
+   - Thiết kế thẻ võ sĩ phẳng (tuân thủ Craft floor & Anti-template):
+     - Không lồng thẻ, không viền màu dày một bên, tương phản chữ đạt chuẩn ≥ 4.5:1.
+     - Avatar hình bát giác kèm tên võ sĩ (link tới hồ sơ võ sĩ `/coach/fighters/:id`).
+     - Cân nặng đo gần nhất: `{kg} kg ({ngày})` hoặc nhãn "Chưa cân".
+     - Huy hiệu khả thi cân nặng `WeightWarningBadge` kèm `% còn phải giảm` khi bộ luật và ngày thi được áp dụng.
+     - `IntensityLadder` kích thước `sm`:
+       - Cột "Sẵn sàng": Thang đầy đủ (bậc 5).
+       - Cột "Đang tập lại": Tối đa bậc 5 kèm bậc trần `ceiling` của ngày hôm nay.
+       - Cột "Chưa sẵn sàng": Hiển thị theo tóm tắt lệnh đình chỉ `maxAllowedTier(blockedSessionTypes)` hoặc bậc 5 nếu không có lệnh đình chỉ (đang có trận).
+     - Lý do chưa sẵn sàng bằng chữ rõ ràng, kết hợp icon trực quan:
+       - Đang đình chỉ đến ngày …
+       - Chờ xác nhận được tập lại
+       - Đang có trận <tên trận>
+       - Đình chỉ còn sau ngày thi
+       - Tập đầy đủ từ ngày …
+     - Thẻ trong cột "Đang tập lại" hiển thị dòng thông tin `"Tập đầy đủ từ {ngày}"`.
+     - Thẻ có lệnh đình chỉ hiển thị link điều hướng nhanh `"Xem đình chỉ →"` tới trang `/coach/bouts/suspensions`.
+
+4. **Trạng thái rỗng, Đang tải và Xử lý lỗi**:
+   - Trạng thái rỗng cho từng cột với câu thông báo ngắn gọn khi không có võ sĩ thuộc nhóm đó.
+   - `src/app/(app)/coach/bouts/readiness/loading.tsx`: Skeleton loader mô phỏng thanh lọc và 3 cột thẻ.
+   - `src/app/(app)/coach/bouts/readiness/error.tsx`: Màn hình báo lỗi đồng bộ với nút "Thử lại".
+
+5. **Đa ngôn ngữ (i18n vi/en)**:
+   - Bổ sung khóa nhãn điều hướng `nav.Readiness`: `"Readiness"` (en) và `"Sẵn sàng"` (vi).
+   - Bổ sung toàn bộ nhóm khóa `readiness.*` cho tiêu đề, mô tả, bộ lọc, tên cột, trạng thái rỗng và lý do trên thẻ võ sĩ trong `src/lib/i18n/messages/coach-bouts.en.ts` và `coach-bouts.vi.ts`.
+
+---
+
+### 2. Đối chiếu chi tiết ca kiểm thử B6 (B6-1 đến B6-8)
+
+Toàn bộ các ca kiểm thử bắt buộc sử dụng user thật Rafael Costa (`u-rafael-costa`, `c-rafael-costa`) cùng roster 8 võ sĩ từ `src/lib/mocks/people.ts` được tổ chức trong file `src/app/(app)/coach/bouts/readiness/readiness-page.test.ts`:
+
+| Mã ca | Tiêu chí nghiệm thu | Đáp ứng ở đâu (file:dòng) | Kết quả |
+| --- | --- | --- | --- |
+| **B6-1** | Dòng `ready: true` nằm ở cột "Sẵn sàng" (Emma Lindqvist) | `nextjs-frontend/src/app/(app)/coach/bouts/readiness/readiness-page.test.ts:79` | PASSED |
+| **B6-2** | Dòng có `gradedReturn` nằm ở cột "Đang tập lại", có "Tập đầy đủ từ {ngày}" (Linh Phạm) | `nextjs-frontend/src/app/(app)/coach/bouts/readiness/readiness-page.test.ts:94` | PASSED |
+| **B6-3** | Dòng `SUSPENDED` không `gradedReturn` (Marcus Hale), `AWAITING_CLEARANCE` (Diego Alvarez), `IN_BOUT` (Minh Trần) nằm ở cột "Chưa sẵn sàng" kèm lý do rõ | `nextjs-frontend/src/app/(app)/coach/bouts/readiness/readiness-page.test.ts:110` | PASSED |
+| **B6-4** | Lọc hạng cân hoặc ngày thi mà thiếu bộ luật -> Không gọi API sai (tránh 422), hiện câu nhắc "Chọn bộ luật để kiểm tra hạng cân và ngày thi" | `nextjs-frontend/src/app/(app)/coach/bouts/readiness/readiness-page.test.ts:132` | PASSED |
+| **B6-5** | Màn hình hẹp (< lg / 390px) chia thành ba nhóm dọc có tiêu đề dính (sticky header) | `nextjs-frontend/src/app/(app)/coach/bouts/readiness/readiness-page.test.ts:142` | PASSED |
+| **B6-6** | Demo, không lọc: Linh Phạm nằm cột "Đang tập lại" với "Tập đầy đủ từ" đúng fullReturnOn; Marcus và Diego nằm "Chưa sẵn sàng"; số đếm ba cột cộng lại bằng số võ sĩ trong roster của Rafael mà readiness trả về (1 + 1 + 6 = 8) | `nextjs-frontend/src/app/(app)/coach/bouts/readiness/readiness-page.test.ts:153` | PASSED |
+| **B6-7** | Lọc rulesetId + weightLimitKg + boutOn hợp lệ -> thẻ của võ sĩ có số cân hiện WeightWarningBadge theo feasibility.status (kể cả NEUTRAL không lỗi) | `nextjs-frontend/src/app/(app)/coach/bouts/readiness/readiness-page.test.ts:182` | PASSED |
+| **B6-8** | Thanh tab hub Trận có đủ "Trận đấu", "Đình chỉ", "Sẵn sàng" với link đúng | `nextjs-frontend/src/app/(app)/coach/bouts/readiness/readiness-page.test.ts:197` | PASSED |
+| **B6-admin** | Admin truy cập route `/coach/bouts/readiness` bị từ chối và redirect về `/admin/dashboard` | `nextjs-frontend/src/app/(app)/coach/bouts/readiness/readiness-page.test.ts:222` | PASSED |
+
+---
+
+### 3. Kết quả các lệnh kiểm tra
+
+#### pnpm --filter nextjs-frontend lint
+```text
+$ eslint
+```
+Kết quả: Sạch 100%, **0 lỗi, 0 cảnh báo** (exit code 0).
+
+#### pnpm --filter nextjs-frontend typecheck
+```text
+$ next typegen && tsc --noEmit
+Generating route types...
+✓ Types generated successfully
+```
+Kết quả: **0 lỗi biên dịch TypeScript** (exit code 0).
+
+#### pnpm --filter nextjs-frontend test
+```text
+$ vitest run
+
+ RUN  v5.0.1 D:/MMA-TMS/nextjs-frontend
+
+
+ Test Files  99 passed | 1 skipped (100)
+      Tests  936 passed | 2 skipped (938)
+   Start at  00:33:25
+   Duration  7.22s (transform 39%, import 38%, tests 22%, worker 1%)
+```
+Kết quả: Toàn bộ **99 test suites passed, 936 tests passed, 2 skipped** (tăng thêm 9 test ca kiểm thử phần B6 so với baseline 927 tests, 0 regressions).
+
+---
+
+### 4. Lệch so với ticket
+Không có. Toàn bộ các yêu cầu của mục B6 (bảng B6-1..B6-5 trong ticket cùng B6-6..B6-8) đã được hiện thực chính xác, đầy đủ và tuân thủ chặt chẽ tiêu chuẩn thiết kế.
+
+---
+
+### 5. Câu hỏi / việc còn mở
+Không có. Toàn bộ phần B6 đã hoàn thiện sẵn sàng bàn giao.

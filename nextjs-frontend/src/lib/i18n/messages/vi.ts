@@ -24,6 +24,7 @@ export const vi = {
     "nav.Bout": "Trận đấu",
     "nav.Bouts": "Trận đấu",
     "nav.Suspensions": "Đình chỉ",
+    "nav.Readiness": "Sẵn sàng",
     "nav.Training": "Tập luyện",
     "nav.Schedule": "Lịch tập",
     "nav.Plans": "Giáo án",

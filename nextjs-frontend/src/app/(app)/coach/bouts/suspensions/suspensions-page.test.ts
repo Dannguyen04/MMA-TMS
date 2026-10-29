@@ -179,15 +179,17 @@ describe("T-030 Phần B4: Màn /coach/bouts/suspensions (Review Round 1)", () =
     it("B4-3: Tab 'Trận' và 'Đình chỉ' hiện ở cả hai trang; link đúng routes.coach.bouts và routes.coach.suspensions; tab Đình chỉ trỏ đúng route mới", () => {
         const boutsHub = hubTabsFor("coach", routes.coach.bouts);
         expect(boutsHub).not.toBeNull();
-        expect(boutsHub?.tabs).toHaveLength(2);
+        expect(boutsHub?.tabs).toHaveLength(3);
         expect(boutsHub?.tabs[0]?.href).toBe(routes.coach.bouts);
         expect(boutsHub?.tabs[1]?.href).toBe(routes.coach.suspensions);
+        expect(boutsHub?.tabs[2]?.href).toBe(routes.coach.readiness);
 
         const suspensionsHub = hubTabsFor("coach", routes.coach.suspensions);
         expect(suspensionsHub).not.toBeNull();
-        expect(suspensionsHub?.tabs).toHaveLength(2);
+        expect(suspensionsHub?.tabs).toHaveLength(3);
         expect(suspensionsHub?.tabs[0]?.href).toBe(routes.coach.bouts);
         expect(suspensionsHub?.tabs[1]?.href).toBe(routes.coach.suspensions);
+        expect(suspensionsHub?.tabs[2]?.href).toBe(routes.coach.readiness);
 
         expect(routes.coach.suspensions).toBe("/coach/bouts/suspensions");
     });
