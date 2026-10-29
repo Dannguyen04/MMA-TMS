@@ -83,5 +83,5 @@ Làm song song theo người, đổi việc linh hoạt khi cần (Dan chốt 27
 **Lưu ý:**
 
 - Làm 3D cần cài thư viện mới (ví dụ `three`). Phải được Dan duyệt trước khi cài, theo [quy trình §4.7](./TEAM-WORKFLOW.md#4-quy-tắc-cho-người-thực-hiện-dev-và-gemini).
-- T-039 kết luận ngày 28/10, Dan duyệt 29/10: **AI xem video trận trực tiếp không làm được trong 2 tuần.** Lần nhanh nhất mất 140 s mỗi hiệp, trong khi chỉ có khoảng 40 s dùng được trong 60 s nghỉ; 13/18 lần gọi lỗi (503, 429). Nhóm báo thầy kèm [số liệu](./tickets/T-039-RESULT.md). Hướng thay thế: AI viết lời dặn từ dữ liệu HLV ghi (T-038) và xem video sau trận ([T-045](./tickets/T-045-post-bout-video-analysis.md)).
+- T-039 kết luận ngày 28/10, Dan duyệt 29/10: **AI xem video trận trực tiếp không làm được trong 2 tuần.** Lần nhanh nhất mất 140 s mỗi hiệp, trong khi chỉ có khoảng 40 s dùng được trong 60 s nghỉ; 13/18 lần gọi lỗi (503, 429). Nhóm báo thầy kèm [số liệu](./tickets/T-039-RESULT.md). Hướng thay thế: AI viết lời dặn từ dữ liệu HLV ghi (T-038) và xem video sau trận ([T-047](./tickets/T-047-post-bout-video-analysis.md)).
 - Ý nào ở mục 1–6 bị nhóm gạch đi thì Claude bỏ hoặc sửa ticket tương ứng.

@@ -25,7 +25,7 @@ Trên nhánh T-033, mỗi quan sát có `evidenceUrl` (link YouTube) và `eviden
 
 ## 3. Ngoài phạm vi
 
-Thẻ góc đài (bản in), màn ghi hiệp, báo cáo trận (làm sau ở T-045 hoặc T-041 bằng chính component này), video không phải YouTube, tải video lên.
+Thẻ góc đài (bản in), màn ghi hiệp, báo cáo trận (làm sau ở T-047 hoặc T-041 bằng chính component này), video không phải YouTube, tải video lên.
 
 ## 4. Tiêu chí nghiệm thu
 

@@ -7,7 +7,7 @@
 
 > **Đính chính 29/10.** Kiểm bằng YouTube oEmbed: video của các ca "BoxingVI" **không phải trận đấu**. `cQW-h8yGbRc` (V6) là "600 Calories Burned - 30 Minute Boxing COMBOS Workout", `OfZFdwW322E` (V10) là "Kickbox-HIIT Workout 17 mins", `IVvOmoB88FM` (V4) là "CARDIO BOXING … BAG WORKOUT". T-022, T-034 và bản đầu của file này đã ghi nhầm là "trận thật, 2 võ sĩ".
 > - Kết luận chính **giữ nguyên**: thời gian xử lý 140–537 s mỗi đoạn khoảng 63 s, không phụ thuộc nội dung, vẫn gấp 3,5 lần ngân sách 40 s.
-> - Mục "Lời dặn AI viết" bên dưới **không còn giá trị**: Gemini mô tả "đối thủ đánh uppercut, dồn đòn" trên video một người tập theo bài, tức là bịa ra đối thủ. Đây là thêm một lý do chưa dùng AI xem video cho lời dặn. T-045 phải đo trên video trận thật trước khi làm.
+> - Mục "Lời dặn AI viết" bên dưới **không còn giá trị**: Gemini mô tả "đối thủ đánh uppercut, dồn đòn" trên video một người tập theo bài, tức là bịa ra đối thủ. Đây là thêm một lý do chưa dùng AI xem video cho lời dặn. T-047 phải đo trên video trận thật trước khi làm.
 
 ## Bảng tổng hợp
 

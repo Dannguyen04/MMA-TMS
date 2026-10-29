@@ -47,7 +47,7 @@ File: `rounds-view.tsx` (khối "Hiệp sau" của T-037 B), `lib/actions/bout-a
 
 ## 3. Ngoài phạm vi
 
-Sửa backend; AI xem video từng hiệp sau trận (T-045); màn võ sĩ.
+Sửa backend; AI xem video từng hiệp sau trận (T-047); màn võ sĩ.
 
 ## 4. Tiêu chí nghiệm thu
 
