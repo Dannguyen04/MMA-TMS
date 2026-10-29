@@ -12,7 +12,10 @@ import { NOTIFICATION_PUBLISHER } from '../../shared/contracts/notification.cont
 import { MedicalService } from '../../medical/medical.service.js';
 import type { SuspensionRow } from '../../database/schema.js';
 import { SuspensionGate } from '../../suspensions/suspension.gate.js';
-import { endsOnFor } from '../../suspensions/suspensions.model.js';
+import {
+  DEFAULT_MANUAL_BLOCKED_SESSION_TYPES,
+  endsOnFor,
+} from '../../suspensions/suspensions.model.js';
 import { SuspensionsRepository } from '../../suspensions/suspensions.repo.js';
 import type {
   TrainingPlanEntity,
@@ -870,6 +873,78 @@ describe('TrainingSessionService', () => {
         }),
       ).resolves.toEqual(createdPadWork);
       expect(repo.createSession).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects scheduling PAD_WORK when suspension blocks 6 default manual session types with 409 TRAINING_SUSPENSION_ACTIVE, while RECOVERY and PHYSICAL_THERAPY pass', async () => {
+      suspensionsRepo.findSuspensionsByFighterId.mockResolvedValue([
+        makeKoSuspension({
+          blockedSessionTypes: [...DEFAULT_MANUAL_BLOCKED_SESSION_TYPES],
+        }),
+      ]);
+      const day10Iso = '2026-10-10T10:00:00.000Z';
+
+      await expect(
+        service.createSession(adminActor, {
+          fighterId,
+          title: 'Pad work session',
+          scheduledAt: day10Iso,
+          sessionType: 'PAD_WORK',
+          roundCount: 3,
+        }),
+      ).rejects.toSatisfy((error: unknown) => {
+        const resp = responseOf(error) as {
+          code?: string;
+          details?: { suspensions?: unknown[] };
+        };
+        return (
+          (error as HttpException).getStatus() === 409 &&
+          resp.code === 'TRAINING_SUSPENSION_ACTIVE' &&
+          JSON.stringify(resp.details?.suspensions) ===
+            JSON.stringify([
+              {
+                suspensionId,
+                reason: 'KO',
+                endsOn: '2026-11-14',
+                requiresClearance: true,
+              },
+            ])
+        );
+      });
+      expect(repo.createSession).not.toHaveBeenCalled();
+
+      const createdRecovery: TrainingSessionEntity = {
+        ...session,
+        scheduledAt: day10Iso,
+        sessionType: 'RECOVERY',
+      };
+      repo.createSession.mockResolvedValueOnce(createdRecovery);
+
+      await expect(
+        service.createSession(adminActor, {
+          fighterId,
+          title: 'Recovery session',
+          scheduledAt: day10Iso,
+          sessionType: 'RECOVERY',
+        }),
+      ).resolves.toEqual(createdRecovery);
+
+      const createdPt: TrainingSessionEntity = {
+        ...session,
+        scheduledAt: day10Iso,
+        sessionType: 'PHYSICAL_THERAPY',
+      };
+      repo.createSession.mockResolvedValueOnce(createdPt);
+
+      await expect(
+        service.createSession(adminActor, {
+          fighterId,
+          title: 'Physical therapy session',
+          scheduledAt: day10Iso,
+          sessionType: 'PHYSICAL_THERAPY',
+        }),
+      ).resolves.toEqual(createdPt);
+
+      expect(repo.createSession).toHaveBeenCalledTimes(2);
     });
 
     it('continues blocking SPARRING past ends_on while not cleared, and allows scheduling SPARRING once cleared', async () => {
