@@ -2,7 +2,7 @@
 
 | | |
 | --- | --- |
-| **Trạng thái** | READY (25/10) |
+| **Trạng thái** | READY (25/10). Phần B viết lại 29/10, Ken nhận, làm qua `agy` trên `feat/T-030-suspension-ui` |
 | **Phần** | Frontend (`nextjs-frontend`). Phần A sửa lỗi lệch contract (làm trước, nhỏ). Phần B giao diện đình chỉ (T-007 phần B và C, trước đây chưa có ticket) |
 | **Người nhận** | Gemini (`agy`, `gemini-4-argon-high`), chủ dự án chốt 26/10 |
 | **Nhánh** | `feat/T-030-frontend-suspensions-sync`, tạo từ `User_Feature` ngày 25/10 (đã có backend T-007 và T-029) |
@@ -40,7 +40,7 @@ Sửa:
 - Thêm hàm đọc `details.suspensions` (kiểu an toàn, bỏ qua phần tử sai hình dạng), dùng cho cả hai mã lỗi, rồi hiện trong chỗ đang hiện lý do y tế (`data: { reasons }` ở `lib/actions/training.ts:739`).
 - Test trong `training-errors.test.ts`: cả ba ca (chỉ đình chỉ, chỉ y tế, cả hai), và `details` sai hình dạng.
 
-### A3. Cổng 2 ở demo mode (thêm 27/10)
+### A3. Cổng 2 ở demo mode (thêm 27/10; **không áp dụng** từ 29/10, xem phần B)
 
 Ngày 27/10 kiểm lại: Cổng 2 ở demo mode **đã có** trên nhánh demo `sync/T-004-fight-camp`. Hàm `suspensionGate` trong `lib/services/training.demo.ts` (dòng 671) đọc `demoBlockingSuspensions` của `bouts.demo.ts` và được gọi ở `createSession`, `updateSession` và `startSession` (dòng 470, 544, 698). Nhánh đó cũng đã có trang `/coach/bouts/suspensions`. Trên `fight-camp` chưa có vì nhánh demo chưa merge (36 commit, đếm ngày 27/10).
 
@@ -50,7 +50,101 @@ Việc của A3:
 - Đối chiếu phần B với các màn đã có trên nhánh demo (trang Đình chỉ, `suspension-dialogs.tsx`). Màn nào đã có thì chỉ bổ sung phần còn thiếu.
 - Đình chỉ tạo tay ở demo mà không chọn loại buổi thì mặc định chặn mọi loại trừ `recovery_mobility`, theo [quyết định 22](../SCOPE-FIGHT-CAMP.md#quyết-định-và-câu-hỏi).
 
-## Phần B. Giao diện đình chỉ
+## Phần B (viết lại 29/10): giao diện đình chỉ theo T-036 và T-045
+
+**Quyết định 29/10 của Ken (người nhận T-030 phần B từ 29/10):** làm trên nhánh `feat/T-030-suspension-ui` tạo từ `User_Feature` (= `fight-camp` sau khi merge T-035, T-036, T-045), **không** dựa trên nhánh demo `sync/T-004-fight-camp`. Mục A3 ở trên (dùng cổng demo của nhánh demo) không áp dụng cho phần B này: demo mode viết trên nền `fight-camp`. Khi làm T-040 (gộp nhánh demo) phải chọn một bản cho trang Đình chỉ và cổng demo; báo Dan và Hoàng Anh.
+
+**Thiết kế:** [T-030B-design-brief.md](../design/T-030B-design-brief.md) (Impeccable, chế độ Operate, chủ dự án duyệt 29/10). Ticket này là nguồn cho phạm vi, contract và ca kiểm thử; bản thiết kế là nguồn cho bố cục, trạng thái, chuyển động.
+
+**Code do `agy` viết** (`gemini-3.8-flash-high`; argon hết quota tới khoảng 5/11). Mỗi phần một lượt, một commit, push nhánh; review của Claude và review độc lập (subagent) trước khi sang phần sau. `agy` hiện thực đúng các ca kiểm thử dưới đây, giữ mã ca (B1-1, …) trong tên test, **không sửa kết quả mong đợi**.
+
+### Contract backend dùng cho phần B (đã kiểm trong code 29/10)
+
+- `GET /suspensions?fighterId&active&cursor&limit` → `{ data, hasNextPage, nextCursor }`. Mỗi đình chỉ: các trường ở mục "Contract chính xác" phía dưới, **thêm** `maxAllowedTier` (0–5), `gradedReturn` (`{ ceiling: 3|4, fullReturnOn }` hoặc `null`).
+- `POST /suspensions` body: `fighterId`, `reason`, `days`, `startsOn?`, **một trong hai** `blockedSessionTypes?` hoặc `maxTier?` (1–5), `requiresClearance?`, `lossOfConsciousness?`. Mặc định khi không gửi cả hai: chặn mọi loại trừ `RECOVERY`, `PHYSICAL_THERAPY` (quyết định 22). Response thêm `affectedSessions: { sessionId, action: 'PENDING' | 'CANCEL' }[]`, `affectedPlans: { planId, fromPhase, toPhase }[]`.
+- `GET /suspensions/:id/conflicts` → đề xuất `{ sessionId, action: 'PENDING' | 'CANCEL' }` (**không còn** `CHANGE_TYPE`, `RESCHEDULE`, `toType`, `toScheduledAt`). `POST .../apply` body `{ sessionIds }`.
+- Buổi tập có trạng thái mới **`PENDING`** (Chờ xếp lại). `PENDING → SCHEDULED` chỉ bằng cách đổi `scheduledAt` (PATCH buổi), qua Cổng 2; `PENDING → CANCELLED` bằng endpoint đổi trạng thái có lý do; không bắt đầu được.
+- Lỗi 409 `TRAINING_SUSPENSION_ACTIVE`: `details.suspensions[]` mỗi phần tử `{ suspensionId, reason, endsOn, requiresClearance, gradedReturn? }`.
+- `GET /readiness?weightLimitKg&rulesetId&boutOn`: mỗi dòng như mục "Contract chính xác", **thêm** `fullReturnOn` và `gradedReturn` (võ sĩ đang tập lại theo bậc có `status = 'SUSPENDED'`, `ready = false`, `gradedReturn` khác `null`).
+- Bậc cường độ (backend `SESSION_INTENSITY_TIERS`): 1 `RECOVERY`, `PHYSICAL_THERAPY`; 2 `STRENGTH_CONDITIONING`; 3 `SHADOW_BOXING`, `HEAVY_BAG`, `PAD_WORK`; 4 `GRAPPLING`; 5 `SPARRING`. Frontend dùng một hằng cùng giá trị, có test so khớp.
+
+### Các phần và ca kiểm thử (Claude viết trước code)
+
+Kiểm tra mỗi phần: `pnpm --filter nextjs-frontend lint`, `typecheck`, `test`, không thêm lỗi so với baseline; từ phần B4, chụp màn hình demo mode 1440 px và 390 px.
+
+**B1. Phần A1, A2 của ticket này** (giữ nguyên mô tả A1, A2 ở trên; A3 không làm).
+
+| Ca | Đầu vào | Kết quả mong đợi |
+| --- | --- | --- |
+| B1-1 | `coachTodoSchema` parse item `source: 'TRAINING_CONFLICTS_WITH_SUSPENSION', count: 3` | Parse được; thẻ hiện "3 buổi tập xung đột với đình chỉ" (vi) |
+| B1-2 | Item `source: 'SUSPENSION_AWAITING_CLEARANCE'` | Parse được; thẻ hiện "Đình chỉ chờ xác nhận được tập lại" |
+| B1-3 | Lỗi 409 `TRAINING_SUSPENSION_ACTIVE`, `details.suspensions = [{ reason:'KO', endsOn:'2026-12-01', requiresClearance:true }]` | Đọc được 1 đình chỉ; câu lỗi có lý do và ngày, không phải câu lỗi chung |
+| B1-4 | Như B1-3 nhưng phần tử có `gradedReturn: { ceiling: 3, fullReturnOn: '2026-12-04' }` | Đọc được trần bậc 3 và ngày tập đầy đủ |
+| B1-5 | 409 `TRAINING_MEDICAL_ELIGIBILITY_REQUIRED` có cả `reasons` và `suspensions` | Hiện cả lý do y tế lẫn đình chỉ |
+| B1-6 | `details` sai hình dạng (`suspensions: 'x'`, phần tử thiếu `endsOn`) | Không ném lỗi; bỏ phần tử sai; vẫn có câu lỗi |
+
+**B2. Nền dữ liệu**: kiểu dữ liệu (`lib/domain/types.ts`), service `lib/services/suspensions.ts` + `suspensions.demo.ts`, `readiness` (trong `bouts.ts` hoặc file riêng), server action `lib/actions/suspensions.ts`, `SessionStatus` thêm `pending` (map `PENDING` hai chiều trong `lib/services/training.ts`), hằng bậc `lib/domain/intensity-tiers.ts`, từ điển vi/en. Demo mode: dữ liệu mẫu có đủ 5 trường hợp (đang đình chỉ KO; chờ xác nhận; đang tập lại bậc 3 hôm nay; nghỉ bắt buộc có buổi chờ xếp lại; sẵn sàng); tạo đình chỉ ở demo mode áp đúng quyết định 23–25 trên buổi demo.
+
+| Ca | Đầu vào | Kết quả mong đợi |
+| --- | --- | --- |
+| B2-1 | JSON đình chỉ đúng contract (lấy từ một response mẫu dựng theo `suspensionResponseSchema` của backend) | Parse được, có `maxAllowedTier`, `gradedReturn` |
+| B2-2 | Buổi API `status: 'PENDING'` | Thành `pending`; map ngược ra `PENDING` |
+| B2-3 | Hằng bậc frontend | Đúng 8 loại, đúng bậc như backend |
+| B2-4 | Demo: tạo `OTHER` 7 ngày, `maxTier: 1`, có buổi demo `sparring` ngày thứ 3 | Response demo có `affectedSessions = [{ id, PENDING }]`; buổi thành `pending` |
+| B2-5 | Demo: tạo `KO` cần xác nhận, buổi `sparring` sau `startsOn` | Buổi thành `cancelled`; giáo án demo pha `fight_camp` thành `rehab`, có trong `affectedPlans` |
+| B2-6 | Demo: tạo với `maxTier: 3` | `blockedSessionTypes = ['SPARRING','GRAPPLING']` (thứ tự backend) |
+| B2-7 | Demo: dữ liệu mẫu | Có đủ 5 trường hợp nêu trên |
+| B2-8 | Mọi khoá i18n mới | Có ở cả vi và en (test integrity có sẵn qua) |
+
+**B3. Component dùng chung**: `IntensityLadder`, `SuspensionStatusBadge`, `GradedReturnSteps`, badge `pending` trong `SessionStatusBadge`, keyframes trong `globals.css` có khối `prefers-reduced-motion`.
+
+| Ca | Đầu vào | Kết quả mong đợi |
+| --- | --- | --- |
+| B3-1 | `IntensityLadder maxAllowedTier={3}` | 5 đoạn; đoạn 1–3 "được tập", 4–5 "bị chặn"; mỗi đoạn có nhãn cho trình đọc màn hình |
+| B3-2 | `maxAllowedTier={5} ceiling={3}` | Đoạn 4–5 hiện "bị chặn hôm nay" (trần lộ trình) |
+| B3-3 | `interactive`, đang bậc 2, nhấn mũi tên phải | `onChange(3)`; nhấn trái ở bậc 1 không xuống dưới 1 |
+| B3-4 | `GradedReturnSteps gradedReturn={{ceiling:4, fullReturnOn:'2026-12-04'}}` | Bước 1 đã qua, bước 2 hiện tại, bước 3 có ngày 04/12 |
+| B3-5 | `SessionStatusBadge status="pending"` | Chữ "Chờ xếp lại", có icon, khác badge "Chờ xác nhận" |
+| B3-6 | CSS | Mọi animation mới nằm trong khối có `@media (prefers-reduced-motion: reduce)` tắt chúng |
+
+**B4. Màn `/coach/bouts/suspensions`** (tab trong hub "Trận"; thêm route vào `lib/routes.ts`): danh sách, thẻ thống kê lọc, panel tạo đình chỉ, bảng tóm tắt hệ quả, form xác nhận tập lại (3–500 ký tự), ẩn nút xác nhận với ADMIN.
+
+| Ca | Đầu vào | Kết quả mong đợi |
+| --- | --- | --- |
+| B4-1 | Demo, HLV mở trang | Thấy đủ các đình chỉ của võ sĩ mình; thẻ thống kê đếm đúng |
+| B4-2 | Tạo `KO` từ panel | Panel chuyển sang bảng tóm tắt: buổi bị huỷ, giáo án sang hồi phục, đọc từ response |
+| B4-3 | Chọn `maxTier` và tick loại buổi cùng lúc | Không cho; chỉ một trong hai |
+| B4-4 | Lý do `KO` | Công tắc "Cần xác nhận" bật và khoá, có câu giải thích |
+| B4-5 | Xác nhận tập lại với căn cứ 2 ký tự | Báo lỗi ngay, không gửi |
+| B4-6 | ADMIN mở trang | Không có nút "Xác nhận được tập lại" |
+| B4-7 | Không có đình chỉ | Trạng thái rỗng có hướng dẫn |
+
+**B5. Lịch tập** (`/coach/sessions`, chi tiết buổi, form sửa): badge và bộ lọc "Chờ xếp lại", nút "Xếp lại", thẻ giải thích 409.
+
+| Ca | Đầu vào | Kết quả mong đợi |
+| --- | --- | --- |
+| B5-1 | Buổi `pending` | Badge "Chờ xếp lại"; có nút "Xếp lại"; không có nút "Bắt đầu" |
+| B5-2 | Xếp lại vào ngày sau khi hết đình chỉ | Buổi thành `scheduled` |
+| B5-3 | Xếp lại vào ngày còn đình chỉ | Thẻ giải thích 409 có lý do, ngày, thang bậc; buổi vẫn `pending` |
+| B5-4 | Lọc "Chờ xếp lại" | Chỉ còn buổi `pending` |
+
+**B6. Màn `/coach/bouts/readiness`** (tab trong hub "Trận"; HLV và ADMIN; ẩn với FIGHTER, DOCTOR).
+
+| Ca | Đầu vào | Kết quả mong đợi |
+| --- | --- | --- |
+| B6-1 | Dòng `ready: true` | Cột "Sẵn sàng" |
+| B6-2 | Dòng có `gradedReturn` | Cột "Đang tập lại", có ngày tập đầy đủ |
+| B6-3 | Dòng `SUSPENDED` không `gradedReturn`, `AWAITING_CLEARANCE`, `IN_BOUT` | Cột "Chưa sẵn sàng", lý do rõ |
+| B6-4 | Lọc hạng cân mà thiếu bộ luật | Không gọi API sai (backend trả 422); form báo cần chọn bộ luật |
+| B6-5 | Màn 390 px | Ba cột thành ba nhóm dọc |
+
+**B7. Kiểm tra cuối**: `impeccable detect` trên các file UI mới, chụp màn hình đủ màn ở 1440 px và 390 px cả vi và en, review độc lập, merge vào `User_Feature`.
+
+### Ngoài phạm vi phần B
+
+Màn điện thoại của võ sĩ (Fon), cảnh báo R4 khi tạo trận (B4 cũ, làm sau nếu còn thời gian), form ghi kết quả (B5 cũ), thư viện mới, đổi backend.
+
+### Phần B cũ (25/10, thay bằng phần trên)
 
 Làm sau phần A. Theo [Tech spec §9](../FIGHT-CAMP-TECH-SPEC.md) và [Luồng nghiệp vụ](../FIGHT-CAMP-BUSINESS-FLOWS.md): hub "Trận" của HLV có thêm tab Đình chỉ và tab Sẵn sàng (route hiện có: `routes.coach.bouts = /coach/bouts`). Theo khuôn dịch vụ có sẵn: `lib/services/<x>.ts` (gọi API) + `<x>.demo.ts` (demo mode) + `lib/actions/<x>.ts` (server action), như `bouts`. Mọi chuỗi có vi và en.
 
