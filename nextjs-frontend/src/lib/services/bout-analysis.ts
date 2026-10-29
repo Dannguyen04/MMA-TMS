@@ -3,6 +3,7 @@ import "server-only";
 import { z } from "zod";
 
 import {
+    ApiError,
     authenticatedApiRequest,
     authenticatedMutableApiRequest,
 } from "@/lib/api/client";
@@ -47,6 +48,11 @@ export type UpsertBoutRoundResult =
     | { ok: false; error: string };
 
 export type SaveOpponentAnalysisResult = { ok: true } | { ok: false; error: string };
+
+/** Backend error code (e.g. `BOUT_ROUND_MARK_UNKNOWN`) when the reply carried one; `ApiError` keeps it on `code`. */
+function backendCode(error: unknown): string | undefined {
+    return error instanceof ApiError && !error.code.startsWith("HTTP_") ? error.code : undefined;
+}
 
 async function demoService(): Promise<typeof import("./bout-analysis.demo")> {
     return import("./bout-analysis.demo");
@@ -135,11 +141,11 @@ export async function upsertBoutRound(
         return { ok: true, data: updated.data };
     } catch (error: unknown) {
         if (isNotFound(error)) return { ok: false, error: "BOUT_NOT_FOUND" };
-        const err = error as { status?: number; responseBody?: { code?: string } };
+        const err = error as { status?: number };
         if (err?.status === 409 || err?.status === 422) {
             return {
                 ok: false,
-                error: err.responseBody?.code ?? (err.status === 409 ? "BOUT_INVALID_TRANSITION" : "BOUT_ROUND_INVALID"),
+                error: backendCode(error) ?? (err.status === 409 ? "BOUT_INVALID_TRANSITION" : "BOUT_ROUND_INVALID"),
             };
         }
         throw error;
@@ -166,10 +172,10 @@ export async function saveOpponentAnalysis(
         return { ok: true };
     } catch (error: unknown) {
         if (isNotFound(error)) return { ok: false, error: "BOUT_NOT_FOUND" };
-        const err = error as { status?: number; responseBody?: { code?: string } };
+        const err = error as { status?: number };
         if (err?.status === 409) return { ok: false, error: "BOUT_INVALID_TRANSITION" };
         if (err?.status === 422 || err?.status === 400) {
-            return { ok: false, error: err.responseBody?.code ?? "BOUT_ANALYSIS_INVALID" };
+            return { ok: false, error: backendCode(error) ?? "BOUT_ANALYSIS_INVALID" };
         }
         throw error;
     }
