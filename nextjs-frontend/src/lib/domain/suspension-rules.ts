@@ -1,4 +1,8 @@
+export type { SuspensionReason } from "./types";
 import { SESSION_TYPES, type SessionType } from "@/lib/domain/medical-contract";
+import { formatShortDate } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
+import { createTranslator, type MessageKey, type Translator } from "@/lib/i18n/translate";
 import { sessionTypeFor } from "./training-contract";
 import type {
     AffectedPlan,
@@ -678,4 +682,121 @@ export function applySuspensionSideEffects(
     }
 
     return { affectedSessions, affectedPlans };
+}
+
+/* ─── Blocking Suspension Helpers & Presentation ─────────────────────────── */
+
+export interface GradedReturnInfo {
+    ceiling: 3 | 4;
+    fullReturnOn: string;
+}
+
+export interface TrainingBlockingSuspension {
+    suspensionId?: string;
+    reason: string;
+    endsOn: string;
+    requiresClearance: boolean;
+    gradedReturn?: GradedReturnInfo | null;
+    maxAllowedTier?: number | null;
+}
+
+export const SUSPENSION_REASON_MESSAGE_KEYS: Record<SuspensionReason, MessageKey> = {
+    KO: "suspension.reason.KO",
+    TKO: "suspension.reason.TKO",
+    DQ: "suspension.reason.DQ",
+    MANDATORY_REST: "suspension.reason.MANDATORY_REST",
+    MEDICAL: "suspension.reason.MEDICAL",
+    OTHER: "suspension.reason.OTHER",
+};
+
+export function isSuspensionReason(value: string): value is SuspensionReason {
+    return Object.prototype.hasOwnProperty.call(SUSPENSION_REASON_MESSAGE_KEYS, value);
+}
+
+export function suspensionReasonLabel(rawReason: string, t?: Translator): string {
+    const key = isSuspensionReason(rawReason)
+        ? SUSPENSION_REASON_MESSAGE_KEYS[rawReason]
+        : SUSPENSION_REASON_MESSAGE_KEYS.OTHER;
+    const translator = t ?? createTranslator("en");
+    return translator(key);
+}
+
+/**
+ * When a fighter has multiple blocking suspensions, chooses which one to feature:
+ * suspensions without graded return (active/blocking) take precedence over graded returns;
+ * within the same group, the one with the latest endsOn is chosen.
+ */
+export function pickPrimarySuspension(suspensions: readonly TrainingBlockingSuspension[]): TrainingBlockingSuspension | null {
+    if (suspensions.length === 0) return null;
+    if (suspensions.length === 1) return suspensions[0];
+
+    const sorted = [...suspensions].sort((a, b) => {
+        const aHasGraded = Boolean(a.gradedReturn);
+        const bHasGraded = Boolean(b.gradedReturn);
+        if (aHasGraded !== bHasGraded) {
+            return aHasGraded ? 1 : -1;
+        }
+        return b.endsOn.localeCompare(a.endsOn);
+    });
+    return sorted[0];
+}
+
+export function formatSuspensionMessage(suspension: TrainingBlockingSuspension, t?: Translator): string {
+    const translator = t ?? createTranslator("en");
+    const locale: Locale = translator.locale ?? "en";
+    const reason = suspensionReasonLabel(suspension.reason, translator);
+
+    if (suspension.gradedReturn) {
+        const fullReturnOn = formatShortDate(suspension.gradedReturn.fullReturnOn, locale);
+        return translator("training.error.suspensionGradedReturn", {
+            reason,
+            ceiling: suspension.gradedReturn.ceiling,
+            fullReturnOn,
+        });
+    }
+
+    const endsOn = formatShortDate(suspension.endsOn, locale);
+    if (suspension.requiresClearance) {
+        return translator("training.error.suspensionActiveRequiresClearance", { reason, endsOn });
+    }
+    return translator("training.error.suspensionActiveWithReason", { reason, endsOn });
+}
+
+export interface RescheduleDateSuggestion {
+    suggestedDate: string | null;
+    awaitingClearance: boolean;
+}
+
+/**
+ * Suggests the earliest available date to reschedule a session blocked by suspensions:
+ * - If any active suspension requires clearance and is uncleared -> cannot suggest date; awaitingClearance: true.
+ * - Otherwise -> suggests endsOn + 1 (using the latest endsOn among blocking suspensions).
+ */
+export function suggestRescheduleDate(
+    suspensions: readonly {
+        endsOn: string;
+        requiresClearance: boolean;
+        clearedAt?: Date | string | null;
+        startsOn?: string;
+        deletedAt?: Date | string | null;
+    }[],
+): RescheduleDateSuggestion {
+    const active = suspensions.filter((s) => s.deletedAt === null || s.deletedAt === undefined);
+    if (active.length === 0) {
+        return { suggestedDate: null, awaitingClearance: false };
+    }
+    const uncleared = active.filter((s) => s.requiresClearance && (s.clearedAt === null || s.clearedAt === undefined));
+    if (uncleared.length > 0) {
+        return { suggestedDate: null, awaitingClearance: true };
+    }
+    let maxEndsOn = active[0].endsOn;
+    for (const s of active) {
+        if (s.endsOn > maxEndsOn) {
+            maxEndsOn = s.endsOn;
+        }
+    }
+    return {
+        suggestedDate: addDaysToDate(maxEndsOn, 1),
+        awaitingClearance: false,
+    };
 }

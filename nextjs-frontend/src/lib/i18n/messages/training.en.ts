@@ -157,6 +157,8 @@ export const enTraining = {
     "training.weekSummary.peakTarget": "Peak target",
     "training.weekSummary.cancelledCount": "{n} cancelled",
     "training.weekSummary.cancelledCount.one": "1 cancelled",
+    "training.weekSummary.pendingCount": "{n} to reschedule",
+    "training.weekSummary.pendingCount.one": "1 to reschedule",
     "training.weekSummary.rosterPrefix": "Roster · {range}",
 
     /* Counts & Relative Days */
@@ -490,6 +492,19 @@ export const enTraining = {
     "training.actions.feedbackTechniques": "Techniques",
     "training.actions.feedbackBody": "Feedback",
     "training.actions.feedbackBodyHint": "Be specific: what you saw, why it matters and what to do next.",
+    "training.actions.reschedule": "Reschedule",
+    "training.actions.rescheduleTitle": "Reschedule training session",
+    "training.actions.rescheduleDesc": "Choose a new date and time for {title}. The session will be rechecked against active suspensions.",
+    "training.actions.rescheduleDate": "New date",
+    "training.actions.rescheduleTime": "New time",
+    "training.actions.rescheduleConfirm": "Reschedule",
+    "training.actions.rescheduling": "Rescheduling…",
+    "training.actions.sessionRescheduled": "Session rescheduled.",
+    "training.actions.awaitingClearanceNotice": "Awaiting clearance to resume training before rescheduling",
+    "training.actions.suggestedDateHint": "Suggested: first day after suspension ends ({date})",
+    "training.actions.useSuggestedDate": "Use {date}",
+    "training.actions.rescheduleAcknowledge": "Schedule anyway",
+    "training.actions.viewSuspensions": "View suspensions",
 
     /* Session Table */
     "training.table.date": "Date",

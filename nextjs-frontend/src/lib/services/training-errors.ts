@@ -2,66 +2,21 @@ import "server-only";
 
 import { ApiError } from "@/lib/api/client";
 import { eligibilityReasonsFrom, type EligibilityReason } from "@/lib/domain/medical-contract";
-import { formatShortDate } from "@/lib/format";
-import type { Locale } from "@/lib/i18n/config";
-import { createTranslator, type MessageKey, type Translator } from "@/lib/i18n/translate";
+import {
+    formatSuspensionMessage,
+    isSuspensionReason,
+    pickPrimarySuspension,
+    SUSPENSION_REASON_MESSAGE_KEYS,
+    suspensionReasonLabel,
+    type GradedReturnInfo,
+    type SuspensionReason,
+    type TrainingBlockingSuspension,
+} from "@/lib/domain/suspension-rules";
+import type { Translator } from "@/lib/i18n/translate";
 import { apiWriteFailure, type ServiceErrorMessages, type WriteErrorOptions, type WriteFailure } from "./api-write-errors";
 
-export interface GradedReturnInfo {
-    ceiling: 3 | 4;
-    fullReturnOn: string;
-}
-
-export interface TrainingBlockingSuspension {
-    suspensionId?: string;
-    reason: string;
-    endsOn: string;
-    requiresClearance: boolean;
-    gradedReturn?: GradedReturnInfo | null;
-}
-
-export type SuspensionReason = "KO" | "TKO" | "DQ" | "MANDATORY_REST" | "MEDICAL" | "OTHER";
-
-const SUSPENSION_REASON_MESSAGE_KEYS: Record<SuspensionReason, MessageKey> = {
-    KO: "suspension.reason.KO",
-    TKO: "suspension.reason.TKO",
-    DQ: "suspension.reason.DQ",
-    MANDATORY_REST: "suspension.reason.MANDATORY_REST",
-    MEDICAL: "suspension.reason.MEDICAL",
-    OTHER: "suspension.reason.OTHER",
-};
-
-function isSuspensionReason(value: string): value is SuspensionReason {
-    return Object.prototype.hasOwnProperty.call(SUSPENSION_REASON_MESSAGE_KEYS, value);
-}
-
-export function suspensionReasonLabel(rawReason: string, t?: Translator): string {
-    const key = isSuspensionReason(rawReason)
-        ? SUSPENSION_REASON_MESSAGE_KEYS[rawReason]
-        : SUSPENSION_REASON_MESSAGE_KEYS.OTHER;
-    const translator = t ?? createTranslator("en");
-    return translator(key);
-}
-
-/**
- * When a fighter has multiple blocking suspensions, chooses which one to feature:
- * suspensions without graded return (active/blocking) take precedence over graded returns;
- * within the same group, the one with the latest endsOn is chosen.
- */
-export function pickPrimarySuspension(suspensions: readonly TrainingBlockingSuspension[]): TrainingBlockingSuspension | null {
-    if (suspensions.length === 0) return null;
-    if (suspensions.length === 1) return suspensions[0];
-
-    const sorted = [...suspensions].sort((a, b) => {
-        const aHasGraded = Boolean(a.gradedReturn);
-        const bHasGraded = Boolean(b.gradedReturn);
-        if (aHasGraded !== bHasGraded) {
-            return aHasGraded ? 1 : -1;
-        }
-        return b.endsOn.localeCompare(a.endsOn);
-    });
-    return sorted[0];
-}
+export type { GradedReturnInfo, SuspensionReason, TrainingBlockingSuspension };
+export { formatSuspensionMessage, isSuspensionReason, pickPrimarySuspension, SUSPENSION_REASON_MESSAGE_KEYS, suspensionReasonLabel };
 
 /** How the training service's refusals read on the coach's forms; the status rules are shared (`api-write-errors.ts`). */
 
@@ -118,27 +73,6 @@ function getTrainingErrors(t?: Translator): ServiceErrorMessages {
             TRAINING_INVARIANT_CONFLICT: t("training.error.invariantConflict"),
         },
     };
-}
-
-function formatSuspensionMessage(suspension: TrainingBlockingSuspension, t?: Translator): string {
-    const translator = t ?? createTranslator("en");
-    const locale: Locale = translator.locale ?? "en";
-    const reason = suspensionReasonLabel(suspension.reason, translator);
-
-    if (suspension.gradedReturn) {
-        const fullReturnOn = formatShortDate(suspension.gradedReturn.fullReturnOn, locale);
-        return translator("training.error.suspensionGradedReturn", {
-            reason,
-            ceiling: suspension.gradedReturn.ceiling,
-            fullReturnOn,
-        });
-    }
-
-    const endsOn = formatShortDate(suspension.endsOn, locale);
-    if (suspension.requiresClearance) {
-        return translator("training.error.suspensionActiveRequiresClearance", { reason, endsOn });
-    }
-    return translator("training.error.suspensionActiveWithReason", { reason, endsOn });
 }
 
 /** What to show for a failed training write. Anything that isn't an API error is a bug and is rethrown. */

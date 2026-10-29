@@ -1,6 +1,15 @@
 import "server-only";
 
+import { ApiError } from "@/lib/api/client";
+import { tierOfTrainingType } from "@/lib/domain/intensity-tiers";
 import { TRAINING_TYPE_LABELS } from "@/lib/domain/labels";
+import {
+    academyDateOf,
+    gradedReturnFor,
+    isInForceOn,
+    isSessionBlockedBySuspension,
+    type TrainingBlockingSuspension,
+} from "@/lib/domain/suspension-rules";
 import { EXERCISE_CATEGORY_FOR, exerciseCreateBody, serviceExerciseCategoryFor, type ExerciseFields, type PlanExerciseFields } from "@/lib/domain/training-contract";
 import { checkTrainingAgainstClearance, currentClearance, type ClearanceConflict } from "@/lib/domain/rules";
 import type {
@@ -16,6 +25,7 @@ import type {
     TrainingPlan,
     TrainingProgress,
     TrainingSession,
+    TrainingType,
     User,
 } from "@/lib/domain/types";
 import { academyDayStartIso, DAY_MS, dayKey, formatDateTime } from "@/lib/format";
@@ -401,7 +411,7 @@ function clearanceGate(
         return {
             ok: false,
             reason: "blocked",
-            message: "This session conflicts with the fighter's Medical Clearance and can't be scheduled as planned.",
+            message: "training.sessionForm.blockedResolve",
             conflicts,
         };
     }
@@ -409,7 +419,7 @@ function clearanceGate(
         return {
             ok: false,
             reason: "warnings_not_acknowledged",
-            message: "Review the Medical Clearance warnings and confirm to schedule this session anyway.",
+            message: "training.sessionForm.blockedConfirm",
             conflicts,
         };
     }
@@ -460,8 +470,57 @@ function editableSessionFields(input: SessionUpdateInput): EditableSessionFields
  * Refuses blocking conflicts outright and warnings unless `acknowledgeWarnings` is set.
  * Notifies the fighter, the assigned coach and — when warnings were acknowledged — the fighter's doctors.
  */
+function findDemoBlockingSuspensions(fighterId: string, trainingType: TrainingType, scheduledAt: string): TrainingBlockingSuspension[] {
+    const date = academyDateOf(scheduledAt);
+    const suspensions = db().suspensions ?? [];
+    const blocking: TrainingBlockingSuspension[] = [];
+    for (const susp of suspensions) {
+        if (susp.fighterId !== fighterId) continue;
+        if (isInForceOn(susp, date)) {
+            const blocked = isSessionBlockedBySuspension(
+                { scheduledAt, type: trainingType },
+                susp,
+            );
+            if (blocked) {
+                blocking.push({
+                    suspensionId: susp.id,
+                    reason: susp.reason,
+                    endsOn: susp.endsOn,
+                    requiresClearance: susp.requiresClearance,
+                    maxAllowedTier: susp.maxAllowedTier,
+                });
+            }
+            continue;
+        }
+        const gr = gradedReturnFor(susp, date);
+        if (gr !== null && tierOfTrainingType(trainingType) > gr.ceiling) {
+            blocking.push({
+                suspensionId: susp.id,
+                reason: susp.reason,
+                endsOn: susp.endsOn,
+                requiresClearance: susp.requiresClearance,
+                gradedReturn: gr,
+                maxAllowedTier: susp.maxAllowedTier,
+            });
+        }
+    }
+    return blocking;
+}
+
 export async function createSession(input: SessionInput, actor: User): Promise<SessionMutationResult> {
     const invalid = validateSessionInput(input, input.fighterId);
+    if (invalid) return { ok: false, reason: "invalid", message: invalid, conflicts: [] };
+
+    const blocking = findDemoBlockingSuspensions(input.fighterId, input.type, input.scheduledAt);
+    if (blocking.length > 0) {
+        throw new ApiError({
+            message: "The fighter has an active suspension that blocks this training session type.",
+            kind: "http",
+            status: 409,
+            code: "TRAINING_SUSPENSION_ACTIVE",
+            details: { suspensions: blocking },
+        });
+    }
     if (invalid) return { ok: false, reason: "invalid", message: invalid, conflicts: [] };
 
     const conflicts = getSessionClearanceConflicts(input);
@@ -530,14 +589,49 @@ export async function createSession(input: SessionInput, actor: User): Promise<S
 export async function updateSession(id: string, input: SessionUpdateInput, actor: User): Promise<SessionMutationResult> {
     const session = db().trainingSessions.find((s) => s.id === id);
     if (!session) return { ok: false, reason: "not_found", message: "That session no longer exists.", conflicts: [] };
-    if (session.status !== "scheduled") {
-        return { ok: false, reason: "invalid_state", message: "Only scheduled sessions can be edited.", conflicts: [] };
+    if (session.status !== "scheduled" && session.status !== "pending") {
+        return { ok: false, reason: "invalid_state", message: "Only scheduled or pending sessions can be edited.", conflicts: [] };
     }
-    const invalid = validateSessionInput(input, session.fighterId);
+    const effectiveType = input.type ?? session.type;
+    const effectiveScheduledAt = input.scheduledAt ?? session.scheduledAt;
+
+    const blocking = findDemoBlockingSuspensions(session.fighterId, effectiveType, effectiveScheduledAt);
+    if (blocking.length > 0) {
+        throw new ApiError({
+            message: "The fighter has an active suspension that blocks this training session type.",
+            kind: "http",
+            status: 409,
+            code: "TRAINING_SUSPENSION_ACTIVE",
+            details: { suspensions: blocking },
+        });
+    }
+
+    const fullInput: SessionUpdateInput = {
+        coachId: (input.coachId ?? session.coachId) || "",
+        planId: input.planId !== undefined ? input.planId : session.planId,
+        title: input.title !== undefined ? input.title : session.title,
+        type: effectiveType,
+        scheduledAt: effectiveScheduledAt,
+        durationMin: input.durationMin !== undefined ? input.durationMin : (session.durationMin ?? 60),
+        location: input.location !== undefined ? input.location : session.location,
+        targetRpe: input.targetRpe !== undefined ? input.targetRpe : session.targetRpe,
+        exercises: (input.exercises ?? session.exercises).map((e) => ({
+            exerciseId: e.exerciseId,
+            rounds: e.rounds,
+            roundSec: e.roundSec,
+            sets: e.sets,
+            reps: e.reps,
+            notes: e.notes,
+        })),
+        notes: input.notes !== undefined ? input.notes : session.notes,
+        acknowledgeWarnings: input.acknowledgeWarnings,
+    };
+
+    const invalid = validateSessionInput(fullInput, session.fighterId);
     if (invalid) return { ok: false, reason: "invalid", message: invalid, conflicts: [] };
 
-    const conflicts = getSessionClearanceConflicts({ ...input, fighterId: session.fighterId });
-    const refused = clearanceGate(conflicts, input.acknowledgeWarnings === true);
+    const conflicts = getSessionClearanceConflicts({ ...fullInput, fighterId: session.fighterId });
+    const refused = clearanceGate(conflicts, fullInput.acknowledgeWarnings === true);
     if (refused) {
         if (refused.reason === "blocked") {
             recordAudit({
@@ -555,7 +649,38 @@ export async function updateSession(id: string, input: SessionUpdateInput, actor
 
     const previousStart = session.scheduledAt;
     const previousLocation = session.location;
-    Object.assign(session, editableSessionFields(input));
+    if (session.status === "pending" && input.scheduledAt !== undefined) {
+        session.status = "scheduled";
+    }
+    const fieldsToAssign = editableSessionFields(fullInput);
+    if (input.exercises === undefined) {
+        delete (fieldsToAssign as Partial<EditableSessionFields>).exercises;
+    }
+    if (input.title === undefined) {
+        delete (fieldsToAssign as Partial<EditableSessionFields>).title;
+    }
+    if (input.location === undefined) {
+        delete (fieldsToAssign as Partial<EditableSessionFields>).location;
+    }
+    if (input.notes === undefined) {
+        delete (fieldsToAssign as Partial<EditableSessionFields>).notes;
+    }
+    if (input.planId === undefined) {
+        delete (fieldsToAssign as Partial<EditableSessionFields>).planId;
+    }
+    if (input.coachId === undefined) {
+        delete (fieldsToAssign as Partial<EditableSessionFields>).coachId;
+    }
+    if (input.durationMin === undefined) {
+        delete (fieldsToAssign as Partial<EditableSessionFields>).durationMin;
+    }
+    if (input.targetRpe === undefined) {
+        delete (fieldsToAssign as Partial<EditableSessionFields>).targetRpe;
+    }
+    if (input.type === undefined) {
+        delete (fieldsToAssign as Partial<EditableSessionFields>).type;
+    }
+    Object.assign(session, fieldsToAssign);
     const rescheduled = previousStart !== session.scheduledAt;
 
     recordAudit({
@@ -663,6 +788,16 @@ export async function startSession(id: string, actor: User): Promise<SessionMuta
     const session = db().trainingSessions.find((s) => s.id === id);
     if (!session) return { ok: false, reason: "not_found", message: "That session no longer exists.", conflicts: [] };
     if (session.status !== "scheduled") return { ok: false, reason: "invalid_state", message: "Only a scheduled session can be started.", conflicts: [] };
+    const blocking = findDemoBlockingSuspensions(session.fighterId, session.type, nowIso());
+    if (blocking.length > 0) {
+        throw new ApiError({
+            message: "The fighter has an active suspension that blocks this training session type.",
+            kind: "http",
+            status: 409,
+            code: "TRAINING_SUSPENSION_ACTIVE",
+            details: { suspensions: blocking },
+        });
+    }
     const conflicts = getSessionClearanceConflicts({ ...session, scheduledAt: nowIso() });
     if (conflicts.some((c) => c.severity === "block")) {
         return { ok: false, reason: "blocked", message: "The fighter's Medical Clearance doesn't allow this training right now.", conflicts };

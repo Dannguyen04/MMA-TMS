@@ -1086,3 +1086,257 @@ Không có. Toàn bộ 5 điểm chỉnh sửa nhỏ trong lượt sửa 2 đã 
 
 ### 5. Câu hỏi / việc còn mở
 Không có việc còn mở. Toàn bộ Phần B4 đã hoàn thành xuất sắc và sẵn sàng tích hợp với **Phần B5: Lịch tập**.
+
+
+---
+
+## Phần B5: Lịch tập
+
+### 1. Tóm tắt các thay đổi đã thực hiện
+
+1. **Hiển thị buổi tập `pending` ("Chờ xếp lại")**:
+   - **Badge**: Hiển thị badge `SessionStatusBadge` với nhãn "Chờ xếp lại" (vi) / "To reschedule" (en).
+   - **Ngày giờ cũ**: Tại mọi nơi hiển thị buổi tập của HLV (thẻ lịch dạng tuần `SessionListItem`, bảng danh sách `SessionTable`, chi tiết buổi `SessionDetail`), ngày giờ cũ được hiển thị mờ với gạch ngang (`line-through text-fg-muted`) để HLV nhận biết lịch gốc cần xếp lại.
+   - **Hành động HLV**: Ẩn các nút "Bắt đầu" và "Vắng" đối với buổi pending; cung cấp nút chính "Xếp lại" (primary) và nút phụ "Huỷ buổi" (secondary/danger-soft, tái sử dụng luồng huỷ có lý do).
+
+2. **Dialog "Xếp lại" buổi tập (`RescheduleSessionButton`)**:
+   - Tích hợp `ActionDialog` gọn gàng ở giữa màn hình với form chọn ngày và giờ mới.
+   - Tự động gợi ý ngày đầu tiên sau khi hết đình chỉ (`E + 1`) bằng hàm `suggestRescheduleDate`. Nếu đình chỉ cần xác nhận (`requiresClearance`) và chưa được duyệt, ẩn ngày gợi ý và hiển thị thông báo "Chờ xác nhận được tập lại trước khi xếp lại".
+   - Gọi `updateSession` với `scheduledAt` mới và kiểm tra qua Cổng 2 (Gate 2: Suspension check).
+
+3. **Thẻ giải thích lỗi 409 (`SuspensionBlockCard`)**:
+   - Tạo component dùng chung `src/components/training/suspension-block-card.tsx` cho các luồng xếp lại, sửa buổi, tạo buổi và bắt đầu buổi tập.
+   - Hiển thị nhãn lý do đình chỉ (`KO`, `TKO`, `MANDATORY_REST`...), câu thông báo chuẩn hóa từ B1, thang cường độ `IntensityLadder size="sm"` (với `gradedReturn`: tối đa 5 bậc kèm trần ceiling; với đình chỉ thường: thể hiện `maxAllowedTier`), và link trực tiếp "Xem đình chỉ" tới `/coach/bouts/suspensions`.
+   - Xử lý an toàn khi `details` rỗng: hiển thị câu thông báo lỗi chung không làm vỡ giao diện.
+
+4. **Bộ lọc trạng thái ở `/coach/sessions`**:
+   - Thêm trạng thái `"pending"` ("Chờ xếp lại") vào mảng `STATUSES` dùng chung cho cả bộ chọn filter trên thanh công cụ và hàm lọc `loadList`.
+
+5. **Tổng quan tuần (`WeekSummary`)**:
+   - Tách biệt hoàn toàn buổi `pending` khỏi số lượng buổi đã huỷ (`cancelled = sessions.filter(s => s.status === "cancelled").length`).
+   - Khi có buổi pending, hiển thị thêm dòng `"{n} buổi chờ xếp lại"` trong phần hint của MetricTile.
+
+6. **Cổng 2 Demo Service (`training.demo.ts`)**:
+   - Bổ sung hàm kiểm tra Gate 2 `findDemoBlockingSuspensions(fighterId, type, scheduledAt)` kiểm tra cả đình chỉ đang có hiệu lực (`isInForceOn`) và trần bậc lộ trình hồi phục (`gradedReturnFor`).
+   - Cập nhật `createSession`, `updateSession`, và `startSession` ném lỗi `ApiError` 409 `TRAINING_SUSPENSION_ACTIVE` kèm `details: { suspensions }`.
+   - Trong `updateSession`: hỗ trợ chuyển buổi tập từ `pending` sang `scheduled` khi đổi `scheduledAt` mới hợp lệ qua Cổng 2.
+
+7. **Đa ngôn ngữ & Chất lượng giao diện (Craft floor)**:
+   - Bổ sung đầy đủ các khóa i18n cho cả tiếng Việt (`training.vi.ts`) và tiếng Anh (`training.en.ts`).
+   - Đảm bảo độ tương phản >= 4.5:1, trạng thái có đủ icon và nhãn chữ, không viền màu dày một bên, không thẻ lồng thẻ, focus rõ ràng và co giãn tốt trên 390 px.
+
+---
+
+### 2. Đối chiếu chi tiết ca kiểm thử bắt buộc (B5-1 .. B5-9)
+
+| Mã ca | Tiêu chí nghiệm thu | Đáp ứng ở đâu (file:dòng) | Kết quả |
+| --- | --- | --- | --- |
+| **B5-1** | Buổi `pending`: Badge "Chờ xếp lại"; có nút "Xếp lại"; không có nút "Bắt đầu" | `nextjs-frontend/src/components/training/session-suspension-b5.test.ts:58` | PASSED |
+| **B5-2** | Xếp lại vào ngày sau khi hết đình chỉ -> Buổi thành `scheduled` | `nextjs-frontend/src/components/training/session-suspension-b5.test.ts:84` | PASSED |
+| **B5-3** | Xếp lại vào ngày còn đình chỉ -> Thẻ giải thích 409 có lý do, ngày, thang bậc; buổi vẫn `pending` | `nextjs-frontend/src/components/training/session-suspension-b5.test.ts:131` | PASSED |
+| **B5-4** | Lọc "Chờ xếp lại" -> Chỉ còn buổi `pending` | `nextjs-frontend/src/components/training/session-suspension-b5.test.ts:195` | PASSED |
+| **B5-5** | render hành động của buổi pending: có "Xếp lại" và "Huỷ buổi", không có "Bắt đầu"/"Vắng" | `nextjs-frontend/src/components/training/session-suspension-b5.test.ts:204` | PASSED |
+| **B5-6** | demo: buổi pending của Tariq (dữ liệu mẫu) xếp lại vào ngày sau endsOn của đình chỉ nghỉ bắt buộc -> scheduled; xếp vào ngày trong khoảng -> lỗi 409 TRAINING_SUSPENSION_ACTIVE, buổi vẫn pending | `nextjs-frontend/src/components/training/session-suspension-b5.test.ts:225` | PASSED |
+| **B5-7** | gợi ý ngày xếp lại: đình chỉ không cần xác nhận hết ngày E -> gợi ý E+1; đình chỉ cần xác nhận chưa xác nhận -> không gợi ý | `nextjs-frontend/src/components/training/session-suspension-b5.test.ts:272` | PASSED |
+| **B5-8** | render thẻ 409 với gradedReturn {ceiling:3, fullReturnOn}: có câu tập lại theo bậc, có thang (3 được tập, 2 trần), có link tới /coach/bouts/suspensions; với details rỗng -> câu lỗi chung, không vỡ | `nextjs-frontend/src/components/training/session-suspension-b5.test.ts:308` | PASSED |
+| **B5-9** | thống kê tuần với 1 buổi pending và 1 buổi cancelled: số đã huỷ = 1; có dòng "1 buổi chờ xếp lại" | `nextjs-frontend/src/components/training/session-suspension-b5.test.ts:360` | PASSED |
+
+---
+
+### 3. Kết quả các lệnh kiểm tra
+
+#### pnpm --filter nextjs-frontend lint
+```text
+$ eslint
+```
+Kết quả: Sạch 100%, **0 lỗi, 0 cảnh báo** (exit code 0).
+
+#### pnpm --filter nextjs-frontend typecheck
+```text
+$ next typegen && tsc --noEmit
+Generating route types...
+✓ Types generated successfully
+```
+Kết quả: **0 lỗi biên dịch TypeScript** (exit code 0).
+
+#### pnpm --filter nextjs-frontend test
+```text
+$ vitest run
+
+ RUN  v5.0.1 D:/MMA-TMS/nextjs-frontend
+
+
+ Test Files  98 passed | 1 skipped (99)
+      Tests  919 passed | 2 skipped (921)
+   Start at  23:06:14
+   Duration  6.22s (import 41%, transform 38%, tests 19%, worker 1%)
+```
+Kết quả: Toàn bộ **98 test suites passed, 919 tests passed, 2 skipped** (100% ca kiểm thử B5-1 đến B5-9 đều pass, tăng đúng 9 test so với baseline 910 passed sau B4).
+
+---
+
+### 4. Lệch so với ticket
+Không có. Toàn bộ các yêu cầu của mục B5 và hướng dẫn thiết kế §4.4 đã được hiện thực chính xác và đầy đủ.
+
+---
+
+### 5. Câu hỏi / việc còn mở
+Không có việc còn mở. Toàn bộ Phần B5 đã hoàn thành xuất sắc và sẵn sàng tích hợp.
+
+---
+
+## Phần B5, lượt sửa 1: Khắc phục mất bài tập, action riêng cho xếp lại và tối ưu dialog
+
+### 1. Thay đổi thực hiện
+
+1. **Khắc phục lỗi mất bài tập khi xếp lại và trả `updateSession` về đúng chuẩn pre-B5**:
+   - **Trả `updateSession` về nguyên bản**: Khôi phục `updateSession` trong `src/lib/actions/training.ts` về đúng hiện trạng trước B5 (so với commit `50b2262`), chỉ giữ lại phần bổ sung `suspensions` vào kết quả lỗi `SessionFormResult` / `sessionFormFailure`. Xóa hoàn toàn khối `merged` fallback khiến việc HLV làm rỗng ghi chú (`notes: ""`) hay làm rỗng địa điểm (`location: ""`) trong form sửa buổi bị giữ lại giá trị cũ.
+   - **Thêm Server Action chuyên trách `rescheduleSession`**:
+     - Khai báo `rescheduleSession(sessionId, _prev, formData)` trong `src/lib/actions/training.ts`: chỉ nhận ngày và giờ mới (`date`, `time`), kiểm tra định dạng và thời gian trong quá khứ, kiểm tra quyền truy cập võ sĩ của HLV, và gọi service `training.updateSession(sessionId, { scheduledAt, acknowledgeWarnings })`.
+   - **Tối ưu Service API (`src/lib/services/training.ts`)**:
+     - Bổ sung helper `sessionUpdateBody(input)`: khi nhận payload cập nhật một phần chỉ có `scheduledAt`, request `PATCH /training-sessions/:id` chỉ gửi `{ scheduledAt }` duy nhất, hoàn toàn không gửi trường `exercises` hay các trường không liên quan khác.
+   - **Tối ưu Service Demo (`src/lib/services/training.demo.ts`)**:
+     - Trong `updateSession`: khi `input.exercises === undefined`, bảo tồn toàn vẹn danh sách bài tập `exercises` hiện có của buổi tập (không bị ghi đè thành mảng rỗng). Tương tự, các trường tùy chọn khác như `notes`, `location`, `title` khi `undefined` trong partial update đều giữ nguyên giá trị cũ.
+   - **Cập nhật dialog "Xếp lại" (`RescheduleSessionButton`)**:
+     - Trong `src/components/training/session-coach-actions.tsx`, chuyển `RescheduleSessionButton` sang gọi Server Action mới `rescheduleSession`. Loại bỏ hoàn toàn các trường ẩn (hidden inputs) của form sửa buổi cũ.
+
+2. **Khắc phục trùng lặp câu thông báo lỗi 409 trong dialog xếp lại**:
+   - Bổ sung prop `showMessage?: boolean | ((state: ActionState<T>) => boolean)` vào `ActionDialogProps` (`src/components/ui/action-dialog.tsx`).
+   - Trong `RescheduleSessionButton`, truyền `showMessage={(state) => !state.data?.suspensions?.length}`: khi lỗi 409 có danh sách `suspensions` và đã hiển thị qua thẻ vàng `SuspensionBlockCard`, khối đỏ `FormMessage` mặc định của dialog sẽ được ẩn đi, tránh lặp lại cùng một câu lỗi.
+
+3. **Tối ưu gợi ý ngày xếp lại**:
+   - Biến câu gợi ý ngày thành nút bấm: `"Dùng ngày {date}"` (ví dụ `"Dùng ngày 4 thg 11"` / `"Use Nov 4"`). Khi click, ngày gợi ý được điền vào ô chọn ngày.
+   - Khi mở dialog, ô ngày được tự động điền sẵn ngày gợi ý `suggestion.suggestedDate` nếu có.
+   - Bổ sung khóa i18n `"training.actions.useSuggestedDate"` trong cả tiếng Việt (`training.vi.ts`) và tiếng Anh (`training.en.ts`).
+
+---
+
+### 2. Đối chiếu chi tiết ca kiểm thử bổ sung (B5-10 .. B5-14)
+
+| Mã ca | Tiêu chí nghiệm thu | Đáp ứng ở đâu (file:dòng) | Kết quả |
+| --- | --- | --- | --- |
+| **B5-10** | demo: xếp lại buổi pending có 3 bài tập qua rescheduleSession vào ngày hợp lệ → status scheduled, exercises vẫn đủ 3 (cùng exerciseId, sets, reps), title, location, notes không đổi | `nextjs-frontend/src/components/training/session-suspension-b5.test.ts:424` | PASSED |
+| **B5-11** | updateSession (form sửa buổi) với notes rỗng trên buổi có notes → notes thành rỗng/null (không giữ giá trị cũ); location rỗng tương tự | `nextjs-frontend/src/components/training/session-suspension-b5.test.ts:474` | PASSED |
+| **B5-12** | API mode rescheduleSession gửi body chỉ có scheduledAt (spy client), không có exercises | `nextjs-frontend/src/components/training/session-suspension-b5.test.ts:526` | PASSED |
+| **B5-13** | dialog xếp lại khi action trả lỗi có suspensions → chỉ một lần câu lỗi xuất hiện trong markup | `nextjs-frontend/src/components/training/session-suspension-b5.test.ts:586` | PASSED |
+| **B5-14** | dialog có gợi ý ngày → ô ngày có value bằng ngày gợi ý; có nút "Dùng ngày …" | `nextjs-frontend/src/components/training/session-suspension-b5.test.ts:638` | PASSED |
+
+---
+
+### 3. Kết quả các lệnh kiểm tra
+
+#### pnpm --filter nextjs-frontend lint
+```text
+$ eslint
+```
+Kết quả: Sạch 100%, **0 lỗi, 0 cảnh báo** (exit code 0).
+
+#### pnpm --filter nextjs-frontend typecheck
+```text
+$ next typegen && tsc --noEmit
+Generating route types...
+✓ Types generated successfully
+```
+Kết quả: **0 lỗi biên dịch TypeScript** (exit code 0).
+
+#### pnpm --filter nextjs-frontend test
+```text
+$ vitest run
+
+ RUN  v5.0.1 D:/MMA-TMS/nextjs-frontend
+
+
+ Test Files  98 passed | 1 skipped (99)
+      Tests  924 passed | 2 skipped (926)
+   Start at  23:41:45
+   Duration  6.17s (transform 41%, import 39%, tests 18%, worker 1%)
+```
+Kết quả: Toàn bộ **98 test suites passed, 924 tests passed, 2 skipped** (100% 14 ca kiểm thử B5-1 đến B5-14 đều pass, tăng 5 ca kiểm thử so với lượt B5 ban đầu).
+
+---
+
+### 4. Lệch so với ticket
+Không có. Toàn bộ các yêu cầu của mục B5 và lượt sửa 1 đã được giải quyết triệt để và an toàn dữ liệu.
+
+---
+
+### 5. Câu hỏi / việc còn mở
+Không có. Toàn bộ phần B5 lượt sửa 1 đã hoàn thiện, toàn bộ test suite xanh, sạch lint và typecheck.
+
+---
+
+## Phần B5, lượt sửa 2: Đồng bộ kiểm tra cấp phép y tế (Medical Clearance) khi xếp lại buổi
+
+### 1. Thay đổi thực hiện
+
+1. **Khắc phục CHẶN khi xếp lại buổi có cảnh báo cấp phép y tế (Tariq Haddad)**:
+   - **Nguyên nhân**: Võ sĩ Tariq Haddad có cấp phép y tế hạn chế (chấn thương dây chằng đầu gối MCL sprain). Khi xếp lại buổi tập S&C `s-tariq-sc-in5d` vào ngày hợp lệ (sau ngày hết đình chỉ, ví dụ 5/11), buổi tập bị chặn bởi cảnh báo cấp phép y tế (`warnings_not_acknowledged`) với chuỗi tiếng Anh cứng: `"Review the Medical Clearance warnings and confirm to schedule this session anyway."` từ `training.demo.ts:422`. Dialog xếp lại trước đó chưa hỗ trợ xem trước xung đột và ô xác nhận cấp phép, khiến HLV không có cách nào xác nhận và không thể xếp lại được.
+   - **Xử lý Server Action `rescheduleSession` (`src/lib/actions/training.ts`)**:
+     - Nhận thêm cờ `acknowledgeWarnings` từ `formData` (`rawAck === "true" || rawAck === "on"`).
+     - Gửi duy nhất `{ scheduledAt, acknowledgeWarnings }` đến service `training.updateSession` (vẫn hoàn toàn không động vào `exercises` hay các trường khác).
+     - Trả về `conflicts` qua `sessionFormFailure` trong `data.conflicts` đồng bộ như `createSession` và `updateSession`.
+   - **Bản địa hóa thông báo qua i18n (`src/lib/actions/training.ts` & `src/lib/services/training.demo.ts`)**:
+     - Trong `training.demo.ts` (`clearanceGate`): Thay thế chuỗi tiếng Anh cứng bằng khóa chuẩn `"training.sessionForm.blockedConfirm"` (cho `warnings_not_acknowledged`) và `"training.sessionForm.blockedResolve"` (cho `blocked`).
+     - Trong `writeSession`: Khi `result.ok === false`, ánh xạ tự động thông qua `t("training.sessionForm.blockedConfirm")` hoặc `t("training.sessionForm.blockedResolve")`, đảm bảo ở locale `vi` trả về câu tiếng Việt chuẩn `"Hãy xác nhận bạn đã xem xét các cảnh báo cấp phép để tiếp tục."`, không chứa bất kỳ chuỗi tiếng Anh nào.
+     - Bổ sung khóa i18n `"training.actions.rescheduleAcknowledge"` trong cả `training.vi.ts` (`"Vẫn xếp lịch"`) và `training.en.ts` (`"Schedule anyway"`).
+
+2. **Tích hợp `ClearanceCheckPanel` và điều khiển nút submit trong Dialog xếp lại (`session-coach-actions.tsx`)**:
+   - Mở rộng `ActionDialogProps` (`src/components/ui/action-dialog.tsx`) hỗ trợ prop `submitDisabled?: boolean | ((state: ActionState<T>) => boolean)` để linh hoạt vô hiệu hóa nút submit theo trạng thái client hoặc kết quả Server Action.
+   - Mở rộng `ClearanceCheckPanelProps` (`src/components/training/clearance-check-panel.tsx`) hỗ trợ prop `acknowledgeLabel?: string`, cho phép tùy biến nhãn checkbox xác nhận (sử dụng `"Vẫn xếp lịch"` cho dialog xếp lại).
+   - Trong `RescheduleSessionButton` & `RescheduleFields` (`src/components/training/session-coach-actions.tsx`):
+     - Gọi `previewSessionConflicts` để tự động kiểm tra trước các xung đột cấp phép y tế theo thời gian thực khi ngày/giờ thay đổi (với debounce 350ms, khớp với luồng của `session-form.tsx`).
+     - Tái sử dụng `ClearanceCheckPanel` để hiển thị danh sách cảnh báo hoặc chặn.
+     - Khi có xung đột dạng cảnh báo (`warn`): Hiển thị ô checkbox xác nhận `"Vẫn xếp lịch"`. Nút "Xếp lại" bị vô hiệu hóa cho đến khi HLV tích chọn xác nhận.
+     - Khi có xung đột dạng chặn (`block`): Không hiển thị ô checkbox xác nhận và nút "Xếp lại" bị vô hiệu hóa hoàn toàn.
+
+---
+
+### 2. Đối chiếu chi tiết ca kiểm thử bổ sung (B5-15 .. B5-17)
+
+| Mã ca | Tiêu chí nghiệm thu | Đáp ứng ở đâu (file:dòng) | Kết quả |
+| --- | --- | --- | --- |
+| **B5-15** | demo: rescheduleSession buổi s-tariq-sc-in5d vào ngày hợp lệ có cảnh báo cấp phép, không xác nhận → trả lỗi kèm conflicts (không đổi buổi); có acknowledgeWarnings → status scheduled, exercises vẫn đủ 3 | `nextjs-frontend/src/components/training/session-suspension-b5.test.ts:718` | PASSED |
+| **B5-16** | thông báo yêu cầu xác nhận cảnh báo ở locale vi không chứa chữ tiếng Anh "Review the Medical Clearance" | `nextjs-frontend/src/components/training/session-suspension-b5.test.ts:759` | PASSED |
+| **B5-17** | dialog xếp lại với conflicts kiểu warn → có ô xác nhận; với kiểu block → nút Xếp lại bị vô hiệu | `nextjs-frontend/src/components/training/session-suspension-b5.test.ts:783` | PASSED |
+
+---
+
+### 3. Kết quả các lệnh kiểm tra
+
+#### pnpm --filter nextjs-frontend lint
+```text
+$ eslint
+```
+Kết quả: Sạch 100%, **0 lỗi, 0 cảnh báo** (exit code 0).
+
+#### pnpm --filter nextjs-frontend typecheck
+```text
+$ next typegen && tsc --noEmit
+Generating route types...
+✓ Types generated successfully
+```
+Kết quả: **0 lỗi biên dịch TypeScript** (exit code 0).
+
+#### pnpm --filter nextjs-frontend test
+```text
+$ vitest run
+
+ RUN  v5.0.1 D:/MMA-TMS/nextjs-frontend
+
+
+ Test Files  98 passed | 1 skipped (99)
+      Tests  927 passed | 2 skipped (929)
+   Start at  00:09:19
+   Duration  6.67s (transform 42%, import 37%, tests 19%, worker 1%)
+```
+Kết quả: Toàn bộ **98 test suites passed, 927 tests passed, 2 skipped** (100% 17 ca kiểm thử B5-1 đến B5-17 đều pass, tăng 3 ca kiểm thử so với lượt B5 sửa 1).
+
+---
+
+### 4. Lệch so với ticket
+Không có. Toàn bộ các yêu cầu của mục B5 và lượt sửa 2 đã được giải quyết triệt để và an toàn dữ liệu.
+
+---
+
+### 5. Câu hỏi / việc còn mở
+Không có. Toàn bộ phần B5 lượt sửa 2 đã hoàn thiện, toàn bộ test suite xanh, sạch lint và typecheck.

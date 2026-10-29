@@ -157,6 +157,8 @@ export const viTraining = {
     "training.weekSummary.peakTarget": "Mục tiêu đỉnh",
     "training.weekSummary.cancelledCount": "{n} đã hủy",
     "training.weekSummary.cancelledCount.one": "1 đã hủy",
+    "training.weekSummary.pendingCount": "{n} buổi chờ xếp lại",
+    "training.weekSummary.pendingCount.one": "1 buổi chờ xếp lại",
     "training.weekSummary.rosterPrefix": "Võ sĩ · {range}",
 
     /* Counts & Relative Days */
@@ -490,6 +492,19 @@ export const viTraining = {
     "training.actions.feedbackTechniques": "Kỹ thuật",
     "training.actions.feedbackBody": "Nội dung nhận xét",
     "training.actions.feedbackBodyHint": "Nêu cụ thể: bạn đã quan sát thấy gì, vì sao điều đó quan trọng và võ sĩ cần làm gì tiếp theo.",
+    "training.actions.reschedule": "Xếp lại",
+    "training.actions.rescheduleTitle": "Xếp lại buổi tập",
+    "training.actions.rescheduleDesc": "Chọn ngày giờ mới cho {title}. Buổi tập sẽ kiểm tra lại với các lệnh đình chỉ.",
+    "training.actions.rescheduleDate": "Ngày mới",
+    "training.actions.rescheduleTime": "Giờ mới",
+    "training.actions.rescheduleConfirm": "Xếp lại",
+    "training.actions.rescheduling": "Đang xếp lại…",
+    "training.actions.sessionRescheduled": "Đã xếp lại buổi tập.",
+    "training.actions.awaitingClearanceNotice": "Chờ xác nhận được tập lại trước khi xếp lại",
+    "training.actions.suggestedDateHint": "Gợi ý: ngày đầu tiên sau khi hết đình chỉ ({date})",
+    "training.actions.useSuggestedDate": "Dùng ngày {date}",
+    "training.actions.rescheduleAcknowledge": "Vẫn xếp lịch",
+    "training.actions.viewSuspensions": "Xem đình chỉ",
 
     /* Session Table */
     "training.table.date": "Ngày",

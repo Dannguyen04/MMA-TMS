@@ -33,7 +33,9 @@ import {
     sessionCreateBody,
     sessionResultBody,
     sessionStatusBody,
+    sessionTypeFor,
     TRAINING_TYPE_FOR,
+    type SessionFields,
     type ExerciseFields,
     type PlanExerciseFields,
     type ServiceExerciseCategory,
@@ -756,10 +758,32 @@ export async function createSession(input: SessionInput, actor: User): Promise<S
     return sendSession("/training-sessions", "POST", sessionCreateBody(input) ?? unsupportedType("Scheduling a session"));
 }
 
+function sessionUpdateBody(input: SessionUpdateInput): unknown {
+    if (input.scheduledAt && input.title === undefined && input.type === undefined) {
+        return { scheduledAt: input.scheduledAt };
+    }
+    const isFull = input.title !== undefined && input.type !== undefined && input.durationMin !== undefined;
+    if (isFull) {
+        return sessionBody(input as SessionFields);
+    }
+    const body: Record<string, unknown> = {};
+    if (input.scheduledAt !== undefined) body.scheduledAt = input.scheduledAt;
+    if (input.title !== undefined) body.title = input.title.trim();
+    if (input.type !== undefined) {
+        const sessionType = sessionTypeFor(input.type);
+        if (!sessionType) return null;
+        body.sessionType = sessionType;
+    }
+    if (input.durationMin !== undefined) body.plannedDurationSec = input.durationMin * 60;
+    if (input.location !== undefined) body.location = input.location ? input.location.trim() : null;
+    if (input.notes !== undefined) body.coachNotes = input.notes ? input.notes.trim() : null;
+    return Object.keys(body).length > 0 ? body : null;
+}
+
 /** API mode keeps the session's plan and coach: the service doesn't move a session between them. */
 export async function updateSession(id: string, input: SessionUpdateInput, actor: User): Promise<SessionMutationResult> {
     if (isDemoAuthEnabled()) return (await demoService()).updateSession(id, input, actor);
-    return sendSession(sessionPath(id), "PATCH", sessionBody(input) ?? unsupportedType("Updating a session"));
+    return sendSession(sessionPath(id), "PATCH", sessionUpdateBody(input) ?? unsupportedType("Updating a session"));
 }
 
 /** Checks the fighter in. The service refuses (409) when their Medical Clearance doesn't allow this training now. */

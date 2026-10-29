@@ -1,8 +1,16 @@
 "use client";
 
 import { useLocale, useT } from "@/components/i18n/locale-provider";
-import { Ban, CalendarX2, ClipboardCheck, MessageSquarePlus, PenLine, Play, StickyNote, ThumbsUp, Wrench } from "lucide-react";
-import { useRef, useState } from "react";
+import { AlertTriangle, Ban, CalendarClock, CalendarPlus, CalendarX2, ClipboardCheck, MessageSquarePlus, PenLine, Play, StickyNote, ThumbsUp, Wrench } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ButtonLink } from "@/components/ui/button";
+import { dayKey, formatDateTime, formatShortDate, formatTime } from "@/lib/format";
+import { suggestRescheduleDate, type TrainingBlockingSuspension } from "@/lib/domain/suspension-rules";
+import { previewSessionConflicts, rescheduleSession, type SessionFormResult } from "@/lib/actions/training";
+import type { ClearanceConflict } from "@/lib/domain/clearance-rules";
+import { ClearanceCheckPanel } from "./clearance-check-panel";
+import type { TrainingSession } from "@/lib/domain/types";
+import { SuspensionBlockCard } from "./suspension-block-card";
 
 import { CoachRatingInput } from "@/components/domain/coach-rating";
 import { EligibilityReasons } from "@/components/medical/eligibility-reasons";
@@ -45,6 +53,8 @@ export interface RecordResultButtonProps extends TriggerProps {
     /** Existing result when correcting a completed session. */
     result: SessionResult | null;
     label?: string;
+    defaultOpen?: boolean;
+    locale?: Locale;
     /** Only what the training service keeps: RPE and rounds (it measures the duration and keeps no rating or summary). */
     serviceForm: boolean;
 }
@@ -62,6 +72,7 @@ export function RecordResultButton({
     variant = "primary",
     size,
     className,
+
 }: RecordResultButtonProps) {
     const t = useT();
     const locale = useLocale();
@@ -224,9 +235,13 @@ export function StartSessionButton({ sessionId, sessionTitle, fighterName, varia
     const t = useT();
     const toast = useToast();
     const [reasons, setReasons] = useState<EligibilityReason[]>([]);
+    const [suspensions, setSuspensions] = useState<TrainingBlockingSuspension[]>([]);
     const start = useConfirmAction((id: string) => startSession(id), {
         onSuccess: (state) => toast({ title: state.message ?? t("training.actions.sessionStarted") }),
-        onError: (state) => setReasons(state.data?.reasons ?? []),
+        onError: (state) => {
+            setReasons(state.data?.reasons ?? []);
+            setSuspensions(state.data?.suspensions ?? []);
+        },
     });
 
     return (
@@ -237,6 +252,7 @@ export function StartSessionButton({ sessionId, sessionTitle, fighterName, varia
                 className={className}
                 onClick={() => {
                     setReasons([]);
+                    setSuspensions([]);
                     start.request(sessionId);
                 }}
             >
@@ -249,7 +265,10 @@ export function StartSessionButton({ sessionId, sessionTitle, fighterName, varia
                 description={t("training.actions.startDialogDesc", { title: sessionTitle, fighter: fighterName })}
                 confirmLabel={t("training.actions.startSession")}
             >
-                {reasons.length > 0 && <EligibilityReasons reasons={reasons} />}
+                <div className="flex flex-col gap-3">
+                    {reasons.length > 0 && <EligibilityReasons reasons={reasons} />}
+                    {suspensions.length > 0 && <SuspensionBlockCard suspensions={suspensions} />}
+                </div>
             </ConfirmDialog>
         </>
     );
@@ -284,11 +303,12 @@ export interface CancelSessionButtonProps extends TriggerProps {
     sessionTitle: string;
     fighterName: string;
     when: string;
+    label?: string;
 }
 
 const REASON_MIN_LENGTH = 5;
 
-export function CancelSessionButton({ sessionId, sessionTitle, fighterName, when, variant = "danger-soft", size, className }: CancelSessionButtonProps) {
+export function CancelSessionButton({ sessionId, sessionTitle, fighterName, when, label, variant = "danger-soft", size, className }: CancelSessionButtonProps) {
     const t = useT();
     const toast = useToast();
     const reasonRef = useRef<HTMLTextAreaElement>(null);
@@ -323,7 +343,7 @@ export function CancelSessionButton({ sessionId, sessionTitle, fighterName, when
                 }}
             >
                 <Ban aria-hidden />
-                {t("training.actions.cancelSession")}
+                {label ?? t("training.actions.cancelSession")}
             </Button>
             <ConfirmDialog
                 {...cancel.dialogProps}
@@ -422,5 +442,328 @@ function FeedbackFields({ form, t }: { form: ActionForm<undefined>; t: Translato
                 <Textarea {...form.control("body", { hint, required: true })} rows={4} maxLength={1000} />
             </Field>
         </>
+    );
+}
+
+/* ─── Reschedule session ─────────────────────────────────────────────────── */
+
+export interface RescheduleSessionButtonProps extends TriggerProps {
+    session: Pick<TrainingSession, "id" | "title" | "scheduledAt" | "fighterId" | "type" | "durationMin" | "location" | "targetRpe" | "notes" | "planId"> & { exercises?: { exerciseId: string }[] };
+    conflicts?: ClearanceConflict[];
+    defaultAcknowledged?: boolean;
+    fighterName?: string;
+    suspensions?: readonly {
+        endsOn: string;
+        requiresClearance: boolean;
+        clearedAt?: Date | string | null;
+        startsOn?: string;
+        deletedAt?: Date | string | null;
+    }[];
+    label?: string;
+    defaultOpen?: boolean;
+    locale?: Locale;
+}
+
+export function RescheduleSessionButton({
+    session,
+    fighterName,
+    conflicts,
+    defaultAcknowledged = false,
+    suspensions = [],
+    label,
+    variant = "primary",
+    size,
+    className,
+    defaultOpen = false,
+}: RescheduleSessionButtonProps) {
+    const t = useT();
+    const locale = useLocale();
+    const toast = useToast();
+    const [open, setOpen] = useState(defaultOpen);
+    const [acknowledged, setAcknowledged] = useState(defaultAcknowledged);
+    const [previewConflicts, setPreviewConflicts] = useState<ClearanceConflict[] | null>(null);
+
+    const suggestion = suggestRescheduleDate(suspensions);
+    const initialDate = suggestion.suggestedDate ?? dayKey(session.scheduledAt);
+    const initialTime = formatTime(session.scheduledAt);
+
+    return (
+        <>
+            <Button variant={variant} size={size} className={className} onClick={() => setOpen(true)}>
+                <CalendarClock aria-hidden className="size-4" />
+                {label ?? t("training.actions.reschedule")}
+            </Button>
+            <ActionDialog<SessionFormResult>
+                open={open}
+                onClose={() => setOpen(false)}
+                size="md"
+                title={t("training.actions.rescheduleTitle")}
+                description={t("training.actions.rescheduleDesc", { title: session.title })}
+                action={(previous: ActionState<SessionFormResult>, fd: FormData) => rescheduleSession(session.id, previous, fd)}
+                showMessage={(state) => !state.data?.suspensions?.length}
+                submitDisabled={(state) => {
+                    const currentConflicts = conflicts ?? previewConflicts ?? state.data?.conflicts ?? [];
+                    const blocks = currentConflicts.filter((c) => c.severity === "block");
+                    const warnings = currentConflicts.filter((c) => c.severity === "warn");
+                    return blocks.length > 0 || (warnings.length > 0 && !acknowledged);
+                }}
+                submitLabel={t("training.actions.rescheduleConfirm")}
+                pendingLabel={t("training.actions.rescheduling")}
+                onSuccess={(state) => {
+                    toast({ title: state.message ?? t("training.actions.sessionRescheduled") });
+                    setOpen(false);
+                }}
+            >
+                {(form) => (
+                    <RescheduleFields
+                        session={session}
+                        fighterName={fighterName}
+                        form={form}
+                        suggestion={suggestion}
+                        initialDate={initialDate}
+                        initialTime={initialTime}
+                        t={t}
+                        locale={locale}
+                        conflicts={conflicts ?? previewConflicts ?? form.state.data?.conflicts}
+                        acknowledged={acknowledged}
+                        onAcknowledgedChange={setAcknowledged}
+                        onConflictsChange={setPreviewConflicts}
+                    />
+                )}
+            </ActionDialog>
+        </>
+    );
+}
+
+export function RescheduleFields({
+    session,
+    fighterName,
+    form,
+    suggestion,
+    initialDate,
+    initialTime,
+    t,
+    locale,
+    conflicts: propConflicts,
+    acknowledged,
+    onAcknowledgedChange,
+    onConflictsChange,
+}: {
+    session?: Pick<TrainingSession, "id" | "fighterId" | "type" | "targetRpe"> & { exercises?: { exerciseId: string }[] };
+    fighterName?: string;
+    form: ActionForm<SessionFormResult>;
+    suggestion: ReturnType<typeof suggestRescheduleDate>;
+    initialDate: string;
+    initialTime: string;
+    t: Translator;
+    locale: Locale;
+    conflicts?: ClearanceConflict[];
+    acknowledged?: boolean;
+    onAcknowledgedChange?: (value: boolean) => void;
+    onConflictsChange?: (conflicts: ClearanceConflict[]) => void;
+}) {
+    const [date, setDate] = useState(initialDate);
+    const [time, setTime] = useState(initialTime);
+    const [internalAck, setInternalAck] = useState(false);
+    const [previewConflicts, setPreviewConflicts] = useState<ClearanceConflict[] | null>(null);
+
+    const isAck = acknowledged ?? internalAck;
+    const handleAckChange = onAcknowledgedChange ?? setInternalAck;
+
+    const handleDateChange = (val: string) => {
+        setDate(val);
+        handleAckChange(false);
+    };
+
+    const handleTimeChange = (val: string) => {
+        setTime(val);
+        handleAckChange(false);
+    };
+
+    useEffect(() => {
+        if (!session?.fighterId || propConflicts !== undefined) return;
+        let cancelled = false;
+        const timer = window.setTimeout(() => {
+            const exerciseIds = session.exercises?.map((e) => e.exerciseId) ?? [];
+            previewSessionConflicts({
+                fighterId: session.fighterId,
+                type: session.type,
+                targetRpe: session.targetRpe ?? MID_RPE,
+                exerciseIds,
+                date,
+                time,
+            }).then(
+                (result) => {
+                    if (cancelled) return;
+                    const loadedConflicts = result.data?.conflicts ?? [];
+                    setPreviewConflicts(loadedConflicts);
+                    onConflictsChange?.(loadedConflicts);
+                },
+                () => {
+                    if (!cancelled) {
+                        setPreviewConflicts([]);
+                        onConflictsChange?.([]);
+                    }
+                },
+            );
+        }, 350);
+        return () => {
+            cancelled = true;
+            window.clearTimeout(timer);
+        };
+    }, [session?.fighterId, session?.type, session?.targetRpe, session?.exercises, date, time, propConflicts, onConflictsChange]);
+
+    const activeConflicts = propConflicts ?? previewConflicts ?? form.state.data?.conflicts ?? [];
+
+    return (
+        <div className="flex flex-col gap-4">
+            {suggestion.awaitingClearance && (
+                <div className="flex items-start gap-2.5 rounded-lg border border-warning-border/80 bg-warning-soft/30 p-3 text-xs text-fg">
+                    <AlertTriangle className="size-4 shrink-0 text-warning-solid mt-0.5" aria-hidden="true" />
+                    <p className="leading-relaxed font-medium">
+                        {t("training.actions.awaitingClearanceNotice")}
+                    </p>
+                </div>
+            )}
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field
+                    label={t("training.actions.rescheduleDate")}
+                    htmlFor="reschedule-date"
+                    required
+                    error={form.error("date")}
+                    hint={
+                        suggestion.suggestedDate ? (
+                            <button
+                                type="button"
+                                className="inline-flex items-center text-xs font-medium text-primary-soft-fg hover:underline cursor-pointer"
+                                onClick={() => handleDateChange(suggestion.suggestedDate!)}
+                            >
+                                {t("training.actions.useSuggestedDate", {
+                                    date: formatShortDate(suggestion.suggestedDate, locale),
+                                })}
+                            </button>
+                        ) : undefined
+                    }
+                >
+                    <Input
+                        id="reschedule-date"
+                        name="date"
+                        type="date"
+                        value={date}
+                        onChange={(e) => handleDateChange(e.target.value)}
+                        required
+                    />
+                </Field>
+                <Field
+                    label={t("training.actions.rescheduleTime")}
+                    htmlFor="reschedule-time"
+                    required
+                    error={form.error("time")}
+                >
+                    <Input
+                        id="reschedule-time"
+                        name="time"
+                        type="time"
+                        value={time}
+                        onChange={(e) => handleTimeChange(e.target.value)}
+                        required
+                    />
+                </Field>
+            </div>
+
+            {activeConflicts.length > 0 && (
+                <ClearanceCheckPanel
+                    status="ready"
+                    pending={false}
+                    conflicts={activeConflicts}
+                    fighterName={fighterName}
+                    acknowledged={isAck}
+                    onAcknowledgedChange={handleAckChange}
+                    acknowledgeLabel={t("training.actions.rescheduleAcknowledge")}
+                />
+            )}
+
+            {form.state.data?.suspensions && form.state.data.suspensions.length > 0 && (
+                <SuspensionBlockCard suspensions={form.state.data.suspensions} locale={locale} />
+            )}
+        </div>
+    );
+}
+
+/* ─── Coach Actions Composite ────────────────────────────────────────────── */
+
+export interface SessionCoachActionsProps {
+    session: TrainingSession;
+    fighterName: string;
+    now?: string;
+    locale?: Locale;
+    suspensions?: readonly {
+        endsOn: string;
+        requiresClearance: boolean;
+        clearedAt?: Date | string | null;
+        startsOn?: string;
+        deletedAt?: Date | string | null;
+    }[];
+    recordButton?: React.ReactNode;
+    editHref?: string;
+    scheduleAgainHref?: string;
+}
+
+export function SessionCoachActions({
+    session,
+    fighterName,
+    now = new Date().toISOString(),
+    locale = "vi",
+    suspensions = [],
+    recordButton,
+    editHref,
+    scheduleAgainHref,
+}: SessionCoachActionsProps) {
+    const t = useT();
+    const transitionProps = { sessionId: session.id, sessionTitle: session.title, fighterName };
+
+    if (session.status === "pending") {
+        return (
+            <div className="flex flex-wrap items-center gap-2">
+                <RescheduleSessionButton
+                    session={session}
+                    fighterName={fighterName}
+                    suspensions={suspensions}
+                    variant="primary"
+                />
+                <CancelSessionButton
+                    {...transitionProps}
+                    when={formatDateTime(session.scheduledAt, locale)}
+                    label={locale === "vi" ? "Huỷ buổi" : undefined}
+                    variant="danger-soft"
+                />
+            </div>
+        );
+    }
+
+    const scheduled = session.status === "scheduled";
+    const active = scheduled || session.status === "in_progress";
+    const started = session.scheduledAt <= now;
+
+    return (
+        <div className="flex flex-wrap items-center gap-2">
+            {scheduleAgainHref && (
+                <ButtonLink href={scheduleAgainHref} variant="secondary">
+                    <CalendarPlus aria-hidden className="size-4" />
+                    {t("training.repeat.scheduleAgain")}
+                </ButtonLink>
+            )}
+            {scheduled && editHref && (
+                <ButtonLink href={editHref} variant="secondary">
+                    <PenLine aria-hidden className="size-4" />
+                    {t("training.sessionPage.edit")}
+                </ButtonLink>
+            )}
+            {scheduled && started && <MarkMissedButton {...transitionProps} />}
+            {active && <CancelSessionButton {...transitionProps} when={formatDateTime(session.scheduledAt, locale)} />}
+            {recordButton}
+            {scheduled && <StartSessionButton {...transitionProps} />}
+        </div>
     );
 }

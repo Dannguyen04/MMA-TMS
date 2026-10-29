@@ -38,3 +38,14 @@
 - Quyết định của Claude: màn Đình chỉ chỉ cho HLV (đúng kế hoạch; mở cho bác sĩ là mở rộng phạm vi); dữ liệu mẫu thêm trận Diego thua TKO để thẻ Việc cần làm ở demo khớp API.
 - Lệnh Claude chạy lại: `lint` sạch, `typecheck` 0 lỗi, `test` `Tests 910 passed | 2 skipped (912)`.
 - Lượt sửa 2 kiểm bằng ảnh chụp và test; review độc lập cuối cho cả T-030 ở B7.
+
+## B5 (lịch tập): APPROVED 30/10
+
+- Buổi "Chờ xếp lại" ở tuần, danh sách, chi tiết: badge, ngày giờ cũ gạch mờ, nút "Xếp lại" và "Huỷ buổi", không có "Bắt đầu"/"Vắng"; dialog xếp lại có gợi ý ngày sau đình chỉ (nút "Dùng ngày …"); thẻ giải thích 409 dùng chung (lý do, ngày, thang bậc khi có, link "Xem đình chỉ"); lọc "Chờ xếp lại"; thống kê tuần không đếm buổi chờ xếp lại là đã huỷ.
+- Claude chạy app demo và xếp lại thật buổi chờ xếp lại của Tariq, 3 lần:
+  - Lần 1 (**chặn, mất dữ liệu**): xếp lại làm mất hết bài tập của buổi, vì dialog dùng action sửa buổi đầy đủ; để chữa, `updateSession` bị đổi sang "trường trống thì lấy giá trị cũ", làm hỏng luôn form sửa buổi (xoá ghi chú không được). Cùng lúc: câu lỗi 409 hiện hai lần. Sửa: action riêng `rescheduleSession` chỉ gửi `scheduledAt`, trả `updateSession` về như cũ (B5-10..B5-14).
+  - Lần 2 (**chặn**): xếp vào ngày hợp lệ bị kẹt ở cảnh báo cấp phép y tế tiếng Anh, không có cách xác nhận. Sửa: dialog hiện cảnh báo cấp phép và ô "Vẫn xếp lịch", câu qua i18n (B5-15..B5-17).
+  - Lần 3: xếp lại thành công, buổi về "Đã lên lịch", bài tập còn nguyên.
+- Test tự động không bắt được cả hai lỗi chặn (không có ca xếp lại buổi có bài tập, không có ca vướng cảnh báo cấp phép); chúng được thêm sau khi Claude thấy lỗi trên app.
+- Lệnh Claude chạy lại: `lint` sạch, `typecheck` 0 lỗi, `test` `Tests 927 passed | 2 skipped (929)`.
+- Review độc lập cuối cho cả T-030 ở B7.
