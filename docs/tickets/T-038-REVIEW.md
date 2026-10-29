@@ -25,6 +25,17 @@ BETWEEN_ROUNDS   12010ms {"ok":false,"error":"TIMEOUT"}
 
 Cùng lúc đó, `gemini-3.8-flash` trả 503 "This model is currently experiencing high demand" cho lượt đo T-039, và một câu hỏi một từ gửi bằng `curl` treo 90 s không có phản hồi. Riêng `GET /v1beta/models` vẫn trả 200 trong 0,4 s. Vậy nguyên nhân nằm ở phía Google, không phải ở code. Client xử lý đúng: đúng hạn chờ (12 s, 60 s) thì trả `TIMEOUT` và không ném lỗi. **Chưa xác nhận được chất lượng nội dung AI.** Thử lại khi model hết quá tải, trước khi làm phần B.
 
+### Thử lại 29/10 (key thứ hai của chủ dự án, model `gemini-3.5-flash`)
+
+`gemini-3.8-flash` (mặc định trong code) vẫn 429. Lỗi trả về cho biết gói miễn phí chỉ có **20 request/ngày cho mỗi project và mỗi model**, và key thứ hai cũng đã hết hạn mức đó (nhiều khả năng cùng project với key cũ). Đặt `GEMINI_BOUT_MODEL=gemini-3.5-flash` thì chạy được, cùng dữ liệu giả như trên:
+
+```text
+PRE_BOUT_TACTICS  9558ms ok: 3 chiến thuật, observationIds đều là quan sát có thật (o1, o3, o2), mỗi cái có lý do
+BETWEEN_ROUNDS    6996ms ok: 3 lời dặn; dặn dùng tiếp t2 (EFFECTIVE ở hiệp 1), không nhắc t1 (INEFFECTIVE), dặn giữ sức vì fatigued
+```
+
+Lời dặn giữa hiệp về trong 7 s, dưới hạn 12 s. Nội dung bám đúng dữ liệu đầu vào, không bịa quan sát. **Đề xuất cho demo:** đặt `GEMINI_BOUT_MODEL=gemini-3.5-flash` hoặc bật billing, vì 20 request/ngày không đủ cho một buổi tổng duyệt.
+
 ## Đối chiếu tiêu chí nghiệm thu
 
 | # | Tiêu chí | Kết quả |
