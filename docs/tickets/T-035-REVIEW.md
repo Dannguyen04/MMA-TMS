@@ -34,3 +34,7 @@
 - **Gợi ý.** Ca 5b chỉ kiểm việc gate được gọi với `scheduledAt` và gate trả rỗng (mock); logic ngày nằm ở `suspension.gate.spec.ts` có sẵn. Chấp nhận được với unit test.
 - **Việc còn mở (ngoài phạm vi).** `POST /coaching/assignments` chưa có cổng y tế (`evaluateTrainingEligibility`). Ghi lại để chủ dự án quyết.
 - Không có vấn đề mức chặn.
+
+## Review độc lập (29/10)
+
+Subagent không mang ngữ cảnh review chỉ đọc trên `2130c70`: tiêu chí 1–5, 5b, 7 đạt; kết luận "OK to merge". Gợi ý: test 5b chỉ kiểm việc truyền ngày vào gate (gate trả rỗng bằng mock); luật ngày nằm ở `suspension.gate.spec.ts`. Lượt sửa 2 của T-036 trả lại cách lọc mặc định từ `SESSION_TYPES` mà T-036 lượt 1 đã chép tay.

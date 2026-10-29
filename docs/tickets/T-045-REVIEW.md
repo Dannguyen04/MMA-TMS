@@ -24,7 +24,7 @@
 | # | Kết quả | Ghi chú |
 | --- | --- | --- |
 | 1. Bảng bậc | Đạt | `SESSION_INTENSITY_TIERS` (`suspensions.constants.ts`) là `Record<SessionType, …>`: thêm loại buổi mà không gán bậc thì `build` lỗi |
-| 2. `maxTier: 3` → `['GRAPPLING', 'SPARRING']`; gửi kèm `blockedSessionTypes` lỗi validation | Đạt | `blockedTypesForMaxTier` lọc theo thứ tự `SESSION_TYPES` |
+| 2. `maxTier: 3` → `['SPARRING', 'GRAPPLING']`; gửi kèm `blockedSessionTypes` lỗi validation | Đạt | `blockedTypesForMaxTier` lọc theo thứ tự `SESSION_TYPES` |
 | 3. `maxAllowedTier`: mặc định T-035 → 1; chỉ `SPARRING` → 4 | Đạt | Trả 0 khi bậc 1 bị chặn |
 | 4. Lộ trình D, D+1, D+2 và `gradedReturn` trong 409 | Đạt | `gradedReturnFor` (`suspensions.model.ts:193`); `SuspensionGate` giữ nguyên logic khi đình chỉ còn hiệu lực, chỉ thêm nhánh lộ trình khi đã hết |
 | 5. `MANDATORY_REST` hết ngày E: E+1 `SPARRING` được | Đạt | Chỉ `KO`, `TKO` có lộ trình |
@@ -36,3 +36,7 @@
 
 - **Việc còn mở (đã nêu trong handover).** Buổi đã xếp vào hai ngày lộ trình không tự xử lý khi xác nhận tập lại; chúng bị chặn ở Cổng 2 khi bắt đầu. Nếu cần, ticket sau nối `clearSuspension` vào `SuspensionEffects` của T-036.
 - **Giới hạn đã biết.** Lộ trình tính theo ngày, không lưu tiến độ, không lùi bậc khi có triệu chứng (Amsterdam yêu cầu lùi về bước trước). Đã ghi ở ticket mục 3; bậc là mức trần xếp lịch, không phải chỉ định y khoa.
+
+## Review độc lập (29/10)
+
+Subagent không mang ngữ cảnh review chỉ đọc trên `2130c70`: tiêu chí 1–8 đạt; kết luận "OK to merge", sau khi sửa T-036. Ghi nhận: tiêu chí 2 của ticket ghi ngược thứ tự (đã sửa trong ticket, code đúng); `maxAllowedTier` trả 0 khi bậc 1 bị chặn (chủ ý, nay đã ghi). Lần review thứ hai kiểm T-045 sau khi merge lượt sửa 2 của T-036: xem [T-036-REVIEW](./T-036-REVIEW.md#review-độc-lập-2910).
