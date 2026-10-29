@@ -11,6 +11,7 @@ import type { Transaction } from '../shared/utils/audit-context.util.js';
 import { BoutsService } from './bouts.service.js';
 import { BoutsRepository } from './bouts.repo.js';
 import { BoutAiClient } from './bout-ai.client.js';
+import { SuspensionEffects } from '../suspensions/suspension.effects.js';
 import { SuspensionsRepository } from '../suspensions/suspensions.repo.js';
 
 const id = '40000000-0000-4000-8000-000000000001';
@@ -133,6 +134,7 @@ beforeEach(() => {
   service = new BoutsService(
     repo as unknown as BoutsRepository,
     {} as SuspensionsRepository,
+    new SuspensionEffects(),
     new BoutAiClient(new ConfigService({ GEMINI_API_KEY: 'test-key' })),
   );
 });
@@ -438,6 +440,7 @@ describe('T-038 suggestion service', () => {
       service = new BoutsService(
         repo as unknown as BoutsRepository,
         {} as SuspensionsRepository,
+        new SuspensionEffects(),
         new BoutAiClient(new ConfigService({ GEMINI_API_KEY: '' })),
       );
       const result =

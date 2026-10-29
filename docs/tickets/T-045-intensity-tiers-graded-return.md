@@ -57,7 +57,7 @@ Hằng mới `SESSION_INTENSITY_TIERS` trong `src/suspensions/suspensions.consta
 ## 4. Tiêu chí nghiệm thu (Phần A)
 
 1. `SESSION_INTENSITY_TIERS` đúng bảng 2.1; test kiểm đủ 8 loại.
-2. `POST /suspensions` với `maxTier: 3` lưu `blockedSessionTypes = ['GRAPPLING', 'SPARRING']` (thứ tự theo `SESSION_TYPES`); gửi kèm `blockedSessionTypes` thì lỗi validation.
+2. `POST /suspensions` với `maxTier: 3` lưu `blockedSessionTypes = ['SPARRING', 'GRAPPLING']` (thứ tự theo `SESSION_TYPES`; sửa 29/10, bản đầu ghi ngược thứ tự); gửi kèm `blockedSessionTypes` thì lỗi validation.
 3. `maxAllowedTier`: mặc định T-035 → 1; chỉ chặn `SPARRING` → 4.
 4. Đình chỉ `KO` 60 ngày, xác nhận ngày D: ngày D xếp `PAD_WORK` được, `GRAPPLING` 409; ngày D+1 `GRAPPLING` được, `SPARRING` 409; ngày D+2 `SPARRING` được. Lỗi 409 có `gradedReturn.ceiling` và `fullReturnOn = D+2`.
 5. Đình chỉ `MANDATORY_REST` hết ngày E: ngày E+1 `SPARRING` được (không có lộ trình).

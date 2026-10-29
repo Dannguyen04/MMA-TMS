@@ -1,4 +1,17 @@
-# Migrations 003–031 — Backend, Database & API Permissions
+# Migrations 003–032 — Backend, Database & API Permissions
+
+## Áp dụng migration 032 (Trạng thái buổi tập PENDING — T-036 / R28)
+
+032 chỉ yêu cầu ledger 024 (`024_bouts.sql`), chưa có 032 và đã có `public.session_status` (từ 001); không yêu cầu 025–031 để các nhánh song song áp độc lập.
+Nội dung:
+- Thêm giá trị `'PENDING'` vào enum `public.session_status` (`ALTER TYPE public.session_status ADD VALUE IF NOT EXISTS 'PENDING'`), không dùng làm literal trong cùng transaction.
+- Không thêm cột, bảng, RLS hay quyền mới.
+- Ledger version 32, advisory lock `(20260916, 32)`, checksum trong `manifest.json`.
+
+```sh
+pnpm db:check
+pnpm db:migrate:032
+```
 
 ## Áp dụng migration 031 (Gợi ý AI cho trận)
 
