@@ -247,9 +247,12 @@ export function isSessionBlockedBySuspension(
         return tierOfTrainingType("technical_drilling") > allowedTier;
     }
 
-    let sessionType = (session.sessionType ?? session.type) as SessionType | undefined;
+    let sessionType: SessionType | undefined = session.sessionType ?? undefined;
     if (!sessionType && rawType) {
         sessionType = (sessionTypeFor(rawType as TrainingType) ?? undefined) as SessionType | undefined;
+        if (!sessionType && SESSION_TYPES.includes(rawType.toUpperCase() as SessionType)) {
+            sessionType = rawType.toUpperCase() as SessionType;
+        }
     }
     return sessionType ? suspension.blockedSessionTypes.includes(sessionType) : false;
 }

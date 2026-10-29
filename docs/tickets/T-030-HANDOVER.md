@@ -729,3 +729,360 @@ Kết quả: Toàn bộ 96 test suites passed, 891 tests passed, 2 skipped (16/1
 
 ## Câu hỏi / việc còn mở
 Không có việc còn mở cho Phần B3 lượt sửa 1. Toàn bộ 12 yêu cầu review và 16 ca kiểm thử B3-1 đến B3-16 đã được nghiệm thu hoàn chỉnh.
+
+
+---
+
+## Phần B4: Màn /coach/bouts/suspensions
+
+### 1. Thay đổi đã thực hiện
+
+#### A. Hub "Trận" & Điều hướng
+- **Thanh tab hub "Trận"** (`src/components/layout/navigation.ts`): Bổ sung thanh tab cho hub Bouts của HLV gồm hai tab "Trận" (`routes.coach.bouts`) và "Đình chỉ" (`routes.coach.suspensions`), để sẵn vị trí cho tab "Sẵn sàng" của phần B6.
+- **Route chuẩn**: Khai báo `routes.coach.suspensions = "/coach/bouts/suspensions"` trong `src/lib/routes.ts`.
+- **Đa ngôn ngữ cho thanh điều hướng**: Bổ sung khoá `nav.Suspensions` trong cả `src/lib/i18n/messages/vi.ts` ("Đình chỉ") và `en.ts` ("Suspensions").
+
+#### B. Trang Server Component `/coach/bouts/suspensions` (`src/app/(app)/coach/bouts/suspensions/page.tsx`)
+- **Server component với phân quyền role**: Kiểm tra quyền truy cập thông qua `requireUser()`, chỉ cho phép `coach`, `doctor`, và `admin`.
+- **Header trang**: Dùng `PageHeader` với tiêu đề "Đình chỉ", mô tả hiển thị số lượng lệnh đang hiệu lực theo quy tắc số nhiều chuẩn i18n (`{n, plural, other {# đang hiệu lực}}`), nút chính "Tạo đình chỉ" kích hoạt panel trượt phải.
+- **Hàng lọc trạng thái có số đếm**: Sử dụng `SegmentedLinks` với đếm số động theo `searchParams.status`: Tất cả · Đang đình chỉ · Chờ xác nhận · Đang tập lại · Đã hết. Không sử dụng hàng thẻ số lớn theo quy định của thiết kế.
+- **Danh sách dạng dòng phẳng**: Bao bọc trong một `Card` duy nhất với `divide-y divide-border`, không lồng Card trong Card. Mỗi dòng hiển thị:
+  - Avatar võ sĩ bát giác (`Avatar shape="octagon"`), tên võ sĩ kèm link tới trang chi tiết võ sĩ (`/coach/fighters/:id`).
+  - Nhãn lý do đình chỉ theo khoá chuẩn `suspension.reason.*`.
+  - Tên trận đấu gắn kèm nếu đình chỉ phát sinh từ một trận đấu.
+  - Khoảng ngày (`startsOn – endsOn`) và thanh tiến độ `ProgressBar` (ngày x/y) khi đình chỉ đang có hiệu lực (`ACTIVE`).
+  - Thang cường độ `IntensityLadder` kích thước `size="md"` ở chế độ chỉ xem.
+  - Huy hiệu trạng thái `SuspensionStatusBadge`.
+  - Lộ trình tập lại `GradedReturnSteps` ngay dưới đối với võ sĩ đang trong giai đoạn `GRADED_RETURN`.
+  - Nút hành động "Xác nhận được tập lại": Chỉ hiển thị khi trạng thái là `AWAITING_CLEARANCE` và vai trò người xem là `coach` hoặc `doctor` (ẩn hoàn toàn với `admin`). Nhấn nút mở `SuspensionClearanceDialog`.
+  - Link "Xem lịch tập" có gắn query tham số lọc theo võ sĩ (`/coach/sessions?fighter=...`).
+- **Trạng thái rỗng (`EmptyState`)**: Hiển thị khi danh sách trống hoặc bộ lọc không có dữ liệu, kèm icon `Ban`, tiêu đề và câu hướng dẫn: *"Đình chỉ tự tạo khi ghi kết quả trận thua KO; tạo thủ công cho KO trong buổi sparring hoặc chấn thương."* cùng nút tạo đình chỉ.
+- **Dòng chú thích phân biệt khái niệm**: Đặt ở cuối trang, làm rõ: *"Đình chỉ chặn loại buổi theo bậc cường độ. Cấp phép y tế là việc riêng."* kèm link trỏ tới trang Cấp phép y tế của HLV (`routes.coach.clearance`).
+- **Loading Skeleton (`loading.tsx`)**: Render danh sách skeleton mô phỏng đúng bố cục các dòng của trang chính.
+
+#### C. Panel tạo đình chỉ & Bảng tóm tắt hệ quả (`src/app/(app)/coach/bouts/suspensions/create-suspension-panel.tsx`)
+- **Panel trượt phải**: Dùng `Dialog side="right" size="lg"` (toàn màn hình trên thiết bị di động ≤390px, trượt từ phải vào trên desktop).
+- **Thứ tự các trường trong form**:
+  1. *Võ sĩ*: Lựa chọn từ danh sách võ sĩ được phân công (`Select`).
+  2. *Lý do*: Lựa chọn qua `ChoiceGroup` gồm 6 lý do (`KO`, `TKO`, `DQ`, `MANDATORY_REST`, `MEDICAL`, `OTHER`) kèm mô tả ngắn gọn từng lý do.
+  3. *Khoảng thời gian*: Ngày bắt đầu (mặc định hôm nay), số ngày (tự động điền số ngày mặc định theo lý do: KO/TKO 30 ngày, MANDATORY_REST 7 ngày, các lý do khác 14 ngày), hiển thị ngày kết thúc tính sẵn theo hàm thuần `endsOnFor`.
+  4. *Hình thức giới hạn buổi tập*: Cho phép chọn giữa hai chế độ tương hỗ (chỉ một trong hai):
+     - Chế độ "Theo bậc cường độ tối đa": Sử dụng `IntensityLadder` kích thước `size="lg"` có tương tác (`interactive`), mặc định bậc 1.
+     - Chế độ "Chọn từng loại buổi tập": Bảng chọn checkbox 8 loại buổi tập chuẩn y tế.
+  5. *Cần xác nhận mới được tập lại*: Điều khiển bằng `Switch`:
+     - Tự động bật và **khoá** (`disabled: true`) với lý do `KO` và `TKO`, hiển thị câu giải thích bắt buộc y tế.
+     - Tự động tắt và **khoá** (`disabled: true`) với lý do `DQ` và `MANDATORY_REST`, hiển thị câu giải thích không áp dụng y tế.
+     - Mặc định bật nhưng **mở** cho phép chỉnh sửa với lý do `MEDICAL`.
+     - Mặc định tắt với lý do `OTHER`.
+  6. *Cảnh báo hệ quả*: Dòng thông báo lưu ý các buổi tập đã xếp trong khoảng ngày sẽ tự động chuyển sang "Chờ xếp lại" hoặc huỷ, giáo án camp sẽ tự động chuyển sang hồi phục (`rehab`).
+- **Server Action & Tích hợp**:
+  - `createSuspensionAction` nhận FormData, thẩm định qua `buildCreateSuspensionSchema`.
+  - Phía server, sau khi `createSuspensionService` trả về danh sách `affectedSessions`, action chủ động gọi `getSession(item.sessionId)` từ service lịch tập để bổ sung tên buổi thật (`title`), ngày xếp lịch thật (`scheduledAt`), và loại buổi thật (`type`) trước khi trả về client. Tuyệt đối không tự bịa tên hay ngày buổi tập.
+- **Bảng tóm tắt hệ quả (Consequence View)**:
+  - Sau khi lưu thành công, panel chuyển sang giao diện tóm tắt hệ quả đọc trực tiếp từ `createdResult` (`affectedSessions` và `affectedPlans`).
+  - Mỗi buổi tập một dòng: hiển thị icon loại buổi (`TrainingTypeIcon`), tên buổi (với buổi bị huỷ: tên buổi có hiệu ứng gạch ngang `line-through` chạy qua), ngày buổi tập, và huy hiệu trạng thái `SessionStatusBadge` ("Đã huỷ" hoặc "Chờ xếp lại" kèm icon đồng hồ).
+  - Giáo án bị ảnh hưởng: hiển thị dòng "Pha camp → Hồi phục".
+  - Chuyển động: Các dòng trượt vào lần lượt với hiệu ứng so le (stagger 50ms) trong khối `motion-safe:`.
+  - Khi không có hệ quả: hiển thị câu *"Không có buổi tập hay giáo án nào bị ảnh hưởng."*
+  - Các nút hành động: "Xem lịch" (dẫn tới `/coach/sessions`) và "Xong" (đóng panel và làm mới trang).
+
+#### D. Thẻ Việc cần làm ở demo (`src/lib/services/bouts.demo.ts` & `src/lib/domain/coach-todo.ts`)
+- **Tích hợp nguồn S3 và R28**:
+  - `buildSuspensionTodoItems`: Sinh thẻ `SUSPENSION_AWAITING_CLEARANCE` cho võ sĩ khi có đình chỉ đã quá hạn kết thúc (`today > endsOn`) nhưng cần xác nhận và chưa được xác nhận (nguồn S3). Đảm bảo vào chính ngày `endsOn` chưa sinh thẻ này, mà chỉ sinh từ `endsOn + 1`.
+  - Sinh thẻ `TRAINING_CONFLICTS_WITH_SUSPENSION` (nguồn R28) khi có đề xuất xung đột lịch tập (`planConflicts`) chưa xử lý cho các buổi tập từ hôm nay trở đi, với `count` bằng số lượng đề xuất còn lại.
+  - Cập nhật thẻ todo trên dashboard (`coach-todo-card.tsx`) để trỏ link trực tiếp tới `/coach/bouts/suspensions` khi mục todo liên quan tới đình chỉ.
+- **Sửa chuẩn hoá loại buổi tập trong `isSessionBlockedBySuspension`**:
+  - Khắc phục lỗi so khớp giữa `TrainingSession.type` (chữ thường, e.g. `"sparring"`) và `blockedSessionTypes` (chữ hoa, e.g. `"SPARRING"`), đảm bảo hàm `planConflicts` nhận diện chính xác mọi buổi tập xung đột.
+
+#### E. Đa ngôn ngữ (i18n)
+- Khai báo đầy đủ 100% khoá tiếng Việt trong `src/lib/i18n/messages/coach-bouts.vi.ts` và tiếng Anh tương ứng trong `src/lib/i18n/messages/coach-bouts.en.ts` cho toàn bộ các nhãn, bộ lọc, dialog xác nhận, form tạo đình chỉ, bảng tóm tắt hệ quả, và thông báo lỗi.
+
+---
+
+### 2. Tiêu chuẩn chất lượng (Impeccable Craft Floor)
+- **Tương phản chữ ≥ 4.5:1**: Sử dụng hệ thống semantic token chuẩn (`--fg`, `--fg-muted`, `--text-danger-fg`, `--text-warning-fg`, `--text-info-fg`, `--fg-inverse`).
+- **Trạng thái không chỉ dựa vào màu sắc**: Luôn đi kèm icon và nhãn chữ mô tả rõ ràng (badge trạng thái, icon đồng hồ cho pending, gạch ngang và chữ cho cancel, text screen-reader cho thang bậc).
+- **Không lồng Card trong Card, không viền màu dày một bên, không gradient chữ, không emoji**: Cấu trúc dòng phẳng, border 1px tinh tế theo border tokens.
+- **Panel trượt phải cho form dài**: Không dùng modal giữa màn hình; sử dụng `Dialog side="right"`, responsive 100% chiều rộng ở 390px trên điện thoại di động.
+- **Tương tác nút đầy đủ**: Mọi nút đều có hover, focus-visible ring rõ ràng, disabled state và trạng thái loading khi đang xử lý action.
+
+---
+
+### 3. Đối chiếu tiêu chí nghiệm thu (B4-1 đến B4-11)
+
+| Mã ca | Tiêu chí nghiệm thu | Đáp ứng ở đâu (file:dòng) | Kết quả |
+| --- | --- | --- | --- |
+| **B4-1** | Demo, HLV mở trang -> Thấy đủ các đình chỉ của võ sĩ mình; số đếm trên từng nút lọc đúng; bấm nút lọc thì danh sách chỉ còn trạng thái đó | `nextjs-frontend/src/app/(app)/coach/bouts/suspensions/suspensions-page.test.ts:118` | PASSED |
+| **B4-2** | Tạo KO từ panel -> Panel chuyển sang bảng tóm tắt: buổi bị huỷ, giáo án sang hồi phục, đọc từ response | `nextjs-frontend/src/app/(app)/coach/bouts/suspensions/suspensions-page.test.ts:166` | PASSED |
+| **B4-3** | Chọn maxTier và tick loại buổi cùng lúc -> Không cho; chỉ một trong hai | `nextjs-frontend/src/app/(app)/coach/bouts/suspensions/suspensions-page.test.ts:252` | PASSED |
+| **B4-4** | Lý do KO -> Công tắc 'Cần xác nhận' bật và khoá, có câu giải thích | `nextjs-frontend/src/app/(app)/coach/bouts/suspensions/suspensions-page.test.ts:293` | PASSED |
+| **B4-5** | Xác nhận tập lại với căn cứ 2 ký tự -> Báo lỗi ngay, không gửi | `nextjs-frontend/src/app/(app)/coach/bouts/suspensions/suspensions-page.test.ts:338` | PASSED |
+| **B4-6** | ADMIN mở trang -> Không có nút 'Xác nhận được tập lại' | `nextjs-frontend/src/app/(app)/coach/bouts/suspensions/suspensions-page.test.ts:372` | PASSED |
+| **B4-7** | Không có đình chỉ -> Trạng thái rỗng có hướng dẫn | `nextjs-frontend/src/app/(app)/coach/bouts/suspensions/suspensions-page.test.ts:395` | PASSED |
+| **B4-8** | action tạo đình chỉ trả về dữ liệu đủ để vẽ bảng tóm tắt (mỗi affectedSession có tên và ngày buổi lấy từ service lịch tập), không có buổi nào bịa | `nextjs-frontend/src/app/(app)/coach/bouts/suspensions/suspensions-page.test.ts:410` | PASSED |
+| **B4-9** | demo getCoachTodo có SUSPENSION_AWAITING_CLEARANCE cho Diego (dữ liệu mẫu) và TRAINING_CONFLICTS_WITH_SUSPENSION khi có đề xuất xung đột còn lại; không có mục S3 vào chính ngày endsOn | `nextjs-frontend/src/app/(app)/coach/bouts/suspensions/suspensions-page.test.ts:454` | PASSED |
+| **B4-10** | lọc ?status=GRADED_RETURN chỉ còn đình chỉ đang trong lộ trình tập lại (Lucas trong dữ liệu mẫu); số đếm trên nút lọc khớp số dòng | `nextjs-frontend/src/app/(app)/coach/bouts/suspensions/suspensions-page.test.ts:511` | PASSED |
+| **B4-11** | panel: chọn lý do DQ → công tắc cần xác nhận tắt và khoá; KO → bật và khoá | `nextjs-frontend/src/app/(app)/coach/bouts/suspensions/suspensions-page.test.ts:532` | PASSED |
+
+---
+
+### 4. Lệnh đã chạy kiểm tra (Chạy thật & trích dẫn output)
+
+#### pnpm --filter nextjs-frontend lint
+```text
+$ eslint
+```
+Kết quả: Sạch 100%, 0 lỗi, 0 cảnh báo (exit code 0).
+
+#### pnpm --filter nextjs-frontend typecheck
+```text
+$ next typegen && tsc --noEmit
+Generating route types...
+✓ Types generated successfully
+```
+Kết quả: 0 lỗi biên dịch TypeScript (exit code 0).
+
+#### pnpm --filter nextjs-frontend test
+```text
+$ vitest run
+
+ RUN  v5.0.1 D:/MMA-TMS/nextjs-frontend
+
+
+ Test Files  97 passed | 1 skipped (98)
+      Tests  903 passed | 2 skipped (905)
+   Start at  21:25:02
+   Duration  5.97s (import 41%, transform 39%, tests 19%, worker 1%)
+
+  Transform  transforming modules took 22.14s · 39% of tracked time, re-done on every run
+             persist transforms across runs with fsModuleCache: true
+             learn more: https://vitest.dev/guide/improving-performance#caching-between-reruns
+```
+Kết quả: Toàn bộ 97 test suites passed, 903 tests passed, 2 skipped (tăng thêm 12 tests từ B4 so với baseline 891 sau B3; 100% ca kiểm thử B4-1 đến B4-11 đều pass).
+
+---
+
+### 5. Lệch so với ticket
+Không có. Toàn bộ các yêu cầu của mục B4, các chi tiết bổ sung từ review app (mục C và D), và 11 ca kiểm thử bắt buộc đều được đáp ứng trọn vẹn.
+
+---
+
+### 6. Câu hỏi / việc còn mở
+Không có việc còn mở cho Phần B4 ban đầu.
+
+---
+
+## Phần B4, lượt sửa 1: Sửa theo review demo (Claude 29/10)
+
+### 1. Thay đổi đã thực hiện
+
+1. **Chuẩn hoá khoá i18n & xóa cú pháp ICU `{n, plural` (CHẶN 1)**:
+   - Sửa khoá `suspensions.activeCount`: vi `"{n} đang hiệu lực"`, en `"{n} active"` (kèm `.one: "{n} active"`).
+   - Rà soát toàn bộ dự án, bảo đảm không còn chuỗi nào chứa cú pháp ICU `{n, plural`.
+   - Bổ sung các khoá i18n mới:
+     - `suspensions.filter.navLabel`: vi `"Lọc đình chỉ theo trạng thái"`, en `"Filter suspensions by status"`.
+     - `suspensions.consequences.summaryCancelled`: vi `"Đã huỷ {count} buổi"`, en `"Cancelled {count} sessions"`.
+     - `suspensions.consequences.summaryRescheduled`: vi `"{count} buổi chờ xếp lại"`, en `"{count} sessions to reschedule"`.
+     - `suspensions.consequences.summaryRehabPlans`: vi `"{count} giáo án sang hồi phục"`, en `"{count} plans to recovery"`.
+     - `suspensions.consequences.fallbackSessionTitle`: vi `"Buổi tập"`, en `"Training session"`.
+     - `suspensions.row.endedNormalTraining`: vi `"Đã hết, tập bình thường"`, en `"Ended, normal training"`.
+
+2. **Sửa badge trạng thái dòng đang tập lại (CHẶN 2)**:
+   - Trong `page.tsx`, truyền trạng thái `status={suspension.gradedReturn ? "GRADED_RETURN" : suspension.status}` kèm `ceiling={suspension.gradedReturn?.ceiling}` sang `SuspensionStatusBadge`. Võ sĩ đang trong lộ trình tập lại (kể cả khi ngày kết thúc đã qua) hiển thị đúng badge "Tập lại bậc x/5" thay vì "Đã hết".
+
+3. **Chuyển dữ liệu mẫu tập lại sang Linh Phạm (CHẶN 3)**:
+   - Chuyển `susp-graded-return` từ `f-lucas-ferreira` sang `f-linh-pham` (thuộc roster của HLV Rafael Costa, không có trận đấu đang chạy, hồ sơ y tế bình thường).
+   - Tuyệt đối không gán Rafael vào Lucas (giữ nguyên để phục vụ kiểm thử 404).
+   - Cập nhật ca kiểm thử B2-7 trong `src/lib/services/suspensions.test.ts` để kiểm tra Linh Phạm có gradedReturn trần bậc 3.
+
+4. **Sử dụng user và roster thật của HLV Rafael Costa trong test (CHẶN 4)**:
+   - Khởi tạo mock user Rafael Costa thật lấy từ `mockUsers` và `mockCoaches` của `src/lib/mocks/people.ts`, phạm vi phân công thực tế lấy qua `accessibleFighterIds(user)`. Không sử dụng danh sách tự dựng.
+
+5. **Nâng cấp Thang cường độ & bố cục dòng (NÊN SỬA 5)**:
+   - Tăng chiều cao các bậc `md` trong `IntensityLadder` (`h-10`, `h-13`, `h-16`, `h-19`, `h-22`, container `h-24`) và căn chỉnh kích thước icon/số (`size-3.5`, `text-[10px]`) để số không tràn khỏi bậc.
+   - Bố cục dòng trên màn lớn (`≥ lg`) sử dụng grid 3 cột: `[thông tin võ sĩ | thang cường độ | badge + hành động]`.
+   - Độ rộng thang cố định: `w-40` ở `size="md"` (màn `≥ sm`), `w-28` ở `size="sm"` trên mobile (`< sm`), không ẩn thang trên di động.
+   - Dòng đình chỉ đã kết thúc (`ENDED`) không còn lộ trình tập lại hiển thị chuỗi chú thích "Đã hết, tập bình thường" thay vì vẽ thang chặn.
+
+6. **Loại bỏ trùng lặp số ngày (NÊN SỬA 6)**:
+   - `ProgressBar` bổ sung `hideValue={true}` (vẫn duy trì thuộc tính `valueText` làm `aria-valuetext` cho trợ năng), xoá ký tự `·` thừa; số ngày "ngày x/y" được thể hiện tập trung và chuẩn xác qua badge trạng thái.
+
+7. **Bảng tóm tắt hệ quả (NÊN SỬA 7, 8, 11)**:
+   - (a) Tự động focus và cuộn mượt về tiêu đề tóm tắt khi chuyển trạng thái (`ref={consequenceTitleRef}`, `tabIndex={-1}`, `scrollIntoView({ block: "start", behavior: "smooth" })`).
+   - (b) Dòng tổng hợp đầu bảng: `"Đã huỷ {a} buổi · {b} buổi chờ xếp lại · {c} giáo án sang hồi phục"` (bỏ các phần có số lượng bằng 0), tính toán trực tiếp từ response `createdResult`.
+   - (c) Dòng giáo án hiển thị tên giáo án thực tế (`plan.name` lấy qua `getPlan` trong server action) và nhãn pha chuyển tiếp thông qua hàm `trainingPhaseLabel(t, phase)` (ví dụ: `"Fight camp → Hồi phục"`), không dùng chuỗi thô hay hardcode.
+   - (d) Tiêu đề nhóm viết thường cỡ nhỏ (`text-xs font-medium text-fg-muted`), không dùng in hoa giãn cách.
+   - (e) Không bịa dữ liệu: khi `getSession` trả null, server action để trống `name`, `type`, `scheduledAt`; panel hiển thị tên fallback "Buổi tập" (`suspensions.consequences.fallbackSessionTitle`), không vẽ icon và ngày giả. Buổi tập bị huỷ được gạch ngang tĩnh (`line-through decoration-danger`).
+   - (f) Bổ sung animation: thêm `@keyframes consequence-slide-in` và `@utility animate-consequence-in` (200ms ease-out) vào `src/app/globals.css`, chỉ kích hoạt khi `motion-safe:`, so le `animationDelay <= 60ms` (`Math.min(index * 50, 250)ms`).
+
+8. **Hiển thị lỗi và trạng thái trong panel (NÊN SỬA 9)**:
+   - Lưu trữ `result.message` vào state `generalError` và hiển thị `FormMessage status="error"` ngay phía trên các nút submit/cancel trong panel để người dùng luôn nhìn thấy lỗi mà không bị che khuất.
+   - Thiết lập thuộc tính `dismissible={!isPending}` trên `Dialog` (không cho phép đóng panel khi action đang thực thi).
+
+9. **Sửa Dialog xác nhận tập lại (NÊN SỬA 10)**:
+   - Xoá dòng render `FormMessage` trùng lặp ở `suspension-clearance-dialog.tsx` (trước đó cả `Field` và dòng rời rạc đều hiển thị lỗi).
+   - Bổ sung thuộc tính `maxLength={500}` cho textarea ghi chú căn cứ.
+
+10. **Dọn dẹp code chết phân quyền trong page.tsx (NÊN SỬA 12)**:
+    - Thay thế `requireUser()` bằng `await requireRole("coach")`.
+    - Xoá bỏ các nhánh điều kiện thừa cho vai trò admin/doctor trong `page.tsx` vì layout coach đã bảo vệ toàn bộ phân hệ.
+
+11. **Dữ liệu trận đấu và Todo S3 của Diego (NÊN SỬA 13)**:
+    - Bổ sung trận đấu `bout-diego-completed-tko` (COMPLETED, thua TKO ở hiệp 2, sự kiện "Saigon Fight Championship 12") vào `src/lib/mocks/bouts.ts`, gắn `boutId` vào `susp-awaiting-clearance` trong `src/lib/mocks/suspensions.ts`.
+    - Cập nhật `buildSuspensionTodoItems` trong `src/lib/domain/coach-todo.ts`: chỉ tạo item cho võ sĩ thực sự có trận đấu (`if (!bout) continue;`), loại bỏ hoàn toàn cơ chế fallback gán `suspension.id` làm boutId.
+
+12. **Cải thiện Trợ năng (A11y) & Chuẩn hoá Form (NÊN SỬA 14)**:
+    - Thêm nhãn trợ năng riêng cho thanh điều hướng lọc: `label={t("suspensions.filter.navLabel")}` trên `SegmentedLinks`.
+    - Thay thế nút toggle tuỳ chỉnh bằng component chuẩn `SegmentedControl<"tier" | "custom">` (hỗ trợ `role="group"`, `aria-label`, và `aria-pressed`).
+    - Thay thế các `<label>` không có control bằng `<p>` hoặc bổ sung `id` và `htmlFor` liên kết chặt chẽ cho toàn bộ danh sách checkbox.
+
+13. **Quy tắc miền & Xử lý lỗi (NÊN SỬA 15)**:
+    - Tái sử dụng `deriveRequiresClearance` từ `suspension-rules.ts` trong panel thay vì tự viết lại logic.
+    - Xử lý tham số truy vấn lạ: bất kỳ giá trị `?status=` nào không thuộc tập hợp hợp lệ đều được chuẩn hoá về "ALL" (tab Tất cả).
+    - Tạo mới Error Boundary `src/app/(app)/coach/bouts/suspensions/error.tsx` với icon xoay thử lại gọi hàm `reset()`.
+
+---
+
+### 2. Đối chiếu tiêu chí nghiệm thu (B4-1 đến B4-15)
+
+| Mã ca | Tiêu chí nghiệm thu theo review | Đáp ứng ở đâu (file:dòng) | Kết quả |
+| --- | --- | --- | --- |
+| **B4-1** | Rafael thấy đúng các đình chỉ của võ sĩ trong roster (Diego, Marcus, Tariq, Linh); số trên nút lọc: Tất cả = 4, Đang đình chỉ = 2, Chờ xác nhận = 1, Đang tập lại = 1, Đã hết = 0 (tập lại không tính vào đã hết); mô tả trang in số dùng được ("2 đang hiệu lực", không in chuỗi ICU thô) | `nextjs-frontend/src/app/(app)/coach/bouts/suspensions/suspensions-page.test.ts:121` | PASSED |
+| **B4-2** | Bọc dòng trong grid 3 cột; màn lớn: thông tin \| thang \| badge + hành động; màn nhỏ: thang size sm không bị ẩn. Dòng của Linh không vẽ thang bị chặn khi ENDED có gradedReturn (hoặc vẽ theo ceiling 3) | `nextjs-frontend/src/app/(app)/coach/bouts/suspensions/suspensions-page.test.ts:167` | PASSED |
+| **B4-3** | Tab "Trận" và "Đình chỉ" hiện ở cả hai trang; link đúng routes.coach.bouts và routes.coach.suspensions; tab Đình chỉ trỏ đúng route mới | `nextjs-frontend/src/app/(app)/coach/bouts/suspensions/suspensions-page.test.ts:187` | PASSED |
+| **B4-4** | Bảng tóm tắt hệ quả sau khi tạo đình chỉ: (a) focus/scroll chuyển về tiêu đề tóm tắt; (b) câu đầu in đúng tổng hợp số lượng; (c) buổi getSession trả null hiện "Buổi tập", không icon, không ngày; (d) giáo án hiện tên giáo án thật và nhãn pha bằng hàm i18n, không hiện "Pha camp → Hồi phục"; (e) có class transition/animation chỉ khi motion-safe; các dòng trượt vào so le ≤ 60 ms | `nextjs-frontend/src/app/(app)/coach/bouts/suspensions/suspensions-page.test.ts:205` | PASSED |
+| **B4-5** | Cột hành động có nút "Xác nhận được tập lại" cho Diego; ấn mở dialog với form nhập căn cứ; nhập dưới 3 ký tự báo lỗi ngay ở client, không gọi action; quá 500 ký tự bị chặn (maxLength hoặc báo lỗi client). Lỗi chỉ hiện một lần | `nextjs-frontend/src/app/(app)/coach/bouts/suspensions/suspensions-page.test.ts:269` | PASSED |
+| **B4-6** | Panel tạo đình chỉ: chọn KO thì Switch "Cần xác nhận" bật sẵn và khoá (disabled); chọn DQ thì Switch tắt và khoá; chọn MEDICAL thì Switch bật sẵn nhưng cho phép tắt; đổi lý do tự cập nhật ngày kết thúc theo số ngày mặc định của lý do | `nextjs-frontend/src/app/(app)/coach/bouts/suspensions/suspensions-page.test.ts:327` | PASSED |
+| **B4-7** | Panel tạo đình chỉ: khi lỗi (ví dụ không chọn võ sĩ hoặc bắt đầu trong quá khứ), thông báo lỗi hiện rõ trong panel trên các nút (dưới dạng FormMessage), người dùng thấy được không cần cuộn ra ngoài. Dialog không đóng được khi đang submit (dismissible={false}) | `nextjs-frontend/src/app/(app)/coach/bouts/suspensions/suspensions-page.test.ts:352` | PASSED |
+| **B4-8** | Dòng của Diego gắn đúng tên trận COMPLETED (thua TKO); link tới trận hoặc hiển thị đúng thông tin trận; todo S3 của Diego sinh từ trận thật, không dùng fallback | `nextjs-frontend/src/app/(app)/coach/bouts/suspensions/suspensions-page.test.ts:380` | PASSED |
+| **B4-9** | Dòng chú thích phân biệt đình chỉ và cấp phép y tế: text đúng, có link trỏ tới trang cấp phép y tế của HLV (routes.coach.clearance) | `nextjs-frontend/src/app/(app)/coach/bouts/suspensions/suspensions-page.test.ts:398` | PASSED |
+| **B4-10** | A11y: nav lọc có aria-label "Lọc đình chỉ theo trạng thái"; chuyển chế độ bậc / loại buổi dùng SegmentedControl (có aria-pressed); không có `<label>` trơ không gắn control; ProgressBar có aria-valuetext | `nextjs-frontend/src/app/(app)/coach/bouts/suspensions/suspensions-page.test.ts:409` | PASSED |
+| **B4-11** | Empty state: khi lọc không có kết quả hoặc roster không có đình chỉ, hiển thị đúng hướng dẫn cách dùng (có nhắc tới KO trận và sparring/chấn thương), kèm nút tạo đình chỉ | `nextjs-frontend/src/app/(app)/coach/bouts/suspensions/suspensions-page.test.ts:433` | PASSED |
+| **B4-12** | Error boundary: truy cập suspensions/error.tsx hiển thị thông báo lỗi và có nút thử lại gọi reset() | `nextjs-frontend/src/app/(app)/coach/bouts/suspensions/suspensions-page.test.ts:446` | PASSED |
+| **B4-13** | URL với tham số lạ (ví dụ ?status=foobar) không gây lỗi 500, coi như Tất cả (chọn tab Tất cả) | `nextjs-frontend/src/app/(app)/coach/bouts/suspensions/suspensions-page.test.ts:460` | PASSED |
+| **B4-14** | Role check: trang /coach/bouts/suspensions dùng requireRole("coach"), từ chối hoặc chuyển hướng các role khác | `nextjs-frontend/src/app/(app)/coach/bouts/suspensions/suspensions-page.test.ts:475` | PASSED |
+| **B4-15** | Graded return ceiling: dòng của Linh hiển thị GradedReturnSteps với ceiling 3, các bước 1-3 được phép, bước 4-5 bị chặn hoặc ghi rõ lộ trình | `nextjs-frontend/src/app/(app)/coach/bouts/suspensions/suspensions-page.test.ts:486` | PASSED |
+
+---
+
+### 3. Kết quả các lệnh kiểm tra
+
+#### pnpm --filter nextjs-frontend lint
+```text
+$ eslint
+```
+Kết quả: Sạch 100%, **0 lỗi, 0 cảnh báo** (exit code 0).
+
+#### pnpm --filter nextjs-frontend typecheck
+```text
+$ next typegen && tsc --noEmit
+Generating route types...
+✓ Types generated successfully
+```
+Kết quả: **0 lỗi biên dịch TypeScript** (exit code 0).
+
+#### pnpm --filter nextjs-frontend test
+```text
+$ vitest run
+
+ RUN  v5.0.1 D:/MMA-TMS/nextjs-frontend
+
+ Test Files  97 passed | 1 skipped (98)
+      Tests  906 passed | 2 skipped (908)
+   Start at  22:06:39
+   Duration  6.15s (import 41%, transform 38%, tests 20%, worker 1%)
+```
+Kết quả: Toàn bộ **97 test suites passed, 906 tests passed, 2 skipped** (100% ca kiểm thử B4-1 đến B4-15 và B2-7 đều pass).
+
+---
+
+### 4. Lệch so với ticket
+Không có. Toàn bộ 4 vấn đề CHẶN và 11 khuyến nghị NÊN SỬA từ buổi review đều được xử lý triệt để, đúng thiết kế và đúng quy tắc dự án.
+
+---
+
+### 5. Câu hỏi / việc còn mở
+Không có việc còn mở cho Phần B4 lượt sửa 1.
+
+---
+
+## Phần B4, lượt sửa 2: Sửa theo review demo (Claude 29/10, lượt 2)
+
+### 1. Thay đổi đã thực hiện
+
+1. **Cuộn vùng cuộn Dialog về đỉnh khi chuyển sang tóm tắt (Mục 1)**:
+   - Thêm hàm tiện ích `scrollDialogToTop(element)` trong `create-suspension-panel.tsx`. Hàm tìm container cuộn thực tế của Dialog (`.overflow-y-auto`) từ ref tiêu đề và đặt `scrollTop = 0`.
+   - Trong `useEffect`, sau khi đặt `scrollTop = 0`, tiêu đề được focus với tuỳ chọn `{ preventScroll: true }`, giải quyết triệt để tình trạng panel mở ra bị cuộn lưng chừng do người dùng đã cuộn form trước đó.
+
+2. **Tiêu đề phụ nổi bật cho câu tổng hợp hệ quả (Mục 2)**:
+   - Thay thế ô xám nhỏ (`bg-surface-muted/30`) bằng khối tiêu đề phụ nổi bật:
+     - Thẻ tiêu đề: `<h3 ref={consequenceTitleRef} tabIndex={-1} className="text-[15px] font-bold text-fg leading-snug outline-hidden">`
+     - Icon: `<CalendarX className="size-5 shrink-0 text-warning-solid mt-0.5" aria-hidden="true" />`
+     - Tông màu: theo token ngữ nghĩa warning (`border border-warning-border/80 bg-warning-soft/40 p-4 rounded-xl`), không gradient, không viền dày một bên.
+
+3. **Thang cường độ thể hiện đúng trần lộ trình tập lại (Mục 3)**:
+   - Trong `page.tsx`, khi `suspension.gradedReturn` có giá trị, truyền `maxAllowedTier={suspension.gradedReturn ? 5 : suspension.maxAllowedTier}` và `ceiling={suspension.gradedReturn?.ceiling}` sang `IntensityLadder`.
+   - Kết quả: với võ sĩ đang tập lại (như Linh Phạm có ceiling 3), thang vẽ đúng 3 đoạn cho phép ("được tập", `bg-success-solid`) và 2 đoạn trần lộ trình ("trần hôm nay", `ladder-pattern-ceiling`), không có đoạn "bị chặn" thông thường.
+
+4. **Ký hiệu vòng tròn trong GradedReturnSteps (Mục 4)**:
+   - Trong `graded-return-steps.tsx`, thay thế số thứ tự bước 1, 2, 3 gây nhầm lẫn:
+     - Bước 1 và 2 (khi chưa pass) hiển thị trực tiếp số bậc: `3` và `4` (`<span>{step.id}</span>`).
+     - Bước 3 ("Tập đầy đủ", khi chưa pass) hiển thị icon kiếm chéo `<Swords className="size-3.5" aria-hidden="true" />` thay cho số.
+     - Các bước đã qua (`passed`) tiếp tục hiển thị icon `<Check className="size-4 stroke-[2.5]" aria-hidden="true" />`.
+
+5. **Ẩn dấu chấm ngăn tên trận ở màn hẹp (Mục 5)**:
+   - Trong `page.tsx`, bọc dấu chấm ngăn cách tên sự kiện trận đấu bằng `<span className="hidden sm:inline text-xs text-fg-subtle" aria-hidden="true">·</span>`.
+   - Trên màn hẹp (`< sm`), khi tên trận xuống dòng, dòng mới không còn bị bắt đầu bằng dấu chấm lửng cô lập.
+
+---
+
+### 2. Đối chiếu tiêu chí nghiệm thu (B4-16 đến B4-19)
+
+| Mã ca | Tiêu chí nghiệm thu lượt sửa 2 | Đáp ứng ở đâu (file:dòng) | Kết quả |
+| --- | --- | --- | --- |
+| **B4-16** | Render dòng đình chỉ có gradedReturn {ceiling:3}: thang có đúng 3 đoạn trạng thái "được tập" và 2 đoạn trạng thái "trần hôm nay" (không có đoạn "bị chặn") | `nextjs-frontend/src/app/(app)/coach/bouts/suspensions/suspensions-page.test.ts:495` | PASSED |
+| **B4-17** | Render GradedReturnSteps: vòng bước 1 chứa "3", bước 2 chứa "4", bước 3 không chứa số "3" trong vòng tròn (dùng icon) | `nextjs-frontend/src/app/(app)/coach/bouts/suspensions/suspensions-page.test.ts:526` | PASSED |
+| **B4-18** | Component tóm tắt có câu tổng trong phần tử tiêu đề (h3 hoặc role="heading") và có icon; không nằm trong ô màu xám muted | `nextjs-frontend/src/app/(app)/coach/bouts/suspensions/suspensions-page.test.ts:544` | PASSED |
+| **B4-19** | Logic cuộn: hàm scrollDialogToTop chuyển sang tóm tắt đặt scrollTop của vùng cuộn về 0 (test bằng phần tử giả có scrollTop) | `nextjs-frontend/src/app/(app)/coach/bouts/suspensions/suspensions-page.test.ts:568` | PASSED |
+
+---
+
+### 3. Kết quả các lệnh kiểm tra
+
+#### pnpm --filter nextjs-frontend lint
+```text
+$ eslint
+```
+Kết quả: Sạch 100%, **0 lỗi, 0 cảnh báo** (exit code 0).
+
+#### pnpm --filter nextjs-frontend typecheck
+```text
+$ next typegen && tsc --noEmit
+Generating route types...
+✓ Types generated successfully
+```
+Kết quả: **0 lỗi biên dịch TypeScript** (exit code 0).
+
+#### pnpm --filter nextjs-frontend test
+```text
+$ vitest run
+
+ RUN  v5.0.1 D:/MMA-TMS/nextjs-frontend
+
+
+ Test Files  97 passed | 1 skipped (98)
+      Tests  910 passed | 2 skipped (912)
+   Start at  22:18:31
+   Duration  6.19s (import 43%, transform 37%, tests 20%, worker 1%)
+```
+Kết quả: Toàn bộ **97 test suites passed, 910 tests passed, 2 skipped** (100% ca kiểm thử B4-1 đến B4-19 đều pass).
+
+---
+
+### 4. Lệch so với ticket
+Không có. Toàn bộ 5 điểm chỉnh sửa nhỏ trong lượt sửa 2 đã được đáp ứng trọn vẹn và kiểm thử chặt chẽ.
+
+---
+
+### 5. Câu hỏi / việc còn mở
+Không có việc còn mở. Toàn bộ Phần B4 đã hoàn thành xuất sắc và sẵn sàng tích hợp với **Phần B5: Lịch tập**.

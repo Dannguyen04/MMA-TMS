@@ -17,6 +17,7 @@ import {
     clearSuspension as clearSuspensionService,
     createSuspension as createSuspensionService,
 } from "@/lib/services/suspensions";
+import { getPlan, getSession } from "@/lib/services/training";
 import {
     buildApplyConflictsSchema,
     buildClearSuspensionSchema,
@@ -132,6 +133,30 @@ export async function createSuspensionAction(
 
     try {
         const result = await createSuspensionService(input, user);
+        if (result.affectedSessions && result.affectedSessions.length > 0) {
+            result.affectedSessions = await Promise.all(
+                result.affectedSessions.map(async (item) => {
+                    const session = await getSession(item.sessionId).catch(() => null);
+                    return {
+                        ...item,
+                        name: session?.title ?? undefined,
+                        scheduledAt: session?.scheduledAt ?? undefined,
+                        type: session?.type ?? undefined,
+                    };
+                }),
+            );
+        }
+        if (result.affectedPlans && result.affectedPlans.length > 0) {
+            result.affectedPlans = await Promise.all(
+                result.affectedPlans.map(async (item) => {
+                    const plan = await getPlan(item.planId).catch(() => null);
+                    return {
+                        ...item,
+                        name: plan?.title ?? undefined,
+                    };
+                }),
+            );
+        }
         revalidateSuspensionPaths(input.fighterId);
         return actionSuccess(t("suspensions.action.created"), result);
     } catch (error: unknown) {

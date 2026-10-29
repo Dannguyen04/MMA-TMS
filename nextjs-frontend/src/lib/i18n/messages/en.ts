@@ -27,6 +27,7 @@ export const en = {
     "nav.Today": "Today",
     "nav.Bout": "Bout",
     "nav.Bouts": "Bouts",
+    "nav.Suspensions": "Suspensions",
     "nav.Training": "Training",
     "nav.Schedule": "Schedule",
     "nav.Plans": "Plans",

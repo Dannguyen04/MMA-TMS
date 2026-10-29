@@ -394,7 +394,7 @@ describe("T-030 Phần B2: Nền dữ liệu đình chỉ & sẵn sàng", () => 
         expect(res.maxAllowedTier).toBe(3);
     });
 
-    it("B2-7: dữ liệu mẫu, xét theo luật backend: có đủ 5 trường hợp; Diego đúng AWAITING_CLEARANCE; Tariq có ít nhất một buổi 'pending', mọi buổi pending của Tariq nằm trong [startsOn, endsOn] và loại bị chặn; Marcus không còn buổi tương lai loại bị chặn ở trạng thái scheduled; Lucas có gradedReturn ceiling 3 hôm nay; Emma READY", async () => {
+    it("B2-7: dữ liệu mẫu, xét theo luật backend: có đủ 5 trường hợp; Diego đúng AWAITING_CLEARANCE; Tariq có ít nhất một buổi 'pending', mọi buổi pending của Tariq nằm trong [startsOn, endsOn] và loại bị chặn; Marcus không còn buổi tương lai loại bị chặn ở trạng thái scheduled; Linh có gradedReturn ceiling 3 hôm nay; Emma READY", async () => {
         const rows = await getReadiness({}, mockAdmin);
         expect(rows.length).toBeGreaterThanOrEqual(5);
 
@@ -410,11 +410,11 @@ describe("T-030 Phần B2: Nền dữ liệu đình chỉ & sẵn sàng", () => 
         expect(diego?.status).toBe("AWAITING_CLEARANCE");
         expect(diego?.ready).toBe(false);
 
-        // 3. Đang tập lại bậc 3 hôm nay: Lucas Ferreira
-        const lucas = rows.find((r) => r.fighterId === "f-lucas-ferreira");
-        expect(lucas).toBeDefined();
-        expect(lucas?.gradedReturn).toBeDefined();
-        expect(lucas?.gradedReturn?.ceiling).toBe(3);
+        // 3. Đang tập lại bậc 3 hôm nay: Linh Pham
+        const linh = rows.find((r) => r.fighterId === "f-linh-pham");
+        expect(linh).toBeDefined();
+        expect(linh?.gradedReturn).toBeDefined();
+        expect(linh?.gradedReturn?.ceiling).toBe(3);
 
         // 4. Nghỉ bắt buộc: Tariq Haddad
         const tariq = rows.find((r) => r.fighterId === "f-tariq-haddad");

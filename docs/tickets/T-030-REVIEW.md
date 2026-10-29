@@ -29,3 +29,12 @@
 - Review độc lập: không lỗi chặn; 9 mục nên sửa (vòng viền bước hiện tại mất sau hiệu ứng, tương phản chế độ tối, số bậc dưới 4.5:1, ARIA lồng nút trong slider, độ trễ so le không tắt khi giảm chuyển động, khoá i18n không dùng, hàm thuần nằm trong module client, trạng thái bước chỉ có ở `title`, style trùng). Đã sửa ở lượt 1 cùng các gợi ý (kẹp giá trị slider, phân biệt sọc không chỉ bằng màu). Claude quyết bỏ hiệu ứng nhấp nháy của bước hiện tại (bản thiết kế đã sửa).
 - Lệnh Claude chạy lại: `lint` sạch, `typecheck` 0 lỗi, `test` `Tests 891 passed | 2 skipped (893)`.
 - Lượt sửa chưa có review độc lập riêng; các component sẽ được review lại cùng màn ở B4 (ảnh chụp và review độc lập).
+
+## B4 (màn Đình chỉ): APPROVED 29/10
+
+- Tab Trận / Đình chỉ, lọc có số đếm, danh sách dạng dòng (thang cường độ, badge, lộ trình 3 bước cho ca tập lại), panel tạo đình chỉ trượt phải, bảng tóm tắt hệ quả, form xác nhận tập lại, thẻ Việc cần làm ở demo có 2 mã đình chỉ.
+- Claude chụp app chạy demo 3 lần (1440 px, 390 px, vi, en; tạo KO thật để xem bảng tóm tắt). Lần 1 thấy: mô tả in chuỗi ICU thô; thang chật, tràn số; số ngày lặp; HLV demo không có ca tập lại; bảng tóm tắt mở ra đã cuộn giữa, thiếu câu tổng, giáo án hiện mã thô. Lần 2 thấy: bảng tóm tắt vẫn cuộn giữa, câu tổng chưa nổi bật, thang của ca tập lại vẽ như đình chỉ cũ, vòng số lộ trình gây nhầm, dấu "·" thừa ở màn hẹp. Lần 3: tất cả đã đạt.
+- Review độc lập (1 lần) thêm: badge "Đã hết" cho ca tập lại (chặn); test B4-1, B4-10 dùng phạm vi tự dựng nên qua dù màn thật sai (chặn); test B4-2 tự dựng HTML (chặn); B4-8 qua rỗng; lỗi trong panel bị che sau modal; chuyển động dùng class không tồn tại; nhánh admin/doctor là code chết; việc S3 của Diego ở demo không có trận nên API thật không trả; lỗi ARIA. Đã sửa hết.
+- Quyết định của Claude: màn Đình chỉ chỉ cho HLV (đúng kế hoạch; mở cho bác sĩ là mở rộng phạm vi); dữ liệu mẫu thêm trận Diego thua TKO để thẻ Việc cần làm ở demo khớp API.
+- Lệnh Claude chạy lại: `lint` sạch, `typecheck` 0 lỗi, `test` `Tests 910 passed | 2 skipped (912)`.
+- Lượt sửa 2 kiểm bằng ảnh chụp và test; review độc lập cuối cho cả T-030 ở B7.

@@ -1295,10 +1295,14 @@ export type ConflictAction = "pending" | "cancel";
 export interface AffectedSession {
     sessionId: string;
     action: ConflictAction;
+    name?: string;
+    scheduledAt?: string;
+    type?: TrainingType;
 }
 
 export interface AffectedPlan {
     planId: string;
+    name?: string;
     fromPhase: TrainingPhase;
     toPhase: TrainingPhase;
 }

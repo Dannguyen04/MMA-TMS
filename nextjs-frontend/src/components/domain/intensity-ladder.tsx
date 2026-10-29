@@ -35,11 +35,11 @@ const HEIGHT_CLASSES: Record<"sm" | "md" | "lg", Record<SessionIntensityTier, st
         5: "h-6",
     },
     md: {
-        1: "h-8",
-        2: "h-11",
-        3: "h-14",
-        4: "h-17",
-        5: "h-20",
+        1: "h-10",
+        2: "h-13",
+        3: "h-16",
+        4: "h-19",
+        5: "h-22",
     },
     lg: {
         1: "h-12",
@@ -122,7 +122,7 @@ export function IntensityLadder({
                 className={cn(
                     "flex items-end w-full",
                     size === "sm" && "gap-1 h-7",
-                    size === "md" && "gap-1.5 h-22",
+                    size === "md" && "gap-1.5 h-24",
                     size === "lg" && "gap-2 h-30",
                     interactive &&
                         "rounded-md p-1 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2",
@@ -152,13 +152,13 @@ export function IntensityLadder({
                             <span className="sr-only">{seg.screenReaderLabel}</span>
 
                             {size !== "sm" && (
-                                <span aria-hidden="true" className="mt-1 flex items-center justify-center">
-                                    <Icon className={size === "lg" ? "size-5" : "size-4"} />
+                                <span aria-hidden="true" className={cn("flex items-center justify-center", size === "lg" ? "mt-1" : "mt-0.5")}>
+                                    <Icon className={size === "lg" ? "size-5" : "size-3.5"} />
                                 </span>
                             )}
 
                             {size !== "sm" && (
-                                <span aria-hidden="true" className="mb-1 text-[11px] font-bold select-none">
+                                <span aria-hidden="true" className={cn("font-bold select-none", size === "lg" ? "mb-1 text-[11px]" : "mb-0.5 text-[10px]")}>
                                     {seg.tier}
                                 </span>
                             )}

@@ -7,7 +7,7 @@ import { MOCK_ANCHOR_MS, TODAY_KEY } from "@/lib/mocks/time";
  * Builds the demo seed suspensions covering all 5 required business cases (B2-7):
  * 1. Đang đình chỉ KO: Marcus Hale (`f-marcus-hale`)
  * 2. Chờ xác nhận: Diego Alvarez (`f-diego-alvarez`)
- * 3. Đang tập lại bậc 3 hôm nay: Lucas Ferreira (`f-lucas-ferreira`)
+ * 3. Đang tập lại bậc 3 hôm nay: Linh Phạm (`f-linh-pham`)
  * 4. Nghỉ bắt buộc có buổi chờ xếp lại: Tariq Haddad (`f-tariq-haddad`)
  * 5. Sẵn sàng: Emma Lindqvist (`f-emma-lindqvist`, không có đình chỉ)
  */
@@ -45,7 +45,7 @@ export function buildMockSuspensions(): Suspension[] {
         {
             id: "susp-awaiting-clearance",
             fighterId: "f-diego-alvarez",
-            boutId: null,
+            boutId: "bout-diego-completed-tko",
             reason: "TKO",
             startsOn: addDaysToDate(today, -40),
             endsOn: addDaysToDate(today, -11), // 30 days total, ended 10 days ago
@@ -64,10 +64,10 @@ export function buildMockSuspensions(): Suspension[] {
             status: "AWAITING_CLEARANCE",
             gradedReturn: null,
         },
-        // 3. Đang tập lại bậc 3 hôm nay (Lucas Ferreira: KO được xác nhận hôm nay)
+        // 3. Đang tập lại bậc 3 hôm nay (Linh Phạm: KO được xác nhận hôm nay)
         {
             id: "susp-graded-return",
-            fighterId: "f-lucas-ferreira",
+            fighterId: "f-linh-pham",
             boutId: null,
             reason: "KO",
             startsOn: addDaysToDate(today, -35),

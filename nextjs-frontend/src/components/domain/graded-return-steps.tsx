@@ -53,8 +53,10 @@ export function GradedReturnSteps({
                                 >
                                     {step.status === "passed" ? (
                                         <Check className="size-4 stroke-[2.5]" aria-hidden="true" />
+                                    ) : isLast ? (
+                                        <Swords className="size-3.5" aria-hidden="true" />
                                     ) : (
-                                        <span>{step.stepNumber}</span>
+                                        <span>{step.id}</span>
                                     )}
                                 </div>
 

@@ -545,6 +545,21 @@
     animation: indeterminate 1.4s ease-in-out infinite;
 }
 
+@keyframes consequence-slide-in {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@utility animate-consequence-in {
+    animation: consequence-slide-in 200ms ease-out both;
+}
+
 @utility ladder-pattern-blocked {
     background-image: repeating-linear-gradient(-45deg, var(--neutral-soft), var(--neutral-soft) 4px, var(--neutral-border) 4px, var(--neutral-border) 8px);
 }
