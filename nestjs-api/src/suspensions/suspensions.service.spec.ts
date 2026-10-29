@@ -248,7 +248,7 @@ describe('SuspensionsService', () => {
   });
 
   describe('createSuspension', () => {
-    it('creates a manual suspension with defaults (startsOn = today, blockedSessionTypes = [SPARRING], boutId = null) and sets audit context', async () => {
+    it('creates a manual suspension with defaults (startsOn = today, default 6 blockedSessionTypes, boutId = null) and sets audit context', async () => {
       const res = await service.createSuspension(
         coachActor,
         {
@@ -271,7 +271,14 @@ describe('SuspensionsService', () => {
           lossOfConsciousness: 'UNDER_1_MIN',
           suggestedDays: null,
           overrideReason: null,
-          blockedSessionTypes: ['SPARRING'],
+          blockedSessionTypes: [
+            'SHADOW_BOXING',
+            'PAD_WORK',
+            'HEAVY_BAG',
+            'SPARRING',
+            'GRAPPLING',
+            'STRENGTH_CONDITIONING',
+          ],
           requiresClearance: true,
           clearedAt: null,
           clearedById: null,
@@ -283,6 +290,27 @@ describe('SuspensionsService', () => {
       expect(res.status).toBe('ACTIVE');
       expect(res.startsOn).toBe('2026-10-20');
       expect(res.endsOn).toBe('2026-11-18');
+    });
+
+    it('creates a manual suspension with explicit blockedSessionTypes = [SPARRING] and stores only SPARRING', async () => {
+      await service.createSuspension(
+        coachActor,
+        {
+          fighterId: FIGHTER_ID,
+          reason: 'KO',
+          days: 30,
+          lossOfConsciousness: 'UNDER_1_MIN',
+          blockedSessionTypes: ['SPARRING'],
+        },
+        REQUEST_ID,
+      );
+
+      expect(repo.insertSuspension).toHaveBeenCalledWith(
+        expect.objectContaining({
+          blockedSessionTypes: ['SPARRING'],
+        }),
+        expect.anything(),
+      );
     });
 
     it('accepts a future startsOn (status = UPCOMING) and rejects a past startsOn with 422', async () => {
