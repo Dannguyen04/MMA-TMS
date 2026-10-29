@@ -38,6 +38,14 @@ interface AppliedConflictOutcome {
   action: ConflictAction;
 }
 
+class SessionNoLongerScheduledError extends Error {}
+
+function skipIfNotScheduled(locked: TrainingSessionEntity): void {
+  if (locked.status !== 'SCHEDULED') {
+    throw new SessionNoLongerScheduledError();
+  }
+}
+
 function filterProposalsForSuspension(
   proposals: ConflictProposal[],
   suspension: SuspensionRow,
@@ -114,34 +122,54 @@ export class TrainingSuspensionConflictsService implements OnModuleInit {
       for (const s of fighterCreated) mergedById.set(s.id, s);
       const allSuspensions = [...mergedById.values()];
 
-      const proposals = planConflicts(sessions, allSuspensions).sort((a, b) =>
+      const allProposals = planConflicts(sessions, allSuspensions);
+      const createdProposalsBySessionId = new Map<string, ConflictProposal>();
+      for (const createdSusp of fighterCreated) {
+        for (const proposal of filterProposalsForSuspension(
+          allProposals,
+          createdSusp,
+          sessions,
+        )) {
+          createdProposalsBySessionId.set(proposal.sessionId, proposal);
+        }
+      }
+      const proposals = [...createdProposalsBySessionId.values()].sort((a, b) =>
         a.sessionId.localeCompare(b.sessionId),
       );
       const actorId = fighterCreated[0]!.createdById;
 
       for (const proposal of proposals) {
-        if (proposal.action === 'CANCEL') {
-          const updated =
-            await this.sessionService.applySessionCancelInTransaction(
-              proposal.sessionId,
-              SUSPENSION_CONFLICT_CANCELLATION_REASON,
-              transaction,
-            );
-          affectedSessions.push({
-            sessionId: updated.id,
-            action: 'CANCEL',
-          });
-          cancelledToNotify.push({ actorId, session: updated });
-        } else {
-          const updated =
-            await this.sessionService.applySessionPendingInTransaction(
-              proposal.sessionId,
-              transaction,
-            );
-          affectedSessions.push({
-            sessionId: updated.id,
-            action: 'PENDING',
-          });
+        try {
+          if (proposal.action === 'CANCEL') {
+            const updated =
+              await this.sessionService.applySessionCancelInTransaction(
+                proposal.sessionId,
+                SUSPENSION_CONFLICT_CANCELLATION_REASON,
+                transaction,
+                skipIfNotScheduled,
+              );
+            affectedSessions.push({
+              sessionId: updated.id,
+              action: 'CANCEL',
+            });
+            cancelledToNotify.push({ actorId, session: updated });
+          } else {
+            const updated =
+              await this.sessionService.applySessionPendingInTransaction(
+                proposal.sessionId,
+                transaction,
+                skipIfNotScheduled,
+              );
+            affectedSessions.push({
+              sessionId: updated.id,
+              action: 'PENDING',
+            });
+          }
+        } catch (error) {
+          if (error instanceof SessionNoLongerScheduledError) {
+            continue;
+          }
+          throw error;
         }
       }
 

@@ -502,6 +502,27 @@ describe('TrainingSuspensionConflictsService (R28 / T-036)', () => {
       expect(notifications.notifyResolved).not.toHaveBeenCalled();
     });
 
+    it('rejects POST apply payload containing legacy action CHANGE_TYPE with 422 VALIDATION_ERROR', async () => {
+      await expect(
+        service.applyConflicts(
+          coachActor,
+          suspensionId,
+          {
+            sessionIds: [session1Id],
+            action: 'CHANGE_TYPE',
+          } as never,
+        ),
+      ).rejects.toSatisfy(
+        (err: unknown) =>
+          err instanceof UnprocessableEntityException &&
+          (err as HttpException).getStatus() === 422 &&
+          responseOf(err).code === 'VALIDATION_ERROR',
+      );
+
+      expect(repo.lockSessionById).not.toHaveBeenCalled();
+      expect(repo.updateSessionStatus).not.toHaveBeenCalled();
+    });
+
     it('F3: rejects apply if session transitions to IN_PROGRESS between proposal and lock, modifying nothing', async () => {
       const susp = makeSuspensionRow({
         startsOn: '2026-10-01',
@@ -708,6 +729,246 @@ describe('TrainingSuspensionConflictsService (R28 / T-036)', () => {
         { sessionId: session1Id, action: 'PENDING' },
       ]);
       expect(res.affectedPlans).toEqual([]);
+      expect(notifications.notifyResolved).not.toHaveBeenCalled();
+    });
+
+    it('only applies proposals for sessions blocked by the newly created suspension(s), leaving a SCHEDULED session under an older non-overlapping OTHER suspension untouched', async () => {
+      const novSession = makeSessionEntity({
+        id: session1Id,
+        sessionType: 'SPARRING',
+        scheduledAt: '2026-11-03T10:00:00.000Z',
+        status: 'SCHEDULED',
+      });
+      const decSession = makeSessionEntity({
+        id: session2Id,
+        sessionType: 'SPARRING',
+        scheduledAt: '2026-12-02T10:00:00.000Z',
+        status: 'SCHEDULED',
+      });
+
+      const oldOtherSuspension = makeSuspensionRow({
+        id: '70000000-0000-4000-8000-000000000010',
+        reason: 'OTHER',
+        startsOn: '2026-11-01',
+        endsOn: '2026-11-07',
+        blockedSessionTypes: ['SPARRING'],
+        requiresClearance: false,
+      });
+      const newMandatoryRestSuspension = makeSuspensionRow({
+        id: '70000000-0000-4000-8000-000000000011',
+        reason: 'MANDATORY_REST',
+        startsOn: '2026-12-01',
+        endsOn: '2026-12-03',
+        blockedSessionTypes: ['SPARRING'],
+        requiresClearance: false,
+      });
+
+      suspensionsRepo.insertSuspension.mockResolvedValueOnce(
+        newMandatoryRestSuspension,
+      );
+      suspensionsRepo.findSuspensionsByFighterId.mockResolvedValueOnce([
+        oldOtherSuspension,
+        newMandatoryRestSuspension,
+      ]);
+      repo.findScheduledSessionsByFighterId.mockResolvedValueOnce([novSession]);
+
+      const suspensionsService = new SuspensionsService(
+        suspensionsRepo,
+        suspensionEffects,
+      );
+      const resNoDecSession = await suspensionsService.createSuspension(
+        coachActor,
+        {
+          fighterId,
+          reason: 'MANDATORY_REST',
+          startsOn: '2026-12-01',
+          days: 3,
+          blockedSessionTypes: ['SPARRING'],
+        },
+        'req-rest-only-nov-session',
+      );
+
+      // The Nov 3 session belongs only to the older Nov 1-7 OTHER suspension and must NOT be touched
+      expect(resNoDecSession.affectedSessions).toEqual([]);
+      expect(repo.lockSessionById).not.toHaveBeenCalled();
+      expect(repo.updateSessionStatus).not.toHaveBeenCalled();
+
+      // When a Dec 2 session also exists and an open-ended suspension requiring clearance is in force,
+      // only the Dec 2 session is affected and its action (CANCEL) is still computed across all in-force suspensions
+      const existingOpenMedical = makeSuspensionRow({
+        id: '70000000-0000-4000-8000-000000000012',
+        reason: 'MEDICAL',
+        startsOn: '2026-11-20',
+        endsOn: '2026-11-25',
+        blockedSessionTypes: ['SPARRING'],
+        requiresClearance: true,
+        clearedAt: null,
+      });
+      suspensionsRepo.insertSuspension.mockResolvedValueOnce(
+        newMandatoryRestSuspension,
+      );
+      suspensionsRepo.findSuspensionsByFighterId.mockResolvedValueOnce([
+        oldOtherSuspension,
+        existingOpenMedical,
+        newMandatoryRestSuspension,
+      ]);
+      repo.findScheduledSessionsByFighterId.mockResolvedValueOnce([
+        novSession,
+        decSession,
+      ]);
+      repo.lockSessionById.mockResolvedValueOnce(decSession);
+      repo.updateSessionStatus.mockImplementationOnce(
+        async (id, _expected, newStatus) => ({
+          ...decSession,
+          id,
+          status: newStatus,
+        }),
+      );
+
+      const resWithDecSession = await suspensionsService.createSuspension(
+        coachActor,
+        {
+          fighterId,
+          reason: 'MANDATORY_REST',
+          startsOn: '2026-12-01',
+          days: 3,
+          blockedSessionTypes: ['SPARRING'],
+        },
+        'req-rest-with-dec-session',
+      );
+
+      expect(resWithDecSession.affectedSessions).toEqual([
+        { sessionId: session2Id, action: 'CANCEL' },
+      ]);
+      expect(repo.lockSessionById).toHaveBeenCalledTimes(1);
+      expect(repo.lockSessionById).toHaveBeenCalledWith(
+        session2Id,
+        expect.anything(),
+      );
+    });
+
+    it('skips sessions that are no longer SCHEDULED after row locking without modifying them, throwing, or adding them to affectedSessions: (a) coach starts session to IN_PROGRESS concurrently during CANCEL; (b) concurrent suspension already moved session to CANCELLED before PENDING', async () => {
+      const s1 = makeSessionEntity({
+        id: session1Id,
+        sessionType: 'SPARRING',
+        scheduledAt: '2026-10-05T10:00:00.000Z',
+        status: 'SCHEDULED',
+      });
+      const s2 = makeSessionEntity({
+        id: session2Id,
+        sessionType: 'SPARRING',
+        scheduledAt: '2026-10-07T10:00:00.000Z',
+        status: 'SCHEDULED',
+      });
+
+      const suspensionsService = new SuspensionsService(
+        suspensionsRepo,
+        suspensionEffects,
+      );
+
+      // (a) Session 1 becomes IN_PROGRESS before lockSessionById resolves during a KO/MEDICAL (CANCEL) suspension creation
+      const medicalRow = makeSuspensionRow({
+        id: suspensionId,
+        reason: 'MEDICAL',
+        startsOn: '2026-10-05',
+        endsOn: '2026-10-14',
+        blockedSessionTypes: ['SPARRING'],
+        requiresClearance: true,
+        createdById: doctorActor.id,
+      });
+      suspensionsRepo.insertSuspension.mockResolvedValueOnce(medicalRow);
+      suspensionsRepo.findSuspensionsByFighterId.mockResolvedValueOnce([
+        medicalRow,
+      ]);
+      repo.findScheduledSessionsByFighterId.mockResolvedValueOnce([s1, s2]);
+      repo.lockSessionById.mockImplementation(async (id) =>
+        id === session1Id ? { ...s1, status: 'IN_PROGRESS' } : s2,
+      );
+      repo.lockActiveCampPlansByFighterId.mockResolvedValueOnce([]);
+      repo.updateSessionStatus.mockImplementation(
+        async (id, _expected, newStatus) => ({
+          ...s2,
+          id,
+          status: newStatus,
+        }),
+      );
+      notifications.notifyResolved.mockClear();
+
+      const resA = await suspensionsService.createSuspension(
+        doctorActor,
+        {
+          fighterId,
+          reason: 'MEDICAL',
+          days: 10,
+          blockedSessionTypes: ['SPARRING'],
+        },
+        'req-concurrent-in-progress',
+      );
+
+      // Session 1 (IN_PROGRESS) was skipped; only Session 2 (still SCHEDULED) was cancelled
+      expect(resA.affectedSessions).toEqual([
+        { sessionId: session2Id, action: 'CANCEL' },
+      ]);
+      expect(repo.updateSessionStatus).toHaveBeenCalledTimes(1);
+      expect(repo.updateSessionStatus).toHaveBeenCalledWith(
+        session2Id,
+        'SCHEDULED',
+        'CANCELLED',
+        expect.any(Date),
+        expect.anything(),
+        expect.anything(),
+      );
+      expect(notifications.notifyResolved).toHaveBeenCalledTimes(1);
+
+      // (b) Session 1 is already CANCELLED when locked during a DQ (PENDING) suspension creation
+      repo.updateSessionStatus.mockClear();
+      notifications.notifyResolved.mockClear();
+      const dqRow = makeSuspensionRow({
+        id: '70000000-0000-4000-8000-000000000022',
+        reason: 'DQ',
+        startsOn: '2026-10-05',
+        endsOn: '2026-10-14',
+        blockedSessionTypes: ['SPARRING'],
+        requiresClearance: false,
+      });
+      suspensionsRepo.insertSuspension.mockResolvedValueOnce(dqRow);
+      suspensionsRepo.findSuspensionsByFighterId.mockResolvedValueOnce([dqRow]);
+      repo.findScheduledSessionsByFighterId.mockResolvedValueOnce([s1, s2]);
+      repo.lockSessionById.mockImplementation(async (id) =>
+        id === session1Id ? { ...s1, status: 'CANCELLED' } : s2,
+      );
+      repo.updateSessionStatus.mockImplementation(
+        async (id, _expected, newStatus) => ({
+          ...s2,
+          id,
+          status: newStatus,
+        }),
+      );
+
+      const resB = await suspensionsService.createSuspension(
+        coachActor,
+        {
+          fighterId,
+          reason: 'DQ',
+          days: 10,
+          blockedSessionTypes: ['SPARRING'],
+        },
+        'req-concurrent-cancelled',
+      );
+
+      // Does not throw invalidSessionStatusTransition; skips session1Id and moves session2Id to PENDING
+      expect(resB.affectedSessions).toEqual([
+        { sessionId: session2Id, action: 'PENDING' },
+      ]);
+      expect(repo.updateSessionStatus).toHaveBeenCalledTimes(1);
+      expect(repo.updateSessionStatus).toHaveBeenCalledWith(
+        session2Id,
+        'SCHEDULED',
+        'PENDING',
+        expect.any(Date),
+        { cancellationReason: null, actualDurationSec: null },
+        expect.anything(),
+      );
       expect(notifications.notifyResolved).not.toHaveBeenCalled();
     });
 

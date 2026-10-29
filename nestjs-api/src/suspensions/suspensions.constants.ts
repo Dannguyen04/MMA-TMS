@@ -56,7 +56,7 @@ export const REHAB_TRIGGER_SUSPENSION_REASONS: readonly SuspensionReason[] = [
   'MEDICAL',
 ];
 
-const ACADEMY_UTC_OFFSET_MS = 7 * 3_600_000;
+export const ACADEMY_UTC_OFFSET_MS = 7 * 3_600_000;
 const DAY_MS = 86_400_000;
 
 /** Academy calendar date (YYYY-MM-DD) of an instant. */
