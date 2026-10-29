@@ -42,9 +42,10 @@ export const SUSPENSION_STATUSES = [
 ] as const;
 export type SuspensionStatus = (typeof SUSPENSION_STATUSES)[number];
 
-export const DEFAULT_MANUAL_BLOCKED_SESSION_TYPES: readonly SessionType[] = [
-  'SPARRING',
-];
+export const DEFAULT_MANUAL_BLOCKED_SESSION_TYPES: readonly SessionType[] =
+  SESSION_TYPES.filter(
+    (type) => type !== 'RECOVERY' && type !== 'PHYSICAL_THERAPY',
+  );
 
 // ---------------------------------------------------------------------------
 // Pure domain rules (Tech spec 2.5, Business flows F7, Rule S3)
