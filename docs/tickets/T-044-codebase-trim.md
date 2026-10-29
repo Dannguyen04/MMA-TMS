@@ -1,7 +1,7 @@
 # T-044 Tinh gọn source code sau buổi review 27/10
 
-- Trạng thái: DRAFT (27/10). Phần A sẵn sàng giao; phần B chờ T-040 và quyết định của chủ dự án.
-- Người nhận: phần A chưa giao (đề xuất Gemini `gemini-3.8-flash-high`, vì chỉ xoá file theo danh sách). Phần B: người làm T-040.
+- Trạng thái: phần A READY (29/10, chủ dự án duyệt giao Gemini), nhánh `chore/T-044-trim-dead-files`. Phần B: DRAFT, chờ T-040 và quyết định của chủ dự án.
+- Người nhận: phần A Gemini `gemini-3.8-flash-high` (worktree `D:/test/ai-worktrees/T-044`). Phần B: người làm T-040.
 - Phụ thuộc: phần A không phụ thuộc gì. Phần B phụ thuộc [T-040](./README.md) (demo trên backend thật).
 
 ## Bối cảnh
