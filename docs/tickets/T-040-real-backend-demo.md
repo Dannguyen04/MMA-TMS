@@ -52,6 +52,18 @@ Frontend chạy demo mode mặc định khi không phải production (`nextjs-fr
    - Liệt kê các file test của từng ticket nguồn (T-004, T-006 B, T-010B, T-033, T-046, T-042, T-043) và xác nhận chúng còn nguyên, vẫn qua.
 4. Trong handover, ghi từng file xung đột và bên đã giữ.
 
+**Thử gộp ngày 30/10 (Claude), đã huỷ lại:** merge `origin/feat/T-046-embedded-youtube` vào `fight-camp` (`1423ab6`) ra 21 file xung đột, 63 đoạn. Hai bên có hai merge base (`35a3b76` ngày 26/10 và `bd1e727` ngày 16/10).
+- Hai file tài liệu: giữ bản `fight-camp`.
+- 19 file code: phần lớn **không phải xung đột máy móc**.
+  - `fight-camp` mất tính năng của PR #22 trên `main` (ví dụ `c339693` "stop calling the first password set-up a reset", hàm `passwordContext` trong `app/(auth)/auth/reset-password/page.tsx`). Lý do: bản dịch T-014 (`1944114`, 20/10) dựng trên `fight-camp` lúc chưa có PR #22, rồi lần merge `main` của T-011 (`509b62b`) giữ bản đã dịch. Nhánh demo giữ được cả bản dịch lẫn tính năng.
+  - So khoá i18n và chuỗi tiếng Anh từng file:
+    - Chỉ nhánh demo có thêm: `coach/dashboard/page.tsx` (7 khoá chỉ có ở demo).
+    - Chỉ `fight-camp` có thêm, nhánh demo còn chữ tiếng Anh: `(applicant)/apply/page.tsx`, `components/admissions/application-form.tsx`, `application-progress.tsx`, `reset-password-form.tsx`.
+    - Mỗi bên có phần riêng, phải trộn từng đoạn: `fighter/dashboard/page.tsx` (20 khoá chỉ có ở `fight-camp`, 6 chỉ có ở demo), `reset-password/page.tsx` (4 và 8), `components/dashboard/fight-hero.tsx` (4 và 22), `lib/actions/training.ts`.
+    - Nhánh demo xoá `components/dashboard/onboarding-strip.tsx`, `fight-camp` có sửa file này.
+  - Giải các file này là trộn code tính năng của hai dòng phát triển, nên theo mục 2 phải hỏi người làm gốc. Hoàng Anh làm cả chuỗi nhánh demo lẫn lần merge T-011.
+- **Chủ dự án quyết 30/10:** giao Codex giải xung đột. Claude chuẩn bị worktree và bắt đầu merge, Codex giải từng đoạn theo quy tắc: giữ cả bản dịch của `fight-camp` lẫn tính năng của nhánh demo. Claude review.
+
 ### Phần B · Dữ liệu demo qua API (Ken; gộp T-008)
 
 - Script `nestjs-api/scripts/demo-seed.mjs` tạo dữ liệu **chỉ qua HTTP API** của backend, không SQL trực tiếp. Dữ liệu phải đi qua đúng quyền, kiểm tra và audit ([quyết định 9](../SCOPE-FIGHT-CAMP.md#quyết-định-và-câu-hỏi): chỉ dữ liệu giả, email `@example.com`).
