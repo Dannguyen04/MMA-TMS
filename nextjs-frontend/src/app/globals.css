@@ -963,3 +963,34 @@ dialog[open]::backdrop {
     }
 }
 
+/*
+ * Paper and "Save as PDF": the app shell hides itself (print: classes in AppShell); controls that only work on a
+ * screen go too, colours keep their meaning, and cards don't split across pages.
+ */
+@media print {
+    @page {
+        margin: 12mm;
+    }
+
+    body {
+        background: white;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    button,
+    dialog,
+    .toast-in,
+    [data-print="hide"] {
+        display: none !important;
+    }
+
+    .shadow-card {
+        box-shadow: none;
+    }
+
+    .rounded-xl {
+        break-inside: avoid;
+    }
+}
+

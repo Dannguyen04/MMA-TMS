@@ -7,6 +7,7 @@ import { cache, type ReactNode } from "react";
 import { InlineNote } from "@/components/dashboard/inline-note";
 import { CampTimeline } from "@/components/domain/camp-timeline";
 import { CampWeightCard } from "@/components/domain/camp-weight-card";
+import { CsvButton, PrintButton } from "@/components/feedback/export-buttons";
 import { NutritionPlanForm } from "@/components/domain/nutrition-plan-form";
 import { BoutPhaseBadge, Gate1Badge, SuspensionStateBadge, WeightStatusBadge } from "@/components/domain/status-badges";
 import { FlashToast } from "@/components/medical/flash-toast";
@@ -137,12 +138,18 @@ export default async function CoachBoutPage({ params, searchParams }: PageProps<
                     </>
                 }
                 actions={
-                    (canEditSchedule(bout.phase) || canCancel(bout.phase)) && (
-                        <>
-                            {canEditSchedule(bout.phase) && <EditBoutButton bout={bout} ruleset={ruleset} todayOn={todayOn} />}
-                            {canCancel(bout.phase) && <CancelBoutButton bout={bout} />}
-                        </>
-                    )
+                    <>
+                        <PrintButton />
+                        {track && (
+                            <CsvButton
+                                filename={`can-nang-${bout.id}.csv`}
+                                header={[t("ux.export.col.date"), t("ux.export.col.weightKg"), t("ux.export.col.planAnswer")]}
+                                rows={track.points.map((point) => [point.date, point.kg, point.adherence ? t(`boutLabel.adherence.${point.adherence}`) : null])}
+                            />
+                        )}
+                        {canEditSchedule(bout.phase) && <EditBoutButton bout={bout} ruleset={ruleset} todayOn={todayOn} />}
+                        {canCancel(bout.phase) && <CancelBoutButton bout={bout} />}
+                    </>
                 }
             />
 

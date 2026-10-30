@@ -40,7 +40,7 @@ export function AppShell({ user, theme, locale, counts, notifications, now, chil
             </a>
 
             {/* Desktop sidebar */}
-            <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-rail-border bg-rail-bg px-3 py-4 lg:flex">
+            <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-rail-border bg-rail-bg px-3 py-4 lg:flex print:hidden">
                 <Link href={dashboardPath(user.role)} className="mb-2 rounded-lg px-2 py-1">
                     <Logo ground="rail" />
                 </Link>
@@ -50,8 +50,8 @@ export function AppShell({ user, theme, locale, counts, notifications, now, chil
                 </div>
             </aside>
 
-            <div className="lg:pl-64">
-                <header className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b border-border bg-surface/90 px-3 backdrop-blur sm:px-5">
+            <div className="lg:pl-64 print:pl-0">
+                <header className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b border-border bg-surface/90 px-3 backdrop-blur sm:px-5 print:hidden">
                     <MobileNavDrawer role={user.role} counts={counts} />
                     <Link href={dashboardPath(user.role)} className="flex items-center gap-2 lg:hidden" aria-label={t("shell.home")}>
                         <LogoMark className="size-7" />
@@ -69,13 +69,15 @@ export function AppShell({ user, theme, locale, counts, notifications, now, chil
                     </div>
                 </header>
 
-                <main id="main" tabIndex={-1} className="mx-auto w-full max-w-[1440px] px-4 pt-6 pb-24 focus:outline-none sm:px-6 md:pb-12 lg:px-8 lg:pt-8">
+                <main id="main" tabIndex={-1} className="mx-auto w-full max-w-[1440px] px-4 pt-6 pb-24 focus:outline-none sm:px-6 md:pb-12 lg:px-8 lg:pt-8 print:max-w-none print:p-0">
                     <HubTabs role={user.role} />
                     {children}
                 </main>
             </div>
 
-            <MobileBottomBar role={user.role} counts={counts} />
+            <div className="print:hidden">
+                <MobileBottomBar role={user.role} counts={counts} />
+            </div>
         </div>
     );
 }
