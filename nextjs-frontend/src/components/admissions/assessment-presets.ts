@@ -1,5 +1,7 @@
 import type { Suggestion } from "@/components/ui/suggestion-chips";
 import { ADMISSION_LIMITS, type AssessmentConclusion } from "@/lib/domain/admissions";
+import type { Locale } from "@/lib/i18n/config";
+import { createTranslator, type MessageKey } from "@/lib/i18n/translate";
 
 /*
  * Starting points for the coach's entrance assessment. They only fill in what the coach would type anyway; the
@@ -13,34 +15,43 @@ export interface CriterionPreset {
     method: string;
 }
 
-export const CRITERION_PRESETS: CriterionPreset[] = [
-    { label: "Conditioning — 3×3-min pads", criterionName: "Conditioning", method: "Three 3-minute pad rounds" },
-    { label: "Striking technique — shadow + pads", criterionName: "Striking technique", method: "Shadow boxing, then pads" },
-    { label: "Defence — partner drill", criterionName: "Defence", method: "Partner drill" },
-    { label: "Footwork — ring movement", criterionName: "Footwork", method: "Ring movement drill" },
-    { label: "Grappling basics — positional drill", criterionName: "Grappling basics", method: "Positional drill" },
-    { label: "Attitude & coachability — observation", criterionName: "Attitude and coachability", method: "Observed through the session" },
-];
+const PRESET_IDS = ["conditioning", "striking", "defence", "footwork", "grappling", "attitude"] as const;
 
-/** Presets the coach hasn't added yet (by criterion name, ignoring case and spacing). */
-export function unusedPresets(criteria: { criterionName: string }[]): CriterionPreset[] {
-    const used = new Set(criteria.map((criterion) => normalise(criterion.criterionName)));
-    return CRITERION_PRESETS.filter((preset) => !used.has(normalise(preset.criterionName)));
+/** The common criteria in the viewer's language (English when omitted). */
+export function criterionPresets(locale: Locale = "en"): CriterionPreset[] {
+    const t = createTranslator(locale);
+    return PRESET_IDS.map((id) => ({
+        label: t(`screens.misc.assessment.preset.${id}.label`),
+        criterionName: t(`screens.misc.assessment.preset.${id}.name`),
+        method: t(`screens.misc.assessment.preset.${id}.method`),
+    }));
 }
 
-/** Closing lines the coach can add to the summary, matching the result they chose. */
-export const CLOSING_LINES: Record<AssessmentConclusion, Suggestion[]> = {
-    pass: [
-        { label: "Ready for the programme", value: "Ready to start the fighter programme." },
-        { label: "Good base, needs conditioning", value: "Good technical base; conditioning needs work." },
-        { label: "Coachable", value: "Listens well and applies feedback quickly." },
-    ],
-    fail: [
-        { label: "Not ready yet", value: "Not ready for the fighter programme yet." },
-        { label: "Conditioning too low", value: "Conditioning is below the level the programme needs." },
-        { label: "Reapply later", value: "Welcome to reapply after more training." },
-    ],
+export const CRITERION_PRESETS: CriterionPreset[] = criterionPresets();
+
+/** Presets the coach hasn't added yet (by criterion name, ignoring case and spacing). */
+export function unusedPresets(criteria: { criterionName: string }[], locale: Locale = "en"): CriterionPreset[] {
+    const used = new Set(criteria.map((criterion) => normalise(criterion.criterionName)));
+    return criterionPresets(locale).filter((preset) => !used.has(normalise(preset.criterionName)));
+}
+
+const CLOSING_IDS: Record<AssessmentConclusion, readonly string[]> = {
+    pass: ["ready", "goodBase", "coachable"],
+    fail: ["notReady", "conditioning", "reapply"],
 };
+
+/** Closing lines the coach can add to the summary, matching the result they chose, in the viewer's language. */
+export function closingLines(locale: Locale = "en"): Record<AssessmentConclusion, Suggestion[]> {
+    const t = createTranslator(locale);
+    const lines = (conclusion: AssessmentConclusion) =>
+        CLOSING_IDS[conclusion].map((id) => {
+            const key = `screens.misc.assessment.closing.${conclusion}.${id}`;
+            return { label: t(key as MessageKey), value: t(`${key}Value` as MessageKey) };
+        });
+    return { pass: lines("pass"), fail: lines("fail") };
+}
+
+export const CLOSING_LINES: Record<AssessmentConclusion, Suggestion[]> = closingLines();
 
 /** A criterion as the form holds it: every field is the text typed so far. */
 export interface CriterionDraft {

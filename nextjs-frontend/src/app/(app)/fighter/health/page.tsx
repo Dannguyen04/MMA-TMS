@@ -178,7 +178,7 @@ export default async function FighterHealthPage({ searchParams }: PageProps<"/fi
                                 <RecoveryProgress plan={recovery.plan} now={now} locale={locale} />
                                 {medicalFeatureAvailable("recoveryPhasesAndCheckIns") && (
                                     <div className="border-t border-border pt-5">
-                                        <CheckInTrends checkIns={recovery.plan.checkIns} now={now} />
+                                        <CheckInTrends locale={locale === "en" ? undefined : locale} checkIns={recovery.plan.checkIns} now={now} />
                                     </div>
                                 )}
                             </CardContent>

@@ -22,7 +22,7 @@ export function LoginForm({ next }: { next: string | null }) {
             <FormMessage {...form.message} />
 
             <Field label={t("auth.email")} htmlFor={email.id} error={form.error("email")}>
-                <Input {...email} type="email" autoComplete="email" placeholder="you@lotus-combat.test" />
+                <Input {...email} type="email" autoComplete="email" placeholder={t("screens.misc.auth.loginEmailPlaceholder")} />
             </Field>
 
             <Field label={t("auth.password")} htmlFor={password.id} error={form.error("password")}>

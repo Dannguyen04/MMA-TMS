@@ -92,8 +92,8 @@ export default async function AdminAIJobDetailPage({ params }: PageProps<"/admin
                 }
                 meta={
                     <>
-                        <AIJobStatusBadge status={job.status} />
-                        {job.lowConfidence && <LowConfidenceBadge />}
+                        <AIJobStatusBadge locale={locale} status={job.status} />
+                        {job.lowConfidence && <LowConfidenceBadge locale={locale} />}
                         <Badge tone="neutral" variant="outline">
                             {t("screens.admin.job.attempt", { n: job.attempts })}
                         </Badge>
@@ -305,7 +305,7 @@ export default async function AdminAIJobDetailPage({ params }: PageProps<"/admin
                                                         </Link>
                                                     </TD>
                                                     <TD>
-                                                        <AIJobStatusBadge status={run.status} size="sm" />
+                                                        <AIJobStatusBadge locale={locale} status={run.status} size="sm" />
                                                     </TD>
                                                     <TD className="text-right">{run.attempts}</TD>
                                                     <TD className="whitespace-nowrap text-fg-muted">{formatDateTime(run.queuedAt, locale)}</TD>

@@ -8,7 +8,7 @@ import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { Field, Input, Select } from "@/components/ui/form";
 import { setLocalePreference } from "@/lib/actions/locale";
 import { APP_TIMEZONE, formatDate, formatDateTime, formatTime, formatWeekdayDate } from "@/lib/format";
-import { INTL_LOCALE, type Locale } from "@/lib/i18n/config";
+import { INTL_LOCALE, LOCALE_NAMES, type Locale } from "@/lib/i18n/config";
 
 function utcOffsetLabel(now: string, locale: Locale): string {
     return (
@@ -47,8 +47,9 @@ export function RegionalSettings({ now, locale: initialLocale }: { now: string; 
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             <Field label={t("account.regional.language")} htmlFor="settings-language" hint={t("account.regional.languageHint")}>
                 <Select id="settings-language" name="language" value={locale} disabled={pending} onChange={onLanguageChange}>
-                    <option value="en">English</option>
-                    <option value="vi">Tiếng Việt</option>
+                    {/* Each language keeps its own name. */}
+                    <option value="en">{LOCALE_NAMES.en}</option>
+                    <option value="vi">{LOCALE_NAMES.vi}</option>
                 </Select>
             </Field>
             <Field label={t("account.regional.timezone")} htmlFor="settings-timezone" hint={t("account.regional.timezoneHint")}>

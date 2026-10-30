@@ -204,7 +204,7 @@ export function ExerciseBuilder({ library, rows, onChange, error: errorFor, mark
                                     </span>
                                     <div className="min-w-0 flex-1">
                                         <p className="text-sm font-medium text-fg">
-                                            <span className="sr-only">Exercise {index + 1}: </span>
+                                            <span className="sr-only">{t("screens.misc.builder.exerciseN", { n: index + 1 })}</span>
                                             {name}
                                         </p>
                                         <div className="mt-1 flex flex-wrap items-center gap-1.5">

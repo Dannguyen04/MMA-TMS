@@ -97,14 +97,14 @@ export default async function AdminAdmissionPage({ params }: PageProps<"/admin/a
                     <Card>
                         <CardHeader title={t("screens.admin.application.applicant")} icon={<UserRound />} />
                         <CardContent>
-                            <ApplicantDetailsList details={application.applicant} accountEmail={application.accountEmail} />
+                            <ApplicantDetailsList locale={locale === "en" ? undefined : locale} details={application.applicant} accountEmail={application.accountEmail} />
                         </CardContent>
                     </Card>
                     <Card>
                         <CardHeader title={t("screens.admin.application.assessment")} icon={<ClipboardCheck />} />
                         <CardContent>
                             {application.assessment ? (
-                                <AssessmentView assessment={application.assessment} coachName={coachName(application.assessment.coachId)} />
+                                <AssessmentView locale={locale === "en" ? undefined : locale} assessment={application.assessment} coachName={coachName(application.assessment.coachId)} />
                             ) : (
                                 <p className="text-sm text-fg-muted">
                                     {application.evaluator

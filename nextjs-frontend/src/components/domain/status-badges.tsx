@@ -185,14 +185,17 @@ export const AI_JOB_STATUS_META: Record<AIJobStatus, StatusMeta> = {
     failed: { label: AI_JOB_STATUS_LABELS.failed, tone: "danger", icon: CircleX },
 };
 
-export function AIJobStatusBadge({ status, size, className }: { status: AIJobStatus; size?: BadgeSize; className?: string }) {
-    return <StatusBadge meta={AI_JOB_STATUS_META[status]} size={size} className={className} />;
+/** Pass `locale` on translated screens; without it the badge keeps the English label. */
+export function AIJobStatusBadge({ status, size, className, locale }: { status: AIJobStatus; size?: BadgeSize; className?: string; locale?: Locale }) {
+    const meta = AI_JOB_STATUS_META[status];
+    return <StatusBadge meta={locale ? { ...meta, label: createTranslator(locale)(`screens.admin.jobStatus.${status}`) } : meta} size={size} className={className} />;
 }
 
-export function LowConfidenceBadge({ size, className }: { size?: BadgeSize; className?: string }) {
+/** Pass `locale` on translated screens; without it the badge keeps the English label. */
+export function LowConfidenceBadge({ size, className, locale }: { size?: BadgeSize; className?: string; locale?: Locale }) {
     return (
         <Badge tone="warning" icon={TriangleAlert} size={size} className={className}>
-            Low confidence
+            {createTranslator(locale ?? "en")("screens.admin.jobs.lowConfidence")}
         </Badge>
     );
 }
@@ -396,8 +399,10 @@ export const CONCLUSION_META: Record<AssessmentConclusion, StatusMeta> = {
     fail: { label: CONCLUSION_LABELS.fail, tone: "danger", icon: CircleX },
 };
 
-export function ConclusionBadge({ conclusion, size, className }: { conclusion: AssessmentConclusion; size?: BadgeSize; className?: string }) {
-    return <StatusBadge meta={CONCLUSION_META[conclusion]} size={size} className={className} />;
+/** Pass `locale` on translated screens; without it the badge keeps the English label. */
+export function ConclusionBadge({ conclusion, size, className, locale }: { conclusion: AssessmentConclusion; size?: BadgeSize; className?: string; locale?: Locale }) {
+    const meta = CONCLUSION_META[conclusion];
+    return <StatusBadge meta={locale ? { ...meta, label: createTranslator(locale)(`screens.misc.conclusion.${conclusion}`) } : meta} size={size} className={className} />;
 }
 
 /* ─── Fight camp ──────────────────────────────────────────────────────────── */

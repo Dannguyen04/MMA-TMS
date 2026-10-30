@@ -57,7 +57,7 @@ const emptyKeys = (segment: Segment) => ({
 
 export default async function AdminAdmissionsPage({ searchParams }: PageProps<"/admin/admissions">) {
     const admin = await requireRole("admin");
-    const { t } = await getTranslator();
+    const { t, locale } = await getTranslator();
     const segment: Segment = parseEnum(param((await searchParams).view), Object.keys(SEGMENTS) as Segment[]) ?? "all";
     const [applications, coaches, careTeamGaps] = await Promise.all([listApplications(), listStaffAccounts("coach"), listCareTeamGaps(admin)]);
     const waitingForCare = new Set((careTeamGaps ?? []).map((gap) => gap.userId));
@@ -93,7 +93,7 @@ export default async function AdminAdmissionsPage({ searchParams }: PageProps<"/
                         </CardContent>
                     ) : (
                         <div className="border-t border-border">
-                            <ApplicationList applications={shown} hrefFor={routes.admin.admission} coachName={coachName} label={t("screens.admin.admissions.list")} />
+                            <ApplicationList locale={locale === "en" ? undefined : locale} applications={shown} hrefFor={routes.admin.admission} coachName={coachName} label={t("screens.admin.admissions.list")} />
                         </div>
                     )}
                 </Card>

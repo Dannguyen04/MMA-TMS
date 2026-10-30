@@ -143,7 +143,7 @@ export default async function AdminAIJobsPage({ searchParams }: PageProps<"/admi
                                                 <p className="truncate text-sm font-medium text-fg">{video?.title ?? t("screens.admin.common.videoRemoved")}</p>
                                                 <p className="truncate text-xs text-fg-muted">{fighter?.name ?? job.fighterId}</p>
                                             </div>
-                                            <AIJobStatusBadge status={job.status} size="sm" className="shrink-0" />
+                                            <AIJobStatusBadge locale={locale} status={job.status} size="sm" className="shrink-0" />
                                         </div>
                                         <JobStage job={job} t={t} />
                                         <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-fg-muted">
@@ -151,7 +151,7 @@ export default async function AdminAIJobsPage({ searchParams }: PageProps<"/admi
                                             <span>{countLabel(t, "screens.admin.count.attempts", job.attempts)}</span>
                                             {job.durationSec !== null && <span>{formatDurationSec(job.durationSec, locale)}</span>}
                                             {job.avgConfidence !== null && <span>{t("screens.admin.jobs.confidence", { pct: formatConfidence(job.avgConfidence) })}</span>}
-                                            {job.lowConfidence && <LowConfidenceBadge size="sm" />}
+                                            {job.lowConfidence && <LowConfidenceBadge locale={locale} size="sm" />}
                                         </p>
                                     </li>
                                 ))}
@@ -186,7 +186,7 @@ export default async function AdminAIJobsPage({ searchParams }: PageProps<"/admi
                                                     <p className="truncate text-xs text-fg-muted">{fighter?.name ?? job.fighterId}</p>
                                                 </TD>
                                                 <TD>
-                                                    <AIJobStatusBadge status={job.status} size="sm" />
+                                                    <AIJobStatusBadge locale={locale} status={job.status} size="sm" />
                                                 </TD>
                                                 <TD className="w-52 min-w-48">
                                                     <JobStage job={job} t={t} />
@@ -201,7 +201,7 @@ export default async function AdminAIJobsPage({ searchParams }: PageProps<"/admi
                                                     {job.avgConfidence !== null ? (
                                                         <span className="flex flex-col items-start gap-1">
                                                             {formatConfidence(job.avgConfidence)}
-                                                            {job.lowConfidence && <LowConfidenceBadge size="sm" />}
+                                                            {job.lowConfidence && <LowConfidenceBadge locale={locale} size="sm" />}
                                                         </span>
                                                     ) : (
                                                         <span className="text-fg-subtle">—</span>

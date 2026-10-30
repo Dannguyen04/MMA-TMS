@@ -1,6 +1,6 @@
 "use client";
 
-import { useDemoCopy, useLocale } from "@/components/i18n/locale-provider";
+import { useDemoCopy, useLocale, useT } from "@/components/i18n/locale-provider";
 import { Search, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useId, useRef, useState, useTransition, type CSSProperties } from "react";
@@ -28,6 +28,7 @@ export interface FilterBarProps {
  */
 export function FilterBar({ filters, label, className }: FilterBarProps) {
     const copy = useDemoCopy();
+    const t = useT();
     const locale = useLocale();
     const router = useRouter();
     const rootRef = useRef<HTMLDivElement>(null);
@@ -133,7 +134,7 @@ export function FilterBar({ filters, label, className }: FilterBarProps) {
                 </Button>
             )}
             <span aria-live="polite" className="contents">
-                {pending && <Spinner className="text-fg-subtle" label="Updating results" />}
+                {pending && <Spinner className="text-fg-subtle" label={t("screens.misc.updatingResults")} />}
             </span>
         </div>
     );

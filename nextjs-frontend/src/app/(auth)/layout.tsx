@@ -29,11 +29,11 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
                     <Logo />
                 </div>
                 <div className="relative mt-auto max-w-md">
-                    <p className="text-xs font-semibold tracking-[0.12em] text-nav-accent uppercase">Lotus Combat Academy</p>
+                    <p className="text-xs font-semibold tracking-[0.12em] text-nav-accent uppercase">{t("screens.misc.auth.academy")}</p>
                     <p className="mt-3 text-[34px] leading-tight font-semibold tracking-tight text-balance text-white">
                         {t("auth.slogan")}
                     </p>
-                    <p className="mt-3 text-[15px] text-nav-fg">Hệ thống Quản lý Huấn luyện và Theo dõi Sức khỏe Võ sĩ</p>
+                    <p className="mt-3 text-[15px] text-nav-fg">{t("screens.misc.auth.systemName")}</p>
                     <ul className="mt-10 space-y-6">
                         {HIGHLIGHTS.map(({ icon: Icon, key }) => (
                             <li key={key} className="flex gap-4">

@@ -1,9 +1,10 @@
 "use client";
 
 import { Mail, PenLine, Send } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { TermHint } from "@/components/domain/term-hint";
+import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { ChoiceGroup, type ChoiceOption } from "@/components/ui/choice-group";
 import { Field, FormMessage, Input, Textarea } from "@/components/ui/form";
@@ -14,8 +15,10 @@ import { useToast } from "@/components/ui/toast";
 import { useActionForm } from "@/components/ui/use-action-form";
 import { submitApplicationAction } from "@/lib/actions/admissions";
 import { ADMISSION_LIMITS, type ApplicationInput } from "@/lib/domain/admissions";
-import { WEIGHT_CLASS_LABELS, WEIGHT_CLASS_ORDER } from "@/lib/domain/labels";
+import { WEIGHT_CLASS_ORDER, weightClassLabel } from "@/lib/domain/labels";
 import type { WeightClass } from "@/lib/domain/types";
+import type { Locale } from "@/lib/i18n/config";
+import type { MessageKey, Translator } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 import { applicationSummary, weightClassLimit, type ApplicationStepId, type SummarySection } from "./application-summary";
 
@@ -28,69 +31,60 @@ export interface ApplicationFormProps {
     email: string;
 }
 
-const STEPS: (FormStepDefinition & { id: ApplicationStepId })[] = [
-    { id: "about", label: "About you", description: "Name, birth date, weight class" },
-    { id: "experience", label: "Your experience", description: "Background and goals", optional: true },
-    { id: "review", label: "Review & send" },
+const steps = (t: Translator): (FormStepDefinition & { id: ApplicationStepId })[] => [
+    { id: "about", label: t("screens.misc.apply.step.about"), description: t("screens.misc.apply.step.aboutDescription") },
+    { id: "experience", label: t("screens.misc.apply.step.experience"), description: t("screens.misc.apply.step.experienceDescription"), optional: true },
+    { id: "review", label: t("screens.misc.apply.step.review") },
 ];
 
-const WEIGHT_CLASS_OPTIONS: ChoiceOption<WeightClass>[] = WEIGHT_CLASS_ORDER.map((value) => ({
-    value,
-    label: WEIGHT_CLASS_LABELS[value],
-    description: weightClassLimit(value),
-}));
+const weightClassOptions = (locale: Locale): ChoiceOption<WeightClass>[] =>
+    WEIGHT_CLASS_ORDER.map((value) => ({
+        value,
+        label: weightClassLabel(value, locale),
+        description: weightClassLimit(value, locale),
+    }));
 
 type BackgroundName = "trainingBackground" | "competitionBackground" | "motivation";
 
-const BACKGROUND_FIELDS: { name: BackgroundName; label: string; placeholder: string; chips: { label: string; suggestions: Suggestion[] }[] }[] = [
+/** A suggestion chip whose label and the text it adds are two messages: `<key>` and `<key>Value`. */
+const answer = (t: Translator, key: string): Suggestion => ({ label: t(key as MessageKey), value: t(`${key}Value` as MessageKey) });
+const chip = (id: string) => `screens.misc.apply.chips.${id}`;
+
+const backgroundFields = (t: Translator): { name: BackgroundName; label: string; placeholder: string; chips: { label: string; suggestions: Suggestion[] }[] }[] => [
     {
         name: "trainingBackground",
-        label: "Training background",
-        placeholder: "Gyms, disciplines, how long and how often you train.",
+        label: t("applicant.form.trainingBackground"),
+        placeholder: t("applicant.form.trainingPlaceholder"),
         chips: [
-            { label: "Disciplines", suggestions: ["Boxing", "Muay Thai", "Kickboxing", "Brazilian jiu-jitsu", "Wrestling", "Judo"].map((label) => ({ label })) },
             {
-                label: "How long",
-                suggestions: [
-                    { label: "Under 1 year", value: "Training for under a year." },
-                    { label: "1–3 years", value: "Training for 1–3 years." },
-                    { label: "Over 3 years", value: "Training for over 3 years." },
-                    { label: "3+ sessions a week", value: "3 or more sessions a week." },
-                ],
+                label: t("screens.misc.apply.chips.disciplines"),
+                suggestions: ["boxing", "muayThai", "kickboxing", "bjj", "wrestling", "judo"].map((id) => ({ label: t(chip(id) as MessageKey) })),
+            },
+            {
+                label: t("screens.misc.apply.chips.howLong"),
+                suggestions: ["underOne", "oneToThree", "overThree", "threePerWeek"].map((id) => answer(t, chip(id))),
             },
         ],
     },
     {
         name: "competitionBackground",
-        label: "Competition background",
-        placeholder: "Bouts, tournaments and results, if any.",
+        label: t("applicant.form.competitionBackground"),
+        placeholder: t("applicant.form.competitionPlaceholder"),
         chips: [
             {
-                label: "Common answers",
-                suggestions: [
-                    { label: "No bouts yet", value: "No bouts yet." },
-                    { label: "Amateur MMA bouts", value: "Amateur MMA bouts." },
-                    { label: "Boxing or kickboxing bouts", value: "Boxing or kickboxing bouts." },
-                    { label: "Grappling tournaments", value: "Grappling tournaments." },
-                    { label: "Professional bouts", value: "Professional bouts." },
-                ],
+                label: t("screens.misc.apply.chips.commonAnswers"),
+                suggestions: ["noBouts", "amateurMma", "boxingBouts", "grappling", "professional"].map((id) => answer(t, chip(id))),
             },
         ],
     },
     {
         name: "motivation",
-        label: "Why do you want to join?",
-        placeholder: "What you want to achieve at the academy.",
+        label: t("applicant.form.motivation"),
+        placeholder: t("applicant.form.motivationPlaceholder"),
         chips: [
             {
-                label: "Goals",
-                suggestions: [
-                    { label: "Turn professional", value: "I want to fight professionally." },
-                    { label: "First amateur bout", value: "I want to get ready for my first amateur bout." },
-                    { label: "Sharpen my technique", value: "I want to sharpen my technique." },
-                    { label: "Structured training", value: "I want a structured training plan with coaches." },
-                    { label: "Get fight fit", value: "I want to get fight fit." },
-                ],
+                label: t("screens.misc.apply.chips.goals"),
+                suggestions: ["turnPro", "firstAmateur", "sharpen", "structured", "fightFit"].map((id) => answer(t, chip(id))),
             },
         ],
     },
@@ -102,10 +96,12 @@ const BACKGROUND_FIELDS: { name: BackgroundName; label: string; placeholder: str
  * single submit sends it all. A coach then assesses the applicant in person.
  */
 export function ApplicationForm({ today, previous, email }: ApplicationFormProps) {
+    const t = useT();
+    const locale = useLocale();
     const toast = useToast();
     const form = useActionForm(submitApplicationAction, {
         id: "application",
-        onSuccess: (state) => toast({ tone: "success", title: "Application sent", description: state.message }),
+        onSuccess: (state) => toast({ tone: "success", title: t("applicant.form.toastTitle"), description: state.message }),
     });
     const { control, error } = form;
     const [weightClass, setWeightClass] = useState<WeightClass | "">(previous?.weightClass ?? "");
@@ -115,6 +111,7 @@ export function ApplicationForm({ today, previous, email }: ApplicationFormProps
         motivation: previous?.motivation ?? "",
     });
     const [summary, setSummary] = useState<SummarySection[]>([]);
+    const { stepList, weightClasses, fields } = useMemo(() => ({ stepList: steps(t), weightClasses: weightClassOptions(locale), fields: backgroundFields(t) }), [t, locale]);
 
     // The experience step is optional as a whole, so its fields don't each say "(optional)".
     const field = (name: keyof ApplicationInput, label: string, required = false) => ({ label, htmlFor: control(name).id, required, error: error(name) });
@@ -134,24 +131,28 @@ export function ApplicationForm({ today, previous, email }: ApplicationFormProps
         if (stepId !== "review" || !element) return;
         const values = new FormData(element);
         setSummary(
-            applicationSummary((name) => {
-                const value = values.get(name);
-                return typeof value === "string" ? value : null;
-            }, email),
+            applicationSummary(
+                (name) => {
+                    const value = values.get(name);
+                    return typeof value === "string" ? value : null;
+                },
+                email,
+                locale,
+            ),
         );
     };
 
     return (
         <form {...form.formProps}>
             <FormSteps
-                steps={STEPS}
+                steps={stepList}
                 state={form.state}
                 onStepChange={onStepChange}
                 message={<FormMessage {...form.message} />}
                 submit={
-                    <SubmitButton size="lg" className="sm:h-9 sm:px-3.5 sm:text-sm" pending={form.pending} pendingLabel="Sending…">
+                    <SubmitButton size="lg" className="sm:h-9 sm:px-3.5 sm:text-sm" pending={form.pending} pendingLabel={t("applicant.form.sending")}>
                         <Send aria-hidden />
-                        Send application
+                        {t("applicant.form.submit")}
                     </SubmitButton>
                 }
             >
@@ -159,33 +160,33 @@ export function ApplicationForm({ today, previous, email }: ApplicationFormProps
                     <p className="flex min-w-0 items-center gap-2 text-sm text-fg-muted">
                         <Mail aria-hidden className="size-4 shrink-0" />
                         <span className="min-w-0 truncate">
-                            Applying as <span className="font-medium text-fg">{email}</span>
+                            {t("screens.misc.apply.applyingAs")} <span className="font-medium text-fg">{email}</span>
                         </span>
                     </p>
                     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                        <Field {...field("firstName", "First name", true)}>
+                        <Field {...field("firstName", t("applicant.form.firstName"), true)}>
                             <Input {...control("firstName", { required: true })} defaultValue={previous?.firstName} autoComplete="given-name" maxLength={ADMISSION_LIMITS.name} />
                         </Field>
-                        <Field {...field("lastName", "Last name", true)}>
+                        <Field {...field("lastName", t("applicant.form.lastName"), true)}>
                             <Input {...control("lastName", { required: true })} defaultValue={previous?.lastName} autoComplete="family-name" maxLength={ADMISSION_LIMITS.name} />
                         </Field>
-                        <Field {...field("dateOfBirth", "Date of birth", true)}>
+                        <Field {...field("dateOfBirth", t("applicant.form.dateOfBirth"), true)}>
                             <Input {...control("dateOfBirth", { required: true })} type="date" max={today} defaultValue={previous?.dateOfBirth} autoComplete="bday" />
                         </Field>
                     </div>
                     <ChoiceGroup
                         id={control("weightClass").id}
                         name="weightClass"
-                        legend="Weight class"
+                        legend={t("applicant.form.weightClass")}
                         required
                         variant="compact"
                         columns={3}
-                        options={WEIGHT_CLASS_OPTIONS}
+                        options={weightClasses}
                         value={weightClass}
                         onChange={setWeightClass}
                         hint={
                             <span className="inline-flex flex-wrap items-center gap-1">
-                                The class you train or compete at.
+                                {t("screens.misc.apply.weightClassHint")}
                                 <TermHint term="weightClass" />
                             </span>
                         }
@@ -193,16 +194,16 @@ export function ApplicationForm({ today, previous, email }: ApplicationFormProps
                     />
                 </FormStep>
 
-                <FormStep id="experience" description="Optional, but it helps your coach plan the assessment." className="flex flex-col gap-5">
+                <FormStep id="experience" description={t("screens.misc.apply.experienceDescription")} className="flex flex-col gap-5">
                     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                        <Field {...field("nationality", "Nationality")}>
+                        <Field {...field("nationality", t("applicant.form.nationality"))}>
                             <Input {...control("nationality")} defaultValue={previous?.nationality ?? ""} autoComplete="country-name" maxLength={ADMISSION_LIMITS.nationality} />
                         </Field>
-                        <Field {...field("contactPhone", "Phone")}>
+                        <Field {...field("contactPhone", t("applicant.form.phone"))}>
                             <Input {...control("contactPhone")} type="tel" defaultValue={previous?.contactPhone ?? ""} autoComplete="tel" maxLength={ADMISSION_LIMITS.contactPhone} />
                         </Field>
                     </div>
-                    {BACKGROUND_FIELDS.map(({ name, label, placeholder, chips }) => (
+                    {fields.map(({ name, label, placeholder, chips }) => (
                         <div key={name} className="flex flex-col gap-2">
                             <Field {...field(name, label)}>
                                 <Textarea
@@ -221,8 +222,8 @@ export function ApplicationForm({ today, previous, email }: ApplicationFormProps
                     ))}
                 </FormStep>
 
-                <FormStep id="review" description="Check your answers. The academy and your assessing coach will read them.">
-                    <ApplicationReview sections={summary} />
+                <FormStep id="review" description={t("screens.misc.apply.reviewDescription")}>
+                    <ApplicationReview sections={summary} t={t} />
                 </FormStep>
             </FormSteps>
         </form>
@@ -230,7 +231,7 @@ export function ApplicationForm({ today, previous, email }: ApplicationFormProps
 }
 
 /** The answers on the review step, each step with a way back to change it. */
-function ApplicationReview({ sections }: { sections: SummarySection[] }) {
+function ApplicationReview({ sections, t }: { sections: SummarySection[]; t: Translator }) {
     const { goTo } = useFormSteps();
     return (
         <div className="flex flex-col gap-4">
@@ -240,9 +241,9 @@ function ApplicationReview({ sections }: { sections: SummarySection[] }) {
                         <h3 id={`review-${section.step}`} className="text-sm font-semibold text-fg">
                             {section.title}
                         </h3>
-                        <Button variant="ghost" size="sm" onClick={() => goTo(section.step)} aria-label={`Edit ${section.title.toLowerCase()}`}>
+                        <Button variant="ghost" size="sm" onClick={() => goTo(section.step)} aria-label={t("screens.misc.apply.editSection", { section: section.title.toLowerCase() })}>
                             <PenLine aria-hidden />
-                            Edit
+                            {t("screens.misc.apply.edit")}
                         </Button>
                     </div>
                     <dl className="flex flex-col gap-3 px-4 py-3">
@@ -250,7 +251,7 @@ function ApplicationReview({ sections }: { sections: SummarySection[] }) {
                             <div key={item.label} className="grid grid-cols-1 gap-x-6 gap-y-0.5 sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)]">
                                 <dt className="text-[13px] text-fg-muted">{item.label}</dt>
                                 <dd className={cn("min-w-0 text-sm break-words text-fg", item.long && "whitespace-pre-line")}>
-                                    {item.value ?? <span className="text-fg-subtle">Not given</span>}
+                                    {item.value ?? <span className="text-fg-subtle">{t("screens.misc.admissions.notGiven")}</span>}
                                 </dd>
                             </div>
                         ))}
