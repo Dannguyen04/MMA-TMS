@@ -1,9 +1,29 @@
 /**
  * English dictionary for app-wide states and tools: error and not-found screens, the unsaved-changes guard,
- * the quick-jump palette, exports and the install prompt.
- * Key prefix: `ux.`
+ * the quick-jump palette, exports and the install prompt, and the camp timeline.
+ * Key prefixes: `ux.`, `screens.camp.`
  */
 export const enScreensApp = {
+    "screens.camp.title": "Camp timeline",
+    "screens.camp.description": "Every session from the start of camp to bout day, as recorded.",
+    "screens.camp.weekLabel": "Camp week",
+    "screens.camp.week": "{week} of {weeks}",
+    "screens.camp.countdownLabel": "Bout",
+    "screens.camp.daysToBout": "in {n} days",
+    "screens.camp.daysToBout.one": "tomorrow",
+    "screens.camp.boutToday": "today",
+    "screens.camp.boutOver": "done",
+    "screens.camp.fightWeek": "Fight week",
+    "screens.camp.weighIn": "Weigh-in",
+    "screens.camp.bout": "Bout",
+    "screens.camp.today": "Today",
+    "screens.camp.legendUpcoming": "Upcoming",
+    "screens.camp.legendMissed": "Missed or cancelled",
+    "screens.camp.legendSuspension": "Suspension",
+    "screens.camp.counts": "{done} done · {upcoming} upcoming · {missed} missed",
+    "screens.camp.listToggle": "List all {n} sessions",
+    "screens.camp.listToggle.one": "Show the session",
+    "screens.camp.suspensionLine": "Suspended {from} – {to}",
     "ux.error.title": "This page didn't load",
     "ux.error.description": "Something went wrong while loading this data. Try again — if it keeps happening, tell your administrator.",
     "ux.error.sectionTitle": "This section didn't load",
