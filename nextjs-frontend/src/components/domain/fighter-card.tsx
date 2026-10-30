@@ -42,7 +42,7 @@ export function FighterCard({ fighter, clearanceState, now, href, children, clas
             )}
         >
             <div className="relative -mx-4 -mt-4">
-                <FighterPortrait figure={fighter} className="h-52 rounded-t-xl" />
+                <FighterPortrait figure={fighter} className="h-52 rounded-t-xl max-sm:h-40" />
                 {fighter.record && (
                     <p className="pointer-events-none absolute top-3 right-4 text-right">
                         <span className="block font-display text-[22px] leading-none font-extrabold text-fg italic tabular-nums" aria-hidden>

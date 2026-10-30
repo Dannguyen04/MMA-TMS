@@ -63,7 +63,7 @@ export function FighterFigure({ name, figure, reachCm, weightClass, restricted, 
     return (
         <div className={cn("flex w-full shrink-0 flex-col gap-2 sm:w-[236px]", className)}>
             {webgl === null ? (
-                <div aria-hidden className="h-[300px] w-full" />
+                <div aria-hidden className="h-[300px] w-full max-sm:h-[240px]" />
             ) : (
                 <BodyStage
                     model={bodyModelFor(sex)}
@@ -71,7 +71,7 @@ export function FighterFigure({ name, figure, reachCm, weightClass, restricted, 
                     highlights={highlights}
                     bare
                     ariaLabel={t("figure3d.profile.aria", { name, facts })}
-                    className="h-[300px] w-full"
+                    className="h-[300px] w-full max-sm:h-[240px]"
                 />
             )}
             <dl className="grid grid-cols-3 gap-px overflow-hidden rounded-lg bg-border text-center ring-1 ring-border">

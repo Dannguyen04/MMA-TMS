@@ -1,9 +1,10 @@
-import { TriangleAlert } from "lucide-react";
+import { FileText, TriangleAlert } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { buildReplay } from "@/components/replay/replay-data";
 import { RoundReplay } from "@/components/replay/round-replay";
+import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { canAccessFighter } from "@/lib/auth/access";
@@ -82,6 +83,12 @@ export default async function CoachBoutRoundsPage({ params }: PageProps) {
                     opponent: bout.opponent ?? t("bout.opponentTba"),
                     rounds: scheduledRounds ?? 0,
                 })}
+                actions={
+                    <ButtonLink href={`${routes.coach.bout(bout.id)}/corner-card`} variant="secondary">
+                        <FileText aria-hidden />
+                        {t("boutAnalysis.nav.cornerCard")}
+                    </ButtonLink>
+                }
             />
 
             {replayFirst && replayView}
