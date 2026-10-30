@@ -71,3 +71,32 @@ Sau mỗi đợt, chạy lại script đo (`lang-audit`) và ghi số còn lại
 1. **Thuật ngữ môn thi đấu ở giao diện tiếng Việt.** Giữ tiếng Anh như dân võ hay nói (Bantamweight, Southpaw, Orthodox, Sparring) hay dịch hết (Hạng gà, Thuận tay trái, Thuận tay phải, Đấu tập)? Đề xuất: **dịch nhãn, giữ tiếng Anh trong ngoặc ở lần xuất hiện đầu** (ví dụ "Hạng gà (Bantamweight)") trên hồ sơ, còn badge và bảng thì chỉ dùng tiếng Việt.
 2. **Thẻ võ sĩ nữ** dùng hình nhân tư thế chữ A (đề xuất, cùng tư thế với cả danh sách) hay giữ hình thủ thế nữ hiện có?
 3. **Ai làm L1:** Claude làm thẳng (đề xuất, vì đụng nhiều màn của nhánh 3D) hay viết ticket cho dev?
+
+## 5. Lộ trình UI P0–P3 (31/10, Claude làm theo yêu cầu của Hoàng Anh)
+
+Nhánh `feat/ui-foundation` (P0) và `feat/ui-p1-p3` (P1–P3, tạo từ P0). Thứ tự merge: T-032 → `feat/T-042-043-ui-3d` → `feat/ui-foundation` → `feat/ui-p1-p3`.
+
+| Mức | Việc | Trạng thái |
+| --- | --- | --- |
+| P0 | `nextjs-frontend/DESIGN.md` ("Fight Night"), test chặn chữ Anh viết cứng mới (`hardcoded-english.test.ts`, đếm theo file, chỉ được giảm), `pnpm ui:smoke` | Xong |
+| P1 | Màn lỗi và 404 song ngữ; tab hồ sơ võ sĩ lỗi thì header và tab vẫn còn | Xong |
+| P1 | Form hỏi trước khi rời trang có thay đổi chưa lưu (`useActionForm`, tắt bằng `guardUnsaved: false`); chặn gửi trùng và lỗi tại ô đã có sẵn | Xong |
+| P1 | Cơ thể 3D trong ô kiểm tra cấp phép khi xếp buổi tập (vùng bị chặn mà buổi tập tác động thì đỏ, nhấp nháy) | Xong |
+| P1 | Dòng thời gian camp trên trang chi tiết trận (buổi tập theo ngày, loại, trạng thái; tuần thi đấu; cân; đình chỉ) | Xong |
+| P1 | Replay hiện vùng bị đánh trúng | Chờ chốt `hitRegions` (T-037) |
+| P1 | Song ngữ: video/AI (L3), admin (L5), tuyển sinh, đăng nhập, phần còn lại | Xong. Chữ Anh viết cứng 1808 → 933, ngoài khu bác sĩ còn 3 chuỗi cố ý giữ |
+| P2 | Manifest và icon: cài ra màn hình chính điện thoại | Xong. Chưa có service worker để dùng offline |
+| P2 | In / Lưu PDF (shell tự ẩn khi in), Tải CSV (danh sách võ sĩ, cân nặng của trận) | Xong |
+| P2 | Ctrl+K tìm nhanh trang và võ sĩ (không dấu vẫn tìm được) | Xong |
+| P2 | Kiểm tra WCAG 2.1 AA bằng axe (`ui:smoke --axe`) trên 342 trang | Xong, còn 2 lỗi `<dl>` ở trang chấn thương của bác sĩ |
+| P3 | Giải thích thuật ngữ tại chỗ: tuần thi đấu, giảm cân cấp tính, đình chỉ | Xong |
+| P3 | Theme tối: `ui:smoke --theme dark` 171 trang ở 390 px | Không lỗi |
+| P3 | Model 3D 714 KB, đã nén `KHR_mesh_quantization`; nén thêm (meshopt/Draco) cần thư viện giải nén mới | Giữ nguyên |
+
+**Cho Fon (khu bác sĩ):**
+- `doctor/injuries/[injuryId]`: một `<dl>` chứa `<div>` bọc `<div>` bọc `<dt>`/`<dd>` (axe `definition-list`, `dlitem`).
+- `components/medical/restriction-presets.ts` so nhãn tiếng Anh.
+- 933 chuỗi tiếng Anh viết cứng còn lại hầu hết nằm ở khu bác sĩ (`hardcoded-english.baseline.json`).
+- Nhãn `painLabel` ("Worst imaginable") và `ApplicationStatusBadge` có hai bộ chữ tiếng Anh khác nhau, nên các trang chỉ truyền `locale` khi là tiếng Việt.
+
+**Chưa làm:** dùng offline, cập nhật giao diện trước khi server trả lời, tin nhắn lỗi của server action ở `lib/actions/video.ts`, `admin.ts`, `care-team.ts`, `admissions.ts`, `training.ts` vẫn tiếng Anh.
