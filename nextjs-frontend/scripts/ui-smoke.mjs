@@ -7,11 +7,13 @@
 //
 //   pnpm --filter nextjs-frontend ui:smoke
 //   pnpm --filter nextjs-frontend ui:smoke -- --base http://localhost:3100 --widths 390 --locale en --shots ../ui-shots
+//   pnpm --filter nextjs-frontend ui:smoke -- --axe        # also WCAG 2.1 AA checks (serious and critical only)
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 
+import AxeBuilder from "@axe-core/playwright";
 import { chromium } from "@playwright/test";
 
 const { values: args } = parseArgs({
@@ -22,6 +24,7 @@ const { values: args } = parseArgs({
         roles: { type: "string", default: "fighter,coach,doctor,admin" },
         shots: { type: "string" },
         "max-pages": { type: "string", default: "70" },
+        axe: { type: "boolean", default: false },
     },
 });
 
@@ -38,6 +41,8 @@ const maxPages = Number(args["max-pages"]);
 
 const browser = await chromium.launch();
 const problems = [];
+/** axe rule id → { impact, help, pages } */
+const axeFindings = new Map();
 let visited = 0;
 
 for (const width of widths) {
@@ -81,6 +86,14 @@ for (const width of widths) {
             if (status !== 200 || info.errorScreen || info.noH1 || info.overflow || errors.length > 0) {
                 problems.push({ width, role, href, status, errorScreen: info.errorScreen, noH1: info.noH1, overflow: info.overflow, errors: errors.slice(0, 4) });
             }
+            if (args.axe) {
+                const result = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).exclude("canvas").analyze();
+                for (const violation of result.violations.filter((item) => item.impact === "serious" || item.impact === "critical")) {
+                    const entry = axeFindings.get(violation.id) ?? { impact: violation.impact, help: violation.help, pages: [] };
+                    entry.pages.push(`${role}@${width} ${href} (${violation.nodes.length}) ${violation.nodes[0]?.target.join(" ") ?? ""}`);
+                    axeFindings.set(violation.id, entry);
+                }
+            }
             if (args.shots) {
                 const dir = join(args.shots, `${args.locale}-${width}`, role);
                 mkdirSync(dir, { recursive: true });
@@ -103,5 +116,12 @@ await browser.close();
 
 console.log(`ui:smoke ${args.locale} ${widths.join("/")} px: ${visited} pages, ${problems.length} with problems`);
 for (const problem of problems) console.log(JSON.stringify(problem));
+if (args.axe) {
+    console.log(`axe: ${axeFindings.size} serious/critical rules`);
+    for (const [id, entry] of axeFindings) {
+        console.log(`- ${id} [${entry.impact}] ${entry.help}: ${entry.pages.length} pages`);
+        for (const where of entry.pages.slice(0, 8)) console.log(`    ${where}`);
+    }
+}
 if (args.shots) writeFileSync(join(args.shots, `report-${args.locale}.json`), JSON.stringify({ visited, problems }, null, 2));
-process.exit(problems.length > 0 ? 1 : 0);
+process.exit(problems.length > 0 || axeFindings.size > 0 ? 1 : 0);

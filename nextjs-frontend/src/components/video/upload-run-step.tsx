@@ -3,6 +3,7 @@
 import { CircleCheck, CloudUpload, PenLine, RotateCcw, Sparkles, TriangleAlert, Upload, X } from "lucide-react";
 import { useState } from "react";
 
+import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { Callout } from "@/components/training/callout";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/dialog";
@@ -12,12 +13,13 @@ import { ProgressBar, ProgressIndeterminate } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { retryAnalysis } from "@/lib/actions/video";
-import { CAMERA_ANGLE_LABELS, TRAINING_TYPE_LABELS } from "@/lib/domain/labels";
+import { trainingTypeLabel } from "@/lib/domain/labels";
 import type { AIJob, CameraAngle, VideoTrainingType } from "@/lib/domain/types";
 import { formatClock, formatFileSize, formatNumber } from "@/lib/format";
 import type { AIJobPollResponse } from "@/lib/video/job-progress";
 import { describeJobFailure } from "./job-failure";
 import { PipelineProgress } from "./pipeline-progress";
+import { cameraAngleLabel } from "./video-copy";
 
 export type RunPhase =
     | { kind: "ready" }
@@ -54,6 +56,8 @@ export interface RunStepProps {
 
 /** Step 3: upload progress, live AI pipeline progress and the outcome. */
 export function RunStep({ phase, summary, now, onStart, onCancelUpload, onEditStep, onSettled, onRetried, onReset, canRetry }: RunStepProps) {
+    const t = useT();
+    const locale = useLocale();
     const [confirmCancel, setConfirmCancel] = useState(false);
     const [retryError, setRetryError] = useState<string | null>(null);
 
@@ -62,11 +66,11 @@ export function RunStep({ phase, summary, now, onStart, onCancelUpload, onEditSt
             columns={2}
             className="rounded-xl border border-border bg-surface-muted/50 px-4 py-3.5"
             items={[
-                { label: "Title", value: summary.title, wide: true },
-                { label: "Fighter", value: summary.fighterName },
-                { label: "Training type", value: TRAINING_TYPE_LABELS[summary.trainingType] },
-                { label: "Camera angle", value: CAMERA_ANGLE_LABELS[summary.cameraAngle] },
-                { label: "File", value: `${summary.fileName} · ${formatFileSize(summary.sizeMb)} · ${formatClock(summary.durationSec)}` },
+                { label: t("screens.video.title"), value: summary.title, wide: true },
+                { label: t("screens.video.fighter"), value: summary.fighterName },
+                { label: t("screens.video.trainingType"), value: trainingTypeLabel(t, summary.trainingType) },
+                { label: t("screens.video.cameraAngle"), value: cameraAngleLabel(t, summary.cameraAngle) },
+                { label: t("screens.video.fileLabel"), value: `${summary.fileName} · ${formatFileSize(summary.sizeMb)} · ${formatClock(summary.durationSec)}` },
             ]}
         />
     );
@@ -78,19 +82,17 @@ export function RunStep({ phase, summary, now, onStart, onCancelUpload, onEditSt
                     <CircleCheck className="size-7" />
                 </span>
                 <div className="max-w-md">
-                    <p className="text-lg font-semibold text-fg">Analysis ready</p>
-                    <p className="mt-1 text-sm text-pretty text-fg-muted">
-                        “{summary.title}” has been analysed. Open it to replay the strikes the AI detected and review its findings.
-                    </p>
+                    <p className="text-lg font-semibold text-fg">{t("screens.video.upload.analysisReady")}</p>
+                    <p className="mt-1 text-sm text-pretty text-fg-muted">{t("screens.video.upload.analysisReadyDesc", { title: summary.title })}</p>
                 </div>
                 <div className="flex flex-wrap justify-center gap-2">
                     <ButtonLink href={phase.href} size="lg">
                         <Sparkles aria-hidden />
-                        Open analysis
+                        {t("screens.video.upload.openAnalysis")}
                     </ButtonLink>
                     <Button variant="secondary" size="lg" onClick={onReset}>
                         <Upload aria-hidden />
-                        Upload another video
+                        {t("screens.video.upload.uploadAnother")}
                     </Button>
                 </div>
             </div>
@@ -98,7 +100,7 @@ export function RunStep({ phase, summary, now, onStart, onCancelUpload, onEditSt
     }
 
     if (phase.kind === "analysis_failed") {
-        const copy = describeJobFailure(phase.job.errorCode);
+        const copy = describeJobFailure(phase.job.errorCode, locale);
         return (
             <div className="flex flex-col gap-5">
                 <div role="alert" className="flex flex-col gap-3 rounded-xl border border-danger-border bg-danger-soft/40 px-5 py-5">
@@ -115,21 +117,21 @@ export function RunStep({ phase, summary, now, onStart, onCancelUpload, onEditSt
                                     setRetryError(null);
                                     const result = await retryAnalysis({ status: "idle" }, formData);
                                     if (result.status === "success") onRetried();
-                                    else setRetryError(result.message ?? "The analysis couldn't be restarted.");
+                                    else setRetryError(result.message ?? t("screens.video.upload.restartFailed"));
                                 }}
                             >
                                 <input type="hidden" name="videoId" value={phase.videoId} />
-                                <SubmitButton pendingLabel="Queuing…">
+                                <SubmitButton pendingLabel={t("screens.video.queuing")}>
                                     <RotateCcw aria-hidden />
-                                    Retry analysis
+                                    {t("screens.video.retryAnalysis")}
                                 </SubmitButton>
                             </form>
                         )}
                         <ButtonLink href={phase.href} variant="secondary">
-                            View video
+                            {t("screens.video.upload.viewVideo")}
                         </ButtonLink>
                         <Button variant="ghost" onClick={onReset}>
-                            Upload a different file
+                            {t("screens.video.upload.differentFile")}
                         </Button>
                     </div>
                     <FormMessage status={retryError ? "error" : "idle"} message={retryError ?? undefined} />
@@ -145,10 +147,10 @@ export function RunStep({ phase, summary, now, onStart, onCancelUpload, onEditSt
 
             {phase.kind === "ready" && (
                 <div className="flex flex-col items-start gap-3 rounded-xl border border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-sm text-fg-muted">Upload time depends on your connection. Analysis time depends on the clip length and the server workload.</p>
+                    <p className="text-sm text-fg-muted">{t("screens.video.upload.timing")}</p>
                     <Button size="lg" onClick={onStart}>
                         <CloudUpload aria-hidden />
-                        Upload and analyse
+                        {t("screens.video.upload.start")}
                     </Button>
                 </div>
             )}
@@ -156,19 +158,19 @@ export function RunStep({ phase, summary, now, onStart, onCancelUpload, onEditSt
             {phase.kind === "uploading" && (
                 <div className="flex flex-col gap-3 rounded-xl border border-border px-4 py-4" aria-live="polite">
                     <div className="flex items-center justify-between gap-3">
-                        <p className="text-sm font-semibold text-fg">{phase.pct === 100 ? "Saving video — waiting for confirmation" : "Uploading footage"}</p>
+                        <p className="text-sm font-semibold text-fg">{phase.pct === 100 ? t("screens.video.upload.saving") : t("screens.video.upload.uploading")}</p>
                         <Button variant="ghost" size="sm" onClick={() => setConfirmCancel(true)}>
                             <X aria-hidden />
-                            Cancel upload
+                            {t("screens.video.upload.cancelUpload")}
                         </Button>
                     </div>
                     {phase.pct === null ? (
-                        <ProgressIndeterminate label="Uploading footage" />
+                        <ProgressIndeterminate label={t("screens.video.upload.uploading")} />
                     ) : (
                         <ProgressBar
                             value={phase.pct}
-                            label="Upload progress"
-                            valueText={`${formatNumber((summary.sizeMb * phase.pct) / 100, 1)} of ${formatFileSize(summary.sizeMb)} · ${Math.round(phase.pct)}%`}
+                            label={t("screens.video.upload.progress")}
+                            valueText={t("screens.video.upload.progressValue", { done: formatNumber((summary.sizeMb * phase.pct) / 100, 1), total: formatFileSize(summary.sizeMb), pct: Math.round(phase.pct) })}
                         />
                     )}
                 </div>
@@ -177,7 +179,7 @@ export function RunStep({ phase, summary, now, onStart, onCancelUpload, onEditSt
             {phase.kind === "registering" && (
                 <p role="status" className="flex items-center gap-2 rounded-xl border border-border px-4 py-4 text-sm font-medium text-fg">
                     <Spinner className="text-primary" />
-                    Upload complete — starting AI analysis…
+                    {t("screens.video.upload.starting")}
                 </p>
             )}
 
@@ -185,10 +187,10 @@ export function RunStep({ phase, summary, now, onStart, onCancelUpload, onEditSt
                 <div className="rounded-xl border border-border px-4 py-4">
                     <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-fg">
                         <Sparkles aria-hidden className="size-4 text-ai-fg" />
-                        AI analysis in progress
+                        {t("screens.video.aiAnalysisInProgress")}
                     </p>
                     <PipelineProgress jobId={phase.jobId} initialJob={null} now={now} onSettled={onSettled} restartKey={phase.restartKey} />
-                    <p className="mt-3 text-[13px] text-fg-muted">You can leave this page — you&apos;ll get a notification when the analysis is ready.</p>
+                    <p className="mt-3 text-[13px] text-fg-muted">{t("screens.video.upload.canLeave")}</p>
                 </div>
             )}
 
@@ -197,17 +199,17 @@ export function RunStep({ phase, summary, now, onStart, onCancelUpload, onEditSt
                     tone="danger"
                     icon={TriangleAlert}
                     role="alert"
-                    title="The upload didn't go through"
+                    title={t("screens.video.upload.didntGoThrough")}
                     action={
                         phase.editableStep === null ? (
                             <Button onClick={onStart}>
                                 <RotateCcw aria-hidden />
-                                Try again
+                                {t("screens.video.tryAgain")}
                             </Button>
                         ) : (
                             <Button onClick={() => onEditStep(phase.editableStep ?? 2)}>
                                 <PenLine aria-hidden />
-                                {phase.editableStep === 1 ? "Choose another file" : "Fix the details"}
+                                {phase.editableStep === 1 ? t("screens.video.upload.anotherFile") : t("screens.video.upload.fixDetails")}
                             </Button>
                         )
                     }
@@ -223,9 +225,9 @@ export function RunStep({ phase, summary, now, onStart, onCancelUpload, onEditSt
                     setConfirmCancel(false);
                     onCancelUpload();
                 }}
-                title="Cancel this upload?"
-                description="Stop sending this file. Your details stay filled in. If the server has already received the video, it may remain in your video list."
-                confirmLabel="Cancel upload"
+                title={t("screens.video.upload.cancelTitle")}
+                description={t("screens.video.upload.cancelDesc")}
+                confirmLabel={t("screens.video.upload.cancelUpload")}
             />
         </div>
     );

@@ -3,12 +3,14 @@
 import { TriangleAlert } from "lucide-react";
 import { useOptimistic, useState, type ReactNode } from "react";
 
+import { useT } from "@/components/i18n/locale-provider";
 import { Card } from "@/components/ui/card";
 import { Tabs } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/toast";
 import type { ActionState } from "@/lib/actions/state";
 import { reviewDetectionAction, reviewFindingAction } from "@/lib/actions/video";
 import type { AIAnalysis, AIFeedback, AIJob, ReviewDecision, Stance, Video } from "@/lib/domain/types";
+import type { Translator } from "@/lib/i18n/translate";
 import { AnalysisTimeline, type TimelineObservation } from "./analysis-timeline";
 import { CoachReviewPanel } from "./coach-review-panel";
 import { DetectionsPanel } from "./detections-panel";
@@ -76,6 +78,7 @@ export interface AnalysisWorkspaceProps {
  */
 export function AnalysisWorkspace({ analysis, video, job, stance, viewer, canReview, observations, initialMs, now, summary }: AnalysisWorkspaceProps) {
     const toast = useToast();
+    const t = useT();
     const [store] = useState(() => createPlaybackStore(analysis.durationMs, initialMs));
     const [current, addOptimistic] = useOptimistic(analysis, applyReview);
     const [tab, setTab] = useState<SideTab>("findings");
@@ -84,8 +87,8 @@ export function AnalysisWorkspace({ analysis, video, job, stance, viewer, canRev
     const [highlightedFinding, setHighlightedFinding] = useState<string | null>(null);
 
     const report = (result: ActionState<unknown>) => {
-        if (result.status === "success") toast({ title: "Review saved", description: result.message });
-        else toast({ tone: "error", title: "Review not saved", description: result.message ?? "Try again." });
+        if (result.status === "success") toast({ title: t("screens.video.reviewSaved"), description: result.message });
+        else toast({ tone: "error", title: t("screens.video.workspace.reviewNotSaved"), description: result.message ?? t("screens.video.workspace.tryAgainDesc") });
     };
 
     const review: ReviewContextValue = {
@@ -130,7 +133,7 @@ export function AnalysisWorkspace({ analysis, video, job, stance, viewer, canRev
                         <AnalysisTimeline analysis={current} findings={current.findings} observations={observations} onSelectFinding={selectFinding} />
                     </div>
                     <aside
-                        aria-label="Analysis details"
+                        aria-label={t("screens.video.workspace.details")}
                         className="scrollbar-thin flex min-w-0 flex-col gap-4 xl:sticky xl:top-20 xl:col-start-2 xl:row-span-3 xl:row-start-2 xl:max-h-[calc(100dvh-6rem)] xl:self-start xl:overflow-y-auto xl:pb-1"
                     >
                         {current.movementEvidence
@@ -139,7 +142,7 @@ export function AnalysisWorkspace({ analysis, video, job, stance, viewer, canRev
                         <Card className="min-w-0 px-4 pb-4">
                             <Tabs
                                 key={tabsVersion}
-                                label="Findings, detections and coach review"
+                                label={t("screens.video.workspace.tabs")}
                                 defaultTab={tab}
                                 onChange={(id) => setTab(id as SideTab)}
                                 items={[
@@ -147,8 +150,8 @@ export function AnalysisWorkspace({ analysis, video, job, stance, viewer, canRev
                                         id: "findings",
                                         label: (
                                             <>
-                                                Findings
-                                                <TabCount value={current.findings.length} attention={canReview ? unreviewedFindings : 0} />
+                                                {t("screens.video.workspace.findings")}
+                                                <TabCount value={current.findings.length} attention={canReview ? unreviewedFindings : 0} t={t} />
                                             </>
                                         ),
                                         content: (
@@ -165,8 +168,8 @@ export function AnalysisWorkspace({ analysis, video, job, stance, viewer, canRev
                                         id: "detections",
                                         label: (
                                             <>
-                                                Detections
-                                                <TabCount value={current.detections.length} />
+                                                {t("screens.video.workspace.detections")}
+                                                <TabCount value={current.detections.length} t={t} />
                                             </>
                                         ),
                                         content: <DetectionsPanel detections={current.detections} />,
@@ -175,8 +178,8 @@ export function AnalysisWorkspace({ analysis, video, job, stance, viewer, canRev
                                         id: "review",
                                         label: (
                                             <>
-                                                <span className="sm:hidden">Review</span>
-                                                <span className="max-sm:hidden">Coach review</span>
+                                                <span className="sm:hidden">{t("screens.video.workspace.review")}</span>
+                                                <span className="max-sm:hidden">{t("screens.video.workspace.coachReview")}</span>
                                             </>
                                         ),
                                         content: <CoachReviewPanel analysisId={current.id} review={current.coachReview} findings={current.findings} canReview={canReview} now={now} />,
@@ -196,13 +199,13 @@ export function AnalysisWorkspace({ analysis, video, job, stance, viewer, canRev
 }
 
 /** Count pill; for reviewers it shows how many items still need a decision instead. */
-function TabCount({ value, attention = 0 }: { value: number; attention?: number }) {
+function TabCount({ value, attention = 0, t }: { value: number; attention?: number; t: Translator }) {
     if (attention > 0) {
         return (
             <span className="inline-flex items-center gap-0.5 rounded-full bg-warning-soft px-1.5 text-[11px] leading-5 font-medium text-warning-fg tabular-nums ring-1 ring-warning-border ring-inset">
                 <TriangleAlert aria-hidden className="size-3" />
                 {attention}
-                <span className="sr-only"> of {value} still to review</span>
+                <span className="sr-only">{t("screens.video.workspace.stillToReview", { total: value })}</span>
             </span>
         );
     }

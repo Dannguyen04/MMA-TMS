@@ -1,6 +1,8 @@
-import { TRAINING_TYPE_LABELS } from "@/lib/domain/labels";
+import { trainingTypeLabel } from "@/lib/domain/labels";
 import type { CameraAngle, VideoTrainingType } from "@/lib/domain/types";
 import { formatClock, formatDate, formatFileSize } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
+import type { Translator } from "@/lib/i18n/translate";
 
 /** Client-side state and validation of the upload wizard. The server re-validates everything. */
 
@@ -43,21 +45,21 @@ export function fileExtension(name: string): string {
     return dot >= 0 ? name.slice(dot + 1).toLowerCase() : "";
 }
 
-export function formatList(values: string[]): string {
+export function formatList(values: string[], t: Translator): string {
     const upper = values.map((v) => v.toUpperCase());
-    return upper.length <= 1 ? (upper[0] ?? "") : `${upper.slice(0, -1).join(", ")} or ${upper[upper.length - 1]}`;
+    return upper.length <= 1 ? (upper[0] ?? "") : t("screens.video.upload.listOr", { list: upper.slice(0, -1).join(", "), last: upper[upper.length - 1] });
 }
 
 /** Problems with the chosen file that block the upload, or null. */
-export function fileProblem(file: File, limits: UploadLimits): string | null {
+export function fileProblem(file: File, limits: UploadLimits, t: Translator): string | null {
     const extension = fileExtension(file.name);
     if (!limits.allowedVideoFormats.includes(extension)) {
-        return `“${file.name}” isn't a supported format. Upload ${formatList(limits.allowedVideoFormats)}.`;
+        return t("screens.video.upload.unsupported", { name: file.name, formats: formatList(limits.allowedVideoFormats, t) });
     }
-    if (file.size === 0) return `“${file.name}” is empty. Choose the original video file.`;
+    if (file.size === 0) return t("screens.video.upload.empty", { name: file.name });
     const size = fileSizeMb(file);
     if (size > limits.videoMaxSizeMb) {
-        return `This file is ${formatFileSize(size)}. The limit is ${formatFileSize(limits.videoMaxSizeMb)} — trim the clip or export it at 1080p.`;
+        return t("screens.video.upload.tooBig", { size: formatFileSize(size), limit: formatFileSize(limits.videoMaxSizeMb) });
     }
     return null;
 }
@@ -72,17 +74,15 @@ export function effectiveDuration(footage: FootageState): number | null {
     return null;
 }
 
-export function durationProblem(seconds: number | null): string | null {
-    if (seconds === null) return "Enter the approximate length of the clip.";
-    if (seconds < MIN_DURATION_SEC) {
-        return `This clip is ${Math.round(seconds)} seconds long. Upload at least ${MIN_DURATION_SEC} seconds so the AI has enough movement to analyse.`;
-    }
-    if (seconds > MAX_DURATION_SEC) return `This clip is ${formatClock(seconds)} long. Upload up to 15 minutes — split longer footage into rounds.`;
+export function durationProblem(seconds: number | null, t: Translator): string | null {
+    if (seconds === null) return t("screens.video.upload.enterLength");
+    if (seconds < MIN_DURATION_SEC) return t("screens.video.upload.tooShort", { n: Math.round(seconds), min: MIN_DURATION_SEC });
+    if (seconds > MAX_DURATION_SEC) return t("screens.video.upload.tooLong", { length: formatClock(seconds) });
     return null;
 }
 
-export function defaultTitle(type: VideoTrainingType | "", now: string): string {
-    return type ? `${TRAINING_TYPE_LABELS[type]} — ${formatDate(now)}` : "";
+export function defaultTitle(type: VideoTrainingType | "", now: string, t: Translator, locale: Locale): string {
+    return type ? t("screens.video.upload.defaultTitle", { type: trainingTypeLabel(t, type), date: formatDate(now, locale) }) : "";
 }
 
 /** Reads a video's length with a detached <video> element. Resolves null when the browser can't tell. */

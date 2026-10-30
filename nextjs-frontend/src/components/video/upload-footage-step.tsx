@@ -3,6 +3,7 @@
 import { Camera, CloudUpload, FileVideoCamera, Lightbulb, RefreshCw, Trash2 } from "lucide-react";
 import { useId, useRef, useState, type DragEvent } from "react";
 
+import { useT } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Field, FormMessage, Input } from "@/components/ui/form";
 import { Spinner } from "@/components/ui/spinner";
@@ -22,6 +23,7 @@ export interface FootageStepProps {
 /** Step 1: accessible dropzone (button + drag and drop), file facts and length. */
 export function FootageStep({ footage, limits, error, onSelect, onRemove, onManualDuration }: FootageStepProps) {
     const baseId = useId();
+    const t = useT();
     const inputRef = useRef<HTMLInputElement>(null);
     const [dragging, setDragging] = useState(false);
     const hintId = `${baseId}-hint`;
@@ -67,21 +69,21 @@ export function FootageStep({ footage, limits, error, onSelect, onRemove, onManu
                             {footage.durationStatus === "reading" && (
                                 <span className="inline-flex items-center gap-1.5">
                                     <Spinner className="size-3.5" />
-                                    Reading length…
+                                    {t("screens.video.upload.readingLength")}
                                 </span>
                             )}
-                            {footage.durationStatus === "read" && footage.durationSec !== null && <span>{formatClock(footage.durationSec)} long</span>}
-                            {footage.durationStatus === "unreadable" && <span>Length couldn&apos;t be read in this browser</span>}
+                            {footage.durationStatus === "read" && footage.durationSec !== null && <span>{t("screens.video.upload.lengthRead", { length: formatClock(footage.durationSec) })}</span>}
+                            {footage.durationStatus === "unreadable" && <span>{t("screens.video.upload.lengthUnreadable")}</span>}
                         </p>
                     </div>
                     <div className="flex gap-2">
                         <Button variant="secondary" size="sm" onClick={() => inputRef.current?.click()}>
                             <RefreshCw aria-hidden />
-                            Replace
+                            {t("screens.video.upload.replace")}
                         </Button>
                         <Button variant="ghost" size="sm" onClick={onRemove}>
                             <Trash2 aria-hidden />
-                            Remove
+                            {t("screens.video.upload.remove")}
                         </Button>
                     </div>
                     {picker}
@@ -104,14 +106,19 @@ export function FootageStep({ footage, limits, error, onSelect, onRemove, onManu
                         <CloudUpload className="size-6" />
                     </span>
                     <div>
-                        <p className="text-base font-semibold text-fg">Drag a training video here</p>
+                        <p className="text-base font-semibold text-fg">{t("screens.video.upload.drag")}</p>
                         <p id={hintId} className="mt-1 text-sm text-fg-muted">
-                            {formatList(limits.allowedVideoFormats)} · up to {formatFileSize(limits.videoMaxSizeMb)} · {MIN_DURATION_SEC} seconds to {MAX_DURATION_SEC / 60} minutes
+                            {t("screens.video.upload.limits", {
+                                formats: formatList(limits.allowedVideoFormats, t),
+                                size: formatFileSize(limits.videoMaxSizeMb),
+                                min: MIN_DURATION_SEC,
+                                max: MAX_DURATION_SEC / 60,
+                            })}
                         </p>
                     </div>
                     <Button onClick={() => inputRef.current?.click()} aria-describedby={error ? `${errorId} ${hintId}` : hintId}>
                         <FileVideoCamera aria-hidden />
-                        Choose video
+                        {t("screens.video.upload.chooseVideo")}
                     </Button>
                     {picker}
                 </div>
@@ -125,10 +132,10 @@ export function FootageStep({ footage, limits, error, onSelect, onRemove, onManu
 
             {footage.file && footage.durationStatus === "unreadable" && (
                 <Field
-                    label="Approximate length (seconds)"
+                    label={t("screens.video.upload.approxLength")}
                     htmlFor={durationId}
                     required
-                    hint="Your browser can't read this file's length. Enter an estimate — the analysis server reads the exact length."
+                    hint={t("screens.video.upload.approxLengthHint")}
                     className="max-w-xs"
                 >
                     <Input
@@ -149,14 +156,14 @@ export function FootageStep({ footage, limits, error, onSelect, onRemove, onManu
                 <p className="flex items-start gap-2 text-[13px] text-fg-muted sm:col-span-2">
                     <Lightbulb aria-hidden className="mt-0.5 size-4 shrink-0 text-warning-fg" />
                     <span>
-                        <span className="font-medium text-fg">For the most reliable analysis</span> — the AI needs to see the whole body.
+                        <span className="font-medium text-fg">{t("screens.video.upload.tipsLead")}</span> {t("screens.video.upload.tipsBody")}
                     </span>
                 </p>
                 {[
-                    "Full body in frame, head to feet, for the whole clip",
-                    "Camera steady at chest height, 3–4 m away",
-                    "Good, even light — avoid filming into windows",
-                    "One fighter in frame (sparring partners are fine)",
+                    t("screens.video.upload.tip1"),
+                    t("screens.video.upload.tip2"),
+                    t("screens.video.upload.tip3"),
+                    t("screens.video.upload.tip4"),
                 ].map((tip) => (
                     <p key={tip} className="flex items-start gap-2 text-[13px] text-fg">
                         <Camera aria-hidden className="mt-0.5 size-3.5 shrink-0 text-fg-subtle" />

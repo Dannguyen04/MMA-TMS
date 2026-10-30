@@ -20,7 +20,7 @@ const VISIBLE_ATTRIBUTES = new Set(["aria-label", "aria-description", "title", "
 
 /** Words that stay as they are in both languages: brand, units, sport and medical codes. */
 const ALLOWED_WORDS = new Set(
-    "mma tms kg cm min sec rpe ai id ok vs ko tko scat scat6 mri ct ecg url pdf csv glb webgl jab cross hook teep uppercut bjj ufc one aiba vmmaf cc by harshit prajapati fight night".split(" "),
+    "mma tms ctrl kg cm min sec rpe ai id ok vs ko tko scat scat6 mri ct ecg url pdf csv glb webgl jab cross hook teep uppercut bjj ufc one aiba vmmaf cc by harshit prajapati fight night".split(" "),
 );
 
 /** Folders that are English on purpose: the developer-only lab and the concept prototypes. */

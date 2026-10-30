@@ -109,7 +109,7 @@ async function AttentionRow({ item: { video, fighter, job } }: { item: VideoLibr
                 {video.status === "failed" && (
                     <p className="mt-1.5 flex items-start gap-1 text-xs text-danger-fg">
                         <CircleX aria-hidden className="mt-px size-3.5 shrink-0" />
-                        {describeJobFailure(job?.errorCode ?? null).title}
+                        {describeJobFailure(job?.errorCode ?? null, locale).title}
                     </p>
                 )}
             </div>

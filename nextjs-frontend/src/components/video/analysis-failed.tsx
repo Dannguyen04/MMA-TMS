@@ -6,6 +6,7 @@ import { useActionState, useEffect } from "react";
 import { FormMessage } from "@/components/ui/form";
 import { ErrorState } from "@/components/ui/states";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { useToast } from "@/components/ui/toast";
 import type { ActionState } from "@/lib/actions/state";
 import { retryAnalysis } from "@/lib/actions/video";
@@ -23,12 +24,14 @@ export interface AnalysisFailedProps {
 /** Failed analysis: what went wrong in plain language, what to do, and a retry for the uploader or coach. */
 export function AnalysisFailed({ videoId, errorCode, errorMessage, attempts, canRetry, className }: AnalysisFailedProps) {
     const toast = useToast();
+    const t = useT();
+    const locale = useLocale();
     const [state, formAction] = useActionState<ActionState<{ jobId: string }>, FormData>(retryAnalysis, { status: "idle" });
-    const copy = describeJobFailure(errorCode);
+    const copy = describeJobFailure(errorCode, locale);
 
     useEffect(() => {
-        if (state.status === "success") toast({ title: "Analysis queued again", description: "Processing restarts in a few seconds." });
-    }, [state, toast]);
+        if (state.status === "success") toast({ title: t("screens.video.failed.queuedAgain"), description: t("screens.video.failed.restarts") });
+    }, [state, toast, t]);
 
     return (
         <ErrorState
@@ -43,7 +46,7 @@ export function AnalysisFailed({ videoId, errorCode, errorMessage, attempts, can
                     </span>
                     {errorMessage && (
                         <span className="mt-3 block text-xs text-fg-subtle">
-                            Technical detail{errorCode ? ` (${errorCode})` : ""}: {errorMessage} · Attempt {attempts}
+                            {t("screens.video.failed.technical", { code: errorCode ? ` (${errorCode})` : "", message: errorMessage, attempts })}
                         </span>
                     )}
                 </>
@@ -52,9 +55,9 @@ export function AnalysisFailed({ videoId, errorCode, errorMessage, attempts, can
                 canRetry && (
                     <form action={formAction} className="flex flex-col items-center gap-2">
                         <input type="hidden" name="videoId" value={videoId} />
-                        <SubmitButton pendingLabel="Queuing…" variant={copy.retryHelps ? "primary" : "secondary"}>
+                        <SubmitButton pendingLabel={t("screens.video.queuing")} variant={copy.retryHelps ? "primary" : "secondary"}>
                             <RotateCcw aria-hidden />
-                            Retry analysis
+                            {t("screens.video.retryAnalysis")}
                         </SubmitButton>
                         <FormMessage status={state.status === "error" ? "error" : "idle"} message={state.message} />
                     </form>

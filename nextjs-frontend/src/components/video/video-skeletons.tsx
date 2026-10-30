@@ -1,4 +1,5 @@
 import { FilterRowSkeleton, LoadingRegion, PageHeaderSkeleton, Skeleton } from "@/components/ui/skeleton";
+import { getTranslator } from "@/lib/i18n/server";
 
 function VideoCardGrid({ count }: { count: number }) {
     return (
@@ -18,9 +19,10 @@ function VideoCardGrid({ count }: { count: number }) {
 }
 
 /** Library page placeholder: header, filters and a grid of video cards. */
-export function VideoLibrarySkeleton({ label = "Loading videos", withQueue = false, withHeader = true }: { label?: string; withQueue?: boolean; withHeader?: boolean }) {
+export async function VideoLibrarySkeleton({ label, withQueue = false, withHeader = true }: { label?: string; withQueue?: boolean; withHeader?: boolean }) {
+    const { t } = await getTranslator();
     return (
-        <LoadingRegion label={label}>
+        <LoadingRegion label={label ?? t("screens.video.loading.videos")}>
             {withHeader && <PageHeaderSkeleton actions={1} />}
             {withQueue && <Skeleton className="mb-8 h-56 rounded-xl" />}
             <div className="flex flex-col gap-4">
@@ -32,9 +34,10 @@ export function VideoLibrarySkeleton({ label = "Loading videos", withQueue = fal
 }
 
 /** Analysis workspace placeholder: summary, player + timeline, side panels. */
-export function VideoWorkspaceSkeleton() {
+export async function VideoWorkspaceSkeleton() {
+    const { t } = await getTranslator();
     return (
-        <LoadingRegion label="Loading analysis">
+        <LoadingRegion label={t("screens.video.loading.analysis")}>
             <PageHeaderSkeleton back eyebrow actions={1} />
             <Skeleton className="mb-6 h-24 rounded-xl" />
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(340px,400px)]">
@@ -52,9 +55,10 @@ export function VideoWorkspaceSkeleton() {
 }
 
 /** Upload wizard placeholder. */
-export function UploadWizardSkeleton() {
+export async function UploadWizardSkeleton() {
+    const { t } = await getTranslator();
     return (
-        <LoadingRegion label="Loading upload">
+        <LoadingRegion label={t("screens.video.loading.upload")}>
             <PageHeaderSkeleton back />
             <div className="mx-auto max-w-4xl overflow-hidden rounded-xl border border-border bg-surface">
                 <Skeleton className="h-16 rounded-none" />

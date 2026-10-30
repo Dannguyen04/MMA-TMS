@@ -4,20 +4,23 @@ import { PenLine } from "lucide-react";
 import { useId, useMemo, useState } from "react";
 
 import { ReviewStateBadge } from "@/components/domain/status-badges";
+import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Checkbox, Select } from "@/components/ui/form";
 import { EmptyState } from "@/components/ui/states";
-import { LIMB_LABELS, STRIKE_TYPES, TECHNIQUE_LABELS } from "@/lib/domain/labels";
-import { AI_REVIEW_TERMS, isNeedsReview } from "@/lib/domain/ai-review";
+import { STRIKE_TYPES, techniqueLabel } from "@/lib/domain/labels";
+import { isNeedsReview } from "@/lib/domain/ai-review";
 import { isLowConfidence, LOW_CONFIDENCE_THRESHOLD } from "@/lib/domain/rules";
 import type { Detection, StrikeType } from "@/lib/domain/types";
-import { formatConfidence, formatTimestamp, pluralize } from "@/lib/format";
+import { formatTimestamp } from "@/lib/format";
+import { plural } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
-import { byStart, detectionAt, reviewedStrikeLabel, strikeObservation } from "@/lib/video/analysis-nav";
+import { byStart, detectionAt } from "@/lib/video/analysis-nav";
 import { StrikeShape } from "./analysis-timeline";
 import { usePlayback, usePlaybackStore } from "./playback-store";
 import { useReview } from "./review-context";
 import { ReviewDialog } from "./review-dialog";
+import { confidencePct, limbLabel, possibleStrike, reviewedStrike, strikeWord } from "./video-copy";
 
 const PAGE = 30;
 
@@ -25,6 +28,8 @@ const PAGE = 30;
 export function DetectionsPanel({ detections }: { detections: Detection[] }) {
     const store = usePlaybackStore();
     const review = useReview();
+    const t = useT();
+    const locale = useLocale();
     const baseId = useId();
     const [lowOnly, setLowOnly] = useState(false);
     const [type, setType] = useState<StrikeType | "">("");
@@ -48,11 +53,11 @@ export function DetectionsPanel({ detections }: { detections: Detection[] }) {
                         setLowOnly(event.target.checked);
                         setLimit(PAGE);
                     }}
-                    label={`${AI_REVIEW_TERMS.lowConfidence} only (${lowCount})`}
+                    label={t("screens.video.detections.lowOnly", { n: lowCount })}
                 />
                 <div className="ml-auto w-36">
                     <label htmlFor={`${baseId}-type`} className="sr-only">
-                        Strike type
+                        {t("screens.video.detections.strikeType")}
                     </label>
                     <Select
                         id={`${baseId}-type`}
@@ -62,27 +67,27 @@ export function DetectionsPanel({ detections }: { detections: Detection[] }) {
                             setLimit(PAGE);
                         }}
                     >
-                        <option value="">All strikes</option>
+                        <option value="">{t("screens.video.detections.allStrikes")}</option>
                         {STRIKE_TYPES.map((strike) => (
                             <option key={strike} value={strike}>
-                                {TECHNIQUE_LABELS[strike]}
+                                {techniqueLabel(t, strike)}
                             </option>
                         ))}
                     </Select>
                 </div>
             </div>
             <p className="text-xs text-fg-muted" aria-live="polite">
-                Showing {Math.min(limit, filtered.length)} of {pluralize(filtered.length, "detection")}
+                {plural(t, "screens.video.detections.showing", filtered.length, { shown: Math.min(limit, filtered.length) })}
             </p>
 
             {filtered.length === 0 ? (
                 <EmptyState
                     compact
-                    title="No detections match"
+                    title={t("screens.video.detections.noneMatch")}
                     description={
                         lowOnly
-                            ? `No unreviewed detections of this type are below the ${Math.round(LOW_CONFIDENCE_THRESHOLD * 100)}% review threshold.`
-                            : "The AI detected no strikes of this type."
+                            ? t("screens.video.detections.noneBelow", { pct: Math.round(LOW_CONFIDENCE_THRESHOLD * 100) })
+                            : t("screens.video.detections.noneOfType")
                     }
                     action={
                         <Button
@@ -93,7 +98,7 @@ export function DetectionsPanel({ detections }: { detections: Detection[] }) {
                                 setType("");
                             }}
                         >
-                            Clear filters
+                            {t("screens.video.clearFilters")}
                         </Button>
                     }
                 />
@@ -101,7 +106,7 @@ export function DetectionsPanel({ detections }: { detections: Detection[] }) {
                 <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
                     {shown.map((detection) => {
                         const needsReview = isNeedsReview(detection);
-                        const confidenceText = detection.confidenceAvailable === false ? "Confidence unavailable" : formatConfidence(detection.confidence);
+                        const confidenceText = detection.confidenceAvailable === false ? t("screens.video.confidenceUnavailable") : confidencePct(t, detection.confidence);
                         return (
                             <li key={detection.id} className={cn("flex items-center gap-2 pr-2", detection.id === activeId ? "bg-primary-soft" : "bg-surface")}>
                                 <button
@@ -111,22 +116,22 @@ export function DetectionsPanel({ detections }: { detections: Detection[] }) {
                                         store.seek(detection.peakMs);
                                     }}
                                     className="flex min-w-0 flex-1 items-center gap-2.5 px-3 py-2 text-left hover:bg-surface-hover/60"
-                                    aria-label={`${strikeObservation(detection.type)} at ${formatTimestamp(detection.peakMs)}, ${LIMB_LABELS[detection.limb]}, ${confidenceText}`}
+                                    aria-label={t("screens.video.detections.rowAria", { strike: possibleStrike(t, detection.type), time: formatTimestamp(detection.peakMs), limb: limbLabel(t, detection.limb), confidence: confidenceText })}
                                 >
                                     <span className="w-12 shrink-0 text-xs text-fg-muted tabular-nums">{formatTimestamp(detection.peakMs)}</span>
                                     <StrikeShape type={detection.type} hollow={needsReview} className="size-3.5 shrink-0" />
                                     <span className="min-w-0 flex-1">
                                         <span className={cn("block truncate text-[13px] font-medium", detection.review?.decision === "rejected" ? "text-fg-muted line-through" : "text-fg")}>
-                                            {reviewedStrikeLabel(detection)}
+                                            {reviewedStrike(t, detection)}
                                         </span>
                                         <span className="block truncate text-xs text-fg-muted">
-                                            {LIMB_LABELS[detection.limb]} · {confidenceText}
+                                            {limbLabel(t, detection.limb)} · {confidenceText}
                                         </span>
                                     </span>
-                                    <ReviewStateBadge review={detection.review} confidence={detection.confidence} size="sm" className="max-sm:hidden" />
+                                    <ReviewStateBadge review={detection.review} confidence={detection.confidence} size="sm" className="max-sm:hidden" locale={locale} />
                                 </button>
                                 {review.canReview && (
-                                    <Button variant="ghost" size="icon-sm" onClick={() => setReviewing(detection)} aria-label={`Review ${detection.type} at ${formatTimestamp(detection.peakMs)}`}>
+                                    <Button variant="ghost" size="icon-sm" onClick={() => setReviewing(detection)} aria-label={t("screens.video.detections.reviewAria", { strike: strikeWord(t, detection.type), time: formatTimestamp(detection.peakMs) })}>
                                         <PenLine />
                                     </Button>
                                 )}
@@ -137,7 +142,7 @@ export function DetectionsPanel({ detections }: { detections: Detection[] }) {
             )}
             {filtered.length > limit && (
                 <Button variant="secondary" size="sm" className="self-center" onClick={() => setLimit((current) => current + PAGE)}>
-                    Show {Math.min(PAGE, filtered.length - limit)} more
+                    {t("screens.video.detections.showMore", { n: Math.min(PAGE, filtered.length - limit) })}
                 </Button>
             )}
             {reviewing && (

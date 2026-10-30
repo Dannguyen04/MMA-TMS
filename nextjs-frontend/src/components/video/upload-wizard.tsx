@@ -3,6 +3,7 @@
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { startTransition, useActionState, useEffect, useRef, useState } from "react";
 
+import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { FormMessage, focusFirstInvalid } from "@/components/ui/form";
@@ -10,6 +11,7 @@ import { useToast } from "@/components/ui/toast";
 import type { ActionState } from "@/lib/actions/state";
 import { createUpload, registerExternalUpload, type UploadActionData } from "@/lib/actions/video";
 import { VIDEO_TRAINING_TYPES } from "@/lib/domain/labels";
+import type { MessageKey } from "@/lib/i18n/translate";
 import { clamp, cn, round } from "@/lib/utils";
 import type { AIJobPollResponse } from "@/lib/video/job-progress";
 import { DetailsStep } from "./upload-details-step";
@@ -30,10 +32,10 @@ import {
 
 type Step = 1 | 2 | 3;
 
-const STEPS: { step: Step; label: string; description: string }[] = [
-    { step: 1, label: "Footage", description: "Choose the video" },
-    { step: 2, label: "Details", description: "Fighter, type and angle" },
-    { step: 3, label: "Upload & analyse", description: "AI processing" },
+const STEPS: { step: Step; label: MessageKey; description: MessageKey }[] = [
+    { step: 1, label: "screens.video.upload.stepFootage" as MessageKey, description: "screens.video.upload.stepFootageDesc" as MessageKey },
+    { step: 2, label: "screens.video.upload.stepDetails" as MessageKey, description: "screens.video.upload.stepDetailsDesc" as MessageKey },
+    { step: 3, label: "screens.video.upload.stepRun" as MessageKey, description: "screens.video.upload.stepRunDesc" as MessageKey },
 ];
 
 const FILE_FIELDS = new Set(["file", "fileName", "fileSizeMb", "durationSec"]);
@@ -68,6 +70,8 @@ function WizardFlow({
     onReset,
 }: UploadWizardProps & { onReset: () => void }) {
     const toast = useToast();
+    const t = useT();
+    const locale = useLocale();
     const headingRef = useRef<HTMLHeadingElement>(null);
     const stepRef = useRef<HTMLDivElement>(null);
     const timerRef = useRef<number | undefined>(undefined);
@@ -87,7 +91,7 @@ function WizardFlow({
         trainingType: initialType ?? "",
         cameraAngle: "",
         sessionId: initialSession?.id ?? "",
-        title: defaultTitle(initialType ?? "", now),
+        title: defaultTitle(initialType ?? "", now, t, locale),
         titleEdited: false,
         notes: "",
     });
@@ -138,7 +142,7 @@ function WizardFlow({
             const keys = Object.keys(serverErrors);
             phase = {
                 kind: "upload_failed",
-                message: uploadState.message ?? "The upload couldn't be saved.",
+                message: uploadState.message ?? t("screens.video.upload.notSaved"),
                 editableStep: keys.some((k) => FILE_FIELDS.has(k)) ? 1 : keys.length > 0 ? 2 : null,
             };
         } else if (uploadState.data) {
@@ -154,24 +158,24 @@ function WizardFlow({
 
     const validateFootage = (): boolean => {
         if (!footage.file) {
-            setFootageError("Choose a video file to continue.");
+            setFootageError(t("screens.video.upload.chooseFile"));
             return false;
         }
         if (footage.durationStatus === "reading") {
-            setFootageError("Still reading the video length — try again in a moment.");
+            setFootageError(t("screens.video.upload.stillReading"));
             return false;
         }
-        const problem = fileProblem(footage.file, settings) ?? durationProblem(duration);
+        const problem = fileProblem(footage.file, settings, t) ?? durationProblem(duration, t);
         setFootageError(problem);
         return problem === null;
     };
 
     const validateDetails = (): boolean => {
         const errors: Record<string, string> = {};
-        if (!details.fighterId) errors.fighterId = "Choose the fighter in this video.";
-        if (!details.trainingType) errors.trainingType = "Choose the type of training in the video.";
-        if (!details.cameraAngle) errors.cameraAngle = "Choose the camera angle.";
-        if (details.title.trim().length < 3) errors.title = "Give the video a title of at least 3 characters.";
+        if (!details.fighterId) errors.fighterId = t("screens.video.upload.chooseFighter");
+        if (!details.trainingType) errors.trainingType = t("screens.video.upload.chooseType");
+        if (!details.cameraAngle) errors.cameraAngle = t("screens.video.upload.chooseAngle");
+        if (details.title.trim().length < 3) errors.title = t("screens.video.upload.titleTooShort");
         setDetailErrors(errors);
         return Object.keys(errors).length === 0;
     };
@@ -191,7 +195,7 @@ function WizardFlow({
     /* ─── File selection ────────────────────────────────────────────────── */
 
     const selectFile = async (file: File) => {
-        const problem = fileProblem(file, settings);
+        const problem = fileProblem(file, settings, t);
         setFootage({ ...EMPTY_FOOTAGE, file, durationStatus: problem ? "idle" : "reading" });
         setFootageError(problem);
         setSavedServerErrors((current) => Object.fromEntries(Object.entries(current).filter(([key]) => !FILE_FIELDS.has(key))));
@@ -203,14 +207,14 @@ function WizardFlow({
                 ? { ...current, durationSec: seconds === null ? null : round(seconds, 1), durationStatus: seconds === null ? "unreadable" : "read" }
                 : current,
         );
-        if (seconds !== null) setFootageError(durationProblem(seconds));
+        if (seconds !== null) setFootageError(durationProblem(seconds, t));
     };
 
     const updateDetails = (patch: Partial<DetailsState>) => {
         setDetails((current) => {
             const next = { ...current, ...patch };
             if (patch.sessionId !== undefined || patch.fighterId !== undefined) next.sessionExerciseId = '';
-            if (patch.trainingType !== undefined && !next.titleEdited) next.title = defaultTitle(next.trainingType, now);
+            if (patch.trainingType !== undefined && !next.titleEdited) next.title = defaultTitle(next.trainingType, now, t, locale);
             return next;
         });
         // A chosen training type also fills in the default title, so its error clears too.
@@ -299,7 +303,7 @@ function WizardFlow({
             formData.set("externalJobId", jobId);
             submit(formData);
         } catch (error) {
-            if (!controller.signal.aborted) setTransfer({ kind: "failed", message: error instanceof Error ? error.message : "The upload failed. Check your connection and try again." });
+            if (!controller.signal.aborted) setTransfer({ kind: "failed", message: error instanceof Error ? error.message : t("screens.video.upload.failed") });
         } finally {
             if (uploadControllerRef.current === controller) uploadControllerRef.current = null;
         }
@@ -310,13 +314,13 @@ function WizardFlow({
         cancelledRef.current = true;
         uploadControllerRef.current?.abort();
         setTransfer({ kind: "ready" });
-        toast({ tone: "info", title: "Upload cancelled", description: "The transfer has stopped. Your details are still filled in. A video already received by the server may remain in your list." });
+        toast({ tone: "info", title: t("screens.video.upload.cancelled"), description: t("screens.video.upload.cancelledDesc") });
     };
 
     const onSettled = (response: AIJobPollResponse) => {
         setOutcome(response);
-        if (response.job.status === "completed") toast({ title: "AI analysis ready", description: `“${details.title}” is ready to review.` });
-        else toast({ tone: "error", title: "AI analysis didn't finish", description: "See the details below to retry." });
+        if (response.job.status === "completed") toast({ title: t("screens.video.upload.ready"), description: t("screens.video.upload.readyDesc", { title: details.title }) });
+        else toast({ tone: "error", title: t("screens.video.upload.didntFinish"), description: t("screens.video.upload.didntFinishDesc") });
     };
 
     const summaryReady = footage.file && details.trainingType && details.cameraAngle && duration !== null;
@@ -326,7 +330,7 @@ function WizardFlow({
 
     return (
         <Card className="mx-auto w-full max-w-4xl overflow-hidden">
-            <nav aria-label="Upload steps" className="border-b border-border bg-surface-muted/50 px-3 py-3 sm:px-5">
+            <nav aria-label={t("screens.video.upload.steps")} className="border-b border-border bg-surface-muted/50 px-3 py-3 sm:px-5">
                 <ol className="grid grid-cols-3 gap-2">
                     {STEPS.map(({ step: n, label, description }) => {
                         const current = step === n;
@@ -352,10 +356,10 @@ function WizardFlow({
                                         {done && !current ? <Check className="size-4" /> : n}
                                     </span>
                                     <span className="min-w-0">
-                                        <span className={cn("block truncate text-sm font-semibold", current ? "text-fg" : "text-fg-muted max-sm:sr-only")}>{label}</span>
-                                        <span className="block truncate text-xs text-fg-subtle max-md:hidden">{description}</span>
+                                        <span className={cn("block truncate text-sm font-semibold", current ? "text-fg" : "text-fg-muted max-sm:sr-only")}>{t(label)}</span>
+                                        <span className="block truncate text-xs text-fg-subtle max-md:hidden">{t(description)}</span>
                                     </span>
-                                    <span className="sr-only">{done ? "(completed)" : current ? "(current step)" : ""}</span>
+                                    <span className="sr-only">{done ? t("screens.video.upload.stepCompleted") : current ? t("screens.video.upload.stepCurrent") : ""}</span>
                                 </button>
                             </li>
                         );
@@ -365,14 +369,10 @@ function WizardFlow({
 
             <div ref={stepRef} className="px-4 py-5 sm:px-6 sm:py-6">
                 <h2 ref={headingRef} tabIndex={-1} className="mb-1 text-lg font-semibold text-fg focus:outline-none">
-                    {step === 1 ? "Choose the footage" : step === 2 ? "Describe the session" : "Upload and analyse"}
+                    {step === 1 ? t("screens.video.upload.heading1") : step === 2 ? t("screens.video.upload.heading2") : t("screens.video.upload.heading3")}
                 </h2>
                 <p className="mb-5 text-sm text-fg-muted">
-                    {step === 1
-                        ? "Pick a clip from your device. Nothing is uploaded until the last step."
-                        : step === 2
-                          ? "This tells the AI what to look for and helps your team find the video later."
-                          : "Check the details, then upload. The AI analysis starts as soon as the upload finishes."}
+                    {step === 1 ? t("screens.video.upload.intro1") : step === 2 ? t("screens.video.upload.intro2") : t("screens.video.upload.intro3")}
                 </p>
 
                 {step === 1 && (
@@ -396,7 +396,7 @@ function WizardFlow({
                         {detailErrorCount > 0 && (
                             <FormMessage
                                 status="error"
-                                message={detailErrorCount === 1 ? "Fix the highlighted detail to continue." : `Fix the ${detailErrorCount} highlighted details to continue.`}
+                                message={detailErrorCount === 1 ? t("screens.video.upload.fixOne") : t("screens.video.upload.fixMany", { n: detailErrorCount })}
                             />
                         )}
                         <DetailsStep role={role} details={details} fighters={fighters} sessions={sessions} errors={visibleDetailErrors} onChange={updateDetails} evidenceEnabled={mode === 'api'} />
@@ -437,19 +437,19 @@ function WizardFlow({
                 <div className="flex items-center justify-between gap-3 border-t border-border bg-surface-muted/50 px-4 py-3 sm:px-6">
                     {step === 1 ? (
                         <ButtonLink href={cancelHref} variant="ghost">
-                            Cancel
+                            {t("screens.video.cancel")}
                         </ButtonLink>
                     ) : (
                         <Button variant="secondary" onClick={() => setStep((step - 1) as Step)}>
                             <ArrowLeft aria-hidden />
-                            Back
+                            {t("screens.video.back")}
                         </Button>
                     )}
                     {step < 3 && (
                         <div className="flex min-w-0 items-center gap-3">
                             {needsFile && (
                                 <p id="upload-next-hint" className="text-[13px] text-fg-muted max-sm:hidden">
-                                    Choose a video to continue.
+                                    {t("screens.video.upload.chooseToContinue")}
                                 </p>
                             )}
                             <Button
@@ -458,7 +458,7 @@ function WizardFlow({
                                 aria-describedby={needsFile ? "upload-next-hint" : undefined}
                                 onClick={() => goTo((step + 1) as Step)}
                             >
-                                Next: {STEPS[step].label}
+                                {t("screens.video.upload.next", { step: t(STEPS[step].label) })}
                                 <ArrowRight aria-hidden />
                             </Button>
                         </div>

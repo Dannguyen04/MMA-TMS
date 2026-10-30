@@ -4,16 +4,19 @@ import { Activity, Sparkles } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 
 import { TECHNIQUE_COLOR } from "@/components/charts/colors";
+import { useT } from "@/components/i18n/locale-provider";
 import { Card, CardHeader } from "@/components/ui/card";
 import { SegmentedControl } from "@/components/ui/segmented-control";
-import { AI_REVIEW_TERMS, isNeedsReview } from "@/lib/domain/ai-review";
-import { MOVEMENT_EVENT_LABELS, TECHNIQUE_LABELS } from "@/lib/domain/labels";
+import { isNeedsReview } from "@/lib/domain/ai-review";
+import { techniqueLabel } from "@/lib/domain/labels";
 import { LOW_CONFIDENCE_THRESHOLD } from "@/lib/domain/rules";
 import type { AIAnalysis, AIFinding, Combination, Detection, MovementEvent, StrikeType } from "@/lib/domain/types";
-import { formatClock, formatConfidence, formatTimestamp } from "@/lib/format";
+import { formatClock, formatTimestamp } from "@/lib/format";
+import type { MessageKey, Translator } from "@/lib/i18n/translate";
 import { clamp, cn } from "@/lib/utils";
 import { byStart, detectionAt } from "@/lib/video/analysis-nav";
 import { usePlayback, usePlaybackStore } from "./playback-store";
+import { combinationLabel, confidencePhrase, eventDetail, movementEventLabel } from "./video-copy";
 
 export interface TimelineObservation {
     id: string;
@@ -35,7 +38,7 @@ type ZoomId = "auto" | "fit" | "2x" | "4x";
 type Ticks = { major: number[]; minor: number[] };
 
 const ZOOMS: { value: Exclude<ZoomId, "auto">; label: string; factor: number }[] = [
-    { value: "fit", label: "Fit", factor: 1 },
+    { value: "fit", label: "screens.video.timeline.fit", factor: 1 },
     { value: "2x", label: "2×", factor: 2 },
     { value: "4x", label: "4×", factor: 4 },
 ];
@@ -54,6 +57,8 @@ const MARKER = "absolute flex size-6 -translate-x-1/2 items-center justify-cente
  */
 export function AnalysisTimeline({ analysis, findings, observations, onSelectFinding, className }: AnalysisTimelineProps) {
     const store = usePlaybackStore();
+    const t = useT();
+    const zoomOptions = useMemo(() => ZOOMS.map((zoom) => (zoom.value === "fit" ? { ...zoom, label: t(zoom.label as MessageKey) } : zoom)), [t]);
     const scrollRef = useRef<HTMLDivElement>(null);
     const innerRef = useRef<HTMLDivElement>(null);
     const playheadRef = useRef<HTMLDivElement>(null);
@@ -145,24 +150,24 @@ export function AnalysisTimeline({ analysis, findings, observations, onSelectFin
     return (
         <Card className={cn("min-w-0", className)}>
             <CardHeader
-                title="Timeline"
-                description="What the AI detected and when. Select a marker to jump to that moment."
-                action={<SegmentedControl label="Timeline zoom" options={ZOOMS} value={activeZoom} onChange={setZoom} />}
+                title={t("screens.video.timeline.title")}
+                description={t("screens.video.timeline.description")}
+                action={<SegmentedControl label={t("screens.video.timeline.zoom")} options={zoomOptions} value={activeZoom} onChange={setZoom} />}
             />
             <div className="px-5 pb-4">
                 <div className="flex">
                     <div aria-hidden className="w-[76px] shrink-0 pr-2 text-xs font-medium text-fg-muted sm:w-[104px]">
                         <div className="h-8" />
-                        <TrackLabel className="h-30">Strikes</TrackLabel>
-                        <TrackLabel className="h-8">Combos</TrackLabel>
-                        <TrackLabel className="h-8">Movement</TrackLabel>
-                        <TrackLabel className="h-7">Guard</TrackLabel>
-                        <TrackLabel className="h-8">Findings</TrackLabel>
-                        {observations && <TrackLabel className="h-8">Observations</TrackLabel>}
+                        <TrackLabel className="h-30">{t("screens.video.timeline.strikes")}</TrackLabel>
+                        <TrackLabel className="h-8">{t("screens.video.timeline.combos")}</TrackLabel>
+                        <TrackLabel className="h-8">{t("screens.video.timeline.movement")}</TrackLabel>
+                        <TrackLabel className="h-7">{t("screens.video.timeline.guard")}</TrackLabel>
+                        <TrackLabel className="h-8">{t("screens.video.timeline.findings")}</TrackLabel>
+                        {observations && <TrackLabel className="h-8">{t("screens.video.timeline.observations")}</TrackLabel>}
                     </div>
                     <div ref={scrollRef} className="scrollbar-thin relative min-w-0 flex-1 overflow-x-auto overflow-y-hidden rounded-lg bg-surface-muted/60">
                         <div ref={innerRef} className="relative" style={{ width: `${factor * 100}%` }}>
-                            <Ruler durationMs={durationMs} ticks={ticks} onSeek={seek} />
+                            <Ruler durationMs={durationMs} ticks={ticks} onSeek={seek} label={t("screens.video.timeline.seek")} />
                             <div className="relative">
                                 {trackingLost.map((event) => (
                                     <span
@@ -172,12 +177,12 @@ export function AnalysisTimeline({ analysis, findings, observations, onSelectFin
                                         style={{ left: pct(event.startMs), width: pct(event.endMs - event.startMs), backgroundImage: HATCH }}
                                     />
                                 ))}
-                                <StrikesTrack detections={detections} pct={pct} onSeek={seek} />
-                                <CombinationTrack combinations={analysis.combinations} pct={pct} onSeek={seek} pxPerMs={innerWidth === null ? 0 : innerWidth / durationMs} />
-                                <MovementTrack events={movement} pct={pct} onSeek={seek} />
-                                <GuardTrack events={guardDrops} pct={pct} onSeek={seek} />
-                                <FindingsTrack findings={findings} pct={pct} onSeek={seek} onSelect={onSelectFinding} />
-                                {observations && <ObservationsTrack observations={observations} pct={pct} onSeek={seek} />}
+                                <StrikesTrack detections={detections} pct={pct} onSeek={seek} t={t} />
+                                <CombinationTrack combinations={analysis.combinations} pct={pct} onSeek={seek} t={t} pxPerMs={innerWidth === null ? 0 : innerWidth / durationMs} />
+                                <MovementTrack events={movement} pct={pct} onSeek={seek} t={t} />
+                                <GuardTrack events={guardDrops} pct={pct} onSeek={seek} t={t} />
+                                <FindingsTrack findings={findings} pct={pct} onSeek={seek} t={t} onSelect={onSelectFinding} />
+                                {observations && <ObservationsTrack observations={observations} pct={pct} onSeek={seek} t={t} />}
                             </div>
                             <div ref={playheadRef} aria-hidden className="pointer-events-none absolute inset-y-0 left-0 z-30 w-0 -translate-x-px border-l-2 border-primary will-change-transform">
                                 <span className="absolute -top-px -left-[6px] size-2.5 rotate-45 rounded-[2px] bg-primary" />
@@ -185,7 +190,7 @@ export function AnalysisTimeline({ analysis, findings, observations, onSelectFin
                         </div>
                     </div>
                 </div>
-                <Legend />
+                <Legend t={t} />
             </div>
         </Card>
     );
@@ -197,7 +202,7 @@ function TrackLabel({ className, children }: { className: string; children: Reac
 
 /* ─── Ruler (seek slider) ─────────────────────────────────────────────────── */
 
-const Ruler = memo(function Ruler({ durationMs, ticks, onSeek }: { durationMs: number; ticks: Ticks; onSeek: (ms: number) => void }) {
+const Ruler = memo(function Ruler({ durationMs, ticks, onSeek, label }: { durationMs: number; ticks: Ticks; onSeek: (ms: number) => void; label: string }) {
     const store = usePlaybackStore();
     const sliderRef = useRef<HTMLDivElement>(null);
     const dragging = useRef(false);
@@ -241,7 +246,7 @@ const Ruler = memo(function Ruler({ durationMs, ticks, onSeek }: { durationMs: n
             ref={sliderRef}
             role="slider"
             tabIndex={0}
-            aria-label="Seek timeline"
+            aria-label={label}
             aria-valuemin={0}
             aria-valuemax={Math.round(durationMs)}
             aria-valuenow={initialMs}
@@ -296,6 +301,7 @@ function useRovingFocus(count: number) {
 interface TrackProps {
     pct: (ms: number) => string;
     onSeek: (ms: number) => void;
+    t: Translator;
 }
 
 function Track({ label, className, onKeyDown, children }: { label: string; className: string; onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void; children: ReactNode }) {
@@ -306,11 +312,11 @@ function Track({ label, className, onKeyDown, children }: { label: string; class
     );
 }
 
-function StrikesTrack({ detections, pct, onSeek }: TrackProps & { detections: Detection[] }) {
+function StrikesTrack({ detections, pct, onSeek, t }: TrackProps & { detections: Detection[] }) {
     const roving = useRovingFocus(detections.length);
     const activeId = usePlayback((s) => detectionAt(detections, s.timeMs)?.id ?? null);
     return (
-        <Track label={`Strikes: ${detections.length} detections. Use the arrow keys to move between them.`} className="h-30" onKeyDown={roving.onKeyDown}>
+        <Track label={t("screens.video.timeline.strikesTrack", { n: detections.length })} className="h-30" onKeyDown={roving.onKeyDown}>
             {detections.map((detection, index) => (
                 <StrikeMarker
                     key={detection.id}
@@ -321,6 +327,7 @@ function StrikesTrack({ detections, pct, onSeek }: TrackProps & { detections: De
                     tabbable={index === roving.current}
                     onSeek={onSeek}
                     onFocusIndex={roving.setActive}
+                    t={t}
                 />
             ))}
         </Track>
@@ -336,6 +343,7 @@ const StrikeMarker = memo(function StrikeMarker({
     tabbable,
     onSeek,
     onFocusIndex,
+    t,
 }: {
     detection: Detection;
     index: number;
@@ -344,10 +352,21 @@ const StrikeMarker = memo(function StrikeMarker({
     tabbable: boolean;
     onSeek: (ms: number) => void;
     onFocusIndex: (index: number) => void;
+    t: Translator;
 }) {
     const needsReview = isNeedsReview(detection);
-    const reviewText = detection.review ? `, ${detection.review.decision} by ${detection.review.reviewerName}` : needsReview ? `, ${AI_REVIEW_TERMS.needsReview.toLowerCase()}` : "";
-    const confidenceText = detection.confidenceAvailable === false ? "confidence unavailable" : `${formatConfidence(detection.confidence)} confidence`;
+    const strike = techniqueLabel(t, detection.type);
+    const time = formatTimestamp(detection.peakMs);
+    const confidenceText = confidencePhrase(t, detection);
+    const ariaLabel = detection.review
+        ? t("screens.video.timeline.strikeAriaReviewed", {
+              strike,
+              time,
+              confidence: confidenceText,
+              decision: t(`screens.video.decisionLower.${detection.review.decision}`),
+              name: detection.review.reviewerName,
+          })
+        : t(needsReview ? "screens.video.timeline.strikeAriaNeedsReview" : "screens.video.timeline.strikeAria", { strike, time, confidence: confidenceText });
     return (
         <button
             type="button"
@@ -355,8 +374,8 @@ const StrikeMarker = memo(function StrikeMarker({
             tabIndex={tabbable ? 0 : -1}
             onFocus={() => onFocusIndex(index)}
             onClick={() => onSeek(detection.peakMs)}
-            aria-label={`${TECHNIQUE_LABELS[detection.type]} at ${formatTimestamp(detection.peakMs)}, ${confidenceText}${reviewText}`}
-            title={`${TECHNIQUE_LABELS[detection.type]} · ${formatTimestamp(detection.peakMs)} · ${confidenceText}`}
+            aria-label={ariaLabel}
+            title={`${strike} · ${time} · ${confidenceText}`}
             className={cn("group", MARKER, active && "z-10", detection.review?.decision === "rejected" && "opacity-35")}
             style={{ left, top: `${STRIKE_LANES.indexOf(detection.type) * LANE_PX}px` }}
         >
@@ -381,22 +400,22 @@ export function StrikeShape({ type, hollow, className }: { type: StrikeType; hol
     );
 }
 
-function CombinationTrack({ combinations, pct, onSeek, pxPerMs }: TrackProps & { combinations: Combination[]; pxPerMs: number }) {
+function CombinationTrack({ combinations, pct, onSeek, pxPerMs, t }: TrackProps & { combinations: Combination[]; pxPerMs: number }) {
     const roving = useRovingFocus(combinations.length);
     return (
-        <Track label={`Combinations: ${combinations.length}`} className="h-8" onKeyDown={roving.onKeyDown}>
+        <Track label={t("screens.video.timeline.combinationsTrack", { n: combinations.length })} className="h-8" onKeyDown={roving.onKeyDown}>
             {combinations.map((combination, index) => (
                 <button
                     key={combination.id}
                     type="button"
                     {...roving.itemProps(index)}
                     onClick={() => onSeek(combination.startMs)}
-                    aria-label={`Combination ${combination.label}, ${formatTimestamp(combination.startMs)} to ${formatTimestamp(combination.endMs)}`}
-                    title={combination.label}
+                    aria-label={t("screens.video.timeline.combinationAria", { label: combinationLabel(t, combination.label), from: formatTimestamp(combination.startMs), to: formatTimestamp(combination.endMs) })}
+                    title={combinationLabel(t, combination.label)}
                     className="absolute top-2 h-4 min-w-1 overflow-hidden rounded-[3px] border border-chart-5/60 bg-chart-5/20 px-1 text-left text-[10px] leading-[14px] font-medium whitespace-nowrap text-fg hover:bg-chart-5/40"
                     style={{ left: pct(combination.startMs), width: pct(combination.endMs - combination.startMs) }}
                 >
-                    {(combination.endMs - combination.startMs) * pxPerMs >= 90 && <span aria-hidden>{combination.label}</span>}
+                    {(combination.endMs - combination.startMs) * pxPerMs >= 90 && <span aria-hidden>{combinationLabel(t, combination.label)}</span>}
                 </button>
             ))}
         </Track>
@@ -416,18 +435,18 @@ function MovementGlyph({ type, className }: { type: MovementEvent["type"]; class
     return <span aria-hidden className={cn("block shrink-0 ring-1 ring-fg/40", shape, className)} style={type === "tracking_lost" ? { backgroundImage: HATCH } : undefined} />;
 }
 
-function MovementTrack({ events, pct, onSeek }: TrackProps & { events: MovementEvent[] }) {
+function MovementTrack({ events, pct, onSeek, t }: TrackProps & { events: MovementEvent[] }) {
     const roving = useRovingFocus(events.length);
     return (
-        <Track label={`Movement: ${events.length} events`} className="h-8" onKeyDown={roving.onKeyDown}>
+        <Track label={t("screens.video.timeline.movementTrack", { n: events.length })} className="h-8" onKeyDown={roving.onKeyDown}>
             {events.map((event, index) => (
                 <button
                     key={event.id}
                     type="button"
                     {...roving.itemProps(index)}
                     onClick={() => onSeek(event.startMs)}
-                    aria-label={`${MOVEMENT_EVENT_LABELS[event.type]} at ${formatTimestamp(event.startMs)}: ${event.detail}`}
-                    title={`${MOVEMENT_EVENT_LABELS[event.type]} · ${event.detail}`}
+                    aria-label={t("screens.video.timeline.eventAria", { label: movementEventLabel(t, event.type), time: formatTimestamp(event.startMs), detail: eventDetail(t, event.detail) })}
+                    title={`${movementEventLabel(t, event.type)} · ${eventDetail(t, event.detail)}`}
                     className={cn("group top-1", MARKER)}
                     style={{ left: pct(event.startMs) }}
                 >
@@ -438,18 +457,18 @@ function MovementTrack({ events, pct, onSeek }: TrackProps & { events: MovementE
     );
 }
 
-function GuardTrack({ events, pct, onSeek }: TrackProps & { events: MovementEvent[] }) {
+function GuardTrack({ events, pct, onSeek, t }: TrackProps & { events: MovementEvent[] }) {
     const roving = useRovingFocus(events.length);
     return (
-        <Track label={`Guard drops: ${events.length}`} className="h-7" onKeyDown={roving.onKeyDown}>
+        <Track label={t("screens.video.timeline.guardTrack", { n: events.length })} className="h-7" onKeyDown={roving.onKeyDown}>
             {events.map((event, index) => (
                 <button
                     key={event.id}
                     type="button"
                     {...roving.itemProps(index)}
                     onClick={() => onSeek(event.startMs)}
-                    aria-label={`Possible guard drop at ${formatTimestamp(event.startMs)}, ${Math.round(event.endMs - event.startMs)} ms: ${event.detail}`}
-                    title={event.detail}
+                    aria-label={t("screens.video.timeline.guardAria", { time: formatTimestamp(event.startMs), ms: Math.round(event.endMs - event.startMs), detail: eventDetail(t, event.detail) })}
+                    title={eventDetail(t, event.detail)}
                     className={cn("group top-0.5", MARKER)}
                     style={{ left: pct(event.startMs) }}
                 >
@@ -460,14 +479,14 @@ function GuardTrack({ events, pct, onSeek }: TrackProps & { events: MovementEven
     );
 }
 
-function FindingsTrack({ findings, pct, onSeek, onSelect }: TrackProps & { findings: AIFinding[]; onSelect?: (findingId: string) => void }) {
+function FindingsTrack({ findings, pct, onSeek, onSelect, t }: TrackProps & { findings: AIFinding[]; onSelect?: (findingId: string) => void }) {
     const moments = useMemo(
         () => findings.flatMap((finding) => finding.timestampsMs.map((ms, i) => ({ key: `${finding.id}-${i}`, ms, finding }))).sort((a, b) => a.ms - b.ms),
         [findings],
     );
     const roving = useRovingFocus(moments.length);
     return (
-        <Track label={`AI findings: ${findings.length}`} className="h-8" onKeyDown={roving.onKeyDown}>
+        <Track label={t("screens.video.timeline.findingsTrack", { n: findings.length })} className="h-8" onKeyDown={roving.onKeyDown}>
             {moments.map((moment, index) => (
                 <button
                     key={moment.key}
@@ -477,7 +496,7 @@ function FindingsTrack({ findings, pct, onSeek, onSelect }: TrackProps & { findi
                         onSeek(moment.ms);
                         onSelect?.(moment.finding.id);
                     }}
-                    aria-label={`AI finding at ${formatTimestamp(moment.ms)}: ${moment.finding.title}`}
+                    aria-label={t("screens.video.timeline.findingAria", { time: formatTimestamp(moment.ms), title: moment.finding.title })}
                     title={moment.finding.title}
                     className={cn(
                         "absolute top-1 flex size-6 -translate-x-1/2 items-center justify-center rounded-md bg-ai-soft text-ai-fg ring-1 ring-ai-border hover:z-10 hover:bg-ai-solid hover:text-fg-inverse focus-visible:z-20",
@@ -492,18 +511,18 @@ function FindingsTrack({ findings, pct, onSeek, onSelect }: TrackProps & { findi
     );
 }
 
-function ObservationsTrack({ observations, pct, onSeek }: TrackProps & { observations: TimelineObservation[] }) {
+function ObservationsTrack({ observations, pct, onSeek, t }: TrackProps & { observations: TimelineObservation[] }) {
     const moments = observations.flatMap((o) => o.timestampsMs.map((ms, i) => ({ key: `${o.id}-${i}`, ms, label: o.label })));
     const roving = useRovingFocus(moments.length);
     return (
-        <Track label={`AI movement observations: ${observations.length}`} className="h-8" onKeyDown={roving.onKeyDown}>
+        <Track label={t("screens.video.timeline.observationsTrack", { n: observations.length })} className="h-8" onKeyDown={roving.onKeyDown}>
             {moments.map((moment, index) => (
                 <button
                     key={moment.key}
                     type="button"
                     {...roving.itemProps(index)}
                     onClick={() => onSeek(moment.ms)}
-                    aria-label={`AI movement observation at ${formatTimestamp(moment.ms)}: ${moment.label}`}
+                    aria-label={t("screens.video.timeline.observationAria", { time: formatTimestamp(moment.ms), label: moment.label })}
                     title={moment.label}
                     className="absolute top-1 flex size-6 -translate-x-1/2 items-center justify-center rounded-md bg-info-soft text-info-fg ring-1 ring-info-border hover:z-10"
                     style={{ left: pct(moment.ms) }}
@@ -515,44 +534,44 @@ function ObservationsTrack({ observations, pct, onSeek }: TrackProps & { observa
     );
 }
 
-function Legend() {
+function Legend({ t }: { t: Translator }) {
     return (
-        <ul aria-label="Timeline legend" className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-fg-muted">
+        <ul aria-label={t("screens.video.legend.label")} className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-fg-muted">
             {STRIKE_LANES.map((type) => (
                 <li key={type} className="flex items-center gap-1.5">
                     <StrikeShape type={type} hollow={false} />
-                    {TECHNIQUE_LABELS[type]}
+                    {techniqueLabel(t, type)}
                 </li>
             ))}
             <li className="flex items-center gap-1.5">
                 <StrikeShape type="jab" hollow />
-                {AI_REVIEW_TERMS.needsReview} (&lt;{Math.round(LOW_CONFIDENCE_THRESHOLD * 100)}%)
+                {t("screens.video.legend.needsReview", { pct: Math.round(LOW_CONFIDENCE_THRESHOLD * 100) })}
             </li>
             <li className="flex items-center gap-1.5">
                 <span aria-hidden className="h-2.5 w-5 rounded-[3px] border border-chart-5/60 bg-chart-5/20" />
-                Combination
+                {t("screens.video.legend.combination")}
             </li>
             <li className="flex items-center gap-1.5">
                 <MovementGlyph type="slip" />
-                Head movement
+                {t("screens.video.legend.headMovement")}
             </li>
             <li className="flex items-center gap-1.5">
                 <MovementGlyph type="step_in" />
-                Footwork
+                {t("screens.video.legend.footwork")}
             </li>
             <li className="flex items-center gap-1.5">
                 <MovementGlyph type="guard_drop" />
-                Guard drop
+                {t("screens.video.legend.guardDrop")}
             </li>
             <li className="flex items-center gap-1.5">
                 <span aria-hidden className="flex size-4 items-center justify-center rounded bg-ai-soft text-ai-fg ring-1 ring-ai-border">
                     <Sparkles className="size-2.5" />
                 </span>
-                AI finding
+                {t("screens.video.legend.aiFinding")}
             </li>
             <li className="flex items-center gap-1.5">
                 <MovementGlyph type="tracking_lost" />
-                Tracking lost
+                {t("screens.video.legend.trackingLost")}
             </li>
         </ul>
     );

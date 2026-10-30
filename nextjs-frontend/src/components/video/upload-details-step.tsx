@@ -6,26 +6,25 @@ import { useId } from "react";
 import { InlineNote } from "@/components/dashboard/inline-note";
 import { FighterIdentity } from "@/components/domain/fighter-identity";
 import { TRAINING_TYPE_ICONS } from "@/components/domain/training-type-icon";
+import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { ChoiceGroup, type ChoiceOption } from "@/components/ui/choice-group";
 import { Field, Input, Select, Textarea } from "@/components/ui/form";
-import { CAMERA_ANGLE_LABELS, TRAINING_TYPE_LABELS, VIDEO_TRAINING_TYPE_HINTS, VIDEO_TRAINING_TYPES } from "@/lib/domain/labels";
+import { trainingTypeLabel, VIDEO_TRAINING_TYPES } from "@/lib/domain/labels";
 import type { CameraAngle, VideoTrainingType } from "@/lib/domain/types";
 import { formatWeekdayDate } from "@/lib/format";
+import type { MessageKey } from "@/lib/i18n/translate";
 import type { WizardFighterOption, WizardSessionOption } from "./upload-wizard-data";
 import type { DetailsState } from "./upload-wizard-state";
 import { ExerciseContextFields } from "./exercise-context-fields";
+import { cameraAngleLabel } from "./video-copy";
 
-const CAMERA_TIPS: Record<CameraAngle, string> = {
-    front: "Best for guard and head movement.",
-    side: "Best for punch extension and kicks.",
-    diagonal: "Best all-round view — recommended.",
+const CAMERA_TIPS: Record<CameraAngle, MessageKey> = {
+    front: "screens.video.upload.tipFront" as MessageKey,
+    side: "screens.video.upload.tipSide" as MessageKey,
+    diagonal: "screens.video.upload.tipDiagonal" as MessageKey,
 };
 
-const CAMERA_OPTIONS: ChoiceOption<CameraAngle>[] = (["diagonal", "side", "front"] as const).map((angle) => ({
-    value: angle,
-    label: CAMERA_ANGLE_LABELS[angle],
-    description: CAMERA_TIPS[angle],
-}));
+const CAMERA_ORDER = ["diagonal", "side", "front"] as const;
 
 export interface DetailsStepProps {
     evidenceEnabled?: boolean;
@@ -40,6 +39,9 @@ export interface DetailsStepProps {
 /** Step 2: who, what and how it was filmed. */
 export function DetailsStep({ role, details, fighters, sessions, errors, onChange, evidenceEnabled }: DetailsStepProps) {
     const baseId = useId();
+    const t = useT();
+    const locale = useLocale();
+    const cameraOptions: ChoiceOption<CameraAngle>[] = CAMERA_ORDER.map((angle) => ({ value: angle, label: cameraAngleLabel(t, angle), description: t(CAMERA_TIPS[angle]) }));
     const ids = { fighter: `${baseId}-fighter`, type: `${baseId}-type`, angle: `${baseId}-angle`, session: `${baseId}-session`, title: `${baseId}-title`, notes: `${baseId}-notes` };
     const fighter = fighters.find((f) => f.id === details.fighterId) ?? null;
     const fighterSessions = sessions.filter((s) => s.fighterId === details.fighterId);
@@ -47,31 +49,32 @@ export function DetailsStep({ role, details, fighters, sessions, errors, onChang
 
     const clearanceNote = (() => {
         if (!fighter || !details.trainingType) return null;
-        const who = role === "fighter" ? "Your" : `${firstName}'s`;
+        const self = role === "fighter";
         if (fighter.clearanceState === "not_cleared" || fighter.clearanceState === "expired") {
-            return `${who} Medical Clearance doesn't currently allow training. You can still upload this footage for analysis — check with the sports doctor before planning sessions.`;
+            return self ? t("screens.video.upload.clearanceBlocksSelf") : t("screens.video.upload.clearanceBlocks", { name: firstName });
         }
         const blocking = fighter.restrictions.filter((r) => r.types.includes(details.trainingType as VideoTrainingType));
         if (blocking.length === 0) return null;
-        return `${who} Medical Clearance restricts ${TRAINING_TYPE_LABELS[details.trainingType].toLowerCase()} (${blocking.map((r) => r.label).join("; ")}). The footage can still be analysed — check with the sports doctor before scheduling similar sessions.`;
+        const params = { name: firstName, type: trainingTypeLabel(t, details.trainingType).toLowerCase(), restrictions: blocking.map((r) => r.label).join("; ") };
+        return self ? t("screens.video.upload.clearanceRestrictsSelf", params) : t("screens.video.upload.clearanceRestricts", params);
     })();
 
     const typeOptions: ChoiceOption<VideoTrainingType>[] = VIDEO_TRAINING_TYPES.map((type) => ({
         value: type,
-        label: TRAINING_TYPE_LABELS[type],
+        label: trainingTypeLabel(t, type),
         icon: TRAINING_TYPE_ICONS[type],
-        description: VIDEO_TRAINING_TYPE_HINTS[type],
+        description: t(`screens.video.upload.hint.${type}`),
         extra: fighter?.restrictions.some((r) => r.types.includes(type)) ? (
-            <span className="mt-1 block text-xs font-medium text-warning-fg">Restricted by clearance</span>
+            <span className="mt-1 block text-xs font-medium text-warning-fg">{t("screens.video.upload.restricted")}</span>
         ) : undefined,
     }));
 
     return (
         <div className="flex flex-col gap-6">
             {role === "coach" ? (
-                <Field label="Fighter" htmlFor={ids.fighter} required error={errors.fighterId} hint="Only fighters on your roster are listed.">
+                <Field label={t("screens.video.fighter")} htmlFor={ids.fighter} required error={errors.fighterId} hint={t("screens.video.upload.rosterOnly")}>
                     <Select id={ids.fighter} name="fighterId" value={details.fighterId} onChange={(event) => onChange({ fighterId: event.target.value, sessionId: "" })} required>
-                        <option value="">Choose a fighter</option>
+                        <option value="">{t("screens.video.upload.chooseAFighter")}</option>
                         {fighters.map((option) => (
                             <option key={option.id} value={option.id}>
                                 {option.name}
@@ -82,7 +85,7 @@ export function DetailsStep({ role, details, fighters, sessions, errors, onChang
             ) : (
                 fighter && (
                     <div className="rounded-lg border border-border bg-surface-muted/60 px-4 py-3">
-                        <p className="mb-2 text-xs font-medium text-fg-muted">Uploading footage of</p>
+                        <p className="mb-2 text-xs font-medium text-fg-muted">{t("screens.video.upload.footageOf")}</p>
                         <FighterIdentity fighter={fighter} size="sm" />
                     </div>
                 )
@@ -92,7 +95,7 @@ export function DetailsStep({ role, details, fighters, sessions, errors, onChang
                 <ChoiceGroup
                     id={ids.type}
                     name="trainingType"
-                    legend="Training type"
+                    legend={t("screens.video.trainingType")}
                     required
                     columns={2}
                     options={typeOptions}
@@ -112,26 +115,32 @@ export function DetailsStep({ role, details, fighters, sessions, errors, onChang
             <ChoiceGroup
                 id={ids.angle}
                 name="cameraAngle"
-                legend="Camera angle"
+                legend={t("screens.video.cameraAngle")}
                 required
                 variant="compact"
                 columns={3}
-                options={CAMERA_OPTIONS}
+                options={cameraOptions}
                 value={details.cameraAngle}
                 onChange={(cameraAngle) => onChange({ cameraAngle })}
                 error={errors.cameraAngle}
             />
 
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                <Field label="Title" htmlFor={ids.title} required error={errors.title} hint="Shown in the video library.">
+                <Field label={t("screens.video.title")} htmlFor={ids.title} required error={errors.title} hint={t("screens.video.upload.titleHint")}>
                     <Input id={ids.title} name="title" value={details.title} maxLength={120} onChange={(event) => onChange({ title: event.target.value, titleEdited: true })} required />
                 </Field>
                 <Field
-                    label="Link to a training session"
+                    label={t("screens.video.upload.session")}
                     htmlFor={ids.session}
                     optional
                     error={errors.sessionId}
-                    hint={details.fighterId ? (fighterSessions.length > 0 ? "Sessions from the last three weeks." : "No recent sessions for this fighter.") : "Choose a fighter first."}
+                    hint={
+                        details.fighterId
+                            ? fighterSessions.length > 0
+                                ? t("screens.video.upload.sessionsRecent")
+                                : t("screens.video.upload.noRecentSessions")
+                            : t("screens.video.upload.fighterFirst")
+                    }
                 >
                     <Select
                         id={ids.session}
@@ -144,10 +153,10 @@ export function DetailsStep({ role, details, fighters, sessions, errors, onChang
                             onChange({ sessionId: event.target.value, ...(sessionType && !details.trainingType ? { trainingType: sessionType } : {}) });
                         }}
                     >
-                        <option value="">No session</option>
+                        <option value="">{t("screens.video.upload.noSession")}</option>
                         {fighterSessions.map((session) => (
                             <option key={session.id} value={session.id}>
-                                {formatWeekdayDate(session.scheduledAt)} · {session.title}
+                                {formatWeekdayDate(session.scheduledAt, locale)} · {session.title}
                             </option>
                         ))}
                     </Select>
@@ -155,7 +164,7 @@ export function DetailsStep({ role, details, fighters, sessions, errors, onChang
             </div>
 
             {evidenceEnabled && <ExerciseContextFields details={details} onChange={onChange} />}
-            <Field label="Notes for the coach" htmlFor={ids.notes} optional hint="Anything that helps read the footage, e.g. “Round 3 of 4, working the hook off the jab.”" error={errors.notes}>
+            <Field label={t("screens.video.upload.notes")} htmlFor={ids.notes} optional hint={t("screens.video.upload.notesHint")} error={errors.notes}>
                 <Textarea id={ids.notes} name="notes" rows={3} maxLength={1000} value={details.notes} onChange={(event) => onChange({ notes: event.target.value })} />
             </Field>
         </div>
