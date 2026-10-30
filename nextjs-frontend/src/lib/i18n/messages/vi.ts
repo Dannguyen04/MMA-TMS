@@ -13,6 +13,10 @@ import { viHealth } from "./health.vi";
 import { viTraining } from "./training.vi";
 import { viLanding } from "./landing.vi";
 import { viFigure3d } from "./figure3d.vi";
+import { viScreens } from "./screens.vi";
+import { viScreensRoster } from "./screens-roster.vi";
+import { viScreensPerformance } from "./screens-performance.vi";
+import { viScreensTraining } from "./screens-training.vi";
 import type { en } from "./en";
 
 /** Vietnamese interface text. Must define every key of `en` (enforced by the type below). */
@@ -32,6 +36,10 @@ export const vi = {
     ...viTraining,
     ...viLanding,
     ...viFigure3d,
+    ...viScreens,
+    ...viScreensRoster,
+    ...viScreensPerformance,
+    ...viScreensTraining,
     "nav.Today": "Hôm nay",
     "nav.Bout": "Trận đấu",
     "nav.Bouts": "Trận đấu",

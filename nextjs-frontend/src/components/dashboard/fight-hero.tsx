@@ -80,7 +80,7 @@ export function FightHero({ bout, campStart, plan, journey, analysis, next, now,
             <div className="relative isolate flex min-w-0 flex-col gap-4 px-6 py-6 text-white sm:px-7">
                 <div aria-hidden className="absolute inset-0 -z-10 chamfer-tl cage-hatch bg-hero-bg" />
                 {journey ? (
-                    <FighterJourney journey={journey} variant="full" ground="hero" hideNextAction />
+                    <FighterJourney journey={journey} variant="full" ground="hero" hideNextAction locale={locale} />
                 ) : bout ? (
                     <>
                         <Camp bout={bout} campStart={campStart} now={now} t={t} locale={locale} />

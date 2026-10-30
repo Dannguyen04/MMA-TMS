@@ -18,6 +18,10 @@ import { enHealth } from "./health.en";
 import { enTraining } from "./training.en";
 import { enLanding } from "./landing.en";
 import { enFigure3d } from "./figure3d.en";
+import { enScreens } from "./screens.en";
+import { enScreensRoster } from "./screens-roster.en";
+import { enScreensPerformance } from "./screens-performance.en";
+import { enScreensTraining } from "./screens-training.en";
 
 export const en = {
     ...enDemoFlow,
@@ -35,6 +39,10 @@ export const en = {
     ...enTraining,
     ...enLanding,
     ...enFigure3d,
+    ...enScreens,
+    ...enScreensRoster,
+    ...enScreensPerformance,
+    ...enScreensTraining,
     /* Navigation: keyed by the English label in `navigation.ts`. */
     "nav.Today": "Today",
     "nav.Bout": "Bout",

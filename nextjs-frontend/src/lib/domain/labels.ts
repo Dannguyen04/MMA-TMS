@@ -684,6 +684,30 @@ export const SUSPENSION_STATE_LABELS: Record<SuspensionState, string> = {
     ENDED: "Ended",
     CLEARED: "Cleared to train",
 };
+export function weightClassLabel(weightClass: WeightClass, locale?: Locale): string {
+    if (locale) return createTranslator(locale)(`weightClass.${weightClass}`);
+    return WEIGHT_CLASS_LABELS[weightClass];
+}
+
+/**
+ * The weight class as a fighter's profile shows it: in Vietnamese the English name the sport uses
+ * follows in brackets ("Hạng gà (Bantamweight)"); badges and tables use `weightClassLabel`.
+ */
+export function weightClassFullLabel(weightClass: WeightClass, locale: Locale): string {
+    const label = weightClassLabel(weightClass, locale);
+    return locale === "vi" ? `${label} (${WEIGHT_CLASS_LABELS[weightClass]})` : label;
+}
+
+export function stanceLabel(stance: Stance, locale?: Locale): string {
+    if (locale) return createTranslator(locale)(`stance.${stance}`);
+    return STANCE_LABELS[stance];
+}
+
+export function trainingLevelLabel(level: TrainingLevel, locale?: Locale): string {
+    if (locale) return createTranslator(locale)(`trainingLevel.${level}`);
+    return TRAINING_LEVEL_LABELS[level];
+}
+
 export function healthStatusLabel(status: HealthStatus, locale?: Locale): string {
     if (locale) return createTranslator(locale)(`healthStatus.${status}`);
     return HEALTH_STATUS_LABELS[status];

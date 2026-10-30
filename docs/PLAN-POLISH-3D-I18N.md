@@ -46,6 +46,8 @@ Ví dụ: tiêu đề "FIGHTER PROFILE", "No bout scheduled", "Body & fight prof
 | L4 | Bác sĩ (T-017, T-023): **Fon** đang làm màn bác sĩ nên làm luôn khi dựng | Fon | Theo Fon |
 | L5 | Admin (T-019, T-024), rồi T-025: test chặn chữ Anh mới, `locale` bắt buộc | Sau demo | — |
 
+**Kết quả L0, L1 (30/10, làm xong, cùng nhánh):** bảng thuật ngữ chốt theo đề xuất (`screens.vi.ts`: "Hạng gà", "Thế thuận"…, hồ sơ ghi "Hạng gà (Bantamweight)"). Ở khu HLV và võ sĩ, không tính trang video, số dòng tiếng Anh do code tạo giảm từ **306 xuống 39**; 39 dòng còn lại là đơn vị (min, /min), câu tóm tắt AI của phần video (L3), chữ nằm trong file T-032 ("Fight camp", "for {tên}") và nhãn hạn chế do bác sĩ nhập. Dữ liệu demo tiếng Anh (142 dòng) chờ L2. Chế độ tiếng Anh không đổi (so ảnh chụp chữ trước và sau). Khoá mới nằm trong `screens*.ts` (khoảng 700 khoá).
+
 Sau mỗi đợt, chạy lại script đo (`lang-audit`) và ghi số còn lại vào bảng trên. **L1 xong khi** các trang của HLV và võ sĩ trong kịch bản đo ra 0 dòng ngoài danh sách cho phép.
 
 ## 3. Những việc còn sót (ngoài hai mục trên)

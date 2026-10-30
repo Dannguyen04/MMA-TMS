@@ -173,7 +173,7 @@ function RosterPreview({
                 <ul className="mt-3 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
                     {shown.map((entry) => (
                         <li key={entry.id} className="min-w-0">
-                            <FighterIdentity fighter={entry.fighter} size="sm" href={entry.href} showHealth />
+                            <FighterIdentity fighter={entry.fighter} size="sm" href={entry.href} showHealth locale={locale} />
                         </li>
                     ))}
                 </ul>

@@ -13,7 +13,7 @@ import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
 
 export default async function CoachFighterLayout({ children, params }: LayoutProps<"/coach/fighters/[fighterId]">) {
-    const { t } = await getTranslator();
+    const { t, locale } = await getTranslator();
     const user = await requireRole("coach");
     const { fighterId } = await params;
     const { fighter, clearanceState } = await loadRosterEntry(user, fighterId);
@@ -29,6 +29,7 @@ export default async function CoachFighterLayout({ children, params }: LayoutPro
                 clearanceState={clearanceState}
                 back={{ href: routes.coach.fighters, label: t("training.fighterLayout.back") }}
                 now={now}
+                locale={locale}
                 figure={
                     <FighterFigure
                         name={fighter.name}

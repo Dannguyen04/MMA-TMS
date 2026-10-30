@@ -2,6 +2,8 @@ import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 import type { ReactNode } from "react";
 
 import type { StatDelta } from "@/components/ui/stat-card";
+import type { Locale } from "@/lib/i18n/config";
+import { createTranslator } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 
 const SENTIMENT_CLASS: Record<StatDelta["sentiment"], string> = {
@@ -23,11 +25,19 @@ export interface MetricTileProps {
     /** Change vs a comparison period; the arrow shows direction, the colour and hidden text show sentiment. */
     delta?: StatDelta;
     hint?: ReactNode;
+    /** Language of the hidden sentiment words ("(better)"); English when omitted. */
+    locale?: Locale;
     className?: string;
 }
 
+function sentimentText(sentiment: StatDelta["sentiment"], locale?: Locale): string {
+    if (!locale || sentiment === "neutral") return SENTIMENT_TEXT[sentiment];
+    const t = createTranslator(locale);
+    return ` ${t(sentiment === "good" ? "screens.performance.stat.better" : "screens.performance.stat.worse")}`;
+}
+
 /** Compact metric for dense panels — a lighter sibling of StatCard. */
-export function MetricTile({ label, value, unit, delta, hint, className }: MetricTileProps) {
+export function MetricTile({ label, value, unit, delta, hint, locale, className }: MetricTileProps) {
     const DeltaIcon = delta?.direction === "up" ? ArrowUpRight : delta?.direction === "down" ? ArrowDownRight : Minus;
 
     return (
@@ -43,7 +53,7 @@ export function MetricTile({ label, value, unit, delta, hint, className }: Metri
                         <span className={cn("inline-flex items-center gap-0.5 font-medium", SENTIMENT_CLASS[delta.sentiment])}>
                             <DeltaIcon aria-hidden className="size-3" />
                             {delta.value}
-                            <span className="sr-only">{SENTIMENT_TEXT[delta.sentiment]}</span>
+                            <span className="sr-only">{sentimentText(delta.sentiment, locale)}</span>
                             {delta.label && <span className="font-normal text-fg-subtle">&nbsp;{delta.label}</span>}
                         </span>
                     )}

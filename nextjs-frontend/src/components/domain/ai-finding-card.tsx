@@ -15,14 +15,16 @@ import { useId, type ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { TONE_TEXT, type Tone } from "@/components/ui/tone";
-import { FINDING_CATEGORY_LABELS, FINDING_IMPACT_LABELS, REVIEW_DECISION_LABELS } from "@/lib/domain/labels";
+import { FINDING_CATEGORY_LABELS, FINDING_IMPACT_LABELS, REVIEW_DECISION_LABELS, techniqueLabel } from "@/lib/domain/labels";
 import { AI_REVIEW_TERMS, isNeedsReview } from "@/lib/domain/ai-review";
-import type { AIFeedback, AIFinding, FindingImpact, ReviewDecision } from "@/lib/domain/types";
+import type { AIFeedback, AIFinding, FindingCategory, FindingImpact, ReviewDecision } from "@/lib/domain/types";
 import { formatConfidence, formatDateTime, formatRelative, formatTimestamp, pluralize } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
+import { createTranslator, plural, type MessageKey, type Translator } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 import { ConfidenceMeter } from "./confidence-meter";
 import { formatMeasure } from "./domain-format";
-import { AIGeneratedBadge, ReviewStateBadge } from "./status-badges";
+import { AIGeneratedBadge, confidenceText, ReviewStateBadge } from "./status-badges";
 
 const IMPACT_META: Record<FindingImpact, { icon: LucideIcon; tone: Tone }> = {
     strength: { icon: TrendingUp, tone: "success" },
@@ -45,7 +47,18 @@ export interface AIFindingCardProps {
     /** Review controls, e.g. Confirm / Correct / Reject buttons. As a function it receives the heading id, so controls can name the finding they act on. */
     actions?: ReactNode | ((headingId: string) => ReactNode);
     headingLevel?: 2 | 3;
+    /** The viewer's language; English when omitted. Finding titles, descriptions and recommendations are data and stay as written. */
+    locale?: Locale;
     className?: string;
+}
+
+function categoryLabel(category: FindingCategory, t: Translator | null): string {
+    if (!t) return FINDING_CATEGORY_LABELS[category];
+    return category === "movement_quality" ? t("screens.roster.analysis.movementQuality") : techniqueLabel(t, category);
+}
+
+function decisionLabel(decision: ReviewDecision, t: Translator | null): string {
+    return t ? t(`screens.shared.finding.decision.${decision}` as MessageKey) : REVIEW_DECISION_LABELS[decision];
 }
 
 /**
@@ -53,8 +66,9 @@ export interface AIFindingCardProps {
  * review) and, when reviewed, the human decision shown distinctly from the AI output.
  * Its only hook is useId, so it renders in Server and Client Component parents alike.
  */
-export function AIFindingCard({ finding, now, onSeek, actions, headingLevel = 3, className }: AIFindingCardProps) {
+export function AIFindingCard({ finding, now, onSeek, actions, headingLevel = 3, locale, className }: AIFindingCardProps) {
     const headingId = useId();
+    const t = locale ? createTranslator(locale) : null;
     const Heading = headingLevel === 2 ? "h2" : "h3";
     const impact = IMPACT_META[finding.impact];
     const rejected = finding.review?.decision === "rejected";
@@ -64,14 +78,14 @@ export function AIFindingCard({ finding, now, onSeek, actions, headingLevel = 3,
         <article aria-labelledby={headingId} className={cn("flex flex-col gap-3.5 rounded-xl border border-border bg-surface p-4 shadow-card", className)}>
             <div className="flex flex-wrap items-center gap-1.5">
                 <Badge tone={impact.tone} icon={impact.icon} size="sm">
-                    {FINDING_IMPACT_LABELS[finding.impact]}
+                    {t ? t(`screens.shared.finding.impact.${finding.impact}` as MessageKey) : FINDING_IMPACT_LABELS[finding.impact]}
                 </Badge>
                 <Badge tone="neutral" variant="outline" size="sm">
-                    {FINDING_CATEGORY_LABELS[finding.category]}
+                    {categoryLabel(finding.category, t)}
                 </Badge>
                 <span className="ml-auto flex flex-wrap gap-1.5">
-                    <AIGeneratedBadge size="sm" />
-                    <ReviewStateBadge review={finding.review} confidence={finding.confidence} size="sm" />
+                    <AIGeneratedBadge size="sm" locale={locale} />
+                    <ReviewStateBadge review={finding.review} confidence={finding.confidence} size="sm" locale={locale} />
                 </span>
             </div>
 
@@ -82,20 +96,26 @@ export function AIFindingCard({ finding, now, onSeek, actions, headingLevel = 3,
                 <p className="mt-1 text-sm text-pretty text-fg-muted">{finding.description}</p>
             </div>
 
-            <ConfidenceMeter confidence={finding.confidence} label={`AI confidence for ${finding.title}`} />
+            <ConfidenceMeter
+                confidence={finding.confidence}
+                label={t ? t("screens.shared.finding.confidenceFor", { title: finding.title }) : `AI confidence for ${finding.title}`}
+                locale={locale}
+            />
 
             {finding.metric && (
                 <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 rounded-lg bg-surface-muted px-3 py-2 text-[13px]">
                     <span className="text-fg-muted">{finding.metric.label}</span>
                     <span className="font-semibold text-fg">{formatMeasure(finding.metric.value, finding.metric.unit)}</span>
-                    {finding.metric.reference && <span className="text-fg-subtle">Reference: {finding.metric.reference}</span>}
+                    {finding.metric.reference && (
+                        <span className="text-fg-subtle">{t ? t("screens.shared.finding.reference", { value: finding.metric.reference }) : `Reference: ${finding.metric.reference}`}</span>
+                    )}
                 </p>
             )}
 
             <p className="flex gap-2 text-sm">
                 <Lightbulb aria-hidden className="mt-0.5 size-4 shrink-0 text-fg-subtle" />
                 <span className="text-pretty text-fg">
-                    <span className="font-medium">Recommendation: </span>
+                    <span className="font-medium">{t ? t("screens.shared.finding.recommendation") : "Recommendation:"} </span>
                     {finding.recommendation}
                 </span>
             </p>
@@ -104,15 +124,15 @@ export function AIFindingCard({ finding, now, onSeek, actions, headingLevel = 3,
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[13px]">
                     {finding.timestampsMs.length > 0 && (
                         <>
-                            <span className="text-fg-muted">Moments</span>
-                            <ul aria-label="Moments in the video" className="flex flex-wrap gap-1.5">
+                            <span className="text-fg-muted">{t ? t("screens.shared.finding.moments") : "Moments"}</span>
+                            <ul aria-label={t ? t("screens.shared.finding.momentsLabel") : "Moments in the video"} className="flex flex-wrap gap-1.5">
                                 {finding.timestampsMs.map((ms, index) => (
                                     <li key={`${ms}-${index}`}>
                                         {onSeek ? (
                                             <button
                                                 type="button"
                                                 onClick={() => onSeek(ms)}
-                                                aria-label={`Seek video to ${formatTimestamp(ms)}`}
+                                                aria-label={t ? t("screens.shared.finding.seek", { time: formatTimestamp(ms) }) : `Seek video to ${formatTimestamp(ms)}`}
                                                 className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-surface px-2 text-xs font-medium text-fg transition-colors hover:bg-surface-hover"
                                             >
                                                 <Play aria-hidden className="size-3" />
@@ -129,47 +149,58 @@ export function AIFindingCard({ finding, now, onSeek, actions, headingLevel = 3,
                         </>
                     )}
                     {finding.detectionIds.length > 0 && (
-                        <span className="text-fg-muted">{pluralize(finding.detectionIds.length, "linked detection")}</span>
+                        <span className="text-fg-muted">
+                            {t ? plural(t, "screens.shared.finding.linkedDetections", finding.detectionIds.length) : pluralize(finding.detectionIds.length, "linked detection")}
+                        </span>
                     )}
                 </div>
             )}
 
-            <Provenance finding={finding} />
+            <Provenance finding={finding} t={t} locale={locale} />
 
-            {finding.review && <HumanReview review={finding.review} aiLabel={FINDING_CATEGORY_LABELS[finding.category]} now={now} />}
+            {finding.review && <HumanReview review={finding.review} aiLabel={categoryLabel(finding.category, t)} now={now} t={t} locale={locale} />}
 
             {controls && <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">{controls}</div>}
         </article>
     );
 }
 
-function Provenance({ finding }: { finding: AIFinding }) {
+function Provenance({ finding, t, locale }: { finding: AIFinding; t: Translator | null; locale?: Locale }) {
     const [firstMs] = finding.timestampsMs;
     const extraMoments = finding.timestampsMs.length - 1;
-    const steps: { step: string; value: string }[] = [
-        { step: "Video", value: "Source clip" },
-        {
-            step: "Timeline",
-            value: firstMs === undefined ? "Whole clip" : `${formatTimestamp(firstMs)}${extraMoments > 0 ? ` +${extraMoments}` : ""}`,
-        },
-        {
-            step: "Detection",
-            value: finding.detectionIds.length > 0 ? pluralize(finding.detectionIds.length, "detection") : "None linked",
-        },
-        {
-            step: "Metric",
-            value: finding.metric ? `${finding.metric.label} ${formatMeasure(finding.metric.value, finding.metric.unit)}` : "No metric",
-        },
-        { step: "Finding", value: `${formatConfidence(finding.confidence)} confidence` },
-        { step: "Review", value: reviewSummary(finding.review, finding.confidence) },
-    ];
+    const timeline = firstMs === undefined ? null : `${formatTimestamp(firstMs)}${extraMoments > 0 ? ` +${extraMoments}` : ""}`;
+    const metric = finding.metric ? `${finding.metric.label} ${formatMeasure(finding.metric.value, finding.metric.unit)}` : null;
+    const steps: { step: string; value: string }[] = t
+        ? [
+              { step: t("screens.shared.finding.step.video"), value: t("screens.shared.finding.sourceClip") },
+              { step: t("screens.shared.finding.step.timeline"), value: timeline ?? t("screens.shared.finding.wholeClip") },
+              {
+                  step: t("screens.shared.finding.step.detection"),
+                  value: finding.detectionIds.length > 0 ? plural(t, "screens.shared.finding.detections", finding.detectionIds.length) : t("screens.shared.finding.noneLinked"),
+              },
+              { step: t("screens.shared.finding.step.metric"), value: metric ?? t("screens.shared.finding.noMetric") },
+              { step: t("screens.shared.finding.step.finding"), value: confidenceText(finding.confidence, locale) },
+              { step: t("screens.shared.finding.step.review"), value: reviewSummary(finding.review, finding.confidence, t) },
+          ]
+        : [
+              { step: "Video", value: "Source clip" },
+              { step: "Timeline", value: timeline ?? "Whole clip" },
+              {
+                  step: "Detection",
+                  value: finding.detectionIds.length > 0 ? pluralize(finding.detectionIds.length, "detection") : "None linked",
+              },
+              { step: "Metric", value: metric ?? "No metric" },
+              { step: "Finding", value: `${formatConfidence(finding.confidence)} confidence` },
+              { step: "Review", value: reviewSummary(finding.review, finding.confidence, null) },
+          ];
+    const heading = t ? t("screens.shared.finding.provenance") : "Provenance";
 
     return (
         <div className="rounded-lg border border-dashed border-border px-3 py-2">
             <p className="text-[11px] font-semibold tracking-wide text-fg-subtle uppercase" aria-hidden>
-                Provenance
+                {heading}
             </p>
-            <ol aria-label="Provenance" className="mt-1 flex flex-wrap items-center gap-x-1 gap-y-1.5">
+            <ol aria-label={heading} className="mt-1 flex flex-wrap items-center gap-x-1 gap-y-1.5">
                 {steps.map((item, index) => (
                     <li key={item.step} className="flex items-center gap-1">
                         {index > 0 && <ChevronRight aria-hidden className="size-3 shrink-0 text-fg-subtle" />}
@@ -187,12 +218,13 @@ function Provenance({ finding }: { finding: AIFinding }) {
     );
 }
 
-function reviewSummary(review: AIFeedback | null, confidence: number): string {
-    if (review) return REVIEW_DECISION_LABELS[review.decision];
+function reviewSummary(review: AIFeedback | null, confidence: number, t: Translator | null): string {
+    if (review) return decisionLabel(review.decision, t);
+    if (t) return t(isNeedsReview({ review, confidence }) ? "screens.shared.review.needsReview" : "screens.shared.review.unreviewed");
     return isNeedsReview({ review, confidence }) ? AI_REVIEW_TERMS.needsReview : AI_REVIEW_TERMS.unreviewed;
 }
 
-function HumanReview({ review, aiLabel, now }: { review: AIFeedback; aiLabel: string; now: string }) {
+function HumanReview({ review, aiLabel, now, t, locale }: { review: AIFeedback; aiLabel: string; now: string; t: Translator | null; locale?: Locale }) {
     const decision = DECISION_META[review.decision];
     const DecisionIcon = decision.icon;
 
@@ -201,18 +233,20 @@ function HumanReview({ review, aiLabel, now }: { review: AIFeedback; aiLabel: st
             <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                 <DecisionIcon aria-hidden className={cn("size-4 shrink-0", TONE_TEXT[decision.tone])} />
                 <span className="font-medium text-fg">
-                    {REVIEW_DECISION_LABELS[review.decision]} by {review.reviewerName}
+                    {t
+                        ? t("screens.shared.finding.decisionBy", { decision: decisionLabel(review.decision, t), name: review.reviewerName })
+                        : `${REVIEW_DECISION_LABELS[review.decision]} by ${review.reviewerName}`}
                 </span>
-                <time dateTime={review.reviewedAt} title={formatDateTime(review.reviewedAt)} className="text-fg-muted">
-                    {formatRelative(review.reviewedAt, now)}
+                <time dateTime={review.reviewedAt} title={formatDateTime(review.reviewedAt, locale)} className="text-fg-muted">
+                    {formatRelative(review.reviewedAt, now, locale)}
                 </time>
             </p>
             {review.decision === "corrected" && review.correctedLabel && (
                 <p className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                    <span className="text-fg-muted">AI said:</span>
+                    <span className="text-fg-muted">{t ? t("screens.shared.finding.aiSaid") : "AI said:"}</span>
                     <span className="text-fg-muted line-through decoration-fg-subtle">{aiLabel}</span>
                     <ArrowRight aria-hidden className="size-3.5 text-fg-subtle" />
-                    <span className="text-fg-muted">Coach:</span>
+                    <span className="text-fg-muted">{t ? t("screens.shared.finding.coach") : "Coach:"}</span>
                     <span className="font-semibold text-fg">{review.correctedLabel}</span>
                 </p>
             )}

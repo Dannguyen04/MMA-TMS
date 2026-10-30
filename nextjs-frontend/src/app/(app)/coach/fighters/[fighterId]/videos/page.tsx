@@ -5,15 +5,18 @@ import { ButtonLink } from "@/components/ui/button";
 import { VideoLibrary } from "@/components/video/video-library";
 import { requireFighterAccess } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
+import { getTranslator } from "@/lib/i18n/server";
 import { routes } from "@/lib/routes";
 
 export async function generateMetadata({ params }: PageProps<"/coach/fighters/[fighterId]/videos">): Promise<Metadata> {
+    const { t } = await getTranslator();
     const user = await requireRole("coach");
     const fighter = await requireFighterAccess(user, (await params).fighterId);
-    return { title: `Videos · ${fighter.name}` };
+    return { title: t("screens.roster.videos.metaTitle", { name: fighter.name }) };
 }
 
 export default async function CoachFighterVideosPage({ params, searchParams }: PageProps<"/coach/fighters/[fighterId]/videos">) {
+    const { t } = await getTranslator();
     const user = await requireRole("coach");
     const [{ fighterId }, query] = await Promise.all([params, searchParams]);
     const fighter = await requireFighterAccess(user, fighterId);
@@ -25,13 +28,13 @@ export default async function CoachFighterVideosPage({ params, searchParams }: P
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div className="min-w-0">
                     <h2 id="videos-heading" className="text-lg font-semibold text-fg">
-                        Videos
+                        {t("screens.roster.videos.heading")}
                     </h2>
-                    <p className="mt-0.5 text-sm text-fg-muted">{firstName}&apos;s training footage with AI analysis and your reviews.</p>
+                    <p className="mt-0.5 text-sm text-fg-muted">{t("screens.roster.videos.description", { name: firstName })}</p>
                 </div>
                 <ButtonLink href={uploadHref}>
                     <Upload aria-hidden />
-                    Upload video
+                    {t("screens.roster.videos.upload")}
                 </ButtonLink>
             </div>
             <VideoLibrary

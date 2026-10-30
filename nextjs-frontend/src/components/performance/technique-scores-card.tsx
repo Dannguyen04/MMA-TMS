@@ -5,13 +5,14 @@ import { TECHNIQUE_COLOR } from "@/components/charts/colors";
 import { Sparkline } from "@/components/charts/sparkline";
 import { TechniqueChip } from "@/components/domain/technique-chip";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { TECHNIQUE_LABELS, TECHNIQUES } from "@/lib/domain/labels";
+import { techniqueLabel, TECHNIQUES } from "@/lib/domain/labels";
 import type { PerformanceMetric, Technique } from "@/lib/domain/types";
-import { pluralize } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
+import { createTranslator, plural } from "@/lib/i18n/translate";
 import type { PerformanceSummary } from "@/lib/services/performance";
 import { cn } from "@/lib/utils";
 import { DeltaText } from "./delta-text";
-import { comparisonLabel, scoreDelta } from "./performance-format";
+import { comparisonLabel, nameInText, scoreDelta } from "./performance-format";
 
 export interface TechniqueScoresCardProps {
     summary: PerformanceSummary;
@@ -19,18 +20,20 @@ export interface TechniqueScoresCardProps {
     weeks: PerformanceMetric[];
     heading: "h2" | "h3";
     techniqueHref?: (technique: Technique) => string;
+    locale: Locale;
 }
 
 /** Eight score tiles: latest score, change vs the comparison average and a weekly sparkline. */
-export function TechniqueScoresCard({ summary, weeks, heading, techniqueHref }: TechniqueScoresCardProps) {
+export function TechniqueScoresCard({ summary, weeks, heading, techniqueHref, locale }: TechniqueScoresCardProps) {
+    const t = createTranslator(locale);
     const description =
         summary.comparisonWeeks > 0
-            ? `Latest complete week · change ${comparisonLabel(summary.comparisonWeeks)}`
-            : "Latest complete week · changes appear after another complete week";
+            ? t("screens.performance.scores.desc", { comparison: comparisonLabel(summary.comparisonWeeks, locale) })
+            : t("screens.performance.scores.descNone");
 
     return (
         <Card className="min-w-0">
-            <CardHeader as={heading} title="Technique scores" description={description} />
+            <CardHeader as={heading} title={t("screens.performance.techniqueScores")} description={description} />
             <CardContent>
                 <ul className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                     {TECHNIQUES.map((technique) => (
@@ -44,6 +47,7 @@ export function TechniqueScoresCard({ summary, weeks, heading, techniqueHref }: 
                                 href={techniqueHref?.(technique)}
                                 isStrongest={technique === summary.strongest}
                                 isFocus={technique === summary.weakest}
+                                locale={locale}
                             />
                         </li>
                     ))}
@@ -62,12 +66,14 @@ interface TechniqueTileProps {
     href?: string;
     isStrongest: boolean;
     isFocus: boolean;
+    locale: Locale;
 }
 
-function TechniqueTile({ technique, score, change, comparisonWeeks, history, href, isStrongest, isFocus }: TechniqueTileProps) {
-    const delta = scoreDelta(change, comparisonWeeks);
-    const label = TECHNIQUE_LABELS[technique];
-    const tag = isStrongest ? "Strongest" : isFocus ? "Focus area" : null;
+function TechniqueTile({ technique, score, change, comparisonWeeks, history, href, isStrongest, isFocus, locale }: TechniqueTileProps) {
+    const t = createTranslator(locale);
+    const delta = scoreDelta(change, comparisonWeeks, locale);
+    const label = techniqueLabel(t, technique);
+    const tag = isStrongest ? t("screens.performance.scores.strongest") : isFocus ? t("screens.performance.focusArea") : null;
 
     const body = (
         <>
@@ -80,8 +86,8 @@ function TechniqueTile({ technique, score, change, comparisonWeeks, history, hre
                 )}
                 <p className="mt-2.5 flex items-baseline gap-1.5">
                     <span className="text-2xl leading-none font-semibold tracking-tight text-fg">{score}</span>
-                    <span className="sr-only">out of 100</span>
-                    {delta && <DeltaText delta={{ ...delta, label: undefined }} />}
+                    <span className="sr-only">{t("screens.performance.scores.outOf100")}</span>
+                    {delta && <DeltaText delta={{ ...delta, label: undefined }} locale={locale} />}
                 </p>
                 <p className="mt-1 h-4 truncate text-[11px] font-medium tracking-wide text-fg-subtle uppercase">{tag}</p>
             </div>
@@ -92,11 +98,16 @@ function TechniqueTile({ technique, score, change, comparisonWeeks, history, hre
                         color={TECHNIQUE_COLOR[technique]}
                         width={96}
                         height={32}
-                        ariaLabel={`${label} score over ${pluralize(history.length, "week")}, from ${history[0]} to ${history[history.length - 1]}`}
+                        ariaLabel={t("screens.performance.scores.sparkline", {
+                            technique: nameInText(label, locale, false),
+                            weeks: plural(t, "screens.performance.weeks", history.length),
+                            from: history[0],
+                            to: history[history.length - 1],
+                        })}
                         className="block"
                     />
                 ) : (
-                    <p className="flex h-8 items-center text-xs text-fg-subtle">Trend after 2 weeks</p>
+                    <p className="flex h-8 items-center text-xs text-fg-subtle">{t("screens.performance.scores.trendLater")}</p>
                 )}
             </div>
         </>
@@ -108,7 +119,11 @@ function TechniqueTile({ technique, score, change, comparisonWeeks, history, hre
     return href ? (
         <Link
             href={href}
-            aria-label={`${label}: score ${score}${delta ? `, ${delta.value} ${delta.label ?? ""}` : ""}. View technique detail`}
+            aria-label={t("screens.performance.scores.linkAria", {
+                technique: label,
+                score,
+                change: delta ? `, ${delta.value} ${delta.label ?? ""}` : "",
+            })}
             className={cn(classes, "group transition-colors hover:border-border-strong hover:shadow-card")}
         >
             {body}

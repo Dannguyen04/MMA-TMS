@@ -63,7 +63,7 @@ export default async function NewPlanPage({ searchParams }: PageProps<"/coach/tr
     const copyablePlans: CopyablePlan[] = plans.map((plan) => ({
         id: plan.id,
         title: plan.title,
-        fighterName: fighterName.get(plan.fighterId) ?? "Fighter",
+        fighterName: fighterName.get(plan.fighterId) ?? t("training.planForm.fighter"),
         phase: plan.phase,
         status: plan.status,
         weeks: plan.endDate ? planWholeWeeks(dayKey(plan.startDate), dayKey(plan.endDate)) : null,

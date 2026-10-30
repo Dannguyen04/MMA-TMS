@@ -3,7 +3,7 @@
 import { useMemo, type ReactNode } from "react";
 
 import { useLocale, useT } from "@/components/i18n/locale-provider";
-import { WEIGHT_CLASS_LABELS, WEIGHT_CLASS_LIMIT_KG, bodyRegionLabel } from "@/lib/domain/labels";
+import { WEIGHT_CLASS_LIMIT_KG, bodyRegionLabel, weightClassLabel } from "@/lib/domain/labels";
 import type { BodyRegion, WeightClass } from "@/lib/domain/types";
 import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -88,7 +88,7 @@ export function FighterFigure({ name, figure, reachCm, weightClass, restricted, 
                     <div aria-hidden className="absolute inset-y-0 w-0.5 bg-fg" style={{ left: `${((limit / span) * 100).toFixed(1)}%` }} />
                 </div>
                 <p className="flex justify-between gap-2 text-[11px] text-fg-subtle">
-                    <span>{t("figure3d.profile.classLimit", { weightClass: WEIGHT_CLASS_LABELS[weightClass], limit: formatNumber(limit, 1) })}</span>
+                    <span>{t("figure3d.profile.classLimit", { weightClass: weightClassLabel(weightClass, locale), limit: formatNumber(limit, 1) })}</span>
                     {gapText && <span className={cn("font-medium", gap !== null && gap > 0 ? "text-warning-fg" : "text-fg-muted")}>{gapText}</span>}
                 </p>
             </div>

@@ -98,7 +98,7 @@ function ClearanceRow({
     return (
         <li className="grid grid-cols-1 gap-4 px-5 py-4 lg:grid-cols-[minmax(0,13rem)_minmax(0,1fr)] lg:gap-x-6 xl:grid-cols-[minmax(0,13rem)_minmax(0,1fr)_minmax(0,27rem)]">
             <div className="flex min-w-0 flex-col gap-2">
-                <FighterIdentity fighter={fighter} size="sm" href={routes.coach.fighter(fighter.id)} />
+                <FighterIdentity fighter={fighter} size="sm" href={routes.coach.fighter(fighter.id)} locale={locale} />
                 <FighterStatusBadges healthStatus={fighter.healthStatus} clearanceState={state} size="sm" locale={locale} />
             </div>
 

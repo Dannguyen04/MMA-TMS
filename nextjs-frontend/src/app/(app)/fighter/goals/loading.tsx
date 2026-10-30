@@ -1,8 +1,10 @@
 import { LoadingRegion, PageHeaderSkeleton, Skeleton } from "@/components/ui/skeleton";
+import { getTranslator } from "@/lib/i18n/server";
 
-export default function FighterGoalsLoading() {
+export default async function FighterGoalsLoading() {
+    const { t } = await getTranslator();
     return (
-        <LoadingRegion label="Loading goals">
+        <LoadingRegion label={t("screens.performance.loading.goals")}>
             <PageHeaderSkeleton meta actions={1} />
             <div className="flex flex-col gap-3">
                 <Skeleton className="h-6 w-64 max-w-full" />
