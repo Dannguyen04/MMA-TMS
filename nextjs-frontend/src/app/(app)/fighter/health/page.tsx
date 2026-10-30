@@ -12,7 +12,8 @@ import { injuryHighlights, loadCareTeam } from "@/components/dashboard/health-da
 import { HealthStatusCard } from "@/components/dashboard/health-status-card";
 import { InlineNote } from "@/components/dashboard/inline-note";
 import { injuryTitle } from "@/components/clinical/clinical-copy";
-import { BodyMap } from "@/components/domain/body-map";
+import { BodyMapAuto } from "@/components/fighter-3d/body/body-map-auto";
+import { toFigureSource } from "@/components/fighter-3d/figure-params";
 import { ClearanceCard } from "@/components/domain/clearance-card";
 import { InjuryCard } from "@/components/domain/injury-card";
 import { ReviewRequestCard } from "@/components/medical/review-request-card";
@@ -220,7 +221,7 @@ export default async function FighterHealthPage({ searchParams }: PageProps<"/fi
                 <Card className="min-w-0">
                     <CardHeader title={t("fighterHealth.bodyMap")} description={t("fighterHealth.bodyMapDesc")} icon={<MapPinned />} />
                     <CardContent>
-                        <BodyMap highlights={highlights} size="md" locale={locale} />
+                        <BodyMapAuto highlights={highlights} size="md" locale={locale} figure={toFigureSource(fighter)} />
                         {highlights.length === 0 && <p className="mt-3 text-center text-[13px] text-fg-muted">{t("fighterHealth.noInjuries12Months")}</p>}
                     </CardContent>
                 </Card>

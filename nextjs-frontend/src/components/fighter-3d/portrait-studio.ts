@@ -10,7 +10,7 @@ import { figureKey, type FigureParams } from "./figure-params";
  * contexts, so a roster of twelve cards cannot each own a canvas: each card keeps a plain 2D canvas and
  * asks the studio to draw its fighter, then copies the frame. Geometry is cached per build.
  *
- * Look: the landing's sports-medicine hologram on the dark stage, with the rim and floor glow tinted by
+ * Look: the landing's sports-medicine hologram on a transparent background, with the rim and floor glow tinted by
  * the fighter's health tone.
  */
 

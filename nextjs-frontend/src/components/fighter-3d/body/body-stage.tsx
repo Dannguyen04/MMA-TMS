@@ -106,6 +106,7 @@ export function BodyStage({
     const root = useRef<HTMLDivElement>(null);
     const labels = useRef<HTMLDivElement>(null);
     const yaw = useRef(0);
+    const wake = useRef<(() => void) | null>(null);
     const drag = useRef<{ x: number; moved: number } | null>(null);
     const [hovered, setHovered] = useState<BodyRegion | null>(null);
     const [scan, setScan] = useState(0);
@@ -150,6 +151,7 @@ export function BodyStage({
     const turn = (back: boolean) => {
         yaw.current = back ? Math.PI : 0;
         setFacingBack(back);
+        wake.current?.();
     };
 
     if (webgl === false) {
@@ -174,6 +176,7 @@ export function BodyStage({
                 d.x = e.clientX;
                 d.moved += Math.abs(dx);
                 yaw.current += dx * 0.012;
+                wake.current?.();
             }}
             onPointerUp={() => {
                 const d = drag.current;
@@ -207,6 +210,7 @@ export function BodyStage({
                         ariaLabel={ariaLabel}
                         compact={compact || narrow}
                         onModel={onModel}
+                        wakeRef={wake}
                     />
                 </div>
             )}
@@ -231,46 +235,55 @@ export function BodyStage({
             {children && <div className="pointer-events-none absolute inset-x-0 top-0 p-4 sm:p-5">{children}</div>}
 
             {!bare && (
-                <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 p-3 sm:p-4">
-                    <div role="group" aria-label={t("figure3d.view.group")} className="inline-flex rounded-lg bg-surface/90 p-0.5 text-[13px] font-medium text-fg-muted shadow-card ring-1 ring-border">
-                        {[false, true].map((back) => (
+                <div className="absolute inset-x-0 bottom-0 flex flex-col gap-1.5 p-3 sm:p-4">
+                    <div className="flex items-center justify-between gap-2">
+                        <div role="group" aria-label={t("figure3d.view.group")} className="inline-flex rounded-lg bg-surface/90 p-0.5 text-[13px] font-medium whitespace-nowrap text-fg-muted shadow-card ring-1 ring-border">
+                            {[false, true].map((back) => (
+                                <button
+                                    key={String(back)}
+                                    type="button"
+                                    aria-pressed={facingBack === back}
+                                    onClick={() => turn(back)}
+                                    className={cn(
+                                        "h-8 rounded-md px-3 transition-[background-color,color,scale] duration-150 ease-out focus-visible:outline-2 focus-visible:outline-ring active:scale-[0.97]",
+                                        facingBack === back ? "bg-primary-soft text-primary-soft-fg" : "hover:text-fg",
+                                    )}
+                                >
+                                    {back ? t("figure3d.view.back") : t("figure3d.view.front")}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="flex items-center gap-2">
+                            {!narrow && <span className="hidden text-xs whitespace-nowrap text-fg-subtle sm:inline">{t("figure3d.dragHint")}</span>}
                             <button
-                                key={String(back)}
                                 type="button"
-                                aria-pressed={facingBack === back}
-                                onClick={() => turn(back)}
-                                className={cn(
-                                    "h-8 rounded-md px-3 transition-[background-color,color,scale] duration-150 ease-out focus-visible:outline-2 focus-visible:outline-ring active:scale-[0.97]",
-                                    facingBack === back ? "bg-primary-soft text-primary-soft-fg" : "hover:text-fg",
-                                )}
+                                onClick={() => {
+                                    turn(false);
+                                    setScan((n) => n + 1);
+                                }}
+                                aria-label={t("figure3d.rescan")}
+                                title={t("figure3d.rescan")}
+                                className="inline-flex size-9 items-center justify-center rounded-lg bg-surface/90 text-fg shadow-card ring-1 ring-border transition-[background-color,scale] duration-150 ease-out hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-ring active:scale-[0.97] [&_svg]:size-4"
                             >
-                                {back ? t("figure3d.view.back") : t("figure3d.view.front")}
+                                {look === "hologram" ? <ScanLine aria-hidden /> : <RotateCcw aria-hidden />}
                             </button>
-                        ))}
+                        </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <span className="hidden text-xs text-fg-subtle sm:inline">{t("figure3d.dragHint")}</span>
-                        <button
-                            type="button"
-                            onClick={() => {
-                                turn(false);
-                                setScan((n) => n + 1);
-                            }}
-                            aria-label={t("figure3d.rescan")}
-                            title={t("figure3d.rescan")}
-                            className="inline-flex size-9 items-center justify-center rounded-lg bg-surface/90 text-fg shadow-card ring-1 ring-border transition-[background-color,scale] duration-150 ease-out hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-ring active:scale-[0.97] [&_svg]:size-4"
-                        >
-                            {look === "hologram" ? <ScanLine aria-hidden /> : <RotateCcw aria-hidden />}
-                        </button>
-                    </div>
+                    {shown === "muscular" && <ModelCredit />}
                 </div>
             )}
 
-            {shown === "muscular" && (
-                <p className={cn("pointer-events-none absolute right-3 text-[10px] leading-none text-fg-subtle", bare ? "bottom-1" : "top-2")}>
-                    {t("figure3d.credit", { author: MODEL_AUTHOR })}
-                </p>
+            {bare && shown === "muscular" && (
+                <div className="pointer-events-none absolute inset-x-0 bottom-1">
+                    <ModelCredit />
+                </div>
             )}
         </div>
     );
+}
+
+/** CC BY 4.0 credit for the scanned model, under the figure where it never covers the body. */
+function ModelCredit() {
+    const t = useT();
+    return <p className="pointer-events-none text-right text-[10px] leading-none text-fg-subtle">{t("figure3d.credit", { author: MODEL_AUTHOR })}</p>;
 }

@@ -42,6 +42,8 @@ export interface BodySceneProps {
     compact?: boolean;
     /** Which model is on screen once it has loaded (the mannequin stands in if the scan fails). */
     onModel?: (kind: BodyModelKind) => void;
+    /** The scene puts its "draw a frame" function here, for the stage to call when it turns the body. */
+    wakeRef?: RefObject<(() => void) | null>;
 }
 
 /**
@@ -55,8 +57,8 @@ export default function BodyScene(props: BodySceneProps) {
             aria-label={props.ariaLabel}
             dpr={lite ? 1 : [1, 1.6]}
             gl={{ antialias: !lite, alpha: true, powerPreference: "high-performance" }}
-            camera={{ fov: 28, near: 0.1, far: 40, position: [0, 1.0, props.compact ? 5.3 : 4.05] }}
-            frameloop={props.animate ? "always" : "demand"}
+            camera={{ fov: 28, near: 0.1, far: 40, position: [0, 1.0, props.compact ? 4.7 : 4.05] }}
+            frameloop="demand"
             style={{ touchAction: "pan-y" }}
         >
             <ModelBoundary fallback={<MannequinFigure {...props} />}>
@@ -108,6 +110,7 @@ function Figure({
     labels,
     compact,
     onModel,
+    wakeRef,
 }: BodySceneProps & { body: BodyModel }) {
     const group = useRef<THREE.Group>(null);
     const mesh = useRef<THREE.Mesh>(null);
@@ -115,6 +118,14 @@ function Figure({
     const [rig] = useState(() => new BodyRig(body));
 
     useEffect(() => () => rig.dispose(), [rig]);
+
+    useEffect(() => {
+        if (!wakeRef) return;
+        wakeRef.current = invalidate;
+        return () => {
+            wakeRef.current = null;
+        };
+    }, [wakeRef, invalidate]);
 
     useEffect(() => {
         onModel?.(body.kind);
@@ -145,11 +156,14 @@ function Figure({
         invalidate();
     }, [rig, scanKey, animate, invalidate]);
 
+    // Rendered on demand: a frame is drawn only while the rig reports movement (and, under reduced
+    // motion or off screen, only when something changes).
     useFrame((state, delta) => {
         const g = group.current;
         if (!g) return;
-        rig.update({ time: state.clock.elapsedTime, delta, yaw: yaw.current ?? 0, dim, animate, focus, distance: compact ? 5.3 : 4.05 }, g, state.camera);
+        const moving = rig.update({ time: state.clock.elapsedTime, delta: Math.min(delta, 0.1), yaw: yaw.current ?? 0, dim, animate, focus, distance: compact ? 4.7 : 4.05 }, g, state.camera);
         placeLabels(rig, labels.current, g, state.camera, size.width, size.height);
+        if (moving && animate) state.invalidate();
     });
 
     const regionFromEvent = (event: ThreeEvent<PointerEvent | MouseEvent>) => {

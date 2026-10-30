@@ -20,7 +20,7 @@ const TONE_TOKEN: Record<Tone, string> = {
     ai: "ai-solid",
 };
 
-const TOKENS = ["nav-surface", "nav-accent", "neutral-solid", "primary", "success-solid", "warning-solid", "danger-solid", "info-solid", "ai-solid"] as const;
+const TOKENS = ["figure-body", "figure-rim", "neutral-solid", "primary", "success-solid", "warning-solid", "danger-solid", "info-solid", "ai-solid"] as const;
 
 /** Three-quarter view from the lead side; a full turn while the card is hovered. */
 const BASE_YAW = 0.55;
@@ -32,8 +32,8 @@ export interface FighterPortraitProps {
 }
 
 /**
- * The fighter's own 3D figure on the dark stage: their sex, height, build and stance, rim-lit in their
- * health tone. Decorative (the card states every fact in text). Turns once round while its card is
+ * The fighter's own 3D figure standing straight on the card (transparent canvas): their sex, height,
+ * build and stance, rim-lit in their health tone. Decorative (the card states every fact in text). Turns once round while its card is
  * hovered; still under reduced motion. Without WebGL the stage stays empty.
  */
 export function FighterPortrait({ figure, className }: FighterPortraitProps) {
@@ -56,8 +56,8 @@ export function FighterPortrait({ figure, className }: FighterPortraitProps) {
         if (!host || !target || !studio || !tokens) return;
 
         const colors = {
-            body: tokens["nav-surface"],
-            rim: tokens["nav-accent"],
+            body: tokens["figure-body"],
+            rim: tokens["figure-rim"],
             tone: tokens[TONE_TOKEN[HEALTH_STATUS_META[healthStatus].tone] as (typeof TOKENS)[number]],
         };
         let yaw = BASE_YAW * side;
@@ -142,11 +142,7 @@ export function FighterPortrait({ figure, className }: FighterPortraitProps) {
         <div
             ref={stage}
             aria-hidden
-            className={cn(
-                "relative isolate overflow-hidden rounded-lg bg-nav-bg",
-                "bg-[radial-gradient(70%_55%_at_50%_72%,color-mix(in_oklab,var(--nav-accent)_22%,transparent),transparent_75%)]",
-                className,
-            )}
+            className={cn("relative isolate overflow-hidden", className)}
         >
             <canvas ref={canvas} className="absolute inset-0 size-full" />
         </div>

@@ -2,6 +2,9 @@ import { CalendarPlus, Target, Upload } from "lucide-react";
 
 import { FighterProfileHeader } from "@/components/dashboard/fighter-profile-header";
 import { loadRosterEntry } from "@/components/dashboard/roster-data";
+import { FighterFigure } from "@/components/fighter-3d/fighter-figure";
+import { getClearanceSummary } from "@/components/training/training-data";
+import { Avatar } from "@/components/ui/avatar";
 import { ButtonLink } from "@/components/ui/button";
 import { TabNav } from "@/components/ui/tabs";
 import { requireRole } from "@/lib/auth/session";
@@ -15,6 +18,9 @@ export default async function CoachFighterLayout({ children, params }: LayoutPro
     const { fighterId } = await params;
     const { fighter, clearanceState } = await loadRosterEntry(user, fighterId);
     const now = new Date().toISOString();
+    // Summary clearance only (clinical fields blanked): what a coach may see.
+    const clearance = clearanceState === "restricted" ? (await getClearanceSummary(fighter.id, now)).clearance : null;
+    const restricted = (clearance?.restrictions ?? []).flatMap((restriction) => restriction.blockedRegions.map((region) => ({ region, label: restriction.label })));
 
     return (
         <>
@@ -23,6 +29,23 @@ export default async function CoachFighterLayout({ children, params }: LayoutPro
                 clearanceState={clearanceState}
                 back={{ href: routes.coach.fighters, label: t("training.fighterLayout.back") }}
                 now={now}
+                figure={
+                    <FighterFigure
+                        name={fighter.name}
+                        figure={{
+                            sex: fighter.sex,
+                            heightCm: fighter.heightCm,
+                            weightKg: fighter.weightKg,
+                            bodyFatPct: fighter.bodyFatPct,
+                            stance: fighter.stance,
+                            healthStatus: fighter.healthStatus,
+                        }}
+                        reachCm={fighter.reachCm}
+                        weightClass={fighter.weightClass}
+                        restricted={restricted}
+                        fallback={<Avatar name={fighter.name} shape="octagon" size="xl" className="max-sm:size-14 max-sm:text-lg" />}
+                    />
+                }
                 actions={
                     <>
                         <ButtonLink href={routes.coach.fighterGoals(fighter.id)} variant="secondary">

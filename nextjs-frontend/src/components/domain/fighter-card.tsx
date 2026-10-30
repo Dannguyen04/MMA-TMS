@@ -37,14 +37,14 @@ export function FighterCard({ fighter, clearanceState, now, href, children, clas
             )}
         >
             <div className="relative -mx-4 -mt-4">
-                <FighterPortrait figure={fighter} className="h-52 rounded-t-xl rounded-b-none" />
+                <FighterPortrait figure={fighter} className="h-52 rounded-t-xl" />
                 {fighter.record && (
                     <p className="pointer-events-none absolute top-3 right-4 text-right">
-                        <span className="block font-display text-[22px] leading-none font-extrabold text-nav-fg-active italic tabular-nums" aria-hidden>
+                        <span className="block font-display text-[22px] leading-none font-extrabold text-fg italic tabular-nums" aria-hidden>
                             {recordText(fighter)}
                         </span>
                         <span className="sr-only">{recordSpoken(fighter)}</span>
-                        <span aria-hidden className="mt-1 block text-[11px] tracking-wide text-nav-fg uppercase">
+                        <span aria-hidden className="mt-1 block text-[11px] tracking-wide text-fg-subtle uppercase">
                             W-L-D
                         </span>
                     </p>

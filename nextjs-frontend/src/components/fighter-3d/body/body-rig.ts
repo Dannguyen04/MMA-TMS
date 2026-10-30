@@ -49,6 +49,7 @@ export class BodyRig {
     private scanStart: number | null = null;
     private readonly lookAt = new THREE.Vector3(0, 0.92, 0);
     private readonly anchorWorld = new THREE.Vector3();
+    private pulsing = false;
 
     constructor(model: BodyModel) {
         this.geometry = model.geometry;
@@ -86,6 +87,7 @@ export class BodyRig {
 
     setHighlights(highlights: RigHighlight[]) {
         const byRegion = new Map(highlights.map((h) => [h.region, h]));
+        this.pulsing = highlights.some((h) => h.pulse && h.strength > 0);
         this.spots.forEach((s, i) => {
             const h = byRegion.get(s.region);
             this.u.uSpotAmp.value[i] = h ? h.strength : 0;
@@ -105,7 +107,11 @@ export class BodyRig {
         this.scanStart = animate ? null : -1;
     }
 
-    update(frame: RigFrame, group: THREE.Group, camera: THREE.Camera) {
+    /**
+     * Advances one frame. Returns whether anything is still moving (the scan, a turn, the camera, a
+     * pulsing region), so the scene only asks for another frame while it is: a still body costs nothing.
+     */
+    update(frame: RigFrame, group: THREE.Group, camera: THREE.Camera): boolean {
         const { time, delta } = frame;
         const { height, width } = this.build;
         this.u.uTime.value = time;
@@ -117,8 +123,8 @@ export class BodyRig {
         this.u.uScan.value = SCAN_FROM + (SCAN_TO - SCAN_FROM) * eased;
 
         group.scale.set(height * width, height, height * width);
-        group.rotation.y += (frame.yaw - group.rotation.y) * Math.min(1, delta * 6);
-        group.position.y = frame.animate ? Math.sin(time * 1.6) * 0.004 : 0;
+        const turning = Math.abs(frame.yaw - group.rotation.y) > 0.001;
+        group.rotation.y = turning ? group.rotation.y + (frame.yaw - group.rotation.y) * Math.min(1, delta * 6) : frame.yaw;
         group.updateMatrixWorld();
 
         // Frame the whole body (the camera keeps its distance, so a taller fighter stands taller), or
@@ -136,9 +142,11 @@ export class BodyRig {
             wantPos = new THREE.Vector3(0, middle + 0.08, frame.distance);
         }
         const k = Math.min(1, delta * (frame.animate ? 3.2 : 60));
+        const flying = camera.position.distanceTo(wantPos) > 0.002 || this.lookAt.distanceTo(wantLook) > 0.002;
         this.lookAt.lerp(wantLook, k);
         camera.position.lerp(wantPos, k);
         camera.lookAt(this.lookAt);
+        return progress < 1 || turning || flying || this.pulsing;
     }
 
     dispose() {

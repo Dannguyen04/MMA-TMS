@@ -9,6 +9,7 @@ import { STANCE_LABELS, TRAINING_LEVEL_LABELS, WEIGHT_CLASS_LABELS } from "@/lib
 import type { ClearanceState } from "@/lib/domain/rules";
 import type { Fighter } from "@/lib/domain/types";
 import { daysBetween, formatDate } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { recordSpoken, recordText } from "./dashboard-utils";
 
 export interface FighterProfileHeaderProps {
@@ -24,10 +25,12 @@ export interface FighterProfileHeaderProps {
     facts?: string[];
     /** Extra row under the status badges, e.g. clinical key facts. */
     meta?: ReactNode;
+    /** Replaces the octagon avatar with a larger figure (the coach profile's 3D figure). */
+    figure?: ReactNode;
 }
 
 /** Page header for a fighter profile: octagon avatar, name as the page h1, key facts, status and the next bout. */
-export function FighterProfileHeader({ fighter, clearanceState, back, actions, now, eyebrow = "Fighter profile", facts, meta }: FighterProfileHeaderProps) {
+export function FighterProfileHeader({ fighter, clearanceState, back, actions, now, eyebrow = "Fighter profile", facts, meta, figure }: FighterProfileHeaderProps) {
     const bout = fighter.upcomingBout;
     const factList =
         facts ??
@@ -46,8 +49,8 @@ export function FighterProfileHeader({ fighter, clearanceState, back, actions, n
                 {back.label}
             </Link>
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                <div className="flex min-w-0 items-start gap-4">
-                    <Avatar name={fighter.name} shape="octagon" size="xl" className="max-sm:size-14 max-sm:text-lg" />
+                <div className={cn("flex min-w-0 items-start gap-4", figure ? "max-sm:flex-col sm:items-center sm:gap-6" : undefined)}>
+                    {figure ?? <Avatar name={fighter.name} shape="octagon" size="xl" className="max-sm:size-14 max-sm:text-lg" />}
                     <div className="min-w-0">
                         <p className="mb-1 text-xs font-semibold tracking-[0.08em] text-fg-subtle uppercase">{eyebrow}</p>
                         <h1 className="text-2xl leading-tight font-semibold tracking-tight text-balance text-fg sm:text-[28px]">
@@ -59,7 +62,7 @@ export function FighterProfileHeader({ fighter, clearanceState, back, actions, n
                             {record && (
                                 <>
                                     {" · "}
-                                    <span className="font-medium text-fg" aria-hidden>
+                                    <span className="font-medium whitespace-nowrap text-fg" aria-hidden>
                                         {record}
                                     </span>
                                     <span className="sr-only">{recordSpoken(fighter)}</span>
