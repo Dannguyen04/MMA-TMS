@@ -1,14 +1,21 @@
 import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 import { octagonShape } from "@/components/landing/stage/octagon";
 import { radialTexture } from "@/components/landing/stage/textures";
-import { createFigureGeometry } from "./figure-geometry";
-import { figureKey, type FigureParams } from "./figure-params";
+import { figureBuild } from "./body/build";
+import { createMannequinModel } from "./body/mannequin";
+import { MUSCULAR_MODEL_URL, muscularModelFrom } from "./body/muscular-model";
+import { MODEL_HEIGHT, type BodyModelKind } from "./body/regions";
+import type { FigureParams } from "./figure-params";
 
 /**
  * One WebGL renderer for every fighter portrait on a page. Browsers allow only a handful of live WebGL
  * contexts, so a roster of twelve cards cannot each own a canvas: each card keeps a plain 2D canvas and
- * asks the studio to draw its fighter, then copies the frame. Geometry is cached per build.
+ * asks the studio to draw its fighter, then copies the frame.
+ *
+ * The figures are the body map's: the scanned model for men, the A-pose mannequin otherwise, each
+ * loaded or built once and scaled to the fighter's height and build.
  *
  * Look: the landing's sports-medicine hologram on a transparent background, with the rim and floor glow tinted by
  * the fighter's health tone.
@@ -65,7 +72,9 @@ class PortraitStudio {
     private readonly figure: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>;
     private readonly glow: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>;
     private readonly ring: THREE.LineLoop<THREE.BufferGeometry, THREE.LineBasicMaterial>;
-    private readonly geometries = new Map<string, THREE.BufferGeometry>();
+    private readonly mannequin = createMannequinModel().geometry;
+    private muscular: THREE.BufferGeometry | null = null;
+    private loading: Promise<void> | null = null;
 
     constructor() {
         this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "low-power" });
@@ -90,18 +99,23 @@ class PortraitStudio {
         this.scene.add(this.figure, this.glow, this.ring);
     }
 
-    private geometryFor(params: FigureParams): THREE.BufferGeometry {
-        const key = figureKey(params);
-        let geometry = this.geometries.get(key);
-        if (!geometry) {
-            geometry = createFigureGeometry(params);
-            this.geometries.set(key, geometry);
-        }
-        return geometry;
+    /**
+     * Resolves once the figure for `kind` can be drawn. The scanned model is fetched once per page;
+     * if it fails, men are drawn as the mannequin too.
+     */
+    ready(kind: BodyModelKind): Promise<void> {
+        if (kind === "mannequin") return Promise.resolve();
+        this.loading ??= new GLTFLoader()
+            .loadAsync(MUSCULAR_MODEL_URL)
+            .then((gltf) => {
+                this.muscular = muscularModelFrom(gltf.scene).geometry;
+            })
+            .catch((error: unknown) => console.warn("The scanned body model could not load; portraits use the mannequin.", error));
+        return this.loading;
     }
 
     /** Draws the fighter turned by `yaw` (radians) into `target`, sized to the target's pixel size. */
-    paint(target: HTMLCanvasElement, params: FigureParams, colors: PortraitColors, yaw: number) {
+    paint(target: HTMLCanvasElement, params: FigureParams, kind: BodyModelKind, colors: PortraitColors, yaw: number) {
         const { width, height } = target;
         if (width === 0 || height === 0) return;
         const context = target.getContext("2d");
@@ -111,17 +125,19 @@ class PortraitStudio {
         this.camera.aspect = width / height;
         // Frame the whole figure with room for the floor ring, whatever the fighter's height.
         const top = params.height * 0.98;
-        const distance = top * 2.7;
+        const distance = top * 3;
         this.camera.position.set(Math.sin(yaw) * distance, top * 0.56, Math.cos(yaw) * distance);
         this.camera.lookAt(0, top * 0.49, 0);
         this.camera.updateProjectionMatrix();
 
         const material = this.figure.material;
-        this.figure.geometry = this.geometryFor(params);
+        const build = figureBuild(params);
+        this.figure.geometry = kind === "muscular" && this.muscular ? this.muscular : this.mannequin;
+        this.figure.scale.set(build.height * build.width, build.height, build.height * build.width);
         material.uniforms.uBody.value.setStyle(colors.body);
         material.uniforms.uRim.value.setStyle(colors.rim);
         material.uniforms.uTone.value.setStyle(colors.tone);
-        material.uniforms.uTop.value = top;
+        material.uniforms.uTop.value = MODEL_HEIGHT;
         this.glow.material.color.setStyle(colors.tone);
         this.ring.material.color.setStyle(colors.rim);
 

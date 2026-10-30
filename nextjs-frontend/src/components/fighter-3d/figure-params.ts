@@ -40,11 +40,6 @@ export function figureParams(source: FigureSource): FigureParams {
     };
 }
 
-/** Cache key: two fighters with the same build share one geometry. */
-export function figureKey(params: FigureParams): string {
-    return `${params.sex}:${params.height}:${params.bulk}:${params.softness}:${params.lead}`;
-}
-
 /** Picks the figure fields from a fighter record, so a server page passes only these to the client. */
 export function toFigureSource(fighter: FigureSource): FigureSource {
     const { sex, heightCm, weightKg, bodyFatPct, stance, healthStatus } = fighter;

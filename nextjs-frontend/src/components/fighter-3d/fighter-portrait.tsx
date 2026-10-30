@@ -6,6 +6,7 @@ import { HEALTH_STATUS_META } from "@/components/domain/status-badges";
 import type { Tone } from "@/components/ui/tone";
 import { graphicsTier } from "@/lib/graphics-tier";
 import { cn } from "@/lib/utils";
+import { bodyModelFor } from "./body/build";
 import { figureParams, type FigureSource } from "./figure-params";
 import { portraitStudio, queuePaint } from "./portrait-studio";
 import { useReducedMotion, useThemeTokens, useWebGL } from "./use-graphics";
@@ -32,8 +33,9 @@ export interface FighterPortraitProps {
 }
 
 /**
- * The fighter's own 3D figure standing straight on the card (transparent canvas): their sex, height,
- * build and stance, rim-lit in their health tone. Decorative (the card states every fact in text). Turns once round while its card is
+ * The fighter's own 3D figure standing straight on the card (transparent canvas): the scanned model
+ * for men, the A-pose mannequin otherwise, scaled to their height and build, rim-lit in their health
+ * tone. Decorative (the card states every fact in text). Turns once round while its card is
  * hovered; still under reduced motion. Without WebGL the stage stays empty.
  */
 export function FighterPortrait({ figure, className }: FighterPortraitProps) {
@@ -48,6 +50,7 @@ export function FighterPortrait({ figure, className }: FighterPortraitProps) {
         [sex, heightCm, weightKg, bodyFatPct, stance, healthStatus],
     );
     const side = params.lead === "left" ? 1 : -1;
+    const kind = bodyModelFor(sex);
 
     useEffect(() => {
         const host = stage.current;
@@ -64,7 +67,7 @@ export function FighterPortrait({ figure, className }: FighterPortraitProps) {
         let frame = 0;
         let last = 0;
         let spinning = false;
-        const paint = () => studio.paint(target, params, colors, yaw);
+        const paint = () => studio.paint(target, params, kind, colors, yaw);
 
         const resize = () => {
             const ratio = graphicsTier() === "lite" ? 1 : Math.min(2, window.devicePixelRatio || 1);
@@ -72,16 +75,23 @@ export function FighterPortrait({ figure, className }: FighterPortraitProps) {
             target.height = Math.round(host.clientHeight * ratio);
             paint();
         };
-        // Paint only once the card is on screen, in an idle slot; resizes go through the same queue.
+        // Paint only once the card is on screen and its figure has loaded, in an idle slot; resizes go
+        // through the same queue.
         let cancelPaint = () => {};
         let shown = false;
+        let loaded = false;
+        let alive = true;
         const schedule = () => {
+            if (!loaded || !shown) return;
             cancelPaint();
             cancelPaint = queuePaint(resize);
         };
-        const sizes = new ResizeObserver(() => {
-            if (shown) schedule();
+        void studio.ready(kind).then(() => {
+            if (!alive) return;
+            loaded = true;
+            schedule();
         });
+        const sizes = new ResizeObserver(() => schedule());
         sizes.observe(host);
         const seen = new IntersectionObserver(([entry]) => {
             if (!entry.isIntersecting || shown) return;
@@ -112,7 +122,7 @@ export function FighterPortrait({ figure, className }: FighterPortraitProps) {
             frame = requestAnimationFrame(tick);
         };
         const start = () => {
-            if (reduced || !shown) return;
+            if (reduced || !shown || !loaded) return;
             spinning = true;
             if (!frame) frame = requestAnimationFrame(tick);
         };
@@ -127,6 +137,7 @@ export function FighterPortrait({ figure, className }: FighterPortraitProps) {
         card.addEventListener("focusin", start);
         card.addEventListener("focusout", stop);
         return () => {
+            alive = false;
             cancelPaint();
             sizes.disconnect();
             seen.disconnect();
@@ -136,7 +147,7 @@ export function FighterPortrait({ figure, className }: FighterPortraitProps) {
             card.removeEventListener("focusin", start);
             card.removeEventListener("focusout", stop);
         };
-    }, [webgl, tokens, params, side, healthStatus, reduced]);
+    }, [webgl, tokens, params, side, kind, healthStatus, reduced]);
 
     return (
         <div

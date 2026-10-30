@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { figureKey, figureParams, type FigureSource } from "./figure-params";
+import { figureParams, type FigureSource } from "./figure-params";
 
 const base: FigureSource = { sex: "male", heightCm: 175, weightKg: 70, bodyFatPct: 10, stance: "orthodox", healthStatus: "healthy" };
 
@@ -32,10 +32,5 @@ describe("figureParams", () => {
     it("adds waist softness above the lean body-fat baseline", () => {
         expect(figureParams({ ...base, bodyFatPct: 20 }).softness).toBeCloseTo(0.06, 3);
         expect(figureParams({ ...base, sex: "female", bodyFatPct: 18 }).softness).toBe(0);
-    });
-
-    it("gives equal builds the same cache key", () => {
-        expect(figureKey(figureParams(base))).toBe(figureKey(figureParams({ ...base, healthStatus: "injured" })));
-        expect(figureKey(figureParams(base))).not.toBe(figureKey(figureParams({ ...base, stance: "southpaw" })));
     });
 });
