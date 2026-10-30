@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 
 import { AccountActions } from "@/components/admin/account-actions";
+import { countLabel, roleParams } from "@/components/admin/admin-format";
 import { CareTeamCard } from "@/components/admin/care-team-card";
 import { PermissionList } from "@/components/admin/permission-list";
 import { AuditActivityList } from "@/components/admin/audit-activity-list";
@@ -20,11 +21,13 @@ import { DescriptionList, type DescriptionItem } from "@/components/ui/descripti
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState, FeatureUnavailable } from "@/components/ui/states";
 import { requireRole } from "@/lib/auth/session";
-import { NOT_RECORDED, labelOf } from "@/components/domain/domain-format";
 import { CARE_ROLES } from "@/lib/domain/care-team";
-import { ROLE_LABELS, STANCE_LABELS, TRAINING_LEVEL_LABELS, WEIGHT_CLASS_LABELS } from "@/lib/domain/labels";
+import { stanceLabel, trainingLevelLabel, weightClassLabel } from "@/lib/domain/labels";
 import type { Coach, Doctor, Fighter, User } from "@/lib/domain/types";
-import { dayKey, formatDate, formatDateTime, formatRelative, pluralize } from "@/lib/format";
+import { dayKey, formatDate, formatDateTime, formatRelative } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
+import { getTranslator } from "@/lib/i18n/server";
+import type { Translator } from "@/lib/i18n/translate";
 import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { getUserDetail, listPermissionCatalog } from "@/lib/services/admin";
@@ -38,13 +41,15 @@ const loadUserDetail = cache((userId: string) => getUserDetail(userId));
 
 export async function generateMetadata({ params }: PageProps<"/admin/users/[userId]">): Promise<Metadata> {
     await requireRole("admin");
+    const { t } = await getTranslator();
     const { userId } = await params;
     const detail = await loadUserDetail(userId);
-    return { title: detail ? `${detail.user.name} — User` : "User not found" };
+    return { title: detail ? t("screens.admin.meta.user", { name: detail.user.name }) : t("screens.admin.meta.userNotFound") };
 }
 
 export default async function AdminUserDetailPage({ params, searchParams }: PageProps<"/admin/users/[userId]">) {
     const admin = await requireRole("admin");
+    const { t, locale } = await getTranslator();
     const { userId } = await params;
     const query = await searchParams;
     const now = new Date().toISOString();
@@ -60,45 +65,48 @@ export default async function AdminUserDetailPage({ params, searchParams }: Page
         ? await Promise.all([getCareTeam(fighterProfile.id), listAssignableStaff(), getFighterJourney(fighterProfile.id, { viewer: "admin" })])
         : [null, null, null];
 
+    const role = roleParams(t, user.role, locale);
     const isSelf = user.id === admin.id;
     const roleLockReason = isSelf
-        ? "You can't change your own role. Ask another administrator."
+        ? t("screens.admin.user.ownRole")
         : user.profileId !== null
-          ? `${user.name} has a linked ${ROLE_LABELS[user.role].toLowerCase()} profile, so the role can't change. Invite a new account instead.`
+          ? t("screens.admin.user.linkedRole", { name: user.name, ...role })
           : null;
+    const subtle = (text: string) => <span className="font-normal text-fg-subtle">{text}</span>;
 
     // Fields the user service doesn't keep are left out rather than shown as empty.
     const accountItems: (DescriptionItem | false)[] = [
-        { label: "Email", value: user.email },
-        adminFeatureAvailable("accountPhone") && { label: "Phone", value: user.phone ?? <span className="font-normal text-fg-subtle">Not provided</span> },
-        { label: "Job title", value: user.title || <span className="font-normal text-fg-subtle">Not set</span> },
-        { label: "Role", value: ROLE_LABELS[user.role] },
-        { label: "Created", value: formatDate(user.createdAt) },
+        { label: t("screens.admin.common.email"), value: user.email },
+        adminFeatureAvailable("accountPhone") && { label: t("screens.admin.user.phone"), value: user.phone ?? subtle(t("screens.admin.user.notProvided")) },
+        { label: t("screens.admin.common.jobTitle"), value: user.title || subtle(t("screens.admin.common.notSet")) },
+        { label: t("screens.admin.common.role"), value: role.role },
+        { label: t("screens.admin.users.created"), value: formatDate(user.createdAt, locale) },
         adminFeatureAvailable("lastActive") && {
-            label: "Last active",
+            label: t("screens.admin.users.lastActive"),
             value: user.lastActiveAt ? (
-                <time dateTime={user.lastActiveAt} title={formatDateTime(user.lastActiveAt)}>
-                    {formatRelative(user.lastActiveAt, now)}
+                <time dateTime={user.lastActiveAt} title={formatDateTime(user.lastActiveAt, locale)}>
+                    {formatRelative(user.lastActiveAt, now, locale)}
                 </time>
             ) : (
-                <span className="font-normal text-fg-subtle">{user.status === "invited" ? "Hasn't signed in yet" : "Never"}</span>
+                subtle(user.status === "invited" ? t("screens.admin.user.notSignedIn") : t("screens.admin.common.never"))
             ),
         },
-        { label: "Account ID", value: <code className="font-mono text-[13px]">{user.id}</code>, wide: true },
+        { label: t("screens.admin.user.accountId"), value: <code className="font-mono text-[13px]">{user.id}</code>, wide: true },
     ];
 
     // A new fighter can't train yet: the notice names the next step instead of ending at "can sign in".
-    const missing = careTeam ? CARE_ROLES.filter((role) => careTeam[role]?.length === 0) : [];
+    const missing = careTeam ? CARE_ROLES.filter((careRole) => careTeam[careRole]?.length === 0) : [];
     const nextStep = missing.includes("doctor")
         ? missing.includes("coach")
-            ? " Next, assign a coach and a sports doctor below."
-            : " Next, assign a sports doctor below for the baseline examination."
+            ? t("screens.admin.user.next.both")
+            : t("screens.admin.user.next.doctor")
         : missing.includes("coach")
-          ? " Next, assign a coach below."
+          ? t("screens.admin.user.next.coach")
           : "";
+    const withNextStep = (text: string) => (nextStep ? `${text} ${nextStep}` : text);
     const notices = {
-        invited: { title: "Invitation sent", description: `${user.email} will receive a link to set a password.${nextStep}` },
-        created: { title: "Account created", description: `${user.name} can sign in now with the password you set.${nextStep}` },
+        invited: { title: t("screens.admin.user.invitedTitle"), description: withNextStep(t("screens.admin.user.invitedDescription", { email: user.email })) },
+        created: { title: t("screens.admin.user.createdTitle"), description: withNextStep(t("screens.admin.user.createdDescription", { name: user.name })) },
     };
     const notice = param(query.notice);
 
@@ -125,8 +133,8 @@ export default async function AdminUserDetailPage({ params, searchParams }: Page
         <>
             <FlashToast notice={notice === "invited" || notice === "created" ? notices[notice] : null} cleanHref={routes.admin.user(user.id)} />
             <PageHeader
-                back={{ href: routes.admin.users, label: "Users" }}
-                eyebrow="User account"
+                back={{ href: routes.admin.users, label: t("screens.admin.common.users") }}
+                eyebrow={t("screens.admin.user.eyebrow")}
                 title={
                     <span className="flex items-center gap-4">
                         <Avatar name={user.name} size="lg" shape={user.role === "fighter" ? "octagon" : "circle"} />
@@ -136,19 +144,19 @@ export default async function AdminUserDetailPage({ params, searchParams }: Page
                 description={[user.title, user.email].filter(Boolean).join(" · ")}
                 meta={
                     <>
-                        <RoleBadge role={user.role} />
-                        <UserStatusBadge status={user.status} />
-                        {isSelf && <Badge tone="primary">Your account</Badge>}
+                        <RoleBadge role={user.role} locale={locale} />
+                        <UserStatusBadge status={user.status} locale={locale} />
+                        {isSelf && <Badge tone="primary">{t("screens.admin.user.yourAccount")}</Badge>}
                     </>
                 }
                 actions={headerActions}
             />
 
             <div className="flex flex-col gap-6">
-                <StatusCallout user={user} now={now} />
+                <StatusCallout user={user} now={now} t={t} locale={locale} />
 
                 {/* Where the fighter is on the way to training; the care team card below holds the assign actions. */}
-                {journey && !journey.complete && <FighterJourney journey={journey} variant="compact" />}
+                {journey && !journey.complete && <FighterJourney journey={journey} variant="compact" locale={locale} />}
 
                 {/* A fighter's care team decides whether they can train, so it leads the page; an empty role is its next step. */}
                 {fighterProfile && careTeam && assignableStaff && (
@@ -158,7 +166,7 @@ export default async function AdminUserDetailPage({ params, searchParams }: Page
                 <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                     <div className="flex min-w-0 flex-col gap-6 lg:col-span-2">
                         <Card>
-                            <CardHeader title="Account" icon={<IdCard />} />
+                            <CardHeader title={t("screens.admin.user.account")} icon={<IdCard />} />
                             <CardContent>
                                 <DescriptionList items={accountItems.filter((item) => item !== false)} />
                             </CardContent>
@@ -166,36 +174,46 @@ export default async function AdminUserDetailPage({ params, searchParams }: Page
 
                         <Card>
                             <CardHeader
-                                title="Linked profile"
-                                description={profile ? `${ROLE_LABELS[user.role]} profile used across the platform` : undefined}
+                                title={t("screens.admin.user.linkedProfile")}
+                                description={profile ? t("screens.admin.user.linkedProfileDescription", role) : undefined}
                                 icon={<UserRound />}
                             />
                             <CardContent>
-                                <LinkedProfile user={user} profile={profile} showCredentials={adminFeatureAvailable("coachCredentials")} />
+                                <LinkedProfile user={user} profile={profile} showCredentials={adminFeatureAvailable("coachCredentials")} t={t} locale={locale} />
                             </CardContent>
                         </Card>
 
                         <Card className="overflow-hidden">
                             <CardHeader
-                                title="Recent activity"
-                                description={showActivity ? (recentAudit.length === 0 ? "Nothing recorded yet" : `Latest ${pluralize(recentAudit.length, "action")} by ${user.name}`) : undefined}
+                                title={t("screens.admin.user.recentActivity")}
+                                description={
+                                    showActivity
+                                        ? recentAudit.length === 0
+                                            ? t("screens.admin.user.nothingRecorded")
+                                            : t("screens.admin.user.latestActions", { actions: countLabel(t, "screens.admin.count.actions", recentAudit.length), name: user.name })
+                                        : undefined
+                                }
                                 icon={<ScrollText />}
                             />
                             {!showActivity ? (
                                 <CardContent>
-                                    <FeatureUnavailable compact title="Activity isn't available yet" description="The user service doesn't share an account's activity yet. It will appear here once it does." />
+                                    <FeatureUnavailable
+                                        compact
+                                        title={t("screens.admin.user.activityUnavailableTitle")}
+                                        description={t("screens.admin.user.activityUnavailableDescription")}
+                                    />
                                 </CardContent>
                             ) : recentAudit.length === 0 ? (
                                 <CardContent>
-                                    <EmptyState compact title="No activity recorded" description="Sign-ins and changes this person makes will appear here." />
+                                    <EmptyState compact title={t("screens.admin.user.noActivityTitle")} description={t("screens.admin.user.noActivityDescription")} />
                                 </CardContent>
                             ) : (
                                 <>
-                                    <AuditActivityList entries={recentAudit} now={now} showActor={false} className="border-t border-border" />
+                                    <AuditActivityList entries={recentAudit} now={now} showActor={false} locale={locale} className="border-t border-border" />
                                     <CardFooter>
-                                        <span className="text-fg-muted">Showing the latest entries</span>
+                                        <span className="text-fg-muted">{t("screens.admin.user.latestEntries")}</span>
                                         <Link href={hrefWith(routes.admin.auditLogs, {}, { q: user.name })} className="font-medium text-primary-soft-fg hover:underline">
-                                            View in audit logs
+                                            {t("screens.admin.user.viewInAudit")}
                                         </Link>
                                     </CardFooter>
                                 </>
@@ -205,22 +223,30 @@ export default async function AdminUserDetailPage({ params, searchParams }: Page
 
                     <Card className="min-w-0">
                         <CardHeader
-                            title="Effective permissions"
-                            description={showPermissions ? `${pluralize(permissions.length, "permission")} from the ${ROLE_LABELS[user.role]} role` : undefined}
+                            title={t("screens.admin.user.permissions")}
+                            description={
+                                showPermissions
+                                    ? t("screens.admin.user.permissionsFrom", { permissions: countLabel(t, "screens.admin.count.permissions", permissions.length), ...role })
+                                    : undefined
+                            }
                             icon={<KeyRound />}
                         />
                         <CardContent>
                             {showPermissions ? (
-                                <PermissionList catalog={catalog} granted={permissions} />
+                                <PermissionList catalog={catalog} granted={permissions} locale={locale} />
                             ) : (
-                                <FeatureUnavailable compact title="Role permissions aren't available yet" description="The user service doesn't share what each role grants yet. It will appear here once it does." />
+                                <FeatureUnavailable
+                                    compact
+                                    title={t("screens.admin.user.permissionsUnavailableTitle")}
+                                    description={t("screens.admin.user.permissionsUnavailableDescription")}
+                                />
                             )}
                         </CardContent>
                         {showPermissions && (
                             <CardFooter>
-                                <span className="text-fg-muted">Permissions are set per role</span>
+                                <span className="text-fg-muted">{t("screens.admin.user.perRole")}</span>
                                 <Link href={routes.admin.roles} className="font-medium text-primary-soft-fg hover:underline">
-                                    Edit role
+                                    {t("screens.admin.user.editRole")}
                                 </Link>
                             </CardFooter>
                         )}
@@ -231,16 +257,20 @@ export default async function AdminUserDetailPage({ params, searchParams }: Page
     );
 }
 
-function StatusCallout({ user, now }: { user: User; now: string }) {
+interface LocalisedProps {
+    t: Translator;
+    locale: Locale;
+}
+
+function StatusCallout({ user, now, t, locale }: { user: User; now: string } & LocalisedProps) {
     if (user.status === "active") return null;
     return user.status === "invited" ? (
-        <Callout tone="info" icon={Clock} title="Invitation pending" role="status">
-            Invited {formatRelative(user.createdAt, now)}. {user.name} can&apos;t sign in until they accept — resend the invitation if they
-            can&apos;t find the email.
+        <Callout tone="info" icon={Clock} title={t("screens.admin.user.pendingTitle")} role="status">
+            {t("screens.admin.user.pendingBody", { when: formatRelative(user.createdAt, now, locale), name: user.name })}
         </Callout>
     ) : (
-        <Callout tone="danger" icon={Ban} title="Account suspended" role="status">
-            {user.name} can&apos;t sign in or receive notifications. Reactivate the account to restore their previous access.
+        <Callout tone="danger" icon={Ban} title={t("screens.admin.user.suspendedTitle")} role="status">
+            {t("screens.admin.user.suspendedBody", { name: user.name })}
         </Callout>
     );
 }
@@ -249,20 +279,24 @@ function LinkedProfile({
     user,
     profile,
     showCredentials,
+    t,
+    locale,
 }: {
     user: User;
     profile: Fighter | Coach | Doctor | null;
     /** False where the service keeps no certifications or experience: those rows are left out rather than shown as empty. */
     showCredentials: boolean;
-}) {
+} & LocalisedProps) {
+    const notRecorded = t("screens.admin.common.notRecorded");
+    const subtleNotRecorded = <span className="font-normal text-fg-subtle">{notRecorded}</span>;
     if (!profile) {
         return user.role === "admin" ? (
-            <EmptyState compact title="No profile needed" description="Administrator accounts operate the platform and have no athlete or staff profile." />
+            <EmptyState compact title={t("screens.admin.user.noProfileTitle")} description={t("screens.admin.user.noProfileDescription")} />
         ) : (
             <EmptyState
                 compact
-                title={`No ${ROLE_LABELS[user.role].toLowerCase()} profile linked yet`}
-                description={`The profile is connected when ${user.name} completes onboarding.`}
+                title={t("screens.admin.user.notLinkedTitle", roleParams(t, user.role, locale))}
+                description={t("screens.admin.user.notLinkedDescription", { name: user.name })}
             />
         );
     }
@@ -272,12 +306,15 @@ function LinkedProfile({
             <DescriptionList
                 columns={3}
                 items={[
-                    { label: "Weight class", value: WEIGHT_CLASS_LABELS[profile.weightClass] },
-                    { label: "Primary discipline", value: profile.primaryDiscipline ?? NOT_RECORDED },
-                    { label: "Level", value: labelOf(TRAINING_LEVEL_LABELS, profile.level) ?? NOT_RECORDED },
-                    { label: "Stance", value: labelOf(STANCE_LABELS, profile.stance) ?? NOT_RECORDED },
-                    { label: "Record (W–L–D)", value: profile.record ? `${profile.record.wins}–${profile.record.losses}–${profile.record.draws}` : NOT_RECORDED },
-                    { label: "Joined", value: formatDate(profile.joinedAt) },
+                    { label: t("screens.admin.user.weightClass"), value: weightClassLabel(profile.weightClass, locale) },
+                    { label: t("screens.admin.user.discipline"), value: profile.primaryDiscipline ?? notRecorded },
+                    { label: t("screens.admin.user.level"), value: profile.level ? trainingLevelLabel(profile.level, locale) : notRecorded },
+                    { label: t("screens.admin.user.stance"), value: profile.stance ? stanceLabel(profile.stance, locale) : notRecorded },
+                    {
+                        label: t("screens.admin.user.record"),
+                        value: profile.record ? `${profile.record.wins}–${profile.record.losses}–${profile.record.draws}` : notRecorded,
+                    },
+                    { label: t("screens.admin.user.joined"), value: formatDate(profile.joinedAt, locale) },
                 ]}
             />
         );
@@ -288,15 +325,27 @@ function LinkedProfile({
             <DescriptionList
                 columns={3}
                 items={[
-                    { label: "Specialty", value: profile.specialty || <span className="font-normal text-fg-subtle">{NOT_RECORDED}</span> },
-                    ...(showCredentials ? [{ label: "Experience", value: profile.yearsExperience === null ? NOT_RECORDED : pluralize(profile.yearsExperience, "year") }] : []),
-                    { label: "Roster", value: pluralize(profile.fighterIds.length, "fighter") },
+                    { label: t("screens.admin.user.specialty"), value: profile.specialty || subtleNotRecorded },
                     ...(showCredentials
                         ? [
                               {
-                                  label: "Certifications",
+                                  label: t("screens.admin.user.experience"),
+                                  value: profile.yearsExperience === null ? notRecorded : countLabel(t, "screens.admin.count.years", profile.yearsExperience),
+                              },
+                          ]
+                        : []),
+                    { label: t("screens.admin.user.roster"), value: countLabel(t, "screens.admin.count.fighters", profile.fighterIds.length) },
+                    ...(showCredentials
+                        ? [
+                              {
+                                  label: t("screens.admin.user.certifications"),
                                   wide: true,
-                                  value: profile.certifications.length > 0 ? profile.certifications.join(" · ") : <span className="font-normal text-fg-subtle">None recorded</span>,
+                                  value:
+                                      profile.certifications.length > 0 ? (
+                                          profile.certifications.join(" · ")
+                                      ) : (
+                                          <span className="font-normal text-fg-subtle">{t("screens.admin.user.noneRecorded")}</span>
+                                      ),
                               },
                           ]
                         : []),
@@ -310,16 +359,16 @@ function LinkedProfile({
             <DescriptionList
                 columns={3}
                 items={[
-                    { label: "Specialty", value: profile.specialty },
+                    { label: t("screens.admin.user.specialty"), value: profile.specialty },
                     {
-                        label: "License number",
-                        value: profile.licenseNumber ? <code className="font-mono text-[13px]">{profile.licenseNumber}</code> : <span className="font-normal text-fg-subtle">{NOT_RECORDED}</span>,
+                        label: t("screens.admin.user.license"),
+                        value: profile.licenseNumber ? <code className="font-mono text-[13px]">{profile.licenseNumber}</code> : subtleNotRecorded,
                     },
-                    { label: "Patients", value: pluralize(profile.fighterIds.length, "fighter") },
+                    { label: t("screens.admin.user.patients"), value: countLabel(t, "screens.admin.count.fighters", profile.fighterIds.length) },
                 ]}
             />
         );
     }
 
-    return <EmptyState compact title="Profile unavailable" description="The linked profile doesn't match this account's role." />;
+    return <EmptyState compact title={t("screens.admin.user.profileUnavailableTitle")} description={t("screens.admin.user.profileUnavailableDescription")} />;
 }

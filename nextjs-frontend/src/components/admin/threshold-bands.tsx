@@ -1,3 +1,5 @@
+import type { Locale } from "@/lib/i18n/config";
+import { createTranslator } from "@/lib/i18n/translate";
 import { clamp, cn } from "@/lib/utils";
 
 export interface ThresholdBandsProps {
@@ -5,6 +7,8 @@ export interface ThresholdBandsProps {
     confidencePct: number;
     /** Low-confidence review threshold, 0–100. */
     lowConfidencePct: number;
+    /** The viewer's language. */
+    locale: Locale;
     className?: string;
 }
 
@@ -12,13 +16,14 @@ export interface ThresholdBandsProps {
  * Explains what two confidence thresholds do to model output: discarded, kept but flagged
  * "Needs review", and kept. Every band is labelled in text, not only by colour.
  */
-export function ThresholdBands({ confidencePct, lowConfidencePct, className }: ThresholdBandsProps) {
+export function ThresholdBands({ confidencePct, lowConfidencePct, locale, className }: ThresholdBandsProps) {
+    const t = createTranslator(locale);
     const low = clamp(Math.min(confidencePct, lowConfidencePct), 0, 100);
     const high = clamp(Math.max(confidencePct, lowConfidencePct), 0, 100);
     const bands = [
-        { key: "discarded", label: "Discarded", range: `0–${low}%`, width: low, fill: "bg-neutral-solid/40", text: "text-neutral-fg" },
-        { key: "review", label: "Needs review", range: `${low}–${high}%`, width: high - low, fill: "bg-warning-solid", text: "text-warning-fg" },
-        { key: "kept", label: "Shown", range: `${high}–100%`, width: 100 - high, fill: "bg-success-solid", text: "text-success-fg" },
+        { key: "discarded", label: t("screens.admin.bands.discarded"), range: `0–${low}%`, width: low, fill: "bg-neutral-solid/40", text: "text-neutral-fg" },
+        { key: "review", label: t("screens.admin.bands.review"), range: `${low}–${high}%`, width: high - low, fill: "bg-warning-solid", text: "text-warning-fg" },
+        { key: "kept", label: t("screens.admin.bands.shown"), range: `${high}–100%`, width: 100 - high, fill: "bg-success-solid", text: "text-success-fg" },
     ];
 
     return (

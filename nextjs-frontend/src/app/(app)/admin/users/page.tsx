@@ -1,7 +1,7 @@
 import { UserPlus, Users } from "lucide-react";
 import type { Metadata } from "next";
 
-import { ROLE_ORDER, USER_STATUS_ORDER } from "@/components/admin/admin-format";
+import { countLabel, roleLabel, ROLE_ORDER, USER_STATUS_ORDER } from "@/components/admin/admin-format";
 import { UserIdentity } from "@/components/admin/user-identity";
 import { RoleBadge, UserStatusBadge } from "@/components/domain/status-badges";
 import { FlashToast } from "@/components/medical/flash-toast";
@@ -12,16 +12,22 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/states";
 import { Pagination, SortableTH, Table, TBody, TD, THead, TR } from "@/components/ui/table";
 import { requireRole } from "@/lib/auth/session";
-import { ROLE_LABELS, USER_STATUS_LABELS } from "@/lib/domain/labels";
+import { USER_STATUS_LABELS } from "@/lib/domain/labels";
 import type { User, UserStatus } from "@/lib/domain/types";
-import { formatDate, formatDateTime, formatRelative, pluralize } from "@/lib/format";
+import { formatDate, formatDateTime, formatRelative } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
+import { getTranslator } from "@/lib/i18n/server";
+import type { MessageKey, Translator } from "@/lib/i18n/translate";
 import { paginate, parseEnum, parseSortDirection, sortItems } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { listUsers } from "@/lib/services/admin";
 import { adminFeatureAvailable, usesUserServiceForms } from "@/lib/services/admin-features";
 import { param } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Users" };
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return { title: t("screens.admin.meta.users") };
+}
 
 const ALL_STATUSES = Object.keys(USER_STATUS_LABELS) as UserStatus[];
 const SORT_KEYS = ["name", "role", "title", "status", "lastActive", "created"] as const;
@@ -39,6 +45,7 @@ const SORT_ACCESSORS: Record<SortKey, (user: User) => string | number | null> = 
 
 export default async function AdminUsersPage({ searchParams }: PageProps<"/admin/users">) {
     const admin = await requireRole("admin");
+    const { t, locale } = await getTranslator();
     const params = await searchParams;
     const now = new Date().toISOString();
     const pathname = routes.admin.users;
@@ -60,7 +67,7 @@ export default async function AdminUsersPage({ searchParams }: PageProps<"/admin
     const users = filtered ?? everyone;
     const page = paginate(sortItems(users, SORT_ACCESSORS[sort], dir), param(params.page), PAGE_SIZE);
     const countBy = (value: UserStatus) => everyone.filter((u) => u.status === value).length;
-    const counts = statuses.map((value) => `${countBy(value)} ${USER_STATUS_LABELS[value].toLowerCase()}`).join(" · ");
+    const counts = statuses.map((value) => t(`screens.admin.users.statusCount.${value}` as MessageKey, { n: countBy(value) })).join(" · ");
     const userHref = (user: User) => (opensInactive || user.status === "active" ? routes.admin.user(user.id) : undefined);
 
     // API mode creates accounts outright; the demo sends invitations.
@@ -69,11 +76,11 @@ export default async function AdminUsersPage({ searchParams }: PageProps<"/admin
         <div className="flex flex-wrap gap-2">
             <ButtonLink href={routes.admin.newUser} variant="secondary">
                 <UserPlus aria-hidden />
-                {canInvite ? "Invite user" : "Add user"}
+                {canInvite ? t("screens.admin.common.inviteUser") : t("screens.admin.common.addUser")}
             </ButtonLink>
             <ButtonLink href={routes.admin.newUserAs("fighter")}>
                 <UserPlus aria-hidden />
-                {canInvite ? "Invite fighter" : "Add fighter"}
+                {canInvite ? t("screens.admin.common.inviteFighter") : t("screens.admin.common.addFighter")}
             </ButtonLink>
         </div>
     );
@@ -81,15 +88,22 @@ export default async function AdminUsersPage({ searchParams }: PageProps<"/admin
 
     return (
         <>
-            <FlashToast notice={param(params.notice) === "account-deleted" ? { title: "Account deleted", description: "It can no longer sign in." } : null} cleanHref={pathname} />
+            <FlashToast
+                notice={
+                    param(params.notice) === "account-deleted"
+                        ? { title: t("screens.admin.users.deletedTitle"), description: t("screens.admin.users.deletedDescription") }
+                        : null
+                }
+                cleanHref={pathname}
+            />
             <PageHeader
-                title="Users"
+                title={t("screens.admin.common.users")}
                 description={
                     canInvite
-                        ? "Every account on the platform — invite staff and fighters, change roles and control who can sign in."
+                        ? t("screens.admin.users.descriptionInvite")
                         : canAdd
-                          ? "Every staff and fighter account on the platform — add accounts, edit profiles and remove access."
-                          : "Every staff and fighter account on the platform."
+                          ? t("screens.admin.users.descriptionAdd")
+                          : t("screens.admin.users.description")
                 }
                 actions={inviteButton}
             />
@@ -97,16 +111,21 @@ export default async function AdminUsersPage({ searchParams }: PageProps<"/admin
             <div className="flex flex-col gap-4">
                 <FilterBar
                     filters={[
-                        { type: "search", name: "q", label: "Search users", placeholder: "Search name, email or title" },
-                        { type: "select", name: "role", label: "Roles", options: ROLE_ORDER.map((value) => ({ value, label: ROLE_LABELS[value] })) },
-                        { type: "select", name: "status", label: "Statuses", options: statuses.map((value) => ({ value, label: USER_STATUS_LABELS[value] })) },
+                        { type: "search", name: "q", label: t("screens.admin.users.search"), placeholder: t("screens.admin.users.searchPlaceholder") },
+                        { type: "select", name: "role", label: t("screens.admin.users.roles"), options: ROLE_ORDER.map((value) => ({ value, label: roleLabel(t, value) })) },
+                        {
+                            type: "select",
+                            name: "status",
+                            label: t("screens.admin.users.statuses"),
+                            options: statuses.map((value) => ({ value, label: t(`userStatus.${value}` as MessageKey) })),
+                        },
                     ]}
                 />
 
                 <Card className="overflow-hidden">
                     <CardHeader
-                        title={hasFilters ? `${pluralize(users.length, "matching account")}` : `${pluralize(everyone.length, "account")}`}
-                        description={opensInactive || countBy("suspended") === 0 ? counts : `${counts}. Suspended accounts can't be opened yet.`}
+                        title={hasFilters ? countLabel(t, "screens.admin.count.matchingAccounts", users.length) : countLabel(t, "screens.admin.count.accounts", everyone.length)}
+                        description={opensInactive || countBy("suspended") === 0 ? counts : t("screens.admin.users.suspendedClosed", { counts })}
                         icon={<Users />}
                     />
                     {page.total === 0 ? (
@@ -114,19 +133,25 @@ export default async function AdminUsersPage({ searchParams }: PageProps<"/admin
                             {hasFilters ? (
                                 <EmptyState
                                     compact
-                                    title="No accounts match these filters"
-                                    description="Try a different name, role or status."
+                                    title={t("screens.admin.users.noMatchTitle")}
+                                    description={t("screens.admin.users.noMatchDescription")}
                                     action={
                                         <ButtonLink href={pathname} variant="secondary" size="sm">
-                                            Clear filters
+                                            {t("screens.admin.common.clearFilters")}
                                         </ButtonLink>
                                     }
                                 />
                             ) : (
                                 <EmptyState
                                     compact
-                                    title="No accounts yet"
-                                    description={canAdd ? `${canInvite ? "Invite" : "Add"} the first coach, doctor or fighter to get started.` : "Accounts created in the user service appear here."}
+                                    title={t("screens.admin.users.emptyTitle")}
+                                    description={
+                                        canAdd
+                                            ? canInvite
+                                                ? t("screens.admin.users.emptyInvite")
+                                                : t("screens.admin.users.emptyAdd")
+                                            : t("screens.admin.users.emptyService")
+                                    }
                                     action={inviteButton}
                                 />
                             )}
@@ -134,57 +159,57 @@ export default async function AdminUsersPage({ searchParams }: PageProps<"/admin
                     ) : (
                         <div className="border-t border-border">
                             <div className="hidden md:block">
-                                <Table caption="User accounts">
+                                <Table caption={t("screens.admin.users.caption")}>
                                     <THead>
                                         <tr>
-                                            <SortableTH label="User" sortKey="name" {...sortProps} />
-                                            <SortableTH label="Role" sortKey="role" {...sortProps} />
-                                            <SortableTH label="Title" sortKey="title" {...sortProps} />
-                                            <SortableTH label="Status" sortKey="status" {...sortProps} />
-                                            {showLastActive && <SortableTH label="Last active" sortKey="lastActive" {...sortProps} />}
-                                            <SortableTH label="Created" sortKey="created" {...sortProps} />
+                                            <SortableTH label={t("screens.admin.users.user")} sortKey="name" {...sortProps} />
+                                            <SortableTH label={t("screens.admin.common.role")} sortKey="role" {...sortProps} />
+                                            <SortableTH label={t("screens.admin.users.title")} sortKey="title" {...sortProps} />
+                                            <SortableTH label={t("screens.admin.common.status")} sortKey="status" {...sortProps} />
+                                            {showLastActive && <SortableTH label={t("screens.admin.users.lastActive")} sortKey="lastActive" {...sortProps} />}
+                                            <SortableTH label={t("screens.admin.users.created")} sortKey="created" {...sortProps} />
                                         </tr>
                                     </THead>
                                     <TBody>
                                         {page.items.map((user) => (
                                             <TR key={user.id}>
                                                 <TD className="max-w-72">
-                                                    <UserIdentity user={user} href={userHref(user)} isSelf={user.id === admin.id} />
+                                                    <UserIdentity user={user} href={userHref(user)} isSelf={user.id === admin.id} locale={locale} />
                                                 </TD>
                                                 <TD>
-                                                    <RoleBadge role={user.role} size="sm" />
+                                                    <RoleBadge role={user.role} size="sm" locale={locale} />
                                                 </TD>
                                                 <TD className="max-w-56 truncate text-fg-muted" title={user.title || undefined}>
                                                     {user.title || <span className="text-fg-subtle">—</span>}
                                                 </TD>
                                                 <TD>
-                                                    <UserStatusBadge status={user.status} size="sm" />
+                                                    <UserStatusBadge status={user.status} size="sm" locale={locale} />
                                                 </TD>
                                                 {showLastActive && (
                                                     <TD className="whitespace-nowrap text-fg-muted">
-                                                        <LastActive user={user} now={now} />
+                                                        <LastActive user={user} now={now} t={t} locale={locale} />
                                                     </TD>
                                                 )}
-                                                <TD className="whitespace-nowrap text-fg-muted">{formatDate(user.createdAt)}</TD>
+                                                <TD className="whitespace-nowrap text-fg-muted">{formatDate(user.createdAt, locale)}</TD>
                                             </TR>
                                         ))}
                                     </TBody>
                                 </Table>
                             </div>
 
-                            <ul className="divide-y divide-border md:hidden" aria-label="User accounts">
+                            <ul className="divide-y divide-border md:hidden" aria-label={t("screens.admin.users.caption")}>
                                 {page.items.map((user) => (
                                     <li key={user.id} className="flex flex-col gap-2.5 px-4 py-3.5">
-                                        <UserIdentity user={user} href={userHref(user)} isSelf={user.id === admin.id} size="md" />
+                                        <UserIdentity user={user} href={userHref(user)} isSelf={user.id === admin.id} size="md" locale={locale} />
                                         <div className="flex flex-wrap items-center gap-2">
-                                            <RoleBadge role={user.role} size="sm" />
-                                            <UserStatusBadge status={user.status} size="sm" />
+                                            <RoleBadge role={user.role} size="sm" locale={locale} />
+                                            <UserStatusBadge status={user.status} size="sm" locale={locale} />
                                         </div>
                                         <p className="flex flex-wrap justify-between gap-x-3 gap-y-1 text-[13px] text-fg-muted">
                                             <span className="min-w-0 truncate">{user.title}</span>
                                             {showLastActive && (
                                                 <span className="shrink-0">
-                                                    <LastActive user={user} now={now} />
+                                                    <LastActive user={user} now={now} t={t} locale={locale} />
                                                 </span>
                                             )}
                                         </p>
@@ -199,7 +224,8 @@ export default async function AdminUsersPage({ searchParams }: PageProps<"/admin
                                 pageSize={page.pageSize}
                                 pathname={pathname}
                                 searchParams={params}
-                                itemLabel="accounts"
+                                itemLabel={t("screens.admin.users.itemLabel")}
+                                locale={locale}
                             />
                         </div>
                     )}
@@ -209,12 +235,12 @@ export default async function AdminUsersPage({ searchParams }: PageProps<"/admin
     );
 }
 
-function LastActive({ user, now }: { user: User; now: string }) {
-    if (user.status === "invited") return <span className="text-fg-subtle">Invitation pending</span>;
-    if (!user.lastActiveAt) return <span className="text-fg-subtle">Never</span>;
+function LastActive({ user, now, t, locale }: { user: User; now: string; t: Translator; locale: Locale }) {
+    if (user.status === "invited") return <span className="text-fg-subtle">{t("screens.admin.users.invitationPending")}</span>;
+    if (!user.lastActiveAt) return <span className="text-fg-subtle">{t("screens.admin.common.never")}</span>;
     return (
-        <time dateTime={user.lastActiveAt} title={formatDateTime(user.lastActiveAt)}>
-            {formatRelative(user.lastActiveAt, now)}
+        <time dateTime={user.lastActiveAt} title={formatDateTime(user.lastActiveAt, locale)}>
+            {formatRelative(user.lastActiveAt, now, locale)}
         </time>
     );
 }

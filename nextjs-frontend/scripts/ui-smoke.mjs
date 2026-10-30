@@ -8,6 +8,7 @@
 //   pnpm --filter nextjs-frontend ui:smoke
 //   pnpm --filter nextjs-frontend ui:smoke -- --base http://localhost:3100 --widths 390 --locale en --shots ../ui-shots
 //   pnpm --filter nextjs-frontend ui:smoke -- --axe        # also WCAG 2.1 AA checks (serious and critical only)
+//   pnpm --filter nextjs-frontend ui:smoke -- --theme dark  # light (default), dark or system
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -21,6 +22,7 @@ const { values: args } = parseArgs({
         base: { type: "string", default: "http://localhost:3000" },
         widths: { type: "string", default: "1440,390" },
         locale: { type: "string", default: "vi" },
+        theme: { type: "string", default: "light" },
         roles: { type: "string", default: "fighter,coach,doctor,admin" },
         shots: { type: "string" },
         "max-pages": { type: "string", default: "70" },
@@ -48,7 +50,10 @@ let visited = 0;
 for (const width of widths) {
     for (const role of roles) {
         const context = await browser.newContext({ viewport: { width, height: width < 640 ? 844 : 900 } });
-        await context.addCookies([{ name: "mma_locale", value: args.locale, url: base }]);
+        await context.addCookies([
+            { name: "mma_locale", value: args.locale, url: base },
+            { name: "mma_theme", value: args.theme, url: base },
+        ]);
         const page = await context.newPage();
         let errors = [];
         page.on("console", (message) => {
@@ -114,7 +119,7 @@ for (const width of widths) {
 }
 await browser.close();
 
-console.log(`ui:smoke ${args.locale} ${widths.join("/")} px: ${visited} pages, ${problems.length} with problems`);
+console.log(`ui:smoke ${args.locale} ${args.theme} ${widths.join("/")} px: ${visited} pages, ${problems.length} with problems`);
 for (const problem of problems) console.log(JSON.stringify(problem));
 if (args.axe) {
     console.log(`axe: ${axeFindings.size} serious/critical rules`);

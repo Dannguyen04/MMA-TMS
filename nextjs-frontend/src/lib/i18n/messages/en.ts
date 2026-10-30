@@ -24,6 +24,7 @@ import { enScreensPerformance } from "./screens-performance.en";
 import { enScreensTraining } from "./screens-training.en";
 import { enScreensApp } from "./screens-app.en";
 import { enScreensVideo } from "./screens-video.en";
+import { enScreensAdmin } from "./screens-admin.en";
 
 export const en = {
     ...enDemoFlow,
@@ -47,6 +48,7 @@ export const en = {
     ...enScreensTraining,
     ...enScreensApp,
     ...enScreensVideo,
+    ...enScreensAdmin,
     /* Navigation: keyed by the English label in `navigation.ts`. */
     "nav.Today": "Today",
     "nav.Bout": "Bout",

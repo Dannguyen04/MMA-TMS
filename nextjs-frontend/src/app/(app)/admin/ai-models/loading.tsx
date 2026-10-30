@@ -1,8 +1,10 @@
 import { CardGridSkeleton, LoadingRegion, PageHeaderSkeleton, Skeleton } from "@/components/ui/skeleton";
+import { getTranslator } from "@/lib/i18n/server";
 
-export default function Loading() {
+export default async function Loading() {
+    const { t } = await getTranslator();
     return (
-        <LoadingRegion label="Loading AI models">
+        <LoadingRegion label={t("screens.admin.loading.aiModels")}>
             <PageHeaderSkeleton />
             <div className="flex flex-col gap-8">
                 <Skeleton className="h-20 rounded-xl" />

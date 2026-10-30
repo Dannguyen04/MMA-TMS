@@ -4,8 +4,10 @@ import { Avatar } from "@/components/ui/avatar";
 import { TONE_SOFT } from "@/components/ui/tone";
 import type { AuditLog } from "@/lib/domain/types";
 import { formatDateTime, formatRelative } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
+import { createTranslator } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
-import { actorCaption, AUDIT_RESOURCE_LABELS } from "./admin-format";
+import { actorCaption, auditResourceLabel } from "./admin-format";
 
 export interface AuditActivityListProps {
     entries: AuditLog[];
@@ -13,11 +15,14 @@ export interface AuditActivityListProps {
     now: string;
     /** Hide the actor when every entry belongs to the same person (user detail page). */
     showActor?: boolean;
+    /** The viewer's language. */
+    locale: Locale;
     className?: string;
 }
 
 /** Compact list of audit entries with a result icon, actor, action and resource. */
-export function AuditActivityList({ entries, now, showActor = true, className }: AuditActivityListProps) {
+export function AuditActivityList({ entries, now, showActor = true, locale, className }: AuditActivityListProps) {
+    const t = createTranslator(locale);
     return (
         <ul className={cn("divide-y divide-border", className)}>
             {entries.map((entry) => {
@@ -32,7 +37,7 @@ export function AuditActivityList({ entries, now, showActor = true, className }:
                             )}
                         >
                             <StatusIcon aria-hidden className="size-3.5" />
-                            <span className="sr-only">{failed ? "Failed" : "Succeeded"}:</span>
+                            <span className="sr-only">{failed ? t("screens.admin.audit.failedSr") : t("screens.admin.audit.succeededSr")}:</span>
                         </span>
                         <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -44,7 +49,7 @@ export function AuditActivityList({ entries, now, showActor = true, className }:
                                             <Avatar name={entry.actorName} size="xs" shape={entry.actorRole === "fighter" ? "octagon" : "circle"} />
                                         )}
                                         <span className="truncate">{entry.actorName}</span>
-                                        <span className="shrink-0 font-normal whitespace-nowrap text-fg-subtle">{actorCaption(entry.actorRole)}</span>
+                                        <span className="shrink-0 font-normal whitespace-nowrap text-fg-subtle">{actorCaption(t, entry.actorRole)}</span>
                                     </span>
                                 )}
                                 <code className="rounded bg-surface-muted px-1.5 py-0.5 font-mono text-xs text-fg-muted ring-1 ring-border ring-inset">
@@ -52,16 +57,16 @@ export function AuditActivityList({ entries, now, showActor = true, className }:
                                 </code>
                             </div>
                             <p className="mt-1 truncate text-[13px] text-fg-muted" title={entry.resourceLabel}>
-                                <span className="text-fg-subtle">{AUDIT_RESOURCE_LABELS[entry.resourceType]}:</span> {entry.resourceLabel}
+                                <span className="text-fg-subtle">{auditResourceLabel(t, entry.resourceType)}:</span> {entry.resourceLabel}
                             </p>
                             {failed && entry.details && <p className="mt-0.5 text-[13px] text-danger-fg">{entry.details}</p>}
                         </div>
                         <time
                             dateTime={entry.timestamp}
-                            title={formatDateTime(entry.timestamp)}
+                            title={formatDateTime(entry.timestamp, locale)}
                             className="col-start-2 mt-1 text-xs whitespace-nowrap text-fg-subtle sm:col-start-3 sm:row-start-1 sm:mt-0 sm:pt-0.5"
                         >
-                            {formatRelative(entry.timestamp, now)}
+                            {formatRelative(entry.timestamp, now, locale)}
                         </time>
                     </li>
                 );

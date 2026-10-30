@@ -3,12 +3,14 @@
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 
+import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { TermHint } from "@/components/domain/term-hint";
 import { Button } from "@/components/ui/button";
 import { Checkbox, Field, Input, Select } from "@/components/ui/form";
 import type { ActionForm } from "@/components/ui/use-action-form";
 import { ACCOUNT_LIMITS, type AccountProfile, type CoachProfileFields, type DoctorProfileFields, type FighterProfileFields } from "@/lib/domain/account-contract";
-import { STANCE_LABELS, WEIGHT_CLASS_LABELS, WEIGHT_CLASS_LIMIT_KG, WEIGHT_CLASS_ORDER } from "@/lib/domain/labels";
+import { STANCE_LABELS, stanceLabel, WEIGHT_CLASS_LIMIT_KG, WEIGHT_CLASS_ORDER, weightClassLabel } from "@/lib/domain/labels";
+import type { Stance } from "@/lib/domain/types";
 import { cn } from "@/lib/utils";
 
 export type StaffAccount = Exclude<AccountProfile, { role: "admin" }>;
@@ -24,14 +26,17 @@ export interface AccountProfileFieldsProps {
 
 type FormProp = { form: ActionForm<undefined> };
 
+const STANCES = Object.keys(STANCE_LABELS) as Stance[];
+
 /** A fighter's, coach's or doctor's profile fields, named `profile.<field>` as the account actions read them. */
 export function AccountProfileFields({ form, role, initial, today }: AccountProfileFieldsProps) {
+    const t = useT();
     const saved = initial?.role === role ? initial : null;
     return (
         <>
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                <TextField form={form} name="firstName" label="First name" required max={ACCOUNT_LIMITS.name} defaultValue={saved?.profile.firstName} />
-                <TextField form={form} name="lastName" label="Last name" required max={ACCOUNT_LIMITS.name} defaultValue={saved?.profile.lastName} />
+                <TextField form={form} name="firstName" label={t("screens.admin.profile.firstName")} required max={ACCOUNT_LIMITS.name} defaultValue={saved?.profile.firstName} />
+                <TextField form={form} name="lastName" label={t("screens.admin.profile.lastName")} required max={ACCOUNT_LIMITS.name} defaultValue={saved?.profile.lastName} />
             </div>
             {role === "fighter" && <FighterFields form={form} saved={saved?.role === "fighter" ? saved.profile : null} today={today} />}
             {role === "coach" && <CoachFields form={form} saved={saved?.role === "coach" ? saved.profile : null} />}
@@ -41,6 +46,8 @@ export function AccountProfileFields({ form, role, initial, today }: AccountProf
 }
 
 function FighterFields({ form, saved, today }: FormProp & { saved: FighterProfileFields | null; today: string }) {
+    const t = useT();
+    const locale = useLocale();
     const dateOfBirth = form.control("profile.dateOfBirth", { required: true });
     const weightClass = form.control("profile.weightClass", { required: true });
     const stance = form.control("profile.dominantStance");
@@ -51,17 +58,23 @@ function FighterFields({ form, saved, today }: FormProp & { saved: FighterProfil
     return (
         <>
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                <Field label="Date of birth" htmlFor={dateOfBirth.id} required error={form.error("profile.dateOfBirth")}>
+                <Field label={t("screens.admin.profile.dateOfBirth")} htmlFor={dateOfBirth.id} required error={form.error("profile.dateOfBirth")}>
                     <Input {...dateOfBirth} type="date" max={today} defaultValue={saved?.dateOfBirth ?? ""} />
                 </Field>
-                <Field label="Weight class" htmlFor={weightClass.id} required info={<TermHint term="weightClass" />} error={form.error("profile.weightClass")}>
+                <Field
+                    label={t("screens.admin.profile.weightClass")}
+                    htmlFor={weightClass.id}
+                    required
+                    info={<TermHint term="weightClass" locale={locale} />}
+                    error={form.error("profile.weightClass")}
+                >
                     <Select {...weightClass} defaultValue={saved?.weightClass ?? ""}>
                         <option value="" disabled>
-                            Choose a weight class
+                            {t("screens.admin.profile.chooseWeightClass")}
                         </option>
                         {WEIGHT_CLASS_ORDER.map((value) => (
                             <option key={value} value={value}>
-                                {WEIGHT_CLASS_LABELS[value]} · up to {WEIGHT_CLASS_LIMIT_KG[value]} kg
+                                {t("screens.admin.profile.weightClassOption", { label: weightClassLabel(value, locale), kg: WEIGHT_CLASS_LIMIT_KG[value] })}
                             </option>
                         ))}
                     </Select>
@@ -72,22 +85,35 @@ function FighterFields({ form, saved, today }: FormProp & { saved: FighterProfil
                 <div>
                     <Button variant="ghost" size="sm" aria-expanded={optionalOpen} aria-controls={optionalId} onClick={() => setShowOptional((open) => !open)}>
                         <ChevronDown aria-hidden className={cn("transition-transform", optionalOpen && "rotate-180")} />
-                        Optional details
-                        <span className="font-normal text-fg-subtle">stance, nationality</span>
+                        {t("screens.admin.profile.optional")}
+                        <span className="font-normal text-fg-subtle">{t("screens.admin.profile.optionalHint")}</span>
                     </Button>
                 </div>
                 <div id={optionalId} hidden={!optionalOpen} className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                    <Field label="Stance" htmlFor={stance.id} optional info={<TermHint term="stance" />} error={form.error("profile.dominantStance")}>
+                    <Field
+                        label={t("screens.admin.profile.stance")}
+                        htmlFor={stance.id}
+                        optional
+                        info={<TermHint term="stance" locale={locale} />}
+                        error={form.error("profile.dominantStance")}
+                    >
                         <Select {...stance} defaultValue={saved?.dominantStance ?? ""}>
-                            <option value="">Not recorded</option>
-                            {Object.entries(STANCE_LABELS).map(([value, label]) => (
+                            <option value="">{t("screens.admin.common.notRecorded")}</option>
+                            {STANCES.map((value) => (
                                 <option key={value} value={value}>
-                                    {label}
+                                    {stanceLabel(value, locale)}
                                 </option>
                             ))}
                         </Select>
                     </Field>
-                    <TextField form={form} name="nationality" label="Nationality" max={ACCOUNT_LIMITS.nationality} defaultValue={saved?.nationality} placeholder="e.g. Vietnamese" />
+                    <TextField
+                        form={form}
+                        name="nationality"
+                        label={t("screens.admin.profile.nationality")}
+                        max={ACCOUNT_LIMITS.nationality}
+                        defaultValue={saved?.nationality}
+                        placeholder={t("screens.admin.profile.nationalityPlaceholder")}
+                    />
                 </div>
             </div>
         </>
@@ -95,14 +121,22 @@ function FighterFields({ form, saved, today }: FormProp & { saved: FighterProfil
 }
 
 function CoachFields({ form, saved }: FormProp & { saved: CoachProfileFields | null }) {
+    const t = useT();
     return (
         <>
-            <TextField form={form} name="specialization" label="Specialisation" max={ACCOUNT_LIMITS.specialization} defaultValue={saved?.specialization} placeholder="e.g. Striking" />
+            <TextField
+                form={form}
+                name="specialization"
+                label={t("screens.admin.profile.specialisation")}
+                max={ACCOUNT_LIMITS.specialization}
+                defaultValue={saved?.specialization}
+                placeholder={t("screens.admin.profile.specialisationCoachPlaceholder")}
+            />
             <Checkbox
                 id={form.control("profile.isHeadCoach").id}
                 name="profile.isHeadCoach"
-                label="Head coach"
-                description="Leads the coaching staff."
+                label={t("screens.admin.profile.headCoach")}
+                description={t("screens.admin.profile.headCoachHint")}
                 defaultChecked={saved?.isHeadCoach ?? false}
             />
         </>
@@ -110,16 +144,17 @@ function CoachFields({ form, saved }: FormProp & { saved: CoachProfileFields | n
 }
 
 function DoctorFields({ form, saved }: FormProp & { saved: DoctorProfileFields | null }) {
+    const t = useT();
     return (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-            <TextField form={form} name="licenseNumber" label="License number" required max={ACCOUNT_LIMITS.licenseNumber} defaultValue={saved?.licenseNumber} />
+            <TextField form={form} name="licenseNumber" label={t("screens.admin.profile.license")} required max={ACCOUNT_LIMITS.licenseNumber} defaultValue={saved?.licenseNumber} />
             <TextField
                 form={form}
                 name="specialization"
-                label="Specialisation"
+                label={t("screens.admin.profile.specialisation")}
                 max={ACCOUNT_LIMITS.specialization}
                 defaultValue={saved?.specialization}
-                placeholder="e.g. Sports medicine"
+                placeholder={t("screens.admin.profile.specialisationDoctorPlaceholder")}
             />
         </div>
     );

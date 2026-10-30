@@ -3,6 +3,7 @@
 import { Megaphone, Users } from "lucide-react";
 import { useState } from "react";
 
+import { useT } from "@/components/i18n/locale-provider";
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { Button } from "@/components/ui/button";
 import { ChoiceGroup, type ChoiceOption } from "@/components/ui/choice-group";
@@ -12,12 +13,11 @@ import { useToast } from "@/components/ui/toast";
 import type { ActionForm } from "@/components/ui/use-action-form";
 import { createBroadcastAction, type BroadcastData } from "@/lib/actions/admin";
 import type { ActionState } from "@/lib/actions/state";
-import { BROADCAST_CHANNEL_LABELS } from "@/lib/domain/labels";
 import type { BroadcastChannel, Role } from "@/lib/domain/types";
-import { pluralize } from "@/lib/format";
+import type { MessageKey, Translator } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
-import { CHANNEL_ICONS } from "./admin-badges";
-import { ROLE_ORDER } from "./admin-format";
+import { broadcastChannelLabel, CHANNEL_ICONS } from "./admin-badges";
+import { countLabel, ROLE_ORDER } from "./admin-format";
 
 export interface BroadcastComposerProps {
     /** Active accounts per role, for the live recipient estimate. */
@@ -29,32 +29,32 @@ export interface BroadcastComposerProps {
     timezone: string;
 }
 
-const CHANNEL_DESCRIPTIONS: Record<BroadcastChannel, string> = {
-    in_app: "Appears in the notification bell.",
-    email: "Sent to their email address only.",
-    in_app_email: "Both — for important announcements.",
-};
+const CHANNELS = ["in_app", "email", "in_app_email"] as const;
 
-const CHANNEL_OPTIONS: ChoiceOption<BroadcastChannel>[] = (["in_app", "email", "in_app_email"] as const).map((value) => ({
-    value,
-    label: BROADCAST_CHANNEL_LABELS[value],
-    icon: CHANNEL_ICONS[value],
-    description: CHANNEL_DESCRIPTIONS[value],
-}));
+function channelOptions(t: Translator): ChoiceOption<BroadcastChannel>[] {
+    return CHANNELS.map((value) => ({
+        value,
+        label: broadcastChannelLabel(t, value),
+        icon: CHANNEL_ICONS[value],
+        description: t(`screens.admin.composer.channel.${value}` as MessageKey),
+    }));
+}
 
 const BODY_MAX = 1000;
 
-const ROLE_PLURALS: Record<Role, string> = {
-    fighter: "Fighters",
-    coach: "Coaches",
-    doctor: "Sports doctors",
-    admin: "Administrators",
+const rolePlural = (t: Translator, role: Role) => t(`screens.admin.rolePlural.${role}` as MessageKey);
+
+const CONFIRM_KEYS: Record<BroadcastChannel, MessageKey> = {
+    in_app: "screens.admin.composer.confirmInApp",
+    email: "screens.admin.composer.confirmEmail",
+    in_app_email: "screens.admin.composer.confirmBoth",
 };
 
 type Delivery = "now" | "schedule";
 
 /** "New broadcast" button with a dialog to compose, target and send or schedule a broadcast. */
 export function BroadcastComposer({ activeCounts, minSchedule, defaultSchedule, timezone }: BroadcastComposerProps) {
+    const t = useT();
     const toast = useToast();
     const [open, setOpen] = useState(false);
     const [audience, setAudience] = useState<Role[]>([]);
@@ -63,7 +63,13 @@ export function BroadcastComposer({ activeCounts, minSchedule, defaultSchedule, 
     const [confirming, setConfirming] = useState(false);
 
     const recipients = audience.reduce((total, role) => total + activeCounts[role], 0);
-    const submitLabel = delivery === "schedule" ? "Schedule broadcast" : recipients > 0 ? `Send now to ${pluralize(recipients, "person", "people")}` : "Send now";
+    const people = countLabel(t, "screens.admin.count.people", recipients);
+    const submitLabel =
+        delivery === "schedule"
+            ? t("screens.admin.composer.schedule")
+            : recipients > 0
+              ? t("screens.admin.composer.sendNowTo", { people })
+              : t("screens.admin.composer.sendNow");
 
     const openComposer = () => {
         setAudience([]);
@@ -88,19 +94,24 @@ export function BroadcastComposer({ activeCounts, minSchedule, defaultSchedule, 
         <>
             <Button onClick={openComposer}>
                 <Megaphone aria-hidden />
-                New broadcast
+                {t("screens.admin.composer.new")}
             </Button>
             <ActionDialog
                 open={open}
                 onClose={() => setOpen(false)}
                 size="lg"
-                title="New broadcast"
-                description="Announce something to everyone in one or more roles."
+                title={t("screens.admin.composer.new")}
+                description={t("screens.admin.composer.description")}
                 action={createBroadcastAction}
                 prepare={prepare}
                 submitLabel={submitLabel}
-                pendingLabel={delivery === "schedule" ? "Scheduling…" : "Sending…"}
-                onSuccess={(state) => toast({ title: state.data?.status === "scheduled" ? "Broadcast scheduled" : "Broadcast sent", description: state.message })}
+                pendingLabel={delivery === "schedule" ? t("screens.admin.composer.scheduling") : t("screens.admin.composer.sending")}
+                onSuccess={(state) =>
+                    toast({
+                        title: state.data?.status === "scheduled" ? t("screens.admin.composer.scheduledToast") : t("screens.admin.composer.sentToast"),
+                        description: state.message,
+                    })
+                }
             >
                 {(form) => (
                     <>
@@ -126,9 +137,9 @@ export function BroadcastComposer({ activeCounts, minSchedule, defaultSchedule, 
                                 form.submit({ confirmSend: "yes" });
                             }}
                             tone="primary"
-                            title={`Send to ${pluralize(recipients, "person", "people")} now?`}
-                            confirmLabel="Send broadcast"
-                            description={`${audience.map((role) => ROLE_PLURALS[role]).join(", ")} get it ${channel === "in_app" ? "in the app" : channel === "email" ? "by email" : "in the app and by email"} straight away. Sending can't be undone.`}
+                            title={t("screens.admin.composer.confirmTitle", { people })}
+                            confirmLabel={t("screens.admin.composer.confirmButton")}
+                            description={t(CONFIRM_KEYS[channel], { roles: audience.map((role) => rolePlural(t, role)).join(", ") })}
                         />
                     </>
                 )}
@@ -162,10 +173,11 @@ function ComposerFields({
     onDeliveryChange,
     recipients,
 }: ComposerFieldsProps) {
+    const t = useT();
     const [bodyLength, setBodyLength] = useState(0);
     const { control, error } = form;
-    const bodyHint = `${bodyLength} / ${BODY_MAX} characters`;
-    const scheduleHint = `Time in ${timezone}.`;
+    const bodyHint = t("screens.admin.composer.bodyHint", { n: bodyLength, max: BODY_MAX });
+    const scheduleHint = t("screens.admin.composer.scheduleHint", { timezone });
     // Once a role is ticked the audience error is resolved, so the live estimate takes its place again.
     const audienceError = audience.length === 0 ? error("audience") : undefined;
     const audienceId = control("audience").id;
@@ -175,27 +187,27 @@ function ComposerFields({
 
     return (
         <>
-            <Field label="Title" htmlFor={control("title").id} required error={error("title")}>
-                <Input {...control("title", { required: true })} maxLength={120} placeholder="e.g. Gym closed on Sunday for mat replacement" />
+            <Field label={t("screens.admin.composer.title")} htmlFor={control("title").id} required error={error("title")}>
+                <Input {...control("title", { required: true })} maxLength={120} placeholder={t("screens.admin.composer.titlePlaceholder")} />
             </Field>
 
-            <Field label="Message" htmlFor={control("body").id} required hint={bodyHint} error={error("body")}>
+            <Field label={t("screens.admin.composer.message")} htmlFor={control("body").id} required hint={bodyHint} error={error("body")}>
                 <Textarea
                     {...control("body", { hint: bodyHint, required: true })}
                     rows={4}
                     maxLength={BODY_MAX}
                     onChange={(event) => setBodyLength(event.target.value.length)}
-                    placeholder="What people need to know and what, if anything, they should do."
+                    placeholder={t("screens.admin.composer.messagePlaceholder")}
                 />
             </Field>
 
             <fieldset data-invalid={audienceError ? "true" : undefined} className="flex flex-col gap-2" aria-describedby={audienceError ? `${audienceId}-error` : `${audienceId}-estimate`}>
                 <legend className="mb-1 text-sm font-medium text-fg">
-                    Audience
+                    {t("screens.admin.composer.audience")}
                     <span className="ml-0.5 text-danger-fg" aria-hidden>
                         *
                     </span>
-                    <span className="sr-only"> (required)</span>
+                    <span className="sr-only"> {t("screens.admin.common.required")}</span>
                 </legend>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {ROLE_ORDER.map((role) => (
@@ -217,8 +229,8 @@ function ComposerFields({
                                 aria-invalid={audienceError ? true : undefined}
                                 className="size-4 shrink-0 accent-[var(--primary)]"
                             />
-                            <span className="flex-1 text-sm font-medium text-fg">{ROLE_PLURALS[role]}</span>
-                            <span className="text-xs text-fg-subtle">{activeCounts[role]} active</span>
+                            <span className="flex-1 text-sm font-medium text-fg">{rolePlural(t, role)}</span>
+                            <span className="text-xs text-fg-subtle">{t("screens.admin.composer.active", { n: activeCounts[role] })}</span>
                         </label>
                     ))}
                 </div>
@@ -230,8 +242,8 @@ function ComposerFields({
                     <p id={`${audienceId}-estimate`} aria-live="polite" className="flex items-center gap-1.5 text-[13px] text-fg-muted">
                         <Users aria-hidden className="size-3.5" />
                         {audience.length === 0
-                            ? "Choose at least one role."
-                            : `Reaches about ${pluralize(recipients, "active account")}. Suspended and invited accounts are skipped.`}
+                            ? t("screens.admin.composer.chooseRole")
+                            : t("screens.admin.composer.reaches", { accounts: countLabel(t, "screens.admin.count.activeAccounts", recipients) })}
                     </p>
                 )}
             </fieldset>
@@ -239,17 +251,17 @@ function ComposerFields({
             <ChoiceGroup
                 id={control("channel").id}
                 name="channel"
-                legend="Channel"
+                legend={t("screens.admin.composer.channel")}
                 variant="compact"
                 columns={3}
-                options={CHANNEL_OPTIONS}
+                options={channelOptions(t)}
                 value={channel}
                 onChange={onChannelChange}
                 error={error("channel")}
             />
 
             <fieldset className="flex flex-col gap-2">
-                <legend className="mb-1 text-sm font-medium text-fg">Delivery</legend>
+                <legend className="mb-1 text-sm font-medium text-fg">{t("screens.admin.composer.delivery")}</legend>
                 <div className="flex flex-wrap gap-x-6 gap-y-2">
                     {(["now", "schedule"] as const).map((value) => (
                         <label key={value} className="flex cursor-pointer items-center gap-2 text-sm text-fg">
@@ -261,12 +273,19 @@ function ComposerFields({
                                 onChange={() => onDeliveryChange(value)}
                                 className="size-4 accent-[var(--primary)]"
                             />
-                            {value === "now" ? "Send now" : "Schedule for later"}
+                            {value === "now" ? t("screens.admin.composer.sendNow") : t("screens.admin.composer.later")}
                         </label>
                     ))}
                 </div>
                 <div className={cn(delivery !== "schedule" && "hidden")}>
-                    <Field label="Send at" htmlFor={control("scheduledFor").id} required hint={scheduleHint} error={error("scheduledFor")} className="sm:max-w-xs">
+                    <Field
+                        label={t("screens.admin.composer.sendAt")}
+                        htmlFor={control("scheduledFor").id}
+                        required
+                        hint={scheduleHint}
+                        error={error("scheduledFor")}
+                        className="sm:max-w-xs"
+                    >
                         <Input
                             {...control("scheduledFor", { hint: scheduleHint, required: true })}
                             type="datetime-local"
@@ -276,7 +295,7 @@ function ComposerFields({
                         />
                     </Field>
                 </div>
-                {delivery === "now" && <p className="text-[13px] text-fg-subtle">Sending can&apos;t be undone. In-app notifications arrive immediately.</p>}
+                {delivery === "now" && <p className="text-[13px] text-fg-subtle">{t("screens.admin.composer.noUndo")}</p>}
             </fieldset>
         </>
     );
