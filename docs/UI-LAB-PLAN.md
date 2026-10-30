@@ -72,3 +72,23 @@ Toàn bộ code thử nằm trong `src/app/(app)/lab/` và `src/components/lab/`
 | B5 | **Thử trên máy trình chiếu và backend thật** (cùng T-040): đo khung hình, bật `dpr` thấp hoặc tắt 3D nếu giật, chạy lại kịch bản demo | 8/11–9/11 | T-040 | Tổng duyệt 9/11 không giật, không có màn lỗi |
 
 **Cần Hoàng Anh quyết:** bản A (Hologram) hay B (Lâm sàng) cho body map (trước B2), bản A hay B cho replay (trước B4), commit ở B0.
+
+## 7. Đợt 3 (30/10): model 3D thật và đưa vào màn
+
+> Chốt 30/10 với Hoàng Anh. Model: `muscular-v6e-native.glb` (nam, tư thế chữ A, 35k tam giác, 0,7 MB, không có khung xương; "Male base muscular anatomy" của Harshit Prajapati, CC BY 4.0). Nền 3D **trong suốt** (không khung sân khấu tối), body map bản **A (Hologram)**, replay bản **A**. Các màn của bác sĩ (`doctor/*`, `InjuryOverview`) để Fon làm, đợt này không sửa.
+
+**Nhánh:** `feat/T-042-043-ui-3d`, tạo từ HEAD đã commit của `fix/T-032-demo-fixes` (5546fea), vì màn trận và màn hiệp (T-004, T-010B) chưa có trên `fight-camp`. Phần T-032 chưa commit vẫn để nguyên ở thư mục chính. Khi merge thì merge sau T-004/T-010B, hoặc merge `fight-camp` vào trước.
+
+| # | Việc | Xong khi |
+| --- | --- | --- |
+| G1 | Đưa model vào `public/models/fighter-body.glb`, ghi nguồn và giấy phép (`public/models/ATTRIBUTION.md`, dòng ghi công nhỏ dưới hình) | File nằm trong repo, ghi đúng tác giả và CC BY 4.0 |
+| G2 | `components/fighter-3d/body/`: chuyển body map từ `lab/body3d` sang. Tách **nguồn hình** (`BodyModel`: geometry, 22 điểm vùng, `regionAt`) khỏi material và rig. Có hai nguồn: model GLB (võ sĩ nam) và hình nhân dựng bằng code (võ sĩ nữ, hoặc khi GLB lỗi). Đặt chân ở y = 0, cao 1,75 m, mặt hướng +Z. 21 vùng căn lại theo model, dùng 16 kênh khớp có sẵn trong file (vai, khuỷu, bàn tay, hông, gối, cổ chân, lưng) và lát cắt hình học cho các vùng còn lại | Bấm vào vùng nào trên model thì ra đúng tên vùng đó (có test); `/lab` vẫn chạy |
+| G3 | **Nền trong suốt**: canvas alpha, bỏ nền sân khấu; ghim nhãn và nút dùng token của trang, đọc được ở cả theme sáng và tối | Ảnh chụp sáng, tối, điện thoại |
+| G4 | **B1 hồ sơ HLV** (`coach/fighters/[id]`): `FighterProfileHeader` thêm ô `figure` (không truyền thì giữ avatar như cũ, nên màn bác sĩ không đổi). Hình 3D của võ sĩ: chiều cao theo `heightCm`, độ đậm người theo BMI; trên hình có thước chiều cao, sải tay, cân nặng so với giới hạn hạng cân; chấn thương đang mở sáng lên đúng vùng | Số liệu khớp hồ sơ; nữ ra hình nữ; không WebGL thì quay về avatar |
+| G5 | **B2 màn võ sĩ**: `BodyMapAuto` nhận đúng props của `BodyMap`, thay ở `fighter/health` và `fighter/health/injuries/[id]` (camera bay tới vùng chấn thương). Dùng 2D khi reduced motion, khi không có WebGL hoặc khi in | Vùng sáng đúng dữ liệu; quay về 2D đúng lúc |
+| G6 | **B4 replay A** ở `coach/bouts/[id]/rounds`, chỉ dùng `RoundRecord` đã ghi. Thêm vào `page.tsx`, không sửa `rounds-view.tsx` (đang có thay đổi T-032) | Phát lại R1→Rn từ dữ liệu demo; chưa có hiệp nào thì không hiện |
+| G7 | **B3 chuyển động**: audit bằng skill `find-animation-opportunities` và `emil-design-eng`; làm các mục ưu tiên cao, không sửa component dùng chung của người khác | Báo cáo trong `docs/UI-MOTION-AUDIT.md` |
+| G8 | **Kiểm tra demo mode**: lint, typecheck, toàn bộ test, `next build` ở API mode; Playwright đi qua các màn của HLV, võ sĩ, bác sĩ, admin (không lỗi console, không màn lỗi), chụp ảnh màn mới ở desktop, điện thoại, theme sáng và tối, chế độ `lite` | Không lỗi mới so với trước; ảnh lưu lại |
+| G9 | Commit theo từng bước, push `feat/T-042-043-ui-3d` lên origin (không merge). Xoá bản sao chưa commit của phần 3D khỏi thư mục chính để không lẫn vào commit T-032 | Remote có nhánh; `git status` ở thư mục chính chỉ còn phần T-032 |
+
+Chưa làm đợt này: chạy thử trên máy trình chiếu (B5, cần T-040); vùng bị đánh trúng trong replay (cần Dan và Fon chốt `hitRegions`); body map ở màn bác sĩ (Fon).

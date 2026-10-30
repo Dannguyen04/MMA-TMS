@@ -6,7 +6,7 @@ import { useCallback, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { TONE_FILL, TONE_SOFT } from "@/components/ui/tone";
 import { cn } from "@/lib/utils";
-import { BodyStage, type StageHighlight } from "../body3d/body-stage";
+import { BodyStage, type StageHighlight } from "@/components/fighter-3d/body/body-stage";
 import { LAB_FIGHTER, type LabRound } from "../lab-data";
 import styles from "../lab.module.css";
 import { useReducedMotion } from "@/components/fighter-3d/use-graphics";
@@ -50,6 +50,7 @@ export function BodyRoundsReplay() {
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
             <BodyStage
                 look="hologram"
+                model="muscular"
                 highlights={body.highlights}
                 dim={body.dim}
                 scanKey={recorded}
@@ -58,11 +59,11 @@ export function BodyRoundsReplay() {
             >
                 <div className="flex items-start justify-between gap-3">
                     <div key={heading} className={styles.rise}>
-                        <p className="font-display text-[34px] leading-none font-extrabold text-nav-fg-active italic">{heading}</p>
-                        <p className="mt-1 text-[13px] text-nav-fg">
+                        <p className="font-display text-[34px] leading-none font-extrabold text-fg italic">{heading}</p>
+                        <p className="mt-1 text-[13px] text-fg-muted">
                             {resting ? (
                                 <>
-                                    Góc đài còn <span ref={clock} className="font-semibold text-nav-fg-active tabular-nums">60 s</span>
+                                    Góc đài còn <span ref={clock} className="font-semibold text-fg tabular-nums">60 s</span>
                                 </>
                             ) : live ? (
                                 "Đang đấu, chờ HLV ghi cuối hiệp"

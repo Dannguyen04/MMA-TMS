@@ -86,6 +86,10 @@
     --nav-fg-active: #ffffff;
     --nav-accent: #4d94ec;
 
+    /* 3D figures drawn straight on the page (transparent canvas): body and rim light per theme. */
+    --figure-body: #1c2b45;
+    --figure-rim: #4d94ec;
+
     /* Semantic tones: soft background / text on soft / solid fill / border */
     --success-soft: #e6f5eb;
     --success-fg: #176b34;
@@ -158,6 +162,9 @@
     --fg-muted: #aab6ca;
     --fg-subtle: #8e9bb2;
     --fg-inverse: #0d1626;
+
+    --figure-body: #3a5378;
+    --figure-rim: #7fb4ff;
 
     --primary: #3a6be6;
     --primary-hover: #4d7cf0;
@@ -246,6 +253,9 @@
         --fg-muted: #aab6ca;
         --fg-subtle: #8e9bb2;
         --fg-inverse: #0d1626;
+
+        --figure-body: #3a5378;
+        --figure-rim: #7fb4ff;
 
         --primary: #3a6be6;
         --primary-hover: #4d7cf0;

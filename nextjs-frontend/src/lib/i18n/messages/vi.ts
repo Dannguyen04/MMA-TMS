@@ -12,6 +12,7 @@ import { viFighterToday } from "./fighter-today.vi";
 import { viHealth } from "./health.vi";
 import { viTraining } from "./training.vi";
 import { viLanding } from "./landing.vi";
+import { viFigure3d } from "./figure3d.vi";
 import type { en } from "./en";
 
 /** Vietnamese interface text. Must define every key of `en` (enforced by the type below). */
@@ -30,6 +31,7 @@ export const vi = {
     ...viHealth,
     ...viTraining,
     ...viLanding,
+    ...viFigure3d,
     "nav.Today": "Hôm nay",
     "nav.Bout": "Trận đấu",
     "nav.Bouts": "Trận đấu",

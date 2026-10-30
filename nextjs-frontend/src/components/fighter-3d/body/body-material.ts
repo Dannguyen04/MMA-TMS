@@ -1,18 +1,17 @@
 import * as THREE from "three";
 
-import { REGION_SPOTS } from "./anatomy";
+import { SPOT_COUNT, type RegionSpot } from "./regions";
 
 /**
  * One material, two looks:
  * - "hologram": the landing's sports-medicine look. Dark body, bright silhouette edge, fine scanlines,
  *   and a scan band that sweeps head to toe and switches each region on as it passes.
  * - "clinical": matte clay under a soft key light, regions painted in their tone like a marked chart.
- * Highlights are per spot (see anatomy.ts); a pulsing spot also sends a ripple across the surface.
+ * Highlights are per spot (see regions.ts); a pulsing spot also sends a ripple across the surface.
+ * The canvas is transparent: the figure stands straight on the page.
  */
 
 export type BodyLook = "hologram" | "clinical";
-
-export const SPOT_COUNT = REGION_SPOTS.length;
 
 export interface BodyUniforms {
     uLook: { value: number };
@@ -116,19 +115,21 @@ const fragmentShader = /* glsl */ `
     }
 `;
 
-export function createBodyMaterial(): { material: THREE.ShaderMaterial; uniforms: BodyUniforms } {
+/** `spots`: the model's spots, in `SPOT_REGIONS` order. */
+export function createBodyMaterial(spots: readonly RegionSpot[]): { material: THREE.ShaderMaterial; uniforms: BodyUniforms } {
+    if (spots.length !== SPOT_COUNT) throw new Error(`A body model needs ${SPOT_COUNT} spots, got ${spots.length}.`);
     const uniforms: BodyUniforms = {
         uLook: { value: 0 },
         uTime: { value: 0 },
         uScan: { value: 2.2 },
         uBase: { value: new THREE.Color() },
         uRim: { value: new THREE.Color() },
-        uSpotPos: { value: REGION_SPOTS.map((s) => s.center.clone()) },
-        uSpotRadius: { value: REGION_SPOTS.map((s) => s.radius) },
-        uSpotColor: { value: REGION_SPOTS.map(() => new THREE.Color()) },
-        uSpotAmp: { value: REGION_SPOTS.map(() => 0) },
-        uSpotPulse: { value: REGION_SPOTS.map(() => 0) },
-        uSpotFocus: { value: REGION_SPOTS.map(() => 0) },
+        uSpotPos: { value: spots.map((s) => s.center.clone()) },
+        uSpotRadius: { value: spots.map((s) => s.radius) },
+        uSpotColor: { value: spots.map(() => new THREE.Color()) },
+        uSpotAmp: { value: spots.map(() => 0) },
+        uSpotPulse: { value: spots.map(() => 0) },
+        uSpotFocus: { value: spots.map(() => 0) },
         uDim: { value: 1 },
     };
     const material = new THREE.ShaderMaterial({ uniforms: uniforms as unknown as Record<string, THREE.IUniform>, vertexShader, fragmentShader });

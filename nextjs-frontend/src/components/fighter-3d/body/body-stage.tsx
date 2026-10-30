@@ -2,19 +2,25 @@
 
 import { RotateCcw, ScanLine } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 
 import { BodyMap } from "@/components/domain/body-map";
+import { useLocale, useT } from "@/components/i18n/locale-provider";
 import type { Tone } from "@/components/ui/tone";
 import { bodyRegionLabel } from "@/lib/domain/labels";
 import type { BodyRegion } from "@/lib/domain/types";
 import { cn } from "@/lib/utils";
-import styles from "../lab.module.css";
-import { useReducedMotion, useThemeTokens, useWebGL } from "@/components/fighter-3d/use-graphics";
+import { useReducedMotion, useThemeTokens, useWebGL } from "../use-graphics";
 import type { BodyLook } from "./body-material";
+import { NEUTRAL_BUILD, type FigureBuild } from "./body-rig";
 import type { SceneHighlight } from "./body-scene";
+import styles from "./body.module.css";
+import type { BodyModelKind } from "./regions";
 
 const BodyScene = dynamic(() => import("./body-scene"), { ssr: false });
+
+/** Author of the scanned model, credited under every body that shows it (CC BY 4.0). */
+const MODEL_AUTHOR = "Harshit Prajapati";
 
 export interface StageHighlight {
     region: BodyRegion;
@@ -28,7 +34,7 @@ export interface StageHighlight {
     pinned?: boolean;
 }
 
-const TONE_TOKEN: Record<Tone, string> = {
+export const TONE_TOKEN: Record<Tone, string> = {
     neutral: "neutral-solid",
     primary: "primary",
     success: "success-solid",
@@ -46,14 +52,17 @@ const TOKENS = [
     "danger-solid",
     "info-solid",
     "ai-solid",
-    "nav-surface",
-    "nav-accent",
+    "figure-body",
+    "figure-rim",
     "border-strong",
     "fg-subtle",
 ] as const;
 
 export interface BodyStageProps {
-    look: BodyLook;
+    look?: BodyLook;
+    /** Which figure to draw (see `bodyModelFor`); the mannequin stands in if the scan cannot load. */
+    model?: BodyModelKind;
+    build?: FigureBuild;
     highlights: StageHighlight[];
     selected?: BodyRegion | null;
     onSelect?: (region: BodyRegion | null) => void;
@@ -69,9 +78,14 @@ export interface BodyStageProps {
     children?: ReactNode;
 }
 
-/** The 3D body on its stage: drag to turn, tap a region, pins that follow the body. Falls back to the 2D map without WebGL. */
+/**
+ * The 3D body standing straight on the page (transparent canvas): drag to turn, tap a region, pins
+ * that follow the body. Falls back to the 2D map without WebGL.
+ */
 export function BodyStage({
-    look,
+    look = "hologram",
+    model = "mannequin",
+    build = NEUTRAL_BUILD,
     highlights,
     selected = null,
     onSelect,
@@ -84,6 +98,8 @@ export function BodyStage({
     ariaLabel,
     children,
 }: BodyStageProps) {
+    const t = useT();
+    const locale = useLocale();
     const tokens = useThemeTokens(TOKENS);
     const webgl = useWebGL();
     const reduced = useReducedMotion();
@@ -96,6 +112,8 @@ export function BodyStage({
     const [visible, setVisible] = useState(false);
     const [facingBack, setFacingBack] = useState(false);
     const [narrow, setNarrow] = useState(false);
+    const [shown, setShown] = useState<BodyModelKind | null>(null);
+    const onModel = useCallback((kind: BodyModelKind) => setShown(kind), []);
 
     useEffect(() => {
         const el = root.current;
@@ -119,23 +137,25 @@ export function BodyStage({
         [highlights, tokens],
     );
     const pins = highlights.filter((h) => h.pinned);
-    const palette = tokens
-        ? look === "hologram"
-            ? { base: tokens["nav-surface"], rim: tokens["nav-accent"] }
-            : { base: tokens["border-strong"], rim: tokens["fg-subtle"] }
-        : null;
+    const palette = useMemo(
+        () =>
+            tokens
+                ? look === "hologram"
+                    ? { base: tokens["figure-body"], rim: tokens["figure-rim"] }
+                    : { base: tokens["border-strong"], rim: tokens["fg-subtle"] }
+                : null,
+        [tokens, look],
+    );
 
     const turn = (back: boolean) => {
         yaw.current = back ? Math.PI : 0;
         setFacingBack(back);
     };
 
-    const stageClass = cn("relative isolate overflow-hidden rounded-2xl", look === "hologram" ? styles.stageHologram : styles.stageClinical, className);
-
     if (webgl === false) {
         return (
-            <div className={cn(stageClass, "flex items-center justify-center p-6")}>
-                <BodyMap highlights={highlights.map(({ region, tone, label }) => ({ region, tone, label }))} size="md" />
+            <div className={cn("relative flex items-center justify-center p-6", className)}>
+                <BodyMap highlights={highlights.map(({ region, tone, label }) => ({ region, tone, label }))} size="md" locale={locale} />
             </div>
         );
     }
@@ -143,7 +163,7 @@ export function BodyStage({
     return (
         <div
             ref={root}
-            className={cn(stageClass, hovered && onSelect ? "cursor-pointer" : "cursor-grab")}
+            className={cn("relative isolate", hovered && onSelect ? "cursor-pointer" : "cursor-grab", className)}
             onPointerDown={(e) => {
                 drag.current = { x: e.clientX, moved: 0 };
             }}
@@ -168,6 +188,8 @@ export function BodyStage({
                 <div className="absolute inset-0">
                     <BodyScene
                         look={look}
+                        model={model}
+                        build={build}
                         highlights={sceneHighlights}
                         palette={palette}
                         focus={zoomOnSelect ? selected : null}
@@ -184,6 +206,7 @@ export function BodyStage({
                         labels={labels}
                         ariaLabel={ariaLabel}
                         compact={compact || narrow}
+                        onModel={onModel}
                     />
                 </div>
             )}
@@ -198,7 +221,7 @@ export function BodyStage({
                     >
                         <span className={styles.pinDot} />
                         <span className={styles.pinTag}>
-                            {bodyRegionLabel(pin.region, "vi")}
+                            {bodyRegionLabel(pin.region, locale)}
                             {!narrow && <span className={look === "hologram" ? "font-normal text-nav-fg" : "font-normal text-fg-muted"}>{pin.label}</span>}
                         </span>
                     </div>
@@ -209,14 +232,7 @@ export function BodyStage({
 
             {!bare && (
                 <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 p-3 sm:p-4">
-                    <div
-                        role="group"
-                        aria-label="Hướng nhìn"
-                        className={cn(
-                            "inline-flex rounded-lg p-0.5 text-[13px] font-medium",
-                            look === "hologram" ? "bg-nav-surface/85 text-nav-fg ring-1 ring-nav-border" : "bg-surface text-fg-muted shadow-card ring-1 ring-border",
-                        )}
-                    >
+                    <div role="group" aria-label={t("figure3d.view.group")} className="inline-flex rounded-lg bg-surface/90 p-0.5 text-[13px] font-medium text-fg-muted shadow-card ring-1 ring-border">
                         {[false, true].map((back) => (
                             <button
                                 key={String(back)}
@@ -224,32 +240,36 @@ export function BodyStage({
                                 aria-pressed={facingBack === back}
                                 onClick={() => turn(back)}
                                 className={cn(
-                                    "h-8 rounded-md px-3 transition-colors focus-visible:outline-2 focus-visible:outline-ring",
-                                    facingBack === back && (look === "hologram" ? "bg-nav-accent/25 text-nav-fg-active" : "bg-primary-soft text-primary-soft-fg"),
+                                    "h-8 rounded-md px-3 transition-[background-color,color,scale] duration-150 ease-out focus-visible:outline-2 focus-visible:outline-ring active:scale-[0.97]",
+                                    facingBack === back ? "bg-primary-soft text-primary-soft-fg" : "hover:text-fg",
                                 )}
                             >
-                                {back ? "Mặt sau" : "Mặt trước"}
+                                {back ? t("figure3d.view.back") : t("figure3d.view.front")}
                             </button>
                         ))}
                     </div>
                     <div className="flex items-center gap-2">
-                        <span className={cn("hidden text-xs sm:inline", look === "hologram" ? "text-nav-fg" : "text-fg-subtle")}>Kéo để xoay</span>
+                        <span className="hidden text-xs text-fg-subtle sm:inline">{t("figure3d.dragHint")}</span>
                         <button
                             type="button"
                             onClick={() => {
                                 turn(false);
                                 setScan((n) => n + 1);
                             }}
-                            aria-label="Quét lại cơ thể"
-                            className={cn(
-                                "inline-flex size-9 items-center justify-center rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-ring [&_svg]:size-4",
-                                look === "hologram" ? "bg-nav-surface/85 text-nav-fg-active ring-1 ring-nav-border hover:bg-nav-surface" : "bg-surface text-fg shadow-card ring-1 ring-border hover:bg-surface-hover",
-                            )}
+                            aria-label={t("figure3d.rescan")}
+                            title={t("figure3d.rescan")}
+                            className="inline-flex size-9 items-center justify-center rounded-lg bg-surface/90 text-fg shadow-card ring-1 ring-border transition-[background-color,scale] duration-150 ease-out hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-ring active:scale-[0.97] [&_svg]:size-4"
                         >
                             {look === "hologram" ? <ScanLine aria-hidden /> : <RotateCcw aria-hidden />}
                         </button>
                     </div>
                 </div>
+            )}
+
+            {shown === "muscular" && (
+                <p className={cn("pointer-events-none absolute right-3 text-[10px] leading-none text-fg-subtle", bare ? "bottom-1" : "top-2")}>
+                    {t("figure3d.credit", { author: MODEL_AUTHOR })}
+                </p>
             )}
         </div>
     );

@@ -1,8 +1,8 @@
 import * as THREE from "three";
 
 import type { BodyRegion } from "@/lib/domain/types";
-import { REGION_ANCHOR, REGION_SPOTS, createMannequinGeometry } from "./anatomy";
 import { createBodyMaterial, type BodyLook, type BodyUniforms } from "./body-material";
+import { MODEL_HEIGHT, regionAnchors, regionAt, type BodyModel, type RegionSpot } from "./regions";
 
 export interface RigHighlight {
     region: BodyRegion;
@@ -10,6 +10,17 @@ export interface RigHighlight {
     strength: number;
     pulse: boolean;
 }
+
+/**
+ * The fighter's build relative to the 1.75 m model: `height` scales the whole figure, `width` only
+ * across (x, z). 1 = the model as built.
+ */
+export interface FigureBuild {
+    height: number;
+    width: number;
+}
+
+export const NEUTRAL_BUILD: FigureBuild = { height: 1, width: 1 };
 
 const SCAN_FROM = 1.95;
 const SCAN_TO = -0.12;
@@ -26,14 +37,25 @@ export interface RigFrame {
 }
 
 /**
- * Owns the mannequin's geometry, material and per-frame state, so the React side only calls methods
- * (the same split as the landing's world). The scene keeps one rig for its whole life.
+ * Owns one body model's geometry, its material and the per-frame state, so the React side only calls
+ * methods (the same split as the landing's world). A scene keeps one rig per model for its whole life.
  */
 export class BodyRig {
-    readonly geometry = createMannequinGeometry();
-    private readonly shader = createBodyMaterial();
+    readonly geometry: THREE.BufferGeometry;
+    private readonly spots: readonly RegionSpot[];
+    private readonly anchors: Map<BodyRegion, RegionSpot>;
+    private readonly shader: { material: THREE.ShaderMaterial; uniforms: BodyUniforms };
+    private build: FigureBuild = NEUTRAL_BUILD;
     private scanStart: number | null = null;
     private readonly lookAt = new THREE.Vector3(0, 0.92, 0);
+    private readonly anchorWorld = new THREE.Vector3();
+
+    constructor(model: BodyModel) {
+        this.geometry = model.geometry;
+        this.spots = model.spots;
+        this.anchors = regionAnchors(model.spots);
+        this.shader = createBodyMaterial(model.spots);
+    }
 
     get material(): THREE.ShaderMaterial {
         return this.shader.material;
@@ -43,15 +65,28 @@ export class BodyRig {
         return this.shader.uniforms;
     }
 
+    /** The region under a point given in the mesh's own space. */
+    regionAt(point: THREE.Vector3): BodyRegion | null {
+        return regionAt(this.spots, point);
+    }
+
+    anchor(region: BodyRegion): RegionSpot | undefined {
+        return this.anchors.get(region);
+    }
+
     setLook(look: BodyLook, base: string, rim: string) {
         this.u.uLook.value = look === "hologram" ? 0 : 1;
         this.u.uBase.value.setStyle(base);
         this.u.uRim.value.setStyle(rim);
     }
 
+    setBuild(build: FigureBuild) {
+        this.build = build;
+    }
+
     setHighlights(highlights: RigHighlight[]) {
         const byRegion = new Map(highlights.map((h) => [h.region, h]));
-        REGION_SPOTS.forEach((s, i) => {
+        this.spots.forEach((s, i) => {
             const h = byRegion.get(s.region);
             this.u.uSpotAmp.value[i] = h ? h.strength : 0;
             this.u.uSpotPulse.value[i] = h?.pulse ? 1 : 0;
@@ -60,7 +95,7 @@ export class BodyRig {
     }
 
     setFocus(regions: (BodyRegion | null)[]) {
-        REGION_SPOTS.forEach((s, i) => {
+        this.spots.forEach((s, i) => {
             this.u.uSpotFocus.value[i] = regions.includes(s.region) ? 1 : 0;
         });
     }
@@ -72,6 +107,7 @@ export class BodyRig {
 
     update(frame: RigFrame, group: THREE.Group, camera: THREE.Camera) {
         const { time, delta } = frame;
+        const { height, width } = this.build;
         this.u.uTime.value = time;
         this.u.uDim.value += (frame.dim - this.u.uDim.value) * Math.min(1, delta * 4);
 
@@ -80,13 +116,25 @@ export class BodyRig {
         const eased = 1 - Math.pow(1 - progress, 3);
         this.u.uScan.value = SCAN_FROM + (SCAN_TO - SCAN_FROM) * eased;
 
+        group.scale.set(height * width, height, height * width);
         group.rotation.y += (frame.yaw - group.rotation.y) * Math.min(1, delta * 6);
         group.position.y = frame.animate ? Math.sin(time * 1.6) * 0.004 : 0;
+        group.updateMatrixWorld();
 
-        // Frame the whole body, or move in on the focused region.
-        const anchor = frame.focus ? REGION_ANCHOR.get(frame.focus) : undefined;
-        const wantLook = anchor ? new THREE.Vector3(anchor.center.x * 0.5, anchor.center.y, 0) : new THREE.Vector3(0, 0.92, 0);
-        const wantPos = anchor ? new THREE.Vector3(wantLook.x, wantLook.y + 0.08, frame.distance * 0.62) : new THREE.Vector3(0, 1.0, frame.distance);
+        // Frame the whole body (the camera keeps its distance, so a taller fighter stands taller), or
+        // move in on the focused region.
+        const anchor = frame.focus ? this.anchors.get(frame.focus) : undefined;
+        let wantLook: THREE.Vector3;
+        let wantPos: THREE.Vector3;
+        if (anchor) {
+            this.anchorWorld.copy(anchor.center).applyMatrix4(group.matrixWorld);
+            wantLook = new THREE.Vector3(this.anchorWorld.x * 0.5, this.anchorWorld.y, 0);
+            wantPos = new THREE.Vector3(wantLook.x, wantLook.y + 0.08, frame.distance * 0.62);
+        } else {
+            const middle = (MODEL_HEIGHT / 2) * Math.max(1, height) + 0.05;
+            wantLook = new THREE.Vector3(0, middle, 0);
+            wantPos = new THREE.Vector3(0, middle + 0.08, frame.distance);
+        }
         const k = Math.min(1, delta * (frame.animate ? 3.2 : 60));
         this.lookAt.lerp(wantLook, k);
         camera.position.lerp(wantPos, k);

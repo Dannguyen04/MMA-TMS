@@ -13,8 +13,8 @@ import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import styles from "../lab.module.css";
 import { LAB_CLEARANCE, LAB_FIGHTER, LAB_INJURIES, LAB_NOW, LAB_SESSIONS, type LabPlannedSession } from "../lab-data";
-import type { BodyLook } from "./body-material";
-import { BodyStage, type StageHighlight } from "./body-stage";
+import type { BodyLook } from "@/components/fighter-3d/body/body-material";
+import { BodyStage, type StageHighlight } from "@/components/fighter-3d/body/body-stage";
 
 type Layer = "injuries" | "restrictions" | "plan";
 
@@ -94,12 +94,12 @@ export function BodyViewer({ look }: { look: BodyLook }) {
     const openInjuries = LAB_INJURIES.filter((i) => i.status !== "resolved");
     const regionInjuries = selected ? LAB_INJURIES.filter((i) => i.bodyRegion === selected) : [];
     const regionRestrictions = selected ? LAB_CLEARANCE.restrictions.filter((r) => r.blockedRegions.includes(selected)) : [];
-    const holo = look === "hologram";
 
     return (
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
             <BodyStage
                 look={look}
+                model="muscular"
                 highlights={highlights}
                 selected={selected}
                 onSelect={setSelected}
@@ -110,8 +110,8 @@ export function BodyViewer({ look }: { look: BodyLook }) {
             >
                 <div className="flex items-start justify-between gap-3">
                     <div>
-                        <p className={cn("font-display text-2xl leading-none font-extrabold italic", holo ? "text-nav-fg-active" : "text-fg")}>{LAB_FIGHTER.name}</p>
-                        <p className={cn("mt-1 hidden text-[13px] sm:block", holo ? "text-nav-fg" : "text-fg-muted")}>
+                        <p className={cn("font-display text-2xl leading-none font-extrabold italic", "text-fg")}>{LAB_FIGHTER.name}</p>
+                        <p className={cn("mt-1 hidden text-[13px] sm:block", "text-fg-muted")}>
                             {LAB_FIGHTER.weightClass} · đấu {formatDate(LAB_FIGHTER.fightDate, "vi")}
                         </p>
                     </div>

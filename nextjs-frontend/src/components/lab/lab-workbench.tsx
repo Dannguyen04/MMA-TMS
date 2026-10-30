@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Tabs } from "@/components/ui/tabs";
-import type { BodyLook } from "./body3d/body-material";
+import type { BodyLook } from "@/components/fighter-3d/body/body-material";
 import { BodyViewer } from "./body3d/body-viewer";
 import { CampTimeline } from "./camp/camp-timeline";
 import { BodyRoundsReplay } from "./replay/body-rounds-replay";

@@ -17,6 +17,7 @@ import { enFighterToday } from "./fighter-today.en";
 import { enHealth } from "./health.en";
 import { enTraining } from "./training.en";
 import { enLanding } from "./landing.en";
+import { enFigure3d } from "./figure3d.en";
 
 export const en = {
     ...enDemoFlow,
@@ -33,6 +34,7 @@ export const en = {
     ...enHealth,
     ...enTraining,
     ...enLanding,
+    ...enFigure3d,
     /* Navigation: keyed by the English label in `navigation.ts`. */
     "nav.Today": "Today",
     "nav.Bout": "Bout",
