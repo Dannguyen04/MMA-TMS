@@ -69,7 +69,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                         <div
                             key={toast.id}
                             role={toast.tone === "error" ? "alert" : "status"}
-                            className="pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-xl border border-border bg-surface p-3.5 shadow-popover"
+                            className="toast-in pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-xl border border-border bg-surface p-3.5 shadow-popover"
                         >
                             <Icon aria-hidden className={cn("mt-0.5 size-[18px] shrink-0", ICON_CLASS[toast.tone])} />
                             <div className="min-w-0 flex-1">

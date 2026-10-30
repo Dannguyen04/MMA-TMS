@@ -914,3 +914,52 @@
 :root[data-graphics="lite"] .landing-label {
     background: rgb(5 6 8 / 88%);
 }
+
+/*
+ * Entrances for the app's overlays (emil-design-eng: ease-out, under 250 ms, never from scale 0).
+ * Exits stay instant: the native <dialog> closes at once, and a dismissed toast is gone.
+ */
+dialog[open] {
+    animation: overlay-in 220ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+dialog[open][data-side="right"] {
+    animation-name: drawer-in;
+}
+
+dialog[open]::backdrop {
+    animation: backdrop-in 200ms ease-out;
+}
+
+.toast-in {
+    animation: overlay-in 220ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+@keyframes overlay-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.98);
+    }
+}
+
+@keyframes drawer-in {
+    from {
+        opacity: 0.6;
+        transform: translateX(32px);
+    }
+}
+
+@keyframes backdrop-in {
+    from {
+        opacity: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    dialog[open],
+    dialog[open][data-side="right"],
+    .toast-in {
+        animation-name: backdrop-in;
+    }
+}
+
