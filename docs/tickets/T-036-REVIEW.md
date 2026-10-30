@@ -98,3 +98,11 @@ Subagent mới, không mang ngữ cảnh, review chỉ đọc trên `acb7850`: c
 Toàn bộ test trên `acb7850`: `Test Files 6 failed | 59 passed (65)`, `Tests 26 failed | 1046 passed (1072)`, 26 lỗi đúng baseline B1, B2.
 
 **Kết luận cuối: APPROVED** (T-036 phần A cùng T-035, T-045 trên `User_Feature`).
+
+## Phần A2 (29/10): buổi "Chờ xếp lại" khi có thêm đình chỉ cần xác nhận
+
+- Nhánh `fix/T-036-a2-pending-on-clearance`. `agy`: argon-high hết quota giữa chừng, `gemini-3.8-flash-high` làm tiếp trong cùng phiên.
+- Ca kiểm thử P1–P7 Claude viết trước code (ticket mục 5b).
+- Lệnh Claude chạy lại: `lint` thoát 0, `build` thoát 0, `db:check` `001-032 checksums OK`, `test:db` `Migration checks passed: 48`, test liên quan `651 passed (651)`, toàn bộ `Tests 26 failed | 1144 passed (1170)` (26 lỗi đúng baseline).
+- Review độc lập (subagent không mang ngữ cảnh): logic đúng quy tắc; đọc và ghi đều qua transaction; chỉ nuốt lỗi bỏ qua của chính nó; không xử lý trùng buổi; thông báo chỉ sau commit; P1–P6 sẽ lỗi nếu code sai. Một mục nên sửa: P7 là test giữ chỗ, tên không khớp nội dung; đã đổi tên cho đúng thứ nó kiểm. N1, N2 của lần review trước đã đạt.
+- **Kết luận: APPROVED.**

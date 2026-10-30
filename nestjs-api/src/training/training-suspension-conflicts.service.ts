@@ -39,6 +39,7 @@ interface AppliedConflictOutcome {
 }
 
 class SessionNoLongerScheduledError extends Error {}
+class SessionNoLongerPendingError extends Error {}
 
 function skipIfNotScheduled(locked: TrainingSessionEntity): void {
   if (locked.status !== 'SCHEDULED') {
@@ -46,26 +47,39 @@ function skipIfNotScheduled(locked: TrainingSessionEntity): void {
   }
 }
 
+function skipIfNotPending(locked: TrainingSessionEntity): void {
+  if (locked.status !== 'PENDING') {
+    throw new SessionNoLongerPendingError();
+  }
+}
+
+function isSessionBlockedBySuspension(
+  session: TrainingSessionEntity,
+  suspension: SuspensionRow,
+): boolean {
+  const isOpenEnded =
+    suspension.requiresClearance && suspension.clearedAt === null;
+  const sessionDate = academyDateOf(new Date(session.scheduledAt));
+  const inPeriod = isOpenEnded
+    ? suspension.startsOn <= sessionDate
+    : suspension.startsOn <= sessionDate && sessionDate <= suspension.endsOn;
+  const typeBlocked = suspension.blockedSessionTypes.includes(
+    session.sessionType,
+  );
+  return inPeriod && typeBlocked;
+}
+
 function filterProposalsForSuspension(
   proposals: ConflictProposal[],
   suspension: SuspensionRow,
   sessions: TrainingSessionEntity[],
 ): ConflictProposal[] {
-  const isOpenEnded =
-    suspension.requiresClearance && suspension.clearedAt === null;
   const sessionById = new Map(sessions.map((s) => [s.id, s]));
 
   return proposals.filter((proposal) => {
     const session = sessionById.get(proposal.sessionId);
     if (!session) return false;
-    const sessionDate = academyDateOf(new Date(session.scheduledAt));
-    const inPeriod = isOpenEnded
-      ? suspension.startsOn <= sessionDate
-      : suspension.startsOn <= sessionDate && sessionDate <= suspension.endsOn;
-    const typeBlocked = suspension.blockedSessionTypes.includes(
-      session.sessionType,
-    );
-    return inPeriod && typeBlocked;
+    return isSessionBlockedBySuspension(session, suspension);
   });
 }
 
@@ -112,10 +126,15 @@ export class TrainingSuspensionConflictsService implements OnModuleInit {
     }
 
     for (const [fighterId, fighterCreated] of byFighter) {
-      const [sessions, existingSuspensions] = await Promise.all([
-        this.loadFighterSessions(fighterId, transaction),
-        this.suspensionsRepo.findSuspensionsByFighterId(fighterId, transaction),
-      ]);
+      const [sessions, pendingSessions, existingSuspensions] =
+        await Promise.all([
+          this.loadFighterSessions(fighterId, transaction),
+          this.loadFighterPendingSessions(fighterId, transaction),
+          this.suspensionsRepo.findSuspensionsByFighterId(
+            fighterId,
+            transaction,
+          ),
+        ]);
 
       const mergedById = new Map<string, SuspensionRow>();
       for (const s of existingSuspensions) mergedById.set(s.id, s);
@@ -123,30 +142,56 @@ export class TrainingSuspensionConflictsService implements OnModuleInit {
       const allSuspensions = [...mergedById.values()];
 
       const allProposals = planConflicts(sessions, allSuspensions);
-      const createdProposalsBySessionId = new Map<string, ConflictProposal>();
+      const mutationsBySessionId = new Map<
+        string,
+        {
+          sessionId: string;
+          action: ConflictAction;
+          onLocked: (locked: TrainingSessionEntity) => void;
+        }
+      >();
       for (const createdSusp of fighterCreated) {
         for (const proposal of filterProposalsForSuspension(
           allProposals,
           createdSusp,
           sessions,
         )) {
-          createdProposalsBySessionId.set(proposal.sessionId, proposal);
+          mutationsBySessionId.set(proposal.sessionId, {
+            sessionId: proposal.sessionId,
+            action: proposal.action,
+            onLocked: skipIfNotScheduled,
+          });
         }
       }
-      const proposals = [...createdProposalsBySessionId.values()].sort((a, b) =>
+      for (const createdSusp of fighterCreated) {
+        if (!createdSusp.requiresClearance) continue;
+        for (const pendingSession of pendingSessions) {
+          if (
+            !mutationsBySessionId.has(pendingSession.id) &&
+            isSessionBlockedBySuspension(pendingSession, createdSusp)
+          ) {
+            mutationsBySessionId.set(pendingSession.id, {
+              sessionId: pendingSession.id,
+              action: 'CANCEL',
+              onLocked: skipIfNotPending,
+            });
+          }
+        }
+      }
+      const mutations = [...mutationsBySessionId.values()].sort((a, b) =>
         a.sessionId.localeCompare(b.sessionId),
       );
       const actorId = fighterCreated[0]!.createdById;
 
-      for (const proposal of proposals) {
+      for (const mutation of mutations) {
         try {
-          if (proposal.action === 'CANCEL') {
+          if (mutation.action === 'CANCEL') {
             const updated =
               await this.sessionService.applySessionCancelInTransaction(
-                proposal.sessionId,
+                mutation.sessionId,
                 SUSPENSION_CONFLICT_CANCELLATION_REASON,
                 transaction,
-                skipIfNotScheduled,
+                mutation.onLocked,
               );
             affectedSessions.push({
               sessionId: updated.id,
@@ -156,9 +201,9 @@ export class TrainingSuspensionConflictsService implements OnModuleInit {
           } else {
             const updated =
               await this.sessionService.applySessionPendingInTransaction(
-                proposal.sessionId,
+                mutation.sessionId,
                 transaction,
-                skipIfNotScheduled,
+                mutation.onLocked,
               );
             affectedSessions.push({
               sessionId: updated.id,
@@ -166,7 +211,10 @@ export class TrainingSuspensionConflictsService implements OnModuleInit {
             });
           }
         } catch (error) {
-          if (error instanceof SessionNoLongerScheduledError) {
+          if (
+            error instanceof SessionNoLongerScheduledError ||
+            error instanceof SessionNoLongerPendingError
+          ) {
             continue;
           }
           throw error;
@@ -403,5 +451,12 @@ export class TrainingSuspensionConflictsService implements OnModuleInit {
     database?: DatabaseExecutor,
   ): Promise<TrainingSessionEntity[]> {
     return this.repo.findScheduledSessionsByFighterId(fighterId, database);
+  }
+
+  private loadFighterPendingSessions(
+    fighterId: string,
+    database?: DatabaseExecutor,
+  ): Promise<TrainingSessionEntity[]> {
+    return this.repo.findPendingSessionsByFighterId(fighterId, database);
   }
 }
