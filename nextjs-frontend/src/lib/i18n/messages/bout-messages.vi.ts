@@ -30,7 +30,7 @@ export const viBoutMessages = {
     "boutMsg.rule.locOver": "mất ý thức trên 1 phút",
     "boutMsg.rule.anyBout": "Mọi trận",
     "boutMsg.rule.days": "{rule}: {days} ngày",
-    "boutMsg.adherenceAlert": "3 ngày qua: {n} lần lệch nhiều.",
+    "boutMsg.adherenceAlert": "3 ngày gần nhất: {n} ngày lệch nhiều.",
     "boutMsg.savedWeight": "Đã lưu {kg} kg.",
     "boutMsg.savedWeightStatus": "Đã lưu {kg} kg. Trạng thái: {status}",
     "boutMsg.countdown.today": "Hôm nay là buổi cân",

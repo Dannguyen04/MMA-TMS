@@ -1,11 +1,11 @@
 import "server-only";
 
-import type { NutritionCheckin, NutritionPhaseKey, NutritionPlan } from "@/lib/domain/bout";
+import type { NutritionCheckin, NutritionPlan } from "@/lib/domain/bout";
 import type { PlanAdherence } from "@/lib/domain/weight-chart";
 
 /**
- * Meal plans and plan answers in API mode. The bouts service has no endpoints for them yet, so they live in this
- * server's memory, keyed by the service's bout id, and are lost when the server restarts.
+ * Meal plans and plan answers in API mode while the bouts service has no endpoints for them (T-009 A, migration
+ * 026). They live in this server's memory, keyed by the service's bout id, and are lost when the server restarts.
  */
 
 interface NutritionMockStore {
@@ -26,15 +26,8 @@ export function mockNutritionPlan(boutId: string): NutritionPlan {
     return store().plans.get(boutId) ?? EMPTY_PLAN;
 }
 
-export function saveMockNutritionPlan(boutId: string, texts: Record<NutritionPhaseKey, string>, authorName: string, now: Date): void {
-    const before = mockNutritionPlan(boutId);
-    const at = now.toISOString();
-    const note = (key: NutritionPhaseKey) => {
-        const text = texts[key].trim();
-        if (!text) return null;
-        return before[key]?.text === text ? before[key] : { text, authorName, updatedAt: at };
-    };
-    store().plans.set(boutId, { camp: note("camp"), fightWeek: note("fightWeek"), postWeighIn: note("postWeighIn") });
+export function setMockNutritionPlan(boutId: string, plan: NutritionPlan): void {
+    store().plans.set(boutId, plan);
 }
 
 export function mockCheckins(boutId: string): NutritionCheckin[] {

@@ -484,10 +484,20 @@ export function createCampStore(todayOn: string): CampStore {
         ...weightSeries("f-linh-pham", day(-14), day(-1), 59.6, 58.4),
     ];
 
+    // T-009 B3: a mostly green week before Kenji slips (his alert line), and Linh on plan through fight week.
     const checkins: NutritionCheckin[] = [
+        checkin("b-kenji-pacific", day(-6), "ON_PLAN", null),
+        checkin("b-kenji-pacific", day(-5), "ON_PLAN", null),
+        checkin("b-kenji-pacific", day(-4), "SLIGHTLY_OFF", "Thêm một bữa phụ buổi tối."),
+        checkin("b-kenji-pacific", day(-3), "ON_PLAN", null),
         checkin("b-kenji-pacific", day(-2), "WAY_OFF", "Ăn ngoài sau buổi đấu tập."),
         checkin("b-kenji-pacific", day(-1), "WAY_OFF", null),
         checkin("b-kenji-pacific", todayOn, "SLIGHTLY_OFF", null),
+        checkin("b-linh-saigon", day(-5), "ON_PLAN", null),
+        checkin("b-linh-saigon", day(-4), "ON_PLAN", null),
+        checkin("b-linh-saigon", day(-3), "SLIGHTLY_OFF", null),
+        checkin("b-linh-saigon", day(-2), "ON_PLAN", null),
+        checkin("b-linh-saigon", day(-1), "ON_PLAN", null),
     ];
 
     const suspensions: Suspension[] = [

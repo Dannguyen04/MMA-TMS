@@ -41,6 +41,7 @@ export const viBoutFighter = {
     "boutFighter.form.save": "Lưu",
 
     /* Nutrition plan form (coach) */
+    "boutFighter.plan.currentPhase": "Đang áp dụng",
     "boutFighter.plan.intro": "Viết những gì võ sĩ nên ăn trong từng giai đoạn. Ứng dụng lưu đúng những gì bạn nhập.",
     "boutFighter.plan.lastEdited": "Sửa lần cuối: {name}, {date}",
     "boutFighter.plan.writtenBy": "Người viết",

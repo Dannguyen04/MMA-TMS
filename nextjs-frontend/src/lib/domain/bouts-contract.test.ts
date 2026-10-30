@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
 
-import { apiBoutSchema, apiRulesetSchema, catchweightBody, createBoutBody, requirementUpdateBody, resultBody, toCampBout, toRuleset, weighInBody } from "./bouts-contract";
+import {
+    apiBoutSchema,
+    apiRulesetSchema,
+    catchweightBody,
+    createBoutBody,
+    nutritionPlanBody,
+    requirementUpdateBody,
+    resultBody,
+    toCampBout,
+    toRuleset,
+    weighInBody,
+} from "./bouts-contract";
 
 const vmmaf = toRuleset(
     apiRulesetSchema.parse({
@@ -156,6 +167,46 @@ describe("bouts contract (T-003 §2)", () => {
             issuedOn: "2026-10-01",
             validUntil: "2027-03-30",
             statusReason: null,
+        });
+    });
+
+    describe("meal plan (T-009 §A2)", () => {
+        const row = {
+            id: "b-1",
+            fighterId: "f-1",
+            coachId: "c-1",
+            rulesetId: "rs-1",
+            eventName: "Lotus Fight Night 18",
+            weightClassCode: "60",
+            weightLimitKg: "60.00",
+            acuteLossLimitPct: 8,
+            requirementsDueDays: 7,
+            weighInAt: "2026-10-22T03:00:00.000Z",
+            boutAt: "2026-10-23T12:00:00.000Z",
+            status: "FIGHT_WEEK",
+            createdAt: "2026-10-01T09:00:00.000Z",
+        };
+        const fallback = { camp: { text: "Kept in memory", authorName: "Rafael", updatedAt: "2026-10-02T00:00:00.000Z" }, fightWeek: null, postWeighIn: null };
+
+        it("reads the service's plan, missing phases as empty", () => {
+            const bout = toCampBout(
+                apiBoutSchema.parse({ ...row, nutritionPlan: { fightWeek: { text: "Ít muối", author: "Chuyên gia Lan", updatedAt: "2026-10-18T01:00:00.000Z", updatedById: "u-9" } } }),
+                vmmaf,
+                fallback,
+            );
+            expect(bout.nutritionPlan).toEqual({ camp: null, fightWeek: { text: "Ít muối", authorName: "Chuyên gia Lan", updatedAt: "2026-10-18T01:00:00.000Z" }, postWeighIn: null });
+        });
+
+        it("keeps the caller's copy while the service sends no plan (before migration 026)", () => {
+            expect(toCampBout(apiBoutSchema.parse(row), vmmaf, fallback).nutritionPlan).toEqual(fallback);
+            expect(toCampBout(apiBoutSchema.parse(row), vmmaf).nutritionPlan).toEqual({ camp: null, fightWeek: null, postWeighIn: null });
+        });
+
+        it("sends the whole block without empty phases or stamps", () => {
+            expect(nutritionPlanBody({ ...fallback, postWeighIn: { text: "Bù nước từ từ", authorName: "Rafael", updatedAt: "2026-10-21T00:00:00.000Z" } })).toEqual({
+                camp: { text: "Kept in memory", author: "Rafael" },
+                postWeighIn: { text: "Bù nước từ từ", author: "Rafael" },
+            });
         });
     });
 });

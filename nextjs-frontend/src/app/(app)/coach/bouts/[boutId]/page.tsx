@@ -30,7 +30,7 @@ import {
     requirementsOverdue,
     weighInOn,
 } from "@/lib/domain/bout-rules";
-import { weighInCountdown } from "@/lib/domain/nutrition";
+import { nutritionPhaseFor, weighInCountdown } from "@/lib/domain/nutrition";
 import { describeRule, suggestSuspension, suspensionReasonFor, suspensionState } from "@/lib/domain/suspension-rules";
 import { kgLabel } from "@/lib/domain/weight-input";
 import { dayKey, daysBetweenKeys, formatDate, formatDateTime, formatNumber } from "@/lib/format";
@@ -236,7 +236,7 @@ export default async function CoachBoutPage({ params, searchParams }: PageProps<
                         <Card>
                             <CardHeader title={t("boutDetail.mealPlan.title")} description={t("boutDetail.mealPlan.description")} />
                             <CardContent>
-                                <NutritionPlanForm boutId={bout.id} plan={bout.nutritionPlan} authorName={user.name} />
+                                <NutritionPlanForm boutId={bout.id} plan={bout.nutritionPlan} authorName={user.name} currentPhase={nutritionPhaseFor(bout.phase)} />
                             </CardContent>
                         </Card>
                     )}

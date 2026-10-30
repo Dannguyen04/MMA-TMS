@@ -11,13 +11,13 @@ import { getCurrentUser } from "@/lib/auth/session";
 import type { BoutOutcome, CampBout, CancelReason, CompetitionRuleset, NutritionPhaseKey, Suspension } from "@/lib/domain/bout";
 import { boutLimitKg, isRunningPhase } from "@/lib/domain/bout";
 import { awaitsWeighInDecision, requirementCode, type RequirementUpdate } from "@/lib/domain/bout-rules";
-import { wayOffCount } from "@/lib/domain/nutrition";
+import { ADHERENCE_VALUES, nextNutritionPlan, wayOffCount } from "@/lib/domain/nutrition";
 import { blockingSuspensions as findBlockingSuspensions, type SuspensionDraft } from "@/lib/domain/suspension-rules";
 import type { TrainingType, User } from "@/lib/domain/types";
 import type { PlanAdherence, WeightStatus } from "@/lib/domain/weight-chart";
 import type { WeightTrack } from "@/lib/domain/weight-track";
 import type { WriteResult } from "@/lib/domain/write-result";
-import { dayKey, daysBetweenKeys } from "@/lib/format";
+import { addDaysToKey, dayKey, daysBetweenKeys } from "@/lib/format";
 import { nullIfServiceFails } from "./api-helpers";
 import type { BoutEdit, CreateResult, FightWeekResult, NewBout, WeighInEntry } from "./bouts.demo";
 import { getFighter, getUser } from "./people";
@@ -62,7 +62,24 @@ const apiTrackSchema = z.object({
     remainingPct: z.number().nullable(),
     status: z.enum(["ON_TRACK", "ABOVE_TARGET", "OVER_LIMIT", "NOT_WEIGHED", "NEUTRAL"]),
     referencePath: z.array(z.object({ date: z.string(), kg: z.number() })),
+    /** T-009 §A2: plan answers by the academy day asked about. Absent until migration 026 is live. */
+    nutrition: z.array(z.object({ date: z.string(), adherence: z.enum(ADHERENCE_VALUES) })).optional(),
 });
+
+type ApiTrack = z.output<typeof apiTrackSchema>;
+
+function readApiTrack(boutId: string): Promise<ApiTrack | null> {
+    return nullIfServiceFails(authenticatedApiRequest(`/bouts/${encodeURIComponent(boutId)}/weight-track`, apiTrackSchema));
+}
+
+/**
+ * Plan answers keyed by the day they were given: the question is about yesterday, asked with the morning weight, so
+ * the dot sits on that weight. Before migration 026 they come from this server's memory.
+ */
+async function apiAnswers(boutId: string, raw: ApiTrack): Promise<{ loggedOn: string; adherence: PlanAdherence }[]> {
+    if (raw.nutrition) return raw.nutrition.map((answer) => ({ loggedOn: addDaysToKey(answer.date, 1), adherence: answer.adherence }));
+    return (await nutritionMock()).mockCheckins(boutId);
+}
 
 /* ─── Reads ───────────────────────────────────────────────────────────────── */
 
@@ -79,8 +96,7 @@ export async function getRuleset(id: string): Promise<CompetitionRuleset | null>
 /** Bouts of the fighters in scope, in any phase. */
 export async function listCampBouts(fighterIds: string[] | "all" = "all"): Promise<CampBout[]> {
     if (isDemoAuthEnabled()) return (await demo()).listDemoBouts(fighterIds);
-    const mock = await nutritionMock();
-    return (await (await api()).listApiBouts(fighterIds)).map((bout) => ({ ...bout, nutritionPlan: mock.mockNutritionPlan(bout.id) }));
+    return (await api()).listApiBouts(fighterIds);
 }
 
 /** The service records who acted by account id. Coaches may not read other accounts, so those keep their id. */
@@ -101,7 +117,6 @@ export async function getCampBout(boutId: string): Promise<CampBout | null> {
     const bout = {
         ...found,
         history: found.history.map((entry) => ({ ...entry, by: names.get(entry.by) ?? entry.by })),
-        nutritionPlan: (await nutritionMock()).mockNutritionPlan(found.id),
     };
     if (bout.phase !== "FIGHT_WEEK" && bout.phase !== "WEIGHED_IN") return bout;
     return { ...bout, checklistUnlock: await readChecklistUnlock(bout.id) };
@@ -116,13 +131,14 @@ export async function getCurrentBout(fighterId: string): Promise<CampBout | null
 
 export async function getWeightTrack(boutId: string, now = new Date()): Promise<WeightTrack | null> {
     if (isDemoAuthEnabled()) return (await demo()).demoWeightTrack(boutId, now);
-    const raw = await nullIfServiceFails(authenticatedApiRequest(`/bouts/${encodeURIComponent(boutId)}/weight-track`, apiTrackSchema));
+    const raw = await readApiTrack(boutId);
     if (!raw) return null;
     const bout = await getCampBout(boutId);
+    const answerOn = new Map((await apiAnswers(boutId, raw)).map((answer) => [answer.loggedOn, answer.adherence]));
     const weighInOn = bout ? dayKey(bout.weighInAt) : (raw.latestOn ?? dayKey(now));
     return {
         limitKg: raw.limitKg ?? (bout ? boutLimitKg(bout) : null),
-        points: raw.points,
+        points: raw.points.map((point) => ({ ...point, adherence: answerOn.get(point.date) ?? null })),
         latestKg: raw.latestKg,
         latestOn: raw.latestOn,
         remainingPct: raw.remainingPct,
@@ -156,7 +172,8 @@ export async function listWeightAlerts(fighterIds: string[] | "all", now = new D
 
 export async function wayOffForBout(boutId: string, todayOn: string): Promise<number> {
     if (isDemoAuthEnabled()) return wayOffCount((await demo()).demoCheckinsFor(boutId), todayOn);
-    return wayOffCount((await nutritionMock()).mockCheckins(boutId), todayOn);
+    const raw = await readApiTrack(boutId);
+    return raw ? wayOffCount(await apiAnswers(boutId, raw), todayOn) : 0;
 }
 
 export async function listSuspensions(fighterIds: string[] | "all"): Promise<Suspension[]> {
@@ -190,14 +207,13 @@ export async function recordNutritionCheckin(fighterId: string, adherence: PlanA
     return { ok: true };
 }
 
-/** The bouts service has no meal plan yet: API mode keeps it in this server's memory (`bouts.nutrition-mock.ts`). */
+/** T-009 B1: the coach's three phase notes, saved as one block (`PUT /bouts/:id/nutrition-plan`). */
 export async function saveNutritionPlan(boutId: string, texts: Record<NutritionPhaseKey, string>, authorName: string, now = new Date()): Promise<WriteResult> {
     if (isDemoAuthEnabled()) return (await demo()).saveDemoNutritionPlan(boutId, texts, authorName, now);
     const bout = await getCampBout(boutId);
     if (!bout) return unavailable();
     if (!isRunningPhase(bout.phase)) return { ok: false, message: "This bout is over, so its meal plan can no longer change." };
-    (await nutritionMock()).saveMockNutritionPlan(boutId, texts, authorName, now);
-    return { ok: true };
+    return (await api()).saveApiNutritionPlan(boutId, nextNutritionPlan(bout.nutritionPlan, texts, authorName, now));
 }
 
 /* ─── Bout lifecycle (T-004) ──────────────────────────────────────────────── */

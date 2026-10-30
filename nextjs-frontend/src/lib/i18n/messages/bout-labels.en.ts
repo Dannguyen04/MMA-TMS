@@ -13,9 +13,9 @@ export const enBoutLabels = {
     "boutLabel.adherence.SLIGHTLY_OFF": "Slightly off",
     "boutLabel.adherence.WAY_OFF": "Way off",
 
-    "boutLabel.nutritionPhase.camp": "Camp",
+    "boutLabel.nutritionPhase.camp": "During camp",
     "boutLabel.nutritionPhase.fightWeek": "Fight week",
-    "boutLabel.nutritionPhase.postWeighIn": "After the official weigh-in",
+    "boutLabel.nutritionPhase.postWeighIn": "Weigh-in to fight time",
 
     "boutLabel.phase.SCHEDULED": "Scheduled",
     "boutLabel.phase.CAMP": "Camp",

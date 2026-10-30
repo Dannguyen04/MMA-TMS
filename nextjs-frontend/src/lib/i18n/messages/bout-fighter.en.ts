@@ -39,6 +39,7 @@ export const enBoutFighter = {
     "boutFighter.form.save": "Save",
 
     /* Nutrition plan form (coach) */
+    "boutFighter.plan.currentPhase": "Now",
     "boutFighter.plan.intro": "Write what this fighter should eat in each phase. The app stores the words you type.",
     "boutFighter.plan.lastEdited": "Last edited by {name}, {date}",
     "boutFighter.plan.writtenBy": "Written by",

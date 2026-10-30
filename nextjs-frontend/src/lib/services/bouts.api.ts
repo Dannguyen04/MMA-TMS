@@ -3,7 +3,7 @@ import "server-only";
 import { z } from "zod";
 
 import { ApiError, authenticatedApiRequest, authenticatedMutableApiRequest } from "@/lib/api/client";
-import type { BoutOutcome, CampBout, CompetitionRuleset, Suspension } from "@/lib/domain/bout";
+import type { BoutOutcome, CampBout, CompetitionRuleset, NutritionPlan, Suspension } from "@/lib/domain/bout";
 import type { RequirementUpdate } from "@/lib/domain/bout-rules";
 import { SESSION_TYPES, type SessionType } from "@/lib/domain/medical-contract";
 import { suspensionDays, type SuspensionDraft } from "@/lib/domain/suspension-rules";
@@ -15,6 +15,7 @@ import {
     apiWeighInBlockSchema,
     catchweightBody,
     createBoutBody,
+    nutritionPlanBody,
     requirementUpdateBody,
     resultBody,
     toCampBout,
@@ -28,6 +29,7 @@ import { getTranslator } from "@/lib/i18n/server";
 import type { MessageKey, Translator } from "@/lib/i18n/translate";
 import { putOpponentAnalysis } from "./bout-analysis";
 import { nullIfNotFound, nullIfServiceFails } from "./api-helpers";
+import { mockNutritionPlan, setMockNutritionPlan } from "./bouts.nutrition-mock";
 import type { BoutEdit, CreateResult, FightWeekResult, NewBout, WeighInEntry } from "./bouts.demo";
 
 /**
@@ -48,7 +50,7 @@ export async function listApiRulesets(): Promise<CompetitionRuleset[]> {
 async function withRulesets(rows: z.output<typeof apiBoutSchema>[]): Promise<CampBout[]> {
     if (rows.length === 0) return [];
     const rulesets = await listApiRulesets();
-    return rows.map((row) => toCampBout(row, rulesets.find((item) => item.id === row.rulesetId) ?? null));
+    return rows.map((row) => toCampBout(row, rulesets.find((item) => item.id === row.rulesetId) ?? null, mockNutritionPlan(row.id)));
 }
 
 const PAGE_LIMIT = 100;
@@ -189,6 +191,23 @@ export function updateApiBout(boutId: string, edit: BoutEdit, customLimit: boole
             ...(edit.changeReason ? { reason: edit.changeReason } : {}),
         }),
     );
+}
+
+/**
+ * T-009 §A2. Until migration 026 is live the route is missing (404), so the plan stays in this server's memory
+ * (`bouts.nutrition-mock.ts`) and the API-mode demo keeps working.
+ */
+export async function saveApiNutritionPlan(boutId: string, plan: NutritionPlan): Promise<WriteResult> {
+    try {
+        await authenticatedMutableApiRequest(path(boutId, "/nutrition-plan"), z.unknown(), { method: "PUT", body: JSON.stringify(nutritionPlanBody(plan)) });
+        return { ok: true };
+    } catch (error) {
+        if (error instanceof ApiError && error.status === 404) {
+            setMockNutritionPlan(boutId, plan);
+            return { ok: true };
+        }
+        return refusal(error);
+    }
 }
 
 export function linkApiCamp(boutId: string, trainingPlanId: string): Promise<WriteResult> {
