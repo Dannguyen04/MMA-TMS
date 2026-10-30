@@ -52,7 +52,12 @@ export function CampTimeline({ model, sessionHref, locale = "en" }: { model: Cam
                             <dd className="font-display text-lg leading-tight font-bold text-fg tabular-nums">{daysLabel}</dd>
                         </div>
             </dl>
-            <div className="scrollbar-thin overflow-x-auto px-5 pb-2">
+            <div
+                role="region"
+                aria-label={t("screens.camp.title")}
+                tabIndex={0}
+                className="scrollbar-thin overflow-x-auto px-5 pb-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+            >
                 <div className="relative min-w-[640px] pt-7 pb-8" aria-hidden>
                     {/* Fight week band and the camp rail */}
                     <div className="relative h-6 rounded-md bg-surface-muted ring-1 ring-border ring-inset">
