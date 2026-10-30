@@ -11,6 +11,9 @@
  * red is reserved for brand moments (active navigation, fight countdown, tab underline).
  */
 
+/* Weak devices (<html data-graphics="lite">, set by lib/graphics-tier.ts): cheaper surfaces, same content. */
+@custom-variant lite (&:where([data-graphics="lite"] *));
+
 @custom-variant dark {
     &:where([data-theme="dark"], [data-theme="dark"] *) {
         @slot;
@@ -884,4 +887,20 @@
     .landing-chapter:not(#hero) {
         background: rgb(5 6 8 / 90%);
     }
+}
+
+/*
+ * Lite graphics: a backdrop blur over a moving WebGL stage or a scrolling page is re-filtered every
+ * frame, which weak GPUs feel most. Surfaces turn near-opaque instead, so text stays as readable.
+ */
+:root[data-graphics="lite"] * {
+    backdrop-filter: none;
+}
+
+:root[data-graphics="lite"] .landing-header[data-scrolled] {
+    background: rgb(5 6 8 / 90%);
+}
+
+:root[data-graphics="lite"] .landing-label {
+    background: rgb(5 6 8 / 88%);
 }

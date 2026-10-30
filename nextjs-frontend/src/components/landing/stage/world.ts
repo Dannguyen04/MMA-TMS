@@ -38,14 +38,34 @@ export interface World {
     dispose(): void;
 }
 
-/** The photographs the stage is built from: the fighter cutout, the stands and the mat canvas. */
+/**
+ * The photographs the stage is built from: the fighter cutout, the stands and the mat canvas.
+ * Decoded off the main thread as ImageBitmaps already flipped for WebGL, so `flipY` stays false.
+ */
 export interface StagePhotos {
-    fighter: THREE.Texture;
-    plate: THREE.Texture;
-    canvas: THREE.Texture;
+    fighter: THREE.Texture<ImageBitmap>;
+    plate: THREE.Texture<ImageBitmap>;
+    canvas: THREE.Texture<ImageBitmap>;
 }
 
-export function createWorld({ fighter: photo, plate, canvas }: StagePhotos, { compact, animate }: { compact: boolean; animate: boolean }): World {
+/** How the photos are decoded: the same pixels three.js's TextureLoader would upload. */
+export const PHOTO_BITMAP_OPTIONS = { imageOrientation: "flipY", premultiplyAlpha: "none", colorSpaceConversion: "none" } as const;
+
+export function stagePhotoTexture(bitmap: ImageBitmap): THREE.Texture<ImageBitmap> {
+    const texture = new THREE.Texture(bitmap);
+    texture.flipY = false;
+    texture.needsUpdate = true;
+    return texture;
+}
+
+export interface WorldOptions {
+    compact: boolean;
+    animate: boolean;
+    /** Weak device: drawn without MSAA (see `createComposer`), a coarser relief mesh, less dust, cheaper texture filtering. */
+    lite: boolean;
+}
+
+export function createWorld({ fighter: photo, plate, canvas }: StagePhotos, { compact, animate, lite }: WorldOptions): World {
     const object = new THREE.Group();
     const glow = radialGlow();
 
@@ -53,12 +73,12 @@ export function createWorld({ fighter: photo, plate, canvas }: StagePhotos, { co
     const { width, height, centerX, feetY, metresPerPixel } = FIGHTER_IMAGE;
     const planeWidth = width * metresPerPixel;
     const planeHeight = height * metresPerPixel;
-    const relief = createRelief(photo.image as HTMLImageElement);
+    const relief = createRelief(photo.image, { flipY: true });
     photo.colorSpace = THREE.SRGBColorSpace;
-    photo.anisotropy = 8;
-    const geometry = new THREE.PlaneGeometry(planeWidth, planeHeight, 144, 216);
+    photo.anisotropy = lite ? 2 : 8;
+    const geometry = new THREE.PlaneGeometry(planeWidth, planeHeight, lite ? 72 : 144, lite ? 108 : 216);
     geometry.translate((width / 2 - centerX) * metresPerPixel, planeHeight / 2 - (height - feetY) * metresPerPixel, 0);
-    const { material, uniforms } = createFighterMaterial(photo, relief, RELIEF_DEPTH);
+    const { material, uniforms } = createFighterMaterial(photo, relief, RELIEF_DEPTH, { multisampled: !lite });
     const body = new THREE.Mesh(geometry, material);
     body.frustumCulled = false;
 
@@ -86,7 +106,7 @@ export function createWorld({ fighter: photo, plate, canvas }: StagePhotos, { co
     fighter.add(body, skeleton.object);
 
     const backdrop = createBackdrop(plate);
-    const arena = createArena({ dust: compact ? 70 : 160, canvas });
+    const arena = createArena({ dust: lite ? (compact ? 0 : 50) : compact ? 70 : 160, canvas });
     const bars = createTechniqueBars(glow);
     object.add(backdrop.object, arena.object, fighter, bars.object);
 
@@ -166,23 +186,38 @@ export function createWorld({ fighter: photo, plate, canvas }: StagePhotos, { co
     };
 }
 
-/** Bloom on bright details only (scan line, keypoints, lenses, beams, the brightest bokeh), then film grain. */
-export function createComposer(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera) {
+/**
+ * Bloom on bright details only (scan line, keypoints, lenses, beams, the brightest bokeh), then film
+ * grain. A lite composer skips the bloom and the multisampling: one scene pass and the output pass.
+ */
+export function createComposer(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera, { lite }: { lite: boolean }) {
     // Multisampled so the cutout's alpha-to-coverage edges stay smooth.
-    const target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 });
+    const target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: lite ? 0 : 4 });
     const composer = new EffectComposer(renderer, target);
-    const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.5, 0.55, 0.85);
+    const bloom = lite ? null : new UnrealBloomPass(new THREE.Vector2(1, 1), 0.5, 0.55, 0.85);
     const output = createGrainOutputPass(0.045);
     composer.addPass(new RenderPass(scene, camera));
-    composer.addPass(bloom);
+    if (bloom) composer.addPass(bloom);
     composer.addPass(output.pass);
     return {
+        /**
+         * Compiles the scene's shaders for the buffer the scene pass draws into: three.js builds
+         * different programs there (no tone mapping, linear output) than for the screen.
+         * Uses KHR_parallel_shader_compile where available.
+         */
+        compile() {
+            const previous = renderer.getRenderTarget();
+            renderer.setRenderTarget(composer.readBuffer);
+            const done = renderer.compileAsync(scene, camera);
+            renderer.setRenderTarget(previous);
+            return done;
+        },
         render(time: number, delta: number) {
             output.setTime(time);
             composer.render(delta);
         },
         setBloom(enabled: boolean) {
-            bloom.enabled = enabled;
+            if (bloom) bloom.enabled = enabled;
         },
         setSize(width: number, height: number, pixelRatio: number) {
             composer.setPixelRatio(pixelRatio);
@@ -191,7 +226,7 @@ export function createComposer(renderer: THREE.WebGLRenderer, scene: THREE.Scene
         },
         dispose() {
             composer.dispose();
-            bloom.dispose();
+            bloom?.dispose();
             output.pass.dispose();
             target.dispose();
         },
@@ -201,23 +236,27 @@ export function createComposer(renderer: THREE.WebGLRenderer, scene: THREE.Scene
 /**
  * The venue's air: faint reflections for the metal and vinyl, and a dark haze that settles over
  * the far side of the cage and the platform, so they sink into the stands instead of cutting
- * against them.
+ * against them. Lite devices skip the reflections: at 6 % they barely show, and baking them
+ * blocks a slow CPU for close to half a second.
  */
-export function applyVenueAtmosphere(renderer: THREE.WebGLRenderer, scene: THREE.Scene): () => void {
-    const generator = new THREE.PMREMGenerator(renderer);
-    const room = new RoomEnvironment();
-    const environment = generator.fromScene(room, 0.04);
-    room.dispose();
-    generator.dispose();
-    scene.environment = environment.texture;
-    scene.environmentIntensity = 0.06;
+export function applyVenueAtmosphere(renderer: THREE.WebGLRenderer, scene: THREE.Scene, { reflections }: { reflections: boolean }): () => void {
+    let environment: THREE.WebGLRenderTarget | null = null;
+    if (reflections) {
+        const generator = new THREE.PMREMGenerator(renderer);
+        const room = new RoomEnvironment();
+        environment = generator.fromScene(room, 0.04);
+        room.dispose();
+        generator.dispose();
+        scene.environment = environment.texture;
+        scene.environmentIntensity = 0.06;
+    }
     scene.background = new THREE.Color("#050608");
     scene.fog = new THREE.FogExp2("#0b0c10", 0.045);
     return () => {
         scene.environment = null;
         scene.background = null;
         scene.fog = null;
-        environment.dispose();
+        environment?.dispose();
     };
 }
 

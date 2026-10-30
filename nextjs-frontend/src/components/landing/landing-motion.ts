@@ -3,13 +3,15 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { SplitText } from "gsap/SplitText";
 import Lenis from "lenis";
 
+import { graphicsTier } from "@/lib/graphics-tier";
 import { PIPELINE_STAGES } from "./landing-data";
 import type { ChapterId, StoryState } from "./story";
 
 /**
  * Scroll choreography for the landing tour. Runs inside a GSAP context (useGSAP), so every tween,
  * ScrollTrigger and SplitText it creates is reverted on unmount. With reduced motion nothing is
- * pinned, scrubbed or smoothed: content is simply there, and the stage stays on the hero.
+ * pinned, scrubbed or smoothed: content is simply there, and the stage stays on the hero. On a lite
+ * device the page scrolls natively (no Lenis), which keeps the main thread free for the stage.
  */
 
 export const WIDE_QUERY = "(min-width: 1024px)";
@@ -26,11 +28,17 @@ export function setupLandingMotion(root: HTMLElement, story: StoryState): void {
         }
         root.dataset.motion = wide ? "wide" : "compact";
 
-        const lenis = new Lenis({ lerp: 0.085, wheelMultiplier: 0.95 });
-        lenis.on("scroll", ScrollTrigger.update);
-        const raf = (time: number) => lenis.raf(time * 1000);
-        gsap.ticker.add(raf);
-        gsap.ticker.lagSmoothing(0);
+        const lenis = graphicsTier() === "lite" ? null : new Lenis({ lerp: 0.085, wheelMultiplier: 0.95 });
+        const raf = (time: number) => lenis?.raf(time * 1000);
+        if (lenis) {
+            lenis.on("scroll", ScrollTrigger.update);
+            gsap.ticker.add(raf);
+            gsap.ticker.lagSmoothing(0);
+        }
+        const scrollTo = (top: number, glide: boolean) => {
+            if (lenis) lenis.scrollTo(top, glide ? { duration: 1.8 } : { immediate: true, force: true });
+            else window.scrollTo({ top, behavior: glide ? "smooth" : "instant" });
+        };
 
         // Absolute page offset, measured from the real scroll position: Lenis's own can lag behind a
         // native jump, and would then aim at the wrong place.
@@ -42,7 +50,7 @@ export function setupLandingMotion(root: HTMLElement, story: StoryState): void {
             const target = link ? document.getElementById(link.hash.slice(1)) : null;
             if (!target) return;
             event.preventDefault();
-            lenis.scrollTo(offsetOf(target), { duration: 1.8 });
+            scrollTo(offsetOf(target), true);
         };
         root.addEventListener("click", onClick);
 
@@ -96,7 +104,7 @@ export function setupLandingMotion(root: HTMLElement, story: StoryState): void {
         // Fonts and images still reflow the page after this, so follow every refresh until the reader scrolls.
         const jumpToHash = () => {
             const target = location.hash.length > 1 ? document.getElementById(location.hash.slice(1)) : null;
-            if (target?.closest("[data-chapter]")) lenis.scrollTo(offsetOf(target), { immediate: true, force: true });
+            if (target?.closest("[data-chapter]")) scrollTo(offsetOf(target), false);
         };
         const release = () => {
             ScrollTrigger.removeEventListener("refresh", jumpToHash);
@@ -114,7 +122,7 @@ export function setupLandingMotion(root: HTMLElement, story: StoryState): void {
             root.removeEventListener("click", onClick);
             window.removeEventListener("pointermove", onPointer);
             gsap.ticker.remove(raf);
-            lenis.destroy();
+            lenis?.destroy();
         };
     });
 }

@@ -25,7 +25,8 @@ export interface FighterMaterialUniforms {
     uFocusStrength: { value: number };
 }
 
-export function createFighterMaterial(map: THREE.Texture, relief: Relief, depth: number): { material: THREE.MeshStandardMaterial; uniforms: FighterMaterialUniforms } {
+/** `multisampled`: false when the composer draws without MSAA (lite), where alpha-to-coverage does nothing. */
+export function createFighterMaterial(map: THREE.Texture, relief: Relief, depth: number, { multisampled }: { multisampled: boolean }): { material: THREE.MeshStandardMaterial; uniforms: FighterMaterialUniforms } {
     const material = new THREE.MeshStandardMaterial({
         map,
         color: new THREE.Color(0.42, 0.42, 0.42),
@@ -36,8 +37,9 @@ export function createFighterMaterial(map: THREE.Texture, relief: Relief, depth:
         metalness: 0,
         displacementMap: relief.depth,
         displacementScale: depth,
-        // Soft cutout edges without sorting: MSAA coverage from the photo's alpha.
-        alphaToCoverage: true,
+        // Soft cutout edges without sorting: MSAA coverage from the photo's alpha. Without MSAA, a hard cut.
+        alphaToCoverage: multisampled,
+        alphaTest: multisampled ? 0 : 0.5,
     });
     const uniforms: FighterMaterialUniforms = {
         uTime: { value: 0 },
