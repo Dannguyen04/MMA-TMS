@@ -71,11 +71,11 @@ const MOVES: Record<MoveToken, MoveSpec> = {
     jab: { type: "jab", side: "lead", label: "Jab", durationMs: [240, 320], baseSpeed: 7.3, jointAngleDeg: [152, 170], hipRotationDeg: [8, 20], chamberDeg: null },
     cross: { type: "cross", side: "rear", label: "Cross", durationMs: [290, 380], baseSpeed: 8.4, jointAngleDeg: [156, 175], hipRotationDeg: [38, 56], chamberDeg: null },
     lead_hook: { type: "hook", side: "lead", label: "Hook", durationMs: [320, 430], baseSpeed: 7.7, jointAngleDeg: [88, 112], hipRotationDeg: [34, 50], chamberDeg: null },
-    rear_hook: { type: "hook", side: "rear", label: "Rear hook", durationMs: [340, 450], baseSpeed: 7.9, jointAngleDeg: [90, 114], hipRotationDeg: [40, 56], chamberDeg: null },
-    lead_kick: { type: "kick", side: "lead", label: "Lead kick", durationMs: [500, 680], baseSpeed: 10.2, jointAngleDeg: [150, 170], hipRotationDeg: [45, 64], chamberDeg: [55, 80] },
-    rear_kick: { type: "kick", side: "rear", label: "Rear kick", durationMs: [580, 780], baseSpeed: 11.8, jointAngleDeg: [152, 172], hipRotationDeg: [62, 86], chamberDeg: [48, 72] },
+    rear_hook: { type: "hook", side: "rear", label: "Hook tay sau", durationMs: [340, 450], baseSpeed: 7.9, jointAngleDeg: [90, 114], hipRotationDeg: [40, 56], chamberDeg: null },
+    lead_kick: { type: "kick", side: "lead", label: "Đá chân trước", durationMs: [500, 680], baseSpeed: 10.2, jointAngleDeg: [150, 170], hipRotationDeg: [45, 64], chamberDeg: [55, 80] },
+    rear_kick: { type: "kick", side: "rear", label: "Đá chân sau", durationMs: [580, 780], baseSpeed: 11.8, jointAngleDeg: [152, 172], hipRotationDeg: [62, 86], chamberDeg: [48, 72] },
     teep: { type: "kick", side: "lead", label: "Teep", durationMs: [460, 620], baseSpeed: 9.6, jointAngleDeg: [160, 176], hipRotationDeg: [14, 28], chamberDeg: [38, 58] },
-    switch_kick: { type: "kick", side: "lead", label: "Switch kick", durationMs: [620, 800], baseSpeed: 11.3, jointAngleDeg: [150, 170], hipRotationDeg: [60, 82], chamberDeg: [50, 74] },
+    switch_kick: { type: "kick", side: "lead", label: "Đá đổi chân", durationMs: [620, 800], baseSpeed: 11.3, jointAngleDeg: [150, 170], hipRotationDeg: [60, 82], chamberDeg: [50, 74] },
 };
 
 export interface WeightedCombo {
@@ -311,28 +311,28 @@ const TARGET_DISTANCE: Record<VideoTrainingType, number | null> = { shadow_boxin
 
 const HEAD_MOVE_DETAILS: Record<VideoTrainingType, { slip: string[]; roll: string[] }> = {
     shadow_boxing: {
-        slip: ["Slip to the outside after the combination", "Slip to the inside, head off the centreline"],
-        roll: ["Roll under an imagined hook", "Roll back to stance after the exchange"],
+        slip: ["Lách đầu ra ngoài sau đòn phối hợp", "Lách đầu vào trong, đưa đầu ra khỏi đường trung tâm"],
+        roll: ["Luồn người dưới một cú hook tưởng tượng", "Lắc người về lại thế đứng sau pha ra đòn"],
     },
     pad_work: {
-        slip: ["Slip off the pad holder's jab", "Slip outside the pad holder's straight return"],
-        roll: ["Roll under the pad holder's hook", "Roll under the pad sweep"],
+        slip: ["Lách đầu tránh cú jab của người cầm đích", "Lách đầu ra ngoài cú đấm thẳng trả lại của người cầm đích"],
+        roll: ["Luồn người dưới cú hook của người cầm đích", "Luồn người dưới cú quét đích"],
     },
     heavy_bag: {
-        slip: ["Slip off the swinging bag", "Slip to the outside of the bag"],
-        roll: ["Roll under the bag's return swing"],
+        slip: ["Lách đầu tránh bao cát đang đung đưa", "Lách đầu ra phía ngoài bao cát"],
+        roll: ["Luồn người dưới nhịp bao cát đung đưa trở lại"],
     },
     sparring: {
-        slip: ["Slip inside the partner's jab", "Slip outside the partner's cross"],
-        roll: ["Roll under the partner's hook", "Roll out of the clinch exchange"],
+        slip: ["Lách đầu vào trong cú jab của bạn tập", "Lách đầu ra ngoài cú cross của bạn tập"],
+        roll: ["Luồn người dưới cú hook của bạn tập", "Lắc người thoát khỏi pha clinch"],
     },
 };
 
 const TRACKING_LOSS_DETAIL: Record<VideoTrainingType, string> = {
-    shadow_boxing: "Fighter partially out of frame",
-    pad_work: "Fighter occluded by the pad holder",
-    heavy_bag: "Fighter occluded by the bag",
-    sparring: "Fighter occluded by the sparring partner",
+    shadow_boxing: "Võ sĩ ra khỏi khung hình một phần",
+    pad_work: "Võ sĩ bị người cầm đích che khuất",
+    heavy_bag: "Võ sĩ bị bao cát che khuất",
+    sparring: "Võ sĩ bị bạn tập che khuất",
 };
 
 /* ─── Findings templates ──────────────────────────────────────────────────── */
@@ -421,9 +421,9 @@ function punchSpeedChangePct(ctx: FindingContext): { first: number; last: number
 }
 
 function guardHandName(limb: Limb): string {
-    if (limb === "left_arm") return "Right hand";
-    if (limb === "right_arm") return "Left hand";
-    return limb === "left_leg" ? "Left hand" : "Right hand";
+    if (limb === "left_arm") return "Tay phải";
+    if (limb === "right_arm") return "Tay trái";
+    return limb === "left_leg" ? "Tay trái" : "Tay phải";
 }
 
 interface TemplateOptions {
@@ -436,13 +436,13 @@ export function crossExtensionFinding(o: TemplateOptions = {}): FindingTemplate 
     return {
         category: "cross",
         impact: "strength",
-        title: "Cross extension appears consistently strong",
+        title: "Độ duỗi tay khi ra cross có vẻ tốt và ổn định",
         description: (ctx) =>
-            `Straight punches reached an average elbow extension of ${ctx.metrics.avgPunchExtensionDeg}°, and crosses averaged ${meanOf(strikesIn(ctx, { type: "cross" }), "hipRotationDeg")}° of hip rotation.`,
+            `Các cú đấm thẳng đạt độ duỗi khuỷu tay trung bình ${ctx.metrics.avgPunchExtensionDeg}°, còn các cú cross có độ xoay hông trung bình ${meanOf(strikesIn(ctx, { type: "cross" }), "hipRotationDeg")}°.`,
         confidence: o.confidence ?? 0.86,
         evidence: { from: "detections", type: "cross", rankBy: "jointAngleDeg", limit: 4 },
-        metric: (ctx) => ({ label: "Average straight-punch extension", value: ctx.metrics.avgPunchExtensionDeg, unit: "°", reference: o.reference ?? "Target 155–175°" }),
-        recommendation: "Keep turning the rear heel through the cross so the extension holds up in later rounds.",
+        metric: (ctx) => ({ label: "Độ duỗi trung bình của đòn đấm thẳng", value: ctx.metrics.avgPunchExtensionDeg, unit: "°", reference: o.reference ?? "Mục tiêu 155–175°" }),
+        recommendation: "Tiếp tục xoay gót chân sau trọn cú cross để giữ được độ duỗi ở các hiệp cuối.",
         review: o.review ?? null,
         when: (ctx) => ctx.metrics.strikeCounts.cross >= 3,
     };
@@ -452,17 +452,17 @@ export function guardAfterLeadHookFinding(limb: Limb, o: TemplateOptions = {}): 
     return {
         category: "guard",
         impact: "concern",
-        title: "Guard appears to drop after the lead hook",
+        title: "Thế thủ có vẻ hạ xuống sau cú móc tay trước",
         description: (ctx) => {
             const hooks = strikesIn(ctx, { type: "hook", limb });
             const dropped = hooks.filter((h) => !h.guardMaintained).length;
-            return `The ${guardHandName(limb).toLowerCase()} appears to leave the chin on ${dropped} of ${hooks.length} lead hooks, taking about ${guardRecoveryAfter(ctx, "hook")} ms to return.`;
+            return `${guardHandName(limb)} có vẻ rời khỏi cằm ở ${dropped} trên ${hooks.length} cú móc tay trước, mất khoảng ${guardRecoveryAfter(ctx, "hook")} ms để trở về.`;
         },
         confidence: o.confidence ?? 0.82,
         evidence: { from: "detections", type: "hook", limb, guardMaintained: false, limit: 5 },
-        metric: (ctx) => ({ label: "Guard kept after lead hooks", value: guardKeptPct(strikesIn(ctx, { type: "hook", limb })), unit: "%", reference: o.reference ?? "Team avg 76%" }),
+        metric: (ctx) => ({ label: "Giữ thế thủ sau cú móc tay trước", value: guardKeptPct(strikesIn(ctx, { type: "hook", limb })), unit: "%", reference: o.reference ?? "TB đội 76%" }),
         recommendation:
-            "Drill jab–cross–hook on pads with the holder tapping the open side after every hook; the rear glove stays on the cheekbone until the hook returns.",
+            "Tập jab–cross–hook trên đích, người cầm đích vỗ vào bên bị hở sau mỗi cú móc; găng tay sau giữ ở gò má cho đến khi cú móc thu về.",
         review: o.review ?? null,
         when: (ctx) => {
             const hooks = strikesIn(ctx, { type: "hook", limb });
@@ -475,15 +475,15 @@ export function kickGuardFinding(limb: Limb, o: TemplateOptions = {}): FindingTe
     return {
         category: "guard",
         impact: "improvement",
-        title: "Arm may swing low during rear kicks",
+        title: "Tay có thể vung thấp khi đá chân sau",
         description: (ctx) => {
             const kicks = strikesIn(ctx, { type: "kick", limb });
-            return `The ${guardHandName(limb).toLowerCase()} appears to drop below the chin on ${kicks.filter((k) => !k.guardMaintained).length} of ${kicks.length} kicks from that side.`;
+            return `${guardHandName(limb)} có vẻ hạ xuống dưới cằm ở ${kicks.filter((k) => !k.guardMaintained).length} trên ${kicks.length} cú đá từ bên đó.`;
         },
         confidence: o.confidence ?? 0.74,
         evidence: { from: "detections", type: "kick", limb, guardMaintained: false, limit: 4 },
-        metric: (ctx) => ({ label: "Guard kept during rear kicks", value: guardKeptPct(strikesIn(ctx, { type: "kick", limb })), unit: "%", reference: o.reference ?? "Team avg 70%" }),
-        recommendation: "Kick with the same-side glove brushing the cheek for one round, then return to a natural arm swing at 50% range.",
+        metric: (ctx) => ({ label: "Giữ thế thủ khi đá chân sau", value: guardKeptPct(strikesIn(ctx, { type: "kick", limb })), unit: "%", reference: o.reference ?? "TB đội 70%" }),
+        recommendation: "Đá một hiệp với găng cùng bên áp sát má, sau đó trở lại vung tay tự nhiên ở 50% biên độ.",
         review: o.review ?? null,
         when: (ctx) => {
             const kicks = strikesIn(ctx, { type: "kick", limb });
@@ -497,15 +497,15 @@ export function guardUptimeFinding(impact: "strength" | "concern", o: TemplateOp
     return {
         category: "guard",
         impact,
-        title: strong ? "Guard appears well maintained between exchanges" : "Guard appears to drop between strikes",
+        title: strong ? "Thế thủ có vẻ được giữ tốt giữa các pha ra đòn" : "Thế thủ có vẻ hạ xuống giữa các đòn",
         description: (ctx) =>
-            `Estimated guard uptime was ${ctx.metrics.guard.uptimePct}% with ${ctx.metrics.guard.drops} possible guard drops (average recovery ${ctx.metrics.guard.avgRecoveryMs} ms).`,
+            `Thời gian giữ thế thủ ước tính là ${ctx.metrics.guard.uptimePct}%, với ${ctx.metrics.guard.drops} lần có thể đã hạ thế thủ (hồi lại trung bình ${ctx.metrics.guard.avgRecoveryMs} ms).`,
         confidence: o.confidence ?? (strong ? 0.84 : 0.72),
         evidence: strong ? { from: "combinations", limit: 4 } : { from: "events", types: ["guard_drop"], limit: 5 },
-        metric: (ctx) => ({ label: "Guard uptime", value: ctx.metrics.guard.uptimePct, unit: "%", reference: o.reference ?? "Team avg 81%" }),
+        metric: (ctx) => ({ label: "Thời gian giữ thế thủ", value: ctx.metrics.guard.uptimePct, unit: "%", reference: o.reference ?? "TB đội 81%" }),
         recommendation: strong
-            ? "Keep the same hand position when fatigue sets in; film one late round next week to confirm it holds."
-            : "Finish every combination with both gloves touching the cheekbones for a beat before moving — use a mirror round to check.",
+            ? "Giữ nguyên vị trí tay khi bắt đầu mệt; tuần sau quay lại một hiệp cuối để kiểm chứng."
+            : "Kết thúc mỗi đòn phối hợp bằng hai găng chạm gò má một nhịp rồi mới di chuyển — tập một hiệp trước gương để kiểm tra.",
         review: o.review ?? null,
         when: (ctx) => (strong ? ctx.metrics.guard.uptimePct >= 84 : ctx.metrics.guard.uptimePct < 80 && ctx.metrics.guard.drops >= 2),
     };
@@ -516,15 +516,15 @@ export function headMovementFinding(impact: "strength" | "improvement", o: Templ
     return {
         category: "head_movement",
         impact,
-        title: strong ? "Head movement appears frequent and well timed" : "Head movement between combinations appears limited",
+        title: strong ? "Di chuyển đầu có vẻ thường xuyên và đúng thời điểm" : "Di chuyển đầu giữa các đòn phối hợp có vẻ còn ít",
         description: (ctx) =>
-            `${ctx.metrics.headMovement.slips} slips and ${ctx.metrics.headMovement.rolls} rolls were detected (${ctx.metrics.headMovement.movesPerMin} per minute); estimated centreline exposure was ${ctx.metrics.headMovement.centerlineExposurePct}%.`,
+            `Phát hiện ${ctx.metrics.headMovement.slips} lần lách đầu và ${ctx.metrics.headMovement.rolls} lần luồn người (${ctx.metrics.headMovement.movesPerMin}/phút); mức hở đường trung tâm ước tính là ${ctx.metrics.headMovement.centerlineExposurePct}%.`,
         confidence: o.confidence ?? (strong ? 0.87 : 0.74),
         evidence: { from: "events", types: ["slip", "roll"], limit: 4 },
-        metric: (ctx) => ({ label: "Head movements per minute", value: ctx.metrics.headMovement.movesPerMin, unit: "/min", reference: o.reference ?? "Team avg 9.1/min" }),
+        metric: (ctx) => ({ label: "Số lần di chuyển đầu mỗi phút", value: ctx.metrics.headMovement.movesPerMin, unit: "/min", reference: o.reference ?? "TB đội 9.1/min" }),
         recommendation: strong
-            ? "Keep pairing slips with a return strike so the movement creates counters, not just evasion."
-            : "Add a slip or roll after every second combination in the next pad session.",
+            ? "Tiếp tục kết hợp lách đầu với một đòn trả để di chuyển tạo ra phản đòn, không chỉ để né."
+            : "Ở buổi đấm đích tới, thêm một lần lách đầu hoặc luồn người sau mỗi hai đòn phối hợp.",
         review: o.review ?? null,
     };
 }
@@ -533,21 +533,21 @@ export function lowConfidenceHooksFinding(o: TemplateOptions = {}): FindingTempl
     return {
         category: "hook",
         impact: "improvement",
-        title: "Some hooks may have been misread — review suggested",
+        title: "Một số cú hook có thể bị nhận sai — nên xem lại",
         description: (ctx) => {
             const hooks = strikesIn(ctx, { type: "hook" });
             const low = hooks.filter((h) => (h.confidence !== null && h.confidence < LOW_CONFIDENCE_THRESHOLD)).length;
-            return `${low} of ${hooks.length} hook detections fell below the 60% confidence threshold. Looping crosses and hooks thrown at an angle to the camera are the most common source of confusion.`;
+            return `${low} trên ${hooks.length} lần phát hiện hook có độ tin cậy dưới ngưỡng 60%. Cú cross đánh vòng và cú hook ra đòn chéo góc với camera là nguồn nhầm lẫn thường gặp nhất.`;
         },
         confidence: o.confidence ?? 0.52,
         evidence: { from: "detections", type: "hook", lowConfidence: true, limit: 5 },
         metric: (ctx) => ({
-            label: "Hook detections below 60% confidence",
+            label: "Lần phát hiện hook dưới 60% độ tin cậy",
             value: strikesIn(ctx, { type: "hook" }).filter((h) => (h.confidence !== null && h.confidence < LOW_CONFIDENCE_THRESHOLD)).length,
-            unit: "detections",
+            unit: "lần phát hiện",
             reference: null,
         }),
-        recommendation: "Confirm or correct these detections; corrections update the metrics and help retrain the strike model.",
+        recommendation: "Xác nhận hoặc sửa các lần phát hiện này; mỗi lần sửa sẽ cập nhật số liệu và giúp huấn luyện lại mô hình nhận diện đòn.",
         review: o.review ?? null,
         when: (ctx) => strikesIn(ctx, { type: "hook" }).filter((h) => (h.confidence !== null && h.confidence < LOW_CONFIDENCE_THRESHOLD)).length >= 2,
     };
@@ -557,15 +557,15 @@ export function kickRotationFinding(limb: Limb, o: TemplateOptions = {}): Findin
     return {
         category: "kick",
         impact: "strength",
-        title: "Rear kick appears to turn the hip over fully",
+        title: "Cú đá chân sau có vẻ xoay hông trọn vẹn",
         description: (ctx) => {
             const kicks = strikesIn(ctx, { type: "kick", limb });
-            return `Kicks from this side averaged ${meanOf(kicks, "hipRotationDeg")}° of hip rotation and ${meanOf(kicks, "peakSpeed")} m/s peak foot speed.`;
+            return `Các cú đá từ bên này có độ xoay hông trung bình ${meanOf(kicks, "hipRotationDeg")}° và tốc độ bàn chân đỉnh ${meanOf(kicks, "peakSpeed")} m/s.`;
         },
         confidence: o.confidence ?? 0.83,
         evidence: { from: "detections", type: "kick", limb, rankBy: "hipRotationDeg", limit: 3 },
-        metric: (ctx) => ({ label: "Average rear-kick speed", value: meanOf(strikesIn(ctx, { type: "kick", limb }), "peakSpeed"), unit: "m/s", reference: o.reference ?? null }),
-        recommendation: "Keep the rotation and return the kicking leg to stance faster so the guard resets sooner.",
+        metric: (ctx) => ({ label: "Tốc độ trung bình cú đá chân sau", value: meanOf(strikesIn(ctx, { type: "kick", limb }), "peakSpeed"), unit: "m/s", reference: o.reference ?? null }),
+        recommendation: "Giữ độ xoay này và thu chân đá về thế đứng nhanh hơn để thế thủ được lập lại sớm hơn.",
         review: o.review ?? null,
         when: (ctx) => strikesIn(ctx, { type: "kick", limb }).length >= 3,
     };
@@ -575,15 +575,15 @@ export function speedFadeFinding(o: TemplateOptions = {}): FindingTemplate {
     return {
         category: "combination",
         impact: "improvement",
-        title: "Hand speed appears to fade in the final third",
+        title: "Tốc độ tay có vẻ giảm ở một phần ba cuối",
         description: (ctx) => {
             const { first, last } = punchSpeedChangePct(ctx);
-            return `Average punch speed moved from ${first} m/s in the first third of the clip to ${last} m/s in the final third.`;
+            return `Tốc độ đấm trung bình đi từ ${first} m/s ở một phần ba đầu clip xuống ${last} m/s ở một phần ba cuối.`;
         },
         confidence: o.confidence ?? 0.69,
         evidence: { from: "detections", type: "cross", window: [0.67, 1], rankBy: "peakSpeed", rank: "lowest", limit: 4 },
-        metric: (ctx) => ({ label: "Punch speed, final vs first third", value: punchSpeedChangePct(ctx).changePct, unit: "%", reference: "First third of the clip" }),
-        recommendation: "Finish pad sessions with two rounds of 20 s fast hands / 10 s rest to build speed endurance.",
+        metric: (ctx) => ({ label: "Tốc độ đấm, một phần ba cuối so với đầu", value: punchSpeedChangePct(ctx).changePct, unit: "%", reference: "Một phần ba đầu clip" }),
+        recommendation: "Kết thúc buổi đấm đích bằng hai hiệp 20 s tay nhanh / 10 s nghỉ để xây dựng sức bền tốc độ.",
         review: o.review ?? null,
         when: (ctx) => punchSpeedChangePct(ctx).changePct <= -3,
     };
@@ -594,15 +594,15 @@ export function pivotFinding(impact: "strength" | "improvement", o: TemplateOpti
     return {
         category: "footwork",
         impact,
-        title: strong ? "Pivots used to create angles after combinations" : "Pivots after hooks appear infrequent",
+        title: strong ? "Xoay chân được dùng để tạo góc sau đòn phối hợp" : "Xoay chân sau cú hook có vẻ còn ít",
         description: (ctx) =>
-            `${ctx.metrics.footwork.pivots} pivots were detected against ${ctx.metrics.strikeCounts.hook} hooks; estimated footwork distance was ${ctx.metrics.footwork.distanceM} m.`,
+            `Phát hiện ${ctx.metrics.footwork.pivots} lần xoay chân so với ${ctx.metrics.strikeCounts.hook} cú hook; quãng di chuyển chân ước tính là ${ctx.metrics.footwork.distanceM} m.`,
         confidence: o.confidence ?? (strong ? 0.8 : 0.68),
         evidence: strong ? { from: "events", types: ["pivot"], limit: 4 } : { from: "detections", type: "hook", limit: 4 },
-        metric: (ctx) => ({ label: "Pivots", value: ctx.metrics.footwork.pivots, unit: "pivots", reference: o.reference ?? `${ctx.metrics.strikeCounts.hook} hooks thrown` }),
+        metric: (ctx) => ({ label: "Xoay chân", value: ctx.metrics.footwork.pivots, unit: "lần xoay", reference: o.reference ?? `${ctx.metrics.strikeCounts.hook} cú hook đã tung ra` }),
         recommendation: strong
-            ? "Keep finishing on an angle; add a rear-hand counter off the pivot to make it a threat."
-            : "After each lead hook, pivot off the lead foot before resetting — 3 rounds of hook–pivot on pads.",
+            ? "Tiếp tục kết thúc ở góc lệch; thêm một cú phản đòn tay sau ngay sau khi xoay để tạo đe dọa."
+            : "Sau mỗi cú móc tay trước, xoay trên chân trước rồi mới về thế — 3 hiệp hook–xoay chân trên đích.",
         review: o.review ?? null,
         when: (ctx) =>
             strong ? ctx.metrics.footwork.pivots >= 3 : ctx.metrics.strikeCounts.hook >= 4 && ctx.metrics.footwork.pivots < ctx.metrics.strikeCounts.hook / 3,
@@ -613,18 +613,18 @@ export function jabRangeFinding(o: TemplateOptions = {}): FindingTemplate {
     return {
         category: "jab",
         impact: "strength",
-        title: "Jab used consistently to find range",
+        title: "Jab được dùng đều đặn để tìm cự ly",
         description: (ctx) =>
-            `${ctx.metrics.strikeCounts.jab} jabs were detected (${Math.round((ctx.metrics.strikeCounts.jab / Math.max(1, ctx.detections.length)) * 100)}% of strikes), most opening a combination.`,
+            `Phát hiện ${ctx.metrics.strikeCounts.jab} cú jab (${Math.round((ctx.metrics.strikeCounts.jab / Math.max(1, ctx.detections.length)) * 100)}% số đòn), phần lớn mở đầu một đòn phối hợp.`,
         confidence: o.confidence ?? 0.85,
         evidence: { from: "combinations", labelPrefix: "Jab", limit: 4 },
         metric: (ctx) => ({
-            label: "Jab share of strikes",
+            label: "Tỷ lệ jab trong tổng số đòn",
             value: Math.round((ctx.metrics.strikeCounts.jab / Math.max(1, ctx.detections.length)) * 100),
             unit: "%",
             reference: o.reference ?? null,
         }),
-        recommendation: "Double the jab occasionally to change rhythm before committing to the rear hand.",
+        recommendation: "Thỉnh thoảng đánh jab đôi để đổi nhịp trước khi tung tay sau.",
         review: o.review ?? null,
         when: (ctx) => ctx.metrics.strikeCounts.jab >= 5,
     };
@@ -772,7 +772,7 @@ function buildTimeline(script: AnalysisScript, rng: Random): Timeline {
 
         if (rng.chance(STEP_IN_CHANCE[trainingType])) {
             const d = rng.int(200, 320);
-            events.push({ type: "step_in", startMs: t, endMs: t + d, confidence: eventConfidence(), detail: "Step in to range" });
+            events.push({ type: "step_in", startMs: t, endMs: t + d, confidence: eventConfidence(), detail: "Bước vào cự ly" });
             t += d - 40;
         }
 
@@ -835,18 +835,18 @@ function buildTimeline(script: AnalysisScript, rng: Random): Timeline {
                 const hand = guardHandName(limb);
                 let recovery = rng.int(tuning.guardRecoveryMs[0], tuning.guardRecoveryMs[1]);
                 let detail = isKick
-                    ? `${hand} swung low during the ${spec.label.toLowerCase()}`
-                    : `${hand} dropped below the chin after the ${spec.label.toLowerCase()}`;
+                    ? `${hand} vung thấp trong cú ${spec.label.toLowerCase()}`
+                    : `${hand} hạ xuống dưới cằm sau cú ${spec.label.toLowerCase()}`;
                 if (isIncidentStrike && incident?.kind === "rear_hand_impact") {
                     recovery = rng.int(1300, 1650);
-                    detail = `${limb === "right_arm" ? "Right" : "Left"} hand withdrawn and held low after the cross`;
+                    detail = `Tay ${limb === "right_arm" ? "phải" : "trái"} rút về và giữ thấp sau cú cross`;
                 } else if (isIncidentStrike) {
                     recovery = rng.int(1150, 1500);
-                    detail = "Delayed guard recovery after the exchange";
+                    detail = "Chậm hồi thế thủ sau pha trao đổi đòn";
                     unsteadyEvents += 1;
                 } else if (unsteadyPenalty > 0) {
                     recovery = Math.round(recovery * 2.2);
-                    detail = "Slow guard recovery between exchanges";
+                    detail = "Thế thủ hồi chậm giữa các pha trao đổi đòn";
                     unsteadyEvents += 1;
                 }
                 events.push({ type: "guard_drop", startMs: endMs - 40, endMs: endMs - 40 + recovery, confidence: eventConfidence(), detail });
@@ -882,24 +882,24 @@ function buildTimeline(script: AnalysisScript, rng: Random): Timeline {
         };
         const lastMove = moves[moves.length - 1];
         if (MOVES[lastMove].type === "hook" && rng.chance(tuning.pivotRate)) {
-            pushRestEvent("pivot", 350, 520, "Pivot off the lead foot after the hook");
+            pushRestEvent("pivot", 350, 520, "Xoay trên chân trước sau cú hook");
         } else if (rng.chance(tuning.pivotRate * 0.25)) {
-            pushRestEvent("pivot", 350, 520, "Pivot to reset the angle");
+            pushRestEvent("pivot", 350, 520, "Xoay chân để đặt lại góc");
         }
         if (triggersIncident) {
-            pushRestEvent("step_out", 260, 380, incident.kind === "rear_hand_impact" ? "Step back from the bag" : "Step back out of the exchange");
+            pushRestEvent("step_out", 260, 380, incident.kind === "rear_hand_impact" ? "Lùi ra khỏi bao cát" : "Lùi ra khỏi pha trao đổi đòn");
             if (incident.kind === "unsteady_after_exchange") {
-                pushRestEvent("lateral_step", 320, 520, "Unsteady lateral step — base narrows");
+                pushRestEvent("lateral_step", 320, 520, "Bước ngang không vững — trụ chân hẹp lại");
                 unsteadyEvents += 1;
             }
         } else if (rng.chance(STEP_OUT_CHANCE[trainingType])) {
-            pushRestEvent("step_out", 220, 340, "Step back out of range");
+            pushRestEvent("step_out", 220, 340, "Lùi ra khỏi cự ly");
         }
         if (impaired && incident?.kind === "unsteady_after_exchange" && rng.chance(0.45)) {
-            pushRestEvent("lateral_step", 320, 520, "Unsteady lateral step — base narrows");
+            pushRestEvent("lateral_step", 320, 520, "Bước ngang không vững — trụ chân hẹp lại");
             unsteadyEvents += 1;
         } else if (rng.chance(0.18)) {
-            pushRestEvent("lateral_step", 260, 380, "Lateral step to the lead side");
+            pushRestEvent("lateral_step", 260, 380, "Bước ngang về phía chân trước");
         }
 
         const restSlowdown = impaired ? (incident?.kind === "rear_hand_impact" ? 1.6 : 1.3) : 1;
@@ -1043,14 +1043,14 @@ function reviewDetections(drafts: DraftDetection[], reviewer: Reviewer, rng: Ran
                 hookReviews % 2 === 1
                     ? feedbackFrom(
                           side === "lead"
-                              ? { decision: "corrected", note: "Lead hand stayed straight — the elbow flare read as a hook.", correctedLabel: "Jab" }
-                              : { decision: "corrected", note: "Straight rear hand; the shoulder roll read as a hook.", correctedLabel: "Cross" },
+                              ? { decision: "corrected", note: "Tay trước vẫn đấm thẳng — khuỷu tay mở ra bị đọc nhầm thành hook.", correctedLabel: "Jab" }
+                              : { decision: "corrected", note: "Tay sau đấm thẳng; động tác xoay vai bị đọc nhầm thành hook.", correctedLabel: "Cross" },
                           reviewer,
                       )
-                    : feedbackFrom({ decision: "confirmed", note: "Hook confirmed on frame-by-frame replay.", correctedLabel: null }, reviewer);
+                    : feedbackFrom({ decision: "confirmed", note: "Đã xác nhận là hook khi xem lại từng khung hình.", correctedLabel: null }, reviewer);
         } else if (!rejected) {
             rejected = true;
-            detection.review = feedbackFrom({ decision: "rejected", note: "Feint only — no strike was thrown.", correctedLabel: null }, reviewer);
+            detection.review = feedbackFrom({ decision: "rejected", note: "Chỉ là đòn nhử — không có cú đánh nào được tung ra.", correctedLabel: null }, reviewer);
         } else {
             detection.review = feedbackFrom({ decision: "confirmed", note: null, correctedLabel: null }, reviewer);
         }
@@ -1085,7 +1085,7 @@ export function generateAnalysis(script: AnalysisScript): AIAnalysis {
         models: script.models,
         overallConfidence: round(average(detections.map((d) => d.confidence).filter((value): value is number => value !== null)), 2),
         trackingQuality: round(Math.min(script.tuning.trackingQuality, 1 - lostMs / durationMs), 2),
-        summary: `The model detected ${detections.length} strikes (${metrics.strikesPerMin} per minute), including ${metrics.combinations} combinations, with an estimated guard uptime of ${metrics.guard.uptimePct}%. ${script.summaryNote}`,
+        summary: `Mô hình phát hiện ${detections.length} đòn (${metrics.strikesPerMin}/phút), trong đó có ${metrics.combinations} đòn phối hợp, thời gian giữ thế thủ ước tính ${metrics.guard.uptimePct}%. ${script.summaryNote}`,
         detections,
         combinations: timeline.combinations,
         movementEvents: timeline.events,
@@ -1124,7 +1124,8 @@ function repertoireForDiscipline(discipline: string): WeightedCombo[] {
     const d = discipline.toLowerCase();
     if (d.includes("muay")) return REPERTOIRES.muay_thai;
     if (d.includes("kick")) return REPERTOIRES.kickboxing;
-    if (d.includes("boxing")) return REPERTOIRES.boxing;
+    // The seed writes disciplines in Vietnamese ("Quyền anh"); English names still work for runtime profiles.
+    if (d.includes("boxing") || d.includes("quyền anh")) return REPERTOIRES.boxing;
     if (d.includes("karate") || d.includes("vovinam") || d.includes("taekwondo")) return REPERTOIRES.karate;
     return REPERTOIRES.grappler;
 }
@@ -1164,8 +1165,8 @@ export function buildUploadScript(input: UploadScriptInput): AnalysisScript {
         }),
         summaryNote:
             video.trainingType === "sparring"
-                ? "Two fighters were in frame, so some detections carry lower confidence and should be reviewed."
-                : "Detections with confidence below 60% are marked for coach review.",
+                ? "Có hai võ sĩ trong khung hình nên một số lần phát hiện có độ tin cậy thấp hơn và cần được xem lại."
+                : "Các lần phát hiện có độ tin cậy dưới 60% được đánh dấu để HLV xem lại.",
         findings: defaultFindingTemplates(stance),
         reviewer: null,
         coachReview: null,
