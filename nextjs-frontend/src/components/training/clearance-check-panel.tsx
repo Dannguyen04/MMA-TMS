@@ -10,7 +10,9 @@ import { Spinner } from "@/components/ui/spinner";
 import { clearanceConflictMessage, type ClearanceConflict } from "@/lib/domain/clearance-rules";
 import type { Locale } from "@/lib/i18n/config";
 import { plural, type Translator } from "@/lib/i18n/translate";
+import type { BodyRegion } from "@/lib/domain/types";
 import { cn } from "@/lib/utils";
+import { ClearanceBody } from "./clearance-body";
 
 export type ClearanceCheckStatus = "idle" | "ready" | "error";
 
@@ -23,6 +25,8 @@ export interface ClearanceCheckPanelProps {
     fighterName?: string;
     acknowledged: boolean;
     onAcknowledgedChange: (value: boolean) => void;
+    /** Regions the fighter's clearance protects and regions the planned exercises load; draws the body when any are protected. */
+    body?: { blocked: BodyRegion[]; loads: BodyRegion[] };
     className?: string;
 }
 
@@ -56,27 +60,27 @@ function announcement(t: Translator, status: ClearanceCheckStatus, blocks: numbe
 }
 
 /** Live result of checking the planned session against the fighter's Medical Clearance. */
-export function ClearanceCheckPanel({ status, pending, conflicts, fighterName, acknowledged, onAcknowledgedChange, className }: ClearanceCheckPanelProps) {
+export function ClearanceCheckPanel({ status, pending, conflicts, fighterName, acknowledged, onAcknowledgedChange, body, className }: ClearanceCheckPanelProps) {
     const t = useT();
     const locale = useLocale();
     const blocks = conflicts.filter((c) => c.severity === "block");
     const warnings = conflicts.filter((c) => c.severity === "warn");
 
-    let body: ReactNode;
+    let content: ReactNode;
     if (status === "idle" && pending) {
-        body = <p className="text-[13px] text-fg-muted">{t("training.clearanceCheck.checking")}</p>;
+        content = <p className="text-[13px] text-fg-muted">{t("training.clearanceCheck.checking")}</p>;
     } else if (status === "idle") {
-        body = <InlineNote icon={ShieldQuestion}>{t("training.clearanceCheck.idle")}</InlineNote>;
+        content = <InlineNote icon={ShieldQuestion}>{t("training.clearanceCheck.idle")}</InlineNote>;
     } else if (status === "error") {
-        body = <InlineNote icon={CloudOff}>{t("training.clearanceCheck.error")}</InlineNote>;
+        content = <InlineNote icon={CloudOff}>{t("training.clearanceCheck.error")}</InlineNote>;
     } else if (conflicts.length === 0) {
-        body = (
+        content = (
             <InlineNote icon={CircleCheck} tone="success">
                 {fighterName ? t("training.clearanceCheck.noConflictsNamed", { name: fighterName }) : t("training.clearanceCheck.noConflicts", { name: t("training.clearanceCheck.the") })}
             </InlineNote>
         );
     } else {
-        body = (
+        content = (
             <div className="flex flex-col gap-3">
                 {blocks.length > 0 && (
                     <div className="flex flex-col gap-2">
@@ -116,7 +120,8 @@ export function ClearanceCheckPanel({ status, pending, conflicts, fighterName, a
                 </h2>
                 {pending && <Spinner className="text-fg-subtle" label={t("training.clearanceCheck.spinnerLabel")} />}
             </div>
-            <div className={cn("mt-2 transition-opacity", pending && status !== "idle" && "opacity-60")}>{body}</div>
+            <div className={cn("mt-2 transition-opacity", pending && status !== "idle" && "opacity-60")}>{content}</div>
+            {body && status !== "idle" && <ClearanceBody blocked={body.blocked} loads={body.loads} />}
             <p aria-live="polite" className="sr-only">
                 {pending ? "" : announcement(t, status, blocks.length, warnings.length)}
             </p>

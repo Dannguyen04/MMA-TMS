@@ -468,6 +468,10 @@ export function SessionForm({ mode, action, fighters, plans, library, clearances
                             fighterName={fighter?.name}
                             acknowledged={acknowledged}
                             onAcknowledgedChange={(value) => setAcknowledgedFor(value ? warningsKey : null)}
+                            body={{
+                                blocked: restrictions.flatMap((r) => r.blockedRegions),
+                                loads: values.exercises.flatMap((row) => libraryById[row.exerciseId]?.loadsRegions ?? []),
+                            }}
                         />
                     )}
                     <Card className="flex flex-col gap-3 p-4">
