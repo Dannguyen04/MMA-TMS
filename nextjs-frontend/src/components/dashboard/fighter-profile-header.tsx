@@ -49,7 +49,7 @@ export function FighterProfileHeader({ fighter, clearanceState, back, actions, n
                 {back.label}
             </Link>
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                <div className={cn("flex min-w-0 items-start gap-4", figure ? "max-sm:flex-col sm:items-center sm:gap-6" : undefined)}>
+                <div className={cn("flex min-w-0 items-start gap-4", figure ? "max-sm:flex-col max-sm:items-stretch sm:items-center sm:gap-6" : undefined)}>
                     {figure ?? <Avatar name={fighter.name} shape="octagon" size="xl" className="max-sm:size-14 max-sm:text-lg" />}
                     <div className="min-w-0">
                         <p className="mb-1 text-xs font-semibold tracking-[0.08em] text-fg-subtle uppercase">{eyebrow}</p>
