@@ -17,6 +17,7 @@ import { viScreens } from "./screens.vi";
 import { viScreensRoster } from "./screens-roster.vi";
 import { viScreensPerformance } from "./screens-performance.vi";
 import { viScreensTraining } from "./screens-training.vi";
+import { viScreensApp } from "./screens-app.vi";
 import type { en } from "./en";
 
 /** Vietnamese interface text. Must define every key of `en` (enforced by the type below). */
@@ -40,6 +41,7 @@ export const vi = {
     ...viScreensRoster,
     ...viScreensPerformance,
     ...viScreensTraining,
+    ...viScreensApp,
     "nav.Today": "Hôm nay",
     "nav.Bout": "Trận đấu",
     "nav.Bouts": "Trận đấu",
