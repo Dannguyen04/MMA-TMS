@@ -29,7 +29,7 @@ Dev cần nhánh `fight-camp` trên remote để tạo nhánh ticket (xem [TEAM-
 
 Demo ở review 2 chạy với **backend thật** trên Supabase hiện có ([quyết định 14](../SCOPE-FIGHT-CAMP.md#quyết-định-và-câu-hỏi)). Nếu T-003 chưa merge trước hết ngày 17/10, chủ dự án quyết định có dùng phương án dự phòng (demo mode) hay không.
 
-## Sprint 2 (21/10 – 30/10), demo cuối ngày 31/10
+## Sprint 2 (21/10 – 30/10); 31/10 không demo, review 3 (cuối) ngày 10/11 (chủ dự án báo 30/10)
 
 | Ticket | Nội dung | Phần | Người nhận | Phụ thuộc | Trạng thái |
 | --- | --- | --- | --- | --- | --- |

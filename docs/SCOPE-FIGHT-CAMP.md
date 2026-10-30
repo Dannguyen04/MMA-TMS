@@ -12,7 +12,7 @@ MMA-TMS là **đồ án**. Từ tuần 13/10, sản phẩm chỉ giải một b�
 - **Người dùng chính:** HLV. Võ sĩ là người dùng phụ (ghi cân, xem lịch). Bác sĩ không bắt buộc.
 - **Đối tượng trung tâm:** *Trận* (bout). Kế hoạch tập, cân nặng, hồ sơ, video và đình chỉ đều gắn vào một trận.
 - **Đóng băng:** phát triển thêm AI, trừ recall của detector đấm (quyết định 20; phần AI đã làm vẫn được tính vào đồ án, quyết định 16), tuyển võ sĩ (admissions), cổng Doctor đầy đủ, admin AI models/dataset, app React Native. Không xoá code, chỉ dừng phát triển và ẩn khỏi menu.
-- **Hạn:** review 1 đã diễn ra (buổi duyệt phạm vi, trước 14/10). Còn **review 2 ngày 20/10** và **demo cuối ngày 31/10/2026**. Đồ án được đánh giá bằng demo, không có báo cáo (quyết định 17).
+- **Hạn:** review 1 đã diễn ra (buổi duyệt phạm vi, trước 14/10). Review 2 đã diễn ra 20/10, review giữa kỳ 27/10. Còn **review 3 (cuối) ngày 10/11/2026**; 31/10 không còn là buổi demo (chủ dự án báo 30/10). Đồ án được đánh giá bằng demo, không có báo cáo (quyết định 17).
 - **Team:** 4 dev (2 backend, 1 frontend, 1 dev mobile chuyển sang làm web cho điện thoại) cùng Gemini nhận ticket; Claude viết ticket và review (quyết định 18).
 - **Mục tiêu đồ án:** (1) hệ thống chạy trọn vòng đời một trận, có bộ demo dựng sẵn; (2) qua các tiêu chí nghiệm thu của phần lõi. Không có buổi kiểm thử người dùng (quyết định 17).
 - **Không phụ thuộc quan hệ:** không cần CLB pilot hay điều lệ từ ban tổ chức. Quy định có sẵn lấy từ văn bản công khai đã xác minh; quy định riêng của từng giải do HLV tự nhập.
@@ -115,11 +115,11 @@ Phần lớn nền tảng đã có sẵn. Việc mới thực sự chỉ là b�
 
 ## Kế hoạch triển khai
 
-Mốc (quyết định 17): review 1 đã diễn ra trước 14/10 (buổi duyệt phạm vi); **review 2 ngày 20/10**; **demo cuối ngày 31/10**. Không có báo cáo và không có buổi kiểm thử người dùng. Mỗi ticket giao cho một dev hoặc cho Gemini (quyết định 18); người nhận đề xuất ở [danh sách ticket](./tickets/README.md).
+Mốc (quyết định 17): review 1 đã diễn ra trước 14/10 (buổi duyệt phạm vi); **review 2 ngày 20/10**; **review 3 (cuối) ngày 10/11** (chủ dự án báo 30/10: 31/10 không demo). Không có báo cáo và không có buổi kiểm thử người dùng. Mỗi ticket giao cho một dev hoặc cho Gemini (quyết định 18); người nhận đề xuất ở [danh sách ticket](./tickets/README.md).
 
 ```mermaid
 gantt
-    title Review 2 ngày 20/10, demo cuối ngày 31/10
+    title Review 2 ngày 20/10, review 3 (cuối) ngày 10/11
     dateFormat YYYY-MM-DD
     axisFormat %d/%m
     section Sprint 1
@@ -147,7 +147,7 @@ gantt
 
 Demo review 2: tạo trận → võ sĩ ghi cân → cân chuyển đỏ → thêm mục hồ sơ → Cổng 1 chặn vì thiếu hồ sơ → đủ hồ sơ thì vào tuần thi đấu.
 
-### Sprint 2 · Trong và sau trận, mở rộng (21/10 – 30/10), demo cuối ngày 31/10
+### Sprint 2 · Trong và sau trận, mở rộng (21/10 – 30/10); mốc đánh giá chuyển sang review 3 ngày 10/11
 
 - [ ] Cân chính thức, xử lý không đạt cân, ghi kết quả trận (T-006)
 - [ ] Migration 025 + `suspensions`: tạo khi thua KO/TKO; Cổng 2 trong training service; xác nhận được tập lại (T-007)
@@ -206,7 +206,7 @@ Câu trả lời ghi vào [phiếu câu hỏi mở](./FIGHT-CAMP-OPEN-QUESTIONS.
 | 14 | Môi trường demo | **Đã quyết (14/10):** demo ở review 2 và demo cuối chạy với **backend thật**, không dùng demo mode của frontend. Database: **Supabase hiện có** | Review 1 cần T-003 đã merge và adapter API của T-004, T-005 đã đối chiếu với backend trước khoảng 22/10; dữ liệu demo cho kịch bản 1, 2 chuyển lên Sprint 1. Chủ dự án tự áp từng migration 023–027 lên Supabase (Gemini và Claude không chạy `db:migrate:*`), chỉ sau khi ticket tương ứng đã APPROVED và merge. Chỉ dùng dữ liệu giả (quyết định 9), vì database đặt ở Tokyo |
 | 15 | Nơi để tài liệu và prototype | **Đã quyết (14/10):** tài liệu và prototype `concept/fight-camp` đưa lên `main` để cả team cùng thấy. Từ nay tài liệu commit trên `fight-camp` rồi đưa lên `main` (thay Q08) | Nhánh `docs/fight-camp-scope` thôi dùng sau khi đã merge vào `fight-camp`. Tài liệu lên `main` qua PR (CI của repo chạy cho PR), không push thẳng |
 | 16 | Phần AI đã làm | **Đã quyết (14/10):** được tính vào đồ án. Không phát triển thêm; trình bày bằng một demo ngắn chạy worker hiện có (T-012) | Chuẩn bị demo AI trong khoảng 27–29/10. Các bản sửa worker gần nhất (`7a651c1`, `d87f894`, `d39e463`, `40e7e77`) mới có trên `fight-camp`, chưa có trên `main` |
-| 17 | Mốc và hình thức đánh giá | **Đã quyết (14/10):** review 1 đã diễn ra (buổi duyệt phạm vi); review 2 ngày 20/10; demo cuối ngày 31/10. Chỉ đánh giá bằng demo: không báo cáo, không kiểm thử người dùng | Sprint 1 rút còn 14–19/10; bỏ các thước đo lấy từ buổi kiểm thử (tỷ lệ hoàn thành, thời gian ghi cân, SUS) |
+| 17 | Mốc và hình thức đánh giá | **Đã quyết (14/10):** review 1 đã diễn ra (buổi duyệt phạm vi); review 2 ngày 20/10; demo cuối ngày 31/10. **Cập nhật 30/10:** 31/10 không demo; còn review 3 (cuối) ngày 10/11, tổng duyệt 9/11. Chỉ đánh giá bằng demo: không báo cáo, không kiểm thử người dùng | Sprint 1 rút còn 14–19/10; bỏ các thước đo lấy từ buổi kiểm thử (tỷ lệ hoàn thành, thời gian ghi cân, SUS) |
 | 18 | Nhân lực và người làm ticket | **Đã quyết (14/10):** 4 dev (2 backend, 1 frontend, 1 mobile) cùng Gemini nhận ticket; Claude viết ticket và review mọi ticket. Dev mobile chuyển sang các màn của võ sĩ trên web cho điện thoại; app React Native vẫn đóng băng | Quy trình trong [TEAM-WORKFLOW.md](./TEAM-WORKFLOW.md) áp dụng cho cả dev và Gemini |
 | 19 | Dev dùng Supabase khi phát triển | **Đã quyết (14/10):** dev được chạy backend và frontend bằng `.env` của team, nối với Supabase hiện có, để thử ở API mode; chỉ qua app và API, chỉ dữ liệu giả. Không chạy `db:migrate:*`, không chạy SQL trực tiếp; áp migration vẫn chỉ chủ dự án làm. Gemini vẫn không kết nối Supabase | Phần B của T-008a làm được; dữ liệu thử của dev nằm chung database với dữ liệu demo, nên dùng email `@example.com` và không xoá dữ liệu của người khác |
 | 20 | Cải thiện nhận diện đòn đấm của worker | **Đã quyết (20/10):** mở lại, chỉ cho **recall của detector đấm** ([T-022](./tickets/T-022-punch-detector-recall.md)). Dữ liệu đo là dữ liệu công khai (BoxingVI), chủ dự án không còn video riêng. Phân loại jab/cross/hook/uppercut chưa mở. Không chặn ticket Fight Camp; demo AI (T-012) vẫn chạy worker hiện có | Sửa quyết định 16 ("không phát triển thêm") cho riêng việc này. Bản đo ngày 20/10: Adam khớp 8/18 đoạn nhãn, 6 clip kiểm chứng 6 TP / 6 FP / 0 FN. Không nới ngưỡng theo một video; kết quả chỉ tính trên tập giữ riêng |
