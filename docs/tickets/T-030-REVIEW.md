@@ -49,3 +49,15 @@
 - Test tự động không bắt được cả hai lỗi chặn (không có ca xếp lại buổi có bài tập, không có ca vướng cảnh báo cấp phép); chúng được thêm sau khi Claude thấy lỗi trên app.
 - Lệnh Claude chạy lại: `lint` sạch, `typecheck` 0 lỗi, `test` `Tests 927 passed | 2 skipped (929)`.
 - Review độc lập cuối cho cả T-030 ở B7.
+
+## Kiểm lại 30/10 tối (Claude trên máy Dan): CHANGES REQUESTED cho B5-15, B5-16
+
+Chạy lại trên `6b253fd` (B6) lúc 22:50 ngày 30/10 (UTC+7): `lint` sạch, `typecheck` 0 lỗi, `test` **`Tests 2 failed | 934 passed | 2 skipped (938)`**. Ở `e198870` (B5) cũng lỗi đúng hai ca này, nên lỗi có từ B5, không do B6.
+
+| # | Mức | Chỗ | Vấn đề |
+| --- | --- | --- | --- |
+| R1 | chặn | `nextjs-frontend/src/components/training/session-suspension-b5.test.ts:680`, `:723` | B5-15 và B5-16 lấy buổi bằng `find(... status === "pending")`, không theo id như tên ca (`s-tariq-sc-in5d`). Dữ liệu mẫu xếp buổi theo thứ trong tuần tính từ hôm nay (`lib/mocks/time.ts`, mốc `Date.now()`), nên buổi `pending` đầu tiên của Tariq đổi theo ngày chạy. Tối 30/10 Tariq có 3 buổi `pending`: `s-tariq-pads-in3d` (`pad_work`), `s-tariq-sc-in4d`, `s-tariq-bag-in5d`. `find` trả `s-tariq-pads-in3d`, buổi này không vướng hạn chế nào của cấp phép hiện tại (`cl-tariq-current`: chặn `sparring`, không chặn kỹ thuật hay vùng cơ thể của bài pad), nên `getSessionClearanceConflicts` trả `[]` và bước "không xác nhận thì lỗi" nhận `success`. Lúc Ken chạy (00:13 cùng ngày) buổi đầu tiên là buổi khác nên qua. |
+
+**Tái hiện:** `pnpm --filter nextjs-frontend exec vitest run src/components/training/session-suspension-b5.test.ts` vào tối 30/10 cho `2 failed | 15 passed (17)`; đổi `TZ` (UTC, Asia/Ho_Chi_Minh, America/Los_Angeles) vẫn lỗi.
+
+**Cách sửa đề nghị (không đổi kết quả mong đợi):** chọn buổi theo đặc điểm cần thử, không theo thứ tự: lấy buổi `pending` của Tariq mà `getSessionClearanceConflicts` tại ngày xếp lại có ít nhất một cảnh báo `warn` và không có `block` (hoặc dựng riêng một buổi `pending` có bài tập vướng hạn chế trong `beforeEach`), và kiểm điều kiện đó bằng `expect` trước bước chính để ca không âm thầm đổi ý nghĩa. Nếu cố định thời gian bằng `vi.setSystemTime` thì phải đặt trước khi nạp `lib/mocks/time.ts`, vì mốc được giữ trên `globalThis` lúc nạp module. Sau khi sửa, chạy file này ở hai thời điểm khác ngày (hoặc với hai giá trị `setSystemTime`) để chắc ca không phụ thuộc ngày.
