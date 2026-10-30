@@ -8,7 +8,7 @@ import { Field, FormFooter, FormSection, Select } from "@/components/ui/form";
 import { useActionForm } from "@/components/ui/use-action-form";
 import { createBoutAction, previewFeasibilityAction } from "@/lib/actions/bouts";
 import { actionError } from "@/lib/actions/state";
-import type { CompetitionRuleset } from "@/lib/domain/bout";
+import { SCHEDULED_ROUND_CHOICES, type CompetitionRuleset } from "@/lib/domain/bout";
 import { validateBoutSchedule } from "@/lib/domain/bout-rules";
 import { Scale, TriangleAlert } from "lucide-react";
 import { Callout } from "@/components/training/callout";
@@ -88,6 +88,7 @@ export function BoutForm({ fighters, rulesets, defaults, todayOn }: BoutFormProp
     const feasibility = preview?.key === previewKey ? preview?.value : null;
     const fighter = form.control("fighterId", { required: true });
     const rulesetControl = form.control("rulesetId", { required: true });
+    const rounds = form.control("scheduledRounds");
 
     return (
         <form {...form.formProps} ref={formRef} className="max-w-4xl">
@@ -120,6 +121,15 @@ export function BoutForm({ fighters, rulesets, defaults, todayOn }: BoutFormProp
 
                     <FormSection title={t("coachBouts.form.event")}>
                         <EventFields form={form} defaults={defaults} />
+                        <Field label={t("coachBouts.form.rounds")} htmlFor={rounds.id} hint={t("coachBouts.form.roundsHint")}>
+                            <Select {...rounds} defaultValue={String(SCHEDULED_ROUND_CHOICES[0])}>
+                                {SCHEDULED_ROUND_CHOICES.map((n) => (
+                                    <option key={n} value={n}>
+                                        {t("coachBouts.form.roundsOption", { n })}
+                                    </option>
+                                ))}
+                            </Select>
+                        </Field>
                     </FormSection>
 
                     <FormSection title={t("coachBouts.form.schedule")} description={t("coachBouts.form.scheduleHint")}>

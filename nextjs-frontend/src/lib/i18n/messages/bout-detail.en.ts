@@ -168,6 +168,8 @@ export const enBoutDetail = {
     "boutDetail.result.lostConsciousness": "Lost consciousness?",
     "boutDetail.result.headStrikes": "Was the bout stopped for strikes to the head?",
     "boutDetail.result.knockedDown": "Knocked down during the bout",
+    "boutDetail.result.suspensionDays": "Suspension days",
+    "boutDetail.result.suspensionDaysHint": "Only for a KO loss, or a TKO for head strikes. Leave empty to use the ruleset's suggestion; required when the ruleset suggests none.",
     "boutDetail.result.knockedDownDescription": "Kept for reference; it does not create a suspension on its own.",
     "boutDetail.result.injuries": "Injuries seen after the bout",
     "boutDetail.result.injuriesHint": "What you saw. This is not a medical record.",

@@ -36,6 +36,7 @@ export const enCoachToday = {
     "queue.items.one": "1 item, most urgent first",
     "queue.allClear": "All clear — nothing needs you right now",
     "queue.all": "All",
+    "queue.forFighter": "for {name}",
     "queue.showing": "Showing the {shown} most urgent of {total}. Pick a group above to see the rest.",
 
     "coachToday.loading": "Loading today",

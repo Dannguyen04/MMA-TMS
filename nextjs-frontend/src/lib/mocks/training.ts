@@ -866,7 +866,7 @@ const BLUEPRINTS = {
         coach: "striking",
         durationMin: 75,
         targetRpe: 8,
-        location: "Striking room",
+        location: "Phòng đánh đứng",
         exercises: [
             rounds("exr-technical-shadow-boxing", 2, 180),
             rounds("exr-jab-cross-hook-pads", 6, 180),
@@ -886,7 +886,7 @@ const BLUEPRINTS = {
         coach: "striking",
         durationMin: 60,
         targetRpe: 8,
-        location: "Striking room",
+        location: "Phòng đánh đứng",
         exercises: [
             rounds("exr-skipping-rope-rounds", 2, 180),
             rounds("exr-jab-cross-hook-pads", 6, 180),
@@ -905,7 +905,7 @@ const BLUEPRINTS = {
         coach: "striking",
         durationMin: 60,
         targetRpe: 8,
-        location: "Striking room",
+        location: "Phòng đánh đứng",
         exercises: [
             rounds("exr-technical-shadow-boxing", 2, 180),
             rounds("exr-thai-pad-kick-rounds", 5, 120),
@@ -924,7 +924,7 @@ const BLUEPRINTS = {
         coach: "striking",
         durationMin: 60,
         targetRpe: 8,
-        location: "Striking room",
+        location: "Phòng đánh đứng",
         exercises: [rounds("exr-skipping-rope-rounds", 3, 180), rounds("exr-heavy-bag-power-rounds", 6, 180)],
         summaries: [
             "Solid volume, roughly 90 strikes a round. Combinations stayed short with a move off after each one.",
@@ -939,7 +939,7 @@ const BLUEPRINTS = {
         coach: "striking",
         durationMin: 60,
         targetRpe: 8,
-        location: "Striking room",
+        location: "Phòng đánh đứng",
         exercises: [
             rounds("exr-skipping-rope-rounds", 2, 180),
             rounds("exr-teep-roundhouse-bag", 5, 180),
@@ -958,7 +958,7 @@ const BLUEPRINTS = {
         coach: "striking",
         durationMin: 60,
         targetRpe: 9,
-        location: "Cage",
+        location: "Lồng đấu",
         exercises: [rounds("exr-technical-shadow-boxing", 2, 180), rounds("exr-controlled-sparring", 5, 180)],
         summaries: [
             "Controlled rounds at the right intensity. Won the jab exchanges; caught by the same counter twice when exiting straight back.",
@@ -973,7 +973,7 @@ const BLUEPRINTS = {
         coach: "striking",
         durationMin: 60,
         targetRpe: 6,
-        location: "Striking room",
+        location: "Phòng đánh đứng",
         exercises: [
             rounds("exr-guard-reset-reaction", 5, 120),
             rounds("exr-southpaw-lead-hook-counter", 5, 180),
@@ -991,7 +991,7 @@ const BLUEPRINTS = {
         coach: "striking",
         durationMin: 60,
         targetRpe: 6,
-        location: "Striking room",
+        location: "Phòng đánh đứng",
         exercises: [
             rounds("exr-slip-roll-line", 5, 120),
             rounds("exr-parry-catch-counter", 4, 180),
@@ -1010,7 +1010,7 @@ const BLUEPRINTS = {
         coach: "striking",
         durationMin: 60,
         targetRpe: 6,
-        location: "Striking room",
+        location: "Phòng đánh đứng",
         exercises: [
             rounds("exr-thai-pad-kick-rounds", 4, 120),
             rounds("exr-kick-catch-defence", 4, 120),
@@ -1028,7 +1028,7 @@ const BLUEPRINTS = {
         coach: "striking",
         durationMin: 45,
         targetRpe: 5,
-        location: "Striking room",
+        location: "Phòng đánh đứng",
         exercises: [
             rounds("exr-technical-shadow-boxing", 5, 180),
             rounds("exr-footwork-shadow-rounds", 3, 120),
@@ -1046,7 +1046,7 @@ const BLUEPRINTS = {
         coach: "grappling",
         durationMin: 75,
         targetRpe: 8,
-        location: "Cage",
+        location: "Lồng đấu",
         exercises: [
             sets("exr-wall-walk-shots", 4, 8),
             rounds("exr-double-leg-chain", 5, 180),
@@ -1064,7 +1064,7 @@ const BLUEPRINTS = {
         coach: "grappling",
         durationMin: 90,
         targetRpe: 7,
-        location: "Main mat",
+        location: "Thảm chính",
         exercises: [
             sets("exr-hip-escape-chains", 4, 10),
             rounds("exr-guard-retention-rounds", 6, 240),
@@ -1082,7 +1082,7 @@ const BLUEPRINTS = {
         coach: "grappling",
         durationMin: 75,
         targetRpe: 8,
-        location: "Main mat",
+        location: "Thảm chính",
         exercises: [
             rounds("exr-grip-fighting-uchi-mata", 6, 180),
             sets("exr-hip-escape-chains", 3, 10),
@@ -1100,7 +1100,7 @@ const BLUEPRINTS = {
         coach: "grappling",
         durationMin: 60,
         targetRpe: 6,
-        location: "Main mat",
+        location: "Thảm chính",
         exercises: [
             sets("exr-hip-escape-chains", 4, 10),
             rounds("exr-sprawl-sprint-intervals", 6, 30),
@@ -1118,7 +1118,7 @@ const BLUEPRINTS = {
         coach: "sc",
         durationMin: 60,
         targetRpe: 7,
-        location: "S&C floor",
+        location: "Khu thể lực",
         exercises: [
             sets("exr-trap-bar-deadlift", 4, 5),
             sets("exr-bulgarian-split-squat", 3, 8),
@@ -1138,7 +1138,7 @@ const BLUEPRINTS = {
         coach: "sc",
         durationMin: 45,
         targetRpe: 8,
-        location: "S&C floor",
+        location: "Khu thể lực",
         exercises: [
             rounds("exr-assault-bike-intervals", 10, 30),
             rounds("exr-sprawl-sprint-intervals", 6, 30),
@@ -1156,7 +1156,7 @@ const BLUEPRINTS = {
         coach: "sc",
         durationMin: 40,
         targetRpe: 3,
-        location: "Recovery room",
+        location: "Phòng hồi phục",
         exercises: [
             sets("exr-thoracic-mobility-flow", 2, 10),
             sets("exr-hip-90-90-flow", 2, 8),
@@ -1174,7 +1174,7 @@ const BLUEPRINTS = {
         coach: "striking",
         durationMin: 40,
         targetRpe: 6,
-        location: "Striking room",
+        location: "Phòng đánh đứng",
         exercises: [rounds("exr-jab-cross-hook-pads", 4, 120), rounds("exr-slip-roll-line", 2, 120)],
         summaries: ["Short and sharp. Timing looks fight-ready.", "Crisp rounds, no fatigue carried over."],
     },
@@ -1184,7 +1184,7 @@ const BLUEPRINTS = {
         coach: "grappling",
         durationMin: 60,
         targetRpe: 5,
-        location: "Main mat",
+        location: "Thảm chính",
         exercises: [
             sets("exr-pressure-passing-drill", 4, 8),
             sets("exr-hip-escape-chains", 3, 10, "Slow tempo — stop if the left hamstring pulls."),
@@ -1202,7 +1202,7 @@ const BLUEPRINTS = {
         coach: "sc",
         durationMin: 50,
         targetRpe: 6,
-        location: "S&C floor",
+        location: "Khu thể lực",
         exercises: [
             sets("exr-weighted-pull-ups", 4, 6),
             sets("exr-band-pull-aparts", 3, 20),
@@ -1220,7 +1220,7 @@ const BLUEPRINTS = {
         coach: "grappling",
         durationMin: 60,
         targetRpe: 6,
-        location: "Main mat",
+        location: "Thảm chính",
         exercises: [
             sets("exr-pressure-passing-drill", 5, 8),
             sets("exr-hip-escape-chains", 3, 10, "Controlled tempo only."),
@@ -1238,7 +1238,7 @@ const BLUEPRINTS = {
         coach: "striking",
         durationMin: 50,
         targetRpe: 6,
-        location: "Striking room",
+        location: "Phòng đánh đứng",
         exercises: [
             rounds("exr-footwork-shadow-rounds", 5, 120, "Right hand relaxed in the guard — no fist."),
             rounds("exr-pivot-angle-ladder", 4, 120),
@@ -1256,7 +1256,7 @@ const BLUEPRINTS = {
         coach: "striking",
         durationMin: 50,
         targetRpe: 7,
-        location: "S&C floor",
+        location: "Khu thể lực",
         exercises: [
             rounds("exr-assault-bike-intervals", 10, 30),
             sets("exr-bulgarian-split-squat", 3, 8, "Weight vest only — no gripping with the right hand."),
@@ -1274,7 +1274,7 @@ const BLUEPRINTS = {
         coach: "striking",
         durationMin: 50,
         targetRpe: 7,
-        location: "Striking room",
+        location: "Phòng đánh đứng",
         exercises: [rounds("exr-skipping-rope-rounds", 2, 180), rounds("exr-teep-roundhouse-bag", 6, 180)],
         summaries: [
             "Kicks-only rounds with the hands in guard. Right shoulder comfortable throughout.",
@@ -1288,7 +1288,7 @@ const BLUEPRINTS = {
         coach: "striking",
         durationMin: 45,
         targetRpe: 5,
-        location: "Striking room",
+        location: "Phòng đánh đứng",
         exercises: [
             rounds("exr-technical-shadow-boxing", 4, 180, "Jab, lead hook and kicks only — no cross."),
             rounds("exr-footwork-shadow-rounds", 3, 120),
@@ -1305,7 +1305,7 @@ const BLUEPRINTS = {
         coach: "striking",
         durationMin: 50,
         targetRpe: 7,
-        location: "S&C floor",
+        location: "Khu thể lực",
         exercises: [
             sets("exr-bulgarian-split-squat", 3, 8),
             sets("exr-nordic-hamstring-curls", 3, 5),
@@ -1323,7 +1323,7 @@ const BLUEPRINTS = {
         coach: "sc",
         durationMin: 50,
         targetRpe: 6,
-        location: "S&C floor",
+        location: "Khu thể lực",
         exercises: [
             sets("exr-bulgarian-split-squat", 3, 8),
             sets("exr-nordic-hamstring-curls", 3, 5),
@@ -1342,7 +1342,7 @@ const BLUEPRINTS = {
         coach: "sc",
         durationMin: 50,
         targetRpe: 6,
-        location: "S&C floor",
+        location: "Khu thể lực",
         exercises: [
             sets("exr-weighted-pull-ups", 4, 6),
             sets("exr-band-pull-aparts", 3, 20),
@@ -1359,7 +1359,7 @@ const BLUEPRINTS = {
         coach: "striking",
         durationMin: 50,
         targetRpe: 6,
-        location: "Striking room",
+        location: "Phòng đánh đứng",
         exercises: [
             rounds("exr-jab-cross-hook-pads", 5, 180, "Pivot on the right foot only — minimal twist on the left knee."),
             rounds("exr-parry-catch-counter", 3, 180),
@@ -1376,7 +1376,7 @@ const BLUEPRINTS = {
         coach: "striking",
         durationMin: 60,
         targetRpe: 5,
-        location: "Striking room",
+        location: "Phòng đánh đứng",
         exercises: [
             rounds("exr-technical-shadow-boxing", 4, 180, "Stance and jab-cross only."),
             rounds("exr-jab-cross-hook-pads", 4, 180, "Jab and cross only — no hooks yet."),
@@ -1393,7 +1393,7 @@ const BLUEPRINTS = {
         coach: "sc",
         durationMin: 60,
         targetRpe: 6,
-        location: "S&C floor",
+        location: "Khu thể lực",
         exercises: [
             sets("exr-trap-bar-deadlift", 3, 5, "Technique and estimated 1RM only."),
             sets("exr-weighted-pull-ups", 3, 5, "Bodyweight first set."),

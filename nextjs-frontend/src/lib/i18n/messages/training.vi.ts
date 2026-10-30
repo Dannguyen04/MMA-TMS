@@ -79,8 +79,10 @@ export const viTraining = {
     "training.clearanceCheck.announcement.noConflicts": "Kiểm tra cấp phép: không có xung đột.",
     "training.clearanceCheck.announcement.result": "Kiểm tra cấp phép: {parts}.",
     "training.clearanceCheck.announcement.and": " và ",
-    "training.clearanceCheck.announcement.blockingConflict": "xung đột chặn",
-    "training.clearanceCheck.announcement.warning": "cảnh báo",
+    "training.clearanceCheck.announcement.blockingConflict": "{n} xung đột chặn",
+    "training.clearanceCheck.announcement.blockingConflict.one": "1 xung đột chặn",
+    "training.clearanceCheck.announcement.warning": "{n} cảnh báo",
+    "training.clearanceCheck.announcement.warning.one": "1 cảnh báo",
 
     /* Training Service Errors */
     "training.error.service": "dịch vụ tập luyện",
@@ -100,6 +102,7 @@ export const viTraining = {
     "training.error.planStateConflict": "Có người vừa thay đổi giáo án này cùng lúc. Hãy tải lại trang và thử lại.",
     "training.error.sessionStateConflict": "Có người vừa thay đổi buổi tập này cùng lúc. Hãy tải lại trang và thử lại.",
     "training.error.medicalEligibilityRequired": "Võ sĩ hiện chưa đủ điều kiện y tế cho buổi tập này. Mỗi võ sĩ cần hoàn thành kiểm tra ban đầu và có cấp phép hợp lệ trước.",
+    "training.error.suspensionActive": "Võ sĩ đang bị đình chỉ nên loại buổi tập này bị chặn. Hãy đổi loại buổi tập hoặc ngày.",
     "training.error.trainingConflict": "Thao tác này xung đột với lịch tập hiện tại của võ sĩ. Hãy tải lại trang và kiểm tra lại.",
     "training.error.checkViolation": "Dịch vụ tập luyện từ chối một số giá trị nhập vào. Kiểm tra lại biểu mẫu và thử lại.",
     "training.error.invariantConflict": "Dịch vụ tập luyện từ chối thay đổi này do dữ liệu đã cập nhật. Hãy tải lại trang và thử lại.",
@@ -906,4 +909,11 @@ export const viTraining = {
     "training.gate2.suspended": "{name} đang bị đình chỉ: buổi {type} bị chặn {until}.",
     "training.gate2.through": "đến hết ngày {date}",
     "training.gate2.untilCleared": "cho đến khi HLV cho tập lại",
+    "training.preset.shadowBoxing": "Mang băng quấn tay. Hiệp 3 phút, có bấm giờ.",
+    "training.preset.padWork": "Mang băng quấn tay và găng.",
+    "training.preset.heavyBag": "Mang băng quấn tay và găng đánh bao.",
+    "training.preset.sparring": "Đồ bảo hộ đủ bộ: mũ, bảo vệ răng, bảo vệ ống quyển, găng đấu tập.",
+    "training.preset.grappling": "Mang áo rash guard và quần vật.",
+    "training.preset.strengthConditioning": "Mang giày tập và bình nước.",
+    "training.preset.recoveryMobility": "Buổi nhẹ. Mặc đồ thoải mái.",
 } as const;

@@ -103,7 +103,7 @@ describe("bout actions in demo mode", () => {
         await expect(enterFightWeekAction({ status: "idle" }, form({ boutId: "b-emma-nordic" }))).resolves.toEqual({
             status: "error",
             message: "Gate 1 is not met. The bout stays in camp.",
-            data: { lines: ["Brain CT: missing"] },
+            data: { lines: ["Chụp CT não: missing"] },
         });
         expect(getDemoBout("b-emma-nordic")?.phase).toBe("CAMP");
     });

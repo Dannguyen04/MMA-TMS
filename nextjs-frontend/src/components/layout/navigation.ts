@@ -17,16 +17,17 @@ import {
 } from "lucide-react";
 
 import type { Role } from "@/lib/domain/types";
+import type { MessageKey } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 
 export type NavBadgeKey = "notifications" | "reviewQueue" | "newAlerts" | "failedJobs";
 
 /** Screen-reader suffix read after a nav badge count ("3 failed"). */
-export const BADGE_LABELS: Record<NavBadgeKey, string> = {
-    notifications: "unread",
-    reviewQueue: "awaiting review",
-    newAlerts: "new",
-    failedJobs: "failed",
+export const BADGE_LABELS: Record<NavBadgeKey, MessageKey> = {
+    notifications: "shell.badge.notifications",
+    reviewQueue: "shell.badge.reviewQueue",
+    newAlerts: "shell.badge.newAlerts",
+    failedJobs: "shell.badge.failedJobs",
 };
 
 /** A page inside a hub, shown as a route tab above that page's header. */
