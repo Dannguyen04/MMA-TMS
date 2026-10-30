@@ -80,6 +80,12 @@ Chạy backend bằng `.env` của team và frontend với `APP_DATA_MODE=api`, 
 
 Mỗi lỗi ghi một dòng vào handover: màn, các bước tái hiện, kết quả mong đợi, kết quả thật, ảnh chụp nếu là lỗi giao diện. Ghi rõ lỗi do backend hay do frontend: mở Network, xem mã lỗi và body.
 
+Đã kiểm 30/10 (Claude, `fight-camp` `5c63a1b`, `.env` của team):
+- Backend khởi động được, đăng ký 152 route, có đủ các route mới của T-036, T-037, T-038, T-045.
+- `/health` trả 200; `/readiness`, `/suspensions`, `/bouts` trả 401 khi chưa đăng nhập.
+- Máy không chạy Redis ở `localhost:6379` thì log có `ECONNREFUSED` nhưng app vẫn chạy. Khi chạy thử, bật Redis để có thông báo.
+- Chưa thử các luồng cần đăng nhập: chờ dữ liệu của phần B và tài khoản của dev.
+
 Phải tái hiện được hai lỗi đã biết:
 - "Phải khởi động lại server để diễn lại" (nhận xét 27/10 mục 4). Tìm xem do đâu: kho demo trong bộ nhớ, cache, hay mốc thời gian `lib/mocks/time.ts`.
 - Test frontend chập chờn trên `fight-camp`: ngày 30/10 chạy hai lần liên tiếp thì lần 1 có 1 lỗi, lần 2 qua hết (813 qua). Tìm ra test nào.
