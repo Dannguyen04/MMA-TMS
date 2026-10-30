@@ -87,14 +87,14 @@ export interface SessionFormProps {
 
 /** Where each training type usually happens at the academy; used to prefill the location. */
 const DEFAULT_LOCATION: Record<TrainingType, string> = {
-    shadow_boxing: "Striking room",
-    pad_work: "Striking room",
-    heavy_bag: "Striking room",
-    sparring: "Cage",
-    technical_drilling: "Striking room",
-    grappling: "Main mat",
-    strength_conditioning: "S&C floor",
-    recovery_mobility: "Recovery room",
+    shadow_boxing: "Phòng đánh đứng",
+    pad_work: "Phòng đánh đứng",
+    heavy_bag: "Phòng đánh đứng",
+    sparring: "Lồng đấu",
+    technical_drilling: "Phòng đánh đứng",
+    grappling: "Thảm chính",
+    strength_conditioning: "Khu thể lực",
+    recovery_mobility: "Phòng hồi phục",
 };
 
 interface CheckResult {
@@ -429,7 +429,7 @@ export function SessionForm({ mode, action, fighters, plans, library, clearances
                             {preset && (
                                 <SuggestionChips
                                     label={t("training.repeat.addSuggestion")}
-                                    suggestions={[{ label: preset.notes }]}
+                                    suggestions={[{ label: t(preset.notes) }]}
                                     onPick={(value) => {
                                         set("notes", appendSuggestion(values.notes, value));
                                         form.markEdited("notes");

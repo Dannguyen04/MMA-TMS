@@ -11,7 +11,7 @@ import { ApiError } from "@/lib/api/client";
 import { canAccessFighter } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { actionError, actionSuccess, type ActionState } from "@/lib/actions/state";
-import { CANCEL_REASONS, type CampBout, type CancelReason, type HydrationCheck, type NutritionPhaseKey, type SuspensionReason } from "@/lib/domain/bout";
+import { CANCEL_REASONS, SCHEDULED_ROUND_CHOICES, type CampBout, type CancelReason, type HydrationCheck, type NutritionPhaseKey, type SuspensionReason } from "@/lib/domain/bout";
 import {
     canEnterFightWeek,
     HYDRATION_CHECKS,
@@ -238,6 +238,7 @@ export async function createBoutAction(_prev: ActionState, formData: FormData): 
             weightClass: schedule.value.weightClass,
             weighInAt: schedule.value.weighInAt,
             boutAt: schedule.value.boutAt,
+            scheduledRounds: SCHEDULED_ROUND_CHOICES.find((n) => String(n) === text(formData, "scheduledRounds")) ?? null,
             coachId: user.profileId ?? user.id,
         },
         user,
@@ -466,7 +467,15 @@ export async function recordResultAction(_prev: ActionState, formData: FormData)
         t,
     );
     if (!outcome.ok) return actionError(t("form.fixFields"), outcome.fieldErrors);
-    const result = await recordResult(found.bout.id, outcome.value, found.user);
+    let suspensionDays: number | null = null;
+    const daysText = text(formData, "suspensionDays");
+    if (daysText && suspensionReasonFor(outcome.value)) {
+        suspensionDays = Number(daysText);
+        if (!Number.isInteger(suspensionDays) || suspensionDays < 1 || suspensionDays > 365) {
+            return actionError(t("form.fixFields"), { suspensionDays: t("boutMsg.action.suspensionDaysRange") });
+        }
+    }
+    const result = await recordResult(found.bout.id, outcome.value, found.user, new Date(), suspensionDays);
     if (!result.ok) return actionError(serviceMessage(result.message, t));
     revalidateBout(found.bout);
     revalidatePath(routes.coach.sessions);

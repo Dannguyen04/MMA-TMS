@@ -71,6 +71,7 @@ export const viBoutAnalysis = {
     "boutAnalysis.rounds.noteLabel": "Ghi chú hiệp",
     "boutAnalysis.rounds.notePlaceholder": "Ghi chú nhanh tại góc đài (tối đa 300 ký tự)…",
     "boutAnalysis.rounds.saveRound": "Lưu hiệp {roundNo}",
+    "boutAnalysis.rounds.updateRound": "Cập nhật hiệp {roundNo}",
     "boutAnalysis.rounds.savingRound": "Đang lưu…",
 
     "boutAnalysis.advice.title": "Lời dặn giữa hiệp (trước hiệp {nextRound})",

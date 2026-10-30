@@ -62,7 +62,7 @@ import { round } from "@/lib/utils";
  *
  * Seed (review 2, option a): Minh has no bout, so the coach creates one live. Kenji is red with a complete
  * checklist and can enter fight week; Aigerim is yellow; Emma is grey, and Gate 1 stops her fight week on a missing
- * "Brain CT" past the documents deadline (T-008a F3).
+ * "Chụp CT não" past the documents deadline (T-008a F3).
  * Linh is in fight week with weigh-in and bout today, for the official weigh-in and result. Diego has a
  * hand-entered suspension after a knockout in sparring.
  */
@@ -135,8 +135,17 @@ function weightClassOf(rulesetId: string, code: string): WeightClassOption {
     return found;
 }
 
-function provided(label: string, issuedOn: string, validityDays: number): BoutRequirement {
-    const code = requirementCode(label, []);
+/** Seed documents keep the codes their English names gave them; the labels are what the coach typed. */
+interface SeedDocument {
+    code: string;
+    label: string;
+}
+
+const HEALTH_CERTIFICATE: SeedDocument = { code: "HEALTH_CERTIFICATE", label: "Giấy khám sức khoẻ" };
+const BLOOD_TEST: SeedDocument = { code: "BLOOD_TEST", label: "Xét nghiệm máu" };
+const BRAIN_CT: SeedDocument = { code: "BRAIN_CT", label: "Chụp CT não" };
+
+function provided({ code, label }: SeedDocument, issuedOn: string, validityDays: number): BoutRequirement {
     return {
         id: code,
         code,
@@ -151,8 +160,7 @@ function provided(label: string, issuedOn: string, validityDays: number): BoutRe
     };
 }
 
-function missing(label: string, validityDays: number | null, required = true): BoutRequirement {
-    const code = requirementCode(label, []);
+function missing({ code, label }: SeedDocument, validityDays: number | null, required = true): BoutRequirement {
     return { id: code, code, label, required, state: "MISSING", source: "COACH", issuedOn: null, validUntil: null, statusReason: null, validityDays };
 }
 
@@ -253,7 +261,7 @@ export function createCampStore(todayOn: string): CampStore {
                 rulesetId: VMMAF_2021_ID,
                 weightClass: weightClassOf(VMMAF_2021_ID, "56"),
                 event: "Pacific Invitational 4",
-                venue: "Phú Thọ Indoor Stadium, Ho Chi Minh City",
+                venue: "Nhà thi đấu Phú Thọ, TP. Hồ Chí Minh",
                 opponent: "Ryo Tanaka",
                 weighIn: [3, "10:00"],
                 bout: [4, "19:00"],
@@ -262,9 +270,9 @@ export function createCampStore(todayOn: string): CampStore {
                 campStartDay: -35,
                 createdDay: -40,
                 moves: [["CAMP", -35]],
-                requirements: [provided("Health certificate", day(-20), 180), provided("Blood test", day(-10), 90), provided("Brain CT", day(-15), 365)],
+                requirements: [provided(HEALTH_CERTIFICATE, day(-20), 180), provided(BLOOD_TEST, day(-10), 90), provided(BRAIN_CT, day(-15), 365)],
                 nutritionPlan: {
-                    camp: { text: "Fish, rice and vegetables at the usual times. No sugary drinks.", authorName: RAFAEL, updatedAt: noteAt },
+                    camp: { text: "Cá, cơm và rau đúng giờ như thường lệ. Không uống nước ngọt.", authorName: RAFAEL, updatedAt: noteAt },
                     fightWeek: null,
                     postWeighIn: null,
                 },
@@ -287,7 +295,7 @@ export function createCampStore(todayOn: string): CampStore {
                 campStartDay: -43,
                 createdDay: -45,
                 moves: [["CAMP", -43]],
-                requirements: [provided("Health certificate", day(-12), 180), missing("Blood test", 90, false)],
+                requirements: [provided(HEALTH_CERTIFICATE, day(-12), 180), missing(BLOOD_TEST, 90, false)],
             },
             todayOn,
         ),
@@ -307,7 +315,7 @@ export function createCampStore(todayOn: string): CampStore {
                 campStartDay: -30,
                 createdDay: -32,
                 moves: [["CAMP", -30]],
-                requirements: [provided("Health certificate", day(-25), 180), provided("Blood test", day(-6), 90), missing("Brain CT", 365)],
+                requirements: [provided(HEALTH_CERTIFICATE, day(-25), 180), provided(BLOOD_TEST, day(-6), 90), missing(BRAIN_CT, 365)],
             },
             todayOn,
         ),
@@ -318,7 +326,7 @@ export function createCampStore(todayOn: string): CampStore {
                 rulesetId: AIBA_REFERENCE_ID,
                 weightClass: weightClassOf(AIBA_REFERENCE_ID, "60"),
                 event: "Saigon Amateur Night 5",
-                venue: "District 1 Sports Centre, Ho Chi Minh City",
+                venue: "Trung tâm Thể thao Quận 1, TP. Hồ Chí Minh",
                 opponent: "Vũ Mai Anh",
                 weighIn: [0, "07:00"],
                 bout: [0, "18:00"],
@@ -330,11 +338,11 @@ export function createCampStore(todayOn: string): CampStore {
                     ["CAMP", -28],
                     ["FIGHT_WEEK", -5],
                 ],
-                requirements: [provided("Health certificate", day(-40), 180), provided("Blood test", day(-9), 90)],
+                requirements: [provided(HEALTH_CERTIFICATE, day(-40), 180), provided(BLOOD_TEST, day(-9), 90)],
                 nutritionPlan: {
-                    camp: { text: "Three normal meals and a fruit snack after training.", authorName: RAFAEL, updatedAt: noteAt },
-                    fightWeek: { text: "Same meals as camp. Keep portions steady; nothing new this week.", authorName: RAFAEL, updatedAt: noteAt },
-                    postWeighIn: { text: "A normal breakfast after the scale, then a light lunch.", authorName: RAFAEL, updatedAt: noteAt },
+                    camp: { text: "Ba bữa chính bình thường, ăn thêm trái cây sau buổi tập.", authorName: RAFAEL, updatedAt: noteAt },
+                    fightWeek: { text: "Ăn như giai đoạn chuẩn bị. Giữ khẩu phần ổn định, tuần này không thử món mới.", authorName: RAFAEL, updatedAt: noteAt },
+                    postWeighIn: { text: "Ăn sáng bình thường sau khi cân, rồi ăn trưa nhẹ.", authorName: RAFAEL, updatedAt: noteAt },
                 },
             },
             todayOn,
@@ -346,7 +354,7 @@ export function createCampStore(todayOn: string): CampStore {
                 rulesetId: VMMAF_2021_ID,
                 weightClass: weightClassOf(VMMAF_2021_ID, "65"),
                 event: "Vietnam MMA Open 2026",
-                venue: "Military Zone 7 Indoor Arena, Ho Chi Minh City",
+                venue: "Nhà thi đấu Quân khu 7, TP. Hồ Chí Minh",
                 opponent: "Lê Hoàng Nam",
                 weighIn: [-1, "09:00"],
                 bout: [0, "20:00"],
@@ -359,7 +367,7 @@ export function createCampStore(todayOn: string): CampStore {
                     ["FIGHT_WEEK", -7],
                     ["WEIGHED_IN", -1],
                 ],
-                requirements: [provided("Health certificate", day(-25), 180), provided("Blood test", day(-15), 90)],
+                requirements: [provided(HEALTH_CERTIFICATE, day(-25), 180), provided(BLOOD_TEST, day(-15), 90)],
                 weighInRecord: {
                     weightKg: 64.8,
                     madeWeight: true,
@@ -477,7 +485,7 @@ export function createCampStore(todayOn: string): CampStore {
     ];
 
     const checkins: NutritionCheckin[] = [
-        checkin("b-kenji-pacific", day(-2), "WAY_OFF", "Ate out after sparring."),
+        checkin("b-kenji-pacific", day(-2), "WAY_OFF", "Ăn ngoài sau buổi đấu tập."),
         checkin("b-kenji-pacific", day(-1), "WAY_OFF", null),
         checkin("b-kenji-pacific", todayOn, "SLIGHTLY_OFF", null),
     ];
@@ -500,7 +508,7 @@ export function createCampStore(todayOn: string): CampStore {
             clearanceNote: null,
             createdBy: RAFAEL,
             createdAt: academyWallClockToIso(day(-6), "19:10"),
-            note: "Knocked out in sparring. Graded return to play with the sports doctor.",
+            note: "Bị knock-out khi đấu tập. Tập lại từng bước theo hướng dẫn của bác sĩ thể thao.",
         },
     ];
 
@@ -675,6 +683,7 @@ export interface NewBout {
     weightClass: WeightClassOption;
     weighInAt: string;
     boutAt: string;
+    scheduledRounds?: number | null;
     coachId: string;
 }
 
@@ -685,10 +694,11 @@ export function createDemoBout(input: NewBout, actor: Actor, now = new Date()): 
     if (!rules) return { ok: false, message: "Choose a ruleset.", fieldErrors: { rulesetId: "Choose a ruleset from the list." } };
     const todayOn = dayKey(now);
     const id = `b-${input.fighterId.replace(/^f-/, "")}-${camp.sequence++}`;
-    const bout: CampBout = {
+    const bout: DemoBoutRecord = {
         id,
         fighterId: input.fighterId,
         coachId: input.coachId,
+        scheduledRounds: input.scheduledRounds ?? null,
         rulesetId: rules.id,
         rulesetName: rules.name,
         rulesetVerified: rules.verified,

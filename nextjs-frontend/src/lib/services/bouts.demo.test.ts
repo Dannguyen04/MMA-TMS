@@ -106,7 +106,7 @@ describe("demo camp seed", () => {
         const kenji = getDemoBout("b-kenji-pacific")!;
         const emma = getDemoBout("b-emma-nordic")!;
         expect(canEnterFightWeek(kenji, TODAY)).toEqual({ ok: true });
-        expect(boutGate1(emma).missing.map((gap) => [gap.requirement.label, gap.reason])).toEqual([["Brain CT", "MISSING"]]);
+        expect(boutGate1(emma).missing.map((gap) => [gap.requirement.label, gap.reason])).toEqual([["Chụp CT não", "MISSING"]]);
         expect(canEnterFightWeek(emma, TODAY)).toMatchObject({ ok: false, reason: "REQUIREMENTS_INCOMPLETE" });
         expect(requirementsOverdue(emma, TODAY)).toBe(true);
         // Aigerim's only missing item is optional, so Gate 1 passes; fight week just isn't open yet.

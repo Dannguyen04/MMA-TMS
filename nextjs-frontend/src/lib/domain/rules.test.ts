@@ -211,6 +211,13 @@ describe("checkTrainingAgainstClearance", () => {
         expect(clearanceConflictMessage(t, conflicts[1])).toContain("Left hamstring");
     });
 
+    it("describes a suspension that blocks the session type", () => {
+        const through = { code: "suspended", severity: "block", type: "sparring", fighterName: "Linh Phạm", date: "2026-11-25" } as const;
+        expect(clearanceConflictMessage(t, through)).toMatch(/^Linh Phạm is suspended: sparring is blocked through .*2026\.$/);
+        expect(clearanceConflictMessage(createTranslator("vi"), through, "vi")).toMatch(/^Linh Phạm đang bị đình chỉ: buổi đấu tập bị chặn đến hết ngày .*2026\.$/);
+        expect(clearanceConflictMessage(t, { ...through, date: undefined })).toBe("Linh Phạm is suspended: sparring is blocked until a coach clears the fighter to train.");
+    });
+
     it("reports every restriction that applies", () => {
         const cl = clearance({
             level: "restricted",

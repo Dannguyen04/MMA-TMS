@@ -39,7 +39,7 @@ function NavLink({ item, counts, onNavigate }: { item: NavItem; counts: NavCount
                     )}
                 >
                     {count}
-                    {item.badge && <span className="sr-only"> {BADGE_LABELS[item.badge]}</span>}
+                    {item.badge && <span className="sr-only"> {t(BADGE_LABELS[item.badge])}</span>}
                 </span>
             )}
         </Link>

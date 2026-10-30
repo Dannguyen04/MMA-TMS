@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { DescriptionList } from "@/components/ui/description-list";
 import { PageHeader } from "@/components/ui/page-header";
 import { canAccessFighter } from "@/lib/auth/access";
+import { isDemoAuthEnabled } from "@/lib/auth/constants";
 import { requireRole } from "@/lib/auth/session";
 import { boutLimitKg, isRunningPhase, type CampBout, type Suspension } from "@/lib/domain/bout";
 import {
@@ -319,7 +320,7 @@ function NextStepCard({
                 <CardHeader title={t("boutDetail.common.result")} description={t("boutDetail.next.result.description", { date: formatDateTime(bout.boutAt, locale) })} />
                 <CardContent>
                     {check.ok ? (
-                        <ResultButton bout={bout} />
+                        <ResultButton bout={bout} asksSuspensionDays={!isDemoAuthEnabled()} />
                     ) : (
                         <InlineNote icon={CalendarClock}>{t("boutDetail.next.result.notYet", { date: formatDate(bout.boutAt, locale) })}</InlineNote>
                     )}

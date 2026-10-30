@@ -117,7 +117,7 @@ export function MobileBottomBar({ role, counts }: { role: Role; counts: NavCount
                                     <span className="absolute top-1.5 left-1/2 ml-1.5 min-w-4 rounded-full bg-danger-solid px-1 text-center text-[10px] leading-4 text-white">
                                         <span className="sr-only"> </span>
                                         {count}
-                                        <span className="sr-only"> {BADGE_LABELS[item.badge]}</span>
+                                        <span className="sr-only"> {t(BADGE_LABELS[item.badge])}</span>
                                     </span>
                                 )}
                             </Link>

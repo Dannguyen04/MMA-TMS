@@ -351,7 +351,8 @@ export function WeighInButton({ bout }: { bout: CampBout }) {
 
 /* ─── Weighed in: result (F6) ─────────────────────────────────────────────── */
 
-export function ResultButton({ bout }: { bout: CampBout }) {
+/** `asksSuspensionDays`: the service creates a knockout's suspension with the result, so the length is asked here. */
+export function ResultButton({ bout, asksSuspensionDays = false }: { bout: CampBout; asksSuspensionDays?: boolean }) {
     const [open, setOpen] = useState(false);
     const [result, setResult] = useState("");
     const [method, setMethod] = useState("");
@@ -388,6 +389,7 @@ export function ResultButton({ bout }: { bout: CampBout }) {
                     const loc = form.control("lossOfConsciousness", { required: true });
                     const head = form.control("stoppedByHeadStrikes", { required: true });
                     const knockedDown = form.control("knockedDown");
+                    const suspensionDays = form.control("suspensionDays", { hint: true });
                     const injury = form.control("injuryNote", { hint: true });
                     const notes = form.control("notes");
                     return (
@@ -446,6 +448,17 @@ export function ResultButton({ bout }: { bout: CampBout }) {
                                         <option value="yes">{t("boutDetail.common.yes")}</option>
                                         <option value="no">{t("boutDetail.common.no")}</option>
                                     </Select>
+                                </Field>
+                            )}
+                            {asksSuspensionDays && result === "LOSS" && (method === "KO" || method === "TKO") && (
+                                <Field
+                                    label={t("boutDetail.result.suspensionDays")}
+                                    htmlFor={suspensionDays.id}
+                                    optional
+                                    error={form.error("suspensionDays")}
+                                    hint={t("boutDetail.result.suspensionDaysHint")}
+                                >
+                                    <Input {...suspensionDays} inputMode="numeric" className="w-28" />
                                 </Field>
                             )}
                             <Checkbox
