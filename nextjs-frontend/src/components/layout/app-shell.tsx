@@ -11,6 +11,7 @@ import type { NotificationBellData } from "@/lib/services/notifications";
 import { MobileBottomBar, MobileNavDrawer } from "./mobile-nav";
 import { HubTabs } from "./hub-tabs";
 import { NotificationBell } from "./notification-bell";
+import { QuickJump } from "./quick-jump";
 import { SidebarNav, type NavCounts } from "./sidebar-nav";
 import { UserMenu } from "./user-menu";
 
@@ -57,6 +58,7 @@ export function AppShell({ user, theme, locale, counts, notifications, now, chil
                         <span className="font-display text-[17px] font-extrabold tracking-[0.01em] italic max-sm:hidden">MMA-TMS</span>
                     </Link>
                     <div className="ml-auto flex items-center gap-1">
+                        <QuickJump role={user.role} />
                         {notifications && (
                             <>
                                 <NotificationBell bell={notifications} now={now} />
