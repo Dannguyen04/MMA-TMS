@@ -311,7 +311,7 @@ A GSAP timeline over what was recorded per round (self score, tactic marks, knoc
 - **Do** pair every status colour with an icon and a word, and give charts a data table (`ChartFigure`) and a legend.
 - **Do** animate only for feedback, state change or one focal moment per screen: ease-out (`cubic-bezier(0.23,1,0.32,1)`), 150–250 ms for UI, entrances from `translateY(8px) scale(0.98)`, exits instant. Under `prefers-reduced-motion` keep only opacity.
 - **Do** put every user-facing string in the dictionaries (`screens*.ts`, `*.en.ts` / `*.vi.ts`) and pass `locale` to shared components; Vietnamese mode shows Vietnamese, with the sport's English term in brackets only on first mention in a profile ("Hạng gà (Bantamweight)").
-- **Do** check every new screen at 390 px and 1440 px, light and dark, `full` and `lite`.
+- **Do** check every new screen at 390 px and 1440 px, light and dark, `full` and `lite`. `pnpm --filter nextjs-frontend ui:smoke` opens every page of the four demo roles at both widths and fails on errors, a missing h1 or a page wider than the screen; `src/lib/i18n/hardcoded-english.test.ts` fails when a file gains English typed straight into JSX.
 - **Do** say what a 3D or animated surface drops on `lite`, and keep its 2D fallback.
 
 ### Don't:
