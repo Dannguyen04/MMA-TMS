@@ -8,6 +8,7 @@ import { InlineNote } from "@/components/dashboard/inline-note";
 import { CampTimeline } from "@/components/domain/camp-timeline";
 import { CampWeightCard } from "@/components/domain/camp-weight-card";
 import { CsvButton, PrintButton } from "@/components/feedback/export-buttons";
+import { TermHint } from "@/components/domain/term-hint";
 import { NutritionPlanForm } from "@/components/domain/nutrition-plan-form";
 import { BoutPhaseBadge, Gate1Badge, SuspensionStateBadge, WeightStatusBadge } from "@/components/domain/status-badges";
 import { FlashToast } from "@/components/medical/flash-toast";
@@ -313,7 +314,12 @@ function NextStepCard({
         return (
             <Card>
                 <CardHeader
-                    title={t("boutDetail.next.fightWeek.title")}
+                    title={
+                        <span className="inline-flex items-center gap-1">
+                            {t("boutDetail.next.fightWeek.title")}
+                            <TermHint term="fightWeek" locale={locale} />
+                        </span>
+                    }
                     description={
                         early
                             ? t("boutDetail.next.fightWeek.opensOn", { date: formatDate(opensOn, locale), days: bout.fightWeekDays })
@@ -486,7 +492,12 @@ function SuspensionCard({
     return (
         <Card>
             <CardHeader
-                title={t("boutDetail.suspension.title")}
+                title={
+                    <span className="inline-flex items-center gap-1">
+                        {t("boutDetail.suspension.title")}
+                        <TermHint term="suspension" locale={locale} />
+                    </span>
+                }
                 description={
                     needsConfirmation
                         ? suggestion
