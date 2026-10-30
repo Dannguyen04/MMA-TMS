@@ -10,8 +10,8 @@ import { LAB_FIGHTER } from "../lab-data";
 import styles from "../lab.module.css";
 import { useReducedMotion } from "@/components/fighter-3d/use-graphics";
 import { LAST_STEP, OUTCOME_META, ROUNDS, SCORE_META, TACTICS, breakAfter, droppedAfter, roundEvents, roundInProgress, roundsRecorded } from "./replay-model";
-import { TypedLines } from "./typed-lines";
-import { REST_WEIGHT, ROUND_WEIGHT, useReplay } from "./use-replay";
+import { TypedLines } from "@/components/replay/typed-lines";
+import { REST_WEIGHT, ROUND_WEIGHT, useReplay } from "@/components/replay/use-replay";
 
 const TIMING = { round: 3.2, rest: 3.6 };
 const RING = 2 * Math.PI * 15;

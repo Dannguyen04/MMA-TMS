@@ -3,8 +3,6 @@
 import gsap from "gsap";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { LAST_STEP } from "./replay-model";
-
 export interface ReplayTiming {
     /** Seconds a round takes on screen. */
     round: number;
@@ -27,8 +25,10 @@ export function trackStart(step: number, rounds: number): number {
 }
 
 /**
- * Drives a replay with one GSAP timeline. `step` re-renders the page only at step changes; the
- * playhead and the break countdown move every frame through refs, without React.
+ * Drives a replay with one GSAP timeline over `rounds` rounds: odd steps are a round being fought, the
+ * even step after it is that round's record arriving and the corner break (none after the last).
+ * `step` re-renders the page only at step changes; the playhead and the break countdown move every
+ * frame through refs, without React.
  */
 export function useReplay({ rounds, timing, reduced, onFrame }: { rounds: number; timing: ReplayTiming; reduced: boolean; onFrame?: (progress: number, breakLeft: number | null) => void }) {
     const [step, setStep] = useState(0);
@@ -98,9 +98,10 @@ export function useReplay({ rounds, timing, reduced, onFrame }: { rounds: number
                 frame.current?.(0, null);
                 return;
             }
-            const clamped = Math.min(target, LAST_STEP);
+            const lastStep = rounds * 2;
+            const clamped = Math.min(target, lastStep);
             // Land just after the step's own label: a recorded round sits at the start of its break, so Play runs the break on.
-            if (clamped >= LAST_STEP) tl.progress(1, true);
+            if (clamped >= lastStep) tl.progress(1, true);
             else tl.seek(tl.labels[`s${clamped}`] + 0.001, true);
             setStep(clamped);
             frame.current?.(trackStart(clamped, rounds), clamped % 2 === 0 ? 1 : null);

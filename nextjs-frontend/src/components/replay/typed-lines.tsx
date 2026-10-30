@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { cn } from "@/lib/utils";
-import styles from "../lab.module.css";
+import styles from "./replay.module.css";
 
 /** Advice lines written out letter by letter while the break runs; complete at once otherwise. */
 export function TypedLines({ lines, typing }: { lines: string[]; typing: boolean }) {

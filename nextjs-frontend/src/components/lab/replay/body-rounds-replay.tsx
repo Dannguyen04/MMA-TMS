@@ -11,8 +11,8 @@ import { LAB_FIGHTER, type LabRound } from "../lab-data";
 import styles from "../lab.module.css";
 import { useReducedMotion } from "@/components/fighter-3d/use-graphics";
 import { LAST_STEP, OUTCOME_META, ROUNDS, SCORE_META, TACTICS, breakAfter, roundEvents, roundInProgress, roundsRecorded } from "./replay-model";
-import { TypedLines } from "./typed-lines";
-import { useReplay } from "./use-replay";
+import { TypedLines } from "@/components/replay/typed-lines";
+import { useReplay } from "@/components/replay/use-replay";
 
 const TIMING = { round: 3.4, rest: 4.2 };
 
