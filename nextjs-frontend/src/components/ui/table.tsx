@@ -8,10 +8,14 @@ import { formatNumber } from "@/lib/format";
 import { hrefWith, type SearchParams, type SortDirection } from "@/lib/query";
 import { cn } from "@/lib/utils";
 
-/** Scroll container + table. Wide tables scroll horizontally inside the card, never the page. */
+/**
+ * Scroll container + table. Wide tables scroll horizontally inside the card, never the page. The
+ * container is positioned so `sr-only` text in the cells (absolutely positioned) stays inside it
+ * instead of widening the page.
+ */
 export function Table({ className, caption, children, ...props }: ComponentProps<"table"> & { caption?: string }) {
     return (
-        <div className="scrollbar-thin w-full overflow-x-auto">
+        <div className="scrollbar-thin relative w-full overflow-x-auto">
             <table className={cn("w-full border-collapse text-left text-sm", className)} {...props}>
                 {caption && <caption className="sr-only">{caption}</caption>}
                 {children}
