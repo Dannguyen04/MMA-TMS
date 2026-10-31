@@ -6,33 +6,29 @@
 import { pathToFileURL } from 'node:url';
 
 // ---------------------------------------------------------------------------
-// Pure part (exported for tests)
+// Pure part
 // ---------------------------------------------------------------------------
 
 const ACADEMY_OFFSET_MS = 7 * 3_600_000; // UTC+7, no daylight saving
 const DAY_MS = 86_400_000;
-export const CUTOFF = { hour: 22, minute: 30 }; // fighter 6 fights today at 23:00
-export const RULESET_NAME = 'MMA – VMMAF 2021';
-export const WEIGHT_CLASS = '70';
-export const STATUS_ORDER = ['SCHEDULED', 'CAMP', 'FIGHT_WEEK', 'WEIGHED_IN', 'COMPLETED'];
+const CUTOFF = { hour: 22, minute: 30 }; // fighter 6 fights today at 23:00
+const RULESET_NAME = 'MMA – VMMAF 2021';
+const WEIGHT_CLASS = '70';
+const STATUS_ORDER = ['SCHEDULED', 'CAMP', 'FIGHT_WEEK', 'WEIGHED_IN', 'COMPLETED'];
 
 export const academyDate = (d) => new Date(d.getTime() + ACADEMY_OFFSET_MS).toISOString().slice(0, 10);
 export const addDays = (date, n) => new Date(Date.parse(`${date}T00:00:00Z`) + n * DAY_MS).toISOString().slice(0, 10);
-export const academyInstant = (date, hour, minute = 0) =>
+const academyInstant = (date, hour, minute = 0) =>
   new Date(Date.parse(`${date}T00:00:00Z`) + (hour * 60 + minute) * 60_000 - ACADEMY_OFFSET_MS);
-export const isWriteMethod = (method) => ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method.toUpperCase());
+export const isWriteMethod = (m) => m !== 'GET';
 
-export function isPastCutoff(now) {
+function isPastCutoff(now) {
   const minutes = Math.floor(((now.getTime() + ACADEMY_OFFSET_MS) % DAY_MS) / 60_000);
   return minutes >= CUTOFF.hour * 60 + CUTOFF.minute;
 }
 
 const round1 = (n) => Math.round(n * 10) / 10;
-const range = (from, to, step) => {
-  const out = [];
-  for (let i = from; i <= to; i += step) out.push(i);
-  return out;
-};
+const range = (a, b, s) => Array.from({ length: (b - a) / s + 1 }, (_, i) => a + i * s);
 
 /** Builds the whole data set from `now`; nothing here touches the network. */
 export function buildPlan(now) {
@@ -178,18 +174,17 @@ export function buildPlan(now) {
           ],
           // The MMA ruleset has no suspension rule, so the backend requires the days.
           result: { result: 'LOSS', method: 'KO', resultRound: 2, knockedDown: true, lossOfConsciousness: 'UNDER_1_MIN', suspensionDays: 30, notes: 'Dữ liệu demo' },
-          withAiTactics: true,
         },
       },
     ],
   };
 }
 
-export function parseArgs(argv) {
+function parseArgs(argv) {
   return { dryRun: argv.includes('--dry-run'), withAi: argv.includes('--with-ai') };
 }
 
-export function missingEnv(env) {
+function missingEnv(env) {
   const missing = [];
   if (!env.DEMO_SEED_API_URL) missing.push('DEMO_SEED_API_URL');
   if (!env.DEMO_SEED_TOKEN) {
@@ -207,42 +202,6 @@ const listOf = (body) =>
 // ---------------------------------------------------------------------------
 // Runner
 // ---------------------------------------------------------------------------
-
-function createClient({ baseUrl, fetchImpl, dryRun, out, stats }) {
-  return async function call(method, path, { token, body, as, label } = {}) {
-    const write = isWriteMethod(method);
-    const line = `${method} ${path} [${as}]${label ? ` ${label}` : ''}`;
-    if (dryRun) {
-      if (!write) return {};
-      out(line);
-      if (!path.startsWith('/auth/')) stats.created++;
-      const id = `<${(label ?? 'id').split(' ')[0]}>`;
-      return { id, profile: { id }, session: { accessToken: 'dry-run' } };
-    }
-    const response = await fetchImpl(`${baseUrl}${path}`, {
-      method,
-      headers: {
-        accept: 'application/json',
-        ...(body ? { 'content-type': 'application/json' } : {}),
-        ...(token ? { authorization: `Bearer ${token}` } : {}),
-      },
-      ...(body ? { body: JSON.stringify(body) } : {}),
-    });
-    const json = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      const code = json?.error?.code ?? json?.code ?? '';
-      const err = new Error(`${line} -> HTTP ${response.status} ${code}`.trim());
-      err.status = response.status;
-      err.code = code;
-      throw err;
-    }
-    if (write) {
-      out(line);
-      if (!path.startsWith('/auth/')) stats.created++;
-    }
-    return json?.data;
-  };
-}
 
 export async function run({ argv = [], env = {}, fetch: fetchImpl = globalThis.fetch, now = new Date(), out = console.log, err = console.error } = {}) {
   const { dryRun, withAi } = parseArgs(argv);
@@ -263,13 +222,37 @@ export async function run({ argv = [], env = {}, fetch: fetchImpl = globalThis.f
   }
 
   const stats = { created: 0, existing: 0 };
-  const call = createClient({
-    baseUrl: (env.DEMO_SEED_API_URL ?? '').replace(/\/+$/, ''),
-    fetchImpl,
-    dryRun,
-    out,
-    stats,
-  });
+  const baseUrl = (env.DEMO_SEED_API_URL ?? '').replace(/\/+$/, '');
+  const call = async (method, path, { token, body, as, label } = {}) => {
+    const write = isWriteMethod(method);
+    const line = `${method} ${path} [${as}]${label ? ` ${label}` : ''}`;
+    let data;
+    if (dryRun) {
+      if (!write) return {};
+      const id = `<${(label ?? 'id').split(' ')[0]}>`;
+      data = { id, profile: { id }, session: { accessToken: 'dry-run' } };
+    } else {
+      const response = await fetchImpl(`${baseUrl}${path}`, {
+        method,
+        headers: {
+          accept: 'application/json',
+          ...(body ? { 'content-type': 'application/json' } : {}),
+          ...(token ? { authorization: `Bearer ${token}` } : {}),
+        },
+        body: body && JSON.stringify(body),
+      });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw Object.assign(new Error(`${line} -> HTTP ${response.status} ${json?.error?.code ?? json?.code ?? ''}`.trim()), { status: response.status });
+      }
+      data = json?.data;
+    }
+    if (write) {
+      out(line);
+      if (!path.startsWith('/auth/')) stats.created++;
+    }
+    return data;
+  };
   const plan = buildPlan(now);
   if (dryRun) out(`Dry-run: không gửi request nào. Các request ghi sẽ gửi khi DB rỗng (ngày học viện ${plan.today}):`);
 
@@ -305,7 +288,7 @@ export async function run({ argv = [], env = {}, fetch: fetchImpl = globalThis.f
         body: { email: plan.coach.email, password: env.DEMO_SEED_USER_PASSWORD },
       });
     } catch (e) {
-      if (e?.status === 401 || String(e?.message ?? e).includes('HTTP 401')) {
+      if (e?.status === 401) {
         throw new Error('coach demo exists with a different password');
       }
       throw e;
@@ -349,7 +332,7 @@ export async function run({ argv = [], env = {}, fetch: fetchImpl = globalThis.f
         else await call('POST', '/suspensions', { ...C, label: f.key, body: { fighterId, ...f.suspension } });
       }
 
-      if (f.bout) await seedBout({ call, C, f, fighterId, coachId, ruleset, withAi, dryRun, found, err });
+      if (f.bout) await seedBout({ call, C, f, fighterId, coachId, ruleset, withAi, found, err });
     }
   } catch (error) {
     err(String(error?.message ?? error));
@@ -360,7 +343,7 @@ export async function run({ argv = [], env = {}, fetch: fetchImpl = globalThis.f
   return 0;
 }
 
-async function seedBout({ call, C, f, fighterId, coachId, ruleset, withAi, dryRun, found, err }) {
+async function seedBout({ call, C, f, fighterId, coachId, ruleset, withAi, found, err }) {
   const b = f.bout;
   const target = STATUS_ORDER.indexOf(b.target);
   let bout = listOf(await call('GET', `/bouts?fighterId=${fighterId}&limit=100`, C)).find((x) => x.eventName === b.eventName);
@@ -377,15 +360,15 @@ async function seedBout({ call, C, f, fighterId, coachId, ruleset, withAi, dryRu
         weightClassCode: WEIGHT_CLASS,
         weighInAt: b.weighInAt,
         boutAt: b.boutAt,
-        ...(b.scheduledRounds ? { scheduledRounds: b.scheduledRounds } : {}),
+        scheduledRounds: b.scheduledRounds,
       },
     });
     bout = { ...created, status: 'SCHEDULED' };
   }
   const id = bout.id;
-  const at = (s) => STATUS_ORDER.indexOf(bout.status) === STATUS_ORDER.indexOf(s);
+  const at = (s) => bout.status === s;
   const step = async (path, body, next) => {
-    await call('POST', `/bouts/${id}/${path}`, { ...C, label: f.key, ...(body ? { body } : {}) });
+    await call('POST', `/bouts/${id}/${path}`, { ...C, label: f.key, body });
     bout.status = next;
   };
 
@@ -400,13 +383,13 @@ async function seedBout({ call, C, f, fighterId, coachId, ruleset, withAi, dryRu
 
   const open = !['COMPLETED', 'CANCELLED'].includes(bout.status);
   if (b.analysis && open) {
-    const detail = dryRun ? {} : await call('GET', `/bouts/${id}`, C);
+    const detail = await call('GET', `/bouts/${id}`, C);
     if (detail?.opponentAnalysis?.observations?.length) found();
     else await call('PUT', `/bouts/${id}/opponent-analysis`, { ...C, label: f.key, body: b.analysis });
   }
   // AI only on request, only while the bout is open (PRE_BOUT_TACTICS refuses a final bout), and only once.
-  if (b.withAiTactics && withAi) {
-    const saved = dryRun ? [] : listOf(await call('GET', `/bouts/${id}/ai/suggestions`, C));
+  if (b.analysis && withAi) {
+    const saved = listOf(await call('GET', `/bouts/${id}/ai/suggestions`, C));
     const hasOk = saved.some((s) => s.status === 'OK');
     if (hasOk) {
       found();

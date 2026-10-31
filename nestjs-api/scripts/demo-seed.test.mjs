@@ -28,11 +28,11 @@ function createFakeApi() {
     const token = init.headers?.authorization?.replace('Bearer ', '');
     const path = u.pathname;
     const q = Object.fromEntries(u.searchParams);
-    requests.push({ method, path, body, as: token?.split(':')[1] });
+    requests.push({ method, path, body });
     const route = `${method} ${path}`;
     let m;
 
-    if (route === 'POST /auth/login') return ok({ session: { accessToken: `tok:${body.email.startsWith('admin') ? 'admin' : 'coach'}` } });
+    if (route === 'POST /auth/login') return ok({ session: { accessToken: 'tok' } });
     if (!token) return fail(401, 'AUTHENTICATION_REQUIRED');
 
     if (route === 'GET /users') return ok({ items: db.users.filter((x) => x.email.includes(q.search ?? '') && (!q.role || x.role === q.role)) });
@@ -61,9 +61,9 @@ function createFakeApi() {
       if (path !== name) continue;
       if (method === 'GET') {
         const rows = db[key].filter((x) => !q.fighterId || x.fighterId === q.fighterId);
-        return ok(key === 'suspensions' ? { data: rows, hasNextPage: false } : { data: rows, total: rows.length });
+        return ok({ data: rows, total: rows.length });
       }
-      const row = { id: randomUUID(), deletedAt: null, ...body, ...(key === 'suspensions' ? { clearedAt: null, status: 'ACTIVE' } : { status: key === 'plans' ? 'ACTIVE' : 'SCHEDULED' }) };
+      const row = { id: randomUUID(), deletedAt: null, clearedAt: null, ...body };
       db[key].push(row);
       return ok(row, 201);
     }
@@ -122,7 +122,6 @@ test('S1: --dry-run sends no write request and prints every planned write', asyn
   const api = createFakeApi();
   const { code, stdout } = await runSeed(api, { argv: ['--dry-run'] });
   assert.equal(code, 0);
-  assert.equal(writes(api.requests).length, 0);
   assert.equal(api.requests.length, 0);
   assert.match(stdout, /^POST \/users \[admin\]/m);
   assert.match(stdout, /^POST \/bouts \[coach\]/m);
@@ -221,7 +220,6 @@ test('S7: real run at 22:40 UTC+7 exits non-zero, names the cut-off, sends nothi
   const { code, stderr } = await runSeed(api, { now: new Date('2026-11-03T15:40:00Z') });
   assert.notEqual(code, 0);
   assert.match(stderr, /22:30/);
-  assert.equal(writes(api.requests).length, 0);
   assert.equal(api.requests.length, 0);
 });
 
@@ -232,31 +230,30 @@ test('S8: without --with-ai no request goes to an /ai/ path', async () => {
   assert.deepEqual(api.requests.filter((r) => r.path.includes('/ai/')), []);
 });
 
-async function seedFighter6InFightWeek(api, withSuggestion) {
+async function seedFighter6InFightWeek(api, status) {
   const f6 = buildPlan(NOW).fighters[5];
   const profileId = randomUUID();
   const boutId = randomUUID();
   api.db.users.push({ id: randomUUID(), email: f6.email, role: 'FIGHTER', profile: { id: profileId } });
   api.db.bouts.push({ id: boutId, fighterId: profileId, eventName: f6.bout.eventName, status: 'FIGHT_WEEK', opponentAnalysis: f6.bout.analysis });
-  if (withSuggestion) {
-    const status = typeof withSuggestion === 'string' ? withSuggestion : 'OK';
-    api.db.suggestions.push({ id: randomUUID(), boutId, kind: 'PRE_BOUT_TACTICS', status });
-  }
+  if (status) api.db.suggestions.push({ id: randomUUID(), boutId, kind: 'PRE_BOUT_TACTICS', status });
   return boutId;
 }
 
-test('S9: --with-ai and fighter 6 bout already has a saved suggestion: no POST to /ai/', async () => {
+async function noAiPostWhenOkSaved() {
   const api = createFakeApi();
-  await seedFighter6InFightWeek(api, true);
+  await seedFighter6InFightWeek(api, 'OK');
   const { code, stderr } = await runSeed(api, { argv: ['--with-ai'] });
   assert.equal(code, 0, stderr);
   assert.deepEqual(api.requests.filter((r) => r.method === 'POST' && r.path.includes('/ai/')), []);
   assert.ok(api.requests.some((r) => r.method === 'GET' && r.path.endsWith('/ai/suggestions')));
-});
+}
+
+test('S9: --with-ai and fighter 6 bout already has a saved suggestion: no POST to /ai/', noAiPostWhenOkSaved);
 
 test('S9 (control): --with-ai and no saved suggestion: exactly one POST /ai/tactics', async () => {
   const api = createFakeApi();
-  const boutId = await seedFighter6InFightWeek(api, false);
+  const boutId = await seedFighter6InFightWeek(api, null);
   const { code, stderr } = await runSeed(api, { argv: ['--with-ai'] });
   assert.equal(code, 0, stderr);
   const aiPosts = api.requests.filter((r) => r.method === 'POST' && r.path.includes('/ai/'));
@@ -312,11 +309,4 @@ test('S13: --with-ai, API giả có sẵn một gợi ý status \'FAILED\' cho t
   assert.deepEqual(aiPosts.map((r) => r.path), [`/bouts/${boutId}/ai/tactics`]);
 });
 
-test('S14: --with-ai, API giả có sẵn gợi ý status \'OK\' → không gọi /ai/ (giống S9, giữ S9)', async () => {
-  const api = createFakeApi();
-  await seedFighter6InFightWeek(api, 'OK');
-  const { code, stderr } = await runSeed(api, { argv: ['--with-ai'] });
-  assert.equal(code, 0, stderr);
-  assert.deepEqual(api.requests.filter((r) => r.method === 'POST' && r.path.includes('/ai/')), []);
-  assert.ok(api.requests.some((r) => r.method === 'GET' && r.path.endsWith('/ai/suggestions')));
-});
+test('S14: --with-ai, API giả có sẵn gợi ý status \'OK\' → không gọi /ai/ (giống S9, giữ S9)', noAiPostWhenOkSaved);

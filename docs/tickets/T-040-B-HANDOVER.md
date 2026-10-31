@@ -254,3 +254,47 @@ src/medical/scat6.model.spec.ts:5:3: warning eslint(no-unused-vars): Identifier 
 ```text
 $ nest build
 ```
+
+## Lượt cắt ponytail (31/10)
+
+Cắt bớt code thừa trong `nestjs-api/scripts/demo-seed.mjs` và `demo-seed.test.mjs`, không đổi hành vi. Ca S1-S14 giữ nguyên tên và kết quả mong đợi.
+
+`demo-seed.mjs`:
+
+1. Bỏ `createClient` (chỉ một chỗ gọi); `call` định nghĩa thẳng trong `run()`.
+2. Bỏ `dryRun ? {} :` và `dryRun ? [] :` trong `seedBout` (dry-run GET đã trả `{}`, `listOf({})` là `[]`); bỏ tham số `dryRun` của `seedBout`.
+3. `range` viết một dòng bằng `Array.from`.
+4. `out(line)` và `stats.created++` chỉ còn một chỗ, sau cả hai nhánh dry-run và thật; nội dung và thứ tự output không đổi.
+5. Bỏ `err.code`; ném `Object.assign(new Error(...), { status })`, thông điệp lỗi giữ nguyên.
+6. Bắt 401 của coach chỉ bằng `e?.status === 401`.
+7. `at(s)` so sánh thẳng `bout.status === s`.
+8. `isWriteMethod = (m) => m !== 'GET'` (script chỉ dùng GET/POST/PUT, viết hoa).
+9. Bỏ cờ `withAiTactics` trong plan; điều kiện AI là `b.analysis && withAi` (chỉ võ sĩ 6 có `analysis`).
+10. Bỏ spread có điều kiện cho thân request: `scheduledRounds: b.scheduledRounds`, `step` truyền thẳng `body`, fetch dùng `body: body && JSON.stringify(body)`. Giữ spread có điều kiện cho header `authorization`, và cả `content-type` (xem dưới).
+11. Bỏ `export` của `CUTOFF`, `RULESET_NAME`, `WEIGHT_CLASS`, `STATUS_ORDER`, `academyInstant`, `isPastCutoff`, `parseArgs`, `missingEnv` (test chỉ import `academyDate`, `addDays`, `buildPlan`, `isWriteMethod`, `run`; grep toàn repo không có chỗ khác dùng).
+
+`demo-seed.test.mjs`:
+
+12. S9 và S14 dùng chung hàm `noAiPostWhenOkSaved`; giữ cả hai tên test.
+13. API giả: GET `/training-plans`, `/training-sessions`, `/suspensions` cùng trả `{ data, total }`; bản ghi tạo mới là `{ id, deletedAt: null, clearedAt: null, ...body }`. Giữ guard 409, kiểm 401 và state thật (S2, S3 cần).
+14. Bỏ `assert writes(...).length === 0` ở S1 và S7 (dòng sau đã kiểm `api.requests.length === 0`).
+15. Bỏ `requests[].as`; token admin/coach là một hằng `'tok'`.
+16. `seedFighter6InFightWeek(api, status)` nhận `'OK' | 'FAILED' | null` thay cho overload `true`/chuỗi.
+
+Không cắt / giữ lại:
+
+- Spread có điều kiện của header `content-type`: nếu viết `'content-type': body ? ... : undefined` thì header object thường sẽ gửi chuỗi `"undefined"` cho request GET, đổi hành vi. Giữ nguyên.
+- Fetch dùng `body: body && JSON.stringify(body)` thay vì bỏ hẳn điều kiện, vì `JSON.stringify(null)` là `"null"` (bước `fight-week` truyền `body` null) sẽ gửi thân `null`.
+
+Lệnh đã chạy (từ `D:\MMA-TMS`, env giả `DEMO_SEED_API_URL=http://127.0.0.1:9`, không gọi backend thật):
+
+```text
+$ node nestjs-api/scripts/demo-seed.mjs --dry-run   (trước và sau khi cắt, so diff)
+exit=0, 124 dòng, created=120 existing=0; diff trước/sau: giống hệt
+$ node --test nestjs-api/scripts/demo-seed.test.mjs
+ℹ tests 14, ℹ pass 14, ℹ fail 0; tên 14 test giống hệt trước khi cắt
+$ pnpm --filter nestjs-api lint
+exit 0, 0 lỗi; 38 cảnh báo đều ở src/ và test/ (có sẵn, lint không quét scripts/)
+$ pnpm exec oxlint scripts/demo-seed.mjs scripts/demo-seed.test.mjs   (trong nestjs-api)
+exit 0, không cảnh báo
+```
