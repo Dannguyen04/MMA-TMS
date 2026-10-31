@@ -24,7 +24,7 @@ import type {
     SuspensionReason,
     TrainingType,
 } from "@/lib/domain/types";
-import { formatShortDate } from "@/lib/format";
+import { formatShortDate, isDateKey } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
 import { plural } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
@@ -46,6 +46,12 @@ const DEFAULT_DAYS_BY_REASON: Record<SuspensionReason, number> = {
     MEDICAL: 14,
     OTHER: 14,
 };
+
+/** Chuẩn hoá ô "Số ngày" khi rời ô: số nguyên 1–365, bỏ số 0 ở đầu. */
+export function normalizeDaysInput(raw: string): string {
+    const n = Math.trunc(Number(raw));
+    return n >= 1 ? String(Math.min(n, 365)) : "1";
+}
 
 export function scrollDialogToTop(element: HTMLElement | null): boolean {
     if (!element) return false;
@@ -72,7 +78,7 @@ export function CreateSuspensionPanel({
     const [fighterId, setFighterId] = useState("");
     const [reason, setReason] = useState<SuspensionReason>("KO");
     const [startsOn, setStartsOn] = useState(todayKey);
-    const [days, setDays] = useState(30);
+    const [days, setDays] = useState("30");
     const [mode, setMode] = useState<"tier" | "custom">("tier");
     const [maxTier, setMaxTier] = useState<number>(1);
     const [customBlockedTypes, setCustomBlockedTypes] = useState<SessionType[]>(["SPARRING"]);
@@ -95,14 +101,16 @@ export function CreateSuspensionPanel({
 
     const handleReasonChange = (newReason: SuspensionReason) => {
         setReason(newReason);
-        setDays(DEFAULT_DAYS_BY_REASON[newReason]);
+        setDays(String(DEFAULT_DAYS_BY_REASON[newReason]));
         const clearanceRes = deriveRequiresClearance(newReason);
         if (clearanceRes.ok) {
             setRequiresClearance(clearanceRes.requiresClearance);
         }
     };
 
-    const endsOn = endsOnFor(startsOn, days);
+    const daysNum = Number(days);
+    const daysValid = Number.isInteger(daysNum) && daysNum >= 1 && daysNum <= 365;
+    const endsOn = daysValid && isDateKey(startsOn) ? endsOnFor(startsOn, daysNum) : null;
 
     const isKoOrTko = reason === "KO" || reason === "TKO";
     const isDqOrRest = reason === "DQ" || reason === "MANDATORY_REST";
@@ -112,7 +120,7 @@ export function CreateSuspensionPanel({
         setFighterId("");
         setReason("KO");
         setStartsOn(todayKey);
-        setDays(30);
+        setDays("30");
         setMode("tier");
         setMaxTier(1);
         setCustomBlockedTypes(["SPARRING"]);
@@ -141,12 +149,16 @@ export function CreateSuspensionPanel({
             setFormErrors({ fighterId: t("coachBouts.action.selectFighterFromRoster") });
             return;
         }
+        if (!daysValid) {
+            setFormErrors({ days: t("suspensions.action.daysRange") });
+            return;
+        }
 
         const formData = new FormData();
         formData.set("fighterId", fighterId);
         formData.set("reason", reason);
         formData.set("startsOn", startsOn);
-        formData.set("days", String(days));
+        formData.set("days", String(daysNum));
 
         if (mode === "tier") {
             formData.set("maxTier", String(maxTier));
@@ -427,9 +439,13 @@ export function CreateSuspensionPanel({
                             label={t("suspensions.panel.days")}
                             required
                             error={formErrors.days}
-                            hint={t("suspensions.panel.endsOn", {
-                                date: formatShortDate(endsOn, locale),
-                            })}
+                            hint={
+                                endsOn
+                                    ? t("suspensions.panel.endsOn", {
+                                          date: formatShortDate(endsOn, locale),
+                                      })
+                                    : undefined
+                            }
                         >
                             <Input
                                 id="days-input"
@@ -437,7 +453,8 @@ export function CreateSuspensionPanel({
                                 min={1}
                                 max={365}
                                 value={days}
-                                onChange={(e) => setDays(Number(e.target.value))}
+                                onChange={(e) => setDays(e.target.value)}
+                                onBlur={() => setDays(normalizeDaysInput(days))}
                                 required
                                 disabled={isPending}
                             />

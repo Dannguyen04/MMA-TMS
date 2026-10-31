@@ -92,7 +92,7 @@ import { GradedReturnSteps } from "@/components/domain/graded-return-steps";
 import { IntensityLadder } from "@/components/domain/intensity-ladder";
 import { computeLadderSegments } from "@/lib/domain/intensity-tiers";
 import CoachSuspensionsPage from "./page";
-import { CreateSuspensionPanel, scrollDialogToTop } from "./create-suspension-panel";
+import { CreateSuspensionPanel, normalizeDaysInput, scrollDialogToTop } from "./create-suspension-panel";
 import { SuspensionClearanceDialog } from "./suspension-clearance-dialog";
 import SuspensionsError from "./error";
 import { buildClearSuspensionSchema } from "@/lib/actions/suspension-schemas";
@@ -583,5 +583,19 @@ describe("T-030 Phần B4: Màn /coach/bouts/suspensions (Review Round 1)", () =
 
         // Trường hợp null element
         expect(scrollDialogToTop(null)).toBe(false);
+    });
+});
+
+describe("T-030 B4: chuẩn hoá ô Số ngày khi rời ô (normalizeDaysInput)", () => {
+    it("D1: \"\" → \"1\"", () => expect(normalizeDaysInput("")).toBe("1"));
+    it("D2: \"0\" → \"1\"", () => expect(normalizeDaysInput("0")).toBe("1"));
+    it("D3: \"010\" → \"10\"", () => expect(normalizeDaysInput("010")).toBe("10"));
+    it("D4: \"400\" → \"365\"", () => expect(normalizeDaysInput("400")).toBe("365"));
+    it("D5: \"7.5\" → \"7\"", () => expect(normalizeDaysInput("7.5")).toBe("7"));
+    it("D6: \"-3\" → \"1\"", () => expect(normalizeDaysInput("-3")).toBe("1"));
+    it("D7: \"abc\" → \"1\"", () => expect(normalizeDaysInput("abc")).toBe("1"));
+    it("D8: \"365\" → \"365\" và \"1\" → \"1\" (giữ biên)", () => {
+        expect(normalizeDaysInput("365")).toBe("365");
+        expect(normalizeDaysInput("1")).toBe("1");
     });
 });
