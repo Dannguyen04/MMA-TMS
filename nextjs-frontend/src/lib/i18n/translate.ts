@@ -8,17 +8,22 @@ export type MessageKey = keyof typeof en;
 export type MessageParams = Record<string, string | number>;
 
 /** Looks up a message and fills `{name}` placeholders. */
-export type Translator = (key: MessageKey, params?: MessageParams) => string;
+export interface Translator {
+    (key: MessageKey, params?: MessageParams): string;
+    locale?: Locale;
+}
 
 const DICTIONARIES: Record<Locale, Record<MessageKey, string>> = { en, vi };
 
 export function createTranslator(locale: Locale): Translator {
     const dictionary = DICTIONARIES[locale];
-    return (key, params) => {
+    const translate: Translator = (key, params) => {
         const template = dictionary[key] ?? en[key] ?? key;
         if (!params) return template;
         return template.replace(/\{(\w+)\}/g, (match, name: string) => (name in params ? String(params[name]) : match));
     };
+    translate.locale = locale;
+    return translate;
 }
 
 /** The message for `count`: `${key}.one` when it is 1 and that key exists, otherwise `key`. `{n}` is the count. */

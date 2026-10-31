@@ -23,6 +23,8 @@ export const vi = {
     "nav.Today": "Hôm nay",
     "nav.Bout": "Trận đấu",
     "nav.Bouts": "Trận đấu",
+    "nav.Suspensions": "Đình chỉ",
+    "nav.Readiness": "Sẵn sàng",
     "nav.Training": "Tập luyện",
     "nav.Schedule": "Lịch tập",
     "nav.Plans": "Giáo án",
@@ -154,6 +156,8 @@ export const vi = {
     "coachTodo.WEIGH_IN_TODAY": "Hôm nay cân chính thức",
     "coachTodo.RESULT_OVERDUE": "Chưa ghi kết quả trận ngày {date}",
     "coachTodo.WEIGHT_NOT_LOGGED": "2 ngày chưa ghi cân",
+    "coachTodo.SUSPENSION_AWAITING_CLEARANCE": "Đình chỉ chờ xác nhận được tập lại",
+    "coachTodo.TRAINING_CONFLICTS_WITH_SUSPENSION": "{count} buổi tập xung đột với đình chỉ",
 
     "feasibility.title": "Kiểm tra cân nặng",
     "feasibility.OVER_LIMIT": "Có rủi ro: {kg} kg cao hơn giới hạn {limitKg} kg tới {remaining}%, vượt ngưỡng giảm cân {limit}%. Vẫn lưu được trận.",

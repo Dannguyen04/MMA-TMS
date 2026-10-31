@@ -103,6 +103,10 @@ export const viTraining = {
     "training.error.trainingConflict": "Thao tác này xung đột với lịch tập hiện tại của võ sĩ. Hãy tải lại trang và kiểm tra lại.",
     "training.error.checkViolation": "Dịch vụ tập luyện từ chối một số giá trị nhập vào. Kiểm tra lại biểu mẫu và thử lại.",
     "training.error.invariantConflict": "Dịch vụ tập luyện từ chối thay đổi này do dữ liệu đã cập nhật. Hãy tải lại trang và thử lại.",
+    "training.error.suspensionActiveWithReason": "Võ sĩ đang bị đình chỉ ({reason}), buổi tập loại này bị chặn đến ngày {endsOn}.",
+    "training.error.suspensionActiveRequiresClearance": "Võ sĩ đang bị đình chỉ ({reason}): buổi tập loại này bị chặn đến ngày {endsOn}, sau đó chờ xác nhận được tập lại.",
+    "training.error.suspensionGradedReturn": "Võ sĩ đang tập lại theo bậc sau đình chỉ {reason}: ngày này tối đa bậc {ceiling}, tập đầy đủ từ {fullReturnOn}.",
+    "training.error.suspensionActiveGeneral": "Võ sĩ đang bị đình chỉ, buổi tập loại này bị chặn.",
 
     /* Loading Skeletons */
     "training.loading.plans": "Đang tải giáo án tập luyện",
@@ -153,6 +157,8 @@ export const viTraining = {
     "training.weekSummary.peakTarget": "Mục tiêu đỉnh",
     "training.weekSummary.cancelledCount": "{n} đã hủy",
     "training.weekSummary.cancelledCount.one": "1 đã hủy",
+    "training.weekSummary.pendingCount": "{n} buổi chờ xếp lại",
+    "training.weekSummary.pendingCount.one": "1 buổi chờ xếp lại",
     "training.weekSummary.rosterPrefix": "Võ sĩ · {range}",
 
     /* Counts & Relative Days */
@@ -464,6 +470,7 @@ export const viTraining = {
     "training.actions.markMissedDialogDesc": "{title} sẽ lưu trong lịch sử của {fighter} là đã bỏ lỡ và tính vào tỷ lệ tuân thủ. Thao tác này không thể hoàn tác.",
     "training.actions.markedMissed": "Đã đánh dấu buổi tập là bỏ lỡ.",
     "training.actions.cancelSession": "Hủy buổi tập",
+    "training.actions.cancelShort": "Huỷ buổi",
     "training.actions.cancelDialogTitle": "Hủy buổi tập này?",
     "training.actions.cancelDialogDesc": "{title} vào lúc {when} sẽ được gỡ khỏi lịch của {fighter} và họ sẽ nhận được lý do bạn cung cấp. Thao tác này không thể hoàn tác — bạn sẽ cần lên lịch buổi tập mới nếu muốn tiếp tục.",
     "training.actions.cancelReasonLabel": "Lý do gửi cho võ sĩ",
@@ -486,6 +493,19 @@ export const viTraining = {
     "training.actions.feedbackTechniques": "Kỹ thuật",
     "training.actions.feedbackBody": "Nội dung nhận xét",
     "training.actions.feedbackBodyHint": "Nêu cụ thể: bạn đã quan sát thấy gì, vì sao điều đó quan trọng và võ sĩ cần làm gì tiếp theo.",
+    "training.actions.reschedule": "Xếp lại",
+    "training.actions.rescheduleTitle": "Xếp lại buổi tập",
+    "training.actions.rescheduleDesc": "Chọn ngày giờ mới cho {title}. Buổi tập sẽ kiểm tra lại với các lệnh đình chỉ.",
+    "training.actions.rescheduleDate": "Ngày mới",
+    "training.actions.rescheduleTime": "Giờ mới",
+    "training.actions.rescheduleConfirm": "Xếp lại",
+    "training.actions.rescheduling": "Đang xếp lại…",
+    "training.actions.sessionRescheduled": "Đã xếp lại buổi tập.",
+    "training.actions.awaitingClearanceNotice": "Chờ xác nhận được tập lại trước khi xếp lại",
+    "training.actions.suggestedDateHint": "Gợi ý: ngày đầu tiên sau khi hết đình chỉ ({date})",
+    "training.actions.useSuggestedDate": "Dùng ngày {date}",
+    "training.actions.rescheduleAcknowledge": "Vẫn xếp lịch",
+    "training.actions.viewSuspensions": "Xem đình chỉ",
 
     /* Session Table */
     "training.table.date": "Ngày",

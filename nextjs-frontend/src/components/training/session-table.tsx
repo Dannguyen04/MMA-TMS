@@ -145,10 +145,10 @@ export function SessionTable({
                             return (
                                 <TR key={session.id}>
                                     <TD className="whitespace-nowrap">
-                                        <time dateTime={session.scheduledAt} className="block font-medium">
+                                        <time dateTime={session.scheduledAt} className={cn("block font-medium", session.status === "pending" && "line-through text-fg-muted")}>
                                             {formatWeekdayDate(session.scheduledAt, locale)}
                                         </time>
-                                        <span className="text-xs text-fg-muted">{formatTime(session.scheduledAt, locale)}</span>
+                                        <span className={cn("text-xs text-fg-muted", session.status === "pending" && "line-through")}>{formatTime(session.scheduledAt, locale)}</span>
                                     </TD>
                                     <TD className="min-w-48">
                                         <Link
@@ -228,7 +228,7 @@ export function SessionTable({
                                     <SessionStatusBadge status={session.status} size="sm" className="shrink-0" locale={locale} />
                                 </div>
                                 <p className="flex flex-wrap items-center gap-x-1.5 text-[13px] text-fg-muted">
-                                    <time dateTime={session.scheduledAt}>
+                                    <time dateTime={session.scheduledAt} className={session.status === "pending" ? "line-through text-fg-muted" : undefined}>
                                         {formatWeekdayDate(session.scheduledAt, locale)} · {formatTime(session.scheduledAt, locale)}
                                     </time>
                                     <span aria-hidden>·</span>
