@@ -470,6 +470,7 @@ export const enTraining = {
     "training.actions.markMissedDialogDesc": "{title} stays in {fighter}'s history as missed and counts against their adherence. This can't be undone.",
     "training.actions.markedMissed": "Session marked as missed.",
     "training.actions.cancelSession": "Cancel session",
+    "training.actions.cancelShort": "Cancel",
     "training.actions.cancelDialogTitle": "Cancel this session?",
     "training.actions.cancelDialogDesc": "{title} on {when} is removed from {fighter}'s schedule and they're notified with your reason. This can't be undone — you'd need to schedule a new session.",
     "training.actions.cancelReasonLabel": "Reason for the fighter",

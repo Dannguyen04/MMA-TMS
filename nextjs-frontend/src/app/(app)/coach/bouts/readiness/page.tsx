@@ -7,11 +7,12 @@ import { WeightWarningBadge } from "@/components/domain/status-badges";
 import { Avatar } from "@/components/ui/avatar";
 import { PageHeader } from "@/components/ui/page-header";
 import { requireRole } from "@/lib/auth/session";
-import { maxAllowedTier } from "@/lib/domain/intensity-tiers";
+import type { SessionIntensityTier } from "@/lib/domain/intensity-tiers";
+import { isGradedReturnOnly, readinessMaxTier } from "@/lib/domain/suspension-rules";
 import type { ReadinessRow } from "@/lib/domain/types";
 import { formatShortDate } from "@/lib/format";
 import { getTranslator } from "@/lib/i18n/server";
-import type { Translator } from "@/lib/i18n/translate";
+import type { MessageKey, Translator } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import { listRulesets } from "@/lib/services/bouts";
 import { getReadiness, type ReadinessFilter } from "@/lib/services/suspensions";
@@ -36,7 +37,8 @@ export default async function CoachReadinessPage({ searchParams }: CoachReadines
     const rawBoutOn = param(params.boutOn);
 
     const rulesetId = rawRulesetId?.trim() || undefined;
-    const weightLimitKg = rawWeightLimit ? Number(rawWeightLimit) : undefined;
+    const parsedWeight = rawWeightLimit ? Number(rawWeightLimit) : undefined;
+    const weightLimitKg = parsedWeight !== undefined && Number.isFinite(parsedWeight) ? parsedWeight : undefined;
     const boutOn = rawBoutOn?.trim() || undefined;
 
     // B6-4: If weightLimitKg or boutOn is provided without rulesetId, do not call API with them
@@ -62,17 +64,29 @@ export default async function CoachReadinessPage({ searchParams }: CoachReadines
     // 2. Graded Return: !ready && gradedReturn !== null
     const gradedReturnRows: ReadinessRow[] = [];
     // 3. Not Ready: remaining rows
-    const notReadyRows: ReadinessRow[] = [];
+    const notReadySuspended: ReadinessRow[] = [];
+    const notReadyAwaiting: ReadinessRow[] = [];
+    const notReadyOther: ReadinessRow[] = [];
 
     for (const row of rows) {
         if (row.ready) {
             readyRows.push(row);
-        } else if (row.gradedReturn !== null && row.gradedReturn !== undefined) {
+        } else if (isGradedReturnOnly(row)) {
             gradedReturnRows.push(row);
+        } else if (row.status === "SUSPENDED") {
+            notReadySuspended.push(row);
+        } else if (row.status === "AWAITING_CLEARANCE") {
+            notReadyAwaiting.push(row);
         } else {
-            notReadyRows.push(row);
+            notReadyOther.push(row);
         }
     }
+
+    const notReadyRows: ReadinessRow[] = [
+        ...notReadySuspended,
+        ...notReadyAwaiting,
+        ...notReadyOther,
+    ];
 
     return (
         <div className="flex flex-col gap-6">
@@ -226,20 +240,19 @@ function FighterCard({ row, columnType, locale, t }: FighterCardProps) {
         row.gradedReturn !== null;
 
     // Intensity ladder props
+    const { allowed: ladderMaxTier, effective: effectiveMaxTier } = readinessMaxTier(row);
     const ladderCeiling =
         (row.gradedReturn?.ceiling ?? row.suspension?.gradedReturn?.ceiling) as 3 | 4 | undefined;
 
-    let ladderMaxTier = 5;
-    if (columnType === "graded-return") {
-        ladderMaxTier = 5;
-    } else if (columnType === "not-ready") {
-        ladderMaxTier = row.suspension ? maxAllowedTier(row.suspension.blockedSessionTypes) : 5;
-    } else {
-        ladderMaxTier = 5;
-    }
+    const maxIntensityText =
+        effectiveMaxTier <= 0
+            ? t("intensityLadder.summaryBlocked")
+            : t("readiness.card.maxIntensity", {
+                  tier: t(`intensityTier.${effectiveMaxTier as SessionIntensityTier}.label` as MessageKey),
+              });
 
     return (
-        <div className="rounded-xl border border-border bg-surface p-4 flex flex-col gap-3 shadow-card hover:border-fg-subtle/50 transition-colors">
+        <div data-fighter-card={row.fighterId} className="rounded-xl border border-border bg-surface p-4 flex flex-col gap-3 shadow-card hover:border-fg-subtle/50 transition-colors">
             {/* Top row: Avatar + Fighter Name + Weight */}
             <div className="flex items-center gap-3 min-w-0">
                 <Avatar name={row.fighterName} shape="octagon" size="md" />
@@ -284,7 +297,10 @@ function FighterCard({ row, columnType, locale, t }: FighterCardProps) {
             )}
 
             {/* Intensity Ladder size="sm" */}
-            <div className="w-full">
+            <div className="w-full flex flex-col gap-1.5">
+                <span data-testid="max-intensity-text" className="text-xs text-fg-muted font-medium">
+                    {maxIntensityText}
+                </span>
                 <IntensityLadder
                     maxAllowedTier={ladderMaxTier}
                     ceiling={ladderCeiling}

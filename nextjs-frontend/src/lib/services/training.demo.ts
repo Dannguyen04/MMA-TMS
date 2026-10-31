@@ -487,7 +487,6 @@ function findDemoBlockingSuspensions(fighterId: string, trainingType: TrainingTy
                     reason: susp.reason,
                     endsOn: susp.endsOn,
                     requiresClearance: susp.requiresClearance,
-                    maxAllowedTier: susp.maxAllowedTier,
                 });
             }
             continue;
@@ -500,7 +499,6 @@ function findDemoBlockingSuspensions(fighterId: string, trainingType: TrainingTy
                 endsOn: susp.endsOn,
                 requiresClearance: susp.requiresClearance,
                 gradedReturn: gr,
-                maxAllowedTier: susp.maxAllowedTier,
             });
         }
     }

@@ -470,6 +470,7 @@ export const viTraining = {
     "training.actions.markMissedDialogDesc": "{title} sẽ lưu trong lịch sử của {fighter} là đã bỏ lỡ và tính vào tỷ lệ tuân thủ. Thao tác này không thể hoàn tác.",
     "training.actions.markedMissed": "Đã đánh dấu buổi tập là bỏ lỡ.",
     "training.actions.cancelSession": "Hủy buổi tập",
+    "training.actions.cancelShort": "Huỷ buổi",
     "training.actions.cancelDialogTitle": "Hủy buổi tập này?",
     "training.actions.cancelDialogDesc": "{title} vào lúc {when} sẽ được gỡ khỏi lịch của {fighter} và họ sẽ nhận được lý do bạn cung cấp. Thao tác này không thể hoàn tác — bạn sẽ cần lên lịch buổi tập mới nếu muốn tiếp tục.",
     "training.actions.cancelReasonLabel": "Lý do gửi cho võ sĩ",

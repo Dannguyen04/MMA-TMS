@@ -28,7 +28,7 @@ import { feedbackKindLabel } from "@/lib/domain/labels";
 import type { EligibilityReason } from "@/lib/domain/medical-contract";
 import type { FeedbackKind, SessionResult, Technique } from "@/lib/domain/types";
 import type { Locale } from "@/lib/i18n/config";
-import type { Translator } from "@/lib/i18n/translate";
+import { createTranslator, type Translator } from "@/lib/i18n/translate";
 import { RpeSlider } from "./rpe-slider";
 import { TechniqueCheckboxes } from "./technique-checkboxes";
 import { MID_RPE } from "./training-utils";
@@ -714,13 +714,15 @@ export function SessionCoachActions({
     session,
     fighterName,
     now = new Date().toISOString(),
-    locale = "vi",
+    locale,
     suspensions = [],
     recordButton,
     editHref,
     scheduleAgainHref,
 }: SessionCoachActionsProps) {
-    const t = useT();
+    const ctxLocale = useLocale();
+    const activeLocale: Locale = locale ?? ctxLocale;
+    const t = createTranslator(activeLocale);
     const transitionProps = { sessionId: session.id, sessionTitle: session.title, fighterName };
 
     if (session.status === "pending") {
@@ -734,8 +736,8 @@ export function SessionCoachActions({
                 />
                 <CancelSessionButton
                     {...transitionProps}
-                    when={formatDateTime(session.scheduledAt, locale)}
-                    label={locale === "vi" ? "Huỷ buổi" : undefined}
+                    when={formatDateTime(session.scheduledAt, activeLocale)}
+                    label={t("training.actions.cancelShort")}
                     variant="danger-soft"
                 />
             </div>
@@ -761,7 +763,7 @@ export function SessionCoachActions({
                 </ButtonLink>
             )}
             {scheduled && started && <MarkMissedButton {...transitionProps} />}
-            {active && <CancelSessionButton {...transitionProps} when={formatDateTime(session.scheduledAt, locale)} />}
+            {active && <CancelSessionButton {...transitionProps} when={formatDateTime(session.scheduledAt, activeLocale)} />}
             {recordButton}
             {scheduled && <StartSessionButton {...transitionProps} />}
         </div>

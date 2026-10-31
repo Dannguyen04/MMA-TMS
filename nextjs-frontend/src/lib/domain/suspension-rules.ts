@@ -571,6 +571,47 @@ export function classifyReadiness(input: ClassifyReadinessInput): ReadinessRow {
     };
 }
 
+/**
+ * Suy ra từ nhánh tập-lại-theo-bậc của backend, bouts.model.ts ~1388; backend không có cờ riêng.
+ */
+export function isGradedReturnOnly(row: ReadinessRow): boolean {
+    if (
+        row.status !== "SUSPENDED" ||
+        !row.gradedReturn ||
+        !row.suspension ||
+        row.suspension.expectedResumeOn !== row.gradedReturn.fullReturnOn
+    ) {
+        return false;
+    }
+
+    const actual = new Set(row.suspension.blockedSessionTypes);
+    const expected = new Set(blockedTypesForMaxTier(row.gradedReturn.ceiling));
+    if (actual.size !== expected.size) {
+        return false;
+    }
+    for (const item of expected) {
+        if (!actual.has(item)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
+ * Tính bậc cường độ cho phép và bậc hiệu lực của võ sĩ trên bảng sẵn sàng.
+ * allowed: dựa trên các loại buổi bị đình chỉ hôm nay (mặc định 5 nếu không có đình chỉ).
+ * effective: kết hợp allowed với trần lộ trình tập lại (gradedReturn.ceiling) nếu có.
+ */
+export function readinessMaxTier(row: ReadinessRow): { allowed: number; effective: number } {
+    const allowed = isGradedReturnOnly(row)
+        ? 5
+        : row.suspension
+          ? maxAllowedTier(row.suspension.blockedSessionTypes)
+          : 5;
+    const effective = row.gradedReturn ? Math.min(allowed, row.gradedReturn.ceiling) : allowed;
+    return { allowed, effective };
+}
+
 /* ─── Auto-Apply Side Effects ─────────────────────────────────────────────── */
 
 export interface ApplySideEffectsResult {

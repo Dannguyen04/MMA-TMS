@@ -157,8 +157,8 @@ describe("T-030 Phần B4: Màn /coach/bouts/suspensions (Review Round 1)", () =
         expect(allHtml).not.toContain("other {#");
     });
 
-    // ─── B4-2 ──────────────────────────────────────────────────────────────────
-    it("B4-2: Bọc dòng trong grid 3 cột; màn lớn: thông tin | thang | badge + hành động; màn nhỏ: thang size sm không bị ẩn. Dòng của Linh không vẽ thang bị chặn khi ENDED có gradedReturn (hoặc vẽ theo ceiling 3)", async () => {
+    // ─── B4-layout ───────────────────────────────────────────────────────────
+    it("B4-layout: Bọc dòng trong grid 3 cột; màn lớn: thông tin | thang | badge + hành động; màn nhỏ: thang size sm không bị ẩn. Dòng của Linh không vẽ thang bị chặn khi ENDED có gradedReturn (hoặc vẽ theo ceiling 3)", async () => {
         currentUser = mockRafaelCoach;
         const page = await CoachSuspensionsPage(makeProps());
         const html = renderToStaticMarkup(page);
@@ -175,8 +175,8 @@ describe("T-030 Phần B4: Màn /coach/bouts/suspensions (Review Round 1)", () =
         expect(html).toContain("Tập lại bậc 3/5");
     });
 
-    // ─── B4-3 ──────────────────────────────────────────────────────────────────
-    it("B4-3: Tab 'Trận' và 'Đình chỉ' hiện ở cả hai trang; link đúng routes.coach.bouts và routes.coach.suspensions; tab Đình chỉ trỏ đúng route mới", () => {
+    // ─── B4-tabs ─────────────────────────────────────────────────────────────
+    it("B4-tabs: Tab 'Trận' và 'Đình chỉ' hiện ở cả hai trang; link đúng routes.coach.bouts và routes.coach.suspensions; tab Đình chỉ trỏ đúng route mới", () => {
         const boutsHub = hubTabsFor("coach", routes.coach.bouts);
         expect(boutsHub).not.toBeNull();
         expect(boutsHub?.tabs).toHaveLength(3);
@@ -194,8 +194,8 @@ describe("T-030 Phần B4: Màn /coach/bouts/suspensions (Review Round 1)", () =
         expect(routes.coach.suspensions).toBe("/coach/bouts/suspensions");
     });
 
-    // ─── B4-4 ──────────────────────────────────────────────────────────────────
-    it("B4-4: Bảng tóm tắt hệ quả sau khi tạo đình chỉ: (a) focus/scroll chuyển về tiêu đề tóm tắt; (b) câu đầu in đúng tổng hợp số lượng; (c) buổi getSession trả null hiện 'Buổi tập', không icon, không ngày; (d) giáo án hiện tên giáo án thật và nhãn pha bằng hàm i18n, không hiện 'Pha camp → Hồi phục'; (e) có class transition/animation chỉ khi motion-safe; các dòng trượt vào so le ≤ 60 ms", () => {
+    // ─── B4-2 ──────────────────────────────────────────────────────────────────
+    it("B4-2: Bảng tóm tắt hệ quả sau khi tạo đình chỉ: (a) focus/scroll chuyển về tiêu đề tóm tắt; (b) câu đầu in đúng tổng hợp số lượng; (c) buổi getSession trả null hiện 'Buổi tập', không icon, không ngày; (d) giáo án hiện tên giáo án thật và nhãn pha bằng hàm i18n, không hiện 'Pha camp → Hồi phục'; (e) có class transition/animation chỉ khi motion-safe; các dòng trượt vào so le ≤ 60 ms", () => {
         const mockCreation: SuspensionCreation = {
             id: "susp-new",
             fighterId: "f-marcus-hale",
@@ -318,8 +318,8 @@ describe("T-030 Phần B4: Màn /coach/bouts/suspensions (Review Round 1)", () =
         expect(resultLong.success).toBe(false);
     });
 
-    // ─── B4-6 ──────────────────────────────────────────────────────────────────
-    it("B4-6: Panel tạo đình chỉ: chọn KO thì Switch 'Cần xác nhận' bật sẵn và khoá (disabled); chọn DQ thì Switch tắt và khoá; chọn MEDICAL thì Switch bật sẵn nhưng cho phép tắt; đổi lý do tự cập nhật ngày kết thúc theo số ngày mặc định của lý do", () => {
+    // ─── B4-4 ──────────────────────────────────────────────────────────────────
+    it("B4-4: Panel tạo đình chỉ: chọn KO thì Switch 'Cần xác nhận' bật sẵn và khoá (disabled); chọn DQ thì Switch tắt và khoá; chọn MEDICAL thì Switch bật sẵn nhưng cho phép tắt; đổi lý do tự cập nhật ngày kết thúc theo số ngày mặc định của lý do", () => {
         // Pure rules
         const koClearance = deriveRequiresClearance("KO");
         expect(koClearance.ok).toBe(true);
@@ -343,8 +343,8 @@ describe("T-030 Phần B4: Màn /coach/bouts/suspensions (Review Round 1)", () =
         expect(endsOnFor(TODAY_KEY, 14)).toBe(addDaysToDate(TODAY_KEY, 13));
     });
 
-    // ─── B4-7 ──────────────────────────────────────────────────────────────────
-    it("B4-7: Panel tạo đình chỉ: khi lỗi (ví dụ không chọn võ sĩ hoặc bắt đầu trong quá khứ), thông báo lỗi hiện rõ trong panel trên các nút (dưới dạng FormMessage), người dùng thấy được không cần cuộn ra ngoài. Dialog không đóng được khi đang submit (dismissible={false})", async () => {
+    // ─── B4-panel-error ──────────────────────────────────────────────────────
+    it("B4-panel-error: Panel tạo đình chỉ: khi lỗi (ví dụ không chọn võ sĩ hoặc bắt đầu trong quá khứ), thông báo lỗi hiện rõ trong panel trên các nút (dưới dạng FormMessage), người dùng thấy được không cần cuộn ra ngoài. Dialog không đóng được khi đang submit (dismissible={false})", async () => {
         // Server action từ chối startsOn trong quá khứ
         const formData = new FormData();
         formData.set("fighterId", "f-marcus-hale");
@@ -427,8 +427,8 @@ describe("T-030 Phần B4: Màn /coach/bouts/suspensions (Review Round 1)", () =
         expect(panelHtml).toContain('role="group"');
     });
 
-    // ─── B4-11 ─────────────────────────────────────────────────────────────────
-    it("B4-11: Empty state: khi lọc không có kết quả hoặc roster không có đình chỉ, hiển thị đúng hướng dẫn cách dùng (có nhắc tới KO trận và sparring/chấn thương), kèm nút tạo đình chỉ", async () => {
+    // ─── B4-7 ──────────────────────────────────────────────────────────────────
+    it("B4-7: Empty state: khi lọc không có kết quả hoặc roster không có đình chỉ, hiển thị đúng hướng dẫn cách dùng (có nhắc tới KO trận và sparring/chấn thương), kèm nút tạo đình chỉ", async () => {
         currentUser = mockRafaelCoach;
         const page = await CoachSuspensionsPage(makeProps({ status: "ENDED" }));
         const html = renderToStaticMarkup(page);

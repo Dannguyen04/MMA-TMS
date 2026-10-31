@@ -865,4 +865,153 @@ describe("T-030 B5: Lịch tập (Training schedule & suspensions sync)", () => 
         expect(htmlBlock).not.toContain('name="acknowledgeWarnings"');
         expect(htmlBlock).toMatch(/<button[^>]*disabled[^>]*>[\s\S]*?Xếp lại[\s\S]*?<\/button>/);
     });
+
+    // ─── B5-18 ─────────────────────────────────────────────────────────────────
+    it("B5-18: suspensions = [{ reason 'MANDATORY_REST', endsOn, requiresClearance false }] không gradedReturn -> có lý do và ngày, KHÔNG có thang (không có phần tử của IntensityLadder, ví dụ role/aria-label của thang). Có gradedReturn { ceiling 3, fullReturnOn } -> có thang, ceiling 3", () => {
+        const withoutGraded = [
+            {
+                reason: "MANDATORY_REST",
+                endsOn: "2026-11-20",
+                requiresClearance: false,
+            },
+        ];
+        const htmlWithout = renderToStaticMarkup(
+            createElement(SuspensionBlockCard, {
+                suspensions: withoutGraded,
+                locale: "vi",
+            }),
+        );
+        expect(htmlWithout).toContain("Nghỉ bắt buộc");
+        expect(htmlWithout).toContain(formatShortDate("2026-11-20", "vi"));
+        // Không có phần tử của IntensityLadder (role="img", role="slider", bg-success-solid, ladder-pattern)
+        expect(htmlWithout).not.toContain('role="img"');
+        expect(htmlWithout).not.toContain('role="slider"');
+        expect(htmlWithout).not.toContain("bg-success-solid");
+        expect(htmlWithout).not.toContain("ladder-pattern");
+
+        const withGraded = [
+            {
+                reason: "KO",
+                endsOn: "2026-11-20",
+                requiresClearance: false,
+                gradedReturn: {
+                    ceiling: 3 as const,
+                    fullReturnOn: "2026-12-04",
+                },
+            },
+        ];
+        const htmlWith = renderToStaticMarkup(
+            createElement(SuspensionBlockCard, {
+                suspensions: withGraded,
+                locale: "vi",
+            }),
+        );
+        expect(htmlWith).toContain('role="img"');
+        const allowedCount = (htmlWith.match(/bg-success-solid/g) || []).length;
+        expect(allowedCount).toBe(3);
+        const ceilingCount = (htmlWith.match(/ladder-pattern-ceiling/g) || []).length;
+        expect(ceilingCount).toBe(2);
+    });
+
+    // ─── B5-19 ─────────────────────────────────────────────────────────────────
+    it("B5-19: demo: rescheduleSession buổi pending của Tariq vào một ngày trong đình chỉ -> lỗi, chi tiết suspensions không có khoá maxAllowedTier (đúng hình dạng contract API)", async () => {
+        const tariqSession = db().trainingSessions.find(
+            (s) => s.fighterId === "f-tariq-haddad" && s.status === "pending",
+        );
+        expect(tariqSession).toBeDefined();
+
+        const susp = db().suspensions.find(
+            (s) => s.fighterId === "f-tariq-haddad" && s.reason === "MANDATORY_REST",
+        );
+        expect(susp).toBeDefined();
+
+        const withinSuspension = susp!.endsOn;
+        const formData = new FormData();
+        formData.set("date", withinSuspension);
+        formData.set("time", "10:00");
+
+        const result = await rescheduleSession(tariqSession!.id, IDLE_SESSION, formData);
+        expect(result.status).toBe("error");
+
+        const suspensions = result.data?.suspensions;
+        expect(suspensions).toBeDefined();
+        expect(suspensions!.length).toBeGreaterThan(0);
+
+        for (const s of suspensions!) {
+            expect(s).not.toHaveProperty("maxAllowedTier");
+            expect(Object.prototype.hasOwnProperty.call(s, "maxAllowedTier")).toBe(false);
+        }
+
+        // Kiểm tra cả direct call updateSession ném ApiError
+        let thrownError: unknown = null;
+        try {
+            await updateSession(
+                tariqSession!.id,
+                {
+                    ...tariqSession!,
+                    coachId: tariqSession!.coachId || mockActor.id,
+                    durationMin: tariqSession!.durationMin ?? 60,
+                    exercises: tariqSession!.exercises.map((e) => ({
+                        exerciseId: e.exerciseId,
+                        rounds: e.rounds,
+                        roundSec: e.roundSec,
+                        sets: e.sets,
+                        reps: e.reps,
+                        notes: e.notes,
+                    })),
+                    scheduledAt: `${withinSuspension}T10:00:00.000Z`,
+                },
+                mockActor,
+            );
+        } catch (err) {
+            thrownError = err;
+        }
+
+        expect(thrownError).toBeInstanceOf(ApiError);
+        const apiErr = thrownError as ApiError;
+        const directSuspensions = (apiErr.details as { suspensions: unknown[] })?.suspensions;
+        expect(directSuspensions).toBeDefined();
+        for (const s of directSuspensions) {
+            expect(s).not.toHaveProperty("maxAllowedTier");
+            expect(Object.prototype.hasOwnProperty.call(s, "maxAllowedTier")).toBe(false);
+        }
+    });
+
+    // ─── I18N-1 ────────────────────────────────────────────────────────────────
+    it("I18N-1: render nút huỷ buổi của SessionCoachActions với locale vi và en -> đúng t('training.actions.cancelShort')", () => {
+        const session = createMockSession({ status: "pending" });
+        const tVi = createTranslator("vi");
+        const tEn = createTranslator("en");
+
+        // en:
+        const htmlEn = renderToStaticMarkup(
+            createElement(
+                ToastProvider,
+                null,
+                createElement(SessionCoachActions, {
+                    session,
+                    fighterName: "Tariq Haddad",
+                    locale: "en",
+                }),
+            ),
+        );
+        expect(htmlEn).not.toContain("Huỷ buổi");
+        expect(htmlEn).toContain(tEn("training.actions.cancelShort"));
+        expect(htmlEn).not.toContain(tEn("training.actions.cancelSession"));
+
+        // vi:
+        const htmlVi = renderToStaticMarkup(
+            createElement(
+                ToastProvider,
+                null,
+                createElement(SessionCoachActions, {
+                    session,
+                    fighterName: "Tariq Haddad",
+                    locale: "vi",
+                }),
+            ),
+        );
+        expect(htmlVi).toContain(tVi("training.actions.cancelShort"));
+        expect(htmlVi).not.toContain(tVi("training.actions.cancelSession"));
+    });
 });

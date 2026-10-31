@@ -59,11 +59,6 @@ export function SuspensionBlockCard({
     const reasonLabel = suspensionReasonLabel(primary.reason, t);
     const explanation = formatSuspensionMessage(primary, t);
 
-    const hasGradedReturn = Boolean(primary.gradedReturn);
-    const showLadder =
-        hasGradedReturn ||
-        (primary.maxAllowedTier !== undefined && primary.maxAllowedTier !== null);
-
     return (
         <div
             role="alert"
@@ -88,22 +83,14 @@ export function SuspensionBlockCard({
 
             <p className="text-fg leading-relaxed">{explanation}</p>
 
-            {showLadder && (
+            {primary.gradedReturn && (
                 <div className="pt-0.5">
-                    {hasGradedReturn && primary.gradedReturn ? (
-                        <IntensityLadder
-                            size="sm"
-                            maxAllowedTier={5}
-                            ceiling={primary.gradedReturn.ceiling}
-                            locale={activeLocale}
-                        />
-                    ) : (
-                        <IntensityLadder
-                            size="sm"
-                            maxAllowedTier={primary.maxAllowedTier!}
-                            locale={activeLocale}
-                        />
-                    )}
+                    <IntensityLadder
+                        size="sm"
+                        maxAllowedTier={5}
+                        ceiling={primary.gradedReturn.ceiling}
+                        locale={activeLocale}
+                    />
                 </div>
             )}
         </div>

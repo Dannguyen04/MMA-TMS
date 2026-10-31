@@ -405,6 +405,7 @@ export const enCoachBouts = {
     "readiness.empty.ready": "No fighters are currently ready for a bout.",
     "readiness.empty.gradedReturn": "No fighters are in graded return.",
     "readiness.empty.notReady": "No fighters are currently blocked.",
+    "readiness.card.maxIntensity": "Max intensity: {tier}",
     "readiness.card.latestWeight": "{kg} kg ({date})",
     "readiness.card.notWeighed": "Not weighed",
     "readiness.card.fullReturnFrom": "Full return from {date}",

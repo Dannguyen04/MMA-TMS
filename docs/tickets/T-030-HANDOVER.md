@@ -1688,3 +1688,362 @@ $ vitest run
              persist transforms across runs with fsModuleCache: true
              learn more: https://vitest.dev/guide/improving-performance#caching-between-reruns
 ```
+
+
+---
+
+## Phần B6, lượt sửa UX (31/10)
+
+### 1. Nội dung sửa đổi UX
+
+1. **U1: Thêm dòng chữ giải thích cường độ tối đa cho thẻ võ sĩ**
+   - File: `nextjs-frontend/src/app/(app)/coach/bouts/readiness/page.tsx`
+   - Khai báo khoá mới `readiness.card.maxIntensity` trong:
+     - `nextjs-frontend/src/lib/i18n/messages/coach-bouts.vi.ts`: `"readiness.card.maxIntensity": "Cường độ tối đa: {tier}"`
+     - `nextjs-frontend/src/lib/i18n/messages/coach-bouts.en.ts`: `"readiness.card.maxIntensity": "Max intensity: {tier}"`
+   - Trên mỗi thẻ võ sĩ, hiển thị một dòng chữ nhìn thấy ngay trên thang `IntensityLadder`:
+     - Nhãn bậc lấy động qua translator từ `intensityTier.{n}.label`, với `n` là bậc cao nhất được phép (`effectiveMaxTier`: lấy trần bậc `ladderCeiling` khi ở cột tập lại theo bậc `graded-return`, hoặc `ladderMaxTier` cho các trường hợp khác).
+     - Giúp HLV nhận biết ngay mức cường độ tối đa được phép, giải thích trực quan số vạch xanh trên thang.
+
+2. **U2: Phân nhóm thứ tự hiển thị trong cột 'Chưa sẵn sàng'**
+   - File: `nextjs-frontend/src/app/(app)/coach/bouts/readiness/page.tsx`
+   - Trong cột 'Chưa sẵn sàng', phân nhóm theo 3 mức ưu tiên xử lý của HLV bằng trường `status` của `ReadinessRow`:
+     1. Đang đình chỉ (`row.status === "SUSPENDED"`)
+     2. Chờ xác nhận tập lại (`row.status === "AWAITING_CLEARANCE"`)
+     3. Còn lại (đang có trận / `row.status === "IN_BOUT"`, ...)
+   - Giữ nguyên thứ tự theo tên (alphabetical) vốn có trong từng nhóm.
+   - Cột 'Sẵn sàng' và 'Đang tập lại' giữ nguyên, không đổi.
+
+### 2. Ca kiểm thử bổ sung (B6-9, B6-10, B6-11)
+- File: `nextjs-frontend/src/app/(app)/coach/bouts/readiness/readiness-page.test.ts`
+- **B6-9**: Locale vi, HTML trang có 'Cường độ tối đa:' trên từng thẻ (số lần xuất hiện = 8); thẻ Tariq Haddad (đình chỉ nghỉ bắt buộc, maxAllowedTier 1) chứa nhãn `intensityTier.1.label` ("Bậc 1"); thẻ Linh Phạm (tập lại theo bậc, ceiling 3) chứa nhãn `intensityTier.3.label` ("Bậc 3"); thẻ Emma Lindqvist (sẵn sàng) chứa nhãn `intensityTier.5.label` ("Bậc 5"). Toàn bộ nhãn được lấy qua `createTranslator("vi")`, không gõ cứng.
+- **B6-10**: Locale en có 'Max intensity:' và không còn khoá thô `readiness.card.maxIntensity` trong HTML. Mock `getTranslator` hỗ trợ đổi ngôn ngữ linh hoạt qua `localeRef` hoisted.
+- **B6-11**: Cột 'Chưa sẵn sàng' của Rafael: vị trí trong HTML của Marcus Hale và Tariq Haddad (đình chỉ) đứng trước Diego Alvarez (chờ xác nhận), và Diego Alvarez đứng trước Aigerim Sadykova, Kenji Morita, Minh Trần (đang có trận). Đo đạc bằng `indexOf` trong phạm vi phần HTML của cột (`data-column="not-ready"`).
+
+### 3. Kết quả chạy kiểm thử và kiểm tra chất lượng
+
+1. **Kiểm thử đơn vị trang readiness**:
+```powershell
+pnpm --filter nextjs-frontend exec vitest run 'src/app/(app)/coach/bouts/readiness/readiness-page.test.ts' | Select-Object -Last 8
+```
+Output:
+```text
+ RUN  v5.0.1 D:/MMA-TMS/nextjs-frontend
+
+
+ Test Files  1 passed (1)
+      Tests  12 passed (12)
+   Start at  15:18:01
+   Duration  1.86s (tests 67%, transform 18%, import 14%)
+```
+
+2. **Lint**:
+```powershell
+pnpm --filter nextjs-frontend lint
+```
+Output:
+```text
+$ eslint
+(exit code 0)
+```
+
+3. **Typecheck**:
+```powershell
+pnpm --filter nextjs-frontend typecheck
+```
+Output:
+```text
+$ next typegen && tsc --noEmit
+Generating route types...
+✓ Types generated successfully
+(exit code 0)
+```
+
+4. **Toàn bộ test suite**:
+```powershell
+pnpm --filter nextjs-frontend test
+```
+Output:
+```text
+ RUN  v5.0.1 D:/MMA-TMS/nextjs-frontend
+
+
+ Test Files  99 passed | 1 skipped (100)
+      Tests  939 passed | 2 skipped (941)
+   Start at  15:19:48
+   Duration  4.51s (import 39%, transform 35%, tests 26%, worker 1%)
+```
+
+### 4. Câu hỏi / việc còn mở
+Không có. Toàn bộ tiêu chí UX U1, U2 và 3 ca kiểm thử B6-9, B6-10, B6-11 đều khớp hoàn toàn với dữ liệu demo và đạt 100%.
+
+
+---
+
+## Phần B, B7 lượt sửa 1 (31/10)
+
+### 1. Nội dung sửa đổi theo review độc lập cuối (B7)
+1. **Thẻ giải thích 409 & Contract Demo**:
+   - `components/training/suspension-block-card.tsx`: Thẻ chỉ vẽ thang cường độ khi có `gradedReturn` (sử dụng `ceiling={primary.gradedReturn.ceiling}` và `maxAllowedTier={5}`). Loại bỏ fallback `maxAllowedTier` ngoài contract.
+   - `lib/services/training.demo.ts`: Loại bỏ trường `maxAllowedTier` khỏi danh sách đình chỉ chi tiết trong phản hồi lỗi 409 của `findDemoBlockingSuspensions` khi xếp lại buổi tập, đảm bảo khớp đúng contract backend (`nestjs-api/src/suspensions/suspension.gate.ts`).
+2. **Bảng sẵn sàng (`app/(app)/coach/bouts/readiness/page.tsx`)**:
+   - *(a)* Khi `effectiveMaxTier <= 0` (do RECOVERY hoặc PHYSICAL_THERAPY bị chặn), sử dụng chuỗi có sẵn `t("intensityLadder.summaryBlocked")` ("Bị chặn hoàn toàn"), tránh gọi key `intensityTier.0.label` không tồn tại; loại bỏ tham số thừa `label` trong `t("readiness.card.maxIntensity", { tier })`.
+   - *(b)* Phân loại 3 cột: Dòng có `gradedReturn` chỉ vào cột "Đang tập lại" khi `status === 'SUSPENDED'` và `row.suspension === null` (không còn đình chỉ nào khác đang hiệu lực hôm nay). Nếu `row.suspension !== null` hoặc `status === 'AWAITING_CLEARANCE'`, dòng nằm ở cột "Chưa sẵn sàng". Đồng thời điều chỉnh `classifyReadiness` trong `lib/domain/suspension-rules.ts` để `row.suspension` chỉ tổng hợp các đình chỉ đang hiệu lực hôm nay (`inForceToday`), không gán đè thông tin khi chỉ có `gradedReturn`.
+   - *(c)* Tham số `weightLimitKg`: Sử dụng `Number.isFinite` để kiểm tra giá trị phân tích từ search params. Nếu là `NaN` hoặc không hữu hạn thì bỏ qua (undefined), không gửi lên backend và không gây lỗi 422.
+3. **Đa ngôn ngữ (i18n)**:
+   - `components/training/session-coach-actions.tsx`: Thay nhãn cứng `label={locale === 'vi' ? 'Huỷ buổi' : undefined}` bằng `label={t("training.actions.cancelShort")}`.
+   - Bổ sung khoá `training.actions.cancelShort` vào cả hai file `training.vi.ts` ("Huỷ buổi") và `training.en.ts` ("Cancel").
+4. **Viết lại ca kiểm thử B6-9**:
+   - `app/(app)/coach/bouts/readiness/readiness-page.test.ts`: Trích xuất HTML của từng thẻ võ sĩ qua thuộc tính `data-fighter-card='<fighterId>'` và kiểm tra nguyên văn chuỗi mức cường độ tối đa `tVi('readiness.card.maxIntensity', { tier: tVi('intensityTier.<tier>.label') })` (Tariq: Bậc 1, Linh: Bậc 3, Emma: Bậc 5).
+5. **Đồng bộ mã ca kiểm thử B4 & đối chiếu ticket**:
+   - `app/(app)/coach/bouts/suspensions/suspensions-page.test.ts`:
+     - Test B4-6 cũ đổi thành `B4-4` (kiểm tra công tắc "Cần xác nhận" cho lý do KO).
+     - Test B4-11 cũ đổi thành `B4-7` (kiểm tra empty state có hướng dẫn khi không có đình chỉ).
+     - Test B4-4 cũ đổi thành `B4-2` (bảng tóm tắt hệ quả sau khi tạo đình chỉ).
+     - Test B4-2 cũ đổi thành `B4-layout`, B4-3 cũ đổi thành `B4-tabs`, B4-7 cũ thành `B4-panel-error`.
+   - Đối chiếu các ca không có test riêng trong file:
+     - **B4-3** (Chọn `maxTier` và tick loại buổi cùng lúc không cho phép): Được đảm bảo bởi kiến trúc SegmentedControl chuyển đổi chế độ loại trừ lẫn nhau (đã được kiểm tra a11y trong `B4-10`).
+     - **B4-6** (ADMIN mở trang không có nút Xác nhận được tập lại): Tuyến `/coach/bouts/suspensions` được bảo vệ bởi `requireRole("coach")` (đã kiểm tra trong `B4-14`); người dùng ADMIN bị điều hướng về dashboard của admin, không thể truy cập giao diện này.
+
+### 2. Các ca kiểm thử mới bổ sung
+- **B5-18**: Render `SuspensionBlockCard` không có `gradedReturn` thì chỉ hiển thị lý do và ngày, không có thang cường độ; khi có `gradedReturn` thì hiển thị thang với trần ceiling 3.
+- **B5-19**: Demo `rescheduleSession` buổi pending của Tariq vào ngày đình chỉ -> trả về lỗi 409 không chứa trường `maxAllowedTier` trong chi tiết lỗi.
+- **B6-12**: Dòng readiness có đình chỉ chặn RECOVERY và PHYSICAL_THERAPY (`maxAllowedTier <= 0`) -> HTML không chứa chuỗi thô `intensityTier.0`, hiển thị câu bị chặn hoàn toàn.
+- **B6-13**: Kiểm tra 3 nhánh trạng thái:
+  - (a) `gradedReturn` + `status === 'SUSPENDED'` + `suspension === null` -> cột "Đang tập lại".
+  - (b) `gradedReturn` + `status === 'SUSPENDED'` + `suspension !== null` -> cột "Chưa sẵn sàng".
+  - (c) `gradedReturn` + `status === 'AWAITING_CLEARANCE'` -> cột "Chưa sẵn sàng", có câu nhắc chờ xác nhận.
+- **B6-14**: Tham số tìm kiếm `weightLimitKg='abc'` cùng `rulesetId` hợp lệ -> `getReadiness` được gọi với `weightLimitKg` là undefined, trang render không lỗi và không chứa "NaN".
+- **I18N-1**: Render nút huỷ buổi trong `SessionCoachActions` với `locale="en"` -> hiển thị "Cancel", không chứa chuỗi tiếng Việt "Huỷ buổi".
+
+### 3. Kết quả kiểm tra chất lượng
+
+1. **Lint**:
+```powershell
+pnpm --filter nextjs-frontend lint
+```
+Output:
+```text
+$ eslint
+(exit code 0)
+```
+
+2. **Typecheck**:
+```powershell
+pnpm --filter nextjs-frontend typecheck
+```
+Output:
+```text
+$ next typegen && tsc --noEmit
+Generating route types...
+✓ Types generated successfully
+(exit code 0)
+```
+
+3. **Toàn bộ test suite**:
+```powershell
+pnpm --filter nextjs-frontend test
+```
+Output:
+```text
+ RUN  v5.0.1 D:/MMA-TMS/nextjs-frontend
+
+ Test Files  99 passed | 1 skipped (100)
+      Tests  945 passed | 2 skipped (947)
+   Start at  15:59:01
+   Duration  6.08s (import 39%, transform 37%, tests 23%, worker 1%)
+```
+
+
+---
+
+## Phần B, B7 lượt sửa 2 (31/10)
+
+### 1. Nội dung sửa đổi
+1. **Khôi phục nhánh `else if (gradedReturn !== null)` trong `classifyReadiness`**:
+   - File: `nextjs-frontend/src/lib/domain/suspension-rules.ts`
+   - Khôi phục hoàn toàn nhánh `else if (gradedReturn !== null)` khớp với backend (`nestjs-api/src/bouts/bouts.model.ts:1388-1407`). Khi võ sĩ chỉ có `gradedReturn` (không có đình chỉ nào `inForceToday`), backend vẫn dựng `row.suspension` với `expectedResumeOn = gradedReturn.fullReturnOn` và `blockedSessionTypes = blockedTypesForMaxTier(ceiling)`. Khôi phục import `blockedTypesForMaxTier`.
+2. **Hàm thuần `isGradedReturnOnly(row: ReadinessRow): boolean`**:
+   - File: `nextjs-frontend/src/lib/domain/suspension-rules.ts`
+   - Bổ sung hàm thuần `isGradedReturnOnly` kiểm tra xem võ sĩ có đang ở trạng thái chỉ tập lại theo bậc (không còn đình chỉ hiệu lực hôm nay) dựa trên dấu hiệu hình dạng contract:
+     - `row.status === 'SUSPENDED'`
+     - `row.gradedReturn !== null && row.gradedReturn !== undefined`
+     - `row.suspension !== null && row.suspension !== undefined`
+     - `row.suspension.expectedResumeOn === row.gradedReturn.fullReturnOn`
+     - Tập hợp `row.suspension.blockedSessionTypes` khớp đúng tập hợp `blockedTypesForMaxTier(row.gradedReturn.ceiling)` (so sánh không phụ thuộc thứ tự qua Set).
+   - Kèm chú thích: `// Suy ra từ nhánh tập-lại-theo-bậc của backend, bouts.model.ts ~1388; backend không có cờ riêng.`
+3. **Phân vùng cột hiển thị trong trang readiness**:
+   - File: `nextjs-frontend/src/app/(app)/coach/bouts/readiness/page.tsx`
+   - Sử dụng `isGradedReturnOnly(row)` để xác định dòng đưa vào cột "Đang tập lại", thay thế điều kiện cũ `row.suspension === null`.
+4. **Các ca kiểm thử thay thế & bổ sung (B6-13a..e & B6-15)**:
+   - File: `nextjs-frontend/src/app/(app)/coach/bouts/readiness/readiness-page.test.ts`
+   - **B6-13a**: Unit test `isGradedReturnOnly` trả về `true` với row có status `SUSPENDED`, `gradedReturn` và `suspension` khớp nhau.
+   - **B6-13b**: Trả về `false` khi `suspension.expectedResumeOn` khác ngày `fullReturnOn` (có đình chỉ khác đang hiệu lực).
+   - **B6-13c**: Trả về `false` khi `blockedSessionTypes` chứa thêm loại buổi không thuộc `blockedTypesForMaxTier(3)`.
+   - **B6-13d**: Trả về `false` khi status là `AWAITING_CLEARANCE`.
+   - **B6-13e**: Trang readiness demo của Rafael hiển thị Linh Phạm ở cột "Đang tập lại" (B6-2, B6-6 giữ nguyên và tiếp tục đạt 100%).
+   - **B6-15**: Khớp demo với backend: `getReadiness` cho Linh Phạm trả về `suspension` khác null với `expectedResumeOn === fullReturnOn` và `blockedSessionTypes` bằng `blockedTypesForMaxTier(ceiling)`.
+
+### 2. Kết quả kiểm tra chất lượng
+
+1. **Lint**:
+```powershell
+pnpm --filter nextjs-frontend lint
+```
+Output:
+```text
+$ eslint
+(exit code 0)
+```
+
+2. **Typecheck**:
+```powershell
+pnpm --filter nextjs-frontend typecheck
+```
+Output:
+```text
+$ next typegen && tsc --noEmit
+Generating route types...
+✓ Types generated successfully
+(exit code 0)
+```
+
+3. **Toàn bộ test suite**:
+```powershell
+pnpm --filter nextjs-frontend test
+```
+Output:
+```text
+ RUN  v5.0.1 D:/MMA-TMS/nextjs-frontend
+
+ Test Files  99 passed | 1 skipped (100)
+      Tests  950 passed | 2 skipped (952)
+   Start at  16:06:24
+   Duration  5.61s (import 38%, transform 37%, tests 23%, worker 1%)
+```
+
+
+---
+
+## Phần B, B7 lượt sửa 3 (31/10)
+
+### 1. Nội dung sửa đổi
+1. **R-A: Thống nhất một cách tính bậc cường độ tối đa và thang cho mọi cột**:
+   - File: `nextjs-frontend/src/lib/domain/suspension-rules.ts`
+   - Bổ sung hàm thuần `readinessMaxTier(row: ReadinessRow): { allowed: number; effective: number }`:
+     - `allowed = row.suspension ? maxAllowedTier(row.suspension.blockedSessionTypes) : 5`
+     - `effective = row.gradedReturn ? Math.min(allowed, row.gradedReturn.ceiling) : allowed`
+   - File: `nextjs-frontend/src/app/(app)/coach/bouts/readiness/page.tsx`
+     - Sử dụng hàm `readinessMaxTier(row)` chung cho tất cả các cột ("Sẵn sàng", "Đang tập lại", "Chưa sẵn sàng").
+     - Dòng chữ `maxIntensityText` dùng `effective` (khi `<= 0` hiển thị câu tóm tắt bị chặn toàn bộ).
+     - Component `IntensityLadder` nhận `maxAllowedTier={ladderMaxTier}` và `ceiling={ladderCeiling}`, đảm bảo dòng chữ giải thích và vạch thang luôn đồng nhất ở mọi tình huống (kể cả khi lọc ngày trận đưa võ sĩ đang trong lộ trình tập lại sang cột Sẵn sàng hoặc khi có đình chỉ ACTIVE khác).
+     - Thêm thuộc tính `data-testid="max-intensity-text"` vào phần tử `<span>` hiển thị dòng chữ cường độ.
+2. **G1: Đồng bộ locale trong `SessionCoachActions`**:
+   - File: `nextjs-frontend/src/components/training/session-coach-actions.tsx`
+   - Thay `locale` bằng `activeLocale` tại các điểm gọi `formatDateTime(session.scheduledAt, activeLocale)` (dòng 739 và 766), đảm bảo định dạng ngày giờ chuẩn theo locale đang kích hoạt.
+3. **G4: Kiểm tra dòng chữ B6-12 trực tiếp trên phần tử**:
+   - File: `nextjs-frontend/src/app/(app)/coach/bouts/readiness/readiness-page.test.ts`
+   - Cập nhật ca kiểm thử `B6-12` kiểm tra nội dung text trong thẻ `<span data-testid="max-intensity-text">` chứa câu `tVi("intensityLadder.summaryBlocked")`, không phụ thuộc vào thuộc tính `aria-label` của thang.
+4. **G5: Kiểm tra đa ngôn ngữ chặt chẽ cho `I18N-1`**:
+   - File: `nextjs-frontend/src/components/training/session-suspension-b5.test.ts`
+   - Cập nhật ca kiểm thử `I18N-1` kiểm tra nhãn nút huỷ buổi khớp chính xác `t("training.actions.cancelShort")` cho cả hai ngôn ngữ (`vi`: "Huỷ buổi", `en`: "Cancel"), đồng thời xác nhận không xuất hiện chuỗi dài mặc định (`cancelSession`: "Huỷ buổi tập" / "Cancel session").
+5. **Các ca kiểm thử bổ sung (B6-16, B6-17, B6-18)**:
+   - File: `nextjs-frontend/src/app/(app)/coach/bouts/readiness/readiness-page.test.ts`
+   - **B6-16**: Lọc có `rulesetId` và `boutOn = hôm nay demo + 10 ngày` đưa Linh Phạm vào cột Sẵn sàng, thẻ của Linh vẫn hiển thị đúng dòng chữ Bậc 3 (`intensityTier.3.label`), không hiển thị Bậc 5.
+   - **B6-17**: Dòng có đình chỉ ACTIVE chỉ chặn SPARRING (`maxAllowedTier 4`) cùng `gradedReturn.ceiling 3` và `expectedResumeOn` khác `fullReturnOn` -> nằm cột Chưa sẵn sàng, dòng chữ hiển thị Bậc 3 (`readinessMaxTier` trả về `{ allowed: 4, effective: 3 }`).
+   - **B6-18**: Dòng có `ready: true`, `suspension: null`, `gradedReturn: null` -> dòng chữ hiển thị Bậc 5 (`readinessMaxTier` trả về `{ allowed: 5, effective: 5 }`).
+
+### 2. Kết quả kiểm tra chất lượng
+
+1. **Lint**:
+```powershell
+pnpm --filter nextjs-frontend lint
+```
+Output:
+```text
+$ eslint
+(exit code 0)
+```
+
+2. **Typecheck**:
+```powershell
+pnpm --filter nextjs-frontend typecheck
+```
+Output:
+```text
+$ next typegen && tsc --noEmit
+Generating route types...
+✓ Types generated successfully
+(exit code 0)
+```
+
+3. **Toàn bộ test suite**:
+```powershell
+pnpm --filter nextjs-frontend test
+```
+Output:
+```text
+ RUN  v5.0.1 D:/MMA-TMS/nextjs-frontend
+
+ Test Files  99 passed | 1 skipped (100)
+      Tests  953 passed | 2 skipped (955)
+   Start at  16:19:30
+   Duration  6.19s (import 39%, transform 36%, tests 23%, worker 1%)
+```
+
+
+---
+
+## Phần B, B7 lượt sửa 4 (31/10)
+
+### 1. Nội dung sửa đổi
+1. **Sửa `readinessMaxTier` để thang hiển thị đúng trạng thái trần tập lại (`blocked_ceiling`)**:
+   - File: `nextjs-frontend/src/lib/domain/suspension-rules.ts`
+   - Điều chỉnh công thức tính `allowed` cho võ sĩ chỉ đang tập lại theo bậc (`isGradedReturnOnly(row)`):
+     - `allowed = isGradedReturnOnly(row) ? 5 : (row.suspension ? maxAllowedTier(row.suspension.blockedSessionTypes) : 5)`
+     - `effective = row.gradedReturn ? Math.min(allowed, row.gradedReturn.ceiling) : allowed`
+   - Lý do: Với võ sĩ chỉ tập lại theo bậc (như Linh Phạm), backend đặt `suspension.blockedSessionTypes = blockedTypesForMaxTier(ceiling)`. Nếu gán `allowed` theo `blockedSessionTypes` (3), `computeLadderSegments` coi các bậc 4 và 5 là `tier > maxAllowedTier` và vẽ sọc xám `blocked` (bị cấm thường). Khi đặt `allowed = 5`, các bậc 4 và 5 thoả mãn `tier <= maxAllowedTier` và `tier > ceiling (3)`, vẽ đúng sọc xanh `blocked_ceiling` (trần tập lại hôm nay / class `ladder-pattern-ceiling`).
+2. **Các ca kiểm thử bổ sung (B6-19, B6-20, B6-21)**:
+   - File: `nextjs-frontend/src/app/(app)/coach/bouts/readiness/readiness-page.test.ts`
+   - **B6-19 (unit)**: Dòng chỉ tập lại theo bậc (như B6-13a, ceiling 3) -> `readinessMaxTier` trả về `{ allowed: 5, effective: 3 }`.
+   - **B6-20 (unit)**: Dòng B6-17 (đình chỉ ACTIVE chặn SPARRING + gradedReturn ceiling 3, không phải graded-only) -> `readinessMaxTier` trả về `{ allowed: 4, effective: 3 }`.
+   - **B6-21 (trang, demo Rafael)**: Thẻ của Linh Phạm trong HTML chứa trạng thái `blocked_ceiling` (class `ladder-pattern-ceiling` và nhãn sr `intensityLadder.blockedToday`), không chứa class `ladder-pattern-blocked`. Thẻ của Tariq Haddad chứa `ladder-pattern-blocked` (đoạn 2-5 bị cấm thường), không chứa `ladder-pattern-ceiling`.
+   - Các ca kiểm thử B6-16, B6-17, B6-18 tiếp tục pass 100% không đổi.
+
+### 2. Kết quả kiểm tra chất lượng
+
+1. **Lint**:
+```powershell
+pnpm --filter nextjs-frontend lint
+```
+Output:
+```text
+$ eslint
+(exit code 0)
+```
+
+2. **Typecheck**:
+```powershell
+pnpm --filter nextjs-frontend typecheck
+```
+Output:
+```text
+$ next typegen && tsc --noEmit
+Generating route types...
+✓ Types generated successfully
+(exit code 0)
+```
+
+3. **Toàn bộ test suite**:
+```powershell
+pnpm --filter nextjs-frontend test
+```
+Output:
+```text
+ RUN  v5.0.1 D:/MMA-TMS/nextjs-frontend
+
+ Test Files  99 passed | 1 skipped (100)
+      Tests  956 passed | 2 skipped (958)
+   Start at  16:25:25
+   Duration  5.09s (import 40%, transform 35%, tests 24%, worker 1%)
+```

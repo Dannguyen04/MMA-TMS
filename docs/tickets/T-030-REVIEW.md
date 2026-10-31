@@ -78,3 +78,40 @@ Chạy lại trên `6b253fd` (B6) lúc 22:50 ngày 30/10 (UTC+7): `lint` sạch,
   - Lần 3: đạt, không còn mục chặn hay nên sửa.
   - Gợi ý chưa làm: dòng 759 dựa vào giờ gốc của helper (10:00) khác giờ đích (15:00).
 - **Còn lại của phần B:** chụp màn kiểm B6, rồi B7.
+
+## B6 (bảng Sẵn sàng) và B7 (kiểm tra cuối): APPROVED 31/10
+
+**Chụp màn** `/coach/bouts/readiness`, demo, Rafael Costa, ở 1440 px và 390 px, cả vi lẫn en.
+- Đạt: dịch đủ, không cuộn ngang, ba cột đúng (1 / 1 / 6), lý do có màu riêng, ô hạng cân khoá khi chưa chọn bộ luật.
+- Lượt UX của Claude (`agy`) sửa hai điểm:
+  - U1: thang 5 vạch không có chữ, nên thêm dòng "Cường độ tối đa: Bậc N".
+  - U2: cột "Chưa sẵn sàng" xếp theo tên, nên đổi sang đình chỉ → chờ xác nhận → đang có trận.
+
+**`impeccable detect`:** quét 17 file UI bằng regex, không báo gì. Các luật cần trang đã render (tương phản, chữ nhỏ) chưa chạy, vì trang phải đăng nhập. Phần đó Claude kiểm bằng mắt qua ảnh chụp.
+
+**Review độc lập cuối cho cả phần B: KHÔNG ĐẠT, 6 mục nên sửa.** Đã sửa qua 4 lượt `agy`:
+
+| # | Vấn đề | Xử lý |
+| --- | --- | --- |
+| 1 | Thẻ 409 vẽ thang từ `maxAllowedTier`, mà 409 thật (`suspension.gate.ts:39-58`) không gửi trường này; demo thêm trường ngoài contract | Chỉ vẽ thang khi có `gradedReturn`; demo trả đúng contract (B5-18, B5-19) |
+| 2a | Bậc 0 in khoá thô `intensityTier.0.label` | Dùng câu "bị chặn hoàn toàn" (B6-12) |
+| 2b | Dòng có `gradedReturn` luôn vào cột "Đang tập lại", kể cả khi còn một đình chỉ khác | `isGradedReturnOnly` suy từ nhánh tập-lại-theo-bậc của backend (`bouts.model.ts:1388-1407`) (B6-13a..e, B6-15) |
+| 2c | `?weightLimitKg=abc` đẩy trang vào trang lỗi | Bỏ qua số không hữu hạn (B6-14) |
+| 3 | Chữ cứng "Huỷ buổi" | Đưa qua i18n (I18N-1) |
+| 4 | B6-9 qua bất kể trang in gì | Kiểm nguyên dòng trong đúng thẻ |
+| 5 | Tên ca B4 lệch ticket | Đổi tên cho khớp |
+
+Lỗi phát sinh trong lúc sửa, đã sửa:
+- **Chặn, gốc ở đặc tả của Claude:** Claude viết quy tắc "`suspension` rỗng" cho mục 2b. Backend vẫn dựng `suspension` cho trường hợp chỉ tập lại theo bậc, nên `agy` làm theo quy tắc đó đã xoá luôn nhánh demo tương ứng, làm demo lệch backend. Lượt 2 khôi phục nhánh này.
+- **Nên sửa (review lần 2):** dòng "Cường độ tối đa" bỏ qua `ceiling` khi thẻ nằm ngoài cột tập lại. Lượt 3 thêm `readinessMaxTier` (B6-16..18).
+- **Hồi quy hiển thị, Claude thấy qua ảnh chụp:** sau lượt 3, bậc 4–5 của Linh vẽ thành "bị cấm" thay vì "trần tập lại". Lượt 4 sửa (B6-19..21).
+
+**Lệnh Claude chạy lại sau lượt 4:** `lint` sạch, `typecheck` 0 lỗi, `test` `Tests 956 passed | 2 skipped (958)`. Ảnh chụp lại: thang và chữ khớp ở mọi thẻ.
+
+**Review độc lập lượt 3–4:** ĐẠT, không còn mục chặn hay nên sửa. Gợi ý chưa làm:
+- `isGradedReturnOnly` có thể nhận nhầm khi có đình chỉ ACTIVE kết thúc đúng ngày `fullReturnOn − 1` và chặn đúng bộ của `ceiling`. Thêm điều kiện `suspension.endsOn < today` thì chắc hơn.
+- B6-17 và B6-21 chưa kiểm trạng thái từng đoạn của thang.
+
+**Chờ chủ dự án:** ticket ghi bảng Sẵn sàng (B6) và màn Đình chỉ (B4-6) cho "HLV và ADMIN". Code hiện chỉ cho HLV (`requireRole("coach")`); ADMIN bị chuyển về `/admin/dashboard`. Claude đề nghị giữ chỉ HLV và sửa ticket cho khớp.
+
+**Còn lại:** merge vào `User_Feature`, rồi merge `fight-camp` mới vào nhánh (T-040 A) khi phần A đã merge.

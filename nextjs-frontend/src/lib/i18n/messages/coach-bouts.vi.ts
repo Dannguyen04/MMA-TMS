@@ -407,6 +407,7 @@ export const viCoachBouts = {
     "readiness.empty.ready": "Không có võ sĩ sẵn sàng.",
     "readiness.empty.gradedReturn": "Không có võ sĩ đang trong lộ trình tập lại.",
     "readiness.empty.notReady": "Không có võ sĩ nào chưa sẵn sàng.",
+    "readiness.card.maxIntensity": "Cường độ tối đa: {tier}",
     "readiness.card.latestWeight": "{kg} kg ({date})",
     "readiness.card.notWeighed": "Chưa cân",
     "readiness.card.fullReturnFrom": "Tập đầy đủ từ {date}",
