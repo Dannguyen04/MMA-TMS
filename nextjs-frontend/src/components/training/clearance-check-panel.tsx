@@ -72,7 +72,7 @@ export function ClearanceCheckPanel({ status, pending, conflicts, fighterName, a
     } else if (conflicts.length === 0) {
         body = (
             <InlineNote icon={CircleCheck} tone="success">
-                {t("training.clearanceCheck.noConflicts", { name: fighterName ? `${fighterName}'s` : t("training.clearanceCheck.the") })}
+                {fighterName ? t("training.clearanceCheck.noConflictsNamed", { name: fighterName }) : t("training.clearanceCheck.noConflicts", { name: t("training.clearanceCheck.the") })}
             </InlineNote>
         );
     } else {

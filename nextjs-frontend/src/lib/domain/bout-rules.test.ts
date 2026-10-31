@@ -1,321 +1,429 @@
 import { describe, expect, it } from "vitest";
 
-import { addDaysToKey, dayKey } from "@/lib/format";
+import { dayKey } from "@/lib/format";
+
+import { BOUT_PHASES, type BoutPhase, type BoutRequirement } from "./bout";
 import {
-    calculateSnapshotAcuteLimit,
-    calculateWeightWarning,
+    acuteLossLimitPct,
+    awaitsWeighInDecision,
     canEnterFightWeek,
-    computeWeightPoints,
-    evaluateGate1,
+    canRecordResult,
+    canTransition,
+    campStartedOn,
+    checklistLocked,
+    computeAcuteLoss,
+    gate1,
+    gateSummary,
+    madeWeight,
+    methodsFor,
+    passesWeighIn,
+    readDueDays,
+    readWeightClass,
+    requirementCode,
+    requirementsDueOn,
+    requirementsDueSoon,
+    requirementsFromTemplates,
+    requirementsOverdue,
+    roundRuleFor,
+    scheduleSummary,
+    suggestedValidUntil,
+    validateBoutSchedule,
+    validateNewRequirement,
+    validateOutcome,
+    validateRequirementUpdate,
+    wallClockIso,
 } from "./bout-rules";
-import type { BoutRequirement } from "./types";
+import { buildWeightTrack } from "./weight-track";
 
-describe("bout-rules", () => {
-    describe("Criteria 2: Snapshot acute loss limit threshold", () => {
-        const base = new Date("2026-10-20T10:00:00Z");
+const RULES = { acuteLossLimitPctLong: 8, acuteLossLimitPctShort: 5 };
+const VMMAF = { weightClasses: [44, 48, 52, 56, 60, 65].map((kg) => ({ code: String(kg), label: `${kg} kg`, limitKg: kg })) };
+const CUSTOM = { weightClasses: [] };
 
-        it("returns 8.0 when weigh-in is 24 hours before the bout", () => {
-            const weighIn = new Date(base.getTime() - 24 * 60 * 60 * 1000);
-            expect(calculateSnapshotAcuteLimit(weighIn, base)).toBe(8.0);
-        });
+function item(overrides: Partial<BoutRequirement> = {}): BoutRequirement {
+    return {
+        id: "BRAIN_CT",
+        code: "BRAIN_CT",
+        label: "Brain CT",
+        required: true,
+        state: "PROVIDED",
+        source: "COACH",
+        issuedOn: "2026-10-01",
+        validUntil: "2027-04-01",
+        statusReason: null,
+        validityDays: 180,
+        ...overrides,
+    };
+}
 
-        it("returns 5.0 when weigh-in is 6 hours before the bout", () => {
-            const weighIn = new Date(base.getTime() - 6 * 60 * 60 * 1000);
-            expect(calculateSnapshotAcuteLimit(weighIn, base)).toBe(5.0);
-        });
+function bout(overrides: Partial<Parameters<typeof canEnterFightWeek>[0] & { requirementsDueDays: number; checklistUnlock: null }> = {}) {
+    return {
+        phase: "CAMP" as BoutPhase,
+        weighInAt: wallClockIso("2026-10-22T10:00"),
+        boutAt: wallClockIso("2026-10-23T19:00"),
+        fightWeekDays: 7,
+        requirementsDueDays: 7,
+        requirements: [item()],
+        checklistUnlock: null,
+        ...overrides,
+    };
+}
 
-        it("returns 8.0 when weigh-in is exactly 12 hours before the bout", () => {
-            const weighIn = new Date(base.getTime() - 12 * 60 * 60 * 1000);
-            expect(calculateSnapshotAcuteLimit(weighIn, base)).toBe(8.0);
-        });
-
-        it("respects custom ruleset threshold percentages", () => {
-            const ruleset = { acuteLossLimitPctLong: 10.0, acuteLossLimitPctShort: 6.0 };
-            const weighInLong = new Date(base.getTime() - 24 * 60 * 60 * 1000);
-            const weighInShort = new Date(base.getTime() - 4 * 60 * 60 * 1000);
-            expect(calculateSnapshotAcuteLimit(weighInLong, base, ruleset)).toBe(10.0);
-            expect(calculateSnapshotAcuteLimit(weighInShort, base, ruleset)).toBe(6.0);
-        });
+describe("academy dates (T-003 criterion 3)", () => {
+    it("reads 17:30 UTC on 20 Oct as 21 Oct in Vietnam", () => {
+        expect(dayKey("2026-10-20T17:30:00Z")).toBe("2026-10-21");
     });
 
-    describe("Criteria 4: Gate 1 checklist evaluation", () => {
-        const boutDate = "2026-11-15T19:00:00+07:00"; // Academy day: 2026-11-15
+    it("turns an academy wall-clock value into UTC", () => {
+        expect(wallClockIso("2026-10-22T10:00")).toBe("2026-10-22T03:00:00.000Z");
+    });
+});
 
-        it("fails Gate 1 and lists missing items when a required item is MISSING", () => {
-            const requirements: BoutRequirement[] = [
-                {
-                    id: "r1",
-                    boutId: "b1",
-                    code: "HEALTH_CERT",
-                    label: "Medical Certificate",
-                    required: true,
-                    status: "MISSING",
-                    issuedOn: null,
-                    validUntil: null,
-                    source: "PRESET",
-                    statusReason: null,
-                },
-                {
-                    id: "r2",
-                    boutId: "b1",
-                    code: "BLOOD_TEST",
-                    label: "Blood Test",
-                    required: true,
-                    status: "PROVIDED",
-                    issuedOn: "2026-10-01",
-                    validUntil: "2026-12-01",
-                    source: "PRESET",
-                    statusReason: null,
-                },
-            ];
-
-            const result = evaluateGate1(requirements, boutDate);
-            expect(result.passed).toBe(false);
-            expect(result.missing).toEqual(["Medical Certificate"]);
-            expect(result.expiring).toEqual([]);
-        });
-
-        it("fails Gate 1 when a required PROVIDED item has validUntil before the bout date", () => {
-            const requirements: BoutRequirement[] = [
-                {
-                    id: "r1",
-                    boutId: "b1",
-                    code: "HEALTH_CERT",
-                    label: "Medical Certificate",
-                    required: true,
-                    status: "PROVIDED",
-                    issuedOn: "2026-05-01",
-                    validUntil: "2026-11-14", // 1 day before boutDate (2026-11-15)
-                    source: "PRESET",
-                    statusReason: null,
-                },
-            ];
-
-            const result = evaluateGate1(requirements, boutDate);
-            expect(result.passed).toBe(false);
-            expect(result.missing).toEqual([]);
-            expect(result.expiring).toEqual(["Medical Certificate"]);
-        });
-
-        it("passes Gate 1 when an optional (required: false) item is MISSING", () => {
-            const requirements: BoutRequirement[] = [
-                {
-                    id: "r1",
-                    boutId: "b1",
-                    code: "HEALTH_CERT",
-                    label: "Medical Certificate",
-                    required: true,
-                    status: "PROVIDED",
-                    issuedOn: "2026-05-01",
-                    validUntil: "2026-11-20",
-                    source: "PRESET",
-                    statusReason: null,
-                },
-                {
-                    id: "r2",
-                    boutId: "b1",
-                    code: "OPTIONAL_SCAN",
-                    label: "Optional Brain MRI",
-                    required: false,
-                    status: "MISSING",
-                    issuedOn: null,
-                    validUntil: null,
-                    source: "COACH",
-                    statusReason: null,
-                },
-            ];
-
-            const result = evaluateGate1(requirements, boutDate);
-            expect(result.passed).toBe(true);
-            expect(result.missing).toEqual([]);
-            expect(result.expiring).toEqual([]);
-        });
+describe("acute-loss limit snapshot (T-003 criterion 2)", () => {
+    it.each([
+        ["24 hours", "2026-10-22T10:00", "2026-10-23T10:00", 8],
+        ["exactly 12 hours", "2026-10-22T07:00", "2026-10-22T19:00", 8],
+        ["6 hours", "2026-10-22T13:00", "2026-10-22T19:00", 5],
+    ])("weigh-in %s before the bout uses %s", (_label, weighIn, boutAt, expected) => {
+        expect(acuteLossLimitPct(wallClockIso(weighIn), wallClockIso(boutAt), RULES)).toBe(expected);
     });
 
-    describe("Criteria 1: Weight warning calculation", () => {
-        const today = new Date("2026-10-15T09:00:00+07:00");
-        const todayKey = dayKey(today); // 2026-10-15
-
-        it("returns OVER_LIMIT when 2 days remain and remaining cut % exceeds L (W = 66, limit = 60, L = 8)", () => {
-            const weighInDate = addDaysToKey(todayKey, 2); // 2 days left (d = 2 <= A = 7)
-            const campStart = addDaysToKey(todayKey, -30);
-
-            const result = calculateWeightWarning({
-                limitKg: 60,
-                acuteLossLimitPct: 8,
-                acuteWindowDays: 7,
-                weighInAt: `${weighInDate}T10:00:00+07:00`,
-                campStartDate: `${campStart}T10:00:00+07:00`,
-                measurements: [
-                    { date: `${campStart}T10:00:00+07:00`, kg: 68 },
-                    { date: `${todayKey}T08:00:00+07:00`, kg: 66 },
-                ],
-                now: today,
-            });
-
-            expect(result.status).toBe("OVER_LIMIT");
-            expect(result.remainingPct).toBe(9.1); // (66-60)/66 * 100 = 9.09%
-            expect(result.latestKg).toBe(66);
-        });
-
-        it("returns ON_TRACK when 2 days remain and remaining cut % is within L (W = 64.5, limit = 60, L = 8)", () => {
-            const weighInDate = addDaysToKey(todayKey, 2);
-            const campStart = addDaysToKey(todayKey, -30);
-
-            const result = calculateWeightWarning({
-                limitKg: 60,
-                acuteLossLimitPct: 8,
-                acuteWindowDays: 7,
-                weighInAt: `${weighInDate}T10:00:00+07:00`,
-                campStartDate: `${campStart}T10:00:00+07:00`,
-                measurements: [
-                    { date: `${campStart}T10:00:00+07:00`, kg: 68 },
-                    { date: `${todayKey}T08:00:00+07:00`, kg: 64.5 },
-                ],
-                now: today,
-            });
-
-            expect(result.status).toBe("ON_TRACK");
-            expect(result.remainingPct).toBe(7.0); // (64.5-60)/64.5 * 100 = 6.976%
-            expect(result.latestKg).toBe(64.5);
-        });
-
-        it("returns NOT_WEIGHED when there are no weigh-ins in the last 3 days", () => {
-            const weighInDate = addDaysToKey(todayKey, 2);
-            const campStart = addDaysToKey(todayKey, -30);
-            const threeDaysAgo = addDaysToKey(todayKey, -3);
-
-            const result = calculateWeightWarning({
-                limitKg: 60,
-                acuteLossLimitPct: 8,
-                acuteWindowDays: 7,
-                weighInAt: `${weighInDate}T10:00:00+07:00`,
-                campStartDate: `${campStart}T10:00:00+07:00`,
-                measurements: [
-                    { date: `${campStart}T10:00:00+07:00`, kg: 68 },
-                    { date: `${threeDaysAgo}T08:00:00+07:00`, kg: 64.5 },
-                ],
-                now: today,
-            });
-
-            expect(result.status).toBe("NOT_WEIGHED");
-        });
-
-        it("returns NEUTRAL from WEIGHED_IN on, even when the rehydrated weight is far above the limit", () => {
-            const campStart = addDaysToKey(todayKey, -30);
-            const params = {
-                limitKg: 60,
-                acuteLossLimitPct: 8,
-                acuteWindowDays: 7,
-                weighInAt: `${addDaysToKey(todayKey, -1)}T10:00:00+07:00`,
-                campStartDate: `${campStart}T10:00:00+07:00`,
-                measurements: [{ date: `${todayKey}T07:00:00+07:00`, kg: 66 }],
-                now: today,
-            };
-
-            for (const boutStatus of ["WEIGHED_IN", "COMPLETED", "CANCELLED"] as const) {
-                const result = calculateWeightWarning({ ...params, boutStatus });
-                expect(result.status).toBe("NEUTRAL");
-                expect(result.latestKg).toBe(66);
-            }
-            expect(calculateWeightWarning({ ...params, boutStatus: "FIGHT_WEEK" }).status).toBe("OVER_LIMIT");
-            expect(calculateWeightWarning({ ...params, boutStatus: "COMPLETED", measurements: [] }).status).toBe("NEUTRAL");
-        });
-
-        it("returns ABOVE_TARGET when 20 days remain and W is > reference + 1.0 kg tolerance", () => {
-            const weighInDate = addDaysToKey(todayKey, 20); // 20 days left (d = 20 > A = 7)
-            const campStart = addDaysToKey(todayKey, -20); // 40-day camp total
-            // Camp start: W0 = 70 kg at day -20.
-            // Acute window date: weighIn - 7 = day +13.
-            // targetAtWindow for 60 kg with L = 8% is 60 / 0.92 = 65.217 kg.
-            // At day 0 (today), elapsed is 20 days out of 33 days (from day -20 to day +13).
-            // ref = 70 + (20/33)*(65.217 - 70) = 70 - 2.898 = 67.10 kg.
-
-            // If W = 67.10 + 1.5 = 68.6 kg (> ref + 1.0 kg tolerance):
-            const resultYellow = calculateWeightWarning({
-                limitKg: 60,
-                acuteLossLimitPct: 8,
-                acuteWindowDays: 7,
-                tolKg: 1.0,
-                weighInAt: `${weighInDate}T10:00:00+07:00`,
-                campStartDate: `${campStart}T10:00:00+07:00`,
-                measurements: [
-                    { date: `${campStart}T10:00:00+07:00`, kg: 70 },
-                    { date: `${todayKey}T08:00:00+07:00`, kg: 68.6 },
-                ],
-                now: today,
-            });
-
-            expect(resultYellow.status).toBe("ABOVE_TARGET");
-
-            // If W = ref + 0.5 kg (<= ref + 1.0 kg tolerance):
-            const resultGreen = calculateWeightWarning({
-                limitKg: 60,
-                acuteLossLimitPct: 8,
-                acuteWindowDays: 7,
-                tolKg: 1.0,
-                weighInAt: `${weighInDate}T10:00:00+07:00`,
-                campStartDate: `${campStart}T10:00:00+07:00`,
-                measurements: [
-                    { date: `${campStart}T10:00:00+07:00`, kg: 70 },
-                    { date: `${todayKey}T08:00:00+07:00`, kg: 67.6 },
-                ],
-                now: today,
-            });
-
-            expect(resultGreen.status).toBe("ON_TRACK");
-        });
-    });
-
-    describe("canEnterFightWeek", () => {
-        const now = new Date("2026-10-15T09:00:00+07:00");
-        const todayKey = dayKey(now);
-
-        it("allows entering fight week when status is CAMP, Gate 1 is passed, and date is within fight_week_days", () => {
-            const weighInAt = `${addDaysToKey(todayKey, 5)}T10:00:00+07:00`;
-            const gate1 = { passed: true, missing: [], expiring: [] };
-            expect(canEnterFightWeek({ status: "CAMP", weighInAt }, gate1, 7, now)).toBe(true);
-        });
-
-        it("disallows entering fight week if Gate 1 is not passed", () => {
-            const weighInAt = `${addDaysToKey(todayKey, 5)}T10:00:00+07:00`;
-            const gate1 = { passed: false, missing: ["Health cert"], expiring: [] };
-            expect(canEnterFightWeek({ status: "CAMP", weighInAt }, gate1, 7, now)).toBe(false);
-        });
-
-        it("disallows entering fight week if too early (more than fight_week_days away)", () => {
-            const weighInAt = `${addDaysToKey(todayKey, 14)}T10:00:00+07:00`;
-            const gate1 = { passed: true, missing: [], expiring: [] };
-            expect(canEnterFightWeek({ status: "CAMP", weighInAt }, gate1, 7, now)).toBe(false);
-        });
-
-        it("disallows entering fight week if status is not CAMP (e.g. SCHEDULED)", () => {
-            const weighInAt = `${addDaysToKey(todayKey, 5)}T10:00:00+07:00`;
-            const gate1 = { passed: true, missing: [], expiring: [] };
-            expect(canEnterFightWeek({ status: "SCHEDULED", weighInAt }, gate1, 7, now)).toBe(false);
-        });
-    });
-
-    describe("Criteria 3: Academy date timezone", () => {
-        it("evaluates 2026-10-20T17:30:00Z as 2026-10-21 in Vietnam (UTC+7)", () => {
-            expect(dayKey("2026-10-20T17:30:00Z")).toBe("2026-10-21");
-        });
-    });
-
-    describe("Criteria 12b: Weight points deduplication", () => {
-        it("takes the latest measurement in the same academy day and sorts chronologically", () => {
-            const measurements = [
-                { date: "2026-10-10T07:00:00+07:00", kg: 66.0 },
-                { date: "2026-10-10T18:00:00+07:00", kg: 65.4 },
-                { date: "2026-10-11T07:30:00+07:00", kg: 64.8 },
-            ];
-
-            const points = computeWeightPoints(measurements);
-            expect(points).toEqual([
-                { date: "2026-10-10", kg: 65.4 },
-                { date: "2026-10-11", kg: 64.8 },
-            ]);
+    it("previews days to weigh-in, the gap in hours and the limit", () => {
+        expect(scheduleSummary(wallClockIso("2026-10-22T08:00"), wallClockIso("2026-10-22T18:00"), RULES, "2026-10-20")).toEqual({
+            daysToWeighIn: 2,
+            gapHours: 10,
+            acuteLossLimitPct: 5,
         });
     });
 });
 
+describe("weight warning (T-003 criterion 1, Business flows §6)", () => {
+    const base = { limitKg: 60, acuteLossLimitPct: 8, acuteWindowDays: 7, campStartedOn: "2026-10-01", weighInOn: "2026-10-22", todayOn: "2026-10-20" };
+
+    it("is red at 66 kg two days out and green at 64.5 kg", () => {
+        expect(buildWeightTrack({ ...base, points: [{ date: "2026-10-20", kg: 66 }] })).toMatchObject({ status: "OVER_LIMIT", remainingPct: 9.1 });
+        expect(buildWeightTrack({ ...base, points: [{ date: "2026-10-20", kg: 64.5 }] })).toMatchObject({ status: "ON_TRACK", remainingPct: 7 });
+    });
+
+    it("is grey without a weight in the last three days", () => {
+        expect(buildWeightTrack({ ...base, points: [{ date: "2026-10-17", kg: 64 }] }).status).toBe("NOT_WEIGHED");
+    });
+
+    it("is yellow 20 days out when the weight is 1.5 kg above the reference line", () => {
+        const points = [
+            { date: "2026-10-01", kg: 66 },
+            { date: "2026-10-20", kg: 0 },
+        ];
+        const reference = buildWeightTrack({ ...base, weighInOn: "2026-11-09", points: [points[0]] }).referencePath.find((point) => point.date === "2026-10-20")!.kg;
+        points[1].kg = Math.round((reference + 1.5) * 10) / 10;
+        expect(buildWeightTrack({ ...base, weighInOn: "2026-11-09", points }).status).toBe("ABOVE_TARGET");
+    });
+
+    it("has no reference or remaining share for an open class", () => {
+        expect(buildWeightTrack({ ...base, limitKg: null, points: [{ date: "2026-10-20", kg: 130 }] })).toMatchObject({ status: "ON_TRACK", remainingPct: null, referencePath: [] });
+    });
+});
+
+describe("Gate 1 (T-003 criterion 4, Business flows F4)", () => {
+    const boutDay = "2026-10-23";
+
+    it("lists exactly the required item that is missing", () => {
+        const result = gate1([item({ code: "HEALTH", label: "Health certificate" }), item({ state: "MISSING", validUntil: null })], boutDay);
+        expect(result.passed).toBe(false);
+        expect(result.missing.map((gap) => [gap.requirement.label, gap.reason])).toEqual([["Brain CT", "MISSING"]]);
+    });
+
+    it("fails a provided item that runs out before the bout day", () => {
+        expect(gate1([item({ validUntil: "2026-10-22" })], boutDay).missing[0]?.reason).toBe("EXPIRED");
+        expect(gate1([item({ validUntil: boutDay })], boutDay).passed).toBe(true);
+    });
+
+    it("passes when an optional item is still missing", () => {
+        expect(gate1([item(), item({ code: "EYE", label: "Eye exam", required: false, state: "MISSING", validUntil: null })], boutDay).passed).toBe(true);
+    });
+
+    it("fails a rejected required item", () => {
+        expect(gate1([item({ state: "REJECTED", statusReason: "Blurry scan" })], boutDay).missing[0]?.reason).toBe("REJECTED");
+    });
+
+    it("summarises the checklist in one line", () => {
+        const list = [item({ code: "HEALTH", label: "Health certificate" }), item({ code: "BLOOD", label: "Blood test" }), item({ state: "MISSING", validUntil: null })];
+        expect(gateSummary(list, boutDay)).toBe("2 of 3 ready · Brain CT missing");
+        expect(gateSummary([item({ validUntil: "2026-10-22" })], boutDay)).toBe("0 of 1 ready · Brain CT expires before the bout");
+        expect(gateSummary([], boutDay)).toBe("No documents listed");
+    });
+});
+
+describe("deadlines and fight week", () => {
+    it("puts the documents deadline seven days before weigh-in and flags it late after that", () => {
+        const late = bout({ requirements: [item({ state: "MISSING", validUntil: null })] });
+        expect(requirementsDueOn(late)).toBe("2026-10-15");
+        expect(requirementsOverdue(late, "2026-10-15")).toBe(false);
+        expect(requirementsOverdue(late, "2026-10-16")).toBe(true);
+        expect(requirementsOverdue(bout(), "2026-10-16")).toBe(false);
+    });
+
+    it("warns about missing documents from 14 days before the deadline", () => {
+        const missing = bout({ requirements: [item({ state: "MISSING", validUntil: null })] });
+        expect(requirementsDueSoon(missing, "2026-09-30")).toEqual([]);
+        expect(requirementsDueSoon(missing, "2026-10-01")).toHaveLength(1);
+        expect(requirementsDueSoon({ ...missing, phase: "FIGHT_WEEK" }, "2026-10-10")).toEqual([]);
+    });
+
+    it("opens fight week seven days before weigh-in and checks Gate 1", () => {
+        expect(canEnterFightWeek(bout(), "2026-10-14")).toMatchObject({ ok: false, reason: "TOO_EARLY", opensOn: "2026-10-15" });
+        expect(canEnterFightWeek(bout(), "2026-10-15")).toEqual({ ok: true });
+        expect(canEnterFightWeek(bout({ requirements: [item({ state: "MISSING", validUntil: null })] }), "2026-10-20")).toMatchObject({
+            ok: false,
+            reason: "REQUIREMENTS_INCOMPLETE",
+            missing: [expect.objectContaining({ reason: "MISSING" })],
+        });
+        expect(canEnterFightWeek(bout({ phase: "SCHEDULED" }), "2026-10-20")).toMatchObject({ ok: false, reason: "NOT_IN_CAMP" });
+    });
+
+    it("locks the checklist in fight week unless a coach unlocked it", () => {
+        expect(checklistLocked({ phase: "CAMP", checklistUnlock: null })).toBe(false);
+        expect(checklistLocked({ phase: "FIGHT_WEEK", checklistUnlock: null })).toBe(true);
+        expect(checklistLocked({ phase: "FIGHT_WEEK", checklistUnlock: { at: "", by: "Rafael", reason: "Organiser asked for an ECG" } })).toBe(false);
+        expect(checklistLocked({ phase: "COMPLETED", checklistUnlock: null })).toBe(true);
+    });
+
+    it("starts the camp on the linked plan's first day, or the day the bout was created", () => {
+        expect(campStartedOn({ createdOn: "2026-10-20" }, { startDate: "2026-09-21T17:00:00.000Z" })).toBe("2026-09-22");
+        expect(campStartedOn({ createdOn: "2026-10-20" }, null)).toBe("2026-10-20");
+    });
+});
+
+describe("status transitions (T-003 criterion 5)", () => {
+    it.each([
+        ["SCHEDULED", "CAMP"],
+        ["CAMP", "FIGHT_WEEK"],
+        ["FIGHT_WEEK", "WEIGHED_IN"],
+        ["WEIGHED_IN", "COMPLETED"],
+        ["SCHEDULED", "CANCELLED"],
+        ["CAMP", "CANCELLED"],
+        ["FIGHT_WEEK", "CANCELLED"],
+        ["WEIGHED_IN", "CANCELLED"],
+    ] as const)("allows %s → %s", (from, to) => {
+        expect(canTransition(from, to)).toBe(true);
+    });
+
+    it("refuses everything else, including COMPLETED → CANCELLED and CANCELLED → CAMP", () => {
+        const allowed = new Set(["SCHEDULED>CAMP", "CAMP>FIGHT_WEEK", "FIGHT_WEEK>WEIGHED_IN", "WEIGHED_IN>COMPLETED", "SCHEDULED>CANCELLED", "CAMP>CANCELLED", "FIGHT_WEEK>CANCELLED", "WEIGHED_IN>CANCELLED"]);
+        for (const from of BOUT_PHASES) {
+            for (const to of BOUT_PHASES) {
+                expect(canTransition(from, to), `${from} → ${to}`).toBe(allowed.has(`${from}>${to}`));
+            }
+        }
+        expect(canTransition("COMPLETED", "CANCELLED")).toBe(false);
+        expect(canTransition("CANCELLED", "CAMP")).toBe(false);
+    });
+});
+
+describe("creating a bout (F1, T-004 criteria 2 and 3)", () => {
+    const now = new Date("2026-10-20T01:00:00.000Z");
+    const input = {
+        event: " Lotus Fight Night 18 ",
+        venue: "",
+        opponent: "",
+        weightClassCode: "60",
+        weightLimitKg: "",
+        weighInAt: "2026-10-22T10:00",
+        boutAt: "2026-10-23T19:00",
+    };
+
+    it("accepts a preset class and leaves the opponent for later", () => {
+        expect(validateBoutSchedule(input, VMMAF, now)).toEqual({
+            ok: true,
+            value: {
+                event: "Lotus Fight Night 18",
+                venue: null,
+                opponent: null,
+                weightClass: { code: "60", label: "60 kg", limitKg: 60 },
+                weighInAt: "2026-10-22T03:00:00.000Z",
+                boutAt: "2026-10-23T12:00:00.000Z",
+            },
+        });
+    });
+
+    it("stores a custom limit of 63,5 kg as 63.5", () => {
+        const result = validateBoutSchedule({ ...input, weightClassCode: "", weightLimitKg: "63,5" }, CUSTOM, now);
+        expect(result).toMatchObject({ ok: true, value: { weightClass: { code: "63.5", label: "63.5 kg", limitKg: 63.5 } } });
+    });
+
+    it("refuses a bout before its weigh-in at the bout field", () => {
+        expect(validateBoutSchedule({ ...input, boutAt: "2026-10-22T09:00" }, VMMAF, now)).toEqual({ ok: false, fieldErrors: { boutAt: "The bout must start after the weigh-in." } });
+        expect(validateBoutSchedule({ ...input, boutAt: "2026-10-22T10:00" }, VMMAF, now)).toMatchObject({ ok: false, fieldErrors: { boutAt: expect.any(String) } });
+    });
+
+    it("refuses a bout in the past", () => {
+        expect(validateBoutSchedule({ ...input, weighInAt: "2026-10-18T10:00", boutAt: "2026-10-19T19:00" }, VMMAF, now)).toEqual({
+            ok: false,
+            fieldErrors: { boutAt: "The bout must be in the future." },
+        });
+    });
+
+    it("needs an event name, a class from the list and both times", () => {
+        const result = validateBoutSchedule({ ...input, event: "  ", weightClassCode: "61", weighInAt: "", boutAt: "tomorrow" }, VMMAF, now);
+        expect(result).toEqual({
+            ok: false,
+            fieldErrors: {
+                event: "Enter the event name.",
+                weightClassCode: "Choose a weight class from the list.",
+                weighInAt: "Enter the weigh-in date and time.",
+                boutAt: "Enter the bout date and time.",
+            },
+        });
+        expect(validateBoutSchedule({ ...input, event: "x".repeat(121) }, VMMAF, now)).toMatchObject({ ok: false, fieldErrors: { event: expect.any(String) } });
+    });
+
+    it.each(["0", "250", "heavy", "63.55", "-60", "63, 5"])("refuses the custom limit %s", (raw) => {
+        expect(readWeightClass(CUSTOM, "", raw).ok).toBe(false);
+    });
+
+    it("reads the documents deadline as 0 to 60 whole days", () => {
+        expect(readDueDays("7")).toEqual({ ok: true, value: 7 });
+        expect(readDueDays("0")).toEqual({ ok: true, value: 0 });
+        expect(readDueDays("61").ok).toBe(false);
+        expect(readDueDays("3.5").ok).toBe(false);
+    });
+});
+
+describe("medical checklist items", () => {
+    it("names a code after the label, unique on the bout", () => {
+        expect(requirementCode("Health certificate", [])).toBe("HEALTH_CERTIFICATE");
+        expect(requirementCode("Giấy khám sức khỏe", [])).toBe("GIAY_KHAM_SUC_KHOE");
+        expect(requirementCode("Brain CT", ["BRAIN_CT"])).toBe("BRAIN_CT_2");
+    });
+
+    it("needs a label, refuses duplicates and reads the validity in days", () => {
+        expect(validateNewRequirement({ label: " Brain CT ", required: true, validityDays: "365" }, [])).toEqual({ ok: true, value: { label: "Brain CT", required: true, validityDays: 365 } });
+        expect(validateNewRequirement({ label: "", required: true, validityDays: "" }, [])).toMatchObject({ ok: false, fieldErrors: { label: expect.any(String) } });
+        expect(validateNewRequirement({ label: "brain ct", required: true, validityDays: "" }, ["Brain CT"])).toMatchObject({ ok: false, fieldErrors: { label: "This bout already lists that document." } });
+        expect(validateNewRequirement({ label: "ECG", required: false, validityDays: "0" }, [])).toMatchObject({ ok: false, fieldErrors: { validityDays: expect.any(String) } });
+    });
+
+    it("needs a valid-until date for a provided document and a reason for a rejected one (T-004 criterion 4)", () => {
+        expect(validateRequirementUpdate({ state: "PROVIDED", issuedOn: "2026-10-01", validUntil: "", statusReason: "" })).toEqual({
+            ok: false,
+            fieldErrors: { validUntil: "Enter the date this document is valid until." },
+        });
+        expect(validateRequirementUpdate({ state: "REJECTED", issuedOn: "", validUntil: "", statusReason: " " })).toMatchObject({ ok: false, fieldErrors: { statusReason: expect.any(String) } });
+        expect(validateRequirementUpdate({ state: "PROVIDED", issuedOn: "2026-10-10", validUntil: "2026-10-01", statusReason: "" })).toMatchObject({ ok: false, fieldErrors: { validUntil: expect.any(String) } });
+        expect(validateRequirementUpdate({ state: "CONFIRMED", issuedOn: "", validUntil: "2027-01-01", statusReason: "" })).toMatchObject({ ok: false, fieldErrors: { state: "Only a doctor can confirm a document." } });
+    });
+
+    it("clears the dates of a missing document and keeps a provided one's", () => {
+        expect(validateRequirementUpdate({ state: "MISSING", issuedOn: "2026-10-01", validUntil: "2027-01-01", statusReason: "x" })).toEqual({
+            ok: true,
+            value: { state: "MISSING", issuedOn: null, validUntil: null, statusReason: null },
+        });
+        expect(validateRequirementUpdate({ state: "PROVIDED", issuedOn: "2026-10-01", validUntil: "2027-03-30", statusReason: "x" })).toEqual({
+            ok: true,
+            value: { state: "PROVIDED", issuedOn: "2026-10-01", validUntil: "2027-03-30", statusReason: null },
+        });
+    });
+
+    it("suggests the valid-until date from the issue date and the validity", () => {
+        expect(suggestedValidUntil("2026-10-01", 180)).toBe("2027-03-30");
+        expect(suggestedValidUntil("2026-10-01", null)).toBeNull();
+    });
+
+    it("starts a ruleset's checklist with every item missing (Business flows §6)", () => {
+        const items = requirementsFromTemplates({
+            requirementTemplates: [
+                { code: "A", label: "A", required: true, validityDays: 30 },
+                { code: "B", label: "B", required: true, validityDays: null },
+                { code: "C", label: "C", required: false, validityDays: null },
+            ],
+        });
+        expect(items).toHaveLength(3);
+        expect(items.every((entry) => entry.state === "MISSING" && entry.source === "PRESET")).toBe(true);
+        expect(requirementsFromTemplates({ requirementTemplates: [] })).toEqual([]);
+    });
+});
+
+describe("result (F6)", () => {
+    const base = { result: "WIN", method: "DECISION", round: "", knockedDown: false, lossOfConsciousness: "", stoppedByHeadStrikes: "", injuryNote: "", notes: "" };
+
+    it("records a decision without a round", () => {
+        expect(validateOutcome(base, "MMA", "2026-10-23T15:00:00.000Z")).toMatchObject({ ok: true, value: { result: "WIN", method: "DECISION", round: null } });
+    });
+
+    it("asks about consciousness after a KO loss and about head strikes after a TKO loss (H3)", () => {
+        expect(validateOutcome({ ...base, result: "LOSS", method: "KO", round: "2" }, "MMA", "")).toMatchObject({ ok: false, fieldErrors: { lossOfConsciousness: expect.any(String) } });
+        expect(validateOutcome({ ...base, result: "LOSS", method: "TKO", round: "2", lossOfConsciousness: "NONE" }, "MMA", "")).toMatchObject({
+            ok: false,
+            fieldErrors: { stoppedByHeadStrikes: expect.any(String) },
+        });
+        expect(validateOutcome({ ...base, result: "LOSS", method: "TKO", round: "2", lossOfConsciousness: "NONE", stoppedByHeadStrikes: "no" }, "MMA", "")).toMatchObject({
+            ok: true,
+            value: { stoppedByHeadStrikes: false, lossOfConsciousness: "NONE" },
+        });
+    });
+
+    it("allows a submission only in MMA and a round from 1 to 12", () => {
+        expect(methodsFor("BOXING")).not.toContain("SUBMISSION");
+        expect(validateOutcome({ ...base, method: "SUBMISSION" }, "BOXING", "")).toMatchObject({ ok: false, fieldErrors: { method: "A submission ends MMA bouts only." } });
+        expect(validateOutcome({ ...base, round: "13" }, "MMA", "")).toMatchObject({ ok: false, fieldErrors: { round: expect.any(String) } });
+    });
+
+    it("names the round of a stoppage and none for a decision (T-006 criterion 12)", () => {
+        expect(roundRuleFor("KO")).toBe("REQUIRED");
+        expect(roundRuleFor("SUBMISSION")).toBe("REQUIRED");
+        expect(roundRuleFor("DECISION")).toBe("NOT_ALLOWED");
+        expect(roundRuleFor("DQ")).toBe("OPTIONAL");
+        expect(validateOutcome({ ...base, result: "WIN", method: "KO" }, "MMA", "")).toMatchObject({ ok: false, fieldErrors: { round: "Enter the round the bout was stopped in." } });
+        expect(validateOutcome({ ...base, round: "3" }, "MMA", "")).toMatchObject({ ok: false, fieldErrors: { round: "A decision goes the distance: leave the round empty." } });
+        expect(validateOutcome({ ...base, method: "DQ" }, "MMA", "")).toMatchObject({ ok: true, value: { round: null } });
+        expect(validateOutcome({ ...base, method: "DQ", round: "2" }, "MMA", "")).toMatchObject({ ok: true, value: { round: 2 } });
+    });
+
+    it("is recorded from the bout day, once weighed in", () => {
+        const weighed = { phase: "WEIGHED_IN" as BoutPhase, boutAt: wallClockIso("2026-10-23T19:00") };
+        expect(canRecordResult(weighed, "2026-10-22")).toEqual({ ok: false, reason: "BOUT_NOT_STARTED" });
+        expect(canRecordResult(weighed, "2026-10-23")).toEqual({ ok: true });
+        expect(canRecordResult({ ...weighed, phase: "FIGHT_WEEK" }, "2026-10-23")).toEqual({ ok: false, reason: "NOT_WEIGHED_IN" });
+    });
+});
+
+describe("official weigh-in (T-006 §3, R17–R19)", () => {
+    it("makes weight at the limit exactly, and misses just over it (T-006 criterion 5)", () => {
+        expect(madeWeight(60, 60)).toBe(true);
+        expect(madeWeight(59.8, 60)).toBe(true);
+        expect(madeWeight(60.5, 60)).toBe(false);
+        expect(madeWeight(0.1 + 0.2, 0.3)).toBe(true);
+        expect(madeWeight(95, null)).toBe(true);
+    });
+
+    it("counts a failed hydration check as a miss even on the limit (T-006 criterion 6)", () => {
+        expect(passesWeighIn(59.8, 60, "FAILED")).toBe(false);
+        expect(passesWeighIn(59.8, 60, "PASSED")).toBe(true);
+        expect(passesWeighIn(59.8, 60, null)).toBe(true);
+        expect(passesWeighIn(60.5, 60, "PASSED")).toBe(false);
+    });
+
+    it("waits for the coach's choice after a miss the service holds", () => {
+        const weighIn = { weightKg: 60.5, madeWeight: false, hydrationCheck: null, recordedAt: "", catchweightNote: null, acuteLoss: null };
+        expect(awaitsWeighInDecision({ phase: "FIGHT_WEEK", weighIn })).toBe(true);
+        expect(awaitsWeighInDecision({ phase: "FIGHT_WEEK", weighIn: { ...weighIn, weightKg: 59.8, madeWeight: true, hydrationCheck: "FAILED" } })).toBe(true);
+        expect(awaitsWeighInDecision({ phase: "WEIGHED_IN", weighIn })).toBe(false);
+        expect(awaitsWeighInDecision({ phase: "FIGHT_WEEK", weighIn: null })).toBe(false);
+    });
+
+    describe("acute loss (T-006 criterion 3)", () => {
+        const weights = [
+            { on: "2026-10-14", kg: 67.5 },
+            { on: "2026-10-16", kg: 66.0 },
+            { on: "2026-10-20", kg: 62.4 },
+        ];
+
+        it("measures from the earliest weight in the window", () => {
+            expect(computeAcuteLoss(weights, 60.8, "2026-10-23", 7, 8)).toEqual({ status: "WITHIN", startKg: 66, startOn: "2026-10-16", lossPct: 7.9, limitPct: 8 });
+            expect(computeAcuteLoss(weights, 60.0, "2026-10-23", 7, 8)).toMatchObject({ status: "EXCEEDED", lossPct: 9.1 });
+        });
+
+        it("has no data without a weight in the window", () => {
+            expect(computeAcuteLoss([{ on: "2026-10-01", kg: 70 }], 60, "2026-10-23", 7, 8)).toEqual({ status: "NO_DATA", startKg: null, startOn: null, lossPct: null, limitPct: 8 });
+        });
+    });
+});

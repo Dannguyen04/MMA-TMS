@@ -2,6 +2,7 @@
 
 import type { PointerEvent } from "react";
 
+import { useT } from "@/components/i18n/locale-provider";
 import { cn } from "@/lib/utils";
 import { ChartLegend } from "./chart-legend";
 import { ChartSurface } from "./chart-surface";
@@ -17,6 +18,11 @@ export interface LineSeries {
     color: string;
     /** One value per label; `null` draws a gap. */
     values: (number | null)[];
+    /**
+     * Optional colour for each value. When set, every logged point is drawn, using the
+     * series colour where an entry is `null`. Omit it to keep dots on the line ends only.
+     */
+    pointColors?: (string | null)[];
 }
 
 export interface LineChartProps {
@@ -70,6 +76,7 @@ export function LineChart({
     highlightLast = false,
     className,
 }: LineChartProps) {
+    const t = useT();
     const { active, pointAt, handlers } = useActiveIndex(labels.length);
     const format = formatValue ?? ((value: number) => formatChartValue(value, { decimals, suffix: valueSuffix }));
     const showArea = area && series.length === 1;
@@ -77,7 +84,7 @@ export function LineChart({
 
     const announcement =
         active?.source === "keyboard"
-            ? `${labels[active.index]}: ${series.map((s) => `${s.label} ${formatMaybe(valueAt(s.values, active.index), format)}`).join(", ")}`
+            ? `${labels[active.index]}: ${series.map((s) => `${s.label} ${formatMaybe(valueAt(s.values, active.index), format, t("chart.noData"))}`).join(", ")}`
             : "";
 
     return (
@@ -86,7 +93,7 @@ export function LineChart({
             <ChartSurface
                 ariaLabel={ariaLabel}
                 height={height}
-                keyboardHint="Use the left and right arrow keys to read the values for each period."
+                keyboardHint={t("chart.keyboardHintPeriods")}
                 announcement={announcement}
                 handlers={handlers}
             >
@@ -140,6 +147,7 @@ function LinePlot({
     activeIndex,
     onPointAt,
 }: LinePlotProps) {
+    const t = useT();
     const plotTop = MARGIN_TOP;
     const plotBottom = height - X_AXIS_BAND;
     const y = linearScale([scale.min, scale.max], [plotBottom, plotTop]);
@@ -261,31 +269,42 @@ function LinePlot({
                         <path key={`area-${i}`} d={areaPath(run, plotBottom)} fill={lines[0].series.color} fillOpacity={0.1} />
                     ))}
 
-                {lines.map((line) => (
-                    <g key={line.series.id}>
-                        {line.runs.map((run, i) =>
-                            run.length > 1 ? (
-                                <path
-                                    key={i}
-                                    d={linePath(run)}
-                                    fill="none"
-                                    stroke={line.series.color}
-                                    strokeWidth={2}
-                                    strokeLinejoin="round"
-                                    strokeLinecap="round"
-                                />
-                            ) : (
-                                <Dot key={i} point={run[0]} color={line.series.color} />
-                            ),
-                        )}
-                        {line.lastPoint && <Dot point={line.lastPoint} color={line.series.color} />}
-                    </g>
-                ))}
+                {lines.map((line) => {
+                    const markEveryPoint = line.series.pointColors !== undefined;
+                    return (
+                        <g key={line.series.id}>
+                            {line.runs.map((run, i) =>
+                                run.length > 1 ? (
+                                    <path
+                                        key={i}
+                                        d={linePath(run)}
+                                        fill="none"
+                                        stroke={line.series.color}
+                                        strokeWidth={2}
+                                        strokeLinejoin="round"
+                                        strokeLinecap="round"
+                                    />
+                                ) : markEveryPoint ? null : (
+                                    <Dot key={i} point={run[0]} color={line.series.color} />
+                                ),
+                            )}
+                            {markEveryPoint
+                                ? line.points.map((point, i) =>
+                                      point ? (
+                                          <Dot key={`pt-${i}`} point={point} color={line.series.pointColors?.[i] ?? line.series.color} />
+                                      ) : null,
+                                  )
+                                : line.lastPoint && <Dot point={line.lastPoint} color={line.series.color} />}
+                        </g>
+                    );
+                })}
 
                 {activeIndex !== null &&
                     lines.map((line) => {
                         const point = line.points[activeIndex];
-                        return point ? <Dot key={`active-${line.series.id}`} point={point} color={line.series.color} /> : null;
+                        return point ? (
+                            <Dot key={`active-${line.series.id}`} point={point} color={line.series.pointColors?.[activeIndex] ?? line.series.color} />
+                        ) : null;
                     })}
 
                 {endLabels.map((label) => (
@@ -307,8 +326,8 @@ function LinePlot({
                     rows={series.map((s) => ({
                         id: s.id,
                         label: s.label,
-                        color: s.color,
-                        value: formatMaybe(valueAt(s.values, activeIndex), format),
+                        color: s.pointColors?.[activeIndex] ?? s.color,
+                        value: formatMaybe(valueAt(s.values, activeIndex), format, t("chart.noData")),
                     }))}
                     placement={besidePlacement(xs[activeIndex], width, plotTop)}
                 />
@@ -322,8 +341,8 @@ function Dot({ point, color }: { point: Point; color: string }) {
     return <circle cx={point.x} cy={point.y} r={DOT_RADIUS} fill={color} stroke="var(--chart-surface)" strokeWidth={2} />;
 }
 
-function formatMaybe(value: number | null, format: (value: number) => string): string {
-    return value === null ? "No data" : format(value);
+function formatMaybe(value: number | null, format: (value: number) => string, noData: string): string {
+    return value === null ? noData : format(value);
 }
 
 function resolveScale(

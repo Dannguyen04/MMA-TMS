@@ -904,4 +904,8 @@ export const viTraining = {
     "training.planExercises.panelDesc": "Bài tập được thêm sau bài cuối, theo đúng thứ tự này.",
     "training.planExercises.panelEmpty": "Tìm trong thư viện bên dưới và thêm bao nhiêu bài tập tuỳ ý.",
     "training.schema.objectiveMinOrEmpty": "Mô tả mục tiêu ít nhất 10 ký tự, hoặc để trống.",
+    "training.clearanceCheck.noConflictsNamed": "Không có xung đột với cấp phép y tế của {name}.",
+    "training.gate2.suspended": "{name} đang bị đình chỉ: buổi {type} bị chặn {until}.",
+    "training.gate2.through": "đến hết ngày {date}",
+    "training.gate2.untilCleared": "cho đến khi HLV cho tập lại",
 } as const;

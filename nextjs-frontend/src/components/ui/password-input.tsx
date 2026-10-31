@@ -33,7 +33,7 @@ export function NewPasswordFields({ form, label }: { form: ActionForm<undefined>
     const t = useT();
     const resolvedLabel = label ?? t("auth.newPassword");
     const hint = t("auth.newPasswordHint", { min: PASSWORD_LENGTH.min, max: PASSWORD_LENGTH.max });
-    const confirmLabel = label ? `Confirm ${label.toLowerCase()}` : t("auth.confirmNewPassword");
+    const confirmLabel = label ? t("auth.confirmLabel", { label: label.toLowerCase() }) : t("auth.confirmNewPassword");
     const newPassword = form.control("newPassword", { id: "newPassword", required: true, hint });
     const confirmPassword = form.control("confirmPassword", { id: "confirmPassword", required: true });
     return (

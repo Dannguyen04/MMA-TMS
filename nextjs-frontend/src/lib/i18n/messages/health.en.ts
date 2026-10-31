@@ -330,13 +330,13 @@ export const enHealth = {
     "reviewRequest.unauthorized": "You can only request a review for yourself or a fighter you're assigned to.",
 
     /* ─── Care Team Card ─── */
+    "careTeam.noDoctor": "No sports doctor yet. The academy assigns one for your baseline exam, and they show up here and on your Today page.",
+    "careTeam.noCoach": "No coach yet. The academy assigns your coach, and you get a notification when they do.",
     "careTeam.title": "Your care team",
     "careTeam.sportsMedicine": "Sports medicine",
     "careTeam.coaching": "Coaching",
     "careTeam.primaryCoach": "Primary coach",
     "careTeam.primaryDoctor": "Primary doctor",
-    "careTeam.noDoctor": "No sports doctor yet. The academy assigns one for your baseline exam, and they show up here and on your Today page.",
-    "careTeam.noCoach": "No coach yet. The academy assigns your coach, and you get a notification when they do.",
 
     /* ─── Examination Summary Card ─── */
     "examSummary.lastCheck": "Last medical check",

@@ -1,151 +1,128 @@
-import { CalendarDays, ShieldAlert, ShieldQuestion, Upload } from "lucide-react";
+import { CalendarDays, CircleCheck, ShieldAlert, Upload } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { CardLink } from "@/components/dashboard/card-link";
 import { CornerFeed } from "@/components/dashboard/corner-feed";
-import { cornerFeedItems } from "@/components/dashboard/corner-feed-items";
+import { cornerFeedItems, headlineFinding } from "@/components/dashboard/corner-feed-items";
 import { firstName, greetingKey, weightCheck, weightGapText } from "@/components/dashboard/dashboard-utils";
-import { FightHero, type HeroBout, type NextUp } from "@/components/dashboard/fight-hero";
+import { FightHero, isSessionLive, type HeroAnalysis, type NextUp } from "@/components/dashboard/fight-hero";
 import { InlineNote } from "@/components/dashboard/inline-note";
-import { OnboardingStrip, type OnboardingStep } from "@/components/dashboard/onboarding-strip";
-import { FlashToast } from "@/components/medical/flash-toast";
 import { ReadinessCell, ReadinessNumber, ReadinessStrip } from "@/components/dashboard/readiness-strip";
+import { FighterJourney } from "@/components/domain/fighter-journey";
+import { FighterWeightCard } from "@/components/domain/fighter-weight-card";
 import { ClearanceBadge, HealthStatusBadge } from "@/components/domain/status-badges";
 import { WeekAgenda } from "@/components/domain/week-agenda";
+import { Callout } from "@/components/training/callout";
 import { weekStartKey } from "@/components/training/training-utils";
 import { BeltProgress } from "@/components/ui/belt-progress";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { ProgressBar } from "@/components/ui/progress";
-import { requireFighterAccess, requireFighterId } from "@/lib/auth/access";
+import { requireFighterAccess } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { NOT_RECORDED } from "@/components/domain/domain-format";
+import { reviewCounts } from "@/lib/domain/ai-review";
+import { journeyOwnerLabel, journeyStep, type FighterJourney as Journey, type JourneyCode, type JourneyStep, type JourneyStepId } from "@/lib/domain/journey";
+import { savedWeightMessage } from "@/lib/domain/nutrition";
 import { WEIGHT_CLASS_LABELS, WEIGHT_CLASS_LIMIT_KG } from "@/lib/domain/labels";
 import type { ClearanceState } from "@/lib/domain/rules";
 import { planAdherence } from "@/lib/domain/training-plan";
-import type { MedicalClearance, TrainingPlan } from "@/lib/domain/types";
-import { activeBout, WEIGHT_SAVED_NOTICE } from "@/lib/domain/weigh-in";
+import type { AIAnalysis, MedicalClearance, TrainingPlan, TrainingSession, UpcomingBout } from "@/lib/domain/types";
 import { academyDayStartIso, addDaysToKey, dayKey, daysBetween, formatNumber, formatShortDate, formatWeekdayDate } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
 import { getTranslator } from "@/lib/i18n/server";
-import { plural, type Translator } from "@/lib/i18n/translate";
+import { plural, type MessageKey, type Translator } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
-import { listBouts } from "@/lib/services/bouts";
+import { nullIfServiceFails } from "@/lib/services/api-helpers";
+import { getCurrentBout, getWeightTrack } from "@/lib/services/bouts";
+import { getFighterJourney } from "@/lib/services/fighter-journey";
 import { listGoals } from "@/lib/services/goals";
 import { getFighterHealthSummary } from "@/lib/services/medical";
 import { listCoaches, listDoctors } from "@/lib/services/people";
-import { getPlanWithSessions, getUpcomingSessions, listCoachFeedback, listPlans, listSessions } from "@/lib/services/training";
 import { platformFeatureAvailable } from "@/lib/services/platform-features";
-import { nullIfServiceFails } from "@/lib/services/api-helpers";
-import { listVideoLibrary, type VideoLibraryItem } from "@/lib/services/videos";
+import { getPlanWithSessions, getUpcomingSessions, listCoachFeedback, listPlans, listSessions } from "@/lib/services/training";
+import { getVideoDetail, listVideoLibrary, type VideoLibraryItem } from "@/lib/services/videos";
 import { param } from "@/lib/utils";
-import { BoutWeightCell } from "./bout-weight-cell";
 
 export async function generateMetadata(): Promise<Metadata> {
     const { t } = await getTranslator();
     return { title: t("nav.Today") };
 }
 
-/** Fighters who joined this recently see the getting-started checklist until every step is done. */
-const NEW_FIGHTER_DAYS = 30;
 /** Belt stripes stand for the share of open goals on track. */
 const GOAL_STRIPES = 4;
 
 /**
- * The fighter's Today page answers one question: what do I do now? The fight camp and next session lead,
- * one strip carries readiness, then this week and the latest from the corner. Everything else lives in its hub.
+ * The fighter's Today page answers one question: what do I do now? Until training can start, the hero walks the
+ * fighter's journey (sports doctor, baseline exam, Medical Clearance) and names who each step waits on. Once cleared,
+ * the AI leads: upload a round, or read what it found. Then one strip of readiness, this week and the corner feed.
  */
 export default async function FighterDashboardPage({ searchParams }: PageProps<"/fighter/dashboard">) {
     const user = await requireRole("fighter");
     if (!user.profileId) notFound();
-    const fighterId = requireFighterId(user, user.profileId);
-    // The profile read runs beside the page's own reads instead of ahead of them.
-    const fighterRead = requireFighterAccess(user, fighterId);
-    const ids = [fighterId];
+    const fighter = await requireFighterAccess(user, user.profileId);
+    const ids = [fighter.id];
     const [query, { t, locale }] = await Promise.all([searchParams, getTranslator()]);
-    // The bouts service is separate from training: without it Today still shows, minus the weigh-in card.
-    const boutsRead = nullIfServiceFails(listBouts({ fighterIds: ids }));
+    const notice = param(query.notice);
 
     const now = new Date().toISOString();
     const weekKey = weekStartKey(now);
     const weekStart = academyDayStartIso(weekKey);
     const nextWeekStart = academyDayStartIso(addDaysToKey(weekKey, 7));
 
-    // The active plan's sessions chain onto the plan list, so they don't wait for the rest of the batch.
+    // Reads that build on another chain onto it, so they don't wait for the rest of the batch. Video analysis is a
+    // separate service: when it doesn't answer, the day's training still shows and the journey marks that step unknown.
     const plansRead = listPlans({ fighterIds: ids });
-    const [fighter, bouts, health, upcoming, weekSessions, plans, planDetail, videos, feedback, goals, coaches, doctors] = await Promise.all([
-        fighterRead,
-        boutsRead,
-        getFighterHealthSummary(fighterId, now),
+    const videosRead = nullIfServiceFails(listVideoLibrary({ fighterIds: ids }));
+    const [health, upcoming, weekSessions, planDetail, videoItems, latest, journey, feedback, goals, coaches, doctors, camp] = await Promise.all([
+        getFighterHealthSummary(fighter.id, now),
         getUpcomingSessions(ids, 1),
         listSessions({ fighterIds: ids, from: weekStart, to: new Date(Date.parse(nextWeekStart) - 1).toISOString() }),
-        plansRead,
         plansRead.then((list) => {
             const active = list.find((plan) => plan.status === "active");
             return active ? getPlanWithSessions(active.id) : null;
         }),
-        // Video analysis is a separate service: when it doesn't answer, the day's training still shows.
-        nullIfServiceFails(listVideoLibrary({ fighterIds: ids })).then((items) => items ?? []),
+        videosRead,
+        videosRead.then(latestAnalysis),
+        getFighterJourney(fighter.id, { viewer: "fighter", plans: plansRead, videos: videosRead.then((items) => items?.map((item) => item.video) ?? null) }),
         listCoachFeedback({ fighterIds: ids }),
         listGoals({ fighterIds: ids }),
         listCoaches(),
         listDoctors(),
+        // The running bout's camp weight (T-005): a card above the fight hero, only while a bout is running.
+        getCurrentBout(fighter.id).then(async (current) => ({ bout: current, track: current ? await getWeightTrack(current.id) : null })),
     ]);
     if (!health) notFound();
-    const runningBout = bouts ? activeBout(bouts) : null;
+    const savedWeight = savedWeightMessage(param(query.saved), param(query.status), t);
 
+    const videos = videoItems ?? [];
     const activePlan = planDetail?.plan ?? null;
     const adherence = planDetail ? planAdherence(planDetail.sessions, now) : null;
     const coachNames = new Map(coaches.map((coach) => [coach.id, coach.name]));
     const doctorNames = new Map(doctors.map((doctor) => [doctor.id, doctor.name]));
     const { clearance, clearanceState } = health;
     const paused = clearanceState === "not_cleared" || clearanceState === "expired";
-    const nextSession = upcoming[0] ?? null;
-    // A bout from the bouts service wins over the older `upcomingBout` on the profile, so Today never shows two fights.
     const bout = fighter.upcomingBout;
-    const heroBout: HeroBout | null = runningBout
-        ? {
-              event: runningBout.eventName,
-              opponent: runningBout.opponentName ?? t("bout.opponentTba"),
-              date: runningBout.boutAt,
-              detail: `${formatNumber(runningBout.catchweightKg ?? runningBout.weightLimitKg, 1)} kg`,
-          }
-        : bout
-          ? { event: bout.event, opponent: bout.opponent, date: bout.date, detail: WEIGHT_CLASS_LABELS[bout.weightClass] }
-          : null;
-    const linkedCamp = runningBout?.trainingPlanId ? plans.find((plan) => plan.id === runningBout.trainingPlanId) : undefined;
-    const campStart = linkedCamp?.startDate ?? (activePlan && isCampFor(activePlan, heroBout) ? activePlan.startDate : null);
     const followUpDoctor = health.nextFollowUp ? doctorNames.get(health.nextFollowUp.examination.doctorId) : undefined;
     const clearanceDoctor = clearance ? doctorNames.get(clearance.doctorId) : undefined;
 
-    const next: NextUp = paused
-        ? {
-              kind: "paused",
-              reason: clearanceState === "expired" ? "expired" : "not_cleared",
-              doctorName: followUpDoctor ?? clearanceDoctor,
-              followUpDate: health.nextFollowUp?.date ?? null,
-              healthHref: routes.fighter.health,
-          }
-        : nextSession
-          ? {
-                kind: "session",
-                session: nextSession,
-                coachName: nextSession.coachId ? coachNames.get(nextSession.coachId) : undefined,
-                href: routes.fighter.session(nextSession.id),
-                note:
-                    clearanceState === "none" ? (
-                        <InlineNote icon={ShieldQuestion} tone="warning">
-                            {t("fighterToday.noClearanceNote")}
-                        </InlineNote>
-                    ) : clearanceState === "restricted" ? (
-                        <InlineNote icon={ShieldAlert} tone="info">
-                            {t("fighterToday.restrictedNote")}
-                        </InlineNote>
-                    ) : undefined,
-            }
-          : { kind: "none", scheduleHref: routes.fighter.schedule };
+    const next = nextUpFor({
+        journey,
+        session: upcoming[0] ?? null,
+        videos,
+        now,
+        coachName: (id) => coachNames.get(id),
+        restricted: clearanceState === "restricted",
+        doctorName: followUpDoctor ?? clearanceDoctor,
+        followUpDate: health.nextFollowUp?.date ?? null,
+        t,
+    });
+    const analysis = latest ? heroAnalysis(latest.item, latest.analysis) : null;
+    // Until training can start, the journey leads the hero. Once cleared, the fight camp or the latest AI analysis leads,
+    // and any steps left (a plan, a first analysis) sit in a strip underneath.
+    const journeyInHero = !journey.complete && (journey.cleared !== true || (!bout && !analysis));
 
     // This week, counted from the same academy week the agenda shows.
     const weekPlanned = weekSessions.filter((session) => session.status !== "cancelled");
@@ -162,44 +139,48 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
     const atRisk = openGoals.filter((goal) => goal.status === "at_risk").length;
     const onTrack = openGoals.length - atRisk;
 
-    const onboarding =
-        daysBetween(fighter.joinedAt, now) <= NEW_FIGHTER_DAYS
-            ? onboardingSteps({ clearanceState, videos, plans, activePlan, goalCount: goalsAvailable ? goals.length : null }, t)
-            : [];
-
     return (
         <>
-            <FlashToast
-                notice={param(query.notice) === WEIGHT_SAVED_NOTICE ? { title: t("weight.saved") } : null}
-                cleanHref={routes.fighter.dashboard}
-            />
             <PageHeader
                 eyebrow={formatWeekdayDate(now, locale)}
                 title={t("greeting.named", { greeting: t(greetingKey(now)), name: firstName(fighter.name) })}
                 actions={
-                    <ButtonLink href={routes.fighter.uploadVideo} variant="secondary">
-                        <Upload aria-hidden />
-                        {t("fighterToday.uploadVideo")}
-                    </ButtonLink>
+                    next.kind !== "analyse" && (
+                        <ButtonLink href={routes.fighter.uploadVideo} variant="secondary">
+                            <Upload aria-hidden />
+                            {t("fighterToday.uploadVideo")}
+                        </ButtonLink>
+                    )
                 }
             />
 
             <div className="flex flex-col gap-6">
+                {notice === "activated" && (
+                    <Callout tone="success" icon={CircleCheck} title={t("fighterToday.activated.title")} role="status">
+                        {activatedNextStep(journey, t)}
+                    </Callout>
+                )}
+                {savedWeight && <Callout tone="success" icon={CircleCheck} role="status" title={savedWeight} />}
+
+                {camp.bout && <FighterWeightCard event={camp.bout.event} track={camp.track} locale={locale} />}
+
                 <FightHero
-                    bout={heroBout}
-                    campStart={campStart}
+                    bout={bout}
+                    campStart={activePlan && isCampFor(activePlan, bout) ? activePlan.startDate : null}
                     plan={
                         activePlan
                             ? { title: activePlan.title, href: routes.fighter.plan(activePlan.id), phase: activePlan.phase, adherencePct: adherence?.pct ?? null }
                             : null
                     }
+                    journey={journeyInHero ? journey : null}
+                    analysis={analysis}
                     next={next}
                     now={now}
                     t={t}
                     locale={locale}
                 />
 
-                {onboarding.some((step) => !step.done) && <OnboardingStrip steps={onboarding} locale={locale} />}
+                {!journey.complete && !journeyInHero && <FighterJourney journey={journey} variant="compact" />}
 
                 <ReadinessStrip label={t("fighterToday.readiness")}>
                     <ReadinessCell
@@ -220,23 +201,19 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
                         href={routes.fighter.health}
                         className="sm:col-span-2 lg:col-span-1"
                     />
-                    {runningBout ? (
-                        <BoutWeightCell bout={runningBout} t={t} locale={locale} className="sm:col-span-2 lg:col-span-1" />
-                    ) : (
-                        <ReadinessCell
-                            label={t("weight.title")}
-                            value={
-                                weight ? (
-                                    <ReadinessNumber value={formatNumber(weight.currentKg, 1)} unit="kg" />
-                                ) : (
-                                    <span className="text-sm font-medium text-fg-muted">{NOT_RECORDED}</span>
-                                )
-                            }
-                            hint={weight ? `${weightGapText(weight, t)} · ${weightLimit}` : t("weightGap.limit", { limit: weightLimit })}
-                            href={routes.profile}
-                            className="sm:col-span-2 lg:col-span-1"
-                        />
-                    )}
+                    <ReadinessCell
+                        label={t("weight.title")}
+                        value={
+                            weight ? (
+                                <ReadinessNumber value={formatNumber(weight.currentKg, 1)} unit="kg" />
+                            ) : (
+                                <span className="text-sm font-medium text-fg-muted">{NOT_RECORDED}</span>
+                            )
+                        }
+                        hint={weight ? `${weightGapText(weight, t)} · ${weightLimit}` : t("weightGap.limit", { limit: weightLimit })}
+                        href={routes.profile}
+                        className="sm:col-span-2 lg:col-span-1"
+                    />
                     <ReadinessCell
                         label={t("fighterToday.thisWeek")}
                         value={<ReadinessNumber value={weekCompleted} unit={t("fighterToday.sessionsDone", { total: weekPlanned.length })} />}
@@ -317,6 +294,132 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
     );
 }
 
+/* ─── The hero's next step ────────────────────────────────────────────────── */
+
+const MEDICAL_STEPS: ReadonlySet<JourneyStepId> = new Set(["doctor", "baseline", "clearance"]);
+
+/** What each medical blocker means for the fighter, in plain words. */
+const BLOCKER_BODY: Partial<Record<JourneyCode, MessageKey>> = {
+    doctor_missing: "fighterToday.blocker.doctor_missing",
+    baseline_pending: "fighterToday.blocker.baseline_pending",
+    clearance_pending: "fighterToday.blocker.clearance_pending",
+    review_pending: "fighterToday.blocker.review_pending",
+    clearance_unspecified: "fighterToday.blocker.unexplained",
+    unknown: "fighterToday.blocker.unknown",
+};
+
+const BLOCKER_TITLE: Partial<Record<JourneyCode, MessageKey>> = {
+    review_pending: "fighterToday.blocker.review_pending.title",
+    unknown: "fighterToday.blocker.unknown.title",
+};
+
+const LOADING_STATUSES: ReadonlySet<VideoLibraryItem["video"]["status"]> = new Set(["uploading", "queued", "processing"]);
+
+const newestFirst = (items: readonly VideoLibraryItem[]) => [...items].sort((a, b) => Date.parse(b.video.uploadedAt) - Date.parse(a.video.uploadedAt));
+
+interface NextUpInput {
+    journey: Journey;
+    session: TrainingSession | null;
+    videos: VideoLibraryItem[];
+    now: string;
+    coachName: (coachId: string) => string | undefined;
+    restricted: boolean;
+    doctorName: string | undefined;
+    followUpDate: string | null;
+    t: Translator;
+}
+
+/**
+ * The hero's right half. Before clearance: the medical step in the way and who it's with (the paused copy when a
+ * doctor stopped training). Once cleared: a session under way, an upload still processing, the first analysis, the next
+ * session, then another round for the AI.
+ */
+function nextUpFor({ journey, session, videos, now, coachName, restricted, doctorName, followUpDate, t }: NextUpInput): NextUp {
+    if (journey.cleared !== true) {
+        const blocker = medicalBlocker(journey);
+        if (blocker.code === "not_eligible" || blocker.code === "clearance_expired") {
+            return { kind: "paused", reason: blocker.code === "clearance_expired" ? "expired" : "not_cleared", doctorName, followUpDate, healthHref: routes.fighter.health };
+        }
+        const titleKey = BLOCKER_TITLE[blocker.code];
+        return {
+            kind: "blocked",
+            title: titleKey ? t(titleKey) : blocker.detail,
+            body: t(BLOCKER_BODY[blocker.code] ?? "fighterToday.blocker.unexplained"),
+            owner: blocker.person ?? journeyOwnerLabel(blocker.owner, "fighter"),
+            attention: blocker.attention,
+            healthHref: routes.fighter.health,
+        };
+    }
+
+    const sessionUp = (current: TrainingSession): NextUp => ({
+        kind: "session",
+        session: current,
+        coachName: current.coachId ? coachName(current.coachId) : undefined,
+        href: routes.fighter.session(current.id),
+        note: restricted ? (
+            <InlineNote icon={ShieldAlert} tone="info">
+                {t("fighterToday.restrictedNote")}
+            </InlineNote>
+        ) : undefined,
+    });
+    const analyse = (reason: "first" | "again" | "retry"): NextUp => ({ kind: "analyse", reason, uploadHref: routes.fighter.uploadVideo, liveCheckHref: routes.fighter.liveCheck });
+
+    if (session && isSessionLive(session, now)) return sessionUp(session);
+    const [newest] = newestFirst(videos);
+    if (newest && LOADING_STATUSES.has(newest.video.status)) {
+        return { kind: "processing", videoTitle: newest.video.title, uploadedAt: newest.video.uploadedAt, href: routes.fighter.video(newest.video.id) };
+    }
+    const analysis = journeyStep(journey, "analysis");
+    if (analysis.code === "analysis_missing") return analyse("first");
+    if (analysis.code === "analysis_failed") return analyse("retry");
+    return session ? sessionUp(session) : analyse("again");
+}
+
+/** The medical step holding training up: the one in progress, else the first that couldn't be read. */
+function medicalBlocker(journey: Journey): JourneyStep {
+    if (journey.active && MEDICAL_STEPS.has(journey.active.id)) return journey.active;
+    return journey.steps.find((step) => MEDICAL_STEPS.has(step.id) && step.status !== "done") ?? journeyStep(journey, "clearance");
+}
+
+/** After activation, the next step in one sentence. */
+function activatedNextStep(journey: Journey, t: Translator): string {
+    const active = journey.active;
+    switch (active?.code) {
+        case "doctor_missing":
+            return t("fighterToday.activated.doctor");
+        case "baseline_pending":
+            return active.person ? t("fighterToday.activated.baselineWith", { name: active.person }) : t("fighterToday.activated.baseline");
+        case "clearance_pending":
+            return t("fighterToday.activated.clearance");
+        default:
+            return t("fighterToday.activated.below");
+    }
+}
+
+/* ─── AI analysis ─────────────────────────────────────────────────────────── */
+
+/** The newest finished analysis, with its findings. Null when there is none or the analysis service doesn't answer. */
+async function latestAnalysis(items: VideoLibraryItem[] | null): Promise<{ item: VideoLibraryItem; analysis: AIAnalysis } | null> {
+    const item = newestFirst(items ?? []).find((candidate) => candidate.video.status === "completed");
+    if (!item) return null;
+    const detail = await nullIfServiceFails(getVideoDetail(item.video.id));
+    return detail?.analysis ? { item, analysis: detail.analysis } : null;
+}
+
+function heroAnalysis(item: VideoLibraryItem, analysis: AIAnalysis): HeroAnalysis {
+    const headline = headlineFinding(analysis.findings);
+    return {
+        href: routes.fighter.video(item.video.id),
+        videoTitle: item.video.title,
+        processedAt: analysis.processedAt,
+        headline: headline ? { title: headline.title, confidence: headline.confidence, review: headline.review } : null,
+        coachReviewer: analysis.coachReview?.reviewerName ?? null,
+        lowConfidenceDetections: reviewCounts(analysis).lowConfidenceDetections,
+    };
+}
+
+/* ─── Readiness ───────────────────────────────────────────────────────────── */
+
 function clearanceHint(t: Translator, locale: Locale, state: ClearanceState, clearance: MedicalClearance | null): string {
     switch (state) {
         case "full":
@@ -339,73 +442,8 @@ function weekHint(t: Translator, { planned, toGo, missed, paused }: { planned: n
 }
 
 /** Whether a plan is the fight camp for the booked bout: a fight-camp plan whose window includes fight night. */
-function isCampFor(plan: TrainingPlan, bout: Pick<HeroBout, "date"> | null): boolean {
+function isCampFor(plan: TrainingPlan, bout: UpcomingBout | null): boolean {
     if (!bout || plan.phase !== "fight_camp") return false;
     const fightDay = dayKey(bout.date);
     return dayKey(plan.startDate) <= fightDay && (plan.endDate === null || fightDay <= dayKey(plan.endDate));
-}
-
-interface OnboardingInput {
-    clearanceState: ClearanceState;
-    videos: VideoLibraryItem[];
-    plans: TrainingPlan[];
-    activePlan: TrainingPlan | null;
-    /** Null while goals aren't available, which leaves their step out. */
-    goalCount: number | null;
-}
-
-/** Getting-started steps for a new fighter, each done or still to do. */
-function onboardingSteps({ clearanceState, videos, plans, activePlan, goalCount }: OnboardingInput, t: Translator): OnboardingStep[] {
-    const analysed = videos.some((item) => item.video.status === "completed");
-    const failedUpload = videos.some((item) => item.video.status === "failed");
-    const draftPlan = plans.some((plan) => plan.status === "draft");
-    const steps: OnboardingStep[] = [
-        {
-            id: "medical",
-            title: t("onboarding.medical.title"),
-            done: clearanceState !== "none",
-            description:
-                clearanceState !== "none"
-                    ? t("onboarding.medical.done")
-                    : t("onboarding.medical.todo"),
-            href: routes.fighter.health,
-            actionLabel: t("onboarding.medical.action"),
-        },
-        {
-            id: "video",
-            title: t("onboarding.video.title"),
-            done: analysed,
-            description: analysed
-                ? t("onboarding.video.done")
-                : failedUpload
-                  ? t("onboarding.video.failed")
-                  : t("onboarding.video.todo"),
-            href: routes.fighter.uploadVideo,
-            actionLabel: t("onboarding.video.action"),
-        },
-        {
-            id: "plan",
-            title: t("onboarding.plan.title"),
-            done: activePlan !== null,
-            description: activePlan
-                ? t("onboarding.plan.active", { title: activePlan.title })
-                : draftPlan
-                  ? t("onboarding.plan.draft")
-                  : t("onboarding.plan.todo"),
-            href: routes.fighter.schedule,
-            actionLabel: t("onboarding.plan.action"),
-        },
-    ];
-    if (goalCount === null) return steps;
-    return [
-        ...steps,
-        {
-            id: "goals",
-            title: t("onboarding.goals.title"),
-            done: goalCount > 0,
-            description: goalCount > 0 ? plural(t, "onboarding.goals.count", goalCount) : t("onboarding.goals.todo"),
-            href: routes.fighter.goals,
-            actionLabel: t("onboarding.goals.action"),
-        },
-    ];
 }

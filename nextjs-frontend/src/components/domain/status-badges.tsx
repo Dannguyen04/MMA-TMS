@@ -16,13 +16,11 @@ import {
     LoaderCircle,
     PenLine,
     RefreshCw,
-    Scale,
     ShieldAlert,
     ShieldCheck,
     ShieldQuestion,
     ShieldX,
     Sparkles,
-    Swords,
     Target,
     TrendingUp,
     TriangleAlert,
@@ -46,19 +44,17 @@ import {
     ROLE_LABELS,
     SESSION_STATUS_LABELS,
     USER_STATUS_LABELS,
+    BOUT_PHASE_LABELS,
+    REQUIREMENT_STATE_LABELS,
+    SUSPENSION_STATE_LABELS,
     VIDEO_STATUS_LABELS,
-    BOUT_STATUS_LABELS,
-    BOUT_REQUIREMENT_STATUS_LABELS,
-    WEIGHT_WARNING_LABELS,
+    WEIGHT_STATUS_LABELS,
 } from "@/lib/domain/labels";
 import { confidenceBand, type ClearanceState } from "@/lib/domain/rules";
 import type {
     AIFeedback,
     AIJobStatus,
     AlertStatus,
-    BoutRequirementStatus,
-    BoutStatus,
-    Gate1Result,
     GoalStatus,
     HealthStatus,
     InjurySeverity,
@@ -68,8 +64,10 @@ import type {
     SessionStatus,
     UserStatus,
     VideoStatus,
-    WeightWarningStatus,
 } from "@/lib/domain/types";
+import type { BoutPhase, RequirementState } from "@/lib/domain/bout";
+import type { SuspensionState } from "@/lib/domain/suspension-rules";
+import type { WeightStatus } from "@/lib/domain/weight-chart";
 import type { Locale } from "@/lib/i18n/config";
 import { createTranslator } from "@/lib/i18n/translate";
 import { formatConfidence } from "@/lib/format";
@@ -391,101 +389,74 @@ export function ConclusionBadge({ conclusion, size, className }: { conclusion: A
     return <StatusBadge meta={CONCLUSION_META[conclusion]} size={size} className={className} />;
 }
 
-/* ─── Bouts & Gate 1 ──────────────────────────────────────────────────────── */
+/* ─── Fight camp ──────────────────────────────────────────────────────────── */
 
-export const BOUT_STATUS_META: Record<BoutStatus, StatusMeta> = {
-    SCHEDULED: { label: BOUT_STATUS_LABELS.SCHEDULED, tone: "neutral", icon: CalendarClock },
-    CAMP: { label: BOUT_STATUS_LABELS.CAMP, tone: "primary", icon: Activity },
-    FIGHT_WEEK: { label: BOUT_STATUS_LABELS.FIGHT_WEEK, tone: "warning", icon: Swords },
-    WEIGHED_IN: { label: BOUT_STATUS_LABELS.WEIGHED_IN, tone: "info", icon: Scale },
-    COMPLETED: { label: BOUT_STATUS_LABELS.COMPLETED, tone: "success", icon: CircleCheck },
-    CANCELLED: { label: BOUT_STATUS_LABELS.CANCELLED, tone: "neutral", icon: CircleX },
+export const WEIGHT_STATUS_META: Record<WeightStatus, StatusMeta> = {
+    ON_TRACK: { label: WEIGHT_STATUS_LABELS.ON_TRACK, tone: "success", icon: CircleCheck },
+    ABOVE_TARGET: { label: WEIGHT_STATUS_LABELS.ABOVE_TARGET, tone: "warning", icon: TrendingUp },
+    OVER_LIMIT: { label: WEIGHT_STATUS_LABELS.OVER_LIMIT, tone: "danger", icon: TriangleAlert, solid: true },
+    NEUTRAL: { label: WEIGHT_STATUS_LABELS.NEUTRAL, tone: "neutral", icon: CircleDashed },
+    NOT_WEIGHED: { label: WEIGHT_STATUS_LABELS.NOT_WEIGHED, tone: "neutral", icon: CircleDashed },
+};
+
+/** Camp weight against the bout limit. Grey means no weigh-in for three days, not "fine". */
+/** Pass `locale` on translated screens; without it the badge keeps the English label. */
+export function WeightStatusBadge({ status, size, className, locale }: { status: WeightStatus; size?: BadgeSize; className?: string; locale?: Locale }) {
+    const meta = WEIGHT_STATUS_META[status];
+    return <StatusBadge meta={locale ? { ...meta, label: createTranslator(locale)(`boutLabel.weightStatus.${status}`) } : meta} size={size} className={className} />;
+}
+
+export const BOUT_PHASE_META: Record<BoutPhase, StatusMeta> = {
+    SCHEDULED: { label: BOUT_PHASE_LABELS.SCHEDULED, tone: "neutral", icon: CalendarClock },
+    CAMP: { label: BOUT_PHASE_LABELS.CAMP, tone: "info", icon: Activity },
+    FIGHT_WEEK: { label: BOUT_PHASE_LABELS.FIGHT_WEEK, tone: "primary", icon: Flag },
+    WEIGHED_IN: { label: BOUT_PHASE_LABELS.WEIGHED_IN, tone: "primary", icon: CalendarCheck2 },
+    COMPLETED: { label: BOUT_PHASE_LABELS.COMPLETED, tone: "success", icon: CircleCheck },
+    CANCELLED: { label: BOUT_PHASE_LABELS.CANCELLED, tone: "neutral", icon: CalendarX2 },
 };
 
 /** Pass `locale` on translated screens; without it the badge keeps the English label. */
-export function BoutStatusBadge({ status, size, className, locale }: { status: BoutStatus; size?: BadgeSize; className?: string; locale?: Locale }) {
-    const meta = BOUT_STATUS_META[status];
-    return <StatusBadge meta={locale ? { ...meta, label: createTranslator(locale)(`boutStatus.${status}`) } : meta} size={size} className={className} />;
+export function BoutPhaseBadge({ phase, size, className, locale }: { phase: BoutPhase; size?: BadgeSize; className?: string; locale?: Locale }) {
+    const meta = BOUT_PHASE_META[phase];
+    return <StatusBadge meta={locale ? { ...meta, label: createTranslator(locale)(`boutLabel.phase.${phase}`) } : meta} size={size} className={className} />;
 }
 
-export const BOUT_REQUIREMENT_STATUS_META: Record<BoutRequirementStatus, StatusMeta> = {
-    MISSING: { label: BOUT_REQUIREMENT_STATUS_LABELS.MISSING, tone: "danger", icon: CircleX },
-    PROVIDED: { label: BOUT_REQUIREMENT_STATUS_LABELS.PROVIDED, tone: "info", icon: Clock },
-    CONFIRMED: { label: BOUT_REQUIREMENT_STATUS_LABELS.CONFIRMED, tone: "success", icon: CircleCheck },
-    REJECTED: { label: BOUT_REQUIREMENT_STATUS_LABELS.REJECTED, tone: "danger", icon: Ban },
+export const REQUIREMENT_STATE_META: Record<RequirementState, StatusMeta> = {
+    MISSING: { label: REQUIREMENT_STATE_LABELS.MISSING, tone: "warning", icon: CircleDashed },
+    PROVIDED: { label: REQUIREMENT_STATE_LABELS.PROVIDED, tone: "success", icon: CircleCheck },
+    CONFIRMED: { label: REQUIREMENT_STATE_LABELS.CONFIRMED, tone: "success", icon: UserCheck },
+    REJECTED: { label: REQUIREMENT_STATE_LABELS.REJECTED, tone: "danger", icon: CircleX },
 };
 
-export function BoutRequirementStatusBadge({
-    status,
-    size,
-    className,
-    locale,
-}: {
-    status: BoutRequirementStatus;
-    size?: BadgeSize;
-    className?: string;
-    locale?: Locale;
-}) {
-    const meta = BOUT_REQUIREMENT_STATUS_META[status];
-    return <StatusBadge meta={locale ? { ...meta, label: createTranslator(locale)(`requirementStatus.${status}`) } : meta} size={size} className={className} />;
+/** Pass `locale` on translated screens; without it the badge keeps the English label. */
+export function RequirementStateBadge({ state, size, className, locale }: { state: RequirementState; size?: BadgeSize; className?: string; locale?: Locale }) {
+    const meta = REQUIREMENT_STATE_META[state];
+    return <StatusBadge meta={locale ? { ...meta, label: createTranslator(locale)(`boutLabel.requirement.${state}`) } : meta} size={size} className={className} />;
 }
 
-export const WEIGHT_WARNING_META: Record<WeightWarningStatus, StatusMeta> = {
-    ON_TRACK: { label: WEIGHT_WARNING_LABELS.ON_TRACK, tone: "success", icon: CircleCheck },
-    ABOVE_TARGET: { label: WEIGHT_WARNING_LABELS.ABOVE_TARGET, tone: "warning", icon: TriangleAlert },
-    OVER_LIMIT: { label: WEIGHT_WARNING_LABELS.OVER_LIMIT, tone: "danger", icon: TriangleAlert, solid: true },
-    NOT_WEIGHED: { label: WEIGHT_WARNING_LABELS.NOT_WEIGHED, tone: "neutral", icon: Clock },
-    NEUTRAL: { label: WEIGHT_WARNING_LABELS.NEUTRAL, tone: "neutral", icon: Scale },
-};
+/** Gate 1 in a word: ready, how many items stop it, and "overdue" once the documents deadline has passed. */
+export function Gate1Badge({ missing, overdue, size, className, locale = "en" }: { missing: number; overdue?: boolean; size?: BadgeSize; className?: string; locale?: Locale }) {
 
-export function WeightWarningBadge({
-    status,
-    size,
-    className,
-    locale,
-}: {
-    status: WeightWarningStatus;
-    size?: BadgeSize;
-    className?: string;
-    locale?: Locale;
-}) {
-    const meta = WEIGHT_WARNING_META[status];
-    return <StatusBadge meta={locale ? { ...meta, label: createTranslator(locale)(`weightStatus.${status}`) } : meta} size={size} className={className} />;
-}
-
-export function Gate1Badge({
-    gate1,
-    size,
-    className,
-    compact,
-    locale = "en",
-}: {
-    gate1?: Gate1Result | null;
-    size?: BadgeSize;
-    className?: string;
-    compact?: boolean;
-    locale?: Locale;
-}) {
-    if (!gate1) return null;
     const t = createTranslator(locale);
-    if (gate1.passed) {
-        return (
-            <Badge tone="success" icon={ShieldCheck} size={size} className={className}>
-                {t(compact ? "gate1.passedShort" : "gate1.passed")}
-            </Badge>
-        );
-    }
-    const totalMissing = gate1.missing.length + gate1.expiring.length;
-    return (
-        <Badge
-            tone="danger"
-            variant="solid"
-            icon={ShieldAlert}
-            size={size}
-            className={className}
-            title={[...gate1.missing, ...gate1.expiring].join(", ")}
-        >
-            {t(compact ? "gate1.missingShort" : "gate1.missing", { n: totalMissing })}
-        </Badge>
-    );
+    const meta: StatusMeta =
+        missing === 0
+            ? { label: t("boutLabel.gate1.ready"), tone: "success", icon: ShieldCheck }
+            : overdue
+              ? { label: t("boutLabel.gate1.missingOverdue", { n: missing }), tone: "danger", icon: ShieldX, solid: true }
+              : { label: t("boutLabel.gate1.missing", { n: missing }), tone: "warning", icon: ShieldAlert };
+    return <StatusBadge meta={meta} size={size} className={className} />;
+}
+
+export const SUSPENSION_STATE_META: Record<SuspensionState, StatusMeta> = {
+    UPCOMING: { label: SUSPENSION_STATE_LABELS.UPCOMING, tone: "neutral", icon: CalendarClock },
+    ACTIVE: { label: SUSPENSION_STATE_LABELS.ACTIVE, tone: "danger", icon: Ban, solid: true },
+    AWAITING_CLEARANCE: { label: SUSPENSION_STATE_LABELS.AWAITING_CLEARANCE, tone: "warning", icon: ShieldQuestion },
+    ENDED: { label: SUSPENSION_STATE_LABELS.ENDED, tone: "neutral", icon: CircleCheck },
+    CLEARED: { label: SUSPENSION_STATE_LABELS.CLEARED, tone: "success", icon: ShieldCheck },
+};
+
+/** Pass `locale` on translated screens; without it the badge keeps the English label. */
+export function SuspensionStateBadge({ state, size, className, locale }: { state: SuspensionState; size?: BadgeSize; className?: string; locale?: Locale }) {
+    const meta = SUSPENSION_STATE_META[state];
+    return <StatusBadge meta={locale ? { ...meta, label: createTranslator(locale)(`boutLabel.suspensionState.${state}`) } : meta} size={size} className={className} />;
 }

@@ -6,6 +6,11 @@ import { enDemoFlow } from "./demo-flow.en";
  */
 import { enAccount } from "./account.en";
 import { enAuth } from "./auth.en";
+import { enBoutAnalysis } from "./bout-analysis.en";
+import { enBoutLabels } from "./bout-labels.en";
+import { enBoutDetail } from "./bout-detail.en";
+import { enBoutFighter } from "./bout-fighter.en";
+import { enBoutMessages } from "./bout-messages.en";
 import { enCoachBouts } from "./coach-bouts.en";
 import { enCoachToday } from "./coach-today.en";
 import { enFighterToday } from "./fighter-today.en";
@@ -17,6 +22,11 @@ export const en = {
     ...enDemoFlow,
     ...enAccount,
     ...enAuth,
+    ...enBoutAnalysis,
+    ...enBoutLabels,
+    ...enBoutDetail,
+    ...enBoutFighter,
+    ...enBoutMessages,
     ...enCoachBouts,
     ...enCoachToday,
     ...enFighterToday,
@@ -27,6 +37,8 @@ export const en = {
     "nav.Today": "Today",
     "nav.Bout": "Bout",
     "nav.Bouts": "Bouts",
+    "nav.Upcoming": "Upcoming",
+    "nav.Suspensions": "Suspensions",
     "nav.Training": "Training",
     "nav.Schedule": "Schedule",
     "nav.Plans": "Plans",
@@ -43,6 +55,9 @@ export const en = {
     "nav.Injuries": "Injuries",
     "nav.Dashboard": "Dashboard",
     "nav.Access": "Access",
+    "nav.People": "People",
+    "nav.AI": "AI",
+    "nav.System": "System",
     "nav.Users": "Users",
     "nav.Roles & permissions": "Roles & permissions",
     "nav.Roles": "Roles",
@@ -182,6 +197,10 @@ export const en = {
     "weightNote.fighter.NOT_WEIGHED.title": "No weigh-in for 3 days",
     "weightNote.fighter.NOT_WEIGHED.text": "Log your weight each morning.",
 
+    "chart.showTable": "Show data table",
+    "chart.hideTable": "Hide data table",
+    "chart.noData": "No data",
+    "chart.keyboardHintPeriods": "Use the left and right arrow keys to read the values for each period.",
     "chart.weight": "Weight",
     "chart.reference": "Reference",
     "chart.limit": "Limit",
