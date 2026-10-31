@@ -127,3 +127,10 @@ Lỗi phát sinh trong lúc sửa, đã sửa:
 - Kiểm cuối: lint, typecheck sạch; test 952 passed | 2 skipped (954).
 
 **Kết luận: APPROVED tại `8d7ffeb`.**
+
+## R3, R4: ô Số ngày và ô Ngày bắt đầu trong form Tạo đình chỉ (31/10)
+
+- **R3 (Ken báo):** ô "Số ngày" giữ state kiểu số (`setDays(Number(value))`), nên xoá hết hiện "0", gõ tiếp ra "010"; min 1 mà vẫn hiện 0. Sửa `e11e4ef`: giữ chuỗi người dùng gõ; rời ô thì chuẩn hoá về số nguyên 1–365 (`normalizeDaysInput`, khớp `createSuspensionSchema` của backend); submit với giá trị sai thì báo `suspensions.action.daysRange`, không tự đổi số; dòng "Dự kiến kết thúc" ẩn khi số ngày sai. Ca D1–D8 (unit, hàm thuần). Kiểm trình duyệt: xoá → trống; gõ 1, 0 → 10; trống/010/400 rời ô → 1/10/365; Enter với trống, 0, 7.5, 400 → trình duyệt chặn, 0 request.
+- **R4 (review độc lập tìm ra):** xoá ô "Ngày bắt đầu" làm `endsOnFor("")` ném `RangeError: Invalid time value` lúc render, hộp thoại mất, trang hiện màn lỗi. Có từ B4. Sửa `70c7ba1`: chỉ tính `endsOn` khi `isDateKey(startsOn)`. Ca tái hiện là kiểm trình duyệt (vitest chạy `environment: node`, không có DOM để đổi ô ngày; form luôn khởi đầu bằng hôm nay nên render tĩnh không tái hiện được): trước sửa thì crash, sau sửa hộp thoại vẫn mở, 0 lỗi, chọn lại 10/11 thì hiện "Dự kiến kết thúc: 9 thg 12".
+- Review độc lập cho cả hai: APPROVED. Gợi ý chưa làm: `handleSubmit` chưa chặn `startsOn` sai (hiện chỉ trình duyệt chặn bằng `required`).
+- Kiểm cuối: frontend lint, typecheck sạch; test 962 passed | 2 skipped.
