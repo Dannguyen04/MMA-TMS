@@ -68,6 +68,8 @@ Tổng phần A: khoảng 1.750 dòng trên 18 file nguồn (chưa tính 3 scrip
 - Video kiểm định trong `python-worker/validation_videos/` và `yolov8n-pose.pt`: Dockerfile và benchmark đang dùng. Ngoài ra, bỏ khỏi git cũng không làm lịch sử repo nhẹ đi.
 - Sửa logic hay đổi tên bất kỳ thứ gì còn được dùng.
 
+> **Ghi nhận 31/10 (Claude trên máy Ken, chờ Dan quyết, chưa thuộc phần A):** nguồn `TRAINING_CONFLICTS_WITH_SUSPENSION` của thẻ Việc cần làm (`nestjs-api/src/bouts/bouts-todo.model.ts:199`, cùng mã và nhãn ở frontend trên nhánh `feat/T-030-suspension-ui`: `lib/domain/coach-todo.ts`, `coach/dashboard/coach-todo-card.tsx`) gần như là code chết từ T-036. Tạo đình chỉ là R28 tự áp ngay (`suspensions.service.ts:136`, `bouts.service.ts:1823`), nên không còn buổi `SCHEDULED` nằm trong khoảng đình chỉ. Nếu bỏ nguồn này thì phải đổi contract `TODO_SOURCES` ở backend và Zod ở frontend cùng lúc. Xem tiêu chí 6 của [T-040](./T-040-real-backend-demo.md).
+
 ### Tiêu chí nghiệm thu phần A
 
 1. Các file trong danh sách đã bị xoá, trừ file mà handover ghi rõ lý do giữ.
