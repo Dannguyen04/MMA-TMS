@@ -7,7 +7,9 @@ const training = vi.hoisted(() => ({
     createSession: vi.fn(),
     listExerciseCatalog: vi.fn(),
     createExercise: vi.fn(),
+    loadSessionClearanceConflicts: vi.fn(),
 }));
+const bouts = vi.hoisted(() => ({ blockingSuspensions: vi.fn() }));
 const auth = vi.hoisted(() => ({ user: { id: "user-1", role: "coach", profileId: "coach-1" } as { id: string; role: string; profileId: string | null } }));
 const navigation = vi.hoisted(() => ({
     redirect: vi.fn((href: string) => {
@@ -21,6 +23,8 @@ vi.mock("@/lib/services/platform-features", () => ({
     usesTrainingServiceForms: () => true,
     PLATFORM_FEATURE_UNAVAILABLE_MESSAGE: "This isn't available yet.",
 }));
+vi.mock("@/lib/services/bouts", () => bouts);
+vi.mock("@/lib/services/people", () => ({ getFighter: vi.fn(async () => ({ id: "fighter-1", name: "Linh Phạm" })) }));
 vi.mock("@/lib/auth/access", () => ({ canAccessFighter: () => true }));
 vi.mock("next/navigation", () => navigation);
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
@@ -32,7 +36,7 @@ vi.mock("@/lib/i18n/server", async () => {
 
 import { ApiError } from "@/lib/api/client";
 import { STARTER_EXERCISES } from "@/lib/domain/training-templates";
-import { addPlanExercises, createPlan, createSession, importStarterLibrary } from "./training";
+import { addPlanExercises, createPlan, createSession, importStarterLibrary, previewSessionConflicts } from "./training";
 import { IDLE } from "./state";
 
 function form(fields: Record<string, string>): FormData {
@@ -158,6 +162,43 @@ describe("repeating a session weekly", () => {
         await expect(createSession({ status: "idle" }, form({ ...sessionFields, repeatCount: "40" }))).rejects.toThrow("redirect:/coach/sessions/s-1");
         expect(training.getPlan).not.toHaveBeenCalled();
         expect(training.createSession).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe("previewing a session's conflicts", () => {
+    const preview = { fighterId: "fighter-1", type: "sparring" as const, targetRpe: 6, exerciseIds: [], date: "2026-11-02", time: "17:00" };
+    const clearanceWarning = { code: "no_clearance", severity: "warn" } as const;
+
+    beforeEach(() => {
+        auth.user = { id: "user-1", role: "coach", profileId: "coach-1" };
+        training.loadSessionClearanceConflicts.mockReset().mockResolvedValue([clearanceWarning]);
+        bouts.blockingSuspensions.mockReset().mockResolvedValue([]);
+    });
+
+    it("puts a suspension that blocks this session type first, as a block", async () => {
+        bouts.blockingSuspensions.mockResolvedValue([{ endsOn: "2026-11-25" }]);
+
+        const state = await previewSessionConflicts({ ...preview });
+
+        expect(bouts.blockingSuspensions).toHaveBeenCalledWith("fighter-1", "sparring", "2026-11-02");
+        expect(state.data?.conflicts).toEqual([
+            { code: "suspended", severity: "block", type: "sparring", fighterName: "Linh Phạm", date: "2026-11-25" },
+            clearanceWarning,
+        ]);
+    });
+
+    it("leaves out the end day once the suspension only waits for a clearance", async () => {
+        bouts.blockingSuspensions.mockResolvedValue([{ endsOn: "2026-10-30" }]);
+
+        const state = await previewSessionConflicts({ ...preview });
+
+        expect(state.data?.conflicts?.[0]).toEqual({ code: "suspended", severity: "block", type: "sparring", fighterName: "Linh Phạm" });
+    });
+
+    it("reports only the clearance conflicts when nothing is suspended", async () => {
+        const state = await previewSessionConflicts({ ...preview });
+
+        expect(state.data?.conflicts).toEqual([clearanceWarning]);
     });
 });
 

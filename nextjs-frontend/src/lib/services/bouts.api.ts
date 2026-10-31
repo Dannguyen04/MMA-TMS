@@ -2,9 +2,13 @@ import "server-only";
 
 import { z } from "zod";
 
-import { ApiError, authenticatedApiRequest, authenticatedMutableApiRequest, drainAuthenticatedCursorPages } from "@/lib/api/client";
-import type { BoutOutcome, CampBout, CompetitionRuleset } from "@/lib/domain/bout";
+import { ApiError, authenticatedApiRequest, authenticatedMutableApiRequest } from "@/lib/api/client";
+import type { BoutOutcome, CampBout, CompetitionRuleset, Suspension } from "@/lib/domain/bout";
 import type { RequirementUpdate } from "@/lib/domain/bout-rules";
+import { SESSION_TYPES, type SessionType } from "@/lib/domain/medical-contract";
+import { suspensionDays, type SuspensionDraft } from "@/lib/domain/suspension-rules";
+import { sessionTypeFor, TRAINING_TYPE_FOR } from "@/lib/domain/training-contract";
+import type { TrainingType } from "@/lib/domain/types";
 import {
     apiBoutSchema,
     apiRulesetSchema,
@@ -22,6 +26,7 @@ import { formatDate } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
 import { getTranslator } from "@/lib/i18n/server";
 import type { MessageKey, Translator } from "@/lib/i18n/translate";
+import { putOpponentAnalysis } from "./bout-analysis";
 import { nullIfNotFound, nullIfServiceFails } from "./api-helpers";
 import type { BoutEdit, CreateResult, FightWeekResult, NewBout, WeighInEntry } from "./bouts.demo";
 
@@ -46,12 +51,37 @@ async function withRulesets(rows: z.output<typeof apiBoutSchema>[]): Promise<Cam
     return rows.map((row) => toCampBout(row, rulesets.find((item) => item.id === row.rulesetId) ?? null));
 }
 
+const PAGE_LIMIT = 100;
+const MAX_PAGES = 20;
+
+/**
+ * Every page of a bouts or suspensions list. These services page as `{ data, hasNextPage, nextCursor }` and take a
+ * single `fighterId`, so a roster is read one fighter at a time.
+ */
+async function drainList<T extends z.ZodType>(target: string, itemSchema: T, fighterIds: string[] | "all"): Promise<z.output<T>[]> {
+    const pageSchema = z.object({ data: z.array(itemSchema), hasNextPage: z.boolean(), nextCursor: z.string().nullable() });
+    const readAll = async (fighterId: string | null) => {
+        const items: z.output<T>[] = [];
+        let cursor: string | null = null;
+        for (let page = 0; page < MAX_PAGES; page += 1) {
+            const params = new URLSearchParams({ limit: String(PAGE_LIMIT) });
+            if (fighterId) params.set("fighterId", fighterId);
+            if (cursor) params.set("cursor", cursor);
+            const result = await authenticatedApiRequest(`${target}?${params.toString()}`, pageSchema);
+            items.push(...result.data);
+            if (!result.hasNextPage || !result.nextCursor) break;
+            cursor = result.nextCursor;
+        }
+        return items;
+    };
+    if (fighterIds === "all") return readAll(null);
+    const pages = await Promise.all([...new Set(fighterIds)].map(readAll));
+    return pages.flat();
+}
+
 export async function listApiBouts(fighterIds: string[] | "all"): Promise<CampBout[]> {
     if (Array.isArray(fighterIds) && fighterIds.length === 0) return [];
-    const params = new URLSearchParams();
-    if (Array.isArray(fighterIds)) fighterIds.forEach((id) => params.append("fighterId", id));
-    const query = params.toString();
-    const rows = await nullIfServiceFails(drainAuthenticatedCursorPages(`/bouts${query ? `?${query}` : ""}`, apiBoutSchema));
+    const rows = await nullIfServiceFails(drainList("/bouts", apiBoutSchema, fighterIds));
     return withRulesets(rows ?? []);
 }
 
@@ -103,6 +133,10 @@ function boutRefusal(error: ApiError, t: Translator, locale: Locale): string {
         case "BOUT_INVALID_TRANSITION":
         case "BOUT_STATE_CONFLICT":
             return t("boutMsg.api.stateChanged");
+        case "SUSPENSION_DAYS_REQUIRED":
+            return t("boutMsg.api.suspensionDaysRequired");
+        case "SUSPENSION_ALREADY_CLEARED":
+            return t("boutMsg.api.suspensionAlreadyCleared");
         default:
             return error.message;
     }
@@ -132,6 +166,7 @@ function send(target: string, method: string, body?: unknown) {
 export async function createApiBout(input: NewBout, customLimit: boolean): Promise<CreateResult> {
     try {
         const created = await authenticatedMutableApiRequest("/bouts", idSchema, { method: "POST", body: JSON.stringify(createBoutBody({ ...input, customLimit })) });
+        await putOpponentAnalysis(created.id, input.fighterId);
         return { ok: true, boutId: created.id, warning: null };
     } catch (error) {
         if (!(error instanceof ApiError)) throw error;
@@ -219,6 +254,81 @@ export async function recordApiWeighIn(boutId: string, entry: WeighInEntry, reco
     return { ok: false, message: t("boutMsg.api.missedOnService"), fieldErrors: { decision: t("boutMsg.action.missedDecision") } };
 }
 
-export function recordApiResult(boutId: string, outcome: BoutOutcome): Promise<WriteResult> {
-    return write(send(path(boutId, "/result"), "POST", resultBody(outcome)));
+/** `suspensionDays` is the coach's length for a KO or head-strike TKO loss; the service needs it when the ruleset suggests none. */
+export function recordApiResult(boutId: string, outcome: BoutOutcome, suspensionDays: number | null = null): Promise<WriteResult> {
+    return write(send(path(boutId, "/result"), "POST", { ...resultBody(outcome), ...(suspensionDays ? { suspensionDays } : {}) }));
+}
+
+/* ─── Suspensions and Gate 2 (T-007) ──────────────────────────────────────── */
+
+const apiSuspensionSchema = z.object({
+    id: z.string(),
+    fighterId: z.string(),
+    boutId: z.string().nullable(),
+    reason: z.enum(["KO", "TKO", "DQ", "MANDATORY_REST", "MEDICAL", "OTHER"]),
+    startsOn: z.string(),
+    endsOn: z.string(),
+    lossOfConsciousness: z.enum(["NONE", "UNDER_1_MIN", "OVER_1_MIN", "UNKNOWN"]).nullable(),
+    suggestedDays: z.number().nullable(),
+    overrideReason: z.string().nullable(),
+    blockedSessionTypes: z.array(z.string()),
+    requiresClearance: z.boolean(),
+    clearedAt: z.string().nullable(),
+    clearedById: z.string().nullable(),
+    clearanceNote: z.string().nullable(),
+    createdById: z.string(),
+    createdAt: z.string(),
+});
+
+const isSessionType = (value: string): value is SessionType => (SESSION_TYPES as readonly string[]).includes(value);
+
+function toSuspension(row: z.output<typeof apiSuspensionSchema>): Suspension {
+    const blocked = new Set<TrainingType>(row.blockedSessionTypes.filter(isSessionType).map((type) => TRAINING_TYPE_FOR[type]));
+    return {
+        id: row.id,
+        fighterId: row.fighterId,
+        boutId: row.boutId,
+        reason: row.reason,
+        startsOn: row.startsOn,
+        endsOn: row.endsOn,
+        days: suspensionDays(row) + 1,
+        lossOfConsciousness: row.lossOfConsciousness,
+        suggestedDays: row.suggestedDays,
+        overrideReason: row.overrideReason,
+        blockedSessionTypes: [...blocked],
+        requiresClearance: row.requiresClearance,
+        clearedAt: row.clearedAt,
+        clearedBy: row.clearedById,
+        clearanceNote: row.clearanceNote,
+        createdBy: row.createdById,
+        createdAt: row.createdAt,
+        note: null,
+    };
+}
+
+/** Suspensions of the fighters in scope; a bout's KO or TKO suspension is created by the service with the result. */
+export async function listApiSuspensions(fighterIds: string[] | "all"): Promise<Suspension[]> {
+    if (Array.isArray(fighterIds) && fighterIds.length === 0) return [];
+    const rows = await nullIfServiceFails(drainList("/suspensions", apiSuspensionSchema, fighterIds));
+    return (rows ?? []).map(toSuspension);
+}
+
+/** A suspension entered by hand. KO and TKO always need clearance and DQ or rest never do, so only the others send it. */
+export function createApiSuspension(fighterId: string, draft: SuspensionDraft, lossOfConsciousness: Suspension["lossOfConsciousness"]): Promise<WriteResult> {
+    const blockedSessionTypes = [...new Set(draft.blockedSessionTypes.map(sessionTypeFor).filter((type): type is SessionType => type !== null))];
+    return write(
+        send("/suspensions", "POST", {
+            fighterId,
+            reason: draft.reason,
+            days: suspensionDays(draft),
+            startsOn: draft.startsOn,
+            ...(blockedSessionTypes.length > 0 ? { blockedSessionTypes } : {}),
+            ...(draft.reason === "MEDICAL" || draft.reason === "OTHER" ? { requiresClearance: draft.requiresClearance } : {}),
+            ...(lossOfConsciousness ? { lossOfConsciousness } : {}),
+        }),
+    );
+}
+
+export function clearApiSuspension(id: string, clearanceNote: string): Promise<WriteResult> {
+    return write(send(`/suspensions/${encodeURIComponent(id)}/clear`, "POST", { clearanceNote }));
 }

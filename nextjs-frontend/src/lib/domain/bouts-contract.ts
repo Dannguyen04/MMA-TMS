@@ -249,6 +249,7 @@ export function createBoutBody(input: {
     customLimit: boolean;
     weighInAt: string;
     boutAt: string;
+    scheduledRounds?: number | null;
 }) {
     return {
         fighterId: input.fighterId,
@@ -259,6 +260,7 @@ export function createBoutBody(input: {
         ...(input.customLimit ? { weightLimitKg: input.weightClass.limitKg } : { weightClassCode: input.weightClass.code }),
         weighInAt: input.weighInAt,
         boutAt: input.boutAt,
+        ...(input.scheduledRounds ? { scheduledRounds: input.scheduledRounds } : {}),
     };
 }
 

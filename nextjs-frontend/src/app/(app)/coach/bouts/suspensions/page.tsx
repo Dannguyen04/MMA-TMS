@@ -135,7 +135,7 @@ function SuspensionRow({
                                 reason: t(`boutLabel.suspensionReason.${item.reason}`),
                                 start: formatDate(item.startsOn, locale),
                                 end: formatDate(item.endsOn, locale),
-                                days: suspensionDays(item),
+                                days: item.days ?? suspensionDays(item),
                             })}
                         </span>
                     </span>

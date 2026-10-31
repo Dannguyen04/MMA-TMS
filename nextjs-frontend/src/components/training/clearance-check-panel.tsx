@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/form";
 import { Spinner } from "@/components/ui/spinner";
 import { clearanceConflictMessage, type ClearanceConflict } from "@/lib/domain/clearance-rules";
 import type { Locale } from "@/lib/i18n/config";
-import type { Translator } from "@/lib/i18n/translate";
+import { plural, type Translator } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 
 export type ClearanceCheckStatus = "idle" | "ready" | "error";
@@ -49,8 +49,8 @@ function announcement(t: Translator, status: ClearanceCheckStatus, blocks: numbe
     if (status !== "ready") return "";
     if (blocks + warnings === 0) return t("training.clearanceCheck.announcement.noConflicts");
     const parts = [
-        blocks > 0 ? (blocks === 1 ? `1 ${t("training.clearanceCheck.announcement.blockingConflict")}` : `${blocks} ${t("training.clearanceCheck.announcement.blockingConflict")}s`) : null,
-        warnings > 0 ? (warnings === 1 ? `1 ${t("training.clearanceCheck.announcement.warning")}` : `${warnings} ${t("training.clearanceCheck.announcement.warning")}s`) : null,
+        blocks > 0 ? plural(t, "training.clearanceCheck.announcement.blockingConflict", blocks) : null,
+        warnings > 0 ? plural(t, "training.clearanceCheck.announcement.warning", warnings) : null,
     ];
     return t("training.clearanceCheck.announcement.result", { parts: parts.filter(Boolean).join(t("training.clearanceCheck.announcement.and")) });
 }

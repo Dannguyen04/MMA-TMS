@@ -505,7 +505,7 @@ function RoundCardForm({
                         pending={form.pending}
                         pendingLabel={t("boutAnalysis.rounds.savingRound")}
                     >
-                        {t("boutAnalysis.rounds.saveRound", { roundNo })}
+                        {t(existing ? "boutAnalysis.rounds.updateRound" : "boutAnalysis.rounds.saveRound", { roundNo })}
                     </SubmitButton>
                 </form>
             </CardContent>

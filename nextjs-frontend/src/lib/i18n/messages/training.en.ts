@@ -79,8 +79,10 @@ export const enTraining = {
     "training.clearanceCheck.announcement.noConflicts": "Clearance check: no conflicts.",
     "training.clearanceCheck.announcement.result": "Clearance check: {parts}.",
     "training.clearanceCheck.announcement.and": " and ",
-    "training.clearanceCheck.announcement.blockingConflict": "blocking conflict",
-    "training.clearanceCheck.announcement.warning": "warning",
+    "training.clearanceCheck.announcement.blockingConflict": "{n} blocking conflicts",
+    "training.clearanceCheck.announcement.blockingConflict.one": "1 blocking conflict",
+    "training.clearanceCheck.announcement.warning": "{n} warnings",
+    "training.clearanceCheck.announcement.warning.one": "1 warning",
 
     /* Training Service Errors */
     "training.error.service": "training service",
@@ -100,6 +102,7 @@ export const enTraining = {
     "training.error.planStateConflict": "Someone changed this plan at the same time. Reload the page and try again.",
     "training.error.sessionStateConflict": "Someone changed this session at the same time. Reload the page and try again.",
     "training.error.medicalEligibilityRequired": "The fighter isn't medically cleared for this training right now. Every fighter needs a baseline examination and a valid clearance first.",
+    "training.error.suspensionActive": "The fighter is suspended and this kind of session is blocked. Change the session type or the date.",
     "training.error.trainingConflict": "This conflicts with the fighter's existing training. Reload the page and check it.",
     "training.error.checkViolation": "The training service rejected some of the values. Check the form and try again.",
     "training.error.invariantConflict": "The training service rejected this change because the record changed. Reload the page and try again.",
@@ -908,4 +911,11 @@ export const enTraining = {
     "training.gate2.suspended": "{name} is suspended: {type} is blocked {until}.",
     "training.gate2.through": "through {date}",
     "training.gate2.untilCleared": "until a coach clears the fighter to train",
+    "training.preset.shadowBoxing": "Bring wraps. 3-minute rounds on the clock.",
+    "training.preset.padWork": "Bring wraps and gloves.",
+    "training.preset.heavyBag": "Bring wraps and bag gloves.",
+    "training.preset.sparring": "Full gear: headgear, mouthguard, shin guards and sparring gloves.",
+    "training.preset.grappling": "Bring a rash guard and grappling shorts.",
+    "training.preset.strengthConditioning": "Bring training shoes and a water bottle.",
+    "training.preset.recoveryMobility": "Light session. Wear comfortable clothes.",
 } as const;

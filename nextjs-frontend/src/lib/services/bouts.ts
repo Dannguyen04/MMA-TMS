@@ -5,13 +5,14 @@ import "server-only";
 import { cookies } from "next/headers";
 import { z } from "zod";
 
-import { ApiError, authenticatedApiRequest, authenticatedMutableApiRequest } from "@/lib/api/client";
+import { authenticatedApiRequest } from "@/lib/api/client";
 import { isDemoAuthEnabled } from "@/lib/auth/constants";
+import { getCurrentUser } from "@/lib/auth/session";
 import type { BoutOutcome, CampBout, CancelReason, CompetitionRuleset, NutritionPhaseKey, Suspension } from "@/lib/domain/bout";
 import { boutLimitKg, isRunningPhase } from "@/lib/domain/bout";
 import { awaitsWeighInDecision, requirementCode, type RequirementUpdate } from "@/lib/domain/bout-rules";
 import { wayOffCount } from "@/lib/domain/nutrition";
-import type { SuspensionDraft } from "@/lib/domain/suspension-rules";
+import { blockingSuspensions as findBlockingSuspensions, type SuspensionDraft } from "@/lib/domain/suspension-rules";
 import type { TrainingType, User } from "@/lib/domain/types";
 import type { PlanAdherence, WeightStatus } from "@/lib/domain/weight-chart";
 import type { WeightTrack } from "@/lib/domain/weight-track";
@@ -19,7 +20,7 @@ import type { WriteResult } from "@/lib/domain/write-result";
 import { dayKey, daysBetweenKeys } from "@/lib/format";
 import { nullIfServiceFails } from "./api-helpers";
 import type { BoutEdit, CreateResult, FightWeekResult, NewBout, WeighInEntry } from "./bouts.demo";
-import { getFighter } from "./people";
+import { getFighter, getUser } from "./people";
 import { getPlan } from "./training";
 
 export type { BoutEdit, CreateResult, FightWeekResult, NewBout, WeighInEntry } from "./bouts.demo";
@@ -51,6 +52,7 @@ function actorOf(user: Pick<User, "name">) {
 
 const demo = () => import("./bouts.demo");
 const api = () => import("./bouts.api");
+const nutritionMock = () => import("./bouts.nutrition-mock");
 
 const apiTrackSchema = z.object({
     limitKg: z.number().nullable(),
@@ -77,13 +79,31 @@ export async function getRuleset(id: string): Promise<CompetitionRuleset | null>
 /** Bouts of the fighters in scope, in any phase. */
 export async function listCampBouts(fighterIds: string[] | "all" = "all"): Promise<CampBout[]> {
     if (isDemoAuthEnabled()) return (await demo()).listDemoBouts(fighterIds);
-    return (await api()).listApiBouts(fighterIds);
+    const mock = await nutritionMock();
+    return (await (await api()).listApiBouts(fighterIds)).map((bout) => ({ ...bout, nutritionPlan: mock.mockNutritionPlan(bout.id) }));
+}
+
+/** The service records who acted by account id. Coaches may not read other accounts, so those keep their id. */
+async function userNames(ids: (string | null)[]): Promise<Map<string, string>> {
+    const me = await getCurrentUser();
+    const unique = [...new Set(ids.filter((id): id is string => !!id))];
+    const found = await Promise.all(
+        unique.map((id) => (id === me?.id ? [id, me.name] as const : getUser(id).then((user) => user && ([id, user.name] as const), () => null))),
+    );
+    return new Map(found.filter((entry) => entry !== null));
 }
 
 export async function getCampBout(boutId: string): Promise<CampBout | null> {
     if (isDemoAuthEnabled()) return (await demo()).getDemoBout(boutId);
-    const bout = await (await api()).getApiBout(boutId);
-    if (!bout || (bout.phase !== "FIGHT_WEEK" && bout.phase !== "WEIGHED_IN")) return bout;
+    const found = await (await api()).getApiBout(boutId);
+    if (!found) return null;
+    const names = await userNames(found.history.map((entry) => entry.by));
+    const bout = {
+        ...found,
+        history: found.history.map((entry) => ({ ...entry, by: names.get(entry.by) ?? entry.by })),
+        nutritionPlan: (await nutritionMock()).mockNutritionPlan(found.id),
+    };
+    if (bout.phase !== "FIGHT_WEEK" && bout.phase !== "WEIGHED_IN") return bout;
     return { ...bout, checklistUnlock: await readChecklistUnlock(bout.id) };
 }
 
@@ -128,32 +148,35 @@ export async function listWeightAlerts(fighterIds: string[] | "all", now = new D
             const track = await getWeightTrack(bout.id, now);
             if (!track || (track.status === "ON_TRACK" || track.status === "NEUTRAL")) return null;
             const fighterName = (await getFighter(bout.fighterId))?.name ?? "Fighter";
-            return { bout, fighterName, track, wayOff: 0 };
+            return { bout, fighterName, track, wayOff: await wayOffForBout(bout.id, dayKey(now)) };
         }),
     );
     return rows.filter((row): row is WeightAlert => row !== null).sort((a, b) => STATUS_ORDER[a.track.status] - STATUS_ORDER[b.track.status]);
 }
 
 export async function wayOffForBout(boutId: string, todayOn: string): Promise<number> {
-    if (!isDemoAuthEnabled()) return 0;
-    return wayOffCount((await demo()).demoCheckinsFor(boutId), todayOn);
+    if (isDemoAuthEnabled()) return wayOffCount((await demo()).demoCheckinsFor(boutId), todayOn);
+    return wayOffCount((await nutritionMock()).mockCheckins(boutId), todayOn);
 }
 
 export async function listSuspensions(fighterIds: string[] | "all"): Promise<Suspension[]> {
     if (isDemoAuthEnabled()) return (await demo()).listDemoSuspensions(fighterIds);
-    return [];
+    const list = await (await api()).listApiSuspensions(fighterIds);
+    const names = await userNames(list.flatMap((item) => [item.createdBy, item.clearedBy]));
+    const named = (id: string | null) => (id ? (names.get(id) ?? id) : id);
+    return list.map((item) => ({ ...item, createdBy: named(item.createdBy) ?? item.createdBy, clearedBy: named(item.clearedBy) }));
 }
 
 /** Start days of the fighter's earlier KO/TKO suspensions, hand-entered ones included (F7). */
 export async function knockoutHistory(fighterId: string): Promise<string[]> {
     if (isDemoAuthEnabled()) return (await demo()).demoKnockoutHistory(fighterId);
-    return [];
+    return (await listSuspensions([fighterId])).filter((item) => item.reason === "KO" || item.reason === "TKO").map((item) => item.startsOn);
 }
 
 /** Gate 2: active suspensions that block this kind of session for the fighter on that academy day. */
 export async function blockingSuspensions(fighterId: string, type: TrainingType, day: string): Promise<Suspension[]> {
     if (isDemoAuthEnabled()) return (await demo()).demoBlockingSuspensions(fighterId, type, day);
-    return [];
+    return findBlockingSuspensions(await listSuspensions([fighterId]), fighterId, type, day);
 }
 
 /* ─── Weigh-ins, plan answers, meal plan (T-005, E1) ──────────────────────── */
@@ -162,31 +185,19 @@ export async function recordNutritionCheckin(fighterId: string, adherence: PlanA
     if (isDemoAuthEnabled()) return (await demo()).recordDemoCheckin(fighterId, adherence, note, now);
     const bout = await getCurrentBout(fighterId);
     if (!bout) return { ok: false, message: "There is no upcoming bout to attach this answer to." };
-    try {
-        const academyDate = dayKey(new Date(now.getTime() - 86_400_000));
-        await authenticatedMutableApiRequest(`/bouts/${encodeURIComponent(bout.id)}/nutrition-checkins/${academyDate}`, z.unknown(), {
-            method: "PUT",
-            body: JSON.stringify({ adherence, note }),
-        });
-        return { ok: true };
-    } catch (error) {
-        if (isUnavailable(error)) return unavailable("Plan check-ins are not available from the server yet.");
-        throw error;
-    }
+    const loggedOn = dayKey(now);
+    (await nutritionMock()).recordMockCheckin(bout.id, dayKey(new Date(now.getTime() - 86_400_000)), loggedOn, adherence, note, now);
+    return { ok: true };
 }
 
+/** The bouts service has no meal plan yet: API mode keeps it in this server's memory (`bouts.nutrition-mock.ts`). */
 export async function saveNutritionPlan(boutId: string, texts: Record<NutritionPhaseKey, string>, authorName: string, now = new Date()): Promise<WriteResult> {
     if (isDemoAuthEnabled()) return (await demo()).saveDemoNutritionPlan(boutId, texts, authorName, now);
-    try {
-        await authenticatedMutableApiRequest(`/bouts/${encodeURIComponent(boutId)}/nutrition-plan`, z.unknown(), {
-            method: "PUT",
-            body: JSON.stringify({ ...texts, authorName }),
-        });
-        return { ok: true };
-    } catch (error) {
-        if (isUnavailable(error)) return unavailable("Meal plans are not available from the server yet.");
-        throw error;
-    }
+    const bout = await getCampBout(boutId);
+    if (!bout) return unavailable();
+    if (!isRunningPhase(bout.phase)) return { ok: false, message: "This bout is over, so its meal plan can no longer change." };
+    (await nutritionMock()).saveMockNutritionPlan(boutId, texts, authorName, now);
+    return { ok: true };
 }
 
 /* ─── Bout lifecycle (T-004) ──────────────────────────────────────────────── */
@@ -267,19 +278,21 @@ export async function recordWeighIn(boutId: string, entry: WeighInEntry, actor: 
     return (await api()).recordApiWeighIn(boutId, entry, recorded);
 }
 
-export async function recordResult(boutId: string, outcome: BoutOutcome, actor: User, now = new Date()): Promise<WriteResult> {
+export async function recordResult(boutId: string, outcome: BoutOutcome, actor: User, now = new Date(), suspensionDays: number | null = null): Promise<WriteResult> {
     if (isDemoAuthEnabled()) return (await demo()).recordDemoResult(boutId, outcome, actorOf(actor), now);
-    return (await api()).recordApiResult(boutId, outcome);
+    return (await api()).recordApiResult(boutId, outcome, suspensionDays);
 }
 
 export async function createSuspension(fighterId: string, boutId: string | null, draft: SuspensionDraft, actor: User, now = new Date()): Promise<WriteResult> {
     if (isDemoAuthEnabled()) return (await demo()).createDemoSuspension(fighterId, boutId, draft, actorOf(actor), now);
-    return unavailable("Suspensions are not available from the server yet.");
+    // The service creates a bout's KO or TKO suspension with the result; what the coach adds here is entered by hand.
+    const bout = boutId ? await getCampBout(boutId) : null;
+    return (await api()).createApiSuspension(fighterId, draft, bout?.outcome?.lossOfConsciousness ?? null);
 }
 
 export async function clearSuspension(id: string, note: string, actor: User, now = new Date()): Promise<WriteResult> {
     if (isDemoAuthEnabled()) return (await demo()).clearDemoSuspension(id, note, actorOf(actor), now);
-    return unavailable("Suspensions are not available from the server yet.");
+    return (await api()).clearApiSuspension(id, note);
 }
 
 /* ─── Checklist unlock in API mode (T-006 §2) ─────────────────────────────── */
@@ -312,10 +325,6 @@ async function usesCustomLimit(rulesetId: string): Promise<boolean> {
     return !ruleset || ruleset.weightClasses.length === 0;
 }
 
-function isUnavailable(error: unknown): boolean {
-    return error instanceof ApiError && (error.status === 403 || error.status === 404);
-}
-
 const weightWarningStatusSchema = z.enum(["ON_TRACK", "ABOVE_TARGET", "OVER_LIMIT", "NOT_WEIGHED", "NEUTRAL"]);
 export const feasibilitySchema = z.object({
     status: weightWarningStatusSchema,
@@ -342,6 +351,8 @@ export const coachTodoSchema = z.object({
                 "WEIGH_IN_TODAY",
                 "RESULT_OVERDUE",
                 "WEIGHT_NOT_LOGGED",
+                "SUSPENSION_AWAITING_CLEARANCE",
+                "TRAINING_CONFLICTS_WITH_SUSPENSION",
             ]),
             phase: z.enum(["BEFORE", "DURING", "AFTER"]),
             fighterId: z.string(),

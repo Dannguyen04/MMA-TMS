@@ -124,6 +124,9 @@ export const CANCEL_REASONS = [
     "OTHER",
 ] as const satisfies readonly CancelReason[];
 
+/** Three rounds for a regular MMA bout, five for a main event or title fight. */
+export const SCHEDULED_ROUND_CHOICES = [3, 5] as const;
+
 export type HydrationCheck = "NOT_APPLICABLE" | "PASSED" | "FAILED";
 
 export type BoutResult = "WIN" | "LOSS" | "DRAW" | "NO_CONTEST";
@@ -227,6 +230,8 @@ export interface Suspension {
     reason: SuspensionReason;
     startsOn: string;
     endsOn: string;
+    /** The length as the bouts service counts it, `startsOn` being day 1. Absent in demo mode. */
+    days?: number;
     lossOfConsciousness: LossOfConsciousness | null;
     /** What the ruleset suggested; null when it has no rule and the coach chose the days. */
     suggestedDays: number | null;

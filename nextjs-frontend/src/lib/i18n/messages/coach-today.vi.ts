@@ -38,6 +38,7 @@ export const viCoachToday = {
     "queue.items.one": "1 việc",
     "queue.allClear": "Không còn việc nào cần bạn lúc này",
     "queue.all": "Tất cả",
+    "queue.forFighter": "cho {name}",
     "queue.showing": "Đang hiện {shown}/{total} việc gấp nhất. Chọn một nhóm ở trên để xem hết.",
 
     "coachToday.loading": "Đang tải hôm nay",

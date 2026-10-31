@@ -170,6 +170,8 @@ export const viBoutDetail = {
     "boutDetail.result.lostConsciousness": "Có mất ý thức không?",
     "boutDetail.result.headStrikes": "Trận đấu có bị dừng vì đòn vào đầu không?",
     "boutDetail.result.knockedDown": "Bị đánh ngã trong trận",
+    "boutDetail.result.suspensionDays": "Số ngày đình chỉ",
+    "boutDetail.result.suspensionDaysHint": "Chỉ dùng khi thua KO, hoặc TKO vì đòn vào đầu. Để trống thì dùng số ngày bộ luật gợi ý; bộ luật không gợi ý thì bắt buộc nhập.",
     "boutDetail.result.knockedDownDescription": "Chỉ để tham khảo; riêng mục này không tạo lệnh đình chỉ.",
     "boutDetail.result.injuries": "Chấn thương thấy sau trận",
     "boutDetail.result.injuriesHint": "Những gì bạn thấy. Đây không phải bệnh án.",

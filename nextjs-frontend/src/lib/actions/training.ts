@@ -20,6 +20,8 @@ import { getTranslator } from "@/lib/i18n/server";
 import type { MessageKey, Translator } from "@/lib/i18n/translate";
 import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
+import * as bouts from "@/lib/services/bouts";
+import { getFighter } from "@/lib/services/people";
 import { PLATFORM_FEATURE_UNAVAILABLE_MESSAGE, platformFeatureAvailable, usesTrainingServiceForms } from "@/lib/services/platform-features";
 import * as training from "@/lib/services/training";
 import { trainingEligibilityReasons, trainingWriteFailure } from "@/lib/services/training-errors";
@@ -640,15 +642,34 @@ export async function previewSessionConflicts(input: SessionConflictPreviewInput
     const { fighterId, type, targetRpe, exerciseIds, date, time } = parsed.data;
     if (!canAccessFighter(auth.user, fighterId)) return actionError(t("training.action.notOnRoster"));
 
-    const conflicts = await training.loadSessionClearanceConflicts({
-        fighterId,
-        type,
-        targetRpe,
-        // The form previews while the coach is still typing, so an incomplete date checks against now.
-        scheduledAt: isDateKey(date) && isTimeValue(time) ? academyWallClockToIso(date, time) : new Date().toISOString(),
-        exercises: exerciseIds.map((exerciseId) => ({ exerciseId, rounds: null, roundSec: null, sets: null, reps: null, notes: null })),
-    });
+    // The form previews while the coach is still typing, so an incomplete date checks against now.
+    const scheduledAt = isDateKey(date) && isTimeValue(time) ? academyWallClockToIso(date, time) : new Date().toISOString();
+    const [clearanceConflicts, suspended] = await Promise.all([
+        training.loadSessionClearanceConflicts({
+            fighterId,
+            type,
+            targetRpe,
+            scheduledAt,
+            exercises: exerciseIds.map((exerciseId) => ({ exerciseId, rounds: null, roundSec: null, sets: null, reps: null, notes: null })),
+        }),
+        suspensionConflict(fighterId, type, dayKey(scheduledAt)),
+    ]);
+    const conflicts = suspended ? [suspended, ...clearanceConflicts] : clearanceConflicts;
     return actionSuccess(conflicts.length === 0 ? t("training.action.noClearanceConflicts") : t("training.action.clearanceConflictsFound"), { conflicts });
+}
+
+/** Gate 2 in the preview: saving refuses a session type an active suspension blocks, so the form says so up front. */
+async function suspensionConflict(fighterId: string, type: TrainingType, day: string): Promise<ClearanceConflict | null> {
+    const [blocking] = await bouts.blockingSuspensions(fighterId, type, day);
+    if (!blocking) return null;
+    const fighter = await getFighter(fighterId);
+    return {
+        code: "suspended",
+        severity: "block",
+        type,
+        fighterName: fighter?.name ?? "",
+        ...(blocking.endsOn >= day ? { date: blocking.endsOn } : {}),
+    };
 }
 
 /** Loads a session the coach may act on. */

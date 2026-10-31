@@ -224,6 +224,7 @@ export const enBoutAnalysis = {
     "boutAnalysis.rounds.noteLabel": "Round note",
     "boutAnalysis.rounds.notePlaceholder": "Short corner note (max 300 characters)…",
     "boutAnalysis.rounds.saveRound": "Save round {roundNo}",
+    "boutAnalysis.rounds.updateRound": "Update round {roundNo}",
     "boutAnalysis.rounds.savingRound": "Saving…",
 
     "boutAnalysis.advice.title": "Between-round advice (before Round {nextRound})",

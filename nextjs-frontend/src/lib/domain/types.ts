@@ -1195,7 +1195,9 @@ export type CoachTodoSource =
     | "CAN_ENTER_FIGHT_WEEK"
     | "WEIGH_IN_TODAY"
     | "RESULT_OVERDUE"
-    | "WEIGHT_NOT_LOGGED";
+    | "WEIGHT_NOT_LOGGED"
+    | "SUSPENSION_AWAITING_CLEARANCE"
+    | "TRAINING_CONFLICTS_WITH_SUSPENSION";
 
 export interface CoachTodoItem {
     source: CoachTodoSource;

@@ -22,6 +22,8 @@ const TEXT: Record<CoachTodoSource, MessageKey> = {
     WEIGH_IN_TODAY: "coachTodo.WEIGH_IN_TODAY",
     RESULT_OVERDUE: "coachTodo.RESULT_OVERDUE",
     WEIGHT_NOT_LOGGED: "coachTodo.WEIGHT_NOT_LOGGED",
+    SUSPENSION_AWAITING_CLEARANCE: "coachTodo.SUSPENSION_AWAITING_CLEARANCE",
+    TRAINING_CONFLICTS_WITH_SUSPENSION: "coachTodo.TRAINING_CONFLICTS_WITH_SUSPENSION",
 };
 
 const PHASE_TEXT: Record<CoachTodoPhase, MessageKey> = {
@@ -31,7 +33,14 @@ const PHASE_TEXT: Record<CoachTodoPhase, MessageKey> = {
 };
 
 /** Sources that are late or unsafe rather than merely due: they get the warning tone. */
-const URGENT: ReadonlySet<CoachTodoSource> = new Set(["REQUIREMENTS_OVERDUE", "WEIGHT_OVER_LIMIT", "RESULT_OVERDUE", "WEIGHT_NOT_LOGGED"]);
+const URGENT: ReadonlySet<CoachTodoSource> = new Set([
+    "REQUIREMENTS_OVERDUE",
+    "WEIGHT_OVER_LIMIT",
+    "RESULT_OVERDUE",
+    "WEIGHT_NOT_LOGGED",
+    "SUSPENSION_AWAITING_CLEARANCE",
+    "TRAINING_CONFLICTS_WITH_SUSPENSION",
+]);
 
 export interface CoachTodoCardProps {
     todo: CoachTodo;
