@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // T-040 B: demo data through the HTTP API only (no SQL). Fake people, @example.com.
-// Usage: node scripts/demo-seed.mjs [--dry-run] [--with-ai]
+// Usage: node scripts/demo-seed.mjs [--dry-run] [--with-ai] [--only clearance]
+//   --only clearance: only fighter 7 (awaiting clearance); run it at least a day before the main run.
 // Env: DEMO_SEED_API_URL, DEMO_SEED_USER_PASSWORD, and DEMO_SEED_TOKEN
 //      or DEMO_SEED_ADMIN_EMAIL + DEMO_SEED_ADMIN_PASSWORD.
 import { pathToFileURL } from 'node:url';
@@ -176,12 +177,28 @@ export function buildPlan(now) {
           result: { result: 'LOSS', method: 'KO', resultRound: 2, knockedDown: true, lossOfConsciousness: 'UNDER_1_MIN', suspensionDays: 30, notes: 'Dữ liệu demo' },
         },
       },
+      {
+        // SUSPENSION_AWAITING_CLEARANCE shows from endsOn + 1, so this one is seeded a day early with --only clearance.
+        ...fighter(7, 'Giang', 'Chờ Xác Nhận Demo'),
+        stage: 'AWAITING_CLEARANCE',
+        measurements: [],
+        // MEDICAL defaults to requiresClearance; no startsOn means the backend's today, endsOn = startsOn.
+        suspension: { reason: 'MEDICAL', days: 1 },
+        bout: {
+          eventName: 'T-040 Demo · Võ sĩ 7 · Chờ xác nhận tập lại',
+          opponentName: 'Đối thủ Demo 7',
+          weighInAt: at(13, 8),
+          boutAt: at(14, 19), // today + 14: after 10/11 for any run from 27/10 on
+          target: 'SCHEDULED',
+        },
+      },
     ],
   };
 }
 
 function parseArgs(argv) {
-  return { dryRun: argv.includes('--dry-run'), withAi: argv.includes('--with-ai') };
+  const i = argv.indexOf('--only');
+  return { dryRun: argv.includes('--dry-run'), withAi: argv.includes('--with-ai'), only: i < 0 ? undefined : (argv[i + 1] ?? '') };
 }
 
 function missingEnv(env) {
@@ -204,8 +221,13 @@ const listOf = (body) =>
 // ---------------------------------------------------------------------------
 
 export async function run({ argv = [], env = {}, fetch: fetchImpl = globalThis.fetch, now = new Date(), out = console.log, err = console.error } = {}) {
-  const { dryRun, withAi } = parseArgs(argv);
-  if (isPastCutoff(now)) {
+  const { dryRun, withAi, only } = parseArgs(argv);
+  if (only !== undefined && only !== 'clearance') {
+    err(`--only "${only}" không hợp lệ. Giá trị cho phép: clearance`);
+    return 1;
+  }
+  // The cut-off is for fighter 6, who is not in --only clearance.
+  if (!only && isPastCutoff(now)) {
     const msg = `Đã quá ${CUTOFF.hour}:${CUTOFF.minute} giờ học viện (UTC+7): trận của võ sĩ 6 xếp lúc 23:00 hôm nay sẽ không kịp. Chạy lại trước ${CUTOFF.hour}:${CUTOFF.minute}.`;
     if (!dryRun) {
       err(msg);
@@ -300,7 +322,7 @@ export async function run({ argv = [], env = {}, fetch: fetchImpl = globalThis.f
       : listOf(await call('GET', '/competition-rulesets', C)).find((r) => r.name === RULESET_NAME);
     if (!ruleset) throw new Error(`Không thấy ruleset "${RULESET_NAME}" (migration 024).`);
 
-    for (const f of plan.fighters) {
+    for (const f of only ? plan.fighters.filter((x) => x.key === 'f7') : plan.fighters) {
       const fighterId = await ensureUser('FIGHTER', f, `${f.key}.fighterId`);
 
       const assignments = listOf(await call('GET', `/fighters/${fighterId}/coaches`, A));

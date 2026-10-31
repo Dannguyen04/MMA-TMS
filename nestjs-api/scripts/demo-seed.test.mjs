@@ -1,4 +1,4 @@
-// T-040 B test cases S1-S14. Run: node --test scripts/demo-seed.test.mjs
+// T-040 B test cases S1-S16. Run: node --test scripts/demo-seed.test.mjs
 // The fake API keeps real in-memory state between runs; nothing touches the network.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -137,7 +137,7 @@ test('S2: two real runs on the same fake API, the second creates nothing', async
   const m1 = first.stdout.match(/created=(\d+) existing=(\d+)/);
   assert.ok(m1, 'run 1 prints created/existing');
   assert.ok(Number(m1[1]) > 0);
-  assert.equal(api.db.users.length, 7);
+  assert.equal(api.db.users.length, 8);
   assert.equal(api.db.bouts.find((b) => b.eventName.includes('Võ sĩ 6')).status, 'COMPLETED');
 
   const before = api.requests.length;
@@ -148,7 +148,7 @@ test('S2: two real runs on the same fake API, the second creates nothing', async
   assert.equal(Number(m2[1]), 0);
   assert.ok(Number(m2[2]) > 0);
   assert.deepEqual(creatingWrites(api.requests.slice(before)), []);
-  assert.equal(api.db.users.length, 7);
+  assert.equal(api.db.users.length, 8);
 });
 
 test('S3: an existing fighter 2 user and bout are not created again, the rest is', async () => {
@@ -164,16 +164,16 @@ test('S3: an existing fighter 2 user and bout are not created again, the rest is
   const posts = api.requests.filter((r) => r.method === 'POST');
   assert.ok(!posts.some((r) => r.path === '/users' && r.body.user.email === f2.email));
   assert.ok(!posts.some((r) => r.path === '/bouts' && r.body.eventName === f2.bout.eventName));
-  assert.equal(api.db.users.length, 7);
+  assert.equal(api.db.users.length, 8);
   assert.equal(api.db.bouts.filter((b) => b.eventName === f2.bout.eventName).length, 1);
-  assert.equal(api.db.bouts.length, 4);
+  assert.equal(api.db.bouts.length, 5);
 });
 
 test('S4: every email in the plan ends with @example.com, for any now', () => {
   for (const iso of ['2026-11-03T03:00:00Z', '2026-12-31T16:59:00Z', '2027-02-28T23:00:00Z', '2030-06-15T12:00:00Z']) {
     const plan = buildPlan(new Date(iso));
     const emails = [plan.coach.email, ...plan.fighters.map((f) => f.email)];
-    assert.equal(emails.length, 7);
+    assert.equal(emails.length, 8);
     for (const e of emails) assert.match(e, /@example\.com$/);
   }
 });
@@ -310,3 +310,65 @@ test('S13: --with-ai, API giả có sẵn một gợi ý status \'FAILED\' cho t
 });
 
 test('S14: --with-ai, API giả có sẵn gợi ý status \'OK\' → không gọi /ai/ (giống S9, giữ S9)', noAiPostWhenOkSaved);
+
+const f7Suspension = (api) => {
+  const id = api.db.users.find((u) => u.email === 't040.fighter7@example.com')?.profile.id;
+  return { id, posts: api.requests.filter((r) => r.method === 'POST' && r.body?.fighterId === id) };
+};
+const assertMedicalOneDay = (body) => {
+  assert.equal(body.reason, 'MEDICAL');
+  assert.equal(body.days, 1);
+  assert.ok(body.startsOn === undefined || body.startsOn === academyDate(NOW), `startsOn ${body.startsOn}`);
+};
+
+test('S12 (ticket): --only clearance on an empty API writes only fighter 7, then a normal run does not recreate it', async () => {
+  const api = createFakeApi();
+  const plan = buildPlan(NOW);
+  const others = plan.fighters.filter((f) => f.key !== 'f7');
+  const { code, stderr } = await runSeed(api, { argv: ['--only', 'clearance'] });
+  assert.equal(code, 0, stderr);
+
+  const { id, posts } = f7Suspension(api);
+  assert.ok(id, 'fighter 7 user created');
+  const w = creatingWrites(api.requests);
+  // Coach user (empty API) + fighter 7: user, coach assignment (the backend needs it for the coach calls), bout, suspension.
+  assert.deepEqual(w.map((r) => r.path), ['/users', '/users', `/fighters/${id}/coaches`, '/suspensions', '/bouts']);
+  assert.deepEqual(w.filter((r) => r.path === '/users').map((r) => r.body.user.email), [plan.coach.email, 't040.fighter7@example.com']);
+  assertMedicalOneDay(posts.find((r) => r.path === '/suspensions').body);
+  for (const f of others) {
+    assert.ok(!w.some((r) => JSON.stringify(r.body ?? {}).includes(f.email)), `no write for ${f.email}`);
+    if (f.bout) assert.ok(!w.some((r) => r.body?.eventName === f.bout.eventName), `no bout for ${f.key}`);
+  }
+  assert.ok(w.every((r) => r.path === '/users' || r.body?.fighterId === id || r.path === `/fighters/${id}/coaches`));
+
+  const before = api.requests.length;
+  const second = await runSeed(api);
+  assert.equal(second.code, 0, second.stderr);
+  const again = creatingWrites(api.requests.slice(before));
+  assert.ok(!again.some((r) => r.path === '/users' && r.body.user.email === 't040.fighter7@example.com'));
+  assert.ok(!again.some((r) => r.body?.fighterId === id || r.path.includes(id)), 'no write for fighter 7');
+  assert.equal(api.db.suspensions.filter((x) => x.fighterId === id).length, 1);
+  assert.equal(api.db.bouts.filter((x) => x.fighterId === id).length, 1);
+});
+
+test('S15: a normal run on an empty API creates fighter 7 user, bout and MEDICAL 1-day suspension with fighters 1-6', async () => {
+  const api = createFakeApi();
+  const { code, stderr } = await runSeed(api);
+  assert.equal(code, 0, stderr);
+  for (const f of buildPlan(NOW).fighters) assert.ok(api.db.users.some((u) => u.email === f.email), f.email);
+  const { id, posts } = f7Suspension(api);
+  const bout = api.db.bouts.find((b) => b.fighterId === id);
+  assert.equal(bout.status, 'SCHEDULED');
+  assert.ok(academyDate(new Date(bout.boutAt)) > '2026-11-10');
+  const suspensions = posts.filter((r) => r.path === '/suspensions');
+  assert.equal(suspensions.length, 1);
+  assertMedicalOneDay(suspensions[0].body);
+});
+
+test('S16: --only somethingelse exits non-zero, names the allowed value, sends nothing', async () => {
+  const api = createFakeApi();
+  const { code, stderr } = await runSeed(api, { argv: ['--only', 'somethingelse'] });
+  assert.notEqual(code, 0);
+  assert.match(stderr, /clearance/);
+  assert.equal(api.requests.length, 0);
+});

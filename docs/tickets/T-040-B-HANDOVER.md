@@ -298,3 +298,41 @@ exit 0, 0 lỗi; 38 cảnh báo đều ở src/ và test/ (có sẵn, lint khôn
 $ pnpm exec oxlint scripts/demo-seed.mjs scripts/demo-seed.test.mjs   (trong nestjs-api)
 exit 0, không cảnh báo
 ```
+
+## Võ sĩ 7 và --only clearance (31/10)
+
+Theo bản ticket mới trên `origin/fight-camp` (commit `b92d391`): mục B thiết kế võ sĩ 7, ca S12, tiêu chí 6, quyết định 3.
+
+`nestjs-api/scripts/demo-seed.mjs`:
+
+1. Thêm võ sĩ 7 (`t040.fighter7@example.com`, `key: 'f7'`) vào `buildPlan`, dùng chung vòng lặp như võ sĩ 1–6: tìm user theo email, gán HLV, đình chỉ (kiểm "chưa xác nhận và không `ENDED`" như võ sĩ 4), trận (tìm theo tên sự kiện qua `seedBout`).
+2. Đình chỉ `{ reason: 'MEDICAL', days: 1 }`, không gửi `startsOn` (backend lấy hôm nay, `suspensions.service.ts:98`), không gửi `blockedSessionTypes`/`maxTier`/`requiresClearance` (`createSuspensionSchema` để cả ba tuỳ chọn; `MEDICAL` mặc định cần xác nhận).
+3. Trận ở `SCHEDULED` (nằm trong `RUNNING_STATUSES` của thẻ Việc cần làm). Quy tắc ngày: cân `today + 13` lúc 08:00, thi `today + 14` lúc 19:00 giờ học viện. Chạy từ 27/10 trở đi thì ngày thi luôn sau 10/11; chạy hôm nay (31/10) là 14/11.
+4. Võ sĩ 7 không có số cân (`measurements: []`), không có kế hoạch tập.
+5. Cờ `--only clearance`: chỉ chạy võ sĩ 7 (vẫn đăng nhập admin, tìm/tạo HLV, tìm ruleset). Giá trị khác thì thoát mã 1, báo `Giá trị cho phép: clearance`, không gửi request nào. Kết hợp được với `--dry-run`. Giờ giới hạn 22:30 không áp cho `--only clearance` vì giờ này chỉ dành cho trận võ sĩ 6.
+6. Dòng `Usage` ở đầu file thêm `--only clearance`.
+
+Lệch nhỏ với S12: ngoài user, trận, đình chỉ, script còn gửi `POST /fighters/:id/coaches` cho võ sĩ 7. Bắt buộc phải có, vì HLV chỉ tạo được trận và đình chỉ cho võ sĩ mình được gán (`suspensions.service.ts:246` `isCoachAssignedToFighter`). Test S12 kiểm cả lệnh ghi này.
+
+`nestjs-api/scripts/demo-seed.test.mjs`:
+
+- Thêm S12 (ticket, đặt tên `S12 (ticket): …` để không trùng S12 cũ), S15, S16. Tên và kết quả mong đợi của S1–S14 giữ nguyên.
+- Đổi số đếm vì có thêm võ sĩ 7: S2 và S3 `users.length` 7 → 8 (HLV + 7 võ sĩ), S3 `bouts.length` 4 → 5, S4 `emails.length` 7 → 8.
+- Trên code cũ (`HEAD` 708ca14) với test mới: S2, S3, S4, S12 (ticket), S15, S16 lỗi; trên code mới qua hết.
+
+Lệnh đã chạy (từ `D:\MMA-TMS`, env giả `DEMO_SEED_API_URL=http://127.0.0.1:9`, không gọi backend thật):
+
+```text
+$ node --test nestjs-api/scripts/demo-seed.test.mjs
+ℹ tests 17, ℹ pass 17, ℹ fail 0
+$ node nestjs-api/scripts/demo-seed.mjs --dry-run
+exit=0, 128 dòng; 4 dòng cuối là ghi của f7 (user, coaches, suspensions, bouts); created=124 existing=0 (trước là 120, +4 cho võ sĩ 7)
+$ node nestjs-api/scripts/demo-seed.mjs --dry-run --only clearance
+exit=0; ghi: login admin, user HLV, login HLV, user f7, coaches f7, suspensions f7, bouts f7; created=5 existing=0
+$ node nestjs-api/scripts/demo-seed.mjs --dry-run --only nope
+exit=1, "--only "nope" không hợp lệ. Giá trị cho phép: clearance"
+$ pnpm exec oxlint scripts/demo-seed.mjs scripts/demo-seed.test.mjs   (trong nestjs-api)
+exit 0, không cảnh báo
+```
+
+Việc của Ken ở phần C: chạy `--only clearance` trên Supabase ít nhất một ngày trước lần chạy chính.
