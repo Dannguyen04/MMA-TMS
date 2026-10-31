@@ -53,8 +53,6 @@ export interface RecordResultButtonProps extends TriggerProps {
     /** Existing result when correcting a completed session. */
     result: SessionResult | null;
     label?: string;
-    defaultOpen?: boolean;
-    locale?: Locale;
     /** Only what the training service keeps: RPE and rounds (it measures the duration and keeps no rating or summary). */
     serviceForm: boolean;
 }
@@ -72,7 +70,6 @@ export function RecordResultButton({
     variant = "primary",
     size,
     className,
-
 }: RecordResultButtonProps) {
     const t = useT();
     const locale = useLocale();
@@ -450,27 +447,16 @@ function FeedbackFields({ form, t }: { form: ActionForm<undefined>; t: Translato
 export interface RescheduleSessionButtonProps extends TriggerProps {
     session: Pick<TrainingSession, "id" | "title" | "scheduledAt" | "fighterId" | "type" | "durationMin" | "location" | "targetRpe" | "notes" | "planId"> & { exercises?: { exerciseId: string }[] };
     conflicts?: ClearanceConflict[];
-    defaultAcknowledged?: boolean;
     fighterName?: string;
-    suspensions?: readonly {
-        endsOn: string;
-        requiresClearance: boolean;
-        clearedAt?: Date | string | null;
-        startsOn?: string;
-        deletedAt?: Date | string | null;
-    }[];
-    label?: string;
+    suspensions?: Parameters<typeof suggestRescheduleDate>[0];
     defaultOpen?: boolean;
-    locale?: Locale;
 }
 
 export function RescheduleSessionButton({
     session,
     fighterName,
     conflicts,
-    defaultAcknowledged = false,
     suspensions = [],
-    label,
     variant = "primary",
     size,
     className,
@@ -480,7 +466,7 @@ export function RescheduleSessionButton({
     const locale = useLocale();
     const toast = useToast();
     const [open, setOpen] = useState(defaultOpen);
-    const [acknowledged, setAcknowledged] = useState(defaultAcknowledged);
+    const [acknowledged, setAcknowledged] = useState(false);
     const [previewConflicts, setPreviewConflicts] = useState<ClearanceConflict[] | null>(null);
 
     const suggestion = suggestRescheduleDate(suspensions);
@@ -491,7 +477,7 @@ export function RescheduleSessionButton({
         <>
             <Button variant={variant} size={size} className={className} onClick={() => setOpen(true)}>
                 <CalendarClock aria-hidden className="size-4" />
-                {label ?? t("training.actions.reschedule")}
+                {t("training.actions.reschedule")}
             </Button>
             <ActionDialog<SessionFormResult>
                 open={open}
@@ -558,26 +544,21 @@ export function RescheduleFields({
     t: Translator;
     locale: Locale;
     conflicts?: ClearanceConflict[];
-    acknowledged?: boolean;
-    onAcknowledgedChange?: (value: boolean) => void;
+    acknowledged: boolean;
+    onAcknowledgedChange: (value: boolean) => void;
     onConflictsChange?: (conflicts: ClearanceConflict[]) => void;
 }) {
     const [date, setDate] = useState(initialDate);
     const [time, setTime] = useState(initialTime);
-    const [internalAck, setInternalAck] = useState(false);
-    const [previewConflicts, setPreviewConflicts] = useState<ClearanceConflict[] | null>(null);
-
-    const isAck = acknowledged ?? internalAck;
-    const handleAckChange = onAcknowledgedChange ?? setInternalAck;
 
     const handleDateChange = (val: string) => {
         setDate(val);
-        handleAckChange(false);
+        onAcknowledgedChange(false);
     };
 
     const handleTimeChange = (val: string) => {
         setTime(val);
-        handleAckChange(false);
+        onAcknowledgedChange(false);
     };
 
     useEffect(() => {
@@ -594,16 +575,10 @@ export function RescheduleFields({
                 time,
             }).then(
                 (result) => {
-                    if (cancelled) return;
-                    const loadedConflicts = result.data?.conflicts ?? [];
-                    setPreviewConflicts(loadedConflicts);
-                    onConflictsChange?.(loadedConflicts);
+                    if (!cancelled) onConflictsChange?.(result.data?.conflicts ?? []);
                 },
                 () => {
-                    if (!cancelled) {
-                        setPreviewConflicts([]);
-                        onConflictsChange?.([]);
-                    }
+                    if (!cancelled) onConflictsChange?.([]);
                 },
             );
         }, 350);
@@ -613,7 +588,7 @@ export function RescheduleFields({
         };
     }, [session?.fighterId, session?.type, session?.targetRpe, session?.exercises, date, time, propConflicts, onConflictsChange]);
 
-    const activeConflicts = propConflicts ?? previewConflicts ?? form.state.data?.conflicts ?? [];
+    const activeConflicts = propConflicts ?? form.state.data?.conflicts ?? [];
 
     return (
         <div className="flex flex-col gap-4">
@@ -678,8 +653,8 @@ export function RescheduleFields({
                     pending={false}
                     conflicts={activeConflicts}
                     fighterName={fighterName}
-                    acknowledged={isAck}
-                    onAcknowledgedChange={handleAckChange}
+                    acknowledged={acknowledged}
+                    onAcknowledgedChange={onAcknowledgedChange}
                     acknowledgeLabel={t("training.actions.rescheduleAcknowledge")}
                 />
             )}
@@ -698,13 +673,7 @@ export interface SessionCoachActionsProps {
     fighterName: string;
     now?: string;
     locale?: Locale;
-    suspensions?: readonly {
-        endsOn: string;
-        requiresClearance: boolean;
-        clearedAt?: Date | string | null;
-        startsOn?: string;
-        deletedAt?: Date | string | null;
-    }[];
+    suspensions?: Parameters<typeof suggestRescheduleDate>[0];
     recordButton?: React.ReactNode;
     editHref?: string;
     scheduleAgainHref?: string;

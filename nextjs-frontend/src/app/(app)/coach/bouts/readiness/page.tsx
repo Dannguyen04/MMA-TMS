@@ -125,101 +125,44 @@ export default async function CoachReadinessPage({ searchParams }: CoachReadines
 
             {/* Three Columns Kanban Layout */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-                {/* Column 1: Ready */}
-                <section data-column="ready" className="flex flex-col gap-3">
-                    <div className="sticky top-0 z-10 bg-surface/95 backdrop-blur py-2.5 px-3 rounded-lg border border-border flex items-center justify-between">
-                        <h2 className="text-sm font-semibold text-fg flex items-center gap-2">
-                            <CheckCircle2 className="size-4 text-success-fg" aria-hidden />
-                            <span>{t("readiness.columns.ready")}</span>
-                        </h2>
-                        <span
-                            data-count="ready"
-                            className="rounded-full bg-surface-muted px-2 py-0.5 text-xs font-semibold text-fg-muted"
-                        >
-                            {readyRows.length}
-                        </span>
-                    </div>
-
-                    {readyRows.length === 0 ? (
-                        <div className="rounded-xl border border-dashed border-border/80 p-6 text-center text-xs text-fg-muted">
-                            {t("readiness.empty.ready")}
+                {(
+                    [
+                        { type: "ready", icon: <CheckCircle2 className="size-4 text-success-fg" aria-hidden />, labelKey: "readiness.columns.ready", emptyKey: "readiness.empty.ready", rows: readyRows },
+                        { type: "graded-return", icon: <Clock className="size-4 text-info-fg" aria-hidden />, labelKey: "readiness.columns.gradedReturn", emptyKey: "readiness.empty.gradedReturn", rows: gradedReturnRows },
+                        { type: "not-ready", icon: <Ban className="size-4 text-danger-fg" aria-hidden />, labelKey: "readiness.columns.notReady", emptyKey: "readiness.empty.notReady", rows: notReadyRows },
+                    ] as const
+                ).map((column) => (
+                    <section key={column.type} data-column={column.type} className="flex flex-col gap-3">
+                        <div className="sticky top-0 z-10 bg-surface/95 backdrop-blur py-2.5 px-3 rounded-lg border border-border flex items-center justify-between">
+                            <h2 className="text-sm font-semibold text-fg flex items-center gap-2">
+                                {column.icon}
+                                <span>{t(column.labelKey)}</span>
+                            </h2>
+                            <span
+                                data-count={column.type}
+                                className="rounded-full bg-surface-muted px-2 py-0.5 text-xs font-semibold text-fg-muted"
+                            >
+                                {column.rows.length}
+                            </span>
                         </div>
-                    ) : (
-                        readyRows.map((row) => (
-                            <FighterCard
-                                key={row.fighterId}
-                                row={row}
-                                columnType="ready"
-                                locale={locale}
-                                t={t}
-                            />
-                        ))
-                    )}
-                </section>
 
-                {/* Column 2: Graded Return */}
-                <section data-column="graded-return" className="flex flex-col gap-3">
-                    <div className="sticky top-0 z-10 bg-surface/95 backdrop-blur py-2.5 px-3 rounded-lg border border-border flex items-center justify-between">
-                        <h2 className="text-sm font-semibold text-fg flex items-center gap-2">
-                            <Clock className="size-4 text-info-fg" aria-hidden />
-                            <span>{t("readiness.columns.gradedReturn")}</span>
-                        </h2>
-                        <span
-                            data-count="graded-return"
-                            className="rounded-full bg-surface-muted px-2 py-0.5 text-xs font-semibold text-fg-muted"
-                        >
-                            {gradedReturnRows.length}
-                        </span>
-                    </div>
-
-                    {gradedReturnRows.length === 0 ? (
-                        <div className="rounded-xl border border-dashed border-border/80 p-6 text-center text-xs text-fg-muted">
-                            {t("readiness.empty.gradedReturn")}
-                        </div>
-                    ) : (
-                        gradedReturnRows.map((row) => (
-                            <FighterCard
-                                key={row.fighterId}
-                                row={row}
-                                columnType="graded-return"
-                                locale={locale}
-                                t={t}
-                            />
-                        ))
-                    )}
-                </section>
-
-                {/* Column 3: Not Ready */}
-                <section data-column="not-ready" className="flex flex-col gap-3">
-                    <div className="sticky top-0 z-10 bg-surface/95 backdrop-blur py-2.5 px-3 rounded-lg border border-border flex items-center justify-between">
-                        <h2 className="text-sm font-semibold text-fg flex items-center gap-2">
-                            <Ban className="size-4 text-danger-fg" aria-hidden />
-                            <span>{t("readiness.columns.notReady")}</span>
-                        </h2>
-                        <span
-                            data-count="not-ready"
-                            className="rounded-full bg-surface-muted px-2 py-0.5 text-xs font-semibold text-fg-muted"
-                        >
-                            {notReadyRows.length}
-                        </span>
-                    </div>
-
-                    {notReadyRows.length === 0 ? (
-                        <div className="rounded-xl border border-dashed border-border/80 p-6 text-center text-xs text-fg-muted">
-                            {t("readiness.empty.notReady")}
-                        </div>
-                    ) : (
-                        notReadyRows.map((row) => (
-                            <FighterCard
-                                key={row.fighterId}
-                                row={row}
-                                columnType="not-ready"
-                                locale={locale}
-                                t={t}
-                            />
-                        ))
-                    )}
-                </section>
+                        {column.rows.length === 0 ? (
+                            <div className="rounded-xl border border-dashed border-border/80 p-6 text-center text-xs text-fg-muted">
+                                {t(column.emptyKey)}
+                            </div>
+                        ) : (
+                            column.rows.map((row) => (
+                                <FighterCard
+                                    key={row.fighterId}
+                                    row={row}
+                                    columnType={column.type}
+                                    locale={locale}
+                                    t={t}
+                                />
+                            ))
+                        )}
+                    </section>
+                ))}
             </div>
         </div>
     );

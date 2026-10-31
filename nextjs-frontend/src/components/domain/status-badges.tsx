@@ -546,18 +546,7 @@ export function suspensionStatusBadgeLabel(
         return t("suspension.status.ACTIVE_WITH_DAY", { elapsed, total });
     }
 
-    switch (status) {
-        case "ACTIVE":
-            return t("suspension.status.ACTIVE");
-        case "AWAITING_CLEARANCE":
-            return t("suspension.status.AWAITING_CLEARANCE");
-        case "ENDED":
-            return t("suspension.status.ENDED");
-        case "UPCOMING":
-            return t("suspension.status.UPCOMING");
-        default:
-            return status;
-    }
+    return t(`suspension.status.${status}`);
 }
 
 export interface SuspensionStatusBadgeProps {
@@ -570,11 +559,6 @@ export interface SuspensionStatusBadgeProps {
     variant?: "soft" | "solid" | "outline";
     className?: string;
     locale?: Locale;
-    suspension?: {
-        startsOn?: string;
-        endsOn?: string;
-        gradedReturn?: { ceiling: number } | null;
-    };
 }
 
 export function SuspensionStatusBadge({
@@ -587,19 +571,9 @@ export function SuspensionStatusBadge({
     variant,
     className,
     locale,
-    suspension,
 }: SuspensionStatusBadgeProps) {
-    const effectiveStartsOn = startsOn ?? suspension?.startsOn;
-    const effectiveEndsOn = endsOn ?? suspension?.endsOn;
-    const effectiveCeiling = ceiling ?? suspension?.gradedReturn?.ceiling;
     const meta = SUSPENSION_STATUS_META[status];
-    const label = suspensionStatusBadgeLabel(status, {
-        ceiling: effectiveCeiling,
-        startsOn: effectiveStartsOn,
-        endsOn: effectiveEndsOn,
-        today,
-        locale,
-    });
+    const label = suspensionStatusBadgeLabel(status, { ceiling, startsOn, endsOn, today, locale });
     return (
         <StatusBadge
             meta={{ ...meta, label }}

@@ -2097,3 +2097,36 @@ pnpm --filter nextjs-frontend test       -> Test Files  99 passed | 1 skipped (1
 ```
 
 Mốc trước: 956 passed | 2 skipped (958). Chênh 4 = 4 test đã xoá ở trên.
+
+## Lượt cắt ponytail 2 (31/10)
+
+Phạm vi: trang và component của T-030. Giao diện, chữ, class và thứ tự không đổi; không đổi kết quả mong đợi của test nào.
+
+**Đã cắt**
+
+1. `app/(app)/coach/bouts/readiness/page.tsx`: ba khối cột gần giống nhau thành một `.map` trên mảng `{ type, icon, labelKey, emptyKey, rows }`. Viết thẳng trong `.map`, không tách component `ReadinessColumn` (chỉ dùng một chỗ). `data-column`, `data-count`, class, icon và thứ tự giữ nguyên.
+2. `app/(app)/coach/bouts/suspensions/page.tsx`: một bản ghi `FILTERS` (khoá trạng thái -> `labelKey` + `matches`). Số đếm, danh sách lọc, 5 link và kiểm tra `?status=` đều suy từ bản ghi đó; bỏ `VALID_STATUSES`, năm biến đếm, chuỗi if/else và `totalActive`. Kiểm tra tham số dùng `Object.hasOwn` (tránh `?status=constructor` lọt qua `in`). `?status=ALL` và tham số lạ vẫn về "Tất cả" như cũ.
+3. `create-suspension-panel.tsx`: sáu `reasonOptions` viết tay thành `.map` trên `SUSPENSION_REASON_MESSAGE_KEYS` (nhãn KO/TKO lấy từ `suspension.reason.KO/TKO`, ở cả vi và en đều là "KO"/"TKO"); ba khối `plural(...)` thành một mảng `filter` + `map`; bỏ `translator = createTranslator(locale)` và dùng `t` từ `useT()` (prop `locale` và `LocaleProvider` cùng lấy từ cookie locale).
+4. `components/domain/status-badges.tsx`: `switch` trong `suspensionStatusBadgeLabel` thành `` t(`suspension.status.${status}`) `` (sau khi loại GRADED_RETURN, kiểu còn lại là `SuspensionStatus`, đủ 4 khoá, chữ giống hệt); bỏ prop `suspension` và các biến `effective*` của `SuspensionStatusBadge` (không ai truyền).
+5. `components/training/session-coach-actions.tsx`: hai kiểu `suspensions` viết tay thành `Parameters<typeof suggestRescheduleDate>[0]`; `RescheduleFields` bỏ nhánh `internalAck` (`acknowledged`/`onAcknowledgedChange` thành bắt buộc) và bỏ state `previewConflicts` riêng (chỉ còn ở `RescheduleSessionButton`, truyền xuống qua `conflicts`; vì hai `setState` cùng lô nên kết quả hiển thị không đổi); `RescheduleSessionButton` bỏ `defaultAcknowledged`, `label`, `locale`; `RecordResultButtonProps` bỏ `defaultOpen`, `locale`; xoá dòng trống thừa.
+
+**Bỏ qua và lý do**
+
+- Mục 3, `resetForm` -> remount bằng `key`: bỏ qua. State của form quyết định cả prop của `Dialog` (tiêu đề, mô tả, `dismissible`), nên phải remount cả `Dialog`. `Dialog` dùng `<dialog>` gốc; remount gỡ phần tử đang mở khỏi DOM thay vì gọi `close()`, trình duyệt không trả focus về nút mở. Hành vi focus sẽ đổi.
+- Mục 5, prop `conflicts` của `RescheduleSessionButton`: giữ. Không caller production nào truyền, nhưng B5-17 cần nó để đưa conflicts vào bản render tĩnh. Bỏ prop thì phải mock nội bộ hoặc chép logic `submitDisabled` vào test, làm test yếu đi.
+- Mục 6, `initialState` của `ActionDialog`: giữ. B5-13 truyền `initialState: errorState` để render trạng thái lỗi; render tĩnh không có cách nào khác.
+
+**Test đã đổi đầu vào** (`components/training/session-suspension-b5.test.ts`, giữ tên và kết quả mong đợi)
+
+- B5-13: thêm `acknowledged: false, onAcknowledgedChange: () => {}` cho `RescheduleFields`, vì hai prop này giờ bắt buộc.
+- B5-14, B5-17 (3 chỗ): bỏ `locale: "vi"` khỏi `RescheduleSessionButton`, vì prop đã xoá. Component vốn lấy locale từ `useLocale()` (mặc định `vi`), nên kết quả không đổi.
+
+**Kích thước**: `git diff --shortstat` -> `6 files changed, 89 insertions(+), 295 deletions(-)` (chưa tính handover).
+
+**Lệnh** (chạy từ `D:\MMA-TMS`)
+
+```
+pnpm --filter nextjs-frontend lint       -> eslint sạch, không có cảnh báo
+pnpm --filter nextjs-frontend typecheck  -> ✓ Types generated successfully, tsc --noEmit sạch
+pnpm --filter nextjs-frontend test       -> Test Files  99 passed | 1 skipped (100); Tests  952 passed | 2 skipped (954)
+```

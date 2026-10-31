@@ -670,6 +670,8 @@ describe("T-030 B5: Lịch tập (Training schedule & suspensions sync)", () => 
                                 initialTime: "10:00",
                                 t: createTranslator("vi"),
                                 locale: "vi",
+                                acknowledged: false,
+                                onAcknowledgedChange: () => {},
                             }),
                     },
                 ),
@@ -705,7 +707,6 @@ describe("T-030 B5: Lịch tập (Training schedule & suspensions sync)", () => 
                 null,
                 createElement(RescheduleSessionButton, {
                     session,
-                    locale: "vi",
                     suspensions,
                     defaultOpen: true,
                 }),
@@ -829,7 +830,6 @@ describe("T-030 B5: Lịch tập (Training schedule & suspensions sync)", () => 
                 null,
                 createElement(RescheduleSessionButton, {
                     session,
-                    locale: "vi",
                     defaultOpen: true,
                     conflicts: warnConflicts,
                 }),
@@ -855,7 +855,6 @@ describe("T-030 B5: Lịch tập (Training schedule & suspensions sync)", () => 
                 null,
                 createElement(RescheduleSessionButton, {
                     session,
-                    locale: "vi",
                     defaultOpen: true,
                     conflicts: blockConflicts,
                 }),

@@ -18,7 +18,7 @@ import { useToast } from "@/components/ui/toast";
 import { createSuspensionAction } from "@/lib/actions/suspensions";
 import { SESSION_TYPES, type SessionType } from "@/lib/domain/medical-contract";
 import { trainingPhaseLabel, trainingTypeLabel } from "@/lib/domain/labels";
-import { deriveRequiresClearance, endsOnFor } from "@/lib/domain/suspension-rules";
+import { deriveRequiresClearance, endsOnFor, SUSPENSION_REASON_MESSAGE_KEYS } from "@/lib/domain/suspension-rules";
 import type {
     SuspensionCreation,
     SuspensionReason,
@@ -26,7 +26,7 @@ import type {
 } from "@/lib/domain/types";
 import { formatShortDate } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
-import { createTranslator, plural } from "@/lib/i18n/translate";
+import { plural } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
@@ -174,71 +174,23 @@ export function CreateSuspensionPanel({
         });
     };
 
-    const reasonOptions: ChoiceOption<SuspensionReason>[] = [
-        {
-            value: "KO",
-            label: "KO",
-            description: t("suspensions.reasonDesc.KO"),
-        },
-        {
-            value: "TKO",
-            label: "TKO",
-            description: t("suspensions.reasonDesc.TKO"),
-        },
-        {
-            value: "DQ",
-            label: t("suspension.reason.DQ"),
-            description: t("suspensions.reasonDesc.DQ"),
-        },
-        {
-            value: "MANDATORY_REST",
-            label: t("suspension.reason.MANDATORY_REST"),
-            description: t("suspensions.reasonDesc.MANDATORY_REST"),
-        },
-        {
-            value: "MEDICAL",
-            label: t("suspension.reason.MEDICAL"),
-            description: t("suspensions.reasonDesc.MEDICAL"),
-        },
-        {
-            value: "OTHER",
-            label: t("suspension.reason.OTHER"),
-            description: t("suspensions.reasonDesc.OTHER"),
-        },
-    ];
-
-    const translator = createTranslator(locale);
+    const reasonOptions: ChoiceOption<SuspensionReason>[] = Object.entries(SUSPENSION_REASON_MESSAGE_KEYS).map(([value, labelKey]) => ({
+        value: value as SuspensionReason,
+        label: t(labelKey),
+        description: t(`suspensions.reasonDesc.${value as SuspensionReason}`),
+    }));
 
     // Consequence counts
-    const cancelledCount =
-        createdResult?.affectedSessions.filter((s) => s.action === "cancel").length ?? 0;
-    const rescheduledCount =
-        createdResult?.affectedSessions.filter((s) => s.action === "pending").length ?? 0;
-    const rehabPlansCount = createdResult?.affectedPlans.length ?? 0;
-
-    const summaryParts: string[] = [];
-    if (cancelledCount > 0) {
-        summaryParts.push(
-            plural(t, "suspensions.consequences.summaryCancelled", cancelledCount, {
-                count: cancelledCount,
-            }),
-        );
-    }
-    if (rescheduledCount > 0) {
-        summaryParts.push(
-            plural(t, "suspensions.consequences.summaryRescheduled", rescheduledCount, {
-                count: rescheduledCount,
-            }),
-        );
-    }
-    if (rehabPlansCount > 0) {
-        summaryParts.push(
-            plural(t, "suspensions.consequences.summaryRehabPlans", rehabPlansCount, {
-                count: rehabPlansCount,
-            }),
-        );
-    }
-    const summaryHeadline = summaryParts.join(" · ");
+    const summaryHeadline = (
+        [
+            ["suspensions.consequences.summaryCancelled", createdResult?.affectedSessions.filter((s) => s.action === "cancel").length ?? 0],
+            ["suspensions.consequences.summaryRescheduled", createdResult?.affectedSessions.filter((s) => s.action === "pending").length ?? 0],
+            ["suspensions.consequences.summaryRehabPlans", createdResult?.affectedPlans.length ?? 0],
+        ] as const
+    )
+        .filter(([, count]) => count > 0)
+        .map(([key, count]) => plural(t, key, count, { count }))
+        .join(" · ");
 
     return (
         <Dialog
@@ -532,7 +484,7 @@ export function CreateSuspensionPanel({
                                     {SESSION_TYPES.map((type: SessionType) => {
                                         const isChecked = customBlockedTypes.includes(type);
                                         const label = trainingTypeLabel(
-                                            translator,
+                                            t,
                                             type.toLowerCase() as TrainingType,
                                         );
                                         const checkboxId = `blocked-type-${type}`;

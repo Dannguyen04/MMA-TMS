@@ -14,10 +14,10 @@ import { EmptyState } from "@/components/ui/states";
 import { accessibleFighterIds } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { academyDateOf, daysBetweenDates, suspensionReasonLabel } from "@/lib/domain/suspension-rules";
-import type { Bout } from "@/lib/domain/types";
+import type { Bout, Suspension } from "@/lib/domain/types";
 import { formatShortDate } from "@/lib/format";
 import { getTranslator } from "@/lib/i18n/server";
-import { plural } from "@/lib/i18n/translate";
+import { plural, type MessageKey } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import { listBouts } from "@/lib/services/bouts";
 import { listFighters } from "@/lib/services/people";
@@ -31,7 +31,13 @@ export async function generateMetadata(): Promise<Metadata> {
     return { title: `${t("suspensions.title")} · ${t("nav.Bouts")}` };
 }
 
-const VALID_STATUSES = new Set(["ACTIVE", "AWAITING_CLEARANCE", "GRADED_RETURN", "ENDED"]);
+const FILTERS = {
+    ALL: { labelKey: "suspensions.filter.all", matches: () => true },
+    ACTIVE: { labelKey: "suspensions.filter.active", matches: (s: Suspension) => s.status === "ACTIVE" },
+    AWAITING_CLEARANCE: { labelKey: "suspensions.filter.awaitingClearance", matches: (s: Suspension) => s.status === "AWAITING_CLEARANCE" },
+    GRADED_RETURN: { labelKey: "suspensions.filter.gradedReturn", matches: (s: Suspension) => s.gradedReturn !== null && s.gradedReturn !== undefined },
+    ENDED: { labelKey: "suspensions.filter.ended", matches: (s: Suspension) => s.status === "ENDED" && !s.gradedReturn },
+} as const satisfies Record<string, { labelKey: MessageKey; matches: (s: Suspension) => boolean }>;
 
 export default async function CoachSuspensionsPage({
     searchParams,
@@ -39,7 +45,7 @@ export default async function CoachSuspensionsPage({
     const user = await requireRole("coach");
     const params = await searchParams;
     const rawStatus = param(params.status);
-    const statusFilter = VALID_STATUSES.has(rawStatus ?? "") ? rawStatus : "ALL";
+    const statusFilter = rawStatus && Object.hasOwn(FILTERS, rawStatus) ? (rawStatus as keyof typeof FILTERS) : "ALL";
 
     const [suspensions, fighters, bouts, { t, locale }] = await Promise.all([
         listSuspensions({}, user),
@@ -53,62 +59,13 @@ export default async function CoachSuspensionsPage({
     const boutsById = new Map<string, Bout>();
     for (const b of bouts) boutsById.set(b.id, b);
 
-    // Counts for filter bar
-    const countAll = suspensions.length;
-    const countActive = suspensions.filter((s) => s.status === "ACTIVE").length;
-    const countAwaiting = suspensions.filter((s) => s.status === "AWAITING_CLEARANCE").length;
-    const countGradedReturn = suspensions.filter(
-        (s) => s.gradedReturn !== null && s.gradedReturn !== undefined,
-    ).length;
-    const countEnded = suspensions.filter((s) => s.status === "ENDED" && !s.gradedReturn).length;
-    const totalActive = countActive;
-
-    // Filter suspensions according to searchParam
-    let filteredSuspensions = suspensions;
-    if (statusFilter === "ACTIVE") {
-        filteredSuspensions = suspensions.filter((s) => s.status === "ACTIVE");
-    } else if (statusFilter === "AWAITING_CLEARANCE") {
-        filteredSuspensions = suspensions.filter((s) => s.status === "AWAITING_CLEARANCE");
-    } else if (statusFilter === "GRADED_RETURN") {
-        filteredSuspensions = suspensions.filter(
-            (s) => s.gradedReturn !== null && s.gradedReturn !== undefined,
-        );
-    } else if (statusFilter === "ENDED") {
-        filteredSuspensions = suspensions.filter((s) => s.status === "ENDED" && !s.gradedReturn);
-    }
-
-    const filterItems: SegmentedLinkItem[] = [
-        {
-            href: routes.coach.suspensions,
-            label: t("suspensions.filter.all"),
-            count: countAll,
-            active: statusFilter === "ALL",
-        },
-        {
-            href: `${routes.coach.suspensions}?status=ACTIVE`,
-            label: t("suspensions.filter.active"),
-            count: countActive,
-            active: statusFilter === "ACTIVE",
-        },
-        {
-            href: `${routes.coach.suspensions}?status=AWAITING_CLEARANCE`,
-            label: t("suspensions.filter.awaitingClearance"),
-            count: countAwaiting,
-            active: statusFilter === "AWAITING_CLEARANCE",
-        },
-        {
-            href: `${routes.coach.suspensions}?status=GRADED_RETURN`,
-            label: t("suspensions.filter.gradedReturn"),
-            count: countGradedReturn,
-            active: statusFilter === "GRADED_RETURN",
-        },
-        {
-            href: `${routes.coach.suspensions}?status=ENDED`,
-            label: t("suspensions.filter.ended"),
-            count: countEnded,
-            active: statusFilter === "ENDED",
-        },
-    ];
+    const filterItems: SegmentedLinkItem[] = Object.entries(FILTERS).map(([status, { labelKey, matches }]) => ({
+        href: status === "ALL" ? routes.coach.suspensions : `${routes.coach.suspensions}?status=${status}`,
+        label: t(labelKey),
+        count: suspensions.filter(matches).length,
+        active: statusFilter === status,
+    }));
+    const filteredSuspensions = suspensions.filter(FILTERS[statusFilter].matches);
 
     const fighterOptions = fighters.map((f) => ({ id: f.id, name: f.name }));
 
@@ -124,7 +81,7 @@ export default async function CoachSuspensionsPage({
         <div className="flex flex-col gap-6">
             <PageHeader
                 title={t("suspensions.title")}
-                description={plural(t, "suspensions.activeCount", totalActive)}
+                description={plural(t, "suspensions.activeCount", suspensions.filter(FILTERS.ACTIVE.matches).length)}
                 actions={newSuspensionButton}
             />
 
