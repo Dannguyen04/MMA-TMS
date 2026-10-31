@@ -58,3 +58,10 @@
 
 - Trận `COMPLETED` hoặc `CANCELLED` vẫn ghi được câu trả lời "ăn theo kế hoạch?". Đặc tả không cấm nên code giữ như vậy.
 - Áp migration 026 lên Supabase: chủ dự án làm (`db:migrate:026`).
+
+## Cắt ponytail (31/10)
+
+- `5957f89`: `findNutritionCheckinsForBout` trả thẳng kết quả query, `upsertNutritionCheckin` dùng `.values(data)`, xoá 4 type không ai dùng. Kiểm lại: lint 0 lỗi, build OK, `vitest src/bouts src/fighters` 456/456, `test:db` 49, `db:check` OK.
+- Review độc lập: APPROVED (người gọi duy nhất truyền đúng 6 trường; hình dạng trả về không đổi).
+
+**Kết luận: APPROVED tại `5957f89` (cộng commit tài liệu này).**
