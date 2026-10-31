@@ -71,8 +71,9 @@ Frontend chạy demo mode mặc định khi không phải production (`nextjs-fr
   1. Đang camp, có ngày thiếu cân.
   2. Tuần thi đấu, cân gần đỏ.
   3. Vừa cân xong.
-  4. Đang đình chỉ, có buổi `SCHEDULED` bị xung đột và một buổi `PENDING`.
+  4. Đang đình chỉ. Xếp buổi loại bị chặn trong khoảng đình chỉ **trước**, rồi mới tạo đình chỉ, để T-036 tự chuyển các buổi đó sang `PENDING`. Sau khi chạy, võ sĩ này có ít nhất một buổi `PENDING` và không còn buổi `SCHEDULED` nào trong khoảng đình chỉ.
   5. Sẵn sàng.
+- Thêm võ sĩ 7, dùng cho nguồn `SUSPENSION_AWAITING_CLEARANCE` (quyết định 31/10, mục 6): một trận đang chạy, ngày thi sau 10/11, và một đình chỉ `MEDICAL` `days: 1` bắt đầu hôm nay (`requiresClearance` mặc định `true`, `endsOn = startsOn`). Từ ngày hôm sau, võ sĩ này ở trạng thái chờ xác nhận tập lại cho tới khi có người bấm xác nhận. Vì nguồn này chỉ có từ `endsOn + 1`, script có cờ `--only clearance` chỉ tạo võ sĩ 7, và Ken chạy cờ này trên Supabase ít nhất một ngày trước lần chạy chính. Lần chạy chính tìm thấy võ sĩ 7 theo email và không tạo lại.
 - Thêm võ sĩ 6: một trận đã có kết quả thua KO, có ghi theo hiệp, phân tích đối thủ, kế hoạch hiệp sau (T-037) và gợi ý AI đã lưu (T-038). Võ sĩ này dùng cho thẻ góc đài, màn ghi hiệp và báo cáo trận.
 - Ngày tính theo ngày chạy script, không "tua thời gian". Chạy lại không tạo trùng: tìm theo email hoặc tên sự kiện trước khi tạo.
 - Có `--dry-run`: in ra các request sẽ gửi, không gửi.
@@ -104,7 +105,8 @@ Frontend chạy demo mode mặc định khi không phải production (`nextjs-fr
 | S7 | `now` = `2026-11-03T15:40:00Z` (22:40 UTC+7), chạy thật | Thoát mã khác 0, câu báo nêu giờ giới hạn, **không** có request ghi nào | node:test, API giả |
 | S8 | Không có `--with-ai` | Không có request nào tới đường dẫn chứa `/ai/` | node:test, API giả |
 | S9 | Có `--with-ai`, API giả đã có một gợi ý cho trận của võ sĩ 6 | Không gọi `POST …/ai/…` | node:test, API giả |
-| S10 | Kế hoạch của võ sĩ 4 | Có buổi tập loại bị chặn được tạo **trước** đình chỉ, nằm trong khoảng đình chỉ. Script không gọi `POST /suspensions/:id/conflicts/apply`. *(Sửa 31/10: đặc tả cũ đòi "còn một buổi `SCHEDULED` xung đột". Backend không cho làm vậy: `POST /suspensions` tự áp R28 trong cùng transaction, `suspensions.service.ts:135`, nên mọi buổi bị chặn thành `PENDING`. Chờ chủ dự án quyết nguồn `TRAINING_CONFLICTS_WITH_SUSPENSION` của tiêu chí 6.)* | node:test, API giả |
+| S10 | Kế hoạch của võ sĩ 4 | Có buổi tập loại bị chặn được tạo **trước** đình chỉ, nằm trong khoảng đình chỉ. Script không gọi `POST /suspensions/:id/conflicts/apply`. *(Sửa 31/10: đặc tả cũ đòi "còn một buổi `SCHEDULED` xung đột". Backend không cho làm vậy: `POST /suspensions` tự áp R28 trong cùng transaction, `suspensions.service.ts:135`, nên mọi buổi bị chặn thành `PENDING`. Chủ dự án quyết 31/10: bỏ nguồn `TRAINING_CONFLICTS_WITH_SUSPENSION` khỏi tiêu chí 6.)* | node:test, API giả |
+| S12 | `--only clearance`, API giả rỗng | Chỉ tạo user, trận và đình chỉ của võ sĩ 7. Đình chỉ có `reason: MEDICAL`, `days: 1`, không có `startsOn` hoặc `startsOn` = hôm nay. Không có request ghi nào cho võ sĩ 1–6. Chạy tiếp không cờ thì không tạo lại võ sĩ 7 | node:test, API giả |
 | S11 | Mọi file trong `git diff` | Không chứa token, mật khẩu thật hay URL Supabase | Claude kiểm khi review |
 
 Kết quả trên Supabase (tiêu chí 5, 6) do Ken chạy thật ở phần C. Người thực hiện chỉ chạy `--dry-run` và test.
@@ -151,12 +153,9 @@ Mỗi lỗi chặn trình bày (trang lỗi, mất dữ liệu, sai nghiệp v�
 3. **A:** số test frontend qua ≥ tổng số test riêng của `fight-camp` cộng số test mới của các nhánh đã gộp. Không test nào của ticket nguồn bị xoá hay bị `skip`. Handover có bảng file test theo từng ticket.
 4. **A:** các câu đã dịch ở `fight-camp` không quay lại tiếng Anh. Với mỗi file xung đột, handover ghi bên đã giữ. Không còn chuỗi tiếng Anh cứng nào thay chỗ một lệnh gọi `t(...)` đã có ở `fight-camp`.
 5. **B:** chạy script hai lần liên tiếp thì lần 2 không tạo bản ghi mới (in ra số bản ghi đã tạo và đã có). `--dry-run` không gửi request ghi nào.
-6. **B:** sau khi chạy, bảng Sẵn sàng hiện đúng giai đoạn của 6 võ sĩ. Thẻ Việc cần làm có ít nhất các nguồn: cân xám hoặc đỏ, nhắc cân, `SUSPENSION_AWAITING_CLEARANCE`, `TRAINING_CONFLICTS_WITH_SUSPENSION`.
-   > **Mâu thuẫn trong tiêu chí này (Claude trên máy Ken, 31/10). Chủ dự án quyết.** Hai nguồn cuối **không tạo được qua API** nếu theo đúng ràng buộc của chính ticket ("chỉ qua API", "ngày theo ngày chạy, không tua thời gian"):
-   > - `TRAINING_CONFLICTS_WITH_SUSPENSION`: từ T-036 (migration 032, đã áp 30/10), mọi đường tạo đình chỉ đều tự áp R28 trong cùng transaction: tạo tay ở `suspensions.service.ts:136`, ghi kết quả KO ở `bouts.service.ts:1823`. Các buổi bị chặn thành `PENDING` hoặc `CANCELLED` ngay lúc tạo, và Cổng 2 chặn tạo hay dời buổi vào khoảng đình chỉ (`training-session.service.ts:112`, `:194`). Vì vậy không thể còn buổi `SCHEDULED` xung đột. Đây là hành vi đúng của luật "bị đình chỉ thì không tập". Nguồn này chỉ còn sinh được từ dữ liệu có trước T-036. Code tạo nguồn (`bouts-todo.model.ts:199`) nên xem xét ở T-044.
-   > - `SUSPENSION_AWAITING_CLEARANCE`: chỉ có từ ngày `endsOn + 1` của một đình chỉ cần xác nhận (`bouts-todo.model.ts:174–183`), mà đình chỉ không được bắt đầu trước hôm nay (`suspensions.model.ts:449–453`). Vì vậy không có được trong ngày chạy script.
-   >
-   > Script làm đúng phạm vi: có cân xám (võ sĩ 1), nhắc cân, và võ sĩ 4 đình chỉ có buổi `PENDING`. Đề nghị bỏ hai nguồn trên khỏi tiêu chí này. Ken không làm thêm bước chạy trước một ngày, vì ticket không có bước đó.
+6. **B:** sau khi chạy, bảng Sẵn sàng hiện đúng giai đoạn của 7 võ sĩ. Thẻ Việc cần làm có ít nhất các nguồn: cân xám hoặc đỏ, nhắc cân, và `SUSPENSION_AWAITING_CLEARANCE` của võ sĩ 7 (đã chạy `--only clearance` từ hôm trước). Võ sĩ 4 có buổi `PENDING` và **không** có nguồn `TRAINING_CONFLICTS_WITH_SUSPENSION`.
+
+   *Sửa 31/10 (Ken phát hiện, chủ dự án quyết):* bản cũ đòi cả `TRAINING_CONFLICTS_WITH_SUSPENSION`, và mục B4 đòi "buổi `SCHEDULED` bị xung đột". Từ T-036, cả hai đường tạo đình chỉ (`suspensions.service.ts:136`, `bouts.service.ts:1823`) gọi `SuspensionEffects.runOnCreated` trong cùng giao dịch, chuyển buổi bị chặn sang `PENDING` hoặc `CANCELLED`. Cổng 2 (`training-session.service.ts:112`, `:197`) chặn tạo buổi hay dời buổi vào khoảng đình chỉ. Muốn đạt yêu cầu cũ thì phải đi vòng luật T-036, nên nguồn này bị bỏ. Có giữ code của nó hay không thì xem [T-044 phần C](./T-044-codebase-trim.md#phần-c-nguồn-việc-cần-làm-không-còn-bật). `SUSPENSION_AWAITING_CLEARANCE` thì giữ, vì đây là tính năng thật, nhưng chỉ có từ `endsOn + 1`, còn đình chỉ không được bắt đầu trước hôm nay (`suspensions.model.ts:449-453`). Vì vậy dùng võ sĩ 7 chạy trước một ngày.
 7. **C:** mọi màn trong bảng phần C đã được kiểm ở 390 px và 1440 px, `vi` và `en`, có tên người kiểm và ngày. Mọi lỗi đã ghi đều có cách tái hiện.
 8. **C:** hai lỗi đã biết đã tìm ra nguyên nhân, hoặc ghi rõ đã thử những gì.
 9. **D:** đến tổng duyệt 9/11, không còn lỗi mức chặn chưa sửa trên các màn trong kịch bản trình bày.
@@ -181,3 +180,4 @@ pnpm --filter nestjs-api test
 
 1. Gộp nhánh demo **trước** T-030 B, không chờ. T-030 B merge `fight-camp` mới vào nhánh của mình và Ken tự giải xung đột, vì Ken nắm code đình chỉ.
 2. T-042/043 được review trước, khi APPROVED thì gộp vào cùng nhánh T-040 (mục A1.3).
+3. *(31/10)* Bỏ `TRAINING_CONFLICTS_WITH_SUSPENSION` khỏi tiêu chí 6. Giữ `SUSPENSION_AWAITING_CLEARANCE` bằng võ sĩ 7, tạo trước lần chạy chính ít nhất một ngày. Dòng R28 trong FIGHT-CAMP-BUSINESS-FLOWS giữ nguyên tới khi T-044 phần C quyết.

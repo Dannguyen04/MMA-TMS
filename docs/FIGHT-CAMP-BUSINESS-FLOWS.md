@@ -167,7 +167,7 @@ Một thẻ trên dashboard HLV, gom việc của cả ba giai đoạn. Thẻ t�
 | Sau | Đình chỉ chờ xác nhận được tập lại | S3 |
 | Sau | Cân nhắc đình chỉ thủ công | R27 |
 
-> **Ghi chú 31/10 (Claude trên máy Ken, chờ Dan quyết):** việc "Buổi tập xung đột với đình chỉ chưa xử lý" (R28) gần như không còn sinh ra từ khi có T-036. Mọi đường tạo đình chỉ (tạo tay, kết quả KO/TKO) đều tự chuyển buổi bị chặn sang "Chờ xếp lại" hoặc huỷ ngay lúc tạo, và Cổng 2 chặn xếp buổi mới vào khoảng đình chỉ. Luật "bị đình chỉ thì không tập" không đổi. Chỉ dòng việc này trở nên thừa; nó chỉ còn ý nghĩa với dữ liệu có trước T-036. Đề nghị bỏ dòng này, hoặc đổi thành "Buổi chờ xếp lại sau đình chỉ". Chi tiết ở tiêu chí 6 của [T-040](./tickets/T-040-real-backend-demo.md).
+> **Ghi chú 31/10 (Claude trên máy Ken; Dan quyết 31/10: giữ dòng này tới khi [T-044 phần C](./tickets/T-044-codebase-trim.md#phần-c-nguồn-việc-cần-làm-không-còn-bật) quyết bỏ hay giữ provider):** việc "Buổi tập xung đột với đình chỉ chưa xử lý" (R28) gần như không còn sinh ra từ khi có T-036. Mọi đường tạo đình chỉ (tạo tay, kết quả KO/TKO) đều tự chuyển buổi bị chặn sang "Chờ xếp lại" hoặc huỷ ngay lúc tạo, và Cổng 2 chặn xếp buổi mới vào khoảng đình chỉ. Luật "bị đình chỉ thì không tập" không đổi. Chỉ dòng việc này trở nên thừa; nó chỉ còn ý nghĩa với dữ liệu có trước T-036. Đề nghị bỏ dòng này, hoặc đổi thành "Buổi chờ xếp lại sau đình chỉ". Chi tiết ở tiêu chí 6 của [T-040](./tickets/T-040-real-backend-demo.md).
 
 #### Bổ sung 21/10 (chờ duyệt)
 
