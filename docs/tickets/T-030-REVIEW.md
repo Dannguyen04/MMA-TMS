@@ -115,3 +115,15 @@ Lỗi phát sinh trong lúc sửa, đã sửa:
 **Chờ chủ dự án:** ticket ghi bảng Sẵn sàng (B6) và màn Đình chỉ (B4-6) cho "HLV và ADMIN". Code hiện chỉ cho HLV (`requireRole("coach")`); ADMIN bị chuyển về `/admin/dashboard`. Claude đề nghị giữ chỉ HLV và sửa ticket cho khớp.
 
 **Còn lại:** merge vào `User_Feature`, rồi merge `fight-camp` mới vào nhánh (T-040 A) khi phần A đã merge.
+
+## Lượt cắt ponytail và sửa R2 (31/10)
+
+- Cắt ponytail hai lượt: `3f8b7e2` (dữ liệu, service, domain: xoá luồng "áp dụng xung đột" và `getSuspension` không ai gọi, 4 test của chúng xoá theo) và `2ccd5a3` (trang và component). Màn Sẵn sàng chụp lại giống hệt trước khi cắt; màn Đình chỉ, bộ lọc, `?status` sai và form tạo đình chỉ hiển thị đúng.
+- Review độc lập (subagent không mang ngữ cảnh) cho cả hai lượt: APPROVED. Nó tìm thêm một lỗi có từ B5 (`e198870`):
+  - **R2 (nên sửa):** hộp thoại "Xếp lại" chỉ xem trước xung đột cấp phép một lần; đổi ngày hay giờ không xem lại, nút xác nhận bật/tắt theo ngày cũ. Nguyên nhân: `previewConflicts` có giá trị thì `propConflicts !== undefined` và effect thoát sớm.
+  - Ca R2-1 (trình duyệt, demo, Rafael Costa, `/coach/sessions/s-tariq-pads-in5d`, đổi ngày 06/11 → 03/11 → 12/11): code cũ số request xem trước đứng ở 2, 2, 2; sau sửa `8d7ffeb` là 2, 3, 4, và ở 12/11 hiện chặn "Cấp phép y tế đã hết hạn vào 9 thg 11" (đúng: cấp phép Tariq hết hạn 9/11), nút xác nhận tắt.
+  - Repo không có môi trường DOM (vitest `environment: node`), nên R2-1 là kiểm tra trình duyệt, không phải test tự động. B5-13, B5-14, B5-17 vẫn qua.
+- Review độc lập lần hai cho `8d7ffeb`: APPROVED. Gợi ý không chặn: trong ~350 ms chờ xem trước, nút còn dùng kết quả của ngày cũ (server vẫn từ chối nếu sai, không mất dữ liệu).
+- Kiểm cuối: lint, typecheck sạch; test 952 passed | 2 skipped (954).
+
+**Kết luận: APPROVED tại `8d7ffeb`.**
