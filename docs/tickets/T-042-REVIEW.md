@@ -1,5 +1,54 @@
 # T-042, T-043 Review
 
+## Lần 2 (31/10): APPROVED
+
+- Nhánh: `feat/T-042-043-ui-3d` (`bf274ab`). Code sửa ở `15e4243`, handover ở [T-042-HANDOVER.md](./T-042-HANDOVER.md). Nhánh đã gộp `fix/T-032-demo-fixes` (`aa4556e`).
+- **Kết luận: APPROVED.** H1, N1, G1 đã xong. N2 đạt: review lần 1 ghi sai (xem dưới). Không còn vấn đề mức chặn. Gộp vào `fight-camp` ở [T-040](./T-040-real-backend-demo.md) phần A, theo thứ tự T-032 rồi nhánh 3D.
+
+### Diff `15e4243`
+
+Năm file, đúng ba mục review, không có gì ngoài phạm vi:
+
+- `fighter-profile-header.tsx`: dưới `sm`, khối có hình dùng `max-sm:contents`, hình mang `max-sm:order-last` nên xuống sau tên, trạng thái và nút hành động.
+- `fighter-figure.tsx`: hình cao 240 px dưới `sm` (300 px từ `sm` trở lên). `fighter-card.tsx`: ảnh thẻ cao 160 px dưới `sm`.
+- `rounds/page.tsx`, `rounds-view.tsx`: nút "Thẻ góc đài" chuyển vào `actions` của `PageHeader` (dùng `ButtonLink`), bỏ hàng riêng.
+
+### Lệnh Claude chạy lại (worktree `verify`, `bf274ab`)
+
+| Lệnh | Kết quả |
+| --- | --- |
+| `pnpm --filter nextjs-frontend lint` | sạch |
+| `APP_DATA_MODE=api pnpm --filter nextjs-frontend typecheck` | 0 lỗi |
+| `pnpm --filter nextjs-frontend test` | `Tests 962 passed \| 2 skipped (964)` |
+| `APP_DATA_MODE=api pnpm --filter nextjs-frontend build` | thoát 0 |
+
+Khớp với handover. Lần chạy đầu typecheck và build lỗi ở `.next/dev/types/validator.ts`. Đó là file còn lại từ lần chạy `next dev` trước trong worktree `verify`, không phải code của nhánh. Xoá `.next` rồi chạy lại thì cả hai đạt.
+
+### Kiểm bằng mắt (`next dev`, demo mode, `vi`, Playwright)
+
+| Màn | 390×844 | 1440×900 |
+| --- | --- | --- |
+| `/coach/fighters/f-aigerim-sadykova` (`full` và `lite`) | `h1` y = 140, "Lên lịch buổi tập" y = 349, hình y = 401, cao 240 px | hình bên trái, cao 300 px |
+| `/coach/fighters` | 8 canvas, cả 8 là canvas 2D, ảnh thẻ cao 160 px | 8 canvas 2D, cao 208 px |
+| `/coach/bouts/bout-weighed-in/rounds` | "Thẻ góc đài" y = 254 | nút nằm cùng hàng tiêu đề, hết khoảng trống |
+| `/fighter/health/injuries/inj-minh-shin` (`full` và `lite`) | 1 canvas, body map nằm sau phần thông tin chấn thương | 1 canvas |
+
+Mọi màn trên: không cuộn ngang, 0 lỗi console. Số đo khớp với handover.
+
+### Đính chính review lần 1, mục N2
+
+Lần 1 ghi "8 canvas WebGL" là sai, vì Claude chỉ đếm thẻ `canvas` mà không kiểm loại context. Thật ra `portrait-studio.ts:80` chỉ tạo một `THREE.WebGLRenderer` chung, rồi chép hình vào canvas 2D của từng thẻ. Vì vậy trang không bị giới hạn số context WebGL. Phần N2 còn lại là đo trên điện thoại thật: không chặn, ghi ở mục "Câu hỏi / việc còn mở" của handover, kiểm ở T-040 phần C.
+
+### Việc còn mở (không chặn)
+
+- Đo `/coach/fighters` trên điện thoại thật (T-040 phần C). Nếu chậm thì render sẵn ảnh tĩnh cho thẻ.
+- Hai câu hỏi trong handover chuyển cho người phụ trách: `hitRegions` (T-037), nhãn tiếng Anh trong `restriction-presets.ts` (Fon).
+- T-042 và T-043 vẫn chưa có file ticket. Phạm vi đã làm ghi trong handover để chủ dự án duyệt.
+
+---
+
+## Lần 1 (30/10): CHANGES REQUESTED
+
 - Nhánh: `feat/T-042-043-ui-3d` (`d62aeae`, 30/10 21:50), tạo từ nhánh demo `sync/T-004-fight-camp`. Người làm: Hoàng Anh (cùng Claude trên máy Hoàng Anh).
 - Người review: Claude trên máy Dan, 30/10.
 - **Kết luận: CHANGES REQUESTED.** Code và lệnh kiểm tra đạt. Còn thiếu handover (mức chặn về quy trình) và hai điểm nên sửa ở giao diện điện thoại.
