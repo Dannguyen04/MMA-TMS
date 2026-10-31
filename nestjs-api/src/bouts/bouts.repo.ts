@@ -872,14 +872,7 @@ export class BoutsRepository {
   ): Promise<BoutNutritionCheckinRow> {
     const [row] = await database
       .insert(boutNutritionCheckins)
-      .values({
-        boutId: data.boutId,
-        fighterId: data.fighterId,
-        academyDate: data.academyDate,
-        adherence: data.adherence,
-        note: data.note,
-        recordedById: data.recordedById,
-      })
+      .values(data)
       .onConflictDoUpdate({
         target: [boutNutritionCheckins.boutId, boutNutritionCheckins.academyDate],
         set: {
@@ -896,7 +889,7 @@ export class BoutsRepository {
     boutId: string,
     database: DatabaseExecutor = this.db,
   ): Promise<Array<{ date: string; adherence: NutritionAdherence }>> {
-    const rows = await database
+    return database
       .select({
         date: boutNutritionCheckins.academyDate,
         adherence: boutNutritionCheckins.adherence,
@@ -904,9 +897,5 @@ export class BoutsRepository {
       .from(boutNutritionCheckins)
       .where(eq(boutNutritionCheckins.boutId, boutId))
       .orderBy(asc(boutNutritionCheckins.academyDate));
-    return rows.map((r) => ({
-      date: r.date,
-      adherence: r.adherence,
-    }));
   }
 }

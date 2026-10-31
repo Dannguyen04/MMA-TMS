@@ -111,3 +111,9 @@ $ node run_sql.mjs --check
 ## 5. Câu hỏi / việc còn mở
 
 - **Câu hỏi nghiệp vụ**: Trả lời ăn uống (`PUT /bouts/:id/nutrition-checkins/:date`) trên trận có trạng thái `COMPLETED` hoặc `CANCELLED` hiện tại vẫn ghi nhận được do đặc tả T-009 không cấm (khác với `PUT /bouts/:id/nutrition-plan` bị chặn 409 `BOUT_INVALID_TRANSITION`). Nếu nghiệp vụ tương lai cần chặn checkin trên các trạng thái này, có thể bổ sung kiểm tra `isFinalStatus` tương tự kế hoạch ăn.
+
+## 6. Lượt cắt ponytail (31/10)
+
+- `bouts.repo.ts`: `findNutritionCheckinsForBout` trả thẳng kết quả query (bỏ `.map` chép lại); `upsertNutritionCheckin` dùng `.values(data)`.
+- Xoá type không ai dùng: `NutritionPlanPhaseInput`, `NutritionPlanPhaseEntry`, `NutritionCheckinParams` (`bouts.model.ts`), `InsertBoutNutritionCheckin` (`schema.ts`).
+- Kiểm lại sau lượt cắt: lint 0 lỗi; build exit 0; `vitest run src/bouts src/fighters` 456/456; `test:db` 49 passed; `db:check` 001-032 OK.

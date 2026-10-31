@@ -441,18 +441,10 @@ export const nutritionPlanPhaseInputSchema = z.object({
   text: z.string().min(1).max(2000),
   author: z.string().min(1).max(100),
 });
-export type NutritionPlanPhaseInput = z.infer<
-  typeof nutritionPlanPhaseInputSchema
->;
-
 export const nutritionPlanPhaseEntrySchema = nutritionPlanPhaseInputSchema.extend({
   updatedAt: isoDateTimeSchema,
   updatedById: z.uuid(),
 });
-export type NutritionPlanPhaseEntry = z.infer<
-  typeof nutritionPlanPhaseEntrySchema
->;
-
 export const nutritionPlanSchema = z.object({
   camp: nutritionPlanPhaseEntrySchema.optional(),
   fightWeek: nutritionPlanPhaseEntrySchema.optional(),
@@ -491,10 +483,6 @@ export const nutritionCheckinParamsSchema = z.strictObject({
     'Must not be in the future',
   ),
 });
-export type NutritionCheckinParams = z.infer<
-  typeof nutritionCheckinParamsSchema
->;
-
 export const nutritionCheckinResponseSchema = z.object({
   id: z.uuid(),
   boutId: z.uuid(),

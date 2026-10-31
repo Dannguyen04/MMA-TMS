@@ -4711,4 +4711,3 @@ export const boutNutritionCheckins = pgTable('bout_nutrition_checkins', {
 ]).enableRLS();
 
 export type BoutNutritionCheckinRow = typeof boutNutritionCheckins.$inferSelect;
-export type InsertBoutNutritionCheckin = typeof boutNutritionCheckins.$inferInsert;
