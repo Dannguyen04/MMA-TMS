@@ -38,3 +38,12 @@
 Tiêu chí 6 đòi hai nguồn không tạo được qua API với ràng buộc của chính ticket. Chi tiết và dòng code ghi ngay dưới tiêu chí 6 trong [T-040](./T-040-real-backend-demo.md). Đề nghị bỏ hai nguồn này khỏi tiêu chí.
 
 Kết quả trên Supabase (tiêu chí 5, 6) do Ken kiểm khi chạy thật ở phần C.
+
+## Cắt ponytail, võ sĩ 7 và tham số lạ (31/10)
+
+- `708ca14` cắt ponytail: dry-run giống hệt từng byte trước khi cắt (`created=120`), S1–S14 giữ tên và kết quả. Review độc lập: APPROVED.
+- `42148c9` võ sĩ 7 và `--only clearance` theo ticket Dan sửa (`b92d391`). Ca S12 (ticket), S15, S16. Thêm một request phân coach cho võ sĩ 7 vì backend bắt coach phải được phân mới tạo được trận và đình chỉ. `--only clearance` bỏ qua giờ chặn 22:30 (giờ chặn chỉ để bảo vệ trận 23:00 của võ sĩ 6). Review độc lập: APPROVED; kiểm từ backend `fight-camp` rằng võ sĩ 7 ra nguồn `SUSPENSION_AWAITING_CLEARANCE` từ ngày hôm sau và lần chạy chính không tạo lại.
+- Review đó gợi ý một lỗi, Claude nâng lên **nên sửa** vì đụng dữ liệu thật: `--only=clearance` bị bỏ qua, script chạy seed đầy đủ. Sửa ở `40d9220`: từ chối mọi tham số lạ, thoát 1, không gửi request. Ca S17 (`--dry-run --only=clearance`) và S18 (`--bogus`) lỗi trên code cũ, qua sau khi sửa. Review độc lập lần hai: APPROVED.
+- Kiểm cuối: 19/19 test; dry-run `created=124`, `--only clearance` `created=5`, `--with-ai` `created=125`; oxlint sạch.
+
+**Kết luận: APPROVED tại `40d9220`.** Ken chạy thật trên Supabase ở phần C: `--only clearance` ít nhất một ngày trước lần chạy chính.
