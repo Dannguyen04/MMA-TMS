@@ -1452,3 +1452,239 @@ Không có. Toàn bộ các yêu cầu của mục B6 (bảng B6-1..B6-5 trong t
 
 ### 5. Câu hỏi / việc còn mở
 Không có. Toàn bộ phần B6 đã hoàn thiện sẵn sàng bàn giao.
+
+
+---
+
+## Phần B, sửa R1 (31/10)
+
+### 1. Phân tích nguyên nhân và giải pháp
+- **Nguyên nhân**:
+  - Trong các ca kiểm thử B5-10, B5-15 và B5-16, việc tìm buổi tập thông qua `db().trainingSessions.find(s => s.fighterId === 'f-tariq-haddad' && s.status === 'pending')` bị phụ thuộc vào thứ tự buổi tập trong tuần tính từ ngày chạy test (theo mốc `MOCK_ANCHOR_MS` / `Date.now()`).
+  - Ở B5-15 và B5-16: Vào một số ngày (như tối 30/10 và ngày 31/10), buổi đầu tiên tìm thấy là buổi tập pad (`pad_work`) không có bài tập nào vi phạm hạn chế cấp phép y tế của Tariq (`cl-tariq-current` chỉ cấm `sparring`, hạn chế kỹ thuật `kick` và vùng cơ thể `left_knee`), khiến `getSessionClearanceConflicts` trả về `[]` và `rescheduleSession` trả về `success` thay vì `error`.
+  - Ở B5-10: Khi dời cả đồng hồ hệ thống (`shift-clock.cjs`) sang ngày 3/11 hoặc 4/11, buổi `pending` đầu tiên tìm được chỉ có 2 bài tập thay vì 3 bài tập, dẫn đến lỗi `AssertionError: expected [...] to have a length of 3 but got 2` tại dòng kiểm tra `exercises`.
+  - Ở B5-12: Cứng ngày `'2026-11-15'`. Do `rescheduleSession` chặn ngày đã qua (`lib/actions/training.ts:609`), khi chạy ở các thời điểm từ 16/11/2026 trở đi (ví dụ test ở 25/12/2026), ca bị lỗi `expected 'error' to be 'success'`.
+  - Cách kiểm thử bằng `anchor.cjs` trước đó chỉ dời mốc `globalThis.__mmaMockAnchorMs`, trong khi `Date.now()` vẫn là ngày thật nên chưa đủ để phát hiện việc thứ trong tuần của đồng hồ hệ thống thay đổi làm đổi buổi tìm được. Claude đã kiểm lại bằng script dời cả đồng hồ (`shift-clock.cjs`).
+- **Giải pháp**:
+  - Không lấy buổi `pending` theo thứ tự ngẫu nhiên trong danh sách.
+  - Tạo helper `seedTariqPendingWarnSession(validDate)` dựng riêng một buổi `pending` cố định id `'s-test-tariq-pending-warn'` của Tariq (`f-tariq-haddad`), với `notes: "Ghi chú gốc của buổi"` (khác null), `title` và `location` khác rỗng, 3 bài tập từ `db().exercises` (có `sets: 3, reps: 10`, `completed: false`) trong đó có ít nhất một bài tập chứa kỹ thuật `kick` hoặc vùng `left_knee` (gây cảnh báo `warn` theo `cl-tariq-current`) và không có hạn chế `block`.
+  - B5-10: Sử dụng `seedTariqPendingWarnSession(validDate)`, giữ nguyên toàn bộ các mong đợi kiểm thử (gửi `acknowledgeWarnings: "true"`, status `'success'`, `'scheduled'`, 3 bài cùng `exerciseId/sets/reps`, `title/location/notes` không đổi).
+  - B5-12: Chuyển ngày cứng `'2026-11-15'` sang ngày tương đối `targetDate = addDaysToDate(TODAY_KEY, 15)` từ `@/lib/mocks/time`, nằm ngoài mọi đình chỉ và luôn trong tương lai đối với bất kỳ mốc đồng hồ nào.
+  - B5-15 và B5-16: Đổi `scheduledAt` trong điều kiện trước từ `${validDate}T15:00:00.000Z` sang `${validDate}T15:00:00+07:00` để điều kiện trước kiểm tra đúng thời điểm theo giờ học viện UTC+7 mà action tiếp nhận. Thêm kiểm tra điều kiện trước bước gọi hành động:
+    ```ts
+    expect(conflicts.some((c) => c.severity === "warn")).toBe(true);
+    expect(conflicts.some((c) => c.severity === "block")).toBe(false);
+    ```
+  - B5-15 (bước 1 không xác nhận): Chụp `const originalScheduledAt = tariqSession.scheduledAt;` trước khi gọi action và kiểm tra `expect(sessionAfterFail!.scheduledAt).toBe(originalScheduledAt)` để tránh so một object với chính nó do demo sửa trực tiếp in-memory object (B5-10 đã chụp biến gốc từ trước).
+  - Cập nhật tên ca B5-15: thay cụm `'buổi s-tariq-sc-in5d'` thành `'buổi pending có bài vướng cảnh báo cấp phép'`, giữ nguyên toàn bộ các mong đợi kiểm thử.
+
+---
+
+### 2. Output kiểm thử trước khi sửa
+
+#### a) Lỗi B5-15 và B5-16 (chạy vào 31/10 với 2 failed | 15 passed)
+```text
+$ pnpm --filter nextjs-frontend exec vitest run src/components/training/session-suspension-b5.test.ts
+
+ RUN  v5.0.1 D:/MMA-TMS/nextjs-frontend
+
+ ❯ src/components/training/session-suspension-b5.test.ts (17 tests | 2 failed) 860ms
+   ❯ T-030 B5: Lịch tập (Training schedule & suspensions sync) (17)
+     × B5-15: demo: rescheduleSession buổi s-tariq-sc-in5d vào ngày hợp lệ có cảnh báo cấp phép, không xác nhận -> trả lỗi kèm conflicts (không đổi buổi); có acknowledgeWarnings -> status scheduled, exercises vẫn đủ 3 87ms
+     × B5-16: thông báo yêu cầu xác nhận cảnh báo ở locale vi không chứa chữ tiếng Anh 'Review the Medical Clearance' 98ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/training/session-suspension-b5.test.ts > T-030 B5: Lịch tập (Training schedule & suspensions sync) > B5-15: demo: rescheduleSession buổi s-tariq-sc-in5d vào ngày hợp lệ có cảnh báo cấp phép, không xác nhận -> trả lỗi kèm conflicts (không đổi buổi); có acknowledgeWarnings -> status scheduled, exercises vẫn đủ 3
+AssertionError: expected 'success' to be 'error' // Object.is equality
+
+Expected: "error"
+Received: "success"
+
+ ❯ src/components/training/session-suspension-b5.test.ts:699:38
+    697|
+    698|         const resWithoutAck = await rescheduleSession(sessionId, IDLE_…
+    699|         expect(resWithoutAck.status).toBe("error");
+       |                                      ^
+    700|         expect(resWithoutAck.data?.conflicts).toBeDefined();
+    701|         expect(resWithoutAck.data!.conflicts!.length).toBeGreaterThan(…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/components/training/session-suspension-b5.test.ts > T-030 B5: Lịch tập (Training schedule & suspensions sync) > B5-16: thông báo yêu cầu xác nhận cảnh báo ở locale vi không chứa chữ tiếng Anh 'Review the Medical Clearance'
+AssertionError: expected 'success' to be 'error' // Object.is equality
+
+Expected: "error"
+Received: "success"
+
+ ❯ src/components/training/session-suspension-b5.test.ts:738:31
+    736|
+    737|         const result = await rescheduleSession(tariqSession!.id, IDLE_…
+    738|         expect(result.status).toBe("error");
+       |                               ^
+    739|         expect(result.message).toBeDefined();
+    740|         expect(result.message).not.toContain("Review the Medical Clear…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 15 passed (17)
+   Start at  12:03:30
+   Duration  1.90s (tests 48%, transform 30%, import 22%)
+```
+
+#### b) Lỗi B5-10 cũ khi dời đồng hồ sang ngày 3/11 (1 failed | 16 passed)
+```powershell
+$env:NODE_OPTIONS='--require C:/Users/PC/AppData/Local/Temp/claude/d--MMA-TMS/cd0f2325-86ae-4866-8ae4-33c3c016545b/scratchpad/shift-clock.cjs'; $env:ANCHOR_MS='1793682000000'; pnpm --filter nextjs-frontend exec vitest run src/components/training/session-suspension-b5.test.ts; Remove-Item Env:NODE_OPTIONS; Remove-Item Env:ANCHOR_MS
+```
+Output lỗi:
+```text
+ RUN  v5.0.1 D:/MMA-TMS/nextjs-frontend
+
+ ❯ src/components/training/session-suspension-b5.test.ts (17 tests | 1 failed) 767ms
+   ❯ T-030 B5: Lịch tập (Training schedule & suspensions sync) (17)
+     × B5-10: demo: xếp lại buổi pending có 3 bài tập qua rescheduleSession vào ngày hợp lệ -> status scheduled, exercises vẫn đủ 3 (cùng exerciseId, sets, reps), title, location, notes không đổi 13ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/training/session-suspension-b5.test.ts > T-030 B5: Lịch tập (Training schedule & suspensions sync) > B5-10: demo: xếp lại buổi pending có 3 bài tập qua rescheduleSession vào ngày hợp lệ -> status scheduled, exercises vẫn đủ 3 (cùng exerciseId, sets, reps), title, location, notes không đổi
+AssertionError: expected [ { …(7) }, { …(7) } ] to have a length of 3 but got 2
+
+- Expected
++ Received
+
+- 3
++ 2 
+
+ ❯ src/components/training/session-suspension-b5.test.ts:433:43
+    431|         );
+    432|         expect(pendingSession).toBeDefined();
+    433|         expect(pendingSession!.exercises).toHaveLength(3);
+       |                                           ^
+    434|
+    435|         const originalExercises = pendingSession!.exercises.map((e) =>…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 16 passed (17)
+   Start at  12:00:00
+   Duration  1.81s (tests 45%, transform 32%, import 23%)
+```
+
+#### c) Lỗi B5-12 cũ khi dời đồng hồ sang ngày 25/12/2026 (1 failed | 16 passed)
+```powershell
+$env:NODE_OPTIONS='--require C:/Users/PC/AppData/Local/Temp/claude/d--MMA-TMS/cd0f2325-86ae-4866-8ae4-33c3c016545b/scratchpad/shift-clock.cjs'; $env:ANCHOR_MS='1798164000000'; pnpm --filter nextjs-frontend exec vitest run src/components/training/session-suspension-b5.test.ts; Remove-Item Env:NODE_OPTIONS; Remove-Item Env:ANCHOR_MS
+```
+Output lỗi:
+```text
+ RUN  v5.0.1 D:/MMA-TMS/nextjs-frontend
+
+ ❯ src/components/training/session-suspension-b5.test.ts (17 tests | 1 failed) 756ms
+   ❯ T-030 B5: Lịch tập (Training schedule & suspensions sync) (17)
+     × B5-12: API mode rescheduleSession gửi body chỉ có scheduledAt (spy client), không có exercises 4ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/training/session-suspension-b5.test.ts > T-030 B5: Lịch tập (Training schedule & suspensions sync) > B5-12: API mode rescheduleSession gửi body chỉ có scheduledAt (spy client), không có exercises
+AssertionError: expected 'error' to be 'success' // Object.is equality
+
+Expected: "success"
+Received: "error"
+
+ ❯ src/components/training/session-suspension-b5.test.ts:605:35
+    603|
+    604|             const result = await rescheduleSession("sess-api-test-1", …
+    605|             expect(result.status).toBe("success");
+       |                                   ^
+    606|
+    607|             expect(mutableSpy).toHaveBeenCalledTimes(1);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 16 passed (17)
+   Start at  09:00:00
+   Duration  1.84s (tests 44%, transform 33%, import 23%)
+```
+
+---
+
+### 3. Output sau khi sửa (kiểm lại bằng script dời cả đồng hồ của Claude và chạy thường)
+
+#### a) Mốc ANCHOR_MS='1793682000000' (Thứ ba 03/11/2026)
+```powershell
+$env:NODE_OPTIONS='--require C:/Users/PC/AppData/Local/Temp/claude/d--MMA-TMS/cd0f2325-86ae-4866-8ae4-33c3c016545b/scratchpad/shift-clock.cjs'; $env:ANCHOR_MS='1793682000000'; pnpm --filter nextjs-frontend exec vitest run src/components/training/session-suspension-b5.test.ts | Select-Object -Last 6
+```
+Output:
+```text
+ Test Files  1 passed (1)
+      Tests  17 passed (17)
+   Start at  12:00:00
+   Duration  2.07s (tests 50%, transform 29%, import 20%)
+```
+
+#### b) Mốc ANCHOR_MS='1793768400000' (Thứ tư 04/11/2026)
+```powershell
+$env:NODE_OPTIONS='--require C:/Users/PC/AppData/Local/Temp/claude/d--MMA-TMS/cd0f2325-86ae-4866-8ae4-33c3c016545b/scratchpad/shift-clock.cjs'; $env:ANCHOR_MS='1793768400000'; pnpm --filter nextjs-frontend exec vitest run src/components/training/session-suspension-b5.test.ts | Select-Object -Last 6; Remove-Item Env:NODE_OPTIONS; Remove-Item Env:ANCHOR_MS
+```
+Output:
+```text
+ Test Files  1 passed (1)
+      Tests  17 passed (17)
+   Start at  12:00:00
+   Duration  1.89s (tests 49%, transform 30%, import 21%)
+```
+
+#### c) Mốc ANCHOR_MS='1798164000000' (Thứ sáu 25/12/2026)
+```powershell
+$env:NODE_OPTIONS='--require C:/Users/PC/AppData/Local/Temp/claude/d--MMA-TMS/cd0f2325-86ae-4866-8ae4-33c3c016545b/scratchpad/shift-clock.cjs'; $env:ANCHOR_MS='1798164000000'; pnpm --filter nextjs-frontend exec vitest run src/components/training/session-suspension-b5.test.ts | Select-Object -Last 6; Remove-Item Env:NODE_OPTIONS; Remove-Item Env:ANCHOR_MS
+```
+Output:
+```text
+ Test Files  1 passed (1)
+      Tests  17 passed (17)
+   Start at  09:00:00
+   Duration  2.03s (tests 45%, transform 33%, import 22%)
+```
+
+#### d) Chạy thường (không đặt mốc)
+```powershell
+pnpm --filter nextjs-frontend exec vitest run src/components/training/session-suspension-b5.test.ts | Select-Object -Last 6
+```
+Output:
+```text
+ Test Files  1 passed (1)
+      Tests  17 passed (17)
+   Start at  12:28:21
+   Duration  1.75s (tests 45%, transform 33%, import 23%)
+```
+
+---
+
+### 4. Kết quả kiểm tra toàn diện cuối cùng
+Lệnh chạy: `pnpm --filter nextjs-frontend lint ; pnpm --filter nextjs-frontend typecheck ; pnpm --filter nextjs-frontend test`
+
+Phần cuối output:
+```text
+$ eslint
+$ next typegen && tsc --noEmit
+Generating route types...
+✓ Types generated successfully
+$ vitest run
+
+ RUN  v5.0.1 D:/MMA-TMS/nextjs-frontend
+
+
+ Test Files  99 passed | 1 skipped (100)
+      Tests  936 passed | 2 skipped (938)
+   Start at  12:28:48
+   Duration  4.64s (import 46%, transform 29%, tests 23%, worker 1%)
+
+  Transform  transforming modules took 13.98s · 29% of tracked time, re-done on every run
+             persist transforms across runs with fsModuleCache: true
+             learn more: https://vitest.dev/guide/improving-performance#caching-between-reruns
+```

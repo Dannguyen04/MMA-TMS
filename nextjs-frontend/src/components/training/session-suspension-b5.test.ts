@@ -9,7 +9,8 @@ import { addDaysToDate, suggestRescheduleDate, type TrainingBlockingSuspension }
 import type { TrainingSession, User } from "@/lib/domain/types";
 import { dayKey, formatShortDate, formatTime } from "@/lib/format";
 import { db } from "@/lib/mocks/db";
-import { listSessions, updateSession } from "@/lib/services/training.demo";
+import { TODAY_KEY } from "@/lib/mocks/time";
+import { getSessionClearanceConflicts, listSessions, updateSession } from "@/lib/services/training.demo";
 
 import { ActionDialog } from "@/components/ui/action-dialog";
 import type { ActionForm } from "@/components/ui/use-action-form";
@@ -423,40 +424,83 @@ describe("T-030 B5: Lịch tập (Training schedule & suspensions sync)", () => 
         expect(html).toContain("1 buổi chờ xếp lại");
     });
 
+    function seedTariqPendingWarnSession(validDate: string): TrainingSession {
+        const store = db();
+        const warnExercise = store.exercises.find(
+            (e) => e.techniques.includes("kick") || e.loadsRegions.includes("left_knee"),
+        );
+        expect(warnExercise).toBeDefined();
+        const otherExercises = store.exercises.filter((e) => e.id !== warnExercise!.id).slice(0, 2);
+        expect(otherExercises).toHaveLength(2);
+        const threeExercises = [warnExercise!, ...otherExercises];
+
+        const coach = store.coaches.find((c) => c.fighterIds?.includes("f-tariq-haddad")) ?? store.coaches[0];
+
+        const session: TrainingSession = {
+            id: "s-test-tariq-pending-warn",
+            fighterId: "f-tariq-haddad",
+            coachId: coach?.id ?? "c-rafael-costa",
+            planId: null,
+            title: "Kỹ thuật chân và gối",
+            type: "strength_conditioning",
+            scheduledAt: `${validDate}T10:00:00+07:00`,
+            durationMin: 60,
+            status: "pending",
+            targetRpe: 7,
+            location: "Ring 1",
+            notes: "Ghi chú gốc của buổi",
+            exercises: threeExercises.map((e) => ({
+                exerciseId: e.id,
+                rounds: 3,
+                roundSec: 180,
+                sets: 3,
+                reps: 10,
+                notes: null,
+                completed: false,
+            })),
+            result: null,
+            videoIds: [],
+            cancellationReason: null,
+        };
+
+        const existingIndex = store.trainingSessions.findIndex((s) => s.id === session.id);
+        if (existingIndex >= 0) {
+            store.trainingSessions[existingIndex] = session;
+        } else {
+            store.trainingSessions.push(session);
+        }
+        return session;
+    }
+
     // ─── B5-10 ─────────────────────────────────────────────────────────────────
     it("B5-10: demo: xếp lại buổi pending có 3 bài tập qua rescheduleSession vào ngày hợp lệ -> status scheduled, exercises vẫn đủ 3 (cùng exerciseId, sets, reps), title, location, notes không đổi", async () => {
-        // Find Tariq's pending session with 3 exercises in mock db
-        const pendingSession = db().trainingSessions.find(
-            (s) => s.fighterId === "f-tariq-haddad" && s.status === "pending",
-        );
-        expect(pendingSession).toBeDefined();
-        expect(pendingSession!.exercises).toHaveLength(3);
-
-        const originalExercises = pendingSession!.exercises.map((e) => ({
-            exerciseId: e.exerciseId,
-            sets: e.sets,
-            reps: e.reps,
-        }));
-        const originalTitle = pendingSession!.title;
-        const originalLocation = pendingSession!.location;
-        const originalNotes = pendingSession!.notes;
-
         const susp = db().suspensions.find(
             (s) => s.fighterId === "f-tariq-haddad" && s.reason === "MANDATORY_REST",
         );
         expect(susp).toBeDefined();
-
-        // Target date after suspension ends
         const validDate = addDaysToDate(susp!.endsOn, 1);
+
+        const pendingSession = seedTariqPendingWarnSession(validDate);
+        expect(pendingSession.exercises).toHaveLength(3);
+
+        const originalExercises = pendingSession.exercises.map((e) => ({
+            exerciseId: e.exerciseId,
+            sets: e.sets,
+            reps: e.reps,
+        }));
+        const originalTitle = pendingSession.title;
+        const originalLocation = pendingSession.location;
+        const originalNotes = pendingSession.notes;
+
         const formData = new FormData();
         formData.set("date", validDate);
         formData.set("time", "15:00");
         formData.set("acknowledgeWarnings", "true");
 
-        const result = await rescheduleSession(pendingSession!.id, IDLE_SESSION, formData);
+        const result = await rescheduleSession(pendingSession.id, IDLE_SESSION, formData);
         expect(result.status).toBe("success");
 
-        const updated = db().trainingSessions.find((s) => s.id === pendingSession!.id);
+        const updated = db().trainingSessions.find((s) => s.id === pendingSession.id);
         expect(updated).toBeDefined();
         expect(updated!.status).toBe("scheduled");
         expect(updated!.exercises).toHaveLength(3);
@@ -527,6 +571,8 @@ describe("T-030 B5: Lịch tập (Training schedule & suspensions sync)", () => 
         const prevAppMode = process.env.APP_DATA_MODE;
         process.env.APP_DATA_MODE = "api";
 
+        const targetDate = addDaysToDate(TODAY_KEY, 15);
+
         const apiSession = {
             id: "sess-api-test-1",
             fighterId: "f-tariq-haddad",
@@ -534,7 +580,7 @@ describe("T-030 B5: Lịch tập (Training schedule & suspensions sync)", () => 
             planId: null,
             title: "Technique sparring",
             sessionType: "PAD_WORK",
-            scheduledAt: "2026-11-01T10:00:00.000Z",
+            scheduledAt: `${TODAY_KEY}T10:00:00.000Z`,
             plannedDurationSec: 3600,
             status: "PENDING",
             location: "Ring 1",
@@ -548,13 +594,13 @@ describe("T-030 B5: Lịch tập (Training schedule & suspensions sync)", () => 
         const apiRequestSpy = vi.spyOn(apiClient, "authenticatedApiRequest").mockResolvedValue(apiSession);
         const mutableSpy = vi.spyOn(apiClient, "authenticatedMutableApiRequest").mockResolvedValue({
             ...apiSession,
-            scheduledAt: "2026-11-15T09:00:00.000Z",
+            scheduledAt: `${targetDate}T09:00:00.000Z`,
             status: "SCHEDULED",
         });
 
         try {
             const formData = new FormData();
-            formData.set("date", "2026-11-15");
+            formData.set("date", targetDate);
             formData.set("time", "09:00");
             formData.set("acknowledgeWarnings", "true");
 
@@ -568,7 +614,7 @@ describe("T-030 B5: Lịch tập (Training schedule & suspensions sync)", () => 
 
             const sentBody = JSON.parse(init?.body as string);
             expect(sentBody).toEqual({
-                scheduledAt: expect.stringContaining("2026-11-15"),
+                scheduledAt: expect.stringContaining(targetDate),
             });
             expect(sentBody.exercises).toBeUndefined();
             expect(sentBody.title).toBeUndefined();
@@ -676,19 +722,27 @@ describe("T-030 B5: Lịch tập (Training schedule & suspensions sync)", () => 
     });
 
     // ─── B5-15 ─────────────────────────────────────────────────────────────────
-    it("B5-15: demo: rescheduleSession buổi s-tariq-sc-in5d vào ngày hợp lệ có cảnh báo cấp phép, không xác nhận -> trả lỗi kèm conflicts (không đổi buổi); có acknowledgeWarnings -> status scheduled, exercises vẫn đủ 3", async () => {
-        const tariqSession = db().trainingSessions.find(
-            (s) => s.fighterId === "f-tariq-haddad" && s.status === "pending",
-        );
-        expect(tariqSession).toBeDefined();
-        const sessionId = tariqSession!.id;
-        expect(tariqSession!.exercises).toHaveLength(3);
-
+    it("B5-15: demo: rescheduleSession buổi pending có bài vướng cảnh báo cấp phép vào ngày hợp lệ có cảnh báo cấp phép, không xác nhận -> trả lỗi kèm conflicts (không đổi buổi); có acknowledgeWarnings -> status scheduled, exercises vẫn đủ 3", async () => {
         const susp = db().suspensions.find(
             (s) => s.fighterId === "f-tariq-haddad" && s.reason === "MANDATORY_REST",
         );
         expect(susp).toBeDefined();
         const validDate = addDaysToDate(susp!.endsOn, 1);
+
+        const tariqSession = seedTariqPendingWarnSession(validDate);
+        const sessionId = tariqSession.id;
+        expect(tariqSession.exercises).toHaveLength(3);
+        const originalScheduledAt = tariqSession.scheduledAt;
+
+        const conflicts = getSessionClearanceConflicts({
+            fighterId: tariqSession.fighterId,
+            type: tariqSession.type,
+            targetRpe: tariqSession.targetRpe,
+            scheduledAt: `${validDate}T15:00:00+07:00`,
+            exercises: tariqSession.exercises,
+        });
+        expect(conflicts.some((c) => c.severity === "warn")).toBe(true);
+        expect(conflicts.some((c) => c.severity === "block")).toBe(false);
 
         // 1. Without acknowledgeWarnings: error with conflicts, session unchanged
         const formWithoutAck = new FormData();
@@ -702,6 +756,7 @@ describe("T-030 B5: Lịch tập (Training schedule & suspensions sync)", () => 
 
         const sessionAfterFail = db().trainingSessions.find((s) => s.id === sessionId);
         expect(sessionAfterFail!.status).toBe("pending");
+        expect(sessionAfterFail!.scheduledAt).toBe(originalScheduledAt);
         expect(sessionAfterFail!.exercises).toHaveLength(3);
 
         // 2. With acknowledgeWarnings: status becomes scheduled, exercises still has 3
@@ -720,21 +775,30 @@ describe("T-030 B5: Lịch tập (Training schedule & suspensions sync)", () => 
 
     // ─── B5-16 ─────────────────────────────────────────────────────────────────
     it("B5-16: thông báo yêu cầu xác nhận cảnh báo ở locale vi không chứa chữ tiếng Anh 'Review the Medical Clearance'", async () => {
-        const tariqSession = db().trainingSessions.find(
-            (s) => s.fighterId === "f-tariq-haddad" && s.status === "pending",
-        );
-        expect(tariqSession).toBeDefined();
-
         const susp = db().suspensions.find(
             (s) => s.fighterId === "f-tariq-haddad" && s.reason === "MANDATORY_REST",
         );
+        expect(susp).toBeDefined();
         const validDate = addDaysToDate(susp!.endsOn, 1);
+
+        const tariqSession = seedTariqPendingWarnSession(validDate);
+        const sessionId = tariqSession.id;
+
+        const conflicts = getSessionClearanceConflicts({
+            fighterId: tariqSession.fighterId,
+            type: tariqSession.type,
+            targetRpe: tariqSession.targetRpe,
+            scheduledAt: `${validDate}T15:00:00+07:00`,
+            exercises: tariqSession.exercises,
+        });
+        expect(conflicts.some((c) => c.severity === "warn")).toBe(true);
+        expect(conflicts.some((c) => c.severity === "block")).toBe(false);
 
         const formData = new FormData();
         formData.set("date", validDate);
         formData.set("time", "15:00");
 
-        const result = await rescheduleSession(tariqSession!.id, IDLE_SESSION, formData);
+        const result = await rescheduleSession(sessionId, IDLE_SESSION, formData);
         expect(result.status).toBe("error");
         expect(result.message).toBeDefined();
         expect(result.message).not.toContain("Review the Medical Clearance");

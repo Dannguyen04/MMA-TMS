@@ -61,3 +61,20 @@ Chạy lại trên `6b253fd` (B6) lúc 22:50 ngày 30/10 (UTC+7): `lint` sạch,
 **Tái hiện:** `pnpm --filter nextjs-frontend exec vitest run src/components/training/session-suspension-b5.test.ts` vào tối 30/10 cho `2 failed | 15 passed (17)`; đổi `TZ` (UTC, Asia/Ho_Chi_Minh, America/Los_Angeles) vẫn lỗi.
 
 **Cách sửa đề nghị (không đổi kết quả mong đợi):** chọn buổi theo đặc điểm cần thử, không theo thứ tự: lấy buổi `pending` của Tariq mà `getSessionClearanceConflicts` tại ngày xếp lại có ít nhất một cảnh báo `warn` và không có `block` (hoặc dựng riêng một buổi `pending` có bài tập vướng hạn chế trong `beforeEach`), và kiểm điều kiện đó bằng `expect` trước bước chính để ca không âm thầm đổi ý nghĩa. Nếu cố định thời gian bằng `vi.setSystemTime` thì phải đặt trước khi nạp `lib/mocks/time.ts`, vì mốc được giữ trên `globalThis` lúc nạp module. Sau khi sửa, chạy file này ở hai thời điểm khác ngày (hoặc với hai giá trị `setSystemTime`) để chắc ca không phụ thuộc ngày.
+
+## Sửa R1 (31/10, Claude trên máy Ken): APPROVED
+
+- Người thực hiện: `agy` `gemini-3.8-flash-high`, 4 lượt cùng phiên. Chỉ sửa `session-suspension-b5.test.ts` (và handover); không đổi code production hay dữ liệu mẫu.
+- **Cách sửa:** helper `seedTariqPendingWarnSession` dựng riêng một buổi `pending` của Tariq (id cố định, 3 bài, có `notes`) có bài vướng cấp phép. B5-10, B5-15, B5-16 dùng buổi này. Trước bước chính, B5-15 và B5-16 kiểm có `warn` và không có `block`, tại đúng thời điểm action kiểm (15:00 `+07:00`). Kết quả mong đợi giữ nguyên. Tên B5-15 bỏ id `s-tariq-sc-in5d`.
+- **Cách kiểm không phụ thuộc ngày:** chỉ đặt `globalThis.__mmaMockAnchorMs` là chưa đủ, vì `Date.now()` vẫn là ngày thật; thử như vậy thì 6–8 test khác lỗi giả. Claude dời cả đồng hồ (`Date` và mốc mock) bằng một file `--require` ngoài repo (`shift-clock.cjs`, qua `NODE_OPTIONS`) rồi chạy cả bộ test.
+- **Lỗi thêm tìm được trong lúc kiểm, đã sửa:**
+  - B5-10 (chặn): cùng lỗi gốc với R1. Lỗi khi chạy vào 3/11, 4/11: `expected [...] to have a length of 3 but got 2`.
+  - B5-12 (nên sửa, review độc lập lần 1): ngày cứng `2026-11-15`, action chặn ngày đã qua, nên ca lỗi từ 16/11. Nay là `TODAY_KEY` + 15 ngày.
+  - B5-15 (nên sửa, review độc lập lần 2): dòng kiểm `scheduledAt` so object với chính nó (helper trả đúng object nằm trong kho mock). Nay chụp `originalScheduledAt` trước khi gọi action.
+- **Lệnh Claude chạy lại:** `lint` sạch, `typecheck` 0 lỗi. `test` ra `Tests 936 passed | 2 skipped (938)` cả khi chạy thường lẫn khi dời đồng hồ sang từng ngày 31/10–6/11 và 25/12. Trước khi sửa, các ngày 3/11, 4/11 có B5-10 lỗi.
+- **Review độc lập (3 lần, không mang ngữ cảnh):**
+  - Lần 1: R1 đạt, có thêm B5-12.
+  - Lần 2: B5-12 đạt, có thêm dòng `scheduledAt` tự so với chính nó.
+  - Lần 3: đạt, không còn mục chặn hay nên sửa.
+  - Gợi ý chưa làm: dòng 759 dựa vào giờ gốc của helper (10:00) khác giờ đích (15:00).
+- **Còn lại của phần B:** chụp màn kiểm B6, rồi B7.
