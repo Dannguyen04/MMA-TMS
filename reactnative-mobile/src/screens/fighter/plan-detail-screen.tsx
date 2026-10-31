@@ -31,7 +31,7 @@ export function FighterPlanDetailScreen() {
     return { plan, exercises };
   }, [planId]);
 
-  const { data, error, loading, reload } = useLoad(canFetch && !!planId, planId, load);
+  const { data, error, loading, reload, refresh } = useLoad(canFetch && !!planId, planId, load);
 
   useEffect(() => {
     const rows = data?.exercises ?? [];
@@ -63,7 +63,7 @@ export function FighterPlanDetailScreen() {
   const exercises = data?.exercises ?? [];
 
   return (
-    <FighterScreen title={fighter.plans.detailTitle} onBack refreshing={loading}>
+    <FighterScreen title={fighter.plans.detailTitle} onBack refreshing={loading} onRefresh={refresh}>
       <StatusLine message={error} onRetry={reload} />
       {plan ? (
         <GlassCard>

@@ -63,7 +63,8 @@ describe("fighter appearance persistence", () => {
     await writeAppliedFighterAppearance("fighter-a", draft, shared, storage);
     await expect(readFighterAppearance("fighter-a", storage)).resolves.toEqual(draft);
     const raw = await storage.getItem(appearanceStorageKey("fighter-a"));
-    expect(raw).toContain("\"presetId\":\"light\"");
+    expect(raw).toContain("\"presetId\":\"system\"");
+    expect(raw).toContain("\"mode\":\"light\"");
     expect(shared.settings.mode).toBe("light");
     expect(shared.settings.fontFamily).toBe("inter");
     expect(shared.settings.fontScale).toBe(1.15);

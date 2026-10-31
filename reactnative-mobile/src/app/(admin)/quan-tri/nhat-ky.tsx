@@ -1,11 +1,7 @@
-import { blocked } from "@/i18n/blocked";
-import { AdminPage } from "@/screens/admin/admin-page";
-import { EmptyBlockedList } from "@/screens/parity/blocked-workspace";
+import { manager } from "@/i18n/manager";
+import { AdminUnavailable } from "@/screens/admin/admin-ui";
 
+/** Chưa có API backend — xem out/06-API-can-bo-sung.md. */
 export default function AdminAuditRoute() {
-  return (
-    <AdminPage title={blocked.audit} extra="Nhật ký hệ thống chưa xem được trên điện thoại." onBack>
-      <EmptyBlockedList />
-    </AdminPage>
-  );
+  return <AdminUnavailable title={manager.tools.audit} description={manager.missing.audit} />;
 }

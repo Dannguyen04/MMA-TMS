@@ -1,8 +1,10 @@
 import { CardGridSkeleton, FilterRowSkeleton, LoadingRegion, PageHeaderSkeleton, Skeleton } from "@/components/ui/skeleton";
+import { getTranslator } from "@/lib/i18n/server";
 
-export default function CoachFightersLoading() {
+export default async function CoachFightersLoading() {
+    const { t } = await getTranslator();
     return (
-        <LoadingRegion label="Loading your roster">
+        <LoadingRegion label={t("training.loading.roster")}>
             <PageHeaderSkeleton actions={2} />
             <div className="flex flex-col gap-4">
                 <FilterRowSkeleton selects={4} />

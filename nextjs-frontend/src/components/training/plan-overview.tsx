@@ -1,6 +1,6 @@
 "use client";
 
-import { useDemoCopy, useLocale } from "@/components/i18n/locale-provider";
+import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { CalendarRange } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -11,9 +11,10 @@ import { PlanStatusBadge } from "@/components/domain/status-badges";
 import { TechniqueChips } from "@/components/domain/technique-chip";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { TRAINING_PHASE_LABELS } from "@/lib/domain/labels";
+import { trainingPhaseLabel } from "@/lib/domain/labels";
 import type { TrainingPlan } from "@/lib/domain/types";
 import { daysBetween, formatPercent } from "@/lib/format";
+import { plural } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 import type { PlanAdherence } from "./training-utils";
 
@@ -39,7 +40,7 @@ export interface PlanOverviewProps {
 
 /** Plan hero: objective, phase, focus areas, timeline, weekly target, adherence and coach. */
 export function PlanOverview({ plan, now, coachName, fighter, fighterHref, adherence, titleHref, titleAs: TitleHeading = "h2", showNotes = false, actions, className }: PlanOverviewProps) {
-    const copy = useDemoCopy();
+    const t = useT();
     const locale = useLocale();
     const weeks = plan.endDate === null ? null : Math.max(1, Math.ceil(daysBetween(plan.startDate, plan.endDate) / 7));
 
@@ -49,7 +50,7 @@ export function PlanOverview({ plan, now, coachName, fighter, fighterHref, adher
                 <div className="flex min-w-0 flex-col gap-4">
                     <div className="flex flex-wrap items-center gap-2">
                         <PlanStatusBadge locale={locale} status={plan.status} />
-                        <Badge variant="outline">{copy(TRAINING_PHASE_LABELS[plan.phase])}</Badge>
+                        <Badge variant="outline">{trainingPhaseLabel(t, plan.phase)}</Badge>
                     </div>
                     {titleHref && (
                         <TitleHeading className="-mt-1 text-xl leading-snug font-semibold tracking-tight text-fg">
@@ -60,20 +61,20 @@ export function PlanOverview({ plan, now, coachName, fighter, fighterHref, adher
                     )}
                     {fighter && <FighterIdentity fighter={fighter} href={fighterHref} showHealth />}
                     <div>
-                        <p className="text-xs font-semibold tracking-wide text-fg-subtle uppercase">{copy("Objective")} </p>
+                        <p className="text-xs font-semibold tracking-wide text-fg-subtle uppercase">{t("training.plan.objective")} </p>
                         <p className="mt-1 max-w-2xl text-[15px] leading-relaxed text-pretty text-fg">{plan.objective}</p>
                     </div>
                     {plan.focusAreas.length > 0 && (
                         <div>
-                            <p className="mb-2 text-xs font-semibold tracking-wide text-fg-subtle uppercase">{copy("Focus areas")} </p>
-                            <TechniqueChips techniques={plan.focusAreas} label={copy("Focus areas")} />
+                            <p className="mb-2 text-xs font-semibold tracking-wide text-fg-subtle uppercase">{t("training.plan.focusAreas")} </p>
+                            <TechniqueChips techniques={plan.focusAreas} label={t("training.plan.focusAreas")} />
                         </div>
                     )}
                     {showNotes && (
                         <div>
-                            <p className="text-xs font-semibold tracking-wide text-fg-subtle uppercase">{copy("Coach notes")} </p>
+                            <p className="text-xs font-semibold tracking-wide text-fg-subtle uppercase">{t("training.plan.coachNotes")} </p>
                             <p className="mt-1 max-w-2xl text-sm leading-relaxed text-pretty whitespace-pre-line text-fg-muted">
-                                {plan.notes || "No notes on this plan."}
+                                {plan.notes || t("training.plan.noNotes")}
                             </p>
                         </div>
                     )}
@@ -92,28 +93,28 @@ export function PlanOverview({ plan, now, coachName, fighter, fighterHref, adher
                     <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
                         {plan.weeklySessionTarget !== null && (
                             <div className="min-w-0">
-                                <dt className="text-[13px] text-fg-muted">{copy("Weekly target")} </dt>
-                                <dd className="mt-0.5 font-semibold text-fg">{copy("{n} sessions", { n: plan.weeklySessionTarget })}</dd>
+                                <dt className="text-[13px] text-fg-muted">{t("training.plan.weeklyTarget")} </dt>
+                                <dd className="mt-0.5 font-semibold text-fg">{plural(t, "training.planCard.sessionsTarget", plan.weeklySessionTarget)}</dd>
                             </div>
                         )}
                         <div className="min-w-0">
-                            <dt className="text-[13px] text-fg-muted">{copy("Adherence so far")} </dt>
+                            <dt className="text-[13px] text-fg-muted">{t("training.plan.adherenceSoFar")} </dt>
                             <dd className="mt-0.5 font-semibold text-fg">
                                 {adherence ? formatPercent(adherence.pct) : "—"}
                                 <span className="block text-xs font-normal text-fg-muted">
-                                    {adherence ? copy("{completed} of {due} due sessions", { completed: adherence.completed, due: adherence.due }) : copy("Nothing due yet")}
+                                    {adherence ? t("training.plan.dueSessions", { completed: adherence.completed, due: adherence.due }) : t("training.plan.nothingDueYet")}
                                 </span>
                             </dd>
                         </div>
                         {weeks !== null && (
                             <div className="min-w-0">
-                                <dt className="text-[13px] text-fg-muted">{copy("Length")} </dt>
-                                <dd className="mt-0.5 font-semibold text-fg">{copy("{n} weeks", { n: weeks })}</dd>
+                                <dt className="text-[13px] text-fg-muted">{t("training.plan.length")} </dt>
+                                <dd className="mt-0.5 font-semibold text-fg">{plural(t, "training.plan.weeksCount", weeks)}</dd>
                             </div>
                         )}
                         {coachName && (
                             <div className="min-w-0">
-                                <dt className="text-[13px] text-fg-muted">{copy("Coach")} </dt>
+                                <dt className="text-[13px] text-fg-muted">{t("training.plan.coach")} </dt>
                                 <dd className="mt-0.5 truncate font-semibold text-fg">{coachName}</dd>
                             </div>
                         )}

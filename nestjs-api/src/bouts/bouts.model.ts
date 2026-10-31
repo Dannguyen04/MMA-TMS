@@ -1,4 +1,13 @@
 import { z } from 'zod';
+import {
+  affectedPlanSchema,
+  affectedSessionSchema,
+  blockedTypesForMaxTier,
+  gradedReturnCeiling,
+  gradedReturnFor,
+  gradedReturnSchema,
+  type GradedReturn,
+} from '../suspensions/suspensions.model.js';
 import { opponentAnalysisSchema, fighterAnalysisSchema, analysisSessionsSchema } from './bout-analysis.model.js';
 import {
   dateOnlySchema,
@@ -6,9 +15,16 @@ import {
   trimmedTextSchema,
 } from '../shared/utils/zod-schema.util.js';
 import {
+  ACADEMY_UTC_OFFSET_MS,
+  academyDateOf,
+  addDaysToDate,
+  daysBetweenDates,
+  LOSS_OF_CONSCIOUSNESS_VALUES,
   SESSION_TYPES,
   SUSPENSION_REASONS,
+  type LossOfConsciousness,
   type SessionType,
+  type SuspensionReason,
 } from '../suspensions/suspensions.constants.js';
 export interface SuspensionStateInput {
   startsOn: string;
@@ -100,33 +116,16 @@ export const LONG_WEIGH_IN_TO_BOUT_HOURS = 12;
 // Academy calendar (Asia/Ho_Chi_Minh is UTC+7 all year, no daylight saving)
 // ---------------------------------------------------------------------------
 
-const ACADEMY_UTC_OFFSET_MS = 7 * 3_600_000;
-const DAY_MS = 86_400_000;
-
-/** Academy calendar date (YYYY-MM-DD) of an instant. */
-export function academyDateOf(instant: Date): string {
-  return new Date(instant.getTime() + ACADEMY_UTC_OFFSET_MS)
-    .toISOString()
-    .slice(0, 10);
-}
+export {
+  ACADEMY_UTC_OFFSET_MS,
+  academyDateOf,
+  addDaysToDate,
+  daysBetweenDates,
+};
 
 /** First instant of an academy calendar date. */
 export function academyStartOfDay(date: string): Date {
   return new Date(Date.parse(`${date}T00:00:00.000Z`) - ACADEMY_UTC_OFFSET_MS);
-}
-
-export function addDaysToDate(date: string, days: number): string {
-  return new Date(Date.parse(`${date}T00:00:00.000Z`) + days * DAY_MS)
-    .toISOString()
-    .slice(0, 10);
-}
-
-/** Whole days from `from` to `to` (negative when `to` is earlier). */
-export function daysBetweenDates(from: string, to: string): number {
-  return Math.round(
-    (Date.parse(`${to}T00:00:00.000Z`) - Date.parse(`${from}T00:00:00.000Z`)) /
-      DAY_MS,
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -922,15 +921,10 @@ export const BOUT_METHODS = [
 ] as const;
 export type BoutMethod = (typeof BOUT_METHODS)[number];
 
-export const LOSS_OF_CONSCIOUSNESS_VALUES = [
-  'NONE',
-  'UNDER_1_MIN',
-  'OVER_1_MIN',
-  'UNKNOWN',
-] as const;
-export type LossOfConsciousness = (typeof LOSS_OF_CONSCIOUSNESS_VALUES)[number];
+export { LOSS_OF_CONSCIOUSNESS_VALUES, type LossOfConsciousness };
 
 export const recordResultSchema = z.strictObject({
+  confirmIncompleteRounds: z.boolean().optional(),
   result: z.enum(BOUT_RESULTS),
   method: z.enum(BOUT_METHODS),
   resultRound: z.number().int().min(1).max(12).optional(),
@@ -1187,6 +1181,8 @@ export const recordResultSuspensionSchema = z.object({
   requiresClearance: z.boolean(),
   suggestedDays: z.number().int().nullable(),
   explanation: z.string(),
+  affectedSessions: z.array(affectedSessionSchema),
+  affectedPlans: z.array(affectedPlanSchema),
 });
 export type RecordResultSuspension = z.infer<
   typeof recordResultSuspensionSchema
@@ -1235,6 +1231,8 @@ export interface ReadinessSuspensionSummary {
   blockedSessionTypes: SessionType[];
   allowedSessionTypes: SessionType[];
   expectedResumeOn: string | null;
+  fullReturnOn?: string | null;
+  gradedReturn?: GradedReturn | null;
 }
 
 export interface ReadinessRow {
@@ -1246,11 +1244,14 @@ export interface ReadinessRow {
   latestWeightOn: string | null;
   activeBout: ReadinessActiveBout | null;
   suspension: ReadinessSuspensionSummary | null;
+  fullReturnOn: string | null;
+  gradedReturn: GradedReturn | null;
   notReadyReasons?: NotReadyReason[];
   feasibility?: WeightFeasibility;
 }
 
 export interface ReadinessSuspensionInput extends SuspensionStateInput {
+  reason?: SuspensionReason | undefined;
   blockedSessionTypes: readonly SessionType[];
   deletedAt?: Date | string | null;
 }
@@ -1293,6 +1294,35 @@ export function classifyReadiness(input: ClassifyReadinessInput): ReadinessRow {
   const hasAwaitingClearance = inForceToday.some(
     (s) => suspensionStatusOn(s, input.today) === 'AWAITING_CLEARANCE',
   );
+  const gradedReturnsToday = activeSuspensions
+    .map((s) => ({
+      suspension: s,
+      gradedReturn: gradedReturnFor(s, input.today),
+    }))
+    .filter(
+      (
+        item,
+      ): item is {
+        suspension: ReadinessSuspensionInput;
+        gradedReturn: GradedReturn;
+      } => item.gradedReturn !== null,
+    );
+
+  let gradedReturn: GradedReturn | null = null;
+  if (gradedReturnsToday.length > 0) {
+    let ceiling = gradedReturnsToday[0]!.gradedReturn.ceiling;
+    let fullReturnOnVal = gradedReturnsToday[0]!.gradedReturn.fullReturnOn;
+    for (const item of gradedReturnsToday) {
+      if (item.gradedReturn.ceiling < ceiling) {
+        ceiling = item.gradedReturn.ceiling;
+      }
+      if (item.gradedReturn.fullReturnOn > fullReturnOnVal) {
+        fullReturnOnVal = item.gradedReturn.fullReturnOn;
+      }
+    }
+    gradedReturn = { ceiling, fullReturnOn: fullReturnOnVal };
+  }
+  const fullReturnOn = gradedReturn ? gradedReturn.fullReturnOn : null;
 
   const rawBout = input.activeBout ?? null;
   const activeBout: ReadinessActiveBout | null =
@@ -1310,7 +1340,7 @@ export function classifyReadiness(input: ClassifyReadinessInput): ReadinessRow {
       : null;
 
   let status: ReadinessStatus;
-  if (hasActiveSuspension) {
+  if (hasActiveSuspension || (gradedReturn !== null && !hasAwaitingClearance)) {
     status = 'SUSPENDED';
   } else if (hasAwaitingClearance) {
     status = 'AWAITING_CLEARANCE';
@@ -1354,6 +1384,29 @@ export function classifyReadiness(input: ClassifyReadinessInput): ReadinessRow {
       blockedSessionTypes,
       allowedSessionTypes,
       expectedResumeOn,
+      ...(gradedReturn !== null
+        ? { fullReturnOn: gradedReturn.fullReturnOn, gradedReturn }
+        : {}),
+    };
+  } else if (gradedReturn !== null) {
+    let earliestStartsOn = gradedReturnsToday[0]!.suspension.startsOn;
+    let latestEndsOn = gradedReturnsToday[0]!.suspension.endsOn;
+    for (const { suspension: s } of gradedReturnsToday) {
+      if (s.startsOn < earliestStartsOn) earliestStartsOn = s.startsOn;
+      if (s.endsOn > latestEndsOn) latestEndsOn = s.endsOn;
+    }
+    const blockedSessionTypes = blockedTypesForMaxTier(gradedReturn.ceiling);
+    const allowedSessionTypes = SESSION_TYPES.filter(
+      (t) => !blockedSessionTypes.includes(t),
+    );
+    suspension = {
+      startsOn: earliestStartsOn,
+      endsOn: latestEndsOn,
+      blockedSessionTypes,
+      allowedSessionTypes,
+      expectedResumeOn: gradedReturn.fullReturnOn,
+      fullReturnOn: gradedReturn.fullReturnOn,
+      gradedReturn,
     };
   }
 
@@ -1365,7 +1418,13 @@ export function classifyReadiness(input: ClassifyReadinessInput): ReadinessRow {
 
   if (input.boutOn !== undefined) {
     notReadyReasons = [];
-    if (activeSuspensions.some((s) => isInForceOn(s, input.boutOn!))) {
+    if (
+      activeSuspensions.some(
+        (s) =>
+          isInForceOn(s, input.boutOn!) ||
+          gradedReturnCeiling(s, input.boutOn!) !== null,
+      )
+    ) {
       notReadyReasons.push('SUSPENDED_PAST_BOUT_DATE');
     }
     if (activeBout !== null) {
@@ -1410,6 +1469,8 @@ export function classifyReadiness(input: ClassifyReadinessInput): ReadinessRow {
     latestWeightOn,
     activeBout,
     suspension,
+    fullReturnOn,
+    gradedReturn,
     ...(notReadyReasons !== undefined ? { notReadyReasons } : {}),
     ...(feasibility !== undefined ? { feasibility } : {}),
   };
@@ -1449,6 +1510,16 @@ export const weightFeasibilitySchema = z.object({
   daysToWeighIn: z.number().int(),
 });
 
+export const readinessSuspensionSchema = z.object({
+  startsOn: dateOnlySchema,
+  endsOn: dateOnlySchema,
+  blockedSessionTypes: z.array(z.enum(SESSION_TYPES)),
+  allowedSessionTypes: z.array(z.enum(SESSION_TYPES)),
+  expectedResumeOn: dateOnlySchema.nullable(),
+  fullReturnOn: dateOnlySchema.nullable().optional(),
+  gradedReturn: gradedReturnSchema.nullable().optional(),
+});
+
 export const readinessRowSchema = z.object({
   fighterId: z.uuid(),
   fighterName: z.string(),
@@ -1471,8 +1542,12 @@ export const readinessRowSchema = z.object({
       blockedSessionTypes: z.array(z.enum(SESSION_TYPES)),
       allowedSessionTypes: z.array(z.enum(SESSION_TYPES)),
       expectedResumeOn: dateOnlySchema.nullable(),
+      fullReturnOn: dateOnlySchema.nullable().optional(),
+      gradedReturn: gradedReturnSchema.nullable().optional(),
     })
     .nullable(),
+  fullReturnOn: dateOnlySchema.nullable(),
+  gradedReturn: gradedReturnSchema.nullable(),
   notReadyReasons: z.array(z.enum(NOT_READY_REASONS)).optional(),
   feasibility: weightFeasibilitySchema.optional(),
 });

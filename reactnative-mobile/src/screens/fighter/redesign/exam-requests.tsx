@@ -10,7 +10,9 @@ import { useToastMessage } from "@/components/toast/app-toast";
 import { medical } from "@/i18n/medical";
 import { useFighterPalette } from "@/screens/fighter/redesign/palette";
 import { canSubmitReviewReason, REVIEW_REASON_MAX, reviewReasonIssue } from "@/screens/fighter/redesign/review-reason";
-import { mapApiMessage } from "@/session/map-api-message";
+import { mapApiMessage } from "@/session/map-api-message";
+import { FilterSelect } from "@/components/filter-sheet";
+import { SkeletonRows } from "@/components/loading";
 
 function outcomeUnknown(error: unknown): boolean {
   return !isApiError(error) || error.status === 0 || error.status >= 500;
@@ -124,24 +126,20 @@ export function ExamRequestSection({
           {listError ? "" : total === null ? "" : `${total} yêu cầu`}
         </Text>
       </View>
-      <View style={styles.chips}>
-        <Filter label="Tất cả" selected={status === ""} onPress={() => onStatusChange("")} />
-        {REVIEW_REQUEST_STATUSES.map((value) => (
-          <Filter
-            key={value}
-            label={reviewStatusLabel(value)}
-            selected={status === value}
-            onPress={() => onStatusChange(value)}
-          />
-        ))}
-      </View>
+      <FilterSelect
+        label="Trạng thái"
+        options={[{ value: "" as const, label: "Tất cả" }, ...REVIEW_REQUEST_STATUSES.map((value) => ({ value, label: reviewStatusLabel(value) }))]}
+        value={status}
+        allValue=""
+        onChange={onStatusChange}
+      />
       {listError ? (
         <Pressable accessibilityRole="button" onPress={() => void load(1)}>
           <Text style={[styles.meta, { color: colors.accent }]}>Thử lại</Text>
         </Pressable>
       ) : null}
       {loading && rows.length === 0 && !listError ? (
-        <Text style={[styles.meta, { color: colors.muted }]}>{medical.loading}</Text>
+        <SkeletonRows rows={2} />
       ) : null}
       {!loading && !listError && rows.length === 0 ? (
         <Text style={[styles.meta, { color: colors.muted }]}>
@@ -217,22 +215,6 @@ export function ExamRequestSection({
       </Pressable>
       <Text style={[styles.meta, { color: colors.muted }]}>Nhập lý do để gửi • Tối đa 2000 ký tự</Text>
     </View>
-  );
-}
-
-function Filter({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
-  const colors = useFighterPalette();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ selected }}
-      onPress={onPress}
-      style={[styles.chip, { backgroundColor: selected ? colors.accent : colors.surface2 }]}
-    >
-      <Text style={{ color: selected ? colors.onAccent : colors.ink, fontSize: 12, fontWeight: selected ? "600" : "400" }}>
-        {label}
-      </Text>
-    </Pressable>
   );
 }
 

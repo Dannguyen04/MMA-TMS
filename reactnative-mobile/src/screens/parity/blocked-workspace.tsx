@@ -3,8 +3,8 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter, type Href } from "expo-router";
 
 import { AuthButton } from "@/components/auth/auth-button";
-import { AuthTextField } from "@/components/auth/auth-text-field";
 import { BlockedApiNotice } from "@/components/blocked/blocked-api-notice";
+import { FeatureUnavailable } from "@/components/feature-unavailable";
 import { blocked } from "@/i18n/blocked";
 import { FighterScreen, GlassCard, SectionLabel } from "@/screens/fighter/screen";
 import { radius, spacing, type, useThemePreference } from "@/theme";
@@ -42,37 +42,17 @@ export function BlockedFighterPage({
   );
 }
 
+/** @deprecated Dùng `FeatureUnavailable`. */
 export function EmptyBlockedList() {
-  const { colors } = useThemePreference();
-  return (
-    <GlassCard>
-      <Text style={[type.body, { color: colors.inkMuted }]}>{blocked.empty}</Text>
-    </GlassCard>
-  );
+  return <FeatureUnavailable compact />;
 }
 
-export function DisabledForm({
-  fields,
-  cta = blocked.submit,
-}: {
-  fields: { label: string; placeholder?: string }[];
-  cta?: string;
-}) {
-  return (
-    <>
-      {fields.map((field) => (
-        <AuthTextField
-          key={field.label}
-          label={field.label}
-          value=""
-          onChangeText={() => undefined}
-          placeholder={field.placeholder}
-          editable={false}
-        />
-      ))}
-      <AuthButton title={cta} onPress={() => undefined} disabled />
-    </>
-  );
+/**
+ * @deprecated Form khóa không còn hiển thị: màn chưa có API chỉ hiện `FeatureUnavailable`.
+ * Giữ chữ ký để không gãy import cũ.
+ */
+export function DisabledForm(_props: { fields: { label: string; placeholder?: string }[]; cta?: string }) {
+  return null;
 }
 
 export function EvidenceReviewSketch() {

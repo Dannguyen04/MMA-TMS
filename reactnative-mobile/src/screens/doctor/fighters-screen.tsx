@@ -1,79 +1,79 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  Text,
-} from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { useRouter, type Href } from "expo-router";
 
 import {
   MEDICAL_STATUSES,
-  isApiError,
   listDoctorFighters,
   type MedicalStatus,
   type PublicFighter,
-  type PublicUser,
 } from "@/api";
 import { useToastMessage } from "@/components/toast/app-toast";
 import { doctor } from "@/i18n/doctor";
 import { vi } from "@/i18n/vi";
-import { mapApiMessage } from "@/session/map-api-message";
 import { useSession } from "@/session/session-context";
-import { type, useThemePreference } from "@/theme";
+import { FilterSelect } from "@/components/filter-sheet";
+import { spacing, type, useThemePreference } from "@/theme";
 
-import { DoctorCard, DoctorChrome, doctorStyles, fighterName } from "./doctor-chrome";
+import { medicalBadgeId } from "./badge-colors";
+import {
+  DoctorChrome,
+  DoctorScroll,
+  clinicalMessage,
+  doctorMuted,
+  doctorProfileId,
+  doctorStyles,
+  fighterInitials,
+  fighterName,
+} from "./doctor-chrome";
+import { StatusBadge } from "./status-badge";
 import { useSelectedFighter } from "./selected-fighter";
-
-function profileId(user: PublicUser | null): string | null {
-  const profile = user?.profile;
-  if (!profile || typeof profile.id !== "string") return null;
-  return profile.id;
-}
+import { Icon } from "@/components/icon";
+import { FadeInView, SkeletonList } from "@/components/motion";
+import { StateView } from "@/components/state-view";
 
 export function DoctorFightersScreen() {
   const { colors } = useThemePreference();
   const router = useRouter();
   const { user, isDemo } = useSession();
-  const { fighter: selected, setFighter } = useSelectedFighter();
+  const { setFighter } = useSelectedFighter();
   const [rows, setRows] = useState<PublicFighter[]>([]);
+  const [total, setTotal] = useState(0);
   const [filter, setFilter] = useState<MedicalStatus | "">("");
   const [error, setError] = useState("");
   useToastMessage(error, "error");
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
 
-  const load = useCallback(async (soft = false) => {
+  const load = useCallback(async (mode: "initial" | "refresh" = "initial") => {
     if (isDemo || user?.role !== "DOCTOR") {
       setRows([]);
+      setTotal(0);
       setError("");
       setLoading(false);
-      setRefreshing(false);
       return;
     }
-    if (soft) setRefreshing(true);
-    else setLoading(true);
-    setError("");
+    if (mode === "initial") {
+      setLoading(true);
+      setError("");
+    }
     try {
-      const doctorId = profileId(user);
+      const doctorId = doctorProfileId(user);
       if (!doctorId) {
         setRows([]);
+        setTotal(0);
         setError(doctor.roleOnly);
         return;
       }
       const page = await listDoctorFighters(doctorId, { page: 1, limit: 50 });
       setRows(page.data);
+      setTotal(page.total);
     } catch (cause: unknown) {
+      if (mode === "refresh") throw cause;
       setRows([]);
-      if (isApiError(cause) && cause.status === 403) {
-        setError(doctor.roleOnly);
-      } else {
-        setError(mapApiMessage(cause));
-      }
+      setTotal(0);
+      setError(clinicalMessage(cause));
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   }, [isDemo, user]);
 
@@ -83,85 +83,94 @@ export function DoctorFightersScreen() {
 
   const openMedical = (row: PublicFighter) => {
     setFighter(row);
-    router.navigate("/(doctor)/medical" as Href);
+    router.push("/(doctor)/medical" as Href);
   };
 
-  const visible = filter
-    ? rows.filter((row) => row.currentMedicalStatus === filter)
-    : rows;
-  const counts = MEDICAL_STATUSES.map((status) => ({
-    status,
-    count: rows.filter((row) => row.currentMedicalStatus === status).length,
-  }));
+  const muted = doctorMuted(colors);
+  const visible = filter ? rows.filter((row) => row.currentMedicalStatus === filter) : rows;
+  const chips: { id: MedicalStatus | ""; label: string }[] = [
+    { id: "", label: doctor.fighters.filterAll },
+    ...MEDICAL_STATUSES.map((status) => ({ id: status, label: doctor.status[status] })),
+  ];
 
   return (
-    <DoctorChrome title={doctor.fighters.title} subtitle={doctor.fighters.subtitle}>
-      {loading ? (
-        <ActivityIndicator color={colors.lotus} />
+    <DoctorChrome
+      title={doctor.fighters.title}
+    >
+      {loading && rows.length === 0 ? (
+        <View style={doctorStyles.list}>
+          <SkeletonList rows={4} height={72} />
+        </View>
       ) : (
-        <ScrollView
-          contentContainerStyle={doctorStyles.list}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} />
-          }
-        >
+        <DoctorScroll contentContainerStyle={doctorStyles.list} onRefresh={() => load("refresh")}>
+          <Text style={[type.body, { color: colors.ink }]}>{doctor.fighters.subtitle}</Text>
+          {!error ? (
+            <Text style={[type.caption, { color: muted }]}>
+              {doctor.fighters.count(filter ? visible.length : total)}
+            </Text>
+          ) : null}
+          <FilterSelect
+            label={doctor.fighters.filterLabel}
+            options={chips.map((chip) => ({ value: chip.id, label: chip.label }))}
+            value={filter}
+            allValue=""
+            onChange={setFilter}
+          />
+
           {error ? (
             <Pressable accessibilityRole="button" onPress={() => void load()} style={doctorStyles.link}>
               <Text style={[type.link, { color: colors.lotus }]}>{doctor.retry}</Text>
             </Pressable>
           ) : null}
 
-          <DoctorCard>
-            <Text style={[type.label, { color: colors.lotus }]}>{doctor.fighters.overview}</Text>
-            {counts.map((item) => (
-              <Pressable
-                key={item.status}
-                accessibilityRole="button"
-                onPress={() => setFilter(filter === item.status ? "" : item.status)}
-              >
-                <Text style={[type.body, { color: colors.ink }]}>
-                  {doctor.status[item.status]}: {item.count}
-                </Text>
-              </Pressable>
-            ))}
-            <Pressable accessibilityRole="button" onPress={() => setFilter("")}>
-              <Text style={[type.link, { color: colors.lotus }]}>{doctor.fighters.filterAll}</Text>
-            </Pressable>
-          </DoctorCard>
+          {!error && visible.length === 0 ? <StateView kind="empty" compact title={doctor.fighters.empty} /> : null}
 
-          {!error && visible.length === 0 ? (
-            <DoctorCard>
-              <Text style={[type.label, { color: colors.inkMuted }]}>{doctor.fighters.empty}</Text>
-            </DoctorCard>
-          ) : null}
-
-          {visible.map((row) => {
-            const active = selected?.id === row.id;
+          {visible.map((row, i) => {
             const weight = vi.weightClass[row.weightClass];
             const status = doctor.status[row.currentMedicalStatus];
             return (
+              <FadeInView key={row.id} index={i}>
               <Pressable
-                key={row.id}
                 accessibilityRole="button"
                 onPress={() => openMedical(row)}
+                style={({ pressed }) => [
+                  {
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: spacing.md,
+                    paddingVertical: spacing.lg,
+                    borderBottomWidth: 1,
+                    borderBottomColor: colors.line,
+                    opacity: pressed ? 0.7 : 1,
+                  },
+                ]}
               >
-                <DoctorCard>
+                <View
+                  style={{
+                    width: 46,
+                    height: 46,
+                    borderRadius: 23,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: colors.surfaceMuted,
+                  }}
+                >
+                  <Text style={[type.body, { color: colors.ink }]}>{fighterInitials(row)}</Text>
+                </View>
+                <View style={{ flex: 1, gap: 4 }}>
                   <Text style={[type.body, { color: colors.ink }]}>{fighterName(row)}</Text>
-                  <Text style={[type.label, { color: colors.inkMuted }]}>
+                  <Text style={[type.caption, { color: muted }]}>
                     {weight}
                     {row.gym ? ` · ${row.gym}` : ""}
-                    {` · ${status}`}
                   </Text>
-                  {active ? (
-                    <Text style={[type.caption, { color: colors.lotus }]}>{doctor.fighters.openMedical}</Text>
-                  ) : (
-                    <Text style={[type.link, { color: colors.lotus }]}>{doctor.fighters.openMedical}</Text>
-                  )}
-                </DoctorCard>
+                  <StatusBadge id={medicalBadgeId(row.currentMedicalStatus)} label={status} />
+                </View>
+                <Icon name="chevron" size={18} color={muted} />
               </Pressable>
+              </FadeInView>
             );
           })}
-        </ScrollView>
+        </DoctorScroll>
       )}
     </DoctorChrome>
   );

@@ -16,6 +16,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { coach } from "@/i18n/coach";
 import { radius, spacing, type, useThemePreference } from "@/theme";
+import { FadeInView, PressableScale } from "@/components/motion";
+import { StateView } from "@/components/state-view";
+import { useReadableWidth } from "@/components/readable-width";
+import { ThemedRefreshControl, usePullRefresh } from "@/components/loading";
 
 export function CoachScaffold({
   title,
@@ -23,22 +27,29 @@ export function CoachScaffold({
   action,
   keyboard = false,
   inStack = false,
+  onRefresh,
 }: {
   title: string;
   children: ReactNode;
   action?: ReactNode;
   keyboard?: boolean;
   inStack?: boolean;
+  /** Kéo để làm mới; reject khi lỗi → toast, giữ dữ liệu cũ. */
+  onRefresh?: () => Promise<unknown> | unknown;
 }) {
+  const pull = usePullRefresh(onRefresh ?? (() => undefined));
+  const readable = useReadableWidth();
   const { colors } = useThemePreference();
   const insets = useSafeAreaInsets();
   const body = (
     <ScrollView
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
+      refreshControl={onRefresh ? <ThemedRefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} /> : undefined}
       contentContainerStyle={[
         styles.scroll,
         { paddingBottom: (action ? spacing.lg : insets.bottom) + spacing.xxl },
+        readable,
       ]}
     >
       <Text style={[type.title, { color: colors.ink }]}>{title}</Text>
@@ -85,19 +96,35 @@ export function CoachBanner({ message, tone = "muted" }: { message: string; tone
   return <Text style={[type.body, { color }]}>{message}</Text>;
 }
 
-export function CoachCard({ children, onPress }: { children: ReactNode; onPress?: () => void }) {
+export function CoachCard({
+  children,
+  onPress,
+  index,
+}: {
+  children: ReactNode;
+  onPress?: () => void;
+  /** Vị trí trong danh sách → stagger khi vào màn. */
+  index?: number;
+}) {
   const { colors } = useThemePreference();
   const inner = (
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.line }]}>
       {children}
     </View>
   );
-  if (!onPress) return inner;
-  return (
-    <Pressable accessibilityRole="button" onPress={onPress}>
+  const body = onPress ? (
+    <PressableScale accessibilityRole="button" onPress={onPress}>
       {inner}
-    </Pressable>
+    </PressableScale>
+  ) : (
+    inner
   );
+  return index == null ? body : <FadeInView index={index}>{body}</FadeInView>;
+}
+
+/** Trạng thái rỗng có minh họa cho danh sách Coach. */
+export function CoachEmpty({ message }: { message: string }) {
+  return <StateView kind="empty" compact title={message} />;
 }
 
 export function CoachField({

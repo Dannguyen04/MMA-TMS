@@ -146,7 +146,7 @@ Bắt đầu khi có kết quả, kết thúc khi võ sĩ được tập lại.
 | # | Nghiệp vụ | Người dùng làm | App tự làm | Quy tắc | Ticket |
 | --- | --- | --- | --- | --- | --- |
 | 11 | **Đình chỉ** | Không nhập, trừ khi bộ luật không có quy tắc. Sửa số ngày thì ghi lý do | Áp quy tắc nặng nhất của bộ luật, đình chỉ có hiệu lực ngay, kèm câu giải thích; áp ngày nghỉ bắt buộc; tạo việc "Cân nhắc đình chỉ thủ công" khi cần | R27 | T-007 |
-| 12 | **Điều chỉnh lịch tập** | Một chạm "Áp dụng tất cả", hoặc bỏ chọn từng buổi | **Cổng 2** chặn xếp và bắt đầu loại buổi bị cấm; tìm buổi đã xếp bị xung đột, đề xuất đổi, dời hoặc huỷ | R28 | T-007 |
+| 12 | **Điều chỉnh lịch tập** | Không, trừ khi xếp lại buổi "Chờ xếp lại" | **Cổng 2** chặn xếp và bắt đầu loại buổi bị cấm; khi tạo đình chỉ, buổi đã xếp bị xung đột tự chuyển "Chờ xếp lại" hoặc huỷ; giáo án camp chuyển sang hồi phục khi chấn thương; sau KO/TKO tập lại theo bậc | R28, quyết định 23–25 | T-007, T-036, T-045 |
 | 13 | **Cho tập lại** | HLV hoặc bác sĩ ghi căn cứ, chỉ với đình chỉ cần xác nhận | Tính trạng thái theo ngày; tạo việc "Chờ xác nhận được tập lại" | S3 | T-007 |
 | 14 | **Đánh giá trận** | Sửa nếu không đồng ý | Tự đánh giá từng chiến thuật từ bản ghi các hiệp; cập nhật hồ sơ đối thủ; lập danh sách điểm cần luyện | R29, R30 | T-010 |
 | 15 | **Sẵn sàng nhận trận mới** | Không | Tính khi đọc: không có trận đang chạy, không có đình chỉ còn hiệu lực; bảng sẵn sàng toàn CLB; quay lại nghiệp vụ 1 | S3, H7, R32 | T-007 |
@@ -166,6 +166,8 @@ Một thẻ trên dashboard HLV, gom việc của cả ba giai đoạn. Thẻ t�
 | Sau | Buổi tập xung đột với đình chỉ chưa xử lý | R28 |
 | Sau | Đình chỉ chờ xác nhận được tập lại | S3 |
 | Sau | Cân nhắc đình chỉ thủ công | R27 |
+
+> **Ghi chú 31/10 (Claude trên máy Ken, chờ Dan quyết):** việc "Buổi tập xung đột với đình chỉ chưa xử lý" (R28) gần như không còn sinh ra từ khi có T-036. Mọi đường tạo đình chỉ (tạo tay, kết quả KO/TKO) đều tự chuyển buổi bị chặn sang "Chờ xếp lại" hoặc huỷ ngay lúc tạo, và Cổng 2 chặn xếp buổi mới vào khoảng đình chỉ. Luật "bị đình chỉ thì không tập" không đổi. Chỉ dòng việc này trở nên thừa; nó chỉ còn ý nghĩa với dữ liệu có trước T-036. Đề nghị bỏ dòng này, hoặc đổi thành "Buổi chờ xếp lại sau đình chỉ". Chi tiết ở tiêu chí 6 của [T-040](./tickets/T-040-real-backend-demo.md).
 
 #### Bổ sung 21/10 (chờ duyệt)
 
@@ -314,20 +316,22 @@ Số hiệp lấy từ trường mới `scheduled_rounds` nhập lúc tạo tr�
 
 **Nghiệp vụ 12. Điều chỉnh lịch tập**
 
-- **R28 (mới).** Tìm các buổi `SCHEDULED` của võ sĩ trong khoảng đình chỉ có loại bị chặn. Với từng buổi, app đề xuất: đổi sang `RECOVERY` nếu loại này không bị chặn; nếu không đổi được và đình chỉ không cần xác nhận thì dời sang ngày đầu tiên sau ngày kết thúc muộn nhất của các đình chỉ còn hiệu lực; còn lại thì huỷ. Người dùng một chạm "Áp dụng tất cả" hoặc bỏ chọn từng buổi. Buổi xếp mới vẫn bị chặn bằng 409 `TRAINING_SUSPENSION_ACTIVE` như F7.
+- **R28 (đổi 29/10, [quyết định 23](./SCOPE-FIGHT-CAMP.md#quyết-định-và-câu-hỏi)).** Tìm các buổi `SCHEDULED` của võ sĩ có ngày nằm trong khoảng đình chỉ và loại bị chặn. App **tự áp dụng ngay lúc tạo đình chỉ** (thủ công hay từ kết quả trận, cùng một giao dịch): buổi bị một đình chỉ cần xác nhận chặn thì **huỷ** (lý do "Suspension in force"; võ sĩ nhận thông báo huỷ sau khi lưu xong); còn lại thì chuyển **"Chờ xếp lại"** (`PENDING`), giữ ngày cũ. Buổi "Chờ xếp lại" không bắt đầu được; HLV xếp lại bằng cách chọn ngày mới (qua Cổng 2 ở ngày mới, qua được thì về `SCHEDULED`) hoặc huỷ. Buổi xếp mới vẫn bị chặn bằng 409 `TRAINING_SUSPENSION_ACTIVE` như F7. Trước 29/10, R28 chỉ đề xuất đổi sang `RECOVERY`, dời ngày hoặc huỷ và chờ HLV bấm "Áp dụng tất cả"; cách đó đã bỏ.
+- **Giáo án (đổi 29/10, [quyết định 24](./SCOPE-FIGHT-CAMP.md#quyết-định-và-câu-hỏi)).** Đình chỉ `KO`, `TKO`, `MEDICAL` chuyển giáo án đang chạy pha `fight_camp` hoặc `taper` sang `rehab`, cùng giao dịch. Không tự khôi phục khi hết đình chỉ.
 
 **Nghiệp vụ 13, 15. Cho tập lại và sẵn sàng nhận trận (S3)**
 
 ```text
 Đang đình chỉ (ngày x/y, bị chặn loại gì, được tập loại gì, dự kiến tập lại ngày nào)
   → Chờ xác nhận (chỉ khi đình chỉ cần xác nhận và đã qua ngày kết thúc)
+  → Tập lại theo bậc (chỉ sau KO/TKO: 2 ngày, xem quyết định 25)
   → Được tập
   → Sẵn sàng nhận trận mới (không có trận đang chạy, không có đình chỉ còn hiệu lực)
 ```
 
 Đình chỉ không cần xác nhận (nghỉ bắt buộc, bị truất quyền) tự hết sau ngày kết thúc. Đình chỉ cần xác nhận tạo việc cho HLV hoặc bác sĩ vào ngày sau ngày kết thúc, vì F7 chỉ cho xác nhận sau ngày đó; người dùng chỉ nhập căn cứ khi xác nhận. HLV và võ sĩ cùng thấy trạng thái này.
 
-- **R32 (mới). Bảng sẵn sàng toàn CLB.** Một tab "Sẵn sàng" trong hub "Trận". Mỗi võ sĩ trong phạm vi người xem (HLV: võ sĩ được phân công; Admin: toàn CLB) có một dòng: trạng thái S3, số cân gần nhất, ngày dự kiến tập lại nếu đang đình chỉ, trận đang chạy nếu có. Lọc theo hạng cân (kg) và ngày thi dự kiến: với từng võ sĩ, app tính khả thi về cân như R31, và đánh dấu "Chưa sẵn sàng" nếu có đình chỉ còn hiệu lực đến sau ngày đó hoặc đang có trận ở `CAMP`, `FIGHT_WEEK`, `WEIGHED_IN`. Bảng chỉ đọc, tính khi đọc.
+- **R32 (mới). Bảng sẵn sàng toàn CLB.** Một tab "Sẵn sàng" trong hub "Trận". Mỗi võ sĩ trong phạm vi người xem (HLV: võ sĩ được phân công; Admin: toàn CLB) có một dòng: trạng thái S3, số cân gần nhất, ngày dự kiến tập lại nếu đang đình chỉ, trận đang chạy nếu có. Lọc theo hạng cân (kg) và ngày thi dự kiến: với từng võ sĩ, app tính khả thi về cân như R31, và đánh dấu "Chưa sẵn sàng" nếu có đình chỉ còn hiệu lực đến sau ngày đó, võ sĩ đang tập lại theo bậc (tới ngày tập đầy đủ), hoặc đang có trận ở `CAMP`, `FIGHT_WEEK`, `WEIGHED_IN`. Bảng chỉ đọc, tính khi đọc.
 
 **Nghiệp vụ 14. Đánh giá trận**
 
@@ -552,14 +556,50 @@ Ví dụ với preset AIBA: KO lần đầu gợi ý 30 ngày. KO lần hai tron
 
 **Đình chỉ còn hiệu lực** khi hôm nay nằm trong khoảng [ngày bắt đầu, ngày kết thúc], hoặc khi đã qua ngày kết thúc nhưng đình chỉ cần xác nhận mà chưa ai xác nhận.
 
-**Cổng 2:** trong thời gian đình chỉ còn hiệu lực, với các loại buổi tập bị chặn (mặc định theo ruleset: `SPARRING`, hoặc mọi loại trừ `RECOVERY` và `PHYSICAL_THERAPY` với preset AIBA; HLV chặn thêm được):
+**Cổng 2:** trong thời gian đình chỉ còn hiệu lực, với các loại buổi tập bị chặn (đình chỉ từ kết quả trận: mặc định theo ruleset, `SPARRING`, hoặc mọi loại trừ `RECOVERY` và `PHYSICAL_THERAPY` với preset AIBA; đình chỉ thủ công: mặc định mọi loại trừ `RECOVERY` và `PHYSICAL_THERAPY`, theo [quyết định 22](./SCOPE-FIGHT-CAMP.md#quyết-định-và-câu-hỏi); HLV chọn khác được):
 
 - Không xếp được buổi tập loại đó vào ngày nằm trong đình chỉ: 409 `TRAINING_SUSPENSION_ACTIVE`.
 - Không bắt đầu được buổi tập loại đó (chuyển sang `IN_PROGRESS`): cùng mã lỗi.
-- Buổi đã xếp trước khi có đình chỉ thì hiện cảnh báo trên lịch để HLV đổi hoặc huỷ. App không tự huỷ.
+- Buổi đã xếp trước khi có đình chỉ: app tự chuyển "Chờ xếp lại" hoặc huỷ ngay khi tạo đình chỉ (R28, [quyết định 23](./SCOPE-FIGHT-CAMP.md#quyết-định-và-câu-hỏi)). Trước 29/10 app chỉ cảnh báo.
 - Huỷ, dừng hay bỏ buổi tập thì không bị chặn.
 
 Cổng 2 chạy **cùng lúc** với medical gate hiện có (D9). Buổi tập phải qua cả hai.
+
+#### Bậc cường độ và tập lại theo bậc (quyết định 25)
+
+Nhận xét review 27/10 yêu cầu "chặn theo cường độ, tập lại theo bậc". Chủ dự án giao Claude nghiên cứu và chốt (29/10); code ở [T-045](./tickets/T-045-intensity-tiers-graded-return.md).
+
+**Căn cứ.**
+- **Đồng thuận Amsterdam 2022 về chấn động não trong thể thao** (BJSM 2023): trở lại theo 6 bước, **mỗi bước tối thiểu 24 giờ**. Bước 1–3 là phục hồi (vận động nhẹ, aerobic, bài riêng của môn); bước 4–6 là trở lại (tập không va chạm, tập va chạm đầy đủ, thi đấu). Chỉ bắt đầu bước có va chạm khi hết triệu chứng và bác sĩ cho phép; có triệu chứng thì lùi về bước trước.
+- **Hiệp hội Bác sĩ Võ đài (ARP)**: sau TKO do đòn vào đầu, nghỉ thi đấu và không sparring tối thiểu 30 ngày; KO không mất ý thức 60 ngày; KO mất ý thức 90 ngày. Tăng dần từ aerobic nhẹ tới bài riêng của võ, sparring sau cùng.
+- **Hướng dẫn trở lại thi đấu của bang Victoria (Úc)**: vận động hạn chế, rồi thể lực chung, rồi tập không va chạm (bóng, đích), rồi tập va chạm và thi đấu.
+- Không tìm thấy quy trình riêng cho võ sĩ tách KO khỏi chấn động não; các nguồn trên viết cho chấn động não, nên app áp cho đình chỉ lý do `KO` và `TKO`.
+
+**Bậc của loại buổi.**
+
+| Bậc | Ý nghĩa | Loại buổi |
+| --- | --- | --- |
+| 1 | Hồi phục, vận động nhẹ | `RECOVERY`, `PHYSICAL_THERAPY` |
+| 2 | Thể lực chung | `STRENGTH_CONDITIONING` |
+| 3 | Kỹ thuật không va chạm | `SHADOW_BOXING`, `HEAVY_BAG`, `PAD_WORK` |
+| 4 | Va chạm có kiểm soát | `GRAPPLING` |
+| 5 | Đối kháng toàn phần | `SPARRING` |
+
+**Chặn theo cường độ.** Khi tạo đình chỉ, HLV hoặc bác sĩ chọn "mức tối đa được tập" (bậc 1–5): app chặn mọi loại có bậc cao hơn. Vẫn chọn được từng loại như trước (không chọn cả hai cùng lúc). Mỗi đình chỉ hiện "mức tối đa được tập" tính từ các loại bị chặn; mặc định của đình chỉ thủ công (quyết định 22) tương ứng bậc 1.
+
+**Tập lại theo bậc sau KO/TKO.** Ngày bắt đầu `R` là ngày HLV hoặc bác sĩ xác nhận được tập lại (đình chỉ KO/TKO luôn cần xác nhận).
+
+| Ngày | Được xếp và bắt đầu tới bậc | Tương ứng Amsterdam |
+| --- | --- | --- |
+| `R` | 3 (kỹ thuật không va chạm) | Bước 3–4 |
+| `R + 1` | 4 (grappling) | Bước 5, va chạm có kiểm soát |
+| Từ `R + 2` | Mọi bậc, kể cả sparring | Bước 5–6 |
+
+Buổi vượt bậc trong hai ngày này bị 409 `TRAINING_SUSPENSION_ACTIVE`, kèm bậc tối đa và ngày tập đầy đủ. Bảng sẵn sàng (R32) coi võ sĩ chưa sẵn sàng tới ngày tập đầy đủ. Đình chỉ lý do khác hết là tập được mọi loại.
+
+**Giới hạn đã biết.** Bậc là **mức trần app cho xếp lịch**, không phải chỉ định y khoa; quyết định cho tập vẫn thuộc bác sĩ hoặc HLV. Lộ trình tính theo ngày, chưa lưu tiến độ từng bước và **chưa có lùi bậc** khi võ sĩ có triệu chứng (Amsterdam yêu cầu); cần dừng thì HLV tạo đình chỉ thủ công mới. Buổi đã xếp sẵn vào hai ngày lộ trình không tự xử lý, chỉ bị chặn khi bắt đầu.
+
+Nguồn: [Amsterdam 2022, BJSM](https://orbi.uliege.be/bitstream/2268/327382/1/bjsports-2024-109188.full.pdf); [CDC HEADS UP](https://www.cdc.gov/heads-up/guidelines/returning-to-sports.html); [ARP](https://mixedmartialarts.com/news/arp-issues-official-position-on-suspensions-and-concussion-management2a8b75a6-6eb2-4089-bd62-71f7b3a9a7df/); [Victoria, Non-fight periods and return to fight strategy](https://djsir.vic.gov.au/combat-sports/contestant-safety/non-fight-periods-and-return-to-fight-strategy).
 
 **Kết thúc đình chỉ cần xác nhận:** sau ngày kết thúc, HLV hoặc bác sĩ bấm "Xác nhận được tập lại", ghi căn cứ, không đính kèm ảnh giấy tờ (ví dụ "đã khám thần kinh, CT bình thường" hoặc "HLV xác nhận, không có khám"). Luật AIBA yêu cầu xác nhận bằng văn bản của bác sĩ thần kinh hoặc y học thể thao; không có giấy thì app ghi rõ "không có xác nhận y tế". Võ sĩ về trạng thái được tập.
 
@@ -605,7 +645,8 @@ Toàn bộ thông báo đã cắt khỏi đợt đồ án; trong demo, cảnh b�
 
 - Võ sĩ thua KO, đình chỉ 45 ngày đã xác nhận: xếp buổi `SPARRING` vào ngày thứ 10 bị từ chối 409, xếp buổi `PAD_WORK` thì được.
 - Qua ngày kết thúc mà chưa xác nhận được tập lại thì vẫn không xếp được `SPARRING`.
-- Sau khi xác nhận được tập lại thì xếp được `SPARRING`.
+- Xác nhận được tập lại vào ngày `R`: ngày `R` xếp được `PAD_WORK` nhưng không xếp được `GRAPPLING`; ngày `R + 1` xếp được `GRAPPLING` nhưng không xếp được `SPARRING`; từ ngày `R + 2` xếp được `SPARRING` (quyết định 25).
+- Tạo đình chỉ `OTHER` 7 ngày khi đã có buổi `SPARRING` xếp vào ngày thứ 3: buổi chuyển "Chờ xếp lại". Tạo đình chỉ `KO`: buổi đó bị huỷ (quyết định 23).
 
 ### Kết quả trận và huỷ (H3, H4, H6)
 

@@ -1,5 +1,6 @@
 import type { AssessmentResult, ExaminationType, Vitals } from "@/lib/domain/types";
-import { assessVital, type VitalAssessment, type VitalKey } from "@/lib/domain/vitals";
+import { assessVital, vitalAssessmentMessage, type VitalAssessment, type VitalKey } from "@/lib/domain/vitals";
+import { createTranslator } from "@/lib/i18n/translate";
 
 /**
  * Assessment areas pre-filled for each examination type, with no result: the doctor marks each one. Doctors can rename,
@@ -75,7 +76,7 @@ const parse = (value: string): number | null => {
 };
 
 const toCheck = (assessment: VitalAssessment | null): VitalCheck =>
-    assessment && { status: assessment.status, text: assessment.advice ?? assessment.reference };
+    assessment && { status: assessment.status, text: vitalAssessmentMessage(createTranslator("en"), assessment) };
 
 const HYDRATION_LEVELS: Vitals["hydration"][] = ["good", "fair", "poor"];
 

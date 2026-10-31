@@ -16,6 +16,7 @@ import {
 import { medical } from "@/i18n/medical";
 import { mapApiMessage } from "@/session/map-api-message";
 import { type, useThemePreference } from "@/theme";
+import { SkeletonRows } from "@/components/loading";
 
 const PAGE_SIZE = 20;
 
@@ -76,7 +77,7 @@ export function DoctorAssignmentList({
       <MedicalSection text={medical.doctors} />
       {error ? <MedicalLink label={medical.retry} onPress={() => void load(1)} /> : null}
       <MedicalCard>
-        {loading && rows.length === 0 ? <MedicalMuted text={medical.loading} /> : null}
+        {loading && rows.length === 0 ? <SkeletonRows rows={2} /> : null}
         {!loading && rows.length === 0 && !error ? <MedicalMuted text={medical.doctorsEmpty} /> : null}
         {rows.map((row) => (
           <View key={row.id} style={medicalStyles.row}>

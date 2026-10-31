@@ -6,10 +6,11 @@ import { listExercises, listTrainingPlans, type Exercise, type TrainingPlan } fr
 import { useToastMessage } from "@/components/toast/app-toast";
 import { coach } from "@/i18n/coach";
 import { coachErrorMessage, coachHref } from "@/screens/coach/coach-error";
-import { CoachBanner, CoachCard, CoachPrimaryButton, CoachScaffold } from "@/screens/coach/coach-ui";
+import { CoachBanner, CoachCard, CoachPrimaryButton, CoachScaffold, CoachEmpty } from "@/screens/coach/coach-ui";
 import { useSession } from "@/session/session-context";
 import { planPhaseLabel } from "@/training/plan-phase";
 import { spacing, type, useThemePreference } from "@/theme";
+import { SkeletonList } from "@/components/motion";
 
 export function CoachPlansScreen() {
   const { colors } = useThemePreference();
@@ -21,7 +22,7 @@ export function CoachPlansScreen() {
   useToastMessage(error, "error");
   const [loading, setLoading] = useState(true);
 
-  const load = useCallback(() => {
+  const load = useCallback((mode?: unknown) => {
     if (isDemo) {
       setPlans([]);
       setExercises([]);
@@ -29,12 +30,13 @@ export function CoachPlansScreen() {
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (mode !== "refresh") setLoading(true);
     setError("");
-    void Promise.allSettled([
+    return Promise.allSettled([
       listTrainingPlans({ limit: 50 }),
       listExercises({ limit: 50 }),
     ]).then(([plansResult, exercisesResult]) => {
+      if (mode === "refresh" && plansResult.status === "rejected") throw plansResult.reason;
       if (plansResult.status === "fulfilled") {
         setPlans(plansResult.value.data);
       } else {
@@ -57,15 +59,16 @@ export function CoachPlansScreen() {
 
   return (
     <CoachScaffold
+      onRefresh={() => load("refresh")}
       title={coach.tabs.plans}
       keyboard
       action={<CoachPrimaryButton title={coach.newPlan} onPress={() => router.push(coachHref("/(coach)/plans/new"))} />}
     >
-      {loading && plans.length === 0 ? <CoachBanner message={coach.loading} /> : null}
-      {plans.length === 0 && !loading ? <CoachBanner message={coach.emptyPlans} /> : null}
+      {loading && plans.length === 0 ? <SkeletonList rows={3} /> : null}
+      {plans.length === 0 && !loading ? <CoachEmpty message={coach.emptyPlans} /> : null}
       <View style={{ gap: spacing.md }}>
-        {plans.map((row) => (
-          <CoachCard key={row.id} onPress={() => router.push(coachHref(`/(coach)/plans/${row.id}`))}>
+        {plans.map((row, i) => (
+          <CoachCard key={row.id} index={i} onPress={() => router.push(coachHref(`/(coach)/plans/${row.id}`))}>
             <Text style={[type.body, { color: colors.ink }]}>{row.title}</Text>
             <Text style={[type.caption, { color: colors.inkMuted, lineHeight: 16 }]}>
               {coach.planStatus[row.status]} · {planPhaseLabel(row.phase)} · {row.startDate}
@@ -76,7 +79,7 @@ export function CoachPlansScreen() {
       </View>
 
       <Text style={[type.title, { color: colors.ink }]}>{coach.catalog}</Text>
-      {exercises.length === 0 ? <CoachBanner message={coach.emptyExercises} /> : null}
+      {exercises.length === 0 ? <CoachEmpty message={coach.emptyExercises} /> : null}
       <View style={{ gap: spacing.sm }}>
         {exercises.map((row) => (
           <CoachCard key={row.id}>
@@ -88,9 +91,11 @@ export function CoachPlansScreen() {
         ))}
       </View>
 
-      <Pressable accessibilityRole="button" onPress={load}>
-        <Text style={[type.link, { color: colors.lotus }]}>{coach.retry}</Text>
-      </Pressable>
+      {error ? (
+        <Pressable accessibilityRole="button" onPress={() => void load()}>
+          <Text style={[type.link, { color: colors.lotus }]}>{coach.retry}</Text>
+        </Pressable>
+      ) : null}
     </CoachScaffold>
   );
 }

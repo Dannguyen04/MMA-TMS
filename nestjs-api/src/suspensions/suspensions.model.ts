@@ -1,21 +1,24 @@
 import { z } from 'zod';
 import {
-  academyDateOf,
-  addDaysToDate,
-  daysBetweenDates,
-  LOSS_OF_CONSCIOUSNESS_VALUES,
-  type LossOfConsciousness,
-} from '../bouts/bouts.model.js';
-import {
   dateOnlySchema,
   isoDateTimeSchema,
   trimmedTextSchema,
 } from '../shared/utils/zod-schema.util.js';
 import {
+  academyDateOf,
+  addDaysToDate,
+  daysBetweenDates,
+  LOSS_OF_CONSCIOUSNESS_VALUES,
+  REHAB_TRIGGER_SUSPENSION_REASONS,
+  SESSION_INTENSITY_TIERS,
   SESSION_TYPES,
   SUSPENSION_REASONS,
+  TRAINING_PLAN_PHASES,
+  type LossOfConsciousness,
+  type SessionIntensityTier,
   type SessionType,
   type SuspensionReason,
+  type TrainingPlanPhase,
 } from './suspensions.constants.js';
 
 export {
@@ -23,11 +26,16 @@ export {
   addDaysToDate,
   daysBetweenDates,
   LOSS_OF_CONSCIOUSNESS_VALUES,
+  REHAB_TRIGGER_SUSPENSION_REASONS,
+  SESSION_INTENSITY_TIERS,
   SESSION_TYPES,
   SUSPENSION_REASONS,
+  TRAINING_PLAN_PHASES,
   type LossOfConsciousness,
+  type SessionIntensityTier,
   type SessionType,
   type SuspensionReason,
+  type TrainingPlanPhase,
 };
 
 // ---------------------------------------------------------------------------
@@ -42,13 +50,11 @@ export const SUSPENSION_STATUSES = [
 ] as const;
 export type SuspensionStatus = (typeof SUSPENSION_STATUSES)[number];
 
-export const DEFAULT_MANUAL_BLOCKED_SESSION_TYPES: readonly SessionType[] = [
-  'SPARRING',
-];
-
-// ---------------------------------------------------------------------------
-// Pure domain rules (Tech spec 2.5, Business flows F7, Rule S3)
-// ---------------------------------------------------------------------------
+/**
+ * Default blocked session types for manual suspensions: the 6 non-recovery/PT types.
+ */
+export const DEFAULT_MANUAL_BLOCKED_SESSION_TYPES: readonly SessionType[] =
+  SESSION_TYPES.filter((t) => t !== 'RECOVERY' && t !== 'PHYSICAL_THERAPY');
 
 export interface SuspensionStateInput {
   startsOn: string;
@@ -57,25 +63,29 @@ export interface SuspensionStateInput {
   clearedAt: Date | string | null;
 }
 
+export interface SuspensionGradedReturnInput extends SuspensionStateInput {
+  reason?: SuspensionReason | undefined;
+}
+
+export interface GradedReturn {
+  ceiling: 3 | 4;
+  fullReturnOn: string;
+}
+
 export interface BlockingSuspension {
   suspensionId: string;
   reason: SuspensionReason;
   endsOn: string;
   requiresClearance: boolean;
+  gradedReturn?: GradedReturn;
 }
 
-export const CONFLICT_ACTIONS = [
-  'CHANGE_TYPE',
-  'RESCHEDULE',
-  'CANCEL',
-] as const;
+export const CONFLICT_ACTIONS = ['PENDING', 'CANCEL'] as const;
 export type ConflictAction = (typeof CONFLICT_ACTIONS)[number];
 
 export interface ConflictProposal {
   sessionId: string;
   action: ConflictAction;
-  toType?: 'RECOVERY';
-  toScheduledAt?: Date;
 }
 
 export type ConflictSessionInput = {
@@ -133,6 +143,96 @@ export function endsOnFor(startsOn: string, days: number): string {
   return addDaysToDate(startsOn, days - 1);
 }
 
+/**
+ * Returns all session types whose intensity tier is strictly greater than `maxTier`,
+ * preserving `SESSION_TYPES` order.
+ */
+export function blockedTypesForMaxTier(maxTier: number): SessionType[] {
+  return SESSION_TYPES.filter(
+    (type) => SESSION_INTENSITY_TIERS[type] > maxTier,
+  );
+}
+
+/**
+ * Highest intensity tier `t` (1..5) such that every session type at tier `<= t`
+ * is NOT in `blockedSessionTypes` (returns 0 if any tier-1 session type is blocked).
+ */
+export function maxAllowedTier(
+  blockedSessionTypes: readonly SessionType[],
+): 0 | SessionIntensityTier {
+  const blocked = new Set<SessionType>(blockedSessionTypes);
+  let highest: 0 | SessionIntensityTier = 0;
+  for (const tier of [1, 2, 3, 4, 5] as const) {
+    const typesInTier = SESSION_TYPES.filter(
+      (type) => SESSION_INTENSITY_TIERS[type] === tier,
+    );
+    if (typesInTier.some((type) => blocked.has(type))) {
+      break;
+    }
+    highest = tier;
+  }
+  return highest;
+}
+
+/**
+ * Computes the graded-return state `{ ceiling, fullReturnOn }` for a head-injury
+ * (`KO` / `TKO`) suspension on academy date `d` (YYYY-MM-DD), or `null` when not
+ * in the graded-return window.
+ *
+ * - Start date `R`:
+ *   - `requiresClearance = true`: `academyDateOf(clearedAt)` once cleared (`null` while uncleared).
+ *   - `requiresClearance = false`: `endsOn + 1`.
+ * - Ceiling by day: day `R` -> ceiling 3; day `R + 1` -> ceiling 4; from `R + 2` (`fullReturnOn`) -> `null`.
+ */
+export function gradedReturnFor(
+  suspension: SuspensionGradedReturnInput,
+  d: string,
+): GradedReturn | null {
+  if (suspension.reason !== 'KO' && suspension.reason !== 'TKO') {
+    return null;
+  }
+  if (
+    isInForceOn(suspension, d) ||
+    suspensionStatusOn(suspension, d) !== 'ENDED'
+  ) {
+    return null;
+  }
+
+  let startDate: string;
+  if (suspension.requiresClearance) {
+    if (suspension.clearedAt === null || suspension.clearedAt === undefined) {
+      return null;
+    }
+    const clearedInstant =
+      suspension.clearedAt instanceof Date
+        ? suspension.clearedAt
+        : new Date(suspension.clearedAt);
+    startDate = academyDateOf(clearedInstant);
+  } else {
+    startDate = addDaysToDate(suspension.endsOn, 1);
+  }
+
+  const fullReturnOn = addDaysToDate(startDate, 2);
+  if (d === startDate) {
+    return { ceiling: 3, fullReturnOn };
+  }
+  if (d === addDaysToDate(startDate, 1)) {
+    return { ceiling: 4, fullReturnOn };
+  }
+  return null;
+}
+
+/**
+ * Returns the graded-return intensity tier ceiling (`3 | 4`) for `suspension` on
+ * academy date `d`, or `null` if unconstrained by graded return on `d`.
+ */
+export function gradedReturnCeiling(
+  suspension: SuspensionGradedReturnInput,
+  d: string,
+): 3 | 4 | null {
+  return gradedReturnFor(suspension, d)?.ceiling ?? null;
+}
+
 export type RequiresClearanceResolution =
   | { ok: true; requiresClearance: boolean }
   | {
@@ -171,17 +271,14 @@ export function deriveRequiresClearance(
   }
 }
 
-const DAY_MS = 86_400_000;
-
 /**
- * Rule R28: for every `SCHEDULED` session of the fighter that falls inside the
- * suspension period (in force on the session's academy date) and has a blocked type:
- * 1. Change its type to `RECOVERY` if `RECOVERY` is not blocked for that date.
- * 2. Otherwise, if no in-force suspension blocking the session needs clearance
- *    (all of them have a fixed end date): move it to the first day after the
- *    LATEST `ends_on` among the in-force suspensions that block that type
- *    (same time of day).
- * 3. Otherwise: cancel it.
+ * Rule R28 (revised in T-036): for every `SCHEDULED` session of the fighter
+ * that falls inside the suspension period (in force on the session's academy
+ * date) and has a blocked type:
+ * - If any in-force suspension blocking that session has `requiresClearance = true`:
+ *   propose `CANCEL` (cannot determine when the fighter will be cleared).
+ * - Otherwise (all blocking suspensions have fixed end dates with `requiresClearance = false`):
+ *   propose `PENDING` (wait for coach to reschedule or cancel).
  *
  * Soft-deleted suspensions and non-`SCHEDULED` (or soft-deleted) sessions are ignored.
  */
@@ -222,73 +319,17 @@ export function planConflicts(
       continue;
     }
 
-    const recoveryBlockedOnDate = activeSuspensions.some(
-      (s) =>
-        isInForceOn(s, sessionDate) &&
-        s.blockedSessionTypes.includes('RECOVERY'),
-    );
-    if (!recoveryBlockedOnDate) {
-      proposals.push({
-        sessionId: session.id,
-        action: 'CHANGE_TYPE',
-        toType: 'RECOVERY',
-      });
-      continue;
-    }
-
     if (blockingOnDate.some((s) => s.requiresClearance)) {
       proposals.push({
         sessionId: session.id,
         action: 'CANCEL',
       });
-      continue;
-    }
-
-    let latestEndsOn = blockingOnDate[0]!.endsOn;
-    for (const s of blockingOnDate) {
-      if (s.endsOn > latestEndsOn) {
-        latestEndsOn = s.endsOn;
-      }
-    }
-    let targetDate = addDaysToDate(latestEndsOn, 1);
-
-    let requiresCancel = false;
-    while (true) {
-      const blockingOnTarget = activeSuspensions.filter(
-        (s) =>
-          isInForceOn(s, targetDate) &&
-          s.blockedSessionTypes.includes(sessionType),
-      );
-      if (blockingOnTarget.length === 0) break;
-      if (blockingOnTarget.some((s) => s.requiresClearance)) {
-        requiresCancel = true;
-        break;
-      }
-      for (const s of blockingOnTarget) {
-        if (s.endsOn > latestEndsOn) {
-          latestEndsOn = s.endsOn;
-        }
-      }
-      targetDate = addDaysToDate(latestEndsOn, 1);
-    }
-
-    if (requiresCancel) {
+    } else {
       proposals.push({
         sessionId: session.id,
-        action: 'CANCEL',
+        action: 'PENDING',
       });
-      continue;
     }
-
-    const deltaDays = daysBetweenDates(sessionDate, targetDate);
-    const toScheduledAt = new Date(
-      scheduledAtDate.getTime() + deltaDays * DAY_MS,
-    );
-    proposals.push({
-      sessionId: session.id,
-      action: 'RESCHEDULE',
-      toScheduledAt,
-    });
   }
 
   return proposals;
@@ -371,6 +412,7 @@ export const createSuspensionSchema = z
         'Duplicate session types are not allowed',
       )
       .optional(),
+    maxTier: z.number().int().min(1).max(5).optional(),
     requiresClearance: z.boolean().optional(),
     lossOfConsciousness: z
       .enum(LOSS_OF_CONSCIOUSNESS_VALUES)
@@ -378,6 +420,16 @@ export const createSuspensionSchema = z
       .optional(),
   })
   .superRefine((value, ctx) => {
+    if (
+      value.maxTier !== undefined &&
+      value.blockedSessionTypes !== undefined
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['maxTier'],
+        message: 'maxTier and blockedSessionTypes cannot both be provided',
+      });
+    }
     const clearance = deriveRequiresClearance(
       value.reason,
       value.requiresClearance,
@@ -425,12 +477,20 @@ export type ApplySuspensionConflictsInput = z.infer<
 export const conflictProposalResponseSchema = z.object({
   sessionId: z.uuid(),
   action: z.enum(CONFLICT_ACTIONS),
-  toType: z.literal('RECOVERY').optional(),
-  toScheduledAt: z.union([z.date(), isoDateTimeSchema]).optional(),
 });
 export type ConflictProposalResponse = z.infer<
   typeof conflictProposalResponseSchema
 >;
+
+export const affectedSessionSchema = conflictProposalResponseSchema;
+export type AffectedSession = z.infer<typeof affectedSessionSchema>;
+
+export const affectedPlanSchema = z.object({
+  planId: z.uuid(),
+  fromPhase: z.enum(TRAINING_PLAN_PHASES),
+  toPhase: z.enum(TRAINING_PLAN_PHASES),
+});
+export type AffectedPlan = z.infer<typeof affectedPlanSchema>;
 
 // ---------------------------------------------------------------------------
 // Response schemas
@@ -887,6 +947,11 @@ export function suggestSuspensions(
 // Response schemas
 // ---------------------------------------------------------------------------
 
+export const gradedReturnSchema = z.object({
+  ceiling: z.union([z.literal(3), z.literal(4)]),
+  fullReturnOn: dateOnlySchema,
+});
+
 export const suspensionResponseSchema = z.object({
   id: z.uuid(),
   fighterId: z.uuid(),
@@ -898,6 +963,7 @@ export const suspensionResponseSchema = z.object({
   suggestedDays: z.number().int().nullable(),
   overrideReason: z.string().nullable(),
   blockedSessionTypes: z.array(z.enum(SESSION_TYPES)),
+  maxAllowedTier: z.number().int().min(0).max(5),
   requiresClearance: z.boolean(),
   clearedAt: isoDateTimeSchema.nullable(),
   clearedById: z.uuid().nullable(),
@@ -906,8 +972,19 @@ export const suspensionResponseSchema = z.object({
   createdAt: isoDateTimeSchema,
   updatedAt: isoDateTimeSchema,
   status: z.enum(SUSPENSION_STATUSES),
+  gradedReturn: gradedReturnSchema.nullable(),
+  affectedSessions: z.array(affectedSessionSchema).optional(),
+  affectedPlans: z.array(affectedPlanSchema).optional(),
 });
 export type SuspensionResponse = z.infer<typeof suspensionResponseSchema>;
+
+export const createSuspensionResponseSchema = suspensionResponseSchema.extend({
+  affectedSessions: z.array(affectedSessionSchema),
+  affectedPlans: z.array(affectedPlanSchema),
+});
+export type CreateSuspensionResponse = z.infer<
+  typeof createSuspensionResponseSchema
+>;
 
 export const suspensionListResponseSchema = z.object({
   data: z.array(suspensionResponseSchema),

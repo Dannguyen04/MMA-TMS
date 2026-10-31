@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "expo-router";
 
 import { isApiError } from "@/api";
@@ -18,6 +18,7 @@ import {
   visibleScore,
 } from "@/screens/media/video-model";
 import { useTypography } from "@/theme";
+import { SkeletonRows } from "@/components/loading";
 
 function messageFor(error: unknown): string {
   if (!isApiError(error)) return media.generic;
@@ -108,12 +109,7 @@ export function VideoLibraryContent({
         </Pressable>
       ) : null}
 
-      {phase === "loading" ? (
-        <View style={styles.centerRow}>
-          <ActivityIndicator color={colors.accent} />
-          <Text style={{ color: colors.muted }}>{media.loading}</Text>
-        </View>
-      ) : null}
+      {phase === "loading" ? <SkeletonRows rows={4} /> : null}
 
       {phase === "error" ? (
         <Pressable accessibilityRole="button" accessibilityLabel={media.retry} onPress={load}>

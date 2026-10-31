@@ -1,21 +1,39 @@
 import { Tabs } from "expo-router";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { RoleTabBar } from "@/components/role-tab-bar";
+import { TabIcon } from "@/components/tab-icon";
 
-import { coach } from "@/i18n/coach";
 import { vi } from "@/i18n/vi";
 import { RoleLayoutGate } from "@/session/role-gate";
+import { activeInkOn } from "@/screens/fighter/redesign/palette";
+import { coachRo } from "@/i18n/coach-ro";
 import { useThemePreference } from "@/theme";
+import { RoHeaderAction } from "@/screens/coach/readonly/ro-ui";
+import { CoachBell, CoachUnreadProvider } from "@/screens/coach/nav/coach-unread";
 
 export default function CoachTabsLayout() {
+  return (
+    <RoleLayoutGate allow="coach">
+      <CoachUnreadProvider>
+        <RoHeaderAction.Provider value={<CoachBell />}>
+          <CoachTabs />
+        </RoHeaderAction.Provider>
+      </CoachUnreadProvider>
+    </RoleLayoutGate>
+  );
+}
+
+/** coach-nav-v3: 4 tab Võ sĩ · Lịch · Giáo án · Tôi; Thông báo mở từ chuông ở header; Video mở từ chi tiết võ sĩ / thông báo / thẻ Cần duyệt. */
+function CoachTabs() {
   const { colors } = useThemePreference();
 
   return (
-    <RoleLayoutGate allow="coach">
     <Tabs
+      backBehavior="history"
+      tabBar={(props) => <RoleTabBar {...props} />}
       initialRouteName="fighters"
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.lotus,
+        tabBarActiveTintColor: activeInkOn(colors),
         tabBarInactiveTintColor: colors.inkSubtle,
         tabBarStyle: {
           backgroundColor: colors.surface,
@@ -27,54 +45,42 @@ export default function CoachTabsLayout() {
       <Tabs.Screen
         name="fighters"
         options={{
-          title: coach.tabs.fighters,
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="account-group-outline" color={color} size={size} />
-          ),
+          title: coachRo.tabs.fighters,
+          tabBarIcon: ({ color, focused }) => <TabIcon name="fighters" focused={focused} color={color} />,
         }}
       />
       <Tabs.Screen
         name="schedule"
         options={{
-          title: coach.tabs.schedule,
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="calendar-month-outline" color={color} size={size} />
-          ),
+          title: coachRo.tabs.schedule,
+          tabBarIcon: ({ color, focused }) => <TabIcon name="schedule" focused={focused} color={color} />,
         }}
       />
       <Tabs.Screen
         name="plans"
         options={{
-          title: coach.tabs.plans,
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="clipboard-text-outline" color={color} size={size} />
-          ),
+          title: coachRo.tabs.plans,
+          tabBarIcon: ({ color, focused }) => <TabIcon name="plans" focused={focused} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="danh-gia"
-        options={{
-          title: vi.admission.assigned,
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="clipboard-check-outline" color={color} size={size} />
-          ),
-        }}
+        name="video-analysis"
+        // batch45: bỏ tab Video khỏi thanh tab; video mở từ chi tiết võ sĩ (Video AI), thông báo và thẻ "Cần duyệt" ở Lịch.
+        options={{ href: null, title: coachRo.tabs.video }}
       />
       <Tabs.Screen
         name="me"
         options={{
-          title: coach.tabs.me,
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="account-outline" color={color} size={size} />
-          ),
+          title: coachRo.tabs.me,
+          tabBarIcon: ({ color, focused }) => <TabIcon name="me" focused={focused} color={color} />,
         }}
       />
-      <Tabs.Screen name="video-analysis" options={{ href: null, title: "Video" }} />
+      <Tabs.Screen name="thong-bao" options={{ href: null, title: coachRo.tabs.notifications }} />
+      <Tabs.Screen name="fight-camp" options={{ href: null, title: "Fight Camp" }} />
       <Tabs.Screen name="goals" options={{ href: null, title: "Mục tiêu" }} />
       <Tabs.Screen name="performance" options={{ href: null, title: "Hiệu suất" }} />
       <Tabs.Screen name="clearance" options={{ href: null, title: "Giấy phép" }} />
-      <Tabs.Screen name="thong-bao" options={{ href: null, title: "Thông báo" }} />
+      <Tabs.Screen name="danh-gia" options={{ href: null, title: vi.admission.assigned }} />
     </Tabs>
-    </RoleLayoutGate>
   );
 }

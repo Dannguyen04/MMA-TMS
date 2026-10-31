@@ -1,8 +1,9 @@
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { type Href, usePathname, useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { type IconName } from "@/components/icon";
+import { TabIcon } from "@/components/tab-icon";
 import { fighter } from "@/i18n/fighter";
 import { useFighterPalette } from "@/screens/fighter/redesign/palette";
 
@@ -12,13 +13,13 @@ const TABS: {
   key: FighterTab;
   href: Href;
   label: string;
-  icon: keyof typeof MaterialCommunityIcons.glyphMap;
+  icon: IconName;
 }[] = [
-  { key: "home", href: "/", label: fighter.tabs.home, icon: "home-variant" },
-  { key: "tap", href: "/tap" as Href, label: fighter.tabs.tap, icon: "link-variant" },
-  { key: "plans", href: "/giao-an" as Href, label: fighter.tabs.plans, icon: "clipboard-text-outline" },
-  { key: "body", href: "/co-the" as Href, label: fighter.tabs.body, icon: "human" },
-  { key: "me", href: "/toi" as Href, label: fighter.tabs.me, icon: "account-outline" },
+  { key: "home", href: "/", label: fighter.tabs.home, icon: "home" },
+  { key: "tap", href: "/tap" as Href, label: fighter.tabs.tap, icon: "training" },
+  { key: "plans", href: "/giao-an" as Href, label: fighter.tabs.plans, icon: "plans" },
+  { key: "body", href: "/co-the" as Href, label: fighter.tabs.body, icon: "body" },
+  { key: "me", href: "/toi" as Href, label: fighter.tabs.me, icon: "me" },
 ];
 
 function tabFromPath(path: string): FighterTab | null {
@@ -26,7 +27,7 @@ function tabFromPath(path: string): FighterTab | null {
   if (path.startsWith("/giao-an")) return "plans";
   if (path.startsWith("/co-the")) return "body";
   if (path.startsWith("/toi")) return "me";
-  if (path === "/" || path === "") return "home";
+  if (path === "/" || path === "" || path.startsWith("/tran")) return "home";
   return null;
 }
 
@@ -51,7 +52,7 @@ export function FighterTabBar() {
     >
       {TABS.map((tab) => {
         const selected = tab.key === active;
-        const color = selected ? colors.accent : colors.muted;
+        const color = selected ? colors.activeInk : colors.muted;
         return (
           <Pressable
             key={tab.key}
@@ -59,19 +60,13 @@ export function FighterTabBar() {
             accessibilityLabel={tab.label}
             accessibilityState={{ selected }}
             onPress={() => {
-              if (selected && tab.key !== "tap" && tab.key !== "plans") return;
+              const onHomeChild = tab.key === "home" && path !== "/" && path !== "";
+              if (selected && !onHomeChild && tab.key !== "tap" && tab.key !== "plans") return;
               router.replace(tab.href);
             }}
             style={styles.item}
           >
-            <View
-              style={[
-                styles.iconWrap,
-                selected ? { backgroundColor: colors.accentSoft, borderRadius: 99 } : null,
-              ]}
-            >
-              <MaterialCommunityIcons name={tab.icon} size={20} color={color} />
-            </View>
+            <TabIcon name={tab.icon} focused={selected} color={color} pillColor={colors.accentSoft} />
             <Text style={[styles.label, { color, fontWeight: selected ? "700" : "500" }]} maxFontSizeMultiplier={1.4}>
               {tab.label}
             </Text>

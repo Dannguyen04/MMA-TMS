@@ -17,7 +17,7 @@ export const coach = {
   emptyPlans: "Chưa có giáo án.",
   emptyExercises: "Chưa có bài tập trong kho.",
   emptyMeasurements: "Chưa có số đo tập.",
-  search: "Tìm võ sĩ",
+  search: "Tìm theo tên",
   searchHint: "Tên hoặc phòng tập",
   assignNeedProfile: "Tài khoản này chưa có hồ sơ huấn luyện viên nên chưa gán được.",
   measurementTitle: "Số đo",

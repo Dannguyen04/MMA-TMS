@@ -16,14 +16,18 @@ import { Pagination } from "@/components/ui/table";
 import { requireRole } from "@/lib/auth/session";
 import { HEALTH_STATUS_LABELS, TRAINING_LEVEL_LABELS, WEIGHT_CLASS_LABELS, WEIGHT_CLASS_ORDER } from "@/lib/domain/labels";
 import type { HealthStatus, TrainingLevel } from "@/lib/domain/types";
-import { pluralize } from "@/lib/format";
+import { getTranslator } from "@/lib/i18n/server";
+import { plural } from "@/lib/i18n/translate";
 import { hrefWith, matchesSearch, paginate, parseEnum, parseSortDirection, sortItems, type SortDirection } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
 import { platformFeatureAvailable } from "@/lib/services/platform-features";
 import { param } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Fighters" };
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return { title: t("training.roster.metaTitle") };
+}
 
 const VIEWS = ["grid", "table"] as const;
 const SORT_KEYS = ["name", "weight", "record", "health", "clearance", "overall", "trend", "next"] as const;
@@ -46,6 +50,7 @@ const SORT_ACCESSORS: Record<SortKey, (entry: RosterEntry) => string | number | 
 };
 
 export default async function CoachFightersPage({ searchParams }: PageProps<"/coach/fighters">) {
+    const { t } = await getTranslator();
     const user = await requireRole("coach");
     const params = await searchParams;
     const now = new Date().toISOString();
@@ -75,45 +80,48 @@ export default async function CoachFightersPage({ searchParams }: PageProps<"/co
     const page = paginate(sortItems(matching, SORT_ACCESSORS[sort], direction), param(params.page), PAGE_SIZE);
 
     const filters: FilterDefinition[] = [
-        { type: "search", name: "q", label: "Search fighters", placeholder: "Search fighters" },
+        { type: "search", name: "q", label: t("training.roster.searchLabel"), placeholder: t("training.roster.searchPlaceholder") },
         {
             type: "select",
             name: "class",
-            label: "Weight class",
-            allLabel: "All weight classes",
-            options: WEIGHT_CLASS_ORDER.filter((weightClass) => allFighters.some((fighter) => fighter.weightClass === weightClass)).map((weightClass) => ({
-                value: weightClass,
-                label: WEIGHT_CLASS_LABELS[weightClass],
+            label: t("training.roster.weightClassLabel"),
+            allLabel: t("training.roster.allWeightClasses"),
+            options: WEIGHT_CLASS_ORDER.filter((wc) => allFighters.some((fighter) => fighter.weightClass === wc)).map((wc) => ({
+                value: wc,
+                label: WEIGHT_CLASS_LABELS[wc],
             })),
         },
         {
             type: "select",
             name: "health",
-            label: "Health status",
-            allLabel: "All health statuses",
+            label: t("training.roster.healthStatusLabel"),
+            allLabel: t("training.roster.allHealthStatuses"),
             options: HEALTH_STATUSES.map((status) => ({ value: status, label: HEALTH_STATUS_LABELS[status] })),
         },
-        { type: "select", name: "level", label: "Level", allLabel: "All levels", options: LEVELS.map((level) => ({ value: level, label: TRAINING_LEVEL_LABELS[level] })) },
+        { type: "select", name: "level", label: t("training.roster.levelLabel"), allLabel: t("training.roster.allLevels"), options: LEVELS.map((lvl) => ({ value: lvl, label: TRAINING_LEVEL_LABELS[lvl] })) },
     ];
     if (showPerformance) {
-        filters.push({ type: "select", name: "trend", label: "Trend", allLabel: "All trends", options: PERFORMANCE_TRENDS.map((value) => ({ value, label: TREND_META[value].label })) });
+        filters.push({ type: "select", name: "trend", label: t("training.roster.trendLabel"), allLabel: t("training.roster.allTrends"), options: PERFORMANCE_TRENDS.map((value) => ({ value, label: TREND_META[value].label })) });
     }
     const clearFiltersHref = hrefWith(pathname, params, Object.fromEntries([...FILTER_KEYS, "page"].map((key) => [key, null])));
 
     return (
         <>
             <PageHeader
-                title="Fighters"
-                description={`Your roster of ${pluralize(allFighters.length, "fighter")} — health, Medical Clearance, ${showPerformance ? "performance " : ""}and what's next.`}
+                title={t("training.roster.title")}
+                description={t("training.roster.description", {
+                    count: plural(t, "training.roster.fightersCount", allFighters.length),
+                    performance: showPerformance ? t("training.roster.performanceText") : "",
+                })}
                 actions={
                     <>
                         <ButtonLink href={routes.coach.clearance} variant="secondary">
                             <ShieldCheck aria-hidden />
-                            Medical Clearance
+                            {t("training.roster.medicalClearanceAction")}
                         </ButtonLink>
                         <ButtonLink href={routes.coach.newSession}>
                             <CalendarPlus aria-hidden />
-                            Schedule session
+                            {t("training.roster.scheduleSessionAction")}
                         </ButtonLink>
                     </>
                 }
@@ -122,8 +130,8 @@ export default async function CoachFightersPage({ searchParams }: PageProps<"/co
             {allFighters.length === 0 ? (
                 <EmptyState
                     icon={<Users />}
-                    title="No fighters assigned to you yet"
-                    description="When an administrator assigns fighters to you, they appear here with their health, Medical Clearance and performance."
+                    title={t("training.roster.emptyTitle")}
+                    description={t("training.roster.emptyDesc")}
                 />
             ) : (
                 <div className="flex flex-col gap-4">
@@ -131,20 +139,20 @@ export default async function CoachFightersPage({ searchParams }: PageProps<"/co
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <p aria-live="polite" className="text-sm text-fg-muted">
                             {page.total === allFighters.length
-                                ? `All ${pluralize(page.total, "fighter")}`
-                                : `${page.total} of ${pluralize(allFighters.length, "fighter")} match the filters`}
+                                ? t("training.roster.allFightersCount", { count: plural(t, "training.roster.fightersCount", page.total) })
+                                : t("training.roster.matchingFightersCount", { total: page.total, count: plural(t, "training.roster.fightersCount", allFighters.length) })}
                         </p>
                         <div>
                             <ViewToggle
-                                label="Roster view"
+                                label={t("training.roster.viewLabel")}
                                 active={view}
                                 defaultValue="grid"
                                 pathname={pathname}
                                 searchParams={params}
                                 reset={["page", "sort", "dir"]}
                                 options={[
-                                    { value: "grid", label: "Cards", icon: LayoutGrid },
-                                    { value: "table", label: "Table", icon: Table2 },
+                                    { value: "grid", label: t("training.roster.viewCards"), icon: LayoutGrid },
+                                    { value: "table", label: t("training.roster.viewTable"), icon: Table2 },
                                 ]}
                             />
                         </div>
@@ -153,11 +161,11 @@ export default async function CoachFightersPage({ searchParams }: PageProps<"/co
                     {page.total === 0 ? (
                         <EmptyState
                             icon={<SearchX />}
-                            title="No fighters match these filters"
-                            description="Try a different search or clear the filters to see your whole roster."
+                            title={t("training.roster.noMatchingTitle")}
+                            description={t("training.roster.noMatchingDesc")}
                             action={
                                 <Link href={clearFiltersHref} className={buttonClasses({ variant: "secondary" })}>
-                                    Clear filters
+                                    {t("training.roster.clearFilters")}
                                 </Link>
                             }
                         />
@@ -173,14 +181,14 @@ export default async function CoachFightersPage({ searchParams }: PageProps<"/co
                                 direction={direction}
                                 showPerformance={showPerformance}
                             />
-                            <Pagination {...page} pathname={pathname} searchParams={params} itemLabel="fighters" />
+                            <Pagination {...page} pathname={pathname} searchParams={params} itemLabel={t("training.roster.itemLabel")} />
                         </Card>
                     ) : (
                         <>
                             <RosterGrid entries={page.items} now={now} warningDays={settings.clearanceExpiryWarningDays} showPerformance={showPerformance} />
                             {page.pageCount > 1 && (
                                 <Card className="min-w-0 overflow-hidden [&>nav]:border-t-0">
-                                    <Pagination {...page} pathname={pathname} searchParams={params} itemLabel="fighters" />
+                                    <Pagination {...page} pathname={pathname} searchParams={params} itemLabel={t("training.roster.itemLabel")} />
                                 </Card>
                             )}
                         </>

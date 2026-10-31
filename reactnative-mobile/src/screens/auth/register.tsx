@@ -1,6 +1,5 @@
-import { useRef, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Pressable, StyleSheet, Text } from "react-native";
 import * as Haptics from "expo-haptics";
 import { Link, useRouter } from "expo-router";
 
@@ -13,11 +12,12 @@ import {
   validateRegisterStep,
 } from "@/auth/register-steps";
 import {
+  AuthCodeField,
   AuthVisionButton,
   AuthVisionField,
   AuthVisionShell,
 } from "@/components/auth/auth-vision-shell";
-import { authDark, authType } from "@/components/auth/auth-vision-tokens";
+import { authType, useAuthColors } from "@/components/auth/auth-vision-tokens";
 import { useToastMessage } from "@/components/toast/app-toast";
 import { vi } from "@/i18n/vi";
 import { mapApiMessage } from "@/session/map-api-message";
@@ -31,7 +31,30 @@ function registerFailureMessage(cause: unknown, phase: "send" | "verify"): strin
   return mapApiMessage(cause);
 }
 
+/** Client-side wait before another code can be requested. */
+export const RESEND_COOLDOWN_SECONDS = 60;
+const CODE_MIN = 6;
+
+function useCountdown(): [number, () => void] {
+  const [until, setUntil] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (until <= now) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [until, now]);
+  const left = Math.max(0, Math.ceil((until - now) / 1000));
+  const start = () => {
+    const t = Date.now();
+    setNow(t);
+    setUntil(t + RESEND_COOLDOWN_SECONDS * 1000);
+  };
+  return [left, start];
+}
+
 export function RegisterScreen() {
+  const c = useAuthColors();
+  const [cooldown, startCooldown] = useCountdown();
   const router = useRouter();
   const { applyRegisteredSession } = useSession();
   const submitLock = useRef(false);
@@ -70,6 +93,7 @@ export function RegisterScreen() {
         setErrors({});
         setNotice(vi.register.codeSent);
         setStep(2);
+        startCooldown();
       })
       .catch((cause: unknown) => {
         setFormError(registerFailureMessage(cause, "send"));
@@ -128,10 +152,12 @@ export function RegisterScreen() {
     router.replace("/login");
   };
 
+  const resendBlocked = busy || cooldown > 0;
+
   return (
     <AuthVisionShell
       stepKey={String(step)}
-      contentGap={20}
+      contentGap={16}
       title={step === 2 ? vi.register.codeHeading : undefined}
       subtitle={step === 2 ? vi.register.codeLead : undefined}
       accessory={
@@ -143,41 +169,17 @@ export function RegisterScreen() {
             onPress={onChangeEmail}
             style={styles.changeEmail}
           >
-            <MaterialCommunityIcons name="arrow-left" size={16} color={authDark.gold} />
-            <Text style={[authType.link, { color: authDark.gold }]}>{vi.register.changeEmail}</Text>
+            <Text style={[authType.body, { color: c.ink, flexShrink: 1 }]} numberOfLines={1}>
+              {email.trim()}
+            </Text>
+            <Text style={[authType.link, { color: c.accent }]}>{vi.register.changeEmail}</Text>
           </Pressable>
         ) : undefined
       }
       onBack={onBack}
       backDisabled={busy}
-      footer={
-          <Text style={[authType.caption, styles.footerText]}>
-            {vi.register.haveAccount}{" "}
-            <Link href="/login" style={[authType.link, { color: authDark.gold }]}>
-              {vi.register.toLogin}
-            </Link>
-          </Text>
-      }
-    >
-      {step === 1 ? (
-        <>
-          <AuthVisionField
-            label={vi.register.emailField}
-            placeholder={vi.register.emailPlaceholder}
-            value={email}
-            onChangeText={(value) => {
-              setEmail(value);
-              setErrors((current) => ({ ...current, email: "" }));
-              setFormError("");
-            }}
-            error={errors.email}
-            autoCapitalize="none"
-            autoComplete="email"
-            keyboardType="email-address"
-            textContentType="emailAddress"
-            returnKeyType="done"
-            onSubmitEditing={() => onSendCode("send")}
-          />
+      action={
+        step === 1 ? (
           <AuthVisionButton
             testID="register-send-code"
             title={vi.register.sendCode}
@@ -185,55 +187,84 @@ export function RegisterScreen() {
             loading={pending === "send"}
             disabled={!email.trim() || busy}
           />
-        </>
-      ) : (
-        <>
-          <AuthVisionField
-            label={vi.register.codeLabel}
-            placeholder={vi.register.codePlaceholder}
-            value={token}
-            onChangeText={(value) => {
-              setToken(value.replace(/[^\d]/g, ""));
-              setErrors((current) => ({ ...current, token: "" }));
-              setFormError("");
-            }}
-            error={errors.token}
-            keyboardType="number-pad"
-            autoComplete="one-time-code"
-            textContentType="oneTimeCode"
-            importantForAutofill="yes"
-            maxLength={10}
-          />
+        ) : (
           <AuthVisionButton
             testID="register-verify"
             title={vi.register.verifyCode}
             onPress={onVerify}
             loading={pending === "verify"}
-            disabled={!token.trim() || busy}
+            disabled={token.length < CODE_MIN || busy}
           />
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={vi.register.resendCode}
-            disabled={busy}
-            onPress={() => onSendCode("resend")}
-            style={styles.resend}
-          >
-            <Text
-              style={[
-                authType.link,
-                { color: busy ? authDark.buttonOffText : authDark.gold, opacity: pending === "resend" ? 0 : 1 },
-              ]}
+        )
+      }
+      below={
+        step === 1 ? (
+          <Text style={[authType.caption, styles.footerText, { color: c.ink }]}>
+            {vi.register.haveAccount}{" "}
+            <Link href="/login" style={[authType.link, { color: c.accent }]}>
+              {vi.register.toLogin}
+            </Link>
+          </Text>
+        ) : undefined
+      }
+      link={
+        step === 1 ? undefined : (
+            <Pressable
+              testID="register-resend"
+              accessibilityRole="button"
+              accessibilityLabel={cooldown > 0 ? vi.register.resendIn(cooldown) : vi.register.resendCode}
+              accessibilityState={{ disabled: resendBlocked }}
+              disabled={resendBlocked}
+              onPress={() => onSendCode("resend")}
+              style={styles.resend}
             >
-              {vi.register.resendCode}
-            </Text>
-            {pending === "resend" ? (
-              <ActivityIndicator color={authDark.gold} style={styles.resendSpinner} />
-            ) : null}
-          </Pressable>
-          <View style={styles.scope}>
-            <Text style={[authType.caption, styles.scopeText]}>{vi.register.scopeNote}</Text>
-          </View>
-        </>
+              <Text
+                style={[
+                  authType.link,
+                  { color: resendBlocked ? c.buttonOffText : c.accent, opacity: pending === "resend" ? 0 : 1 },
+                ]}
+              >
+                {cooldown > 0 ? vi.register.resendIn(cooldown) : vi.register.resendCode}
+              </Text>
+              {pending === "resend" ? (
+                <ActivityIndicator color={c.accent} style={styles.resendSpinner} />
+              ) : null}
+            </Pressable>
+        )
+      }
+    >
+      {step === 1 ? (
+        <AuthVisionField
+          label={vi.register.emailField}
+          placeholder={vi.register.emailPlaceholder}
+          value={email}
+          onChangeText={(value) => {
+            setEmail(value);
+            setErrors((current) => ({ ...current, email: "" }));
+            setFormError("");
+          }}
+          error={errors.email}
+          autoCapitalize="none"
+          autoComplete="email"
+          keyboardType="email-address"
+          textContentType="emailAddress"
+          returnKeyType="done"
+          onSubmitEditing={() => onSendCode("send")}
+        />
+      ) : (
+        <AuthCodeField
+          testID="register-code"
+          label={vi.register.codeLabel}
+          value={token}
+          onChangeText={(value) => {
+            setToken(value);
+            setErrors((current) => ({ ...current, token: "" }));
+            setFormError("");
+          }}
+          error={errors.token}
+          editable={!busy}
+          onSubmitEditing={onVerify}
+        />
       )}
     </AuthVisionShell>
   );
@@ -241,15 +272,13 @@ export function RegisterScreen() {
 
 const styles = StyleSheet.create({
   footerText: {
-    color: authDark.muted,
     textAlign: "center",
   },
   changeEmail: {
     minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
-    alignSelf: "flex-start",
-    gap: spacing.xs,
+    gap: spacing.md,
   },
   resend: {
     minHeight: 44,
@@ -262,16 +291,5 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
     bottom: 0,
-  },
-  scope: {
-    borderTopWidth: 1,
-    borderTopColor: authDark.line,
-    paddingTop: 20,
-    marginTop: 4,
-  },
-  scopeText: {
-    color: authDark.muted,
-    fontSize: 13,
-    lineHeight: 20,
   },
 });
