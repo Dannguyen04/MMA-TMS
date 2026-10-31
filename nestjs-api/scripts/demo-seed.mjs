@@ -198,7 +198,9 @@ export function buildPlan(now) {
 
 function parseArgs(argv) {
   const i = argv.indexOf('--only');
-  return { dryRun: argv.includes('--dry-run'), withAi: argv.includes('--with-ai'), only: i < 0 ? undefined : (argv[i + 1] ?? '') };
+  // The value after --only is checked by run(); anything else must be a known flag.
+  const unknown = argv.find((a, j) => !(i >= 0 && j === i + 1) && !['--dry-run', '--with-ai', '--only'].includes(a));
+  return { dryRun: argv.includes('--dry-run'), withAi: argv.includes('--with-ai'), only: i < 0 ? undefined : (argv[i + 1] ?? ''), unknown };
 }
 
 function missingEnv(env) {
@@ -221,7 +223,11 @@ const listOf = (body) =>
 // ---------------------------------------------------------------------------
 
 export async function run({ argv = [], env = {}, fetch: fetchImpl = globalThis.fetch, now = new Date(), out = console.log, err = console.error } = {}) {
-  const { dryRun, withAi, only } = parseArgs(argv);
+  const { dryRun, withAi, only, unknown } = parseArgs(argv);
+  if (unknown !== undefined) {
+    err(`Tham số "${unknown}" không hợp lệ. Tham số cho phép: --dry-run, --with-ai, --only clearance`);
+    return 1;
+  }
   if (only !== undefined && only !== 'clearance') {
     err(`--only "${only}" không hợp lệ. Giá trị cho phép: clearance`);
     return 1;

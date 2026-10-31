@@ -1,4 +1,4 @@
-// T-040 B test cases S1-S16. Run: node --test scripts/demo-seed.test.mjs
+// T-040 B test cases S1-S18. Run: node --test scripts/demo-seed.test.mjs
 // The fake API keeps real in-memory state between runs; nothing touches the network.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -370,5 +370,21 @@ test('S16: --only somethingelse exits non-zero, names the allowed value, sends n
   const { code, stderr } = await runSeed(api, { argv: ['--only', 'somethingelse'] });
   assert.notEqual(code, 0);
   assert.match(stderr, /clearance/);
+  assert.equal(api.requests.length, 0);
+});
+
+test('S17: --dry-run --only=clearance exits non-zero, names the bad argument, sends nothing', async () => {
+  const api = createFakeApi();
+  const { code, stderr } = await runSeed(api, { argv: ['--dry-run', '--only=clearance'] });
+  assert.notEqual(code, 0);
+  assert.ok(stderr.includes('--only=clearance'), stderr);
+  assert.equal(api.requests.length, 0);
+});
+
+test('S18: --bogus exits non-zero, names the bad argument, sends nothing', async () => {
+  const api = createFakeApi();
+  const { code, stderr } = await runSeed(api, { argv: ['--bogus'] });
+  assert.notEqual(code, 0);
+  assert.ok(stderr.includes('--bogus'), stderr);
   assert.equal(api.requests.length, 0);
 });

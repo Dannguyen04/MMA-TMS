@@ -336,3 +336,19 @@ exit 0, không cảnh báo
 ```
 
 Việc của Ken ở phần C: chạy `--only clearance` trên Supabase ít nhất một ngày trước lần chạy chính.
+
+## Từ chối tham số lạ (31/10)
+
+Lỗi: `parseArgs` bỏ qua tham số lạ, nên `--dry-run --only=clearance` âm thầm chạy toàn bộ seed (created=124); chạy thật sẽ tạo cả 7 võ sĩ sớm một ngày. Sửa: tham số nào không phải `--dry-run`, `--with-ai`, `--only <giá trị>` thì exit 1, báo tên tham số và các tham số cho phép, không gửi request nào. `--only=` vẫn không hỗ trợ; lỗi `--only <giá trị sai>` (S16) giữ nguyên.
+
+Ca mới: S17 (`--dry-run --only=clearance`) và S18 (`--bogus`): exit khác 0, stderr có tên tham số, 0 request. Cả hai lỗi trên code cũ (`actual: 0`), qua sau khi sửa.
+
+```text
+$ node --test nestjs-api/scripts/demo-seed.test.mjs
+ℹ tests 19, ℹ pass 19, ℹ fail 0
+$ node nestjs-api/scripts/demo-seed.mjs --dry-run                     -> exit 0, created=124 existing=0
+$ node nestjs-api/scripts/demo-seed.mjs --dry-run --only clearance    -> exit 0, created=5 existing=0
+$ node nestjs-api/scripts/demo-seed.mjs --dry-run --with-ai           -> exit 0, created=125 existing=0
+$ node nestjs-api/scripts/demo-seed.mjs --dry-run --only=clearance    -> exit 1, Tham số "--only=clearance" không hợp lệ. ...
+$ pnpm exec oxlint scripts/demo-seed.mjs scripts/demo-seed.test.mjs   (trong nestjs-api) -> exit 0
+```
