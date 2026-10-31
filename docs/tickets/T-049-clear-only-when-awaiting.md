@@ -1,13 +1,13 @@
 # T-049: chỉ xác nhận được tập lại khi đình chỉ đang chờ xác nhận
 
-- Trạng thái: **ĐỀ XUẤT, chờ buổi review tới** (Ken 31/10: không merge, chỉ ghi ticket, cập nhật sau review)
+- Trạng thái: **IN PROGRESS** (Ken 31/10: sửa xong, review độc lập rồi mới merge vào `fight-camp`)
 - Phạm vi: backend `nestjs-api` + frontend `nextjs-frontend` (câu báo lỗi, demo mode)
 - Người làm: Ken (Claude lead, `agy` code)
 - Phụ thuộc: T-007, T-030 B (đã merge `fight-camp` 31/10)
 
 ## Ghi chú 31/10 (trạng thái hiện tại)
 
-- Code đã viết thử theo ticket này rồi **cất lại, không commit**: `git stash` trên máy Ken (`stash@{0}`, "T-049 WIP (chờ review tới, không merge)") và bản patch `D:/test/ai-worktrees/logs/T-049-wip.patch`, handover nháp `D:/test/ai-worktrees/logs/T-049-HANDOVER-wip.md`. Chỉ có trên máy Ken.
+- Code viết theo ticket này từng được cất tạm (chưa commit): `git stash` trên máy Ken (`stash@{0}`, "T-049 WIP (chờ review tới, không merge)") và bản patch `D:/test/ai-worktrees/logs/T-049-wip.patch`, handover nháp `D:/test/ai-worktrees/logs/T-049-HANDOVER-wip.md`. Chỉ có trên máy Ken.
 - Kết quả lần chạy thử: C1, C2, C4, C5, C6 lỗi trên code cũ và qua sau khi sửa; C3 là ca đối chứng (qua cả trước và sau, ticket ghi nhầm là phải lỗi); C8 bỏ vì `test:db` chỉ kiểm migration bằng SQL, không có ca chạy service thật; C9, C10 qua. Frontend 954 passed | 2 skipped.
 - Hai test cũ trong `suspensions.service.spec.ts` khẳng định đúng hành vi bị coi là lỗi, cần đổi khi làm thật (lead quyết, ghi lại để review):
   - `allows early clear before ends_on without changing ends_on, and sets audit context`: xoá; chuyển kiểm audit context sang C3 nếu đây là test duy nhất kiểm nó.
