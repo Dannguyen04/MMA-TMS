@@ -116,7 +116,7 @@ Kiểm tra mỗi phần: `pnpm --filter nextjs-frontend lint`, `typecheck`, `tes
 | B4-3 | Chọn `maxTier` và tick loại buổi cùng lúc | Không cho; chỉ một trong hai |
 | B4-4 | Lý do `KO` | Công tắc "Cần xác nhận" bật và khoá, có câu giải thích |
 | B4-5 | Xác nhận tập lại với căn cứ 2 ký tự | Báo lỗi ngay, không gửi |
-| B4-6 | ADMIN mở trang | Không có nút "Xác nhận được tập lại" |
+| B4-6 | ~~ADMIN mở trang~~ (bỏ 31/10: chỉ HLV, xem B6) | ~~Không có nút "Xác nhận được tập lại"~~. ADMIN mở trang thì bị chuyển về `/admin/dashboard` (B4-14) |
 | B4-7 | Không có đình chỉ | Trạng thái rỗng có hướng dẫn |
 
 **B5. Lịch tập** (`/coach/sessions`, chi tiết buổi, form sửa): badge và bộ lọc "Chờ xếp lại", nút "Xếp lại", thẻ giải thích 409.
@@ -125,10 +125,11 @@ Kiểm tra mỗi phần: `pnpm --filter nextjs-frontend lint`, `typecheck`, `tes
 | --- | --- | --- |
 | B5-1 | Buổi `pending` | Badge "Chờ xếp lại"; có nút "Xếp lại"; không có nút "Bắt đầu" |
 | B5-2 | Xếp lại vào ngày sau khi hết đình chỉ | Buổi thành `scheduled` |
-| B5-3 | Xếp lại vào ngày còn đình chỉ | Thẻ giải thích 409 có lý do, ngày, thang bậc; buổi vẫn `pending` |
+| B5-3 | Xếp lại vào ngày còn đình chỉ | Thẻ giải thích 409 có lý do, ngày; thang bậc chỉ khi đang tập lại theo bậc (409 thật chỉ gửi `gradedReturn`, không gửi `maxAllowedTier`; sửa 31/10, xem B7); buổi vẫn `pending` |
 | B5-4 | Lọc "Chờ xếp lại" | Chỉ còn buổi `pending` |
 
-**B6. Màn `/coach/bouts/readiness`** (tab trong hub "Trận"; HLV và ADMIN; ẩn với FIGHTER, DOCTOR).
+**B6. Màn `/coach/bouts/readiness`** (tab trong hub "Trận"; chỉ HLV; ẩn với FIGHTER, DOCTOR).
+> **Ken quyết 31/10:** bảng Sẵn sàng và màn Đình chỉ chỉ dành cho HLV, không mở cho ADMIN. Code dùng `requireRole("coach")`; ADMIN bị chuyển về `/admin/dashboard` (test B6-admin, B4-14). Backend vẫn cho ADMIN gọi API, chỉ giao diện không có lối vào.
 
 | Ca | Đầu vào | Kết quả mong đợi |
 | --- | --- | --- |
