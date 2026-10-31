@@ -21,12 +21,21 @@ export interface WeekSummaryProps {
 /** Totals for the visible week: sessions, completed, planned time and peak intensity. */
 export function WeekSummary({ sessions, title, description, children, locale = "en" }: WeekSummaryProps) {
     const t = createTranslator(locale);
-    const planned = sessions.filter((s) => s.status !== "cancelled");
+    const planned = sessions.filter((s) => s.status !== "cancelled" && s.status !== "pending");
     const completed = planned.filter((s) => s.status === "completed");
-    const cancelled = sessions.length - planned.length;
+    const cancelled = sessions.filter((s) => s.status === "cancelled").length;
+    const pending = sessions.filter((s) => s.status === "pending").length;
     const minutes = sum(planned.map(sessionMinutes));
     const peak = planned.reduce((max, s) => Math.max(max, s.targetRpe ?? 0), 0);
     const heading = title ?? t("training.weekSummary.title");
+
+    const hints: ReactNode[] = [];
+    if (cancelled > 0) {
+        hints.push(<span key="cancelled" className="block">{plural(t, "training.weekSummary.cancelledCount" as MessageKey, cancelled)}</span>);
+    }
+    if (pending > 0) {
+        hints.push(<span key="pending" className="block">{plural(t, "training.weekSummary.pendingCount" as MessageKey, pending)}</span>);
+    }
 
     return (
         <Card>
@@ -36,7 +45,7 @@ export function WeekSummary({ sessions, title, description, children, locale = "
                     <MetricTile
                         label={t("training.weekSummary.sessions")}
                         value={planned.length}
-                        hint={cancelled > 0 ? plural(t, "training.weekSummary.cancelledCount", cancelled) : undefined}
+                        hint={hints.length > 0 ? <span className="flex flex-col">{hints}</span> : undefined}
                     />
                     <MetricTile label={t("training.weekSummary.completed")} value={`${completed.length}/${planned.length}`} />
                     <MetricTile

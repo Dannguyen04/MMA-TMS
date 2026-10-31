@@ -12,7 +12,7 @@ import {
     suspensionState,
     validateSuspension,
     MANUAL_SUSPENSION_REASONS,
-} from "./suspension-rules";
+} from "./bout-suspension-rules";
 
 /** The AIBA preset's rules (Tech spec §2.2). */
 const AIBA: SuspensionRule[] = [

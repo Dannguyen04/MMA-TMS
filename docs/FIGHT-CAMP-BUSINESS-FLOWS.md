@@ -167,6 +167,8 @@ Một thẻ trên dashboard HLV, gom việc của cả ba giai đoạn. Thẻ t�
 | Sau | Đình chỉ chờ xác nhận được tập lại | S3 |
 | Sau | Cân nhắc đình chỉ thủ công | R27 |
 
+> **Ghi chú 31/10 (Claude trên máy Ken; Dan quyết 31/10: giữ dòng này tới khi [T-044 phần C](./tickets/T-044-codebase-trim.md#phần-c-nguồn-việc-cần-làm-không-còn-bật) quyết bỏ hay giữ provider):** việc "Buổi tập xung đột với đình chỉ chưa xử lý" (R28) gần như không còn sinh ra từ khi có T-036. Mọi đường tạo đình chỉ (tạo tay, kết quả KO/TKO) đều tự chuyển buổi bị chặn sang "Chờ xếp lại" hoặc huỷ ngay lúc tạo, và Cổng 2 chặn xếp buổi mới vào khoảng đình chỉ. Luật "bị đình chỉ thì không tập" không đổi. Chỉ dòng việc này trở nên thừa; nó chỉ còn ý nghĩa với dữ liệu có trước T-036. Đề nghị bỏ dòng này, hoặc đổi thành "Buổi chờ xếp lại sau đình chỉ". Chi tiết ở tiêu chí 6 của [T-040](./tickets/T-040-real-backend-demo.md).
+
 #### Bổ sung 21/10 (chờ duyệt)
 
 | Ý | Nghiệp vụ | Mức | Ticket đề xuất |
@@ -314,7 +316,7 @@ Số hiệp lấy từ trường mới `scheduled_rounds` nhập lúc tạo tr�
 
 **Nghiệp vụ 12. Điều chỉnh lịch tập**
 
-- **R28 (đổi 29/10, [quyết định 23](./SCOPE-FIGHT-CAMP.md#quyết-định-và-câu-hỏi)).** Tìm các buổi `SCHEDULED` của võ sĩ có ngày nằm trong khoảng đình chỉ và loại bị chặn. App **tự áp dụng ngay lúc tạo đình chỉ** (thủ công hay từ kết quả trận, cùng một giao dịch): buổi bị một đình chỉ cần xác nhận chặn thì **huỷ** (lý do "Suspension in force"; võ sĩ nhận thông báo huỷ sau khi lưu xong); còn lại thì chuyển **"Chờ xếp lại"** (`PENDING`), giữ ngày cũ. Buổi "Chờ xếp lại" không bắt đầu được; HLV xếp lại bằng cách chọn ngày mới (qua Cổng 2 ở ngày mới, qua được thì về `SCHEDULED`) hoặc huỷ. Buổi xếp mới vẫn bị chặn bằng 409 `TRAINING_SUSPENSION_ACTIVE` như F7. Trước 29/10, R28 chỉ đề xuất đổi sang `RECOVERY`, dời ngày hoặc huỷ và chờ HLV bấm "Áp dụng tất cả"; cách đó đã bỏ.
+- **R28 (đổi 29/10, [quyết định 23](./SCOPE-FIGHT-CAMP.md#quyết-định-và-câu-hỏi)).** Tìm các buổi `SCHEDULED` của võ sĩ có ngày nằm trong khoảng đình chỉ và loại bị chặn. App **tự áp dụng ngay lúc tạo đình chỉ** (thủ công hay từ kết quả trận, cùng một giao dịch): buổi bị một đình chỉ cần xác nhận chặn thì **huỷ** (lý do "Suspension in force"; võ sĩ nhận thông báo huỷ sau khi lưu xong); còn lại thì chuyển **"Chờ xếp lại"** (`PENDING`), giữ ngày cũ. Buổi "Chờ xếp lại" không bắt đầu được; HLV xếp lại bằng cách chọn ngày mới (qua Cổng 2 ở ngày mới, qua được thì về `SCHEDULED`) hoặc huỷ. Buổi xếp mới vẫn bị chặn bằng 409 `TRAINING_SUSPENSION_ACTIVE` như F7. Buổi đang "Chờ xếp lại" mà võ sĩ bị thêm một đình chỉ cần xác nhận chặn thì cũng huỷ (sau KO, lộ trình tập bắt đầu lại từ bước 1 và chưa biết ngày tập lại; T-036 A2). Trước 29/10, R28 chỉ đề xuất đổi sang `RECOVERY`, dời ngày hoặc huỷ và chờ HLV bấm "Áp dụng tất cả"; cách đó đã bỏ.
 - **Giáo án (đổi 29/10, [quyết định 24](./SCOPE-FIGHT-CAMP.md#quyết-định-và-câu-hỏi)).** Đình chỉ `KO`, `TKO`, `MEDICAL` chuyển giáo án đang chạy pha `fight_camp` hoặc `taper` sang `rehab`, cùng giao dịch. Không tự khôi phục khi hết đình chỉ.
 
 **Nghiệp vụ 13, 15. Cho tập lại và sẵn sàng nhận trận (S3)**
@@ -599,7 +601,7 @@ Buổi vượt bậc trong hai ngày này bị 409 `TRAINING_SUSPENSION_ACTIVE`,
 
 Nguồn: [Amsterdam 2022, BJSM](https://orbi.uliege.be/bitstream/2268/327382/1/bjsports-2024-109188.full.pdf); [CDC HEADS UP](https://www.cdc.gov/heads-up/guidelines/returning-to-sports.html); [ARP](https://mixedmartialarts.com/news/arp-issues-official-position-on-suspensions-and-concussion-management2a8b75a6-6eb2-4089-bd62-71f7b3a9a7df/); [Victoria, Non-fight periods and return to fight strategy](https://djsir.vic.gov.au/combat-sports/contestant-safety/non-fight-periods-and-return-to-fight-strategy).
 
-**Kết thúc đình chỉ cần xác nhận:** sau ngày kết thúc, HLV hoặc bác sĩ bấm "Xác nhận được tập lại", ghi căn cứ, không đính kèm ảnh giấy tờ (ví dụ "đã khám thần kinh, CT bình thường" hoặc "HLV xác nhận, không có khám"). Luật AIBA yêu cầu xác nhận bằng văn bản của bác sĩ thần kinh hoặc y học thể thao; không có giấy thì app ghi rõ "không có xác nhận y tế". Võ sĩ về trạng thái được tập.
+**Kết thúc đình chỉ cần xác nhận:** sau ngày kết thúc, HLV hoặc bác sĩ bấm "Xác nhận được tập lại", ghi căn cứ, không đính kèm ảnh giấy tờ (ví dụ "đã khám thần kinh, CT bình thường" hoặc "HLV xác nhận, không có khám"). Luật AIBA yêu cầu xác nhận bằng văn bản của bác sĩ thần kinh hoặc y học thể thao; không có giấy thì app ghi rõ "không có xác nhận y tế". Võ sĩ về trạng thái được tập. API từ chối 409 (`SUSPENSION_NOT_AWAITING_CLEARANCE`) nếu chưa tới `endsOn + 1` (T-049).
 
 ### F8. Đổi ngày, đổi hạng, huỷ
 

@@ -39,6 +39,11 @@ import {
   weighInResponseSchema,
   weighInSchema,
   weightTrackResponseSchema,
+  updateNutritionPlanSchema,
+  nutritionPlanResponseSchema,
+  nutritionCheckinBodySchema,
+  nutritionCheckinParamsSchema,
+  nutritionCheckinResponseSchema,
 } from './bouts.model.js';
 
 export class BoutIdParamsDto extends createZodDto(boutIdParamsSchema) {}
@@ -175,4 +180,21 @@ export class ResultPrefillResponseDto extends createZodDto(
     resultRound: z.number().int().min(1).max(12).nullable(),
     knockedDown: z.boolean().nullable(),
   }),
+) {}
+
+
+export class UpdateNutritionPlanDto extends createZodDto(
+  updateNutritionPlanSchema,
+) {}
+export class NutritionPlanResponseDto extends createZodDto(
+  nutritionPlanResponseSchema,
+) {}
+export class NutritionCheckinDto extends createZodDto(
+  nutritionCheckinBodySchema,
+) {}
+export class NutritionCheckinParamsDto extends createZodDto(
+  nutritionCheckinParamsSchema,
+) {}
+export class NutritionCheckinResponseDto extends createZodDto(
+  nutritionCheckinResponseSchema,
 ) {}

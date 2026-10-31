@@ -1,170 +1,286 @@
-import { ShieldCheck } from "lucide-react";
+import { Ban, ShieldAlert } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { BoutPhaseBadge, SuspensionStateBadge } from "@/components/domain/status-badges";
+import { GradedReturnSteps } from "@/components/domain/graded-return-steps";
+import { IntensityLadder } from "@/components/domain/intensity-ladder";
+import { SuspensionStatusBadge } from "@/components/domain/status-badges";
 import { Avatar } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
+import { ProgressBar } from "@/components/ui/progress";
+import { SegmentedLinks, type SegmentedLinkItem } from "@/components/ui/segmented-links";
 import { EmptyState } from "@/components/ui/states";
 import { accessibleFighterIds } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
-import { isActivePhase, type Suspension } from "@/lib/domain/bout";
-import { canClearSuspension, isSuspensionActive, suspensionDays, suspensionState, type SuspensionState } from "@/lib/domain/suspension-rules";
-import { dayKey, formatDate, formatDateTime } from "@/lib/format";
-import type { Locale } from "@/lib/i18n/config";
+import { academyDateOf, daysBetweenDates, suspensionReasonLabel } from "@/lib/domain/suspension-rules";
+import type { Suspension } from "@/lib/domain/types";
+import { formatShortDate } from "@/lib/format";
 import { getTranslator } from "@/lib/i18n/server";
-import type { Translator } from "@/lib/i18n/translate";
+import { plural, type MessageKey } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
-import { listCampBouts, listSuspensions } from "@/lib/services/bouts";
 import { listFighters } from "@/lib/services/people";
-import { ClearSuspensionButton, SuspensionDialogButton } from "../suspension-dialogs";
+import { listSuspensions, suspensionBoutNames } from "@/lib/services/suspensions";
+import { param } from "@/lib/utils";
+import { ClearSuspensionButton } from "./clear-suspension-button";
+import { CreateSuspensionTrigger } from "./create-suspension-trigger";
 
 export async function generateMetadata(): Promise<Metadata> {
     const { t } = await getTranslator();
-    return { title: t("coachBouts.suspensions.title") };
+    return { title: `${t("suspensions.title")} · ${t("nav.Bouts")}` };
 }
 
-const STATE_ORDER: Record<SuspensionState, number> = { AWAITING_CLEARANCE: 0, ACTIVE: 1, UPCOMING: 2, CLEARED: 3, ENDED: 4 };
+const FILTERS = {
+    ALL: { labelKey: "suspensions.filter.all", matches: () => true },
+    ACTIVE: { labelKey: "suspensions.filter.active", matches: (s: Suspension) => s.status === "ACTIVE" },
+    AWAITING_CLEARANCE: { labelKey: "suspensions.filter.awaitingClearance", matches: (s: Suspension) => s.status === "AWAITING_CLEARANCE" },
+    GRADED_RETURN: { labelKey: "suspensions.filter.gradedReturn", matches: (s: Suspension) => s.gradedReturn !== null && s.gradedReturn !== undefined },
+    ENDED: { labelKey: "suspensions.filter.ended", matches: (s: Suspension) => s.status === "ENDED" && !s.gradedReturn },
+} as const satisfies Record<string, { labelKey: MessageKey; matches: (s: Suspension) => boolean }>;
 
-/** Gate 2 and readiness (F7, H7): who is suspended, who waits for clearance, and who can take a new bout. */
-export default async function SuspensionsPage() {
+export default async function CoachSuspensionsPage({
+    searchParams,
+}: PageProps<"/coach/bouts/suspensions">) {
     const user = await requireRole("coach");
-    const { t, locale } = await getTranslator();
-    const scope = accessibleFighterIds(user);
-    const todayOn = dayKey(new Date());
-    const [fighters, suspensions, bouts] = await Promise.all([listFighters(user), listSuspensions(scope), listCampBouts(scope)]);
-    const names = new Map(fighters.map((fighter) => [fighter.id, fighter.name]));
-    const rows = suspensions
-        .map((item) => ({ item, state: suspensionState(item, todayOn) }))
-        .sort((a, b) => STATE_ORDER[a.state] - STATE_ORDER[b.state] || (a.item.endsOn < b.item.endsOn ? -1 : 1));
-    const fighterOptions = fighters.map((fighter) => ({ id: fighter.id, name: fighter.name }));
-    const newSuspension = <SuspensionDialogButton fighters={fighterOptions} defaultBlocked={["sparring"]} startsOn={todayOn} label={t("coachBouts.suspensions.new")} />;
+    const params = await searchParams;
+    const rawStatus = param(params.status);
+    const statusFilter = rawStatus && Object.hasOwn(FILTERS, rawStatus) ? (rawStatus as keyof typeof FILTERS) : "ALL";
+
+    const [suspensions, fighters, bouts, { t, locale }] = await Promise.all([
+        listSuspensions({}, user),
+        listFighters(user),
+        suspensionBoutNames(accessibleFighterIds(user)),
+        getTranslator(),
+    ]);
+
+    const todayKey = academyDateOf(new Date());
+    const fightersById = new Map(fighters.map((f) => [f.id, f]));
+    // The page only names the bout a suspension came from.
+    const boutsById = new Map([...bouts].map(([id, eventName]) => [id, { eventName }]));
+
+    const filterItems: SegmentedLinkItem[] = Object.entries(FILTERS).map(([status, { labelKey, matches }]) => ({
+        href: status === "ALL" ? routes.coach.suspensions : `${routes.coach.suspensions}?status=${status}`,
+        label: t(labelKey),
+        count: suspensions.filter(matches).length,
+        active: statusFilter === status,
+    }));
+    const filteredSuspensions = suspensions.filter(FILTERS[statusFilter].matches);
+
+    const fighterOptions = fighters.map((f) => ({ id: f.id, name: f.name }));
+
+    const newSuspensionButton = (
+        <CreateSuspensionTrigger
+            fighters={fighterOptions}
+            locale={locale}
+            todayKey={todayKey}
+        />
+    );
 
     return (
-        <>
-            <PageHeader title={t("coachBouts.suspensions.title")} description={t("coachBouts.suspensions.description")} actions={newSuspension} />
+        <div className="flex flex-col gap-6">
+            <PageHeader
+                title={t("suspensions.title")}
+                description={plural(t, "suspensions.activeCount", suspensions.filter(FILTERS.ACTIVE.matches).length)}
+                actions={newSuspensionButton}
+            />
 
-            <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
-                <div className="min-w-0 lg:col-span-2">
-                    {rows.length === 0 ? (
-                        <EmptyState icon={<ShieldCheck />} title={t("coachBouts.suspensions.emptyTitle")} description={t("coachBouts.suspensions.emptyDescription")} />
-                    ) : (
-                        <Card>
-                            <CardHeader title={t("coachBouts.suspensions.listTitle")} description={t("coachBouts.suspensions.listDescription")} />
-                            <CardContent>
-                                <ul className="divide-y divide-border">
-                                    {rows.map(({ item, state }) => (
-                                        <SuspensionRow
-                                            key={item.id}
-                                            item={item}
-                                            state={state}
-                                            fighterName={names.get(item.fighterId) ?? t("coachBouts.common.fighterFallback")}
-                                            todayOn={todayOn}
-                                            t={t}
+            {/* Hàng lọc có số đếm */}
+            <SegmentedLinks
+                label={t("suspensions.filter.navLabel")}
+                items={filterItems}
+            />
+
+            {filteredSuspensions.length === 0 ? (
+                <EmptyState
+                    icon={<Ban className="size-6 text-fg-muted" />}
+                    title={t("suspensions.emptyTitle")}
+                    description={t("suspensions.emptyDescription")}
+                    action={newSuspensionButton}
+                />
+            ) : (
+                <Card className="divide-y divide-border overflow-hidden">
+                    {filteredSuspensions.map((suspension) => {
+                        const fighter = fightersById.get(suspension.fighterId);
+                        const bout = suspension.boutId ? boutsById.get(suspension.boutId) : null;
+                        const isActive = suspension.status === "ACTIVE";
+                        const isEndedNoGraded =
+                            suspension.status === "ENDED" && !suspension.gradedReturn;
+
+                        const totalDays = Math.max(
+                            1,
+                            daysBetweenDates(suspension.startsOn, suspension.endsOn) + 1,
+                        );
+                        const daysPassed = Math.max(
+                            1,
+                            Math.min(
+                                totalDays,
+                                daysBetweenDates(suspension.startsOn, todayKey) + 1,
+                            ),
+                        );
+                        const progressText = t("suspensions.row.dayProgress", {
+                            elapsed: daysPassed,
+                            total: totalDays,
+                        });
+
+                        return (
+                            <div
+                                key={suspension.id}
+                                className="flex flex-col gap-4 p-4 hover:bg-surface-muted/20 transition-colors sm:p-5"
+                            >
+                                <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto_auto] items-start lg:items-center gap-4">
+                                    {/* Col 1: Avatar, Name, Reason, Bout, Dates & Progress */}
+                                    <div className="flex items-start gap-3.5 min-w-0">
+                                        <Avatar
+                                            name={fighter?.name ?? t("coachBouts.unknownFighter")}
+                                            shape="octagon"
+                                            size="md"
+                                        />
+                                        <div className="flex flex-col gap-1 min-w-0">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                {fighter ? (
+                                                    <Link
+                                                        href={routes.coach.fighter(fighter.id)}
+                                                        className="font-semibold text-fg text-[15px] hover:text-primary hover:underline truncate"
+                                                    >
+                                                        {fighter.name}
+                                                    </Link>
+                                                ) : (
+                                                    <span className="font-semibold text-fg text-[15px] truncate">
+                                                        {t("coachBouts.unknownFighter")}
+                                                    </span>
+                                                )}
+                                                <span className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium bg-surface-muted text-fg-muted border border-border">
+                                                    {suspensionReasonLabel(suspension.reason, t)}
+                                                </span>
+                                                {bout && (
+                                                    <>
+                                                        <span
+                                                            className="hidden sm:inline text-xs text-fg-subtle"
+                                                            aria-hidden="true"
+                                                        >
+                                                            ·
+                                                        </span>
+                                                        <span className="text-xs text-fg-muted truncate">
+                                                            {bout.eventName}
+                                                        </span>
+                                                    </>
+                                                )}
+                                            </div>
+
+                                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-fg-muted">
+                                                <span className="tabular-nums">
+                                                    {formatShortDate(suspension.startsOn, locale)} –{" "}
+                                                    {formatShortDate(suspension.endsOn, locale)}
+                                                </span>
+                                                {isActive && (
+                                                    <ProgressBar
+                                                        value={daysPassed}
+                                                        max={totalDays}
+                                                        tone="danger"
+                                                        size="sm"
+                                                        label={progressText}
+                                                        showLabel={false}
+                                                        hideValue={true}
+                                                        valueText={progressText}
+                                                        className="w-24 sm:w-32"
+                                                    />
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Col 2: Intensity Ladder or normal training message */}
+                                    <div className="shrink-0">
+                                        {isEndedNoGraded ? (
+                                            <span className="text-xs text-fg-muted italic">
+                                                {t("suspensions.row.endedNormalTraining")}
+                                            </span>
+                                        ) : (
+                                            <>
+                                                <div className="sm:hidden w-28">
+                                                    <IntensityLadder
+                                                        maxAllowedTier={
+                                                            suspension.gradedReturn ? 5 : suspension.maxAllowedTier
+                                                        }
+                                                        ceiling={suspension.gradedReturn?.ceiling}
+                                                        size="sm"
+                                                        locale={locale}
+                                                    />
+                                                </div>
+                                                <div className="hidden sm:block w-40">
+                                                    <IntensityLadder
+                                                        maxAllowedTier={
+                                                            suspension.gradedReturn ? 5 : suspension.maxAllowedTier
+                                                        }
+                                                        ceiling={suspension.gradedReturn?.ceiling}
+                                                        size="md"
+                                                        locale={locale}
+                                                    />
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+
+                                    {/* Col 3: Status badge & Actions */}
+                                    <div className="flex flex-wrap items-center gap-3 sm:gap-4 shrink-0 lg:justify-end">
+                                        <SuspensionStatusBadge
+                                            status={
+                                                suspension.gradedReturn
+                                                    ? "GRADED_RETURN"
+                                                    : suspension.status
+                                            }
+                                            startsOn={suspension.startsOn}
+                                            endsOn={suspension.endsOn}
+                                            today={todayKey}
+                                            ceiling={suspension.gradedReturn?.ceiling}
                                             locale={locale}
                                         />
-                                    ))}
-                                </ul>
-                            </CardContent>
-                        </Card>
-                    )}
-                </div>
 
-                <Card className="min-w-0">
-                    <CardHeader title={t("coachBouts.suspensions.readyTitle")} description={t("coachBouts.suspensions.readyDescription")} />
-                    <CardContent>
-                        <ul className="divide-y divide-border">
-                            {fighters.map((fighter) => {
-                                const active = bouts.find((bout) => bout.fighterId === fighter.id && isActivePhase(bout.phase));
-                                const suspended = suspensions.find((item) => item.fighterId === fighter.id && isSuspensionActive(item, todayOn));
-                                return (
-                                    <li key={fighter.id} className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2 text-sm">
-                                        <span className="flex min-w-0 items-center gap-2.5">
-                                            <Avatar name={fighter.name} size="xs" shape="octagon" />
-                                            <span className="truncate text-fg">{fighter.name}</span>
-                                        </span>
-                                        {suspended ? (
-                                            <SuspensionStateBadge state={suspensionState(suspended, todayOn)} size="sm" locale={locale} />
-                                        ) : active ? (
-                                            <Link href={routes.coach.bout(active.id)} aria-label={`${fighter.name}: ${active.event}`}>
-                                                <BoutPhaseBadge phase={active.phase} size="sm" locale={locale} />
+                                        <div className="flex items-center gap-2">
+                                            {suspension.status === "AWAITING_CLEARANCE" && (
+                                                <ClearSuspensionButton
+                                                    suspension={suspension}
+                                                    fighterName={fighter?.name}
+                                                />
+                                            )}
+                                            <Link
+                                                href={`${routes.coach.sessions}?fighter=${suspension.fighterId}`}
+                                                className="text-xs font-medium text-primary hover:underline px-2 py-1"
+                                            >
+                                                {t("suspensions.row.viewSchedule")}
                                             </Link>
-                                        ) : (
-                                            <Badge tone="success" icon={ShieldCheck} size="sm">
-                                                {t("coachBouts.suspensions.ready")}
-                                            </Badge>
-                                        )}
-                                    </li>
-                                );
-                            })}
-                        </ul>
-                    </CardContent>
-                </Card>
-            </div>
-        </>
-    );
-}
+                                        </div>
+                                    </div>
+                                </div>
 
-function SuspensionRow({
-    item,
-    state,
-    fighterName,
-    todayOn,
-    t,
-    locale,
-}: {
-    item: Suspension;
-    state: SuspensionState;
-    fighterName: string;
-    todayOn: string;
-    t: Translator;
-    locale: Locale;
-}) {
-    const types = item.blockedSessionTypes.map((type) => t(`trainingType.${type}`).toLowerCase()).join(", ");
-    return (
-        <li className="flex flex-col gap-2 py-3.5">
-            <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
-                <span className="flex min-w-0 items-center gap-2.5">
-                    <Avatar name={fighterName} size="sm" shape="octagon" />
-                    <span className="min-w-0">
-                        <span className="block font-medium text-fg">{fighterName}</span>
-                        <span className="block text-sm text-fg-muted">
-                            {t("coachBouts.suspensions.period", {
-                                reason: t(`boutLabel.suspensionReason.${item.reason}`),
-                                start: formatDate(item.startsOn, locale),
-                                end: formatDate(item.endsOn, locale),
-                                days: item.days ?? suspensionDays(item),
-                            })}
-                        </span>
-                    </span>
-                </span>
-                <SuspensionStateBadge state={state} locale={locale} />
-            </div>
-            <p className="text-[13px] text-fg-muted">
-                {t(item.requiresClearance && !item.clearedAt ? "coachBouts.suspensions.blocksNeedsClearance" : "coachBouts.suspensions.blocks", { types })}
-                {item.lossOfConsciousness &&
-                    item.lossOfConsciousness !== "NONE" &&
-                    ` ${t("coachBouts.suspensions.lostConsciousness", { duration: t(`boutLabel.loc.${item.lossOfConsciousness}`).toLowerCase() })}`}
-            </p>
-            {item.overrideReason && (
-                <p className="text-[13px] text-fg-muted">{t("coachBouts.suspensions.override", { n: item.suggestedDays ?? "", reason: item.overrideReason })}</p>
+                                {/* Graded return steps if in graded return */}
+                                {suspension.gradedReturn && (
+                                    <div className="mt-1 pt-3 border-t border-border/50">
+                                        <GradedReturnSteps
+                                            gradedReturn={suspension.gradedReturn}
+                                            locale={locale}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </Card>
             )}
-            {item.note && <p className="text-[13px] text-fg-muted">{item.note}</p>}
-            {item.clearedAt && (
-                <p className="text-[13px] text-fg-muted">
-                    {t("coachBouts.suspensions.cleared", { name: item.clearedBy ?? "", date: formatDateTime(item.clearedAt, locale), note: item.clearanceNote ?? "" })}
-                </p>
-            )}
-            <div className="flex flex-wrap items-center gap-3">
-                {item.boutId && (
-                    <Link href={routes.coach.bout(item.boutId)} className="text-sm font-medium text-primary-soft-fg hover:underline">
-                        {t("coachBouts.suspensions.openBout")}
-                    </Link>
-                )}
-                {canClearSuspension(item, todayOn) && <ClearSuspensionButton suspensionId={item.id} fighterName={fighterName} />}
+
+            {/* Dòng chú thích nhỏ phân biệt hai khái niệm */}
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/70 bg-surface-muted/30 px-4 py-3 text-xs text-fg-muted">
+                <div className="flex items-center gap-2 min-w-0">
+                    <ShieldAlert aria-hidden className="size-4 shrink-0 text-fg-subtle" />
+                    <span>{t("suspensions.distinctionNotice")}</span>
+                </div>
+                <Link
+                    href={routes.coach.clearance}
+                    className="font-medium text-primary hover:underline shrink-0"
+                >
+                    {t("suspensions.goToClearance")} →
+                </Link>
             </div>
-        </li>
+        </div>
     );
 }

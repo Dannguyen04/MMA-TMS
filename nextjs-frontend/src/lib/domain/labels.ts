@@ -11,7 +11,7 @@ import type {
     SuspensionReason,
 } from "./bout";
 import type { Gate1Reason } from "./bout-rules";
-import type { SuspensionState } from "./suspension-rules";
+import type { SuspensionState } from "./bout-suspension-rules";
 import type { MessageKey, Translator } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/config";
 import { createTranslator } from "@/lib/i18n/translate";
@@ -228,6 +228,7 @@ export const PLAN_STATUS_LABELS: Record<PlanStatus, string> = {
 export const SESSION_STATUS_LABELS: Record<SessionStatus, string> = {
     scheduled: "Scheduled",
     in_progress: "In progress",
+    pending: "To reschedule",
     completed: "Completed",
     missed: "Missed",
     cancelled: "Cancelled",

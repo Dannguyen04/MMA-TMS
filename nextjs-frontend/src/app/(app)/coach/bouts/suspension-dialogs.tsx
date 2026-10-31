@@ -10,7 +10,7 @@ import { Checkbox, Field, Input, Select, Textarea } from "@/components/ui/form";
 import { clearSuspensionAction, createSuspensionAction } from "@/lib/actions/bouts";
 import type { SuspensionReason } from "@/lib/domain/bout";
 import { TRAINING_TYPE_LABELS } from "@/lib/domain/labels";
-import { MANUAL_SUSPENSION_REASONS, suspensionEndsOn } from "@/lib/domain/suspension-rules";
+import { MANUAL_SUSPENSION_REASONS, suspensionEndsOn } from "@/lib/domain/bout-suspension-rules";
 import type { TrainingType } from "@/lib/domain/types";
 import { formatDate, isDateKey } from "@/lib/format";
 import { useNotify } from "./use-notify";

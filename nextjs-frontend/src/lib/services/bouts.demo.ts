@@ -3,7 +3,7 @@ import type {
     RoundRecord,
 } from "@/lib/domain/round-advice";
 import type { CoachTodo, WeightFeasibility } from "@/lib/domain/types";
-import { buildDemoCoachTodo } from "@/lib/domain/coach-todo";
+import { buildDemoCoachTodo, buildSuspensionTodoItems } from "@/lib/domain/coach-todo";
 import { boutGate1, calculateWeightFeasibility, feasibilityWarnings, computeWeighInReminder, requirementsDueOn } from "@/lib/domain/bout-rules";
 import type { FeasibilityInput } from "./bouts";
 import "server-only";
@@ -44,7 +44,7 @@ import {
     type RequirementUpdate,
 } from "@/lib/domain/bout-rules";
 import { BOUT_PHASE_LABELS, CANCEL_REASON_LABELS, GATE1_REASON_LABELS } from "@/lib/domain/labels";
-import { blockingSuspensions, isSuspensionActive, suspensionEndsOn, type SuspensionDraft } from "@/lib/domain/suspension-rules";
+import { blockingSuspensions, isSuspensionActive, suspensionEndsOn, type SuspensionDraft } from "@/lib/domain/bout-suspension-rules";
 import { wayOffCount } from "@/lib/domain/nutrition";
 import type { TrainingPlan, TrainingType } from "@/lib/domain/types";
 import type { PlanAdherence } from "@/lib/domain/weight-chart";
@@ -52,13 +52,14 @@ import { buildWeightTrack, type WeightTrack } from "@/lib/domain/weight-track";
 import type { WriteResult } from "@/lib/domain/write-result";
 import { academyWallClockToIso, addDaysToKey, dayKey, daysBetweenKeys, formatDate } from "@/lib/format";
 import { AIBA_REFERENCE_ID, CUSTOM_RULESET_ID, mockRulesets, VMMAF_2021_ID } from "@/lib/mocks/rulesets";
+import { db } from "@/lib/mocks/db";
 import { TODAY_KEY } from "@/lib/mocks/time";
 import { round } from "@/lib/utils";
 
 /**
  * The demo's bouts, camp weights, plan answers and suspensions. One in-memory store per server process, seeded
  * relative to the academy day it is first read on; restart the dev server to reset it. Every rule comes from
- * `lib/domain/bout-rules.ts` and `suspension-rules.ts`, the same functions the pages use.
+ * `lib/domain/bout-rules.ts` and `bout-suspension-rules.ts`, the same functions the pages use.
  *
  * Seed (review 2, option a): Minh has no bout, so the coach creates one live. Kenji is red with a complete
  * checklist and can enter fight week; Aigerim is yellow; Emma is grey, and Gate 1 stops her fight week on a missing
@@ -1098,5 +1099,14 @@ export async function getCoachTodo(scope: string[] | "all"): Promise<CoachTodo> 
         const gate = boutGate1(bout);
         return { ...bout, status: bout.phase, deletedAt: null, eventName: bout.event, requirementsDueOn: requirementsDueOn(bout), gate1: { passed: gate.passed, missing: gate.missing.map(gap => gap.requirement.code), expiring: [] }, weight: weight ?? undefined, canEnterFightWeek: canEnterFightWeek(bout, dayKey(now)).ok, weightReminder: computeWeighInReminder({ status: bout.phase, latestOn: weight?.latestOn ?? null, now }) };
     });
-    return { items: buildDemoCoachTodo(bouts, now), truncated: false };
+    // Suspension follow-ups come from the suspensions store (T-030 B), the one the Suspensions page reads.
+    const inScope = (fighterId: string) => scope === "all" || scope.includes(fighterId);
+    const suspensionItems = buildSuspensionTodoItems({
+        suspensions: db().suspensions.filter((item) => inScope(item.fighterId)),
+        sessions: db().trainingSessions.filter((item) => inScope(item.fighterId)),
+        bouts: db().bouts,
+        fighterIds: scope,
+        now,
+    });
+    return { items: [...buildDemoCoachTodo(bouts, now), ...suspensionItems], truncated: false };
 }

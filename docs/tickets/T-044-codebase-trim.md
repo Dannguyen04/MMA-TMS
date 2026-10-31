@@ -105,3 +105,24 @@ Theo nhận xét 27/10 mục 4, demo phải chạy backend thật. Khi T-040 xon
 2. Unit test nào đang dựa vào dữ liệu demo thì chuyển sang mock trong test.
 
 Claude viết thiết kế chi tiết cho phần B (danh sách file, thứ tự gỡ theo từng service, tiêu chí nghiệm thu) sau khi có hai quyết định trên và T-040 đã DONE.
+
+## Phần C: nguồn Việc cần làm không còn bật
+
+Ghi ngày 31/10, từ review T-040 B (Ken phát hiện). Chủ dự án quyết hướng trước khi giao.
+
+`trainingConflictsProvider` (`nestjs-api/src/bouts/bouts-todo.model.ts:186-204`, nguồn `TRAINING_CONFLICTS_WITH_SUSPENSION`) chỉ bật khi võ sĩ có buổi `SCHEDULED` từ hôm nay trở đi nằm trong khoảng đình chỉ. Từ T-036 thì trường hợp này không còn xảy ra với dữ liệu mới:
+
+- Tạo đình chỉ bằng tay (`suspensions.service.ts:136`) và ghi kết quả thua KO (`bouts.service.ts:1823`) đều gọi `SuspensionEffects.runOnCreated` trong cùng giao dịch. Hàm này chuyển buổi bị chặn sang `PENDING` hoặc `CANCELLED`.
+- Cổng 2 chặn tạo buổi (`training-session.service.ts:112`) và dời buổi (`:197`) vào khoảng đình chỉ.
+
+Còn hai trường hợp provider vẫn bật được:
+
+1. Dữ liệu cũ trên Supabase: buổi `SCHEDULED` thuộc các đình chỉ tạo trước khi áp migration 032 (30/10).
+2. Khe tranh chấp: `createSession` kiểm Cổng 2 ngoài giao dịch, nên một đình chỉ tạo đúng lúc đó vẫn có thể để lại buổi `SCHEDULED`. Cổng lúc bắt đầu buổi tập vẫn chặn được buổi này.
+
+Việc cần quyết: xoá provider hay giữ làm lưới an toàn cho hai trường hợp trên. Nếu xoá thì phải sửa cùng lúc:
+
+- Backend: `bouts-todo.model.ts` (`TODO_SOURCES`, provider, `FIGHTER_SCOPED_SOURCES`), `bouts-todo.service.ts` và các spec liên quan.
+- Frontend: trên `fight-camp` ngày 31/10 chưa có mã này. Nhánh `feat/T-030-suspension-ui` đang thêm vào `lib/domain/coach-todo.ts`, `coach/dashboard/coach-todo-card.tsx` và từ điển, nên phải báo Ken.
+- Trước khi xoá, kiểm Supabase không còn dữ liệu thuộc trường hợp 1.
+- Dòng R28 trong bảng Việc cần làm của [FIGHT-CAMP-BUSINESS-FLOWS](../FIGHT-CAMP-BUSINESS-FLOWS.md) sửa theo quyết định này.

@@ -106,6 +106,10 @@ export const enTraining = {
     "training.error.trainingConflict": "This conflicts with the fighter's existing training. Reload the page and check it.",
     "training.error.checkViolation": "The training service rejected some of the values. Check the form and try again.",
     "training.error.invariantConflict": "The training service rejected this change because the record changed. Reload the page and try again.",
+    "training.error.suspensionActiveWithReason": "The fighter is suspended ({reason}); this session type is blocked until {endsOn}.",
+    "training.error.suspensionActiveRequiresClearance": "The fighter is suspended ({reason}): this session type is blocked until {endsOn}, then until cleared to resume training.",
+    "training.error.suspensionGradedReturn": "The fighter is on a graded return after a {reason} suspension: that day is capped at tier {ceiling}, full return from {fullReturnOn}.",
+    "training.error.suspensionActiveGeneral": "The fighter has an active suspension that blocks this training session type.",
 
     /* Loading Skeletons */
     "training.loading.plans": "Loading training plans",
@@ -156,6 +160,8 @@ export const enTraining = {
     "training.weekSummary.peakTarget": "Peak target",
     "training.weekSummary.cancelledCount": "{n} cancelled",
     "training.weekSummary.cancelledCount.one": "1 cancelled",
+    "training.weekSummary.pendingCount": "{n} to reschedule",
+    "training.weekSummary.pendingCount.one": "1 to reschedule",
     "training.weekSummary.rosterPrefix": "Roster · {range}",
 
     /* Counts & Relative Days */
@@ -467,6 +473,7 @@ export const enTraining = {
     "training.actions.markMissedDialogDesc": "{title} stays in {fighter}'s history as missed and counts against their adherence. This can't be undone.",
     "training.actions.markedMissed": "Session marked as missed.",
     "training.actions.cancelSession": "Cancel session",
+    "training.actions.cancelShort": "Cancel",
     "training.actions.cancelDialogTitle": "Cancel this session?",
     "training.actions.cancelDialogDesc": "{title} on {when} is removed from {fighter}'s schedule and they're notified with your reason. This can't be undone — you'd need to schedule a new session.",
     "training.actions.cancelReasonLabel": "Reason for the fighter",
@@ -489,6 +496,19 @@ export const enTraining = {
     "training.actions.feedbackTechniques": "Techniques",
     "training.actions.feedbackBody": "Feedback",
     "training.actions.feedbackBodyHint": "Be specific: what you saw, why it matters and what to do next.",
+    "training.actions.reschedule": "Reschedule",
+    "training.actions.rescheduleTitle": "Reschedule training session",
+    "training.actions.rescheduleDesc": "Choose a new date and time for {title}. The session will be rechecked against active suspensions.",
+    "training.actions.rescheduleDate": "New date",
+    "training.actions.rescheduleTime": "New time",
+    "training.actions.rescheduleConfirm": "Reschedule",
+    "training.actions.rescheduling": "Rescheduling…",
+    "training.actions.sessionRescheduled": "Session rescheduled.",
+    "training.actions.awaitingClearanceNotice": "Awaiting clearance to resume training before rescheduling",
+    "training.actions.suggestedDateHint": "Suggested: first day after suspension ends ({date})",
+    "training.actions.useSuggestedDate": "Use {date}",
+    "training.actions.rescheduleAcknowledge": "Schedule anyway",
+    "training.actions.viewSuspensions": "View suspensions",
 
     /* Session Table */
     "training.table.date": "Date",

@@ -24,6 +24,7 @@ export interface ClearanceCheckPanelProps {
     acknowledged: boolean;
     onAcknowledgedChange: (value: boolean) => void;
     className?: string;
+    acknowledgeLabel?: string;
 }
 
 function ConflictList({ conflicts, tone, t, locale }: { conflicts: ClearanceConflict[]; tone: "danger" | "warning"; t: Translator; locale: Locale }) {
@@ -56,7 +57,7 @@ function announcement(t: Translator, status: ClearanceCheckStatus, blocks: numbe
 }
 
 /** Live result of checking the planned session against the fighter's Medical Clearance. */
-export function ClearanceCheckPanel({ status, pending, conflicts, fighterName, acknowledged, onAcknowledgedChange, className }: ClearanceCheckPanelProps) {
+export function ClearanceCheckPanel({ status, pending, conflicts, fighterName, acknowledged, onAcknowledgedChange, className, acknowledgeLabel }: ClearanceCheckPanelProps) {
     const t = useT();
     const locale = useLocale();
     const blocks = conflicts.filter((c) => c.severity === "block");
@@ -97,7 +98,7 @@ export function ClearanceCheckPanel({ status, pending, conflicts, fighterName, a
                                 name="acknowledgeWarnings"
                                 checked={acknowledged}
                                 onChange={(event) => onAcknowledgedChange(event.target.checked)}
-                                label={t("training.clearanceCheck.acknowledgeLabel")}
+                                label={acknowledgeLabel ?? t("training.clearanceCheck.acknowledgeLabel")}
                                 description={t("training.clearanceCheck.acknowledgeDesc")}
                                 className="mt-1 rounded-lg border border-border bg-surface px-3 py-2.5"
                             />

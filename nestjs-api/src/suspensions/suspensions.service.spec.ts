@@ -1,4 +1,6 @@
 import { HttpException } from '@nestjs/common';
+import type { SQL } from 'drizzle-orm';
+import { PgDialect } from 'drizzle-orm/pg-core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mocked } from 'vitest';
 import type { SuspensionRow } from '../database/schema.js';
@@ -678,47 +680,7 @@ describe('SuspensionsService', () => {
   });
 
   describe('clearSuspension', () => {
-    it('allows early clear before ends_on without changing ends_on, and sets audit context', async () => {
-      const activeSuspension = makeSuspension({
-        startsOn: '2026-10-15',
-        endsOn: '2026-11-15',
-        requiresClearance: true,
-        clearedAt: null,
-      });
-      repo.findSuspensionById.mockResolvedValue(activeSuspension);
-      repo.lockSuspensionById.mockResolvedValue(activeSuspension);
-
-      const res = await service.clearSuspension(
-        doctorActor,
-        SUSPENSION_ID,
-        { clearanceNote: '  Cleared early after full neurological exam  ' },
-        REQUEST_ID,
-      );
-
-      expect(txExecute).toHaveBeenCalled();
-      expect(repo.lockSuspensionById).toHaveBeenCalledWith(
-        SUSPENSION_ID,
-        expect.anything(),
-      );
-      expect(repo.clearSuspension).toHaveBeenCalledWith(
-        SUSPENSION_ID,
-        {
-          clearedAt: NOW,
-          clearedById: doctorActor.id,
-          clearanceNote: 'Cleared early after full neurological exam',
-        },
-        expect.anything(),
-      );
-      expect(res.endsOn).toBe('2026-11-15');
-      expect(res.clearedAt).toBe(NOW.toISOString());
-      expect(res.clearedById).toBe(doctorActor.id);
-      expect(res.clearanceNote).toBe(
-        'Cleared early after full neurological exam',
-      );
-      expect(res.status).toBe('ENDED');
-    });
-
-    it('allows clearing when in AWAITING_CLEARANCE and when requires_clearance = false', async () => {
+    it('allows clearing when in AWAITING_CLEARANCE', async () => {
       const awaiting = makeSuspension({
         startsOn: '2026-09-01',
         endsOn: '2026-10-10',
@@ -736,25 +698,6 @@ describe('SuspensionsService', () => {
       );
       expect(res1.status).toBe('ENDED');
       expect(res1.endsOn).toBe('2026-10-10');
-
-      const noClearanceRequired = makeSuspension({
-        startsOn: '2026-10-18',
-        endsOn: '2026-10-25',
-        reason: 'MANDATORY_REST',
-        requiresClearance: false,
-        clearedAt: null,
-      });
-      repo.findSuspensionById.mockResolvedValue(noClearanceRequired);
-      repo.lockSuspensionById.mockResolvedValue(noClearanceRequired);
-
-      const res2 = await service.clearSuspension(
-        coachActor,
-        SUSPENSION_ID,
-        { clearanceNote: 'Ended mandatory rest early' },
-        REQUEST_ID,
-      );
-      expect(res2.status).toBe('ENDED');
-      expect(res2.endsOn).toBe('2026-10-25');
     });
 
     it('rejects a second clear with 409 SUSPENSION_ALREADY_CLEARED and missing with 404 SUSPENSION_NOT_FOUND', async () => {
@@ -813,6 +756,128 @@ describe('SuspensionsService', () => {
         service.clearSuspension(doctorActor, SUSPENSION_ID, note, REQUEST_ID),
         403,
       );
+    });
+  });
+
+  describe('clearSuspension only while AWAITING_CLEARANCE (T-049)', () => {
+    const ko = makeSuspension({
+      reason: 'KO',
+      startsOn: '2026-11-01',
+      endsOn: '2026-11-30',
+      requiresClearance: true,
+      clearedAt: null,
+    });
+    const mandatoryRest = makeSuspension({
+      reason: 'MANDATORY_REST',
+      startsOn: '2026-11-01',
+      endsOn: '2026-11-07',
+      lossOfConsciousness: null,
+      requiresClearance: false,
+      clearedAt: null,
+    });
+
+    // Fixes "today" (10:00 in Vietnam) and returns what clearSuspension resolves or throws.
+    async function clearOn(row: SuspensionRow, today: string): Promise<unknown> {
+      vi.setSystemTime(new Date(`${today}T03:00:00.000Z`));
+      repo.findSuspensionById.mockResolvedValue(row);
+      repo.lockSuspensionById.mockResolvedValue(row);
+      return service
+        .clearSuspension(
+          coachActor,
+          SUSPENSION_ID,
+          { clearanceNote: 'Cleared by doctor' },
+          REQUEST_ID,
+        )
+        .catch((error: unknown) => error);
+    }
+
+    function expectNotAwaiting(result: unknown, status: string): void {
+      expect(result).toBeInstanceOf(HttpException);
+      const http = result as HttpException;
+      expect(http.getStatus()).toBe(409);
+      expect(http.getResponse()).toMatchObject({
+        code: 'SUSPENSION_NOT_AWAITING_CLEARANCE',
+        details: { status },
+      });
+    }
+
+    it('C1: KO day 2 of 30 (today 2026-11-02) -> 409 SUSPENSION_NOT_AWAITING_CLEARANCE, status ACTIVE, clearedAt stays null', async () => {
+      expectNotAwaiting(await clearOn(ko, '2026-11-02'), 'ACTIVE');
+      expect(repo.clearSuspension).not.toHaveBeenCalled();
+      expect(ko.clearedAt).toBeNull();
+    });
+
+    it('C2: KO on its endsOn (today 2026-11-30) -> 409, status ACTIVE', async () => {
+      expectNotAwaiting(await clearOn(ko, '2026-11-30'), 'ACTIVE');
+    });
+
+    it('C3: KO on endsOn + 1 (today 2026-12-01) -> 200, clearedAt set, status ENDED, gradedReturn.ceiling 3', async () => {
+      const res = (await clearOn(ko, '2026-12-01')) as Awaited<
+        ReturnType<SuspensionsService['clearSuspension']>
+      >;
+      expect(res.clearedAt).toBe('2026-12-01T03:00:00.000Z');
+      expect(res.status).toBe('ENDED');
+      expect(res.gradedReturn?.ceiling).toBe(3);
+      // Kept from the deleted early-clear test: audit context, lock, write values, endsOn unchanged.
+      // Audit context: actor authSubject + requestId, set inside the transaction before the lock.
+      expect(txExecute).toHaveBeenCalledTimes(1);
+      const audit = new PgDialect().sqlToQuery(txExecute.mock.calls[0]?.[0] as SQL);
+      expect(audit.params).toEqual([
+        JSON.stringify({ sub: coachActor.authSubject }),
+        REQUEST_ID,
+      ]);
+      expect(txExecute.mock.invocationCallOrder[0]).toBeLessThan(
+        repo.lockSuspensionById.mock.invocationCallOrder[0] as number,
+      );
+      expect(repo.lockSuspensionById).toHaveBeenCalledWith(
+        SUSPENSION_ID,
+        expect.anything(),
+      );
+      expect(repo.clearSuspension).toHaveBeenCalledWith(
+        SUSPENSION_ID,
+        {
+          clearedAt: new Date('2026-12-01T03:00:00.000Z'),
+          clearedById: coachActor.id,
+          clearanceNote: 'Cleared by doctor',
+        },
+        expect.anything(),
+      );
+      expect(res.endsOn).toBe('2026-11-30');
+    });
+
+    it('C4: MEDICAL starting 2026-11-05 for 3 days (today 2026-11-02) -> 409, status UPCOMING', async () => {
+      const medical = makeSuspension({
+        reason: 'MEDICAL',
+        startsOn: '2026-11-05',
+        endsOn: '2026-11-07',
+        lossOfConsciousness: null,
+        requiresClearance: true,
+        clearedAt: null,
+      });
+      expectNotAwaiting(await clearOn(medical, '2026-11-02'), 'UPCOMING');
+    });
+
+    it('C5: MANDATORY_REST 2026-11-01 for 7 days (today 2026-11-03) -> 409, status ACTIVE', async () => {
+      expectNotAwaiting(await clearOn(mandatoryRest, '2026-11-03'), 'ACTIVE');
+    });
+
+    it('C6: MANDATORY_REST already over (today 2026-11-10) -> 409, status ENDED', async () => {
+      expectNotAwaiting(await clearOn(mandatoryRest, '2026-11-10'), 'ENDED');
+    });
+
+    it('C7: already cleared KO -> 409 SUSPENSION_ALREADY_CLEARED (not the new code)', async () => {
+      const cleared = makeSuspension({
+        ...ko,
+        clearedAt: new Date('2026-12-01T03:00:00.000Z'),
+        clearedById: doctorActor.id,
+        clearanceNote: 'Already cleared',
+      });
+      const result = await clearOn(cleared, '2026-12-02');
+      expect(result).toBeInstanceOf(HttpException);
+      expect((result as HttpException).getStatus()).toBe(409);
+      expect((result as HttpException).getResponse()).toMatchObject({
+        code: 'SUSPENSION_ALREADY_CLEARED',
+      });
     });
   });
 });

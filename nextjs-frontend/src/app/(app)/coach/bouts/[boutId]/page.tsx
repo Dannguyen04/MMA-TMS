@@ -31,7 +31,7 @@ import {
     weighInOn,
 } from "@/lib/domain/bout-rules";
 import { weighInCountdown } from "@/lib/domain/nutrition";
-import { describeRule, suggestSuspension, suspensionReasonFor, suspensionState } from "@/lib/domain/suspension-rules";
+import { describeRule, suggestSuspension, suspensionReasonFor, suspensionState } from "@/lib/domain/bout-suspension-rules";
 import { kgLabel } from "@/lib/domain/weight-input";
 import { dayKey, daysBetweenKeys, formatDate, formatDateTime, formatNumber } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
