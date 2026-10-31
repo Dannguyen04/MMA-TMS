@@ -9,6 +9,7 @@ import { SuspensionEffects } from './suspension.effects.js';
 import {
   mapSuspensionPersistenceError,
   suspensionAlreadyCleared,
+  suspensionNotAwaitingClearance,
   suspensionNotFound,
   suspensionValidationError,
 } from './suspensions.error.js';
@@ -181,6 +182,10 @@ export class SuspensionsService {
         const locked = await this.repo.lockSuspensionById(id, tx);
         if (!locked) throw suspensionNotFound();
         if (locked.clearedAt !== null) throw suspensionAlreadyCleared();
+        const status = suspensionStatusOn(locked, academyDateOf(new Date()));
+        if (status !== 'AWAITING_CLEARANCE') {
+          throw suspensionNotAwaitingClearance(status);
+        }
         const cleared = await this.repo.clearSuspension(
           id,
           {

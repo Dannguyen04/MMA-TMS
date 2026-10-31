@@ -74,6 +74,11 @@ import {
   WeighInDto,
   WeighInResponseDto,
   WeightTrackResponseDto,
+  UpdateNutritionPlanDto,
+  NutritionPlanResponseDto,
+  NutritionCheckinDto,
+  NutritionCheckinParamsDto,
+  NutritionCheckinResponseDto,
 } from './bouts.dto.js';
 import { AiVideoInputDto, AiDecisionDto, AiSuggestionParamsDto, AiHistoryQueryDto, AiResponseDto, AiHistoryResponseDto } from './bouts.dto.js';
 import { BoutsService } from './bouts.service.js';
@@ -787,6 +792,71 @@ export class BoutsController {
     return this.boutsService.getWeightTrack(
       this.requireActor(actor),
       params.id,
+    );
+  }
+
+  @Put('bouts/:id/nutrition-plan')
+  @RequirePermissions({ allOf: [BOUT_PERMISSIONS.UPDATE] })
+  @ApiOperation({
+    summary: 'Update bout nutrition plan',
+    description:
+      'Sets guidance for camp, fight week, and post-weigh-in phases. Cannot be modified once the bout is COMPLETED or CANCELLED.',
+  })
+  @ResponseMessage(BOUT_RESPONSE_MESSAGES.NUTRITION_PLAN_UPDATE)
+  @ApiSuccessEnvelope({
+    status: HttpStatus.OK,
+    message: BOUT_RESPONSE_MESSAGES.NUTRITION_PLAN_UPDATE,
+    model: NutritionPlanResponseDto,
+  })
+  @ApiValidationErrorEnvelope()
+  @ApiUnauthorizedEnvelope()
+  @ApiForbiddenEnvelope('Requires bout:update and access to the fighter')
+  @ApiNotFoundEnvelope('BOUT_NOT_FOUND', 'Bout not found')
+  @ApiConflictEnvelope(
+    'BOUT_INVALID_TRANSITION',
+    'The bout status forbids this operation',
+  )
+  async putNutritionPlan(
+    @CurrentUser() actor: AuthenticatedUser | undefined,
+    @Param() params: BoutIdParamsDto,
+    @Body() body: UpdateNutritionPlanDto,
+  ) {
+    return this.boutsService.putNutritionPlan(
+      this.requireActor(actor),
+      params.id,
+      body,
+      randomUUID(),
+    );
+  }
+
+  @Put('bouts/:id/nutrition-checkins/:date')
+  @RequirePermissions({ allOf: [BOUT_PERMISSIONS.NUTRITION_CHECKIN] })
+  @ApiOperation({
+    summary: 'Record bout nutrition check-in',
+    description:
+      'Records daily nutrition adherence (ON_PLAN, SLIGHTLY_OFF, WAY_OFF) and optional note for a given academy date.',
+  })
+  @ResponseMessage(BOUT_RESPONSE_MESSAGES.NUTRITION_CHECKIN)
+  @ApiSuccessEnvelope({
+    status: HttpStatus.OK,
+    message: BOUT_RESPONSE_MESSAGES.NUTRITION_CHECKIN,
+    model: NutritionCheckinResponseDto,
+  })
+  @ApiValidationErrorEnvelope()
+  @ApiUnauthorizedEnvelope()
+  @ApiForbiddenEnvelope('Requires bout:nutrition_checkin and access to the fighter')
+  @ApiNotFoundEnvelope('BOUT_NOT_FOUND', 'Bout not found')
+  async putNutritionCheckin(
+    @CurrentUser() actor: AuthenticatedUser | undefined,
+    @Param() params: NutritionCheckinParamsDto,
+    @Body() body: NutritionCheckinDto,
+  ) {
+    return this.boutsService.putNutritionCheckin(
+      this.requireActor(actor),
+      params.id,
+      params.date,
+      body,
+      randomUUID(),
     );
   }
 

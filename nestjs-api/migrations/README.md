@@ -48,6 +48,25 @@ pnpm db:check
 pnpm db:migrate:027
 ```
 
+## Áp dụng migration 026 (Kế hoạch ăn và câu trả lời ăn uống - bout_nutrition)
+
+026 chỉ yêu cầu ledger 024 (`024_bouts.sql`), chưa có 026; không yêu cầu 025 để các nhánh song song áp độc lập.
+Nội dung:
+- Thêm cột `bouts.nutrition_plan jsonb NOT NULL DEFAULT '{}'` kèm ràng buộc `ck_bouts_nutrition_plan` kiểm tra object.
+- Enum `public.nutrition_adherence` (`ON_PLAN`, `SLIGHTLY_OFF`, `WAY_OFF`).
+- Bảng `public.bout_nutrition_checkins` (`id`, `bout_id`, `fighter_id`, `academy_date`, `adherence`, `note`, `recorded_by_id`, `created_at`, `updated_at`) với ràng buộc `uq_bout_nutrition_checkins_date UNIQUE (bout_id, academy_date)` và `note` tối đa 200 ký tự.
+- Hàm trigger `mma_private.check_bout_nutrition_fighter()` bảo đảm tính toàn vẹn `fighter_id` khớp với `bouts.fighter_id` (ERRCODE 23514, SELECT ... FOR KEY SHARE), `REVOKE ALL` từ `PUBLIC, anon, authenticated`.
+- Ràng buộc `ck_bout_nutrition_checkins_note` giới hạn `note` tối đa 200 ký tự.
+- Triggers: `update_updated_at()`, `reject_context_change('bout_id', 'fighter_id', 'academy_date')`, và `audit_domain_mutation()`.
+- RLS bật, `REVOKE ALL` từ `PUBLIC, anon, authenticated`.
+- Quyền: `bout:nutrition_checkin` cho FIGHTER, COACH, ADMIN (không cho DOCTOR).
+- Ledger version 26, advisory lock `(20260916, 26)`, checksum trong `manifest.json`.
+
+```sh
+pnpm db:check
+pnpm db:migrate:026
+```
+
 ## Áp dụng migration 025 (Đình chỉ tập/thi đấu và loại thông báo - suspensions)
 
 025 chỉ yêu cầu ledger 024, chưa có 025; không yêu cầu 026 hay 027.

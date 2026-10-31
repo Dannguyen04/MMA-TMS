@@ -143,6 +143,8 @@ export const coachTodoSchema = z.object({
                 "WEIGH_IN_TODAY",
                 "RESULT_OVERDUE",
                 "WEIGHT_NOT_LOGGED",
+                "SUSPENSION_AWAITING_CLEARANCE",
+                "TRAINING_CONFLICTS_WITH_SUSPENSION",
             ]),
             phase: z.enum(["BEFORE", "DURING", "AFTER"]),
             fighterId: z.string(),

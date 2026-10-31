@@ -3,6 +3,9 @@ import { describe, expect, it } from "vitest";
 import { calculateWeightFeasibility, computeWeighInReminder, feasibilityWarnings } from "./bout-rules";
 import { buildDemoCoachTodo } from "./coach-todo";
 import type { Bout } from "./types";
+import { coachTodoSchema } from "@/lib/services/bouts";
+import { coachTodoText } from "@/app/(app)/coach/dashboard/coach-todo-card";
+import { createTranslator } from "@/lib/i18n/translate";
 
 const NOW = "2026-10-20T03:00:00.000Z"; // 2026-10-20 10:00 in Vietnam
 
@@ -122,5 +125,57 @@ describe("buildDemoCoachTodo", () => {
     it("ignores finished and deleted bouts", () => {
         const noisy = { canEnterFightWeek: true, boutAt: "2026-10-01T03:00:00.000Z" };
         expect(buildDemoCoachTodo([bout({ ...noisy, status: "COMPLETED" }), bout({ ...noisy, status: "CANCELLED" }), bout({ ...noisy, deletedAt: NOW })], NOW)).toEqual([]);
+    });
+});
+
+
+describe("B1. Phần A1 của ticket T-030", () => {
+    const tVi = createTranslator("vi");
+
+    it("B1-1: coachTodoSchema parse item source: 'TRAINING_CONFLICTS_WITH_SUSPENSION', count: 3 -> parse được; thẻ hiện '3 buổi tập xung đột với đình chỉ' (vi)", () => {
+        const raw = {
+            items: [
+                {
+                    source: "TRAINING_CONFLICTS_WITH_SUSPENSION",
+                    phase: "AFTER",
+                    fighterId: "f-1",
+                    boutId: "b-1",
+                    eventName: "MMA Championship",
+                    dueOn: null,
+                    count: 3,
+                },
+            ],
+            truncated: false,
+        };
+        const parsed = coachTodoSchema.parse(raw);
+        expect(parsed.items).toHaveLength(1);
+        expect(parsed.items[0].source).toBe("TRAINING_CONFLICTS_WITH_SUSPENSION");
+        expect(parsed.items[0].count).toBe(3);
+
+        const cardText = coachTodoText(parsed.items[0], tVi, "vi");
+        expect(cardText).toBe("3 buổi tập xung đột với đình chỉ");
+    });
+
+    it("B1-2: Item source: 'SUSPENSION_AWAITING_CLEARANCE' -> parse được; thẻ hiện 'Đình chỉ chờ xác nhận được tập lại'", () => {
+        const raw = {
+            items: [
+                {
+                    source: "SUSPENSION_AWAITING_CLEARANCE",
+                    phase: "AFTER",
+                    fighterId: "f-1",
+                    boutId: "b-1",
+                    eventName: "MMA Championship",
+                    dueOn: null,
+                    count: null,
+                },
+            ],
+            truncated: false,
+        };
+        const parsed = coachTodoSchema.parse(raw);
+        expect(parsed.items).toHaveLength(1);
+        expect(parsed.items[0].source).toBe("SUSPENSION_AWAITING_CLEARANCE");
+
+        const cardText = coachTodoText(parsed.items[0], tVi, "vi");
+        expect(cardText).toBe("Đình chỉ chờ xác nhận được tập lại");
     });
 });

@@ -39,7 +39,7 @@ export function SessionHeaderMeta({ session, locale = "en" }: { session: Trainin
             </Badge>
             <span className="inline-flex items-center gap-1.5 text-sm text-fg-muted">
                 <Clock aria-hidden className="size-3.5 text-fg-subtle" />
-                <time dateTime={session.scheduledAt}>{formatDateTime(session.scheduledAt, locale)}</time>
+                <time dateTime={session.scheduledAt} className={session.status === "pending" ? "line-through text-fg-muted" : undefined}>{formatDateTime(session.scheduledAt, locale)}</time>
             </span>
         </>
     );
@@ -414,11 +414,11 @@ function DetailsCard({
         items.push({ label: t("training.sessionDetail.fighter"), value: <FighterIdentity fighter={fighter} href={fighterHref} size="sm" className="mt-1" />, wide: true });
     }
     items.push(
-        { label: t("training.sessionDetail.date"), value: <time dateTime={session.scheduledAt}>{formatWeekdayDate(session.scheduledAt, locale)}</time> },
+        { label: t("training.sessionDetail.date"), value: <time dateTime={session.scheduledAt} className={session.status === "pending" ? "line-through text-fg-muted" : undefined}>{formatWeekdayDate(session.scheduledAt, locale)}</time> },
         {
             label: t("training.sessionDetail.time"),
             value: (
-                <>
+                <span className={session.status === "pending" ? "line-through text-fg-muted" : undefined}>
                     <time dateTime={session.scheduledAt}>{formatTime(session.scheduledAt, locale)}</time>
                     {end && (
                         <>
@@ -426,7 +426,7 @@ function DetailsCard({
                             <time dateTime={end}>{formatTime(end, locale)}</time>
                         </>
                     )}
-                </>
+                </span>
             ),
         },
         { label: t("training.sessionDetail.plannedDuration"), value: session.durationMin === null ? NOT_RECORDED : formatMinutes(session.durationMin) },

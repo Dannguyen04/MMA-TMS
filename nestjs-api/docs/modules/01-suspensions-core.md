@@ -39,7 +39,7 @@ Quyền (Tech spec §7):
 
 Chú ý: ADMIN không có `suspension:clear`.
 
-Xác nhận cho tập lại: bắt buộc `clearanceNote`; chỉ cho sau `ends_on`; ghi `cleared_at`, `cleared_by_id` (ràng buộc `(cleared_at IS NULL) = (cleared_by_id IS NULL)`).
+Xác nhận cho tập lại: bắt buộc `clearanceNote`; chỉ cho khi trạng thái ngày gọi là `AWAITING_CLEARANCE` (từ `ends_on + 1`, chỉ đình chỉ `requires_clearance`), khác thì 409 `SUSPENSION_NOT_AWAITING_CLEARANCE` với `details: { status }` (T-049); đã xác nhận rồi thì 409 `SUSPENSION_ALREADY_CLEARED` (kiểm trước); ghi `cleared_at`, `cleared_by_id` (ràng buộc `(cleared_at IS NULL) = (cleared_by_id IS NULL)`).
 
 Tạo thủ công: `bout_id` có thể NULL (H5, H6). Đình chỉ lý do KO tạo thủ công vẫn được đếm vào `priorCount` khi gợi ý cho lần sau (dùng ở 10).
 
@@ -59,7 +59,7 @@ Loại buổi tập hiện có (migration 003): `SHADOW_BOXING`, `PAD_WORK`, `HE
 
 - Đình chỉ kết thúc ngày D mà cần xác nhận: ngày D vẫn `ACTIVE`; ngày D+1 là `AWAITING_CLEARANCE`; sau khi xác nhận là `ENDED`.
 - Đình chỉ `MANDATORY_REST` qua ngày kết thúc: tự `ENDED`, không ai phải bấm.
-- Xác nhận khi chưa qua `ends_on`: bị từ chối. Thiếu `clearanceNote`: 422.
+- Xác nhận khi chưa qua `ends_on`, khi `UPCOMING`, hoặc đình chỉ không cần xác nhận (`MANDATORY_REST`, `DQ`): 409 `SUSPENSION_NOT_AWAITING_CLEARANCE`. Thiếu `clearanceNote`: 422.
 - ADMIN gọi `/clear`: 403.
 - Võ sĩ chỉ đọc được đình chỉ của mình; HLV chỉ thấy võ sĩ được phân công.
 - Số ngày khác gợi ý mà không có `overrideReason`: lỗi `SUSPENSION_OVERRIDE_REASON_REQUIRED`.

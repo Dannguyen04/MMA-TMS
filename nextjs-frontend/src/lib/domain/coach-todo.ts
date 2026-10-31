@@ -1,5 +1,6 @@
 import { addDaysToKey, dayKey, daysBetweenKeys } from "@/lib/format";
-import type { Bout, BoutStatus, CoachTodoItem, CoachTodoSource } from "./types";
+import type { Bout, BoutStatus, CoachTodoItem, CoachTodoSource, Suspension, TrainingSession } from "./types";
+import { academyDateOf, planConflicts, suspensionStatusOn } from "./suspension-rules";
 
 /**
  * The coach's "to-do" card for demo mode: the same rules as the backend providers
@@ -52,5 +53,100 @@ export function buildDemoCoachTodo(bouts: Bout[], now: string | Date = new Date(
         // T0: only the escalated reminder
         if (bout.weightReminder?.level === "YESTERDAY_MISSING") add("WEIGHT_NOT_LOGGED", "DURING");
     }
+    return items;
+}
+
+export function buildSuspensionTodoItems({
+    suspensions,
+    sessions = [],
+    bouts = [],
+    fighterIds,
+    now = new Date(),
+}: {
+    suspensions: readonly Suspension[];
+    sessions?: readonly TrainingSession[];
+    bouts?: readonly Bout[];
+    fighterIds?: string[] | "all";
+    now?: string | Date;
+}): CoachTodoItem[] {
+    const today = academyDateOf(now);
+    const items: CoachTodoItem[] = [];
+
+    // Only fighters with a suspension can produce an item.
+    const fighterIdSet = new Set(Array.isArray(fighterIds) ? fighterIds : suspensions.map((s) => s.fighterId));
+
+    // Find primary bout per fighter (prefer running, then most recent boutAt)
+    const primaryBoutByFighter = new Map<string, Bout>();
+    for (const bout of bouts) {
+        if (bout.deletedAt !== null) continue;
+        const existing = primaryBoutByFighter.get(bout.fighterId);
+        if (!existing) {
+            primaryBoutByFighter.set(bout.fighterId, bout);
+        } else {
+            const existingRunning = RUNNING.includes(existing.status);
+            const candidateRunning = RUNNING.includes(bout.status);
+            if (candidateRunning !== existingRunning) {
+                if (candidateRunning) primaryBoutByFighter.set(bout.fighterId, bout);
+            } else {
+                const candidateTime = new Date(bout.boutAt).getTime();
+                const existingTime = new Date(existing.boutAt).getTime();
+                if (candidateTime > existingTime) {
+                    primaryBoutByFighter.set(bout.fighterId, bout);
+                }
+            }
+        }
+    }
+
+    for (const fighterId of fighterIdSet) {
+        const fighterSuspensions = suspensions.filter(
+            (s) => s.fighterId === fighterId && (s as { deletedAt?: string | null }).deletedAt == null,
+        );
+        if (fighterSuspensions.length === 0) continue;
+
+        const bout = primaryBoutByFighter.get(fighterId);
+        if (!bout) continue;
+        const boutId = bout.id;
+        const eventName = bout.eventName;
+
+        // S3: Awaiting clearance
+        const awaiting = fighterSuspensions.some(
+            (s) => suspensionStatusOn(s, today) === "AWAITING_CLEARANCE",
+        );
+        if (awaiting) {
+            items.push({
+                source: "SUSPENSION_AWAITING_CLEARANCE",
+                phase: "AFTER",
+                fighterId,
+                boutId,
+                eventName,
+                dueOn: null,
+                count: null,
+            });
+        }
+
+        // R28: Unresolved proposals for scheduled sessions from today
+        const scheduledSessions = sessions.filter((s) => {
+            if (s.fighterId !== fighterId) return false;
+            if (s.status !== "scheduled") return false;
+            const scheduledDate = academyDateOf(s.scheduledAt);
+            return scheduledDate >= today;
+        });
+
+        if (scheduledSessions.length > 0) {
+            const proposals = planConflicts(scheduledSessions, fighterSuspensions);
+            if (proposals.length > 0) {
+                items.push({
+                    source: "TRAINING_CONFLICTS_WITH_SUSPENSION",
+                    phase: "AFTER",
+                    fighterId,
+                    boutId,
+                    eventName,
+                    dueOn: null,
+                    count: proposals.length,
+                });
+            }
+        }
+    }
+
     return items;
 }

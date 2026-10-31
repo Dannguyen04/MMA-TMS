@@ -1096,6 +1096,119 @@ try {
       '0',
     );
   });
+  check('N1: 026 applies on ledger 24 without 025-032; rejects re-application, missing 024, collisions, and enforces fighter_id consistency', () => {
+    const db = 'mma_026_on_024';
+    prepare(db);
+    for (const name of migrationNames.filter((name) => {
+      const version = Number(name.slice(0, 3));
+      return version >= 3 && version <= 24;
+    }))
+      migration(db, name);
+    const target = '026_bout_nutrition.sql';
+    const sql = readFileSync(join(api, 'migrations', target), 'utf8');
+    assert.equal(
+      psql(db, 'SELECT count(*) FROM mma_private.migration_history WHERE version BETWEEN 25 AND 32;'),
+      '0',
+    );
+    migration(db, target);
+    assert.equal(
+      psql(db, "SELECT count(*) FROM mma_private.migration_history WHERE version = 26 AND name = '026_bout_nutrition.sql';"),
+      '1',
+    );
+    assert.equal(
+      psql(db, `SELECT string_agg(enumlabel, ',' ORDER BY enumsortorder) FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid WHERE t.typname = 'nutrition_adherence';`),
+      'ON_PLAN,SLIGHTLY_OFF,WAY_OFF',
+    );
+    assert.equal(
+      psql(
+        db,
+        `SELECT string_agg(rp.role::text, ',' ORDER BY rp.role::text) FROM public.permissions p JOIN public.role_permissions rp ON rp.permission_id = p.id WHERE p.code = 'bout:nutrition_checkin';`,
+      ),
+      'ADMIN,COACH,FIGHTER',
+    );
+    rejects(db, sql, /026 already applied/);
+    assert.equal(
+      psql(db, 'SELECT count(*) FROM mma_private.migration_history WHERE version = 26;'),
+      '1',
+    );
+    rejects('mma_024_no_023', sql, /026 requires migration 024/);
+    assert.equal(
+      psql('mma_024_no_023', 'SELECT count(*) FROM mma_private.migration_history WHERE version = 26;'),
+      '0',
+    );
+    const bout = '00000000-0000-4000-8000-0000000026e1';
+    const fighter = '00000000-0000-4000-8000-0000000026c1';
+    const otherFighter = '00000000-0000-4000-8000-0000000026c2';
+    const user = '00000000-0000-4000-8000-0000000026b2';
+    psql(
+      db,
+      `INSERT INTO auth.users(id) VALUES
+        ('00000000-0000-4000-8000-0000000026a1'), ('00000000-0000-4000-8000-0000000026a2'), ('00000000-0000-4000-8000-0000000026a3');
+       INSERT INTO public.users(id, auth_user_id, email, role) VALUES
+        ('00000000-0000-4000-8000-0000000026b1', '00000000-0000-4000-8000-0000000026a1', 'f1-026@example.invalid', 'FIGHTER'),
+        ('${user}', '00000000-0000-4000-8000-0000000026a2', 'c-026@example.invalid', 'COACH'),
+        ('00000000-0000-4000-8000-0000000026b3', '00000000-0000-4000-8000-0000000026a3', 'f2-026@example.invalid', 'FIGHTER');
+       INSERT INTO public.fighters(id, user_id, first_name, last_name, date_of_birth, weight_class) VALUES
+        ('${fighter}', '00000000-0000-4000-8000-0000000026b1', 'Test', 'One', '2000-01-01', 'LIGHTWEIGHT'),
+        ('${otherFighter}', '00000000-0000-4000-8000-0000000026b3', 'Test', 'Two', '2000-01-01', 'LIGHTWEIGHT');
+       INSERT INTO public.coaches(id, user_id, first_name, last_name)
+        VALUES ('00000000-0000-4000-8000-0000000026c3', '${user}', 'Test', 'Coach');
+       INSERT INTO public.bouts(id, fighter_id, coach_id, ruleset_id, event_name, weight_class_code, weight_limit_kg, acute_loss_limit_pct, requirements_due_days, weigh_in_at, bout_at, status, created_by_id)
+        SELECT '${bout}', '${fighter}', '00000000-0000-4000-8000-0000000026c3', r.id, 'Test Cup', '60', 60, 8, 7, '2026-11-10 01:00:00+00', '2026-11-11 03:00:00+00', 'CAMP', '${user}'
+        FROM public.competition_rulesets r WHERE r.name = 'Tự nhập';`,
+    );
+    psql(
+      db,
+      `INSERT INTO public.bout_nutrition_checkins (bout_id, fighter_id, academy_date, adherence, note, recorded_by_id)
+       VALUES ('${bout}', '${fighter}', '2026-10-15', 'ON_PLAN', 'Day 1 note', '${user}');`,
+    );
+    psql(
+      db,
+      `INSERT INTO public.bout_nutrition_checkins (bout_id, fighter_id, academy_date, adherence, note, recorded_by_id)
+       VALUES ('${bout}', '${fighter}', '2026-10-15', 'SLIGHTLY_OFF', 'Updated note', '${user}')
+       ON CONFLICT (bout_id, academy_date) DO UPDATE SET
+         adherence = EXCLUDED.adherence,
+         note = EXCLUDED.note,
+         recorded_by_id = EXCLUDED.recorded_by_id,
+         updated_at = now();`,
+    );
+    assert.equal(
+      psql(db, `SELECT count(*) FROM public.bout_nutrition_checkins WHERE bout_id = '${bout}' AND academy_date = '2026-10-15';`),
+      '1',
+    );
+    assert.equal(
+      psql(db, `SELECT adherence || ':' || note FROM public.bout_nutrition_checkins WHERE bout_id = '${bout}' AND academy_date = '2026-10-15';`),
+      'SLIGHTLY_OFF:Updated note',
+    );
+    rejects(
+      db,
+      `INSERT INTO public.bout_nutrition_checkins (bout_id, fighter_id, academy_date, adherence, recorded_by_id)
+       VALUES ('${bout}', '${otherFighter}', '2026-10-16', 'ON_PLAN', '${user}');`,
+      /fighter_id must match bouts.fighter_id/,
+    );
+    const longNote = 'a'.repeat(201);
+    rejects(
+      db,
+      `INSERT INTO public.bout_nutrition_checkins (bout_id, fighter_id, academy_date, adherence, note, recorded_by_id)
+       VALUES ('${bout}', '${fighter}', '2026-10-16', 'ON_PLAN', '${longNote}', '${user}');`,
+      /ck_bout_nutrition_checkins_note|check constraint/,
+    );
+    assert.equal(psql(db, `SELECT relrowsecurity FROM pg_class WHERE oid = 'public.bout_nutrition_checkins'::regclass;`), 't');
+    for (const role of ['anon', 'authenticated']) {
+      rejects(db, `SET ROLE ${role}; SELECT * FROM public.bout_nutrition_checkins;`, /permission denied/);
+      assert.equal(psql(db, `SELECT has_table_privilege('${role}', 'public.bout_nutrition_checkins', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER');`), 'f');
+      assert.equal(psql(db, `SELECT has_function_privilege('${role}', 'mma_private.check_bout_nutrition_fighter()', 'EXECUTE');`), 'f');
+    }
+    const dbFnCollision = 'mma_026_fn_collision';
+    prepare(dbFnCollision);
+    for (const name of migrationNames.filter((name) => {
+      const version = Number(name.slice(0, 3));
+      return version >= 3 && version <= 24;
+    }))
+      migration(dbFnCollision, name);
+    psql(dbFnCollision, 'CREATE FUNCTION mma_private.check_bout_nutrition_fighter() RETURNS trigger LANGUAGE plpgsql AS $fn$ BEGIN RETURN NEW; END $fn$;');
+    rejects(dbFnCollision, sql, /026 type, column or table collision/);
+  });
   if (process.argv.includes('--export-catalog')) {
     mkdirSync(resolve(api, '../tmp'), { recursive: true });
     const catalog = psql(

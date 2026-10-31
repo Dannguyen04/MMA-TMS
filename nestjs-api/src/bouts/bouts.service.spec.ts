@@ -117,6 +117,7 @@ function makeBout(over: Partial<BoutRow> = {}): BoutRow {
     venue: null,
     opponentName: null,
     opponentAnalysis: {},
+    nutritionPlan: {},
     scheduledRounds: null,
     weightClassCode: '60',
     weightLimitKg: '60.00',
@@ -237,6 +238,18 @@ describe('BoutsService', () => {
       listRounds: vi.fn().mockResolvedValue([]),
       findAnalysisSessions: vi.fn().mockResolvedValue([]),
       upsertRound: vi.fn(),
+      findNutritionCheckinsForBout: vi.fn().mockResolvedValue([]),
+      upsertNutritionCheckin: vi.fn(async (values: any) => ({
+        id: '90000000-0000-4000-8000-000000000099',
+        boutId: values.boutId,
+        fighterId: values.fighterId,
+        academyDate: values.academyDate,
+        adherence: values.adherence,
+        note: values.note ?? null,
+        recordedById: values.recordedById,
+        createdAt: new Date('2026-10-15T00:00:00Z'),
+        updatedAt: new Date('2026-10-15T00:00:00Z'),
+      })),
       findActiveBoutIdForFighter: vi.fn().mockResolvedValue(undefined),
       insertFighterMeasurement: vi.fn().mockResolvedValue(undefined),
       insertBout: vi.fn(async (values: Record<string, unknown>) =>
@@ -4548,6 +4561,132 @@ describe('BoutsService', () => {
       const schema = z.toJSONSchema(ReadinessRowDto.schema);
       expect(schema.properties?.fullReturnOn).toBeDefined();
       expect(schema.properties?.gradedReturn).toBeDefined();
+    });
+  });
+
+  describe('Nutrition Plan & Checkins (N4, N5, N7)', () => {
+    it('records checkin for today without error', async () => {
+      const res = await service.putNutritionCheckin(
+        coachActor,
+        BOUT_ID,
+        '2026-10-16',
+        { adherence: 'ON_PLAN' },
+        REQUEST_ID,
+      );
+      expect(res.academyDate).toBe('2026-10-16');
+      expect(res.adherence).toBe('ON_PLAN');
+    });
+
+    it('N4: FIGHTER A cannot record checkin for FIGHTER B (403 FORBIDDEN)', async () => {
+      repo.findActiveFighterIdByUserId.mockResolvedValue('fighter-different-id');
+      await expectHttp(
+        service.putNutritionCheckin(
+          fighterActor,
+          BOUT_ID,
+          '2026-10-15',
+          { adherence: 'ON_PLAN' },
+          REQUEST_ID,
+        ),
+        403,
+        'FORBIDDEN',
+      );
+    });
+
+    it('N5: DOCTOR cannot record checkin (403 FORBIDDEN)', async () => {
+      await expectHttp(
+        service.putNutritionCheckin(
+          doctorActor,
+          BOUT_ID,
+          '2026-10-15',
+          { adherence: 'ON_PLAN' },
+          REQUEST_ID,
+        ),
+        403,
+        'FORBIDDEN',
+      );
+    });
+
+    it('N7: PUT nutrition-plan rejected with 409 BOUT_INVALID_TRANSITION for COMPLETED and CANCELLED bouts', async () => {
+      repo.findBoutById.mockResolvedValue(makeBout({ status: 'COMPLETED' }));
+      await expectHttp(
+        service.putNutritionPlan(
+          coachActor,
+          BOUT_ID,
+          { camp: { text: 'Nutrition plan', author: 'Coach' } },
+          REQUEST_ID,
+        ),
+        409,
+        'BOUT_INVALID_TRANSITION',
+      );
+
+      repo.findBoutById.mockResolvedValue(makeBout({ status: 'CANCELLED' }));
+      await expectHttp(
+        service.putNutritionPlan(
+          coachActor,
+          BOUT_ID,
+          { camp: { text: 'Nutrition plan', author: 'Coach' } },
+          REQUEST_ID,
+        ),
+        409,
+        'BOUT_INVALID_TRANSITION',
+      );
+    });
+
+
+    it('PUT nutrition-plan updates plan for SCHEDULED bout and GET /bouts/:id returns nutritionPlan and currentNutritionPhase', async () => {
+      repo.findBoutById.mockResolvedValue(
+        makeBout({
+          status: 'SCHEDULED',
+          nutritionPlan: {
+            camp: {
+              text: 'Old camp text',
+              author: 'Coach 1',
+              updatedAt: '2026-10-01T00:00:00.000Z',
+              updatedById: 'coach-user-1',
+            },
+          },
+        }),
+      );
+
+      const res = await service.putNutritionPlan(
+        coachActor,
+        BOUT_ID,
+        {
+          camp: { text: 'New camp text', author: 'Coach 1' },
+          fightWeek: { text: 'Fight week text', author: 'Coach 1' },
+        },
+        REQUEST_ID,
+        new Date('2026-10-15T12:00:00Z'),
+      );
+      expect(res.nutritionPlan.camp?.text).toBe('New camp text');
+      expect(res.nutritionPlan.camp?.updatedAt).toBe('2026-10-15T12:00:00.000Z');
+      expect(res.nutritionPlan.fightWeek?.text).toBe('Fight week text');
+
+      repo.findBoutById.mockResolvedValue(
+        makeBout({
+          status: 'CAMP',
+          nutritionPlan: res.nutritionPlan,
+        }),
+      );
+      const detail = await service.getBout(coachActor, BOUT_ID);
+      expect(detail.nutritionPlan).toEqual(res.nutritionPlan);
+      expect(detail.currentNutritionPhase).toBe('camp');
+    });
+
+    it('GET /bouts/:id/weight-track returns nutrition checkins array', async () => {
+      repo.findNutritionCheckinsForBout.mockResolvedValue([
+        {
+          date: '2026-10-15',
+          adherence: 'ON_PLAN',
+        },
+      ]);
+      const track = await service.getWeightTrack(coachActor, BOUT_ID);
+      expect(track.nutrition).toEqual([
+        {
+          date: '2026-10-15',
+          adherence: 'ON_PLAN',
+        },
+      ]);
     });
   });
 });

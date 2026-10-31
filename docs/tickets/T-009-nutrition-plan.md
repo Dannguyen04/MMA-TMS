@@ -40,6 +40,7 @@ Theo khuôn của `025_suspensions.sql`:
 | GET | `/bouts/:id/weight-track` | (như cũ) | Thêm `nutrition: [{ date, adherence }]` |
 
 Phạm vi theo bản ghi như `goals.service.ts`: võ sĩ chỉ trận của mình, HLV chỉ võ sĩ được phân công.
+> **Sửa 31/10 (Claude):** `fight-camp` không có module `goals`. Phần A dùng khuôn `assertReadAccess`/`assertWriteAccess` của `bouts.service.ts`, nên người ngoài phạm vi nhận 403. Ngày trả lời sau hôm nay trả 422 `VALIDATION_ERROR`, dùng `.refine` theo khuôn `medical.model.ts:64`. Xem [T-009-REVIEW](./T-009-REVIEW.md).
 
 ### A3. Ca kiểm thử (unit test của service và model, cộng ca trong `scripts/test-migrations.mjs`)
 

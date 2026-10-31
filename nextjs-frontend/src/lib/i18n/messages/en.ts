@@ -27,6 +27,8 @@ export const en = {
     "nav.Today": "Today",
     "nav.Bout": "Bout",
     "nav.Bouts": "Bouts",
+    "nav.Suspensions": "Suspensions",
+    "nav.Readiness": "Readiness",
     "nav.Training": "Training",
     "nav.Schedule": "Schedule",
     "nav.Plans": "Plans",
@@ -160,6 +162,8 @@ export const en = {
     "coachTodo.WEIGH_IN_TODAY": "Official weigh-in today",
     "coachTodo.RESULT_OVERDUE": "No result recorded for the bout of {date}",
     "coachTodo.WEIGHT_NOT_LOGGED": "No weight logged for 2 days",
+    "coachTodo.SUSPENSION_AWAITING_CLEARANCE": "Suspension awaiting clearance to resume training",
+    "coachTodo.TRAINING_CONFLICTS_WITH_SUSPENSION": "{count} training session(s) conflict with suspension",
 
     "feasibility.title": "Weight check",
     "feasibility.OVER_LIMIT": "At risk: {kg} kg is {remaining}% above the {limitKg} kg limit, over the {limit}% cut limit. You can still save the bout.",

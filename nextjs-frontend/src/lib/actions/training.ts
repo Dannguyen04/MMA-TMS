@@ -12,6 +12,7 @@ import { FEEDBACK_KIND_LABELS, PLAN_STATUS_LABELS, planStatusLabel, TECHNIQUES, 
 import type { EligibilityReason } from "@/lib/domain/medical-contract";
 import type { ClearanceConflict } from "@/lib/domain/rules";
 import { EXERCISE_LIMITS, exerciseNameKey, SERVICE_EXERCISE_CATEGORIES, SERVICE_TRAINING_TYPES } from "@/lib/domain/training-contract";
+import type { TrainingBlockingSuspension } from "@/lib/domain/suspension-rules";
 import { planTransitions } from "@/lib/domain/training-plan";
 import { MAX_WEEKLY_REPEATS, missingStarterExercises, STARTER_EXERCISES, weeklyDates } from "@/lib/domain/training-templates";
 import type { FeedbackKind, PlanStatus, TrainingPhase, TrainingPlan, TrainingSession, TrainingType, User } from "@/lib/domain/types";
@@ -22,7 +23,7 @@ import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { PLATFORM_FEATURE_UNAVAILABLE_MESSAGE, platformFeatureAvailable, usesTrainingServiceForms } from "@/lib/services/platform-features";
 import * as training from "@/lib/services/training";
-import { trainingEligibilityReasons, trainingWriteFailure } from "@/lib/services/training-errors";
+import { trainingEligibilityReasons, trainingSuspensions, trainingWriteFailure } from "@/lib/services/training-errors";
 import { text, texts } from "./form-helpers";
 import { actionError, actionSuccess, FIX_FIELDS, validationError, type ActionState } from "./state";
 
@@ -45,6 +46,8 @@ const PLAN_EXERCISES_FAILED_DRAFT = "exercises-failed-draft";
 const SESSIONS_REPEATED = "repeated";
 
 export interface SessionFormResult {
+    /** Active suspensions blocking this session. */
+    suspensions?: TrainingBlockingSuspension[];
     /** Clearance conflicts found when the server checked the session. */
     conflicts: ClearanceConflict[];
 }
@@ -504,21 +507,30 @@ const SESSION_FORM_FIELDS = {
 
 type SessionWrite =
     | { ok: true; session: TrainingSession }
-    | { ok: false; message: string; fieldErrors?: Record<string, string>; conflicts: ClearanceConflict[] };
+    | { ok: false; message: string; fieldErrors?: Record<string, string>; conflicts: ClearanceConflict[]; suspensions?: TrainingBlockingSuspension[] };
 
 /** Runs a session write. The demo refuses with a result and the training service with an error; both read the same. */
 async function writeSession(write: () => Promise<training.SessionMutationResult>, t?: Translator): Promise<SessionWrite> {
     try {
         const result = await write();
-        return result.ok ? { ok: true, session: result.session } : { ok: false, message: result.message, conflicts: result.conflicts };
+        if (result.ok) return { ok: true, session: result.session };
+        let message = result.message;
+        if (t) {
+            if (result.reason === "warnings_not_acknowledged" || result.message === "training.sessionForm.blockedConfirm") {
+                message = t("training.sessionForm.blockedConfirm");
+            } else if (result.reason === "blocked" || result.message === "training.sessionForm.blockedResolve") {
+                message = t("training.sessionForm.blockedResolve");
+            }
+        }
+        return { ok: false, message, conflicts: result.conflicts };
     } catch (error) {
-        return { ok: false, ...trainingWriteFailure(error, { fields: SESSION_FORM_FIELDS }, t), conflicts: [] };
+        return { ok: false, ...trainingWriteFailure(error, { fields: SESSION_FORM_FIELDS }, t), conflicts: [], suspensions: trainingSuspensions(error) ?? [] };
     }
 }
 
 /** A refused write on the session form, which also shows the clearance conflicts found. */
-function sessionFormFailure({ message, fieldErrors, conflicts }: Extract<SessionWrite, { ok: false }>): ActionState<SessionFormResult> {
-    return { status: "error", message, fieldErrors, data: { conflicts } };
+function sessionFormFailure({ message, fieldErrors, conflicts, suspensions }: Extract<SessionWrite, { ok: false }>): ActionState<SessionFormResult> {
+    return { status: "error", message, fieldErrors, data: { conflicts, suspensions: suspensions ?? [] } };
 }
 
 /** "Repeat weekly × N": N sessions in all, counting the first. Read only when the box is ticked. */
@@ -576,6 +588,45 @@ export async function createSession(_prev: ActionState<SessionFormResult>, formD
     );
 }
 
+export async function rescheduleSession(
+    sessionId: string,
+    _prev: ActionState<SessionFormResult>,
+    formData: FormData,
+): Promise<ActionState<SessionFormResult>> {
+    const { t } = await getTranslator();
+    const auth = await authorizeCoach(t);
+    if (!auth.ok) return auth.state;
+
+    const date = String(formData.get("date") ?? "").trim();
+    const time = String(formData.get("time") ?? "").trim();
+    const fieldErrors: Record<string, string> = {};
+    if (!isDateKey(date)) fieldErrors.date = t("training.schema.dateValid");
+    if (!isTimeValue(time)) fieldErrors.time = t("training.schema.timeValid");
+    if (Object.keys(fieldErrors).length > 0) {
+        return actionError(t("form.fixFields"), fieldErrors);
+    }
+
+    const scheduledAt = academyWallClockToIso(date, time);
+    if (Date.parse(scheduledAt) < Date.now() - PAST_GRACE_MS) {
+        return actionError(t("form.fixFields"), { date: t("training.action.pastDateTimeError") });
+    }
+
+    const existing = await training.getSession(sessionId);
+    if (!existing || !canAccessFighter(auth.user, existing.fighterId)) {
+        return actionError(t("training.action.sessionNotFound"));
+    }
+
+    const rawAck = formData.get("acknowledgeWarnings");
+    const acknowledgeWarnings = rawAck === "true" || rawAck === "on";
+    const result = await writeSession(
+        () => training.updateSession(sessionId, { scheduledAt, acknowledgeWarnings } as training.SessionUpdateInput, auth.user),
+        t,
+    );
+    if (!result.ok) return sessionFormFailure(result);
+    revalidateSession(result.session);
+    return actionSuccess(t("training.actions.sessionRescheduled"));
+}
+
 export async function updateSession(
     sessionId: string,
     _prev: ActionState<SessionFormResult>,
@@ -585,13 +636,14 @@ export async function updateSession(
     const auth = await authorizeCoach(t);
     if (!auth.ok) return auth.state;
 
-    const parsed = sessionFieldsSchema(usesTrainingServiceForms(), t).safeParse(readSessionForm(formData));
-    if (!parsed.success) return validationError(parsed.error);
-
     const existing = await training.getSession(sessionId);
     if (!existing || !canAccessFighter(auth.user, existing.fighterId)) {
         return actionError(t("training.action.sessionNotFound"));
     }
+
+    const parsed = sessionFieldsSchema(usesTrainingServiceForms(), t).safeParse(readSessionForm(formData));
+    if (!parsed.success) return validationError(parsed.error);
+
 
     const scheduledAt = academyWallClockToIso(parsed.data.date, parsed.data.time);
     const rescheduled = scheduledAt !== existing.scheduledAt;
@@ -734,6 +786,8 @@ export async function cancelSession(sessionId: string, input: { reason: string }
 export interface StartSessionResult {
     /** Why the fighter's Medical Clearance doesn't allow the session now, when the service said. */
     reasons: EligibilityReason[];
+    /** Active suspensions blocking this session. */
+    suspensions?: TrainingBlockingSuspension[];
 }
 
 /** Checks the fighter in. The training service refuses when their Medical Clearance doesn't allow it now. */
@@ -749,10 +803,17 @@ export async function startSession(sessionId: string): Promise<ActionState<Start
         const result = await training.startSession(sessionId, auth.user);
         if (!result.ok) return actionError(result.message);
         revalidateSession(result.session);
-        return actionSuccess(t("training.action.sessionStartedRecord"), { reasons: [] });
+        return actionSuccess(t("training.action.sessionStartedRecord"), { reasons: [], suspensions: [] });
     } catch (error) {
         const failure = trainingWriteFailure(error, { fields: SESSION_FORM_FIELDS }, t);
-        return { status: "error", message: failure.message, data: { reasons: trainingEligibilityReasons(error) ?? [] } };
+        return {
+            status: "error",
+            message: failure.message,
+            data: {
+                reasons: trainingEligibilityReasons(error) ?? [],
+                suspensions: trainingSuspensions(error) ?? [],
+            },
+        };
     }
 }
 

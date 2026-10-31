@@ -28,6 +28,10 @@ import {
   requirementsDueOn,
   resolveWeightClass,
   updateRequirementSchema,
+  currentNutritionPhase,
+  updateNutritionPlanSchema,
+  nutritionCheckinBodySchema,
+  nutritionCheckinParamsSchema,
   type BoutStatus,
   type RequirementState,
 } from './bouts.model.js';
@@ -1193,5 +1197,90 @@ describe('classifyReadiness (R32, S3, T-007)', () => {
     expect(onDayDPlus2.fullReturnOn).toBeNull();
     expect(onDayDPlus2.gradedReturn).toBeNull();
     expect(onDayDPlus2.suspension).toBeNull();
+  });
+});
+
+describe('N3, N6, N8: nutrition models and pure functions', () => {
+  it('N3: accepts today (UTC+7) and rejects future date with issue path ["date"] message "Must not be in the future"', () => {
+    vi.useFakeTimers();
+    // 2026-10-15T23:30:00Z is 2026-10-16 06:30:00 in Asia/Ho_Chi_Minh (UTC+7)
+    vi.setSystemTime(new Date('2026-10-15T23:30:00.000Z'));
+    try {
+      expect(academyDateOf(new Date())).toBe('2026-10-16');
+
+      // Valid: today (2026-10-16) and past (2026-10-15)
+      const validToday = nutritionCheckinParamsSchema.safeParse({
+        id: '40000000-0000-4000-8000-000000000001',
+        date: '2026-10-16',
+      });
+      expect(validToday.success).toBe(true);
+
+      const validPast = nutritionCheckinParamsSchema.safeParse({
+        id: '40000000-0000-4000-8000-000000000001',
+        date: '2026-10-15',
+      });
+      expect(validPast.success).toBe(true);
+
+      // Invalid: tomorrow (2026-10-17) -> throws error on ['date'] with message 'Must not be in the future'
+      const invalidTomorrow = nutritionCheckinParamsSchema.safeParse({
+        id: '40000000-0000-4000-8000-000000000001',
+        date: '2026-10-17',
+      });
+      expect(invalidTomorrow.success).toBe(false);
+      if (!invalidTomorrow.success) {
+        expect(invalidTomorrow.error.issues[0]?.path).toEqual(['date']);
+        expect(invalidTomorrow.error.issues[0]?.message).toBe(
+          'Must not be in the future',
+        );
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('N6: currentNutritionPhase returns camp for SCHEDULED and CAMP, fightWeek for FIGHT_WEEK, postWeighIn for WEIGHED_IN, and null for COMPLETED and CANCELLED', () => {
+    expect(currentNutritionPhase('SCHEDULED')).toBe('camp');
+    expect(currentNutritionPhase('CAMP')).toBe('camp');
+    expect(currentNutritionPhase('FIGHT_WEEK')).toBe('fightWeek');
+    expect(currentNutritionPhase('WEIGHED_IN')).toBe('postWeighIn');
+    expect(currentNutritionPhase('COMPLETED')).toBeNull();
+    expect(currentNutritionPhase('CANCELLED')).toBeNull();
+  });
+
+  it('N8: Zod rejects text > 2000 chars, author > 100 chars, and note > 200 chars; accepts text <= 2000, author <= 100, and note <= 200', () => {
+    const text2000 = 'a'.repeat(2000);
+    const text2001 = 'a'.repeat(2001);
+    const author100 = 'c'.repeat(100);
+    const author101 = 'c'.repeat(101);
+    const note200 = 'b'.repeat(200);
+    const note201 = 'b'.repeat(201);
+
+    const validPlan = updateNutritionPlanSchema.safeParse({
+      camp: { text: text2000, author: author100 },
+      fightWeek: { text: 'Normal', author: 'Coach' },
+    });
+    expect(validPlan.success).toBe(true);
+
+    const invalidTextPlan = updateNutritionPlanSchema.safeParse({
+      camp: { text: text2001, author: 'Dr. Nutrition' },
+    });
+    expect(invalidTextPlan.success).toBe(false);
+
+    const invalidAuthorPlan = updateNutritionPlanSchema.safeParse({
+      camp: { text: 'Normal', author: author101 },
+    });
+    expect(invalidAuthorPlan.success).toBe(false);
+
+    const validCheckin = nutritionCheckinBodySchema.safeParse({
+      adherence: 'ON_PLAN',
+      note: note200,
+    });
+    expect(validCheckin.success).toBe(true);
+
+    const invalidCheckin = nutritionCheckinBodySchema.safeParse({
+      adherence: 'ON_PLAN',
+      note: note201,
+    });
+    expect(invalidCheckin.success).toBe(false);
   });
 });
