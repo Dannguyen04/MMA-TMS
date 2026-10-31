@@ -78,6 +78,37 @@ Frontend chạy demo mode mặc định khi không phải production (`nextjs-fr
 - Có `--dry-run`: in ra các request sẽ gửi, không gửi.
 - Token và URL đọc từ biến môi trường, không ghi vào file trong git.
 
+#### B · Thiết kế và ca kiểm thử (Claude viết trước code, 31/10)
+
+**Ràng buộc backend đã kiểm (`fight-camp` `77a95eb`):**
+- Không tạo được trận có `boutAt` trong quá khứ (`BOUT_NOT_IN_FUTURE`, `bouts.service.ts:788`).
+- Chỉ ghi được kết quả khi trận đã `WEIGHED_IN` và hôm nay (ngày học viện) không trước ngày thi (`bouts.service.ts:1566–1575`).
+- Vì vậy trận của võ sĩ 6 xếp thi **trong ngày chạy script**, khoảng 23:00 giờ học viện, rồi đi đủ các bước: camp → tuần thi đấu → cân → kết quả thua KO. Không tua thời gian, không SQL.
+- Sau 22:30 giờ học viện thì script dừng trước mọi request ghi và báo cần chạy lại sớm hơn.
+
+**Cấu trúc:**
+- Script `nestjs-api/scripts/demo-seed.mjs` tách làm hai phần:
+  - Các hàm thuần, xuất ra để test: dựng kế hoạch theo `now`, phân loại request.
+  - Phần chạy: đọc biến môi trường, gọi `fetch`.
+- Test là `nestjs-api/scripts/demo-seed.test.mjs`, chạy bằng `node --test`. Test dùng một API giả trong bộ nhớ, thay `fetch`, giữ trạng thái giữa hai lần chạy. Không cài thư viện mới.
+- Gọi AI thật (T-038) chỉ khi có cờ `--with-ai`. Ngay cả khi có cờ, chỉ gọi nếu trận chưa có gợi ý nào đã lưu.
+
+| Ca | Đầu vào | Kết quả mong đợi | Lớp |
+| --- | --- | --- | --- |
+| S1 | `--dry-run`, API giả rỗng | Không có request `POST`/`PUT`/`PATCH`/`DELETE` nào tới API giả. Stdout in từng request ghi sẽ gửi (method và đường dẫn) | node:test, API giả |
+| S2 | Chạy thật hai lần liên tiếp trên cùng API giả | Lần 1 tạo > 0 bản ghi. Lần 2 tạo 0 bản ghi, không có request ghi tạo mới nào. Mỗi lần in `created=<n> existing=<m>` | node:test, API giả |
+| S3 | API giả đã có sẵn user email của võ sĩ 2 và một trận cùng tên sự kiện | Không gửi `POST /users` cho email đó, không gửi `POST /bouts` cho sự kiện đó. Các bản ghi còn thiếu vẫn được tạo | node:test, API giả |
+| S4 | Kế hoạch dựng ở bất kỳ `now` nào | Mọi email trong kế hoạch kết thúc bằng `@example.com` | unit hàm thuần |
+| S5 | Thiếu biến URL hoặc biến token | Thoát mã khác 0, in tên biến thiếu, không gửi request nào | node:test |
+| S6 | `now` = `2026-11-03T03:00:00Z` (10:00 UTC+7) | Võ sĩ 1: trận ở camp, chuỗi số cân có ít nhất một ngày bị trống trong 7 ngày gần nhất. Võ sĩ 2: hôm nay nằm trong tuần thi đấu. Võ sĩ 3: đã cân, `weighInAt` ≤ `now` < `boutAt`. Võ sĩ 5: không có trận đang chạy và không có đình chỉ. Võ sĩ 6: `boutAt` cùng ngày học viện với `now`, sau `now` | unit hàm thuần |
+| S7 | `now` = `2026-11-03T15:40:00Z` (22:40 UTC+7), chạy thật | Thoát mã khác 0, câu báo nêu giờ giới hạn, **không** có request ghi nào | node:test, API giả |
+| S8 | Không có `--with-ai` | Không có request nào tới đường dẫn chứa `/ai/` | node:test, API giả |
+| S9 | Có `--with-ai`, API giả đã có một gợi ý cho trận của võ sĩ 6 | Không gọi `POST …/ai/…` | node:test, API giả |
+| S10 | Kế hoạch của võ sĩ 4 | Có buổi tập loại bị chặn được tạo **trước** đình chỉ, nằm trong khoảng đình chỉ. Script không gọi `POST /suspensions/:id/conflicts/apply`. *(Sửa 31/10: đặc tả cũ đòi "còn một buổi `SCHEDULED` xung đột". Backend không cho làm vậy: `POST /suspensions` tự áp R28 trong cùng transaction, `suspensions.service.ts:135`, nên mọi buổi bị chặn thành `PENDING`. Chờ chủ dự án quyết nguồn `TRAINING_CONFLICTS_WITH_SUSPENSION` của tiêu chí 6.)* | node:test, API giả |
+| S11 | Mọi file trong `git diff` | Không chứa token, mật khẩu thật hay URL Supabase | Claude kiểm khi review |
+
+Kết quả trên Supabase (tiêu chí 5, 6) do Ken chạy thật ở phần C. Người thực hiện chỉ chạy `--dry-run` và test.
+
 ### Phần C · Kiểm từng màn ở API mode (cả nhóm)
 
 Chạy backend bằng `.env` của team và frontend với `APP_DATA_MODE=api`, trên nhánh sau phần A và dữ liệu của phần B. Mỗi người kiểm các màn của mình, ở 390 px và 1440 px, cả `vi` và `en`, theo thứ tự việc của người dùng:
@@ -121,6 +152,11 @@ Mỗi lỗi chặn trình bày (trang lỗi, mất dữ liệu, sai nghiệp v�
 4. **A:** các câu đã dịch ở `fight-camp` không quay lại tiếng Anh. Với mỗi file xung đột, handover ghi bên đã giữ. Không còn chuỗi tiếng Anh cứng nào thay chỗ một lệnh gọi `t(...)` đã có ở `fight-camp`.
 5. **B:** chạy script hai lần liên tiếp thì lần 2 không tạo bản ghi mới (in ra số bản ghi đã tạo và đã có). `--dry-run` không gửi request ghi nào.
 6. **B:** sau khi chạy, bảng Sẵn sàng hiện đúng giai đoạn của 6 võ sĩ. Thẻ Việc cần làm có ít nhất các nguồn: cân xám hoặc đỏ, nhắc cân, `SUSPENSION_AWAITING_CLEARANCE`, `TRAINING_CONFLICTS_WITH_SUSPENSION`.
+   > **Mâu thuẫn trong tiêu chí này (Claude trên máy Ken, 31/10). Chủ dự án quyết.** Hai nguồn cuối **không tạo được qua API** nếu theo đúng ràng buộc của chính ticket ("chỉ qua API", "ngày theo ngày chạy, không tua thời gian"):
+   > - `TRAINING_CONFLICTS_WITH_SUSPENSION`: từ T-036 (migration 032, đã áp 30/10), mọi đường tạo đình chỉ đều tự áp R28 trong cùng transaction: tạo tay ở `suspensions.service.ts:136`, ghi kết quả KO ở `bouts.service.ts:1823`. Các buổi bị chặn thành `PENDING` hoặc `CANCELLED` ngay lúc tạo, và Cổng 2 chặn tạo hay dời buổi vào khoảng đình chỉ (`training-session.service.ts:112`, `:194`). Vì vậy không thể còn buổi `SCHEDULED` xung đột. Đây là hành vi đúng của luật "bị đình chỉ thì không tập". Nguồn này chỉ còn sinh được từ dữ liệu có trước T-036. Code tạo nguồn (`bouts-todo.model.ts:199`) nên xem xét ở T-044.
+   > - `SUSPENSION_AWAITING_CLEARANCE`: chỉ có từ ngày `endsOn + 1` của một đình chỉ cần xác nhận (`bouts-todo.model.ts:174–183`), mà đình chỉ không được bắt đầu trước hôm nay (`suspensions.model.ts:449–453`). Vì vậy không có được trong ngày chạy script.
+   >
+   > Script làm đúng phạm vi: có cân xám (võ sĩ 1), nhắc cân, và võ sĩ 4 đình chỉ có buổi `PENDING`. Đề nghị bỏ hai nguồn trên khỏi tiêu chí này. Ken không làm thêm bước chạy trước một ngày, vì ticket không có bước đó.
 7. **C:** mọi màn trong bảng phần C đã được kiểm ở 390 px và 1440 px, `vi` và `en`, có tên người kiểm và ngày. Mọi lỗi đã ghi đều có cách tái hiện.
 8. **C:** hai lỗi đã biết đã tìm ra nguyên nhân, hoặc ghi rõ đã thử những gì.
 9. **D:** đến tổng duyệt 9/11, không còn lỗi mức chặn chưa sửa trên các màn trong kịch bản trình bày.

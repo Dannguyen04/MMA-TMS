@@ -20,6 +20,8 @@
     "test:cov": "vitest run --coverage",
     "test:debug": "vitest --inspect-brk --no-file-parallelism",
     "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
+    "demo:seed": "node scripts/demo-seed.mjs",
+    "test:seed": "node --test scripts/demo-seed.test.mjs",
     "db:push": "node scripts/sql-migrations-only.mjs",
     "db:generate": "node scripts/sql-migrations-only.mjs",
     "db:check": "node run_sql.mjs --check",
