@@ -6,7 +6,6 @@ import {
   eq,
   gte,
   ilike,
-  inArray,
   isNull,
   lte,
   sql,
@@ -48,7 +47,6 @@ import {
   type ListSessionsQuery,
   type ListExercisesQuery,
   type SessionStatusType,
-  type TrainingPlanPhaseType,
   type TrainingPlanStatusType,
   trainingPlanBaseSchema,
   trainingSessionBaseSchema,
@@ -132,10 +130,6 @@ export interface ITrainingRepository {
     database?: DatabaseExecutor,
   ): Promise<TrainingPlanEntity | undefined>;
   getPlanProgress(planId: string, database?: DatabaseExecutor): Promise<{ totalSessions: number; completedSessions: number }>;
-  lockActiveCampPlansByFighterId(
-    fighterId: string,
-    transaction: Transaction,
-  ): Promise<TrainingPlanEntity[]>;
 
   // Sessions
   findSessions(
@@ -150,7 +144,7 @@ export interface ITrainingRepository {
   findSessionById(id: string, database?: DatabaseExecutor): Promise<TrainingSessionEntity | undefined>;
   lockSessionById(id: string, transaction: Transaction): Promise<TrainingSessionEntity | undefined>;
   createSession(data: CreateSessionInput, database?: DatabaseExecutor): Promise<TrainingSessionEntity>;
-  updateSession(id: string, data: UpdateSessionInput & { status?: SessionStatusType }, database?: DatabaseExecutor): Promise<TrainingSessionEntity | undefined>;
+  updateSession(id: string, data: UpdateSessionInput, database?: DatabaseExecutor): Promise<TrainingSessionEntity | undefined>;
   updateSessionStatus(
     id: string,
     expectedStatus: SessionStatusType,
@@ -470,30 +464,6 @@ export class TrainingRepository implements ITrainingRepository {
     };
   }
 
-  async lockActiveCampPlansByFighterId(
-    fighterId: string,
-    transaction: Transaction,
-  ): Promise<TrainingPlanEntity[]> {
-    const rows = await transaction
-      .select()
-      .from(trainingPlans)
-      .where(
-        and(
-          eq(trainingPlans.fighterId, fighterId),
-          eq(trainingPlans.status, 'ACTIVE'),
-          eq(trainingPlans.isActive, true),
-          isNull(trainingPlans.deletedAt),
-          inArray(trainingPlans.phase, [
-            'fight_camp',
-            'taper',
-          ] satisfies TrainingPlanPhaseType[]),
-        ),
-      )
-      .orderBy(asc(trainingPlans.id))
-      .for('update');
-    return rows.map(mapToPlan);
-  }
-
   // --- Training Sessions ---
 
   async findSessions(
@@ -565,24 +535,6 @@ export class TrainingRepository implements ITrainingRepository {
     return rows.map(mapToSession);
   }
 
-  async findPendingSessionsByFighterId(
-    fighterId: string,
-    database: DatabaseExecutor = this.db,
-  ): Promise<TrainingSessionEntity[]> {
-    const rows = await database
-      .select()
-      .from(trainingSessions)
-      .where(
-        and(
-          eq(trainingSessions.fighterId, fighterId),
-          eq(trainingSessions.status, 'PENDING'),
-          isNull(trainingSessions.deletedAt),
-        ),
-      )
-      .orderBy(asc(trainingSessions.scheduledAt), asc(trainingSessions.id));
-    return rows.map(mapToSession);
-  }
-
   async findSessionById(id: string, database: DatabaseExecutor = this.db) {
     const rows = await database.select().from(trainingSessions).where(and(eq(trainingSessions.id, id), isNull(trainingSessions.deletedAt))).limit(1);
     return rows.length > 0 ? mapToSession(rows[0]) : undefined;
@@ -609,7 +561,7 @@ export class TrainingRepository implements ITrainingRepository {
     return mapToSession(rows[0]);
   }
 
-  async updateSession(id: string, data: UpdateSessionInput & { status?: SessionStatusType }, database: DatabaseExecutor = this.db) {
+  async updateSession(id: string, data: UpdateSessionInput, database: DatabaseExecutor = this.db) {
     if (Object.keys(data).length === 0) return this.findSessionById(id, database);
 
     const { scheduledAt, ...rest } = data;

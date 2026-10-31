@@ -3,8 +3,6 @@ import { UsersRound } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader } from "@/components/ui/card";
-import type { Locale } from "@/lib/i18n/config";
-import { createTranslator } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 
 export interface CareTeamMember {
@@ -32,24 +30,23 @@ function specialtyToShow({ title, specialty }: CareTeamMember): string | null {
 }
 
 /** The sports doctors and coaches looking after a fighter, and who arranges the ones still missing. */
-export function CareTeamCard({ members, className, locale = "en" }: { members: CareTeamMember[]; className?: string; locale?: Locale }) {
-    const t = createTranslator(locale);
+export function CareTeamCard({ members, className }: { members: CareTeamMember[]; className?: string }) {
     const groups: { label: string; items: CareTeamMember[]; empty: string }[] = [
         {
-            label: t("careTeam.sportsMedicine"),
+            label: "Sports medicine",
             items: members.filter((member) => member.role === "doctor"),
-            empty: t("careTeam.noDoctor"),
+            empty: "No sports doctor yet. The academy assigns one for your baseline exam, and they show up here and on your Today page.",
         },
         {
-            label: t("careTeam.coaching"),
+            label: "Coaching",
             items: members.filter((member) => member.role === "coach"),
-            empty: t("careTeam.noCoach"),
+            empty: "No coach yet. The academy assigns your coach, and you get a notification when they do.",
         },
     ];
 
     return (
         <Card className={cn("min-w-0", className)}>
-            <CardHeader title={t("careTeam.title")} icon={<UsersRound />} />
+            <CardHeader title="Your care team" icon={<UsersRound />} />
             <div className="flex flex-col gap-4 px-5 pb-5">
                 {groups.map((group) =>
                     group.items.length === 0 ? (
@@ -71,7 +68,7 @@ export function CareTeamCard({ members, className, locale = "en" }: { members: C
                                                     {member.name}
                                                     {member.primary && (
                                                         <Badge size="sm" tone="primary">
-                                                            {member.role === "coach" ? t("careTeam.primaryCoach") : t("careTeam.primaryDoctor")}
+                                                            {member.role === "coach" ? "Primary coach" : "Primary doctor"}
                                                         </Badge>
                                                     )}
                                                 </p>

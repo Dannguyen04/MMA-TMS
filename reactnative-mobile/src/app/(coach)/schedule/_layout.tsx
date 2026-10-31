@@ -17,7 +17,6 @@ export default function CoachScheduleStack() {
     >
       <Stack.Screen name="index" options={{ headerShown: false, title: coach.tabs.schedule }} />
       <Stack.Screen name="new" options={{ title: coach.newSession }} />
-      <Stack.Screen name="chi-tiet" options={{ headerShown: false }} />
       <Stack.Screen name="[id]" options={{ title: coach.sessionDetail }} />
     </Stack>
   );

@@ -42,6 +42,8 @@ export const media = {
   uploadRoles: "Tải lên dành cho võ sĩ, huấn luyện viên và quản trị.",
   needFighter: "Mở tải video từ hồ sơ võ sĩ đang phụ trách để có fighterId.",
   analysisRoles: "Tạo job phân tích dành cho võ sĩ, huấn luyện viên và quản trị.",
+  reviewOwner:
+    "Duyệt nhận xét (POST /coaching/findings/review) dành cho huấn luyện viên và quản trị. Kết quả GET /jobs/:id/result không chứa findingId nên điện thoại không gửi duyệt.",
   liveMissing: "Không có API kiểm tra động tác trực tiếp. Camera không được bật giả.",
   liveLimit: "Chưa hỗ trợ kiểm tra động tác bằng AI trực tiếp.",
   yourVideos: "Video của bạn",
@@ -53,9 +55,6 @@ export const media = {
   permissionDenied: "Không có quyền mở thư viện video.",
   mediaLoading: "Đang tải video…",
   mediaError: "Không phát được video.",
-  mediaDenied: "Không có quyền xem video này hoặc phiên đã hết hạn.",
-  mediaStorage: "Kho lưu trữ video đang không phản hồi.",
-  mediaFormatWeb: "Trình duyệt không hỗ trợ định dạng video này (ví dụ .mov/HEVC). Hãy xem trên điện thoại.",
   mediaAuth: "Chưa có phiên đăng nhập để phát video.",
   pause: "Tạm dừng",
   volume: "Âm lượng",

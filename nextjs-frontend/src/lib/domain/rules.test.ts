@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import { createTranslator } from "@/lib/i18n/translate";
-import { clearanceConflictMessage } from "./clearance-rules";
 import {
     checkTrainingAgainstClearance,
     clearanceState,
@@ -14,8 +12,6 @@ import {
     type PlannedTraining,
 } from "./rules";
 import type { MedicalClearance, TrainingRestriction } from "./types";
-
-const t = createTranslator("en");
 
 /** 12:00 in Ho Chi Minh City. */
 const NOW = "2026-09-14T05:00:00.000Z";
@@ -171,8 +167,7 @@ describe("checkTrainingAgainstClearance", () => {
         const conflicts = checkTrainingAgainstClearance(planned(), clearance({ validUntil: "2026-09-10T04:00:00.000Z" }), NOW);
         expect(conflicts).toHaveLength(1);
         expect(conflicts[0].severity).toBe("block");
-        expect(conflicts[0].code).toBe("expired");
-        expect(clearanceConflictMessage(t, conflicts[0])).toContain("expired");
+        expect(conflicts[0].message).toContain("expired");
     });
 
     it("allows anything under a full clearance", () => {
@@ -189,8 +184,7 @@ describe("checkTrainingAgainstClearance", () => {
         const cl = clearance({ level: "restricted", restrictions: [restriction({ maxRpe: 7 })] });
         const over = checkTrainingAgainstClearance(planned({ targetRpe: 8 }), cl, NOW);
         expect(over).toEqual([expect.objectContaining({ severity: "block" })]);
-        expect(over[0].code).toBe("exceeds_rpe");
-        expect(clearanceConflictMessage(t, over[0])).toContain("RPE 7");
+        expect(over[0].message).toContain("RPE 7");
         expect(checkTrainingAgainstClearance(planned({ targetRpe: 7 }), cl, NOW)).toEqual([]);
     });
 
@@ -205,10 +199,8 @@ describe("checkTrainingAgainstClearance", () => {
             NOW,
         );
         expect(conflicts.map((c) => c.severity)).toEqual(["warn", "warn"]);
-        expect(conflicts[0].code).toBe("restricted_technique");
-        expect(clearanceConflictMessage(t, conflicts[0])).toContain("Kick");
-        expect(conflicts[1].code).toBe("protected_region");
-        expect(clearanceConflictMessage(t, conflicts[1])).toContain("Left hamstring");
+        expect(conflicts[0].message).toContain("Kick");
+        expect(conflicts[1].message).toContain("Left hamstring");
     });
 
     it("reports every restriction that applies", () => {

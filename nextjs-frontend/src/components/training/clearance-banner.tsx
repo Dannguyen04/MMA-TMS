@@ -1,5 +1,5 @@
+import { createDemoCopy } from "@/lib/i18n/demo-copy";
 import type { Locale } from "@/lib/i18n/config";
-import { createTranslator } from "@/lib/i18n/translate";
 import { ShieldAlert, ShieldQuestion, ShieldX } from "lucide-react";
 
 import { ButtonLink } from "@/components/ui/button";
@@ -16,13 +16,13 @@ export interface ClearanceBannerProps {
 
 /** Fighter-facing summary of what the current Medical Clearance means for training. Renders nothing when fully cleared. */
 export function ClearanceBanner({ summary, href, locale = "en" }: ClearanceBannerProps) {
-    const t = createTranslator(locale);
+    const copy = createDemoCopy(locale);
     const { clearance, state } = summary;
     if (state === "full") return null;
 
     const action = (
         <ButtonLink href={href} variant="secondary" size="sm">
-            {t("training.clearanceBanner.viewAction")}
+            {copy("View Health & Clearance")}
         </ButtonLink>
     );
 
@@ -32,31 +32,31 @@ export function ClearanceBanner({ summary, href, locale = "en" }: ClearanceBanne
             <Callout
                 tone="warning"
                 icon={ShieldAlert}
-                title={labels.length > 0 ? t("training.clearanceBanner.restrictsTitle", { labels: labels.join(" · ") }) : t("training.clearanceBanner.restrictedTitle")}
+                title={labels.length > 0 ? copy("Your Medical Clearance restricts: {labels}", { labels: labels.join(" · ") }) : copy("You're cleared with restrictions")}
                 action={action}
             >
-                {t("training.clearanceBanner.restrictedDesc")}
-                {clearance.validUntil ? t("training.clearanceBanner.validUntilSuffix", { date: formatDate(clearance.validUntil, locale) }) : null}
+                {copy("Your coach plans sessions around these restrictions.")}
+                {clearance.validUntil ? " " + copy("They apply until {date} unless your doctor updates them.", { date: formatDate(clearance.validUntil, locale) }) : null}
             </Callout>
         );
     }
     if (state === "not_cleared") {
         return (
-            <Callout tone="danger" icon={ShieldX} title={t("training.clearanceBanner.notClearedTitle")} action={action}>
-                {t("training.clearanceBanner.notClearedDesc")}
+            <Callout tone="danger" icon={ShieldX} title={copy("You're not cleared to train right now")} action={action}>
+                {copy("Rest and follow your recovery guidance. Your sports doctor will update your clearance after your next assessment.")}
             </Callout>
         );
     }
     if (state === "expired") {
         return (
-            <Callout tone="danger" icon={ShieldX} title={t("training.clearanceBanner.expiredTitle")} action={action}>
-                {t("training.clearanceBanner.expiredDesc")}
+            <Callout tone="danger" icon={ShieldX} title={copy("Your Medical Clearance has expired")} action={action}>
+                {copy("A sports doctor needs to renew it before training continues. Ask your coach to book the check.")}
             </Callout>
         );
     }
     return (
-        <Callout tone="info" icon={ShieldQuestion} title={t("training.clearanceBanner.noneTitle")} action={action}>
-            {t("training.clearanceBanner.noneDesc")}
+        <Callout tone="info" icon={ShieldQuestion} title={copy("No Medical Clearance on file yet")} action={action}>
+            Your sports doctor issues one after your baseline examination. Until then, tell your coach straight away if anything hurts.
         </Callout>
     );
 }

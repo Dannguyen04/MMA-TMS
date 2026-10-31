@@ -17,24 +17,12 @@ export function boutNotFound(): NotFoundException {
   });
 }
 
-export function boutAiNoObservations(): UnprocessableEntityException {
-  return unprocessable('BOUT_AI_NO_OBSERVATIONS', 'At least one observation is required for AI tactics.');
-}
-
-export function boutAiAlreadyDecided(): ConflictException {
-  return new ConflictException({
-    statusCode: HttpStatus.CONFLICT, error: 'Conflict', code: 'BOUT_AI_ALREADY_DECIDED',
-    message: 'The coach has already decided on this suggestion.',
-  });
-}
-
 export function rulesetNotFound(): NotFoundException {
   return new NotFoundException({
     statusCode: HttpStatus.NOT_FOUND,
     error: 'Not Found',
     code: 'RULESET_NOT_FOUND',
-    message:
-      'The requested competition ruleset does not exist or has been deleted.',
+    message: 'The requested competition ruleset does not exist or has been deleted.',
   });
 }
 
@@ -124,9 +112,7 @@ export function requirementInvalid(
     STATUS_REASON_REQUIRED: 'A REJECTED requirement must have a statusReason.',
     PERIOD_INVALID: 'validUntil must not be before issuedOn.',
   } as const;
-  return unprocessable('BOUT_REQUIREMENT_INVALID', messages[reason], {
-    reason,
-  });
+  return unprocessable('BOUT_REQUIREMENT_INVALID', messages[reason], { reason });
 }
 
 export function boutActiveExists(): ConflictException {
@@ -134,8 +120,7 @@ export function boutActiveExists(): ConflictException {
     statusCode: HttpStatus.CONFLICT,
     error: 'Conflict',
     code: 'BOUT_ACTIVE_EXISTS',
-    message:
-      'The fighter already has a bout in CAMP, FIGHT_WEEK or WEIGHED_IN.',
+    message: 'The fighter already has a bout in CAMP, FIGHT_WEEK or WEIGHED_IN.',
   });
 }
 
@@ -204,6 +189,7 @@ export function boutStateConflict(): ConflictException {
   });
 }
 
+
 export function boutNotStarted(earliestOn: string): ConflictException {
   return new ConflictException({
     statusCode: HttpStatus.CONFLICT,
@@ -233,9 +219,7 @@ export function boutWeighInNotFailed(): ConflictException {
   });
 }
 
-export function boutInvalidCatchweight(
-  reason: string = 'OUT_OF_RANGE',
-): UnprocessableEntityException {
+export function boutInvalidCatchweight(reason: string = 'OUT_OF_RANGE'): UnprocessableEntityException {
   return unprocessable(
     'BOUT_INVALID_CATCHWEIGHT',
     'The catchweight limit must be at least the official weight and above the original limit.',
@@ -256,14 +240,10 @@ export function boutResultInvalid(
   const messages: Record<string, string> = {
     ROUND_REQUIRED: 'A result round is required for KO, TKO and SUBMISSION.',
     ROUND_NOT_ALLOWED: 'A result round is not allowed for DECISION.',
-    CONSCIOUSNESS_REQUIRED:
-      'Loss of consciousness evaluation is required for KO and TKO losses.',
-    CONSCIOUSNESS_NOT_ALLOWED:
-      'Loss of consciousness is only evaluated on KO and TKO losses.',
-    HEAD_STRIKE_REQUIRED:
-      'Stopped by head strike flag is required for TKO losses.',
-    HEAD_STRIKE_NOT_ALLOWED:
-      'Stopped by head strike flag is only allowed on TKO losses.',
+    CONSCIOUSNESS_REQUIRED: 'Loss of consciousness evaluation is required for KO and TKO losses.',
+    CONSCIOUSNESS_NOT_ALLOWED: 'Loss of consciousness is only evaluated on KO and TKO losses.',
+    HEAD_STRIKE_REQUIRED: 'Stopped by head strike flag is required for TKO losses.',
+    HEAD_STRIKE_NOT_ALLOWED: 'Stopped by head strike flag is only allowed on TKO losses.',
   };
   return unprocessable(
     'BOUT_RESULT_INVALID',
@@ -277,8 +257,7 @@ export function boutRequirementsLocked(): ConflictException {
     statusCode: HttpStatus.CONFLICT,
     error: 'Conflict',
     code: 'BOUT_REQUIREMENTS_LOCKED',
-    message:
-      'Requirements are locked during fight week and after weigh-in. An unlockReason is required.',
+    message: 'Requirements are locked during fight week and after weigh-in. An unlockReason is required.',
   });
 }
 
@@ -355,31 +334,9 @@ export function mapBoutPersistenceError(error: unknown): HttpException {
 }
 
 export function boutAnalysisInvalid(
-  code:
-    | 'OPPONENT_TACTIC_EVIDENCE_REQUIRED'
-    | 'OPPONENT_SESSION_INVALID'
-    | 'OPPONENT_TACTIC_UNKNOWN'
-    | 'BOUT_ROUNDS_NOT_SET'
-    | 'BOUT_ROUND_OUT_OF_RANGE'
-    | 'BOUT_NEXT_ROUND_PLAN_LAST_ROUND'
-    | 'BOUT_ROUND_MARK_UNKNOWN'
-    | 'BOUT_ROUNDS_BELOW_RECORDED',
+  code: 'OPPONENT_TACTIC_EVIDENCE_REQUIRED' | 'OPPONENT_SESSION_INVALID' |
+    'OPPONENT_TACTIC_UNKNOWN' | 'BOUT_ROUNDS_NOT_SET' | 'BOUT_ROUND_OUT_OF_RANGE' |
+    'BOUT_ROUND_MARK_UNKNOWN' | 'BOUT_ROUNDS_BELOW_RECORDED',
 ): UnprocessableEntityException {
-  return unprocessable(
-    code,
-    'The opponent analysis or round record is invalid.',
-  );
-}
-
-export function boutRoundsIncomplete(
-  recorded: number,
-  scheduled: number,
-): ConflictException {
-  return new ConflictException({
-    statusCode: HttpStatus.CONFLICT,
-    error: 'Conflict',
-    code: 'BOUT_ROUNDS_INCOMPLETE',
-    message: 'Confirm the result despite incomplete round records.',
-    details: { recorded, scheduled },
-  });
+  return unprocessable(code, 'The opponent analysis or round record is invalid.');
 }

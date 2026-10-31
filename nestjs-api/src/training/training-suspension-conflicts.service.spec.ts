@@ -5,7 +5,7 @@ import {
   type HttpException,
 } from '@nestjs/common';
 import { Test, type TestingModule } from '@nestjs/testing';
-import { afterEach, beforeEach, describe, expect, it, vi, type Mocked } from 'vitest';
+import { beforeEach, describe, expect, it, vi, type Mocked } from 'vitest';
 import type { SuspensionRow } from '../database/schema.js';
 import { MedicalService } from '../medical/medical.service.js';
 import {
@@ -14,22 +14,13 @@ import {
 } from '../shared/contracts/notification.contract.js';
 import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import { USER } from '../shared/types/user.role.js';
-import type { Transaction } from '../shared/utils/audit-context.util.js';
-import { SuspensionEffects } from '../suspensions/suspension.effects.js';
 import { SuspensionGate } from '../suspensions/suspension.gate.js';
-import {
-  DEFAULT_MANUAL_BLOCKED_SESSION_TYPES,
-  SESSION_TYPES,
-} from '../suspensions/suspensions.model.js';
+import { SESSION_TYPES } from '../suspensions/suspensions.model.js';
 import { SuspensionsRepository } from '../suspensions/suspensions.repo.js';
-import { SuspensionsService } from '../suspensions/suspensions.service.js';
 import { TrainingSessionService } from './sessions/training-session.service.js';
 import { TrainingAccessService } from './training-access.service.js';
 import { SUSPENSION_CONFLICT_CANCELLATION_REASON } from './training.constants.js';
-import type {
-  TrainingPlanEntity,
-  TrainingSessionEntity,
-} from './training.model.js';
+import type { TrainingSessionEntity } from './training.model.js';
 import { TrainingRepository } from './training.repo.js';
 import { TrainingSuspensionConflictsService } from './training-suspension-conflicts.service.js';
 
@@ -43,8 +34,6 @@ const suspensionId = '70000000-0000-4000-8000-000000000001';
 const session1Id = '51c38f60-0f4e-48aa-848b-20f5ef828f01';
 const session2Id = '51c38f60-0f4e-48aa-848b-20f5ef828f02';
 const outsideSessionId = '51c38f60-0f4e-48aa-848b-20f5ef828f99';
-const plan1Id = '80000000-0000-4000-8000-000000000001';
-const plan2Id = '80000000-0000-4000-8000-000000000002';
 
 const fighterActor: AuthenticatedUser = {
   id: fighterUserId,
@@ -127,42 +116,16 @@ function makeSessionEntity(
   };
 }
 
-function makePlanEntity(
-  over: Partial<TrainingPlanEntity> = {},
-): TrainingPlanEntity {
-  return {
-    id: plan1Id,
-    fighterId,
-    coachId,
-    title: 'Active Fight Camp Plan',
-    description: null,
-    startDate: '2026-09-01',
-    endDate: '2026-11-01',
-    status: 'ACTIVE',
-    phase: 'fight_camp',
-    goals: null,
-    milestones: [],
-    isActive: true,
-    createdAt: '2026-09-01T00:00:00.000Z',
-    updatedAt: '2026-09-01T00:00:00.000Z',
-    deletedAt: null,
-    ...over,
-  };
-}
-
 function repositoryMock() {
   const transaction = { execute: vi.fn() };
   return {
     transaction: vi.fn(async (work) => work(transaction)),
     findScheduledSessionsByFighterId: vi.fn().mockResolvedValue([]),
-    findPendingSessionsByFighterId: vi.fn().mockResolvedValue([]),
     findSessions: vi.fn().mockResolvedValue({ data: [], total: 0 }),
     findSessionById: vi.fn(),
     lockSessionById: vi.fn(),
     updateSession: vi.fn(),
     updateSessionStatus: vi.fn(),
-    lockActiveCampPlansByFighterId: vi.fn().mockResolvedValue([]),
-    updatePlan: vi.fn(),
     findParticipantUserIds: vi
       .fn()
       .mockResolvedValue([fighterUserId, coachUserId]),
@@ -176,17 +139,9 @@ function repositoryMock() {
 }
 
 function suspensionsRepositoryMock() {
-  const transaction = { execute: vi.fn() };
   return {
-    transaction: vi.fn(async (work) => work(transaction)),
     findSuspensionById: vi.fn(),
     findSuspensionsByFighterId: vi.fn().mockResolvedValue([]),
-    isActiveFighter: vi.fn().mockResolvedValue(true),
-    isCoachAssignedToFighter: vi.fn().mockResolvedValue(true),
-    isDoctorAssignedToFighter: vi.fn().mockResolvedValue(true),
-    insertSuspension: vi.fn(async (values: Partial<SuspensionRow>) =>
-      makeSuspensionRow(values),
-    ),
   };
 }
 
@@ -203,9 +158,8 @@ function responseOf(error: unknown): Record<string, unknown> {
   return (error as HttpException).getResponse() as Record<string, unknown>;
 }
 
-describe('TrainingSuspensionConflictsService (R28 / T-036)', () => {
+describe('TrainingSuspensionConflictsService (R28)', () => {
   let service: TrainingSuspensionConflictsService;
-  let suspensionEffects: SuspensionEffects;
   let repo: Mocked<TrainingRepository>;
   let suspensionsRepo: Mocked<SuspensionsRepository>;
   let notifications: {
@@ -227,7 +181,6 @@ describe('TrainingSuspensionConflictsService (R28 / T-036)', () => {
         TrainingSuspensionConflictsService,
         TrainingSessionService,
         TrainingAccessService,
-        SuspensionEffects,
         SuspensionGate,
         { provide: TrainingRepository, useValue: repositoryMock() },
         {
@@ -240,13 +193,10 @@ describe('TrainingSuspensionConflictsService (R28 / T-036)', () => {
     }).compile();
 
     service = module.get(TrainingSuspensionConflictsService);
-    suspensionEffects = module.get(SuspensionEffects);
     repo = module.get<Mocked<TrainingRepository>>(TrainingRepository);
     suspensionsRepo = module.get<Mocked<SuspensionsRepository>>(
       SuspensionsRepository,
     );
-    service.onModuleInit();
-    vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-10-05T10:00:00.000Z'));
   });
 
@@ -255,7 +205,7 @@ describe('TrainingSuspensionConflictsService (R28 / T-036)', () => {
   });
 
   describe('getConflicts (GET /suspensions/:id/conflicts)', () => {
-    it('computes and returns CANCEL or PENDING conflict proposals on read for an assigned coach', async () => {
+    it('computes and returns R28 conflict proposals on read for an assigned coach', async () => {
       const susp = makeSuspensionRow({
         startsOn: '2026-10-01',
         endsOn: '2026-10-14',
@@ -282,7 +232,8 @@ describe('TrainingSuspensionConflictsService (R28 / T-036)', () => {
       expect(proposals).toEqual([
         {
           sessionId: session1Id,
-          action: 'CANCEL',
+          action: 'CHANGE_TYPE',
+          toType: 'RECOVERY',
         },
       ]);
       expect(repo.updateSession).not.toHaveBeenCalled();
@@ -322,6 +273,7 @@ describe('TrainingSuspensionConflictsService (R28 / T-036)', () => {
 
     it('F4: filters proposals to suspension :id period and blocked type, and returns [] when not in force', async () => {
       const otherSuspensionId = '70000000-0000-4000-8000-000000000002';
+      // Today is 2026-10-05
       vi.setSystemTime(new Date('2026-10-05T10:00:00.000Z'));
 
       const suspA = makeSuspensionRow({
@@ -351,37 +303,33 @@ describe('TrainingSuspensionConflictsService (R28 / T-036)', () => {
       });
 
       repo.isCoachAssignedToFighter.mockResolvedValue(true);
-      suspensionsRepo.findSuspensionsByFighterId.mockResolvedValue([
-        suspA,
-        suspB,
-      ]);
+      suspensionsRepo.findSuspensionsByFighterId.mockResolvedValue([suspA, suspB]);
       repo.findScheduledSessionsByFighterId.mockResolvedValue([s1, s2]);
 
+      // Endpoint for suspA returns only its own session (s1)
       suspensionsRepo.findSuspensionById.mockResolvedValue(suspA);
       const proposalsA = await service.getConflicts(coachActor, suspensionId);
       expect(proposalsA).toEqual([
         {
           sessionId: session1Id,
-          action: 'PENDING',
+          action: 'CHANGE_TYPE',
+          toType: 'RECOVERY',
         },
       ]);
 
+      // If suspB is not in force today (2026-10-05 is before startsOn 2026-10-20), returns []
       suspensionsRepo.findSuspensionById.mockResolvedValue(suspB);
-      const proposalsBBefore = await service.getConflicts(
-        coachActor,
-        otherSuspensionId,
-      );
+      const proposalsBBefore = await service.getConflicts(coachActor, otherSuspensionId);
       expect(proposalsBBefore).toEqual([]);
 
+      // On 2026-10-22, suspB is in force today, returns only its own session (s2)
       vi.setSystemTime(new Date('2026-10-22T10:00:00.000Z'));
-      const proposalsBInForce = await service.getConflicts(
-        coachActor,
-        otherSuspensionId,
-      );
+      const proposalsBInForce = await service.getConflicts(coachActor, otherSuspensionId);
       expect(proposalsBInForce).toEqual([
         {
           sessionId: session2Id,
-          action: 'PENDING',
+          action: 'CHANGE_TYPE',
+          toType: 'RECOVERY',
         },
       ]);
     });
@@ -419,7 +367,7 @@ describe('TrainingSuspensionConflictsService (R28 / T-036)', () => {
   });
 
   describe('applyConflicts (POST /suspensions/:id/conflicts/apply)', () => {
-    it('applies PENDING to the listed sessionIds and leaves omitted sessions untouched without sending notifications', async () => {
+    it('applies only the listed sessionIds and leaves omitted sessions untouched', async () => {
       const susp = makeSuspensionRow({
         startsOn: '2026-10-01',
         endsOn: '2026-10-14',
@@ -444,31 +392,32 @@ describe('TrainingSuspensionConflictsService (R28 / T-036)', () => {
       repo.lockSessionById.mockImplementation(async (id) =>
         [s1, s2].find((s) => s.id === id),
       );
-      repo.updateSessionStatus.mockImplementation(
-        async (id, _expected, newStatus) => ({
-          ...s1,
-          id,
-          status: newStatus,
-        }),
-      );
+      repo.updateSession.mockImplementation(async (id, data) => ({
+        ...s1,
+        id,
+        ...data,
+      }));
 
+      // Leave session2Id out of the apply list
       const updated = await service.applyConflicts(coachActor, suspensionId, {
         sessionIds: [session1Id],
       });
 
       expect(updated).toHaveLength(1);
       expect(updated[0]?.id).toBe(session1Id);
-      expect(updated[0]?.status).toBe('PENDING');
-      expect(repo.updateSessionStatus).toHaveBeenCalledTimes(1);
-      expect(repo.updateSessionStatus).toHaveBeenCalledWith(
+      expect(updated[0]?.sessionType).toBe('RECOVERY');
+      expect(repo.updateSession).toHaveBeenCalledTimes(1);
+      expect(repo.updateSession).toHaveBeenCalledWith(
         session1Id,
-        'SCHEDULED',
-        'PENDING',
-        expect.any(Date),
-        { cancellationReason: null, actualDurationSec: null },
+        { sessionType: 'RECOVERY' },
         expect.anything(),
       );
       expect(repo.lockSessionById).toHaveBeenCalledTimes(1);
+      expect(repo.lockSessionById).toHaveBeenCalledWith(
+        session1Id,
+        expect.anything(),
+      );
+      // CHANGE_TYPE does not send a reschedule or cancel notification
       expect(notifications.notifyResolved).not.toHaveBeenCalled();
     });
 
@@ -505,27 +454,6 @@ describe('TrainingSuspensionConflictsService (R28 / T-036)', () => {
       expect(repo.updateSession).not.toHaveBeenCalled();
       expect(repo.updateSessionStatus).not.toHaveBeenCalled();
       expect(notifications.notifyResolved).not.toHaveBeenCalled();
-    });
-
-    it('rejects POST apply payload containing legacy action CHANGE_TYPE with 422 VALIDATION_ERROR', async () => {
-      await expect(
-        service.applyConflicts(
-          coachActor,
-          suspensionId,
-          {
-            sessionIds: [session1Id],
-            action: 'CHANGE_TYPE',
-          } as never,
-        ),
-      ).rejects.toSatisfy(
-        (err: unknown) =>
-          err instanceof UnprocessableEntityException &&
-          (err as HttpException).getStatus() === 422 &&
-          responseOf(err).code === 'VALIDATION_ERROR',
-      );
-
-      expect(repo.lockSessionById).not.toHaveBeenCalled();
-      expect(repo.updateSessionStatus).not.toHaveBeenCalled();
     });
 
     it('F3: rejects apply if session transitions to IN_PROGRESS between proposal and lock, modifying nothing', async () => {
@@ -570,9 +498,135 @@ describe('TrainingSuspensionConflictsService (R28 / T-036)', () => {
       expect(notifications.notifyResolved).not.toHaveBeenCalled();
     });
 
-    it('sends TRAINING_SESSION_CANCELLED notification only AFTER transaction commit for CANCEL and none for PENDING', async () => {
+    it('F4: rejects applying a session that belongs to another suspension with 422', async () => {
+      const otherSuspensionId = '70000000-0000-4000-8000-000000000002';
+      vi.setSystemTime(new Date('2026-10-05T10:00:00.000Z'));
+
+      const suspA = makeSuspensionRow({
+        id: suspensionId,
+        startsOn: '2026-10-01',
+        endsOn: '2026-10-14',
+        blockedSessionTypes: ['SPARRING'],
+        requiresClearance: false,
+      });
+      const suspB = makeSuspensionRow({
+        id: otherSuspensionId,
+        startsOn: '2026-10-20',
+        endsOn: '2026-10-30',
+        blockedSessionTypes: ['GRAPPLING'],
+        requiresClearance: false,
+      });
+
+      const s1 = makeSessionEntity({
+        id: session1Id,
+        sessionType: 'SPARRING',
+        scheduledAt: '2026-10-05T10:00:00.000Z',
+      });
+      const s2 = makeSessionEntity({
+        id: session2Id,
+        sessionType: 'GRAPPLING',
+        scheduledAt: '2026-10-25T10:00:00.000Z',
+      });
+
+      suspensionsRepo.findSuspensionById.mockResolvedValue(suspA);
+      suspensionsRepo.findSuspensionsByFighterId.mockResolvedValue([suspA, suspB]);
+      repo.isCoachAssignedToFighter.mockResolvedValue(true);
+      repo.findScheduledSessionsByFighterId.mockResolvedValue([s1, s2]);
+
+      // Applying s2 (which belongs to suspB) against suspA is rejected
+      await expect(
+        service.applyConflicts(coachActor, suspensionId, {
+          sessionIds: [session2Id],
+        }),
+      ).rejects.toSatisfy((err: unknown) => {
+        const resp = responseOf(err);
+        return (
+          err instanceof UnprocessableEntityException &&
+          (err as HttpException).getStatus() === 422 &&
+          resp.code === 'VALIDATION_ERROR' &&
+          resp.message === `Session ${session2Id} is not in the current conflict proposal`
+        );
+      });
+    });
+
+    it('is atomic: a failure on the second session rolls back the first and sends no notifications', async () => {
+      const susp = makeSuspensionRow({
+        startsOn: '2026-10-01',
+        endsOn: '2026-10-10',
+        blockedSessionTypes: [...SESSION_TYPES],
+        requiresClearance: false,
+      });
+      const s1 = makeSessionEntity({
+        id: session1Id,
+        sessionType: 'SPARRING',
+        scheduledAt: '2026-10-05T10:00:00.000Z',
+      });
+      const s2 = makeSessionEntity({
+        id: session2Id,
+        sessionType: 'GRAPPLING',
+        scheduledAt: '2026-10-06T10:00:00.000Z',
+      });
+
+      // Stateful store that snapshots on transaction start and restores on rollback
+      const store = new Map<string, TrainingSessionEntity>([
+        [session1Id, { ...s1 }],
+        [session2Id, { ...s2 }],
+      ]);
+
+      repo.transaction.mockImplementation(async (work) => {
+        const snapshot = new Map(
+          [...store.entries()].map(([k, v]) => [k, { ...v }]),
+        );
+        const tx = { execute: vi.fn() };
+        try {
+          return await work(tx as never);
+        } catch (err) {
+          store.clear();
+          for (const [k, v] of snapshot) store.set(k, v);
+          throw err;
+        }
+      });
+
+      suspensionsRepo.findSuspensionById.mockResolvedValue(susp);
+      suspensionsRepo.findSuspensionsByFighterId.mockResolvedValue([susp]);
+      repo.isCoachAssignedToFighter.mockResolvedValue(true);
+      repo.findScheduledSessionsByFighterId.mockImplementation(async () => [
+        ...store.values(),
+      ]);
+      repo.lockSessionById.mockImplementation(async (id) => store.get(id));
+      repo.updateSession.mockImplementation(async (id, data) => {
+        if (id === session2Id) {
+          throw new Error('database failure on second session');
+        }
+        const current = store.get(id)!;
+        const next: TrainingSessionEntity = {
+          ...current,
+          ...(data.scheduledAt ? { scheduledAt: data.scheduledAt } : {}),
+          ...(data.sessionType ? { sessionType: data.sessionType } : {}),
+          updatedAt: '2026-10-01T12:00:00.000Z',
+        };
+        store.set(id, next);
+        return next;
+      });
+
+      await expect(
+        service.applyConflicts(coachActor, suspensionId, {
+          sessionIds: [session1Id, session2Id],
+        }),
+      ).rejects.toMatchObject({ status: 500 });
+
+      // Transaction ran once and rolled back session 1's scheduledAt to its original value
+      expect(repo.transaction).toHaveBeenCalledTimes(1);
+      expect(store.get(session1Id)?.scheduledAt).toBe(
+        '2026-10-05T10:00:00.000Z',
+      );
+      expect(notifications.notifyResolved).not.toHaveBeenCalled();
+    });
+
+    it('sends TRAINING_SESSION_RESCHEDULED and TRAINING_SESSION_CANCELLED notifications only AFTER transaction commit', async () => {
       const callOrder: string[] = [];
 
+      // S1 (all types blocked, fixed end date 2026-10-10) -> session1 on 2026-10-05 is RESCHEDULED to 2026-10-11
       const suspFixed = makeSuspensionRow({
         id: suspensionId,
         startsOn: '2026-10-01',
@@ -580,6 +634,7 @@ describe('TrainingSuspensionConflictsService (R28 / T-036)', () => {
         blockedSessionTypes: [...SESSION_TYPES],
         requiresClearance: false,
       });
+      // S2 (all types blocked, requires clearance, starts 2026-10-20) -> session2 on 2026-10-22 is CANCELLED
       const suspOpen = makeSuspensionRow({
         id: '70000000-0000-4000-8000-000000000002',
         startsOn: '2026-10-20',
@@ -588,7 +643,7 @@ describe('TrainingSuspensionConflictsService (R28 / T-036)', () => {
         requiresClearance: true,
       });
 
-      const sPending = makeSessionEntity({
+      const sReschedule = makeSessionEntity({
         id: session1Id,
         sessionType: 'SPARRING',
         scheduledAt: '2026-10-05T10:00:00.000Z',
@@ -606,11 +661,11 @@ describe('TrainingSuspensionConflictsService (R28 / T-036)', () => {
       ]);
       repo.isCoachAssignedToFighter.mockResolvedValue(true);
       repo.findScheduledSessionsByFighterId.mockResolvedValue([
-        sPending,
+        sReschedule,
         sCancel,
       ]);
       repo.lockSessionById.mockImplementation(async (id) =>
-        [sPending, sCancel].find((s) => s.id === id),
+        [sReschedule, sCancel].find((s) => s.id === id),
       );
 
       repo.transaction.mockImplementation(async (work) => {
@@ -620,16 +675,25 @@ describe('TrainingSuspensionConflictsService (R28 / T-036)', () => {
         return result;
       });
 
+      repo.updateSession.mockImplementation(async (id, data) => {
+        callOrder.push(`repo:updateSession:${id}`);
+        return {
+          ...sReschedule,
+          ...(data.scheduledAt ? { scheduledAt: data.scheduledAt } : {}),
+          ...(data.sessionType ? { sessionType: data.sessionType } : {}),
+          updatedAt: '2026-10-01T12:00:00.000Z',
+        };
+      });
+
       repo.updateSessionStatus.mockImplementation(
         async (id, _expected, newStatus, _time, outcome) => {
-          callOrder.push(`repo:updateSessionStatus:${id}:${newStatus}`);
+          callOrder.push(`repo:updateSessionStatus:${id}`);
           return {
-            ...(id === session1Id ? sPending : sCancel),
+            ...sCancel,
             id,
             status: newStatus,
             cancellationReason: outcome.cancellationReason,
-            cancelledAt:
-              newStatus === 'CANCELLED' ? '2026-10-01T12:00:00.000Z' : null,
+            cancelledAt: '2026-10-01T12:00:00.000Z',
             updatedAt: '2026-10-01T12:00:00.000Z',
           };
         },
@@ -651,13 +715,17 @@ describe('TrainingSuspensionConflictsService (R28 / T-036)', () => {
       const result1 = await service.applyConflicts(coachActor, suspFixed.id, {
         sessionIds: [session1Id],
       });
-      expect(result1[0]?.status).toBe('PENDING');
+
+      expect(result1).toHaveLength(1);
+      expect(result1[0]?.scheduledAt).toBe('2026-10-11T10:00:00.000Z');
 
       suspensionsRepo.findSuspensionById.mockResolvedValue(suspOpen);
       vi.setSystemTime(new Date('2026-10-22T10:00:00.000Z'));
       const result2 = await service.applyConflicts(coachActor, suspOpen.id, {
         sessionIds: [session2Id],
       });
+
+      expect(result2).toHaveLength(1);
       expect(result2[0]?.status).toBe('CANCELLED');
       expect(result2[0]?.cancellationReason).toBe(
         SUSPENSION_CONFLICT_CANCELLATION_REASON,
@@ -665,1037 +733,35 @@ describe('TrainingSuspensionConflictsService (R28 / T-036)', () => {
 
       expect(callOrder).toEqual([
         'tx:begin',
-        `repo:updateSessionStatus:${session1Id}:PENDING`,
+        `repo:updateSession:${session1Id}`,
         'tx:commit',
+        `notify:${NOTIFICATION_TYPE.TRAINING_SESSION_RESCHEDULED}`,
         'tx:begin',
-        `repo:updateSessionStatus:${session2Id}:CANCELLED`,
-        'tx:commit',
-        `notify:${NOTIFICATION_TYPE.TRAINING_SESSION_CANCELLED}`,
-      ]);
-      expect(publishedPayloads).toHaveLength(1);
-    });
-  });
-
-  describe('Automatic conflict application & plan phase transition on suspension creation (Criteria 3, 4, 6)', () => {
-    it('Criterion 3: POST /suspensions creating a DQ suspension (requiresClearance = false) moves a SCHEDULED SPARRING session to PENDING in the same transaction, returns affectedSessions and affectedPlans: [], and sends no cancel notification', async () => {
-      const s1 = makeSessionEntity({
-        id: session1Id,
-        sessionType: 'SPARRING',
-        scheduledAt: '2026-10-05T10:00:00.000Z',
-        status: 'SCHEDULED',
-      });
-
-      const dqRow = makeSuspensionRow({
-        id: suspensionId,
-        reason: 'DQ',
-        startsOn: '2026-10-05',
-        endsOn: '2026-10-14',
-        blockedSessionTypes: ['SPARRING'],
-        requiresClearance: false,
-      });
-
-      suspensionsRepo.insertSuspension.mockResolvedValue(dqRow);
-      suspensionsRepo.findSuspensionsByFighterId.mockResolvedValue([dqRow]);
-      repo.findScheduledSessionsByFighterId.mockResolvedValue([s1]);
-      repo.lockSessionById.mockResolvedValue(s1);
-      repo.updateSessionStatus.mockImplementation(
-        async (id, _expected, newStatus) => ({
-          ...s1,
-          id,
-          status: newStatus,
-        }),
-      );
-
-      const suspensionsService = new SuspensionsService(
-        suspensionsRepo,
-        suspensionEffects,
-      );
-      const res = await suspensionsService.createSuspension(
-        coachActor,
-        {
-          fighterId,
-          reason: 'DQ',
-          days: 10,
-          blockedSessionTypes: ['SPARRING'],
-        },
-        'req-dq-1',
-      );
-
-      expect(repo.updateSessionStatus).toHaveBeenCalledWith(
-        session1Id,
-        'SCHEDULED',
-        'PENDING',
-        expect.any(Date),
-        { cancellationReason: null, actualDurationSec: null },
-        expect.anything(),
-      );
-      expect(repo.lockActiveCampPlansByFighterId).not.toHaveBeenCalled();
-      expect(res.affectedSessions).toEqual([
-        { sessionId: session1Id, action: 'PENDING' },
-      ]);
-      expect(res.affectedPlans).toEqual([]);
-      expect(notifications.notifyResolved).not.toHaveBeenCalled();
-    });
-
-    it('only applies proposals for sessions blocked by the newly created suspension(s), leaving a SCHEDULED session under an older non-overlapping OTHER suspension untouched', async () => {
-      const novSession = makeSessionEntity({
-        id: session1Id,
-        sessionType: 'SPARRING',
-        scheduledAt: '2026-11-03T10:00:00.000Z',
-        status: 'SCHEDULED',
-      });
-      const decSession = makeSessionEntity({
-        id: session2Id,
-        sessionType: 'SPARRING',
-        scheduledAt: '2026-12-02T10:00:00.000Z',
-        status: 'SCHEDULED',
-      });
-
-      const oldOtherSuspension = makeSuspensionRow({
-        id: '70000000-0000-4000-8000-000000000010',
-        reason: 'OTHER',
-        startsOn: '2026-11-01',
-        endsOn: '2026-11-07',
-        blockedSessionTypes: ['SPARRING'],
-        requiresClearance: false,
-      });
-      const newMandatoryRestSuspension = makeSuspensionRow({
-        id: '70000000-0000-4000-8000-000000000011',
-        reason: 'MANDATORY_REST',
-        startsOn: '2026-12-01',
-        endsOn: '2026-12-03',
-        blockedSessionTypes: ['SPARRING'],
-        requiresClearance: false,
-      });
-
-      suspensionsRepo.insertSuspension.mockResolvedValueOnce(
-        newMandatoryRestSuspension,
-      );
-      suspensionsRepo.findSuspensionsByFighterId.mockResolvedValueOnce([
-        oldOtherSuspension,
-        newMandatoryRestSuspension,
-      ]);
-      repo.findScheduledSessionsByFighterId.mockResolvedValueOnce([novSession]);
-
-      const suspensionsService = new SuspensionsService(
-        suspensionsRepo,
-        suspensionEffects,
-      );
-      const resNoDecSession = await suspensionsService.createSuspension(
-        coachActor,
-        {
-          fighterId,
-          reason: 'MANDATORY_REST',
-          startsOn: '2026-12-01',
-          days: 3,
-          blockedSessionTypes: ['SPARRING'],
-        },
-        'req-rest-only-nov-session',
-      );
-
-      // The Nov 3 session belongs only to the older Nov 1-7 OTHER suspension and must NOT be touched
-      expect(resNoDecSession.affectedSessions).toEqual([]);
-      expect(repo.lockSessionById).not.toHaveBeenCalled();
-      expect(repo.updateSessionStatus).not.toHaveBeenCalled();
-
-      // When a Dec 2 session also exists and an open-ended suspension requiring clearance is in force,
-      // only the Dec 2 session is affected and its action (CANCEL) is still computed across all in-force suspensions
-      const existingOpenMedical = makeSuspensionRow({
-        id: '70000000-0000-4000-8000-000000000012',
-        reason: 'MEDICAL',
-        startsOn: '2026-11-20',
-        endsOn: '2026-11-25',
-        blockedSessionTypes: ['SPARRING'],
-        requiresClearance: true,
-        clearedAt: null,
-      });
-      suspensionsRepo.insertSuspension.mockResolvedValueOnce(
-        newMandatoryRestSuspension,
-      );
-      suspensionsRepo.findSuspensionsByFighterId.mockResolvedValueOnce([
-        oldOtherSuspension,
-        existingOpenMedical,
-        newMandatoryRestSuspension,
-      ]);
-      repo.findScheduledSessionsByFighterId.mockResolvedValueOnce([
-        novSession,
-        decSession,
-      ]);
-      repo.lockSessionById.mockResolvedValueOnce(decSession);
-      repo.updateSessionStatus.mockImplementationOnce(
-        async (id, _expected, newStatus) => ({
-          ...decSession,
-          id,
-          status: newStatus,
-        }),
-      );
-
-      const resWithDecSession = await suspensionsService.createSuspension(
-        coachActor,
-        {
-          fighterId,
-          reason: 'MANDATORY_REST',
-          startsOn: '2026-12-01',
-          days: 3,
-          blockedSessionTypes: ['SPARRING'],
-        },
-        'req-rest-with-dec-session',
-      );
-
-      expect(resWithDecSession.affectedSessions).toEqual([
-        { sessionId: session2Id, action: 'CANCEL' },
-      ]);
-      expect(repo.lockSessionById).toHaveBeenCalledTimes(1);
-      expect(repo.lockSessionById).toHaveBeenCalledWith(
-        session2Id,
-        expect.anything(),
-      );
-    });
-
-    it('skips sessions that are no longer SCHEDULED after row locking without modifying them, throwing, or adding them to affectedSessions: (a) coach starts session to IN_PROGRESS concurrently during CANCEL; (b) concurrent suspension already moved session to CANCELLED before PENDING', async () => {
-      const s1 = makeSessionEntity({
-        id: session1Id,
-        sessionType: 'SPARRING',
-        scheduledAt: '2026-10-05T10:00:00.000Z',
-        status: 'SCHEDULED',
-      });
-      const s2 = makeSessionEntity({
-        id: session2Id,
-        sessionType: 'SPARRING',
-        scheduledAt: '2026-10-07T10:00:00.000Z',
-        status: 'SCHEDULED',
-      });
-
-      const suspensionsService = new SuspensionsService(
-        suspensionsRepo,
-        suspensionEffects,
-      );
-
-      // (a) Session 1 becomes IN_PROGRESS before lockSessionById resolves during a KO/MEDICAL (CANCEL) suspension creation
-      const medicalRow = makeSuspensionRow({
-        id: suspensionId,
-        reason: 'MEDICAL',
-        startsOn: '2026-10-05',
-        endsOn: '2026-10-14',
-        blockedSessionTypes: ['SPARRING'],
-        requiresClearance: true,
-        createdById: doctorActor.id,
-      });
-      suspensionsRepo.insertSuspension.mockResolvedValueOnce(medicalRow);
-      suspensionsRepo.findSuspensionsByFighterId.mockResolvedValueOnce([
-        medicalRow,
-      ]);
-      repo.findScheduledSessionsByFighterId.mockResolvedValueOnce([s1, s2]);
-      repo.lockSessionById.mockImplementation(async (id) =>
-        id === session1Id ? { ...s1, status: 'IN_PROGRESS' } : s2,
-      );
-      repo.lockActiveCampPlansByFighterId.mockResolvedValueOnce([]);
-      repo.updateSessionStatus.mockImplementation(
-        async (id, _expected, newStatus) => ({
-          ...s2,
-          id,
-          status: newStatus,
-        }),
-      );
-      notifications.notifyResolved.mockClear();
-
-      const resA = await suspensionsService.createSuspension(
-        doctorActor,
-        {
-          fighterId,
-          reason: 'MEDICAL',
-          days: 10,
-          blockedSessionTypes: ['SPARRING'],
-        },
-        'req-concurrent-in-progress',
-      );
-
-      // Session 1 (IN_PROGRESS) was skipped; only Session 2 (still SCHEDULED) was cancelled
-      expect(resA.affectedSessions).toEqual([
-        { sessionId: session2Id, action: 'CANCEL' },
-      ]);
-      expect(repo.updateSessionStatus).toHaveBeenCalledTimes(1);
-      expect(repo.updateSessionStatus).toHaveBeenCalledWith(
-        session2Id,
-        'SCHEDULED',
-        'CANCELLED',
-        expect.any(Date),
-        expect.anything(),
-        expect.anything(),
-      );
-      expect(notifications.notifyResolved).toHaveBeenCalledTimes(1);
-
-      // (b) Session 1 is already CANCELLED when locked during a DQ (PENDING) suspension creation
-      repo.updateSessionStatus.mockClear();
-      notifications.notifyResolved.mockClear();
-      const dqRow = makeSuspensionRow({
-        id: '70000000-0000-4000-8000-000000000022',
-        reason: 'DQ',
-        startsOn: '2026-10-05',
-        endsOn: '2026-10-14',
-        blockedSessionTypes: ['SPARRING'],
-        requiresClearance: false,
-      });
-      suspensionsRepo.insertSuspension.mockResolvedValueOnce(dqRow);
-      suspensionsRepo.findSuspensionsByFighterId.mockResolvedValueOnce([dqRow]);
-      repo.findScheduledSessionsByFighterId.mockResolvedValueOnce([s1, s2]);
-      repo.lockSessionById.mockImplementation(async (id) =>
-        id === session1Id ? { ...s1, status: 'CANCELLED' } : s2,
-      );
-      repo.updateSessionStatus.mockImplementation(
-        async (id, _expected, newStatus) => ({
-          ...s2,
-          id,
-          status: newStatus,
-        }),
-      );
-
-      const resB = await suspensionsService.createSuspension(
-        coachActor,
-        {
-          fighterId,
-          reason: 'DQ',
-          days: 10,
-          blockedSessionTypes: ['SPARRING'],
-        },
-        'req-concurrent-cancelled',
-      );
-
-      // Does not throw invalidSessionStatusTransition; skips session1Id and moves session2Id to PENDING
-      expect(resB.affectedSessions).toEqual([
-        { sessionId: session2Id, action: 'PENDING' },
-      ]);
-      expect(repo.updateSessionStatus).toHaveBeenCalledTimes(1);
-      expect(repo.updateSessionStatus).toHaveBeenCalledWith(
-        session2Id,
-        'SCHEDULED',
-        'PENDING',
-        expect.any(Date),
-        { cancellationReason: null, actualDurationSec: null },
-        expect.anything(),
-      );
-      expect(notifications.notifyResolved).not.toHaveBeenCalled();
-    });
-
-    it('afterCommit notification hook: (a) does not call notifySessionCancelled if transaction throws after runOnCreated; (b) calls notifySessionCancelled once per CANCEL session after transaction commit; (c) sends no notification for PENDING sessions', async () => {
-      const sessionService =
-        (service as unknown as { sessionService: TrainingSessionService })
-          .sessionService;
-      const notifyCancelledSpy = vi.spyOn(
-        sessionService,
-        'notifySessionCancelled',
-      );
-
-      const s1 = makeSessionEntity({
-        id: session1Id,
-        sessionType: 'SPARRING',
-        scheduledAt: '2026-10-05T10:00:00.000Z',
-        status: 'SCHEDULED',
-      });
-      const s2 = makeSessionEntity({
-        id: session2Id,
-        sessionType: 'SPARRING',
-        scheduledAt: '2026-10-07T10:00:00.000Z',
-        status: 'SCHEDULED',
-      });
-
-      const medicalRow = makeSuspensionRow({
-        id: suspensionId,
-        reason: 'MEDICAL',
-        startsOn: '2026-10-05',
-        endsOn: '2026-10-14',
-        blockedSessionTypes: ['SPARRING'],
-        requiresClearance: true,
-        createdById: doctorActor.id,
-      });
-
-      suspensionsRepo.insertSuspension.mockResolvedValue(medicalRow);
-      suspensionsRepo.findSuspensionsByFighterId.mockResolvedValue([medicalRow]);
-      repo.findScheduledSessionsByFighterId.mockResolvedValue([s1, s2]);
-      repo.lockSessionById.mockImplementation(async (id) =>
-        [s1, s2].find((s) => s.id === id),
-      );
-      repo.lockActiveCampPlansByFighterId.mockResolvedValue([]);
-
-      const callOrder: string[] = [];
-      repo.updateSessionStatus.mockImplementation(
-        async (id, _expected, newStatus, _time, outcome) => {
-          callOrder.push(`db:updateSessionStatus:${id}:${newStatus}`);
-          return {
-            ...(id === session1Id ? s1 : s2),
-            id,
-            status: newStatus,
-            cancellationReason: outcome.cancellationReason,
-          };
-        },
-      );
-      notifyCancelledSpy.mockImplementation(async (actor, session) => {
-        callOrder.push(`notify:${session.id}`);
-        return [{ status: 'queued' }] as never;
-      });
-
-      const suspensionsService = new SuspensionsService(
-        suspensionsRepo,
-        suspensionEffects,
-      );
-
-      // (a) Transaction throws after runOnCreated -> notifySessionCancelled is NOT called
-      suspensionsRepo.transaction.mockImplementationOnce(async (work) => {
-        callOrder.push('tx:begin');
-        await work({ execute: vi.fn() } as never);
-        callOrder.push('tx:rollback');
-        throw new Error('Transaction failed after runOnCreated');
-      });
-
-      await expect(
-        suspensionsService.createSuspension(
-          doctorActor,
-          {
-            fighterId,
-            reason: 'MEDICAL',
-            days: 10,
-            blockedSessionTypes: ['SPARRING'],
-          },
-          'req-med-rollback',
-        ),
-      ).rejects.toThrow();
-
-      expect(notifyCancelledSpy).not.toHaveBeenCalled();
-      expect(callOrder).toEqual([
-        'tx:begin',
-        `db:updateSessionStatus:${session1Id}:CANCELLED`,
-        `db:updateSessionStatus:${session2Id}:CANCELLED`,
-        'tx:rollback',
-      ]);
-
-      // (b) Transaction commits -> notifySessionCancelled called once per CANCEL session AFTER commit
-      callOrder.length = 0;
-      notifyCancelledSpy.mockClear();
-      suspensionsRepo.transaction.mockImplementationOnce(async (work) => {
-        callOrder.push('tx:begin');
-        const out = await work({ execute: vi.fn() } as never);
-        callOrder.push('tx:commit');
-        return out;
-      });
-
-      const created = await suspensionsService.createSuspension(
-        doctorActor,
-        {
-          fighterId,
-          reason: 'MEDICAL',
-          days: 10,
-          blockedSessionTypes: ['SPARRING'],
-        },
-        'req-med-commit',
-      );
-
-      expect(notifyCancelledSpy).toHaveBeenCalledTimes(2);
-      expect(notifyCancelledSpy).toHaveBeenNthCalledWith(
-        1,
-        { id: doctorActor.id },
-        expect.objectContaining({ id: session1Id, status: 'CANCELLED' }),
-      );
-      expect(notifyCancelledSpy).toHaveBeenNthCalledWith(
-        2,
-        { id: doctorActor.id },
-        expect.objectContaining({ id: session2Id, status: 'CANCELLED' }),
-      );
-      expect(callOrder).toEqual([
-        'tx:begin',
-        `db:updateSessionStatus:${session1Id}:CANCELLED`,
-        `db:updateSessionStatus:${session2Id}:CANCELLED`,
-        'tx:commit',
-        `notify:${session1Id}`,
-        `notify:${session2Id}`,
-      ]);
-      expect('afterCommit' in created).toBe(false);
-
-      // (c) PENDING sessions do not trigger notifySessionCancelled
-      notifyCancelledSpy.mockClear();
-      const dqRow = makeSuspensionRow({
-        id: suspensionId,
-        reason: 'DQ',
-        startsOn: '2026-10-05',
-        endsOn: '2026-10-14',
-        blockedSessionTypes: ['SPARRING'],
-        requiresClearance: false,
-      });
-      suspensionsRepo.insertSuspension.mockResolvedValueOnce(dqRow);
-      suspensionsRepo.findSuspensionsByFighterId.mockResolvedValueOnce([dqRow]);
-
-      const createdDq = await suspensionsService.createSuspension(
-        coachActor,
-        {
-          fighterId,
-          reason: 'DQ',
-          days: 10,
-          blockedSessionTypes: ['SPARRING'],
-        },
-        'req-dq-pending',
-      );
-      expect(createdDq.affectedSessions).toEqual([
-        { sessionId: session1Id, action: 'PENDING' },
-        { sessionId: session2Id, action: 'PENDING' },
-      ]);
-      expect(notifyCancelledSpy).not.toHaveBeenCalled();
-    });
-
-    it('Criterion 6: KO, TKO, and MEDICAL suspensions transition ACTIVE fight_camp and taper plans to rehab, while ignoring base/build/rehab/maintenance/non-ACTIVE/soft-deleted plans and ignoring DQ/MANDATORY_REST/OTHER reasons', async () => {
-      const fightCampPlan = makePlanEntity({
-        id: plan2Id,
-        phase: 'fight_camp',
-        status: 'ACTIVE',
-        isActive: true,
-        deletedAt: null,
-      });
-      const taperPlan = makePlanEntity({
-        id: plan1Id,
-        phase: 'taper',
-        status: 'ACTIVE',
-        isActive: true,
-        deletedAt: null,
-      });
-      const basePlan = makePlanEntity({
-        id: '80000000-0000-4000-8000-000000000003',
-        phase: 'base',
-        status: 'ACTIVE',
-      });
-      const buildPlan = makePlanEntity({
-        id: '80000000-0000-4000-8000-000000000004',
-        phase: 'build',
-        status: 'ACTIVE',
-      });
-      const rehabPlan = makePlanEntity({
-        id: '80000000-0000-4000-8000-000000000005',
-        phase: 'rehab',
-        status: 'ACTIVE',
-      });
-      const maintenancePlan = makePlanEntity({
-        id: '80000000-0000-4000-8000-000000000006',
-        phase: 'maintenance',
-        status: 'ACTIVE',
-      });
-      const draftCampPlan = makePlanEntity({
-        id: '80000000-0000-4000-8000-000000000007',
-        phase: 'fight_camp',
-        status: 'DRAFT',
-      });
-      const completedCampPlan = makePlanEntity({
-        id: '80000000-0000-4000-8000-000000000008',
-        phase: 'fight_camp',
-        status: 'COMPLETED',
-      });
-      const cancelledCampPlan = makePlanEntity({
-        id: '80000000-0000-4000-8000-000000000009',
-        phase: 'taper',
-        status: 'CANCELLED',
-      });
-      const deletedCampPlan = makePlanEntity({
-        id: '80000000-0000-4000-8000-000000000010',
-        phase: 'fight_camp',
-        status: 'ACTIVE',
-        deletedAt: '2026-10-01T00:00:00.000Z',
-      });
-
-      const tx = { execute: vi.fn() };
-      repo.findScheduledSessionsByFighterId.mockResolvedValue([]);
-      repo.lockActiveCampPlansByFighterId.mockResolvedValue([
-        fightCampPlan,
-        taperPlan,
-        basePlan,
-        buildPlan,
-        rehabPlan,
-        maintenancePlan,
-        draftCampPlan,
-        completedCampPlan,
-        cancelledCampPlan,
-        deletedCampPlan,
-      ]);
-      repo.updatePlan.mockImplementation(async (id, data) => ({
-        ...fightCampPlan,
-        id,
-        ...data,
-      }));
-
-      for (const reason of ['KO', 'TKO', 'MEDICAL'] as const) {
-        repo.updatePlan.mockClear();
-        const susp = makeSuspensionRow({
-          reason,
-          requiresClearance: true,
-        });
-        suspensionsRepo.findSuspensionsByFighterId.mockResolvedValue([susp]);
-
-        const effect = await suspensionEffects.runOnCreated(
-          [susp],
-          tx as never,
-        );
-
-        // Ordered by planId ascending: plan1Id (taper), then plan2Id (fight_camp)
-        expect(effect.affectedPlans).toEqual([
-          { planId: plan1Id, fromPhase: 'taper', toPhase: 'rehab' },
-          { planId: plan2Id, fromPhase: 'fight_camp', toPhase: 'rehab' },
-        ]);
-        expect(repo.updatePlan).toHaveBeenCalledTimes(2);
-        expect(repo.updatePlan).toHaveBeenNthCalledWith(
-          1,
-          plan1Id,
-          { phase: 'rehab' },
-          tx,
-        );
-        expect(repo.updatePlan).toHaveBeenNthCalledWith(
-          2,
-          plan2Id,
-          { phase: 'rehab' },
-          tx,
-        );
-      }
-
-      for (const reason of ['DQ', 'MANDATORY_REST', 'OTHER'] as const) {
-        repo.lockActiveCampPlansByFighterId.mockClear();
-        repo.updatePlan.mockClear();
-        const susp = makeSuspensionRow({
-          reason,
-          requiresClearance: false,
-        });
-        suspensionsRepo.findSuspensionsByFighterId.mockResolvedValue([susp]);
-
-        const effect = await suspensionEffects.runOnCreated(
-          [susp],
-          tx as never,
-        );
-
-        expect(effect.affectedPlans).toEqual([]);
-        expect(repo.lockActiveCampPlansByFighterId).not.toHaveBeenCalled();
-        expect(repo.updatePlan).not.toHaveBeenCalled();
-      }
-    });
-  });
-
-  describe('Part A2: PENDING sessions when creating new suspensions (P1–P7)', () => {
-    const priorOtherSuspension = makeSuspensionRow({
-      id: '70000000-0000-4000-8000-000000000090',
-      fighterId,
-      reason: 'OTHER',
-      startsOn: '2026-11-01',
-      endsOn: '2026-11-07',
-      suggestedDays: 7,
-      blockedSessionTypes: [...DEFAULT_MANUAL_BLOCKED_SESSION_TYPES],
-      requiresClearance: false,
-      clearedAt: null,
-    });
-
-    function setupTransactionalHarness(initial: {
-      sessions: TrainingSessionEntity[];
-      suspensions?: SuspensionRow[];
-      plans?: TrainingPlanEntity[];
-      overrideLockedSession?: (
-        session: TrainingSessionEntity,
-      ) => TrainingSessionEntity | undefined;
-      failAfterRunOnCreated?: boolean;
-    }) {
-      let committedSessions = initial.sessions.map((s) => ({ ...s }));
-      let committedSuspensions = (initial.suspensions ?? []).map((s) => ({
-        ...s,
-      }));
-      let committedPlans = (initial.plans ?? []).map((p) => ({ ...p }));
-      const callOrder: string[] = [];
-
-      const txBuffers = new WeakMap<
-        Transaction,
-        {
-          sessions: TrainingSessionEntity[];
-          suspensions: SuspensionRow[];
-          plans: TrainingPlanEntity[];
-        }
-      >();
-
-      const requireTxBuffer = (database: unknown, op: string) => {
-        const buf = txBuffers.get(database as Transaction);
-        if (!buf) {
-          throw new Error(
-            `${op} was called without the active transaction object`,
-          );
-        }
-        return buf;
-      };
-
-      let insertCounter = 0;
-      suspensionsRepo.insertSuspension.mockImplementation(
-        async (values: unknown, database?: unknown) => {
-          const buf = requireTxBuffer(database, 'insertSuspension');
-          insertCounter += 1;
-          const created = makeSuspensionRow({
-            ...(values as Partial<SuspensionRow>),
-            id: `70000000-0000-4000-8000-00000000009${insertCounter}`,
-          });
-          buf.suspensions.push(created);
-          return created;
-        },
-      );
-
-      suspensionsRepo.findSuspensionsByFighterId.mockImplementation(
-        async (_fId: string, database?: unknown) => {
-          const buf = requireTxBuffer(database, 'findSuspensionsByFighterId');
-          return buf.suspensions.map((s) => ({ ...s }));
-        },
-      );
-
-      repo.findScheduledSessionsByFighterId.mockImplementation(
-        async (_fId: string, database?: unknown) => {
-          const buf = requireTxBuffer(
-            database,
-            'findScheduledSessionsByFighterId',
-          );
-          return buf.sessions
-            .filter((s) => s.status === 'SCHEDULED' && s.deletedAt === null)
-            .map((s) => ({ ...s }));
-        },
-      );
-
-      repo.findPendingSessionsByFighterId.mockImplementation(
-        async (_fId: string, database?: unknown) => {
-          const buf = requireTxBuffer(
-            database,
-            'findPendingSessionsByFighterId',
-          );
-          return buf.sessions
-            .filter((s) => s.status === 'PENDING' && s.deletedAt === null)
-            .map((s) => ({ ...s }));
-        },
-      );
-
-      repo.lockSessionById.mockImplementation(
-        async (id: string, database?: unknown) => {
-          const buf = requireTxBuffer(database, 'lockSessionById');
-          const found = buf.sessions.find((s) => s.id === id);
-          if (!found) return undefined;
-          return initial.overrideLockedSession
-            ? initial.overrideLockedSession({ ...found })
-            : { ...found };
-        },
-      );
-
-      repo.updateSessionStatus.mockImplementation(
-        async (
-          id: string,
-          _expectedStatus: string,
-          newStatus: TrainingSessionEntity['status'],
-          _stoppedAt: Date,
-          outcome: {
-            cancellationReason: string | null;
-            actualDurationSec: number | null;
-          },
-          database?: unknown,
-        ) => {
-          const buf = requireTxBuffer(database, 'updateSessionStatus');
-          callOrder.push(`db:updateSessionStatus:${id}:${newStatus}`);
-          const idx = buf.sessions.findIndex((s) => s.id === id);
-          if (idx === -1) return undefined;
-          const updated: TrainingSessionEntity = {
-            ...buf.sessions[idx]!,
-            status: newStatus,
-            cancellationReason: outcome.cancellationReason,
-            actualDurationSec: outcome.actualDurationSec,
-          };
-          buf.sessions[idx] = updated;
-          return { ...updated };
-        },
-      );
-
-      repo.lockActiveCampPlansByFighterId.mockImplementation(
-        async (_fId: string, database?: unknown) => {
-          const buf = requireTxBuffer(
-            database,
-            'lockActiveCampPlansByFighterId',
-          );
-          return buf.plans.map((p) => ({ ...p }));
-        },
-      );
-
-      repo.updatePlan.mockImplementation(
-        async (
-          id: string,
-          changes: Partial<TrainingPlanEntity>,
-          database?: unknown,
-        ) => {
-          const buf = requireTxBuffer(database, 'updatePlan');
-          callOrder.push(`db:updatePlan:${id}:${String(changes.phase)}`);
-          const idx = buf.plans.findIndex((p) => p.id === id);
-          if (idx === -1) return undefined;
-          const updated: TrainingPlanEntity = {
-            ...buf.plans[idx]!,
-            ...changes,
-          };
-          buf.plans[idx] = updated;
-          return { ...updated };
-        },
-      );
-
-      notifications.notifyResolved.mockImplementation(
-        async (resolve: () => Promise<unknown[]>) => {
-          const items = await resolve();
-          for (const item of items as Array<{ type: string }>) {
-            callOrder.push(`notify:${item.type}`);
-          }
-          return [{ status: 'queued' }];
-        },
-      );
-
-      suspensionsRepo.transaction.mockImplementation(async (work) => {
-        const activeTx = { execute: vi.fn() } as unknown as Transaction;
-        txBuffers.set(activeTx, {
-          sessions: committedSessions.map((s) => ({ ...s })),
-          suspensions: committedSuspensions.map((s) => ({ ...s })),
-          plans: committedPlans.map((p) => ({ ...p })),
-        });
-        callOrder.push('tx:begin');
-        const out = await work(activeTx);
-        if (initial.failAfterRunOnCreated) {
-          callOrder.push('tx:rollback');
-          throw new Error('Simulated transaction failure after runOnCreated');
-        }
-        const staged = txBuffers.get(activeTx)!;
-        committedSessions = staged.sessions;
-        committedSuspensions = staged.suspensions;
-        committedPlans = staged.plans;
-        callOrder.push('tx:commit');
-        return out;
-      });
-
-      const suspensionsService = new SuspensionsService(
-        suspensionsRepo,
-        suspensionEffects,
-      );
-
-      return {
-        suspensionsService,
-        callOrder,
-        getCommittedSessions: () => committedSessions,
-        getCommittedSuspensions: () => committedSuspensions,
-      };
-    }
-
-    beforeEach(() => {
-      vi.setSystemTime(new Date('2026-11-04T03:00:00.000Z'));
-    });
-
-    it('P1: cancels a PENDING SPARRING session (S1 on 2026-11-05 from prior OTHER 2026-11-01..07) when a KO suspension starting 2026-11-04 (requiresClearance = true) is created, sets reason "Suspension in force", returns {S1, CANCEL} in affectedSessions, and sends cancel notification once strictly after commit', async () => {
-      const s1 = makeSessionEntity({
-        id: session1Id,
-        sessionType: 'SPARRING',
-        scheduledAt: '2026-11-05T10:00:00.000Z',
-        status: 'PENDING',
-      });
-
-      const { suspensionsService, callOrder, getCommittedSessions } =
-        setupTransactionalHarness({
-          sessions: [s1],
-          suspensions: [priorOtherSuspension],
-        });
-
-      const res = await suspensionsService.createSuspension(
-        coachActor,
-        {
-          fighterId,
-          reason: 'KO',
-          startsOn: '2026-11-04',
-          days: 30,
-        },
-        'req-p1',
-      );
-
-      const [committedS1] = getCommittedSessions();
-      expect(committedS1?.status).toBe('CANCELLED');
-      expect(committedS1?.cancellationReason).toBe(
-        SUSPENSION_CONFLICT_CANCELLATION_REASON,
-      );
-      expect(res.affectedSessions).toEqual([
-        { sessionId: session1Id, action: 'CANCEL' },
-      ]);
-      expect(notifications.notifyResolved).toHaveBeenCalledTimes(1);
-      expect(callOrder).toEqual([
-        'tx:begin',
-        `db:updateSessionStatus:${session1Id}:CANCELLED`,
+        `repo:updateSessionStatus:${session2Id}`,
         'tx:commit',
         `notify:${NOTIFICATION_TYPE.TRAINING_SESSION_CANCELLED}`,
       ]);
+      expect(publishedPayloads).toHaveLength(2);
     });
 
-    it('P2: keeps S1 in PENDING with empty affectedSessions and no notification when a MANDATORY_REST suspension (2026-11-04..06, requiresClearance = false) is created', async () => {
-      const s1 = makeSessionEntity({
-        id: session1Id,
-        sessionType: 'SPARRING',
-        scheduledAt: '2026-11-05T10:00:00.000Z',
-        status: 'PENDING',
-      });
-
-      const { suspensionsService, getCommittedSessions } =
-        setupTransactionalHarness({
-          sessions: [s1],
-          suspensions: [priorOtherSuspension],
-        });
-
-      const res = await suspensionsService.createSuspension(
-        coachActor,
-        {
-          fighterId,
-          reason: 'MANDATORY_REST',
-          startsOn: '2026-11-04',
-          days: 3,
-        },
-        'req-p2',
-      );
-
-      const [committedS1] = getCommittedSessions();
-      expect(committedS1?.status).toBe('PENDING');
-      expect(res.affectedSessions).toEqual([]);
-      expect(repo.updateSessionStatus).not.toHaveBeenCalled();
-      expect(notifications.notifyResolved).not.toHaveBeenCalled();
-    });
-
-    it('P3: leaves PENDING RECOVERY session S2 on 2026-11-05 untouched when creating a default KO suspension (RECOVERY not blocked)', async () => {
-      const s2 = makeSessionEntity({
-        id: session2Id,
-        sessionType: 'RECOVERY',
-        scheduledAt: '2026-11-05T10:00:00.000Z',
-        status: 'PENDING',
-      });
-
-      const { suspensionsService, getCommittedSessions } =
-        setupTransactionalHarness({
-          sessions: [s2],
-          suspensions: [priorOtherSuspension],
-        });
-
-      const res = await suspensionsService.createSuspension(
-        coachActor,
-        {
-          fighterId,
-          reason: 'KO',
-          startsOn: '2026-11-04',
-          days: 30,
-        },
-        'req-p3',
-      );
-
-      const [committedS2] = getCommittedSessions();
-      expect(committedS2?.status).toBe('PENDING');
-      expect(res.affectedSessions).toEqual([]);
-      expect(repo.updateSessionStatus).not.toHaveBeenCalled();
-      expect(notifications.notifyResolved).not.toHaveBeenCalled();
-    });
-
-    it('P4: leaves PENDING SPARRING session S3 on 2026-10-20 (before KO startsOn 2026-11-04) untouched when creating a KO suspension from 2026-11-04', async () => {
-      const s3 = makeSessionEntity({
-        id: outsideSessionId,
-        sessionType: 'SPARRING',
-        scheduledAt: '2026-10-20T10:00:00.000Z',
-        status: 'PENDING',
-      });
-
-      const { suspensionsService, getCommittedSessions } =
-        setupTransactionalHarness({
-          sessions: [s3],
-          suspensions: [priorOtherSuspension],
-        });
-
-      const res = await suspensionsService.createSuspension(
-        coachActor,
-        {
-          fighterId,
-          reason: 'KO',
-          startsOn: '2026-11-04',
-          days: 30,
-        },
-        'req-p4',
-      );
-
-      const [committedS3] = getCommittedSessions();
-      expect(committedS3?.status).toBe('PENDING');
-      expect(res.affectedSessions).toEqual([]);
-      expect(repo.updateSessionStatus).not.toHaveBeenCalled();
-      expect(notifications.notifyResolved).not.toHaveBeenCalled();
-    });
-
-    it('P5: does not throw, does not modify S1, and omits S1 from affectedSessions when S1 is PENDING on read but already CANCELLED when locked', async () => {
-      const s1 = makeSessionEntity({
-        id: session1Id,
-        sessionType: 'SPARRING',
-        scheduledAt: '2026-11-05T10:00:00.000Z',
-        status: 'PENDING',
-      });
-
-      const { suspensionsService } = setupTransactionalHarness({
-        sessions: [s1],
-        suspensions: [priorOtherSuspension],
-        overrideLockedSession: (locked) => ({
-          ...locked,
-          status: 'CANCELLED',
-          cancellationReason: 'Cancelled by coach concurrently',
-        }),
-      });
-
-      const res = await suspensionsService.createSuspension(
-        coachActor,
-        {
-          fighterId,
-          reason: 'KO',
-          startsOn: '2026-11-04',
-          days: 30,
-        },
-        'req-p5',
-      );
-
-      expect(res.affectedSessions).toEqual([]);
-      expect(repo.updateSessionStatus).not.toHaveBeenCalled();
-      expect(notifications.notifyResolved).not.toHaveBeenCalled();
-    });
-
-    it('P6: keeps S1 in PENDING (does not promote staged CANCEL) and sends no notification when transaction throws after runOnCreated', async () => {
-      const s1 = makeSessionEntity({
-        id: session1Id,
-        sessionType: 'SPARRING',
-        scheduledAt: '2026-11-05T10:00:00.000Z',
-        status: 'PENDING',
-      });
-
-      const { suspensionsService, callOrder, getCommittedSessions } =
-        setupTransactionalHarness({
-          sessions: [s1],
-          suspensions: [priorOtherSuspension],
-          failAfterRunOnCreated: true,
-        });
+    it('forbids an unassigned coach or a doctor from applying conflicts', async () => {
+      const susp = makeSuspensionRow();
+      suspensionsRepo.findSuspensionById.mockResolvedValue(susp);
+      repo.isCoachAssignedToFighter.mockResolvedValue(false);
 
       await expect(
-        suspensionsService.createSuspension(
-          coachActor,
-          {
-            fighterId,
-            reason: 'KO',
-            startsOn: '2026-11-04',
-            days: 30,
-          },
-          'req-p6',
-        ),
-      ).rejects.toThrow();
+        service.applyConflicts(coachActor, suspensionId, {
+          sessionIds: [session1Id],
+        }),
+      ).rejects.toThrow(ForbiddenException);
 
-      const [committedS1] = getCommittedSessions();
-      expect(committedS1?.status).toBe('PENDING');
-      expect(committedS1?.cancellationReason).toBeNull();
-      expect(notifications.notifyResolved).not.toHaveBeenCalled();
-      expect(callOrder).toEqual([
-        'tx:begin',
-        `db:updateSessionStatus:${session1Id}:CANCELLED`,
-        'tx:rollback',
-      ]);
-    });
+      await expect(
+        service.applyConflicts(doctorActor, suspensionId, {
+          sessionIds: [session1Id],
+        }),
+      ).rejects.toThrow(ForbiddenException);
 
-    it('P7: DEFAULT_MANUAL_BLOCKED_SESSION_TYPES is SESSION_TYPES minus RECOVERY and PHYSICAL_THERAPY (C7); C1–C9 tests above run unchanged', async () => {
-      expect(DEFAULT_MANUAL_BLOCKED_SESSION_TYPES).toEqual(
-        SESSION_TYPES.filter(
-          (t) => t !== 'RECOVERY' && t !== 'PHYSICAL_THERAPY',
-        ),
-      );
+      expect(repo.transaction).not.toHaveBeenCalled();
     });
   });
 });

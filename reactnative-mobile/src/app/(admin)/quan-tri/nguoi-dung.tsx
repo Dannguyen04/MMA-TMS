@@ -1,6 +1,12 @@
-import { Redirect, type Href } from "expo-router";
+import { blocked } from "@/i18n/blocked";
+import { AdminPage } from "@/screens/admin/admin-page";
+import { DisabledForm, EmptyBlockedList } from "@/screens/parity/blocked-workspace";
 
-/** Giữ đường dẫn cũ: danh sách người dùng nay là tab "Người dùng" (chỉ đọc). */
-export default function AdminUsersLegacyRoute() {
-  return <Redirect href={"/(admin)/nguoi-dung" as Href} />;
+export default function AdminUsersRoute() {
+  return (
+    <AdminPage title={blocked.users} extra={blocked.adminUsers} onBack>
+      <EmptyBlockedList />
+      <DisabledForm fields={[{ label: "Email" }, { label: "Vai trò" }]} />
+    </AdminPage>
+  );
 }

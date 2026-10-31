@@ -75,15 +75,3 @@ yarn-error.*
 /AGENTS.override.md
 
 /AGENTS.md
-
-# Local plans, canvas references, API dumps and implementation notes
-/docs/
-/design/
-/.local/
-/LOCAL-NOTES/
-/NOTES.local.md
-
-# pnpm is the workspace package manager; do not commit a competing npm lockfile
-/package-lock.json
-
-# Runtime artwork belongs in assets/ and must remain versioned

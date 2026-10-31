@@ -62,14 +62,7 @@
       ],
       "./plugins/with-black-splash",
       "expo-video",
-      "expo-secure-store",
-      [
-        "expo-notifications",
-        {
-          "defaultChannel": "default"
-        }
-      ],
-      "expo-asset"
+      "expo-secure-store"
     ],
     "extra": {
       "EXPO_PUBLIC_API_URL": "http://localhost:3001"

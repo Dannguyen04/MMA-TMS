@@ -1,262 +1,194 @@
 import { useCallback, useEffect, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text } from "react-native";
 import { useRouter, type Href } from "expo-router";
 
 import {
-  getFighterMedical,
   getFighterMedicalSummary,
   type FighterMedicalSummary,
-  type MedicalDossier,
-  type MedicalExamination,
+  type MedicalStatus,
 } from "@/api";
-import {
-  clearanceStatusLabel,
-  decisionLabel,
-  formatMedicalDay,
-  formatMedicalWhen,
-  jointLabel,
-  jointStateLabel,
-  scopeLabel,
-  severityLabel,
-} from "@/components/medical/medical-format";
+import { useToastMessage } from "@/components/toast/app-toast";
 import { doctor } from "@/i18n/doctor";
-import { medical } from "@/i18n/medical";
-import { doctorUi } from "@/i18n/doctor-ui";
-import { spacing, type, useThemePreference } from "@/theme";
+import { mapApiMessage } from "@/session/map-api-message";
+import { useSession } from "@/session/session-context";
+import { type, useThemePreference } from "@/theme";
 
-import { medicalBadgeId } from "./badge-colors";
-import {
-  DoctorChrome,
-  DoctorPatientBar,
-  DoctorScroll,
-  FighterSwitchSheet,
-  clinicalMessage,
-  doctorMuted,
-  doctorStyles,
-} from "./doctor-chrome";
-import { DoctorRetry, KeyValueList, SectionTitle, SummaryCard, useDoctorText } from "./doctor-ui";
-import { DoctorCard } from "./doctor-chrome";
-import { StatusBadge } from "./status-badge";
-import { useRequestGuard } from "./request-guard";
+import { DoctorCard, DoctorChrome, doctorStyles, fighterName, formatWhen } from "./doctor-chrome";
 import { useSelectedFighter } from "./selected-fighter";
-import { doctorHref } from "@/navigation/role-href";
-import { Icon, type IconName } from "@/components/icon";
-import { MedicalOverviewSkeleton } from "@/components/screen-skeletons";
-import { EligibilitySection } from "./eligibility";
 
-function examLine(label: string, exam: MedicalExamination | null): string {
-  if (!exam) return `${label}: ${doctorUi.noConclusion}`;
-  return `${label}: ${decisionLabel(exam.decision)}`;
+function statusLabel(value: MedicalStatus): string {
+  return doctor.status[value];
 }
 
-function Destination({
-  icon,
-  title,
-  body,
-  href,
-}: {
-  icon: IconName;
-  title: string;
-  body: string;
-  href: Href;
-}) {
-  const { colors } = useThemePreference();
-  const muted = doctorMuted(colors);
-  const router = useRouter();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={() => router.push(href)}
-      style={({ pressed }) => [
-        {
-          flexDirection: "row",
-          alignItems: "center",
-          gap: spacing.md,
-          paddingVertical: spacing.md,
-          borderBottomWidth: 1,
-          borderBottomColor: colors.line,
-          opacity: pressed ? 0.7 : 1,
-        },
-      ]}
-    >
-      <Icon name={icon} size={20} tone="accent" />
-      <View style={{ flex: 1, gap: 4 }}>
-        <Text style={[type.body, { color: colors.ink }]}>{title}</Text>
-        <Text style={[type.caption, { color: muted }]} numberOfLines={1}>{body}</Text>
-      </View>
-      <Icon name="chevron" size={18} color={muted} />
-    </Pressable>
-  );
-}
-
+/**
+ * Doctor Y tế loads only the fighter medical summary.
+ * Body-measurement list/write and the training-session list are other roles.
+ * There is no doctor-scoped replacement for either list.
+ */
 export function DoctorMedicalScreen() {
-  const t = useDoctorText();
+  const { colors } = useThemePreference();
   const router = useRouter();
+  const { user, isDemo } = useSession();
   const { fighter } = useSelectedFighter();
-  const guard = useRequestGuard();
   const [summary, setSummary] = useState<FighterMedicalSummary | null>(null);
-  const [dossier, setDossier] = useState<MedicalDossier | null>(null);
   const [summaryError, setSummaryError] = useState("");
-  const [dossierError, setDossierError] = useState("");
+  useToastMessage(summaryError, "error");
   const [loading, setLoading] = useState(false);
-  const [sheet, setSheet] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const loadSummary = useCallback(async (token: number, fighterId: string) => {
-    try {
-      const next = await getFighterMedicalSummary(fighterId);
-      if (!guard.isCurrent(token)) return;
-      setSummary(next);
+  const load = useCallback(
+    async (soft = false) => {
+      if (isDemo || !fighter || user?.role !== "DOCTOR") {
+        setSummary(null);
+        setSummaryError("");
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+      if (soft) setRefreshing(true);
+      else setLoading(true);
       setSummaryError("");
-    } catch (cause: unknown) {
-      if (!guard.isCurrent(token)) return;
-      setSummary(null);
-      setSummaryError(clinicalMessage(cause));
-    }
-  }, [guard]);
 
-  const loadDossier = useCallback(async (token: number, fighterId: string) => {
-    try {
-      const next = await getFighterMedical(fighterId);
-      if (!guard.isCurrent(token)) return;
-      setDossier(next);
-      setDossierError("");
-    } catch (cause: unknown) {
-      if (!guard.isCurrent(token)) return;
-      setDossier(null);
-      setDossierError(clinicalMessage(cause));
-    }
-  }, [guard]);
+      try {
+        setSummary(await getFighterMedicalSummary(fighter.id));
+      } catch (cause: unknown) {
+        setSummary(null);
+        setSummaryError(mapApiMessage(cause));
+      }
 
-  const load = useCallback(async () => {
-    const token = guard.start();
-    setSummary(null);
-    setDossier(null);
-    setSummaryError("");
-    setDossierError("");
-    if (!fighter) {
       setLoading(false);
-      return;
-    }
-    setLoading(true);
-    await Promise.all([loadSummary(token, fighter.id), loadDossier(token, fighter.id)]);
-    if (guard.isCurrent(token)) setLoading(false);
-  }, [fighter, guard, loadDossier, loadSummary]);
+      setRefreshing(false);
+    },
+    [fighter, isDemo, user?.role],
+  );
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  /** Làm mới: giữ dữ liệu cũ, chỉ thay khi tải thành công; lỗi → toast. */
-  const refresh = useCallback(async () => {
-    if (!fighter) return;
-    const token = guard.start();
-    const [nextSummary, nextDossier] = await Promise.all([
-      getFighterMedicalSummary(fighter.id),
-      getFighterMedical(fighter.id),
-    ]);
-    if (!guard.isCurrent(token)) return;
-    setSummary(nextSummary);
-    setDossier(nextDossier);
-    setSummaryError("");
-    setDossierError("");
-  }, [fighter, guard]);
-
-  const clearanceBody = !summary
-    ? summaryError || doctor.overview.dossierMissing
-    : summary.activeClearance
-      ? `${clearanceStatusLabel(summary.activeClearance.status)} · ${
-          summary.activeClearance.validUntil
-            ? doctorUi.validUntil(formatMedicalDay(summary.activeClearance.validUntil))
-            : doctor.medical.noExpiry
-        }`
-      : doctor.medical.noClearance;
-
-  const injuryBody = !summary
-    ? summaryError || doctor.overview.dossierMissing
-    : summary.activeInjuries.length === 0
-      ? doctor.medical.noInjuries
-      : summary.activeInjuries
-          .map((injury) => `${jointLabel(injury.affectedJoint)} · ${severityLabel(injury.severity)}`)
-          .join(", ");
-
-  const recoveryBody = !dossier
-    ? dossierError || doctor.overview.dossierMissing
-    : dossier.activeRecoveryPlans.length === 0
-      ? doctor.recovery.empty
-      : dossier.activeRecoveryPlans.map((plan) => plan.title).join(", ");
-
-  const examBody = !dossier
-    ? dossierError || doctor.overview.dossierMissing
-    : [
-        examLine(scopeLabel("TRAINING"), dossier.currentExaminations.training),
-        examLine(scopeLabel("COMPETITION"), dossier.currentExaminations.competition),
-      ].join(" · ");
-
-  const injuryCount = summary?.activeInjuries.length ?? dossier?.activeInjuries.length ?? 0;
-  const requests = dossier?.openReviewRequests ?? [];
-
   return (
-    <DoctorChrome title={doctor.overview.title} back>
-      <FighterSwitchSheet visible={sheet} onClose={() => setSheet(false)} />
+    <DoctorChrome title={doctor.medical.title}>
       {!fighter ? (
-        <Text style={t.value}>{doctor.pickFighterHint}</Text>
-      ) : (
-        <DoctorScroll contentContainerStyle={doctorStyles.list} onRefresh={refresh}>
-          <DoctorPatientBar onChange={() => setSheet(true)} />
-          {loading && !summary && !dossier ? (
-            <MedicalOverviewSkeleton />
-          ) : (
-            <>
+        <DoctorCard>
+          <Text style={[type.body, { color: colors.inkMuted }]}>{doctor.pickFighterHint}</Text>
+        </DoctorCard>
+      ) : null}
 
-              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm }}>
-                <Text style={t.section}>{doctor.overview.currentStatus}</Text>
-                {summary ? (
-                  <StatusBadge id={medicalBadgeId(summary.currentMedicalStatus)} label={doctor.status[summary.currentMedicalStatus]} />
-                ) : null}
-              </View>
-    
-              <EligibilitySection dossier={dossier} error={dossierError} />
-              <DoctorRetry error={dossierError || summaryError} onRetry={() => void load()} />
-    
-              {dossier && (requests.length > 0 || injuryCount > 0) ? (
-                <>
-                  <SectionTitle text={doctorUi.needsAction} />
-                  {requests.map((row) => (
-                    <SummaryCard
-                      key={row.id}
-                      title={doctor.overview.requests}
-                      badges={<StatusBadge id={`review.${row.status}`} label={doctor.review[row.status]} />}
-                      meta={formatMedicalWhen(row.requestedAt)}
-                      preview={row.reason}
-                      onPress={() => router.push(doctorHref.records)}
-                    />
-                  ))}
-                </>
-              ) : null}
-    
-              <SectionTitle text={doctor.overview.open} />
-              <View>
-                <Destination icon="medicalRecord" title={medical.dossierTitle} body={doctor.overview.recordsHint} href={doctorHref.records} />
-                <Destination icon="clearance" title={doctor.medical.clearance} body={clearanceBody} href={doctorHref.clearance} />
-                <Destination icon="injury" title={doctor.medical.injuries} body={injuryBody} href={doctorHref.injuries} />
-                <Destination icon="body" title={medical.recoveryPlans} body={recoveryBody} href={doctorHref.recovery} />
-                <Destination icon="plans" title={medical.examsTab} body={examBody} href={doctorHref.examinations} />
-                <Destination icon="aiAlert" title={doctor.overview.aiAlerts} body={doctor.overview.aiAlertsBody} href={doctorHref.aiAlerts} />
-              </View>
-    
-              {summary && summary.jointStates.length > 0 ? (
-                <>
-                  <SectionTitle text={doctor.medical.joints} />
-                  <DoctorCard>
-                    <KeyValueList rows={summary.jointStates.map((joint) => ({ label: jointLabel(joint.joint), value: jointStateLabel(joint.currentState) }))} />
-                  </DoctorCard>
-                </>
-              ) : null}
+      {fighter && loading ? <ActivityIndicator color={colors.lotus} /> : null}
+
+      {fighter && !loading ? (
+        <ScrollView
+          contentContainerStyle={doctorStyles.list}
+          keyboardShouldPersistTaps="handled"
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} />
+          }
+        >
+          <Text style={[type.body, { color: colors.ink }]}>{fighterName(fighter)}</Text>
+          <Pressable onPress={() => router.push("/examinations" as Href)}>
+            <Text style={[type.link, { color: colors.lotus }]}>Khám baseline và đọc lại</Text>
+          </Pressable>
+          <Pressable onPress={() => router.push("/clearance" as Href)}>
+            <Text style={[type.link, { color: colors.lotus }]}>Cấp giấy phép</Text>
+          </Pressable>
+          <Pressable onPress={() => router.push("/injuries" as Href)}>
+            <Text style={[type.link, { color: colors.lotus }]}>Chấn thương</Text>
+          </Pressable>
+          <Pressable onPress={() => router.push("/recovery" as Href)}>
+            <Text style={[type.link, { color: colors.lotus }]}>Hồi phục</Text>
+          </Pressable>
+          <Pressable onPress={() => router.push("/records" as Href)}>
+            <Text style={[type.link, { color: colors.lotus }]}>Đọc hồ sơ</Text>
+          </Pressable>
+
+          <DoctorCard>
+            <Text style={[type.label, { color: colors.lotus }]}>{doctor.medical.disclaimerTitle}</Text>
+            <Text style={[type.body, { color: colors.ink }]}>{doctor.medical.disclaimer}</Text>
+            {summary?.disclaimer ? (
+              <Text style={[type.caption, { color: colors.inkMuted, lineHeight: 16 }]}>
+                {doctor.medical.serverNote}: {summary.disclaimer}
+              </Text>
+            ) : null}
+          </DoctorCard>
+
+          {summary ? (
+            <>
+              <DoctorCard>
+                <Text style={[type.label, { color: colors.inkMuted }]}>{doctor.medical.status}</Text>
+                <Text style={[type.body, { color: colors.ink }]}>
+                  {statusLabel(summary.currentMedicalStatus)}
+                </Text>
+              </DoctorCard>
+
+              <DoctorCard>
+                <Text style={[type.label, { color: colors.inkMuted }]}>{doctor.medical.clearance}</Text>
+                {summary.activeClearance ? (
+                  <>
+                    <Text style={[type.body, { color: colors.ink }]}>
+                      {summary.activeClearance.clearanceType} · {summary.activeClearance.status}
+                    </Text>
+                    <Text style={[type.body, { color: colors.inkMuted }]}>
+                      {doctor.medical.validUntil}:{" "}
+                      {summary.activeClearance.validUntil
+                        ? formatWhen(summary.activeClearance.validUntil)
+                        : doctor.medical.noExpiry}
+                    </Text>
+                  </>
+                ) : (
+                  <Text style={[type.body, { color: colors.inkMuted }]}>{doctor.medical.noClearance}</Text>
+                )}
+              </DoctorCard>
+
+              <DoctorCard>
+                <Text style={[type.label, { color: colors.inkMuted }]}>{doctor.medical.injuries}</Text>
+                {summary.activeInjuries.length === 0 ? (
+                  <Text style={[type.body, { color: colors.inkMuted }]}>{doctor.medical.noInjuries}</Text>
+                ) : (
+                  summary.activeInjuries.map((injury) => (
+                    <Text key={injury.id} style={[type.body, { color: colors.ink }]}>
+                      {injury.affectedJoint} · {injury.injuryType} · {injury.severity}
+                    </Text>
+                  ))
+                )}
+              </DoctorCard>
+
+              <DoctorCard>
+                <Text style={[type.label, { color: colors.inkMuted }]}>{doctor.medical.joints}</Text>
+                {summary.jointStates.length === 0 ? (
+                  <Text style={[type.body, { color: colors.inkMuted }]}>{doctor.medical.noJoints}</Text>
+                ) : (
+                  summary.jointStates.map((joint) => (
+                    <Text key={joint.id} style={[type.body, { color: colors.ink }]}>
+                      {joint.joint} · {joint.currentState}
+                    </Text>
+                  ))
+                )}
+              </DoctorCard>
             </>
-          )}
-        </DoctorScroll>
-      )}
+          ) : null}
+
+          <DoctorCard>
+            <Pressable accessibilityRole="button" onPress={() => router.push("/examinations" as Href)}>
+              <Text style={[type.link, { color: colors.lotus }]}>Khám</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={() => router.push("/injuries" as Href)}>
+              <Text style={[type.link, { color: colors.lotus }]}>Chấn thương</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={() => router.push("/recovery" as Href)}>
+              <Text style={[type.link, { color: colors.lotus }]}>Hồi phục</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={() => router.push("/clearance" as Href)}>
+              <Text style={[type.link, { color: colors.lotus }]}>Cấp giấy phép</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={() => router.push("/records" as Href)}>
+              <Text style={[type.link, { color: colors.lotus }]}>Hồ sơ y tế</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={() => router.push("/ai-alerts" as Href)}>
+              <Text style={[type.link, { color: colors.lotus }]}>Cảnh báo AI</Text>
+            </Pressable>
+          </DoctorCard>
+        </ScrollView>
+      ) : null}
     </DoctorChrome>
   );
 }
-

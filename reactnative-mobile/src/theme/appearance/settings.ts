@@ -1,7 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { normalizeHex } from "./color-math";
-import { DEFAULT_PALETTE_ID, PALETTE_IDS, type PaletteId } from "./theme-palettes";
 
 /** Legacy device-global key. Read once for migration; new writes use a scoped key. */
 export const APPEARANCE_STORAGE_KEY = "mma.ui.appearance.v1";
@@ -13,12 +12,7 @@ export const APPEARANCE_DEVICE_KEY = "mma.ui.appearance.v1.device";
 export const APPEARANCE_CORRUPT_KEY = "mma.ui.appearance.corrupt";
 /** Legacy bare-string key (`"light" | "dark" | "system"`); read once for migration, never deleted here. */
 export const LEGACY_THEME_PREFERENCE_KEY = "mma.ui.themePreference";
-/**
- * v2 (default-theme-v2): default moved from Synthetic Lime to "Đỏ võ đài" (classic Figma, follows system).
- * v3 (batch31): the Sáng/Tối/Đen tuyền presets folded into Đỏ võ đài + a separate mode.
- * v4 (batch32): mode Đen tuyền became mode Tối + kiểu tối Đen tuyền.
- */
-export const APPEARANCE_SCHEMA_VERSION = 4;
+export const APPEARANCE_SCHEMA_VERSION = 1;
 
 export type BrightnessMode = "light" | "dark" | "system" | "trueBlack";
 export type DarkVariant = "dark" | "trueBlack";
@@ -36,8 +30,6 @@ export type RadiusScale = "sharp" | "default" | "round";
 export type Density = "compact" | "comfortable" | "spacious";
 
 export type AppearanceSettings = {
-  /** Colour palette. "figma" is the old default (follows `mode`); others are fixed themes. */
-  paletteId: PaletteId;
   mode: BrightnessMode;
   systemDarkVariant: DarkVariant;
   fontFamily: FontFamilyId;
@@ -54,13 +46,6 @@ export type AppearanceSettings = {
 };
 
 export const BRIGHTNESS_MODES: readonly BrightnessMode[] = ["light", "dark", "system", "trueBlack"];
-/** Order of the Đỏ võ đài mode selector: Hệ thống / Sáng / Tối / Đen tuyền. */
-export const MODE_OPTIONS: readonly BrightnessMode[] = ["system", "light", "dark"];
-
-/** "Kiểu tối" (Tối / Đen tuyền) is offered when the mode can be dark: Tối or Hệ thống. */
-export function hasDarkStyle(mode: BrightnessMode): boolean {
-  return mode === "dark" || mode === "system";
-}
 export const DARK_VARIANTS: readonly DarkVariant[] = ["dark", "trueBlack"];
 export const FONT_FAMILY_IDS: readonly FontFamilyId[] = [
   "ibmPlexSans",
@@ -87,7 +72,6 @@ export const NUMERIC_RANGES: Record<NumericSettingKey, { min: number; max: numbe
 export const MAX_TOTAL_FONT_SCALE = 2;
 
 export const DEFAULT_SETTINGS: AppearanceSettings = {
-  paletteId: DEFAULT_PALETTE_ID,
   mode: "system",
   systemDarkVariant: "dark",
   fontFamily: "ibmPlexSans",
@@ -104,13 +88,10 @@ export const DEFAULT_SETTINGS: AppearanceSettings = {
 };
 
 export type PresetId =
-  | "synthetic"
-  | "toxicViolet"
-  | "warmLime"
-  | "chromeViolet"
-  | "carbonTeal"
-  | "hyperCobalt"
   | "system"
+  | "light"
+  | "dark"
+  | "trueBlack"
   | "paper"
   | "mint"
   | "highContrastLight"
@@ -121,7 +102,6 @@ export type PresetId =
   | "readable";
 
 const PAPER_COLORS = {
-  paletteId: "figma",
   mode: "light",
   backgroundColor: "#F4ECD8",
   surfaceColor: "#FBF6EA",
@@ -130,7 +110,6 @@ const PAPER_COLORS = {
 } as const satisfies Partial<AppearanceSettings>;
 
 const HIGH_CONTRAST_LIGHT = {
-  paletteId: "figma",
   mode: "light",
   backgroundColor: "#FFFFFF",
   surfaceColor: "#FFFFFF",
@@ -138,23 +117,13 @@ const HIGH_CONTRAST_LIGHT = {
   accentColor: "#5E4520",
 } as const satisfies Partial<AppearanceSettings>;
 
-const THEMED_PRESET_IDS: readonly PresetId[] = ["synthetic", "toxicViolet", "warmLime", "chromeViolet", "carbonTeal", "hyperCobalt"];
-
-/** Classic Figma palette; follows Sáng / Tối / Hệ thống. */
-const CLASSIC = { paletteId: "figma" } as const satisfies Partial<AppearanceSettings>;
-
-/** Order = order in the theme sheet. "system" (Đỏ võ đài, theo hệ thống) is the default; Synthetic Lime is a preset. */
 export const PRESETS: Record<PresetId, Partial<AppearanceSettings>> = {
-  system: { ...CLASSIC, mode: "system" },
-  synthetic: { paletteId: "synthetic", mode: "dark" },
-  toxicViolet: { paletteId: "toxicViolet", mode: "dark" },
-  warmLime: { paletteId: "warmLime", mode: "light" },
-  chromeViolet: { paletteId: "chromeViolet", mode: "light" },
-  carbonTeal: { paletteId: "carbonTeal", mode: "dark" },
-  hyperCobalt: { paletteId: "hyperCobalt", mode: "light" },
-  paper: { ...CLASSIC, ...PAPER_COLORS, fontFamily: "literata" },
+  system: { mode: "system" },
+  light: { mode: "light" },
+  dark: { mode: "dark" },
+  trueBlack: { mode: "trueBlack" },
+  paper: { ...PAPER_COLORS, fontFamily: "literata" },
   mint: {
-    ...CLASSIC,
     mode: "light",
     backgroundColor: "#E3EFE3",
     surfaceColor: "#F2F8F2",
@@ -163,7 +132,6 @@ export const PRESETS: Record<PresetId, Partial<AppearanceSettings>> = {
   },
   highContrastLight: HIGH_CONTRAST_LIGHT,
   highContrastDark: {
-    paletteId: "figma",
     mode: "dark",
     backgroundColor: "#000000",
     surfaceColor: "#000000",
@@ -178,39 +146,11 @@ export const PRESETS: Record<PresetId, Partial<AppearanceSettings>> = {
 
 export const PRESET_IDS = Object.keys(PRESETS) as PresetId[];
 
-/** The theme sheet: Đỏ võ đài (mặc định), the 6 colour themes, Bạc hà, Giấy. */
-export const THEME_LIST_IDS: readonly PresetId[] = ["system", ...THEMED_PRESET_IDS, "mint", "paper"];
-
-/** Second group of the same sheet, headed "Hỗ trợ đọc". */
-export const READING_SUPPORT_IDS: readonly PresetId[] = [
-  "highContrastLight",
-  "highContrastDark",
-  "largeText",
-  "lowVision",
-  "compact",
-  "readable",
-];
-
-/** The mode selector (Hệ thống / Sáng / Tối / Đen tuyền) belongs to Đỏ võ đài only. */
-export function hasModeSelector(presetId: PresetId): boolean {
-  return presetId === "system";
-}
-
-/** Unchanged preset? For Đỏ võ đài the chosen mode does not count as a customisation. */
-export function matchesPreset(applied: AppliedAppearance): boolean {
-  const base = resolvePreset(applied.presetId);
-  const expected = hasModeSelector(applied.presetId)
-    ? { ...base, mode: applied.settings.mode, systemDarkVariant: applied.settings.systemDarkVariant }
-    : base;
-  return settingsEqual(applied.settings, expected);
-}
-
 export type AppliedAppearance = {
   presetId: PresetId;
   settings: AppearanceSettings;
 };
 
-/** Default look: "Đỏ võ đài" (Figma, theo Sáng/Tối/Hệ thống). "Mặc định" / "Đặt lại" restores exactly this. */
 export const DEFAULT_APPEARANCE: AppliedAppearance = {
   presetId: "system",
   settings: DEFAULT_SETTINGS,
@@ -239,7 +179,6 @@ export function sanitizeSettings(raw: unknown): Partial<AppearanceSettings> {
   if (!raw || typeof raw !== "object") return {};
   const src = raw as Record<string, unknown>;
   const out: Partial<AppearanceSettings> = {};
-  if (isOneOf(PALETTE_IDS, src.paletteId)) out.paletteId = src.paletteId;
   if (isOneOf(BRIGHTNESS_MODES, src.mode)) out.mode = src.mode;
   if (isOneOf(DARK_VARIANTS, src.systemDarkVariant)) out.systemDarkVariant = src.systemDarkVariant;
   if (isOneOf(FONT_FAMILY_IDS, src.fontFamily)) out.fontFamily = src.fontFamily;
@@ -277,13 +216,14 @@ export function appearanceEqual(a: AppliedAppearance, b: AppliedAppearance): boo
  * so accent, font, contrast colors, density, and other overrides stay.
  */
 export function withBrightnessMode(current: AppliedAppearance, mode: BrightnessMode): AppliedAppearance {
-  // Sáng/Tối/Hệ thống/Đen tuyền belong to Đỏ võ đài (Figma palette), so picking one leaves any themed palette.
-  const modePreset = THEMED_PRESET_IDS.includes(current.presetId) || current.presetId === "system";
-  // Đen tuyền is now Tối + kiểu tối Đen tuyền.
-  const style = mode === "trueBlack" ? { mode: "dark" as const, systemDarkVariant: "trueBlack" as const } : { mode };
+  const modePreset =
+    current.presetId === "system" ||
+    current.presetId === "light" ||
+    current.presetId === "dark" ||
+    current.presetId === "trueBlack";
   return {
-    presetId: modePreset ? "system" : current.presetId,
-    settings: { ...current.settings, ...style, paletteId: "figma" },
+    presetId: modePreset ? mode : current.presetId,
+    settings: { ...current.settings, mode },
   };
 }
 
@@ -293,7 +233,7 @@ export const APPEARANCE_SECTION_KEYS: Record<
   AppearanceSectionId,
   readonly (keyof AppearanceSettings)[]
 > = {
-  theme: ["paletteId", "mode", "systemDarkVariant"],
+  theme: ["mode", "systemDarkVariant"],
   text: ["fontFamily", "fontScale", "fontWeight", "lineHeight", "letterSpacing"],
   colors: ["textColor", "backgroundColor", "surfaceColor", "accentColor"],
   layout: ["radiusScale", "density"],
@@ -329,7 +269,7 @@ function overridesFor(applied: AppliedAppearance): Partial<AppearanceSettings> {
 }
 
 export type StoredAppearanceV1 = {
-  version: typeof APPEARANCE_SCHEMA_VERSION;
+  version: 1;
   presetId: PresetId;
   overrides: Partial<AppearanceSettings>;
   updatedAt: string;
@@ -352,73 +292,15 @@ export type AppearanceLoadResult = {
   source: AppearanceLoadSource;
 };
 
-/** Keys whose presence in v1 `overrides` means the user picked colours/brightness themselves. */
-const COLOR_CHOICE_KEYS = ["paletteId", "mode", "textColor", "backgroundColor", "surfaceColor", "accentColor"] as const;
-
-/** Original Figma accent (fails AA) → corrected accent of "Đỏ võ đài". */
-export const LEGACY_FIGMA_ACCENT = "#D9492F";
-export const FIGMA_ACCENT = "#C23A22";
-
 /**
- * v1 → v2: v1 documents saved with preset "synthetic" and no colour/brightness override were on the
- * implicit old default (Synthetic Lime), so they move to the new default (preset "system", palette
- * "figma"); their font/layout overrides are kept. Any other preset or custom colour is kept as is.
- * A stored accent equal to the old Figma accent #D9492F becomes #C23A22 (same choice, AA-fixed).
+ * Future schema versions migrate here in order (`version` → `version + 1`).
+ * Empty today: v1 is the first versioned schema.
  */
-export function migrateAppearanceV1(doc: Record<string, unknown>): Record<string, unknown> {
-  const raw = doc.overrides && typeof doc.overrides === "object" ? (doc.overrides as Record<string, unknown>) : {};
-  const overrides: Record<string, unknown> = { ...raw };
-  if (typeof overrides.accentColor === "string" && overrides.accentColor.toUpperCase() === LEGACY_FIGMA_ACCENT) {
-    overrides.accentColor = FIGMA_ACCENT;
-  }
-  const implicitDefault =
-    doc.presetId === "synthetic" && !COLOR_CHOICE_KEYS.some((key) => key in raw);
-  return { ...doc, version: 2, presetId: implicitDefault ? DEFAULT_APPEARANCE.presetId : doc.presetId, overrides };
-}
-
-/** Presets removed in v3; each is Đỏ võ đài with that mode. */
-const FOLDED_MODE_PRESETS: Record<string, BrightnessMode> = { light: "light", dark: "dark", trueBlack: "trueBlack" };
-
-/**
- * v2 → v3: saved "light" / "dark" / "trueBlack" presets become Đỏ võ đài ("system" preset) with that
- * mode, unless the document already overrides the mode. Every other preset and override is kept.
- */
-export function migrateAppearanceV2(doc: Record<string, unknown>): Record<string, unknown> {
-  const folded = typeof doc.presetId === "string" ? FOLDED_MODE_PRESETS[doc.presetId] : undefined;
-  if (!folded) return { ...doc, version: 3 };
-  const raw = doc.overrides && typeof doc.overrides === "object" ? (doc.overrides as Record<string, unknown>) : {};
-  return { ...doc, version: 3, presetId: "system", overrides: { mode: folded, ...raw } };
-}
-
-/**
- * v3 → v4: mode "trueBlack" becomes mode "dark" + systemDarkVariant "trueBlack" (Kiểu tối Đen tuyền).
- * Kiểu tối now also applies to Tối, so a saved Tối that only carried a Đen tuyền night variant for
- * Hệ thống keeps its plain dark look (variant reset to "dark").
- */
-export function migrateAppearanceV3(doc: Record<string, unknown>): Record<string, unknown> {
-  const raw = doc.overrides && typeof doc.overrides === "object" ? (doc.overrides as Record<string, unknown>) : {};
-  const overrides: Record<string, unknown> = { ...raw };
-  const preset = typeof doc.presetId === "string" ? PRESETS[doc.presetId as PresetId] : undefined;
-  const mode = overrides.mode ?? preset?.mode ?? DEFAULT_SETTINGS.mode;
-  if (mode === "trueBlack") {
-    overrides.mode = "dark";
-    overrides.systemDarkVariant = "trueBlack";
-  } else if (mode === "dark" && overrides.systemDarkVariant === "trueBlack") {
-    overrides.systemDarkVariant = "dark";
-  }
-  return { ...doc, version: 4, overrides };
-}
-
-/** Schema versions migrate here in order (`version` → `version + 1`). */
-const MIGRATIONS: Record<number, (old: Record<string, unknown>) => Record<string, unknown>> = {
-  1: migrateAppearanceV1,
-  2: migrateAppearanceV2,
-  3: migrateAppearanceV3,
-};
+const MIGRATIONS: Record<number, (old: Record<string, unknown>) => Record<string, unknown>> = {};
 
 function fromLegacy(legacy: string | null): AppliedAppearance | null {
   if (legacy !== "light" && legacy !== "dark" && legacy !== "system") return null;
-  return { presetId: "system", settings: { ...resolvePreset("system"), mode: legacy } };
+  return { presetId: legacy, settings: { ...resolvePreset(legacy), mode: legacy } };
 }
 
 export function parseStoredAppearance(
@@ -457,7 +339,7 @@ export function parseStoredAppearance(
     version += 1;
   }
 
-  const presetId = isOneOf(PRESET_IDS, doc.presetId) ? doc.presetId : DEFAULT_APPEARANCE.presetId;
+  const presetId = isOneOf(PRESET_IDS, doc.presetId) ? doc.presetId : "system";
   const settings = { ...resolvePreset(presetId), ...sanitizeSettings(doc.overrides) };
   return { applied: { presetId, settings }, source: "stored" };
 }

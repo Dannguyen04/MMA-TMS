@@ -1,3 +1,4 @@
+import { getLocale, getDemoCopy } from "@/lib/i18n/server";
 import { ClipboardList, LayoutGrid, Plus, Rows3 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -18,21 +19,16 @@ import { planAdherencePct } from "@/components/training/training-utils";
 import { ViewToggle } from "@/components/training/view-toggle";
 import { accessibleFighterIds } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
-import { PLAN_STATUS_LABELS, planStatusLabel, TRAINING_PHASE_LABELS, trainingPhaseLabel } from "@/lib/domain/labels";
+import { PLAN_STATUS_LABELS, TRAINING_PHASE_LABELS } from "@/lib/domain/labels";
 import type { PlanStatus, TrainingPhase, TrainingPlan } from "@/lib/domain/types";
 import { formatPercent } from "@/lib/format";
-import { getTranslator } from "@/lib/i18n/server";
-import { plural } from "@/lib/i18n/translate";
 import { paginate, parseEnum, parseSortDirection, sortItems } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { listFighters } from "@/lib/services/people";
 import { listPlans, listSessions } from "@/lib/services/training";
 import { groupBy, param } from "@/lib/utils";
 
-export async function generateMetadata(): Promise<Metadata> {
-    const { t } = await getTranslator();
-    return { title: t("training.coachPlans.title") };
-}
+export async function generateMetadata(): Promise<Metadata> { const copy = await getDemoCopy(); return { title: copy("Training plans") }; }
 
 const STATUSES = Object.keys(PLAN_STATUS_LABELS) as PlanStatus[];
 const PHASES = Object.keys(TRAINING_PHASE_LABELS) as TrainingPhase[];
@@ -40,7 +36,8 @@ const SORT_KEYS = ["title", "fighter", "status", "phase", "start", "adherence"] 
 const VIEWS = ["grid", "table"] as const;
 
 export default async function CoachPlansPage({ searchParams }: PageProps<"/coach/training-plans">) {
-    const { t, locale } = await getTranslator();
+    const copy = await getDemoCopy();
+    const locale = await getLocale();
     const user = await requireRole("coach");
     const params = await searchParams;
     const scope = accessibleFighterIds(user);
@@ -92,15 +89,14 @@ export default async function CoachPlansPage({ searchParams }: PageProps<"/coach
     const newPlanButton = (
         <ButtonLink href={routes.coach.newPlan}>
             <Plus aria-hidden />
-            {t("training.coachPlans.newPlan")}
-        </ButtonLink>
+            {copy("New plan")} </ButtonLink>
     );
 
     return (
         <>
             <PageHeader
-                title={t("training.coachPlans.title")}
-                description={t("training.coachPlans.description", { count: plural(t, "training.coachPlans.activePlansCount", activeCount) })}
+                title={copy("Training plans")}
+                description={copy("{n} active plans on your roster", { n: activeCount })}
                 actions={newPlanButton}
             />
 
@@ -108,49 +104,46 @@ export default async function CoachPlansPage({ searchParams }: PageProps<"/coach
                 <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
                     <FilterBar
                         filters={[
-                            { type: "search", name: "q", label: t("training.coachPlans.searchLabel"), placeholder: t("training.coachPlans.searchPlaceholder") },
-                            { type: "select", name: "fighter", label: t("training.coachPlans.filterFighters"), options: fighters.map((f) => ({ value: f.id, label: f.name })) },
-                            { type: "select", name: "status", label: t("training.coachPlans.filterStatuses"), options: STATUSES.map((value) => ({ value, label: planStatusLabel(t, value) })) },
-                            { type: "select", name: "phase", label: t("training.coachPlans.filterPhases"), options: PHASES.map((value) => ({ value, label: trainingPhaseLabel(t, value) })) },
+                            { type: "search", name: "q", label: copy("Search plans"), placeholder: copy("Search title, objective or fighter") },
+                            { type: "select", name: "fighter", label: copy("Fighters"), options: fighters.map((f) => ({ value: f.id, label: f.name })) },
+                            { type: "select", name: "status", label: copy("Statuses"), options: STATUSES.map((value) => ({ value, label: copy(PLAN_STATUS_LABELS[value]) })) },
+                            { type: "select", name: "phase", label: copy("Phases"), options: PHASES.map((value) => ({ value, label: copy(TRAINING_PHASE_LABELS[value]) })) },
                         ]}
                     />
                     <ViewToggle
-                        label={t("training.coachPlans.viewLayout")}
+                        label={copy("Plan layout")}
                         active={view}
                         defaultValue="grid"
                         pathname={pathname}
                         searchParams={params}
                         reset={["page"]}
                         options={[
-                            { value: "grid", label: t("training.coachPlans.viewCards"), icon: LayoutGrid },
-                            { value: "table", label: t("training.coachPlans.viewTable"), icon: Rows3 },
+                            { value: "grid", label: copy("Cards"), icon: LayoutGrid },
+                            { value: "table", label: copy("Table"), icon: Rows3 },
                         ]}
                     />
                 </div>
 
                 <p className="text-sm text-fg-muted" aria-live="polite">
-                    {hasFilters
-                        ? t("training.coachPlans.showingMatching", { count: plural(t, "training.coachPlans.plansCount", filtered.length) })
-                        : t("training.coachPlans.showingAll", { count: plural(t, "training.coachPlans.plansCount", filtered.length) })}
+                    {hasFilters ? copy("Showing {n} plans matching your filters", { n: filtered.length }) : copy("Showing all {n} plans", { n: filtered.length })}
                 </p>
 
                 {page.total === 0 ? (
                     hasFilters ? (
                         <EmptyState
                             icon={<ClipboardList />}
-                            title={t("training.coachPlans.noMatchingTitle")}
-                            description={t("training.coachPlans.noMatchingDesc")}
+                            title={copy("No plans match these filters")}
+                            description={copy("Try different filters, or clear the search.")}
                             action={
                                 <ButtonLink href={view === "grid" ? pathname : `${pathname}?view=table`} variant="secondary">
-                                    {t("training.coachPlans.clearFilters")}
-                                </ButtonLink>
+                                    {copy("Clear filters")} </ButtonLink>
                             }
                         />
                     ) : (
                         <EmptyState
                             icon={<ClipboardList />}
-                            title={t("training.coachPlans.noPlansTitle")}
-                            description={t("training.coachPlans.noPlansDesc")}
+                            title={copy("No training plans yet")}
+                            description={copy("Create a plan to set a fighter's objective and dates, then schedule sessions against it.")}
                             action={newPlanButton}
                         />
                     )
@@ -174,37 +167,36 @@ export default async function CoachPlansPage({ searchParams }: PageProps<"/coach
                         </ul>
                         {page.pageCount > 1 && (
                             <div className="mt-4 overflow-hidden rounded-xl border border-border bg-surface">
-                                <Pagination
-                                    locale={locale}
+                                <Pagination locale={locale}
                                     page={page.page}
                                     pageCount={page.pageCount}
                                     total={page.total}
                                     pageSize={page.pageSize}
                                     pathname={pathname}
                                     searchParams={params}
-                                    itemLabel={t("training.coachPlans.itemLabel")}
+                                    itemLabel={copy("plans")}
                                 />
                             </div>
                         )}
                     </div>
                 ) : (
                     <Card className="overflow-hidden">
-                        <Table caption={t("training.coachPlans.tableCaption")} className="relative">
+                        <Table caption={copy("Training plans")} className="relative">
                             <THead>
                                 <tr>
                                     {(
                                         [
-                                            ["title", t("training.coachPlans.thPlan")],
-                                            ["fighter", t("training.coachPlans.thFighter")],
-                                            ["status", t("training.coachPlans.thStatus")],
-                                            ["phase", t("training.coachPlans.thPhase")],
-                                            ["start", t("training.coachPlans.thDates")],
-                                            ["adherence", t("training.coachPlans.thAdherence")],
+                                            ["title", copy("Plan")],
+                                            ["fighter", copy("Fighter")],
+                                            ["status", copy("Status")],
+                                            ["phase", copy("Phase")],
+                                            ["start", copy("Dates")],
+                                            ["adherence", copy("Adherence")],
                                         ] as const
                                     ).map(([key, label]) => (
                                         <SortableTH
                                             key={key}
-                                            label={label}
+                                            label={copy(label)}
                                             sortKey={key}
                                             pathname={pathname}
                                             searchParams={params}
@@ -225,9 +217,7 @@ export default async function CoachPlansPage({ searchParams }: PageProps<"/coach
                                                     {plan.title}
                                                 </Link>
                                                 <p className="text-xs text-fg-muted">
-                                                    {plan.weeklySessionTarget !== null &&
-                                                        t("training.coachPlans.targetSessionsAWeek", { count: plural(t, "training.sessionsCount", plan.weeklySessionTarget) })}
-                                                    {t("training.plan.coach")}{" "}
+                                                    {plan.weeklySessionTarget !== null && copy("{n} sessions a week · ", { n: plan.weeklySessionTarget })}{copy("Coach")} {" "}
                                                     {coachNames[plan.coachId] ?? "—"}
                                                 </p>
                                             </TD>
@@ -235,7 +225,7 @@ export default async function CoachPlansPage({ searchParams }: PageProps<"/coach
                                             <TD>
                                                 <PlanStatusBadge locale={locale} status={plan.status} size="sm" />
                                             </TD>
-                                            <TD className="whitespace-nowrap text-fg-muted">{trainingPhaseLabel(t, plan.phase)}</TD>
+                                            <TD className="whitespace-nowrap text-fg-muted">{copy(TRAINING_PHASE_LABELS[plan.phase])}</TD>
                                             <TD className="whitespace-nowrap">
                                                 <PlanDates plan={plan} short />
                                             </TD>
@@ -243,7 +233,7 @@ export default async function CoachPlansPage({ searchParams }: PageProps<"/coach
                                                 {pct === undefined ? (
                                                     <span className="text-fg-subtle">—</span>
                                                 ) : (
-                                                    <ProgressBar value={pct} label={t("training.coachPlans.adherenceAria", { title: plan.title })} valueText={formatPercent(pct)} size="sm" />
+                                                    <ProgressBar value={pct} label={copy("Adherence for {title}", { title: plan.title })} valueText={formatPercent(pct)} size="sm" />
                                                 )}
                                             </TD>
                                         </TR>
@@ -252,14 +242,13 @@ export default async function CoachPlansPage({ searchParams }: PageProps<"/coach
                             </TBody>
                         </Table>
                         <Pagination
-                            locale={locale}
                             page={page.page}
                             pageCount={page.pageCount}
                             total={page.total}
                             pageSize={page.pageSize}
                             pathname={pathname}
                             searchParams={params}
-                            itemLabel={t("training.coachPlans.itemLabel")}
+                            itemLabel="plans"
                         />
                     </Card>
                 )}

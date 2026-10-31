@@ -1,28 +1,22 @@
 "use client";
 
-import { useT } from "@/components/i18n/locale-provider";
+import { useDemoCopy } from "@/components/i18n/locale-provider";
 import { Dumbbell, PenLine, Plus, Trash2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
-import { TermHint } from "@/components/domain/term-hint";
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/dialog";
-import { Field, FormMessage, Input, Textarea } from "@/components/ui/form";
+import { Field, Input, Select, Textarea } from "@/components/ui/form";
 import { EmptyState } from "@/components/ui/states";
-import { SubmitButton } from "@/components/ui/submit-button";
 import { useToast } from "@/components/ui/toast";
-import { useActionForm, type ActionForm } from "@/components/ui/use-action-form";
+import type { ActionForm } from "@/components/ui/use-action-form";
 import { useConfirmAction } from "@/components/ui/use-confirm-action";
 import type { ActionState } from "@/lib/actions/state";
-import { addPlanExercises, removePlanExercise, updatePlanExercise, type AddPlanExercisesResult } from "@/lib/actions/training";
-import type { GlossaryTerm } from "@/lib/domain/glossary";
-import { exerciseCategoryLabel } from "@/lib/domain/labels";
+import { addPlanExercise, removePlanExercise, updatePlanExercise } from "@/lib/actions/training";
+import { EXERCISE_CATEGORY_LABELS } from "@/lib/domain/labels";
 import type { Exercise, PlanExercise } from "@/lib/domain/types";
-import { plural, type Translator } from "@/lib/i18n/translate";
-import { sentDrafts, serializePlanExerciseDrafts, type PlanExerciseDraft } from "./plan-drafts";
-import { PlanExerciseRows } from "./plan-exercise-rows";
 
 export interface PlanExercisesCardProps {
     planId: string;
@@ -34,85 +28,68 @@ export interface PlanExercisesCardProps {
 }
 
 /** "4 sets × 10 reps · 20 min · RPE 7", or null when nothing is prescribed. */
-function prescription(item: PlanExercise, t: Translator): string | null {
-    const volume = [
-        item.sets === null ? null : `${item.sets} ${t("training.planExercises.fieldSets").toLowerCase()}`,
-        item.reps === null ? null : `${item.reps} ${t("training.planExercises.fieldReps").toLowerCase()}`
-    ].filter(Boolean).join(" × ");
-    const parts = [
-        volume || null,
-        item.durationSec === null ? null : t("training.planExercises.durationMin", { min: Math.round(item.durationSec / 60) }),
-        item.targetRpe === null ? null : t("training.planExercises.rpeVal", { rpe: item.targetRpe })
-    ];
+function prescription(item: PlanExercise, copy: ReturnType<typeof useDemoCopy>): string | null {
+    const volume = [item.sets === null ? null : copy("{n} sets", { n: item.sets }), item.reps === null ? null : copy("{n} reps", { n: item.reps })].filter(Boolean).join(" × ");
+    const parts = [volume || null, item.durationSec === null ? null : copy("{n} minutes", { n: Math.round(item.durationSec / 60) }), item.targetRpe === null ? null : `RPE ${item.targetRpe}`];
     return parts.filter(Boolean).join(" · ") || null;
 }
 
 /** Drills prescribed across a training plan, in running order. */
 export function PlanExercisesCard({ planId, items, library, editable }: PlanExercisesCardProps) {
-    const t = useT();
+    const copy = useDemoCopy();
     const byId = new Map(library.map((exercise) => [exercise.id, exercise]));
-    const nameOf = (item: PlanExercise) => byId.get(item.exerciseId)?.name ?? t("training.planExercises.fieldExercise");
+    const nameOf = (item: PlanExercise) => byId.get(item.exerciseId)?.name ?? copy("Exercise");
     const toast = useToast();
     const [editing, setEditing] = useState<PlanExercise | null>(null);
     const [adding, setAdding] = useState(false);
-    const addButtonRef = useRef<HTMLButtonElement>(null);
     const remove = useConfirmAction((item: PlanExercise) => removePlanExercise(planId, item.id), {
-        onSuccess: (state) => toast({ title: state.message ?? t("training.planExercises.removedToast") }),
+        onSuccess: (state) => toast({ title: state.message ?? copy("Exercise removed.") }),
     });
-
-    const closeAdding = () => {
-        setAdding(false);
-        window.requestAnimationFrame(() => addButtonRef.current?.focus());
-    };
 
     return (
         <Card className="min-w-0">
             <CardHeader
-                title={t("training.planExercises.title")}
-                description={t("training.planExercises.description")}
+                title={copy("Plan exercises")}
+                description={copy("Drills prescribed across the plan, in running order.")}
                 icon={<Dumbbell />}
                 action={
-                    editable &&
-                    !adding && (
-                        <Button ref={addButtonRef} variant="secondary" size="sm" onClick={() => setAdding(true)}>
+                    editable && (
+                        <Button variant="secondary" size="sm" onClick={() => setAdding(true)}>
                             <Plus aria-hidden />
-                            {t("training.planExercises.addMany")}
-                        </Button>
+                            {copy("Add exercise")} </Button>
                     )
                 }
             />
-            <CardContent className="flex flex-col gap-5">
+            <CardContent>
                 {items.length === 0 ? (
-                    !adding && (
-                        <EmptyState
-                            compact
-                            icon={<Dumbbell />}
-                            title={t("training.planExercises.emptyTitle")}
-                            description={editable ? t("training.planExercises.emptyDescCoach") : t("training.planExercises.emptyDescFighter")}
-                            className="pt-0"
-                        />
-                    )
+                    <EmptyState
+                        compact
+                        icon={<Dumbbell />}
+                        title={copy("No exercises on this plan yet")}
+                        description={editable ? copy("Add the drills this plan is built around, with sets, reps or time.") : copy("Your coach hasn't listed exercises for this plan.")}
+                        className="pt-0"
+                    />
                 ) : (
                     <ol className="flex flex-col divide-y divide-border">
                         {items.map((item, index) => {
                             const exercise = byId.get(item.exerciseId);
-                            const details = prescription(item, t);
+                            const details = prescription(item, copy);
                             return (
                                 <li key={item.id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
                                     <span className="mt-0.5 w-5 shrink-0 text-right text-[13px] text-fg-subtle tabular-nums">{index + 1}.</span>
                                     <div className="min-w-0 flex-1">
                                         <p className="text-sm font-medium text-fg">{nameOf(item)}</p>
                                         <p className="text-[13px] text-fg-muted">
-                                            {[exercise ? exerciseCategoryLabel(t, exercise.category) : null, details].filter(Boolean).join(" · ") || t("training.planExercises.noPrescription")}
+                                            {[exercise ? copy(EXERCISE_CATEGORY_LABELS[exercise.category]) : null, details].filter(Boolean).join(" · ") || copy("No prescription set")}
                                         </p>
                                         {item.notes && <p className="mt-1 text-[13px] text-pretty text-fg-muted">{item.notes}</p>}
                                     </div>
                                     {editable && (
                                         <div className="flex shrink-0 items-center gap-1">
-                                            <Button variant="ghost" size="icon-sm" onClick={() => setEditing(item)} aria-label={t("training.planExercises.editAria", { name: nameOf(item) })}>
+                                            <Button variant="ghost" size="icon-sm" onClick={() => setEditing(item)} aria-label={copy("Edit {title}", { title: nameOf(item) })}>
                                                 <PenLine aria-hidden />
                                             </Button>
-                                            <Button variant="ghost" size="icon-sm" onClick={() => remove.request(item)} aria-label={t("training.planExercises.removeAria", { name: nameOf(item) })} className="hover:text-danger-fg">
+                                            <Button variant="ghost" size="icon-sm" onClick={() => remove.request(item)} aria-label={copy("Remove {title}", { title: nameOf(item) })} className="hover:text-danger-fg">
                                                 <Trash2 aria-hidden />
                                             </Button>
                                         </div>
@@ -122,39 +99,39 @@ export function PlanExercisesCard({ planId, items, library, editable }: PlanExer
                         })}
                     </ol>
                 )}
-
-                {editable && adding && (
-                    <AddExercisesPanel
-                        planId={planId}
-                        library={library}
-                        onDone={(message) => {
-                            toast({ title: message });
-                            closeAdding();
-                        }}
-                        onCancel={closeAdding}
-                    />
-                )}
             </CardContent>
 
             {editable && (
                 <>
                     <ActionDialog
+                        open={adding}
+                        onClose={() => setAdding(false)}
+                        title={copy("Add an exercise")}
+                        description={copy("It's added at the end of the plan. Leave anything you don't prescribe empty.")}
+                        action={(previous: ActionState, fd: FormData) => addPlanExercise(planId, previous, fd)}
+                        submitLabel={copy("Add exercise")}
+                        pendingLabel="Adding…"
+                        onSuccess={(state) => toast({ title: state.message ?? copy("Exercise added.") })}
+                    >
+                        {(form) => <PlanExerciseFields form={form} library={library} />}
+                    </ActionDialog>
+                    <ActionDialog
                         open={editing !== null}
                         onClose={() => setEditing(null)}
-                        title={editing ? t("training.planExercises.dialogEditTitle", { name: nameOf(editing) }) : t("training.planExercises.dialogEditGeneric")}
+                        title={editing ? copy("Edit {title}", { title: nameOf(editing) }) : copy("Edit exercise")}
                         action={(previous: ActionState, fd: FormData) => (editing ? updatePlanExercise(planId, editing.id, previous, fd) : Promise.resolve(previous))}
-                        submitLabel={t("training.planExercises.submitEdit")}
-                        pendingLabel={t("training.planExercises.submittingEdit")}
-                        onSuccess={(state) => toast({ title: state.message ?? t("training.planExercises.updatedToast") })}
+                        submitLabel="Save exercise"
+                        pendingLabel={copy("Saving…")}
+                        onSuccess={(state) => toast({ title: state.message ?? copy("Exercise updated.") })}
                     >
                         {(form) => editing && <PlanExerciseFields form={form} item={editing} />}
                     </ActionDialog>
                     <ConfirmDialog
                         {...remove.dialogProps}
                         tone="danger"
-                        title={remove.payload ? t("training.planExercises.dialogRemoveTitle", { name: nameOf(remove.payload) }) : t("training.planExercises.dialogRemoveGeneric")}
-                        description={t("training.planExercises.dialogRemoveDesc")}
-                        confirmLabel={t("training.planExercises.confirmRemove")}
+                        title={remove.payload ? copy("Remove {title}?", { title: nameOf(remove.payload) }) : copy("Remove this exercise?")}
+                        description={copy("It's taken off the plan. Sessions already scheduled don't change.")}
+                        confirmLabel={copy("Remove exercise")}
                     />
                 </>
             )}
@@ -162,87 +139,38 @@ export function PlanExercisesCard({ planId, items, library, editable }: PlanExer
     );
 }
 
-/**
- * Adds several exercises in one go, inline: search the library, set each dose, save once. Exercises the service
- * refuses stay listed with the reason, so the coach can fix them and save again.
- */
-function AddExercisesPanel({ planId, library, onDone, onCancel }: { planId: string; library: Exercise[]; onDone(message: string): void; onCancel(): void }) {
-    const t = useT();
-    const [rows, setRows] = useState<PlanExerciseDraft[]>([]);
-    const rowsRef = useRef(rows);
-    useEffect(() => {
-        rowsRef.current = rows;
-    });
-    const form = useActionForm<AddPlanExercisesResult>((previous, fd) => addPlanExercises(planId, previous, fd), {
-        id: "plan-add-exercises",
-        hiddenFields: ["exercises"],
-        onSuccess: (state) => onDone(state.message ?? t("training.planExercises.addedManyToast")),
-        onError: (state) => {
-            const failedRows = state.data?.failedRows;
-            if (!failedRows) return;
-            const sent = sentDrafts(rowsRef.current);
-            const keep = new Set(failedRows.map((index) => sent[index]?.key).filter(Boolean));
-            setRows((current) => current.filter((row) => keep.has(row.key)));
-        },
-    });
-    const count = sentDrafts(rows).length;
-
-    return (
-        <form {...form.formProps} className="flex flex-col gap-4 border-t border-border pt-5" aria-label={t("training.planExercises.panelAria")}>
-            <input type="hidden" name="exercises" value={serializePlanExerciseDrafts(rows)} />
-            <div>
-                <h3 className="text-sm font-semibold text-fg">{t("training.planExercises.addMany")}</h3>
-                <p className="mt-0.5 text-[13px] text-fg-muted">{t("training.planExercises.panelDesc")}</p>
-            </div>
-            <PlanExerciseRows
-                idPrefix="plan-add"
-                rows={rows}
-                onChange={setRows}
-                library={library}
-                error={form.error}
-                markEdited={form.markEdited}
-                emptyText={t("training.planExercises.panelEmpty")}
-            />
-            <FormMessage {...form.message} />
-            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                <Button variant="ghost" onClick={onCancel} disabled={form.pending}>
-                    {t("training.planExercises.cancel")}
-                </Button>
-                <SubmitButton pending={form.pending} pendingLabel={t("training.planExercises.submittingAdd")} disabled={count === 0}>
-                    {count === 0 ? t("training.planExercises.addMany") : plural(t, "training.planExercises.addCount", count)}
-                </SubmitButton>
-            </div>
-        </form>
-    );
-}
-
-const FIELD_TERMS: Record<"sets" | "reps" | "durationMin" | "targetRpe", GlossaryTerm> = {
-    sets: "sets",
-    reps: "reps",
-    durationMin: "exerciseMinutes",
-    targetRpe: "rpe",
-};
-
-/** The prescription fields when editing one exercise. */
-function PlanExerciseFields({ form, item }: { form: ActionForm<undefined>; item: PlanExercise }) {
-    const t = useT();
+/** The prescription fields, shared by adding and editing. The exercise is only chosen when adding. */
+function PlanExerciseFields({ form, library, item }: { form: ActionForm<undefined>; library?: Exercise[]; item?: PlanExercise }) {
+    const copy = useDemoCopy();
     const { control, error } = form;
     const numberField = (name: "sets" | "reps" | "durationMin" | "targetRpe", label: string, max: number, value: number | null) => (
-        <Field label={label} htmlFor={control(name).id} optional info={<TermHint term={FIELD_TERMS[name]} />} error={error(name)}>
+        <Field label={label} htmlFor={control(name).id} optional error={error(name)}>
             <Input {...control(name)} type="number" inputMode="numeric" min={1} max={max} step={1} defaultValue={value ?? ""} />
         </Field>
     );
 
     return (
         <>
+            {library && (
+                <Field label={copy("Exercise")} htmlFor={control("exerciseId").id} required error={error("exerciseId")}>
+                    <Select {...control("exerciseId", { required: true })} defaultValue="">
+                        <option value="">{copy("Choose an exercise…")} </option>
+                        {library.map((exercise) => (
+                            <option key={exercise.id} value={exercise.id}>
+                                {exercise.name} · {copy(EXERCISE_CATEGORY_LABELS[exercise.category])}
+                            </option>
+                        ))}
+                    </Select>
+                </Field>
+            )}
             <div className="grid grid-cols-2 gap-4">
-                {numberField("sets", t("training.planExercises.fieldSets"), 20, item.sets)}
-                {numberField("reps", t("training.planExercises.fieldReps"), 200, item.reps)}
-                {numberField("durationMin", t("training.planExercises.fieldMinutes"), 240, item.durationSec === null ? null : Math.round(item.durationSec / 60))}
-                {numberField("targetRpe", t("training.planExercises.fieldTargetRpe"), 10, item.targetRpe)}
+                {numberField("sets", copy("Sets"), 20, item?.sets ?? null)}
+                {numberField("reps", copy("Reps"), 200, item?.reps ?? null)}
+                {numberField("durationMin", copy("Minutes"), 240, item?.durationSec === null || item?.durationSec === undefined ? null : Math.round(item.durationSec / 60))}
+                {numberField("targetRpe", copy("Target RPE"), 10, item?.targetRpe ?? null)}
             </div>
-            <Field label={t("training.planExercises.fieldNotes")} htmlFor={control("notes").id} optional error={error("notes")}>
-                <Textarea {...control("notes")} rows={2} maxLength={500} defaultValue={item.notes ?? ""} />
+            <Field label={copy("Notes")} htmlFor={control("notes").id} optional error={error("notes")}>
+                <Textarea {...control("notes")} rows={2} maxLength={500} defaultValue={item?.notes ?? ""} />
             </Field>
         </>
     );

@@ -5,7 +5,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { vi } from "@/i18n/vi";
 import { spacing, type, useThemePreference } from "@/theme";
-import { useReadableWidth } from "@/components/readable-width";
 
 export function AdmissionPage({
   title,
@@ -16,7 +15,6 @@ export function AdmissionPage({
   children: ReactNode;
   onBack?: boolean;
 }) {
-  const readable = useReadableWidth();
   const { colors } = useThemePreference();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -40,7 +38,7 @@ export function AdmissionPage({
         )}
       </View>
       <Text style={[type.title, { color: colors.ink }]}>{title}</Text>
-      <ScrollView contentContainerStyle={[styles.scroll, readable]} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         {children}
       </ScrollView>
     </View>

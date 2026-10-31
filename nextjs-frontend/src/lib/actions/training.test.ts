@@ -25,10 +25,6 @@ vi.mock("@/lib/auth/access", () => ({ canAccessFighter: () => true }));
 vi.mock("next/navigation", () => navigation);
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/auth/session", () => ({ authorizeAction: vi.fn(async () => ({ ok: true, user: auth.user })) }));
-vi.mock("@/lib/i18n/server", async () => {
-    const { createTranslator } = await import("@/lib/i18n/translate");
-    return { getTranslator: async () => ({ locale: "en", t: createTranslator("en") }) };
-});
 
 import { ApiError } from "@/lib/api/client";
 import { STARTER_EXERCISES } from "@/lib/domain/training-templates";

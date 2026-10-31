@@ -1,8 +1,8 @@
 "use client";
 
-import { useT } from "@/components/i18n/locale-provider";
+import { useDemoCopy } from "@/components/i18n/locale-provider";
 import { TECHNIQUE_COLOR } from "@/components/charts/colors";
-import { techniqueLabel } from "@/lib/domain/labels";
+import { TECHNIQUE_LABELS } from "@/lib/domain/labels";
 import type { StrikeType, Technique } from "@/lib/domain/types";
 import { cn } from "@/lib/utils";
 
@@ -14,7 +14,7 @@ export interface TechniqueChipProps {
 
 /** Technique label with its chart swatch. The label carries the meaning; the swatch links it to charts. */
 export function TechniqueChip({ technique, size = "md", className }: TechniqueChipProps) {
-    const t = useT();
+    const copy = useDemoCopy();
     return (
         <span
             className={cn(
@@ -24,7 +24,7 @@ export function TechniqueChip({ technique, size = "md", className }: TechniqueCh
             )}
         >
             <span aria-hidden className="size-2 shrink-0 rounded-[2px]" style={{ backgroundColor: TECHNIQUE_COLOR[technique] }} />
-            <span className="truncate">{techniqueLabel(t, technique)}</span>
+            <span className="truncate">{copy(TECHNIQUE_LABELS[technique])}</span>
         </span>
     );
 }

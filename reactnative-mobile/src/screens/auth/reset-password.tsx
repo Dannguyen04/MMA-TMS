@@ -5,16 +5,13 @@ import { Link, useLocalSearchParams, useRouter } from "expo-router";
 
 import { resetPassword } from "@/api/auth";
 import { PASSWORD_MAX, PASSWORD_MIN } from "@/auth/register-steps";
-import { AuthStandaloneStage } from "@/components/auth/auth-vision-scene";
-import {
-  AuthVisionButton,
-  AuthVisionField,
-  AuthVisionShell,
-} from "@/components/auth/auth-vision-shell";
-import { authType, useAuthColors } from "@/components/auth/auth-vision-tokens";
+import { AuthButton } from "@/components/auth/auth-button";
+import { AuthShell } from "@/components/auth/auth-shell";
+import { AuthTextField } from "@/components/auth/auth-text-field";
 import { useToastMessage } from "@/components/toast/app-toast";
 import { vi } from "@/i18n/vi";
 import { mapApiMessage } from "@/session/map-api-message";
+import { type, useThemePreference } from "@/theme";
 
 function firstParam(value: string | string[] | undefined): string {
   if (Array.isArray(value)) return value[0]?.trim() ?? "";
@@ -22,7 +19,7 @@ function firstParam(value: string | string[] | undefined): string {
 }
 
 export function ResetPasswordScreen() {
-  const c = useAuthColors();
+  const { colors } = useThemePreference();
   const router = useRouter();
   const params = useLocalSearchParams<{
     token_hash?: string | string[];
@@ -83,78 +80,72 @@ export function ResetPasswordScreen() {
   };
 
   return (
-    <AuthStandaloneStage>
-      <AuthVisionShell
-        title={vi.resetPassword.title}
-        subtitle={vi.resetPassword.subtitle}
-        onBack={() => router.replace("/login")}
-        backDisabled={submitting}
-        backLabel={vi.resetPassword.back}
-        action={
-          done ? (
-            <AuthVisionButton
-              testID="reset-to-login"
-              title={vi.resetPassword.toLogin}
-              onPress={() => router.replace("/login")}
-            />
-          ) : (
-            <AuthVisionButton
-              testID="reset-submit"
-              title={vi.resetPassword.submit}
-              onPress={onSubmit}
-              loading={submitting}
-              disabled={submitting || !linkReady}
-            />
-          )
-        }
-        below={
-          done ? undefined : (
-            <Text style={[authType.caption, { color: c.ink, textAlign: "center" }]}>
-              <Link href="/login" style={[authType.link, { color: c.accent }]}>
-                {vi.resetPassword.toLogin}
-              </Link>
-            </Text>
-          )
-        }
-      >
-        <AuthVisionField
-          label={vi.register.password}
-          value={password}
-          onChangeText={(value) => {
-            setPassword(value);
-            setPasswordError("");
-            setNotice(linkReady ? "" : vi.resetPassword.missingLink);
-          }}
-          error={passwordError || undefined}
-          editable={linkReady && !submitting && !done}
-          secureToggle
-          autoComplete="new-password"
-          textContentType="newPassword"
-          returnKeyType="next"
-          blurOnSubmit={false}
-          onSubmitEditing={() => confirmRef.current?.focus()}
-        />
-        {passwordError ? null : (
-          <Text style={[authType.caption, { color: c.muted, marginTop: -8 }]}>{vi.register.passwordHint}</Text>
-        )}
-        <AuthVisionField
-          ref={confirmRef}
-          label={vi.register.confirm}
-          value={confirm}
-          onChangeText={(value) => {
-            setConfirm(value);
-            setConfirmError("");
-            setNotice(linkReady ? "" : vi.resetPassword.missingLink);
-          }}
-          error={confirmError}
-          editable={linkReady && !submitting && !done}
-          secureToggle
-          autoComplete="new-password"
-          textContentType="newPassword"
-          returnKeyType="done"
-          onSubmitEditing={onSubmit}
-        />
-      </AuthVisionShell>
-    </AuthStandaloneStage>
+    <AuthShell
+      title={vi.resetPassword.title}
+      subtitle={vi.resetPassword.subtitle}
+      onBack={() => router.replace("/login")}
+      backDisabled={submitting}
+      backLabel={vi.resetPassword.back}
+      footer={
+        <Text style={[type.caption, { color: colors.inkMuted, textAlign: "center" }]}>
+          <Link href="/login" style={[type.link, { color: colors.lotus }]}>
+            {vi.resetPassword.toLogin}
+          </Link>
+        </Text>
+      }
+      cta={
+        done ? (
+          <AuthButton
+            testID="reset-to-login"
+            title={vi.resetPassword.toLogin}
+            onPress={() => router.replace("/login")}
+          />
+        ) : (
+          <AuthButton
+            testID="reset-submit"
+            title={vi.resetPassword.submit}
+            onPress={onSubmit}
+            loading={submitting}
+            disabled={submitting || !linkReady}
+          />
+        )
+      }
+    >
+      <AuthTextField
+        label={vi.register.password}
+        value={password}
+        onChangeText={(value) => {
+          setPassword(value);
+          setPasswordError("");
+          setNotice(linkReady ? "" : vi.resetPassword.missingLink);
+        }}
+        error={passwordError}
+        helper={vi.register.passwordHint}
+        editable={linkReady && !submitting && !done}
+        secureToggle
+        autoComplete="new-password"
+        textContentType="newPassword"
+        returnKeyType="next"
+        blurOnSubmit={false}
+        onSubmitEditing={() => confirmRef.current?.focus()}
+      />
+      <AuthTextField
+        ref={confirmRef}
+        label={vi.register.confirm}
+        value={confirm}
+        onChangeText={(value) => {
+          setConfirm(value);
+          setConfirmError("");
+          setNotice(linkReady ? "" : vi.resetPassword.missingLink);
+        }}
+        error={confirmError}
+        editable={linkReady && !submitting && !done}
+        secureToggle
+        autoComplete="new-password"
+        textContentType="newPassword"
+        returnKeyType="done"
+        onSubmitEditing={onSubmit}
+      />
+    </AuthShell>
   );
 }

@@ -31,11 +31,6 @@ if (!config.resolver.assetExts.includes("mp4")) {
   config.resolver.assetExts.push("mp4");
 }
 
-// 3D body map model (GLB, meshopt) is bundled as an asset.
-if (!config.resolver.assetExts.includes("glb")) {
-  config.resolver.assetExts.push("glb");
-}
-
 // Only block the APK-packed android/**/*.mp4 copies from the JS graph.
 // Never block assets/splash/*.mp4.
 const androidMp4Block = /(?:^|[\\/])android[\\/].*\.mp4$/;

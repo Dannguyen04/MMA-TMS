@@ -1,6 +1,5 @@
 "use client";
 
-import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { Ban, CalendarX2, ClipboardCheck, MessageSquarePlus, PenLine, Play, StickyNote, ThumbsUp, Wrench } from "lucide-react";
 import { useRef, useState } from "react";
 
@@ -16,11 +15,8 @@ import type { ActionForm } from "@/components/ui/use-action-form";
 import { useConfirmAction } from "@/components/ui/use-confirm-action";
 import type { ActionState } from "@/lib/actions/state";
 import { addSessionFeedback, cancelSession, markSessionMissed, recordSessionResult, startSession } from "@/lib/actions/training";
-import { feedbackKindLabel } from "@/lib/domain/labels";
 import type { EligibilityReason } from "@/lib/domain/medical-contract";
 import type { FeedbackKind, SessionResult, Technique } from "@/lib/domain/types";
-import type { Locale } from "@/lib/i18n/config";
-import type { Translator } from "@/lib/i18n/translate";
 import { RpeSlider } from "./rpe-slider";
 import { TechniqueCheckboxes } from "./technique-checkboxes";
 import { MID_RPE } from "./training-utils";
@@ -63,8 +59,6 @@ export function RecordResultButton({
     size,
     className,
 }: RecordResultButtonProps) {
-    const t = useT();
-    const locale = useLocale();
     const [open, setOpen] = useState(false);
     const toast = useToast();
     const correcting = result !== null;
@@ -73,18 +67,18 @@ export function RecordResultButton({
         <>
             <Button variant={variant} size={size} className={className} onClick={() => setOpen(true)}>
                 {correcting ? <PenLine aria-hidden /> : <ClipboardCheck aria-hidden />}
-                {label ?? (correcting ? t("training.actions.editResult") : t("training.actions.recordResult"))}
+                {label ?? (correcting ? "Edit result" : "Record result")}
             </Button>
             <ActionDialog
                 open={open}
                 onClose={() => setOpen(false)}
                 size="lg"
-                title={correcting ? t("training.actions.dialogEditTitle") : t("training.actions.dialogRecordTitle")}
-                description={t("training.actions.dialogResultDesc", { title: sessionTitle })}
+                title={correcting ? "Edit session result" : "Record session result"}
+                description={`${sessionTitle} — what actually happened. The fighter sees it in their session history.`}
                 action={(previous: ActionState, fd: FormData) => recordSessionResult(sessionId, previous, fd)}
-                submitLabel={correcting ? t("training.actions.saveResult") : t("training.actions.recordResult")}
-                pendingLabel={t("training.actions.saving")}
-                onSuccess={(state) => toast({ title: state.message ?? t("training.actions.resultSaved") })}
+                submitLabel={correcting ? "Save result" : "Record result"}
+                pendingLabel="Saving…"
+                onSuccess={(state) => toast({ title: state.message ?? "Result saved." })}
             >
                 {(form) => (
                     <RecordResultFields
@@ -95,8 +89,6 @@ export function RecordResultButton({
                         exercises={exercises}
                         result={result}
                         serviceForm={serviceForm}
-                        t={t}
-                        locale={locale}
                     />
                 )}
             </ActionDialog>
@@ -112,19 +104,17 @@ interface RecordResultFieldsProps {
     exercises: ResultExercise[];
     result: SessionResult | null;
     serviceForm: boolean;
-    t: Translator;
-    locale: Locale;
 }
 
-function RecordResultFields({ form, plannedDurationMin, targetRpe, plannedRounds, exercises, result, serviceForm, t, locale }: RecordResultFieldsProps) {
+function RecordResultFields({ form, plannedDurationMin, targetRpe, plannedRounds, exercises, result, serviceForm }: RecordResultFieldsProps) {
     // The slider needs a starting point; with no target it starts mid-scale.
     const [rpe, setRpe] = useState(result?.rpe ?? targetRpe ?? MID_RPE);
     const [rating, setRating] = useState(result?.coachRating ?? 0);
     const [done, setDone] = useState<string[]>(exercises.filter((e) => (result ? e.completed : true)).map((e) => e.exerciseId));
     const { control, error } = form;
 
-    const numberField = (name: "actualDurationMin" | "roundsCompleted", fieldLabel: string, defaultValue: number | undefined, max: number, hint: string) => (
-        <Field label={fieldLabel} htmlFor={control(name).id} required error={error(name)} hint={hint}>
+    const numberField = (name: "actualDurationMin" | "roundsCompleted", label: string, defaultValue: number | undefined, max: number, hint: string) => (
+        <Field label={label} htmlFor={control(name).id} required error={error(name)} hint={hint}>
             <Input
                 {...control(name, { hint, required: true })}
                 type="number"
@@ -135,7 +125,7 @@ function RecordResultFields({ form, plannedDurationMin, targetRpe, plannedRounds
             />
         </Field>
     );
-    const summaryHint = t("training.actions.summaryHint");
+    const summaryHint = "What went well and what to work on. The fighter sees this.";
 
     return (
         <>
@@ -143,26 +133,26 @@ function RecordResultFields({ form, plannedDurationMin, targetRpe, plannedRounds
                 {!serviceForm &&
                     numberField(
                         "actualDurationMin",
-                        t("training.actions.actualDuration"),
+                        "Actual duration (min)",
                         result?.actualDurationMin ?? plannedDurationMin ?? undefined,
                         300,
-                        plannedDurationMin === null ? t("training.actions.noPlannedLength") : t("training.actions.plannedMinHint", { min: plannedDurationMin }),
+                        plannedDurationMin === null ? "No planned length on file" : `Planned ${plannedDurationMin} min`,
                     )}
                 {numberField(
                     "roundsCompleted",
-                    t("training.actions.roundsCompleted"),
+                    "Rounds completed",
                     result?.roundsCompleted ?? plannedRounds,
                     100,
-                    plannedRounds > 0 ? t("training.actions.plannedRoundsHint", { rounds: plannedRounds }) : t("training.actions.enter0Rounds"),
+                    plannedRounds > 0 ? `Planned ${plannedRounds} rounds` : "Enter 0 if not round-based",
                 )}
             </div>
             <RpeSlider
                 id={control("rpe").id}
                 name="rpe"
-                label={t("training.actions.sessionRpe")}
+                label="Session RPE"
                 value={rpe}
                 onChange={setRpe}
-                hint={t("training.actions.rpeReportedHint")}
+                hint="Reported by the fighter, from 1 (very easy) to 10 (maximal)."
                 required
                 error={error("rpe")}
             />
@@ -171,22 +161,21 @@ function RecordResultFields({ form, plannedDurationMin, targetRpe, plannedRounds
                     <CoachRatingInput
                         id={control("coachRating").id}
                         name="coachRating"
-                        legend={t("training.actions.ratingLegend")}
+                        legend="Your rating of the session"
                         value={rating}
                         onChange={setRating}
                         error={error("coachRating")}
                         required
-                        locale={locale}
                     />
-                    <Field label={t("training.actions.summary")} htmlFor={control("summary").id} required error={error("summary")} hint={summaryHint}>
+                    <Field label="Summary" htmlFor={control("summary").id} required error={error("summary")} hint={summaryHint}>
                         <Textarea {...control("summary", { hint: summaryHint, required: true })} rows={3} maxLength={1000} defaultValue={result?.summary ?? ""} />
                     </Field>
                 </>
             )}
-            {serviceForm && <p className="text-[13px] text-fg-muted">{t("training.actions.serviceLengthMeasured")}</p>}
+            {serviceForm && <p className="text-[13px] text-fg-muted">The session&apos;s length is measured from when you started it.</p>}
             {!serviceForm && exercises.length > 0 && (
                 <fieldset className="flex flex-col gap-2">
-                    <legend className="mb-1.5 text-sm font-medium text-fg">{t("training.actions.exercisesCompletedLegend")}</legend>
+                    <legend className="mb-1.5 text-sm font-medium text-fg">Exercises completed</legend>
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                         {exercises.map((exercise) => (
                             <Checkbox
@@ -221,11 +210,10 @@ export interface SessionTransitionButtonProps extends TriggerProps {
 
 /** Checks the fighter in. A refusal from the fighter's Medical Clearance lists its reasons in the dialog. */
 export function StartSessionButton({ sessionId, sessionTitle, fighterName, variant = "primary", size, className }: SessionTransitionButtonProps) {
-    const t = useT();
     const toast = useToast();
     const [reasons, setReasons] = useState<EligibilityReason[]>([]);
     const start = useConfirmAction((id: string) => startSession(id), {
-        onSuccess: (state) => toast({ title: state.message ?? t("training.actions.sessionStarted") }),
+        onSuccess: (state) => toast({ title: state.message ?? "Session started." }),
         onError: (state) => setReasons(state.data?.reasons ?? []),
     });
 
@@ -241,13 +229,13 @@ export function StartSessionButton({ sessionId, sessionTitle, fighterName, varia
                 }}
             >
                 <Play aria-hidden />
-                {t("training.actions.startSession")}
+                Start session
             </Button>
             <ConfirmDialog
                 {...start.dialogProps}
-                title={t("training.actions.startDialogTitle")}
-                description={t("training.actions.startDialogDesc", { title: sessionTitle, fighter: fighterName })}
-                confirmLabel={t("training.actions.startSession")}
+                title="Start this session?"
+                description={`${sessionTitle} starts now for ${fighterName}. Their Medical Clearance is checked first, and the session's length is measured from now.`}
+                confirmLabel="Start session"
             >
                 {reasons.length > 0 && <EligibilityReasons reasons={reasons} />}
             </ConfirmDialog>
@@ -257,21 +245,20 @@ export function StartSessionButton({ sessionId, sessionTitle, fighterName, varia
 
 /** Records that a scheduled session didn't happen. */
 export function MarkMissedButton({ sessionId, sessionTitle, fighterName, variant = "secondary", size, className }: SessionTransitionButtonProps) {
-    const t = useT();
     const toast = useToast();
-    const miss = useConfirmAction((id: string) => markSessionMissed(id), { onSuccess: (state) => toast({ title: state.message ?? t("training.actions.markedMissed") }) });
+    const miss = useConfirmAction((id: string) => markSessionMissed(id), { onSuccess: (state) => toast({ title: state.message ?? "Session marked as missed." }) });
 
     return (
         <>
             <Button variant={variant} size={size} className={className} onClick={() => miss.request(sessionId)}>
                 <CalendarX2 aria-hidden />
-                {t("training.actions.markMissed")}
+                Mark as missed
             </Button>
             <ConfirmDialog
                 {...miss.dialogProps}
-                title={t("training.actions.markMissedDialogTitle")}
-                description={t("training.actions.markMissedDialogDesc", { title: sessionTitle, fighter: fighterName })}
-                confirmLabel={t("training.actions.markMissed")}
+                title="Mark this session as missed?"
+                description={`${sessionTitle} stays in ${fighterName}'s history as missed and counts against their adherence. This can't be undone.`}
+                confirmLabel="Mark as missed"
             />
         </>
     );
@@ -287,9 +274,9 @@ export interface CancelSessionButtonProps extends TriggerProps {
 }
 
 const REASON_MIN_LENGTH = 5;
+const REASON_HINT = "e.g. Coach unwell — moving pads to Thursday.";
 
 export function CancelSessionButton({ sessionId, sessionTitle, fighterName, when, variant = "danger-soft", size, className }: CancelSessionButtonProps) {
-    const t = useT();
     const toast = useToast();
     const reasonRef = useRef<HTMLTextAreaElement>(null);
     const [reason, setReason] = useState("");
@@ -298,10 +285,10 @@ export function CancelSessionButton({ sessionId, sessionTitle, fighterName, when
     const cancel = useConfirmAction(
         async (id: string): Promise<ActionState> =>
             reason.trim().length < REASON_MIN_LENGTH
-                ? { status: "error", message: t("training.actions.cancelReasonErrorEmpty"), fieldErrors: { reason: t("training.actions.cancelReasonErrorMin") } }
+                ? { status: "error", message: "Add a reason for the fighter.", fieldErrors: { reason: "Give the fighter a short reason (at least 5 characters)." } }
                 : cancelSession(id, { reason }),
         {
-            onSuccess: (state) => toast({ title: state.message ?? t("training.actions.sessionCancelled") }),
+            onSuccess: (state) => toast({ title: state.message ?? "Session cancelled." }),
             onError: () => {
                 setReasonEdited(false);
                 window.requestAnimationFrame(() => reasonRef.current?.focus());
@@ -323,15 +310,15 @@ export function CancelSessionButton({ sessionId, sessionTitle, fighterName, when
                 }}
             >
                 <Ban aria-hidden />
-                {t("training.actions.cancelSession")}
+                Cancel session
             </Button>
             <ConfirmDialog
                 {...cancel.dialogProps}
-                title={t("training.actions.cancelDialogTitle")}
-                description={t("training.actions.cancelDialogDesc", { title: sessionTitle, when, fighter: fighterName })}
-                confirmLabel={t("training.actions.confirmCancel")}
+                title="Cancel this session?"
+                description={`${sessionTitle} on ${when} is removed from ${fighterName}'s schedule and they're notified with your reason. This can't be undone — you'd need to schedule a new session.`}
+                confirmLabel="Confirm cancellation"
             >
-                <Field label={t("training.actions.cancelReasonLabel")} htmlFor="cancel-reason" required error={reasonError} hint={t("training.actions.cancelReasonHint")}>
+                <Field label="Reason for the fighter" htmlFor="cancel-reason" required error={reasonError} hint={REASON_HINT}>
                     <Textarea
                         ref={reasonRef}
                         id="cancel-reason"
@@ -357,8 +344,13 @@ export interface AddFeedbackButtonProps extends TriggerProps {
     fighterName: string;
 }
 
+const FEEDBACK_KINDS: ChoiceOption<FeedbackKind>[] = [
+    { value: "praise", label: "Praise", icon: ThumbsUp, tone: "success", description: "Something to keep doing" },
+    { value: "correction", label: "Correction", icon: Wrench, tone: "warning", description: "Something to fix" },
+    { value: "note", label: "Note", icon: StickyNote, tone: "info", description: "Context or reminder" },
+];
+
 export function AddFeedbackButton({ sessionId, fighterName, variant = "secondary", size, className }: AddFeedbackButtonProps) {
-    const t = useT();
     const [open, setOpen] = useState(false);
     const toast = useToast();
 
@@ -366,59 +358,53 @@ export function AddFeedbackButton({ sessionId, fighterName, variant = "secondary
         <>
             <Button variant={variant} size={size} className={className} onClick={() => setOpen(true)}>
                 <MessageSquarePlus aria-hidden />
-                {t("training.actions.addFeedback")}
+                Add feedback
             </Button>
             <ActionDialog
                 open={open}
                 onClose={() => setOpen(false)}
                 size="lg"
-                title={t("training.actions.dialogFeedbackTitle")}
-                description={t("training.actions.dialogFeedbackDesc", { name: fighterName })}
+                title="Add feedback"
+                description={`${fighterName} is notified and sees this on the session page.`}
                 action={(previous: ActionState, fd: FormData) => addSessionFeedback(sessionId, previous, fd)}
-                submitLabel={t("training.actions.shareFeedback")}
-                pendingLabel={t("training.actions.sharingFeedback")}
-                onSuccess={() => toast({ title: t("training.actions.feedbackSharedTitle"), description: t("training.actions.feedbackSharedDesc", { name: fighterName }) })}
+                submitLabel="Share feedback"
+                pendingLabel="Sharing…"
+                onSuccess={() => toast({ title: "Feedback shared", description: `${fighterName} has been notified.` })}
             >
-                {(form) => <FeedbackFields form={form} t={t} />}
+                {(form) => <FeedbackFields form={form} />}
             </ActionDialog>
         </>
     );
 }
 
-function FeedbackFields({ form, t }: { form: ActionForm<undefined>; t: Translator }) {
+function FeedbackFields({ form }: { form: ActionForm<undefined> }) {
     const [kind, setKind] = useState<FeedbackKind>("correction");
     const [techniques, setTechniques] = useState<Technique[]>([]);
-    const hint = t("training.actions.feedbackBodyHint");
-
-    const feedbackKinds: ChoiceOption<FeedbackKind>[] = [
-        { value: "praise", label: feedbackKindLabel(t, "praise"), icon: ThumbsUp, tone: "success", description: t("training.actions.feedbackPraiseDesc") },
-        { value: "correction", label: feedbackKindLabel(t, "correction"), icon: Wrench, tone: "warning", description: t("training.actions.feedbackCorrectionDesc") },
-        { value: "note", label: feedbackKindLabel(t, "note"), icon: StickyNote, tone: "info", description: t("training.actions.feedbackNoteDesc") },
-    ];
+    const hint = "Be specific: what you saw, why it matters and what to do next.";
 
     return (
         <>
             <ChoiceGroup
                 id={form.control("kind").id}
                 name="kind"
-                legend={t("training.actions.feedbackKind")}
+                legend="Kind"
                 required
                 columns={3}
                 value={kind}
                 onChange={setKind}
                 error={form.error("kind")}
-                options={feedbackKinds}
+                options={FEEDBACK_KINDS}
             />
             <TechniqueCheckboxes
                 id={form.control("techniques").id}
                 name="techniques"
-                legend={t("training.actions.feedbackTechniques")}
+                legend="Techniques"
                 optional
                 value={techniques}
                 onChange={setTechniques}
                 error={form.error("techniques")}
             />
-            <Field label={t("training.actions.feedbackBody")} htmlFor={form.control("body").id} required error={form.error("body")} hint={hint}>
+            <Field label="Feedback" htmlFor={form.control("body").id} required error={form.error("body")} hint={hint}>
                 <Textarea {...form.control("body", { hint, required: true })} rows={4} maxLength={1000} />
             </Field>
         </>

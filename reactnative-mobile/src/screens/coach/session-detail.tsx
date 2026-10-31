@@ -28,7 +28,6 @@ import {
   CoachScaffold,
 } from "@/screens/coach/coach-ui";
 import { spacing, type, useThemePreference } from "@/theme";
-import { SkeletonCard } from "@/components/loading";
 
 const CANCEL_REASON_MAX = 500;
 
@@ -65,11 +64,11 @@ export function CoachSessionDetailScreen() {
   const [changing, setChanging] = useState(false);
   const seqRef = useRef(0);
 
-  const load = useCallback((mode?: unknown) => {
+  const load = useCallback(() => {
     if (!sessionId) return;
     const seq = ++seqRef.current;
     setError("");
-    return getTrainingSession(sessionId)
+    void getTrainingSession(sessionId)
       .then(async (next) => {
         if (seq !== seqRef.current) return;
         setRow(next);
@@ -85,7 +84,6 @@ export function CoachSessionDetailScreen() {
         }
       })
       .catch((cause: unknown) => {
-        if (mode === "refresh") throw cause;
         if (seq === seqRef.current) setError(coachErrorMessage(cause));
       });
   }, [sessionId]);
@@ -187,7 +185,7 @@ export function CoachSessionDetailScreen() {
   const nextStatuses = row ? (ALLOWED_SESSION_TRANSITIONS[row.status] ?? []) : [];
 
   return (
-    <CoachScaffold title={row?.title ?? coach.sessionDetail} keyboard inStack onRefresh={() => load("refresh")}>
+    <CoachScaffold title={row?.title ?? coach.sessionDetail} keyboard inStack>
       {gate && row ? (
         <CoachCard>
           <Text style={[type.label, { color: colors.danger, lineHeight: 18 }]}>{coach.medicalGate.title}</Text>
@@ -241,7 +239,7 @@ export function CoachSessionDetailScreen() {
           ) : null}
         </CoachCard>
       ) : error ? null : (
-        <SkeletonCard lines={3} />
+        <CoachBanner message={coach.loading} />
       )}
       {row ? (
         <>

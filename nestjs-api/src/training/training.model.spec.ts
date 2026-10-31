@@ -255,7 +255,7 @@ describe('training request schemas', () => {
       }
     });
 
-    it.each(['SCHEDULED', 'PENDING', 'IN_PROGRESS', 'COMPLETED', 'SKIPPED', 'ABANDONED'] as const)(
+    it.each(['SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'SKIPPED', 'ABANDONED'] as const)(
       'rejects cancellationReason when status is %s',
       (status) => {
         const result = updateSessionStatusSchema.safeParse({
@@ -269,7 +269,7 @@ describe('training request schemas', () => {
       },
     );
 
-    it.each(['SCHEDULED', 'PENDING', 'IN_PROGRESS', 'COMPLETED', 'SKIPPED', 'ABANDONED'] as const)(
+    it.each(['SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'SKIPPED', 'ABANDONED'] as const)(
       'accepts valid status %s without cancellationReason',
       (status) => {
         expect(updateSessionStatusSchema.safeParse({ status }).success).toBe(true);

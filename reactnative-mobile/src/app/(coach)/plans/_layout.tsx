@@ -17,7 +17,6 @@ export default function CoachPlansStack() {
     >
       <Stack.Screen name="index" options={{ headerShown: false, title: coach.tabs.plans }} />
       <Stack.Screen name="new" options={{ title: coach.newPlan }} />
-      <Stack.Screen name="chi-tiet" options={{ headerShown: false }} />
       <Stack.Screen name="[id]" options={{ title: coach.planDetail }} />
     </Stack>
   );

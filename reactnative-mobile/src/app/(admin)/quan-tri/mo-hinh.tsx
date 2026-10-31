@@ -1,7 +1,11 @@
-import { manager } from "@/i18n/manager";
-import { AdminUnavailable } from "@/screens/admin/admin-ui";
+import { blocked } from "@/i18n/blocked";
+import { AdminPage } from "@/screens/admin/admin-page";
+import { EmptyBlockedList } from "@/screens/parity/blocked-workspace";
 
-/** Chưa có API backend — xem out/06-API-can-bo-sung.md. */
 export default function AdminModelsRoute() {
-  return <AdminUnavailable title={manager.tools.models} description={manager.missing.models} />;
+  return (
+    <AdminPage title={blocked.aiModels} extra="Quản lý mô hình AI chưa dùng được trên điện thoại." onBack>
+      <EmptyBlockedList />
+    </AdminPage>
+  );
 }

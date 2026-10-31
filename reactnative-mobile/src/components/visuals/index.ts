@@ -23,7 +23,6 @@ export {
   ProgressRing,
   WeightChart,
   type WeightPoint,
-  type WeightReferencePoint,
 } from "./charts";
 export {
   APPLICATION_STATUS_ICON,

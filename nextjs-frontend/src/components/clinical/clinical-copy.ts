@@ -1,7 +1,5 @@
 import { formatMeasure } from "@/components/domain/domain-format";
-import { BODY_REGION_LABELS, bodyRegionLabel, injuryTypeName } from "@/lib/domain/labels";
-import type { Locale } from "@/lib/i18n/config";
-import { createTranslator } from "@/lib/i18n/translate";
+import { BODY_REGION_LABELS, injuryTypeName } from "@/lib/domain/labels";
 import type { AbnormalMovementAlert, BodyRegion, DoctorDecision, Injury, InjurySeverity, InjuryStatus } from "@/lib/domain/types";
 
 /** Plain-language clinical copy shared by the injury, recovery and AI observation screens. */
@@ -39,8 +37,8 @@ export const OPEN_INJURY_STATUS_DESCRIPTIONS: Record<Exclude<InjuryStatus, "reso
     recovering: "Past the acute phase, progressing through a return-to-training plan.",
 };
 
-export function injuryTitle(injury: Pick<Injury, "type" | "typeLabel" | "bodyRegion">, locale?: Locale): string {
-    return `${injuryTypeName(injury, locale)} — ${bodyRegionLabel(injury.bodyRegion, locale)}`;
+export function injuryTitle(injury: Pick<Injury, "type" | "typeLabel" | "bodyRegion">): string {
+    return `${injuryTypeName(injury)} — ${BODY_REGION_LABELS[injury.bodyRegion]}`;
 }
 
 /** Lower-case "muscle strain, left hamstring" for use inside sentences and option labels. */
@@ -48,15 +46,7 @@ export function injuryPhrase(injury: Pick<Injury, "type" | "bodyRegion">): strin
     return `${injuryTypeName(injury).toLowerCase()}, ${BODY_REGION_LABELS[injury.bodyRegion].toLowerCase()}`;
 }
 
-export function painLabel(level: number, locale?: Locale): string {
-    if (locale) {
-        const t = createTranslator(locale);
-        if (level <= 0) return t("painLabel.none");
-        if (level <= 3) return t("painLabel.mild");
-        if (level <= 6) return t("painLabel.moderate");
-        if (level <= 9) return t("painLabel.severe");
-        return t("painLabel.worstPossible");
-    }
+export function painLabel(level: number): string {
     if (level <= 0) return "No pain";
     if (level <= 3) return "Mild";
     if (level <= 6) return "Moderate";

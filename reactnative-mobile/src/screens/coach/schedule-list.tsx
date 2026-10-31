@@ -14,11 +14,9 @@ import {
 } from "@/api";
 import { coach } from "@/i18n/coach";
 import { coachErrorMessage, coachHref, fighterDisplayName, formatWhen } from "@/screens/coach/coach-error";
-import { CoachBanner, CoachCard, CoachPrimaryButton, CoachScaffold, CoachEmpty } from "@/screens/coach/coach-ui";
+import { CoachBanner, CoachCard, CoachChip, CoachPrimaryButton, CoachScaffold } from "@/screens/coach/coach-ui";
 import { useSession } from "@/session/session-context";
 import { spacing, type, useThemePreference } from "@/theme";
-import { SkeletonList } from "@/components/motion";
-import { FilterSelect } from "@/components/filter-sheet";
 
 export function CoachScheduleScreen() {
   const { colors } = useThemePreference();
@@ -31,7 +29,7 @@ export function CoachScheduleScreen() {
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<SessionStatus | "">("");
 
-  const load = useCallback((mode?: unknown) => {
+  const load = useCallback(() => {
     if (isDemo) {
       setSessions([]);
       setFighters({});
@@ -39,9 +37,9 @@ export function CoachScheduleScreen() {
       setLoading(false);
       return;
     }
-    if (mode !== "refresh") setLoading(true);
+    setLoading(true);
     setError("");
-    return listTrainingSessions({ limit: 50, ...(status ? { status } : {}) })
+    void listTrainingSessions({ limit: 50, ...(status ? { status } : {}) })
       .then(async (page) => {
         setSessions(page.data);
         try {
@@ -54,7 +52,6 @@ export function CoachScheduleScreen() {
         }
       })
       .catch((cause: unknown) => {
-        if (mode === "refresh") throw cause;
         setSessions([]);
         setError(coachErrorMessage(cause));
       })
@@ -69,24 +66,33 @@ export function CoachScheduleScreen() {
 
   return (
     <CoachScaffold
-      onRefresh={() => load("refresh")}
       title={coach.tabs.schedule}
       action={<CoachPrimaryButton title={coach.newSession} onPress={() => router.push(coachHref("/(coach)/schedule/new"))} />}
     >
-      <FilterSelect
-        label="Trạng thái"
-        options={[{ value: "" as const, label: coach.filterAll }, ...SESSION_STATUSES.map((value) => ({ value, label: coach.sessionStatus[value] }))]}
-        value={status}
-        allValue=""
-        onChange={setStatus}
-      />
-      {loading && sessions.length === 0 ? <SkeletonList rows={3} /> : null}
-      {sessions.length === 0 && !loading && !error ? <CoachEmpty message={coach.emptySessions} /> : null}
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm }}>
+        <CoachChip
+          value=""
+          selected={status === ""}
+          label={coach.filterAll}
+          onPress={() => setStatus("")}
+        />
+        {SESSION_STATUSES.map((value) => (
+          <CoachChip
+            key={value}
+            value={value}
+            selected={status === value}
+            label={coach.sessionStatus[value]}
+            onPress={setStatus}
+          />
+        ))}
+      </View>
+      {loading && sessions.length === 0 ? <CoachBanner message={coach.loading} /> : null}
+      {sessions.length === 0 && !loading && !error ? <CoachBanner message={coach.emptySessions} /> : null}
       <View style={{ gap: spacing.md }}>
-        {sessions.map((row, i) => {
+        {sessions.map((row) => {
           const fighter = fighters[row.fighterId];
           return (
-            <CoachCard key={row.id} index={i} onPress={() => router.push(coachHref(`/(coach)/schedule/${row.id}`))}>
+            <CoachCard key={row.id} onPress={() => router.push(coachHref(`/(coach)/schedule/${row.id}`))}>
               <Text style={[type.body, { color: colors.ink }]}>{row.title}</Text>
               <Text style={[type.caption, { color: colors.inkMuted, lineHeight: 16 }]}>
                 {formatWhen(row.scheduledAt)} · {coach.sessionStatus[row.status]}
@@ -98,11 +104,9 @@ export function CoachScheduleScreen() {
           );
         })}
       </View>
-      {error ? (
-        <Pressable accessibilityRole="button" onPress={() => void load()}>
-          <Text style={[type.link, { color: colors.lotus }]}>{coach.retry}</Text>
-        </Pressable>
-      ) : null}
+      <Pressable accessibilityRole="button" onPress={load}>
+        <Text style={[type.link, { color: colors.lotus }]}>{coach.retry}</Text>
+      </Pressable>
     </CoachScaffold>
   );
 }

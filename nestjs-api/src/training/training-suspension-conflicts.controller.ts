@@ -55,7 +55,7 @@ export class TrainingSuspensionConflictsController {
   @ApiOperation({
     summary: 'List training session conflicts with a suspension (R28)',
     description:
-      'Computes on read the proposed actions (PENDING when all blocking suspensions have a fixed end date, or CANCEL when medical clearance is required) ' +
+      'Computes on read the proposed actions (CHANGE_TYPE to RECOVERY, RESCHEDULE after ends_on, or CANCEL) ' +
       'for the fighter’s SCHEDULED sessions blocked by in-force suspensions.',
   })
   @ResponseMessage('Get suspension schedule conflicts successfully')
@@ -82,8 +82,8 @@ export class TrainingSuspensionConflictsController {
   @ApiOperation({
     summary: 'Apply proposed training session conflict resolutions (R28)',
     description:
-      'Atomically applies the current R28 proposals (PENDING or CANCEL) for the selected sessionIds inside a single transaction ' +
-      'and dispatches cancellation notifications after commit.',
+      'Atomically applies the current R28 proposals for the selected sessionIds inside a single transaction ' +
+      'and dispatches reschedule/cancellation notifications after commit.',
   })
   @ResponseMessage('Apply suspension schedule conflicts successfully')
   @ApiSuccessEnvelope({

@@ -3,13 +3,13 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 
-import { injuryTitle } from "@/components/clinical/clinical-copy";
+import { INJURY_SEVERITY_DESCRIPTIONS, injuryTitle } from "@/components/clinical/clinical-copy";
 import { TreatmentList } from "@/components/clinical/treatment-list";
 import { CheckInTrends } from "@/components/dashboard/check-in-trends";
 import { InlineNote } from "@/components/dashboard/inline-note";
 import { BodyMap } from "@/components/domain/body-map";
 import { CheckInCharts } from "@/components/domain/check-in-charts";
-import { describeDaysUntil } from "@/components/domain/domain-format";
+import { describeDaysUntil, labelOf, NOT_RECORDED } from "@/components/domain/domain-format";
 import { RecoveryProgress } from "@/components/domain/recovery-progress";
 import { INJURY_STATUS_META, InjurySeverityBadge, InjuryStatusBadge } from "@/components/domain/status-badges";
 import { Callout } from "@/components/training/callout";
@@ -20,16 +20,13 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/states";
 import type { Tone } from "@/components/ui/tone";
 import { requireRole } from "@/lib/auth/session";
-import { bodyRegionLabel, injuryMechanismLabel, injurySeverityLabel, injuryStatusLabel, injuryTypeName } from "@/lib/domain/labels";
+import { BODY_REGION_LABELS, INJURY_MECHANISM_LABELS, INJURY_SEVERITY_LABELS, INJURY_STATUS_LABELS, injuryTypeName } from "@/lib/domain/labels";
 import type { Injury } from "@/lib/domain/types";
-import { daysBetween, formatDate } from "@/lib/format";
-import type { Locale } from "@/lib/i18n/config";
-import { getTranslator } from "@/lib/i18n/server";
-import { plural, type Translator } from "@/lib/i18n/translate";
+import { daysBetween, formatDate, pluralize } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { getInjuryDetail, type InjuryDetail } from "@/lib/services/medical";
-import { medicalFeatureAvailable } from "@/lib/services/medical-features";
 import { listDoctors } from "@/lib/services/people";
+import { medicalFeatureAvailable } from "@/lib/services/medical-features";
 
 /** The injury, only when it belongs to the signed-in fighter. Loaded once per request for the metadata and the page. */
 const loadOwnInjury = cache(async (injuryId: string): Promise<InjuryDetail> => {
@@ -40,64 +37,59 @@ const loadOwnInjury = cache(async (injuryId: string): Promise<InjuryDetail> => {
 });
 
 export async function generateMetadata({ params }: PageProps<"/fighter/health/injuries/[injuryId]">): Promise<Metadata> {
-    const [{ injury }, { locale }] = await Promise.all([loadOwnInjury((await params).injuryId), getTranslator()]);
-    return { title: injuryTitle(injury, locale) };
+    const { injury } = await loadOwnInjury((await params).injuryId);
+    return { title: injuryTitle(injury) };
 }
 
 export default async function FighterInjuryPage({ params }: PageProps<"/fighter/health/injuries/[injuryId]">) {
-    const [detail, doctors, { t, locale }] = await Promise.all([
-        params.then(({ injuryId }) => loadOwnInjury(injuryId)),
-        listDoctors(),
-        getTranslator(),
-    ]);
+    const [detail, doctors] = await Promise.all([params.then(({ injuryId }) => loadOwnInjury(injuryId)), listDoctors()]);
     const { injury, treatments, recoveryPlan, recordedBy } = detail;
     const now = new Date().toISOString();
     const planDoctor = recoveryPlan ? doctors.find((doctor) => doctor.id === recoveryPlan.doctorId)?.name : undefined;
     const doctorName = planDoctor ?? recordedBy?.name;
     // The medical service keeps the expected return on the recovery plan, not on the injury.
     const expectedReturnAt = injury.expectedReturnAt ?? (recoveryPlan?.status === "active" ? recoveryPlan.targetReturnDate : null);
-    const expectation = whatToExpect({ ...injury, expectedReturnAt }, now, t, locale);
+    const expectation = whatToExpect({ ...injury, expectedReturnAt }, now);
     /** Without a recovery plan the main column is short, so the facts sit there in columns; otherwise they go beside it. */
     const aboutInMain = !recoveryPlan;
     const serviceRecord = injury.joint !== undefined;
-    const notRecorded = t("health.notRecorded");
 
     const about = (
         <Card className="min-w-0">
-            <CardHeader title={t("fighterInjury.aboutTitle")} icon={<NotebookPen />} />
+            <CardHeader title="About this injury" icon={<NotebookPen />} />
             <CardContent className="flex flex-col gap-4">
                 <p className="text-sm text-pretty text-fg">{injury.description}</p>
                 <DescriptionList
                     columns={aboutInMain ? 3 : 1}
                     className={aboutInMain ? undefined : "gap-y-3"}
                     items={[
-                        { label: t("fighterHistory.thType"), value: injuryTypeName(injury, locale) },
-                        { label: t("fighterInjury.fieldArea"), value: bodyRegionLabel(injury.bodyRegion, locale) },
-                        { label: t("fighterInjury.fieldStatus"), value: injuryStatusLabel(injury.status, locale) },
+                        { label: "Type", value: injuryTypeName(injury) },
+                        { label: "Body area", value: BODY_REGION_LABELS[injury.bodyRegion] },
+                        { label: "Status", value: INJURY_STATUS_LABELS[injury.status] },
                         // The medical service keeps no mechanism, diagnosis date or expected return; its records skip those rows.
-                        ...(serviceRecord ? [] : [{ label: t("fighterInjury.fieldHowItHappened"), value: injury.mechanism ? injuryMechanismLabel(injury.mechanism, locale) : notRecorded }]),
-                        { label: t("fighterInjury.fieldOccurred"), value: <time dateTime={injury.occurredAt}>{formatDate(injury.occurredAt, locale)}</time> },
+                        ...(serviceRecord ? [] : [{ label: "How it happened", value: labelOf(INJURY_MECHANISM_LABELS, injury.mechanism) ?? NOT_RECORDED }]),
+                        { label: "Occurred", value: <time dateTime={injury.occurredAt}>{formatDate(injury.occurredAt)}</time> },
                         ...(serviceRecord
                             ? []
-                            : [{ label: t("fighterInjury.fieldDiagnosed"), value: injury.diagnosedAt ? <time dateTime={injury.diagnosedAt}>{formatDate(injury.diagnosedAt, locale)}</time> : notRecorded }]),
+                            : [{ label: "Diagnosed", value: injury.diagnosedAt ? <time dateTime={injury.diagnosedAt}>{formatDate(injury.diagnosedAt)}</time> : NOT_RECORDED }]),
                         ...(injury.resolvedAt
-                            ? [{ label: t("fighterInjury.fieldResolved"), value: <time dateTime={injury.resolvedAt}>{formatDate(injury.resolvedAt, locale)}</time> }]
+                            ? [{ label: "Resolved", value: <time dateTime={injury.resolvedAt}>{formatDate(injury.resolvedAt)}</time> }]
                             : serviceRecord
                               ? []
                               : [
                                     {
-                                        label: t("fighterInjury.fieldExpectedReturn"),
-                                        value: injury.expectedReturnAt ? <time dateTime={injury.expectedReturnAt}>{formatDate(injury.expectedReturnAt, locale)}</time> : t("injuryCard.toBeAssessed"),
+                                        label: "Expected return",
+                                        value: injury.expectedReturnAt ? <time dateTime={injury.expectedReturnAt}>{formatDate(injury.expectedReturnAt)}</time> : "To be assessed",
                                     },
                                 ]),
-                        { label: t("fighterInjury.fieldRecordedBy"), value: recordedBy?.name ?? t("fighterInjury.doctorFallback") },
+                        { label: "Recorded by", value: recordedBy?.name ?? "Sports doctor" },
                         {
-                            label: t("fighterInjury.fieldSeverity"),
+                            label: "Severity",
                             wide: true,
                             value: (
                                 <span className="flex flex-col gap-0.5">
-                                    {injurySeverityLabel(injury.severity, locale)}
-                                    <span className="text-[13px] font-normal text-fg-muted">{t(`injurySeverityDesc.${injury.severity}`)}</span>
+                                    {INJURY_SEVERITY_LABELS[injury.severity]}
+                                    <span className="text-[13px] font-normal text-fg-muted">{INJURY_SEVERITY_DESCRIPTIONS[injury.severity]}</span>
                                 </span>
                             ),
                         },
@@ -105,7 +97,7 @@ export default async function FighterInjuryPage({ params }: PageProps<"/fighter/
                 />
                 {doctorName && (
                     <InlineNote icon={HeartHandshake}>
-                        {t("fighterInjury.questionsAboutRecovery", { doctor: doctorName })}
+                        Questions about your recovery? Talk to <span className="font-medium">{doctorName}</span>.
                     </InlineNote>
                 )}
             </CardContent>
@@ -115,14 +107,14 @@ export default async function FighterInjuryPage({ params }: PageProps<"/fighter/
     return (
         <>
             <PageHeader
-                back={{ href: routes.fighter.health, label: t("fighterInjury.backLabel") }}
-                eyebrow={t("fighterInjury.eyebrow")}
-                title={injuryTitle(injury, locale)}
-                description={[injury.mechanism ? injuryMechanismLabel(injury.mechanism, locale) : undefined, formatDate(injury.occurredAt, locale)].filter(Boolean).join(" · ")}
+                back={{ href: routes.fighter.health, label: "Health & Medical Clearance" }}
+                eyebrow="Injury"
+                title={injuryTitle(injury)}
+                description={[labelOf(INJURY_MECHANISM_LABELS, injury.mechanism), formatDate(injury.occurredAt)].filter(Boolean).join(" · ")}
                 meta={
                     <>
-                        <InjurySeverityBadge severity={injury.severity} locale={locale} />
-                        <InjuryStatusBadge status={injury.status} locale={locale} />
+                        <InjurySeverityBadge severity={injury.severity} />
+                        <InjuryStatusBadge status={injury.status} />
                     </>
                 }
             />
@@ -135,7 +127,7 @@ export default async function FighterInjuryPage({ params }: PageProps<"/fighter/
                         title={expectation.title}
                         action={
                             <ButtonLink href={routes.fighter.health} variant="secondary" size="sm">
-                                {t("fighterInjury.viewMedicalClearance")}
+                                View Medical Clearance
                             </ButtonLink>
                         }
                     >
@@ -147,44 +139,44 @@ export default async function FighterInjuryPage({ params }: PageProps<"/fighter/
                     {recoveryPlan && (
                         <Card className="min-w-0">
                             <CardHeader
-                                title={t("fighterInjury.recoveryPlan")}
+                                title="Recovery plan"
                                 description={`${recoveryPlan.title}${planDoctor ? ` · ${planDoctor}` : ""}`}
                                 icon={<RefreshCw />}
                             />
                             <CardContent>
-                                <RecoveryProgress plan={recoveryPlan} now={now} locale={locale} />
+                                <RecoveryProgress plan={recoveryPlan} now={now} />
                             </CardContent>
                         </Card>
                     )}
 
                     {recoveryPlan && medicalFeatureAvailable("recoveryPhasesAndCheckIns") && (
                         <Card className="min-w-0">
-                            <CardHeader title={t("fighterInjury.checkIns")} description={t("fighterInjury.checkInsDesc")} icon={<LineChartIcon />} />
+                            <CardHeader title="Check-ins" description="How you've reported feeling at each check-in" icon={<LineChartIcon />} />
                             <CardContent className="flex flex-col gap-6">
                                 <CheckInTrends checkIns={recoveryPlan.checkIns} now={now} />
                                 {recoveryPlan.checkIns.length >= 2 ? (
                                     <div className="border-t border-border pt-5">
-                                        <CheckInCharts checkIns={recoveryPlan.checkIns} audience="fighter" locale={locale} />
+                                        <CheckInCharts checkIns={recoveryPlan.checkIns} audience="fighter" />
                                     </div>
                                 ) : (
-                                    <p className="text-[13px] text-fg-muted">{t("fighterInjury.trendChartsHint")}</p>
+                                    <p className="text-[13px] text-fg-muted">Trend charts appear after your second check-in.</p>
                                 )}
                             </CardContent>
                         </Card>
                     )}
 
                     <Card className="min-w-0 overflow-hidden">
-                        <CardHeader title={t("fighterInjury.treatments")} description={plural(t, "fighterInjury.treatmentCount", treatments.length)} icon={<Activity />} />
+                        <CardHeader title="Treatments" description={pluralize(treatments.length, "treatment")} icon={<Activity />} />
                         {treatments.length === 0 ? (
                             <EmptyState
                                 compact
                                 icon={<Activity />}
-                                title={t("fighterInjury.noTreatmentsTitle")}
-                                description={t("fighterInjury.noTreatmentsDesc")}
+                                title="No treatments recorded"
+                                description="Your doctor adds treatments here as your care progresses."
                                 className="border-t border-border"
                             />
                         ) : (
-                            <TreatmentList treatments={treatments} className="border-t border-border" locale={locale} />
+                            <TreatmentList treatments={treatments} className="border-t border-border" />
                         )}
                     </Card>
                 </div>
@@ -193,15 +185,14 @@ export default async function FighterInjuryPage({ params }: PageProps<"/fighter/
                     {!aboutInMain && about}
 
                     <Card className="min-w-0">
-                        <CardHeader title={t("fighterInjury.bodyMap")} icon={<MapPinned />} />
+                        <CardHeader title="Body map" icon={<MapPinned />} />
                         <CardContent>
                             <BodyMap
-                                locale={locale}
                                 highlights={[
                                     {
                                         region: injury.bodyRegion,
                                         tone: INJURY_STATUS_META[injury.status].tone,
-                                        label: `${injuryTypeName(injury, locale)} · ${injuryStatusLabel(injury.status, locale).toLowerCase()}`,
+                                        label: `${injuryTypeName(injury)} · ${INJURY_STATUS_LABELS[injury.status].toLowerCase()}`,
                                     },
                                 ]}
                             />
@@ -213,21 +204,21 @@ export default async function FighterInjuryPage({ params }: PageProps<"/fighter/
     );
 }
 
-function whatToExpect(injury: Injury, now: string, t: Translator, locale: Locale): { tone: Tone; icon: LucideIcon; title: string; body: string } {
+function whatToExpect(injury: Injury, now: string): { tone: Tone; icon: LucideIcon; title: string; body: string } {
     if (injury.status === "resolved") {
         return {
             tone: "success",
             icon: CircleCheck,
-            title: injury.resolvedAt ? t("fighterInjury.expectResolvedTitle", { date: formatDate(injury.resolvedAt, locale) }) : t("fighterInjury.expectResolvedTitleNoDate"),
-            body: t("fighterInjury.expectResolvedBody"),
+            title: injury.resolvedAt ? `Resolved on ${formatDate(injury.resolvedAt)}` : "This injury is resolved",
+            body: "Your doctor marked this injury as resolved. Check your Medical Clearance before returning to full training.",
         };
     }
     if (!injury.expectedReturnAt) {
         return {
             tone: "info",
             icon: Hourglass,
-            title: t("fighterInjury.expectToBeConfirmedTitle"),
-            body: t("fighterInjury.expectToBeConfirmedBody"),
+            title: "Return date to be confirmed",
+            body: "Your doctor sets an expected return after your next assessment. Keep following your treatment in the meantime.",
         };
     }
     const days = daysBetween(now, injury.expectedReturnAt);
@@ -235,14 +226,14 @@ function whatToExpect(injury: Injury, now: string, t: Translator, locale: Locale
         return {
             tone: "info",
             icon: Hourglass,
-            title: t("fighterInjury.expectTakingLongerTitle"),
-            body: t("fighterInjury.expectTakingLongerBody", { date: formatDate(injury.expectedReturnAt, locale) }),
+            title: "Taking a little longer than planned",
+            body: `The expected return date was ${formatDate(injury.expectedReturnAt)}. Recovery often varies — your doctor will review your progress and update your clearance.`,
         };
     }
     return {
         tone: "info",
         icon: Flag,
-        title: days === 0 ? t("fighterInjury.expectTodayTitle") : t("fighterInjury.expectDaysTitle", { when: describeDaysUntil(days, locale) }),
-        body: t("fighterInjury.expectDaysBody", { date: formatDate(injury.expectedReturnAt, locale) }),
+        title: days === 0 ? "Expected return today" : `Expected return ${describeDaysUntil(days)}`,
+        body: `Around ${formatDate(injury.expectedReturnAt)}. Your doctor will update your clearance as you progress — keep following your recovery plan.`,
     };
 }

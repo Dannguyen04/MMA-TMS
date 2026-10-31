@@ -1,6 +1,4 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { BoutAiClient } from './bout-ai.client.js';
 import { DatabaseModule } from '../database/database.module.js';
 import { SuspensionsModule } from '../suspensions/suspensions.module.js';
 import { BoutsController } from './bouts.controller.js';
@@ -14,9 +12,9 @@ import { BoutsService } from './bouts.service.js';
  * lower layer imported by both TrainingModule and BoutsModule.
  */
 @Module({
-  imports: [DatabaseModule, SuspensionsModule, ConfigModule],
+  imports: [DatabaseModule, SuspensionsModule],
   controllers: [BoutsController, BoutsTodoController],
-  providers: [BoutsRepository, BoutsService, BoutsTodoService, BoutAiClient],
+  providers: [BoutsRepository, BoutsService, BoutsTodoService],
   exports: [BoutsRepository, BoutsService, BoutsTodoService],
 })
 export class BoutsModule {}

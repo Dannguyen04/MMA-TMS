@@ -1,10 +1,8 @@
 import { LoadingRegion, PageHeaderSkeleton, Skeleton } from "@/components/ui/skeleton";
-import { getTranslator } from "@/lib/i18n/server";
 
-export default async function FighterHealthLoading() {
-    const { t } = await getTranslator();
+export default function FighterHealthLoading() {
     return (
-        <LoadingRegion label={t("health.loadingFighter")}>
+        <LoadingRegion label="Loading your health and clearance">
             <PageHeaderSkeleton />
             <div className="mb-6 flex gap-6 overflow-hidden border-b border-border pb-3">
                 {Array.from({ length: 3 }, (_, i) => (

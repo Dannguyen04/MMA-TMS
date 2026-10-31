@@ -21,7 +21,6 @@ import { useToastMessage } from "@/components/toast/app-toast";
 import { AuthSelectField } from "@/components/auth/auth-select-field";
 import { AuthTextField } from "@/components/auth/auth-text-field";
 import { vi } from "@/i18n/vi";
-import { AdminApplicationDetailScreen } from "@/screens/admin/admin-application-detail";
 import { AdmissionPage } from "@/screens/admissions/page";
 import { mapApiMessage } from "@/session/map-api-message";
 import { spacing, type, useThemePreference } from "@/theme";
@@ -54,13 +53,7 @@ function emptyCriterion(): CriterionDraft {
   };
 }
 
-/** Quản lý dùng màn chi tiết theo Figma; HLV giữ màn đánh giá cũ. */
-export function StaffDetailScreen({ id, audience }: { id: string; audience: "admin" | "coach" }) {
-  if (audience === "admin") return <AdminApplicationDetailScreen id={id} />;
-  return <StaffDetailBody id={id} audience={audience} />;
-}
-
-function StaffDetailBody({
+export function StaffDetailScreen({
   id,
   audience,
 }: {

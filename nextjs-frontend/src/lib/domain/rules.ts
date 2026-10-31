@@ -1,12 +1,15 @@
-import { daysBetween } from "@/lib/format";
+import { daysBetween, formatDate } from "@/lib/format";
 import { clamp } from "@/lib/utils";
-
+import { TECHNIQUE_LABELS, TRAINING_TYPE_LABELS, BODY_REGION_LABELS } from "./labels";
 import type {
+    BodyRegion,
     ClearanceLevel,
     Goal,
     HealthStatus,
     MedicalClearance,
     RecoveryPlan,
+    Technique,
+    TrainingType,
 } from "./types";
 
 /* ─── AI confidence ───────────────────────────────────────────────────────── */
@@ -115,10 +118,75 @@ export function clearanceExpiresSoon(
     return remaining !== null && remaining >= 0 && remaining <= withinDays;
 }
 
-export {
-    checkTrainingAgainstClearance,
-    clearanceConflictMessage,
-    type ClearanceConflict,
-    type ClearanceConflictCode,
-    type PlannedTraining,
-} from "./clearance-rules";
+export interface PlannedTraining {
+    type: TrainingType;
+    /** Planned intensity; null when none was set, which skips the intensity check. */
+    targetRpe: number | null;
+    techniques: Technique[];
+    loadsRegions: BodyRegion[];
+}
+
+export interface ClearanceConflict {
+    /** "block" means the session must not go ahead as planned; "warn" needs coach judgement. */
+    severity: "block" | "warn";
+    message: string;
+}
+
+/**
+ * Checks planned training against the fighter's Medical Clearance.
+ * Coaches see these conflicts when scheduling; the doctor's clearance is always the authority.
+ */
+export function checkTrainingAgainstClearance(
+    planned: PlannedTraining,
+    clearance: MedicalClearance | null,
+    now: string | Date = new Date(),
+): ClearanceConflict[] {
+    const state = clearanceState(clearance, now);
+
+    if (state === "none") {
+        return [{ severity: "warn", message: "No Medical Clearance on file. Ask the sports doctor to complete a baseline examination." }];
+    }
+    if (state === "expired" && clearance) {
+        return [
+            {
+                severity: "block",
+                message: `Medical Clearance expired on ${formatDate(clearance.validUntil ?? clearance.issuedAt)}. A doctor must renew it before training.`,
+            },
+        ];
+    }
+    if (state === "not_cleared") {
+        return [{ severity: "block", message: "Fighter is not cleared to train. Only the sports doctor can change this." }];
+    }
+    if (!clearance || state === "full") return [];
+
+    const conflicts: ClearanceConflict[] = [];
+    for (const restriction of clearance.restrictions) {
+        if (restriction.blockedTrainingTypes.includes(planned.type)) {
+            conflicts.push({
+                severity: "block",
+                message: `${TRAINING_TYPE_LABELS[planned.type]} is restricted: ${restriction.label}.`,
+            });
+        }
+        if (restriction.maxRpe !== null && planned.targetRpe !== null && planned.targetRpe > restriction.maxRpe) {
+            conflicts.push({
+                severity: "block",
+                message: `Target intensity RPE ${planned.targetRpe} exceeds the cleared maximum of RPE ${restriction.maxRpe}.`,
+            });
+        }
+        const techniques = planned.techniques.filter((t) => restriction.blockedTechniques.includes(t));
+        if (techniques.length > 0) {
+            conflicts.push({
+                severity: "warn",
+                message: `Includes restricted techniques (${techniques.map((t) => TECHNIQUE_LABELS[t]).join(", ")}): ${restriction.label}.`,
+            });
+        }
+        const regions = planned.loadsRegions.filter((r) => restriction.blockedRegions.includes(r));
+        if (regions.length > 0) {
+            conflicts.push({
+                severity: "warn",
+                message: `Loads a protected area (${regions.map((r) => BODY_REGION_LABELS[r]).join(", ")}): ${restriction.label}.`,
+            });
+        }
+    }
+    return conflicts;
+}

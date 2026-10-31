@@ -1,6 +1,10 @@
-import { CoachNotificationsScreen } from "@/screens/coach/nav/coach-notifications-screen";
+import { NotificationInbox } from "@/screens/notifications/inbox";
+import { CoachScaffold } from "@/screens/coach/coach-ui";
 
-/** Mở từ chuông ở header (không còn là tab), có nút back. */
 export default function CoachNotificationsRoute() {
-  return <CoachNotificationsScreen />;
+  return (
+    <CoachScaffold title="Thông báo" inStack={false}>
+      <NotificationInbox title="Hộp thư" />
+    </CoachScaffold>
+  );
 }

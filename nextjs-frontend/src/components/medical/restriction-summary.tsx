@@ -2,8 +2,6 @@ import { RESTRICTION_SEVERITY_META } from "@/components/domain/restriction-meta"
 import { TONE_SOFT } from "@/components/ui/tone";
 import { restrictionSeverity } from "@/lib/domain/clearance-rules";
 import type { TrainingRestriction } from "@/lib/domain/types";
-import type { Locale } from "@/lib/i18n/config";
-import { createTranslator } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 
 /**
@@ -11,18 +9,9 @@ import { cn } from "@/lib/utils";
  * blocks a training type, a gauge caps intensity, a shield asks the coach to acknowledge
  * techniques or protect an area. Labels wrap rather than truncate, so no restriction is cut off.
  */
-export function RestrictionSummary({
-    restrictions,
-    className,
-    locale,
-}: {
-    restrictions: TrainingRestriction[];
-    className?: string;
-    locale?: Locale;
-}) {
-    const t = locale ? createTranslator(locale) : null;
+export function RestrictionSummary({ restrictions, className }: { restrictions: TrainingRestriction[]; className?: string }) {
     return (
-        <ul className={cn("flex flex-wrap gap-1.5", className)} aria-label={t ? t("clearanceCard.restrictions") : "Restrictions"}>
+        <ul className={cn("flex flex-wrap gap-1.5", className)} aria-label="Restrictions">
             {restrictions.map((restriction) => {
                 const { icon: Icon, tone } = RESTRICTION_SEVERITY_META[restrictionSeverity(restriction)];
                 return (

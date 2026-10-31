@@ -5,7 +5,6 @@ import type { SuspensionRow } from '../database/schema.js';
 import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import { USER } from '../shared/types/user.role.js';
 import type { Transaction } from '../shared/utils/audit-context.util.js';
-import { SuspensionEffects } from './suspension.effects.js';
 import type { CreateSuspensionInput } from './suspensions.model.js';
 import { SuspensionsRepository } from './suspensions.repo.js';
 import { SuspensionsService } from './suspensions.service.js';
@@ -128,7 +127,7 @@ describe('SuspensionsService', () => {
       ),
     } as unknown as Mocked<SuspensionsRepository>;
 
-    service = new SuspensionsService(repo, new SuspensionEffects());
+    service = new SuspensionsService(repo);
   });
 
   afterEach(() => {
@@ -249,7 +248,7 @@ describe('SuspensionsService', () => {
   });
 
   describe('createSuspension', () => {
-    it('creates a manual suspension with defaults (startsOn = today, default 6 blockedSessionTypes, boutId = null) and sets audit context', async () => {
+    it('creates a manual suspension with defaults (startsOn = today, blockedSessionTypes = [SPARRING], boutId = null) and sets audit context', async () => {
       const res = await service.createSuspension(
         coachActor,
         {
@@ -272,14 +271,7 @@ describe('SuspensionsService', () => {
           lossOfConsciousness: 'UNDER_1_MIN',
           suggestedDays: null,
           overrideReason: null,
-          blockedSessionTypes: [
-            'SHADOW_BOXING',
-            'PAD_WORK',
-            'HEAVY_BAG',
-            'SPARRING',
-            'GRAPPLING',
-            'STRENGTH_CONDITIONING',
-          ],
+          blockedSessionTypes: ['SPARRING'],
           requiresClearance: true,
           clearedAt: null,
           clearedById: null,
@@ -291,135 +283,6 @@ describe('SuspensionsService', () => {
       expect(res.status).toBe('ACTIVE');
       expect(res.startsOn).toBe('2026-10-20');
       expect(res.endsOn).toBe('2026-11-18');
-    });
-
-    it('creates a manual suspension with explicit blockedSessionTypes = [SPARRING] and stores only SPARRING', async () => {
-      await service.createSuspension(
-        coachActor,
-        {
-          fighterId: FIGHTER_ID,
-          reason: 'KO',
-          days: 30,
-          lossOfConsciousness: 'UNDER_1_MIN',
-          blockedSessionTypes: ['SPARRING'],
-        },
-        REQUEST_ID,
-      );
-
-      expect(repo.insertSuspension).toHaveBeenCalledWith(
-        expect.objectContaining({
-          blockedSessionTypes: ['SPARRING'],
-        }),
-        expect.anything(),
-      );
-    });
-
-    it('Criterion 2 & 3: creates a manual suspension with maxTier = 3 (storing SPARRING and GRAPPLING in SESSION_TYPES order), computes maxAllowedTier and gradedReturn in responses, and rejects maxTier + blockedSessionTypes with 422', async () => {
-      const createdWithMaxTier = await service.createSuspension(
-        coachActor,
-        {
-          fighterId: FIGHTER_ID,
-          reason: 'MEDICAL',
-          days: 14,
-          maxTier: 3,
-        },
-        REQUEST_ID,
-      );
-
-      expect(repo.insertSuspension).toHaveBeenCalledWith(
-        expect.objectContaining({
-          blockedSessionTypes: ['SPARRING', 'GRAPPLING'],
-        }),
-        expect.anything(),
-      );
-      expect(createdWithMaxTier.blockedSessionTypes).toEqual([
-        'SPARRING',
-        'GRAPPLING',
-      ]);
-      expect(createdWithMaxTier.maxAllowedTier).toBe(3);
-      expect(createdWithMaxTier.gradedReturn).toBeNull();
-
-      await expectHttp(
-        service.createSuspension(
-          coachActor,
-          {
-            fighterId: FIGHTER_ID,
-            reason: 'MEDICAL',
-            days: 14,
-            maxTier: 3,
-            blockedSessionTypes: ['SPARRING'],
-          },
-          REQUEST_ID,
-        ),
-        422,
-        'VALIDATION_ERROR',
-      );
-
-      // Default T-035 -> maxAllowedTier = 1; only SPARRING -> maxAllowedTier = 4
-      const defaultRes = await service.createSuspension(
-        coachActor,
-        {
-          fighterId: FIGHTER_ID,
-          reason: 'KO',
-          days: 60,
-        },
-        REQUEST_ID,
-      );
-      expect(defaultRes.maxAllowedTier).toBe(1);
-
-      const sparringOnlyRes = await service.createSuspension(
-        coachActor,
-        {
-          fighterId: FIGHTER_ID,
-          reason: 'KO',
-          days: 60,
-          blockedSessionTypes: ['SPARRING'],
-        },
-        REQUEST_ID,
-      );
-      expect(sparringOnlyRes.maxAllowedTier).toBe(4);
-
-      // Cleared KO on today (2026-10-20) -> gradedReturn has ceiling 3, fullReturnOn 2026-10-22
-      const clearedRow = makeSuspension({
-        reason: 'KO',
-        startsOn: '2026-08-20',
-        endsOn: '2026-10-18',
-        requiresClearance: true,
-        clearedAt: NOW,
-        clearedById: doctorActor.id,
-        clearanceNote: 'Cleared by ringside doctor',
-      });
-      repo.findSuspensionById.mockResolvedValueOnce(
-        makeSuspension({
-          reason: 'KO',
-          startsOn: '2026-08-20',
-          endsOn: '2026-10-18',
-          requiresClearance: true,
-          clearedAt: null,
-        }),
-      );
-      repo.lockSuspensionById.mockResolvedValueOnce(
-        makeSuspension({
-          reason: 'KO',
-          startsOn: '2026-08-20',
-          endsOn: '2026-10-18',
-          requiresClearance: true,
-          clearedAt: null,
-        }),
-      );
-      repo.clearSuspension.mockResolvedValueOnce(clearedRow);
-
-      const clearedResponse = await service.clearSuspension(
-        doctorActor,
-        SUSPENSION_ID,
-        { clearanceNote: 'Cleared by ringside doctor' },
-        REQUEST_ID,
-      );
-      expect(clearedResponse.status).toBe('ENDED');
-      expect(clearedResponse.gradedReturn).toEqual({
-        ceiling: 3,
-        fullReturnOn: '2026-10-22',
-      });
     });
 
     it('accepts a future startsOn (status = UPCOMING) and rejects a past startsOn with 422', async () => {
@@ -567,113 +430,6 @@ describe('SuspensionsService', () => {
         REQUEST_ID,
       );
       expect(createdByAdmin.id).toBe(SUSPENSION_ID);
-      expect(createdByAdmin.affectedSessions).toEqual([]);
-      expect(createdByAdmin.affectedPlans).toEqual([]);
-    });
-
-    it('invokes SuspensionEffects.runOnCreated inside the create transaction, calls afterCommit only after transaction resolves, and omits afterCommit from response JSON (Criterion 3)', async () => {
-      const effects = new SuspensionEffects();
-      const sessionId = '51c38f60-0f4e-48aa-848b-20f5ef828f01';
-      const callOrder: string[] = [];
-      const afterCommit = vi.fn(async () => {
-        callOrder.push('afterCommit');
-      });
-      const handler = vi.fn(async () => {
-        callOrder.push('runOnCreated');
-        return {
-          affectedSessions: [{ sessionId, action: 'PENDING' as const }],
-          affectedPlans: [],
-          afterCommit,
-        };
-      });
-      effects.register(handler);
-      const testTx = { execute: txExecute } as unknown as Transaction;
-      repo.transaction.mockImplementationOnce(async (work) => {
-        callOrder.push('tx:begin');
-        const out = await work(testTx);
-        callOrder.push('tx:commit');
-        return out;
-      });
-      const serviceWithEffects = new SuspensionsService(repo, effects);
-
-      const res = await serviceWithEffects.createSuspension(
-        coachActor,
-        {
-          fighterId: FIGHTER_ID,
-          reason: 'DQ',
-          days: 14,
-          blockedSessionTypes: ['SPARRING'],
-        },
-        REQUEST_ID,
-      );
-
-      expect(handler).toHaveBeenCalledTimes(1);
-      expect(handler).toHaveBeenCalledWith(
-        [
-          expect.objectContaining({
-            id: SUSPENSION_ID,
-            fighterId: FIGHTER_ID,
-            reason: 'DQ',
-            requiresClearance: false,
-          }),
-        ],
-        expect.anything(),
-      );
-      expect(callOrder).toEqual([
-        'tx:begin',
-        'runOnCreated',
-        'tx:commit',
-        'afterCommit',
-      ]);
-      expect(afterCommit).toHaveBeenCalledTimes(1);
-      expect(res.affectedSessions).toEqual([{ sessionId, action: 'PENDING' }]);
-      expect(res.affectedPlans).toEqual([]);
-      expect('afterCommit' in res).toBe(false);
-
-      // When transaction fails after runOnCreated, afterCommit must NOT be called
-      afterCommit.mockClear();
-      repo.transaction.mockImplementationOnce(async (work) => {
-        await work(testTx);
-        throw new Error('Transaction commit failure');
-      });
-      await expect(
-        serviceWithEffects.createSuspension(
-          coachActor,
-          {
-            fighterId: FIGHTER_ID,
-            reason: 'DQ',
-            days: 14,
-            blockedSessionTypes: ['SPARRING'],
-          },
-          REQUEST_ID,
-        ),
-      ).rejects.toThrow();
-      expect(afterCommit).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('SuspensionEffects (Criterion 7)', () => {
-    it('returns empty affectedSessions, affectedPlans, and no-op afterCommit when no handler is registered, and throws when register is called a second time', async () => {
-      const effects = new SuspensionEffects();
-      const tx = { execute: vi.fn() } as unknown as Transaction;
-
-      const noHandlerResult = await effects.runOnCreated([makeSuspension()], tx);
-      expect(noHandlerResult).toEqual({
-        affectedSessions: [],
-        affectedPlans: [],
-        afterCommit: expect.any(Function),
-      });
-      await expect(noHandlerResult.afterCommit()).resolves.toBeUndefined();
-
-      const firstHandler = vi.fn().mockResolvedValue({
-        affectedSessions: [],
-        affectedPlans: [],
-        afterCommit: async () => {},
-      });
-      effects.register(firstHandler);
-      expect(() => effects.register(vi.fn())).toThrow(
-        /already been registered/,
-      );
     });
   });
 

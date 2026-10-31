@@ -32,7 +32,6 @@ import {
   type PickedVideo,
 } from "@/screens/media/video-model";
 import { useTypography } from "@/theme";
-import { useReadableWidth } from "@/components/readable-width";
 
 function issueLabel(issue: UploadIssue): string {
   if (issue === "title") return media.needTitle;
@@ -61,7 +60,6 @@ export function VideoUploadContent({
   onUploaded: (videoId: string) => void;
   onBack: () => void;
 }) {
-  const readable = useReadableWidth();
   const colors = useFighterPalette();
   const live = useTypography();
   const insets = useSafeAreaInsets();
@@ -192,7 +190,7 @@ export function VideoUploadContent({
       <VideoScreenHeader title={media.uploadTitle} onBack={onBack} />
       <ScrollView
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={[styles.form, readable]}
+        contentContainerStyle={styles.form}
       >
         {!fighterId ? <Text style={{ color: colors.muted }}>{media.needFighter}</Text> : null}
         <Pressable

@@ -11,11 +11,6 @@ describe('BoutsController routes', () => {
   const proto = BoutsController.prototype;
 
   const cases: [keyof BoutsController, RequestMethod, string, string][] = [
-    ['suggestAiTactics', RequestMethod.POST, 'bouts/:id/ai/tactics', BOUT_PERMISSIONS.UPDATE],
-    ['suggestAiRoundAdvice', RequestMethod.POST, 'bouts/:id/ai/round-advice/:roundNo', BOUT_PERMISSIONS.UPDATE],
-    ['suggestAiVideo', RequestMethod.POST, 'bouts/:id/ai/video-observations', BOUT_PERMISSIONS.UPDATE],
-    ['getAiSuggestions', RequestMethod.GET, 'bouts/:id/ai/suggestions', BOUT_PERMISSIONS.READ],
-    ['decideAiSuggestion', RequestMethod.PATCH, 'bouts/:id/ai/suggestions/:suggestionId', BOUT_PERMISSIONS.UPDATE],
     [
       'listRulesets',
       RequestMethod.GET,
@@ -61,13 +56,6 @@ describe('BoutsController routes', () => {
       RequestMethod.GET,
       'bouts/feasibility',
       BOUT_PERMISSIONS.CREATE,
-    ],
-    ['getReport', RequestMethod.GET, 'bouts/:id/report', BOUT_PERMISSIONS.READ],
-    [
-      'getResultPrefill',
-      RequestMethod.GET,
-      'bouts/:id/result-prefill',
-      BOUT_PERMISSIONS.RESULT,
     ],
     ['getBout', RequestMethod.GET, 'bouts/:id', BOUT_PERMISSIONS.READ],
     ['updateBout', RequestMethod.PATCH, 'bouts/:id', BOUT_PERMISSIONS.UPDATE],
@@ -133,11 +121,6 @@ describe('BoutsController routes', () => {
     ],
   ];
 
-  it('returns HTTP 200 for all three AI POSTs, including failed AI results', () => {
-    for (const name of ['suggestAiTactics', 'suggestAiRoundAdvice', 'suggestAiVideo'] as const)
-      expect(Reflect.getMetadata('__httpCode__', proto[name])).toBe(200);
-  });
-
   it.each(cases)(
     '%s uses %s %s and requires %s',
     (name, method, path, permission) => {
@@ -175,9 +158,6 @@ describe('BoutsController routes', () => {
 // Exercise the same Zod DTO pipe installed on this controller, without external services.
 import { appZodValidationPipe } from '../shared/pipes/zod-validation.pipe.js';
 import {
-  RecordResultDto,
-  BoutReportResponseDto,
-  ResultPrefillResponseDto,
   OpponentAnalysisDto,
   ReadinessQueryDto,
   RoundInputDto,
@@ -351,92 +331,5 @@ describe('T-010 controller DTO boundary', () => {
       weightLimitKg: 60,
       boutOn: '2026-11-01',
     });
-  });
-});
-
-describe('T-010 result and report contracts', () => {
-  it('R26 accepts only explicit boolean incomplete-round confirmation (AC16)', async () => {
-    for (const confirmIncompleteRounds of [true, false, undefined]) {
-      expect(
-        await appZodValidationPipe.transform(
-          { result: 'WIN', method: 'DECISION', confirmIncompleteRounds },
-          { type: 'body', metatype: RecordResultDto },
-        ),
-      ).toMatchObject({ result: 'WIN', method: 'DECISION' });
-    }
-    for (const confirmIncompleteRounds of ['true', 1, null]) {
-      await expect(
-        Promise.resolve().then(() =>
-          appZodValidationPipe.transform(
-            { result: 'WIN', method: 'DECISION', confirmIncompleteRounds },
-            { type: 'body', metatype: RecordResultDto },
-          ),
-        ),
-      ).rejects.toMatchObject({ status: 422 });
-    }
-  });
-
-  it('documents no-round nulls and preserves improvement point payloads (AC17)', () => {
-    expect(
-      ResultPrefillResponseDto.schema.parse({
-        resultRound: null,
-        knockedDown: null,
-      }),
-    ).toEqual({ resultRound: null, knockedDown: null });
-    const report = {
-      result: {
-        result: 'WIN',
-        method: 'DECISION',
-        resultRound: null,
-        knockedDown: false,
-      },
-      tactics: [
-        {
-          id: 't1',
-          text: 'counter',
-          effectiveRounds: 0,
-          ineffectiveRounds: 0,
-          outcome: null,
-          review: null,
-        },
-      ],
-      observations: [],
-      acuteLoss: null,
-      improvementPoints: [
-        { code: 'TACTIC_INEFFECTIVE', tacticId: 't1', text: 'counter' },
-        { code: 'ACUTE_LOSS_EXCEEDED' },
-        { code: 'FATIGUE_FROM_ROUND_2', fromRound: 2 },
-      ],
-      roundsRecorded: 0,
-    };
-    expect(BoutReportResponseDto.schema.parse(report)).toEqual(report);
-  });
-
-  it('forwards report and prefill reads with authenticated actor and rejects missing authentication', async () => {
-    const getReport = vi.fn().mockResolvedValue({ roundsRecorded: 0 });
-    const getResultPrefill = vi
-      .fn()
-      .mockResolvedValue({ resultRound: null, knockedDown: null });
-    const controller = new BoutsController({
-      getReport,
-      getResultPrefill,
-    } as unknown as BoutsService);
-    const actor = {
-      id: 'coach',
-      authSubject: 'sub',
-      email: 'coach@example.invalid',
-      role: USER.COACH,
-    };
-    const params = { id: '40000000-0000-4000-8000-000000000001' };
-    await controller.getReport(actor, params);
-    await controller.getResultPrefill(actor, params);
-    expect(getReport).toHaveBeenCalledWith(actor, params.id);
-    expect(getResultPrefill).toHaveBeenCalledWith(actor, params.id);
-    await expect(controller.getReport(undefined, params)).rejects.toMatchObject(
-      { status: 401 },
-    );
-    await expect(
-      controller.getResultPrefill(undefined, params),
-    ).rejects.toMatchObject({ status: 401 });
   });
 });

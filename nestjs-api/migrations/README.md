@@ -1,36 +1,4 @@
-# Migrations 003–032 — Backend, Database & API Permissions
-
-## Áp dụng migration 032 (Trạng thái buổi tập PENDING — T-036 / R28)
-
-032 chỉ yêu cầu ledger 024 (`024_bouts.sql`), chưa có 032 và đã có `public.session_status` (từ 001); không yêu cầu 025–031 để các nhánh song song áp độc lập.
-Nội dung:
-- Thêm giá trị `'PENDING'` vào enum `public.session_status` (`ALTER TYPE public.session_status ADD VALUE IF NOT EXISTS 'PENDING'`), không dùng làm literal trong cùng transaction.
-- Không thêm cột, bảng, RLS hay quyền mới.
-- Ledger version 32, advisory lock `(20260916, 32)`, checksum trong `manifest.json`.
-
-```sh
-pnpm db:check
-pnpm db:migrate:032
-```
-
-## Áp dụng migration 031 (Gợi ý AI cho trận)
-
-031 yêu cầu ledger 027 và 030, chưa có 031; kiểm collision bảng và hàm audit.
-Bảng bout_ai_suggestions lưu cả OK và FAILED, hash cache, model, độ trễ,
-người yêu cầu và quyết định của HLV. CHECK loại/hiệp, FAILED có lỗi và output object;
-FK bout cascade, index bout/kind/created_at DESC. Audit, RLS và revoke
-PUBLIC/anon/authenticated giống bout_rounds; API kiểm quyền truy cập trận.
-Advisory lock (20260916, 31), ledger 31, checksum trong manifest.
-Chủ dự án tự áp bằng pnpm db:migrate:031 sau pnpm db:check.
-Kiểm thử dùng PostgreSQL tạm; không kết nối Supabase.
-
-## Áp dụng migration 030 (Kế hoạch hiệp sau)
-
-030 yêu cầu ledger 027 và chưa có 030; không yêu cầu 028, 029.
-Thêm bout_rounds.next_round_plan jsonb NOT NULL DEFAULT '{}' và CHECK
-ck_bout_rounds_next_round_plan chỉ nhận object. Preflight chặn cột đã tồn tại;
-advisory lock (20260916, 30), ledger version 30, checksum trong manifest.
-Chủ dự án tự áp bằng db:migrate:030 sau khi kiểm db:check; không kết nối Supabase trong kiểm thử.
+# Migrations 003–027 — Backend, Database & API Permissions
 
 ## Áp dụng migration 027 (Phân tích đối thủ và ghi hiệp)
 

@@ -94,8 +94,44 @@ describe("mobilePrimaryItems", () => {
         expect(labels("doctor")).toEqual(["Triage", "Patients", "Clinical"]);
     });
 
-    it("keeps admin's four most-used pages", () => {
-        expect(labels("admin")).toEqual(["Dashboard", "Users", "AI jobs", "Audit logs"]);
+    it("keeps the five admin hubs the bar has room for", () => {
+        expect(labels("admin")).toEqual(["Today", "People", "Admissions", "AI platform", "System"]);
+        expect(mobilePrimaryItems("admin").map((item) => item.shortLabel ?? item.label)).toEqual(["Today", "People", "Admissions", "AI", "System"]);
+    });
+});
+
+describe("admin hubs", () => {
+    const items = NAVIGATION.admin.flatMap((section) => section.items);
+
+    it("groups the admin pages into a handful of hubs", () => {
+        expect(items.map((item) => item.label)).toEqual(["Today", "People", "Admissions", "Training", "AI platform", "System"]);
+    });
+
+    it("finds each page's hub, including detail pages under a tab", () => {
+        expect(hubForPath("admin", routes.admin.roles)?.label).toBe("People");
+        expect(hubForPath("admin", routes.admin.user("u-1"))?.label).toBe("People");
+        expect(hubForPath("admin", routes.admin.newUser)?.label).toBe("People");
+        expect(hubForPath("admin", routes.admin.videos)?.label).toBe("AI platform");
+        expect(hubForPath("admin", routes.admin.aiJob("j-1"))?.label).toBe("AI platform");
+        expect(hubForPath("admin", routes.admin.aiModel("m-1"))?.label).toBe("AI platform");
+        expect(hubForPath("admin", routes.admin.notifications)?.label).toBe("System");
+        expect(hubForPath("admin", routes.admin.settings)?.label).toBe("System");
+        expect(hubForPath("admin", routes.admin.admissions)).toBeNull();
+        expect(hubForPath("admin", routes.admin.dashboard)).toBeNull();
+    });
+
+    it("shows tabs on hub pages only, and keeps single-page destinations current", () => {
+        expect(hubTabsFor("admin", routes.admin.aiModels)?.tabs.map((tab) => tab.label)).toEqual(["AI jobs", "Videos", "AI models"]);
+        expect(hubTabsFor("admin", routes.admin.user("u-1"))).toBeNull();
+        const training = items.find((item) => item.label === "Training")!;
+        expect(training.href).toBe(routes.admin.exercises);
+        expect(isNavItemActive(training, routes.admin.exercises)).toBe(true);
+        const people = items.find((item) => item.label === "People")!;
+        expect(isNavItemActive(people, routes.admin.admissions)).toBe(false);
+    });
+
+    it("carries the failed-jobs count on the AI platform hub", () => {
+        expect(items.find((item) => item.badge === "failedJobs")?.label).toBe("AI platform");
     });
 });
 

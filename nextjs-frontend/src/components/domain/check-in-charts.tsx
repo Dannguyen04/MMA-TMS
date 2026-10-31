@@ -5,8 +5,6 @@ import { Sparkline } from "@/components/charts/sparkline";
 import { painLabel } from "@/components/clinical/clinical-copy";
 import type { RecoveryCheckIn } from "@/lib/domain/types";
 import { formatShortDate } from "@/lib/format";
-import type { Locale } from "@/lib/i18n/config";
-import { createTranslator } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 
 export interface CheckInChartsProps {
@@ -15,70 +13,32 @@ export interface CheckInChartsProps {
     /** Fighters read about how they felt; clinicians get the change in numbers. Charts are otherwise identical. */
     audience: "fighter" | "clinical";
     className?: string;
-    locale?: Locale;
 }
 
 /** Recovery check-ins over time: pain on its own 0–10 chart, mobility and strength together as % of the healthy side. No dual axes. */
-export function CheckInCharts({ checkIns, audience, className, locale = "en" }: CheckInChartsProps) {
-    const t = createTranslator(locale);
-    const labels = checkIns.map((checkIn) => formatShortDate(checkIn.date, locale));
+export function CheckInCharts({ checkIns, audience, className }: CheckInChartsProps) {
+    const labels = checkIns.map((checkIn) => formatShortDate(checkIn.date));
     const first = checkIns[0];
     const last = checkIns.at(-1);
-    const painText = (level: number) => `${level} (${painLabel(level, locale).toLowerCase()})`;
-    const painChange = first && last;
-
-    const painDescription =
-        audience === "clinical"
-            ? painChange
-                ? t("checkInCharts.painClinicalDesc", {
-                      change: t("checkInCharts.painReportedChange", {
-                          from: painText(first.painLevel),
-                          to: painText(last.painLevel),
-                      }),
-                  })
-                : t("checkInCharts.painClinicalDescDefault")
-            : t("checkInCharts.painFighterDesc");
-
-    const mobilityDescription =
-        audience === "clinical"
-            ? last
-                ? t("checkInCharts.mobilityStrengthClinicalDesc", {
-                      mobility: last.mobilityPct,
-                      strength: last.strengthPct,
-                  })
-                : t("checkInCharts.mobilityStrengthClinicalDescDefault")
-            : t("checkInCharts.mobilityStrengthFighterDesc");
+    const painText = (level: number) => `${level} (${painLabel(level).toLowerCase()})`;
+    const painChange = first && last ? `from ${painText(first.painLevel)} to ${painText(last.painLevel)}` : null;
 
     return (
         <div className={cn("grid grid-cols-1 gap-6 xl:grid-cols-2", className)}>
             <ChartFigure
-                title={t("checkInCharts.painTitle")}
-                description={painDescription}
-                table={{
-                    columns: [t("checkInCharts.painColCheckIn"), t("checkInCharts.painColPain")],
-                    rows: checkIns.map((checkIn, index) => [labels[index], checkIn.painLevel]),
-                }}
-                tableCaption={t("checkInCharts.painTableCaption")}
+                title="Pain (0–10)"
+                description={
+                    audience === "clinical"
+                        ? `${painChange ? `Reported ${painChange}` : "Reported pain"} — lower is better`
+                        : "How much it hurt at each check-in — lower is better"
+                }
+                table={{ columns: ["Check-in", "Pain (0–10)"], rows: checkIns.map((checkIn, index) => [labels[index], checkIn.painLevel]) }}
+                tableCaption="Reported pain at each check-in"
             >
                 <LineChart
-                    ariaLabel={t("checkInCharts.painAriaLabel", {
-                        count: checkIns.length,
-                        change: painChange
-                            ? t("checkInCharts.painChangeAria", {
-                                  from: painText(first.painLevel),
-                                  to: painText(last.painLevel),
-                              })
-                            : "",
-                    })}
+                    ariaLabel={`Reported pain across ${checkIns.length} check-ins on a scale of 0 to 10${painChange ? `, ${painChange}` : ""}`}
                     labels={labels}
-                    series={[
-                        {
-                            id: "pain",
-                            label: t("checkInCharts.painSeriesLabel"),
-                            color: CHECK_IN_COLORS.pain,
-                            values: checkIns.map((checkIn) => checkIn.painLevel),
-                        },
-                    ]}
+                    series={[{ id: "pain", label: "Pain", color: CHECK_IN_COLORS.pain, values: checkIns.map((checkIn) => checkIn.painLevel) }]}
                     yDomain={[0, 10]}
                     yTicks={6}
                     height={220}
@@ -87,34 +47,24 @@ export function CheckInCharts({ checkIns, audience, className, locale = "en" }: 
                 />
             </ChartFigure>
             <ChartFigure
-                title={t("checkInCharts.mobilityStrengthTitle")}
-                description={mobilityDescription}
+                title="Mobility and strength (%)"
+                description={
+                    audience === "clinical"
+                        ? `${last ? `Latest ${last.mobilityPct}% mobility, ${last.strengthPct}% strength` : "Share of the healthy side"} — higher is better`
+                        : "Compared with your healthy side — higher is better"
+                }
                 table={{
-                    columns: [
-                        t("checkInCharts.mobilityColCheckIn"),
-                        t("checkInCharts.mobilityColMobility"),
-                        t("checkInCharts.mobilityColStrength"),
-                    ],
+                    columns: ["Check-in", "Mobility (%)", "Strength (%)"],
                     rows: checkIns.map((checkIn, index) => [labels[index], checkIn.mobilityPct, checkIn.strengthPct]),
                 }}
-                tableCaption={t("checkInCharts.mobilityStrengthTableCaption")}
+                tableCaption="Mobility and strength at each check-in, as a percentage of the healthy side"
             >
                 <LineChart
-                    ariaLabel={t("checkInCharts.mobilityStrengthAriaLabel", { count: checkIns.length })}
+                    ariaLabel={`Mobility and strength as a percentage of the healthy side across ${checkIns.length} check-ins`}
                     labels={labels}
                     series={[
-                        {
-                            id: "mobility",
-                            label: t("checkInCharts.mobilitySeriesLabel"),
-                            color: CHECK_IN_COLORS.mobility,
-                            values: checkIns.map((checkIn) => checkIn.mobilityPct),
-                        },
-                        {
-                            id: "strength",
-                            label: t("checkInCharts.strengthSeriesLabel"),
-                            color: CHECK_IN_COLORS.strength,
-                            values: checkIns.map((checkIn) => checkIn.strengthPct),
-                        },
+                        { id: "mobility", label: "Mobility", color: CHECK_IN_COLORS.mobility, values: checkIns.map((checkIn) => checkIn.mobilityPct) },
+                        { id: "strength", label: "Strength", color: CHECK_IN_COLORS.strength, values: checkIns.map((checkIn) => checkIn.strengthPct) },
                     ]}
                     yDomain={[0, 100]}
                     valueSuffix="%"

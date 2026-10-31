@@ -1,6 +1,6 @@
 // SQL migrations are authoritative. This file maps public tables for Drizzle queries.
 // RLS, grants, trigger functions and migration history are owned by 003, not drizzle-kit.
-import type { NextRoundPlan, OpponentAnalysis, RoundInput } from '../bouts/bout-analysis.model.js';
+import type { OpponentAnalysis, RoundInput } from '../bouts/bout-analysis.model.js';
 import { sql } from 'drizzle-orm';
 import {
   pgTable,
@@ -149,7 +149,6 @@ export const sessionStatusEnum = pgEnum('session_status', [
   'SKIPPED',
   'CANCELLED',
   'ABANDONED',
-  'PENDING',
 ]);
 export const sessionTypeEnum = pgEnum('session_type', [
   'SHADOW_BOXING',
@@ -4593,7 +4592,6 @@ export const boutRounds = pgTable('bout_rounds', {
   id: uuid('id').primaryKey().defaultRandom(),
   boutId: uuid('bout_id').notNull().references(() => bouts.id, { onDelete: 'cascade' }),
   roundNo: smallint('round_no').notNull(),
-  nextRoundPlan: jsonb('next_round_plan').$type<NextRoundPlan>().notNull().default(sql`'{}'::jsonb`),
   tacticMarks: jsonb('tactic_marks').$type<NonNullable<RoundInput['tacticMarks']>>().notNull().default(sql`'{}'::jsonb`),
   observationMarks: jsonb('observation_marks').$type<NonNullable<RoundInput['observationMarks']>>().notNull().default(sql`'{}'::jsonb`),
   selfScore: text('self_score').$type<'WIN' | 'LOSS' | 'CLOSE'>(),
@@ -4611,39 +4609,10 @@ export const boutRounds = pgTable('bout_rounds', {
   check('bout_rounds_self_score_check', sql.raw("self_score IN ('WIN', 'LOSS', 'CLOSE')")),
   check('bout_rounds_knockdowns_against_check', sql.raw('knockdowns_against BETWEEN 0 AND 10')),
   check('bout_rounds_note_check', sql.raw('note IS NULL OR char_length(note) <= 300')),
-  check('ck_bout_rounds_next_round_plan', sql.raw("jsonb_typeof(next_round_plan) = 'object'")),
   check('ck_bout_rounds_tactic_marks', sql.raw("jsonb_typeof(tactic_marks) = 'object'")),
   check('ck_bout_rounds_observation_marks', sql.raw("jsonb_typeof(observation_marks) = 'object'")),
 ]).enableRLS();
 export type BoutRoundRow = typeof boutRounds.$inferSelect;
-
-export const boutAiSuggestions = pgTable('bout_ai_suggestions', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  boutId: uuid('bout_id').notNull().references(() => bouts.id, { onDelete: 'cascade' }),
-  kind: text('kind').$type<import('../bouts/bout-analysis.model.js').BoutAiKind>().notNull(),
-  roundNo: smallint('round_no'),
-  status: text('status').$type<'OK' | 'FAILED'>().notNull(),
-  errorCode: text('error_code').$type<import('../bouts/bout-analysis.model.js').BoutAiError>(),
-  model: text('model').notNull(),
-  inputHash: text('input_hash').notNull(),
-  output: jsonb('output').$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
-  latencyMs: integer('latency_ms'),
-  requestedById: uuid('requested_by_id').notNull().references(() => users.id),
-  decision: text('decision').$type<'ACCEPTED' | 'PARTIAL' | 'REJECTED'>(),
-  acceptedItemIds: text('accepted_item_ids').array().notNull().default(sql`'{}'::text[]`),
-  decidedAt: timestamp('decided_at', { withTimezone: true }),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-}, (t) => [
-  index('idx_bout_ai_suggestions_bout_kind_created').on(t.boutId, t.kind, t.createdAt.desc()),
-  check('bout_ai_suggestions_kind_check', sql.raw("kind IN ('PRE_BOUT_TACTICS','BETWEEN_ROUNDS','VIDEO_OBSERVATIONS')")),
-  check('bout_ai_suggestions_round_no_check', sql.raw('round_no BETWEEN 1 AND 12')),
-  check('bout_ai_suggestions_status_check', sql.raw("status IN ('OK','FAILED')")),
-  check('bout_ai_suggestions_decision_check', sql.raw("decision IN ('ACCEPTED','PARTIAL','REJECTED')")),
-  check('ck_bout_ai_round', sql.raw("(kind = 'BETWEEN_ROUNDS') = (round_no IS NOT NULL)")),
-  check('ck_bout_ai_error', sql.raw("status <> 'FAILED' OR error_code IS NOT NULL")),
-  check('ck_bout_ai_output', sql.raw("jsonb_typeof(output) = 'object'")),
-]).enableRLS();
-export type BoutAiSuggestionRow = typeof boutAiSuggestions.$inferSelect;
 
 export const suspensionReasonEnum = pgEnum('suspension_reason', [
   'KO',

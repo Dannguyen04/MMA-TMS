@@ -1,4 +1,4 @@
-import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useCallback } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter, type Href } from "expo-router";
@@ -16,12 +16,6 @@ import { formatWeekRange, isInWeek, sameLocalDay, startOfWeek, weekDays } from "
 import { useFighterId } from "@/screens/fighter/use-fighter-id";
 import { useLoad } from "@/screens/fighter/use-load";
 import type { TrainingPlan, TrainingSessionSummary } from "@/api";
-import { fighterHref } from "@/navigation/role-href";
-import { Icon, type IconName } from "@/components/icon";
-import { FadeInView, PressableScale } from "@/components/motion";
-import { Skeleton } from "@/components/motion";
-import { FighterHomeSkeleton } from "@/components/screen-skeletons";
-import { HomeBoutCard } from "@/screens/fighter/home-bout-card";
 
 type HomeData = {
   firstName: string;
@@ -95,7 +89,7 @@ export function FighterHomeScreen() {
     };
   }, [fighterId, profile, user]);
 
-  const { data, loading, reload, refresh } = useLoad(canFetch, fighterId ?? "none", load);
+  const { data, loading, reload } = useLoad(canFetch, fighterId ?? "none", load);
   useToastMessage(data?.sessionsError, "error");
   useToastMessage(data?.medicalError, "error");
   useToastMessage(data?.plansError, "error");
@@ -121,192 +115,174 @@ export function FighterHomeScreen() {
       : null;
 
   return (
-    <FighterHub refreshing={loading && !data} onRefresh={refresh}>
+    <FighterHub refreshing={loading && !data}>
       <HubHeader
         title={greeting}
         trailing={
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Thông báo"
-            onPress={() => router.push(fighterHref.notifications)}
+            onPress={() => router.push("/thong-bao" as Href)}
             style={[styles.bell, { backgroundColor: colors.surface2 }]}
           >
-            <Icon name="notifications" size={22} color={colors.ink} />
+            <MaterialCommunityIcons name="bell-outline" size={22} color={colors.ink} />
           </Pressable>
         }
       />
 
-      {loading && !data ? (
-        <View style={styles.skeleton}>
-          <FighterHomeSkeleton />
-        </View>
-      ) : (
-        <>
       <View style={[styles.agenda, { backgroundColor: colors.agenda }]}>
-          <View style={styles.rowBetween}>
-            <Text style={[styles.agendaTitle, { color: colors.agendaInk }]}>Tuần của bạn</Text>
-            <Text style={[styles.agendaMeta, { color: colors.agendaMuted }]}>{formatWeekRange(weekStart)}</Text>
-          </View>
-          <View style={styles.days}>
-            {days.map((day) => {
-              const hasSession = weekSessions.some((row) => sameLocalDay(row.scheduledAt, day.iso));
-              return (
+        <View style={styles.rowBetween}>
+          <Text style={[styles.agendaTitle, { color: colors.agendaInk }]}>Tuần của bạn</Text>
+          <Text style={[styles.agendaMeta, { color: colors.agendaMuted }]}>{formatWeekRange(weekStart)}</Text>
+        </View>
+        <View style={styles.days}>
+          {days.map((day) => {
+            const hasSession = weekSessions.some((row) => sameLocalDay(row.scheduledAt, day.iso));
+            return (
+              <View
+                key={day.key}
+                accessibilityLabel={`${day.label} ${day.date}${day.isToday ? ", hôm nay" : ""}${hasSession ? ", có buổi tập" : ""}`}
+                style={[
+                  styles.day,
+                  { backgroundColor: day.isToday ? colors.accent : colors.day },
+                ]}
+              >
+                <Text style={[styles.dayLabel, { color: day.isToday ? colors.onAccent : colors.agendaMuted }]}>
+                  {day.label}
+                </Text>
+                <Text style={[styles.dayNum, { color: day.isToday ? colors.onAccent : colors.agendaInk }]}>
+                  {String(day.date).padStart(2, "0")}
+                </Text>
                 <View
-                  key={day.key}
-                  accessibilityLabel={`${day.label} ${day.date}${day.isToday ? ", hôm nay" : ""}${hasSession ? ", có buổi tập" : ""}`}
                   style={[
-                    styles.day,
-                    { backgroundColor: day.isToday ? colors.accent : colors.day },
+                    styles.marker,
+                    { backgroundColor: day.isToday ? colors.onAccent : hasSession ? colors.accent : colors.marker },
                   ]}
-                >
-                  <Text style={[styles.dayLabel, { color: day.isToday ? colors.onAccent : colors.agendaMuted }]}>
-                    {day.label}
-                  </Text>
-                  <Text style={[styles.dayNum, { color: day.isToday ? colors.onAccent : colors.agendaInk }]}>
-                    {String(day.date).padStart(2, "0")}
-                  </Text>
-                  <View
-                    style={[
-                      styles.marker,
-                      { backgroundColor: day.isToday ? colors.onAccent : hasSession ? colors.accent : colors.marker },
-                    ]}
-                  />
-                </View>
-              );
-            })}
-          </View>
-          {data?.sessionsError ? (
-            <Pressable accessibilityRole="button" onPress={reload}>
-              <Text style={[styles.agendaMeta, { color: colors.agendaInk }]}>Thử lại</Text>
-            </Pressable>
-          ) : (
-            <View style={styles.countRow}>
-              <Text style={[styles.count, { color: colors.agendaInk }]}>
-                {sessions ? String(weekSessions.length) : "—"}
-              </Text>
-              <View style={styles.flex}>
-                <Text style={[styles.agendaTitle, { color: colors.agendaInk }]}>Buổi tập trong tuần</Text>
-                {loading && !data ? (
-                  <Skeleton width="60%" height={14} />
-                ) : (
-                  <Text style={[styles.agendaMeta, { color: colors.agendaMuted }]}>
-                    {sessions && weekSessions.length === 0
-                      ? "Chưa có lịch tập được ghi nhận."
-                      : sessions
-                        ? "Các buổi đã được ghi trên hệ thống."
-                        : "Chưa có lịch tập được ghi nhận."}
-                  </Text>
-                )}
+                />
               </View>
-            </View>
-          )}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Mở danh sách buổi tập"
-            onPress={() => router.push("/tap" as Href)}
-            style={styles.openList}
-          >
-            <Text style={styles.openListLabel}>Mở danh sách buổi tập</Text>
-            <Feather name="arrow-right" size={20} color={colors.agenda} />
+            );
+          })}
+        </View>
+        {data?.sessionsError ? (
+          <Pressable accessibilityRole="button" onPress={reload}>
+            <Text style={[styles.agendaMeta, { color: colors.agendaInk }]}>Thử lại</Text>
           </Pressable>
-        </View>
-  
-        <View style={styles.pad}>
-          <HomeBoutCard />
-          {clinical ? (
-            <Text style={[styles.elig, { color: colors.ink }]}>{clinicalStepCopy(clinical.step)}</Text>
-          ) : null}
-          {data?.medicalError ? (
-            <Pressable accessibilityRole="button" onPress={reload}>
-              <Text style={[styles.meta, { color: colors.accent }]}>Thử lại</Text>
-            </Pressable>
-          ) : training ? (
-            <Pressable
-              accessibilityRole="link"
-              accessibilityLabel="Xem giới hạn tại Cơ thể"
-              onPress={() => router.push("/co-the" as Href)}
-              style={styles.eligRow}
-            >
-              <MaterialCommunityIcons
-                name={training.eligible ? "shield-check" : "shield-off-outline"}
-                size={18}
-                color={training.eligible ? colors.success : colors.warning}
-              />
-              <Text style={[styles.elig, { color: training.eligible ? colors.success : colors.warning }]}>
-                {training.eligible ? "Đủ điều kiện tập" : "Chưa đủ điều kiện tập"} · Xem giới hạn tại Cơ thể
-              </Text>
-            </Pressable>
-          ) : (
-            <Text style={[styles.meta, { color: colors.muted }]}>Điều kiện tập sẽ hiện khi hồ sơ y tế tải xong.</Text>
-          )}
-  
-          <View style={styles.grid}>
-            <Shortcut
-              index={0}
-              icon="plans"
-              title="Giáo án"
-              subtitle={
-                data?.plansError ? "Không tải được" : planCount === 0 ? "Chưa được giao" : planCount ? `${planCount} giáo án` : loading ? "…" : "—"
-              }
-              onPress={() => router.push("/giao-an" as Href)}
-            />
-            <Shortcut
-              index={1}
-              icon="bodyFigure"
-              title="Cơ thể & giấy phép"
-              subtitle="Kiểm tra điều kiện"
-              onPress={() => router.push("/co-the" as Href)}
-            />
-            <Shortcut
-              index={2}
-              icon="video"
-              title="Video / bằng chứng"
-              subtitle="Mở kho video"
-              onPress={() => router.push("/video" as Href)}
-            />
-            <Shortcut
-              index={3}
-              icon="history"
-              title="Lịch sử sức khỏe"
-              subtitle="Hồ sơ y tế"
-              onPress={() => router.push("/suc-khoe/lich-su" as Href)}
-            />
-          </View>
-  
-          <View style={styles.linkRow}>
-            <LinkChip icon="goals" label="Mục tiêu" onPress={() => router.push("/muc-tieu" as Href)} />
-            <LinkChip icon="performance" label="Hiệu suất" onPress={() => router.push("/hieu-suat" as Href)} />
-          </View>
-  
-          {sessions && recent.length === 0 ? (
-            <Text style={[styles.meta, { color: colors.muted }]}>
-              Chưa có buổi tập gần đây. Hiệu suất sẽ được tổng hợp khi có dữ liệu buổi tập.
+        ) : (
+          <View style={styles.countRow}>
+            <Text style={[styles.count, { color: colors.agendaInk }]}>
+              {sessions ? String(weekSessions.length) : "—"}
             </Text>
-          ) : null}
-          {recent.map((row, i) => (
-            <FadeInView key={row.id} index={i}>
-            <PressableScale
-              accessibilityRole="button"
-              onPress={() => router.push(`/tap/${row.id}` as Href)}
-              style={[styles.recent, { borderBottomColor: colors.line }]}
-            >
-              <Text style={[styles.recentTitle, { color: colors.ink }]}>{row.title}</Text>
-              <Text style={[styles.meta, { color: colors.muted }]}>
-                {new Date(row.scheduledAt).toLocaleString("vi-VN")}
+            <View style={styles.flex}>
+              <Text style={[styles.agendaTitle, { color: colors.agendaInk }]}>Buổi tập trong tuần</Text>
+              <Text style={[styles.agendaMeta, { color: colors.agendaMuted }]}>
+                {sessions && weekSessions.length === 0
+                  ? "Chưa có lịch tập được ghi nhận."
+                  : sessions
+                    ? "Các buổi đã được ghi trên hệ thống."
+                    : "Đang tải lịch tập."}
               </Text>
-            </PressableScale>
-            </FadeInView>
-          ))}
-          {!canFetch ? (
-            <Text style={[styles.meta, { color: colors.muted }]}>
-              {displayName(profile?.firstName ?? "", profile?.lastName ?? "")
-                ? ""
-                : "Đăng nhập võ sĩ để xem lịch và hồ sơ của bạn."}
+            </View>
+          </View>
+        )}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Mở danh sách buổi tập"
+          onPress={() => router.push("/tap" as Href)}
+          style={styles.openList}
+        >
+          <Text style={styles.openListLabel}>Mở danh sách buổi tập</Text>
+          <MaterialCommunityIcons name="arrow-right" size={20} color={colors.agenda} />
+        </Pressable>
+      </View>
+
+      <View style={styles.pad}>
+        {clinical ? (
+          <Text style={[styles.elig, { color: colors.ink }]}>{clinicalStepCopy(clinical.step)}</Text>
+        ) : null}
+        {data?.medicalError ? (
+          <Pressable accessibilityRole="button" onPress={reload}>
+            <Text style={[styles.meta, { color: colors.accent }]}>Thử lại</Text>
+          </Pressable>
+        ) : training ? (
+          <Pressable
+            accessibilityRole="link"
+            accessibilityLabel="Xem giới hạn tại Cơ thể"
+            onPress={() => router.push("/co-the" as Href)}
+            style={styles.eligRow}
+          >
+            <MaterialCommunityIcons
+              name={training.eligible ? "shield-check" : "shield-off-outline"}
+              size={18}
+              color={training.eligible ? colors.success : colors.warning}
+            />
+            <Text style={[styles.elig, { color: training.eligible ? colors.success : colors.warning }]}>
+              {training.eligible ? "Đủ điều kiện tập" : "Chưa đủ điều kiện tập"} · Xem giới hạn tại Cơ thể
             </Text>
-          ) : null}
+          </Pressable>
+        ) : (
+          <Text style={[styles.meta, { color: colors.muted }]}>Điều kiện tập sẽ hiện khi hồ sơ y tế tải xong.</Text>
+        )}
+
+        <View style={styles.grid}>
+          <Shortcut
+            icon="clipboard-text-outline"
+            title="Giáo án"
+            subtitle={
+              data?.plansError ? "Không tải được" : planCount === 0 ? "Chưa được giao" : planCount ? `${planCount} giáo án` : "Đang tải"
+            }
+            onPress={() => router.push("/giao-an" as Href)}
+          />
+          <Shortcut
+            icon="human"
+            title="Cơ thể & giấy phép"
+            subtitle="Kiểm tra điều kiện"
+            onPress={() => router.push("/co-the" as Href)}
+          />
+          <Shortcut
+            icon="video-outline"
+            title="Video / bằng chứng"
+            subtitle="Mở kho video"
+            onPress={() => router.push("/video" as Href)}
+          />
+          <Shortcut
+            icon="history"
+            title="Lịch sử sức khỏe"
+            subtitle="Hồ sơ y tế"
+            onPress={() => router.push("/suc-khoe/lich-su" as Href)}
+          />
         </View>
-        </>
-      )}
+
+        <View style={styles.linkRow}>
+          <LinkChip icon="target" label="Mục tiêu" onPress={() => router.push("/muc-tieu" as Href)} />
+          <LinkChip icon="chart-bar" label="Hiệu suất" onPress={() => router.push("/hieu-suat" as Href)} />
+        </View>
+
+        {sessions && recent.length === 0 ? (
+          <Text style={[styles.meta, { color: colors.muted }]}>
+            Chưa có buổi tập gần đây. Hiệu suất sẽ được tổng hợp khi có dữ liệu buổi tập.
+          </Text>
+        ) : null}
+        {recent.map((row) => (
+          <Pressable
+            key={row.id}
+            accessibilityRole="button"
+            onPress={() => router.push(`/tap/${row.id}` as Href)}
+            style={[styles.recent, { borderBottomColor: colors.line }]}
+          >
+            <Text style={[styles.recentTitle, { color: colors.ink }]}>{row.title}</Text>
+            <Text style={[styles.meta, { color: colors.muted }]}>
+              {new Date(row.scheduledAt).toLocaleString("vi-VN")}
+            </Text>
+          </Pressable>
+        ))}
+        {!canFetch ? (
+          <Text style={[styles.meta, { color: colors.muted }]}>
+            {displayName(profile?.firstName ?? "", profile?.lastName ?? "")
+              ? ""
+              : "Đăng nhập võ sĩ để xem lịch và hồ sơ của bạn."}
+          </Text>
+        ) : null}
+      </View>
     </FighterHub>
   );
 }
@@ -316,28 +292,24 @@ function Shortcut({
   title,
   subtitle,
   onPress,
-  index = 0,
 }: {
-  icon: IconName;
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
   title: string;
   subtitle: string;
   onPress: () => void;
-  index?: number;
 }) {
   const colors = useFighterPalette();
   return (
-    <FadeInView index={index} style={styles.shortcutCell}>
-      <PressableScale
-        accessibilityRole="button"
-        accessibilityLabel={`${title}. ${subtitle}`}
-        onPress={onPress}
-        style={[styles.shortcut, { backgroundColor: colors.surface2 }]}
-      >
-        <Icon name={icon} size={22} color={colors.accent} />
-        <Text style={[styles.shortcutTitle, { color: colors.ink }]}>{title}</Text>
-        <Text style={[styles.shortcutSub, { color: colors.muted }]}>{subtitle}</Text>
-      </PressableScale>
-    </FadeInView>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${title}. ${subtitle}`}
+      onPress={onPress}
+      style={[styles.shortcut, { backgroundColor: colors.surface2 }]}
+    >
+      <MaterialCommunityIcons name={icon} size={22} color={colors.accent} />
+      <Text style={[styles.shortcutTitle, { color: colors.ink }]}>{title}</Text>
+      <Text style={[styles.shortcutSub, { color: colors.muted }]}>{subtitle}</Text>
+    </Pressable>
   );
 }
 
@@ -346,27 +318,26 @@ function LinkChip({
   label,
   onPress,
 }: {
-  icon: IconName;
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
   label: string;
   onPress: () => void;
 }) {
   const colors = useFighterPalette();
   return (
-    <PressableScale
+    <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
       style={[styles.linkChip, { borderBottomColor: colors.line }]}
     >
-      <Icon name={icon} size={20} color={colors.ink} />
+      <MaterialCommunityIcons name={icon} size={20} color={colors.ink} />
       <Text style={[styles.linkLabel, { color: colors.ink }]}>{label}</Text>
-      <Icon name="chevron" size={16} color={colors.muted} />
-    </PressableScale>
+      <MaterialCommunityIcons name="chevron-right" size={16} color={colors.muted} />
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  skeleton: { paddingHorizontal: 20 },
   header: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 20, paddingBottom: 16 },
   flex: { flex: 1 },
   eyebrow: { fontSize: 12, lineHeight: 17 },
@@ -397,8 +368,7 @@ const styles = StyleSheet.create({
   eligRow: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 44 },
   elig: { flex: 1, fontSize: 12, lineHeight: 17, fontWeight: "500" },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  shortcutCell: { width: "48%", flexGrow: 1 },
-  shortcut: { flex: 1, minHeight: 100, borderRadius: 12, padding: 12, gap: 7 },
+  shortcut: { width: "48%", flexGrow: 1, minHeight: 100, borderRadius: 12, padding: 12, gap: 7 },
   shortcutTitle: { fontSize: 13, lineHeight: 18, fontWeight: "600" },
   shortcutSub: { fontSize: 11, lineHeight: 15 },
   linkRow: { flexDirection: "row", gap: 18 },

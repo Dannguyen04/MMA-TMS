@@ -32,12 +32,10 @@ import {
   CoachPicker,
   CoachPrimaryButton,
   CoachScaffold,
-  CoachEmpty,
 } from "@/screens/coach/coach-ui";
 import { isTrainingPlanPhase, planPhaseLabel, planPhaseOptions } from "@/training/plan-phase";
 import { isValidDateOnly } from "@/utils/is-valid-date-only";
 import { spacing, type, useThemePreference } from "@/theme";
-import { SkeletonList } from "@/components/motion";
 
 const MILESTONE_TITLE_MAX = 255;
 const NOTES_MAX = 500;
@@ -108,11 +106,11 @@ export function CoachPlanDetailScreen() {
     setMilestones(toDrafts(next.milestones ?? []));
   }, []);
 
-  const load = useCallback((mode?: unknown) => {
+  const load = useCallback(() => {
     if (!planId) return;
     const seq = ++seqRef.current;
     setError("");
-    return Promise.all([
+    void Promise.all([
       getTrainingPlan(planId),
       listTrainingPlanExercises(planId),
       listExercises({ limit: 50 }),
@@ -124,7 +122,6 @@ export function CoachPlanDetailScreen() {
         setCatalog(exercisePage.data);
       })
       .catch((cause: unknown) => {
-        if (mode === "refresh") throw cause;
         if (seq === seqRef.current) setError(coachErrorMessage(cause));
       });
   }, [planId, applyPlan]);
@@ -285,8 +282,8 @@ export function CoachPlanDetailScreen() {
   const statusOptions = TRAINING_PLAN_STATUSES.filter((status) => !forbidden.includes(status));
 
   return (
-    <CoachScaffold title={plan?.title ?? coach.planDetail} keyboard inStack onRefresh={() => load("refresh")}>
-      {!plan && !error ? <SkeletonList rows={3} /> : null}
+    <CoachScaffold title={plan?.title ?? coach.planDetail} keyboard inStack>
+      {!plan && !error ? <CoachBanner message={coach.loading} /> : null}
       {plan?.progress ? (
         <CoachCard>
           <Text style={[type.label, { color: colors.inkMuted, lineHeight: 18 }]}>{coach.progress}</Text>
@@ -355,7 +352,7 @@ export function CoachPlanDetailScreen() {
       {forbidden.length ? <CoachBanner message={coach.terminalPlanHint} /> : null}
 
       <Text style={[type.title, { color: colors.ink }]}>{coach.milestones}</Text>
-      {milestones.length === 0 ? <CoachEmpty message={coach.emptyMilestones} /> : null}
+      {milestones.length === 0 ? <CoachBanner message={coach.emptyMilestones} /> : null}
       <View style={{ gap: spacing.sm }}>
         {milestones.map((item) => (
           <CoachCard key={item.key}>
@@ -423,7 +420,7 @@ export function CoachPlanDetailScreen() {
       ) : null}
 
       <Text style={[type.title, { color: colors.ink }]}>{coach.planExercises}</Text>
-      {items.length === 0 ? <CoachEmpty message={coach.emptyExercises} /> : null}
+      {items.length === 0 ? <CoachBanner message={coach.emptyExercises} /> : null}
       <View style={{ gap: spacing.sm }}>
         {items.map((row) => (
           <PlanExerciseEditor

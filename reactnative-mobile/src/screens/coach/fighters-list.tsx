@@ -18,14 +18,12 @@ import { coachErrorMessage, coachHref, fighterDisplayName, formatWhen } from "@/
 import {
   CoachBanner,
   CoachCard,
+  CoachChip,
   CoachField,
   CoachScaffold,
-  CoachEmpty,
 } from "@/screens/coach/coach-ui";
 import { useSession } from "@/session/session-context";
 import { spacing, type, useThemePreference } from "@/theme";
-import { SkeletonList } from "@/components/motion";
-import { FilterSelect } from "@/components/filter-sheet";
 
 function isToday(iso: string): boolean {
   const date = new Date(iso);
@@ -53,7 +51,7 @@ export function CoachFightersScreen() {
   const medicalRef = useRef(medical);
   medicalRef.current = medical;
 
-  const load = useCallback((query?: string, status?: MedicalStatus | "", mode?: "refresh") => {
+  const load = useCallback((query?: string, status?: MedicalStatus | "") => {
     if (isDemo) {
       setRows([]);
       setToday([]);
@@ -61,9 +59,9 @@ export function CoachFightersScreen() {
       setLoading(false);
       return;
     }
-    if (mode !== "refresh") setLoading(true);
+    setLoading(true);
     setError("");
-    return Promise.all([
+    void Promise.all([
       listFighters({
         search: query?.trim() || undefined,
         medicalStatus: status || undefined,
@@ -76,7 +74,6 @@ export function CoachFightersScreen() {
         setToday(sessions.data.filter((row) => isToday(row.scheduledAt)));
       })
       .catch((cause: unknown) => {
-        if (mode === "refresh") throw cause;
         setRows([]);
         setToday([]);
         setError(coachErrorMessage(cause));
@@ -91,14 +88,13 @@ export function CoachFightersScreen() {
   );
 
   return (
-    <CoachScaffold title={coach.tabs.fighters} keyboard onRefresh={() => load(search, medical, "refresh")}>
+    <CoachScaffold title={coach.tabs.fighters} keyboard>
       <Text style={[type.title, { color: colors.ink }]}>{coach.today}</Text>
-      {today.length === 0 && !loading ? <CoachEmpty message={coach.emptyToday} /> : null}
+      {today.length === 0 && !loading ? <CoachBanner message={coach.emptyToday} /> : null}
       <View style={{ gap: spacing.sm }}>
-        {today.map((row, i) => (
+        {today.map((row) => (
           <CoachCard
             key={row.id}
-            index={i}
             onPress={() => router.push(coachHref(`/(coach)/schedule/${row.id}`))}
           >
             <Text style={[type.body, { color: colors.ink }]}>{row.title}</Text>
@@ -117,23 +113,38 @@ export function CoachFightersScreen() {
         onSubmitEditing={() => load(search, medical)}
         returnKeyType="search"
       />
-      <FilterSelect
-        label={coach.filterMedical}
-        options={[{ value: "" as const, label: coach.filterAll }, ...MEDICAL_STATUSES.map((value) => ({ value, label: coach.medicalStatus[value] }))]}
-        value={medical}
-        allValue=""
-        onChange={(next) => {
-          setMedical(next);
-          load(search, next);
-        }}
-      />
-      {loading && rows.length === 0 ? <SkeletonList rows={3} /> : null}
-      {rows.length === 0 && !loading && !error ? <CoachEmpty message={coach.emptyFighters} /> : null}
+      <Text style={[type.label, { color: colors.inkMuted, lineHeight: 18 }]}>
+        {coach.filterMedical}
+      </Text>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm }}>
+        <CoachChip
+          value=""
+          selected={medical === ""}
+          label={coach.filterAll}
+          onPress={() => {
+            setMedical("");
+            load(search, "");
+          }}
+        />
+        {MEDICAL_STATUSES.map((value) => (
+          <CoachChip
+            key={value}
+            value={value}
+            selected={medical === value}
+            label={coach.medicalStatus[value]}
+            onPress={(next) => {
+              setMedical(next);
+              load(search, next);
+            }}
+          />
+        ))}
+      </View>
+      {loading && rows.length === 0 ? <CoachBanner message={coach.loading} /> : null}
+      {rows.length === 0 && !loading && !error ? <CoachBanner message={coach.emptyFighters} /> : null}
       <View style={{ gap: spacing.md }}>
-        {rows.map((row, i) => (
+        {rows.map((row) => (
           <CoachCard
             key={row.id}
-            index={i}
             onPress={() => router.push(coachHref(`/(coach)/fighters/${row.id}`))}
           >
             <Text style={[type.body, { color: colors.ink }]}>{fighterDisplayName(row)}</Text>
@@ -148,11 +159,9 @@ export function CoachFightersScreen() {
           </CoachCard>
         ))}
       </View>
-      {error ? (
-        <Pressable accessibilityRole="button" onPress={() => void load(search, medical)}>
-          <Text style={[type.link, { color: colors.lotus }]}>{coach.retry}</Text>
-        </Pressable>
-      ) : null}
+      <Pressable accessibilityRole="button" onPress={() => load(search, medical)}>
+        <Text style={[type.link, { color: colors.lotus }]}>{coach.retry}</Text>
+      </Pressable>
     </CoachScaffold>
   );
 }

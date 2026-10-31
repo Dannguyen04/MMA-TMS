@@ -11,8 +11,3 @@ export function markNotificationRead(id: string) {
     method: "PATCH",
   });
 }
-
-/** GET /notifications/unread-count → `{ count }` (UnreadCountDto). */
-export function getUnreadNotificationCount() {
-  return apiFetch<{ count: number }>("/notifications/unread-count");
-}

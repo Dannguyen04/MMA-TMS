@@ -1,11 +1,9 @@
-import { CalendarClock, CalendarX2, ClipboardCheck, ClipboardPlus, Hourglass, ShieldAlert, ShieldQuestion, ShieldX, Sparkles, Target } from "lucide-react";
+import { CalendarClock, CalendarX2, Hourglass, ShieldAlert, ShieldQuestion, ShieldX, Sparkles, Target } from "lucide-react";
 
 import { AIGeneratedBadge } from "@/components/domain/status-badges";
 import type { AttentionItem } from "@/components/medical/attention-list";
-import { applicantName, type Application } from "@/lib/domain/admissions";
-import { WEIGHT_CLASS_LABELS } from "@/lib/domain/labels";
 import { clearanceExpiresSoon, goalProgressPct } from "@/lib/domain/rules";
-import type { Goal, TrainingPlan, TrainingSession } from "@/lib/domain/types";
+import type { Goal, TrainingSession } from "@/lib/domain/types";
 import { daysBetween, formatDate, formatRelative, formatShortDate, formatWeekdayDate } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
 import { createTranslator, plural, type Translator } from "@/lib/i18n/translate";
@@ -16,17 +14,10 @@ import type { QueueGroupMeta } from "./queue-card";
 import { sessionsWith, type RosterEntry, type SessionCheck } from "./roster-data";
 
 /** The corner queue's groups, in the order the filter shows them. */
-export const COACH_QUEUES = ["clearance", "sessions", "onboarding", "reviews", "applicants", "goals"] as const;
+export const COACH_QUEUES = ["clearance", "sessions", "reviews", "goals"] as const;
 export type CoachQueue = (typeof COACH_QUEUES)[number];
 
-const QUEUE_ICONS: Record<CoachQueue, QueueGroupMeta["icon"]> = {
-    clearance: ShieldAlert,
-    sessions: CalendarX2,
-    onboarding: ClipboardPlus,
-    reviews: Sparkles,
-    applicants: ClipboardCheck,
-    goals: Target,
-};
+const QUEUE_ICONS: Record<CoachQueue, QueueGroupMeta["icon"]> = { clearance: ShieldAlert, sessions: CalendarX2, reviews: Sparkles, goals: Target };
 
 /** Each group's filter label, icon and empty state, in the viewer's language. */
 export function coachQueueMeta(t: Translator): Record<CoachQueue, QueueGroupMeta> {
@@ -35,7 +26,7 @@ export function coachQueueMeta(t: Translator): Record<CoachQueue, QueueGroupMeta
         icon: QUEUE_ICONS[queue],
         empty: { title: t(`coachQueue.${queue}.emptyTitle`), description: t(`coachQueue.${queue}.emptyText`) },
     });
-    return Object.fromEntries(COACH_QUEUES.map((queue) => [queue, meta(queue)])) as Record<CoachQueue, QueueGroupMeta>;
+    return { clearance: meta("clearance"), sessions: meta("sessions"), reviews: meta("reviews"), goals: meta("goals") };
 }
 
 export const COACH_QUEUE_META: Record<CoachQueue, QueueGroupMeta> = coachQueueMeta(createTranslator("en"));
@@ -53,13 +44,6 @@ export interface CoachAttentionInput {
     /** Missed sessions in the last 7 days. */
     missed: TrainingSession[];
     goalsAtRisk: Goal[];
-    /**
-     * Every plan on the roster, any status, to find fighters cleared to train without an active one. Left out when the
-     * plans weren't read: the group stays empty rather than flagging everyone.
-     */
-    plans?: TrainingPlan[];
-    /** Applications an administrator asked this coach to assess. */
-    applicants?: Application[];
     /** Clearances lapsing within this many days are flagged. */
     warningDays: number;
     /** Server time (ISO). */
@@ -92,58 +76,10 @@ function describeDays(t: Translator, days: number): string {
     return days > 0 ? plural(t, "time.inDays", days) : plural(t, "time.daysAgo", -days);
 }
 
-/** Fighters the sports doctor cleared to train who have no active plan: the coach's next step after clearance. */
-function planItems(t: Translator, roster: RosterEntry[], plans: TrainingPlan[]): AttentionItem[] {
-    return roster.flatMap(({ fighter, clearanceState }) => {
-        if (clearanceState !== "full" && clearanceState !== "restricted") return [];
-        const own = plans.filter((plan) => plan.fighterId === fighter.id);
-        if (own.some((plan) => plan.status === "active")) return [];
-        const draft = own.filter((plan) => plan.status === "draft").sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
-        const restricted = t(clearanceState === "restricted" ? "attention.plan.restricted" : "attention.plan.cleared");
-        return [
-            {
-                id: `plan-${fighter.id}`,
-                group: "onboarding",
-                tone: "info",
-                icon: ClipboardPlus,
-                kind: t(draft ? "attention.kind.draftPlan" : own.length === 0 ? "attention.kind.noPlanYet" : "attention.kind.noActivePlan"),
-                fighterName: fighter.name,
-                fighterHref: routes.coach.fighter(fighter.id),
-                title: t(draft ? "attention.plan.draftTitle" : own.length === 0 ? "attention.plan.noPlanTitle" : "attention.plan.noActiveTitle"),
-                detail: draft ? t("attention.plan.draftDetail", { title: draft.title }) : restricted,
-                action: draft
-                    ? { href: routes.coach.plan(draft.id), label: t("attention.action.finishPlan") }
-                    : { href: hrefWith(routes.coach.newPlan, {}, { fighter: fighter.id }), label: t("attention.action.buildPlan") },
-            },
-        ];
-    });
-}
-
-/** Entrance assessments waiting for this coach, the longest-waiting first. */
-function applicantItems(applications: Application[], now: string): AttentionItem[] {
-    return applications
-        .filter((application) => application.status === "submitted" && !application.assessment)
-        .map((application) => ({ application, since: application.evaluator?.since ?? application.submittedAt }))
-        .sort((a, b) => a.since.localeCompare(b.since))
-        .map(({ application, since }) => ({
-            id: `applicant-${application.id}`,
-            group: "applicants",
-            tone: "info",
-            icon: ClipboardCheck,
-            kind: "Entrance assessment",
-            at: since,
-            fighterName: applicantName(application.applicant),
-            fighterHref: routes.coach.admission(application.id),
-            title: "Waiting for your entrance assessment",
-            detail: `Assigned ${formatRelative(since, now)} · ${WEIGHT_CLASS_LABELS[application.applicant.weightClass]}`,
-            action: { href: routes.coach.admission(application.id), label: "Assess" },
-        }));
-}
-
 /**
  * The coach's corner queue, most urgent first: fighters who must not train, sessions that clash with Medical
- * Clearance, lapsing clearances, cleared fighters without a plan, AI analyses waiting for a human, applicants to
- * assess, missed sessions and goals at risk. Each item is filed under one {@link CoachQueue} so the page can filter it.
+ * Clearance, lapsing clearances, AI analyses waiting for a human, missed sessions and goals at risk. Each item
+ * is filed under one {@link CoachQueue} so the page can filter it.
  */
 export function buildCoachAttention({
     roster,
@@ -152,8 +88,6 @@ export function buildCoachAttention({
     reviewCount = 0,
     missed,
     goalsAtRisk,
-    plans,
-    applicants = [],
     warningDays,
     now,
     t = createTranslator("en"),
@@ -334,7 +268,5 @@ export function buildCoachAttention({
         action: { href: routes.coach.fighterGoals(fighterId), label: t("attention.action.viewGoals") },
     }));
 
-    const onboarding = plans ? planItems(t, roster, plans) : [];
-
-    return [...blocked, ...conflicts, ...expiring, ...noClearance, ...warnings, ...onboarding, ...reviews, ...applicantItems(applicants, now), ...missedItems, ...goalItems];
+    return [...blocked, ...conflicts, ...expiring, ...noClearance, ...warnings, ...reviews, ...missedItems, ...goalItems];
 }

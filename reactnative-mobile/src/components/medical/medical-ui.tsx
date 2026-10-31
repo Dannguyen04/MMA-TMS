@@ -2,7 +2,6 @@ import { type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { radius, spacing, type, useThemePreference } from "@/theme";
-import { CONTRAST_BODY, ensureContrast } from "@/theme/appearance/color-math";
 
 export function MedicalCard({ children }: { children: ReactNode }) {
   const { colors } = useThemePreference();
@@ -30,8 +29,7 @@ export function MedicalFact({ label, value }: { label: string; value: string }) 
 
 export function MedicalMuted({ text, tone = "muted" }: { text: string; tone?: "muted" | "danger" | "ok" }) {
   const { colors } = useThemePreference();
-  const raw = tone === "danger" ? colors.danger : tone === "ok" ? colors.success : colors.inkMuted;
-  const color = ensureContrast(ensureContrast(raw, colors.bg, CONTRAST_BODY), colors.surface, CONTRAST_BODY);
+  const color = tone === "danger" ? colors.danger : tone === "ok" ? colors.success : colors.inkMuted;
   return <Text style={[type.caption, styles.meta, { color }]}>{text}</Text>;
 }
 

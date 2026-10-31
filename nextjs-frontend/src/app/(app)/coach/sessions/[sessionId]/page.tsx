@@ -12,9 +12,7 @@ import { SessionDetail, SessionHeaderMeta } from "@/components/training/session-
 import { getCoachNames, getExerciseLibrary, toIdentity } from "@/components/training/training-data";
 import { canAccessFighter, requireFighterAccess } from "@/lib/auth/access";
 import { getCurrentUser, requireRole } from "@/lib/auth/session";
-import { formatDateTime } from "@/lib/format";
-import { getTranslator } from "@/lib/i18n/server";
-import { plural, type Translator } from "@/lib/i18n/translate";
+import { formatDateTime, pluralize } from "@/lib/format";
 import { hrefWith, type SearchParams } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { platformFeatureAvailable, usesTrainingServiceForms } from "@/lib/services/platform-features";
@@ -29,35 +27,33 @@ const loadSession = cache(getSession);
 const count = (value: string | string[] | undefined) => Math.max(0, Math.floor(Number(param(value)) || 0));
 
 /** The toast after "Repeat weekly" (`?notice=repeated` from `createSession`), or null. */
-function repeatNotice(query: SearchParams, t: Translator): ToastInput | null {
+function repeatNotice(query: SearchParams): ToastInput | null {
     if (param(query.notice) !== "repeated") return null;
     const created = Math.max(1, count(query.created));
     const failed = count(query.failed);
     const skipped = count(query.skipped);
-    const skippedText = skipped > 0 ? plural(t, "training.repeat.weeksSkipped", skipped) : null;
+    const skippedText = skipped > 0 ? `${pluralize(skipped, "week")} after the plan ends ${skipped === 1 ? "was" : "were"} left out.` : null;
     if (failed > 0) {
         return {
-            title: plural(t, "training.repeat.partialTitle", created + failed, { created }),
-            description: [plural(t, "training.repeat.partialDesc", failed), skippedText].filter(Boolean).join(" "),
+            title: `${created} of ${pluralize(created + failed, "session")} scheduled`,
+            description: [`${pluralize(failed, "session")} couldn't be scheduled. Check the sessions list and add ${failed === 1 ? "it" : "them"} again.`, skippedText]
+                .filter(Boolean)
+                .join(" "),
             tone: "warning",
         };
     }
-    return {
-        title: plural(t, "training.repeat.doneTitle", created),
-        description: [created > 1 ? t("training.repeat.doneDesc") : null, skippedText].filter(Boolean).join(" ") || undefined,
-        tone: "success",
-    };
+    return { title: `${pluralize(created, "session")} scheduled`, description: [created > 1 ? "One a week at the same time." : null, skippedText].filter(Boolean).join(" ") || undefined, tone: "success" };
 }
 
 export async function generateMetadata({ params }: PageProps<"/coach/sessions/[sessionId]">): Promise<Metadata> {
-    const [{ sessionId }, user, { t }] = await Promise.all([params, getCurrentUser(), getTranslator()]);
+    const [{ sessionId }, user] = await Promise.all([params, getCurrentUser()]);
     const session = await loadSession(sessionId);
-    return { title: session && user && canAccessFighter(user, session.fighterId) ? session.title : t("training.sessionPage.eyebrowFighter") };
+    return { title: session && user && canAccessFighter(user, session.fighterId) ? session.title : "Training session" };
 }
 
 export default async function CoachSessionPage({ params, searchParams }: PageProps<"/coach/sessions/[sessionId]">) {
     const user = await requireRole("coach");
-    const [{ sessionId }, query, { t, locale }] = await Promise.all([params, searchParams, getTranslator()]);
+    const [{ sessionId }, query] = await Promise.all([params, searchParams]);
     // Reference lookups start with the session read; everything about the session waits for the access check.
     const [session, coachNames, exercises] = await Promise.all([loadSession(sessionId), getCoachNames(), getExerciseLibrary()]);
     if (!session) notFound();
@@ -100,43 +96,42 @@ export default async function CoachSessionPage({ params, searchParams }: PagePro
     const uploadLink = (
         <ButtonLink href={hrefWith(routes.coach.uploadVideo, {}, { fighter: fighter.id, session: session.id })} variant="secondary" size="sm">
             <Upload aria-hidden />
-            {t("training.sessionPage.uploadVideo")}
+            Upload video
         </ButtonLink>
     );
 
     return (
         <>
-            <FlashToast notice={repeatNotice(query, t)} cleanHref={routes.coach.session(session.id)} />
+            <FlashToast notice={repeatNotice(query)} cleanHref={routes.coach.session(session.id)} />
             <PageHeader
-                eyebrow={t("training.sessionPage.eyebrowCoach", { name: fighter.name })}
+                eyebrow={`Training session · ${fighter.name}`}
                 title={session.title}
-                back={{ href: routes.coach.sessions, label: t("training.sessionPage.backSessions") }}
-                meta={<SessionHeaderMeta session={session} locale={locale} />}
+                back={{ href: routes.coach.sessions, label: "Sessions" }}
+                meta={<SessionHeaderMeta session={session} />}
                 actions={
                     <>
                         <ButtonLink href={hrefWith(routes.coach.newSession, {}, { from: session.id })} variant="secondary">
                             <CalendarPlus aria-hidden />
-                            {t("training.repeat.scheduleAgain")}
+                            Schedule again
                         </ButtonLink>
                         {scheduled && (
                             <ButtonLink href={routes.coach.editSession(session.id)} variant="secondary">
                                 <PenLine aria-hidden />
-                                {t("training.sessionPage.edit")}
+                                Edit
                             </ButtonLink>
                         )}
                         {scheduled && started && <MarkMissedButton {...transitionProps} />}
-                        {active && <CancelSessionButton {...transitionProps} when={formatDateTime(session.scheduledAt, locale)} />}
+                        {active && <CancelSessionButton {...transitionProps} when={formatDateTime(session.scheduledAt)} />}
                         {canRecord && recordButton}
                         {scheduled && <StartSessionButton {...transitionProps} />}
                     </>
                 }
             />
             <SessionDetail
-                locale={locale}
                 session={session}
                 audience="coach"
                 now={now}
-                coachName={(session.coachId && coachNames[session.coachId]) || t("training.plan.coach")}
+                coachName={(session.coachId && coachNames[session.coachId]) || "Coach"}
                 coachNames={coachNames}
                 fighter={toIdentity(fighter)}
                 fighterHref={routes.coach.fighter(fighter.id)}

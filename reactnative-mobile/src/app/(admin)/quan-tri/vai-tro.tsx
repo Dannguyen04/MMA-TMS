@@ -1,7 +1,11 @@
-import { manager } from "@/i18n/manager";
-import { AdminUnavailable } from "@/screens/admin/admin-ui";
+import { blocked } from "@/i18n/blocked";
+import { AdminPage } from "@/screens/admin/admin-page";
+import { EmptyBlockedList } from "@/screens/parity/blocked-workspace";
 
-/** Chưa có API backend — xem out/06-API-can-bo-sung.md. */
 export default function AdminRolesRoute() {
-  return <AdminUnavailable title={manager.tools.roles} description={manager.missing.roles} />;
+  return (
+    <AdminPage title={blocked.roles} extra={blocked.adminAuthz} onBack>
+      <EmptyBlockedList />
+    </AdminPage>
+  );
 }

@@ -8,8 +8,6 @@ import { useToastMessage } from "@/components/toast/app-toast";
 import { findCountry } from "@/constants/countries";
 import { medical } from "@/i18n/medical";
 import { fighter } from "@/i18n/fighter";
-import { fighterBout } from "@/i18n/fighter-bout";
-import { fighterHref } from "@/navigation/role-href";
 import { formatMedicalWhen } from "@/components/medical/medical-format";
 import { getMe } from "@/screens/fighter/api";
 import { mapFighterError } from "@/screens/fighter/errors";
@@ -19,7 +17,7 @@ import { FighterHub, HubHeader } from "@/screens/fighter/redesign/shell";
 import { useFighterId } from "@/screens/fighter/use-fighter-id";
 import { useLoad } from "@/screens/fighter/use-load";
 import { useSession } from "@/session/session-context";
-import { Skeleton } from "@/components/motion";
+import { useAppearanceActions, useThemePreference } from "@/theme";
 
 function initials(first: string, last: string): string {
   const a = first.trim().charAt(0);
@@ -34,6 +32,8 @@ function countryLabel(value: string | null | undefined): string {
 
 export function FighterMeScreen() {
   const colors = useFighterPalette();
+  const { resolvedScheme } = useThemePreference();
+  const { setMode } = useAppearanceActions();
   const router = useRouter();
   const { signOut } = useSession();
   const { fighterId, profile, user, canFetch } = useFighterId();
@@ -54,7 +54,7 @@ export function FighterMeScreen() {
     return { me, doctors, doctorError };
   }, [fighterId]);
 
-  const { data, error, loading, reload, refresh } = useLoad(canFetch, fighterId ?? "none", load);
+  const { data, error, loading, reload } = useLoad(canFetch, fighterId ?? "none", load);
   useToastMessage(error, "error");
   useToastMessage(data?.doctorError, "error");
   const me = data?.me ?? user;
@@ -68,7 +68,7 @@ export function FighterMeScreen() {
   };
 
   return (
-    <FighterHub refreshing={loading && !data} onRefresh={refresh}>
+    <FighterHub refreshing={loading && !data}>
       <HubHeader title="Tôi" />
       <View style={styles.pad}>
         {error ? (
@@ -118,12 +118,12 @@ export function FighterMeScreen() {
           <Fact label="Giới thiệu" value={row?.bio || "—"} />
         </View>
 
-        {/* <View style={styles.lock}>
+        <View style={styles.lock}>
           <MaterialCommunityIcons name="lock-outline" size={14} color={colors.muted} />
           <Text style={[styles.fine, { color: colors.muted, flex: 1 }]}>
             Chỉ xem trên điện thoại. Liên hệ quản trị viên để chỉnh sửa hồ sơ.
           </Text>
-        </View> */}
+        </View>
 
         <View style={[styles.doctor, { borderColor: colors.line }]}>
           <MaterialCommunityIcons name="stethoscope" size={22} color={colors.accent} />
@@ -142,16 +142,11 @@ export function FighterMeScreen() {
                 </Text>
               </>
             ) : (
-              data ? (
-              <Text style={[styles.meta, { color: colors.muted }]}>{medical.doctorsEmpty}</Text>
-            ) : (
-              <Skeleton width="60%" height={14} />
-            )
+              <Text style={[styles.meta, { color: colors.muted }]}>{data ? medical.doctorsEmpty : medical.loading}</Text>
             )}
           </View>
         </View>
 
-        <Row icon="boxing-glove" title={fighterBout.title} onPress={() => router.push(fighterHref.bouts)} />
         <Row icon="file-document-outline" title="Hồ sơ nhập học" onPress={() => router.push("/ho-so-cua-toi" as Href)} />
         <Row
           icon="video-outline"
@@ -160,12 +155,23 @@ export function FighterMeScreen() {
           onPress={() => router.push("/video" as Href)}
         />
 
-        <Row
-          icon="palette-outline"
-          title="Giao diện"
-          detail="Chế độ sáng/tối, màu và chữ."
-          onPress={() => router.push("/giao-dien" as Href)}
-        />
+        <View style={styles.themeRow}>
+          <Text style={[styles.rowTitle, { color: colors.ink }]}>Giao diện</Text>
+          <View style={[styles.toggle, { backgroundColor: colors.surface2 }]}>
+            <ThemeChoice
+              label="Sáng"
+              icon="white-balance-sunny"
+              selected={resolvedScheme === "light"}
+              onPress={() => setMode("light")}
+            />
+            <ThemeChoice
+              label="Tối"
+              icon="moon-waning-crescent"
+              selected={resolvedScheme === "dark"}
+              onPress={() => setMode("dark")}
+            />
+          </View>
+        </View>
 
         <Pressable accessibilityRole="button" accessibilityLabel={fighter.me.logout} onPress={onLogout} style={styles.logout}>
           <MaterialCommunityIcons name="logout" size={18} color={colors.accent} />
@@ -225,6 +231,32 @@ function Row({
   );
 }
 
+function ThemeChoice({
+  label,
+  icon,
+  selected,
+  onPress,
+}: {
+  label: string;
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  const colors = useFighterPalette();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected }}
+      onPress={onPress}
+      style={[styles.choice, selected ? { backgroundColor: colors.bg } : null]}
+    >
+      <MaterialCommunityIcons name={icon} size={14} color={colors.ink} />
+      <Text style={{ color: colors.ink, fontSize: 12, fontWeight: "500" }}>{label}</Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   pad: { paddingHorizontal: 20, paddingBottom: 16, gap: 14 },
   title: { fontSize: 26, lineHeight: 36, fontWeight: "700" },
@@ -246,6 +278,8 @@ const styles = StyleSheet.create({
   doctor: { flexDirection: "row", gap: 12, alignItems: "center", borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 12 },
   row: { flexDirection: "row", gap: 12, alignItems: "center", minHeight: 48, borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 12 },
   rowTitle: { fontSize: 14, fontWeight: "600" },
+  themeRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 44 },
+  toggle: { flexDirection: "row", borderRadius: 99, padding: 3, gap: 3 },
   choice: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 99 },
   logout: { flexDirection: "row", alignItems: "center", gap: 10, minHeight: 44 },
   logoutLabel: { fontSize: 13, fontWeight: "600" },

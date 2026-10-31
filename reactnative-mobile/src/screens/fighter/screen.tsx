@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { type ReactNode } from "react";
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -16,31 +17,14 @@ import { useToastMessage } from "@/components/toast/app-toast";
 import { fighter } from "@/i18n/fighter";
 import { FighterTabBar } from "@/screens/fighter/tab-bar";
 import { radius, spacing, type, useThemePreference } from "@/theme";
-import { StateView } from "@/components/state-view";
-import { states } from "@/i18n/unavailable";
-import { useReadableWidth } from "@/components/readable-width";
-import { ThemedRefreshControl, TopProgress, usePullRefresh } from "@/components/loading";
 
 type FighterScreenProps = {
   title: string;
   children: ReactNode;
   onBack?: boolean;
   keyboard?: boolean;
-  /** Đang tải lần đầu: thanh tiến trình mảnh dưới tiêu đề. */
   refreshing?: boolean;
-  /** Kéo để làm mới; reject khi lỗi → toast, giữ dữ liệu cũ. */
-  onRefresh?: () => Promise<unknown> | unknown;
   footer?: ReactNode;
-  /** Thước đo Designer FINAL: lề 16, khoảng cách 16, tiêu đề màn hình 24/32 đậm. */
-  specLayout?: boolean;
-  /** Mặc định có thanh tab của Fighter; màn Coach đã có thanh tab riêng nên đặt false. */
-  tabBar?: boolean;
-  /** Nút phụ bên phải tiêu đề (vd. chuông Thông báo); mặc định để trống cho cân tiêu đề. */
-  trailing?: ReactNode;
-  /** Bỏ giới hạn bề rộng đọc trên tablet (màn tự bố cục nhiều cột). */
-  wide?: boolean;
-  /** Tuỳ chọn: chỉ số con trực tiếp được ghim khi cuộn (mặc định không ghim). */
-  stickyHeaderIndices?: number[];
 };
 
 export function FighterScreen({
@@ -49,16 +33,8 @@ export function FighterScreen({
   onBack,
   keyboard,
   refreshing,
-  onRefresh,
   footer,
-  specLayout,
-  tabBar = true,
-  trailing,
-  wide,
-  stickyHeaderIndices,
 }: FighterScreenProps) {
-  const pull = usePullRefresh(onRefresh ?? (() => undefined));
-  const readable = useReadableWidth();
   const { colors } = useThemePreference();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -66,15 +42,14 @@ export function FighterScreen({
   const body = (
     <ScrollView
       keyboardShouldPersistTaps="handled"
-      stickyHeaderIndices={stickyHeaderIndices}
-      refreshControl={onRefresh ? <ThemedRefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} /> : undefined}
       contentContainerStyle={[
         styles.content,
         { paddingBottom: spacing.xxl },
-        specLayout && { paddingHorizontal: 16, paddingTop: 16, gap: 16 },
-        wide ? null : readable,
       ]}
     >
+      {refreshing ? (
+        <ActivityIndicator color={colors.lotus} style={styles.spinner} />
+      ) : null}
       {children}
     </ScrollView>
   );
@@ -104,20 +79,9 @@ export function FighterScreen({
         ) : (
           <View style={styles.back} />
         )}
-        <Text
-          accessibilityRole="header"
-          style={[
-            type.title,
-            styles.title,
-            specLayout && { fontSize: 24, lineHeight: 32, fontWeight: "700" },
-            { color: colors.ink },
-          ]}
-        >
-          {title}
-        </Text>
-        {trailing ? <View style={styles.back}>{trailing}</View> : <View style={styles.back} />}
+        <Text style={[type.title, styles.title, { color: colors.ink }]}>{title}</Text>
+        <View style={styles.back} />
       </View>
-      <TopProgress active={!!refreshing && !pull.refreshing} />
       {keyboard ? (
         <KeyboardAvoidingView
           style={styles.flex}
@@ -130,7 +94,7 @@ export function FighterScreen({
         body
       )}
       {footer}
-      {tabBar ? <FighterTabBar /> : null}
+      <FighterTabBar />
     </View>
   );
 }
@@ -153,22 +117,18 @@ export function StatusLine({ message, onRetry }: { message: string; onRetry?: ()
   const { colors } = useThemePreference();
   useToastMessage(message, "error");
   if (!message || !onRetry) return null;
-  // Lỗi có thể thử lại → khối trạng thái có minh họa (Lottie "error").
   return (
-    <StateView
-      kind="error"
-      compact
-      title={states.loadFailed}
-      description={message}
-      actionLabel={fighter.common.retry}
-      onAction={onRetry}
-    />
+    <View style={styles.status}>
+      <Pressable accessibilityRole="button" onPress={onRetry} style={styles.retry}>
+        <Text style={[type.link, { color: colors.lotus }]}>{fighter.common.retry}</Text>
+      </Pressable>
+    </View>
   );
 }
 
 export function EmptyCopy({ text }: { text: string }) {
-  // Trạng thái rỗng có minh họa (Lottie "empty"), màu theo theme.
-  return <StateView kind="empty" compact title={text} />;
+  const { colors } = useThemePreference();
+  return <Text style={[type.body, { color: colors.inkMuted }]}>{text}</Text>;
 }
 
 export function SectionLabel({ text }: { text: string }) {
@@ -193,6 +153,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.lg,
     gap: spacing.md,
   },
+  spinner: { marginVertical: spacing.md },
   card: {
     borderWidth: 1,
     borderRadius: radius.panel,

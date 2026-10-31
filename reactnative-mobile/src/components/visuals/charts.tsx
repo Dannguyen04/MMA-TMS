@@ -6,8 +6,6 @@ import Svg, { Circle, Line, Polyline, Rect, Text as SvgText } from "react-native
 import type { TrainingPlanStatus } from "@/api";
 import { fonts, radius, spacing, type, useTypography, viLineHeight, type ColorTokens } from "@/theme";
 
-import { vnShortDate } from "@/utils/vn-date";
-
 import { StatusChip } from "./primitives";
 import {
   JOINT_STATE_RANK,
@@ -20,14 +18,12 @@ import {
 
 export type WeightPoint = { id: string; weightKg: number; measuredAt: string; caption?: string };
 
-/** Mốc của đường giảm cân dự kiến (đường tham chiếu). */
-export type WeightReferencePoint = { measuredAt: string; weightKg: number };
-
 const CHART_H = 176;
 const PAD = { left: 34, right: 18, top: 22, bottom: 38 };
 
 function shortDate(iso: string): string {
-  return vnShortDate(iso);
+  const date = new Date(iso);
+  return `${date.getDate()}/${date.getMonth() + 1}`;
 }
 
 function pickLabelIndexes(count: number): Set<number> {
@@ -40,49 +36,20 @@ export function WeightChart({
   points,
   unit,
   latestNote,
-  limitKg,
-  limitLabel,
-  reference,
-  hideLatest = false,
-  decimalComma = false,
 }: {
   colors: ColorTokens;
   points: WeightPoint[];
   unit: string;
   /** Chip text next to the latest value, built from fields already on that row. */
   latestNote?: (latest: WeightPoint) => string;
-  /** Giới hạn cân: vẽ đường ngang nét đứt và mở rộng trục dọc để luôn thấy. */
-  limitKg?: number;
-  /** Nhãn cạnh đường giới hạn (đã dịch sẵn), ví dụ "Giới hạn 65,8". */
-  limitLabel?: string;
-  /** Đường giảm cân dự kiến. Khi có, trục ngang chia theo thời gian thay vì theo thứ tự. */
-  reference?: WeightReferencePoint[];
-  /** Ẩn dòng số lớn "cân gần nhất" phía trên biểu đồ. */
-  hideLatest?: boolean;
-  /** Số theo kiểu Việt Nam (66,5). */
-  decimalComma?: boolean;
 }) {
   const [width, setWidth] = useState(0);
   const onLayout = (event: LayoutChangeEvent) => setWidth(event.nativeEvent.layout.width);
   const sorted = [...points].sort((a, b) => Date.parse(a.measuredAt) - Date.parse(b.measuredAt));
   const latest = sorted.length > 0 ? sorted[sorted.length - 1] : null;
 
-  const refSorted = reference
-    ? [...reference].sort((a, b) => Date.parse(a.measuredAt) - Date.parse(b.measuredAt))
-    : [];
-  const timeAxis = refSorted.length > 1;
-  const times = [...sorted, ...refSorted].map((row) => Date.parse(row.measuredAt));
-  const tMin = times.length > 0 ? Math.min(...times) : 0;
-  const tMax = times.length > 0 ? Math.max(...times) : 1;
-  const num = (value: number, digits = 1) => (decimalComma ? value.toFixed(digits).replace(".", ",") : value.toFixed(digits));
-
-  const weights = [
-    ...sorted.map((row) => row.weightKg),
-    ...refSorted.map((row) => row.weightKg),
-    ...(limitKg != null ? [limitKg] : []),
-  ];
-  // Có đường giới hạn: chừa ~1 kg dưới đường để đặt nhãn mà không đè lên dữ liệu.
-  let lo = weights.length > 0 ? Math.floor((Math.min(...weights) - (limitLabel ? 1 : 0)) * 2) / 2 : 0;
+  const weights = sorted.map((row) => row.weightKg);
+  let lo = weights.length > 0 ? Math.floor(Math.min(...weights) * 2) / 2 : 0;
   let hi = weights.length > 0 ? Math.ceil(Math.max(...weights) * 2) / 2 : 1;
   if (hi - lo < 0.5) {
     lo -= 0.5;
@@ -90,11 +57,8 @@ export function WeightChart({
   }
   const plotW = Math.max(0, width - PAD.left - PAD.right);
   const plotH = CHART_H - PAD.top - PAD.bottom;
-  const xAtTime = (ms: number) => PAD.left + (tMax === tMin ? plotW / 2 : ((ms - tMin) / (tMax - tMin)) * plotW);
   const xAt = (index: number) =>
-    timeAxis
-      ? xAtTime(Date.parse(sorted[index]?.measuredAt ?? ""))
-      : PAD.left + (sorted.length <= 1 ? plotW / 2 : (index / (sorted.length - 1)) * plotW);
+    PAD.left + (sorted.length <= 1 ? plotW / 2 : (index / (sorted.length - 1)) * plotW);
   const yAt = (kg: number) => PAD.top + (1 - (kg - lo) / (hi - lo)) * plotH;
   const ticks = [0, 1, 2, 3].map((step) => lo + ((hi - lo) * step) / 3);
   const labelled = pickLabelIndexes(sorted.length);
@@ -102,7 +66,7 @@ export function WeightChart({
 
   return (
     <View style={styles.chartStack}>
-      {latest && !hideLatest ? (
+      {latest ? (
         <View style={styles.latestRow}>
           <Text style={[styles.latestValue, { color: colors.ink }]}>
             {latest.weightKg}
@@ -141,48 +105,13 @@ export function WeightChart({
                 strokeWidth={1}
               />
             )}
-            {sorted.length > 0 || refSorted.length > 0
+            {sorted.length > 0
               ? ticks.map((tick) => (
                   <SvgText key={`tick-${tick}`} x={0} y={yAt(tick) + 3} fill={colors.inkMuted} fontSize={10}>
-                    {num(tick)}
+                    {tick.toFixed(1)}
                   </SvgText>
                 ))
               : null}
-            {refSorted.length > 1 ? (
-              <Polyline
-                points={refSorted.map((row) => `${xAtTime(Date.parse(row.measuredAt))},${yAt(row.weightKg)}`).join(" ")}
-                fill="none"
-                stroke={colors.inkMuted}
-                strokeWidth={2}
-                strokeDasharray="2 5"
-                strokeLinecap="round"
-              />
-            ) : null}
-            {limitKg != null ? (
-              <>
-                <Line
-                  x1={PAD.left}
-                  x2={width - PAD.right}
-                  y1={yAt(limitKg)}
-                  y2={yAt(limitKg)}
-                  stroke={colors.danger}
-                  strokeWidth={1.5}
-                  strokeDasharray="6 4"
-                />
-                {limitLabel ? (
-                  <SvgText
-                    x={PAD.left + 4}
-                    y={yAt(limitKg) + 14}
-                    fill={colors.danger}
-                    fontSize={11}
-                    fontWeight="600"
-                    textAnchor="start"
-                  >
-                    {limitLabel}
-                  </SvgText>
-                ) : null}
-              </>
-            ) : null}
             {sorted.length > 1 ? (
               <Polyline
                 points={sorted.map((row, index) => `${xAt(index)},${yAt(row.weightKg)}`).join(" ")}
@@ -213,7 +142,7 @@ export function WeightChart({
                   fontWeight="600"
                   textAnchor="middle"
                 >
-                  {num(row.weightKg)}
+                  {row.weightKg.toFixed(1)}
                 </SvgText>
               ) : null,
             )}

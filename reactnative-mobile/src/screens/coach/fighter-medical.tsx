@@ -13,7 +13,6 @@ import { CoachBanner, CoachCard, CoachScaffold } from "@/screens/coach/coach-ui"
 import { MedicalHistoryContent } from "@/screens/medical/medical-history-screen";
 import { useSession } from "@/session/session-context";
 import { type, useThemePreference } from "@/theme";
-import { SkeletonCards } from "@/components/loading";
 
 function useCoachFighterId() {
   const params = useLocalSearchParams<{ id: string }>();
@@ -49,12 +48,12 @@ export function CoachFighterMedicalScreen() {
   }, []);
   const onAccessLost = useAccessLoss(clear);
 
-  const load = useCallback((mode?: unknown) => {
+  const load = useCallback(() => {
     if (!fighterId || isDemo) return;
     const seq = ++seqRef.current;
-    if (mode !== "refresh") setLoading(true);
+    setLoading(true);
     setError("");
-    return getFighterMedical(fighterId)
+    void getFighterMedical(fighterId)
       .then((next) => {
         if (seq !== seqRef.current) return;
         setDossier(next);
@@ -62,7 +61,6 @@ export function CoachFighterMedicalScreen() {
       })
       .catch((cause: unknown) => {
         if (seq !== seqRef.current) return;
-        if (mode === "refresh" && !(isApiError(cause) && (cause.status === 403 || cause.status === 404))) throw cause;
         setDossier(null);
         if (isApiError(cause) && (cause.status === 403 || cause.status === 404)) {
           onAccessLost();
@@ -84,7 +82,7 @@ export function CoachFighterMedicalScreen() {
   const enabled = !!fighterId && !isDemo && !closed;
 
   return (
-    <CoachScaffold title={coach.medicalTitle} keyboard inStack onRefresh={() => load("refresh")}>
+    <CoachScaffold title={coach.medicalTitle} keyboard inStack>
       {error ? (
         <CoachCard onPress={load}>
           <Text style={[type.link, { color: colors.lotus }]}>{coach.retry}</Text>
@@ -93,7 +91,7 @@ export function CoachFighterMedicalScreen() {
       {dossier ? (
         <MedicalDossierView dossier={dossier} />
       ) : loading ? (
-        <SkeletonCards count={2} lines={3} />
+        <CoachBanner message={coach.loading} />
       ) : null}
       {enabled ? (
         <CoachCard onPress={() => router.push(coachHref(`/(coach)/fighters/${fighterId}/medical-history`))}>

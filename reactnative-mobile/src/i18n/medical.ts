@@ -143,7 +143,7 @@ export const medical = {
     CRITICAL: "Rất nặng",
   },
   recoveryStatus: {
-    ACTIVE: "Đang áp dụng",
+    ACTIVE: "Đang chạy",
     COMPLETED: "Đã xong",
     CANCELLED: "Đã huỷ",
   },

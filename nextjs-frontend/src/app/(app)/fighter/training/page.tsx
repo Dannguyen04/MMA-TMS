@@ -1,3 +1,4 @@
+import { getDemoCopy, getLocale } from "@/lib/i18n/server";
 import { CalendarClock, ClipboardList } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -12,33 +13,26 @@ import { EmptyState } from "@/components/ui/states";
 import { PlanOverview } from "@/components/training/plan-overview";
 import { AdherenceChart } from "@/components/training/training-charts";
 import { getCoachNames } from "@/components/training/training-data";
-import { planAdherence, planAdherencePct, planAdherenceWeeks, recentAdherenceWeeks } from "@/components/training/training-utils";
+import { planAdherence, planAdherenceWeeks, planAdherencePct, recentAdherenceWeeks } from "@/components/training/training-utils";
 import { requireFighterId } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
-import { getTranslator } from "@/lib/i18n/server";
 import { routes } from "@/lib/routes";
 import { listPlans, listSessions } from "@/lib/services/training";
 
-export async function generateMetadata(): Promise<Metadata> {
-    const { t } = await getTranslator();
-    return { title: t("training.fighterTraining.title") };
-}
+export async function generateMetadata(): Promise<Metadata> { const copy = await getDemoCopy(); return { title: copy("Training plans") }; }
 
 const NEXT_SESSIONS = 4;
 const ADHERENCE_WEEKS = 8;
 
 export default async function FighterTrainingPage() {
-    const { t, locale } = await getTranslator();
+    const copy = await getDemoCopy();
+    const locale = await getLocale();
     const user = await requireRole("fighter");
     if (!user.profileId) notFound();
     const fighterId = requireFighterId(user, user.profileId);
     const now = new Date().toISOString();
 
-    const [plans, sessions, coachNames] = await Promise.all([
-        listPlans({ fighterIds: [fighterId] }),
-        listSessions({ fighterIds: [fighterId] }),
-        getCoachNames(),
-    ]);
+    const [plans, sessions, coachNames] = await Promise.all([listPlans({ fighterIds: [fighterId] }), listSessions({ fighterIds: [fighterId] }), getCoachNames()]);
 
     // Drafts are still being prepared by the coach, so fighters don't see them.
     const visiblePlans = plans.filter((plan) => plan.status !== "draft");
@@ -56,8 +50,8 @@ export default async function FighterTrainingPage() {
     return (
         <>
             <PageHeader
-                title={t("training.fighterTraining.title")}
-                description={t("training.fighterTraining.description")}
+                title={copy("Training plans")}
+                description={copy("The plan your coach built for this phase, how consistently you're following it, and your past plans.")}
             />
 
             <div className="flex flex-col gap-6">
@@ -71,19 +65,17 @@ export default async function FighterTrainingPage() {
                         actions={
                             <ButtonLink href={routes.fighter.plan(activePlan.id)} variant="secondary" className="w-full sm:w-auto">
                                 <ClipboardList aria-hidden />
-                                {t("training.fighterTraining.viewFullPlan")}
-                            </ButtonLink>
+                                {copy("View full plan")} </ButtonLink>
                         }
                     />
                 ) : (
                     <EmptyState
                         icon={<ClipboardList />}
-                        title={t("training.fighterTraining.noActivePlanTitle")}
-                        description={t("training.fighterTraining.noActivePlanDesc")}
+                        title={copy("No active training plan")}
+                        description={copy("Your coach hasn't published a plan for this phase yet. Sessions they schedule still appear on your schedule.")}
                         action={
                             <ButtonLink href={routes.fighter.schedule} variant="secondary">
-                                {t("training.fighterTraining.viewSchedule")}
-                            </ButtonLink>
+                                {copy("View schedule")} </ButtonLink>
                         }
                     />
                 )}
@@ -91,18 +83,17 @@ export default async function FighterTrainingPage() {
                 <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-2">
                     <AdherenceChart
                         weeks={adherenceWeeks}
-                        description={activePlan ? t("training.fighterTraining.chartActiveDesc") : t("training.fighterTraining.chartRecentDesc", { weeks: ADHERENCE_WEEKS })}
+                        description={activePlan ? copy("Completed out of due sessions per week in your current plan") : copy("Completed out of due sessions per week, last {n} weeks", { n: ADHERENCE_WEEKS })}
                         className="min-w-0"
                     />
                     <Card className="min-w-0 overflow-hidden">
                         <CardHeader
-                            title={t("training.fighterTraining.nextInPlan")}
+                            title={copy("Next in this plan")}
                             icon={<CalendarClock />}
                             action={
                                 nextSessions.length > 0 ? (
-                                    <CardLink href={routes.fighter.schedule} srContext={t("training.fighterTraining.allAriaContext")}>
-                                        {t("training.fighterTraining.all")}
-                                    </CardLink>
+                                    <CardLink href={routes.fighter.schedule} srContext={copy("upcoming sessions on your schedule")}>
+                                        {copy("All")} </CardLink>
                                 ) : undefined
                             }
                         />
@@ -111,8 +102,8 @@ export default async function FighterTrainingPage() {
                                 <EmptyState
                                     compact
                                     icon={<CalendarClock />}
-                                    title={t("training.fighterTraining.noUpcomingTitle")}
-                                    description={activePlan ? t("training.fighterTraining.noUpcomingDescPlan") : t("training.fighterTraining.noUpcomingDescNoPlan")}
+                                    title={copy("No upcoming sessions")}
+                                    description={activePlan ? copy("Nothing is scheduled ahead in this plan yet.") : copy("Sessions appear here once a plan is active.")}
                                 />
                             </CardContent>
                         ) : (
@@ -130,12 +121,11 @@ export default async function FighterTrainingPage() {
                 <section aria-labelledby="plan-history-heading" className="flex flex-col gap-4">
                     <div>
                         <h2 id="plan-history-heading" className="text-lg font-semibold text-fg">
-                            {t("training.fighterTraining.planHistoryHeading")}
-                        </h2>
-                        <p className="text-sm text-fg-muted">{t("training.fighterTraining.planHistoryDesc")}</p>
+                            {copy("Plan history")} </h2>
+                        <p className="text-sm text-fg-muted">{copy("Completed and archived plans from earlier phases.")} </p>
                     </div>
                     {otherPlans.length === 0 ? (
-                        <EmptyState compact icon={<ClipboardList />} title={t("training.fighterTraining.noEarlierPlansTitle")} description={t("training.fighterTraining.noEarlierPlansDesc")} className="rounded-xl border border-dashed border-border-strong" />
+                        <EmptyState compact icon={<ClipboardList />} title={copy("No earlier plans")} description={copy("Plans you finish with your coach are kept here.")} className="rounded-xl border border-dashed border-border-strong" />
                     ) : (
                         <ul className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 xl:grid-cols-3">
                             {otherPlans.map((plan) => (

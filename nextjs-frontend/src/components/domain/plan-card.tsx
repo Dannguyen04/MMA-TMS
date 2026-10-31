@@ -1,13 +1,12 @@
 "use client";
 
-import { useLocale, useT } from "@/components/i18n/locale-provider";
+import { useDemoCopy, useLocale } from "@/components/i18n/locale-provider";
 import { CalendarRange, Repeat, UserRound } from "lucide-react";
 import Link from "next/link";
 
-import { trainingPhaseLabel } from "@/lib/domain/labels";
+import { TRAINING_PHASE_LABELS } from "@/lib/domain/labels";
 import type { TrainingPlan } from "@/lib/domain/types";
 import { formatPercent } from "@/lib/format";
-import { plural } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 import { FighterIdentity, type FighterIdentityData } from "./fighter-identity";
 import { PlanDates, PlanTimelineBar } from "./plan-schedule";
@@ -33,7 +32,7 @@ export interface PlanCardProps {
 
 /** Training plan summary: status, phase, timeline, weekly target, focus areas and adherence. */
 export function PlanCard({ plan, now, coachName, fighter, showObjective = false, adherencePct, href, headingLevel = 3, className }: PlanCardProps) {
-    const t = useT();
+    const copy = useDemoCopy();
     const locale = useLocale();
     const Heading = headingLevel === 2 ? "h2" : "h3";
     const status = <PlanStatusBadge locale={locale} status={plan.status} size="sm" className="shrink-0" />;
@@ -54,7 +53,7 @@ export function PlanCard({ plan, now, coachName, fighter, showObjective = false,
             )}
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                    <p className="text-xs font-semibold tracking-wide text-fg-subtle uppercase">{trainingPhaseLabel(t, plan.phase)}</p>
+                    <p className="text-xs font-semibold tracking-wide text-fg-subtle uppercase">{copy(TRAINING_PHASE_LABELS[plan.phase])}</p>
                     <Heading className="mt-0.5 text-[15px] leading-6 font-semibold text-fg">
                         {href ? (
                             <Link href={href} className="rounded-sm after:absolute after:inset-0 after:rounded-xl after:content-[''] hover:underline">
@@ -77,28 +76,28 @@ export function PlanCard({ plan, now, coachName, fighter, showObjective = false,
                 <PlanTimelineBar plan={plan} now={now} size="sm" />
             </div>
 
-            <TechniqueChips techniques={plan.focusAreas} label={t("training.planCard.focusAreas")} size="sm" />
+            <TechniqueChips techniques={plan.focusAreas} label={copy("Focus areas")} size="sm" />
 
             <dl className="mt-auto grid grid-cols-2 gap-3 border-t border-border pt-3 text-[13px]">
                 {plan.weeklySessionTarget !== null && (
                     <div className="min-w-0">
-                        <dt className="text-fg-muted">{t("training.planCard.weeklyTarget")} </dt>
+                        <dt className="text-fg-muted">{copy("Weekly target")} </dt>
                         <dd className="mt-0.5 flex items-center gap-1.5 font-medium text-fg">
                             <Repeat aria-hidden className="size-3.5 text-fg-subtle" />
-                            {plural(t, "training.planCard.sessionsTarget", plan.weeklySessionTarget)}
+                            {copy("{n} sessions", { n: plan.weeklySessionTarget })}
                         </dd>
                     </div>
                 )}
                 <div className="min-w-0">
-                    <dt className="text-fg-muted">{t("training.planCard.adherence")} </dt>
+                    <dt className="text-fg-muted">{copy("Adherence")} </dt>
                     <dd className="mt-0.5 font-medium text-fg">{adherencePct === undefined ? "—" : formatPercent(adherencePct)}</dd>
                 </div>
                 {coachName && (
                     <div className="col-span-2 min-w-0">
-                        <dt className="sr-only">{t("training.planCard.coach")} </dt>
+                        <dt className="sr-only">{copy("Coach")} </dt>
                         <dd className="flex items-center gap-1.5 truncate text-fg-muted">
                             <UserRound aria-hidden className="size-3.5 shrink-0 text-fg-subtle" />
-                            {t("training.planCard.coachBy", { name: coachName })}
+                            {copy("Coach")} {coachName}
                         </dd>
                     </div>
                 )}

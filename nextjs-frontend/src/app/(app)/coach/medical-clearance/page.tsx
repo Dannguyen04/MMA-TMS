@@ -8,14 +8,11 @@ import { StatCard } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/states";
 import { requireRole } from "@/lib/auth/session";
 import { clearanceExpiresSoon } from "@/lib/domain/rules";
-import { getTranslator } from "@/lib/i18n/server";
+import { pluralize } from "@/lib/format";
 import { getSettings } from "@/lib/services/admin";
 import { listDoctors, listFighters } from "@/lib/services/people";
 
-export async function generateMetadata(): Promise<Metadata> {
-    const { t } = await getTranslator();
-    return { title: t("coachClearance.metaTitle") };
-}
+export const metadata: Metadata = { title: "Medical Clearance" };
 
 /** Soonest to lapse first, then by name. */
 function byDaysRemaining(a: RosterEntry, b: RosterEntry): number {
@@ -24,7 +21,6 @@ function byDaysRemaining(a: RosterEntry, b: RosterEntry): number {
 
 export default async function CoachMedicalClearancePage() {
     const user = await requireRole("coach");
-    const { t, locale } = await getTranslator();
     const now = new Date().toISOString();
     const [roster, doctors, settings] = await Promise.all([loadRoster(user, now, { fighters: listFighters(user) }), listDoctors(), getSettings()]);
     const warningDays = settings.clearanceExpiryWarningDays;
@@ -38,17 +34,17 @@ export default async function CoachMedicalClearancePage() {
     const cleared = roster.filter((entry) => entry.clearanceState === "full" && !expiresSoon(entry)).sort(byDaysRemaining);
     const expiringRestricted = expiring.filter((entry) => entry.clearanceState === "restricted").length;
     const expiringFull = expiring.length - expiringRestricted;
-    const shared = { doctorNames, warningDays, now, locale };
+    const shared = { doctorNames, warningDays, now };
 
     return (
         <>
             <PageHeader
-                title={t("coachClearance.pageTitle")}
-                description={t("coachClearance.pageDesc")}
+                title="Medical Clearance"
+                description="Set by the sports doctor. Plan training within these limits."
                 meta={
                     <p className="flex items-start gap-1.5 text-[13px] text-pretty text-fg-muted">
                         <Lock aria-hidden className="mt-0.5 size-3.5 shrink-0 text-fg-subtle" />
-                        {t("coachClearance.lockNotice")}
+                        Only the sports doctor can change clearance. You see clearance levels and restrictions — clinical notes stay with the medical team.
                     </p>
                 }
             />
@@ -56,73 +52,62 @@ export default async function CoachMedicalClearancePage() {
             {roster.length === 0 ? (
                 <EmptyState
                     icon={<ShieldCheck />}
-                    title={t("coachClearance.emptyTitle")}
-                    description={t("coachClearance.emptyDesc")}
+                    title="No fighters assigned to you yet"
+                    description="Once fighters are on your roster, their Medical Clearance and training restrictions appear here."
                 />
             ) : (
                 <div className="flex flex-col gap-6">
-                    <section aria-label={t("coachClearance.summarySection")} className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+                    <section aria-label="Clearance summary" className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
                         <StatCard
-                            label={t("coachClearance.statNotCleared")}
+                            label="Not cleared"
                             value={notCleared.length}
                             icon={<ShieldX />}
                             href="#not-cleared"
                             hint={
                                 noClearance.length > 0
-                                    ? t("coachClearance.hintNoClearance", {
-                                          count: noClearance.length,
-                                          fighters: noClearance.length === 1 ? t("coachClearance.fighter") : t("coachClearance.fighters"),
-                                      })
+                                    ? `+ ${pluralize(noClearance.length, "fighter")} with no clearance on file`
                                     : notCleared.length > 0
-                                      ? t("coachClearance.hintNoTraining")
-                                      : t("coachClearance.hintEveryoneMayTrain")
+                                      ? "No training permitted"
+                                      : "Everyone may train"
                             }
                         />
                         <StatCard
-                            label={t("coachClearance.statRestricted")}
+                            label="Restricted"
                             value={restricted.length}
                             icon={<ShieldAlert />}
                             href="#restricted"
-                            hint={
-                                expiringRestricted > 0
-                                    ? t("coachClearance.hintMoreExpiring", { count: expiringRestricted })
-                                    : t("coachClearance.hintTrainWithinLimits")
-                            }
+                            hint={expiringRestricted > 0 ? `+ ${expiringRestricted} more expiring soon` : "Train within the listed limits"}
                         />
                         <StatCard
-                            label={t("coachClearance.statExpiring", { days: warningDays })}
+                            label={`Expiring ≤ ${warningDays} days`}
                             value={expiring.length}
                             icon={<CalendarClock />}
                             href="#expiring"
-                            hint={expiring.length > 0 ? t("coachClearance.hintSessionsBlocked") : t("coachClearance.hintNoLapsing")}
+                            hint={expiring.length > 0 ? "Sessions after expiry will be blocked" : "No clearances lapsing soon"}
                         />
                         <StatCard
-                            label={t("coachClearance.statCleared")}
+                            label="Cleared"
                             value={cleared.length}
                             icon={<ShieldCheck />}
                             href="#cleared"
-                            hint={
-                                expiringFull > 0
-                                    ? t("coachClearance.hintMoreExpiring", { count: expiringFull })
-                                    : t("coachClearance.hintFullTraining")
-                            }
+                            hint={expiringFull > 0 ? `+ ${expiringFull} more expiring soon` : "Full training, no restrictions"}
                         />
                     </section>
 
                     <ClearanceSection
                         id="not-cleared"
-                        title={t("coachClearance.secNotClearedTitle")}
-                        description={t("coachClearance.secNotClearedDesc")}
+                        title="Not cleared"
+                        description="No training permitted until a sports doctor clears them — including lapsed clearances."
                         icon={ShieldX}
                         entries={notCleared}
-                        emptyText={t("coachClearance.secNotClearedEmpty")}
+                        emptyText="Nobody on your roster is not cleared right now."
                         {...shared}
                     />
                     {noClearance.length > 0 && (
                         <ClearanceSection
                             id="no-clearance"
-                            title={t("coachClearance.secNoClearanceTitle")}
-                            description={t("coachClearance.secNoClearanceDesc")}
+                            title="No clearance on file"
+                            description="Sessions can't be checked against medical guidance until the sports doctor issues a clearance."
                             icon={ShieldQuestion}
                             entries={noClearance}
                             emptyText=""
@@ -131,29 +116,29 @@ export default async function CoachMedicalClearancePage() {
                     )}
                     <ClearanceSection
                         id="restricted"
-                        title={t("coachClearance.secRestrictedTitle")}
-                        description={t("coachClearance.secRestrictedDesc")}
+                        title="Restricted"
+                        description="Cleared to train, but only within these restrictions."
                         icon={ShieldAlert}
                         entries={restricted}
-                        emptyText={t("coachClearance.secRestrictedEmpty")}
+                        emptyText="No other restricted clearances."
                         {...shared}
                     />
                     <ClearanceSection
                         id="expiring"
-                        title={t("coachClearance.secExpiringTitle")}
-                        description={t("coachClearance.secExpiringDesc", { days: warningDays })}
+                        title="Expiring soon"
+                        description={`Clearances lapsing within ${warningDays} days. The sports doctor renews them — sessions after expiry will be blocked.`}
                         icon={CalendarClock}
                         entries={expiring}
-                        emptyText={t("coachClearance.secExpiringEmpty", { days: warningDays })}
+                        emptyText={`No clearances lapse in the next ${warningDays} days.`}
                         {...shared}
                     />
                     <ClearanceSection
                         id="cleared"
-                        title={t("coachClearance.secClearedTitle")}
-                        description={t("coachClearance.secClearedDesc")}
+                        title="Cleared"
+                        description="Full training with no restrictions."
                         icon={ShieldCheck}
                         entries={cleared}
-                        emptyText={t("coachClearance.secClearedEmpty")}
+                        emptyText="No fighters are fully cleared right now."
                         {...shared}
                     />
                 </div>

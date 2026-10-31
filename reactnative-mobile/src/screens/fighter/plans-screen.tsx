@@ -11,7 +11,6 @@ import { useFighterPalette } from "@/screens/fighter/redesign/palette";
 import { FighterHub, HubHeader } from "@/screens/fighter/redesign/shell";
 import { useFighterId } from "@/screens/fighter/use-fighter-id";
 import { useLoad } from "@/screens/fighter/use-load";
-import { FadeInView, PressableScale } from "@/components/motion";
 
 export function FighterPlansScreen() {
   const colors = useFighterPalette();
@@ -24,12 +23,12 @@ export function FighterPlansScreen() {
     return { rows: page.data, total: page.total };
   }, [fighterId]);
 
-  const { data, error, loading, reload, refresh } = useLoad(canFetch, fighterId ?? "none", load);
+  const { data, error, loading, reload } = useLoad(canFetch, fighterId ?? "none", load);
   const rows = data?.rows ?? [];
   const empty = !!data && data.total === 0 && !error;
 
   return (
-    <FighterHub refreshing={loading && !data} onRefresh={refresh}>
+    <FighterHub refreshing={loading && !data}>
       <HubHeader title="Giáo án" />
       <View style={styles.pad}>
         <View style={[styles.status, { borderBottomColor: colors.line }]}>
@@ -59,23 +58,22 @@ export function FighterPlansScreen() {
           </View>
         ) : null}
 
-        {rows.map((row, i) => (
-          <FadeInView key={row.id} index={i}>
-            <PressableScale
-              accessibilityRole="button"
-              onPress={() => router.push(`/giao-an/${row.id}` as Href)}
-              style={[styles.row, { borderBottomColor: colors.line }]}
-            >
-              <View style={styles.flex}>
-                <Text style={[styles.statusTitle, { color: colors.ink }]}>{row.title}</Text>
-                <Text style={[styles.meta, { color: colors.muted }]}>
-                  {planStatusLabel(row.status)} · {planPhaseLabel(row.phase)} · {formatDay(row.startDate)}
-                  {row.endDate ? ` – ${formatDay(row.endDate)}` : ""}
-                </Text>
-              </View>
-              <MaterialCommunityIcons name="chevron-right" size={16} color={colors.muted} />
-            </PressableScale>
-          </FadeInView>
+        {rows.map((row) => (
+          <Pressable
+            key={row.id}
+            accessibilityRole="button"
+            onPress={() => router.push(`/giao-an/${row.id}` as Href)}
+            style={[styles.row, { borderBottomColor: colors.line }]}
+          >
+            <View style={styles.flex}>
+              <Text style={[styles.statusTitle, { color: colors.ink }]}>{row.title}</Text>
+              <Text style={[styles.meta, { color: colors.muted }]}>
+                {planStatusLabel(row.status)} · {planPhaseLabel(row.phase)} · {formatDay(row.startDate)}
+                {row.endDate ? ` – ${formatDay(row.endDate)}` : ""}
+              </Text>
+            </View>
+            <MaterialCommunityIcons name="chevron-right" size={16} color={colors.muted} />
+          </Pressable>
         ))}
 
         <View style={[styles.library, { backgroundColor: colors.agenda }]}>

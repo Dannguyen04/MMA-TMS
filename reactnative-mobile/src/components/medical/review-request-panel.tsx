@@ -27,7 +27,6 @@ import {
 import { medical } from "@/i18n/medical";
 import { mapApiMessage } from "@/session/map-api-message";
 import { type, useThemePreference } from "@/theme";
-import { SkeletonRows } from "@/components/loading";
 
 export const REVIEW_REASON_MAX = 2000;
 const PAGE_SIZE = 20;
@@ -159,7 +158,7 @@ export function ReviewRequestPanel({
       </View>
       {listError ? <MedicalLink label={medical.retry} onPress={() => void load(1)} /> : null}
       <MedicalCard>
-        {loading && rows.length === 0 ? <SkeletonRows rows={2} avatar={false} /> : null}
+        {loading && rows.length === 0 ? <MedicalMuted text={medical.loading} /> : null}
         {!loading && rows.length === 0 && !listError ? <MedicalMuted text={medical.reviewEmpty} /> : null}
         {rows.map((row) => (
           <View key={row.id} style={medicalStyles.row}>

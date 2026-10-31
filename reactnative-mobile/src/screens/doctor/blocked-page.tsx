@@ -1,9 +1,9 @@
 import { type ReactNode } from "react";
-import { Pressable, Text } from "react-native";
+import { Pressable, ScrollView, Text } from "react-native";
 import { useRouter, type Href } from "expo-router";
 
 import { BlockedApiNotice } from "@/components/blocked/blocked-api-notice";
-import { DoctorCard, DoctorChrome, DoctorScroll, doctorStyles } from "@/screens/doctor/doctor-chrome";
+import { DoctorCard, DoctorChrome, doctorStyles } from "@/screens/doctor/doctor-chrome";
 import { type, useThemePreference } from "@/theme";
 
 export function DoctorBlockedPage({
@@ -17,10 +17,10 @@ export function DoctorBlockedPage({
 }) {
   return (
     <DoctorChrome title={title}>
-      <DoctorScroll contentContainerStyle={doctorStyles.list}>
+      <ScrollView contentContainerStyle={doctorStyles.list}>
         <BlockedApiNotice extra={extra} />
         {children}
-      </DoctorScroll>
+      </ScrollView>
     </DoctorChrome>
   );
 }

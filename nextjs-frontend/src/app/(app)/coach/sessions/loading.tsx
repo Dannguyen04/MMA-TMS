@@ -1,10 +1,8 @@
 import { LoadingRegion, PageHeaderSkeleton, Skeleton, WeekAgendaSkeleton } from "@/components/ui/skeleton";
-import { getTranslator } from "@/lib/i18n/server";
 
-export default async function Loading() {
-    const { t } = await getTranslator();
+export default function Loading() {
     return (
-        <LoadingRegion label={t("training.loading.sessions")}>
+        <LoadingRegion label="Loading sessions">
             <PageHeaderSkeleton actions={1} />
             <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center">

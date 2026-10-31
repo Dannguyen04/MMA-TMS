@@ -14,19 +14,15 @@ import { MinutesChart } from "@/components/training/training-charts";
 import { SESSION_SORT_KEYS, fromTrainingProgress, rpeLabel, sessionMinutes, sortSessions, withinDayRange } from "@/components/training/training-utils";
 import { requireFighterAccess } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
-import { sessionStatusLabel, TRAINING_TYPE_LABELS, trainingTypeLabel } from "@/lib/domain/labels";
+import { SESSION_STATUS_LABELS, TRAINING_TYPE_LABELS } from "@/lib/domain/labels";
 import type { SessionStatus, TrainingSession, TrainingType } from "@/lib/domain/types";
 import { dayKey, formatDelta, formatMinutes, formatNumber } from "@/lib/format";
-import { getTranslator } from "@/lib/i18n/server";
 import { paginate, parseEnum, parseSortDirection } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { getSessionHistory, getTrainingProgress } from "@/lib/services/training";
 import { average, param, sum } from "@/lib/utils";
 
-export async function generateMetadata(): Promise<Metadata> {
-    const { t } = await getTranslator();
-    return { title: t("training.fighterHistory.title") };
-}
+export const metadata: Metadata = { title: "Training history" };
 
 const DAY_MS = 86_400_000;
 const WINDOW_DAYS = 30;
@@ -51,28 +47,27 @@ function windowStats(sessions: TrainingSession[]): WindowStats {
     };
 }
 
-function countDelta(current: number, previous: number, higherIsBetter: boolean, label: string): StatDelta {
+function countDelta(current: number, previous: number, higherIsBetter: boolean): StatDelta {
     const diff = current - previous;
     return {
         value: formatDelta(diff),
         direction: diff > 0 ? "up" : diff < 0 ? "down" : "flat",
         sentiment: diff === 0 ? "neutral" : diff > 0 === higherIsBetter ? "good" : "bad",
-        label,
+        label: "vs previous 30 days",
     };
 }
 
-function minutesDelta(current: number, previous: number, label: string): StatDelta {
+function minutesDelta(current: number, previous: number): StatDelta {
     const diff = current - previous;
     return {
         value: diff === 0 ? "0" : `${diff > 0 ? "+" : "−"}${formatMinutes(Math.abs(diff))}`,
         direction: diff > 0 ? "up" : diff < 0 ? "down" : "flat",
         sentiment: "neutral",
-        label,
+        label: "vs previous 30 days",
     };
 }
 
 export default async function FighterHistoryPage({ searchParams }: PageProps<"/fighter/training/history">) {
-    const { t, locale } = await getTranslator();
     const user = await requireRole("fighter");
     if (!user.profileId) notFound();
     const fighter = await requireFighterAccess(user, user.profileId);
@@ -103,41 +98,41 @@ export default async function FighterHistoryPage({ searchParams }: PageProps<"/f
     return (
         <>
             <PageHeader
-                title={t("training.fighterHistory.title")}
-                description={t("training.fighterHistory.description")}
+                title="Training history"
+                description="Every session you've completed, missed or had cancelled — with your RPE and your coach's rating."
             />
 
             <div className="flex flex-col gap-6">
                 <section aria-labelledby="last-30-heading">
                     <h2 id="last-30-heading" className="sr-only">
-                        {t("training.fighterHistory.statCompleted")}
+                        Last 30 days
                     </h2>
                     <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
                         <StatCard
-                            label={t("training.fighterHistory.statCompleted")}
+                            label="Completed · 30 days"
                             value={current.completed}
-                            unit={t("training.fighterHistory.unitSessions")}
+                            unit="sessions"
                             icon={<CalendarCheck2 />}
-                            delta={countDelta(current.completed, previous.completed, true, t("training.fighterHistory.deltaVsPrev"))}
+                            delta={countDelta(current.completed, previous.completed, true)}
                         />
                         <StatCard
-                            label={t("training.fighterHistory.statMissed")}
+                            label="Missed · 30 days"
                             value={current.missed}
-                            unit={t("training.fighterHistory.unitSessions")}
+                            unit="sessions"
                             icon={<CalendarX2 />}
-                            delta={countDelta(current.missed, previous.missed, false, t("training.fighterHistory.deltaVsPrev"))}
+                            delta={countDelta(current.missed, previous.missed, false)}
                         />
                         <StatCard
-                            label={t("training.fighterHistory.statTime")}
+                            label="Training time · 30 days"
                             value={formatMinutes(current.minutes)}
                             icon={<Timer />}
-                            delta={minutesDelta(current.minutes, previous.minutes, t("training.fighterHistory.deltaVsPrev"))}
+                            delta={minutesDelta(current.minutes, previous.minutes)}
                         />
                         <StatCard
-                            label={t("training.fighterHistory.statAvgRpe")}
+                            label="Average RPE · 30 days"
                             value={current.avgRpe === null ? "—" : formatNumber(current.avgRpe, 1)}
                             icon={<Gauge />}
-                            hint={current.avgRpe === null ? t("training.fighterHistory.noCompletedSessions") : rpeLabel(current.avgRpe)}
+                            hint={current.avgRpe === null ? "No completed sessions" : rpeLabel(current.avgRpe)}
                         />
                     </div>
                 </section>
@@ -146,22 +141,22 @@ export default async function FighterHistoryPage({ searchParams }: PageProps<"/f
 
                 <Card className="overflow-hidden">
                     <CardHeader
-                        title={t("training.fighterHistory.pastSessions")}
-                        description={hasFilters ? t("training.fighterHistory.matchingSessions", { matching: filtered.length, total: history.length }) : t("training.fighterHistory.sessionsCount", { total: history.length })}
+                        title="Past sessions"
+                        description={hasFilters ? `${filtered.length} of ${history.length} sessions match` : `${history.length} sessions`}
                         icon={<History />}
                     />
                     <div className="px-5 pb-4">
                         <FilterBar
                             filters={[
-                                { type: "select", name: "type", label: t("training.fighterHistory.filterTypes"), options: TRAINING_TYPES.map((value) => ({ value, label: trainingTypeLabel(t, value) })) },
+                                { type: "select", name: "type", label: "Types", options: TRAINING_TYPES.map((value) => ({ value, label: TRAINING_TYPE_LABELS[value] })) },
                                 {
                                     type: "select",
                                     name: "status",
-                                    label: t("training.fighterHistory.filterStatuses"),
-                                    options: HISTORY_STATUSES.map((value) => ({ value, label: sessionStatusLabel(t, value) })),
+                                    label: "Statuses",
+                                    options: HISTORY_STATUSES.map((value) => ({ value, label: SESSION_STATUS_LABELS[value] })),
                                 },
-                                { type: "date", name: "from", label: t("training.fighterHistory.filterFrom") },
-                                { type: "date", name: "to", label: t("training.fighterHistory.filterTo") },
+                                { type: "date", name: "from", label: "From" },
+                                { type: "date", name: "to", label: "To" },
                             ]}
                         />
                     </div>
@@ -170,11 +165,11 @@ export default async function FighterHistoryPage({ searchParams }: PageProps<"/f
                             {hasFilters ? (
                                 <EmptyState
                                     compact
-                                    title={t("training.fighterHistory.noMatchingTitle")}
-                                    description={t("training.fighterHistory.noMatchingDesc")}
+                                    title="No sessions match these filters"
+                                    description="Try a different type, status or date range."
                                     action={
                                         <ButtonLink href={pathname} variant="secondary" size="sm">
-                                            {t("training.fighterHistory.clearFilters")}
+                                            Clear filters
                                         </ButtonLink>
                                     }
                                 />
@@ -182,11 +177,11 @@ export default async function FighterHistoryPage({ searchParams }: PageProps<"/f
                                 <EmptyState
                                     compact
                                     icon={<History />}
-                                    title={t("training.fighterHistory.noPastTitle")}
-                                    description={t("training.fighterHistory.noPastDesc")}
+                                    title="No past sessions yet"
+                                    description="Sessions show up here after they've happened."
                                     action={
                                         <ButtonLink href={routes.fighter.schedule} variant="secondary" size="sm">
-                                            {t("training.fighterTraining.viewSchedule")}
+                                            View schedule
                                         </ButtonLink>
                                     }
                                 />
@@ -195,10 +190,9 @@ export default async function FighterHistoryPage({ searchParams }: PageProps<"/f
                     ) : (
                         <div className="border-t border-border">
                             <SessionTable
-                                locale={locale}
                                 sessions={page.items}
                                 audience="fighter"
-                                caption={t("training.fighterHistory.pastSessionsCaption")}
+                                caption="Past training sessions"
                                 showVideo
                                 stackOnMobile
                                 sort={{ pathname, searchParams: params, sort, dir }}
@@ -210,7 +204,7 @@ export default async function FighterHistoryPage({ searchParams }: PageProps<"/f
                                 pageSize={page.pageSize}
                                 pathname={pathname}
                                 searchParams={params}
-                                itemLabel={t("training.fighterHistory.itemLabel")}
+                                itemLabel="sessions"
                             />
                         </div>
                     )}

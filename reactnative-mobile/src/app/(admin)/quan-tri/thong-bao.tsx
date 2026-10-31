@@ -1,6 +1,10 @@
-import { Redirect, type Href } from "expo-router";
+import { NotificationInbox } from "@/screens/notifications/inbox";
+import { AdminPage } from "@/screens/admin/admin-page";
 
-/** Giữ đường dẫn cũ: thông báo Admin nay là tab "Thông báo". */
-export default function AdminNotificationsLegacyRoute() {
-  return <Redirect href={"/(admin)/thong-bao" as Href} />;
+export default function AdminNotificationsRoute() {
+  return (
+    <AdminPage title="Thông báo" onBack blockedNotice={false}>
+      <NotificationInbox title="Hộp thư" />
+    </AdminPage>
+  );
 }

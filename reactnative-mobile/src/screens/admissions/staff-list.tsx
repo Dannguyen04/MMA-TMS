@@ -3,13 +3,14 @@ import { Pressable, Text } from "react-native";
 import { useRouter } from "expo-router";
 
 import {
+  listApplications,
   listAssignedApplications,
   type ApplicationStatus,
   type StaffApplication,
 } from "@/api/admissions";
 import { useToastMessage } from "@/components/toast/app-toast";
 import { vi } from "@/i18n/vi";
-import { AdminApplicationListScreen } from "@/screens/admin/admin-applications";
+import { AdminApplicationList } from "@/screens/admin/admin-applications";
 import { AdmissionPage } from "@/screens/admissions/page";
 import { mapApiMessage } from "@/session/map-api-message";
 import { type, useThemePreference } from "@/theme";
@@ -28,8 +29,7 @@ export function StaffListScreen({
   const [loaded, setLoaded] = useState(false);
 
   const load = useCallback(() => {
-    if (audience === "admin") return;
-    const request = listAssignedApplications;
+    const request = audience === "admin" ? listApplications : listAssignedApplications;
     void request({ page: 1, limit: 20 })
       .then((page) => {
         setItems(page.items);
@@ -50,7 +50,7 @@ export function StaffListScreen({
   };
 
   if (audience === "admin") {
-    return <AdminApplicationListScreen />;
+    return <AdminApplicationList items={items} total={total} loaded={loaded} error={error} onOpen={open} />;
   }
 
   return (

@@ -13,7 +13,6 @@ import { SERVICE_TRAINING_TYPES } from "@/lib/domain/training-contract";
 import { nextWeeklySlot, presetDuration } from "@/lib/domain/training-templates";
 import type { TrainingPlan, TrainingType } from "@/lib/domain/types";
 import { addDaysToKey, dayKey } from "@/lib/format";
-import { getTranslator } from "@/lib/i18n/server";
 import { parseEnum } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { listFighters } from "@/lib/services/people";
@@ -21,17 +20,13 @@ import { usesTrainingServiceForms } from "@/lib/services/platform-features";
 import { getSession, listExercises, listPlans, listSessions } from "@/lib/services/training";
 import { param } from "@/lib/utils";
 
-export async function generateMetadata(): Promise<Metadata> {
-    const { t } = await getTranslator();
-    return { title: t("training.sessionForm.titleCreate") };
-}
+export const metadata: Metadata = { title: "Schedule session" };
 
 const TRAINING_TYPES = Object.keys(TRAINING_TYPE_LABELS) as TrainingType[];
 
 const schedulable = (plan: TrainingPlan | undefined) => plan !== undefined && (plan.status === "active" || plan.status === "draft");
 
 export default async function NewSessionPage({ searchParams }: PageProps<"/coach/sessions/new">) {
-    const { t } = await getTranslator();
     const user = await requireRole("coach");
     const params = await searchParams;
     const now = new Date().toISOString();
@@ -86,18 +81,18 @@ export default async function NewSessionPage({ searchParams }: PageProps<"/coach
           ? { href: routes.coach.plan(plan.id), label: plan.title }
           : fighter
             ? { href: routes.coach.fighterTraining(fighter.id), label: fighter.name }
-            : { href: routes.coach.sessions, label: t("training.coachSessions.title") };
+            : { href: routes.coach.sessions, label: "Sessions" };
 
     return (
         <>
             <PageHeader
-                title={source ? t("training.repeat.scheduleAgain") : t("training.sessionForm.titleCreate")}
+                title={source ? "Schedule again" : "Schedule a session"}
                 description={
                     source
-                        ? t("training.repeat.copyDesc", { title: source.title })
+                        ? `A copy of ${source.title}, a week later at the same time. Check the details, then schedule it.`
                         : serviceForm
-                          ? t("training.sessionForm.descCreateService")
-                          : t("training.sessionForm.descCreateDemo")
+                          ? "The fighter's Medical Clearance is checked when the session starts."
+                          : "Every session is checked live against the fighter's Medical Clearance. The fighter is notified when you schedule it."
                 }
                 back={back}
             />

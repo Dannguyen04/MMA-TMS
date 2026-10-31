@@ -1,4 +1,4 @@
-import { palettes, trueBlackPalette, type ColorSchemeName, type ColorTokens, type CoreColorKey } from "../colors";
+import { palettes, trueBlackPalette, type ColorSchemeName, type ColorTokens } from "../colors";
 import { radius as baseRadius } from "../radius";
 import { spacing as baseSpacing } from "../spacing";
 import {
@@ -16,7 +16,6 @@ import {
   isLargeText,
   mixHex,
 } from "./color-math";
-import { isThemedPalette, STATUS_COLORS, THEME_PALETTES, THEME_SPECS, type PaletteId } from "./theme-palettes";
 import { BODY_FONTS, DEFAULT_FONT_FAMILY } from "./fonts";
 import {
   MAX_TOTAL_FONT_SCALE,
@@ -35,20 +34,12 @@ export function resolveVariant(
   if (settings.mode === "system") {
     return systemScheme === "dark" ? settings.systemDarkVariant : "light";
   }
-  // "Kiểu tối" (Tối / Đen tuyền) applies to Tối as well as to Hệ thống at night.
-  if (settings.mode === "dark") return settings.systemDarkVariant;
   return settings.mode;
 }
 
-function basePalette(variant: ColorVariant, paletteId: PaletteId): ColorTokens {
-  if (isThemedPalette(paletteId)) return THEME_PALETTES[paletteId];
+function basePalette(variant: ColorVariant): ColorTokens {
   if (variant === "trueBlack") return trueBlackPalette;
   return palettes[variant];
-}
-
-/** Brightness mode to hand to the OS: themed palettes force their own scheme. */
-export function nativeMode(settings: Pick<AppearanceSettings, "mode" | "paletteId">): AppearanceSettings["mode"] {
-  return isThemedPalette(settings.paletteId) ? THEME_SPECS[settings.paletteId].scheme : settings.mode;
 }
 
 export type BuiltColors = { scheme: ColorSchemeName; variant: ColorVariant; colors: ColorTokens };
@@ -61,12 +52,8 @@ export function buildColors(
   settings: AppearanceSettings,
   systemScheme: ColorSchemeName,
 ): BuiltColors {
-  const paletteId = settings.paletteId;
-  // Themed palettes are fixed single-scheme looks; brightness only drives the classic Figma palette.
-  const variant: ColorVariant = isThemedPalette(paletteId)
-    ? THEME_SPECS[paletteId].scheme
-    : resolveVariant(settings, systemScheme);
-  const base = basePalette(variant, paletteId);
+  const variant = resolveVariant(settings, systemScheme);
+  const base = basePalette(variant);
   const { textColor, backgroundColor, surfaceColor, accentColor } = settings;
   const variantScheme: ColorSchemeName = variant === "light" ? "light" : "dark";
 
@@ -86,14 +73,6 @@ export function buildColors(
   const neutralChanged = Boolean(textColor || backgroundColor || surfaceColor);
 
   const next: ColorTokens = { ...base, bg, ink, surface };
-  // Fixed extras of the default palette belong to its own neutrals/accent: drop them once those change.
-  if (textColor || backgroundColor || surfaceColor) {
-    delete next.infoSoft;
-    delete next.tabPill;
-    delete next.tabActive;
-    delete next.skeletonBase;
-    delete next.skeletonHighlight;
-  }
 
   if (neutralChanged) {
     const derive = (t: number) => {
@@ -108,30 +87,13 @@ export function buildColors(
     next.controlBorder = mixHex(bg, ink, 0.5);
     next.disabledFill = mixHex(bg, ink, 0.1);
     next.disabledInk = mixHex(bg, ink, 0.45);
-    if (scheme !== variantScheme) {
-      // The custom background flipped light/dark: take the status colours made for that scheme.
-      const status = STATUS_COLORS[scheme];
-      const success = scheme === "dark" ? "#6BC48F" : "#1E6B49";
-      next.danger = ensureContrast(status.danger, bg, CONTRAST_BODY);
-      next.warning = ensureContrast(status.warning, bg, CONTRAST_BODY);
-      next.success = ensureContrast(success, bg, CONTRAST_BODY);
-      next.dangerSoft = mixHex(bg, next.danger, 0.16);
-      next.warningSoft = mixHex(bg, next.warning, 0.16);
-      next.successSoft = mixHex(bg, next.success, 0.16);
-    }
     if (!accentColor) {
       if (contrastRatio(base.lotus, bg) < CONTRAST_BODY) {
-        // Light ground + accent too pale to read (lime on white): text and links use ink, the accent stays a fill.
-        next.lotus =
-          scheme === "light" && contrastRatio(ink, bg) >= CONTRAST_BODY
-            ? ink
-            : ensureContrast(base.lotus, bg, CONTRAST_BODY);
+        next.lotus = ensureContrast(base.lotus, bg, CONTRAST_BODY);
         next.ring = next.lotus;
       }
-      // A preset CTA that vanishes into a custom background falls back to ink-on-bg,
-      // except a light ground where the label on the fill is still readable (lime button, Bio Black text).
-      const fillKept = scheme === "light" && contrastRatio(base.onCta, base.cta) >= CONTRAST_BODY;
-      if (contrastRatio(base.cta, bg) < CONTRAST_LARGE && !fillKept) {
+      // A preset CTA that vanishes into a custom background falls back to ink-on-bg.
+      if (contrastRatio(base.cta, bg) < CONTRAST_LARGE) {
         next.cta = ink;
         next.onCta = bg;
       }
@@ -139,8 +101,6 @@ export function buildColors(
   }
 
   if (accentColor) {
-    delete next.tabPill;
-    delete next.tabActive;
     next.lotus = accentColor;
     next.ring = accentColor;
     next.cta = accentColor;
@@ -288,8 +248,8 @@ export type ContrastCheck = {
 
 const PAIRS: {
   id: ContrastPairId;
-  fg: CoreColorKey;
-  bg: CoreColorKey;
+  fg: keyof ColorTokens;
+  bg: keyof ColorTokens;
   role: ContentRole;
 }[] = [
   { id: "textOnBackground", fg: "ink", bg: "bg", role: "body" },

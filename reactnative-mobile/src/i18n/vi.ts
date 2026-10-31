@@ -56,7 +56,6 @@ export const vi = {
     sendCode: "Gửi mã xác minh",
     verifyCode: "Xác minh email",
     resendCode: "Gửi lại mã",
-    resendIn: (seconds: number) => `Gửi lại mã sau ${seconds}s`,
     identity: "Bạn là ai",
     gate: "Email và mật khẩu",
     measures: "Số đo",
@@ -144,8 +143,6 @@ export const vi = {
     close: "Đóng",
     cancel: "Hủy",
     done: "Xong",
-    next: "Tiếp",
-    closeInput: "Đóng ô nhập",
   },
   forgot: {
     kicker: "Khôi phục",
@@ -305,7 +302,6 @@ export const vi = {
   a11y: {
     showPassword: "Hiện mật khẩu",
     hidePassword: "Ẩn mật khẩu",
-    passwordFilled: "Đã nhập",
     themeLight: "Giao diện sáng",
     themeDark: "Giao diện tối",
     themeSystem: "Giao diện theo hệ thống",

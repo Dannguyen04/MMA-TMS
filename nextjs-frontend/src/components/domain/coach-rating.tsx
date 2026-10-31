@@ -1,8 +1,6 @@
 import { Star } from "lucide-react";
 import type { CSSProperties } from "react";
 
-import type { Locale } from "@/lib/i18n/config";
-import { createTranslator, type MessageKey } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 
 /** Words for a coach rating, indexed by rating − 1. */
@@ -20,26 +18,22 @@ export interface CoachRatingProps {
     /** Dense variant for tables and lists: smaller stars and "4/5". */
     compact?: boolean;
     className?: string;
-    locale?: Locale;
 }
 
 /** Read-only coach rating: one image of stars (a single CSS mask), with the value in words. */
-export function CoachRating({ rating, max = MAX_RATING, compact = false, className, locale }: CoachRatingProps) {
-    const t = locale ? createTranslator(locale) : undefined;
-    const word = t ? t(`training.coachRating.${Math.min(Math.max(Math.round(rating), 1), 5)}` as MessageKey) : coachRatingWord(rating);
+export function CoachRating({ rating, max = MAX_RATING, compact = false, className }: CoachRatingProps) {
+    const word = coachRatingWord(rating);
     const style = {
         "--rating-fill": `${(Math.min(Math.max(rating, 0), max) / max) * 100}%`,
         "--rating-max": max,
         "--rating-star": compact ? "0.75rem" : "1rem",
     } as CSSProperties;
 
-    const label = compact ? `${rating}/${max}` : t ? t("training.coachRating.of", { rating, max, word }) : `${rating} of ${max} · ${word}`;
-
     return (
         <span className={cn("inline-flex items-center whitespace-nowrap", compact ? "gap-1.5" : "gap-2", className)}>
-            <span role="img" aria-label={label} className="rating-stars" style={style} />
+            <span role="img" aria-label={`${rating} of ${max} · ${word}`} className="rating-stars" style={style} />
             <span aria-hidden className={cn("text-fg-muted tabular-nums", compact ? "text-xs" : "text-[13px]")}>
-                {label}
+                {compact ? `${rating}/${max}` : `${rating} of ${max} · ${word}`}
             </span>
         </span>
     );
@@ -54,12 +48,10 @@ export interface CoachRatingInputProps {
     onChange: (value: number) => void;
     error?: string;
     required?: boolean;
-    locale?: Locale;
 }
 
 /** 1–5 rating as native radios drawn as stars. Arrow keys change the value; the choice is also shown in words. */
-export function CoachRatingInput({ id, name, legend, value, onChange, error, required = false, locale }: CoachRatingInputProps) {
-    const t = locale ? createTranslator(locale) : undefined;
+export function CoachRatingInput({ id, name, legend, value, onChange, error, required = false }: CoachRatingInputProps) {
     const errorId = `${id}-error`;
     return (
         <fieldset
@@ -76,16 +68,14 @@ export function CoachRatingInput({ id, name, legend, value, onChange, error, req
                         <span className="ml-0.5 text-danger-fg" aria-hidden>
                             *
                         </span>
-                        <span className="sr-only">{locale === "vi" ? " (bắt buộc)" : " (required)"}</span>
+                        <span className="sr-only"> (required)</span>
                     </>
                 )}
             </legend>
             <div className="flex flex-wrap items-center gap-3">
                 <div className={cn("flex items-center gap-0.5 rounded-lg", error && "ring-1 ring-danger-solid")}>
-                    {COACH_RATING_WORDS.map((wordEn, index) => {
+                    {COACH_RATING_WORDS.map((word, index) => {
                         const rating = index + 1;
-                        const word = t ? t(`training.coachRating.${rating}` as MessageKey) : wordEn;
-                        const label = t ? t("training.coachRating.of", { rating, max: MAX_RATING, word }) : `${rating} of ${MAX_RATING} · ${word}`;
                         return (
                             <label
                                 key={rating}
@@ -108,19 +98,15 @@ export function CoachRatingInput({ id, name, legend, value, onChange, error, req
                                         rating <= value ? "fill-warning-solid text-warning-solid" : "fill-transparent text-control-border",
                                     )}
                                 />
-                                <span className="sr-only">{label}</span>
+                                <span className="sr-only">
+                                    {rating} of {MAX_RATING} · {word}
+                                </span>
                             </label>
                         );
                     })}
                 </div>
                 <p aria-hidden className="text-sm text-fg-muted">
-                    {value > 0
-                        ? t
-                            ? t("training.coachRating.of", { rating: value, max: MAX_RATING, word: t(`training.coachRating.${value}` as MessageKey) })
-                            : `${value} of ${MAX_RATING} · ${coachRatingWord(value)}`
-                        : t
-                        ? t("training.coachRating.notRated")
-                        : "Not rated"}
+                    {value > 0 ? `${value} of ${MAX_RATING} · ${coachRatingWord(value)}` : "Not rated"}
                 </p>
             </div>
             {error && (

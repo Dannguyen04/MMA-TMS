@@ -1,9 +1,7 @@
 "use client";
 
-import { useT } from "@/components/i18n/locale-provider";
 import { ScaleSlider } from "@/components/ui/scale-slider";
-import type { MessageKey } from "@/lib/i18n/translate";
-import { rpeTextFor } from "./training-utils";
+import { rpeLabel } from "./training-utils";
 
 export interface RpeSliderProps {
     id: string;
@@ -19,18 +17,16 @@ export interface RpeSliderProps {
     error?: string;
 }
 
+const ANCHORS = [
+    { value: 1, label: "Very light" },
+    { value: 4, label: "Moderate" },
+    { value: 7, label: "Hard" },
+    { value: 10, label: "Maximal" },
+];
+
 /** RPE 1–10 slider with verbal anchors and a warning above the cleared maximum, when one applies. */
 export function RpeSlider({ id, name, label, value, onChange, hint, required, maxAllowed = null, error }: RpeSliderProps) {
-    const t = useT();
     const overCap = maxAllowed !== null && value > maxAllowed;
-
-    const anchors = [
-        { value: 1, label: t("rpe.1" as MessageKey) },
-        { value: 4, label: t("rpe.4" as MessageKey) },
-        { value: 7, label: t("rpe.7" as MessageKey) },
-        { value: 10, label: t("rpe.10" as MessageKey) },
-    ];
-
     return (
         <ScaleSlider
             id={id}
@@ -40,10 +36,10 @@ export function RpeSlider({ id, name, label, value, onChange, hint, required, ma
             max={10}
             value={value}
             onChange={onChange}
-            formatValue={(rpe) => rpeTextFor(t, rpe) ?? `RPE ${rpe}`}
-            anchors={anchors}
-            hint={maxAllowed !== null ? t("training.rpeSlider.hintMax", { hint, max: maxAllowed }) : hint}
-            warning={overCap ? t("training.rpeSlider.aboveCleared", { max: maxAllowed }) : undefined}
+            formatValue={(rpe) => `RPE ${rpe} · ${rpeLabel(rpe)}`}
+            anchors={ANCHORS}
+            hint={maxAllowed !== null ? `${hint} Medical Clearance allows up to RPE ${maxAllowed}.` : hint}
+            warning={overCap ? `Above the cleared maximum of RPE ${maxAllowed}.` : undefined}
             error={error}
             required={required}
         />

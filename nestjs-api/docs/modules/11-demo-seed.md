@@ -29,8 +29,6 @@
 - Hiện đủ các nguồn của thẻ Việc cần làm cho ít nhất: cân xám/đỏ, chờ xác nhận tập lại, buổi tập xung đột đình chỉ, nhắc cân.
 - Chạy lại hai lần không tạo trùng.
 
-> **Lệch với T-036 (Claude trên máy Ken, 31/10, chờ Dan xử lý):** dòng 4 ("có buổi `SCHEDULED` bị xung đột"), cùng hai nguồn "chờ xác nhận tập lại" và "buổi tập xung đột đình chỉ" ở trên, không tạo được qua API. Lý do và dòng code ghi dưới tiêu chí 6 của [T-040](../../../docs/tickets/T-040-real-backend-demo.md). Từ T-036, tạo đình chỉ là các buổi bị chặn thành `PENDING` ngay, nên võ sĩ 4 có buổi "Chờ xếp lại" thay vì buổi xung đột. Script T-040 B (`nestjs-api/scripts/demo-seed.mjs`) làm theo hành vi này.
-
 ## Lệnh bắt buộc
 
 Theo ticket và [README](./README.md).

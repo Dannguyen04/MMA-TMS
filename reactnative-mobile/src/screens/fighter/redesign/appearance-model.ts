@@ -27,7 +27,7 @@ export const DEFAULT_APPEARANCE_DRAFT: AppearanceDraft = {
 };
 
 export const ACCENT_SWATCHES: readonly { id: AccentId; label: string; hex: string }[] = [
-  { id: "red", label: "Đỏ võ đài", hex: "#C23A22" },
+  { id: "red", label: "Đỏ võ đài", hex: "#D9492F" },
   { id: "green", label: "Xanh lục", hex: "#408369" },
   { id: "blue", label: "Xanh lam", hex: "#4878AB" },
   { id: "purple", label: "Tím", hex: "#8268AD" },
@@ -117,14 +117,14 @@ export function previewPalette(draft: AppearanceDraft): PreviewPalette {
   }
   if (draft.mode === "dark") {
     return {
-      bg: high ? "#000000" : "#0A0A0C",
-      surface: high ? "#000000" : "#16161A",
-      surface2: high ? "#1A1A1A" : "#1E1E24",
-      ink: high ? "#FFFFFF" : "#F4F4F5",
-      muted: high ? "#F2F2F2" : "#A1A1AA",
-      line: high ? "#FFFFFF" : "#303038",
+      bg: high ? "#000000" : "#121416",
+      surface: high ? "#000000" : "#1A1D21",
+      surface2: high ? "#1A1A1A" : "#262A30",
+      ink: "#FFFFFF",
+      muted: high ? "#F2F2F2" : "#A7ADB4",
+      line: high ? "#FFFFFF" : "#34383F",
       accent,
-      accentSoft: "#3B2726",
+      accentSoft: "#3D241F",
       onAccent: "#FFFFFF",
     };
   }
@@ -136,7 +136,7 @@ export function previewPalette(draft: AppearanceDraft): PreviewPalette {
     muted: high ? "#1A1A1A" : "#616169",
     line: high ? "#000000" : "#E4E6E9",
     accent,
-    accentSoft: "#F9EBE9",
+    accentSoft: "#FFF0EB",
     onAccent: "#FFFFFF",
   };
 }

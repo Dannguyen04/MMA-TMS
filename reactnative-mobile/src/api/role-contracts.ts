@@ -4,11 +4,11 @@
  * an endpoint the role was never granted.
  *
  * fighter.measurement:read — ADMIN (007), COACH (010). Not FIGHTER, not DOCTOR.
- * fighter.measurement:write — ADMIN (007), FIGHTER own SELF_REPORTED (024).
+ * fighter.measurement:write — ADMIN (007) only.
  * training.session:get_all — ADMIN (006), FIGHTER (008), COACH (010). Not DOCTOR.
  */
 export const MEASUREMENT_READ_ROLES = ["COACH", "ADMIN"] as const;
-export const MEASUREMENT_WRITE_ROLES = ["ADMIN", "FIGHTER"] as const;
+export const MEASUREMENT_WRITE_ROLES = ["ADMIN"] as const;
 export const SESSION_LIST_ROLES = ["FIGHTER", "COACH", "ADMIN"] as const;
 
 export const MEASUREMENT_READ_PERMISSION = "fighter.measurement:read";
@@ -19,7 +19,7 @@ export function roleMayReadMeasurements(role: string | null | undefined): boolea
 }
 
 export function roleMayWriteMeasurements(role: string | null | undefined): boolean {
-  return role === "ADMIN" || role === "FIGHTER";
+  return role === "ADMIN";
 }
 
 export function roleMayListTrainingSessions(role: string | null | undefined): boolean {

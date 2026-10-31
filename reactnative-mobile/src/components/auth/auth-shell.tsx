@@ -24,6 +24,7 @@ import {
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { ThemeToggle } from "@/components/auth/theme-toggle";
 import { BrandWordmark } from "@/components/brand/brand-wordmark";
 import { spacing, type, useThemePreference } from "@/theme";
 
@@ -228,6 +229,7 @@ export function AuthShell({
             ) : null}
             {imeOpen ? <BrandWordmark compact onLongPress={onWordmarkLongPress} /> : null}
           </View>
+          <ThemeToggle />
         </View>
         {chrome ? <View style={styles.chrome}>{chrome}</View> : null}
         <View style={styles.flex}>

@@ -39,7 +39,7 @@ import {
   ApplicantApplicationDto,
   ApplicantApplicationListDto,
   ApplicationIdParamsDto,
-  AdmissionAssignCoachDto,
+  AssignCoachDto,
   ListApplicationsQueryDto,
   ListOwnApplicationsQueryDto,
   RecoveryEmailStatusDto,
@@ -252,7 +252,7 @@ export class FighterAdmissionsAdminController {
   assignCoach(
     @CurrentUser() actor: AuthenticatedUser,
     @Param() params: ApplicationIdParamsDto,
-    @Body() body: AdmissionAssignCoachDto,
+    @Body() body: AssignCoachDto,
   ) {
     return this.service.assignCoach(actor, params.id, body, randomUUID());
   }

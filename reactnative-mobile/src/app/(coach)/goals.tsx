@@ -1,7 +1,12 @@
 import { blocked } from "@/i18n/blocked";
+import { media } from "@/i18n/media";
 import { CoachBlockedPage } from "@/screens/coach/blocked-page";
+import { CoachBanner } from "@/screens/coach/coach-ui";
 
-/** Chưa có API backend — xem out/06-API-can-bo-sung.md. */
 export default function CoachGoalsRoute() {
-  return <CoachBlockedPage title={blocked.goalsNav} extra={"Mục tiêu tập luyện của võ sĩ sẽ hiển thị tại đây."} inStack={false} />;
+  return (
+    <CoachBlockedPage title={blocked.goalsNav} extra={media.goalsMissing} inStack={false}>
+      <CoachBanner message={media.goalsMissing} />
+    </CoachBlockedPage>
+  );
 }

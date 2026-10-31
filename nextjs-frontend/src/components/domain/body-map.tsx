@@ -1,8 +1,6 @@
 import { TONE_SOLID, type Tone } from "@/components/ui/tone";
-import { bodyRegionLabel } from "@/lib/domain/labels";
+import { BODY_REGION_LABELS } from "@/lib/domain/labels";
 import type { BodyRegion } from "@/lib/domain/types";
-import type { Locale } from "@/lib/i18n/config";
-import { createTranslator } from "@/lib/i18n/translate";
 import { clamp, cn } from "@/lib/utils";
 
 /** Any semantic tone; injury highlights take theirs from INJURY_STATUS_META. */
@@ -21,7 +19,6 @@ export interface BodyMapProps {
     /** Hide the text legend only when the same information is listed right next to the figure. */
     showLegend?: boolean;
     className?: string;
-    locale?: Locale;
 }
 
 /**
@@ -99,27 +96,22 @@ const TORSO =
 const OUTLINE_WIDTH = 3;
 
 /** Front-view body figure with numbered markers per highlighted region and a text legend. */
-export function BodyMap({ highlights, size = "md", showLegend = true, className, locale = "en" }: BodyMapProps) {
-    const t = createTranslator(locale);
+export function BodyMap({ highlights, size = "md", showLegend = true, className }: BodyMapProps) {
     const markers = placeMarkers(highlights);
     const hasPosterior = highlights.some((h) => HOTSPOTS[h.region].posterior);
     const summary =
         highlights.length === 0
-            ? t("bodyMap.summaryEmpty")
-            : t("bodyMap.summary", {
-                  count: highlights.length,
-                  areas: highlights.length === 1 ? t("bodyMap.area") : t("bodyMap.areas"),
-                  details: highlights
-                      .map((h, i) => `${i + 1}, ${bodyRegionLabel(h.region, locale)}: ${h.label}`)
-                      .join("; "),
-              });
+            ? "Body map, front view. No highlighted areas."
+            : `Body map, front view. ${highlights.length} highlighted ${highlights.length === 1 ? "area" : "areas"}: ${highlights
+                  .map((h, i) => `${i + 1}, ${BODY_REGION_LABELS[h.region]}: ${h.label}`)
+                  .join("; ")}.`;
 
     return (
         <div className={cn("flex flex-col items-center gap-3", className)}>
             <div className={cn("flex flex-col gap-1", SIZE_CLASS[size])}>
                 <div aria-hidden className="flex justify-between text-[10px] font-medium tracking-wide text-fg-subtle uppercase">
-                    <span>{t("bodyMap.athleteRight")}</span>
-                    <span>{t("bodyMap.athleteLeft")}</span>
+                    <span>Athlete&apos;s right</span>
+                    <span>Athlete&apos;s left</span>
                 </div>
                 <svg viewBox="0 0 200 430" role="img" aria-label={summary} className="h-auto w-full overflow-visible">
                     <g aria-hidden>
@@ -172,7 +164,7 @@ export function BodyMap({ highlights, size = "md", showLegend = true, className,
 
             {showLegend && highlights.length > 0 && (
                 <div className="w-full">
-                    <ol className="flex flex-col gap-1.5" aria-label={t("bodyMap.legendLabel")}>
+                    <ol className="flex flex-col gap-1.5" aria-label="Highlighted body areas">
                         {highlights.map((highlight, i) => (
                             <li key={`${highlight.region}-${i}`} className="flex items-start gap-2 text-[13px]">
                                 <span
@@ -185,13 +177,13 @@ export function BodyMap({ highlights, size = "md", showLegend = true, className,
                                     {i + 1}
                                 </span>
                                 <span className="min-w-0">
-                                    <span className="font-medium text-fg">{bodyRegionLabel(highlight.region, locale)}</span>
+                                    <span className="font-medium text-fg">{BODY_REGION_LABELS[highlight.region]}</span>
                                     <span className="text-fg-muted"> — {highlight.label}</span>
                                 </span>
                             </li>
                         ))}
                     </ol>
-                    {hasPosterior && <p className="mt-2 text-xs text-fg-subtle">{t("bodyMap.dashedRings")}</p>}
+                    {hasPosterior && <p className="mt-2 text-xs text-fg-subtle">Dashed rings mark areas on the back of the body.</p>}
                 </div>
             )}
         </div>

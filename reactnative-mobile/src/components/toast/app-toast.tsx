@@ -8,7 +8,6 @@ import Toast, {
 } from "react-native-toast-message";
 
 import { type ColorTokens, useThemePreference } from "@/theme";
-import { hapticSuccess } from "@/components/motion";
 
 export type AppToastTone = "success" | "error" | "info";
 
@@ -23,8 +22,6 @@ export const APP_TOAST_ANIMATION = {
 export function showAppToast(message: string, tone: AppToastTone = "error") {
   const text = message.trim();
   if (!text) return;
-  // Haptic chỉ cho lưu / thành công (Phương án B).
-  if (tone === "success") hapticSuccess();
   Toast.show({
     type: tone,
     text1: text,
@@ -60,12 +57,10 @@ function toastCard(colors: ColorTokens, tone: AppToastTone) {
         text1={props.text1}
         text2={props.text2}
         onPress={props.onPress}
-        style={[styles.card, { backgroundColor, borderLeftColor: accent }, props.text2 ? { height: undefined, minHeight: 84 } : null]}
-        contentContainerStyle={[styles.content, props.text2 ? { paddingVertical: 6, overflow: "visible" } : null]}
+        style={[styles.card, { backgroundColor, borderLeftColor: accent }]}
+        contentContainerStyle={styles.content}
         text1NumberOfLines={6}
         text1Style={[styles.text, { color: accent }]}
-        text2NumberOfLines={2}
-        text2Style={{ color: colors.ink, fontSize: 16, lineHeight: 22, fontWeight: "700", textDecorationLine: "underline", paddingBottom: 2 }}
       />
     );
   };

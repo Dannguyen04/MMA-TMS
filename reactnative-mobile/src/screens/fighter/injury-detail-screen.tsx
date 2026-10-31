@@ -31,7 +31,6 @@ import {
 import { useFighterId } from "@/screens/fighter/use-fighter-id";
 import { useLoad } from "@/screens/fighter/use-load";
 import { spacing, type, useThemePreference } from "@/theme";
-import { SkeletonRows } from "@/components/loading";
 
 const HISTORY_PAGE = 100;
 const HISTORY_MAX_PAGES = 5;
@@ -88,7 +87,7 @@ export function FighterInjuryDetailScreen() {
     };
   }, [fighterId, injuryId]);
 
-  const { data, error, loading, reload, refresh } = useLoad(
+  const { data, error, loading, reload } = useLoad(
     canFetch && !!injuryId,
     `${fighterId ?? "none"}:${injuryId}`,
     load,
@@ -96,7 +95,7 @@ export function FighterInjuryDetailScreen() {
   const injury = data?.injury ?? null;
 
   return (
-    <FighterScreen title={medical.injuryDetail} onBack refreshing={loading} onRefresh={refresh}>
+    <FighterScreen title={medical.injuryDetail} onBack refreshing={loading}>
       <StatusLine message={error} onRetry={reload} />
       {injury ? (
         <GlassCard>
@@ -116,11 +115,15 @@ export function FighterInjuryDetailScreen() {
         </GlassCard>
       ) : (
         <GlassCard>
-          {!isDemo && canFetch && (loading || !data) ? (
-            <SkeletonRows rows={3} />
-          ) : (
-            <EmptyCopy text={isDemo || !canFetch ? fighter.common.demoHint : medical.injuryMissing} />
-          )}
+          <EmptyCopy
+            text={
+              isDemo || !canFetch
+                ? fighter.common.demoHint
+                : loading || !data
+                  ? fighter.common.loading
+                  : medical.injuryMissing
+            }
+          />
         </GlassCard>
       )}
 

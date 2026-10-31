@@ -11,8 +11,6 @@ jest.mock("@react-native-async-storage/async-storage", () =>
 jest.mock("expo-haptics", () => ({
   impactAsync: jest.fn(() => Promise.resolve()),
   ImpactFeedbackStyle: { Light: "light", Medium: "medium", Heavy: "heavy" },
-  notificationAsync: jest.fn(() => Promise.resolve()),
-  NotificationFeedbackType: { Success: "success", Warning: "warning", Error: "error" },
 }));
 
 jest.mock(
@@ -43,13 +41,6 @@ jest.mock("@expo/vector-icons", () => {
       },
     },
   );
-});
-
-// Lottie: native view không chạy trong jest → View rỗng.
-jest.mock("lottie-react-native", () => {
-  const React = require("react");
-  const { View } = require("react-native");
-  return { __esModule: true, default: (props: object) => React.createElement(View, props) };
 });
 
 jest.mock("react-native-toast-message", () => {
@@ -89,7 +80,6 @@ jest.mock("react-native-reanimated", () => {
     FadeOutRight: { duration: () => ({}) },
     useReducedMotion: () => false,
     useSharedValue: (value: number) => ({ value }),
-    makeMutable: (value: number) => ({ value }),
     useAnimatedStyle: () => ({}),
     useAnimatedProps: () => ({}),
     withTiming: identity,

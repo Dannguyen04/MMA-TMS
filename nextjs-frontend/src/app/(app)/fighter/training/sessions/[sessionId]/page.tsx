@@ -7,7 +7,6 @@ import { SessionDetail, SessionHeaderMeta } from "@/components/training/session-
 import { getCoachNames, getExerciseLibrary } from "@/components/training/training-data";
 import { requireFighterAccess } from "@/lib/auth/access";
 import { getCurrentUser, requireRole } from "@/lib/auth/session";
-import { getTranslator } from "@/lib/i18n/server";
 import { routes } from "@/lib/routes";
 import { platformFeatureAvailable, usesTrainingServiceForms } from "@/lib/services/platform-features";
 import { getPlan, getSession, listCoachFeedback, loadSessionClearanceConflicts } from "@/lib/services/training";
@@ -18,15 +17,15 @@ import { plannedEndMs } from "@/components/training/training-utils";
 const loadSession = cache(getSession);
 
 export async function generateMetadata({ params }: PageProps<"/fighter/training/sessions/[sessionId]">): Promise<Metadata> {
-    const [{ sessionId }, user, { t }] = await Promise.all([params, getCurrentUser(), getTranslator()]);
+    const [{ sessionId }, user] = await Promise.all([params, getCurrentUser()]);
     const session = await loadSession(sessionId);
     const visible = session && user?.role === "fighter" && session.fighterId === user.profileId;
-    return { title: visible ? session.title : t("training.sessionPage.eyebrowFighter") };
+    return { title: visible ? session.title : "Training session" };
 }
 
 export default async function FighterSessionPage({ params }: PageProps<"/fighter/training/sessions/[sessionId]">) {
     const user = await requireRole("fighter");
-    const [{ sessionId }, { t }] = await Promise.all([params, getTranslator()]);
+    const { sessionId } = await params;
     // Reference lookups start with the session read; everything about the session waits for the access check.
     const [session, coachNames, exercises] = await Promise.all([loadSession(sessionId), getCoachNames(), getExerciseLibrary()]);
     if (!session || session.fighterId !== user.profileId) notFound();
@@ -46,16 +45,16 @@ export default async function FighterSessionPage({ params }: PageProps<"/fighter
     return (
         <>
             <PageHeader
-                eyebrow={t("training.sessionPage.eyebrowFighter")}
+                eyebrow="Training session"
                 title={session.title}
-                back={past ? { href: routes.fighter.history, label: t("training.sessionPage.backHistory") } : { href: routes.fighter.schedule, label: t("training.sessionPage.backSchedule") }}
+                back={past ? { href: routes.fighter.history, label: "Training history" } : { href: routes.fighter.schedule, label: "Schedule" }}
                 meta={<SessionHeaderMeta session={session} />}
             />
             <SessionDetail
                 session={session}
                 audience="fighter"
                 now={now}
-                coachName={(session.coachId && coachNames[session.coachId]) || t("training.plan.coach")}
+                coachName={(session.coachId && coachNames[session.coachId]) || "Coach"}
                 coachNames={coachNames}
                 plan={plan ? { id: plan.id, title: plan.title } : null}
                 exercises={exercises}

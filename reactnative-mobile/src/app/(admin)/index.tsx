@@ -1,5 +1,5 @@
-import { AdminOverviewV2Screen } from "@/screens/admin/overview/admin-overview-v2-screen";
+import { AdminHomeScreen } from "@/screens/admin/admin-home";
 
 export default function AdminIndex() {
-  return <AdminOverviewV2Screen />;
+  return <AdminHomeScreen />;
 }
