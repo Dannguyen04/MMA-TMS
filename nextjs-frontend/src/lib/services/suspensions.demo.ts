@@ -196,6 +196,17 @@ export async function clearSuspension(
         });
     }
 
+    const status = suspensionStatusOn(current, today);
+    if (status !== "AWAITING_CLEARANCE") {
+        throw new ApiError({
+            message: "The suspension can only be cleared while it is awaiting clearance.",
+            kind: "http",
+            status: 409,
+            code: "SUSPENSION_NOT_AWAITING_CLEARANCE",
+            details: { status },
+        });
+    }
+
     current.clearedAt = nowIso();
     current.clearedById = actor.id;
     current.clearanceNote = clearanceNote;

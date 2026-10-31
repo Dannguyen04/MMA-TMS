@@ -300,6 +300,7 @@ export const enCoachBouts = {
     "suspensions.action.requiresClearanceKoMandatory": "Suspensions due to KO or TKO must require clearance.",
     "suspensions.action.requiresClearanceDqForbidden": "Suspensions due to DQ or mandatory rest cannot require clearance.",
     "suspensions.action.alreadyCleared": "The suspension has already been cleared.",
+    "suspensions.action.notAwaitingClearance": "A suspension can only be cleared after it has ended and is awaiting clearance.",
     "suspensions.action.failed": "Operation failed.",
     "suspensions.action.startsOnNotBeforeToday": "startsOn must not be before today.",
     "suspensions.action.blockedSessionTypesMin": "At least one blocked session type must be selected.",

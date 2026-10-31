@@ -26,6 +26,18 @@ export function suspensionAlreadyCleared(): ConflictException {
   });
 }
 
+export function suspensionNotAwaitingClearance(
+  status: string,
+): ConflictException {
+  return new ConflictException({
+    statusCode: HttpStatus.CONFLICT,
+    error: 'Conflict',
+    code: 'SUSPENSION_NOT_AWAITING_CLEARANCE',
+    message: 'The suspension can only be cleared while it is awaiting clearance.',
+    details: { status },
+  });
+}
+
 export function suspensionDaysRequired(): UnprocessableEntityException {
   return new UnprocessableEntityException({
     statusCode: HttpStatus.UNPROCESSABLE_ENTITY,

@@ -302,6 +302,7 @@ export const viCoachBouts = {
     "suspensions.action.requiresClearanceKoMandatory": "Đình chỉ do KO hoặc TKO bắt buộc phải cần xác nhận y tế mới được tập lại.",
     "suspensions.action.requiresClearanceDqForbidden": "Đình chỉ do DQ hoặc nghỉ bắt buộc không được bật yêu cầu xác nhận.",
     "suspensions.action.alreadyCleared": "Đình chỉ này đã được xác nhận kết thúc trước đó.",
+    "suspensions.action.notAwaitingClearance": "Chỉ xác nhận được khi đình chỉ đã hết hạn và đang chờ xác nhận.",
     "suspensions.action.failed": "Thao tác không thành công.",
     "suspensions.action.startsOnNotBeforeToday": "Ngày bắt đầu không được trước ngày hôm nay.",
     "suspensions.action.blockedSessionTypesMin": "Phải chọn ít nhất một loại buổi tập bị chặn.",
