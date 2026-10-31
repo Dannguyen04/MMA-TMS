@@ -31,6 +31,7 @@ import { ExerciseBuilder } from "./exercise-builder";
 import { serializeExerciseRows, type ExerciseRow } from "./exercise-rows";
 import type { PlanFormFighter } from "./plan-form";
 import { RpeSlider } from "./rpe-slider";
+import { SuspensionBlockCard } from "./suspension-block-card";
 import { clearanceMaxRpe, type ClearanceSummary } from "./training-utils";
 
 export interface SessionFormValues {
@@ -471,7 +472,11 @@ export function SessionForm({ mode, action, fighters, plans, library, clearances
                         />
                     )}
                     <Card className="flex flex-col gap-3 p-4">
-                        <FormMessage {...form.message} />
+                        {form.state.data?.suspensions && form.state.data.suspensions.length > 0 ? (
+                            <SuspensionBlockCard suspensions={form.state.data.suspensions} />
+                        ) : (
+                            <FormMessage {...form.message} />
+                        )}
                         <SubmitButton size="lg" className="w-full" disabled={blockedReason !== null} pending={form.pending} pendingLabel={mode === "create" ? t("training.sessionForm.submittingCreate") : t("training.sessionForm.submittingEdit")}>
                             {submitLabel}
                         </SubmitButton>

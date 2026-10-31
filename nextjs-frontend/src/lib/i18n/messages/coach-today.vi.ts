@@ -20,6 +20,7 @@ export const viCoachToday = {
     "sessionStatus.completed": "Đã xong",
     "sessionStatus.missed": "Vắng",
     "sessionStatus.cancelled": "Đã huỷ",
+    "sessionStatus.pending": "Chờ xếp lại",
     "clearance.full": "Được tập",
     "clearance.restricted": "Tập có hạn chế",
     "clearance.not_cleared": "Chưa được tập",

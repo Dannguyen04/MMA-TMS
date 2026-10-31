@@ -33,7 +33,9 @@ import {
     sessionCreateBody,
     sessionResultBody,
     sessionStatusBody,
+    sessionTypeFor,
     TRAINING_TYPE_FOR,
+    type SessionFields,
     type ExerciseFields,
     type PlanExerciseFields,
     type ServiceExerciseCategory,
@@ -97,7 +99,7 @@ const backendPlanSchema = z.object({
     weeklySessionTarget: z.number().int().positive().optional(),
 });
 
-const backendSessionSchema = z.object({
+export const backendSessionSchema = z.object({
     id: z.string(),
     fighterId: z.string(),
     coachId: z.string().nullable(),
@@ -109,7 +111,7 @@ const backendSessionSchema = z.object({
     roundCount: z.number().int().nonnegative(),
     location: nullableTextSchema,
     sessionType: z.enum(SESSION_TYPES),
-    status: z.enum(["SCHEDULED", "IN_PROGRESS", "COMPLETED", "SKIPPED", "CANCELLED", "ABANDONED"]),
+    status: z.enum(["SCHEDULED", "IN_PROGRESS", "COMPLETED", "SKIPPED", "CANCELLED", "ABANDONED", "PENDING"]),
     coachNotes: nullableTextSchema,
     cancellationReason: nullableTextSchema,
     checkedInAt: isoDateSchema.nullable(),
@@ -206,20 +208,22 @@ const planStatusToApi: Record<PlanStatus, BackendPlan["status"]> = {
     completed: "COMPLETED",
     archived: "CANCELLED",
 };
-const sessionStatusFromApi: Record<BackendSession["status"], SessionStatus> = {
+export const sessionStatusFromApi: Record<BackendSession["status"], SessionStatus> = {
     SCHEDULED: "scheduled",
     IN_PROGRESS: "in_progress",
     COMPLETED: "completed",
     SKIPPED: "missed",
     CANCELLED: "cancelled",
     ABANDONED: "cancelled",
+    PENDING: "pending",
 };
-const sessionStatusToApi: Record<SessionStatus, BackendSession["status"]> = {
+export const sessionStatusToApi: Record<SessionStatus, BackendSession["status"]> = {
     scheduled: "SCHEDULED",
     in_progress: "IN_PROGRESS",
     completed: "COMPLETED",
     missed: "SKIPPED",
     cancelled: "CANCELLED",
+    pending: "PENDING",
 };
 const exerciseCategoryFromApi: Record<BackendExercise["category"], ExerciseCategory> = {
     STRIKING: "striking",
@@ -269,7 +273,7 @@ function toPlan(plan: BackendPlan): TrainingPlan {
 }
 
 /** Fields the API doesn't return yet (target RPE, exercises, linked videos, coach rating) read as null or empty. */
-function toSession(session: BackendSession): TrainingSession {
+export function toSession(session: BackendSession): TrainingSession {
     const completedAt = session.status === "COMPLETED" ? session.completedAt : null;
     return {
         id: session.id,
@@ -754,10 +758,32 @@ export async function createSession(input: SessionInput, actor: User): Promise<S
     return sendSession("/training-sessions", "POST", sessionCreateBody(input) ?? unsupportedType("Scheduling a session"));
 }
 
+function sessionUpdateBody(input: SessionUpdateInput): unknown {
+    if (input.scheduledAt && input.title === undefined && input.type === undefined) {
+        return { scheduledAt: input.scheduledAt };
+    }
+    const isFull = input.title !== undefined && input.type !== undefined && input.durationMin !== undefined;
+    if (isFull) {
+        return sessionBody(input as SessionFields);
+    }
+    const body: Record<string, unknown> = {};
+    if (input.scheduledAt !== undefined) body.scheduledAt = input.scheduledAt;
+    if (input.title !== undefined) body.title = input.title.trim();
+    if (input.type !== undefined) {
+        const sessionType = sessionTypeFor(input.type);
+        if (!sessionType) return null;
+        body.sessionType = sessionType;
+    }
+    if (input.durationMin !== undefined) body.plannedDurationSec = input.durationMin * 60;
+    if (input.location !== undefined) body.location = input.location ? input.location.trim() : null;
+    if (input.notes !== undefined) body.coachNotes = input.notes ? input.notes.trim() : null;
+    return Object.keys(body).length > 0 ? body : null;
+}
+
 /** API mode keeps the session's plan and coach: the service doesn't move a session between them. */
 export async function updateSession(id: string, input: SessionUpdateInput, actor: User): Promise<SessionMutationResult> {
     if (isDemoAuthEnabled()) return (await demoService()).updateSession(id, input, actor);
-    return sendSession(sessionPath(id), "PATCH", sessionBody(input) ?? unsupportedType("Updating a session"));
+    return sendSession(sessionPath(id), "PATCH", sessionUpdateBody(input) ?? unsupportedType("Updating a session"));
 }
 
 /** Checks the fighter in. The service refuses (409) when their Medical Clearance doesn't allow this training now. */

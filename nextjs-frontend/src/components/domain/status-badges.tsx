@@ -67,9 +67,11 @@ import type {
     Role,
     SessionStatus,
     UserStatus,
+    SuspensionStatus,
     VideoStatus,
     WeightWarningStatus,
 } from "@/lib/domain/types";
+import { daysBetweenDates } from "@/lib/domain/suspension-rules";
 import type { Locale } from "@/lib/i18n/config";
 import { createTranslator } from "@/lib/i18n/translate";
 import { formatConfidence } from "@/lib/format";
@@ -86,6 +88,7 @@ export interface StatusMeta {
     icon: LucideIcon;
     /** Solid emphasis for states that block activity. */
     solid?: boolean;
+    variant?: "soft" | "solid" | "outline";
 }
 
 export type BadgeSize = "sm" | "md";
@@ -104,7 +107,7 @@ export function StatusBadge({
     className?: string;
 }) {
     return (
-        <Badge tone={meta.tone} variant={variant ?? (meta.solid ? "solid" : "soft")} icon={meta.icon} size={size} className={className}>
+        <Badge tone={meta.tone} variant={variant ?? meta.variant ?? (meta.solid ? "solid" : "soft")} icon={meta.icon} size={size} className={className}>
             {meta.label}
         </Badge>
     );
@@ -286,12 +289,26 @@ export const SESSION_STATUS_META: Record<SessionStatus, StatusMeta> = {
     in_progress: { label: SESSION_STATUS_LABELS.in_progress, tone: "primary", icon: Activity },
     completed: { label: SESSION_STATUS_LABELS.completed, tone: "success", icon: CalendarCheck2 },
     missed: { label: SESSION_STATUS_LABELS.missed, tone: "warning", icon: CalendarX2 },
+    pending: { label: SESSION_STATUS_LABELS.pending, tone: "warning", icon: Clock, variant: "outline" },
     cancelled: { label: SESSION_STATUS_LABELS.cancelled, tone: "neutral", icon: CircleX },
 };
 
-export function SessionStatusBadge({ status, size, className, locale }: { status: SessionStatus; size?: BadgeSize; className?: string; locale?: Locale }) {
+export function SessionStatusBadge({
+    status,
+    size,
+    variant,
+    className,
+    locale,
+}: {
+    status: SessionStatus;
+    size?: BadgeSize;
+    variant?: "soft" | "solid" | "outline";
+    className?: string;
+    locale?: Locale;
+}) {
     const meta = SESSION_STATUS_META[status];
-    return <StatusBadge meta={locale ? { ...meta, label: createTranslator(locale)(`sessionStatus.${status}`) } : meta} size={size} className={className} />;
+    const label = locale ? createTranslator(locale)(`sessionStatus.${status}`) : meta.label;
+    return <StatusBadge meta={{ ...meta, label }} variant={variant ?? meta.variant} size={size} className={className} />;
 }
 
 export const PLAN_STATUS_META: Record<PlanStatus, StatusMeta> = {
@@ -487,5 +504,82 @@ export function Gate1Badge({
         >
             {t(compact ? "gate1.missingShort" : "gate1.missing", { n: totalMissing })}
         </Badge>
+    );
+}
+
+
+/* ─── Suspensions ─────────────────────────────────────────────────────────── */
+
+export type SuspensionBadgeStatus = SuspensionStatus | "GRADED_RETURN";
+
+export const SUSPENSION_STATUS_META: Record<SuspensionBadgeStatus, StatusMeta> = {
+    ACTIVE: { label: "Đang đình chỉ", tone: "danger", icon: Ban, solid: true },
+    AWAITING_CLEARANCE: { label: "Chờ xác nhận", tone: "warning", icon: Clock },
+    GRADED_RETURN: { label: "Tập lại", tone: "info", icon: TrendingUp },
+    ENDED: { label: "Đã hết", tone: "success", icon: CircleCheck },
+    UPCOMING: { label: "Sắp hiệu lực", tone: "neutral", icon: CalendarClock },
+};
+
+export function suspensionStatusBadgeLabel(
+    status: SuspensionBadgeStatus,
+    options?: {
+        ceiling?: number;
+        startsOn?: string;
+        endsOn?: string;
+        today?: string;
+        locale?: Locale;
+    },
+): string {
+    const locale = options?.locale ?? "vi";
+    const t = createTranslator(locale);
+
+    if (status === "GRADED_RETURN") {
+        if (options?.ceiling != null && options.ceiling >= 1 && options.ceiling <= 5) {
+            return t("suspension.status.GRADED_RETURN_TIER", { tier: options.ceiling });
+        }
+        return t("suspension.status.GRADED_RETURN");
+    }
+
+    if (status === "ACTIVE" && options?.startsOn && options?.endsOn && options?.today) {
+        const total = Math.max(1, daysBetweenDates(options.startsOn, options.endsOn) + 1);
+        const elapsed = Math.max(1, Math.min(total, daysBetweenDates(options.startsOn, options.today) + 1));
+        return t("suspension.status.ACTIVE_WITH_DAY", { elapsed, total });
+    }
+
+    return t(`suspension.status.${status}`);
+}
+
+export interface SuspensionStatusBadgeProps {
+    status: SuspensionBadgeStatus;
+    ceiling?: number;
+    startsOn?: string;
+    endsOn?: string;
+    today?: string;
+    size?: BadgeSize;
+    variant?: "soft" | "solid" | "outline";
+    className?: string;
+    locale?: Locale;
+}
+
+export function SuspensionStatusBadge({
+    status,
+    ceiling,
+    startsOn,
+    endsOn,
+    today,
+    size,
+    variant,
+    className,
+    locale,
+}: SuspensionStatusBadgeProps) {
+    const meta = SUSPENSION_STATUS_META[status];
+    const label = suspensionStatusBadgeLabel(status, { ceiling, startsOn, endsOn, today, locale });
+    return (
+        <StatusBadge
+            meta={{ ...meta, label }}
+            size={size}
+            variant={variant}
+            className={className}
+        />
     );
 }

@@ -114,6 +114,18 @@ describe('BoutsController routes', () => {
       BOUT_PERMISSIONS.READ,
     ],
     [
+      'putNutritionPlan',
+      RequestMethod.PUT,
+      'bouts/:id/nutrition-plan',
+      BOUT_PERMISSIONS.UPDATE,
+    ],
+    [
+      'putNutritionCheckin',
+      RequestMethod.PUT,
+      'bouts/:id/nutrition-checkins/:date',
+      BOUT_PERMISSIONS.NUTRITION_CHECKIN,
+    ],
+    [
       'weighIn',
       RequestMethod.POST,
       'bouts/:id/weigh-in',

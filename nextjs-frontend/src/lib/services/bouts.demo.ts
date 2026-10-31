@@ -11,7 +11,7 @@ import {
     FEASIBILITY_WEIGHT_MAX_AGE_DAYS,
     feasibilityWarnings,
 } from "@/lib/domain/bout-rules";
-import { buildDemoCoachTodo } from "@/lib/domain/coach-todo";
+import { buildDemoCoachTodo, buildSuspensionTodoItems } from "@/lib/domain/coach-todo";
 import type {
     Bout,
     BoutRequirement,
@@ -323,7 +323,24 @@ export async function getFeasibility(input: FeasibilityInput): Promise<WeightFea
 
 export async function getCoachTodo(scope: string[] | "all"): Promise<CoachTodo> {
     const bouts = await listBouts({ fighterIds: scope, status: ["SCHEDULED", "CAMP", "FIGHT_WEEK", "WEIGHED_IN"] });
-    return { items: buildDemoCoachTodo(bouts), truncated: false };
+    const allBouts = db().bouts.filter((b) => b.deletedAt === null && (scope === "all" || scope.includes(b.fighterId)));
+    const suspensions = (db().suspensions ?? []).filter(
+        (s) => (s as { deletedAt?: string | null }).deletedAt == null && (scope === "all" || scope.includes(s.fighterId)),
+    );
+    const sessions = (db().trainingSessions ?? []).filter(
+        (s) => scope === "all" || scope.includes(s.fighterId),
+    );
+
+    const boutItems = buildDemoCoachTodo(bouts);
+    const suspensionItems = buildSuspensionTodoItems({
+        suspensions,
+        sessions,
+        bouts: allBouts,
+        fighterIds: scope,
+        now: new Date(),
+    });
+
+    return { items: [...boutItems, ...suspensionItems], truncated: false };
 }
 
 export async function getWeightTrack(id: string): Promise<WeightTrack | null> {

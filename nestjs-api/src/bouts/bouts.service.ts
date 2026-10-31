@@ -7,6 +7,7 @@ import { boutAiAlreadyDecided, boutAiNoObservations } from './bouts.error.js';
 import type {
   BoutHistoryEntry,
   BoutRequirementRow,
+  BoutNutritionCheckinRow,
   BoutRow,
   CompetitionRuleset,
   SuspensionRow,
@@ -58,6 +59,13 @@ import {
   computeBoutWeightTrack,
   computeWeighInReminder,
   computeWeightFeasibility,
+  currentNutritionPhase,
+  NUTRITION_PHASES,
+  type NutritionCheckinInput,
+  type NutritionCheckinResponse,
+  type NutritionPlan,
+  type NutritionPlanResponse,
+  type UpdateNutritionPlanInput,
   daysToWeighIn,
   encodeBoutCursor,
   evaluateGate1,
@@ -97,7 +105,7 @@ import {
   type WeighInInput,
   type WeighInResponse,
   type WeightFeasibility,
-  type WeightTrack,
+  type WeightTrackResponse,
 } from './bouts.model.js';
 import {
   buildCornerCard,
@@ -408,7 +416,7 @@ export class BoutsService {
   async getWeightTrack(
     actor: AuthenticatedUser,
     id: string,
-  ): Promise<WeightTrack> {
+  ): Promise<WeightTrackResponse> {
     const bout = await this.requireBout(id);
     await this.assertReadAccess(actor, bout.fighterId);
     const ruleset = await this.requireRuleset(bout.rulesetId);
@@ -1928,6 +1936,8 @@ export class BoutsService {
 
     return {
       ...toBoutSummary(bout),
+      nutritionPlan: (bout.nutritionPlan ?? {}) as NutritionPlan,
+      currentNutritionPhase: currentNutritionPhase(bout.status),
       opponentAnalysis: bout.opponentAnalysis,
       tacticsWithoutSessions: (bout.opponentAnalysis.tactics ?? [])
         .filter((t) => !t.sessionIds.length)
@@ -1986,17 +1996,20 @@ export class BoutsService {
     bout: BoutRow,
     ruleset: CompetitionRuleset,
     now: Date,
-  ): Promise<WeightTrack> {
+  ): Promise<WeightTrackResponse> {
     const plan = bout.trainingPlanId
       ? await this.repo.findPlanById(bout.trainingPlanId)
       : undefined;
     const planStartDate = plan?.startDate ?? null;
-    const measurements = await this.repo.findWeightMeasurements(
-      bout.fighterId,
-      academyStartOfDay(campStartOf(planStartDate, bout.createdAt)),
-      now,
-    );
-    return computeBoutWeightTrack({
+    const [measurements, nutrition] = await Promise.all([
+      this.repo.findWeightMeasurements(
+        bout.fighterId,
+        academyStartOfDay(campStartOf(planStartDate, bout.createdAt)),
+        now,
+      ),
+      this.repo.findNutritionCheckinsForBout(bout.id),
+    ]);
+    const track = computeBoutWeightTrack({
       status: bout.status,
       limitKg: Number(bout.catchweightKg ?? bout.weightLimitKg),
       acuteLossLimitPct: Number(bout.acuteLossLimitPct),
@@ -2007,6 +2020,10 @@ export class BoutsService {
       measurements,
       now,
     });
+    return {
+      ...track,
+      nutrition,
+    };
   }
 
   private async requireBout(id: string): Promise<BoutRow> {
@@ -2096,6 +2113,108 @@ export class BoutsService {
     if (!(await this.repo.isCoachAssignedToFighter(actor.id, fighterId)))
       throw forbidden();
   }
+
+  async putNutritionPlan(
+    actor: AuthenticatedUser,
+    id: string,
+    input: UpdateNutritionPlanInput,
+    requestId: string,
+    now = new Date(),
+  ): Promise<NutritionPlanResponse> {
+    const current = await this.requireBout(id);
+    await this.assertWriteAccess(actor, current.fighterId);
+    try {
+      return await this.repo.transaction(async (tx) => {
+        await setAuditContext(actor.authSubject, requestId, tx);
+        const bout = await this.repo.lockBoutById(id, tx);
+        if (!bout) throw boutNotFound();
+        if (isFinalStatus(bout.status)) {
+          throw boutNotEditable(bout.status);
+        }
+        const nowIso = now.toISOString();
+        const currentPlan = (bout.nutritionPlan ?? {}) as NutritionPlan;
+        const newPlan: NutritionPlan = {};
+        for (const phase of NUTRITION_PHASES) {
+          const item = input[phase];
+          if (item) {
+            const existing = currentPlan[phase];
+            const isUnchanged =
+              existing &&
+              existing.text === item.text &&
+              existing.author === item.author;
+            newPlan[phase] = {
+              text: item.text,
+              author: item.author,
+              updatedAt: isUnchanged ? existing.updatedAt : nowIso,
+              updatedById: isUnchanged ? existing.updatedById : actor.id,
+            };
+          }
+        }
+        const updated = await this.repo.updateBout(
+          id,
+          { nutritionPlan: newPlan },
+          { expectedStatus: bout.status },
+          tx,
+        );
+        if (!updated) throw boutStateConflict();
+        return { nutritionPlan: newPlan };
+      });
+    } catch (error) {
+      throw mapBoutPersistenceError(error);
+    }
+  }
+
+  async putNutritionCheckin(
+    actor: AuthenticatedUser,
+    id: string,
+    date: string,
+    input: NutritionCheckinInput,
+    requestId: string,
+  ): Promise<NutritionCheckinResponse> {
+    const bout = await this.requireBout(id);
+    await this.assertNutritionCheckinAccess(actor, bout.fighterId);
+
+    try {
+      return await this.repo.transaction(async (tx) => {
+        await setAuditContext(actor.authSubject, requestId, tx);
+        const locked = await this.repo.lockBoutById(id, tx);
+        if (!locked) throw boutNotFound();
+        const row = await this.repo.upsertNutritionCheckin(
+          {
+            boutId: locked.id,
+            fighterId: locked.fighterId,
+            academyDate: date,
+            adherence: input.adherence,
+            note: input.note ?? null,
+            recordedById: actor.id,
+          },
+          tx,
+        );
+        return toNutritionCheckinResponse(row);
+      });
+    } catch (error) {
+      throw mapBoutPersistenceError(error);
+    }
+  }
+
+  private async assertNutritionCheckinAccess(
+    actor: AuthenticatedUser,
+    fighterId: string,
+  ): Promise<void> {
+    if (actor.role === USER.ADMIN) return;
+    if (actor.role === USER.FIGHTER) {
+      const own = await this.repo.findActiveFighterIdByUserId(actor.id);
+      if (own !== fighterId) throw forbidden();
+      return;
+    }
+    if (actor.role === USER.COACH) {
+      if (!(await this.repo.isCoachAssignedToFighter(actor.id, fighterId)))
+        throw forbidden();
+      return;
+    }
+    throw forbidden();
+  }
+
 }
 
 // ---------------------------------------------------------------------------
@@ -2223,6 +2342,22 @@ function toRoundResponse(
   return {
     ...row,
     nextRoundPlan: nextRoundPlanSchema.parse(row.nextRoundPlan ?? {}),
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+function toNutritionCheckinResponse(
+  row: BoutNutritionCheckinRow,
+): NutritionCheckinResponse {
+  return {
+    id: row.id,
+    boutId: row.boutId,
+    fighterId: row.fighterId,
+    academyDate: row.academyDate,
+    adherence: row.adherence,
+    note: row.note,
+    recordedById: row.recordedById,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
