@@ -1,6 +1,7 @@
 // SQL migrations are authoritative. This file maps public tables for Drizzle queries.
 // RLS, grants, trigger functions and migration history are owned by 003, not drizzle-kit.
 import type { NextRoundPlan, OpponentAnalysis, RoundInput } from '../bouts/bout-analysis.model.js';
+import type { NutritionPlan } from '../bouts/bouts.model.js';
 import { sql } from 'drizzle-orm';
 import {
   pgTable,
@@ -4493,6 +4494,7 @@ export const bouts = pgTable('bouts', {
   venue: text('venue'),
   opponentName: text('opponent_name'),
   opponentAnalysis: jsonb('opponent_analysis').$type<OpponentAnalysis>().notNull().default(sql`'{}'::jsonb`),
+  nutritionPlan: jsonb('nutrition_plan').$type<NutritionPlan>().notNull().default(sql`'{}'::jsonb`),
   scheduledRounds: smallint('scheduled_rounds'),
   weightClassCode: text('weight_class_code').notNull(),
   weightLimitKg: numeric('weight_limit_kg', { precision: 5, scale: 2 }).notNull(),
@@ -4524,6 +4526,7 @@ export const bouts = pgTable('bouts', {
     foreignColumns: [trainingPlans.id, trainingPlans.fighterId],
   }),
   check('ck_bouts_opponent_analysis', sql.raw("jsonb_typeof(opponent_analysis) = 'object'")),
+  check('ck_bouts_nutrition_plan', sql.raw("jsonb_typeof(nutrition_plan) = 'object'")),
   check('ck_bouts_scheduled_rounds', sql.raw('scheduled_rounds BETWEEN 1 AND 12')),
   check('ck_bouts_event_name', sql.raw("(btrim(event_name) <> '')")),
   check('ck_bouts_schedule', sql.raw('(weigh_in_at < bout_at)')),
@@ -4685,3 +4688,26 @@ export const suspensions = pgTable('suspensions', {
 
 export type SuspensionRow = typeof suspensions.$inferSelect;
 export type InsertSuspension = typeof suspensions.$inferInsert;
+
+export const nutritionAdherenceEnum = pgEnum('nutrition_adherence', [
+  'ON_PLAN',
+  'SLIGHTLY_OFF',
+  'WAY_OFF',
+]);
+
+export const boutNutritionCheckins = pgTable('bout_nutrition_checkins', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  boutId: uuid('bout_id').notNull().references(() => bouts.id, { onDelete: 'cascade' }),
+  fighterId: uuid('fighter_id').notNull().references(() => fighters.id),
+  academyDate: date('academy_date').notNull(),
+  adherence: nutritionAdherenceEnum('adherence').notNull(),
+  note: text('note'),
+  recordedById: uuid('recorded_by_id').notNull().references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  unique('uq_bout_nutrition_checkins_date').on(t.boutId, t.academyDate),
+  check('ck_bout_nutrition_checkins_note', sql.raw('note IS NULL OR char_length(note) <= 200')),
+]).enableRLS();
+
+export type BoutNutritionCheckinRow = typeof boutNutritionCheckins.$inferSelect;

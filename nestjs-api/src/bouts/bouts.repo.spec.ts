@@ -119,3 +119,33 @@ describe('T-038 repository SQL boundaries', () => {
     expect(query.mock.calls[1][0].text).toContain('"bout_ai_suggestions"."decision" is null');
   });
 });
+
+
+describe('T-009 nutrition checkin SQL boundaries (N2)', () => {
+  it('N2 (repo query check): upsertNutritionCheckin produces SQL with on conflict ("bout_id","academy_date") do update set', async () => {
+    const { repo, query } = harness();
+    await repo.upsertNutritionCheckin({
+      boutId,
+      fighterId,
+      academyDate: '2026-10-15',
+      adherence: 'ON_PLAN',
+      note: 'Test note',
+      recordedById: fighterId,
+    });
+    const sql = query.mock.calls[0]?.[0]?.text as string;
+    expect(sql).toMatch(/on conflict \("bout_id",\s*"academy_date"\) do update set/i);
+    expect(sql).toContain('"adherence" =');
+    expect(sql).toContain('"note" =');
+    expect(sql).toContain('"recorded_by_id" =');
+    expect(sql).not.toContain('"updated_at" =');
+  });
+
+  it('findNutritionCheckinsForBout orders checkins by academy_date asc', async () => {
+    const { repo, query } = harness();
+    await repo.findNutritionCheckinsForBout(boutId);
+    const [config, params] = query.mock.calls[0]!;
+    expect(config.text).toContain('"bout_nutrition_checkins"."bout_id" =');
+    expect(config.text).toContain('order by "bout_nutrition_checkins"."academy_date" asc');
+    expect(params).toEqual([boutId]);
+  });
+});
