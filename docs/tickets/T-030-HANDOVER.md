@@ -2130,3 +2130,23 @@ pnpm --filter nextjs-frontend lint       -> eslint sạch, không có cảnh bá
 pnpm --filter nextjs-frontend typecheck  -> ✓ Types generated successfully, tsc --noEmit sạch
 pnpm --filter nextjs-frontend test       -> Test Files  99 passed | 1 skipped (100); Tests  952 passed | 2 skipped (954)
 ```
+
+## Sửa R2: xem trước xung đột khi đổi ngày (31/10)
+
+**Lỗi**: trong hộp "Xếp lại", sau lần xem trước đầu tiên `previewConflicts` khác null, nên `RescheduleFields` nhận `conflicts` đã định nghĩa và guard `propConflicts !== undefined` bỏ qua mọi lần đổi ngày/giờ sau đó. Xung đột cũ vẫn điều khiển giao diện và `submitDisabled`.
+
+**Sửa** (`nextjs-frontend/src/components/training/session-coach-actions.tsx`, chỉ file này)
+
+- `RescheduleSessionButton` truyền `onConflictsChange={conflicts ? undefined : setPreviewConflicts}`: chỉ bỏ xem trước khi nơi gọi đưa `conflicts` cố định.
+- Guard trong effect của `RescheduleFields` thành `if (!session?.fighterId || !onConflictsChange) return;`; `propConflicts` ra khỏi deps; bỏ `?.` khi gọi `onConflictsChange` (đã chắc chắn có).
+- Giá trị hiển thị (`conflicts ?? previewConflicts ?? form.state.data?.conflicts`) giữ nguyên. Không đổi test nào.
+
+**Ca kiểm thử**: R2-1 (tái hiện trên trình duyệt, demo mode) do Claude chạy. R2-2: B5-13, B5-14, B5-17 vẫn qua, không đổi.
+
+**Lệnh** (chạy từ `D:\MMA-TMS`)
+
+```
+pnpm --filter nextjs-frontend lint       -> eslint sạch, không có lỗi hay cảnh báo
+pnpm --filter nextjs-frontend typecheck  -> ✓ Types generated successfully, tsc --noEmit sạch
+pnpm --filter nextjs-frontend test       -> Tests  952 passed | 2 skipped (954)
+```

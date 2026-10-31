@@ -513,7 +513,7 @@ export function RescheduleSessionButton({
                         conflicts={conflicts ?? previewConflicts ?? form.state.data?.conflicts}
                         acknowledged={acknowledged}
                         onAcknowledgedChange={setAcknowledged}
-                        onConflictsChange={setPreviewConflicts}
+                        onConflictsChange={conflicts ? undefined : setPreviewConflicts}
                     />
                 )}
             </ActionDialog>
@@ -562,7 +562,7 @@ export function RescheduleFields({
     };
 
     useEffect(() => {
-        if (!session?.fighterId || propConflicts !== undefined) return;
+        if (!session?.fighterId || !onConflictsChange) return;
         let cancelled = false;
         const timer = window.setTimeout(() => {
             const exerciseIds = session.exercises?.map((e) => e.exerciseId) ?? [];
@@ -575,10 +575,10 @@ export function RescheduleFields({
                 time,
             }).then(
                 (result) => {
-                    if (!cancelled) onConflictsChange?.(result.data?.conflicts ?? []);
+                    if (!cancelled) onConflictsChange(result.data?.conflicts ?? []);
                 },
                 () => {
-                    if (!cancelled) onConflictsChange?.([]);
+                    if (!cancelled) onConflictsChange([]);
                 },
             );
         }, 350);
@@ -586,7 +586,7 @@ export function RescheduleFields({
             cancelled = true;
             window.clearTimeout(timer);
         };
-    }, [session?.fighterId, session?.type, session?.targetRpe, session?.exercises, date, time, propConflicts, onConflictsChange]);
+    }, [session?.fighterId, session?.type, session?.targetRpe, session?.exercises, date, time, onConflictsChange]);
 
     const activeConflicts = propConflicts ?? form.state.data?.conflicts ?? [];
 
