@@ -24,7 +24,7 @@ import type {
     SuspensionReason,
     TrainingType,
 } from "@/lib/domain/types";
-import { formatShortDate } from "@/lib/format";
+import { formatShortDate, isDateKey } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
 import { plural } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
@@ -110,7 +110,7 @@ export function CreateSuspensionPanel({
 
     const daysNum = Number(days);
     const daysValid = Number.isInteger(daysNum) && daysNum >= 1 && daysNum <= 365;
-    const endsOn = daysValid ? endsOnFor(startsOn, daysNum) : null;
+    const endsOn = daysValid && isDateKey(startsOn) ? endsOnFor(startsOn, daysNum) : null;
 
     const isKoOrTko = reason === "KO" || reason === "TKO";
     const isDqOrRest = reason === "DQ" || reason === "MANDATORY_REST";
