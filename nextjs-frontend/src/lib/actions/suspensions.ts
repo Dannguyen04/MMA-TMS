@@ -48,6 +48,9 @@ function mapSuspensionActionError(
         if (error.code === "SUSPENSION_ALREADY_CLEARED") {
             return actionError(t("suspensions.action.alreadyCleared"));
         }
+        if (error.code === "SUSPENSION_NOT_AWAITING_CLEARANCE") {
+            return actionError(t("suspensions.action.notAwaitingClearance"));
+        }
         if (error.code === "VALIDATION_ERROR" || error.status === 422) {
             const fieldMap: Record<string, string> = {
                 clearanceNote: t("suspensions.action.clearanceNoteLength"),

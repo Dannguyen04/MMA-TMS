@@ -1100,21 +1100,21 @@ describe("T-030 Phần B2: Nền dữ liệu đình chỉ & sẵn sàng", () => 
                 fighterId: fighterA,
                 boutId: null,
                 reason: "OTHER",
-                startsOn: today,
-                endsOn: addDaysToDate(today, 5),
+                startsOn: addDaysToDate(today, -6),
+                endsOn: addDaysToDate(today, -1),
                 lossOfConsciousness: null,
                 suggestedDays: 5,
                 overrideReason: null,
                 blockedSessionTypes: ["SPARRING"],
                 maxAllowedTier: 4,
-                requiresClearance: false,
+                requiresClearance: true,
                 clearedAt: null,
                 clearedById: null,
                 clearanceNote: null,
                 createdById: mockCoach.id,
                 createdAt: nowIso(),
                 updatedAt: nowIso(),
-                status: "ACTIVE",
+                status: "AWAITING_CLEARANCE",
                 gradedReturn: null,
             },
             {
@@ -1342,6 +1342,56 @@ describe("T-030 Phần B2: Nền dữ liệu đình chỉ & sẵn sàng", () => 
             status: 403,
             code: "FORBIDDEN",
         });
+    });
+
+    it("C9 (T-049): demo clearSuspension đình chỉ KO đang chạy của Marcus Hale → ApiError 409 SUSPENSION_NOT_AWAITING_CLEARANCE; Diego Alvarez (chờ xác nhận) vẫn xác nhận được", async () => {
+        const { clearSuspension } = await import("./suspensions.demo");
+        await expect(
+            clearSuspension("susp-active-ko", "Valid clearance note text", mockCoach),
+        ).rejects.toMatchObject({
+            status: 409,
+            code: "SUSPENSION_NOT_AWAITING_CLEARANCE",
+            details: { status: "ACTIVE" },
+        });
+        await expect(
+            clearSuspension("susp-active-ko", "Valid clearance note text", mockCoach),
+        ).rejects.toBeInstanceOf(ApiError);
+        expect(db().suspensions.find((s) => s.id === "susp-active-ko")?.clearedAt).toBeNull();
+
+        const cleared = await clearSuspension("susp-awaiting-clearance", "Valid clearance note text", mockCoach);
+        expect(cleared.clearedAt).not.toBeNull();
+        expect(cleared.status).toBe("ENDED");
+    });
+
+    it("C10 (T-049): clearSuspensionAction nhận ApiError 409 SUSPENSION_NOT_AWAITING_CLEARANCE → câu vi riêng; tiếng Anh có câu tương ứng", async () => {
+        const { clearSuspensionAction } = await import("@/lib/actions/suspensions");
+        const suspensionsService = await import("./suspensions");
+        const sessionModule = await import("@/lib/auth/session");
+        const userSpy = vitest.spyOn(sessionModule, "getCurrentUser").mockResolvedValue(mockCoach);
+
+        const formData = new FormData();
+        formData.append("id", "susp-1");
+        formData.append("clearanceNote", "Valid clearance note text");
+
+        try {
+            vitest.spyOn(suspensionsService, "clearSuspension").mockRejectedValueOnce(
+                new ApiError({
+                    message: "The suspension can only be cleared while it is awaiting clearance.",
+                    kind: "http",
+                    status: 409,
+                    code: "SUSPENSION_NOT_AWAITING_CLEARANCE",
+                    details: { status: "ACTIVE" },
+                }),
+            );
+            const res = await clearSuspensionAction({ status: "idle" }, formData);
+            expect(res.status).toBe("error");
+            expect(res.message).toBe("Chỉ xác nhận được khi đình chỉ đã hết hạn và đang chờ xác nhận.");
+            expect(en["suspensions.action.notAwaitingClearance" as keyof typeof en]).toBe(
+                "A suspension can only be cleared after it has ended and is awaiting clearance.",
+            );
+        } finally {
+            userSpy.mockRestore();
+        }
     });
 
     it("B2-34: demo readiness chọn trận CAMP chưa xoá có boutAt sớm nhất", async () => {

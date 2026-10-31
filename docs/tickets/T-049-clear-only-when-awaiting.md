@@ -1,6 +1,6 @@
 # T-049: chỉ xác nhận được tập lại khi đình chỉ đang chờ xác nhận
 
-- Trạng thái: **IN PROGRESS** (Ken 31/10: sửa xong, review độc lập rồi mới merge vào `fight-camp`)
+- Trạng thái: **DONE** 31/10 ([handover](./T-049-HANDOVER.md), [review](./T-049-REVIEW.md)), merge vào `fight-camp` sau review độc lập
 - Phạm vi: backend `nestjs-api` + frontend `nextjs-frontend` (câu báo lỗi, demo mode)
 - Người làm: Ken (Claude lead, `agy` code)
 - Phụ thuộc: T-007, T-030 B (đã merge `fight-camp` 31/10)

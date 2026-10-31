@@ -601,7 +601,7 @@ Buổi vượt bậc trong hai ngày này bị 409 `TRAINING_SUSPENSION_ACTIVE`,
 
 Nguồn: [Amsterdam 2022, BJSM](https://orbi.uliege.be/bitstream/2268/327382/1/bjsports-2024-109188.full.pdf); [CDC HEADS UP](https://www.cdc.gov/heads-up/guidelines/returning-to-sports.html); [ARP](https://mixedmartialarts.com/news/arp-issues-official-position-on-suspensions-and-concussion-management2a8b75a6-6eb2-4089-bd62-71f7b3a9a7df/); [Victoria, Non-fight periods and return to fight strategy](https://djsir.vic.gov.au/combat-sports/contestant-safety/non-fight-periods-and-return-to-fight-strategy).
 
-**Kết thúc đình chỉ cần xác nhận:** sau ngày kết thúc, HLV hoặc bác sĩ bấm "Xác nhận được tập lại", ghi căn cứ, không đính kèm ảnh giấy tờ (ví dụ "đã khám thần kinh, CT bình thường" hoặc "HLV xác nhận, không có khám"). Luật AIBA yêu cầu xác nhận bằng văn bản của bác sĩ thần kinh hoặc y học thể thao; không có giấy thì app ghi rõ "không có xác nhận y tế". Võ sĩ về trạng thái được tập.
+**Kết thúc đình chỉ cần xác nhận:** sau ngày kết thúc, HLV hoặc bác sĩ bấm "Xác nhận được tập lại", ghi căn cứ, không đính kèm ảnh giấy tờ (ví dụ "đã khám thần kinh, CT bình thường" hoặc "HLV xác nhận, không có khám"). Luật AIBA yêu cầu xác nhận bằng văn bản của bác sĩ thần kinh hoặc y học thể thao; không có giấy thì app ghi rõ "không có xác nhận y tế". Võ sĩ về trạng thái được tập. API từ chối 409 (`SUSPENSION_NOT_AWAITING_CLEARANCE`) nếu chưa tới `endsOn + 1` (T-049).
 
 ### F8. Đổi ngày, đổi hạng, huỷ
 
