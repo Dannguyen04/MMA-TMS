@@ -94,6 +94,32 @@ Quy tắc mới của `planConflicts`, thay cho đổi loại, dời ngày, hu�
 8. `SuspensionEffects.register` gọi hai lần thì ném lỗi; `runOnCreated` khi chưa có handler trả rỗng. `src/suspensions/` không import từ `src/training/` hay `src/bouts/` (kiểm bằng `grep`).
 9. Migration 032 qua `test:db` và `db:check`; không lệnh nào thêm lỗi so với baseline.
 
+## 5b. Phần A2 (READY 29/10): buổi "Chờ xếp lại" khi có thêm đình chỉ cần xác nhận
+
+**Vấn đề** (review độc lập lần 2, N3): buổi đã chuyển `PENDING` do một đình chỉ có ngày hết cố định, sau đó võ sĩ bị thêm đình chỉ `KO` (hoặc `TKO`, `MEDICAL` cần xác nhận). Buổi vẫn ở `PENDING`, vì tự áp dụng chỉ đọc buổi `SCHEDULED` (`findScheduledSessionsByFighterId`, `src/training/training.repo.ts:550`; `planConflicts` bỏ qua buổi khác `SCHEDULED`, `src/suspensions/suspensions.model.ts:298`). Vẫn an toàn vì xếp lại phải qua Cổng 2, nhưng lịch của HLV còn những buổi không bao giờ diễn ra theo kế hoạch cũ.
+
+**Quyết định (Claude, 29/10, chủ dự án giao nghiên cứu và tự xử lý).** Huỷ. Căn cứ: sau KO, ARP chỉ cho tập không va chạm sau khoảng 1 tuần và cần bác sĩ chuyên về chấn động não cho phép mới trở lại; các quy trình trở lại (đề xuất cho quyền anh, bang Victoria) bắt đầu lại từ bước 1. Kế hoạch xếp lại cũ không còn giá trị và ngày tập lại chưa biết, khớp quy tắc của [quyết định 23](../SCOPE-FIGHT-CAMP.md#quyết-định-và-câu-hỏi): đình chỉ cần xác nhận thì huỷ.
+
+**Thiết kế.**
+- Khi tự áp dụng (mục 2.2), ngoài buổi `SCHEDULED`, xét thêm buổi `PENDING` của võ sĩ: buổi `PENDING` bị **đình chỉ vừa tạo** chặn (theo cùng cách `filterProposalsForSuspension` xét ngày và loại; với đình chỉ cần xác nhận chưa xác nhận thì mọi ngày từ `startsOn`) và đình chỉ đó `requiresClearance = true` thì **huỷ** với lý do `'Suspension in force'`, thông báo huỷ sau commit như buổi `SCHEDULED`.
+- Buổi `PENDING` bị đình chỉ vừa tạo **không** cần xác nhận chặn: giữ `PENDING` (đã chờ xếp lại rồi, không đổi gì).
+- Sau khi khoá, buổi không còn `PENDING`/`SCHEDULED` như lúc đọc thì bỏ qua (giống lượt sửa 2).
+- `affectedSessions` có buổi này với `action: 'CANCEL'`.
+- Endpoint `GET/POST .../conflicts` không đổi (vẫn chỉ xét `SCHEDULED`).
+- Không migration, không mã lỗi mới, không đổi hợp đồng API ngoài việc `affectedSessions` có thêm buổi.
+
+**Ca kiểm thử (Claude viết trước code; `agy` hiện thực đúng, không sửa kết quả mong đợi).** Ngày cố định; lớp service với `TrainingSuspensionConflictsService` thật và repo mock theo `tx`.
+
+| # | Dữ liệu trước | Hành động | Kết quả mong đợi |
+| --- | --- | --- | --- |
+| P1 | Buổi `S1` `SPARRING` 2026-11-05 trạng thái `PENDING` (do đình chỉ `OTHER` 2026-11-01..07 không cần xác nhận) | Tạo đình chỉ `KO` từ 2026-11-04, cần xác nhận | `S1` thành `CANCELLED`, lý do `'Suspension in force'`; `affectedSessions` có `{S1, CANCEL}`; thông báo huỷ gửi đúng 1 lần, **sau** commit |
+| P2 | Như P1 | Tạo đình chỉ `MANDATORY_REST` 2026-11-04..06 (không cần xác nhận) | `S1` vẫn `PENDING`; `affectedSessions` rỗng; không thông báo |
+| P3 | `S2` `RECOVERY` `PENDING` 2026-11-05 | Tạo `KO` mặc định (không chặn `RECOVERY`) | `S2` không đổi |
+| P4 | `S3` `SPARRING` `PENDING` 2026-10-20 (trước `startsOn` của KO 2026-11-04) | Tạo `KO` từ 2026-11-04 | `S3` không đổi |
+| P5 | `S1` `PENDING` lúc đọc; lúc khoá đã `CANCELLED` (HLV vừa huỷ) | Tạo `KO` | Không ném lỗi; `S1` không đổi; không có trong `affectedSessions` |
+| P6 | Như P1 nhưng transaction ném lỗi sau `runOnCreated` | Ghi kết quả trận thua KO | `S1` vẫn `PENDING` (không promote); không thông báo |
+| P7 | Ca cũ của lượt sửa 2 (C1–C9) | — | Vẫn qua, không sửa kết quả mong đợi |
+
 ## 6. Phần B (frontend, DRAFT)
 
 Hoàng Anh, sau khi Phần A merge. Gồm: hiện trạng thái "Chờ xếp lại" cho buổi `PENDING` trên lịch HLV và võ sĩ (từ điển i18n vi/en), nút "Xếp lại" mở form đổi ngày; màn xử lý lịch xung đột của [T-030](./T-030-frontend-suspensions-sync.md) phần B chỉ còn hai hành động; sau khi tạo đình chỉ, hiện tóm tắt `affectedSessions`, `affectedPlans`. Viết chi tiết khi Phần A có contract thật.

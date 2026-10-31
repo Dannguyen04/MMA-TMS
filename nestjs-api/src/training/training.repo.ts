@@ -565,6 +565,24 @@ export class TrainingRepository implements ITrainingRepository {
     return rows.map(mapToSession);
   }
 
+  async findPendingSessionsByFighterId(
+    fighterId: string,
+    database: DatabaseExecutor = this.db,
+  ): Promise<TrainingSessionEntity[]> {
+    const rows = await database
+      .select()
+      .from(trainingSessions)
+      .where(
+        and(
+          eq(trainingSessions.fighterId, fighterId),
+          eq(trainingSessions.status, 'PENDING'),
+          isNull(trainingSessions.deletedAt),
+        ),
+      )
+      .orderBy(asc(trainingSessions.scheduledAt), asc(trainingSessions.id));
+    return rows.map(mapToSession);
+  }
+
   async findSessionById(id: string, database: DatabaseExecutor = this.db) {
     const rows = await database.select().from(trainingSessions).where(and(eq(trainingSessions.id, id), isNull(trainingSessions.deletedAt))).limit(1);
     return rows.length > 0 ? mapToSession(rows[0]) : undefined;
