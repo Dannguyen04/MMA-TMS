@@ -1,21 +1,30 @@
 import type { StatDelta } from "@/components/ui/stat-card";
-import { TECHNIQUE_LABELS, TECHNIQUES } from "@/lib/domain/labels";
+import { TECHNIQUES } from "@/lib/domain/labels";
 import type { Goal, Technique } from "@/lib/domain/types";
 import { formatDelta, formatShortDate } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
+import { createTranslator, type MessageKey, type Translator } from "@/lib/i18n/translate";
 
 /** Complete weeks the performance service averages into its comparison baseline. */
 export const COMPARISON_WEEKS = 4;
 
-/** Short technique names for dense table headers. */
-export const TECHNIQUE_SHORT_LABELS: Record<Technique, string> = {
-    ...TECHNIQUE_LABELS,
-    combination: "Combos",
-    head_movement: "Head mvmt",
-};
+/** Short technique name for a dense table header ("Combos", "Head mvmt"), in the viewer's language. */
+export function techniqueShortLabel(t: Translator, technique: Technique): string {
+    return t(`screens.performance.techniqueShort.${technique}` as MessageKey);
+}
+
+/**
+ * A technique or metric name inside a sentence: lower case where the English copy lowercases it
+ * (`lowerEnglish`); Vietnamese only lowers the first letter, so "(Jab)" keeps its capital.
+ */
+export function nameInText(label: string, locale: Locale, lowerEnglish = true): string {
+    if (locale === "vi") return label.charAt(0).toLocaleLowerCase("vi") + label.slice(1);
+    return lowerEnglish ? label.toLowerCase() : label;
+}
 
 /** Axis/table label for a weekly snapshot, e.g. "7 Sept". */
-export function weekLabel(weekStart: string): string {
-    return formatShortDate(weekStart);
+export function weekLabel(weekStart: string, locale: Locale = "en"): string {
+    return formatShortDate(weekStart, locale);
 }
 
 /**
@@ -48,9 +57,10 @@ export function steadyDomain(values: (number | null)[], { minSpan, step, bounds 
 }
 
 /** "vs 4-wk avg" — shortened when fewer earlier weeks exist. */
-export function comparisonLabel(weeks: number): string {
-    if (weeks >= COMPARISON_WEEKS) return "vs 4-wk avg";
-    return weeks === 1 ? "vs week before" : `vs ${weeks}-wk avg`;
+export function comparisonLabel(weeks: number, locale: Locale = "en"): string {
+    const t = createTranslator(locale);
+    if (weeks >= COMPARISON_WEEKS) return t("screens.performance.compare.4wk");
+    return weeks === 1 ? t("screens.performance.compare.weekBefore") : t("screens.performance.compare.nWeeks", { n: weeks });
 }
 
 /** Score changes smaller than this (points) are noise, matching the service's "steady" trend band. */
@@ -80,9 +90,9 @@ export function changeDelta(change: number, { decimals = 0, label, suffix = "", 
 }
 
 /** Score change against the comparison average; undefined when there is no earlier week yet. */
-export function scoreDelta(change: number, comparisonWeeks: number): StatDelta | undefined {
+export function scoreDelta(change: number, comparisonWeeks: number, locale: Locale = "en"): StatDelta | undefined {
     if (comparisonWeeks === 0) return undefined;
-    return changeDelta(change, { decimals: 1, label: comparisonLabel(comparisonWeeks), neutralWithin: SCORE_NOISE_POINTS });
+    return changeDelta(change, { decimals: 1, label: comparisonLabel(comparisonWeeks, locale), neutralWithin: SCORE_NOISE_POINTS });
 }
 
 /** Percentage change between two totals; null when the earlier total is zero. */
@@ -90,8 +100,9 @@ export function percentChange(current: number, previous: number): number | null 
     return previous === 0 ? null : ((current - previous) / previous) * 100;
 }
 
-/** 1 → "1st", 2 → "2nd", 11 → "11th". */
-export function ordinal(value: number): string {
+/** 1 → "1st", 2 → "2nd", 11 → "11th"; Vietnamese ranks are plain numbers ("3 trên 8"). */
+export function ordinal(value: number, locale: Locale = "en"): string {
+    if (locale === "vi") return String(value);
     const mod100 = value % 100;
     if (mod100 >= 11 && mod100 <= 13) return `${value}th`;
     const suffix = { 1: "st", 2: "nd", 3: "rd" }[value % 10] ?? "th";

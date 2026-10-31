@@ -1,6 +1,6 @@
 "use client";
 
-import { useT } from "@/components/i18n/locale-provider";
+import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { Dumbbell, PenLine, Plus, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -226,9 +226,10 @@ const FIELD_TERMS: Record<"sets" | "reps" | "durationMin" | "targetRpe", Glossar
 /** The prescription fields when editing one exercise. */
 function PlanExerciseFields({ form, item }: { form: ActionForm<undefined>; item: PlanExercise }) {
     const t = useT();
+    const locale = useLocale();
     const { control, error } = form;
     const numberField = (name: "sets" | "reps" | "durationMin" | "targetRpe", label: string, max: number, value: number | null) => (
-        <Field label={label} htmlFor={control(name).id} optional info={<TermHint term={FIELD_TERMS[name]} />} error={error(name)}>
+        <Field label={label} htmlFor={control(name).id} optional info={<TermHint term={FIELD_TERMS[name]} locale={locale} />} error={error(name)}>
             <Input {...control(name)} type="number" inputMode="numeric" min={1} max={max} step={1} defaultValue={value ?? ""} />
         </Field>
     );

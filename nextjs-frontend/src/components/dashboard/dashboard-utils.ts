@@ -61,10 +61,11 @@ export function recordText(fighter: Pick<Fighter, "record">): string | null {
     return `${wins}-${losses}-${draws}`;
 }
 
-/** The record read out in words, e.g. "Record 14 wins, 3 losses, 0 draws"; null when it isn't known. */
-export function recordSpoken(fighter: Pick<Fighter, "record">): string | null {
+/** The record read out in words, e.g. "Record 14 wins, 3 losses, 0 draws"; null when it isn't known. Pass `t` on translated screens. */
+export function recordSpoken(fighter: Pick<Fighter, "record">, t?: Translator): string | null {
     if (!fighter.record) return null;
     const { wins, losses, draws } = fighter.record;
+    if (t) return t("screens.roster.recordSpoken", { wins, losses, draws });
     return `Record ${wins} wins, ${losses} losses, ${draws} draws`;
 }
 

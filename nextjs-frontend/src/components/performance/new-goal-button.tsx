@@ -3,6 +3,7 @@
 import { Plus } from "lucide-react";
 import { useState } from "react";
 
+import { useT } from "@/components/i18n/locale-provider";
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { Button, type ButtonVariant } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
@@ -21,6 +22,7 @@ export interface NewGoalButtonProps {
 
 /** Opens the new-goal dialog; requires picking a fighter unless one is fixed. */
 export function NewGoalButton({ now, fighter, fighters, variant = "primary" }: NewGoalButtonProps) {
+    const t = useT();
     const [open, setOpen] = useState(false);
     const toast = useToast();
 
@@ -28,18 +30,18 @@ export function NewGoalButton({ now, fighter, fighters, variant = "primary" }: N
         <>
             <Button variant={variant} onClick={() => setOpen(true)}>
                 <Plus aria-hidden />
-                New goal
+                {t("screens.performance.newGoal.button")}
             </Button>
             <ActionDialog
                 open={open}
                 onClose={() => setOpen(false)}
                 size="lg"
-                title={fighter ? `New goal for ${fighter.name}` : "New goal"}
-                description="Set one measurable target with a due date. The fighter is notified and can follow progress on their Goals page."
+                title={fighter ? t("screens.performance.newGoal.titleFor", { name: fighter.name }) : t("screens.performance.newGoal.button")}
+                description={t("screens.performance.newGoal.desc")}
                 action={createGoal}
-                submitLabel="Create goal"
-                pendingLabel="Creating…"
-                onSuccess={(state) => toast({ title: "Goal created", description: state.message })}
+                submitLabel={t("screens.performance.newGoal.create")}
+                pendingLabel={t("screens.performance.newGoal.creating")}
+                onSuccess={(state) => toast({ title: t("screens.performance.newGoal.created"), description: state.message })}
             >
                 {(form) => <GoalForm form={form} mode="create" fighterId={fighter?.id} fighters={fighters} now={now} />}
             </ActionDialog>

@@ -170,7 +170,7 @@ export function SessionTable({
                                     {showFighter && (
                                         <TD className="min-w-44">
                                             {fighter ? (
-                                                <FighterIdentity fighter={fighter} size="sm" showMeta={false} />
+                                                <FighterIdentity fighter={fighter} size="sm" showMeta={false} locale={locale} />
                                             ) : (
                                                 <NotRecorded label={t("training.table.unknownFighter")} />
                                             )}

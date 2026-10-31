@@ -129,7 +129,7 @@ export function PlanStatsCard({ sessions, now }: { sessions: TrainingSession[]; 
                     hint={adherence ? t("training.planDetails.ofDueSessionsHint", { pct: Math.round(adherence.pct) }) : t("training.plan.nothingDueYet")}
                 />
                 <MetricTile label={t("training.planDetails.trainingTime")} value={formatMinutes(minutes)} />
-                <MetricTile label={t("training.planDetails.averageRpe")} value={rpes.length ? formatNumber(avgRpe, 1) : "—"} hint={rpes.length ? rpeLabel(avgRpe) : undefined} />
+                <MetricTile label={t("training.planDetails.averageRpe")} value={rpes.length ? formatNumber(avgRpe, 1) : "—"} hint={rpes.length ? rpeLabel(avgRpe, t) : undefined} />
                 <MetricTile label={t("training.planDetails.coachRating")} value={ratings.length ? formatNumber(avgRating, 1) : "—"} unit={ratings.length ? "/ 5" : undefined} />
             </CardContent>
         </Card>

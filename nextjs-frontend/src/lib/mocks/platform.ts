@@ -1,5 +1,4 @@
 import {
-    BODY_REGION_LABELS,
     BROADCAST_CHANNEL_LABELS,
     CLEARANCE_LEVEL_LABELS,
     EXAMINATION_OUTCOME_LABELS,
@@ -13,6 +12,7 @@ import type {
     AIFeedback,
     AuditLog,
     AuditResourceType,
+    BodyRegion,
     MedicalClearance,
     Notification,
     NotificationBroadcast,
@@ -26,6 +26,7 @@ import type {
     Video,
 } from "@/lib/domain/types";
 import { daysBetween, formatConfidence, formatDate, formatDateTime, formatFileSize, formatShortDate, formatTime, formatWeekdayDate, pluralize } from "@/lib/format";
+import { createTranslator, type MessageKey } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import { round } from "@/lib/utils";
 import { mockAbnormalMovementAlerts, mockAIAnalyses, mockAIJobs, mockAIModels, mockVideos } from "./ai";
@@ -140,18 +141,39 @@ const fighterName = (fighterId: string) => fighterById(fighterId).name;
 /** Events derived from another record; offsets from today's records stay ordered and before the anchor. */
 const minutesAfter = shiftPastToday;
 
-/** "Pad Work" → "Pad work", for use inside sentences and labels. */
+/** "Pad Work" → "Pad work", for use inside sentences and labels (audit trail, kept in English). */
 function typeLabel(type: TrainingType): string {
     const label = TRAINING_TYPE_LABELS[type];
     return label.charAt(0) + label.slice(1).toLowerCase();
 }
+
+/*
+ * Notifications and broadcasts are what users "received", so they are written in Vietnamese
+ * for the Vietnamese demo and use the app's own Vietnamese labels and date formats.
+ */
+const vi = createTranslator("vi");
+
+/** "pad_work" → "đấm đích", for use inside Vietnamese sentences. */
+function viType(type: TrainingType): string {
+    return vi(`trainingType.${type}` as MessageKey).toLocaleLowerCase("vi");
+}
+
+/** "right_shoulder" → "vai phải". */
+function viRegion(region: BodyRegion): string {
+    return vi(`bodyRegion.${region}` as MessageKey).toLocaleLowerCase("vi");
+}
+
+const viDate = (value: string) => formatDate(value, "vi");
+const viShortDate = (value: string) => formatShortDate(value, "vi");
+const viWeekdayDate = (value: string) => formatWeekdayDate(value, "vi");
+const viTime = (value: string) => formatTime(value, "vi");
 
 function restrictionSummary(clearance: MedicalClearance): string {
     return clearance.restrictions.map((r) => r.label).join("; ");
 }
 
 function validity(clearance: MedicalClearance): string {
-    return clearance.validUntil ? ` Valid until ${formatDate(clearance.validUntil)}.` : "";
+    return clearance.validUntil ? ` Hiệu lực đến ${viDate(clearance.validUntil)}.` : "";
 }
 
 function withUnit(value: number, unit: string): string {
@@ -183,8 +205,8 @@ const LFN17 = { date: boutDate("f-sofia-kowalski") };
 export const mockBroadcasts: NotificationBroadcast[] = [
     broadcast({
         id: "brd-head-movement",
-        title: "AI analysis now tracks head movement",
-        body: "Analyses now measure slips, rolls and centreline exposure alongside strikes and guard. Look for the new Head Movement section in every video processed from today — older videos keep their original results.",
+        title: "Phân tích AI giờ đã theo dõi chuyển động đầu",
+        body: "Bên cạnh đòn đánh và thế thủ, phân tích giờ đo cả động tác né nghiêng, né lắc và mức hở đường trung tâm. Mục Chuyển động đầu mới có trong mọi video được xử lý từ hôm nay — các video cũ giữ nguyên kết quả ban đầu.",
         audience: ["fighter", "coach"],
         channel: "in_app",
         status: "sent",
@@ -195,8 +217,8 @@ export const mockBroadcasts: NotificationBroadcast[] = [
     }),
     broadcast({
         id: "brd-clearance-planner",
-        title: "Medical Clearance checks now run in the session planner",
-        body: "When you schedule a session, the planner checks it against the fighter's current Medical Clearance. Blocked training types and RPE caps stop the session from being saved; restricted techniques and protected areas show a warning. Clearance decisions stay with the sports doctors.",
+        title: "Trình lập lịch buổi tập giờ kiểm tra cấp phép y tế",
+        body: "Khi bạn xếp một buổi tập, hệ thống đối chiếu buổi tập với cấp phép y tế hiện tại của võ sĩ. Loại hình tập bị cấm và giới hạn RPE sẽ chặn không cho lưu buổi tập; kỹ thuật bị hạn chế và vùng cần bảo vệ sẽ hiện cảnh báo. Quyết định cấp phép vẫn do bác sĩ thể thao đưa ra.",
         audience: ["coach", "doctor"],
         channel: "email",
         status: "sent",
@@ -207,8 +229,8 @@ export const mockBroadcasts: NotificationBroadcast[] = [
     }),
     broadcast({
         id: "brd-gym-maintenance",
-        title: "Gym closed for maintenance — Sunday",
-        body: "The mats, cage and bag area are closed all day Sunday while the flooring is replaced. The physio room stays open 09:00–13:00 for booked appointments only. Training resumes Monday at 06:00.",
+        title: "Phòng tập đóng cửa bảo trì — Chủ nhật",
+        body: "Khu thảm, lồng đấu và khu bao cát đóng cửa cả ngày Chủ nhật để thay sàn. Phòng vật lý trị liệu vẫn mở 09:00–13:00, chỉ nhận lịch hẹn trước. Lịch tập trở lại từ 06:00 thứ Hai.",
         audience: ["fighter", "coach", "doctor", "admin"],
         channel: "in_app_email",
         status: "sent",
@@ -219,8 +241,8 @@ export const mockBroadcasts: NotificationBroadcast[] = [
     }),
     broadcast({
         id: "brd-weight-cut-guidance",
-        title: "Fight-week hydration and weight-cut guidance",
-        body: "Prepared with Dr. Thu Lê and Dr. Samuel Brooks. Cut no more than 5% of body weight in fight week, no saunas or sweat suits without a doctor's sign-off, weigh in every morning, and report dizziness, cramps or dark urine to your sports doctor straight away.",
+        title: "Hướng dẫn bù nước và giảm cân trong tuần thi đấu",
+        body: "Soạn cùng Dr. Thu Lê và Dr. Samuel Brooks. Không giảm quá 5% trọng lượng cơ thể trong tuần thi đấu, không xông hơi hay mặc đồ ép cân khi chưa có bác sĩ đồng ý, cân mỗi sáng, và báo ngay cho bác sĩ thể thao nếu chóng mặt, chuột rút hoặc nước tiểu sẫm màu.",
         audience: ["fighter", "coach", "doctor"],
         channel: "email",
         status: "draft",
@@ -231,8 +253,8 @@ export const mockBroadcasts: NotificationBroadcast[] = [
     }),
     broadcast({
         id: "brd-video-guidelines",
-        title: "New video upload guidelines (lighting & camera angle)",
-        body: "For reliable AI analysis: film landscape at 1080p and 30 fps or more, keep your whole body in frame from about 3 metres, use the front or 45° diagonal angle, and train under the main lights rather than by the windows. On iPhone choose H.264 (Most Compatible) — HEVC 10-bit clips can't be processed.",
+        title: "Hướng dẫn mới khi tải video lên (ánh sáng và góc quay)",
+        body: "Để AI phân tích chính xác: quay ngang ở 1080p, từ 30 fps trở lên, đứng cách máy khoảng 3 mét để lọt cả người vào khung hình, quay chính diện hoặc chéo 45°, và tập dưới đèn chính thay vì cạnh cửa sổ. Trên iPhone chọn H.264 (Tương thích nhất) — video HEVC 10-bit không xử lý được.",
         audience: ["fighter", "coach"],
         channel: "in_app_email",
         status: "sent",
@@ -243,8 +265,8 @@ export const mockBroadcasts: NotificationBroadcast[] = [
     }),
     broadcast({
         id: "brd-lfn17-medicals",
-        title: "Lotus Fight Night 17 medicals schedule",
-        body: `Pre-fight medicals for Lotus Fight Night 17 (${formatDate(LFN17.date)}) run at the academy clinic from ${formatWeekdayDate(daysFromNow(3))} to ${formatWeekdayDate(daysFromNow(12))}, 08:00–12:00. Bring your fight licence, recent blood work and a list of any medication, and book your slot with your sports doctor.`,
+        title: "Lịch khám trước trận Lotus Fight Night 17",
+        body: `Khám trước trận cho Lotus Fight Night 17 (${viDate(LFN17.date)}) diễn ra tại phòng khám của học viện từ ${viWeekdayDate(daysFromNow(3))} đến ${viWeekdayDate(daysFromNow(12))}, 08:00–12:00. Mang theo giấy phép thi đấu, kết quả xét nghiệm máu gần nhất và danh sách thuốc đang dùng, rồi đặt lịch với bác sĩ thể thao của bạn.`,
         audience: ["fighter", "doctor"],
         channel: "in_app_email",
         status: "scheduled",
@@ -283,10 +305,10 @@ function analysisReadyForFighter(videoId: string): NotificationSeed {
         readyAt(videoId),
         "ai_analysis",
         low ? "warning" : "success",
-        `AI analysis ready — ${typeLabel(video.trainingType)} (${formatShortDate(video.uploadedAt)})`,
+        `Đã có phân tích AI — ${vi(`trainingType.${video.trainingType}` as MessageKey)} (${viShortDate(video.uploadedAt)})`,
         low
-            ? `Overall confidence is ${formatConfidence(analysis.overallConfidence)}, so some results may be less reliable until your coach has reviewed them.`
-            : `Your ${typeLabel(video.trainingType).toLowerCase()} footage has been analysed: strikes, guard, head movement and footwork.`,
+            ? `Độ tin cậy tổng thể ${formatConfidence(analysis.overallConfidence)}, nên một số kết quả có thể chưa chính xác cho đến khi HLV duyệt.`
+            : `Video ${viType(video.trainingType)} của bạn đã được phân tích: đòn đánh, thế thủ, chuyển động đầu và di chuyển.`,
         routes.fighter.video(videoId),
     );
 }
@@ -295,15 +317,15 @@ function analysisReadyForCoach(videoId: string): NotificationSeed {
     const video = videoById(videoId);
     const analysis = analysisOf(videoId);
     const low = (analysis.overallConfidence !== null && analysis.overallConfidence < LOW_CONFIDENCE_THRESHOLD);
-    const subject = `${fighterName(video.fighterId)} ${typeLabel(video.trainingType).toLowerCase()}`;
+    const subject = `${fighterName(video.fighterId)}, ${viType(video.trainingType)}`;
     return note(
         readyAt(videoId),
         "ai_analysis",
         low ? "warning" : "info",
-        low ? `Low-confidence analysis — ${subject}` : `AI analysis ready — ${subject}`,
+        low ? `Phân tích độ tin cậy thấp — ${subject}` : `Đã có phân tích AI — ${subject}`,
         low
-            ? `Overall confidence is ${formatConfidence(analysis.overallConfidence)}. Review the detections before relying on the findings.`
-            : "The analysis is ready for your coach review.",
+            ? `Độ tin cậy tổng thể ${formatConfidence(analysis.overallConfidence)}. Hãy duyệt các nhận diện trước khi dựa vào kết quả.`
+            : "Phân tích đã sẵn sàng để HLV duyệt.",
         routes.coach.video(videoId),
     );
 }
@@ -317,7 +339,7 @@ function coachReviewForFighter(videoId: string): NotificationSeed[] {
             minutesAfter(review.reviewedAt, 1),
             "feedback",
             "info",
-            `${review.reviewerName} reviewed your ${typeLabel(video.trainingType).toLowerCase()} analysis`,
+            `${review.reviewerName} đã duyệt phân tích ${viType(video.trainingType)} của bạn`,
             review.summary,
             routes.fighter.video(videoId),
         ),
@@ -333,7 +355,7 @@ function feedbackForFighter(feedbackId: string): NotificationSeed[] {
             minutesAfter(feedback.createdAt, 1),
             "feedback",
             feedback.kind === "praise" ? "success" : "info",
-            `New feedback from ${staffName(feedback.coachId)}`,
+            `Nhận xét mới từ ${staffName(feedback.coachId)}`,
             feedback.body,
             feedback.videoId
                 ? routes.fighter.video(feedback.videoId)
@@ -356,8 +378,8 @@ function goalCheckpoint(goalId: string, audience: "fighter" | "coach"): Notifica
             minutesAfter(checkpoint.date, 5),
             "goal",
             atRisk ? "warning" : "success",
-            `${atRisk ? "Goal at risk" : "Goal on track"} — ${subject}`,
-            `${goal.metricLabel}: ${withUnit(goal.current, goal.unit)} against a target of ${withUnit(goal.target, goal.unit)}.`,
+            `${atRisk ? "Mục tiêu có nguy cơ trễ" : "Mục tiêu đúng tiến độ"} — ${subject}`,
+            `${goal.metricLabel}: ${withUnit(goal.current, goal.unit)} so với mục tiêu ${withUnit(goal.target, goal.unit)}.`,
             audience === "coach" ? routes.coach.fighterGoals(goal.fighterId) : routes.fighter.goals,
         ),
     ];
@@ -372,8 +394,8 @@ function clearanceForFighter(clearanceId: string): NotificationSeed {
             at,
             "clearance",
             "danger",
-            "Medical Clearance changed — Not Cleared",
-            `${doctor} has paused all training while you follow your return-to-training protocol. Rest, and report any new or worsening symptoms straight away.`,
+            "Cấp phép y tế thay đổi — Chưa được tập",
+            `${doctor} đã tạm dừng toàn bộ lịch tập trong thời gian bạn theo phác đồ trở lại tập luyện. Hãy nghỉ ngơi và báo ngay nếu có triệu chứng mới hoặc nặng hơn.`,
             routes.fighter.health,
         );
     }
@@ -382,12 +404,12 @@ function clearanceForFighter(clearanceId: string): NotificationSeed {
             at,
             "clearance",
             "warning",
-            "Medical Clearance updated — cleared with restrictions",
-            `${doctor} cleared you to train within these restrictions: ${restrictionSummary(clearance)}.${validity(clearance)}`,
+            "Cấp phép y tế cập nhật — tập có hạn chế",
+            `${doctor} cho phép bạn tập trong các hạn chế sau: ${restrictionSummary(clearance)}.${validity(clearance)}`,
             routes.fighter.health,
         );
     }
-    return note(at, "clearance", "success", "Medical Clearance renewed", `${doctor} cleared you for full training.${validity(clearance)}`, routes.fighter.health);
+    return note(at, "clearance", "success", "Cấp phép y tế đã gia hạn", `${doctor} cho phép bạn tập đầy đủ.${validity(clearance)}`, routes.fighter.health);
 }
 
 function clearanceForCoach(clearanceId: string, title?: string): NotificationSeed {
@@ -400,8 +422,8 @@ function clearanceForCoach(clearanceId: string, title?: string): NotificationSee
             at,
             "clearance",
             "danger",
-            title ?? `Medical Clearance changed — ${name}: Not Cleared`,
-            `${doctor} changed ${name}'s clearance to not cleared. Don't schedule any training until the clearance is updated.`,
+            title ?? `Cấp phép y tế thay đổi — ${name}: Chưa được tập`,
+            `${doctor} đã chuyển cấp phép của ${name} sang chưa được tập. Không xếp buổi tập nào cho đến khi cấp phép được cập nhật.`,
             routes.coach.clearance,
         );
     }
@@ -409,10 +431,10 @@ function clearanceForCoach(clearanceId: string, title?: string): NotificationSee
         at,
         "clearance",
         clearance.level === "restricted" ? "warning" : "success",
-        title ?? `${name} ${clearance.level === "restricted" ? "cleared with restrictions" : "cleared for full training"}`,
+        title ?? `${name} ${clearance.level === "restricted" ? "được tập có hạn chế" : "được tập đầy đủ"}`,
         clearance.level === "restricted"
             ? `${doctor}: ${restrictionSummary(clearance)}.${validity(clearance)}`
-            : `${doctor} cleared ${name} without restrictions.${validity(clearance)}`,
+            : `${doctor} cho phép ${name} tập không hạn chế.${validity(clearance)}`,
         routes.coach.clearance,
     );
 }
@@ -426,8 +448,8 @@ function alertForDoctor(alertId: string): NotificationSeed {
         minutesAfter(alert.detectedAt, 1),
         "ai_alert",
         low ? "info" : "warning",
-        `New AI movement observation — ${fighterName(alert.fighterId)}, ${BODY_REGION_LABELS[alert.bodyRegion].toLowerCase()}`,
-        `${alert.pattern} (${formatConfidence(confidence)} confidence${low ? " — below the review threshold, check the clip" : ""}).`,
+        `Ghi nhận vận động mới từ AI — ${fighterName(alert.fighterId)}, ${viRegion(alert.bodyRegion)}`,
+        `${alert.pattern} (độ tin cậy ${formatConfidence(confidence)}${low ? " — dưới ngưỡng duyệt, hãy xem lại đoạn video" : ""}).`,
         routes.doctor.aiAlert(alertId),
     );
 }
@@ -442,8 +464,8 @@ function checkInLogged(planId: string, days: number): NotificationSeed {
         minutesAfter(checkIn.date, 1),
         "medical",
         "info",
-        `Recovery check-in logged — ${fighterName(plan.fighterId)}`,
-        `Pain ${checkIn.painLevel}/10 · mobility ${checkIn.mobilityPct}% · strength ${checkIn.strengthPct}%. “${checkIn.note}”`,
+        `Đã ghi nhật ký hồi phục — ${fighterName(plan.fighterId)}`,
+        `Đau ${checkIn.painLevel}/10 · vận động ${checkIn.mobilityPct}% · sức cơ ${checkIn.strengthPct}%. “${checkIn.note}”`,
         routes.doctor.recoveryPlan(planId),
     );
 }
@@ -454,8 +476,8 @@ function lowConfidenceJob(jobId: string, cause: string): NotificationSeed {
         jobEndedAt(jobId),
         "system",
         "warning",
-        `AI job completed with low confidence — ${jobId}`,
-        `Mean confidence ${formatConfidence(job.avgConfidence ?? 0)} — ${cause}. The analysis is marked for human review.`,
+        `Tác vụ AI hoàn tất với độ tin cậy thấp — ${jobId}`,
+        `Độ tin cậy trung bình ${formatConfidence(job.avgConfidence ?? 0)} — ${cause}. Phân tích đã được đánh dấu để người duyệt lại.`,
         routes.admin.aiJob(jobId),
     );
 }
@@ -463,13 +485,13 @@ function lowConfidenceJob(jobId: string, cause: string): NotificationSeed {
 function jobFailedForAdmin(jobId: string): NotificationSeed {
     const job = jobById(jobId);
     const retried = mockAIJobs.find((j) => j.videoId === job.videoId && j.queuedAt > job.queuedAt);
-    const message = job.errorMessage ?? "The pipeline stopped without an error message.";
+    const message = job.errorMessage ?? "Quy trình xử lý dừng mà không có thông báo lỗi.";
     return note(
         jobEndedAt(jobId),
         "system",
         "danger",
-        `AI job failed — ${job.errorCode} (${job.videoId})`,
-        `${/[.!?]$/.test(message) ? message : `${message}.`}${job.attempts > 1 ? ` Failed after ${job.attempts} attempts.` : ""}${retried ? ` Re-queued as ${retried.id}.` : ""}`,
+        `Tác vụ AI thất bại — ${job.errorCode} (${job.videoId})`,
+        `${/[.!?]$/.test(message) ? message : `${message}.`}${job.attempts > 1 ? ` Thất bại sau ${job.attempts} lần thử.` : ""}${retried ? ` Đã đưa lại vào hàng đợi với mã ${retried.id}.` : ""}`,
         routes.admin.aiJob(jobId),
     );
 }
@@ -477,7 +499,7 @@ function jobFailedForAdmin(jobId: string): NotificationSeed {
 function modelInStaging(name: string, version: string): NotificationSeed {
     const model = mockAIModels.find((m) => m.name === name && m.version === version);
     if (!model) throw new Error(`Platform seed references unknown AI model "${name} ${version}".`);
-    return note(minutesAfter(model.deployedAt, 2), "system", "success", `${name} ${version} ready in staging`, model.description, routes.admin.aiModel(model.id));
+    return note(minutesAfter(model.deployedAt, 2), "system", "success", `${name} ${version} đã sẵn sàng trên staging`, model.description, routes.admin.aiModel(model.id));
 }
 
 function modelIdOf(name: string, version: string): string {
@@ -516,12 +538,15 @@ const SOFIA_CLEARANCE = clearanceById("cl-sofia-current");
 const HOANG = fighterById("f-hoang-long");
 const HOANG_WEIGHT_FEEDBACK = mockCoachFeedback.find((f) => f.id === "fb-hoang-weight-3d");
 const EMMA_SPARRING = videoById("v-emma-sparring-1d");
-const BAO_BASELINE = formatWeekdayDate(`${BAO_BASELINE_EXAM_DATE}T12:00:00+07:00`);
+const BAO_BASELINE = viWeekdayDate(`${BAO_BASELINE_EXAM_DATE}T12:00:00+07:00`);
+
+/** Medical cancellation reasons in the training seed start with "Y tế:" (Vietnamese demo); "Medical" is still accepted. */
+const MEDICAL_CANCELLATION = /^(medical|y tế)/i;
 
 /** Medical cancellations per fighter, with the clearance change that triggered them. */
 function medicalCancellations(fighterId: string): { sessions: TrainingSession[]; cancelledAt: string } {
     const sessions = mockTrainingSessions
-        .filter((s) => s.fighterId === fighterId && s.status === "cancelled" && s.cancellationReason?.startsWith("Medical") && s.scheduledAt >= AUDIT_WINDOW_START)
+        .filter((s) => s.fighterId === fighterId && s.status === "cancelled" && MEDICAL_CANCELLATION.test(s.cancellationReason ?? "") && s.scheduledAt >= AUDIT_WINDOW_START)
         .sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt));
     const first = sessions[0]?.scheduledAt ?? TODAY_START;
     const triggers = mockMedicalClearances
@@ -549,8 +574,8 @@ const SECURITY_SUMMARY_TODAY = note(
     pastToday(8, 0),
     "system",
     "info",
-    "Weekly security summary",
-    "4 failed sign-ins in the last 7 days from 3 addresses, including 2 attempts for an unknown email from 45.77.12.186. No accounts locked. MFA is still optional for staff.",
+    "Tóm tắt bảo mật hằng tuần",
+    "4 lần đăng nhập thất bại trong 7 ngày qua từ 3 địa chỉ, gồm 2 lần thử với email không tồn tại từ 45.77.12.186. Không có tài khoản nào bị khoá. Xác thực nhiều lớp (MFA) vẫn chưa bắt buộc với nhân viên.",
     routes.admin.auditLogs,
 );
 
@@ -558,8 +583,8 @@ const BAO_VIDEO_FAILED = note(
     jobEndedAt("job-bao-shadow-3d"),
     "ai_analysis",
     "danger",
-    "Video couldn't be analysed",
-    "Your clip uses HEVC 10-bit, which we can't process. Export it as H.264 (Most Compatible on iPhone) and upload it again.",
+    "Không phân tích được video",
+    "Video của bạn dùng định dạng HEVC 10-bit nên hệ thống không xử lý được. Hãy xuất lại sang H.264 (trên iPhone chọn Tương thích nhất) rồi tải lên lại.",
     routes.fighter.video("v-bao-shadow-3d"),
 );
 
@@ -582,8 +607,8 @@ const INBOXES: Inbox[] = [
                             minutesAfter(MINH_ROUTINE_EXAM.date, 75),
                             "clearance",
                             "success",
-                            "Medical Clearance confirmed for fight camp",
-                            `${staffName(MINH_ROUTINE_EXAM.doctorId)} completed your fight camp check. You remain cleared for full training.${validity(MINH_CLEARANCE)}`,
+                            "Cấp phép y tế được xác nhận cho giai đoạn chuẩn bị thi đấu",
+                            `${staffName(MINH_ROUTINE_EXAM.doctorId)} đã hoàn tất buổi khám trước giai đoạn chuẩn bị thi đấu. Bạn vẫn được tập đầy đủ.${validity(MINH_CLEARANCE)}`,
                             routes.fighter.health,
                         ),
                     ]
@@ -593,16 +618,16 @@ const INBOXES: Inbox[] = [
                 minutesAfter(planById("tp-minh-fight-camp").updatedAt, 1),
                 "training",
                 "info",
-                "Fight camp plan updated",
-                `Rafael Costa updated “${planById("tp-minh-fight-camp").title}”. Check this week's sessions for changes.`,
+                "Giáo án chuẩn bị thi đấu đã cập nhật",
+                `Rafael Costa đã cập nhật “${planById("tp-minh-fight-camp").title}”. Xem các buổi tập tuần này để biết thay đổi.`,
                 routes.fighter.plan("tp-minh-fight-camp"),
             ),
             note(
                 minutesAfter(sessionById("s-minh-pads-2d").scheduledAt, -8 * 60),
                 "training",
                 "info",
-                `Session today at ${formatTime(sessionById("s-minh-pads-2d").scheduledAt)}`,
-                `${sessionById("s-minh-pads-2d").title} with ${staffName(sessionById("s-minh-pads-2d").coachId)}.`,
+                `Buổi tập hôm nay lúc ${viTime(sessionById("s-minh-pads-2d").scheduledAt)}`,
+                `${sessionById("s-minh-pads-2d").title} với ${staffName(sessionById("s-minh-pads-2d").coachId)}.`,
                 routes.fighter.session("s-minh-pads-2d"),
             ),
             ...feedbackForFighter("fb-minh-pads-2d-hook"),
@@ -611,8 +636,8 @@ const INBOXES: Inbox[] = [
                 pastToday(6, 30),
                 "training",
                 "info",
-                "Weigh-in reminder",
-                `Log your morning weight before training. You're ${round(fighterById("f-minh-tran").weightKg - fighterById("f-minh-tran").targetWeightKg, 1)} kg above the featherweight limit with ${daysBetween(TODAY_START, boutDate("f-minh-tran"))} days until Lotus Fight Night 18.`,
+                "Nhắc ghi cân nặng",
+                `Ghi cân nặng buổi sáng trước khi tập. Bạn đang vượt giới hạn hạng lông ${round(fighterById("f-minh-tran").weightKg - fighterById("f-minh-tran").targetWeightKg, 1).toLocaleString("vi")} kg, còn ${daysBetween(TODAY_START, boutDate("f-minh-tran"))} ngày nữa đến Lotus Fight Night 18.`,
                 routes.fighter.dashboard,
             ),
             ...goalCheckpoint("g-minh-guard-recovery", "fighter"),
@@ -620,8 +645,8 @@ const INBOXES: Inbox[] = [
                 minutesAfter(videoById("v-minh-bag-today").uploadedAt, 1),
                 "ai_analysis",
                 "info",
-                "Heavy bag video is processing",
-                "We're analysing this morning's heavy bag footage. You'll get another notification when the results are ready.",
+                "Video bao cát đang được xử lý",
+                "Hệ thống đang phân tích video tập bao cát sáng nay. Bạn sẽ nhận thêm thông báo khi có kết quả.",
                 routes.fighter.video("v-minh-bag-today"),
             ),
             ...feedbackForFighter("fb-minh-bag-today"),
@@ -638,14 +663,14 @@ const INBOXES: Inbox[] = [
                           minutesAfter(RAFAEL_MISSED_SESSION.scheduledAt, 30),
                           "training",
                           "warning",
-                          `Session missed — ${fighterName(RAFAEL_MISSED_SESSION.fighterId)}`,
-                          `${fighterName(RAFAEL_MISSED_SESSION.fighterId)} didn't check in for “${RAFAEL_MISSED_SESSION.title}” on ${formatWeekdayDate(RAFAEL_MISSED_SESSION.scheduledAt)} at ${formatTime(RAFAEL_MISSED_SESSION.scheduledAt)}.`,
+                          `Vắng buổi tập — ${fighterName(RAFAEL_MISSED_SESSION.fighterId)}`,
+                          `${fighterName(RAFAEL_MISSED_SESSION.fighterId)} không điểm danh buổi “${RAFAEL_MISSED_SESSION.title}” lúc ${viTime(RAFAEL_MISSED_SESSION.scheduledAt)}, ${viWeekdayDate(RAFAEL_MISSED_SESSION.scheduledAt)}.`,
                           routes.coach.session(RAFAEL_MISSED_SESSION.id),
                       ),
                   ]
                 : []),
             analysisReadyForCoach("v-marcus-bag-11d"),
-            clearanceForCoach("cl-marcus-current", "Marcus Hale restricted: no striking with the right hand"),
+            clearanceForCoach("cl-marcus-current", "Marcus Hale tập có hạn chế: không đánh bằng tay phải"),
             analysisReadyForCoach("v-kenji-bag-9d"),
             clearanceForCoach("cl-kenji-current"),
             analysisReadyForCoach("v-diego-sparring-6d"),
@@ -657,8 +682,8 @@ const INBOXES: Inbox[] = [
                 jobEndedAt("job-tariq-shadow-2d"),
                 "ai_analysis",
                 "warning",
-                "Tariq Haddad's video couldn't be analysed",
-                "The AI couldn't find Tariq in frame for most of his shadow boxing clip. He'll need to re-record it with his whole body visible.",
+                "Không phân tích được video của Tariq Haddad",
+                "AI không tìm thấy Tariq trong khung hình ở phần lớn video đánh bóng. Cần quay lại sao cho thấy toàn thân.",
                 routes.coach.fighterVideos("f-tariq-haddad"),
             ),
             analysisReadyForCoach(MINH_PADS.id),
@@ -666,16 +691,16 @@ const INBOXES: Inbox[] = [
                 minutesAfter(readyAt(MINH_PADS.id), 5),
                 "ai_analysis",
                 "warning",
-                "Low-confidence detections need review — Minh Trần pad work",
-                `${pluralize(MINH_PADS_LOW_DETECTIONS, "detection")} in Minh's pad work analysis ${MINH_PADS_LOW_DETECTIONS === 1 ? "is" : "are"} below 60% confidence. Confirm or correct them before the findings are shared.`,
+                "Nhận diện độ tin cậy thấp cần duyệt — Minh Trần, đấm đích",
+                `Có ${MINH_PADS_LOW_DETECTIONS} nhận diện trong phân tích đấm đích của Minh có độ tin cậy dưới 60%. Hãy xác nhận hoặc sửa trước khi chia sẻ kết quả.`,
                 routes.coach.video(MINH_PADS.id),
             ),
             note(
                 pastToday(7, 0),
                 "ai_analysis",
                 "info",
-                "Sparring video still queued — Emma Lindqvist",
-                `Uploaded yesterday at ${formatTime(EMMA_SPARRING.uploadedAt)} and still waiting for a free AI worker. You'll be notified when it's ready to review.`,
+                "Video đấu tập vẫn đang chờ xử lý — Emma Lindqvist",
+                `Đã tải lên lúc ${viTime(EMMA_SPARRING.uploadedAt)} hôm qua và vẫn đang chờ máy xử lý AI rảnh. Bạn sẽ nhận thông báo khi video sẵn sàng để duyệt.`,
                 routes.coach.video(EMMA_SPARRING.id),
             ),
             ...(RAFAEL_REVIEW_QUEUE.length > 0
@@ -684,8 +709,8 @@ const INBOXES: Inbox[] = [
                           pastToday(7, 30),
                           "ai_analysis",
                           "info",
-                          `${pluralize(RAFAEL_REVIEW_QUEUE.length, "analysis", "analyses")} awaiting your review`,
-                          `${RAFAEL_REVIEW_QUEUE.map((a) => `${fighterName(a.fighterId)} (${typeLabel(videoById(a.videoId).trainingType).toLowerCase()})`).join(", ")} ${RAFAEL_REVIEW_QUEUE.length === 1 ? "is" : "are"} waiting for your coach review.`,
+                          `${RAFAEL_REVIEW_QUEUE.length} phân tích đang chờ bạn duyệt`,
+                          `${RAFAEL_REVIEW_QUEUE.map((a) => `${fighterName(a.fighterId)} (${viType(videoById(a.videoId).trainingType)})`).join(", ")} đang chờ HLV duyệt.`,
                           routes.coach.videoAnalysis,
                       ),
                   ]
@@ -695,8 +720,8 @@ const INBOXES: Inbox[] = [
                 minutesAfter(videoById("v-minh-bag-today").uploadedAt, 1),
                 "ai_analysis",
                 "info",
-                "Minh Trần's heavy bag video is processing",
-                "Minh uploaded this morning's heavy bag rounds. The analysis will be ready for review shortly.",
+                "Video bao cát của Minh Trần đang được xử lý",
+                "Minh đã tải lên các hiệp bao cát sáng nay. Phân tích sẽ sớm sẵn sàng để duyệt.",
                 routes.coach.video("v-minh-bag-today"),
             ),
         ],
@@ -714,8 +739,8 @@ const INBOXES: Inbox[] = [
                 minutesAfter(record(mockInjuries, "inj-diego-concussion", "injury").occurredAt, 6),
                 "medical",
                 "danger",
-                "Sparring stopped — Diego Alvarez",
-                "Rafael Costa stopped Diego's sparring in round 3 after he looked unsteady and asked for a medical assessment before he leaves the gym.",
+                "Dừng đấu tập — Diego Alvarez",
+                "Rafael Costa đã dừng buổi đấu tập của Diego ở hiệp 3 vì thấy võ sĩ đứng không vững, và đề nghị khám y tế trước khi Diego rời phòng tập.",
                 routes.doctor.fighter("f-diego-alvarez"),
             ),
             alertForDoctor("al-diego-balance-6d"),
@@ -728,8 +753,8 @@ const INBOXES: Inbox[] = [
                           minutesAfter(HOANG_WEIGHT_FEEDBACK.createdAt, 5),
                           "medical",
                           "warning",
-                          "Hydration flagged — Hoàng Long",
-                          `${staffName(HOANG_WEIGHT_FEEDBACK.coachId)} recorded ${HOANG.weightKg} kg with only fair hydration while Hoàng Long cuts to ${HOANG.targetWeightKg} kg for Lotus Fight Night 17.`,
+                          "Cảnh báo bù nước — Hoàng Long",
+                          `${staffName(HOANG_WEIGHT_FEEDBACK.coachId)} ghi nhận ${HOANG.weightKg.toLocaleString("vi")} kg, bù nước chỉ ở mức trung bình, trong lúc Hoàng Long giảm cân về ${HOANG.targetWeightKg.toLocaleString("vi")} kg cho Lotus Fight Night 17.`,
                           routes.doctor.fighter(HOANG.id),
                       ),
                   ]
@@ -738,8 +763,8 @@ const INBOXES: Inbox[] = [
                 daysAgo(2, 9, 40),
                 "medical",
                 "info",
-                "Pre-fight medical to book — Hoàng Long",
-                `Hoàng Long fights at Lotus Fight Night 17 in ${daysBetween(daysAgo(2, 9, 40), LFN17.date)} days. Book his pre-fight medical during the clinic block.`,
+                "Cần đặt lịch khám trước trận — Hoàng Long",
+                `Còn ${daysBetween(daysAgo(2, 9, 40), LFN17.date)} ngày nữa Hoàng Long thi đấu tại Lotus Fight Night 17. Hãy đặt lịch khám trước trận trong đợt khám của phòng khám.`,
                 routes.doctor.fighter(HOANG.id),
             ),
             alertForDoctor("al-minh-elbow-2d"),
@@ -750,8 +775,8 @@ const INBOXES: Inbox[] = [
                           pastToday(6, 45),
                           "medical",
                           "info",
-                          `Follow-up due in ${daysBetween(TODAY_START, KENJI_EXAM.followUpDate)} days — Kenji Morita`,
-                          `Kenji's restricted clearance ends on ${formatDate(clearanceById("cl-kenji-current").validUntil ?? KENJI_EXAM.followUpDate)}. Re-examine the right shoulder before renewing or changing it.`,
+                          `Tái khám sau ${daysBetween(TODAY_START, KENJI_EXAM.followUpDate)} ngày — Kenji Morita`,
+                          `Cấp phép có hạn chế của Kenji hết hạn ngày ${viDate(clearanceById("cl-kenji-current").validUntil ?? KENJI_EXAM.followUpDate)}. Khám lại vai phải trước khi gia hạn hoặc thay đổi cấp phép.`,
                           routes.doctor.fighter("f-kenji-morita"),
                       ),
                   ]
@@ -760,8 +785,8 @@ const INBOXES: Inbox[] = [
                 pastToday(7, 0),
                 "medical",
                 "warning",
-                "Concussion protocol review — Diego Alvarez",
-                `Diego is at stage ${DIEGO_CURRENT_PHASE + 1} of ${DIEGO_PROTOCOL.phases.length} (${DIEGO_PROTOCOL.phases[DIEGO_CURRENT_PHASE]?.name ?? "in progress"}). Review his symptom check-ins${DIEGO_NEXT_EXAM?.followUpDate ? ` before the follow-up examination on ${formatWeekdayDate(DIEGO_NEXT_EXAM.followUpDate)}` : ""}.`,
+                "Xem lại phác đồ chấn động não — Diego Alvarez",
+                `Diego đang ở bước ${DIEGO_CURRENT_PHASE + 1}/${DIEGO_PROTOCOL.phases.length} (${DIEGO_PROTOCOL.phases[DIEGO_CURRENT_PHASE]?.name ?? "đang thực hiện"}). Xem lại nhật ký triệu chứng của võ sĩ${DIEGO_NEXT_EXAM?.followUpDate ? ` trước buổi tái khám ${viWeekdayDate(DIEGO_NEXT_EXAM.followUpDate)}` : ""}.`,
                 routes.doctor.recoveryPlan(DIEGO_PROTOCOL.id),
             ),
         ],
@@ -775,32 +800,32 @@ const INBOXES: Inbox[] = [
                 daysAgo(19, 16, 32),
                 "system",
                 "warning",
-                "Repeated failed sign-ins",
-                "5 failed sign-in attempts for admin@lotus-combat.test (no such account) from 113.161.54.201 within 8 minutes. No account was affected.",
+                "Đăng nhập thất bại nhiều lần",
+                "5 lần đăng nhập thất bại với admin@lotus-combat.test (tài khoản không tồn tại) từ 113.161.54.201 trong vòng 8 phút. Không tài khoản nào bị ảnh hưởng.",
                 routes.admin.auditLogs,
             ),
             note(
                 daysAgo(16, 2, 15),
                 "system",
                 "info",
-                "Video retention job completed",
-                "No footage was past the 365-day retention window. The next run is in 30 days.",
+                "Tác vụ lưu trữ video đã hoàn tất",
+                "Không có video nào quá thời hạn lưu trữ 365 ngày. Lần chạy tiếp theo sau 30 ngày.",
                 routes.admin.videos,
             ),
             note(
                 daysAgo(14, 8, 0),
                 "system",
                 "info",
-                "Weekly security summary",
-                "5 failed sign-ins in the last 7 days, all for an unknown email from 113.161.54.201. No accounts locked. MFA is still optional for staff.",
+                "Tóm tắt bảo mật hằng tuần",
+                "5 lần đăng nhập thất bại trong 7 ngày qua, đều với một email không tồn tại từ 113.161.54.201. Không có tài khoản nào bị khoá. Xác thực nhiều lớp (MFA) vẫn chưa bắt buộc với nhân viên.",
                 routes.admin.auditLogs,
             ),
             note(
                 minutesAfter(userById("u-bao-nguyen").createdAt, 260),
                 "system",
                 "success",
-                "Invitation accepted — Bảo Nguyễn",
-                "Bảo Nguyễn activated his fighter account.",
+                "Đã nhận lời mời — Bảo Nguyễn",
+                "Bảo Nguyễn đã kích hoạt tài khoản võ sĩ.",
                 routes.admin.user("u-bao-nguyen"),
             ),
             jobFailedForAdmin("job-emma-bag-12d-a1"),
@@ -809,8 +834,8 @@ const INBOXES: Inbox[] = [
                 daysAgo(9, 9, 0),
                 "system",
                 "info",
-                "Monthly storage report",
-                "Video storage grew 18% this month, mostly 1080p pad work and sparring footage. Usage is well within the storage plan.",
+                "Báo cáo dung lượng lưu trữ hằng tháng",
+                "Dung lượng video tăng 18% trong tháng, chủ yếu là video đấm đích và đấu tập 1080p. Mức sử dụng vẫn nằm trong gói lưu trữ.",
                 routes.admin.videos,
             ),
             jobFailedForAdmin("job-kenji-bag-9d-a1"),
@@ -818,20 +843,20 @@ const INBOXES: Inbox[] = [
                 daysAgo(7, 8, 0),
                 "system",
                 "info",
-                "Weekly security summary",
-                "1 failed sign-in in the last 7 days, followed by a successful sign-in from the same address. No accounts locked.",
+                "Tóm tắt bảo mật hằng tuần",
+                "1 lần đăng nhập thất bại trong 7 ngày qua, sau đó đăng nhập thành công từ cùng địa chỉ. Không có tài khoản nào bị khoá.",
                 routes.admin.auditLogs,
             ),
-            lowConfidenceJob("job-hoang-shadow-7d", "mostly from poor lighting"),
+            lowConfidenceJob("job-hoang-shadow-7d", "chủ yếu do thiếu sáng"),
             modelInStaging("strike-cls", "2.4.0-rc1"),
-            lowConfidenceJob("job-diego-sparring-6d", "two fighters in frame caused occlusion"),
+            lowConfidenceJob("job-diego-sparring-6d", "hai võ sĩ trong khung hình che khuất nhau"),
             jobFailedForAdmin("job-bao-shadow-3d"),
             note(
                 daysAgo(2, 7, 56),
                 "system",
                 "info",
-                "AI model thresholds updated",
-                "Quang Vũ changed the low-confidence threshold for move-anomaly 0.9.2-beta from 55% to 60%.",
+                "Đã cập nhật ngưỡng mô hình AI",
+                "Quang Vũ đã đổi ngưỡng độ tin cậy thấp của move-anomaly 0.9.2-beta từ 55% lên 60%.",
                 routes.admin.aiModel(modelIdOf("move-anomaly", "0.9.2-beta")),
             ),
             jobFailedForAdmin("job-tariq-shadow-2d"),
@@ -839,8 +864,8 @@ const INBOXES: Inbox[] = [
                 minutesAfter(jobById("job-emma-sparring-1d").queuedAt, 12),
                 "system",
                 "warning",
-                "AI queue wait above 10 minutes",
-                `job-emma-sparring-1d (Emma Lindqvist, sparring) has been waiting since ${formatTime(jobById("job-emma-sparring-1d").queuedAt)}. Check worker capacity on the AI jobs page.`,
+                "Hàng đợi AI chờ quá 10 phút",
+                `job-emma-sparring-1d (Emma Lindqvist, đấu tập) đang chờ từ ${viTime(jobById("job-emma-sparring-1d").queuedAt)}. Kiểm tra năng lực máy xử lý ở trang Tác vụ AI.`,
                 routes.admin.aiJobs,
             ),
             SECURITY_SUMMARY_TODAY,
@@ -848,8 +873,8 @@ const INBOXES: Inbox[] = [
                 pastToday(8, 5),
                 "system",
                 "warning",
-                "Priya Nair hasn't accepted her invitation",
-                `Priya was invited as ${userById("u-priya-nair").title} ${daysBetween(userById("u-priya-nair").createdAt, TODAY_START)} days ago and hasn't signed in yet. Resend the invitation if she can't find the email.`,
+                "Priya Nair chưa nhận lời mời",
+                `Priya được mời với chức danh ${userById("u-priya-nair").title} từ ${daysBetween(userById("u-priya-nair").createdAt, TODAY_START)} ngày trước nhưng chưa đăng nhập. Gửi lại lời mời nếu cô ấy không tìm thấy email.`,
                 routes.admin.user("u-priya-nair"),
             ),
         ],
@@ -864,13 +889,13 @@ const INBOXES: Inbox[] = [
                 minutesAfter(planById("tp-lucas-return").updatedAt, 1),
                 "training",
                 "info",
-                "Return-to-training plan updated",
-                `Anna Volkova updated “${planById("tp-lucas-return").title}” to match your Medical Clearance.`,
+                "Giáo án trở lại tập luyện đã cập nhật",
+                `Anna Volkova đã cập nhật “${planById("tp-lucas-return").title}” cho phù hợp với cấp phép y tế của bạn.`,
                 routes.fighter.plan("tp-lucas-return"),
             ),
             analysisReadyForFighter("v-lucas-shadow-4d"),
             ...feedbackForFighter("fb-lucas-passing-4d"),
-            note(daysAgo(1, 7, 0), "medical", "info", "Recovery check-in due", "Log your pain, mobility and strength for your hamstring recovery plan.", routes.fighter.health),
+            note(daysAgo(1, 7, 0), "medical", "info", "Đến hạn ghi nhật ký hồi phục", "Ghi mức đau, vận động và sức cơ cho giáo án hồi phục gân kheo của bạn.", routes.fighter.health),
         ],
     },
     {
@@ -887,8 +912,8 @@ const INBOXES: Inbox[] = [
                 minutesAfter(alertById("al-kenji-shoulder-9d").doctorReview?.reviewedAt ?? KENJI_EXAM.date, 1),
                 "medical",
                 "info",
-                "Examination booked",
-                `Dr. Thu Lê booked a shoulder examination for ${formatWeekdayDate(KENJI_EXAM.date)} at ${formatTime(KENJI_EXAM.date)}.`,
+                "Đã đặt lịch khám",
+                `Dr. Thu Lê đã đặt lịch khám vai cho bạn lúc ${viTime(KENJI_EXAM.date)}, ${viWeekdayDate(KENJI_EXAM.date)}.`,
                 routes.fighter.health,
             ),
             clearanceForFighter("cl-kenji-current"),
@@ -898,8 +923,8 @@ const INBOXES: Inbox[] = [
                           pastToday(7, 0),
                           "medical",
                           "info",
-                          `Follow-up examination in ${daysBetween(TODAY_START, KENJI_EXAM.followUpDate)} days`,
-                          `Your shoulder follow-up with Dr. Thu Lê is on ${formatWeekdayDate(KENJI_EXAM.followUpDate)} at ${formatTime(KENJI_EXAM.followUpDate)}.`,
+                          `Tái khám sau ${daysBetween(TODAY_START, KENJI_EXAM.followUpDate)} ngày nữa`,
+                          `Lịch tái khám vai với Dr. Thu Lê lúc ${viTime(KENJI_EXAM.followUpDate)}, ${viWeekdayDate(KENJI_EXAM.followUpDate)}.`,
                           routes.fighter.health,
                       ),
                   ]
@@ -918,13 +943,13 @@ const INBOXES: Inbox[] = [
                           minutesAfter(DIEGO_CANCELLATIONS.cancelledAt, 5),
                           "training",
                           "warning",
-                          "Sessions cancelled while you're Not Cleared",
-                          `Rafael Costa cancelled ${pluralize(DIEGO_CANCELLATIONS.sessions.length, "session")}. They'll be rescheduled once Dr. Thu Lê updates your clearance.`,
+                          "Đã huỷ buổi tập trong thời gian bạn chưa được tập",
+                          `Rafael Costa đã huỷ ${DIEGO_CANCELLATIONS.sessions.length} buổi tập. Các buổi này sẽ được xếp lại khi Dr. Thu Lê cập nhật cấp phép của bạn.`,
                           routes.fighter.schedule,
                       ),
                   ]
                 : []),
-            note(daysAgo(3, 7, 0), "medical", "info", "Symptom check-in due", "Log today's symptoms for your return-to-training protocol.", routes.fighter.health),
+            note(daysAgo(3, 7, 0), "medical", "info", "Đến hạn ghi triệu chứng", "Ghi triệu chứng hôm nay cho phác đồ trở lại tập luyện của bạn.", routes.fighter.health),
         ],
     },
     {
@@ -942,8 +967,8 @@ const INBOXES: Inbox[] = [
                 minutesAfter(planById("tp-marcus-rehab-conditioning").updatedAt, 1),
                 "training",
                 "info",
-                "Plan updated for your recovery",
-                `Rafael Costa set up “${planById("tp-marcus-rehab-conditioning").title}” while your right hand heals.`,
+                "Giáo án đã điều chỉnh theo quá trình hồi phục",
+                `Rafael Costa đã lập “${planById("tp-marcus-rehab-conditioning").title}” trong thời gian tay phải của bạn đang lành.`,
                 routes.fighter.plan("tp-marcus-rehab-conditioning"),
             ),
             ...feedbackForFighter("fb-marcus-conditioning-6d"),
@@ -960,8 +985,8 @@ const INBOXES: Inbox[] = [
                 pastToday(7, 0),
                 "clearance",
                 "warning",
-                `Your Medical Clearance expires in ${daysBetween(TODAY_START, SOFIA_CLEARANCE.validUntil ?? TODAY_START)} days`,
-                `Book your pre-fight medical with ${staffName(SOFIA_CLEARANCE.doctorId)} before ${formatDate(SOFIA_CLEARANCE.validUntil ?? TODAY_START)}. You fight at Lotus Fight Night 17 in ${daysBetween(TODAY_START, LFN17.date)} days.`,
+                `Cấp phép y tế của bạn hết hạn sau ${daysBetween(TODAY_START, SOFIA_CLEARANCE.validUntil ?? TODAY_START)} ngày`,
+                `Hãy đặt lịch khám trước trận với ${staffName(SOFIA_CLEARANCE.doctorId)} trước ngày ${viDate(SOFIA_CLEARANCE.validUntil ?? TODAY_START)}. Còn ${daysBetween(TODAY_START, LFN17.date)} ngày nữa bạn thi đấu tại Lotus Fight Night 17.`,
                 routes.fighter.health,
             ),
         ],
@@ -977,8 +1002,8 @@ const INBOXES: Inbox[] = [
                 daysAgo(2, 9, 41),
                 "medical",
                 "info",
-                "Pre-fight medical coming up",
-                "Dr. Thu Lê will book your pre-fight medical for Lotus Fight Night 17. Watch for the clinic schedule.",
+                "Sắp đến lịch khám trước trận",
+                "Dr. Thu Lê sẽ đặt lịch khám trước trận cho Lotus Fight Night 17. Hãy theo dõi lịch của phòng khám.",
                 routes.fighter.health,
             ),
         ],
@@ -992,8 +1017,8 @@ const INBOXES: Inbox[] = [
                 jobEndedAt("job-tariq-shadow-2d"),
                 "ai_analysis",
                 "danger",
-                "Video couldn't be analysed",
-                "The AI couldn't find you in frame for most of the clip. Re-record with your whole body visible from about 3 metres away.",
+                "Không phân tích được video",
+                "AI không tìm thấy bạn trong khung hình ở phần lớn video. Hãy quay lại, đứng cách máy khoảng 3 mét để thấy toàn thân.",
                 routes.fighter.video("v-tariq-shadow-2d"),
             ),
             ...feedbackForFighter("fb-tariq-mitts-2d"),
@@ -1009,8 +1034,8 @@ const INBOXES: Inbox[] = [
                 minutesAfter(EMMA_SPARRING.uploadedAt, 1),
                 "ai_analysis",
                 "info",
-                "Sparring video queued for analysis",
-                `${userById(EMMA_SPARRING.uploadedById).name} uploaded your sparring footage. You'll be notified as soon as the analysis is ready.`,
+                "Video đấu tập đang chờ phân tích",
+                `${userById(EMMA_SPARRING.uploadedById).name} đã tải lên video đấu tập của bạn. Bạn sẽ nhận thông báo ngay khi có kết quả phân tích.`,
                 routes.fighter.video(EMMA_SPARRING.id),
             ),
         ],
@@ -1023,8 +1048,8 @@ const INBOXES: Inbox[] = [
                 minutesAfter(userById("u-bao-nguyen").createdAt, 259),
                 "system",
                 "success",
-                "Welcome to Lotus Combat Academy",
-                "Anna Volkova and James Okafor are your coaches. Complete your baseline physical before your first sparring session.",
+                "Chào mừng đến với Lotus Combat Academy",
+                "Anna Volkova và James Okafor là HLV của bạn. Hãy hoàn thành buổi khám thể lực ban đầu trước buổi đấu tập đầu tiên.",
                 routes.profile,
             ),
             ...feedbackForFighter("fb-bao-sprawl-4d"),
@@ -1033,8 +1058,8 @@ const INBOXES: Inbox[] = [
                 daysAgo(1, 9, 0),
                 "medical",
                 "info",
-                "Baseline physical booked",
-                `Your baseline physical with Dr. Samuel Brooks is on ${BAO_BASELINE}. You'll need a Medical Clearance before sparring.`,
+                "Đã đặt lịch khám thể lực ban đầu",
+                `Lịch khám thể lực ban đầu với Dr. Samuel Brooks vào ${BAO_BASELINE}. Bạn cần có cấp phép y tế trước khi đấu tập.`,
                 routes.fighter.health,
             ),
         ],
@@ -1052,8 +1077,8 @@ const INBOXES: Inbox[] = [
                 pastToday(7, 0),
                 "clearance",
                 "warning",
-                `Sofia Kowalski's clearance expires in ${daysBetween(TODAY_START, SOFIA_CLEARANCE.validUntil ?? TODAY_START)} days`,
-                `Sofia fights at Lotus Fight Night 17 in ${daysBetween(TODAY_START, LFN17.date)} days. ${staffName(SOFIA_CLEARANCE.doctorId)} needs to complete her pre-fight medical before ${formatDate(SOFIA_CLEARANCE.validUntil ?? TODAY_START)}.`,
+                `Cấp phép của Sofia Kowalski hết hạn sau ${daysBetween(TODAY_START, SOFIA_CLEARANCE.validUntil ?? TODAY_START)} ngày`,
+                `Còn ${daysBetween(TODAY_START, LFN17.date)} ngày nữa Sofia thi đấu tại Lotus Fight Night 17. ${staffName(SOFIA_CLEARANCE.doctorId)} cần hoàn tất buổi khám trước trận trước ngày ${viDate(SOFIA_CLEARANCE.validUntil ?? TODAY_START)}.`,
                 routes.coach.clearance,
             ),
         ],
@@ -1068,8 +1093,8 @@ const INBOXES: Inbox[] = [
                 pastToday(7, 0),
                 "clearance",
                 "warning",
-                "Bảo Nguyễn has no Medical Clearance yet",
-                `His baseline physical is on ${BAO_BASELINE}. Keep his sessions to technique and conditioning until he's cleared.`,
+                "Bảo Nguyễn chưa có cấp phép y tế",
+                `Lịch khám thể lực ban đầu vào ${BAO_BASELINE}. Chỉ xếp buổi tập kỹ thuật và thể lực cho đến khi võ sĩ được cấp phép.`,
                 routes.coach.fighter("f-bao-nguyen"),
             ),
         ],
@@ -1085,16 +1110,16 @@ const INBOXES: Inbox[] = [
                 daysAgo(1, 9, 0),
                 "medical",
                 "info",
-                "Baseline physical booked — Bảo Nguyễn",
-                `Scheduled for ${BAO_BASELINE}. Bảo has no Medical Clearance on file yet.`,
+                "Đã đặt lịch khám thể lực ban đầu — Bảo Nguyễn",
+                `Lịch khám vào ${BAO_BASELINE}. Bảo chưa có cấp phép y tế trong hồ sơ.`,
                 routes.doctor.fighter("f-bao-nguyen"),
             ),
             note(
                 pastToday(7, 0),
                 "clearance",
                 "warning",
-                `Clearance expires in ${daysBetween(TODAY_START, SOFIA_CLEARANCE.validUntil ?? TODAY_START)} days — Sofia Kowalski`,
-                "Her pre-fight medical for Lotus Fight Night 17 is due. Schedule it during the clinic block.",
+                `Cấp phép hết hạn sau ${daysBetween(TODAY_START, SOFIA_CLEARANCE.validUntil ?? TODAY_START)} ngày — Sofia Kowalski`,
+                "Đã đến hạn khám trước trận cho Lotus Fight Night 17. Hãy xếp lịch trong đợt khám của phòng khám.",
                 routes.doctor.fighter("f-sofia-kowalski"),
             ),
         ],
@@ -1104,7 +1129,7 @@ const INBOXES: Inbox[] = [
         unread: 0,
         items: [
             modelInStaging("move-anomaly", "1.0.0-rc1"),
-            lowConfidenceJob("job-hoang-shadow-7d", "mostly from poor lighting"),
+            lowConfidenceJob("job-hoang-shadow-7d", "chủ yếu do thiếu sáng"),
             modelInStaging("strike-cls", "2.4.0-rc1"),
             jobFailedForAdmin("job-bao-shadow-3d"),
             jobFailedForAdmin("job-tariq-shadow-2d"),
@@ -1122,8 +1147,8 @@ const CALENDAR_DELIVERIES: { userId: string; item: NotificationSeed }[] = RAFAEL
                   minutesAfter(RAFAEL_MISSED_SESSION.scheduledAt, 30),
                   "training",
                   "warning",
-                  "Session marked as missed",
-                  `Your session “${RAFAEL_MISSED_SESSION.title}” on ${formatWeekdayDate(RAFAEL_MISSED_SESSION.scheduledAt)} was marked as missed. Let Rafael Costa know if something came up.`,
+                  "Buổi tập bị đánh dấu vắng",
+                  `Buổi tập “${RAFAEL_MISSED_SESSION.title}” ${viWeekdayDate(RAFAEL_MISSED_SESSION.scheduledAt)} đã bị đánh dấu vắng. Hãy báo Rafael Costa nếu bạn có việc đột xuất.`,
                   routes.fighter.session(RAFAEL_MISSED_SESSION.id),
               ),
           },

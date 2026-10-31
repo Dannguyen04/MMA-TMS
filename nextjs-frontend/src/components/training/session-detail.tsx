@@ -17,15 +17,14 @@ import { clearanceConflictMessage } from "@/lib/domain/clearance-rules";
 import { exerciseCategoryLabel, trainingTypeLabel } from "@/lib/domain/labels";
 import type { ClearanceConflict } from "@/lib/domain/rules";
 import type { CoachFeedback, Exercise, SessionResult, TrainingPlan, TrainingSession, Video } from "@/lib/domain/types";
-import { formatClock, formatDate, formatDateTime, formatMinutes, formatTime, formatWeekdayDate, pluralize } from "@/lib/format";
+import { formatClock, formatDate, formatDateTime, formatMinutes, formatTime, formatWeekdayDate } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
 import { createTranslator, plural, type Translator } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import { sum } from "@/lib/utils";
 import { Callout } from "./callout";
 import { videoHref, type TrainingAudience } from "./session-table";
-import { NOT_RECORDED } from "@/components/domain/domain-format";
-import { exerciseVolume, plannedEndMs, rpeLabel, rpeText } from "./training-utils";
+import { exerciseVolume, plannedEndMs, rpeLabel, rpeTextFor } from "./training-utils";
 
 /** Status, type and start time for the session page header. */
 export function SessionHeaderMeta({ session, locale = "en" }: { session: TrainingSession; locale?: Locale }) {
@@ -172,6 +171,7 @@ export function SessionDetail({
                                                 coachName={coachNames[item.coachId] ?? t("training.plan.coach")}
                                                 now={now}
                                                 videoHref={item.videoId ? videoHref(audience, item.videoId) : undefined}
+                                                locale={locale}
                                             />
                                         </li>
                                     ))}
@@ -280,7 +280,7 @@ function ResultCard({ session, result, withRating, t, locale }: { session: Train
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                     <MetricTile
                         label={t("training.sessionDetail.actualDuration")}
-                        value={result.actualDurationMin === null ? NOT_RECORDED : formatMinutes(result.actualDurationMin)}
+                        value={result.actualDurationMin === null ? t("training.table.notRecorded") : formatMinutes(result.actualDurationMin)}
                         hint={
                             durationDelta === null
                                 ? undefined
@@ -291,8 +291,8 @@ function ResultCard({ session, result, withRating, t, locale }: { session: Train
                     />
                     <MetricTile
                         label={t("training.sessionDetail.sessionRpe")}
-                        value={result.rpe ?? NOT_RECORDED}
-                        unit={result.rpe === null ? undefined : rpeLabel(result.rpe)}
+                        value={result.rpe ?? t("training.table.notRecorded")}
+                        unit={result.rpe === null ? undefined : rpeLabel(result.rpe, t)}
                         hint={session.targetRpe === null ? undefined : t("training.sessionDetail.targetRpeHint", { rpe: session.targetRpe })}
                     />
                     <MetricTile label={t("training.sessionDetail.roundsCompleted")} value={result.roundsCompleted} />
@@ -301,7 +301,7 @@ function ResultCard({ session, result, withRating, t, locale }: { session: Train
                             label={t("training.sessionDetail.coachRating")}
                             value={
                                 result.coachRating === null ? (
-                                    NOT_RECORDED
+                                    t("training.table.notRecorded")
                                 ) : (
                                     <CoachRating locale={locale} rating={result.coachRating} className="flex-wrap gap-y-1 text-base font-normal" />
                                 )
@@ -327,7 +327,7 @@ function ExercisesCard({ session, exercises, t }: { session: TrainingSession; ex
     const description =
         session.exercises.length === 0
             ? undefined
-            : [pluralize(session.exercises.length, "exercise"), rounds > 0 ? plural(t, "training.sessionDetail.roundsCount", rounds) : null, completedSession ? t("training.sessionDetail.exercisesDoneCount", { done: doneCount }) : null]
+            : [plural(t, "screens.training.exercisesCount", session.exercises.length), rounds > 0 ? plural(t, "training.sessionDetail.roundsCount", rounds) : null, completedSession ? t("training.sessionDetail.exercisesDoneCount", { done: doneCount }) : null]
                   .filter(Boolean)
                   .join(" · ");
 
@@ -359,7 +359,7 @@ function ExercisesCard({ session, exercises, t }: { session: TrainingSession; ex
                                         <TD className="text-fg-subtle">{index + 1}</TD>
                                         <TD className="min-w-48 font-medium">{exercise?.name ?? t("training.sessionDetail.exerciseNoLongerInLibrary")}</TD>
                                         <TD className="whitespace-nowrap text-fg-muted">{exercise ? exerciseCategoryLabel(t, exercise.category) : "—"}</TD>
-                                        <TD className="whitespace-nowrap">{exerciseVolume(item) ?? <span className="text-fg-subtle">—</span>}</TD>
+                                        <TD className="whitespace-nowrap">{exerciseVolume(item, t) ?? <span className="text-fg-subtle">—</span>}</TD>
                                         <TD className="min-w-40 text-fg-muted">{item.notes ?? <span className="text-fg-subtle">—</span>}</TD>
                                         <TD className="text-center">
                                             {!completedSession ? (
@@ -411,7 +411,7 @@ function DetailsCard({
     const end = session.durationMin === null ? null : new Date(plannedEndMs(session)).toISOString();
     const items: DescriptionItem[] = [];
     if (fighter) {
-        items.push({ label: t("training.sessionDetail.fighter"), value: <FighterIdentity fighter={fighter} href={fighterHref} size="sm" className="mt-1" />, wide: true });
+        items.push({ label: t("training.sessionDetail.fighter"), value: <FighterIdentity fighter={fighter} href={fighterHref} size="sm" className="mt-1" locale={locale} />, wide: true });
     }
     items.push(
         { label: t("training.sessionDetail.date"), value: <time dateTime={session.scheduledAt}>{formatWeekdayDate(session.scheduledAt, locale)}</time> },
@@ -429,9 +429,9 @@ function DetailsCard({
                 </>
             ),
         },
-        { label: t("training.sessionDetail.plannedDuration"), value: session.durationMin === null ? NOT_RECORDED : formatMinutes(session.durationMin) },
-        ...(withTarget ? [{ label: t("training.sessionDetail.targetIntensity"), value: rpeText(session.targetRpe) ?? NOT_RECORDED }] : []),
-        { label: t("training.sessionDetail.location"), value: session.location || NOT_RECORDED, wide: true },
+        { label: t("training.sessionDetail.plannedDuration"), value: session.durationMin === null ? t("training.table.notRecorded") : formatMinutes(session.durationMin) },
+        ...(withTarget ? [{ label: t("training.sessionDetail.targetIntensity"), value: rpeTextFor(t, session.targetRpe) ?? t("training.table.notRecorded") }] : []),
+        { label: t("training.sessionDetail.location"), value: session.location || t("training.table.notRecorded"), wide: true },
         { label: t("training.sessionDetail.coach"), value: coachName, wide: true },
         {
             label: t("training.sessionDetail.trainingPlan"),

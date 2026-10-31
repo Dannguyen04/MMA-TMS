@@ -1,7 +1,10 @@
-import { TriangleAlert } from "lucide-react";
+import { FileText, TriangleAlert } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { buildReplay } from "@/components/replay/replay-data";
+import { RoundReplay } from "@/components/replay/round-replay";
+import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { canAccessFighter } from "@/lib/auth/access";
@@ -55,6 +58,16 @@ export default async function CoachBoutRoundsPage({ params }: PageProps) {
         (roundsResult.ok ? roundsResult.data.scheduledRounds : null) ??
         analysisDetail?.scheduledRounds ??
         null;
+    // Played back only from rounds the corner has recorded; nothing to show before the first.
+    const replay =
+        roundsResult.ok && analysisDetail
+            ? buildReplay(analysisDetail.opponentAnalysis, roundsResult.data.rounds, scheduledRounds)
+            : null;
+    const replayView = replay ? (
+        <RoundReplay data={replay} fighter={fighter.name} opponent={bout.opponent ?? t("bout.opponentTba")} />
+    ) : null;
+    // After the bout the replay leads the page; while rounds are still being recorded the form does.
+    const replayFirst = bout.phase === "COMPLETED";
 
     return (
         <div className="flex min-w-0 flex-col gap-5">
@@ -70,7 +83,15 @@ export default async function CoachBoutRoundsPage({ params }: PageProps) {
                     opponent: bout.opponent ?? t("bout.opponentTba"),
                     rounds: scheduledRounds ?? 0,
                 })}
+                actions={
+                    <ButtonLink href={`${routes.coach.bout(bout.id)}/corner-card`} variant="secondary">
+                        <FileText aria-hidden />
+                        {t("boutAnalysis.nav.cornerCard")}
+                    </ButtonLink>
+                }
             />
+
+            {replayFirst && replayView}
 
             {!canRecordRounds || !roundsResult.ok ? (
                 <Card className="min-w-0 border-warning-border bg-warning-soft">
@@ -102,6 +123,8 @@ export default async function CoachBoutRoundsPage({ params }: PageProps) {
                     advice={roundsResult.data.advice}
                 />
             )}
+
+            {!replayFirst && replayView}
         </div>
     );
 }

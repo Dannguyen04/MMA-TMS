@@ -435,11 +435,11 @@ export const viHealth: Record<keyof typeof enHealth, string> = {
     "fighterHistory.resolved": "đã khỏi",
     "fighterHistory.expected": "dự kiến {when}",
     "fighterHistory.toBeAssessed": "Chờ đánh giá",
-    "fighterHistory.eventCount": "{count} sự kiện",
+    "fighterHistory.eventCount": "{n} sự kiện",
     "fighterHistory.eventCount.one": "1 sự kiện",
-    "fighterHistory.examCount": "{count} lần khám",
+    "fighterHistory.examCount": "{n} lần khám",
     "fighterHistory.examCount.one": "1 lần khám",
-    "fighterHistory.injuryCount": "{count} chấn thương",
+    "fighterHistory.injuryCount": "{n} chấn thương",
     "fighterHistory.injuryCount.one": "1 chấn thương",
 
     /* ─── Fighter Injury Details Page ─── */
@@ -463,7 +463,7 @@ export const viHealth: Record<keyof typeof enHealth, string> = {
     "fighterInjury.checkInsDesc": "Cảm nhận của bạn ở từng lần kiểm tra",
     "fighterInjury.trendChartsHint": "Biểu đồ xu hướng sẽ xuất hiện sau lần kiểm tra thứ hai.",
     "fighterInjury.treatments": "Phác đồ điều trị",
-    "fighterInjury.treatmentCount": "{count} phác đồ",
+    "fighterInjury.treatmentCount": "{n} phác đồ",
     "fighterInjury.treatmentCount.one": "1 phác đồ",
     "fighterInjury.noTreatmentsTitle": "Chưa ghi nhận phác đồ điều trị",
     "fighterInjury.noTreatmentsDesc": "Bác sĩ sẽ bổ sung phác đồ điều trị tại đây theo tiến trình chăm sóc.",

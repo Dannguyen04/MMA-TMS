@@ -214,43 +214,47 @@ export function ReviewStateBadge({
     confidence,
     size,
     className,
+    locale,
 }: {
     review: AIFeedback | null;
     confidence: number | null;
     size?: BadgeSize;
     className?: string;
+    /** The viewer's language; English when omitted. */
+    locale?: Locale;
 }) {
+    const t = locale ? createTranslator(locale) : null;
     if (review?.decision === "confirmed") {
         return (
-            <Badge tone="success" icon={UserCheck} size={size} className={className} title={`Confirmed by ${review.reviewerName}`}>
-                Human verified
+            <Badge tone="success" icon={UserCheck} size={size} className={className} title={t ? t("screens.shared.review.confirmedBy", { name: review.reviewerName }) : `Confirmed by ${review.reviewerName}`}>
+                {t ? t("screens.shared.review.humanVerified") : "Human verified"}
             </Badge>
         );
     }
     if (review?.decision === "corrected") {
         return (
-            <Badge tone="info" icon={PenLine} size={size} className={className} title={`Corrected by ${review.reviewerName}`}>
-                Human corrected
+            <Badge tone="info" icon={PenLine} size={size} className={className} title={t ? t("screens.shared.review.correctedBy", { name: review.reviewerName }) : `Corrected by ${review.reviewerName}`}>
+                {t ? t("screens.shared.review.humanCorrected") : "Human corrected"}
             </Badge>
         );
     }
     if (review?.decision === "rejected") {
         return (
-            <Badge tone="neutral" icon={UserX} size={size} className={className} title={`Rejected by ${review.reviewerName}`}>
-                Rejected by reviewer
+            <Badge tone="neutral" icon={UserX} size={size} className={className} title={t ? t("screens.shared.review.rejectedBy", { name: review.reviewerName }) : `Rejected by ${review.reviewerName}`}>
+                {t ? t("screens.shared.review.rejected") : "Rejected by reviewer"}
             </Badge>
         );
     }
     if (confidenceBand(confidence) === "low") {
         return (
             <Badge tone="warning" icon={TriangleAlert} size={size} className={className}>
-                Needs review
+                {t ? t("screens.shared.review.needsReview") : "Needs review"}
             </Badge>
         );
     }
     return (
         <Badge tone="ai" icon={Bot} size={size} className={className}>
-            Unreviewed
+            {t ? t("screens.shared.review.unreviewed") : "Unreviewed"}
         </Badge>
     );
 }
@@ -267,14 +271,20 @@ export function AlertStatusBadge({ status, size, className }: { status: AlertSta
 }
 
 /** Confidence as text + band, e.g. "87% · High". */
-export function ConfidenceBadge({ confidence, size, className }: { confidence: number | null; size?: BadgeSize; className?: string }) {
+export function ConfidenceBadge({ confidence, size, className, locale }: { confidence: number | null; size?: BadgeSize; className?: string; locale?: Locale }) {
     const band = confidenceBand(confidence);
     const tone: Tone = band === "high" ? "neutral" : band === "medium" ? "neutral" : "warning";
     return (
         <Badge tone={tone} variant="outline" size={size} className={className} icon={band === "low" ? TriangleAlert : undefined}>
-            {formatConfidence(confidence)} confidence
+            {locale ? confidenceText(confidence, locale) : `${formatConfidence(confidence)} confidence`}
         </Badge>
     );
+}
+
+/** "87% confidence" in the viewer's language; "Unavailable" when there is no score. */
+export function confidenceText(confidence: number | null, locale: Locale = "en"): string {
+    const t = createTranslator(locale);
+    return t("screens.shared.confidence", { pct: confidence === null ? t("screens.shared.confidenceUnavailable") : formatConfidence(confidence) });
 }
 
 /* ─── Training ────────────────────────────────────────────────────────────── */
@@ -311,8 +321,9 @@ export const GOAL_STATUS_META: Record<GoalStatus, StatusMeta> = {
     missed: { label: GOAL_STATUS_LABELS.missed, tone: "neutral", icon: Flag },
 };
 
-export function GoalStatusBadge({ status, size, className }: { status: GoalStatus; size?: BadgeSize; className?: string }) {
-    return <StatusBadge meta={GOAL_STATUS_META[status]} size={size} className={className} />;
+export function GoalStatusBadge({ status, size, className, locale }: { status: GoalStatus; size?: BadgeSize; className?: string; locale?: Locale }) {
+    const meta = GOAL_STATUS_META[status];
+    return <StatusBadge meta={locale ? { ...meta, label: createTranslator(locale)(`screens.performance.goalStatus.${status}`) } : meta} size={size} className={className} />;
 }
 
 /* ─── Injuries ────────────────────────────────────────────────────────────── */

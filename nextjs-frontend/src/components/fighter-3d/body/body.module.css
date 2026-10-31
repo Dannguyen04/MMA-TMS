@@ -1,0 +1,78 @@
+/* Label pins over the 3D body. The scene moves each pin (transform, opacity) every frame. */
+
+.pin {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 0;
+    height: 0;
+    will-change: transform, opacity;
+    transition: opacity 160ms ease-out;
+}
+
+.pinDot {
+    position: absolute;
+    left: -4px;
+    top: -4px;
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--pin-color);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--pin-color) 30%, transparent);
+}
+
+.pinTag {
+    position: absolute;
+    top: -12px;
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    column-gap: 6px;
+    width: max-content;
+    max-width: 168px;
+    padding: 3px 9px 3px 8px;
+    border-radius: 7px;
+    font-size: 12px;
+    line-height: 18px;
+    font-weight: 600;
+}
+
+.pinTag::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    width: 22px;
+    height: 1px;
+    background: var(--pin-color);
+    opacity: 0.8;
+}
+
+.pin[data-side="right"] .pinTag {
+    left: 26px;
+}
+
+.pin[data-side="right"] .pinTag::before {
+    right: 100%;
+}
+
+.pin[data-side="left"] .pinTag {
+    right: 26px;
+}
+
+.pin[data-side="left"] .pinTag::before {
+    left: 100%;
+}
+
+.pinHologram .pinTag {
+    color: var(--nav-fg-active);
+    background: color-mix(in oklab, var(--nav-bg) 78%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--pin-color) 55%, transparent);
+    backdrop-filter: blur(6px);
+}
+
+.pinClinical .pinTag {
+    color: var(--fg);
+    background: var(--surface);
+    box-shadow: var(--shadow-md), inset 0 0 0 1px color-mix(in oklab, var(--pin-color) 45%, var(--border));
+}
+

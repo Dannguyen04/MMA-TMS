@@ -6,20 +6,23 @@ import { NewGoalButton } from "@/components/performance/new-goal-button";
 import { EmptyState, FeatureUnavailable } from "@/components/ui/states";
 import { requireFighterAccess } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
-import { pluralize } from "@/lib/format";
+import { getTranslator } from "@/lib/i18n/server";
+import { plural } from "@/lib/i18n/translate";
 import { listGoals } from "@/lib/services/goals";
 import { platformFeatureAvailable } from "@/lib/services/platform-features";
 
 export async function generateMetadata({ params }: PageProps<"/coach/fighters/[fighterId]/goals">): Promise<Metadata> {
     const user = await requireRole("coach");
-    const fighter = await requireFighterAccess(user, (await params).fighterId);
-    return { title: `Goals · ${fighter.name}` };
+    const [fighter, { t }] = await Promise.all([requireFighterAccess(user, (await params).fighterId), getTranslator()]);
+    return { title: t("screens.performance.fighterTab.goalsMeta", { name: fighter.name }) };
 }
 
 export default async function CoachFighterGoalsPage({ params }: PageProps<"/coach/fighters/[fighterId]/goals">) {
     const user = await requireRole("coach");
-    const fighter = await requireFighterAccess(user, (await params).fighterId);
-    if (!platformFeatureAvailable("goals")) return <FeatureUnavailable service="training" title="Goals aren't available yet" />;
+    const [fighter, { t, locale }] = await Promise.all([requireFighterAccess(user, (await params).fighterId), getTranslator()]);
+    if (!platformFeatureAvailable("goals")) {
+        return <FeatureUnavailable service="training" title={t("screens.performance.goalsUnavailable")} description={t("screens.performance.unavailableDesc")} />;
+    }
     const goals = await listGoals({ fighterIds: [fighter.id] });
     const now = new Date().toISOString();
     const firstName = fighter.name.split(" ")[0];
@@ -32,12 +35,12 @@ export default async function CoachFighterGoalsPage({ params }: PageProps<"/coac
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div className="min-w-0">
                     <h2 id="goals-heading" className="text-lg font-semibold text-fg">
-                        Goals
+                        {t("screens.performance.goals")}
                     </h2>
                     <p className="mt-0.5 text-sm text-fg-muted">
                         {goals.length === 0
-                            ? `Set measurable targets for ${firstName} and log progress as you measure it.`
-                            : `${pluralize(active.length, "goal")} in progress${atRisk > 0 ? ` · ${atRisk} at risk` : ""}. ${firstName} sees these goals and every check-in.`}
+                            ? t("screens.performance.fighterTab.goalsEmptyIntro", { name: firstName })
+                            : `${plural(t, "screens.performance.goalsInProgress", active.length)}${atRisk > 0 ? t("screens.performance.fighterTab.atRisk", { n: atRisk }) : ""}. ${t("screens.performance.fighterTab.sees", { name: firstName })}`}
                     </p>
                 </div>
                 {goals.length > 0 && <NewGoalButton now={now} fighter={fighterOption} />}
@@ -46,12 +49,12 @@ export default async function CoachFighterGoalsPage({ params }: PageProps<"/coac
             {goals.length === 0 ? (
                 <EmptyState
                     icon={<Target />}
-                    title={`No goals for ${firstName} yet`}
-                    description="Goals turn feedback into a measurable target with a due date. Start from the focus area on the Performance tab."
+                    title={t("screens.performance.fighterTab.goalsEmptyTitle", { name: firstName })}
+                    description={t("screens.performance.fighterTab.goalsEmptyDesc")}
                     action={<NewGoalButton now={now} fighter={fighterOption} />}
                 />
             ) : (
-                <GoalGroups goals={goals} now={now} heading="h3" manage={{ fighterName: fighter.name }} />
+                <GoalGroups goals={goals} now={now} heading="h3" manage={{ fighterName: fighter.name }} locale={locale} />
             )}
         </section>
     );

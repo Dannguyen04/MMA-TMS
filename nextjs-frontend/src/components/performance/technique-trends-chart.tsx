@@ -5,7 +5,8 @@ import { useState } from "react";
 import { ChartFigure } from "@/components/charts/chart-figure";
 import { TECHNIQUE_COLOR } from "@/components/charts/colors";
 import { LineChart } from "@/components/charts/line-chart";
-import { TECHNIQUE_LABELS, TECHNIQUES } from "@/lib/domain/labels";
+import { useT } from "@/components/i18n/locale-provider";
+import { techniqueLabel, TECHNIQUES } from "@/lib/domain/labels";
 import type { Technique } from "@/lib/domain/types";
 import { cn } from "@/lib/utils";
 
@@ -21,25 +22,26 @@ export interface TechniqueTrendsChartProps {
 
 /** Weekly technique scores with toggles to choose which techniques are drawn (at least one stays on). */
 export function TechniqueTrendsChart({ labels, scores, initial = DEFAULT_SERIES }: TechniqueTrendsChartProps) {
+    const t = useT();
     const [selected, setSelected] = useState<Technique[]>(initial);
 
     const toggle = (technique: Technique) => {
         setSelected((current) => {
-            if (!current.includes(technique)) return TECHNIQUES.filter((t) => t === technique || current.includes(t));
-            return current.length === 1 ? current : current.filter((t) => t !== technique);
+            if (!current.includes(technique)) return TECHNIQUES.filter((item) => item === technique || current.includes(item));
+            return current.length === 1 ? current : current.filter((item) => item !== technique);
         });
     };
 
     const series = selected.map((technique) => ({
         id: technique,
-        label: TECHNIQUE_LABELS[technique],
+        label: techniqueLabel(t, technique),
         color: TECHNIQUE_COLOR[technique],
         values: scores[technique],
     }));
 
     return (
         <div className="flex flex-col gap-4">
-            <div role="group" aria-label="Techniques shown in the chart" className="flex flex-wrap gap-1.5">
+            <div role="group" aria-label={t("screens.performance.trends.group")} className="flex flex-wrap gap-1.5">
                 {TECHNIQUES.map((technique) => {
                     const on = selected.includes(technique);
                     return (
@@ -58,20 +60,20 @@ export function TechniqueTrendsChart({ labels, scores, initial = DEFAULT_SERIES 
                                 className="size-2.5 shrink-0 rounded-[3px] border-2"
                                 style={{ borderColor: TECHNIQUE_COLOR[technique], backgroundColor: on ? TECHNIQUE_COLOR[technique] : "transparent" }}
                             />
-                            {TECHNIQUE_LABELS[technique]}
+                            {techniqueLabel(t, technique)}
                         </button>
                     );
                 })}
             </div>
             <ChartFigure
-                tableCaption="Weekly technique scores"
+                tableCaption={t("screens.performance.trends.caption")}
                 table={{
-                    columns: ["Week", ...selected.map((technique) => TECHNIQUE_LABELS[technique])],
+                    columns: [t("screens.performance.week"), ...selected.map((technique) => techniqueLabel(t, technique))],
                     rows: labels.map((label, index) => [label, ...selected.map((technique) => scores[technique][index])]),
                 }}
             >
                 <LineChart
-                    ariaLabel={`Weekly scores for ${series.map((s) => s.label).join(", ")}`}
+                    ariaLabel={t("screens.performance.trends.aria", { list: series.map((s) => s.label).join(", ") })}
                     labels={labels}
                     series={series}
                     height={260}

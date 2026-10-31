@@ -1,9 +1,10 @@
 import Link from "next/link";
 
 import { Avatar } from "@/components/ui/avatar";
-import { STANCE_LABELS, TRAINING_LEVEL_LABELS, WEIGHT_CLASS_LABELS } from "@/lib/domain/labels";
-import { labelOf, presentFacts } from "./domain-format";
+import { stanceLabel, trainingLevelLabel, weightClassLabel } from "@/lib/domain/labels";
+import { presentFacts } from "./domain-format";
 import type { Fighter } from "@/lib/domain/types";
+import type { Locale } from "@/lib/i18n/config";
 import { cn } from "@/lib/utils";
 import { HealthStatusBadge } from "./status-badges";
 
@@ -24,6 +25,8 @@ export interface FighterIdentityProps {
     /** Hide the "weight class · stance · level" line in dense rows. */
     showMeta?: boolean;
     className?: string;
+    /** The viewer's language; English when omitted. */
+    locale?: Locale;
 }
 
 const NAME_CLASS: Record<FighterIdentitySize, string> = {
@@ -41,8 +44,13 @@ export function FighterIdentity({
     showHealth = false,
     showMeta = true,
     className,
+    locale,
 }: FighterIdentityProps) {
-    const meta = presentFacts(WEIGHT_CLASS_LABELS[fighter.weightClass], labelOf(STANCE_LABELS, fighter.stance), labelOf(TRAINING_LEVEL_LABELS, fighter.level)).join(" · ");
+    const meta = presentFacts(
+        weightClassLabel(fighter.weightClass, locale),
+        fighter.stance === null ? null : stanceLabel(fighter.stance, locale),
+        fighter.level === null ? null : trainingLevelLabel(fighter.level, locale),
+    ).join(" · ");
 
     return (
         <div className={cn("flex min-w-0 items-center", size === "lg" ? "gap-4" : "gap-3", className)}>
@@ -71,7 +79,7 @@ export function FighterIdentity({
                 {showMeta && <p className={cn("truncate text-fg-muted", size === "sm" ? "text-xs" : "text-[13px]")}>{meta}</p>}
                 {showHealth && fighter.healthStatus !== "not_cleared" && (
                     <div className="mt-1.5">
-                        <HealthStatusBadge status={fighter.healthStatus} size="sm" />
+                        <HealthStatusBadge status={fighter.healthStatus} size="sm" locale={locale} />
                     </div>
                 )}
             </div>

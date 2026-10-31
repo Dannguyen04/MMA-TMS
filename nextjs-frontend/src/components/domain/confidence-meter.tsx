@@ -2,6 +2,8 @@ import { TriangleAlert } from "lucide-react";
 
 import { confidenceBand, LOW_CONFIDENCE_THRESHOLD, type ConfidenceBand } from "@/lib/domain/rules";
 import { formatConfidence } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
+import { createTranslator } from "@/lib/i18n/translate";
 import { clamp, cn } from "@/lib/utils";
 
 const BAND_LABELS: Record<ConfidenceBand, string> = {
@@ -18,26 +20,37 @@ export interface ConfidenceMeterProps {
     /** Review threshold, 0–1. Defaults to the platform low-confidence threshold. */
     lowThreshold?: number;
     className?: string;
+    /** The viewer's language; English when omitted. */
+    locale?: Locale;
 }
 
 /** Horizontal 0–100% meter with the band label and a tick at the review threshold. */
-export function ConfidenceMeter({ confidence, label = "AI confidence", lowThreshold = LOW_CONFIDENCE_THRESHOLD, className }: ConfidenceMeterProps) {
-    if (confidence === null) return <p className={cn("text-sm text-fg-muted", className)}>{label}: unavailable — requires review</p>;
+export function ConfidenceMeter({ confidence, label, lowThreshold = LOW_CONFIDENCE_THRESHOLD, className, locale }: ConfidenceMeterProps) {
+    const t = locale ? createTranslator(locale) : null;
+    const name = label ?? (t ? t("screens.training.confidence.label") : "AI confidence");
+    if (confidence === null) {
+        return <p className={cn("text-sm text-fg-muted", className)}>{t ? t("screens.training.confidence.unavailable", { label: name }) : `${name}: unavailable — requires review`}</p>;
+    }
     const value = clamp(confidence, 0, 1);
     const band = confidenceBand(value, lowThreshold);
     const isLow = band === "low";
     const pct = Math.round(value * 100);
     const thresholdPct = Math.round(clamp(lowThreshold, 0, 1) * 100);
+    const bandLabel = t ? t(`screens.training.confidence.band.${band}`) : BAND_LABELS[band];
 
     return (
         <div className={cn("flex items-center gap-3", className)}>
             <div
                 role="progressbar"
-                aria-label={label}
+                aria-label={name}
                 aria-valuemin={0}
                 aria-valuemax={100}
                 aria-valuenow={pct}
-                aria-valuetext={`${formatConfidence(value)}, ${BAND_LABELS[band].toLowerCase()} (review threshold ${thresholdPct}%)`}
+                aria-valuetext={
+                    t
+                        ? t("screens.training.confidence.valueText", { value: formatConfidence(value), band: bandLabel.toLowerCase(), threshold: thresholdPct })
+                        : `${formatConfidence(value)}, ${bandLabel.toLowerCase()} (review threshold ${thresholdPct}%)`
+                }
                 className="relative h-2 min-w-16 flex-1 rounded-full bg-surface-hover"
             >
                 <div
@@ -54,7 +67,7 @@ export function ConfidenceMeter({ confidence, label = "AI confidence", lowThresh
                 <span className="font-semibold text-fg">{formatConfidence(value)}</span>
                 <span className={cn("inline-flex items-center gap-1", isLow ? "font-medium text-warning-fg" : "text-fg-muted")}>
                     {isLow && <TriangleAlert className="size-3.5" />}
-                    {BAND_LABELS[band]}
+                    {bandLabel}
                 </span>
             </p>
         </div>

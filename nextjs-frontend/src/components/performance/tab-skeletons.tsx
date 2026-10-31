@@ -1,9 +1,11 @@
 import { CardGridSkeleton, KpiRowSkeleton, LoadingRegion, SectionHeaderSkeleton, Skeleton } from "@/components/ui/skeleton";
+import type { Locale } from "@/lib/i18n/config";
+import { createTranslator } from "@/lib/i18n/translate";
 
 /** Placeholder for the performance tab inside a fighter profile (the layout already shows the header). */
-export function PerformanceTabSkeleton() {
+export function PerformanceTabSkeleton({ locale }: { locale: Locale }) {
     return (
-        <LoadingRegion label="Loading performance" className="flex flex-col gap-6">
+        <LoadingRegion label={createTranslator(locale)("screens.performance.loading.performance")} className="flex flex-col gap-6">
             <SectionHeaderSkeleton />
             <KpiRowSkeleton />
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
@@ -16,9 +18,9 @@ export function PerformanceTabSkeleton() {
 }
 
 /** Placeholder for the goals tab inside a fighter profile. */
-export function GoalsTabSkeleton() {
+export function GoalsTabSkeleton({ locale }: { locale: Locale }) {
     return (
-        <LoadingRegion label="Loading goals" className="flex flex-col gap-6">
+        <LoadingRegion label={createTranslator(locale)("screens.performance.loading.goals")} className="flex flex-col gap-6">
             <SectionHeaderSkeleton />
             <CardGridSkeleton columns={2} count={4} height="h-72" />
         </LoadingRegion>

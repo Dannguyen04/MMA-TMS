@@ -1,10 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import {
     CheckCircle2,
-    FileText,
     Flame,
     ShieldAlert,
     TriangleAlert,
@@ -26,7 +24,6 @@ import type {
     SelfScore,
     TacticOutcome,
 } from "@/lib/domain/round-advice";
-import { routes } from "@/lib/routes";
 
 interface RoundsViewProps {
     boutId: string;
@@ -55,17 +52,6 @@ export function RoundsView({
 
     return (
         <div className="flex min-w-0 flex-col gap-5">
-            {/* Quick link to Corner Card */}
-            <div className="flex flex-wrap items-center justify-end gap-2">
-                <Link
-                    href={`${routes.coach.bout(boutId)}/corner-card`}
-                    className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3.5 text-xs font-semibold text-fg transition hover:bg-surface-muted"
-                >
-                    <FileText aria-hidden className="size-3.5 shrink-0" />
-                    <span>{t("boutAnalysis.nav.cornerCard")}</span>
-                </Link>
-            </div>
-
             {/* Between-round advice panel (T-010B §5, R21–R24) */}
             {advice && (
                 <Card className="min-w-0 border-primary/40 bg-surface">

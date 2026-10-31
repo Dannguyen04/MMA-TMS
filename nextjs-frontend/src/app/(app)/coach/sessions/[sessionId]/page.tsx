@@ -92,7 +92,7 @@ export default async function CoachSessionPage({ params, searchParams }: PagePro
             plannedDurationMin={session.durationMin}
             targetRpe={session.targetRpe}
             plannedRounds={sum(session.exercises.map((e) => e.rounds ?? 0))}
-            exercises={session.exercises.map((e) => ({ exerciseId: e.exerciseId, name: exercises[e.exerciseId]?.name ?? "Exercise", completed: e.completed }))}
+            exercises={session.exercises.map((e) => ({ exerciseId: e.exerciseId, name: exercises[e.exerciseId]?.name ?? t("screens.training.exerciseFallback"), completed: e.completed }))}
             result={session.result}
             serviceForm={serviceForm}
         />

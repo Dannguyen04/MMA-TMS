@@ -1,13 +1,12 @@
 import { Activity, Swords, Trophy, Users } from "lucide-react";
 
 import { recordSpoken, recordText } from "@/components/dashboard/dashboard-utils";
-import { labelOf } from "@/components/domain/domain-format";
 import { MetricTile } from "@/components/domain/metric-tile";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { DescriptionList } from "@/components/ui/description-list";
-import { STANCE_LABELS, TRAINING_LEVEL_LABELS, WEIGHT_CLASS_LABELS } from "@/lib/domain/labels";
+import { stanceLabel, trainingLevelLabel, weightClassLabel } from "@/lib/domain/labels";
 import type { Coach, Doctor, Fighter } from "@/lib/domain/types";
 import { formatDate, formatNumber, formatRelative } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
@@ -35,7 +34,7 @@ export function FightProfileCard({ fighter, now, locale = "en" }: { fighter: Fig
                                 <p className="text-xs font-medium text-fg-muted">{t("account.fightProfile.nextBout")}</p>
                                 <p className="text-[15px] font-semibold text-fg">{bout.event}</p>
                                 <p className="text-[13px] text-fg-muted">
-                                    {t("account.fightProfile.vs", { opponent: bout.opponent, weightClass: WEIGHT_CLASS_LABELS[bout.weightClass] })}
+                                    {t("account.fightProfile.vs", { opponent: bout.opponent, weightClass: weightClassLabel(bout.weightClass, locale) })}
                                 </p>
                             </div>
                         </div>
@@ -55,16 +54,16 @@ export function FightProfileCard({ fighter, now, locale = "en" }: { fighter: Fig
                     columns={3}
                     className="grid-cols-2"
                     items={[
-                        { label: t("account.fightProfile.weightClass"), value: WEIGHT_CLASS_LABELS[fighter.weightClass] },
-                        { label: t("account.fightProfile.stance"), value: labelOf(STANCE_LABELS, fighter.stance) ?? notRecorded },
-                        { label: t("account.fightProfile.level"), value: labelOf(TRAINING_LEVEL_LABELS, fighter.level) ?? notRecorded },
+                        { label: t("account.fightProfile.weightClass"), value: weightClassLabel(fighter.weightClass, locale) },
+                        { label: t("account.fightProfile.stance"), value: fighter.stance ? stanceLabel(fighter.stance, locale) : notRecorded },
+                        { label: t("account.fightProfile.level"), value: fighter.level ? trainingLevelLabel(fighter.level, locale) : notRecorded },
                         { label: t("account.fightProfile.discipline"), value: fighter.primaryDiscipline ?? notRecorded },
                         {
                             label: t("account.fightProfile.record"),
                             value: fighter.record ? (
                                 <>
                                     <span aria-hidden>{recordText(fighter)}</span>
-                                    <span className="sr-only">{recordSpoken(fighter)}</span>
+                                    <span className="sr-only">{recordSpoken(fighter, t)}</span>
                                 </>
                             ) : (
                                 notRecorded
@@ -85,7 +84,7 @@ export function FightProfileCard({ fighter, now, locale = "en" }: { fighter: Fig
 /** `canLog` offers the fighter's own weigh-in log; off while body metrics can't be saved. */
 export function BodyMetricsCard({ fighter, canLog, locale = "en" }: { fighter: Fighter; canLog: boolean; locale?: Locale }) {
     const t = createTranslator(locale);
-    const classLabel = WEIGHT_CLASS_LABELS[fighter.weightClass];
+    const classLabel = weightClassLabel(fighter.weightClass, locale);
     const gap = fighter.weightKg === null ? null : Number((fighter.weightKg - fighter.targetWeightKg).toFixed(1));
     const notRecorded = t("account.profile.notRecorded");
 

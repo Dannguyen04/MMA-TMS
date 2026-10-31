@@ -7,7 +7,8 @@ import { injuryTitle } from "@/components/clinical/clinical-copy";
 import { TreatmentList } from "@/components/clinical/treatment-list";
 import { CheckInTrends } from "@/components/dashboard/check-in-trends";
 import { InlineNote } from "@/components/dashboard/inline-note";
-import { BodyMap } from "@/components/domain/body-map";
+import { BodyMapAuto } from "@/components/fighter-3d/body/body-map-auto";
+import { toFigureSource } from "@/components/fighter-3d/figure-params";
 import { CheckInCharts } from "@/components/domain/check-in-charts";
 import { describeDaysUntil } from "@/components/domain/domain-format";
 import { RecoveryProgress } from "@/components/domain/recovery-progress";
@@ -29,7 +30,7 @@ import { plural, type Translator } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import { getInjuryDetail, type InjuryDetail } from "@/lib/services/medical";
 import { medicalFeatureAvailable } from "@/lib/services/medical-features";
-import { listDoctors } from "@/lib/services/people";
+import { getFighter, listDoctors } from "@/lib/services/people";
 
 /** The injury, only when it belongs to the signed-in fighter. Loaded once per request for the metadata and the page. */
 const loadOwnInjury = cache(async (injuryId: string): Promise<InjuryDetail> => {
@@ -51,6 +52,8 @@ export default async function FighterInjuryPage({ params }: PageProps<"/fighter/
         getTranslator(),
     ]);
     const { injury, treatments, recoveryPlan, recordedBy } = detail;
+    // Only shapes the 3D figure (sex, height, build); the body map still works without it.
+    const fighter = await getFighter(injury.fighterId).catch(() => null);
     const now = new Date().toISOString();
     const planDoctor = recoveryPlan ? doctors.find((doctor) => doctor.id === recoveryPlan.doctorId)?.name : undefined;
     const doctorName = planDoctor ?? recordedBy?.name;
@@ -195,8 +198,10 @@ export default async function FighterInjuryPage({ params }: PageProps<"/fighter/
                     <Card className="min-w-0">
                         <CardHeader title={t("fighterInjury.bodyMap")} icon={<MapPinned />} />
                         <CardContent>
-                            <BodyMap
+                            <BodyMapAuto
                                 locale={locale}
+                                figure={fighter ? toFigureSource(fighter) : null}
+                                focus={injury.bodyRegion}
                                 highlights={[
                                     {
                                         region: injury.bodyRegion,
