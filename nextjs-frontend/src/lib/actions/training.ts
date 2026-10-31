@@ -12,6 +12,7 @@ import { FEEDBACK_KIND_LABELS, PLAN_STATUS_LABELS, planStatusLabel, TECHNIQUES, 
 import type { EligibilityReason } from "@/lib/domain/medical-contract";
 import type { ClearanceConflict } from "@/lib/domain/rules";
 import { EXERCISE_LIMITS, exerciseNameKey, SERVICE_EXERCISE_CATEGORIES, SERVICE_TRAINING_TYPES } from "@/lib/domain/training-contract";
+import type { TrainingBlockingSuspension } from "@/lib/domain/suspension-rules";
 import { planTransitions } from "@/lib/domain/training-plan";
 import { MAX_WEEKLY_REPEATS, missingStarterExercises, STARTER_EXERCISES, weeklyDates } from "@/lib/domain/training-templates";
 import type { FeedbackKind, PlanStatus, TrainingPhase, TrainingPlan, TrainingSession, TrainingType, User } from "@/lib/domain/types";
@@ -22,7 +23,7 @@ import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { PLATFORM_FEATURE_UNAVAILABLE_MESSAGE, platformFeatureAvailable, usesTrainingServiceForms } from "@/lib/services/platform-features";
 import * as training from "@/lib/services/training";
-import { trainingEligibilityReasons, trainingSuspensions, trainingWriteFailure, type TrainingBlockingSuspension } from "@/lib/services/training-errors";
+import { trainingEligibilityReasons, trainingSuspensions, trainingWriteFailure } from "@/lib/services/training-errors";
 import { text, texts } from "./form-helpers";
 import { actionError, actionSuccess, FIX_FIELDS, validationError, type ActionState } from "./state";
 

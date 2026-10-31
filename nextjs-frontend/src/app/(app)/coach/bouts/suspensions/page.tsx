@@ -13,7 +13,7 @@ import { SegmentedLinks, type SegmentedLinkItem } from "@/components/ui/segmente
 import { EmptyState } from "@/components/ui/states";
 import { accessibleFighterIds } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
-import { academyDateOf, daysBetweenDates } from "@/lib/domain/suspension-rules";
+import { academyDateOf, daysBetweenDates, suspensionReasonLabel } from "@/lib/domain/suspension-rules";
 import type { Bout } from "@/lib/domain/types";
 import { formatShortDate } from "@/lib/format";
 import { getTranslator } from "@/lib/i18n/server";
@@ -22,7 +22,6 @@ import { routes } from "@/lib/routes";
 import { listBouts } from "@/lib/services/bouts";
 import { listFighters } from "@/lib/services/people";
 import { listSuspensions } from "@/lib/services/suspensions";
-import { suspensionReasonLabel } from "@/lib/services/training-errors";
 import { param } from "@/lib/utils";
 import { ClearSuspensionButton } from "./clear-suspension-button";
 import { CreateSuspensionTrigger } from "./create-suspension-trigger";

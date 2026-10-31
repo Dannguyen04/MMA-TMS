@@ -72,14 +72,8 @@ export function buildSuspensionTodoItems({
     const today = academyDateOf(now);
     const items: CoachTodoItem[] = [];
 
-    // Group suspensions by fighterId
-    const fighterIdSet = new Set<string>();
-    if (Array.isArray(fighterIds)) {
-        for (const id of fighterIds) fighterIdSet.add(id);
-    } else {
-        for (const s of suspensions) fighterIdSet.add(s.fighterId);
-        for (const b of bouts) fighterIdSet.add(b.fighterId);
-    }
+    // Only fighters with a suspension can produce an item.
+    const fighterIdSet = new Set(Array.isArray(fighterIds) ? fighterIds : suspensions.map((s) => s.fighterId));
 
     // Find primary bout per fighter (prefer running, then most recent boutAt)
     const primaryBoutByFighter = new Map<string, Bout>();

@@ -2047,3 +2047,53 @@ Output:
    Start at  16:25:25
    Duration  5.09s (import 40%, transform 35%, tests 24%, worker 1%)
 ```
+
+## Lượt cắt ponytail 1 (31/10)
+
+Phạm vi: dữ liệu, service, domain trong `nextjs-frontend/src`. Không đổi hành vi giao diện, không đổi hợp đồng backend. Chưa commit.
+
+### Đã cắt
+
+1. **Luồng "apply conflicts" (không màn nào gọi; từ T-036 backend tự áp R28 khi tạo đình chỉ)**: xoá `applyConflictsAction` (`lib/actions/suspensions.ts`), `buildApplyConflictsSchema` (`lib/actions/suspension-schemas.ts`), `listConflicts`/`applyConflicts` và `backendConflictProposalSchema` (`lib/services/suspensions.ts`), bản demo `listConflicts`/`applyConflicts` (`lib/services/suspensions.demo.ts`), khoá i18n `suspensions.action.conflictsApplied` (vi và en). Kiểu `ConflictProposal`, `planConflicts`, `filterProposalsForSuspension` giữ lại vì `applySuspensionSideEffects` và `coach-todo` còn dùng.
+2. **`getSuspension`** (service và demo): xoá, không có nơi gọi.
+3. **`suspensions.demo.ts`**: lỗi 403 FORBIDDEN gom vào `forbidden()`; câu lỗi requiresClearance dựng một lần; bỏ khối re-export (không ai import); bỏ `db().suspensions ?? []`; danh sách trạng thái trận dùng `ACTIVE_BOUT_STATUSES`. `SUSPENSION_NOT_FOUND` sau mục 1 chỉ còn một chỗ nên giữ nguyên tại chỗ, không tạo hàm `notFound()`.
+4. **`training.demo.ts`**: `updateSession` dựng `fullInput` bằng giá trị của buổi rồi phủ các khoá có giá trị (lọc `Object.entries` bỏ `undefined`; `null` và `""` vẫn ghi đè, nên xoá ghi chú bằng chuỗi rỗng vẫn xoá); chỉ gán các khoá người gọi gửi (cộng `scheduledAt` như cũ). Lỗi 409 TRAINING_SUSPENSION_ACTIVE dựng một lần: `findDemoBlockingSuspensions` đổi thành `throwIfSuspended`. Bỏ dòng `if (invalid) return` lặp lại (đã return ở đầu `createSession`).
+5. **`suspensions.ts`**: `toSuspensionCreation` dùng lại `toSuspension` (không map lại affectedSessions/affectedPlans); bỏ map plan trả nguyên đầu vào; bỏ `feasibility: raw.feasibility`; `getReadiness` dùng `queryPath`.
+6. **`training-errors.ts`**: bỏ re-export; `app/(app)/coach/bouts/suspensions/page.tsx` và `lib/actions/training.ts` import thẳng từ `@/lib/domain/suspension-rules`. Kiểm từng phần tử bằng một schema zod + `safeParse`, phần tử hỏng vẫn bị bỏ như trước (đã thử tay: `endsOn` rỗng/thiếu, `null`, mảng, chuỗi, `reason` không phải chuỗi -> "OTHER", `requiresClearance` "true" -> false, `gradedReturn` ceiling 5 -> bỏ).
+7. **`intensity-tiers.ts`**: dùng `addDaysToDate` của suspension-rules thay `addDays` riêng; gộp `technical_drilling` vào nhánh bậc 3; `computeGradedReturnSteps` map trên `[3, 4, "full"]`.
+8. **`suspension-rules.ts`**: 4 kiểu khai báo lại tại chỗ dùng `ConflictSuspensionInput`/`ConflictSessionInput`; so sánh tập trong `isGradedReturnOnly` thành `expected.length === actual.size && expected.every(...)`; inline `gradedReturnCeiling` (một nơi gọi); xoá `GradedReturnInfo`, dùng `GradedReturn`. Hành vi `isGradedReturnOnly`, `readinessMaxTier`, `classifyReadiness` không đổi.
+9. **`coach-todo.ts`**: `fighterIdSet` chỉ lấy từ suspensions (võ sĩ không có đình chỉ vốn bị bỏ qua); test giữ nguyên kết quả.
+10. **`actions/suspensions.ts`**: câu requiresClearance chỉ tính một lần (bỏ mục thừa trong `fieldMap`, nhánh trong vòng lặp luôn ghi đè); `revalidatePath` dùng `routes.coach.suspensions` / `routes.coach.readiness`.
+
+### Bỏ qua và lý do
+
+- **Mục 5, phân trang `listSuspensions` dùng `drainAuthenticatedCursorPages`**: bỏ qua. Test B2-21 và B2-29 spy `authenticatedApiRequest` qua namespace module và trả thẳng trang thô `{ data, hasNextPage, nextCursor }`. `drainAuthenticatedCursorPages` gọi `authenticatedApiRequest` bên trong `client.ts` (binding cục bộ, spy không chặn được) và đọc hình trang `{ items, pageInfo }`, nên hai test này sẽ hỏng; sửa chúng là đổi test. Ngoài ra lỗi cursor sai sẽ thêm mã `INVALID_PAGINATION_CURSOR` (hiện là `API_ERROR`).
+- **Mục 5, `backendConflictProposalSchema` trùng `backendAffectedSessionSchema`**: không còn áp dụng, schema đã xoá cùng mục 1.
+
+### Test đã xoá hoặc sửa (chỉ phần thuộc code đã xoá ở mục 1, 2)
+
+Xoá hẳn (`lib/services/suspensions.test.ts`):
+- `B2-20: API applyConflicts trả TrainingSession có status 'pending' (chữ thường) từ dữ liệu backend 'PENDING'`
+- `B2-26: demo listConflicts của đình chỉ đã xác nhận → []; của đình chỉ bắt đầu ngày mai → []; của đình chỉ đang có hiệu lực → có proposal`
+- `B2-33: demo listConflicts id sai 404 SUSPENSION_NOT_FOUND, unassigned coach 403 FORBIDDEN`
+- `B2-39: Demo applyConflicts bởi DOCTOR → 403 FORBIDDEN`
+
+Cắt phần thuộc code đã xoá, giữ tên và kết quả mong đợi phần còn lại:
+- `B2-27` (tên giữ nguyên dù còn nhắc applyConflicts): bỏ bước 1 (applyConflicts 422) và bước 3 (applyConflictsAction), cùng 2 đình chỉ và 2 buổi chỉ phục vụ hai bước đó; phần clearSuspensionAction (B bị từ chối, A thành công) giữ nguyên.
+- Test danh sách khoá i18n bắt buộc: bỏ `suspensions.action.conflictsApplied` khỏi danh sách (khoá đã xoá theo mục 1).
+
+### Kích thước diff
+
+```text
+14 files changed, 97 insertions(+), 913 deletions(-)
+```
+
+### Lệnh kiểm tra (chạy từ D:\MMA-TMS)
+
+```text
+pnpm --filter nextjs-frontend lint       -> $ eslint (exit 0, không cảnh báo)
+pnpm --filter nextjs-frontend typecheck  -> ✓ Types generated successfully, tsc --noEmit sạch
+pnpm --filter nextjs-frontend test       -> Test Files  99 passed | 1 skipped (100); Tests  952 passed | 2 skipped (954)
+```
+
+Mốc trước: 956 passed | 2 skipped (958). Chênh 4 = 4 test đã xoá ở trên.

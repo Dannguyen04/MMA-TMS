@@ -13,13 +13,11 @@ import { getTranslator } from "@/lib/i18n/server";
 import type { Translator } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import {
-    applyConflicts as applyConflictsService,
     clearSuspension as clearSuspensionService,
     createSuspension as createSuspensionService,
 } from "@/lib/services/suspensions";
 import { getPlan, getSession } from "@/lib/services/training";
 import {
-    buildApplyConflictsSchema,
     buildClearSuspensionSchema,
     buildCreateSuspensionSchema,
 } from "./suspension-schemas";
@@ -29,8 +27,8 @@ import { actionError, actionSuccess, validationError, type ActionState } from ".
 
 function revalidateSuspensionPaths(fighterId?: string) {
     revalidatePath(routes.coach.bouts);
-    revalidatePath("/coach/bouts/suspensions");
-    revalidatePath("/coach/bouts/readiness");
+    revalidatePath(routes.coach.suspensions);
+    revalidatePath(routes.coach.readiness);
     revalidatePath(routes.coach.sessions);
     revalidatePath(routes.coach.dashboard);
     if (fighterId) {
@@ -51,17 +49,12 @@ function mapSuspensionActionError(
             return actionError(t("suspensions.action.alreadyCleared"));
         }
         if (error.code === "VALIDATION_ERROR" || error.status === 422) {
-            const isDqForbiddenReason =
-                context?.reason === "DQ" || context?.reason === "MANDATORY_REST";
             const fieldMap: Record<string, string> = {
                 clearanceNote: t("suspensions.action.clearanceNoteLength"),
                 days: t("suspensions.action.daysRange"),
                 startsOn: t("suspensions.action.startsOnNotBeforeToday"),
                 maxTier: t("suspensions.action.maxTierAndTypesExclusive"),
                 blockedSessionTypes: t("suspensions.action.blockedSessionTypesMin"),
-                requiresClearance: isDqForbiddenReason
-                    ? t("suspensions.action.requiresClearanceDqForbidden")
-                    : t("suspensions.action.requiresClearanceKoMandatory"),
                 fighterId: t("coachBouts.action.selectFighterFromRoster"),
             };
             const fieldErrors: Record<string, string> = {};
@@ -191,47 +184,6 @@ export async function clearSuspensionAction(
         const cleared = await clearSuspensionService(id, clearanceNote, user);
         revalidateSuspensionPaths(cleared.fighterId);
         return actionSuccess(t("suspensions.action.cleared"), cleared);
-    } catch (error: unknown) {
-        return mapSuspensionActionError(error, t);
-    }
-}
-
-export async function applyConflictsAction(
-    _prev: ActionState<{ count: number }>,
-    formData: FormData,
-): Promise<ActionState<{ count: number }>> {
-    const [user, { t }] = await Promise.all([getCurrentUser(), getTranslator()]);
-    if (!user) return actionError(t("suspensions.action.unauthorized"));
-
-    if (user.role === "fighter" || user.role === "doctor") {
-        return actionError(t("suspensions.action.unauthorized"));
-    }
-
-    const raw = Object.fromEntries(formData.entries());
-    const sessionIdsFromForm = formData.getAll("sessionIds") as string[];
-    let sessionIds: string[] = sessionIdsFromForm.filter((s) => typeof s === "string" && s.length > 0);
-
-    if (sessionIds.length === 0 && typeof raw.sessionIds === "string") {
-        try {
-            const parsedArray = JSON.parse(raw.sessionIds);
-            if (Array.isArray(parsedArray)) {
-                sessionIds = parsedArray;
-            }
-        } catch {
-            sessionIds = raw.sessionIds.split(",").map((s) => s.trim()).filter(Boolean);
-        }
-    }
-
-    const schema = buildApplyConflictsSchema(t);
-    const parsed = schema.safeParse({ id: raw.id, sessionIds });
-    if (!parsed.success) return validationError(parsed.error, t("form.fixFields"));
-
-    const { id, sessionIds: selectedSessionIds } = parsed.data;
-
-    try {
-        const updatedSessions = await applyConflictsService(id, selectedSessionIds, user);
-        revalidateSuspensionPaths();
-        return actionSuccess(t("suspensions.action.conflictsApplied"), { count: updatedSessions.length });
     } catch (error: unknown) {
         return mapSuspensionActionError(error, t);
     }

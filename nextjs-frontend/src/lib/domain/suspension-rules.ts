@@ -173,13 +173,6 @@ export function gradedReturnFor(
     return null;
 }
 
-export function gradedReturnCeiling(
-    suspension: SuspensionGradedReturnInput,
-    d: string,
-): 3 | 4 | null {
-    return gradedReturnFor(suspension, d)?.ceiling ?? null;
-}
-
 export type RequiresClearanceResolution =
     | { ok: true; requiresClearance: boolean }
     | {
@@ -221,20 +214,8 @@ export function deriveRequiresClearance(
 /* ─── Conflict Evaluation Logic ───────────────────────────────────────────── */
 
 export function isSessionBlockedBySuspension(
-    session: {
-        scheduledAt: Date | string;
-        sessionType?: SessionType | null | undefined;
-        trainingType?: TrainingType | null | undefined;
-        type?: string | null | undefined;
-    },
-    suspension: {
-        startsOn: string;
-        endsOn: string;
-        requiresClearance: boolean;
-        clearedAt: Date | string | null;
-        blockedSessionTypes: readonly SessionType[];
-        maxAllowedTier?: number | null | undefined;
-    },
+    session: Omit<ConflictSessionInput, "id" | "status">,
+    suspension: ConflictSuspensionInput,
 ): boolean {
     const sessionDate = academyDateOf(session.scheduledAt);
     if (!isInForceOn(suspension, sessionDate)) {
@@ -263,21 +244,8 @@ export function isSessionBlockedBySuspension(
 
 export function filterProposalsForSuspension(
     proposals: ConflictProposal[],
-    suspension: {
-        startsOn: string;
-        endsOn: string;
-        requiresClearance: boolean;
-        clearedAt: Date | string | null;
-        blockedSessionTypes: readonly SessionType[];
-        maxAllowedTier?: number | null | undefined;
-    },
-    sessions: Array<{
-        id: string;
-        scheduledAt: Date | string;
-        sessionType?: SessionType | null | undefined;
-        trainingType?: TrainingType | null | undefined;
-        type?: string | null | undefined;
-    }>,
+    suspension: ConflictSuspensionInput,
+    sessions: readonly ConflictSessionInput[],
 ): ConflictProposal[] {
     const sessionById = new Map(sessions.map((s) => [s.id, s]));
 
@@ -509,7 +477,7 @@ export function classifyReadiness(input: ClassifyReadinessInput): ReadinessRow {
             activeSuspensions.some(
                 (s) =>
                     isInForceOn(s, input.boutOn!) ||
-                    gradedReturnCeiling(s, input.boutOn!) !== null,
+                    gradedReturnFor(s, input.boutOn!) !== null,
             )
         ) {
             notReadyReasons.push("SUSPENDED_PAST_BOUT_DATE");
@@ -585,16 +553,8 @@ export function isGradedReturnOnly(row: ReadinessRow): boolean {
     }
 
     const actual = new Set(row.suspension.blockedSessionTypes);
-    const expected = new Set(blockedTypesForMaxTier(row.gradedReturn.ceiling));
-    if (actual.size !== expected.size) {
-        return false;
-    }
-    for (const item of expected) {
-        if (!actual.has(item)) {
-            return false;
-        }
-    }
-    return true;
+    const expected = blockedTypesForMaxTier(row.gradedReturn.ceiling);
+    return expected.length === actual.size && expected.every((type) => actual.has(type));
 }
 
 /**
@@ -620,24 +580,8 @@ export interface ApplySideEffectsResult {
 }
 
 export function applySuspensionSideEffects(
-    created: {
-        fighterId: string;
-        reason: SuspensionReason;
-        startsOn: string;
-        endsOn: string;
-        requiresClearance: boolean;
-        clearedAt: Date | string | null;
-        blockedSessionTypes: readonly SessionType[];
-    },
-    allSuspensions: Array<{
-        fighterId: string;
-        startsOn: string;
-        endsOn: string;
-        requiresClearance: boolean;
-        clearedAt: Date | string | null;
-        blockedSessionTypes: readonly SessionType[];
-        deletedAt?: Date | string | null;
-    }>,
+    created: ConflictSuspensionInput & { fighterId: string; reason: SuspensionReason },
+    allSuspensions: readonly ConflictSuspensionInput[],
     sessions: Array<{
         id: string;
         fighterId: string;
@@ -727,17 +671,12 @@ export function applySuspensionSideEffects(
 
 /* ─── Blocking Suspension Helpers & Presentation ─────────────────────────── */
 
-export interface GradedReturnInfo {
-    ceiling: 3 | 4;
-    fullReturnOn: string;
-}
-
 export interface TrainingBlockingSuspension {
     suspensionId?: string;
     reason: string;
     endsOn: string;
     requiresClearance: boolean;
-    gradedReturn?: GradedReturnInfo | null;
+    gradedReturn?: GradedReturn | null;
     maxAllowedTier?: number | null;
 }
 

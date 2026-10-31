@@ -10,42 +10,26 @@ import {
 import { type SessionType } from "@/lib/domain/medical-contract";
 import {
     academyDateOf,
-    addDaysToDate,
+    ACTIVE_BOUT_STATUSES,
     applySuspensionSideEffects,
     classifyReadiness,
-    daysBetweenDates,
     deriveRequiresClearance,
     endsOnFor,
-    filterProposalsForSuspension,
     gradedReturnFor,
     isInForceOn,
-    planConflicts,
     suspensionStatusOn,
 } from "@/lib/domain/suspension-rules";
-import { sessionTypeFor } from "@/lib/domain/training-contract";
 import type {
     CompetitionRuleset,
-    ConflictProposal,
     ReadinessRow,
     Suspension,
     SuspensionCreation,
-    TrainingSession,
     User,
 } from "@/lib/domain/types";
 import { db, newId, nowIso } from "@/lib/mocks/db";
 import type { CreateSuspensionInput, ReadinessFilter, SuspensionFilter } from "./suspensions";
 
-// Re-export pure helpers for any test convenience
-export {
-    academyDateOf,
-    addDaysToDate,
-    daysBetweenDates,
-    deriveRequiresClearance,
-    endsOnFor,
-    gradedReturnFor,
-    isInForceOn,
-    suspensionStatusOn,
-};
+const forbidden = () => new ApiError({ message: "Forbidden", kind: "http", status: 403, code: "FORBIDDEN" });
 
 function resolveSuspensionStatusAndGradedReturn(s: Suspension, today: string): Suspension {
     const status = suspensionStatusOn(s, today);
@@ -64,47 +48,27 @@ export async function listSuspensions(
     actor?: User,
 ): Promise<Suspension[]> {
     const today = academyDateOf(new Date());
-    const store = db().suspensions ?? [];
+    const store = db().suspensions;
     let items = store.map((s) => resolveSuspensionStatusAndGradedReturn(s, today));
 
     // Actor visibility scoping
     if (actor) {
         if (actor.role === "fighter") {
             if (filter.fighterId && filter.fighterId !== actor.profileId) {
-                throw new ApiError({
-                    message: "Forbidden",
-                    kind: "http",
-                    status: 403,
-                    code: "FORBIDDEN",
-                });
+                throw forbidden();
             }
             if (filter.fighterIds && filter.fighterIds.some((id) => id !== actor.profileId)) {
-                throw new ApiError({
-                    message: "Forbidden",
-                    kind: "http",
-                    status: 403,
-                    code: "FORBIDDEN",
-                });
+                throw forbidden();
             }
             items = items.filter((s) => s.fighterId === actor.profileId);
         } else if (actor.role === "coach" || actor.role === "doctor") {
             const allowed = accessibleFighterIds(actor);
             if (Array.isArray(allowed)) {
                 if (filter.fighterId && !allowed.includes(filter.fighterId)) {
-                    throw new ApiError({
-                        message: "Forbidden",
-                        kind: "http",
-                        status: 403,
-                        code: "FORBIDDEN",
-                    });
+                    throw forbidden();
                 }
                 if (filter.fighterIds && filter.fighterIds.some((id) => !allowed.includes(id))) {
-                    throw new ApiError({
-                        message: "Forbidden",
-                        kind: "http",
-                        status: 403,
-                        code: "FORBIDDEN",
-                    });
+                    throw forbidden();
                 }
                 items = items.filter((s) => allowed.includes(s.fighterId));
             }
@@ -138,24 +102,16 @@ export async function createSuspension(
 
     const clearanceResult = deriveRequiresClearance(input.reason, input.requiresClearance);
     if (!clearanceResult.ok) {
+        const message =
+            clearanceResult.reason === "REQUIRES_CLEARANCE_MANDATORY"
+                ? "requiresClearance cannot be false for KO or TKO"
+                : "requiresClearance cannot be true for DQ or MANDATORY_REST";
         throw new ApiError({
-            message:
-                clearanceResult.reason === "REQUIRES_CLEARANCE_MANDATORY"
-                    ? "requiresClearance cannot be false for KO or TKO"
-                    : "requiresClearance cannot be true for DQ or MANDATORY_REST",
+            message,
             kind: "http",
             status: 422,
             code: "VALIDATION_ERROR",
-            details: [
-                {
-                    code: "custom",
-                    path: ["requiresClearance"],
-                    message:
-                        clearanceResult.reason === "REQUIRES_CLEARANCE_MANDATORY"
-                            ? "requiresClearance cannot be false for KO or TKO"
-                            : "requiresClearance cannot be true for DQ or MANDATORY_REST",
-                },
-            ],
+            details: [{ code: "custom", path: ["requiresClearance"], message }],
         });
     }
     const requiresClearance = clearanceResult.requiresClearance;
@@ -191,7 +147,6 @@ export async function createSuspension(
         gradedReturn: null,
     };
 
-    db().suspensions = db().suspensions ?? [];
     const fighterSuspensions = db().suspensions.filter((s) => s.fighterId === input.fighterId);
     const allSuspensions = [...fighterSuspensions, created];
 
@@ -218,34 +173,18 @@ export async function clearSuspension(
     actor: User,
 ): Promise<Suspension> {
     const today = academyDateOf(new Date());
-    db().suspensions = db().suspensions ?? [];
     const index = db().suspensions.findIndex((s) => s.id === id);
     if (index === -1) {
-        throw new ApiError({
-            message: "Suspension not found",
-            kind: "http",
-            status: 404,
-            code: "SUSPENSION_NOT_FOUND",
-        });
+        throw new ApiError({ message: "Suspension not found", kind: "http", status: 404, code: "SUSPENSION_NOT_FOUND" });
     }
 
     const current = db().suspensions[index];
     if (actor.role !== "coach" && actor.role !== "doctor") {
-        throw new ApiError({
-            message: "Forbidden",
-            kind: "http",
-            status: 403,
-            code: "FORBIDDEN",
-        });
+        throw forbidden();
     }
 
     if (!canAccessFighter(actor, current.fighterId)) {
-        throw new ApiError({
-            message: "Forbidden",
-            kind: "http",
-            status: 403,
-            code: "FORBIDDEN",
-        });
+        throw forbidden();
     }
 
     if (current.clearedAt !== null) {
@@ -266,151 +205,13 @@ export async function clearSuspension(
     return { ...current };
 }
 
-export async function getSuspension(
-    id: string,
-    actor?: User,
-): Promise<Suspension | null> {
-    const today = academyDateOf(new Date());
-    db().suspensions = db().suspensions ?? [];
-    const found = db().suspensions.find((s) => s.id === id);
-    if (!found) return null;
-
-    if (actor) {
-        if (actor.role === "fighter" && found.fighterId !== actor.profileId) {
-            return null;
-        }
-        if (
-            (actor.role === "coach" || actor.role === "doctor") &&
-            !canAccessFighter(actor, found.fighterId)
-        ) {
-            return null;
-        }
-    }
-
-    return resolveSuspensionStatusAndGradedReturn(found, today);
-}
-
-export async function listConflicts(
-    id: string,
-    actor: User,
-): Promise<ConflictProposal[]> {
-    const today = academyDateOf(new Date());
-    db().suspensions = db().suspensions ?? [];
-    const suspension = db().suspensions.find((s) => s.id === id);
-    if (!suspension) {
-        throw new ApiError({
-            message: "Suspension not found",
-            kind: "http",
-            status: 404,
-            code: "SUSPENSION_NOT_FOUND",
-        });
-    }
-
-    if (actor.role !== "admin" && !canAccessFighter(actor, suspension.fighterId)) {
-        throw new ApiError({
-            message: "Forbidden",
-            kind: "http",
-            status: 403,
-            code: "FORBIDDEN",
-        });
-    }
-
-    if (suspension.clearedAt !== null || !isInForceOn(suspension, today)) {
-        return [];
-    }
-
-    const fighterSessions = db().trainingSessions.filter((s) => s.fighterId === suspension.fighterId);
-    const sessionInputs = fighterSessions.map((s) => ({
-        id: s.id,
-        scheduledAt: s.scheduledAt,
-        status: s.status,
-        sessionType: sessionTypeFor(s.type) ?? undefined,
-        type: s.type,
-    }));
-
-    const fighterSuspensions = db().suspensions.filter((s) => s.fighterId === suspension.fighterId);
-    const allProposals = planConflicts(sessionInputs, fighterSuspensions);
-    return filterProposalsForSuspension(allProposals, suspension, sessionInputs);
-}
-
-export async function applyConflicts(
-    id: string,
-    sessionIds: string[],
-    actor: User,
-): Promise<TrainingSession[]> {
-    db().suspensions = db().suspensions ?? [];
-    const suspension = db().suspensions.find((s) => s.id === id);
-    if (!suspension) {
-        throw new ApiError({
-            message: "Suspension not found",
-            kind: "http",
-            status: 404,
-            code: "SUSPENSION_NOT_FOUND",
-        });
-    }
-
-    if (actor.role === "doctor" || actor.role === "fighter") {
-        throw new ApiError({
-            message: "Forbidden",
-            kind: "http",
-            status: 403,
-            code: "FORBIDDEN",
-        });
-    }
-
-    if (actor.role !== "admin" && !canAccessFighter(actor, suspension.fighterId)) {
-        throw new ApiError({
-            message: "Forbidden",
-            kind: "http",
-            status: 403,
-            code: "FORBIDDEN",
-        });
-    }
-
-    const proposals = await listConflicts(id, actor);
-    const proposalMap = new Map(proposals.map((p) => [p.sessionId, p.action]));
-
-    for (const sid of sessionIds) {
-        if (!proposalMap.has(sid)) {
-            throw new ApiError({
-                message: `Session ${sid} is not an eligible conflict proposal for suspension ${id}`,
-                kind: "http",
-                status: 422,
-                code: "VALIDATION_ERROR",
-            });
-        }
-    }
-
-    const updated: TrainingSession[] = [];
-
-    for (const session of db().trainingSessions) {
-        if (!sessionIds.includes(session.id)) continue;
-        const action = proposalMap.get(session.id);
-        if (!action) continue;
-
-        if (action === "cancel") {
-            session.status = "cancelled";
-            session.cancellationReason = "Suspension in force";
-        } else {
-            session.status = "pending";
-        }
-        updated.push({ ...session });
-    }
-    return updated;
-}
-
 export async function getReadiness(
     filter: ReadinessFilter = {},
     actor?: User,
 ): Promise<ReadinessRow[]> {
     if (actor) {
         if (actor.role !== "coach" && actor.role !== "admin") {
-            throw new ApiError({
-                message: "Forbidden",
-                kind: "http",
-                status: 403,
-                code: "FORBIDDEN",
-            });
+            throw forbidden();
         }
     }
 
@@ -459,7 +260,7 @@ export async function getReadiness(
 
     fighters.sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
 
-    const allSuspensions = (db().suspensions ?? []).map((s) =>
+    const allSuspensions = db().suspensions.map((s) =>
         resolveSuspensionStatusAndGradedReturn(s, today),
     );
 
@@ -473,9 +274,7 @@ export async function getReadiness(
                 (b) =>
                     b.fighterId === fighter.id &&
                     (b.deletedAt === null || b.deletedAt === undefined) &&
-                    (b.status === "CAMP" ||
-                        b.status === "FIGHT_WEEK" ||
-                        b.status === "WEIGHED_IN"),
+                    (ACTIVE_BOUT_STATUSES as readonly string[]).includes(b.status),
             )
             .sort((a, b) => a.boutAt.localeCompare(b.boutAt));
         const activeBoutMatch = candidateBouts[0] ?? null;

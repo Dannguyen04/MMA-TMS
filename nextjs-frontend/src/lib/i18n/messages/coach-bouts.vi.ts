@@ -294,7 +294,6 @@ export const viCoachBouts = {
     /* Suspension actions */
     "suspensions.action.created": "Đã tạo đình chỉ thành công.",
     "suspensions.action.cleared": "Đã xác nhận cho tập lại thành công.",
-    "suspensions.action.conflictsApplied": "Đã áp dụng xử lý xung đột lịch tập.",
     "suspensions.action.unauthorized": "Bạn không có quyền thực hiện thao tác này.",
     "suspensions.action.notFound": "Không tìm thấy đình chỉ.",
     "suspensions.action.adminClearForbidden": "Quản trị viên không có quyền kết thúc đình chỉ. Chỉ HLV hoặc bác sĩ phụ trách mới có quyền này.",

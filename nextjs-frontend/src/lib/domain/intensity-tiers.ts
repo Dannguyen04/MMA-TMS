@@ -2,6 +2,7 @@ import { formatShortDate } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
 import { createTranslator, type MessageKey } from "@/lib/i18n/translate";
 import { SESSION_TYPES, type SessionType } from "./medical-contract";
+import { addDaysToDate } from "./suspension-rules";
 import type { GradedReturn, TrainingType } from "./types";
 
 export type SessionIntensityTier = 1 | 2 | 3 | 4 | 5;
@@ -68,9 +69,7 @@ export function tierOfTrainingType(type: TrainingType): SessionIntensityTier {
         case "shadow_boxing":
         case "heavy_bag":
         case "pad_work":
-            return 3;
         case "technical_drilling":
-            // technical_drilling: không có mã backend tương đương, là bài tập kỹ thuật không va chạm nên thuộc bậc 3
             return 3;
         case "grappling":
             return 4;
@@ -191,72 +190,25 @@ export interface GradedStepItem {
     statusText: string;
 }
 
-const DAY_MS = 86_400_000;
-function addDays(date: string, days: number): string {
-    return new Date(Date.parse(`${date}T00:00:00.000Z`) + days * DAY_MS)
-        .toISOString()
-        .slice(0, 10);
-}
+const GRADED_STEP_LABELS = { 3: "gradedReturn.step.tier3", 4: "gradedReturn.step.tier4", full: "gradedReturn.step.full" } as const;
 
 export function computeGradedReturnSteps(
     gradedReturn: GradedReturn,
     locale: Locale = "vi",
 ): GradedStepItem[] {
     const t = createTranslator(locale);
-    const fullDate = gradedReturn.fullReturnOn;
-    const dateStep1 = addDays(fullDate, -2);
-    const dateStep2 = addDays(fullDate, -1);
-    const dateStep3 = fullDate;
-
-    // Step 1: Bậc 3
-    const status1: GradedStepStatus = gradedReturn.ceiling === 3 ? "current" : "passed";
-
-    // Step 2: Bậc 4
-    let status2: GradedStepStatus;
-    if (gradedReturn.ceiling === 3) {
-        status2 = "upcoming";
-    } else if (gradedReturn.ceiling === 4) {
-        status2 = "current";
-    } else {
-        status2 = "passed";
-    }
-
-    // Step 3: Tập đầy đủ
-    const status3: GradedStepStatus = "upcoming";
-
-    const getStatusText = (st: GradedStepStatus): string => {
-        if (st === "passed") return t("gradedReturn.status.passed");
-        if (st === "current") return t("gradedReturn.status.current");
-        return t("gradedReturn.status.upcoming");
-    };
-
-    return [
-        {
-            id: 3,
-            stepNumber: 1,
-            label: t("gradedReturn.step.tier3"),
-            date: dateStep1,
-            dateFormatted: formatShortDate(dateStep1, locale),
-            status: status1,
-            statusText: getStatusText(status1),
-        },
-        {
-            id: 4,
-            stepNumber: 2,
-            label: t("gradedReturn.step.tier4"),
-            date: dateStep2,
-            dateFormatted: formatShortDate(dateStep2, locale),
-            status: status2,
-            statusText: getStatusText(status2),
-        },
-        {
-            id: "full",
-            stepNumber: 3,
-            label: t("gradedReturn.step.full"),
-            date: dateStep3,
-            dateFormatted: formatShortDate(dateStep3, locale),
-            status: status3,
-            statusText: getStatusText(status3),
-        },
-    ];
+    return ([3, 4, "full"] as const).map((id, index) => {
+        const date = addDaysToDate(gradedReturn.fullReturnOn, index - 2);
+        // The current step is the ceiling's; the steps before it are passed, the full return is always ahead.
+        const status: GradedStepStatus = id === gradedReturn.ceiling ? "current" : id === "full" || id > gradedReturn.ceiling ? "upcoming" : "passed";
+        return {
+            id,
+            stepNumber: (index + 1) as 1 | 2 | 3,
+            label: t(GRADED_STEP_LABELS[id]),
+            date,
+            dateFormatted: formatShortDate(date, locale),
+            status,
+            statusText: t(`gradedReturn.status.${status}`),
+        };
+    });
 }

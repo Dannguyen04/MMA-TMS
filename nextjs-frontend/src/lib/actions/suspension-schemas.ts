@@ -92,11 +92,3 @@ export function buildClearSuspensionSchema(t: Translator) {
             .max(500, t("suspensions.action.clearanceNoteLength")),
     });
 }
-
-export function buildApplyConflictsSchema(_t?: Translator) {
-    void _t;
-    return z.object({
-        id: z.string().min(1),
-        sessionIds: z.array(z.string().min(1)),
-    });
-}

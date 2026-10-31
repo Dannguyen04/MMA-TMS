@@ -11,15 +11,13 @@ import { isDemoAuthEnabled } from "@/lib/auth/constants";
 import { SESSION_TYPES, type SessionType } from "@/lib/domain/medical-contract";
 import type {
     ConflictAction,
-    ConflictProposal,
     ReadinessRow,
     Suspension,
     SuspensionCreation,
     SuspensionReason,
-    TrainingSession,
     User,
 } from "@/lib/domain/types";
-import { backendSessionSchema, toSession } from "./training";
+import { queryPath } from "./api-helpers";
 import { weightWarningStatusSchema } from "./bouts";
 
 /* ─── Zod Schemas matching backend contract ───────────────────────────────── */
@@ -78,11 +76,6 @@ export const backendSuspensionListSchema = z.object({
     nextCursor: z.string().nullable(),
 });
 
-export const backendConflictProposalSchema = z.object({
-    sessionId: z.string(),
-    action: backendConflictActionSchema,
-});
-
 export const backendReadinessSuspensionSchema = z.object({
     startsOn: z.string(),
     endsOn: z.string(),
@@ -136,27 +129,11 @@ export function toSuspension(raw: z.infer<typeof backendSuspensionSchema>): Susp
             sessionId: s.sessionId,
             action: mapConflictAction(s.action),
         })),
-        affectedPlans: raw.affectedPlans?.map((p) => ({
-            planId: p.planId,
-            fromPhase: p.fromPhase,
-            toPhase: p.toPhase,
-        })),
     };
 }
 
 export function toSuspensionCreation(raw: z.infer<typeof backendCreateSuspensionResponseSchema>): SuspensionCreation {
-    return {
-        ...toSuspension(raw),
-        affectedSessions: raw.affectedSessions.map((s) => ({
-            sessionId: s.sessionId,
-            action: mapConflictAction(s.action),
-        })),
-        affectedPlans: raw.affectedPlans.map((p) => ({
-            planId: p.planId,
-            fromPhase: p.fromPhase,
-            toPhase: p.toPhase,
-        })),
-    };
+    return toSuspension(raw) as SuspensionCreation;
 }
 
 export function toReadinessRow(raw: z.infer<typeof backendReadinessRowSchema>): ReadinessRow {
@@ -169,7 +146,6 @@ export function toReadinessRow(raw: z.infer<typeof backendReadinessRowSchema>): 
                   gradedReturn: raw.suspension.gradedReturn ?? null,
               }
             : null,
-        feasibility: raw.feasibility,
     };
 }
 
@@ -302,58 +278,14 @@ export async function clearSuspension(id: string, clearanceNote: string, actor: 
     return toSuspension(body);
 }
 
-export async function getSuspension(id: string, actor?: User): Promise<Suspension | null> {
-    if (isDemoAuthEnabled()) return (await demoService()).getSuspension(id, actor);
-
-    const items = await listSuspensions({}, actor);
-    return items.find((s) => s.id === id) ?? null;
-}
-
-export async function listConflicts(id: string, actor: User): Promise<ConflictProposal[]> {
-    if (isDemoAuthEnabled()) return (await demoService()).listConflicts(id, actor);
-
-    const proposals = await authenticatedApiRequest(
-        `/suspensions/${encodeURIComponent(id)}/conflicts`,
-        z.array(backendConflictProposalSchema),
-    );
-    return proposals.map((p) => ({
-        sessionId: p.sessionId,
-        action: mapConflictAction(p.action),
-    }));
-}
-
-export async function applyConflicts(
-    id: string,
-    sessionIds: string[],
-    actor: User,
-): Promise<TrainingSession[]> {
-    if (isDemoAuthEnabled()) return (await demoService()).applyConflicts(id, sessionIds, actor);
-
-    const rawSessions = await authenticatedMutableApiRequest(
-        `/suspensions/${encodeURIComponent(id)}/conflicts/apply`,
-        z.array(backendSessionSchema),
-        {
-            method: "POST",
-            body: JSON.stringify({ sessionIds }),
-        },
-    );
-    return rawSessions.map(toSession);
-}
-
 export async function getReadiness(
     filter: ReadinessFilter = {},
     actor?: User,
 ): Promise<ReadinessRow[]> {
     if (isDemoAuthEnabled()) return (await demoService()).getReadiness(filter, actor);
 
-    const params = new URLSearchParams();
-    if (filter.weightLimitKg !== undefined) params.append("weightLimitKg", String(filter.weightLimitKg));
-    if (filter.rulesetId) params.append("rulesetId", filter.rulesetId);
-    if (filter.boutOn) params.append("boutOn", filter.boutOn);
-
-    const query = params.toString();
     const rows = await authenticatedApiRequest(
-        `/readiness${query ? `?${query}` : ""}`,
+        queryPath("/readiness", { weightLimitKg: filter.weightLimitKg, rulesetId: filter.rulesetId, boutOn: filter.boutOn }),
         z.array(backendReadinessRowSchema),
     );
     return rows.map(toReadinessRow);

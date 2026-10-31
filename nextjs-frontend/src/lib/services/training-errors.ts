@@ -1,22 +1,12 @@
 import "server-only";
 
+import { z } from "zod";
+
 import { ApiError } from "@/lib/api/client";
 import { eligibilityReasonsFrom, type EligibilityReason } from "@/lib/domain/medical-contract";
-import {
-    formatSuspensionMessage,
-    isSuspensionReason,
-    pickPrimarySuspension,
-    SUSPENSION_REASON_MESSAGE_KEYS,
-    suspensionReasonLabel,
-    type GradedReturnInfo,
-    type SuspensionReason,
-    type TrainingBlockingSuspension,
-} from "@/lib/domain/suspension-rules";
+import { formatSuspensionMessage, pickPrimarySuspension, type TrainingBlockingSuspension } from "@/lib/domain/suspension-rules";
 import type { Translator } from "@/lib/i18n/translate";
 import { apiWriteFailure, type ServiceErrorMessages, type WriteErrorOptions, type WriteFailure } from "./api-write-errors";
-
-export type { GradedReturnInfo, SuspensionReason, TrainingBlockingSuspension };
-export { formatSuspensionMessage, isSuspensionReason, pickPrimarySuspension, SUSPENSION_REASON_MESSAGE_KEYS, suspensionReasonLabel };
 
 /** How the training service's refusals read on the coach's forms; the status rules are shared (`api-write-errors.ts`). */
 
@@ -101,6 +91,15 @@ export function trainingWriteFailure(error: unknown, options: WriteErrorOptions 
     return apiWriteFailure(error, getTrainingErrors(t), options);
 }
 
+const nonBlank = z.string().refine((value) => value.trim() !== "");
+const blockingSuspensionSchema = z.object({
+    suspensionId: z.string().optional().catch(undefined),
+    reason: z.string().catch("OTHER"),
+    endsOn: nonBlank,
+    requiresClearance: z.boolean().catch(false),
+    gradedReturn: z.object({ ceiling: z.union([z.literal(3), z.literal(4)]), fullReturnOn: nonBlank }).nullable().catch(null),
+});
+
 /**
  * Suspensions that block a training session or transition (409 TRAINING_SUSPENSION_ACTIVE or
  * combined 409 TRAINING_MEDICAL_ELIGIBILITY_REQUIRED with details.suspensions).
@@ -113,33 +112,12 @@ export function trainingSuspensions(error: unknown): TrainingBlockingSuspension[
     const rawSuspensions = (error.details as { suspensions?: unknown } | undefined)?.suspensions;
     if (!Array.isArray(rawSuspensions)) return [];
 
-    const valid: TrainingBlockingSuspension[] = [];
-    for (const item of rawSuspensions) {
-        if (!item || typeof item !== "object") continue;
-        const candidate = item as Record<string, unknown>;
-        if (typeof candidate.endsOn !== "string" || !candidate.endsOn.trim()) continue;
-        const reason = typeof candidate.reason === "string" ? candidate.reason : "OTHER";
-        const requiresClearance = candidate.requiresClearance === true;
-        const suspensionId = typeof candidate.suspensionId === "string" ? candidate.suspensionId : undefined;
-
-        let gradedReturn: GradedReturnInfo | null = null;
-        if (candidate.gradedReturn && typeof candidate.gradedReturn === "object") {
-            const gr = candidate.gradedReturn as Record<string, unknown>;
-            if ((gr.ceiling === 3 || gr.ceiling === 4) && typeof gr.fullReturnOn === "string" && gr.fullReturnOn.trim()) {
-                gradedReturn = { ceiling: gr.ceiling as 3 | 4, fullReturnOn: gr.fullReturnOn };
-            }
-        }
-
-        valid.push({
-            ...(suspensionId ? { suspensionId } : {}),
-            reason,
-            endsOn: candidate.endsOn,
-            requiresClearance,
-            ...(gradedReturn ? { gradedReturn } : {}),
-        });
-    }
-
-    return valid;
+    return rawSuspensions.flatMap((item) => {
+        const parsed = blockingSuspensionSchema.safeParse(item);
+        if (!parsed.success) return [];
+        const { suspensionId, gradedReturn, ...rest } = parsed.data;
+        return [{ ...(suspensionId ? { suspensionId } : {}), ...rest, ...(gradedReturn ? { gradedReturn } : {}) }];
+    });
 }
 
 /**

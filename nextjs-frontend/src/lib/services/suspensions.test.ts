@@ -21,7 +21,6 @@ import { vi } from "@/lib/i18n/messages/vi";
 import { db, nowIso } from "@/lib/mocks/db";
 import { ApiError } from "@/lib/api/client";
 import {
-    applyConflicts,
     backendCreateSuspensionResponseSchema,
     backendReadinessRowSchema,
     backendSuspensionSchema,
@@ -480,7 +479,6 @@ describe("T-030 Phần B2: Nền dữ liệu đình chỉ & sẵn sàng", () => 
             "readiness.status.IN_BOUT",
             "suspensions.action.created",
             "suspensions.action.cleared",
-            "suspensions.action.conflictsApplied",
             "suspensions.action.unauthorized",
             "suspensions.action.notFound",
             "suspensions.action.adminClearForbidden",
@@ -852,51 +850,6 @@ describe("T-030 Phần B2: Nền dữ liệu đình chỉ & sẵn sàng", () => 
         expect(inactiveList.some((s) => s.id === clearedSuspId)).toBe(true);
     });
 
-    it("B2-20: API applyConflicts trả TrainingSession có status 'pending' (chữ thường) từ dữ liệu backend 'PENDING'", async () => {
-        const clientModule = await import("@/lib/api/client");
-        const spy = vitest.spyOn(clientModule, "authenticatedMutableApiRequest").mockResolvedValueOnce([
-            {
-                id: "sess-b2-20",
-                fighterId: "f-diego-alvarez",
-                coachId: "c-rafael-costa",
-                planId: null,
-                title: "Applied Conflict Session",
-                scheduledAt: "2026-11-10T10:00:00.000Z",
-                plannedDurationSec: 3600,
-                actualDurationSec: null,
-                roundCount: 3,
-                location: "Gym",
-                sessionType: "SPARRING",
-                status: "PENDING",
-                coachNotes: null,
-                cancellationReason: null,
-                checkedInAt: null,
-                completedAt: null,
-                abandonedAt: null,
-                skippedAt: null,
-                reportedRpe: null,
-                isActive: true,
-                createdAt: "2026-10-29T10:00:00.000Z",
-                updatedAt: "2026-10-29T10:00:00.000Z",
-                deletedAt: null,
-                cancelledAt: null,
-            },
-        ]);
-
-        const constantsModule = await import("@/lib/auth/constants");
-        const demoAuthSpy = vitest.spyOn(constantsModule, "isDemoAuthEnabled").mockReturnValue(false);
-
-        try {
-            const results = await applyConflicts("susp-1", ["sess-b2-20"], mockCoach);
-            expect(results).toHaveLength(1);
-            expect(results[0]?.status).toBe("pending");
-            expect(results[0]?.type).toBe("sparring");
-        } finally {
-            spy.mockRestore();
-            demoAuthSpy.mockRestore();
-        }
-    });
-
     it("B2-21: API listSuspensions với fighterIds [a, b] → một request không có fighterId, kết quả lọc còn a, b; với [a] → request có fighterId=a; mọi request có limit=100", async () => {
         const clientModule = await import("@/lib/api/client");
         const requestedPaths: string[] = [];
@@ -1122,120 +1075,6 @@ describe("T-030 Phần B2: Nền dữ liệu đình chỉ & sẵn sàng", () => 
         expect(inDb?.cancellationReason).toBe("Suspension in force");
     });
 
-    it("B2-26: demo listConflicts của đình chỉ đã xác nhận → []; của đình chỉ bắt đầu ngày mai → []; của đình chỉ đang có hiệu lực → có proposal", async () => {
-        const { listConflicts } = await import("./suspensions.demo");
-        const today = academyDateOf(new Date());
-        const tomorrow = addDaysToDate(today, 1);
-        const fighterId = "f-diego-alvarez";
-
-        // Create test session for tomorrow
-        const testSessionId = "sess-b2-26-sparring";
-        db().trainingSessions = db().trainingSessions.filter((s) => s.id !== testSessionId);
-        db().trainingSessions.push({
-            id: testSessionId,
-            fighterId,
-            coachId: mockCoach.id,
-            planId: null,
-            title: "Tomorrow Sparring",
-            type: "sparring",
-            scheduledAt: `${tomorrow}T10:00:00.000Z`,
-            durationMin: 60,
-            location: "Ring",
-            targetRpe: 8,
-            status: "scheduled",
-            exercises: [],
-            result: null,
-            videoIds: [],
-            cancellationReason: null,
-            notes: null,
-        });
-
-        // 1. Cleared suspension -> []
-        const clearedId = "susp-b2-26-cleared";
-        db().suspensions = (db().suspensions ?? []).filter((s) => s.id !== clearedId);
-        db().suspensions.push({
-            id: clearedId,
-            fighterId,
-            boutId: null,
-            reason: "OTHER",
-            startsOn: addDaysToDate(today, -5),
-            endsOn: addDaysToDate(today, 5),
-            lossOfConsciousness: null,
-            suggestedDays: 10,
-            overrideReason: null,
-            blockedSessionTypes: ["SPARRING"],
-            maxAllowedTier: 4,
-            requiresClearance: false,
-            clearedAt: `${today}T08:00:00.000Z`,
-            clearedById: mockCoach.id,
-            clearanceNote: "Cleared",
-            createdById: mockCoach.id,
-            createdAt: nowIso(),
-            updatedAt: nowIso(),
-            status: "ENDED",
-            gradedReturn: null,
-        });
-        const conflictsCleared = await listConflicts(clearedId, mockCoach);
-        expect(conflictsCleared).toEqual([]);
-
-        // 2. Starts tomorrow (not yet in force today) -> []
-        const futureId = "susp-b2-26-future";
-        db().suspensions = db().suspensions.filter((s) => s.id !== futureId);
-        db().suspensions.push({
-            id: futureId,
-            fighterId,
-            boutId: null,
-            reason: "OTHER",
-            startsOn: tomorrow,
-            endsOn: addDaysToDate(tomorrow, 7),
-            lossOfConsciousness: null,
-            suggestedDays: 7,
-            overrideReason: null,
-            blockedSessionTypes: ["SPARRING"],
-            maxAllowedTier: 4,
-            requiresClearance: false,
-            clearedAt: null,
-            clearedById: null,
-            clearanceNote: null,
-            createdById: mockCoach.id,
-            createdAt: nowIso(),
-            updatedAt: nowIso(),
-            status: "UPCOMING",
-            gradedReturn: null,
-        });
-        const conflictsFuture = await listConflicts(futureId, mockCoach);
-        expect(conflictsFuture).toEqual([]);
-
-        // 3. Active suspension in force today -> has proposal for tomorrow's session
-        const activeId = "susp-b2-26-active";
-        db().suspensions = db().suspensions.filter((s) => s.id !== activeId);
-        db().suspensions.push({
-            id: activeId,
-            fighterId,
-            boutId: null,
-            reason: "OTHER",
-            startsOn: today,
-            endsOn: addDaysToDate(today, 7),
-            lossOfConsciousness: null,
-            suggestedDays: 7,
-            overrideReason: null,
-            blockedSessionTypes: ["SPARRING"],
-            maxAllowedTier: 4,
-            requiresClearance: false,
-            clearedAt: null,
-            clearedById: null,
-            clearanceNote: null,
-            createdById: mockCoach.id,
-            createdAt: nowIso(),
-            updatedAt: nowIso(),
-            status: "ACTIVE",
-            gradedReturn: null,
-        });
-        const conflictsActive = await listConflicts(activeId, mockCoach);
-        expect(conflictsActive.length).toBeGreaterThan(0);
-        expect(conflictsActive.some((p) => p.sessionId === testSessionId)).toBe(true);
-    });
-
     it("B2-27: demo applyConflicts với sessionId không có trong đề xuất → lỗi 422; coach phân công võ sĩ A form gửi fighterId = A nhưng đình chỉ thuộc B → từ chối; đối chứng đình chỉ thuộc A → thành công (cả clear và applyConflicts)", async () => {
         const today = academyDateOf(new Date());
         const fighterA = "f-diego-alvarez";
@@ -1251,13 +1090,9 @@ describe("T-030 Phần B2: Nền dữ liệu đình chỉ & sẵn sàng", () => 
 
         const suspIdA = "susp-b2-27-a";
         const suspIdB = "susp-b2-27-b";
-        const suspApplyIdA = "susp-b2-27-apply-a";
-        const suspApplyIdB = "susp-b2-27-apply-b";
-        const sessIdA = "sess-b2-27-a";
-        const sessIdB = "sess-b2-27-b";
 
         db().suspensions = (db().suspensions ?? []).filter(
-            (s) => ![suspIdA, suspIdB, suspApplyIdA, suspApplyIdB].includes(s.id),
+            (s) => ![suspIdA, suspIdB].includes(s.id),
         );
         db().suspensions.push(
             {
@@ -1304,102 +1139,10 @@ describe("T-030 Phần B2: Nền dữ liệu đình chỉ & sẵn sàng", () => 
                 status: "ACTIVE",
                 gradedReturn: null,
             },
-            {
-                id: suspApplyIdA,
-                fighterId: fighterA,
-                boutId: null,
-                reason: "OTHER",
-                startsOn: today,
-                endsOn: addDaysToDate(today, 5),
-                lossOfConsciousness: null,
-                suggestedDays: 5,
-                overrideReason: null,
-                blockedSessionTypes: ["SPARRING"],
-                maxAllowedTier: 4,
-                requiresClearance: false,
-                clearedAt: null,
-                clearedById: null,
-                clearanceNote: null,
-                createdById: mockCoach.id,
-                createdAt: nowIso(),
-                updatedAt: nowIso(),
-                status: "ACTIVE",
-                gradedReturn: null,
-            },
-            {
-                id: suspApplyIdB,
-                fighterId: fighterB,
-                boutId: null,
-                reason: "OTHER",
-                startsOn: today,
-                endsOn: addDaysToDate(today, 5),
-                lossOfConsciousness: null,
-                suggestedDays: 5,
-                overrideReason: null,
-                blockedSessionTypes: ["SPARRING"],
-                maxAllowedTier: 4,
-                requiresClearance: false,
-                clearedAt: null,
-                clearedById: null,
-                clearanceNote: null,
-                createdById: mockCoach.id,
-                createdAt: nowIso(),
-                updatedAt: nowIso(),
-                status: "ACTIVE",
-                gradedReturn: null,
-            },
         );
-
-        db().trainingSessions = db().trainingSessions.filter((s) => s.id !== sessIdA && s.id !== sessIdB);
-        db().trainingSessions.push(
-            {
-                id: sessIdA,
-                fighterId: fighterA,
-                coachId: mockCoach.id,
-                planId: null,
-                title: "Scheduled Sparring A",
-                type: "sparring",
-                scheduledAt: `${today}T15:00:00.000Z`,
-                durationMin: 60,
-                location: "Ring",
-                targetRpe: 8,
-                status: "scheduled",
-                exercises: [],
-                result: null,
-                videoIds: [],
-                cancellationReason: null,
-                notes: null,
-            },
-            {
-                id: sessIdB,
-                fighterId: fighterB,
-                coachId: mockCoach.id,
-                planId: null,
-                title: "Scheduled Sparring B",
-                type: "sparring",
-                scheduledAt: `${today}T15:00:00.000Z`,
-                durationMin: 60,
-                location: "Ring",
-                targetRpe: 8,
-                status: "scheduled",
-                exercises: [],
-                result: null,
-                videoIds: [],
-                cancellationReason: null,
-                notes: null,
-            },
-        );
-
-        // 1. SessionId not in proposal -> 422
-        await expect(
-            applyConflicts(suspIdA, [sessIdA, "invalid-sess-id"], mockCoach),
-        ).rejects.toMatchObject({
-            status: 422,
-            code: "VALIDATION_ERROR",
-        });
 
         // 2. Clear suspension action:
-        const { clearSuspensionAction, applyConflictsAction } = await import("@/lib/actions/suspensions");
+        const { clearSuspensionAction } = await import("@/lib/actions/suspensions");
         const sessionModule = await import("@/lib/auth/session");
         const userSpy = vitest.spyOn(sessionModule, "getCurrentUser").mockResolvedValue(coachOnlyA);
 
@@ -1422,26 +1165,6 @@ describe("T-030 Phần B2: Nền dữ liệu đình chỉ & sẵn sàng", () => 
 
             const resClearA = await clearSuspensionAction({ status: "idle" }, formClearA);
             expect(resClearA.status).toBe("success");
-
-            // 3. Apply conflicts action:
-            // Form sends fighterId = A, but suspension belongs to B -> rejected
-            const formApplyB = new FormData();
-            formApplyB.append("id", suspApplyIdB);
-            formApplyB.append("fighterId", fighterA);
-            formApplyB.append("sessionIds", sessIdB);
-
-            const resApplyB = await applyConflictsAction({ status: "idle" }, formApplyB);
-            expect(resApplyB.status).toBe("error");
-            expect(resApplyB.message).toBe("Bạn không có quyền thực hiện thao tác này.");
-
-            // Đối chứng: form sends suspension belonging to A -> success
-            const formApplyA = new FormData();
-            formApplyA.append("id", suspApplyIdA);
-            formApplyA.append("fighterId", fighterA);
-            formApplyA.append("sessionIds", sessIdA);
-
-            const resApplyA = await applyConflictsAction({ status: "idle" }, formApplyA);
-            expect(resApplyA.status).toBe("success");
         } finally {
             userSpy.mockRestore();
         }
@@ -1615,29 +1338,6 @@ describe("T-030 Phần B2: Nền dữ liệu đình chỉ & sẵn sàng", () => 
 
         await expect(
             clearSuspension("susp-awaiting-clearance", "Note", mockAdmin),
-        ).rejects.toMatchObject({
-            status: 403,
-            code: "FORBIDDEN",
-        });
-    });
-
-    it("B2-33: demo listConflicts id sai 404 SUSPENSION_NOT_FOUND, unassigned coach 403 FORBIDDEN", async () => {
-        const { listConflicts } = await import("./suspensions.demo");
-        await expect(
-            listConflicts("non-existent-suspension-id", mockCoach),
-        ).rejects.toMatchObject({
-            status: 404,
-            code: "SUSPENSION_NOT_FOUND",
-        });
-
-        const unassignedCoach: User = {
-            ...mockCoach,
-            id: "u-coach-unassigned",
-            profileId: "c-unassigned",
-            assignmentScope: { fighterIds: [] },
-        };
-        await expect(
-            listConflicts("susp-active-ko", unassignedCoach),
         ).rejects.toMatchObject({
             status: 403,
             code: "FORBIDDEN",
@@ -1975,13 +1675,4 @@ describe("T-030 Phần B2: Nền dữ liệu đình chỉ & sẵn sàng", () => 
         }
     });
 
-    it("B2-39: Demo applyConflicts bởi DOCTOR → 403 FORBIDDEN", async () => {
-        const { applyConflicts } = await import("./suspensions.demo");
-        await expect(
-            applyConflicts("susp-active-ko", ["sess-1"], mockDoctorUser),
-        ).rejects.toMatchObject({
-            status: 403,
-            code: "FORBIDDEN",
-        });
-    });
 });

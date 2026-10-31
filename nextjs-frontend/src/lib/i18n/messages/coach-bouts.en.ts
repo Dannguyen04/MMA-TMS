@@ -292,7 +292,6 @@ export const enCoachBouts = {
     /* Suspension actions */
     "suspensions.action.created": "Suspension created successfully.",
     "suspensions.action.cleared": "Suspension cleared successfully.",
-    "suspensions.action.conflictsApplied": "Training conflicts applied successfully.",
     "suspensions.action.unauthorized": "You don't have permission to do this.",
     "suspensions.action.notFound": "Suspension not found.",
     "suspensions.action.adminClearForbidden": "Administrators cannot clear suspensions. Only assigned coaches or doctors can.",
