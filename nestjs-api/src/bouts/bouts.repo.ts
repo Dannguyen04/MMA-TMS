@@ -19,6 +19,8 @@ import { DRIZZLE, type DrizzleDB } from '../database/database.module.js';
 import {
   boutRounds,
   boutAiSuggestions,
+  boutNutritionCheckins,
+  type BoutNutritionCheckinRow,
   trainingSessions,
   boutRequirements,
   bouts,
@@ -45,6 +47,7 @@ import {
   decodeBoutCursor,
   type BoutStatus,
   type WeightMeasurementInput,
+  type NutritionAdherence,
 } from './bouts.model.js';
 import type { SessionType } from '../suspensions/suspensions.model.js';
 
@@ -854,5 +857,56 @@ export class BoutsRepository {
         desc(bouts.createdAt),
         desc(bouts.id),
       );
+  }
+
+  async upsertNutritionCheckin(
+    data: {
+      boutId: string;
+      fighterId: string;
+      academyDate: string;
+      adherence: NutritionAdherence;
+      note: string | null;
+      recordedById: string;
+    },
+    database: DatabaseExecutor = this.db,
+  ): Promise<BoutNutritionCheckinRow> {
+    const [row] = await database
+      .insert(boutNutritionCheckins)
+      .values({
+        boutId: data.boutId,
+        fighterId: data.fighterId,
+        academyDate: data.academyDate,
+        adherence: data.adherence,
+        note: data.note,
+        recordedById: data.recordedById,
+      })
+      .onConflictDoUpdate({
+        target: [boutNutritionCheckins.boutId, boutNutritionCheckins.academyDate],
+        set: {
+          adherence: data.adherence,
+          note: data.note,
+          recordedById: data.recordedById,
+        },
+      })
+      .returning();
+    return row;
+  }
+
+  async findNutritionCheckinsForBout(
+    boutId: string,
+    database: DatabaseExecutor = this.db,
+  ): Promise<Array<{ date: string; adherence: NutritionAdherence }>> {
+    const rows = await database
+      .select({
+        date: boutNutritionCheckins.academyDate,
+        adherence: boutNutritionCheckins.adherence,
+      })
+      .from(boutNutritionCheckins)
+      .where(eq(boutNutritionCheckins.boutId, boutId))
+      .orderBy(asc(boutNutritionCheckins.academyDate));
+    return rows.map((r) => ({
+      date: r.date,
+      adherence: r.adherence,
+    }));
   }
 }

@@ -405,6 +405,119 @@ export function referenceKgAt(
   return last.kg;
 }
 
+
+// ---------------------------------------------------------------------------
+// Nutrition plan and check-in (mirror migration 026)
+// ---------------------------------------------------------------------------
+
+export const NUTRITION_ADHERENCE_VALUES = [
+  'ON_PLAN',
+  'SLIGHTLY_OFF',
+  'WAY_OFF',
+] as const;
+export type NutritionAdherence = (typeof NUTRITION_ADHERENCE_VALUES)[number];
+
+export const NUTRITION_PHASES = ['camp', 'fightWeek', 'postWeighIn'] as const;
+export type NutritionPhase = (typeof NUTRITION_PHASES)[number];
+
+export function currentNutritionPhase(
+  status: BoutStatus,
+): NutritionPhase | null {
+  switch (status) {
+    case 'SCHEDULED':
+    case 'CAMP':
+      return 'camp';
+    case 'FIGHT_WEEK':
+      return 'fightWeek';
+    case 'WEIGHED_IN':
+      return 'postWeighIn';
+    case 'COMPLETED':
+    case 'CANCELLED':
+      return null;
+  }
+}
+
+export const nutritionPlanPhaseInputSchema = z.object({
+  text: z.string().min(1).max(2000),
+  author: z.string().min(1).max(100),
+});
+export type NutritionPlanPhaseInput = z.infer<
+  typeof nutritionPlanPhaseInputSchema
+>;
+
+export const nutritionPlanPhaseEntrySchema = nutritionPlanPhaseInputSchema.extend({
+  updatedAt: isoDateTimeSchema,
+  updatedById: z.uuid(),
+});
+export type NutritionPlanPhaseEntry = z.infer<
+  typeof nutritionPlanPhaseEntrySchema
+>;
+
+export const nutritionPlanSchema = z.object({
+  camp: nutritionPlanPhaseEntrySchema.optional(),
+  fightWeek: nutritionPlanPhaseEntrySchema.optional(),
+  postWeighIn: nutritionPlanPhaseEntrySchema.optional(),
+});
+export type NutritionPlan = z.infer<typeof nutritionPlanSchema>;
+
+export const updateNutritionPlanSchema = z.strictObject({
+  camp: nutritionPlanPhaseInputSchema.optional(),
+  fightWeek: nutritionPlanPhaseInputSchema.optional(),
+  postWeighIn: nutritionPlanPhaseInputSchema.optional(),
+});
+export type UpdateNutritionPlanInput = z.infer<
+  typeof updateNutritionPlanSchema
+>;
+
+export const nutritionPlanResponseSchema = z.object({
+  nutritionPlan: nutritionPlanSchema,
+});
+export type NutritionPlanResponse = z.infer<
+  typeof nutritionPlanResponseSchema
+>;
+
+export const nutritionCheckinBodySchema = z.strictObject({
+  adherence: z.enum(NUTRITION_ADHERENCE_VALUES),
+  note: z.string().max(200).nullable().optional(),
+});
+export type NutritionCheckinInput = z.infer<
+  typeof nutritionCheckinBodySchema
+>;
+
+export const nutritionCheckinParamsSchema = z.strictObject({
+  id: z.uuid(),
+  date: dateOnlySchema.refine(
+    (d) => d <= academyDateOf(new Date()),
+    'Must not be in the future',
+  ),
+});
+export type NutritionCheckinParams = z.infer<
+  typeof nutritionCheckinParamsSchema
+>;
+
+export const nutritionCheckinResponseSchema = z.object({
+  id: z.uuid(),
+  boutId: z.uuid(),
+  fighterId: z.uuid(),
+  academyDate: dateOnlySchema,
+  adherence: z.enum(NUTRITION_ADHERENCE_VALUES),
+  note: z.string().nullable(),
+  recordedById: z.uuid(),
+  createdAt: isoDateTimeSchema,
+  updatedAt: isoDateTimeSchema,
+});
+export type NutritionCheckinResponse = z.infer<
+  typeof nutritionCheckinResponseSchema
+>;
+
+export const weightTrackNutritionPointSchema = z.object({
+  date: dateOnlySchema,
+  adherence: z.enum(NUTRITION_ADHERENCE_VALUES),
+});
+export type WeightTrackNutritionPoint = z.infer<
+  typeof weightTrackNutritionPointSchema
+>;
+
 export interface WeightTrack {
   limitKg: number | null;
   points: WeightPoint[];
@@ -413,6 +526,7 @@ export interface WeightTrack {
   remainingPct: number | null;
   status: WeightTrackStatus;
   referencePath: WeightPoint[];
+  nutrition?: WeightTrackNutritionPoint[];
 }
 
 export function computeWeightTrack(input: {
@@ -1072,7 +1186,9 @@ export const weightTrackResponseSchema = z.object({
   remainingPct: z.number().nullable(),
   status: z.enum(WEIGHT_TRACK_STATUSES),
   referencePath: z.array(weightPointSchema),
+  nutrition: z.array(weightTrackNutritionPointSchema),
 });
+export type WeightTrackResponse = z.infer<typeof weightTrackResponseSchema>;
 
 
 export const acuteLossResponseSchema = z.object({
@@ -1085,6 +1201,8 @@ export const acuteLossResponseSchema = z.object({
 export type AcuteLossResponse = z.infer<typeof acuteLossResponseSchema>;
 
 export const boutDetailResponseSchema = boutSummarySchema.extend({
+  nutritionPlan: nutritionPlanSchema,
+  currentNutritionPhase: z.enum(NUTRITION_PHASES).nullable(),
   opponentAnalysis: z.union([opponentAnalysisSchema, fighterAnalysisSchema]),
   tacticsWithoutSessions: z.array(z.string()),
   sessions: analysisSessionsSchema.optional(),
