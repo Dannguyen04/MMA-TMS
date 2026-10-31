@@ -99,3 +99,49 @@ $ pnpm --filter nestjs-api db:check
 - Ken: sau khi phần A merge, merge `fight-camp` mới vào `feat/T-030-suspension-ui` (mục 6).
 - Phần C: Dan đề nghị đo hình 3D trên điện thoại thật (thẻ võ sĩ, hồ sơ võ sĩ).
 - `feat/ui-foundation`, `feat/ui-p1-p3` (chưa review) và `feat/T-009-nutrition-ui` (chờ T-009 A) gộp sau, không thuộc phần A.
+
+## Cập nhật 31/10: gộp `fight-camp` mới (`86b26ac`), commit `9ffcced`
+
+Sau khi phần A bắt đầu, `fight-camp` nhận thêm T-009 A, T-030 B, T-040 B và T-049. Gộp lại gặp 16 file xung đột. Gốc của xung đột: T-030 B (Ken) dựng lại giao diện đình chỉ trên `fight-camp`, trong khi chuỗi demo có bản riêng. **Chủ dự án chọn T-030 B làm gốc (31/10).**
+
+| Phần | Giữ |
+| --- | --- |
+| Trang Đình chỉ, `loading.tsx`, trang Sẵn sàng, `services/suspensions*`, `mocks/suspensions.ts`, Cổng 2 `throwIfSuspended` | T-030 B |
+| Quy tắc đình chỉ của chuỗi demo (gợi ý khi ghi kết quả, nhập tay, thẻ đình chỉ trên trang trận) | Chuyển sang `lib/domain/bout-suspension-rules.ts` (cùng test của nó). `suspension-rules.ts` là của T-030 B. Hai bên không trùng export nào |
+| `types.ts` | Thêm khối kiểu đình chỉ của T-030 B (`Suspension` của T-030 B ở `types.ts`, của chuỗi demo ở `bout.ts`) |
+| `bouts.demo.ts` | Bản chuỗi demo; `getCoachTodo` thêm việc cần làm về đình chỉ của T-030 B (`buildSuspensionTodoItems`) |
+| `mocks/db.ts`, `mocks/bouts.ts` | Bản `fight-camp` (kho của T-030 B cần `bouts`, `rulesets`, `suspensions`) |
+| `training.demo.ts` | Cả hai cổng: `throwIfSuspended` (kho T-030 B) và `suspensionGate` (kho trận) khi tạo, sửa, bắt đầu buổi |
+| `training-errors.ts` | T-030 B (`training.error.suspensionActiveGeneral`) |
+| Menu Trận | `Sắp tới`, `Đình chỉ`, `Sẵn sàng`; `nav.Readiness` thêm vào cả hai từ điển |
+| `coach-bouts.*`, `en.ts`, `vi.ts`, `status-badges.tsx`, `session-list-item.tsx` | Hợp hai bên; câu `coachTodo.*` giữ của chuỗi demo; `coachBouts.unknownFighter` thêm lại (bị rơi khi gộp) |
+
+**Nối code T-030 B với service trận của chuỗi demo:**
+- `bout-rules.ts`: thêm `calculateSnapshotAcuteLimit`.
+- `services/bouts.ts`: export `weightWarningStatusSchema`.
+- `status-badges.tsx`: `WeightWarningBadge = WeightStatusBadge` (cùng 5 trạng thái).
+- `services/suspensions.ts`: thêm `suspensionBoutNames()`. Demo mode đọc trận ở kho T-030 B, API mode hỏi service trận.
+- `readiness-filter-bar.tsx`: chỉ cần `id`, `name`, `weightClasses` của bộ luật; bỏ hạng không giới hạn.
+- `routes.ts`: `coach.suspensions` chỉ khai báo một lần.
+
+**Test đổi vì gộp (Ken nên xem lại):**
+- `readiness-page.test.ts` B6-8: tab danh sách trận đọc "Sắp tới" (đổi ở T-032), không còn "Trận đấu".
+- `navigation.test.ts`: hub Trận có thêm tab Readiness.
+- `suspensions.test.ts` B2-24: không còn so `feasibility` của bảng Sẵn sàng với `getFeasibility` của `bouts.demo`. Hai kho demo giờ có bộ luật và số cân mẫu khác nhau. Test vẫn kiểm bảng Sẵn sàng có tính khả thi, có số, không phải `NOT_WEIGHED`.
+
+**Còn lệch ở demo mode:** đình chỉ tạo khi ghi kết quả trận nằm ở kho trận, nên không hiện trên trang Đình chỉ của T-030 B. Ngược lại, đình chỉ tạo trên trang Đình chỉ không hiện trên thẻ đình chỉ của trang trận. Cổng 2 thì kiểm cả hai kho. Ở API mode cả hai đọc cùng backend nên không lệch. Việc gộp hai kho demo làm một nên là một ticket riêng.
+
+**Lệnh chạy lại trên `9ffcced`:**
+
+```text
+$ pnpm --filter nextjs-frontend lint
+$ eslint
+$ APP_DATA_MODE=api pnpm --filter nextjs-frontend typecheck
+✓ Types generated successfully
+$ pnpm --filter nextjs-frontend test
+ Test Files  116 passed | 1 skipped (117)
+      Tests  1128 passed | 2 skipped (1130)
+```
+
+- Backend: `git diff origin/fight-camp -- nestjs-api` rỗng, nên kết quả backend giống `fight-camp`.
+- Crawl demo mode, `vi`: 172 trang mỗi khổ (1440 và 390 px), kể cả `/coach/bouts/suspensions` và `/coach/bouts/readiness`. 0 lỗi 5xx, 0 lỗi trang, 0 lỗi console, 0 trang cuộn ngang.
